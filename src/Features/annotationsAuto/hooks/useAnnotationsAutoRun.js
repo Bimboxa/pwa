@@ -48,6 +48,10 @@ export default function useAnnotationsAutoRun() {
 
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const height = useSelector((s) => s.annotationsAuto.height);
+  const profondeur = useSelector((s) => s.annotationsAuto.profondeur);
+  const hauteurRemontees = useSelector(
+    (s) => s.annotationsAuto.hauteurRemontees
+  );
   const activeLayerId = useSelector((s) => s.layers?.activeLayerId);
   const returnTechnique = useSelector(
     (s) => s.annotationsAuto.returnTechnique
@@ -222,6 +226,8 @@ export default function useAnnotationsAutoRun() {
         projectId,
         baseMapId,
         height,
+        profondeur,
+        hauteurRemontees,
         activeLayerId,
         returnTechnique,
         ignoreInteriorWalls,
@@ -232,7 +238,8 @@ export default function useAnnotationsAutoRun() {
 
     // save directly to database
 
-    const { annotations, points, rels, updatedAnnotations } = result;
+    const { annotations, points, rels, updatedAnnotations, annotationPatches } =
+      result;
 
     await db.points.bulkAdd(points.map((p) => ({ ...p })));
     await db.annotations.bulkAdd(annotations.map((a) => ({ ...a })));
@@ -245,6 +252,13 @@ export default function useAnnotationsAutoRun() {
       // Persist preprocessing (e.g. shared-point normalization) by overwriting
       // the touched annotations with their normalized rings/cuts.
       await db.annotations.bulkPut(updatedAnnotations.map((a) => ({ ...a })));
+    }
+    if (annotationPatches?.length > 0) {
+      // Partial field updates (e.g. offsetZ) on existing annotations, without
+      // touching their points refs — avoids re-persisting resolved pixel coords.
+      for (const { id, changes } of annotationPatches) {
+        await db.annotations.update(id, changes);
+      }
     }
 
     dispatch(triggerAnnotationsUpdate());
