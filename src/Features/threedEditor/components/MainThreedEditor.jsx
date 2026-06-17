@@ -50,6 +50,7 @@ import PopperEditAnnotation from "Features/mapEditor/components/PopperEditAnnota
 import IconButtonThreedProperties from "./IconButtonThreedProperties";
 import ToggleEditorModeThreed from "./ToggleEditorModeThreed";
 import PanelBaseMapPosition3D from "./PanelBaseMapPosition3D";
+import PanelClippingPlane3D from "./PanelClippingPlane3D";
 import BottomToolbarThreed from "Features/threedDrawing/components/BottomToolbarThreed";
 import DrawingOverlayThreed from "Features/threedDrawing/components/DrawingOverlayThreed";
 import MoveGizmoThreed from "Features/threedDrawing/components/MoveGizmoThreed";
@@ -102,6 +103,12 @@ export default function MainThreedEditor() {
   const selectedViewerKey = useSelector((s) => s.viewers.selectedViewerKey);
   const isThreedViewer = selectedViewerKey === "THREED";
   const showGrid = useSelector((s) => s.threedEditor.showGrid);
+  const clippingEnabled = useSelector(
+    (s) => s.threedEditor.clippingPlane.enabled
+  );
+  const clippingEditing = useSelector(
+    (s) => s.threedEditor.clippingPlane.editing
+  );
   // Mirror editorMode into a ref so pointer handlers can read the current
   // value without depending on state — re-creating the handlers would
   // invalidate the registered listeners and break drag tracking mid-stream.
@@ -188,6 +195,25 @@ export default function MainThreedEditor() {
     grid.visible = showGrid;
     editor.renderScene();
   }, [showGrid, rendererIsReady]);
+
+  // Sync clipping plane enabled → ClippingManager (create on first enable).
+  useEffect(() => {
+    const editor = threedEditorRef.current;
+    if (!editor || !rendererIsReady) return;
+    const clippingManager = editor.sceneManager?.clippingManager;
+    if (!clippingManager) return;
+    if (clippingEnabled) clippingManager.ensureCreated();
+    clippingManager.setEnabled(clippingEnabled);
+  }, [clippingEnabled, rendererIsReady]);
+
+  // Sync clipping plane editing → gizmo visibility.
+  useEffect(() => {
+    const editor = threedEditorRef.current;
+    if (!editor || !rendererIsReady) return;
+    const clippingManager = editor.sceneManager?.clippingManager;
+    if (!clippingManager) return;
+    clippingManager.setEditing(clippingEditing);
+  }, [clippingEditing, rendererIsReady]);
 
   // helpers
 
@@ -1154,6 +1180,7 @@ export default function MainThreedEditor() {
       {isThreedViewer && editorMode === "BASEMAP_POSITION" && (
         <PanelBaseMapPosition3D />
       )}
+      {isThreedViewer && clippingEditing && <PanelClippingPlane3D />}
       {isThreedViewer && <BottomToolbarThreed />}
       {isThreedViewer && <DrawingOverlayThreed />}
       {isThreedViewer && <MoveGizmoThreed />}

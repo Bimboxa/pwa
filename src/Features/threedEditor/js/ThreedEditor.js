@@ -42,6 +42,7 @@ export default class ThreedEditor {
       }
       this.sceneManager.imagesManager.deleteAllImagesObjects();
       this.sceneManager.imagesManager.createImagesObjects(images, maps);
+      this.sceneManager.clippingManager?.reapply();
       this.renderScene();
     } catch (e) {
       console.log("Error", e);
@@ -60,6 +61,7 @@ export default class ThreedEditor {
       if (!image?.url) return;
       if (typeof options.opacity === "number") image.opacity = options.opacity;
       imagesManager.addImageObject(image, baseMap);
+      this.sceneManager.clippingManager?.reapply();
       this.renderScene();
     } catch (e) {
       console.log("Error", e);
@@ -127,6 +129,7 @@ export default class ThreedEditor {
         annotations,
         options
       );
+      this.sceneManager.clippingManager?.reapply();
       this.renderScene();
     } catch (e) {
       console.log("Error", e);

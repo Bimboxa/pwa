@@ -79,6 +79,13 @@ const threedEditorInitialState = {
     // Shape: { annotationId, kind: 'VERTEX'|'EDGE', pointIds, vertexIndex }
     subSelectionTarget: null,
   },
+  // Single clipping plane (session-only). `enabled` = plane applied to the
+  // annotation/basemap materials; `editing` = panel + draggable gizmo shown.
+  // The plane geometry itself lives in ClippingManager (three.js side).
+  clippingPlane: {
+    enabled: false,
+    editing: false,
+  },
   // Sub-selection inside the currently-selected annotation (vertex or edge).
   // Populated when the user clicks a vertex / edge of an already-selected
   // annotation. Cleared when the user clicks elsewhere on the same face or
@@ -239,6 +246,20 @@ export const threedEditorSlice = createSlice({
     setDrawingAxisLock: (state, action) => {
       state.drawingMode.axisLock = action.payload;
     },
+    setClippingPlaneEnabled: (state, action) => {
+      state.clippingPlane.enabled = action.payload;
+      if (!action.payload) state.clippingPlane.editing = false;
+    },
+    setClippingPlaneEditing: (state, action) => {
+      state.clippingPlane.editing = action.payload;
+      // Opening the editor implicitly creates/enables the plane.
+      if (action.payload) state.clippingPlane.enabled = true;
+    },
+    toggleClippingPlaneEditing: (state) => {
+      const next = !state.clippingPlane.editing;
+      state.clippingPlane.editing = next;
+      if (next) state.clippingPlane.enabled = true;
+    },
   },
 });
 
@@ -266,6 +287,9 @@ export const {
   setMoveSubSelectionTarget,
   setSubSelection,
   clearSubSelection,
+  setClippingPlaneEnabled,
+  setClippingPlaneEditing,
+  toggleClippingPlaneEditing,
 } = threedEditorSlice.actions;
 
 export default threedEditorSlice.reducer;
