@@ -6,10 +6,12 @@ import {
   setMoveModeActive,
   setMoveSelectedAnnotationId,
   setMoveSubSelectionTarget,
+  toggleClippingPlaneEditing,
 } from "Features/threedEditor/threedEditorSlice";
 
-import { Box, Button, Paper, Stack } from "@mui/material";
+import { Box, Button, Divider, Paper, Stack, Tooltip } from "@mui/material";
 import OpenWithIcon from "@mui/icons-material/OpenWith";
+import ContentCutIcon from "@mui/icons-material/ContentCut";
 
 import ButtonDrawThreed from "./ButtonDrawThreed";
 
@@ -23,6 +25,9 @@ export default function BottomToolbarThreed() {
   const dispatch = useDispatch();
 
   const moveActive = useSelector((s) => s.threedEditor.moveMode.active);
+  const clippingEditing = useSelector(
+    (s) => s.threedEditor.clippingPlane.editing
+  );
   const subSelection = useSelector((s) => s.threedEditor.subSelection);
   const annotationSelectionId = useSelector((s) => {
     const items = s.selection.selectedItems || [];
@@ -110,6 +115,19 @@ export default function BottomToolbarThreed() {
         ) : (
           <ButtonDrawThreed />
         )}
+        <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+        <Tooltip title="Plan de coupe">
+          <Button
+            size="small"
+            variant={clippingEditing ? "contained" : "outlined"}
+            color={clippingEditing ? "secondary" : "inherit"}
+            startIcon={<ContentCutIcon sx={{ fontSize: 18 }} />}
+            onClick={() => dispatch(toggleClippingPlaneEditing())}
+            sx={{ textTransform: "none", borderRadius: "8px" }}
+          >
+            Coupe
+          </Button>
+        </Tooltip>
       </Stack>
     </Paper>
   );

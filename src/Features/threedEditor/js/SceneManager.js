@@ -12,6 +12,7 @@ import ControlsManager from "./ControlsManager";
 import ImagesManager from "./ImagesManager";
 import AnnotationsManager from "./AnnotationsManager";
 import TransformControlsManager from "./TransformControlsManager";
+import ClippingManager from "./ClippingManager";
 
 export default class SceneManager {
   constructor({ containerEl, onRendererIsReady }) {
@@ -37,6 +38,7 @@ export default class SceneManager {
     this.transformControlsManager = new TransformControlsManager({
       sceneManager: this,
     });
+    this.clippingManager = new ClippingManager({ sceneManager: this });
 
     window.addEventListener("resize", this.resizeScene);
   }
@@ -53,6 +55,8 @@ export default class SceneManager {
     // Init the transform controls eagerly so the editor mode panel can attach
     // them on first toggle without waiting for a lazy init.
     this.transformControlsManager.init();
+    // Camera + renderer exist now; the clipping gizmo can be wired.
+    this.clippingManager.init();
   };
 
   resizeScene = () => {
@@ -76,6 +80,9 @@ export default class SceneManager {
     const height = this.containerEl.clientHeight;
     this.renderer.setSize(width, height);
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    // Enable per-material clipping planes (used by ClippingManager). Local
+    // clipping leaves the gizmo + helper untouched, unlike global clipping.
+    this.renderer.localClippingEnabled = true;
     this.containerEl.appendChild(this.renderer.domElement);
     this.onRendererIsReady();
   };
