@@ -40,7 +40,8 @@ export default function buildExtrudedProfileMesh(
   verticalLift = 0,
   hiddenSegmentsIdx = [],
   extrusionOrientation = 1,
-  closeLine = false
+  closeLine = false,
+  onResolved
 ) {
   if (!guidePointsLocal || guidePointsLocal.length < 2) return null;
   if (!profileTemplateId) return null;
@@ -72,6 +73,10 @@ export default function buildExtrudedProfileMesh(
       closeLine,
     });
     if (swept) placeholder.add(swept);
+    // Notify the caller that the swept meshes now exist (built asynchronously),
+    // so post-creation passes can reach them (e.g. clipping planes are applied
+    // to all annotation meshes only when an annotation is reported ready).
+    onResolved?.();
   }
 
   // Use Dexie's liveQuery so the mesh re-resolves whenever profile annotations
