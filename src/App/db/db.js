@@ -103,6 +103,15 @@ db.version(22).stores({
     "id, projectId, parentAnnotationId, meshCellAnnotationId",
 });
 
+db.version(23).stores({
+  // {id, projectId, scopeId, a:{x,y,z}, b:{x,y,z}, length}
+  // 3D dimension ("cote"): a measured distance between two world-space points
+  // snapped to mesh vertices/edges in the 3D viewer. Endpoints are stored in
+  // three.js world coordinates; `length` is cached in meters. Scoped per
+  // project + scope. Soft-deleted via middleware.
+  dimensions3d: "id,projectId,scopeId,[projectId+scopeId]",
+});
+
 // --- AUDIT HOOKS ---
 
 const AUDIT_TABLES = [
@@ -134,6 +143,7 @@ const AUDIT_TABLES = [
   "layers",
   "relAnnotationSubtractions",
   "relAnnotationMeshCells",
+  "dimensions3d",
 ];
 
 AUDIT_TABLES.forEach((tableName) => {
@@ -213,6 +223,7 @@ const SOFT_DELETE_TABLES = new Set([
   "layers",
   "relAnnotationSubtractions",
   "relAnnotationMeshCells",
+  "dimensions3d",
 ]);
 
 let _skipSoftDelete = false;

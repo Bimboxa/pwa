@@ -59,6 +59,11 @@ import {
   clearSubSelection,
   setSubSelection,
 } from "Features/threedEditor/threedEditorSlice";
+import DimensionDraftOverlayThreed from "Features/threedDimensions/components/DimensionDraftOverlayThreed";
+import ThreedDimensions from "Features/threedDimensions/components/ThreedDimensions";
+import PopperEditDimension from "Features/threedDimensions/components/PopperEditDimension";
+import useDimensionPointerHandlers from "Features/threedDimensions/hooks/useDimensionPointerHandlers";
+import { getDimensionObjects } from "Features/threedDimensions/services/dimensionObjectsStore";
 
 export default function MainThreedEditor() {
   // ref
@@ -121,9 +126,7 @@ export default function MainThreedEditor() {
   // Mirror drawingMode.active into a ref so the existing pointer handlers can
   // short-circuit without re-creating their callbacks (which would reset the
   // drag tracking mid-stream).
-  const drawingActive = useSelector(
-    (s) => s.threedEditor.drawingMode.active,
-  );
+  const drawingActive = useSelector((s) => s.threedEditor.drawingMode.active);
   const drawingActiveRef = useRef(drawingActive);
   useEffect(() => {
     drawingActiveRef.current = drawingActive;
@@ -136,17 +139,29 @@ export default function MainThreedEditor() {
     moveActiveRef.current = moveActive;
   }, [moveActive]);
 
+  // Same pattern for the dimension ("cote") tool — useDimensionPointerHandlers
+  // owns the pointer while active, so the selection click path short-circuits.
+  const dimensionActive = useSelector(
+    (s) => s.threedEditor.dimensionMode.active
+  );
+  const dimensionActiveRef = useRef(dimensionActive);
+  useEffect(() => {
+    dimensionActiveRef.current = dimensionActive;
+  }, [dimensionActive]);
+
   // Sub-selection (vertex / edge inside the selected annotation). Sourced
   // from threedEditorSlice. We subscribe via useSelector with a primitive
   // key so React only re-renders when the meaningful identity changes.
   const subSelectionKey = useSelector((s) => {
     const sub = s.threedEditor.subSelection;
     if (!sub?.annotationId || !sub?.kind) return null;
-    if (sub.kind === "VERTEX") return `${sub.annotationId}|V|${sub.vertexIndex}`;
+    if (sub.kind === "VERTEX")
+      return `${sub.annotationId}|V|${sub.vertexIndex}`;
     return `${sub.annotationId}|E|${sub.vertexIndex}-${sub.vertexIndexB}`;
   });
 
   useDrawingPointerHandlers();
+  useDimensionPointerHandlers();
 
   // Helper: derive the right material state for a given annotation id, based
   // on the current selection in the store and whether the cursor is currently
@@ -279,12 +294,15 @@ export default function MainThreedEditor() {
   // Click handler for raycasting
   const handleClick = useCallback(
     (event) => {
-      if (!threedEditorRef.current || !rendererIsReady || !isThreedViewer) return;
+      if (!threedEditorRef.current || !rendererIsReady || !isThreedViewer)
+        return;
       // In BASEMAP_POSITION mode the pointer is reserved for the transform
       // gizmo and the camera — annotation selection is intentionally disabled.
       if (editorModeRef.current === "BASEMAP_POSITION") return;
       // Drawing mode owns the pointer; useDrawingPointerHandlers handles clicks.
       if (drawingActiveRef.current) return;
+      // Dimension mode owns the pointer; useDimensionPointerHandlers handles it.
+      if (dimensionActiveRef.current) return;
 
       const threedEditor = threedEditorRef.current;
       const sceneManager = threedEditor.sceneManager;
@@ -298,7 +316,7 @@ export default function MainThreedEditor() {
       // This prevents clicks on portals (like PopperEditAnnotation) from triggering the raycaster
       const rendererElement = renderer.domElement;
       const clickTarget = event.target;
-      
+
       // If the click is not on the renderer element or its children, ignore it
       // This handles cases where the click is on a portal (like MUI Popper)
       if (!rendererElement.contains(clickTarget)) {
@@ -307,10 +325,42 @@ export default function MainThreedEditor() {
 
       // Get bounding rect for mouse coordinate calculation
       const rect = rendererElement.getBoundingClientRect();
-      
+
       // Basic sanity check - if element has zero dimensions, skip
       if (rect.width === 0 || rect.height === 0) {
         return;
+      }
+
+      // Dimension ("cote") sprite hit-test — runs before the annotation
+      // raycast (which filters `.isMesh` and so never sees the label sprites).
+      // A cote sprite carries `userData.coteId`; selecting it makes it a
+      // DIMENSION node in selectionSlice so PopperEditDimension shows up.
+      const dimensionObjects = getDimensionObjects();
+      if (dimensionObjects.length > 0) {
+        mouseRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        mouseRef.current.y =
+          -((event.clientY - rect.top) / rect.height) * 2 + 1;
+        raycasterRef.current.setFromCamera(mouseRef.current, camera);
+        const coteHits = raycasterRef.current.intersectObjects(
+          dimensionObjects,
+          false
+        );
+        const coteId = coteHits[0]?.object?.userData?.coteId;
+        if (coteId) {
+          const position = { x: event.clientX, y: event.clientY };
+          dispatch(
+            setSelectedItem({
+              id: coteId,
+              nodeId: coteId,
+              type: "NODE",
+              nodeType: "DIMENSION",
+            })
+          );
+          dispatch(setSelectedNode(null));
+          dispatch(clearSubSelection());
+          dispatch(setAnnotationToolbarPosition(position));
+          return;
+        }
       }
 
       // Sub-element click on the currently-selected annotation: vertex/edge
@@ -446,31 +496,35 @@ export default function MainThreedEditor() {
   // Helper to check if an event target is within a MUI Popper or portal
   const isWithinPopper = useCallback((event) => {
     if (!event || !event.target) return false;
-    
+
     // Use composedPath to get all elements in the event path (including portals)
     const path = event.composedPath ? event.composedPath() : [];
-    
+
     // Check all elements in the path
     for (const element of path) {
-      if (!element || typeof element.classList === 'undefined') continue;
-      
+      if (!element || typeof element.classList === "undefined") continue;
+
       // Check for MUI Popper classes
       const classList = element.classList;
       if (classList) {
         for (const className of classList) {
-          if (className.includes("MuiPopper") || 
-              className.includes("MuiPaper") ||
-              className.includes("MuiBox")) {
+          if (
+            className.includes("MuiPopper") ||
+            className.includes("MuiPaper") ||
+            className.includes("MuiBox")
+          ) {
             // Additional check: make sure it's actually a popper, not just any MUI component
-            if (className.includes("MuiPopper") || 
-                element.closest?.(".MuiPopper-root")) {
+            if (
+              className.includes("MuiPopper") ||
+              element.closest?.(".MuiPopper-root")
+            ) {
               return true;
             }
           }
         }
       }
     }
-    
+
     // Fallback: check the target and its parents
     let current = event.target;
     while (current && current !== document.body) {
@@ -487,7 +541,7 @@ export default function MainThreedEditor() {
       }
       current = current.parentElement;
     }
-    
+
     return false;
   }, []);
 
@@ -496,18 +550,21 @@ export default function MainThreedEditor() {
   // Compute the screen-space (client) center of an annotation 3D object.
   // Returns null if the object has no renderable geometry (e.g. an OBJECT_3D
   // placeholder whose GLB hasn't loaded yet).
-  const projectAnnotationToClient = useCallback((object3D, camera, canvasRect) => {
-    const box = new Box3();
-    box.makeEmpty();
-    box.setFromObject(object3D);
-    if (box.isEmpty() || !isFinite(box.min.x)) return null;
-    const center = new Vector3();
-    box.getCenter(center);
-    center.project(camera); // → NDC space [-1, 1]
-    const sx = canvasRect.left + (center.x * 0.5 + 0.5) * canvasRect.width;
-    const sy = canvasRect.top + (-center.y * 0.5 + 0.5) * canvasRect.height;
-    return { x: sx, y: sy };
-  }, []);
+  const projectAnnotationToClient = useCallback(
+    (object3D, camera, canvasRect) => {
+      const box = new Box3();
+      box.makeEmpty();
+      box.setFromObject(object3D);
+      if (box.isEmpty() || !isFinite(box.min.x)) return null;
+      const center = new Vector3();
+      box.getCenter(center);
+      center.project(camera); // → NDC space [-1, 1]
+      const sx = canvasRect.left + (center.x * 0.5 + 0.5) * canvasRect.width;
+      const sy = canvasRect.top + (-center.y * 0.5 + 0.5) * canvasRect.height;
+      return { x: sx, y: sy };
+    },
+    []
+  );
 
   // Imperatively diff the set of annotations whose center is inside the
   // current lasso rect against the previously-shown set, and toggle their
@@ -571,7 +628,8 @@ export default function MainThreedEditor() {
     const rect = lassoRectRef.current;
 
     // Always re-enable orbit controls and clear visual state.
-    const controls = threedEditorRef.current?.sceneManager?.controlsManager?.orbitControls;
+    const controls =
+      threedEditorRef.current?.sceneManager?.controlsManager?.orbitControls;
     if (controls) controls.enabled = orbitWasEnabledRef.current;
     lassoStartRef.current = null;
     lassoRectRef.current = null;
@@ -622,7 +680,8 @@ export default function MainThreedEditor() {
         point.y >= rect.y &&
         point.y <= rect.y + rect.height;
       if (!inside) return;
-      const { nodeId, nodeType, annotationType, listingId } = object.userData || {};
+      const { nodeId, nodeType, annotationType, listingId } =
+        object.userData || {};
       if (!nodeId) return;
       newItems.push({
         id: nodeId,
@@ -648,81 +707,94 @@ export default function MainThreedEditor() {
   }, [dispatch, projectAnnotationToClient, getStateForId]);
 
   // Handle pointer down to detect drags
-  const handlePointerDown = useCallback((event) => {
-    // Don't start drag tracking if clicking on popper
-    if (isWithinPopper(event)) {
-      return;
-    }
-    // Drawing mode owns the pointer.
-    if (drawingActiveRef.current) {
-      return;
-    }
-    isDraggingRef.current = false;
-    dragStartRef.current = { x: event.clientX, y: event.clientY };
+  const handlePointerDown = useCallback(
+    (event) => {
+      // Don't start drag tracking if clicking on popper
+      if (isWithinPopper(event)) {
+        return;
+      }
+      // Drawing mode owns the pointer.
+      if (drawingActiveRef.current) {
+        return;
+      }
+      isDraggingRef.current = false;
+      dragStartRef.current = { x: event.clientX, y: event.clientY };
 
-    // Shift+left button starts a lasso. Disable OrbitControls during the drag
-    // so the camera doesn't rotate, and remember its previous state so we can
-    // restore it on release.
-    // Only in SELECTION mode — in NAVIGATION mode shift+drag falls through
-    // to OrbitControls (camera pan/orbit).
-    if (
-      event.shiftKey &&
-      event.button === 0 &&
-      editorModeRef.current === "SELECTION"
-    ) {
-      lassoStartRef.current = { x: event.clientX, y: event.clientY };
-      lassoRectRef.current = { x: event.clientX, y: event.clientY, width: 0, height: 0 };
-      lassoOverlayRef.current?.setRect(lassoRectRef.current);
-      const controls = threedEditorRef.current?.sceneManager?.controlsManager?.orbitControls;
-      if (controls) {
-        orbitWasEnabledRef.current = controls.enabled;
-        controls.enabled = false;
+      // Shift+left button starts a lasso. Disable OrbitControls during the drag
+      // so the camera doesn't rotate, and remember its previous state so we can
+      // restore it on release.
+      // Only in SELECTION mode — in NAVIGATION mode shift+drag falls through
+      // to OrbitControls (camera pan/orbit).
+      if (
+        event.shiftKey &&
+        event.button === 0 &&
+        editorModeRef.current === "SELECTION"
+      ) {
+        lassoStartRef.current = { x: event.clientX, y: event.clientY };
+        lassoRectRef.current = {
+          x: event.clientX,
+          y: event.clientY,
+          width: 0,
+          height: 0,
+        };
+        lassoOverlayRef.current?.setRect(lassoRectRef.current);
+        const controls =
+          threedEditorRef.current?.sceneManager?.controlsManager?.orbitControls;
+        if (controls) {
+          orbitWasEnabledRef.current = controls.enabled;
+          controls.enabled = false;
+        }
+        // Drop any pre-existing hover state so it doesn't stay stuck green
+        // while the lasso preview is in charge.
+        if (prevHoveredObjectRef.current) {
+          const prevId = prevHoveredObjectRef.current.userData?.nodeId;
+          applyAnnotationMaterialState(
+            prevHoveredObjectRef.current,
+            getStateForId(prevId, false)
+          );
+          prevHoveredObjectRef.current = null;
+        }
+        lastHoveredIdRef.current = null;
+        tooltipApiRef.current?.clear();
       }
-      // Drop any pre-existing hover state so it doesn't stay stuck green
-      // while the lasso preview is in charge.
-      if (prevHoveredObjectRef.current) {
-        const prevId = prevHoveredObjectRef.current.userData?.nodeId;
-        applyAnnotationMaterialState(
-          prevHoveredObjectRef.current,
-          getStateForId(prevId, false)
-        );
-        prevHoveredObjectRef.current = null;
-      }
-      lastHoveredIdRef.current = null;
-      tooltipApiRef.current?.clear();
-    }
-  }, [isWithinPopper, getStateForId]);
+    },
+    [isWithinPopper, getStateForId]
+  );
 
   // Handle pointer move to detect if user is dragging
-  const handlePointerMove = useCallback((event) => {
-    // Don't track drag if pointer is over popper
-    if (isWithinPopper(event)) {
-      return;
-    }
-    if (dragStartRef.current.x !== 0 || dragStartRef.current.y !== 0) {
-      const dx = Math.abs(event.clientX - dragStartRef.current.x);
-      const dy = Math.abs(event.clientY - dragStartRef.current.y);
-      if (dx > 5 || dy > 5) {
-        isDraggingRef.current = true;
+  const handlePointerMove = useCallback(
+    (event) => {
+      // Don't track drag if pointer is over popper
+      if (isWithinPopper(event)) {
+        return;
       }
-    }
-    // Update lasso rectangle during shift+drag.
-    if (lassoStartRef.current) {
-      const startX = lassoStartRef.current.x;
-      const startY = lassoStartRef.current.y;
-      const x = Math.min(startX, event.clientX);
-      const y = Math.min(startY, event.clientY);
-      const width = Math.abs(event.clientX - startX);
-      const height = Math.abs(event.clientY - startY);
-      lassoRectRef.current = { x, y, width, height };
-      lassoOverlayRef.current?.setRect(lassoRectRef.current);
-      // Coalesce live-preview passes into a single rAF tick so we don't
-      // re-project every annotation on every pixel of pointermove.
-      if (lassoPreviewRafRef.current == null) {
-        lassoPreviewRafRef.current = requestAnimationFrame(runLassoLivePreview);
+      if (dragStartRef.current.x !== 0 || dragStartRef.current.y !== 0) {
+        const dx = Math.abs(event.clientX - dragStartRef.current.x);
+        const dy = Math.abs(event.clientY - dragStartRef.current.y);
+        if (dx > 5 || dy > 5) {
+          isDraggingRef.current = true;
+        }
       }
-    }
-  }, [isWithinPopper, runLassoLivePreview]);
+      // Update lasso rectangle during shift+drag.
+      if (lassoStartRef.current) {
+        const startX = lassoStartRef.current.x;
+        const startY = lassoStartRef.current.y;
+        const x = Math.min(startX, event.clientX);
+        const y = Math.min(startY, event.clientY);
+        const width = Math.abs(event.clientX - startX);
+        const height = Math.abs(event.clientY - startY);
+        lassoRectRef.current = { x, y, width, height };
+        lassoOverlayRef.current?.setRect(lassoRectRef.current);
+        // Coalesce live-preview passes into a single rAF tick so we don't
+        // re-project every annotation on every pixel of pointermove.
+        if (lassoPreviewRafRef.current == null) {
+          lassoPreviewRafRef.current =
+            requestAnimationFrame(runLassoLivePreview);
+        }
+      }
+    },
+    [isWithinPopper, runLassoLivePreview]
+  );
 
   // Hover raycast — runs inside requestAnimationFrame to coalesce moves.
   // Important: we MUST NOT trigger a React state change on MainThreedEditor
@@ -793,8 +865,8 @@ export default function MainThreedEditor() {
         const nextKey = vertexHit
           ? `V:${vertexHit.index}`
           : edgeHit
-          ? `E:${edgeHit.indexA}-${edgeHit.indexB}`
-          : null;
+            ? `E:${edgeHit.indexA}-${edgeHit.indexB}`
+            : null;
         if (nextKey !== subHoverKeyRef.current) {
           if (subHoverHelperRef.current) {
             disposeSubSelectionHelper(subHoverHelperRef.current);
@@ -945,7 +1017,8 @@ export default function MainThreedEditor() {
     // Cancel any in-flight lasso so the rectangle doesn't stay stuck on
     // screen and OrbitControls is restored.
     if (lassoStartRef.current) {
-      const controls = threedEditorRef.current?.sceneManager?.controlsManager?.orbitControls;
+      const controls =
+        threedEditorRef.current?.sceneManager?.controlsManager?.orbitControls;
       if (controls) controls.enabled = orbitWasEnabledRef.current;
       lassoStartRef.current = null;
       lassoRectRef.current = null;
@@ -996,7 +1069,6 @@ export default function MainThreedEditor() {
       }
 
       if (!isDraggingRef.current) {
-
         // Check if the click target is within the renderer's DOM element
         // This prevents clicks on portals (like PopperEditAnnotation) from triggering the raycaster
         if (!threedEditorRef.current) {
@@ -1184,6 +1256,9 @@ export default function MainThreedEditor() {
       {isThreedViewer && <BottomToolbarThreed />}
       {isThreedViewer && <DrawingOverlayThreed />}
       {isThreedViewer && <MoveGizmoThreed />}
+      {isThreedViewer && rendererIsReady && <ThreedDimensions />}
+      {isThreedViewer && <DimensionDraftOverlayThreed />}
+      {isThreedViewer && <PopperEditDimension viewerKey="THREED" />}
     </Box>
   );
 }

@@ -14,6 +14,7 @@ import OpenWithIcon from "@mui/icons-material/OpenWith";
 import ContentCutIcon from "@mui/icons-material/ContentCut";
 
 import ButtonDrawThreed from "./ButtonDrawThreed";
+import ButtonDimensionThreed from "Features/threedDimensions/components/ButtonDimensionThreed";
 
 // Floating bottom toolbar for the main 3D viewer. Three states:
 //   - Move mode active → hidden (MoveGizmoThreed owns the bottom UI).
@@ -52,10 +53,7 @@ export default function BottomToolbarThreed() {
   const hasSelection = hasSubSelection || hasAnnotationSelection;
 
   const annotationName =
-    annotation?.name ||
-    annotation?.title ||
-    annotation?.type ||
-    "Annotation";
+    annotation?.name || annotation?.title || annotation?.type || "Annotation";
 
   const label = hasSubSelection
     ? subSelection.kind === "VERTEX"
@@ -113,7 +111,10 @@ export default function BottomToolbarThreed() {
             </Button>
           </>
         ) : (
-          <ButtonDrawThreed />
+          <>
+            <ButtonDrawThreed />
+            <ButtonDimensionThreed />
+          </>
         )}
         <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
         <Tooltip title="Plan de coupe">

@@ -86,6 +86,14 @@ const threedEditorInitialState = {
     enabled: false,
     editing: false,
   },
+  // Dimension ("cote") tool: click two mesh-snapped points to create a 3D
+  // distance measurement. Mutually exclusive with `drawingMode.active` and
+  // `moveMode.active`.
+  dimensionMode: {
+    active: false,
+    // First clicked endpoint, world space, while the second is pending.
+    startPoint: null, // {x, y, z} | null
+  },
   // Sub-selection inside the currently-selected annotation (vertex or edge).
   // Populated when the user clicks a vertex / edge of an already-selected
   // annotation. Cleared when the user clicks elsewhere on the same face or
@@ -154,10 +162,12 @@ export const threedEditorSlice = createSlice({
         state.drawingMode.axisLock = null;
         state.drawingMode.snapIndexEpoch = 0;
       } else {
-        // Mutually exclusive with move mode.
+        // Mutually exclusive with move mode and dimension mode.
         state.moveMode.active = false;
         state.moveMode.selectedAnnotationId = null;
         state.moveMode.deltaZ = 0;
+        state.dimensionMode.active = false;
+        state.dimensionMode.startPoint = null;
       }
     },
     bumpSnapIndexEpoch: (state) => {
@@ -170,11 +180,13 @@ export const threedEditorSlice = createSlice({
         state.moveMode.deltaZ = 0;
         state.moveMode.subSelectionTarget = null;
       } else {
-        // Mutually exclusive with drawing mode.
+        // Mutually exclusive with drawing mode and dimension mode.
         state.drawingMode.active = false;
         state.drawingMode.inProgressPolyline = [];
         state.drawingMode.trait3DSegments = [];
         state.drawingMode.axisLock = null;
+        state.dimensionMode.active = false;
+        state.dimensionMode.startPoint = null;
       }
     },
     setMoveSelectedAnnotationId: (state, action) => {
@@ -260,6 +272,27 @@ export const threedEditorSlice = createSlice({
       state.clippingPlane.editing = next;
       if (next) state.clippingPlane.enabled = true;
     },
+    setDimensionModeActive: (state, action) => {
+      state.dimensionMode.active = action.payload;
+      if (!action.payload) {
+        state.dimensionMode.startPoint = null;
+      } else {
+        // Mutually exclusive with drawing mode and move mode.
+        state.drawingMode.active = false;
+        state.drawingMode.inProgressPolyline = [];
+        state.drawingMode.trait3DSegments = [];
+        state.drawingMode.axisLock = null;
+        state.moveMode.active = false;
+        state.moveMode.selectedAnnotationId = null;
+        state.moveMode.deltaZ = 0;
+      }
+    },
+    setDimensionStartPoint: (state, action) => {
+      state.dimensionMode.startPoint = action.payload;
+    },
+    clearDimensionDraft: (state) => {
+      state.dimensionMode.startPoint = null;
+    },
   },
 });
 
@@ -290,6 +323,9 @@ export const {
   setClippingPlaneEnabled,
   setClippingPlaneEditing,
   toggleClippingPlaneEditing,
+  setDimensionModeActive,
+  setDimensionStartPoint,
+  clearDimensionDraft,
 } = threedEditorSlice.actions;
 
 export default threedEditorSlice.reducer;
