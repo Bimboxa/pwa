@@ -7,6 +7,7 @@ import { updateUserProfile } from "../authSlice";
 
 import useAutoAuth from "./useAutoAuth";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
+import resolveUrl from "Features/appConfig/utils/resolveUrl";
 
 import getDebugAuthFromLocalStorage from "../services/getDebugAuthFromLocalStorage";
 
@@ -18,7 +19,8 @@ export default function useInitAutoAuth() {
     const autoAuth = useAutoAuth();
     const appConfig = useAppConfig();
 
-    const url = appConfig?.auth?.autoAuth?.url;
+    const urlConfig = appConfig?.auth?.autoAuth?.url;
+    const url = resolveUrl(urlConfig);
     const authDataMapping = appConfig?.auth?.autoAuth?.dataMapping;
 
 
