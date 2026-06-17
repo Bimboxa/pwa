@@ -27,6 +27,7 @@ import {
   GridOn,
   Upload,
   AutoAwesome,
+  ViewInAr,
 } from "@mui/icons-material";
 
 import { Box, Paper } from "@mui/material";
@@ -46,6 +47,9 @@ export default function VerticalMenuRightPanel() {
 
   const selectedKey = useSelector((s) => s.rightPanel.selectedMenuItemKey);
   const advancedLayout = useSelector((s) => s.appConfig.advancedLayout);
+  const isThreedViewer = useSelector(
+    (s) => s.viewers.selectedViewerKey === "THREED"
+  );
 
   // const
 
@@ -109,6 +113,14 @@ export default function VerticalMenuRightPanel() {
 
   // filter
   menuItems = menuItems.filter(t => !t.disabled);
+
+  // 3D viewer properties — contextual item, only while the 3D viewer is active.
+  if (isThreedViewer) {
+    menuItems = [
+      { key: "THREED_PROPERTIES", label: "Vue 3D", icon: <ViewInAr /> },
+      ...menuItems,
+    ];
+  }
 
   // effect - close the LOCAL_LLM panel when advanced mode gets turned off
 

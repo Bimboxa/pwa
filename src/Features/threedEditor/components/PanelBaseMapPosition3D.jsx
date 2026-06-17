@@ -14,7 +14,6 @@ import getBaseMapTransform, {
   DEFAULT_ORIENTATION,
   DEFAULT_POSITION,
 } from "Features/baseMaps/js/getBaseMapTransform";
-import usePanelDrag from "Features/layout/hooks/usePanelDrag";
 
 import {
   toUserCoords,
@@ -34,12 +33,12 @@ import { IconGizmoTranslate, IconGizmoRotate } from "./iconsGizmo";
 
 import {
   Box,
+  Card,
   IconButton,
   List,
   ListItem,
   ListItemButton,
   ListItemText,
-  Paper,
   Slider,
   Stack,
   ToggleButton,
@@ -47,7 +46,6 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import DragIndicator from "@mui/icons-material/DragIndicator";
 import RestartAlt from "@mui/icons-material/RestartAlt";
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
@@ -57,16 +55,8 @@ const GIZMO_BTN_SIZE = 36;
 
 function SectionHeader({ title, onReset }) {
   return (
-    <Stack direction="row" alignItems="center" spacing={0.5} sx={{ mb: 0.75 }}>
-      <Typography
-        variant="body2"
-        sx={{
-          fontWeight: 700,
-          textTransform: "uppercase",
-          letterSpacing: 0.5,
-          color: "text.secondary",
-        }}
-      >
+    <Stack direction="row" alignItems="center" spacing={0.5} sx={{ mb: 0.5 }}>
+      <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
         {title}
       </Typography>
       {onReset && (
@@ -149,8 +139,6 @@ export default function PanelBaseMapPosition3D() {
   const opacity = useSelector(
     (s) => s.threedEditor.baseMapOpacityIn3d ?? 1
   );
-
-  const drag = usePanelDrag();
 
   // "off" | "translate" | "rotate" | "offset". Mutually exclusive — only one
   // gizmo is active at a time, since TransformControls is a singleton.
@@ -413,20 +401,8 @@ export default function PanelBaseMapPosition3D() {
   if (!baseMap) return null;
 
   return (
-    <Paper
-      elevation={6}
-      sx={{
-        position: "absolute",
-        top: 64,
-        left: 8,
-        zIndex: 2,
-        transform: `translate(${drag.position.x}px, ${drag.position.y}px)`,
-        p: 1.5,
-        width: 380,
-      }}
-    >
-      {/* Header: drag handle + title (left) and opacity slider + visibility
-          toggle (right, same line as the title). */}
+    <Box>
+      {/* Header: opacity slider + visibility toggle for the selected basemap. */}
       <Stack
         direction="row"
         alignItems="center"
@@ -434,14 +410,8 @@ export default function PanelBaseMapPosition3D() {
         useFlexGap
         sx={{ mb: 1.5 }}
       >
-        <Box
-          onMouseDown={drag.handleMouseDown}
-          sx={{ cursor: "grab", display: "flex", alignItems: "center", color: "text.secondary" }}
-        >
-          <DragIndicator fontSize="small" />
-        </Box>
         <Typography variant="body2" sx={{ flexGrow: 1, fontWeight: 700 }}>
-          Fond de plan
+          Opacité
         </Typography>
         <Slider
           size="small"
@@ -463,9 +433,9 @@ export default function PanelBaseMapPosition3D() {
         </Tooltip>
       </Stack>
 
-      <Stack spacing={1.75}>
+      <Stack spacing={1.5}>
         {/* Base maps */}
-        <Box>
+        <Card variant="outlined" sx={{ p: 1.5 }}>
           <SectionHeader title="Fonds de plan" />
           <List
             dense
@@ -565,10 +535,10 @@ export default function PanelBaseMapPosition3D() {
               );
             })}
           </List>
-        </Box>
+        </Card>
 
         {/* Rotation */}
-        <Box>
+        <Card variant="outlined" sx={{ p: 1.5 }}>
           <SectionHeader title="Rotation" onReset={resetRotation} />
           <SectionRow>
             <ToggleButtonGroup
@@ -602,10 +572,10 @@ export default function PanelBaseMapPosition3D() {
               <IconGizmoRotate />
             </GizmoToggle>
           </SectionRow>
-        </Box>
+        </Card>
 
         {/* Translation */}
-        <Box>
+        <Card variant="outlined" sx={{ p: 1.5 }}>
           <SectionHeader title="Translation" onReset={resetTranslation} />
           <SectionRow>
             <FieldMeasure
@@ -637,10 +607,10 @@ export default function PanelBaseMapPosition3D() {
               <IconGizmoTranslate />
             </GizmoToggle>
           </SectionRow>
-        </Box>
+        </Card>
 
         {/* Offset */}
-        <Box>
+        <Card variant="outlined" sx={{ p: 1.5 }}>
           <SectionHeader title="Offset" onReset={resetOffset} />
           <SectionRow>
             <Typography variant="body2" color="text.secondary" sx={{ ml: 0.5 }}>
@@ -678,9 +648,9 @@ export default function PanelBaseMapPosition3D() {
               <IconGizmoTranslate />
             </GizmoToggle>
           </SectionRow>
-        </Box>
+        </Card>
       </Stack>
-    </Paper>
+    </Box>
   );
 }
 

@@ -5,7 +5,6 @@ import { setEditorMode } from "Features/threedEditor/threedEditorSlice";
 import { Paper, ToggleButton, ToggleButtonGroup, Tooltip } from "@mui/material";
 import ThreeDRotation from "@mui/icons-material/ThreeDRotation";
 import HighlightAlt from "@mui/icons-material/HighlightAlt";
-import MapIcon from "@mui/icons-material/Map";
 
 export default function ToggleEditorModeThreed() {
   const dispatch = useDispatch();
@@ -41,11 +40,6 @@ export default function ToggleEditorModeThreed() {
         <Tooltip title="Sélection (shift + drag = lasso)">
           <ToggleButton value="SELECTION">
             <HighlightAlt sx={{ fontSize: 18 }} />
-          </ToggleButton>
-        </Tooltip>
-        <Tooltip title="Fond de plan">
-          <ToggleButton value="BASEMAP_POSITION">
-            <MapIcon sx={{ fontSize: 18 }} />
           </ToggleButton>
         </Tooltip>
       </ToggleButtonGroup>

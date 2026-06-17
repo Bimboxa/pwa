@@ -20,6 +20,7 @@ import {
   setSelectedItems,
   toggleItemSelection,
 } from "Features/selection/selectionSlice";
+import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 
 import applyAnnotationMaterialState, {
   // states
@@ -47,9 +48,7 @@ import {
   clearActiveThreedEditor,
 } from "Features/threedEditor/services/threedEditorRegistry";
 import PopperEditAnnotation from "Features/mapEditor/components/PopperEditAnnotation";
-import IconButtonThreedProperties from "./IconButtonThreedProperties";
 import ToggleEditorModeThreed from "./ToggleEditorModeThreed";
-import PanelBaseMapPosition3D from "./PanelBaseMapPosition3D";
 import PanelClippingPlane3D from "./PanelClippingPlane3D";
 import BottomToolbarThreed from "Features/threedDrawing/components/BottomToolbarThreed";
 import DrawingOverlayThreed from "Features/threedDrawing/components/DrawingOverlayThreed";
@@ -107,6 +106,27 @@ export default function MainThreedEditor() {
   const store = useStore();
   const selectedViewerKey = useSelector((s) => s.viewers.selectedViewerKey);
   const isThreedViewer = selectedViewerKey === "THREED";
+
+  // Surface the 3D viewer settings in the right panel: open the THREED_PROPERTIES
+  // panel when entering the 3D viewer, and close it again on leaving (only if it
+  // is still the active panel, so a manually-opened tool isn't clobbered). The
+  // current panel key is read from the store directly to avoid re-rendering
+  // MainThreedEditor on every right-panel change (which would recreate the 3D
+  // annotation objects).
+  const prevIsThreedRef = useRef(false);
+  useEffect(() => {
+    if (isThreedViewer && !prevIsThreedRef.current) {
+      dispatch(setSelectedMenuItemKey("THREED_PROPERTIES"));
+    } else if (!isThreedViewer && prevIsThreedRef.current) {
+      if (
+        store.getState().rightPanel.selectedMenuItemKey === "THREED_PROPERTIES"
+      ) {
+        dispatch(setSelectedMenuItemKey(null));
+      }
+    }
+    prevIsThreedRef.current = isThreedViewer;
+  }, [isThreedViewer, dispatch, store]);
+
   const showGrid = useSelector((s) => s.threedEditor.showGrid);
   const clippingEnabled = useSelector(
     (s) => s.threedEditor.clippingPlane.enabled
@@ -1229,18 +1249,6 @@ export default function MainThreedEditor() {
           sx={{
             position: "absolute",
             top: 8,
-            left: 8,
-            zIndex: 1,
-          }}
-        >
-          <IconButtonThreedProperties />
-        </Box>
-      )}
-      {isThreedViewer && (
-        <Box
-          sx={{
-            position: "absolute",
-            top: 8,
             left: "50%",
             transform: "translateX(-50%)",
             zIndex: 1,
@@ -1248,9 +1256,6 @@ export default function MainThreedEditor() {
         >
           <ToggleEditorModeThreed />
         </Box>
-      )}
-      {isThreedViewer && editorMode === "BASEMAP_POSITION" && (
-        <PanelBaseMapPosition3D />
       )}
       {isThreedViewer && clippingEditing && <PanelClippingPlane3D />}
       {isThreedViewer && <BottomToolbarThreed />}

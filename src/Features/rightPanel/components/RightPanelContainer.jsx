@@ -32,6 +32,7 @@ import PanelElevation from "Features/elevation/components/PanelElevation";
 import PanelMesh from "Features/mesh/components/PanelMesh";
 import PanelImportAnnotations from "Features/importAnnotations/components/PanelImportAnnotations";
 import PanelLocalLlm from "Features/localLlm/components/PanelLocalLlm";
+import PanelThreedProperties from "Features/threedEditor/components/PanelThreedProperties";
 
 export default function RightPanelContainer() {
 
@@ -45,7 +46,13 @@ export default function RightPanelContainer() {
 
   // Elevation and Mesh share the same resizable width.
   const isResizable = selectedKey === "ELEVATION" || selectedKey === "MESH";
-  const width = isResizable ? elevationWidth : fixedWidth;
+  // The 3D properties panel hosts the basemap rotation/translation rows, which
+  // need more room than the default fixed width.
+  const width = isResizable
+    ? elevationWidth
+    : selectedKey === "THREED_PROPERTIES"
+      ? 380
+      : fixedWidth;
 
   // handlers - resize (Elevation tool only; updates its own width, the other
   // tools keep their fixed width)
@@ -147,6 +154,7 @@ export default function RightPanelContainer() {
           {selectedKey === "MESH" && <PanelMesh />}
           {selectedKey === "IMPORT_ANNOTATIONS" && <PanelImportAnnotations />}
           {selectedKey === "LOCAL_LLM" && <PanelLocalLlm />}
+          {selectedKey === "THREED_PROPERTIES" && <PanelThreedProperties />}
         </Box>
       </Slide>
 
