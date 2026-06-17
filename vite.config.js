@@ -50,9 +50,9 @@ export default defineConfig({
         "apple-touch-icon.png",
       ],
       manifest: {
-        name: "Bimboxa",
-        short_name: "Bimboxa",
-        description: "Bimboxa",
+        name: "Repérage",
+        short_name: "Repérage",
+        description: "Plans de repérage",
         theme_color: "#ffffff",
         background_color: "#ffffff",
         display: "standalone",
