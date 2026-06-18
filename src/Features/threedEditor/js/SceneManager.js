@@ -13,6 +13,7 @@ import ImagesManager from "./ImagesManager";
 import AnnotationsManager from "./AnnotationsManager";
 import TransformControlsManager from "./TransformControlsManager";
 import ClippingManager from "./ClippingManager";
+import SectionContourManager from "./SectionContourManager";
 
 export default class SceneManager {
   constructor({ containerEl, onRendererIsReady }) {
@@ -39,6 +40,11 @@ export default class SceneManager {
       sceneManager: this,
     });
     this.clippingManager = new ClippingManager({ sceneManager: this });
+    // Created after clippingManager: it subscribes to the clipping plane to
+    // draw the cut contour and feed the dimension snap.
+    this.sectionContourManager = new SectionContourManager({
+      sceneManager: this,
+    });
 
     window.addEventListener("resize", this.resizeScene);
   }
@@ -57,6 +63,8 @@ export default class SceneManager {
     this.transformControlsManager.init();
     // Camera + renderer exist now; the clipping gizmo can be wired.
     this.clippingManager.init();
+    // Subscribes to the clipping plane (must run after clippingManager.init).
+    this.sectionContourManager.init();
   };
 
   resizeScene = () => {
@@ -65,6 +73,7 @@ export default class SceneManager {
 
     this.renderer.setSize(width, height);
     this._updateCamera({ width, height });
+    this.sectionContourManager?.onResize();
   };
 
   renderScene = () => {

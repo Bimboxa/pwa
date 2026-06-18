@@ -116,6 +116,8 @@ export default class ClippingManager {
     this.enabled = enabled;
     this._applyMaterials(enabled);
     if (this.helper) this.helper.visible = enabled;
+    // Draw/clear the cut contour + feed the dimension snap.
+    this.sceneManager.sectionContourManager?.setEnabled(enabled);
     this.sceneManager.renderScene();
   }
 
@@ -197,7 +199,12 @@ export default class ClippingManager {
 
   // Re-assign the clipping planes to current geometry (after a reload).
   reapply() {
-    if (this.enabled) this._applyMaterials(true);
+    if (this.enabled) {
+      this._applyMaterials(true);
+      // Annotations may have been recreated (incl. async EXTRUSION_PROFILE) —
+      // recompute the contour against the new meshes.
+      this.sceneManager.sectionContourManager?.update();
+    }
   }
 
   subscribe(callback) {
