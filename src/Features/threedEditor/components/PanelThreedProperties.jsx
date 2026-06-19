@@ -11,6 +11,8 @@ import {
   Switch,
   Tab,
   Tabs,
+  ToggleButton,
+  ToggleButtonGroup,
   Typography,
 } from "@mui/material";
 import ViewInAr from "@mui/icons-material/ViewInAr";
@@ -20,6 +22,9 @@ import ContentCopy from "@mui/icons-material/ContentCopy";
 
 import {
   setShowGrid,
+  setShowLegend,
+  setLegendShowQty,
+  setLegendSize,
   setDisableOpacity,
   setAntiAliasingShrink,
   setEditorMode,
@@ -77,6 +82,9 @@ export default function PanelThreedProperties() {
   }, [dispatch]);
 
   const showGrid = useSelector((s) => s.threedEditor.showGrid);
+  const showLegend = useSelector((s) => s.threedEditor.showLegend);
+  const legendShowQty = useSelector((s) => s.threedEditor.legendShowQty);
+  const legendSize = useSelector((s) => s.threedEditor.legendSize);
   const disableOpacity = useSelector((s) => s.threedEditor.disableOpacity);
   const antiAliasingShrink = useSelector(
     (s) => s.threedEditor.antiAliasingShrink
@@ -96,9 +104,9 @@ export default function PanelThreedProperties() {
   function handleCloseExport() {
     setExportPreset(null);
   }
-  function handleCapture() {
+  async function handleCapture() {
     try {
-      setCapturedImage(captureSceneScreenshotService());
+      setCapturedImage(await captureSceneScreenshotService());
     } catch (e) {
       console.error("[PanelThreedProperties] capture failed", e);
     }
@@ -157,209 +165,274 @@ export default function PanelThreedProperties() {
       </Tabs>
 
       {tab === "SCENE" && (
-      <Box sx={{ p: 2, overflowY: "auto", flexGrow: 1, minHeight: 0 }}>
-        <Box sx={{ display: "flex", flexDirection: "column" }}>
-          <FormControlLabel
-            control={
-              <Switch
-                size="small"
-                checked={showGrid}
-                onChange={(e) => dispatch(setShowGrid(e.target.checked))}
-              />
-            }
-            label={<Typography variant="body2">Afficher la grille</Typography>}
-          />
-          <FormControlLabel
-            control={
-              <Switch
-                size="small"
-                checked={!disableOpacity}
-                onChange={(e) => dispatch(setDisableOpacity(!e.target.checked))}
-              />
-            }
-            label={
-              <Typography variant="body2">
-                Transparence des annotations
-              </Typography>
-            }
-          />
-          <FormControlLabel
-            control={
-              <Switch
-                size="small"
-                checked={antiAliasingShrink}
-                onChange={(e) =>
-                  dispatch(setAntiAliasingShrink(e.target.checked))
-                }
-              />
-            }
-            label={
-              <Typography variant="body2">
-                Réduire le crénelage des parements
-              </Typography>
-            }
-          />
-          {hasMeshCells && (
+        <Box sx={{ p: 2, overflowY: "auto", flexGrow: 1, minHeight: 0 }}>
+          <Box sx={{ display: "flex", flexDirection: "column" }}>
             <FormControlLabel
               control={
                 <Switch
                   size="small"
-                  checked={showMeshCells}
-                  onChange={(e) => dispatch(setShowMeshCells(e.target.checked))}
+                  checked={showGrid}
+                  onChange={(e) => dispatch(setShowGrid(e.target.checked))}
                 />
               }
               label={
-                <Typography variant="body2">Afficher les mailles</Typography>
+                <Typography variant="body2">Afficher la grille</Typography>
               }
             />
-          )}
-        </Box>
-
-        <Divider sx={{ my: 1.5 }} />
-
-        <Card variant="outlined" sx={{ p: 1.5, mb: 1.5 }}>
-          <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
-            Télécharger la 3D
-          </Typography>
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            sx={{ display: "block", mb: 1.25 }}
-          >
-            Export USDZ de la scène (fond de plan + objets 3D avec textures).
-          </Typography>
-          <Button
-            size="small"
-            variant="outlined"
-            fullWidth
-            startIcon={
-              usdzExporting ? (
-                <CircularProgress size={14} thickness={5} />
-              ) : (
-                <ViewInAr sx={{ fontSize: 16 }} />
-              )
-            }
-            disabled={usdzExporting}
-            onClick={handleDownloadUsdz}
-          >
-            {usdzExporting ? "Export en cours…" : "Télécharger (.usdz)"}
-          </Button>
-        </Card>
-
-        <Card variant="outlined" sx={{ p: 1.5 }}>
-          <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
-            Export photoréaliste
-          </Typography>
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            sx={{ display: "block", mb: 1.25 }}
-          >
-            Rendu path-tracing de la vue 3D actuelle. Le fond est transparent
-            dans le PNG (pratique pour intégration dans un PDF).
-          </Typography>
-          <Box sx={{ display: "flex", gap: 1 }}>
-            <Button
-              size="small"
-              variant="outlined"
-              fullWidth
-              onClick={() => handleStartExport("QUICK")}
-            >
-              Rapide
-            </Button>
-            <Button
-              size="small"
-              variant="contained"
-              color="secondary"
-              fullWidth
-              onClick={() => handleStartExport("HIGH")}
-            >
-              Haute qualité
-            </Button>
+            <FormControlLabel
+              control={
+                <Switch
+                  size="small"
+                  checked={!disableOpacity}
+                  onChange={(e) =>
+                    dispatch(setDisableOpacity(!e.target.checked))
+                  }
+                />
+              }
+              label={
+                <Typography variant="body2">
+                  Transparence des annotations
+                </Typography>
+              }
+            />
+            <FormControlLabel
+              control={
+                <Switch
+                  size="small"
+                  checked={antiAliasingShrink}
+                  onChange={(e) =>
+                    dispatch(setAntiAliasingShrink(e.target.checked))
+                  }
+                />
+              }
+              label={
+                <Typography variant="body2">
+                  Réduire le crénelage des parements
+                </Typography>
+              }
+            />
+            {hasMeshCells && (
+              <FormControlLabel
+                control={
+                  <Switch
+                    size="small"
+                    checked={showMeshCells}
+                    onChange={(e) =>
+                      dispatch(setShowMeshCells(e.target.checked))
+                    }
+                  />
+                }
+                label={
+                  <Typography variant="body2">Afficher les mailles</Typography>
+                }
+              />
+            )}
           </Box>
-        </Card>
 
-        <Card variant="outlined" sx={{ p: 1.5, mt: 1.5 }}>
-          <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
-            Capture d'écran
-          </Typography>
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            sx={{ display: "block", mb: 1.25 }}
-          >
-            Capture instantanée de la vue 3D actuelle (fond de plan +
-            annotations).
-          </Typography>
-          <Box
-            sx={{
-              position: "relative",
-              width: "100%",
-              aspectRatio: "16 / 9",
-              mb: 1.25,
-              borderRadius: 1,
-              border: "1px dashed",
-              borderColor: "divider",
-              backgroundColor: "grey.100",
-              backgroundImage: capturedImage ? `url(${capturedImage})` : "none",
-              backgroundSize: "contain",
-              backgroundRepeat: "no-repeat",
-              backgroundPosition: "center",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            {!capturedImage && (
+          <Divider sx={{ my: 1.5 }} />
+
+          <Card variant="outlined" sx={{ p: 1.5, mb: 1.5 }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
+              Légende
+            </Typography>
+            <FormControlLabel
+              control={
+                <Switch
+                  size="small"
+                  checked={showLegend}
+                  onChange={(e) => dispatch(setShowLegend(e.target.checked))}
+                />
+              }
+              label={
+                <Typography variant="body2">Afficher la légende</Typography>
+              }
+            />
+            <FormControlLabel
+              disabled={!showLegend}
+              control={
+                <Switch
+                  size="small"
+                  checked={legendShowQty}
+                  onChange={(e) => dispatch(setLegendShowQty(e.target.checked))}
+                />
+              }
+              label={<Typography variant="body2">Quantité</Typography>}
+            />
+            <Box sx={{ mt: 1 }}>
               <Typography
                 variant="caption"
-                color="text.disabled"
-                sx={{
-                  position: "absolute",
-                  top: 8,
-                  left: 0,
-                  right: 0,
-                  textAlign: "center",
+                color="text.secondary"
+                sx={{ display: "block", mb: 0.5 }}
+              >
+                Taille
+              </Typography>
+              <ToggleButtonGroup
+                size="small"
+                exclusive
+                disabled={!showLegend}
+                value={legendSize}
+                onChange={(_e, v) => {
+                  if (v) dispatch(setLegendSize(v));
                 }}
               >
-                Aucune capture
-              </Typography>
-            )}
-            <Button
-              size="small"
-              variant="contained"
-              startIcon={<PhotoCamera sx={{ fontSize: 16 }} />}
-              onClick={handleCapture}
-              sx={capturedImage ? { boxShadow: 2 } : undefined}
+                <ToggleButton value="SMALL" sx={{ textTransform: "none" }}>
+                  Petite
+                </ToggleButton>
+                <ToggleButton value="MEDIUM" sx={{ textTransform: "none" }}>
+                  Moyenne
+                </ToggleButton>
+                <ToggleButton value="LARGE" sx={{ textTransform: "none" }}>
+                  Grande
+                </ToggleButton>
+              </ToggleButtonGroup>
+            </Box>
+          </Card>
+
+          <Card variant="outlined" sx={{ p: 1.5, mb: 1.5 }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
+              Télécharger la 3D
+            </Typography>
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ display: "block", mb: 1.25 }}
             >
-              Capturer
-            </Button>
-          </Box>
-          <Box sx={{ display: "flex", gap: 1 }}>
+              Export USDZ de la scène (fond de plan + objets 3D avec textures).
+            </Typography>
             <Button
               size="small"
               variant="outlined"
               fullWidth
-              startIcon={<Download sx={{ fontSize: 16 }} />}
-              disabled={!capturedImage}
-              onClick={handleDownloadCapture}
+              startIcon={
+                usdzExporting ? (
+                  <CircularProgress size={14} thickness={5} />
+                ) : (
+                  <ViewInAr sx={{ fontSize: 16 }} />
+                )
+              }
+              disabled={usdzExporting}
+              onClick={handleDownloadUsdz}
             >
-              Télécharger
+              {usdzExporting ? "Export en cours…" : "Télécharger (.usdz)"}
             </Button>
-            <Button
-              size="small"
-              variant="contained"
-              color="secondary"
-              fullWidth
-              startIcon={<ContentCopy sx={{ fontSize: 16 }} />}
-              disabled={!capturedImage}
-              onClick={handleCopyCapture}
+          </Card>
+
+          <Card variant="outlined" sx={{ p: 1.5 }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
+              Export photoréaliste
+            </Typography>
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ display: "block", mb: 1.25 }}
             >
-              {copied ? "Copié" : "Copier"}
-            </Button>
-          </Box>
-        </Card>
-      </Box>
+              Rendu path-tracing de la vue 3D actuelle. Le fond est transparent
+              dans le PNG (pratique pour intégration dans un PDF).
+            </Typography>
+            <Box sx={{ display: "flex", gap: 1 }}>
+              <Button
+                size="small"
+                variant="outlined"
+                fullWidth
+                onClick={() => handleStartExport("QUICK")}
+              >
+                Rapide
+              </Button>
+              <Button
+                size="small"
+                variant="contained"
+                color="secondary"
+                fullWidth
+                onClick={() => handleStartExport("HIGH")}
+              >
+                Haute qualité
+              </Button>
+            </Box>
+          </Card>
+
+          <Card variant="outlined" sx={{ p: 1.5, mt: 1.5 }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
+              Capture d'écran
+            </Typography>
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ display: "block", mb: 1.25 }}
+            >
+              Capture instantanée de la vue 3D actuelle (fond de plan +
+              annotations).
+            </Typography>
+            <Box
+              sx={{
+                position: "relative",
+                width: "100%",
+                aspectRatio: "16 / 9",
+                mb: 1.25,
+                borderRadius: 1,
+                border: "1px dashed",
+                borderColor: "divider",
+                backgroundColor: "grey.100",
+                backgroundImage: capturedImage
+                  ? `url(${capturedImage})`
+                  : "none",
+                backgroundSize: "contain",
+                backgroundRepeat: "no-repeat",
+                backgroundPosition: "center",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              {!capturedImage && (
+                <Typography
+                  variant="caption"
+                  color="text.disabled"
+                  sx={{
+                    position: "absolute",
+                    top: 8,
+                    left: 0,
+                    right: 0,
+                    textAlign: "center",
+                  }}
+                >
+                  Aucune capture
+                </Typography>
+              )}
+              <Button
+                size="small"
+                variant="contained"
+                startIcon={<PhotoCamera sx={{ fontSize: 16 }} />}
+                onClick={handleCapture}
+                sx={capturedImage ? { boxShadow: 2 } : undefined}
+              >
+                Capturer
+              </Button>
+            </Box>
+            <Box sx={{ display: "flex", gap: 1 }}>
+              <Button
+                size="small"
+                variant="outlined"
+                fullWidth
+                startIcon={<Download sx={{ fontSize: 16 }} />}
+                disabled={!capturedImage}
+                onClick={handleDownloadCapture}
+              >
+                Télécharger
+              </Button>
+              <Button
+                size="small"
+                variant="contained"
+                color="secondary"
+                fullWidth
+                startIcon={<ContentCopy sx={{ fontSize: 16 }} />}
+                disabled={!capturedImage}
+                onClick={handleCopyCapture}
+              >
+                {copied ? "Copié" : "Copier"}
+              </Button>
+            </Box>
+          </Card>
+        </Box>
       )}
 
       {tab === "BASEMAP" && (
@@ -368,7 +441,10 @@ export default function PanelThreedProperties() {
         </Box>
       )}
 
-      <DialogExportPhotoreal presetKey={exportPreset} onClose={handleCloseExport} />
+      <DialogExportPhotoreal
+        presetKey={exportPreset}
+        onClose={handleCloseExport}
+      />
     </BoxFlexVStretch>
   );
 }
