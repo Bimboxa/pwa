@@ -18,7 +18,8 @@ import {
 //     plane. In basemap-local space the normal is +Z for a HORIZONTAL base map
 //     (which the parent group maps to world-up) and +Y for a VERTICAL one.
 //   - radius(point)  = |arc.x − axisX|   (in-plane distance to the drawn axis)
-//   - height(point)  = arc.y − minY      (extent along the axis, from 0)
+//   - height(point)  = arc.y − baseY     (height above the axis bottom, shared
+//                                         across arcs on the same axis)
 //   - The profile is revolved with THREE.LatheGeometry (around its local +Y),
 //     then re-oriented so the revolution axis matches the base map normal, then
 //     translated to `centerLocal`.
@@ -55,11 +56,16 @@ export default function buildRevolutionMesh({
   const axisX =
     axisPoints.reduce((sum, p) => sum + p.x, 0) / axisPoints.length;
 
+  // Shared vertical reference = the axis line's bottom. Heights are measured
+  // from it (NOT from each arc's own lowest point) so several arcs revolved
+  // around the SAME axis keep their relative vertical positions instead of all
+  // being anchored to the same base.
+  const baseY = Math.min(...axisPoints.map((p) => p.y));
+
   // Profile in lathe-local frame: X = radius (distance to axis), Y = height
-  // above the arc's lowest point.
-  const minY = Math.min(...arcPoints.map((p) => p.y));
+  // above the axis bottom.
   const profileAll = arcPoints.map(
-    (p) => new Vector2(Math.abs(p.x - axisX), p.y - minY)
+    (p) => new Vector2(Math.abs(p.x - axisX), p.y - baseY)
   );
 
   // Split into runs of contiguous non-hidden segments.
@@ -93,7 +99,7 @@ export default function buildRevolutionMesh({
       axisPoints.reduce((sum, p) => sum + p.y, 0) / axisPoints.length;
     center = { x: axisX, y: avgAxisY, z: 0 };
   } else {
-    center = { x: axisX, y: minY, z: 0 };
+    center = { x: axisX, y: baseY, z: 0 };
   }
 
   const surfMat = material.clone();
