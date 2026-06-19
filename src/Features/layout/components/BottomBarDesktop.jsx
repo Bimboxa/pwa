@@ -11,6 +11,7 @@ import ButtonSigninV2 from "Features/auth/components/ButtonSigninV2";
 import SwitchCoupledNavigation from "Features/layout/components/SwitchCoupledNavigation";
 import RectangleDimsBottomBar from "Features/annotations/components/RectangleDimsBottomBar";
 import SegmentLengthBottomBar from "Features/annotations/components/SegmentLengthBottomBar";
+import CircleRadiusBottomBar from "Features/annotations/components/CircleRadiusBottomBar";
 import ToolbarDrawingDraft from "Features/mapEditor/components/ToolbarDrawingDraft";
 
 // Drawing modes that surface a dedicated bottom-bar UI (and hide the regular
@@ -20,6 +21,12 @@ const RECTANGLE_DRAWING_MODES = [
   "POLYLINE_RECTANGLE",
   "POLYGON_RECTANGLE",
   "CUT_RECTANGLE",
+];
+
+// Center/radius circle modes — surface a dedicated radius display + lock.
+const CIRCLE_RADIUS_DRAWING_MODES = [
+  "POLYLINE_CIRCLE_RADIUS",
+  "POLYGON_CIRCLE_RADIUS",
 ];
 
 // Modes that produce segments and support length display / constraint.
@@ -52,7 +59,10 @@ export default function BottomBarDesktop() {
     RECTANGLE_DRAWING_MODES.includes(enabledDrawingMode);
   const showSegmentLength =
     SEGMENT_DRAWING_MODES.includes(enabledDrawingMode);
-  const showDrawingBar = showRectangleDims || showSegmentLength;
+  const showCircleRadius =
+    CIRCLE_RADIUS_DRAWING_MODES.includes(enabledDrawingMode);
+  const showDrawingBar =
+    showRectangleDims || showSegmentLength || showCircleRadius;
 
   // render
 
@@ -74,6 +84,7 @@ export default function BottomBarDesktop() {
         <ToolbarDrawingDraft />
         {showRectangleDims && <RectangleDimsBottomBar />}
         {showSegmentLength && <SegmentLengthBottomBar />}
+        {showCircleRadius && <CircleRadiusBottomBar />}
       </Box>
     );
   }

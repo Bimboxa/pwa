@@ -3093,6 +3093,24 @@ const InteractionLayer = forwardRef(({
             }
             break;
           }
+          // CIRCLE_RADIUS: with the center placed and a locked radius typed,
+          // Enter commits a circle of that radius (direction is irrelevant).
+          if (
+            ["POLYLINE_CIRCLE_RADIUS", "POLYGON_CIRCLE_RADIUS"].includes(enabledDrawingModeRef.current) &&
+            drawingPointsRef.current.length === 1 &&
+            fixedLengthRef.current
+          ) {
+            const center = drawingPointsRef.current[0];
+            const mbp = meterByPxRef.current;
+            const hasScale = Number.isFinite(mbp) && mbp > 0;
+            const radiusPx = fixedLengthRef.current / (hasScale ? mbp : 1);
+            const edge = { x: center.x + radiusPx, y: center.y };
+            const nextPoints = [center, edge];
+            setDrawingPoints(nextPoints);
+            drawingPointsRef.current = nextPoints;
+            commitPolyline();
+            break;
+          }
           if (["CLICK", "POLYLINE_CLICK", "POLYGON_CLICK", "CUT_CLICK", "SPLIT_CLICK", "STRIP", "BRUSH", "COMPLETE_ANNOTATION"].includes(enabledDrawingModeRef.current)) {
             if (enabledDrawingModeRef.current === "COMPLETE_ANNOTATION" && completeAnnotationRef.current) {
               commitPolyline(null, {
@@ -3770,6 +3788,37 @@ const InteractionLayer = forwardRef(({
         drawingPointsRef.current = nextPoints;
         commitPolyline(event);
       }
+    }
+
+    // --- CASE 3c: CIRCLE_RADIUS (center -> radius, auto-commit on 2nd click) ---
+    else if (["POLYLINE_CIRCLE_RADIUS", "POLYGON_CIRCLE_RADIUS"].includes(enabledDrawingMode)) {
+      let finalPos = toLocalCoords(worldPos);
+
+      // 1st click → drop the center, then wait for the radius.
+      if (drawingPoints.length === 0) {
+        setDrawingPoints([finalPos]);
+        drawingPointsRef.current = [finalPos];
+        return;
+      }
+
+      // 2nd click → edge point. Apply the locked radius (if any) measured from
+      // the center, then commit the [center, edge] pair.
+      const center = drawingPoints[0];
+      if (fixedLengthRef.current) {
+        const mbp = meterByPxRef.current;
+        const hasScale = Number.isFinite(mbp) && mbp > 0;
+        finalPos = applyFixedLengthConstraint({
+          lastPointPx: center,
+          candidatePointPx: finalPos,
+          fixedLengthMeters: fixedLengthRef.current,
+          meterPerPixel: hasScale ? mbp : 1,
+        });
+      }
+
+      const nextPoints = [center, finalPos];
+      setDrawingPoints(nextPoints);
+      drawingPointsRef.current = nextPoints;
+      commitPolyline(event);
     }
 
     // -- CASE 4: SURFACE_DROP — click-based OpenCV contour detection over the
@@ -4520,7 +4569,7 @@ const InteractionLayer = forwardRef(({
     }
 
     // E. DRAWING PREVIEW
-    if (['CLICK', 'POLYLINE_CLICK', 'POLYGON_CLICK', 'CUT_CLICK', 'SPLIT_CLICK', 'STRIP', 'ONE_CLICK', "MEASURE", "SEGMENT", "POLYLINE_SEGMENT", "STRIP_SEGMENT", "RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", "LOCALIZED_REPAIR", "CIRCLE", "POLYLINE_CIRCLE", "POLYGON_CIRCLE", "CUT_CIRCLE", "ARC", "POLYLINE_ARC", "COMPLETE_ANNOTATION", "COTE_TWO_CLICK", "ADD_GUIDE_LINE", "RAMP"].includes(enabledDrawingMode)) {
+    if (['CLICK', 'POLYLINE_CLICK', 'POLYGON_CLICK', 'CUT_CLICK', 'SPLIT_CLICK', 'STRIP', 'ONE_CLICK', "MEASURE", "SEGMENT", "POLYLINE_SEGMENT", "STRIP_SEGMENT", "RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", "LOCALIZED_REPAIR", "CIRCLE", "POLYLINE_CIRCLE", "POLYGON_CIRCLE", "CUT_CIRCLE", "POLYLINE_CIRCLE_RADIUS", "POLYGON_CIRCLE_RADIUS", "ARC", "POLYLINE_ARC", "COMPLETE_ANNOTATION", "COTE_TWO_CLICK", "ADD_GUIDE_LINE", "RAMP"].includes(enabledDrawingMode)) {
       const localPos = toLocalCoords(worldPos);
       let previewPos = localPos;
 
@@ -4891,6 +4940,11 @@ const InteractionLayer = forwardRef(({
       }
 
       else if (["CIRCLE", "POLYLINE_CIRCLE", "POLYGON_CIRCLE", "CUT_CIRCLE", "ARC", "POLYLINE_ARC"].includes(enabledDrawingMode) && newPointsList?.length === 3) {
+        drawingPointsRef.current = newPointsList;
+        commitPolyline(e);
+      }
+
+      else if (["POLYLINE_CIRCLE_RADIUS", "POLYGON_CIRCLE_RADIUS"].includes(enabledDrawingMode) && newPointsList?.length === 2) {
         drawingPointsRef.current = newPointsList;
         commitPolyline(e);
       }

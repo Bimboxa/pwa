@@ -82,6 +82,7 @@ import cleanSegments from "Features/annotations/utils/cleanSegments";
 import editor from "App/editor";
 import getPolylinePointsFromRectangle from "Features/geometry/utils/getPolylinePointsFromRectangle";
 import getPolylinePointsFromCircle from "Features/geometry/utils/getPolylinePointsFromCircle";
+import getPolylinePointsFromCircleCenterRadius from "Features/geometry/utils/getPolylinePointsFromCircleCenterRadius";
 import getPolylinePointsFromArc from "Features/geometry/utils/getPolylinePointsFromArc";
 import getDefaultCameraMatrix from "../utils/getDefaultCameraMatrix";
 import getDefaultBaseMapPoseInBg from "../utils/getDefaultBaseMapPoseInBg";
@@ -655,6 +656,13 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
 
     const handleCommitDrawingFromCircle = (points) => {
         const circlePoints = getPolylinePointsFromCircle(points);
+        const options = {};
+        if (type === "POLYLINE") options.closeLine = true;
+        handleCommitDrawing(circlePoints, options);
+    }
+
+    const handleCommitDrawingFromCircleRadius = (points) => {
+        const circlePoints = getPolylinePointsFromCircleCenterRadius(points);
         const options = {};
         if (type === "POLYLINE") options.closeLine = true;
         handleCommitDrawing(circlePoints, options);
@@ -1445,6 +1453,9 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                         }
                         else if (["CIRCLE", "POLYLINE_CIRCLE", "POLYGON_CIRCLE", "CUT_CIRCLE"].includes(enabledDrawingMode)) {
                             return handleCommitDrawingFromCircle(points);
+                        }
+                        else if (["POLYLINE_CIRCLE_RADIUS", "POLYGON_CIRCLE_RADIUS"].includes(enabledDrawingMode)) {
+                            return handleCommitDrawingFromCircleRadius(points);
                         }
                         else if (["ARC", "POLYLINE_ARC"].includes(enabledDrawingMode)) {
                             return handleCommitDrawingFromArc(points);

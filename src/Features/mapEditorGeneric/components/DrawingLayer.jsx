@@ -234,6 +234,11 @@ const DrawingLayer = forwardRef(
       "POLYGON_CIRCLE",
       "CUT_CIRCLE",
     ].includes(enabledDrawingMode);
+    // Center + radius circle: 1st point = center, cursor defines the radius.
+    const drawCircleRadius = [
+      "POLYLINE_CIRCLE_RADIUS",
+      "POLYGON_CIRCLE_RADIUS",
+    ].includes(enabledDrawingMode);
     const drawCote = enabledDrawingMode === "COTE_TWO_CLICK";
 
     const firstPoint = points?.[0];
@@ -459,6 +464,30 @@ const DrawingLayer = forwardRef(
             previewCircleRef.current.setAttribute("cx", circle.cx);
             previewCircleRef.current.setAttribute("cy", circle.cy);
             previewCircleRef.current.setAttribute("r", circle.r);
+            previewCircleRef.current.style.display = "block";
+          } else {
+            previewCircleRef.current.style.display = "none";
+          }
+          return;
+        }
+
+        // ------------------------------------------------
+        // CAS 1b' : CIRCLE_RADIUS (center placed -> cursor sets the radius)
+        // ------------------------------------------------
+        if (drawCircleRadius && previewCircleRef.current) {
+          if (previewLineRef.current)
+            previewLineRef.current.style.display = "none";
+          if (previewFillRef.current)
+            previewFillRef.current.style.display = "none";
+          if (previewRectRef.current)
+            previewRectRef.current.style.display = "none";
+
+          const center = currentPoints[0];
+          const r = Math.hypot(cursorPos.x - center.x, cursorPos.y - center.y);
+          if (r > 0) {
+            previewCircleRef.current.setAttribute("cx", center.x);
+            previewCircleRef.current.setAttribute("cy", center.y);
+            previewCircleRef.current.setAttribute("r", r);
             previewCircleRef.current.style.display = "block";
           } else {
             previewCircleRef.current.style.display = "none";
@@ -698,7 +727,7 @@ const DrawingLayer = forwardRef(
         )}
 
         {/* B2. Dynamic Circle preview */}
-        {drawCircle && (
+        {(drawCircle || drawCircleRadius) && (
           <circle
             ref={previewCircleRef}
             fill="none"

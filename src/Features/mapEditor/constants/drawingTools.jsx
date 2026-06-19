@@ -24,6 +24,8 @@ import IconPolylineRectangle from "Features/icons/IconPolylineRectangle";
 import IconPolygonRectangle from "Features/icons/IconPolygonRectangle";
 import IconPolylineCircle from "Features/icons/IconPolylineCircle";
 import IconPolygonCircle from "Features/icons/IconPolygonCircle";
+import IconPolylineCircleRadius from "Features/icons/IconPolylineCircleRadius";
+import IconPolygonCircleRadius from "Features/icons/IconPolygonCircleRadius";
 import IconPolylineArc from "Features/icons/IconPolylineArc";
 import IconCutSegment from "Features/icons/IconCutSegment";
 import IconSplitPolygon from "Features/icons/IconSplitPolygon";
@@ -99,6 +101,13 @@ const DRAWING_TOOLS = [
     behavior: "CIRCLE",
   },
   {
+    key: "POLYLINE_CIRCLE_RADIUS",
+    label: "Cercle centre/rayon (ligne)",
+    Icon: IconPolylineCircleRadius,
+    annotationType: "POLYLINE",
+    behavior: "CIRCLE_RADIUS",
+  },
+  {
     key: "POLYLINE_ARC",
     label: "Arc de cercle (ligne)",
     Icon: IconPolylineArc,
@@ -111,6 +120,13 @@ const DRAWING_TOOLS = [
     Icon: IconPolygonCircle,
     annotationType: "POLYGON",
     behavior: "CIRCLE",
+  },
+  {
+    key: "POLYGON_CIRCLE_RADIUS",
+    label: "Cercle centre/rayon (surface)",
+    Icon: IconPolygonCircleRadius,
+    annotationType: "POLYGON",
+    behavior: "CIRCLE_RADIUS",
   },
   {
     key: "CIRCLE",
