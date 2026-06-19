@@ -1,5 +1,12 @@
+import { getDefaultsForShape } from "Features/annotations/constants/drawingShapeConfig";
+
 // Opening (ouverture) draft colour — openings are drawn in red @ 0.8 opacity.
 export const OPENING_COLOR = "#ff0000";
+
+// Revolution helper types are standalone annotations (no template / no entity),
+// so we build a clean draft seeded only with their own style defaults instead
+// of inheriting the previously-selected template's props.
+const REVOLUTION_HELPER_TYPES = ["REVOLUTION_AXIS", "REVOLUTION_POINT"];
 
 // Build the next `newAnnotation` draft when (re)selecting a cut / split tool.
 //
@@ -10,6 +17,15 @@ export const OPENING_COLOR = "#ff0000";
 // (CUT_CLICK / CUT_RECTANGLE / CUT_CIRCLE) and any other tool, `isOpening` is
 // cleared.
 export default function buildToolDraft(newAnnotation, tool, openingDefaults) {
+  // Standalone revolution helpers: start from a clean draft so no stale
+  // template/entity association or inherited style leaks in.
+  if (REVOLUTION_HELPER_TYPES.includes(tool.annotationType)) {
+    return {
+      type: tool.annotationType,
+      ...getDefaultsForShape(tool.annotationType),
+    };
+  }
+
   const base = { ...newAnnotation, type: tool.annotationType };
   if (tool.isOpening) {
     base.isOpening = true;

@@ -48,6 +48,7 @@ import {
   clearActiveThreedEditor,
 } from "Features/threedEditor/services/threedEditorRegistry";
 import PopperEditAnnotation from "Features/mapEditor/components/PopperEditAnnotation";
+import PopperMapListings from "Features/mapEditor/components/PopperMapListings";
 import ToggleEditorModeThreed from "./ToggleEditorModeThreed";
 import PanelClippingPlane3D from "./PanelClippingPlane3D";
 import BottomToolbarThreed from "Features/threedDrawing/components/BottomToolbarThreed";
@@ -1234,6 +1235,7 @@ export default function MainThreedEditor() {
       }}
     >
       <Box sx={{ width: 1, height: 1 }} ref={containerRef} />
+      {isThreedViewer && <PopperMapListings />}
       {isThreedViewer && <PopperEditAnnotation viewerKey="THREED" />}
       {isThreedViewer && <ThreedPopperEditAnnotations />}
       {isThreedViewer && <ThreedHoverTooltip ref={tooltipApiRef} />}

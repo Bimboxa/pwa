@@ -60,6 +60,9 @@ export default class AnnotationsManager {
         imageWidth: baseMap.image?.imageSize?.width || 1,
         imageHeight: baseMap.image?.imageSize?.height || 1,
         meterByPx: baseMap.meterByPx || 0.01,
+        // Needed by REVOLUTION: the revolution axis is the base map normal,
+        // which is local +Z for HORIZONTAL and +Y for VERTICAL base maps.
+        orientation: baseMap.orientation,
       };
 
       const object = createAnnotationObject3D(annotation, baseMapForRender, {

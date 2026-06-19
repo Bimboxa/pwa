@@ -208,7 +208,11 @@ export default function NodePolylineStatic({
 
     // --- CALCUL ÉPAISSEUR TRAIT ---
     const isCmUnit = strokeWidthUnit === "CM" && baseMapMeterByPx > 0;
-    const isForBaseMaps = mergedAnnotation.isForBaseMaps;
+    // REVOLUTION_AXIS is a screen-space guide: keep a constant 2px stroke at any
+    // zoom (vectorEffect="non-scaling-stroke"), even though its listing is a
+    // base-map listing (isForBaseMaps) which would otherwise scale the stroke.
+    const isForBaseMaps =
+        mergedAnnotation.isForBaseMaps && type !== "REVOLUTION_AXIS";
     const scalesWithZoom = isCmUnit || isForBaseMaps;
 
     const computedStrokeWidth = useMemo(() => {
@@ -957,7 +961,7 @@ export default function NodePolylineStatic({
     // approximated by straight segments. The offset is in image space (scales
     // with zoom); `non-scaling-stroke` keeps the line width constant on screen.
     // Rendered UNDER the main strokes so it never blocks selection / editing.
-    const EXTRUSION_OFFSET_PX = 4;
+    const EXTRUSION_OFFSET_PX = 12;
     const EXTRUSION_STROKE_PX = 4;
 
     const renderExtrusionOffset = () => {

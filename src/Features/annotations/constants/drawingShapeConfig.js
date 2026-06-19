@@ -131,6 +131,35 @@ const DRAWING_SHAPE_CONFIG = {
     defaults: {},
     shapeCategory: "rectangle",
   },
+  // Revolution helpers — geometry that defines a surface-of-revolution shape3D
+  // (REVOLUTION). They are drawn from the "Outils de découpe" section, not from
+  // a template, so they have no template tools of their own.
+  REVOLUTION_AXIS: {
+    label: "Axe de révolution",
+    annotationType: "REVOLUTION_AXIS",
+    tools: [],
+    configurableProps: ["strokeColor", "strokeWidth", "strokeWidthUnit"],
+    defaults: {
+      strokeColor: "#9c27b0",
+      // Always 2 px on screen regardless of zoom: PX unit makes
+      // NodePolylineStatic render the stroke with vectorEffect="non-scaling-stroke".
+      strokeWidth: 2,
+      strokeWidthUnit: "PX",
+      strokeOpacity: 1,
+      strokeType: "DASHED",
+    },
+    shapeCategory: "polyline",
+  },
+  REVOLUTION_POINT: {
+    label: "Axe (vue en plan)",
+    annotationType: "REVOLUTION_POINT",
+    tools: [],
+    configurableProps: ["fillColor"],
+    defaults: {
+      fillColor: "#9c27b0",
+    },
+    shapeCategory: "circle",
+  },
   COTE: {
     label: "Cote",
     annotationType: "COTE",
@@ -204,6 +233,8 @@ const TYPE_TO_SHAPE = {
   RECTANGLE: "POLYGON",
   OBJECT_3D: "OBJECT_3D",
   COTE: "COTE",
+  REVOLUTION_AXIS: "REVOLUTION_AXIS",
+  REVOLUTION_POINT: "REVOLUTION_POINT",
 };
 
 export function resolveDrawingShapeFromType(annotationType) {

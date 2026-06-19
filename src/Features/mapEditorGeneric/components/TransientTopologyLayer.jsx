@@ -226,7 +226,7 @@ export default function TransientTopologyLayer({
         <g className="transient-layer">
             {modifiedAnnotations.map(ann => {
                 return <React.Fragment key={ann.id}>
-                    {["POLYGON", "POLYLINE"].includes(ann.type) && <NodePolylineStatic
+                    {["POLYGON", "POLYLINE", "REVOLUTION_AXIS"].includes(ann.type) && <NodePolylineStatic
                         annotation={ann}
                         annotationOverride={{
                             strokeColor: "#2196f3",

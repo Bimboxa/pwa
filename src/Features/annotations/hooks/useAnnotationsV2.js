@@ -54,6 +54,10 @@ import useAnnotationSubtractions from "Features/annotations/hooks/useAnnotationS
 import { getShape3DKey } from "Features/annotations/constants/shape3DConfig";
 import { resolveProfileFromDb } from "Features/annotations/hooks/useProfileResolution";
 import computeSubtractedSurfaceM2Async from "Features/threedEditor/js/utilsAnnotationsManager/computeSubtractedSurfaceM2Async";
+import pixelToWorld from "Features/threedEditor/js/utilsAnnotationsManager/pixelToWorld";
+import baseMapLocalToWorld from "Features/baseMaps/js/baseMapLocalToWorld";
+import baseMapWorldToLocal from "Features/baseMaps/js/baseMapWorldToLocal";
+import getBaseMapTransform from "Features/baseMaps/js/getBaseMapTransform";
 
 export default function useAnnotationsV2(options) {
 
@@ -90,6 +94,10 @@ export default function useAnnotationsV2(options) {
 
         const groupByBaseMap = options?.groupByBaseMap;
         const sortByOrderIndex = options?.sortByOrderIndex;
+        // Exclude annotations whose annotationTemplate is a "profile"
+        // (template.isProfile === true). Used by the 3D viewer so profile
+        // annotations stay visible in 2D but are dropped from the 3D scene.
+        const excludeProfileTemplates = options?.excludeProfileTemplates;
         const excludeIsForBaseMapsListings = options?.excludeIsForBaseMapsListings;
         const onlyIsForBaseMapsListings = options?.onlyIsForBaseMapsListings;
 
@@ -197,10 +205,18 @@ export default function useAnnotationsV2(options) {
                 _annotations = _annotations.filter(a => !a.isBaseMapAnnotation)
             }
 
+            // Revolution helpers (REVOLUTION_AXIS / REVOLUTION_POINT) are
+            // project-level geometry drawn from the découpe tools. They are not
+            // bound to a listing / layer / scope, so they bypass the
+            // listing/layer/scope visibility filters below and stay visible on
+            // their base map.
+            const isRevolutionHelper = (a) =>
+                a?.type === "REVOLUTION_AXIS" || a?.type === "REVOLUTION_POINT";
+
             // layer visibility filter
             if (hiddenLayerIds.length > 0 || !showAnnotationsWithoutLayer) {
                 _annotations = _annotations.filter(a => {
-                    if (a.isBaseMapAnnotation) return true;
+                    if (a.isBaseMapAnnotation || isRevolutionHelper(a)) return true;
                     if (!a.layerId) return showAnnotationsWithoutLayer;
                     return !hiddenLayerIds.includes(a.layerId);
                 });
@@ -237,7 +253,7 @@ export default function useAnnotationsV2(options) {
 
             if (excludeIsForBaseMapsListings) {
                 _annotations = _annotations.filter(
-                    (a) => !forBaseMapsListingIds.has(a.listingId)
+                    (a) => isRevolutionHelper(a) || !forBaseMapsListingIds.has(a.listingId)
                 );
             }
 
@@ -259,7 +275,12 @@ export default function useAnnotationsV2(options) {
                         .map((l) => l.id)
                 );
                 _annotations = _annotations.filter(
-                    (a) => a.isBaseMapAnnotation || scopeListingIds.has(a.listingId)
+                    (a) =>
+                        a.isBaseMapAnnotation ||
+                        // Revolution helpers are project-level geometry (drawn from
+                        // the découpe tools, no listing scope) — always keep them.
+                        isRevolutionHelper(a) ||
+                        scopeListingIds.has(a.listingId)
                 );
             }
 
@@ -267,7 +288,7 @@ export default function useAnnotationsV2(options) {
 
             if (excludeListingsIds && !baseMapAnnotationsOnly) {
                 _annotations = _annotations.filter(
-                    (a) => !excludeListingsIds.includes(a.listingId)
+                    (a) => isRevolutionHelper(a) || !excludeListingsIds.includes(a.listingId)
                 );
             }
 
@@ -368,9 +389,9 @@ export default function useAnnotationsV2(options) {
                     _annotation.point = resolvePoints({ points: [annotation.point], pointsIndex, imageSize })[0];
                 }
 
-                // --- POINT
+                // --- POINT (and plan-view revolution axis marker)
 
-                else if (_annotation.type === "POINT") {
+                else if (_annotation.type === "POINT" || _annotation.type === "REVOLUTION_POINT") {
                     _annotation.point = resolvePoints({ points: [annotation.point], pointsIndex, imageSize })[0];
                 }
 
@@ -676,6 +697,79 @@ export default function useAnnotationsV2(options) {
                 }
             }
 
+            // -- REVOLUTION (axis-based) resolution --
+            // For arcs whose shape3D references a REVOLUTION_AXIS, attach:
+            //   - revolutionAxisPoints: the axis line resolved to pixels (same
+            //     base map as the arc) so the 3D builder can derive the radius.
+            //   - revolutionCenterLocal: the arc-base-map-local metre position
+            //     of the revolution axis, taken from the linked REVOLUTION_POINT
+            //     (plan view). Null when no point references the axis → the 3D
+            //     builder falls back to the elevation drawing's own location.
+            if (_annotations?.length) {
+                for (const arc of _annotations) {
+                    if (!arc || getShape3DKey(arc.shape3D) !== "REVOLUTION") continue;
+                    const axisId = arc.shape3D?.axisAnnotationId;
+                    if (!axisId) continue;
+
+                    const axis = await db.annotations.get(axisId);
+                    if (!axis || axis.deletedAt) continue;
+
+                    const arcBaseMap = baseMapById[arc.baseMapId];
+                    const arcImageSize =
+                        arcBaseMap?.getImageSize?.() || arcBaseMap?.image?.imageSize;
+                    if (!arcImageSize) continue;
+
+                    arc.revolutionAxisPoints = resolvePoints({
+                        points: axis.points,
+                        pointsIndex,
+                        imageSize: arcImageSize,
+                    });
+
+                    // Linked plan-view point (first match wins).
+                    const pointAnn = await db.annotations
+                        .where("projectId")
+                        .equals(projectId)
+                        .filter(
+                            (a) =>
+                                !a.deletedAt &&
+                                a.type === "REVOLUTION_POINT" &&
+                                a.revolutionAxisId === axisId
+                        )
+                        .first();
+
+                    if (pointAnn?.point?.id) {
+                        const ptBaseMap = baseMapById[pointAnn.baseMapId];
+                        const ptImageSize =
+                            ptBaseMap?.getImageSize?.() || ptBaseMap?.image?.imageSize;
+                        const ptDb = await db.points.get(pointAnn.point.id);
+                        if (ptBaseMap && ptImageSize && ptDb) {
+                            const ptPx = {
+                                x: ptDb.x * ptImageSize.width,
+                                y: ptDb.y * ptImageSize.height,
+                            };
+                            const ptLocalMeters = pixelToWorld(ptPx, {
+                                imageWidth: ptImageSize.width,
+                                imageHeight: ptImageSize.height,
+                                meterByPx: ptBaseMap.getMeterByPx(),
+                            });
+                            const world = baseMapLocalToWorld(
+                                ptLocalMeters,
+                                getBaseMapTransform(ptBaseMap)
+                            );
+                            const local = baseMapWorldToLocal(
+                                world,
+                                getBaseMapTransform(arcBaseMap)
+                            );
+                            arc.revolutionCenterLocal = {
+                                x: local.x,
+                                y: local.y,
+                                z: local.z,
+                            };
+                        }
+                    }
+                }
+            }
+
             return _annotations;
 
 
@@ -800,6 +894,16 @@ export default function useAnnotationsV2(options) {
             // filter out annotations whose template is hidden
             result = result.filter(a => !a.hidden);
 
+            // exclude profile-template annotations (3D viewer only — they stay
+            // visible in 2D, but are dropped from the 3D scene)
+            if (excludeProfileTemplates) {
+                result = result.filter(
+                    (a) =>
+                        a.isBaseMapAnnotation ||
+                        !annotationTemplatesMap[a.annotationTemplateId]?.isProfile
+                );
+            }
+
             // solo mode: keep only annotations whose template is in the visible set
             if (soloMode && soloVisibleTemplateIds != null && soloListingId) {
                 const soloSet = new Set(soloVisibleTemplateIds);
@@ -912,6 +1016,7 @@ export default function useAnnotationsV2(options) {
             groupByBaseMap,
             listingsUpdatedAt,
             subtractionTargetIdsBySource,
+            excludeProfileTemplates,
         ]);
 
         return processed;

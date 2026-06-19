@@ -12,6 +12,8 @@ import {
   Timeline as GuideLineIcon,
   NorthEast as RampIcon,
   AutoFixHigh as LocalizedRepairIcon,
+  Height as RevolutionAxisIcon,
+  Adjust as RevolutionPointIcon,
 } from "@mui/icons-material";
 
 import IconPolylineClick from "Features/icons/IconPolylineClick";
@@ -316,6 +318,27 @@ const DRAWING_TOOLS = [
     annotationType: "LOCALIZED_REPAIR",
     behavior: "LOCALIZED_REPAIR",
   },
+  // REVOLUTION axis helpers — draw the geometry that defines a REVOLUTION
+  // shape3D. The elevation-view axis is a straight 2-click line (reuses the
+  // POLYLINE_SEGMENT interaction); the plan-view axis is a single-click point
+  // (reuses the ONE_CLICK interaction). They keep their own annotation `type`
+  // through the commit (see useHandleCommitDrawing) and are NOT openings.
+  {
+    key: "REVOLUTION_AXIS_LINE",
+    label: "Axe (vue élévation)",
+    Icon: RevolutionAxisIcon,
+    annotationType: "REVOLUTION_AXIS",
+    behavior: "SEGMENT",
+    drawingMode: "POLYLINE_SEGMENT",
+  },
+  {
+    key: "REVOLUTION_POINT_MARK",
+    label: "Axe (vue en plan)",
+    Icon: RevolutionPointIcon,
+    annotationType: "REVOLUTION_POINT",
+    behavior: "ONE_CLICK",
+    drawingMode: "ONE_CLICK",
+  },
 ];
 
 export const DRAWING_TOOLS_BY_TYPE = {
@@ -335,6 +358,7 @@ export const DRAWING_TOOLS_BY_TYPE = {
   ADD_INNER_POINT: ["ADD_INNER_POINT"],
   GUIDE_LINE: ["ADD_GUIDE_LINE"],
   LOCALIZED_REPAIR: ["LOCALIZED_REPAIR"],
+  REVOLUTION: ["REVOLUTION_AXIS_LINE", "REVOLUTION_POINT_MARK"],
 };
 
 export function getDrawingToolsByShape(drawingShape) {

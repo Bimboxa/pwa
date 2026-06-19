@@ -61,7 +61,7 @@ import { Check, Close } from "@mui/icons-material";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 
-import { StopCircle, Create, AddLocationAlt, AutoFixHigh } from "@mui/icons-material";
+import { StopCircle, Create, AddLocationAlt, AutoFixHigh, RotateRight } from "@mui/icons-material";
 import IconTechnicalReturn from "Features/icons/IconTechnicalReturn";
 import IconCutLine from "Features/icons/IconCutLine";
 import IconCutSurface from "Features/icons/IconCutSurface";
@@ -145,6 +145,7 @@ const TOOL_ITEMS = [
   { type: "ADD_INNER_POINT", label: "Ajouter un point", Icon: AddLocationAlt },
   { type: "GUIDE_LINE", label: "Ajouter une ligne guide", Icon: Timeline },
   { type: "LOCALIZED_REPAIR", label: "Réparation localisée", Icon: AutoFixHigh },
+  { type: "REVOLUTION", label: "Axe de révolution", Icon: RotateRight },
 ];
 
 // ---------------------------------------------------------------------------
@@ -478,7 +479,11 @@ function AnnotationTemplateRow({
     (s) => s.popperMapListings.interactionMode
   );
   const showMeshCells = useSelector((s) => s.annotations.showMeshCells);
-  const interactionMode = showMeshCells ? "SELECT" : rawInteractionMode;
+  const isThreedViewer = useSelector(
+    (s) => s.viewers.selectedViewerKey === "THREED"
+  );
+  const interactionMode =
+    showMeshCells || isThreedViewer ? "SELECT" : rawInteractionMode;
   const selectedItem = useSelector((s) => s.selection.selectedItems[0] || null);
   const isEditTarget =
     (interactionMode === "EDIT" || interactionMode === "SELECT") &&
@@ -531,6 +536,12 @@ function AnnotationTemplateRow({
 
   const handleRowClick = () => {
     if (isEditing) return;
+    // 3D viewer: read-only visibility panel — clicking a row toggles the
+    // template visibility instead of drawing / selecting.
+    if (isThreedViewer) {
+      toggleHidden();
+      return;
+    }
     switch (interactionMode) {
       case "EDIT":
       case "SELECT":
@@ -585,12 +596,16 @@ function AnnotationTemplateRow({
     dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
   };
 
-  const handleToggleHidden = async (e) => {
-    e.stopPropagation();
+  const toggleHidden = async () => {
     await updateAnnotationTemplate({
       ...annotationTemplate,
       hidden: !annotationTemplate?.hidden,
     });
+  };
+
+  const handleToggleHidden = async (e) => {
+    e.stopPropagation();
+    await toggleHidden();
   };
 
   const handleSoloClick = (e) => {
@@ -867,8 +882,8 @@ function AnnotationTemplateRow({
                     )}
                   </IconButton>
                 </Tooltip>
-                {/* Solo button — only in SELECT mode */}
-                {interactionMode === "SELECT" && (
+                {/* Solo button — only in SELECT mode (hidden in 3D read-only) */}
+                {interactionMode === "SELECT" && !isThreedViewer && (
                   <Tooltip title="Solo" arrow placement="right">
                     <IconButton
                       size="small"
@@ -931,6 +946,9 @@ function AnnotationTemplatesForListing({ listingId, annotations, annotationTempl
   });
   const spriteImage = useAnnotationSpriteImage();
   const updateAnnotationTemplate = useUpdateAnnotationTemplate();
+  const isThreedViewer = useSelector(
+    (s) => s.viewers.selectedViewerKey === "THREED"
+  );
   const soloVisibleTemplateIds = useSelector(
     (s) => s.popperMapListings.soloVisibleTemplateIds
   );
@@ -1112,7 +1130,8 @@ function AnnotationTemplatesForListing({ listingId, annotations, annotationTempl
         </SortableContext>
       </DndContext>
 
-      {/* + Nouveau modele */}
+      {/* + Nouveau modele — hidden in 3D (read-only) */}
+      {!isThreedViewer && (
       <ListItemButton
         onClick={() => setOpenCreateDialog(true)}
         sx={{
@@ -1152,6 +1171,7 @@ function AnnotationTemplatesForListing({ listingId, annotations, annotationTempl
           Nouveau modèle
         </Typography>
       </ListItemButton>
+      )}
 
       {openCreateDialog && (
         <DialogCreateAnnotationTemplate
@@ -1897,6 +1917,7 @@ export default function PopperMapListings() {
     (s) => s.mapEditor.showMapListingsPanel
   );
   const isBaseMapsViewer = viewerKey === "BASE_MAPS";
+  const isThreedViewer = viewerKey === "THREED";
   const showLayers = useSelector((s) => s.popperMapListings.showLayers);
   const interactionMode = useSelector(
     (s) => s.popperMapListings.interactionMode
@@ -1904,7 +1925,8 @@ export default function PopperMapListings() {
   // "Maillage" toggle: shows mesh cells instead of meshed parents and forces a
   // SELECT-like (read-only) interaction. The mode toggle is disabled while on.
   const showMeshCells = useSelector((s) => s.annotations.showMeshCells);
-  const effectiveInteractionMode = showMeshCells ? "SELECT" : interactionMode;
+  const effectiveInteractionMode =
+    showMeshCells || isThreedViewer ? "SELECT" : interactionMode;
   const collapsed = useSelector((s) => s.popperMapListings.collapsed);
   const selectedItem = useSelector((s) => s.selection.selectedItems[0] || null);
 
@@ -1922,7 +1944,7 @@ export default function PopperMapListings() {
   // single annotation source for all counts
   const allAnnotations = useAnnotationsV2({
     caller: "PopperMapListings",
-    enabled: viewerKey === "MAP" || viewerKey === "BASE_MAPS",
+    enabled: viewerKey === "MAP" || viewerKey === "BASE_MAPS" || isThreedViewer,
     filterByMainBaseMap: true,
     hideBaseMapAnnotations: true,
     excludeBgAnnotations: true,
@@ -2102,15 +2124,15 @@ export default function PopperMapListings() {
 
   // render
 
-  if (pasteClipboard) {
+  if (!isThreedViewer && pasteClipboard) {
     return <PopperPasteHelper />;
   }
 
-  if (subtractSourceAnnotationId) {
+  if (!isThreedViewer && subtractSourceAnnotationId) {
     return <PopperSubtractHelper />;
   }
 
-  if (Boolean(enabledDrawingMode)) {
+  if (!isThreedViewer && Boolean(enabledDrawingMode)) {
     return <PopperDrawingHelper />;
   }
 
@@ -2196,7 +2218,7 @@ export default function PopperMapListings() {
         )}
 
         {/* + Liste button in header */}
-        {!comesFromListing && !isBaseMapsViewer && (
+        {!comesFromListing && !isBaseMapsViewer && !isThreedViewer && (
           <Box
             component="button"
             onMouseDown={(e) => e.stopPropagation()}
@@ -2246,8 +2268,8 @@ export default function PopperMapListings() {
       </Box>
 
       {!collapsed && (<>
-      {/* Interaction mode toggle (DRAW / EDIT / SELECT) */}
-      {
+      {/* Interaction mode toggle (DRAW / EDIT / SELECT) — hidden in 3D (read-only) */}
+      {!isThreedViewer && (
         <Box
           sx={{
             px: 1,
@@ -2312,7 +2334,7 @@ export default function PopperMapListings() {
             />
           )}
         </Box>
-      }
+      )}
 
       {/* Standard body (layers / listings / cut tools) */}
       {/* Warning: base map has no scale */}
