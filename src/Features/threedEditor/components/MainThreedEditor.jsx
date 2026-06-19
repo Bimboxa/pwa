@@ -38,6 +38,7 @@ import {
 import ThreedHoverTooltip from "./ThreedHoverTooltip";
 import ThreedLassoOverlay from "./ThreedLassoOverlay";
 import ThreedPopperEditAnnotations from "./ThreedPopperEditAnnotations";
+import ThreedPopperLegend from "./ThreedPopperLegend";
 import ThreedSelectionDimmer from "./ThreedSelectionDimmer";
 
 import { Box } from "@mui/material";
@@ -129,6 +130,7 @@ export default function MainThreedEditor() {
   }, [isThreedViewer, dispatch, store]);
 
   const showGrid = useSelector((s) => s.threedEditor.showGrid);
+  const showLegend = useSelector((s) => s.threedEditor.showLegend);
   const clippingEnabled = useSelector(
     (s) => s.threedEditor.clippingPlane.enabled
   );
@@ -1238,6 +1240,9 @@ export default function MainThreedEditor() {
       {isThreedViewer && <PopperMapListings />}
       {isThreedViewer && <PopperEditAnnotation viewerKey="THREED" />}
       {isThreedViewer && <ThreedPopperEditAnnotations />}
+      {isThreedViewer && showLegend && (
+        <ThreedPopperLegend annotations={annotations} />
+      )}
       {isThreedViewer && <ThreedHoverTooltip ref={tooltipApiRef} />}
       {isThreedViewer && <ThreedLassoOverlay ref={lassoOverlayRef} />}
       {isThreedViewer && (
