@@ -160,8 +160,12 @@ export default function applyDeltaPosToAnnotation(annotation, deltaPos, partType
         }
     }
 
-    // MARKER / POINT
-    if (_annotation.type === "MARKER" || _annotation.type === "POINT") {
+    // MARKER / POINT / REVOLUTION_POINT (single-point annotations)
+    if (
+        _annotation.type === "MARKER" ||
+        _annotation.type === "POINT" ||
+        _annotation.type === "REVOLUTION_POINT"
+    ) {
         _annotation.point = {
             x: _annotation.point.x + deltaPos.x,
             y: _annotation.point.y + deltaPos.y

@@ -197,17 +197,27 @@ function getArcMetrics(p0, p1, p2) {
 // is degenerate (P0 == Pn) so the caller can fall back to default behavior.
 // Arcs (point.type === "circle") are treated as straight points — out of
 // scope for v1.
-function computeRevolutionSurface(points, meterByPx, hiddenSegmentsIdx = []) {
+function computeRevolutionSurface(
+  points,
+  meterByPx,
+  hiddenSegmentsIdx = [],
+  axisPoints = null
+) {
   const n = points?.length ?? 0;
   if (n < 2) return 0;
-  const P0 = points[0];
-  const Pn = points[n - 1];
-  const ax = Pn.x - P0.x;
-  const ay = Pn.y - P0.y;
-  const axisLenPx = Math.hypot(ax, ay);
-  if (axisLenPx < 1e-6) return null;
-  const radiusPx = (p) =>
-    Math.abs(ax * (P0.y - p.y) - (P0.x - p.x) * ay) / axisLenPx;
+
+  // Pappus lateral surface = Σ π·(r1+r2)·segLen, with r = distance to the axis.
+  // The revolution axis is the SEPARATE, strictly-vertical REVOLUTION_AXIS line
+  // (radius = horizontal distance to it). Returns null when the axis is missing
+  // so the caller can fall back to default polyline behavior.
+  let radiusPx;
+  if (axisPoints && axisPoints.length >= 2) {
+    const axisX =
+      axisPoints.reduce((sum, p) => sum + p.x, 0) / axisPoints.length;
+    radiusPx = (p) => Math.abs(p.x - axisX);
+  } else {
+    return null;
+  }
   let surfacePx2 = 0;
   for (let i = 0; i < n - 1; i++) {
     if (hiddenSegmentsIdx.includes(i)) continue;
@@ -409,7 +419,8 @@ export default function getAnnotationQties({
         const revSurfaceM2 = computeRevolutionSurface(
           points,
           meterByPx,
-          annotation.hiddenSegmentsIdx || []
+          annotation.hiddenSegmentsIdx || [],
+          annotation.revolutionAxisPoints || null
         );
         if (revSurfaceM2 != null) {
           return {
@@ -418,7 +429,7 @@ export default function getAnnotationQties({
             surface: revSurfaceM2,
           };
         }
-        // Degenerate axis (P0 = Pn) — fall through to default behavior.
+        // Axis not resolved yet — fall through to default behavior.
       }
       if (
         annotation.shape3D?.key === "EXTRUSION_PROFILE" &&

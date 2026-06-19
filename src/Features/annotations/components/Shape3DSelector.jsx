@@ -13,11 +13,13 @@ import ViewInArIcon from "@mui/icons-material/ViewInAr";
 
 import useUpdateAnnotation from "../hooks/useUpdateAnnotation";
 import useProfileAnnotationTemplates from "../hooks/useProfileAnnotationTemplates";
+import useRevolutionAxes from "../hooks/useRevolutionAxes";
 import useAnnotationSpriteImage from "../hooks/useAnnotationSpriteImage";
 import {
   getShape3DKey,
   getShape3DOptionsForType,
   TYPES_SUPPORTING_PROFILES,
+  TYPES_SUPPORTING_REVOLUTION,
 } from "../constants/shape3DConfig";
 import AnnotationTemplateIcon from "./AnnotationTemplateIcon";
 
@@ -29,6 +31,7 @@ export default function Shape3DSelector({ annotation }) {
 
   const updateAnnotation = useUpdateAnnotation();
   const profileTemplates = useProfileAnnotationTemplates();
+  const revolutionAxes = useRevolutionAxes();
   const spriteImage = useAnnotationSpriteImage();
   const staticOptions = getShape3DOptionsForType(annotation?.type);
 
@@ -44,17 +47,29 @@ export default function Shape3DSelector({ annotation }) {
   const showProfileSection =
     typeSupportsProfiles && profileTemplates.length > 0;
 
+  const typeSupportsRevolution = TYPES_SUPPORTING_REVOLUTION.includes(
+    annotation.type
+  );
+  const showRevolutionSection =
+    typeSupportsRevolution && revolutionAxes.length > 0;
+
   // Hide the chip entirely when there is nothing to pick.
-  if (staticOptions.length === 0 && !showProfileSection) return null;
+  if (staticOptions.length === 0 && !showProfileSection && !showRevolutionSection)
+    return null;
 
   const currentKey = getShape3DKey(annotation.shape3D);
   const currentProfileTemplateId =
     annotation.shape3D?.profileTemplateId ?? null;
+  const currentAxisAnnotationId =
+    annotation.shape3D?.axisAnnotationId ?? null;
 
   let chipLabel = DEFAULT_LABEL;
   if (currentKey === "EXTRUSION_PROFILE") {
     const t = profileTemplates.find((x) => x.id === currentProfileTemplateId);
     chipLabel = t?.label ?? PROFILE_FALLBACK_LABEL;
+  } else if (currentKey === "REVOLUTION") {
+    const axe = revolutionAxes.find((a) => a.id === currentAxisAnnotationId);
+    chipLabel = axe?.label ? `Révolution · ${axe.label}` : "Révolution";
   } else if (currentKey != null) {
     const entry = staticOptions.find((o) => o.key === currentKey);
     chipLabel = entry?.label ?? DEFAULT_LABEL;
@@ -83,6 +98,8 @@ export default function Shape3DSelector({ annotation }) {
   const isProfileSelected = (templateId) =>
     currentKey === "EXTRUSION_PROFILE" &&
     currentProfileTemplateId === templateId;
+  const isRevolutionSelected = (axisId) =>
+    currentKey === "REVOLUTION" && currentAxisAnnotationId === axisId;
 
   return (
     <>
@@ -173,6 +190,33 @@ export default function Shape3DSelector({ annotation }) {
                 </ListItemIcon>
               )}
               <ListItemText>{t.label}</ListItemText>
+            </MenuItem>
+          )),
+        ]}
+
+        {showRevolutionSection && [
+          <ListSubheader
+            key="revolution-header"
+            sx={{ lineHeight: "32px", fontWeight: "bold" }}
+          >
+            Révolution
+          </ListSubheader>,
+          ...revolutionAxes.map((axe) => (
+            <MenuItem
+              key={axe.id}
+              onClick={() =>
+                handleSelect({ key: "REVOLUTION", axisAnnotationId: axe.id })
+              }
+              dense
+            >
+              {isRevolutionSelected(axe.id) && (
+                <ListItemIcon>
+                  <Check fontSize="small" />
+                </ListItemIcon>
+              )}
+              <ListItemText inset={!isRevolutionSelected(axe.id)}>
+                {axe.label ?? "Axe"}
+              </ListItemText>
             </MenuItem>
           )),
         ]}

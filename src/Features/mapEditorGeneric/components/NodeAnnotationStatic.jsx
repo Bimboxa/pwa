@@ -8,6 +8,7 @@ import NodeObject3DStatic from "./NodeObject3DStatic";
 import NodePointStatic from "./NodePointStatic";
 import NodeRectangleStatic from "./NodeRectangleStatic";
 import NodeCoteStatic from "./NodeCoteStatic";
+import NodeRevolutionPointStatic from "./NodeRevolutionPointStatic";
 
 import resolveAnnotationDefaults from "Features/annotations/utils/resolveAnnotationDefaults";
 
@@ -105,6 +106,15 @@ export default function NodeAnnotationStatic({
 
     case "COTE":
       return <NodeCoteStatic {...props} annotation={annotation} />;
+
+    // Revolution helpers: the elevation-view axis is a plain 2-point line
+    // (reuses the canonical polyline renderer); the plan-view axis is a
+    // cross-in-circle marker with a fixed 24px screen radius.
+    case "REVOLUTION_AXIS":
+      return <NodePolylineStatic {...props} annotation={annotation} />;
+
+    case "REVOLUTION_POINT":
+      return <NodeRevolutionPointStatic {...props} annotation={annotation} />;
 
     default:
       return null;

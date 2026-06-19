@@ -1041,7 +1041,11 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
 
             console.log("handleAnnotationMoveCommit", annotationId, annotation);
 
-            if (annotation.type === "MARKER" || annotation.type === "POINT") {
+            if (
+                annotation.type === "MARKER" ||
+                annotation.type === "POINT" ||
+                annotation.type === "REVOLUTION_POINT"
+            ) {
                 const point = await db.points.get(annotation.point.id);
                 const x = point.x + deltaPos.x / imageSize.width;
                 const y = point.y + deltaPos.y / imageSize.height;

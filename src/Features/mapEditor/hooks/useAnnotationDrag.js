@@ -89,7 +89,11 @@ export default function useAnnotationDrag({
         ann.bbox?.width !== snap.bboxW ||
         ann.bbox?.height !== snap.bboxH ||
         ann.rotation !== snap.rotation;
-    } else if (ann.type === "MARKER" || ann.type === "POINT") {
+    } else if (
+      ann.type === "MARKER" ||
+      ann.type === "POINT" ||
+      ann.type === "REVOLUTION_POINT"
+    ) {
       hasChanged =
         ann.point?.x !== snap.pointX || ann.point?.y !== snap.pointY;
     } else if (ann.type === "LABEL") {

@@ -50,6 +50,7 @@ export default function useAutoLoadAnnotationsInThreedEditor({
     filterBySelectedScope: true,
     sortByOrderIndex: true,
     excludeIsForBaseMapsListings: true,
+    excludeProfileTemplates: true,
   });
 
   // "Afficher les mailles": ON → replace parents that have mesh cells by their

@@ -539,14 +539,25 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
     }
     case "POLYLINE": {
       if (shape3DKey === "REVOLUTION") {
-        const pts = pointsToLocal(annotation.points || [], baseMap);
-        object = buildRevolutionMesh(
-          pts,
-          material,
-          verticalLift,
-          annotation.hiddenSegmentsIdx || []
-        );
-        break;
+        // Axis-based revolution: revolve the arc around a separate vertical axis
+        // (revolutionAxisPoints), placed at the linked plan-view point
+        // (revolutionCenterLocal). Both are resolved by useAnnotationsV2. When
+        // the axis isn't resolved (missing/deleted), fall through to the default
+        // polyline wall so the arc still renders.
+        const axisPx = annotation.revolutionAxisPoints || [];
+        if (axisPx.length >= 2) {
+          const arcPts = pointsToLocal(annotation.points || [], baseMap);
+          const axisPts = pointsToLocal(axisPx, baseMap);
+          object = buildRevolutionMesh({
+            arcPoints: arcPts,
+            axisPoints: axisPts,
+            centerLocal: annotation.revolutionCenterLocal || null,
+            orientation: baseMap.orientation,
+            material,
+            hiddenSegmentsIdx: annotation.hiddenSegmentsIdx || [],
+          });
+          if (object) break;
+        }
       }
       if (
         shape3DKey === "EXTRUSION_PROFILE" &&

@@ -93,6 +93,13 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
 
         const newAnnotation = options?.newAnnotation ?? newAnnotationInState
 
+        // Revolution helpers (REVOLUTION_AXIS / REVOLUTION_POINT) are standalone
+        // annotations: no entity, no per-instance template. They are kept in the
+        // selected listing so they pass the scope filter in useAnnotationsV2.
+        const isRevolutionHelper =
+            newAnnotation?.type === "REVOLUTION_AXIS" ||
+            newAnnotation?.type === "REVOLUTION_POINT";
+
         // update rawPoints for rectangle
         if (drawRectangle) {
             const P2 = { x: rawPoints[1].x, y: rawPoints[0].y }
@@ -169,7 +176,7 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
         // ETAPE : création de l'entité ou non
 
         let entityId = newAnnotation?.entityId;
-        if (!entityId && !isBaseMapAnnotation) {
+        if (!entityId && !isBaseMapAnnotation && !isRevolutionHelper) {
             const entity = await createEntity(newEntity)
             entityId = entity.id;
         }
@@ -445,7 +452,7 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
 
             let annotationTemplateId;
             // ÉTAPE 2.5 : Enregistrement de l'annotation template
-            if (newAnnotation && !_updatedAnnotation && !isBaseMapAnnotation && !skipTemplateCreation) {
+            if (newAnnotation && !_updatedAnnotation && !isBaseMapAnnotation && !skipTemplateCreation && !isRevolutionHelper) {
                 const existingAnnotationTemplates = await db.annotationTemplates.where("listingId").equals(listingId).toArray();
                 // const existingAnnotationTemplate = getAnnotationTemplateFromNewAnnotation({
                 //     newAnnotation,
@@ -506,7 +513,7 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
 
             if (closeLine) _newAnnotation.closeLine = true;
 
-            if (["POLYGON", "POLYLINE", "STRIP", "COTE"].includes(newAnnotation?.type)) {
+            if (["POLYGON", "POLYLINE", "STRIP", "COTE", "REVOLUTION_AXIS"].includes(newAnnotation?.type)) {
                 _newAnnotation.points = finalPointIds.map((id, i) => {
                     const entry = { id };
                     if (rawPoints[i]?.type) entry.type = rawPoints[i].type;
@@ -558,8 +565,23 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
                 }
             }
 
-            if (newAnnotation?.type === "MARKER" || newAnnotation?.type === "POINT") {
+            if (
+                newAnnotation?.type === "MARKER" ||
+                newAnnotation?.type === "POINT" ||
+                newAnnotation?.type === "REVOLUTION_POINT"
+            ) {
                 _newAnnotation.point = { id: finalPointIds[0] };
+            }
+
+            // Auto-numbered default label for revolution axes ("Axe 1", "Axe 2"…)
+            // so they are immediately identifiable in the edit toolbar / selectors.
+            if (newAnnotation?.type === "REVOLUTION_AXIS" && !_newAnnotation.label) {
+                const existingAxesCount = await db.annotations
+                    .where("projectId")
+                    .equals(projectId)
+                    .filter((a) => a.type === "REVOLUTION_AXIS" && !a.deletedAt)
+                    .count();
+                _newAnnotation.label = `Axe ${existingAxesCount + 1}`;
             }
 
             if (_autoOffsets) {

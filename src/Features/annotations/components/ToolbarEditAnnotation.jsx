@@ -50,6 +50,7 @@ import {
 
 import AnnotationTemplateIcon from "./AnnotationTemplateIcon";
 import AnnotationMeasurements from "./AnnotationMeasurements";
+import ToolbarEditRevolutionHelper from "./ToolbarEditRevolutionHelper";
 import ToolbarAnnotationActions from "./ToolbarAnnotationActions";
 import ToolbarPartGroupRow from "./ToolbarPartGroupRow";
 import SelectorAnnotationTemplateVariantDense from "./SelectorAnnotationTemplateVariantDense";
@@ -404,6 +405,16 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
     }
 
     await updateAnnotation(updates);
+  }
+
+  // Revolution helpers (REVOLUTION_AXIS / REVOLUTION_POINT) are standalone,
+  // template-less annotations — render a dedicated compact toolbar instead of
+  // the full template-centric UI below. (All hooks above have already run.)
+  if (
+    selectedAnnotation?.type === "REVOLUTION_AXIS" ||
+    selectedAnnotation?.type === "REVOLUTION_POINT"
+  ) {
+    return <ToolbarEditRevolutionHelper onDragStart={onDragStart} />;
   }
 
   return (

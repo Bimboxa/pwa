@@ -12,12 +12,17 @@
 // list the per-type built-in shapes; dynamic shapes (profiles) are sourced
 // at runtime by `Shape3DSelector` and added to the menu directly.
 
+// REVOLUTION is no longer a static self-axis option: it is now driven by a
+// referenced REVOLUTION_AXIS annotation (shape3D = { key: "REVOLUTION",
+// axisAnnotationId }). The Shape3DSelector adds a dynamic "Révolution" section
+// listing the available axes, so there are no static POLYLINE entries here.
 const SHAPE_3D_CONFIG = {
-  POLYLINE: [
-    { key: "REVOLUTION", label: "Révolution" },
-  ],
+  POLYLINE: [],
   STRIP: [],
 };
+
+// Annotation types that support the dynamic "Révolution" section (axis-based).
+export const TYPES_SUPPORTING_REVOLUTION = ["POLYLINE"];
 
 export const SHAPE_3D_KEYS = {
   REVOLUTION: "REVOLUTION",
