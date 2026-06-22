@@ -68,6 +68,7 @@ import IconButtonSubtractAnnotation from "./IconButtonSubtractAnnotation";
 import IconButtonDilateAnnotation from "./IconButtonDilateAnnotation";
 import IconButtonRepairAnnotation from "./IconButtonRepairAnnotation";
 import IconButtonSplitInSegments from "./IconButtonSplitInSegments";
+import IconButtonSettingOut from "./IconButtonSettingOut";
 import IconButtonConvertAnnotation from "./IconButtonConvertAnnotation";
 import IconButtonVectorisation from "./IconButtonVectorisation";
 import IconButtonSimplifyAnnotation from "./IconButtonSimplifyAnnotation";
@@ -826,6 +827,12 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
                   selectedAnnotation?.type
                 ) && (
                   <IconButtonSplitInSegments
+                    annotations={[selectedAnnotation]}
+                    accentColor={accentColor}
+                  />
+                )}
+                {selectedAnnotation?.type === "POLYLINE" && (
+                  <IconButtonSettingOut
                     annotations={[selectedAnnotation]}
                     accentColor={accentColor}
                   />
