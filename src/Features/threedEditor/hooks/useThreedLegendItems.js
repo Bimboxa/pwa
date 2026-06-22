@@ -5,6 +5,7 @@ import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import useListings from "Features/listings/hooks/useListings";
 
 import computeAnnotationTemplateQties from "Features/annotations/utils/computeAnnotationTemplateQties";
+import sortAnnotationTemplatesByOrder from "Features/annotations/utils/sortAnnotationTemplatesByOrder";
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
 
 /**
@@ -42,6 +43,27 @@ export default function useThreedLegendItems(annotations) {
     });
     return map;
   }, [listings]);
+
+  // Per-template rank reproducing the PopperMapListings order: within each
+  // listing, templates are sorted via sortAnnotationTemplatesByOrder
+  // (orderIndex + group consolidation) — same util PopperMapListings relies on.
+  const orderRankByTemplateId = useMemo(() => {
+    const templatesByListingId = {};
+    (annotationTemplates || []).forEach((t) => {
+      const listingId = t?.listingId ?? "__none__";
+      if (!templatesByListingId[listingId])
+        templatesByListingId[listingId] = [];
+      templatesByListingId[listingId].push(t);
+    });
+
+    const rank = {};
+    Object.values(templatesByListingId).forEach((templates) => {
+      sortAnnotationTemplatesByOrder(templates).forEach((t, index) => {
+        if (t?.id != null) rank[t.id] = index;
+      });
+    });
+    return rank;
+  }, [annotationTemplates]);
 
   // main - flat legend list
 
@@ -100,13 +122,13 @@ export default function useThreedLegendItems(annotations) {
       });
 
       const sorted = itemsByListingId[listingId].sort((a, b) => {
-        const gA = normalize(a.template.groupLabel);
-        const gB = normalize(b.template.groupLabel);
-        if (gA !== gB) {
-          if (!gA) return 1;
-          if (!gB) return -1;
-          return gA.localeCompare(gB);
-        }
+        const rA = orderRankByTemplateId[a.id];
+        const rB = orderRankByTemplateId[b.id];
+        const hasA = rA != null;
+        const hasB = rB != null;
+        if (hasA && hasB) return rA - rB;
+        if (hasA) return -1; // ranked items first, unranked last
+        if (hasB) return 1;
         return a.label.localeCompare(b.label);
       });
 
@@ -125,7 +147,13 @@ export default function useThreedLegendItems(annotations) {
     });
 
     return items;
-  }, [annotations, annotationTemplateById, baseMapById, listingNameById]);
+  }, [
+    annotations,
+    annotationTemplateById,
+    baseMapById,
+    listingNameById,
+    orderRankByTemplateId,
+  ]);
 
   return legendItems;
 }
