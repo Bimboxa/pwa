@@ -6,8 +6,6 @@ import {
   setSelectedProcedureKey,
   setSelectedAnnotationTemplateId,
   setHeight,
-  setProfondeur,
-  setHauteurRemontees,
   setReturnTechnique,
   setIgnoreInteriorWalls,
   setRunning,
@@ -62,10 +60,6 @@ export default function PanelAnnotationsAuto() {
     (s) => s.annotationsAuto.selectedAnnotationTemplateId
   );
   const height = useSelector((s) => s.annotationsAuto.height);
-  const profondeur = useSelector((s) => s.annotationsAuto.profondeur);
-  const hauteurRemontees = useSelector(
-    (s) => s.annotationsAuto.hauteurRemontees
-  );
   const returnTechnique = useSelector(
     (s) => s.annotationsAuto.returnTechnique
   );
@@ -96,7 +90,6 @@ export default function PanelAnnotationsAuto() {
   const showHeightInput = selectedProcedure?.showHeightInput === true;
   const showCuvelageHeight = selectedProcedure?.showCuvelageHeight === true;
   const showReturnTechnique = selectedProcedure?.showReturnTechnique === true;
-  const showFosseInputs = selectedProcedure?.showFosseInputs === true;
   const showAnnotationTemplateSelect =
     selectedProcedure?.showAnnotationTemplateSelect === true;
   const annotationTemplateDrawingShape =
@@ -139,8 +132,6 @@ export default function PanelAnnotationsAuto() {
     const key = e.target.value;
     dispatch(setSelectedProcedureKey(key));
     dispatch(setHeight(null));
-    dispatch(setProfondeur(null));
-    dispatch(setHauteurRemontees(null));
     dispatch(setSelectedAnnotationTemplateId(null));
 
     const proc = procedures.find((p) => p.key === key);
@@ -279,26 +270,6 @@ export default function PanelAnnotationsAuto() {
               label="Hauteur cuvelage"
               unit="m"
               helperText="Hauteur exprimée par rapport au fond de plan"
-            />
-          )}
-
-          {showFosseInputs && (
-            <FieldNumberWithUnit
-              value={profondeur}
-              onChange={(value) => dispatch(setProfondeur(value))}
-              label="Profondeur"
-              unit="m"
-              helperText="Référence = altimétrie du fond de plan"
-            />
-          )}
-
-          {showFosseInputs && (
-            <FieldNumberWithUnit
-              value={hauteurRemontees}
-              onChange={(value) => dispatch(setHauteurRemontees(value))}
-              label="Hauteur remontées"
-              unit="m"
-              helperText="Laisser vide pour utiliser la profondeur"
             />
           )}
 

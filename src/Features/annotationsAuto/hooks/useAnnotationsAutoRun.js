@@ -48,10 +48,6 @@ export default function useAnnotationsAutoRun() {
 
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const height = useSelector((s) => s.annotationsAuto.height);
-  const profondeur = useSelector((s) => s.annotationsAuto.profondeur);
-  const hauteurRemontees = useSelector(
-    (s) => s.annotationsAuto.hauteurRemontees
-  );
   const activeLayerId = useSelector((s) => s.layers?.activeLayerId);
   const returnTechnique = useSelector(
     (s) => s.annotationsAuto.returnTechnique
@@ -226,8 +222,6 @@ export default function useAnnotationsAutoRun() {
         projectId,
         baseMapId,
         height,
-        profondeur,
-        hauteurRemontees,
         activeLayerId,
         returnTechnique,
         ignoreInteriorWalls,

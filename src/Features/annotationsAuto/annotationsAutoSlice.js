@@ -7,8 +7,6 @@ const initialState = {
   pendingResult: null,
   showConfirmDialog: false,
   height: null,
-  profondeur: null,
-  hauteurRemontees: null,
   returnTechnique: true,
   ignoreInteriorWalls: false,
   running: false,
@@ -36,12 +34,6 @@ export const annotationsAutoSlice = createSlice({
     setHeight: (state, action) => {
       state.height = action.payload;
     },
-    setProfondeur: (state, action) => {
-      state.profondeur = action.payload;
-    },
-    setHauteurRemontees: (state, action) => {
-      state.hauteurRemontees = action.payload;
-    },
     setReturnTechnique: (state, action) => {
       state.returnTechnique = action.payload;
     },
@@ -62,8 +54,6 @@ export const {
   setPendingResult,
   setShowConfirmDialog,
   setHeight,
-  setProfondeur,
-  setHauteurRemontees,
   setReturnTechnique,
   setIgnoreInteriorWalls,
   setRunning,
