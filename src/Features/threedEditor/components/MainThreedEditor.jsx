@@ -51,7 +51,7 @@ import {
 import PopperEditAnnotation from "Features/mapEditor/components/PopperEditAnnotation";
 import PopperMapListings from "Features/mapEditor/components/PopperMapListings";
 import ToggleEditorModeThreed from "./ToggleEditorModeThreed";
-import PanelClippingPlane3D from "./PanelClippingPlane3D";
+import ClippingToolbarThreed from "./ClippingToolbarThreed";
 import BottomToolbarThreed from "Features/threedDrawing/components/BottomToolbarThreed";
 import DrawingOverlayThreed from "Features/threedDrawing/components/DrawingOverlayThreed";
 import MoveGizmoThreed from "Features/threedDrawing/components/MoveGizmoThreed";
@@ -1264,8 +1264,8 @@ export default function MainThreedEditor() {
           <ToggleEditorModeThreed />
         </Box>
       )}
-      {isThreedViewer && clippingEditing && <PanelClippingPlane3D />}
-      {isThreedViewer && <BottomToolbarThreed />}
+      {isThreedViewer &&
+        (clippingEditing ? <ClippingToolbarThreed /> : <BottomToolbarThreed />)}
       {isThreedViewer && <DrawingOverlayThreed />}
       {isThreedViewer && <MoveGizmoThreed />}
       {isThreedViewer && rendererIsReady && <ThreedDimensions />}

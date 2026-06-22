@@ -13,8 +13,9 @@ export default class ClippingManager {
   constructor({ sceneManager }) {
     this.sceneManager = sceneManager;
 
-    // Plane normal = the proxy's local +X axis. Default vertical cut.
-    this.plane = new Plane(new Vector3(1, 0, 0), 0);
+    // Plane normal = the proxy's local +X axis. Default: a vertical cutting
+    // plane whose normal points along three.js Z.
+    this.plane = new Plane(new Vector3(0, 0, 1), 0);
     // Shared array referenced by every clipped material. Mutating the plane in
     // place keeps the array length at 1, so no shader recompile while dragging.
     this.planes = [this.plane];
@@ -24,8 +25,13 @@ export default class ClippingManager {
 
     this.helper = null;
     this.gizmoProxy = null;
-    this.controls = null;
-    this.controlsHelper = null;
+    // Two simultaneous gizmos sharing the same proxy: a single-arrow translate
+    // gizmo along the plane normal (proxy local +X) and a single-ring rotate
+    // gizmo around the vertical axis (world three.js Y). Both are shown at once.
+    this.controlsTranslate = null;
+    this.controlsRotate = null;
+    this.controlsHelperTranslate = null;
+    this.controlsHelperRotate = null;
 
     this._listeners = new Set();
     this._unsubscribeReady = null;
@@ -36,7 +42,7 @@ export default class ClippingManager {
   }
 
   init() {
-    if (this.controls) return;
+    if (this.controlsTranslate) return;
 
     // Plane helper (visual quad). Lies on the plane, so it follows it for free
     // at render time. Tagged so material walks never touch it.
@@ -45,42 +51,42 @@ export default class ClippingManager {
     this.helper.userData.isClipHelper = true;
     this.sceneManager.scene.add(this.helper);
 
-    // Proxy the gizmo attaches to. Its local +X axis is the plane normal.
+    // Proxy the gizmos attach to. Its local +X axis is the plane normal.
+    // Default orientation: normal along three.js Z (vertical cutting plane).
     this.gizmoProxy = new Object3D();
+    this._setDefaultOrientation();
     this.sceneManager.scene.add(this.gizmoProxy);
 
     const camera = this.sceneManager.camera;
     const domElement = this.sceneManager.renderer.domElement;
-    this.controls = new TransformControls(camera, domElement);
-    this.controls.setSpace("world");
-    this.controls.setSize(0.8);
-    this.controls.setMode("translate");
-    this.controls.visible = false;
-    this.controls.enabled = false;
 
-    this.controlsHelper =
-      typeof this.controls.getHelper === "function"
-        ? this.controls.getHelper()
-        : this.controls;
-    // Tag so scene exporters / material walks prune the gizmo subtree.
-    this.controlsHelper.userData.isGizmo = true;
-    this.sceneManager.scene.add(this.controlsHelper);
+    // Translate gizmo: a single arrow along the plane normal. Local space so
+    // the X handle follows the proxy's rotated +X (the normal); only X shown.
+    this.controlsTranslate = new TransformControls(camera, domElement);
+    this.controlsTranslate.setMode("translate");
+    this.controlsTranslate.setSpace("local");
+    this.controlsTranslate.setSize(0.8);
+    this.controlsTranslate.showX = true;
+    this.controlsTranslate.showY = false;
+    this.controlsTranslate.showZ = false;
+    this.controlsTranslate.visible = false;
+    this.controlsTranslate.enabled = false;
 
-    // Don't orbit the camera while dragging the gizmo.
-    this.controls.addEventListener("dragging-changed", (event) => {
-      const orbit = this.sceneManager.controlsManager?.orbitControls;
-      if (orbit) orbit.enabled = !event.value;
-    });
+    // Rotate gizmo: a single ring around the vertical axis. World space so the
+    // Y handle is the scene's vertical (three.js Y), independent of the proxy's
+    // current orientation; only Y shown.
+    this.controlsRotate = new TransformControls(camera, domElement);
+    this.controlsRotate.setMode("rotate");
+    this.controlsRotate.setSpace("world");
+    this.controlsRotate.setSize(1);
+    this.controlsRotate.showX = false;
+    this.controlsRotate.showY = true;
+    this.controlsRotate.showZ = false;
+    this.controlsRotate.visible = false;
+    this.controlsRotate.enabled = false;
 
-    this.controls.addEventListener("objectChange", () => {
-      this._updatePlaneFromProxy();
-      this._notify();
-      this.sceneManager.renderScene();
-    });
-
-    this.controls.addEventListener("change", () => {
-      this.sceneManager.renderScene();
-    });
+    this.controlsHelperTranslate = this._addControls(this.controlsTranslate);
+    this.controlsHelperRotate = this._addControls(this.controlsRotate);
 
     // Re-clip annotations recreated after the first enable (incl. async GLBs).
     const annotationsManager = this.sceneManager.annotationsManager;
@@ -89,6 +95,46 @@ export default class ClippingManager {
         this.reapply()
       );
     }
+  }
+
+  // Add one TransformControls' helper to the scene and wire the shared event
+  // handlers (orbit lock on drag, plane sync + redraw on change). Returns the
+  // helper object added to the scene.
+  _addControls(controls) {
+    const helper =
+      typeof controls.getHelper === "function"
+        ? controls.getHelper()
+        : controls;
+    // Tag so scene exporters / material walks prune the gizmo subtree.
+    helper.userData.isGizmo = true;
+    this.sceneManager.scene.add(helper);
+
+    // Don't orbit the camera while dragging the gizmo.
+    controls.addEventListener("dragging-changed", (event) => {
+      const orbit = this.sceneManager.controlsManager?.orbitControls;
+      if (orbit) orbit.enabled = !event.value;
+    });
+
+    controls.addEventListener("objectChange", () => {
+      this._updatePlaneFromProxy();
+      this._notify();
+      this.sceneManager.renderScene();
+    });
+
+    controls.addEventListener("change", () => {
+      this.sceneManager.renderScene();
+    });
+
+    return helper;
+  }
+
+  // Orient the proxy so its local +X (the plane normal) points along three.js
+  // Z — the default vertical cutting plane.
+  _setDefaultOrientation() {
+    this.gizmoProxy.quaternion.setFromUnitVectors(
+      new Vector3(1, 0, 0),
+      new Vector3(0, 0, 1)
+    );
   }
 
   // Center the plane on the scene contents and size the helper. Called the
@@ -105,10 +151,11 @@ export default class ClippingManager {
       this.center.set(0, 0, 0);
       if (this.helper) this.helper.size = 10;
     }
-    // Place the proxy at the center with default (vertical, +X normal)
-    // orientation, then sync the plane.
+    // Place the proxy at the center with default (vertical, +Z normal)
+    // orientation, then sync the plane. Called on every enable, so deleting
+    // then re-creating the plane fully resets position and orientation.
     this.gizmoProxy.position.copy(this.center);
-    this.gizmoProxy.quaternion.identity();
+    this._setDefaultOrientation();
     this._updatePlaneFromProxy();
   }
 
@@ -122,15 +169,20 @@ export default class ClippingManager {
   }
 
   setEditing(editing) {
-    if (!this.controls) return;
+    if (!this.controlsTranslate) return;
+    const both = [this.controlsTranslate, this.controlsRotate];
     if (editing) {
-      this.controls.attach(this.gizmoProxy);
-      this.controls.enabled = true;
-      this.controls.visible = true;
+      both.forEach((c) => {
+        c.attach(this.gizmoProxy);
+        c.enabled = true;
+        c.visible = true;
+      });
     } else {
-      this.controls.detach();
-      this.controls.enabled = false;
-      this.controls.visible = false;
+      both.forEach((c) => {
+        c.detach();
+        c.enabled = false;
+        c.visible = false;
+      });
     }
     this.sceneManager.renderScene();
   }
@@ -160,13 +212,6 @@ export default class ClippingManager {
     this.sceneManager.renderScene();
   }
 
-  setGizmoMode(mode) {
-    // mode: "translate" | "rotate"
-    if (!this.controls) return;
-    this.controls.setMode(mode);
-    this.sceneManager.renderScene();
-  }
-
   // Signed distance of the plane from the scene center along the current normal.
   setDistance(d) {
     this._currentNormal(this._normal);
@@ -191,7 +236,7 @@ export default class ClippingManager {
 
   reset() {
     this.gizmoProxy.position.copy(this.center);
-    this.gizmoProxy.quaternion.identity();
+    this._setDefaultOrientation();
     this._updatePlaneFromProxy();
     this._notify();
     this.sceneManager.renderScene();
@@ -217,13 +262,15 @@ export default class ClippingManager {
       this._unsubscribeReady();
       this._unsubscribeReady = null;
     }
-    if (this.controls) {
-      this.controls.detach();
-      this.controls.dispose?.();
-    }
-    if (this.controlsHelper) {
-      this.sceneManager.scene.remove(this.controlsHelper);
-    }
+    [this.controlsTranslate, this.controlsRotate].forEach((c) => {
+      if (c) {
+        c.detach();
+        c.dispose?.();
+      }
+    });
+    [this.controlsHelperTranslate, this.controlsHelperRotate].forEach((h) => {
+      if (h) this.sceneManager.scene.remove(h);
+    });
     if (this.helper) {
       this.sceneManager.scene.remove(this.helper);
       this.helper.dispose?.();
