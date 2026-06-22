@@ -53,6 +53,7 @@ import ToolbarAnnotationActions from "./ToolbarAnnotationActions";
 import SelectorAnnotationTemplateVariantDense from "./SelectorAnnotationTemplateVariantDense";
 import ToggleSingleSelectorGeneric from "Features/layout/components/ToggleSingleSelectorGeneric";
 import IconButtonReentrantAngles from "./IconButtonReentrantAngles";
+import IconButtonSettingOut from "./IconButtonSettingOut";
 import IconButtonSplitInSegments from "./IconButtonSplitInSegments";
 import IconButtonCleanSegments from "./IconButtonCleanSegments";
 import IconButtonCurvature from "./IconButtonCurvature";
@@ -131,6 +132,8 @@ export default function ToolbarEditAnnotations({
     typeof pendingHeight === "number" && Number.isFinite(pendingHeight);
 
   const hasStrips = annotations.some((a) => a.type === "STRIP");
+
+  const hasPolylines = annotations.some((a) => a.type === "POLYLINE");
 
   const hasPolylinesAndPolygons =
     annotations.some((a) => a.type === "POLYLINE") &&
@@ -531,6 +534,14 @@ export default function ToolbarEditAnnotations({
               {hasPolylinesAndPolygons && (
                 <IconButtonReentrantAngles
                   annotations={annotations}
+                  accentColor="#6366F1"
+                />
+              )}
+              {hasPolylines && (
+                <IconButtonSettingOut
+                  annotations={annotations.filter(
+                    (a) => a.type === "POLYLINE"
+                  )}
                   accentColor="#6366F1"
                 />
               )}
