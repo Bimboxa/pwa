@@ -39,7 +39,9 @@ export default async function postAppLogService({
     date: formatScribeDate(new Date()),
     device: navigator.userAgent,
     ip: null,
-    systemVersion,
+    systemVersion: systemVersion
+      ? `${systemVersion} (${window.location.hostname})`
+      : window.location.hostname,
     userName,
     appMessage,
     source: config.source,
