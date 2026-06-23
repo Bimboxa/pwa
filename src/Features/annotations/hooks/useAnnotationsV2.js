@@ -100,6 +100,10 @@ export default function useAnnotationsV2(options) {
         const excludeProfileTemplates = options?.excludeProfileTemplates;
         const excludeIsForBaseMapsListings = options?.excludeIsForBaseMapsListings;
         const onlyIsForBaseMapsListings = options?.onlyIsForBaseMapsListings;
+        // In the 3D viewer, keep non-soloed annotations in the result (instead of
+        // removing them) so ThreedSelectionDimmer can render them translucent
+        // rather than hiding them outright.
+        const keepSoloDimmed = options?.keepSoloDimmed;
 
         // data
 
@@ -904,12 +908,25 @@ export default function useAnnotationsV2(options) {
                 );
             }
 
-            // solo mode: keep only annotations whose template is in the visible set
+            // solo mode: keep only annotations whose template is in the visible
+            // set. The 3D viewer passes `keepSoloDimmed` to instead keep them all
+            // and tag the non-soloed ones with `_soloDimmed`, so
+            // ThreedSelectionDimmer renders them translucent while the soloed
+            // template keeps its original material.
             if (soloMode && soloVisibleTemplateIds != null && soloListingId) {
                 const soloSet = new Set(soloVisibleTemplateIds);
-                result = result.filter(a =>
-                    a.listingId !== soloListingId || soloSet.has(a.annotationTemplateId)
-                );
+                // Solo isolates the soloed template(s) across the WHOLE view:
+                // every other annotation is affected, not just those in the same
+                // listing. Base-map (background) annotations are always kept.
+                const isInSolo = (a) =>
+                    a.isBaseMapAnnotation || soloSet.has(a.annotationTemplateId);
+                if (keepSoloDimmed) {
+                    result = result.map((a) =>
+                        isInSolo(a) ? a : { ...a, _soloDimmed: true }
+                    );
+                } else {
+                    result = result.filter(isInSolo);
+                }
             }
 
             // override with temp annotations
@@ -1008,7 +1025,7 @@ export default function useAnnotationsV2(options) {
             annotationTemplatesMap,
             baseMapById,
             withQties,
-            soloMode, soloVisibleTemplateIds, soloListingId,
+            soloMode, soloVisibleTemplateIds, soloListingId, keepSoloDimmed,
             tempAnnotations,
             bgImageTextAnnotations,
             baseMapAnnotationsOnly, excludeBgAnnotations,

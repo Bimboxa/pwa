@@ -496,7 +496,6 @@ function AnnotationTemplateRow({
   const isHiddenBySolo =
     soloMode &&
     soloVisibleTemplateIds != null &&
-    soloListingId === listingId &&
     !soloVisibleTemplateIds.includes(annotationTemplate?.id);
   const isHidden = isHiddenBySolo || isHiddenByBase;
   const drawingShape = resolveDrawingShape(annotationTemplate);
@@ -536,10 +535,11 @@ function AnnotationTemplateRow({
 
   const handleRowClick = () => {
     if (isEditing) return;
-    // 3D viewer: read-only visibility panel — clicking a row toggles the
-    // template visibility instead of drawing / selecting.
+    // 3D viewer: read-only panel — clicking a row toggles solo mode for this
+    // template (isolate it; the others render translucent). Visibility stays
+    // available via the eye button.
     if (isThreedViewer) {
-      toggleHidden();
+      onSoloToggle?.(annotationTemplate?.id, listingId);
       return;
     }
     switch (interactionMode) {
@@ -882,8 +882,8 @@ function AnnotationTemplateRow({
                     )}
                   </IconButton>
                 </Tooltip>
-                {/* Solo button — only in SELECT mode (hidden in 3D read-only) */}
-                {interactionMode === "SELECT" && !isThreedViewer && (
+                {/* Solo button — SELECT mode (incl. 3D read-only viewer) */}
+                {interactionMode === "SELECT" && (
                   <Tooltip title="Solo" arrow placement="right">
                     <IconButton
                       size="small"
@@ -1940,6 +1940,13 @@ export default function PopperMapListings() {
       dispatch(setShowLayers(layers?.length > 0));
     }
   }, [layers?.length, viewerKey]);
+
+  // Solo filtering is available in the 3D viewer (read-only) and in 2D SELECT mode.
+  // Entering 3D enables it; leaving 3D restores the 2D mode's solo state and prevents
+  // the solo filter from leaking into the 2D MAP viewer (where the button is hidden in DRAW).
+  useEffect(() => {
+    dispatch(setSoloMode(isThreedViewer || interactionMode === "SELECT"));
+  }, [isThreedViewer]);
 
   // single annotation source for all counts
   const allAnnotations = useAnnotationsV2({
