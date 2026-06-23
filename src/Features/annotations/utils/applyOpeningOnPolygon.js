@@ -1,3 +1,5 @@
+import { nanoid } from "@reduxjs/toolkit";
+
 import db from "App/db/db";
 import resolvePoints from "Features/annotations/utils/resolvePoints";
 import resolveCuts from "Features/annotations/utils/resolveCuts";
@@ -5,8 +7,58 @@ import projectPointOnSegment from "Features/annotations/utils/projectPointOnSegm
 import { pointInPolygon } from "Features/smartDetect/utils/detectPolygonFromAnnotations";
 import cutPolygonPoints from "Features/geometry/utils/cutPolygonPoints";
 import reconcileCuts from "Features/geometry/utils/reconcileCuts";
+import collapseArcsInPolyline from "Features/geometry/utils/collapseArcsInPolyline";
+import {
+    typeOf,
+    circleFromThreePoints,
+    expandArcsInPath,
+} from "Features/geometry/utils/arcSampling";
 
 const BOUNDARY_EPSILON = 1.5; // pixels — distance under which a point is "on the boundary"
+const ARC_SAMPLES = 12; // chords per arc half when polygonizing before the cut
+
+// Circles of every S-C-S arc in a (closed) typed ring. Fed to
+// collapseArcsInPolyline as source hints so an untouched curve is recovered
+// robustly (concentric-source match) rather than via the generic curvature
+// heuristic only.
+function extractArcCircles(ring) {
+    const circles = [];
+    const n = ring?.length ?? 0;
+    if (n < 3) return circles;
+    const at = (i) => ring[((i % n) + n) % n];
+    for (let i = 0; i < n; i++) {
+        const p0 = at(i);
+        const p1 = at(i + 1);
+        const p2 = at(i + 2);
+        if (
+            typeOf(p0) !== "circle" &&
+            typeOf(p1) === "circle" &&
+            typeOf(p2) !== "circle"
+        ) {
+            const c = circleFromThreePoints(p0, p1, p2);
+            if (c && Number.isFinite(c.r) && c.r > 0) circles.push(c);
+        }
+    }
+    return circles;
+}
+
+// Flatten collapseArcsInPolyline units into one typed ring (squares for
+// straight runs, square-circle-square for arcs). Consecutive units share a
+// boundary vertex, so the first point of every unit after the first is dropped.
+function arcUnitsToTypedPoints(units) {
+    const out = [];
+    units.forEach((u, ui) => {
+        (u.points || []).forEach((p, pi) => {
+            if (ui > 0 && pi === 0) return;
+            out.push({
+                x: p.x,
+                y: p.y,
+                type: p.type === "circle" ? "circle" : "square",
+            });
+        });
+    });
+    return out;
+}
 
 /**
  * Apply an "opening" polygon on a host polygon annotation:
@@ -94,13 +146,27 @@ export default async function applyOpeningOnPolygon({
         ? allCutsPx.filter((c) => c.id !== excludeCutId)
         : allCutsPx;
 
-    // Classify: are all opening corners strictly inside the outer ring
-    // (and not within BOUNDARY_EPSILON of any outer segment)?
+    // Host geometry may contain S-C-S arcs. polygon-clipping is straight-line
+    // only, so expand arcs into chords BEFORE the boolean op — otherwise the cut
+    // runs through the chord of each arc's control points (wrong geometry) and
+    // loses the curve. Arcs are recovered afterwards by collapseArcsInPolyline.
+    const outerRingForCut = expandArcsInPath(outerRingPx, ARC_SAMPLES, true);
+    const subjectCutsForCut = subjectCutsPx.map((c) => ({
+        ...c,
+        points: expandArcsInPath(c.points, ARC_SAMPLES, true),
+    }));
+    const sourceArcCircles = [
+        ...extractArcCircles(outerRingPx),
+        ...subjectCutsPx.flatMap((c) => extractArcCircles(c.points)),
+    ];
+
+    // Classify: are all opening corners strictly inside the (polygonized) outer
+    // ring (and not within BOUNDARY_EPSILON of any outer segment)?
     const cornersFullyInside = openingPointsPx.every((pt) => {
-        if (!pointInPolygon(pt, outerRingPx)) return false;
-        for (let i = 0; i < outerRingPx.length; i++) {
-            const a = outerRingPx[i];
-            const b = outerRingPx[(i + 1) % outerRingPx.length];
+        if (!pointInPolygon(pt, outerRingForCut)) return false;
+        for (let i = 0; i < outerRingForCut.length; i++) {
+            const a = outerRingForCut[i];
+            const b = outerRingForCut[(i + 1) % outerRingForCut.length];
             const { distance } = projectPointOnSegment(pt, a, b);
             if (distance < BOUNDARY_EPSILON) return false;
         }
@@ -112,7 +178,7 @@ export default async function applyOpeningOnPolygon({
     }
 
     const result = cutPolygonPoints(
-        { points: outerRingPx, cuts: subjectCutsPx },
+        { points: outerRingForCut, cuts: subjectCutsForCut },
         openingPointsPx,
         { splitMode: "abort" }
     );
@@ -137,22 +203,40 @@ export default async function applyOpeningOnPolygon({
 
     const reconciledCuts = reconcileCuts(subjectCutsPx, result.cuts ?? []);
 
-    // Build the new db.points entries (normalized) for the new outer ring + each cut ring.
+    // Recover S-C-S arcs from the dense straight rings the boolean op produced,
+    // then build the new db.points entries (normalized). Each ring is a closed
+    // loop; collapseArcsInPolyline scans it as a polyline, so an arc straddling
+    // the (arbitrary) ring seam stays faceted — acceptable for cut contours.
     const newDbPoints = [];
-    const pushPoint = (p) => {
+    const pushRef = (p) => {
+        const id = nanoid();
         newDbPoints.push({
-            id: p.id,
+            id,
             x: p.x / width,
             y: p.y / height,
             baseMapId,
             projectId,
             listingId,
         });
-        return { id: p.id };
+        return p.type === "circle" ? { id, type: "circle" } : { id };
     };
-    const newOuterPointRefs = result.points.map(pushPoint);
+    const buildRingRefs = (pointsPx) => {
+        // Only attempt arc recovery when the host actually had arcs, and require
+        // each recovered run to be concentric with a known source arc. Otherwise
+        // a straight opening corner (4+ vertices that happen to fit a circle)
+        // would be mis-detected as a spurious arc.
+        if (sourceArcCircles.length === 0) {
+            return pointsPx.map(pushRef);
+        }
+        const units = collapseArcsInPolyline(pointsPx, {
+            sourceArcCircles,
+            requireSourceMatch: true,
+        });
+        return arcUnitsToTypedPoints(units).map(pushRef);
+    };
+    const newOuterPointRefs = buildRingRefs(result.points);
     const newCutEntries = reconciledCuts.map((c) => {
-        const entry = { id: c.id, points: c.points.map(pushPoint) };
+        const entry = { id: c.id, points: buildRingRefs(c.points) };
         if (c.label != null) entry.label = c.label;
         if (c.type != null) entry.type = c.type;
         if (c.hiddenSegmentsIdx != null) entry.hiddenSegmentsIdx = c.hiddenSegmentsIdx;
