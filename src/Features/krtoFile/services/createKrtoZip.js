@@ -1,5 +1,6 @@
 import db from "App/db/db";
 import sanitizeName from "Features/misc/utils/sanitizeName";
+import parseDexieExportBlob from "Features/krtoFile/utils/parseDexieExportBlob";
 import JSZip from "jszip";
 
 export default async function createKrtoZip(scopeId, options) {
@@ -99,8 +100,7 @@ export default async function createKrtoZip(scopeId, options) {
     });
 
     // 4. Traitement
-    const jsonText = await blob.text();
-    const jsonData = JSON.parse(jsonText);
+    const jsonData = await parseDexieExportBlob(blob);
     const zip = new JSZip();
 
     // On repère la table 'files'
