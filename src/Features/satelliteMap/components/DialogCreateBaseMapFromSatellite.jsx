@@ -149,6 +149,7 @@ export default function DialogCreateBaseMapFromSatellite({
         name,
         listing,
         meterByPx,
+        source: "satellite",
         latLng: {
           lat: topLeft.lat,
           lng: topLeft.lng,

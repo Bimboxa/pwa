@@ -1,6 +1,7 @@
 import { useState } from "react";
 
 import useCreateAnnotationTemplate from "../hooks/useCreateAnnotationTemplate";
+import useLogAppEvent from "Features/appLog/hooks/useLogAppEvent";
 
 import FormAnnotationTemplateVariantBlock from "./FormAnnotationTemplateVariantBlock";
 import DialogGeneric from "Features/layout/components/DialogGeneric";
@@ -18,6 +19,7 @@ export default function DialogCreateAnnotationTemplate({ open, onClose, listingI
   // data
 
   const createAnnotationTemplate = useCreateAnnotationTemplate();
+  const logAppEvent = useLogAppEvent();
 
   // state
 
@@ -44,8 +46,10 @@ export default function DialogCreateAnnotationTemplate({ open, onClose, listingI
   }
 
   async function handleCreate() {
-    console.log("handleSave", tempAnnotationTemplate);
     await createAnnotationTemplate(tempAnnotationTemplate, { listingId });
+    logAppEvent("ANNOTATION_TEMPLATE_CREATED", {
+      name: tempAnnotationTemplate?.label,
+    });
     onClose();
   }
 

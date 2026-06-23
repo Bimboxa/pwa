@@ -37,6 +37,11 @@ const IMAGE_TRANSFORMATION_PROMPTS_LOADERS = import.meta.glob("../../../Data/*/i
   eager: false,
 });
 
+// Dynamic loaders for the app event logging registry (appLog / Scribe)
+const APP_LOG_EVENTS_LOADERS = import.meta.glob("../../../Data/*/appLogEvents.js", {
+  eager: false,
+});
+
 // Dynamic loader for Data files (JS modules referenced via `importFromData`).
 // Keep this narrow: a `Data/**/*` glob would also match .md/.css/.json files
 // that Vite would then try to parse as JS at build time.
@@ -209,6 +214,21 @@ export default async function resolveAppConfig(appConfig) {
         newAppConfig.imageTransformationPrompts = module.default;
       } catch (error) {
         console.error(`[resolveAppConfig] Error loading imageTransformationPrompts for "${orgaCode}":`, error);
+      }
+    }
+  }
+
+  // app log events registry (appLog / Scribe)
+  if (orgaCode) {
+    const key = `../../../Data/${orgaCode}/appLogEvents.js`;
+    const loader = APP_LOG_EVENTS_LOADERS[key];
+
+    if (loader) {
+      try {
+        const module = await loader();
+        newAppConfig.appLogEvents = module.default;
+      } catch (error) {
+        console.error(`[resolveAppConfig] Error loading appLogEvents for "${orgaCode}":`, error);
       }
     }
   }

@@ -7,6 +7,7 @@ import useBaseMapTransforms from "../hooks/useBaseMapTransforms";
 import useCreateBaseMapVersion from "Features/baseMaps/hooks/useCreateBaseMapVersion";
 import useReplaceVersionImage from "Features/baseMaps/hooks/useReplaceVersionImage";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
+import useLogAppEvent from "Features/appLog/hooks/useLogAppEvent";
 
 import {
   Box,
@@ -51,6 +52,7 @@ export default function SectionSmartTransforms({ baseMap }) {
   const baseMapTransforms = useBaseMapTransforms();
   const createVersion = useCreateBaseMapVersion();
   const replaceVersionImage = useReplaceVersionImage();
+  const logAppEvent = useLogAppEvent();
 
   const enhancingBaseMap = useSelector(
     (s) => s.baseMaps?.enhancingBaseMapIds?.[baseMap?.id]
@@ -127,6 +129,8 @@ export default function SectionSmartTransforms({ baseMap }) {
   function handleSmartTransformClick(transform) {
     if (!activeVersion?.image?.file || !baseMap?.id) return;
     if (enhancingTransformId) return;
+
+    logAppEvent("TRANSFORM_TRIGGERED", { type: "IA", name: transform.name });
 
     enhanceBaseMapService({
       baseMapId: baseMap.id,
