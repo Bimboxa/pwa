@@ -6,6 +6,7 @@ import { setSelectedMainBaseMapId } from "Features/mapEditor/mapEditorSlice";
 import useCreateEntity from "Features/entities/hooks/useCreateEntity";
 import useProjectBaseMapListings from "Features/baseMaps/hooks/useProjectBaseMapListings";
 import useTriggerInitialScopeSaveIfNeeded from "Features/remoteScopeConfigurations/hooks/useTriggerInitialScopeSaveIfNeeded";
+import useLogAppEvent from "Features/appLog/hooks/useLogAppEvent";
 
 import db from "App/db/db";
 
@@ -13,7 +14,7 @@ import db from "App/db/db";
  * Creates a baseMap entity from an image File and sets up its version system.
  * Used by the file-drop creator.
  *
- * @returns async ({ file, name, listing?, meterByPx?, latLng? }) => entity
+ * @returns async ({ file, name, listing?, meterByPx?, latLng?, source? }) => entity
  */
 export default function useCreateBaseMapFromImage() {
   const dispatch = useDispatch();
@@ -21,6 +22,7 @@ export default function useCreateBaseMapFromImage() {
   const projectBaseMapListings = useProjectBaseMapListings();
   const createEntity = useCreateEntity();
   const triggerInitialSaveIfNeeded = useTriggerInitialScopeSaveIfNeeded();
+  const logAppEvent = useLogAppEvent();
 
   return async function createBaseMapFromImage({
     file,
@@ -28,6 +30,7 @@ export default function useCreateBaseMapFromImage() {
     listing: listingArg,
     meterByPx,
     latLng,
+    source = "image",
   }) {
     const listing = listingArg ?? projectBaseMapListings?.[0];
     if (!listing) return null;
@@ -64,6 +67,8 @@ export default function useCreateBaseMapFromImage() {
 
       dispatch(setSelectedMainBaseMapId(_entity.id));
       triggerInitialSaveIfNeeded();
+
+      logAppEvent("BASE_MAP_CREATED", { name, source, size: file?.size });
     }
 
     return _entity;

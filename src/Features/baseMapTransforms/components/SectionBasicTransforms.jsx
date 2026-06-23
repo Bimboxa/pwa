@@ -5,6 +5,7 @@ import { setGrayLevelThreshold } from "Features/baseMapEditor/baseMapEditorSlice
 
 import useCreateBaseMapVersion from "Features/baseMaps/hooks/useCreateBaseMapVersion";
 import useReplaceVersionImage from "Features/baseMaps/hooks/useReplaceVersionImage";
+import useLogAppEvent from "Features/appLog/hooks/useLogAppEvent";
 
 import {
   Box,
@@ -37,6 +38,7 @@ export default function SectionBasicTransforms({ baseMap }) {
 
   const createVersion = useCreateBaseMapVersion();
   const replaceVersionImage = useReplaceVersionImage();
+  const logAppEvent = useLogAppEvent();
 
   // helpers
 
@@ -64,6 +66,7 @@ export default function SectionBasicTransforms({ baseMap }) {
   // handlers - compare dialog
 
   function handleTransformResult(file, label) {
+    logAppEvent("TRANSFORM_TRIGGERED", { type: "basic", name: label });
     const objectUrl = URL.createObjectURL(file);
     setTempResult({ file, label, objectUrl });
     setOpenCompare(true);

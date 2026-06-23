@@ -8,6 +8,7 @@ import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
 import useCreateListingsFromPresetListingsKeys from "../hooks/useCreateListingsFromPresetListingsKeys";
 import useCreateListings from "../hooks/useCreateListings";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
+import useLogAppEvent from "Features/appLog/hooks/useLogAppEvent";
 
 import { Box, Typography } from "@mui/material";
 
@@ -36,6 +37,7 @@ export default function PanelCreateListingsV3({ onListingCreated, isForBaseMaps 
   const { value: scope } = useSelectedScope();
   const createListingsFromPresets = useCreateListingsFromPresetListingsKeys();
   const createListings = useCreateListings();
+  const logAppEvent = useLogAppEvent();
 
   // state
 
@@ -95,6 +97,8 @@ export default function PanelCreateListingsV3({ onListingCreated, isForBaseMaps 
     }
 
     const [_newListing] = await createListings({ listings: [newListing], scope });
+
+    logAppEvent("LISTING_CREATED", { name: _newListing.name });
 
     dispatch(setSelectedListingId(_newListing.id));
     dispatch(setOpenedPanel("LISTING"));

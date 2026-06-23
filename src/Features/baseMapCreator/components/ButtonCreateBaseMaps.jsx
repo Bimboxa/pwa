@@ -14,6 +14,7 @@ import {
 import useCreateBaseMaps from "../hooks/useCreateBaseMaps";
 import useLinkBaseMapToContainer from "../hooks/useLinkBaseMapToContainer";
 import useTriggerInitialScopeSaveIfNeeded from "Features/remoteScopeConfigurations/hooks/useTriggerInitialScopeSaveIfNeeded";
+import useLogAppEvent from "Features/appLog/hooks/useLogAppEvent";
 
 import { Box, CircularProgress, LinearProgress } from "@mui/material";
 
@@ -32,6 +33,7 @@ export default function ButtonCreateBaseMaps({ pdfDocument, pdfFile }) {
     const createBaseMaps = useCreateBaseMaps();
     const linkBaseMapToContainer = useLinkBaseMapToContainer();
     const triggerInitialSaveIfNeeded = useTriggerInitialScopeSaveIfNeeded();
+    const logAppEvent = useLogAppEvent();
     const tempBaseMaps = useSelector((s) => s.baseMapCreator.tempBaseMaps);
     const sourceContainerId = useSelector((s) => s.baseMapCreator.sourceContainerId);
     const oneBaseMapPerPage = useSelector((s) => s.baseMapCreator.oneBaseMapPerPage);
@@ -98,6 +100,14 @@ export default function ButtonCreateBaseMaps({ pdfDocument, pdfFile }) {
             });
 
             const baseMaps = await createBaseMaps(baseMapsWithPlacement);
+
+            baseMapsToCreate.forEach((bm) => {
+                logAppEvent("BASE_MAP_CREATED", {
+                    name: bm.name,
+                    source: "pdf",
+                    size: bm.imageFile?.size,
+                });
+            });
 
             const baseMap0 = baseMaps?.[0];
             if (baseMap0) {
