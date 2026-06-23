@@ -18,6 +18,7 @@ import applyAnnotationMaterialState, {
 // annotations always show their original material, even while hovered):
 //   - in selection                             → STATE_NONE  (original)
 //   - hovered (and not selected)               → STATE_HOVER (green)
+//   - dimmed by solo (not in the soloed set)   → STATE_DIM   (grey, translucent)
 //   - selection non-empty (and not selected)   → STATE_DIM   (grey, opacity 0.6)
 //   - otherwise                                → STATE_NONE  (original)
 //
@@ -63,10 +64,17 @@ export default function ThreedSelectionDimmer({ threedEditorRef, hoveredIdRef })
         ? "NORMAL"
         : annotationsModeRef.current?.[bmId] ?? "NONE";
 
+      // Solo (3D): non-soloed annotations are tagged `soloDimmed` by
+      // useAnnotationsV2 (which the 3D viewer keeps instead of hiding them) so
+      // the soloed template stays in its original material and the rest go
+      // translucent.
+      const isSoloDimmed = obj.userData?.soloDimmed === true;
+
       let state;
       if (selectedIds.includes(id)) state = STATE_NONE;
       else if (id === hoveredId) state = STATE_HOVER;
       else if (!isMain && mode === "DIMMED") state = STATE_DIM;
+      else if (isSoloDimmed) state = STATE_DIM;
       else if (selectedIds.length > 0) state = STATE_DIM;
       else state = STATE_NONE;
       applyAnnotationMaterialState(obj, state);

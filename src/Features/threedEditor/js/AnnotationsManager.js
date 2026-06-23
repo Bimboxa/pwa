@@ -190,6 +190,9 @@ export default class AnnotationsManager {
       if (object) {
         if (!object.userData) object.userData = {};
         object.userData.baseMapId = annotation.baseMapId;
+        // Solo mode (3D): non-soloed annotations are tagged by useAnnotationsV2
+        // so ThreedSelectionDimmer renders them translucent.
+        object.userData.soloDimmed = Boolean(annotation._soloDimmed);
       }
       // Attach to the basemap's group so transforms applied to the basemap
       // (translate/rotate from the BASEMAP_POSITION editor mode) propagate to

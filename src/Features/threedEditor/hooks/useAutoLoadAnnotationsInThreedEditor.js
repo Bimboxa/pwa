@@ -51,6 +51,9 @@ export default function useAutoLoadAnnotationsInThreedEditor({
     sortByOrderIndex: true,
     excludeIsForBaseMapsListings: true,
     excludeProfileTemplates: true,
+    // Solo mode dims (instead of hides) non-soloed annotations in 3D —
+    // ThreedSelectionDimmer renders them translucent.
+    keepSoloDimmed: true,
   });
 
   // "Afficher les mailles": ON → replace parents that have mesh cells by their
