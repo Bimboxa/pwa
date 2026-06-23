@@ -8,11 +8,8 @@ import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation"
 
 import { setToaster } from "Features/layout/layoutSlice";
 
-import {
-  typeOf,
-  circleFromThreePoints,
-  sampleArcPoints,
-} from "Features/geometry/utils/arcSampling";
+import { typeOf } from "Features/geometry/utils/arcSampling";
+import splitArcOnInsert from "Features/geometry/utils/splitArcOnInsert";
 
 import db from "App/db/db";
 
@@ -112,6 +109,23 @@ export default function useHandleCompleteAnnotation({ newEntity } = {}) {
     const isPolyline = annotation.type === "POLYLINE";
     const isPolygon = annotation.type === "POLYGON";
 
+    // Pre-resolve the annotation's existing points to pixel space so the
+    // arc-split insertion (splitArcOnInsert) can compute circle geometry
+    // synchronously. Circle math is done in PIXEL space (normalization is
+    // anisotropic).
+    const pxById = {};
+    {
+      const recs = await db.points.bulkGet(annotationPoints.map((p) => p.id));
+      recs.forEach((r, i) => {
+        if (r) {
+          pxById[annotationPoints[i].id] = {
+            x: r.x * imageSize.width,
+            y: r.y * imageSize.height,
+          };
+        }
+      });
+    }
+
     // Convert drawn points to normalized (0-1) coords and save to DB
     const drawnPointRecords = rawDrawnPoints.map((pt) => ({
       id: pt.existingPointId || nanoid(),
@@ -154,88 +168,30 @@ export default function useHandleCompleteAnnotation({ newEntity } = {}) {
      *
      * @returns {{ points, effectiveId } | null}
      */
-    const insertCutPoint = async (points, snapSegment, cutId, cutPx) => {
+    const insertCutPoint = (points, snapSegment, cutId, cutPx) => {
       const { segmentStartId } = snapSegment;
       const sIdx = points.findIndex((p) => p.id === segmentStartId);
       if (sIdx === -1) return null;
 
-      const startRef = points[sIdx];
-      const endRef = points[sIdx + 1];
+      const { points: next, newCircle } = splitArcOnInsert({
+        points,
+        segmentStartIndex: sIdx,
+        newRef: { id: cutId },
+        newPx: cutPx,
+        getPx: (id) => pxById[id],
+        closed: false,
+        makeId: () => nanoid(),
+      });
 
-      // Always insert the cut point right after the segment start.
-      let next = [
-        ...points.slice(0, sIdx + 1),
-        { id: cutId },
-        ...points.slice(sIdx + 1),
-      ];
-
-      // Identify the S-C-S triplet the cut falls inside, if any.
-      let triplet = null; // { S, C, S2, half: "S" | "S2" }
-      if (typeOf(startRef) !== "circle" && endRef && typeOf(endRef) === "circle") {
-        // segment S → C, cut on the S-half. S2 is the point after C.
-        const s2Ref = points[sIdx + 2];
-        if (s2Ref && typeOf(s2Ref) !== "circle") {
-          triplet = { S: startRef, C: endRef, S2: s2Ref, half: "S" };
-        }
-      } else if (typeOf(startRef) === "circle" && endRef && typeOf(endRef) !== "circle") {
-        // segment C → S2, cut on the S2-half. S is the point before C.
-        const sRef = points[sIdx - 1];
-        if (sRef && typeOf(sRef) !== "circle") {
-          triplet = { S: sRef, C: startRef, S2: endRef, half: "S2" };
-        }
-      }
-
-      if (triplet) {
-        const recs = await db.points.bulkGet([
-          triplet.S.id,
-          triplet.C.id,
-          triplet.S2.id,
-        ]);
-        if (recs.every(Boolean)) {
-          const toPx = (r) => ({
-            x: r.x * imageSize.width,
-            y: r.y * imageSize.height,
-          });
-          const Spx = toPx(recs[0]);
-          const Cpx = toPx(recs[1]);
-          const S2px = toPx(recs[2]);
-          const circ = circleFromThreePoints(Spx, Cpx, S2px);
-          if (circ && Number.isFinite(circ.r) && circ.r > 0) {
-            const cross =
-              (Cpx.x - Spx.x) * (S2px.y - Spx.y) -
-              (Cpx.y - Spx.y) * (S2px.x - Spx.x);
-            const isCW = cross > 0;
-
-            // Midpoint of the sub-arc that lost its control point.
-            const midPx =
-              triplet.half === "S"
-                ? sampleArcPoints(Spx, cutPx, circ.center, circ.r, isCW, 2)[0]
-                : sampleArcPoints(cutPx, S2px, circ.center, circ.r, isCW, 2)[0];
-
-            if (midPx) {
-              const mId = nanoid();
-              extraPointRecords.push({
-                id: mId,
-                x: midPx.x / imageSize.width,
-                y: midPx.y / imageSize.height,
-                baseMapId,
-                projectId,
-                listingId,
-              });
-              // S-half: insert M just before the cut point (S, M, A).
-              // S2-half: insert M just before S2 (A, M, S2).
-              const beforeId = triplet.half === "S" ? cutId : triplet.S2.id;
-              const insertIdx = next.findIndex((p) => p.id === beforeId);
-              if (insertIdx !== -1) {
-                next = [
-                  ...next.slice(0, insertIdx),
-                  { id: mId, type: "circle" },
-                  ...next.slice(insertIdx),
-                ];
-              }
-            }
-          }
-        }
+      if (newCircle) {
+        extraPointRecords.push({
+          id: newCircle.id,
+          x: newCircle.x / imageSize.width,
+          y: newCircle.y / imageSize.height,
+          baseMapId,
+          projectId,
+          listingId,
+        });
       }
 
       return { points: next, effectiveId: cutId };
@@ -243,7 +199,7 @@ export default function useHandleCompleteAnnotation({ newEntity } = {}) {
 
     // Insert start point if it was a snap on a segment (not an existing vertex)
     if (!startPointId && firstDrawn?.snapSegment) {
-      const res = await insertCutPoint(
+      const res = insertCutPoint(
         updatedAnnotationPoints,
         firstDrawn.snapSegment,
         drawnPointRecords[0].id,
@@ -257,7 +213,7 @@ export default function useHandleCompleteAnnotation({ newEntity } = {}) {
 
     // Insert end point if it was a snap on a segment (not an existing vertex)
     if (!endPointId && lastDrawn?.snapSegment) {
-      const res = await insertCutPoint(
+      const res = insertCutPoint(
         updatedAnnotationPoints,
         lastDrawn.snapSegment,
         drawnPointRecords[drawnPointRecords.length - 1].id,

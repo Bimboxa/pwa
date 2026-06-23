@@ -84,6 +84,7 @@ import getPolylinePointsFromRectangle from "Features/geometry/utils/getPolylineP
 import getPolylinePointsFromCircle from "Features/geometry/utils/getPolylinePointsFromCircle";
 import getPolylinePointsFromCircleCenterRadius from "Features/geometry/utils/getPolylinePointsFromCircleCenterRadius";
 import getPolylinePointsFromArc from "Features/geometry/utils/getPolylinePointsFromArc";
+import splitArcOnInsert from "Features/geometry/utils/splitArcOnInsert";
 import getDefaultCameraMatrix from "../utils/getDefaultCameraMatrix";
 import getDefaultBaseMapPoseInBg from "../utils/getDefaultBaseMapPoseInBg";
 import getAnnotationLabelDeltaFromDeltaPos from "Features/annotations/utils/getAnnotationLabelDeltaFromDeltaPos";
@@ -818,28 +819,51 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
         // guideLine refs key on `pointId` (not `id`).
         const newGuidePointObject = { pointId: newPointId, type: 'square' };
 
-        // Helper function to try inserting point in a specific list of points
-        // Returns the new array if insertion happened, or null if segment not found
-        const insertPointInPath = (pointsList) => {
+        // Arc-midpoint control points to persist when a split lands on an arc.
+        const extraCircleRecords = [];
+
+        // Helper function to try inserting point in a specific list of points.
+        // Returns the new array if insertion happened, or null if segment not
+        // found. When the matched segment is one half of an S-C-S arc, the
+        // insertion preserves the curve (S-C-S-C-S) via splitArcOnInsert and
+        // queues the extra circle control for persistence.
+        // `pointsList` is pixel-resolved here (points carry {id,x,y,type}).
+        const insertPointInPath = (pointsList, { closed } = {}) => {
             if (!pointsList || pointsList.length < 2) return null;
 
             for (let i = 0; i < pointsList.length; i++) {
                 const currentPt = pointsList[i];
                 const nextPt = pointsList[(i + 1) % pointsList.length]; // Handle closed loop
 
-                // CASE 1: Sequence A -> B
-                if (currentPt.id === segmentStartId && nextPt.id === segmentEndId) {
-                    const newPoints = [...pointsList];
-                    newPoints.splice(i + 1, 0, newPointObject);
-                    return newPoints;
+                const matchFwd = currentPt.id === segmentStartId && nextPt.id === segmentEndId;
+                const matchRev = currentPt.id === segmentEndId && nextPt.id === segmentStartId;
+                if (!matchFwd && !matchRev) continue;
+
+                const { points: newPoints, newCircle } = splitArcOnInsert({
+                    points: pointsList,
+                    segmentStartIndex: i,
+                    newRef: newPointObject,
+                    newPx: { x, y },
+                    getPx: (id) => {
+                        const p = pointsList.find((pt) => pt.id === id);
+                        return p && Number.isFinite(p.x) ? { x: p.x, y: p.y } : undefined;
+                    },
+                    closed: !!closed,
+                    makeId: () => nanoid(),
+                });
+
+                if (newCircle) {
+                    extraCircleRecords.push({
+                        id: newCircle.id,
+                        x: newCircle.x / imageSize.width,
+                        y: newCircle.y / imageSize.height,
+                        baseMapId: baseMap.id,
+                        projectId,
+                        listingId,
+                    });
                 }
 
-                // CASE 2: Sequence B -> A (Reverse direction)
-                if (currentPt.id === segmentEndId && nextPt.id === segmentStartId) {
-                    const newPoints = [...pointsList];
-                    newPoints.splice(i + 1, 0, newPointObject);
-                    return newPoints;
-                }
+                return newPoints;
             }
             return null;
         };
@@ -852,7 +876,8 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
             const updates = { id: ann.id };
 
             // A. Check Main Contour
-            const newMainPoints = insertPointInPath(ann.points);
+            const mainClosed = ann.type === "POLYGON" || ann.closeLine === true;
+            const newMainPoints = insertPointInPath(ann.points, { closed: mainClosed });
             if (newMainPoints) {
                 updates.points = newMainPoints;
                 hasChanges = true;
@@ -893,7 +918,8 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
 
                 // On mappe sur les cuts pour voir si l'un d'eux contient le segment
                 const newCuts = ann.cuts.map(cut => {
-                    const newCutPoints = insertPointInPath(cut.points);
+                    // Cut rings are closed loops.
+                    const newCutPoints = insertPointInPath(cut.points, { closed: true });
 
                     if (newCutPoints) {
                         cutsChanged = true;
@@ -918,8 +944,8 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
         // 3. Execute Database Operations
         if (annotationsToUpdate.length > 0) {
             try {
-                // A. Add the new point
-                await db.points.add(newPointEntity);
+                // A. Add the new point (+ any arc-midpoint control points)
+                await db.points.bulkAdd([newPointEntity, ...extraCircleRecords]);
 
                 // B. Update annotations (Updating 'points' or 'cuts' or both)
                 await Promise.all(
@@ -942,17 +968,52 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
         const ann = await db.annotations.get(annotationId);
         if (!ann) return;
 
+        const imageSize = baseMap?.getImageSize?.();
+        if (!imageSize) return;
+
+        // The target path (raw refs) and whether it is a closed ring.
+        const isCut = cutIndex != null && ann.cuts?.[cutIndex];
+        const targetPoints = isCut ? ann.cuts[cutIndex].points : ann.points;
+        const closed = isCut || ann.type === "POLYGON" || ann.closeLine === true;
+
+        // Pre-resolve the path's points (+ the inserted point) to pixel space so
+        // splitArcOnInsert can preserve the arc when the segment is curved.
+        const ids = [...new Set([...(targetPoints || []).map((p) => p.id), pointId])];
+        const recs = await db.points.bulkGet(ids);
+        const pxById = {};
+        recs.forEach((r, i) => {
+            if (r) pxById[ids[i]] = { x: r.x * imageSize.width, y: r.y * imageSize.height };
+        });
+        const newPx = pxById[pointId];
+
+        const extraCircleRecords = [];
+
         const insertPointInPath = (pointsList) => {
-            if (!pointsList || pointsList.length < 2) return null;
+            if (!pointsList || pointsList.length < 2 || !newPx) return null;
             for (let i = 0; i < pointsList.length; i++) {
                 const cur = pointsList[i];
                 const next = pointsList[(i + 1) % pointsList.length];
                 if ((cur.id === segmentStartId && next.id === segmentEndId) ||
                     (cur.id === segmentEndId && next.id === segmentStartId)) {
-                    // Skip arc segments to preserve arc geometry
-                    if (cur.type === 'circle' || next.type === 'circle') return null;
-                    const newPoints = [...pointsList];
-                    newPoints.splice(i + 1, 0, { id: pointId, type: 'square' });
+                    const { points: newPoints, newCircle } = splitArcOnInsert({
+                        points: pointsList,
+                        segmentStartIndex: i,
+                        newRef: { id: pointId, type: 'square' },
+                        newPx,
+                        getPx: (id) => pxById[id],
+                        closed,
+                        makeId: () => nanoid(),
+                    });
+                    if (newCircle) {
+                        extraCircleRecords.push({
+                            id: newCircle.id,
+                            x: newCircle.x / imageSize.width,
+                            y: newCircle.y / imageSize.height,
+                            baseMapId: baseMap.id,
+                            projectId,
+                            listingId,
+                        });
+                    }
                     return newPoints;
                 }
             }
@@ -960,7 +1021,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
         };
 
         const changes = {};
-        if (cutIndex != null && ann.cuts?.[cutIndex]) {
+        if (isCut) {
             const result = insertPointInPath(ann.cuts[cutIndex].points);
             if (result) {
                 const newCuts = ann.cuts.map((c, i) => i === cutIndex ? { ...c, points: result } : c);
@@ -972,6 +1033,9 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
         }
 
         if (Object.keys(changes).length > 0) {
+            if (extraCircleRecords.length > 0) {
+                await db.points.bulkAdd(extraCircleRecords);
+            }
             await db.annotations.update(annotationId, changes);
         }
     };
