@@ -1,15 +1,21 @@
 import db from "App/db/db";
 
 import useUserEmail from "Features/auth/hooks/useUserEmail";
+import useCanEditRecord from "App/hooks/useCanEditRecord";
 import updateItemSyncFile from "Features/sync/services/updateItemSyncFile";
 import getEntityPureDataAndFilesDataByKey from "Features/entities/utils/getEntityPureDataAndFilesDataByKey";
 
 export default function useUpdateListing() {
   const { value: userEmail } = useUserEmail();
+  const { guardEditRecord } = useCanEditRecord();
 
   const update = async (updates, options) => {
     const listingId = updates.id;
     let processedUpdates = updates;
+
+    // ownership — block edits on a listing created by another user
+    const existingListing = await db.listings.get(listingId);
+    if (existingListing && !guardEditRecord(existingListing)) return;
 
     // handle metadata files
     if (updates.metadata) {
@@ -87,11 +93,11 @@ export default function useUpdateListing() {
     await db.listings.update(listingId, processedUpdates);
     //
     const listing = await db.listings.get(listingId);
-    await updateItemSyncFile({item: listing, type: "LISTING"});
+    await updateItemSyncFile({ item: listing, type: "LISTING" });
 
     // sync file
     if (options?.updateSyncFile) {
-      const props = {item: listing, type: "LISTING"};
+      const props = { item: listing, type: "LISTING" };
       if (options.updatedAt) props.updatedAt = options.updatedAt;
       if (options.syncAt) props.syncAt = options.syncAt;
       await updateItemSyncFile(props);

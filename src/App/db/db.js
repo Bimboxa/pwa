@@ -4,11 +4,29 @@ import { nanoid } from "@reduxjs/toolkit";
 
 import store from "App/store";
 import { UNDO_TABLES, _skipUndo, pushUndo } from "./undoManager";
+import { canEditRecord, OwnershipError } from "./ownership";
 import { notifyLocalChange } from "Features/remoteScopeConfigurations/services/localChangeTracker";
 
 function getCurrentUserIdMaster() {
   const state = store.getState();
   return state.auth.userProfile?.userIdMaster || "anonymous";
+}
+
+// --- OWNERSHIP GUARD BYPASS ---
+// When active, the ownership guard and the `updatedByUserIdMaster` auto-stamp
+// are skipped. Used by legitimate inter-user flows (Krto/scope import, remote
+// sync) that write records owned by other users, and by parent-authorized
+// cascade deletes.
+let _skipOwnershipGuard = false;
+
+export function withSystemWrite(fn) {
+  const previous = _skipOwnershipGuard;
+  _skipOwnershipGuard = true;
+  return Promise.resolve()
+    .then(fn)
+    .finally(() => {
+      _skipOwnershipGuard = previous;
+    });
 }
 
 const db = new Dexie("appDB");
@@ -155,12 +173,34 @@ AUDIT_TABLES.forEach((tableName) => {
     notifyLocalChange();
   });
 
-  db[tableName].hook("updating", function (modifications) {
+  db[tableName].hook("updating", function (modifications, primKey, obj) {
     notifyLocalChange();
-    if (!modifications.updatedAt) {
-      return { ...modifications, updatedAt: new Date().toISOString() };
+
+    if (_skipOwnershipGuard) {
+      // System write (import / sync / authorized cascade): preserve incoming
+      // values, no guard and no auto-stamp.
+      if (!modifications.updatedAt) {
+        return { ...modifications, updatedAt: new Date().toISOString() };
+      }
+      return modifications;
     }
-    return modifications;
+
+    const currentUser = getCurrentUserIdMaster();
+    if (!canEditRecord(obj, currentUser)) {
+      throw new OwnershipError();
+    }
+
+    const extra = {};
+    if (!modifications.updatedAt) {
+      extra.updatedAt = new Date().toISOString();
+    }
+    if (modifications.updatedByUserIdMaster === undefined) {
+      // Stamp the modifier — also "reserves" a previously free record.
+      extra.updatedByUserIdMaster = currentUser;
+    }
+    return Object.keys(extra).length > 0
+      ? { ...modifications, ...extra }
+      : modifications;
   });
 });
 
@@ -250,6 +290,12 @@ async function softDeleteByKeys(downlevelTable, req, tableName) {
   for (let i = 0; i < req.keys.length; i++) {
     const record = existingRecords[i];
     if (record && !record.deletedAt) {
+      if (
+        !_skipOwnershipGuard &&
+        !canEditRecord(record, deletedByUserIdMaster)
+      ) {
+        throw new OwnershipError();
+      }
       const softDeleted = {
         ...record,
         deletedAt: now,
@@ -298,6 +344,14 @@ async function softDeleteByRange(downlevelTable, req, tableName) {
   const recordsToDelete = queryResult.result.filter(
     (record) => !record.deletedAt
   );
+
+  if (!_skipOwnershipGuard) {
+    for (const record of recordsToDelete) {
+      if (!canEditRecord(record, deletedByUserIdMaster)) {
+        throw new OwnershipError();
+      }
+    }
+  }
 
   const valuesToPut = recordsToDelete.map((record) => ({
     ...record,

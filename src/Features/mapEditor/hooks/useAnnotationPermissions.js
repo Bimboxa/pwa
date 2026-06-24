@@ -2,6 +2,7 @@ import { useRef, useCallback } from "react";
 import { useSelector, useDispatch } from "react-redux";
 
 import { setToaster } from "Features/layout/layoutSlice";
+import { canEditRecord } from "App/db/ownership";
 
 /**
  * Hook central de vérification des permissions d'annotation.
@@ -14,7 +15,8 @@ import { setToaster } from "Features/layout/layoutSlice";
  * @param {{ annotations: Array }} params
  * @returns {{ currentUserId: string, canEditAnnotation: Function, checkPointPermission: Function }}
  */
-const PERMISSION_MESSAGE = "Vous ne pouvez pas modifier une annotation dont vous n'êtes pas le créateur";
+const PERMISSION_MESSAGE =
+  "Vous ne pouvez pas modifier une annotation dont vous n'êtes pas le créateur";
 
 export default function useAnnotationPermissions({ annotations }) {
   const dispatch = useDispatch();
@@ -36,8 +38,7 @@ export default function useAnnotationPermissions({ annotations }) {
   const canEditAnnotation = useCallback(
     (annotationId) => {
       const ann = annotationsRef.current?.find((a) => a.id === annotationId);
-      if (ann?.createdByUserIdMaster === "anonymous") return true;
-      if (ann?.createdByUserIdMaster === currentUserId) return true;
+      if (canEditRecord(ann, currentUserId)) return true;
       dispatch(setToaster({ message: PERMISSION_MESSAGE, isError: true }));
       return false;
     },
@@ -73,10 +74,7 @@ export default function useAnnotationPermissions({ annotations }) {
           gl?.points?.some((g) => g.pointId === pointId || g.id === pointId)
         );
         if (inMain || inCuts || inInner || inGuide) {
-          if (
-            ann.createdByUserIdMaster === currentUserId ||
-            ann.createdByUserIdMaster === "anonymous"
-          ) {
+          if (canEditRecord(ann, currentUserId)) {
             myIds.push(ann.id);
           } else {
             foreignIds.push(ann.id);
