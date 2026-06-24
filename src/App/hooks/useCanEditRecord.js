@@ -3,6 +3,7 @@ import { useSelector, useDispatch } from "react-redux";
 
 import { setToaster } from "Features/layout/layoutSlice";
 import { canEditRecord } from "App/db/ownership";
+import getUserIdMaster from "Features/auth/utils/getUserIdMaster";
 
 export const PERMISSION_MESSAGE =
   "Vous ne pouvez pas modifier un objet dont vous n'êtes pas le créateur";
@@ -21,8 +22,8 @@ export const PERMISSION_MESSAGE =
  */
 export default function useCanEditRecord() {
   const dispatch = useDispatch();
-  const currentUserId = useSelector(
-    (state) => state.auth.userProfile?.userIdMaster
+  const currentUserId = useSelector((state) =>
+    getUserIdMaster(state.auth.userProfile)
   );
 
   const canEdit = useCallback(

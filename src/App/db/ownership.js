@@ -14,28 +14,42 @@
  */
 
 // Values that mean "no owner" → free for everyone.
-const FREE_OWNERS = new Set([undefined, null, "", "anonymous"]);
+const FREE_OWNERS = new Set(["", "anonymous"]);
 
 /**
- * @param {object} record
- * @returns {string|null} the effective owner userIdMaster, or null if free.
+ * Normalize an owner / user id to a comparable string, or null when it means
+ * "no owner". Ids reach us as strings (debug auth) or numbers (edx idMaster,
+ * e.g. 1838640), and across machines/saves the same identity may be stored
+ * either way — so we always compare as strings.
+ *
+ * @param {string|number|null|undefined} value
+ * @returns {string|null}
  */
-export function getEffectiveOwner(record) {
-  const createdBy = record?.createdByUserIdMaster;
-  if (!FREE_OWNERS.has(createdBy)) return createdBy;
-  const updatedBy = record?.updatedByUserIdMaster;
-  if (!FREE_OWNERS.has(updatedBy)) return updatedBy;
-  return null;
+export function normalizeOwnerId(value) {
+  if (value === undefined || value === null) return null;
+  const str = String(value);
+  return FREE_OWNERS.has(str) ? null : str;
 }
 
 /**
  * @param {object} record
- * @param {string} currentUserId
+ * @returns {string|null} the effective owner id (normalized), or null if free.
+ */
+export function getEffectiveOwner(record) {
+  return (
+    normalizeOwnerId(record?.createdByUserIdMaster) ??
+    normalizeOwnerId(record?.updatedByUserIdMaster)
+  );
+}
+
+/**
+ * @param {object} record
+ * @param {string|number} currentUserId
  * @returns {boolean} true if the current user may edit/delete the record.
  */
 export function canEditRecord(record, currentUserId) {
   const owner = getEffectiveOwner(record);
-  return owner === null || owner === currentUserId;
+  return owner === null || owner === normalizeOwnerId(currentUserId);
 }
 
 /**

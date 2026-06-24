@@ -12,6 +12,7 @@ import useChangeAnnotationPointType from "../hooks/useChangeAnnotationPointType"
 
 import { useLiveQuery } from "dexie-react-hooks";
 import db from "App/db/db";
+import useCanEditRecord from "App/hooks/useCanEditRecord";
 
 import { Paper, ListItemButton, List, Typography } from "@mui/material";
 
@@ -21,7 +22,7 @@ export default function ContextMenuPolylinePoint() {
   // data
 
   const clickedNode = useSelector((s) => s.contextMenu.clickedNode);
-  const currentUserId = useSelector((s) => s.auth.userProfile?.userIdMaster);
+  const { canEditRecord } = useCanEditRecord();
   const deleteAnnotationPoint = useDeleteAnnotationPoint();
   const changeAnnotationPointType = useChangeAnnotationPointType();
 
@@ -31,15 +32,21 @@ export default function ContextMenuPolylinePoint() {
     return await db.annotations.get(clickedNode.id);
   }, [clickedNode?.id]);
 
-  const isOwner =
-    annotation?.createdByUserIdMaster === currentUserId ||
-    annotation?.createdByUserIdMaster === "anonymous";
+  const isOwner = !!annotation && canEditRecord(annotation);
 
   // helpers
 
   const actions = [
-    { label: "Rond <=> Carré", handler: handleChangePointType, disabled: !isOwner },
-    { label: "Supprimer le point", handler: handleDeletePoint, disabled: !isOwner },
+    {
+      label: "Rond <=> Carré",
+      handler: handleChangePointType,
+      disabled: !isOwner,
+    },
+    {
+      label: "Supprimer le point",
+      handler: handleDeletePoint,
+      disabled: !isOwner,
+    },
   ];
 
   // handlers

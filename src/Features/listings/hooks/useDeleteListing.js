@@ -7,14 +7,15 @@ import useDeleteRemoteListing from "./useDeleteRemoteListing";
 
 import db, { withSystemWrite } from "App/db/db";
 import { canEditRecord, OwnershipError } from "App/db/ownership";
+import getUserIdMaster from "Features/auth/utils/getUserIdMaster";
 
 export default function useDeleteListing() {
   const dispatch = useDispatch();
 
   const { value: listings } = useListingsByScope();
   const deleteRemoteListing = useDeleteRemoteListing();
-  const currentUserId = useSelector(
-    (state) => state.auth.userProfile?.userIdMaster
+  const currentUserId = useSelector((state) =>
+    getUserIdMaster(state.auth.userProfile)
   );
 
   const deleteFunc = async (listingId, options) => {
