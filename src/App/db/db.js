@@ -5,11 +5,13 @@ import { nanoid } from "@reduxjs/toolkit";
 import store from "App/store";
 import { UNDO_TABLES, _skipUndo, pushUndo } from "./undoManager";
 import { canEditRecord, OwnershipError } from "./ownership";
+import getUserIdMaster from "Features/auth/utils/getUserIdMaster";
 import { notifyLocalChange } from "Features/remoteScopeConfigurations/services/localChangeTracker";
 
 function getCurrentUserIdMaster() {
   const state = store.getState();
-  return state.auth.userProfile?.userIdMaster || "anonymous";
+  const id = getUserIdMaster(state.auth.userProfile);
+  return id != null ? String(id) : "anonymous";
 }
 
 // --- OWNERSHIP GUARD BYPASS ---

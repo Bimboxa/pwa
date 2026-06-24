@@ -3,6 +3,7 @@ import { useSelector, useDispatch } from "react-redux";
 
 import { setToaster } from "Features/layout/layoutSlice";
 import { canEditRecord } from "App/db/ownership";
+import getUserIdMaster from "Features/auth/utils/getUserIdMaster";
 
 /**
  * Hook central de vérification des permissions d'annotation.
@@ -20,8 +21,8 @@ const PERMISSION_MESSAGE =
 
 export default function useAnnotationPermissions({ annotations }) {
   const dispatch = useDispatch();
-  const currentUserId = useSelector(
-    (state) => state.auth.userProfile?.userIdMaster
+  const currentUserId = useSelector((state) =>
+    getUserIdMaster(state.auth.userProfile)
   );
 
   // Ref toujours fraîche — PAS dans un deps array
