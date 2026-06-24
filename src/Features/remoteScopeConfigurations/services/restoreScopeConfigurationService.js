@@ -9,9 +9,10 @@ import resolveRoute from "../utils/resolveRoute";
  *
  * Étapes:
  *  1. Supprime toutes les données locales du scope.
- *  2. Télécharge le ZIP de la version distante depuis l'endpoint `download`
- *     (configuré dans appConfig.features.remoteScopeConfigurations.download)
- *     en y injectant l'`id` de la configuration via {{configurationId}}.
+ *  2. Télécharge le ZIP de la *version sélectionnée* depuis l'endpoint
+ *     `downloadByConfigId`
+ *     (configuré dans appConfig.features.remoteScopeConfigurations.downloadByConfigId)
+ *     en y injectant l'`idMaster` de la configuration via {{idMaster}}.
  *     Si l'objet `version` expose un `url` directement utilisable, on l'utilise.
  *  3. Recharge le ZIP dans Dexie sur le scope courant via loadKrtoZip.
  */
@@ -24,20 +25,24 @@ export default async function restoreScopeConfigurationService({
     if (!scopeId) throw new Error("scopeId manquant");
     if (!version) throw new Error("version manquante");
 
-    // 1. Résoudre l'URL de téléchargement
+    // 1. Résoudre l'URL de téléchargement de la version sélectionnée
     let downloadUrl = version.url;
 
     if (!downloadUrl) {
-        // Fallback: utiliser l'endpoint `download` de l'appConfig avec le scopeId.
-        // (renvoie la dernière version — utile uniquement si version.url est absent)
-        const downloadConfig = appConfig?.features?.remoteScopeConfigurations?.download;
-        if (!downloadConfig) {
-            throw new Error("Aucune URL de téléchargement (version.url absent et download config manquante)");
+        // Télécharger la configuration ciblée par son idMaster (id de la version),
+        // et non la dernière version du scope.
+        const downloadByConfigIdConfig =
+            appConfig?.features?.remoteScopeConfigurations?.downloadByConfigId;
+        if (!downloadByConfigIdConfig) {
+            throw new Error("Aucune URL de téléchargement (version.url absent et downloadByConfigId config manquante)");
         }
-        const fetchParams = downloadConfig.fetchParams;
+        if (!version.idMaster) {
+            throw new Error("version.idMaster manquant — impossible de télécharger la version ciblée");
+        }
+        const fetchParams = downloadByConfigIdConfig.fetchParams;
         const urlConfig = {
             ...fetchParams.url,
-            route: resolveRoute(fetchParams.url.route, { scopeId }),
+            route: resolveRoute(fetchParams.url.route, { idMaster: version.idMaster }),
         };
         downloadUrl = resolveUrl(urlConfig);
     }
