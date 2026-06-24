@@ -29,21 +29,19 @@ function resolveUserName(config, userProfile) {
 /**
  * Dedicated hook to log application events to the Scribe API.
  *
- * Returns `logEvent(eventKey, params, options)`:
+ * Returns `logEvent(eventKey, params)`:
  * - `eventKey` is a key defined in the centralized registry
  *   (`appConfig.appLogEvents`, loaded from `Data/<orga>/appLogEvents.js`).
  * - `params` are raw values consumed by the event's `buildMessage`.
- * - `options.userProfile` overrides the Redux profile — used when firing during
- *   auth init, where the freshly fetched profile isn't in Redux yet.
  *
  * Fire-and-forget: it never blocks the UI and swallows errors (a failed log
  * must not break the business flow). No-op when no endpoint is configured.
  */
 export default function useLogAppEvent() {
   const appConfig = useAppConfig();
-  const reduxUserProfile = useSelector((s) => s.auth.userProfile);
+  const userProfile = useSelector((s) => s.auth.userProfile);
 
-  return (eventKey, params = {}, { userProfile } = {}) => {
+  return (eventKey, params = {}) => {
     const config = appConfig?.features?.appLog;
     if (!config?.url) return; // no endpoint => do nothing
 
@@ -56,7 +54,7 @@ export default function useLogAppEvent() {
 
     console.log("[appLog]", eventKey, params);
 
-    const userName = resolveUserName(config, userProfile ?? reduxUserProfile);
+    const userName = resolveUserName(config, userProfile);
 
     postAppLogService({
       config,

@@ -2,11 +2,8 @@ import { setUserProfile, setJwt } from "Features/auth/authSlice";
 import { useDispatch } from "react-redux";
 import transformObject from "Features/misc/utils/transformObject";
 
-import useLogAppEvent from "Features/appLog/hooks/useLogAppEvent";
-
 export default function useAutoAuth() {
     const dispatch = useDispatch();
-    const logEvent = useLogAppEvent();
 
     return async (url, authDataMapping) => {
         if (!url) {
@@ -34,12 +31,6 @@ export default function useAutoAuth() {
                     dispatch(setUserProfile(userProfile));
 
                     console.log("[useAutoAuth] userProfile", userProfile);
-
-                    // App load is logged here, once auth has resolved the
-                    // profile, so the LOAD_APP event carries a populated
-                    // userName. We pass the freshly fetched profile explicitly
-                    // since Redux hasn't propagated it yet.
-                    logEvent("LOAD_APP", {}, { userProfile });
 
                     // jwt
 
