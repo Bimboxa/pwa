@@ -31,10 +31,16 @@ import SectionVersionTransforms from "./SectionVersionTransforms";
 import { nanoid } from "@reduxjs/toolkit";
 import { generateKeyBetween } from "fractional-indexing";
 import db from "App/db/db";
+import { OwnershipError } from "App/db/ownership";
+import useCanEditRecord from "App/hooks/useCanEditRecord";
 import activateBaseMapVersion from "Features/baseMaps/utils/activateBaseMapVersion";
 
 export default function PanelBaseMapVersionProperties() {
   const dispatch = useDispatch();
+
+  // permissions
+
+  const { canEditRecord, guardEditRecord } = useCanEditRecord();
 
   // data
 
@@ -83,6 +89,7 @@ export default function PanelBaseMapVersionProperties() {
 
   function handleDelete() {
     setAnchorEl(null);
+    if (!guardEditRecord(version)) return;
     setOpenDelete(true);
   }
 
@@ -121,7 +128,8 @@ export default function PanelBaseMapVersionProperties() {
       fractionalIndex: newFractionalIndex,
       isActive: false,
       image: versionRecord?.image || version.image,
-      transform: versionRecord?.transform || version.transform || { x: 0, y: 0, rotation: 0, scale: 1 },
+      transform: versionRecord?.transform ||
+        version.transform || { x: 0, y: 0, rotation: 0, scale: 1 },
     });
   }
 
@@ -133,7 +141,15 @@ export default function PanelBaseMapVersionProperties() {
 
   async function handleLabelBlur() {
     if (labelValue !== null && baseMap?.id && selectedVersionId) {
-      await db.baseMapVersions.update(selectedVersionId, { label: labelValue });
+      if (guardEditRecord(version)) {
+        try {
+          await db.baseMapVersions.update(selectedVersionId, {
+            label: labelValue,
+          });
+        } catch (error) {
+          if (!(error instanceof OwnershipError)) throw error;
+        }
+      }
     }
     setLabelValue(null);
   }
@@ -150,7 +166,8 @@ export default function PanelBaseMapVersionProperties() {
 
   if (!baseMap || !version) return null;
 
-  const canDelete = baseMap.versions?.length > 1;
+  const canEditVersion = canEditRecord(version);
+  const canDelete = baseMap.versions?.length > 1 && canEditVersion;
 
   return (
     <BoxFlexVStretch>
@@ -202,6 +219,7 @@ export default function PanelBaseMapVersionProperties() {
               onFocus={handleLabelFocus}
               onBlur={handleLabelBlur}
               onKeyDown={handleLabelKeyDown}
+              disabled={!canEditVersion}
               fullWidth
               sx={{ fontSize: "0.875rem" }}
             />
@@ -229,7 +247,13 @@ export default function PanelBaseMapVersionProperties() {
         onClose={() => setOpenDelete(false)}
         onConfirmAsync={async () => {
           if (!baseMap?.id || !selectedVersionId) return;
-          await db.baseMapVersions.delete(selectedVersionId);
+          try {
+            await db.baseMapVersions.delete(selectedVersionId);
+          } catch (error) {
+            if (!(error instanceof OwnershipError)) throw error;
+            setOpenDelete(false);
+            return;
+          }
           dispatch(setSelectedVersionId(null));
           dispatch(
             setSelectedItem({

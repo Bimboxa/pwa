@@ -12,6 +12,9 @@ import { IconButton, Menu, MenuItem, Divider } from "@mui/material";
 import { MoreVert as MoreActionsIcon } from "@mui/icons-material";
 import DialogDeleteRessource from "Features/layout/components/DialogDeleteRessource";
 
+import { OwnershipError } from "App/db/ownership";
+import useCanEditRecord from "App/hooks/useCanEditRecord";
+
 export default function IconButtonMoreActionsListing({ listing }) {
   const dispatch = useDispatch();
 
@@ -19,6 +22,7 @@ export default function IconButtonMoreActionsListing({ listing }) {
 
   const deleteListing = useDeleteListing();
   const createListings = useCreateListings();
+  const { canEditRecord, guardEditRecord } = useCanEditRecord();
 
   // state
 
@@ -55,6 +59,7 @@ export default function IconButtonMoreActionsListing({ listing }) {
 
   const handleDelete = () => {
     setAnchorEl(null);
+    if (!guardEditRecord(listing)) return;
     setOpenDelete(true);
   };
 
@@ -67,14 +72,22 @@ export default function IconButtonMoreActionsListing({ listing }) {
       <Menu open={open} anchorEl={anchorEl} onClose={handleClose}>
         <MenuItem onClick={handleDuplicate}>Dupliquer</MenuItem>
         <Divider />
-        <MenuItem onClick={handleDelete}>Supprimer</MenuItem>
+        <MenuItem onClick={handleDelete} disabled={!canEditRecord(listing)}>
+          Supprimer
+        </MenuItem>
       </Menu>
 
       <DialogDeleteRessource
         open={openDelete}
         onClose={() => setOpenDelete(false)}
         onConfirmAsync={async () => {
-          await deleteListing(listing.id);
+          try {
+            await deleteListing(listing.id);
+          } catch (error) {
+            if (!(error instanceof OwnershipError)) throw error;
+            setOpenDelete(false);
+            return;
+          }
           dispatch(setSelectedItem(null));
           setOpenDelete(false);
         }}

@@ -1,7 +1,7 @@
 import { nanoid } from "@reduxjs/toolkit";
 import JSZip from "jszip";
 
-import db from "App/db/db";
+import db, { withSystemWrite } from "App/db/db";
 
 import { stripTrailingCommas } from "Features/krtoFile/utils/parseDexieExportBlob";
 
@@ -18,7 +18,8 @@ function rewriteFileNamesInObject(obj, fileNameMap, seen = new WeakSet()) {
   }
   for (const [k, v] of Object.entries(obj)) {
     if (k === "fileArrayBuffer") continue;
-    if (v && typeof v === "object") rewriteFileNamesInObject(v, fileNameMap, seen);
+    if (v && typeof v === "object")
+      rewriteFileNamesInObject(v, fileNameMap, seen);
   }
 }
 
@@ -157,12 +158,20 @@ export default async function loadBaseMapShareZip(
       if ("scopeId" in row && scopeId) row.scopeId = scopeId;
 
       // baseMapId
-      if ("baseMapId" in row && row.baseMapId && idMap.baseMaps?.[row.baseMapId]) {
+      if (
+        "baseMapId" in row &&
+        row.baseMapId &&
+        idMap.baseMaps?.[row.baseMapId]
+      ) {
         row.baseMapId = idMap.baseMaps[row.baseMapId];
       }
 
       // listingId
-      if ("listingId" in row && row.listingId && idMap.listings?.[row.listingId]) {
+      if (
+        "listingId" in row &&
+        row.listingId &&
+        idMap.listings?.[row.listingId]
+      ) {
         row.listingId = idMap.listings[row.listingId];
       }
 
@@ -172,7 +181,8 @@ export default async function loadBaseMapShareZip(
         row.annotationTemplateId &&
         idMap.annotationTemplates?.[row.annotationTemplateId]
       ) {
-        row.annotationTemplateId = idMap.annotationTemplates[row.annotationTemplateId];
+        row.annotationTemplateId =
+          idMap.annotationTemplates[row.annotationTemplateId];
       }
 
       // layerId
@@ -245,30 +255,33 @@ export default async function loadBaseMapShareZip(
     type: "application/json",
   });
 
-  await db.import(jsonBlob, {
-    overwriteValues: true,
-    acceptVersionDiff: true,
-    acceptMissingTables: true,
-    chunkSizeBytes: 15 * 1024 * 1024,
-    noTransaction: false,
-    transform: (table, value) => {
-      if (table === "files" && value.fileName) {
-        const arrayBuffer = newImageBuffers.get(value.fileName);
-        if (arrayBuffer) {
-          value.fileArrayBuffer = arrayBuffer;
+  // System write: import overwrites/creates records owned by other users.
+  await withSystemWrite(() =>
+    db.import(jsonBlob, {
+      overwriteValues: true,
+      acceptVersionDiff: true,
+      acceptMissingTables: true,
+      chunkSizeBytes: 15 * 1024 * 1024,
+      noTransaction: false,
+      transform: (table, value) => {
+        if (table === "files" && value.fileName) {
+          const arrayBuffer = newImageBuffers.get(value.fileName);
+          if (arrayBuffer) {
+            value.fileArrayBuffer = arrayBuffer;
+          }
         }
-      }
-      return { value };
-    },
-    progressCallback: (progress) => {
-      console.log(
-        `BaseMapShare import: ${Math.round(
-          (progress.completedRows / progress.totalRows) * 100
-        )}%`
-      );
-      return true;
-    },
-  });
+        return { value };
+      },
+      progressCallback: (progress) => {
+        console.log(
+          `BaseMapShare import: ${Math.round(
+            (progress.completedRows / progress.totalRows) * 100
+          )}%`
+        );
+        return true;
+      },
+    })
+  );
 
   return { baseMapId: newBaseMapId };
 }
