@@ -14,7 +14,7 @@ import {
   Chip,
   IconButton,
   Divider,
-  Switch,
+  Button,
   CircularProgress,
 } from "@mui/material";
 import {
@@ -173,34 +173,34 @@ export default function PanelPrint() {
       <BoxFlexVStretch sx={{ overflow: "auto", gap: 1, p: 1 }}>
         {/* Card 0 — Export rapide (screenshot capture mode) */}
         <WhiteSectionGeneric>
-          {/* Line 1 — title */}
-          <Typography variant="body2" sx={{ fontWeight: "bold", mb: 0.5 }}>
-            Export rapide
-          </Typography>
-
-          {/* Line 2 — icon + label + switch */}
+          {/* Title line — label + activate/deactivate button */}
           <Box
             sx={{
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
-              gap: 2,
+              gap: 1,
             }}
           >
             <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
               <PhotoCamera fontSize="small" color="action" />
-              <Typography variant="body2">Mode capture d'écran</Typography>
+              <Typography variant="body2" sx={{ fontWeight: "bold" }}>
+                Export rapide
+              </Typography>
             </Box>
-            <Switch
+            <Button
               size="small"
-              checked={imageModeEnabled}
-              onChange={handleToggleCaptureMode}
-            />
+              variant={imageModeEnabled ? "contained" : "outlined"}
+              onClick={() => handleToggleCaptureMode(null, !imageModeEnabled)}
+              sx={{ textTransform: "none", flexShrink: 0 }}
+            >
+              {imageModeEnabled ? "Désactiver" : "Activer"}
+            </Button>
           </Box>
-        </WhiteSectionGeneric>
 
-        {/* Capture controls (Format / Légende / Export) — shown when capture mode is on */}
-        {imageModeEnabled && <PanelCaptureMode viewerKey={viewerKey} />}
+          {/* Capture controls (Format / Légende / Export) — shown when capture mode is on */}
+          {imageModeEnabled && <PanelCaptureMode viewerKey={viewerKey} />}
+        </WhiteSectionGeneric>
 
         {/* Card 1 — Annotations count */}
         <WhiteSectionGeneric>

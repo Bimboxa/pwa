@@ -1694,7 +1694,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
             <LayerTools />
             <LayerCreateBaseMap />
 
-            {!versionCompareEnabled && <PopperMapListings />}
+            {!versionCompareEnabled && !imageModeActive && <PopperMapListings />}
 
             {imageModeActive && (
                 <ImageModeOverlay

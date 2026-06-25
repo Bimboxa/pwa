@@ -1,8 +1,23 @@
 import * as htmlToImage from "html-to-image";
 
 import downloadBlob from "Features/files/utils/downloadBlob";
+import imageToPdfAsync from "Features/pdf/utils/imageToPdfAsync";
 
 import getCaptureRectBounds from "./getCaptureRectBounds";
+
+// A4 page sizes (pdf-lib points) matched to the capture aspect ratio so the
+// cropped image fills the PDF page with minimal margins.
+function getPdfPageSize(aspectRatio) {
+  switch (aspectRatio) {
+    case "PORTRAIT":
+      return { pageWidth: 595, pageHeight: 842 };
+    case "SQUARE":
+      return { pageWidth: 595, pageHeight: 595 };
+    case "LANDSCAPE":
+    default:
+      return { pageWidth: 842, pageHeight: 595 };
+  }
+}
 
 /**
  * Capture only the area inside the image-mode rectangle as a PNG.
@@ -22,6 +37,9 @@ import getCaptureRectBounds from "./getCaptureRectBounds";
  * @param {string} [opts.fileName]
  * @param {"LANDSCAPE"|"SQUARE"|"PORTRAIT"} [opts.aspectRatio]
  * @param {number} [opts.pixelRatio]
+ * @param {number} [opts.rightInset] width occluded by an open right panel; the
+ *   capture rect is centered within the visible zone (must match the overlay).
+ * @param {"png"|"pdf"} [opts.format] download format ("pdf" only for download)
  */
 export default async function captureMapAsPng({
   viewerKey = "MAP",
@@ -30,6 +48,8 @@ export default async function captureMapAsPng({
   aspectRatio = "LANDSCAPE",
   pixelRatio = 2,
   whiteBackground = false,
+  rightInset = 0,
+  format = "png",
 } = {}) {
   const host = document.querySelector(
     `[data-image-capture-host="${viewerKey}"]`
@@ -45,7 +65,8 @@ export default async function captureMapAsPng({
   const rect = getCaptureRectBounds(
     hostBounds.width,
     hostBounds.height,
-    aspectRatio
+    aspectRatio,
+    { rightInset }
   );
   if (rect.width <= 0 || rect.height <= 0) return;
 
@@ -108,6 +129,7 @@ export default async function captureMapAsPng({
     if (!blob) return;
 
     if (target === "clipboard") {
+      // Clipboard is always PNG.
       if (!navigator.clipboard || typeof ClipboardItem === "undefined") {
         console.warn(
           "[captureMapAsPng] Clipboard API unavailable, falling back to download"
@@ -118,6 +140,15 @@ export default async function captureMapAsPng({
       await navigator.clipboard.write([
         new ClipboardItem({ "image/png": blob }),
       ]);
+    } else if (format === "pdf") {
+      const url = URL.createObjectURL(blob);
+      try {
+        const { pageWidth, pageHeight } = getPdfPageSize(aspectRatio);
+        const pdfFile = await imageToPdfAsync({ url, pageWidth, pageHeight });
+        downloadBlob(pdfFile, fileName);
+      } finally {
+        URL.revokeObjectURL(url);
+      }
     } else {
       downloadBlob(blob, fileName);
     }

@@ -13,14 +13,20 @@ export default function getCaptureRectBounds(
   viewportWidth,
   viewportHeight,
   aspectRatio = "LANDSCAPE",
-  { margin = 40 } = {}
+  { margin = 40, rightInset = 0 } = {}
 ) {
   if (!viewportWidth || !viewportHeight) {
     return { left: 0, top: 0, width: 0, height: 0 };
   }
 
+  // `rightInset` is the width occluded on the right by an open panel that
+  // floats over the viewport (it doesn't shrink the measured host). We
+  // center the rect within the *visible* zone (viewportWidth - rightInset)
+  // so it never sits under the panel.
+  const availWidth = Math.max(0, viewportWidth - rightInset);
+
   const ratio = ASPECT_RATIOS[aspectRatio] ?? ASPECT_RATIOS.LANDSCAPE;
-  const maxW = Math.max(0, viewportWidth - margin * 2);
+  const maxW = Math.max(0, availWidth - margin * 2);
   const maxH = Math.max(0, viewportHeight - margin * 2);
 
   let width;
@@ -34,7 +40,7 @@ export default function getCaptureRectBounds(
     height = ratio > 0 ? width / ratio : maxH;
   }
 
-  const left = (viewportWidth - width) / 2;
+  const left = (availWidth - width) / 2;
   const top = (viewportHeight - height) / 2;
   return { left, top, width, height };
 }

@@ -51,6 +51,14 @@ export default function ImageModeOverlay({
     (s) => s.appConfig.value?.features?.watermark?.logoUrl ?? null
   );
 
+  // When the right panel is open it floats over the viewport without
+  // shrinking it; center the capture rect within the visible zone.
+  const panelOpen = useSelector((s) =>
+    Boolean(s.rightPanel.selectedMenuItemKey)
+  );
+  const panelWidth = useSelector((s) => s.rightPanel.width);
+  const rightInset = panelOpen ? panelWidth : 0;
+
   // Use the same hook as Portfolio's LegendBlockSvg so the legend items
   // (shape, ordering, groupings) match exactly.
   const legendItems = useLegendItemsByBaseMapId(baseMapId);
@@ -58,7 +66,8 @@ export default function ImageModeOverlay({
   const rect = getCaptureRectBounds(
     viewportWidth,
     viewportHeight,
-    aspectRatio
+    aspectRatio,
+    { rightInset }
   );
 
   // Resolve x/y null → default top-right of the capture rect. As soon as
