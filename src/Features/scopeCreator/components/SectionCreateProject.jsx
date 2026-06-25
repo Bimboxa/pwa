@@ -42,6 +42,9 @@ export default function SectionCreateProject() {
   const title = appConfig?.strings?.project.create ?? "Créez un projet";
   const createS = "Créer";
 
+  const canCreate =
+    Boolean(tempProject.name?.trim()) && Boolean(tempProject.clientRef?.trim());
+
   // handlers
 
   async function handleCreateProject() {
@@ -83,6 +86,7 @@ export default function SectionCreateProject() {
         label={createS}
         onClick={handleCreateProject}
         variant="contained"
+        disabled={!canCreate}
       />
     </BoxFlexVStretch>
   );
