@@ -43,6 +43,8 @@ import {
   Checkbox,
   ToggleButton,
   ToggleButtonGroup,
+  Popper,
+  Chip,
 } from "@mui/material";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 import Add from "@mui/icons-material/Add";
@@ -60,12 +62,14 @@ import UnfoldMore from "@mui/icons-material/UnfoldMore";
 import { Check, Close } from "@mui/icons-material";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 import { StopCircle, Create, AddLocationAlt, AutoFixHigh, RotateRight } from "@mui/icons-material";
 import IconTechnicalReturn from "Features/icons/IconTechnicalReturn";
 import IconCutLine from "Features/icons/IconCutLine";
 import IconCutSurface from "Features/icons/IconCutSurface";
 import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTemplateIcon";
+import ProcedurePopperContent from "Features/annotationsAuto/components/ProcedurePopperContent";
 import DialogCreateAnnotationTemplate from "Features/annotations/components/DialogCreateAnnotationTemplate";
 import DialogCreateListing from "Features/listings/components/DialogCreateListing";
 import CardLoupe from "Features/smartDetect/components/CardLoupe";
@@ -459,12 +463,44 @@ function AnnotationTemplateRow({
   const dispatch = useDispatch();
   const updateAnnotationTemplate = useUpdateAnnotationTemplate();
 
+  // data
+
+  const appConfig = useAppConfig();
+  const procedures = appConfig?.automatedAnnotationsProcedures ?? [];
+  const procedure = annotationTemplate?.procedureKey
+    ? procedures.find((p) => p.key === annotationTemplate.procedureKey)
+    : null;
+  const selectedBaseMapId = useSelector((s) => s.mapEditor.selectedBaseMapId);
+
   // state
 
   const [isHovered, setIsHovered] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [tempLabel, setTempLabel] = useState("");
   const [toolMenuAnchor, setToolMenuAnchor] = useState(null);
+  const [nameAnchorEl, setNameAnchorEl] = useState(null);
+  const procedurePopperCloseTimer = useRef(null);
+
+  // Keep the procedure popper open while hovering the chip OR the popper itself
+  // (so its action buttons stay clickable), with a small close delay to bridge
+  // the gap between them.
+  const openProcedurePopper = (e) => {
+    if (procedurePopperCloseTimer.current)
+      clearTimeout(procedurePopperCloseTimer.current);
+    setNameAnchorEl(e.currentTarget);
+  };
+  const cancelCloseProcedurePopper = () => {
+    if (procedurePopperCloseTimer.current)
+      clearTimeout(procedurePopperCloseTimer.current);
+  };
+  const scheduleCloseProcedurePopper = () => {
+    if (procedurePopperCloseTimer.current)
+      clearTimeout(procedurePopperCloseTimer.current);
+    procedurePopperCloseTimer.current = setTimeout(
+      () => setNameAnchorEl(null),
+      150
+    );
+  };
   const selectedToolKey = useSelector(
     (s) => s.mapEditor.selectedToolKeyByTemplateId[annotationTemplate?.id]
   );
@@ -749,7 +785,47 @@ function AnnotationTemplateRow({
               )}
             </Typography>
           )}
+
+          {procedure && (
+            <Chip
+              label="Auto"
+              size="small"
+              onMouseEnter={openProcedurePopper}
+              onMouseLeave={scheduleCloseProcedurePopper}
+              sx={{
+                ml: 0.5,
+                flexShrink: 0,
+                height: 16,
+                "& .MuiChip-label": {
+                  px: 0.5,
+                  fontSize: "9px",
+                  fontWeight: "bold",
+                },
+              }}
+            />
+          )}
         </Box>
+
+        {procedure && (
+          <Popper
+            open={Boolean(nameAnchorEl)}
+            anchorEl={nameAnchorEl}
+            placement="bottom-start"
+            style={{ zIndex: 2000 }}
+            modifiers={[{ name: "offset", options: { offset: [0, 4] } }]}
+          >
+            <Box
+              onMouseEnter={cancelCloseProcedurePopper}
+              onMouseLeave={scheduleCloseProcedurePopper}
+            >
+              <ProcedurePopperContent
+                procedure={procedure}
+                sourceTemplate={annotationTemplate}
+                baseMapId={selectedBaseMapId}
+              />
+            </Box>
+          </Popper>
+        )}
 
         {/* Right side: edit confirm/cancel OR tool+visibility (hover) OR qty */}
         <Box

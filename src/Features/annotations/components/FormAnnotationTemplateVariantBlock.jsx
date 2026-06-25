@@ -20,6 +20,7 @@ import FieldOptionKey from "Features/form/components/FieldOptionKey";
 import FieldQty from "Features/form/components/FieldQty";
 import FieldCheck from "Features/form/components/FieldCheck";
 import FieldMappingCategories from "./FieldMappingCategories";
+import FieldProcedure from "./FieldProcedure";
 import OverrideToggle from "./OverrideToggle";
 
 import { Circle, Square } from "@mui/icons-material";
@@ -570,6 +571,13 @@ export default function FormAnnotationTemplateVariantBlock({
 
       {!isCreating && (
         <FieldMappingCategories
+          annotationTemplate={annotationTemplate}
+          onChange={onChange}
+        />
+      )}
+
+      {!isCreating && (
+        <FieldProcedure
           annotationTemplate={annotationTemplate}
           onChange={onChange}
         />

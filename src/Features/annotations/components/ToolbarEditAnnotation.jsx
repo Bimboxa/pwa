@@ -52,6 +52,7 @@ import AnnotationTemplateIcon from "./AnnotationTemplateIcon";
 import AnnotationMeasurements from "./AnnotationMeasurements";
 import ToolbarEditRevolutionHelper from "./ToolbarEditRevolutionHelper";
 import ToolbarAnnotationActions from "./ToolbarAnnotationActions";
+import RowProcedureActionAuto from "Features/annotationsAuto/components/RowProcedureActionAuto";
 import ToolbarPartGroupRow from "./ToolbarPartGroupRow";
 import SelectorAnnotationTemplateVariantDense from "./SelectorAnnotationTemplateVariantDense";
 import ChipLayerSelector from "Features/layers/components/ChipLayerSelector";
@@ -750,6 +751,9 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
             />
           </Box>
         )}
+
+        {/* Row 3b - Procedure launch (only when template is linked to a CREATOR procedure) */}
+        {!hasPart && <RowProcedureActionAuto annotation={selectedAnnotation} />}
 
         {/* Row 4 - Actions row */}
         <ToolbarAnnotationActions
