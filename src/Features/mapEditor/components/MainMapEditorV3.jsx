@@ -1450,6 +1450,68 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
         await db.annotations.update(annotationId, { cuts: newCuts });
     };
 
+    // Toggles the hidden state of many segments at once (multi-segment Delete).
+    // A naive loop over handleHideSegment would clobber writes (each reads the
+    // same stale annotation.hiddenSegmentsIdx). Instead group part IDs by
+    // annotation and apply a single db update per annotation, toggling every
+    // requested index together.
+    const toggleAll = (list, indices) => {
+        const set = new Set(list);
+        for (const idx of indices) {
+            if (set.has(idx)) set.delete(idx);
+            else set.add(idx);
+        }
+        return [...set];
+    };
+
+    const handleHideSegments = async ({ partIds }) => {
+        // Group requested indices per annotation: main contour + per cut.
+        const byAnnotation = new Map(); // annotationId -> { main:Set, cuts:Map<cutIdx,Set> }
+        for (const partId of partIds || []) {
+            const parts = partId.split('::'); // annotationId::TYPE::index[::subIndex]
+            const annotationId = parts[0];
+            const type = parts[1];
+            if (type !== 'SEG' && type !== 'CUT_SEG') continue;
+            if (!byAnnotation.has(annotationId)) {
+                byAnnotation.set(annotationId, { main: new Set(), cuts: new Map() });
+            }
+            const entry = byAnnotation.get(annotationId);
+            if (type === 'SEG') {
+                entry.main.add(parseInt(parts[2], 10));
+            } else {
+                const cutIndex = parseInt(parts[2], 10);
+                const segmentIndex = parseInt(parts[3], 10);
+                if (!entry.cuts.has(cutIndex)) entry.cuts.set(cutIndex, new Set());
+                entry.cuts.get(cutIndex).add(segmentIndex);
+            }
+        }
+
+        for (const [annotationId, entry] of byAnnotation) {
+            const annotation = annotations.find(a => a.id === annotationId);
+            if (!annotation) continue;
+            const changes = {};
+
+            if (entry.main.size > 0) {
+                const currentHidden = annotation.hiddenSegmentsIdx || [];
+                changes.hiddenSegmentsIdx = toggleAll(currentHidden, [...entry.main]);
+            }
+
+            if (entry.cuts.size > 0) {
+                const cuts = annotation.cuts || [];
+                changes.cuts = cuts.map((cut, i) => {
+                    const indices = entry.cuts.get(i);
+                    if (!indices) return cut;
+                    const currentHidden = cut.hiddenSegmentsIdx || [];
+                    return { ...cut, hiddenSegmentsIdx: toggleAll(currentHidden, [...indices]) };
+                });
+            }
+
+            if (Object.keys(changes).length > 0) {
+                await db.annotations.update(annotationId, changes);
+            }
+        }
+    };
+
     const handleRemoveCut = async ({ annotationId, cutIndex }) => {
         await removeCutAsync({ annotationId, cutIndex, annotations });
     };
@@ -1551,6 +1613,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                     onDeletePoint={handleDeletePoint}
                     onDeletePoints={handleDeletePoints}
                     onHideSegment={handleHideSegment}
+                    onHideSegments={handleHideSegments}
                     onRemoveCut={handleRemoveCut}
                     onDeleteGuideLine={handleDeleteGuideLine}
                     onAnnotationMoveCommit={handleAnnotationMoveCommit}

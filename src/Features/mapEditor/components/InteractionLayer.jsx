@@ -256,6 +256,7 @@ const InteractionLayer = forwardRef(({
   onDeletePoint,
   onDeletePoints,
   onHideSegment,
+  onHideSegments,
   onRemoveCut,
   onDeleteGuideLine,
   onAnnotationMoveCommit,
@@ -2110,10 +2111,12 @@ const InteractionLayer = forwardRef(({
     selectedPointId,
     selectedPartId,
     selectedPointIds,
+    selectedPartIds,
     enabledDrawingMode: enabledDrawingMode, // Si besoin dans le listener
     onDeletePoint,
     onDeletePoints,
     onHideSegment,
+    onHideSegments,
     onRemoveCut,
     onDeleteGuideLine,
     permissions,
@@ -2124,15 +2127,17 @@ const InteractionLayer = forwardRef(({
       selectedPointId,
       selectedPartId,
       selectedPointIds,
+      selectedPartIds,
       onDeletePoint,
       onDeletePoints,
       onHideSegment,
+      onHideSegments,
       onRemoveCut,
       onDeleteGuideLine,
       enabledDrawingMode,
       permissions,
     };
-  }, [selectedNode?.nodeId, selectedPointId, selectedPartId, selectedPointIds, onDeletePoint, onDeletePoints, onHideSegment, onRemoveCut, onDeleteGuideLine, enabledDrawingMode, permissions]);
+  }, [selectedNode?.nodeId, selectedPointId, selectedPartId, selectedPointIds, selectedPartIds, onDeletePoint, onDeletePoints, onHideSegment, onHideSegments, onRemoveCut, onDeleteGuideLine, enabledDrawingMode, permissions]);
 
 
   // 1. Calculer le style curseur du conteneur
@@ -2303,7 +2308,7 @@ const InteractionLayer = forwardRef(({
         console.log("Action: Key Pressed while typing");
         return;
       }
-      const { selectedNode, selectedPointId, selectedPartId, selectedPointIds, onDeletePoint, onDeletePoints, onHideSegment, onRemoveCut, permissions } = stateRef.current;
+      const { selectedNode, selectedPointId, selectedPartId, selectedPointIds, selectedPartIds, onDeletePoint, onDeletePoints, onHideSegment, onHideSegments, onRemoveCut, permissions } = stateRef.current;
       const showSmartDetect = showSmartDetectRef.current;
       const enabledDrawingMode = enabledDrawingModeRef.current;
 
@@ -3182,6 +3187,15 @@ const InteractionLayer = forwardRef(({
             e.stopPropagation();
             return;
           }
+          // 1c. Multi-segment selection: hide/toggle all selected segments,
+          // keeping the selection so successive Delete presses toggle them.
+          else if (selectedPartIds?.length > 0 && selectedNode?.nodeId && onHideSegments) {
+            // PERMISSION GUARD : bloquer si pas propriétaire de l'annotation
+            if (!permissions.canEditAnnotation(selectedNode?.nodeId)) break;
+            onHideSegments({ partIds: [...selectedPartIds] });
+            e.stopPropagation();
+            return; // do NOT clear selectedPartIds — successive Delete toggles
+          }
           else if (selectedPartId && selectedNode?.nodeId) {
             // PERMISSION GUARD : bloquer si pas propriétaire de l'annotation
             if (!permissions.canEditAnnotation(selectedNode?.nodeId)) break;
@@ -3190,17 +3204,20 @@ const InteractionLayer = forwardRef(({
             const index = parseInt(parts[2], 10);
 
             // A. Suppression de SEGMENT du contour principal (Cacher)
+            // Keep the segment selected so successive Delete presses toggle its
+            // hidden state on/off (instead of falling through to the delete
+            // annotation dialog).
             if (type === 'SEG' && onHideSegment) {
               onHideSegment({
                 annotationId: selectedNode.nodeId,
                 segmentIndex: index
               });
-              dispatch(setSubSelection({ partId: null }));
               e.stopPropagation();
               return;
             }
 
             // B. Suppression de SEGMENT d'un cut (Cacher)
+            // Keep the segment selected — see note above.
             if (type === 'CUT_SEG' && onHideSegment) {
               const cutIndex = index;
               const segmentIndex = parseInt(parts[3], 10);
@@ -3209,7 +3226,6 @@ const InteractionLayer = forwardRef(({
                 cutIndex,
                 segmentIndex
               });
-              dispatch(setSubSelection({ partId: null }));
               e.stopPropagation();
               return;
             }
