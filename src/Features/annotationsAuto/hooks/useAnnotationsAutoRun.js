@@ -49,9 +49,7 @@ export default function useAnnotationsAutoRun() {
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const height = useSelector((s) => s.annotationsAuto.height);
   const activeLayerId = useSelector((s) => s.layers?.activeLayerId);
-  const returnTechnique = useSelector(
-    (s) => s.annotationsAuto.returnTechnique
-  );
+  const returnTechnique = useSelector((s) => s.annotationsAuto.returnTechnique);
   const ignoreInteriorWalls = useSelector(
     (s) => s.annotationsAuto.ignoreInteriorWalls
   );
@@ -73,8 +71,15 @@ export default function useAnnotationsAutoRun() {
     excludeIsForBaseMapsListings: true,
   });
 
-  return async ({ sourceListingId, procedureKey }) => {
+  return async ({
+    sourceListingId,
+    procedureKey,
+    sourceAnnotationIds,
+    autoCreatedFrom,
+  }) => {
     // data
+
+    const procedureEntry = procedures.find((p) => p.key === procedureKey);
 
     const baseMapId = baseMap?.id;
     // Use reference coordinate space (consistent with useAnnotationsV2),
@@ -92,7 +97,14 @@ export default function useAnnotationsAutoRun() {
 
     let sourceAnnotations;
 
-    if (sourceListingId) {
+    if (sourceAnnotationIds?.length) {
+      // selection flow: restrict visible annotations to the explicit ids
+      // (used by the right-panel "Appliquer la procédure" on the selection).
+      const idSet = new Set(sourceAnnotationIds);
+      sourceAnnotations = (visibleAnnotations ?? [])
+        .filter((a) => a.type === "POLYLINE" || a.type === "POLYGON")
+        .filter((a) => idSet.has(a.id));
+    } else if (sourceListingId) {
       // standard flow: fetch from Dexie by listing
 
       const rawAnnotations = (
@@ -122,9 +134,39 @@ export default function useAnnotationsAutoRun() {
         }));
     } else {
       // source-less flow: use visible annotations (already resolved by useAnnotationsV2)
-      sourceAnnotations = (visibleAnnotations ?? []).filter(
+      let visible = (visibleAnnotations ?? []).filter(
         (a) => a.type === "POLYLINE" || a.type === "POLYGON"
       );
+
+      // For ANNOTATIONS_CREATOR procedures, prefer annotations whose template
+      // is explicitly linked to this procedure (template.procedureKey). Fall
+      // back to all visible POLYLINE/POLYGON when no visible template
+      // references the procedure (avoids regressing legacy setups).
+      if (procedureEntry?.type === "ANNOTATIONS_CREATOR") {
+        const templateIds = [
+          ...new Set(
+            visible.map((a) => a.annotationTemplateId).filter(Boolean)
+          ),
+        ];
+        const templates = (
+          await db.annotationTemplates.bulkGet(templateIds)
+        ).filter(Boolean);
+        const procedureKeyByTemplateId = new Map(
+          templates.map((t) => [t.id, t.procedureKey ?? null])
+        );
+        const hasLinkedTemplate = templates.some(
+          (t) => t.procedureKey === procedureKey
+        );
+        if (hasLinkedTemplate) {
+          visible = visible.filter(
+            (a) =>
+              procedureKeyByTemplateId.get(a.annotationTemplateId) ===
+              procedureKey
+          );
+        }
+      }
+
+      sourceAnnotations = visible;
     }
 
     // fetch raw POINT annotations of the base map, each enriched with a resolved
@@ -173,10 +215,7 @@ export default function useAnnotationsAutoRun() {
     const templateEntries = await Promise.all(
       listingIds.map(async (lid) => {
         const templates = (
-          await db.annotationTemplates
-            .where("listingId")
-            .equals(lid)
-            .toArray()
+          await db.annotationTemplates.where("listingId").equals(lid).toArray()
         ).filter((r) => !r.deletedAt);
         return [lid, templates];
       })
@@ -185,9 +224,11 @@ export default function useAnnotationsAutoRun() {
 
     // load and run procedure
 
-    const procedureEntry = procedures.find((p) => p.key === procedureKey);
     if (!procedureEntry) {
-      console.warn("[useAnnotationsAutoRun] Procedure not found:", procedureKey);
+      console.warn(
+        "[useAnnotationsAutoRun] Procedure not found:",
+        procedureKey
+      );
       return null;
     }
 
@@ -236,7 +277,14 @@ export default function useAnnotationsAutoRun() {
       result;
 
     await db.points.bulkAdd(points.map((p) => ({ ...p })));
-    await db.annotations.bulkAdd(annotations.map((a) => ({ ...a })));
+    // Tag created annotations with their originating source annotation so they
+    // can later be reset/refreshed (see RowProcedureActionAuto).
+    await db.annotations.bulkAdd(
+      annotations.map((a) => ({
+        ...a,
+        ...(autoCreatedFrom ? { autoCreatedFrom } : {}),
+      }))
+    );
     if (rels.length > 0) {
       await db.relAnnotationMappingCategory.bulkAdd(
         rels.map((r) => ({ ...r }))

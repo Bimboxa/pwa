@@ -43,6 +43,8 @@ import {
   Checkbox,
   ToggleButton,
   ToggleButtonGroup,
+  Popper,
+  Chip,
 } from "@mui/material";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 import Add from "@mui/icons-material/Add";
@@ -60,6 +62,7 @@ import UnfoldMore from "@mui/icons-material/UnfoldMore";
 import { Check, Close } from "@mui/icons-material";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 import { StopCircle, Create, AddLocationAlt, AutoFixHigh, RotateRight } from "@mui/icons-material";
 import IconTechnicalReturn from "Features/icons/IconTechnicalReturn";
@@ -459,12 +462,21 @@ function AnnotationTemplateRow({
   const dispatch = useDispatch();
   const updateAnnotationTemplate = useUpdateAnnotationTemplate();
 
+  // data
+
+  const appConfig = useAppConfig();
+  const procedures = appConfig?.automatedAnnotationsProcedures ?? [];
+  const procedure = annotationTemplate?.procedureKey
+    ? procedures.find((p) => p.key === annotationTemplate.procedureKey)
+    : null;
+
   // state
 
   const [isHovered, setIsHovered] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [tempLabel, setTempLabel] = useState("");
   const [toolMenuAnchor, setToolMenuAnchor] = useState(null);
+  const [nameAnchorEl, setNameAnchorEl] = useState(null);
   const selectedToolKey = useSelector(
     (s) => s.mapEditor.selectedToolKeyByTemplateId[annotationTemplate?.id]
   );
@@ -749,7 +761,51 @@ function AnnotationTemplateRow({
               )}
             </Typography>
           )}
+
+          {procedure && (
+            <Chip
+              label="Auto"
+              size="small"
+              onMouseEnter={(e) => setNameAnchorEl(e.currentTarget)}
+              onMouseLeave={() => setNameAnchorEl(null)}
+              sx={{
+                ml: 0.5,
+                flexShrink: 0,
+                height: 16,
+                "& .MuiChip-label": {
+                  px: 0.5,
+                  fontSize: "9px",
+                  fontWeight: "bold",
+                },
+              }}
+            />
+          )}
         </Box>
+
+        {procedure && (
+          <Popper
+            open={Boolean(nameAnchorEl)}
+            anchorEl={nameAnchorEl}
+            placement="bottom-start"
+            style={{ zIndex: 2000 }}
+            modifiers={[{ name: "offset", options: { offset: [0, 4] } }]}
+          >
+            <Paper sx={{ p: 1, maxWidth: 280, boxShadow: 3 }}>
+              <Typography variant="body2" sx={{ fontWeight: "bold", mb: 0.5 }}>
+                {procedure.label}
+              </Typography>
+              {procedure.description && (
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ whiteSpace: "pre-line" }}
+                >
+                  {procedure.description}
+                </Typography>
+              )}
+            </Paper>
+          </Popper>
+        )}
 
         {/* Right side: edit confirm/cancel OR tool+visibility (hover) OR qty */}
         <Box

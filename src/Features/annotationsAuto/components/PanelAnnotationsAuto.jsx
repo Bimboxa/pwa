@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from "react";
+import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import {
@@ -37,6 +37,8 @@ import { PlayArrow } from "@mui/icons-material";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import DialogAnnotationsAutoConfirm from "./DialogAnnotationsAutoConfirm";
+import PanelAnnotationsAutoSelection from "./PanelAnnotationsAutoSelection";
+import fireFlash from "../utils/fireFlash";
 import FieldTextV2 from "Features/form/components/FieldTextV2";
 import FieldNumberWithUnit from "Features/form/components/FieldNumberWithUnit";
 
@@ -60,13 +62,16 @@ export default function PanelAnnotationsAuto() {
     (s) => s.annotationsAuto.selectedAnnotationTemplateId
   );
   const height = useSelector((s) => s.annotationsAuto.height);
-  const returnTechnique = useSelector(
-    (s) => s.annotationsAuto.returnTechnique
-  );
+  const returnTechnique = useSelector((s) => s.annotationsAuto.returnTechnique);
   const ignoreInteriorWalls = useSelector(
     (s) => s.annotationsAuto.ignoreInteriorWalls
   );
   const running = useSelector((s) => s.annotationsAuto.running);
+
+  const selectedItems = useSelector((s) => s.selection.selectedItems);
+  const hasSelection = (selectedItems ?? []).some(
+    (i) => i.type === "NODE" && i.nodeId
+  );
 
   const { value: listings } = useListingsByScope();
   const allAnnotationTemplates = useAnnotationTemplatesByProject();
@@ -154,24 +159,6 @@ export default function PanelAnnotationsAuto() {
     dispatch(setHeight(value));
   }
 
-  const fireFlash = useCallback(() => {
-    const overlay = document.createElement("div");
-    Object.assign(overlay.style, {
-      position: "fixed",
-      inset: "0",
-      background: "white",
-      opacity: "0.6",
-      zIndex: "9999",
-      pointerEvents: "none",
-      transition: "opacity 0.4s ease-out",
-    });
-    document.body.appendChild(overlay);
-    requestAnimationFrame(() => {
-      overlay.style.opacity = "0";
-    });
-    overlay.addEventListener("transitionend", () => overlay.remove());
-  }, []);
-
   async function handleRun() {
     if (!canRun || running) return;
     dispatch(setRunning(true));
@@ -204,6 +191,12 @@ export default function PanelAnnotationsAuto() {
   }
 
   // render
+
+  // When annotations are selected, show per-procedure sections targeting the
+  // selection instead of the standard "Dessin auto" form.
+  if (hasSelection) {
+    return <PanelAnnotationsAutoSelection />;
+  }
 
   return (
     <BoxFlexVStretch>
