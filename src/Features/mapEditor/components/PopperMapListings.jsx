@@ -69,6 +69,7 @@ import IconTechnicalReturn from "Features/icons/IconTechnicalReturn";
 import IconCutLine from "Features/icons/IconCutLine";
 import IconCutSurface from "Features/icons/IconCutSurface";
 import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTemplateIcon";
+import ProcedurePopperContent from "Features/annotationsAuto/components/ProcedurePopperContent";
 import DialogCreateAnnotationTemplate from "Features/annotations/components/DialogCreateAnnotationTemplate";
 import DialogCreateListing from "Features/listings/components/DialogCreateListing";
 import CardLoupe from "Features/smartDetect/components/CardLoupe";
@@ -469,6 +470,7 @@ function AnnotationTemplateRow({
   const procedure = annotationTemplate?.procedureKey
     ? procedures.find((p) => p.key === annotationTemplate.procedureKey)
     : null;
+  const selectedBaseMapId = useSelector((s) => s.mapEditor.selectedBaseMapId);
 
   // state
 
@@ -477,6 +479,28 @@ function AnnotationTemplateRow({
   const [tempLabel, setTempLabel] = useState("");
   const [toolMenuAnchor, setToolMenuAnchor] = useState(null);
   const [nameAnchorEl, setNameAnchorEl] = useState(null);
+  const procedurePopperCloseTimer = useRef(null);
+
+  // Keep the procedure popper open while hovering the chip OR the popper itself
+  // (so its action buttons stay clickable), with a small close delay to bridge
+  // the gap between them.
+  const openProcedurePopper = (e) => {
+    if (procedurePopperCloseTimer.current)
+      clearTimeout(procedurePopperCloseTimer.current);
+    setNameAnchorEl(e.currentTarget);
+  };
+  const cancelCloseProcedurePopper = () => {
+    if (procedurePopperCloseTimer.current)
+      clearTimeout(procedurePopperCloseTimer.current);
+  };
+  const scheduleCloseProcedurePopper = () => {
+    if (procedurePopperCloseTimer.current)
+      clearTimeout(procedurePopperCloseTimer.current);
+    procedurePopperCloseTimer.current = setTimeout(
+      () => setNameAnchorEl(null),
+      150
+    );
+  };
   const selectedToolKey = useSelector(
     (s) => s.mapEditor.selectedToolKeyByTemplateId[annotationTemplate?.id]
   );
@@ -766,8 +790,8 @@ function AnnotationTemplateRow({
             <Chip
               label="Auto"
               size="small"
-              onMouseEnter={(e) => setNameAnchorEl(e.currentTarget)}
-              onMouseLeave={() => setNameAnchorEl(null)}
+              onMouseEnter={openProcedurePopper}
+              onMouseLeave={scheduleCloseProcedurePopper}
               sx={{
                 ml: 0.5,
                 flexShrink: 0,
@@ -790,20 +814,16 @@ function AnnotationTemplateRow({
             style={{ zIndex: 2000 }}
             modifiers={[{ name: "offset", options: { offset: [0, 4] } }]}
           >
-            <Paper sx={{ p: 1, maxWidth: 280, boxShadow: 3 }}>
-              <Typography variant="body2" sx={{ fontWeight: "bold", mb: 0.5 }}>
-                {procedure.label}
-              </Typography>
-              {procedure.description && (
-                <Typography
-                  variant="caption"
-                  color="text.secondary"
-                  sx={{ whiteSpace: "pre-line" }}
-                >
-                  {procedure.description}
-                </Typography>
-              )}
-            </Paper>
+            <Box
+              onMouseEnter={cancelCloseProcedurePopper}
+              onMouseLeave={scheduleCloseProcedurePopper}
+            >
+              <ProcedurePopperContent
+                procedure={procedure}
+                sourceTemplate={annotationTemplate}
+                baseMapId={selectedBaseMapId}
+              />
+            </Box>
           </Popper>
         )}
 
