@@ -30,6 +30,11 @@ export default class ThreedEditor {
     }
   };
 
+  dispose = () => {
+    // Stop the camera-controls render loop and release its DOM listeners.
+    this.sceneManager?.controlsManager?.dispose?.();
+  };
+
   // images
 
   loadMaps = (maps, options = {}) => {
