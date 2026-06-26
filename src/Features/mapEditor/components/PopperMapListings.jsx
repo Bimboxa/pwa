@@ -465,9 +465,10 @@ function AnnotationTemplateRow({
 
   const appConfig = useAppConfig();
   const procedures = appConfig?.automatedAnnotationsProcedures ?? [];
-  const procedure = annotationTemplate?.procedureKey
-    ? procedures.find((p) => p.key === annotationTemplate.procedureKey)
-    : null;
+  const linkedProcedures = (annotationTemplate?.procedureKeys ?? [])
+    .map((key) => procedures.find((p) => p.key === key))
+    .filter(Boolean);
+  const hasProcedure = linkedProcedures.length > 0;
   const selectedBaseMapId = useSelector((s) => s.mapEditor.selectedBaseMapId);
 
   // state
@@ -784,7 +785,7 @@ function AnnotationTemplateRow({
             </Typography>
           )}
 
-          {procedure && (
+          {hasProcedure && (
             <Chip
               label="Auto"
               size="small"
@@ -804,7 +805,7 @@ function AnnotationTemplateRow({
           )}
         </Box>
 
-        {procedure && (
+        {hasProcedure && (
           <Popper
             open={Boolean(nameAnchorEl)}
             anchorEl={nameAnchorEl}
@@ -817,7 +818,7 @@ function AnnotationTemplateRow({
               onMouseLeave={scheduleCloseProcedurePopper}
             >
               <ProcedurePopperContent
-                procedure={procedure}
+                procedures={linkedProcedures}
                 sourceTemplate={annotationTemplate}
                 baseMapId={selectedBaseMapId}
               />
