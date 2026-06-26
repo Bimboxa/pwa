@@ -6,10 +6,12 @@ export default function FieldAnnotationHeight({
   onChange,
   label: labelProp,
   field: fieldProp,
+  unit: unitProp,
   disabled = false,
 }) {
   const field = fieldProp ?? "height";
   const label = labelProp ?? "ht.";
+  const unit = unitProp ?? "m";
 
   // 1. We need local state to manage the input value immediately while typing
   const [localValue, setLocalValue] = useState(annotation?.[field] ?? "");
@@ -151,7 +153,7 @@ export default function FieldAnnotationHeight({
         color={disabled ? "text.disabled" : "text.secondary"}
         noWrap
       >
-        m
+        {unit}
       </Typography>
     </Box>
   );

@@ -1,7 +1,10 @@
 import { nanoid } from "@reduxjs/toolkit";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 
-import { selectSelectedItem } from "Features/selection/selectionSlice";
+import {
+  selectSelectedItem,
+  setSubSelection,
+} from "Features/selection/selectionSlice";
 
 import db from "App/db/db";
 
@@ -15,6 +18,7 @@ import db from "App/db/db";
 // ramp order; the first line is the low point). The new line's slope defaults
 // to the previous line's slope (else 0). Atomic db.points + db.annotations write.
 export default function useHandleCommitGuideLine() {
+  const dispatch = useDispatch();
   const selectedItem = useSelector(selectSelectedItem);
 
   return async (pixelPts) => {
@@ -60,5 +64,14 @@ export default function useHandleCommitGuideLine() {
         guideLines: [...prevGuideLines, newGuideLine],
       });
     });
+
+    // Keep the freshly drawn guideLine sub-selected so the annotation toolbar
+    // switches to the guideLine edit row (slope / ΔH / inverser).
+    dispatch(
+      setSubSelection({
+        partId: `${annotationId}::GUIDE_LINE::${prevGuideLines.length}`,
+        partType: "GUIDE_LINE",
+      })
+    );
   };
 }

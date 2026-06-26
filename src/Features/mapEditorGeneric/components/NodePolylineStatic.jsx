@@ -1002,9 +1002,9 @@ export default function NodePolylineStatic({
     // when the surface is flat, has too few points, or the toggle is off.
     const slope = useMemo(() => {
         if (type !== "POLYGON") return null;
-        if (!mergedAnnotation.showSlope) return null;
+        if (mergedAnnotation.hideSlope) return null;
         return getPolygonSlope({ points, meterByPx: baseMapMeterByPx });
-    }, [type, mergedAnnotation.showSlope, points, baseMapMeterByPx]);
+    }, [type, mergedAnnotation.hideSlope, points, baseMapMeterByPx]);
 
     const slopeCentroid = useMemo(() => {
         if (!slope || !points || points.length === 0) return null;
@@ -1384,7 +1384,7 @@ export default function NodePolylineStatic({
             {/* SLOPE INDICATOR — arrow pointing uphill + percentage label.
                 `getPolygonSlope` returns a downhill unit vector by convention,
                 so we negate the components when computing the arrow rotation.
-                Visible only on POLYGON with template `showSlope` enabled and
+                Visible on POLYGON unless the template sets `hideSlope`, and
                 a measurable gradient (rounded slope >= 1%). Arrow + text are
                 wrapped in `vertexScaleTransform` so they keep a constant
                 on-screen size in both Map and Portfolio viewers, matching
@@ -1430,7 +1430,7 @@ export default function NodePolylineStatic({
                             stroke={strokeColor}
                             strokeWidth={strokeWidth}
                             strokeOpacity={strokeOpacity}
-                            strokeDasharray={mergedAnnotation.showSlope ? undefined : "6 5"}
+                            strokeDasharray={mergedAnnotation.hideSlope ? "6 5" : undefined}
                             strokeLinecap="round"
                             strokeLinejoin="round"
                             vectorEffect="non-scaling-stroke"
@@ -1443,7 +1443,7 @@ export default function NodePolylineStatic({
             {/* Slope arrow along the MIDDLE of the guideLine, following the
                 curve and pointing uphill (replaces the centroid arrow when a
                 guideLine exists). */}
-            {mergedAnnotation.showSlope &&
+            {!mergedAnnotation.hideSlope &&
                 guideLinesData
                     .filter((gl) => Math.round(Math.abs(gl.slopePct)) >= 1)
                     .map((gl) => {

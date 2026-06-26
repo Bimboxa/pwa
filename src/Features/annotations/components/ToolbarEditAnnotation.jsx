@@ -77,6 +77,8 @@ import IconButtonCloseWallFootprint from "./IconButtonCloseWallFootprint";
 import IconButtonSlopeWalls from "./IconButtonSlopeWalls";
 import IconButtonContours from "./IconButtonContours";
 import IconButtonCloseEnvelope from "./IconButtonCloseEnvelope";
+import IconButtonAddGuideLine from "./IconButtonAddGuideLine";
+import ToolbarEditGuideLine from "./ToolbarEditGuideLine";
 import DialogDuplicateContourSegments from "./DialogDuplicateContourSegments";
 
 import ToggleSingleSelectorGeneric from "Features/layout/components/ToggleSingleSelectorGeneric";
@@ -633,6 +635,11 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
           )}
         </Box>
 
+        {/* Guide line edit row — slope (%) / ΔH (m) / inverser */}
+        {hasPart && part.kind === "GUIDE" && (
+          <ToolbarEditGuideLine accentColor={accentColor} />
+        )}
+
         {/* Group rows — only in MIXED mode (1 row per kind with key qty + remove) */}
         {isMixedPart && (
           <Box
@@ -866,6 +873,9 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
                     annotation={selectedAnnotation}
                     accentColor={accentColor}
                   />
+                )}
+                {selectedAnnotation?.type === "POLYGON" && (
+                  <IconButtonAddGuideLine accentColor={accentColor} />
                 )}
                 {selectedAnnotation?.type === "POLYGON" &&
                   selectedAnnotation?.guideLines?.some(

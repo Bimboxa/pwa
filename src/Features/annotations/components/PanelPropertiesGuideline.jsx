@@ -36,12 +36,15 @@ export default function PanelPropertiesGuideline() {
 
   // state
 
-  const [value, setValue] = useState(String(slopePct ?? 0));
+  // Display the slope with a single decimal (full precision lives in the DB).
+  const round1 = (v) => Math.round((Number(v) || 0) * 10) / 10;
+
+  const [value, setValue] = useState(String(round1(slopePct)));
   const [anchorEl, setAnchorEl] = useState(null);
 
   // keep the field in sync when the underlying slope changes (e.g. undo)
   useEffect(() => {
-    setValue(String(Number.isFinite(slopePct) ? slopePct : 0));
+    setValue(String(round1(Number.isFinite(slopePct) ? slopePct : 0)));
   }, [slopePct]);
 
   // handlers

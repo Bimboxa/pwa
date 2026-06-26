@@ -28,8 +28,8 @@ const ARC_SAMPLES = 16;
 //     vertical delta over the median length:
 //       slopePct = (deltaH_m / (L2D_px * meterByPx)) * 100
 //
-// showSlope is set on the annotation so the slope arrow/% shows in 2D and the
-// 3D ramp applies (the height computation reads guideLines regardless).
+// The slope arrow/% shows in 2D by default (unless the template sets hideSlope)
+// and the 3D ramp applies (the height computation reads guideLines regardless).
 export default function useHandleCommitRamp({ newEntity } = {}) {
   // data
 
@@ -159,7 +159,6 @@ export default function useHandleCommitRamp({ newEntity } = {}) {
           slopePct,
         },
       ],
-      showSlope: true,
     };
     if (isBaseMapAnnotation) _newAnnotation.isBaseMapAnnotation = true;
 

@@ -56,7 +56,6 @@ import SettingsOutlined from "@mui/icons-material/SettingsOutlined";
 import Tune from "@mui/icons-material/Tune";
 import FilterAlt from "@mui/icons-material/FilterAlt";
 import FormatColorFill from "@mui/icons-material/FormatColorFill";
-import Timeline from "@mui/icons-material/Timeline";
 import UnfoldLess from "@mui/icons-material/UnfoldLess";
 import UnfoldMore from "@mui/icons-material/UnfoldMore";
 import { Check, Close } from "@mui/icons-material";
@@ -147,7 +146,6 @@ const TOOL_ITEMS = [
   { type: "TECHNICAL_RETURN", label: "Retour 1m", Icon: IconTechnicalReturn },
   { type: "COMPLETE_ANNOTATION", label: "Prolonger", Icon: Create },
   { type: "ADD_INNER_POINT", label: "Ajouter un point", Icon: AddLocationAlt },
-  { type: "GUIDE_LINE", label: "Ajouter une ligne guide", Icon: Timeline },
   { type: "LOCALIZED_REPAIR", label: "Réparation localisée", Icon: AutoFixHigh },
   { type: "REVOLUTION", label: "Axe de révolution", Icon: RotateRight },
 ];

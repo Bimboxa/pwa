@@ -125,7 +125,7 @@ export default function FormAnnotationTemplateVariantBlock({
   const hasObject3D = configurableProps.includes("object3D");
   const hasMeterByPx = configurableProps.includes("meterByPx");
   const hasCoteProps = configurableProps.includes("unit");
-  const hasShowSlope = configurableProps.includes("showSlope");
+  const hasHideSlope = configurableProps.includes("hideSlope");
 
   const coteUnitOptions = [
     { key: "MM", label: "Millimètres (mm)" },
@@ -270,8 +270,8 @@ export default function FormAnnotationTemplateVariantBlock({
     onChange({ ...annotationTemplate, showUnitLabel });
   }
 
-  function handleShowSlopeChange(showSlope) {
-    onChange({ ...annotationTemplate, showSlope });
+  function handleHideSlopeChange(hideSlope) {
+    onChange({ ...annotationTemplate, hideSlope });
   }
 
   function handleToggleOverride(field) {
@@ -402,11 +402,11 @@ export default function FormAnnotationTemplateVariantBlock({
       )}
 
       {/* Slope indicator toggle (POLYGON) */}
-      {hasShowSlope && drawingShape === "POLYGON" && (
+      {hasHideSlope && drawingShape === "POLYGON" && (
         <FieldCheck
-          label="Afficher la pente"
-          value={Boolean(annotationTemplate?.showSlope)}
-          onChange={handleShowSlopeChange}
+          label="Masquer la pente"
+          value={Boolean(annotationTemplate?.hideSlope)}
+          onChange={handleHideSlopeChange}
           options={{ type: "switch", showAsSection: true }}
         />
       )}
