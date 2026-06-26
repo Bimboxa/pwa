@@ -1,215 +1,252 @@
-import { useMemo } from 'react';
-import { useSelector } from 'react-redux';
+import { useMemo } from "react";
+import { useSelector } from "react-redux";
 import { useInteraction } from "Features/mapEditor/context/InteractionContext";
 import NodeAnnotationStatic from "Features/mapEditorGeneric/components/NodeAnnotationStatic";
 import getAnnotationLabelPropsFromAnnotation from "Features/annotations/utils/getAnnotationLabelPropsFromAnnotation";
 import AnnotationEditingWrapper from "./AnnotationEditingWrapper";
 import computeWrapperBbox from "../utils/computeWrapperBbox";
-import theme from 'Styles/theme';
-import { selectSelectedItems, selectSelectedPointId, selectSelectedPointIds, selectSelectedPartId, selectSelectedPartIds } from "Features/selection/selectionSlice";
-import useSelectedNodes from '../hooks/useSelectedNodes';
+import theme from "Styles/theme";
+import {
+  selectSelectedItems,
+  selectSelectedPointId,
+  selectSelectedPointIds,
+  selectSelectedPartId,
+  selectSelectedPartIds,
+} from "Features/selection/selectionSlice";
+import useSelectedNodes from "../hooks/useSelectedNodes";
 
 const selectWrapperMode = (state) => state.mapEditor.wrapperMode;
 
 const POINT_BASED_TYPES = ["POLYLINE", "POLYGON", "STRIP"];
 
 export default function EditedObjectLayer({
-    basePose,
-    annotations,
-    spriteImage,
-    // selectedNode, // Ignored
-    // selectedNodes, // Ignored
-    baseMapMeterByPx,
-    baseMapImageScale = 1,
-    onTextValueChange,
+  basePose,
+  annotations,
+  spriteImage,
+  // selectedNode, // Ignored
+  // selectedNodes, // Ignored
+  baseMapMeterByPx,
+  baseMapImageScale = 1,
+  onTextValueChange,
 }) {
+  // Redux State
+  const selectedItems = useSelector(selectSelectedItems);
+  const selectedPointId = useSelector(selectSelectedPointId);
+  const selectedPointIds = useSelector(selectSelectedPointIds);
+  const selectedPartId = useSelector(selectSelectedPartId);
+  const selectedPartIds = useSelector(selectSelectedPartIds);
+  const wrapperMode = useSelector(selectWrapperMode);
 
-    // Redux State
-    const selectedItems = useSelector(selectSelectedItems);
-    const selectedPointId = useSelector(selectSelectedPointId);
-    const selectedPointIds = useSelector(selectSelectedPointIds);
-    const selectedPartId = useSelector(selectSelectedPartId);
-    const selectedPartIds = useSelector(selectSelectedPartIds);
-    const wrapperMode = useSelector(selectWrapperMode);
+  // Compat with existing logic
+  const { node: selectedNode, nodes: selectedNodes } = useSelectedNodes();
 
-    // Compat with existing logic
-    const { node: selectedNode, nodes: selectedNodes } = useSelectedNodes();
+  const { hiddenAnnotationIds, getPendingMove, pendingMovesVersion } =
+    useInteraction();
 
-    const { hiddenAnnotationIds, getPendingMove, pendingMovesVersion } = useInteraction();
+  // 1. Identifier TOUTES les annotations concernées
+  const activeAnnotations = useMemo(() => {
+    if (!annotations) return [];
 
-    // 1. Identifier TOUTES les annotations concernées
-    const activeAnnotations = useMemo(() => {
-        if (!annotations) return [];
+    // Cas A : Une annotation est explicitement sélectionnée (Click sur la forme)
+    // Dans ce cas, on ne veut voir que celle-ci, même si elle partage des points
+    if (selectedNode || selectedNodes?.length > 0) {
+      let target = [];
+      if (selectedNode && selectedNode.nodeId?.startsWith("label::")) {
+        const annotationId = selectedNode.nodeId.replace("label::", "");
+        const found = annotations.find((a) => a.id === annotationId);
+        target = [getAnnotationLabelPropsFromAnnotation(found)];
+      } else {
+        target = annotations.filter(
+          (a) =>
+            a.id === selectedNode?.nodeId ||
+            selectedNodes?.map((n) => n.nodeId)?.includes(a.id)
+        );
+      }
+      return target;
+    }
 
-        // Cas A : Une annotation est explicitement sélectionnée (Click sur la forme)
-        // Dans ce cas, on ne veut voir que celle-ci, même si elle partage des points
-        if (selectedNode || selectedNodes?.length > 0) {
-            let target = [];
-            if (selectedNode && selectedNode.nodeId?.startsWith("label::")) {
-                const annotationId = selectedNode.nodeId.replace("label::", "");
-                const found = annotations.find(a => a.id === annotationId);
-                target = [getAnnotationLabelPropsFromAnnotation(found)];
-            } else {
-                target = annotations.filter(a => a.id === selectedNode?.nodeId || selectedNodes?.map(n => n.nodeId)?.includes(a.id));
-            }
-            return target;
-        }
-
-        // Cas B : Sélection par Point (Click sur un sommet)
-        // On veut TOUTES les annotations qui partagent ce point
-        if (selectedPointId) {
-            return annotations.filter(ann => {
-                // Vérifier Main path
-                if (ann.points?.some(pt => pt.id === selectedPointId)) return true;
-                // Vérifier Cuts (trous)
-                if (ann.cuts?.some(cut => cut.points?.some(pt => pt.id === selectedPointId))) return true;
-                return false;
-            });
-        }
-
-        return [];
-    }, [selectedNode?.nodeId, annotations, selectedPointId]);
-
-
-    // 2. Gestion de la Pose (On prend celle du premier élément trouvé ou défaut)
-    // Note : On suppose ici que des annotations connectées partagent le même contexte (Map ou BgImage)
-    const isBgContext = useMemo(() => {
-        if (selectedNode) return selectedNode.nodeContext === "BG_IMAGE";
-        if (activeAnnotations.length > 0) {
-            // On regarde la première annotation trouvée pour déduire le contexte
-            // (Ajoutez une logique plus robuste si vous mixez des contextes)
-            return false;
-        }
+    // Cas B : Sélection par Point (Click sur un sommet)
+    // On veut TOUTES les annotations qui partagent ce point
+    if (selectedPointId) {
+      return annotations.filter((ann) => {
+        // Vérifier Main path
+        if (ann.points?.some((pt) => pt.id === selectedPointId)) return true;
+        // Vérifier Cuts (trous)
+        if (
+          ann.cuts?.some((cut) =>
+            cut.points?.some((pt) => pt.id === selectedPointId)
+          )
+        )
+          return true;
         return false;
-    }, [selectedNode?.nodeId, activeAnnotations?.length]);
+      });
+    }
 
-    console.log("isBgContext", isBgContext, selectedNode)
+    return [];
+  }, [selectedNode?.nodeId, annotations, selectedPointId]);
 
-    const finalPose = isBgContext ? { x: 0, y: 0, k: 1 } : basePose;
+  // 2. Gestion de la Pose (On prend celle du premier élément trouvé ou défaut)
+  // Note : On suppose ici que des annotations connectées partagent le même contexte (Map ou BgImage)
+  const isBgContext = useMemo(() => {
+    if (selectedNode) return selectedNode.nodeContext === "BG_IMAGE";
+    if (activeAnnotations.length > 0) {
+      // On regarde la première annotation trouvée pour déduire le contexte
+      // (Ajoutez une logique plus robuste si vous mixez des contextes)
+      return false;
+    }
+    return false;
+  }, [selectedNode?.nodeId, activeAnnotations?.length]);
 
-    // On filtre celles qui sont cachées (topology/segment split)
-    const annotationsToRender = activeAnnotations.filter(a => !hiddenAnnotationIds.includes(a.id));
+  console.log("isBgContext", isBgContext, selectedNode);
 
-    // Wrapper bbox for point-based annotations (POLYLINE, POLYGON, STRIP)
-    const pointBasedAnnotations = annotationsToRender.filter(a => POINT_BASED_TYPES.includes(a.type));
-    const isMultiSelection = selectedNodes?.length > 1;
-    const showWrapper = pointBasedAnnotations.length > 0 &&
-        wrapperMode &&
-        !selectedPointId;
+  const finalPose = isBgContext ? { x: 0, y: 0, k: 1 } : basePose;
 
-    // Extract cumulative rotation and rotation center (all annotations in the wrapper share the same values)
-    const wrapperRotation = (() => {
-        if (pointBasedAnnotations.length === 0) return 0;
-        const first = pointBasedAnnotations[0].rotation ?? 0;
-        return pointBasedAnnotations.every(a => (a.rotation ?? 0) === first) ? first : 0;
-    })();
-    const wrapperRotationCenter = pointBasedAnnotations[0]?.rotationCenter ?? null;
+  // On filtre celles qui sont cachées (topology/segment split)
+  const annotationsToRender = activeAnnotations.filter(
+    (a) => !hiddenAnnotationIds.includes(a.id)
+  );
 
-    // Safety: only un-rotate if rotationCenter is available, otherwise fall back to
-    // axis-aligned bbox without visual rotation (prevents "double rotation" artifact
-    // if rotationCenter hasn't been committed yet).
-    const canUnrotate = wrapperRotation !== 0 && wrapperRotationCenter != null;
-    const effectiveRotation = canUnrotate ? wrapperRotation : 0;
+  // Wrapper bbox for point-based annotations (POLYLINE, POLYGON, STRIP)
+  const pointBasedAnnotations = annotationsToRender.filter((a) =>
+    POINT_BASED_TYPES.includes(a.type)
+  );
+  const isMultiSelection = selectedNodes?.length > 1;
+  const showWrapper =
+    pointBasedAnnotations.length > 0 && wrapperMode && !selectedPointId;
 
-    const wrapperBbox = useMemo(() => {
-        if (!showWrapper) return null;
-        return canUnrotate
-            ? computeWrapperBbox(pointBasedAnnotations, wrapperRotation, wrapperRotationCenter)
-            : computeWrapperBbox(pointBasedAnnotations);
-    }, [showWrapper, pointBasedAnnotations.map(a => a.id).join(","), pendingMovesVersion, wrapperRotation, wrapperRotationCenter?.x, wrapperRotationCenter?.y]);
+  // Extract cumulative rotation and rotation center (all annotations in the wrapper share the same values)
+  const wrapperRotation = (() => {
+    if (pointBasedAnnotations.length === 0) return 0;
+    const first = pointBasedAnnotations[0].rotation ?? 0;
+    return pointBasedAnnotations.every((a) => (a.rotation ?? 0) === first)
+      ? first
+      : 0;
+  })();
+  const wrapperRotationCenter =
+    pointBasedAnnotations[0]?.rotationCenter ?? null;
 
-    const isWrapperDragged = showWrapper && (
-        !!getPendingMove("wrapper") ||
-        pointBasedAnnotations.some(a => !!getPendingMove(a.id))
-    );
+  // Safety: only un-rotate if rotationCenter is available, otherwise fall back to
+  // axis-aligned bbox without visual rotation (prevents "double rotation" artifact
+  // if rotationCenter hasn't been committed yet).
+  const canUnrotate = wrapperRotation !== 0 && wrapperRotationCenter != null;
+  const effectiveRotation = canUnrotate ? wrapperRotation : 0;
 
-    if (annotationsToRender.length === 0) return null;
+  const wrapperBbox = useMemo(() => {
+    if (!showWrapper) return null;
+    return canUnrotate
+      ? computeWrapperBbox(
+          pointBasedAnnotations,
+          wrapperRotation,
+          wrapperRotationCenter
+        )
+      : computeWrapperBbox(pointBasedAnnotations);
+  }, [
+    showWrapper,
+    pointBasedAnnotations.map((a) => a.id).join(","),
+    pendingMovesVersion,
+    wrapperRotation,
+    wrapperRotationCenter?.x,
+    wrapperRotationCenter?.y,
+  ]);
 
-    return (
-        <g
-            className="edited-layer"
-            style={{ pointerEvents: 'auto' }}
-            transform={`translate(${finalPose.x}, ${finalPose.y}) scale(${finalPose.k})`}
-        >
-            {annotationsToRender.map(annotation => {
+  const isWrapperDragged =
+    showWrapper &&
+    (!!getPendingMove("wrapper") ||
+      pointBasedAnnotations.some((a) => !!getPendingMove(a.id)));
 
-                // Style spécifique pour chaque annotation
-                const isDraggable = (annotation.type === "MARKER" || annotation.type === "LABEL") && selectedNode?.nodeId === annotation.id;
+  if (annotationsToRender.length === 0) return null;
 
-                // Est-ce que l'annotation entière est sélectionnée ?
-                const isNodeSelected = selectedNode?.nodeId === annotation.id || selectedNodes?.map(n => n.nodeId)?.includes(annotation.id);
+  return (
+    <g
+      className="edited-layer"
+      style={{ pointerEvents: "auto" }}
+      transform={`translate(${finalPose.x}, ${finalPose.y}) scale(${finalPose.k})`}
+    >
+      {annotationsToRender.map((annotation) => {
+        // Style spécifique pour chaque annotation
+        const isDraggable =
+          (annotation.type === "MARKER" || annotation.type === "LABEL") &&
+          selectedNode?.nodeId === annotation.id;
 
-                // Est-ce qu'on est en mode "Point Seulement" ?
-                const isPointSelectionMode = !isNodeSelected && !!selectedPointId;
+        // Est-ce que l'annotation entière est sélectionnée ?
+        const isNodeSelected =
+          selectedNode?.nodeId === annotation.id ||
+          selectedNodes?.map((n) => n.nodeId)?.includes(annotation.id);
 
-                let overrideStyle = {};
+        // Est-ce qu'on est en mode "Point Seulement" ?
+        const isPointSelectionMode = !isNodeSelected && !!selectedPointId;
 
-                if (isNodeSelected) {
-                    // MODE CLASSIQUE : Tout est sélectionné
-                    const addFillColor = annotation.type !== "TEXT";
-                    overrideStyle = {
-                        //strokeColor: theme.palette.annotation.selected,
-                        //strokeWidth: (annotation.strokeWidth || 0) + 1,
-                        //...(addFillColor ? { fillColor: theme.palette.annotation.selected } : {}),
-                        //fillOpacity: 0.5
-                    };
-                } else if (isPointSelectionMode) {
-                    // MODE POINT SEUL : On ne change PAS le style global
-                    // On laisse l'apparence "normale" (celle du StaticMapContent en dessous)
-                    // Mais on va dire au composant de dessiner les traits connectés
-                    // Optionnel : On peut vouloir cacher le fill normal pour ne pas le doubler avec le calque du dessous
-                    // overrideStyle = { fillOpacity: 0, strokeOpacity: 0 }; 
-                    // Mais le plus simple est de ne rien passer et laisser NodePolyline gérer
-                }
+        let overrideStyle = {};
 
-                // Optimistic overlay : rendre invisible pendant le drag
-                const hasPendingMove = !!getPendingMove(annotation.id);
+        if (isNodeSelected) {
+          // MODE CLASSIQUE : Tout est sélectionné
+          const addFillColor = annotation.type !== "TEXT";
+          overrideStyle = {
+            //strokeColor: theme.palette.annotation.selected,
+            //strokeWidth: (annotation.strokeWidth || 0) + 1,
+            //...(addFillColor ? { fillColor: theme.palette.annotation.selected } : {}),
+            //fillOpacity: 0.5
+          };
+        } else if (isPointSelectionMode) {
+          // MODE POINT SEUL : On ne change PAS le style global
+          // On laisse l'apparence "normale" (celle du StaticMapContent en dessous)
+          // Mais on va dire au composant de dessiner les traits connectés
+          // Optionnel : On peut vouloir cacher le fill normal pour ne pas le doubler avec le calque du dessous
+          // overrideStyle = { fillOpacity: 0, strokeOpacity: 0 };
+          // Mais le plus simple est de ne rien passer et laisser NodePolyline gérer
+        }
 
-                return (
-                    <g
-                        key={annotation.id}
-                        data-interaction={isDraggable ? "draggable" : undefined}
-                        data-node-id={annotation.id}
-                        style={hasPendingMove ? { opacity: 0 } : undefined}
-                    >
-                        <NodeAnnotationStatic
-                            annotation={annotation}
-                            annotationOverride={overrideStyle}
-                            spriteImage={spriteImage}
-                            baseMapMeterByPx={baseMapMeterByPx}
-                            baseMapImageScale={baseMapImageScale}
+        // Optimistic overlay : rendre invisible pendant le drag
+        const hasPendingMove = !!getPendingMove(annotation.id);
 
-                            // When wrapper is active, hide vertices on point-based annotations
-                            // (the wrapper handles replace them)
-                            selected={isNodeSelected && !(showWrapper && POINT_BASED_TYPES.includes(annotation.type))}
+        return (
+          <g
+            key={annotation.id}
+            data-interaction={isDraggable ? "draggable" : undefined}
+            data-node-id={annotation.id}
+            style={hasPendingMove ? { opacity: 0 } : undefined}
+          >
+            <NodeAnnotationStatic
+              annotation={annotation}
+              annotationOverride={overrideStyle}
+              spriteImage={spriteImage}
+              baseMapMeterByPx={baseMapMeterByPx}
+              baseMapImageScale={baseMapImageScale}
+              // When wrapper is active, hide vertices on point-based annotations
+              // (the wrapper handles replace them)
+              selected={
+                isNodeSelected &&
+                !(showWrapper && POINT_BASED_TYPES.includes(annotation.type))
+              }
+              sizeVariant="FIXED_IN_SCREEN"
+              containerK={finalPose.k}
+              onTextValueChange={onTextValueChange}
+              // Le point rouge s'affichera sur toutes les annotations qui le contiennent
+              // (Elles vont se superposer au niveau du point rouge, ce qui est visuellement correct)
+              selectedPointId={selectedPointId}
+              selectedPointIds={selectedPointIds}
+              selectedPartId={selectedPartId}
+              selectedPartIds={selectedPartIds}
+              highlightConnectedSegments={isPointSelectionMode}
+              // Proxy donuts are not editable: keep the selection
+              // highlight/fill but never show vertex handles.
+              disableVertexEditing={annotation.isProxy}
+            />
+          </g>
+        );
+      })}
 
-                            sizeVariant="FIXED_IN_SCREEN"
-                            containerK={finalPose.k}
-                            onTextValueChange={onTextValueChange}
-
-                            // Le point rouge s'affichera sur toutes les annotations qui le contiennent
-                            // (Elles vont se superposer au niveau du point rouge, ce qui est visuellement correct)
-                            selectedPointId={selectedPointId}
-                            selectedPointIds={selectedPointIds}
-                            selectedPartId={selectedPartId}
-                            selectedPartIds={selectedPartIds}
-                            highlightConnectedSegments={isPointSelectionMode}
-                        />
-                    </g>
-                );
-            })}
-
-            {/* Annotation Editing Wrapper — rendered on top of annotations */}
-            {/* Hidden during drag (transient wrapper is rendered by InteractionLayer) */}
-            {showWrapper && wrapperBbox && !isWrapperDragged && (
-                <AnnotationEditingWrapper
-                    bbox={wrapperBbox}
-                    containerK={finalPose.k}
-                    annotationIds={pointBasedAnnotations.map(a => a.id)}
-                    rotation={effectiveRotation}
-                    rotationCenter={canUnrotate ? wrapperRotationCenter : undefined}
-                />
-            )}
-        </g>
-    );
+      {/* Annotation Editing Wrapper — rendered on top of annotations */}
+      {/* Hidden during drag (transient wrapper is rendered by InteractionLayer) */}
+      {showWrapper && wrapperBbox && !isWrapperDragged && (
+        <AnnotationEditingWrapper
+          bbox={wrapperBbox}
+          containerK={finalPose.k}
+          annotationIds={pointBasedAnnotations.map((a) => a.id)}
+          rotation={effectiveRotation}
+          rotationCenter={canUnrotate ? wrapperRotationCenter : undefined}
+        />
+      )}
+    </g>
+  );
 }

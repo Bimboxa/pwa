@@ -77,7 +77,10 @@ function attachPointTraitRaycast(line, localStart, localEnd) {
     _ptB.copy(localEnd).applyMatrix4(this.matrixWorld);
     const distSq = ray.distanceSqToSegment(_ptA, _ptB, _ptOnRay, _ptOnSeg);
     const dist = ray.origin.distanceTo(_ptOnSeg);
-    const threshold = Math.max(POINT_TRAIT_PICK_MIN_M, POINT_TRAIT_PICK_ANGULAR * dist);
+    const threshold = Math.max(
+      POINT_TRAIT_PICK_MIN_M,
+      POINT_TRAIT_PICK_ANGULAR * dist
+    );
     if (distSq <= threshold * threshold) {
       intersects.push({
         distance: dist,
@@ -248,7 +251,8 @@ function buildSlopedStripGroup(annotation, baseMap, material, verticalLift) {
   const surfaceMaterial = material.clone();
   surfaceMaterial.side = DoubleSide;
   surfaceMaterial.onBeforeCompile = () => {};
-  surfaceMaterial.customProgramCacheKey = () => "annotationStripSurfaceNoDarken";
+  surfaceMaterial.customProgramCacheKey = () =>
+    "annotationStripSurfaceNoDarken";
   surfaceMaterial.needsUpdate = true;
   ribbons.forEach(({ points, closeLine }) => {
     const built = buildSlopedStripMesh({
@@ -490,6 +494,25 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
   let object = null;
   switch (annotation.type) {
     case "POLYGON": {
+      // Revolution proxy ("donut"): the POLYGON is only a plan-view marker. In
+      // 3D, lathe the linked source arc's revolution instead of extruding the
+      // donut. revolutionProxy3D (arc + axis in metres, plan-local centre) is
+      // resolved live by useAnnotationsV2, so this also follows the plan point.
+      if (
+        annotation.isProxy &&
+        annotation.revolutionProxy3D?.axisPointsLocal?.length >= 2
+      ) {
+        const r = annotation.revolutionProxy3D;
+        object = buildRevolutionMesh({
+          arcPoints: r.arcPointsLocal,
+          axisPoints: r.axisPointsLocal,
+          centerLocal: r.centerLocal || null,
+          orientation: baseMap.orientation,
+          material,
+          hiddenSegmentsIdx: r.hiddenSegmentsIdx || [],
+        });
+        break;
+      }
       const pts = pointsToLocal(annotation.points || [], baseMap);
       const cuts = (annotation.cuts || [])
         .map((cut) => pointsToLocal(cut.points || [], baseMap))

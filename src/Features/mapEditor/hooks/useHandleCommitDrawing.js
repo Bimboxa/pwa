@@ -26,6 +26,7 @@ import avoidVisibleAnnotationsService from "Features/annotations/services/avoidV
 import applyOpeningOnPolygon from "Features/annotations/utils/applyOpeningOnPolygon";
 import findCutHostAnnotationId from "Features/annotations/utils/findCutHostAnnotationId";
 import getAnnotationAsPolygons from "Features/geometry/utils/getAnnotationAsPolygons";
+import createRevolutionProxiesOnPlan from "Features/elevation/services/createRevolutionProxiesOnPlan";
 
 
 export default function useHandleCommitDrawing({ newEntity, annotations } = {}) {
@@ -763,6 +764,34 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
             await updateAnnotation(_updatedAnnotation);
         } else {
             await createAnnotation(_newAnnotation);
+        }
+
+        // REVOLUTION_POINT placed from the elevation panel ("Positionner l'axe
+        // sur la vue en plan"): the point carries the revolution axis id, so we
+        // project every arc linked to that axis onto the plan as a "donut" proxy
+        // polygon centred on the click. See createRevolutionProxiesOnPlan.
+        if (
+            _newAnnotation?.type === "REVOLUTION_POINT" &&
+            _newAnnotation?.revolutionAxisId &&
+            baseMap &&
+            rawPoints?.[0]
+        ) {
+            try {
+                await createRevolutionProxiesOnPlan({
+                    axisId: _newAnnotation.revolutionAxisId,
+                    centerPx: { x: rawPoints[0].x, y: rawPoints[0].y },
+                    planBaseMap: baseMap,
+                    projectId,
+                    listingId,
+                    createAnnotation,
+                });
+                dispatch(triggerAnnotationsUpdate());
+            } catch (e) {
+                console.error(
+                    "[useHandleCommitDrawing] revolution proxy creation failed",
+                    e
+                );
+            }
         }
 
 
