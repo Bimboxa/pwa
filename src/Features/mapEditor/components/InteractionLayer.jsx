@@ -86,6 +86,7 @@ import PasteAnnotationPreviewLayer from 'Features/mapEditorGeneric/components/Pa
 import BrushDrawingLayer from 'Features/mapEditorGeneric/components/BrushDrawingLayer';
 import ScreenCursorV2 from 'Features/mapEditorGeneric/components/ScreenCursorV2';
 import SnappingLayer from 'Features/mapEditorGeneric/components/SnappingLayer';
+import AxisSnapLayer from 'Features/mapEditorGeneric/components/AxisSnapLayer';
 import TransientTopologyLayer from 'Features/mapEditorGeneric/components/TransientTopologyLayer';
 import TransientAnnotationLayer from 'Features/mapEditorGeneric/components/TransientAnnotationLayer';
 import DropZoneLayer from 'Features/mapEditorGeneric/components/DropZoneLayer';
@@ -133,6 +134,7 @@ import LassoOverlay from 'Features/mapEditorGeneric/components/LassoOverlay';
 import mergeBboxes from 'Features/misc/utils/mergeBboxes';
 import snapToAngle from 'Features/mapEditor/utils/snapToAngle';
 import getBestSnap from 'Features/mapEditor/utils/getBestSnap';
+import getAxisSnap from 'Features/mapEditor/utils/getAxisSnap';
 import getSnapModes from 'Features/mapEditor/utils/getSnapModes';
 import getEffectiveDetectionMode from 'Features/mapEditor/utils/getEffectiveDetectionMode';
 import getAnnotationEditionPanelAnchor from 'Features/annotations/utils/getAnnotationEditionPanelAnchor';
@@ -161,6 +163,10 @@ import useUndo from "App/db/useUndo";
 // constants
 
 const SNAP_THRESHOLD_ABSOLUTE = 12;
+
+// Distant-point axis snapping (issue #282), in SCREEN pixels (zoom-independent).
+const AXIS_SNAP_PX = 3; // active snap threshold (red fill)
+const AXIS_SNAP_APPROACH_PX = AXIS_SNAP_PX * 1.5; // approach band (grey ring)
 const DRAG_THRESHOLD_PX = 3; // Seuil de déplacement pour activer le drag
 const SCREEN_BRUSH_RADIUS_PX = 12; // Rayon fixe à l'écran
 const LOUPE_SIZE = 200; // Taille écran de la loupe
@@ -291,6 +297,9 @@ const InteractionLayer = forwardRef(({
   const brushLayerRef = useRef(null);
   const screenCursorRef = useRef(null);
   const snappingLayerRef = useRef(null);
+  // Distant-point axis snapping (issue #282)
+  const axisSnapLayerRef = useRef(null);
+  const axisSnapRef = useRef(null); // { x: localX|null, y: localY|null } applied at commit
   const closingMarkerRef = useRef(null);
   const helperScaleRef = useRef(null);
   // baseMapRafRef — now managed by useBaseMapDrag
@@ -1213,6 +1222,38 @@ const InteractionLayer = forwardRef(({
       x: (worldPos.x - pose.x) / pose.k,
       y: (worldPos.y - pose.y) / pose.k
     };
+  };
+
+  // Distant-point axis snapping (issue #282).
+  // Scans existing annotation points (+ the in-progress drawing points) and
+  // returns an axis snap whose markers / X-Y locks are computed in screen space
+  // (zoom-independent). `cursorScreen` is in viewport-pixel space.
+  const computeAxisSnap = (cursorScreen) => {
+    const vp = viewportRef.current;
+    if (!vp || !cursorScreen) return null;
+    const pose = getTargetPose();
+
+    const candidates = [];
+    for (const ann of (annotationsForSnap || [])) {
+      const pts = ann?.points;
+      if (!pts) continue;
+      for (const p of pts) {
+        if (Number.isFinite(p?.x) && Number.isFinite(p?.y)) candidates.push(p);
+      }
+    }
+    for (const p of (drawingPointsRef.current || [])) {
+      if (Number.isFinite(p?.x) && Number.isFinite(p?.y)) candidates.push(p);
+    }
+    if (!candidates.length) return null;
+
+    return getAxisSnap({
+      candidates,
+      cursorScreen,
+      project: (p) => vp.worldToViewport(p.x * pose.k + pose.x, p.y * pose.k + pose.y),
+      bounds: vp.getViewportSize?.(),
+      snapPx: AXIS_SNAP_PX,
+      approachPx: AXIS_SNAP_APPROACH_PX,
+    });
   };
 
 
@@ -3325,6 +3366,23 @@ const InteractionLayer = forwardRef(({
     // Pan/zoom remain available because they live in MapEditorViewport.
     if (imageModeEnabledRef.current) return;
 
+    // --- DISTANT-POINT AXIS SNAP (issue #282) ---
+    // If a crosshair branch is locked onto a distant point, override the click's
+    // world X/Y so the committed point lands on the aligned coordinate. Applied
+    // as a baseline before the per-mode ortho / fixed-length constraints, which
+    // all derive from worldPos via toLocalCoords.
+    if (enabledDrawingMode && axisSnapRef.current) {
+      const axisSnap = axisSnapRef.current;
+      if (axisSnap.x != null || axisSnap.y != null) {
+        const pose = getTargetPose();
+        worldPos = {
+          ...worldPos,
+          ...(axisSnap.x != null ? { x: axisSnap.x * pose.k + pose.x } : {}),
+          ...(axisSnap.y != null ? { y: axisSnap.y * pose.k + pose.y } : {}),
+        };
+      }
+    }
+
     // --- Paste mode: a click places a copy at the cursor. Normal copy/paste
     // keeps the mode active so multiple copies can be placed (Esc exits); an
     // import paste (`once`) places a single time then exits automatically.
@@ -4364,15 +4422,38 @@ const InteractionLayer = forwardRef(({
 
     // --- 4. EXÉCUTION DES ACTIONS (Drag, Draw, Pan) ---
 
-    // Mise à jour du curseur visuel (ScreenCursor)
+    // --- DISTANT-POINT AXIS SNAP (issue #282) ---
+    // Only while the drawing crosshair is visible (true drawing modes, not the
+    // single-click pointer modes which have no branches to align with).
+    let axisSnap = null;
+    const axisSnapActive =
+      Boolean(enabledDrawingMode) &&
+      !POINTER_CLICK_MODES.includes(enabledDrawingMode) &&
+      snappingEnabled &&
+      !isPanning;
+    if (axisSnapActive) {
+      axisSnap = computeAxisSnap(viewportPos);
+      axisSnapRef.current = axisSnap ? { x: axisSnap.x, y: axisSnap.y } : null;
+      axisSnapLayerRef.current?.update(axisSnap?.markers || null);
+    } else {
+      axisSnapRef.current = null;
+      axisSnapLayerRef.current?.update(null);
+    }
+
+    // Mise à jour du curseur visuel (ScreenCursor).
+    // When an axis snap is locked, move the matching branch onto the aligned
+    // point so the crosshair visually passes through it.
     if (enabledDrawingMode || dragState?.active || dragAnnotationState?.active) {
-      screenCursorRef.current?.move(viewportPos.x, viewportPos.y);
+      const cursorX = axisSnap?.xScreen ?? viewportPos.x;
+      const cursorY = axisSnap?.yScreen ?? viewportPos.y;
+      screenCursorRef.current?.move(cursorX, cursorY);
     }
 
     // Nettoyage visuel pendant le Pan
     if (isPanning) {
       closingMarkerRef.current?.update(null);
       snappingLayerRef.current?.update(null);
+      axisSnapLayerRef.current?.update(null);
     }
 
     // A. DRAG POINT (Vertex) — délégué à usePointDrag
@@ -4588,6 +4669,13 @@ const InteractionLayer = forwardRef(({
     if (['CLICK', 'POLYLINE_CLICK', 'POLYGON_CLICK', 'CUT_CLICK', 'SPLIT_CLICK', 'STRIP', 'ONE_CLICK', "MEASURE", "SEGMENT", "POLYLINE_SEGMENT", "STRIP_SEGMENT", "RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", "LOCALIZED_REPAIR", "CIRCLE", "POLYLINE_CIRCLE", "POLYGON_CIRCLE", "CUT_CIRCLE", "POLYLINE_CIRCLE_RADIUS", "POLYGON_CIRCLE_RADIUS", "ARC", "POLYLINE_ARC", "COMPLETE_ANNOTATION", "COTE_TWO_CLICK", "ADD_GUIDE_LINE", "RAMP"].includes(enabledDrawingMode)) {
       const localPos = toLocalCoords(worldPos);
       let previewPos = localPos;
+
+      // Distant-point axis snap baseline (issue #282): align the preview's X/Y
+      // to a distant point when a crosshair branch is locked onto it.
+      if (axisSnap) {
+        if (axisSnap.x != null) previewPos = { ...previewPos, x: axisSnap.x };
+        if (axisSnap.y != null) previewPos = { ...previewPos, y: axisSnap.y };
+      }
 
       // Angle snap drawing (use ref to always get latest points, even before re-render)
       const currentDrawingPts = drawingPointsRef.current;
@@ -5530,6 +5618,7 @@ const InteractionLayer = forwardRef(({
               color="#ff00ff"
               onMouseDown={handleMarkerMouseDown}
             />
+            <AxisSnapLayer ref={axisSnapLayerRef} />
             <ClosingMarker
               ref={closingMarkerRef}
               onClick={handleClosingClick}
