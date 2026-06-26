@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 
 import { setOpenSelectorScope } from "../scopesSlice";
 
@@ -23,6 +23,7 @@ export default function ButtonSelectorScope() {
 
   // data
   const appConfig = useAppConfig();
+  const viewerMode = useSelector((s) => s.urlParams.viewerMode);
 
   // state
   const [anchorEl, setAnchorEl] = useState(null);
@@ -39,6 +40,8 @@ export default function ButtonSelectorScope() {
   // --- LOGIQUE D'OUVERTURE / FERMETURE ---
 
   const handleOpen = (event) => {
+    // In viewer mode the scope selector is locked: no navigation to another scope.
+    if (viewerMode) return;
     // Si un timer de fermeture était en cours, on l'annule (car on est revenu sur le bouton ou le menu)
     if (timeoutRef.current) {
       clearTimeout(timeoutRef.current);
@@ -86,6 +89,7 @@ export default function ButtonSelectorScope() {
           onClick={handleOpen}
           endIcon={<Down />}
           label={scopeName}
+          disabled={viewerMode}
         />
       </Box>
 

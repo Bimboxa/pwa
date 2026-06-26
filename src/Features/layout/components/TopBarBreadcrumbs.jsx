@@ -25,6 +25,7 @@ export default function TopBarBreadcrumbs() {
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const scopeId = useSelector((s) => s.scopes.selectedScopeId);
   const leftPanelDocked = useSelector((s) => s.leftPanel.leftPanelDocked);
+  const viewerMode = useSelector((s) => s.urlParams.viewerMode);
 
   const { value: selectedProject } = useSelectedProject();
   const { value: selectedScope } = useSelectedScope();
@@ -56,11 +57,14 @@ export default function TopBarBreadcrumbs() {
     />
   );
 
-  const Home = () => (
-    <IconButton onClick={handleClickHome}>
-      <HomeIcon />
-    </IconButton>
-  );
+  const Home = () => {
+    if (viewerMode) return null;
+    return (
+      <IconButton onClick={handleClickHome}>
+        <HomeIcon />
+      </IconButton>
+    );
+  };
 
   const ToggleDock = () => (
     <Tooltip
@@ -90,7 +94,9 @@ export default function TopBarBreadcrumbs() {
       <Tooltip title={selectedProject?.name}>
         <ButtonGeneric
           label={selectedProject?.name}
-          onClick={() => dispatch(setSelectedScopeId(null))}
+          onClick={
+            viewerMode ? undefined : () => dispatch(setSelectedScopeId(null))
+          }
         />
       </Tooltip>
     </Box>
