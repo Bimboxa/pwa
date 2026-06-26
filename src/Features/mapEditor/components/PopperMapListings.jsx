@@ -2001,8 +2001,10 @@ export default function PopperMapListings() {
   // "Maillage" toggle: shows mesh cells instead of meshed parents and forces a
   // SELECT-like (read-only) interaction. The mode toggle is disabled while on.
   const showMeshCells = useSelector((s) => s.annotations.showMeshCells);
+  // viewer mode (?mode=viewer) locks the editor to read-only SELECT.
+  const viewerMode = useSelector((s) => s.urlParams.viewerMode);
   const effectiveInteractionMode =
-    showMeshCells || isThreedViewer ? "SELECT" : interactionMode;
+    showMeshCells || isThreedViewer || viewerMode ? "SELECT" : interactionMode;
   const collapsed = useSelector((s) => s.popperMapListings.collapsed);
   const selectedItem = useSelector((s) => s.selection.selectedItems[0] || null);
 
@@ -2351,8 +2353,8 @@ export default function PopperMapListings() {
       </Box>
 
       {!collapsed && (<>
-      {/* Interaction mode toggle (DRAW / EDIT / SELECT) — hidden in 3D (read-only) */}
-      {!isThreedViewer && (
+      {/* Interaction mode toggle (DRAW / EDIT / SELECT) — hidden in 3D and viewer mode (read-only) */}
+      {!isThreedViewer && !viewerMode && (
         <Box
           sx={{
             px: 1,

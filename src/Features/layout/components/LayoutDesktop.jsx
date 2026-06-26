@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
+import { useSearchParams } from "react-router-dom";
 
 import { setSelectedViewerKey } from "Features/viewers/viewersSlice";
 
@@ -45,13 +46,17 @@ export default function LayoutDesktop() {
   const advancedLayout = useSelector((s) => s.appConfig.advancedLayout);
   const leftPanelDocked = useSelector((s) => s.leftPanel.leftPanelDocked);
 
+  // honor ?viewer=3d deep link: don't reset the viewer to MAP when 3D is requested
+  const [searchParams] = useSearchParams();
+  const wants3dViewer = searchParams.get("viewer") === "3d";
+
   // effects
 
   useEffect(() => {
-    if (!advancedLayout) {
+    if (!advancedLayout && !wants3dViewer) {
       dispatch(setSelectedViewerKey("MAP"));
     }
-  }, [advancedLayout, dispatch]);
+  }, [advancedLayout, wants3dViewer, dispatch]);
 
   return (
     <BoxFlexV sx={{ position: "relative" }}>

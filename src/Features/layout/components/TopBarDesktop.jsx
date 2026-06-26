@@ -61,6 +61,7 @@ export default function TopBarDesktop() {
     (s) => s.viewers.viewerReturnContext
   );
   const viewerKey = useSelector((s) => s.viewers.selectedViewerKey);
+  const viewerMode = useSelector((s) => s.urlParams.viewerMode);
   const isCalibrating = useSelector((s) => s.baseMapEditor.isCalibrating);
   const versionCompareId = useSelector(
     (s) => s.baseMapEditor.versionCompareId
@@ -314,7 +315,7 @@ export default function TopBarDesktop() {
         }}
       >
         <ButtonToggleThreedViewer />
-        {viewerKey !== "THREED" && (
+        {viewerKey !== "THREED" && !viewerMode && (
           <Box
             sx={{
               display: { xs: "none", md: "flex" },
