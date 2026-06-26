@@ -55,6 +55,8 @@ export default function buildRevolutionMesh({
   orientation = "HORIZONTAL",
   material,
   hiddenSegmentsIdx = [],
+  phiStart = 0,
+  phiLength = Math.PI * 2,
 }) {
   if (!arcPoints || arcPoints.length < 2) return null;
   if (!axisPoints || axisPoints.length < 2) return null;
@@ -122,9 +124,14 @@ export default function buildRevolutionMesh({
   const surfMat = material.clone();
   surfMat.side = DoubleSide;
 
+  // Keep tessellation density roughly constant when only a fraction of the
+  // turn is swept (min a few segments so a thin wedge still reads as curved).
+  const turnFraction = Math.min(1, Math.max(0, phiLength / (Math.PI * 2)));
+  const segments = Math.max(4, Math.round(SEGMENTS * turnFraction));
+
   const group = new Group();
   for (const run of runs) {
-    const geom = new LatheGeometry(run, SEGMENTS);
+    const geom = new LatheGeometry(run, segments, phiStart, phiLength);
     if (axisAlongNormal) geom.rotateX(Math.PI / 2);
     geom.translate(center.x, center.y, center.z ?? 0);
     geom.computeVertexNormals();

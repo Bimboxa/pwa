@@ -44,13 +44,14 @@ export default class SectionContourManager {
       resolution: this._resolution(),
       worldUnits: false,
       transparent: true,
-      depthTest: true,
+      // Draw the whole section outline on top, like an X-ray. The contour lies
+      // ON the cut plane, so on curved/closed shapes large parts of it fall
+      // BEHIND nearer faces of the very same mesh; with depth testing those
+      // parts get culled and only the silhouette edge survives (the bug: a flat
+      // wall's contour shows, a revolution/extrusion's mostly disappears).
+      // depthTest:false + a high renderOrder keeps the full imprint visible.
+      depthTest: false,
     });
-    // The contour sits exactly on the cut plane; nudge it toward the camera in
-    // depth so it doesn't z-fight with the exposed cut silhouette.
-    this.material.polygonOffset = true;
-    this.material.polygonOffsetFactor = -2;
-    this.material.polygonOffsetUnits = -2;
 
     this.line = new LineSegments2(this.geometry, this.material);
     this.line.userData.isSectionContour = true; // skip material walks / exports
@@ -86,6 +87,24 @@ export default class SectionContourManager {
 
     const meshes = this._collectAnnotationMeshes();
     const { positions, segments } = computePlaneSectionSegments(plane, meshes);
+
+    // Opt-in diagnostic: `window.__DEBUG_SECTION__ = true` then move the plane.
+    // Logs each scanned mesh and how many section segments it contributed, so a
+    // missing contour part shows up as either a missing mesh (collection bug) or
+    // a present mesh yielding 0 segments (geometry/topology bug).
+    if (typeof window !== "undefined" && window.__DEBUG_SECTION__) {
+      const perMesh = meshes.map((m) => ({
+        name: m.name || m.parent?.userData?.annotationType || m.type,
+        tris: m.geometry?.index
+          ? m.geometry.index.count / 3
+          : (m.geometry?.attributes?.position?.count ?? 0) / 3,
+        segs: computePlaneSectionSegments(plane, [m]).segments.length,
+      }));
+      console.log(
+        `[SectionContour] meshes=${meshes.length} totalSegments=${segments.length}`,
+        perMesh
+      );
+    }
 
     if (positions.length > 0) {
       this.geometry.setPositions(positions);

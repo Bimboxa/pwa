@@ -19,6 +19,7 @@ import {
   Typography,
   InputBase,
   IconButton,
+  Switch,
   List,
   ListItemButton,
   ListItemText,
@@ -565,6 +566,37 @@ export default function PanelPropertiesListingV2({ listing }) {
             </IconButton>
           </Box>
         </WhiteSectionGeneric>
+
+        {/* Coupes & élévations (vertical baseMaps) */}
+        {listing?.entityModel?.type === "BASE_MAP" && (
+          <WhiteSectionGeneric>
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ fontWeight: 600 }}
+              >
+                Coupes & élévations
+              </Typography>
+              <Switch
+                size="small"
+                checked={Boolean(listing?.verticalBaseMaps)}
+                onChange={(e) =>
+                  updateListing({
+                    id: listing.id,
+                    verticalBaseMaps: e.target.checked,
+                  })
+                }
+              />
+            </Box>
+          </WhiteSectionGeneric>
+        )}
 
         {/* Annotation templates */}
         {annotationTemplates?.length > 0 && (

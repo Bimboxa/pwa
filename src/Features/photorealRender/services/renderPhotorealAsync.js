@@ -10,8 +10,14 @@ import {
   GradientEquirectTexture,
 } from "three-gpu-pathtracer";
 
-// Walk the scene and replace each MeshBasicMaterial with a MeshStandardMaterial
+// Walk the scene and replace each annotation material with a MeshStandardMaterial
 // (PBR), so the path-tracer can compute proper lighting / shadows / GI.
+// Handles both MeshBasicMaterial (OBJECT_3D / GLB annotations) and
+// MeshLambertMaterial (the canonical solid-annotation material — POLYGON /
+// RECTANGLE / STRIP / WALL / REVOLUTION / EXTRUSION_PROFILE). The Lambert
+// emissive/emissiveIntensity lift is deliberately dropped: it's a real-time
+// shading hack, and under the path tracer's white environment we want true
+// lighting, not self-illumination.
 // Texture maps are preserved. Translucent annotations switch to PHYSICAL
 // transmission (deterministic via transmissiveBounces) instead of stochastic
 // alpha which produces banding artefacts.
@@ -22,7 +28,8 @@ function swapToPbrMaterials(scene) {
   scene.traverse((obj) => {
     if (!obj.isMesh || !obj.material) return;
     if (Array.isArray(obj.material)) return;
-    if (!obj.material.isMeshBasicMaterial) return;
+    if (!obj.material.isMeshBasicMaterial && !obj.material.isMeshLambertMaterial)
+      return;
     if (obj.userData?.isBasemap) return;
 
     const src = obj.material;

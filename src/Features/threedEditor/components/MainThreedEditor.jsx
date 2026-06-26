@@ -8,6 +8,7 @@ import useDeleteAnnotationOnKeyboardInThreedEditor from "../hooks/useDeleteAnnot
 import useApplyBaseMapOpacityIn3d from "../hooks/useApplyBaseMapOpacityIn3d";
 import useApplyBaseMapVisibilityIn3d from "../hooks/useApplyBaseMapVisibilityIn3d";
 import useApplyBaseMapTransformsIn3d from "../hooks/useApplyBaseMapTransformsIn3d";
+import useSyncClippingPlanTo3D from "../hooks/useSyncClippingPlanTo3D";
 import useNavigateCameraOnEvent from "../hooks/useNavigateCameraOnEvent";
 import useSelectAnnotationOnEvent from "../hooks/useSelectAnnotationOnEvent";
 import {
@@ -185,6 +186,9 @@ export default function MainThreedEditor() {
 
   useDrawingPointerHandlers();
   useDimensionPointerHandlers();
+
+  // Drive the 3D clipping plane from the 2D-defined segment (top view).
+  useSyncClippingPlanTo3D({ threedEditorRef, rendererIsReady });
 
   // Helper: derive the right material state for a given annotation id, based
   // on the current selection in the store and whether the cursor is currently

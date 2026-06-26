@@ -130,6 +130,13 @@ export default function useListingFormTemplate(listing, options) {
         options: { showAsSection: true },
         //hidden: true
       },
+      {
+        key: "verticalBaseMaps",
+        label: "Coupes & élévations",
+        type: "check",
+        options: { showAsSection: true },
+        hidden: listing?.entityModel?.type !== "BASE_MAP",
+      },
     ],
   };
 

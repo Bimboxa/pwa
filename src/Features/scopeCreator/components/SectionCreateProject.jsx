@@ -9,6 +9,8 @@ import useCreateProject from "Features/projects/hooks/useCreateProject";
 import useCreateListings from "Features/listings/hooks/useCreateListings";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
+import { generateKeyBetween } from "fractional-indexing";
+
 import { Box } from "@mui/material";
 import { ArrowBackIos } from "@mui/icons-material";
 
@@ -53,13 +55,30 @@ export default function SectionCreateProject() {
       dispatch(setStepKey("SELECT_PRESET_SCOPE"));
       dispatch(setSelectedProjectId(project.id));
 
-      // create baseMaps listing
-      const [baseMapsListing] = await createListings({
-        listings: [{ ...defaultProps, projectId: project.id }],
+      // create baseMaps listings: "Vues en plan" (horizontal) + "Coupes & élévations" (vertical)
+      // rank (fractional indexing) keeps "Vues en plan" before "Coupes & élévations"
+      const planRank = generateKeyBetween(null, null);
+      const verticalRank = generateKeyBetween(planRank, null);
+      const [planListing, verticalListing] = await createListings({
+        listings: [
+          {
+            ...defaultProps,
+            name: "Vues en plan",
+            rank: planRank,
+            projectId: project.id,
+          },
+          {
+            ...defaultProps,
+            name: "Coupes & élévations",
+            verticalBaseMaps: true,
+            rank: verticalRank,
+            projectId: project.id,
+          },
+        ],
       });
-      dispatch(setSelectedBaseMapsListingId(baseMapsListing?.id));
+      dispatch(setSelectedBaseMapsListingId(planListing?.id));
 
-      console.log("debug_25_09 [baseMapsListing] created baseMapsListing", baseMapsListing);
+      console.log("debug_25_09 [baseMapsListings] created baseMapsListings", planListing, verticalListing);
     }
   }
 

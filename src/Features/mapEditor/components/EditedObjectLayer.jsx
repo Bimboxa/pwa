@@ -2,7 +2,10 @@ import { useMemo } from "react";
 import { useSelector } from "react-redux";
 import { useInteraction } from "Features/mapEditor/context/InteractionContext";
 import NodeAnnotationStatic from "Features/mapEditorGeneric/components/NodeAnnotationStatic";
+import NodeProxyRevolutionStatic from "Features/mapEditorGeneric/components/NodeProxyRevolutionStatic";
 import getAnnotationLabelPropsFromAnnotation from "Features/annotations/utils/getAnnotationLabelPropsFromAnnotation";
+import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
+import db from "App/db/db";
 import AnnotationEditingWrapper from "./AnnotationEditingWrapper";
 import computeWrapperBbox from "../utils/computeWrapperBbox";
 import theme from "Styles/theme";
@@ -37,8 +40,27 @@ export default function EditedObjectLayer({
   const selectedPartIds = useSelector(selectSelectedPartIds);
   const wrapperMode = useSelector(selectWrapperMode);
 
+  const updateAnnotation = useUpdateAnnotation();
+
   // Compat with existing logic
   const { node: selectedNode, nodes: selectedNodes } = useSelectedNodes();
+
+  // Commit new partial-revolution angles to the proxy's SOURCE arc shape3D.
+  async function handleProxyAnglesChange(annotation, angleStart, angleEnd) {
+    const srcId = annotation?.proxySourceAnnotationId;
+    if (!srcId) return;
+    const src = await db.annotations.get(srcId);
+    if (!src) return;
+    await updateAnnotation({
+      id: src.id,
+      shape3D: {
+        ...src.shape3D,
+        partialRevolution: true,
+        revolutionAngleStart: angleStart,
+        revolutionAngleEnd: angleEnd,
+      },
+    });
+  }
 
   const { hiddenAnnotationIds, getPendingMove, pendingMovesVersion } =
     useInteraction();
@@ -198,6 +220,28 @@ export default function EditedObjectLayer({
 
         // Optimistic overlay : rendre invisible pendant le drag
         const hasPendingMove = !!getPendingMove(annotation.id);
+
+        // Partial-revolution proxy: sector node with angle handles when selected.
+        const proxy2D = annotation.revolutionProxy2D;
+        if (annotation.isProxy && proxy2D?.partial) {
+          return (
+            <g key={annotation.id} data-node-id={annotation.id}>
+              <NodeProxyRevolutionStatic
+                center={proxy2D.center}
+                rOuter={proxy2D.rOuter}
+                rInner={proxy2D.rInner}
+                angleStart={proxy2D.angleStart}
+                angleEnd={proxy2D.angleEnd}
+                fillColor={annotation.fillColor}
+                selected={isNodeSelected}
+                containerK={finalPose.k}
+                onChangeAngles={(s, e) =>
+                  handleProxyAnglesChange(annotation, s, e)
+                }
+              />
+            </g>
+          );
+        }
 
         return (
           <g
