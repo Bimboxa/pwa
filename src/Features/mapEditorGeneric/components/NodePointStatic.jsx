@@ -45,11 +45,11 @@ export default function NodePointStatic({
         // Si unité physique (CM), le point doit grossir avec le zoom -> Pas de correction d'échelle (scale 1)
         if (sizeUnit === "CM") return "scale(1)";
 
-        // Si unité écran (PX), on veut annuler le zoom pour garder une taille fixe
-        // On utilise la logique FIXED_IN_CONTAINER_PARENT
-        // Si le conteneur est zoomé x2 (k=2), on réduit le point x0.5 pour qu'il garde sa taille visuelle
+        // Si unité écran (PX), on veut une taille fixe à l'écran, indépendante du zoom (noScale).
+        // On annule les DEUX facteurs d'échelle : le zoom caméra (var(--map-zoom)) ET l'échelle
+        // du conteneur (containerK), comme la zone de hit et tous les nœuds FIXED_IN_SCREEN.
         const k = containerK || 1;
-        return `scale(${1 / k})`;
+        return `scale(calc(1 / (var(--map-zoom, 1) * ${k})))`;
     }, [sizeUnit, containerK]);
 
     // 4b. Transformation d'échelle fixe pour la zone de hit (toujours fixe, quel que soit le sizeUnit)
