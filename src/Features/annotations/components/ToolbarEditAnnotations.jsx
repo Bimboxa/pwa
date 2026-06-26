@@ -49,6 +49,7 @@ import {
 import AnnotationTemplateIcon from "./AnnotationTemplateIcon";
 import AnnotationMeasurements from "./AnnotationMeasurements";
 import FieldAnnotationHeight from "./FieldAnnotationHeight";
+import Shape3DBatchSelector from "./Shape3DBatchSelector";
 import ToolbarAnnotationActions from "./ToolbarAnnotationActions";
 import SelectorAnnotationTemplateVariantDense from "./SelectorAnnotationTemplateVariantDense";
 import ToggleSingleSelectorGeneric from "Features/layout/components/ToggleSingleSelectorGeneric";
@@ -502,6 +503,9 @@ export default function ToolbarEditAnnotations({
             Appliquer
           </Button>
         </Box>
+
+        {/* Batch 3D shape (e.g. revolution from a shared axis) */}
+        <Shape3DBatchSelector annotations={annotations} />
 
         <Divider />
 
