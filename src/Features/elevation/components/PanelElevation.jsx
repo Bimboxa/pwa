@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import {
@@ -13,8 +13,10 @@ import { Box, Typography } from "@mui/material";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import PlanSelectorElevation from "./PlanSelectorElevation";
 import ElevationEditor from "./ElevationEditor";
+import PanelElevationBaseMapView from "./PanelElevationBaseMapView";
 
 import useElevationAnnotation from "Features/elevation/hooks/useElevationAnnotation";
+import useSelectedAnnotation from "Features/annotations/hooks/useSelectedAnnotation";
 import getProjectableSegmentChain from "Features/elevation/utils/getProjectableSegmentChain";
 
 export default function PanelElevation() {
@@ -33,6 +35,13 @@ export default function PanelElevation() {
     offsetZ,
     color,
   } = useElevationAnnotation();
+
+  const selectedAnnotation = useSelectedAnnotation();
+
+  // The profile editor sub-panel is for a plain (non-proxy) polyline; any other
+  // selection (empty, a plan "donut" proxy, a non-polyline…) shows the baseMap
+  // viewer sub-panel.
+  const showProfileEditor = isPolyline && !selectedAnnotation?.isProxy;
 
   const selectedSegmentIndices = useSelector(
     (s) => s.elevation.selectedSegmentIndices
@@ -101,19 +110,8 @@ export default function PanelElevation() {
 
   // render
 
-  if (!isPolyline) {
-    return (
-      <BoxFlexVStretch sx={{ height: 1 }}>
-        <Box sx={{ p: 0.5, pl: 2 }}>
-          <Typography variant="body2">Élévation</Typography>
-        </Box>
-        <Box sx={{ p: 2 }}>
-          <Typography variant="body2" color="text.secondary">
-            Sélectionnez une annotation polyligne pour éditer son élévation.
-          </Typography>
-        </Box>
-      </BoxFlexVStretch>
-    );
+  if (!showProfileEditor) {
+    return <PanelElevationBaseMapView />;
   }
 
   return (

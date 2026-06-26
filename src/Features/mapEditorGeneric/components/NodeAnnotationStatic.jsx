@@ -35,9 +35,9 @@ export default function NodeAnnotationStatic({
   forceHideLabel,
   highlightConnectedSegments,
   selectMode,
-
+  disableVertexEditing,
 }) {
-  annotation = { ...annotation ?? {}, ...annotationOverride ?? {} };
+  annotation = { ...(annotation ?? {}), ...(annotationOverride ?? {}) };
 
   // Apply shape-based defaults for any missing style properties
   annotation = resolveAnnotationDefaults(annotation);
@@ -63,6 +63,7 @@ export default function NodeAnnotationStatic({
     forceHideLabel,
     highlightConnectedSegments,
     selectMode,
+    disableVertexEditing,
   };
 
   // Note: point-based types (POLYGON, POLYLINE, STRIP) store their points
@@ -90,7 +91,13 @@ export default function NodeAnnotationStatic({
       return <NodeTextStatic {...props} text={annotation} />;
 
     case "LABEL":
-      return <NodeLabelStatic {...props} annotation={annotation} sizeVariant="FIXED_IN_BG_IMAGE" />;
+      return (
+        <NodeLabelStatic
+          {...props}
+          annotation={annotation}
+          sizeVariant="FIXED_IN_BG_IMAGE"
+        />
+      );
 
     case "RECTANGLE":
       return <NodeRectangleStatic {...props} annotation={annotation} />;
