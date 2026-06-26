@@ -9,56 +9,13 @@ import cutPolygonPoints from "Features/geometry/utils/cutPolygonPoints";
 import reconcileCuts from "Features/geometry/utils/reconcileCuts";
 import collapseArcsInPolyline from "Features/geometry/utils/collapseArcsInPolyline";
 import {
-    typeOf,
-    circleFromThreePoints,
     expandArcsInPath,
+    extractArcCircles,
+    arcUnitsToTypedPoints,
 } from "Features/geometry/utils/arcSampling";
 
 const BOUNDARY_EPSILON = 1.5; // pixels — distance under which a point is "on the boundary"
 const ARC_SAMPLES = 12; // chords per arc half when polygonizing before the cut
-
-// Circles of every S-C-S arc in a (closed) typed ring. Fed to
-// collapseArcsInPolyline as source hints so an untouched curve is recovered
-// robustly (concentric-source match) rather than via the generic curvature
-// heuristic only.
-function extractArcCircles(ring) {
-    const circles = [];
-    const n = ring?.length ?? 0;
-    if (n < 3) return circles;
-    const at = (i) => ring[((i % n) + n) % n];
-    for (let i = 0; i < n; i++) {
-        const p0 = at(i);
-        const p1 = at(i + 1);
-        const p2 = at(i + 2);
-        if (
-            typeOf(p0) !== "circle" &&
-            typeOf(p1) === "circle" &&
-            typeOf(p2) !== "circle"
-        ) {
-            const c = circleFromThreePoints(p0, p1, p2);
-            if (c && Number.isFinite(c.r) && c.r > 0) circles.push(c);
-        }
-    }
-    return circles;
-}
-
-// Flatten collapseArcsInPolyline units into one typed ring (squares for
-// straight runs, square-circle-square for arcs). Consecutive units share a
-// boundary vertex, so the first point of every unit after the first is dropped.
-function arcUnitsToTypedPoints(units) {
-    const out = [];
-    units.forEach((u, ui) => {
-        (u.points || []).forEach((p, pi) => {
-            if (ui > 0 && pi === 0) return;
-            out.push({
-                x: p.x,
-                y: p.y,
-                type: p.type === "circle" ? "circle" : "square",
-            });
-        });
-    });
-    return out;
-}
 
 /**
  * Apply an "opening" polygon on a host polygon annotation:
@@ -155,14 +112,21 @@ export default async function applyOpeningOnPolygon({
         ...c,
         points: expandArcsInPath(c.points, ARC_SAMPLES, true),
     }));
+    // The opening polygon may itself carry S-C-S arcs (e.g. a CUT_CIRCLE that
+    // straddles the host boundary). Expand it to chords for the boolean op and
+    // remember its arc circles so the carved edge keeps the rounding instead of
+    // collapsing onto the arc control-point chords (which would leave a diamond
+    // notch where the circle exits the host).
+    const openingForCut = expandArcsInPath(openingPointsPx, ARC_SAMPLES, true);
     const sourceArcCircles = [
         ...extractArcCircles(outerRingPx),
         ...subjectCutsPx.flatMap((c) => extractArcCircles(c.points)),
+        ...extractArcCircles(openingPointsPx),
     ];
 
     // Classify: are all opening corners strictly inside the (polygonized) outer
     // ring (and not within BOUNDARY_EPSILON of any outer segment)?
-    const cornersFullyInside = openingPointsPx.every((pt) => {
+    const cornersFullyInside = openingForCut.every((pt) => {
         if (!pointInPolygon(pt, outerRingForCut)) return false;
         for (let i = 0; i < outerRingForCut.length; i++) {
             const a = outerRingForCut[i];
@@ -179,7 +143,7 @@ export default async function applyOpeningOnPolygon({
 
     const result = cutPolygonPoints(
         { points: outerRingForCut, cuts: subjectCutsForCut },
-        openingPointsPx,
+        openingForCut,
         { splitMode: "abort" }
     );
 

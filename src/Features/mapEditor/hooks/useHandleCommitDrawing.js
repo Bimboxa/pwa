@@ -157,7 +157,13 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
             if (_updatedAnnotation?.id && rawPoints?.length >= 3) {
                 const contourResult = await applyOpeningOnPolygon({
                     host: _updatedAnnotation,
-                    openingPointsPx: rawPoints.map((p) => ({ x: p.x, y: p.y })),
+                    // Keep the arc `type` so a circular opening (CUT_CIRCLE) that
+                    // exits the host carves a rounded edge instead of a diamond.
+                    openingPointsPx: rawPoints.map((p) =>
+                        p.type
+                            ? { x: p.x, y: p.y, type: p.type }
+                            : { x: p.x, y: p.y }
+                    ),
                     imageSize: { width, height },
                     baseMapId,
                     projectId,
@@ -760,14 +766,14 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
         }
 
 
-        // Auto-merge : on commit of a POLYGON drawn via the RECTANGLE or
-        // point-by-point CLICK tool, try to absorb overlapping same-template
-        // polygons on the same baseMap / listing. The newly-committed polygon
-        // stays as the winner.
+        // Auto-merge : on commit of a POLYGON drawn via the RECTANGLE, the
+        // point-by-point CLICK, or the CIRCLE tools, try to absorb overlapping
+        // same-template polygons on the same baseMap / listing. The newly-
+        // committed polygon stays as the winner. The merge service preserves
+        // S-C-S arcs, so a circle keeps its rounding through the union.
         const shouldAutoMerge = (
             autoMergeOnCommit &&
-            (enabledDrawingMode === "POLYGON_RECTANGLE" ||
-             enabledDrawingMode === "POLYGON_CLICK") &&
+            ["POLYGON_RECTANGLE", "POLYGON_CLICK", "POLYGON_CIRCLE", "POLYGON_CIRCLE_RADIUS"].includes(enabledDrawingMode) &&
             newAnnotation?.type === "POLYGON" &&
             _newAnnotation?.annotationTemplateId &&
             !isBaseMapAnnotation
