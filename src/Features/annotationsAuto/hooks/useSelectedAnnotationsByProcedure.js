@@ -7,7 +7,7 @@ import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 
 /**
  * Group the currently selected annotations by the ANNOTATIONS_CREATOR procedure
- * linked to their annotationTemplate (template.procedureKey).
+ * linked to their annotationTemplate (template.procedureKeys).
  *
  * Returns: [{ procedure, annotations: [...] }] — only non-empty groups, only
  * procedures of type ANNOTATIONS_CREATOR. FIXOR procedures are intentionally
@@ -49,21 +49,24 @@ export default function useSelectedAnnotationsByProcedure() {
 
     const proceduresByKey = new Map(procedures.map((p) => [p.key, p]));
 
-    // group selected annotations by their template's procedureKey
+    // group selected annotations by each CREATOR procedure linked to their
+    // template (a template may reference several procedures, so an annotation
+    // can land in several groups)
     const annotationsByProcedureKey = new Map();
     for (const annotation of visibleAnnotations ?? []) {
       if (!selectedNodeIds.has(annotation.id)) continue;
       const template = templatesById.get(annotation.annotationTemplateId);
-      const procedureKey = template?.procedureKey;
-      if (!procedureKey) continue;
+      const procedureKeys = template?.procedureKeys ?? [];
 
-      const procedure = proceduresByKey.get(procedureKey);
-      if (procedure?.type !== "ANNOTATIONS_CREATOR") continue;
+      for (const procedureKey of procedureKeys) {
+        const procedure = proceduresByKey.get(procedureKey);
+        if (procedure?.type !== "ANNOTATIONS_CREATOR") continue;
 
-      if (!annotationsByProcedureKey.has(procedureKey)) {
-        annotationsByProcedureKey.set(procedureKey, []);
+        if (!annotationsByProcedureKey.has(procedureKey)) {
+          annotationsByProcedureKey.set(procedureKey, []);
+        }
+        annotationsByProcedureKey.get(procedureKey).push(annotation);
       }
-      annotationsByProcedureKey.get(procedureKey).push(annotation);
     }
 
     return [...annotationsByProcedureKey.entries()].map(

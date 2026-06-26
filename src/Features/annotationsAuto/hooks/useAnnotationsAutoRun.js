@@ -139,7 +139,7 @@ export default function useAnnotationsAutoRun() {
       );
 
       // For ANNOTATIONS_CREATOR procedures, prefer annotations whose template
-      // is explicitly linked to this procedure (template.procedureKey). Fall
+      // is explicitly linked to this procedure (template.procedureKeys). Fall
       // back to all visible POLYLINE/POLYGON when no visible template
       // references the procedure (avoids regressing legacy setups).
       if (procedureEntry?.type === "ANNOTATIONS_CREATOR") {
@@ -151,17 +151,17 @@ export default function useAnnotationsAutoRun() {
         const templates = (
           await db.annotationTemplates.bulkGet(templateIds)
         ).filter(Boolean);
-        const procedureKeyByTemplateId = new Map(
-          templates.map((t) => [t.id, t.procedureKey ?? null])
+        const procedureKeysByTemplateId = new Map(
+          templates.map((t) => [t.id, t.procedureKeys ?? []])
         );
-        const hasLinkedTemplate = templates.some(
-          (t) => t.procedureKey === procedureKey
+        const hasLinkedTemplate = templates.some((t) =>
+          (t.procedureKeys ?? []).includes(procedureKey)
         );
         if (hasLinkedTemplate) {
-          visible = visible.filter(
-            (a) =>
-              procedureKeyByTemplateId.get(a.annotationTemplateId) ===
-              procedureKey
+          visible = visible.filter((a) =>
+            (
+              procedureKeysByTemplateId.get(a.annotationTemplateId) ?? []
+            ).includes(procedureKey)
           );
         }
       }
