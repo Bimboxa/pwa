@@ -1,9 +1,11 @@
 import IconFloorPlan from "../assets/IconFloorPlan";
 
 import { useState, useEffect } from "react";
+import { useSelector } from "react-redux";
 
 import useProjectBaseMapListings from "Features/baseMaps/hooks/useProjectBaseMapListings";
 import useCreateBaseMapFromImage from "Features/baseMaps/hooks/useCreateBaseMapFromImage";
+import useListingById from "Features/listings/hooks/useListingById";
 
 import { Box, Typography, TextField, Button } from "@mui/material";
 
@@ -61,12 +63,21 @@ export default function SectionCreateBaseMapFullscreen({ onClose, showClose, onC
   const projectBaseMapListings = useProjectBaseMapListings();
   const createBaseMapFromImage = useCreateBaseMapFromImage();
 
+  // the listing selected in the topBar baseMap selector chips
+  const selectedBaseMapsListingId = useSelector(
+    (s) => s.mapEditor.selectedBaseMapsListingId
+  );
+  const selectedBaseMapsListing = useListingById(selectedBaseMapsListingId);
+
+  // resolved target listing for the new baseMap
+  const listing =
+    listingProp ?? selectedBaseMapsListing ?? projectBaseMapListings?.[0];
+
   // helpers
 
   const selectedImageUrl = imageFile ? URL.createObjectURL(imageFile) : null;
 
   async function _createBaseMap(file) {
-    const listing = listingProp ?? projectBaseMapListings?.[0];
     if (!listing) return;
 
     const _entity = await createBaseMapFromImage({
@@ -173,7 +184,7 @@ export default function SectionCreateBaseMapFullscreen({ onClose, showClose, onC
             Ajouter une page blanche
           </Button>
           <ButtonOpenSatelliteMapDialog
-            listing={listingProp ?? projectBaseMapListings?.[0]}
+            listing={listing}
             onCreated={onCreated}
             onClose={onClose}
           />
@@ -206,7 +217,7 @@ export default function SectionCreateBaseMapFullscreen({ onClose, showClose, onC
       <DialogCreateBlankBaseMap
         open={openBlank}
         onClose={() => setOpenBlank(false)}
-        listing={listingProp ?? projectBaseMapListings?.[0]}
+        listing={listing}
         onCreated={(entity) => {
           onCreated?.(entity);
           if (onClose) onClose();
