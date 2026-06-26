@@ -5,8 +5,13 @@
 // While drawing, the crosshair (ScreenCursorV2) has a vertical and a horizontal
 // branch. When a branch passes close to an existing point, the new point should
 // snap in the direction NORMAL to that branch:
-//   - vertical branch close to a point   -> snap the new point's X to that point
-//   - horizontal branch close to a point -> snap the new point's Y to that point
+//   - vertical branch close to a point   -> lock the point onto that branch
+//   - horizontal branch close to a point -> lock the point onto that branch
+//
+// The crosshair branches are rotated by the ortho-snap angle (ScreenCursorV2
+// applies `rotate(-angle)`), so all proximity / locking is computed in the
+// ROTATED branch frame, not the fixed screen X/Y axes. With angle = 0 this
+// reduces to plain horizontal/vertical alignment.
 //
 // Proximity is measured in SCREEN pixels so the snap radius is zoom-independent.
 //
@@ -21,15 +26,14 @@
 //   - project:      (localPt) => { x, y } viewport-pixel position of a local point
 //   - bounds:       { width, height } viewport size — candidates projected
 //                   outside it are discarded (not visible on screen)
+//   - angleDeg:     ortho-snap angle of the crosshair branches (degrees)
 //   - snapPx:       active snap threshold (red fill), default 6px
 //   - approachPx:   approach band (grey ring), default 16px
 //
 // Returns null when no candidate is within the approach band, otherwise:
 //   {
-//     x | null,        // snapped LOCAL x (vertical branch lock), null if none
-//     y | null,        // snapped LOCAL y (horizontal branch lock), null if none
-//     xScreen | null,  // viewport x of the X-aligned point (to lock the crosshair)
-//     yScreen | null,  // viewport y of the Y-aligned point
+//     screen: { x, y },   // corrected cursor viewport pos (branches locked)
+//     hasLock: boolean,   // true when at least one axis is actively snapped
 //     markers: [{ screenX, screenY, active }]  // grey rings / red fills to draw
 //   }
 
@@ -50,6 +54,7 @@ export default function getAxisSnap({
   cursorScreen,
   project,
   bounds,
+  angleDeg = 0,
   snapPx = 6,
   approachPx = 16,
 }) {
@@ -57,8 +62,17 @@ export default function getAxisSnap({
     return null;
   }
 
-  let bestX = null; // { dAxis, mouseDist, localX, screenX, screenY, active }
-  let bestY = null; // { dAxis, mouseDist, localY, screenX, screenY, active }
+  // Rotated branch frame (matches ScreenCursorV2's `rotate(-angle)`):
+  //   u = direction of the horizontal branch (normal to the vertical branch)
+  //   v = direction of the vertical branch   (normal to the horizontal branch)
+  const a = (angleDeg * Math.PI) / 180;
+  const cos = Math.cos(a);
+  const sin = Math.sin(a);
+  const u = { x: cos, y: -sin };
+  const v = { x: sin, y: cos };
+
+  let bestX = null; // vertical-branch candidate { dAxis, mouseDist, comp, screenX, screenY, active }
+  let bestY = null; // horizontal-branch candidate
 
   for (const p of candidates) {
     const s = project(p);
@@ -72,35 +86,58 @@ export default function getAxisSnap({
       continue;
     }
 
-    const dx = Math.abs(s.x - cursorScreen.x);
-    const dy = Math.abs(s.y - cursorScreen.y);
-    const mouseDist = Math.hypot(s.x - cursorScreen.x, s.y - cursorScreen.y);
+    const wx = s.x - cursorScreen.x;
+    const wy = s.y - cursorScreen.y;
+    const mouseDist = Math.hypot(wx, wy);
 
-    if (dx <= approachPx) {
+    // Component along u = signed distance to the vertical branch.
+    // Component along v = signed distance to the horizontal branch.
+    const compU = wx * u.x + wy * u.y;
+    const compV = wx * v.x + wy * v.y;
+    const dxAxis = Math.abs(compU); // proximity to the vertical branch
+    const dyAxis = Math.abs(compV); // proximity to the horizontal branch
+
+    if (dxAxis <= approachPx) {
       const cand = {
-        dAxis: dx,
+        dAxis: dxAxis,
         mouseDist,
-        localX: p.x,
+        comp: compU,
         screenX: s.x,
         screenY: s.y,
-        active: dx <= snapPx,
+        active: dxAxis <= snapPx,
       };
       if (isBetterAxisCandidate(cand, bestX)) bestX = cand;
     }
-    if (dy <= approachPx) {
+    if (dyAxis <= approachPx) {
       const cand = {
-        dAxis: dy,
+        dAxis: dyAxis,
         mouseDist,
-        localY: p.y,
+        comp: compV,
         screenX: s.x,
         screenY: s.y,
-        active: dy <= snapPx,
+        active: dyAxis <= snapPx,
       };
       if (isBetterAxisCandidate(cand, bestY)) bestY = cand;
     }
   }
 
   if (!bestX && !bestY) return null;
+
+  // Corrected cursor: shift along u to lock onto the vertical branch candidate,
+  // along v to lock onto the horizontal branch candidate.
+  let screenX = cursorScreen.x;
+  let screenY = cursorScreen.y;
+  let hasLock = false;
+  if (bestX && bestX.active) {
+    screenX += u.x * bestX.comp;
+    screenY += u.y * bestX.comp;
+    hasLock = true;
+  }
+  if (bestY && bestY.active) {
+    screenX += v.x * bestY.comp;
+    screenY += v.y * bestY.comp;
+    hasLock = true;
+  }
 
   // One marker per axis (deduped when both axes resolve to the same point).
   const markers = [];
@@ -125,10 +162,8 @@ export default function getAxisSnap({
   }
 
   return {
-    x: bestX && bestX.active ? bestX.localX : null,
-    y: bestY && bestY.active ? bestY.localY : null,
-    xScreen: bestX && bestX.active ? bestX.screenX : null,
-    yScreen: bestY && bestY.active ? bestY.screenY : null,
+    screen: { x: screenX, y: screenY },
+    hasLock,
     markers,
   };
 }

@@ -1246,14 +1246,30 @@ const InteractionLayer = forwardRef(({
     }
     if (!candidates.length) return null;
 
-    return getAxisSnap({
+    const result = getAxisSnap({
       candidates,
       cursorScreen,
       project: (p) => vp.worldToViewport(p.x * pose.k + pose.x, p.y * pose.k + pose.y),
       bounds: vp.getViewportSize?.(),
+      angleDeg: orthoSnapAngleOffsetRef.current || 0,
       snapPx: AXIS_SNAP_PX,
       approachPx: AXIS_SNAP_APPROACH_PX,
     });
+    if (!result) return null;
+
+    // Convert the corrected cursor (viewport px) back to LOCAL image coords so
+    // the preview / commit can use it. With a rotated frame both x and y of the
+    // locked point shift, so we keep the full point (not per-axis overrides).
+    let local = null;
+    if (result.hasLock) {
+      const cam = vp.getCameraMatrix?.() || { x: 0, y: 0, k: 1 };
+      const world = {
+        x: (result.screen.x - cam.x) / cam.k,
+        y: (result.screen.y - cam.y) / cam.k,
+      };
+      local = toLocalCoords(world);
+    }
+    return { ...result, local };
   };
 
 
@@ -3372,13 +3388,13 @@ const InteractionLayer = forwardRef(({
     // as a baseline before the per-mode ortho / fixed-length constraints, which
     // all derive from worldPos via toLocalCoords.
     if (enabledDrawingMode && axisSnapRef.current) {
-      const axisSnap = axisSnapRef.current;
-      if (axisSnap.x != null || axisSnap.y != null) {
+      const local = axisSnapRef.current;
+      if (Number.isFinite(local.x) && Number.isFinite(local.y)) {
         const pose = getTargetPose();
         worldPos = {
           ...worldPos,
-          ...(axisSnap.x != null ? { x: axisSnap.x * pose.k + pose.x } : {}),
-          ...(axisSnap.y != null ? { y: axisSnap.y * pose.k + pose.y } : {}),
+          x: local.x * pose.k + pose.x,
+          y: local.y * pose.k + pose.y,
         };
       }
     }
@@ -4433,7 +4449,7 @@ const InteractionLayer = forwardRef(({
       !isPanning;
     if (axisSnapActive) {
       axisSnap = computeAxisSnap(viewportPos);
-      axisSnapRef.current = axisSnap ? { x: axisSnap.x, y: axisSnap.y } : null;
+      axisSnapRef.current = axisSnap?.hasLock ? axisSnap.local : null;
       axisSnapLayerRef.current?.update(axisSnap?.markers || null);
     } else {
       axisSnapRef.current = null;
@@ -4441,11 +4457,11 @@ const InteractionLayer = forwardRef(({
     }
 
     // Mise à jour du curseur visuel (ScreenCursor).
-    // When an axis snap is locked, move the matching branch onto the aligned
-    // point so the crosshair visually passes through it.
+    // When an axis snap is locked, move the crosshair onto the corrected
+    // position so the rotated branches visually pass through the aligned point.
     if (enabledDrawingMode || dragState?.active || dragAnnotationState?.active) {
-      const cursorX = axisSnap?.xScreen ?? viewportPos.x;
-      const cursorY = axisSnap?.yScreen ?? viewportPos.y;
+      const cursorX = axisSnap?.screen?.x ?? viewportPos.x;
+      const cursorY = axisSnap?.screen?.y ?? viewportPos.y;
       screenCursorRef.current?.move(cursorX, cursorY);
     }
 
@@ -4670,11 +4686,10 @@ const InteractionLayer = forwardRef(({
       const localPos = toLocalCoords(worldPos);
       let previewPos = localPos;
 
-      // Distant-point axis snap baseline (issue #282): align the preview's X/Y
-      // to a distant point when a crosshair branch is locked onto it.
-      if (axisSnap) {
-        if (axisSnap.x != null) previewPos = { ...previewPos, x: axisSnap.x };
-        if (axisSnap.y != null) previewPos = { ...previewPos, y: axisSnap.y };
+      // Distant-point axis snap baseline (issue #282): align the preview to a
+      // distant point when a (possibly rotated) crosshair branch is locked.
+      if (axisSnap?.hasLock && axisSnap.local) {
+        previewPos = { x: axisSnap.local.x, y: axisSnap.local.y };
       }
 
       // Angle snap drawing (use ref to always get latest points, even before re-render)
