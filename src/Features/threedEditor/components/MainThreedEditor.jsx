@@ -284,6 +284,7 @@ export default function MainThreedEditor() {
       //animate();
 
       return () => {
+        threedEditor.dispose?.();
         clearActiveThreedEditor();
       };
     }
@@ -742,6 +743,21 @@ export default function MainThreedEditor() {
       }
       isDraggingRef.current = false;
       dragStartRef.current = { x: event.clientX, y: event.clientY };
+
+      // Left button = orbit gesture: set the orbit point to the point under the
+      // cursor so the camera rotates around it (not the screen center).
+      // camera-controls' setOrbitPoint preserves the current view, so there is
+      // no jump — harmless for a plain selection click too. Skipped for the
+      // shift+lasso branch below.
+      const isLasso =
+        event.shiftKey &&
+        event.button === 0 &&
+        editorModeRef.current === "SELECTION";
+      if (event.button === 0 && !isLasso) {
+        threedEditorRef.current?.sceneManager?.controlsManager?.updateRotationPivotFromEvent(
+          event
+        );
+      }
 
       // Shift+left button starts a lasso. Disable OrbitControls during the drag
       // so the camera doesn't rotate, and remember its previous state so we can
