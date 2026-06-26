@@ -19,6 +19,7 @@ import getAnnulusSectorPath, {
 //
 // Modelled on NodeClippingPlanStatic (same drag math: getScreenCTM().inverse()).
 export default function NodeProxyRevolutionStatic({
+  annotation, // proxy annotation (for selection data-attrs)
   center, // { x, y } in image px
   rOuter, // image px
   rInner = 0, // image px (0 → pie slice)
@@ -94,10 +95,23 @@ export default function NodeProxyRevolutionStatic({
   const pStart = polar(center.x, center.y, rOuter, aStart);
   const pEnd = polar(center.x, center.y, rOuter, aStart + span);
 
+  // Standard hit-test attributes so clicking the sector selects the proxy
+  // (InteractionLayer resolves selection via [data-node-type="ANNOTATION"]).
+  const dataProps = annotation
+    ? {
+        "data-node-id": annotation.id,
+        "data-node-entity-id": annotation.entityId,
+        "data-node-listing-id": annotation.listingId,
+        "data-node-type": "ANNOTATION",
+        "data-annotation-type": annotation.type,
+      }
+    : {};
+
   return (
     <g className="proxy-revolution-node">
-      {/* sector fill */}
+      {/* sector fill — clickable for selection */}
       <path
+        {...dataProps}
         d={path}
         fill={fillColor}
         fillOpacity={0.35}
@@ -105,7 +119,7 @@ export default function NodeProxyRevolutionStatic({
         strokeWidth={STROKE_W}
         strokeLinejoin="round"
         vectorEffect="non-scaling-stroke"
-        style={{ pointerEvents: "none" }}
+        style={{ pointerEvents: "auto", cursor: "pointer" }}
       />
 
       {selected && (

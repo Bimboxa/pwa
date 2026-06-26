@@ -431,6 +431,7 @@ function StaticMapContent({
                 style={hasPendingMove ? { opacity: 0 } : undefined}
               >
                 <NodeProxyRevolutionStatic
+                  annotation={annotation}
                   center={proxy2D.center}
                   rOuter={proxy2D.rOuter}
                   rInner={proxy2D.rInner}

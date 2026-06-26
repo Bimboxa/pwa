@@ -227,6 +227,7 @@ export default function EditedObjectLayer({
           return (
             <g key={annotation.id} data-node-id={annotation.id}>
               <NodeProxyRevolutionStatic
+                annotation={annotation}
                 center={proxy2D.center}
                 rOuter={proxy2D.rOuter}
                 rInner={proxy2D.rInner}

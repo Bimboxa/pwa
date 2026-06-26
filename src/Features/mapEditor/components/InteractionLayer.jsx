@@ -1078,6 +1078,12 @@ const InteractionLayer = forwardRef(({
   if (selectedAnnotation?.id && !selectedPointId && !selectedPartId) {
     annotationsForSnap = [selectedAnnotation];
   }
+  // Revolution proxies ("donuts") are never vertex-editable: keep them out of
+  // the snap / point-drag candidate set so a mousedown near the donut can't
+  // start a generic topology drag of its (full-ring) polygon points. The
+  // partial-revolution angle handles (NodeProxyRevolutionStatic) own the
+  // gesture instead.
+  annotationsForSnap = (annotationsForSnap || []).filter((a) => !a?.isProxy);
 
   // cameraZoom
 
