@@ -2,6 +2,10 @@ import { createSlice } from "@reduxjs/toolkit";
 
 const threedEditorInitialState = {
   showGrid: true,
+  // When true, basemaps (plan images) are omitted from the 3D scene export
+  // (USDZ / OBJ) — only the annotation objects are exported. Viewer-only; does
+  // not hide basemaps in the live 3D view.
+  excludeBaseMapsFromExport: false,
   // When true, a draggable/resizable legend Popper listing the annotation
   // templates present in the 3D scene (swatch + name + quantity) is shown.
   showLegend: false,
@@ -121,6 +125,9 @@ export const threedEditorSlice = createSlice({
   reducers: {
     setShowGrid: (state, action) => {
       state.showGrid = action.payload;
+    },
+    setExcludeBaseMapsFromExport: (state, action) => {
+      state.excludeBaseMapsFromExport = action.payload;
     },
     setShowLegend: (state, action) => {
       state.showLegend = action.payload;
@@ -314,6 +321,7 @@ export const threedEditorSlice = createSlice({
 
 export const {
   setShowGrid,
+  setExcludeBaseMapsFromExport,
   setShowLegend,
   setLegendShowQty,
   setLegendSize,

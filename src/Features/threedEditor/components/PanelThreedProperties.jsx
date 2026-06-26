@@ -22,6 +22,7 @@ import ContentCopy from "@mui/icons-material/ContentCopy";
 
 import {
   setShowGrid,
+  setExcludeBaseMapsFromExport,
   setShowLegend,
   setLegendShowQty,
   setLegendSize,
@@ -33,6 +34,7 @@ import { setShowMeshCells } from "Features/annotations/annotationsSlice";
 import useMeshCellRelations from "Features/annotations/hooks/useMeshCellRelations";
 import DialogExportPhotoreal from "Features/photorealRender/components/DialogExportPhotoreal";
 import exportSceneAsUsdzService from "Features/threedEditor/services/exportSceneAsUsdzService";
+import exportSceneAsObjService from "Features/threedEditor/services/exportSceneAsObjService";
 import captureSceneScreenshotService from "Features/threedEditor/services/captureSceneScreenshotService";
 import PanelBaseMapPosition3D from "./PanelBaseMapPosition3D";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
@@ -54,7 +56,8 @@ export default function PanelThreedProperties() {
 
   const [tab, setTab] = useState("SCENE"); // "SCENE" | "BASEMAP"
   const [exportPreset, setExportPreset] = useState(null);
-  const [usdzExporting, setUsdzExporting] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [exportFormat, setExportFormat] = useState("USDZ"); // "USDZ" | "OBJ"
   const [capturedImage, setCapturedImage] = useState(null);
   const [copied, setCopied] = useState(false);
 
@@ -82,6 +85,9 @@ export default function PanelThreedProperties() {
   }, [dispatch]);
 
   const showGrid = useSelector((s) => s.threedEditor.showGrid);
+  const excludeBaseMapsFromExport = useSelector(
+    (s) => s.threedEditor.excludeBaseMapsFromExport
+  );
   const showLegend = useSelector((s) => s.threedEditor.showLegend);
   const legendShowQty = useSelector((s) => s.threedEditor.legendShowQty);
   const legendSize = useSelector((s) => s.threedEditor.legendSize);
@@ -131,18 +137,23 @@ export default function PanelThreedProperties() {
       console.error("[PanelThreedProperties] copy capture failed", e);
     }
   }
-  async function handleDownloadUsdz() {
-    if (usdzExporting) return;
-    setUsdzExporting(true);
+  async function handleDownload3D() {
+    if (exporting) return;
+    setExporting(true);
     // Yield to the browser so the spinner gets painted before the heavy
-    // synchronous portion of the USDZ encode (texture bitmap reads + zip).
+    // synchronous portion of the encode (USDZ: texture bitmap reads + zip).
     await new Promise((r) => requestAnimationFrame(r));
     try {
-      await exportSceneAsUsdzService("scene.usdz");
+      const options = { excludeBaseMaps: excludeBaseMapsFromExport };
+      if (exportFormat === "OBJ") {
+        exportSceneAsObjService("scene.obj", options);
+      } else {
+        await exportSceneAsUsdzService("scene.usdz", options);
+      }
     } catch (e) {
-      console.error("[PanelThreedProperties] USDZ export failed", e);
+      console.error("[PanelThreedProperties] 3D export failed", e);
     } finally {
-      setUsdzExporting(false);
+      setExporting(false);
     }
   }
 
@@ -177,6 +188,22 @@ export default function PanelThreedProperties() {
               }
               label={
                 <Typography variant="body2">Afficher la grille</Typography>
+              }
+            />
+            <FormControlLabel
+              control={
+                <Switch
+                  size="small"
+                  checked={excludeBaseMapsFromExport}
+                  onChange={(e) =>
+                    dispatch(setExcludeBaseMapsFromExport(e.target.checked))
+                  }
+                />
+              }
+              label={
+                <Typography variant="body2">
+                  {"Retirer les fonds de plan de l'export"}
+                </Typography>
               }
             />
             <FormControlLabel
@@ -297,23 +324,44 @@ export default function PanelThreedProperties() {
               color="text.secondary"
               sx={{ display: "block", mb: 1.25 }}
             >
-              Export USDZ de la scène (fond de plan + objets 3D avec textures).
+              Export de la scène (fond de plan + objets 3D). USDZ pour
+              iPhone / AR, OBJ pour SketchUp.
             </Typography>
+            <ToggleButtonGroup
+              size="small"
+              exclusive
+              fullWidth
+              value={exportFormat}
+              onChange={(_e, v) => {
+                if (v) setExportFormat(v);
+              }}
+              disabled={exporting}
+              sx={{ mb: 1.25 }}
+            >
+              <ToggleButton value="USDZ" sx={{ textTransform: "none" }}>
+                USDZ (iPhone / AR)
+              </ToggleButton>
+              <ToggleButton value="OBJ" sx={{ textTransform: "none" }}>
+                OBJ (SketchUp)
+              </ToggleButton>
+            </ToggleButtonGroup>
             <Button
               size="small"
               variant="outlined"
               fullWidth
               startIcon={
-                usdzExporting ? (
+                exporting ? (
                   <CircularProgress size={14} thickness={5} />
                 ) : (
                   <ViewInAr sx={{ fontSize: 16 }} />
                 )
               }
-              disabled={usdzExporting}
-              onClick={handleDownloadUsdz}
+              disabled={exporting}
+              onClick={handleDownload3D}
             >
-              {usdzExporting ? "Export en cours…" : "Télécharger (.usdz)"}
+              {exporting
+                ? "Export en cours…"
+                : `Télécharger (.${exportFormat.toLowerCase()})`}
             </Button>
           </Card>
 
