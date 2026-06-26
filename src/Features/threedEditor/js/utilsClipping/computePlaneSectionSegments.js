@@ -26,6 +26,13 @@ export default function computePlaneSectionSegments(plane, meshes) {
   const vb = new Vector3();
   const vc = new Vector3();
 
+  // A vertex within EPS (world units, meters) of the plane is treated as lying
+  // ON it. Without this, a triangle with one vertex exactly on the plane and the
+  // other two straddling yields only ONE strict edge crossing and gets dropped —
+  // punching gaps in the contour wherever the plane grazes a vertex ring of a
+  // tessellated curved surface (lathe / swept profile).
+  const EPS = 1e-5;
+
   // Interpolate the point where edge (p0,p1) crosses the plane, given their
   // signed distances (opposite signs guaranteed by the caller).
   function crossingPoint(p0, d0, p1, d1) {
@@ -38,33 +45,43 @@ export default function computePlaneSectionSegments(plane, meshes) {
   }
 
   function addTriangle(p0, p1, p2) {
-    const d0 = plane.distanceToPoint(p0);
-    const d1 = plane.distanceToPoint(p1);
-    const d2 = plane.distanceToPoint(p2);
+    const verts = [p0, p1, p2];
+    const d = [
+      plane.distanceToPoint(p0),
+      plane.distanceToPoint(p1),
+      plane.distanceToPoint(p2),
+    ];
+    // side: +1 / -1 / 0 (on plane)
+    const side = d.map((v) => (v > EPS ? 1 : v < -EPS ? -1 : 0));
 
-    // All on the same side (or coplanar): no crossing segment.
-    if ((d0 > 0 && d1 > 0 && d2 > 0) || (d0 < 0 && d1 < 0 && d2 < 0)) return;
+    // All strictly on the same side → no crossing.
+    if (side[0] > 0 && side[1] > 0 && side[2] > 0) return;
+    if (side[0] < 0 && side[1] < 0 && side[2] < 0) return;
 
     const pts = [];
-    // Edge (0,1)
-    if ((d0 > 0 && d1 < 0) || (d0 < 0 && d1 > 0)) {
-      pts.push(crossingPoint(p0, d0, p1, d1));
+    const addPt = (p) => {
+      if (!pts.some((q) => q.distanceToSquared(p) < EPS * EPS)) pts.push(p);
+    };
+
+    // Vertices lying on the plane are themselves crossing points.
+    for (let i = 0; i < 3; i++) {
+      if (side[i] === 0) addPt(verts[i].clone());
     }
-    // Edge (1,2)
-    if ((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) {
-      pts.push(crossingPoint(p1, d1, p2, d2));
-    }
-    // Edge (2,0)
-    if ((d2 > 0 && d0 < 0) || (d2 < 0 && d0 > 0)) {
-      pts.push(crossingPoint(p2, d2, p0, d0));
+    // Edges whose endpoints are on strictly opposite sides.
+    for (let i = 0; i < 3; i++) {
+      const j = (i + 1) % 3;
+      if (side[i] * side[j] < 0) {
+        addPt(crossingPoint(verts[i], d[i], verts[j], d[j]));
+      }
     }
 
-    // A clean straddle yields exactly two crossing points → one segment.
-    // (Vertices lying exactly on the plane are rare with float coords and are
-    // ignored here to avoid degenerate zero-length segments.)
+    // A clean crossing yields exactly two distinct points → one segment.
+    // (0/1 point = a vertex/edge merely touches the plane; 3 = the whole
+    // triangle is coplanar — both ignored to avoid degenerate clutter.)
     if (pts.length !== 2) return;
 
     const [a, b] = pts;
+    if (a.distanceToSquared(b) <= EPS * EPS) return;
     segments.push({ a, b });
     positions.push(a.x, a.y, a.z, b.x, b.y, b.z);
   }

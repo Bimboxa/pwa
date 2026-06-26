@@ -144,6 +144,16 @@ const mapEditorInitialState = {
   orthoSnapEnabled: false,
   orthoSnapAngleOffset: 0, // degrees
 
+  // clipping plane (2D-defined cut plane, mirrored to the 3D viewer).
+  // Coords are normalized [0..1] vs baseMap imageSize. Transient (not persisted).
+  clippingPlanEnabled: false,
+  clippingPlan: {
+    pointA: null, // { x, y } normalized
+    pointB: null, // { x, y } normalized
+    sign: 1, // +1 / -1 : cut direction
+    baseMapId: null,
+  },
+
   // smart detect (unified activation across drawing tools)
   smartDetectEnabled: false, // switch "Actif" — when true, active drawing tool triggers its auto-detection algorithm
   smartDetectionPresent: false, // true when a detection is currently available (flashes the Space shortcut badge)
@@ -552,6 +562,18 @@ export const mapEditorSlice = createSlice({
     setOrthoSnapAngleOffset: (state, action) => {
       state.orthoSnapAngleOffset = action.payload;
     },
+
+    // clipping plane (2D-defined cut plane)
+    setClippingPlanEnabled: (state, action) => {
+      state.clippingPlanEnabled = action.payload;
+    },
+    setClippingPlan: (state, action) => {
+      // partial merge of { pointA, pointB, sign, baseMapId }
+      state.clippingPlan = { ...state.clippingPlan, ...action.payload };
+    },
+    setClippingPlanSign: (state, action) => {
+      state.clippingPlan.sign = action.payload;
+    },
     setStripDetectionMultiple: (state, action) => {
       state.stripDetectionMultiple = action.payload;
     },
@@ -747,6 +769,11 @@ export const {
   // ortho snap
   setOrthoSnapEnabled,
   setOrthoSnapAngleOffset,
+
+  // clipping plane
+  setClippingPlanEnabled,
+  setClippingPlan,
+  setClippingPlanSign,
 
   // strip detection
   setStripDetectionMultiple,

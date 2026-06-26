@@ -51,6 +51,7 @@ export default function useCreateBaseMapFromImage() {
         await db.baseMaps.update(_entity.id, {
           refWidth: record.image.imageSize.width,
           refHeight: record.image.imageSize.height,
+          ...(listing?.verticalBaseMaps && { orientation: "VERTICAL" }),
         });
         await db.baseMapVersions.put({
           id: nanoid(),

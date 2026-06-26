@@ -43,6 +43,7 @@ import pixelToWorld from "./pixelToWorld";
 import extrudeClosedShape from "./extrudeClosedShape";
 import extrudePolylineWall from "./extrudePolylineWall";
 import buildRevolutionMesh from "./buildRevolutionMesh";
+import getRevolutionPhi from "./getRevolutionPhi";
 import buildExtrudedProfileMesh from "./buildExtrudedProfileMesh";
 import createObject3DAnnotation from "./createObject3DAnnotation";
 
@@ -510,6 +511,10 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
           orientation: baseMap.orientation,
           material,
           hiddenSegmentsIdx: r.hiddenSegmentsIdx || [],
+          // Partial revolution (resolved by useAnnotationsV2).
+          ...(r.phiLength != null
+            ? { phiStart: r.phiStart ?? 0, phiLength: r.phiLength }
+            : {}),
         });
         break;
       }
@@ -571,6 +576,13 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
         if (axisPx.length >= 2) {
           const arcPts = pointsToLocal(annotation.points || [], baseMap);
           const axisPts = pointsToLocal(axisPx, baseMap);
+          // Partial revolution range, stored on the arc's own shape3D.
+          const partialPhi = annotation.shape3D?.partialRevolution
+            ? getRevolutionPhi(
+                annotation.shape3D.revolutionAngleStart ?? 0,
+                annotation.shape3D.revolutionAngleEnd ?? Math.PI * 2
+              )
+            : {};
           object = buildRevolutionMesh({
             arcPoints: arcPts,
             axisPoints: axisPts,
@@ -578,6 +590,7 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
             orientation: baseMap.orientation,
             material,
             hiddenSegmentsIdx: annotation.hiddenSegmentsIdx || [],
+            ...partialPhi,
           });
           if (object) break;
         }

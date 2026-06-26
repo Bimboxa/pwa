@@ -21,6 +21,7 @@ export default class ClippingManager {
     this.planes = [this.plane];
 
     this.enabled = false;
+    this.editing = false;
     this.center = new Vector3();
 
     this.helper = null;
@@ -162,7 +163,10 @@ export default class ClippingManager {
   setEnabled(enabled) {
     this.enabled = enabled;
     this._applyMaterials(enabled);
-    if (this.helper) this.helper.visible = enabled;
+    // The PlaneHelper quad is only shown while EDITING the plane (gizmo mode).
+    // When merely active we want just the cut "imprint" on the meshes (the
+    // section contour) + the visible meshes, not the translucent plane overlay.
+    if (this.helper) this.helper.visible = enabled && this.editing;
     // Draw/clear the cut contour + feed the dimension snap.
     this.sceneManager.sectionContourManager?.setEnabled(enabled);
     this.sceneManager.renderScene();
@@ -170,6 +174,7 @@ export default class ClippingManager {
 
   setEditing(editing) {
     if (!this.controlsTranslate) return;
+    this.editing = editing;
     const both = [this.controlsTranslate, this.controlsRotate];
     if (editing) {
       both.forEach((c) => {
@@ -184,6 +189,8 @@ export default class ClippingManager {
         c.visible = false;
       });
     }
+    // Show the PlaneHelper quad only while editing (alongside the gizmos).
+    if (this.helper) this.helper.visible = this.enabled && editing;
     this.sceneManager.renderScene();
   }
 
@@ -199,6 +206,20 @@ export default class ClippingManager {
         ? new Vector3(0, 0, 1) // user Y → three.js Z
         : new Vector3(1, 0, 0); // user X → three.js X
     this.gizmoProxy.quaternion.setFromUnitVectors(new Vector3(1, 0, 0), target);
+    this._updatePlaneFromProxy();
+    this._notify();
+    this.sceneManager.renderScene();
+  }
+
+  // Orient + position the plane from an arbitrary world-space normal and a
+  // coplanar point (three.js coords). Used to drive the cut plane from a 2D
+  // segment drawn on the baseMap (top view). Same proxy convention as setAxis:
+  // the proxy's local +X axis is the plane normal.
+  setFromWorldNormalAndPoint(normal, point) {
+    if (!this.gizmoProxy) return;
+    const n = normal.clone().normalize();
+    this.gizmoProxy.quaternion.setFromUnitVectors(new Vector3(1, 0, 0), n);
+    this.gizmoProxy.position.copy(point);
     this._updatePlaneFromProxy();
     this._notify();
     this.sceneManager.renderScene();

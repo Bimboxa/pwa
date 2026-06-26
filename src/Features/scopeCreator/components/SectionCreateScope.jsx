@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
+import { generateKeyBetween } from "fractional-indexing";
 
 import { setOpenScopeCreator, setStepKey } from "../scopeCreatorSlice";
 import { setSelectedScopeId } from "Features/scopes/scopesSlice";
@@ -106,12 +107,31 @@ export default function SectionCreateScope() {
       // baseMaps listing
 
       if (!baseMapsListings || baseMapsListings?.length === 0) {
-        const [baseMapsListing] = await createListings({
-          listings: [{ ...defaultBaseMapsListingProps, projectId, canCreateItem: true }],
+        // rank (fractional indexing) keeps "Vues en plan" before "Coupes & élévations"
+        const planRank = generateKeyBetween(null, null);
+        const verticalRank = generateKeyBetween(planRank, null);
+        const [planListing, verticalListing] = await createListings({
+          listings: [
+            {
+              ...defaultBaseMapsListingProps,
+              name: "Vues en plan",
+              rank: planRank,
+              projectId,
+              canCreateItem: true,
+            },
+            {
+              ...defaultBaseMapsListingProps,
+              name: "Coupes & élévations",
+              verticalBaseMaps: true,
+              rank: verticalRank,
+              projectId,
+              canCreateItem: true,
+            },
+          ],
           scope,
         });
-        console.log("debug_25_09 [baseMapsListing] created baseMapsListing", baseMapsListing);
-        dispatch(setSelectedBaseMapsListingId(baseMapsListing?.id));
+        console.log("debug_25_09 [baseMapsListings] created baseMapsListings", planListing, verticalListing);
+        dispatch(setSelectedBaseMapsListingId(planListing?.id));
       }
 
 

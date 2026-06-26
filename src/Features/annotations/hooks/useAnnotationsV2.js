@@ -69,6 +69,9 @@ import { getShape3DKey } from "Features/annotations/constants/shape3DConfig";
 import { resolveProfileFromDb } from "Features/annotations/hooks/useProfileResolution";
 import computeSubtractedSurfaceM2Async from "Features/threedEditor/js/utilsAnnotationsManager/computeSubtractedSurfaceM2Async";
 import pixelToWorld from "Features/threedEditor/js/utilsAnnotationsManager/pixelToWorld";
+import getRevolutionPhi, {
+  normalizeSpan as normalizeRevolutionSpan,
+} from "Features/threedEditor/js/utilsAnnotationsManager/getRevolutionPhi";
 import baseMapLocalToWorld from "Features/baseMaps/js/baseMapLocalToWorld";
 import baseMapWorldToLocal from "Features/baseMaps/js/baseMapWorldToLocal";
 import getBaseMapTransform from "Features/baseMaps/js/getBaseMapTransform";
@@ -952,6 +955,15 @@ export default function useAnnotationsV2(options) {
               })
             : null;
 
+          // Partial-revolution range (stored on the SOURCE arc's shape3D).
+          // Absent → full 360°.
+          const partialRevolution = !!src.shape3D?.partialRevolution;
+          const angleStart = src.shape3D?.revolutionAngleStart ?? 0;
+          const angleEnd = src.shape3D?.revolutionAngleEnd ?? Math.PI * 2;
+          const angleFraction = partialRevolution
+            ? normalizeRevolutionSpan(angleEnd - angleStart) / (Math.PI * 2)
+            : 1;
+
           // Inherited quantities = the source arc's revolution surface.
           proxy._inheritedQties = getAnnotationQties({
             annotation: {
@@ -961,6 +973,14 @@ export default function useAnnotationsV2(options) {
             },
             meterByPx: srcMeterByPx,
           });
+          // A partial revolution sweeps only a fraction of the full turn.
+          if (partialRevolution && proxy._inheritedQties) {
+            for (const key of ["surface", "surfaceDeveloped"]) {
+              if (typeof proxy._inheritedQties[key] === "number") {
+                proxy._inheritedQties[key] *= angleFraction;
+              }
+            }
+          }
 
           // Fill colour = the linked polyline's (resolved) stroke colour, so the
           // donut reads as the same element. Applied after template override in
@@ -1030,6 +1050,18 @@ export default function useAnnotationsV2(options) {
               ? [{ points: ringPx(rInnerPx) }]
               : [];
 
+          // Sector descriptor consumed directly by NodeProxyRevolutionStatic
+          // when partial. Full-ring points/cuts above stay as the total-mode
+          // renderer + hit-test fallback.
+          proxy.revolutionProxy2D = {
+            center: centerPx,
+            rOuter: rOuterPx,
+            rInner: rInnerPx > Math.max(1, rOuterPx * 0.02) ? rInnerPx : 0,
+            angleStart,
+            angleEnd,
+            partial: partialRevolution,
+          };
+
           // 3D: lathe the SOURCE arc (not the donut). Convert arc + axis
           // to metres with the SOURCE scale (so radius/height match the
           // elevation), and place the lathe at the plan-local centre.
@@ -1057,6 +1089,10 @@ export default function useAnnotationsV2(options) {
               z: 0,
             },
             hiddenSegmentsIdx: src.hiddenSegmentsIdx || [],
+            // Partial revolution → cut the lathe to the same angular range.
+            ...(partialRevolution
+              ? getRevolutionPhi(angleStart, angleEnd)
+              : {}),
           };
         }
       }

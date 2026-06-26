@@ -51,6 +51,7 @@ import {
 import AnnotationTemplateIcon from "./AnnotationTemplateIcon";
 import AnnotationMeasurements from "./AnnotationMeasurements";
 import ToolbarEditRevolutionHelper from "./ToolbarEditRevolutionHelper";
+import ToolbarEditProxyRevolution from "./ToolbarEditProxyRevolution";
 import ToolbarAnnotationActions from "./ToolbarAnnotationActions";
 import RowProcedureActionAuto from "Features/annotationsAuto/components/RowProcedureActionAuto";
 import ToolbarPartGroupRow from "./ToolbarPartGroupRow";
@@ -419,6 +420,13 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
     selectedAnnotation?.type === "REVOLUTION_POINT"
   ) {
     return <ToolbarEditRevolutionHelper onDragStart={onDragStart} />;
+  }
+
+  // Revolution proxy ("donut"): a plan-view representation of a source arc. The
+  // template-centric UI (height/offset/actions) is off-topic — show a compact
+  // toolbar (template + revolved surface + partial/total toggle) instead.
+  if (selectedAnnotation?.isProxy) {
+    return <ToolbarEditProxyRevolution onDragStart={onDragStart} />;
   }
 
   return (

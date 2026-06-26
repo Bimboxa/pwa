@@ -18,14 +18,19 @@ export default function useProjectBaseMapListings(options) {
     filterByEntityModelType: "BASE_MAP",
   });
 
-  // sort alphabetically by name
+  // sort by rank (fractional indexing) when available, else alphabetically by name
+
+  const hasRank = listings?.some((l) => l.rank != null);
 
   const sorted = listings
-    ? [...listings].sort((a, b) =>
-        (a.name || "").localeCompare(b.name || "", undefined, {
+    ? [...listings].sort((a, b) => {
+        if (hasRank) {
+          return String(a.rank ?? "").localeCompare(String(b.rank ?? ""));
+        }
+        return (a.name || "").localeCompare(b.name || "", undefined, {
           sensitivity: "base",
-        })
-      )
+        });
+      })
     : listings;
 
   // result
