@@ -1,6 +1,10 @@
 import { useDispatch, useSelector } from "react-redux";
 
-import { setSelectedMenuItemKey, setElevationWidth } from "../rightPanelSlice";
+import {
+  setSelectedMenuItemKey,
+  setElevationWidth,
+  setElevationViewerWidth,
+} from "../rightPanelSlice";
 
 import VerticalMenu from "Features/layout/components/VerticalMenu";
 
@@ -35,7 +39,6 @@ import PanelLocalLlm from "Features/localLlm/components/PanelLocalLlm";
 import PanelThreedProperties from "Features/threedEditor/components/PanelThreedProperties";
 
 export default function RightPanelContainer() {
-
   const dispatch = useDispatch();
 
   // data
@@ -43,30 +46,47 @@ export default function RightPanelContainer() {
   const selectedKey = useSelector((s) => s.rightPanel.selectedMenuItemKey);
   const fixedWidth = useSelector((s) => s.rightPanel.width);
   const elevationWidth = useSelector((s) => s.rightPanel.elevationWidth);
+  const elevationViewerWidth = useSelector(
+    (s) => s.rightPanel.elevationViewerWidth
+  );
 
-  // Elevation and Mesh share the same resizable width.
-  const isResizable = selectedKey === "ELEVATION" || selectedKey === "MESH";
+  // Both the Élévation viewer and the Maillage panel are resizable, but keep
+  // independent widths: Maillage uses elevationWidth (fixed default), Élévation
+  // uses elevationViewerWidth defaulting to 50% of the viewer when uncustomized.
+  const isElevation = selectedKey === "ELEVATION";
+  const isMesh = selectedKey === "MESH";
+  const isResizable = isElevation || isMesh;
+
+  const viewportWidth =
+    typeof window !== "undefined" ? window.innerWidth : 1200;
+  const elevationDefaultWidth = Math.round(viewportWidth * 0.5);
+
   // The 3D properties panel hosts the basemap rotation/translation rows, which
   // need more room than the default fixed width.
-  const width = isResizable
-    ? elevationWidth
-    : selectedKey === "THREED_PROPERTIES"
-      ? 380
-      : fixedWidth;
+  const width = isElevation
+    ? (elevationViewerWidth ?? elevationDefaultWidth)
+    : isMesh
+      ? elevationWidth
+      : selectedKey === "THREED_PROPERTIES"
+        ? 380
+        : fixedWidth;
 
-  // handlers - resize (Elevation tool only; updates its own width, the other
-  // tools keep their fixed width)
+  // handlers - resize: each resizable tool updates its own width; the fixed
+  // tools keep theirs.
 
   function handleResizeMouseDown(e) {
     e.preventDefault();
     const startX = e.clientX;
-    const startWidth = elevationWidth;
+    const startWidth = width;
+    const maxWidth = Math.max(1000, Math.round(viewportWidth * 0.9));
     function onMove(ev) {
       const next = Math.min(
         Math.max(startWidth + (startX - ev.clientX), 260),
-        1000
+        maxWidth
       );
-      dispatch(setElevationWidth(next));
+      dispatch(
+        isElevation ? setElevationViewerWidth(next) : setElevationWidth(next)
+      );
     }
     function onUp() {
       window.removeEventListener("mousemove", onMove);
@@ -91,8 +111,9 @@ export default function RightPanelContainer() {
   const openPanel = Boolean(selectedKey);
 
   return (
-    <Box sx={{ display: "flex", minHeight: 0, minWidth: 0, position: "relative" }}>
-
+    <Box
+      sx={{ display: "flex", minHeight: 0, minWidth: 0, position: "relative" }}
+    >
       {/* Open panel renders as an overlay drawer (right: 100% anchors it flush to
           the left of the band, floating over the viewer) so opening/closing it
           never changes the viewer's pixel size — avoids zoom/pan jumps. */}
@@ -113,8 +134,8 @@ export default function RightPanelContainer() {
             boxShadow: 3,
           }}
         >
-          {/* resize handle on the left frontier — exposed for the Elevation
-              tool; the resulting width is shared by all tools */}
+          {/* resize handle on the left frontier — shown for the resizable
+              tools (Élévation, Maillage); each keeps its own width */}
           {isResizable && (
             <Box
               onMouseDown={handleResizeMouseDown}
@@ -136,13 +157,19 @@ export default function RightPanelContainer() {
           {/* EXPORT merged into PRINT panel */}
           {/* {selectedKey === "ANNOTATION_FORMAT" && <PanelAnnotationFormat />} */}
           {selectedKey === "NODE_FORMAT" && <PanelNodeFormat />}
-          {selectedKey === "ENTITY" && <PanelEditEntity showCloseButton={false} />}
+          {selectedKey === "ENTITY" && (
+            <PanelEditEntity showCloseButton={false} />
+          )}
           {selectedKey === "SELECTION" && <PanelSelection />}
-          {selectedKey === "SELECTION_PROPERTIES" && <PanelSelectionProperties />}
+          {selectedKey === "SELECTION_PROPERTIES" && (
+            <PanelSelectionProperties />
+          )}
           {selectedKey === "ENTITY_ZONES" && <PanelEntityZones />}
           {selectedKey === "PDF_REPORT" && <PanelPdfReport />}
           {selectedKey === "OPENCV" && <PanelOpencv />}
-          {selectedKey === "MASTER_PROJECT_PICTURES" && <PanelMasterProjectPictures />}
+          {selectedKey === "MASTER_PROJECT_PICTURES" && (
+            <PanelMasterProjectPictures />
+          )}
           {selectedKey === "TOOLS" && <PanelTools />}
           {selectedKey === "CHAT" && <PanelChat />}
           {selectedKey === "ADMIN_MODEL" && <PanelAdminEntityModel />}

@@ -35,13 +35,29 @@ export default function ElevationBaseMapViewer({
 
   const baseMap = useBaseMap({ id: baseMapId });
 
-  const annotations = useAnnotationsV2({
+  const rawAnnotations = useAnnotationsV2({
     enabled: Boolean(baseMapId),
     filterByBaseMapId: baseMapId,
     withEntity: true,
     withQties: true,
     sortByOrderIndex: true,
+    // Drop the baseMap's own annotations (title-block / cartouche items in
+    // isForBaseMaps listings, and isBaseMapAnnotation labels) — same as the main
+    // MAP viewer. Revolution axes are exempt from these filters, so they stay.
+    hideBaseMapAnnotations: true,
+    excludeIsForBaseMapsListings: true,
   });
+
+  // The elevation viewer shows geometry (wall profiles, revolution axes) — not
+  // the baseMap's text/cartouche fields (the orange "Texte" boxes). Drop TEXT /
+  // LABEL annotations so only the meaningful geometry remains.
+  const annotations = useMemo(
+    () =>
+      (rawAnnotations ?? []).filter(
+        (a) => a.type !== "TEXT" && a.type !== "LABEL"
+      ),
+    [rawAnnotations]
+  );
 
   const imageUrl = baseMap?.getUrl?.();
   const imageSize = baseMap?.getImageSize?.();

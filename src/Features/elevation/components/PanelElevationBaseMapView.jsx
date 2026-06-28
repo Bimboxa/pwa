@@ -21,6 +21,7 @@ import ElevationBaseMapSelector from "./ElevationBaseMapSelector";
 import ElevationBaseMapViewer from "./ElevationBaseMapViewer";
 
 import useRevolutionProxies from "Features/elevation/hooks/useRevolutionProxies";
+import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 
 // "BaseMap-viewer" sub-panel of the Élévation panel. Shown whenever the current
 // selection is NOT a plain (non-proxy) polyline being edited for its profile.
@@ -45,6 +46,12 @@ export default function PanelElevationBaseMapView() {
 
   const { proxyBySourceId } = useRevolutionProxies();
 
+  // First vertical baseMap → default selection when nothing else drives it.
+  const { value: baseMaps = [] } = useBaseMaps({});
+  const firstVerticalBaseMapId = (baseMaps ?? []).find(
+    (bm) => bm?.orientation === "VERTICAL"
+  )?.id;
+
   // When a proxy is selected (on the plan), resolve its source arc so we can
   // show the source's baseMap and highlight the arc (the "vice-versa" link).
   const selectedProxySource = useLiveQuery(async () => {
@@ -63,6 +70,14 @@ export default function PanelElevationBaseMapView() {
       setSelectedAxisId(null);
     }
   }, [selectedProxySource?.baseMapId]);
+
+  // effect - default to the first vertical baseMap when nothing is selected
+  // (and no proxy is driving the view).
+  useEffect(() => {
+    if (!selectedBaseMapId && !selectedProxySource && firstVerticalBaseMapId) {
+      setSelectedBaseMapId(firstVerticalBaseMapId);
+    }
+  }, [selectedBaseMapId, selectedProxySource, firstVerticalBaseMapId]);
 
   const highlightAnnotationId = selectedProxySource?.id ?? null;
 
