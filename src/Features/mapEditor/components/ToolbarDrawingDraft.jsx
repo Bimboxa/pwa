@@ -20,6 +20,7 @@ import {
   getDrawingToolsByType,
   getDrawingToolTypeByKey,
 } from "../constants/drawingTools.jsx";
+import { getHotkeyForToolInGroup } from "../constants/drawingToolHotkeys";
 import { resolveShapeCategory } from "Features/annotations/constants/drawingShapes.jsx";
 import getAnnotationColor from "Features/annotations/utils/getAnnotationColor";
 import buildToolDraft from "Features/mapEditor/utils/buildToolDraft";
@@ -103,11 +104,46 @@ export default function ToolbarDrawingDraft() {
     : drawingShape
       ? getDrawingToolsByShape(drawingShape)
       : [];
-  const options = tools.map(({ key, label, Icon }) => ({
-    key,
-    label,
-    icon: <Icon sx={isToolGroup ? undefined : { color }} />,
-  }));
+  const options = tools.map((tool) => {
+    const { key, label, Icon } = tool;
+    // Hotkey badges only apply to the shape tool group (direct-access letters),
+    // not to cutting-tool variants.
+    const hotkey = isToolGroup ? null : getHotkeyForToolInGroup(tool, tools);
+    return {
+      key,
+      label,
+      icon: (
+        <Box sx={{ position: "relative", display: "inline-flex" }}>
+          <Icon sx={isToolGroup ? undefined : { color }} />
+          {hotkey && (
+            <Box
+              sx={{
+                position: "absolute",
+                bottom: -7,
+                right: -8,
+                minWidth: 12,
+                height: 12,
+                px: "2px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                border: "1px solid",
+                borderColor: "divider",
+                borderRadius: "3px",
+                bgcolor: "background.paper",
+                fontSize: 8,
+                fontWeight: 700,
+                lineHeight: 1,
+                color: "text.secondary",
+              }}
+            >
+              {hotkey}
+            </Box>
+          )}
+        </Box>
+      ),
+    };
+  });
   const showShape = options.length > 0;
   // Highlight the active variant: for centerline opening tools the enabled mode
   // is POLYLINE_CLICK / STRIP / … so the toggle tracks the persisted CUT tool

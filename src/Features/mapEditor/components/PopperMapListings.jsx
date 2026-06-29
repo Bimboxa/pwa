@@ -120,6 +120,7 @@ import {
   getDrawingToolsByShape,
   getDrawingToolByKey,
 } from "Features/mapEditor/constants/drawingTools.jsx";
+import { getHotkeyForToolInGroup } from "Features/mapEditor/constants/drawingToolHotkeys";
 import getNewAnnotationPropsFromAnnotationTemplate from "Features/annotations/utils/getNewAnnotationPropsFromAnnotationTemplate";
 import buildToolDraft from "Features/mapEditor/utils/buildToolDraft";
 import { resolveDrawingShape } from "Features/annotations/constants/drawingShapeConfig";
@@ -372,23 +373,48 @@ function ToolPickerMenu({
       </Box>
 
       {/* Tool options */}
-      {tools.map((tool) => (
-        <MenuItem
-          key={tool.key}
-          onClick={() => {
-            onSelectTool(tool);
-            onClose();
-          }}
-          sx={{ gap: 1, py: 0.75, fontSize: "0.8125rem" }}
-        >
-          <ListItemIcon sx={{ minWidth: 28 }}>
-            <tool.Icon sx={{ fontSize: 18 }} />
-          </ListItemIcon>
-          <ListItemText primaryTypographyProps={{ variant: "body2" }}>
-            {tool.label}
-          </ListItemText>
-        </MenuItem>
-      ))}
+      {tools.map((tool) => {
+        const hotkey = getHotkeyForToolInGroup(tool, tools);
+        return (
+          <MenuItem
+            key={tool.key}
+            onClick={() => {
+              onSelectTool(tool);
+              onClose();
+            }}
+            sx={{ gap: 1, py: 0.75, fontSize: "0.8125rem" }}
+          >
+            <ListItemIcon sx={{ minWidth: 28 }}>
+              <tool.Icon sx={{ fontSize: 18 }} />
+            </ListItemIcon>
+            <ListItemText primaryTypographyProps={{ variant: "body2" }}>
+              {tool.label}
+            </ListItemText>
+            {hotkey && (
+              <Box
+                sx={{
+                  ml: "auto",
+                  minWidth: 16,
+                  height: 16,
+                  px: 0.5,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  border: "1px solid",
+                  borderColor: "divider",
+                  borderRadius: 0.5,
+                  fontSize: 10,
+                  fontWeight: 700,
+                  color: "text.secondary",
+                  lineHeight: 1,
+                }}
+              >
+                {hotkey}
+              </Box>
+            )}
+          </MenuItem>
+        );
+      })}
 
       <Divider />
 
