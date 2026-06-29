@@ -2462,6 +2462,42 @@ const InteractionLayer = forwardRef(({
         return;
       }
 
+      // --- Select all: Ctrl/Cmd+A selects every annotation currently visible
+      // on the active viewer. Builds the same NODE/ANNOTATION items the lasso
+      // produces. Skipped while drawing or in paste mode so it can't hijack
+      // those flows; preventDefault stops the browser's native select-all.
+      if (
+        isActiveViewerRef.current &&
+        !enabledDrawingMode &&
+        !pasteClipboardRef.current &&
+        (e.ctrlKey || e.metaKey) &&
+        (e.key === "a" || e.key === "A")
+      ) {
+        e.preventDefault();
+        // Keep only real template-backed annotations (those carrying an
+        // annotationTemplateId from the PopperMapListings). This drops the
+        // cartouche / BG image texts (nodeType "BG_IMAGE_TEXT") and any other
+        // helper overlay that isn't a user-selectable annotation.
+        const visibleAnns = (annotationsRef.current || []).filter(
+          (ann) => ann?.annotationTemplateId,
+        );
+        const items = visibleAnns.map((ann) => ({
+          id: ann.id,
+          nodeId: ann.id,
+          type: "NODE",
+          nodeType: "ANNOTATION",
+          annotationType: ann?.type,
+          entityId: ann?.entityId,
+          listingId: ann?.listingId,
+          annotationTemplateId: ann?.annotationTemplateId,
+          pointId: null,
+          partId: null,
+          partType: null,
+        }));
+        dispatch(setSelectedItems(items));
+        return;
+      }
+
       // --- Paste mode: I = flip, R = rotate 90°. Only fires when a
       // paste-clipboard is active and the viewer is the active one.
       if (
