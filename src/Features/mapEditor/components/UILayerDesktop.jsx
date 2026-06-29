@@ -13,6 +13,7 @@ import ButtonRunningTransform from "Features/baseMapTransforms/components/Button
 import SelectorMapEditorMode from "./SelectorMapEditorMode";
 import SelectorOrthoSnap from "./SelectorOrthoSnap";
 import SelectorClippingPlan from "./SelectorClippingPlan";
+import SelectorEditorSettings from "./SelectorEditorSettings";
 import SelectorDrawingPanel from "./SelectorDrawingPanel";
 import DialogCalibration2D from "./DialogCalibration2D";
 
@@ -124,6 +125,7 @@ export default function UILayerDesktop({ mapController, onResetCamera, viewport 
                     transition: "right 0.2s ease",
                 }}
             >
+                <SelectorEditorSettings />
                 <SelectorClippingPlan />
                 <SelectorOrthoSnap />
                 {/* "Modification rapide des points" (QUICK_POINTS_CHANGE) is now

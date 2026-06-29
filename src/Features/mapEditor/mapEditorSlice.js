@@ -144,6 +144,10 @@ const mapEditorInitialState = {
   orthoSnapEnabled: false,
   orthoSnapAngleOffset: 0, // degrees
 
+  // 2D editor settings (transient UI preferences).
+  // Multiplier applied to the vertex handle size in NodePolylineStatic.
+  vertexSizeMultiplier: 1,
+
   // clipping plane (2D-defined cut plane, mirrored to the 3D viewer).
   // Coords are normalized [0..1] vs baseMap imageSize. Transient (not persisted).
   clippingPlanEnabled: false,
@@ -563,6 +567,11 @@ export const mapEditorSlice = createSlice({
       state.orthoSnapAngleOffset = action.payload;
     },
 
+    // 2D editor settings
+    setVertexSizeMultiplier: (state, action) => {
+      state.vertexSizeMultiplier = action.payload;
+    },
+
     // clipping plane (2D-defined cut plane)
     setClippingPlanEnabled: (state, action) => {
       state.clippingPlanEnabled = action.payload;
@@ -769,6 +778,7 @@ export const {
   // ortho snap
   setOrthoSnapEnabled,
   setOrthoSnapAngleOffset,
+  setVertexSizeMultiplier,
 
   // clipping plane
   setClippingPlanEnabled,
