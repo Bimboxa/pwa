@@ -7,7 +7,6 @@ import { triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice"
 import { triggerEntitiesTableUpdate } from "Features/entities/entitiesSlice";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
-import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 
 import {
   circleFromThreePoints,
@@ -134,11 +133,9 @@ export default function useWallBoundaries() {
 
   const baseMapId = useSelector((s) => s.mapEditor.selectedBaseMapId);
   const projectId = useSelector((s) => s.projects.selectedProjectId);
-  const listingId = useSelector((s) => s.listings.selectedListingId);
   const activeLayerId = useSelector((s) => s.layers?.activeLayerId);
 
   const baseMap = useMainBaseMap();
-  const { value: selectedListing } = useSelectedListing();
 
   const computeBoundaries = useCallback(
     async ({ wallAnnotations, boundaryAnnotationTemplate }) => {
@@ -147,6 +144,17 @@ export default function useWallBoundaries() {
           "wallAnnotations and boundaryAnnotationTemplate are required"
         );
       }
+
+      // Boundary annotations belong to the listing that OWNS the chosen
+      // template, not to whatever listing happens to be selected (the wall
+      // listing, the free-annotations listing, ...). Otherwise the contour
+      // annotations land in the wrong listing and their template's quantity
+      // never shows up in that listing's viewer.
+      const listingId = boundaryAnnotationTemplate.listingId;
+      if (!listingId) {
+        throw new Error("boundaryAnnotationTemplate has no listingId");
+      }
+      const targetListing = await db.listings.get(listingId);
 
       const imageSize = baseMap?.getImageSize?.();
       const { width, height } = imageSize ?? {};
@@ -303,7 +311,7 @@ export default function useWallBoundaries() {
 
       // ── 6. Create boundary annotations ────────────────────────────────
       const entityTable =
-        selectedListing?.table ?? selectedListing?.entityModel?.defaultTable;
+        targetListing?.table ?? targetListing?.entityModel?.defaultTable;
 
       const SNAP_TOLERANCE = 3;
       const pointIndex = new Map();
@@ -423,15 +431,7 @@ export default function useWallBoundaries() {
       );
       return { count: allAnnotations.length };
     },
-    [
-      baseMap,
-      baseMapId,
-      projectId,
-      listingId,
-      activeLayerId,
-      selectedListing,
-      dispatch,
-    ]
+    [baseMap, baseMapId, projectId, activeLayerId, dispatch]
   );
 
   return computeBoundaries;
