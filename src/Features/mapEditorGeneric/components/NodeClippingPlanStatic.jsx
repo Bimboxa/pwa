@@ -20,17 +20,21 @@ export default function NodeClippingPlanStatic({
   onSetSign,
   onDragEndpoint, // (which: "pointA" | "pointB", normPos: {x,y}) => void
 }) {
-  // helpers - fixed-on-screen sizes (image px = screen px / containerK)
+  // helpers - fixed-on-screen sizes. The basePose group scales by containerK and
+  // the live camera zoom is published as the `--map-zoom` CSS var (set imperatively,
+  // no React re-render). So the on-screen scale is `--map-zoom * containerK`; we
+  // divide handle/arrow sizes by both to keep them constant on screen (same pattern
+  // as NodePolylineStatic.vertexScaleTransform).
 
   const k = containerK || 1;
-  const HANDLE_R = 6 / k;
-  const HANDLE_HIT_R = 13 / k;
-  const STROKE_W = 2 / k;
+  const invScale = `scale(calc(1 / (var(--map-zoom, 1) * ${k})))`;
 
   // helpers - two direction arrows on each side of the segment midpoint.
-  // Geometry mirrors PlanSelectorElevation.observationArrows.
+  // Geometry mirrors PlanSelectorElevation.observationArrows. Points are computed
+  // around the local origin in fixed screen-px units; the arrows are placed at the
+  // segment midpoint (cx, cy) and scaled by `invScale` at render time.
 
-  const arrows = useMemo(() => {
+  const arrowData = useMemo(() => {
     if (!pointA || !pointB) return null;
     const dx = pointB.x - pointA.x;
     const dy = pointB.y - pointA.y;
@@ -42,14 +46,15 @@ export default function NodeClippingPlanStatic({
 
     const ARROW_PX = 12;
     const GAP_PX = 8;
-    const size = ARROW_PX / k;
-    const dist = size + GAP_PX / k;
+    const size = ARROW_PX;
+    const dist = size + GAP_PX;
     const cx = (pointA.x + pointB.x) / 2;
     const cy = (pointA.y + pointB.y) / 2;
 
     const make = (s) => {
-      const ox = cx + nx * s * dist;
-      const oy = cy + ny * s * dist;
+      // arrow built around local origin (0,0); inner <g> translate(cx cy) places it
+      const ox = nx * s * dist;
+      const oy = ny * s * dist;
       // arrow points toward the segment (inward = -n * s)
       const dirx = -nx * s;
       const diry = -ny * s;
@@ -63,8 +68,8 @@ export default function NodeClippingPlanStatic({
       const c2y = by - uy * size * 0.7;
       return { sign: s, points: `${tipx},${tipy} ${c1x},${c1y} ${c2x},${c2y}` };
     };
-    return [make(1), make(-1)];
-  }, [pointA, pointB, k]);
+    return { cx, cy, arrows: [make(1), make(-1)] };
+  }, [pointA, pointB]);
 
   // handlers
 
@@ -113,29 +118,34 @@ export default function NodeClippingPlanStatic({
         x2={pointB.x}
         y2={pointB.y}
         stroke="#ff9800"
-        strokeWidth={STROKE_W}
-        strokeDasharray={`${8 / k} ${5 / k}`}
+        strokeWidth={2}
+        strokeDasharray="8 5"
         vectorEffect="non-scaling-stroke"
         style={{ pointerEvents: "none" }}
       />
 
       {/* direction arrows */}
-      {arrows?.map((arr) => (
-        <polygon
-          key={`clip-arrow-${arr.sign}`}
-          points={arr.points}
-          fill={arr.sign === sign ? "#76ff03" : "rgba(255,255,255,0.95)"}
-          stroke="#5fae00"
-          strokeWidth={1.5}
-          vectorEffect="non-scaling-stroke"
-          style={{ cursor: "pointer", pointerEvents: "auto" }}
-          onMouseDown={(e) => e.stopPropagation()}
-          onClick={(e) => {
-            e.stopPropagation();
-            onSetSign?.(arr.sign);
-          }}
-        />
-      ))}
+      {arrowData && (
+        <g transform={`translate(${arrowData.cx} ${arrowData.cy})`}>
+          {arrowData.arrows.map((arr) => (
+            <g key={`clip-arrow-${arr.sign}`} style={{ transform: invScale }}>
+              <polygon
+                points={arr.points}
+                fill={arr.sign === sign ? "#ff9800" : "rgba(255,255,255,0.95)"}
+                stroke="#ff9800"
+                strokeWidth={1.5}
+                vectorEffect="non-scaling-stroke"
+                style={{ cursor: "pointer", pointerEvents: "auto" }}
+                onMouseDown={(e) => e.stopPropagation()}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSetSign?.(arr.sign);
+                }}
+              />
+            </g>
+          ))}
+        </g>
+      )}
 
       {/* draggable endpoints */}
       {[
@@ -143,25 +153,31 @@ export default function NodeClippingPlanStatic({
         ["pointB", pointB],
       ].map(([which, p]) => (
         <g key={which}>
-          {/* hit area */}
+          {/* hit area — kept in image-px space (untransformed) so the drag handler's
+              getScreenCTM().inverse() yields image px; radius fixed on screen via CSS r */}
           <circle
             cx={p.x}
             cy={p.y}
-            r={HANDLE_HIT_R}
             fill="transparent"
-            style={{ cursor: "move", pointerEvents: "auto" }}
+            style={{
+              r: `calc(13px / (var(--map-zoom, 1) * ${k}))`,
+              cursor: "move",
+              pointerEvents: "auto",
+            }}
             onMouseDown={(e) => handleEndpointMouseDown(which, e)}
           />
           {/* visible handle */}
           <circle
             cx={p.x}
             cy={p.y}
-            r={HANDLE_R}
             fill="#fff"
             stroke="#ff9800"
             strokeWidth={2}
             vectorEffect="non-scaling-stroke"
-            style={{ pointerEvents: "none" }}
+            style={{
+              r: `calc(6px / (var(--map-zoom, 1) * ${k}))`,
+              pointerEvents: "none",
+            }}
           />
         </g>
       ))}
