@@ -14,6 +14,9 @@ const ALWAYS_COPY_KEYS = [
   "drawingShape",
   "height",
   "offsetZ",
+  // Free annotations (no entity, no user-managed template) are backed by a
+  // hidden system template carrying this flag; it must reach the annotation.
+  "isFreeAnnotation",
 ];
 
 export default function getNewAnnotationPropsFromAnnotationTemplate(

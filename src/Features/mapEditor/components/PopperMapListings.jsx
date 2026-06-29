@@ -121,11 +121,13 @@ import {
   getDrawingToolByKey,
 } from "Features/mapEditor/constants/drawingTools.jsx";
 import { getHotkeyForToolInGroup } from "Features/mapEditor/constants/drawingToolHotkeys";
+import { getFreeAnnotationShortcut } from "Features/mapEditor/constants/freeAnnotationShortcuts";
 import getNewAnnotationPropsFromAnnotationTemplate from "Features/annotations/utils/getNewAnnotationPropsFromAnnotationTemplate";
 import buildToolDraft from "Features/mapEditor/utils/buildToolDraft";
 import { resolveDrawingShape } from "Features/annotations/constants/drawingShapeConfig";
 
 import useListings from "Features/listings/hooks/useListings";
+import useFreeAnnotationTemplates from "Features/mapEditor/hooks/useFreeAnnotationTemplates";
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
 import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
@@ -559,6 +561,8 @@ function AnnotationTemplateRow({
     soloVisibleTemplateIds != null &&
     !soloVisibleTemplateIds.includes(annotationTemplate?.id);
   const isHidden = isHiddenBySolo || isHiddenByBase;
+  // Free annotations show their keyboard shortcut (L / P) next to the icon.
+  const freeShortcut = getFreeAnnotationShortcut(annotationTemplate);
   const drawingShape = resolveDrawingShape(annotationTemplate);
   const tools = getDrawingToolsByShape(drawingShape);
   const fallbackTool = annotationTemplate?.defaultTool
@@ -770,6 +774,11 @@ function AnnotationTemplateRow({
               spriteImage={spriteImage}
             />
           </Box>
+          {freeShortcut && (
+            <Box sx={{ mr: 1, flexShrink: 0 }}>
+              <ShortcutBadge>{freeShortcut}</ShortcutBadge>
+            </Box>
+          )}
           {isEditing ? (
             <InputBase
               value={tempLabel}
@@ -1991,6 +2000,48 @@ function PopperPasteHelper() {
 }
 
 // ---------------------------------------------------------------------------
+// FreeAnnotationRows — standalone "Ligne" / "Surface" rows (no entity, backed
+// by hidden per-scope system templates). Rendered as a small untitled section.
+// ---------------------------------------------------------------------------
+
+function FreeAnnotationRows({ annotationsByListingId, annotationTemplateById }) {
+  const { listingId, lineTemplate, surfaceTemplate } =
+    useFreeAnnotationTemplates();
+  const spriteImage = useAnnotationSpriteImage();
+
+  const templates = [lineTemplate, surfaceTemplate].filter(Boolean);
+
+  // quantities — same computation as a normal listing's rows
+  const annotations = annotationsByListingId?.[listingId];
+  const qtiesById = useMemo(
+    () => computeAnnotationTemplateQties(annotations, annotationTemplateById),
+    [annotations, annotationTemplateById]
+  );
+
+  if (!templates.length) return null;
+
+  return (
+    <List dense disablePadding>
+      {templates.map((template) => {
+        const templateQties = qtiesById?.[template.id];
+        const count = templateQties?.count || 0;
+        const qtyLabel = templateQties?.mainQtyLabel;
+        return (
+          <AnnotationTemplateRow
+            key={template.id}
+            annotationTemplate={template}
+            count={count}
+            qtyLabel={qtyLabel}
+            listingId={listingId}
+            spriteImage={spriteImage}
+          />
+        );
+      })}
+    </List>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // PopperMapListings — main floating panel (or drawing helper when drawing)
 // ---------------------------------------------------------------------------
 
@@ -2126,9 +2177,14 @@ export default function PopperMapListings() {
   // helpers - filter listings when coming from LISTING viewer
 
   const returnListingId = viewerReturnContext?.listingId;
+  // The "Annotations libres" system listing is rendered as standalone rows
+  // (FreeAnnotationRows), never in the normal listing tree.
+  const visibleListings = listings?.filter(
+    (l) => !l.isFreeAnnotationsListing
+  );
   const displayedListings = comesFromListing && returnListingId
-    ? listings?.filter((l) => l.id === returnListingId)
-    : listings;
+    ? visibleListings?.filter((l) => l.id === returnListingId)
+    : visibleListings;
 
   // effects - auto-expand selected listing (or first listing by default)
 
@@ -2514,6 +2570,23 @@ export default function PopperMapListings() {
           <Box sx={{ overflow: "auto", flex: 1 }}>
             {viewerKey === "MAP" && showLayers && (
               <SectionLayers baseMapId={baseMap?.id} />
+            )}
+
+            {/* Free annotations — untitled section at the very top: just
+                "Ligne" + "Surface" (no entity, hidden per-scope templates) */}
+            {!isBaseMapsViewer && (
+              <Box
+                sx={{
+                  borderBottom: "1px solid",
+                  borderColor: "panel.border",
+                }}
+              >
+                <Divider sx={{ borderColor: "panel.border" }} />
+                <FreeAnnotationRows
+                  annotationsByListingId={annotationsByListingId}
+                  annotationTemplateById={annotationTemplateById}
+                />
+              </Box>
             )}
 
             {isBaseMapsViewer

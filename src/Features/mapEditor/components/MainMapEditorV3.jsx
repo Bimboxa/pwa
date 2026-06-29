@@ -113,6 +113,7 @@ import getObject3DAnnotationRectanglePointsFromOnePoint from "Features/object3D/
 import imageUrlToPng from "Features/images/utils/imageUrlToPng";
 import useSelectedNodes from "../hooks/useSelectedNodes";
 import useDrawingToolHotkeys from "../hooks/useDrawingToolHotkeys";
+import useFreeAnnotationHotkeys from "../hooks/useFreeAnnotationHotkeys";
 
 const contextDimmedStyle = {
     //filter: "grayscale(100%) brightness(1.4) opacity(0.8)", // Rend gris, clair et semi-transparent
@@ -147,6 +148,8 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
 
     // hotkeys — switch drawing tool via keyboard (Tab / R / L / C / G)
     useDrawingToolHotkeys();
+    // hotkeys — start a free draw (L = line, S = surface) when not drawing
+    useFreeAnnotationHotkeys();
 
     // const
 
