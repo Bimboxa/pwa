@@ -75,10 +75,20 @@ export default function useCreateBaseMaps() {
                               position: baseMap.position,
                           }
                         : {};
+                    // Tag as VERTICAL when dropped into a "coupes & élévations"
+                    // listing (verticalBaseMaps). This is the user's explicit
+                    // intent, so it overrides the placement's default HORIZONTAL
+                    // orientation (computeBaseMapsPlacements always returns
+                    // HORIZONTAL). Mirrors useCreateBaseMapFromImage so the PDF
+                    // import matches the blank-page path.
+                    const verticalOverride = listing?.verticalBaseMaps
+                        ? { orientation: "VERTICAL" }
+                        : {};
                     await db.baseMaps.update(_entity.id, {
                         refWidth: record.image.imageSize.width,
                         refHeight: record.image.imageSize.height,
                         ...placement,
+                        ...verticalOverride,
                     });
                     await db.baseMapVersions.put({
                         id: nanoid(),
