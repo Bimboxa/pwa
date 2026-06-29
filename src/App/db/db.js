@@ -166,6 +166,11 @@ const AUDIT_TABLES = [
   "dimensions3d",
 ];
 
+// Shared/collaborative tables exempt from the ownership guard: records here can
+// be modified and deleted by anyone, not only their creator. Used for resources
+// that are meant to be edited collectively (e.g. annotation templates).
+const OWNERSHIP_EXEMPT_TABLES = new Set(["annotationTemplates"]);
+
 AUDIT_TABLES.forEach((tableName) => {
   db[tableName].hook("creating", function (primKey, obj) {
     obj.createdAt = obj.createdAt || new Date().toISOString();
@@ -188,7 +193,10 @@ AUDIT_TABLES.forEach((tableName) => {
     }
 
     const currentUser = getCurrentUserIdMaster();
-    if (!canEditRecord(obj, currentUser)) {
+    if (
+      !OWNERSHIP_EXEMPT_TABLES.has(tableName) &&
+      !canEditRecord(obj, currentUser)
+    ) {
       throw new OwnershipError();
     }
 
@@ -294,6 +302,7 @@ async function softDeleteByKeys(downlevelTable, req, tableName) {
     if (record && !record.deletedAt) {
       if (
         !_skipOwnershipGuard &&
+        !OWNERSHIP_EXEMPT_TABLES.has(tableName) &&
         !canEditRecord(record, deletedByUserIdMaster)
       ) {
         throw new OwnershipError();
@@ -347,7 +356,7 @@ async function softDeleteByRange(downlevelTable, req, tableName) {
     (record) => !record.deletedAt
   );
 
-  if (!_skipOwnershipGuard) {
+  if (!_skipOwnershipGuard && !OWNERSHIP_EXEMPT_TABLES.has(tableName)) {
     for (const record of recordsToDelete) {
       if (!canEditRecord(record, deletedByUserIdMaster)) {
         throw new OwnershipError();
