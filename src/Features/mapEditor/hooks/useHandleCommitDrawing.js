@@ -183,7 +183,8 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
         // ETAPE : création de l'entité ou non
 
         let entityId = newAnnotation?.entityId;
-        if (!entityId && !isBaseMapAnnotation && !isRevolutionHelper) {
+        const isFreeAnnotation = newAnnotation?.isFreeAnnotation;
+        if (!entityId && !isBaseMapAnnotation && !isRevolutionHelper && !isFreeAnnotation) {
             const entity = await createEntity(newEntity)
             entityId = entity.id;
         }
