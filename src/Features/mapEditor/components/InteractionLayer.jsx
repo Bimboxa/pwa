@@ -562,11 +562,24 @@ const InteractionLayer = forwardRef(({
 
   // throttled polygon detection from annotations
   const runPolygonDetection = useMemo(() => throttle((localMousePos, currentAnnotations, currentDrawingPoints) => {
+    // Node-merge tolerance lives in IMAGE space (the geometry is zoom-independent).
+    // Keep a fixed base in image px so small features (a narrow décrochage) are not
+    // merged away, and let it SHRINK when zoomed in (k > 1) to recover even finer
+    // detail. It must never inflate when zoomed out (k < 1) — that was merging the
+    // décrochage. Floor it so welding of segments from independent annotations stays
+    // reliable.
+    const BASE_TOLERANCE_IMG_PX = 3;
+    const MIN_TOLERANCE_IMG_PX = 1;
+    const k = basePoseRef.current?.k || 1;
+    const tolerance = Math.max(
+      MIN_TOLERANCE_IMG_PX,
+      Math.min(BASE_TOLERANCE_IMG_PX, BASE_TOLERANCE_IMG_PX / k)
+    );
     const result = detectPolygonFromAnnotations({
       annotations: currentAnnotations,
       drawingPoints: currentDrawingPoints,
       mousePos: localMousePos,
-      tolerance: 5,
+      tolerance,
     });
     detectedPolygonRef.current = result;
     syncSmartDetectionPresent();
