@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useSelector } from "react-redux";
 import { darken } from "@mui/material/styles";
 import theme from "Styles/theme";
 
@@ -1112,7 +1113,10 @@ export default function NodePolylineStatic({
 
   // --- RENDU POINTS (VERTEX) ---
 
-  const POINT_SIZE = 6;
+  // User-tunable vertex handle size (2D editor settings popover).
+  const vertexSizeMultiplier =
+    useSelector((s) => s.mapEditor.vertexSizeMultiplier) || 1;
+  const POINT_SIZE = 6 * vertexSizeMultiplier;
   const HALF_SIZE = POINT_SIZE / 2;
   const vertexScaleTransform = useMemo(() => {
     const k = containerK || 1;

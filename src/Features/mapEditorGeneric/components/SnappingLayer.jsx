@@ -1,4 +1,5 @@
 import { forwardRef, useImperativeHandle, useRef } from 'react';
+import { useSelector } from "react-redux";
 import { Box } from "@mui/material";
 import theme from "Styles/theme";
 
@@ -12,8 +13,12 @@ const SnappingLayer = forwardRef(({
     const projCircleRef = useRef(null);
     const pulseCircleRef = useRef(null);
 
-    const radius = 6;
-    const size = 10;
+    // Match the vertex handle size set in the 2D editor settings popover so the
+    // snap helpers stay visually consistent with the annotation vertices.
+    const vertexSizeMultiplier =
+        useSelector((s) => s.mapEditor.vertexSizeMultiplier) || 1;
+    const radius = 6 * vertexSizeMultiplier;
+    const size = 10 * vertexSizeMultiplier;
 
     useImperativeHandle(ref, () => ({
         update: (pos) => {

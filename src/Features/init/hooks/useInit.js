@@ -14,6 +14,7 @@ import useInitAutoAuth from "Features/auth/hooks/useInitAutoAuth";
 import useInitSelectProject from "Features/projects/hooks/useInitSelectProject";
 import useInitSelectScope from "Features/scopes/hooks/useInitSelectScope";
 import useInitSelectedMainBaseMap from "Features/mapEditor/hooks/useInitSelectedMainBaseMap";
+import useInitEditorSettings from "Features/mapEditor/hooks/useInitEditorSettings";
 
 import useInitRemoteContainer from "Features/sync/hooks/useInitRemoteContainer";
 
@@ -51,6 +52,7 @@ export default function useInit() {
   useInitSelectProject();
   useInitSelectScope();
   useInitSelectedMainBaseMap();
+  useInitEditorSettings();
 
   useInitRemoteContainer();
   useInitRcUserAccount();

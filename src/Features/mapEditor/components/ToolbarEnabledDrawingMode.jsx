@@ -11,6 +11,7 @@ import ToggleSingleSelectorGeneric from "Features/layout/components/ToggleSingle
 
 import getAnnotationColor from "Features/annotations/utils/getAnnotationColor";
 import { getDrawingToolByKey, getDrawingToolsByShape } from "../constants/drawingTools.jsx";
+import { getHotkeyForToolInGroup } from "../constants/drawingToolHotkeys";
 import { resolveShapeCategory } from "Features/annotations/constants/drawingShapes.jsx";
 
 export default function ToolbarEnabledDrawingMode() {
@@ -45,12 +46,45 @@ export default function ToolbarEnabledDrawingMode() {
             : (newAnnotation?.fillColor ?? newAnnotation?.strokeColor ?? color);
 
         const tools = getDrawingToolsByShape(drawingShape);
-        options = tools.map(({ key, label, Icon }) => ({
-            key,
-            label,
-            icon: <Icon sx={{ color: iconColor }} />,
-            show: true,
-        }));
+        options = tools.map((tool) => {
+            const { key, label, Icon } = tool;
+            const hotkey = getHotkeyForToolInGroup(tool, tools);
+            return {
+                key,
+                label,
+                icon: (
+                    <Box sx={{ position: "relative", display: "inline-flex" }}>
+                        <Icon sx={{ color: iconColor }} />
+                        {hotkey && (
+                            <Box
+                                sx={{
+                                    position: "absolute",
+                                    bottom: -7,
+                                    right: -8,
+                                    minWidth: 12,
+                                    height: 12,
+                                    px: "2px",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    border: "1px solid",
+                                    borderColor: "divider",
+                                    borderRadius: "3px",
+                                    bgcolor: "background.paper",
+                                    fontSize: 8,
+                                    fontWeight: 700,
+                                    lineHeight: 1,
+                                    color: "text.secondary",
+                                }}
+                            >
+                                {hotkey}
+                            </Box>
+                        )}
+                    </Box>
+                ),
+                show: true,
+            };
+        });
     } else {
         // Legacy system: derive tools from type
         let showOneClick = ["LABEL", "MARKER", "POINT", "IMAGE"].includes(type);

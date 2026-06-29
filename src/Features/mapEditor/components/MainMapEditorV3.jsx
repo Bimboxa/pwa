@@ -112,6 +112,7 @@ import getImageAnnotationRectanglePointsFromOnePoint from "Features/imageAnnotat
 import getObject3DAnnotationRectanglePointsFromOnePoint from "Features/object3D/utils/getObject3DAnnotationRectanglePointsFromOnePoint";
 import imageUrlToPng from "Features/images/utils/imageUrlToPng";
 import useSelectedNodes from "../hooks/useSelectedNodes";
+import useDrawingToolHotkeys from "../hooks/useDrawingToolHotkeys";
 
 const contextDimmedStyle = {
     //filter: "grayscale(100%) brightness(1.4) opacity(0.8)", // Rend gris, clair et semi-transparent
@@ -143,6 +144,9 @@ function _track(label, value) {
 export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     console.log(`[debug_perf] MainMapEditorV3 RENDER forViewerKey=${forViewerKey}`);
     const dispatch = useDispatch();
+
+    // hotkeys — switch drawing tool via keyboard (Tab / R / L / C / G)
+    useDrawingToolHotkeys();
 
     // const
 
