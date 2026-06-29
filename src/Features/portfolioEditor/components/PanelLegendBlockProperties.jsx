@@ -47,6 +47,7 @@ export default function PanelLegendBlockProperties() {
     showQty: true,
   };
   const showQty = legendFormat.showQty ?? true;
+  const hideHeight = legendFormat.hideHeight ?? false;
   const fontSize = legendFormat.fontSize || 12;
 
   // handlers
@@ -54,6 +55,12 @@ export default function PanelLegendBlockProperties() {
   async function handleToggleShowQty(checked) {
     await db.portfolioBaseMapContainers.update(container.id, {
       legendFormat: { ...legendFormat, showQty: checked },
+    });
+  }
+
+  async function handleToggleHideHeight(checked) {
+    await db.portfolioBaseMapContainers.update(container.id, {
+      legendFormat: { ...legendFormat, hideHeight: checked },
     });
   }
 
@@ -96,6 +103,13 @@ export default function PanelLegendBlockProperties() {
           value={showQty}
           onChange={handleToggleShowQty}
           label="Afficher les quantités"
+          options={{ type: "switch", showAsSection: true }}
+        />
+
+        <FieldCheck
+          value={hideHeight}
+          onChange={handleToggleHideHeight}
+          label="Masquer la hauteur"
           options={{ type: "switch", showAsSection: true }}
         />
       </BoxFlexVStretch>

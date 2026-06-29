@@ -30,6 +30,7 @@ export default function LegendBlockSvg({ container, zoom }) {
     viewBox,
     disabledAnnotationTemplates: container.disabledAnnotationTemplates,
     disabledLayerIds: container.disabledLayerIds,
+    hideHeight: container.legendFormat?.hideHeight,
   });
   const spriteImage = useAnnotationSpriteImage();
   const qtiesById = useAnnotationTemplateQtiesByIdForBaseMap(container.baseMapId, {

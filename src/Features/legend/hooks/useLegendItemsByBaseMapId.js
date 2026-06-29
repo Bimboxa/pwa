@@ -4,7 +4,7 @@ import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
 import filterAnnotationsByViewBox from "Features/annotations/utils/filterAnnotationsByViewBox";
 
-export default function useLegendItemsByBaseMapId(baseMapId, { viewBox, disabledAnnotationTemplates, disabledLayerIds, includeHidden } = {}) {
+export default function useLegendItemsByBaseMapId(baseMapId, { viewBox, disabledAnnotationTemplates, disabledLayerIds, includeHidden, hideHeight = false } = {}) {
   // data
 
   const annotationTemplates = useAnnotationTemplates({ sortByOrder: true });
@@ -64,7 +64,7 @@ export default function useLegendItemsByBaseMapId(baseMapId, { viewBox, disabled
           fillType,
           label: (() => {
             const base = template?.labelLegend || (template?.label ?? "A définir");
-            return template?.height > 0
+            return !hideHeight && template?.height > 0
               ? `${base} [ht. ${template.height.toFixed(2)} m]`
               : base;
           })(),
