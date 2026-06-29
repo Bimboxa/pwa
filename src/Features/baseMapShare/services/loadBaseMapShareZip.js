@@ -2,8 +2,17 @@ import { nanoid } from "@reduxjs/toolkit";
 import JSZip from "jszip";
 
 import db, { withSystemWrite } from "App/db/db";
+import store from "App/store";
 
+import getUserIdMaster from "Features/auth/utils/getUserIdMaster";
 import { stripTrailingCommas } from "Features/krtoFile/utils/parseDexieExportBlob";
+
+// Resolve the importing user's master id, normalized to a string like the
+// ownership layer expects (App/db/ownership.normalizeOwnerId).
+function getImportingUserIdMaster() {
+  const raw = getUserIdMaster(store.getState()?.auth?.userProfile);
+  return raw != null ? String(raw) : "anonymous";
+}
 
 function rewriteFileNamesInObject(obj, fileNameMap, seen = new WeakSet()) {
   if (!obj || typeof obj !== "object") return;
@@ -136,11 +145,25 @@ export default async function loadBaseMapShareZip(
   // 2. Rewrite rows in place
   const newImageBuffers = new Map();
 
+  // Re-own every imported record to the importing user. The export carries the
+  // original author's `createdByUserIdMaster`, which would lock the records
+  // behind the ownership guard (App/db/ownership) and prevent the importer from
+  // editing them. Stamping the importer as the creator makes the imported data
+  // editable afterwards.
+  const importingUserIdMaster = getImportingUserIdMaster();
+
   for (const t of tables) {
     const tableName = t.tableName;
     if (!t.rows) continue;
 
     for (const row of t.rows) {
+      // Re-stamp ownership to the importing user (only on records that already
+      // carry ownership fields, i.e. audited tables — leave the rest untouched).
+      if ("createdByUserIdMaster" in row || "updatedByUserIdMaster" in row) {
+        row.createdByUserIdMaster = importingUserIdMaster;
+        delete row.updatedByUserIdMaster;
+      }
+
       // Resolve entityId target table from OLD refs BEFORE we rewrite them
       let entityTargetTable = null;
       if (tableName === "annotations" && row.entityId) {
