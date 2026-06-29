@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState, useCallback, useMemo } from "react";
+import { useRef, useEffect, useCallback, useMemo } from "react";
 
 import { Box, Typography } from "@mui/material";
 
@@ -25,11 +25,6 @@ export default function ElevationBaseMapViewer({
   onSelectAnnotation,
 }) {
   const viewportRef = useRef(null);
-
-  const [zoom, setZoom] = useState(1);
-  const handleCameraChange = useCallback((m) => {
-    setZoom((z) => (z === m.k ? z : m.k));
-  }, []);
 
   // data
 
@@ -139,11 +134,7 @@ export default function ElevationBaseMapViewer({
 
   return (
     <Box sx={{ flexGrow: 1, minHeight: 0, position: "relative" }}>
-      <MapEditorViewport
-        ref={viewportRef}
-        onWorldClick={handleWorldClick}
-        onCameraChange={handleCameraChange}
-      >
+      <MapEditorViewport ref={viewportRef} onWorldClick={handleWorldClick}>
         <g>
           {imageUrl && imageSize && (
             <NodeSvgImage
@@ -162,7 +153,11 @@ export default function ElevationBaseMapViewer({
                 annotation={annotation}
                 selected={isSelected}
                 baseMapMeterByPx={meterByPx}
-                containerK={zoom}
+                // The camera group already injects --map-zoom, and there is no
+                // extra content scale here (world = image pixels), so containerK
+                // must be 1 — otherwise the vertex handles / strokes double-count
+                // the zoom. Mirrors NodePolylineStatic's screen-fixed sizing.
+                containerK={1}
               />
             );
           })}
