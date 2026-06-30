@@ -12,6 +12,7 @@ const appConfigSlice = createSlice({
     forceUpdateAt: null,
     useDefault: false, // use default config
     advancedLayout: false,
+    disable3D: false, // disable 3D rendering (perf testing)
   },
   reducers: {
     setConfigCode: (state, action) => {
@@ -42,6 +43,9 @@ const appConfigSlice = createSlice({
     setAdvancedLayout: (state, action) => {
       state.advancedLayout = action.payload;
     },
+    setDisable3D: (state, action) => {
+      state.disable3D = action.payload;
+    },
   },
 });
 
@@ -55,5 +59,6 @@ export const {
   setUseDefault,
   setEnableMapEditorLegacy,
   setAdvancedLayout,
+  setDisable3D,
 } = appConfigSlice.actions;
 export default appConfigSlice.reducer;

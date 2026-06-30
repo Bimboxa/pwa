@@ -19,6 +19,7 @@ export default function SectionViewer() {
   // data
   const viewerKey = useSelector((s) => s.viewers.selectedViewerKey);
   const legacy = useSelector((s) => s.appConfig.enableMapEditorLegacy);
+  const disable3D = useSelector((s) => s.appConfig.disable3D);
 
   // turn off the shared "mailles" mode when the last mesh cell is gone
   useAutoDisableMeshCellsMode();
@@ -26,7 +27,7 @@ export default function SectionViewer() {
   // helpers
 
   const showMap = viewerKey === "MAP";
-  const showThreed = viewerKey === "THREED";
+  const showThreed = viewerKey === "THREED" && !disable3D;
   const showLeaflet = viewerKey === "LEAFLET";
   const showTable = viewerKey === "TABLE";
   const showPortfolio = viewerKey === "PORTFOLIO";

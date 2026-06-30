@@ -1,8 +1,9 @@
 import { useSelector, useDispatch } from "react-redux";
 
-import { setAdvancedLayout } from "../appConfigSlice";
+import { setAdvancedLayout, setDisable3D } from "../appConfigSlice";
 
 import useAppConfig from "../hooks/useAppConfig";
+import setDisable3DInLocalStorage from "../services/setDisable3DInLocalStorage";
 
 import { Box, Typography } from "@mui/material";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
@@ -18,6 +19,7 @@ export default function PanelAppConfig({ onClose }) {
 
   const appConfig = useAppConfig();
   const advancedLayout = useSelector((s) => s.appConfig.advancedLayout);
+  const disable3D = useSelector((s) => s.appConfig.disable3D);
 
   // helpers
 
@@ -27,6 +29,11 @@ export default function PanelAppConfig({ onClose }) {
 
   function handleAdvancedLayoutChange(v) {
     dispatch(setAdvancedLayout(v));
+  }
+
+  function handleDisable3DChange(v) {
+    dispatch(setDisable3D(v));
+    setDisable3DInLocalStorage(v);
   }
 
   // render
@@ -44,6 +51,15 @@ export default function PanelAppConfig({ onClose }) {
           value={advancedLayout}
           onChange={handleAdvancedLayoutChange}
           label="Mode avancé"
+          options={{ type: "switch" }}
+        />
+      </Box>
+
+      <Box sx={{ px: 1, py: 0.5 }}>
+        <FieldCheck
+          value={disable3D}
+          onChange={handleDisable3DChange}
+          label="Désactiver la 3D"
           options={{ type: "switch" }}
         />
       </Box>

@@ -44,6 +44,7 @@ export default function LayoutDesktop() {
 
   const isFullScreen = useSelector((s) => s.layout.isFullScreen);
   const advancedLayout = useSelector((s) => s.appConfig.advancedLayout);
+  const disable3D = useSelector((s) => s.appConfig.disable3D);
   const leftPanelDocked = useSelector((s) => s.leftPanel.leftPanelDocked);
 
   // honor ?viewer=3d deep link: don't reset the viewer to MAP when 3D is requested
@@ -53,10 +54,10 @@ export default function LayoutDesktop() {
   // effects
 
   useEffect(() => {
-    if (!advancedLayout && !wants3dViewer) {
+    if ((!advancedLayout && !wants3dViewer) || disable3D) {
       dispatch(setSelectedViewerKey("MAP"));
     }
-  }, [advancedLayout, wants3dViewer, dispatch]);
+  }, [advancedLayout, wants3dViewer, disable3D, dispatch]);
 
   return (
     <BoxFlexV sx={{ position: "relative" }}>

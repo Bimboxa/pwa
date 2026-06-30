@@ -55,6 +55,7 @@ export default function TopBarDesktop() {
   // data
 
   const height = useSelector((s) => s.layout.topBarHeight);
+  const disable3D = useSelector((s) => s.appConfig.disable3D);
   const appConfig = useAppConfig();
   const { value: listing } = useSelectedListing();
   const viewerReturnContext = useSelector(
@@ -314,7 +315,7 @@ export default function TopBarDesktop() {
           gap: 1,
         }}
       >
-        <ButtonToggleThreedViewer />
+        {!disable3D && <ButtonToggleThreedViewer />}
         {viewerKey !== "THREED" && !viewerMode && (
           <Box
             sx={{
