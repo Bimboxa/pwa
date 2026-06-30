@@ -24,7 +24,16 @@ export default function useAutoAuth() {
                 credentials: "include",
             });
 
-            if (!response.ok) return;
+            if (!response.ok) {
+                console.error(
+                    "[useAutoAuth] token fetch failed",
+                    response.status,
+                    response.statusText,
+                    "url",
+                    tokenUrl
+                );
+                return;
+            }
 
             const data = await response.json();
 
@@ -49,20 +58,33 @@ export default function useAutoAuth() {
             if (indirect) {
                 // Step 1: call the configured url to resolve the real token url
                 // (returned as plain text).
+                console.log("[useAutoAuth] Step 1: call url to get auth endpoint", url);
+
                 const res = await fetch(url, {
                     method,
                     credentials: "include",
                 });
 
-                if (!res.ok) return;
+                if (!res.ok) {
+                    console.error(
+                        "[useAutoAuth] Step 1 failed",
+                        res.status,
+                        res.statusText,
+                        "url",
+                        url
+                    );
+                    return;
+                }
 
                 let tokenUrl = (await res.text()).trim();
                 tokenUrl = tokenUrl.replace(/^"|"$/g, ""); // strip JSON quotes if any
 
                 if (!tokenUrl) {
-                    console.log("[useAutoAuth] empty indirect url");
+                    console.error("[useAutoAuth] Step 1: empty auth url returned", "url", url);
                     return;
                 }
+
+                console.log("[useAutoAuth] Step 1 done: auth endpoint to call", tokenUrl);
 
                 // Step 2: fetch the token from the resolved url.
                 return await fetchTokenAndDispatch(tokenUrl);
