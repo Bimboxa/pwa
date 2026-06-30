@@ -92,6 +92,13 @@ export default class ControlsManager {
     // Wheel zoom converges toward the point under the cursor.
     this.cameraControls.dollyToCursor = true;
 
+    // Lower navigation sensitivity (camera-controls defaults are 1.0 rotate,
+    // 2.0 truck, 1.0 dolly). Halve them for a calmer, more precise feel.
+    this.cameraControls.azimuthRotateSpeed = 0.5; // orbit (horizontal)
+    this.cameraControls.polarRotateSpeed = 0.5; // orbit (vertical)
+    this.cameraControls.truckSpeed = 1.0; // pan
+    this.cameraControls.dollySpeed = 0.5; // zoom
+
     // Default mouse mapping: left = ROTATE, right = TRUCK (pan), wheel = DOLLY.
     // Right-drag stays available for pan; on a Mac trackpad that's awkward, so
     // we also map Option(Alt) + left-drag to pan by swapping the left action
