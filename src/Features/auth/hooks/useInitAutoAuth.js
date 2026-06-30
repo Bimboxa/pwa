@@ -22,11 +22,13 @@ export default function useInitAutoAuth() {
     const urlConfig = appConfig?.auth?.autoAuth?.url;
     const url = resolveUrl(urlConfig);
     const authDataMapping = appConfig?.auth?.autoAuth?.dataMapping;
+    const method = urlConfig?.method ?? "GET";
+    const indirect = Boolean(urlConfig?.indirect);
 
 
     useEffect(() => {
-        if (url && authDataMapping) autoAuth(url, authDataMapping);
-    }, [url, authDataMapping]);
+        if (url && authDataMapping) autoAuth(url, authDataMapping, { method, indirect });
+    }, [url, authDataMapping, method, indirect]);
 
     useEffect(() => {
         const { jwt, userIdMaster, userName } = getDebugAuthFromLocalStorage() ?? {};
