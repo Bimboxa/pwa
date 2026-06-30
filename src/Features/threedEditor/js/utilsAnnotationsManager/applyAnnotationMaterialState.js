@@ -34,6 +34,35 @@ export const STATE_NONE = "none";
 export const STATE_HOVER = "hover";
 export const STATE_DIM = "dim";
 
+// Active clipping planes for the highlight overrides. The hover/dim materials
+// are swapped in place of the original (already-clipped) material, so without
+// this they'd render the full geometry past the cut. There is a single global
+// plane, so we keep the shared array module-side and sync the singletons +
+// line clones to it. See setHighlightClippingPlanes.
+let _clippingPlanes = null;
+
+// Assign the active clipping planes to `mat`, flipping needsUpdate ONLY when the
+// plane count transitions 0↔1 (that changes the shader; mutating the plane in
+// place does not — matches ClippingManager's recompile-avoidance rationale).
+function syncMaterialClipping(mat) {
+  if (!mat) return;
+  const next =
+    _clippingPlanes && _clippingPlanes.length ? _clippingPlanes : null;
+  if (mat.clippingPlanes === next) return;
+  const had = !!(mat.clippingPlanes && mat.clippingPlanes.length);
+  const has = !!next;
+  mat.clippingPlanes = next;
+  if (had !== has) mat.needsUpdate = true;
+}
+
+// Called when the clipping plane is enabled/disabled. Pass the shared planes
+// array (clippingManager.planes) when active, null otherwise.
+export function setHighlightClippingPlanes(planes) {
+  _clippingPlanes = planes || null;
+  syncMaterialClipping(HOVER_MATERIAL);
+  syncMaterialClipping(DIM_MATERIAL);
+}
+
 // Fat-line objects (Line2, e.g. the POINT height trait) render with a
 // LineMaterial; swapping in the MeshBasicMaterial singletons would break them
 // (the instanced LineGeometry needs the line shader). Instead, lazily clone the
@@ -56,6 +85,8 @@ function lineStateMaterial(child, state) {
       m.color.set(HOVER_COLOR);
       child.userData.hoverLineMaterial = m;
     }
+    // Cached clone — re-sync each call so clipping toggles take effect.
+    syncMaterialClipping(child.userData.hoverLineMaterial);
     return child.userData.hoverLineMaterial;
   }
   if (state === STATE_DIM) {
@@ -66,6 +97,7 @@ function lineStateMaterial(child, state) {
       m.opacity = 0.3;
       child.userData.dimLineMaterial = m;
     }
+    syncMaterialClipping(child.userData.dimLineMaterial);
     return child.userData.dimLineMaterial;
   }
   return orig;

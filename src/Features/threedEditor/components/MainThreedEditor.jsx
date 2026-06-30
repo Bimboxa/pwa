@@ -28,6 +28,7 @@ import applyAnnotationMaterialState, {
   STATE_DIM,
   STATE_HOVER,
   STATE_NONE,
+  setHighlightClippingPlanes,
 } from "Features/threedEditor/js/utilsAnnotationsManager/applyAnnotationMaterialState";
 import {
   buildEdgeHelper,
@@ -36,6 +37,11 @@ import {
   findClosestEdgeToCursor,
   findClosestVertexToCursor,
 } from "Features/threedEditor/js/utilsAnnotationsManager/subSelectionHelpers";
+import {
+  filterIntersectionsByClipping,
+  getActiveClippingPlane,
+  isWorldPointVisible,
+} from "Features/threedEditor/js/utilsAnnotationsManager/clippingPick";
 import ThreedHoverTooltip from "./ThreedHoverTooltip";
 import ThreedLassoOverlay from "./ThreedLassoOverlay";
 import ThreedPopperEditAnnotations from "./ThreedPopperEditAnnotations";
@@ -246,6 +252,9 @@ export default function MainThreedEditor() {
     if (!clippingManager) return;
     if (clippingEnabled) clippingManager.ensureCreated();
     clippingManager.setEnabled(clippingEnabled);
+    // Keep the hover/dim highlight materials clipped in sync with the plane, so
+    // highlighting a clipped annotation doesn't render its hidden half.
+    setHighlightClippingPlanes(clippingEnabled ? clippingManager.planes : null);
   }, [clippingEnabled, rendererIsReady]);
 
   // Sync clipping plane editing → gizmo visibility.
@@ -340,6 +349,10 @@ export default function MainThreedEditor() {
 
       if (!renderer || !camera || !scene) return;
 
+      // Active clipping plane (null when off) — every picking path below ignores
+      // geometry hidden by the cut.
+      const clippingPlane = getActiveClippingPlane(sceneManager);
+
       // Check if the click target is within the renderer's DOM element
       // This prevents clicks on portals (like PopperEditAnnotation) from triggering the raycaster
       const rendererElement = renderer.domElement;
@@ -369,9 +382,9 @@ export default function MainThreedEditor() {
         mouseRef.current.y =
           -((event.clientY - rect.top) / rect.height) * 2 + 1;
         raycasterRef.current.setFromCamera(mouseRef.current, camera);
-        const coteHits = raycasterRef.current.intersectObjects(
-          dimensionObjects,
-          false
+        const coteHits = filterIntersectionsByClipping(
+          raycasterRef.current.intersectObjects(dimensionObjects, false),
+          clippingPlane
         );
         const coteId = coteHits[0]?.object?.userData?.coteId;
         if (coteId) {
@@ -405,11 +418,19 @@ export default function MainThreedEditor() {
             cursor,
             camera,
             rect,
-            12
+            12,
+            clippingPlane
           );
           const edgeHit = vertexHit
             ? null
-            : findClosestEdgeToCursor(annoObject, cursor, camera, rect, 8);
+            : findClosestEdgeToCursor(
+                annoObject,
+                cursor,
+                camera,
+                rect,
+                8,
+                clippingPlane
+              );
           if (vertexHit) {
             const ref = annoObject.userData.vertexRefs[vertexHit.index];
             dispatch(
@@ -452,9 +473,12 @@ export default function MainThreedEditor() {
       // so the black edge outlines added by extrudeClosedShape /
       // extrudePolylineWall would otherwise trigger selection well before
       // the cursor reaches the actual surface.
-      const intersects = raycasterRef.current
-        .intersectObjects(scene.children, true)
-        .filter((i) => i.object?.isMesh);
+      const intersects = filterIntersectionsByClipping(
+        raycasterRef.current
+          .intersectObjects(scene.children, true)
+          .filter((i) => i.object?.isMesh),
+        clippingPlane
+      );
 
       // Find the first annotation object (check userData)
       for (const intersect of intersects) {
@@ -579,13 +603,18 @@ export default function MainThreedEditor() {
   // Returns null if the object has no renderable geometry (e.g. an OBJECT_3D
   // placeholder whose GLB hasn't loaded yet).
   const projectAnnotationToClient = useCallback(
-    (object3D, camera, canvasRect) => {
+    (object3D, camera, canvasRect, plane = null) => {
       const box = new Box3();
       box.makeEmpty();
       box.setFromObject(object3D);
       if (box.isEmpty() || !isFinite(box.min.x)) return null;
       const center = new Vector3();
       box.getCenter(center);
+      // Center-based heuristic: drop the annotation when its bbox center is
+      // hidden by the clipping plane (consistent with the existing center-point
+      // lasso model; an annotation whose center is clipped but whose edges peek
+      // through is excluded).
+      if (plane && !isWorldPointVisible(plane, center)) return null;
       center.project(camera); // → NDC space [-1, 1]
       const sx = canvasRect.left + (center.x * 0.5 + 0.5) * canvasRect.width;
       const sy = canvasRect.top + (-center.y * 0.5 + 0.5) * canvasRect.height;
@@ -613,11 +642,17 @@ export default function MainThreedEditor() {
     if (!camera || !renderer || !map) return;
 
     const canvasRect = renderer.domElement.getBoundingClientRect();
+    const plane = getActiveClippingPlane(editor?.sceneManager);
     const newSet = new Set();
     for (const id in map) {
       const object = map[id];
       if (!object) continue;
-      const point = projectAnnotationToClient(object, camera, canvasRect);
+      const point = projectAnnotationToClient(
+        object,
+        camera,
+        canvasRect,
+        plane
+      );
       if (!point) continue;
       if (
         point.x >= rect.x &&
@@ -696,11 +731,17 @@ export default function MainThreedEditor() {
 
     const canvasRect = renderer.domElement.getBoundingClientRect();
     const map = manager.annotationsObjectsMap || {};
+    const plane = getActiveClippingPlane(editor?.sceneManager);
 
     const newItems = [];
     Object.entries(map).forEach(([id, object]) => {
       if (!object) return;
-      const point = projectAnnotationToClient(object, camera, canvasRect);
+      const point = projectAnnotationToClient(
+        object,
+        camera,
+        canvasRect,
+        plane
+      );
       if (!point) return;
       const inside =
         point.x >= rect.x &&
@@ -886,6 +927,10 @@ export default function MainThreedEditor() {
     const rect = domElement.getBoundingClientRect();
     if (rect.width === 0 || rect.height === 0) return;
 
+    // Active clipping plane (null when clipping is off) — used by every picking
+    // path below to ignore geometry hidden by the cut.
+    const clippingPlane = getActiveClippingPlane(sceneManager);
+
     // Sub-element hover (vertex / edge of the currently-selected annotation).
     // Runs before the regular face hover so the user gets fluo-green vertex /
     // edge feedback immediately after selecting a face.
@@ -900,11 +945,19 @@ export default function MainThreedEditor() {
           cursor,
           camera,
           rect,
-          12
+          12,
+          clippingPlane
         );
         const edgeHit = vertexHit
           ? null
-          : findClosestEdgeToCursor(annoObject, cursor, camera, rect, 8);
+          : findClosestEdgeToCursor(
+              annoObject,
+              cursor,
+              camera,
+              rect,
+              8,
+              clippingPlane
+            );
         const nextKey = vertexHit
           ? `V:${vertexHit.index}`
           : edgeHit
@@ -962,10 +1015,15 @@ export default function MainThreedEditor() {
     mouseRef.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
     raycasterRef.current.setFromCamera(mouseRef.current, camera);
 
-    // Filter out non-mesh hits (edge LineSegments) — see handleClick.
-    const intersects = raycasterRef.current
-      .intersectObjects(scene.children, true)
-      .filter((i) => i.object?.isMesh);
+    // Filter out non-mesh hits (edge LineSegments) — see handleClick — and hits
+    // hidden by the active clipping plane (so the cursor never picks clipped-away
+    // geometry, and a clipped front face doesn't shadow the object behind it).
+    const intersects = filterIntersectionsByClipping(
+      raycasterRef.current
+        .intersectObjects(scene.children, true)
+        .filter((i) => i.object?.isMesh),
+      clippingPlane
+    );
 
     let hit = null;
     for (const intersect of intersects) {

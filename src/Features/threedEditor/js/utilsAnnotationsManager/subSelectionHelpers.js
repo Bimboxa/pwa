@@ -11,6 +11,8 @@ import {
   Vector3,
 } from "three";
 
+import { isWorldPointVisible } from "Features/threedEditor/js/utilsAnnotationsManager/clippingPick";
+
 // Visual constants for the vertex/edge sub-selection helpers.
 // Bright fluo green for hover, fluo yellow for the persistent selected state.
 const COLOR_HOVER = 0x00ff00;
@@ -94,9 +96,15 @@ export function buildVertexHelper(annoObject, vertexIndex, opts = {}) {
 }
 
 // Build an edge helper Line between two vertex indices.
-export function buildEdgeHelper(annoObject, vertexIndexA, vertexIndexB, opts = {}) {
+export function buildEdgeHelper(
+  annoObject,
+  vertexIndexA,
+  vertexIndexB,
+  opts = {}
+) {
   const refs = annoObject?.userData?.vertexRefs;
-  if (!refs || refs[vertexIndexA] == null || refs[vertexIndexB] == null) return null;
+  if (!refs || refs[vertexIndexA] == null || refs[vertexIndexB] == null)
+    return null;
   const a = localToWorldVec3(annoObject, refs[vertexIndexA].position);
   const b = localToWorldVec3(annoObject, refs[vertexIndexB].position);
   const color = opts.selected ? COLOR_SELECTED : COLOR_HOVER;
@@ -112,7 +120,12 @@ export function disposeSubSelectionHelper(helper) {
 
 // Project a basemap-local 3D point to client (window) coordinates using the
 // annotation object's parent transform stack. Returns null if behind camera.
-export function projectVertexToClient(annoObject, vertexIndex, camera, canvasRect) {
+export function projectVertexToClient(
+  annoObject,
+  vertexIndex,
+  camera,
+  canvasRect
+) {
   const refs = annoObject?.userData?.vertexRefs;
   if (!refs || refs[vertexIndex] == null) return null;
   const world = localToWorldVec3(annoObject, refs[vertexIndex].position);
@@ -132,13 +145,19 @@ export function findClosestVertexToCursor(
   cursorClient,
   camera,
   canvasRect,
-  maxDistance = 12
+  maxDistance = 12,
+  plane = null
 ) {
   const refs = annoObject?.userData?.vertexRefs;
   if (!refs) return null;
   let bestIndex = -1;
   let bestDistSq = maxDistance * maxDistance;
   for (let i = 0; i < refs.length; i++) {
+    // Skip vertices hidden by the active clipping plane.
+    if (plane) {
+      const world = localToWorldVec3(annoObject, refs[i].position);
+      if (!isWorldPointVisible(plane, world)) continue;
+    }
     const screen = projectVertexToClient(annoObject, i, camera, canvasRect);
     if (!screen) continue;
     const dx = screen.x - cursorClient.x;
@@ -162,26 +181,36 @@ export function findClosestEdgeToCursor(
   cursorClient,
   camera,
   canvasRect,
-  maxDistance = 8
+  maxDistance = 8,
+  plane = null
 ) {
   const refs = annoObject?.userData?.vertexRefs;
   if (!refs || refs.length < 2) return null;
   const screens = refs.map((_, i) =>
     projectVertexToClient(annoObject, i, camera, canvasRect)
   );
+  // Per-vertex visibility vs. the active clipping plane (an edge is pickable
+  // only when both endpoints are visible).
+  const visible = plane
+    ? refs.map((ref) =>
+        isWorldPointVisible(plane, localToWorldVec3(annoObject, ref.position))
+      )
+    : null;
   const n = refs.length;
   let bestA = -1;
   let bestB = -1;
   let bestDistSq = maxDistance * maxDistance;
   for (let i = 0; i < n; i++) {
+    const j = (i + 1) % n;
+    if (visible && (!visible[i] || !visible[j])) continue;
     const a = screens[i];
-    const b = screens[(i + 1) % n];
+    const b = screens[j];
     if (!a || !b) continue;
     const distSq = pointToSegmentDistanceSq(cursorClient, a, b);
     if (distSq < bestDistSq) {
       bestDistSq = distSq;
       bestA = i;
-      bestB = (i + 1) % n;
+      bestB = j;
     }
   }
   if (bestA < 0) return null;
