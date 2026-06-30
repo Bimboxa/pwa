@@ -48,11 +48,31 @@ export default async function createKrtoZip(scopeId, options) {
     // Tables avec projectId + listingId
     // portfolioPages: créées via useCreateEntity, qui pose projectId+listingId
     // mais pas scopeId — donc on filtre par projectId+listingId comme entities/maps.
+    // On garde baseMapVersions ici (y compris les versions supprimées : ce ne sont
+    // que des métadonnées légères). Seuls les fichiers (lourds) sont traités à part.
     const tablesWithProjectIdAndListingId = new Set([
         "baseMaps", "baseMapVersions", "entities", "maps", "materials", "relsZoneEntity",
-        "points", "annotations", "annotationTemplates", "files",
+        "points", "annotations", "annotationTemplates",
         "portfolioPages",
     ]);
+
+    // 2bis. Versions de baseMap supprimées (soft-delete) : on conserve la version
+    // dans le JSON, mais on exclut son image du zip pour éviter de l'alourdir avec
+    // des fichiers orphelins.
+    const versions = (
+        await db.baseMapVersions.where("projectId").equals(projectId).toArray()
+    ).filter((v) => listingIds.has(v.listingId));
+
+    const liveVersionFileNames = new Set();
+    const deletedVersionFileNames = new Set();
+    for (const v of versions) {
+        const fn = v.image?.fileName;
+        if (!fn) continue;
+        (v.deletedAt ? deletedVersionFileNames : liveVersionFileNames).add(fn);
+    }
+    // Un fichier encore référencé par une version vivante ne doit JAMAIS être exclu
+    // (cas où plusieurs versions partagent la même image, ex. duplication).
+    for (const fn of liveVersionFileNames) deletedVersionFileNames.delete(fn);
 
     // 3. Export via Dexie
     const blob = await db.export({
@@ -78,6 +98,15 @@ export default async function createKrtoZip(scopeId, options) {
 
             // Tables indexées par scopeId
             if (tablesWithScopeId.has(table)) return value.scopeId === scopeId;
+
+            // Fichiers : on exclut les images des versions supprimées orphelines
+            if (table === "files") {
+                return (
+                    value.projectId === projectId &&
+                    listingIds.has(value.listingId) &&
+                    !deletedVersionFileNames.has(value.fileName)
+                );
+            }
 
             // Tables avec projectId + listingId
             if (tablesWithProjectIdAndListingId.has(table)) {
