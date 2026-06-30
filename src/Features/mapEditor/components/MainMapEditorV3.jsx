@@ -114,6 +114,7 @@ import imageUrlToPng from "Features/images/utils/imageUrlToPng";
 import useSelectedNodes from "../hooks/useSelectedNodes";
 import useDrawingToolHotkeys from "../hooks/useDrawingToolHotkeys";
 import useFreeAnnotationHotkeys from "../hooks/useFreeAnnotationHotkeys";
+import useOpeningHotkey from "../hooks/useOpeningHotkey";
 
 const contextDimmedStyle = {
     //filter: "grayscale(100%) brightness(1.4) opacity(0.8)", // Rend gris, clair et semi-transparent
@@ -150,6 +151,8 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     useDrawingToolHotkeys();
     // hotkeys — start a free draw (L = line, S = surface) when not drawing
     useFreeAnnotationHotkeys();
+    // hotkeys — start an opening draw (O) when not drawing
+    useOpeningHotkey();
 
     // const
 

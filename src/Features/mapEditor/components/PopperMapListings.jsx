@@ -143,7 +143,7 @@ import groupAnnotationTemplatesByGroupLabel from "Features/annotations/utils/gro
 // ---------------------------------------------------------------------------
 
 const TOOL_ITEMS = [
-  { type: "CUT", label: "Ouverture", Icon: StopCircle },
+  { type: "CUT", label: "Ouverture", Icon: StopCircle, shortcut: "O" },
   { type: "SPLIT_LINE", label: "Couper une ligne", Icon: IconCutLine },
   { type: "SPLIT_SURFACE", label: "Couper des surfaces", Icon: IconCutSurface },
   { type: "TECHNICAL_RETURN", label: "Retour 1m", Icon: IconTechnicalReturn },
@@ -157,7 +157,7 @@ const TOOL_ITEMS = [
 // ToolRow — one cut/split tool with click-to-draw + tool picker menu
 // ---------------------------------------------------------------------------
 
-function ToolRow({ type, label, Icon }) {
+function ToolRow({ type, label, Icon, shortcut }) {
   const dispatch = useDispatch();
   const newAnnotation = useSelector((s) => s.annotations.newAnnotation);
   const selectedToolKey = useSelector(
@@ -252,6 +252,11 @@ function ToolRow({ type, label, Icon }) {
           >
             <Icon sx={{ fontSize: 18, color: isHovered ? "panel.textSecondary" : "panel.textMuted" }} />
           </Box>
+          {shortcut && (
+            <Box sx={{ mr: 1, flexShrink: 0 }}>
+              <ShortcutBadge>{shortcut}</ShortcutBadge>
+            </Box>
+          )}
           <Typography variant="body2" sx={{ color: "panel.textSecondary", userSelect: "none" }}>
             {label}
           </Typography>
@@ -2662,6 +2667,7 @@ export default function PopperMapListings() {
                       type={tool.type}
                       label={tool.label}
                       Icon={tool.Icon}
+                      shortcut={tool.shortcut}
                     />
                   ))}
                 </List>
