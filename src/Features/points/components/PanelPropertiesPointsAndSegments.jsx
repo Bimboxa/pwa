@@ -32,6 +32,7 @@ import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import useSelectedPointsData from "Features/points/hooks/useSelectedPointsData";
 import useUpdateSelectedPoints from "Features/points/hooks/useUpdateSelectedPoints";
 import useSegmentsExtEdge from "Features/points/hooks/useSegmentsExtEdge";
+import useSegmentsIntEdge from "Features/points/hooks/useSegmentsIntEdge";
 import useToggleSegmentsIsoHeight from "Features/points/hooks/useToggleSegmentsIsoHeight";
 
 // Combined panel shown when a lasso (or successive shift+clicks) selects BOTH
@@ -52,6 +53,11 @@ export default function PanelPropertiesPointsAndSegments() {
     indeterminate: extEdgeMixed,
     toggle: toggleExtEdge,
   } = useSegmentsExtEdge();
+  const {
+    checked: isIntEdge,
+    indeterminate: intEdgeMixed,
+    toggle: toggleIntEdge,
+  } = useSegmentsIntEdge();
   const {
     checked: isIso,
     indeterminate: isoMixed,
@@ -136,12 +142,24 @@ export default function PanelPropertiesPointsAndSegments() {
         <Button size="small" variant="outlined" onClick={handleKeepPointsOnly}>
           Garder les points
         </Button>
-        <Button size="small" variant="outlined" onClick={handleKeepSegmentsOnly}>
+        <Button
+          size="small"
+          variant="outlined"
+          onClick={handleKeepSegmentsOnly}
+        >
           Garder les segments
         </Button>
       </Box>
 
-      <Box sx={{ p: 2, display: "flex", flexDirection: "column", gap: 2, overflowY: "auto" }}>
+      <Box
+        sx={{
+          p: 2,
+          display: "flex",
+          flexDirection: "column",
+          gap: 2,
+          overflowY: "auto",
+        }}
+      >
         {/* Points section */}
         {pointsCount > 0 && (
           <>
@@ -203,7 +221,6 @@ export default function PanelPropertiesPointsAndSegments() {
                 />
               </Box>
             </Box>
-
           </>
         )}
 
@@ -240,7 +257,22 @@ export default function PanelPropertiesPointsAndSegments() {
                     size="small"
                   />
                 }
-                label={<Typography variant="body2">Segment extérieur</Typography>}
+                label={
+                  <Typography variant="body2">Segment extérieur</Typography>
+                }
+              />
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={!!isIntEdge}
+                    indeterminate={!!intEdgeMixed}
+                    onChange={toggleIntEdge}
+                    size="small"
+                  />
+                }
+                label={
+                  <Typography variant="body2">Segment intérieur</Typography>
+                }
               />
             </Box>
           </>

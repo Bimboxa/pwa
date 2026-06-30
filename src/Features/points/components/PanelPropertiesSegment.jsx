@@ -17,6 +17,7 @@ import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import useSelectedSegmentData from "Features/points/hooks/useSelectedSegmentData";
 import useToggleSegmentIsoHeight from "Features/points/hooks/useToggleSegmentIsoHeight";
 import useSegmentsExtEdge from "Features/points/hooks/useSegmentsExtEdge";
+import useSegmentsIntEdge from "Features/points/hooks/useSegmentsIntEdge";
 
 function ReadOnlyOffset({ label, value }) {
   return (
@@ -38,6 +39,7 @@ export default function PanelPropertiesSegment() {
   const { segIdx, pointA, pointB, isIso } = useSelectedSegmentData();
   const toggleIsoHeight = useToggleSegmentIsoHeight();
   const { checked: isExtEdge, toggle: toggleExtEdge } = useSegmentsExtEdge();
+  const { checked: isIntEdge, toggle: toggleIntEdge } = useSegmentsIntEdge();
 
   // handlers
 
@@ -51,6 +53,10 @@ export default function PanelPropertiesSegment() {
 
   function handleExtEdgeChange() {
     toggleExtEdge();
+  }
+
+  function handleIntEdgeChange() {
+    toggleIntEdge();
   }
 
   // render - no selection
@@ -108,6 +114,16 @@ export default function PanelPropertiesSegment() {
               />
             }
             label={<Typography variant="body2">Segment extérieur</Typography>}
+          />
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={!!isIntEdge}
+                onChange={handleIntEdgeChange}
+                size="small"
+              />
+            }
+            label={<Typography variant="body2">Segment intérieur</Typography>}
           />
         </Box>
 
