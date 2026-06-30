@@ -1,15 +1,14 @@
 import { setUserProfile, setJwt } from "Features/auth/authSlice";
 import { useDispatch } from "react-redux";
 import transformObject from "Features/misc/utils/transformObject";
+import resolveUrl from "Features/appConfig/utils/resolveUrl";
 
 export default function useAutoAuth() {
     const dispatch = useDispatch();
 
-    return async (url, authDataMapping, options = {}) => {
-        const { method = "GET", indirect = false } = options;
-
-        if (!url) {
-            console.log("[useAutoAuth] no url");
+    return async (urlConfig, authDataMapping) => {
+        if (!urlConfig) {
+            console.log("[useAutoAuth] no url config");
             return;
         }
 
@@ -55,12 +54,19 @@ export default function useAutoAuth() {
         };
 
         try {
-            if (indirect) {
-                // Step 1: call the configured url to resolve the real token url
-                // (returned as plain text).
-                console.log("[useAutoAuth] Step 1: call url to get auth endpoint", url);
+            // Indirect base url: `url.baseUrl` is an object holding an `indirect`
+            // sub-config. We first call that endpoint to obtain the real base url
+            // (returned as plain text), then complete it with the original
+            // `url.route` to build the final token url.
+            const indirectConfig = urlConfig?.baseUrl?.indirect;
 
-                const res = await fetch(url, {
+            if (indirectConfig) {
+                const indirectUrl = resolveUrl(indirectConfig);
+                const method = indirectConfig.method ?? "GET";
+
+                console.log("[useAutoAuth] Step 1: call url to get auth base url", indirectUrl);
+
+                const res = await fetch(indirectUrl, {
                     method,
                     credentials: "include",
                 });
@@ -71,29 +77,38 @@ export default function useAutoAuth() {
                         res.status,
                         res.statusText,
                         "url",
-                        url
+                        indirectUrl
                     );
                     return;
                 }
 
-                let tokenUrl = (await res.text()).trim();
-                tokenUrl = tokenUrl.replace(/^"|"$/g, ""); // strip JSON quotes if any
+                let baseUrl = (await res.text()).trim();
+                baseUrl = baseUrl.replace(/^"|"$/g, ""); // strip JSON quotes if any
 
-                if (!tokenUrl) {
-                    console.error("[useAutoAuth] Step 1: empty auth url returned", "url", url);
+                if (!baseUrl) {
+                    console.error(
+                        "[useAutoAuth] Step 1: empty base url returned",
+                        "url",
+                        indirectUrl
+                    );
                     return;
                 }
 
-                console.log("[useAutoAuth] Step 1 done: auth endpoint to call", tokenUrl);
+                console.log("[useAutoAuth] Step 1 done: auth base url", baseUrl);
 
-                // Step 2: fetch the token from the resolved url.
+                // Complete the resolved base url with the original route.
+                const tokenUrl = resolveUrl({ baseUrl, route: urlConfig.route });
+
+                console.log("[useAutoAuth] token url to call", tokenUrl);
+
                 return await fetchTokenAndDispatch(tokenUrl);
             }
 
-            // Direct (legacy) path.
+            // Direct path: resolve `baseUrl` + `route` directly.
+            const url = resolveUrl(urlConfig);
             return await fetchTokenAndDispatch(url);
         } catch (error) {
-            console.log("[useAutoAuth] error", error, "url", url);
+            console.log("[useAutoAuth] error", error);
         }
     };
 }
