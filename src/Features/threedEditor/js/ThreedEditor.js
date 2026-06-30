@@ -125,6 +125,11 @@ export default class ThreedEditor {
     this.sceneManager.controlsManager.panCameraToWorldPoint(worldPoint, options);
   };
 
+  fitToAnnotations = () => {
+    if (!this.sceneIsInitialized) return;
+    this.sceneManager.controlsManager.fitToAnnotations();
+  };
+
   // annotations
 
   loadAnnotations = (annotations, options) => {

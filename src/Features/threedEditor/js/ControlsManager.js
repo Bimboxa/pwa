@@ -179,6 +179,42 @@ export default class ControlsManager {
     );
   };
 
+  // Frame all annotation meshes (the useAnnotationsV2 set already loaded into
+  // the scene). Preserves the current orbit orientation and only dollies/pans
+  // to fit. When the scene has no annotations, frame a 10 m cube resting on the
+  // ground (y=0) and centered on the world origin.
+  fitToAnnotations = () => {
+    if (!this.cameraControls) return;
+
+    const box = new Box3();
+    box.makeEmpty();
+    let hasAny = false;
+
+    const annotations =
+      this.sceneManager.annotationsManager?.annotationsObjectsMap || {};
+    Object.values(annotations).forEach((obj) => {
+      if (!obj) return;
+      const b = new Box3().setFromObject(obj);
+      if (!b.isEmpty() && isFinite(b.min.x)) {
+        box.union(b);
+        hasAny = true;
+      }
+    });
+
+    if (!hasAny) {
+      // No annotation: 10 m × 10 m × 10 m cube, bottom on the ground plane.
+      box.set(new Vector3(-5, 0, -5), new Vector3(5, 10, 5));
+    }
+
+    const padding = 0.5; // metres of breathing room around the geometry
+    this.cameraControls.fitToBox(box, true, {
+      paddingLeft: padding,
+      paddingRight: padding,
+      paddingTop: padding,
+      paddingBottom: padding,
+    });
+  };
+
   // ----- orbit-around-cursor -------------------------------------------
 
   // Called on pointerdown (left button): set the orbit point to the point

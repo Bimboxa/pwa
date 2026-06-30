@@ -15,6 +15,7 @@ import ContentCutIcon from "@mui/icons-material/ContentCut";
 
 import ButtonDrawThreed from "./ButtonDrawThreed";
 import ButtonDimensionThreed from "Features/threedDimensions/components/ButtonDimensionThreed";
+import ButtonZoomOutThreed from "Features/threedEditor/components/ButtonZoomOutThreed";
 
 // Floating bottom toolbar for the main 3D viewer. Three states:
 //   - Move mode active → hidden (MoveGizmoThreed owns the bottom UI).
@@ -129,6 +130,8 @@ export default function BottomToolbarThreed() {
             Coupe
           </Button>
         </Tooltip>
+        <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+        <ButtonZoomOutThreed />
       </Stack>
     </Paper>
   );
