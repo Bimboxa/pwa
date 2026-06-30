@@ -20,7 +20,10 @@ import {
   getDrawingToolsByType,
   getDrawingToolTypeByKey,
 } from "../constants/drawingTools.jsx";
-import { getHotkeyForToolInGroup } from "../constants/drawingToolHotkeys";
+import {
+  getHotkeyForToolInGroup,
+  getOpeningHotkeyForTool,
+} from "../constants/drawingToolHotkeys";
 import { resolveShapeCategory } from "Features/annotations/constants/drawingShapes.jsx";
 import getAnnotationColor from "Features/annotations/utils/getAnnotationColor";
 import buildToolDraft from "Features/mapEditor/utils/buildToolDraft";
@@ -106,9 +109,15 @@ export default function ToolbarDrawingDraft() {
       : [];
   const options = tools.map((tool) => {
     const { key, label, Icon } = tool;
-    // Hotkey badges only apply to the shape tool group (direct-access letters),
-    // not to cutting-tool variants.
-    const hotkey = isToolGroup ? null : getHotkeyForToolInGroup(tool, tools);
+    // Hotkey badges: the opening (CUT) group has its own S/R/L/B direct-access
+    // letters; other tool groups (SPLIT, …) get no badge; the shape groups use
+    // the behavior-based direct-access letters.
+    const hotkey =
+      toolGroupType === "CUT"
+        ? getOpeningHotkeyForTool(tool)
+        : isToolGroup
+          ? null
+          : getHotkeyForToolInGroup(tool, tools);
     return {
       key,
       label,

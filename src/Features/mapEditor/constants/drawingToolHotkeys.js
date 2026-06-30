@@ -15,6 +15,26 @@ export const DRAWING_TOOL_HOTKEYS = {
   t: "SEGMENT", // "Trait" / segment (first SEGMENT-behavior tool of the group). Frees S for smart-detect "Au survol".
 };
 
+// Opening (CUT) direct-access hotkeys → CUT tool KEY (not behavior). Several CUT
+// tools share the same `behavior` (e.g. CUT_CLICK and CUT_POLYLINE are both
+// CLICK), so the opening shortcuts must target tool keys directly instead of
+// resolving by behavior like the shape-group letters above.
+export const OPENING_TOOL_HOTKEYS = {
+  s: "CUT_CLICK", // surface clic-clic ("Polyligne fermée")
+  r: "CUT_RECTANGLE",
+  l: "CUT_POLYLINE", // centerline polyline → band
+  b: "CUT_STRIP", // bande
+};
+
+// Uppercase badge letter for a CUT tool, or null.
+export function getOpeningHotkeyForTool(tool) {
+  if (!tool) return null;
+  const hit = Object.entries(OPENING_TOOL_HOTKEYS).find(
+    ([, key]) => key === tool.key
+  );
+  return hit ? hit[0].toUpperCase() : null;
+}
+
 // Uppercase letter to display for a tool WITHIN its group, or null. Only the
 // tool actually targeted by the shortcut (the first of that `behavior` in the
 // group) is badged, to stay consistent with the effective selection.

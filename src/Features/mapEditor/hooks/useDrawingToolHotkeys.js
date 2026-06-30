@@ -13,8 +13,14 @@ import {
 } from "../mapEditorSlice";
 import { setNewAnnotation } from "Features/annotations/annotationsSlice";
 
-import { getDrawingToolsByShape } from "../constants/drawingTools.jsx";
-import { DRAWING_TOOL_HOTKEYS } from "../constants/drawingToolHotkeys";
+import {
+  getDrawingToolsByShape,
+  getDrawingToolsByType,
+} from "../constants/drawingTools.jsx";
+import {
+  DRAWING_TOOL_HOTKEYS,
+  OPENING_TOOL_HOTKEYS,
+} from "../constants/drawingToolHotkeys";
 import buildToolDraft from "../utils/buildToolDraft";
 
 // Keyboard shortcuts to switch the active drawing tool without leaving the
@@ -47,14 +53,16 @@ export default function useDrawingToolHotkeys() {
       );
     };
 
-    const switchTool = (tool) => {
+    const switchTool = (tool, { isOpening } = {}) => {
       const s = store.getState();
       const newAnnotation = s.annotations.newAnnotation ?? {};
       const openingDefaults = {
         strokeWidth: s.mapEditor.openingStrokeWidth,
         strokeWidthUnit: s.mapEditor.openingStrokeWidthUnit,
       };
-      const templateId = newAnnotation.annotationTemplateId;
+      // Opening tools live in the "CUT" tool group; persist the active variant
+      // under that group id so the toolbar highlight tracks it.
+      const templateId = isOpening ? "CUT" : newAnnotation.annotationTemplateId;
       if (templateId) {
         dispatch(
           setSelectedToolKeyForTemplate({ templateId, toolKey: tool.key })
@@ -79,6 +87,56 @@ export default function useDrawingToolHotkeys() {
       const s = store.getState();
       const mode = s.mapEditor.enabledDrawingMode;
       if (!mode) return;
+
+      const hasFirstPoint =
+        s.mapEditor.drawingPolylinePoints.length > 0 ||
+        s.mapEditor.drawingRectanglePoints.length > 0 ||
+        s.mapEditor.drawingSegmentPoints.length > 0 ||
+        s.mapEditor.rectHasFirstPoint;
+
+      // Opening (ouverture) tools form their own group (DRAWING_TOOLS_BY_TYPE.CUT)
+      // rather than a drawing-shape group, so they get a dedicated branch:
+      // Tab cycles all CUT variants, S/R/L/B jump to a specific one.
+      const newAnnotation = s.annotations.newAnnotation;
+      const isOpening =
+        newAnnotation?.type === "CUT" || newAnnotation?.isOpening === true;
+      if (isOpening) {
+        const openingTools = getDrawingToolsByType("CUT");
+        if (openingTools.length === 0) return;
+        const currentKey = s.mapEditor.selectedToolKeyByTemplateId?.CUT;
+
+        // Tab / Shift+Tab — cycle through every CUT variant.
+        if (e.key === "Tab") {
+          if (openingTools.length < 2) {
+            e.preventDefault();
+            return;
+          }
+          const idx = openingTools.findIndex((t) => t.key === currentKey);
+          const start = idx === -1 ? 0 : idx;
+          const next =
+            openingTools[
+              (start + (e.shiftKey ? -1 : 1) + openingTools.length) %
+                openingTools.length
+            ];
+          if (next && next.key !== currentKey)
+            switchTool(next, { isOpening: true });
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          return;
+        }
+
+        // Letters — direct access, only before the first point is placed.
+        const toolKey = OPENING_TOOL_HOTKEYS[e.key.toLowerCase()];
+        if (!toolKey) return;
+        if (hasFirstPoint) return;
+        const openingTool = openingTools.find((t) => t.key === toolKey);
+        if (!openingTool) return;
+        if (openingTool.key !== currentKey)
+          switchTool(openingTool, { isOpening: true });
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        return;
+      }
 
       const drawingShape = s.annotations.newAnnotation?.drawingShape;
       if (!drawingShape) return;
@@ -105,11 +163,6 @@ export default function useDrawingToolHotkeys() {
       const behavior = DRAWING_TOOL_HOTKEYS[e.key.toLowerCase()];
       if (!behavior) return;
 
-      const hasFirstPoint =
-        s.mapEditor.drawingPolylinePoints.length > 0 ||
-        s.mapEditor.drawingRectanglePoints.length > 0 ||
-        s.mapEditor.drawingSegmentPoints.length > 0 ||
-        s.mapEditor.rectHasFirstPoint;
       if (hasFirstPoint) return;
 
       const tool = tools.find((t) => t.behavior === behavior);
