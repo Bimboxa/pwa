@@ -6,6 +6,8 @@ import classifyRepairType from "./classifyRepairType";
 import smoothPolyline from "./smoothPolyline";
 import spliceJunction from "./spliceJunction";
 import buildCenterlineRepair from "./buildCenterlineRepair";
+import untangleRing from "./untangleRing";
+import isSimpleRing from "./isSimpleRing";
 
 // Build the localized-repair proposal from the concerned annotations.
 //
@@ -19,13 +21,13 @@ import buildCenterlineRepair from "./buildCenterlineRepair";
 // Coordinate space: everything here is local pixel space (the resolved
 // annotation geometry). Normalization to [0..1] happens at commit time.
 //
-// L / T repairs use a DIRECT projection + splice (see spliceJunction) — NO
-// polygon boolean union: the abutting wall's tip points are projected onto the
-// through wall's facing edge, and the small segment between them is removed. The
-// merged outline is written to the largest concerned annotation (closed), the
-// others deleted. Wall polylines stored as thin centerlines are first turned
-// into their thickness outline (a plain ribbon construction, not a fusion).
-// SMOOTH simplifies each concerned polyline in place.
+// A single self-intersecting closed outline is a tangle of two strips drawn as one
+// loop: it is UNTANGLED into its constituent simple loops (untangleRing) and SPLIT
+// into separate annotations — the largest loop keeps the original id, the others
+// become new annotations. Multiple concerned closed outlines meeting tip-vs-flank
+// are joined by the projection splice (see spliceJunction). Wall polylines stored
+// as thin centerlines are first turned into their thickness outline (a plain ribbon
+// construction). SMOOTH simplifies each concerned (simple) polyline in place.
 
 function thicknessPxOf(ann, meterByPx) {
   const w = ann?.strokeWidth;
@@ -108,6 +110,34 @@ export default function buildRepairProposal({
 
   // ── SMOOTH: simplify each concerned polyline in place ──────────────────
   if (repairType === "SMOOTH") {
+    // A single self-intersecting closed outline is two strips drawn as one tangled
+    // loop: UNTANGLE it into its constituent simple loops and SPLIT into separate
+    // annotations (largest keeps the id, the rest become new annotations).
+    if (annotations.length === 1) {
+      const ann = annotations[0];
+      if (ann.type === "POLYGON" || ann.closeLine === true) {
+        const ring = ringPxOf(ann, meterByPx);
+        if (ring && ring.length >= 3 && !isSimpleRing(ring)) {
+          const loops = untangleRing(ring, rect);
+          if (loops && loops.length >= 2) {
+            const [winnerLoopPx, ...rest] = loops;
+            const plan = {
+              repairType: "SPLIT",
+              winnerId: ann.id,
+              winnerProjectId: ann.projectId,
+              winnerBaseMapId: ann.baseMapId,
+              winnerLoopPx,
+              newLoops: rest.map((loopPx) => ({ loopPx })),
+            };
+            const proposalMatches = loops.map((points) => ({
+              polylines: [{ points, closed: true }],
+            }));
+            return { proposalMatches, plan };
+          }
+        }
+      }
+    }
+
     const updates = [];
     const proposalMatches = [];
     for (const ann of annotations) {
@@ -153,7 +183,7 @@ export default function buildRepairProposal({
     return { proposalMatches, plan };
   }
 
-  // (b) Closed outlines → direct projection + splice.
+  // (b) Closed outlines.
   const items = [];
   annotations.forEach((ann) => {
     const ring = ringPxOf(ann, meterByPx);
@@ -161,7 +191,7 @@ export default function buildRepairProposal({
   });
   if (items.length < 2) return empty;
 
-  // Winner (through wall, keeps its id + template) = largest by bbox area.
+  // Winner (kept annotation, keeps its id + template) = largest by bbox area.
   let winnerIdx = 0;
   let bestArea = -1;
   items.forEach((it, i) => {
@@ -173,19 +203,17 @@ export default function buildRepairProposal({
   });
   const winner = items[winnerIdx];
 
-  // Gap tolerance scaled to the thinnest wall in the selection.
+  // Tip-vs-flank L/T join: fold every other concerned ring into the winner.
   const minShort = Math.min(...items.map((it) => ringShortSide(it.ring)));
   const maxGap = Math.max(20, 0.6 * minShort);
-
-  // Fold every other concerned ring into the winner (handles >2: e.g. a bar with
-  // several stems).
   let current = winner.ring;
   const deleteIds = [];
   for (let i = 0; i < items.length; i++) {
     if (i === winnerIdx) continue;
     const abut = items[i].ring;
-    let merged = spliceJunction(current, abut, { maxGap });
-    if (!merged) merged = spliceJunction(abut, current, { maxGap }); // reverse try
+    const merged =
+      spliceJunction(current, abut, { maxGap }) ||
+      spliceJunction(abut, current, { maxGap }); // reverse try
     if (merged && merged.length >= 3) {
       current = merged;
       deleteIds.push(items[i].ann.id);

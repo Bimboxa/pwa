@@ -1,5 +1,6 @@
-// Direct L/T junction repair between two closed outline rings — NO polygon
-// boolean union.
+// Direct L/T junction repair between two closed outline rings, for the
+// tip-vs-flank case (NO polygon boolean union). Used by buildRepairProposal to
+// fold two or more concerned closed outlines into one.
 //
 // Idea (per the spec): the "abutting" wall has a tip edge (the short end facing
 // the other wall); the "through" wall has the edge that tip should reach. We

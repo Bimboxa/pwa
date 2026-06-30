@@ -4,15 +4,17 @@ import getAnnotationVertices from "Features/annotations/utils/getAnnotationVerti
 //
 // Returns one of "L" | "T" | "SMOOTH".
 //
-// - "SMOOTH": a single concerned annotation (or no junction possible) → the
-//   geometry is simplified/smoothed in place.
+// - "SMOOTH": a single concerned annotation → simplified/smoothed in place,
+//   EXCEPT a single self-intersecting closed outline, which buildRepairProposal
+//   instead UNTANGLES into its constituent loops and SPLITS into separate
+//   annotations.
 // - "T": an endpoint of one polyline lands on the BODY of another (best-effort,
 //   mirrors insertWallJunctionPoints' T test).
 // - "L": two (or more) concerned polylines meeting near their endpoints.
 //
-// The L vs T distinction is informational: both commit to the same boolean
-// union of the concerned shapes. `forcedType` (from the DrawingHelper override)
-// short-circuits auto-detection.
+// The L vs T distinction is informational: two or more concerned closed outlines
+// are joined tip-vs-flank by the projection splice in buildRepairProposal.
+// `forcedType` (from the DrawingHelper override) short-circuits auto-detection.
 
 function projectOntoSegment(px, py, ax, ay, bx, by) {
   const dx = bx - ax;
