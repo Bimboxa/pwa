@@ -53,6 +53,11 @@ export default async function restoreScopeConfigurationService({
         downloadUrl,
     });
 
+    // TODO (robustness, not yet implemented): wrap the clear (step 2) + import
+    // (step 4) in a single atomic Dexie transaction so a failed download/import
+    // cannot leave the scope half-cleared / partially restored. Currently they
+    // run as separate steps. Out of scope for the batch/hook fix.
+
     // 2. Supprimer toutes les données du scope courant
     await clearScopeDataService(scopeId);
 

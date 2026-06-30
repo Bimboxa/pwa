@@ -177,11 +177,14 @@ AUDIT_TABLES.forEach((tableName) => {
     obj.createdByUserIdMaster =
       obj.createdByUserIdMaster || getCurrentUserIdMaster();
     obj.updatedAt = obj.updatedAt || new Date().toISOString();
-    notifyLocalChange();
+    // System writes (Krto import / remote sync) are not user-driven local edits,
+    // so they must not trip the local-change tracker (would falsely mark the scope
+    // dirty and fire per-record during bulk imports).
+    if (!_skipOwnershipGuard) notifyLocalChange();
   });
 
   db[tableName].hook("updating", function (modifications, primKey, obj) {
-    notifyLocalChange();
+    if (!_skipOwnershipGuard) notifyLocalChange();
 
     if (_skipOwnershipGuard) {
       // System write (import / sync / authorized cascade): preserve incoming
