@@ -12,7 +12,11 @@ export const DRAWING_TOOL_HOTKEYS = {
   c: "CIRCLE",
   g: "SURFACE_DROP", // "Goutte d'eau" = Remplissage
   b: "STRIP", // "Bande"
-  t: "SEGMENT", // "Trait" / segment (first SEGMENT-behavior tool of the group). Frees S for smart-detect "Au survol".
+  a: "ARC", // "Arc de cercle" — only resolves for shapes that have an ARC tool
+  // (POLYLINE). "A" also doubles as the global smart-detect trigger; the hook
+  // yields A to smart-detect when that switch is active (see useDrawingToolHotkeys).
+  // Note: "T" is intentionally NOT a tool shortcut — it is reserved for the
+  // in-drawing "toggle last point to arc" action (InteractionLayer).
 };
 
 // Opening (CUT) direct-access hotkeys → CUT tool KEY (not behavior). Several CUT

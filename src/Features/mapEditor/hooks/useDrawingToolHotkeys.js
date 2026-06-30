@@ -163,6 +163,11 @@ export default function useDrawingToolHotkeys() {
       const behavior = DRAWING_TOOL_HOTKEYS[e.key.toLowerCase()];
       if (!behavior) return;
 
+      // "A" doubles as the global smart-detect trigger (InteractionLayer). When
+      // the smart-detect switch is active, let A run detection instead of
+      // switching to the Arc tool.
+      if (e.key.toLowerCase() === "a" && s.mapEditor.smartDetectEnabled) return;
+
       if (hasFirstPoint) return;
 
       const tool = tools.find((t) => t.behavior === behavior);
