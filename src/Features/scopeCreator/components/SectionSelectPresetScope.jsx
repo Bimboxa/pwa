@@ -6,7 +6,6 @@ import usePresetScopes from "../hooks/usePresetScopes";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 import { Box, Typography, ListItemButton, Divider } from "@mui/material";
-import { NoteAdd as CreateIcon } from "@mui/icons-material";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import ListItemsGeneric from "Features/layout/components/ListItemsGeneric";
@@ -27,7 +26,7 @@ export default function SectionSelectPresetScope() {
 
   // helpers
 
-  const createScopeS = appConfig?.strings?.scope?.create ?? "Créer un nouveau dossier";
+  const createScopeS = "Sélectionnez une configuration par défaut";
 
   const items = presetScopes?.map((ps) => ({
     ...ps,
@@ -61,14 +60,14 @@ export default function SectionSelectPresetScope() {
       {/* Section 2 — Créer un nouveau scope */}
       <Box>
         <Box sx={{
-          display: "flex",
-          alignItems: "center",
-          gap: 1,
+          mx: 2,
+          my: 1,
           px: 2,
-          pt: 1,
-          pb: 1,
+          py: 1.5,
+          border: 1,
+          borderColor: "divider",
+          borderRadius: 1,
         }}>
-          <CreateIcon sx={{ fontSize: 18, color: "text.secondary" }} />
           <Typography variant="body2" sx={{ fontWeight: 600 }}>
             {createScopeS}
           </Typography>

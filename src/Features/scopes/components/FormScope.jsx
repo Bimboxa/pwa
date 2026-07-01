@@ -29,6 +29,7 @@ export default function FormScope({ scope, onChange }) {
           fullWidth: true,
           showAsSection: true,
           hideTopDivider: true,
+          placeholder: "Repérage",
         },
       },
 

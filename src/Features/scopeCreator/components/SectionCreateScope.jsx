@@ -198,7 +198,7 @@ export default function SectionCreateScope() {
         label={createS}
         onClick={handleCreateScope}
         variant="contained"
-        disabled={isCreating}
+        disabled={isCreating || !tempScope?.name?.trim()}
       />
     </BoxFlexVStretch>
   );
