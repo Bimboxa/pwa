@@ -83,7 +83,6 @@ import {
   setSoloVisibleTemplateIds,
   setSoloListingId,
   setSoloMode,
-  setInteractionMode,
   setCollapsed,
 } from "Features/popperMapListings/popperMapListingsSlice";
 import { setShowMeshCells } from "Features/annotations/annotationsSlice";
@@ -124,6 +123,7 @@ import { getHotkeyForToolInGroup } from "Features/mapEditor/constants/drawingToo
 import { getFreeAnnotationShortcut } from "Features/mapEditor/constants/freeAnnotationShortcuts";
 import getNewAnnotationPropsFromAnnotationTemplate from "Features/annotations/utils/getNewAnnotationPropsFromAnnotationTemplate";
 import buildToolDraft from "Features/mapEditor/utils/buildToolDraft";
+import applyInteractionModeChange from "Features/mapEditor/utils/applyInteractionModeChange";
 import { resolveDrawingShape } from "Features/annotations/constants/drawingShapeConfig";
 
 import useListings from "Features/listings/hooks/useListings";
@@ -141,6 +141,38 @@ import groupAnnotationTemplatesByGroupLabel from "Features/annotations/utils/gro
 // ---------------------------------------------------------------------------
 // TOOL_ITEMS — static tool definitions for the "Outils" section
 // ---------------------------------------------------------------------------
+
+// Small shortcut letter chip pinned to the bottom-right of each interaction
+// mode ToggleButton (D / M / S). Mirrors the tool badges of the bottom drawing
+// toolbar (ToolbarDrawingDraft); offsets are kept inside the button so the
+// ToggleButton overflow doesn't clip it.
+function ModeShortcutBadge({ children }) {
+  return (
+    <Box
+      sx={{
+        position: "absolute",
+        bottom: 2,
+        right: 2,
+        minWidth: 12,
+        height: 12,
+        px: "2px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        border: "1px solid",
+        borderColor: "divider",
+        borderRadius: "3px",
+        bgcolor: "background.paper",
+        fontSize: 8,
+        fontWeight: 700,
+        lineHeight: 1,
+        color: "text.secondary",
+      }}
+    >
+      {children}
+    </Box>
+  );
+}
 
 const TOOL_ITEMS = [
   { type: "CUT", label: "Ouverture", Icon: StopCircle, shortcut: "O" },
@@ -779,7 +811,7 @@ function AnnotationTemplateRow({
               spriteImage={spriteImage}
             />
           </Box>
-          {freeShortcut && (
+          {freeShortcut && interactionMode === "DRAW" && (
             <Box sx={{ mr: 1, flexShrink: 0 }}>
               <ShortcutBadge>{freeShortcut}</ShortcutBadge>
             </Box>
@@ -2207,17 +2239,11 @@ export default function PopperMapListings() {
 
   function handleInteractionModeChange(_event, next) {
     if (!next || next === interactionMode) return;
-    if (next === "SELECT") {
-      dispatch(setSoloMode(true));
-    } else if (interactionMode === "SELECT") {
-      dispatch(setSoloMode(false));
-    }
-    if (interactionMode === "EDIT" && next !== "EDIT") {
-      if (selectedItem?.type === "ANNOTATION_TEMPLATE") {
-        dispatch(setSelectedItem(null));
-      }
-    }
-    dispatch(setInteractionMode(next));
+    applyInteractionModeChange(dispatch, {
+      current: interactionMode,
+      next,
+      selectedItem,
+    });
   }
 
   // effect - ESC clears the EDIT target template
@@ -2459,30 +2485,33 @@ export default function PopperMapListings() {
           >
             <ToggleButton
               value="DRAW"
-              sx={{ flex: 1, py: 0.5, flexDirection: "column", gap: 0.25 }}
+              sx={{ flex: 1, py: 0.5, flexDirection: "column", gap: 0.25, position: "relative" }}
             >
               <DrawIcon sx={{ fontSize: 18 }} />
               <Typography variant="caption" sx={{ fontSize: "10px", lineHeight: 1, textTransform: "none" }}>
                 Dessin
               </Typography>
+              <ModeShortcutBadge>D</ModeShortcutBadge>
             </ToggleButton>
             <ToggleButton
               value="EDIT"
-              sx={{ flex: 1, py: 0.5, flexDirection: "column", gap: 0.25 }}
+              sx={{ flex: 1, py: 0.5, flexDirection: "column", gap: 0.25, position: "relative" }}
             >
               <EditIcon sx={{ fontSize: 18 }} />
               <Typography variant="caption" sx={{ fontSize: "10px", lineHeight: 1, textTransform: "none" }}>
                 Modification
               </Typography>
+              <ModeShortcutBadge>M</ModeShortcutBadge>
             </ToggleButton>
             <ToggleButton
               value="SELECT"
-              sx={{ flex: 1, py: 0.5, flexDirection: "column", gap: 0.25 }}
+              sx={{ flex: 1, py: 0.5, flexDirection: "column", gap: 0.25, position: "relative" }}
             >
               <IconPointer sx={{ fontSize: 18 }} />
               <Typography variant="caption" sx={{ fontSize: "10px", lineHeight: 1, textTransform: "none" }}>
                 Sélection
               </Typography>
+              <ModeShortcutBadge>S</ModeShortcutBadge>
             </ToggleButton>
           </ToggleButtonGroup>
 

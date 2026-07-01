@@ -48,6 +48,11 @@ export default function useFreeAnnotationHotkeys() {
       if (s.mapEditor.pasteClipboard || s.mapEditor.subtractSourceAnnotationId)
         return;
 
+      // Free-draw letters only start a draw while in the "Dessin" (DRAW)
+      // interaction mode. In Modification / Sélection, L/P are inert (D/M/S
+      // own the mode switching instead).
+      if (s.popperMapListings.interactionMode !== "DRAW") return;
+
       const key = e.key.toLowerCase();
       let template = null;
       if (key === getFreeAnnotationShortcut(lineTemplate)?.toLowerCase())

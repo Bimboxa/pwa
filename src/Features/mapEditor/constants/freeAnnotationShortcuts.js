@@ -1,10 +1,10 @@
-// Keyboard shortcuts for the free annotation rows ("Ligne" / "Surface").
+// Keyboard shortcuts for the free annotation rows ("Ligne" / "Polygone").
 // Single source of truth shared by the row badge (PopperMapListings) and the
 // global hotkey hook (useFreeAnnotationHotkeys), so the displayed key and the
 // active binding can never drift.
 export const FREE_ANNOTATION_SHORTCUT_BY_SHAPE = {
   POLYLINE: "L",
-  POLYGON: "S",
+  POLYGON: "P",
 };
 
 // Returns the uppercase shortcut letter for a free-annotation template, or null.

@@ -114,6 +114,7 @@ import imageUrlToPng from "Features/images/utils/imageUrlToPng";
 import useSelectedNodes from "../hooks/useSelectedNodes";
 import useDrawingToolHotkeys from "../hooks/useDrawingToolHotkeys";
 import useFreeAnnotationHotkeys from "../hooks/useFreeAnnotationHotkeys";
+import useInteractionModeHotkeys from "../hooks/useInteractionModeHotkeys";
 import useOpeningHotkey from "../hooks/useOpeningHotkey";
 
 const contextDimmedStyle = {
@@ -149,8 +150,10 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
 
     // hotkeys — switch drawing tool via keyboard (Tab / R / L / C / G)
     useDrawingToolHotkeys();
-    // hotkeys — start a free draw (L = line, S = surface) when not drawing
+    // hotkeys — start a free draw (L = line, P = polygon) when in DRAW mode
     useFreeAnnotationHotkeys();
+    // hotkeys — switch interaction mode (D = Dessin, M = Modification, S = Sélection)
+    useInteractionModeHotkeys();
     // hotkeys — start an opening draw (O) when not drawing
     useOpeningHotkey();
 
