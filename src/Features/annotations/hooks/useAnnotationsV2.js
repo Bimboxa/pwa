@@ -49,6 +49,7 @@ import useBgImageTextAnnotations from "Features/bgImage/hooks/useBgImageTextAnno
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
 
+import collectReferencedPointIds from "Features/annotations/utils/collectReferencedPointIds";
 import resolvePoints from "Features/annotations/utils/resolvePoints";
 import resolveCuts from "Features/annotations/utils/resolveCuts";
 import resolveGuideLine from "Features/annotations/utils/resolveGuideLine";
@@ -187,8 +188,13 @@ export default function useAnnotationsV2(options) {
       const _t0 = performance.now();
       // annotations
 
+      // NOTE: points are fetched AFTER all annotation filtering (below), by
+      // primary key, for only the point ids the surviving annotations actually
+      // reference. Fetching by `baseMapId`/`projectId` used to pull the entire
+      // points table for the base map — which accumulates thousands of
+      // orphaned (never-deleted) rows — even though only the referenced ~N are
+      // used to build `pointsIndex`. See buildPointsIndexForAnnotations below.
       let _annotations;
-      let points;
       if (baseMapId) {
         // Primary base map + any extra base maps (3D viewer), deduped.
         const queryBaseMapIds = [baseMapId, ...extraBaseMapIds].filter(
@@ -200,9 +206,6 @@ export default function useAnnotationsV2(options) {
             .anyOf(queryBaseMapIds)
             .toArray()
         ).filter((r) => !r.deletedAt);
-        points = (
-          await db.points.where("baseMapId").anyOf(queryBaseMapIds).toArray()
-        ).filter((r) => !r.deletedAt);
       }
 
       if (listingId) {
@@ -213,12 +216,6 @@ export default function useAnnotationsV2(options) {
         } else {
           _annotations = _annotations.filter((a) => a.listingId === listingId);
         }
-        if (!points) {
-          points = await db.points
-            .where("projectId")
-            .equals(projectId)
-            .toArray();
-        }
 
         // remove base map annotations
         _annotations = _annotations.filter((a) => !a.isBaseMapAnnotation);
@@ -227,9 +224,6 @@ export default function useAnnotationsV2(options) {
       if (!listingId && !baseMapId) {
         _annotations = (
           await db.annotations.where("projectId").equals(projectId).toArray()
-        ).filter((r) => !r.deletedAt);
-        points = (
-          await db.points.where("projectId").equals(projectId).toArray()
         ).filter((r) => !r.deletedAt);
       }
 
@@ -424,6 +418,21 @@ export default function useAnnotationsV2(options) {
 
       const _t4 = performance.now();
       // points
+      //
+      // Fetch only the point rows referenced by the surviving annotations,
+      // keyed by primary id (bulkGet — direct key lookups, no index scan). The
+      // previous `.where("baseMapId"/"projectId")` fetch pulled the whole
+      // points table (tens of thousands of orphaned, never-deleted rows) just
+      // to build an index over the ~N points actually used here. Reactivity is
+      // preserved: bulkGet observes exactly these keys, and any annotation
+      // change re-runs this query and re-collects ids.
+      const referencedPointIds = collectReferencedPointIds(_annotations);
+      const points =
+        referencedPointIds.size > 0
+          ? (await db.points.bulkGet([...referencedPointIds])).filter(
+              (p) => p && !p.deletedAt
+            )
+          : [];
 
       const pointsIndex = getItemsByKey(points, "id");
       _annotations = _annotations

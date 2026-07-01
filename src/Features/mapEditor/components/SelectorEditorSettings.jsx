@@ -5,6 +5,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { setVertexSizeMultiplier } from "Features/mapEditor/mapEditorSlice";
 
 import { saveVertexSizeMultiplier } from "Features/mapEditor/services/editorSettingsLocalStorage";
+import purgeDeletedAnnotationsService from "Features/annotations/services/purgeDeletedAnnotationsService";
 
 import {
   Paper,
@@ -15,8 +16,12 @@ import {
   Popover,
   ToggleButtonGroup,
   ToggleButton,
+  Button,
+  Divider,
+  CircularProgress,
 } from "@mui/material";
 import SettingsIcon from "@mui/icons-material/Settings";
+import DeleteSweepIcon from "@mui/icons-material/DeleteSweep";
 
 // Reference (×1) is the current hardcoded vertex size (POINT_SIZE = 6 in
 // NodePolylineStatic); the two larger options scale it up. boxSize is only the
@@ -37,10 +42,16 @@ export default function SelectorEditorSettings() {
   const vertexSizeMultiplier = useSelector(
     (s) => s.mapEditor.vertexSizeMultiplier
   );
+  const projectId = useSelector((s) => s.projects.selectedProjectId);
+  const scopeId = useSelector((s) => s.scopes.selectedScopeId);
 
   // state
 
   const [anchorEl, setAnchorEl] = useState(null);
+  // purge deleted annotations/points ("Purger les suppressions"): idle →
+  // confirming → running → done result string.
+  const [purgeState, setPurgeState] = useState("idle");
+  const [purgeResult, setPurgeResult] = useState(null);
 
   // helpers
 
@@ -54,6 +65,22 @@ export default function SelectorEditorSettings() {
 
   function handleClose() {
     setAnchorEl(null);
+    setPurgeState("idle");
+    setPurgeResult(null);
+  }
+
+  async function handleConfirmPurge() {
+    if (!projectId || !scopeId) return;
+    setPurgeState("running");
+    try {
+      const res = await purgeDeletedAnnotationsService({ projectId, scopeId });
+      setPurgeResult(res);
+      setPurgeState("done");
+    } catch (e) {
+      console.error("[SelectorEditorSettings] purge failed", e);
+      setPurgeResult(null);
+      setPurgeState("idle");
+    }
   }
 
   function handleSelectVertexSize(multiplier) {
@@ -153,6 +180,57 @@ export default function SelectorEditorSettings() {
                 );
               })}
             </Box>
+          </Box>
+
+          <Divider sx={{ my: 1 }} />
+
+          <Box sx={{ py: 0.25 }}>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+              Maintenance
+            </Typography>
+
+            {purgeState === "done" && purgeResult ? (
+              <Typography variant="caption" color="success.main">
+                {`Purge terminée : ${purgeResult.purgedAnnotations} annotation(s) et ${purgeResult.purgedPoints} point(s) supprimés.`}
+              </Typography>
+            ) : purgeState === "confirming" ? (
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+                <Typography variant="caption" color="text.secondary">
+                  Supprime définitivement les annotations effacées et les points
+                  orphelins du scope courant. Action irréversible.
+                </Typography>
+                <Box sx={{ display: "flex", gap: 1 }}>
+                  <Button
+                    size="small"
+                    color="error"
+                    variant="contained"
+                    onClick={handleConfirmPurge}
+                  >
+                    Confirmer
+                  </Button>
+                  <Button size="small" onClick={() => setPurgeState("idle")}>
+                    Annuler
+                  </Button>
+                </Box>
+              </Box>
+            ) : (
+              <Button
+                size="small"
+                variant="outlined"
+                color="error"
+                startIcon={
+                  purgeState === "running" ? (
+                    <CircularProgress size={16} color="inherit" />
+                  ) : (
+                    <DeleteSweepIcon />
+                  )
+                }
+                disabled={purgeState === "running" || !projectId || !scopeId}
+                onClick={() => setPurgeState("confirming")}
+              >
+                Purger les suppressions
+              </Button>
+            )}
           </Box>
         </Box>
       </Popover>

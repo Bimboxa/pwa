@@ -3,6 +3,8 @@ import { useDispatch } from "react-redux";
 import { triggerAnnotationsUpdate } from "../annotationsSlice";
 
 import db from "App/db/db";
+import collectReferencedPointIds from "Features/annotations/utils/collectReferencedPointIds";
+import softDeleteOrphanPoints from "Features/annotations/services/softDeleteOrphanPoints";
 
 export default function useDeleteAnnotations() {
   const dispatch = useDispatch();
@@ -210,6 +212,23 @@ export default function useDeleteAnnotations() {
         await db.annotations.bulkDelete(idsToDelete);
       }
     );
+
+    // 5b. Best-effort cascade: soft-delete points orphaned by this deletion —
+    // those referenced by the just-deleted annotations that no surviving live
+    // annotation still uses. Kept OUTSIDE the transaction above so an edge
+    // failure here (e.g. ownership on a point) can never roll back the
+    // annotation deletion; "Purger les suppressions" is the backstop.
+    try {
+      const candidatePointIds = collectReferencedPointIds(validAnnotations);
+      if (candidatePointIds.size > 0) {
+        await softDeleteOrphanPoints({
+          baseMapIds: validAnnotations.map((a) => a.baseMapId),
+          candidatePointIds,
+        });
+      }
+    } catch (e) {
+      console.error("[useDeleteAnnotations] orphan point cleanup failed", e);
+    }
 
     // 6. Single Redux dispatch
     dispatch(triggerAnnotationsUpdate());
