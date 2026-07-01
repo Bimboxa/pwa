@@ -6,7 +6,6 @@
 
 const resolveUrl = (urlConfig) => {
 
-    console.log("debug_resolveUrl_start", urlConfig);
     if (!urlConfig) return '';
 
     let baseUrl = '';
@@ -39,7 +38,6 @@ const resolveUrl = (urlConfig) => {
 
 
     const _resolvedUrl = `${cleanBase}/${cleanRoute}`;
-    console.log("debug_resolveUrl_end", urlConfig, _resolvedUrl);
 
     // On rejoint proprement
     return _resolvedUrl;
