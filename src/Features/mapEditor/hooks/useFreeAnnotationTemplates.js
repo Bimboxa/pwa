@@ -80,7 +80,7 @@ export default function useFreeAnnotationTemplates() {
         },
         {
           id: surfaceTemplateId,
-          label: "Surface",
+          label: "Polygone",
           drawingShape: "POLYGON",
           type: "POLYGON",
         },
@@ -102,6 +102,16 @@ export default function useFreeAnnotationTemplates() {
           listingKey: listingId,
         });
         await db.annotationTemplates.put(template);
+      }
+
+      // Migration: rename the legacy "Surface" free template to "Polygone" for
+      // scopes provisioned before the rename. Only reconcile when the label is
+      // still the exact old default, so we never clobber a user rename.
+      const existingSurface = await db.annotationTemplates.get(surfaceTemplateId);
+      if (existingSurface && existingSurface.label === "Surface") {
+        await db.annotationTemplates.update(surfaceTemplateId, {
+          label: "Polygone",
+        });
       }
 
       dispatch(triggerAnnotationTemplatesUpdate());
