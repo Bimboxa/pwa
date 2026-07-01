@@ -1,5 +1,7 @@
 import { nanoid } from "@reduxjs/toolkit";
 
+import resolveTypesonCyclicRefs from "Features/krtoFile/utils/resolveTypesonCyclicRefs";
+
 /**
  * Rewrites every primary key and foreign-key reference in a parsed
  * dexie-export JSON so the data imports as an INDEPENDENT copy: no id
@@ -99,6 +101,13 @@ export default function remapDexieExportIds(jsonData, opts) {
     if (!t.rows) continue;
 
     for (const row of t.rows) {
+      // Materialize Typeson cyclic references ("#" in `$types`) before any
+      // rewrite: the point remap below assumes every points[] element is a
+      // { id } object and would otherwise turn a "#points.N" ref string into
+      // { id: undefined } while leaving the stale "#" marker, crashing the
+      // import-time revive with "value.slice is not a function".
+      resolveTypesonCyclicRefs(row);
+
       // Re-own audited records (leave non-audited rows untouched).
       if ("createdByUserIdMaster" in row || "updatedByUserIdMaster" in row) {
         row.createdByUserIdMaster = importingUserIdMaster;
