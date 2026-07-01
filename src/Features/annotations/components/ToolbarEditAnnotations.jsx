@@ -24,6 +24,7 @@ import {
 } from "../constants/drawingShapeConfig";
 import getAnnotationQties from "../utils/getAnnotationQties";
 import getAnnotationTemplateProps from "../utils/getAnnotationTemplateProps";
+import getAnnotationPropsFromAnnotationTemplateProps from "../utils/getAnnotationPropsFromAnnotationTemplateProps";
 import getCloneTypeOptions from "../utils/getCloneTypeOptions";
 
 import {
@@ -324,14 +325,28 @@ export default function ToolbarEditAnnotations({
     const resolvedShape = resolveDrawingShape(template);
     const resolvedType = getAnnotationType(resolvedShape);
 
-    const updates = annotations.map((annotation) => ({
-      id: annotation.id,
-      ...templateProps,
-      annotationTemplateId: template.id,
-      templateLabel: template.label,
-      listingId: template.listingId,
-      ...(resolvedType ? { type: resolvedType } : {}),
-    }));
+    const updates = annotations.map((annotation) => {
+      // Only overwrite properties the template locks (overrideFields);
+      // non-overridden fields keep the annotation's own value.
+      const merged = getAnnotationPropsFromAnnotationTemplateProps(
+        annotation,
+        templateProps,
+        baseMap
+      );
+      // annotationTemplateProps is a render-time snapshot (useAnnotationsV2
+      // recomputes it); don't persist it to the DB record.
+      delete merged.annotationTemplateProps;
+      return {
+        ...merged,
+        id: annotation.id,
+        annotationTemplateId: template.id,
+        templateLabel: template.label,
+        listingId: template.listingId,
+        // Persist the NEW template's lock set so the editor UI reflects it.
+        overrideFields: templateProps.overrideFields,
+        ...(resolvedType ? { type: resolvedType } : {}),
+      };
+    });
     await updateAnnotations(updates);
     handleTemplateDropdownClose();
   }
