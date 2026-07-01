@@ -39,6 +39,10 @@ export default defineConfig({
         clientsClaim: true,
         skipWaiting: true,
         maximumFileSizeToCacheInBytes: 30 * 1024 * 1024, // 5 => 10 for opencv.js 10=>20 for transformers
+        // The default globPatterns don't include .wasm, so pdf.js's JPEG 2000 /
+        // color decoders (public/pdfjs/wasm) would be missing offline and PDFs
+        // with JPX images would render blank. Precache them explicitly.
+        globPatterns: ["**/*.{js,css,html,ico,png,svg,woff,woff2}", "pdfjs/wasm/*.wasm"],
         // version.json must always be fetched fresh from the network so the
         // client can detect when a new app version is deployed.
         globIgnores: ["**/version.json"],

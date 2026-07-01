@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import { getDocument, GlobalWorkerOptions } from "pdfjs-dist";
 import pdfjsWorker from "pdfjs-dist/build/pdf.worker?url";
 
+import { PDFJS_DOC_PARAMS } from "../utils/pdfjsParams";
+
 GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
 // Single source of truth for the parsed PDF inside the baseMap creator dialog.
@@ -37,7 +39,7 @@ export default function usePdfDocument(pdfFile) {
         const arrayBuffer = await pdfFile.arrayBuffer();
         if (cancelled) return;
 
-        loadingTask = getDocument({ data: arrayBuffer });
+        loadingTask = getDocument({ data: arrayBuffer, ...PDFJS_DOC_PARAMS });
         loadingTask.onProgress = (p) => {
           if (!cancelled) setProgress(p);
         };

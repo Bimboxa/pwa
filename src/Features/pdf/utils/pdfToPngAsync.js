@@ -3,6 +3,8 @@ import { getDocument } from "pdfjs-dist";
 import { GlobalWorkerOptions } from "pdfjs-dist/build/pdf";
 import pdfjsWorker from "pdfjs-dist/build/pdf.worker?url";
 
+import { PDFJS_DOC_PARAMS } from "./pdfjsParams";
+
 GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
 export async function renderPageToPngBlob({
@@ -68,7 +70,7 @@ export default async function pdfToPngAsync({
   try {
     if (!pdf) {
       ownedUrl = URL.createObjectURL(pdfFile);
-      const loadingTask = getDocument(ownedUrl);
+      const loadingTask = getDocument({ url: ownedUrl, ...PDFJS_DOC_PARAMS });
       pdf = await loadingTask.promise;
     }
 

@@ -4,6 +4,8 @@ import { getDocument } from "pdfjs-dist";
 import { GlobalWorkerOptions } from "pdfjs-dist/build/pdf";
 import pdfjsWorker from "pdfjs-dist/build/pdf.worker?url";
 
+import { PDFJS_DOC_PARAMS } from "./pdfjsParams";
+
 GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
 export default async function pdfToPngAsync({
@@ -18,7 +20,7 @@ export default async function pdfToPngAsync({
 
   try {
     // Chargement du document PDF
-    const loadingTask = getDocument(pdfUrl);
+    const loadingTask = getDocument({ url: pdfUrl, ...PDFJS_DOC_PARAMS });
     const pdf = await loadingTask.promise;
 
     // Sélection de la page

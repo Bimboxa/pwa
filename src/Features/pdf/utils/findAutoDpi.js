@@ -1,5 +1,6 @@
 import { getDocument } from "pdfjs-dist";
 import { renderPageToPngBlob } from "./pdfToPngAsync";
+import { PDFJS_DOC_PARAMS } from "./pdfjsParams";
 
 const PROBE_DPI = 100;
 const MIN_DPI = 72;
@@ -24,7 +25,7 @@ export default async function findAutoDpi({
   try {
     if (!pdf) {
       ownedUrl = URL.createObjectURL(pdfFile);
-      pdf = await getDocument(ownedUrl).promise;
+      pdf = await getDocument({ url: ownedUrl, ...PDFJS_DOC_PARAMS }).promise;
     }
     const pdfPage = await pdf.getPage(page);
 

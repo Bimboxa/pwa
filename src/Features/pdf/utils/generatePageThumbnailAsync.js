@@ -2,6 +2,8 @@ import { getDocument } from "pdfjs-dist";
 import { GlobalWorkerOptions } from "pdfjs-dist/build/pdf";
 import pdfjsWorker from "pdfjs-dist/build/pdf.worker?url";
 
+import { PDFJS_DOC_PARAMS } from "./pdfjsParams";
+
 GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
 /**
@@ -16,7 +18,7 @@ export default async function generatePageThumbnailAsync({ pdfFile, scale = 0.1,
     const pdfUrl = URL.createObjectURL(pdfFile);
 
     try {
-        const loadingTask = getDocument(pdfUrl);
+        const loadingTask = getDocument({ url: pdfUrl, ...PDFJS_DOC_PARAMS });
         const pdf = await loadingTask.promise;
 
         const pdfPage = await pdf.getPage(pageNumber);
