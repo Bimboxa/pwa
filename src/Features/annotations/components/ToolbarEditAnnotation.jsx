@@ -74,6 +74,7 @@ import IconButtonSettingOut from "./IconButtonSettingOut";
 import IconButtonConvertAnnotation from "./IconButtonConvertAnnotation";
 import IconButtonVectorisation from "./IconButtonVectorisation";
 import IconButtonSimplifyAnnotation from "./IconButtonSimplifyAnnotation";
+import IconButtonArcifyAnnotation from "./IconButtonArcifyAnnotation";
 import IconButtonCloseWallFootprint from "./IconButtonCloseWallFootprint";
 import IconButtonSlopeWalls from "./IconButtonSlopeWalls";
 import IconButtonContours from "./IconButtonContours";
@@ -898,6 +899,12 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
                   selectedAnnotation?.type
                 ) && (
                   <IconButtonSimplifyAnnotation
+                    annotation={selectedAnnotation}
+                    accentColor={accentColor}
+                  />
+                )}
+                {selectedAnnotation?.type === "POLYLINE" && (
+                  <IconButtonArcifyAnnotation
                     annotation={selectedAnnotation}
                     accentColor={accentColor}
                   />
