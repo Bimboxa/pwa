@@ -2535,65 +2535,67 @@ export default function PopperMapListings() {
         </Box>
       )}
 
-      {!displayedListings?.length && !isBaseMapsViewer ? (
-        /* Empty state helper */
-        <Box
-          sx={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            gap: 1.5,
-            px: 3,
-            py: 4,
-          }}
-        >
-          <Typography
-            variant="body2"
+      {/* Scrollable listings */}
+      <Box sx={{ overflow: "auto", flex: 1 }}>
+        {viewerKey === "MAP" && showLayers && (
+          <SectionLayers baseMapId={baseMap?.id} />
+        )}
+
+        {/* Free annotations — untitled section at the very top: just
+            "Ligne" + "Surface" (no entity, hidden per-scope templates).
+            Always shown, even when no listing exists, since these are
+            system templates. */}
+        {!isBaseMapsViewer && (
+          <Box
             sx={{
-              color: "panel.textMuted",
-              textAlign: "center",
-              lineHeight: 1.5,
+              borderBottom: "1px solid",
+              borderColor: "panel.border",
             }}
           >
-            Pour dessiner, créez d'abord une liste de modèles d'annotations
-          </Typography>
-          <Button
-            variant="contained"
-            color="secondary"
-            onClick={() => setOpenCreateListing(true)}
+            <Divider sx={{ borderColor: "panel.border" }} />
+            <FreeAnnotationRows
+              annotationsByListingId={annotationsByListingId}
+              annotationTemplateById={annotationTemplateById}
+            />
+          </Box>
+        )}
+
+        {!displayedListings?.length && !isBaseMapsViewer ? (
+          /* Empty state helper */
+          <Box
             sx={{
-              textTransform: "none",
-              fontWeight: 600,
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 1.5,
+              px: 3,
+              py: 4,
             }}
           >
-            Nouvelle liste
-          </Button>
-        </Box>
-      ) : (
-        <>
-          {/* Scrollable listings */}
-          <Box sx={{ overflow: "auto", flex: 1 }}>
-            {viewerKey === "MAP" && showLayers && (
-              <SectionLayers baseMapId={baseMap?.id} />
-            )}
-
-            {/* Free annotations — untitled section at the very top: just
-                "Ligne" + "Surface" (no entity, hidden per-scope templates) */}
-            {!isBaseMapsViewer && (
-              <Box
-                sx={{
-                  borderBottom: "1px solid",
-                  borderColor: "panel.border",
-                }}
-              >
-                <Divider sx={{ borderColor: "panel.border" }} />
-                <FreeAnnotationRows
-                  annotationsByListingId={annotationsByListingId}
-                  annotationTemplateById={annotationTemplateById}
-                />
-              </Box>
-            )}
-
+            <Typography
+              variant="body2"
+              sx={{
+                color: "panel.textMuted",
+                textAlign: "center",
+                lineHeight: 1.5,
+              }}
+            >
+              Créez des modèles d'annotations organisés dans des listes.
+            </Typography>
+            <Button
+              variant="contained"
+              color="secondary"
+              onClick={() => setOpenCreateListing(true)}
+              sx={{
+                textTransform: "none",
+                fontWeight: 600,
+              }}
+            >
+              Nouvelle liste
+            </Button>
+          </Box>
+        ) : (
+          <>
             {isBaseMapsViewer
               ? displayedListings?.map((listing) => (
                   <ListingRow
@@ -2674,9 +2676,9 @@ export default function PopperMapListings() {
               </>
             )}
 
-          </Box>
-        </>
-      )}
+          </>
+        )}
+      </Box>
       </>)}
 
       {/* Create listing dialog */}
