@@ -399,10 +399,18 @@ export default function NodePolylineStatic({
 
   function buildPathAndMap(absPoints, close) {
     const res = { d: "", segmentMap: [] };
-    if (!absPoints?.length) return res;
+    // Render guard: drop points that didn't resolve to finite pixel
+    // coordinates. This happens when an annotation references a point whose
+    // db.points record is missing (orphaned ref) — resolvePoints then leaves
+    // the ref without x/y, and the "d" string would become "L undefined
+    // undefined", which React/SVG rejects. The aggregate count of affected
+    // annotations is logged once in useAnnotationsV2.
+    const pts = absPoints?.filter(
+      (p) => p && Number.isFinite(p.x) && Number.isFinite(p.y)
+    );
+    if (!pts?.length) return res;
 
-    const pts = absPoints;
-    const types = absPoints.map(typeOf);
+    const types = pts.map(typeOf);
     const n = pts.length;
     const dParts = [`M ${pts[0].x} ${pts[0].y}`];
 

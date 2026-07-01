@@ -42,6 +42,11 @@ const _hookEntityTable = (tableName) => {
 };
 const _hookedEntityTables = new Set();
 
+// Last-warned count of annotations with unresolved (orphaned) point refs, so
+// the "missing points" warning is emitted once per change instead of on every
+// useLiveQuery re-run.
+let _lastMissingPointsWarnCount = null;
+
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
@@ -435,6 +440,14 @@ export default function useAnnotationsV2(options) {
           : [];
 
       const pointsIndex = getItemsByKey(points, "id");
+      // Count annotations with unresolved point refs (orphaned — the referenced
+      // db.points row is missing), so we can warn once. resolvePoints leaves
+      // such refs without x/y; the renderer guards against them (see
+      // NodePolylineStatic.buildPathAndMap).
+      let _missingPointsAnnCount = 0;
+      const _hasUnresolvedPoint = (pts) =>
+        Array.isArray(pts) &&
+        pts.some((p) => !Number.isFinite(p?.x) || !Number.isFinite(p?.y));
       _annotations = _annotations
         .filter((a) => a.baseMapId)
         .map((annotation) => {
@@ -570,6 +583,14 @@ export default function useAnnotationsV2(options) {
             }
           }
 
+          // --- MISSING POINTS (orphaned refs) ---
+          if (
+            _hasUnresolvedPoint(_annotation.points) ||
+            _annotation.cuts?.some((c) => _hasUnresolvedPoint(c?.points))
+          ) {
+            _missingPointsAnnCount += 1;
+          }
+
           // --- ROTATION CENTER (resolve to pixels) ---
 
           if (_annotation.rotationCenter) {
@@ -590,6 +611,16 @@ export default function useAnnotationsV2(options) {
 
           return _annotation;
         });
+
+      // Warn once (per change) about annotations with orphaned point refs.
+      if (_missingPointsAnnCount !== _lastMissingPointsWarnCount) {
+        _lastMissingPointsWarnCount = _missingPointsAnnCount;
+        if (_missingPointsAnnCount > 0) {
+          console.warn(
+            `[useAnnotationsV2] missing points for ${_missingPointsAnnCount} annotation(s) — some point refs have no matching db.points record (orphaned); their geometry is rendered partially or skipped.`
+          );
+        }
+      }
 
       // -- LISTING NAME + TAG isForBaseMaps (single pass) --
 
