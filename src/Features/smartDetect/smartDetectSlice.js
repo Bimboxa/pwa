@@ -13,6 +13,12 @@ const smartDetectInitialState = {
   // and runs on an all-white binary, so it is bounded only by existing
   // annotation footprints (and the viewport ROI).
   ignoreBaseMap: false,
+  // When true, the SURFACE_DROP tool ("goutte d'eau") ignores the OpenCV
+  // image flood fill on click and instead runs the annotation-geometry
+  // detection (detectPolygonFromAnnotations), building the polygon from the
+  // contours formed by the surrounding annotations — same algorithm as the
+  // POLYGON_CLICK hover smart-detect (S key).
+  useOutlines: false,
   visibleAreaOnly: true,
   //
   simplifyPolynomial: true,
@@ -46,6 +52,9 @@ export const smartDetectSlice = createSlice({
     setIgnoreBaseMap: (state, action) => {
       state.ignoreBaseMap = action.payload;
     },
+    setUseOutlines: (state, action) => {
+      state.useOutlines = action.payload;
+    },
     setVisibleAreaOnly: (state, action) => {
       state.visibleAreaOnly = action.payload;
     },
@@ -68,6 +77,7 @@ export const {
   setNoSmallCuts,
   setConvexHull,
   setIgnoreBaseMap,
+  setUseOutlines,
   setVisibleAreaOnly,
   setSimplifyPolynomial,
   setSimplifyOuterContour,

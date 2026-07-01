@@ -415,6 +415,7 @@ const InteractionLayer = forwardRef(({
   const noSmallCuts = useSelector((s) => s.smartDetect.noSmallCuts);
   const convexHullEnabled = useSelector((s) => s.smartDetect.convexHull);
   const ignoreBaseMap = useSelector((s) => s.smartDetect.ignoreBaseMap);
+  const useOutlines = useSelector((s) => s.smartDetect.useOutlines);
   const visibleAreaOnly = useSelector((s) => s.smartDetect.visibleAreaOnly);
   const { zoomContainer } = useSmartZoom();
   const {
@@ -2067,6 +2068,14 @@ const InteractionLayer = forwardRef(({
   useEffect(() => { rawDetectionRef.current = rawDetection; }, [rawDetection]);
   const convexHullEnabledRef = useRef(convexHullEnabled);
   useEffect(() => { convexHullEnabledRef.current = convexHullEnabled; }, [convexHullEnabled]);
+  const useOutlinesRef = useRef(useOutlines);
+  useEffect(() => { useOutlinesRef.current = useOutlines; }, [useOutlines]);
+
+  // SURFACE_DROP "Utiliser les contours" mode: guard against re-triggering the
+  // annotation-contour detection while a previous run is still in flight, plus
+  // an AbortController so Escape can cancel it (see the Escape handler).
+  const surfaceOutlineRunningRef = useRef(false);
+  const surfaceOutlineAbortRef = useRef(null);
 
   const onCommitSplitAtVertexRef = useRef(onCommitSplitAtVertex);
   useEffect(() => {
@@ -2683,6 +2692,16 @@ const InteractionLayer = forwardRef(({
             globalDetectionAbortRef.current = null;
             screenCursorRef.current?.hideSpinner();
             dispatch(setGlobalDetectionRunning(false));
+            e.stopPropagation();
+            return;
+          }
+
+          // Abort an in-flight SURFACE_DROP "Utiliser les contours" run.
+          if (surfaceOutlineAbortRef.current) {
+            surfaceOutlineAbortRef.current.abort();
+            surfaceOutlineAbortRef.current = null;
+            surfaceOutlineRunningRef.current = false;
+            screenCursorRef.current?.hideSpinner();
             e.stopPropagation();
             return;
           }
@@ -3970,6 +3989,81 @@ const InteractionLayer = forwardRef(({
     // -- CASE 4: SURFACE_DROP — click-based OpenCV contour detection over the
     //    visible viewport (the "Remplissage" tool).
     else if (enabledDrawingMode === "SURFACE_DROP") {
+      // "Utiliser les contours" mode: instead of the OpenCV image flood fill,
+      // reuse the annotation-geometry detection (the S-key POLYGON_CLICK algo)
+      // triggered from the click position. Runs sync but is wrapped async so
+      // the cursor spinner paints and Escape can cancel.
+      if (useOutlinesRef.current) {
+        // Ignore additional clicks while a run is in flight.
+        if (surfaceOutlineRunningRef.current) return;
+
+        const outlineLocalPos = toLocalCoords(worldPos);
+        // Same node-merge tolerance as runPolygonDetection (image space, /k).
+        const BASE_TOLERANCE_IMG_PX = 3;
+        const MIN_TOLERANCE_IMG_PX = 1;
+        const k = basePoseRef.current?.k || 1;
+        const tolerance = Math.max(
+          MIN_TOLERANCE_IMG_PX,
+          Math.min(BASE_TOLERANCE_IMG_PX, BASE_TOLERANCE_IMG_PX / k)
+        );
+
+        surfaceOutlineRunningRef.current = true;
+        const controller = new AbortController();
+        surfaceOutlineAbortRef.current = controller;
+        screenCursorRef.current?.move(
+          lastMouseScreenPosRef.current.screenPos.x,
+          lastMouseScreenPosRef.current.screenPos.y
+        );
+        screenCursorRef.current?.showSpinner();
+
+        try {
+          // Yield one frame so the spinner paints before the sync compute.
+          await new Promise((r) => requestAnimationFrame(r));
+          if (controller.signal.aborted) return;
+
+          const result = detectPolygonFromAnnotations({
+            annotations: annotations || [],
+            drawingPoints: [],
+            mousePos: outlineLocalPos,
+            tolerance,
+          });
+
+          if (controller.signal.aborted) return;
+          if (result?.outerRing?.length >= 3) {
+            onCommitDrawingRef.current({
+              points: result.outerRing,
+              options: { closeLine: true, detectedCuts: result.cuts },
+            });
+          } else {
+            // No closed loop of annotations encloses the click point.
+            dispatch(
+              setToaster({
+                message:
+                  "Aucun contour détecté : le clic doit être à l'intérieur d'une zone fermée délimitée par des annotations existantes.",
+                isError: true,
+              })
+            );
+          }
+        } catch (err) {
+          if (!controller.signal.aborted) {
+            console.error("[SURFACE_DROP outlines] detection failed", err);
+            dispatch(
+              setToaster({
+                message: `Échec de la détection du contour : ${
+                  err?.message || err
+                }`,
+                isError: true,
+              })
+            );
+          }
+        } finally {
+          surfaceOutlineRunningRef.current = false;
+          surfaceOutlineAbortRef.current = null;
+          screenCursorRef.current?.hideSpinner();
+        }
+        return;
+      }
+
       await cv.load();
       const localPos = toLocalCoords(worldPos);
 

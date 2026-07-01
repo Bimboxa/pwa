@@ -6,9 +6,10 @@ import {
   setNoSmallCuts,
   setConvexHull,
   setIgnoreBaseMap,
+  setUseOutlines,
 } from "../smartDetectSlice";
 
-import { Typography } from "@mui/material";
+import { Box, Typography } from "@mui/material";
 
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 import FieldCheck from "Features/form/components/FieldCheck";
@@ -22,6 +23,7 @@ export default function SectionSurfaceDropOptions() {
   const noSmallCuts = useSelector((s) => s.smartDetect.noSmallCuts);
   const convexHull = useSelector((s) => s.smartDetect.convexHull);
   const ignoreBaseMap = useSelector((s) => s.smartDetect.ignoreBaseMap);
+  const useOutlines = useSelector((s) => s.smartDetect.useOutlines);
 
   // render
 
@@ -42,35 +44,48 @@ export default function SectionSurfaceDropOptions() {
         Outil remplissage
       </Typography>
       <FieldCheck
-        value={rawDetection}
-        onChange={(v) => dispatch(setRawDetection(v))}
-        label="Détection brute"
+        value={useOutlines}
+        onChange={(v) => dispatch(setUseOutlines(v))}
+        label="Utiliser les contours"
         options={{ type: "check", showAsInline: true }}
       />
-      <FieldCheck
-        value={noCuts}
-        onChange={(v) => dispatch(setNoCuts(v))}
-        label="Aucune ouverture"
-        options={{ type: "check", showAsInline: true }}
-      />
-      <FieldCheck
-        value={noSmallCuts}
-        onChange={(v) => dispatch(setNoSmallCuts(v))}
-        label="Aucune petite ouverture"
-        options={{ type: "check", showAsInline: true }}
-      />
-      <FieldCheck
-        value={convexHull}
-        onChange={(v) => dispatch(setConvexHull(v))}
-        label="Enveloppe convexe"
-        options={{ type: "check", showAsInline: true }}
-      />
-      <FieldCheck
-        value={ignoreBaseMap}
-        onChange={(v) => dispatch(setIgnoreBaseMap(v))}
-        label="Ignorer le fond de plan"
-        options={{ type: "check", showAsInline: true }}
-      />
+      <Box
+        sx={{
+          opacity: useOutlines ? 0.4 : 1,
+          pointerEvents: useOutlines ? "none" : "auto",
+        }}
+      >
+        <FieldCheck
+          value={rawDetection}
+          onChange={(v) => dispatch(setRawDetection(v))}
+          label="Détection brute"
+          options={{ type: "check", showAsInline: true }}
+        />
+        <FieldCheck
+          value={noCuts}
+          onChange={(v) => dispatch(setNoCuts(v))}
+          label="Aucune ouverture"
+          options={{ type: "check", showAsInline: true }}
+        />
+        <FieldCheck
+          value={noSmallCuts}
+          onChange={(v) => dispatch(setNoSmallCuts(v))}
+          label="Aucune petite ouverture"
+          options={{ type: "check", showAsInline: true }}
+        />
+        <FieldCheck
+          value={convexHull}
+          onChange={(v) => dispatch(setConvexHull(v))}
+          label="Enveloppe convexe"
+          options={{ type: "check", showAsInline: true }}
+        />
+        <FieldCheck
+          value={ignoreBaseMap}
+          onChange={(v) => dispatch(setIgnoreBaseMap(v))}
+          label="Ignorer le fond de plan"
+          options={{ type: "check", showAsInline: true }}
+        />
+      </Box>
     </WhiteSectionGeneric>
   );
 }
