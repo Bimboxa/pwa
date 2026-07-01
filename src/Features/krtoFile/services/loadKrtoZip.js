@@ -3,6 +3,17 @@ import { withoutUndo } from "App/db/undoManager";
 import { nanoid } from "@reduxjs/toolkit";
 import JSZip from "jszip";
 
+import store from "App/store";
+import getUserIdMaster from "Features/auth/utils/getUserIdMaster";
+import remapDexieExportIds from "Features/krtoFile/utils/remapDexieExportIds";
+
+// Importing user's master id, normalized to a string like the ownership layer
+// expects (App/db/ownership.normalizeOwnerId).
+function getImportingUserIdMaster() {
+  const raw = getUserIdMaster(store.getState()?.auth?.userProfile);
+  return raw != null ? String(raw) : "anonymous";
+}
+
 export default async function loadKrtoZip(file, options) {
   if (!file) throw new Error("Fichier invalide");
 
@@ -11,6 +22,9 @@ export default async function loadKrtoZip(file, options) {
   const importTag = nanoid();
   const loadDataToProjectId = options?.loadDataToProjectId;
   const loadDataToScopeId = options?.loadDataToScopeId;
+  // Duplicate: regenerate every id and re-own to the importer so the copy is
+  // fully independent and editable (see remapDexieExportIds).
+  const duplicate = options?.duplicate;
 
   // System write: import & tag-cleanup write records owned by other users.
   // withoutUndo: a whole-krto import must not be undoable record-by-record
@@ -34,7 +48,7 @@ export default async function loadKrtoZip(file, options) {
         const imageEntries = Object.values(zip.files).filter(
           (f) => !f.dir && f.name.startsWith("images/")
         );
-        const imageBuffers = new Map();
+        let imageBuffers = new Map();
         await Promise.all(
           imageEntries.map(async (entry) => {
             const fileName = entry.name.slice("images/".length);
@@ -48,6 +62,47 @@ export default async function loadKrtoZip(file, options) {
           (t) => t.tableName === "scopes"
         );
         const originalScopeId = scopesTableData?.rows?.[0]?.id;
+
+        // --- DUPLICATE ---
+        // Regenerate every id and re-own to the importer so the imported krto
+        // is a fully independent, editable copy (a new project + new scope that
+        // coexist with the original instead of overwriting it under
+        // overwriteValues:true). The generic remap replaces the
+        // loadDataToProjectId/loadDataToScopeId transform below.
+        if (duplicate) {
+          const projectsTableData = jsonData.data.data.find(
+            (t) => t.tableName === "projects"
+          );
+          const originalProjectId = projectsTableData?.rows?.[0]?.id;
+
+          // Drop local sync state: a duplicated scope is a brand-new local
+          // scope, not yet linked to any remote sync (syncFiles keys on `path`
+          // and would otherwise collide with / overwrite the original's rows).
+          jsonData.data.data = jsonData.data.data.filter(
+            (t) => t.tableName !== "syncFiles"
+          );
+
+          const newProjectId = nanoid();
+          const newScopeId = nanoid();
+
+          const { fileNameMap } = remapDexieExportIds(jsonData, {
+            importingUserIdMaster: getImportingUserIdMaster(),
+            overrideIds: {
+              projects: originalProjectId
+                ? { [originalProjectId]: newProjectId }
+                : {},
+              scopes: originalScopeId ? { [originalScopeId]: newScopeId } : {},
+            },
+          });
+
+          // Re-key the image buffers by the new file names so the transform
+          // below injects the right binary for each remapped `files` row.
+          const remappedBuffers = new Map();
+          for (const [oldName, arrayBuffer] of imageBuffers.entries()) {
+            remappedBuffers.set(fileNameMap[oldName] || oldName, arrayBuffer);
+          }
+          imageBuffers = remappedBuffers;
+        }
 
         // 4. Créer le Blob JSON pour Dexie
         const jsonBlob = new Blob([JSON.stringify(jsonData)], {

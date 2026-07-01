@@ -8,7 +8,13 @@ import { setOnboardingIsActive } from "Features/onboarding/onboardingSlice";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
-import { Box, Tooltip } from "@mui/material";
+import {
+  Box,
+  Tooltip,
+  FormControlLabel,
+  Checkbox,
+  Typography,
+} from "@mui/material";
 import { Upload } from "@mui/icons-material";
 
 import ButtonGeneric from "Features/layout/components/ButtonGeneric";
@@ -26,6 +32,7 @@ export default function ButtonLoadKrtoFile() {
   // state
 
   const [open, setOpen] = useState(false);
+  const [duplicate, setDuplicate] = useState(false);
 
   // data
 
@@ -43,7 +50,7 @@ export default function ButtonLoadKrtoFile() {
   async function handleLoadKrtoFile(files) {
     const file = files?.[0];
     if (file) {
-      const { project, scope } = await loadKrtoZip(file);
+      const { project, scope } = await loadKrtoZip(file, { duplicate });
       console.log("project", project, "scope", scope);
       if (project) {
         dispatch(setSelectedProjectId(project.id));
@@ -51,6 +58,7 @@ export default function ButtonLoadKrtoFile() {
         dispatch(setOnboardingIsActive(false));
       }
     }
+    setDuplicate(false);
     setOpen(false);
   }
   return (
@@ -63,9 +71,20 @@ export default function ButtonLoadKrtoFile() {
         />
       </Tooltip>
       <DialogGeneric open={open} onClose={() => setOpen(false)}>
-        <Box sx={{ width: 300, height: 300, p: 2 }}>
+        <Box
+          sx={{
+            width: 300,
+            height: 300,
+            p: 2,
+            display: "flex",
+            flexDirection: "column",
+          }}
+        >
           <BoxCenter
-            sx={{ border: (theme) => `1px solid ${theme.palette.divider}` }}
+            sx={{
+              flex: 1,
+              border: (theme) => `1px solid ${theme.palette.divider}`,
+            }}
           >
             <ContainerFilesSelector
               onFilesChange={handleLoadKrtoFile}
@@ -73,6 +92,17 @@ export default function ButtonLoadKrtoFile() {
               accept=".krto"
             />
           </BoxCenter>
+          <FormControlLabel
+            sx={{ mt: 1 }}
+            control={
+              <Checkbox
+                size="small"
+                checked={duplicate}
+                onChange={(e) => setDuplicate(e.target.checked)}
+              />
+            }
+            label={<Typography variant="body2">Dupliquer</Typography>}
+          />
         </Box>
       </DialogGeneric>
     </>
