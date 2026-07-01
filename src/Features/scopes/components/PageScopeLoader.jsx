@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 
 import { setSelectedScopeId } from "Features/scopes/scopesSlice";
@@ -21,6 +21,7 @@ import { Box, Typography, LinearProgress } from "@mui/material";
 export default function PageScopeLoader() {
     const { scopeId } = useParams();
     const navigate = useNavigate();
+    const location = useLocation();
     const dispatch = useDispatch();
     const loadingRef = useRef(false);
 
@@ -197,7 +198,7 @@ export default function PageScopeLoader() {
     function finishAndNavigate() {
         setFadeOut(true);
         setTimeout(() => {
-            navigate("/");
+            navigate({ pathname: "/", search: location.search });
         }, 600);
     }
 

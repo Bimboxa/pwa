@@ -16,6 +16,8 @@ import {
     Tooltip,
     CircularProgress,
     Alert,
+    Switch,
+    FormControlLabel,
 } from "@mui/material";
 import {
     Share as ShareIcon,
@@ -43,12 +45,21 @@ export default function IconButtonShareScope() {
     const [copied, setCopied] = useState(false);
     const [pulling, setPulling] = useState(false);
     const [fetching, setFetching] = useState(false);
+    const [modeViewer, setModeViewer] = useState(false);
+    const [view3d, setView3d] = useState(false);
     const inputRef = useRef(null);
 
     // helpers
 
     const scopeS = appConfig?.strings?.scope?.nameSingular?.toLowerCase() || "dossier";
-    const shareUrl = scopeId ? `${window.location.origin}/scopes/${scopeId}` : "";
+
+    const params = new URLSearchParams();
+    if (view3d) params.set("viewer", "3d");
+    if (modeViewer) params.set("mode", "viewer");
+    const qs = params.toString();
+    const shareUrl = scopeId
+        ? `${window.location.origin}/scopes/${scopeId}${qs ? `?${qs}` : ""}`
+        : "";
     const open = Boolean(anchorEl);
 
     const hasRemoteConfig = Boolean(lastRemoteConfiguration);
@@ -208,6 +219,29 @@ export default function IconButtonShareScope() {
                                         }
                                     </IconButton>
                                 </Tooltip>
+                            </Box>
+
+                            <Box sx={{ display: "flex", flexDirection: "column", mt: 1 }}>
+                                <FormControlLabel
+                                    control={
+                                        <Switch
+                                            size="small"
+                                            checked={modeViewer}
+                                            onChange={(e) => setModeViewer(e.target.checked)}
+                                        />
+                                    }
+                                    label={<Typography variant="caption">Mode viewer</Typography>}
+                                />
+                                <FormControlLabel
+                                    control={
+                                        <Switch
+                                            size="small"
+                                            checked={view3d}
+                                            onChange={(e) => setView3d(e.target.checked)}
+                                        />
+                                    }
+                                    label={<Typography variant="caption">Vue 3D</Typography>}
+                                />
                             </Box>
                         </>
                     )}
