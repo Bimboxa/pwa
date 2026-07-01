@@ -41,7 +41,7 @@ export default function ButtonOpenSatelliteMapDialog({
       <Button
         onClick={handleOpen}
         variant="outlined"
-        color="secondary"
+        color="inherit"
         size="small"
         startIcon={<Public />}
       >
