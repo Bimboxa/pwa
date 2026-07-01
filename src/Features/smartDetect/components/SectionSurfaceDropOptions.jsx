@@ -5,6 +5,7 @@ import {
   setNoCuts,
   setNoSmallCuts,
   setConvexHull,
+  setIgnoreBaseMap,
 } from "../smartDetectSlice";
 
 import { Typography } from "@mui/material";
@@ -20,6 +21,7 @@ export default function SectionSurfaceDropOptions() {
   const noCuts = useSelector((s) => s.smartDetect.noCuts);
   const noSmallCuts = useSelector((s) => s.smartDetect.noSmallCuts);
   const convexHull = useSelector((s) => s.smartDetect.convexHull);
+  const ignoreBaseMap = useSelector((s) => s.smartDetect.ignoreBaseMap);
 
   // render
 
@@ -61,6 +63,12 @@ export default function SectionSurfaceDropOptions() {
         value={convexHull}
         onChange={(v) => dispatch(setConvexHull(v))}
         label="Enveloppe convexe"
+        options={{ type: "check", showAsInline: true }}
+      />
+      <FieldCheck
+        value={ignoreBaseMap}
+        onChange={(v) => dispatch(setIgnoreBaseMap(v))}
+        label="Ignorer le fond de plan"
         options={{ type: "check", showAsInline: true }}
       />
     </WhiteSectionGeneric>

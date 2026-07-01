@@ -414,6 +414,7 @@ const InteractionLayer = forwardRef(({
   const noCuts = useSelector((s) => s.smartDetect.noCuts);
   const noSmallCuts = useSelector((s) => s.smartDetect.noSmallCuts);
   const convexHullEnabled = useSelector((s) => s.smartDetect.convexHull);
+  const ignoreBaseMap = useSelector((s) => s.smartDetect.ignoreBaseMap);
   const visibleAreaOnly = useSelector((s) => s.smartDetect.visibleAreaOnly);
   const { zoomContainer } = useSmartZoom();
   const {
@@ -4022,6 +4023,7 @@ const InteractionLayer = forwardRef(({
         maskWidth,
         maskHeight,
         skipApproxPoly: rawDetection,
+        ignoreBaseMap,
       });
 
       // Convert returned points from source pixel coords back to local coords

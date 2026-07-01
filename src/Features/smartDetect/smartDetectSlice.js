@@ -9,6 +9,10 @@ const smartDetectInitialState = {
   noCuts: false,
   noSmallCuts: true,
   convexHull: false,
+  // When true, the SURFACE_DROP flood fill ignores the base map image content
+  // and runs on an all-white binary, so it is bounded only by existing
+  // annotation footprints (and the viewport ROI).
+  ignoreBaseMap: false,
   visibleAreaOnly: true,
   //
   simplifyPolynomial: true,
@@ -39,6 +43,9 @@ export const smartDetectSlice = createSlice({
     setConvexHull: (state, action) => {
       state.convexHull = action.payload;
     },
+    setIgnoreBaseMap: (state, action) => {
+      state.ignoreBaseMap = action.payload;
+    },
     setVisibleAreaOnly: (state, action) => {
       state.visibleAreaOnly = action.payload;
     },
@@ -60,6 +67,7 @@ export const {
   setNoCuts,
   setNoSmallCuts,
   setConvexHull,
+  setIgnoreBaseMap,
   setVisibleAreaOnly,
   setSimplifyPolynomial,
   setSimplifyOuterContour,

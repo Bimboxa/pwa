@@ -17,6 +17,7 @@ async function detectContoursAsync({ msg, payload }) {
       maskWidth = 0,
       maskHeight = 0,
       skipApproxPoly = false,
+      ignoreBaseMap = false,
     } = payload ?? {};
 
     if (!imageUrl || x === undefined || y === undefined) {
@@ -36,50 +37,63 @@ async function detectContoursAsync({ msg, payload }) {
       throw new Error(`Coordinates out of bounds`);
     }
 
-    // --- 1. PASSAGE EN GRIS ---
-    const gray = track(new cv.Mat());
-    cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
-    src.delete(); // free RGBA mat early — no longer needed
+    let processedBinary;
 
-    // --- 2. RÉCUPÉRATION DE LA VALEUR CIBLE ---
-    const targetGray = gray.ucharPtr(pixelY, pixelX)[0];
+    if (ignoreBaseMap) {
+      // --- "Ignorer le fond de plan" — skip the grayscale/threshold/morph
+      // pipeline and run on an all-white binary. The fill then propagates over
+      // the whole image and is bounded only by the exclusion mask (existing
+      // annotation footprints) and the ROI/viewport below.
+      src.delete(); // free RGBA mat early — image content is not used
+      processedBinary = track(
+        new cv.Mat(imageHeight, imageWidth, cv.CV_8UC1, new cv.Scalar(255))
+      );
+    } else {
+      // --- 1. PASSAGE EN GRIS ---
+      const gray = track(new cv.Mat());
+      cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+      src.delete(); // free RGBA mat early — no longer needed
 
-    // --- 3. CRÉATION DU MASQUE BINAIRE (Correction définitive BindingError) ---
-    const binary = track(new cv.Mat());
-    const lowVal = Math.max(0, targetGray - colorTolerance);
-    const highVal = Math.min(255, targetGray + colorTolerance);
+      // --- 2. RÉCUPÉRATION DE LA VALEUR CIBLE ---
+      const targetGray = gray.ucharPtr(pixelY, pixelX)[0];
 
-    // On crée des Mats de la même taille et du même type (CV_8UC1) que 'gray'
-    // C'est la méthode la plus lourde mais la seule qui garantit 0 erreur de binding
-    const lowMat = track(new cv.Mat(gray.rows, gray.cols, gray.type(), new cv.Scalar(lowVal)));
-    const highMat = track(new cv.Mat(gray.rows, gray.cols, gray.type(), new cv.Scalar(highVal)));
+      // --- 3. CRÉATION DU MASQUE BINAIRE (Correction définitive BindingError) ---
+      const binary = track(new cv.Mat());
+      const lowVal = Math.max(0, targetGray - colorTolerance);
+      const highVal = Math.min(255, targetGray + colorTolerance);
 
-    cv.inRange(gray, lowMat, highMat, binary);
-    gray.delete();    // free early — no longer needed
-    lowMat.delete();  // free early
-    highMat.delete(); // free early
+      // On crée des Mats de la même taille et du même type (CV_8UC1) que 'gray'
+      // C'est la méthode la plus lourde mais la seule qui garantit 0 erreur de binding
+      const lowMat = track(new cv.Mat(gray.rows, gray.cols, gray.type(), new cv.Scalar(lowVal)));
+      const highMat = track(new cv.Mat(gray.rows, gray.cols, gray.type(), new cv.Scalar(highVal)));
 
-    // --- 4. TRAITEMENT MORPHOLOGIQUE ---
-    const inverted = track(new cv.Mat());
-    cv.bitwise_not(binary, inverted);
-    binary.delete(); // free early — no longer needed
+      cv.inRange(gray, lowMat, highMat, binary);
+      gray.delete();    // free early — no longer needed
+      lowMat.delete();  // free early
+      highMat.delete(); // free early
 
-    const kernelSize = Math.max(3, morphKernelSize | 0);
-    const kernel = track(cv.Mat.ones(kernelSize, kernelSize, cv.CV_8U));
-    const closedInverted = track(new cv.Mat());
-    cv.morphologyEx(
-      inverted,
-      closedInverted,
-      cv.MORPH_CLOSE,
-      kernel,
-      new cv.Point(-1, -1),
-      Math.max(1, morphIterations | 0)
-    );
-    inverted.delete(); // free early — no longer needed
+      // --- 4. TRAITEMENT MORPHOLOGIQUE ---
+      const inverted = track(new cv.Mat());
+      cv.bitwise_not(binary, inverted);
+      binary.delete(); // free early — no longer needed
 
-    const processedBinary = track(new cv.Mat());
-    cv.bitwise_not(closedInverted, processedBinary);
-    closedInverted.delete(); // free early — no longer needed
+      const kernelSize = Math.max(3, morphKernelSize | 0);
+      const kernel = track(cv.Mat.ones(kernelSize, kernelSize, cv.CV_8U));
+      const closedInverted = track(new cv.Mat());
+      cv.morphologyEx(
+        inverted,
+        closedInverted,
+        cv.MORPH_CLOSE,
+        kernel,
+        new cv.Point(-1, -1),
+        Math.max(1, morphIterations | 0)
+      );
+      inverted.delete(); // free early — no longer needed
+
+      processedBinary = track(new cv.Mat());
+      cv.bitwise_not(closedInverted, processedBinary);
+      closedInverted.delete(); // free early — no longer needed
+    }
 
     // --- 4b. DRAW EXISTING ANNOTATION BOUNDARIES AS BARRIERS ---
     if (boundaries?.length) {
