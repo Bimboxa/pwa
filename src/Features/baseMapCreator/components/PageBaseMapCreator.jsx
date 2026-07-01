@@ -201,12 +201,20 @@ export default function PageBaseMapCreator({ onClose }) {
                                             position: "absolute",
                                             inset: 0,
                                             display: "flex",
+                                            flexDirection: "column",
                                             alignItems: "center",
                                             justifyContent: "center",
+                                            gap: 1,
+                                            px: 4,
+                                            textAlign: "center",
                                             color: "error.main",
                                         }}>
                                             <Typography variant="body2">
                                                 Erreur de chargement du PDF
+                                            </Typography>
+                                            <Typography variant="caption">
+                                                Conseil : rechargez la page en vidant le cache du navigateur
+                                                (Windows : Ctrl + F5, ou Ctrl + Maj + R).
                                             </Typography>
                                         </Box>
                                     )}
