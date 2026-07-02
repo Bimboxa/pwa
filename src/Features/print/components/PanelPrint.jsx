@@ -65,6 +65,8 @@ export default function PanelPrint() {
     withListingName: true,
     withEntity: true,
     excludeIsForBaseMapsListings: true,
+    hideBaseMapAnnotations: true,
+    excludeBgAnnotations: true,
   });
 
   const layers = useLiveQuery(
