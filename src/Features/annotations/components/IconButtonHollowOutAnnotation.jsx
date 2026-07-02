@@ -1,8 +1,10 @@
 import { nanoid } from "@reduxjs/toolkit";
+import { useDispatch } from "react-redux";
+
+import { triggerAnnotationsUpdate } from "../annotationsSlice";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useVisibleAnnotations from "Features/mapEditor/hooks/useVisibleAnnotations";
-import useCreateAnnotation from "../hooks/useCreateAnnotation";
 
 import { IconButton, Tooltip } from "@mui/material";
 
@@ -25,11 +27,12 @@ export default function IconButtonHollowOutAnnotation({
   annotation,
   accentColor,
 }) {
+  const dispatch = useDispatch();
+
   // data
 
   const baseMap = useMainBaseMap();
   const visibleAnnotations = useVisibleAnnotations();
-  const createAnnotation = useCreateAnnotation();
 
   // handlers
 
@@ -77,9 +80,25 @@ export default function IconButtonHollowOutAnnotation({
     if (carved.consumed) return;
     if (!carved.points || carved.points.length < 3) return;
 
+    // Reads up-front — writes are batched in a single transaction below so
+    // liveQuery observers (useAnnotationsV2 & co) recompute only once.
+    const firstPointId = annotation.points.find((p) => p?.id)?.id;
+    const [samplePoint, raw] = await Promise.all([
+      firstPointId ? db.points.get(firstPointId) : null,
+      db.annotations.get(annotation.id),
+    ]);
+    if (!raw) return;
+
+    // Scope fields for new db.points rows: copy from an existing stored point.
+    const pointScope = {
+      baseMapId: samplePoint?.baseMapId ?? annotation.baseMapId,
+      projectId: samplePoint?.projectId ?? annotation.projectId,
+      listingId: samplePoint?.listingId ?? annotation.listingId,
+    };
+
     // Rebuild point-id refs: reuse existing ids where the vertex is unchanged,
-    // mint + persist new db.points rows (normalized) for boolean-intersection
-    // vertices. Same reconciliation as useHandleCommitDrawing.
+    // mint new db.points rows (normalized) for boolean-intersection vertices.
+    // Same reconciliation as useHandleCommitDrawing.
     const keyOf = (x, y) =>
       `${Math.round(x * 100) / 100},${Math.round(y * 100) / 100}`;
     const pxLookup = new Map();
@@ -92,30 +111,28 @@ export default function IconButtonHollowOutAnnotation({
       }
     }
 
-    // Scope fields for new db.points rows: copy from an existing stored point.
-    const firstPointId = annotation.points.find((p) => p?.id)?.id;
-    const samplePoint = firstPointId ? await db.points.get(firstPointId) : null;
-
     // Refs keep `type: "circle"` so recovered S-C-S arcs stay arcs.
     const asRef = (id, px) =>
       px.type === "circle" ? { id, type: "circle" } : { id };
 
     const pointsToSave = [];
-    const findOrMint = (px) => {
-      const k = keyOf(px.x, px.y);
-      const existing = pxLookup.get(k);
-      if (existing) return asRef(existing, px);
+    const mint = (px) => {
       const newId = nanoid();
       pointsToSave.push({
         id: newId,
         x: px.x / width,
         y: px.y / height,
-        baseMapId: samplePoint?.baseMapId ?? annotation.baseMapId,
-        projectId: samplePoint?.projectId ?? annotation.projectId,
-        listingId: samplePoint?.listingId ?? annotation.listingId,
+        ...pointScope,
       });
-      pxLookup.set(k, newId);
       return asRef(newId, px);
+    };
+    const findOrMint = (px) => {
+      const k = keyOf(px.x, px.y);
+      const existing = pxLookup.get(k);
+      if (existing) return asRef(existing, px);
+      const ref = mint(px);
+      pxLookup.set(k, ref.id);
+      return ref;
     };
 
     const newPointsRefs = carved.points.map(findOrMint);
@@ -131,69 +148,86 @@ export default function IconButtonHollowOutAnnotation({
       return ref;
     });
 
-    if (pointsToSave.length > 0) {
-      await db.points.bulkAdd(pointsToSave);
-    }
-    await db.annotations.update(annotation.id, {
-      points: newPointsRefs,
-      cuts: newCutsRefs,
-    });
-
     // Extra disjoint pieces → one new annotation per piece, cloned from the
     // original record. All their points get fresh ids so no vertex is shared
     // between the resulting annotations.
-    const extraPieces = (carved.pieces ?? []).slice(1);
-    if (extraPieces.length === 0) return;
+    const clonedProps = { ...raw };
+    delete clonedProps.id;
+    delete clonedProps.points;
+    delete clonedProps.cuts;
+    delete clonedProps.entityId;
+    delete clonedProps.createdAt;
+    delete clonedProps.updatedAt;
+    delete clonedProps.createdByUserIdMaster;
+    delete clonedProps.updatedByUserIdMaster;
 
-    const raw = await db.annotations.get(annotation.id);
-    if (!raw) return;
-
-    const pieceScope = {
-      baseMapId: samplePoint?.baseMapId ?? annotation.baseMapId,
-      projectId: samplePoint?.projectId ?? annotation.projectId,
-      listingId: samplePoint?.listingId ?? annotation.listingId,
-    };
-
-    for (const piece of extraPieces) {
+    const newAnnotationRows = [];
+    for (const piece of (carved.pieces ?? []).slice(1)) {
       if (!piece?.points || piece.points.length < 3) continue;
-
-      const piecePointsToSave = [];
-      const mint = (px) => {
-        const newId = nanoid();
-        piecePointsToSave.push({
-          id: newId,
-          x: px.x / width,
-          y: px.y / height,
-          ...pieceScope,
-        });
-        return asRef(newId, px);
-      };
-
-      const piecePointsRefs = piece.points.map(mint);
-      const pieceCutsRefs = (piece.cuts ?? []).map((c) => ({
-        id: nanoid(),
-        ...(c.label != null && { label: c.label }),
-        points: (c.points ?? []).map(mint),
-      }));
-
-      await db.points.bulkAdd(piecePointsToSave);
-
-      const clonedProps = { ...raw };
-      delete clonedProps.id;
-      delete clonedProps.points;
-      delete clonedProps.cuts;
-      delete clonedProps.entityId;
-      delete clonedProps.createdAt;
-      delete clonedProps.updatedAt;
-      delete clonedProps.createdByUserIdMaster;
-
-      await createAnnotation({
+      newAnnotationRows.push({
         ...clonedProps,
         id: nanoid(),
-        points: piecePointsRefs,
-        cuts: pieceCutsRefs,
+        points: piece.points.map(mint),
+        cuts: (piece.cuts ?? []).map((c) => ({
+          id: nanoid(),
+          ...(c.label != null && { label: c.label }),
+          points: (c.points ?? []).map(mint),
+        })),
       });
     }
+
+    // Mapping-category rels for the cloned annotations (same as
+    // useCreateAnnotation, but built in memory for the whole batch).
+    let newRels = [];
+    if (newAnnotationRows.length > 0 && raw.annotationTemplateId) {
+      const template = await db.annotationTemplates.get(
+        raw.annotationTemplateId
+      );
+      const mappingCategories = (template?.mappingCategories ?? [])
+        .map((entry) => {
+          if (typeof entry === "string") {
+            const parts = entry.split(":").map((s) => s.trim());
+            return parts.length === 2 && parts[0] && parts[1]
+              ? { nomenclatureKey: parts[0], categoryKey: parts[1] }
+              : null;
+          }
+          return entry?.nomenclatureKey && entry?.categoryKey ? entry : null;
+        })
+        .filter(Boolean);
+      newRels = newAnnotationRows.flatMap((a) =>
+        mappingCategories.map((mc) => ({
+          id: nanoid(),
+          annotationId: a.id,
+          projectId: raw.projectId,
+          nomenclatureKey: mc.nomenclatureKey,
+          categoryKey: mc.categoryKey,
+          source: "annotationTemplate",
+        }))
+      );
+    }
+
+    // Single transaction (bulk writes) + single Redux dispatch — same batch
+    // pattern as useUpdateAnnotations, so annotationsUpdatedAt observers and
+    // liveQueries fire once for the whole carve.
+    await db.transaction(
+      "rw",
+      [db.points, db.annotations, db.relAnnotationMappingCategory],
+      async () => {
+        if (pointsToSave.length > 0) await db.points.bulkAdd(pointsToSave);
+        await db.annotations.update(annotation.id, {
+          points: newPointsRefs,
+          cuts: newCutsRefs,
+        });
+        if (newAnnotationRows.length > 0) {
+          await db.annotations.bulkAdd(newAnnotationRows);
+        }
+        if (newRels.length > 0) {
+          await db.relAnnotationMappingCategory.bulkAdd(newRels);
+        }
+      }
+    );
+
+    dispatch(triggerAnnotationsUpdate());
   }
 
   // render
