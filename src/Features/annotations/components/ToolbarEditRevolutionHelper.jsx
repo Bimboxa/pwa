@@ -21,6 +21,7 @@ import {
   Check,
 } from "@mui/icons-material";
 
+import stringifyAnnotationData from "../utils/stringifyAnnotationData";
 import useSelectedAnnotation from "../hooks/useSelectedAnnotation";
 import useUpdateAnnotation from "../hooks/useUpdateAnnotation";
 import useRevolutionAxes from "../hooks/useRevolutionAxes";
@@ -69,7 +70,7 @@ export default function ToolbarEditRevolutionHelper({ onDragStart }) {
   }
 
   function handleCopyJson() {
-    navigator.clipboard.writeText(JSON.stringify(selectedAnnotation, null, 2));
+    navigator.clipboard.writeText(stringifyAnnotationData(selectedAnnotation));
   }
 
   // render

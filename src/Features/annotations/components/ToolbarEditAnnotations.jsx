@@ -22,6 +22,7 @@ import {
   resolveDrawingShapeFromType,
   getAnnotationType,
 } from "../constants/drawingShapeConfig";
+import stringifyAnnotationData from "../utils/stringifyAnnotationData";
 import getAnnotationQties from "../utils/getAnnotationQties";
 import getAnnotationTemplateProps from "../utils/getAnnotationTemplateProps";
 import getAnnotationPropsFromAnnotationTemplateProps from "../utils/getAnnotationPropsFromAnnotationTemplateProps";
@@ -415,16 +416,12 @@ export default function ToolbarEditAnnotations({
                 if (annotations?.length > 0) {
                   // imageSize + meterByPx make the export self-contained for
                   // the AI meshing prompt (docs/annotations/MESH_IMPORT_PROMPT.md)
-                  const data = JSON.stringify(
-                    {
-                      imageSize: baseMap?.getImageSize?.() ?? null,
-                      meterByPx:
-                        baseMap?.getMeterByPx?.() ?? baseMap?.meterByPx ?? null,
-                      annotations,
-                    },
-                    null,
-                    2
-                  );
+                  const data = stringifyAnnotationData({
+                    imageSize: baseMap?.getImageSize?.() ?? null,
+                    meterByPx:
+                      baseMap?.getMeterByPx?.() ?? baseMap?.meterByPx ?? null,
+                    annotations,
+                  });
                   navigator.clipboard.writeText(data);
                 }
               }}

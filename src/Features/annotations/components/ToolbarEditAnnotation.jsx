@@ -19,6 +19,7 @@ import {
 } from "Features/selection/selectionSlice";
 import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 
+import stringifyAnnotationData from "../utils/stringifyAnnotationData";
 import useSelectedAnnotation from "../hooks/useSelectedAnnotation";
 import useSelectedAnnotationPart from "../hooks/useSelectedAnnotationPart";
 import useDeleteAnnotation from "../hooks/useDeleteAnnotation";
@@ -604,7 +605,7 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
                   onMouseDown={(e) => e.stopPropagation()}
                   onClick={() => {
                     if (selectedAnnotation) {
-                      const data = JSON.stringify(selectedAnnotation, null, 2);
+                      const data = stringifyAnnotationData(selectedAnnotation);
                       navigator.clipboard.writeText(data);
                     }
                   }}
