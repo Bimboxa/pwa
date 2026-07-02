@@ -104,6 +104,23 @@ function fitRun(pts, s, e, thicknessPx, sourceArcCircles, requireSourceMatch) {
     if (d > tol) return null;
   }
 
+  // A run is an arc only if consecutive vertices stay close together ALONG
+  // the circle: check each segment's midpoint (sagitta) against the circle
+  // too. Without this, a long straight chord whose two endpoints happen to
+  // lie on the circle — e.g. the clipped edge of a lens piece cut out of a
+  // ring — is absorbed into the run and the "arc" jumps the long way around.
+  for (let k = s; k < e; k++) {
+    const a = pts[k];
+    const b = pts[k + 1];
+    const d = Math.abs(
+      Math.hypot(
+        (a.x + b.x) / 2 - circle.center.x,
+        (a.y + b.y) / 2 - circle.center.y
+      ) - circle.r
+    );
+    if (d > tol) return null;
+  }
+
   if (!fromSource) {
     const { span } = arcSpan(circle.center, A, B, M);
     if (!(span > MIN_TURN_RAD)) return null;
