@@ -68,6 +68,7 @@ import IconButtonToggleAnnotationCloseLine from "./IconButtonToggleAnnotationClo
 import IconButtonDetectSimilarStrips from "./IconButtonDetectSimilarStrips";
 import IconButtonAnchorAnnotation from "./IconButtonAnchorAnnotation";
 import IconButtonSubtractAnnotation from "./IconButtonSubtractAnnotation";
+import IconButtonHollowOutAnnotation from "./IconButtonHollowOutAnnotation";
 import IconButtonDilateAnnotation from "./IconButtonDilateAnnotation";
 import IconButtonRepairAnnotation from "./IconButtonRepairAnnotation";
 import IconButtonSplitInSegments from "./IconButtonSplitInSegments";
@@ -876,6 +877,12 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
                   selectedAnnotation?.type
                 ) && (
                   <IconButtonSubtractAnnotation
+                    annotation={selectedAnnotation}
+                    accentColor={accentColor}
+                  />
+                )}
+                {selectedAnnotation?.type === "POLYGON" && (
+                  <IconButtonHollowOutAnnotation
                     annotation={selectedAnnotation}
                     accentColor={accentColor}
                   />
