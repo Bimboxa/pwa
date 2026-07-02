@@ -649,8 +649,15 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
                 });
 
                 // Build drawn shape in pixel space from in-memory rawPoints / finalPointIds.
+                // Keep `type: "circle"` so the service tessellates S-C-S arcs
+                // instead of clipping along the chord of their control points.
                 const drawnPoints = (_newAnnotation.points ?? [])
-                    .map((p, i) => ({ id: p.id, x: rawPoints[i]?.x, y: rawPoints[i]?.y }))
+                    .map((p, i) => ({
+                        id: p.id,
+                        x: rawPoints[i]?.x,
+                        y: rawPoints[i]?.y,
+                        ...(p.type === "circle" && { type: "circle" }),
+                    }))
                     .filter((p) => Number.isFinite(p.x) && Number.isFinite(p.y));
 
                 let drawnCuts = [];
@@ -668,7 +675,12 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
                             .map((ref) => {
                                 const stored = cutPtsIndex[ref.id];
                                 if (!stored) return null;
-                                return { id: ref.id, x: stored.x * width, y: stored.y * height };
+                                return {
+                                    id: ref.id,
+                                    x: stored.x * width,
+                                    y: stored.y * height,
+                                    ...(ref.type === "circle" && { type: "circle" }),
+                                };
                             })
                             .filter(Boolean),
                     }));
@@ -717,11 +729,15 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
                             }
                         }
 
+                        // Refs keep `type: "circle"` so recovered S-C-S arcs stay arcs.
+                        const asRef = (id, px) =>
+                            px.type === "circle" ? { id, type: "circle" } : { id };
+
                         const carvedPointsToSave = [];
                         const findOrMint = (px) => {
                             const k = keyOf(px.x, px.y);
                             const existing = drawnPxLookup.get(k);
-                            if (existing) return { id: existing };
+                            if (existing) return asRef(existing, px);
                             const newId = nanoid();
                             carvedPointsToSave.push({
                                 id: newId,
@@ -732,7 +748,7 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
                                 listingId,
                             });
                             drawnPxLookup.set(k, newId);
-                            return { id: newId };
+                            return asRef(newId, px);
                         };
 
                         const newPointsRefs = (carved.points ?? []).map(findOrMint);

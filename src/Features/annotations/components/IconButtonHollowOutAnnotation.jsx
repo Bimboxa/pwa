@@ -96,11 +96,15 @@ export default function IconButtonHollowOutAnnotation({
     const firstPointId = annotation.points.find((p) => p?.id)?.id;
     const samplePoint = firstPointId ? await db.points.get(firstPointId) : null;
 
+    // Refs keep `type: "circle"` so recovered S-C-S arcs stay arcs.
+    const asRef = (id, px) =>
+      px.type === "circle" ? { id, type: "circle" } : { id };
+
     const pointsToSave = [];
     const findOrMint = (px) => {
       const k = keyOf(px.x, px.y);
       const existing = pxLookup.get(k);
-      if (existing) return { id: existing };
+      if (existing) return asRef(existing, px);
       const newId = nanoid();
       pointsToSave.push({
         id: newId,
@@ -111,7 +115,7 @@ export default function IconButtonHollowOutAnnotation({
         listingId: samplePoint?.listingId ?? annotation.listingId,
       });
       pxLookup.set(k, newId);
-      return { id: newId };
+      return asRef(newId, px);
     };
 
     const newPointsRefs = carved.points.map(findOrMint);
@@ -162,7 +166,7 @@ export default function IconButtonHollowOutAnnotation({
           y: px.y / height,
           ...pieceScope,
         });
-        return { id: newId };
+        return asRef(newId, px);
       };
 
       const piecePointsRefs = piece.points.map(mint);
