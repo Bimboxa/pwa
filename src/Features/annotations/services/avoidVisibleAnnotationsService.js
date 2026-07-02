@@ -35,12 +35,16 @@ const fromRing = (ring) =>
  * `candidates`. The result naturally yields outer-contour changes
  * (overlap) and/or new cuts (full containment).
  *
+ * When the subtraction splits the shape into several disjoint polygons,
+ * `points`/`cuts` describe the largest piece and `pieces` lists them all
+ * (largest first), each as {points, cuts}.
+ *
  * @param {Object} args
  * @param {{points:Array<{id?,x,y}>, cuts?:Array}} args.drawnShape
  * @param {Array<Object>} args.candidates  resolved annotations (different
  *                                         templateId, visible, bbox-overlapping)
  * @param {Object} args.baseMap            for meterByPx (CM stroke widths)
- * @returns {{points:Array<{id,x,y}>, cuts:Array<{id,label?,points:Array<{id,x,y}>}>, consumed:boolean}}
+ * @returns {{points:Array<{id,x,y}>, cuts:Array<{id,label?,points:Array<{id,x,y}>}>, pieces:Array<{points,cuts}>, consumed:boolean}}
  */
 export default function avoidVisibleAnnotationsService({
   drawnShape,
@@ -50,6 +54,9 @@ export default function avoidVisibleAnnotationsService({
   const original = {
     points: drawnShape?.points ?? [],
     cuts: drawnShape?.cuts ?? [],
+    pieces: [
+      { points: drawnShape?.points ?? [], cuts: drawnShape?.cuts ?? [] },
+    ],
     consumed: false,
   };
 
@@ -87,35 +94,35 @@ export default function avoidVisibleAnnotationsService({
     const result = polygonClipping.difference([subjectGeom], clipperGeoms);
 
     if (!result || result.length === 0) {
-      return { points: [], cuts: [], consumed: true };
+      return { points: [], cuts: [], pieces: [], consumed: true };
     }
 
-    let chosenIdx = 0;
-    if (result.length > 1) {
-      let bestArea = -Infinity;
-      for (let i = 0; i < result.length; i++) {
-        const ring = result[i][0];
-        const a = Math.abs(ringSignedArea(ring));
-        if (a > bestArea) {
-          bestArea = a;
-          chosenIdx = i;
-        }
-      }
-    }
-    const newPolygonDef = result[chosenIdx];
-    const newExteriorPoints = fromRing(newPolygonDef[0]);
-    const newCutsRings = newPolygonDef.slice(1);
-    const newCutsRaw = newCutsRings.map((ring, index) => ({
-      id: nanoid(),
-      label: `Cut ${index + 1}`,
-      points: fromRing(ring),
-    }));
-
-    const newCuts = reconcileCuts(drawnShape.cuts ?? [], newCutsRaw);
+    // One piece per disjoint result polygon, largest first. Existing cut
+    // metadata is reconciled per piece (a pre-existing cut may end up in
+    // any of them).
+    const pieces = result
+      .map((polygonDef) => ({
+        polygonDef,
+        area: Math.abs(ringSignedArea(polygonDef[0])),
+      }))
+      .sort((a, b) => b.area - a.area)
+      .map(({ polygonDef }) => {
+        const points = fromRing(polygonDef[0]);
+        const cutsRaw = polygonDef.slice(1).map((ring, index) => ({
+          id: nanoid(),
+          label: `Cut ${index + 1}`,
+          points: fromRing(ring),
+        }));
+        return {
+          points,
+          cuts: reconcileCuts(drawnShape.cuts ?? [], cutsRaw),
+        };
+      });
 
     return {
-      points: newExteriorPoints,
-      cuts: newCuts,
+      points: pieces[0].points,
+      cuts: pieces[0].cuts,
+      pieces,
       consumed: false,
     };
   } catch (err) {

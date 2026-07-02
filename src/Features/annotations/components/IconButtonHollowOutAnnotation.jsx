@@ -2,6 +2,7 @@ import { nanoid } from "@reduxjs/toolkit";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useVisibleAnnotations from "Features/mapEditor/hooks/useVisibleAnnotations";
+import useCreateAnnotation from "../hooks/useCreateAnnotation";
 
 import { IconButton, Tooltip } from "@mui/material";
 
@@ -17,6 +18,9 @@ import db from "App/db/db";
 // as the draw-time "Eviter les annotations visibles" option, but applied on
 // demand to an existing annotation — and without the different-templateId
 // restriction: every visible annotation cuts.
+// When the carving splits the polygon into disjoint pieces, the largest piece
+// keeps the original annotation and each extra piece becomes a new annotation
+// cloned from it.
 export default function IconButtonHollowOutAnnotation({
   annotation,
   accentColor,
@@ -25,6 +29,7 @@ export default function IconButtonHollowOutAnnotation({
 
   const baseMap = useMainBaseMap();
   const visibleAnnotations = useVisibleAnnotations();
+  const createAnnotation = useCreateAnnotation();
 
   // handlers
 
@@ -129,6 +134,62 @@ export default function IconButtonHollowOutAnnotation({
       points: newPointsRefs,
       cuts: newCutsRefs,
     });
+
+    // Extra disjoint pieces → one new annotation per piece, cloned from the
+    // original record. All their points get fresh ids so no vertex is shared
+    // between the resulting annotations.
+    const extraPieces = (carved.pieces ?? []).slice(1);
+    if (extraPieces.length === 0) return;
+
+    const raw = await db.annotations.get(annotation.id);
+    if (!raw) return;
+
+    const pieceScope = {
+      baseMapId: samplePoint?.baseMapId ?? annotation.baseMapId,
+      projectId: samplePoint?.projectId ?? annotation.projectId,
+      listingId: samplePoint?.listingId ?? annotation.listingId,
+    };
+
+    for (const piece of extraPieces) {
+      if (!piece?.points || piece.points.length < 3) continue;
+
+      const piecePointsToSave = [];
+      const mint = (px) => {
+        const newId = nanoid();
+        piecePointsToSave.push({
+          id: newId,
+          x: px.x / width,
+          y: px.y / height,
+          ...pieceScope,
+        });
+        return { id: newId };
+      };
+
+      const piecePointsRefs = piece.points.map(mint);
+      const pieceCutsRefs = (piece.cuts ?? []).map((c) => ({
+        id: nanoid(),
+        ...(c.label != null && { label: c.label }),
+        points: (c.points ?? []).map(mint),
+      }));
+
+      await db.points.bulkAdd(piecePointsToSave);
+
+      const clonedProps = { ...raw };
+      delete clonedProps.id;
+      delete clonedProps.points;
+      delete clonedProps.cuts;
+      delete clonedProps.entityId;
+      delete clonedProps.createdAt;
+      delete clonedProps.updatedAt;
+      delete clonedProps.createdByUserIdMaster;
+
+      await createAnnotation({
+        ...clonedProps,
+        id: nanoid(),
+        points: piecePointsRefs,
+        cuts: pieceCutsRefs,
+      });
+    }
   }
 
   // render
