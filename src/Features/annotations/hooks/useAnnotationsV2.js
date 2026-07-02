@@ -440,20 +440,31 @@ export default function useAnnotationsV2(options) {
           : [];
 
       const pointsIndex = getItemsByKey(points, "id");
-      // Count annotations with unresolved point refs (orphaned — the referenced
-      // db.points row is missing), so we can warn once. resolvePoints leaves
-      // such refs without x/y; the renderer guards against them (see
-      // NodePolylineStatic.buildPathAndMap).
+      // Corrupted point refs (orphaned — the referenced db.points row is
+      // missing). resolvePoints leaves such refs without x/y: we drop them from
+      // the resolved geometry so the annotation still renders with its valid
+      // points, and record the dropped ids in annotation.corruptedPointIds
+      // (in-memory only — the DB record keeps the refs, so the annotation
+      // heals itself if the points reappear via sync/import).
       let _missingPointsAnnCount = 0;
-      const _hasUnresolvedPoint = (pts) =>
-        Array.isArray(pts) &&
-        pts.some((p) => !Number.isFinite(p?.x) || !Number.isFinite(p?.y));
+      const _isResolved = (p) => Number.isFinite(p?.x) && Number.isFinite(p?.y);
+      const _splitResolved = (pts, corruptedIds) => {
+        if (!Array.isArray(pts)) return pts;
+        return pts.filter((p) => {
+          if (_isResolved(p)) return true;
+          const id = p?.id ?? p?.pointId;
+          if (id) corruptedIds.push(id);
+          return false;
+        });
+      };
       _annotations = _annotations
         .filter((a) => a.baseMapId)
         .map((annotation) => {
           const _annotation = {
             ...annotation,
           };
+
+          const corruptedIds = [];
 
           let annotationPoints = annotation?.points;
 
@@ -486,6 +497,9 @@ export default function useAnnotationsV2(options) {
               pointsIndex,
               imageSize,
             })[0];
+            // single point — can't be dropped, but flag it if unresolved.
+            if (!_isResolved(_annotation.point) && _annotation.point?.id)
+              corruptedIds.push(_annotation.point.id);
           }
 
           // --- POINT (and plan-view revolution axis marker)
@@ -498,6 +512,8 @@ export default function useAnnotationsV2(options) {
               pointsIndex,
               imageSize,
             })[0];
+            if (!_isResolved(_annotation.point) && _annotation.point?.id)
+              corruptedIds.push(_annotation.point.id);
           }
 
           // --- LABELS
@@ -528,35 +544,50 @@ export default function useAnnotationsV2(options) {
 
           // --- OTHER CASES
           else {
-            _annotation.points = resolvePoints({
-              points: annotationPoints,
-              pointsIndex,
-              imageSize,
-            });
+            _annotation.points = _splitResolved(
+              resolvePoints({
+                points: annotationPoints,
+                pointsIndex,
+                imageSize,
+              }),
+              corruptedIds
+            );
             if (_annotation.cuts)
               _annotation.cuts = resolveCuts({
                 cuts: annotation.cuts,
                 pointsIndex,
                 imageSize,
-              });
+              })
+                ?.map((cut) => ({
+                  ...cut,
+                  points: _splitResolved(cut?.points, corruptedIds),
+                }))
+                // a hole with < 3 points is degenerate (breaks triangulation)
+                .filter((cut) => (cut?.points?.length ?? 0) >= 3);
             // Inner Steiner points (POLYGON only) — resolve to pixel space so
             // the rendering and 3D pipelines see them in the same units as the
             // contour and cuts.
             if (annotation.innerPoints) {
-              _annotation.innerPoints = resolvePoints({
-                points: annotation.innerPoints,
-                pointsIndex,
-                imageSize,
-              });
+              _annotation.innerPoints = _splitResolved(
+                resolvePoints({
+                  points: annotation.innerPoints,
+                  pointsIndex,
+                  imageSize,
+                }),
+                corruptedIds
+              );
             }
             if (Array.isArray(annotation.guideLines)) {
               _annotation.guideLines = annotation.guideLines.map((g) => ({
                 ...g,
-                points: resolveGuideLine({
-                  guideLine: g?.points,
-                  pointsIndex,
-                  imageSize,
-                }),
+                points: _splitResolved(
+                  resolveGuideLine({
+                    guideLine: g?.points,
+                    pointsIndex,
+                    imageSize,
+                  }),
+                  corruptedIds
+                ),
               }));
             }
 
@@ -583,11 +614,9 @@ export default function useAnnotationsV2(options) {
             }
           }
 
-          // --- MISSING POINTS (orphaned refs) ---
-          if (
-            _hasUnresolvedPoint(_annotation.points) ||
-            _annotation.cuts?.some((c) => _hasUnresolvedPoint(c?.points))
-          ) {
+          // --- MISSING POINTS (orphaned refs, dropped above) ---
+          if (corruptedIds.length) {
+            _annotation.corruptedPointIds = corruptedIds;
             _missingPointsAnnCount += 1;
           }
 
@@ -617,7 +646,7 @@ export default function useAnnotationsV2(options) {
         _lastMissingPointsWarnCount = _missingPointsAnnCount;
         if (_missingPointsAnnCount > 0) {
           console.warn(
-            `[useAnnotationsV2] missing points for ${_missingPointsAnnCount} annotation(s) — some point refs have no matching db.points record (orphaned); their geometry is rendered partially or skipped.`
+            `[useAnnotationsV2] missing points for ${_missingPointsAnnCount} annotation(s) — some point refs have no matching db.points record (orphaned); they are dropped from the resolved geometry and listed in annotation.corruptedPointIds.`
           );
         }
       }
