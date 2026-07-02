@@ -15,8 +15,13 @@ import db from "App/db/db";
  * baseMap.getImageSize()), but writes all matches + cloned mapping rows in
  * a single Dexie transaction, then one Redux refresh.
  *
- * Input: { matches:[{ targetCenter }], clipboard, pasteTransform, baseMap,
- *          activeLayerId }
+ * Input: { matches:[{ targetCenter, placedPoints?, placedCuts? }], clipboard,
+ *          pasteTransform, baseMap, activeLayerId }
+ *
+ * A match may carry explicit placed geometry (`placedPoints` + `placedCuts`,
+ * REFERENCE px space) — produced by the paste ADJUST mode, whose candidate is
+ * not a rigid transform of the clipboard. When present it is committed as-is;
+ * otherwise the geometry is re-derived rigidly (GLOBAL / HOVER matches).
  */
 export default function useCreateAnnotationsFromDetectedMatches() {
   const dispatch = useDispatch();
@@ -97,35 +102,34 @@ export default function useCreateAnnotationsFromDetectedMatches() {
 
       if (type === "POLYGON" || type === "POLYLINE" || type === "STRIP") {
         if (!templateItem.basePoints?.length) continue;
-        const transformed = applyPasteTransformToPoints(
-          templateItem.basePoints,
-          sourceCenter,
-          targetCenter,
-          pasteTransform,
-        );
+        const transformed =
+          match.placedPoints ??
+          applyPasteTransformToPoints(
+            templateItem.basePoints,
+            sourceCenter,
+            targetCenter,
+            pasteTransform,
+          );
         clonedAnnotation.points = refsFrom(
           transformed,
           sourceAnnotation.points,
         );
 
-        if (type === "POLYGON" && templateItem.baseCuts?.length) {
-          clonedAnnotation.cuts = templateItem.baseCuts.map((cut, ci) => {
-            const cutTransformed = applyPasteTransformToPoints(
-              cut.points,
-              sourceCenter,
-              targetCenter,
-              pasteTransform,
-            );
-            return {
-              id: nanoid(),
-              points: refsFrom(
-                cutTransformed,
-                sourceAnnotation.cuts?.[ci]?.points,
-              ),
-            };
-          });
-        } else if (type === "POLYGON") {
-          clonedAnnotation.cuts = [];
+        if (type === "POLYGON") {
+          const cutsPoints = match.placedPoints
+            ? (match.placedCuts ?? []).map((cut) => cut.points)
+            : (templateItem.baseCuts ?? []).map((cut) =>
+                applyPasteTransformToPoints(
+                  cut.points,
+                  sourceCenter,
+                  targetCenter,
+                  pasteTransform,
+                ),
+              );
+          clonedAnnotation.cuts = cutsPoints.map((pts, ci) => ({
+            id: nanoid(),
+            points: refsFrom(pts, sourceAnnotation.cuts?.[ci]?.points),
+          }));
         }
       } else if (type === "POINT" || type === "MARKER") {
         if (!templateItem.basePoint) continue;

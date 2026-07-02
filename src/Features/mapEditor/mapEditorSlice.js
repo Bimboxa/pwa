@@ -185,7 +185,7 @@ const mapEditorInitialState = {
   //     stripOrientation — STRIP only
   pasteClipboard: null,
   pasteTransform: { rotationDeg: 0, flipX: false },
-  // copy/paste pattern detection sub-mode: null | "GLOBAL" | "HOVER"
+  // copy/paste pattern detection sub-mode: null | "GLOBAL" | "HOVER" | "ADJUST"
   pasteDetectionMode: null,
 };
 

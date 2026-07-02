@@ -113,6 +113,7 @@ import { REPAIR_KEY_TO_MODE } from 'Features/localizedRepair/constants/repairSho
 import extractAnnotationImagePatch from 'Features/annotations/utils/extractAnnotationImagePatch';
 import transformImageData from 'Features/annotations/utils/transformImageData';
 import runPatternDetection from 'Features/smartDetect/utils/runPatternDetection';
+import adjustPasteCandidate, { isPasteAdjustEligible } from 'Features/smartDetect/utils/adjustPasteCandidate';
 import runGlobalFloorPlanDetection from 'Features/smartDetect/utils/runGlobalFloorPlanDetection';
 import runWallSegmentVectorization from 'Features/smartDetect/utils/runWallSegmentVectorization';
 import useCreateAnnotationsFromDetectedMatches from 'Features/annotations/hooks/useCreateAnnotationsFromDetectedMatches';
@@ -1940,6 +1941,62 @@ const InteractionLayer = forwardRef(({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Last cursor position (REFERENCE space) while a paste is active — lets the
+  // ADJUST mode recompute on J activation / R / I without waiting for a
+  // mousemove.
+  const lastPasteLocalPosRef = useRef(null);
+
+  // ADJUST (J) paste sub-mode: place the copy at the cursor and locally
+  // optimize its position to maximize dark pixels under the shape (polygon
+  // surface / segment band). Synchronous, single candidate — stored in the
+  // same detectedPatternMatchesRef so the Space handler works unchanged.
+  const runAdjustDetect = useCallback((localPos) => {
+    const clipboard = pasteClipboardRef.current;
+    if (
+      !clipboard ||
+      !isPasteAdjustEligible(clipboard) ||
+      pasteDetectionModeRef.current !== "ADJUST" ||
+      !localPos
+    ) {
+      return;
+    }
+    const imageData = ensureFullImageData();
+    if (!imageData) return;
+
+    let match = null;
+    try {
+      match = adjustPasteCandidate({
+        clipboard,
+        pasteTransform: pasteTransformRef.current,
+        cursorRef: localPos,
+        imageData,
+        exclusionMask: ensureExclusionMask(),
+        imageScale: baseMapImageScaleRef.current || 1,
+        imageOffset: baseMapImageOffsetRef.current || { x: 0, y: 0 },
+        meterByPx: meterByPxRef.current ?? 0,
+        smartZoom: smartZoomRef.current || 1,
+        sourceBboxImgPx: computePatternPatch()?.bboxImgPx ?? null,
+      });
+    } catch (err) {
+      console.warn("[pasteAdjust] failed", err);
+    }
+
+    detectedPatternMatchesRef.current = match
+      ? { matches: [match], clipboard }
+      : null;
+    transientDetectedPatternRef.current?.updateMatches(match ? [match] : []);
+    syncSmartDetectionPresent();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [computePatternPatch, ensureFullImageData, ensureExclusionMask]);
+
+  const runAdjustDetectThrottled = useMemo(
+    () =>
+      throttle((localPos) => {
+        runAdjustDetect(localPos);
+      }, 250),
+    [runAdjustDetect],
+  );
+
   useEffect(() => {
     sourceImageElRef.current = sourceImageEl;
   }, [sourceImageEl]);
@@ -1948,15 +2005,23 @@ const InteractionLayer = forwardRef(({
   }, [calibrationBaseMap]);
 
   // Single source of truth for triggering pattern detection: reacts to the
-  // sub-mode (keyboard A/S or panel switches) and to rotate/flip
-  // (pasteTransform). GLOBAL scans once; HOVER is cleared here and
-  // repopulated on mouse move; null/no-clipboard clears.
+  // sub-mode (keyboard A/S/J or panel switches) and to rotate/flip
+  // (pasteTransform). GLOBAL scans once; ADJUST recomputes at the last known
+  // cursor position; HOVER is cleared here and repopulated on mouse move;
+  // null/no-clipboard clears.
   useEffect(() => {
     if (
       pasteClipboard?.items?.length === 1 &&
       pasteDetectionMode === "GLOBAL"
     ) {
       runPatternDetect({ mode: "GLOBAL" });
+    } else if (
+      pasteClipboard?.items?.length === 1 &&
+      pasteDetectionMode === "ADJUST"
+    ) {
+      clearPatternDetection();
+      if (lastPasteLocalPosRef.current)
+        runAdjustDetect(lastPasteLocalPosRef.current);
     } else {
       clearPatternDetection();
     }
@@ -2547,6 +2612,20 @@ const InteractionLayer = forwardRef(({
           dispatch(
             setPasteDetectionMode(
               pasteDetectionModeRef.current === "HOVER" ? null : "HOVER",
+            ),
+          );
+          return;
+        }
+        // J — "Ajuster": snap the copy to the dark pixels around the cursor.
+        // Only for shapes with a well-defined dark-coverage score.
+        if (
+          (e.key === "j" || e.key === "J") &&
+          isPasteAdjustEligible(pasteClipboardRef.current)
+        ) {
+          e.preventDefault();
+          dispatch(
+            setPasteDetectionMode(
+              pasteDetectionModeRef.current === "ADJUST" ? null : "ADJUST",
             ),
           );
           return;
@@ -4527,6 +4606,7 @@ const InteractionLayer = forwardRef(({
     // Paste ghost follows the cursor in local image-pixel space.
     if (pasteClipboardRef.current) {
       const localPos = toLocalCoords(worldPos);
+      lastPasteLocalPosRef.current = localPos;
       pastePreviewLayerRef.current?.updatePreview(localPos);
 
       // HOVER pattern detection: scan a window around the cursor.
@@ -4540,6 +4620,12 @@ const InteractionLayer = forwardRef(({
           x: (localPos.x - offset.x) / scale,
           y: (localPos.y - offset.y) / scale,
         });
+      } else if (
+        pasteDetectionModeRef.current === "ADJUST" &&
+        pasteDetectImageDataRef.current
+      ) {
+        // ADJUST: re-optimize the candidate around the cursor.
+        runAdjustDetectThrottled(localPos);
       }
     }
 
@@ -6058,7 +6144,10 @@ const InteractionLayer = forwardRef(({
 
         {pasteClipboard && (
           <g transform={`translate(${targetPose.x}, ${targetPose.y}) scale(${targetPose.k})`}>
-            <PasteAnnotationPreviewLayer ref={pastePreviewLayerRef} />
+            <PasteAnnotationPreviewLayer
+              ref={pastePreviewLayerRef}
+              meterByPx={baseMapMeterByPx || 0}
+            />
           </g>
         )}
 

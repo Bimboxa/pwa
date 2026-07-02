@@ -77,6 +77,7 @@ import SectionSurfaceDropOptions from "Features/smartDetect/components/SectionSu
 import SectionShortcutHelpers from "Features/annotations/components/SectionShortcutHelpers";
 import PopperSubtractHelper from "Features/mapEditor/components/PopperSubtractHelper";
 import getEffectiveDetectionMode from "Features/mapEditor/utils/getEffectiveDetectionMode";
+import { isPasteAdjustEligible } from "Features/smartDetect/utils/adjustPasteCandidate";
 import SectionLayers from "Features/layers/components/SectionLayers";
 import {
   setShowLayers,
@@ -1852,6 +1853,8 @@ function PopperPasteHelper() {
   const copiedCount = pasteClipboard?.items?.length ?? 0;
   // Pattern detection is single-template only.
   const isSingle = copiedCount === 1;
+  // "Ajuster" (J) only applies to POLYGON / 2-pt POLYLINE / 2-pt STRIP.
+  const isAdjustEligible = isPasteAdjustEligible(pasteClipboard);
 
   // state
 
@@ -1947,6 +1950,24 @@ function PopperPasteHelper() {
             />
             <ShortcutBadge>S</ShortcutBadge>
           </Box>
+
+          {isAdjustEligible && (
+            <Box
+              sx={{ mt: 0.5, display: "flex", alignItems: "center", gap: 1 }}
+            >
+              <Typography variant="body2" sx={{ flex: 1 }}>
+                Ajuster
+              </Typography>
+              <Switch
+                size="small"
+                checked={pasteDetectionMode === "ADJUST"}
+                onChange={(_e, checked) =>
+                  dispatch(setPasteDetectionMode(checked ? "ADJUST" : null))
+                }
+              />
+              <ShortcutBadge>J</ShortcutBadge>
+            </Box>
+          )}
 
           {pasteDetectionMode && (
             <Box

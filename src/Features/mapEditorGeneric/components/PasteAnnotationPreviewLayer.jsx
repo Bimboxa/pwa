@@ -1,9 +1,4 @@
-import {
-  forwardRef,
-  useEffect,
-  useImperativeHandle,
-  useRef,
-} from "react";
+import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import { useSelector } from "react-redux";
 
 const POINT_GHOST_RADIUS_PX = 8;
@@ -62,9 +57,30 @@ function stripPathD(pts, distance) {
   return "M " + all.map((p) => `${p.x} ${p.y}`).join(" L ") + " Z";
 }
 
+// Symmetric stroke band around the centerline (±width/2 on each side) — the
+// POLYLINE equivalent of stripPathD.
+function strokeBandPathD(pts, width) {
+  if (pts.length < 2 || !(width > 0)) return "";
+  const left = offsetPolyline(pts, width / 2);
+  const right = offsetPolyline(pts, -width / 2);
+  if (left.length < 2 || right.length < 2) return "";
+  const all = [...left, ...right.reverse()];
+  return "M " + all.map((p) => `${p.x} ${p.y}`).join(" L ") + " Z";
+}
+
+// POLYLINE stroke width in REFERENCE px (same CM / PX conversion as
+// buildExclusionMask, without the /imageScale since we render in ref space).
+function getPolylineWidthRefPx(ann, meterByPx) {
+  const sw = ann?.strokeWidth ?? 0;
+  if (!sw) return 0;
+  return ann.strokeWidthUnit === "CM" && meterByPx > 0
+    ? Math.abs((sw * 0.01) / meterByPx)
+    : Math.abs(sw);
+}
+
 // One ghost shape per clipboard item, drawn in absolute base-px coords. The
 // parent <g> carries the single rigid transform that places the whole group.
-function renderItem(item, key) {
+function renderItem(item, key, meterByPx) {
   const ann = item.annotation;
   const type = ann?.type;
   const strokeColor = ann?.strokeColor || "#2196f3";
@@ -77,7 +93,7 @@ function renderItem(item, key) {
       .map((cut) =>
         cut.points?.length
           ? "M " + cut.points.map((p) => `${p.x} ${p.y}`).join(" L ") + " Z"
-          : "",
+          : ""
       )
       .filter(Boolean)
       .join(" ");
@@ -114,18 +130,33 @@ function renderItem(item, key) {
   }
 
   if (type === "POLYLINE" && item.basePoints?.length) {
+    // Show the real stroke thickness (like STRIP), not just the centerline.
+    const bandD = strokeBandPathD(
+      item.basePoints,
+      getPolylineWidthRefPx(ann, meterByPx)
+    );
     return (
-      <polyline
-        key={key}
-        points={pointsToAttr(item.basePoints)}
-        fill="none"
-        stroke={strokeColor}
-        strokeWidth={2}
-        strokeDasharray="6 4"
-        vectorEffect="non-scaling-stroke"
-        opacity={0.9}
-        style={{ pointerEvents: "none" }}
-      />
+      <g key={key}>
+        {bandD && (
+          <path
+            d={bandD}
+            fill={fillColor}
+            opacity={0.4}
+            stroke="none"
+            style={{ pointerEvents: "none" }}
+          />
+        )}
+        <polyline
+          points={pointsToAttr(item.basePoints)}
+          fill="none"
+          stroke={strokeColor}
+          strokeWidth={2}
+          strokeDasharray="6 4"
+          vectorEffect="non-scaling-stroke"
+          opacity={0.9}
+          style={{ pointerEvents: "none" }}
+        />
+      </g>
     );
   }
 
@@ -179,7 +210,8 @@ function renderItem(item, key) {
   return null;
 }
 
-const PasteAnnotationPreviewLayer = forwardRef((_props, ref) => {
+// eslint-disable-next-line react/prop-types
+const PasteAnnotationPreviewLayer = forwardRef(({ meterByPx = 0 }, ref) => {
   const pasteClipboard = useSelector((s) => s.mapEditor.pasteClipboard);
   const pasteTransform = useSelector((s) => s.mapEditor.pasteTransform);
 
@@ -231,7 +263,7 @@ const PasteAnnotationPreviewLayer = forwardRef((_props, ref) => {
       className="paste-preview-layer"
       style={{ display: "none", pointerEvents: "none" }}
     >
-      {items.map((item, idx) => renderItem(item, idx))}
+      {items.map((item, idx) => renderItem(item, idx, meterByPx))}
     </g>
   );
 });
