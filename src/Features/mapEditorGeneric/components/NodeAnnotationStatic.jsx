@@ -1,3 +1,5 @@
+import { memo } from "react";
+
 import NodeMarkerStatic from "./NodeMarkerStatic";
 import NodePolylineStatic from "./NodePolylineStatic";
 import NodeStripStatic from "./NodeStripStatic";
@@ -12,7 +14,12 @@ import NodeRevolutionPointStatic from "./NodeRevolutionPointStatic";
 
 import resolveAnnotationDefaults from "Features/annotations/utils/resolveAnnotationDefaults";
 
-export default function NodeAnnotationStatic({
+// Memoized with the default shallow compare. Callers must keep props
+// id-derived or referentially stable — in particular pass
+// `hovered={annotation.id === hoveredNode?.nodeId}` (a boolean computed from
+// ids), never the hoveredNode object itself: a hover change then re-renders
+// only the two nodes whose boolean flipped instead of every annotation.
+function NodeAnnotationStatic({
   annotation,
   annotationOverride,
   hovered,
@@ -127,3 +134,5 @@ export default function NodeAnnotationStatic({
       return null;
   }
 }
+
+export default memo(NodeAnnotationStatic);

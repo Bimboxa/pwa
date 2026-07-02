@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useSelector } from "react-redux";
 import { darken } from "@mui/material/styles";
 import theme from "Styles/theme";
@@ -6,26 +6,47 @@ import theme from "Styles/theme";
 // Tracks whether Shift is currently held — used to swap segment/cut hit-area
 // cursors to "+"/"−" so the user sees ahead of clicking whether shift+click
 // will add or remove from a multi-part selection.
-function useIsShiftDown() {
-  const [shift, setShift] = useState(false);
-  useEffect(() => {
-    const down = (e) => {
-      if (e.key === "Shift") setShift(true);
-    };
-    const up = (e) => {
-      if (e.key === "Shift") setShift(false);
-    };
-    const blur = () => setShift(false);
-    window.addEventListener("keydown", down);
-    window.addEventListener("keyup", up);
-    window.addEventListener("blur", blur);
-    return () => {
-      window.removeEventListener("keydown", down);
-      window.removeEventListener("keyup", up);
-      window.removeEventListener("blur", blur);
-    };
-  }, []);
-  return shift;
+//
+// Module-level store shared by every node instance: a single set of window
+// listeners, and components opt in via `enabled`. The cursor only matters on
+// a selected annotation, so unselected nodes pass enabled=false and never
+// re-render on Shift — with thousands of annotations displayed, per-instance
+// keydown state froze the app on every Shift press/release.
+let isShiftDownGlobal = false;
+const shiftSubscribers = new Set();
+let shiftWindowListenersInstalled = false;
+
+function ensureShiftWindowListeners() {
+  if (shiftWindowListenersInstalled || typeof window === "undefined") return;
+  shiftWindowListenersInstalled = true;
+  const setShiftDown = (next) => {
+    if (isShiftDownGlobal === next) return;
+    isShiftDownGlobal = next;
+    shiftSubscribers.forEach((cb) => cb());
+  };
+  window.addEventListener("keydown", (e) => {
+    if (e.key === "Shift") setShiftDown(true);
+  });
+  window.addEventListener("keyup", (e) => {
+    if (e.key === "Shift") setShiftDown(false);
+  });
+  window.addEventListener("blur", () => setShiftDown(false));
+}
+
+function subscribeToShift(cb) {
+  ensureShiftWindowListeners();
+  shiftSubscribers.add(cb);
+  return () => shiftSubscribers.delete(cb);
+}
+const subscribeNoop = () => () => {};
+const getShiftSnapshot = () => isShiftDownGlobal;
+const getShiftSnapshotDisabled = () => false;
+
+function useIsShiftDown(enabled) {
+  return useSyncExternalStore(
+    enabled ? subscribeToShift : subscribeNoop,
+    enabled ? getShiftSnapshot : getShiftSnapshotDisabled
+  );
 }
 
 const CURSOR_ADD = `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24'><circle cx='12' cy='12' r='9' fill='%2376ff03' stroke='white' stroke-width='1.5'/><path d='M12 7v10M7 12h10' stroke='white' stroke-width='2' stroke-linecap='round'/></svg>") 12 12, copy`;
@@ -125,7 +146,10 @@ export default function NodePolylineStatic({
 
   // State local pour le survol immédiat (feedback visuel)
   const [hoveredPartId, setHoveredPartId] = useState(null);
-  const isShiftDown = useIsShiftDown();
+  // Only selected annotations show the Shift "+"/"−" part cursor (see
+  // getPartCursor) — unselected/transient nodes skip the subscription so a
+  // Shift press never re-renders them.
+  const isShiftDown = useIsShiftDown(Boolean(selected) && !isTransient);
 
   // En aperçu transient (drag de vertex), on ignore complètement le hover :
   // sinon les segments clignotent quand le curseur les survole pendant le drag.
