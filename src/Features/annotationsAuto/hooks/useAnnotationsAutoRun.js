@@ -9,6 +9,7 @@ import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import resolvePoints from "Features/annotations/utils/resolvePoints";
 import resolveCuts from "Features/annotations/utils/resolveCuts";
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
+import getAnnotationAsPolygons from "Features/geometry/utils/getAnnotationAsPolygons";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
@@ -101,9 +102,44 @@ export default function useAnnotationsAutoRun() {
       // selection flow: restrict visible annotations to the explicit ids
       // (used by the right-panel "Appliquer la procédure" on the selection).
       const idSet = new Set(sourceAnnotationIds);
-      sourceAnnotations = (visibleAnnotations ?? [])
-        .filter((a) => a.type === "POLYLINE" || a.type === "POLYGON")
-        .filter((a) => idSet.has(a.id));
+      const polylikes = (visibleAnnotations ?? []).filter(
+        (a) => a.type === "POLYLINE" || a.type === "POLYGON"
+      );
+      sourceAnnotations = polylikes.filter((a) => idSet.has(a.id));
+
+      // Adjacency context: a procedure can declare mappingCategories whose
+      // visible POLYGON / POLYLINE annotations must be part of the run as
+      // context (e.g. frontier detection between adjacent floors, JD lines
+      // cutting adjacency) even when they are not selected. They are flagged
+      // isAdjacencyOnly so the procedure uses them for segment classification
+      // but generates no geometry from them. The standard (whole-listing)
+      // flow already passes them unflagged.
+      const adjacencyCategories = procedureEntry?.adjacencyMappingCategories;
+      if (adjacencyCategories?.length) {
+        const candidates = polylikes.filter((a) => !idSet.has(a.id));
+        const candidateTemplateIds = [
+          ...new Set(
+            candidates.map((a) => a.annotationTemplateId).filter(Boolean)
+          ),
+        ];
+        const candidateTemplates = candidateTemplateIds.length
+          ? (
+              await db.annotationTemplates.bulkGet(candidateTemplateIds)
+            ).filter(Boolean)
+          : [];
+        const templateById = new Map(
+          candidateTemplates.map((t) => [t.id, t])
+        );
+        const neighbors = candidates.filter((a) => {
+          const categories =
+            templateById.get(a.annotationTemplateId)?.mappingCategories ?? [];
+          return adjacencyCategories.some((c) => categories.includes(c));
+        });
+        sourceAnnotations = [
+          ...sourceAnnotations,
+          ...neighbors.map((a) => ({ ...a, isAdjacencyOnly: true })),
+        ];
+      }
     } else if (sourceListingId) {
       // standard flow: fetch from Dexie by listing
 
@@ -251,6 +287,41 @@ export default function useAnnotationsAutoRun() {
       targetListingId = targetAnnotationTemplate?.listingId ?? null;
     }
 
+    // Obstacle mask: pixel-space footprints of the visible annotations that
+    // are NOT floor/ceiling surfaces or this procedure's own outputs (per the
+    // procedure's obstacleMask.excludeMappingCategories). The procedure uses
+    // it to force cuts surrounding an ouvrage (pillar / concrete) to interior.
+    let maskPolygons = [];
+    const maskConfig = procedureEntry?.obstacleMask;
+    if (maskConfig?.excludeMappingCategories?.length) {
+      const excluded = new Set(maskConfig.excludeMappingCategories);
+      const maskCandidates = (visibleAnnotations ?? []).filter(
+        (a) =>
+          a.type === "POLYGON" ||
+          a.type === "POLYLINE" ||
+          a.type === "STRIP"
+      );
+      const maskTemplateIds = [
+        ...new Set(
+          maskCandidates.map((a) => a.annotationTemplateId).filter(Boolean)
+        ),
+      ];
+      const maskTemplates = maskTemplateIds.length
+        ? (await db.annotationTemplates.bulkGet(maskTemplateIds)).filter(Boolean)
+        : [];
+      const maskCatsById = new Map(
+        maskTemplates.map((t) => [t.id, t.mappingCategories ?? []])
+      );
+      for (const a of maskCandidates) {
+        const cats = maskCatsById.get(a.annotationTemplateId) ?? [];
+        if (cats.some((c) => excluded.has(c))) continue;
+        const polys = getAnnotationAsPolygons(a, { meterByPx });
+        for (const poly of polys) {
+          if (poly?.points?.length >= 3) maskPolygons.push(poly);
+        }
+      }
+    }
+
     const result = procedureFn({
       sourceAnnotations,
       sourceRels,
@@ -259,6 +330,7 @@ export default function useAnnotationsAutoRun() {
       imageSize,
       meterByPx,
       imageData,
+      maskPolygons,
       context: {
         projectId,
         baseMapId,
