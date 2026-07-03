@@ -24,7 +24,13 @@ export default async function createKrtoZip(scopeId, options) {
 
     const relevantListings = allProjectListings.filter((listing) => {
         if (listing.scopeId === scopeId) return true;
-        if (!listing.scopeId) return true; // shared listings (baseMaps, etc.) — scopeId absent, undefined ou null
+        if (!listing.scopeId) return true; // shared listings — scopeId absent, undefined ou null
+        // BaseMaps are shared across every scope of a project: always include
+        // their listings (and thus their baseMaps / versions / image files),
+        // even when the listing is still bound to another scope's id — e.g. the
+        // scope it was created in, or the source of a duplicated scope. Without
+        // this, exporting a duplicated scope would drop all base-map images.
+        if (listing.entityModel?.type === "BASE_MAP") return true;
         return false;
     });
 
