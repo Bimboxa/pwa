@@ -5,11 +5,18 @@
  * i.e. the angle between two polyline segments at a shared vertex is acute
  * relative to the polygon interior.
  *
+ * A vertex is skipped (no reentrant angle) when it lies on a curve — it is an
+ * arc (S-C-S) control point, or one of its two segments is an arc chord (its
+ * far endpoint is an arc control point) — or when one of the two segments
+ * forming the angle is shorter than `minSegmentLengthPx` (a small décrochage).
+ *
  * @param {Object} params
- * @param {Array} params.polylines - [{ id, points: [{x,y,id}...], height, closeLine }] in pixel coords
+ * @param {Array} params.polylines - [{ id, points: [{x,y,id,type?}...], height, closeLine }] in pixel coords
  * @param {Array} params.polygons  - [{ id, points: [{x,y,id}...], cuts: [{points}...] }] in pixel coords
  * @param {number} [params.angleThreshold=160] - max angle (degrees) to consider reentrant
  * @param {number} [params.epsilon=2] - tolerance in pixels for point-on-segment detection
+ * @param {number} [params.minSegmentLengthPx=0] - skip the angle when either of
+ *   its two segments is shorter than this (0 disables the check)
  * @returns {Array<{ x, y, pointId, polylineIds: string[], height: number }>}
  */
 export default function findReentrantAngles({
@@ -17,6 +24,7 @@ export default function findReentrantAngles({
   polygons,
   angleThreshold = 160,
   epsilon = 2,
+  minSegmentLengthPx = 0,
 }) {
   if (!polylines?.length || !polygons?.length) return [];
 
@@ -55,21 +63,30 @@ export default function findReentrantAngles({
           pointId: p.id,
           segments: [],
           heights: [],
+          // The vertex sits ON a curve when it is itself an arc control point.
+          isCircle: p.type === "circle",
         });
       }
 
       const entry = vertexMap.get(key);
+      if (p.type === "circle") entry.isCircle = true;
       if (polyline.height != null) {
         entry.heights.push(polyline.height);
       }
 
-      // Previous segment direction (from vertex toward previous point)
+      // Previous segment direction (from vertex toward previous point).
+      // `toCircle` marks an arc chord (its far endpoint is an arc control
+      // point) and `len` its pixel length (for the small-décrochage filter).
       const prevIdx = isClosed ? (i - 1 + n) % n : i - 1;
       if (prevIdx >= 0 && prevIdx !== i) {
         const prev = pts[prevIdx];
+        const dx = prev.x - p.x;
+        const dy = prev.y - p.y;
         entry.segments.push({
-          dx: prev.x - p.x,
-          dy: prev.y - p.y,
+          dx,
+          dy,
+          len: Math.hypot(dx, dy),
+          toCircle: prev.type === "circle",
           polylineId: polyline.id,
         });
       }
@@ -78,9 +95,13 @@ export default function findReentrantAngles({
       const nextIdx = isClosed ? (i + 1) % n : i + 1;
       if (nextIdx < n && nextIdx !== i) {
         const next = pts[nextIdx];
+        const dx = next.x - p.x;
+        const dy = next.y - p.y;
         entry.segments.push({
-          dx: next.x - p.x,
-          dy: next.y - p.y,
+          dx,
+          dy,
+          len: Math.hypot(dx, dy),
+          toCircle: next.type === "circle",
           polylineId: polyline.id,
         });
       }
@@ -103,6 +124,10 @@ export default function findReentrantAngles({
     }
     if (!touchedPolygon) continue;
 
+    // A vertex that is itself an arc control point sits on a curve: the
+    // "angle" there is the arc's chord bend, not a real reentrant corner.
+    if (vertex.isCircle) continue;
+
     // 4. Check all pairs of segments for reentrant angles
     const segs = vertex.segments;
     const polylineIds = new Set();
@@ -111,6 +136,19 @@ export default function findReentrantAngles({
 
     for (let i = 0; i < segs.length; i++) {
       for (let j = i + 1; j < segs.length; j++) {
+        // On a curve: at least one segment is an arc chord (its far endpoint
+        // is an arc control point). The chord bend is not a real corner.
+        if (segs[i].toCircle || segs[j].toCircle) continue;
+
+        // Small décrochage: one connecting segment is shorter than the
+        // threshold — too small to warrant a reentrant angle.
+        if (
+          minSegmentLengthPx > 0 &&
+          (segs[i].len < minSegmentLengthPx || segs[j].len < minSegmentLengthPx)
+        ) {
+          continue;
+        }
+
         const angleDeg = angleBetween(segs[i], segs[j]);
         if (angleDeg >= angleThreshold) continue;
 
