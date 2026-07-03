@@ -19,6 +19,7 @@ export default function useDeleteAnnotations() {
     if (validAnnotations.length === 0) return;
 
     const idsToDelete = validAnnotations.map((a) => a.id);
+    const idsToDeleteSet = new Set(idsToDelete);
 
     // 1a. Cascade to mesh cells: when a parent annotation is deleted, its mesh
     // cells ("mailles") are deleted too. Pull the child cell annotations and
@@ -33,7 +34,7 @@ export default function useDeleteAnnotations() {
         meshRelsAsParent
           .filter((r) => !r.deletedAt)
           .map((r) => r.meshCellAnnotationId)
-          .filter((id) => !idsToDelete.includes(id))
+          .filter((id) => !idsToDeleteSet.has(id))
       ),
     ];
     if (childCellIds.length > 0) {
@@ -43,6 +44,7 @@ export default function useDeleteAnnotations() {
       for (const c of childCells) {
         validAnnotations.push(c);
         idsToDelete.push(c.id);
+        idsToDeleteSet.add(c.id);
       }
     }
 
@@ -124,7 +126,7 @@ export default function useDeleteAnnotations() {
           if (!ann.cuts || !Array.isArray(ann.cuts) || ann.cuts.length === 0)
             continue;
           // Skip annotations that are themselves being deleted
-          if (idsToDelete.includes(ann.id)) continue;
+          if (idsToDeleteSet.has(ann.id)) continue;
 
           const updatedCuts = ann.cuts.filter(
             (cut) => !cutHostIds.has(cut.cutHostId)
