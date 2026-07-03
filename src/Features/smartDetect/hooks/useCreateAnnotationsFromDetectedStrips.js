@@ -47,7 +47,10 @@ function parseMappingCategory(entry) {
  *       centerline: [{x,y}, {x,y}],   // local map coords
  *       stripOrientation?: 1 | -1,    // only used when type === "STRIP"
  *     }>,
- *     sourceAnnotation: {...}          // template / props source
+ *     sourceAnnotation: {...},         // template / props source
+ *     pointEdits?: Array<{ pointId, x, y }>  // L-junction repair: slide
+ *                                      // EXISTING annotation endpoints
+ *                                      // (local map coords, normalized here)
  *   }
  */
 export default function useCreateAnnotationsFromDetectedStrips() {
@@ -60,7 +63,7 @@ export default function useCreateAnnotationsFromDetectedStrips() {
 
   const baseMap = useMainBaseMap();
 
-  return async ({ strips, sourceAnnotation }) => {
+  return async ({ strips, sourceAnnotation, pointEdits }) => {
     if (!strips?.length) return [];
 
     const baseMapId = baseMap?.id ?? baseMapIdSelected;
@@ -182,6 +185,25 @@ export default function useCreateAnnotationsFromDetectedStrips() {
     if (allAnnotations.length) await db.annotations.bulkAdd(allAnnotations);
     if (allMappingRels.length)
       await db.relAnnotationMappingCategory.bulkAdd(allMappingRels);
+
+    // L-junction repair: slide existing neighbor endpoints (stored
+    // normalized vs imageSize, like every db.points row).
+    if (pointEdits?.length) {
+      for (const edit of pointEdits) {
+        if (!edit?.pointId) continue;
+        try {
+          await db.points.update(edit.pointId, {
+            x: edit.x / width,
+            y: edit.y / height,
+          });
+        } catch (e) {
+          console.warn(
+            "[useCreateAnnotationsFromDetectedStrips] point edit failed:",
+            e
+          );
+        }
+      }
+    }
 
     dispatch(triggerAnnotationsUpdate());
     dispatch(triggerAnnotationTemplatesUpdate());

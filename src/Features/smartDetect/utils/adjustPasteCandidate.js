@@ -76,9 +76,12 @@ export default function adjustPasteCandidate({
   const { width: W, height: H } = imageData;
 
   // 1 = dark, 0 = light, null = skipped (out of bounds or masked).
+  // floor, not round: pixel i covers [i, i+1) in continuous coords (its
+  // center is i+0.5) — round() reads the neighbour pixel for *.5 sample
+  // positions, which biases every centering half a pixel left/up.
   const sampleDark = (x, y) => {
-    const px = Math.round(x);
-    const py = Math.round(y);
+    const px = Math.floor(x);
+    const py = Math.floor(y);
     if (px < 0 || py < 0 || px >= W || py >= H) return null;
     if (exclusionMask && exclusionMask[py * W + px]) return null;
     return getBrightness(imageData, px, py) < darknessThreshold ? 1 : 0;
@@ -123,7 +126,6 @@ export default function adjustPasteCandidate({
     placedRef,
     toImgPx,
     toRef,
-    sampleDark,
     scale,
     zoom,
     meterByPx,
@@ -385,35 +387,59 @@ function getSegmentBandImgPx(item, type, meterByPx, imageScale) {
   return { w, crossStart: -w / 2, crossEnd: w / 2, bandCenterOffset: 0 };
 }
 
-function adjustSegment({
-  item,
-  type,
-  placedRef,
-  toImgPx,
-  toRef,
-  sampleDark,
-  scale,
-  zoom,
-  meterByPx,
+/**
+ * Core segment snapper — everything in SOURCE-IMAGE pixel space.
+ *
+ * Given a probe segment [p1, p2] (only its AXIS, band width and midpoint
+ * matter), snap it onto the dark band under the midpoint:
+ *   A. scan the normal offset t on a window around the midpoint,
+ *   B. re-derive the length by walking both ways from the midpoint until the
+ *      darkness drops,
+ *   C. center on the main longitudinal dark line (median), iterating with
+ *      the walk,
+ *   then push mask-stopped endpoints by `overlapPx` into the masked zone
+ *   (junction overlap with existing annotations).
+ *
+ * `anchored` mode (drawing flow, first point placed): p1 IS a fixed endpoint
+ * of the candidate — no normal-offset scan, no recentering (the line must
+ * pass through p1 exactly). Only the far end is derived, by walking from p1
+ * toward p2 until the darkness drops; the mask overlap applies to that far
+ * end only.
+ *
+ * `band` = { w, crossStart, crossEnd, bandCenterOffset } (see
+ * getSegmentBandImgPx). Returns null | { q1, q2, dark, total } (image px).
+ */
+export function snapSegmentToDarkBand({
+  p1,
+  p2,
   imageData,
   exclusionMask,
-  darknessThreshold,
-  overlapsSource,
+  band,
+  zoom = 1,
+  overlapPx = 0,
+  anchored = false,
+  darknessThreshold = DARK_THRESHOLD,
 }) {
-  const p1 = toImgPx(placedRef[0]);
-  const p2 = toImgPx(placedRef[1]);
   const L = Math.hypot(p2.x - p1.x, p2.y - p1.y);
   if (L < 4) return null;
   const u = { x: (p2.x - p1.x) / L, y: (p2.y - p1.y) / L };
   const n = { x: -u.y, y: u.x };
 
-  const { w, crossStart, crossEnd, bandCenterOffset } = getSegmentBandImgPx(
-    item,
-    type,
-    meterByPx,
-    scale
-  );
+  const { w, crossStart, crossEnd, bandCenterOffset } = band;
   const crossStep = Math.max(1, (crossEnd - crossStart) / MAX_CROSS_SAMPLES);
+
+  const { width: W, height: H } = imageData;
+  // 1 = dark, 0 = light, null = skipped (out of bounds or masked).
+  // floor, not round: pixel i covers [i, i+1) in continuous coords — round()
+  // reads the neighbour pixel for *.5 positions, biasing the snap half a
+  // pixel left/up.
+  const sampleDark = (x, y) => {
+    const px = Math.floor(x);
+    const py = Math.floor(y);
+    if (px < 0 || py < 0 || px >= W || py >= H) return null;
+    if (exclusionMask && exclusionMask[py * W + px]) return null;
+    return getBrightness(imageData, px, py) < darknessThreshold ? 1 : 0;
+  };
 
   // dark − light over one cross-section of the band at `base`.
   const crossScore = (base) => {
@@ -446,11 +472,11 @@ function adjustSegment({
     return { dark, total, score: 2 * dark - total };
   };
 
-  // The ghost's midpoint sits on the cursor (applyPasteTransformToPoints
-  // centers the copy on it), so the cursor's axial coordinate is L/2. The
-  // copied segment only provides the AXIS and the band width — the candidate
-  // length is re-derived from the dark band under the mouse, so a long copy
-  // can land as a shorter segment (and vice versa).
+  // The probe's midpoint is the anchor (for the paste flow the ghost is
+  // centered on the cursor), so its axial coordinate is L/2. The probe only
+  // provides the AXIS and the band width — the candidate length is
+  // re-derived from the dark band around the anchor, so a long probe can
+  // land as a shorter segment (and vice versa).
   const aCur = L / 2;
   const win = Math.min(L / 2, 60);
 
@@ -469,8 +495,6 @@ function adjustSegment({
     return bestT;
   };
   const coarseStep = Math.max(1, Math.round(w / 2));
-  let t = scanT(0, T, coarseStep);
-  t = scanT(t, coarseStep, 1);
 
   // --- Pass B: length from the cursor — walk both ways until the dark
   // drops. A small gap tolerance survives antialiasing / noise; the endpoint
@@ -512,9 +536,12 @@ function adjustSegment({
   // longitudinal dark line while ignoring outliers (crossings, noise).
   const findBandCenterOffset = (origin) => {
     const maxDist = Math.round(2 * w);
+    // floor: same pixel-index convention as sampleDark — with floor sampling
+    // the (lo + hi) / 2 band center below is phase-unbiased (round() made it
+    // systematically ~0.5 px off toward the top/left).
     const isDarkAt = (dist) => {
-      const px = Math.round(origin.x + dist * n.x);
-      const py = Math.round(origin.y + dist * n.y);
+      const px = Math.floor(origin.x + dist * n.x);
+      const py = Math.floor(origin.y + dist * n.y);
       if (px < 0 || py < 0 || px >= imageData.width || py >= imageData.height)
         return false;
       if (exclusionMask && exclusionMask[py * imageData.width + px])
@@ -539,7 +566,17 @@ function adjustSegment({
     let hi = seed;
     while (hi - lo <= 2 * maxDist && isDarkAt(lo - 1)) lo--;
     while (hi - lo <= 2 * maxDist && isDarkAt(hi + 1)) hi++;
-    return (lo + hi) / 2;
+    // Average the PIXEL CENTERS of the two edge hits (projected on the
+    // normal) rather than the raw integer distances: integer sampling has a
+    // ±0.5 phase error that never converges (the candidate ends up ~0.5 px
+    // off toward the top/left); pixel centers make the estimate exact for
+    // axis-aligned bands.
+    const pixelCenterOffset = (dist) => {
+      const px = Math.floor(origin.x + dist * n.x);
+      const py = Math.floor(origin.y + dist * n.y);
+      return (px + 0.5 - origin.x) * n.x + (py + 0.5 - origin.y) * n.y;
+    };
+    return (pixelCenterOffset(lo) + pixelCenterOffset(hi)) / 2;
   };
 
   const medianBandOffset = (a1, a2, tt) => {
@@ -558,19 +595,33 @@ function adjustSegment({
     return offs[Math.floor(offs.length / 2)];
   };
 
-  // Walk → recenter → re-walk: each recentering can expose more (or less) of
-  // the band, so iterate until the centering converges.
+  let t;
   let a1 = null;
   let a2 = null;
-  for (let iter = 0; iter < 3; iter++) {
-    const seed = findSeed(t);
-    if (seed === null) return null;
-    a1 = walk(seed, -1, t);
-    a2 = walk(seed, +1, t);
+  if (anchored) {
+    // Anchored: p1 is a fixed endpoint (t = 0, no recentering) — only the
+    // far end is derived, walking from the anchor toward p2 until the
+    // darkness drops.
+    t = 0;
+    a1 = 0;
+    a2 = walk(0, +1, 0);
     if (a2 - a1 < 4) return null;
-    const med = medianBandOffset(a1, a2, t);
-    if (med === null || Math.abs(med) < 0.3) break;
-    t += Math.max(-w, Math.min(w, med));
+  } else {
+    t = scanT(0, T, coarseStep);
+    t = scanT(t, coarseStep, 1);
+
+    // Walk → recenter → re-walk: each recentering can expose more (or less)
+    // of the band, so iterate until the centering converges.
+    for (let iter = 0; iter < 3; iter++) {
+      const seed = findSeed(t);
+      if (seed === null) return null;
+      a1 = walk(seed, -1, t);
+      a2 = walk(seed, +1, t);
+      if (a2 - a1 < 4) return null;
+      const med = medianBandOffset(a1, a2, t);
+      if (med === null || Math.abs(med) < 0.3) break;
+      t += Math.max(-w, Math.min(w, med));
+    }
   }
 
   // --- Acceptance -----------------------------------------------------------
@@ -581,17 +632,16 @@ function adjustSegment({
   // When the walk stopped because the band runs into an already-annotated
   // zone (exclusion-mask pixels are "skipped", not light), the endpoint sits
   // at the mask edge — which is slightly larger than the drawn annotation, so
-  // the committed copy would leave a small gap at the junction. Push those
+  // the committed segment would leave a small gap at the junction. Push those
   // endpoints (and ONLY those — a stop on a real darkness drop is left
-  // untouched) 2 cm INTO the masked zone to guarantee an overlap.
-  if (exclusionMask) {
-    const overlapPx = meterByPx > 0 ? 0.02 / meterByPx / scale : w / 2;
+  // untouched) `overlapPx` INTO the masked zone to guarantee an overlap.
+  if (exclusionMask && overlapPx > 0) {
     const crossMaskFraction = (a) => {
       let masked = 0;
       let totalSamples = 0;
       for (let cs = crossStart; cs <= crossEnd; cs += crossStep) {
-        const px = Math.round(p1.x + a * u.x + (t + cs) * n.x);
-        const py = Math.round(p1.y + a * u.y + (t + cs) * n.y);
+        const px = Math.floor(p1.x + a * u.x + (t + cs) * n.x);
+        const py = Math.floor(p1.y + a * u.y + (t + cs) * n.y);
         if (px < 0 || py < 0 || px >= imageData.width || py >= imageData.height)
           continue;
         totalSamples++;
@@ -605,12 +655,59 @@ function adjustSegment({
       }
       return false;
     };
-    if (stoppedOnMask(a1, -1)) a1 -= overlapPx;
+    // Anchored: never move the user's placed point (a1).
+    if (!anchored && stoppedOnMask(a1, -1)) a1 -= overlapPx;
     if (stoppedOnMask(a2, +1)) a2 += overlapPx;
   }
 
+  // Endpoints sit on the LAST DARK SAMPLE (integer step) — on average half a
+  // pixel short of the band's real edge. Push each free end half a pixel
+  // outward (never the anchored point).
+  if (!anchored) a1 -= 0.5;
+  a2 += 0.5;
+
   const q1 = { x: p1.x + a1 * u.x + t * n.x, y: p1.y + a1 * u.y + t * n.y };
   const q2 = { x: p1.x + a2 * u.x + t * n.x, y: p1.y + a2 * u.y + t * n.y };
+
+  return { q1, q2, dark, total };
+}
+
+function adjustSegment({
+  item,
+  type,
+  placedRef,
+  toImgPx,
+  toRef,
+  scale,
+  zoom,
+  meterByPx,
+  imageData,
+  exclusionMask,
+  darknessThreshold,
+  overlapsSource,
+}) {
+  const band = getSegmentBandImgPx(item, type, meterByPx, scale);
+  const { w } = band;
+  // 2 cm junction overlap into existing annotations (see snapSegmentToDarkBand).
+  const overlapPx = meterByPx > 0 ? 0.02 / meterByPx / scale : w / 2;
+
+  const snapped = snapSegmentToDarkBand({
+    p1: toImgPx(placedRef[0]),
+    p2: toImgPx(placedRef[1]),
+    imageData,
+    exclusionMask,
+    band,
+    zoom,
+    overlapPx,
+    darknessThreshold,
+  });
+  if (!snapped) return null;
+  const { q1, q2, dark, total } = snapped;
+
+  const dx = q2.x - q1.x;
+  const dy = q2.y - q1.y;
+  const len = Math.hypot(dx, dy) || 1;
+  const n = { x: -dy / len, y: dx / len };
 
   const candBbox = getBbox([q1, q2]);
   if (

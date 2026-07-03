@@ -31,6 +31,8 @@ import {
   setGlobalDetectionRunning,
   setAutoOffsetsOnCommit,
   setRepairMode,
+  setSegmentSnapDirection,
+  clearConstraintBuffer,
 } from 'Features/mapEditor/mapEditorSlice';
 import { setColorToReplace } from 'Features/opencv/opencvSlice';
 import { setSelectedVersionId } from 'Features/baseMapEditor/baseMapEditorSlice';
@@ -113,7 +115,8 @@ import { REPAIR_KEY_TO_MODE } from 'Features/localizedRepair/constants/repairSho
 import extractAnnotationImagePatch from 'Features/annotations/utils/extractAnnotationImagePatch';
 import transformImageData from 'Features/annotations/utils/transformImageData';
 import runPatternDetection from 'Features/smartDetect/utils/runPatternDetection';
-import adjustPasteCandidate, { isPasteAdjustEligible } from 'Features/smartDetect/utils/adjustPasteCandidate';
+import adjustPasteCandidate, { isPasteAdjustEligible, snapSegmentToDarkBand } from 'Features/smartDetect/utils/adjustPasteCandidate';
+import repairOrthoJunctions, { buildJunctionNeighbors } from 'Features/smartDetect/utils/repairOrthoJunctions';
 import runGlobalFloorPlanDetection from 'Features/smartDetect/utils/runGlobalFloorPlanDetection';
 import runWallSegmentVectorization from 'Features/smartDetect/utils/runWallSegmentVectorization';
 import useCreateAnnotationsFromDetectedMatches from 'Features/annotations/hooks/useCreateAnnotationsFromDetectedMatches';
@@ -137,7 +140,7 @@ import snapToAngle from 'Features/mapEditor/utils/snapToAngle';
 import getBestSnap from 'Features/mapEditor/utils/getBestSnap';
 import getAxisSnap from 'Features/mapEditor/utils/getAxisSnap';
 import getSnapModes from 'Features/mapEditor/utils/getSnapModes';
-import getEffectiveDetectionMode from 'Features/mapEditor/utils/getEffectiveDetectionMode';
+import getEffectiveDetectionMode, { SEGMENT_SNAP_MODES } from 'Features/mapEditor/utils/getEffectiveDetectionMode';
 import getAnnotationEditionPanelAnchor from 'Features/annotations/utils/getAnnotationEditionPanelAnchor';
 import pasteAnnotationService from 'Features/mapEditor/services/pasteAnnotationService';
 import getAnnotationLabelPropsFromAnnotation from 'Features/annotations/utils/getAnnotationLabelPropsFromAnnotation';
@@ -192,6 +195,18 @@ function toggleIds(current = [], incoming = []) {
   const kept = current.filter((id) => !incomingSet.has(id));
   const added = incoming.filter((id) => !currentSet.has(id));
   return [...kept, ...added];
+}
+
+// Which axis of the SEGMENT_SNAP candidates to display: a forced direction
+// ("V" / "H") wins when its candidate exists (null otherwise — show nothing),
+// auto (preferred = null) picks the best dark coverage.
+function pickSegmentAdjustAxis(candidates, preferred) {
+  if (preferred) return candidates[preferred] ? preferred : null;
+  if (candidates.H && candidates.V)
+    return candidates.H.dark >= candidates.V.dark ? "H" : "V";
+  if (candidates.H) return "H";
+  if (candidates.V) return "V";
+  return null;
 }
 
 // Snapshot one annotation's geometry (pixel-image space) into a paste-clipboard
@@ -730,12 +745,12 @@ const InteractionLayer = forwardRef(({
           for (const seg of r.segments) {
             const score = isWidthAuto
               ? scoreSegmentAtWidth({
-                  segment: seg,
-                  widthPx,
-                  imageData,
-                  normal: normalForMeasure,
-                  exclusionMask: stripDetectionExclusionMaskRef.current,
-                })
+                segment: seg,
+                widthPx,
+                imageData,
+                normal: normalForMeasure,
+                exclusionMask: stripDetectionExclusionMaskRef.current,
+              })
               : 0;
             allDetections.push({ seg, widthCm, widthPx, score, onMedian });
           }
@@ -890,6 +905,267 @@ const InteractionLayer = forwardRef(({
     []
   );
 
+  // --- SEGMENT tool (SEGMENT / POLYLINE_SEGMENT + S) hover detection --------
+  // Dark-band snapping around the cursor (same core as the paste "Ajuster"
+  // mode, snapSegmentToDarkBand): one pass per axis (H + V, ortho-snap
+  // aware). The direction mode (Redux segmentSnapDirection, cycled with D:
+  // auto → V → H → auto) picks which candidate is shown — auto = best dark
+  // coverage, V/H = forced axis (nothing shown when that axis has no
+  // candidate). Unlike the loupe detections (STRIP / POLYLINE_CLICK), no ROI
+  // mask is shown on screen.
+  const segmentSnapDirection = useSelector(
+    (s) => s.mapEditor.segmentSnapDirection
+  );
+  const segmentAdjustRef = useRef(null); // { candidates: {H,V}, shownAxis, widthImgPx }
+  // Mirror of segmentSnapDirection for the throttled detection closure.
+  const segmentAdjustPreferredAxisRef = useRef(segmentSnapDirection);
+
+  const clearSegmentAdjustDetection = useCallback(() => {
+    segmentAdjustRef.current = null;
+    detectedSimilarStripsRef.current = null;
+    transientDetectedStripsRef.current?.clear();
+    syncSmartDetectionPresent();
+  }, []);
+
+  // Publish one axis' candidate through the shared strips pipeline
+  // (detectedSimilarStripsRef + TransientDetectedStripsLayer), so the
+  // Space commit path (onCommitSimilarStrips) works unchanged.
+  const showSegmentAdjustCandidate = useCallback((axis) => {
+    const state = segmentAdjustRef.current;
+    const na = newAnnotationRef.current;
+    const cand = state?.candidates?.[axis];
+    if (!state || !na || !cand) return;
+    state.shownAxis = axis;
+
+    const imageScale = baseMapImageScaleRef.current || 1;
+    const imageOffset = baseMapImageOffsetRef.current || { x: 0, y: 0 };
+    const toLocal = (p) => ({
+      x: p.x * imageScale + imageOffset.x,
+      y: p.y * imageScale + imageOffset.y,
+    });
+    const a = toLocal(cand.q1);
+    const b = toLocal(cand.q2);
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const len = Math.hypot(dx, dy);
+    if (len === 0) return;
+    const nx = -dy / len;
+    const ny = dx / len;
+    const halfW = (state.widthImgPx * imageScale) / 2;
+    const polygon = [
+      { x: a.x + nx * halfW, y: a.y + ny * halfW },
+      { x: b.x + nx * halfW, y: b.y + ny * halfW },
+      { x: b.x - nx * halfW, y: b.y - ny * halfW },
+      { x: a.x - nx * halfW, y: a.y - ny * halfW },
+    ];
+    detectedSimilarStripsRef.current = {
+      strips: [{ centerline: [a, b], polygon }],
+      sourceAnnotation: na,
+      // L-junction repair: neighbor endpoint slides to persist on commit.
+      pointEdits: cand.pointEdits?.length ? cand.pointEdits : undefined,
+    };
+    transientDetectedStripsRef.current?.updateStrips(
+      detectedSimilarStripsRef.current.strips
+    );
+    syncSmartDetectionPresent();
+  }, []);
+
+  const runSegmentAdjustDetection = useMemo(
+    () =>
+      throttle((cursorImgPx) => {
+        const imageData = stripDetectionImageDataRef.current;
+        const na = newAnnotationRef.current;
+        if (!imageData || !na) return;
+        if (!SEGMENT_SNAP_MODES.includes(enabledDrawingModeRef.current)) return;
+
+        const meterByPx = meterByPxRef.current ?? 0;
+        const imageScale = baseMapImageScaleRef.current || 1;
+        const templateStrokeWidth = na.strokeWidth ?? 20;
+        const templateStrokeWidthUnit = na.strokeWidthUnit ?? "PX";
+        const widthImgPx = Math.max(
+          3,
+          templateStrokeWidthUnit === "CM" && meterByPx > 0
+            ? Math.abs((templateStrokeWidth * 0.01) / meterByPx / imageScale)
+            : Math.abs(templateStrokeWidth / imageScale)
+        );
+
+        // Same ortho-snap frame convention as runStripDetectionFromLoupe.
+        const orthoAngleRad =
+          (-(orthoSnapAngleOffsetRef.current || 0) * Math.PI) / 180;
+        const cosA = Math.cos(orthoAngleRad);
+        const sinA = Math.sin(orthoAngleRad);
+        const AXES = {
+          H: { x: cosA, y: sinA },
+          V: { x: -sinA, y: cosA },
+        };
+
+        // The nominal length only sets the seed-search window around the
+        // cursor — the core re-derives the real length by walking until the
+        // darkness drops.
+        const NOMINAL = 120;
+        const overlapPx =
+          meterByPx > 0 ? 0.02 / meterByPx / imageScale : widthImgPx / 2;
+        const band = {
+          w: widthImgPx,
+          crossStart: -widthImgPx / 2,
+          crossEnd: widthImgPx / 2,
+          bandCenterOffset: 0,
+        };
+
+        // First point already placed → anchored mode: the candidate is
+        // pinned at that point and grows toward the cursor side.
+        const imageOffset = baseMapImageOffsetRef.current || { x: 0, y: 0 };
+        const firstPt =
+          drawingPointsRef.current?.length === 1
+            ? drawingPointsRef.current[0]
+            : null;
+        const anchorImgPx = firstPt
+          ? {
+            x: (firstPt.x - imageOffset.x) / imageScale,
+            y: (firstPt.y - imageOffset.y) / imageScale,
+          }
+          : null;
+
+        const candidates = {};
+        for (const axisKey of ["H", "V"]) {
+          const d = AXES[axisKey];
+          let p1;
+          let p2;
+          if (anchorImgPx) {
+            const sign =
+              (cursorImgPx.x - anchorImgPx.x) * d.x +
+                (cursorImgPx.y - anchorImgPx.y) * d.y >=
+                0
+                ? 1
+                : -1;
+            p1 = anchorImgPx;
+            p2 = {
+              x: anchorImgPx.x + NOMINAL * sign * d.x,
+              y: anchorImgPx.y + NOMINAL * sign * d.y,
+            };
+          } else {
+            p1 = {
+              x: cursorImgPx.x - (NOMINAL / 2) * d.x,
+              y: cursorImgPx.y - (NOMINAL / 2) * d.y,
+            };
+            p2 = {
+              x: cursorImgPx.x + (NOMINAL / 2) * d.x,
+              y: cursorImgPx.y + (NOMINAL / 2) * d.y,
+            };
+          }
+          let res = null;
+          try {
+            res = snapSegmentToDarkBand({
+              p1,
+              p2,
+              imageData,
+              exclusionMask: stripDetectionExclusionMaskRef.current,
+              band,
+              zoom: smartZoomRef.current || 1,
+              overlapPx,
+              anchored: Boolean(anchorImgPx),
+            });
+          } catch (err) {
+            console.warn("[segmentAdjust] failed", err);
+          }
+          if (res) candidates[axisKey] = res;
+        }
+
+        if (!candidates.H && !candidates.V) {
+          clearSegmentAdjustDetection();
+          return;
+        }
+
+        // Final pass: L / T junction repair vs existing orthogonal 2-pt
+        // POLYLINE / STRIP annotations. Axes are never moved — endpoints
+        // slide along their own axis (candidate ends snap 1 cm inside the
+        // neighbor band; the L case also slides the neighbor's endpoint,
+        // persisted on Space commit via pointEdits). Thresholds are
+        // physical (21 cm reach, 1 cm overlap) → skipped when uncalibrated.
+        if (meterByPx > 0) {
+          const junctionNeighbors = buildJunctionNeighbors(
+            annotationsRef.current,
+            meterByPx,
+          );
+          if (junctionNeighbors.length) {
+            const imageOffsetRepair =
+              baseMapImageOffsetRef.current || { x: 0, y: 0 };
+            const toRefPx = (p) => ({
+              x: p.x * imageScale + imageOffsetRepair.x,
+              y: p.y * imageScale + imageOffsetRepair.y,
+            });
+            const toImgPx = (p) => ({
+              x: (p.x - imageOffsetRepair.x) / imageScale,
+              y: (p.y - imageOffsetRepair.y) / imageScale,
+            });
+            const wRefPx = widthImgPx * imageScale;
+            const candBand =
+              na.type === "STRIP"
+                ? {
+                  lo: Math.min(0, (na.stripOrientation ?? 1) * wRefPx),
+                  hi: Math.max(0, (na.stripOrientation ?? 1) * wRefPx),
+                }
+                : { lo: -wRefPx / 2, hi: wRefPx / 2 };
+            for (const axisKey of ["H", "V"]) {
+              const cand = candidates[axisKey];
+              if (!cand) continue;
+              try {
+                const rep = repairOrthoJunctions({
+                  q1: toRefPx(cand.q1),
+                  q2: toRefPx(cand.q2),
+                  band: candBand,
+                  anchoredStart: Boolean(anchorImgPx),
+                  neighbors: junctionNeighbors,
+                  maxGapPx: 0.21 / meterByPx,
+                  overlapPx: 0.01 / meterByPx,
+                });
+                cand.q1 = toImgPx(rep.q1);
+                cand.q2 = toImgPx(rep.q2);
+                cand.pointEdits = rep.neighborEdits;
+              } catch (err) {
+                console.warn("[segmentAdjust] junction repair failed", err);
+              }
+            }
+          }
+        }
+
+        // Direction mode: forced axis (V/H) or best dark coverage (auto).
+        const axis = pickSegmentAdjustAxis(
+          candidates,
+          segmentAdjustPreferredAxisRef.current
+        );
+        segmentAdjustRef.current = { candidates, shownAxis: axis, widthImgPx };
+        if (axis) {
+          showSegmentAdjustCandidate(axis);
+        } else {
+          // Forced direction with no candidate on that axis → show nothing.
+          detectedSimilarStripsRef.current = null;
+          transientDetectedStripsRef.current?.clear();
+          syncSmartDetectionPresent();
+        }
+      }, 120),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [showSegmentAdjustCandidate, clearSegmentAdjustDetection]
+  );
+
+  // Direction mode changes (D key or panel click) re-pick the displayed
+  // candidate at the current position without waiting for a mousemove.
+  useEffect(() => {
+    segmentAdjustPreferredAxisRef.current = segmentSnapDirection;
+    const state = segmentAdjustRef.current;
+    if (!state) return;
+    const axis = pickSegmentAdjustAxis(state.candidates, segmentSnapDirection);
+    state.shownAxis = axis;
+    if (axis) {
+      showSegmentAdjustCandidate(axis);
+    } else {
+      detectedSimilarStripsRef.current = null;
+      transientDetectedStripsRef.current?.clear();
+      syncSmartDetectionPresent();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [segmentSnapDirection, showSegmentAdjustCandidate]);
+
   // sourceImage for smart detect
 
   const [sourceImageEl, setSourceImageEl] = useState(null);
@@ -922,11 +1198,18 @@ const InteractionLayer = forwardRef(({
       smartDetectEnabled,
     });
     const needsLoupeStripCaches =
-      detectionTarget === "STRIP" || detectionTarget === "SEGMENT";
+      detectionTarget === "STRIP" ||
+      detectionTarget === "SEGMENT" ||
+      detectionTarget === "SEGMENT_SNAP";
     if (!needsLoupeStripCaches) {
       stripDetectionImageDataRef.current = null;
       stripDetectionExclusionMaskRef.current = null;
       lastStripDetectCursorRef.current = null;
+      segmentAdjustRef.current = null;
+      if (segmentAdjustPreferredAxisRef.current !== null) {
+        segmentAdjustPreferredAxisRef.current = null;
+        dispatch(setSegmentSnapDirection(null));
+      }
       return;
     }
     if (!sourceImageEl) return;
@@ -1166,6 +1449,12 @@ const InteractionLayer = forwardRef(({
           x: roi.x, y: roi.y, width: roi.width, height: roi.height,
         });
       });
+    } else if (_detTargetCam === "SEGMENT_SNAP") {
+      // No loupe ROI in this mode — re-run at the last known cursor.
+      requestAnimationFrame(() => {
+        const cursorImgPx = lastStripDetectCursorRef.current;
+        if (cursorImgPx) runSegmentAdjustDetection(cursorImgPx);
+      });
     }
 
     // 2. Update Viewport Bounds in BaseMap Reference
@@ -1350,8 +1639,13 @@ const InteractionLayer = forwardRef(({
 
     // Zoom square is in screen/viewport pixels (staticOverlay is outside camera group).
     // Hide the helper rectangle when smart detect is off — we set size to 0 so
-    // the SVG rect collapses and nothing is drawn on the map.
-    if (smartDetectEnabledRef.current) {
+    // the SVG rect collapses and nothing is drawn on the map. SEGMENT_SNAP
+    // detection doesn't use the loupe ROI at all, so no mask either.
+    const _zoomSquareTarget = getEffectiveDetectionMode({
+      enabledDrawingMode: enabledDrawingModeRef.current,
+      smartDetectEnabled: smartDetectEnabledRef.current,
+    });
+    if (smartDetectEnabledRef.current && _zoomSquareTarget !== "SEGMENT_SNAP") {
       screenCursorRef.current?.setZoomSquareSize({ width: loupeW / smartZoom, height: loupeH / smartZoom });
     } else {
       screenCursorRef.current?.setZoomSquareSize({ width: 0, height: 0 });
@@ -1388,7 +1682,7 @@ const InteractionLayer = forwardRef(({
   // Ref wrapper so the keyDown handler (registered once with [] deps) always
   // calls the latest closure — otherwise stale `baseMapImageScale` from the
   // first render would produce an incorrect ROI when P / M / F is pressed.
-  const refreshSmartDetectZoomRef = useRef(() => {});
+  const refreshSmartDetectZoomRef = useRef(() => { });
   refreshSmartDetectZoomRef.current = () => {
     const prev = lastSmartROI.current;
     if (!prev || !smartDetectRef.current) return;
@@ -2632,6 +2926,25 @@ const InteractionLayer = forwardRef(({
         }
       }
 
+      // --- SEGMENT tool hover detection: D ("direction") cycles the
+      // detection direction auto → vertical → horizontal → auto. The Redux
+      // state drives both the panel row and the displayed candidate (via the
+      // segmentSnapDirection effect). R is taken by the rectangle tool.
+      if (
+        isActiveViewerRef.current &&
+        !pasteClipboardRef.current &&
+        (e.key === "d" || e.key === "D") &&
+        SEGMENT_SNAP_MODES.includes(enabledDrawingModeRef.current) &&
+        smartDetectEnabledRef.current
+      ) {
+        e.preventDefault();
+        const cur = segmentAdjustPreferredAxisRef.current;
+        const next = cur === null ? "V" : cur === "V" ? "H" : null;
+        segmentAdjustPreferredAxisRef.current = next;
+        dispatch(setSegmentSnapDirection(next));
+        return;
+      }
+
       // --- Rectangle typed X/Y dimensions (after first corner placed) ---
       // Window-scoped listener — only the active viewer should react,
       // otherwise duplicate viewers (e.g. main + BASE_MAPS) double-capture each key.
@@ -2850,6 +3163,11 @@ const InteractionLayer = forwardRef(({
           // same transient layer for the green flash preview).
           detectedSimilarStripsRef.current = null;
           detectedGlobalFeaturesRef.current = null;
+          segmentAdjustRef.current = null;
+          if (segmentAdjustPreferredAxisRef.current !== null) {
+            segmentAdjustPreferredAxisRef.current = null;
+            dispatch(setSegmentSnapDirection(null));
+          }
           transientDetectedStripsRef.current?.clear();
           cachedDetectImageUrlRef.current = null;
           transientDetectedPolygonRef.current?.clear();
@@ -2862,6 +3180,9 @@ const InteractionLayer = forwardRef(({
           break;
 
         case 'd':
+          // SEGMENT tool: D is the direction toggle (handled upstream when a
+          // candidate exists) — never open the loupe overlay in that mode.
+          if (SEGMENT_SNAP_MODES.includes(enabledDrawingModeRef.current)) break;
 
           const mousePos = lastMouseScreenPosRef.current;
           setShowSmartDetect(true);
@@ -2917,14 +3238,33 @@ const InteractionLayer = forwardRef(({
           // --- DETECT_SIMILAR_STRIPS: commit all detected strips ---
           if (detectedSimilarStripsRef.current) {
             e.preventDefault();
-            const { strips, sourceAnnotation } = detectedSimilarStripsRef.current;
+            const { strips, sourceAnnotation, pointEdits } =
+              detectedSimilarStripsRef.current;
             if (strips?.length > 0 && onCommitSimilarStripsRef.current) {
               console.log("[DETECT_SIMILAR_STRIPS] Committing", strips.length, "strips");
-              onCommitSimilarStripsRef.current({ strips, sourceAnnotation });
+              onCommitSimilarStripsRef.current({
+                strips,
+                sourceAnnotation,
+                pointEdits,
+              });
             }
             detectedSimilarStripsRef.current = null;
             syncSmartDetectionPresent();
             transientDetectedStripsRef.current?.clear();
+            // Anchored segment-snap: the committed candidate absorbs the
+            // in-progress first point — reset the elastic drawing (points
+            // state + DrawingLayer's imperative preview, which setPoints
+            // alone doesn't hide).
+            if (
+              SEGMENT_SNAP_MODES.includes(enabledDrawingModeRef.current) &&
+              drawingPointsRef.current?.length
+            ) {
+              setDrawingPoints([]);
+              drawingPointsRef.current = [];
+              drawingLayerRef.current?.setPoints?.([]);
+              drawingLayerRef.current?.clearPreview?.();
+              dispatch(clearConstraintBuffer());
+            }
             return;
           }
 
@@ -3253,6 +3593,9 @@ const InteractionLayer = forwardRef(({
             }
             break;
           }
+          // SEGMENT tool: the dark-band hover snapping is on J (see below) —
+          // keep S inert so the two hotkey sets stay distinct.
+          if (SEGMENT_SNAP_MODES.includes(enabledDrawingModeRef.current)) break;
           // HOVER smart-detect (formerly bound to A): toggle the loupe-based
           // detection that runs as the cursor moves.
           if (showSmartDetectRef.current) {
@@ -3261,6 +3604,17 @@ const InteractionLayer = forwardRef(({
           }
           break;
         }
+
+        case "j":
+        case "J":
+          // SEGMENT tool: toggle the dark-band hover snapping (same J as the
+          // paste "Ajuster" mode) — no loupe required, no on-screen mask.
+          if (!isActiveViewerRef.current) break;
+          if (SEGMENT_SNAP_MODES.includes(enabledDrawingModeRef.current)) {
+            dispatch(setSmartDetectMode("HOVER"));
+            dispatch(toggleSmartDetectEnabled());
+          }
+          break;
 
         // Toggle the type (square <-> circle) of the LAST placed drawing point.
         // A trailing "circle" forms a live arc with its previous square point and
@@ -3652,13 +4006,13 @@ const InteractionLayer = forwardRef(({
             setToaster(
               relId
                 ? {
-                    message: "Annotation ajoutée à la soustraction",
-                    severity: "success",
-                  }
+                  message: "Annotation ajoutée à la soustraction",
+                  severity: "success",
+                }
                 : {
-                    message: "Annotation déjà soustraite",
-                    severity: "info",
-                  }
+                  message: "Annotation déjà soustraite",
+                  severity: "info",
+                }
             )
           );
         }
@@ -4128,9 +4482,8 @@ const InteractionLayer = forwardRef(({
             console.error("[SURFACE_DROP outlines] detection failed", err);
             dispatch(
               setToaster({
-                message: `Échec de la détection du contour : ${
-                  err?.message || err
-                }`,
+                message: `Échec de la détection du contour : ${err?.message || err
+                  }`,
                 isError: true,
               })
             );
@@ -4738,7 +5091,7 @@ const InteractionLayer = forwardRef(({
           })),
         }));
 
-        const snapResult = getBestSnap(localPos, annotationsExcludingDragPoint, snapThreshold, {vertex: true, midpoint: true, projection: true});
+        const snapResult = getBestSnap(localPos, annotationsExcludingDragPoint, snapThreshold, { vertex: true, midpoint: true, projection: true });
 
         if (snapResult?.type === "VERTEX") {
           currentSnapRef.current = snapResult;
@@ -5034,8 +5387,12 @@ const InteractionLayer = forwardRef(({
       updateSmartDetect(lastMouseScreenPosRef.current);
     }
 
-    // --- STRIP / SEGMENT auto-detection: throttled detection from loupe ---
-    if (_detTargetMove === "STRIP" || _detTargetMove === "SEGMENT") {
+    // --- STRIP / SEGMENT / SEGMENT_SNAP auto-detection on hover ---
+    if (
+      _detTargetMove === "STRIP" ||
+      _detTargetMove === "SEGMENT" ||
+      _detTargetMove === "SEGMENT_SNAP"
+    ) {
       const localPos = toLocalCoords(worldPos);
       const cursorImgPx = {
         x: (localPos.x - baseMapImageOffset.x) / baseMapImageScale,
@@ -5046,17 +5403,26 @@ const InteractionLayer = forwardRef(({
       const moved = !last
         || Math.abs(cursorImgPx.x - last.x) > 1
         || Math.abs(cursorImgPx.y - last.y) > 1;
-      const loupeBBox = lastSmartROI.current
-        ? {
+      if (_detTargetMove === "SEGMENT_SNAP") {
+        // SEGMENT tool: dark-band snapping around the cursor — no loupe ROI,
+        // no on-screen mask.
+        if (moved) {
+          lastStripDetectCursorRef.current = cursorImgPx;
+          runSegmentAdjustDetection(cursorImgPx);
+        }
+      } else {
+        const loupeBBox = lastSmartROI.current
+          ? {
             x: lastSmartROI.current.x,
             y: lastSmartROI.current.y,
             width: lastSmartROI.current.width,
             height: lastSmartROI.current.height,
           }
-        : null;
-      if (moved && loupeBBox) {
-        lastStripDetectCursorRef.current = cursorImgPx;
-        runStripDetectionFromLoupe(cursorImgPx, loupeBBox);
+          : null;
+        if (moved && loupeBBox) {
+          lastStripDetectCursorRef.current = cursorImgPx;
+          runStripDetectionFromLoupe(cursorImgPx, loupeBBox);
+        }
       }
     }
 
@@ -5849,9 +6215,9 @@ const InteractionLayer = forwardRef(({
             rotationAngle={orthoSnapAngleOffset || 0}
             crosshairAxis={
               smartDetectEnabled &&
-              (enabledDrawingMode === "STRIP" ||
-                enabledDrawingMode === "POLYLINE_CLICK" ||
-                enabledDrawingMode === "SURFACE_DROP")
+                (enabledDrawingMode === "STRIP" ||
+                  enabledDrawingMode === "POLYLINE_CLICK" ||
+                  enabledDrawingMode === "SURFACE_DROP")
                 ? stripDetectionOrientation
                 : "BOTH"
             }
@@ -6209,8 +6575,8 @@ const InteractionLayer = forwardRef(({
           enabled={enabledDrawingMode === 'SMART_DETECT' || showSmartDetectRef.current}
           initialDetectMode={
             getEffectiveDetectionMode({ enabledDrawingMode, smartDetectEnabled }) === "RECTANGLE" ? "RECTANGLE"
-            : (enabledDrawingMode === "POLYLINE_CLICK" && advancedLayout) ? "ORTHO_PATHS"
-            : undefined
+              : (enabledDrawingMode === "POLYLINE_CLICK" && advancedLayout) ? "ORTHO_PATHS"
+                : undefined
           }
           loupeOnly={
             // Only RECTANGLE / SMART_DETECT exercise the OpenCV path inside

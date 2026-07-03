@@ -15,6 +15,7 @@ import getPolygonsPointsFromStripAnnotation from "Features/annotations/utils/get
 import applyStripElevation, {
   getStripElevationOffsetZ,
 } from "Features/annotations/utils/applyStripElevation";
+import duplicateAnnotationPoints from "Features/annotations/utils/duplicateAnnotationPoints";
 
 import db from "App/db/db";
 
@@ -50,12 +51,17 @@ export default function useCloneAnnotationsAndEntities() {
 
     const entityLabel = options?.entityLabel;
     const stripElevation = options?.stripElevation;
+    // Default true = reuse source point refs (legacy behavior). false = mint
+    // brand-new db.points so the duplicate is fully independent.
+    const keepOriginalPoints = options?.keepOriginalPoints ?? true;
+    const imageSize = baseMap?.getImageSize?.() ?? baseMap?.image?.imageSize;
     const entityTable =
       selectedListing?.table ?? selectedListing?.entityModel?.defaultTable;
 
     // 1. Prepare all items in memory
     const allEntities = [];
     const allAnnotations = [];
+    const allPoints = [];
 
     for (const annotation of annotations) {
       const isPolygonToPolyline =
@@ -152,7 +158,19 @@ export default function useCloneAnnotationsAndEntities() {
           );
         }
 
-        allAnnotations.push(clonedAnnotation);
+        // Create independent points unless the caller opted to keep originals.
+        // Runs last so we remap the final geometry (after strip-elevation).
+        let finalAnnotation = clonedAnnotation;
+        if (!keepOriginalPoints) {
+          const { annotation: remapped, pointRecords } = duplicateAnnotationPoints(
+            clonedAnnotation,
+            { imageSize, projectId, baseMapId: annotation.baseMapId }
+          );
+          finalAnnotation = remapped;
+          if (pointRecords.length > 0) allPoints.push(...pointRecords);
+        }
+
+        allAnnotations.push(finalAnnotation);
       }
     }
 
@@ -191,9 +209,13 @@ export default function useCloneAnnotationsAndEntities() {
 
     // 3. Execute all writes in a single transaction
     const tables = [db.annotations, db.relAnnotationMappingCategory];
+    if (allPoints.length > 0) tables.push(db.points);
     if (entityTable && db[entityTable]) tables.push(db[entityTable]);
 
     await db.transaction("rw", tables, async () => {
+      if (allPoints.length > 0) {
+        await db.points.bulkAdd(allPoints);
+      }
       if (entityTable && allEntities.length > 0) {
         await db[entityTable].bulkAdd(allEntities);
       }

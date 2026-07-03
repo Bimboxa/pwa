@@ -13,7 +13,7 @@
 
 export const WALL_DETECTION_M = 0.6; // characteristic distance to detect wall branches
 const MIN_INDEX_DISTANCE = 2; // minimum index gap to consider two points non-adjacent
-const START_POINT_MIN_SEG_M = 1; // min adjacent segment length (meters) for a valid scan start point
+export const START_POINT_MIN_SEG_M = 1; // min adjacent segment length (meters) for a valid scan start point
 const COLINEAR_TOLERANCE_PX = 0.5;
 
 /**
@@ -27,7 +27,7 @@ function forwardDist(i, j, N) {
  * Project point P onto segment [A, B]. Returns { dist, t, projPt } or null
  * when the projection falls outside the segment.
  */
-function projectOntoSegment(px, py, ax, ay, bx, by) {
+export function projectOntoSegment(px, py, ax, ay, bx, by) {
   const abx = bx - ax;
   const aby = by - ay;
   const lenSq = abx * abx + aby * aby;
@@ -235,9 +235,16 @@ function buildChainsFromBranches(points, N, branches, startIdx) {
   const intChains = [];
   let currentExt = [];
   let cursor = startIdx;
+  const posOf = (i) => forwardDist(startIdx, i, N);
+  let cursorPos = 0; // linear position of cursor; guards against ring wrap
 
   for (const branch of branches) {
     const walkTo = branch.entryProjPt ? branch.entryPrevIdx : branch.entryIdx;
+    const walkToPos = posOf(walkTo);
+    const exitPos = posOf(branch.exitIdx);
+    // Never walk backwards / wrap the ring (defense in depth — branches from
+    // detectMergedBranches are already ordered and disjoint).
+    if (walkToPos < cursorPos || exitPos < walkToPos) continue;
 
     while (cursor !== walkTo) {
       currentExt.push(points[cursor].id);
@@ -270,6 +277,7 @@ function buildChainsFromBranches(points, N, branches, startIdx) {
       ? [branch.exitProjPt]
       : [points[branch.exitIdx].id];
     cursor = branch.exitContinueIdx;
+    cursorPos = exitPos + 1;
   }
 
   while (cursor !== startIdx) {
@@ -288,33 +296,43 @@ function buildChainsFromBranches(points, N, branches, startIdx) {
 }
 
 /**
- * Classify the vertices of a closed polygon outer ring into exterior (`ext`)
- * and wall-branch (`int`) contour chains. Runs branch detection in both ring
- * directions and merges the results.
+ * Run the bidirectional wall-branch detection on a ring and return the merged,
+ * ordered branch list together with the scan start index.
  *
- * @param {Array<{x:number,y:number,id:string}>} points - ring in px coords
- * @param {number} meterByPx - scale factor (meters per pixel)
- * @returns {{ ext: Array<Array<string|{x,y}>>, int: Array<Array<string|{x,y}>> }}
+ * Shared by classifyRingContours (ext/int chains) and buildCollapsedRing
+ * (single ring with wall detours bridged away).
+ *
+ * @returns {{ branches: Array<object>, startIdx: number, N: number }}
+ *   branches is sorted by forward distance from startIdx and guaranteed
+ *   strictly ordered / non-overlapping; empty when N < 3 or no wall branch
+ *   is detected.
  */
-export function classifyRingContours(points, meterByPx) {
+export function detectMergedBranches(points, meterByPx) {
   const N = points.length;
-  if (N < 3) return { ext: [points.map((p) => p.id)], int: [] };
+  if (N < 3) return { branches: [], startIdx: 0, N };
 
   const detectionPx = WALL_DETECTION_M / meterByPx;
   const minSegPx = START_POINT_MIN_SEG_M / meterByPx;
 
   const startIdx = findScanStartIdx(points, N, minSegPx);
 
+  // Pass 1: forward scan
   const fwdBranches = scanForBranches(points, N, detectionPx, minSegPx);
+  // Normalize: forward branches already have correct entry/exit
   for (const b of fwdBranches) {
     b.entryProjPt = null;
     b.entryPrevIdx = null;
   }
 
+  // Pass 2: backward scan (reverse the ring, run same scan, convert back)
   const revPoints = [...points].reverse();
   const bwdBranchesRev = scanForBranches(revPoints, N, detectionPx, minSegPx);
   const bwdBranches = bwdBranchesRev.map((b) => convertReversedBranch(b, N));
 
+  // Merge: keep all forward branches, add backward branches that don't overlap.
+  // When a backward branch is a superset of one or more forward branches,
+  // replace them with the larger backward branch (it captures a wider wall
+  // region that the forward scan missed due to scan-order constraints).
   const merged = [...fwdBranches];
   for (const bwd of bwdBranches) {
     const overlappingIndices = [];
@@ -343,20 +361,118 @@ export function classifyRingContours(points, meterByPx) {
         }
         merged.push(bwd);
       }
+      // else: partial overlap, keep forward branches (original behavior)
     }
   }
 
-  if (merged.length === 0) {
-    return { ext: [points.map((p) => p.id)], int: [] };
-  }
-
+  // Sort by forward distance from startIdx
   merged.sort(
     (a, b) =>
       forwardDist(startIdx, a.entryIdx, N) -
       forwardDist(startIdx, b.entryIdx, N)
   );
 
-  return buildChainsFromBranches(points, N, merged, startIdx);
+  // The chain builders walk forward from startIdx and require each branch's
+  // entry-side point (walkTo) to lie at or after the previous branch's
+  // exitContinueIdx. A violating branch makes `while (cursor !== walkTo)`
+  // wrap the whole ring (N-1 steps), swallowing other branches' interiors
+  // into one giant ext chain. Keep a greedy monotonic subsequence.
+  const ordered = [];
+  let nextFreePos = 0; // linear position (forwardDist from startIdx) of the walk cursor; 0..N
+  for (const b of merged) {
+    const entrySideIdx = b.entryProjPt ? b.entryPrevIdx : b.entryIdx; // = walkTo downstream
+    const entryPos = forwardDist(startIdx, entrySideIdx, N);
+    const exitPos = forwardDist(startIdx, b.exitIdx, N);
+    if (entryPos < nextFreePos) continue; // overlaps/behind previous kept branch
+    if (exitPos < entryPos) continue; // span straddles startIdx → would wrap the ring
+    ordered.push(b);
+    nextFreePos = exitPos + 1; // position of exitContinueIdx (always exitIdx+1); may equal N
+  }
+
+  return { branches: ordered, startIdx, N };
+}
+
+/**
+ * Classify the vertices of a closed polygon outer ring into exterior (`ext`)
+ * and wall-branch (`int`) contour chains. Runs branch detection in both ring
+ * directions and merges the results.
+ *
+ * @param {Array<{x:number,y:number,id:string}>} points - ring in px coords
+ * @param {number} meterByPx - scale factor (meters per pixel)
+ * @returns {{ ext: Array<Array<string|{x,y}>>, int: Array<Array<string|{x,y}>> }}
+ */
+export function classifyRingContours(points, meterByPx) {
+  const N = points.length;
+  if (N < 3) return { ext: [points.map((p) => p.id)], int: [] };
+
+  const { branches, startIdx } = detectMergedBranches(points, meterByPx);
+
+  if (branches.length === 0) {
+    return { ext: [points.map((p) => p.id)], int: [] };
+  }
+
+  return buildChainsFromBranches(points, N, branches, startIdx);
+}
+
+/**
+ * Build a single closed ring from a polygon outer ring where every wall
+ * branch (int/ext bifurcation) is "bridged" away: instead of dipping into
+ * the wall, the contour jumps straight from each branch entry (green) to its
+ * exit (pink). The result is the floor outline as if the interior walls had
+ * never carved into it.
+ *
+ * Reuses the same bidirectional branch detection as classifyRingContours.
+ *
+ * @param {Array<{x:number, y:number, id?:string}>} points - ring in px coords
+ * @param {number} meterByPx - scale factor
+ * @returns {Array<{x:number, y:number, id?:string}>} open ring (first ≠ last);
+ *   the caller sets closeLine. Original ring is returned unchanged when no
+ *   wall branch is detected.
+ */
+export function buildCollapsedRing(points, meterByPx) {
+  const N = points.length;
+  if (N < 3) return points;
+
+  const { branches, startIdx } = detectMergedBranches(points, meterByPx);
+  if (branches.length === 0) return points; // no walls: contour unchanged
+
+  const ring = [];
+  let cursor = startIdx;
+  const posOf = (i) => forwardDist(startIdx, i, N);
+  let cursorPos = 0; // linear position of cursor; guards against ring wrap
+
+  for (const branch of branches) {
+    const walkTo = branch.entryProjPt ? branch.entryPrevIdx : branch.entryIdx;
+    const walkToPos = posOf(walkTo);
+    const exitPos = posOf(branch.exitIdx);
+    // Never walk backwards / wrap the ring (defense in depth — branches from
+    // detectMergedBranches are already ordered and disjoint).
+    if (walkToPos < cursorPos || exitPos < walkToPos) continue;
+
+    // Walk the exterior contour from cursor up to the branch entry.
+    while (cursor !== walkTo) {
+      ring.push(points[cursor]);
+      cursor = (cursor + 1) % N;
+    }
+    ring.push(points[walkTo]);
+    if (branch.entryProjPt) ring.push(branch.entryProjPt); // green (projected)
+
+    // BRIDGE: jump straight to the exit, skipping the interior wall vertices.
+    if (branch.exitProjPt)
+      ring.push(branch.exitProjPt); // pink (projected)
+    else ring.push(points[branch.exitIdx]);
+
+    cursor = branch.exitContinueIdx;
+    cursorPos = exitPos + 1;
+  }
+
+  // Close the ring: walk back to startIdx.
+  while (cursor !== startIdx) {
+    ring.push(points[cursor]);
+    cursor = (cursor + 1) % N;
+  }
+
+  return ring;
 }
 
 /**

@@ -12,6 +12,7 @@ export const DRAWING_TOOL_HOTKEYS = {
   c: "CIRCLE",
   g: "SURFACE_DROP", // "Goutte d'eau" = Remplissage
   b: "STRIP", // "Bande"
+  k: "SEGMENT", // 2-point segment tool (auto-commit; SEGMENT_SNAP detection)
   a: "ARC", // "Arc de cercle" — only resolves for shapes that have an ARC tool
   // (POLYLINE). "A" also doubles as the global smart-detect trigger; the hook
   // yields A to smart-detect when that switch is active (see useDrawingToolHotkeys).

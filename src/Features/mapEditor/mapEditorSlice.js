@@ -168,6 +168,10 @@ const mapEditorInitialState = {
   // strip detection multi-band (used by STRIP + smart, POLYLINE_CLICK + smart)
   stripDetectionMultiple: false, // false → only the band closest to the loupe center; true → all parallel bands
 
+  // SEGMENT tool hover detection (SEGMENT_SNAP) direction, cycled with D:
+  // null (auto = best dark coverage) | "V" (vertical) | "H" (horizontal)
+  segmentSnapDirection: null,
+
   // printable map (lazy mount for export/pdf only)
   showPrintableMap: false,
 
@@ -254,7 +258,8 @@ export const mapEditorSlice = createSlice({
     setOpeningStrokeWidth: (state, action) => {
       const { strokeWidth, strokeWidthUnit } = action.payload ?? {};
       if (strokeWidth != null) state.openingStrokeWidth = strokeWidth;
-      if (strokeWidthUnit != null) state.openingStrokeWidthUnit = strokeWidthUnit;
+      if (strokeWidthUnit != null)
+        state.openingStrokeWidthUnit = strokeWidthUnit;
     },
     setMapEditorMode: (state, action) => {
       state.mapEditorMode = action.payload;
@@ -394,7 +399,6 @@ export const mapEditorSlice = createSlice({
     setTempAnnotationToolbarPosition: (state, action) => {
       state.tempAnnotationToolbarPosition = action.payload;
     },
-
 
     // Annotation template
     setSelectedAnnotationTemplateId: (state, action) => {
@@ -586,6 +590,9 @@ export const mapEditorSlice = createSlice({
     setStripDetectionMultiple: (state, action) => {
       state.stripDetectionMultiple = action.payload;
     },
+    setSegmentSnapDirection: (state, action) => {
+      state.segmentSnapDirection = action.payload;
+    },
 
     // smart detect
     setSmartDetectEnabled: (state, action) => {
@@ -620,7 +627,8 @@ export const mapEditorSlice = createSlice({
     },
     cycleLoupeAspect: (state) => {
       // Skip SQUARE: in smartDetect mode, only landscape ↔ portrait makes sense.
-      state.loupeAspect = state.loupeAspect === "LANDSCAPE" ? "PORTRAIT" : "LANDSCAPE";
+      state.loupeAspect =
+        state.loupeAspect === "LANDSCAPE" ? "PORTRAIT" : "LANDSCAPE";
     },
     setShowPrintableMap: (state, action) => {
       state.showPrintableMap = action.payload;
@@ -787,6 +795,7 @@ export const {
 
   // strip detection
   setStripDetectionMultiple,
+  setSegmentSnapDirection,
 
   // smart detect
   setSmartDetectEnabled,

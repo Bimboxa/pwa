@@ -4,12 +4,14 @@ import {
   setSmartDetectEnabled,
   setStripDetectionMultiple,
   setSmartDetectMode,
+  setSegmentSnapDirection,
 } from "Features/mapEditor/mapEditorSlice";
 
 import { Box, Checkbox, Paper, Typography } from "@mui/material";
 import { keyframes } from "@emotion/react";
 
 import ShortcutBadge from "./ShortcutBadge";
+import { SEGMENT_SNAP_MODES } from "Features/mapEditor/utils/getEffectiveDetectionMode";
 
 const detectionPulse = keyframes`
   0%   { background-color: #00ff00; box-shadow: 0 0 4px #00ff00; }
@@ -30,6 +32,9 @@ export default function CardSmartDetect() {
   const smartDetectionPresent = useSelector(
     (s) => s.mapEditor.smartDetectionPresent
   );
+  const segmentSnapDirection = useSelector(
+    (s) => s.mapEditor.segmentSnapDirection
+  );
 
   const hoverActive = smartDetectEnabled && smartDetectMode === "HOVER";
   const globalActive = smartDetectMode === "GLOBAL";
@@ -44,6 +49,10 @@ export default function CardSmartDetect() {
   // "Vectoriser" (V) turns the H / V black wall lines into 2-point segments —
   // only meaningful in clic-clic polyline mode.
   const isPolylineClickMode = enabledDrawingMode === "POLYLINE_CLICK";
+
+  // SEGMENT tool → dark-band snapping around the cursor (SEGMENT_SNAP):
+  // hover-only detection, with R toggling the proposed H/V orientation.
+  const isSegmentSnapMode = SEGMENT_SNAP_MODES.includes(enabledDrawingMode);
 
   // handlers
 
@@ -72,6 +81,24 @@ export default function CardSmartDetect() {
     dispatch(setStripDetectionMultiple(checked));
   };
 
+  // SEGMENT tool direction — same cycle as the D key: auto → V → H → auto.
+  const handleCycleDirection = () => {
+    const next =
+      segmentSnapDirection === null
+        ? "V"
+        : segmentSnapDirection === "V"
+          ? "H"
+          : null;
+    dispatch(setSegmentSnapDirection(next));
+  };
+
+  const directionLabel =
+    segmentSnapDirection === "V"
+      ? "Verticale"
+      : segmentSnapDirection === "H"
+        ? "Horizontale"
+        : "Auto";
+
   // render
 
   return (
@@ -98,7 +125,7 @@ export default function CardSmartDetect() {
         Détection auto.
       </Typography>
 
-      {!isSurfaceMode && (
+      {!isSurfaceMode && !isSegmentSnapMode && (
         <ModeRow
           label="Globale"
           shortcut="A"
@@ -109,7 +136,7 @@ export default function CardSmartDetect() {
 
       <ModeRow
         label="Au survol"
-        shortcut="S"
+        shortcut={isSegmentSnapMode ? "J" : "S"}
         active={hoverActive}
         onClick={handleSelectHover}
       />
@@ -123,7 +150,7 @@ export default function CardSmartDetect() {
         />
       )}
 
-      {hoverActive && !isSurfaceMode && (
+      {hoverActive && !isSurfaceMode && !isSegmentSnapMode && (
         <Box
           sx={{
             display: "flex",
@@ -140,6 +167,27 @@ export default function CardSmartDetect() {
           <Typography variant="body2" sx={{ flex: 1 }}>
             Détection multiple
           </Typography>
+        </Box>
+      )}
+
+      {hoverActive && isSegmentSnapMode && (
+        <Box
+          onClick={handleCycleDirection}
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 1,
+            pl: 3,
+            py: 0.25,
+            borderRadius: 1,
+            cursor: "pointer",
+            "&:hover": { bgcolor: "action.hover" },
+          }}
+        >
+          <Typography variant="body2" sx={{ flex: 1 }}>
+            Direction : <b>{directionLabel}</b>
+          </Typography>
+          <ShortcutBadge>D</ShortcutBadge>
         </Box>
       )}
 
