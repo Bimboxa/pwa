@@ -57,7 +57,9 @@ export default function duplicateAnnotationPoints(annotation, ctx) {
 
       // Strip inline pixel x/y so pointsIndex (db.points) is the single source
       // of truth; preserve ref-level metadata (type, offsets, ...).
-      const { x, y, ...rest } = ref;
+      const rest = { ...ref };
+      delete rest.x;
+      delete rest.y;
       return { ...rest, id: newId };
     });
   }

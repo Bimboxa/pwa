@@ -32,6 +32,8 @@ import useNavigateThreedCameraToAnnotation from "Features/threedEditor/hooks/use
 
 import {
   Box,
+  Checkbox,
+  FormControlLabel,
   IconButton,
   Menu,
   Paper,
@@ -132,6 +134,7 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
     selectedAnnotation?.type
   );
   const [stripElevation, setStripElevation] = useState("TOP");
+  const [keepOriginalPoints, setKeepOriginalPoints] = useState(false);
 
   // helpers
 
@@ -339,6 +342,7 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
       newAnnotation,
       part: hasPart ? part : undefined,
       ...(showStripElevation ? { stripElevation } : {}),
+      keepOriginalPoints,
     });
     handleCloneClose();
   }
@@ -1015,6 +1019,22 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
               />
             </Box>
           )}
+          <Box sx={{ px: 2, py: 0.5 }}>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  size="small"
+                  checked={keepOriginalPoints}
+                  onChange={(e) => setKeepOriginalPoints(e.target.checked)}
+                />
+              }
+              label={
+                <Typography variant="body2">
+                  Conserver les points d'origine
+                </Typography>
+              }
+            />
+          </Box>
           <SelectorAnnotationTemplateVariantDense
             selectedAnnotationTemplateId={
               selectedAnnotation?.annotationTemplateId

@@ -31,7 +31,9 @@ import getCloneTypeOptions from "../utils/getCloneTypeOptions";
 import {
   Box,
   Button,
+  Checkbox,
   Divider,
+  FormControlLabel,
   IconButton,
   Menu,
   Paper,
@@ -102,6 +104,7 @@ export default function ToolbarEditAnnotations({
   const [cloneAnchorEl, setCloneAnchorEl] = useState(null);
   const [selectedCloneType, setSelectedCloneType] = useState(null);
   const [stripElevation, setStripElevation] = useState("TOP");
+  const [keepOriginalPoints, setKeepOriginalPoints] = useState(false);
   const [templateAnchorEl, setTemplateAnchorEl] = useState(null);
   const [pendingHeight, setPendingHeight] = useState(null);
 
@@ -303,6 +306,7 @@ export default function ToolbarEditAnnotations({
     await cloneAnnotationsAndEntities(annotations, {
       newAnnotation,
       ...(showStripElevation ? { stripElevation } : {}),
+      keepOriginalPoints,
     });
     handleCloneClose();
   }
@@ -664,6 +668,22 @@ export default function ToolbarEditAnnotations({
               />
             </Box>
           )}
+          <Box sx={{ px: 2, py: 0.5 }}>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  size="small"
+                  checked={keepOriginalPoints}
+                  onChange={(e) => setKeepOriginalPoints(e.target.checked)}
+                />
+              }
+              label={
+                <Typography variant="body2">
+                  Conserver les points d'origine
+                </Typography>
+              }
+            />
+          </Box>
           <SelectorAnnotationTemplateVariantDense
             selectedAnnotationTemplateId={firstAnnotation?.annotationTemplateId}
             onChange={handleCloneTemplateChange}

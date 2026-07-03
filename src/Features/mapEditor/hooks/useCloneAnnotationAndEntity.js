@@ -9,6 +9,9 @@ import getPolygonsPointsFromStripAnnotation from "Features/annotations/utils/get
 import applyStripElevation, {
   getStripElevationOffsetZ,
 } from "Features/annotations/utils/applyStripElevation";
+import duplicateAnnotationPoints from "Features/annotations/utils/duplicateAnnotationPoints";
+
+import db from "App/db/db";
 
 // Compute signed area to determine polygon winding order.
 // Positive = counter-clockwise, negative = clockwise.
@@ -36,6 +39,10 @@ export default function useCloneAnnotationAndEntity() {
         const entityLabel = options?.entityLabel;
         const part = options?.part;
         const stripElevation = options?.stripElevation;
+        // Default true = reuse source point refs (legacy behavior). false = mint
+        // brand-new db.points so the duplicate is fully independent.
+        const keepOriginalPoints = options?.keepOriginalPoints ?? true;
+        const imageSize = baseMap?.getImageSize?.() ?? baseMap?.image?.imageSize;
         let newAnnotation = options?.newAnnotation;
 
         if (!newAnnotation) newAnnotation = _newAnnotation;
@@ -214,7 +221,24 @@ export default function useCloneAnnotationAndEntity() {
                 );
             }
 
-            const _annotation = await createAnnotation(clonedAnnotation);
+            // Create independent points unless the caller opted to keep
+            // originals. Write points BEFORE the annotation so they resolve on
+            // the next read; point writes don't add annotationsUpdate triggers.
+            let annotationToCreate = clonedAnnotation;
+            if (!keepOriginalPoints) {
+                const { annotation: remapped, pointRecords } =
+                    duplicateAnnotationPoints(clonedAnnotation, {
+                        imageSize,
+                        projectId: annotation.projectId,
+                        baseMapId: annotation.baseMapId,
+                    });
+                annotationToCreate = remapped;
+                if (pointRecords.length > 0) {
+                    await db.points.bulkAdd(pointRecords);
+                }
+            }
+
+            const _annotation = await createAnnotation(annotationToCreate);
             createdAnnotations.push(_annotation);
         }
 
