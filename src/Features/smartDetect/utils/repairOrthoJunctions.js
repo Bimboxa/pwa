@@ -3,17 +3,26 @@
  * near-orthogonal 2-pt POLYLINE / STRIP annotations, thickness-aware.
  *
  * Rule: segment AXES are never moved — only endpoint positions slide along
- * their own axis:
- *  - T: when a candidate endpoint lands within `maxGapPx` of a neighbor's
- *    band edge (a gap to fill or an overshoot to erase), it snaps to that
- *    edge + `overlapPx` INSIDE the band.
- *  - L: when the junction also sits within `maxGapPx` of one of the
- *    neighbor's own endpoints, that endpoint slides along the NEIGHBOR axis
- *    so its end lands flush with the candidate's far band edge (clean
- *    corner) — returned as a point edit to persist on commit.
+ * their own axis. The `maxGapPx` threshold applies to the INITIAL distance
+ * between the endpoint and the NEAREST band edge of the other segment (the
+ * gap to fill or the overshoot to erase) — NOT to the displacement itself
+ * (trimming a full band crossing moves the endpoint by gap + band width).
+ *  - T: when a candidate endpoint sits within `maxGapPx` of a neighbor's
+ *    band, it snaps to the near edge + `overlapPx` INSIDE the band.
+ *  - L: when the junction also sits at one of the neighbor's own ends, that
+ *    endpoint slides along the NEIGHBOR axis so its end lands flush with
+ *    the candidate's far band edge (clean corner) — returned as a point
+ *    edit to persist on commit.
  *
  * All coordinates in REFERENCE px space.
  */
+
+// Distance from a scalar coordinate to an interval (0 when inside).
+function distToRange(x, lo, hi) {
+  if (x < lo) return lo - x;
+  if (x > hi) return x - hi;
+  return 0;
+}
 
 const ORTHO_DOT_MAX = 0.26; // ~15° off perpendicular still counts
 
@@ -94,6 +103,10 @@ export default function repairOrthoJunctions({
     { a: L, sigma: +1, key: "q2" },
   ];
 
+  // How far the candidate band sticks out from its axis — used to widen the
+  // junction-position checks along the neighbor axis.
+  const bandReach = Math.max(Math.abs(band.lo), Math.abs(band.hi));
+
   for (const end of ends) {
     let best = null;
     for (const nb of neighbors) {
@@ -106,7 +119,8 @@ export default function repairOrthoJunctions({
       const { a: aX, s: sX } = hit;
       // The junction must land on (or just past, for L corners) the
       // neighbor's axial span.
-      if (sX < -maxGapPx || sX > Lb + maxGapPx) continue;
+      if (sX < -(maxGapPx + bandReach) || sX > Lb + maxGapPx + bandReach)
+        continue;
 
       // Neighbor band edges measured along the CANDIDATE axis.
       const m = { x: -v.y, y: v.x };
@@ -114,16 +128,19 @@ export default function repairOrthoJunctions({
       const eA = aX + nb.band.lo * mu;
       const eB = aX + nb.band.hi * mu;
       const bandA = { lo: Math.min(eA, eB), hi: Math.max(eA, eB) };
+      // Trigger on the INITIAL distance from the endpoint to the nearest
+      // band edge — NOT on the displacement (trimming a full crossing moves
+      // the endpoint by up to gap + band width).
+      const dist = distToRange(end.a, bandA.lo, bandA.hi);
+      if (dist > maxGapPx) continue;
       // Snap target: near edge + overlap INSIDE the band (capped mid-band).
       const mid = (bandA.lo + bandA.hi) / 2;
       const target =
         end.sigma > 0
           ? Math.min(bandA.lo + overlapPx, mid)
           : Math.max(bandA.hi - overlapPx, mid);
-      const delta = Math.abs(target - end.a);
-      if (delta > maxGapPx) continue;
-      if (!best || delta < best.delta) {
-        best = { nb, target, delta, sX, v, Lb };
+      if (!best || dist < best.dist) {
+        best = { nb, target, dist, sX, v, Lb };
       }
     }
     if (!best) continue;
@@ -141,7 +158,7 @@ export default function repairOrthoJunctions({
     const dEnd1 = Math.abs(sX);
     const dEnd2 = Math.abs(Lb - sX);
     if (
-      Math.min(dEnd1, dEnd2) <= maxGapPx &&
+      Math.min(dEnd1, dEnd2) <= maxGapPx + bandReach &&
       nb.pointIds?.[0] &&
       nb.pointIds?.[1]
     ) {
@@ -154,7 +171,10 @@ export default function repairOrthoJunctions({
       const bandS = { lo: Math.min(cA, cB), hi: Math.max(cA, cB) };
       const sTarget = sigmaN > 0 ? bandS.hi : bandS.lo;
       const sCur = isEnd1 ? 0 : Lb;
-      if (Math.abs(sTarget - sCur) <= maxGapPx) {
+      // Same rule as the T case: the threshold applies to the initial
+      // distance between the neighbor's endpoint and the candidate band,
+      // not to the displacement.
+      if (distToRange(sCur, bandS.lo, bandS.hi) <= maxGapPx) {
         out.neighborEdits.push({
           pointId: nb.pointIds[isEnd1 ? 0 : 1],
           x: nb.p1.x + sTarget * v.x,

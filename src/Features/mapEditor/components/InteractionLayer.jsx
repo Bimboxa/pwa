@@ -1081,7 +1081,8 @@ const InteractionLayer = forwardRef(({
         // slide along their own axis (candidate ends snap 1 cm inside the
         // neighbor band; the L case also slides the neighbor's endpoint,
         // persisted on Space commit via pointEdits). Thresholds are
-        // physical (21 cm reach, 1 cm overlap) → skipped when uncalibrated.
+        // physical (14 cm max initial gap to the nearest band edge, 1 cm
+        // overlap) → skipped when uncalibrated.
         if (meterByPx > 0) {
           const junctionNeighbors = buildJunctionNeighbors(
             annotationsRef.current,
@@ -1116,7 +1117,7 @@ const InteractionLayer = forwardRef(({
                   band: candBand,
                   anchoredStart: Boolean(anchorImgPx),
                   neighbors: junctionNeighbors,
-                  maxGapPx: 0.21 / meterByPx,
+                  maxGapPx: 0.14 / meterByPx,
                   overlapPx: 0.01 / meterByPx,
                 });
                 cand.q1 = toImgPx(rep.q1);
