@@ -6,6 +6,10 @@ import db from "App/db/db";
 import { setActiveLayerId, triggerLayersUpdate } from "../layersSlice";
 import { triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice";
 import collectReferencedPointIds from "Features/annotations/utils/collectReferencedPointIds";
+import {
+  remapPointIds,
+  remapAnnotationIds,
+} from "Features/annotations/utils/remapAnnotationRefs";
 
 export default function useCreateLayer() {
   const dispatch = useDispatch();
@@ -165,65 +169,4 @@ async function duplicateAnnotations(annotationIds, newLayerId) {
         await db.relAnnotationSubtractions.bulkAdd(newSubtractionRels);
     }
   );
-}
-
-function remapPointIds(annotation, pointIdMap) {
-  if (Array.isArray(annotation.points)) {
-    annotation.points = annotation.points.map((pt) =>
-      pt?.id && pointIdMap[pt.id] ? { ...pt, id: pointIdMap[pt.id] } : pt
-    );
-  }
-  if (Array.isArray(annotation.innerPoints)) {
-    annotation.innerPoints = annotation.innerPoints.map((pt) =>
-      pt?.id && pointIdMap[pt.id] ? { ...pt, id: pointIdMap[pt.id] } : pt
-    );
-  }
-  if (Array.isArray(annotation.cuts)) {
-    annotation.cuts = annotation.cuts.map((cut) => ({
-      ...cut,
-      points: Array.isArray(cut.points)
-        ? cut.points.map((pt) =>
-            pt?.id && pointIdMap[pt.id] ? { ...pt, id: pointIdMap[pt.id] } : pt
-          )
-        : cut.points,
-    }));
-  }
-  if (Array.isArray(annotation.guideLines)) {
-    annotation.guideLines = annotation.guideLines.map((g) => ({
-      ...g,
-      points: Array.isArray(g.points)
-        ? g.points.map((ref) =>
-            ref?.pointId && pointIdMap[ref.pointId]
-              ? { ...ref, pointId: pointIdMap[ref.pointId] }
-              : ref
-          )
-        : g.points,
-    }));
-  }
-  if (annotation.point?.id && pointIdMap[annotation.point.id]) {
-    annotation.point = {
-      ...annotation.point,
-      id: pointIdMap[annotation.point.id],
-    };
-  }
-}
-
-function remapAnnotationIds(annotation, annotationIdMap) {
-  if (Array.isArray(annotation.cuts)) {
-    annotation.cuts = annotation.cuts.map((cut) =>
-      cut?.cutHostId && annotationIdMap[cut.cutHostId]
-        ? { ...cut, cutHostId: annotationIdMap[cut.cutHostId] }
-        : cut
-    );
-  }
-  if (
-    annotation.proxy?.proxySourceAnnotationId &&
-    annotationIdMap[annotation.proxy.proxySourceAnnotationId]
-  ) {
-    annotation.proxy = {
-      ...annotation.proxy,
-      proxySourceAnnotationId:
-        annotationIdMap[annotation.proxy.proxySourceAnnotationId],
-    };
-  }
 }

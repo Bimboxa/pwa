@@ -20,8 +20,6 @@ import {
   Tooltip,
 } from "@mui/material";
 import {
-  Visibility,
-  VisibilityOff,
   ChevronRight,
   PlaylistAddCheck,
   BugReport,
@@ -46,6 +44,7 @@ import useLayers from "Features/layers/hooks/useLayers";
 import DialogGeneric from "Features/layout/components/DialogGeneric";
 import DatagridAnnotations from "Features/annotations/components/DatagridAnnotations";
 import CardBaseMapShare from "Features/baseMapShare/components/CardBaseMapShare";
+import IconButtonMoreActionsScope from "./IconButtonMoreActionsScope";
 
 export default function PanelPropertiesScope() {
   // data
@@ -152,21 +151,27 @@ export default function PanelPropertiesScope() {
         sx={{
           p: 0.5,
           pl: 2,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
         }}
       >
-        <Typography
-          variant="subtitle2"
-          color="text.secondary"
-          sx={{
-            fontStyle: "italic",
-            fontSize: (theme) => theme.typography.caption.fontSize,
-          }}
-        >
-          {scopeLabel}
-        </Typography>
-        <Typography variant="body2" sx={{ fontWeight: "bold" }}>
-          {scopeName}
-        </Typography>
+        <Box sx={{ minWidth: 0 }}>
+          <Typography
+            variant="subtitle2"
+            color="text.secondary"
+            sx={{
+              fontStyle: "italic",
+              fontSize: (theme) => theme.typography.caption.fontSize,
+            }}
+          >
+            {scopeLabel}
+          </Typography>
+          <Typography noWrap variant="body2" sx={{ fontWeight: "bold" }}>
+            {scopeName}
+          </Typography>
+        </Box>
+        {selectedScope && <IconButtonMoreActionsScope scope={selectedScope} />}
       </Box>
 
       <BoxFlexVStretch sx={{ overflow: "auto", gap: 1, p: 1 }}>
