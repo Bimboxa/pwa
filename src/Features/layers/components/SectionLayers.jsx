@@ -35,39 +35,67 @@ export default function SectionLayers({ baseMapId }) {
   const annotationsUpdatedAt = useSelector(
     (s) => s.annotations.annotationsUpdatedAt
   );
+  // SectionLayers is only rendered in the MAP viewer (see PopperMapListings),
+  // so the per-layer counts must mirror MainMapEditorV3 / useAnnotationsV2 in
+  // that viewer: exclude isForBaseMaps listings and hidden listings, keep the
+  // scope filter. Layer visibility (hiddenLayerIds) is intentionally NOT
+  // applied — each row shows the size of its own layer regardless of toggle.
+  const hiddenListingsIds = useSelector((s) => s.listings.hiddenListingsIds);
 
-  // annotation counts per layer (filtered by scope, not by layer visibility)
+  // annotation counts per layer (aligned with what the map actually draws)
   const countByLayerId = useLiveQuery(
     async () => {
       if (!baseMapId) return {};
+
+      // Revolution helpers are project-level geometry that bypass the
+      // listing/scope visibility filters, exactly like in useAnnotationsV2.
+      const isRevolutionHelper = (a) =>
+        a?.type === "REVOLUTION_AXIS" || a?.type === "REVOLUTION_POINT";
+
       const annotations = await db.annotations
         .where("baseMapId")
         .equals(baseMapId)
         .toArray();
-      const filtered = annotations.filter(
-        (a) => !a.deletedAt && !a.isBaseMapAnnotation
+      let filtered = annotations.filter((a) => !a.deletedAt);
+
+      // Resolve the listings referenced by these annotations to know which are
+      // isForBaseMaps and which belong to the current scope.
+      const listingIds = [
+        ...new Set(filtered.map((a) => a.listingId).filter(Boolean)),
+      ];
+      const listings = listingIds.length
+        ? await db.listings.where("id").anyOf(listingIds).toArray()
+        : [];
+      const listingsMap = new Map(listings.map((l) => [l.id, l]));
+      const forBaseMapsListingIds = new Set(
+        listings.filter((l) => l.isForBaseMaps).map((l) => l.id)
       );
 
-      // scope filter: only count annotations whose listing belongs to the current scope
-      let scopeFiltered = filtered;
-      if (selectedScopeId) {
-        const listingIds = [
-          ...new Set(filtered.map((a) => a.listingId).filter(Boolean)),
-        ];
-        const listings = await db.listings
-          .where("id")
-          .anyOf(listingIds)
-          .toArray();
-        const scopeListingIds = new Set(
-          listings.filter((l) => l.scopeId === selectedScopeId).map((l) => l.id)
+      // exclude isForBaseMaps listings (MAP viewer)
+      filtered = filtered.filter(
+        (a) => isRevolutionHelper(a) || !forBaseMapsListingIds.has(a.listingId)
+      );
+
+      // exclude hidden listings (mirrors excludeListingsIds: hiddenListingsIds)
+      if (hiddenListingsIds?.length) {
+        filtered = filtered.filter(
+          (a) =>
+            isRevolutionHelper(a) || !hiddenListingsIds.includes(a.listingId)
         );
-        scopeFiltered = filtered.filter(
-          (a) => !a.listingId || scopeListingIds.has(a.listingId)
+      }
+
+      // scope filter: only count annotations whose listing belongs to the scope
+      if (selectedScopeId) {
+        filtered = filtered.filter(
+          (a) =>
+            isRevolutionHelper(a) ||
+            (a.listingId &&
+              listingsMap.get(a.listingId)?.scopeId === selectedScopeId)
         );
       }
 
       const counts = { __no_layer__: 0 };
-      scopeFiltered.forEach((a) => {
+      filtered.forEach((a) => {
         if (a.layerId) {
           counts[a.layerId] = (counts[a.layerId] || 0) + 1;
         } else {
@@ -76,7 +104,7 @@ export default function SectionLayers({ baseMapId }) {
       });
       return counts;
     },
-    [baseMapId, annotationsUpdatedAt, selectedScopeId]
+    [baseMapId, annotationsUpdatedAt, selectedScopeId, hiddenListingsIds]
   );
 
   // DnD sensors
