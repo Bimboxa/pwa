@@ -403,6 +403,10 @@ const InteractionLayer = forwardRef(({
   const pasteTransform = useSelector((s) => s.mapEditor.pasteTransform);
   const pasteDetectionMode = useSelector((s) => s.mapEditor.pasteDetectionMode);
   const activeLayerId = useSelector((s) => s.layers?.activeLayerId);
+  const hiddenLayerIds = useSelector((s) => s.layers?.hiddenLayerIds || []);
+  const showAnnotationsWithoutLayer = useSelector(
+    (s) => s.layers?.showAnnotationsWithoutLayer ?? true,
+  );
 
   // Anchor snap mode
   const anchorSourceAnnotationId = useSelector((s) => s.mapEditor.anchorSourceAnnotationId);
@@ -2041,6 +2045,14 @@ const InteractionLayer = forwardRef(({
   useEffect(() => {
     activeLayerIdRef.current = activeLayerId;
   }, [activeLayerId]);
+  const hiddenLayerIdsRef = useRef(hiddenLayerIds);
+  useEffect(() => {
+    hiddenLayerIdsRef.current = hiddenLayerIds;
+  }, [hiddenLayerIds]);
+  const showAnnotationsWithoutLayerRef = useRef(showAnnotationsWithoutLayer);
+  useEffect(() => {
+    showAnnotationsWithoutLayerRef.current = showAnnotationsWithoutLayer;
+  }, [showAnnotationsWithoutLayer]);
 
   const createAnnotationsFromDetectedMatches =
     useCreateAnnotationsFromDetectedMatches();
@@ -2848,9 +2860,19 @@ const InteractionLayer = forwardRef(({
         // annotationTemplateId from the PopperMapListings). This drops the
         // cartouche / BG image texts (nodeType "BG_IMAGE_TEXT") and any other
         // helper overlay that isn't a user-selectable annotation.
-        const visibleAnns = (annotationsRef.current || []).filter(
-          (ann) => ann?.annotationTemplateId,
-        );
+        //
+        // Also re-apply the layer-visibility filter so the selection can never
+        // include annotations on a hidden layer. This mirrors useAnnotationsV2's
+        // filter but WITHOUT its isBaseMapAnnotation bypass, so base-map
+        // annotations sitting on a hidden layer are excluded from the selection
+        // too (they would otherwise leak in via that bypass).
+        const hiddenSet = new Set(hiddenLayerIdsRef.current);
+        const visibleAnns = (annotationsRef.current || []).filter((ann) => {
+          if (!ann?.annotationTemplateId) return false;
+          if (ann.hidden) return false;
+          if (ann.layerId) return !hiddenSet.has(ann.layerId);
+          return showAnnotationsWithoutLayerRef.current;
+        });
         const items = visibleAnns.map((ann) => ({
           id: ann.id,
           nodeId: ann.id,
