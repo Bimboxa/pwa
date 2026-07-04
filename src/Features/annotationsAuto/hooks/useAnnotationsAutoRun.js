@@ -102,18 +102,22 @@ export default function useAnnotationsAutoRun() {
       // selection flow: restrict visible annotations to the explicit ids
       // (used by the right-panel "Appliquer la procédure" on the selection).
       const idSet = new Set(sourceAnnotationIds);
+      // STRIP is included so guide annotations drawn as strips (e.g. a
+      // COTE:EXT template whose drawing produced a STRIP) reach the
+      // procedure exactly like guide polylines.
       const polylikes = (visibleAnnotations ?? []).filter(
-        (a) => a.type === "POLYLINE" || a.type === "POLYGON"
+        (a) =>
+          a.type === "POLYLINE" || a.type === "POLYGON" || a.type === "STRIP"
       );
       sourceAnnotations = polylikes.filter((a) => idSet.has(a.id));
 
       // Adjacency context: a procedure can declare mappingCategories whose
-      // visible POLYGON / POLYLINE annotations must be part of the run as
-      // context (e.g. frontier detection between adjacent floors, JD lines
-      // cutting adjacency) even when they are not selected. They are flagged
-      // isAdjacencyOnly so the procedure uses them for segment classification
-      // but generates no geometry from them. The standard (whole-listing)
-      // flow already passes them unflagged.
+      // visible POLYGON / POLYLINE / STRIP annotations must be part of the
+      // run as context (e.g. frontier detection between adjacent floors, JD
+      // lines cutting adjacency, COTE:EXT guides) even when they are not
+      // selected. They are flagged isAdjacencyOnly so the procedure uses
+      // them for segment classification but generates no geometry from them.
+      // The standard (whole-listing) flow already passes them unflagged.
       const adjacencyCategories = procedureEntry?.adjacencyMappingCategories;
       if (adjacencyCategories?.length) {
         const candidates = polylikes.filter((a) => !idSet.has(a.id));
@@ -123,13 +127,11 @@ export default function useAnnotationsAutoRun() {
           ),
         ];
         const candidateTemplates = candidateTemplateIds.length
-          ? (
-              await db.annotationTemplates.bulkGet(candidateTemplateIds)
-            ).filter(Boolean)
+          ? (await db.annotationTemplates.bulkGet(candidateTemplateIds)).filter(
+              Boolean
+            )
           : [];
-        const templateById = new Map(
-          candidateTemplates.map((t) => [t.id, t])
-        );
+        const templateById = new Map(candidateTemplates.map((t) => [t.id, t]));
         const neighbors = candidates.filter((a) => {
           const categories =
             templateById.get(a.annotationTemplateId)?.mappingCategories ?? [];
@@ -174,10 +176,45 @@ export default function useAnnotationsAutoRun() {
         (a) => a.type === "POLYLINE" || a.type === "POLYGON"
       );
 
+      const adjacencyCategories =
+        procedureEntry?.adjacencyMappingCategories ?? [];
+
+      // STRIP annotations whose template carries an adjacencyMappingCategories
+      // category (e.g. COTE:EXT guides drawn as strips) join the run as
+      // adjacency-only context, exactly like guide polylines. Other strips
+      // (RTP bands...) stay excluded as before.
+      const strips = adjacencyCategories.length
+        ? (visibleAnnotations ?? []).filter((a) => a.type === "STRIP")
+        : [];
+      if (strips.length) {
+        const stripTemplateIds = [
+          ...new Set(strips.map((a) => a.annotationTemplateId).filter(Boolean)),
+        ];
+        const stripTemplates = (
+          await db.annotationTemplates.bulkGet(stripTemplateIds)
+        ).filter(Boolean);
+        const stripCatsById = new Map(
+          stripTemplates.map((t) => [t.id, t.mappingCategories ?? []])
+        );
+        const adjacencyStrips = strips.filter((a) =>
+          adjacencyCategories.some((c) =>
+            (stripCatsById.get(a.annotationTemplateId) ?? []).includes(c)
+          )
+        );
+        visible = [
+          ...visible,
+          ...adjacencyStrips.map((a) => ({ ...a, isAdjacencyOnly: true })),
+        ];
+      }
+
       // For ANNOTATIONS_CREATOR procedures, prefer annotations whose template
       // is explicitly linked to this procedure (template.procedureKeys). Fall
       // back to all visible POLYLINE/POLYGON when no visible template
       // references the procedure (avoids regressing legacy setups).
+      // Annotations whose template carries an adjacencyMappingCategories
+      // category (frontier SOL / SOL_PROXY, JD lines, COTE:EXT guides) are
+      // always kept as adjacency-only context — the procedureKeys filter must
+      // never drop them or the segment classification loses its context.
       if (procedureEntry?.type === "ANNOTATIONS_CREATOR") {
         const templateIds = [
           ...new Set(
@@ -194,11 +231,22 @@ export default function useAnnotationsAutoRun() {
           (t.procedureKeys ?? []).includes(procedureKey)
         );
         if (hasLinkedTemplate) {
-          visible = visible.filter((a) =>
+          const categoriesByTemplateId = new Map(
+            templates.map((t) => [t.id, t.mappingCategories ?? []])
+          );
+          const isLinked = (a) =>
             (
               procedureKeysByTemplateId.get(a.annotationTemplateId) ?? []
-            ).includes(procedureKey)
-          );
+            ).includes(procedureKey);
+          const isAdjacency = (a) =>
+            adjacencyCategories.some((c) =>
+              (
+                categoriesByTemplateId.get(a.annotationTemplateId) ?? []
+              ).includes(c)
+            );
+          visible = visible
+            .filter((a) => isLinked(a) || isAdjacency(a))
+            .map((a) => (isLinked(a) ? a : { ...a, isAdjacencyOnly: true }));
         }
       }
 
@@ -297,9 +345,7 @@ export default function useAnnotationsAutoRun() {
       const excluded = new Set(maskConfig.excludeMappingCategories);
       const maskCandidates = (visibleAnnotations ?? []).filter(
         (a) =>
-          a.type === "POLYGON" ||
-          a.type === "POLYLINE" ||
-          a.type === "STRIP"
+          a.type === "POLYGON" || a.type === "POLYLINE" || a.type === "STRIP"
       );
       const maskTemplateIds = [
         ...new Set(
@@ -307,7 +353,9 @@ export default function useAnnotationsAutoRun() {
         ),
       ];
       const maskTemplates = maskTemplateIds.length
-        ? (await db.annotationTemplates.bulkGet(maskTemplateIds)).filter(Boolean)
+        ? (await db.annotationTemplates.bulkGet(maskTemplateIds)).filter(
+            Boolean
+          )
         : [];
       const maskCatsById = new Map(
         maskTemplates.map((t) => [t.id, t.mappingCategories ?? []])
