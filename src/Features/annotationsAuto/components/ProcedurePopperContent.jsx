@@ -52,8 +52,13 @@ export default function ProcedurePopperContent({
     const createdTags = procedure?.createdMappingCategories ?? [];
     const seen = new Set();
     const createdTemplates = [];
+    // Procedures create annotations with the templates of the source
+    // template's own listing — never resolve a tag from another listing.
+    const listingTemplates = (allTemplates ?? []).filter(
+      (t) => t.listingId === sourceTemplate?.listingId
+    );
     for (const tag of createdTags) {
-      const template = (allTemplates ?? []).find((t) =>
+      const template = listingTemplates.find((t) =>
         t.mappingCategories?.includes(tag)
       );
       if (template && !seen.has(template.id)) {

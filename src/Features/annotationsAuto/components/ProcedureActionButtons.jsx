@@ -88,6 +88,9 @@ export default function ProcedureActionButtons({
     if (created > 0) {
       fireFlash();
       dispatch(setToaster({ message: `${created} annotation(s) créée(s)` }));
+    } else if (result?.error) {
+      // procedure-specific failure message (e.g. open frontier loop)
+      dispatch(setToaster({ message: result.error, severity: "warning" }));
     } else {
       dispatch(
         setToaster({
