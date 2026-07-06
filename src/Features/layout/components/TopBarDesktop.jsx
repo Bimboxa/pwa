@@ -48,6 +48,7 @@ import BlockVersionInTopBar from "Features/versions/components/BlockVersionInTop
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 import BaseMapSelectorInMapEditorV2 from "Features/baseMaps/components/BaseMapSelectorInMapEditorV2";
 import BaseMapVersionSelectorInTopBar from "Features/baseMaps/components/BaseMapVersionSelectorInTopBar";
+import FieldBaseMapZInTopBar from "Features/baseMaps/components/FieldBaseMapZInTopBar";
 
 export default function TopBarDesktop() {
   const dispatch = useDispatch();
@@ -237,6 +238,7 @@ export default function TopBarDesktop() {
             onEdit={viewerKey === "MAP" ? handleGoToBaseMapsDetail : undefined}
           />
           <BaseMapVersionSelectorInTopBar />
+          <FieldBaseMapZInTopBar />
         </Box>
       )}
       {viewerKey === "THREED" && (
