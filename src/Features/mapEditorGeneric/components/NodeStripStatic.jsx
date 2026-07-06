@@ -195,6 +195,11 @@ export default function NodeStripStatic({
         return { fill: strokeColor, opacity: strokeOpacity };
     };
 
+    // isExt strips (exterior-side guides for the auto-drawing algorithms)
+    // draw their MAIN director line in the same fluo-cyan as the per-segment
+    // "Segment extérieur" markers, instead of the band color.
+    const directorColor = mergedAnnotation.isExt ? "#00e5ff" : strokeColor;
+
     const getSegmentStyle = (segIndex, isHidden) => {
         const partId = `${annotationId}::SEG::${segIndex}`;
         if (!selected) return { stroke: "none", strokeWidth: 0, opacity: 0 };
@@ -216,8 +221,8 @@ export default function NodeStripStatic({
             return { stroke: STYLE_CONSTANTS.COLORS.CONTEXT, strokeWidth: 2, opacity: STYLE_CONSTANTS.OPACITIES.STROKE_CONTEXT };
         }
 
-        if (isHovered) return { stroke: darken(strokeColor, 0.2), strokeWidth: 3, opacity: 1 };
-        return { stroke: strokeColor, strokeWidth: 2, opacity: 1 };
+        if (isHovered) return { stroke: darken(directorColor, 0.2), strokeWidth: 3, opacity: 1 };
+        return { stroke: directorColor, strokeWidth: 2, opacity: 1 };
     };
 
     const getCutStyle = (index) => {
@@ -339,7 +344,7 @@ export default function NodeStripStatic({
                         key={`aesthetic-stroke-${i}`}
                         d={seg.d}
                         fill="none"
-                        stroke={strokeColor}
+                        stroke={directorColor}
                         strokeWidth={isForBaseMaps ? STYLE_CONSTANTS.STROKE_WIDTH_DEFAULT * (baseMapImageScale || 1) : STYLE_CONSTANTS.STROKE_WIDTH_DEFAULT}
                         vectorEffect={isForBaseMaps ? undefined : "non-scaling-stroke"}
                         style={{ pointerEvents: "none" }}

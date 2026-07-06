@@ -132,10 +132,16 @@ export default function useAnnotationsAutoRun() {
             )
           : [];
         const templateById = new Map(candidateTemplates.map((t) => [t.id, t]));
+        // The isExt flag plays the same guide role as the COTE:EXT category
+        // (annotation value wins over its template's) — only for procedures
+        // that understand guides.
+        const guidesEnabled = adjacencyCategories.includes("COTE:EXT");
         const neighbors = candidates.filter((a) => {
-          const categories =
-            templateById.get(a.annotationTemplateId)?.mappingCategories ?? [];
-          return adjacencyCategories.some((c) => categories.includes(c));
+          const template = templateById.get(a.annotationTemplateId);
+          const categories = template?.mappingCategories ?? [];
+          if (adjacencyCategories.some((c) => categories.includes(c)))
+            return true;
+          return guidesEnabled && (a.isExt ?? template?.isExt) === true;
         });
         sourceAnnotations = [
           ...sourceAnnotations,
@@ -193,14 +199,15 @@ export default function useAnnotationsAutoRun() {
         const stripTemplates = (
           await db.annotationTemplates.bulkGet(stripTemplateIds)
         ).filter(Boolean);
-        const stripCatsById = new Map(
-          stripTemplates.map((t) => [t.id, t.mappingCategories ?? []])
-        );
-        const adjacencyStrips = strips.filter((a) =>
-          adjacencyCategories.some((c) =>
-            (stripCatsById.get(a.annotationTemplateId) ?? []).includes(c)
-          )
-        );
+        const stripTemplateById = new Map(stripTemplates.map((t) => [t.id, t]));
+        const stripGuidesEnabled = adjacencyCategories.includes("COTE:EXT");
+        const adjacencyStrips = strips.filter((a) => {
+          const template = stripTemplateById.get(a.annotationTemplateId);
+          const categories = template?.mappingCategories ?? [];
+          if (adjacencyCategories.some((c) => categories.includes(c)))
+            return true;
+          return stripGuidesEnabled && (a.isExt ?? template?.isExt) === true;
+        });
         visible = [
           ...visible,
           ...adjacencyStrips.map((a) => ({ ...a, isAdjacencyOnly: true })),
@@ -231,19 +238,19 @@ export default function useAnnotationsAutoRun() {
           (t.procedureKeys ?? []).includes(procedureKey)
         );
         if (hasLinkedTemplate) {
-          const categoriesByTemplateId = new Map(
-            templates.map((t) => [t.id, t.mappingCategories ?? []])
-          );
+          const templateByIdAll = new Map(templates.map((t) => [t.id, t]));
+          const guidesEnabled = adjacencyCategories.includes("COTE:EXT");
           const isLinked = (a) =>
             (
               procedureKeysByTemplateId.get(a.annotationTemplateId) ?? []
             ).includes(procedureKey);
-          const isAdjacency = (a) =>
-            adjacencyCategories.some((c) =>
-              (
-                categoriesByTemplateId.get(a.annotationTemplateId) ?? []
-              ).includes(c)
-            );
+          const isAdjacency = (a) => {
+            const template = templateByIdAll.get(a.annotationTemplateId);
+            const categories = template?.mappingCategories ?? [];
+            if (adjacencyCategories.some((c) => categories.includes(c)))
+              return true;
+            return guidesEnabled && (a.isExt ?? template?.isExt) === true;
+          };
           visible = visible
             .filter((a) => isLinked(a) || isAdjacency(a))
             .map((a) => (isLinked(a) ? a : { ...a, isAdjacencyOnly: true }));

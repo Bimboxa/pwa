@@ -12,7 +12,7 @@ export default function getAnnotationPropsFromAnnotationTemplateProps(annotation
 
     // 2. On parcourt toutes les clés des props du template
     Object.keys(annotationTemplateProps).forEach((key) => {
-        if (key === "overrideFields" || key === "hidden" || key === "hideSlope") return;
+        if (key === "overrideFields" || key === "hidden" || key === "hideSlope" || key === "isExt") return;
 
         // Only override fields explicitly listed in overrideFields
         if (!Array.isArray(overrideFields) || !overrideFields.includes(key)) {
@@ -93,6 +93,17 @@ export default function getAnnotationPropsFromAnnotationTemplateProps(annotation
     // (not a per-annotation style override, so not gated by overrideFields).
     if (annotationTemplateProps.hideSlope !== null && annotationTemplateProps.hideSlope !== undefined) {
         result.hideSlope = annotationTemplateProps.hideSlope;
+    }
+
+    // isExt (exterior-side guide flag) falls back to the template value only
+    // when the annotation carries no own value — the annotation's explicit
+    // value always wins (transferable like a color, overridable per annotation).
+    if (
+        (result.isExt === null || result.isExt === undefined) &&
+        annotationTemplateProps.isExt !== null &&
+        annotationTemplateProps.isExt !== undefined
+    ) {
+        result.isExt = annotationTemplateProps.isExt;
     }
 
     result.annotationTemplateProps = annotationTemplateProps;

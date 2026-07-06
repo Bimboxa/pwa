@@ -1066,6 +1066,34 @@ export default function NodePolylineStatic({
     return edges;
   };
 
+  // --- RENDU IS_EXT INDICATOR (guide "Extérieur") ---
+  //
+  // Polylines flagged isExt (exterior-side guides for the auto-drawing
+  // algorithms) get a crisp 1px line drawn along the MAIN centerline,
+  // non-scaling, in the same fluo-cyan as the per-segment "Segment
+  // extérieur" markers — visible over the band whatever its color and
+  // opacity. Pure visual indicator: never captures pointer events.
+  // Suppressed in print.
+  const renderIsExtIndicator = () => {
+    if (!mergedAnnotation.isExt || printMode) return null;
+    if (type !== "POLYLINE" || !pathD) return null;
+
+    return (
+      <path
+        d={pathD}
+        fill="none"
+        stroke="#00e5ff"
+        strokeWidth={1}
+        strokeOpacity={1}
+        strokeDasharray="4 4"
+        strokeLinecap="butt"
+        strokeLinejoin="round"
+        vectorEffect="non-scaling-stroke"
+        style={{ pointerEvents: "none" }}
+      />
+    );
+  };
+
   // --- RENDU CONNECTED SEGMENTS (Highlight temporaire) ---
   const renderConnectedSegments = () => {
     if (!selectedPointId || !highlightConnectedSegments) return null;
@@ -1595,6 +1623,9 @@ export default function NodePolylineStatic({
 
       {/* EXT EDGES (Segment extérieur — fluo-blue, always visible) */}
       {renderExtEdges()}
+
+      {/* IS_EXT INDICATOR (guide "Extérieur" — 1px axis line, no events) */}
+      {renderIsExtIndicator()}
 
       {/* CONNECTED SEGMENTS HIGHLIGHT */}
       {renderConnectedSegments()}

@@ -18,6 +18,7 @@ import FieldAnnotationRotation from "./FieldAnnotationRotation";
 import FieldAnnotationFill from "./FieldAnnotationFill";
 import FieldAnnotationStroke from "./FieldAnnotationStroke";
 import FieldAnnotationIsEraser from "./FieldAnnotationIsEraser";
+import FieldAnnotationIsExt from "./FieldAnnotationIsExt";
 
 export default function SectionAnnotationPropertiesContent({ annotation }) {
   // data
@@ -53,10 +54,24 @@ export default function SectionAnnotationPropertiesContent({ annotation }) {
   return (
     <>
       <Box sx={{ display: "flex", gap: 1, p: 1, width: 1 }}>
-        <Box sx={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <Box
+          sx={{
+            flex: 1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
           <FieldAnnotationPreview annotation={annotation} imageHeight={80} />
         </Box>
-        <Box sx={{ flex: 1, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+        <Box
+          sx={{
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+            justifyContent: "center",
+          }}
+        >
           <FieldAnnotationHeight
             annotation={annotation}
             onChange={handleHeightChange}
@@ -68,15 +83,40 @@ export default function SectionAnnotationPropertiesContent({ annotation }) {
       <SectionAnnotationPentes annotation={annotation} />
 
       <Box sx={{ p: 1, width: 1 }}>
-        <ButtonAnnotationTemplate annotation={annotation} bgcolor="white" fullWidth />
+        <ButtonAnnotationTemplate
+          annotation={annotation}
+          bgcolor="white"
+          fullWidth
+        />
       </Box>
 
-      <Box sx={{ width: 1, p: 1, gap: 1, display: "flex", flexDirection: "column" }}>
+      <Box
+        sx={{
+          width: 1,
+          p: 1,
+          gap: 1,
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
         <FieldWrapperDimensions annotation={annotation} />
         <FieldAnnotationRotation annotation={annotation} />
-        {showFill && <FieldAnnotationFill annotation={annotation} overrideFields={overrideFields} />}
-        {showStroke && <FieldAnnotationStroke annotation={annotation} overrideFields={overrideFields} />}
+        {showFill && (
+          <FieldAnnotationFill
+            annotation={annotation}
+            overrideFields={overrideFields}
+          />
+        )}
+        {showStroke && (
+          <FieldAnnotationStroke
+            annotation={annotation}
+            overrideFields={overrideFields}
+          />
+        )}
         <FieldAnnotationIsEraser annotation={annotation} />
+        {["POLYLINE", "STRIP"].includes(type) && (
+          <FieldAnnotationIsExt annotation={annotation} />
+        )}
       </Box>
 
       {["POLYGON", "RECTANGLE", "POLYLINE", "STRIP"].includes(type) && (

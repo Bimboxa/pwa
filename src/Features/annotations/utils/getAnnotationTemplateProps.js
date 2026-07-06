@@ -40,6 +40,8 @@ export default function getAnnotationTemplateProps(annotationTemplate) {
 
     hideSlope: annotationTemplate?.hideSlope,
 
+    isExt: annotationTemplate?.isExt,
+
     height: annotationTemplate?.height,
     offsetZ: annotationTemplate?.offsetZ,
 

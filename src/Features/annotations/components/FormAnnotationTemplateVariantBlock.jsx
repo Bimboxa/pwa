@@ -229,6 +229,10 @@ export default function FormAnnotationTemplateVariantBlock({
     onChange({ ...annotationTemplate, isProfile });
   }
 
+  function handleIsExtChange(isExt) {
+    onChange({ ...annotationTemplate, isExt });
+  }
+
   function handleOverrideFieldsChange(newOverrideFields) {
     onChange({ ...annotationTemplate, overrideFields: newOverrideFields });
   }
@@ -597,6 +601,17 @@ export default function FormAnnotationTemplateVariantBlock({
           label="Profil"
           value={Boolean(annotationTemplate?.isProfile)}
           onChange={handleIsProfileChange}
+          options={{ type: "switch", showAsSection: true }}
+        />
+      )}
+
+      {/* POLYGON is included because its STRIP tools also produce strip
+          annotations, which can act as exterior-side guides. */}
+      {["POLYLINE", "STRIP", "POLYGON"].includes(drawingShape) && (
+        <FieldCheck
+          label="Extérieur"
+          value={Boolean(annotationTemplate?.isExt)}
+          onChange={handleIsExtChange}
           options={{ type: "switch", showAsSection: true }}
         />
       )}
