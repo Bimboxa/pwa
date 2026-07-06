@@ -963,8 +963,27 @@ const InteractionLayer = forwardRef(({
       { x: b.x - nx * halfW, y: b.y - ny * halfW },
       { x: a.x - nx * halfW, y: a.y - ny * halfW },
     ];
+    // STRIP: the annotation stores control points on ONE edge of the band
+    // (offset by stripOrientation·width along the left normal recovers the
+    // footprint). Shift the detected centerline to that edge so the commit
+    // recreates the exact same quad.
+    const isStrip = na.type === "STRIP";
+    const so = na.stripOrientation ?? 1;
+    const pts = isStrip
+      ? [
+        { x: a.x - so * halfW * nx, y: a.y - so * halfW * ny },
+        { x: b.x - so * halfW * nx, y: b.y - so * halfW * ny },
+      ]
+      : [a, b];
     detectedSimilarStripsRef.current = {
-      strips: [{ centerline: [a, b], polygon }],
+      strips: [
+        {
+          centerline: pts,
+          polygon,
+          // mainLine → strip preview variant (fill + single control edge).
+          ...(isStrip && { stripOrientation: so, mainLine: pts }),
+        },
+      ],
       sourceAnnotation: na,
       // L-junction repair: neighbor endpoint slides to persist on commit.
       pointEdits: cand.pointEdits?.length ? cand.pointEdits : undefined,
@@ -1031,6 +1050,12 @@ const InteractionLayer = forwardRef(({
           }
           : null;
 
+        // STRIP: the anchored first point is a control-edge point — offset
+        // it to the band centerline before probing so the conversion in
+        // showSegmentAdjustCandidate round-trips back to the exact click.
+        const anchorIsStrip = na.type === "STRIP";
+        const anchorSo = na.stripOrientation ?? 1;
+
         const candidates = {};
         for (const axisKey of ["H", "V"]) {
           const d = AXES[axisKey];
@@ -1043,10 +1068,17 @@ const InteractionLayer = forwardRef(({
                 0
                 ? 1
                 : -1;
-            p1 = anchorImgPx;
+            const nAx = { x: -d.y * sign, y: d.x * sign };
+            const base = anchorIsStrip
+              ? {
+                x: anchorImgPx.x + anchorSo * (widthImgPx / 2) * nAx.x,
+                y: anchorImgPx.y + anchorSo * (widthImgPx / 2) * nAx.y,
+              }
+              : anchorImgPx;
+            p1 = base;
             p2 = {
-              x: anchorImgPx.x + NOMINAL * sign * d.x,
-              y: anchorImgPx.y + NOMINAL * sign * d.y,
+              x: base.x + NOMINAL * sign * d.x,
+              y: base.y + NOMINAL * sign * d.y,
             };
           } else {
             p1 = {
@@ -1105,13 +1137,11 @@ const InteractionLayer = forwardRef(({
               y: (p.y - imageOffsetRepair.y) / imageScale,
             });
             const wRefPx = widthImgPx * imageScale;
-            const candBand =
-              na.type === "STRIP"
-                ? {
-                  lo: Math.min(0, (na.stripOrientation ?? 1) * wRefPx),
-                  hi: Math.max(0, (na.stripOrientation ?? 1) * wRefPx),
-                }
-                : { lo: -wRefPx / 2, hi: wRefPx / 2 };
+            // q1/q2 are still the detected CENTERLINE here (the STRIP
+            // centerline → control-edge conversion happens downstream in
+            // showSegmentAdjustCandidate), so the physical band is always
+            // symmetric around them.
+            const candBand = { lo: -wRefPx / 2, hi: wRefPx / 2 };
             for (const axisKey of ["H", "V"]) {
               const cand = candidates[axisKey];
               if (!cand) continue;
@@ -3617,11 +3647,29 @@ const InteractionLayer = forwardRef(({
               ...na,
               stripOrientation: newOrientation,
             }));
+            // The ref only syncs via useEffect one render later — the
+            // candidate refresh below needs the new side immediately.
+            newAnnotationRef.current = {
+              ...na,
+              stripOrientation: newOrientation,
+            };
             // Force redraw with last cursor position
             if (lastPreviewPosRef.current) {
               requestAnimationFrame(() => {
                 drawingLayerRef.current?.updatePreview(lastPreviewPosRef.current);
               });
+            }
+            // Dark-band snap candidate: flip its control edge too. Hover
+            // keeps the same band (only the published edge switches side);
+            // anchored re-detects since the centerline probe depends on
+            // the side of the clicked edge point.
+            if (segmentAdjustRef.current?.shownAxis) {
+              if (drawingPointsRef.current?.length === 1) {
+                const cur = lastStripDetectCursorRef.current;
+                if (cur) runSegmentAdjustDetection(cur);
+              } else {
+                showSegmentAdjustCandidate(segmentAdjustRef.current.shownAxis);
+              }
             }
             break;
           }

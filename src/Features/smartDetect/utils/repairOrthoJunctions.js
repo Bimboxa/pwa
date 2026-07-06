@@ -55,7 +55,14 @@ export function buildJunctionNeighbors(annotations, meterByPx) {
       if (!(w > 0)) continue;
       band = { lo: -w / 2, hi: w / 2 };
     } else if (ann.type === "STRIP") {
-      const w = Math.abs(ann.stripWidthPx ?? ann.width ?? 0);
+      // Committed STRIPs carry strokeWidth/strokeWidthUnit (full band
+      // width), not stripWidthPx/width — fall back to it.
+      const sw = ann.strokeWidth ?? 0;
+      const fromStroke =
+        ann.strokeWidthUnit === "CM" && meterByPx > 0
+          ? Math.abs((sw * 0.01) / meterByPx)
+          : Math.abs(sw);
+      const w = Math.abs(ann.stripWidthPx ?? ann.width ?? 0) || fromStroke;
       if (!(w > 0)) continue;
       const o = ann.stripOrientation ?? 1;
       band = { lo: Math.min(0, o * w), hi: Math.max(0, o * w) };

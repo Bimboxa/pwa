@@ -1527,7 +1527,7 @@ const SMART_DETECT_CAPABLE_MODES = [
   "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", "RECTANGLE",
   "STRIP", "POLYLINE_CLICK", "POLYGON_CLICK",
   // SEGMENT tool → dark-band snapping (SEGMENT_SNAP, hover-only)
-  "SEGMENT", "POLYLINE_SEGMENT",
+  "SEGMENT", "POLYLINE_SEGMENT", "STRIP_SEGMENT",
 ];
 
 // ---------------------------------------------------------------------------

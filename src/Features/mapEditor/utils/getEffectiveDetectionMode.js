@@ -7,7 +7,9 @@
  *   - "STRIP"        : JS strip detection in the loupe (edge points + stripOrientation)
  *   - "SEGMENT"      : JS strip detection in the loupe (median axis, polyline)
  *   - "SEGMENT_SNAP" : dark-band segment snapping around the cursor (H + V
- *                      passes, no loupe — snapSegmentToDarkBand)
+ *                      passes, no loupe — snapSegmentToDarkBand). Also used
+ *                      by STRIP_SEGMENT: same centerline detection, converted
+ *                      to control-edge points when the candidate is shown.
  *   - "SURFACE"      : polygon detection from existing annotations (no loupe)
  *   - null           : no detection
  */
@@ -18,7 +20,11 @@ const RECTANGLE_MODES = [
   "RECTANGLE",
 ];
 
-export const SEGMENT_SNAP_MODES = ["SEGMENT", "POLYLINE_SEGMENT"];
+export const SEGMENT_SNAP_MODES = [
+  "SEGMENT",
+  "POLYLINE_SEGMENT",
+  "STRIP_SEGMENT",
+];
 
 export default function getEffectiveDetectionMode({
   enabledDrawingMode,

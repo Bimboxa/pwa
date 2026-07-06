@@ -496,7 +496,11 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
 
     // handler - commit detected similar strips
 
-    const handleCommitSimilarStrips = async ({ strips, sourceAnnotation }) => {
+    const handleCommitSimilarStrips = async ({
+        strips,
+        sourceAnnotation,
+        pointEdits,
+    }) => {
         if (!strips?.length) return;
 
         // ── CLEAN-SEGMENTS PASS ──────────────────────────────────────────
@@ -513,7 +517,10 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
         // docs/smartDetect/CLEAN_ON_COMMIT.md.
         // ─────────────────────────────────────────────────────────────────
         let cleanedStrips = strips;
-        if (cleanOnCommit) {
+        // STRIP candidates carry control-EDGE points, not centerlines —
+        // mixing them with POLYLINE centerlines would snap/merge with a
+        // half-width offset, so the pass is skipped for strips.
+        if (cleanOnCommit && sourceAnnotation?.type !== "STRIP") {
             const TMP_PREFIX = "tmp_";
             const meterByPx = baseMap?.getMeterByPx?.() ?? 0;
             const imageSize =
@@ -637,6 +644,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
         await createAnnotationsFromDetectedStrips({
             strips: cleanedStrips,
             sourceAnnotation,
+            pointEdits,
         });
     };
 

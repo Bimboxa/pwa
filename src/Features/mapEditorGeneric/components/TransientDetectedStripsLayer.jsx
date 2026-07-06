@@ -18,6 +18,10 @@ const AnimatedPath = styled.path`
  * Renders multiple flashing green strip polygons.
  * Each strip is an object { polygon: [{x,y},...] }.
  *
+ * STRIP variant: when `strip.mainLine` is set (control-edge points of a
+ * STRIP candidate), the closed outline is replaced by that single edge
+ * stroked at a lower opacity — the fill still shows the full band.
+ *
  * Imperative API:
  *   updateStrips(strips)
  *   clear()
@@ -34,14 +38,16 @@ const TransientDetectedStripsLayer = forwardRef((_, ref) => {
 
   if (strips.length === 0) return null;
 
-  const ringToPathD = (ring) =>
-    ring.map((p, i) => `${i === 0 ? "M" : "L"}${p.x},${p.y}`).join(" ") + " Z";
+  const lineToPathD = (pts) =>
+    pts.map((p, i) => `${i === 0 ? "M" : "L"}${p.x},${p.y}`).join(" ");
+  const ringToPathD = (ring) => lineToPathD(ring) + " Z";
 
   return (
     <g>
       {strips.map((strip, i) => {
         if (!strip.polygon || strip.polygon.length < 3) return null;
         const d = ringToPathD(strip.polygon);
+        const hasMainLine = strip.mainLine?.length >= 2;
         return (
           <g key={i}>
             <AnimatedPath
@@ -52,14 +58,26 @@ const TransientDetectedStripsLayer = forwardRef((_, ref) => {
               stroke="none"
               pointerEvents="none"
             />
-            <AnimatedPath
-              d={d}
-              fill="none"
-              stroke={COLOR}
-              strokeWidth={3}
-              vectorEffect="non-scaling-stroke"
-              pointerEvents="none"
-            />
+            {hasMainLine ? (
+              <path
+                d={lineToPathD(strip.mainLine)}
+                fill="none"
+                stroke={COLOR}
+                strokeOpacity={0.45}
+                strokeWidth={3}
+                vectorEffect="non-scaling-stroke"
+                pointerEvents="none"
+              />
+            ) : (
+              <AnimatedPath
+                d={d}
+                fill="none"
+                stroke={COLOR}
+                strokeWidth={3}
+                vectorEffect="non-scaling-stroke"
+                pointerEvents="none"
+              />
+            )}
           </g>
         );
       })}
