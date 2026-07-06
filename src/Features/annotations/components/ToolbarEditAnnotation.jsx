@@ -63,6 +63,7 @@ import SelectorAnnotationTemplateVariantDense from "./SelectorAnnotationTemplate
 import ChipLayerSelector from "Features/layers/components/ChipLayerSelector";
 import FieldAnnotationHeight from "./FieldAnnotationHeight";
 import FieldAnnotationThickness from "./FieldAnnotationThickness";
+import FieldAnnotationIsExtSwitch from "./FieldAnnotationIsExtSwitch";
 import Shape3DSelector from "./Shape3DSelector";
 import IconButtonFlipStripAnnotation from "./IconButtonFlipStripAnnotation";
 import IconButtonFlipExtrusionAnnotation from "./IconButtonFlipExtrusionAnnotation";
@@ -390,6 +391,11 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
       id: updatedAnnotation.id,
       offsetZ: updatedAnnotation.offsetZ,
     });
+  }
+
+  async function handleIsExtChange(checked) {
+    if (!selectedAnnotation?.id) return;
+    await updateAnnotation({ id: selectedAnnotation.id, isExt: checked });
   }
 
   async function handleStrokeWidthChange(updatedAnnotation) {
@@ -727,6 +733,12 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
                 annotation={selectedAnnotation}
                 onChange={handleStrokeWidthChange}
                 disabled={isLocked("strokeWidth")}
+              />
+            )}
+            {isPolylineOrStrip && (
+              <FieldAnnotationIsExtSwitch
+                checked={Boolean(selectedAnnotation?.isExt)}
+                onChange={handleIsExtChange}
               />
             )}
             <Box sx={{ flex: 1 }} />

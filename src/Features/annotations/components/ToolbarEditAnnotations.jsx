@@ -53,6 +53,7 @@ import {
 import AnnotationTemplateIcon from "./AnnotationTemplateIcon";
 import AnnotationMeasurements from "./AnnotationMeasurements";
 import FieldAnnotationHeight from "./FieldAnnotationHeight";
+import FieldAnnotationIsExtSwitch from "./FieldAnnotationIsExtSwitch";
 import Shape3DBatchSelector from "./Shape3DBatchSelector";
 import ToolbarAnnotationActions from "./ToolbarAnnotationActions";
 import SelectorAnnotationTemplateVariantDense from "./SelectorAnnotationTemplateVariantDense";
@@ -107,6 +108,7 @@ export default function ToolbarEditAnnotations({
   const [keepOriginalPoints, setKeepOriginalPoints] = useState(false);
   const [templateAnchorEl, setTemplateAnchorEl] = useState(null);
   const [pendingHeight, setPendingHeight] = useState(null);
+  const [pendingIsExt, setPendingIsExt] = useState(null);
 
   // helpers - selected annotations
 
@@ -153,6 +155,18 @@ export default function ToolbarEditAnnotations({
   const hasPolylinesOrStrips = annotations.some(
     (a) => a.type === "POLYLINE" || a.type === "STRIP"
   );
+
+  // Batch isExt (exterior-side flag) only targets polylines / strips;
+  // the switch shows ON when ALL targets are flagged. Toggling only stages
+  // the value (pendingIsExt); "Appliquer" persists it.
+  const isExtTargets = annotations.filter(
+    (a) => a.type === "POLYLINE" || a.type === "STRIP"
+  );
+  const allTargetsAreExt =
+    isExtTargets.length > 0 && isExtTargets.every((a) => a.isExt);
+  const canApplyIsExt =
+    typeof pendingIsExt === "boolean" && pendingIsExt !== allTargetsAreExt;
+  const canApplyBatch = canApplyHeight || canApplyIsExt;
 
   const hasPolygons = annotations.some((a) => a.type === "POLYGON");
 
@@ -233,9 +247,10 @@ export default function ToolbarEditAnnotations({
 
   // handlers
 
-  // Reset the pending value whenever the selection changes
+  // Reset the pending values whenever the selection changes
   useEffect(() => {
     setPendingHeight(null);
+    setPendingIsExt(null);
   }, [selectionKey]);
 
   // Field onChange only stores the pending value; it does NOT persist.
@@ -243,14 +258,26 @@ export default function ToolbarEditAnnotations({
     setPendingHeight(updated?.height);
   }
 
-  async function handleApplyBatchHeight() {
-    if (!canApplyHeight || annotations.length === 0) return;
-    const updates = annotations.map((a) => ({
-      id: a.id,
-      height: pendingHeight,
-    }));
-    await updateAnnotations(updates);
+  async function handleApplyBatch() {
+    if (!canApplyBatch || annotations.length === 0) return;
+    // Merge height (all annotations) and isExt (polylines / strips only)
+    // into a single update per annotation.
+    const updatesById = new Map();
+    if (canApplyHeight) {
+      for (const a of annotations) {
+        updatesById.set(a.id, { id: a.id, height: pendingHeight });
+      }
+    }
+    if (canApplyIsExt) {
+      for (const a of isExtTargets) {
+        const update = updatesById.get(a.id) ?? { id: a.id };
+        update.isExt = pendingIsExt;
+        updatesById.set(a.id, update);
+      }
+    }
+    await updateAnnotations([...updatesById.values()]);
     setPendingHeight(null);
+    setPendingIsExt(null);
   }
 
   function handleRemoveTemplateFromSelection(annotationIds) {
@@ -509,11 +536,17 @@ export default function ToolbarEditAnnotations({
             annotation={{ id: "batch-height", height: heightDisplayValue }}
             onChange={handleBatchHeightFieldChange}
           />
+          {isExtTargets.length > 0 && (
+            <FieldAnnotationIsExtSwitch
+              checked={pendingIsExt ?? allTargetsAreExt}
+              onChange={setPendingIsExt}
+            />
+          )}
           <Button
             size="small"
             variant="outlined"
-            disabled={!canApplyHeight}
-            onClick={handleApplyBatchHeight}
+            disabled={!canApplyBatch}
+            onClick={handleApplyBatch}
             sx={{ flexShrink: 0 }}
           >
             Appliquer
@@ -559,9 +592,7 @@ export default function ToolbarEditAnnotations({
               )}
               {hasPolylines && (
                 <IconButtonSettingOut
-                  annotations={annotations.filter(
-                    (a) => a.type === "POLYLINE"
-                  )}
+                  annotations={annotations.filter((a) => a.type === "POLYLINE")}
                   accentColor="#6366F1"
                 />
               )}
