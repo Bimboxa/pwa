@@ -16,7 +16,11 @@ import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 
 import getStripePolygons, {
   getStripDistancePx,
+  getStripChunks,
+  ARC_SAMPLES,
 } from "Features/geometry/utils/getStripePolygons";
+import offsetPolygon from "Features/geometry/utils/offsetPolygon";
+import { offsetPolyline } from "Features/geometry/utils/offsetPolylineAsPolygon";
 import buildSlopedStripMesh, {
   getSlopedStripRibbons,
 } from "Features/geometry/utils/buildSlopedStripMesh";
@@ -309,15 +313,74 @@ function buildSlopedStripGroup(annotation, baseMap, material, verticalLift) {
   return group;
 }
 
+// Extrude a CM-width STRIP as a wall: convert the stored band edge to its
+// centerline (same offset geometry as the "Basculer ligne ↔ bande" tool:
+// centerline = offset(edge, orientation * W/2)) and reuse extrudeWallPolygon,
+// so the strip gets the same slightly-thinner footprint as CM polylines
+// (THICKNESS_SAFETY_FACTOR + optional anti-aliasing shrink). Arcs are
+// tessellated BEFORE offsetting (the offset output carries no arc type), with
+// the same sample count as the 2D footprint so both stay in sync.
+function extrudeStripAsWall(
+  annotation,
+  baseMap,
+  height,
+  material,
+  verticalLift,
+  options
+) {
+  const distance = getStripDistancePx(annotation, baseMap.meterByPx); // signed px
+  const { effectiveCloseLine, effectivePoints, chunks } =
+    getStripChunks(annotation);
+
+  // Closed ring → closed centerline → hollow ring wall. Mirrors the 2D closed
+  // band (which also ignores hiddenSegmentsIdx).
+  if (effectiveCloseLine && effectivePoints.length >= 3) {
+    const arcPts = expandArcsInPath(effectivePoints, ARC_SAMPLES, true);
+    const centerline = offsetPolygon(arcPts, distance / 2);
+    if (!centerline || centerline.length < 3) return null;
+    return extrudeWallPolygon(
+      { ...annotation, points: centerline, closeLine: true },
+      baseMap,
+      height,
+      material,
+      verticalLift,
+      options
+    );
+  }
+
+  // Open strip: one wall per visible chunk (split at hiddenSegmentsIdx), like
+  // the 2D footprint path.
+  const group = new Group();
+  chunks.forEach((chunk) => {
+    const arcPts = expandArcsInPath(chunk, ARC_SAMPLES, false);
+    const centerline = offsetPolyline(arcPts, distance / 2);
+    if (!centerline || centerline.length < 2) return;
+    const wall = extrudeWallPolygon(
+      { ...annotation, points: centerline, closeLine: false },
+      baseMap,
+      height,
+      material,
+      verticalLift,
+      options
+    );
+    if (wall) group.add(wall);
+  });
+  return group.children.length > 0 ? group : null;
+}
+
 // Resolve a STRIP annotation into closed polygons and extrude each one.
 // Mirrors what NodeStripStatic does in 2D so the 3D matches the visible 2D
-// footprint (closeLine, hiddenSegmentsIdx, cuts).
+// footprint (closeLine, hiddenSegmentsIdx, cuts). CM-width strips with a
+// height take the wall path instead (extrudeStripAsWall) so they get the same
+// anti z-fighting thickness reduction as CM polylines — except when the strip
+// carries cuts (openings), which extrudeWallPolygon can't represent.
 function extrudeStripPolygons(
   annotation,
   baseMap,
   height,
   material,
-  verticalLift
+  verticalLift,
+  options
 ) {
   // Sloped single-surface strip when points carry offsetTop; otherwise fall
   // through to the flat footprint path (zero behavior change for flat strips).
@@ -329,6 +392,28 @@ function extrudeStripPolygons(
       verticalLift
     );
     if (sloped) return sloped;
+  }
+
+  const hasRealCuts = (annotation.cuts || []).some(
+    (c) => (c?.points?.length ?? 0) >= 3
+  );
+  if (
+    height > 0 &&
+    !hasRealCuts &&
+    annotation.strokeWidthUnit === "CM" &&
+    Number(annotation.strokeWidth) > 0 &&
+    baseMap.meterByPx > 0
+  ) {
+    const wall = extrudeStripAsWall(
+      annotation,
+      baseMap,
+      height,
+      material,
+      verticalLift,
+      options
+    );
+    if (wall) return wall;
+    // null → fall through to the footprint path (safety)
   }
 
   const polys = getStripePolygons(annotation, baseMap.meterByPx, true);
@@ -696,7 +781,8 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
         baseMap,
         height,
         material,
-        verticalLift
+        verticalLift,
+        options
       );
       break;
     }

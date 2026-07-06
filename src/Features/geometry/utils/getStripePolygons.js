@@ -8,7 +8,7 @@ import { expandArcsInPath } from "Features/geometry/utils/arcSampling";
 // Tessellation count for square→circle→square arcs before offsetting the band.
 // Matches the strip drawing-preview / 3D paths so the rendered footprint, the
 // 3D mesh and the surface quantity stay in sync. No-op for arc-free strips.
-const ARC_SAMPLES = 16;
+export const ARC_SAMPLES = 16;
 
 // Build annular polygon (donut) from a closed strip.
 // Returns array of {points, cuts} like the open-strip path.
