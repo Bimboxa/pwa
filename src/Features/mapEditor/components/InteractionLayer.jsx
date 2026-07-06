@@ -132,6 +132,7 @@ import getStripePolygons from 'Features/geometry/utils/getStripePolygons';
 import throttle from 'Features/misc/utils/throttle';
 import CalibrationLayer from './CalibrationLayer';
 import useMainBaseMap from 'Features/mapEditor/hooks/useMainBaseMap';
+import useHollowOutAnnotation from 'Features/annotations/hooks/useHollowOutAnnotation';
 import LassoOverlay from 'Features/mapEditorGeneric/components/LassoOverlay';
 
 
@@ -2454,6 +2455,14 @@ const InteractionLayer = forwardRef(({
     onCommitSplitAtVertexRef.current = onCommitSplitAtVertex;
   }, [onCommitSplitAtVertex]);
 
+  // "Evider" carve, shared with the ToolbarEditAnnotation button. Mirrored in
+  // a ref so the once-bound keydown closure ("E" shortcut) reads the live one.
+  const hollowOutAnnotation = useHollowOutAnnotation();
+  const hollowOutAnnotationRef = useRef(hollowOutAnnotation);
+  useEffect(() => {
+    hollowOutAnnotationRef.current = hollowOutAnnotation;
+  }, [hollowOutAnnotation]);
+
   const onSplitPolylineClickRef = useRef(onSplitPolylineClick);
   useEffect(() => {
     onSplitPolylineClickRef.current = onSplitPolylineClick;
@@ -3638,6 +3647,25 @@ const InteractionLayer = forwardRef(({
             dispatch(toggleSmartDetectEnabled());
           }
           break;
+
+        // "Evider": carve the selected POLYGON by the visible annotations —
+        // same action as the ToolbarEditAnnotation button, so the guards
+        // mirror its visibility (single selected POLYGON annotation node).
+        case "e":
+        case "E": {
+          if (!isActiveViewerRef.current) break;
+          if (e.ctrlKey || e.metaKey || e.altKey) break;
+          if (enabledDrawingModeRef.current) break;
+          if (pasteClipboardRef.current) break;
+          if (selectedNode?.nodeType !== "ANNOTATION") break;
+          if (selectedAnnotationsForCopyRef.current?.length !== 1) break;
+          const annToCarve = selectedAnnotationRef.current;
+          if (annToCarve?.type !== "POLYGON") break;
+          if (!permissions.canEditAnnotation(selectedNode?.nodeId)) break;
+          e.preventDefault();
+          hollowOutAnnotationRef.current?.(annToCarve);
+          break;
+        }
 
         // Toggle the type (square <-> circle) of the LAST placed drawing point.
         // A trailing "circle" forms a live arc with its previous square point and
