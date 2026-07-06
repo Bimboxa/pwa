@@ -22,7 +22,7 @@ import ContentCopy from "@mui/icons-material/ContentCopy";
 
 import {
   setShowGrid,
-  setExcludeBaseMapsFromExport,
+  setHideBaseMaps,
   setShowLegend,
   setLegendShowQty,
   setLegendSize,
@@ -85,9 +85,7 @@ export default function PanelThreedProperties() {
   }, [dispatch]);
 
   const showGrid = useSelector((s) => s.threedEditor.showGrid);
-  const excludeBaseMapsFromExport = useSelector(
-    (s) => s.threedEditor.excludeBaseMapsFromExport
-  );
+  const hideBaseMaps = useSelector((s) => s.threedEditor.hideBaseMaps);
   const showLegend = useSelector((s) => s.threedEditor.showLegend);
   const legendShowQty = useSelector((s) => s.threedEditor.legendShowQty);
   const legendSize = useSelector((s) => s.threedEditor.legendSize);
@@ -144,7 +142,7 @@ export default function PanelThreedProperties() {
     // synchronous portion of the encode (USDZ: texture bitmap reads + zip).
     await new Promise((r) => requestAnimationFrame(r));
     try {
-      const options = { excludeBaseMaps: excludeBaseMapsFromExport };
+      const options = { excludeBaseMaps: hideBaseMaps };
       if (exportFormat === "OBJ") {
         exportSceneAsObjService("scene.obj", options);
       } else {
@@ -194,15 +192,13 @@ export default function PanelThreedProperties() {
               control={
                 <Switch
                   size="small"
-                  checked={excludeBaseMapsFromExport}
-                  onChange={(e) =>
-                    dispatch(setExcludeBaseMapsFromExport(e.target.checked))
-                  }
+                  checked={hideBaseMaps}
+                  onChange={(e) => dispatch(setHideBaseMaps(e.target.checked))}
                 />
               }
               label={
                 <Typography variant="body2">
-                  {"Retirer les fonds de plan de l'export"}
+                  Masquer les fonds de plan
                 </Typography>
               }
             />
@@ -324,8 +320,8 @@ export default function PanelThreedProperties() {
               color="text.secondary"
               sx={{ display: "block", mb: 1.25 }}
             >
-              Export de la scène (fond de plan + objets 3D). USDZ pour
-              iPhone / AR, OBJ pour SketchUp.
+              Export de la scène (fond de plan + objets 3D). USDZ pour iPhone /
+              AR, OBJ pour SketchUp.
             </Typography>
             <ToggleButtonGroup
               size="small"

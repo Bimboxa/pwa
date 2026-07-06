@@ -24,6 +24,9 @@ export default function useApplyBaseMapVisibilityIn3d() {
   const annotationsModeByBaseMapId = useSelector(
     (s) => s.threedEditor.annotationsModeByBaseMapIdIn3d
   );
+  // Global "Masquer les fonds de plan" switch: hides every basemap image
+  // while keeping the groups (and their annotations) rendered.
+  const hideBaseMaps = useSelector((s) => s.threedEditor.hideBaseMaps);
   const mainBaseMap = useMainBaseMap();
   const { value: baseMaps = [] } = useBaseMaps();
   const store = useStore();
@@ -55,11 +58,17 @@ export default function useApplyBaseMapVisibilityIn3d() {
           editor.ensureBaseMapLoaded(bm, { opacity });
         }
         imagesManager.setBaseMapVisible(bm.id, true);
-        imagesManager.setBaseMapImageVisible(bm.id, eyeOn);
+        imagesManager.setBaseMapImageVisible(bm.id, eyeOn && !hideBaseMaps);
       } else if (imagesManager.hasImageObject(bm.id)) {
         imagesManager.setBaseMapVisible(bm.id, false);
       }
     });
     editor.renderScene?.();
-  }, [visibleKey, annotationsModeKey, mainBaseMap?.id, baseMapsKey]);
+  }, [
+    visibleKey,
+    annotationsModeKey,
+    mainBaseMap?.id,
+    baseMapsKey,
+    hideBaseMaps,
+  ]);
 }
