@@ -1068,15 +1068,15 @@ export default function NodePolylineStatic({
 
   // --- RENDU IS_EXT INDICATOR (guide "Extérieur") ---
   //
-  // Polylines flagged isExt (exterior-side guides for the auto-drawing
-  // algorithms) get a crisp 1px line drawn along the MAIN centerline,
-  // non-scaling, in the same fluo-cyan as the per-segment "Segment
-  // extérieur" markers — visible over the band whatever its color and
-  // opacity. Pure visual indicator: never captures pointer events.
-  // Suppressed in print.
+  // Polylines and polygons flagged isExt (exterior-side guides for the
+  // auto-drawing algorithms) get a dashed 1px line drawn along the MAIN
+  // centerline / outer contour, non-scaling, in the same fluo-cyan as the
+  // per-segment "Segment extérieur" markers — visible over the band or fill
+  // whatever their color and opacity. Pure visual indicator: never captures
+  // pointer events. Suppressed in print.
   const renderIsExtIndicator = () => {
     if (!mergedAnnotation.isExt || printMode) return null;
-    if (type !== "POLYLINE" || !pathD) return null;
+    if ((type !== "POLYLINE" && type !== "POLYGON") || !pathD) return null;
 
     return (
       <path

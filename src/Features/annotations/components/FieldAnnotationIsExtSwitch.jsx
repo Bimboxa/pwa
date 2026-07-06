@@ -1,9 +1,9 @@
 import { Box, Switch, Tooltip, Typography } from "@mui/material";
 
 // Compact "Ext." switch for the edit-annotation toolbars (exterior-side flag,
-// POLYLINE / STRIP only). The displayed value is the RESOLVED one (annotation
-// value, falling back to its template's isExt); toggling writes an explicit
-// per-annotation value, which then wins over the template.
+// POLYLINE / STRIP / POLYGON). The displayed value is the RESOLVED one
+// (annotation value, falling back to its template's isExt); toggling writes
+// an explicit per-annotation value, which then wins over the template.
 export default function FieldAnnotationIsExtSwitch({
   checked,
   onChange,

@@ -160,7 +160,8 @@ export default function ToolbarEditAnnotations({
   // the switch shows ON when ALL targets are flagged. Toggling only stages
   // the value (pendingIsExt); "Appliquer" persists it.
   const isExtTargets = annotations.filter(
-    (a) => a.type === "POLYLINE" || a.type === "STRIP"
+    (a) =>
+      a.type === "POLYLINE" || a.type === "STRIP" || a.type === "POLYGON"
   );
   const allTargetsAreExt =
     isExtTargets.length > 0 && isExtTargets.every((a) => a.isExt);

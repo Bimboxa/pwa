@@ -735,13 +735,13 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
                 disabled={isLocked("strokeWidth")}
               />
             )}
-            {isPolylineOrStrip && (
+            <Box sx={{ flex: 1 }} />
+            {(isPolylineOrStrip || selectedAnnotation?.type === "POLYGON") && (
               <FieldAnnotationIsExtSwitch
                 checked={Boolean(selectedAnnotation?.isExt)}
                 onChange={handleIsExtChange}
               />
             )}
-            <Box sx={{ flex: 1 }} />
             <Shape3DSelector annotation={selectedAnnotation} />
           </Box>
         )}

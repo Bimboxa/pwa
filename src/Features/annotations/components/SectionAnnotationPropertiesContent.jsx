@@ -114,7 +114,7 @@ export default function SectionAnnotationPropertiesContent({ annotation }) {
           />
         )}
         <FieldAnnotationIsEraser annotation={annotation} />
-        {["POLYLINE", "STRIP"].includes(type) && (
+        {["POLYLINE", "STRIP", "POLYGON"].includes(type) && (
           <FieldAnnotationIsExt annotation={annotation} />
         )}
       </Box>
