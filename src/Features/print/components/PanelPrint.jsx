@@ -35,6 +35,7 @@ import CardPortfolioList from "Features/portfolios/components/CardPortfolioList"
 import DatagridAnnotations from "Features/annotations/components/DatagridAnnotations";
 import DatagridAnnotationsAggregated from "Features/annotations/components/DatagridAnnotationsAggregated";
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
+import useTemplateRankById from "Features/annotations/hooks/useTemplateRankById";
 import useDownladPdfReport from "Features/pdfReport/hooks/useDownladPdfReport";
 import usePdfReportName from "Features/pdfReport/hooks/usePdfReportName";
 import SliderBaseMapOpacity from "Features/mapEditor/components/SliderBaseMapOpacity";
@@ -69,8 +70,11 @@ export default function PanelPrint() {
     excludeBgAnnotations: true,
   });
 
+  const templateRankById = useTemplateRankById();
+
   const layers = useLiveQuery(
-    () => (projectId ? db.layers.where("projectId").equals(projectId).toArray() : []),
+    () =>
+      projectId ? db.layers.where("projectId").equals(projectId).toArray() : [],
     [projectId]
   );
   const layerById = useMemo(() => getItemsByKey(layers ?? [], "id"), [layers]);
@@ -79,7 +83,7 @@ export default function PanelPrint() {
     if (!annotations) return [];
     return annotations.map((a) => ({
       ...a,
-      layerName: a.layerId ? (layerById[a.layerId]?.name || "-") : "-",
+      layerName: a.layerId ? layerById[a.layerId]?.name || "-" : "-",
     }));
   }, [annotations, layerById]);
 
@@ -118,7 +122,9 @@ export default function PanelPrint() {
 
   async function handleDownloadExcelAggregated() {
     const workbook = new Excel.Workbook();
-    createSheetAnnotationsAggregated(workbook, enrichedAnnotations);
+    createSheetAnnotationsAggregated(workbook, enrichedAnnotations, {
+      templateRankById,
+    });
     const buffer = await workbook.xlsx.writeBuffer();
     const blob = new Blob([buffer], {
       type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -317,10 +323,18 @@ function DataExportItem({ label, onOpenDatagrid, onDownloadExcel }) {
           transition: "opacity 0.15s",
         }}
       >
-        <IconButton size="small" onClick={onOpenDatagrid} title="Voir le tableau">
+        <IconButton
+          size="small"
+          onClick={onOpenDatagrid}
+          title="Voir le tableau"
+        >
           <TableChart fontSize="small" />
         </IconButton>
-        <IconButton size="small" onClick={onDownloadExcel} title="Télécharger Excel">
+        <IconButton
+          size="small"
+          onClick={onDownloadExcel}
+          title="Télécharger Excel"
+        >
           <Download fontSize="small" />
         </IconButton>
       </Box>

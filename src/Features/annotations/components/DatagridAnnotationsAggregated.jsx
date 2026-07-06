@@ -1,13 +1,17 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { DataGridPro } from "@mui/x-data-grid-pro";
 import Box from "@mui/material/Box";
+import Chip from "@mui/material/Chip";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 
 import AnnotationTemplateIcon from "./AnnotationTemplateIcon";
 import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
+import useTemplateRankById from "Features/annotations/hooks/useTemplateRankById";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
+import SwitchGeneric from "Features/layout/components/SwitchGeneric";
+import getAggregatedAnnotationRows from "Features/annotations/utils/getAggregatedAnnotationRows";
 
 const formatNumber = (value, unit) => {
   if (value === null || value === undefined || isNaN(value)) return "-";
@@ -16,64 +20,29 @@ const formatNumber = (value, unit) => {
 };
 
 export default function DatagridAnnotationsAggregated({ annotations }) {
+  // strings
+
+  const globalAggregationS = "Agrégation globale";
+  const multipleHeightsS = "Hauteurs multiples";
+
+  // state
+
+  const [globalAggregation, setGlobalAggregation] = useState(true);
+
   // data
 
   const spriteImage = useAnnotationSpriteImage();
+  const templateRankById = useTemplateRankById();
 
-  const rows = useMemo(() => {
-    if (!annotations) return [];
-
-    const grouped = {};
-    for (const annotation of annotations) {
-      const templateId = annotation.annotationTemplateId;
-      if (!templateId) continue;
-
-      if (!grouped[templateId]) {
-        grouped[templateId] = {
-          id: templateId,
-          templateLabel:
-            annotation.annotationTemplateProps?.label || "Sans Label",
-          listingNames: new Set(),
-          baseMapNames: new Set(),
-          layerNames: new Set(),
-          height: annotation.height ?? 0,
-          unit: 0,
-          length: 0,
-          surface: 0,
-          // Template visual props (from first annotation in group)
-          type: annotation.type,
-          fillColor: annotation.fillColor,
-          strokeColor: annotation.strokeColor,
-          fillOpacity: annotation.fillOpacity,
-          strokeOpacity: annotation.strokeOpacity,
-          fillType: annotation.fillType,
-          variant: annotation.variant,
-          iconKey: annotation.iconKey,
-          image: annotation.image,
-        };
-      }
-
-      const row = grouped[templateId];
-      row.unit += 1;
-      if (annotation.listingName) row.listingNames.add(annotation.listingName);
-      if (annotation.baseMapName) row.baseMapNames.add(annotation.baseMapName);
-      if (annotation.layerName) row.layerNames.add(annotation.layerName);
-
-      if (annotation.qties?.enabled) {
-        if (Number.isFinite(annotation.qties.length))
-          row.length += annotation.qties.length;
-        if (Number.isFinite(annotation.qties.surface))
-          row.surface += annotation.qties.surface;
-      }
-    }
-
-    return Object.values(grouped).map((row) => ({
-      ...row,
-      listingName: [...row.listingNames].join(", "),
-      baseMapName: [...row.baseMapNames].join(", "),
-      layerName: [...row.layerNames].join(", "),
-    }));
-  }, [annotations]);
+  const rows = useMemo(
+    () =>
+      getAggregatedAnnotationRows({
+        annotations,
+        splitByContext: !globalAggregation,
+        templateRankById,
+      }),
+    [annotations, globalAggregation, templateRankById]
+  );
 
   // columns
 
@@ -89,8 +58,19 @@ export default function DatagridAnnotationsAggregated({ annotations }) {
         filterable: false,
         disableColumnMenu: true,
         renderCell: (params) => (
-          <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: 1 }}>
-            <AnnotationTemplateIcon template={params.row} size={20} spriteImage={spriteImage} />
+          <Box
+            sx={{
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              height: 1,
+            }}
+          >
+            <AnnotationTemplateIcon
+              template={params.row}
+              size={20}
+              spriteImage={spriteImage}
+            />
           </Box>
         ),
       },
@@ -116,9 +96,14 @@ export default function DatagridAnnotationsAggregated({ annotations }) {
       {
         field: "height",
         headerName: "Hauteur",
-        width: 120,
+        width: 160,
         type: "number",
-        valueFormatter: (value) => formatNumber(value, "m"),
+        renderCell: (params) =>
+          params.row.hasMultipleHeights ? (
+            <Chip size="small" label={multipleHeightsS} />
+          ) : (
+            formatNumber(params.row.height, "m")
+          ),
       },
       {
         field: "unit",
@@ -152,6 +137,9 @@ export default function DatagridAnnotationsAggregated({ annotations }) {
     const lines = rows.map((row) =>
       dataColumns
         .map((col) => {
+          if (col.field === "height" && row.hasMultipleHeights) {
+            return multipleHeightsS;
+          }
           const value = row[col.field];
           if (value === null || value === undefined) return "";
           if (typeof value === "number") {
@@ -169,7 +157,19 @@ export default function DatagridAnnotationsAggregated({ annotations }) {
 
   return (
     <BoxFlexVStretch>
-      <Box sx={{ display: "flex", justifyContent: "flex-end", p: 0.5 }}>
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          p: 0.5,
+        }}
+      >
+        <SwitchGeneric
+          checked={globalAggregation}
+          onChange={setGlobalAggregation}
+          label={globalAggregationS}
+        />
         <Tooltip title="Copier">
           <IconButton size="small" onClick={handleCopyToClipboard}>
             <ContentCopyIcon fontSize="small" />
