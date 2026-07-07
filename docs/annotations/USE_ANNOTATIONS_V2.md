@@ -70,6 +70,20 @@ A Dexie liveQuery re-runs only on writes to tables **its own callback read**. A 
 
 Per commit: exactly **one** `shared rows MISS` per distinct query key (the leader), all other instances `hit`; `from db` ≈ only the points touched by the commit (plus the full set once, on the first run after load). If every instance logs `MISS`, the invalidation is firing between instance runs — check for a write loop.
 
+## Write side: one transaction per drawing commit
+
+The re-run cost above is paid **once per committed Dexie transaction** (each top-level transaction fires one `storagemutated` → one liveQuery re-run wave across all instances). The drawing commit (`useHandleCommitDrawing`) therefore DEFERS all its writes — new point rows, snap-insertion updates on target annotations, cut/carved points — into `pendingPointRows` / `pendingAnnotationUpdates`, and flushes them in ONE transaction together with the annotation write:
+
+- create path: `createAnnotation(ann, { pointRowsToSave, annotationUpdatesInTx })` → `useCreateEntity`'s `options.tx` branch wraps `db.files.put` + `db.annotations.add` + points + mapping rels in a single `db.transaction`;
+- update path (drawn cut on an existing annotation): `updateAnnotation(updates, { pointRowsToSave, annotationUpdatesInTx })` wraps everything similarly.
+
+Rules when touching these flows:
+- **Non-Dexie awaits must stay outside the transaction** (file data prep, `updateItemSyncFile`, image decoding…) — a non-Dexie await inside a Dexie transaction commits it prematurely.
+- New writes added to the drawing commit should be pushed to the pending arrays (or added to the `tx.writes` callback), not written immediately — an immediate write adds a full re-run wave.
+- Bonus of deferral: an early return in the carve/merge paths no longer leaves orphaned point rows in `db.points`.
+
+Same idea elsewhere: `pasteAnnotationService` and `useUpdateAnnotations` already batch their writes in a single transaction — follow that pattern for any new multi-record mutation.
+
 ## Caller map (map editor, MAP viewer)
 
 | caller | feeds | notable options |

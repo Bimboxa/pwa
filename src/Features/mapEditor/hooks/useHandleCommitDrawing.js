@@ -180,6 +180,15 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
         }
 
 
+        // DEFERRED commit writes: every write of this commit (point rows,
+        // snap-insertion updates, annotation, mapping rels) lands in ONE
+        // Dexie transaction at the final create/update below → a single
+        // invalidation + a single liveQuery re-run wave (instead of one per
+        // write), and no orphaned point rows when the commit bails out on an
+        // early return (carve/merge paths).
+        const pendingPointRows = [];
+        const pendingAnnotationUpdates = [];
+
         // ETAPE : création de l'entité ou non
 
         let entityId = newAnnotation?.entityId;
@@ -384,9 +393,10 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
                 }
             }
 
-            // ÉTAPE 2 : Sauvegarde des Nouveaux Points (Batch)
+            // ÉTAPE 2 : new points — DEFERRED write (see pendingPointRows
+            // declaration above).
             if (newPointsToSave.length > 0) {
-                await db.points.bulkAdd(newPointsToSave);
+                pendingPointRows.push(...newPointsToSave);
             }
 
             // ÉTAPE 2.1 : Insert snapped points into target annotations' segments
@@ -453,7 +463,10 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
                     if (updatedPoints) changes.points = updatedPoints;
                     if (updatedCuts) changes.cuts = updatedCuts;
                     if (Object.keys(changes).length > 0) {
-                        await db.annotations.update(annId, changes);
+                        // deferred to the final commit transaction (the snapped
+                        // point row is deferred too — committing this update
+                        // alone would transiently reference a missing point)
+                        pendingAnnotationUpdates.push({ id: annId, changes });
                     }
                 }
             }
@@ -555,9 +568,9 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
                         points: cutPoints.map(({ id, type }) => (type ? { id, type } : { id })),
                     });
                 }
-                // Single bulk insert for all cut points
+                // deferred to the final commit transaction
                 if (allCutPointsToSave.length > 0) {
-                    await db.points.bulkAdd(allCutPointsToSave);
+                    pendingPointRows.push(...allCutPointsToSave);
                 }
                 if (cutEntries.length > 0) {
                     _newAnnotation.cuts = cutEntries;
@@ -763,7 +776,8 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
                         });
 
                         if (carvedPointsToSave.length > 0) {
-                            await db.points.bulkAdd(carvedPointsToSave);
+                            // deferred to the final commit transaction
+                            pendingPointRows.push(...carvedPointsToSave);
                         }
 
                         _newAnnotation.points = newPointsRefs;
@@ -776,11 +790,19 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
 
         // Mise à jour Optimiste Redux
         //dispatch(addAnnotation(newAnnotation));
-        // Sauvegarde DB
+        // Sauvegarde DB — single transaction: deferred point rows + snap
+        // updates + annotation (+ mapping rels) commit atomically, so the
+        // liveQueries re-run once per drawing commit.
         if (_updatedAnnotation) {
-            await updateAnnotation(_updatedAnnotation);
+            await updateAnnotation(_updatedAnnotation, {
+                pointRowsToSave: pendingPointRows,
+                annotationUpdatesInTx: pendingAnnotationUpdates,
+            });
         } else {
-            await createAnnotation(_newAnnotation);
+            await createAnnotation(_newAnnotation, {
+                pointRowsToSave: pendingPointRows,
+                annotationUpdatesInTx: pendingAnnotationUpdates,
+            });
         }
 
         // REVOLUTION_POINT placed from the elevation panel ("Positionner l'axe

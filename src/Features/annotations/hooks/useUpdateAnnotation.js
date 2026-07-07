@@ -10,8 +10,26 @@ export default function useUpdateAnnotation() {
   const dispatch = useDispatch();
   const projectId = useSelector((s) => s.projects.selectedProjectId);
 
-  return async (updates) => {
-    await db.annotations.update(updates.id, { ...updates });
+  return async (updates, options) => {
+    // Deferred writes from the drawing commit (see useHandleCommitDrawing):
+    // point rows + snap updates land in the SAME Dexie transaction as the
+    // annotation update, so the liveQueries re-run once per commit.
+    const pointRowsToSave = options?.pointRowsToSave ?? [];
+    const annotationUpdatesInTx = options?.annotationUpdatesInTx ?? [];
+
+    if (pointRowsToSave.length > 0 || annotationUpdatesInTx.length > 0) {
+      await db.transaction("rw", db.points, db.annotations, async () => {
+        if (pointRowsToSave.length > 0) {
+          await db.points.bulkAdd(pointRowsToSave);
+        }
+        for (const u of annotationUpdatesInTx) {
+          await db.annotations.update(u.id, u.changes);
+        }
+        await db.annotations.update(updates.id, { ...updates });
+      });
+    } else {
+      await db.annotations.update(updates.id, { ...updates });
+    }
 
     // When annotationTemplateId changes, sync relAnnotationMappingCategory
     if (updates.annotationTemplateId !== undefined && updates.id && projectId) {

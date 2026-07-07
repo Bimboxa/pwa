@@ -44,6 +44,11 @@ export default function useCreateAnnotation() {
       // options
 
       const entityId = options?.entityId;
+      // Deferred writes from the drawing commit (see useHandleCommitDrawing):
+      // point rows + snap updates land in the SAME Dexie transaction as the
+      // annotation add, so the liveQueries re-run once per commit.
+      const pointRowsToSave = options?.pointRowsToSave ?? [];
+      const annotationUpdatesInTx = options?.annotationUpdatesInTx ?? [];
 
       // main
       const _annotation = {
@@ -59,12 +64,12 @@ export default function useCreateAnnotation() {
         _annotation.listingId = null;
       }
 
-      await createEntity(_annotation, { listing: { id: _annotation.listingId, table: "annotations" } });
-
       // ── relAnnotationMappingCategory ────────────────────────────────────
       // If the annotation's template has mappingCategories, create the
       // relations so that resolveArticlesNomenclaturesWithQties can sum qtys.
+      // Built BEFORE the write so the rows join the commit transaction.
 
+      let rels = [];
       const annotationTemplateId = _annotation.annotationTemplateId;
       if (annotationTemplateId && _annotation.id && projectId) {
         try {
@@ -75,23 +80,37 @@ export default function useCreateAnnotation() {
             .map(parseMappingCategory)
             .filter(Boolean);
 
-          if (mappingCategories.length > 0) {
-            const rels = mappingCategories.map((mc) => ({
-              id: nanoid(),
-              annotationId: _annotation.id,
-              projectId,
-              nomenclatureKey: mc.nomenclatureKey,
-              categoryKey: mc.categoryKey,
-              source: "annotationTemplate",
-            }));
-            await db.relAnnotationMappingCategory.bulkAdd(rels);
-          }
-
-} catch (relError) {
+          rels = mappingCategories.map((mc) => ({
+            id: nanoid(),
+            annotationId: _annotation.id,
+            projectId,
+            nomenclatureKey: mc.nomenclatureKey,
+            categoryKey: mc.categoryKey,
+            source: "annotationTemplate",
+          }));
+        } catch (relError) {
           // Non-blocking: log but do not fail the annotation creation
           console.warn("[useCreateAnnotation] Could not create relAnnotationMappingCategory:", relError);
         }
       }
+
+      await createEntity(_annotation, {
+        listing: { id: _annotation.listingId, table: "annotations" },
+        tx: {
+          tables: [db.points, db.annotations, db.relAnnotationMappingCategory],
+          writes: async () => {
+            if (pointRowsToSave.length > 0) {
+              await db.points.bulkAdd(pointRowsToSave);
+            }
+            for (const u of annotationUpdatesInTx) {
+              await db.annotations.update(u.id, u.changes);
+            }
+            if (rels.length > 0) {
+              await db.relAnnotationMappingCategory.bulkAdd(rels);
+            }
+          },
+        },
+      });
 
       dispatch(triggerAnnotationsUpdate());
       dispatch(triggerAnnotationTemplatesUpdate());
