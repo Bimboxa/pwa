@@ -1878,6 +1878,12 @@ const InteractionLayer = forwardRef(({
 
   const currentSnapRef = useRef(null); // Stocke le résultat du getBestSnap
 
+  // Ortho snap angle offset ref (déclaré ici car consommé par usePointDrag ci-dessous)
+  const orthoSnapAngleOffsetRef = useRef(orthoSnapAngleOffset);
+  useEffect(() => {
+    orthoSnapAngleOffsetRef.current = orthoSnapAngleOffset;
+  }, [orthoSnapAngleOffset]);
+
   // drag state — point drag (extracted to usePointDrag)
 
   const {
@@ -1903,6 +1909,7 @@ const InteractionLayer = forwardRef(({
     onProjectionSnapInsert,
     currentSnapRef,
     viewportRef,
+    orthoSnapAngleOffsetRef,
     dispatch,
   });
 
@@ -2393,11 +2400,6 @@ const InteractionLayer = forwardRef(({
   useEffect(() => {
     orthoSnapEnabledRef.current = orthoSnapEnabled;
   }, [orthoSnapEnabled]);
-
-  const orthoSnapAngleOffsetRef = useRef(orthoSnapAngleOffset);
-  useEffect(() => {
-    orthoSnapAngleOffsetRef.current = orthoSnapAngleOffset;
-  }, [orthoSnapAngleOffset]);
 
   const stripDetectionOrientationRef = useRef(stripDetectionOrientation);
   useEffect(() => {
@@ -5165,8 +5167,13 @@ const InteractionLayer = forwardRef(({
     if (dragState?.pending || dragState?.active) {
 
       // Snap detection during active drag (VERTEX, MIDPOINT, PROJECTION)
+      // Skipped while Shift is held: the ortho constraint (usePointDrag) takes over.
+      const orthoConstrainHeld = event.shiftKey || event.evt?.shiftKey;
       let snapOverride = null;
-      if (dragState?.active && snappingEnabled) {
+      if (dragState?.active && snappingEnabled && orthoConstrainHeld) {
+        currentSnapRef.current = null;
+        snappingLayerRef.current?.update(null);
+      } else if (dragState?.active && snappingEnabled) {
         const imageScale = getTargetScale();
         const currentCameraZoom = viewportRef.current?.getZoom() || 1;
         const scale = imageScale * currentCameraZoom;

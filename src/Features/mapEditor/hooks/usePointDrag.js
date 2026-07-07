@@ -3,6 +3,7 @@ import { useSelector } from "react-redux";
 import { nanoid } from "@reduxjs/toolkit";
 import { setSubSelection, setSelectedPointIds, toggleSelectedPointId, selectSelectedPointIds } from "Features/selection/selectionSlice";
 import { setToaster } from "Features/layout/layoutSlice";
+import snapToAngle from "Features/mapEditor/utils/snapToAngle";
 
 const DRAG_THRESHOLD_PX = 3;
 
@@ -31,6 +32,7 @@ export default function usePointDrag({
   // refs
   currentSnapRef,
   viewportRef,
+  orthoSnapAngleOffsetRef,
   dispatch,
 }) {
   // --- State ---
@@ -137,6 +139,7 @@ export default function usePointDrag({
           isDuplicateMode: false,
           potentialDuplicate: isPotentialDuplicate,
           currentPos: { x: snap.x, y: snap.y },
+          startPos: { x: snap.x, y: snap.y },
           startMouseScreen: { x: e.clientX, y: e.clientY },
           affectedIds: affectedIds,
         };
@@ -238,9 +241,18 @@ export default function usePointDrag({
 
       // B. Active → mettre à jour la position
       if (dragStateRef.current?.active) {
-        const localPos = snapOverride
+        let localPos = snapOverride
           ? { x: snapOverride.x, y: snapOverride.y }
           : toLocalCoords(worldPos);
+
+        // Shift → contraindre le déplacement sur l'axe ortho (H/V) le plus
+        // cohérent avec la souris, relatif à la position d'origine du point.
+        // Ignoré si un snap vertex/projection prend le relais.
+        const shiftHeld = event?.shiftKey || event?.evt?.shiftKey;
+        const anchor = dragStateRef.current.startPos ?? dragStateRef.current.originPos;
+        if (shiftHeld && anchor && !snapOverride) {
+          localPos = snapToAngle(localPos, anchor, orthoSnapAngleOffsetRef?.current || 0, 90);
+        }
         const snapTarget = snapOverride?.pointId
           ? { pointId: snapOverride.pointId }
           : null;
