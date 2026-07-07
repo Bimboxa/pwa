@@ -121,7 +121,9 @@ function NodeAnnotationStatic({
     //   return NodeSegment({ ...props, segment: annotation });
 
     case "IMAGE":
-      return <NodeImageStatic {...props} imageAnnotation={resolvedAnnotation} />;
+      return (
+        <NodeImageStatic {...props} imageAnnotation={resolvedAnnotation} />
+      );
 
     case "OBJECT_3D":
       return <NodeObject3DStatic {...props} annotation={resolvedAnnotation} />;
@@ -136,7 +138,9 @@ function NodeAnnotationStatic({
       return <NodePolylineStatic {...props} annotation={resolvedAnnotation} />;
 
     case "REVOLUTION_POINT":
-      return <NodeRevolutionPointStatic {...props} annotation={resolvedAnnotation} />;
+      return (
+        <NodeRevolutionPointStatic {...props} annotation={resolvedAnnotation} />
+      );
 
     default:
       return null;
