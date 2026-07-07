@@ -133,16 +133,16 @@ export default function useAnnotationsAutoRun() {
             )
           : [];
         const templateById = new Map(candidateTemplates.map((t) => [t.id, t]));
-        // The isExt flag plays the same guide role as the COTE:EXT category
-        // (annotation value wins over its template's) — only for procedures
-        // that understand guides.
+        // The isExt flag plays the same guide role as the COTE:EXT category —
+        // only for procedures that understand guides. `a` is resolved by
+        // useAnnotationsV2, so a.isExt already reflects the template lock.
         const guidesEnabled = adjacencyCategories.includes("COTE:EXT");
         const neighbors = candidates.filter((a) => {
           const template = templateById.get(a.annotationTemplateId);
           const categories = template?.mappingCategories ?? [];
           if (adjacencyCategories.some((c) => categories.includes(c)))
             return true;
-          return guidesEnabled && (a.isExt ?? template?.isExt) === true;
+          return guidesEnabled && a.isExt === true;
         });
         sourceAnnotations = [
           ...sourceAnnotations,
@@ -207,7 +207,7 @@ export default function useAnnotationsAutoRun() {
           const categories = template?.mappingCategories ?? [];
           if (adjacencyCategories.some((c) => categories.includes(c)))
             return true;
-          return stripGuidesEnabled && (a.isExt ?? template?.isExt) === true;
+          return stripGuidesEnabled && a.isExt === true;
         });
         visible = [
           ...visible,
@@ -250,7 +250,7 @@ export default function useAnnotationsAutoRun() {
             const categories = template?.mappingCategories ?? [];
             if (adjacencyCategories.some((c) => categories.includes(c)))
               return true;
-            return guidesEnabled && (a.isExt ?? template?.isExt) === true;
+            return guidesEnabled && a.isExt === true;
           };
           visible = visible
             .filter((a) => isLinked(a) || isAdjacency(a))

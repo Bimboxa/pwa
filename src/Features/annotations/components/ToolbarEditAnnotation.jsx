@@ -740,6 +740,7 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
               <FieldAnnotationIsExtSwitch
                 checked={Boolean(selectedAnnotation?.isExt)}
                 onChange={handleIsExtChange}
+                disabled={isLocked("isExt")}
               />
             )}
             <Shape3DSelector annotation={selectedAnnotation} />
