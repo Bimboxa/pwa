@@ -1,4 +1,5 @@
 import { useMemo, useRef, useState } from "react";
+import { useSelector } from "react-redux";
 import { darken } from "@mui/material/styles";
 import theme from "Styles/theme";
 
@@ -255,7 +256,9 @@ export default function NodeStripStatic({
     const SEGMENT_HOVER_COLOR = "#76ff03";
 
     // --- RENDER SOMMETS ---
-    const POINT_SIZE = 6;
+    const vertexSizeMultiplier =
+        useSelector((s) => s.mapEditor.vertexSizeMultiplier) || 1;
+    const POINT_SIZE = 6 * vertexSizeMultiplier;
     const HALF_SIZE = POINT_SIZE / 2;
     const vertexScaleTransform = useMemo(() => {
         const k = containerK || 1;
