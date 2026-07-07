@@ -1575,16 +1575,18 @@ const InteractionLayer = forwardRef(({
   // Scans existing annotation points (+ the in-progress drawing points) and
   // returns an axis snap whose markers / X-Y locks are computed in screen space
   // (zoom-independent). `cursorScreen` is in viewport-pixel space.
-  const computeAxisSnap = (cursorScreen) => {
+  const computeAxisSnap = (cursorScreen, { excludePointId = null, annotationsList = null } = {}) => {
     const vp = viewportRef.current;
     if (!vp || !cursorScreen) return null;
     const pose = getTargetPose();
 
+    const anns = (annotationsList || annotationsForSnap || []).filter((a) => !a?.isProxy);
     const candidates = [];
-    for (const ann of (annotationsForSnap || [])) {
+    for (const ann of anns) {
       const pts = ann?.points;
       if (!pts) continue;
       for (const p of pts) {
+        if (excludePointId && p?.id === excludePointId) continue;
         if (Number.isFinite(p?.x) && Number.isFinite(p?.y)) candidates.push(p);
       }
     }
@@ -5173,6 +5175,7 @@ const InteractionLayer = forwardRef(({
       if (dragState?.active && snappingEnabled && orthoConstrainHeld) {
         currentSnapRef.current = null;
         snappingLayerRef.current?.update(null);
+        axisSnapLayerRef.current?.update(null);
       } else if (dragState?.active && snappingEnabled) {
         const imageScale = getTargetScale();
         const currentCameraZoom = viewportRef.current?.getZoom() || 1;
@@ -5248,6 +5251,21 @@ const InteractionLayer = forwardRef(({
         } else {
           currentSnapRef.current = null;
           snappingLayerRef.current?.update(null);
+        }
+
+        // Distant-point axis snap helpers (same rings as the add-point flow):
+        // only when no exact vertex/midpoint/projection snap already applies.
+        if (!snapOverride) {
+          const axisSnap = computeAxisSnap(viewportPos, {
+            excludePointId: dragPointId,
+            annotationsList: annotations,
+          });
+          axisSnapLayerRef.current?.update(axisSnap?.markers || null);
+          if (axisSnap?.hasLock && axisSnap.local) {
+            snapOverride = { x: axisSnap.local.x, y: axisSnap.local.y };
+          }
+        } else {
+          axisSnapLayerRef.current?.update(null);
         }
       }
 
@@ -5956,6 +5974,7 @@ const InteractionLayer = forwardRef(({
     // --- Point drag (VERTEX / PROJECTION) — délégué à usePointDrag ---
     // (pending clicks are handled earlier to avoid selectedPointIds reset)
     if (dragState?.active) {
+      axisSnapLayerRef.current?.update(null);
       const handled = handlePointDragEnd(event);
       if (handled) return;
     }
