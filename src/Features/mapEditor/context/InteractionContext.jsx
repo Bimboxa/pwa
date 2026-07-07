@@ -19,6 +19,12 @@ export function InteractionProvider({ children }) {
         return pendingMovesRef.current.get(annotationId) || null;
     }, []);
 
+    // Visible view box (base-map local px, with margin) used by
+    // StaticMapContent to cull off-screen annotations. Updated by
+    // InteractionLayer on camera changes (debounced + hysteresis).
+    // null → no culling (first render / unknown viewport).
+    const [visibleViewBox, setVisibleViewBox] = useState(null);
+
     const value = useMemo(() => ({
         hoveredNode,
         setHoveredNode,
@@ -35,7 +41,10 @@ export function InteractionProvider({ children }) {
         pendingMovesVersion,
         setPendingMovesVersion,
         getPendingMove,
-    }), [hoveredNode, hiddenAnnotationIds, basePose, selectedPointId, selectedPartId, pendingMovesVersion]);
+        // Viewport culling
+        visibleViewBox,
+        setVisibleViewBox,
+    }), [hoveredNode, hiddenAnnotationIds, basePose, selectedPointId, selectedPartId, pendingMovesVersion, visibleViewBox]);
 
     return (
         <InteractionContext.Provider value={value}>

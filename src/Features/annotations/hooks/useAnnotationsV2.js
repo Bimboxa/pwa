@@ -1,4 +1,5 @@
 import { useMemo, useRef } from "react";
+import Dexie from "dexie";
 import { useLiveQuery } from "dexie-react-hooks";
 
 import { useSelector } from "react-redux";
@@ -47,6 +48,69 @@ const _hookedEntityTables = new Set();
 // useLiveQuery re-run.
 let _lastMissingPointsWarnCount = null;
 
+// --- Shared stage-A IDB reads (issue #290) ---------------------------------
+// Several useAnnotationsV2 instances (~6 in the map editor) re-run their
+// liveQuery on every commit. Their filter signatures differ, so the final
+// RESULT cannot be shared — but the raw IDB reads are identical across
+// instances: the annotation rows (per base map / listing / project) and the
+// point rows (by id). Without sharing, the concurrent heavy reads serialize
+// on IndexedDB (measured "DB fetch" ramping from ~300ms to ~1.3s per commit
+// with ~550 annotations). With these module caches, each read runs once per
+// commit and follower instances reuse it. Full design + reactivity contract:
+// docs/annotations/USE_ANNOTATIONS_V2.md
+//
+// Reactivity contract:
+// - every liveQuery callback starts with cheap TRACKED reads
+//   (db.annotations.count() + db.points.count()) so Dexie keeps re-running
+//   each instance on any write to those tables, even when the instance only
+//   consumed cached rows (an untracked follower would otherwise go blind);
+// - same-tab writes invalidate synchronously via the Dexie hooks below
+//   (hooks fire during the write, before any liveQuery re-run reads the
+//   cache);
+// - cross-tab writes don't fire table hooks: the global 'storagemutated'
+//   event (which is also what re-triggers liveQuery across tabs) clears
+//   everything, best effort;
+// - the points cache carries a generation counter so a bulkGet resolving
+//   AFTER an invalidation never writes its stale rows into the cache;
+// - consumers COPY the shared annotations array before filtering/sorting;
+//   the row objects themselves are treated as immutable downstream
+//   (resolve/enrich steps all spread into new objects).
+
+const _annotationsRowsCache = new Map(); // queryKey -> Promise<rows[]>
+const _pointsRowsCache = new Map(); // pointId -> row | null
+const _pointsInflightFetches = new Map(); // pointId -> Promise<row | null>
+let _pointsCacheGeneration = 0;
+
+const _invalidateAnnotationRows = () => {
+  _annotationsRowsCache.clear();
+};
+db.annotations.hook("creating", _invalidateAnnotationRows);
+db.annotations.hook("updating", _invalidateAnnotationRows);
+db.annotations.hook("deleting", _invalidateAnnotationRows);
+db.points.hook("updating", (mods, primKey) => {
+  _pointsCacheGeneration += 1;
+  _pointsRowsCache.delete(primKey);
+});
+db.points.hook("deleting", (primKey) => {
+  _pointsCacheGeneration += 1;
+  _pointsRowsCache.delete(primKey);
+});
+// creating: a new point id is simply absent from the cache → fetched.
+
+try {
+  // Fires on every committed write, including from other tabs (it is the
+  // same signal Dexie uses to re-run liveQueries cross-tab). For same-tab
+  // writes the hooks above already did a finer-grained invalidation; the
+  // extra clear here is harmless (caches repopulate once on the next run).
+  Dexie.on("storagemutated", () => {
+    _annotationsRowsCache.clear();
+    _pointsCacheGeneration += 1;
+    _pointsRowsCache.clear();
+  });
+} catch {
+  // best effort — same-tab hooks above remain the primary invalidation
+}
+
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
@@ -63,6 +127,7 @@ import applyGuideLineRampToRings from "Features/annotations/utils/applyGuideLine
 import db from "App/db/db";
 
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
+import stabilizeAnnotationsIdentity from "Features/annotations/utils/stabilizeAnnotationsIdentity";
 import getAnnotationTemplateProps from "Features/annotations/utils/getAnnotationTemplateProps";
 import getAnnotationPropsFromAnnotationTemplateProps from "Features/annotations/utils/getAnnotationPropsFromAnnotationTemplateProps";
 import getEntityWithImagesAsync from "Features/entities/services/getEntityWithImagesAsync";
@@ -88,6 +153,14 @@ export default function useAnnotationsV2(options) {
 
     const _caller = options?.caller || "unknown";
     const enabled = options?.enabled ?? true;
+
+    // Per-instance identity cache (NOT module-level: options like
+    // withEntity/withQties/withListingName change the shape of the output
+    // objects, so instances must never share cached references).
+    const stabilityRef = useRef(null);
+    if (!stabilityRef.current) {
+      stabilityRef.current = { byId: new Map(), prevArray: null };
+    }
 
     const filterByBaseMapId = options?.filterByBaseMapId;
     const filterByListingId = options?.filterByListingId;
@@ -149,9 +222,12 @@ export default function useAnnotationsV2(options) {
 
     const bgImageTextAnnotations = useBgImageTextAnnotations();
 
-    const annotationsUpdatedAt = useSelector(
-      (s) => s.annotations.annotationsUpdatedAt
-    );
+    // NOTE: the Redux `annotationsUpdatedAt` tick is intentionally NOT a
+    // dependency of the liveQuery below. Dexie's liveQuery natively observes
+    // every table read inside the callback (db.annotations, db.points,
+    // db.listings, db.layers, db.files, db.annotationTemplates, entity
+    // tables), including bulk writes and _skipOwnershipGuard/system writes —
+    // keeping the tick as a dep made every commit run the query twice.
 
     const hiddenLayerIds = useSelector((s) => s.layers?.hiddenLayerIds || []);
     const showAnnotationsWithoutLayer = useSelector(
@@ -194,6 +270,12 @@ export default function useAnnotationsV2(options) {
       // edge case
       if (!baseMaps || !projectId) return null;
 
+      // Shared-read caches (see module header): keep this instance's
+      // liveQuery OBSERVING db.annotations and db.points even when every
+      // heavy read below is served from cache — Dexie only re-runs a
+      // liveQuery on writes to tables its callback actually read.
+      await Promise.all([db.annotations.count(), db.points.count()]);
+
       const _t0 = performance.now();
       // annotations
 
@@ -203,25 +285,55 @@ export default function useAnnotationsV2(options) {
       // points table for the base map — which accumulates thousands of
       // orphaned (never-deleted) rows — even though only the referenced ~N are
       // used to build `pointsIndex`. See buildPointsIndexForAnnotations below.
+      // Annotation rows come from the shared module cache: the first
+      // instance to run a given query stores the PROMISE, followers await
+      // the same one. The array is copied per instance (downstream filters
+      // reassign, and the layers block sorts in place); row objects are
+      // never mutated downstream.
+      let _annRowsSharedHit = false;
+      const _annRowsFromShared = async (queryKey, fetcher) => {
+        let rowsPromise = _annotationsRowsCache.get(queryKey);
+        _annRowsSharedHit = Boolean(rowsPromise);
+        if (!rowsPromise) {
+          rowsPromise = fetcher().catch((e) => {
+            _annotationsRowsCache.delete(queryKey);
+            throw e;
+          });
+          _annotationsRowsCache.set(queryKey, rowsPromise);
+        }
+        return [...(await rowsPromise)];
+      };
+
       let _annotations;
       if (baseMapId) {
         // Primary base map + any extra base maps (3D viewer), deduped.
         const queryBaseMapIds = [baseMapId, ...extraBaseMapIds].filter(
           (v, i, arr) => v && arr.indexOf(v) === i
         );
-        _annotations = (
-          await db.annotations
-            .where("baseMapId")
-            .anyOf(queryBaseMapIds)
-            .toArray()
-        ).filter((r) => !r.deletedAt);
+        _annotations = await _annRowsFromShared(
+          "baseMaps:" + [...queryBaseMapIds].sort().join(","),
+          async () =>
+            (
+              await db.annotations
+                .where("baseMapId")
+                .anyOf(queryBaseMapIds)
+                .toArray()
+            ).filter((r) => !r.deletedAt)
+        );
       }
 
       if (listingId) {
         if (!_annotations) {
-          _annotations = (
-            await db.annotations.where("listingId").equals(listingId).toArray()
-          ).filter((r) => !r.deletedAt);
+          _annotations = await _annRowsFromShared(
+            "listing:" + listingId,
+            async () =>
+              (
+                await db.annotations
+                  .where("listingId")
+                  .equals(listingId)
+                  .toArray()
+              ).filter((r) => !r.deletedAt)
+          );
         } else {
           _annotations = _annotations.filter((a) => a.listingId === listingId);
         }
@@ -231,9 +343,16 @@ export default function useAnnotationsV2(options) {
       }
 
       if (!listingId && !baseMapId) {
-        _annotations = (
-          await db.annotations.where("projectId").equals(projectId).toArray()
-        ).filter((r) => !r.deletedAt);
+        _annotations = await _annRowsFromShared(
+          "project:" + projectId,
+          async () =>
+            (
+              await db.annotations
+                .where("projectId")
+                .equals(projectId)
+                .toArray()
+            ).filter((r) => !r.deletedAt)
+        );
       }
 
       const _t1 = performance.now();
@@ -435,13 +554,63 @@ export default function useAnnotationsV2(options) {
       // to build an index over the ~N points actually used here. Reactivity is
       // preserved: bulkGet observes exactly these keys, and any annotation
       // change re-runs this query and re-collects ids.
+      // Point rows go through the shared per-id module cache: only ids not
+      // yet cached (nor already being fetched by a sibling instance of the
+      // same commit) hit IndexedDB. The generation guard drops a bulkGet
+      // that resolved after an invalidation, so stale rows never enter the
+      // cache; the write that caused the invalidation re-triggers every
+      // liveQuery anyway.
       const referencedPointIds = collectReferencedPointIds(_annotations);
-      const points =
-        referencedPointIds.size > 0
-          ? (await db.points.bulkGet([...referencedPointIds])).filter(
-              (p) => p && !p.deletedAt
+      let _pointsFetchedFromDb = 0;
+      const points = [];
+      if (referencedPointIds.size > 0) {
+        const missingIds = [];
+        const rowById = new Map();
+        const waits = [];
+        for (const id of referencedPointIds) {
+          if (_pointsRowsCache.has(id)) {
+            rowById.set(id, _pointsRowsCache.get(id));
+          } else if (!_pointsInflightFetches.has(id)) {
+            missingIds.push(id);
+          }
+        }
+        if (missingIds.length > 0) {
+          _pointsFetchedFromDb = missingIds.length;
+          const generation = _pointsCacheGeneration;
+          const fetchPromise = db.points
+            .bulkGet(missingIds)
+            .then((rows) => {
+              if (generation === _pointsCacheGeneration) {
+                missingIds.forEach((id, i) =>
+                  _pointsRowsCache.set(id, rows[i] ?? null)
+                );
+              }
+              return rows;
+            })
+            .finally(() => {
+              missingIds.forEach((id) => _pointsInflightFetches.delete(id));
+            });
+          missingIds.forEach((id, i) =>
+            _pointsInflightFetches.set(
+              id,
+              fetchPromise.then((rows) => rows[i] ?? null)
             )
-          : [];
+          );
+        }
+        // NB: no await between the scan above and this loop — every id is
+        // either in rowById already or has an in-flight promise.
+        for (const id of referencedPointIds) {
+          if (rowById.has(id)) continue;
+          const inflight = _pointsInflightFetches.get(id);
+          if (inflight)
+            waits.push(inflight.then((row) => rowById.set(id, row)));
+        }
+        await Promise.all(waits);
+        for (const id of referencedPointIds) {
+          const row = rowById.get(id);
+          if (row && !row.deletedAt) points.push(row);
+        }
+      }
 
       const pointsIndex = getItemsByKey(points, "id");
       // Corrupted point refs (orphaned — the referenced db.points row is
@@ -811,11 +980,11 @@ export default function useAnnotationsV2(options) {
       const _t6 = performance.now();
       console.log(
         `[debug_perf] useAnnotationsV2 [${_caller}] (${_annotations?.length ?? 0} annotations):\n` +
-          `  DB fetch:       ${(_t1 - _t0).toFixed(1)}ms (${listingsIds.length} listingIds)\n` +
+          `  DB fetch:       ${(_t1 - _t0).toFixed(1)}ms (${listingsIds.length} listingIds${_annRowsSharedHit ? ", shared rows hit" : ", shared rows MISS"})\n` +
           `  filters:        ${(_t2 - _t1).toFixed(1)}ms\n` +
           `  listings total: ${(_t3 - _t2).toFixed(1)}ms  [db.listings: ${(_t2b - _t2a).toFixed(1)}ms (${listings.length} found) | filters+scope: ${(_t2c - _t2b).toFixed(1)}ms | db.layers+sort: ${(_t3 - _t2c).toFixed(1)}ms]\n` +
           `  images batch:   ${(_t4 - _t3).toFixed(1)}ms\n` +
-          `  points/qties:   ${(_t5 - _t4).toFixed(1)}ms\n` +
+          `  points/qties:   ${(_t5 - _t4).toFixed(1)}ms (${referencedPointIds?.size ?? 0} pts, ${_pointsFetchedFromDb} from db)\n` +
           `  entities:       ${(_t6 - _t5).toFixed(1)}ms\n` +
           `  TOTAL:          ${(_t6 - _t0).toFixed(1)}ms`
       );
@@ -1184,7 +1353,6 @@ export default function useAnnotationsV2(options) {
       onlyIsForBaseMapsListings,
       baseMapAnnotationsOnly,
       hideBaseMapAnnotations,
-      annotationsUpdatedAt,
       baseMapsUpdatedAt,
       baseMaps?.length,
       withEntity,
@@ -1234,25 +1402,31 @@ export default function useAnnotationsV2(options) {
 
       // recompute qties after template overrides so overridden height is reflected
       if (withQties) {
+        // NOTE: no in-place `annotation.qties = ...` here — the identity
+        // stabilization cache below compares this run's output against the
+        // previous run's cached objects, so stage-B must never mutate
+        // objects it may have returned before.
         result = result.map((annotation) => {
           if (annotation?.isBaseMapAnnotation) return annotation;
           // Proxy donuts inherit the source arc's revolution surface
           // (precomputed in the async query). The donut's own planar
           // area is intentionally NOT used.
           if (annotation?.isProxy && annotation._inheritedQties) {
-            annotation.qties = annotation._inheritedQties;
-            return annotation;
+            return { ...annotation, qties: annotation._inheritedQties };
           }
           const baseMap = baseMapById[annotation?.baseMapId];
           const meterByPx = baseMap?.getMeterByPx?.();
           if (meterByPx) {
-            annotation.qties = getAnnotationQties({
-              annotation,
-              meterByPx,
-              // resolved in the async query for EXTRUSION_PROFILE
-              // subtraction hosts so the base surface is non-zero.
-              profileLengthMeters: annotation._profileLengthMeters,
-            });
+            return {
+              ...annotation,
+              qties: getAnnotationQties({
+                annotation,
+                meterByPx,
+                // resolved in the async query for EXTRUSION_PROFILE
+                // subtraction hosts so the base surface is non-zero.
+                profileLengthMeters: annotation._profileLengthMeters,
+              }),
+            };
           }
           return annotation;
         });
@@ -1476,7 +1650,19 @@ export default function useAnnotationsV2(options) {
           .sort((a, b) => a.baseMap?.name.localeCompare(b.baseMap?.name));
       }
 
-      return result;
+      // Identity stabilization: reuse the previous run's object (and array)
+      // references for annotations whose resolved content did not change, so
+      // memo(NodeAnnotationStatic) & co only re-render what actually changed.
+      const _tStab = performance.now();
+      const { list: stableResult, reused } = stabilizeAnnotationsIdentity(
+        stabilityRef.current,
+        result
+      );
+      console.log(
+        `[debug_perf] useAnnotationsV2 [${_caller}] stability: ${reused}/${result.length} reused (${(performance.now() - _tStab).toFixed(1)}ms)`
+      );
+
+      return stableResult;
     }, [
       enabled,
       annotations,

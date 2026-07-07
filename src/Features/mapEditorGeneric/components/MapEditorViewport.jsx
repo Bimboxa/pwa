@@ -1,9 +1,18 @@
 // components/MapEditorViewport.jsx
-import { useRef, useImperativeHandle, forwardRef, useCallback, useLayoutEffect } from 'react';
+import { useRef, useImperativeHandle, forwardRef, useCallback, useLayoutEffect, useEffect } from 'react';
 import screenToWorld from '../utils/screenToWorld';
 
 // Zoom sensitivity constant (same as MapEditorGeneric.jsx)
 const ZOOM_SENSITIVITY = 1.0015;
+
+// When true, the --map-zoom CSS variable is NOT updated on every wheel tick:
+// it is flushed once, ~150ms after the last tick of the gesture. Children
+// consuming --map-zoom in calc() (counter-zoomed strokes, labels, handles)
+// scale with the map during the gesture and snap back at the end — this
+// avoids a full style recalculation on thousands of paths per wheel tick.
+// Set to false to restore the per-tick behavior.
+const FREEZE_MAP_ZOOM_DURING_GESTURE = true;
+const MAP_ZOOM_FLUSH_DELAY_MS = 150;
 
 const MapEditorViewport = forwardRef(({
     children,
@@ -30,15 +39,47 @@ const MapEditorViewport = forwardRef(({
         startMatrixY: 0
     });
 
-    // Fonction interne pour appliquer la matrice au DOM via CSS Transform
-    const updateTransform = () => {
+    // rAF coalescing: wheel/pan can fire several times per frame — only the
+    // last matrix of the frame is applied to the DOM.
+    const rafIdRef = useRef(null);
+    // --map-zoom freeze bookkeeping (A2)
+    const zoomFlushTimeoutRef = useRef(null);
+    const lastAppliedZoomRef = useRef(null);
+
+    // Writes --map-zoom (consumed by children's calc()) and remembers the
+    // last applied value to skip redundant writes (e.g. during a pan).
+    const applyZoomVar = () => {
+        if (!cameraGroupRef.current) return;
+        const { k } = cameraMatrix.current;
+        if (lastAppliedZoomRef.current === k) return;
+        cameraGroupRef.current.style.setProperty('--map-zoom', k);
+        lastAppliedZoomRef.current = k;
+    };
+
+    // Applies the camera matrix to the DOM via the SVG transform attribute.
+    // `flushZoomVar: true` forces an immediate --map-zoom update (gesture end,
+    // setCameraMatrix, panBy); otherwise it is deferred to the gesture end.
+    const updateTransform = (flushZoomVar = false) => {
         if (cameraGroupRef.current) {
             const { x, y, k } = cameraMatrix.current;
             cameraGroupRef.current.setAttribute('transform', `matrix(${k}, 0, 0, ${k}, ${x}, ${y})`);
 
-            // 2. INJECTER LE ZOOM DANS UNE VARIABLE CSS (Nouveau)
-            // Cela permet aux enfants de lire "k" sans re-render React !
-            cameraGroupRef.current.style.setProperty('--map-zoom', k);
+            if (!FREEZE_MAP_ZOOM_DURING_GESTURE || flushZoomVar) {
+                if (zoomFlushTimeoutRef.current) {
+                    clearTimeout(zoomFlushTimeoutRef.current);
+                    zoomFlushTimeoutRef.current = null;
+                }
+                applyZoomVar();
+            } else if (lastAppliedZoomRef.current !== k) {
+                // gesture in progress: trailing flush after the last tick
+                if (zoomFlushTimeoutRef.current) {
+                    clearTimeout(zoomFlushTimeoutRef.current);
+                }
+                zoomFlushTimeoutRef.current = setTimeout(() => {
+                    zoomFlushTimeoutRef.current = null;
+                    applyZoomVar();
+                }, MAP_ZOOM_FLUSH_DELAY_MS);
+            }
 
             if (onCameraChange) {
                 onCameraChange(cameraMatrix.current);
@@ -46,12 +87,30 @@ const MapEditorViewport = forwardRef(({
         }
     };
 
+    // Schedules an updateTransform on the next frame (a single DOM apply per
+    // frame, last matrix wins). screenToWorld reads the ref directly, so
+    // coordinate conversions stay exact between two frames.
+    const scheduleUpdateTransform = () => {
+        if (rafIdRef.current != null) return;
+        rafIdRef.current = requestAnimationFrame(() => {
+            rafIdRef.current = null;
+            updateTransform();
+        });
+    };
+
+    useEffect(() => {
+        return () => {
+            if (rafIdRef.current != null) cancelAnimationFrame(rafIdRef.current);
+            if (zoomFlushTimeoutRef.current) clearTimeout(zoomFlushTimeoutRef.current);
+        };
+    }, []);
+
     // Fonctions exposées au parent via ref
     useImperativeHandle(ref, () => ({
         panBy: (dx, dy) => {
             cameraMatrix.current.x += dx;
             cameraMatrix.current.y += dy;
-            updateTransform();
+            updateTransform(true);
         },
         setCameraMatrix: (_cameraMatrix = { x: 0, y: 0, k: 1 }) => {
             // On extrait les valeurs avec des replis (fallbacks) de sécurité
@@ -64,7 +123,7 @@ const MapEditorViewport = forwardRef(({
             };
 
             console.log("[VIEWPORT] setCameraMatrix (validated)", cameraMatrix.current);
-            updateTransform();
+            updateTransform(true);
         },
         screenToWorld: (screenX, screenY) => {
             return screenToWorld(screenX, screenY, svgRef.current, cameraMatrix.current);
@@ -139,7 +198,7 @@ const MapEditorViewport = forwardRef(({
         const newY = mouseY - (mouseY - y) * scaleFactor;
 
         cameraMatrix.current = { x: newX, y: newY, k: newK };
-        updateTransform();
+        scheduleUpdateTransform();
 
         if (onWorldMouseMove) {
             const worldPos = _screenToWorld(e.clientX, e.clientY); // Recalculate world pos
@@ -209,7 +268,7 @@ const MapEditorViewport = forwardRef(({
             e.preventDefault(); // Empêcher la sélection de texte native
             cameraMatrix.current.x = dragRef.current.startMatrixX + dx;
             cameraMatrix.current.y = dragRef.current.startMatrixY + dy;
-            updateTransform();
+            scheduleUpdateTransform();
             if (onWorldMouseMove) {
                 const worldPos = _screenToWorld(e.clientX, e.clientY);
                 const viewportPos = _screenToViewport(e.clientX, e.clientY);

@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { memo, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useSelector } from "react-redux";
 import { darken } from "@mui/material/styles";
 import theme from "Styles/theme";
@@ -121,7 +121,7 @@ const STYLE_CONSTANTS = {
   },
 };
 
-export default function NodePolylineStatic({
+function NodePolylineStatic({
   annotation,
   annotationOverride,
   hovered,
@@ -1857,3 +1857,5 @@ export default function NodePolylineStatic({
     </g>
   );
 }
+
+export default memo(NodePolylineStatic);

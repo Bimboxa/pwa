@@ -25,6 +25,13 @@ export default function useCreateEntity() {
     const listingOption = options?.listing;
     const updateSyncFile = options?.updateSyncFile;
     const annotation = options?.annotation;
+    // tx: { tables, writes } — commit the entity add (and its files) inside
+    // ONE Dexie transaction together with the caller's extra writes (deferred
+    // point rows, mapping rels…), so DB observers (liveQueries) re-run once
+    // per commit. Non-Dexie work (file data prep above, sync below) MUST stay
+    // outside the transaction: a non-Dexie await inside a Dexie transaction
+    // commits it prematurely.
+    const tx = options?.tx;
 
     // data injection from annotation
     if (annotation?.imageFile) {
@@ -51,6 +58,65 @@ export default function useCreateEntity() {
       });
 
     console.log("[useCreateEntity] pureData", pureData, filesDataByKey);
+
+    // --- TRANSACTIONAL PATH (options.tx) ---
+    if (tx) {
+      const entity = {
+        id: entityId,
+        createdBy: userEmail,
+        listingId: listing.id,
+        ...pureData,
+      };
+      const allFilesToStore = filesDataByKey
+        ? Object.values(filesDataByKey).flat()
+        : [];
+
+      try {
+        const txTables = [
+          ...new Set([db[table], db.files, ...(tx.tables ?? [])]),
+        ];
+        await db.transaction("rw", txTables, async () => {
+          await Promise.all(
+            allFilesToStore.map((fileData) => db.files.put(fileData))
+          );
+          await db[table].add(entity);
+          await tx.writes?.();
+        });
+      } catch (e) {
+        console.log("[db] error adding entity (tx)", e);
+        return;
+      }
+
+      // Non-Dexie follow-ups, after the transaction committed.
+      if (updateSyncFile) {
+        try {
+          for (const fileData of allFilesToStore) {
+            await updateItemSyncFile({
+              item: fileData,
+              type: "FILE",
+              updatedAt: fileData.updatedAt,
+            });
+          }
+          await updateItemSyncFile({
+            item: entity,
+            type: "ENTITY",
+            updatedAt: entity.updatedAt ?? entity.createdAt,
+          });
+        } catch (e) {
+          console.log("[useCreateEntity] sync error (tx)", e);
+        }
+      }
+      if (annotation) {
+        await create({
+          ...annotation,
+          entityId: entity.id,
+          listingId: listing.id,
+          listingTable: listing.table,
+        });
+      }
+      dispatch(triggerEntitiesTableUpdate(table));
+      return entity;
+    }
 
     // 2. Store files (Updated Logic)
     if (filesDataByKey) {

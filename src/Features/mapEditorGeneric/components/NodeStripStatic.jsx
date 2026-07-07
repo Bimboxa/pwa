@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { memo, useMemo, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import { darken } from "@mui/material/styles";
 import theme from "Styles/theme";
@@ -28,7 +28,7 @@ const STYLE_CONSTANTS = {
     STROKE_WIDTH_DEFAULT: 2,
 };
 
-export default function NodeStripStatic({
+function NodeStripStatic({
     annotation,
     annotationOverride,
     hovered,
@@ -508,3 +508,5 @@ export default function NodeStripStatic({
         </g>
     );
 }
+
+export default memo(NodeStripStatic);

@@ -1,4 +1,5 @@
 import {
+  memo,
   useState,
   useRef,
   useLayoutEffect,
@@ -13,7 +14,7 @@ import NodeLabelStatic from "./NodeLabelStatic";
 
 import getAnnotationLabelPropsFromAnnotation from "Features/annotations/utils/getAnnotationLabelPropsFromAnnotation";
 
-export default function NodeMarkerStatic({
+function NodeMarkerStatic({
   marker,
   annotationOverride,
   spriteImage,
@@ -225,3 +226,5 @@ export default function NodeMarkerStatic({
     </g>
   );
 }
+
+export default memo(NodeMarkerStatic);
