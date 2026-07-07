@@ -67,20 +67,30 @@ export default function computeWallBandInnerRings(
     const halfWidth = wall?.halfWidthPx ?? 0;
     if (pts.length < 2 || !(halfWidth > 0)) continue;
 
-    for (let k = 0; k + 2 < pts.length; k++) {
+    // A closed wall's closing primitive can be an arc whose "circle" midpoint
+    // is the LAST control point (the S-C-S triple wraps to points[0]); walk
+    // with wrap so that closing arc is captured as a source circle (and
+    // tessellated below via the same closeLine flag).
+    const nPts = pts.length;
+    const tripleCount = wall.closed ? nPts : nPts - 2;
+    for (let k = 0; k < tripleCount; k++) {
+      const p0 = pts[k];
+      const p1 = pts[(k + 1) % nPts];
+      const p2 = pts[(k + 2) % nPts];
       if (
-        typeOf(pts[k]) !== "circle" &&
-        typeOf(pts[k + 1]) === "circle" &&
-        typeOf(pts[k + 2]) !== "circle"
+        typeOf(p0) !== "circle" &&
+        typeOf(p1) === "circle" &&
+        typeOf(p2) !== "circle"
       ) {
-        const c = circleFromThreePoints(pts[k], pts[k + 1], pts[k + 2]);
+        const c = circleFromThreePoints(p0, p1, p2);
         if (c) sourceArcCircles.push(c);
       }
     }
 
     // Expand arcs into straight samples, then drop degenerate segments so the
-    // offset step only sees clean straight edges.
-    const expanded = expandArcsInPath(pts, arcSamples);
+    // offset step only sees clean straight edges. A closed wall must expand
+    // with wrap so a closing arc bulges instead of collapsing onto its chord.
+    const expanded = expandArcsInPath(pts, arcSamples, wall.closed === true);
     const filtered = [expanded[0]];
     for (let i = 1; i < expanded.length; i++) {
       const prev = filtered[filtered.length - 1];
