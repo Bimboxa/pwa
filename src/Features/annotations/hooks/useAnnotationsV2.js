@@ -158,9 +158,12 @@ export default function useAnnotationsV2(options) {
 
     const bgImageTextAnnotations = useBgImageTextAnnotations();
 
-    const annotationsUpdatedAt = useSelector(
-      (s) => s.annotations.annotationsUpdatedAt
-    );
+    // NOTE: the Redux `annotationsUpdatedAt` tick is intentionally NOT a
+    // dependency of the liveQuery below. Dexie's liveQuery natively observes
+    // every table read inside the callback (db.annotations, db.points,
+    // db.listings, db.layers, db.files, db.annotationTemplates, entity
+    // tables), including bulk writes and _skipOwnershipGuard/system writes —
+    // keeping the tick as a dep made every commit run the query twice.
 
     const hiddenLayerIds = useSelector((s) => s.layers?.hiddenLayerIds || []);
     const showAnnotationsWithoutLayer = useSelector(
@@ -1193,7 +1196,6 @@ export default function useAnnotationsV2(options) {
       onlyIsForBaseMapsListings,
       baseMapAnnotationsOnly,
       hideBaseMapAnnotations,
-      annotationsUpdatedAt,
       baseMapsUpdatedAt,
       baseMaps?.length,
       withEntity,
