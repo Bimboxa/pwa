@@ -28,6 +28,7 @@ export const OPENING_TOOL_HOTKEYS = {
   s: "CUT_CLICK", // surface clic-clic ("Polyligne fermée")
   r: "CUT_RECTANGLE",
   l: "CUT_POLYLINE", // centerline polyline → band
+  k: "CUT_POLYLINE_SEGMENT", // centerline 2-click segment → band
   b: "CUT_STRIP", // bande
 };
 
