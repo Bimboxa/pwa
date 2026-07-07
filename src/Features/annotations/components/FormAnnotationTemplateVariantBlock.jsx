@@ -1,6 +1,6 @@
 import useAnnotationSpriteImage from "../hooks/useAnnotationSpriteImage";
 
-import { Box, Typography } from "@mui/material";
+import { Box, Typography, Switch } from "@mui/material";
 
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 import FieldAnnotationHeight from "./FieldAnnotationHeight";
@@ -608,12 +608,32 @@ export default function FormAnnotationTemplateVariantBlock({
       {/* POLYGON is included because its STRIP tools also produce strip
           annotations, which can act as exterior-side guides. */}
       {["POLYLINE", "STRIP", "POLYGON"].includes(drawingShape) && (
-        <FieldCheck
-          label="Extérieur"
-          value={Boolean(annotationTemplate?.isExt)}
-          onChange={handleIsExtChange}
-          options={{ type: "switch", showAsSection: true }}
-        />
+        <WhiteSectionGeneric>
+          <Box sx={{ display: "flex", alignItems: "center" }}>
+            <OverrideToggle
+              field="isExt"
+              overrideFields={overrideFields}
+              onToggle={handleToggleOverride}
+            />
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                flex: 1,
+              }}
+            >
+              <Typography variant="body2" color="text.secondary">
+                Extérieur
+              </Typography>
+              <Switch
+                size="small"
+                checked={Boolean(annotationTemplate?.isExt)}
+                onChange={(e) => handleIsExtChange(e.target.checked)}
+              />
+            </Box>
+          </Box>
+        </WhiteSectionGeneric>
       )}
     </Box>
   );
