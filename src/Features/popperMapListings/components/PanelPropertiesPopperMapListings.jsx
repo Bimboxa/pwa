@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import { clearSelection } from "Features/selection/selectionSlice";
@@ -10,13 +11,19 @@ import {
   IconButton,
   Switch,
   FormControlLabel,
+  Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from "@mui/material";
-import { ArrowBack as Back } from "@mui/icons-material";
+import { ArrowBack as Back, DeleteOutline } from "@mui/icons-material";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 import FieldCheck from "Features/form/components/FieldCheck";
 import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
+import useDeleteUnusedAnnotationTemplates from "Features/annotations/hooks/useDeleteUnusedAnnotationTemplates";
 
 export default function PanelPropertiesPopperMapListings() {
   const dispatch = useDispatch();
@@ -26,10 +33,38 @@ export default function PanelPropertiesPopperMapListings() {
   const { value: scope } = useSelectedScope();
   const visibleAreaOnly = useSelector((s) => s.smartDetect.visibleAreaOnly);
   const showLayers = useSelector((s) => s.popperMapListings.showLayers);
+  const { computeUnused, deleteUnused } = useDeleteUnusedAnnotationTemplates();
+
+  // state
+
+  const [openConfirm, setOpenConfirm] = useState(false);
+  const [candidates, setCandidates] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   // helpers
 
   const scopeName = scope?.name ?? "-?-";
+  const templateCount = candidates?.templateCount ?? 0;
+  const listingCount = candidates?.listingCount ?? 0;
+  const hasUnused = templateCount > 0 || listingCount > 0;
+
+  // handlers
+
+  async function handleOpenConfirm() {
+    const result = await computeUnused();
+    setCandidates(result);
+    setOpenConfirm(true);
+  }
+
+  async function handleConfirmDelete() {
+    setDeleting(true);
+    try {
+      await deleteUnused(candidates);
+    } finally {
+      setDeleting(false);
+      setOpenConfirm(false);
+    }
+  }
 
   // render
 
@@ -117,7 +152,60 @@ export default function PanelPropertiesPopperMapListings() {
             sx={{ ml: 0 }}
           />
         </WhiteSectionGeneric>
+
+        {/* Card: Cleanup unused templates */}
+        <WhiteSectionGeneric>
+          <Typography
+            variant="caption"
+            sx={{
+              fontWeight: 700,
+              fontSize: "0.7rem",
+              textTransform: "uppercase",
+              color: "text.secondary",
+              letterSpacing: 0.5,
+              mb: 1,
+              display: "block",
+            }}
+          >
+            Nettoyage
+          </Typography>
+          <Button
+            fullWidth
+            variant="outlined"
+            color="error"
+            startIcon={<DeleteOutline />}
+            onClick={handleOpenConfirm}
+          >
+            Supprimer les modèles non utilisés
+          </Button>
+        </WhiteSectionGeneric>
       </BoxFlexVStretch>
+
+      {/* Confirm delete dialog */}
+      <Dialog open={openConfirm} onClose={() => setOpenConfirm(false)}>
+        <DialogTitle>Supprimer les modèles non utilisés</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2">
+            {hasUnused
+              ? `${templateCount} modèle${templateCount > 1 ? "s" : ""} et ${listingCount} liste${listingCount > 1 ? "s" : ""} non utilisés seront supprimés.`
+              : "Aucun modèle non utilisé dans ce scope."}
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setOpenConfirm(false)} variant="outlined">
+            Annuler
+          </Button>
+          <Button
+            onClick={handleConfirmDelete}
+            color="error"
+            variant="contained"
+            disabled={!hasUnused || deleting}
+            autoFocus
+          >
+            Supprimer
+          </Button>
+        </DialogActions>
+      </Dialog>
     </BoxFlexVStretch>
   );
 }
