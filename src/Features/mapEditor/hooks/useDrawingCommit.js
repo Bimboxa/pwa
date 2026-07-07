@@ -1,4 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useDispatch } from "react-redux";
+
+import { setDrawingHasFirstPoint } from "../mapEditorSlice";
 
 import cv from "Features/opencv/services/opencvService";
 
@@ -26,11 +29,21 @@ export default function useDrawingCommit({
 }) {
   // --- drawing points ---
 
+  const dispatch = useDispatch();
+
   const [drawingPoints, setDrawingPoints] = useState([]);
   const drawingPointsRef = useRef([]);
+  // Mirror "at least one point placed" to redux so useDrawingToolHotkeys can gate
+  // the direct-access letter shortcuts (only on the 0 <-> >0 transition).
+  const prevHasFirstPointRef = useRef(false);
   useEffect(() => {
     drawingPointsRef.current = drawingPoints;
-  }, [drawingPoints]);
+    const has = drawingPoints.length > 0;
+    if (has !== prevHasFirstPointRef.current) {
+      prevHasFirstPointRef.current = has;
+      dispatch(setDrawingHasFirstPoint(has));
+    }
+  }, [drawingPoints, dispatch]);
 
   // --- cutHostId ---
 

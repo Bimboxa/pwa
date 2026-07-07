@@ -15,6 +15,12 @@ const mapEditorInitialState = {
   //
   mapEditorMode: "SELECT", // "SELECT", "DRAW"
   enabledDrawingMode: null, // "CLICK", "RECTANGLE", "SURFACE_DROP",
+  // True while a CLICK/STRIP/POLYLINE drawing has at least one point placed in
+  // the live V3 editor (those points live in InteractionLayer's local state, not
+  // the redux point arrays). Mirrored here so useDrawingToolHotkeys can yield the
+  // direct-access letter shortcuts to the in-drawing shortcuts once drawing has
+  // started (see hasFirstPoint).
+  drawingHasFirstPoint: false,
   repairMode: "AUTO", // localized-repair type override: "AUTO" | "L" | "T" | "SMOOTH"
   autoMergeOnCommit: true, // when true, a POLYGON drawn via RECTANGLE tool is auto-merged with overlapping same-template polygons on commit
   autoOffsetsOnCommit: false, // when true, a POLYGON drawn via CLICK tool inherits offsetZ/height + per-point offsetBottom/offsetTop from snapped neighbors so the 3D surface stays continuous
@@ -235,6 +241,9 @@ export const mapEditorSlice = createSlice({
         state.globalDetectionRunning = false;
         state.stripDetectionMultiple = false;
       }
+    },
+    setDrawingHasFirstPoint: (state, action) => {
+      state.drawingHasFirstPoint = action.payload;
     },
     setRepairMode: (state, action) => {
       state.repairMode = action.payload;
@@ -669,6 +678,7 @@ export const {
   //
   toggleShowMapListingsPanel,
   setEnabledDrawingMode,
+  setDrawingHasFirstPoint,
   setRepairMode,
   setAutoMergeOnCommit,
   setAutoOffsetsOnCommit,

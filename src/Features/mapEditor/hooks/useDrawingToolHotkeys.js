@@ -92,7 +92,10 @@ export default function useDrawingToolHotkeys() {
         s.mapEditor.drawingPolylinePoints.length > 0 ||
         s.mapEditor.drawingRectanglePoints.length > 0 ||
         s.mapEditor.drawingSegmentPoints.length > 0 ||
-        s.mapEditor.rectHasFirstPoint;
+        s.mapEditor.rectHasFirstPoint ||
+        // V3 CLICK/STRIP/POLYLINE points live in InteractionLayer's local state
+        // (useDrawingCommit), mirrored here as a boolean.
+        s.mapEditor.drawingHasFirstPoint;
 
       // Opening (ouverture) tools form their own group (DRAWING_TOOLS_BY_TYPE.CUT)
       // rather than a drawing-shape group, so they get a dedicated branch:
