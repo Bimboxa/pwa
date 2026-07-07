@@ -47,14 +47,17 @@ function ringArea(pts) {
  *
  * @param {Array<{points: Array<{x,y,type?}>, halfWidthPx: number, closed?: boolean}>} walls
  *   Wall centerlines in pixel space; S-C-S arc control points supported.
- * @param {{arcSamples?: number}} [opts]
+ * @param {{arcSamples?: number, collapseExteriorArcs?: boolean}} [opts]
+ *   collapseExteriorArcs also re-fits arcs on the exterior rings (used when a
+ *   component's exterior becomes a cut contour); an arc straddling the ring
+ *   seam stays faceted — acceptable for cut contours.
  * @returns {Array<{exterior: Array<{x,y}>, holes: Array<Array<{x,y,type?}>>}>}
  *   Rings without duplicate closing vertex; hole arcs re-fitted as S-C-S
  *   typed points.
  */
 export default function computeWallBandInnerRings(
   walls,
-  { arcSamples = 16 } = {}
+  { arcSamples = 16, collapseExteriorArcs = false } = {}
 ) {
   // Circles of every S-C-S arc present in the source walls: provenance hints
   // for collapseArcsInPolyline so tessellated arcs are recovered on output.
@@ -134,23 +137,30 @@ export default function computeWallBandInnerRings(
   // larger than one wall-thickness square.
   const minHoleArea = maxThicknessPx * maxThicknessPx;
 
+  // A band-offset ring arc is concentric with the wall arc it offsets;
+  // require that match so corners between merged walls are not mis-fitted
+  // as arcs.
+  const collapseRingArcs = (raw) => {
+    const units = collapseArcsInPolyline(raw, {
+      thicknessPx: maxThicknessPx,
+      sourceArcCircles,
+      requireSourceMatch: true,
+    });
+    return units.length > 0 ? arcUnitsToTypedPoints(units) : raw;
+  };
+
   const result = [];
   for (const polygon of merged ?? []) {
     if (!polygon?.length) continue;
-    const exterior = ringToPoints(polygon[0]);
+    const rawExterior = ringToPoints(polygon[0]);
+    const exterior = collapseExteriorArcs
+      ? collapseRingArcs(rawExterior)
+      : rawExterior;
     const holes = [];
     for (let r = 1; r < polygon.length; r++) {
       const raw = ringToPoints(polygon[r]);
       if (raw.length < 3 || ringArea(raw) < minHoleArea) continue;
-      const units = collapseArcsInPolyline(raw, {
-        thicknessPx: maxThicknessPx,
-        sourceArcCircles,
-        // An inner-contour arc is concentric with the wall arc it offsets;
-        // require that match so corners between merged walls are not
-        // mis-fitted as arcs.
-        requireSourceMatch: true,
-      });
-      holes.push(units.length > 0 ? arcUnitsToTypedPoints(units) : raw);
+      holes.push(collapseRingArcs(raw));
     }
     result.push({ exterior, holes });
   }
