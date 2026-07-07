@@ -378,7 +378,8 @@ const InteractionLayer = forwardRef(({
     pendingMovesRef,
     setPendingMovesVersion,
     getPendingMove,
-    setBasePose } = useInteraction();
+    setBasePose,
+    setVisibleViewBox } = useInteraction();
 
   // Selection from Redux
   const selectedItems = useSelector(selectSelectedItems);
@@ -1452,6 +1453,52 @@ const InteractionLayer = forwardRef(({
   // const handleCornerDetected = () => {};
 
 
+  // viewport culling (StaticMapContent) — debounced visibleViewBox updates.
+  // The pushed box carries a ~1-viewport margin on each side; it is only
+  // re-pushed when the raw viewport exits the previous margin (pan) or
+  // shrinks well below the box it was computed from (zoom-in), so camera
+  // ticks never trigger React state updates.
+  const CULLING_MARGIN_FACTOR = 1;
+  const CULLING_DEBOUNCE_MS = 200;
+  const cullingTimeoutRef = useRef(null);
+  const cullingPendingBoundsRef = useRef(null);
+  const cullingLastBoxRef = useRef(null); // { margin, raw }
+  useEffect(() => {
+    return () => {
+      if (cullingTimeoutRef.current) clearTimeout(cullingTimeoutRef.current);
+    };
+  }, []);
+
+  function scheduleVisibleViewBoxUpdate(bounds) {
+    const last = cullingLastBoxRef.current;
+    if (last && !cullingTimeoutRef.current) {
+      const { margin, raw } = last;
+      const insideMargin =
+        bounds.x >= margin.x &&
+        bounds.y >= margin.y &&
+        bounds.x + bounds.width <= margin.x + margin.width &&
+        bounds.y + bounds.height <= margin.y + margin.height;
+      const zoomedInALot =
+        bounds.width < raw.width * 0.5 || bounds.height < raw.height * 0.5;
+      if (insideMargin && !zoomedInALot) return; // hysteresis: still covered
+    }
+    cullingPendingBoundsRef.current = bounds;
+    if (cullingTimeoutRef.current) clearTimeout(cullingTimeoutRef.current);
+    cullingTimeoutRef.current = setTimeout(() => {
+      cullingTimeoutRef.current = null;
+      const raw = cullingPendingBoundsRef.current;
+      if (!raw?.width || !raw?.height) return;
+      const margin = {
+        x: raw.x - raw.width * CULLING_MARGIN_FACTOR,
+        y: raw.y - raw.height * CULLING_MARGIN_FACTOR,
+        width: raw.width * (1 + 2 * CULLING_MARGIN_FACTOR),
+        height: raw.height * (1 + 2 * CULLING_MARGIN_FACTOR),
+      };
+      cullingLastBoxRef.current = { margin, raw };
+      setVisibleViewBox(margin);
+    }, CULLING_DEBOUNCE_MS);
+  }
+
   // update helper scale
 
   function handleCameraChange(cameraMatrix) {
@@ -1530,6 +1577,12 @@ const InteractionLayer = forwardRef(({
       if (editor) {
         editor.viewportInBase = { bounds };
       }
+
+      // Viewport culling: debounced push of the visible box (base-map local
+      // px) to InteractionContext for StaticMapContent. Only meaningful when
+      // the target pose is the base map one (in BG_IMAGE context the bounds
+      // above are in bg-image space, not annotation space).
+      if (activeContext === "BASE_MAP") scheduleVisibleViewBoxUpdate(bounds);
     }
 
   }

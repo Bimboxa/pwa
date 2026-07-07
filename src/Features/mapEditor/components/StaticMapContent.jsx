@@ -11,6 +11,7 @@ import {
 } from "Features/mapEditor/mapEditorSlice";
 
 import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
+import filterAnnotationsByViewBox from "Features/annotations/utils/filterAnnotationsByViewBox";
 import useSelectedNodes from "Features/mapEditor/hooks/useSelectedNodes";
 
 import NodeSvgImage from "Features/mapEditorGeneric/components/NodeSvgImage";
@@ -58,6 +59,7 @@ function StaticMapContent({
     hiddenAnnotationIds,
     getPendingMove,
     pendingMovesVersion,
+    visibleViewBox,
   } = useInteraction();
   const selectedPointId = useSelector(selectSelectedPointId);
   const selectedItems = useSelector(selectSelectedItems);
@@ -122,8 +124,22 @@ function StaticMapContent({
   const bgImageAnnotations = showBgImage
     ? annotations.filter(({ nodeType }) => nodeType === "BG_IMAGE_TEXT")
     : [];
-  const baseMapAnnotations = annotations.filter(
-    ({ baseMapId, hidden }) => Boolean(baseMapId) && !hidden
+  const baseMapAnnotations = useMemo(
+    () =>
+      annotations.filter(
+        ({ baseMapId, hidden }) => Boolean(baseMapId) && !hidden
+      ),
+    [annotations]
+  );
+
+  // Viewport culling: only mount SVG nodes for annotations whose bbox
+  // intersects the visible box (with margin, pushed by InteractionLayer).
+  // null viewBox → no filtering (first render / unknown viewport). The
+  // topology set (idsAffectedBySelectedPoint), MeshSelectionHighlight and
+  // the BG layer intentionally keep the FULL annotations array.
+  const visibleBaseMapAnnotations = useMemo(
+    () => filterAnnotationsByViewBox(baseMapAnnotations, visibleViewBox),
+    [baseMapAnnotations, visibleViewBox]
   );
 
   // [MODIF 2] Calculer les annotations touchées par le point sélectionné (Topologie)
@@ -396,7 +412,7 @@ function StaticMapContent({
           )
         )}
 
-        {baseMapAnnotations?.map((annotation) => {
+        {visibleBaseMapAnnotations?.map((annotation) => {
           // A. Caché par le Drag topology (segment split) — toujours via hiddenAnnotationIds
           const isHiddenByDrag = hiddenAnnotationIds?.includes(annotation.id);
 
