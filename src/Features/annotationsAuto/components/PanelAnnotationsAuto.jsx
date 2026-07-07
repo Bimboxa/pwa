@@ -1,22 +1,23 @@
 import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { useLiveQuery } from "dexie-react-hooks";
+
+import db from "App/db/db";
 
 import {
   setSelectedSourceListingId,
   setSelectedProcedureKey,
   setSelectedAnnotationTemplateId,
   setHeight,
+  setWaterHeight,
   setReturnTechnique,
   setIgnoreInteriorWalls,
-  setRunning,
 } from "../annotationsAutoSlice";
-
-import { setToaster } from "Features/layout/layoutSlice";
 
 import useListingsByScope from "Features/listings/hooks/useListingsByScope";
 import useListings from "Features/listings/hooks/useListings";
 import useAnnotationTemplatesByProject from "Features/annotations/hooks/useAnnotationTemplatesByProject";
-import useAnnotationsAutoRun from "../hooks/useAnnotationsAutoRun";
+import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 
 import ButtonSelectorAnnotationTemplateVariantDense from "Features/annotations/components/ButtonSelectorAnnotationTemplateVariantDense";
 
@@ -27,18 +28,15 @@ import {
   InputLabel,
   Select,
   MenuItem,
-  Button,
   Paper,
   FormControlLabel,
   Checkbox,
-  CircularProgress,
 } from "@mui/material";
-import { PlayArrow } from "@mui/icons-material";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import DialogAnnotationsAutoConfirm from "./DialogAnnotationsAutoConfirm";
 import PanelAnnotationsAutoSelection from "./PanelAnnotationsAutoSelection";
-import fireFlash from "../utils/fireFlash";
+import RowProcedureLauncher from "./RowProcedureLauncher";
 import FieldTextV2 from "Features/form/components/FieldTextV2";
 import FieldNumberWithUnit from "Features/form/components/FieldNumberWithUnit";
 
@@ -62,11 +60,14 @@ export default function PanelAnnotationsAuto() {
     (s) => s.annotationsAuto.selectedAnnotationTemplateId
   );
   const height = useSelector((s) => s.annotationsAuto.height);
+  const waterHeight = useSelector((s) => s.annotationsAuto.waterHeight);
   const returnTechnique = useSelector((s) => s.annotationsAuto.returnTechnique);
   const ignoreInteriorWalls = useSelector(
     (s) => s.annotationsAuto.ignoreInteriorWalls
   );
-  const running = useSelector((s) => s.annotationsAuto.running);
+  const annotationsUpdatedAt = useSelector(
+    (s) => s.annotations.annotationsUpdatedAt
+  );
 
   const selectedItems = useSelector((s) => s.selection.selectedItems);
   const hasSelection = (selectedItems ?? []).some(
@@ -75,6 +76,8 @@ export default function PanelAnnotationsAuto() {
 
   const { value: listings } = useListingsByScope();
   const allAnnotationTemplates = useAnnotationTemplatesByProject();
+  const baseMap = useMainBaseMap();
+  const baseMapId = baseMap?.id;
 
   const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
   const { value: candidatesListings } = useListings({
@@ -83,17 +86,37 @@ export default function PanelAnnotationsAuto() {
     excludeIsForBaseMaps: true,
   });
 
-  const run = useAnnotationsAutoRun();
-
   // helpers
 
   const selectedProcedure = procedures.find(
     (p) => p.key === selectedProcedureKey
   );
 
+  // Source annotations of the selected procedure on the base map: annotations
+  // whose template is linked to it (template.procedureKeys). They scope the
+  // launcher band's reset / refresh (deletion matches autoCreatedFrom against
+  // this set) and provide the untagged-output fallback tag.
+  const linkedTemplateIds = (allAnnotationTemplates ?? [])
+    .filter((t) => (t.procedureKeys ?? []).includes(selectedProcedureKey))
+    .map((t) => t.id);
+  const linkedTemplatesKey = linkedTemplateIds.join(",");
+
+  const sourceAnnotationIds = useLiveQuery(async () => {
+    if (!baseMapId || linkedTemplateIds.length === 0) return [];
+    const templateIdSet = new Set(linkedTemplateIds);
+    const anns = await db.annotations
+      .where("baseMapId")
+      .equals(baseMapId)
+      .toArray();
+    return anns
+      .filter((a) => !a.deletedAt && templateIdSet.has(a.annotationTemplateId))
+      .map((a) => a.id);
+  }, [baseMapId, linkedTemplatesKey, annotationsUpdatedAt]);
+
   const hideSourceListing = selectedProcedure?.hideSourceListing === true;
   const showHeightInput = selectedProcedure?.showHeightInput === true;
   const showCuvelageHeight = selectedProcedure?.showCuvelageHeight === true;
+  const showWaterHeight = selectedProcedure?.showWaterHeight === true;
   const showReturnTechnique = selectedProcedure?.showReturnTechnique === true;
   const showAnnotationTemplateSelect =
     selectedProcedure?.showAnnotationTemplateSelect === true;
@@ -137,6 +160,7 @@ export default function PanelAnnotationsAuto() {
     const key = e.target.value;
     dispatch(setSelectedProcedureKey(key));
     dispatch(setHeight(null));
+    dispatch(setWaterHeight(null));
     dispatch(setSelectedAnnotationTemplateId(null));
 
     const proc = procedures.find((p) => p.key === key);
@@ -157,37 +181,6 @@ export default function PanelAnnotationsAuto() {
 
   function handleHeightChange(value) {
     dispatch(setHeight(value));
-  }
-
-  async function handleRun() {
-    if (!canRun || running) return;
-    dispatch(setRunning(true));
-    try {
-      const result = await run({
-        sourceListingId: hideSourceListing ? null : selectedSourceListingId,
-        procedureKey: selectedProcedureKey,
-      });
-      const created = result?.annotations?.length ?? 0;
-      const updated = result?.updatedAnnotations?.length ?? 0;
-      if (created > 0 || updated > 0) {
-        fireFlash();
-        const message =
-          created > 0
-            ? `${created} annotation(s) créée(s)`
-            : `${updated} annotation(s) mise(s) à jour`;
-        dispatch(setToaster({ message }));
-      } else {
-        dispatch(
-          setToaster({
-            message:
-              "Aucune annotation créée. Vérifiez les catégories des modèles.",
-            severity: "warning",
-          })
-        );
-      }
-    } finally {
-      dispatch(setRunning(false));
-    }
   }
 
   // render
@@ -266,6 +259,16 @@ export default function PanelAnnotationsAuto() {
             />
           )}
 
+          {showWaterHeight && (
+            <FieldNumberWithUnit
+              value={waterHeight}
+              onChange={(v) => dispatch(setWaterHeight(v))}
+              label="Hauteur d'eau"
+              unit="m"
+              helperText="Altitude absolue (scène 3D). Vide = ignorée"
+            />
+          )}
+
           {showReturnTechnique && (
             <FormControlLabel
               control={
@@ -319,27 +322,26 @@ export default function PanelAnnotationsAuto() {
             </FormControl>
           )}
 
-          <Button
-            variant="contained"
-            color="inherit"
-            startIcon={
-              running ? (
-                <CircularProgress size={20} color="inherit" />
-              ) : (
-                <PlayArrow />
-              )
-            }
-            onClick={handleRun}
-            disabled={!canRun || running}
-            sx={{
-              bgcolor: "common.black",
-              color: "common.white",
-              "&:hover": { bgcolor: "grey.800" },
-              borderRadius: 6,
-            }}
-          >
-            {running ? "En cours..." : "Lancer la procédure"}
-          </Button>
+          {selectedProcedure && (
+            <RowProcedureLauncher
+              procedure={selectedProcedure}
+              baseMapId={baseMapId}
+              sourceAnnotationIds={sourceAnnotationIds ?? []}
+              sourceListingId={
+                hideSourceListing ? null : selectedSourceListingId
+              }
+              standardRun
+              disabled={!canRun}
+              sx={{
+                mx: -2,
+                mb: -2,
+                px: 2,
+                py: 1,
+                borderBottomLeftRadius: (theme) => theme.shape.borderRadius,
+                borderBottomRightRadius: (theme) => theme.shape.borderRadius,
+              }}
+            />
+          )}
         </Paper>
       </Box>
 

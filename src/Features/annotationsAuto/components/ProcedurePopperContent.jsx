@@ -6,12 +6,9 @@ import db from "App/db/db";
 import useAnnotationTemplatesByProject from "Features/annotations/hooks/useAnnotationTemplatesByProject";
 
 import { Paper, Box, Typography, Divider } from "@mui/material";
-import { lighten } from "@mui/material/styles";
-
-import { AutoFixHigh } from "@mui/icons-material";
 
 import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTemplateIcon";
-import ProcedureActionButtons from "./ProcedureActionButtons";
+import RowProcedureLauncher from "./RowProcedureLauncher";
 
 /**
  * Content of the "Auto" popper shown on a listing template linked to one or
@@ -115,18 +112,16 @@ export default function ProcedurePopperContent({
               ))}
             </Box>
 
-            <Box
+            <RowProcedureLauncher
+              procedure={procedure}
+              baseMapId={baseMapId}
+              sourceAnnotationIds={sourceAnnotationIds ?? []}
               sx={{
                 mt: 1,
                 mx: -1,
                 ...(index === procedures.length - 1 ? { mb: -1 } : {}),
                 px: 1,
                 py: 0.75,
-                gap: 0.5,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                bgcolor: (theme) => lighten(theme.palette.secondary.main, 0.85),
                 ...(index === procedures.length - 1
                   ? {
                       borderBottomLeftRadius: (theme) =>
@@ -136,27 +131,7 @@ export default function ProcedurePopperContent({
                     }
                   : {}),
               }}
-            >
-              <Box
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 0.5,
-                  minWidth: 0,
-                }}
-              >
-                <AutoFixHigh sx={{ fontSize: 16, color: "text.secondary" }} />
-                <Typography variant="body2" noWrap sx={{ fontWeight: 500 }}>
-                  {procedure.label}
-                </Typography>
-              </Box>
-
-              <ProcedureActionButtons
-                procedureKey={procedure.key}
-                baseMapId={baseMapId}
-                sourceAnnotationIds={sourceAnnotationIds ?? []}
-              />
-            </Box>
+            />
           </Box>
         );
       })}

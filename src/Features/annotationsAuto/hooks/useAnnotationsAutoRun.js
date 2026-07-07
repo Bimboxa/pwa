@@ -49,6 +49,7 @@ export default function useAnnotationsAutoRun() {
 
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const height = useSelector((s) => s.annotationsAuto.height);
+  const waterHeight = useSelector((s) => s.annotationsAuto.waterHeight);
   const activeLayerId = useSelector((s) => s.layers?.activeLayerId);
   const returnTechnique = useSelector((s) => s.annotationsAuto.returnTechnique);
   const ignoreInteriorWalls = useSelector(
@@ -377,6 +378,21 @@ export default function useAnnotationsAutoRun() {
       }
     }
 
+    // Water level (absolute 3D-scene altitude) converted to the baseMap's
+    // offsetZ space: the baseMap group sits at world Y = position.y (Three.js
+    // Y-up; annotation offsetZ maps to the group's local up axis). Only
+    // procedures exposing the option receive a value; 0 is a valid level.
+    const parsedWaterHeight =
+      waterHeight != null && waterHeight !== ""
+        ? parseFloat(waterHeight)
+        : null;
+    const waterRel =
+      procedureEntry?.showWaterHeight === true &&
+      parsedWaterHeight != null &&
+      Number.isFinite(parsedWaterHeight)
+        ? parsedWaterHeight - (baseMap?.position?.y ?? 0)
+        : null;
+
     const result = procedureFn({
       sourceAnnotations,
       sourceRels,
@@ -390,6 +406,8 @@ export default function useAnnotationsAutoRun() {
         projectId,
         baseMapId,
         height,
+        waterHeight: parsedWaterHeight,
+        waterRel,
         activeLayerId,
         returnTechnique,
         ignoreInteriorWalls,
@@ -405,11 +423,13 @@ export default function useAnnotationsAutoRun() {
 
     await db.points.bulkAdd(points.map((p) => ({ ...p })));
     // Tag created annotations with their originating source annotation so they
-    // can later be reset/refreshed (see RowProcedureActionAuto).
+    // can later be reset/refreshed (see RowProcedureActionAuto). Procedures
+    // that track sources per output set autoCreatedFrom themselves (one id per
+    // annotation); the run-level id only fills in annotations left untagged.
     await db.annotations.bulkAdd(
       annotations.map((a) => ({
         ...a,
-        ...(autoCreatedFrom ? { autoCreatedFrom } : {}),
+        ...(!a.autoCreatedFrom && autoCreatedFrom ? { autoCreatedFrom } : {}),
       }))
     );
     if (rels.length > 0) {

@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 
 import { setToaster } from "Features/layout/layoutSlice";
 
 import useAnnotationsAutoRun from "../hooks/useAnnotationsAutoRun";
 import useSelectedAnnotationsByProcedure from "../hooks/useSelectedAnnotationsByProcedure";
 import fireFlash from "../utils/fireFlash";
+import getProcedureLabelWithWater from "../utils/getProcedureLabelWithWater";
 
 import {
   Box,
@@ -28,6 +29,7 @@ export default function PanelAnnotationsAutoSelection() {
 
   const groups = useSelectedAnnotationsByProcedure();
   const run = useAnnotationsAutoRun();
+  const waterHeight = useSelector((s) => s.annotationsAuto.waterHeight);
 
   // state
 
@@ -95,7 +97,7 @@ export default function PanelAnnotationsAutoSelection() {
               }}
             >
               <Typography variant="subtitle2" sx={{ fontWeight: "bold" }}>
-                {group.procedure.label}
+                {getProcedureLabelWithWater(group.procedure, waterHeight)}
               </Typography>
 
               <Typography variant="caption" color="text.secondary">

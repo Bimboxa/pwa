@@ -23,19 +23,27 @@ import { PlayArrow, Refresh, DeleteSweep } from "@mui/icons-material";
  * play / reset / refresh buttons for an ANNOTATIONS_CREATOR procedure run over
  * a set of source annotations.
  *
- * `autoCreatedFrom` is ALWAYS a source annotation id: play tags every created
- * annotation with a source id (the first of the set), and reset/refresh act on
- * every annotation whose `autoCreatedFrom` belongs to `sourceAnnotationIds`.
+ * `autoCreatedFrom` is ALWAYS a source annotation id: procedures that track
+ * sources per output (fromPolygonsToBim) tag each created annotation with its
+ * own source polygon id; the run-level id passed to play (first of the set) is
+ * only a fallback for untagged annotations. Reset/refresh act on every
+ * annotation whose `autoCreatedFrom` belongs to `sourceAnnotationIds`.
  *
  * - Toolbar: a single source annotation → set = [annotation.id].
  * - Listing popper: all annotations of the source template → set = their ids,
  *   so deleting from the template removes everything the procedure created from
  *   any of its annotations.
+ * - "Dessin auto" panel: standardRun = true → play runs the standard flow
+ *   (sourceListingId / source-less) instead of the selection flow; set = all
+ *   annotations linked to the procedure on the base map (reset scope).
  */
 export default function ProcedureActionButtons({
   procedureKey,
   baseMapId,
   sourceAnnotationIds,
+  sourceListingId = null,
+  standardRun = false,
+  disabled = false,
 }) {
   const dispatch = useDispatch();
 
@@ -77,17 +85,32 @@ export default function ProcedureActionButtons({
   // handlers
 
   async function applyProcedure() {
-    const result = await run({
-      procedureKey,
-      sourceAnnotationIds: sourceIds,
-      // tag created annotations with a source annotation id (always an
-      // annotationId); reset matches by source-id set membership.
-      autoCreatedFrom: sourceIds[0],
-    });
+    const result = await run(
+      standardRun
+        ? {
+            // standard flow (listing / source-less): the run recomputes its
+            // sources; sourceIds only provides the untagged-output fallback.
+            sourceListingId,
+            procedureKey,
+            autoCreatedFrom: sourceIds[0],
+          }
+        : {
+            procedureKey,
+            sourceAnnotationIds: sourceIds,
+            // fallback source tag for annotations the procedure leaves
+            // untagged; reset matches by source-id set membership.
+            autoCreatedFrom: sourceIds[0],
+          }
+    );
     const created = result?.annotations?.length ?? 0;
-    if (created > 0) {
+    const updated = result?.updatedAnnotations?.length ?? 0;
+    if (created > 0 || updated > 0) {
       fireFlash();
-      dispatch(setToaster({ message: `${created} annotation(s) créée(s)` }));
+      const message =
+        created > 0
+          ? `${created} annotation(s) créée(s)`
+          : `${updated} annotation(s) mise(s) à jour`;
+      dispatch(setToaster({ message }));
     } else if (result?.error) {
       // procedure-specific failure message (e.g. open frontier loop)
       dispatch(setToaster({ message: result.error, severity: "warning" }));
@@ -154,7 +177,7 @@ export default function ProcedureActionButtons({
             color="secondary"
             size="small"
             onClick={handlePlay}
-            disabled={running}
+            disabled={running || disabled}
             sx={{ minWidth: 0, px: 0.75, py: 0.25, borderRadius: 5 }}
           >
             <PlayArrow sx={{ fontSize: 18 }} />
@@ -180,7 +203,11 @@ export default function ProcedureActionButtons({
       </Tooltip>
       <Tooltip title="Relancer (supprimer puis appliquer)">
         <span>
-          <IconButton size="small" onClick={handleRefresh} disabled={running}>
+          <IconButton
+            size="small"
+            onClick={handleRefresh}
+            disabled={running || disabled}
+          >
             <Refresh sx={{ fontSize: 18 }} />
           </IconButton>
         </span>

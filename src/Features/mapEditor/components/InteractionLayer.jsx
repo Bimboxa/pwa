@@ -5391,7 +5391,7 @@ const InteractionLayer = forwardRef(({
 
       // F. CLOSING DETECTION (screen-distance based, zoom-independent)
       const closingType = newAnnotation?.type;
-      const canClose = (closingType === "POLYGON" || closingType === "POLYLINE" || closingType === "CUT") && currentDrawingPts.length >= 3;
+      const canClose = (closingType === "POLYGON" || closingType === "POLYLINE" || closingType === "CUT" || closingType === "STRIP") && currentDrawingPts.length >= 3;
       if (canClose) {
         const firstPt = currentDrawingPts[0];
         const pose = getTargetPose();
@@ -5962,11 +5962,11 @@ const InteractionLayer = forwardRef(({
 
   // --- HANDLER DU CLIC SUR LE CLOSING MARKER ---
   const handleClosingClick = () => {
-    const isPolyline = newAnnotation?.type === "POLYLINE";
-    console.log(`Closing ${isPolyline ? "Polyline" : "Polygon"} via Marker Click`);
+    const needsCloseLine = newAnnotation?.type === "POLYLINE" || newAnnotation?.type === "STRIP";
+    console.log(`Closing ${newAnnotation?.type} via Marker Click`);
     isClosingRef.current = false;
     closingMarkerRef.current?.update(null);
-    commitPolyline(null, isPolyline ? { closeLine: true } : undefined);
+    commitPolyline(null, needsCloseLine ? { closeLine: true } : undefined);
   };
 
   const POINT_BASED_TYPES = ["POLYLINE", "POLYGON", "STRIP"];

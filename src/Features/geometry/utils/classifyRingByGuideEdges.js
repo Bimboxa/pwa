@@ -29,17 +29,17 @@ function distPointToSegment(px, py, ax, ay, bx, by) {
 }
 
 /**
- * True when the sub-edge (a, b) runs along ONE guide edge: both endpoints
- * and the midpoint within (tolPx + edge padPx) of the SAME edge, with
- * near-parallel orientation (same test as the frontier sub-edge detection).
- * A guide edge may carry `padPx` (its rendered band half-extent) so a
- * sub-edge glued anywhere across the band matches.
+ * Guide edge the sub-edge (a, b) runs along, or null: both endpoints and the
+ * midpoint within (tolPx + edge padPx) of the SAME edge, with near-parallel
+ * orientation (same test as the frontier sub-edge detection). A guide edge
+ * may carry `padPx` (its rendered band half-extent) so a sub-edge glued
+ * anywhere across the band matches. Returns the FIRST matching edge.
  */
-export function isSubEdgeAlongGuideEdges(a, b, guideEdges, tolPx) {
+export function findGuideEdgeForSubEdge(a, b, guideEdges, tolPx) {
   const ux = b.x - a.x;
   const uy = b.y - a.y;
   const uLen = Math.hypot(ux, uy);
-  if (uLen < 1e-9) return false;
+  if (uLen < 1e-9) return null;
   const mx = (a.x + b.x) / 2;
   const my = (a.y + b.y) / 2;
 
@@ -56,9 +56,16 @@ export function isSubEdgeAlongGuideEdges(a, b, guideEdges, tolPx) {
     const cos = Math.abs(ux * vx + uy * vy) / (uLen * vLen);
     if (cos < PARALLEL_MIN_COS) continue;
 
-    return true;
+    return e;
   }
-  return false;
+  return null;
+}
+
+/**
+ * True when the sub-edge (a, b) runs along ONE guide edge.
+ */
+export function isSubEdgeAlongGuideEdges(a, b, guideEdges, tolPx) {
+  return !!findGuideEdgeForSubEdge(a, b, guideEdges, tolPx);
 }
 
 // Append the first point (same object reference) so the closing edge is part

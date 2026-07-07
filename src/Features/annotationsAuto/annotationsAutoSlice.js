@@ -7,6 +7,7 @@ const initialState = {
   pendingResult: null,
   showConfirmDialog: false,
   height: null,
+  waterHeight: null,
   returnTechnique: true,
   ignoreInteriorWalls: false,
   running: false,
@@ -34,6 +35,9 @@ export const annotationsAutoSlice = createSlice({
     setHeight: (state, action) => {
       state.height = action.payload;
     },
+    setWaterHeight: (state, action) => {
+      state.waterHeight = action.payload;
+    },
     setReturnTechnique: (state, action) => {
       state.returnTechnique = action.payload;
     },
@@ -54,6 +58,7 @@ export const {
   setPendingResult,
   setShowConfirmDialog,
   setHeight,
+  setWaterHeight,
   setReturnTechnique,
   setIgnoreInteriorWalls,
   setRunning,
