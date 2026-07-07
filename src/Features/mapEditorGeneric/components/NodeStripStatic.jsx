@@ -40,6 +40,7 @@ export default function NodeStripStatic({
     selectedPointId,
     selectedPointIds = [],
     selectedPartId,
+    selectMode,
 }) {
     // Gestion sélection temporaire
     if (annotation.id.startsWith("temp")) selected = true;
@@ -249,6 +250,10 @@ export default function NodeStripStatic({
     };
 
 
+    // Neon-green highlight for the hovered segment in segment-select mode
+    // (matches NodePolylineStatic).
+    const SEGMENT_HOVER_COLOR = "#76ff03";
+
     // --- RENDER SOMMETS ---
     const POINT_SIZE = 6;
     const HALF_SIZE = POINT_SIZE / 2;
@@ -349,13 +354,59 @@ export default function NodeStripStatic({
             {/* 2. LAYER STROKE (DIRECTRICE) - NON SÉLECTIONNÉ */}
             {!selected && directorSegments.map((seg, i) => {
                 if (seg.isHidden) return null;
+
+                const aestheticStrokeWidth = isForBaseMaps
+                    ? STYLE_CONSTANTS.STROKE_WIDTH_DEFAULT * (baseMapImageScale || 1)
+                    : STYLE_CONSTANTS.STROKE_WIDTH_DEFAULT;
+
+                // Segment-select modes (CUT_SEGMENT / TECHNICAL_RETURN) make the
+                // strip clickable per-segment even when it is not selected, so the
+                // tools can target a strip directly — mirrors NodePolylineStatic.
+                if (selectMode === "SEGMENT") {
+                    const partId = `${annotationId}::SEG::${seg.index}`;
+                    const isHovered = hoveredPartId === partId;
+                    return (
+                        <g
+                            key={`seg-select-${seg.index}`}
+                            onMouseEnter={(e) => {
+                                e.stopPropagation();
+                                setHoveredPartId(partId);
+                            }}
+                            onMouseLeave={() => setHoveredPartId(null)}
+                            data-part-id={partId}
+                            data-part-type="SEG"
+                            data-node-id={annotationId}
+                            style={{ cursor: isTransient ? "crosshair" : "pointer" }}
+                        >
+                            {/* invisible wide hit area */}
+                            <path
+                                d={seg.d}
+                                stroke="rgba(0,0,0,0)"
+                                strokeWidth={22}
+                                fill="none"
+                                vectorEffect={isForBaseMaps ? undefined : "non-scaling-stroke"}
+                                style={{ pointerEvents: "stroke" }}
+                            />
+                            {/* visible director, highlighted neon-green on hover */}
+                            <path
+                                d={seg.d}
+                                fill="none"
+                                stroke={isHovered && !isTransient ? SEGMENT_HOVER_COLOR : directorColor}
+                                strokeWidth={isHovered && !isTransient ? aestheticStrokeWidth + 2 : aestheticStrokeWidth}
+                                vectorEffect={isForBaseMaps ? undefined : "non-scaling-stroke"}
+                                style={{ pointerEvents: "none" }}
+                            />
+                        </g>
+                    );
+                }
+
                 return (
                     <path
                         key={`aesthetic-stroke-${i}`}
                         d={seg.d}
                         fill="none"
                         stroke={directorColor}
-                        strokeWidth={isForBaseMaps ? STYLE_CONSTANTS.STROKE_WIDTH_DEFAULT * (baseMapImageScale || 1) : STYLE_CONSTANTS.STROKE_WIDTH_DEFAULT}
+                        strokeWidth={aestheticStrokeWidth}
                         vectorEffect={isForBaseMaps ? undefined : "non-scaling-stroke"}
                         style={{ pointerEvents: "none" }}
                     />

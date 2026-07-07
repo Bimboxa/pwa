@@ -177,7 +177,7 @@ function ModeShortcutBadge({ children }) {
 
 const TOOL_ITEMS = [
   { type: "CUT", label: "Ouverture", Icon: StopCircle, shortcut: "O" },
-  { type: "SPLIT_LINE", label: "Couper une ligne", Icon: IconCutLine },
+  { type: "SPLIT_LINE", label: "Retirer un segment", Icon: IconCutLine, shortcut: "C" },
   { type: "SPLIT_SURFACE", label: "Couper des surfaces", Icon: IconCutSurface },
   { type: "TECHNICAL_RETURN", label: "Retour 1m", Icon: IconTechnicalReturn },
   { type: "COMPLETE_ANNOTATION", label: "Prolonger", Icon: Create },
@@ -295,8 +295,8 @@ function ToolRow({ type, label, Icon, shortcut }) {
           </Typography>
         </Box>
 
-        {/* Right side: active tool icon on hover */}
-        {isHovered && ActiveToolIcon && (
+        {/* Right side: active tool icon on hover (only when there is a choice) */}
+        {isHovered && ActiveToolIcon && tools.length > 1 && (
           <Tooltip title="Changer d'outil" arrow>
             <IconButton
               size="small"
@@ -1701,6 +1701,22 @@ function PopperDrawingHelper() {
             }}
           >
             Cliquez sur une annotation pour modifier son modèle
+          </Box>
+        )}
+        {enabledDrawingMode === "CUT_SEGMENT" && (
+          <Box
+            sx={{
+              px: 1.5,
+              py: 1.5,
+              borderRadius: 1,
+              bgcolor: "primary.main",
+              color: "primary.contrastText",
+              fontSize: "0.875rem",
+              fontWeight: 600,
+              textAlign: "center",
+            }}
+          >
+            Cliquez sur un segment pour le supprimer
           </Box>
         )}
         {showSmartDetectCard && (

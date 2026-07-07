@@ -116,6 +116,7 @@ import useDrawingToolHotkeys from "../hooks/useDrawingToolHotkeys";
 import useFreeAnnotationHotkeys from "../hooks/useFreeAnnotationHotkeys";
 import useInteractionModeHotkeys from "../hooks/useInteractionModeHotkeys";
 import useOpeningHotkey from "../hooks/useOpeningHotkey";
+import useToolGroupHotkey from "../hooks/useToolGroupHotkey";
 
 const contextDimmedStyle = {
     //filter: "grayscale(100%) brightness(1.4) opacity(0.8)", // Rend gris, clair et semi-transparent
@@ -156,6 +157,8 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     useInteractionModeHotkeys();
     // hotkeys — start an opening draw (O) when not drawing
     useOpeningHotkey();
+    // hotkeys — start segment removal (C = Retirer un segment) when not drawing
+    useToolGroupHotkey("c", "SPLIT_LINE");
 
     // const
 
