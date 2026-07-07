@@ -151,6 +151,41 @@ try {
   // best effort — same-tab hooks above remain the primary invalidation
 }
 
+// Per-annotation RESOLVE memo (module-level, shared across hook instances
+// and runs). The geometric resolution of one annotation — resolvePoints /
+// resolveCuts / guideLine resolve + slope ramp (applyGuideLineRampToRings)
+// + stage-A qties — is a pure function of: the annotation row, its
+// referenced point rows, the base map's imageSize/meterByPx. All of those
+// are referentially STABLE thanks to the shared row caches above, so the
+// memo is keyed on object identity: an unchanged annotation reuses its
+// resolved output as-is, and a commit only recomputes the annotations whose
+// row or point rows actually changed. Without this, every liveQuery re-run
+// re-resolved ALL annotations in EVERY mounted instance — measured at
+// 280-800ms of main-thread JS per instance on a ~550-annotation base map
+// (the per-annotation resolve work compounds across the ~7 interleaved
+// instances, whatever the dominant sub-cost: qties, ramps, cuts…).
+// Entries die with their annotation row (WeakMap): any annotation write
+// refetches rows → new row objects → old entries are GC'd.
+// `variants` holds one resolved object per withQties flag value (instances
+// differ on it; a single slot would thrash between instance families).
+const _resolvedRowsCache = new WeakMap(); // annotationRow -> entry
+
+const _collectPointRowRefs = (annotation, pointsIndex) => {
+  const refs = [];
+  const push = (p) => {
+    const id = p?.id ?? p?.pointId;
+    if (id) refs.push(pointsIndex[id]);
+  };
+  if (annotation?.point) push(annotation.point);
+  (annotation?.points ?? []).forEach(push);
+  (annotation?.cuts ?? []).forEach((c) => (c?.points ?? []).forEach(push));
+  (annotation?.innerPoints ?? []).forEach(push);
+  (annotation?.guideLines ?? []).forEach((g) =>
+    (g?.points ?? []).forEach(push)
+  );
+  return refs;
+};
+
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
@@ -314,7 +349,30 @@ export default function useAnnotationsV2(options) {
       // liveQuery OBSERVING db.annotations and db.points even when every
       // heavy read below is served from cache — Dexie only re-runs a
       // liveQuery on writes to tables its callback actually read.
-      await Promise.all([db.annotations.count(), db.points.count()]);
+      // The observation reads are SCOPED to the ranges this instance
+      // consumes (same semantics as the pre-#290 direct reads): an
+      // unfiltered count() scanned the WHOLE table across every project,
+      // which on large multi-project local DBs cost ~100ms+ per instance
+      // per run and serialized the commit waves.
+      {
+        const obsBaseMapIds = [baseMapId, ...extraBaseMapIds].filter(Boolean);
+        if (obsBaseMapIds.length > 0) {
+          await Promise.all([
+            db.annotations.where("baseMapId").anyOf(obsBaseMapIds).count(),
+            db.points.where("baseMapId").anyOf(obsBaseMapIds).count(),
+          ]);
+        } else if (listingId) {
+          await Promise.all([
+            db.annotations.where("listingId").equals(listingId).count(),
+            db.points.where("listingId").equals(listingId).count(),
+          ]);
+        } else {
+          await Promise.all([
+            db.annotations.where("projectId").equals(projectId).count(),
+            db.points.where("projectId").equals(projectId).count(),
+          ]);
+        }
+      }
 
       const _t0 = performance.now();
       // annotations
@@ -660,6 +718,7 @@ export default function useAnnotationsV2(options) {
       // (in-memory only — the DB record keeps the refs, so the annotation
       // heals itself if the points reappear via sync/import).
       let _missingPointsAnnCount = 0;
+      let _resolveMemoHits = 0;
       const _isResolved = (p) => Number.isFinite(p?.x) && Number.isFinite(p?.y);
       const _splitResolved = (pts, corruptedIds) => {
         if (!Array.isArray(pts)) return pts;
@@ -688,6 +747,32 @@ export default function useAnnotationsV2(options) {
           if (!imageSize) return [];
           const { width, height } = imageSize;
           const meterByPx = baseMap.getMeterByPx();
+
+          // Resolve memo lookup (see _resolvedRowsCache at module level):
+          // identity of the annotation row + its point rows + base map
+          // scalars. Hit → reuse the resolved output, returned as a shallow
+          // copy so later in-place field assignments (proxies, profile
+          // helpers, entity attach) never poison the cached object.
+          const _depRefs = _collectPointRowRefs(annotation, pointsIndex);
+          const _variantKey = withQties ? 1 : 0;
+          const _memoEntry = _resolvedRowsCache.get(annotation);
+          const _memoValid = Boolean(
+            _memoEntry &&
+            _memoEntry.width === width &&
+            _memoEntry.height === height &&
+            _memoEntry.meterByPx === meterByPx &&
+            _memoEntry.baseMapName === baseMap?.name &&
+            _memoEntry.deps.length === _depRefs.length &&
+            _memoEntry.deps.every((r, i) => r === _depRefs[i])
+          );
+          if (_memoValid) {
+            const _hit = _memoEntry.variants[_variantKey];
+            if (_hit) {
+              _resolveMemoHits += 1;
+              if (_hit.corruptedPointIds?.length) _missingPointsAnnCount += 1;
+              return { ..._hit };
+            }
+          }
 
           //if (annotation.isBaseMapAnnotation) console.log("debug_width", width?.toFixed(2))
 
@@ -851,7 +936,21 @@ export default function useAnnotationsV2(options) {
             });
           }
 
-          return _annotation;
+          // Store the pristine resolved object in the memo and return a
+          // shallow copy (same contract as the memo-hit path above).
+          const _entry = _memoValid
+            ? _memoEntry
+            : {
+                deps: _depRefs,
+                width,
+                height,
+                meterByPx,
+                baseMapName: baseMap?.name,
+                variants: {},
+              };
+          _entry.variants[_variantKey] = _annotation;
+          _resolvedRowsCache.set(annotation, _entry);
+          return { ..._annotation };
         });
 
       // Warn once (per change) about annotations with orphaned point refs.
@@ -1024,7 +1123,7 @@ export default function useAnnotationsV2(options) {
           `  filters:        ${(_t2 - _t1).toFixed(1)}ms\n` +
           `  listings total: ${(_t3 - _t2).toFixed(1)}ms  [db.listings: ${(_t2b - _t2a).toFixed(1)}ms (${listings.length} found) | filters+scope: ${(_t2c - _t2b).toFixed(1)}ms | db.layers+sort: ${(_t3 - _t2c).toFixed(1)}ms]\n` +
           `  images batch:   ${(_t4 - _t3).toFixed(1)}ms\n` +
-          `  points/qties:   ${(_t5 - _t4).toFixed(1)}ms (${referencedPointIds?.size ?? 0} pts, ${_pointsFetchedFromDb} from db)\n` +
+          `  points/qties:   ${(_t5 - _t4).toFixed(1)}ms (${referencedPointIds?.size ?? 0} pts, ${_pointsFetchedFromDb} from db, resolve memo ${_resolveMemoHits}/${_annotations?.length ?? 0})\n` +
           `  entities:       ${(_t6 - _t5).toFixed(1)}ms\n` +
           `  TOTAL:          ${(_t6 - _t0).toFixed(1)}ms`
       );
