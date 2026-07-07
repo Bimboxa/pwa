@@ -125,6 +125,10 @@ export default function useAnnotationsV2(options) {
     // removing them) so ThreedSelectionDimmer can render them translucent
     // rather than hiding them outright.
     const keepSoloDimmed = options?.keepSoloDimmed;
+    // Skip the solo filter entirely. Used by the listings panel, which needs a
+    // solo-independent set of visible annotations (soloing must not remove rows
+    // from the panel tree or shrink its counts).
+    const ignoreSolo = options?.ignoreSolo;
 
     // data
 
@@ -1337,7 +1341,12 @@ export default function useAnnotationsV2(options) {
       // and tag the non-soloed ones with `_soloDimmed`, so
       // ThreedSelectionDimmer renders them translucent while the soloed
       // template keeps its original material.
-      if (soloMode && soloVisibleTemplateIds != null && soloListingId) {
+      if (
+        !ignoreSolo &&
+        soloMode &&
+        soloVisibleTemplateIds != null &&
+        soloListingId
+      ) {
         const soloSet = new Set(soloVisibleTemplateIds);
         // Solo isolates the soloed template(s) across the WHOLE view:
         // every other annotation is affected, not just those in the same
@@ -1478,6 +1487,7 @@ export default function useAnnotationsV2(options) {
       soloVisibleTemplateIds,
       soloListingId,
       keepSoloDimmed,
+      ignoreSolo,
       tempAnnotations,
       bgImageTextAnnotations,
       baseMapAnnotationsOnly,

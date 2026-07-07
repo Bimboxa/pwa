@@ -132,6 +132,7 @@ import useFreeAnnotationTemplates from "Features/mapEditor/hooks/useFreeAnnotati
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
 import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
+import useExtraBaseMapIdsIn3d from "Features/threedEditor/hooks/useExtraBaseMapIdsIn3d";
 import useUpdateAnnotationTemplate from "Features/annotations/hooks/useUpdateAnnotationTemplate";
 import usePanelDrag from "Features/layout/hooks/usePanelDrag";
 
@@ -1083,15 +1084,29 @@ function AnnotationTemplateRow({
 // AnnotationTemplatesForListing — templates list for one expanded listing
 // ---------------------------------------------------------------------------
 
-function AnnotationTemplatesForListing({ listingId, annotations, annotationTemplateById }) {
+function AnnotationTemplatesForListing({
+  listingId,
+  annotations,
+  annotationTemplateById,
+  visibleTemplateIds,
+}) {
   const dispatch = useDispatch();
 
   // data
 
-  const annotationTemplates = useAnnotationTemplates({
+  const allTemplates = useAnnotationTemplates({
     filterByListingId: listingId,
     sortByOrder: true,
   });
+
+  // In SELECT contexts, only show templates that have a visible annotation.
+  const annotationTemplates = useMemo(
+    () =>
+      visibleTemplateIds
+        ? (allTemplates ?? []).filter((t) => visibleTemplateIds.has(t.id))
+        : allTemplates,
+    [allTemplates, visibleTemplateIds]
+  );
   const spriteImage = useAnnotationSpriteImage();
   const updateAnnotationTemplate = useUpdateAnnotationTemplate();
   const isThreedViewer = useSelector(
@@ -1278,8 +1293,8 @@ function AnnotationTemplatesForListing({ listingId, annotations, annotationTempl
         </SortableContext>
       </DndContext>
 
-      {/* + Nouveau modele — hidden in 3D (read-only) */}
-      {!isThreedViewer && (
+      {/* + Nouveau modele — hidden in 3D (read-only) and while SELECT-filtering */}
+      {!isThreedViewer && !visibleTemplateIds && (
       <ListItemButton
         onClick={() => setOpenCreateDialog(true)}
         sx={{
@@ -1344,6 +1359,7 @@ function ListingRow({
   annotationCount,
   annotations,
   annotationTemplateById,
+  visibleTemplateIds,
   extraAction,
 }) {
   const dispatch = useDispatch();
@@ -1508,6 +1524,7 @@ function ListingRow({
           listingId={listing.id}
           annotations={annotations}
           annotationTemplateById={annotationTemplateById}
+          visibleTemplateIds={visibleTemplateIds}
         />
       )}
     </Box>
@@ -2178,7 +2195,14 @@ export default function PopperMapListings() {
     dispatch(setSoloMode(isThreedViewer || interactionMode === "SELECT"));
   }, [isThreedViewer]);
 
-  // single annotation source for all counts
+  // 3D can show annotations from several base maps at once; mirror those extra
+  // base maps here so the panel's visible set matches the 3D scene.
+  const extraBaseMapIds = useExtraBaseMapIdsIn3d();
+
+  // single annotation source for all counts and for the SELECT-mode visibility
+  // filter. `ignoreSolo` keeps this set stable while the user solos a template
+  // (solo must not remove rows from the tree). In 3D, the 3D-specific filters
+  // are mirrored so the set matches what the scene actually shows.
   const allAnnotations = useAnnotationsV2({
     caller: "PopperMapListings",
     enabled: viewerKey === "MAP" || viewerKey === "BASE_MAPS" || isThreedViewer,
@@ -2188,6 +2212,15 @@ export default function PopperMapListings() {
     withQties: true,
     excludeIsForBaseMapsListings: viewerKey !== "BASE_MAPS",
     onlyIsForBaseMapsListings: viewerKey === "BASE_MAPS",
+    ignoreSolo: true,
+    ...(isThreedViewer
+      ? {
+          extraBaseMapIds,
+          filterBySelectedScope: true,
+          excludeProfileTemplates: true,
+          excludeListingsIds: hiddenListingsIds,
+        }
+      : {}),
   });
 
   // the "Maillage" toggle is only relevant when the baseMap has mesh cells
@@ -2258,9 +2291,36 @@ export default function PopperMapListings() {
   const visibleListings = listings?.filter(
     (l) => !l.isFreeAnnotationsListing
   );
-  const displayedListings = comesFromListing && returnListingId
-    ? visibleListings?.filter((l) => l.id === returnListingId)
+
+  // In effective SELECT contexts (2D Selection, 3D, Maillage, ?mode=viewer) the
+  // panel acts as a legend of what's on screen: hide listings/templates that
+  // have no currently-visible annotation. Derived from `allAnnotations`, which
+  // is already filtered by base map / layer / hidden-template visibility.
+  const isSelectFilter = effectiveInteractionMode === "SELECT";
+  const visibleTemplateIds = useMemo(
+    () =>
+      isSelectFilter
+        ? new Set(
+            (allAnnotations ?? [])
+              .filter((a) => a.annotationTemplateId)
+              .map((a) => a.annotationTemplateId)
+          )
+        : null,
+    [isSelectFilter, allAnnotations]
+  );
+  const visibleListingIds = useMemo(
+    () =>
+      isSelectFilter ? new Set(Object.keys(annotationsByListingId)) : null,
+    [isSelectFilter, annotationsByListingId]
+  );
+
+  const scopedListings = visibleListingIds
+    ? visibleListings?.filter((l) => visibleListingIds.has(l.id))
     : visibleListings;
+  const displayedListings =
+    comesFromListing && returnListingId
+      ? scopedListings?.filter((l) => l.id === returnListingId)
+      : scopedListings;
 
   // effects - auto-expand selected listing (or first listing by default)
 
@@ -2677,6 +2737,7 @@ export default function PopperMapListings() {
                     }
                     annotations={annotationsByListingId?.[listing.id]}
                     annotationTemplateById={annotationTemplateById}
+                    visibleTemplateIds={visibleTemplateIds}
                     extraAction={
                       <ButtonMergeListingAnnotations
                         listingId={listing.id}
@@ -2701,6 +2762,7 @@ export default function PopperMapListings() {
                       }
                       annotations={annotationsByListingId?.[listing.id]}
                       annotationTemplateById={annotationTemplateById}
+                      visibleTemplateIds={visibleTemplateIds}
                     />
                   ))}
                 </>}

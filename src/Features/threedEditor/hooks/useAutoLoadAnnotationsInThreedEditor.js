@@ -3,8 +3,8 @@ import { useSelector } from "react-redux";
 
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
-import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useMeshCellRelations from "Features/annotations/hooks/useMeshCellRelations";
+import useExtraBaseMapIdsIn3d from "./useExtraBaseMapIdsIn3d";
 
 export default function useAutoLoadAnnotationsInThreedEditor({
   threedEditor,
@@ -25,19 +25,9 @@ export default function useAutoLoadAnnotationsInThreedEditor({
 
   // Other base maps whose annotations are requested (mode !== NONE), excluding
   // the main one (always loaded by `filterByMainBaseMap`).
-  const annotationsModeByBaseMapId = useSelector(
-    (s) => s.threedEditor.annotationsModeByBaseMapIdIn3d
-  );
-  const mainBaseMap = useMainBaseMap();
   const { value: baseMaps = [] } = useBaseMaps();
 
-  const extraBaseMapIds = useMemo(
-    () =>
-      Object.keys(annotationsModeByBaseMapId || {}).filter(
-        (id) => id !== mainBaseMap?.id
-      ),
-    [annotationsModeByBaseMapId, mainBaseMap?.id]
-  );
+  const extraBaseMapIds = useExtraBaseMapIdsIn3d();
 
   const annotations = useAnnotationsV2({
     caller: "MainThreedEditor",
