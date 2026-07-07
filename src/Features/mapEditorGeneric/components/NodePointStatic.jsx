@@ -1,7 +1,7 @@
-import React, { useMemo } from "react";
+import React, { memo, useMemo } from "react";
 import { darken } from "@mui/material/styles";
 
-export default function NodePointStatic({
+function NodePointStatic({
     annotation,
     annotationOverride, // Pour le drag (transient)
     selected,
@@ -144,3 +144,5 @@ export default function NodePointStatic({
         </g>
     );
 }
+
+export default memo(NodePointStatic);

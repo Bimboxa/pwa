@@ -1,4 +1,4 @@
-import React, { useLayoutEffect, useRef, useState, useEffect } from "react";
+import React, { memo, useLayoutEffect, useRef, useState, useEffect } from "react";
 import { Box } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 // Adaptez le chemin d'import selon votre structure
@@ -10,7 +10,7 @@ function estimateWidthPx(str, fontSizePx) {
     return Math.max(1, Math.ceil((str.length + 1) * avgChar));
 }
 
-export default function NodeTextStatic({
+function NodeTextStatic({
     text,
     context,
     hovered,
@@ -251,3 +251,5 @@ export default function NodeTextStatic({
         </foreignObject>
     );
 }
+
+export default memo(NodeTextStatic);

@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, useMemo } from "react";
 
 import NodeMarkerStatic from "./NodeMarkerStatic";
 import NodePolylineStatic from "./NodePolylineStatic";
@@ -44,10 +44,18 @@ function NodeAnnotationStatic({
   selectMode,
   disableVertexEditing,
 }) {
-  annotation = { ...(annotation ?? {}), ...(annotationOverride ?? {}) };
-
-  // Apply shape-based defaults for any missing style properties
-  annotation = resolveAnnotationDefaults(annotation);
+  // Apply the override + shape-based defaults ONCE per (annotation,
+  // annotationOverride) pair. The memo keeps the resolved object
+  // referentially stable across re-renders, so the memoized child
+  // renderers (NodePolylineStatic & co) can skip work.
+  const resolvedAnnotation = useMemo(
+    () =>
+      resolveAnnotationDefaults({
+        ...(annotation ?? {}),
+        ...(annotationOverride ?? {}),
+      }),
+    [annotation, annotationOverride]
+  );
 
   const props = {
     hovered,
@@ -78,57 +86,57 @@ function NodeAnnotationStatic({
   // is metadata used only for wrapper bbox computation — no SVG rotation
   // should be applied here (it would cause double rotation).
 
-  switch (annotation.type) {
+  switch (resolvedAnnotation.type) {
     case "MARKER":
-      return <NodeMarkerStatic {...props} marker={annotation} />;
+      return <NodeMarkerStatic {...props} marker={resolvedAnnotation} />;
 
     case "POINT":
-      return <NodePointStatic {...props} annotation={annotation} />;
+      return <NodePointStatic {...props} annotation={resolvedAnnotation} />;
 
     case "POLYGON":
-      return <NodePolylineStatic {...props} annotation={annotation} />;
+      return <NodePolylineStatic {...props} annotation={resolvedAnnotation} />;
 
     case "POLYLINE":
-      return <NodePolylineStatic {...props} annotation={annotation} />;
+      return <NodePolylineStatic {...props} annotation={resolvedAnnotation} />;
 
     case "STRIP":
-      return <NodeStripStatic {...props} annotation={annotation} />;
+      return <NodeStripStatic {...props} annotation={resolvedAnnotation} />;
 
     case "TEXT":
-      return <NodeTextStatic {...props} text={annotation} />;
+      return <NodeTextStatic {...props} text={resolvedAnnotation} />;
 
     case "LABEL":
       return (
         <NodeLabelStatic
           {...props}
-          annotation={annotation}
+          annotation={resolvedAnnotation}
           sizeVariant="FIXED_IN_BG_IMAGE"
         />
       );
 
     case "RECTANGLE":
-      return <NodeRectangleStatic {...props} annotation={annotation} />;
+      return <NodeRectangleStatic {...props} annotation={resolvedAnnotation} />;
 
     // case "SEGMENT":
     //   return NodeSegment({ ...props, segment: annotation });
 
     case "IMAGE":
-      return <NodeImageStatic {...props} imageAnnotation={annotation} />;
+      return <NodeImageStatic {...props} imageAnnotation={resolvedAnnotation} />;
 
     case "OBJECT_3D":
-      return <NodeObject3DStatic {...props} annotation={annotation} />;
+      return <NodeObject3DStatic {...props} annotation={resolvedAnnotation} />;
 
     case "COTE":
-      return <NodeCoteStatic {...props} annotation={annotation} />;
+      return <NodeCoteStatic {...props} annotation={resolvedAnnotation} />;
 
     // Revolution helpers: the elevation-view axis is a plain 2-point line
     // (reuses the canonical polyline renderer); the plan-view axis is a
     // cross-in-circle marker with a fixed 24px screen radius.
     case "REVOLUTION_AXIS":
-      return <NodePolylineStatic {...props} annotation={annotation} />;
+      return <NodePolylineStatic {...props} annotation={resolvedAnnotation} />;
 
     case "REVOLUTION_POINT":
-      return <NodeRevolutionPointStatic {...props} annotation={annotation} />;
+      return <NodeRevolutionPointStatic {...props} annotation={resolvedAnnotation} />;
 
     default:
       return null;
