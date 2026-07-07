@@ -14,6 +14,10 @@ const ALWAYS_COPY_KEYS = [
   "drawingShape",
   "height",
   "offsetZ",
+  // Copied at creation so the annotation carries its own isExt value (like
+  // height). When unlocked the template is not a read-time fallback, so the
+  // default has to be seeded here; when locked the resolver overrides it anyway.
+  "isExt",
   // Free annotations (no entity, no user-managed template) are backed by a
   // hidden system template carrying this flag; it must reach the annotation.
   "isFreeAnnotation",
