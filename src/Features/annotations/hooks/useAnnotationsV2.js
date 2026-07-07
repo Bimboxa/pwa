@@ -63,6 +63,7 @@ import applyGuideLineRampToRings from "Features/annotations/utils/applyGuideLine
 import db from "App/db/db";
 
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
+import stabilizeAnnotationsIdentity from "Features/annotations/utils/stabilizeAnnotationsIdentity";
 import getAnnotationTemplateProps from "Features/annotations/utils/getAnnotationTemplateProps";
 import getAnnotationPropsFromAnnotationTemplateProps from "Features/annotations/utils/getAnnotationPropsFromAnnotationTemplateProps";
 import getEntityWithImagesAsync from "Features/entities/services/getEntityWithImagesAsync";
@@ -88,6 +89,14 @@ export default function useAnnotationsV2(options) {
 
     const _caller = options?.caller || "unknown";
     const enabled = options?.enabled ?? true;
+
+    // Per-instance identity cache (NOT module-level: options like
+    // withEntity/withQties/withListingName change the shape of the output
+    // objects, so instances must never share cached references).
+    const stabilityRef = useRef(null);
+    if (!stabilityRef.current) {
+      stabilityRef.current = { byId: new Map(), prevArray: null };
+    }
 
     const filterByBaseMapId = options?.filterByBaseMapId;
     const filterByListingId = options?.filterByListingId;
@@ -1234,25 +1243,31 @@ export default function useAnnotationsV2(options) {
 
       // recompute qties after template overrides so overridden height is reflected
       if (withQties) {
+        // NOTE: no in-place `annotation.qties = ...` here — the identity
+        // stabilization cache below compares this run's output against the
+        // previous run's cached objects, so stage-B must never mutate
+        // objects it may have returned before.
         result = result.map((annotation) => {
           if (annotation?.isBaseMapAnnotation) return annotation;
           // Proxy donuts inherit the source arc's revolution surface
           // (precomputed in the async query). The donut's own planar
           // area is intentionally NOT used.
           if (annotation?.isProxy && annotation._inheritedQties) {
-            annotation.qties = annotation._inheritedQties;
-            return annotation;
+            return { ...annotation, qties: annotation._inheritedQties };
           }
           const baseMap = baseMapById[annotation?.baseMapId];
           const meterByPx = baseMap?.getMeterByPx?.();
           if (meterByPx) {
-            annotation.qties = getAnnotationQties({
-              annotation,
-              meterByPx,
-              // resolved in the async query for EXTRUSION_PROFILE
-              // subtraction hosts so the base surface is non-zero.
-              profileLengthMeters: annotation._profileLengthMeters,
-            });
+            return {
+              ...annotation,
+              qties: getAnnotationQties({
+                annotation,
+                meterByPx,
+                // resolved in the async query for EXTRUSION_PROFILE
+                // subtraction hosts so the base surface is non-zero.
+                profileLengthMeters: annotation._profileLengthMeters,
+              }),
+            };
           }
           return annotation;
         });
@@ -1476,7 +1491,19 @@ export default function useAnnotationsV2(options) {
           .sort((a, b) => a.baseMap?.name.localeCompare(b.baseMap?.name));
       }
 
-      return result;
+      // Identity stabilization: reuse the previous run's object (and array)
+      // references for annotations whose resolved content did not change, so
+      // memo(NodeAnnotationStatic) & co only re-render what actually changed.
+      const _tStab = performance.now();
+      const { list: stableResult, reused } = stabilizeAnnotationsIdentity(
+        stabilityRef.current,
+        result
+      );
+      console.log(
+        `[debug_perf] useAnnotationsV2 [${_caller}] stability: ${reused}/${result.length} reused (${(performance.now() - _tStab).toFixed(1)}ms)`
+      );
+
+      return stableResult;
     }, [
       enabled,
       annotations,
