@@ -50,11 +50,23 @@ export default function DialogAnnotationsAutoConfirm() {
 
     // Spread each object to create extensible copies (Redux freezes state objects,
     // but Dexie audit hooks need to add createdAt/updatedAt properties).
-    await db.points.bulkAdd(points.map((p) => ({ ...p })));
-    await db.annotations.bulkAdd(annotations.map((a) => ({ ...a })));
-    if (rels.length > 0) {
-      await db.relAnnotationMappingCategory.bulkAdd(rels.map((r) => ({ ...r })));
-    }
+    // Single transaction → the useAnnotationsV2 liveQueries re-run once for
+    // the whole confirm instead of once per table write.
+    await db.transaction(
+      "rw",
+      db.points,
+      db.annotations,
+      db.relAnnotationMappingCategory,
+      async () => {
+        await db.points.bulkAdd(points.map((p) => ({ ...p })));
+        await db.annotations.bulkAdd(annotations.map((a) => ({ ...a })));
+        if (rels.length > 0) {
+          await db.relAnnotationMappingCategory.bulkAdd(
+            rels.map((r) => ({ ...r }))
+          );
+        }
+      }
+    );
 
     dispatch(triggerAnnotationsUpdate());
     dispatch(setShowConfirmDialog(false));

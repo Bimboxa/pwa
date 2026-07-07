@@ -454,34 +454,54 @@ export default function useAnnotationsAutoRun() {
     const { annotations, points, rels, updatedAnnotations, annotationPatches } =
       result;
 
-    await db.points.bulkAdd(points.map((p) => ({ ...p })));
-    // Tag created annotations with their originating source annotation so they
-    // can later be reset/refreshed (see RowProcedureActionAuto). Procedures
-    // that track sources per output set autoCreatedFrom themselves (one id per
-    // annotation); the run-level id only fills in annotations left untagged.
-    await db.annotations.bulkAdd(
-      annotations.map((a) => ({
-        ...a,
-        ...(!a.autoCreatedFrom && autoCreatedFrom ? { autoCreatedFrom } : {}),
-      }))
-    );
-    if (rels.length > 0) {
-      await db.relAnnotationMappingCategory.bulkAdd(
-        rels.map((r) => ({ ...r }))
-      );
-    }
-    if (updatedAnnotations?.length > 0) {
-      // Persist preprocessing (e.g. shared-point normalization) by overwriting
-      // the touched annotations with their normalized rings/cuts.
-      await db.annotations.bulkPut(updatedAnnotations.map((a) => ({ ...a })));
-    }
-    if (annotationPatches?.length > 0) {
-      // Partial field updates (e.g. offsetZ) on existing annotations, without
-      // touching their points refs — avoids re-persisting resolved pixel coords.
-      for (const { id, changes } of annotationPatches) {
-        await db.annotations.update(id, changes);
+    // Single transaction: every write of the run (points, created
+    // annotations, rels, normalization bulkPut, per-annotation patches)
+    // commits atomically → the useAnnotationsV2 liveQueries re-run ONCE per
+    // procedure run instead of once per write (the patch loop alone used to
+    // fire one full re-run wave, ~200-300ms, per patched annotation).
+    await db.transaction(
+      "rw",
+      db.points,
+      db.annotations,
+      db.relAnnotationMappingCategory,
+      async () => {
+        await db.points.bulkAdd(points.map((p) => ({ ...p })));
+        // Tag created annotations with their originating source annotation so
+        // they can later be reset/refreshed (see RowProcedureActionAuto).
+        // Procedures that track sources per output set autoCreatedFrom
+        // themselves (one id per annotation); the run-level id only fills in
+        // annotations left untagged.
+        await db.annotations.bulkAdd(
+          annotations.map((a) => ({
+            ...a,
+            ...(!a.autoCreatedFrom && autoCreatedFrom
+              ? { autoCreatedFrom }
+              : {}),
+          }))
+        );
+        if (rels.length > 0) {
+          await db.relAnnotationMappingCategory.bulkAdd(
+            rels.map((r) => ({ ...r }))
+          );
+        }
+        if (updatedAnnotations?.length > 0) {
+          // Persist preprocessing (e.g. shared-point normalization) by
+          // overwriting the touched annotations with their normalized
+          // rings/cuts.
+          await db.annotations.bulkPut(
+            updatedAnnotations.map((a) => ({ ...a }))
+          );
+        }
+        if (annotationPatches?.length > 0) {
+          // Partial field updates (e.g. offsetZ) on existing annotations,
+          // without touching their points refs — avoids re-persisting
+          // resolved pixel coords.
+          for (const { id, changes } of annotationPatches) {
+            await db.annotations.update(id, changes);
+          }
+        }
       }
-    }
+    );
 
     dispatch(triggerAnnotationsUpdate());
 
