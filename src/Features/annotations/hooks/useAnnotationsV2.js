@@ -80,29 +80,69 @@ const _annotationsRowsCache = new Map(); // queryKey -> Promise<rows[]>
 const _pointsRowsCache = new Map(); // pointId -> row | null
 const _pointsInflightFetches = new Map(); // pointId -> Promise<row | null>
 let _pointsCacheGeneration = 0;
+// Set by the table hooks below (they only fire for THIS tab's writes) and
+// consumed by the storagemutated listener: a mutation event preceded by a
+// local hook means the caches were already precisely invalidated — skipping
+// the full clear preserves the points cache across local commits (clearing
+// it forced a full ~N-thousand-point refetch on EVERY commit, which was the
+// main source of IDB contention during drag/draw commits).
+let _sawLocalWrite = false;
 
 const _invalidateAnnotationRows = () => {
+  _sawLocalWrite = true;
   _annotationsRowsCache.clear();
 };
 db.annotations.hook("creating", _invalidateAnnotationRows);
 db.annotations.hook("updating", _invalidateAnnotationRows);
 db.annotations.hook("deleting", _invalidateAnnotationRows);
+db.points.hook("creating", (primKey) => {
+  // A point id can be negatively cached (null = "no such row") when a read
+  // raced its creation — drop the stale null so the row becomes visible.
+  _sawLocalWrite = true;
+  _pointsCacheGeneration += 1;
+  _pointsRowsCache.delete(primKey);
+});
 db.points.hook("updating", (mods, primKey) => {
+  _sawLocalWrite = true;
   _pointsCacheGeneration += 1;
   _pointsRowsCache.delete(primKey);
 });
 db.points.hook("deleting", (primKey) => {
+  _sawLocalWrite = true;
   _pointsCacheGeneration += 1;
   _pointsRowsCache.delete(primKey);
 });
-// creating: a new point id is simply absent from the cache → fetched.
+// Other tables' local writes also fire storagemutated: flag them too so the
+// listener below doesn't wipe the caches for unrelated local commits.
+["listings", "layers", "files", "annotationTemplates", "entities"].forEach(
+  (t) => {
+    try {
+      db[t]?.hook("creating", () => {
+        _sawLocalWrite = true;
+      });
+      db[t]?.hook("updating", () => {
+        _sawLocalWrite = true;
+      });
+      db[t]?.hook("deleting", () => {
+        _sawLocalWrite = true;
+      });
+    } catch {
+      /* table may not exist */
+    }
+  }
+);
 
 try {
   // Fires on every committed write, including from other tabs (it is the
-  // same signal Dexie uses to re-run liveQueries cross-tab). For same-tab
-  // writes the hooks above already did a finer-grained invalidation; the
-  // extra clear here is harmless (caches repopulate once on the next run).
+  // same signal Dexie uses to re-run liveQueries cross-tab). Local writes
+  // were already precisely invalidated by the hooks above (which run first,
+  // synchronously during the write) — only foreign (cross-tab) mutations
+  // need the full clear.
   Dexie.on("storagemutated", () => {
+    if (_sawLocalWrite) {
+      _sawLocalWrite = false;
+      return;
+    }
     _annotationsRowsCache.clear();
     _pointsCacheGeneration += 1;
     _pointsRowsCache.clear();

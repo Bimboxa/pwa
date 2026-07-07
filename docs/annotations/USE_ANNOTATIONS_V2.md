@@ -56,8 +56,8 @@ Two module-level caches in `useAnnotationsV2.js`:
 A Dexie liveQuery re-runs only on writes to tables **its own callback read**. A follower instance that consumed only cached rows would stop observing and go blind. Hence:
 
 - **Observation keep-alive**: every callback starts with `await Promise.all([db.annotations.count(), db.points.count()])` — cheap tracked reads observing the full tables. (Slightly broader than the old per-range observation: writes to *other* base maps now also re-run the queries; they complete fast thanks to the caches.)
-- **Same-tab invalidation**: Dexie table hooks (`creating/updating/deleting`) fire synchronously during the write, *before* any liveQuery re-run reads the cache. Annotations: full clear. Points: per-id delete + generation bump.
-- **Cross-tab invalidation**: table hooks don't fire for other tabs' writes; the global `Dexie.on("storagemutated")` (the same signal that re-runs liveQueries cross-tab) clears everything, best effort. Note `_listingsCache` / `_entitiesCache` predate this and rely on same-tab hooks only.
+- **Same-tab invalidation**: Dexie table hooks (`creating/updating/deleting`) fire synchronously during the write, *before* any liveQuery re-run reads the cache. Annotations: full clear. Points: per-id delete + generation bump — **including `creating`**: a point id can be negatively cached (`null` = "no such row") when a read raced its creation, and the creating hook is what drops that stale null.
+- **Cross-tab invalidation**: table hooks don't fire for other tabs' writes; the global `Dexie.on("storagemutated")` (the same signal that re-runs liveQueries cross-tab) clears everything — but **only for foreign mutations**: local writes set a `_sawLocalWrite` flag in the hooks, and the listener skips the full clear when it is set (they were already precisely invalidated). Without that skip, every local commit wiped the whole points cache and forced a full ~N-thousand-point refetch per commit — the main source of IDB contention during drag/draw commits. Note `_listingsCache` / `_entitiesCache` predate this and rely on same-tab hooks only.
 
 ### Expected debug output
 
