@@ -11,13 +11,14 @@ import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import {
   circleFromThreePoints,
   expandArcsInPath,
+  extractArcCircles,
   typeOf,
 } from "Features/geometry/utils/arcSampling";
 import collapseArcsInPolyline from "Features/geometry/utils/collapseArcsInPolyline";
 import wallToRectRing, {
   segNormal,
-  wallToHollowRings,
 } from "Features/geometry/utils/wallToRectRing";
+import offsetControlPolyline from "Features/geometry/utils/offsetControlPolyline";
 
 import db from "App/db/db";
 
@@ -194,22 +195,29 @@ export default function useWallBoundaries() {
               pts.push({ x: rec.x * width, y: rec.y * height, type: p.type });
           }
         }
+        const isClosed = ann.closeLine === true;
         // Collect source arc circles from the original typed points, before the
-        // arcs are flattened by expandArcsInPath below.
-        for (let k = 0; k + 2 < pts.length; k++) {
-          if (
-            typeOf(pts[k]) !== "circle" &&
-            typeOf(pts[k + 1]) === "circle" &&
-            typeOf(pts[k + 2]) !== "circle"
-          ) {
-            const c = circleFromThreePoints(pts[k], pts[k + 1], pts[k + 2]);
-            if (c) sourceArcCircles.push(c);
+        // arcs are flattened by expandArcsInPath below. A closed ring may carry
+        // a WRAP arc (its "circle" middle is the last point, closing onto the
+        // first) — extractArcCircles is ring-aware and catches it.
+        if (isClosed) {
+          sourceArcCircles.push(...extractArcCircles(pts));
+        } else {
+          for (let k = 0; k + 2 < pts.length; k++) {
+            if (
+              typeOf(pts[k]) !== "circle" &&
+              typeOf(pts[k + 1]) === "circle" &&
+              typeOf(pts[k + 2]) !== "circle"
+            ) {
+              const c = circleFromThreePoints(pts[k], pts[k + 1], pts[k + 2]);
+              if (c) sourceArcCircles.push(c);
+            }
           }
         }
         // Expand S-C-S arcs into straight sample segments before the offset
         // step, so the rest of the pipeline (polygon-clipping union, step
         // removal) continues to see only straight edges.
-        const expanded = expandArcsInPath(pts, ARC_SAMPLES);
+        const expanded = expandArcsInPath(pts, ARC_SAMPLES, isClosed);
         // Filter degenerate zero-length segments
         const filtered = [expanded[0]];
         for (let i = 1; i < expanded.length; i++) {
@@ -227,9 +235,12 @@ export default function useWallBoundaries() {
         if (thicknessPx > maxThicknessPx) maxThicknessPx = thicknessPx;
         walls.push({
           points: filtered,
+          // Original typed control points (S-C-S arcs intact) — the closed-wall
+          // path offsets these directly so arcs stay exact.
+          controlPoints: pts,
           halfWidth: thicknessPx / 2,
           side: ann.topologySide ?? "INT",
-          closed: ann.closeLine === true,
+          closed: isClosed,
         });
       }
 
@@ -246,17 +257,35 @@ export default function useWallBoundaries() {
       const allGroups = [];
 
       // ── 2a. Closed-line walls → outer + inner closed contour ──────────
+      // Offset the TYPED control ring directly (arc-aware, wrap-aware) instead
+      // of the expand→miter-offset→collapse pipeline: an S-C-S arc — including
+      // one that wraps past the ring seam — comes out as an exact concentric
+      // S-C-S arc, with no re-fitting step to miss it.
+      const ringArea = (ring) => {
+        const flat = expandArcsInPath(ring, 8, true);
+        let sum = 0;
+        for (let i = 0; i < flat.length; i++) {
+          const a = flat[i];
+          const b = flat[(i + 1) % flat.length];
+          sum += a.x * b.y - b.x * a.y;
+        }
+        return Math.abs(sum / 2);
+      };
       for (const wall of closedWalls) {
-        const rings = wallToHollowRings(wall.points, wall.halfWidth);
-        if (!rings) continue;
+        const ctrl = wall.controlPoints;
+        if (!ctrl || ctrl.length < 3) continue;
+        const left = offsetControlPolyline(ctrl, wall.halfWidth, true);
+        const right = offsetControlPolyline(ctrl, -wall.halfWidth, true);
+        if (left.length < 3 || right.length < 3) continue;
+        const leftIsOuter = ringArea(left) >= ringArea(right);
         allGroups.push({
           type: "EXT_EXTERIOR",
-          points: rings.outer.map((p) => [p.x, p.y]),
+          typedPoints: leftIsOuter ? left : right,
           closed: true,
         });
         allGroups.push({
           type: "EXT_INTERIOR",
-          points: rings.inner.map((p) => [p.x, p.y]),
+          typedPoints: leftIsOuter ? right : left,
           closed: true,
         });
       }
@@ -329,25 +358,6 @@ export default function useWallBoundaries() {
       const allEntities = [];
 
       for (const group of allGroups) {
-        const pts = group.points;
-        if (!pts || pts.length < 2) continue;
-
-        // Recover arcs on the contour: a straight run that lies on a source
-        // wall's offset circle is collapsed back into an S-C-S arc, so curved
-        // walls produce curved contours instead of faceted segments. Straight
-        // contours stay straight (conservative gates inside collapseArcs...).
-        const units = collapseArcsInPolyline(
-          pts.map(([x, y]) => ({ x, y })),
-          {
-            thicknessPx: maxThicknessPx,
-            sourceArcCircles,
-            // A contour arc is always concentric with the wall arc it offsets;
-            // require that match so straight junction stubs / corners between
-            // merged walls are not mis-fitted as arcs.
-            requireSourceMatch: true,
-          }
-        );
-
         const pointRefs = [];
         const pushRef = (x, y, type) => {
           const id = getOrCreatePoint(x, y);
@@ -355,18 +365,44 @@ export default function useWallBoundaries() {
           if (last && last.id === id) return; // shared boundary vertex
           pointRefs.push({ id, type });
         };
-        if (units.length === 0) {
-          // Degenerate fallback: keep the previous straight behavior.
-          for (const [x, y] of pts) pushRef(x, y, "square");
+
+        if (group.typedPoints) {
+          // Closed-wall contour: already an exact typed control ring — push it
+          // as-is, no arc re-fitting needed.
+          for (const p of group.typedPoints) pushRef(p.x, p.y, typeOf(p));
         } else {
-          for (const unit of units) {
-            if (unit.kind === "arc") {
-              const [a, c, b] = unit.points; // [square, circle, square]
-              pushRef(a.x, a.y, "square");
-              pushRef(c.x, c.y, "circle");
-              pushRef(b.x, b.y, "square");
-            } else {
-              for (const p of unit.points) pushRef(p.x, p.y, "square");
+          const pts = group.points;
+          if (!pts || pts.length < 2) continue;
+
+          // Recover arcs on the contour: a straight run that lies on a source
+          // wall's offset circle is collapsed back into an S-C-S arc, so curved
+          // walls produce curved contours instead of faceted segments. Straight
+          // contours stay straight (conservative gates inside collapseArcs...).
+          const units = collapseArcsInPolyline(
+            pts.map(([x, y]) => ({ x, y })),
+            {
+              thicknessPx: maxThicknessPx,
+              sourceArcCircles,
+              // A contour arc is always concentric with the wall arc it
+              // offsets; require that match so straight junction stubs /
+              // corners between merged walls are not mis-fitted as arcs.
+              requireSourceMatch: true,
+            }
+          );
+
+          if (units.length === 0) {
+            // Degenerate fallback: keep the previous straight behavior.
+            for (const [x, y] of pts) pushRef(x, y, "square");
+          } else {
+            for (const unit of units) {
+              if (unit.kind === "arc") {
+                const [a, c, b] = unit.points; // [square, circle, square]
+                pushRef(a.x, a.y, "square");
+                pushRef(c.x, c.y, "circle");
+                pushRef(b.x, b.y, "square");
+              } else {
+                for (const p of unit.points) pushRef(p.x, p.y, "square");
+              }
             }
           }
         }

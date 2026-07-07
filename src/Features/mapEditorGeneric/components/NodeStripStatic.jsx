@@ -123,16 +123,26 @@ export default function NodeStripStatic({
         // A square→circle→square (S-C-S) triplet renders as two arc halves so the
         // centerline follows the curve (like NodePolylineStatic) instead of
         // peaking at the control point. Each half keeps its own segment index, so
-        // selection / hover / hidden handling is unchanged.
+        // selection / hover / hidden handling is unchanged. On a closed strip the
+        // lookups wrap, so a seam arc — "circle" as last point, closing onto the
+        // first — renders as an arc too.
+        const get = (k) => {
+            if (_closeLine) return points[((k % n) + n) % n];
+            return k >= 0 && k < n ? points[k] : undefined;
+        };
+        const ty = (k) => {
+            if (_closeLine) return types[((k % n) + n) % n];
+            return k >= 0 && k < n ? types[k] : undefined;
+        };
         const segPath = (i) => {
-            const a = points[i];
-            const b = points[i + 1];
+            const a = get(i);
+            const b = get(i + 1);
             const straight = `M ${a.x} ${a.y} L ${b.x} ${b.y}`;
             let triplet = null;
-            if (types[i] === "square" && types[i + 1] === "circle" && types[i + 2] === "square") {
-                triplet = [a, b, points[i + 2]]; // first half: square → circle
-            } else if (types[i] === "circle" && types[i + 1] === "square" && types[i - 1] === "square") {
-                triplet = [points[i - 1], a, b]; // second half: circle → square
+            if (ty(i) === "square" && ty(i + 1) === "circle" && ty(i + 2) === "square") {
+                triplet = [a, b, get(i + 2)]; // first half: square → circle
+            } else if (ty(i) === "circle" && ty(i + 1) === "square" && ty(i - 1) === "square") {
+                triplet = [get(i - 1), a, b]; // second half: circle → square
             }
             if (!triplet) return straight;
             const circ = circleFromThreePoints(triplet[0], triplet[1], triplet[2]);
@@ -154,15 +164,15 @@ export default function NodeStripStatic({
                 isHidden: hiddenSegmentsIdx.includes(i)
             });
         }
-        // Add closing segment for closed strips (kept straight: a seam arc would
-        // need wrap-around triplet detection and is not a real use case here).
+        // Add closing segment for closed strips. segPath wraps, so a seam arc
+        // ("circle" as last point) renders its second half as an arc.
         if (_closeLine && n >= 3) {
             const last = points[n - 1];
             const first = points[0];
             if (last.x !== first.x || last.y !== first.y) {
                 segs.push({
                     index: n - 1,
-                    d: `M ${last.x} ${last.y} L ${first.x} ${first.y}`,
+                    d: segPath(n - 1),
                     isHidden: hiddenSegmentsIdx.includes(n - 1)
                 });
             }

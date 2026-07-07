@@ -15,8 +15,12 @@
 // normal is the tangent rotated +90°, so every cross-section is orthogonal —
 // including arc midpoints and the end caps reached through an arc.
 //
-// Input  : controlPts = [{x, y, type?}, ...] (open polyline, pixel space)
+// Input  : controlPts = [{x, y, type?}, ...] (polyline, pixel space; no
+//          duplicate closing vertex when `closed` is true)
 //          signedDistance = offset distance; positive = left of travel
+//          closed = treat the polyline as a closed ring: the walk wraps, so
+//          the closing primitive — possibly an arc whose "circle" middle is
+//          the LAST array element — contributes tangents to vertex 0.
 // Output : [{x, y, type}, ...] (same length & order as controlPts)
 
 function unit(x, y) {
@@ -46,40 +50,60 @@ function arcTangent(P, center, fwd) {
   return t;
 }
 
-// Per-vertex outward normals (arc-aware) for an open control polyline. Each
+// Sharpest corner the miter correction fully honors: the per-vertex offset
+// vector is capped at MITER_LIMIT × distance so a near-reversal corner does
+// not shoot the offset point to infinity.
+const MITER_LIMIT = 4;
+
+// Per-vertex offset normals (arc-aware) for an open control polyline. Each
 // normal is the averaged forward tangent rotated +90°, giving a consistent
-// "left" side so the offset never twists.
-export function computeControlPolylineNormals(controlPts) {
+// "left" side so the offset never twists. At a corner shared by two straight
+// segments the normal is miter-scaled (1/cos of the half turning angle, capped
+// at MITER_LIMIT) so the offset point stays at `distance` from BOTH adjacent
+// segments — the returned vectors are therefore NOT unit length.
+export function computeControlPolylineNormals(controlPts, closed = false) {
   const n = Array.isArray(controlPts) ? controlPts.length : 0;
   if (n < 2) return [];
 
   const inTan = new Array(n).fill(null);
   const outTan = new Array(n).fill(null);
 
+  const idx = (k) => ((k % n) + n) % n;
+  const at = (k) => controlPts[idx(k)];
+
+  // Walk the primitives. `consumed` counts segment-equivalents (an S-C-S arc
+  // spans 2); a closed ring covers n of them (the closing one wraps to 0), an
+  // open polyline n-1.
   let i = 0;
-  while (i < n - 1) {
-    const isArc = i + 2 <= n - 1 && controlPts[i + 1]?.type === "circle";
-    const center = isArc
-      ? circumcenter(controlPts[i], controlPts[i + 1], controlPts[i + 2])
-      : null;
+  let consumed = 0;
+  const total = closed ? n : n - 1;
+  while (consumed < total) {
+    const isArc =
+      (closed || i + 2 <= n - 1) &&
+      at(i)?.type !== "circle" &&
+      at(i + 1)?.type === "circle" &&
+      at(i + 2)?.type !== "circle";
+    const center = isArc ? circumcenter(at(i), at(i + 1), at(i + 2)) : null;
 
     if (isArc && center) {
-      const A = controlPts[i];
-      const M = controlPts[i + 1];
-      const B = controlPts[i + 2];
-      outTan[i] = arcTangent(A, center, { x: M.x - A.x, y: M.y - A.y });
+      const A = at(i);
+      const M = at(i + 1);
+      const B = at(i + 2);
+      outTan[idx(i)] = arcTangent(A, center, { x: M.x - A.x, y: M.y - A.y });
       const midT = arcTangent(M, center, { x: B.x - A.x, y: B.y - A.y });
-      inTan[i + 1] = midT;
-      outTan[i + 1] = midT;
-      inTan[i + 2] = arcTangent(B, center, { x: B.x - M.x, y: B.y - M.y });
+      inTan[idx(i + 1)] = midT;
+      outTan[idx(i + 1)] = midT;
+      inTan[idx(i + 2)] = arcTangent(B, center, { x: B.x - M.x, y: B.y - M.y });
       i += 2; // the arc end is shared with the next primitive
+      consumed += 2;
     } else {
-      const A = controlPts[i];
-      const B = controlPts[i + 1];
+      const A = at(i);
+      const B = at(i + 1);
       const d = unit(B.x - A.x, B.y - A.y);
-      outTan[i] = d;
-      inTan[i + 1] = d;
+      outTan[idx(i)] = d;
+      inTan[idx(i + 1)] = d;
       i += 1;
+      consumed += 1;
     }
   }
 
@@ -96,19 +120,32 @@ export function computeControlPolylineNormals(controlPts) {
       ty += outTan[k].y;
     }
     let t = unit(tx, ty);
-    // Fold-back guard: if the two tangents cancel, fall back to either one.
-    if (t.x === 0 && t.y === 0) t = inTan[k] || outTan[k] || { x: 1, y: 0 };
-    vertN.push({ x: -t.y, y: t.x });
+    let scale = 1;
+    if (t.x === 0 && t.y === 0) {
+      // Fold-back guard: if the two tangents cancel, fall back to either one.
+      t = inTan[k] || outTan[k] || { x: 1, y: 0 };
+    } else if (inTan[k] && outTan[k]) {
+      // Miter correction: offsetting along the bisector normal by d only puts
+      // the point at d·cos(θ/2) from each segment; divide by that cosine so
+      // the offset polyline stays parallel to the source through corners.
+      const cos = t.x * inTan[k].x + t.y * inTan[k].y;
+      scale = 1 / Math.max(cos, 1 / MITER_LIMIT);
+    }
+    vertN.push({ x: -t.y * scale, y: t.x * scale });
   }
   return vertN;
 }
 
 const typeOf = (p) => (p?.type === "circle" ? "circle" : "square");
 
-export default function offsetControlPolyline(controlPts, signedDistance) {
+export default function offsetControlPolyline(
+  controlPts,
+  signedDistance,
+  closed = false
+) {
   const n = Array.isArray(controlPts) ? controlPts.length : 0;
   if (n < 2) return [];
-  const vertN = computeControlPolylineNormals(controlPts);
+  const vertN = computeControlPolylineNormals(controlPts, closed);
   return controlPts.map((p, k) => ({
     x: p.x + vertN[k].x * signedDistance,
     y: p.y + vertN[k].y * signedDistance,

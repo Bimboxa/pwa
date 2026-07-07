@@ -50,12 +50,14 @@ export default function IconButtonContours({ annotations, accentColor }) {
     const meterByPx = baseMap?.getMeterByPx?.() ?? baseMap?.meterByPx;
     const Wpx = getStripWidthPx(a, meterByPx);
     const orientation = a.stripOrientation ?? 1;
+    const closed = a.closeLine === true;
     // Arc-aware offset (NOT the flat stripEdgeToCenterline) so an S-C-S arc on
     // the strip edge survives as an S-C-S arc on the centerline — otherwise the
     // contour hook sees no source arc and produces a faceted boundary.
     const centerline = offsetControlPolyline(
       a.points ?? [],
-      (orientation * Wpx) / 2
+      (orientation * Wpx) / 2,
+      closed
     );
     return {
       ...a,
@@ -65,7 +67,7 @@ export default function IconButtonContours({ annotations, accentColor }) {
       // halfWidth === Wpx/2 regardless of the strip's original unit.
       strokeWidth: meterByPx > 0 ? Wpx * meterByPx * 100 : Wpx,
       strokeWidthUnit: "CM",
-      closeLine: false,
+      closeLine: closed,
     };
   }
 
