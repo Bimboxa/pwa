@@ -378,6 +378,38 @@ export default function useAnnotationsAutoRun() {
       }
     }
 
+    // Existing outputs (pixel-space footprints, cuts included) of this
+    // procedure's own created categories: a creator procedure uses them to
+    // skip re-creating an annotation that already covers the same area (e.g.
+    // the SOL already produced by a run on another frontier line).
+    let existingTargetPolygons = [];
+    const createdCategories = procedureEntry?.createdMappingCategories ?? [];
+    if (createdCategories.length) {
+      const targetCandidates = (visibleAnnotations ?? []).filter(
+        (a) => a.type === "POLYGON"
+      );
+      const targetTemplateIds = [
+        ...new Set(
+          targetCandidates.map((a) => a.annotationTemplateId).filter(Boolean)
+        ),
+      ];
+      const targetTemplates = targetTemplateIds.length
+        ? (await db.annotationTemplates.bulkGet(targetTemplateIds)).filter(
+            Boolean
+          )
+        : [];
+      const targetCatsById = new Map(
+        targetTemplates.map((t) => [t.id, t.mappingCategories ?? []])
+      );
+      for (const a of targetCandidates) {
+        const cats = targetCatsById.get(a.annotationTemplateId) ?? [];
+        if (!cats.some((c) => createdCategories.includes(c))) continue;
+        for (const poly of getAnnotationAsPolygons(a, { meterByPx })) {
+          if (poly?.points?.length >= 3) existingTargetPolygons.push(poly);
+        }
+      }
+    }
+
     // Water level (absolute 3D-scene altitude) converted to the baseMap's
     // offsetZ space: the baseMap group sits at world Y = position.y (Three.js
     // Y-up; annotation offsetZ maps to the group's local up axis). Only
@@ -402,6 +434,7 @@ export default function useAnnotationsAutoRun() {
       meterByPx,
       imageData,
       maskPolygons,
+      existingTargetPolygons,
       context: {
         projectId,
         baseMapId,
