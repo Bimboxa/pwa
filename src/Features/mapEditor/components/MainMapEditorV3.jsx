@@ -159,6 +159,8 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     useOpeningHotkey();
     // hotkeys — start segment removal (C = Retirer un segment) when not drawing
     useToolGroupHotkey("c", "SPLIT_LINE");
+    // hotkeys — start polyline cut (X = Couper un segment) when not drawing
+    useToolGroupHotkey("x", "SPLIT_POLYLINE_CLICK");
 
     // const
 

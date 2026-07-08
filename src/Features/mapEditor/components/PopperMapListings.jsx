@@ -66,6 +66,7 @@ import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import { StopCircle, Create, AddLocationAlt, AutoFixHigh, RotateRight } from "@mui/icons-material";
 import IconTechnicalReturn from "Features/icons/IconTechnicalReturn";
 import IconCutLine from "Features/icons/IconCutLine";
+import IconSplitPolylineClick from "Features/icons/IconSplitPolylineClick";
 import IconCutSurface from "Features/icons/IconCutSurface";
 import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTemplateIcon";
 import ProcedurePopperContent from "Features/annotationsAuto/components/ProcedurePopperContent";
@@ -179,6 +180,7 @@ function ModeShortcutBadge({ children }) {
 const TOOL_ITEMS = [
   { type: "CUT", label: "Ouverture", Icon: StopCircle, shortcut: "O" },
   { type: "SPLIT_LINE", label: "Retirer un segment", Icon: IconCutLine, shortcut: "C" },
+  { type: "SPLIT_POLYLINE_CLICK", label: "Couper un segment", Icon: IconSplitPolylineClick, shortcut: "X" },
   { type: "SPLIT_SURFACE", label: "Couper des surfaces", Icon: IconCutSurface },
   { type: "TECHNICAL_RETURN", label: "Retour 1m", Icon: IconTechnicalReturn },
   { type: "COMPLETE_ANNOTATION", label: "Prolonger", Icon: Create },
@@ -1536,7 +1538,12 @@ function ListingRow({
 // ---------------------------------------------------------------------------
 
 // Modes that select existing geometry — no smart detect needed
-const SEGMENT_SELECT_MODES = ["TECHNICAL_RETURN", "CUT_SEGMENT", "SPLIT_POLYLINE"];
+const SEGMENT_SELECT_MODES = [
+  "TECHNICAL_RETURN",
+  "CUT_SEGMENT",
+  "SPLIT_POLYLINE",
+  "SPLIT_POLYLINE_CLICK",
+];
 
 // Modes where the "Détection auto" card makes sense — the base drawing
 // tool has a backing detection algorithm (see getEffectiveDetectionMode).
@@ -1734,6 +1741,22 @@ function PopperDrawingHelper() {
             }}
           >
             Cliquez sur un segment pour le supprimer
+          </Box>
+        )}
+        {enabledDrawingMode === "SPLIT_POLYLINE_CLICK" && (
+          <Box
+            sx={{
+              px: 1.5,
+              py: 1.5,
+              borderRadius: 1,
+              bgcolor: "primary.main",
+              color: "primary.contrastText",
+              fontSize: "0.875rem",
+              fontWeight: 600,
+              textAlign: "center",
+            }}
+          >
+            {"Cliquez sur un point le long d'une polyligne pour la couper en 2"}
           </Box>
         )}
         {showSmartDetectCard && (

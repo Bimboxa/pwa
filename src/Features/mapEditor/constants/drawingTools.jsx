@@ -235,10 +235,10 @@ const DRAWING_TOOLS = [
     annotationType: "CUT_SEGMENT",
     behavior: "CUT_SEGMENT",
   },
-  // SPLIT_POLYLINE_CLICK tool (Couper au point — single click)
+  // SPLIT_POLYLINE_CLICK tool (Couper un segment — single click)
   {
     key: "SPLIT_POLYLINE_CLICK",
-    label: "Couper au point",
+    label: "Couper un segment",
     Icon: IconSplitPolylineClick,
     annotationType: "SPLIT_POLYLINE_CLICK",
     behavior: "SPLIT_POLYLINE_CLICK",
@@ -368,6 +368,7 @@ export const DRAWING_TOOLS_BY_TYPE = {
     "CUT_STRIP_SEGMENT",
   ],
   SPLIT_LINE: ["CUT_SEGMENT"],
+  SPLIT_POLYLINE_CLICK: ["SPLIT_POLYLINE_CLICK"],
   SPLIT_SURFACE: ["SPLIT_CLICK"],
   TECHNICAL_RETURN: ["TECHNICAL_RETURN"],
   COMPLETE_ANNOTATION: ["COMPLETE_ANNOTATION"],
