@@ -22,7 +22,7 @@ import DialogDeleteRessource from "Features/layout/components/DialogDeleteRessou
 
 import useAnnotations from "Features/annotations/hooks/useAnnotations";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
-import useDeleteAnnotation from "Features/annotations/hooks/useDeleteAnnotation";
+import useDeleteAnnotations from "Features/annotations/hooks/useDeleteAnnotations";
 import getAnnotationQties from "Features/annotations/utils/getAnnotationQties";
 
 export default function PanelMultiAnnotationProperties() {
@@ -38,7 +38,7 @@ export default function PanelMultiAnnotationProperties() {
   const baseMapId = useSelector((s) => s.mapEditor.selectedBaseMapId);
   const annotations = useAnnotations({ filterByBaseMapId: baseMapId });
   const baseMap = useMainBaseMap();
-  const deleteAnnotation = useDeleteAnnotation();
+  const deleteAnnotations = useDeleteAnnotations();
 
   // state
 
@@ -106,9 +106,12 @@ export default function PanelMultiAnnotationProperties() {
   }
 
   async function handleDeleteConfirm() {
-    for (const annotation of selectedAnnotations) {
-      await deleteAnnotation(annotation.id);
-    }
+    // Same bulk deletion path as the Delete/Backspace key
+    // (DialogDeleteSelectedAnnotation): one transaction, cascades included.
+    const annotationIds = selectedItems
+      .filter((item) => item.nodeId)
+      .map((item) => item.nodeId);
+    await deleteAnnotations(annotationIds);
     dispatch(clearSelection());
     setOpenDeleteDialog(false);
   }
