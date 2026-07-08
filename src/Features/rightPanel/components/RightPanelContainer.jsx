@@ -44,6 +44,9 @@ export default function RightPanelContainer() {
   // data
 
   const selectedKey = useSelector((s) => s.rightPanel.selectedMenuItemKey);
+  const showCreateBaseMapSection = useSelector(
+    (s) => s.mapEditor.showCreateBaseMapSection
+  );
   const fixedWidth = useSelector((s) => s.rightPanel.width);
   const elevationWidth = useSelector((s) => s.rightPanel.elevationWidth);
   const elevationViewerWidth = useSelector(
@@ -106,9 +109,10 @@ export default function RightPanelContainer() {
 
   const height = windowHeight - topBarHeight - bottomBarHeight;
 
-  // helper
+  // helper - the open panel floats over the viewer, so it would mask the
+  // fullscreen create-baseMap section; keep it closed while that section shows.
 
-  const openPanel = Boolean(selectedKey);
+  const openPanel = Boolean(selectedKey) && !showCreateBaseMapSection;
 
   return (
     <Box
