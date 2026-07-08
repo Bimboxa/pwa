@@ -1,6 +1,7 @@
 import pixelToWorld from "Features/threedEditor/js/utilsAnnotationsManager/pixelToWorld";
 import { offsetPolyline } from "Features/geometry/utils/offsetPolylineAsPolygon";
 import { computeOffsetPolyline } from "Features/geometry/utils/wallToRectRing";
+import shrinkPolylineEnds from "Features/geometry/utils/shrinkPolylineEnds";
 import { expandRingWithOffsets } from "Features/geometry/utils/arcSampling";
 import {
   getStripChunks,
@@ -49,7 +50,18 @@ export function getSlopedStripRibbons(annotation) {
 // offsetTop carried on rail A. Rail B (the parallel offset) uses the open miter
 // offset for open ribbons, and the wrapping closed-ring offset (1:1 vertex
 // count) for closed ones. Returns { railA, railB, closeLine } or null.
-export function buildStripRails({ points, distance, closeLine = false }) {
+//
+// `shrinkPx` (opt-in, 3D anti-aliasing only — quantity consumers keep the
+// default 0 so they measure true dimensions) contracts the ribbon uniformly:
+// both rails move toward the band interior by `shrinkPx` (clamped so at least
+// 15% of the band width remains) and, for open ribbons, the ends are trimmed
+// by the same amount. The ribbon stays centered on the original band axis.
+export function buildStripRails({
+  points,
+  distance,
+  closeLine = false,
+  shrinkPx = 0,
+}) {
   if (!points || points.length < 2) return null;
 
   // Expand arcs (carrying offsetTop along the curve), then drop duplicate points
@@ -60,6 +72,32 @@ export function buildStripRails({ points, distance, closeLine = false }) {
       : points;
   const railA = dedupeConsecutive(expanded);
   if (railA.length < 2) return null;
+
+  if (shrinkPx > 0 && Math.abs(distance) > 0) {
+    // `distance` is signed (left-of-travel via stripOrientation), so
+    // `sign * effShrink` always moves the stored edge toward the band interior
+    // and `distance - sign * effShrink` pulls the far edge back symmetrically.
+    const sign = Math.sign(distance) || 1;
+    const effShrink = Math.min(shrinkPx, Math.abs(distance) * 0.425);
+    // End-cap trim first (open ribbons only) — length-preserving, so the
+    // station ↔ offsetTop mapping survives.
+    const base = closeLine ? railA : shrinkPolylineEnds(railA, shrinkPx);
+    const off = (d) =>
+      closeLine
+        ? computeOffsetPolyline(base, d, true)
+        : offsetPolyline(base, d);
+    const a = off(sign * effShrink);
+    const b = off(distance - sign * effShrink);
+    if (a && b && a.length === base.length && b.length === base.length) {
+      // The offset helpers strip offsetTop → copy it back per station.
+      const railAShrunk = a.map((p, i) => ({
+        ...p,
+        offsetTop: base[i].offsetTop,
+      }));
+      return { railA: railAShrunk, railB: b, closeLine };
+    }
+    // Degenerate offset → fall through to the un-shrunk rails.
+  }
 
   const railB = closeLine
     ? computeOffsetPolyline(railA, distance, true)
@@ -89,8 +127,9 @@ export default function buildSlopedStripMesh({
   verticalLift = 0,
   zFightOffset = 0.001,
   closeLine = false,
+  shrinkPx = 0,
 }) {
-  const rails = buildStripRails({ points, distance, closeLine });
+  const rails = buildStripRails({ points, distance, closeLine, shrinkPx });
   if (!rails) return null;
   const { railA, railB } = rails;
   const N = railA.length;

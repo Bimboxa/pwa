@@ -27,6 +27,7 @@ import buildSlopedStripMesh, {
 import wallToRectRing, {
   wallToHollowRings,
 } from "Features/geometry/utils/wallToRectRing";
+import shrinkPolylineEnds from "Features/geometry/utils/shrinkPolylineEnds";
 import {
   expandArcsInPath,
   expandArcsInPathWithHiddenMap,
@@ -96,42 +97,29 @@ function attachPointTraitRaycast(line, localStart, localEnd) {
   };
 }
 
-// Reduce the rendered wall thickness slightly so its mesh doesn't z-fight
-// with overlay annotations laid on top of it later (e.g. wall coverings).
-const THICKNESS_SAFETY_FACTOR = 0.95;
-
 // Factor applied to back-faces (the interior of a cavity / CSG-carved dome) so
 // the inner wall seen through an opening reads as "inside" instead of blending
 // into the exterior. 1 = no darkening.
 const INTERIOR_DARKEN_FACTOR = 0.5;
 
-// Inward contraction (per side) applied to CM-width POLYLINE footprints when
-// the "Réduire le crénelage des parements" setting is on, so a parement drawn
+// Fixed inward contraction (per side, in real-world mm) applied to every
+// POLYLINE / STRIP footprint (walls, flat bands, sloped ribbons) when the
+// "Réduire le crénelage des parements" setting is on, so a parement drawn
 // flush against a wall no longer shares a coplanar face (kills the aliasing
-// shimmer). Applied as a half-width reduction + open-polyline end trim.
+// shimmer). Uniform on lateral faces AND end caps, symmetric about the
+// element axis; the geometry stays at true drawn dimensions when the setting
+// is off.
 const ANTI_ALIASING_SHRINK_MM = 5;
 
-// Move the first/last point of an open polyline inward along its own end
-// segment by `shrinkPx`, clamped to 40% of that segment so it never crosses
-// the adjacent vertex. Preserves array length (and thus the per-vertex
-// offsetBottom/offsetTop mapping the caller relies on).
-function shrinkPolylineEnds(points, shrinkPx) {
-  if (shrinkPx <= 0 || points.length < 2) return points;
-  const out = points.map((p) => ({ ...p }));
-  const move = (fromIdx, towardIdx) => {
-    const a = out[fromIdx];
-    const b = out[towardIdx];
-    const dx = b.x - a.x;
-    const dy = b.y - a.y;
-    const len = Math.hypot(dx, dy);
-    if (len < 1e-6) return;
-    const d = Math.min(shrinkPx, len * 0.4);
-    a.x += (dx / len) * d;
-    a.y += (dy / len) * d;
-  };
-  move(0, 1);
-  move(points.length - 1, points.length - 2);
-  return out;
+// Never remove more than 85% of a band's half-width so a thin element still
+// shrinks partially instead of collapsing / inverting.
+const SHRINK_MIN_HALF_WIDTH_RATIO = 0.15;
+
+// Convert the mm setting to pixels for a given baseMap scale (0 when off).
+function getAntiAliasingShrinkPx(options, meterByPx) {
+  return options?.antiAliasingShrink && meterByPx > 0
+    ? ANTI_ALIASING_SHRINK_MM / 1000 / meterByPx
+    : 0;
 }
 
 // Strip the alpha suffix from #RRGGBBAA hex strings so THREE.Color accepts them.
@@ -241,11 +229,18 @@ function stripHasElevation(annotation) {
 // clipping so the elevation survives and each station yields a real transverse
 // edge → clean horizontal↔slope junctions). Handles closed strips as a wrapping
 // loop ribbon. Returns null when no ribbon can be built (caller falls back).
-function buildSlopedStripGroup(annotation, baseMap, material, verticalLift) {
+function buildSlopedStripGroup(
+  annotation,
+  baseMap,
+  material,
+  verticalLift,
+  options
+) {
   const ribbons = getSlopedStripRibbons(annotation);
   if (!ribbons.length) return null;
 
   const distance = getStripDistancePx(annotation, baseMap.meterByPx);
+  const shrinkPx = getAntiAliasingShrinkPx(options, baseMap.meterByPx);
 
   const group = new Group();
   const foldSegments = [];
@@ -266,6 +261,7 @@ function buildSlopedStripGroup(annotation, baseMap, material, verticalLift) {
       baseMap,
       verticalLift,
       closeLine,
+      shrinkPx,
     });
     if (!built) return;
     const geometry = new BufferGeometry();
@@ -316,10 +312,9 @@ function buildSlopedStripGroup(annotation, baseMap, material, verticalLift) {
 // Extrude a CM-width STRIP as a wall: convert the stored band edge to its
 // centerline (same offset geometry as the "Basculer ligne ↔ bande" tool:
 // centerline = offset(edge, orientation * W/2)) and reuse extrudeWallPolygon,
-// so the strip gets the same slightly-thinner footprint as CM polylines
-// (THICKNESS_SAFETY_FACTOR + optional anti-aliasing shrink). Arcs are
-// tessellated BEFORE offsetting (the offset output carries no arc type), with
-// the same sample count as the 2D footprint so both stay in sync.
+// so the strip gets the same optional anti-aliasing shrink as CM polylines.
+// Arcs are tessellated BEFORE offsetting (the offset output carries no arc
+// type), with the same sample count as the 2D footprint so both stay in sync.
 function extrudeStripAsWall(
   annotation,
   baseMap,
@@ -368,12 +363,29 @@ function extrudeStripAsWall(
   return group.children.length > 0 ? group : null;
 }
 
+// Uniformly inset a resolved strip polygon by `shrinkPx` on every edge: outer
+// ring inward, holes outward (offsetPolygon is winding-normalized, so the
+// signs are absolute), which contracts lateral faces and end caps alike.
+// Falls back to the original ring when the inset degenerates (tiny polygon):
+// better a coplanar face than a missing volume.
+function insetStripPolygon(poly, shrinkPx) {
+  const outer = offsetPolygon(poly.points, -shrinkPx);
+  const points = outer && outer.length >= 3 ? outer : poly.points;
+  const cuts = (poly.cuts || []).map((cut) => {
+    if ((cut?.points?.length ?? 0) < 3) return cut;
+    const grown = offsetPolygon(cut.points, shrinkPx);
+    return grown && grown.length >= 3 ? { ...cut, points: grown } : cut;
+  });
+  return { ...poly, points, cuts };
+}
+
 // Resolve a STRIP annotation into closed polygons and extrude each one.
 // Mirrors what NodeStripStatic does in 2D so the 3D matches the visible 2D
 // footprint (closeLine, hiddenSegmentsIdx, cuts). CM-width strips with a
 // height take the wall path instead (extrudeStripAsWall) so they get the same
-// anti z-fighting thickness reduction as CM polylines — except when the strip
-// carries cuts (openings), which extrudeWallPolygon can't represent.
+// anti-aliasing shrink as CM polylines — except when the strip carries cuts
+// (openings), which extrudeWallPolygon can't represent (those go through the
+// footprint path, which applies the same shrink via insetStripPolygon).
 function extrudeStripPolygons(
   annotation,
   baseMap,
@@ -389,7 +401,8 @@ function extrudeStripPolygons(
       annotation,
       baseMap,
       material,
-      verticalLift
+      verticalLift,
+      options
     );
     if (sloped) return sloped;
   }
@@ -418,8 +431,23 @@ function extrudeStripPolygons(
 
   const polys = getStripePolygons(annotation, baseMap.meterByPx, true);
   if (!polys || polys.length === 0) return null;
+
+  // Same anti-aliasing shrink as the wall path, applied to the resolved
+  // footprint: uniform inset on every edge (lateral faces AND end caps),
+  // clamped by the band width so a thin band never collapses.
+  const shrinkPx = getAntiAliasingShrinkPx(options, baseMap.meterByPx);
+  const distancePx = Math.abs(
+    getStripDistancePx(annotation, baseMap.meterByPx)
+  );
+  const effShrink =
+    distancePx > 0
+      ? Math.min(shrinkPx, distancePx * (0.5 - SHRINK_MIN_HALF_WIDTH_RATIO / 2))
+      : shrinkPx;
+  const shaped =
+    effShrink > 0 ? polys.map((p) => insetStripPolygon(p, effShrink)) : polys;
+
   const group = new Group();
-  polys.forEach((poly) => {
+  shaped.forEach((poly) => {
     const pts = pointsToLocal(poly.points || [], baseMap);
     const cuts = (poly.cuts || [])
       .map((cut) => pointsToLocal(cut.points || [], baseMap))
@@ -466,24 +494,23 @@ function extrudeWallPolygon(
   }
   if (filtered.length < 2) return null;
 
-  const strokeWidthCm =
-    (annotation.strokeWidth ?? 10) * THICKNESS_SAFETY_FACTOR;
+  const strokeWidthCm = annotation.strokeWidth ?? 10;
   const meterByPx = baseMap.meterByPx;
   if (!meterByPx || meterByPx <= 0) return null;
   const thicknessPx = strokeWidthCm / (meterByPx * 100);
   const halfWidth = thicknessPx / 2;
 
   // Contract the footprint inward so a parement flush against a wall no longer
-  // shares a coplanar face (z-fighting / aliasing). Done the cheap way: pull
-  // each side in by `shrinkPx` (half-width reduction) and, for open polylines,
-  // trim the two end caps inward by the same amount. Clamped so it never
-  // collapses / inverts a thin wall.
-  const shrinkPx = options?.antiAliasingShrink
-    ? ANTI_ALIASING_SHRINK_MM / 1000 / meterByPx
-    : 0;
-  const effHalfWidth =
-    halfWidth - shrinkPx > halfWidth * 0.15 ? halfWidth - shrinkPx : halfWidth;
-  const applyShrink = shrinkPx > 0 && effHalfWidth < halfWidth;
+  // shares a coplanar face (z-fighting / aliasing): pull each side in by
+  // `shrinkPx` (half-width reduction, symmetric about the centerline) and, for
+  // open polylines, trim the two end caps inward by the same amount. Clamped
+  // so a thin wall still shrinks partially but never collapses / inverts.
+  const shrinkPx = getAntiAliasingShrinkPx(options, meterByPx);
+  const effHalfWidth = Math.max(
+    halfWidth - shrinkPx,
+    halfWidth * SHRINK_MIN_HALF_WIDTH_RATIO
+  );
+  const applyShrink = shrinkPx > 0;
 
   // Closed centerline → hollow ring (outer contour + inner contour as a hole),
   // so the wall renders as a closed loop instead of a U. Per-vertex offsets are
