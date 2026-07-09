@@ -41,6 +41,7 @@ export default function useCreateAnnotation() {
 
   return async (annotation, options) => {
     try {
+      const _tca0 = performance.now();
       // options
 
       const entityId = options?.entityId;
@@ -94,6 +95,7 @@ export default function useCreateAnnotation() {
         }
       }
 
+      const _tca1 = performance.now();
       await createEntity(_annotation, {
         listing: { id: _annotation.listingId, table: "annotations" },
         tx: {
@@ -111,6 +113,10 @@ export default function useCreateAnnotation() {
           },
         },
       });
+
+      console.log(
+        `[debug_perf] createAnnotation: ${(performance.now() - _tca0).toFixed(1)}ms | rels ${(_tca1 - _tca0).toFixed(1)} | createEntity ${(performance.now() - _tca1).toFixed(1)}`
+      );
 
       dispatch(triggerAnnotationsUpdate());
       dispatch(triggerAnnotationTemplatesUpdate());
