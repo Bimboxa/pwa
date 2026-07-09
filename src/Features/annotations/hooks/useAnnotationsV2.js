@@ -413,7 +413,12 @@ export default function useAnnotationsV2(options) {
       // while count() walks the whole index range: with 7 instances × 2
       // reads all firing on the same commit, the counts serialized on IDB
       // for ~500ms per wave on slow-IDB machines.
-      {
+      // And they are OFF the critical path: observation registers when the
+      // read is ISSUED (inside this liveQuery zone), so the promise is only
+      // awaited at the very end of the callback — the reads run in parallel
+      // with the shared-cache work instead of gating it.
+      let _obsDoneAt = 0;
+      const _obsPromise = (async () => {
         const obsBaseMapIds = [baseMapId, ...extraBaseMapIds].filter(Boolean);
         if (obsBaseMapIds.length > 0) {
           await Promise.all([
@@ -455,10 +460,14 @@ export default function useAnnotationsV2(options) {
               .primaryKeys(),
           ]);
         }
-      }
+        _obsDoneAt = performance.now();
+      })();
+      // Suppress unhandled-rejection noise if the callback throws elsewhere
+      // first; the await at the end still propagates a real obs failure.
+      _obsPromise.catch(() => {});
 
       const _t0 = performance.now();
-      const _obsMs = _t0 - _tStart;
+      const _obsMs = () => (_obsDoneAt ? _obsDoneAt - _tStart : NaN);
       // annotations
 
       // NOTE: points are fetched AFTER all annotation filtering (below), by
@@ -1203,7 +1212,7 @@ export default function useAnnotationsV2(options) {
       const _t6 = performance.now();
       console.log(
         `[debug_perf] useAnnotationsV2 [${_caller}] (${_annotations?.length ?? 0} annotations):\n` +
-          `  obs reads:      ${_obsMs.toFixed(1)}ms\n` +
+          `  obs reads:      ${_obsMs().toFixed(1)}ms (overlapped)\n` +
           `  DB fetch:       ${(_t1 - _t0).toFixed(1)}ms (${listingsIds.length} listingIds${_annRowsSharedHit ? ", shared rows hit" : ", shared rows MISS"})\n` +
           `  filters:        ${(_t2 - _t1).toFixed(1)}ms\n` +
           `  listings total: ${(_t3 - _t2).toFixed(1)}ms  [db.listings: ${(_t2b - _t2a).toFixed(1)}ms (${listings.length} found) | filters+scope: ${(_t2c - _t2b).toFixed(1)}ms | db.layers+sort: ${(_t3 - _t2c).toFixed(1)}ms]\n` +
@@ -1562,6 +1571,11 @@ export default function useAnnotationsV2(options) {
           };
         }
       }
+
+      // Observation reads were fired at the top of the callback — settle
+      // them before returning so tracking is guaranteed registered and a
+      // real read failure still surfaces.
+      await _obsPromise;
 
       return _annotations;
     }, [
