@@ -4,14 +4,23 @@ import { useSelector } from "react-redux";
 import useAnnotationTemplates from "../hooks/useAnnotationTemplates";
 import useListings from "Features/listings/hooks/useListings";
 import useWallBoundaries from "Features/smartDetect/hooks/useWallBoundaries";
+import usePolygonContours from "Features/smartDetect/hooks/usePolygonContours";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import { resolveDrawingShape } from "../constants/drawingShapeConfig";
 import { getStripWidthPx } from "../utils/convertStripPolyline";
 import offsetControlPolyline from "Features/geometry/utils/offsetControlPolyline";
 
-import { CircularProgress, IconButton, Menu, Tooltip } from "@mui/material";
+import {
+  Box,
+  CircularProgress,
+  IconButton,
+  Menu,
+  Tooltip,
+  Typography,
+} from "@mui/material";
 
 import SelectorAnnotationTemplateVariantDense from "./SelectorAnnotationTemplateVariantDense";
+import ToggleSingleSelectorGeneric from "Features/layout/components/ToggleSingleSelectorGeneric";
 import IconContours from "Features/icons/IconContours";
 
 export default function IconButtonContours({ annotations, accentColor }) {
@@ -20,6 +29,7 @@ export default function IconButtonContours({ annotations, accentColor }) {
   const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
   const allTemplates = useAnnotationTemplates({ sortByLabel: true });
   const computeBoundaries = useWallBoundaries();
+  const computePolygonContours = usePolygonContours();
   const baseMap = useMainBaseMap();
   const { value: listings } = useListings({
     filterByScopeId: selectedScopeId,
@@ -31,6 +41,7 @@ export default function IconButtonContours({ annotations, accentColor }) {
 
   const [anchorEl, setAnchorEl] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [contourType, setContourType] = useState("POLYLINE");
   const open = Boolean(anchorEl);
 
   // helpers
@@ -42,6 +53,8 @@ export default function IconButtonContours({ annotations, accentColor }) {
   const wallCandidates = annotations?.filter((a) =>
     ["POLYLINE", "STRIP"].includes(a.type)
   );
+
+  const polygonCandidates = annotations?.filter((a) => a.type === "POLYGON");
 
   // A STRIP stores one edge of the band: feed the contours algorithm its
   // centerline + the band thickness so the produced boundaries hug both edges.
@@ -82,15 +95,29 @@ export default function IconButtonContours({ annotations, accentColor }) {
 
   async function handleTemplateChange(annotationTemplateId) {
     const template = allTemplates?.find((t) => t.id === annotationTemplateId);
-    if (!template || !wallCandidates?.length) return;
+    if (!template || (!wallCandidates?.length && !polygonCandidates?.length))
+      return;
     setLoading(true);
     handleClose();
     try {
-      const result = await computeBoundaries({
-        wallAnnotations: wallCandidates.map(toWallPolyline),
-        boundaryAnnotationTemplate: template,
-      });
-      console.log(`[Contours] ${result.count} boundary annotations created`);
+      let count = 0;
+      if (wallCandidates?.length) {
+        const result = await computeBoundaries({
+          wallAnnotations: wallCandidates.map(toWallPolyline),
+          boundaryAnnotationTemplate: template,
+          outputType: contourType,
+        });
+        count += result.count;
+      }
+      if (polygonCandidates?.length) {
+        const result = await computePolygonContours({
+          polygonAnnotations: polygonCandidates,
+          boundaryAnnotationTemplate: template,
+          outputType: contourType,
+        });
+        count += result.count;
+      }
+      console.log(`[Contours] ${count} contour annotations created`);
     } catch (e) {
       console.error("[Contours]", e);
     } finally {
@@ -107,7 +134,9 @@ export default function IconButtonContours({ annotations, accentColor }) {
           <IconButton
             size="small"
             onClick={handleOpen}
-            disabled={loading || !wallCandidates?.length}
+            disabled={
+              loading || (!wallCandidates?.length && !polygonCandidates?.length)
+            }
             sx={{
               color: "text.disabled",
               "&:hover": { color: accentColor, bgcolor: accentColor + "18" },
@@ -129,6 +158,19 @@ export default function IconButtonContours({ annotations, accentColor }) {
         anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
         transformOrigin={{ vertical: "top", horizontal: "right" }}
       >
+        <Box sx={{ px: 2, py: 1 }}>
+          <Typography variant="body2" sx={{ fontWeight: "bold", mb: 1 }}>
+            Type du contour
+          </Typography>
+          <ToggleSingleSelectorGeneric
+            selectedKey={contourType}
+            options={[
+              { key: "STRIP", label: "Bande" },
+              { key: "POLYLINE", label: "Polyline" },
+            ]}
+            onChange={(v) => setContourType(v ?? "POLYLINE")}
+          />
+        </Box>
         <SelectorAnnotationTemplateVariantDense
           selectedAnnotationTemplateId={null}
           onChange={handleTemplateChange}

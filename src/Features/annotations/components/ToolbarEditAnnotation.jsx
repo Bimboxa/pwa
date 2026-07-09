@@ -949,7 +949,9 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
                     accentColor={accentColor}
                   />
                 )}
-                {["POLYLINE", "STRIP"].includes(selectedAnnotation?.type) && (
+                {["POLYLINE", "STRIP", "POLYGON"].includes(
+                  selectedAnnotation?.type
+                ) && (
                   <IconButtonContours
                     annotations={[selectedAnnotation]}
                     accentColor={accentColor}

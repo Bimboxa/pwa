@@ -1,5 +1,4 @@
 import { useCallback } from "react";
-import { nanoid } from "@reduxjs/toolkit";
 import { useSelector, useDispatch } from "react-redux";
 import polygonClipping from "polygon-clipping";
 
@@ -9,11 +8,13 @@ import { triggerEntitiesTableUpdate } from "Features/entities/entitiesSlice";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 
 import {
+  arcUnitsToTypedPoints,
   circleFromThreePoints,
   expandArcsInPath,
   extractArcCircles,
   typeOf,
 } from "Features/geometry/utils/arcSampling";
+import createContourAnnotationsService from "Features/annotations/services/createContourAnnotationsService";
 import collapseArcsInPolyline from "Features/geometry/utils/collapseArcsInPolyline";
 import wallToRectRing, {
   segNormal,
@@ -139,23 +140,16 @@ export default function useWallBoundaries() {
   const baseMap = useMainBaseMap();
 
   const computeBoundaries = useCallback(
-    async ({ wallAnnotations, boundaryAnnotationTemplate }) => {
+    async ({
+      wallAnnotations,
+      boundaryAnnotationTemplate,
+      outputType = "POLYLINE",
+    }) => {
       if (!wallAnnotations?.length || !boundaryAnnotationTemplate) {
         throw new Error(
           "wallAnnotations and boundaryAnnotationTemplate are required"
         );
       }
-
-      // Boundary annotations belong to the listing that OWNS the chosen
-      // template, not to whatever listing happens to be selected (the wall
-      // listing, the free-annotations listing, ...). Otherwise the contour
-      // annotations land in the wrong listing and their template's quantity
-      // never shows up in that listing's viewer.
-      const listingId = boundaryAnnotationTemplate.listingId;
-      if (!listingId) {
-        throw new Error("boundaryAnnotationTemplate has no listingId");
-      }
-      const targetListing = await db.listings.get(listingId);
 
       const imageSize = baseMap?.getImageSize?.();
       const { width, height } = imageSize ?? {};
@@ -338,38 +332,20 @@ export default function useWallBoundaries() {
       if (allGroups.length === 0)
         throw new Error("No boundary contours produced");
 
-      // ── 6. Create boundary annotations ────────────────────────────────
-      const entityTable =
-        targetListing?.table ?? targetListing?.entityModel?.defaultTable;
-
-      const SNAP_TOLERANCE = 3;
-      const pointIndex = new Map();
-      const coordKey = (x, y) =>
-        `${Math.round(x / SNAP_TOLERANCE)},${Math.round(y / SNAP_TOLERANCE)}`;
-      const getOrCreatePoint = (pxX, pxY) => {
-        const key = coordKey(pxX, pxY);
-        if (pointIndex.has(key)) return pointIndex.get(key).id;
-        const pointId = nanoid();
-        pointIndex.set(key, { id: pointId, nx: pxX / width, ny: pxY / height });
-        return pointId;
-      };
-
-      const allAnnotations = [];
-      const allEntities = [];
+      // ── 6. Convert groups to typed points ─────────────────────────────
+      const serviceGroups = [];
 
       for (const group of allGroups) {
-        const pointRefs = [];
-        const pushRef = (x, y, type) => {
-          const id = getOrCreatePoint(x, y);
-          const last = pointRefs[pointRefs.length - 1];
-          if (last && last.id === id) return; // shared boundary vertex
-          pointRefs.push({ id, type });
-        };
+        let typedPoints;
 
         if (group.typedPoints) {
-          // Closed-wall contour: already an exact typed control ring — push it
+          // Closed-wall contour: already an exact typed control ring — pass it
           // as-is, no arc re-fitting needed.
-          for (const p of group.typedPoints) pushRef(p.x, p.y, typeOf(p));
+          typedPoints = group.typedPoints.map((p) => ({
+            x: p.x,
+            y: p.y,
+            type: typeOf(p),
+          }));
         } else {
           const pts = group.points;
           if (!pts || pts.length < 2) continue;
@@ -390,82 +366,36 @@ export default function useWallBoundaries() {
             }
           );
 
-          if (units.length === 0) {
-            // Degenerate fallback: keep the previous straight behavior.
-            for (const [x, y] of pts) pushRef(x, y, "square");
-          } else {
-            for (const unit of units) {
-              if (unit.kind === "arc") {
-                const [a, c, b] = unit.points; // [square, circle, square]
-                pushRef(a.x, a.y, "square");
-                pushRef(c.x, c.y, "circle");
-                pushRef(b.x, b.y, "square");
-              } else {
-                for (const p of unit.points) pushRef(p.x, p.y, "square");
-              }
-            }
-          }
-        }
-        if (pointRefs.length < 2) continue;
-
-        let entityId;
-        if (entityTable) {
-          entityId = nanoid();
-          allEntities.push({ id: entityId, listingId, projectId });
+          typedPoints =
+            units.length === 0
+              ? // Degenerate fallback: keep the previous straight behavior.
+                pts.map(([x, y]) => ({ x, y, type: "square" }))
+              : arcUnitsToTypedPoints(units);
         }
 
-        allAnnotations.push({
-          id: nanoid(),
-          type: "POLYLINE",
-          annotationTemplateId: boundaryAnnotationTemplate.id,
-          strokeColor: boundaryAnnotationTemplate.strokeColor,
-          strokeType: boundaryAnnotationTemplate.strokeType ?? "SOLID",
-          strokeOpacity: boundaryAnnotationTemplate.strokeOpacity ?? 1,
-          strokeWidth: boundaryAnnotationTemplate.strokeWidth ?? 2,
-          strokeWidthUnit: boundaryAnnotationTemplate.strokeWidthUnit ?? "PX",
-          closeLine: group.closed === true,
-          entityId,
-          baseMapId,
-          projectId,
-          listingId,
-          ...(activeLayerId ? { layerId: activeLayerId } : {}),
+        serviceGroups.push({
+          typedPoints,
+          closed: group.closed === true,
           boundaryType: group.type,
-          points: pointRefs,
         });
       }
 
-      // ── 7. Bulk write ─────────────────────────────────────────────────
-      const allPoints = [];
-      for (const entry of pointIndex.values()) {
-        allPoints.push({
-          id: entry.id,
-          x: entry.nx,
-          y: entry.ny,
-          baseMapId,
-          projectId,
-          listingId,
-          forMarker: false,
-        });
-      }
-
-      const tables = [db.points, db.annotations];
-      if (entityTable && allEntities.length > 0) tables.push(db[entityTable]);
-
-      await db.transaction("rw", tables, async () => {
-        if (allPoints.length > 0) await db.points.bulkAdd(allPoints);
-        if (entityTable && allEntities.length > 0)
-          await db[entityTable].bulkAdd(allEntities);
-        if (allAnnotations.length > 0)
-          await db.annotations.bulkAdd(allAnnotations);
+      // ── 7. Persist (points dedup grid + bulk write in one transaction) ─
+      const { count, entityTable } = await createContourAnnotationsService({
+        groups: serviceGroups,
+        boundaryAnnotationTemplate,
+        outputType,
+        baseMapId,
+        projectId,
+        activeLayerId,
+        imageSize,
       });
 
       dispatch(triggerAnnotationsUpdate());
       if (entityTable) dispatch(triggerEntitiesTableUpdate(entityTable));
 
-      console.log(
-        `[useWallBoundaries] Created ${allAnnotations.length} boundary annotations`
-      );
-      return { count: allAnnotations.length };
+      console.log(`[useWallBoundaries] Created ${count} boundary annotations`);
+      return { count };
     },
     [baseMap, baseMapId, projectId, activeLayerId, dispatch]
   );
