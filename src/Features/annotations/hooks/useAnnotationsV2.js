@@ -1,4 +1,4 @@
-import { useMemo, useRef } from "react";
+import { useMemo, useRef, useSyncExternalStore } from "react";
 import Dexie from "dexie";
 import { useLiveQuery } from "dexie-react-hooks";
 
@@ -74,7 +74,18 @@ let _lastMissingPointsWarnCount = null;
 //   AFTER an invalidation never writes its stale rows into the cache;
 // - consumers COPY the shared annotations array before filtering/sorting;
 //   the row objects themselves are treated as immutable downstream
-//   (resolve/enrich steps all spread into new objects).
+//   (resolve/enrich steps all spread into new objects);
+// - Dexie's overlap-based re-run signal is NOT sufficient on its own: the
+//   scoped observation counts subscribe to an index range + :dels, never to
+//   row primary keys, while an update that only touches NON-indexed fields
+//   (annotation.points/cuts…, point x/y) marks ONLY the row's primary key —
+//   no overlap, so follower instances (served from the shared caches, hence
+//   without pk subscriptions of their own) would never re-run. The
+//   _dbWriteTick below (bumped at commit time by the storagemutated
+//   listener for annotations/points writes) is a React-side dep of every
+//   instance's liveQuery, restoring the "every instance re-runs on every
+//   annotations/points write" contract the pre-scoped unfiltered count()
+//   used to provide.
 
 const _annotationsRowsCache = new Map(); // queryKey -> Promise<rows[]>
 const _pointsRowsCache = new Map(); // pointId -> row | null
@@ -87,6 +98,24 @@ let _pointsCacheGeneration = 0;
 // it forced a full ~N-thousand-point refetch on EVERY commit, which was the
 // main source of IDB contention during drag/draw commits).
 let _sawLocalWrite = false;
+
+// Commit-time re-run signal (see "Reactivity contract" above): bumped by the
+// storagemutated listener whenever a committed write touched db.annotations
+// or db.points, and consumed by every hook instance as a liveQuery dep via
+// useSyncExternalStore.
+let _dbWriteTick = 0;
+const _dbWriteTickListeners = new Set();
+const _subscribeDbWriteTick = (cb) => {
+  _dbWriteTickListeners.add(cb);
+  return () => _dbWriteTickListeners.delete(cb);
+};
+const _getDbWriteTick = () => _dbWriteTick;
+const _bumpDbWriteTick = () => {
+  _dbWriteTick += 1;
+  _dbWriteTickListeners.forEach((cb) => cb());
+};
+const useDbWriteTick = () =>
+  useSyncExternalStore(_subscribeDbWriteTick, _getDbWriteTick);
 
 const _invalidateAnnotationRows = () => {
   _sawLocalWrite = true;
@@ -138,14 +167,25 @@ try {
   // were already precisely invalidated by the hooks above (which run first,
   // synchronously during the write) — only foreign (cross-tab) mutations
   // need the full clear.
-  Dexie.on("storagemutated", () => {
+  Dexie.on("storagemutated", (parts) => {
     if (_sawLocalWrite) {
       _sawLocalWrite = false;
-      return;
+    } else {
+      _annotationsRowsCache.clear();
+      _pointsCacheGeneration += 1;
+      _pointsRowsCache.clear();
     }
-    _annotationsRowsCache.clear();
-    _pointsCacheGeneration += 1;
-    _pointsRowsCache.clear();
+    // Part keys look like `idb://<dbName>/<tableName>/<indexName>` — bump the
+    // re-run tick only for writes touching the tables this hook resolves.
+    // A missing parts payload is treated as "may touch anything".
+    const touchesObservedTables =
+      !parts ||
+      Object.keys(parts).some(
+        (k) =>
+          k.startsWith(`idb://${db.name}/annotations/`) ||
+          k.startsWith(`idb://${db.name}/points/`)
+      );
+    if (touchesObservedTables) _bumpDbWriteTick();
   });
 } catch {
   // best effort — same-tab hooks above remain the primary invalidation
@@ -303,6 +343,14 @@ export default function useAnnotationsV2(options) {
     // db.listings, db.layers, db.files, db.annotationTemplates, entity
     // tables), including bulk writes and _skipOwnershipGuard/system writes —
     // keeping the tick as a dep made every commit run the query twice.
+    //
+    // The module-level _dbWriteTick IS a dep though: Dexie's native overlap
+    // check misses updates that only change non-indexed fields on rows this
+    // instance consumed from the shared caches (see "Reactivity contract" in
+    // the module header), so every committed annotations/points write must
+    // force a re-run from the React side.
+
+    const dbWriteTick = useDbWriteTick();
 
     const hiddenLayerIds = useSelector((s) => s.layers?.hiddenLayerIds || []);
     const showAnnotationsWithoutLayer = useSelector(
@@ -1499,6 +1547,7 @@ export default function useAnnotationsV2(options) {
       showAnnotationsWithoutLayer,
       layersUpdatedAt,
       subtractionTargetIdsBySource,
+      dbWriteTick,
     ]);
 
     // memoize post-processing to avoid recomputing on unrelated re-renders
