@@ -187,6 +187,26 @@ const PAN_STEP = 30;
 
 const PASTE_SUPPORTED_TYPES = ["POLYGON", "POLYLINE", "STRIP", "POINT", "MARKER"];
 
+// Node-merge tolerance for the annotation-geometry polygon detection
+// (POLYGON_CLICK hover + SURFACE_DROP "utiliser les contours"). Endpoints of
+// independent contour segments closer than this are welded into one planar-graph
+// node so near-touching contours still close a loop. Expressed as a PHYSICAL
+// distance (meters on the plan) so the weld radius never exceeds real feature
+// sizes — a wall thinner than the tolerance would otherwise collapse into a
+// spike. Falls back to the legacy zoom-based pixel tolerance when the base map
+// has no scale.
+const DETECTION_WELD_TOLERANCE_M = 0.01; // 1 cm
+function getDetectionTolerancePx(meterByPx, zoomK) {
+  if (meterByPx > 0) return DETECTION_WELD_TOLERANCE_M / meterByPx;
+  const BASE_TOLERANCE_IMG_PX = 3;
+  const MIN_TOLERANCE_IMG_PX = 1;
+  const k = zoomK || 1;
+  return Math.max(
+    MIN_TOLERANCE_IMG_PX,
+    Math.min(BASE_TOLERANCE_IMG_PX, BASE_TOLERANCE_IMG_PX / k)
+  );
+}
+
 // Toggle `incoming` ids against `current`: ids not present are added, ids
 // already present are removed. Used by the lasso to refine a selection without
 // resetting it. Pure.
@@ -586,18 +606,9 @@ const InteractionLayer = forwardRef(({
 
   // throttled polygon detection from annotations
   const runPolygonDetection = useMemo(() => throttle((localMousePos, currentAnnotations, currentDrawingPoints) => {
-    // Node-merge tolerance lives in IMAGE space (the geometry is zoom-independent).
-    // Keep a fixed base in image px so small features (a narrow décrochage) are not
-    // merged away, and let it SHRINK when zoomed in (k > 1) to recover even finer
-    // detail. It must never inflate when zoomed out (k < 1) — that was merging the
-    // décrochage. Floor it so welding of segments from independent annotations stays
-    // reliable.
-    const BASE_TOLERANCE_IMG_PX = 3;
-    const MIN_TOLERANCE_IMG_PX = 1;
-    const k = basePoseRef.current?.k || 1;
-    const tolerance = Math.max(
-      MIN_TOLERANCE_IMG_PX,
-      Math.min(BASE_TOLERANCE_IMG_PX, BASE_TOLERANCE_IMG_PX / k)
+    const tolerance = getDetectionTolerancePx(
+      meterByPxRef.current,
+      basePoseRef.current?.k
     );
     const result = detectPolygonFromAnnotations({
       annotations: currentAnnotations,
@@ -4585,13 +4596,10 @@ const InteractionLayer = forwardRef(({
         if (surfaceOutlineRunningRef.current) return;
 
         const outlineLocalPos = toLocalCoords(worldPos);
-        // Same node-merge tolerance as runPolygonDetection (image space, /k).
-        const BASE_TOLERANCE_IMG_PX = 3;
-        const MIN_TOLERANCE_IMG_PX = 1;
-        const k = basePoseRef.current?.k || 1;
-        const tolerance = Math.max(
-          MIN_TOLERANCE_IMG_PX,
-          Math.min(BASE_TOLERANCE_IMG_PX, BASE_TOLERANCE_IMG_PX / k)
+        // Same node-merge tolerance as runPolygonDetection.
+        const tolerance = getDetectionTolerancePx(
+          meterByPxRef.current,
+          basePoseRef.current?.k
         );
 
         surfaceOutlineRunningRef.current = true;
