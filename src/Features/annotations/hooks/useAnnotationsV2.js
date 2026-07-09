@@ -1301,9 +1301,11 @@ export default function useAnnotationsV2(options) {
         }
         const _te2 = performance.now();
 
-        console.log(
-          `[debug_perf]   entities detail: db.entities=${(_te1 - _te0).toFixed(1)}ms (${Object.keys(entityCache).length} entities, ${_fetchedCount} fetched) | db.files=${(_te2 - _te1).toFixed(1)}ms (${entityFilesArray.length} files)`
-        );
+        if (_te2 - _te0 >= 10) {
+          console.log(
+            `[debug_perf]   entities detail: db.entities=${(_te1 - _te0).toFixed(1)}ms (${Object.keys(entityCache).length} entities, ${_fetchedCount} fetched) | db.files=${(_te2 - _te1).toFixed(1)}ms (${entityFilesArray.length} files)`
+          );
+        }
 
         // Enrich annotations with entities
         _annotations = await Promise.all(
@@ -1338,17 +1340,22 @@ export default function useAnnotationsV2(options) {
       }
 
       const _t6 = performance.now();
-      console.log(
-        `[debug_perf] useAnnotationsV2 [${_caller}] (${_annotations?.length ?? 0} annotations):\n` +
-          `  obs reads:      ${_obsMs().toFixed(1)}ms (overlapped)\n` +
-          `  DB fetch:       ${(_t1 - _t0).toFixed(1)}ms (${listingsIds.length} listingIds${_annRowsSharedHit ? ", shared rows hit" : ", shared rows MISS"})\n` +
-          `  filters:        ${(_t2 - _t1).toFixed(1)}ms\n` +
-          `  listings total: ${(_t3 - _t2).toFixed(1)}ms  [db.listings: ${(_t2b - _t2a).toFixed(1)}ms (${listings.length} found) | filters+scope: ${(_t2c - _t2b).toFixed(1)}ms | db.layers+sort: ${(_t3 - _t2c).toFixed(1)}ms]\n` +
-          `  images batch:   ${(_t4 - _t3).toFixed(1)}ms\n` +
-          `  points/qties:   ${(_t5 - _t4).toFixed(1)}ms (${referencedPointIds?.size ?? 0} pts, ${_pointsFetchedFromDb} from db, resolve memo ${_resolveMemoHits}/${_annotations?.length ?? 0})\n` +
-          `  entities:       ${(_t6 - _t5).toFixed(1)}ms\n` +
-          `  TOTAL:          ${(_t6 - _t0).toFixed(1)}ms`
-      );
+      // Only log the breakdown when the run is actually slow: healthy runs
+      // (a few ms, several per commit across the ~8 instances) would flood
+      // the console and evict the useful lines.
+      if (_t6 - _t0 >= 20) {
+        console.log(
+          `[debug_perf] useAnnotationsV2 [${_caller}] (${_annotations?.length ?? 0} annotations):\n` +
+            `  obs reads:      ${_obsMs().toFixed(1)}ms (overlapped)\n` +
+            `  DB fetch:       ${(_t1 - _t0).toFixed(1)}ms (${listingsIds.length} listingIds${_annRowsSharedHit ? ", shared rows hit" : ", shared rows MISS"})\n` +
+            `  filters:        ${(_t2 - _t1).toFixed(1)}ms\n` +
+            `  listings total: ${(_t3 - _t2).toFixed(1)}ms  [db.listings: ${(_t2b - _t2a).toFixed(1)}ms (${listings.length} found) | filters+scope: ${(_t2c - _t2b).toFixed(1)}ms | db.layers+sort: ${(_t3 - _t2c).toFixed(1)}ms]\n` +
+            `  images batch:   ${(_t4 - _t3).toFixed(1)}ms\n` +
+            `  points/qties:   ${(_t5 - _t4).toFixed(1)}ms (${referencedPointIds?.size ?? 0} pts, ${_pointsFetchedFromDb} from db, resolve memo ${_resolveMemoHits}/${_annotations?.length ?? 0})\n` +
+            `  entities:       ${(_t6 - _t5).toFixed(1)}ms\n` +
+            `  TOTAL:          ${(_t6 - _t0).toFixed(1)}ms`
+        );
+      }
 
       // -- EXTRUSION_PROFILE SUBTRACTION FOOTPRINTS --
       // For profile annotations used as subtraction targets, precompute
