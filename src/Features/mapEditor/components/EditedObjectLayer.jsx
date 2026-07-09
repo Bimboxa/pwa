@@ -105,7 +105,7 @@ export default function EditedObjectLayer({
     }
 
     return [];
-  }, [selectedNode?.nodeId, annotations, selectedPointId]);
+  }, [selectedNode?.nodeId, selectedNodes, annotations, selectedPointId]);
 
   // 2. Gestion de la Pose (On prend celle du premier élément trouvé ou défaut)
   // Note : On suppose ici que des annotations connectées partagent le même contexte (Map ou BgImage)
