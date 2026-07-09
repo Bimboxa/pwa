@@ -4112,9 +4112,7 @@ const InteractionLayer = forwardRef(({
       if (hit) {
         const { nodeId, annotationType } =
           hit.dataset;
-        console.log("[InteractionLayer] CUT HOST ID", annotationType, cutHostId)
-        if (["POLYGON", "STRIP"].includes(annotationType) && !cutHostId) {
-          console.log("[InteractionLayer] CUT HOST ID", nodeId)
+        if (annotationType === "POLYGON" && !cutHostId) {
           setCutHostId(nodeId)
         }
       }
@@ -5655,7 +5653,6 @@ const InteractionLayer = forwardRef(({
     // ==================
 
     const snap = currentSnapRef.current;
-    console.log("[InteractionLayer] snap", snap, enabledDrawingMode);
     if (!snap) return;
 
     // =======================================================
@@ -5901,7 +5898,6 @@ const InteractionLayer = forwardRef(({
     const dragState = dragStateRef.current;
     const dragAnnotationState = dragAnnotationStateRef.current;
 
-    console.log('handleMouseUp_dragAnnotationState', dragAnnotationState);
 
 
     // Point drag takes priority over annotation click (avoid resetting selectedPointIds)
@@ -6076,10 +6072,6 @@ const InteractionLayer = forwardRef(({
     const target = e.nativeEvent?.target || e.target;
 
     // DEBUG
-    console.log("MouseDown Target:", target);
-    console.log("Is Resize?", !!target.closest('[data-interaction="resize-annotation"]'));
-    console.log("Is Drag?", !!target.closest('[data-interaction="draggable"]'));
-    console.log("Is Rotate?", !!target.closest('[data-interaction="rotate-annotation"]'));
 
 
     // --- permet la modif de l'input/textarea d'un label
@@ -6129,7 +6121,6 @@ const InteractionLayer = forwardRef(({
     }
 
 
-    console.log("debug_A_selectedNode", selectedNode)
     if (!selectedNode && !showBgImage && !draggableGroup && !resizeHandle && !rotateHandle && !versionHandle && !calibrationHandle && !legendHandle) return;
 
 

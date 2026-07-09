@@ -29,7 +29,8 @@ const isEditableTarget = (el) => {
 // useFreeAnnotationHotkeys (L/S). The in-draw variant letters (Tab, S/R/L/B for
 // CUT) live in useDrawingToolHotkeys and only attach while a draw is active, so
 // the two systems are disjoint. Mounted once per binding in the live map editor
-// (MainMapEditorV3): "o" → CUT (openings), "c" → SPLIT_LINE (Retirer un segment).
+// (MainMapEditorV3): "o" → CUT (openings), "x" → SPLIT_LINE (Retirer un
+// segment), "c" → SPLIT_POLYLINE_CLICK (Couper un segment).
 export default function useToolGroupHotkey(hotkey, templateId) {
   const dispatch = useDispatch();
   const store = useStore();

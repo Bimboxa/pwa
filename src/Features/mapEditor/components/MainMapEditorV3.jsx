@@ -146,7 +146,6 @@ function _track(label, value) {
 }
 
 export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
-    console.log(`[debug_perf] MainMapEditorV3 RENDER forViewerKey=${forViewerKey}`);
     const dispatch = useDispatch();
 
     // hotkeys — switch drawing tool via keyboard (Tab / R / L / C / G)
@@ -157,10 +156,10 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     useInteractionModeHotkeys();
     // hotkeys — start an opening draw (O) when not drawing
     useOpeningHotkey();
-    // hotkeys — start segment removal (C = Retirer un segment) when not drawing
-    useToolGroupHotkey("c", "SPLIT_LINE");
-    // hotkeys — start polyline cut (X = Couper un segment) when not drawing
-    useToolGroupHotkey("x", "SPLIT_POLYLINE_CLICK");
+    // hotkeys — start segment removal (X = Retirer un segment) when not drawing
+    useToolGroupHotkey("x", "SPLIT_LINE");
+    // hotkeys — start polyline cut (C = Couper un segment) when not drawing
+    useToolGroupHotkey("c", "SPLIT_POLYLINE_CLICK");
 
     // const
 

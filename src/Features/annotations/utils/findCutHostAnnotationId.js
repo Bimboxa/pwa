@@ -1,7 +1,7 @@
 import getAnnotationAsPolygons from "Features/geometry/utils/getAnnotationAsPolygons";
 import { pointInPolygon } from "Features/smartDetect/utils/detectPolygonFromAnnotations";
 
-const HOST_TYPES = ["POLYGON", "STRIP", "POLYLINE"];
+const HOST_TYPES = ["POLYGON"];
 
 const isFinitePt = (p) => Number.isFinite(p?.x) && Number.isFinite(p?.y);
 
@@ -46,15 +46,16 @@ const pointInsidePolygon = (pt, polygon) => {
  * DOM hit-test in InteractionLayer (e.g. the user starts the rectangle on the
  * polygon border instead of inside it).
  *
- * Mirrors the DOM hit-test: among the visible POLYGON / STRIP / POLYLINE
- * annotations the opening overlaps, return the one with the smallest area
- * (the tightest enclosing shape wins, consistent with picking the polygon
- * directly under the pointer).
+ * Mirrors the DOM hit-test: among the visible POLYGON annotations the
+ * opening overlaps, return the one with the smallest area (the tightest
+ * enclosing shape wins, consistent with picking the polygon directly under
+ * the pointer). Openings only apply to POLYGON hosts — STRIP / POLYLINE
+ * are never cut by the opening tool.
  *
  * @param {Object}   args
  * @param {Array<{x:number,y:number}>} args.openingPx  Drawn opening in pixel space.
  * @param {Array<Object>} args.annotations             Pixel-resolved visible annotations (useAnnotationsV2).
- * @param {number}   [args.meterByPx]                  For STRIP/POLYLINE polygonization.
+ * @param {number}   [args.meterByPx]                  Passed through to getAnnotationAsPolygons.
  * @returns {string|null} host annotation id, or null when none matches.
  */
 export default function findCutHostAnnotationId({
