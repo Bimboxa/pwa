@@ -164,7 +164,7 @@ export default function useCloneAnnotationsAndEntities() {
         if (!keepOriginalPoints) {
           const { annotation: remapped, pointRecords } = duplicateAnnotationPoints(
             clonedAnnotation,
-            { imageSize, projectId, baseMapId: annotation.baseMapId }
+            { imageSize, projectId, baseMapId: annotation.baseMapId, listingId: annotation.listingId }
           );
           finalAnnotation = remapped;
           if (pointRecords.length > 0) allPoints.push(...pointRecords);

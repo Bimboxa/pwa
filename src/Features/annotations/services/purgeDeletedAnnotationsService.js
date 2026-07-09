@@ -1,4 +1,5 @@
-import db, { withHardDelete } from "App/db/db";
+import db, { withHardDelete, withSystemWrite } from "App/db/db";
+import { withoutUndo } from "App/db/undoManager";
 
 import collectReferencedPointIds from "Features/annotations/utils/collectReferencedPointIds";
 
@@ -15,8 +16,14 @@ import collectReferencedPointIds from "Features/annotations/utils/collectReferen
 // SCOPE: restricted to the CURRENT scope. Annotations/points have no scopeId,
 // so — like createKrtoZip — the scope's listings are those with
 // `scopeId === scopeId` plus the project's *shared* listings (no scopeId, e.g.
-// baseMaps). Only rows whose listingId is in that set are deleted, so other
+// baseMaps). Annotations are scoped by listingId; points by the baseMapId of
+// the scope's base maps (their listingId is unreliable — see below). Other
 // scopes of the same project are left untouched.
+//
+// Also HEALS (un-tombstones) points that are still referenced by a live
+// annotation but were soft-deleted — the state left behind when an annotation
+// is deleted (softDeleteOrphanPoints) then brought back by a snapshot restore
+// that didn't carry the point rows.
 //
 // SAFETY: the "referenced" set is collected from EVERY live annotation of the
 // whole project (all scopes), not just the current scope. So a point that lives
@@ -63,20 +70,60 @@ export default async function purgeDeletedAnnotationsService({
     .filter((a) => a.deletedAt && scopeListingIds.has(a.listingId))
     .map((a) => a.id);
 
+  // Points are scoped via their baseMapId, NOT their listingId: a point row's
+  // listingId is unreliable (paste/clone paths historically omitted it) and
+  // means nothing — a point belongs to a base map. BaseMaps are shared across
+  // the project's scopes, which is safe here because the referenced set above
+  // is collected project-wide: an orphan on a shared base map is an orphan for
+  // every scope. listingId is kept as a fallback for legacy rows lacking a
+  // baseMapId.
+  const scopeBaseMapIds = new Set(
+    (await db.baseMaps.where("projectId").equals(projectId).toArray())
+      .filter((bm) => scopeListingIds.has(bm.listingId))
+      .map((bm) => bm.id)
+  );
+  const isInScope = (p) =>
+    p.baseMapId
+      ? scopeBaseMapIds.has(p.baseMapId)
+      : scopeListingIds.has(p.listingId);
+
   const orphanPointIds = allPoints
-    .filter(
-      (p) => scopeListingIds.has(p.listingId) && !referencedPointIds.has(p.id)
-    )
+    .filter((p) => isInScope(p) && !referencedPointIds.has(p.id))
     .map((p) => p.id);
 
-  await withHardDelete(async () => {
-    if (deletedAnnotationIds.length > 0)
-      await db.annotations.bulkDelete(deletedAnnotationIds);
-    if (orphanPointIds.length > 0) await db.points.bulkDelete(orphanPointIds);
-  });
+  // HEAL: points still referenced by a live annotation but carrying a
+  // soft-delete tombstone (e.g. their annotation was deleted then restored
+  // from a snapshot that didn't contain the point rows). The read path
+  // (useAnnotationsV2) drops deletedAt points, so these refs would resolve as
+  // corruptedPointIds forever — un-tombstone them. System write: the rows may
+  // be owned by another user; this is a repair, not a user edit.
+  const healPointIds = allPoints
+    .filter((p) => p.deletedAt && referencedPointIds.has(p.id))
+    .map((p) => p.id);
+
+  // withoutUndo: a maintenance pass must not flood the undo stack (one entry
+  // per healed point) — and a Ctrl+Z must not re-tombstone healed points.
+  await withSystemWrite(() =>
+    withoutUndo(async () => {
+      if (healPointIds.length > 0) {
+        await db.points
+          .where("id")
+          .anyOf(healPointIds)
+          .modify({ deletedAt: null, deletedByUserIdMaster: null });
+      }
+
+      await withHardDelete(async () => {
+        if (deletedAnnotationIds.length > 0)
+          await db.annotations.bulkDelete(deletedAnnotationIds);
+        if (orphanPointIds.length > 0)
+          await db.points.bulkDelete(orphanPointIds);
+      });
+    })
+  );
 
   return {
     purgedAnnotations: deletedAnnotationIds.length,
     purgedPoints: orphanPointIds.length,
+    healedPoints: healPointIds.length,
   };
 }

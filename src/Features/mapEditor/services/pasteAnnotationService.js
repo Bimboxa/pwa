@@ -58,6 +58,9 @@ export default async function pasteAnnotationService({
       y: p.y / height,
       projectId: sourceAnnotation.projectId,
       baseMapId: sourceAnnotation.baseMapId,
+      // Informative only — nothing must rely on a point's listingId (the
+      // export/purge paths key on referenced ids / baseMapId).
+      listingId: sourceAnnotation.listingId,
     });
     return id;
   }

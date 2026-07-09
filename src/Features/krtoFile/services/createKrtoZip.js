@@ -1,6 +1,7 @@
 import db from "App/db/db";
 import sanitizeName from "Features/misc/utils/sanitizeName";
 import parseDexieExportBlob from "Features/krtoFile/utils/parseDexieExportBlob";
+import collectReferencedPointIds from "Features/annotations/utils/collectReferencedPointIds";
 import JSZip from "jszip";
 
 export default async function createKrtoZip(scopeId, options) {
@@ -58,9 +59,22 @@ export default async function createKrtoZip(scopeId, options) {
     // que des métadonnées légères). Seuls les fichiers (lourds) sont traités à part.
     const tablesWithProjectIdAndListingId = new Set([
         "baseMaps", "baseMapVersions", "entities", "maps", "materials", "relsZoneEntity",
-        "points", "annotations", "annotationTemplates",
+        "annotations", "annotationTemplates",
         "portfolioPages",
     ]);
+
+    // Points: annotation geometry lives in db.points, but a point row's
+    // listingId is NOT reliable (paste/clone paths historically omitted it,
+    // and it may diverge from the annotation's listing). The snapshot contract
+    // is: every point referenced by an exported annotation must be in the ZIP.
+    // So the points table is filtered on the referenced-id set collected from
+    // the exported annotations (live + tombstones — the ZIP is a full
+    // snapshot), via the same collectReferencedPointIds the read/purge paths
+    // use. Unreferenced (orphan) points are intentionally dropped.
+    const exportedAnnotations = (
+        await db.annotations.where("projectId").equals(projectId).toArray()
+    ).filter((a) => listingIds.has(a.listingId));
+    const referencedPointIds = collectReferencedPointIds(exportedAnnotations);
 
     // 2bis. Versions de baseMap supprimées (soft-delete) : on conserve la version
     // dans le JSON, mais on exclut son image du zip pour éviter de l'alourdir avec
@@ -105,6 +119,10 @@ export default async function createKrtoZip(scopeId, options) {
             // Tables indexées par scopeId
             if (tablesWithScopeId.has(table)) return value.scopeId === scopeId;
 
+            // Points : filtrés par référence (voir referencedPointIds ci-dessus),
+            // jamais par listingId.
+            if (table === "points") return referencedPointIds.has(value.id);
+
             // Fichiers : on exclut les images des versions supprimées orphelines
             if (table === "files") {
                 return (
@@ -137,6 +155,23 @@ export default async function createKrtoZip(scopeId, options) {
     // 4. Traitement
     const jsonData = await parseDexieExportBlob(blob);
     const zip = new JSZip();
+
+    // Self-consistency: a point referenced by a LIVE annotation must be live in
+    // the snapshot. The local DB can hold referenced-but-tombstoned points
+    // (annotation deleted → points soft-deleted → annotation restored without
+    // its rows); exporting the tombstone would keep the restored scope broken.
+    const liveReferencedPointIds = collectReferencedPointIds(
+        exportedAnnotations.filter((a) => !a.deletedAt)
+    );
+    const pointsTableData = jsonData.data.data.find((t) => t.tableName === "points");
+    if (pointsTableData?.rows) {
+        for (const row of pointsTableData.rows) {
+            if (row?.deletedAt && liveReferencedPointIds.has(row.id)) {
+                delete row.deletedAt;
+                delete row.deletedByUserIdMaster;
+            }
+        }
+    }
 
     // On repère la table 'files'
     const filesTableData = jsonData.data.data.find((t) => t.tableName === "files");
