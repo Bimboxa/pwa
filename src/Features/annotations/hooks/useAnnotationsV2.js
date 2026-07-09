@@ -1556,6 +1556,10 @@ export default function useAnnotationsV2(options) {
       // skip post-processing when disabled
       if (!enabled || !annotations || annotations.length === 0) return [];
 
+      // stage-B timing instrumentation (pure measurement, no behavior
+      // change): one mark per block, summary logged below when total >= 5ms.
+      const _tB0 = performance.now();
+
       // override with annotation templates
       let result = annotations.map((annotation) => {
         if (annotation?.isBaseMapAnnotation) {
@@ -1588,6 +1592,8 @@ export default function useAnnotationsV2(options) {
         return a;
       });
 
+      const _tB1 = performance.now(); // template override (+ proxy fill)
+
       // recompute qties after template overrides so overridden height is reflected
       if (withQties) {
         // NOTE: no in-place `annotation.qties = ...` here — the identity
@@ -1619,6 +1625,8 @@ export default function useAnnotationsV2(options) {
           return annotation;
         });
       }
+
+      const _tB2 = performance.now(); // withQties recompute
 
       // -- SUBTRACTIONS --
       // Attach subtraction relations (targetIds + resolved target
@@ -1685,6 +1693,8 @@ export default function useAnnotationsV2(options) {
         });
       }
 
+      const _tB3 = performance.now(); // subtractions
+
       // filter out annotations whose template is hidden
       result = result.filter((a) => !a.hidden);
 
@@ -1723,6 +1733,8 @@ export default function useAnnotationsV2(options) {
           result = result.filter(isInSolo);
         }
       }
+
+      const _tB4 = performance.now(); // hidden/profile/solo filters
 
       // override with temp annotations
       result = [...result, ...(tempAnnotations ?? [])];
@@ -1838,6 +1850,8 @@ export default function useAnnotationsV2(options) {
           .sort((a, b) => a.baseMap?.name.localeCompare(b.baseMap?.name));
       }
 
+      const _tB5 = performance.now(); // order maps + sort (+ groupByBaseMap)
+
       // Identity stabilization: reuse the previous run's object (and array)
       // references for annotations whose resolved content did not change, so
       // memo(NodeAnnotationStatic) & co only re-render what actually changed.
@@ -1849,6 +1863,17 @@ export default function useAnnotationsV2(options) {
       console.log(
         `[debug_perf] useAnnotationsV2 [${_caller}] stability: ${reused}/${result.length} reused (${(performance.now() - _tStab).toFixed(1)}ms)`
       );
+
+      // Summary — only when stage B is actually expensive (it re-runs on
+      // every consumer re-render at ~1ms; logging those would flood the
+      // console and evict the interesting lines from its buffer).
+      const _tB6 = performance.now();
+      const _stageBTotal = _tB6 - _tB0;
+      if (_stageBTotal >= 5) {
+        console.log(
+          `[debug_perf] useAnnotationsV2 [${_caller}] stage B: ${_stageBTotal.toFixed(1)}ms (N=${result.length}) | override ${(_tB1 - _tB0).toFixed(1)} | qties ${(_tB2 - _tB1).toFixed(1)} | subtractions ${(_tB3 - _tB2).toFixed(1)} | filters ${(_tB4 - _tB3).toFixed(1)} | sort ${(_tB5 - _tB4).toFixed(1)} | stability ${(_tB6 - _tB5).toFixed(1)}`
+        );
+      }
 
       return stableResult;
     }, [
