@@ -231,6 +231,7 @@ export default function useCloneAnnotationAndEntity() {
                         imageSize,
                         projectId: annotation.projectId,
                         baseMapId: annotation.baseMapId,
+                        listingId: annotation.listingId,
                     });
                 annotationToCreate = remapped;
                 if (pointRecords.length > 0) {

@@ -217,6 +217,29 @@ AUDIT_TABLES.forEach((tableName) => {
   });
 });
 
+// --- POINT SCOPE STAMP ---
+// A point belongs to the scope it was created in. Its listingId is unreliable
+// (historically omitted by paste/clone paths) and means nothing — scope
+// filtering must read point.scopeId first, and only fall back to
+// listing/baseMap heuristics for legacy rows (no migration: old points simply
+// lack the field). Stamped centrally so every creation path (draw, cut, paste,
+// clone, mesh, auto-annotations, ...) gets it, including future ones. System
+// writes (Krto import / remote sync) are skipped so imported rows keep their
+// incoming value — loadKrtoZip's transform / remapDexieExportIds already remap
+// `scopeId` fields to the target scope.
+
+function getCurrentScopeId() {
+  return store.getState()?.scopes?.selectedScopeId ?? null;
+}
+
+db.points.hook("creating", function (primKey, obj) {
+  if (_skipOwnershipGuard) return;
+  if (obj.scopeId === undefined) {
+    const scopeId = getCurrentScopeId();
+    if (scopeId) obj.scopeId = scopeId;
+  }
+});
+
 // --- UNDO HOOKS ---
 
 UNDO_TABLES.forEach((tableName) => {

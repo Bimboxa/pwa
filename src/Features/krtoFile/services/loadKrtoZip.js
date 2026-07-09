@@ -102,6 +102,21 @@ export default async function loadKrtoZip(file, options) {
             remappedBuffers.set(fileNameMap[oldName] || oldName, arrayBuffer);
           }
           imageBuffers = remappedBuffers;
+
+          // Points: the duplicated copy lives entirely in the new scope. The
+          // generic remap above only rewrites scopeId values equal to the
+          // original scope's id — force the rest too (a point created while
+          // another scope was selected carries that foreign scopeId; keeping
+          // it would let a clear/purge of that scope delete the copy's
+          // geometry).
+          const pointsTable = jsonData.data.data.find(
+            (t) => t.tableName === "points"
+          );
+          if (pointsTable?.rows) {
+            for (const row of pointsTable.rows) {
+              if (row) row.scopeId = newScopeId;
+            }
+          }
         }
 
         // 4. Créer le Blob JSON pour Dexie
@@ -143,6 +158,14 @@ export default async function loadKrtoZip(file, options) {
                 "scopeId" in value &&
                 value.scopeId === originalScopeId
               ) {
+                value = { ...value, scopeId: loadDataToScopeId };
+              }
+              // Points: every point in a krto belongs to the exported scope's
+              // snapshot (they're filtered by annotation reference at export).
+              // Force the target scope even when the row carries a stale /
+              // foreign scopeId, so a later clear/purge of another scope can't
+              // delete the restored geometry.
+              if (table === "points" && value.scopeId !== loadDataToScopeId) {
                 value = { ...value, scopeId: loadDataToScopeId };
               }
             }

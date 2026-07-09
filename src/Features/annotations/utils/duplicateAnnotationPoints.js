@@ -13,11 +13,11 @@ import { nanoid } from "@reduxjs/toolkit";
  * so a point referenced in several places yields exactly one new record.
  *
  * @param {object} annotation fully-built cloned annotation (pixel-space refs)
- * @param {object} ctx { imageSize, projectId, baseMapId }
+ * @param {object} ctx { imageSize, projectId, baseMapId, listingId }
  * @returns {{ annotation: object, pointRecords: object[] }}
  */
 export default function duplicateAnnotationPoints(annotation, ctx) {
-  const { imageSize, projectId, baseMapId } = ctx || {};
+  const { imageSize, projectId, baseMapId, listingId } = ctx || {};
   if (!annotation) return { annotation, pointRecords: [] };
 
   const width = imageSize?.width;
@@ -52,6 +52,9 @@ export default function duplicateAnnotationPoints(annotation, ctx) {
           y: ref.y / height,
           projectId,
           baseMapId,
+          // Informative only — nothing must rely on a point's listingId (the
+          // export/purge paths key on referenced ids / baseMapId).
+          listingId,
         });
       }
 

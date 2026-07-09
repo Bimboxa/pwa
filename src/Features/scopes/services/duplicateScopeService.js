@@ -282,6 +282,11 @@ export default async function duplicateScopeService({
   const newPoints = sourcePoints.map((p) => ({
     ...prepareCopy(p, createdBy),
     id: pointIdMap[p.id],
+    // The copy lives entirely in the new scope: never carry the source
+    // point's scopeId (a clear/restore of the SOURCE scope would otherwise
+    // hard-delete the duplicated geometry). The creating hook can't stamp it
+    // here — this runs under withSystemWrite.
+    scopeId: newScopeId,
     listingId: listingIdMap[p.listingId] ?? p.listingId,
   }));
 

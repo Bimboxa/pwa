@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 
 import { setVertexSizeMultiplier } from "Features/mapEditor/mapEditorSlice";
+import { triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice";
 
 import { saveVertexSizeMultiplier } from "Features/mapEditor/services/editorSettingsLocalStorage";
 import purgeDeletedAnnotationsService from "Features/annotations/services/purgeDeletedAnnotationsService";
@@ -74,6 +75,10 @@ export default function SelectorEditorSettings() {
     setPurgeState("running");
     try {
       const res = await purgeDeletedAnnotationsService({ projectId, scopeId });
+      // Healed (un-tombstoned) points change no row count and no indexed
+      // field, so the reactivity contract (scoped counts + _dbWriteTick) can
+      // miss them — force a re-read so repaired annotations reappear at once.
+      if (res.healedPoints > 0) dispatch(triggerAnnotationsUpdate());
       setPurgeResult(res);
       setPurgeState("done");
     } catch (e) {
@@ -191,7 +196,10 @@ export default function SelectorEditorSettings() {
 
             {purgeState === "done" && purgeResult ? (
               <Typography variant="caption" color="success.main">
-                {`Purge terminée : ${purgeResult.purgedAnnotations} annotation(s) et ${purgeResult.purgedPoints} point(s) supprimés.`}
+                {`Purge terminée : ${purgeResult.purgedAnnotations} annotation(s) et ${purgeResult.purgedPoints} point(s) supprimés.` +
+                  (purgeResult.healedPoints
+                    ? ` ${purgeResult.healedPoints} point(s) réparé(s).`
+                    : "")}
               </Typography>
             ) : purgeState === "confirming" ? (
               <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
