@@ -57,7 +57,6 @@ export default function useCreateEntity() {
         createdBy: userEmail,
       });
 
-    console.log("[useCreateEntity] pureData", pureData, filesDataByKey);
 
     // --- TRANSACTIONAL PATH (options.tx) ---
     if (tx) {
@@ -161,7 +160,6 @@ export default function useCreateEntity() {
     };
 
     try {
-      console.log("[db] adding entity ...", entity);
       await db[table].add(entity);
 
       // Handle Annotation linkage

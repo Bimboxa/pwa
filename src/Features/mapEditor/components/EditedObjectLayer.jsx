@@ -119,7 +119,6 @@ export default function EditedObjectLayer({
     return false;
   }, [selectedNode?.nodeId, activeAnnotations?.length]);
 
-  console.log("isBgContext", isBgContext, selectedNode);
 
   const finalPose = isBgContext ? { x: 0, y: 0, k: 1 } : basePose;
 

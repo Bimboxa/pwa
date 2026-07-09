@@ -224,7 +224,6 @@ const MapEditorViewport = forwardRef(({
 
     // 1. Début du clic
     const handleMouseDown = (e) => {
-        console.log("[VIEWPORT] _DOWN_", e);
 
         // 1. On vérifie si le Pan est désactivé par le parent
         if (shouldDisablePan && shouldDisablePan(e)) {
@@ -293,7 +292,6 @@ const MapEditorViewport = forwardRef(({
         // LOGIQUE CRITIQUE : Clic vs Pan
         if (dragRef.current.isPanning) {
             // C'était un Pan, on ne fait rien d'autre (la caméra a bougé)
-            console.log("Fin du Pan");
         } else {
             // On n'a pas assez bougé -> C'est un CLIC "propre"
             // On appelle le callback du parent pour gérer la sélection d'objet
