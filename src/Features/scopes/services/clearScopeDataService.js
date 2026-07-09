@@ -35,10 +35,23 @@ export default async function clearScopeDataService(scopeId) {
             await db.reports.where("listingId").anyOf(listingIds).delete();
             await db.baseMaps.where("listingId").anyOf(listingIds).delete();
             await db.baseMapVersions.where("listingId").anyOf(listingIds).delete();
-            await db.points.where("listingId").anyOf(listingIds).delete();
             await db.annotations.where("listingId").anyOf(listingIds).delete();
             await db.annotationTemplates.where("listingId").anyOf(listingIds).delete();
         }
+
+        // Points : filtrés d'abord par leur propre scopeId (stampé à la
+        // création par le hook db.points — le listingId d'un point est peu
+        // fiable et ne sert que de fallback pour les rows legacy sans scopeId).
+        // Hors du bloc listingIds : un point du scope doit partir même si son
+        // listing a disparu.
+        const listingIdSet = new Set(listingIds);
+        await db.points
+            .filter(
+                (p) =>
+                    p.scopeId === scopeId ||
+                    (!p.scopeId && listingIdSet.has(p.listingId))
+            )
+            .delete();
 
         // Listings (en dernier pour ne pas perdre la liste avant de cascader)
         await db.listings.where("scopeId").equals(scopeId).delete();

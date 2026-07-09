@@ -70,22 +70,24 @@ export default async function purgeDeletedAnnotationsService({
     .filter((a) => a.deletedAt && scopeListingIds.has(a.listingId))
     .map((a) => a.id);
 
-  // Points are scoped via their baseMapId, NOT their listingId: a point row's
-  // listingId is unreliable (paste/clone paths historically omitted it) and
-  // means nothing — a point belongs to a base map. BaseMaps are shared across
-  // the project's scopes, which is safe here because the referenced set above
-  // is collected project-wide: an orphan on a shared base map is an orphan for
-  // every scope. listingId is kept as a fallback for legacy rows lacking a
-  // baseMapId.
+  // Points are scoped via their OWN scopeId (stamped at creation by the
+  // db.points creating hook), NOT their listingId: a point row's listingId is
+  // unreliable (paste/clone paths historically omitted it) and means nothing.
+  // Legacy rows created before the stamp lack scopeId — for those we fall back
+  // to the baseMapId of the scope's base maps, then to listingId. BaseMaps are
+  // shared across the project's scopes, which is safe here because the
+  // referenced set above is collected project-wide: an orphan on a shared base
+  // map is an orphan for every scope.
   const scopeBaseMapIds = new Set(
     (await db.baseMaps.where("projectId").equals(projectId).toArray())
       .filter((bm) => scopeListingIds.has(bm.listingId))
       .map((bm) => bm.id)
   );
-  const isInScope = (p) =>
-    p.baseMapId
-      ? scopeBaseMapIds.has(p.baseMapId)
-      : scopeListingIds.has(p.listingId);
+  const isInScope = (p) => {
+    if (p.scopeId) return p.scopeId === scopeId;
+    if (p.baseMapId) return scopeBaseMapIds.has(p.baseMapId);
+    return scopeListingIds.has(p.listingId);
+  };
 
   const orphanPointIds = allPoints
     .filter((p) => isInScope(p) && !referencedPointIds.has(p.id))
