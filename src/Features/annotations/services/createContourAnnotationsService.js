@@ -1,13 +1,49 @@
 import { nanoid } from "@reduxjs/toolkit";
 
-import signedArea2 from "Features/geometry/utils/signedArea2";
 import { expandArcsInPath, typeOf } from "Features/geometry/utils/arcSampling";
+import offsetPolygon from "Features/geometry/utils/offsetPolygon";
+import { pointInPolygon } from "Features/smartDetect/utils/detectPolygonFromAnnotations";
 
 import db from "App/db/db";
 
 // Grid size (px) of the shared-vertex dedup index: contour groups meeting at
 // the same corner reference one db.points record instead of two.
 const SNAP_TOLERANCE = 3;
+
+// Probe offset (px) used to detect which side offsetPolygon(+distance) lands on.
+const STRIP_TEST_OFFSET_PX = 5;
+
+/**
+ * Empirical stripOrientation for a closed contour ring: simulate the band the
+ * way getStripePolygons renders closed strips (offsetPolygon with
+ * distance = width × orientation) and probe a few offset points against the
+ * ring. Winding math is NOT reliable here — offsetPolygon normalizes the ring
+ * winding internally — so the actual offset side is tested instead.
+ * Returns the orientation that puts the band OUTSIDE the contour.
+ */
+function getOutwardStripOrientation(ringTypedPoints) {
+  const expanded = expandArcsInPath(ringTypedPoints, 8, true);
+  if (expanded.length < 3) return 1;
+
+  const offRing = offsetPolygon(expanded, STRIP_TEST_OFFSET_PX);
+  if (!offRing || offRing.length < 3) return 1;
+
+  // Probe up to 3 segment midpoints spread around the offset ring.
+  let outside = 0;
+  let total = 0;
+  const step = Math.max(1, Math.floor(offRing.length / 3));
+  for (let i = 0; i < offRing.length && total < 3; i += step) {
+    const a = offRing[i];
+    const b = offRing[(i + 1) % offRing.length];
+    const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+    total++;
+    if (!pointInPolygon(mid, expanded)) outside++;
+  }
+  if (total === 0) return 1;
+
+  // Positive offset lands outside → orientation +1 puts the band outside.
+  return outside * 2 >= total ? 1 : -1;
+}
 
 /**
  * Persist contour annotations from typed point groups (factored out of
@@ -87,14 +123,12 @@ export default async function createContourAnnotationsService({
 
     // A STRIP band grows on the stripOrientation side of its main line. The
     // contour IS the main line and the band must lie OUTSIDE the closed
-    // contour: positive signedArea2 (screen coords, y-down) → 1, else -1.
-    // Mapping validated empirically on a drawn polygon (issue #291).
+    // contour — decided by the empirical probe above, not by winding math.
     let stripProps = {};
     if (isStrip) {
       let stripOrientation = 1;
       if (group.closed === true && typedPoints.length >= 3) {
-        const area = signedArea2(expandArcsInPath(typedPoints, 8, true));
-        stripOrientation = area >= 0 ? 1 : -1;
+        stripOrientation = getOutwardStripOrientation(typedPoints);
       }
       stripProps = {
         // Bands are physical: keep the template width only when it is
