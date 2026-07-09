@@ -87,7 +87,12 @@ let _lastMissingPointsWarnCount = null;
 //   annotations/points write" contract the pre-scoped unfiltered count()
 //   used to provide.
 
-const _annotationsRowsCache = new Map(); // queryKey -> Promise<rows[]>
+// queryKey -> { promise, rows } — `rows` is set once the fetch resolves and
+// is then PATCHED incrementally on every committed annotations write (see
+// _recordAnnotationWrite below) instead of being refetched: the per-commit
+// full range query (~200ms on heavy base maps / slow IDB) was the last big
+// stage-A cost.
+const _annotationsRowsCache = new Map();
 const _pointsRowsCache = new Map(); // pointId -> row | null
 const _pointsInflightFetches = new Map(); // pointId -> Promise<row | null>
 let _pointsCacheGeneration = 0;
@@ -117,13 +122,122 @@ const _bumpDbWriteTick = () => {
 const useDbWriteTick = () =>
   useSyncExternalStore(_subscribeDbWriteTick, _getDbWriteTick);
 
-const _invalidateAnnotationRows = () => {
-  _sawLocalWrite = true;
+// --- Incremental patching of the annotation-rows cache -------------------
+// Instead of clearing the cache on every annotations write (which forced the
+// next wave's leader to re-run the full range query), the hooks accumulate
+// the touched primary keys PER ROOT TRANSACTION; on commit, ONE bulkGet
+// re-reads the real rows (audit stamps included, soft-deletes visible) and
+// patches every cached array according to its query scope. Batch writes
+// (mass create / delete / update: bulkAdd, bulkPut, bulkDelete, procedure
+// saves) therefore cost a single bulkGet + one array rebuild per cache
+// entry, whatever the row count.
+// A synchronous barrier makes any liveQuery re-run triggered by the same
+// commit WAIT for the patch — otherwise it would read the pre-write rows
+// and, with no further mutation, stay stale.
+// Safety nets (fall back to a full clear → plain refetch): patch failure,
+// oversized batches, hook fired without a transaction.
+const _annPatchBarriers = new Set(); // pending patch promises (commit -> applied)
+const _txAnnPatchState = new WeakMap(); // rootTx -> { keys: Set }
+const MAX_PATCHED_KEYS = 500;
+
+const _annCacheFullClear = () => {
   _annotationsRowsCache.clear();
 };
-db.annotations.hook("creating", _invalidateAnnotationRows);
-db.annotations.hook("updating", _invalidateAnnotationRows);
-db.annotations.hook("deleting", _invalidateAnnotationRows);
+
+function _rowBelongsToQueryKey(queryKey, row) {
+  if (!row) return false;
+  const sep = queryKey.indexOf(":");
+  const kind = queryKey.slice(0, sep);
+  const val = queryKey.slice(sep + 1);
+  if (kind === "baseMaps") return val.split(",").includes(row.baseMapId);
+  if (kind === "listing") return row.listingId === val;
+  if (kind === "project") return row.projectId === val;
+  return false;
+}
+
+function _patchRowsArray(rows, keys, freshById, queryKey) {
+  const keySet = new Set(keys);
+  const next = rows.filter((r) => !keySet.has(r.id));
+  for (const k of keys) {
+    const fresh = freshById.get(k);
+    if (fresh && !fresh.deletedAt && _rowBelongsToQueryKey(queryKey, fresh)) {
+      next.push(fresh);
+    }
+  }
+  return next;
+}
+
+async function _applyAnnotationRowPatches(keys) {
+  const freshRows = await db.annotations.bulkGet(keys);
+  const freshById = new Map(keys.map((k, i) => [k, freshRows[i]]));
+  for (const [queryKey, entry] of _annotationsRowsCache) {
+    if (entry.rows) {
+      entry.rows = _patchRowsArray(entry.rows, keys, freshById, queryKey);
+    } else {
+      // initial fetch still in flight (its snapshot may predate this
+      // commit): chain the patch after it resolves.
+      entry.promise = entry.promise.then((rows) => {
+        entry.rows = _patchRowsArray(
+          entry.rows ?? rows,
+          keys,
+          freshById,
+          queryKey
+        );
+        return entry.rows;
+      });
+    }
+  }
+}
+
+function _recordAnnotationWrite(primKey, tx) {
+  _sawLocalWrite = true;
+  if (!tx) {
+    // no transaction context (should not happen — Dexie wraps every
+    // mutation): stay correct with a plain clear.
+    _annCacheFullClear();
+    return;
+  }
+  // Nested Dexie transactions share the parent's IDB commit — buffer and
+  // subscribe on the ROOT transaction only.
+  let root = tx;
+  while (root.parent) root = root.parent;
+  let state = _txAnnPatchState.get(root);
+  if (!state) {
+    state = { keys: new Set() };
+    _txAnnPatchState.set(root, state);
+    let release;
+    const barrier = new Promise((resolve) => {
+      release = resolve;
+    });
+    _annPatchBarriers.add(barrier);
+    const done = () => {
+      _annPatchBarriers.delete(barrier);
+      release();
+    };
+    root.on("complete", () => {
+      if (state.keys.size > MAX_PATCHED_KEYS) {
+        _annCacheFullClear();
+        done();
+        return;
+      }
+      _applyAnnotationRowPatches([...state.keys])
+        .catch(() => _annCacheFullClear())
+        .finally(done);
+    });
+    root.on("abort", done); // nothing was applied — cache still valid
+  }
+  state.keys.add(primKey);
+}
+
+db.annotations.hook("creating", (primKey, obj, tx) =>
+  _recordAnnotationWrite(primKey, tx)
+);
+db.annotations.hook("updating", (mods, primKey, obj, tx) =>
+  _recordAnnotationWrite(primKey, tx)
+);
+db.annotations.hook("deleting", (primKey, obj, tx) =>
+  _recordAnnotationWrite(primKey, tx)
+);
 db.points.hook("creating", (primKey) => {
   // A point id can be negatively cached (null = "no such row") when a read
   // raced its creation — drop the stale null so the row becomes visible.
@@ -483,16 +597,35 @@ export default function useAnnotationsV2(options) {
       // never mutated downstream.
       let _annRowsSharedHit = false;
       const _annRowsFromShared = async (queryKey, fetcher) => {
-        let rowsPromise = _annotationsRowsCache.get(queryKey);
-        _annRowsSharedHit = Boolean(rowsPromise);
-        if (!rowsPromise) {
-          rowsPromise = fetcher().catch((e) => {
-            _annotationsRowsCache.delete(queryKey);
-            throw e;
-          });
-          _annotationsRowsCache.set(queryKey, rowsPromise);
+        // Wait for any pending commit patch (see _recordAnnotationWrite):
+        // a re-run triggered by that very commit must read the patched
+        // rows, not the pre-write ones.
+        while (_annPatchBarriers.size > 0) {
+          await Promise.all([..._annPatchBarriers]);
         }
-        return [...(await rowsPromise)];
+        let entry = _annotationsRowsCache.get(queryKey);
+        _annRowsSharedHit = Boolean(entry);
+        if (!entry) {
+          entry = { rows: null, promise: null };
+          entry.promise = fetcher()
+            .then((rows) => {
+              entry.rows = rows;
+              return rows;
+            })
+            .catch((e) => {
+              _annotationsRowsCache.delete(queryKey);
+              throw e;
+            });
+          _annotationsRowsCache.set(queryKey, entry);
+        }
+        // entry.promise can be extended by a patch chaining onto an
+        // in-flight fetch — await until it settles on a stable value.
+        let p;
+        do {
+          p = entry.promise;
+          await p;
+        } while (entry.promise !== p);
+        return [...(entry.rows ?? [])];
       };
 
       let _annotations;
