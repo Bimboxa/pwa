@@ -25,7 +25,6 @@ import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 
 import {
   Box,
-  Button,
   Paper,
   Typography,
   List,
@@ -2347,6 +2346,8 @@ export default function PopperMapListings() {
     comesFromListing && returnListingId
       ? scopedListings?.filter((l) => l.id === returnListingId)
       : scopedListings;
+  // No listing yet → the header "+ Liste" button becomes the main CTA (contained, orange).
+  const hasNoListing = !displayedListings?.length;
 
   // effects - auto-expand selected listing (or first listing by default)
 
@@ -2550,19 +2551,34 @@ export default function PopperMapListings() {
             }}
             sx={{
               fontSize: "10.5px",
-              color: "panel.textLight",
-              bgcolor: "transparent",
-              border: "1px dashed",
-              borderColor: "panel.border",
               borderRadius: 1,
               px: 0.75,
               py: 0.25,
               cursor: "pointer",
               fontFamily: "inherit",
-              "&:hover": {
-                borderColor: "panel.textMuted",
-                color: "panel.textMuted",
-              },
+              ...(hasNoListing
+                ? {
+                    // contained CTA when no listing exists yet
+                    color: "white",
+                    bgcolor: "secondary.main",
+                    border: "1px solid",
+                    borderColor: "secondary.main",
+                    fontWeight: 600,
+                    "&:hover": {
+                      bgcolor: "secondary.dark",
+                      borderColor: "secondary.dark",
+                    },
+                  }
+                : {
+                    color: "panel.textLight",
+                    bgcolor: "transparent",
+                    border: "1px dashed",
+                    borderColor: "panel.border",
+                    "&:hover": {
+                      borderColor: "panel.textMuted",
+                      color: "panel.textMuted",
+                    },
+                  }),
             }}
           >
             {addListS}
@@ -2714,42 +2730,7 @@ export default function PopperMapListings() {
           </Box>
         )}
 
-        {!displayedListings?.length && !isBaseMapsViewer ? (
-          /* Empty state helper */
-          <Box
-            sx={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              gap: 1.5,
-              px: 3,
-              py: 4,
-            }}
-          >
-            <Typography
-              variant="body2"
-              sx={{
-                color: "panel.textMuted",
-                textAlign: "center",
-                lineHeight: 1.5,
-              }}
-            >
-              Créez des modèles d'annotations organisés dans des listes.
-            </Typography>
-            <Button
-              variant="contained"
-              color="secondary"
-              onClick={() => setOpenCreateListing(true)}
-              sx={{
-                textTransform: "none",
-                fontWeight: 600,
-              }}
-            >
-              Nouvelle liste
-            </Button>
-          </Box>
-        ) : (
-          <>
+        <>
             {isBaseMapsViewer
               ? displayedListings?.map((listing) => (
                   <ListingRow
@@ -2832,8 +2813,7 @@ export default function PopperMapListings() {
               </>
             )}
 
-          </>
-        )}
+        </>
       </Box>
       </>)}
 
