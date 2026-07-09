@@ -393,6 +393,12 @@ export default function useAnnotationsV2(options) {
       // edge case
       if (!baseMaps || !projectId) return null;
 
+      // Timing: when this run STARTED (vs the TOTAL log at completion) — to
+      // tell scheduling latency apart from execution time.
+      console.log(
+        `[debug_perf] stageA start [${_caller}] @${performance.now().toFixed(0)}`
+      );
+
       // Shared-read caches (see module header): keep this instance's
       // liveQuery OBSERVING db.annotations and db.points even when every
       // heavy read below is served from cache — Dexie only re-runs a

@@ -74,7 +74,8 @@ export default function useCreateAnnotation() {
       const annotationTemplateId = _annotation.annotationTemplateId;
       if (annotationTemplateId && _annotation.id && projectId) {
         try {
-          const template = await db.annotationTemplates.get(annotationTemplateId);
+          const template =
+            await db.annotationTemplates.get(annotationTemplateId);
           const rawMappingCategories = template?.mappingCategories ?? [];
 
           const mappingCategories = rawMappingCategories
@@ -91,7 +92,10 @@ export default function useCreateAnnotation() {
           }));
         } catch (relError) {
           // Non-blocking: log but do not fail the annotation creation
-          console.warn("[useCreateAnnotation] Could not create relAnnotationMappingCategory:", relError);
+          console.warn(
+            "[useCreateAnnotation] Could not create relAnnotationMappingCategory:",
+            relError
+          );
         }
       }
 
@@ -118,8 +122,12 @@ export default function useCreateAnnotation() {
         `[debug_perf] createAnnotation: ${(performance.now() - _tca0).toFixed(1)}ms | rels ${(_tca1 - _tca0).toFixed(1)} | createEntity ${(performance.now() - _tca1).toFixed(1)}`
       );
 
+      const _tcaDispatch = performance.now();
       dispatch(triggerAnnotationsUpdate());
       dispatch(triggerAnnotationTemplatesUpdate());
+      console.log(
+        `[debug_perf] createAnnotation dispatches: ${(performance.now() - _tcaDispatch).toFixed(1)}ms`
+      );
 
       return _annotation;
     } catch (e) {
