@@ -73,7 +73,8 @@ export default function useCreateAnnotation() {
       const annotationTemplateId = _annotation.annotationTemplateId;
       if (annotationTemplateId && _annotation.id && projectId) {
         try {
-          const template = await db.annotationTemplates.get(annotationTemplateId);
+          const template =
+            await db.annotationTemplates.get(annotationTemplateId);
           const rawMappingCategories = template?.mappingCategories ?? [];
 
           const mappingCategories = rawMappingCategories
@@ -90,7 +91,10 @@ export default function useCreateAnnotation() {
           }));
         } catch (relError) {
           // Non-blocking: log but do not fail the annotation creation
-          console.warn("[useCreateAnnotation] Could not create relAnnotationMappingCategory:", relError);
+          console.warn(
+            "[useCreateAnnotation] Could not create relAnnotationMappingCategory:",
+            relError
+          );
         }
       }
 

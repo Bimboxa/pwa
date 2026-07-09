@@ -87,7 +87,12 @@ let _lastMissingPointsWarnCount = null;
 //   annotations/points write" contract the pre-scoped unfiltered count()
 //   used to provide.
 
-const _annotationsRowsCache = new Map(); // queryKey -> Promise<rows[]>
+// queryKey -> { promise, rows } — `rows` is set once the fetch resolves and
+// is then PATCHED incrementally on every committed annotations write (see
+// _recordAnnotationWrite below) instead of being refetched: the per-commit
+// full range query (~200ms on heavy base maps / slow IDB) was the last big
+// stage-A cost.
+const _annotationsRowsCache = new Map();
 const _pointsRowsCache = new Map(); // pointId -> row | null
 const _pointsInflightFetches = new Map(); // pointId -> Promise<row | null>
 let _pointsCacheGeneration = 0;
@@ -117,13 +122,122 @@ const _bumpDbWriteTick = () => {
 const useDbWriteTick = () =>
   useSyncExternalStore(_subscribeDbWriteTick, _getDbWriteTick);
 
-const _invalidateAnnotationRows = () => {
-  _sawLocalWrite = true;
+// --- Incremental patching of the annotation-rows cache -------------------
+// Instead of clearing the cache on every annotations write (which forced the
+// next wave's leader to re-run the full range query), the hooks accumulate
+// the touched primary keys PER ROOT TRANSACTION; on commit, ONE bulkGet
+// re-reads the real rows (audit stamps included, soft-deletes visible) and
+// patches every cached array according to its query scope. Batch writes
+// (mass create / delete / update: bulkAdd, bulkPut, bulkDelete, procedure
+// saves) therefore cost a single bulkGet + one array rebuild per cache
+// entry, whatever the row count.
+// A synchronous barrier makes any liveQuery re-run triggered by the same
+// commit WAIT for the patch — otherwise it would read the pre-write rows
+// and, with no further mutation, stay stale.
+// Safety nets (fall back to a full clear → plain refetch): patch failure,
+// oversized batches, hook fired without a transaction.
+const _annPatchBarriers = new Set(); // pending patch promises (commit -> applied)
+const _txAnnPatchState = new WeakMap(); // rootTx -> { keys: Set }
+const MAX_PATCHED_KEYS = 500;
+
+const _annCacheFullClear = () => {
   _annotationsRowsCache.clear();
 };
-db.annotations.hook("creating", _invalidateAnnotationRows);
-db.annotations.hook("updating", _invalidateAnnotationRows);
-db.annotations.hook("deleting", _invalidateAnnotationRows);
+
+function _rowBelongsToQueryKey(queryKey, row) {
+  if (!row) return false;
+  const sep = queryKey.indexOf(":");
+  const kind = queryKey.slice(0, sep);
+  const val = queryKey.slice(sep + 1);
+  if (kind === "baseMaps") return val.split(",").includes(row.baseMapId);
+  if (kind === "listing") return row.listingId === val;
+  if (kind === "project") return row.projectId === val;
+  return false;
+}
+
+function _patchRowsArray(rows, keys, freshById, queryKey) {
+  const keySet = new Set(keys);
+  const next = rows.filter((r) => !keySet.has(r.id));
+  for (const k of keys) {
+    const fresh = freshById.get(k);
+    if (fresh && !fresh.deletedAt && _rowBelongsToQueryKey(queryKey, fresh)) {
+      next.push(fresh);
+    }
+  }
+  return next;
+}
+
+async function _applyAnnotationRowPatches(keys) {
+  const freshRows = await db.annotations.bulkGet(keys);
+  const freshById = new Map(keys.map((k, i) => [k, freshRows[i]]));
+  for (const [queryKey, entry] of _annotationsRowsCache) {
+    if (entry.rows) {
+      entry.rows = _patchRowsArray(entry.rows, keys, freshById, queryKey);
+    } else {
+      // initial fetch still in flight (its snapshot may predate this
+      // commit): chain the patch after it resolves.
+      entry.promise = entry.promise.then((rows) => {
+        entry.rows = _patchRowsArray(
+          entry.rows ?? rows,
+          keys,
+          freshById,
+          queryKey
+        );
+        return entry.rows;
+      });
+    }
+  }
+}
+
+function _recordAnnotationWrite(primKey, tx) {
+  _sawLocalWrite = true;
+  if (!tx) {
+    // no transaction context (should not happen — Dexie wraps every
+    // mutation): stay correct with a plain clear.
+    _annCacheFullClear();
+    return;
+  }
+  // Nested Dexie transactions share the parent's IDB commit — buffer and
+  // subscribe on the ROOT transaction only.
+  let root = tx;
+  while (root.parent) root = root.parent;
+  let state = _txAnnPatchState.get(root);
+  if (!state) {
+    state = { keys: new Set() };
+    _txAnnPatchState.set(root, state);
+    let release;
+    const barrier = new Promise((resolve) => {
+      release = resolve;
+    });
+    _annPatchBarriers.add(barrier);
+    const done = () => {
+      _annPatchBarriers.delete(barrier);
+      release();
+    };
+    root.on("complete", () => {
+      if (state.keys.size > MAX_PATCHED_KEYS) {
+        _annCacheFullClear();
+        done();
+        return;
+      }
+      _applyAnnotationRowPatches([...state.keys])
+        .catch(() => _annCacheFullClear())
+        .finally(done);
+    });
+    root.on("abort", done); // nothing was applied — cache still valid
+  }
+  state.keys.add(primKey);
+}
+
+db.annotations.hook("creating", (primKey, obj, tx) =>
+  _recordAnnotationWrite(primKey, tx)
+);
+db.annotations.hook("updating", (mods, primKey, obj, tx) =>
+  _recordAnnotationWrite(primKey, tx)
+);
+db.annotations.hook("deleting", (primKey, obj, tx) =>
+  _recordAnnotationWrite(primKey, tx)
+);
 db.points.hook("creating", (primKey) => {
   // A point id can be negatively cached (null = "no such row") when a read
   // raced its creation — drop the stale null so the row becomes visible.
@@ -393,6 +507,8 @@ export default function useAnnotationsV2(options) {
       // edge case
       if (!baseMaps || !projectId) return null;
 
+      const _tStart = performance.now();
+
       // Shared-read caches (see module header): keep this instance's
       // liveQuery OBSERVING db.annotations and db.points even when every
       // heavy read below is served from cache — Dexie only re-runs a
@@ -400,29 +516,67 @@ export default function useAnnotationsV2(options) {
       // The observation reads are SCOPED to the ranges this instance
       // consumes (same semantics as the pre-#290 direct reads): an
       // unfiltered count() scanned the WHOLE table across every project,
-      // which on large multi-project local DBs cost ~100ms+ per instance
-      // per run and serialized the commit waves.
-      {
+      // which on large multi-project local DBs cost ~100ms+ per call.
+      // They are also MINIMAL — limit(1).primaryKeys() — because Dexie
+      // registers the queried RANGE for observation regardless of limit,
+      // while count() walks the whole index range: with 7 instances × 2
+      // reads all firing on the same commit, the counts serialized on IDB
+      // for ~500ms per wave on slow-IDB machines.
+      // And they are OFF the critical path: observation registers when the
+      // read is ISSUED (inside this liveQuery zone), so the promise is only
+      // awaited at the very end of the callback — the reads run in parallel
+      // with the shared-cache work instead of gating it.
+      let _obsDoneAt = 0;
+      const _obsPromise = (async () => {
         const obsBaseMapIds = [baseMapId, ...extraBaseMapIds].filter(Boolean);
         if (obsBaseMapIds.length > 0) {
           await Promise.all([
-            db.annotations.where("baseMapId").anyOf(obsBaseMapIds).count(),
-            db.points.where("baseMapId").anyOf(obsBaseMapIds).count(),
+            db.annotations
+              .where("baseMapId")
+              .anyOf(obsBaseMapIds)
+              .limit(1)
+              .primaryKeys(),
+            db.points
+              .where("baseMapId")
+              .anyOf(obsBaseMapIds)
+              .limit(1)
+              .primaryKeys(),
           ]);
         } else if (listingId) {
           await Promise.all([
-            db.annotations.where("listingId").equals(listingId).count(),
-            db.points.where("listingId").equals(listingId).count(),
+            db.annotations
+              .where("listingId")
+              .equals(listingId)
+              .limit(1)
+              .primaryKeys(),
+            db.points
+              .where("listingId")
+              .equals(listingId)
+              .limit(1)
+              .primaryKeys(),
           ]);
         } else {
           await Promise.all([
-            db.annotations.where("projectId").equals(projectId).count(),
-            db.points.where("projectId").equals(projectId).count(),
+            db.annotations
+              .where("projectId")
+              .equals(projectId)
+              .limit(1)
+              .primaryKeys(),
+            db.points
+              .where("projectId")
+              .equals(projectId)
+              .limit(1)
+              .primaryKeys(),
           ]);
         }
-      }
+        _obsDoneAt = performance.now();
+      })();
+      // Suppress unhandled-rejection noise if the callback throws elsewhere
+      // first; the await at the end still propagates a real obs failure.
+      _obsPromise.catch(() => {});
 
       const _t0 = performance.now();
+      const _obsMs = () => (_obsDoneAt ? _obsDoneAt - _tStart : NaN);
       // annotations
 
       // NOTE: points are fetched AFTER all annotation filtering (below), by
@@ -438,16 +592,35 @@ export default function useAnnotationsV2(options) {
       // never mutated downstream.
       let _annRowsSharedHit = false;
       const _annRowsFromShared = async (queryKey, fetcher) => {
-        let rowsPromise = _annotationsRowsCache.get(queryKey);
-        _annRowsSharedHit = Boolean(rowsPromise);
-        if (!rowsPromise) {
-          rowsPromise = fetcher().catch((e) => {
-            _annotationsRowsCache.delete(queryKey);
-            throw e;
-          });
-          _annotationsRowsCache.set(queryKey, rowsPromise);
+        // Wait for any pending commit patch (see _recordAnnotationWrite):
+        // a re-run triggered by that very commit must read the patched
+        // rows, not the pre-write ones.
+        while (_annPatchBarriers.size > 0) {
+          await Promise.all([..._annPatchBarriers]);
         }
-        return [...(await rowsPromise)];
+        let entry = _annotationsRowsCache.get(queryKey);
+        _annRowsSharedHit = Boolean(entry);
+        if (!entry) {
+          entry = { rows: null, promise: null };
+          entry.promise = fetcher()
+            .then((rows) => {
+              entry.rows = rows;
+              return rows;
+            })
+            .catch((e) => {
+              _annotationsRowsCache.delete(queryKey);
+              throw e;
+            });
+          _annotationsRowsCache.set(queryKey, entry);
+        }
+        // entry.promise can be extended by a patch chaining onto an
+        // in-flight fetch — await until it settles on a stable value.
+        let p;
+        do {
+          p = entry.promise;
+          await p;
+        } while (entry.promise !== p);
+        return [...(entry.rows ?? [])];
       };
 
       let _annotations;
@@ -1167,6 +1340,7 @@ export default function useAnnotationsV2(options) {
       const _t6 = performance.now();
       console.log(
         `[debug_perf] useAnnotationsV2 [${_caller}] (${_annotations?.length ?? 0} annotations):\n` +
+          `  obs reads:      ${_obsMs().toFixed(1)}ms (overlapped)\n` +
           `  DB fetch:       ${(_t1 - _t0).toFixed(1)}ms (${listingsIds.length} listingIds${_annRowsSharedHit ? ", shared rows hit" : ", shared rows MISS"})\n` +
           `  filters:        ${(_t2 - _t1).toFixed(1)}ms\n` +
           `  listings total: ${(_t3 - _t2).toFixed(1)}ms  [db.listings: ${(_t2b - _t2a).toFixed(1)}ms (${listings.length} found) | filters+scope: ${(_t2c - _t2b).toFixed(1)}ms | db.layers+sort: ${(_t3 - _t2c).toFixed(1)}ms]\n` +
@@ -1526,6 +1700,11 @@ export default function useAnnotationsV2(options) {
         }
       }
 
+      // Observation reads were fired at the top of the callback — settle
+      // them before returning so tracking is guaranteed registered and a
+      // real read failure still surfaces.
+      await _obsPromise;
+
       return _annotations;
     }, [
       enabled,
@@ -1555,10 +1734,6 @@ export default function useAnnotationsV2(options) {
     const processed = useMemo(() => {
       // skip post-processing when disabled
       if (!enabled || !annotations || annotations.length === 0) return [];
-
-      // stage-B timing instrumentation (pure measurement, no behavior
-      // change): one mark per block, summary logged below when total >= 5ms.
-      const _tB0 = performance.now();
 
       // override with annotation templates
       let result = annotations.map((annotation) => {
@@ -1592,8 +1767,6 @@ export default function useAnnotationsV2(options) {
         return a;
       });
 
-      const _tB1 = performance.now(); // template override (+ proxy fill)
-
       // recompute qties after template overrides so overridden height is reflected
       if (withQties) {
         // NOTE: no in-place `annotation.qties = ...` here — the identity
@@ -1625,8 +1798,6 @@ export default function useAnnotationsV2(options) {
           return annotation;
         });
       }
-
-      const _tB2 = performance.now(); // withQties recompute
 
       // -- SUBTRACTIONS --
       // Attach subtraction relations (targetIds + resolved target
@@ -1693,8 +1864,6 @@ export default function useAnnotationsV2(options) {
         });
       }
 
-      const _tB3 = performance.now(); // subtractions
-
       // filter out annotations whose template is hidden
       result = result.filter((a) => !a.hidden);
 
@@ -1733,8 +1902,6 @@ export default function useAnnotationsV2(options) {
           result = result.filter(isInSolo);
         }
       }
-
-      const _tB4 = performance.now(); // hidden/profile/solo filters
 
       // override with temp annotations
       result = [...result, ...(tempAnnotations ?? [])];
@@ -1850,8 +2017,6 @@ export default function useAnnotationsV2(options) {
           .sort((a, b) => a.baseMap?.name.localeCompare(b.baseMap?.name));
       }
 
-      const _tB5 = performance.now(); // order maps + sort (+ groupByBaseMap)
-
       // Identity stabilization: reuse the previous run's object (and array)
       // references for annotations whose resolved content did not change, so
       // memo(NodeAnnotationStatic) & co only re-render what actually changed.
@@ -1860,18 +2025,12 @@ export default function useAnnotationsV2(options) {
         stabilityRef.current,
         result
       );
-      console.log(
-        `[debug_perf] useAnnotationsV2 [${_caller}] stability: ${reused}/${result.length} reused (${(performance.now() - _tStab).toFixed(1)}ms)`
-      );
-
-      // Summary — only when stage B is actually expensive (it re-runs on
-      // every consumer re-render at ~1ms; logging those would flood the
-      // console and evict the interesting lines from its buffer).
-      const _tB6 = performance.now();
-      const _stageBTotal = _tB6 - _tB0;
-      if (_stageBTotal >= 5) {
+      // Only log when something actually changed (or the compare got slow):
+      // idle all-reused runs fire on every consumer re-render and their logs
+      // flood the console buffer, evicting the interesting commit lines.
+      if (reused < result.length || performance.now() - _tStab >= 5) {
         console.log(
-          `[debug_perf] useAnnotationsV2 [${_caller}] stage B: ${_stageBTotal.toFixed(1)}ms (N=${result.length}) | override ${(_tB1 - _tB0).toFixed(1)} | qties ${(_tB2 - _tB1).toFixed(1)} | subtractions ${(_tB3 - _tB2).toFixed(1)} | filters ${(_tB4 - _tB3).toFixed(1)} | sort ${(_tB5 - _tB4).toFixed(1)} | stability ${(_tB6 - _tB5).toFixed(1)}`
+          `[debug_perf] useAnnotationsV2 [${_caller}] stability: ${reused}/${result.length} reused (${(performance.now() - _tStab).toFixed(1)}ms)`
         );
       }
 

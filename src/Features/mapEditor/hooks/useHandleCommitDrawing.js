@@ -28,6 +28,33 @@ import findCutHostAnnotationId from "Features/annotations/utils/findCutHostAnnot
 import getAnnotationAsPolygons from "Features/geometry/utils/getAnnotationAsPolygons";
 import createRevolutionProxiesOnPlan from "Features/elevation/services/createRevolutionProxiesOnPlan";
 
+// Module-level cache of the per-listing annotationTemplates query (ÉTAPE 2.5
+// below): the query ran on EVERY drawing commit (~30ms of IDB on slow
+// machines) for a table that rarely changes. Invalidated by the Dexie hooks
+// (same pattern and same same-tab-only limitation as _listingsCache in
+// useAnnotationsV2).
+const _templatesByListingCache = new Map(); // listingId -> Promise<templates[]>
+{
+    const _clearTemplatesCache = () => _templatesByListingCache.clear();
+    db.annotationTemplates.hook("creating", _clearTemplatesCache);
+    db.annotationTemplates.hook("updating", _clearTemplatesCache);
+    db.annotationTemplates.hook("deleting", _clearTemplatesCache);
+}
+const getTemplatesForListing = (listingId) => {
+    let p = _templatesByListingCache.get(listingId);
+    if (!p) {
+        p = db.annotationTemplates
+            .where("listingId")
+            .equals(listingId)
+            .toArray()
+            .catch((e) => {
+                _templatesByListingCache.delete(listingId);
+                throw e;
+            });
+        _templatesByListingCache.set(listingId, p);
+    }
+    return p;
+};
 
 export default function useHandleCommitDrawing({ newEntity, annotations } = {}) {
 
@@ -150,7 +177,10 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
                     meterByPx: baseMap?.getMeterByPx?.(),
                 });
             }
-            _updatedAnnotation = { ...await db.annotations.get(_cutHostId) }
+            _updatedAnnotation = _cutHostId
+                ? { ...(await db.annotations.get(_cutHostId)) }
+                : null;
+            if (_updatedAnnotation?.type !== "POLYGON") return; // openings only apply to POLYGON hosts
 
             // When the drawn opening touches or exits the host polygon's outer
             // boundary, we modify the outer contour (carving a notch) instead
@@ -474,7 +504,7 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
             let annotationTemplateId;
             // ÉTAPE 2.5 : Enregistrement de l'annotation template
             if (newAnnotation && !_updatedAnnotation && !isBaseMapAnnotation && !skipTemplateCreation && !isRevolutionHelper) {
-                const existingAnnotationTemplates = await db.annotationTemplates.where("listingId").equals(listingId).toArray();
+                const existingAnnotationTemplates = await getTemplatesForListing(listingId);
                 // const existingAnnotationTemplate = getAnnotationTemplateFromNewAnnotation({
                 //     newAnnotation,
                 //     annotationTemplates: existingAnnotationTemplates,
