@@ -21,7 +21,6 @@ export default function useCreateEntity() {
 
   // helper
   const create = async (data, options) => {
-    const _tceStart = performance.now();
     // options
     const listingOption = options?.listing;
     const updateSyncFile = options?.updateSyncFile;
@@ -62,7 +61,6 @@ export default function useCreateEntity() {
 
     // --- TRANSACTIONAL PATH (options.tx) ---
     if (tx) {
-      const _tce0 = _tceStart;
       const entity = {
         id: entityId,
         createdBy: userEmail,
@@ -77,7 +75,6 @@ export default function useCreateEntity() {
         const txTables = [
           ...new Set([db[table], db.files, ...(tx.tables ?? [])]),
         ];
-        const _tce1 = performance.now();
         await db.transaction("rw", txTables, async () => {
           await Promise.all(
             allFilesToStore.map((fileData) => db.files.put(fileData))
@@ -85,9 +82,6 @@ export default function useCreateEntity() {
           await db[table].add(entity);
           await tx.writes?.();
         });
-        console.log(
-          `[debug_perf] createEntity(tx): pre ${(_tce1 - _tce0).toFixed(1)}ms | transaction ${(performance.now() - _tce1).toFixed(1)}ms`
-        );
       } catch (e) {
         console.log("[db] error adding entity (tx)", e);
         return;
