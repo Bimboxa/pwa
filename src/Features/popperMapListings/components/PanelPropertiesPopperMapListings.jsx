@@ -22,6 +22,7 @@ import { ArrowBack as Back, DeleteOutline } from "@mui/icons-material";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 import FieldCheck from "Features/form/components/FieldCheck";
+import SectionDuplicates from "Features/popperMapListings/components/SectionDuplicates";
 import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
 import useDeleteUnusedAnnotationTemplates from "Features/annotations/hooks/useDeleteUnusedAnnotationTemplates";
 
@@ -178,6 +179,25 @@ export default function PanelPropertiesPopperMapListings() {
           >
             Supprimer les modèles non utilisés
           </Button>
+        </WhiteSectionGeneric>
+
+        {/* Card: Duplicate annotations detection */}
+        <WhiteSectionGeneric>
+          <Typography
+            variant="caption"
+            sx={{
+              fontWeight: 700,
+              fontSize: "0.7rem",
+              textTransform: "uppercase",
+              color: "text.secondary",
+              letterSpacing: 0.5,
+              mb: 1,
+              display: "block",
+            }}
+          >
+            Doublons
+          </Typography>
+          <SectionDuplicates />
         </WhiteSectionGeneric>
       </BoxFlexVStretch>
 
