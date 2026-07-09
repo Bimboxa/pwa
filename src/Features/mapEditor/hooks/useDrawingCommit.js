@@ -143,6 +143,9 @@ export default function useDrawingCommit({
     const pointsToSave = drawingPointsRef.current;
     const _cutHostId = cutHostIdRef.current;
     if (pointsToSave.length >= 2) {
+      // Feeds the existing "⏱ marker commit → render" measure in
+      // StaticMapContent (logged when the annotations count increases).
+      performance.mark("marker-commit-start");
       onCommitDrawingRef.current({
         points: pointsToSave,
         event,

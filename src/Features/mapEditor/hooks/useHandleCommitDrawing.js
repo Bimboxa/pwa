@@ -79,6 +79,13 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
 
     const handleDrawingCommit = async (rawPoints, options) => {
 
+        // Timing instrumentation (pure measurement): phases of the synchronous
+        // commit work, logged as one summary line after the DB save.
+        const _tc0 = performance.now();
+        let _tcEntity = _tc0;
+        let _tcPrep = _tc0;
+        let _tcTemplate = _tc0;
+
         let _newAnnotation; // created at the end.
         let _updatedAnnotation;
 
@@ -150,7 +157,10 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
                     meterByPx: baseMap?.getMeterByPx?.(),
                 });
             }
-            _updatedAnnotation = { ...await db.annotations.get(_cutHostId) }
+            _updatedAnnotation = _cutHostId
+                ? { ...(await db.annotations.get(_cutHostId)) }
+                : null;
+            if (_updatedAnnotation?.type !== "POLYGON") return; // openings only apply to POLYGON hosts
 
             // When the drawn opening touches or exits the host polygon's outer
             // boundary, we modify the outer contour (carving a notch) instead
@@ -197,6 +207,7 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
             const entity = await createEntity(newEntity)
             entityId = entity.id;
         }
+        _tcEntity = performance.now();
 
         // edge case
         if (newAnnotation.type === "LABEL" && rawPoints.length === 1) {
@@ -471,6 +482,8 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
                 }
             }
 
+            _tcPrep = performance.now();
+
             let annotationTemplateId;
             // ÉTAPE 2.5 : Enregistrement de l'annotation template
             if (newAnnotation && !_updatedAnnotation && !isBaseMapAnnotation && !skipTemplateCreation && !isRevolutionHelper) {
@@ -495,6 +508,8 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
                 }
             }
 
+
+            _tcTemplate = performance.now();
 
             // ETAPE 3 : update annotation cuts
 
@@ -793,6 +808,7 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
         // Sauvegarde DB — single transaction: deferred point rows + snap
         // updates + annotation (+ mapping rels) commit atomically, so the
         // liveQueries re-run once per drawing commit.
+        const _tcGeometry = performance.now();
         if (_updatedAnnotation) {
             await updateAnnotation(_updatedAnnotation, {
                 pointRowsToSave: pendingPointRows,
@@ -804,6 +820,20 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
                 annotationUpdatesInTx: pendingAnnotationUpdates,
             });
         }
+        const _tcSave = performance.now();
+        console.log(
+            `[debug_perf] commitDrawing: ${(_tcSave - _tc0).toFixed(1)}ms | entity ${(_tcEntity - _tc0).toFixed(1)} | prep ${(_tcPrep - _tcEntity).toFixed(1)} | template ${(_tcTemplate - _tcPrep).toFixed(1)} | geometry ${(_tcGeometry - _tcTemplate).toFixed(1)} | save ${(_tcSave - _tcGeometry).toFixed(1)}`
+        );
+        // Paint probe: second rAF fires after the browser painted the frame
+        // that follows the save — the closest cheap proxy for "the user saw
+        // the committed annotation".
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                console.log(
+                    `[debug_perf] ⏱ commitDrawing save → painted: ${(performance.now() - _tcSave).toFixed(0)}ms`
+                );
+            });
+        });
 
         // REVOLUTION_POINT placed from the elevation panel ("Positionner l'axe
         // sur la vue en plan"): the point carries the revolution axis id, so we
