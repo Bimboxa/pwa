@@ -177,15 +177,18 @@ function ModeShortcutBadge({ children }) {
   );
 }
 
+// TODO: clean up the code behind the drawing tools removed from this UI list
+// (SPLIT_SURFACE "Couper des surfaces", TECHNICAL_RETURN "Retour 1m",
+// ADD_INNER_POINT "Ajouter un point", LOCALIZED_REPAIR "Réparation localisée").
+// Once confirmed unused elsewhere, drop their interaction handlers / drawing
+// modes / hooks and the now-unused icon imports (IconCutSurface,
+// IconTechnicalReturn, AddLocationAlt, AutoFixHigh) and the REPAIR_MODES /
+// SectionRepairModes wiring.
 const TOOL_ITEMS = [
   { type: "CUT", label: "Ouverture", Icon: StopCircle, shortcut: "O" },
-  { type: "SPLIT_LINE", label: "Retirer un segment", Icon: IconCutLine, shortcut: "C" },
-  { type: "SPLIT_POLYLINE_CLICK", label: "Couper un segment", Icon: IconSplitPolylineClick, shortcut: "X" },
-  { type: "SPLIT_SURFACE", label: "Couper des surfaces", Icon: IconCutSurface },
-  { type: "TECHNICAL_RETURN", label: "Retour 1m", Icon: IconTechnicalReturn },
+  { type: "SPLIT_LINE", label: "Retirer un segment", Icon: IconCutLine, shortcut: "X" },
+  { type: "SPLIT_POLYLINE_CLICK", label: "Couper un segment", Icon: IconSplitPolylineClick, shortcut: "C" },
   { type: "COMPLETE_ANNOTATION", label: "Prolonger", Icon: Create },
-  { type: "ADD_INNER_POINT", label: "Ajouter un point", Icon: AddLocationAlt },
-  { type: "LOCALIZED_REPAIR", label: "Réparation localisée", Icon: AutoFixHigh },
   { type: "REVOLUTION", label: "Axe de révolution", Icon: RotateRight },
 ];
 
@@ -2812,7 +2815,7 @@ export default function PopperMapListings() {
                       fontSize: "11px",
                     }}
                   >
-                    Outils de découpe
+                    Outils de dessin
                   </Typography>
                 </Box>
                 <List dense disablePadding>
