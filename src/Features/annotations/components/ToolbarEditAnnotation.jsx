@@ -81,6 +81,7 @@ import IconButtonConvertAnnotation from "./IconButtonConvertAnnotation";
 import IconButtonVectorisation from "./IconButtonVectorisation";
 import IconButtonSimplifyAnnotation from "./IconButtonSimplifyAnnotation";
 import IconButtonArcifyAnnotation from "./IconButtonArcifyAnnotation";
+import IconButtonArcifySelectedPoints from "./IconButtonArcifySelectedPoints";
 import IconButtonCloseWallFootprint from "./IconButtonCloseWallFootprint";
 import IconButtonSlopeWalls from "./IconButtonSlopeWalls";
 import IconButtonContours from "./IconButtonContours";
@@ -824,7 +825,16 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
           onDelete={handleDeleteClick}
           hideDelete={hasPart}
           extraActions={
-            hasPart ? null : (
+            hasPart ? (
+              isMixedPart &&
+              ["POLYLINE", "POLYGON"].includes(selectedAnnotation?.type) ? (
+                <IconButtonArcifySelectedPoints
+                  annotation={selectedAnnotation}
+                  pointIds={part.pointIds}
+                  accentColor={accentColor}
+                />
+              ) : null
+            ) : (
               <>
                 {["POLYLINE", "STRIP"].includes(selectedAnnotation?.type) && (
                   <IconButtonAnchorAnnotation
