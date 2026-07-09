@@ -395,8 +395,9 @@ export default function useAnnotationsV2(options) {
 
       // Timing: when this run STARTED (vs the TOTAL log at completion) — to
       // tell scheduling latency apart from execution time.
+      const _tStart = performance.now();
       console.log(
-        `[debug_perf] stageA start [${_caller}] @${performance.now().toFixed(0)}`
+        `[debug_perf] stageA start [${_caller}] @${_tStart.toFixed(0)}`
       );
 
       // Shared-read caches (see module header): keep this instance's
@@ -406,29 +407,58 @@ export default function useAnnotationsV2(options) {
       // The observation reads are SCOPED to the ranges this instance
       // consumes (same semantics as the pre-#290 direct reads): an
       // unfiltered count() scanned the WHOLE table across every project,
-      // which on large multi-project local DBs cost ~100ms+ per instance
-      // per run and serialized the commit waves.
+      // which on large multi-project local DBs cost ~100ms+ per call.
+      // They are also MINIMAL — limit(1).primaryKeys() — because Dexie
+      // registers the queried RANGE for observation regardless of limit,
+      // while count() walks the whole index range: with 7 instances × 2
+      // reads all firing on the same commit, the counts serialized on IDB
+      // for ~500ms per wave on slow-IDB machines.
       {
         const obsBaseMapIds = [baseMapId, ...extraBaseMapIds].filter(Boolean);
         if (obsBaseMapIds.length > 0) {
           await Promise.all([
-            db.annotations.where("baseMapId").anyOf(obsBaseMapIds).count(),
-            db.points.where("baseMapId").anyOf(obsBaseMapIds).count(),
+            db.annotations
+              .where("baseMapId")
+              .anyOf(obsBaseMapIds)
+              .limit(1)
+              .primaryKeys(),
+            db.points
+              .where("baseMapId")
+              .anyOf(obsBaseMapIds)
+              .limit(1)
+              .primaryKeys(),
           ]);
         } else if (listingId) {
           await Promise.all([
-            db.annotations.where("listingId").equals(listingId).count(),
-            db.points.where("listingId").equals(listingId).count(),
+            db.annotations
+              .where("listingId")
+              .equals(listingId)
+              .limit(1)
+              .primaryKeys(),
+            db.points
+              .where("listingId")
+              .equals(listingId)
+              .limit(1)
+              .primaryKeys(),
           ]);
         } else {
           await Promise.all([
-            db.annotations.where("projectId").equals(projectId).count(),
-            db.points.where("projectId").equals(projectId).count(),
+            db.annotations
+              .where("projectId")
+              .equals(projectId)
+              .limit(1)
+              .primaryKeys(),
+            db.points
+              .where("projectId")
+              .equals(projectId)
+              .limit(1)
+              .primaryKeys(),
           ]);
         }
       }
 
       const _t0 = performance.now();
+      const _obsMs = _t0 - _tStart;
       // annotations
 
       // NOTE: points are fetched AFTER all annotation filtering (below), by
@@ -1173,6 +1203,7 @@ export default function useAnnotationsV2(options) {
       const _t6 = performance.now();
       console.log(
         `[debug_perf] useAnnotationsV2 [${_caller}] (${_annotations?.length ?? 0} annotations):\n` +
+          `  obs reads:      ${_obsMs.toFixed(1)}ms\n` +
           `  DB fetch:       ${(_t1 - _t0).toFixed(1)}ms (${listingsIds.length} listingIds${_annRowsSharedHit ? ", shared rows hit" : ", shared rows MISS"})\n` +
           `  filters:        ${(_t2 - _t1).toFixed(1)}ms\n` +
           `  listings total: ${(_t3 - _t2).toFixed(1)}ms  [db.listings: ${(_t2b - _t2a).toFixed(1)}ms (${listings.length} found) | filters+scope: ${(_t2c - _t2b).toFixed(1)}ms | db.layers+sort: ${(_t3 - _t2c).toFixed(1)}ms]\n` +
