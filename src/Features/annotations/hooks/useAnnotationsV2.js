@@ -1860,9 +1860,14 @@ export default function useAnnotationsV2(options) {
         stabilityRef.current,
         result
       );
-      console.log(
-        `[debug_perf] useAnnotationsV2 [${_caller}] stability: ${reused}/${result.length} reused (${(performance.now() - _tStab).toFixed(1)}ms)`
-      );
+      // Only log when something actually changed (or the compare got slow):
+      // idle all-reused runs fire on every consumer re-render and their logs
+      // flood the console buffer, evicting the interesting commit lines.
+      if (reused < result.length || performance.now() - _tStab >= 5) {
+        console.log(
+          `[debug_perf] useAnnotationsV2 [${_caller}] stability: ${reused}/${result.length} reused (${(performance.now() - _tStab).toFixed(1)}ms)`
+        );
+      }
 
       // Summary — only when stage B is actually expensive (it re-runs on
       // every consumer re-render at ~1ms; logging those would flood the
