@@ -15,6 +15,7 @@ import ContentCutIcon from "@mui/icons-material/ContentCut";
 
 import ButtonDrawThreed from "./ButtonDrawThreed";
 import ButtonDimensionThreed from "Features/threedDimensions/components/ButtonDimensionThreed";
+import ButtonMeshThreed from "Features/threedMesh/components/ButtonMeshThreed";
 import ButtonZoomOutThreed from "Features/threedEditor/components/ButtonZoomOutThreed";
 
 // Floating bottom toolbar for the main 3D viewer. Three states:
@@ -114,6 +115,7 @@ export default function BottomToolbarThreed() {
         ) : (
           <>
             <ButtonDrawThreed />
+            <ButtonMeshThreed />
             <ButtonDimensionThreed />
           </>
         )}

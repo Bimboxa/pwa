@@ -183,6 +183,20 @@ export default function remapDexieExportIds(jsonData, opts) {
         }
       }
 
+      // Mesh cell provenance (nested refs, informational only).
+      if (tableName === "meshes3d" && row.sourceInfo) {
+        if (row.sourceInfo.annotationId)
+          row.sourceInfo.annotationId = remapId(
+            "annotations",
+            row.sourceInfo.annotationId
+          );
+        if (row.sourceInfo.baseMapId)
+          row.sourceInfo.baseMapId = remapId(
+            "baseMaps",
+            row.sourceInfo.baseMapId
+          );
+      }
+
       // Annotation point refs (points[] and cuts[*].points[]).
       if (tableName === "annotations") {
         if (Array.isArray(row.points)) {

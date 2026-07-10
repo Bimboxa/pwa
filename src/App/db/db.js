@@ -132,6 +132,16 @@ db.version(23).stores({
   dimensions3d: "id,projectId,scopeId,[projectId+scopeId]",
 });
 
+db.version(24).stores({
+  // {id, projectId, scopeId, number, label, color, surface, faces, sourceInfo}
+  // 3D mesh cell ("maille"): a first-class 3D-only object made of one or
+  // several planar face loops (faces: [{contour:[{x,y,z}], holes, normal}]) in
+  // three.js world coordinates. `surface` (m²) caches the sum of face areas.
+  // `number` is allocated at creation and never reused (numbering includes
+  // soft-deleted rows); display label = label ?? prefix + number.
+  meshes3d: "id,projectId,scopeId,[projectId+scopeId]",
+});
+
 // --- AUDIT HOOKS ---
 
 const AUDIT_TABLES = [
@@ -164,6 +174,7 @@ const AUDIT_TABLES = [
   "relAnnotationSubtractions",
   "relAnnotationMeshCells",
   "dimensions3d",
+  "meshes3d",
 ];
 
 // Shared/collaborative tables exempt from the ownership guard: records here can
@@ -300,6 +311,7 @@ const SOFT_DELETE_TABLES = new Set([
   "relAnnotationSubtractions",
   "relAnnotationMeshCells",
   "dimensions3d",
+  "meshes3d",
 ]);
 
 let _skipSoftDelete = false;

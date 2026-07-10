@@ -30,8 +30,6 @@ import {
   setAntiAliasingShrink,
   setEditorMode,
 } from "Features/threedEditor/threedEditorSlice";
-import { setShowMeshCells } from "Features/annotations/annotationsSlice";
-import useMeshCellRelations from "Features/annotations/hooks/useMeshCellRelations";
 import DialogExportPhotoreal from "Features/photorealRender/components/DialogExportPhotoreal";
 import exportSceneAsUsdzService from "Features/threedEditor/services/exportSceneAsUsdzService";
 import exportSceneAsObjService from "Features/threedEditor/services/exportSceneAsObjService";
@@ -93,13 +91,6 @@ export default function PanelThreedProperties() {
   const antiAliasingShrink = useSelector(
     (s) => s.threedEditor.antiAliasingShrink
   );
-  const showMeshCells = useSelector((s) => s.annotations.showMeshCells);
-
-  // Hide the "mailles" toggle when there is nothing to mesh (mirrors the 2D
-  // map editor). The mode is auto-disabled elsewhere when cells disappear.
-  const { parentIdSet } = useMeshCellRelations();
-  const hasMeshCells = parentIdSet.size > 0;
-
   // handlers
 
   function handleStartExport(presetKey) {
@@ -234,22 +225,6 @@ export default function PanelThreedProperties() {
                 </Typography>
               }
             />
-            {hasMeshCells && (
-              <FormControlLabel
-                control={
-                  <Switch
-                    size="small"
-                    checked={showMeshCells}
-                    onChange={(e) =>
-                      dispatch(setShowMeshCells(e.target.checked))
-                    }
-                  />
-                }
-                label={
-                  <Typography variant="body2">Afficher les mailles</Typography>
-                }
-              />
-            )}
           </Box>
 
           <Divider sx={{ my: 1.5 }} />

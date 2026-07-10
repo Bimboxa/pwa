@@ -78,6 +78,13 @@ import ThreedDimensions from "Features/threedDimensions/components/ThreedDimensi
 import PopperEditDimension from "Features/threedDimensions/components/PopperEditDimension";
 import useDimensionPointerHandlers from "Features/threedDimensions/hooks/useDimensionPointerHandlers";
 import { getDimensionObjects } from "Features/threedDimensions/services/dimensionObjectsStore";
+import MeshingToolbarThreed from "Features/threedMesh/components/MeshingToolbarThreed";
+import MeshingOverlayThreed from "Features/threedMesh/components/MeshingOverlayThreed";
+import ThreedMeshes from "Features/threedMesh/components/ThreedMeshes";
+import PopperEditMesh3d from "Features/threedMesh/components/PopperEditMesh3d";
+import PopperEditMeshes3d from "Features/threedMesh/components/PopperEditMeshes3d";
+import useMeshingPointerHandlers from "Features/threedMesh/hooks/useMeshingPointerHandlers";
+import { getMesh3dSprites } from "Features/threedMesh/services/mesh3dObjectsStore";
 
 export default function MainThreedEditor() {
   // ref
@@ -190,6 +197,14 @@ export default function MainThreedEditor() {
     dimensionActiveRef.current = dimensionActive;
   }, [dimensionActive]);
 
+  // Same pattern for meshing mode — useMeshingPointerHandlers owns the
+  // pointer (hover stipple, maille creation, cut tools) while active.
+  const meshingActive = useSelector((s) => s.threedEditor.meshingMode.active);
+  const meshingActiveRef = useRef(meshingActive);
+  useEffect(() => {
+    meshingActiveRef.current = meshingActive;
+  }, [meshingActive]);
+
   // Sub-selection (vertex / edge inside the selected annotation). Sourced
   // from threedEditorSlice. We subscribe via useSelector with a primitive
   // key so React only re-renders when the meaningful identity changes.
@@ -203,6 +218,7 @@ export default function MainThreedEditor() {
 
   useDrawingPointerHandlers();
   useDimensionPointerHandlers();
+  useMeshingPointerHandlers();
 
   // Drive the 3D clipping plane from the 2D-defined segment (top view).
   useSyncClippingPlanTo3D({ threedEditorRef, rendererIsReady });
@@ -365,6 +381,8 @@ export default function MainThreedEditor() {
       if (drawingActiveRef.current) return;
       // Dimension mode owns the pointer; useDimensionPointerHandlers handles it.
       if (dimensionActiveRef.current) return;
+      // Meshing mode owns the pointer; useMeshingPointerHandlers handles it.
+      if (meshingActiveRef.current) return;
 
       const threedEditor = threedEditorRef.current;
       const sceneManager = threedEditor.sceneManager;
@@ -425,6 +443,36 @@ export default function MainThreedEditor() {
           dispatch(setSelectedNode(null));
           dispatch(clearSubSelection());
           dispatch(setAnnotationToolbarPosition(position));
+          return;
+        }
+      }
+
+      // Maille label sprite hit-test — same reason as the cote sprites above.
+      const mesh3dSprites = getMesh3dSprites();
+      if (mesh3dSprites.length > 0) {
+        mouseRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        mouseRef.current.y =
+          -((event.clientY - rect.top) / rect.height) * 2 + 1;
+        raycasterRef.current.setFromCamera(mouseRef.current, camera);
+        const spriteHits = filterIntersectionsByClipping(
+          raycasterRef.current.intersectObjects(mesh3dSprites, false),
+          clippingPlane
+        );
+        const mesh3dId = spriteHits[0]?.object?.userData?.mesh3dId;
+        if (mesh3dId) {
+          const item = {
+            id: mesh3dId,
+            nodeId: mesh3dId,
+            type: "NODE",
+            nodeType: "MESH3D",
+          };
+          if (event.shiftKey) {
+            dispatch(toggleItemSelection(item));
+          } else {
+            dispatch(setSelectedItem(item));
+            dispatch(setSelectedNode(null));
+          }
+          dispatch(clearSubSelection());
           return;
         }
       }
@@ -512,6 +560,24 @@ export default function MainThreedEditor() {
         // Traverse up the object hierarchy to find the parent Group with userData
         // This handles cases where child meshes (walls, caps, edges) are clicked
         while (object) {
+          // Maille (3D mesh cell) face — selected like a cote, as a MESH3D
+          // node. Shift+click toggles for multi-selection (merge, batch color).
+          if (object.userData?.mesh3dId) {
+            const item = {
+              id: object.userData.mesh3dId,
+              nodeId: object.userData.mesh3dId,
+              type: "NODE",
+              nodeType: "MESH3D",
+            };
+            if (event.shiftKey) {
+              dispatch(toggleItemSelection(item));
+            } else {
+              dispatch(setSelectedItem(item));
+              dispatch(setSelectedNode(null));
+            }
+            dispatch(clearSubSelection());
+            return;
+          }
           if (object.userData?.nodeId) {
             const { nodeId, nodeType, annotationType, listingId } =
               object.userData;
@@ -925,7 +991,9 @@ export default function MainThreedEditor() {
     if (lassoStartRef.current) return;
     // Hover highlight only fires in SELECTION mode — in NAVIGATION the user
     // is orbiting the camera, in BASEMAP_POSITION they're moving the basemap.
-    if (editorModeRef.current !== "SELECTION") {
+    // Meshing mode runs its own hover (stipple + cursor helper) in
+    // useMeshingPointerHandlers, so the built-in one is muted too.
+    if (editorModeRef.current !== "SELECTION" || meshingActiveRef.current) {
       if (prevHoveredObjectRef.current) {
         const prevId = prevHoveredObjectRef.current.userData?.nodeId;
         applyAnnotationMaterialState(
@@ -1413,12 +1481,22 @@ export default function MainThreedEditor() {
         </Box>
       )}
       {isThreedViewer &&
-        (clippingEditing ? <ClippingToolbarThreed /> : <BottomToolbarThreed />)}
+        (clippingEditing ? (
+          <ClippingToolbarThreed />
+        ) : meshingActive ? (
+          <MeshingToolbarThreed />
+        ) : (
+          <BottomToolbarThreed />
+        ))}
       {isThreedViewer && <DrawingOverlayThreed />}
       {isThreedViewer && <MoveGizmoThreed />}
       {isThreedViewer && rendererIsReady && <ThreedDimensions />}
       {isThreedViewer && <DimensionDraftOverlayThreed />}
       {isThreedViewer && <PopperEditDimension viewerKey="THREED" />}
+      {isThreedViewer && rendererIsReady && <ThreedMeshes />}
+      {isThreedViewer && <MeshingOverlayThreed />}
+      {isThreedViewer && <PopperEditMesh3d viewerKey="THREED" />}
+      {isThreedViewer && <PopperEditMeshes3d viewerKey="THREED" />}
     </Box>
   );
 }

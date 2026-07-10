@@ -86,7 +86,6 @@ import {
   setSoloMode,
   setCollapsed,
 } from "Features/popperMapListings/popperMapListingsSlice";
-import { setShowMeshCells } from "Features/annotations/annotationsSlice";
 import DrawIcon from "@mui/icons-material/Draw";
 import EditIcon from "@mui/icons-material/Edit";
 import IconPointer from "Features/icons/IconPointer";
@@ -2248,12 +2247,6 @@ export default function PopperMapListings() {
       : {}),
   });
 
-  // the "Maillage" toggle is only relevant when the baseMap has mesh cells
-  const hasMeshCells = useMemo(
-    () => Boolean(allAnnotations?.some((a) => a.isMeshCell)),
-    [allAnnotations]
-  );
-
   const annotationTemplates = useAnnotationTemplates();
   const annotationTemplateById = useMemo(
     () => getItemsByKey(annotationTemplates ?? [], "id"),
@@ -2656,24 +2649,6 @@ export default function PopperMapListings() {
             </ToggleButton>
           </ToggleButtonGroup>
 
-          {/* Maillage toggle — only when the baseMap contains mesh cells.
-              ON: meshed parents are replaced by their mailles and interactions
-              behave like Sélection (read-only). */}
-          {hasMeshCells && (
-            <FormControlLabel
-              sx={{ mt: 0.5, ml: 0 }}
-              control={
-                <Switch
-                  size="small"
-                  checked={showMeshCells}
-                  onChange={(e) =>
-                    dispatch(setShowMeshCells(e.target.checked))
-                  }
-                />
-              }
-              label={<Typography variant="body2">Maillage</Typography>}
-            />
-          )}
         </Box>
       )}
 
