@@ -1,6 +1,6 @@
 import { useSelector } from "react-redux";
 
-import useAnnotations from "Features/annotations/hooks/useAnnotations";
+import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 
 import { Box, Typography } from "@mui/material";
 
@@ -28,7 +28,12 @@ export default function ToolbarMapEditorLocatedEntities() {
 
   const selectedNode = useSelector((s) => s.mapEditor.selectedNode);
   const baseMapId = useSelector((s) => s.mapEditor.selectedBaseMapId);
-  const annotations = useAnnotations({ filterByBaseMapId: baseMapId });
+  // Only used for the empty-state check — the deprecated useAnnotations hook
+  // ignored annotations without an entityId (e.g. procedure-created ones).
+  const annotations = useAnnotationsV2({
+    caller: "ToolbarMapEditorLocatedEntities",
+    filterByBaseMapId: baseMapId,
+  });
   const annotationTemplateId = useSelector(
     (s) => s.mapEditor.selectedAnnotationTemplateId
   );

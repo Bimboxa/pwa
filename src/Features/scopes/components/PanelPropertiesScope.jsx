@@ -37,7 +37,6 @@ import useMainBaseMapListing from "Features/baseMaps/hooks/useMainBaseMapListing
 import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
 import useUpdateScope from "Features/scopes/hooks/useUpdateScope";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
-import useAnnotations from "Features/annotations/hooks/useAnnotations";
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 import useLayers from "Features/layers/hooks/useLayers";
 
@@ -58,7 +57,9 @@ export default function PanelPropertiesScope() {
 
   const baseMapId = useSelector((s) => s.mapEditor.selectedBaseMapId);
 
-  const annotations = useAnnotations({ filterByBaseMapId: baseMapId });
+  // Single source: the deprecated useAnnotations hook dropped annotations
+  // without an entityId (e.g. procedure-created ones), so the layer counts
+  // desynced from the datagrid below (already fed by annotationsV2).
   const annotationsV2 = useAnnotationsV2({
     caller: "PanelPropertiesScope",
     filterByBaseMapId: baseMapId,
@@ -66,6 +67,7 @@ export default function PanelPropertiesScope() {
     withQties: true,
     withEntity: true,
   });
+  const annotations = annotationsV2;
   const layers = useLayers({ filterByBaseMapId: baseMapId, filterByScopeId: selectedScope?.id });
 
   const [openDatagrid, setOpenDatagrid] = useState(false);

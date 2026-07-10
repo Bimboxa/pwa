@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
 
 import useSelectedEntity from "Features/entities/hooks/useSelectedEntity";
-import useAnnotations from "Features/annotations/hooks/useAnnotations";
+import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 import useMainBaseMap from "../hooks/useMainBaseMap";
 import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
 import useOrgaLogoUrl from "Features/orgaData/hooks/useOrgaLogoUrl";
@@ -40,12 +40,14 @@ export default function DialogDownloadBlueprint({ svgElement, open, onClose }) {
   const spriteImage = useAnnotationSpriteImage();
   const orgaLogoUrl = useOrgaLogoUrl();
 
-  const annotations = useAnnotations({
-    addDemoAnnotations: false,
+  // createAnnotationsPdfReport reads annotationTemplateProps + entity, both
+  // provided by V2 (the deprecated useAnnotations hook dropped annotations
+  // without an entityId, e.g. procedure-created ones).
+  const annotations = useAnnotationsV2({
+    caller: "DialogDownloadBlueprint",
     filterByBaseMapId: mainBaseMap?.id,
     excludeListingsIds: hiddenListingsIds,
     withEntity: true,
-    withLabel: true,
   });
 
   // state

@@ -1,6 +1,6 @@
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig"
-import useAnnotations from "Features/annotations/hooks/useAnnotations"
+import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2"
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap"
 import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage"
 
@@ -24,17 +24,20 @@ const mainBaseMap = useMainBaseMap();
 const spriteImage = useAnnotationSpriteImage();
 const appConfig = useAppConfig();
 
-const annotations = useAnnotations({
-    addDemoAnnotations: false,
+const annotations = useAnnotationsV2({
+    caller: "ButtonExportKmz",
     filterByBaseMapId: mainBaseMap?.id,
     excludeListingsIds: hiddenListingsIds,
     withEntity: true,
-    withLabel: true,
   });
 
   // helpers
 
-  const markers = annotations?.filter((a) => a.type === "MARKER");
+  // annotationsToKmzAsync reads the flat `label`; V2 only flattens template
+  // props listed in overrideFields, so fall back to annotationTemplateProps.
+  const markers = annotations
+    ?.filter((a) => a.type === "MARKER")
+    .map((a) => ({ ...a, label: a.label ?? a.annotationTemplateProps?.label }));
 
   // handlers
 

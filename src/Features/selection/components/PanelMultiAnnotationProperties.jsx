@@ -20,7 +20,8 @@ import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTe
 import AnnotationMeasurements from "Features/annotations/components/AnnotationMeasurements";
 import DialogDeleteRessource from "Features/layout/components/DialogDeleteRessource";
 
-import useAnnotations from "Features/annotations/hooks/useAnnotations";
+import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
+import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useDeleteAnnotations from "Features/annotations/hooks/useDeleteAnnotations";
 import getAnnotationQties from "Features/annotations/utils/getAnnotationQties";
@@ -35,9 +36,18 @@ export default function PanelMultiAnnotationProperties() {
 
   const dispatch = useDispatch();
   const selectedItems = useSelector(selectSelectedItems);
-  const baseMapId = useSelector((s) => s.mapEditor.selectedBaseMapId);
-  const annotations = useAnnotations({ filterByBaseMapId: baseMapId });
+  // Same source as the edit toolbars (MainMapEditorV3 /
+  // ThreedPopperEditAnnotations): the legacy useAnnotations hook silently
+  // drops annotations without an entityId (e.g. procedure-created ones),
+  // which desynced this panel from the toolbar counts.
+  const annotations = useAnnotationsV2({
+    caller: "PanelMultiAnnotationProperties",
+    enabled: true,
+    filterByMainBaseMap: true,
+    filterBySelectedScope: true,
+  });
   const baseMap = useMainBaseMap();
+  const { value: baseMaps } = useBaseMaps();
   const deleteAnnotations = useDeleteAnnotations();
 
   // state
@@ -56,13 +66,24 @@ export default function PanelMultiAnnotationProperties() {
   const count = selectedAnnotations.length;
   const title = `${count} annotation${count > 1 ? "s" : ""}`;
 
+  // Quantities use each annotation's own baseMap scale (a 3D selection can mix
+  // basemaps with different meterByPx); fall back to the main baseMap's scale.
+  const meterByPxByBaseMapId = useMemo(() => {
+    const map = {};
+    (baseMaps || []).forEach((bm) => {
+      map[bm.id] = bm.meterByPx;
+    });
+    return map;
+  }, [baseMaps]);
+
   const templateGroups = useMemo(() => {
     const groups = new Map();
-    const meterByPx = baseMap?.meterByPx;
 
     for (const annotation of selectedAnnotations) {
       const key = annotation.annotationTemplateId || annotation.id;
       const existing = groups.get(key);
+      const meterByPx =
+        meterByPxByBaseMapId[annotation.baseMapId] ?? baseMap?.meterByPx;
       const qties = getAnnotationQties({ annotation, meterByPx });
 
       if (existing) {
@@ -88,7 +109,7 @@ export default function PanelMultiAnnotationProperties() {
     }
 
     return Array.from(groups.values());
-  }, [selectedAnnotations, baseMap?.meterByPx]);
+  }, [selectedAnnotations, meterByPxByBaseMapId, baseMap?.meterByPx]);
 
   // handlers
 

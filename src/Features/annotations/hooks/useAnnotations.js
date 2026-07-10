@@ -1,3 +1,9 @@
+// DEPRECATED — use useAnnotationsV2 instead.
+// Known pitfalls of this hook: it silently drops annotations without an
+// entityId (e.g. procedure-created ones), it does not resolve point
+// coordinates from db.points, and `withLabel` is a no-op. Kept only for the
+// deprecated MainMapEditorV2.
+
 import { useSelector } from "react-redux";
 import { useLiveQuery } from "dexie-react-hooks";
 

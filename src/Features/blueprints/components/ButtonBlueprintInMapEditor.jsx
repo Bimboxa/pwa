@@ -1,7 +1,7 @@
 import { useSelector } from "react-redux";
 
 import useProjectBlueprintsListings from "../hooks/useProjectBlueprintsListings";
-import useAnnotations from "Features/annotations/hooks/useAnnotations";
+import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 
 import ButtonCreateBlueprint from "./ButtonCreateBlueprint";
 
@@ -11,7 +11,12 @@ export default function ButtonBlueprintInMapEditor() {
   const baseMapId = useSelector((s) => s.mapEditor.selectedBaseMapId);
   const blueprintsListings = useProjectBlueprintsListings();
 
-  const annotations = useAnnotations({ filterByBaseMapId: baseMapId });
+  // Only used for the has-annotations check — the deprecated useAnnotations
+  // hook ignored annotations without an entityId (e.g. procedure-created ones).
+  const annotations = useAnnotationsV2({
+    caller: "ButtonBlueprintInMapEditor",
+    filterByBaseMapId: baseMapId,
+  });
 
   // helper - render
 
