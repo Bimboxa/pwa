@@ -40,6 +40,12 @@ function getPdfPageSize(aspectRatio) {
  * @param {number} [opts.rightInset] width occluded by an open right panel; the
  *   capture rect is centered within the visible zone (must match the overlay).
  * @param {"png"|"pdf"} [opts.format] download format ("pdf" only for download)
+ * @param {(host: HTMLElement, ctx: {pixelRatio: number}) => Promise<() => void>}
+ *   [opts.prepareHost] pre-capture step making non-clonable content capturable
+ *   (e.g. snapshotting a WebGL canvas into a `data-capture-keep` img — the
+ *   html-to-image clone reads canvases asynchronously, after a non
+ *   preserveDrawingBuffer WebGL buffer has been cleared). Runs before the
+ *   visibility plan so injected nodes are part of it; returns a cleanup fn.
  */
 export default async function captureMapAsPng({
   viewerKey = "MAP",
@@ -50,6 +56,7 @@ export default async function captureMapAsPng({
   whiteBackground = false,
   rightInset = 0,
   format = "png",
+  prepareHost,
 } = {}) {
   const host = document.querySelector(
     `[data-image-capture-host="${viewerKey}"]`
@@ -69,6 +76,12 @@ export default async function captureMapAsPng({
     { rightInset }
   );
   if (rect.width <= 0 || rect.height <= 0) return;
+
+  // Pre-capture step (e.g. WebGL snapshot img) BEFORE the visibility plan
+  // so the injected nodes are included in it and whitelisted normally.
+  const cleanupPrepare = prepareHost
+    ? await prepareHost(host, { pixelRatio })
+    : null;
 
   // Build the visibility plan.
   //
@@ -157,5 +170,6 @@ export default async function captureMapAsPng({
     restoreList.forEach(([el, v]) => {
       el.style.visibility = v;
     });
+    cleanupPrepare?.();
   }
 }

@@ -5,13 +5,6 @@ const threedEditorInitialState = {
   // When true, basemap images are hidden in the live 3D view AND omitted from
   // the 3D scene export (USDZ / OBJ) — annotation objects are unaffected.
   hideBaseMaps: false,
-  // When true, a draggable/resizable legend Popper listing the annotation
-  // templates present in the 3D scene (swatch + name + quantity) is shown.
-  showLegend: false,
-  // When true, the legend rows display the per-template quantity (e.g. 25.1 ml).
-  legendShowQty: true,
-  // Legend text/icon scale: "SMALL" | "MEDIUM" | "LARGE".
-  legendSize: "MEDIUM",
   // When true, annotation materials ignore `annotation.opacity` and render
   // fully opaque. Exposed as the "Transparence des annotations" switch.
   disableOpacity: true,
@@ -160,15 +153,6 @@ export const threedEditorSlice = createSlice({
     },
     setHideBaseMaps: (state, action) => {
       state.hideBaseMaps = action.payload;
-    },
-    setShowLegend: (state, action) => {
-      state.showLegend = action.payload;
-    },
-    setLegendShowQty: (state, action) => {
-      state.legendShowQty = action.payload;
-    },
-    setLegendSize: (state, action) => {
-      state.legendSize = action.payload;
     },
     setDisableOpacity: (state, action) => {
       state.disableOpacity = action.payload;
@@ -410,9 +394,6 @@ export const threedEditorSlice = createSlice({
 export const {
   setShowGrid,
   setHideBaseMaps,
-  setShowLegend,
-  setLegendShowQty,
-  setLegendSize,
   setDisableOpacity,
   setAntiAliasingShrink,
   setRenderMode,

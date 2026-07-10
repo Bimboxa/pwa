@@ -52,7 +52,7 @@ import {
 import ThreedHoverTooltip from "./ThreedHoverTooltip";
 import ThreedLassoOverlay from "./ThreedLassoOverlay";
 import ThreedPopperEditAnnotations from "./ThreedPopperEditAnnotations";
-import ThreedPopperLegend from "./ThreedPopperLegend";
+import ThreedImageModeOverlay from "./ThreedImageModeOverlay";
 import ThreedSelectionDimmer from "./ThreedSelectionDimmer";
 
 import { Box } from "@mui/material";
@@ -158,7 +158,9 @@ export default function MainThreedEditor() {
   }, [isThreedViewer, dispatch, store]);
 
   const showGrid = useSelector((s) => s.threedEditor.showGrid);
-  const showLegend = useSelector((s) => s.threedEditor.showLegend);
+  // Capture mode ("Export rapide", shared with the 2D viewer). Toggles are
+  // rare, so the re-render cost is acceptable here.
+  const imageModeEnabled = useSelector((s) => s.mapEditor.imageModeEnabled);
   // Render mode (Standard / Réaliste / Photoréaliste). Mirrored into a ref so
   // the hover raycast can read it without re-creating its callback.
   const renderMode = useSelector((s) => s.threedEditor.renderMode);
@@ -1534,6 +1536,7 @@ export default function MainThreedEditor() {
 
   return (
     <Box
+      data-image-capture-host="THREED"
       sx={{
         width: 1,
         height: 1,
@@ -1545,11 +1548,11 @@ export default function MainThreedEditor() {
       }}
     >
       <Box sx={{ width: 1, height: 1 }} ref={containerRef} />
-      {isThreedViewer && <PopperMapListings />}
+      {isThreedViewer && !imageModeEnabled && <PopperMapListings />}
       {isThreedViewer && <PopperEditAnnotation viewerKey="THREED" />}
       {isThreedViewer && <ThreedPopperEditAnnotations />}
-      {isThreedViewer && showLegend && (
-        <ThreedPopperLegend annotations={annotations} />
+      {isThreedViewer && (
+        <ThreedImageModeOverlay annotations={annotations} />
       )}
       {isThreedViewer && <ThreedHoverTooltip ref={tooltipApiRef} />}
       {isThreedViewer && <ThreedLassoOverlay ref={lassoOverlayRef} />}

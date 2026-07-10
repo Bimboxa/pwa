@@ -16,49 +16,30 @@ import {
   Typography,
 } from "@mui/material";
 import ViewInAr from "@mui/icons-material/ViewInAr";
-import PhotoCamera from "@mui/icons-material/PhotoCamera";
-import Download from "@mui/icons-material/Download";
-import ContentCopy from "@mui/icons-material/ContentCopy";
 
 import {
   setShowGrid,
   setHideBaseMaps,
-  setShowLegend,
-  setLegendShowQty,
-  setLegendSize,
   setDisableOpacity,
   setAntiAliasingShrink,
   setRenderMode,
   setEditorMode,
 } from "Features/threedEditor/threedEditorSlice";
-import DialogExportPhotoreal from "Features/photorealRender/components/DialogExportPhotoreal";
 import exportSceneAsUsdzService from "Features/threedEditor/services/exportSceneAsUsdzService";
 import exportSceneAsObjService from "Features/threedEditor/services/exportSceneAsObjService";
-import captureSceneScreenshotService from "Features/threedEditor/services/captureSceneScreenshotService";
 import PanelBaseMapPosition3D from "./PanelBaseMapPosition3D";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 
-async function dataUrlToBlob(dataUrl) {
-  const res = await fetch(dataUrl);
-  return res.blob();
-}
-
-function timestamp() {
-  return new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
-}
-
 // Right-panel content for the 3D viewer. Auto-opened when the user enters the
 // THREED viewer (see MainThreedEditor). Holds the viewer toggles plus the
-// USDZ / photoreal / screenshot export actions.
+// USDZ / OBJ export action. Screenshot capture + legend display moved to the
+// shared "Export rapide" flow (Export panel, same as the 2D viewer).
 export default function PanelThreedProperties() {
   const dispatch = useDispatch();
 
   const [tab, setTab] = useState("SCENE"); // "SCENE" | "BASEMAP"
-  const [exportPreset, setExportPreset] = useState(null);
   const [exporting, setExporting] = useState(false);
   const [exportFormat, setExportFormat] = useState("USDZ"); // "USDZ" | "OBJ"
-  const [capturedImage, setCapturedImage] = useState(null);
-  const [copied, setCopied] = useState(false);
 
   // While the "Fonds de plan" tab is active, put the 3D viewer in
   // BASEMAP_POSITION mode (pointer reserved for the transform gizmo, annotation
@@ -85,9 +66,6 @@ export default function PanelThreedProperties() {
 
   const showGrid = useSelector((s) => s.threedEditor.showGrid);
   const hideBaseMaps = useSelector((s) => s.threedEditor.hideBaseMaps);
-  const showLegend = useSelector((s) => s.threedEditor.showLegend);
-  const legendShowQty = useSelector((s) => s.threedEditor.legendShowQty);
-  const legendSize = useSelector((s) => s.threedEditor.legendSize);
   const disableOpacity = useSelector((s) => s.threedEditor.disableOpacity);
   const antiAliasingShrink = useSelector(
     (s) => s.threedEditor.antiAliasingShrink
@@ -98,43 +76,6 @@ export default function PanelThreedProperties() {
   );
   // handlers
 
-  function handleStartExport(presetKey) {
-    // The export mutates the shared scene (visibility / materials / env) with
-    // its own renderer — incompatible with a live path-tracing loop. Drop to
-    // the raster realistic mode for the duration of the export.
-    if (renderMode === "PHOTOREAL") dispatch(setRenderMode("REALISTIC"));
-    setExportPreset(presetKey);
-  }
-  function handleCloseExport() {
-    setExportPreset(null);
-  }
-  async function handleCapture() {
-    try {
-      setCapturedImage(await captureSceneScreenshotService());
-    } catch (e) {
-      console.error("[PanelThreedProperties] capture failed", e);
-    }
-  }
-  function handleDownloadCapture() {
-    if (!capturedImage) return;
-    const a = document.createElement("a");
-    a.href = capturedImage;
-    a.download = `capture-3d-${timestamp()}.png`;
-    a.click();
-  }
-  async function handleCopyCapture() {
-    if (!capturedImage) return;
-    try {
-      const blob = await dataUrlToBlob(capturedImage);
-      await navigator.clipboard.write([
-        new ClipboardItem({ "image/png": blob }),
-      ]);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch (e) {
-      console.error("[PanelThreedProperties] copy capture failed", e);
-    }
-  }
   async function handleDownload3D() {
     if (exporting) return;
     setExporting(true);
@@ -278,63 +219,6 @@ export default function PanelThreedProperties() {
 
           <Card variant="outlined" sx={{ p: 1.5, mb: 1.5 }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
-              Légende
-            </Typography>
-            <FormControlLabel
-              control={
-                <Switch
-                  size="small"
-                  checked={showLegend}
-                  onChange={(e) => dispatch(setShowLegend(e.target.checked))}
-                />
-              }
-              label={
-                <Typography variant="body2">Afficher la légende</Typography>
-              }
-            />
-            <FormControlLabel
-              disabled={!showLegend}
-              control={
-                <Switch
-                  size="small"
-                  checked={legendShowQty}
-                  onChange={(e) => dispatch(setLegendShowQty(e.target.checked))}
-                />
-              }
-              label={<Typography variant="body2">Quantité</Typography>}
-            />
-            <Box sx={{ mt: 1 }}>
-              <Typography
-                variant="caption"
-                color="text.secondary"
-                sx={{ display: "block", mb: 0.5 }}
-              >
-                Taille
-              </Typography>
-              <ToggleButtonGroup
-                size="small"
-                exclusive
-                disabled={!showLegend}
-                value={legendSize}
-                onChange={(_e, v) => {
-                  if (v) dispatch(setLegendSize(v));
-                }}
-              >
-                <ToggleButton value="SMALL" sx={{ textTransform: "none" }}>
-                  Petite
-                </ToggleButton>
-                <ToggleButton value="MEDIUM" sx={{ textTransform: "none" }}>
-                  Moyenne
-                </ToggleButton>
-                <ToggleButton value="LARGE" sx={{ textTransform: "none" }}>
-                  Grande
-                </ToggleButton>
-              </ToggleButtonGroup>
-            </Box>
-          </Card>
-
-          <Card variant="outlined" sx={{ p: 1.5, mb: 1.5 }}>
-            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
               Télécharger la 3D
             </Typography>
             <Typography
@@ -383,121 +267,6 @@ export default function PanelThreedProperties() {
             </Button>
           </Card>
 
-          <Card variant="outlined" sx={{ p: 1.5 }}>
-            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
-              Export photoréaliste
-            </Typography>
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              sx={{ display: "block", mb: 1.25 }}
-            >
-              Rendu path-tracing de la vue 3D actuelle. Le fond est transparent
-              dans le PNG (pratique pour intégration dans un PDF).
-            </Typography>
-            <Box sx={{ display: "flex", gap: 1 }}>
-              <Button
-                size="small"
-                variant="outlined"
-                fullWidth
-                onClick={() => handleStartExport("QUICK")}
-              >
-                Rapide
-              </Button>
-              <Button
-                size="small"
-                variant="contained"
-                color="secondary"
-                fullWidth
-                onClick={() => handleStartExport("HIGH")}
-              >
-                Haute qualité
-              </Button>
-            </Box>
-          </Card>
-
-          <Card variant="outlined" sx={{ p: 1.5, mt: 1.5 }}>
-            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
-              Capture d'écran
-            </Typography>
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              sx={{ display: "block", mb: 1.25 }}
-            >
-              Capture instantanée de la vue 3D actuelle (fond de plan +
-              annotations).
-            </Typography>
-            <Box
-              sx={{
-                position: "relative",
-                width: "100%",
-                aspectRatio: "16 / 9",
-                mb: 1.25,
-                borderRadius: 1,
-                border: "1px dashed",
-                borderColor: "divider",
-                backgroundColor: "grey.100",
-                backgroundImage: capturedImage
-                  ? `url(${capturedImage})`
-                  : "none",
-                backgroundSize: "contain",
-                backgroundRepeat: "no-repeat",
-                backgroundPosition: "center",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              {!capturedImage && (
-                <Typography
-                  variant="caption"
-                  color="text.disabled"
-                  sx={{
-                    position: "absolute",
-                    top: 8,
-                    left: 0,
-                    right: 0,
-                    textAlign: "center",
-                  }}
-                >
-                  Aucune capture
-                </Typography>
-              )}
-              <Button
-                size="small"
-                variant="contained"
-                startIcon={<PhotoCamera sx={{ fontSize: 16 }} />}
-                onClick={handleCapture}
-                sx={capturedImage ? { boxShadow: 2 } : undefined}
-              >
-                Capturer
-              </Button>
-            </Box>
-            <Box sx={{ display: "flex", gap: 1 }}>
-              <Button
-                size="small"
-                variant="outlined"
-                fullWidth
-                startIcon={<Download sx={{ fontSize: 16 }} />}
-                disabled={!capturedImage}
-                onClick={handleDownloadCapture}
-              >
-                Télécharger
-              </Button>
-              <Button
-                size="small"
-                variant="contained"
-                color="secondary"
-                fullWidth
-                startIcon={<ContentCopy sx={{ fontSize: 16 }} />}
-                disabled={!capturedImage}
-                onClick={handleCopyCapture}
-              >
-                {copied ? "Copié" : "Copier"}
-              </Button>
-            </Box>
-          </Card>
         </Box>
       )}
 
@@ -506,11 +275,6 @@ export default function PanelThreedProperties() {
           <PanelBaseMapPosition3D />
         </Box>
       )}
-
-      <DialogExportPhotoreal
-        presetKey={exportPreset}
-        onClose={handleCloseExport}
-      />
     </BoxFlexVStretch>
   );
 }

@@ -13,10 +13,14 @@ import getItemsByKey from "Features/misc/utils/getItemsByKey";
  * rendered in the scene (passed in by MainThreedEditor — the value returned by
  * useAutoLoadAnnotationsInThreedEditor).
  *
- * Returns a flat array mixing section headers and item rows:
- *  - { type: "listingName", name }     → listing section header
- *  - { type: "groupLabel", name }      → group header within a listing
- *  - { type: "item", id, template, label, qtyLabel } → one legend row
+ * Returns { legendItems, qtiesById }:
+ *  - legendItems: flat array mixing section headers and item rows, in the
+ *    shape consumed by NodeLegendStatic (same as useLegendItemsByBaseMapId):
+ *      - { type: "listingName", name }  → listing section header
+ *      - { type: "groupLabel", name }   → group header within a listing
+ *      - { id, type, iconKey, fillColor, strokeColor, fillType, strokeType,
+ *          variant, closeLine, label, groupLabel } → one legend row
+ *  - qtiesById: { [templateId]: { mainQtyLabel } } for the qty column.
  *
  * @param {Array} annotations - resolved annotations shown in 3D.
  */
@@ -95,10 +99,21 @@ export default function useThreedLegendItems(annotations) {
           itemsByListingId[listingId] = [];
           listingOrder.push(listingId);
         }
+        // NodeLegendStatic-compatible row (same shape as
+        // useLegendItemsByBaseMapId): visual props from the first-occurrence
+        // annotation, colors falling back to the template (annotations created
+        // from a template inherit colors at render time, not on the stored row).
         itemsByListingId[listingId].push({
-          type: "item",
           id: templateId,
-          template,
+          type: annotation.type,
+          iconKey: annotation.iconKey,
+          fillColor: annotation.fillColor ?? template.fillColor,
+          strokeColor: annotation.strokeColor ?? template.strokeColor,
+          fillType: annotation.fillType,
+          strokeType: annotation.strokeType,
+          variant: annotation.variant,
+          closeLine: annotation.closeLine,
+          groupLabel: template.groupLabel,
           label: (() => {
             const base =
               template.labelLegend || (template.label ?? "A définir");
@@ -134,11 +149,11 @@ export default function useThreedLegendItems(annotations) {
 
       let currentGroup = null;
       sorted.forEach((item) => {
-        const ng = normalize(item.template.groupLabel);
+        const ng = normalize(item.groupLabel);
         if (ng && ng !== currentGroup) {
           items.push({
             type: "groupLabel",
-            name: item.template.groupLabel?.trim(),
+            name: item.groupLabel?.trim(),
           });
         }
         currentGroup = ng;
@@ -155,5 +170,14 @@ export default function useThreedLegendItems(annotations) {
     orderRankByTemplateId,
   ]);
 
-  return legendItems;
+  // qty lookup in the shape NodeLegendStatic reads (qtiesById[id].mainQtyLabel)
+  const qtiesById = useMemo(() => {
+    const map = {};
+    legendItems.forEach((it) => {
+      if (it.id) map[it.id] = { mainQtyLabel: it.qtyLabel };
+    });
+    return map;
+  }, [legendItems]);
+
+  return { legendItems, qtiesById };
 }

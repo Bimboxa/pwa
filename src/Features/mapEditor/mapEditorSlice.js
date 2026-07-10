@@ -71,7 +71,7 @@ const mapEditorInitialState = {
   imageModeLegendSelected: false,
   // image mode capture rectangle (screen space)
   imageModeAspectRatio: "LANDSCAPE", // "LANDSCAPE" | "SQUARE" | "PORTRAIT"
-  imageModeHighRes: false, // when true, captureMapAsPng doubles the output pixel ratio
+  imageModeHighRes: true, // when true, captureMapAsPng doubles the output pixel ratio
   imageModeShowWatermark: false, // when true, render the org's watermark SVG inside the capture rect
   imageModeShowLogo: false, // when true, render the org's logo SVG anchored bottom-right of the capture rect
   imageModeWhiteBackground: false, // when true, captureMapAsPng fills the canvas with white (no transparency)

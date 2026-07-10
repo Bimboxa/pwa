@@ -5,7 +5,7 @@ import { nanoid } from "@reduxjs/toolkit";
 
 
 import { setAnchorPositionScale, setScaleInPx, setAngleInRad } from "../mapEditorSlice";
-import { setEnabledDrawingMode, setImageModeEnabled } from "../mapEditorSlice";
+import { setEnabledDrawingMode } from "../mapEditorSlice";
 import { setTempAnnotations, triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice";
 import { setBaseMapPoseInBg, setLegendFormat } from "../mapEditorSlice";
 import { setBgImageRawTextAnnotations } from "Features/bgImage/bgImageSlice";
@@ -38,10 +38,10 @@ import applyOpeningOnPolygon from "Features/annotations/utils/applyOpeningOnPoly
 import shadeMeshCellColor from "Features/mesh/utils/meshCellColor";
 import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
 import useLegendItems from "Features/legend/hooks/useLegendItems";
+import useLegendItemsByBaseMapId from "Features/legend/hooks/useLegendItemsByBaseMapId";
 import useAnnotationTemplateQtiesByIdForBaseMap from "Features/annotations/hooks/useAnnotationTemplateQtiesByIdForBaseMap";
 
-import { Box, Button } from "@mui/material";
-import { Close } from "@mui/icons-material";
+import { Box } from "@mui/material";
 
 import InteractionLayer from "./InteractionLayer";
 import PrintableMap from "./PrintableMap";
@@ -70,6 +70,7 @@ import useCommitLocalizedRepair from "Features/localizedRepair/hooks/useCommitLo
 import useCreateAnnotationFromSurfaceDrop from "Features/smartDetect/hooks/useCreateAnnotationFromSurfaceDrop";
 import PopperMapListings from "./PopperMapListings";
 import ImageModeOverlay from "./ImageModeOverlay";
+import ButtonCloseImageMode from "./ButtonCloseImageMode";
 
 
 import { InteractionProvider } from "../context/InteractionContext";
@@ -350,6 +351,9 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     const isMapViewer = forViewerKey === "MAP";
     const imageModeEnabled = useSelector((s) => s.mapEditor.imageModeEnabled);
     const imageModeActive = isMapViewer && imageModeEnabled;
+    // Same hook as Portfolio's LegendBlockSvg so the capture legend items
+    // (shape, ordering, groupings) match exactly.
+    const imageModeLegendItems = useLegendItemsByBaseMapId(baseMap?.id);
     const imageModeLegendSelected = useSelector(
         (s) => s.mapEditor.imageModeLegendSelected
     );
@@ -1788,33 +1792,13 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                 <ImageModeOverlay
                     viewportWidth={bounds.width}
                     viewportHeight={bounds.height}
-                    baseMapId={baseMap?.id}
+                    legendItems={imageModeLegendItems}
                     spriteImage={spriteImage}
                     qtiesById={legendQtiesById}
                 />
             )}
 
-            {imageModeActive && (
-                <Button
-                    data-capture-hide
-                    variant="contained"
-                    color="secondary"
-                    size="small"
-                    startIcon={<Close />}
-                    onClick={() => dispatch(setImageModeEnabled(false))}
-                    sx={{
-                        position: "absolute",
-                        top: 12,
-                        left: "50%",
-                        transform: "translateX(-50%)",
-                        zIndex: 20,
-                        textTransform: "none",
-                        boxShadow: 3,
-                    }}
-                >
-                    Quitter le mode capture
-                </Button>
-            )}
+            {imageModeActive && <ButtonCloseImageMode />}
         </Box>
         </DrawingMetricsProvider>
         </SmartZoomProvider>

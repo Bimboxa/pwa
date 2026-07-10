@@ -14,7 +14,6 @@ import { useDispatch, useSelector } from "react-redux";
 
 import { setImageModeLegendOverlay } from "../mapEditorSlice";
 
-import useLegendItemsByBaseMapId from "Features/legend/hooks/useLegendItemsByBaseMapId";
 import NodeLegendStatic from "Features/mapEditorGeneric/components/NodeLegendStatic";
 import getCaptureRectBounds from "../utils/getCaptureRectBounds";
 
@@ -27,7 +26,7 @@ const MAX_LEGEND_WIDTH = 600;
 export default function ImageModeOverlay({
   viewportWidth,
   viewportHeight,
-  baseMapId,
+  legendItems,
   spriteImage,
   qtiesById,
 }) {
@@ -58,10 +57,6 @@ export default function ImageModeOverlay({
   );
   const panelWidth = useSelector((s) => s.rightPanel.width);
   const rightInset = panelOpen ? panelWidth : 0;
-
-  // Use the same hook as Portfolio's LegendBlockSvg so the legend items
-  // (shape, ordering, groupings) match exactly.
-  const legendItems = useLegendItemsByBaseMapId(baseMapId);
 
   const rect = getCaptureRectBounds(
     viewportWidth,
