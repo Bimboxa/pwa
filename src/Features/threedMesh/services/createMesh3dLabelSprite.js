@@ -47,8 +47,10 @@ export default function createMesh3dLabelSprite({
 }) {
   const label = text || "";
 
+  // Border matches the maille's visible 3D color; text stays black for
+  // readability (light shades would wash out on the white card).
   const borderColor = color;
-  const textColor = color;
+  const textColor = "#000000";
   const fillBg = selected ? safeLighten(color, 0.85, "#e3f2fd") : "#ffffff";
 
   const s = CANVAS_SCALE;
