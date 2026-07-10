@@ -42,6 +42,12 @@ import {
   getActiveClippingPlane,
   isWorldPointVisible,
 } from "Features/threedEditor/js/utilsAnnotationsManager/clippingPick";
+import {
+  buildFaceHoverOverlay,
+  disposeFaceHoverOverlay,
+  getCoplanarRegion,
+  setFaceHoverClippingPlanes,
+} from "Features/threedEditor/js/utilsAnnotationsManager/faceHoverHighlight";
 import ThreedHoverTooltip from "./ThreedHoverTooltip";
 import ThreedLassoOverlay from "./ThreedLassoOverlay";
 import ThreedPopperEditAnnotations from "./ThreedPopperEditAnnotations";
@@ -100,6 +106,11 @@ export default function MainThreedEditor() {
   const subHoverHelperRef = useRef(null);
   const subSelectedHelperRef = useRef(null);
   const subHoverKeyRef = useRef(null); // "V:<idx>" or "E:<a>-<b>" or null
+  // Face hover overlay (blue-dot stipple on the hovered coplanar face):
+  // transient Mesh added as a child of the hit mesh, keyed on
+  // `${mesh.uuid}:${regionId}` so moving within the same face never rebuilds.
+  const faceHoverOverlayRef = useRef(null);
+  const faceHoverKeyRef = useRef(null);
 
   // state
 
@@ -199,15 +210,18 @@ export default function MainThreedEditor() {
   // Helper: derive the right material state for a given annotation id, based
   // on the current selection in the store and whether the cursor is currently
   // over it. Selection wins over hover — a selected annotation always shows
-  // its original material, even while hovered.
+  // its original material, even while hovered. Hovered mesh annotations show
+  // their original material too (un-dimmed when a selection exists): the
+  // highlight is the face-level stipple overlay, not a whole-object recolor.
+  // Line-only hits (POINT height trait — no faces) keep the green recolor.
   const getStateForId = useCallback(
-    (id, isHovered) => {
+    (id, isHovered, isLineHover = false) => {
       const items = store.getState().selection.selectedItems || [];
       const ids = items
         .filter((i) => i.type === "NODE" && i.nodeType === "ANNOTATION")
         .map((i) => i.nodeId || i.id);
       if (ids.includes(id)) return STATE_NONE;
-      if (isHovered) return STATE_HOVER;
+      if (isHovered) return isLineHover ? STATE_HOVER : STATE_NONE;
       if (ids.length > 0) return STATE_DIM;
       return STATE_NONE;
     },
@@ -234,6 +248,16 @@ export default function MainThreedEditor() {
     }
   }, []);
 
+  const clearFaceHoverOverlay = useCallback(() => {
+    if (!faceHoverOverlayRef.current && faceHoverKeyRef.current == null) {
+      return;
+    }
+    disposeFaceHoverOverlay(faceHoverOverlayRef.current);
+    faceHoverOverlayRef.current = null;
+    faceHoverKeyRef.current = null;
+    threedEditorRef.current?.renderScene?.();
+  }, []);
+
   // Sync showGrid → sceneManager.grid.visible (and re-render)
   useEffect(() => {
     const editor = threedEditorRef.current;
@@ -255,6 +279,7 @@ export default function MainThreedEditor() {
     // Keep the hover/dim highlight materials clipped in sync with the plane, so
     // highlighting a clipped annotation doesn't render its hidden half.
     setHighlightClippingPlanes(clippingEnabled ? clippingManager.planes : null);
+    setFaceHoverClippingPlanes(clippingEnabled ? clippingManager.planes : null);
   }, [clippingEnabled, rendererIsReady]);
 
   // Sync clipping plane editing → gizmo visibility.
@@ -840,9 +865,10 @@ export default function MainThreedEditor() {
         }
         lastHoveredIdRef.current = null;
         tooltipApiRef.current?.clear();
+        clearFaceHoverOverlay();
       }
     },
-    [isWithinPopper, getStateForId]
+    [isWithinPopper, getStateForId, clearFaceHoverOverlay]
   );
 
   // Handle pointer move to detect if user is dragging
@@ -912,6 +938,7 @@ export default function MainThreedEditor() {
       lastHoveredIdRef.current = null;
       tooltipApiRef.current?.clear();
       clearSubHoverHelper();
+      clearFaceHoverOverlay();
       return;
     }
 
@@ -998,6 +1025,7 @@ export default function MainThreedEditor() {
           }
           lastHoveredIdRef.current = null;
           tooltipApiRef.current?.clear();
+          clearFaceHoverOverlay();
           return;
         }
       }
@@ -1026,11 +1054,13 @@ export default function MainThreedEditor() {
     );
 
     let hit = null;
+    let hitIntersect = null;
     for (const intersect of intersects) {
       let object = intersect.object;
       while (object) {
         if (object.userData?.nodeId) {
           hit = object;
+          hitIntersect = intersect;
           break;
         }
         object = object.parent;
@@ -1039,6 +1069,11 @@ export default function MainThreedEditor() {
     }
 
     const hitId = hit?.userData?.nodeId ?? null;
+    // Fat-line hits (Line2/LineSegments2, e.g. the POINT height trait) have no
+    // faces to stipple — they keep the whole-object green recolor fallback.
+    const isLineHit = !!(
+      hitIntersect?.object?.isLine2 || hitIntersect?.object?.isLineSegments2
+    );
     const containerRect = containerRef.current?.getBoundingClientRect();
 
     if (hitId !== lastHoveredIdRef.current) {
@@ -1055,7 +1090,10 @@ export default function MainThreedEditor() {
       if (hit) {
         // Selection wins over hover — selected annotations stay in their
         // original material even while hovered.
-        applyAnnotationMaterialState(hit, getStateForId(hitId, true));
+        applyAnnotationMaterialState(
+          hit,
+          getStateForId(hitId, true, isLineHit)
+        );
         prevHoveredObjectRef.current = hit;
       }
       threedEditor.renderScene?.();
@@ -1075,12 +1113,41 @@ export default function MainThreedEditor() {
         tooltipApiRef.current?.clear();
       }
     }
+
+    // Face hover overlay maintenance — runs every tick, NOT only on hitId
+    // change: moving to another face of the SAME annotation must rebuild the
+    // overlay. Staying on the same face is a cheap key match (the region is
+    // stamped in the adjacency cache), so nothing is rebuilt.
+    if (!hit || isLineHit) {
+      clearFaceHoverOverlay();
+    } else {
+      const hitObject = hitIntersect.object;
+      const region = getCoplanarRegion(
+        hitObject.geometry,
+        hitIntersect.faceIndex
+      );
+      const key = region ? `${hitObject.uuid}:${region.regionId}` : null;
+      if (key !== faceHoverKeyRef.current) {
+        disposeFaceHoverOverlay(faceHoverOverlayRef.current);
+        faceHoverOverlayRef.current = null;
+        if (region) {
+          const overlay = buildFaceHoverOverlay(hitObject, region.tris);
+          if (overlay) {
+            hitObject.add(overlay);
+            faceHoverOverlayRef.current = overlay;
+          }
+        }
+        faceHoverKeyRef.current = key;
+        threedEditor.renderScene?.();
+      }
+    }
   }, [
     rendererIsReady,
     isThreedViewer,
     getStateForId,
     getSoloSelectedAnnotationId,
     clearSubHoverHelper,
+    clearFaceHoverOverlay,
   ]);
 
   // Handle pointer move (drag tracking + schedule hover raycast)
@@ -1114,6 +1181,7 @@ export default function MainThreedEditor() {
     lastHoveredIdRef.current = null;
     tooltipApiRef.current?.clear();
     clearSubHoverHelper();
+    clearFaceHoverOverlay();
 
     // Cancel any in-flight lasso so the rectangle doesn't stay stuck on
     // screen and OrbitControls is restored.
@@ -1141,7 +1209,7 @@ export default function MainThreedEditor() {
         threedEditorRef.current?.renderScene?.();
       }
     }
-  }, [getStateForId, clearSubHoverHelper]);
+  }, [getStateForId, clearSubHoverHelper, clearFaceHoverOverlay]);
 
   // Handle pointer up - if not dragging, treat as click
   const handlePointerUp = useCallback(
@@ -1225,6 +1293,7 @@ export default function MainThreedEditor() {
         cancelAnimationFrame(hoverRafRef.current);
         hoverRafRef.current = null;
       }
+      clearFaceHoverOverlay();
     };
   }, [
     rendererIsReady,
@@ -1234,6 +1303,7 @@ export default function MainThreedEditor() {
     handlePointerLeave,
     handlePointerUp,
     isThreedViewer,
+    clearFaceHoverOverlay,
   ]);
 
   // Sub-selection persistent helper: rebuild whenever the subSelection key

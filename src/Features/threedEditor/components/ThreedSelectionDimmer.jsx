@@ -4,7 +4,6 @@ import { useSelector } from "react-redux";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import applyAnnotationMaterialState, {
   STATE_DIM,
-  STATE_HOVER,
   STATE_NONE,
 } from "Features/threedEditor/js/utilsAnnotationsManager/applyAnnotationMaterialState";
 
@@ -17,7 +16,8 @@ import applyAnnotationMaterialState, {
 // State machine per annotation (selection wins over hover — selected
 // annotations always show their original material, even while hovered):
 //   - in selection                             → STATE_NONE  (original)
-//   - hovered (and not selected)               → STATE_HOVER (green)
+//   - hovered (and not selected)               → STATE_NONE  (original — the
+//     hover highlight is the face-level stipple overlay, not a recolor)
 //   - dimmed by solo (not in the soloed set)   → STATE_DIM   (grey, translucent)
 //   - selection non-empty (and not selected)   → STATE_DIM   (grey, opacity 0.6)
 //   - otherwise                                → STATE_NONE  (original)
@@ -25,7 +25,10 @@ import applyAnnotationMaterialState, {
 // `hoveredIdRef` is read at the moment we apply state so the dimmer doesn't
 // fight with the inline hover handler in MainThreedEditor.
 
-export default function ThreedSelectionDimmer({ threedEditorRef, hoveredIdRef }) {
+export default function ThreedSelectionDimmer({
+  threedEditorRef,
+  hoveredIdRef,
+}) {
   const selectedItems = useSelector((s) => s.selection.selectedItems);
   const annotationsModeByBaseMapId = useSelector(
     (s) => s.threedEditor.annotationsModeByBaseMapIdIn3d
@@ -62,7 +65,7 @@ export default function ThreedSelectionDimmer({ threedEditorRef, hoveredIdRef })
       const isMain = bmId === mainBaseMapIdRef.current;
       const mode = isMain
         ? "NORMAL"
-        : annotationsModeRef.current?.[bmId] ?? "NONE";
+        : (annotationsModeRef.current?.[bmId] ?? "NONE");
 
       // Solo (3D): non-soloed annotations are tagged `soloDimmed` by
       // useAnnotationsV2 (which the 3D viewer keeps instead of hiding them) so
@@ -72,7 +75,7 @@ export default function ThreedSelectionDimmer({ threedEditorRef, hoveredIdRef })
 
       let state;
       if (selectedIds.includes(id)) state = STATE_NONE;
-      else if (id === hoveredId) state = STATE_HOVER;
+      else if (id === hoveredId) state = STATE_NONE;
       else if (!isMain && mode === "DIMMED") state = STATE_DIM;
       else if (isSoloDimmed) state = STATE_DIM;
       else if (selectedIds.length > 0) state = STATE_DIM;
