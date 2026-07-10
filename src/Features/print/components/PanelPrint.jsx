@@ -61,7 +61,7 @@ export default function PanelPrint() {
 
   const annotations = useAnnotationsV2({
     caller: "PanelPrint",
-    filterByProjectId: projectId,
+    filterBySelectedScope: true,
     withQties: true,
     withListingName: true,
     withEntity: true,
