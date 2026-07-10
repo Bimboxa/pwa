@@ -41,11 +41,16 @@ const TONE_MAPPING_EXPOSURE = 1.0;
 
 // Moderately LATERAL key light: two walls meeting at 90° receive a different
 // illumination, so the shared edge stays readable (a near-vertical key made
-// every vertical face equal → invisible corners). Cast shadows only land on
-// the basemap catcher (annotations don't receive them — see AnnotationsManager
-// applyShadowFlags), so the lateral angle doesn't reintroduce big shadow
-// blobs inside the model.
+// every vertical face equal → invisible corners).
 const KEY_LIGHT_DIRECTION = new Vector3(6, 9, 3.5).normalize();
+
+// Cast shadows in the raster REALISTIC mode — currently OFF (user prefers a
+// clean flat-lit model; the edge contrast comes from the lateral key light).
+// The full machinery (scene-fitted shadow frustum + ShadowMaterial catchers
+// over the basemaps, annotations casting onto the ground only) stays in place
+// behind this flag. PHOTOREAL is unaffected: the path tracer computes its own
+// GI shadows regardless.
+const ENABLE_CAST_SHADOWS = false;
 const SHADOW_MAP_SIZE = 2048;
 const SHADOW_CATCHER_OPACITY = 0.15;
 
@@ -103,7 +108,7 @@ export default class RenderModeManager {
   // to the new scene extent. The tracer invalidation comes for free from the
   // renderScene() call that follows (see SceneManager.renderScene).
   onSceneStructureChanged = () => {
-    if (this.mode === RENDER_MODE_STANDARD) return;
+    if (!ENABLE_CAST_SHADOWS || this.mode === RENDER_MODE_STANDARD) return;
     this._fitDirectionalShadow();
     this._addShadowCatchers();
   };
@@ -174,8 +179,6 @@ export default class RenderModeManager {
       this.sceneManager;
     renderer.toneMapping = ACESFilmicToneMapping;
     renderer.toneMappingExposure = TONE_MAPPING_EXPOSURE;
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = PCFSoftShadowMap;
 
     if (!this._env) this._env = buildWhiteEnvironment();
     scene.environment = this._env;
@@ -184,13 +187,26 @@ export default class RenderModeManager {
     ambiantLight.intensity = REALISTIC_LIGHTS.ambient;
     hemisphereLight.intensity = REALISTIC_LIGHTS.hemisphere;
     directionalLight.intensity = REALISTIC_LIGHTS.directional;
-    directionalLight.castShadow = true;
-    directionalLight.shadow.mapSize.set(SHADOW_MAP_SIZE, SHADOW_MAP_SIZE);
-    directionalLight.shadow.bias = -0.0001;
-    directionalLight.shadow.normalBias = 0.02;
+    // Key light direction (a DirectionalLight only uses position → target;
+    // the default target sits at the origin). _fitDirectionalShadow refines
+    // position/target to the scene extent when shadows are enabled.
+    directionalLight.position.copy(KEY_LIGHT_DIRECTION).multiplyScalar(20);
+    if (this._lightTarget) this._lightTarget.position.set(0, 0, 0);
 
-    this._fitDirectionalShadow();
-    this._addShadowCatchers();
+    if (ENABLE_CAST_SHADOWS) {
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = PCFSoftShadowMap;
+      directionalLight.castShadow = true;
+      directionalLight.shadow.mapSize.set(SHADOW_MAP_SIZE, SHADOW_MAP_SIZE);
+      directionalLight.shadow.bias = -0.0001;
+      directionalLight.shadow.normalBias = 0.02;
+      this._fitDirectionalShadow();
+      this._addShadowCatchers();
+    } else {
+      renderer.shadowMap.enabled = false;
+      directionalLight.castShadow = false;
+      this._removeShadowCatchers();
+    }
     this._forceMaterialsRecompile();
   }
 
