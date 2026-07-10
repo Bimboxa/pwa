@@ -120,6 +120,13 @@ export default function useMeshingPointerHandlers() {
 
     // Raycast the scene at the event position. Returns the first maille or
     // annotation hit (mesh hits only, clipping-aware).
+    //
+    // Targets are collected explicitly instead of intersectObjects(scene,
+    // recursive): the recursive walk raycasts EVERY object, and fat lines
+    // (Line2/LineSegments2 — which extend Mesh) have a raycast that throws on
+    // an empty/stale LineGeometry (see attachPointTraitRaycast history in
+    // createAnnotationObject3D.js), which would break all meshing picks. Fat
+    // lines are irrelevant here anyway — meshing only targets faces.
     function pickScene(e) {
       const rect = dom.getBoundingClientRect();
       if (!rect.width || !rect.height) return null;
@@ -128,10 +135,15 @@ export default function useMeshingPointerHandlers() {
       raycaster.setFromCamera(mouse, sceneManager.camera);
       const clippingPlane = getActiveClippingPlane(sceneManager);
 
+      const targets = [];
+      sceneManager.scene.traverse((obj) => {
+        if (obj.isMesh && !obj.isLine2 && !obj.isLineSegments2) {
+          targets.push(obj);
+        }
+      });
+
       const intersects = filterIntersectionsByClipping(
-        raycaster
-          .intersectObjects(sceneManager.scene.children, true)
-          .filter((i) => i.object?.isMesh),
+        raycaster.intersectObjects(targets, false),
         clippingPlane
       );
 
