@@ -370,7 +370,7 @@ export default function FormAnnotationTemplateVariantBlock({
             <FieldAnnotationHeight
               annotation={annotationTemplate}
               onChange={(updated) => handleHeightChange(updated.height)}
-              label="Hauteur"
+              label={drawingShape === "POLYGON" ? "Epaisseur" : "Hauteur"}
             />
           </Box>
         </WhiteSectionGeneric>

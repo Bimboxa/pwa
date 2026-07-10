@@ -124,9 +124,13 @@ export default function ToolbarEditAnnotations({
   // Distinct heights among the current selection (undefined treated as a value)
   const heightValues = [...new Set(annotations.map((a) => a.height))];
   const heightsAreUniform = heightValues.length === 1;
+  const allPolygons =
+    count > 0 && annotations.every((a) => a.type === "POLYGON");
   const heightDisplayValue = heightsAreUniform
     ? (heightValues[0] ?? "")
-    : "Hauteurs variables";
+    : allPolygons
+      ? "Epaisseurs variables"
+      : "Hauteurs variables";
 
   // Stable signature so the field remounts (resets its internal localValue)
   // when the selection changes.
@@ -533,7 +537,11 @@ export default function ToolbarEditAnnotations({
         >
           <FieldAnnotationHeight
             key={selectionKey}
-            annotation={{ id: "batch-height", height: heightDisplayValue }}
+            annotation={{
+              id: "batch-height",
+              height: heightDisplayValue,
+              ...(allPolygons && { type: "POLYGON" }),
+            }}
             onChange={handleBatchHeightFieldChange}
           />
           {isExtTargets.length > 0 && (

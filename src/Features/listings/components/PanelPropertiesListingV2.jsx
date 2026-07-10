@@ -198,7 +198,11 @@ function SortableTemplateRow({
             size={14}
           />
           <FieldAnnotationHeight
-            annotation={{ id: template.id, height: template.height }}
+            annotation={{
+              id: template.id,
+              height: template.height,
+              drawingShape: resolveDrawingShape(template),
+            }}
             onChange={(updated) => onHeightChange(template, updated.height)}
           />
           <Box sx={{ flex: 1 }} />
@@ -243,7 +247,11 @@ function SortableTemplateRow({
                 fontSize: "0.7rem",
                 bgcolor: chipBg,
                 color: chipText,
-                "& .MuiChip-deleteIcon": { fontSize: 14, color: chipText, opacity: 0.6 },
+                "& .MuiChip-deleteIcon": {
+                  fontSize: 14,
+                  color: chipText,
+                  opacity: 0.6,
+                },
               }}
             />
           ))}
@@ -291,9 +299,7 @@ export default function PanelPropertiesListingV2({ listing }) {
     withEntity: true,
     caller: "PanelPropertiesListingV2",
   });
-  const selectedBaseMapId = useSelector(
-    (s) => s.mapEditor.selectedBaseMapId
-  );
+  const selectedBaseMapId = useSelector((s) => s.mapEditor.selectedBaseMapId);
   const annotationsUpdatedAt = useSelector(
     (s) => s.annotations.annotationsUpdatedAt
   );
@@ -314,38 +320,32 @@ export default function PanelPropertiesListingV2({ listing }) {
 
   // data - base maps with annotation counts for this listing
 
-  const baseMapRows = useLiveQuery(
-    async () => {
-      if (!listing?.id || !projectId) return [];
-      const baseMaps = (
-        await db.baseMaps.where("projectId").equals(projectId).toArray()
-      ).filter((bm) => !bm.deletedAt);
+  const baseMapRows = useLiveQuery(async () => {
+    if (!listing?.id || !projectId) return [];
+    const baseMaps = (
+      await db.baseMaps.where("projectId").equals(projectId).toArray()
+    ).filter((bm) => !bm.deletedAt);
 
-      const annotations = (
-        await db.annotations
-          .where("listingId")
-          .equals(listing.id)
-          .toArray()
-      ).filter((a) => !a.deletedAt && !a.isBaseMapAnnotation);
+    const annotations = (
+      await db.annotations.where("listingId").equals(listing.id).toArray()
+    ).filter((a) => !a.deletedAt && !a.isBaseMapAnnotation);
 
-      const countByBaseMapId = {};
-      annotations.forEach((a) => {
-        if (a.baseMapId) {
-          countByBaseMapId[a.baseMapId] =
-            (countByBaseMapId[a.baseMapId] || 0) + 1;
-        }
-      });
+    const countByBaseMapId = {};
+    annotations.forEach((a) => {
+      if (a.baseMapId) {
+        countByBaseMapId[a.baseMapId] =
+          (countByBaseMapId[a.baseMapId] || 0) + 1;
+      }
+    });
 
-      return baseMaps
-        .map((bm) => ({
-          id: bm.id,
-          name: bm.name || "Sans nom",
-          count: countByBaseMapId[bm.id] || 0,
-        }))
-        .sort((a, b) => a.name.localeCompare(b.name));
-    },
-    [listing?.id, projectId, annotationsUpdatedAt]
-  );
+    return baseMaps
+      .map((bm) => ({
+        id: bm.id,
+        name: bm.name || "Sans nom",
+        count: countByBaseMapId[bm.id] || 0,
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [listing?.id, projectId, annotationsUpdatedAt]);
 
   // helpers
 
@@ -419,9 +419,7 @@ export default function PanelPropertiesListingV2({ listing }) {
       newOrderIndex = generateKeyBetween(b, a);
     } else {
       const b =
-        newIndex > 0
-          ? annotationTemplates[newIndex - 1]?.orderIndex
-          : null;
+        newIndex > 0 ? annotationTemplates[newIndex - 1]?.orderIndex : null;
       const a = annotationTemplates[newIndex]?.orderIndex ?? null;
       newOrderIndex = generateKeyBetween(b, a);
     }
@@ -616,10 +614,7 @@ export default function PanelPropertiesListingV2({ listing }) {
               >
                 Modèles
               </Typography>
-              <IconButton
-                size="small"
-                onClick={() => setOpenTableDialog(true)}
-              >
+              <IconButton size="small" onClick={() => setOpenTableDialog(true)}>
                 <TableChart sx={{ fontSize: 16 }} />
               </IconButton>
             </Box>
@@ -628,27 +623,29 @@ export default function PanelPropertiesListingV2({ listing }) {
               collisionDetection={closestCenter}
               onDragEnd={handleDragEnd}
             >
-            <Box sx={{ mx: -1, mb: -1 }}>
-              <SortableContext
-                items={templateIds}
-                strategy={verticalListSortingStrategy}
-              >
-                {annotationTemplates.map((template) => (
-                  <SortableTemplateRow
-                    key={template.id}
-                    template={template}
-                    spriteImage={spriteImage}
-                    allMappingCategories={allMappingCategories}
-                    qtyLabel={annotationTemplateQtiesById?.[template.id]?.mainQtyLabel}
-                    onHeightChange={handleHeightChange}
-                    onToggleOverride={handleToggleOverride}
-                    onDeleteCategory={handleDeleteCategory}
-                    onOpenAddCategories={setAddCategoriesTemplate}
-                    onSelect={handleSelectTemplate}
-                  />
-                ))}
-              </SortableContext>
-            </Box>
+              <Box sx={{ mx: -1, mb: -1 }}>
+                <SortableContext
+                  items={templateIds}
+                  strategy={verticalListSortingStrategy}
+                >
+                  {annotationTemplates.map((template) => (
+                    <SortableTemplateRow
+                      key={template.id}
+                      template={template}
+                      spriteImage={spriteImage}
+                      allMappingCategories={allMappingCategories}
+                      qtyLabel={
+                        annotationTemplateQtiesById?.[template.id]?.mainQtyLabel
+                      }
+                      onHeightChange={handleHeightChange}
+                      onToggleOverride={handleToggleOverride}
+                      onDeleteCategory={handleDeleteCategory}
+                      onOpenAddCategories={setAddCategoriesTemplate}
+                      onSelect={handleSelectTemplate}
+                    />
+                  ))}
+                </SortableContext>
+              </Box>
             </DndContext>
           </WhiteSectionGeneric>
         )}
@@ -724,9 +721,7 @@ export default function PanelPropertiesListingV2({ listing }) {
                   >
                     {row.count}
                   </Typography>
-                  <ChevronRight
-                    sx={{ fontSize: 16, color: "text.disabled" }}
-                  />
+                  <ChevronRight sx={{ fontSize: 16, color: "text.disabled" }} />
                 </ListItemButton>
               );
             })}

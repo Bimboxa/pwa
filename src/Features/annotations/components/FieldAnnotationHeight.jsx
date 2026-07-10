@@ -10,7 +10,10 @@ export default function FieldAnnotationHeight({
   disabled = false,
 }) {
   const field = fieldProp ?? "height";
-  const label = labelProp ?? "ht.";
+  // For POLYGON shapes, "height" is semantically a thickness ("épaisseur")
+  const isPolygon =
+    annotation?.type === "POLYGON" || annotation?.drawingShape === "POLYGON";
+  const label = labelProp ?? (isPolygon ? "ep." : "ht.");
   const unit = unitProp ?? "m";
 
   // 1. We need local state to manage the input value immediately while typing
@@ -47,7 +50,7 @@ export default function FieldAnnotationHeight({
     // Attempt conversion
     const numberVal = parseFloat(valStr);
 
-    // Rule: If it is a valid number, return Number type. 
+    // Rule: If it is a valid number, return Number type.
     // Otherwise (empty string, text, etc.), return the sanitized string.
     return !isNaN(numberVal) ? numberVal : valStr;
   };
