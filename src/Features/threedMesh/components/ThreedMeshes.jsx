@@ -154,13 +154,14 @@ export default function ThreedMeshes() {
 
       const labelPosition = getLabelPosition(mesh3d);
       if (labelPosition) {
-        // The label card uses the edge (raw annotation) color — the lightened
-        // fill shade would be unreadable as text on the white card.
+        // The label card's border + text use the maille's visible 3D color
+        // (same lightened/varied shade as the fill) so the card reads as
+        // belonging to its maille.
         const sprite = createMesh3dLabelSprite({
           text: getMesh3dDisplayLabel(mesh3d, prefix),
           surfaceText: selected ? formatSurfaceM2(mesh3d.surface) : null,
           mesh3dId: mesh3d.id,
-          color: mesh3d.edgeColor || color,
+          color,
           selected,
         });
         sprite.position.copy(labelPosition);
