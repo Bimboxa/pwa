@@ -16,7 +16,13 @@ export default function useSelectAnnotationOnEvent() {
 
   useEffect(() => {
     if (!request) return;
-    const { annotationId, annotationType, listingId, triggeredAt } = request;
+    const {
+      annotationId,
+      annotationType,
+      listingId,
+      annotationTemplateId,
+      triggeredAt,
+    } = request;
     if (!triggeredAt || triggeredAt === lastTriggeredAtRef.current) return;
     lastTriggeredAtRef.current = triggeredAt;
     if (!annotationId) return;
@@ -39,6 +45,7 @@ export default function useSelectAnnotationOnEvent() {
         nodeType: "ANNOTATION",
         annotationType,
         listingId,
+        annotationTemplateId,
       },
       meta: { fromBroadcast: true },
     });

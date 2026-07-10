@@ -70,6 +70,7 @@ export default function useNavigateThreedCameraToAnnotation() {
             annotationId: annotation.id,
             annotationType: annotation.type,
             listingId: annotation.listingId,
+            annotationTemplateId: annotation.annotationTemplateId,
             triggeredAt,
           })
         );

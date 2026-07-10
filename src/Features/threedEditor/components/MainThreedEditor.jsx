@@ -20,6 +20,7 @@ import {
   setSelectedItem,
   setSelectedItems,
   toggleItemSelection,
+  setShowAnnotationsProperties,
 } from "Features/selection/selectionSlice";
 import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 
@@ -138,17 +139,15 @@ export default function MainThreedEditor() {
   const selectedViewerKey = useSelector((s) => s.viewers.selectedViewerKey);
   const isThreedViewer = selectedViewerKey === "THREED";
 
-  // Surface the 3D viewer settings in the right panel: open the THREED_PROPERTIES
-  // panel when entering the 3D viewer, and close it again on leaving (only if it
-  // is still the active panel, so a manually-opened tool isn't clobbered). The
-  // current panel key is read from the store directly to avoid re-rendering
-  // MainThreedEditor on every right-panel change (which would recreate the 3D
-  // annotation objects).
+  // Entering the 3D viewer keeps whatever right panel was open in 2D (no
+  // auto-open of THREED_PROPERTIES). Leaving the 3D viewer closes the
+  // THREED_PROPERTIES panel if it is the active one, since its menu item only
+  // exists while the 3D viewer is active. The current panel key is read from
+  // the store directly to avoid re-rendering MainThreedEditor on every
+  // right-panel change (which would recreate the 3D annotation objects).
   const prevIsThreedRef = useRef(false);
   useEffect(() => {
-    if (isThreedViewer && !prevIsThreedRef.current) {
-      dispatch(setSelectedMenuItemKey("THREED_PROPERTIES"));
-    } else if (!isThreedViewer && prevIsThreedRef.current) {
+    if (!isThreedViewer && prevIsThreedRef.current) {
       if (
         store.getState().rightPanel.selectedMenuItemKey === "THREED_PROPERTIES"
       ) {
@@ -590,8 +589,13 @@ export default function MainThreedEditor() {
             return;
           }
           if (object.userData?.nodeId) {
-            const { nodeId, nodeType, annotationType, listingId } =
-              object.userData;
+            const {
+              nodeId,
+              nodeType,
+              annotationType,
+              listingId,
+              annotationTemplateId,
+            } = object.userData;
             const item = {
               id: nodeId,
               nodeId,
@@ -599,6 +603,7 @@ export default function MainThreedEditor() {
               nodeType,
               annotationType,
               listingId,
+              annotationTemplateId,
             };
             const position = { x: event.clientX, y: event.clientY };
 
@@ -619,6 +624,9 @@ export default function MainThreedEditor() {
               // Replace the selection — PopperEditAnnotation (singular) reads
               // `selection.selectedItems` via useSelectedNodes.
               dispatch(setSelectedItem(item));
+              // Mirror the 2D InteractionLayer: the flag drives the properties
+              // panel back chain (annotation → annotationTemplate → listing).
+              dispatch(setShowAnnotationsProperties(true));
             }
             // Selection of a face clears any prior vertex/edge sub-selection.
             dispatch(clearSubSelection());
@@ -851,7 +859,7 @@ export default function MainThreedEditor() {
         point.y >= rect.y &&
         point.y <= rect.y + rect.height;
       if (!inside) return;
-      const { nodeId, nodeType, annotationType, listingId } =
+      const { nodeId, nodeType, annotationType, listingId, annotationTemplateId } =
         object.userData || {};
       if (!nodeId) return;
       newItems.push({
@@ -861,6 +869,7 @@ export default function MainThreedEditor() {
         nodeType,
         annotationType,
         listingId,
+        annotationTemplateId,
       });
     });
 

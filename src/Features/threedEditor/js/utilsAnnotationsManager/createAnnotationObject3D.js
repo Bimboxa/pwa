@@ -907,6 +907,7 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
     nodeType: "ANNOTATION",
     annotationType: annotation.type,
     listingId: annotation.listingId,
+    annotationTemplateId: annotation.annotationTemplateId,
     vertexRefs,
   };
 

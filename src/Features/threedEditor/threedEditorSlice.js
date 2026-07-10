@@ -52,7 +52,7 @@ const threedEditorInitialState = {
   // "Nav" click in the 2D tab also brings the object into the 3D selection
   // (only if it isn't already selected there). `triggeredAt` makes repeated
   // requests for the same annotation still fire.
-  selectAnnotationInThreed: null, // { annotationId, annotationType, listingId, triggeredAt }
+  selectAnnotationInThreed: null, // { annotationId, annotationType, listingId, annotationTemplateId, triggeredAt }
   // 3D drawing mode: vertex-snapped polylines that auto-commit to a 2D
   // annotation when a closed coplanar face is detected.
   drawingMode: {

@@ -134,6 +134,7 @@ export default class AnnotationsManager {
                 nodeType: "ANNOTATION",
                 annotationType: annotation.type,
                 listingId: annotation.listingId,
+                annotationTemplateId: annotation.annotationTemplateId,
               };
               const parent = object.parent;
               object.traverse?.((child) => {

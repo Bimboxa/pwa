@@ -24,6 +24,8 @@ import PanelPropertiesPoints from "Features/points/components/PanelPropertiesPoi
 import PanelPropertiesSegment from "Features/points/components/PanelPropertiesSegment";
 import PanelPropertiesGuideline from "Features/annotations/components/PanelPropertiesGuideline";
 import PanelPropertiesPointsAndSegments from "Features/points/components/PanelPropertiesPointsAndSegments";
+import PanelMesh3dProperties from "Features/threedMesh/components/PanelMesh3dProperties";
+import PanelDimension3dProperties from "Features/threedDimensions/components/PanelDimension3dProperties";
 
 export default function PanelSelectionProperties() {
   // data
@@ -53,6 +55,7 @@ export default function PanelSelectionProperties() {
 
   const isMapViewer = selectedViewerKey === "MAP";
   const isListingViewer = selectedViewerKey === "LISTING";
+  const isThreedViewer = selectedViewerKey === "THREED";
 
   // The MAP and BASE_MAPS viewers share the same canvas (InteractionLayer), so
   // node / point / segment / guideline selections resolve the same way in both.
@@ -108,6 +111,31 @@ export default function PanelSelectionProperties() {
     selectedItem?.type === "NODE"
   ) {
     type = "MULTI_ANNOTATION";
+  } else if (
+    isThreedViewer &&
+    selectedItem?.type === "NODE" &&
+    selectedItem?.nodeType === "MESH3D"
+  ) {
+    // Maille(s) selected in the 3D viewer — the panel handles both single and
+    // multi selections (mirroring ToolbarEditMesh3d / ToolbarEditMeshes3d).
+    type = "MESH3D";
+  } else if (
+    isThreedViewer &&
+    selectedItem?.type === "NODE" &&
+    selectedItem?.nodeType === "DIMENSION"
+  ) {
+    // Cote selected in the 3D viewer (always a single selection).
+    type = "DIMENSION3D";
+  } else if (
+    isThreedViewer &&
+    selectedItem?.type === "NODE" &&
+    selectedItem?.nodeType === "ANNOTATION"
+  ) {
+    // 3D viewer selection (click or lasso): the 3D editor never sets the 2D
+    // InteractionLayer flag showAnnotationsProperties, so map the annotation
+    // node(s) directly to the annotation panels instead of falling through to
+    // the LISTING default.
+    type = selectedItems.length > 1 ? "MULTI_ANNOTATION" : "ANNOTATION";
   } else if (isMapViewer && selectedItem?.type === "BASE_MAP") {
     type = "BASE_MAP";
   } else if (isBaseMapsViewer && selectedItem?.type === "SCOPE") {
@@ -160,8 +188,10 @@ export default function PanelSelectionProperties() {
     <BoxFlexVStretch>
       {type === "MAP_SUMMARY" && <PanelPropertiesScope />}
 
-      {type === "LISTING" && (isMapViewer || isListingViewer) && <PanelPropertiesListingV2 listing={listing} />}
-      {type === "LISTING" && !isMapViewer && !isListingViewer && <PanelListingProperties listing={listing} />}
+      {/* THREED uses the V2 panel too so the back chain ends listing → scope,
+          matching the 2D editor. */}
+      {type === "LISTING" && (isMapViewer || isListingViewer || isThreedViewer) && <PanelPropertiesListingV2 listing={listing} />}
+      {type === "LISTING" && !isMapViewer && !isListingViewer && !isThreedViewer && <PanelListingProperties listing={listing} />}
 
       {type === "ENTITY" && <PanelEntityProperties />}
 
@@ -198,6 +228,10 @@ export default function PanelSelectionProperties() {
       {type === "GUIDE" && <PanelPropertiesGuideline />}
 
       {type === "POINTS_AND_SEGMENTS" && <PanelPropertiesPointsAndSegments />}
+
+      {type === "MESH3D" && <PanelMesh3dProperties />}
+
+      {type === "DIMENSION3D" && <PanelDimension3dProperties />}
     </BoxFlexVStretch>
   );
 }
