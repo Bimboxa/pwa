@@ -56,11 +56,14 @@ export default async function splitMesh3dService({
 
     const newIds = [];
     for (const piece of rest) {
+      // New pieces re-shade from the parent's base color with their fresh
+      // number, so the two sides of a cut never look identical.
       const record = await createMesh3dService({
         projectId: mesh3d.projectId,
         scopeId: mesh3d.scopeId,
         faces: [toFace3d(piece)],
-        color: mesh3d.color,
+        baseColor: mesh3d.baseColor ?? mesh3d.color,
+        edgeColor: mesh3d.edgeColor || null,
         sourceInfo: mesh3d.sourceInfo || null,
       });
       if (record) newIds.push(record.id);

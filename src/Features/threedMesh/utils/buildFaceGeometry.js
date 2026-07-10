@@ -28,7 +28,10 @@ function safeLighten(color, amount, fallback) {
 // along the face normal (so the shell never z-fights with the source face it
 // was created from). The extrusion happens in the (u, v, n) plane basis and is
 // placed in world space via a basis matrix.
-export default function buildFaceGeometry(face, { color, selected } = {}) {
+export default function buildFaceGeometry(
+  face,
+  { color, edgeColor, selected } = {}
+) {
   const contour = face?.contour;
   if (!contour || contour.length < 3) return null;
 
@@ -79,11 +82,13 @@ export default function buildFaceGeometry(face, { color, selected } = {}) {
 
   const mesh = new Mesh(geometry, material);
 
-  // Contour outline (matches the black edge outlines of annotations; blue and
-  // thicker-looking when selected via renderOrder + color).
+  // Contour outline: keeps the source annotation's raw color (the fill is a
+  // lightened shade of it); blue when selected.
   const edges = new LineSegments(
     new EdgesGeometry(geometry, 20),
-    new LineBasicMaterial({ color: selected ? 0x2196f3 : 0x333333 })
+    new LineBasicMaterial({
+      color: selected ? 0x2196f3 : edgeColor || 0x333333,
+    })
   );
   edges.raycast = () => {};
   edges.renderOrder = 999;

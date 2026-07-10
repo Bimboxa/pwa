@@ -107,6 +107,8 @@ const threedEditorInitialState = {
   // Meshing ("maillage") mode: create mailles from hovered faces and cut
   // them with vertical / horizontal / free lines. Mutually exclusive with
   // `drawingMode.active`, `moveMode.active` and `dimensionMode.active`.
+  // Hide the 3D mesh cells ("mailles") from the scene (Panel Maillage toggle).
+  hideMeshes3d: false,
   meshingMode: {
     active: false,
     tool: "SELECT", // "SELECT" | "CUT_VERTICAL" | "CUT_HORIZONTAL" | "CUT_FREE"
@@ -363,6 +365,9 @@ export const threedEditorSlice = createSlice({
       state.meshingMode.cutSide =
         state.meshingMode.cutSide === "LEFT" ? "RIGHT" : "LEFT";
     },
+    setHideMeshes3d: (state, action) => {
+      state.hideMeshes3d = action.payload;
+    },
   },
 });
 
@@ -404,6 +409,7 @@ export const {
   setMeshingTool,
   setMeshingOffset,
   toggleMeshingCutSide,
+  setHideMeshes3d,
 } = threedEditorSlice.actions;
 
 export default threedEditorSlice.reducer;

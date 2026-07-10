@@ -1,11 +1,15 @@
 import { useState } from "react";
 
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
+
+import { setHideMeshes3d } from "Features/threedEditor/threedEditorSlice";
 
 import {
   Box,
   Chip,
+  FormControlLabel,
   IconButton,
+  Switch,
   Table,
   TableBody,
   TableCell,
@@ -33,10 +37,13 @@ import getMesh3dDisplayLabel from "../utils/getMesh3dDisplayLabel";
 // mailles recap table (datagrid dialog + Excel). Mirrors PanelPrint's layout
 // (WhiteSectionGeneric cards, hover-reveal export row).
 export default function PanelMesh3d() {
+  const dispatch = useDispatch();
+
   // data
 
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const scopeId = useSelector((s) => s.scopes.selectedScopeId);
+  const hideMeshes3d = useSelector((s) => s.threedEditor.hideMeshes3d);
 
   const meshes3d = useMeshes3d({ projectId, scopeId });
   const { prefix, setPrefix } = useMesh3dLabelPrefix();
@@ -91,7 +98,7 @@ export default function PanelMesh3d() {
       </Box>
 
       <BoxFlexVStretch sx={{ overflow: "auto", gap: 1, p: 1 }}>
-        {/* Card 0 — Mailles count */}
+        {/* Card 0 — Mailles count + visibility */}
         <WhiteSectionGeneric>
           <Box
             sx={{
@@ -108,6 +115,17 @@ export default function PanelMesh3d() {
             </Box>
             <Chip label={rows.length} size="small" />
           </Box>
+          <FormControlLabel
+            sx={{ mt: 0.5, ml: 0 }}
+            control={
+              <Switch
+                size="small"
+                checked={hideMeshes3d}
+                onChange={(e) => dispatch(setHideMeshes3d(e.target.checked))}
+              />
+            }
+            label={<Typography variant="body2">Masquer les mailles</Typography>}
+          />
         </WhiteSectionGeneric>
 
         {/* Card 1 — Numérotation */}

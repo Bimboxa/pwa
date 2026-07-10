@@ -68,6 +68,7 @@ export default function ThreedMeshes() {
 
   const meshes3d = useMeshes3d({ projectId, scopeId });
   const { prefix } = useMesh3dLabelPrefix();
+  const hideMeshes3d = useSelector((s) => s.threedEditor.hideMeshes3d);
 
   // Selected maille ids, serialized so the rebuild effect only re-runs when
   // the MESH3D selection actually changes.
@@ -118,6 +119,12 @@ export default function ThreedMeshes() {
       disposeObject(child);
     }
 
+    if (hideMeshes3d) {
+      setMesh3dObjects({});
+      editor.sceneManager.renderScene?.();
+      return;
+    }
+
     const sprites = [];
     const faceMeshes = [];
 
@@ -130,7 +137,11 @@ export default function ThreedMeshes() {
       group.userData = { mesh3dId: mesh3d.id, isMesh3d: true };
 
       mesh3d.faces.forEach((face, faceIndex) => {
-        const faceMesh = buildFaceGeometry(face, { color, selected });
+        const faceMesh = buildFaceGeometry(face, {
+          color,
+          edgeColor: mesh3d.edgeColor,
+          selected,
+        });
         if (!faceMesh) return;
         faceMesh.userData = {
           mesh3dId: mesh3d.id,
@@ -143,11 +154,13 @@ export default function ThreedMeshes() {
 
       const labelPosition = getLabelPosition(mesh3d);
       if (labelPosition) {
+        // The label card uses the edge (raw annotation) color — the lightened
+        // fill shade would be unreadable as text on the white card.
         const sprite = createMesh3dLabelSprite({
           text: getMesh3dDisplayLabel(mesh3d, prefix),
           surfaceText: selected ? formatSurfaceM2(mesh3d.surface) : null,
           mesh3dId: mesh3d.id,
-          color,
+          color: mesh3d.edgeColor || color,
           selected,
         });
         sprite.position.copy(labelPosition);
@@ -160,7 +173,7 @@ export default function ThreedMeshes() {
 
     setMesh3dObjects({ sprites, faceMeshes });
     editor.sceneManager.renderScene?.();
-  }, [meshes3d, selectedIds, prefix]);
+  }, [meshes3d, selectedIds, prefix, hideMeshes3d]);
 
   return null;
 }

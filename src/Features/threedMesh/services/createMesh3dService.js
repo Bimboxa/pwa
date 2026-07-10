@@ -3,16 +3,23 @@ import { nanoid } from "@reduxjs/toolkit";
 import db from "App/db/db";
 
 import { computeMesh3dSurface } from "../utils/computeFaceArea";
-import { DEFAULT_MESH3D_COLOR } from "../utils/mesh3dConstants";
+import getMesh3dCreationColors from "../utils/getMesh3dCreationColors";
 
 // Creates a maille. `number` is allocated inside the transaction as
 // 1 + max(number) over ALL rows of the scope INCLUDING soft-deleted ones
 // (rows are never physically removed), so numbers are never reused.
+//
+// Colors: `baseColor` is the source annotation's color — the fill is a
+// lightened, per-number-varied shade of it (touching mailles stay visually
+// distinct) and the edges keep the raw color. Explicit `color` / `edgeColor`
+// win when provided (splits preserve the parent's edge color).
 export default async function createMesh3dService({
   projectId,
   scopeId,
   faces,
-  color = DEFAULT_MESH3D_COLOR,
+  baseColor = null,
+  color = null,
+  edgeColor = null,
   label = null,
   sourceInfo = null,
 }) {
@@ -25,13 +32,17 @@ export default async function createMesh3dService({
       .toArray();
     const number = 1 + rows.reduce((max, r) => Math.max(max, r.number || 0), 0);
 
+    const colors = getMesh3dCreationColors(baseColor, number);
+
     const record = {
       id: nanoid(),
       projectId,
       scopeId,
       number,
       label,
-      color,
+      baseColor,
+      color: color || colors.color,
+      edgeColor: edgeColor || colors.edgeColor,
       surface: computeMesh3dSurface(faces),
       faces,
       sourceInfo,

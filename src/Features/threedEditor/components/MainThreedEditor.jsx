@@ -1123,9 +1123,16 @@ export default function MainThreedEditor() {
 
     let hit = null;
     let hitIntersect = null;
+    let mesh3dIntersect = null;
     for (const intersect of intersects) {
       let object = intersect.object;
       while (object) {
+        // Maille (3D mesh cell) face: no annotation recolor/tooltip, but it
+        // gets the same face-level stipple highlight (see overlay block).
+        if (object.userData?.isMesh3d && object.userData?.mesh3dId) {
+          mesh3dIntersect = intersect;
+          break;
+        }
         if (object.userData?.nodeId) {
           hit = object;
           hitIntersect = intersect;
@@ -1133,7 +1140,7 @@ export default function MainThreedEditor() {
         }
         object = object.parent;
       }
-      if (hit) break;
+      if (hit || mesh3dIntersect) break;
     }
 
     const hitId = hit?.userData?.nodeId ?? null;
@@ -1185,14 +1192,17 @@ export default function MainThreedEditor() {
     // Face hover overlay maintenance — runs every tick, NOT only on hitId
     // change: moving to another face of the SAME annotation must rebuild the
     // overlay. Staying on the same face is a cheap key match (the region is
-    // stamped in the adjacency cache), so nothing is rebuilt.
-    if (!hit || isLineHit) {
+    // stamped in the adjacency cache), so nothing is rebuilt. Maille faces get
+    // the same stipple as annotation faces.
+    const overlayIntersect =
+      mesh3dIntersect || (hit && !isLineHit ? hitIntersect : null);
+    if (!overlayIntersect) {
       clearFaceHoverOverlay();
     } else {
-      const hitObject = hitIntersect.object;
+      const hitObject = overlayIntersect.object;
       const region = getCoplanarRegion(
         hitObject.geometry,
-        hitIntersect.faceIndex
+        overlayIntersect.faceIndex
       );
       const key = region ? `${hitObject.uuid}:${region.regionId}` : null;
       if (key !== faceHoverKeyRef.current) {

@@ -3,6 +3,7 @@ import { useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Raycaster, Vector2 } from "three";
 
+import db from "App/db/db";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 import {
   setMeshingModeActive,
@@ -174,26 +175,30 @@ export default function useMeshingPointerHandlers() {
       return { kind: null, rect };
     }
 
+    // Stipple the coplanar face under the cursor (same overlay as the
+    // selection-mode annotation hover). Works on annotation meshes AND maille
+    // face meshes — a hovered maille gets the same highlight, including while
+    // a cut tool is active.
+    function applyStipple(object, faceIndex) {
+      const region = getCoplanarRegion(object.geometry, faceIndex);
+      const key = region ? `${object.uuid}:${region.regionId}` : null;
+      if (key !== hover.key) {
+        disposeFaceHoverOverlay(hover.overlay);
+        hover.overlay = null;
+        if (region) {
+          const overlay = buildFaceHoverOverlay(object, region.tris);
+          if (overlay) {
+            object.add(overlay);
+            hover.overlay = overlay;
+          }
+        }
+        hover.key = key;
+        editor.renderScene?.();
+      }
+    }
+
     function updateSelectHover(e, pick) {
       if (pick?.kind === "ANNOTATION") {
-        const region = getCoplanarRegion(
-          pick.hitObject.geometry,
-          pick.intersect.faceIndex
-        );
-        const key = region ? `${pick.hitObject.uuid}:${region.regionId}` : null;
-        if (key !== hover.key) {
-          disposeFaceHoverOverlay(hover.overlay);
-          hover.overlay = null;
-          if (region) {
-            const overlay = buildFaceHoverOverlay(pick.hitObject, region.tris);
-            if (overlay) {
-              pick.hitObject.add(overlay);
-              hover.overlay = overlay;
-            }
-          }
-          hover.key = key;
-          editor.renderScene?.();
-        }
         setMeshingOverlay({
           cursor: {
             x: e.clientX - pick.rect.left,
@@ -203,7 +208,6 @@ export default function useMeshingPointerHandlers() {
         });
         dom.style.cursor = "crosshair";
       } else {
-        clearStipple();
         setMeshingOverlay({ cursor: null });
         dom.style.cursor = pick?.kind === "MESH3D" ? "pointer" : "crosshair";
       }
@@ -214,6 +218,16 @@ export default function useMeshingPointerHandlers() {
       const e = lastEvent;
       if (!e) return;
       const pick = pickScene(e);
+
+      // Face highlight: mailles in every tool, annotations in SELECT only.
+      if (pick?.kind === "MESH3D") {
+        applyStipple(pick.intersect.object, pick.intersect.faceIndex);
+      } else if (tool === "SELECT" && pick?.kind === "ANNOTATION") {
+        applyStipple(pick.hitObject, pick.intersect.faceIndex);
+      } else {
+        clearStipple();
+      }
+
       if (tool === "SELECT") {
         updateSelectHover(e, pick);
       } else {
@@ -245,10 +259,16 @@ export default function useMeshingPointerHandlers() {
         if (faces) {
           const { projectId: pId, scopeId: sId } = idsRef.current;
           try {
+            // The maille takes the source annotation's hue (lightened fill +
+            // raw-color edges) — see createMesh3dService.
+            const annotation = await db.annotations.get(pick.nodeId);
+            const baseColor =
+              annotation?.fillColor || annotation?.strokeColor || null;
             await createMesh3dService({
               projectId: pId,
               scopeId: sId,
               faces,
+              baseColor,
               sourceInfo: { annotationId: pick.nodeId },
             });
           } catch (err) {
