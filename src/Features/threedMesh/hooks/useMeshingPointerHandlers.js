@@ -50,6 +50,9 @@ export default function useMeshingPointerHandlers() {
   const dispatch = useDispatch();
 
   const active = useSelector((s) => s.threedEditor.meshingMode.active);
+  const shootActive = useSelector(
+    (s) => s.threedEditor.meshingMode.shootActive
+  );
   const tool = useSelector((s) => s.threedEditor.meshingMode.tool);
   const offset = useSelector((s) => s.threedEditor.meshingMode.offset);
   const cutSide = useSelector((s) => s.threedEditor.meshingMode.cutSide);
@@ -81,7 +84,9 @@ export default function useMeshingPointerHandlers() {
   }, [meshes3d]);
 
   useEffect(() => {
-    if (!active) return;
+    // Suspended (torn down / rebuilt) while the shoot sub-mode owns the
+    // pointer — see useShootPointerHandlers.
+    if (!active || shootActive) return;
     const editor = getActiveThreedEditor();
     const sceneManager = editor?.sceneManager;
     const dom = sceneManager?.renderer?.domElement;
@@ -371,5 +376,5 @@ export default function useMeshingPointerHandlers() {
       clearMeshingOverlay();
       dom.style.cursor = "";
     };
-  }, [active, tool, dispatch]);
+  }, [active, shootActive, tool, dispatch]);
 }

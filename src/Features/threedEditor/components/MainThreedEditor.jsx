@@ -79,10 +79,12 @@ import useDimensionPointerHandlers from "Features/threedDimensions/hooks/useDime
 import { getDimensionObjects } from "Features/threedDimensions/services/dimensionObjectsStore";
 import MeshingToolbarThreed from "Features/threedMesh/components/MeshingToolbarThreed";
 import MeshingOverlayThreed from "Features/threedMesh/components/MeshingOverlayThreed";
+import ShootLanceOverlayThreed from "Features/threedMesh/components/ShootLanceOverlayThreed";
 import ThreedMeshes from "Features/threedMesh/components/ThreedMeshes";
 import PopperEditMesh3d from "Features/threedMesh/components/PopperEditMesh3d";
 import PopperEditMeshes3d from "Features/threedMesh/components/PopperEditMeshes3d";
 import useMeshingPointerHandlers from "Features/threedMesh/hooks/useMeshingPointerHandlers";
+import useShootPointerHandlers from "Features/threedMesh/hooks/useShootPointerHandlers";
 import {
   getMesh3dSprites,
   getMesh3dFaceMeshes,
@@ -223,6 +225,7 @@ export default function MainThreedEditor() {
   useDrawingPointerHandlers();
   useDimensionPointerHandlers();
   useMeshingPointerHandlers();
+  useShootPointerHandlers();
 
   // Drive the 3D clipping plane from the 2D-defined segment (top view).
   useSyncClippingPlanTo3D({ threedEditorRef, rendererIsReady });
@@ -1542,6 +1545,7 @@ export default function MainThreedEditor() {
       {isThreedViewer && <PopperEditDimension viewerKey="THREED" />}
       {isThreedViewer && rendererIsReady && <ThreedMeshes />}
       {isThreedViewer && <MeshingOverlayThreed />}
+      {isThreedViewer && <ShootLanceOverlayThreed />}
       {isThreedViewer && <PopperEditMesh3d viewerKey="THREED" />}
       {isThreedViewer && <PopperEditMeshes3d viewerKey="THREED" />}
     </Box>
