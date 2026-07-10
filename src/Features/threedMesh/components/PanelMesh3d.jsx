@@ -2,7 +2,10 @@ import { useState } from "react";
 
 import { useDispatch, useSelector } from "react-redux";
 
-import { setHideMeshes3d } from "Features/threedEditor/threedEditorSlice";
+import {
+  setHideMeshes3d,
+  setHideAnnotationsIn3d,
+} from "Features/threedEditor/threedEditorSlice";
 
 import {
   Box,
@@ -44,6 +47,9 @@ export default function PanelMesh3d() {
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const scopeId = useSelector((s) => s.scopes.selectedScopeId);
   const hideMeshes3d = useSelector((s) => s.threedEditor.hideMeshes3d);
+  const hideAnnotationsIn3d = useSelector(
+    (s) => s.threedEditor.hideAnnotationsIn3d
+  );
 
   const meshes3d = useMeshes3d({ projectId, scopeId });
   const { prefix, setPrefix } = useMesh3dLabelPrefix();
@@ -98,33 +104,51 @@ export default function PanelMesh3d() {
       </Box>
 
       <BoxFlexVStretch sx={{ overflow: "auto", gap: 1, p: 1 }}>
-        {/* Card 0 — Mailles count + visibility */}
+        {/* Card 0 — Affichage (visibility toggles) */}
         <WhiteSectionGeneric>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <GridOn fontSize="small" color="action" />
+            <Typography variant="body2" sx={{ fontWeight: "bold" }}>
+              Affichage
+            </Typography>
+          </Box>
           <Box
             sx={{
               display: "flex",
               alignItems: "center",
               justifyContent: "space-between",
+              mt: 0.5,
             }}
           >
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-              <GridOn fontSize="small" color="action" />
-              <Typography variant="body2" sx={{ fontWeight: "bold" }}>
-                Mailles
-              </Typography>
-            </Box>
+            <FormControlLabel
+              sx={{ ml: 0 }}
+              control={
+                <Switch
+                  size="small"
+                  checked={hideMeshes3d}
+                  onChange={(e) => dispatch(setHideMeshes3d(e.target.checked))}
+                />
+              }
+              label={
+                <Typography variant="body2">Masquer les mailles</Typography>
+              }
+            />
             <Chip label={rows.length} size="small" />
           </Box>
           <FormControlLabel
-            sx={{ mt: 0.5, ml: 0 }}
+            sx={{ ml: 0 }}
             control={
               <Switch
                 size="small"
-                checked={hideMeshes3d}
-                onChange={(e) => dispatch(setHideMeshes3d(e.target.checked))}
+                checked={hideAnnotationsIn3d}
+                onChange={(e) =>
+                  dispatch(setHideAnnotationsIn3d(e.target.checked))
+                }
               />
             }
-            label={<Typography variant="body2">Masquer les mailles</Typography>}
+            label={
+              <Typography variant="body2">Masquer les annotations</Typography>
+            }
           />
         </WhiteSectionGeneric>
 

@@ -83,7 +83,12 @@ import ThreedMeshes from "Features/threedMesh/components/ThreedMeshes";
 import PopperEditMesh3d from "Features/threedMesh/components/PopperEditMesh3d";
 import PopperEditMeshes3d from "Features/threedMesh/components/PopperEditMeshes3d";
 import useMeshingPointerHandlers from "Features/threedMesh/hooks/useMeshingPointerHandlers";
-import { getMesh3dSprites } from "Features/threedMesh/services/mesh3dObjectsStore";
+import {
+  getMesh3dSprites,
+  getMesh3dFaceMeshes,
+} from "Features/threedMesh/services/mesh3dObjectsStore";
+import { filterIntersectionsByVisibility } from "Features/threedEditor/js/utilsAnnotationsManager/visibilityPick";
+import ThreedAnnotationsVisibility from "./ThreedAnnotationsVisibility";
 
 export default function MainThreedEditor() {
   // ref
@@ -550,11 +555,13 @@ export default function MainThreedEditor() {
       // so the black edge outlines added by extrudeClosedShape /
       // extrudePolylineWall would otherwise trigger selection well before
       // the cursor reaches the actual surface.
-      const intersects = filterIntersectionsByClipping(
-        raycasterRef.current
-          .intersectObjects(scene.children, true)
-          .filter((i) => i.object?.isMesh),
-        clippingPlane
+      const intersects = filterIntersectionsByVisibility(
+        filterIntersectionsByClipping(
+          raycasterRef.current
+            .intersectObjects(scene.children, true)
+            .filter((i) => i.object?.isMesh),
+          clippingPlane
+        )
       );
 
       // Find the first annotation object (check userData)
@@ -741,7 +748,7 @@ export default function MainThreedEditor() {
     const newSet = new Set();
     for (const id in map) {
       const object = map[id];
-      if (!object) continue;
+      if (!object || object.visible === false) continue;
       const point = projectAnnotationToClient(
         object,
         camera,
@@ -830,7 +837,7 @@ export default function MainThreedEditor() {
 
     const newItems = [];
     Object.entries(map).forEach(([id, object]) => {
-      if (!object) return;
+      if (!object || object.visible === false) return;
       const point = projectAnnotationToClient(
         object,
         camera,
@@ -857,6 +864,42 @@ export default function MainThreedEditor() {
       });
     });
 
+    // With "Masquer les annotations" on, the lasso selects the mailles
+    // instead (only annotations OR only mailles — a mixed selection would
+    // confuse the edit toolbars). Maille groups are the parents of the
+    // published face meshes; their bbox center follows the annotation rule.
+    if (store.getState().threedEditor.hideAnnotationsIn3d) {
+      const mesh3dGroups = new Map();
+      for (const faceMesh of getMesh3dFaceMeshes()) {
+        const mesh3dId = faceMesh.userData?.mesh3dId;
+        const group = faceMesh.parent;
+        if (mesh3dId && group && !mesh3dGroups.has(mesh3dId)) {
+          mesh3dGroups.set(mesh3dId, group);
+        }
+      }
+      mesh3dGroups.forEach((group, mesh3dId) => {
+        const point = projectAnnotationToClient(
+          group,
+          camera,
+          canvasRect,
+          plane
+        );
+        if (!point) return;
+        const inside =
+          point.x >= rect.x &&
+          point.x <= rect.x + rect.width &&
+          point.y >= rect.y &&
+          point.y <= rect.y + rect.height;
+        if (!inside) return;
+        newItems.push({
+          id: mesh3dId,
+          nodeId: mesh3dId,
+          type: "NODE",
+          nodeType: "MESH3D",
+        });
+      });
+    }
+
     // Lasso replaces the selection (matches the 2D editor).
     dispatch(setSelectedItems(newItems));
     dispatch(setSelectedNode(null));
@@ -868,7 +911,7 @@ export default function MainThreedEditor() {
       dispatch(setAnnotationToolbarPosition(null));
       dispatch(setAnnotationsToolbarPosition(null));
     }
-  }, [dispatch, projectAnnotationToClient, getStateForId]);
+  }, [dispatch, projectAnnotationToClient, getStateForId, store]);
 
   // Handle pointer down to detect drags
   const handlePointerDown = useCallback(
@@ -1112,14 +1155,17 @@ export default function MainThreedEditor() {
     mouseRef.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
     raycasterRef.current.setFromCamera(mouseRef.current, camera);
 
-    // Filter out non-mesh hits (edge LineSegments) — see handleClick — and hits
+    // Filter out non-mesh hits (edge LineSegments) — see handleClick — hits
     // hidden by the active clipping plane (so the cursor never picks clipped-away
-    // geometry, and a clipped front face doesn't shadow the object behind it).
-    const intersects = filterIntersectionsByClipping(
-      raycasterRef.current
-        .intersectObjects(scene.children, true)
-        .filter((i) => i.object?.isMesh),
-      clippingPlane
+    // geometry, and a clipped front face doesn't shadow the object behind it),
+    // and hits on hidden objects (Masquer les annotations).
+    const intersects = filterIntersectionsByVisibility(
+      filterIntersectionsByClipping(
+        raycasterRef.current
+          .intersectObjects(scene.children, true)
+          .filter((i) => i.object?.isMesh),
+        clippingPlane
+      )
     );
 
     let hit = null;
@@ -1477,6 +1523,9 @@ export default function MainThreedEditor() {
           threedEditorRef={threedEditorRef}
           hoveredIdRef={lastHoveredIdRef}
         />
+      )}
+      {isThreedViewer && (
+        <ThreedAnnotationsVisibility threedEditorRef={threedEditorRef} />
       )}
       {isThreedViewer &&
         (clippingEditing ? (

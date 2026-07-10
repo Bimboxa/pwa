@@ -22,6 +22,7 @@ import {
   getActiveClippingPlane,
   filterIntersectionsByClipping,
 } from "Features/threedEditor/js/utilsAnnotationsManager/clippingPick";
+import { filterIntersectionsByVisibility } from "Features/threedEditor/js/utilsAnnotationsManager/visibilityPick";
 
 import useMeshes3d from "./useMeshes3d";
 import createMesh3dService from "../services/createMesh3dService";
@@ -143,9 +144,11 @@ export default function useMeshingPointerHandlers() {
         }
       });
 
-      const intersects = filterIntersectionsByClipping(
-        raycaster.intersectObjects(targets, false),
-        clippingPlane
+      const intersects = filterIntersectionsByVisibility(
+        filterIntersectionsByClipping(
+          raycaster.intersectObjects(targets, false),
+          clippingPlane
+        )
       );
 
       for (const intersect of intersects) {

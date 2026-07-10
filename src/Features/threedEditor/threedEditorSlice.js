@@ -109,6 +109,9 @@ const threedEditorInitialState = {
   // `drawingMode.active`, `moveMode.active` and `dimensionMode.active`.
   // Hide the 3D mesh cells ("mailles") from the scene (Panel Maillage toggle).
   hideMeshes3d: false,
+  // Hide the annotations from the 3D scene (Panel Maillage toggle) — leaves
+  // only basemaps + mailles visible (and lasso-selectable).
+  hideAnnotationsIn3d: false,
   meshingMode: {
     active: false,
     tool: "SELECT", // "SELECT" | "CUT_VERTICAL" | "CUT_HORIZONTAL" | "CUT_FREE"
@@ -368,6 +371,9 @@ export const threedEditorSlice = createSlice({
     setHideMeshes3d: (state, action) => {
       state.hideMeshes3d = action.payload;
     },
+    setHideAnnotationsIn3d: (state, action) => {
+      state.hideAnnotationsIn3d = action.payload;
+    },
   },
 });
 
@@ -410,6 +416,7 @@ export const {
   setMeshingOffset,
   toggleMeshingCutSide,
   setHideMeshes3d,
+  setHideAnnotationsIn3d,
 } = threedEditorSlice.actions;
 
 export default threedEditorSlice.reducer;
