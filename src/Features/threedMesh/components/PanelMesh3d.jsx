@@ -5,6 +5,7 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   setHideMeshes3d,
   setHideAnnotationsIn3d,
+  setMesh3dLabels,
 } from "Features/threedEditor/threedEditorSlice";
 
 import {
@@ -50,6 +51,7 @@ export default function PanelMesh3d() {
   const hideAnnotationsIn3d = useSelector(
     (s) => s.threedEditor.hideAnnotationsIn3d
   );
+  const mesh3dLabels = useSelector((s) => s.threedEditor.mesh3dLabels);
 
   const meshes3d = useMeshes3d({ projectId, scopeId });
   const { prefix, setPrefix } = useMesh3dLabelPrefix();
@@ -150,6 +152,62 @@ export default function PanelMesh3d() {
               <Typography variant="body2">Masquer les annotations</Typography>
             }
           />
+        </WhiteSectionGeneric>
+
+        {/* Card 0bis — Étiquette (label card display options) */}
+        <WhiteSectionGeneric>
+          <Typography variant="body2" sx={{ fontWeight: "bold" }}>
+            Étiquette
+          </Typography>
+          <Box sx={{ display: "flex", flexDirection: "column", mt: 0.5 }}>
+            <FormControlLabel
+              sx={{ ml: 0 }}
+              control={
+                <Switch
+                  size="small"
+                  checked={mesh3dLabels.visible}
+                  onChange={(e) =>
+                    dispatch(setMesh3dLabels({ visible: e.target.checked }))
+                  }
+                />
+              }
+              label={
+                <Typography variant="body2">Afficher les étiquettes</Typography>
+              }
+            />
+            <FormControlLabel
+              sx={{ ml: 0 }}
+              control={
+                <Switch
+                  size="small"
+                  checked={mesh3dLabels.showNumber}
+                  disabled={!mesh3dLabels.visible}
+                  onChange={(e) =>
+                    dispatch(setMesh3dLabels({ showNumber: e.target.checked }))
+                  }
+                />
+              }
+              label={
+                <Typography variant="body2">Afficher le numéro</Typography>
+              }
+            />
+            <FormControlLabel
+              sx={{ ml: 0 }}
+              control={
+                <Switch
+                  size="small"
+                  checked={mesh3dLabels.showQties}
+                  disabled={!mesh3dLabels.visible}
+                  onChange={(e) =>
+                    dispatch(setMesh3dLabels({ showQties: e.target.checked }))
+                  }
+                />
+              }
+              label={
+                <Typography variant="body2">Afficher les quantités</Typography>
+              }
+            />
+          </Box>
         </WhiteSectionGeneric>
 
         {/* Card 1 — Numérotation */}

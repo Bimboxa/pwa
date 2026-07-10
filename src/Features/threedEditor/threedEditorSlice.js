@@ -112,6 +112,13 @@ const threedEditorInitialState = {
   // Hide the annotations from the 3D scene (Panel Maillage toggle) — leaves
   // only basemaps + mailles visible (and lasso-selectable).
   hideAnnotationsIn3d: false,
+  // Maille label cards ("étiquettes") display options (Panel Maillage).
+  // Selected mailles always show number + surface regardless.
+  mesh3dLabels: {
+    visible: true,
+    showNumber: true,
+    showQties: false,
+  },
   meshingMode: {
     active: false,
     tool: "SELECT", // "SELECT" | "CUT_VERTICAL" | "CUT_HORIZONTAL" | "CUT_FREE"
@@ -374,6 +381,10 @@ export const threedEditorSlice = createSlice({
     setHideAnnotationsIn3d: (state, action) => {
       state.hideAnnotationsIn3d = action.payload;
     },
+    setMesh3dLabels: (state, action) => {
+      // Partial update: {visible?, showNumber?, showQties?}.
+      state.mesh3dLabels = { ...state.mesh3dLabels, ...action.payload };
+    },
   },
 });
 
@@ -417,6 +428,7 @@ export const {
   toggleMeshingCutSide,
   setHideMeshes3d,
   setHideAnnotationsIn3d,
+  setMesh3dLabels,
 } = threedEditorSlice.actions;
 
 export default threedEditorSlice.reducer;

@@ -69,6 +69,7 @@ export default function ThreedMeshes() {
   const meshes3d = useMeshes3d({ projectId, scopeId });
   const { prefix } = useMesh3dLabelPrefix();
   const hideMeshes3d = useSelector((s) => s.threedEditor.hideMeshes3d);
+  const labelsOptions = useSelector((s) => s.threedEditor.mesh3dLabels);
 
   // Selected maille ids, serialized so the rebuild effect only re-runs when
   // the MESH3D selection actually changes.
@@ -164,14 +165,24 @@ export default function ThreedMeshes() {
         faceMeshes.push(faceMesh);
       });
 
-      const labelPosition = getLabelPosition(mesh3d);
+      // Label card content per the "Étiquette" panel options; a SELECTED
+      // maille always shows number + surface regardless.
+      const showNumber =
+        selected || (labelsOptions.visible && labelsOptions.showNumber);
+      const showQties =
+        selected || (labelsOptions.visible && labelsOptions.showQties);
+
+      const labelPosition =
+        showNumber || showQties ? getLabelPosition(mesh3d) : null;
       if (labelPosition) {
+        const displayLabel = getMesh3dDisplayLabel(mesh3d, prefix);
+        const surfaceLabel = formatSurfaceM2(mesh3d.surface);
         // The label card's border + text use the maille's visible 3D color
         // (same lightened/varied shade as the fill) so the card reads as
         // belonging to its maille.
         const sprite = createMesh3dLabelSprite({
-          text: getMesh3dDisplayLabel(mesh3d, prefix),
-          surfaceText: selected ? formatSurfaceM2(mesh3d.surface) : null,
+          text: showNumber ? displayLabel : surfaceLabel,
+          surfaceText: showNumber && showQties ? surfaceLabel : null,
           mesh3dId: mesh3d.id,
           color,
           selected,
@@ -187,7 +198,14 @@ export default function ThreedMeshes() {
 
     setMesh3dObjects({ sprites, faceMeshes });
     editor.sceneManager.renderScene?.();
-  }, [meshes3d, selectedIds, prefix, hideMeshes3d, hasSelection]);
+  }, [
+    meshes3d,
+    selectedIds,
+    prefix,
+    hideMeshes3d,
+    hasSelection,
+    labelsOptions,
+  ]);
 
   return null;
 }
