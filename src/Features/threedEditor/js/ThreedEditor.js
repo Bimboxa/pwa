@@ -33,6 +33,7 @@ export default class ThreedEditor {
   dispose = () => {
     // Stop the camera-controls render loop and release its DOM listeners.
     this.sceneManager?.controlsManager?.dispose?.();
+    this.sceneManager?.renderModeManager?.dispose?.();
   };
 
   // images
@@ -48,6 +49,7 @@ export default class ThreedEditor {
       this.sceneManager.imagesManager.deleteAllImagesObjects();
       this.sceneManager.imagesManager.createImagesObjects(images, maps);
       this.sceneManager.clippingManager?.reapply();
+      this.sceneManager.renderModeManager?.onSceneStructureChanged();
       this.renderScene();
     } catch (e) {
       console.log("Error", e);
@@ -67,6 +69,7 @@ export default class ThreedEditor {
       if (typeof options.opacity === "number") image.opacity = options.opacity;
       imagesManager.addImageObject(image, baseMap);
       this.sceneManager.clippingManager?.reapply();
+      this.sceneManager.renderModeManager?.onSceneStructureChanged();
       this.renderScene();
     } catch (e) {
       console.log("Error", e);
@@ -122,7 +125,10 @@ export default class ThreedEditor {
 
   panCameraToWorldPoint = (worldPoint, options) => {
     if (!this.sceneIsInitialized) return;
-    this.sceneManager.controlsManager.panCameraToWorldPoint(worldPoint, options);
+    this.sceneManager.controlsManager.panCameraToWorldPoint(
+      worldPoint,
+      options
+    );
   };
 
   fitToAnnotations = () => {
@@ -140,6 +146,7 @@ export default class ThreedEditor {
         options
       );
       this.sceneManager.clippingManager?.reapply();
+      this.sceneManager.renderModeManager?.onSceneStructureChanged();
       this.renderScene();
     } catch (e) {
       console.log("Error", e);

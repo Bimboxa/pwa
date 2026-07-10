@@ -32,7 +32,10 @@ export default class AnnotationsManager {
       try {
         cb(id);
       } catch (e) {
-        console.error("[AnnotationsManager] annotation-ready listener threw", e);
+        console.error(
+          "[AnnotationsManager] annotation-ready listener threw",
+          e
+        );
       }
     });
   }
@@ -47,6 +50,21 @@ export default class AnnotationsManager {
     const resolution = dom
       ? new Vector2(dom.clientWidth, dom.clientHeight)
       : new Vector2(1, 1);
+
+    // Realistic render modes: annotation meshes cast shadows but do NOT
+    // receive them — cast shadows land only on the basemap shadow catchers,
+    // keeping the model itself clean (a wall shadow smeared across a floor
+    // annotation reads as a dirty blob, not as depth). Grid / gizmos / lines
+    // / hover overlays never get the flag. Re-run on async loads (GLB /
+    // profile sweeps) so late children are covered too.
+    const applyShadowFlags = (root) => {
+      if (!options?.realisticShading || !root) return;
+      root.traverse?.((child) => {
+        if (child.isMesh && !child.userData?.isHoverOverlay) {
+          child.castShadow = true;
+        }
+      });
+    };
 
     annotations.forEach((annotation) => {
       const baseMap =
@@ -69,11 +87,15 @@ export default class AnnotationsManager {
         ...options,
         resolution,
         onAsyncLoaded: () => {
+          // Late-arriving children (GLB scene, async profile sweep) — the map
+          // holds the current root (it may have been swapped by a carve).
+          applyShadowFlags(this.annotationsObjectsMap[annotation.id]);
           this.sceneManager.renderScene();
           this._notifyAnnotationReady(annotation.id);
         },
       });
       if (!object) return;
+      applyShadowFlags(object);
 
       // Mesh cells carry an in-scene card (name + surface). Only cells reach
       // this builder when "Afficher les mailles" is on, so keying off
@@ -177,6 +199,8 @@ export default class AnnotationsManager {
               });
             });
 
+            // The carve may have swapped in a freshly-built source object.
+            applyShadowFlags(this.annotationsObjectsMap[annotation.id]);
             this.sceneManager.renderScene();
             this._notifyAnnotationReady(annotation.id);
           } catch (e) {
@@ -198,7 +222,9 @@ export default class AnnotationsManager {
       // Attach to the basemap's group so transforms applied to the basemap
       // (translate/rotate from the BASEMAP_POSITION editor mode) propagate to
       // the annotations for free.
-      const group = this.sceneManager.imagesManager.getGroup(annotation.baseMapId);
+      const group = this.sceneManager.imagesManager.getGroup(
+        annotation.baseMapId
+      );
       (group ?? this.scene).add(object);
       this._notifyAnnotationReady(annotation.id);
     });

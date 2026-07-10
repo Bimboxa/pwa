@@ -29,7 +29,11 @@ function bboxCenterPx(bbox) {
   };
 }
 
-export default async function createObject3DAnnotation(annotation, baseMap) {
+export default async function createObject3DAnnotation(
+  annotation,
+  baseMap,
+  options
+) {
   const fileName = annotation?.object3D?.fileName;
   const bbox = annotation?.bbox;
   if (!fileName || !bbox) {
@@ -43,7 +47,10 @@ export default async function createObject3DAnnotation(annotation, baseMap) {
 
   const fileRecord = await db.files.get(fileName);
   if (!fileRecord?.fileArrayBuffer) {
-    console.warn(`[OBJECT_3D] file not found in db.files: ${fileName}`, fileRecord);
+    console.warn(
+      `[OBJECT_3D] file not found in db.files: ${fileName}`,
+      fileRecord
+    );
     return null;
   }
 
@@ -59,20 +66,23 @@ export default async function createObject3DAnnotation(annotation, baseMap) {
   // the model renders without depending on directional lights. The 3D viewer
   // only has AmbientLight; other annotations also use MeshBasicMaterial. This
   // preserves vertex colors (vertexColors flag) and any baked-in texture map.
-  gltf.scene.traverse((child) => {
-    if (!child.isMesh || !child.material) return;
-    const oldMat = child.material;
-    const newMat = new MeshBasicMaterial({
-      color: oldMat.color ? oldMat.color.clone() : 0xffffff,
-      map: oldMat.map ?? null,
-      vertexColors: !!child.geometry?.attributes?.color,
-      side: oldMat.side ?? DoubleSide,
-      transparent: oldMat.transparent ?? false,
-      opacity: oldMat.opacity ?? 1,
+  // Realistic render modes skip the downgrade: the scene has a real
+  // environment + key light there, so the GLB's native PBR materials shine.
+  if (!options?.realisticShading)
+    gltf.scene.traverse((child) => {
+      if (!child.isMesh || !child.material) return;
+      const oldMat = child.material;
+      const newMat = new MeshBasicMaterial({
+        color: oldMat.color ? oldMat.color.clone() : 0xffffff,
+        map: oldMat.map ?? null,
+        vertexColors: !!child.geometry?.attributes?.color,
+        side: oldMat.side ?? DoubleSide,
+        transparent: oldMat.transparent ?? false,
+        opacity: oldMat.opacity ?? 1,
+      });
+      child.material = newMat;
+      oldMat.dispose();
     });
-    child.material = newMat;
-    oldMat.dispose();
-  });
 
   // Pre-rotated wrapper for the glTF scene so its Y axis ends up world-Y after
   // the basemap transform.

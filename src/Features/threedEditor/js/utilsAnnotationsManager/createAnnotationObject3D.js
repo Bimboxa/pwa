@@ -35,6 +35,7 @@ import {
 } from "Features/geometry/utils/arcSampling";
 import stripSlidingFromAnnotation from "Features/annotations/utils/stripSlidingFromAnnotation";
 import shadeMeshCellColor from "Features/mesh/utils/meshCellColor";
+import { createAnnotationPbrMaterial } from "Features/photorealRender/utils/pbrMaterials";
 
 // Match the codebase convention used by other arc-aware paths.
 const GUIDE_ARC_SAMPLES = 6;
@@ -151,11 +152,18 @@ export function makeMaterial(annotation, options) {
     ? (annotation.strokeOpacity ?? 1)
     : (annotation.fillOpacity ?? 1);
   const opacity = options?.disableOpacity ? 1 : rawOpacity;
+  const baseColor = new Color(color);
+  // Realistic render modes (Réaliste / Photoréaliste): true PBR material, no
+  // emissive lift and no back-face darkening hack — the environment lighting
+  // + shadows convey the 3D form. Same material mapping as the photoreal
+  // export, so the live view and the exported image stay consistent.
+  if (options?.realisticShading) {
+    return createAnnotationPbrMaterial({ color: baseColor, opacity });
+  }
   // MeshLambertMaterial (was MeshBasicMaterial): diffuse shading reacts to the
   // scene lights, so a sloped/ramped top face reads as a 3D surface (the mesh
   // already computes smooth vertex normals). Flat annotations stay uniformly
   // lit thanks to the hemisphere light from above.
-  const baseColor = new Color(color);
   const mat = new MeshLambertMaterial({
     color: baseColor,
     // Self-illumination at a fraction of the surface's own color: lifts the
@@ -852,7 +860,7 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
       // attach the parsed scene when ready. The basemap transform is applied
       // to the placeholder, so the GLB inherits it once added.
       const placeholder = new Group();
-      createObject3DAnnotation(annotation, baseMap)
+      createObject3DAnnotation(annotation, baseMap, options)
         .then((sub) => {
           if (sub) {
             placeholder.add(sub);

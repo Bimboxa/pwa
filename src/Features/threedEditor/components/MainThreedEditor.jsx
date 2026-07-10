@@ -159,6 +159,13 @@ export default function MainThreedEditor() {
 
   const showGrid = useSelector((s) => s.threedEditor.showGrid);
   const showLegend = useSelector((s) => s.threedEditor.showLegend);
+  // Render mode (Standard / Réaliste / Photoréaliste). Mirrored into a ref so
+  // the hover raycast can read it without re-creating its callback.
+  const renderMode = useSelector((s) => s.threedEditor.renderMode);
+  const renderModeRef = useRef(renderMode);
+  useEffect(() => {
+    renderModeRef.current = renderMode;
+  }, [renderMode]);
   const clippingEnabled = useSelector(
     (s) => s.threedEditor.clippingPlane.enabled
   );
@@ -291,6 +298,16 @@ export default function MainThreedEditor() {
     grid.visible = showGrid;
     editor.renderScene();
   }, [showGrid, rendererIsReady]);
+
+  // Sync renderMode → RenderModeManager (tone mapping / shadows / environment
+  // / path tracing). The annotation materials rebuild independently through
+  // useAutoLoadAnnotationsInThreedEditor (realisticShading option).
+  useEffect(() => {
+    if (!rendererIsReady) return;
+    threedEditorRef.current?.sceneManager?.renderModeManager?.setMode(
+      renderMode
+    );
+  }, [renderMode, rendererIsReady]);
 
   // Sync clipping plane enabled → ClippingManager (create on first enable).
   useEffect(() => {
@@ -859,8 +876,13 @@ export default function MainThreedEditor() {
         point.y >= rect.y &&
         point.y <= rect.y + rect.height;
       if (!inside) return;
-      const { nodeId, nodeType, annotationType, listingId, annotationTemplateId } =
-        object.userData || {};
+      const {
+        nodeId,
+        nodeType,
+        annotationType,
+        listingId,
+        annotationTemplateId,
+      } = object.userData || {};
       if (!nodeId) return;
       newItems.push({
         id: nodeId,
@@ -1041,11 +1063,15 @@ export default function MainThreedEditor() {
     // moves off an object that's still inside the rect.
     if (lassoStartRef.current) return;
     // Hover highlight is always on — except in BASEMAP_POSITION (pointer
-    // reserved for the transform gizmo) and in meshing mode, which runs its
-    // own hover (stipple + cursor helper) in useMeshingPointerHandlers.
+    // reserved for the transform gizmo), in meshing mode, which runs its
+    // own hover (stipple + cursor helper) in useMeshingPointerHandlers, and
+    // in PHOTOREAL: every material change invalidates the path tracer's BVH
+    // (a rebuild per mousemove), and the highlight is invisible in the traced
+    // image anyway.
     if (
       editorModeRef.current === "BASEMAP_POSITION" ||
-      meshingActiveRef.current
+      meshingActiveRef.current ||
+      renderModeRef.current === "PHOTOREAL"
     ) {
       if (prevHoveredObjectRef.current) {
         const prevId = prevHoveredObjectRef.current.userData?.nodeId;
