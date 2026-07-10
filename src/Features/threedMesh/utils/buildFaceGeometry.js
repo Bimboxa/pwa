@@ -30,7 +30,7 @@ function safeLighten(color, amount, fallback) {
 // placed in world space via a basis matrix.
 export default function buildFaceGeometry(
   face,
-  { color, edgeColor, selected } = {}
+  { color, edgeColor, selected, dimmed } = {}
 ) {
   const contour = face?.contour;
   if (!contour || contour.length < 3) return null;
@@ -71,10 +71,12 @@ export default function buildFaceGeometry(
   matrix.setPosition(basis.origin.x, basis.origin.y, basis.origin.z);
   geometry.applyMatrix4(matrix);
 
+  // `dimmed`: a selection exists elsewhere — same "everything translucent
+  // except the selection" mechanism as annotations (STATE_DIM).
   const material = new MeshStandardMaterial({
     color: selected ? safeLighten(color, 0.3, color) : color,
     transparent: true,
-    opacity: 0.9,
+    opacity: dimmed ? 0.2 : 0.9,
     polygonOffset: true,
     polygonOffsetFactor: -1,
     polygonOffsetUnits: -1,
@@ -83,11 +85,13 @@ export default function buildFaceGeometry(
   const mesh = new Mesh(geometry, material);
 
   // Contour outline: keeps the source annotation's raw color (the fill is a
-  // lightened shade of it); blue when selected.
+  // lightened shade of it); blue when selected, faded when dimmed.
   const edges = new LineSegments(
     new EdgesGeometry(geometry, 20),
     new LineBasicMaterial({
       color: selected ? 0x2196f3 : edgeColor || 0x333333,
+      transparent: true,
+      opacity: dimmed ? 0.25 : 1,
     })
   );
   edges.raycast = () => {};

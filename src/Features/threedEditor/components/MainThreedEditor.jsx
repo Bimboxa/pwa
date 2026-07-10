@@ -63,7 +63,6 @@ import {
 } from "Features/threedEditor/services/threedEditorRegistry";
 import PopperEditAnnotation from "Features/mapEditor/components/PopperEditAnnotation";
 import PopperMapListings from "Features/mapEditor/components/PopperMapListings";
-import ToggleEditorModeThreed from "./ToggleEditorModeThreed";
 import ClippingToolbarThreed from "./ClippingToolbarThreed";
 import BottomToolbarThreed from "Features/threedDrawing/components/BottomToolbarThreed";
 import DrawingOverlayThreed from "Features/threedDrawing/components/DrawingOverlayThreed";
@@ -236,9 +235,14 @@ export default function MainThreedEditor() {
       const ids = items
         .filter((i) => i.type === "NODE" && i.nodeType === "ANNOTATION")
         .map((i) => i.nodeId || i.id);
+      // Maille (MESH3D) selections dim annotations too — same "everything
+      // translucent except the selection" mechanism.
+      const hasSelection =
+        ids.length > 0 ||
+        items.some((i) => i.type === "NODE" && i.nodeType === "MESH3D");
       if (ids.includes(id)) return STATE_NONE;
       if (isHovered) return isLineHover ? STATE_HOVER : STATE_NONE;
-      if (ids.length > 0) return STATE_DIM;
+      if (hasSelection) return STATE_DIM;
       return STATE_NONE;
     },
     [store]
@@ -888,7 +892,7 @@ export default function MainThreedEditor() {
       const isLasso =
         event.shiftKey &&
         event.button === 0 &&
-        editorModeRef.current === "SELECTION";
+        editorModeRef.current !== "BASEMAP_POSITION";
       if (event.button === 0 && !isLasso) {
         threedEditorRef.current?.sceneManager?.controlsManager?.updateRotationPivotFromEvent(
           event
@@ -897,14 +901,9 @@ export default function MainThreedEditor() {
 
       // Shift+left button starts a lasso. Disable OrbitControls during the drag
       // so the camera doesn't rotate, and remember its previous state so we can
-      // restore it on release.
-      // Only in SELECTION mode — in NAVIGATION mode shift+drag falls through
-      // to OrbitControls (camera pan/orbit).
-      if (
-        event.shiftKey &&
-        event.button === 0 &&
-        editorModeRef.current === "SELECTION"
-      ) {
+      // restore it on release. Skipped in BASEMAP_POSITION (gizmo owns the
+      // pointer).
+      if (isLasso) {
         lassoStartRef.current = { x: event.clientX, y: event.clientY };
         lassoRectRef.current = {
           x: event.clientX,
@@ -989,11 +988,13 @@ export default function MainThreedEditor() {
     // un-hover path here would overwrite the lasso preview when the cursor
     // moves off an object that's still inside the rect.
     if (lassoStartRef.current) return;
-    // Hover highlight only fires in SELECTION mode — in NAVIGATION the user
-    // is orbiting the camera, in BASEMAP_POSITION they're moving the basemap.
-    // Meshing mode runs its own hover (stipple + cursor helper) in
-    // useMeshingPointerHandlers, so the built-in one is muted too.
-    if (editorModeRef.current !== "SELECTION" || meshingActiveRef.current) {
+    // Hover highlight is always on — except in BASEMAP_POSITION (pointer
+    // reserved for the transform gizmo) and in meshing mode, which runs its
+    // own hover (stipple + cursor helper) in useMeshingPointerHandlers.
+    if (
+      editorModeRef.current === "BASEMAP_POSITION" ||
+      meshingActiveRef.current
+    ) {
       if (prevHoveredObjectRef.current) {
         const prevId = prevHoveredObjectRef.current.userData?.nodeId;
         applyAnnotationMaterialState(
@@ -1476,19 +1477,6 @@ export default function MainThreedEditor() {
           threedEditorRef={threedEditorRef}
           hoveredIdRef={lastHoveredIdRef}
         />
-      )}
-      {isThreedViewer && (
-        <Box
-          sx={{
-            position: "absolute",
-            top: 8,
-            left: "50%",
-            transform: "translateX(-50%)",
-            zIndex: 1,
-          }}
-        >
-          <ToggleEditorModeThreed />
-        </Box>
       )}
       {isThreedViewer &&
         (clippingEditing ? (

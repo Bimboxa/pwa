@@ -85,6 +85,16 @@ export default function ThreedMeshes() {
     [selectedIdsKey]
   );
 
+  // Any annotation or maille selection dims the non-selected mailles — same
+  // mechanism as ThreedSelectionDimmer for annotations.
+  const hasSelection = useSelector((s) =>
+    selectSelectedItems(s).some(
+      (it) =>
+        it?.type === "NODE" &&
+        (it?.nodeType === "ANNOTATION" || it?.nodeType === "MESH3D")
+    )
+  );
+
   const rootRef = useRef(null);
 
   // mount / unmount root group
@@ -131,6 +141,7 @@ export default function ThreedMeshes() {
     (meshes3d || []).forEach((mesh3d) => {
       if (!mesh3d?.faces?.length) return;
       const selected = selectedIds.has(mesh3d.id);
+      const dimmed = hasSelection && !selected;
       const color = mesh3d.color || DEFAULT_MESH3D_COLOR;
 
       const group = new Group();
@@ -141,6 +152,7 @@ export default function ThreedMeshes() {
           color,
           edgeColor: mesh3d.edgeColor,
           selected,
+          dimmed,
         });
         if (!faceMesh) return;
         faceMesh.userData = {
@@ -165,6 +177,7 @@ export default function ThreedMeshes() {
           selected,
         });
         sprite.position.copy(labelPosition);
+        if (dimmed) sprite.material.opacity = 0.3;
         group.add(sprite);
         sprites.push(sprite);
       }
@@ -174,7 +187,7 @@ export default function ThreedMeshes() {
 
     setMesh3dObjects({ sprites, faceMeshes });
     editor.sceneManager.renderScene?.();
-  }, [meshes3d, selectedIds, prefix, hideMeshes3d]);
+  }, [meshes3d, selectedIds, prefix, hideMeshes3d, hasSelection]);
 
   return null;
 }
