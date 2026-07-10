@@ -90,5 +90,7 @@ export default function useFetchMasterProjects() {
                 continue;
             }
         }
+
+        return projects;
     };
 }
