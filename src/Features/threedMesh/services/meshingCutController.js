@@ -36,8 +36,9 @@ const LINEWIDTH_SNAPPED = 4.5;
 const DRAFT_LIFT_M = 0.012;
 const RING_SCREEN_SIZE = 0.028;
 
-// Red ring marker (reference / guide vertex), constant on-screen size.
-function createRingSprite() {
+// Red marker with a constant on-screen size: "RING" for the reference /
+// guide vertices, "SQUARE" for the mid-edge snap point.
+function createMarkerSprite(shape = "RING") {
   const size = 64;
   const canvas = document.createElement("canvas");
   canvas.width = size;
@@ -46,7 +47,11 @@ function createRingSprite() {
   ctx.strokeStyle = "#d32f2f";
   ctx.lineWidth = 7;
   ctx.beginPath();
-  ctx.arc(size / 2, size / 2, size / 2 - 6, 0, 2 * Math.PI);
+  if (shape === "SQUARE") {
+    ctx.rect(8, 8, size - 16, size - 16);
+  } else {
+    ctx.arc(size / 2, size / 2, size / 2 - 6, 0, 2 * Math.PI);
+  }
   ctx.stroke();
 
   const texture = new CanvasTexture(canvas);
@@ -148,9 +153,26 @@ export function createMeshingCutController({
   }
 
   function drawRing(p) {
-    const ring = createRingSprite();
+    const ring = createMarkerSprite("RING");
     ring.position.set(p.x, p.y, p.z);
     ensureDraftGroup().add(ring);
+  }
+
+  function drawSquare(p) {
+    const square = createMarkerSprite("SQUARE");
+    square.position.set(p.x, p.y, p.z);
+    ensureDraftGroup().add(square);
+  }
+
+  // 2D point-to-segment distance (plane coords).
+  function distToSegment2d(p, a, b) {
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const lenSq = dx * dx + dy * dy;
+    if (lenSq === 0) return Math.hypot(p.x - a.x, p.y - a.y);
+    let t = ((p.x - a.x) * dx + (p.y - a.y) * dy) / lenSq;
+    t = Math.max(0, Math.min(1, t));
+    return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
   }
 
   function worldToScreen(p, rect) {
@@ -247,17 +269,39 @@ export function createMeshingCutController({
     const guide =
       offset > 0 ? { ...ref, [axis]: ref[axis] + dir * offset } : null;
 
-    // Cut position, snapped to the guide vertex when close on screen.
+    // Mid-edge snap point (square marker): midpoint of the contour edge
+    // nearest to the mouse that runs ALONG the cut axis (a horizontal edge
+    // for a vertical cut) — cutting through it halves that edge.
+    let edgeMid = null;
+    let edgeMidDist = Infinity;
+    const nPts = ctx.contour2d.length;
+    for (let i = 0; i < nPts; i++) {
+      const p = ctx.contour2d[i];
+      const q = ctx.contour2d[(i + 1) % nPts];
+      if (Math.abs(q[axis] - p[axis]) <= Math.abs(q[other] - p[other]))
+        continue;
+      const dist = distToSegment2d(hit2d, p, q);
+      if (dist < edgeMidDist) {
+        edgeMidDist = dist;
+        edgeMid = { x: (p.x + q.x) / 2, y: (p.y + q.y) / 2 };
+      }
+    }
+
+    // Cut position, snapped to the closest on-screen snap target: the guide
+    // vertex (ring) or the mid-edge point (square).
     let cutPos = hit2d[axis];
     let snapped = false;
-    if (guide) {
-      const pCut = liftPointTo3d({ ...hit2d, [axis]: cutPos }, ctx.basis);
-      const pGuide = liftPointTo3d(
-        { ...hit2d, [axis]: guide[axis] },
-        ctx.basis
-      );
-      if (screenDist(pCut, pGuide, rect) < MESH3D_SNAP_PX) {
-        cutPos = guide[axis];
+    const snapTargets = [];
+    if (guide) snapTargets.push(guide[axis]);
+    if (edgeMid) snapTargets.push(edgeMid[axis]);
+    let bestSnapDist = MESH3D_SNAP_PX;
+    for (const target of snapTargets) {
+      const pCut = liftPointTo3d(hit2d, ctx.basis);
+      const pTarget = liftPointTo3d({ ...hit2d, [axis]: target }, ctx.basis);
+      const dist = screenDist(pCut, pTarget, rect);
+      if (dist < bestSnapDist) {
+        bestSnapDist = dist;
+        cutPos = target;
         snapped = true;
       }
     }
@@ -319,6 +363,7 @@ export function createMeshingCutController({
     drawSegment(liftDraft(a2, ctx), liftDraft(b2, ctx), { snapped });
     drawRing(liftDraft(ref, ctx));
     if (guide) drawRing(liftDraft(guide, ctx));
+    if (edgeMid) drawSquare(liftDraft(edgeMid, ctx));
     setMeshingOverlay({ areaChips, offsetChip, cursor: null });
     renderScene();
 
