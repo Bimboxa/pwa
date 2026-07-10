@@ -30,20 +30,24 @@ export const RENDER_MODE_PHOTOREAL = "PHOTOREAL";
 // darker — never black) and a SOFT near-vertical key light whose only real
 // job is the subtle ground shadow. Tuned by eye under ACES tone mapping.
 const STANDARD_LIGHTS = { ambient: 0.65, hemisphere: 0.9, directional: 0.6 };
-const REALISTIC_LIGHTS = { ambient: 0.45, hemisphere: 1.0, directional: 0.65 };
+const REALISTIC_LIGHTS = { ambient: 0.45, hemisphere: 0.7, directional: 0.9 };
 // The white gradient environment serves two different purposes: in the raster
 // REALISTIC mode it only adds a subtle PBR fill (ambient/hemisphere carry the
 // lighting), while in PHOTOREAL (and the export) it IS the main light source
 // of the path tracer — hence two intensities.
-const ENV_INTENSITY_RASTER = 0.4;
+const ENV_INTENSITY_RASTER = 0.3;
 const ENV_INTENSITY_TRACED = 1.5;
 const TONE_MAPPING_EXPOSURE = 1.0;
 
-// Near-vertical key light ("vue d'en haut"): short, discreet shadows and no
-// hard-black side faces (the fill lights own the vertical surfaces).
-const KEY_LIGHT_DIRECTION = new Vector3(2.5, 12, 1.8).normalize();
+// Moderately LATERAL key light: two walls meeting at 90° receive a different
+// illumination, so the shared edge stays readable (a near-vertical key made
+// every vertical face equal → invisible corners). Cast shadows only land on
+// the basemap catcher (annotations don't receive them — see AnnotationsManager
+// applyShadowFlags), so the lateral angle doesn't reintroduce big shadow
+// blobs inside the model.
+const KEY_LIGHT_DIRECTION = new Vector3(6, 9, 3.5).normalize();
 const SHADOW_MAP_SIZE = 2048;
-const SHADOW_CATCHER_OPACITY = 0.2;
+const SHADOW_CATCHER_OPACITY = 0.15;
 
 // Path tracing tuning. The tracer's own raster fallback covers camera
 // interaction (rasterizeScene); samples accumulate while idle and stop at

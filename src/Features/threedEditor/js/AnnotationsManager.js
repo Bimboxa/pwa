@@ -51,15 +51,17 @@ export default class AnnotationsManager {
       ? new Vector2(dom.clientWidth, dom.clientHeight)
       : new Vector2(1, 1);
 
-    // Realistic render modes: annotation meshes cast and receive shadows
-    // (grid / gizmos / lines / hover overlays never get the flags). Re-run on
-    // async loads (GLB / profile sweeps) so late children are covered too.
+    // Realistic render modes: annotation meshes cast shadows but do NOT
+    // receive them — cast shadows land only on the basemap shadow catchers,
+    // keeping the model itself clean (a wall shadow smeared across a floor
+    // annotation reads as a dirty blob, not as depth). Grid / gizmos / lines
+    // / hover overlays never get the flag. Re-run on async loads (GLB /
+    // profile sweeps) so late children are covered too.
     const applyShadowFlags = (root) => {
       if (!options?.realisticShading || !root) return;
       root.traverse?.((child) => {
         if (child.isMesh && !child.userData?.isHoverOverlay) {
           child.castShadow = true;
-          child.receiveShadow = true;
         }
       });
     };
