@@ -1,49 +1,56 @@
-import { useDispatch } from "react-redux";
+import { useState } from "react";
 
-import { setOpenScopeCreator } from "Features/scopeCreator/scopeCreatorSlice";
-
-import { Box, Typography, List, Divider } from "@mui/material";
-import { TravelExplore, CloudOff } from "@mui/icons-material";
+import { Box, Typography, List, Divider, Button } from "@mui/material";
+import { Add, TravelExplore, CloudOff } from "@mui/icons-material";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 import SearchBar from "Features/search/components/SearchBar";
+import ToggleProjectType from "Features/projectSelector/components/ToggleProjectType";
 import ButtonFetchMyKrtos from "./ButtonFetchMyKrtos";
-import SectionFavoriteKrtos from "./SectionFavoriteKrtos";
 import ListItemDashboardProject from "./ListItemDashboardProject";
 import SectionCloudSearchResults from "./SectionCloudSearchResults";
+import DialogCreateProject from "./DialogCreateProject";
 
 export default function PanelDashboardProjects({
   searchText,
   onSearchTextChange,
+  typeFilter,
+  onTypeFilterChange,
   items,
   cloudItems,
   selectedKey,
   installingKey,
   onSelectItem,
-  favorites,
-  onOpenFavorite,
-  onUnfavorite,
   onFetchMyKrtos,
   myKrtosLoading,
   remoteSearchLoading,
 }) {
-  const dispatch = useDispatch();
-
   // data
 
   const appConfig = useAppConfig();
 
+  // state
+
+  const [openCreateProject, setOpenCreateProject] = useState(false);
+
   // strings
 
-  const searchS = appConfig?.strings?.scope?.search ?? "Rechercher un Krto";
+  const searchS =
+    appConfig?.strings?.scope?.searchProject ?? "Rechercher un projet";
   const noProjectS =
     appConfig?.strings?.scope?.noProjectInstalled ?? "Aucun projet installé";
+  const noProjectHintS =
+    appConfig?.strings?.scope?.noProjectInstalledHint ??
+    "Recherchez un projet ci-dessus pour l'ouvrir depuis le cloud, ou récupérez tous vos plans de repérage.";
   const noProjectFoundS =
     appConfig?.strings?.scope?.noProjectFound ??
     "Aucun projet trouvé pour cette recherche.";
 
   // helpers
+
+  const typeOptions =
+    appConfig?.features?.projectSelector?.filterByType?.options ?? [];
 
   const hasSearch = Boolean(searchText?.trim());
   const empty = !items?.length && !cloudItems?.length && !remoteSearchLoading;
@@ -51,7 +58,7 @@ export default function PanelDashboardProjects({
   // handlers
 
   function handleCreateClick() {
-    dispatch(setOpenScopeCreator(true));
+    setOpenCreateProject(true);
   }
 
   // render
@@ -59,34 +66,58 @@ export default function PanelDashboardProjects({
   return (
     <Box
       sx={{
-        width: 400,
-        flex: "0 0 400px",
+        flex: "1 1 50%",
+        minWidth: 0,
         display: "flex",
         flexDirection: "column",
-        borderRight: "1px solid",
-        borderColor: "divider",
         minHeight: 0,
       }}
     >
-      {/* search + create + my krtos */}
-      <Box sx={{ p: 2, pb: 1 }}>
-        <SearchBar
-          value={searchText}
-          onChange={onSearchTextChange}
-          placeholder={searchS}
-          onCreateClick={handleCreateClick}
-        />
-        <Box sx={{ mt: 1 }}>
+      {/* toggle chantier/opportunité + search + create */}
+      <Box sx={{ px: 2, pt: 12, pb: 1.5 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <Box
+            sx={{
+              flexShrink: 0,
+              "& .MuiToggleButtonGroup-root": { bgcolor: "white" },
+            }}
+          >
+            <ToggleProjectType
+              value={typeFilter}
+              valueOptions={typeOptions}
+              onChange={onTypeFilterChange}
+            />
+          </Box>
+          <Box
+            sx={{
+              flex: 1,
+              minWidth: 0,
+              // full width even when not focused, so the placeholder is not truncated
+              "& .MuiFormControl-root": { width: 1 },
+              "& .MuiOutlinedInput-root": { bgcolor: "white" },
+            }}
+          >
+            <SearchBar
+              value={searchText}
+              onChange={onSearchTextChange}
+              placeholder={searchS}
+            />
+          </Box>
+          <Button
+            variant="contained"
+            color="secondary"
+            startIcon={<Add />}
+            onClick={handleCreateClick}
+            sx={{ flexShrink: 0, whiteSpace: "nowrap" }}
+          >
+            Nouveau projet
+          </Button>
+        </Box>
+        {/* my krtos button */}
+        <Box sx={{ mt: 8 }}>
           <ButtonFetchMyKrtos onClick={onFetchMyKrtos} loading={myKrtosLoading} />
         </Box>
       </Box>
-
-      {/* favorites */}
-      <SectionFavoriteKrtos
-        favorites={favorites}
-        onOpen={onOpenFavorite}
-        onUnfavorite={onUnfavorite}
-      />
 
       <Box sx={{ px: 2 }}>
         <Divider />
@@ -110,8 +141,7 @@ export default function PanelDashboardProjects({
               {noProjectS}
             </Typography>
             <Typography variant="body2" sx={{ mt: 0.5 }}>
-              Recherchez un projet ci-dessus pour l’ouvrir depuis le cloud, ou
-              récupérez tous vos Krtos.
+              {noProjectHintS}
             </Typography>
             <Box sx={{ mt: 2 }}>
               <ButtonFetchMyKrtos
@@ -147,6 +177,11 @@ export default function PanelDashboardProjects({
           />
         )}
       </Box>
+
+      <DialogCreateProject
+        open={openCreateProject}
+        onClose={() => setOpenCreateProject(false)}
+      />
     </Box>
   );
 }

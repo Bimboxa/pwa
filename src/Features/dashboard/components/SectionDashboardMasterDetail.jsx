@@ -17,6 +17,7 @@ import { Box } from "@mui/material";
 
 import PanelDashboardProjects from "./PanelDashboardProjects";
 import PanelDashboardProjectDetail from "./PanelDashboardProjectDetail";
+import SectionFavoriteKrtos from "./SectionFavoriteKrtos";
 
 export default function SectionDashboardMasterDetail() {
   const dispatch = useDispatch();
@@ -25,7 +26,7 @@ export default function SectionDashboardMasterDetail() {
 
   const getScopeConfigurationsByUser = useScopeConfigurationsByUser();
   const createProject = useCreateProject();
-  const { removeFavorite } = useScopeFavorites();
+  const { removeFavorite, fetchFavorites } = useScopeFavorites();
   const favoriteItems = useFavoriteKrtoItems();
 
   const selectedKey = useSelector(
@@ -35,23 +36,33 @@ export default function SectionDashboardMasterDetail() {
   // state
 
   const [searchText, setSearchText] = useState("");
+  const [typeFilter, setTypeFilter] = useState(null); // CHANTIER | OPPORTUNITE | null
   const [myKrtosLoading, setMyKrtosLoading] = useState(false);
   const [installingKey, setInstallingKey] = useState(null);
+  const [favoritesRefreshing, setFavoritesRefreshing] = useState(false);
 
   // items
 
   const { remoteProjects, remoteScopeConfigs, loading: remoteSearchLoading } =
-    useDashboardRemoteSearch(searchText);
+    useDashboardRemoteSearch(searchText, typeFilter);
 
   const { items, cloudItems, selectedItem } = useDashboardProjectItems({
     searchText,
+    typeFilter,
     remoteProjects,
     remoteScopeConfigs,
   });
 
   // handlers
 
-  async function handleSelectItem(item) {
+  async function handleSelectItem(item, options) {
+    // clicking the selected row again deselects it
+    const toggle = !options?.noToggle;
+    if (toggle && item.key === selectedKey) {
+      dispatch(setSelectedProjectKeyInDashboard(null));
+      return;
+    }
+
     if (item.isLocal) {
       dispatch(setSelectedProjectKeyInDashboard(item.key));
       return;
@@ -91,7 +102,7 @@ export default function SectionDashboardMasterDetail() {
       items.find((i) => i.key === targetKey) ??
       cloudItems.find((i) => i.key === targetKey);
     if (item) {
-      handleSelectItem(item);
+      handleSelectItem(item, { noToggle: true });
     } else if (favorite.isLocal) {
       dispatch(setSelectedProjectKeyInDashboard(targetKey));
     }
@@ -99,6 +110,12 @@ export default function SectionDashboardMasterDetail() {
 
   function handleUnfavorite(favorite) {
     removeFavorite(favorite.scopeId);
+  }
+
+  async function handleRefreshFavorites() {
+    setFavoritesRefreshing(true);
+    await fetchFavorites();
+    setFavoritesRefreshing(false);
   }
 
   async function handleFetchMyKrtos() {
@@ -121,26 +138,42 @@ export default function SectionDashboardMasterDetail() {
         flex: 1,
         display: "flex",
         minHeight: 0,
-        borderTop: "1px solid",
-        borderColor: "divider",
       }}
     >
       <PanelDashboardProjects
         searchText={searchText}
         onSearchTextChange={setSearchText}
+        typeFilter={typeFilter}
+        onTypeFilterChange={setTypeFilter}
         items={items}
         cloudItems={cloudItems}
         selectedKey={selectedKey}
         installingKey={installingKey}
         onSelectItem={handleSelectItem}
-        favorites={favoriteItems}
-        onOpenFavorite={handleOpenFavorite}
-        onUnfavorite={handleUnfavorite}
         onFetchMyKrtos={handleFetchMyKrtos}
         myKrtosLoading={myKrtosLoading}
         remoteSearchLoading={remoteSearchLoading}
       />
-      <PanelDashboardProjectDetail item={selectedItem} />
+      {/* right side: favorites strip (hidden when empty) + detail inset panel */}
+      <Box
+        sx={{
+          flex: "1 1 50%",
+          minWidth: 0,
+          display: "flex",
+          flexDirection: "column",
+          p: 2,
+          bgcolor: "background.default",
+        }}
+      >
+        <SectionFavoriteKrtos
+          favorites={favoriteItems}
+          onOpen={handleOpenFavorite}
+          onUnfavorite={handleUnfavorite}
+          onRefresh={handleRefreshFavorites}
+          refreshing={favoritesRefreshing}
+        />
+        <PanelDashboardProjectDetail item={selectedItem} />
+      </Box>
     </Box>
   );
 }

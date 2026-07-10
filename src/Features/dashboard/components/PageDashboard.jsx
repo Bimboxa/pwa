@@ -13,7 +13,6 @@ import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 
 import DialogAutoScopeCreator from "Features/scopeCreator/components/DialogAutoScopeCreator";
 import PageDashboardFooter from "./PageDashboardFooter";
-import SectionDashboardTitle from "./SectionDashboardTitle";
 import SectionDashboardMasterDetail from "./SectionDashboardMasterDetail";
 
 export default function PageDashboard() {
@@ -32,7 +31,6 @@ export default function PageDashboard() {
     <>
       <PageGeneric>
         <BoxFlexVStretch sx={{ height: 1 }}>
-          <SectionDashboardTitle />
           <SectionDashboardMasterDetail />
           <PageDashboardFooter />
         </BoxFlexVStretch>

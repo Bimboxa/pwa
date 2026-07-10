@@ -1,11 +1,17 @@
-import { Box, Typography } from "@mui/material";
-import { Star } from "@mui/icons-material";
+import { Box, Typography, IconButton, CircularProgress, Tooltip } from "@mui/material";
+import { Star, Refresh } from "@mui/icons-material";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 import CardFavoriteKrto from "./CardFavoriteKrto";
 
-export default function SectionFavoriteKrtos({ favorites, onOpen, onUnfavorite }) {
+export default function SectionFavoriteKrtos({
+  favorites,
+  onOpen,
+  onUnfavorite,
+  onRefresh,
+  refreshing,
+}) {
   // data
 
   const appConfig = useAppConfig();
@@ -19,7 +25,7 @@ export default function SectionFavoriteKrtos({ favorites, onOpen, onUnfavorite }
   if (!favorites?.length) return null;
 
   return (
-    <Box sx={{ px: 1.5, pb: 0.5 }}>
+    <Box sx={{ pb: 0.5 }}>
       <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mb: 1, px: 0.5 }}>
         <Star sx={{ color: "#f5a623", fontSize: "1rem" }} />
         <Typography
@@ -28,7 +34,19 @@ export default function SectionFavoriteKrtos({ favorites, onOpen, onUnfavorite }
         >
           {titleS}
         </Typography>
+        <Tooltip title="Mettre à jour les favoris">
+          <span>
+            <IconButton size="small" onClick={onRefresh} disabled={refreshing} sx={{ p: 0.25 }}>
+              {refreshing ? (
+                <CircularProgress size={14} />
+              ) : (
+                <Refresh sx={{ fontSize: "1.05rem", color: "text.secondary" }} />
+              )}
+            </IconButton>
+          </span>
+        </Tooltip>
       </Box>
+
       <Box
         sx={{
           display: "flex",

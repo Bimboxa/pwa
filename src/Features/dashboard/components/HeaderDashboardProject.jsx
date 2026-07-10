@@ -1,10 +1,10 @@
-import { Box, Typography, Avatar, Tooltip } from "@mui/material";
-import { Folder, CloudQueue } from "@mui/icons-material";
+import { Box, Typography, Avatar, Tooltip, IconButton } from "@mui/material";
+import { Folder, CloudQueue, Close } from "@mui/icons-material";
 
 import ChipProjectType from "./ChipProjectType";
 import { getProjectTypeProps } from "../utils/projectTypes";
 
-export default function HeaderDashboardProject({ item }) {
+export default function HeaderDashboardProject({ item, onClose }) {
   // helpers
 
   const { color } = getProjectTypeProps(item.type);
@@ -35,7 +35,7 @@ export default function HeaderDashboardProject({ item }) {
         >
           <Folder sx={{ fontSize: "1.4rem" }} />
         </Avatar>
-        <Box sx={{ minWidth: 0 }}>
+        <Box sx={{ minWidth: 0, flex: 1 }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
             <Typography variant="h5" noWrap>
               {item.name}
@@ -55,6 +55,16 @@ export default function HeaderDashboardProject({ item }) {
             )}
           </Box>
         </Box>
+        {onClose && (
+          <Tooltip title="Quitter la sélection">
+            <IconButton
+              onClick={onClose}
+              sx={{ alignSelf: "flex-start", color: "text.secondary" }}
+            >
+              <Close />
+            </IconButton>
+          </Tooltip>
+        )}
       </Box>
     </Box>
   );

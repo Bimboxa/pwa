@@ -1,15 +1,15 @@
 import { useState } from "react";
 
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 
 import { setSelectedScopeId } from "Features/scopes/scopesSlice";
 import { setSelectedProjectId } from "Features/projects/projectsSlice";
 import { setOpenScopeCreator } from "Features/scopeCreator/scopeCreatorSlice";
+import { setSelectedProjectKeyInDashboard } from "../dashboardSlice";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useScopeFavorites from "Features/scopeFavorites/hooks/useScopeFavorites";
-import getPresetScopeLabel from "../utils/getPresetScopeLabel";
 
 import { Box, Typography, Button } from "@mui/material";
 import { Add, TouchApp, GridOn } from "@mui/icons-material";
@@ -26,6 +26,9 @@ export default function PanelDashboardProjectDetail({ item }) {
 
   const appConfig = useAppConfig();
   const { isFavorite, toggleFavorite } = useScopeFavorites();
+  const userConfigurations = useSelector(
+    (s) => s.remoteScopeConfigurations.userConfigurations
+  );
 
   // state
 
@@ -38,19 +41,42 @@ export default function PanelDashboardProjectDetail({ item }) {
 
   // helpers
 
+  function formatDate(value) {
+    if (!value) return null;
+    const date = new Date(value);
+    return isNaN(date.getTime()) ? null : date.toLocaleDateString();
+  }
+
+  // "author trigram, last update" — the last update is the latest
+  // scopeConfiguration pushed for this scope, when we know it.
+  function getScopeSubText({ scopeId, fallbackAuthor, fallbackDate }) {
+    const config = (userConfigurations ?? []).find(
+      (c) => String(c.scopeId) === String(scopeId)
+    );
+    const author = config?.createdBy?.trigram ?? fallbackAuthor;
+    const date = formatDate(config?.createdAt ?? fallbackDate);
+    return [author, date].filter(Boolean).join(", ");
+  }
+
   const rows = item
     ? [
         ...item.scopes.map((scope) => ({
           scopeId: scope.id,
           name: scope.name,
-          type: getPresetScopeLabel(appConfig, scope.presetScopeKey),
+          subText: getScopeSubText({
+            scopeId: scope.id,
+            fallbackAuthor: scope.createdBy,
+            fallbackDate: scope.updatedAt ?? scope.createdAt,
+          }),
           isLocal: true,
           isFavorite: isFavorite(scope.id),
         })),
         ...item.remoteConfigs.map((config) => ({
           scopeId: config.scopeId,
           name: config.scopeName,
-          type: null,
+          subText: [config.createdBy?.trigram, formatDate(config.createdAt)]
+            .filter(Boolean)
+            .join(", "),
           isLocal: false,
           isFavorite: isFavorite(config.scopeId),
         })),
@@ -95,12 +121,16 @@ export default function PanelDashboardProjectDetail({ item }) {
       <Box
         sx={{
           flex: 1,
+          minWidth: 0,
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
           color: "text.secondary",
-          bgcolor: "#fbfbfd",
+          bgcolor: "white",
+          border: "1px solid",
+          borderColor: "divider",
+          borderRadius: 2,
         }}
       >
         <TouchApp sx={{ fontSize: "3rem", color: "#d0d0dd" }} />
@@ -125,9 +155,16 @@ export default function PanelDashboardProjectDetail({ item }) {
         bgcolor: "#fbfbfd",
         minWidth: 0,
         minHeight: 0,
+        border: "1px solid",
+        borderColor: "divider",
+        borderRadius: 2,
+        overflow: "hidden",
       }}
     >
-      <HeaderDashboardProject item={item} />
+      <HeaderDashboardProject
+        item={item}
+        onClose={() => dispatch(setSelectedProjectKeyInDashboard(null))}
+      />
 
       {/* krtos bar */}
       <Box

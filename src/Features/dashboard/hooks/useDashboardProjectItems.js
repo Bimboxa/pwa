@@ -26,6 +26,7 @@ function getRemoteKey({ idMaster, clientRef, name }) {
 
 export default function useDashboardProjectItems({
   searchText,
+  typeFilter,
   remoteProjects,
   remoteScopeConfigs,
 }) {
@@ -137,14 +138,19 @@ export default function useDashboardProjectItems({
         .join(" ");
     });
 
-    // 3. Search: filter items + build the "on the cloud" section
+    // 3. Type filter (chantier / opportunité) — keep untyped items visible
 
-    let visibleItems = allItems;
+    let visibleItems = typeFilter
+      ? allItems.filter((i) => !i.type || i.type === typeFilter)
+      : allItems;
+
+    // 4. Search: filter items + build the "on the cloud" section
+
     let cloudItems = [];
 
     if (searchText?.trim()) {
       visibleItems = getFoundItems({
-        items: allItems,
+        items: visibleItems,
         searchText,
         searchKeys: ["name", "clientRef", "scopeNames"],
       });
@@ -156,9 +162,10 @@ export default function useDashboardProjectItems({
         allItems.map((i) => i.clientRef).filter(Boolean)
       );
 
-      // 3.a remote projects from chantiers / opportunités search
+      // 4.a remote projects from chantiers / opportunités search
       (remoteProjects ?? []).forEach((mp) => {
         const idMaster = mp.idMaster ? String(mp.idMaster) : null;
+        if (typeFilter && mp.type && mp.type !== typeFilter) return;
         if (idMaster && knownIdMasters.has(idMaster)) return;
         if (mp.clientRef && knownClientRefs.has(mp.clientRef)) return;
         cloudItems.push({
@@ -178,11 +185,13 @@ export default function useDashboardProjectItems({
         if (mp.clientRef) knownClientRefs.add(mp.clientRef);
       });
 
-      // 3.b projects derived from scope configurations search (SearchAndFilters)
+      // 4.b projects derived from scope configurations search (SearchAndFilters)
       const cloudByKey = {};
       cloudItems.forEach((i) => (cloudByKey[i.key] = i));
 
       (remoteScopeConfigs ?? []).forEach((config) => {
+        if (typeFilter && config.projectType && config.projectType !== typeFilter)
+          return;
         if (
           config.projectClientRef &&
           knownClientRefs.has(config.projectClientRef)
@@ -224,6 +233,7 @@ export default function useDashboardProjectItems({
     userConfigurations,
     masterProjectsMap,
     searchText,
+    typeFilter,
     remoteProjects,
     remoteScopeConfigs,
   ]);

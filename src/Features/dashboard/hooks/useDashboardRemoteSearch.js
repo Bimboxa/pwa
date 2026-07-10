@@ -8,7 +8,11 @@ import useSearchScopeConfigurations from "Features/remoteScopeConfigurations/hoo
 const DEBOUNCE_MS = 400;
 const MIN_SEARCH_LENGTH = 2;
 
-export default function useDashboardRemoteSearch(searchText) {
+// masterProjects origin keys by project type (same mapping as the scopeCreator
+// project selector — see SelectorProjectFromItemsList).
+const ORIGIN_KEY_BY_TYPE = { CHANTIER: "chantiers", OPPORTUNITE: "opportunités" };
+
+export default function useDashboardRemoteSearch(searchText, typeFilter) {
   // data
 
   const jwt = useSelector((s) => s.auth.jwt);
@@ -44,8 +48,16 @@ export default function useDashboardRemoteSearch(searchText) {
     setLoading(true);
 
     const timeoutId = setTimeout(async () => {
+      const filterByOriginKey = typeFilter
+        ? ORIGIN_KEY_BY_TYPE[typeFilter]
+        : null;
       const [projects, configs] = await Promise.all([
-        fetchMasterProjects({ jwt, userProfile, searchValue }).catch((e) => {
+        fetchMasterProjects({
+          jwt,
+          userProfile,
+          searchValue,
+          filterByOriginKey,
+        }).catch((e) => {
           console.error("[useDashboardRemoteSearch] masterProjects error", e);
           return [];
         }),
@@ -63,7 +75,7 @@ export default function useDashboardRemoteSearch(searchText) {
     }, DEBOUNCE_MS);
 
     return () => clearTimeout(timeoutId);
-  }, [searchText, jwt, userProfile]);
+  }, [searchText, typeFilter, jwt, userProfile]);
 
   return { remoteProjects, remoteScopeConfigs, loading };
 }

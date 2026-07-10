@@ -6,6 +6,9 @@ const scopeCreatorInitialState = {
   stepPanelWidth: 350,
 
   stepKey: "SEARCH_PROJECT",
+  // one-shot step applied when the creator dialog opens (survives the
+  // StrictMode double-mount of PageScopeCreator, which resets stepKey)
+  initialStepKey: null,
 
   selectedProjectId: null,
   selectedPresetScopeKey: null,
@@ -19,9 +22,13 @@ export const scopeCreatorSlice = createSlice({
   reducers: {
     setOpenScopeCreator: (state, action) => {
       state.openScopeCreator = action.payload;
+      if (!action.payload) state.initialStepKey = null;
     },
     setStepKey: (state, action) => {
       state.stepKey = action.payload;
+    },
+    setInitialStepKey: (state, action) => {
+      state.initialStepKey = action.payload;
     },
     //
     setSelectedProjectId: (state, action) => {
@@ -39,6 +46,7 @@ export const scopeCreatorSlice = createSlice({
 export const {
   setOpenScopeCreator,
   setStepKey,
+  setInitialStepKey,
   //
   setSelectedProjectId,
   setSelectedPresetScopeKey,

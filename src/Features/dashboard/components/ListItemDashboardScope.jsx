@@ -9,7 +9,9 @@ import {
 import ButtonGeneric from "Features/layout/components/ButtonGeneric";
 
 // Renders one krto row — either a local scope or a remote (not installed)
-// scope configuration. `row` = { scopeId, name, type, isLocal, isFavorite }.
+// scope configuration.
+// `row` = { scopeId, name, subText, isLocal, isFavorite }
+// `subText` = "author trigram, last configuration date".
 
 export default function ListItemDashboardScope({
   row,
@@ -43,28 +45,25 @@ export default function ListItemDashboardScope({
         </IconButton>
       </Tooltip>
 
-      <Box sx={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 0.75 }}>
-        <Typography sx={{ fontWeight: 600, fontSize: 14 }} noWrap>
-          {row.name}
-        </Typography>
-        {!row.isLocal && (
-          <Tooltip title="Krto non installé sur cet appareil">
-            <CloudQueue
-              sx={{ color: "text.secondary", fontSize: "1.05rem", flexShrink: 0 }}
-            />
-          </Tooltip>
+      <Box sx={{ flex: 1, minWidth: 0 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+          <Typography sx={{ fontWeight: 600, fontSize: 14 }} noWrap>
+            {row.name}
+          </Typography>
+          {!row.isLocal && (
+            <Tooltip title="Krto non installé sur cet appareil">
+              <CloudQueue
+                sx={{ color: "text.secondary", fontSize: "1.05rem", flexShrink: 0 }}
+              />
+            </Tooltip>
+          )}
+        </Box>
+        {row.subText && (
+          <Typography variant="caption" sx={{ color: "text.secondary" }} noWrap>
+            {row.subText}
+          </Typography>
         )}
       </Box>
-
-      {row.type && (
-        <Typography
-          variant="body2"
-          sx={{ color: "text.secondary", width: 170, flexShrink: 0 }}
-          noWrap
-        >
-          {row.type}
-        </Typography>
-      )}
 
       <ButtonGeneric
         variant="contained"

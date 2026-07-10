@@ -2,11 +2,12 @@ import {
   Box,
   Typography,
   ListItemButton,
-  Chip,
   Tooltip,
   CircularProgress,
 } from "@mui/material";
 import { CloudQueue } from "@mui/icons-material";
+
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 import ChipProjectType from "./ChipProjectType";
 
@@ -16,9 +17,18 @@ export default function ListItemDashboardProject({
   installing,
   onClick,
 }) {
+  // data
+
+  const appConfig = useAppConfig();
+
   // helpers
 
+  const krtoS = appConfig?.strings?.scope?.nameSingular ?? "Krto";
+
   const count = item.scopeCount ?? 0;
+  const countText =
+    count === 0 ? `Aucun ${krtoS}` : `${count} ${krtoS}${count > 1 ? "s" : ""}`;
+
   const metaText = [item.clientRef, item.city].filter(Boolean).join(" · ");
 
   // render
@@ -30,9 +40,10 @@ export default function ListItemDashboardProject({
       sx={{
         px: 1.5,
         py: 1.25,
-        borderRadius: 2,
-        mb: 0.25,
         alignItems: "flex-start",
+        borderBottom: "1px solid",
+        borderColor: "divider",
+        "&:last-of-type": { borderBottom: "none" },
         "&.Mui-selected": {
           bgcolor: "white",
           boxShadow: (theme) => `inset 3px 0 0 ${theme.palette.secondary.main}`,
@@ -65,20 +76,17 @@ export default function ListItemDashboardProject({
           )}
         </Box>
       </Box>
-      <Chip
-        size="small"
-        label={count}
+      <Typography
+        variant="caption"
         sx={{
           ml: 1,
           mt: 0.25,
-          height: 22,
-          minWidth: 22,
-          fontWeight: 700,
-          bgcolor: count ? "#efeff6" : "transparent",
-          color: count ? "text.primary" : "#b8b8c8",
-          border: count ? "none" : "1px dashed #d3d3e0",
+          flexShrink: 0,
+          color: count ? "text.secondary" : "#b8b8c8",
         }}
-      />
+      >
+        {countText}
+      </Typography>
     </ListItemButton>
   );
 }
