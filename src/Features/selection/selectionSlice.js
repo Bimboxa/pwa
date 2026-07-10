@@ -144,6 +144,10 @@ export const selectionSlice = createSlice({
           item.type = "LISTING";
           item.id = item.listingId;
         }
+        else if (item.type === "NODE" && item.nodeType === "MESH3D") {
+          // Mailles live outside the listing hierarchy — back = deselect.
+          state.selectedItems = [];
+        }
         else if (item.type === "NODE" && state.showAnnotationsProperties) {
           item.type = "ANNOTATION_TEMPLATE";
           item.id = item.annotationTemplateId;

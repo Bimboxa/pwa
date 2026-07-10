@@ -104,6 +104,31 @@ const threedEditorInitialState = {
     // First clicked endpoint, world space, while the second is pending.
     startPoint: null, // {x, y, z} | null
   },
+  // Meshing ("maillage") mode: create mailles from hovered faces and cut
+  // them with vertical / horizontal / free lines. Mutually exclusive with
+  // `drawingMode.active`, `moveMode.active` and `dimensionMode.active`.
+  // Hide the 3D mesh cells ("mailles") from the scene (Panel Maillage toggle).
+  hideMeshes3d: false,
+  // Hide the annotations from the 3D scene (Panel Maillage toggle) — leaves
+  // only basemaps + mailles visible (and lasso-selectable).
+  hideAnnotationsIn3d: false,
+  // Maille label cards ("étiquettes") display options (Panel Maillage).
+  // Selected mailles always show number + surface regardless.
+  mesh3dLabels: {
+    visible: true,
+    showNumber: true,
+    showQties: false,
+  },
+  meshingMode: {
+    active: false,
+    tool: "SELECT", // "SELECT" | "CUT_VERTICAL" | "CUT_HORIZONTAL" | "CUT_FREE"
+    // "Décalage": distance (m) from the reference vertex to the guide vertex
+    // used by the vertical / horizontal cut tools.
+    offset: 2,
+    // Side of the maille the reference vertex is picked on. Default LEFT
+    // (resp. BOTTOM for horizontal cuts), flipped with the "S" key.
+    cutSide: "LEFT", // "LEFT" | "RIGHT"
+  },
   // Sub-selection inside the currently-selected annotation (vertex or edge).
   // Populated when the user clicks a vertex / edge of an already-selected
   // annotation. Cleared when the user clicks elsewhere on the same face or
@@ -190,6 +215,8 @@ export const threedEditorSlice = createSlice({
         state.moveMode.deltaZ = 0;
         state.dimensionMode.active = false;
         state.dimensionMode.startPoint = null;
+        state.meshingMode.active = false;
+        state.meshingMode.tool = "SELECT";
       }
     },
     bumpSnapIndexEpoch: (state) => {
@@ -202,13 +229,15 @@ export const threedEditorSlice = createSlice({
         state.moveMode.deltaZ = 0;
         state.moveMode.subSelectionTarget = null;
       } else {
-        // Mutually exclusive with drawing mode and dimension mode.
+        // Mutually exclusive with drawing, dimension and meshing modes.
         state.drawingMode.active = false;
         state.drawingMode.inProgressPolyline = [];
         state.drawingMode.trait3DSegments = [];
         state.drawingMode.axisLock = null;
         state.dimensionMode.active = false;
         state.dimensionMode.startPoint = null;
+        state.meshingMode.active = false;
+        state.meshingMode.tool = "SELECT";
       }
     },
     setMoveSelectedAnnotationId: (state, action) => {
@@ -299,7 +328,7 @@ export const threedEditorSlice = createSlice({
       if (!action.payload) {
         state.dimensionMode.startPoint = null;
       } else {
-        // Mutually exclusive with drawing mode and move mode.
+        // Mutually exclusive with drawing, move and meshing modes.
         state.drawingMode.active = false;
         state.drawingMode.inProgressPolyline = [];
         state.drawingMode.trait3DSegments = [];
@@ -307,6 +336,8 @@ export const threedEditorSlice = createSlice({
         state.moveMode.active = false;
         state.moveMode.selectedAnnotationId = null;
         state.moveMode.deltaZ = 0;
+        state.meshingMode.active = false;
+        state.meshingMode.tool = "SELECT";
       }
     },
     setDimensionStartPoint: (state, action) => {
@@ -314,6 +345,45 @@ export const threedEditorSlice = createSlice({
     },
     clearDimensionDraft: (state) => {
       state.dimensionMode.startPoint = null;
+    },
+    setMeshingModeActive: (state, action) => {
+      state.meshingMode.active = action.payload;
+      if (!action.payload) {
+        state.meshingMode.tool = "SELECT";
+        state.meshingMode.cutSide = "LEFT";
+      } else {
+        // Mutually exclusive with drawing, move and dimension modes.
+        state.drawingMode.active = false;
+        state.drawingMode.inProgressPolyline = [];
+        state.drawingMode.trait3DSegments = [];
+        state.drawingMode.axisLock = null;
+        state.moveMode.active = false;
+        state.moveMode.selectedAnnotationId = null;
+        state.moveMode.deltaZ = 0;
+        state.dimensionMode.active = false;
+        state.dimensionMode.startPoint = null;
+      }
+    },
+    setMeshingTool: (state, action) => {
+      state.meshingMode.tool = action.payload;
+      state.meshingMode.cutSide = "LEFT";
+    },
+    setMeshingOffset: (state, action) => {
+      state.meshingMode.offset = action.payload;
+    },
+    toggleMeshingCutSide: (state) => {
+      state.meshingMode.cutSide =
+        state.meshingMode.cutSide === "LEFT" ? "RIGHT" : "LEFT";
+    },
+    setHideMeshes3d: (state, action) => {
+      state.hideMeshes3d = action.payload;
+    },
+    setHideAnnotationsIn3d: (state, action) => {
+      state.hideAnnotationsIn3d = action.payload;
+    },
+    setMesh3dLabels: (state, action) => {
+      // Partial update: {visible?, showNumber?, showQties?}.
+      state.mesh3dLabels = { ...state.mesh3dLabels, ...action.payload };
     },
   },
 });
@@ -352,6 +422,13 @@ export const {
   setDimensionModeActive,
   setDimensionStartPoint,
   clearDimensionDraft,
+  setMeshingModeActive,
+  setMeshingTool,
+  setMeshingOffset,
+  toggleMeshingCutSide,
+  setHideMeshes3d,
+  setHideAnnotationsIn3d,
+  setMesh3dLabels,
 } = threedEditorSlice.actions;
 
 export default threedEditorSlice.reducer;

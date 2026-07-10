@@ -16,8 +16,12 @@ import quantizeVertex from "../utils/quantizeVertex";
 //   - a quantized adjacency map from the same meshes' triangles, used by
 //     detectClosedFace as candidate face borders so the user doesn't have
 //     to redraw segments that already exist as mesh geometry
-// Snappable = baseMap meshes (userData.isBasemap) and existing annotation
-// meshes (userData.nodeType === "ANNOTATION").
+// Snappable = baseMap meshes (userData.isBasemap), existing annotation
+// meshes (userData.nodeType === "ANNOTATION") and maille shells
+// (userData.isMesh3d) — cut mailles carry vertices (cut endpoints,
+// mid-edge points) that exist nowhere else. Objects hidden via an
+// ancestor's `visible = false` (e.g. "Masquer les annotations") are
+// skipped.
 export function buildIndex(scene) {
   const verts = [];
   const adjacency = new Map(); // key -> { position, neighbors: Set<key> }
@@ -34,16 +38,17 @@ export function buildIndex(scene) {
 
   scene.traverse((obj) => {
     if (!obj.isMesh || !obj.visible) return;
-    let isSnappable = obj.userData?.isBasemap === true;
+    if (obj.userData?.isHoverOverlay) return; // transient face stipple
+    let isSnappable = false;
     let parent = obj;
-    while (parent && !isSnappable) {
-      if (parent.userData?.nodeType === "ANNOTATION") {
+    while (parent) {
+      if (parent.visible === false) return; // hidden by an ancestor
+      if (
+        parent.userData?.nodeType === "ANNOTATION" ||
+        parent.userData?.isBasemap ||
+        parent.userData?.isMesh3d
+      ) {
         isSnappable = true;
-        break;
-      }
-      if (parent.userData?.isBasemap) {
-        isSnappable = true;
-        break;
       }
       parent = parent.parent;
     }

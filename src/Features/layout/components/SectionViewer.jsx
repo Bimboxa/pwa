@@ -13,16 +13,11 @@ import MainBaseMapViewer from "Features/baseMapEditor/components/MainBaseMapView
 import ViewerAdmin from "Features/adminEditor/components/ViewerAdmin";
 import MainListingViewer from "Features/listingViewer/components/MainListingViewer";
 
-import useAutoDisableMeshCellsMode from "Features/annotations/hooks/useAutoDisableMeshCellsMode";
-
 export default function SectionViewer() {
   // data
   const viewerKey = useSelector((s) => s.viewers.selectedViewerKey);
   const legacy = useSelector((s) => s.appConfig.enableMapEditorLegacy);
   const disable3D = useSelector((s) => s.appConfig.disable3D);
-
-  // turn off the shared "mailles" mode when the last mesh cell is gone
-  useAutoDisableMeshCellsMode();
 
   // helpers
 

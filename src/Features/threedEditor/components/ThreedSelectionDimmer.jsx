@@ -41,6 +41,13 @@ export default function ThreedSelectionDimmer({
     .filter((i) => i.type === "NODE" && i.nodeType === "ANNOTATION")
     .map((i) => i.nodeId || i.id);
 
+  // Maille (MESH3D) selections dim annotations too — same "everything
+  // translucent except the selection" mechanism as annotation selections.
+  const hasSelectionRef = useRef(false);
+  hasSelectionRef.current =
+    selectedIdsRef.current.length > 0 ||
+    selectedItems.some((i) => i.type === "NODE" && i.nodeType === "MESH3D");
+
   // Read latest per-basemap modes / main id at apply time so the
   // subscribe-on-ready path (async GLB loads) also picks up current settings.
   const annotationsModeRef = useRef(annotationsModeByBaseMapId);
@@ -78,7 +85,7 @@ export default function ThreedSelectionDimmer({
       else if (id === hoveredId) state = STATE_NONE;
       else if (!isMain && mode === "DIMMED") state = STATE_DIM;
       else if (isSoloDimmed) state = STATE_DIM;
-      else if (selectedIds.length > 0) state = STATE_DIM;
+      else if (hasSelectionRef.current) state = STATE_DIM;
       else state = STATE_NONE;
       applyAnnotationMaterialState(obj, state);
     },

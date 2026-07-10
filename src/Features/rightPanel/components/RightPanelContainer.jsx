@@ -2,7 +2,6 @@ import { useDispatch, useSelector } from "react-redux";
 
 import {
   setSelectedMenuItemKey,
-  setElevationWidth,
   setElevationViewerWidth,
 } from "../rightPanelSlice";
 
@@ -33,7 +32,7 @@ import PanelAdminEntity from "Features/adminEditor/components/PanelAdminEntity";
 import PanelAnnotationsAuto from "Features/annotationsAuto/components/PanelAnnotationsAuto";
 import PanelPrint from "Features/print/components/PanelPrint";
 import PanelElevation from "Features/elevation/components/PanelElevation";
-import PanelMesh from "Features/mesh/components/PanelMesh";
+import PanelMesh3d from "Features/threedMesh/components/PanelMesh3d";
 import PanelImportAnnotations from "Features/importAnnotations/components/PanelImportAnnotations";
 import PanelLocalLlm from "Features/localLlm/components/PanelLocalLlm";
 import PanelThreedProperties from "Features/threedEditor/components/PanelThreedProperties";
@@ -48,17 +47,14 @@ export default function RightPanelContainer() {
     (s) => s.mapEditor.showCreateBaseMapSection
   );
   const fixedWidth = useSelector((s) => s.rightPanel.width);
-  const elevationWidth = useSelector((s) => s.rightPanel.elevationWidth);
   const elevationViewerWidth = useSelector(
     (s) => s.rightPanel.elevationViewerWidth
   );
 
-  // Both the Élévation viewer and the Maillage panel are resizable, but keep
-  // independent widths: Maillage uses elevationWidth (fixed default), Élévation
-  // uses elevationViewerWidth defaulting to 50% of the viewer when uncustomized.
+  // The Élévation viewer is resizable (the 3D Maillage panel is a normal
+  // fixed-width panel).
   const isElevation = selectedKey === "ELEVATION";
-  const isMesh = selectedKey === "MESH";
-  const isResizable = isElevation || isMesh;
+  const isResizable = isElevation;
 
   const viewportWidth =
     typeof window !== "undefined" ? window.innerWidth : 1200;
@@ -68,11 +64,9 @@ export default function RightPanelContainer() {
   // need more room than the default fixed width.
   const width = isElevation
     ? (elevationViewerWidth ?? elevationDefaultWidth)
-    : isMesh
-      ? elevationWidth
-      : selectedKey === "THREED_PROPERTIES"
-        ? 380
-        : fixedWidth;
+    : selectedKey === "THREED_PROPERTIES"
+      ? 380
+      : fixedWidth;
 
   // handlers - resize: each resizable tool updates its own width; the fixed
   // tools keep theirs.
@@ -87,9 +81,7 @@ export default function RightPanelContainer() {
         Math.max(startWidth + (startX - ev.clientX), 260),
         maxWidth
       );
-      dispatch(
-        isElevation ? setElevationViewerWidth(next) : setElevationWidth(next)
-      );
+      dispatch(setElevationViewerWidth(next));
     }
     function onUp() {
       window.removeEventListener("mousemove", onMove);
@@ -182,7 +174,7 @@ export default function RightPanelContainer() {
           {selectedKey === "ANNOTATIONS_AUTO" && <PanelAnnotationsAuto />}
           {selectedKey === "PRINT" && <PanelPrint />}
           {selectedKey === "ELEVATION" && <PanelElevation />}
-          {selectedKey === "MESH" && <PanelMesh />}
+          {selectedKey === "MESH" && <PanelMesh3d />}
           {selectedKey === "IMPORT_ANNOTATIONS" && <PanelImportAnnotations />}
           {selectedKey === "LOCAL_LLM" && <PanelLocalLlm />}
           {selectedKey === "THREED_PROPERTIES" && <PanelThreedProperties />}
