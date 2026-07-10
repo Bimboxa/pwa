@@ -22,6 +22,7 @@ export default function PageScopeCreator() {
   //const width = useSelector((s) => s.scopeCreator.stepPanelWidth);
 
   const projectId = useSelector(s => s.projects.selectedProjectId);
+  const initialStepKey = useSelector(s => s.scopeCreator.initialStepKey);
 
   // effect - set initial step
 
@@ -29,6 +30,11 @@ export default function PageScopeCreator() {
     if (projectId) {
       dispatch(setStepKey("SELECT_PRESET_SCOPE"));
       dispatch(setSelectedProjectId(projectId));
+    } else if (initialStepKey) {
+      // one-shot step requested by the opener (e.g. dashboard "Nouveau
+      // projet" → CREATE_PROJECT). Re-applied on StrictMode remount since
+      // the unmount cleanup below resets stepKey.
+      dispatch(setStepKey(initialStepKey));
     }
   }, [projectId]);
 

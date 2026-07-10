@@ -170,7 +170,20 @@ export default function PageScopeLoader() {
             setStatus("importing");
             setProgress(85);
 
-            await loadKrtoZip(file, { loadDataToScopeId: scopeId });
+            // Rattacher l'import à un projet local existant (créé par ex. depuis
+            // le dashboard) pour éviter un projet dupliqué : le ZIP embarque le
+            // projet avec son propre id, on le remappe via loadDataToProjectId.
+            const existingProject = configuration.projectClientRef
+                ? await db.projects
+                    .where("clientRef")
+                    .equals(configuration.projectClientRef)
+                    .first()
+                : null;
+
+            await loadKrtoZip(file, {
+                loadDataToScopeId: scopeId,
+                ...(existingProject && { loadDataToProjectId: existingProject.id }),
+            });
 
             setProgress(95);
 
