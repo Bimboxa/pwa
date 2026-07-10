@@ -146,7 +146,15 @@ export default class ControlsManager {
     if (this._disposed) return;
     const delta = this._clock.getDelta();
     const updated = this.cameraControls.update(delta);
-    if (updated) this.sceneManager.renderScene();
+    const renderModeManager = this.sceneManager.renderModeManager;
+    if (renderModeManager?.isPathTracing) {
+      // PHOTOREAL owns the canvas: camera moves reset the tracer (its raster
+      // fallback covers the interaction), idle frames accumulate samples.
+      if (updated) renderModeManager.onCameraChange();
+      renderModeManager.renderFrame();
+    } else if (updated) {
+      this.sceneManager.renderScene();
+    }
     this._rafId = requestAnimationFrame(this._loop);
   };
 

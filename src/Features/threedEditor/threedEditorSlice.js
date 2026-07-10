@@ -18,6 +18,14 @@ const threedEditorInitialState = {
   // When true, CM-width POLYLINE footprints are contracted by 5 mm before
   // extrusion to avoid coplanar-face aliasing when a parement abuts a wall.
   antiAliasingShrink: true,
+  // Viewport render mode (session-only). "STANDARD" = the historical unlit /
+  // Lambert look. "REALISTIC" = real-time PBR: physical materials, white
+  // environment lighting, shadows, ACES tone mapping. "PHOTOREAL" = the
+  // REALISTIC setup plus progressive path tracing in the viewport (raster
+  // fallback while the camera moves, converges when idle). Incompatible with
+  // the clipping plane (the path tracer ignores clippingPlanes), so enabling
+  // the plane drops PHOTOREAL back to REALISTIC.
+  renderMode: "STANDARD",
   // "NAVIGATION" | "SELECTION" | "BASEMAP_POSITION".
   // - NAVIGATION: shift+drag = camera (OrbitControls).
   // - SELECTION: shift+drag = lasso selection.
@@ -168,6 +176,9 @@ export const threedEditorSlice = createSlice({
     setAntiAliasingShrink: (state, action) => {
       state.antiAliasingShrink = action.payload;
     },
+    setRenderMode: (state, action) => {
+      state.renderMode = action.payload;
+    },
     setEditorMode: (state, action) => {
       state.editorMode = action.payload;
     },
@@ -312,16 +323,24 @@ export const threedEditorSlice = createSlice({
     setClippingPlaneEnabled: (state, action) => {
       state.clippingPlane.enabled = action.payload;
       if (!action.payload) state.clippingPlane.editing = false;
+      // The path tracer ignores clippingPlanes — a traced view would silently
+      // show the uncut geometry. Drop to the raster realistic mode instead.
+      if (action.payload && state.renderMode === "PHOTOREAL")
+        state.renderMode = "REALISTIC";
     },
     setClippingPlaneEditing: (state, action) => {
       state.clippingPlane.editing = action.payload;
       // Opening the editor implicitly creates/enables the plane.
       if (action.payload) state.clippingPlane.enabled = true;
+      if (action.payload && state.renderMode === "PHOTOREAL")
+        state.renderMode = "REALISTIC";
     },
     toggleClippingPlaneEditing: (state) => {
       const next = !state.clippingPlane.editing;
       state.clippingPlane.editing = next;
       if (next) state.clippingPlane.enabled = true;
+      if (next && state.renderMode === "PHOTOREAL")
+        state.renderMode = "REALISTIC";
     },
     setDimensionModeActive: (state, action) => {
       state.dimensionMode.active = action.payload;
@@ -396,6 +415,7 @@ export const {
   setLegendSize,
   setDisableOpacity,
   setAntiAliasingShrink,
+  setRenderMode,
   setEditorMode,
   setDrawingOffset,
   setBaseMapOpacityIn3d,

@@ -56,7 +56,10 @@ export function swapToPbrMaterials(scene) {
   scene.traverse((obj) => {
     if (!obj.isMesh || !obj.material) return;
     if (Array.isArray(obj.material)) return;
-    if (!obj.material.isMeshBasicMaterial && !obj.material.isMeshLambertMaterial)
+    if (
+      !obj.material.isMeshBasicMaterial &&
+      !obj.material.isMeshLambertMaterial
+    )
       return;
     if (obj.userData?.isBasemap) return;
 

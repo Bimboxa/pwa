@@ -27,7 +27,10 @@ function collectRoots(sceneManager, { excludeBaseMaps = false } = {}) {
 // `makeMaterial` adapts each source material to the target exporter's needs
 // (USDZ requires MeshStandardMaterial; OBJ keeps the source material as-is).
 // `options.excludeBaseMaps` drops the basemap plane images from the export.
-export default function buildExportScene(makeMaterial = (m) => m, options = {}) {
+export default function buildExportScene(
+  makeMaterial = (m) => m,
+  options = {}
+) {
   const editor = getActiveThreedEditor();
   const sceneManager = editor?.sceneManager;
   if (!sceneManager?.scene) {
@@ -39,6 +42,9 @@ export default function buildExportScene(makeMaterial = (m) => m, options = {}) 
   const exportScene = new Scene();
   const walk = (obj) => {
     if (obj.visible === false) return; // honor hidden basemaps / annotations
+    // Realistic-mode helpers living INSIDE the whitelisted roots: the shadow
+    // catcher overlays the basemap plane, the hover stipple overlays a face.
+    if (obj.userData?.isShadowCatcher || obj.userData?.isHoverOverlay) return;
     if (obj.isMesh) {
       const cloned = new Mesh(obj.geometry, makeMaterial(obj.material));
       cloned.matrix.copy(obj.matrixWorld);

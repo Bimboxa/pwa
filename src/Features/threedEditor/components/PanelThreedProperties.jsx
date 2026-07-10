@@ -28,6 +28,7 @@ import {
   setLegendSize,
   setDisableOpacity,
   setAntiAliasingShrink,
+  setRenderMode,
   setEditorMode,
 } from "Features/threedEditor/threedEditorSlice";
 import DialogExportPhotoreal from "Features/photorealRender/components/DialogExportPhotoreal";
@@ -91,9 +92,17 @@ export default function PanelThreedProperties() {
   const antiAliasingShrink = useSelector(
     (s) => s.threedEditor.antiAliasingShrink
   );
+  const renderMode = useSelector((s) => s.threedEditor.renderMode);
+  const clippingEnabled = useSelector(
+    (s) => s.threedEditor.clippingPlane.enabled
+  );
   // handlers
 
   function handleStartExport(presetKey) {
+    // The export mutates the shared scene (visibility / materials / env) with
+    // its own renderer — incompatible with a live path-tracing loop. Drop to
+    // the raster realistic mode for the duration of the export.
+    if (renderMode === "PHOTOREAL") dispatch(setRenderMode("REALISTIC"));
     setExportPreset(presetKey);
   }
   function handleCloseExport() {
@@ -228,6 +237,44 @@ export default function PanelThreedProperties() {
           </Box>
 
           <Divider sx={{ my: 1.5 }} />
+
+          <Card variant="outlined" sx={{ p: 1.5, mb: 1.5 }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
+              Rendu
+            </Typography>
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ display: "block", mb: 1 }}
+            >
+              Réaliste : matériaux + ombres en temps réel. Photoréaliste : rendu
+              progressif (l'image converge quand la caméra est immobile),
+              indisponible avec le plan de coupe.
+            </Typography>
+            <ToggleButtonGroup
+              size="small"
+              exclusive
+              fullWidth
+              value={renderMode}
+              onChange={(_e, v) => {
+                if (v) dispatch(setRenderMode(v));
+              }}
+            >
+              <ToggleButton value="STANDARD" sx={{ textTransform: "none" }}>
+                Standard
+              </ToggleButton>
+              <ToggleButton value="REALISTIC" sx={{ textTransform: "none" }}>
+                Réaliste
+              </ToggleButton>
+              <ToggleButton
+                value="PHOTOREAL"
+                sx={{ textTransform: "none" }}
+                disabled={clippingEnabled}
+              >
+                Photoréaliste
+              </ToggleButton>
+            </ToggleButtonGroup>
+          </Card>
 
           <Card variant="outlined" sx={{ p: 1.5, mb: 1.5 }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>

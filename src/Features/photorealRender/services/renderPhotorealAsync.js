@@ -1,16 +1,9 @@
-import {
-  WebGLRenderer,
-  ACESFilmicToneMapping,
-  PerspectiveCamera,
-} from "three";
+import { WebGLRenderer, ACESFilmicToneMapping, PerspectiveCamera } from "three";
 import { WebGLPathTracer } from "three-gpu-pathtracer";
 
 import { swapToPbrMaterials } from "../utils/pbrMaterials";
 import buildWhiteEnvironment from "../utils/environment";
-import {
-  setVisibilityByPredicate,
-  isBasemap,
-} from "../utils/sceneVisibility";
+import { setVisibilityByPredicate, isBasemap } from "../utils/sceneVisibility";
 
 // Renders the scene with only basemap meshes visible, on a transparent
 // background. Returns a PNG dataURL. Uses regular rasterisation (no path

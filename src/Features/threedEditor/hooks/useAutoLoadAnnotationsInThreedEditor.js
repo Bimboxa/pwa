@@ -16,6 +16,12 @@ export default function useAutoLoadAnnotationsInThreedEditor({
   const antiAliasingShrink = useSelector(
     (s) => s.threedEditor.antiAliasingShrink
   );
+  // Réaliste / Photoréaliste build annotation objects with native PBR
+  // materials + shadow flags. A mode toggle rebuilds every 3D object (same
+  // lifecycle as disableOpacity) — post-hoc material swapping is forbidden,
+  // it would fight the hover/dim originalMaterial cache.
+  const renderMode = useSelector((s) => s.threedEditor.renderMode);
+  const realisticShading = renderMode !== "STANDARD";
   const showMeshCells = useSelector((s) => s.annotations.showMeshCells);
   const { parentIdSet } = useMeshCellRelations();
   const baseMapOpacityIn3d = useSelector(
@@ -72,6 +78,7 @@ export default function useAutoLoadAnnotationsInThreedEditor({
     threedEditor.loadAnnotations(annotationsForThreed || [], {
       disableOpacity,
       antiAliasingShrink,
+      realisticShading,
     });
   }, [
     rendererIsReady,
@@ -79,6 +86,7 @@ export default function useAutoLoadAnnotationsInThreedEditor({
     threedEditor,
     disableOpacity,
     antiAliasingShrink,
+    realisticShading,
     extraBaseMapIds,
     baseMaps,
     baseMapOpacityIn3d,

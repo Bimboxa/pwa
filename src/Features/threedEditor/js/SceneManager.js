@@ -14,6 +14,7 @@ import AnnotationsManager from "./AnnotationsManager";
 import TransformControlsManager from "./TransformControlsManager";
 import ClippingManager from "./ClippingManager";
 import SectionContourManager from "./SectionContourManager";
+import RenderModeManager from "./RenderModeManager";
 
 export default class SceneManager {
   constructor({ containerEl, onRendererIsReady }) {
@@ -45,6 +46,9 @@ export default class SceneManager {
     this.sectionContourManager = new SectionContourManager({
       sceneManager: this,
     });
+    // Render mode (Standard / Réaliste / Photoréaliste). Lazy: it only
+    // touches the renderer/lights when setMode is called (post initScene).
+    this.renderModeManager = new RenderModeManager({ sceneManager: this });
 
     window.addEventListener("resize", this.resizeScene);
   }
@@ -74,12 +78,19 @@ export default class SceneManager {
     this.renderer.setSize(width, height);
     this._updateCamera({ width, height });
     this.sectionContourManager?.onResize();
+    // Aspect changed → reset the path tracer's sample accumulation.
+    this.renderModeManager?.onCameraChange();
   };
 
   renderScene = () => {
-    if (this.scene && this.camera) {
-      this.renderer.render(this.scene, this.camera);
-    }
+    if (!this.scene || !this.camera) return;
+    // While path tracing, an explicit render request means the scene changed
+    // (camera moves are handled by ControlsManager directly): invalidate the
+    // tracer, then still present a raster frame — synchronous callers (e.g.
+    // the screenshot capture, which reads the canvas right after) rely on
+    // renderScene actually drawing (no preserveDrawingBuffer).
+    this.renderModeManager?.markSceneDirtyIfPathTracing?.();
+    this.renderer.render(this.scene, this.camera);
   };
 
   ///////////   INIT  ///////////
