@@ -108,6 +108,10 @@ export default function applyAnnotationMaterialState(object3D, state) {
 
   object3D.traverse((child) => {
     if (!child.isMesh) return;
+    // Transient face-hover overlays (faceHoverHighlight.js) live inside the
+    // annotation tree — skip them so dim/lasso passes never cache the stipple
+    // material as originalMaterial.
+    if (child.userData?.isHoverOverlay) return;
     if (!child.userData) child.userData = {};
     if (!child.userData.originalMaterial) {
       child.userData.originalMaterial = child.material;
