@@ -44,7 +44,6 @@ import DialogDeleteRessource from "Features/layout/components/DialogDeleteRessou
 import ButtonInPanelV2 from "Features/layout/components/ButtonInPanelV2";
 import FieldBaseMapOpacity from "./FieldBaseMapOpacity";
 import FieldBaseMapVersions from "./FieldBaseMapVersions";
-import SectionVersionTransforms from "./SectionVersionTransforms";
 import PanelBaseMapPositionInMainRef from "./PanelBaseMapPositionInMainRef";
 
 export default function PanelBaseMapProperties() {
@@ -283,13 +282,6 @@ export default function PanelBaseMapProperties() {
         </WhiteSectionGeneric>
 
         <FieldBaseMapVersions baseMap={baseMap} />
-
-        {activeVersion && (
-          <SectionVersionTransforms
-            baseMap={baseMap}
-            versionId={activeVersion.id}
-          />
-        )}
 
         {activeVersion && baseMap.versions?.length > 1 && (
           <ButtonInPanelV2

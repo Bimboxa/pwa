@@ -47,11 +47,9 @@ export default function VerticalMenuRightPanel() {
 
   const selectedKey = useSelector((s) => s.rightPanel.selectedMenuItemKey);
   const advancedLayout = useSelector((s) => s.appConfig.advancedLayout);
-  const isThreedViewer = useSelector(
-    (s) => s.viewers.selectedViewerKey === "THREED"
-  );
+  const selectedViewerKey = useSelector((s) => s.viewers.selectedViewerKey);
 
-  // const
+  // const - tools without a `viewers` field are available in every viewer
 
   const toolsMap = {
     SELECTION_PROPERTIES: {
@@ -62,7 +60,7 @@ export default function VerticalMenuRightPanel() {
     ANNOTATIONS_AUTO: {
       label: "Dessin auto",
       icon: <AutoFixHigh />,
-      //disabled: !advancedLayout,
+      viewers: ["MAP"],
     },
     ENTITY: {
       label: "Édition",
@@ -76,18 +74,22 @@ export default function VerticalMenuRightPanel() {
     MASTER_PROJECT_PICTURES: {
       label: appConfig?.features?.masterProjectPictures?.title,
       icon: <CameraAlt />,
+      viewers: ["MAP", "THREED"],
     },
     PRINT: {
       label: "Export",
       icon: <Print />,
+      viewers: ["MAP", "THREED"],
     },
     ELEVATION: {
       label: "Élévation",
       icon: <Height />,
+      viewers: ["MAP", "THREED"],
     },
     MESH: {
       label: "Maillage",
       icon: <GridOn />,
+      viewers: ["THREED"],
     },
     CHAT: {
       label: "Chat",
@@ -96,6 +98,7 @@ export default function VerticalMenuRightPanel() {
     IMPORT_ANNOTATIONS: {
       label: "Importer annotations",
       icon: <Upload />,
+      viewers: ["MAP"],
     },
     LOCAL_LLM: {
       label: "IA locale",
@@ -104,7 +107,31 @@ export default function VerticalMenuRightPanel() {
     },
   };
 
+  // const - contextual items, not driven by appConfig.features.tools; inserted
+  // right below "Propriétés" while their viewer is active.
 
+  const contextualTools = [
+    {
+      key: "THREED_PROPERTIES",
+      label: "Vue 3D",
+      icon: <ViewInAr />,
+      viewers: ["THREED"],
+    },
+    {
+      key: "BASE_MAP_TRANSFORMS",
+      label: "Transfo.",
+      // image with a small AI-enhancement star on its top-right corner
+      icon: (
+        <Box sx={{ position: "relative", display: "inline-flex" }}>
+          <Image />
+          <AutoAwesome
+            sx={{ position: "absolute", top: -5, right: -6, fontSize: 12 }}
+          />
+        </Box>
+      ),
+      viewers: ["BASE_MAPS"],
+    },
+  ];
 
   // helper
 
@@ -113,22 +140,35 @@ export default function VerticalMenuRightPanel() {
 
   // filter
   menuItems = menuItems.filter(t => !t.disabled);
+  menuItems = menuItems.filter(
+    (t) => !t.viewers || t.viewers.includes(selectedViewerKey)
+  );
 
-  // 3D viewer properties — contextual item, only while the 3D viewer is active.
-  if (isThreedViewer) {
-    menuItems = [
-      { key: "THREED_PROPERTIES", label: "Vue 3D", icon: <ViewInAr /> },
-      ...menuItems,
-    ];
+  const activeContextualTools = contextualTools.filter((t) =>
+    t.viewers.includes(selectedViewerKey)
+  );
+  if (activeContextualTools.length > 0) {
+    const propertiesIndex = menuItems.findIndex(
+      (t) => t.key === "SELECTION_PROPERTIES"
+    );
+    menuItems.splice(propertiesIndex + 1, 0, ...activeContextualTools);
   }
 
-  // effect - close the LOCAL_LLM panel when advanced mode gets turned off
+  // effect - close the panel when its tool leaves the menu: LOCAL_LLM when
+  // advanced mode gets turned off, viewer-restricted tools when the viewer
+  // changes. Keys without a `viewers` constraint (incl. panels opened
+  // programmatically, e.g. NODE_FORMAT) are left untouched.
 
   useEffect(() => {
-    if (selectedKey === "LOCAL_LLM" && !advancedLayout) {
+    const selectedTool =
+      toolsMap[selectedKey] ??
+      contextualTools.find((t) => t.key === selectedKey);
+    const viewerMismatch =
+      selectedTool?.viewers && !selectedTool.viewers.includes(selectedViewerKey);
+    if ((selectedKey === "LOCAL_LLM" && !advancedLayout) || viewerMismatch) {
       dispatch(setSelectedMenuItemKey(null));
     }
-  }, [selectedKey, advancedLayout]);
+  }, [selectedKey, advancedLayout, selectedViewerKey]);
 
   // handlers
 

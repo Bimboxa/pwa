@@ -36,6 +36,7 @@ import PanelMesh3d from "Features/threedMesh/components/PanelMesh3d";
 import PanelImportAnnotations from "Features/importAnnotations/components/PanelImportAnnotations";
 import PanelLocalLlm from "Features/localLlm/components/PanelLocalLlm";
 import PanelThreedProperties from "Features/threedEditor/components/PanelThreedProperties";
+import PanelBaseMapTransforms from "Features/baseMapTransforms/components/PanelBaseMapTransforms";
 
 export default function RightPanelContainer() {
   const dispatch = useDispatch();
@@ -178,6 +179,7 @@ export default function RightPanelContainer() {
           {selectedKey === "IMPORT_ANNOTATIONS" && <PanelImportAnnotations />}
           {selectedKey === "LOCAL_LLM" && <PanelLocalLlm />}
           {selectedKey === "THREED_PROPERTIES" && <PanelThreedProperties />}
+          {selectedKey === "BASE_MAP_TRANSFORMS" && <PanelBaseMapTransforms />}
         </Box>
       </Slide>
 

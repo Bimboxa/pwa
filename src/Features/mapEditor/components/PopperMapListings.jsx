@@ -2452,8 +2452,7 @@ export default function PopperMapListings() {
     return <PopperDrawingHelper />;
   }
 
-  // PopperMapListings is always visible in BASE_MAPS viewer
-
+  // in BASE_MAPS viewer, mounting is gated by popperMapListings.showInBaseMapsViewer (see MainMapEditorV3)
 
   return (
     <Paper

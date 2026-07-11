@@ -9,6 +9,7 @@ const popperMapListingsSlice = createSlice({
     soloListingId: null,
     interactionMode: "DRAW", // "DRAW" | "EDIT" | "SELECT"
     collapsed: false,
+    showInBaseMapsViewer: false,
   },
   reducers: {
     setShowLayers(state, action) {
@@ -33,6 +34,9 @@ const popperMapListingsSlice = createSlice({
     setInteractionMode(state, action) {
       state.interactionMode = action.payload;
     },
+    setShowInBaseMapsViewer(state, action) {
+      state.showInBaseMapsViewer = action.payload;
+    },
   },
 });
 
@@ -43,6 +47,7 @@ export const {
   setSoloListingId,
   setInteractionMode,
   setCollapsed,
+  setShowInBaseMapsViewer,
 } = popperMapListingsSlice.actions;
 
 export default popperMapListingsSlice.reducer;

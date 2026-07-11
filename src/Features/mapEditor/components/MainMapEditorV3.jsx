@@ -206,6 +206,9 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     const versionTransformOverride = useSelector((s) => s.baseMapEditor.versionTransformOverride);
     const versionCompareEnabled = useSelector((s) => s.baseMapEditor.versionCompareEnabled);
     const versionCompareId = useSelector((s) => s.baseMapEditor.versionCompareId);
+    const showDrawingToolsInBaseMaps = useSelector(
+        (s) => s.popperMapListings.showInBaseMapsViewer
+    );
     const compareSliderRef = useRef(null);
 
     // reset compare when leaving BASE_MAPS viewer
@@ -1786,7 +1789,11 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
             <LayerTools />
             <LayerCreateBaseMap />
 
-            {!versionCompareEnabled && !imageModeActive && <PopperMapListings />}
+            {!versionCompareEnabled &&
+                !imageModeActive &&
+                (forViewerKey !== "BASE_MAPS" || showDrawingToolsInBaseMaps) && (
+                    <PopperMapListings />
+                )}
 
             {imageModeActive && (
                 <ImageModeOverlay
