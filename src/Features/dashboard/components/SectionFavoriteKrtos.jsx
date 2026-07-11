@@ -1,9 +1,20 @@
-import { Box, Typography, IconButton, CircularProgress, Tooltip } from "@mui/material";
-import { Star, Refresh } from "@mui/icons-material";
+import {
+  Box,
+  Typography,
+  Avatar,
+  Chip,
+  IconButton,
+  CircularProgress,
+  Tooltip,
+} from "@mui/material";
+import { Star, StarBorder, Refresh } from "@mui/icons-material";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 import CardFavoriteKrto from "./CardFavoriteKrto";
+import CardEmptySection from "./CardEmptySection";
+
+const STAR_COLOR = "#f5a623";
 
 export default function SectionFavoriteKrtos({
   favorites,
@@ -18,53 +29,91 @@ export default function SectionFavoriteKrtos({
 
   // strings
 
-  const titleS = appConfig?.strings?.scope?.favorites ?? "Krtos favoris";
+  const titleS = appConfig?.strings?.scope?.favorites ?? "Repérages favoris";
+  const subtitleS =
+    appConfig?.strings?.scope?.favoritesSubtitle ??
+    "Accès rapide à vos repérages étoilés";
+  const emptyTitleS =
+    appConfig?.strings?.scope?.noFavoriteTitle ?? "Aucun favori pour l'instant";
+  const emptyHintS =
+    appConfig?.strings?.scope?.noFavoriteHint ??
+    "Touchez l'étoile ★ sur un repérage pour l'épingler ici et le rouvrir en un geste.";
+  const comingSoonS = appConfig?.strings?.general?.comingSoon ?? "Prochainement";
 
   // render
 
-  if (!favorites?.length) return null;
-
   return (
-    <Box sx={{ pb: 0.5 }}>
-      <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mb: 1, px: 0.5 }}>
-        <Star sx={{ color: "#f5a623", fontSize: "1rem" }} />
-        <Typography
-          variant="overline"
-          sx={{ color: "text.secondary", fontWeight: 700, letterSpacing: "0.06em" }}
+    <Box>
+      {/* header */}
+      <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+        <Avatar
+          sx={{
+            width: 52,
+            height: 52,
+            bgcolor: STAR_COLOR + "1f",
+            color: STAR_COLOR,
+          }}
         >
-          {titleS}
-        </Typography>
+          <Star />
+        </Avatar>
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Typography variant="h6" sx={{ fontWeight: 700 }}>
+              {titleS}
+            </Typography>
+            <Chip
+              size="small"
+              label={comingSoonS}
+              sx={{ height: 20, fontSize: 11, fontWeight: 600 }}
+            />
+          </Box>
+          <Typography variant="body2" sx={{ color: "text.secondary" }}>
+            {subtitleS}
+          </Typography>
+        </Box>
         <Tooltip title="Mettre à jour les favoris">
           <span>
-            <IconButton size="small" onClick={onRefresh} disabled={refreshing} sx={{ p: 0.25 }}>
+            <IconButton onClick={onRefresh} disabled={refreshing}>
               {refreshing ? (
-                <CircularProgress size={14} />
+                <CircularProgress size={16} />
               ) : (
-                <Refresh sx={{ fontSize: "1.05rem", color: "text.secondary" }} />
+                <Refresh sx={{ color: "text.secondary" }} />
               )}
             </IconButton>
           </span>
         </Tooltip>
       </Box>
 
-      <Box
-        sx={{
-          display: "flex",
-          gap: 1.25,
-          overflowX: "auto",
-          pb: 1,
-          "&::-webkit-scrollbar": { height: 6 },
-          "&::-webkit-scrollbar-thumb": { bgcolor: "#d7d7e2", borderRadius: 3 },
-        }}
-      >
-        {favorites.map((favorite) => (
-          <CardFavoriteKrto
-            key={favorite.scopeId}
-            favorite={favorite}
-            onOpen={onOpen}
-            onUnfavorite={onUnfavorite}
+      {/* content */}
+      <Box sx={{ mt: 2.5 }}>
+        {!favorites?.length ? (
+          <CardEmptySection
+            icon={<StarBorder sx={{ fontSize: "2rem" }} />}
+            iconColor={STAR_COLOR}
+            title={emptyTitleS}
+            hint={emptyHintS}
           />
-        ))}
+        ) : (
+          <Box
+            sx={{
+              display: "flex",
+              gap: 1.25,
+              overflowX: "auto",
+              pb: 1,
+              "&::-webkit-scrollbar": { height: 6 },
+              "&::-webkit-scrollbar-thumb": { bgcolor: "#d7d7e2", borderRadius: 3 },
+            }}
+          >
+            {favorites.map((favorite) => (
+              <CardFavoriteKrto
+                key={favorite.scopeId}
+                favorite={favorite}
+                onOpen={onOpen}
+                onUnfavorite={onUnfavorite}
+              />
+            ))}
+          </Box>
+        )}
       </Box>
     </Box>
   );

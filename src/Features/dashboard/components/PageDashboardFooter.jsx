@@ -1,7 +1,6 @@
 import { Box } from "@mui/material";
 
 import ButtonDialogAppConfig from "Features/appConfig/components/ButtonDialogAppConfig";
-import ButtonLoadKrtoFile from "Features/krtoFile/components/ButtonLoadKrtoFile";
 import ButtonAppVersion from "App/components/ButtonAppVersion";
 import ButtonSigninV2 from "Features/auth/components/ButtonSigninV2";
 import IconButtonDebugAuth from "Features/auth/components/IconButtonDebugAuth";
@@ -29,7 +28,6 @@ export default function PageDashboardFooter() {
 
       <Box sx={{ display: "flex", alignItems: "center" }}>
         <SwitchCoupledNavigation />
-        <ButtonLoadKrtoFile />
       </Box>
 
     </Box>

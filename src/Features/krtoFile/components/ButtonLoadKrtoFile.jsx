@@ -26,7 +26,7 @@ import ContainerFilesSelector from "Features/files/components/ContainerFilesSele
 import loadKrtoFile from "../services/loadKrtoFile";
 import loadKrtoZip from "../services/loadKrtoZip";
 
-export default function ButtonLoadKrtoFile() {
+export default function ButtonLoadKrtoFile({ variant, size, sx }) {
   const dispatch = useDispatch();
 
   // state
@@ -68,6 +68,9 @@ export default function ButtonLoadKrtoFile() {
           startIcon={<Upload />}
           label={krtoS}
           onClick={() => setOpen(true)}
+          variant={variant}
+          size={size}
+          sx={sx}
         />
       </Tooltip>
       <DialogGeneric open={open} onClose={() => setOpen(false)}>

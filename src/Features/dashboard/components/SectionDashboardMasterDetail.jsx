@@ -154,7 +154,8 @@ export default function SectionDashboardMasterDetail() {
         myKrtosLoading={myKrtosLoading}
         remoteSearchLoading={remoteSearchLoading}
       />
-      {/* right side: favorites strip (hidden when empty) + detail inset panel */}
+      {/* right side: favorites on top, then project detail (inset panel) or
+          the "daily scopes" placeholder when no project is selected */}
       <Box
         sx={{
           flex: "1 1 50%",
@@ -162,17 +163,25 @@ export default function SectionDashboardMasterDetail() {
           display: "flex",
           flexDirection: "column",
           p: 2,
+          px: 4,
+          pt: 6,
           bgcolor: "background.default",
+          overflowY: "auto",
         }}
       >
-        <SectionFavoriteKrtos
-          favorites={favoriteItems}
-          onOpen={handleOpenFavorite}
-          onUnfavorite={handleUnfavorite}
-          onRefresh={handleRefreshFavorites}
-          refreshing={favoritesRefreshing}
-        />
-        <PanelDashboardProjectDetail item={selectedItem} />
+        {selectedItem ? (
+          <Box sx={{ flex: 1, display: "flex", minHeight: 0 }}>
+            <PanelDashboardProjectDetail item={selectedItem} />
+          </Box>
+        ) : (
+          <SectionFavoriteKrtos
+            favorites={favoriteItems}
+            onOpen={handleOpenFavorite}
+            onUnfavorite={handleUnfavorite}
+            onRefresh={handleRefreshFavorites}
+            refreshing={favoritesRefreshing}
+          />
+        )}
       </Box>
     </Box>
   );
