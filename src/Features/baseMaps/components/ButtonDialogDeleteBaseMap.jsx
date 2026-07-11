@@ -8,29 +8,37 @@ import DialogDeleteRessource from "Features/layout/components/DialogDeleteRessou
 
 import { setSelectedBaseMapId } from "Features/baseMaps/baseMapsSlice";
 
-import db, { withSystemWrite } from "App/db/db";
-import { OwnershipError } from "App/db/ownership";
-import useCanEditRecord from "App/hooks/useCanEditRecord";
+import useDeleteBaseMap, {
+  countBaseMapAnnotations,
+} from "Features/baseMaps/hooks/useDeleteBaseMap";
 
 export default function ButtonDialogDeleteBaseMap({ baseMap }) {
   const dispatch = useDispatch();
-
-  // permissions
-
-  const { guardEditRecord } = useCanEditRecord();
 
   // strings
 
   const deleteS = "Supprimer le fond de plan";
 
+  // data
+
+  const deleteBaseMap = useDeleteBaseMap();
+
   // state
 
   const [open, setOpen] = useState(false);
+  const [annotationCount, setAnnotationCount] = useState(0);
+
+  // helpers
+
+  const deleteMessage =
+    annotationCount > 0
+      ? `${annotationCount} annotation(s) sont dessinées sur ce fond de plan et seront également supprimées.`
+      : undefined;
 
   // handlers
 
-  function handleClick() {
-    if (!guardEditRecord(baseMap)) return;
+  async function handleClick() {
+    setAnnotationCount(await countBaseMapAnnotations(baseMap.id));
     setOpen(true);
   }
 
@@ -40,19 +48,8 @@ export default function ButtonDialogDeleteBaseMap({ baseMap }) {
 
   async function confirmDelete() {
     setOpen(false);
-    if (!guardEditRecord(baseMap)) return;
-    try {
-      // The base-map owner controls its versions: delete the base map
-      // first (guarded), then cascade-delete versions bypassing their
-      // own ownership.
-      await db.baseMaps.delete(baseMap.id);
-      await withSystemWrite(() =>
-        db.baseMapVersions.where("baseMapId").equals(baseMap.id).delete()
-      );
-      dispatch(setSelectedBaseMapId(null));
-    } catch (error) {
-      if (!(error instanceof OwnershipError)) throw error;
-    }
+    await deleteBaseMap(baseMap);
+    dispatch(setSelectedBaseMapId(null));
   }
   // render
 
@@ -68,6 +65,7 @@ export default function ButtonDialogDeleteBaseMap({ baseMap }) {
         open={open}
         onClose={handleClose}
         onConfirmAsync={confirmDelete}
+        message={deleteMessage}
       />
     </>
   );

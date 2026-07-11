@@ -2,6 +2,7 @@ import { useRef } from "react";
 import {
   Dialog,
   DialogTitle,
+  DialogContent,
   DialogActions,
   Button,
   Typography,
@@ -11,6 +12,7 @@ export default function DialogDeleteRessource({
   open,
   onClose,
   onConfirmAsync,
+  message,
 }) {
   const title = "Confirmer la suppression";
   const confirmS = "Confirmer";
@@ -35,6 +37,12 @@ export default function DialogDeleteRessource({
       }}
     >
       <DialogTitle>{title}</DialogTitle>
+
+      {message && (
+        <DialogContent>
+          <Typography variant="body2">{message}</Typography>
+        </DialogContent>
+      )}
 
       <DialogActions>
         <Button onClick={onClose} variant="outlined">

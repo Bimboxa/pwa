@@ -24,7 +24,6 @@ import {
   List,
   ListItemButton,
   ListItemText,
-  Tooltip,
   Typography,
   IconButton,
   Avatar,
@@ -34,6 +33,7 @@ import {
   Edit,
   Check,
   Close,
+  DragIndicator,
   ExpandMore,
   ChevronRight,
   Visibility,
@@ -61,16 +61,17 @@ import { CSS } from "@dnd-kit/utilities";
 import { generateKeyBetween } from "fractional-indexing";
 import { nanoid } from "@reduxjs/toolkit";
 
-import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import useUpdateEntity from "Features/entities/hooks/useUpdateEntity";
 import useCreateBaseMapVersion from "Features/baseMaps/hooks/useCreateBaseMapVersion";
-import IconNewBaseMapVersion from "Features/icons/IconNewBaseMapVersion";
 
 import db from "App/db/db";
 import activateBaseMapVersion from "Features/baseMaps/utils/activateBaseMapVersion";
 import DialogCreateBaseMapVersion from "./DialogCreateBaseMapVersion";
+import IconButtonMoreActionsBaseMap from "./IconButtonMoreActionsBaseMap";
+import IconButtonMoreActionsBaseMapVersion from "./IconButtonMoreActionsBaseMapVersion";
 
 function SortableVersionRow({
+  baseMap,
   version,
   isSelected,
   isHidden,
@@ -99,8 +100,22 @@ function SortableVersionRow({
         pl: 7,
         py: 0.25,
         "&:hover .version-eye": { opacity: 1 },
+        "&:hover .version-more": { opacity: 1 },
+        "&:hover .row-drag-handle": { opacity: 1 },
       }}
     >
+      <DragIndicator
+        className="row-drag-handle"
+        sx={{
+          fontSize: 14,
+          color: "text.disabled",
+          cursor: "grab",
+          opacity: 0,
+          transition: "0.2s",
+          ml: -2.5,
+          mr: 1,
+        }}
+      />
       <Avatar
         src={version.image?.thumbnail}
         variant="rounded"
@@ -144,12 +159,19 @@ function SortableVersionRow({
           <Visibility sx={{ fontSize: 14 }} />
         )}
       </IconButton>
+      <IconButtonMoreActionsBaseMapVersion
+        baseMap={baseMap}
+        version={version}
+        className="version-more"
+        sx={{ opacity: 0, transition: "0.2s", p: 0.25 }}
+      />
     </ListItemButton>
   );
 }
 
 function SortableBaseMapRow({
   baseMap,
+  listingId,
   isSelected,
   onClick,
   isEditing,
@@ -164,7 +186,10 @@ function SortableBaseMapRow({
   onAddVersion,
 }) {
   const { attributes, listeners, setNodeRef, transform, transition } =
-    useSortable({ id: baseMap.id });
+    useSortable({
+      id: baseMap.id,
+      data: { type: "baseMap", listingId },
+    });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -180,27 +205,42 @@ function SortableBaseMapRow({
       selected={isSelected}
       onClick={onClick}
       sx={{
-        pl: hasVersions ? 2 : 4,
+        pl: 2,
         ...style,
         "&:hover .hover-action": { opacity: 1 },
+        "&:hover .row-drag-handle": { opacity: 1 },
       }}
     >
-      {hasVersions && (
-        <IconButton
-          size="small"
-          onClick={(e) => {
-            e.stopPropagation();
-            onToggleVersions();
-          }}
-          sx={{ p: 0, mr: 0.5 }}
-        >
-          {isVersionsExpanded ? (
-            <ExpandMore sx={{ fontSize: 16 }} />
-          ) : (
-            <ChevronRight sx={{ fontSize: 16 }} />
-          )}
-        </IconButton>
-      )}
+      <DragIndicator
+        className="row-drag-handle"
+        sx={{
+          fontSize: 14,
+          color: "text.disabled",
+          cursor: "grab",
+          opacity: 0,
+          transition: "0.2s",
+          ml: -1.5,
+          mr: 0.5,
+        }}
+      />
+      <IconButton
+        size="small"
+        onClick={(e) => {
+          e.stopPropagation();
+          onToggleVersions();
+        }}
+        sx={{
+          p: 0,
+          mr: 0.5,
+          visibility: hasVersions ? "visible" : "hidden",
+        }}
+      >
+        {isVersionsExpanded ? (
+          <ExpandMore sx={{ fontSize: 16 }} />
+        ) : (
+          <ChevronRight sx={{ fontSize: 16 }} />
+        )}
+      </IconButton>
       <Avatar
         src={baseMap?.getThumbnail?.() || baseMap?.image?.thumbnail}
         variant="rounded"
@@ -267,33 +307,24 @@ function SortableBaseMapRow({
           >
             <Edit fontSize="inherit" />
           </IconButton>
-          <Tooltip title="Nouvelle version">
-            <IconButton
-              size="small"
-              className="hover-action"
-              onClick={(e) => {
-                e.stopPropagation();
-                onAddVersion();
-              }}
-              sx={{ opacity: 0, transition: "0.2s" }}
-            >
-              <IconNewBaseMapVersion sx={{ fontSize: 18 }} />
-            </IconButton>
-          </Tooltip>
+          <IconButtonMoreActionsBaseMap
+            baseMap={baseMap}
+            onAddVersion={onAddVersion}
+            className="hover-action"
+            sx={{ opacity: 0, transition: "0.2s" }}
+          />
         </Box>
       )}
     </ListItemButton>
   );
 }
 
-export default function BaseMapTreeItem({ listing }) {
+export default function BaseMapTreeItem({ listing, baseMaps, isDropTarget }) {
   const dispatch = useDispatch();
 
   // data
 
-  const selectedBaseMapId = useSelector(
-    (s) => s.mapEditor.selectedBaseMapId
-  );
+  const selectedBaseMapId = useSelector((s) => s.mapEditor.selectedBaseMapId);
   const displayedListingId = useSelector(
     (s) => s.baseMapEditor.displayedBaseMapListingId
   );
@@ -306,12 +337,7 @@ export default function BaseMapTreeItem({ listing }) {
   const selectedVersionId = useSelector(
     (s) => s.baseMapEditor.selectedVersionId
   );
-  const hiddenVersionIds = useSelector(
-    (s) => s.baseMapEditor.hiddenVersionIds
-  );
-  const { value: baseMaps } = useBaseMaps({
-    filterByListingId: listing.id,
-  });
+  const hiddenVersionIds = useSelector((s) => s.baseMapEditor.hiddenVersionIds);
   const updateEntity = useUpdateEntity();
   const createVersion = useCreateBaseMapVersion();
 
@@ -331,6 +357,23 @@ export default function BaseMapTreeItem({ listing }) {
     () => (baseMaps || []).map((bm) => bm.id),
     [baseMaps]
   );
+
+  // dnd - group header (sortable group row + drop target for baseMaps)
+
+  const {
+    attributes: groupAttributes,
+    listeners: groupListeners,
+    setNodeRef: setGroupNodeRef,
+    transform: groupTransform,
+    transition: groupTransition,
+  } = useSortable({ id: listing.id, data: { type: "group" } });
+
+  const groupStyle = {
+    transform: CSS.Transform.toString(groupTransform),
+    transition: groupTransition,
+  };
+
+  // dnd - versions (nested contexts, independent from the tree context)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -389,61 +432,6 @@ export default function BaseMapTreeItem({ listing }) {
       })
     );
     await activateBaseMapVersion(baseMap.id, version.id, dispatch);
-  }
-
-  async function handleDragEnd(event) {
-    const { active, over } = event;
-    if (!over || active.id === over.id || !baseMaps) return;
-
-    const oldIndex = baseMapIds.indexOf(active.id);
-    const newIndex = baseMapIds.indexOf(over.id);
-    if (oldIndex === -1 || newIndex === -1) return;
-
-    // Ensure all baseMaps have a sortIndex before computing new position
-    const needsInit = baseMaps.some((bm) => bm.sortIndex == null);
-    let sortIndices;
-    if (needsInit) {
-      sortIndices = [];
-      let prev = null;
-      for (let i = 0; i < baseMaps.length; i++) {
-        const idx = baseMaps[i].sortIndex ?? generateKeyBetween(prev, null);
-        sortIndices.push(idx);
-        prev = idx;
-      }
-      // Persist initial sortIndex for items that don't have one
-      await Promise.all(
-        baseMaps.map((bm, i) => {
-          if (bm.sortIndex == null) {
-            return updateEntity(
-              bm.id,
-              { sortIndex: sortIndices[i] },
-              { listing }
-            );
-          }
-          return null;
-        })
-      );
-    } else {
-      sortIndices = baseMaps.map((bm) => bm.sortIndex);
-    }
-
-    // Compute new sortIndex for dragged item
-    let newSortIndex;
-    if (oldIndex < newIndex) {
-      const b = sortIndices[newIndex];
-      const a = newIndex + 1 < baseMaps.length ? sortIndices[newIndex + 1] : null;
-      newSortIndex = generateKeyBetween(b, a);
-    } else {
-      const b = newIndex > 0 ? sortIndices[newIndex - 1] : null;
-      const a = sortIndices[newIndex];
-      newSortIndex = generateKeyBetween(b, a);
-    }
-
-    await updateEntity(
-      active.id,
-      { sortIndex: newSortIndex },
-      { listing }
-    );
   }
 
   async function handleActivateVersion(baseMap, version) {
@@ -506,7 +494,9 @@ export default function BaseMapTreeItem({ listing }) {
     // Read the active version record from the new table
     const activeVersionHydrated =
       baseMap.versions.find((v) => v.isActive) || baseMap.versions[0];
-    const activeVersionRecord = await db.baseMapVersions.get(activeVersionHydrated.id);
+    const activeVersionRecord = await db.baseMapVersions.get(
+      activeVersionHydrated.id
+    );
     if (!activeVersionRecord) return;
 
     // Copy the image file
@@ -515,7 +505,8 @@ export default function BaseMapTreeItem({ listing }) {
     if (activeVersionRecord.image?.fileName) {
       const srcFile = await db.files.get(activeVersionRecord.image.fileName);
       if (srcFile) {
-        const ext = activeVersionRecord.image.fileName.split(".").pop() || "png";
+        const ext =
+          activeVersionRecord.image.fileName.split(".").pop() || "png";
         const newFileName = `version_${versionId}_${baseMap.id}.${ext}`;
         await db.files.put({
           ...srcFile,
@@ -559,7 +550,11 @@ export default function BaseMapTreeItem({ listing }) {
     });
   }
 
-  async function handleCreateVersionFromDialog({ label, sourceBaseMap, sourceVersion }) {
+  async function handleCreateVersionFromDialog({
+    label,
+    sourceBaseMap,
+    sourceVersion,
+  }) {
     const targetBaseMap = createVersionForBaseMap;
     if (!targetBaseMap) return;
 
@@ -628,10 +623,20 @@ export default function BaseMapTreeItem({ listing }) {
       />
 
       <ListItemButton
+        ref={setGroupNodeRef}
+        {...groupAttributes}
+        {...groupListeners}
+        component="div"
         onClick={handleListingClick}
+        style={groupStyle}
         sx={{
           pl: 1,
           "&:hover .edit-icon": { opacity: 1 },
+          ...(isDropTarget && {
+            bgcolor: "action.focus",
+            outline: "1px dashed",
+            outlineColor: "primary.main",
+          }),
         }}
       >
         <IconButton
@@ -693,14 +698,26 @@ export default function BaseMapTreeItem({ listing }) {
             </IconButton>
           </Box>
         ) : (
-          <IconButton
-            size="small"
-            className="edit-icon"
-            onClick={handleStartEditListing}
-            sx={{ opacity: 0, transition: "0.2s" }}
-          >
-            <Edit fontSize="inherit" />
-          </IconButton>
+          <Box sx={{ display: "flex", alignItems: "center" }}>
+            <DragIndicator
+              className="edit-icon"
+              sx={{
+                fontSize: 16,
+                color: "text.disabled",
+                cursor: "grab",
+                opacity: 0,
+                transition: "0.2s",
+              }}
+            />
+            <IconButton
+              size="small"
+              className="edit-icon"
+              onClick={handleStartEditListing}
+              sx={{ opacity: 0, transition: "0.2s" }}
+            >
+              <Edit fontSize="inherit" />
+            </IconButton>
+          </Box>
         )}
       </ListItemButton>
 
@@ -711,149 +728,120 @@ export default function BaseMapTreeItem({ listing }) {
           }}
         >
           <Divider />
-          <DndContext
-            id="basemap-tree-dnd"
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragEnd={handleDragEnd}
+          <SortableContext
+            items={baseMapIds}
+            strategy={verticalListSortingStrategy}
           >
-            <SortableContext
-              items={baseMapIds}
-              strategy={verticalListSortingStrategy}
-            >
-              <List dense disablePadding>
-                {baseMaps?.map((baseMap) => {
-                  const isBaseMapSelected =
-                    selectedBaseMapId === baseMap.id;
-                  const hasVersions =
-                    baseMap.versions && baseMap.versions.length > 1;
-                  const isVersionsExpanded =
-                    expandedBaseMapVersionIds?.includes(baseMap.id);
-                  const sortedVersions = hasVersions
-                    ? [...baseMap.versions].sort((a, b) =>
-                        (a.fractionalIndex || "").localeCompare(
-                          b.fractionalIndex || ""
-                        )
+            <List dense disablePadding>
+              {baseMaps?.map((baseMap) => {
+                const isBaseMapSelected = selectedBaseMapId === baseMap.id;
+                const hasVersions =
+                  baseMap.versions && baseMap.versions.length > 1;
+                const isVersionsExpanded = expandedBaseMapVersionIds?.includes(
+                  baseMap.id
+                );
+                const sortedVersions = hasVersions
+                  ? [...baseMap.versions].sort((a, b) =>
+                      (a.fractionalIndex || "").localeCompare(
+                        b.fractionalIndex || ""
                       )
-                    : [];
-                  const sortedVersionIds = sortedVersions.map(
-                    (v) => v.id
-                  );
+                    )
+                  : [];
+                const sortedVersionIds = sortedVersions.map((v) => v.id);
 
-                  return (
-                    <Box key={baseMap.id}>
-                      <SortableBaseMapRow
-                        baseMap={baseMap}
-                        isSelected={isBaseMapSelected}
-                        onClick={() => handleBaseMapClick(baseMap)}
-                        isEditing={editingItemId === baseMap.id}
-                        tempTitle={tempTitle}
-                        onStartEdit={() => handleStartEditBaseMap(baseMap)}
-                        onConfirmEdit={() =>
-                          handleConfirmEditBaseMap(baseMap.id)
-                        }
-                        onCancelEdit={handleCancelEdit}
-                        onTempTitleChange={setTempTitle}
-                        hasVersions={hasVersions}
-                        isVersionsExpanded={isVersionsExpanded}
-                        onToggleVersions={() =>
-                          dispatch(
-                            toggleBaseMapVersionsExpanded(baseMap.id)
-                          )
-                        }
-                        onAddVersion={() =>
-                          setCreateVersionForBaseMap(baseMap)
-                        }
-                      />
-                      {hasVersions && isVersionsExpanded && (
-                        <DndContext
-                          id={`version-dnd-${baseMap.id}`}
-                          sensors={sensors}
-                          collisionDetection={closestCenter}
-                          onDragEnd={async (event) => {
-                            const { active, over } = event;
-                            if (
-                              !active ||
-                              !over ||
-                              active.id === over.id
-                            )
-                              return;
+                return (
+                  <Box key={baseMap.id}>
+                    <SortableBaseMapRow
+                      baseMap={baseMap}
+                      listingId={listing.id}
+                      isSelected={isBaseMapSelected}
+                      onClick={() => handleBaseMapClick(baseMap)}
+                      isEditing={editingItemId === baseMap.id}
+                      tempTitle={tempTitle}
+                      onStartEdit={() => handleStartEditBaseMap(baseMap)}
+                      onConfirmEdit={() => handleConfirmEditBaseMap(baseMap.id)}
+                      onCancelEdit={handleCancelEdit}
+                      onTempTitleChange={setTempTitle}
+                      hasVersions={hasVersions}
+                      isVersionsExpanded={isVersionsExpanded}
+                      onToggleVersions={() =>
+                        dispatch(toggleBaseMapVersionsExpanded(baseMap.id))
+                      }
+                      onAddVersion={() => setCreateVersionForBaseMap(baseMap)}
+                    />
+                    {hasVersions && isVersionsExpanded && (
+                      <DndContext
+                        id={`version-dnd-${baseMap.id}`}
+                        sensors={sensors}
+                        collisionDetection={closestCenter}
+                        onDragEnd={async (event) => {
+                          const { active, over } = event;
+                          if (!active || !over || active.id === over.id) return;
 
-                            try {
-                              const oldIdx = sortedVersions.findIndex(
-                                (v) => v.id === active.id
-                              );
-                              const newIdx = sortedVersions.findIndex(
-                                (v) => v.id === over.id
-                              );
-                              if (oldIdx === -1 || newIdx === -1)
-                                return;
+                          try {
+                            const oldIdx = sortedVersions.findIndex(
+                              (v) => v.id === active.id
+                            );
+                            const newIdx = sortedVersions.findIndex(
+                              (v) => v.id === over.id
+                            );
+                            if (oldIdx === -1 || newIdx === -1) return;
 
-                              const reordered = arrayMove(
-                                [...sortedVersions],
-                                oldIdx,
-                                newIdx
+                            const reordered = arrayMove(
+                              [...sortedVersions],
+                              oldIdx,
+                              newIdx
+                            );
+                            let prev = null;
+                            const updates = [];
+                            for (const v of reordered) {
+                              const fi = generateKeyBetween(prev, null);
+                              updates.push(
+                                db.baseMapVersions.update(v.id, {
+                                  fractionalIndex: fi,
+                                })
                               );
-                              let prev = null;
-                              const updates = [];
-                              for (const v of reordered) {
-                                const fi = generateKeyBetween(
-                                  prev,
-                                  null
-                                );
-                                updates.push(
-                                  db.baseMapVersions.update(
-                                    v.id,
-                                    { fractionalIndex: fi }
-                                  )
-                                );
-                                prev = fi;
-                              }
-                              await Promise.all(updates);
-                            } catch (e) {
-                              console.error(
-                                "[BaseMapTreeItem] DnD reorder error:",
-                                e
-                              );
+                              prev = fi;
                             }
-                          }}
+                            await Promise.all(updates);
+                          } catch (e) {
+                            console.error(
+                              "[BaseMapTreeItem] DnD reorder error:",
+                              e
+                            );
+                          }
+                        }}
+                      >
+                        <SortableContext
+                          items={sortedVersionIds}
+                          strategy={verticalListSortingStrategy}
                         >
-                          <SortableContext
-                            items={sortedVersionIds}
-                            strategy={verticalListSortingStrategy}
-                          >
-                            {sortedVersions.map((version) => (
-                              <SortableVersionRow
-                                key={version.id}
-                                version={version}
-                                isSelected={
-                                  selectedVersionId === version.id
-                                }
-                                isHidden={hiddenVersionIds?.includes(
-                                  version.id
-                                )}
-                                onClick={() =>
-                                  handleVersionClick(baseMap, version)
-                                }
-                                onDoubleClick={() =>
-                                  handleActivateVersion(baseMap, version)
-                                }
-                                onToggleHidden={() =>
-                                  dispatch(
-                                    toggleVersionHidden(version.id)
-                                  )
-                                }
-                              />
-                            ))}
-                          </SortableContext>
-                        </DndContext>
-                      )}
-                    </Box>
-                  );
-                })}
-              </List>
-            </SortableContext>
-          </DndContext>
+                          {sortedVersions.map((version) => (
+                            <SortableVersionRow
+                              key={version.id}
+                              baseMap={baseMap}
+                              version={version}
+                              isSelected={selectedVersionId === version.id}
+                              isHidden={hiddenVersionIds?.includes(version.id)}
+                              onClick={() =>
+                                handleVersionClick(baseMap, version)
+                              }
+                              onDoubleClick={() =>
+                                handleActivateVersion(baseMap, version)
+                              }
+                              onToggleHidden={() =>
+                                dispatch(toggleVersionHidden(version.id))
+                              }
+                            />
+                          ))}
+                        </SortableContext>
+                      </DndContext>
+                    )}
+                  </Box>
+                );
+              })}
+            </List>
+          </SortableContext>
 
           <ListItemButton
             className="add-basemap-btn"

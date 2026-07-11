@@ -180,7 +180,13 @@ const AUDIT_TABLES = [
 // Shared/collaborative tables exempt from the ownership guard: records here can
 // be modified and deleted by anyone, not only their creator. Used for resources
 // that are meant to be edited collectively (e.g. annotation templates).
-const OWNERSHIP_EXEMPT_TABLES = new Set(["annotationTemplates"]);
+const OWNERSHIP_EXEMPT_TABLES = new Set([
+  "annotationTemplates",
+  // BaseMaps are collaborative resources: anyone can rename, reorder,
+  // move or delete them (and their versions), not only their creator.
+  "baseMaps",
+  "baseMapVersions",
+]);
 
 AUDIT_TABLES.forEach((tableName) => {
   db[tableName].hook("creating", function (primKey, obj) {
