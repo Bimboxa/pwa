@@ -38,8 +38,9 @@ export default function ButtonFetchMyKrtos({ onClick, loading, variant }) {
               color: "text.secondary",
               borderColor: "divider",
               bgcolor: "white",
-              px: 1.25,
-              py: 0.4,
+              height: 30,
+              whiteSpace: "nowrap",
+              flexShrink: 0,
               "&:hover": { borderColor: "#c9c9d8", bgcolor: "white" },
             }
       }

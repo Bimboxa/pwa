@@ -8,6 +8,7 @@ import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import SearchBar from "Features/search/components/SearchBar";
 import ToggleProjectType from "Features/projectSelector/components/ToggleProjectType";
 import ButtonFetchMyKrtos from "./ButtonFetchMyKrtos";
+import ButtonLoadKrtoFile from "Features/krtoFile/components/ButtonLoadKrtoFile";
 import ListItemDashboardProject from "./ListItemDashboardProject";
 import SectionCloudSearchResults from "./SectionCloudSearchResults";
 import DialogCreateProject from "./DialogCreateProject";
@@ -73,58 +74,90 @@ export default function PanelDashboardProjects({
         minHeight: 0,
       }}
     >
-      {/* toggle chantier/opportunité + search + create */}
-      <Box sx={{ px: 2, pt: 12, pb: 1.5 }}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          <Box
-            sx={{
-              flexShrink: 0,
-              "& .MuiToggleButtonGroup-root": { bgcolor: "white" },
-            }}
-          >
-            <ToggleProjectType
-              value={typeFilter}
-              valueOptions={typeOptions}
-              onChange={onTypeFilterChange}
-            />
-          </Box>
-          <Box
-            sx={{
-              flex: 1,
-              minWidth: 0,
-              // full width even when not focused, so the placeholder is not truncated
-              "& .MuiFormControl-root": { width: 1 },
-              "& .MuiOutlinedInput-root": { bgcolor: "white" },
-            }}
-          >
-            <SearchBar
-              value={searchText}
-              onChange={onSearchTextChange}
-              placeholder={searchS}
-            />
-          </Box>
-          <Button
-            variant="contained"
-            color="secondary"
-            startIcon={<Add />}
-            onClick={handleCreateClick}
-            sx={{ flexShrink: 0, whiteSpace: "nowrap" }}
-          >
-            Nouveau projet
-          </Button>
+      {/* line 1: search + create (github-like) */}
+      <Box sx={{ px: 4, pt: 12, display: "flex", alignItems: "center", gap: 1 }}>
+        <Box
+          sx={{
+            flex: 1,
+            minWidth: 0,
+            // full width even when not focused, so the placeholder is not truncated
+            "& .MuiFormControl-root": { width: 1 },
+            "& .MuiOutlinedInput-root": { bgcolor: "white" },
+          }}
+        >
+          <SearchBar
+            value={searchText}
+            onChange={onSearchTextChange}
+            placeholder={searchS}
+          />
         </Box>
-        {/* my krtos button */}
-        <Box sx={{ mt: 8 }}>
+        <Button
+          variant="contained"
+          color="secondary"
+          startIcon={<Add />}
+          onClick={handleCreateClick}
+          sx={{ flexShrink: 0, whiteSpace: "nowrap" }}
+        >
+          Nouveau projet
+        </Button>
+      </Box>
+
+      {/* line 2: list header with filters (left) and actions (right) */}
+      <Box
+        sx={{
+          px: 4,
+          mt: 8,
+          pb: 1.5,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 1,
+        }}
+      >
+        <Box
+          sx={{
+            flexShrink: 0,
+            "& .MuiToggleButtonGroup-root": { bgcolor: "white" },
+            // both options same width, same height as the small "Mes Krtos" Button
+            "& .MuiToggleButton-root": { width: 110, height: 30, py: 0 },
+            "& .MuiToggleButton-root.Mui-selected": {
+              bgcolor: "primary.main",
+              color: "white",
+              fontWeight: 600,
+              "&:hover": { bgcolor: "primary.main" },
+            },
+          }}
+        >
+          <ToggleProjectType
+            value={typeFilter}
+            valueOptions={typeOptions}
+            onChange={onTypeFilterChange}
+          />
+        </Box>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <ButtonLoadKrtoFile
+            variant="outlined"
+            size="small"
+            sx={{
+              color: "text.secondary",
+              borderColor: "divider",
+              bgcolor: "white",
+              height: 30,
+              whiteSpace: "nowrap",
+              flexShrink: 0,
+              "&:hover": { borderColor: "#c9c9d8", bgcolor: "white" },
+            }}
+          />
           <ButtonFetchMyKrtos onClick={onFetchMyKrtos} loading={myKrtosLoading} />
         </Box>
       </Box>
 
-      <Box sx={{ px: 2 }}>
+      <Box sx={{ px: 4 }}>
         <Divider />
       </Box>
 
       {/* projects list */}
-      <Box sx={{ flex: 1, overflowY: "auto", px: 1.5, py: 1 }}>
+      <Box sx={{ flex: 1, overflowY: "auto", px: 3.5, py: 1 }}>
         {empty && hasSearch && (
           <Box sx={{ textAlign: "center", color: "text.secondary", mt: 6, px: 3 }}>
             <CloudOff sx={{ fontSize: "2.4rem", color: "#c7c7d6" }} />
