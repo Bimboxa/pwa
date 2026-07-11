@@ -17,6 +17,8 @@ import {
 import theme from "Styles/theme";
 
 export default function useViewers() {
+  const advancedLayout = useSelector((s) => s.appConfig.advancedLayout);
+
   const viewers = [
     // {
     //   key: "BLUEPRINT",
@@ -57,6 +59,7 @@ export default function useViewers() {
       shortLabel: "Objets",
       icon: <FormatListBulleted />,
       bgcolor: theme.palette.viewers.listing,
+      disabled: !advancedLayout,
     },
     {
       key: "PRINT",
