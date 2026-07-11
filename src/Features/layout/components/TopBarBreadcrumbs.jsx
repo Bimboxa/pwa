@@ -6,6 +6,7 @@ import { setSelectedScopeId } from "Features/scopes/scopesSlice";
 
 import useSelectedProject from "Features/projects/hooks/useSelectedProject";
 import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
+import useLeftAreaHover from "Features/leftPanel/hooks/useLeftAreaHover";
 
 import { IconButton, Box, Typography, Tooltip } from "@mui/material";
 import HomeIcon from "@mui/icons-material/Home";
@@ -29,6 +30,10 @@ export default function TopBarBreadcrumbs() {
 
   const { value: selectedProject } = useSelectedProject();
   const { value: selectedScope } = useSelectedScope();
+
+  // hover - reveal the left drawer overlay when undocked
+
+  const { onMouseEnter, onMouseLeave } = useLeftAreaHover();
 
   // helper
 
@@ -77,6 +82,8 @@ export default function TopBarBreadcrumbs() {
       <IconButton
         size="small"
         onClick={() => dispatch(setLeftPanelDocked(!leftPanelDocked))}
+        onMouseEnter={leftPanelDocked ? undefined : onMouseEnter}
+        onMouseLeave={leftPanelDocked ? undefined : onMouseLeave}
         sx={{
           color: "action.active",
           bgcolor: leftPanelDocked ? "action.selected" : "transparent",

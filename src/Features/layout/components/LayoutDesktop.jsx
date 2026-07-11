@@ -4,8 +4,6 @@ import { useSearchParams } from "react-router-dom";
 
 import { setSelectedViewerKey } from "Features/viewers/viewersSlice";
 
-import useLeftAreaHover from "Features/leftPanel/hooks/useLeftAreaHover";
-
 import { Box } from "@mui/material";
 
 import BoxFlexV from "./BoxFlexV";
@@ -18,25 +16,6 @@ import LeftPanel from "Features/leftPanel/components/LeftPanel";
 import RightPanelContainer from "Features/rightPanel/components/RightPanelContainer";
 import VerticalMenuViewers from "Features/viewers/components/VerticalMenuViewers";
 
-function LeftEdgeHoverZone() {
-  const { onMouseEnter, onMouseLeave } = useLeftAreaHover();
-
-  return (
-    <Box
-      onMouseEnter={onMouseEnter}
-      onMouseLeave={onMouseLeave}
-      sx={{
-        position: "absolute",
-        left: 0,
-        top: 0,
-        bottom: 0,
-        width: 12,
-        zIndex: 5,
-      }}
-    />
-  );
-}
-
 export default function LayoutDesktop() {
   const dispatch = useDispatch();
 
@@ -45,7 +24,6 @@ export default function LayoutDesktop() {
   const isFullScreen = useSelector((s) => s.layout.isFullScreen);
   const advancedLayout = useSelector((s) => s.appConfig.advancedLayout);
   const disable3D = useSelector((s) => s.appConfig.disable3D);
-  const leftPanelDocked = useSelector((s) => s.leftPanel.leftPanelDocked);
 
   // honor ?viewer=3d deep link: don't reset the viewer to MAP when 3D is requested
   const [searchParams] = useSearchParams();
@@ -64,7 +42,6 @@ export default function LayoutDesktop() {
       {!isFullScreen && <TopBarDesktop />}
       <Box sx={{ display: "flex", width: 1, flexGrow: 1, minHeight: 0, position: "relative" }}>
         {!isFullScreen && <VerticalMenuViewers />}
-        {!isFullScreen && !leftPanelDocked && <LeftEdgeHoverZone />}
         <Box sx={{ display: "flex", width: 1, minWidth: 0, minHeight: 0 }}>
           <LeftPanel />
           <Box sx={{ flex: 1, minWidth: 0, position: "relative" }}>

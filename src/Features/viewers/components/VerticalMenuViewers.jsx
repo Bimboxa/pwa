@@ -1,6 +1,6 @@
-import { useDispatch, useSelector } from "react-redux";
+import { useSelector } from "react-redux";
 
-import { setSelectedViewerKey } from "../viewersSlice";
+import useSwitchViewer from "../hooks/useSwitchViewer";
 
 import useViewers from "../hooks/useViewers";
 import useLeftAreaHover from "Features/leftPanel/hooks/useLeftAreaHover";
@@ -14,14 +14,13 @@ import {
 const MENU_WIDTH = 90;
 
 export default function VerticalMenuViewers() {
-  const dispatch = useDispatch();
+  const switchViewer = useSwitchViewer();
 
   // data
 
   const viewers = useViewers();
   const selectedViewerKey = useSelector((s) => s.viewers.selectedViewerKey);
   const leftPanelDocked = useSelector((s) => s.leftPanel.leftPanelDocked);
-  const visible = useSelector((s) => s.leftPanel.leftDrawerHovered);
 
   // hover
 
@@ -30,7 +29,7 @@ export default function VerticalMenuViewers() {
   // handlers
 
   function handleClick(viewerKey) {
-    dispatch(setSelectedViewerKey(viewerKey));
+    switchViewer(viewerKey);
   }
 
   // render - shared content
@@ -80,47 +79,20 @@ export default function VerticalMenuViewers() {
     );
   });
 
-  // render - docked mode
-
-  if (leftPanelDocked) {
-    return (
-      <Box
-        sx={{
-          display: "flex",
-          flexDirection: "column",
-          bgcolor: "common.black",
-          py: 1,
-          width: MENU_WIDTH,
-          minWidth: MENU_WIDTH,
-          overflowY: "auto",
-        }}
-      >
-        {content}
-      </Box>
-    );
-  }
-
-  // render - drawer mode
+  // render - always-visible bar; hovering it reveals the drawer when undocked
 
   return (
     <Box
-      onMouseEnter={onMouseEnter}
-      onMouseLeave={onMouseLeave}
+      onMouseEnter={leftPanelDocked ? undefined : onMouseEnter}
+      onMouseLeave={leftPanelDocked ? undefined : onMouseLeave}
       sx={{
-        position: "absolute",
-        left: 0,
-        top: 0,
-        bottom: 0,
-        width: MENU_WIDTH,
-        zIndex: 20,
         display: "flex",
         flexDirection: "column",
         bgcolor: "common.black",
         py: 1,
+        width: MENU_WIDTH,
+        minWidth: MENU_WIDTH,
         overflowY: "auto",
-        boxShadow: visible ? 4 : 0,
-        transform: visible ? "translateX(0)" : "translateX(-100%)",
-        transition: "transform 0.25s ease, box-shadow 0.25s ease",
       }}
     >
       {content}

@@ -44,7 +44,7 @@ export default function LeftDrawerPanel({ children, width = 260, viewerKey }) {
       onMouseLeave={onMouseLeave}
       sx={{
         position: "absolute",
-        left: 90,
+        left: 0,
         top: 0,
         bottom: 0,
         width,
@@ -52,7 +52,7 @@ export default function LeftDrawerPanel({ children, width = 260, viewerKey }) {
         bgcolor: "background.default",
         boxShadow: visible ? 4 : 0,
         overflow: "auto",
-        transform: visible ? "translateX(0)" : "translateX(calc(-100% - 90px))",
+        transform: visible ? "translateX(0)" : "translateX(-100%)",
         transition: "transform 0.25s ease, box-shadow 0.25s ease",
       }}
     >
