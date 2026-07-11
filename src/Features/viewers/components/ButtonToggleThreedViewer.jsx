@@ -1,12 +1,12 @@
-import { useDispatch, useSelector } from "react-redux";
+import { useSelector } from "react-redux";
 
-import { setSelectedViewerKey } from "../viewersSlice";
+import useSwitchViewer from "../hooks/useSwitchViewer";
 
 import { Button, Typography } from "@mui/material";
 import { ArrowRightAlt } from "@mui/icons-material";
 
 export default function ButtonToggleThreedViewer() {
-  const dispatch = useDispatch();
+  const switchViewer = useSwitchViewer();
 
   const selectedViewerKey = useSelector((s) => s.viewers.selectedViewerKey);
 
@@ -15,7 +15,7 @@ export default function ButtonToggleThreedViewer() {
   const buttonLabel = isThreed ? "2D" : "3D";
 
   function handleClick() {
-    dispatch(setSelectedViewerKey(isThreed ? "MAP" : "THREED"));
+    switchViewer(isThreed ? "MAP" : "THREED");
   }
 
   return (

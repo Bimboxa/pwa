@@ -161,6 +161,9 @@ const MapEditorViewport = forwardRef(({
             }
             return { width: 0, height: 0 };
         },
+        getViewportRect: () => {
+            return svgRef.current?.getBoundingClientRect() ?? null;
+        },
         getMousePositions(e) {
             const rect = svgRef.current.getBoundingClientRect();
             return {

@@ -62,6 +62,14 @@ export default class SceneManager {
 
     this._initRenderer();
     this.controlsManager.initControls();
+
+    // The window "resize" listener misses pure layout changes (a startup
+    // overlay/drawer that collapses after load, panels toggling) — the canvas
+    // then keeps a stale fixed size (setSize pins its CSS size) until the
+    // next window resize. Track the container itself instead.
+    this._resizeObserver = new ResizeObserver(() => this.resizeScene());
+    this._resizeObserver.observe(this.containerEl);
+
     // Init the transform controls eagerly so the editor mode panel can attach
     // them on first toggle without waiting for a lazy init.
     this.transformControlsManager.init();
@@ -72,14 +80,31 @@ export default class SceneManager {
   };
 
   resizeScene = () => {
+    if (!this.camera || !this.renderer) return;
     const width = this.containerEl.clientWidth;
     const height = this.containerEl.clientHeight;
+    if (!width || !height) return;
 
     this.renderer.setSize(width, height);
     this._updateCamera({ width, height });
     this.sectionContourManager?.onResize();
     // Aspect changed → reset the path tracer's sample accumulation.
     this.renderModeManager?.onCameraChange();
+    this.renderScene();
+  };
+
+  // Re-sync the canvas to its container if a layout change was missed (the
+  // 2D/3D switch calls this before measuring the viewport, so the camera
+  // match is never computed against a stale canvas size).
+  ensureSizeSynced = () => {
+    const dom = this.renderer?.domElement;
+    if (!dom || !this.containerEl) return;
+    const width = this.containerEl.clientWidth;
+    const height = this.containerEl.clientHeight;
+    if (!width || !height) return;
+    if (dom.clientWidth !== width || dom.clientHeight !== height) {
+      this.resizeScene();
+    }
   };
 
   renderScene = () => {

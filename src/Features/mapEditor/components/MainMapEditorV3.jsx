@@ -15,6 +15,11 @@ import { resetVersionCompare } from "Features/baseMapEditor/baseMapEditorSlice";
 
 import useMeasure from "react-use-measure";
 
+import {
+    setActiveMapEditor,
+    clearActiveMapEditor,
+} from "../services/mapEditorRegistry";
+
 import useBgImageInMapEditor from "Features/mapEditor/hooks/useBgImageInMapEditor";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useBaseMapPose from "Features/mapEditor/hooks/useBaseMapPose";
@@ -178,6 +183,19 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
             editor.printableMapSvgElement = printableMapRef.current;
         }
     }, [printableMapRef?.current]);
+
+    // Register the camera handle of the MAP instance (this component is also
+    // mounted for BASE_MAPS) so the 2D/3D viewer switch can sync cameras.
+    useEffect(() => {
+        if (forViewerKey !== "MAP") return;
+        setActiveMapEditor({
+            getCameraMatrix: () => interactionLayerRef.current?.getCameraMatrix?.(),
+            setCameraMatrix: (m) => interactionLayerRef.current?.setCameraMatrix?.(m),
+            getViewportSize: () => interactionLayerRef.current?.getViewportSize?.(),
+            getViewportRect: () => interactionLayerRef.current?.getViewportRect?.(),
+        });
+        return clearActiveMapEditor;
+    }, [forViewerKey]);
 
     // data
 

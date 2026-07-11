@@ -1367,6 +1367,12 @@ const InteractionLayer = forwardRef(({
       }
       return { x: 0, y: 0, k: 1 };
     },
+    getViewportSize: () => {
+      return viewportRef.current?.getViewportSize() ?? { width: 0, height: 0 };
+    },
+    getViewportRect: () => {
+      return viewportRef.current?.getViewportRect() ?? null;
+    },
   }));
 
   // newAnnotation

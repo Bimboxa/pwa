@@ -60,6 +60,9 @@ export default class ControlsManager {
     this._rafId = null;
     this._disposed = false;
 
+    // maxDistance stashed by animateFovTo, restored by restorePerspectiveFov.
+    this._stashedMaxDistance = null;
+
     // Pivot-under-cursor scratch objects — allocated once, reused per event.
     this._pivotRaycaster = new Raycaster();
     this._pivotNdc = new Vector2();
@@ -83,6 +86,11 @@ export default class ControlsManager {
       this.sceneManager.camera,
       this.sceneManager.renderer.domElement
     );
+
+    // Stable reference fov for the 2D/3D switch dolly-zoom: reading the live
+    // camera.fov is fragile (a pending fov restore would be read back as the
+    // reference).
+    this.referenceFov = this.sceneManager.camera?.fov ?? 75;
 
     // Match the previous OrbitControls feel.
     this.cameraControls.minDistance = 0.1;
@@ -221,6 +229,206 @@ export default class ControlsManager {
       paddingTop: padding,
       paddingBottom: padding,
     });
+  };
+
+  // Jump the camera to an explicit pose, no transition. Used by the 2D->3D
+  // viewer switch to pre-position the (hidden) 3D view before it is shown.
+  applyPoseInstant = ({ position, target }) => {
+    if (!this.cameraControls || !position || !target) return;
+    this.cameraControls.setLookAt(
+      position.x,
+      position.y,
+      position.z,
+      target.x,
+      target.y,
+      target.z,
+      false // no transition
+    );
+  };
+
+  // 2D->3D entry: jump (no transition) to a near-ortho pose — narrow `fovFrom`
+  // with the matching far distance — then animate the fov to `fovTo` while
+  // dollying in to keep the target-plane scale constant (dolly zoom). The user
+  // sees the flat view progressively gain perspective.
+  applyPoseAndAnimateFov = async ({
+    position,
+    target,
+    fovFrom,
+    fovTo,
+    durationMs = 500,
+  }) => {
+    const controls = this.cameraControls;
+    const camera = this.sceneManager?.camera;
+    if (!controls || !camera || !position || !target) return;
+
+    const prevEnabled = controls.enabled;
+    const prevMaxDistance = controls.maxDistance;
+    try {
+      controls.enabled = false; // ignore user input mid-flight
+      // The near-ortho start pose sits farther than the interactive dolly
+      // limit; lift it for the duration of the transition.
+      controls.maxDistance = Infinity;
+
+      camera.fov = fovFrom;
+      camera.updateProjectionMatrix();
+      controls.setLookAt(
+        position.x,
+        position.y,
+        position.z,
+        target.x,
+        target.y,
+        target.z,
+        false
+      );
+      controls.update(0); // apply the pose now, before the panel is revealed
+      this.sceneManager.renderScene();
+
+      const distance = Math.hypot(
+        position.x - target.x,
+        position.y - target.y,
+        position.z - target.z
+      );
+      await this._animateFovKeepingScale({ fovTo, durationMs, distance });
+    } finally {
+      // The end distance (reference fov) is back within the normal limits.
+      controls.maxDistance = prevMaxDistance;
+      controls.enabled = prevEnabled;
+    }
+  };
+
+  // 3D->2D: flatten the perspective (fov -> near-ortho) while dollying out to
+  // keep the plan scale constant. maxDistance stays lifted afterwards (the end
+  // pose is far away); `restorePerspectiveFov` puts it back once the 2D viewer
+  // is shown.
+  animateFovTo = async ({ fovTo, durationMs = 500 }) => {
+    const controls = this.cameraControls;
+    const camera = this.sceneManager?.camera;
+    if (!controls || !camera) return;
+
+    const prevEnabled = controls.enabled;
+    try {
+      controls.enabled = false;
+      if (this._stashedMaxDistance == null) {
+        this._stashedMaxDistance = controls.maxDistance;
+      }
+      controls.maxDistance = Infinity;
+      await this._animateFovKeepingScale({ fovTo, durationMs });
+    } finally {
+      controls.enabled = prevEnabled;
+    }
+  };
+
+  // Put the camera back on the reference fov (same target-plane scale) and
+  // restore the dolly limit stashed by `animateFovTo`. Called on the hidden
+  // 3D view right after the switch to 2D.
+  restorePerspectiveFov = ({ fovDeg }) => {
+    const controls = this.cameraControls;
+    const camera = this.sceneManager?.camera;
+    if (!controls || !camera || !(fovDeg > 0)) return;
+
+    // Keep h = 2 * d * tan(fov/2) constant across the fov change.
+    const h = 2 * controls.distance * Math.tan((camera.fov * Math.PI) / 360);
+    camera.fov = fovDeg;
+    camera.updateProjectionMatrix();
+
+    if (this._stashedMaxDistance != null) {
+      controls.maxDistance = this._stashedMaxDistance;
+      this._stashedMaxDistance = null;
+    }
+    const d = h / (2 * Math.tan((fovDeg * Math.PI) / 360));
+    controls.dollyTo(
+      Math.min(controls.maxDistance, Math.max(controls.minDistance, d)),
+      false
+    );
+  };
+
+  // Shared dolly-zoom driver: ease the fov to `fovTo` over `durationMs`,
+  // adjusting the dolly distance each frame so the target plane keeps the
+  // same on-screen size. Rendering is handled by the continuous _loop (the
+  // per-frame dollyTo marks the controls dirty).
+  _animateFovKeepingScale = ({ fovTo, durationMs, distance }) =>
+    new Promise((resolve) => {
+      const controls = this.cameraControls;
+      const camera = this.sceneManager?.camera;
+      if (!controls || !camera || !(durationMs > 0) || !(fovTo > 0)) {
+        resolve();
+        return;
+      }
+
+      const fovFrom = camera.fov;
+      const d0 = Number.isFinite(distance) ? distance : controls.distance;
+      const h = 2 * d0 * Math.tan((fovFrom * Math.PI) / 360);
+      const t0 = performance.now();
+
+      const tick = (now) => {
+        if (this._disposed || !this.cameraControls) {
+          resolve();
+          return;
+        }
+        const t = Math.min(1, (now - t0) / durationMs);
+        // easeInOutCubic
+        const e = t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+        const fov = fovFrom + (fovTo - fovFrom) * e;
+        camera.fov = fov;
+        camera.updateProjectionMatrix();
+        this.cameraControls.dollyTo(
+          h / (2 * Math.tan((fov * Math.PI) / 360)),
+          false
+        );
+        if (t < 1) {
+          requestAnimationFrame(tick);
+        } else {
+          resolve();
+        }
+      };
+      requestAnimationFrame(tick);
+    });
+
+  // Animate the camera to a top-down view of `target`, pivoting around it
+  // (distance preserved). `polarRad` stays slightly above 0 because camera-
+  // controls degenerates at an exactly vertical look direction. Resolves when
+  // the transition has settled.
+  animateToTopDown = async ({
+    target,
+    azimuthRad = 0,
+    polarRad = 0.001,
+    smoothTime = 0.15,
+  }) => {
+    const controls = this.cameraControls;
+    if (!controls || !target) return;
+
+    const prevSmoothTime = controls.smoothTime;
+    const prevEnabled = controls.enabled;
+    try {
+      controls.enabled = false; // ignore user input mid-flight
+      controls.smoothTime = smoothTime;
+      // setOrbitPoint is immediate and view-preserving; the rotate below then
+      // pivots around the new target.
+      controls.setOrbitPoint(target.x, target.y, target.z);
+      // Azimuth is unbounded in camera-controls: aim for the equivalent angle
+      // nearest the current one so the camera takes the short way around.
+      const azimuthNearest =
+        azimuthRad +
+        2 *
+          Math.PI *
+          Math.round((controls.azimuthAngle - azimuthRad) / (2 * Math.PI));
+      await controls.rotateTo(azimuthNearest, polarRad, true);
+      // The transition promise resolves at restThreshold (a few mrad off);
+      // snap to the exact pose before anything is computed from it.
+      controls.rotateTo(azimuthNearest, polarRad, false);
+    } finally {
+      controls.smoothTime = prevSmoothTime;
+      controls.enabled = prevEnabled;
+    }
+  };
+
+  // Apply the controls' current internal state to the camera object right
+  // now (the _loop only does it on its next frame) so reads of the camera
+  // matrices reflect the settled end-of-animation pose.
+  syncCameraNow = () => {
+    if (!this.cameraControls) return;
+    this.cameraControls.update(0);
+    this.sceneManager?.camera?.updateMatrixWorld(true);
   };
 
   // ----- orbit-around-cursor -------------------------------------------
