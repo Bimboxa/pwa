@@ -25,11 +25,17 @@ import {
   setBaseMapOpacityIn3d,
   toggleBaseMapVisibleIn3d,
   setBaseMapAnnotationsModeIn3d,
+  toggleMainBaseMapImageIn3d,
+  toggleMainBaseMapAnnotationsIn3d,
 } from "Features/threedEditor/threedEditorSlice";
 import { ANNOTATIONS_DISPLAY_MODE_OPTIONS } from "Features/threedEditor/constants/annotationsDisplayModeIn3d";
 
 import FieldMeasure from "./FieldMeasure";
 import { IconGizmoTranslate, IconGizmoRotate } from "./iconsGizmo";
+import {
+  IconAnnotationsHidden,
+  IconAnnotationsNormal,
+} from "./iconsAnnotationsDisplay";
 
 import {
   Box,
@@ -133,6 +139,12 @@ export default function PanelBaseMapPosition3D() {
   );
   const annotationsModeByBaseMapId = useSelector(
     (s) => s.threedEditor.annotationsModeByBaseMapIdIn3d
+  );
+  const hideMainImage = useSelector(
+    (s) => s.threedEditor.hideMainBaseMapImageIn3d
+  );
+  const hideMainAnnotations = useSelector(
+    (s) => s.threedEditor.hideMainBaseMapAnnotationsIn3d
   );
 
   const drawingOffset = useSelector((s) => s.threedEditor.drawingOffset ?? 0);
@@ -444,7 +456,9 @@ export default function PanelBaseMapPosition3D() {
           >
             {projectBaseMaps.map((map) => {
               const isMain = map.id === baseMapId;
-              const isVisible = isMain || visibleIds.includes(map.id);
+              const isVisible = isMain
+                ? !hideMainImage
+                : visibleIds.includes(map.id);
               const annotationsMode =
                 annotationsModeByBaseMapId?.[map.id] ?? "NONE";
               return (
@@ -468,10 +482,35 @@ export default function PanelBaseMapPosition3D() {
                         fontWeight: isMain ? 700 : 400,
                       }}
                     />
-                    {/* Per-basemap annotation display mode. Hidden for the
-                        main basemap (its annotations are always shown and
-                        driven by the selection state). */}
-                    {!isMain && (
+                    {/* Per-basemap annotation display mode. The main basemap
+                        gets a simple on/off toggle (render-time flag, DIMMED
+                        doesn't apply); the others get the 3-mode group. */}
+                    {isMain ? (
+                      <Tooltip
+                        title={
+                          hideMainAnnotations
+                            ? "Afficher les annotations dans la vue 3D"
+                            : "Masquer les annotations dans la vue 3D"
+                        }
+                      >
+                        <IconButton
+                          size="small"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            dispatch(toggleMainBaseMapAnnotationsIn3d());
+                          }}
+                        >
+                          {hideMainAnnotations ? (
+                            <IconAnnotationsHidden
+                              sx={{ fontSize: 16 }}
+                              color="error"
+                            />
+                          ) : (
+                            <IconAnnotationsNormal sx={{ fontSize: 16 }} />
+                          )}
+                        </IconButton>
+                      </Tooltip>
+                    ) : (
                       <ToggleButtonGroup
                         exclusive
                         size="small"
@@ -505,30 +544,29 @@ export default function PanelBaseMapPosition3D() {
                     )}
                     <Tooltip
                       title={
-                        isMain
-                          ? "Fond de plan sélectionné (toujours affiché en 3D)"
-                          : isVisible
-                            ? "Masquer l'image dans la vue 3D"
-                            : "Afficher l'image dans la vue 3D"
+                        isVisible
+                          ? "Masquer l'image dans la vue 3D"
+                          : "Afficher l'image dans la vue 3D"
                       }
                     >
-                      <span>
-                        <IconButton
-                          size="small"
-                          edge="end"
-                          disabled={isMain}
-                          onClick={(e) => {
-                            e.stopPropagation();
+                      <IconButton
+                        size="small"
+                        edge="end"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (isMain) {
+                            dispatch(toggleMainBaseMapImageIn3d());
+                          } else {
                             dispatch(toggleBaseMapVisibleIn3d(map.id));
-                          }}
-                        >
-                          {isVisible ? (
-                            <Visibility fontSize="small" />
-                          ) : (
-                            <VisibilityOff fontSize="small" color="error" />
-                          )}
-                        </IconButton>
-                      </span>
+                          }
+                        }}
+                      >
+                        {isVisible ? (
+                          <Visibility fontSize="small" />
+                        ) : (
+                          <VisibilityOff fontSize="small" color="error" />
+                        )}
+                      </IconButton>
                     </Tooltip>
                   </ListItemButton>
                 </ListItem>

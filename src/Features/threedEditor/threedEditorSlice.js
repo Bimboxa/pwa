@@ -44,6 +44,11 @@ const threedEditorInitialState = {
   // (selected) base map is not stored here — its annotations are always shown
   // and driven by the selection dimmer. Session-only, resets on every reload.
   annotationsModeByBaseMapIdIn3d: {},
+  // Main (selected) base map hide flags — the main base map defaults to fully
+  // visible, so unlike the opt-in fields above these are opt-out. Both reset
+  // to false whenever the main base map changes (see extraReducers).
+  hideMainBaseMapImageIn3d: false,
+  hideMainBaseMapAnnotationsIn3d: false,
   // Fire-and-forget cross-tab event: pan the 3D camera to a world-space
   // point. `triggeredAt` makes repeated clicks at the same spot still fire.
   // `baseMapId` is a guard: the consumer ignores the event when its current
@@ -189,6 +194,13 @@ export const threedEditorSlice = createSlice({
       } else {
         state.annotationsModeByBaseMapIdIn3d[baseMapId] = mode;
       }
+    },
+    toggleMainBaseMapImageIn3d: (state) => {
+      state.hideMainBaseMapImageIn3d = !state.hideMainBaseMapImageIn3d;
+    },
+    toggleMainBaseMapAnnotationsIn3d: (state) => {
+      state.hideMainBaseMapAnnotationsIn3d =
+        !state.hideMainBaseMapAnnotationsIn3d;
     },
     setNavigateToWorldPoint: (state, action) => {
       state.navigateToWorldPoint = action.payload;
@@ -389,6 +401,17 @@ export const threedEditorSlice = createSlice({
       state.mesh3dLabels = { ...state.mesh3dLabels, ...action.payload };
     },
   },
+  extraReducers: (builder) => {
+    // Selecting a base map as main must reveal it fully — reset its hide
+    // flags. Matched by type string to avoid importing mapEditorSlice.
+    builder.addMatcher(
+      (action) => action.type === "mapEditors/setSelectedMainBaseMapId",
+      (state) => {
+        state.hideMainBaseMapImageIn3d = false;
+        state.hideMainBaseMapAnnotationsIn3d = false;
+      }
+    );
+  },
 });
 
 export const {
@@ -402,6 +425,8 @@ export const {
   setBaseMapOpacityIn3d,
   toggleBaseMapVisibleIn3d,
   setBaseMapAnnotationsModeIn3d,
+  toggleMainBaseMapImageIn3d,
+  toggleMainBaseMapAnnotationsIn3d,
   setNavigateToWorldPoint,
   setSelectAnnotationInThreed,
   setDrawingModeActive,

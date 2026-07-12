@@ -90,6 +90,7 @@ import {
 } from "Features/threedMesh/services/mesh3dObjectsStore";
 import { filterIntersectionsByVisibility } from "Features/threedEditor/js/utilsAnnotationsManager/visibilityPick";
 import ThreedAnnotationsVisibility from "./ThreedAnnotationsVisibility";
+import TopBaseMapChipsThreed from "./TopBaseMapChipsThreed";
 
 export default function MainThreedEditor() {
   // ref
@@ -1565,6 +1566,7 @@ export default function MainThreedEditor() {
       {isThreedViewer && (
         <ThreedAnnotationsVisibility threedEditorRef={threedEditorRef} />
       )}
+      {isThreedViewer && !imageModeEnabled && <TopBaseMapChipsThreed />}
       {isThreedViewer &&
         (clippingEditing ? (
           <ClippingToolbarThreed />

@@ -16,9 +16,10 @@ import { getActiveThreedEditor } from "Features/threedEditor/services/threedEdit
 // so a basemap's annotations can render even while its image is hidden.
 //
 // A basemap shown for the first time is lazily created once, then cached so
-// subsequent toggles are a cheap flag flip. The main (selected) basemap is
-// always visible. Mounted once from MainThreedEditor, same pattern as
-// useApplyBaseMapOpacityIn3d.
+// subsequent toggles are a cheap flag flip. The main (selected) basemap always
+// participates (its group stays loaded) but its image can be hidden through
+// `hideMainBaseMapImageIn3d`. Mounted once from MainThreedEditor, same pattern
+// as useApplyBaseMapOpacityIn3d.
 export default function useApplyBaseMapVisibilityIn3d() {
   const visibleIds = useSelector((s) => s.threedEditor.visibleBaseMapIdsIn3d);
   const annotationsModeByBaseMapId = useSelector(
@@ -27,6 +28,10 @@ export default function useApplyBaseMapVisibilityIn3d() {
   // Global "Masquer les fonds de plan" switch: hides every basemap image
   // while keeping the groups (and their annotations) rendered.
   const hideBaseMaps = useSelector((s) => s.threedEditor.hideBaseMaps);
+  // Opt-out image eye of the main basemap (chips overlay / position panel).
+  const hideMainImage = useSelector(
+    (s) => s.threedEditor.hideMainBaseMapImageIn3d
+  );
   const mainBaseMap = useMainBaseMap();
   const { value: baseMaps = [] } = useBaseMaps();
   const store = useStore();
@@ -48,7 +53,8 @@ export default function useApplyBaseMapVisibilityIn3d() {
     const annoModes = annotationsModeByBaseMapId || {};
 
     baseMaps.forEach((bm) => {
-      const eyeOn = bm.id === mainId || visible.has(bm.id);
+      const eyeOn =
+        bm.id === mainId ? !hideMainImage : visible.has(bm.id);
       const annoOn =
         bm.id === mainId || (annoModes[bm.id] && annoModes[bm.id] !== "NONE");
       const shouldParticipate = eyeOn || annoOn;
@@ -70,5 +76,6 @@ export default function useApplyBaseMapVisibilityIn3d() {
     mainBaseMap?.id,
     baseMapsKey,
     hideBaseMaps,
+    hideMainImage,
   ]);
 }
