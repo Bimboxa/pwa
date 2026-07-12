@@ -10,7 +10,6 @@ import {
   computeOrthoFov,
   metersPerScreenPxFrom2d,
   metersPerScreenPxFrom3d,
-  TOP_DOWN_POLAR_EPSILON,
 } from "../utils/viewerCameraSync";
 
 // Orchestrates the seamless 2D <-> 3D switch: position the hidden viewer's
@@ -243,7 +242,8 @@ export async function switchThreedToMap({ dispatch, baseMap, basePose }) {
     await s.controlsManager.animateToTopDown({
       target: pivot.target,
       azimuthRad: s.ctx.alphaRad,
-      polarRad: TOP_DOWN_POLAR_EPSILON,
+      // Top-down for floor plans, head-on (PI/2) for vertical walls.
+      polarRad: s.ctx.polarRad,
     });
     probe3d("3D->2D | 3D after rotate", s);
 

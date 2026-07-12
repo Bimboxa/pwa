@@ -384,9 +384,10 @@ export default class ControlsManager {
       requestAnimationFrame(tick);
     });
 
-  // Animate the camera to a top-down view of `target`, pivoting around it
-  // (distance preserved). `polarRad` stays slightly above 0 because camera-
-  // controls degenerates at an exactly vertical look direction. Resolves when
+  // Animate the camera to a plane-facing view of `target`, pivoting around it
+  // (distance preserved): top-down for floor plans (polarRad slightly above 0
+  // because camera-controls degenerates at an exactly vertical look
+  // direction), head-on (polarRad = PI/2) for vertical walls. Resolves when
   // the transition has settled.
   animateToTopDown = async ({
     target,

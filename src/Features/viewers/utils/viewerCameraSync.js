@@ -13,10 +13,14 @@ import pixelToWorld from "Features/threedEditor/js/utilsAnnotationsManager/pixel
 // image transform only places the *displayed image*, not the annotations). In 3D
 // it is exactly the basemap plane parameterization (`pixelToWorld` + placement).
 //
-// Top-down pose: camera-controls degenerates at polar angle 0 exactly (lookAt
-// forward // up gives an uncontrolled roll), so "vertical" means polar = EPSILON
-// (~0.06 deg, visually top-down). With azimuth = the basemap's angleDeg, the
-// image renders unrotated on screen, matching the 2D view.
+// Matching pose per orientation:
+// - HORIZONTAL (floor plan): top-down camera. camera-controls degenerates at
+//   polar angle 0 exactly (lookAt forward // up gives an uncontrolled roll),
+//   so "vertical look" means polar = EPSILON (~0.06 deg, visually top-down).
+// - VERTICAL (wall/elevation): head-on horizontal camera along the plane
+//   normal — polar = PI/2, no degeneracy.
+// In both cases azimuth = the basemap's angleDeg, so the image renders
+// unrotated on screen, matching the 2D view.
 
 export const TOP_DOWN_POLAR_EPSILON = 0.001; // rad
 
@@ -34,8 +38,6 @@ export function getCameraSyncContext({ baseMap, basePose }) {
   if (!Number.isFinite(meterByPx) || meterByPx <= 0) return null;
 
   const transform = getBaseMapTransform(baseMap);
-  // A VERTICAL basemap (wall) has no top-down 2D-equivalent view.
-  if (transform.orientation !== "HORIZONTAL") return null;
 
   if (
     !Number.isFinite(basePose?.x) ||
@@ -50,6 +52,11 @@ export function getCameraSyncContext({ baseMap, basePose }) {
     imageSize: { width: imageSize.width, height: imageSize.height },
     transform,
     alphaRad: (transform.angleDeg * Math.PI) / 180,
+    // Polar angle of the plane-facing camera (see module comment).
+    polarRad:
+      transform.orientation === "VERTICAL"
+        ? Math.PI / 2
+        : TOP_DOWN_POLAR_EPSILON,
   };
 }
 
@@ -106,13 +113,16 @@ export function computeThreedPoseFrom2d({
   // ortho entry pose is allowed farther (the caller lifts maxDistance).
   distance = Math.min(maxDistance, Math.max(0.1, distance));
 
-  const eps = TOP_DOWN_POLAR_EPSILON;
+  // Spherical offset around the target: polar = plane-facing angle,
+  // azimuth = the basemap's angleDeg. Top-down (polar ~ 0) for floor plans,
+  // head-on (polar = PI/2) for vertical walls.
+  const polar = ctx.polarRad;
   const alpha = ctx.alphaRad;
   return {
     position: {
-      x: target.x + distance * Math.sin(eps) * Math.sin(alpha),
-      y: target.y + distance * Math.cos(eps),
-      z: target.z + distance * Math.sin(eps) * Math.cos(alpha),
+      x: target.x + distance * Math.sin(polar) * Math.sin(alpha),
+      y: target.y + distance * Math.cos(polar),
+      z: target.z + distance * Math.sin(polar) * Math.cos(alpha),
     },
     target: { x: target.x, y: target.y, z: target.z },
   };
