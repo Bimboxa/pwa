@@ -6,29 +6,22 @@ import {
   toggleMainBaseMapImageIn3d,
   toggleMainBaseMapAnnotationsIn3d,
 } from "Features/threedEditor/threedEditorSlice";
-import { setSelectedMainBaseMapId } from "Features/mapEditor/mapEditorSlice";
 
-import { Box, IconButton, Stack, Tooltip, Typography } from "@mui/material";
-import { Visibility, VisibilityOff } from "@mui/icons-material";
+import { Box, Stack, Tooltip, Typography } from "@mui/material";
 
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useAnnotationsCountByBaseMapId from "Features/annotations/hooks/useAnnotationsCountByBaseMapId";
-import {
-  IconAnnotationsHidden,
-  IconAnnotationsNormal,
-} from "Features/threedEditor/components/iconsAnnotationsDisplay";
 import { ANNOTATIONS_DISPLAY_MODE } from "Features/threedEditor/constants/annotationsDisplayModeIn3d";
 
 // Floating chips row pinned to the top-center of the 3D viewer — one chip per
-// project basemap. Each chip: click on the name selects it as the main
-// basemap (the one shown in the top-bar selector); at rest it shows the
-// basemap's annotations count, and hovering the chip swaps the count for the
-// two visibility toggles (image eye / annotations polygon) without resizing —
-// the icons own the layout, the count is absolutely centered on top.
-// Horizontal re-presentation of the "Fonds de plan" list of
-// PanelBaseMapPosition3D — same redux state and actions, the scene sync is
-// already handled by useApplyBaseMapVisibilityIn3d / ThreedAnnotationsVisibility.
+// project basemap: the basemap name + a rounded badge with its annotations
+// count. Clicking the chip toggles the basemap IMAGE in 3D; clicking the
+// badge toggles its ANNOTATIONS in 3D. Selecting the main basemap is NOT done
+// here — it happens by clicking the basemap image in the 3D scene
+// (MainThreedEditor.handleClick); the main chip is only highlighted.
+// The scene sync is already handled by useApplyBaseMapVisibilityIn3d /
+// ThreedAnnotationsVisibility.
 export default function TopBaseMapChipsThreed() {
   const dispatch = useDispatch();
 
@@ -50,13 +43,7 @@ export default function TopBaseMapChipsThreed() {
 
   // handlers
 
-  function handleSelect(map) {
-    if (map.id !== mainBaseMap?.id)
-      dispatch(setSelectedMainBaseMapId(map.id));
-  }
-
-  function handleToggleImage(e, map, isMain) {
-    e.stopPropagation();
+  function handleToggleImage(map, isMain) {
     if (isMain) {
       dispatch(toggleMainBaseMapImageIn3d());
     } else {
@@ -101,12 +88,9 @@ export default function TopBaseMapChipsThreed() {
     >
       {baseMaps.map((map) => {
         const isMain = map.id === mainBaseMap?.id;
-        const imageOn = isMain
-          ? !hideMainImage
-          : visibleIds.includes(map.id);
+        const imageOn = isMain ? !hideMainImage : visibleIds.includes(map.id);
         const annotationsMode =
-          annotationsModeByBaseMapId?.[map.id] ??
-          ANNOTATIONS_DISPLAY_MODE.NONE;
+          annotationsModeByBaseMapId?.[map.id] ?? ANNOTATIONS_DISPLAY_MODE.NONE;
         const annotationsOn = isMain
           ? !hideMainAnnotations
           : annotationsMode !== ANNOTATIONS_DISPLAY_MODE.NONE;
@@ -116,26 +100,28 @@ export default function TopBaseMapChipsThreed() {
             key={map.id}
             direction="row"
             alignItems="center"
-            spacing={0.25}
-            onClick={() => handleSelect(map)}
+            spacing={0.75}
+            onClick={() => handleToggleImage(map, isMain)}
             sx={{
               flexShrink: 0,
-              pl: 1.25,
-              pr: 0.5,
-              py: 0.25,
+              px: 1.25,
+              py: 0.5,
               borderRadius: "16px",
               border: "1px solid",
               borderColor: isMain ? "primary.main" : "divider",
               bgcolor: "background.paper",
               boxShadow: 2,
               cursor: "pointer",
-              "&:hover": { bgcolor: "action.hover" },
-              "&:hover .chipActions": { opacity: 1, pointerEvents: "auto" },
-              "&:hover .chipCount": { opacity: 0 },
             }}
           >
+            {/* The image tooltip wraps the name only — wrapping the whole
+                chip would stack it with the badge's own tooltip on hover. */}
             <Tooltip
-              title={isMain ? "" : "Sélectionner ce fond de plan"}
+              title={
+                imageOn
+                  ? "Masquer l'image dans la vue 3D"
+                  : "Afficher l'image dans la vue 3D"
+              }
               disableInteractive
             >
               <Typography
@@ -144,89 +130,53 @@ export default function TopBaseMapChipsThreed() {
                 sx={{
                   maxWidth: 160,
                   fontWeight: isMain ? 700 : 400,
-                  color: isMain ? "primary.main" : "text.primary",
+                  color: !imageOn
+                    ? "text.disabled"
+                    : isMain
+                      ? "primary.main"
+                      : "text.primary",
                 }}
               >
                 {map.name}
               </Typography>
             </Tooltip>
-            {/* Count / actions swap zone: the icon pair defines the width so
-                the chip never resizes; the count is absolutely centered on
-                top and fades out on chip hover. */}
-            <Box sx={{ position: "relative", display: "flex" }}>
-              <Stack
-                className="chipActions"
-                direction="row"
-                alignItems="center"
-                spacing={0.25}
+            <Tooltip
+              title={
+                annotationsOn
+                  ? "Masquer les annotations dans la vue 3D"
+                  : "Afficher les annotations dans la vue 3D"
+              }
+              disableInteractive
+            >
+              <Box
+                onClick={(e) =>
+                  handleToggleAnnotations(e, map, isMain, annotationsOn)
+                }
                 sx={{
-                  opacity: 0,
-                  pointerEvents: "none",
-                  transition: "opacity 0.15s",
-                }}
-              >
-                <Tooltip
-                  title={
-                    imageOn
-                      ? "Masquer l'image dans la vue 3D"
-                      : "Afficher l'image dans la vue 3D"
-                  }
-                  disableInteractive
-                >
-                  <IconButton
-                    size="small"
-                    onClick={(e) => handleToggleImage(e, map, isMain)}
-                  >
-                    {imageOn ? (
-                      <Visibility sx={{ fontSize: 16 }} />
-                    ) : (
-                      <VisibilityOff sx={{ fontSize: 16 }} color="error" />
-                    )}
-                  </IconButton>
-                </Tooltip>
-                <Tooltip
-                  title={
-                    annotationsOn
-                      ? "Masquer les annotations dans la vue 3D"
-                      : "Afficher les annotations dans la vue 3D"
-                  }
-                  disableInteractive
-                >
-                  <IconButton
-                    size="small"
-                    onClick={(e) =>
-                      handleToggleAnnotations(e, map, isMain, annotationsOn)
-                    }
-                  >
-                    {annotationsOn ? (
-                      <IconAnnotationsNormal sx={{ fontSize: 16 }} />
-                    ) : (
-                      <IconAnnotationsHidden
-                        sx={{ fontSize: 16 }}
-                        color="error"
-                      />
-                    )}
-                  </IconButton>
-                </Tooltip>
-              </Stack>
-              <Typography
-                className="chipCount"
-                variant="caption"
-                sx={{
-                  position: "absolute",
-                  inset: 0,
+                  minWidth: 24,
+                  px: 0.75,
+                  py: 0.125,
+                  borderRadius: "8px",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  pointerEvents: "none",
-                  color: "text.secondary",
-                  fontWeight: 600,
-                  transition: "opacity 0.15s",
+                  bgcolor: annotationsOn ? "action.selected" : "transparent",
+                  border: "1px solid",
+                  borderColor: annotationsOn ? "transparent" : "divider",
+                  cursor: "pointer",
                 }}
               >
-                {annotationsCount}
-              </Typography>
-            </Box>
+                <Typography
+                  variant="caption"
+                  sx={{
+                    fontWeight: 600,
+                    color: annotationsOn ? "text.primary" : "text.disabled",
+                  }}
+                >
+                  {annotationsCount}
+                </Typography>
+              </Box>
+            </Tooltip>
           </Stack>
         );
       })}

@@ -15,6 +15,7 @@ import {
   setSelectedNode,
   setAnnotationToolbarPosition,
   setAnnotationsToolbarPosition,
+  setSelectedMainBaseMapId,
 } from "Features/mapEditor/mapEditorSlice";
 import {
   setSelectedItem,
@@ -583,9 +584,25 @@ export default function MainThreedEditor() {
         )
       );
 
-      // Find the first annotation object (check userData)
+      // Find the first annotation object (check userData). Basemap image hits
+      // are remembered but only acted on if NO annotation is hit along the
+      // whole ray: flat annotations can be exactly coplanar with the basemap
+      // plane, making the distance sort unstable between the two.
+      let baseMapHitId = null;
       for (const intersect of intersects) {
         let object = intersect.object;
+
+        if (object.userData?.isBasemap) {
+          if (!baseMapHitId) {
+            // The image mesh only carries `isBasemap` — the owning group
+            // (mesh → meshWrap → group) carries the baseMapId.
+            let ancestor = object;
+            while (ancestor && !ancestor.userData?.baseMapId)
+              ancestor = ancestor.parent;
+            baseMapHitId = ancestor?.userData?.baseMapId ?? null;
+          }
+          continue; // no nodeId in a basemap mesh's ancestor chain
+        }
 
         // Traverse up the object hierarchy to find the parent Group with userData
         // This handles cases where child meshes (walls, caps, edges) are clicked
@@ -662,8 +679,18 @@ export default function MainThreedEditor() {
         }
       }
 
-      // No annotation hit. Shift+click on empty preserves the selection
-      // (mirrors the 2D editor behavior); plain click deselects.
+      // No annotation hit. A plain click on a basemap image selects that
+      // basemap as the main one (top-bar selector) — shift stays reserved
+      // for the annotation multi-selection / lasso.
+      if (baseMapHitId && !event.shiftKey) {
+        const mainId = store.getState().mapEditor.selectedBaseMapId;
+        if (baseMapHitId !== mainId) {
+          dispatch(setSelectedMainBaseMapId(baseMapHitId));
+        }
+      }
+
+      // Shift+click on empty preserves the selection (mirrors the 2D editor
+      // behavior); plain click deselects.
       if (!event.shiftKey) {
         dispatch(setSelectedNode(null));
         dispatch(setSelectedItem(null));
@@ -672,7 +699,7 @@ export default function MainThreedEditor() {
         dispatch(setAnnotationsToolbarPosition(null));
       }
     },
-    [dispatch, rendererIsReady, isThreedViewer, getSoloSelectedAnnotationId]
+    [dispatch, rendererIsReady, isThreedViewer, getSoloSelectedAnnotationId, store]
   );
 
   // Helper to check if an event target is within a MUI Popper or portal
