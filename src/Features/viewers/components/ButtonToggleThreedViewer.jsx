@@ -1,12 +1,16 @@
 import { useSelector } from "react-redux";
 
 import useSwitchViewer from "../hooks/useSwitchViewer";
+import useToggleThreedViewerHotkey from "../hooks/useToggleThreedViewerHotkey";
 
 import { Button, Typography } from "@mui/material";
-import { ArrowRightAlt } from "@mui/icons-material";
+
+import ShortcutBadge from "Features/smartDetect/components/ShortcutBadge";
 
 export default function ButtonToggleThreedViewer() {
   const switchViewer = useSwitchViewer();
+
+  useToggleThreedViewerHotkey();
 
   const selectedViewerKey = useSelector((s) => s.viewers.selectedViewerKey);
 
@@ -20,17 +24,18 @@ export default function ButtonToggleThreedViewer() {
 
   return (
     <Button
-      startIcon={<ArrowRightAlt />}
       variant="outlined"
       color="secondary"
       size="small"
       onClick={handleClick}
-      sx={{ borderRadius: "8px", border: theme => `1px solid ${theme.palette.secondary.main}` }}
+      sx={{
+        gap: 1,
+        borderRadius: "8px",
+        border: (theme) => `1px solid ${theme.palette.secondary.main}`,
+      }}
     >
-      <Typography variant="body2">
-        {buttonLabel}
-      </Typography>
+      <ShortcutBadge>T</ShortcutBadge>
+      <Typography variant="body2">{buttonLabel}</Typography>
     </Button>
-
   );
 }
