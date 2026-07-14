@@ -26,6 +26,7 @@ import PanelPropertiesGuideline from "Features/annotations/components/PanelPrope
 import PanelPropertiesPointsAndSegments from "Features/points/components/PanelPropertiesPointsAndSegments";
 import PanelMesh3dProperties from "Features/threedMesh/components/PanelMesh3dProperties";
 import PanelDimension3dProperties from "Features/threedDimensions/components/PanelDimension3dProperties";
+import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 
 export default function PanelSelectionProperties() {
   // data
@@ -55,7 +56,7 @@ export default function PanelSelectionProperties() {
 
   const isMapViewer = selectedViewerKey === "MAP";
   const isListingViewer = selectedViewerKey === "LISTING";
-  const isThreedViewer = selectedViewerKey === "THREED";
+  const isThreedViewer = isThreedFamilyViewerKey(selectedViewerKey);
 
   // The MAP and BASE_MAPS viewers share the same canvas (InteractionLayer), so
   // node / point / segment / guideline selections resolve the same way in both.

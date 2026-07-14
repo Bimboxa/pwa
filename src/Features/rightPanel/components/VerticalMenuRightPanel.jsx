@@ -24,7 +24,6 @@ import {
   AutoFixHigh,
   Print,
   Height,
-  GridOn,
   Upload,
   AutoAwesome,
   ViewInAr,
@@ -74,22 +73,17 @@ export default function VerticalMenuRightPanel() {
     MASTER_PROJECT_PICTURES: {
       label: appConfig?.features?.masterProjectPictures?.title,
       icon: <CameraAlt />,
-      viewers: ["MAP", "THREED"],
+      viewers: ["MAP", "THREED", "MESHES"],
     },
     PRINT: {
       label: "Export",
       icon: <Print />,
-      viewers: ["MAP", "THREED"],
+      viewers: ["MAP", "THREED", "MESHES"],
     },
     ELEVATION: {
       label: "Élévation",
       icon: <Height />,
-      viewers: ["MAP", "THREED"],
-    },
-    MESH: {
-      label: "Maillage",
-      icon: <GridOn />,
-      viewers: ["THREED"],
+      viewers: ["MAP", "THREED", "MESHES"],
     },
     CHAT: {
       label: "Chat",
@@ -115,7 +109,7 @@ export default function VerticalMenuRightPanel() {
       key: "THREED_PROPERTIES",
       label: "Vue 3D",
       icon: <ViewInAr />,
-      viewers: ["THREED"],
+      viewers: ["THREED", "MESHES"],
     },
     {
       key: "BASE_MAP_TRANSFORMS",

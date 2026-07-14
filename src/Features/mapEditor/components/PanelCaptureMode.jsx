@@ -14,6 +14,7 @@ import {
 
 import captureMapAsPng from "../utils/captureMapAsPng";
 import snapshotThreedCanvasForCapture from "Features/threedEditor/utils/snapshotThreedCanvasForCapture";
+import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 
 import {
   Box,
@@ -102,7 +103,9 @@ export default function PanelCaptureMode({ viewerKey = "MAP" }) {
     // The 3D WebGL canvas can't be cloned by html-to-image (no
     // preserveDrawingBuffer) — snapshot it into a capturable img first.
     const prepareHost =
-      viewerKey === "THREED" ? snapshotThreedCanvasForCapture : undefined;
+      isThreedFamilyViewerKey(viewerKey)
+        ? snapshotThreedCanvasForCapture
+        : undefined;
     try {
       if (mode === "clipboard") {
         await captureMapAsPng({

@@ -12,6 +12,7 @@ import {
   Layers,
   FormatListBulleted,
   ViewInAr,
+  GridOn,
 } from "@mui/icons-material";
 
 import theme from "Styles/theme";
@@ -52,6 +53,13 @@ export default function useViewers() {
       shortLabel: "3D",
       bgcolor: theme.palette.viewers.threed,
       icon: <ViewInAr />,
+    },
+    {
+      key: "MESHES",
+      label: "Maillage",
+      shortLabel: "Maillage",
+      icon: <GridOn />,
+      bgcolor: theme.palette.viewers.meshes,
     },
     {
       key: "LISTING",

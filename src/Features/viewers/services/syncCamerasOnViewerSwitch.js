@@ -163,7 +163,12 @@ function getViewersState({ baseMap, basePose }) {
   };
 }
 
-export async function switchMapToThreed({ dispatch, baseMap, basePose }) {
+export async function switchMapToThreed({
+  dispatch,
+  baseMap,
+  basePose,
+  targetViewerKey = "THREED",
+}) {
   if (isSwitching) return;
   isSwitching = true;
   try {
@@ -210,7 +215,7 @@ export async function switchMapToThreed({ dispatch, baseMap, basePose }) {
     } catch (e) {
       console.log("[viewerSwitch] 2D->3D camera sync failed", e);
     } finally {
-      dispatch(setSelectedViewerKey("THREED"));
+      dispatch(setSelectedViewerKey(targetViewerKey));
     }
 
     if (animation) {

@@ -122,6 +122,7 @@ let theme = createTheme(
       viewers: {
         map: blue[600],
         threed: pink[600],
+        meshes: orange[700],
         portfolio: purple[600],
         admin: teal[700],
         listing: green[600],

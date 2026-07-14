@@ -12,6 +12,11 @@ import MainPortfolioEditor from "Features/portfolioEditor/components/MainPortfol
 import MainBaseMapViewer from "Features/baseMapEditor/components/MainBaseMapViewer";
 import ViewerAdmin from "Features/adminEditor/components/ViewerAdmin";
 import MainListingViewer from "Features/listingViewer/components/MainListingViewer";
+import LeftDrawerPanel from "Features/leftPanel/components/LeftDrawerPanel";
+import PanelMeshesViewer from "Features/threedMesh/components/PanelMeshesViewer";
+import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
+
+import { Box } from "@mui/material";
 
 export default function SectionViewer() {
   // data
@@ -22,7 +27,10 @@ export default function SectionViewer() {
   // helpers
 
   const showMap = viewerKey === "MAP";
-  const showThreed = viewerKey === "THREED" && !disable3D;
+  // THREED and MESHES share the single MainThreedEditor instance (WebGL
+  // context kept alive); MESHES adds the mailles drawer next to it.
+  const showThreed = isThreedFamilyViewerKey(viewerKey) && !disable3D;
+  const showMeshes = viewerKey === "MESHES" && !disable3D;
   const showLeaflet = viewerKey === "LEAFLET";
   const showTable = viewerKey === "TABLE";
   const showPortfolio = viewerKey === "PORTFOLIO";
@@ -39,7 +47,24 @@ export default function SectionViewer() {
         show={showThreed}
         sx={{ position: "absolute", zIndex: 0 }}
       >
-        <MainThreedEditor />
+        <Box
+          sx={{
+            width: 1,
+            height: 1,
+            display: "flex",
+            position: "relative",
+            overflow: "hidden",
+          }}
+        >
+          {showMeshes && (
+            <LeftDrawerPanel width={280} viewerKey="MESHES">
+              <PanelMeshesViewer />
+            </LeftDrawerPanel>
+          )}
+          <Box sx={{ flex: 1, minWidth: 0, position: "relative" }}>
+            <MainThreedEditor />
+          </Box>
+        </Box>
       </PanelShowable>
       <PanelShowable
         show={showLeaflet}

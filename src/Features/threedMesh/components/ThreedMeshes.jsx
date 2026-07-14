@@ -68,7 +68,11 @@ export default function ThreedMeshes() {
 
   const meshes3d = useMeshes3d({ projectId, scopeId });
   const { prefix } = useMesh3dLabelPrefix();
-  const hideMeshes3d = useSelector((s) => s.threedEditor.hideMeshes3d);
+  // Mailles are confined to the MESHES viewer: never displayed (nor raycast
+  // targetable) in the plain THREED viewer.
+  const hideMeshes3d = useSelector(
+    (s) => s.viewers.selectedViewerKey !== "MESHES"
+  );
   const labelsOptions = useSelector((s) => s.threedEditor.mesh3dLabels);
 
   // Selected maille ids, serialized so the rebuild effect only re-runs when

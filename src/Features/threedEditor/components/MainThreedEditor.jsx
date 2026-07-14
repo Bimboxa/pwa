@@ -24,6 +24,7 @@ import {
   setShowAnnotationsProperties,
 } from "Features/selection/selectionSlice";
 import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
+import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 
 import applyAnnotationMaterialState, {
   // states
@@ -139,7 +140,7 @@ export default function MainThreedEditor() {
   // annotation 3D object.
   const store = useStore();
   const selectedViewerKey = useSelector((s) => s.viewers.selectedViewerKey);
-  const isThreedViewer = selectedViewerKey === "THREED";
+  const isThreedViewer = isThreedFamilyViewerKey(selectedViewerKey);
 
   // Entering the 3D viewer keeps whatever right panel was open in 2D (no
   // auto-open of THREED_PROPERTIES). Leaving the 3D viewer closes the

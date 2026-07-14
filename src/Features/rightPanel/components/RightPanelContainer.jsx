@@ -32,7 +32,6 @@ import PanelAdminEntity from "Features/adminEditor/components/PanelAdminEntity";
 import PanelAnnotationsAuto from "Features/annotationsAuto/components/PanelAnnotationsAuto";
 import PanelPrint from "Features/print/components/PanelPrint";
 import PanelElevation from "Features/elevation/components/PanelElevation";
-import PanelMesh3d from "Features/threedMesh/components/PanelMesh3d";
 import PanelImportAnnotations from "Features/importAnnotations/components/PanelImportAnnotations";
 import PanelLocalLlm from "Features/localLlm/components/PanelLocalLlm";
 import PanelThreedProperties from "Features/threedEditor/components/PanelThreedProperties";
@@ -175,7 +174,6 @@ export default function RightPanelContainer() {
           {selectedKey === "ANNOTATIONS_AUTO" && <PanelAnnotationsAuto />}
           {selectedKey === "PRINT" && <PanelPrint />}
           {selectedKey === "ELEVATION" && <PanelElevation />}
-          {selectedKey === "MESH" && <PanelMesh3d />}
           {selectedKey === "IMPORT_ANNOTATIONS" && <PanelImportAnnotations />}
           {selectedKey === "LOCAL_LLM" && <PanelLocalLlm />}
           {selectedKey === "THREED_PROPERTIES" && <PanelThreedProperties />}

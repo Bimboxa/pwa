@@ -3,6 +3,7 @@ import { useDispatch, useStore } from "react-redux";
 
 import { setOpenDialogDeleteSelectedAnnotation } from "Features/annotations/annotationsSlice";
 import useAnnotationPermissions from "Features/mapEditor/hooks/useAnnotationPermissions";
+import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 
 export default function useDeleteAnnotationOnKeyboardInThreedEditor({
   annotations,
@@ -18,7 +19,7 @@ export default function useDeleteAnnotationOnKeyboardInThreedEditor({
         return;
 
       const state = store.getState();
-      if (state.viewers.selectedViewerKey !== "THREED") return;
+      if (!isThreedFamilyViewerKey(state.viewers.selectedViewerKey)) return;
 
       const selectedNode = state.selection.selectedItems.find(
         (item) => item.type === "NODE"

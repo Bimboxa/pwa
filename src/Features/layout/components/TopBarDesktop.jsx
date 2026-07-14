@@ -20,6 +20,7 @@ import { setSelectedItem } from "Features/selection/selectionSlice";
 import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 import { setDisplayedPortfolioId } from "Features/portfolios/portfoliosSlice";
 import { setListingViewerSelectedListingId } from "Features/listingViewer/listingViewerSlice";
+import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useMainBaseMapListing from "Features/baseMaps/hooks/useMainBaseMapListing";
@@ -241,7 +242,7 @@ export default function TopBarDesktop() {
           <FieldBaseMapZInTopBar />
         </Box>
       )}
-      {viewerKey === "THREED" && (
+      {isThreedFamilyViewerKey(viewerKey) && (
         <Box
           sx={{
             display: { xs: "none", md: "flex" },
@@ -318,7 +319,7 @@ export default function TopBarDesktop() {
         }}
       >
         {!disable3D && <ButtonToggleThreedViewer />}
-        {viewerKey !== "THREED" && !viewerMode && (
+        {!isThreedFamilyViewerKey(viewerKey) && !viewerMode && (
           <Box
             sx={{
               display: { xs: "none", md: "flex" },

@@ -8,11 +8,13 @@ import {
   switchMapToThreed,
   switchThreedToMap,
 } from "../services/syncCamerasOnViewerSwitch";
+import { isThreedFamilyViewerKey } from "../utils/threedViewerKeys";
 
-// Central entry point for viewer changes. Intercepts the MAP <-> THREED
-// transitions to keep the baseMap image at the same on-screen place/size
-// (camera sync + 3D top-down animation); any other transition is a plain
-// `setSelectedViewerKey` dispatch.
+// Central entry point for viewer changes. Intercepts the MAP <-> 3D-family
+// (THREED / MESHES) transitions to keep the baseMap image at the same
+// on-screen place/size (camera sync + 3D top-down animation); any other
+// transition — including THREED <-> MESHES, which share the same 3D editor —
+// is a plain `setSelectedViewerKey` dispatch.
 export default function useSwitchViewer() {
   const dispatch = useDispatch();
 
@@ -23,9 +25,17 @@ export default function useSwitchViewer() {
   return function switchViewer(viewerKey) {
     if (viewerKey === selectedViewerKey) return;
 
-    if (selectedViewerKey === "MAP" && viewerKey === "THREED") {
-      switchMapToThreed({ dispatch, baseMap, basePose });
-    } else if (selectedViewerKey === "THREED" && viewerKey === "MAP") {
+    const fromThreed = isThreedFamilyViewerKey(selectedViewerKey);
+    const toThreed = isThreedFamilyViewerKey(viewerKey);
+
+    if (selectedViewerKey === "MAP" && toThreed) {
+      switchMapToThreed({
+        dispatch,
+        baseMap,
+        basePose,
+        targetViewerKey: viewerKey,
+      });
+    } else if (fromThreed && viewerKey === "MAP") {
       switchThreedToMap({ dispatch, baseMap, basePose });
     } else {
       dispatch(setSelectedViewerKey(viewerKey));

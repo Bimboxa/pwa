@@ -22,6 +22,7 @@ import {
 } from "Features/listings/listingsSlice";
 import { setSelectedItem } from "Features/selection/selectionSlice";
 import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
+import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 
 import {
   Box,
@@ -584,8 +585,8 @@ function AnnotationTemplateRow({
     (s) => s.popperMapListings.interactionMode
   );
   const showMeshCells = useSelector((s) => s.annotations.showMeshCells);
-  const isThreedViewer = useSelector(
-    (s) => s.viewers.selectedViewerKey === "THREED"
+  const isThreedViewer = useSelector((s) =>
+    isThreedFamilyViewerKey(s.viewers.selectedViewerKey)
   );
   const interactionMode =
     showMeshCells || isThreedViewer ? "SELECT" : rawInteractionMode;
@@ -1112,8 +1113,8 @@ function AnnotationTemplatesForListing({
   );
   const spriteImage = useAnnotationSpriteImage();
   const updateAnnotationTemplate = useUpdateAnnotationTemplate();
-  const isThreedViewer = useSelector(
-    (s) => s.viewers.selectedViewerKey === "THREED"
+  const isThreedViewer = useSelector((s) =>
+    isThreedFamilyViewerKey(s.viewers.selectedViewerKey)
   );
   const soloVisibleTemplateIds = useSelector(
     (s) => s.popperMapListings.soloVisibleTemplateIds
@@ -2186,7 +2187,7 @@ export default function PopperMapListings() {
     (s) => s.mapEditor.showMapListingsPanel
   );
   const isBaseMapsViewer = viewerKey === "BASE_MAPS";
-  const isThreedViewer = viewerKey === "THREED";
+  const isThreedViewer = isThreedFamilyViewerKey(viewerKey);
   const showLayers = useSelector((s) => s.popperMapListings.showLayers);
   const interactionMode = useSelector(
     (s) => s.popperMapListings.interactionMode

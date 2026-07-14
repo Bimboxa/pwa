@@ -3,6 +3,7 @@ import {
   shouldReceive,
   getCurrentPathname,
 } from "Features/layout/utils/isEffectivelyCoupled";
+import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 
 const CHANNEL_NAME = "tabs-registry";
 const HEARTBEAT_INTERVAL_MS = 2000;
@@ -82,7 +83,9 @@ function getLocalInSyncGroup() {
 function getLocalIs3dView() {
   if (!getStoreRef) return false;
   try {
-    return getStoreRef().getState().viewers?.selectedViewerKey === "THREED";
+    return isThreedFamilyViewerKey(
+      getStoreRef().getState().viewers?.selectedViewerKey
+    );
   } catch {
     return false;
   }

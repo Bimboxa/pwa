@@ -25,6 +25,7 @@ export default function LeftPanel() {
   if (isFullScreen) width = 0;
   if (selectedViewerKey === "MAP") width = 0;
   if (selectedViewerKey === "THREED") width = 0;
+  if (selectedViewerKey === "MESHES") width = 0;
   if (selectedViewerKey === "TABLE") width = 0;
   if (selectedViewerKey === "PORTFOLIO") width = 0;
   if (selectedViewerKey === "BASE_MAPS") width = 0;
@@ -42,7 +43,7 @@ export default function LeftPanel() {
 
   return (
     <Box sx={{ display: "flex", zIndex: 2 }}>
-      {!isFullScreen && selectedViewerKey !== "MAP" && selectedViewerKey !== "THREED" && selectedViewerKey !== "PORTFOLIO" && selectedViewerKey !== "BASE_MAPS" && selectedViewerKey !== "LISTING" && selectedViewerKey !== "ADMIN" && (
+      {!isFullScreen && selectedViewerKey !== "MAP" && selectedViewerKey !== "THREED" && selectedViewerKey !== "MESHES" && selectedViewerKey !== "PORTFOLIO" && selectedViewerKey !== "BASE_MAPS" && selectedViewerKey !== "LISTING" && selectedViewerKey !== "ADMIN" && (
         <VerticalBarInLeftPanel>
           <VerticalSelectorListing onSeeAllClick={handleSeeAllClick} />
         </VerticalBarInLeftPanel>

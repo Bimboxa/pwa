@@ -28,6 +28,11 @@ export default function BottomToolbarThreed() {
   const dispatch = useDispatch();
 
   const moveActive = useSelector((s) => s.threedEditor.moveMode.active);
+  // Meshing is confined to the MESHES viewer (mailles are only displayed
+  // there), so the "Mailler" entry point hides in the plain THREED viewer.
+  const isMeshesViewer = useSelector(
+    (s) => s.viewers.selectedViewerKey === "MESHES"
+  );
   const clippingEditing = useSelector(
     (s) => s.threedEditor.clippingPlane.editing
   );
@@ -115,7 +120,7 @@ export default function BottomToolbarThreed() {
         ) : (
           <>
             <ButtonDrawThreed />
-            <ButtonMeshThreed />
+            {isMeshesViewer && <ButtonMeshThreed />}
             <ButtonDimensionThreed />
           </>
         )}

@@ -5,13 +5,14 @@ import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import useMeshCellRelations from "Features/annotations/hooks/useMeshCellRelations";
 import useExtraBaseMapIdsIn3d from "./useExtraBaseMapIdsIn3d";
+import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 
 export default function useAutoLoadAnnotationsInThreedEditor({
   threedEditor,
   rendererIsReady,
 }) {
   const selectedViewerKey = useSelector((s) => s.viewers.selectedViewerKey);
-  const isActiveViewer = selectedViewerKey === "THREED";
+  const isActiveViewer = isThreedFamilyViewerKey(selectedViewerKey);
   const disableOpacity = useSelector((s) => s.threedEditor.disableOpacity);
   const antiAliasingShrink = useSelector(
     (s) => s.threedEditor.antiAliasingShrink
