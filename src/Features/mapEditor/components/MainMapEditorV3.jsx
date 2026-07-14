@@ -23,6 +23,7 @@ import {
 import useBgImageInMapEditor from "Features/mapEditor/hooks/useBgImageInMapEditor";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useBaseMapPose from "Features/mapEditor/hooks/useBaseMapPose";
+import useImageModeLabelsLayout from "Features/mapEditor/hooks/useImageModeLabelsLayout";
 
 import useAutoSelectMainBaseMap from "../hooks/useAutoSelectMainBaseMap";
 import useAutoResetBaseMapPose from "Features/bgImage/hooks/useAutoResetBaseMapPose";
@@ -378,6 +379,16 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     const imageModeLegendSelected = useSelector(
         (s) => s.mapEditor.imageModeLegendSelected
     );
+
+    // display-only label auto-layout while imageMode is active
+    const { labelOverridesById, notifyCameraChange } = useImageModeLabelsLayout({
+        enabled: imageModeActive,
+        annotations,
+        basePose,
+        getCameraMatrix: () => interactionLayerRef.current?.getCameraMatrix?.(),
+        viewportBounds: bounds,
+        hostKey: forViewerKey,
+    });
 
     function handleLegendFormatChange(newFormat) {
         dispatch(setLegendFormat(newFormat));
@@ -1681,7 +1692,10 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                     baseMapMeterByPx={baseMap?.getMeterByPx()}
                     legendFormat={legendFormat}
                     onLegendFormatChange={handleLegendFormatChange}
-                    onCameraChangeExternal={() => compareSliderRef.current?.updateClipRect?.()}
+                    onCameraChangeExternal={() => {
+                        compareSliderRef.current?.updateClipRect?.();
+                        notifyCameraChange();
+                    }}
                 >
                     <g style={(selectedNode || selectedNodes?.length > 0) ? contextDimmedStyle : contextNormalStyle}>
                         <StaticMapContent
@@ -1694,6 +1708,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                             baseMapImageUrl={baseMap?.getUrl()}
                             baseMapImageSize={baseMap?.getImageSize?.() || baseMap?.getImageSize?.()}
                             annotations={annotations}
+                            labelOverridesById={labelOverridesById}
                             legendItems={imageModeActive ? null : legendItems}
                             legendFormat={legendFormat}
                             sizeVariant={sizeVariant}
