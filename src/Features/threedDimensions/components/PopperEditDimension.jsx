@@ -6,6 +6,7 @@ import useToolbarDrag from "Features/mapEditor/hooks/useToolbarDrag";
 import { Box } from "@mui/material";
 
 import ToolbarEditDimension from "./ToolbarEditDimension";
+import { matchesActiveViewerKey } from "Features/viewers/utils/threedViewerKeys";
 
 // Floating edit toolbar for a selected cote. Mirrors PopperEditAnnotation:
 // shown only in the matching viewer when exactly one DIMENSION node is
@@ -15,7 +16,7 @@ export default function PopperEditDimension({ viewerKey = null }) {
   const selectedItems = useSelector(selectSelectedItems);
 
   const shouldShow = viewerKey
-    ? activeViewerKey === viewerKey
+    ? matchesActiveViewerKey(viewerKey, activeViewerKey)
     : activeViewerKey === "MAP";
 
   const isSingleSelection = selectedItems.length === 1;

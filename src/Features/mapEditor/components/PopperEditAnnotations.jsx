@@ -6,6 +6,7 @@ import useToolbarDrag from "../hooks/useToolbarDrag";
 
 import { Box } from "@mui/material";
 import ToolbarEditAnnotations from "Features/annotations/components/ToolbarEditAnnotations";
+import { matchesActiveViewerKey } from "Features/viewers/utils/threedViewerKeys";
 
 export default function PopperEditAnnotations({ viewerKey = null, allAnnotations }) {
   // data
@@ -22,7 +23,7 @@ export default function PopperEditAnnotations({ viewerKey = null, allAnnotations
 
   // Only show if viewerKey matches active viewer (or if viewerKey is not specified, show for MAP)
   const shouldShow = viewerKey
-    ? activeViewerKey === viewerKey
+    ? matchesActiveViewerKey(viewerKey, activeViewerKey)
     : activeViewerKey === "MAP";
 
   const open = shouldShow && isWidest && selectedNodes?.length > 1;

@@ -6,6 +6,7 @@ import useToolbarDrag from "Features/mapEditor/hooks/useToolbarDrag";
 import { Box } from "@mui/material";
 
 import ToolbarEditMesh3d from "./ToolbarEditMesh3d";
+import { matchesActiveViewerKey } from "Features/viewers/utils/threedViewerKeys";
 
 // Floating edit toolbar for a single selected maille. Mirrors
 // PopperEditDimension: shown only in the matching viewer when exactly one
@@ -15,7 +16,7 @@ export default function PopperEditMesh3d({ viewerKey = null }) {
   const selectedItems = useSelector(selectSelectedItems);
 
   const shouldShow = viewerKey
-    ? activeViewerKey === viewerKey
+    ? matchesActiveViewerKey(viewerKey, activeViewerKey)
     : activeViewerKey === "MAP";
 
   const isSingleSelection = selectedItems.length === 1;

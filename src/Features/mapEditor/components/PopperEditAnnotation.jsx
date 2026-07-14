@@ -9,6 +9,7 @@ import useToolbarDrag from "../hooks/useToolbarDrag";
 
 import { Box } from "@mui/material";
 import ToolbarEditAnnotation from "Features/annotations/components/ToolbarEditAnnotation";
+import { matchesActiveViewerKey } from "Features/viewers/utils/threedViewerKeys";
 
 
 export default function PopperEditAnnotation({ viewerKey = null }) {
@@ -32,7 +33,7 @@ export default function PopperEditAnnotation({ viewerKey = null }) {
 
   // Only show if viewerKey matches active viewer (or if viewerKey is not specified, show for MAP)
   const shouldShow = viewerKey
-    ? activeViewerKey === viewerKey
+    ? matchesActiveViewerKey(viewerKey, activeViewerKey)
     : activeViewerKey === "MAP";
 
   // Only show single toolbar when exactly 1 item is selected (not multi-selection)
