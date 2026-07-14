@@ -34,6 +34,7 @@ function StaticMapContent({
   baseMapMeterByPx,
   baseMapImageScale = 1,
   annotations,
+  labelOverridesById,
   legendItems,
   legendFormat,
   sizeVariant,
@@ -472,6 +473,7 @@ function StaticMapContent({
             >
               <NodeAnnotationStatic
                 annotation={annotation}
+                annotationOverride={labelOverridesById?.[annotation.id]}
                 spriteImage={spriteImage}
                 hovered={
                   !isAnchorSource && annotation.id === hoveredNode?.nodeId

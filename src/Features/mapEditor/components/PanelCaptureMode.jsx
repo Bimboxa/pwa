@@ -10,6 +10,8 @@ import {
   setImageModeLegendOverlay,
   setImageModeHighRes,
   setImageModeWhiteBackground,
+  setImageModeLabelsAutoLayout,
+  setImageModeLabelsInMargin,
 } from "../mapEditorSlice";
 
 import captureMapAsPng from "../utils/captureMapAsPng";
@@ -75,6 +77,15 @@ export default function PanelCaptureMode({ viewerKey = "MAP" }) {
   const whiteBackground = useSelector(
     (s) => s.mapEditor.imageModeWhiteBackground
   );
+  const labelsAutoLayout = useSelector(
+    (s) => s.mapEditor.imageModeLabelsAutoLayout
+  );
+  const labelsInMargin = useSelector(
+    (s) => s.mapEditor.imageModeLabelsInMargin
+  );
+  // Label auto-layout only applies to the 2D map (in 3D the labels are baked
+  // into the WebGL snapshot).
+  const isThreed = isThreedFamilyViewerKey(viewerKey);
   // Right panel occludes the viewport's right side; mirror the overlay so the
   // exported crop matches the displayed capture rect.
   const panelOpen = useSelector((s) =>
@@ -170,6 +181,14 @@ export default function PanelCaptureMode({ viewerKey = "MAP" }) {
     dispatch(
       setImageModeLegendOverlay({ ...overlay, visible: !legendVisible })
     );
+  }
+
+  function handleToggleLabelsAutoLayout(checked) {
+    dispatch(setImageModeLabelsAutoLayout(Boolean(checked)));
+  }
+
+  function handleToggleLabelsInMargin(checked) {
+    dispatch(setImageModeLabelsInMargin(Boolean(checked)));
   }
 
   // render
@@ -274,6 +293,29 @@ export default function PanelCaptureMode({ viewerKey = "MAP" }) {
           </Box>
         )}
       </Box>
+
+      {/* ÉTIQUETTES — display-only auto-layout (2D map only) */}
+      {!isThreed && (
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+          <Typography variant="overline" sx={LABEL_SX}>
+            Étiquettes
+          </Typography>
+          <FieldCheck
+            value={labelsAutoLayout}
+            onChange={handleToggleLabelsAutoLayout}
+            label="Organiser les étiquettes"
+            options={{ type: "switch", showAsInline: true }}
+          />
+          {labelsAutoLayout && (
+            <FieldCheck
+              value={labelsInMargin}
+              onChange={handleToggleLabelsInMargin}
+              label="Ranger en marge du cadre"
+              options={{ type: "switch", showAsInline: true }}
+            />
+          )}
+        </Box>
+      )}
 
       {/* EXPORT */}
       <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>

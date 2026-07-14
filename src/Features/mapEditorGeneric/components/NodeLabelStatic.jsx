@@ -233,15 +233,41 @@ export default function NodeLabelStatic({
         // Optionnel : ne rien rendre du tout
     }
 
+    // --- 6b. LIAISON : déport horizontal ---
+    // Short horizontal stub between the chip edge and the oblique leader, on
+    // the side of the chip facing the target, so the oblique line attaches to
+    // the chip edge instead of crossing it toward its center.
+    // The chip is counter-scaled (1/containerK): its CSS-px geometry is
+    // converted to image px with /k. The div is anchored on the foreignObject
+    // left edge (x = -labelSize.w/2) and is wider than the measured span by
+    // the horizontal paddings + borders (border-box, width: max-content).
+    const STUB_LENGTH = 14; // screen px (zoom-invariant, like the chip)
+    const k = containerK || 1;
+    const chipBorderW = selected ? 2 : 1;
+    const side = targetPx.x >= labelPx.x ? 1 : -1;
+    const attachCssX =
+        side >= 0
+            ? labelSize.w / 2 + 2 * PADDING_X + 2 * chipBorderW
+            : -labelSize.w / 2;
+    const attachPx = {
+        x: labelPx.x + attachCssX / k,
+        y: labelPx.y + (PADDING_Y + chipBorderW) / k, // chip visual center
+    };
+    const elbowPx = {
+        x: attachPx.x + (side * STUB_LENGTH) / k,
+        y: attachPx.y,
+    };
+    const leaderPoints = `${targetPx.x},${targetPx.y} ${elbowPx.x},${elbowPx.y} ${attachPx.x},${attachPx.y}`;
+
     return (
         <g {...dataProps} style={{
             cursor: dragged ? "grabbing" : "pointer",
         }}>
 
-            {/* A. LIAISON */}
-            <line
-                x1={targetPx.x} y1={targetPx.y}
-                x2={labelPx.x} y2={labelPx.y}
+            {/* A. LIAISON : cible → coude → bord du label (déport horizontal) */}
+            <polyline
+                points={leaderPoints}
+                fill="none"
                 stroke={activeColor}
                 strokeWidth={LINE_WIDTH}
                 vectorEffect="non-scaling-stroke"
@@ -250,9 +276,9 @@ export default function NodeLabelStatic({
             />
 
             {/* Ligne fantôme pour faciliter le clic */}
-            <line
-                x1={targetPx.x} y1={targetPx.y}
-                x2={labelPx.x} y2={labelPx.y}
+            <polyline
+                points={leaderPoints}
+                fill="none"
                 stroke="transparent"
                 strokeWidth={15}
                 style={{ cursor: selected ? "move" : "pointer", pointerEvents: "stroke" }}
