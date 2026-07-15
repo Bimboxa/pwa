@@ -5,14 +5,23 @@ import {
   Tooltip,
   CircularProgress,
 } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 import { CloudQueue } from "@mui/icons-material";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 import ChipProjectType from "./ChipProjectType";
 
+import {
+  CARD_BORDER,
+  TEXT_MUTED,
+  TEXT_FADED,
+  fadeUp,
+} from "../utils/dashboardStyles";
+
 export default function ListItemDashboardProject({
   item,
+  index,
   selected,
   installing,
   onClick,
@@ -31,6 +40,9 @@ export default function ListItemDashboardProject({
 
   const metaText = [item.clientRef, item.city].filter(Boolean).join(" · ");
 
+  // staggered entrance, capped so long lists don't wait
+  const entranceDelay = 0.3 + Math.min(index ?? 0, 10) * 0.07;
+
   // render
 
   return (
@@ -38,16 +50,27 @@ export default function ListItemDashboardProject({
       selected={selected}
       onClick={onClick}
       sx={{
-        px: 1.5,
-        py: 1.25,
+        px: 2.5,
+        py: 1.75,
         alignItems: "flex-start",
-        borderBottom: "1px solid",
-        borderColor: "divider",
-        "&:last-of-type": { borderBottom: "none" },
-        "&.Mui-selected": {
+        bgcolor: "white",
+        border: `1px solid ${CARD_BORDER}`,
+        borderRadius: "14px",
+        mb: 1.25,
+        transition: "all .18s",
+        ...(index !== undefined && fadeUp(entranceDelay)),
+        "&:hover": {
           bgcolor: "white",
-          boxShadow: (theme) => `inset 3px 0 0 ${theme.palette.secondary.main}`,
-          "&:hover": { bgcolor: "white" },
+          boxShadow: "0 6px 20px rgba(28,27,26,.10)",
+          transform: "translateY(-2px)",
+          borderColor: (theme) => alpha(theme.palette.secondary.main, 0.35),
+        },
+        "&.Mui-selected": {
+          bgcolor: (theme) => alpha(theme.palette.secondary.main, 0.06),
+          borderColor: "secondary.main",
+          "&:hover": {
+            bgcolor: (theme) => alpha(theme.palette.secondary.main, 0.06),
+          },
         },
       }}
     >
@@ -82,7 +105,7 @@ export default function ListItemDashboardProject({
           ml: 1,
           mt: 0.25,
           flexShrink: 0,
-          color: count ? "text.secondary" : "#b8b8c8",
+          color: count ? TEXT_MUTED : TEXT_FADED,
         }}
       >
         {countText}

@@ -3,6 +3,8 @@ import { CloudSync } from "@mui/icons-material";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
+import { PILL_BUTTON_SX } from "../utils/dashboardStyles";
+
 export default function ButtonFetchMyKrtos({ onClick, loading, variant }) {
   // data
 
@@ -35,13 +37,10 @@ export default function ButtonFetchMyKrtos({ onClick, loading, variant }) {
         isContained
           ? undefined
           : {
-              color: "text.secondary",
-              borderColor: "divider",
-              bgcolor: "white",
+              ...PILL_BUTTON_SX,
               height: 30,
               whiteSpace: "nowrap",
               flexShrink: 0,
-              "&:hover": { borderColor: "#c9c9d8", bgcolor: "white" },
             }
       }
     >

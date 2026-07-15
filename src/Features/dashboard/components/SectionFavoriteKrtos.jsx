@@ -1,7 +1,6 @@
 import {
   Box,
   Typography,
-  Avatar,
   Chip,
   IconButton,
   CircularProgress,
@@ -14,7 +13,12 @@ import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import CardFavoriteKrto from "./CardFavoriteKrto";
 import CardEmptySection from "./CardEmptySection";
 
-const STAR_COLOR = "#f5a623";
+import {
+  STAR_COLOR,
+  SEGMENT_BG,
+  TEXT_MUTED,
+  fadeUp,
+} from "../utils/dashboardStyles";
 
 export default function SectionFavoriteKrtos({
   favorites,
@@ -40,19 +44,10 @@ export default function SectionFavoriteKrtos({
   // render
 
   return (
-    <Box>
+    <Box sx={fadeUp(0.25)}>
       {/* header */}
-      <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-        <Avatar
-          sx={{
-            width: 52,
-            height: 52,
-            bgcolor: STAR_COLOR + "1f",
-            color: STAR_COLOR,
-          }}
-        >
-          <Star />
-        </Avatar>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
+        <Star sx={{ color: STAR_COLOR, fontSize: 22 }} />
         <Box
           sx={{
             flex: 1,
@@ -62,13 +57,20 @@ export default function SectionFavoriteKrtos({
             gap: 1,
           }}
         >
-          <Typography variant="h6" sx={{ fontWeight: 700 }}>
+          <Typography variant="h6" sx={{ fontWeight: 600 }}>
             {titleS}
           </Typography>
           <Chip
             size="small"
             label={comingSoonS}
-            sx={{ height: 20, fontSize: 11, fontWeight: 600 }}
+            sx={{
+              height: 20,
+              fontSize: 11,
+              fontWeight: 600,
+              bgcolor: SEGMENT_BG,
+              color: TEXT_MUTED,
+              borderRadius: 999,
+            }}
           />
         </Box>
         <Tooltip title="Mettre à jour les favoris">
@@ -101,7 +103,10 @@ export default function SectionFavoriteKrtos({
               overflowX: "auto",
               pb: 1,
               "&::-webkit-scrollbar": { height: 6 },
-              "&::-webkit-scrollbar-thumb": { bgcolor: "#d7d7e2", borderRadius: 3 },
+              "&::-webkit-scrollbar-thumb": {
+                bgcolor: "#E0D8D2",
+                borderRadius: 3,
+              },
             }}
           >
             {favorites.map((favorite) => (

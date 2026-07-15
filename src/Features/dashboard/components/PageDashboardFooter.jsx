@@ -6,6 +6,7 @@ import ButtonSigninV2 from "Features/auth/components/ButtonSigninV2";
 import IconButtonDebugAuth from "Features/auth/components/IconButtonDebugAuth";
 import SwitchCoupledNavigation from "Features/layout/components/SwitchCoupledNavigation";
 
+import { PAGE_BG, FOOTER_BORDER } from "../utils/dashboardStyles";
 
 export default function PageDashboardFooter() {
   return (
@@ -14,8 +15,8 @@ export default function PageDashboardFooter() {
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",
-        bgcolor: "white",
-        borderTop: (theme) => `1px solid ${theme.palette.divider}`,
+        bgcolor: PAGE_BG,
+        borderTop: `1px solid ${FOOTER_BORDER}`,
         p: 1,
       }}
     >

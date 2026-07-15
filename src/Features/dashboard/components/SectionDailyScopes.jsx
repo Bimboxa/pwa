@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 
 import { useTheme } from "@mui/material/styles";
-import { Box, Typography, Avatar, Chip } from "@mui/material";
+import { Box, Typography, Chip } from "@mui/material";
 import { EventAvailable, EventNote } from "@mui/icons-material";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
@@ -9,6 +9,13 @@ import useDailyScopes from "Features/dailyScopes/hooks/useDailyScopes";
 
 import CardEmptySection from "./CardEmptySection";
 import ListItemDailyScope from "./ListItemDailyScope";
+
+import {
+  SEGMENT_BG,
+  TEXT_MUTED,
+  TEXT_FAINT,
+  fadeUp,
+} from "../utils/dashboardStyles";
 
 export default function SectionDailyScopes() {
   const theme = useTheme();
@@ -52,19 +59,10 @@ export default function SectionDailyScopes() {
   // render
 
   return (
-    <Box sx={{ mt: 6 }}>
+    <Box sx={{ mt: 6, ...fadeUp(0.35) }}>
       {/* header */}
-      <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-        <Avatar
-          sx={{
-            width: 52,
-            height: 52,
-            bgcolor: accentColor + "1f",
-            color: accentColor,
-          }}
-        >
-          <EventAvailable />
-        </Avatar>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1.25 }}>
+        <EventAvailable sx={{ color: accentColor, fontSize: 22 }} />
         <Box
           sx={{
             flex: 1,
@@ -74,16 +72,23 @@ export default function SectionDailyScopes() {
             gap: 1,
           }}
         >
-          <Typography variant="h6" sx={{ fontWeight: 700 }}>
+          <Typography variant="h6" sx={{ fontWeight: 600 }}>
             {titleS}
           </Typography>
           <Chip
             size="small"
             label={comingSoonS}
-            sx={{ height: 20, fontSize: 11, fontWeight: 600 }}
+            sx={{
+              height: 20,
+              fontSize: 11,
+              fontWeight: 600,
+              bgcolor: SEGMENT_BG,
+              color: TEXT_MUTED,
+              borderRadius: 999,
+            }}
           />
         </Box>
-        <Typography variant="body2" sx={{ color: "text.secondary" }}>
+        <Typography variant="body2" sx={{ color: TEXT_FAINT }}>
           {dateLabel}
         </Typography>
       </Box>
@@ -92,10 +97,11 @@ export default function SectionDailyScopes() {
       <Box sx={{ mt: 2.5 }}>
         {!items.length ? (
           <CardEmptySection
-            icon={<EventNote sx={{ fontSize: "2rem" }} />}
+            icon={<EventNote sx={{ fontSize: "1.9rem" }} />}
             iconColor={accentColor}
             title={emptyTitleS}
             hint={emptyHintS}
+            animationDelay={0.5}
           />
         ) : (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
