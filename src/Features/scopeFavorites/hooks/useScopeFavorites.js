@@ -37,12 +37,24 @@ export default function useScopeFavorites() {
     const fetchParams = endpointConfig?.fetchParams;
     if (!fetchParams) throw new Error("missing fetchParams");
 
+    // the API expects scopeId / userId as strings, even when ids are numeric
+    const _context = {
+      ...context,
+      ...(context?.scopeId != null && { scopeId: String(context.scopeId) }),
+      ...(context?.userProfile?.idMaster != null && {
+        userProfile: {
+          ...context.userProfile,
+          idMaster: String(context.userProfile.idMaster),
+        },
+      }),
+    };
+
     const urlConfig = {
       ...fetchParams.url,
-      route: resolveRoute(fetchParams.url.route, context),
+      route: resolveRoute(fetchParams.url.route, _context),
     };
     const resolvedUrl = resolveUrl(urlConfig);
-    const resolvedBody = resolveRequestBody(fetchParams.body, context);
+    const resolvedBody = resolveRequestBody(fetchParams.body, _context);
 
     const response = await fetch(resolvedUrl, {
       method: fetchParams.method || "GET",
