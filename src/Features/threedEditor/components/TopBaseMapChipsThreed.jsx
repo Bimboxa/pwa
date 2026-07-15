@@ -6,8 +6,10 @@ import {
   toggleMainBaseMapImageIn3d,
   toggleMainBaseMapAnnotationsIn3d,
 } from "Features/threedEditor/threedEditorSlice";
+import { setSelectedMainBaseMapId } from "Features/mapEditor/mapEditorSlice";
 
 import { Box, Stack, Tooltip, Typography } from "@mui/material";
+import LayersIcon from "@mui/icons-material/Layers";
 
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
@@ -15,13 +17,13 @@ import useAnnotationsCountByBaseMapId from "Features/annotations/hooks/useAnnota
 import { ANNOTATIONS_DISPLAY_MODE } from "Features/threedEditor/constants/annotationsDisplayModeIn3d";
 
 // Floating chips row pinned to the top-center of the 3D viewer — one chip per
-// project basemap: the basemap name + a rounded badge with its annotations
-// count. Clicking the chip toggles the basemap IMAGE in 3D; clicking the
-// badge toggles its ANNOTATIONS in 3D. Selecting the main basemap is NOT done
-// here — it happens by clicking the basemap image in the 3D scene
-// (MainThreedEditor.handleClick); the main chip is only highlighted.
-// The scene sync is already handled by useApplyBaseMapVisibilityIn3d /
-// ThreedAnnotationsVisibility.
+// project basemap: a layer icon (image visibility state, click toggles the
+// IMAGE in 3D), the basemap name, and a rounded badge with the annotations
+// count (click toggles the ANNOTATIONS in 3D). Clicking the chip itself,
+// outside those two buttons, selects the basemap as the main one (top-bar
+// BaseMapSelector) — same as clicking its image in the 3D scene
+// (MainThreedEditor.handleClick). The scene sync is already handled by
+// useApplyBaseMapVisibilityIn3d / ThreedAnnotationsVisibility.
 export default function TopBaseMapChipsThreed() {
   const dispatch = useDispatch();
 
@@ -43,7 +45,12 @@ export default function TopBaseMapChipsThreed() {
 
   // handlers
 
-  function handleToggleImage(map, isMain) {
+  function handleSelect(map, isMain) {
+    if (!isMain) dispatch(setSelectedMainBaseMapId(map.id));
+  }
+
+  function handleToggleImage(e, map, isMain) {
+    e.stopPropagation();
     if (isMain) {
       dispatch(toggleMainBaseMapImageIn3d());
     } else {
@@ -101,7 +108,7 @@ export default function TopBaseMapChipsThreed() {
             direction="row"
             alignItems="center"
             spacing={0.75}
-            onClick={() => handleToggleImage(map, isMain)}
+            onClick={() => handleSelect(map, isMain)}
             sx={{
               flexShrink: 0,
               px: 1.25,
@@ -114,8 +121,9 @@ export default function TopBaseMapChipsThreed() {
               cursor: "pointer",
             }}
           >
-            {/* The image tooltip wraps the name only — wrapping the whole
-                chip would stack it with the badge's own tooltip on hover. */}
+            {/* Layer icon = image visibility state: white-on-grey when the
+                image shows, grey-on-white when hidden. Tooltips are kept on
+                disjoint zones (icon / name / badge) so they never stack. */}
             <Tooltip
               title={
                 imageOn
@@ -124,17 +132,36 @@ export default function TopBaseMapChipsThreed() {
               }
               disableInteractive
             >
+              <Box
+                onClick={(e) => handleToggleImage(e, map, isMain)}
+                sx={{
+                  width: 20,
+                  height: 20,
+                  borderRadius: "50%",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  bgcolor: imageOn ? "grey.500" : "common.white",
+                  color: imageOn ? "common.white" : "grey.500",
+                  border: "1px solid",
+                  borderColor: imageOn ? "transparent" : "divider",
+                  cursor: "pointer",
+                }}
+              >
+                <LayersIcon sx={{ fontSize: 14 }} />
+              </Box>
+            </Tooltip>
+            <Tooltip
+              title={isMain ? "" : "Sélectionner ce fond de plan"}
+              disableInteractive
+            >
               <Typography
                 variant="body2"
                 noWrap
                 sx={{
                   maxWidth: 160,
                   fontWeight: isMain ? 700 : 400,
-                  color: !imageOn
-                    ? "text.disabled"
-                    : isMain
-                      ? "primary.main"
-                      : "text.primary",
+                  color: isMain ? "primary.main" : "text.primary",
                 }}
               >
                 {map.name}
