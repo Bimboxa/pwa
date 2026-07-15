@@ -43,7 +43,7 @@ const DRAG_THRESHOLD_PX = 4;
 //   overlay as the selection-mode hover) + a "+ nouvelle maille" cursor
 //   helper; a click creates a maille from the hovered face. Clicking an
 //   existing maille selects it (shift+click toggles).
-// - CUT_VERTICAL / CUT_HORIZONTAL / CUT_FREE: delegated to
+// - CUT_VERTICAL / CUT_HORIZONTAL / CUT_FREE / CUT_POLYLINE: delegated to
 //   meshingCutController (red cut line, reference/guide vertices, area chips,
 //   split on click).
 export default function useMeshingPointerHandlers() {

@@ -23,6 +23,7 @@ import {
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import NearMeIcon from "@mui/icons-material/NearMe";
+import TimelineIcon from "@mui/icons-material/Timeline";
 
 // Tool glyphs match the mockup: plain strokes for the three cut lines.
 const TOOLS = [
@@ -45,6 +46,12 @@ const TOOLS = [
     value: "CUT_FREE",
     label: "Trait de coupe libre — 2 clics sur les bords d'une maille",
     render: () => <Glyph>╱</Glyph>,
+  },
+  {
+    value: "CUT_POLYLINE",
+    label:
+      "Polyligne de découpe — clics successifs depuis un bord, terminer sur un bord (Échap : annuler)",
+    render: () => <TimelineIcon sx={{ fontSize: 18 }} />,
   },
 ];
 

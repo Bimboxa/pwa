@@ -100,10 +100,19 @@ export function createMeshingCutController({
   // Free-cut state: first committed edge point.
   // { world:{x,y,z}, candidates:[{mesh3dId, faceIndex}] }
   let firstPoint = null;
-  // Last snapped edge point under the cursor (free cut).
+  // Last snapped edge point under the cursor (free cut / polyline cut).
   let freeSnap = null;
   // Last crossed candidate while dragging the free segment.
   let freeCrossed = null;
+
+  // Polyline-cut state: committed points (world coords), the candidate faces
+  // of the starting boundary point, the current cursor endpoint and the
+  // resolved commit context (set on hover when ending on a boundary point
+  // actually splits a candidate face).
+  let polyPoints = [];
+  let polyCandidates = null;
+  let polyEndWorld = null;
+  let polyCommit = null;
 
   // --- three helpers -------------------------------------------------------
 
@@ -221,9 +230,18 @@ export function createMeshingCutController({
     hoverCut = null;
     freeSnap = null;
     freeCrossed = null;
+    polyEndWorld = null;
+    polyCommit = null;
     clearDraft();
     setMeshingOverlay({ areaChips: [], offsetChip: null, cursor: null });
     renderScene();
+  }
+
+  function resetPolyline() {
+    polyPoints = [];
+    polyCandidates = null;
+    polyEndWorld = null;
+    polyCommit = null;
   }
 
   // --- axis cuts (CUT_VERTICAL / CUT_HORIZONTAL) ---------------------------
@@ -391,68 +409,119 @@ export function createMeshingCutController({
     renderScene();
   }
 
-  // --- free cut (CUT_FREE) --------------------------------------------------
+  // --- free cut (CUT_FREE) / polyline cut (CUT_POLYLINE) --------------------
 
-  // Nearest maille contour-edge point to the cursor (screen space). Also
-  // collects every (mesh3d, face) with an edge within the snap radius — at a
-  // shared edge/corner the cut maille is resolved by the SECOND click (the
-  // one whose polygon the final segment crosses).
+  // Nearest maille boundary point to the cursor (screen space), scanning the
+  // contour AND the hole (opening) loops of every face; a loop vertex within
+  // the snap radius wins over a plain edge point. Also collects every
+  // (mesh3d, face) with a boundary within the snap radius — at a shared
+  // edge/corner the cut maille is resolved by the LAST click (the one whose
+  // polygon the built path crosses).
   function findEdgeSnap(e, rect) {
     const cursor = { x: e.clientX - rect.left, y: e.clientY - rect.top };
-    let best = null;
+    let bestEdge = null;
+    let bestVertex = null;
     const candidates = [];
 
     for (const mesh3d of getAllMeshes3d()) {
       (mesh3d.faces || []).forEach((face, faceIndex) => {
         if (!face?.contour || face.contour.length < 3) return;
-        const nPts = face.contour.length;
-        let faceBest = null;
-        for (let i = 0; i < nPts; i++) {
-          const p3 = face.contour[i];
-          const q3 = face.contour[(i + 1) % nPts];
-          const p = worldToScreen(p3, rect);
-          const q = worldToScreen(q3, rect);
-          const dx = q.x - p.x;
-          const dy = q.y - p.y;
-          const lenSq = dx * dx + dy * dy;
-          if (lenSq === 0) continue;
-          let t = ((cursor.x - p.x) * dx + (cursor.y - p.y) * dy) / lenSq;
-          t = Math.max(0, Math.min(1, t));
-          const sx = p.x + t * dx;
-          const sy = p.y + t * dy;
-          const dist = Math.hypot(cursor.x - sx, cursor.y - sy);
-          if (dist > MESH3D_SNAP_PX) continue;
-          const world = {
-            x: p3.x + t * (q3.x - p3.x),
-            y: p3.y + t * (q3.y - p3.y),
-            z: p3.z + t * (q3.z - p3.z),
-          };
-          const hit = { dist, world, mesh3dId: mesh3d.id, faceIndex };
-          if (!faceBest || dist < faceBest.dist) faceBest = hit;
-          if (!best || dist < best.dist) best = hit;
+        const loops = [
+          face.contour,
+          ...(face.holes || []).filter((hole) => hole?.length >= 3),
+        ];
+        let faceHit = false;
+        for (const loop of loops) {
+          const nPts = loop.length;
+          for (let i = 0; i < nPts; i++) {
+            const p3 = loop[i];
+            const q3 = loop[(i + 1) % nPts];
+            const p = worldToScreen(p3, rect);
+            const q = worldToScreen(q3, rect);
+
+            const vDist = Math.hypot(cursor.x - p.x, cursor.y - p.y);
+            if (vDist <= MESH3D_SNAP_PX) {
+              faceHit = true;
+              if (!bestVertex || vDist < bestVertex.dist) {
+                bestVertex = {
+                  dist: vDist,
+                  world: { x: p3.x, y: p3.y, z: p3.z },
+                  mesh3dId: mesh3d.id,
+                  faceIndex,
+                };
+              }
+            }
+
+            const dx = q.x - p.x;
+            const dy = q.y - p.y;
+            const lenSq = dx * dx + dy * dy;
+            if (lenSq === 0) continue;
+            let t = ((cursor.x - p.x) * dx + (cursor.y - p.y) * dy) / lenSq;
+            t = Math.max(0, Math.min(1, t));
+            const sx = p.x + t * dx;
+            const sy = p.y + t * dy;
+            const dist = Math.hypot(cursor.x - sx, cursor.y - sy);
+            if (dist > MESH3D_SNAP_PX) continue;
+            faceHit = true;
+            const world = {
+              x: p3.x + t * (q3.x - p3.x),
+              y: p3.y + t * (q3.y - p3.y),
+              z: p3.z + t * (q3.z - p3.z),
+            };
+            const hit = { dist, world, mesh3dId: mesh3d.id, faceIndex };
+            if (!bestEdge || dist < bestEdge.dist) bestEdge = hit;
+          }
         }
-        if (faceBest) {
+        if (faceHit) {
           candidates.push({ mesh3dId: mesh3d.id, faceIndex });
         }
       });
     }
+    const best = bestVertex || bestEdge;
     return best ? { ...best, candidates } : null;
   }
 
-  // Among the first-click candidates, the maille actually cut by the segment
-  // (endpoints in its face plane, midpoint strictly inside the polygon).
-  function findCrossedCandidate(aWorld, bWorld, candidates) {
+  // Among the first-click candidates, the maille actually cut by the path
+  // (world points): all points projected in its face plane, with at least one
+  // segment midpoint strictly inside the polygon (holes excluded).
+  function findCrossedCandidate(worldPoints, candidates) {
     for (const candidate of candidates || []) {
       const ctx = getFaceContext(candidate.mesh3dId, candidate.faceIndex);
       if (!ctx) continue;
-      const a2 = projectPointTo2d(aWorld, ctx.basis);
-      const b2 = projectPointTo2d(bWorld, ctx.basis);
-      const mid = { x: (a2.x + b2.x) / 2, y: (a2.y + b2.y) / 2 };
-      if (!pointInPolygon2d(mid, ctx.contour2d)) continue;
-      if (ctx.holes2d.some((hole) => pointInPolygon2d(mid, hole))) continue;
-      return { ctx, a2, b2 };
+      const path2d = worldPoints.map((w) => projectPointTo2d(w, ctx.basis));
+      const crossesFace = path2d.some((p, i) => {
+        if (i === 0) return false;
+        const q = path2d[i - 1];
+        const mid = { x: (p.x + q.x) / 2, y: (p.y + q.y) / 2 };
+        if (!pointInPolygon2d(mid, ctx.contour2d)) return false;
+        return !ctx.holes2d.some((hole) => pointInPolygon2d(mid, hole));
+      });
+      if (!crossesFace) continue;
+      return { ctx, path2d };
     }
     return null;
+  }
+
+  // Cursor projected on the face plane of the first path candidate (pure
+  // visual feedback / intermediate polyline points).
+  function projectCursorToCandidatePlane(e, rect, candidates) {
+    const ctx0 = getFaceContext(
+      candidates?.[0]?.mesh3dId,
+      candidates?.[0]?.faceIndex
+    );
+    if (!ctx0) return null;
+    const plane = new Plane().setFromNormalAndCoplanarPoint(
+      new Vector3(ctx0.basis.n.x, ctx0.basis.n.y, ctx0.basis.n.z),
+      new Vector3(ctx0.basis.origin.x, ctx0.basis.origin.y, ctx0.basis.origin.z)
+    );
+    const ndc = new Vector2(
+      ((e.clientX - rect.left) / rect.width) * 2 - 1,
+      -((e.clientY - rect.top) / rect.height) * 2 + 1
+    );
+    const target = new Vector3();
+    planeRaycaster.setFromCamera(ndc, sceneManager.camera);
+    if (!planeRaycaster.ray.intersectPlane(plane, target)) return null;
+    return { x: target.x, y: target.y, z: target.z };
   }
 
   function onHoverFreeCut(e, pick) {
@@ -475,32 +544,9 @@ export function createMeshingCutController({
     if (firstPoint) {
       // Moving endpoint: the snapped edge point, else the cursor projected on
       // the plane of the first candidate face (pure visual feedback).
-      let endWorld = freeSnap?.world || null;
-      if (!endWorld) {
-        const ctx0 = getFaceContext(
-          firstPoint.candidates[0]?.mesh3dId,
-          firstPoint.candidates[0]?.faceIndex
-        );
-        if (ctx0) {
-          const plane = new Plane().setFromNormalAndCoplanarPoint(
-            new Vector3(ctx0.basis.n.x, ctx0.basis.n.y, ctx0.basis.n.z),
-            new Vector3(
-              ctx0.basis.origin.x,
-              ctx0.basis.origin.y,
-              ctx0.basis.origin.z
-            )
-          );
-          const ndc = new Vector2(
-            ((e.clientX - rect.left) / rect.width) * 2 - 1,
-            -((e.clientY - rect.top) / rect.height) * 2 + 1
-          );
-          const target = new Vector3();
-          planeRaycaster.setFromCamera(ndc, sceneManager.camera);
-          if (planeRaycaster.ray.intersectPlane(plane, target)) {
-            endWorld = { x: target.x, y: target.y, z: target.z };
-          }
-        }
-      }
+      const endWorld =
+        freeSnap?.world ||
+        projectCursorToCandidatePlane(e, rect, firstPoint.candidates);
 
       if (endWorld) {
         const snapped = !!freeSnap;
@@ -508,8 +554,7 @@ export function createMeshingCutController({
 
         if (freeSnap) {
           const crossed = findCrossedCandidate(
-            firstPoint.world,
-            endWorld,
+            [firstPoint.world, endWorld],
             firstPoint.candidates
           );
           if (crossed) {
@@ -517,9 +562,7 @@ export function createMeshingCutController({
             const pieces = splitFacePolygon({
               contour: crossed.ctx.contour2d,
               holes: crossed.ctx.holes2d,
-              a: crossed.a2,
-              b: crossed.b2,
-              clampToSegment: true,
+              path: crossed.path2d,
             });
             (pieces || []).forEach((piece) => {
               const c = worldToScreen(
@@ -556,7 +599,7 @@ export function createMeshingCutController({
     }
 
     if (!freeCrossed) return;
-    const { ctx, a2, b2 } = freeCrossed;
+    const { ctx, path2d } = freeCrossed;
     firstPoint = null;
     freeSnap = null;
     freeCrossed = null;
@@ -564,9 +607,7 @@ export function createMeshingCutController({
       await splitMesh3dService({
         mesh3d: ctx.mesh3d,
         faceIndex: ctx.faceIndex,
-        a: a2,
-        b: b2,
-        clampToSegment: true,
+        path: path2d,
       });
     } catch (err) {
       console.error("[threedMesh] free split failed", err);
@@ -574,6 +615,110 @@ export function createMeshingCutController({
     clearDraft();
     setMeshingOverlay({ areaChips: [], offsetChip: null });
     renderScene();
+  }
+
+  // --- polyline cut (CUT_POLYLINE) ------------------------------------------
+
+  // Same flow as the free cut with intermediate points: the polyline starts
+  // on a maille boundary (contour or opening), grows with each click (points
+  // snap to boundaries within radius, else land on the face plane), and
+  // commits when a click on a boundary point actually splits the maille.
+  function onHoverPolylineCut(e, pick) {
+    const rect =
+      pick?.rect ||
+      (() => {
+        const r = dom.getBoundingClientRect();
+        return r.width && r.height ? r : null;
+      })();
+    if (!rect) return;
+
+    freeSnap = findEdgeSnap(e, rect);
+    polyCommit = null;
+    polyEndWorld = null;
+
+    clearDraft();
+    const areaChips = [];
+
+    if (freeSnap) drawRing(freeSnap.world);
+
+    if (polyPoints.length) {
+      polyEndWorld =
+        freeSnap?.world ||
+        projectCursorToCandidatePlane(e, rect, polyCandidates);
+
+      polyPoints.forEach((p) => drawRing(p));
+      const chain = polyEndWorld ? [...polyPoints, polyEndWorld] : polyPoints;
+      for (let i = 1; i < chain.length; i++) {
+        drawSegment(chain[i - 1], chain[i], {
+          snapped: !!freeSnap && i === chain.length - 1,
+        });
+      }
+
+      if (freeSnap && chain.length >= 2) {
+        const crossed = findCrossedCandidate(chain, polyCandidates);
+        if (crossed) {
+          const pieces = splitFacePolygon({
+            contour: crossed.ctx.contour2d,
+            holes: crossed.ctx.holes2d,
+            path: crossed.path2d,
+          });
+          if (pieces) {
+            polyCommit = crossed;
+            pieces.forEach((piece) => {
+              const c = worldToScreen(
+                liftPointTo3d(
+                  polygonCentroid2d(piece.contour),
+                  crossed.ctx.basis
+                ),
+                rect
+              );
+              areaChips.push({
+                x: c.x,
+                y: c.y,
+                text: formatSurfaceM2(piece.area),
+              });
+            });
+          }
+        }
+      }
+    }
+
+    setMeshingOverlay({ areaChips, offsetChip: null, cursor: null });
+    renderScene();
+  }
+
+  async function onClickPolylineCut() {
+    if (!polyPoints.length) {
+      // Starting point: must be on a maille boundary.
+      if (!freeSnap) return;
+      polyPoints = [freeSnap.world];
+      polyCandidates = freeSnap.candidates;
+      return;
+    }
+
+    // Ending click: a boundary point whose path splits the maille commits.
+    if (freeSnap && polyCommit) {
+      const { ctx, path2d } = polyCommit;
+      resetPolyline();
+      freeSnap = null;
+      try {
+        await splitMesh3dService({
+          mesh3d: ctx.mesh3d,
+          faceIndex: ctx.faceIndex,
+          path: path2d,
+        });
+      } catch (err) {
+        console.error("[threedMesh] polyline split failed", err);
+      }
+      clearDraft();
+      setMeshingOverlay({ areaChips: [], offsetChip: null });
+      renderScene();
+      return;
+    }
+
+    // Intermediate point (snapped to a boundary when within radius).
+    const point = freeSnap?.world || polyEndWorld;
+    if (point) polyPoints = [...polyPoints, point];
   }
 
   // --- public API -----------------------------------------------------------
@@ -584,6 +729,7 @@ export function createMeshingCutController({
       if (tool === "CUT_VERTICAL") onHoverAxisCut(e, pick, "x");
       else if (tool === "CUT_HORIZONTAL") onHoverAxisCut(e, pick, "y");
       else if (tool === "CUT_FREE") onHoverFreeCut(e, pick);
+      else if (tool === "CUT_POLYLINE") onHoverPolylineCut(e, pick);
     },
     onClick() {
       const tool = getTool();
@@ -591,6 +737,8 @@ export function createMeshingCutController({
         onClickAxisCut();
       } else if (tool === "CUT_FREE") {
         onClickFreeCut();
+      } else if (tool === "CUT_POLYLINE") {
+        onClickPolylineCut();
       }
     },
     onLeave() {
@@ -598,6 +746,7 @@ export function createMeshingCutController({
     },
     onEscape() {
       firstPoint = null;
+      resetPolyline();
       resetHover();
     },
     dispose() {

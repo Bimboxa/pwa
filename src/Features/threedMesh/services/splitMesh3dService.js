@@ -6,8 +6,9 @@ import { projectLoopTo2d, liftLoopTo3d } from "../utils/planeProjection";
 import splitFacePolygon from "../utils/splitFacePolygon";
 import { computeMesh3dSurface } from "../utils/computeFaceArea";
 
-// Splits one face of a maille along the (a, b) cut line (2D coords in the
-// face plane basis). The LARGEST resulting piece keeps the original maille's
+// Splits one face of a maille along the (a, b) cut line, or along `path` (a
+// polyline whose endpoints sit on the face boundary) — 2D coords in the face
+// plane basis. The LARGEST resulting piece keeps the original maille's
 // identity (id / number / label / color, and its other faces when the maille
 // is multi-face); every other piece becomes a new maille (fresh number, no
 // custom label, same color).
@@ -16,7 +17,7 @@ export default async function splitMesh3dService({
   faceIndex,
   a,
   b,
-  clampToSegment = false,
+  path,
 }) {
   const face = mesh3d?.faces?.[faceIndex];
   if (!face) return null;
@@ -32,7 +33,7 @@ export default async function splitMesh3dService({
     holes: holes2d,
     a,
     b,
-    clampToSegment,
+    path,
   });
   if (!pieces || pieces.length < 2) return null;
 

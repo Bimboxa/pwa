@@ -125,7 +125,7 @@ const threedEditorInitialState = {
   },
   meshingMode: {
     active: false,
-    tool: "SELECT", // "SELECT" | "CUT_VERTICAL" | "CUT_HORIZONTAL" | "CUT_FREE"
+    tool: "SELECT", // "SELECT" | "CUT_VERTICAL" | "CUT_HORIZONTAL" | "CUT_FREE" | "CUT_POLYLINE"
     // "Décalage": distance (m) from the reference vertex to the guide vertex
     // used by the vertical / horizontal cut tools.
     offset: 2,
