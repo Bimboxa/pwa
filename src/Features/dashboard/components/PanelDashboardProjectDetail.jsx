@@ -10,9 +10,17 @@ import { setSelectedProjectKeyInDashboard } from "../dashboardSlice";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useScopeFavorites from "Features/scopeFavorites/hooks/useScopeFavorites";
+import useFetchProjectScopeConfigurations from "../hooks/useFetchProjectScopeConfigurations";
 
-import { Box, Typography, Button } from "@mui/material";
-import { Add, TouchApp, GridOn } from "@mui/icons-material";
+import {
+  Box,
+  Typography,
+  Button,
+  IconButton,
+  Tooltip,
+  CircularProgress,
+} from "@mui/material";
+import { Add, TouchApp, GridOn, Refresh, CloudQueue } from "@mui/icons-material";
 
 import HeaderDashboardProject from "./HeaderDashboardProject";
 import ListItemDashboardScope from "./ListItemDashboardScope";
@@ -26,6 +34,11 @@ export default function PanelDashboardProjectDetail({ item }) {
 
   const appConfig = useAppConfig();
   const { isFavorite, toggleFavorite } = useScopeFavorites();
+  const {
+    loading: remoteScopesLoading,
+    canFetch: canFetchRemoteScopes,
+    refresh: refreshRemoteScopes,
+  } = useFetchProjectScopeConfigurations(item);
   const userConfigurations = useSelector(
     (s) => s.remoteScopeConfigurations.userConfigurations
   );
@@ -176,11 +189,33 @@ export default function PanelDashboardProjectDetail({ item }) {
           justifyContent: "space-between",
         }}
       >
-        <Box sx={{ display: "flex", alignItems: "baseline", gap: 1 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
           <Typography variant="h6">{krtoS}s</Typography>
           <Typography variant="body2" sx={{ color: "text.secondary" }}>
             {count} élément{count > 1 ? "s" : ""}
           </Typography>
+          {canFetchRemoteScopes &&
+            (remoteScopesLoading ? (
+              <Tooltip title={`Récupération des ${krtoS}s distants…`}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 0.5,
+                    color: "text.secondary",
+                  }}
+                >
+                  <CloudQueue sx={{ fontSize: "1rem" }} />
+                  <CircularProgress size={12} color="inherit" />
+                </Box>
+              </Tooltip>
+            ) : (
+              <Tooltip title={`Rechercher les ${krtoS}s sur le serveur`}>
+                <IconButton size="small" onClick={refreshRemoteScopes}>
+                  <Refresh sx={{ fontSize: "1.1rem" }} />
+                </IconButton>
+              </Tooltip>
+            ))}
         </Box>
         <Button
           variant="contained"
@@ -195,7 +230,24 @@ export default function PanelDashboardProjectDetail({ item }) {
 
       {/* krtos list */}
       <Box sx={{ flex: 1, overflowY: "auto", px: 3, pb: 3 }}>
-        {count === 0 ? (
+        {count === 0 && remoteScopesLoading ? (
+          <Box
+            sx={{
+              border: "1.5px dashed #dcdce6",
+              borderRadius: 3,
+              py: 7,
+              textAlign: "center",
+              color: "text.secondary",
+              bgcolor: "white",
+            }}
+          >
+            <CloudQueue sx={{ fontSize: "2.4rem", color: "#d0d0dd" }} />
+            <Typography sx={{ mt: 1.5, fontWeight: 600, color: "text.primary" }}>
+              Recherche des {krtoS}s sur le serveur…
+            </Typography>
+            <CircularProgress size={20} sx={{ mt: 2 }} color="inherit" />
+          </Box>
+        ) : count === 0 ? (
           <Box
             sx={{
               border: "1.5px dashed #dcdce6",

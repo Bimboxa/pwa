@@ -38,6 +38,9 @@ export default function useDashboardProjectItems({
   const userConfigurations = useSelector(
     (s) => s.remoteScopeConfigurations.userConfigurations
   );
+  const projectConfigurations = useSelector(
+    (s) => s.remoteScopeConfigurations.projectConfigurations
+  );
   const masterProjectsMap = useSelector((s) => s.masterProjects.itemsMap);
 
   const selectedProjectKey = useSelector(
@@ -82,12 +85,19 @@ export default function useDashboardProjectItems({
 
     const localScopeIds = new Set((scopes ?? []).map((s) => String(s.id)));
 
-    // 2. Merge user scope configurations (ByUser) into items
+    // 2. Merge remote scope configurations (ByUser + ByProject) into items
 
     const remoteOnlyByKey = {};
 
-    (userConfigurations ?? []).forEach((config) => {
+    const remoteConfigurations = [
+      ...(userConfigurations ?? []),
+      ...Object.values(projectConfigurations ?? {}).flat(),
+    ];
+
+    remoteConfigurations.forEach((config) => {
       const localItem =
+        (config.projectIdMaster &&
+          localByIdMaster[String(config.projectIdMaster)]) ||
         (config.idMaster && localByIdMaster[String(config.idMaster)]) ||
         (config.projectClientRef && localByClientRef[config.projectClientRef]);
 
@@ -231,6 +241,7 @@ export default function useDashboardProjectItems({
     scopes,
     projects,
     userConfigurations,
+    projectConfigurations,
     masterProjectsMap,
     searchText,
     typeFilter,

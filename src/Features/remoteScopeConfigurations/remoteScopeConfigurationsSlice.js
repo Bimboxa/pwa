@@ -53,6 +53,7 @@ function setLastSyncToStorage(scopeId, ts) {
 
 const remoteScopeConfigurationsInitialState = {
   userConfigurations: [], // scope configurations of the connected user (ByUser)
+  projectConfigurations: {}, // project idMaster => scope configurations (ByProject)
   lastRemoteConfiguration: null,
   lastSyncedRemoteConfigurationVersion: null,
   lastLocalChangeAt: null,
@@ -70,6 +71,11 @@ export const remoteScopeConfigurationsSlice = createSlice({
   reducers: {
     setUserConfigurations: (state, action) => {
       state.userConfigurations = action.payload ?? [];
+    },
+    setProjectConfigurations: (state, action) => {
+      const { idMaster, configurations } = action.payload ?? {};
+      if (!idMaster) return;
+      state.projectConfigurations[String(idMaster)] = configurations ?? [];
     },
     setLastRemoteConfiguration: (state, action) => {
       state.lastRemoteConfiguration = action.payload;
@@ -115,6 +121,7 @@ export const remoteScopeConfigurationsSlice = createSlice({
 
 export const {
   setUserConfigurations,
+  setProjectConfigurations,
   setLastRemoteConfiguration,
   setLastSyncedRemoteConfigurationVersion,
   restoreSyncedVersionFromStorage,
