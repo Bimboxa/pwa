@@ -3,6 +3,7 @@ import { useStore } from "react-redux";
 
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
+import getBaseMapOpacityIn3d from "Features/threedEditor/utils/getBaseMapOpacityIn3d";
 
 export default function useAutoLoadMapsInThreedEditor({
   threedEditor,
@@ -24,6 +25,7 @@ export default function useAutoLoadMapsInThreedEditor({
     if (!threedEditor?.loadMaps || !mainBaseMap?.id) return;
     const state = store.getState().threedEditor;
     const opacity = state.baseMapOpacityIn3d;
+    const opacityByBaseMapId = state.opacityByBaseMapIdIn3d;
     const visibleIds = state.visibleBaseMapIdsIn3d || [];
     const extras = baseMaps.filter(
       (b) =>
@@ -31,7 +33,10 @@ export default function useAutoLoadMapsInThreedEditor({
         visibleIds.includes(b.id) &&
         b?.image?.imageUrlClient
     );
-    threedEditor.loadMaps([mainBaseMap, ...extras], { opacity });
+    threedEditor.loadMaps([mainBaseMap, ...extras], {
+      opacity,
+      opacityByBaseMapId,
+    });
   }, [rendererIsReady, mainBaseMap?.id, baseMapsKey]);
 
   // Repair effect: the first load above can run with an incomplete baseMap —
@@ -63,7 +68,6 @@ export default function useAutoLoadMapsInThreedEditor({
     if (!threedEditor?.ensureBaseMapLoaded || !rendererIsReady) return;
     if (!mainBaseMap?.id) return;
     const state = store.getState().threedEditor;
-    const opacity = state.baseMapOpacityIn3d;
     const visibleIds = state.visibleBaseMapIdsIn3d || [];
     const extras = baseMaps.filter(
       (b) =>
@@ -72,7 +76,9 @@ export default function useAutoLoadMapsInThreedEditor({
         b?.image?.imageUrlClient
     );
     [mainBaseMap, ...extras].forEach((bm) => {
-      threedEditor.ensureBaseMapLoaded(bm, { opacity });
+      threedEditor.ensureBaseMapLoaded(bm, {
+        opacity: getBaseMapOpacityIn3d(state, bm.id),
+      });
       threedEditor.applyBaseMapPlacement(bm);
     });
   }, [rendererIsReady, mainBaseMap?.id, repairKey]);

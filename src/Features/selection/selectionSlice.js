@@ -234,6 +234,27 @@ export const selectionSlice = createSlice({
       reconcilePartRepresentative(state, wasInArray);
     },
   },
+  extraReducers: (builder) => {
+    // Switching the MAIN baseMap (top-bar chips, BaseMapSelectorInMapEditorV2,
+    // baseMap trees, …) while the properties panel shows a baseMap must
+    // retarget the BASE_MAP selection item so the panel follows the newly
+    // selected baseMap. Matched by type string to avoid importing
+    // mapEditorSlice (same pattern as threedEditorSlice).
+    builder.addMatcher(
+      (action) => action.type === "mapEditors/setSelectedMainBaseMapId",
+      (state, action) => {
+        const item = state.selectedItems[0];
+        if (item?.type !== "BASE_MAP") return;
+        if (action.payload) {
+          state.selectedItems = [{ id: action.payload, type: "BASE_MAP" }];
+        } else {
+          state.selectedItems = [];
+        }
+        state.selectedPointIds = [];
+        state.selectedPartIds = [];
+      }
+    );
+  },
 });
 
 export const {

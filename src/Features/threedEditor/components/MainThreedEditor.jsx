@@ -15,8 +15,8 @@ import {
   setSelectedNode,
   setAnnotationToolbarPosition,
   setAnnotationsToolbarPosition,
-  setSelectedMainBaseMapId,
 } from "Features/mapEditor/mapEditorSlice";
+import { setSelectedBaseMapId } from "Features/baseMaps/baseMapsSlice";
 import {
   setSelectedItem,
   setSelectedItems,
@@ -681,16 +681,15 @@ export default function MainThreedEditor() {
         }
       }
 
-      // No annotation hit. A plain click on a basemap image selects that
-      // basemap: as the main one (top-bar selector) AND as a BASE_MAP
-      // selection item so PanelSelectionProperties routes to the baseMap
-      // properties panel — shift stays reserved for the annotation
-      // multi-selection / lasso.
+      // No annotation hit. A plain click on a basemap image selects it as a
+      // BASE_MAP selection item so PanelSelectionProperties routes to the
+      // baseMap properties panel — shift stays reserved for the annotation
+      // multi-selection / lasso. The MAIN basemap (mapEditor slice) is left
+      // untouched on purpose: changing it reloads the 3D scene (displayed
+      // annotations + visible basemaps reset). `baseMaps.selectedBaseMapId`
+      // only drives the properties panels (useSelectedBaseMap).
       if (baseMapHitId && !event.shiftKey) {
-        const mainId = store.getState().mapEditor.selectedBaseMapId;
-        if (baseMapHitId !== mainId) {
-          dispatch(setSelectedMainBaseMapId(baseMapHitId));
-        }
+        dispatch(setSelectedBaseMapId(baseMapHitId));
         dispatch(setSelectedNode(null));
         dispatch(setSelectedItem({ id: baseMapHitId, type: "BASE_MAP" }));
         dispatch(setShowAnnotationsProperties(false));
@@ -705,6 +704,7 @@ export default function MainThreedEditor() {
       if (!event.shiftKey) {
         dispatch(setSelectedNode(null));
         dispatch(setSelectedItem(null));
+        dispatch(setSelectedBaseMapId(null));
         dispatch(clearSubSelection());
         dispatch(setAnnotationToolbarPosition(null));
         dispatch(setAnnotationsToolbarPosition(null));

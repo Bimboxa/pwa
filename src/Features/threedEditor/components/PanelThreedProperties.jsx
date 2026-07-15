@@ -24,7 +24,6 @@ import {
   setAntiAliasingShrink,
   setRenderMode,
   setEditorMode,
-  setThreedPropertiesTab,
 } from "Features/threedEditor/threedEditorSlice";
 import exportSceneAsUsdzService from "Features/threedEditor/services/exportSceneAsUsdzService";
 import exportSceneAsObjService from "Features/threedEditor/services/exportSceneAsObjService";
@@ -38,9 +37,7 @@ import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 export default function PanelThreedProperties() {
   const dispatch = useDispatch();
 
-  // Tab lives in redux so other panels can open the basemap tab directly
-  // (e.g. "Position 3D" in PanelBaseMapProperties when in the 3D viewer).
-  const tab = useSelector((s) => s.threedEditor.propertiesTab);
+  const [tab, setTab] = useState("SCENE"); // "SCENE" | "BASEMAP"
   const [exporting, setExporting] = useState(false);
   const [exportFormat, setExportFormat] = useState("USDZ"); // "USDZ" | "OBJ"
 
@@ -105,7 +102,7 @@ export default function PanelThreedProperties() {
     <BoxFlexVStretch sx={{ height: 1 }}>
       <Tabs
         value={tab}
-        onChange={(_e, v) => dispatch(setThreedPropertiesTab(v))}
+        onChange={(_e, v) => setTab(v)}
         variant="fullWidth"
         sx={{
           minHeight: 40,

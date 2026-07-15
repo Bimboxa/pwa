@@ -25,10 +25,6 @@ const threedEditorInitialState = {
   // - BASEMAP_POSITION: shows the position/rotation panel + transform gizmo
   //   for the selected basemap. Annotation creation and lasso are blocked.
   editorMode: "NAVIGATION",
-  // Active tab of PanelThreedProperties ("Scène 3D" | "Fonds de plan").
-  // Lifted to redux so other panels can open the basemap tab directly
-  // (e.g. the "Position 3D" button of PanelBaseMapProperties in 3D).
-  propertiesTab: "SCENE", // "SCENE" | "BASEMAP"
   // Vertical offset (in meters along the basemap's local normal) applied to
   // newly drawn annotations. Set from the basemap-position panel; consumed
   // by the annotation creation flow so a user can stack new annotations
@@ -37,6 +33,11 @@ const threedEditorInitialState = {
   // 3D-only basemap opacity (0..1). Independent from baseMap.opacity (DB)
   // and from mapEditor.baseMapOpacity (2D). Resets to 1 on every reload.
   baseMapOpacityIn3d: 1,
+  // Per-baseMap 3D opacity override (0..1), keyed by baseMapId. A missing key
+  // means `baseMapOpacityIn3d` applies. Set from the baseMap properties panel
+  // (opacity section in the 3D viewer) so the slider only affects the
+  // selected baseMap. Session-only, same lifecycle as `baseMapOpacityIn3d`.
+  opacityByBaseMapIdIn3d: {},
   // Base maps explicitly shown in the 3D scene *in addition to* the main
   // (selected) base map, which is always loaded. Session-only, resets on
   // every reload — same lifecycle as `baseMapOpacityIn3d`.
@@ -173,14 +174,20 @@ export const threedEditorSlice = createSlice({
     setEditorMode: (state, action) => {
       state.editorMode = action.payload;
     },
-    setThreedPropertiesTab: (state, action) => {
-      state.propertiesTab = action.payload;
-    },
     setDrawingOffset: (state, action) => {
       state.drawingOffset = action.payload;
     },
     setBaseMapOpacityIn3d: (state, action) => {
       state.baseMapOpacityIn3d = action.payload;
+    },
+    setBaseMapOpacityByIdIn3d: (state, action) => {
+      const { baseMapId, opacity } = action.payload || {};
+      if (!baseMapId) return;
+      if (opacity == null) {
+        delete state.opacityByBaseMapIdIn3d[baseMapId];
+      } else {
+        state.opacityByBaseMapIdIn3d[baseMapId] = opacity;
+      }
     },
     toggleBaseMapVisibleIn3d: (state, action) => {
       const id = action.payload;
@@ -423,9 +430,9 @@ export const {
   setAntiAliasingShrink,
   setRenderMode,
   setEditorMode,
-  setThreedPropertiesTab,
   setDrawingOffset,
   setBaseMapOpacityIn3d,
+  setBaseMapOpacityByIdIn3d,
   toggleBaseMapVisibleIn3d,
   setBaseMapAnnotationsModeIn3d,
   toggleMainBaseMapImageIn3d,

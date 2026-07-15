@@ -6,6 +6,7 @@ import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useMeshCellRelations from "Features/annotations/hooks/useMeshCellRelations";
 import useExtraBaseMapIdsIn3d from "./useExtraBaseMapIdsIn3d";
+import getBaseMapOpacityIn3d from "Features/threedEditor/utils/getBaseMapOpacityIn3d";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 
 export default function useAutoLoadAnnotationsInThreedEditor({
@@ -28,6 +29,9 @@ export default function useAutoLoadAnnotationsInThreedEditor({
   const { parentIdSet } = useMeshCellRelations();
   const baseMapOpacityIn3d = useSelector(
     (s) => s.threedEditor.baseMapOpacityIn3d
+  );
+  const opacityByBaseMapIdIn3d = useSelector(
+    (s) => s.threedEditor.opacityByBaseMapIdIn3d
   );
   const hiddenListingsIds = useSelector((s) => s.listings.hiddenListingsIds);
 
@@ -74,15 +78,21 @@ export default function useAutoLoadAnnotationsInThreedEditor({
     // stored before the scale was set). Includes the MAIN base map for that
     // reason. Idempotent (no-op if already loaded).
     if (threedEditor.ensureBaseMapLoaded) {
+      const opacityState = {
+        baseMapOpacityIn3d,
+        opacityByBaseMapIdIn3d,
+      };
       if (mainBaseMap?.id) {
         threedEditor.ensureBaseMapLoaded(mainBaseMap, {
-          opacity: baseMapOpacityIn3d,
+          opacity: getBaseMapOpacityIn3d(opacityState, mainBaseMap.id),
         });
       }
       extraBaseMapIds.forEach((id) => {
         const bm = baseMaps.find((b) => b.id === id);
         if (bm?.image?.imageUrlClient) {
-          threedEditor.ensureBaseMapLoaded(bm, { opacity: baseMapOpacityIn3d });
+          threedEditor.ensureBaseMapLoaded(bm, {
+            opacity: getBaseMapOpacityIn3d(opacityState, id),
+          });
         }
       });
     }
@@ -102,6 +112,7 @@ export default function useAutoLoadAnnotationsInThreedEditor({
     baseMaps,
     mainBaseMap,
     baseMapOpacityIn3d,
+    opacityByBaseMapIdIn3d,
   ]);
 
   return annotationsForThreed;

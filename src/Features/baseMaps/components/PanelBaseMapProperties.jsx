@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { useSelector, useDispatch } from "react-redux";
 
@@ -12,10 +12,11 @@ import {
   setViewerReturnContext,
 } from "Features/viewers/viewersSlice";
 import { setSelectedMainBaseMapId } from "Features/mapEditor/mapEditorSlice";
-import { setThreedPropertiesTab } from "Features/threedEditor/threedEditorSlice";
+import { setSelectedBaseMapId } from "Features/baseMaps/baseMapsSlice";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
-import useMainBaseMapListing from "../hooks/useMainBaseMapListing";
+import useBaseMap from "../hooks/useBaseMap";
+import useListingById from "Features/listings/hooks/useListingById";
 import useDeleteEntity from "Features/entities/hooks/useDeleteEntity";
 import useUpdateEntity from "Features/entities/hooks/useUpdateEntity";
 import downloadBlob from "Features/files/utils/downloadBlob";
@@ -47,16 +48,32 @@ import ButtonInPanelV2 from "Features/layout/components/ButtonInPanelV2";
 import FieldBaseMapOpacity from "./FieldBaseMapOpacity";
 import FieldBaseMapVersions from "./FieldBaseMapVersions";
 import PanelBaseMapPositionInMainRef from "./PanelBaseMapPositionInMainRef";
+import PanelBaseMapTransformInThreed from "Features/threedEditor/components/PanelBaseMapTransformInThreed";
+import FieldBaseMapOpacityIn3d from "Features/threedEditor/components/FieldBaseMapOpacityIn3d";
 
 export default function PanelBaseMapProperties() {
   const dispatch = useDispatch();
 
   // data
 
-  const baseMap = useMainBaseMap();
-  const mainBaseMapListing = useMainBaseMapListing();
   const selectedItems = useSelector(selectSelectedItems);
   const selectedItem = selectedItems[0];
+
+  // The panel targets the baseMap referenced by the BASE_MAP selection item
+  // (e.g. a plane clicked in the 3D viewer, which does NOT change the main
+  // baseMap to avoid reloading the scene). Fallback: the main baseMap (2D
+  // BASE_MAPS viewer opens this panel with an empty selection).
+  const mainBaseMap = useMainBaseMap();
+  const selectedBaseMap = useBaseMap({
+    id: selectedItem?.type === "BASE_MAP" ? selectedItem.id : null,
+  });
+  const baseMap = selectedBaseMap ?? mainBaseMap;
+
+  const baseMapListingRaw = useListingById(baseMap?.listingId);
+  const baseMapListing = useMemo(() => {
+    if (!baseMapListingRaw) return undefined;
+    return { ...baseMapListingRaw, table: "baseMaps" };
+  }, [baseMapListingRaw]);
   const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
   const viewerReturnContext = useSelector((s) => s.viewers.viewerReturnContext);
   const selectedViewerKey = useSelector((s) => s.viewers.selectedViewerKey);
@@ -107,17 +124,6 @@ export default function PanelBaseMapProperties() {
     }
   }
 
-  function handlePosition3dClick() {
-    if (isThreedViewer) {
-      // In the 3D viewer, the real position editor is the gizmo-driven
-      // "Fonds de plan" tab of the 3D panel (PanelBaseMapPosition3D).
-      dispatch(setThreedPropertiesTab("BASEMAP"));
-      dispatch(setSelectedMenuItemKey("THREED_PROPERTIES"));
-    } else {
-      setView("position3d");
-    }
-  }
-
   function handleMenuClick(event) {
     event.stopPropagation();
     setAnchorEl(event.currentTarget);
@@ -151,7 +157,7 @@ export default function PanelBaseMapProperties() {
       await updateEntity(
         baseMap.id,
         { name: nameValue },
-        { listing: mainBaseMapListing }
+        { listing: baseMapListing }
       );
     }
     setNameValue(null);
@@ -193,6 +199,17 @@ export default function PanelBaseMapProperties() {
   if (!baseMap) return null;
 
   if (view === "position3d") {
+    // In the 3D viewer, position editing happens live in the scene (transform
+    // sections + gizmos); in the 2D editors it goes through the calibration /
+    // recalage flow.
+    if (isThreedViewer) {
+      return (
+        <PanelBaseMapTransformInThreed
+          baseMap={baseMap}
+          onBack={() => setView("main")}
+        />
+      );
+    }
     return (
       <PanelBaseMapPositionInMainRef
         baseMap={baseMap}
@@ -277,12 +294,18 @@ export default function PanelBaseMapProperties() {
         </WhiteSectionGeneric>
 
         <WhiteSectionGeneric>
-          <FieldBaseMapOpacity baseMap={baseMap} />
+          {/* In the 3D viewer, the slider/eye drive the 3D scene display
+              (session-only), not baseMap.opacity (DB / 2D display). */}
+          {isThreedViewer ? (
+            <FieldBaseMapOpacityIn3d baseMap={baseMap} />
+          ) : (
+            <FieldBaseMapOpacity baseMap={baseMap} />
+          )}
         </WhiteSectionGeneric>
 
         <WhiteSectionGeneric>
           <ButtonBase
-            onClick={handlePosition3dClick}
+            onClick={() => setView("position3d")}
             sx={{
               width: 1,
               p: 1,
@@ -321,11 +344,16 @@ export default function PanelBaseMapProperties() {
           await deleteEntity({
             id: baseMap.id,
             // The 3D selection payload has no listingId — fall back to the
-            // main baseMap listing.
-            listingId: selectedItem?.listingId ?? mainBaseMapListing?.id,
+            // listing of the displayed baseMap.
+            listingId: selectedItem?.listingId ?? baseMapListing?.id,
           });
           dispatch(setSelectedItem({}));
-          dispatch(setSelectedMainBaseMapId(null));
+          dispatch(setSelectedBaseMapId(null));
+          // Only reset the main baseMap when it is the one being deleted —
+          // deleting another baseMap must not reload the scene.
+          if (baseMap.id === mainBaseMap?.id) {
+            dispatch(setSelectedMainBaseMapId(null));
+          }
           setOpenDelete(false);
         }}
       />

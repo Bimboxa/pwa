@@ -41,9 +41,11 @@ export default class ThreedEditor {
   loadMaps = (maps, options = {}) => {
     try {
       const images = maps.map(getEditorImageFromBaseMap);
-      if (typeof options.opacity === "number") {
+      if (typeof options.opacity === "number" || options.opacityByBaseMapId) {
         images.forEach((img) => {
-          img.opacity = options.opacity;
+          // Per-baseMap override (properties panel) wins over the global one.
+          const o = options.opacityByBaseMapId?.[img.id] ?? options.opacity;
+          if (typeof o === "number") img.opacity = o;
         });
       }
       this.sceneManager.imagesManager.deleteAllImagesObjects();

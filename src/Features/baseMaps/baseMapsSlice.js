@@ -84,6 +84,18 @@ export const baseMapsSlice = createSlice({
       delete state.enhancedImageErrors[baseMapId];
     },
   },
+  extraReducers: (builder) => {
+    // Switching the MAIN baseMap drops the properties-panel override (set by
+    // clicking a baseMap plane in the 3D viewer) so useSelectedBaseMap
+    // consumers fall back to the new main baseMap. Matched by type string to
+    // avoid importing mapEditorSlice.
+    builder.addMatcher(
+      (action) => action.type === "mapEditors/setSelectedMainBaseMapId",
+      (state) => {
+        state.selectedBaseMapId = null;
+      }
+    );
+  },
 });
 
 export const {
