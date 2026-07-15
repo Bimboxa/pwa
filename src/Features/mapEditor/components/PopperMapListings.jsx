@@ -16,10 +16,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { generateKeyBetween } from "fractional-indexing";
 
-import {
-  setSelectedListingId,
-  setHiddenListingsIds,
-} from "Features/listings/listingsSlice";
+import { setSelectedListingId } from "Features/listings/listingsSlice";
 import { setSelectedItem } from "Features/selection/selectionSlice";
 import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
@@ -134,6 +131,7 @@ import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSp
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 import useExtraBaseMapIdsIn3d from "Features/threedEditor/hooks/useExtraBaseMapIdsIn3d";
 import useUpdateAnnotationTemplate from "Features/annotations/hooks/useUpdateAnnotationTemplate";
+import useUpdateAnnotationTemplates from "Features/annotations/hooks/useUpdateAnnotationTemplates";
 import usePanelDrag from "Features/layout/hooks/usePanelDrag";
 
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
@@ -1362,7 +1360,6 @@ function ListingRow({
   listing,
   isExpanded,
   onToggleExpand,
-  hiddenListingsIds,
   annotationCount,
   annotations,
   annotationTemplateById,
@@ -1374,39 +1371,37 @@ function ListingRow({
   // state
 
   const [isHovered, setIsHovered] = useState(false);
-  const soloMode = useSelector((s) => s.popperMapListings.soloMode);
-  const soloVisibleTemplateIds = useSelector(
-    (s) => s.popperMapListings.soloVisibleTemplateIds
-  );
-  const soloListingId = useSelector((s) => s.popperMapListings.soloListingId);
+
+  // data
+
+  const updateAnnotationTemplates = useUpdateAnnotationTemplates();
 
   // helpers
 
-  const isHidden = hiddenListingsIds?.includes(listing.id);
+  // The listing eye mirrors the template eyes: off when every template of the
+  // listing is hidden.
+  const listingTemplates = useMemo(
+    () =>
+      Object.values(annotationTemplateById ?? {}).filter(
+        (t) => t.listingId === listing.id
+      ),
+    [annotationTemplateById, listing.id]
+  );
+  const isHidden =
+    listingTemplates.length > 0 && listingTemplates.every((t) => t.hidden);
 
   // handlers
 
-  function handleToggleVisibility(e) {
+  // Toggle every template eye of the listing in one batch write (single
+  // Dexie transaction + single refresh), only touching templates whose
+  // `hidden` actually changes.
+  async function handleToggleVisibility(e) {
     e.stopPropagation();
-    if (soloMode) {
-      const listingTemplateIds = Object.values(annotationTemplateById ?? {})
-        .filter((t) => t.listingId === listing.id)
-        .map((t) => t.id);
-      const isAlreadySolo =
-        soloListingId === listing.id && soloVisibleTemplateIds != null;
-      if (isAlreadySolo) {
-        dispatch(setSoloVisibleTemplateIds(null));
-        dispatch(setSoloListingId(null));
-      } else {
-        dispatch(setSoloVisibleTemplateIds(listingTemplateIds));
-        dispatch(setSoloListingId(listing.id));
-      }
-    } else {
-      const next = isHidden
-        ? hiddenListingsIds.filter((id) => id !== listing.id)
-        : [...hiddenListingsIds, listing.id];
-      dispatch(setHiddenListingsIds(next));
-    }
+    const targetHidden = !isHidden;
+    const updates = listingTemplates
+      .filter((t) => Boolean(t.hidden) !== targetHidden)
+      .map((t) => ({ id: t.id, hidden: targetHidden }));
+    await updateAnnotationTemplates(updates);
   }
 
   function handleListingClick() {
@@ -2738,7 +2733,6 @@ export default function PopperMapListings() {
                     listing={listing}
                     isExpanded={expandedListingIds.includes(listing.id)}
                     onToggleExpand={handleToggleExpand}
-                    hiddenListingsIds={hiddenListingsIds}
                     annotationCount={
                       annotationsByListingId?.[listing.id]?.length || 0
                     }
@@ -2763,7 +2757,6 @@ export default function PopperMapListings() {
                       listing={listing}
                       isExpanded={expandedListingIds.includes(listing.id)}
                       onToggleExpand={handleToggleExpand}
-                      hiddenListingsIds={hiddenListingsIds}
                       annotationCount={
                         annotationCountByListingId?.[listing.id] || 0
                       }
