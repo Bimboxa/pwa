@@ -30,9 +30,6 @@ export default function SectionFavoriteKrtos({
   // strings
 
   const titleS = appConfig?.strings?.scope?.favorites ?? "Repérages favoris";
-  const subtitleS =
-    appConfig?.strings?.scope?.favoritesSubtitle ??
-    "Accès rapide à vos repérages étoilés";
   const emptyTitleS =
     appConfig?.strings?.scope?.noFavoriteTitle ?? "Aucun favori pour l'instant";
   const emptyHintS =
@@ -56,20 +53,23 @@ export default function SectionFavoriteKrtos({
         >
           <Star />
         </Avatar>
-        <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <Typography variant="h6" sx={{ fontWeight: 700 }}>
-              {titleS}
-            </Typography>
-            <Chip
-              size="small"
-              label={comingSoonS}
-              sx={{ height: 20, fontSize: 11, fontWeight: 600 }}
-            />
-          </Box>
-          <Typography variant="body2" sx={{ color: "text.secondary" }}>
-            {subtitleS}
+        <Box
+          sx={{
+            flex: 1,
+            minWidth: 0,
+            display: "flex",
+            alignItems: "center",
+            gap: 1,
+          }}
+        >
+          <Typography variant="h6" sx={{ fontWeight: 700 }}>
+            {titleS}
           </Typography>
+          <Chip
+            size="small"
+            label={comingSoonS}
+            sx={{ height: 20, fontSize: 11, fontWeight: 600 }}
+          />
         </Box>
         <Tooltip title="Mettre à jour les favoris">
           <span>

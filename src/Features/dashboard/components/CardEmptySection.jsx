@@ -26,10 +26,8 @@ export default function CardEmptySection({ icon, iconColor, title, hint }) {
       >
         {icon}
       </Avatar>
-      <Typography sx={{ fontWeight: 600, fontSize: 18, mt: 2.5 }}>
-        {title}
-      </Typography>
-      <Typography variant="body1" sx={{ color: "text.secondary", mt: 1 }}>
+      <Typography sx={{ fontWeight: 600, mt: 2.5 }}>{title}</Typography>
+      <Typography variant="body2" sx={{ color: "text.secondary", mt: 0.5 }}>
         {hint}
       </Typography>
     </Box>

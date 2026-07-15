@@ -6,6 +6,7 @@ import { setSelectedProjectId } from "Features/projects/projectsSlice";
 import { setSelectedProjectId as setProjectId, setStepKey } from "Features/scopeCreator/scopeCreatorSlice";
 
 import useInitFetchScopeFavorites from "Features/scopeFavorites/hooks/useInitFetchScopeFavorites";
+import useInitFetchDailyScopes from "Features/dailyScopes/hooks/useInitFetchDailyScopes";
 
 import PageGeneric from "Features/layout/components/PageGeneric";
 
@@ -20,6 +21,7 @@ export default function PageDashboard() {
   const dispatch = useDispatch();
 
   useInitFetchScopeFavorites();
+  useInitFetchDailyScopes();
 
   useEffect(() => {
     dispatch(setSelectedProjectId(null))

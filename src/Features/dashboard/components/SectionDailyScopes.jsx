@@ -1,10 +1,14 @@
+import { useMemo } from "react";
+
 import { useTheme } from "@mui/material/styles";
 import { Box, Typography, Avatar, Chip } from "@mui/material";
 import { EventAvailable, EventNote } from "@mui/icons-material";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
+import useDailyScopes from "Features/dailyScopes/hooks/useDailyScopes";
 
 import CardEmptySection from "./CardEmptySection";
+import ListItemDailyScope from "./ListItemDailyScope";
 
 export default function SectionDailyScopes() {
   const theme = useTheme();
@@ -12,13 +16,21 @@ export default function SectionDailyScopes() {
   // data
 
   const appConfig = useAppConfig();
+  const { dailyScopes } = useDailyScopes();
+
+  // items — most recent first
+
+  const items = useMemo(() => {
+    return [...(dailyScopes ?? [])].sort(
+      (a, b) =>
+        new Date(b.lastConfigurationAt ?? 0) -
+        new Date(a.lastConfigurationAt ?? 0)
+    );
+  }, [dailyScopes]);
 
   // strings
 
   const titleS = appConfig?.strings?.scope?.dailyScope ?? "Repérages du jour";
-  const subtitleS =
-    appConfig?.strings?.scope?.dailyScopeSubtitle ??
-    "Les repérages ouverts aujourd'hui";
   const emptyTitleS =
     appConfig?.strings?.scope?.dailyScopeEmptyTitle ?? "Rien pour aujourd'hui";
   const emptyHintS =
@@ -53,20 +65,23 @@ export default function SectionDailyScopes() {
         >
           <EventAvailable />
         </Avatar>
-        <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <Typography variant="h6" sx={{ fontWeight: 700 }}>
-              {titleS}
-            </Typography>
-            <Chip
-              size="small"
-              label={comingSoonS}
-              sx={{ height: 20, fontSize: 11, fontWeight: 600 }}
-            />
-          </Box>
-          <Typography variant="body2" sx={{ color: "text.secondary" }}>
-            {subtitleS}
+        <Box
+          sx={{
+            flex: 1,
+            minWidth: 0,
+            display: "flex",
+            alignItems: "center",
+            gap: 1,
+          }}
+        >
+          <Typography variant="h6" sx={{ fontWeight: 700 }}>
+            {titleS}
           </Typography>
+          <Chip
+            size="small"
+            label={comingSoonS}
+            sx={{ height: 20, fontSize: 11, fontWeight: 600 }}
+          />
         </Box>
         <Typography variant="body2" sx={{ color: "text.secondary" }}>
           {dateLabel}
@@ -75,12 +90,20 @@ export default function SectionDailyScopes() {
 
       {/* content */}
       <Box sx={{ mt: 2.5 }}>
-        <CardEmptySection
-          icon={<EventNote sx={{ fontSize: "2rem" }} />}
-          iconColor={accentColor}
-          title={emptyTitleS}
-          hint={emptyHintS}
-        />
+        {!items.length ? (
+          <CardEmptySection
+            icon={<EventNote sx={{ fontSize: "2rem" }} />}
+            iconColor={accentColor}
+            title={emptyTitleS}
+            hint={emptyHintS}
+          />
+        ) : (
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+            {items.map((item) => (
+              <ListItemDailyScope key={item.scopeId} item={item} />
+            ))}
+          </Box>
+        )}
       </Box>
     </Box>
   );

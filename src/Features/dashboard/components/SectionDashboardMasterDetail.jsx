@@ -18,6 +18,7 @@ import { Box } from "@mui/material";
 import PanelDashboardProjects from "./PanelDashboardProjects";
 import PanelDashboardProjectDetail from "./PanelDashboardProjectDetail";
 import SectionFavoriteKrtos from "./SectionFavoriteKrtos";
+import SectionDailyScopes from "./SectionDailyScopes";
 
 export default function SectionDashboardMasterDetail() {
   const dispatch = useDispatch();
@@ -174,13 +175,16 @@ export default function SectionDashboardMasterDetail() {
             <PanelDashboardProjectDetail item={selectedItem} />
           </Box>
         ) : (
-          <SectionFavoriteKrtos
-            favorites={favoriteItems}
-            onOpen={handleOpenFavorite}
-            onUnfavorite={handleUnfavorite}
-            onRefresh={handleRefreshFavorites}
-            refreshing={favoritesRefreshing}
-          />
+          <>
+            <SectionFavoriteKrtos
+              favorites={favoriteItems}
+              onOpen={handleOpenFavorite}
+              onUnfavorite={handleUnfavorite}
+              onRefresh={handleRefreshFavorites}
+              refreshing={favoritesRefreshing}
+            />
+            <SectionDailyScopes />
+          </>
         )}
       </Box>
     </Box>

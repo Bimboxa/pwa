@@ -44,6 +44,7 @@ import baseMapCreatorReducer from "Features/baseMapCreator/baseMapCreatorSlice";
 import baseMapEditorReducer from "Features/baseMapEditor/baseMapEditorSlice";
 import remoteScopeConfigurationsReducer, { syncedVersionPersistMiddleware } from "Features/remoteScopeConfigurations/remoteScopeConfigurationsSlice";
 import scopeFavoritesReducer from "Features/scopeFavorites/scopeFavoritesSlice";
+import dailyScopesReducer from "Features/dailyScopes/dailyScopesSlice";
 //
 import chatReducer from "Features/chat/chatSlice";
 import localLlmReducer from "Features/localLlm/localLlmSlice";
@@ -119,6 +120,7 @@ const store = configureStore({
     baseMapEditor: baseMapEditorReducer,
     remoteScopeConfigurations: remoteScopeConfigurationsReducer,
     scopeFavorites: scopeFavoritesReducer,
+    dailyScopes: dailyScopesReducer,
     //
     chat: chatReducer,
     localLlm: localLlmReducer,
