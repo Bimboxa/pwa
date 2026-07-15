@@ -34,19 +34,24 @@ export default function useAutoLoadMapsInThreedEditor({
     threedEditor.loadMaps([mainBaseMap, ...extras], { opacity });
   }, [rendererIsReady, mainBaseMap?.id, baseMapsKey]);
 
-  // Repair effect: right after a Krto import, the baseMap record can be read
-  // before its db.files row exists, so the first load above runs with no
-  // image url and the plane never shows (until refresh). When the liveQuery
-  // re-emits the same baseMap with its blob url resolved, re-ensure the
-  // texture in place — ensureBaseMapLoaded repairs the existing group without
-  // rebuilding the scene (annotations attached to it are untouched). Keyed on
-  // url PRESENCE (booleans), not the blob-url strings, to avoid re-firing on
-  // every new object URL.
-  const urlReadyKey =
-    (mainBaseMap?.image?.imageUrlClient ? "1" : "0") +
+  // Repair effect: the first load above can run with an incomplete baseMap —
+  // no image url yet (db.files row committed after the baseMaps row during a
+  // Krto import) or no scale yet (the creation dialog stores meterByPx null,
+  // producing a 0-sized invisible plane). When the liveQuery re-emits the
+  // same baseMap with its blob url resolved and/or a valid scale, repair the
+  // existing group in place — ensureBaseMapLoaded reattaches a failed
+  // texture, applyBaseMapPlacement resizes the plane — without rebuilding
+  // the scene (annotations attached to the group are untouched). Keyed on
+  // url PRESENCE (booleans, not the blob-url strings, to avoid re-firing on
+  // every new object URL) + the meterByPx values (change rarely).
+  const repairKey =
+    `${mainBaseMap?.image?.imageUrlClient ? 1 : 0}:${mainBaseMap?.meterByPx ?? ""}` +
     "|" +
     baseMaps
-      .map((b) => `${b.id}:${b?.image?.imageUrlClient ? 1 : 0}`)
+      .map(
+        (b) =>
+          `${b.id}:${b?.image?.imageUrlClient ? 1 : 0}:${b?.meterByPx ?? ""}`
+      )
       .join(",");
 
   useEffect(() => {
@@ -61,8 +66,9 @@ export default function useAutoLoadMapsInThreedEditor({
         visibleIds.includes(b.id) &&
         b?.image?.imageUrlClient
     );
-    [mainBaseMap, ...extras].forEach((bm) =>
-      threedEditor.ensureBaseMapLoaded(bm, { opacity })
-    );
-  }, [rendererIsReady, mainBaseMap?.id, urlReadyKey]);
+    [mainBaseMap, ...extras].forEach((bm) => {
+      threedEditor.ensureBaseMapLoaded(bm, { opacity });
+      threedEditor.applyBaseMapPlacement(bm);
+    });
+  }, [rendererIsReady, mainBaseMap?.id, repairKey]);
 }

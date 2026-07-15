@@ -55,8 +55,19 @@ export async function attachBaseMapMesh(group, image) {
   if (!meshWrap) return;
   if (meshWrap.children.some((c) => c.userData?.isBasemap)) return;
 
-  const widthInM = image.widthInM;
-  const heightInM = image.heightInM;
+  // Prefer the size stashed on the group: applyBaseMapPlacement may have
+  // resized it (scale set after creation) while the texture was still
+  // loading, and the mesh must come in at the current size — the geometry
+  // update no-ops until the mesh exists.
+  const stashedSize = group.userData.sizeInM;
+  const stashedIsValid =
+    Number.isFinite(stashedSize?.widthInM) && stashedSize.widthInM > 0;
+  const widthInM = stashedIsValid ? stashedSize.widthInM : image.widthInM;
+  const heightInM = stashedIsValid ? stashedSize.heightInM : image.heightInM;
+  if (!stashedIsValid && Number.isFinite(image.widthInM)) {
+    group.userData.sizeInM = { widthInM, heightInM };
+    group.userData.meterByPx = image.meterByPx;
+  }
   const url = image.url;
 
   const texture = await getTextureAsync(url);

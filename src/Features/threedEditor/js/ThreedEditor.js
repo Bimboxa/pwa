@@ -97,22 +97,45 @@ export default class ThreedEditor {
 
     // Scale change (e.g. 2-target Recaler): resize the plane by ratio using
     // the size/scale stashed at creation, so we don't re-resolve image sizes.
+    // A baseMap created WITHOUT a scale (meterByPx null in the creation
+    // dialog) gets a 0-sized — invisible — plane; its stashed scale/size are
+    // unusable for a ratio, so when a valid scale shows up later (set-scale
+    // in 2D), recompute the size absolutely from the image pixel size.
     const prevMeterByPx = group.userData?.meterByPx;
     const nextMeterByPx = baseMap.meterByPx;
     const prevSize = group.userData?.sizeInM;
-    if (
+    const prevIsValid =
       Number.isFinite(prevMeterByPx) &&
-      Number.isFinite(nextMeterByPx) &&
       prevMeterByPx > 0 &&
-      nextMeterByPx !== prevMeterByPx &&
-      prevSize
+      Number.isFinite(prevSize?.widthInM) &&
+      prevSize.widthInM > 0;
+    if (
+      Number.isFinite(nextMeterByPx) &&
+      nextMeterByPx > 0 &&
+      nextMeterByPx !== prevMeterByPx
     ) {
-      const ratio = nextMeterByPx / prevMeterByPx;
-      const widthInM = prevSize.widthInM * ratio;
-      const heightInM = prevSize.heightInM * ratio;
-      imagesManager.updateBaseMapGeometry(baseMap.id, { widthInM, heightInM });
-      group.userData.sizeInM = { widthInM, heightInM };
-      group.userData.meterByPx = nextMeterByPx;
+      let widthInM;
+      let heightInM;
+      if (prevIsValid) {
+        const ratio = nextMeterByPx / prevMeterByPx;
+        widthInM = prevSize.widthInM * ratio;
+        heightInM = prevSize.heightInM * ratio;
+      } else {
+        const pxWidth = baseMap.image?.imageSize?.width ?? baseMap.refWidth;
+        const pxHeight = baseMap.image?.imageSize?.height ?? baseMap.refHeight;
+        if (Number.isFinite(pxWidth) && Number.isFinite(pxHeight)) {
+          widthInM = pxWidth * nextMeterByPx;
+          heightInM = pxHeight * nextMeterByPx;
+        }
+      }
+      if (Number.isFinite(widthInM) && widthInM > 0) {
+        imagesManager.updateBaseMapGeometry(baseMap.id, {
+          widthInM,
+          heightInM,
+        });
+        group.userData.sizeInM = { widthInM, heightInM };
+        group.userData.meterByPx = nextMeterByPx;
+      }
     }
 
     this.renderScene();
