@@ -63,7 +63,9 @@ export default class ThreedEditor {
     try {
       if (!baseMap?.id) return;
       const imagesManager = this.sceneManager.imagesManager;
-      if (imagesManager.hasImageObject(baseMap.id)) return;
+      // A group whose texture load failed (url resolved late) is NOT "loaded":
+      // fall through so addImageObject can repair it in place.
+      if (imagesManager.hasTexturedImageObject(baseMap.id)) return;
       const image = getEditorImageFromBaseMap(baseMap);
       if (!image?.url) return;
       if (typeof options.opacity === "number") image.opacity = options.opacity;

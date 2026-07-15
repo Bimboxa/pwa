@@ -1,6 +1,8 @@
 import { PlaneGeometry } from "three";
 
-import createImageObject from "./utilsImagesManager/createImageObject";
+import createImageObject, {
+  attachBaseMapMesh,
+} from "./utilsImagesManager/createImageObject";
 
 export default class ImagesManager {
   constructor({ sceneManager }) {
@@ -24,24 +26,62 @@ export default class ImagesManager {
     images.forEach((image) => this.addImageObject(image));
   }
 
-  // Create + add a single basemap group. Idempotent: a no-op if a group for
-  // this basemap already exists, so it can be called lazily the first time a
-  // basemap is shown without reloading the rest of the scene.
+  // Create + add a single basemap group. Idempotent on the group itself: if a
+  // group for this basemap already exists, only retry a failed texture load
+  // (blob URL that resolved late after a Krto import) instead of recreating —
+  // annotations may already be attached as children of the existing group.
   addImageObject(image, baseMap) {
-    if (!image || this.imagesMap[image.id]) return;
+    if (!image) return;
     if (baseMap) this.baseMapsMap[baseMap.id] = baseMap;
+    if (this.imagesMap[image.id]) {
+      this.retryImageTexture(image);
+      return;
+    }
     const { group, ready } = createImageObject(image);
+    group.userData.textureStatus = "pending";
     this.imagesMap[image.id] = group;
     this.scene.add(group);
     // Re-render once the texture is in. The group is already in the scene
     // graph so any annotations attached in the meantime are rendered too.
     ready
-      .then(() => this.sceneManager.renderScene())
-      .catch((e) => console.error("[ImagesManager] texture load failed", e));
+      .then(() => {
+        group.userData.textureStatus = "loaded";
+        this.sceneManager.renderScene();
+      })
+      .catch((e) => {
+        group.userData.textureStatus = "failed";
+        console.warn("[ImagesManager] texture load failed", e);
+      });
+  }
+
+  // Attach the missing basemap mesh into an existing group whose texture load
+  // failed (e.g. the image url wasn't ready yet). No-op while pending/loaded.
+  retryImageTexture(image) {
+    const group = this.imagesMap[image?.id];
+    if (!group || !image?.url) return;
+    if (group.userData.textureStatus !== "failed") return;
+    group.userData.textureStatus = "pending";
+    attachBaseMapMesh(group, image)
+      .then(() => {
+        group.userData.textureStatus = "loaded";
+        this.sceneManager.renderScene();
+      })
+      .catch((e) => {
+        group.userData.textureStatus = "failed";
+        console.warn("[ImagesManager] texture retry failed", e);
+      });
   }
 
   hasImageObject(baseMapId) {
     return Boolean(this.imagesMap[baseMapId]);
+  }
+
+  // True only when the basemap group exists AND its texture is loaded or
+  // still loading. A "failed" group exists but should be repairable, so the
+  // lazy-load guards must not treat it as done.
+  hasTexturedImageObject(baseMapId) {
+    const status = this.imagesMap[baseMapId]?.userData?.textureStatus;
+    return status === "loaded" || status === "pending";
   }
 
   // Toggle a cached basemap group's visibility without removing it from the

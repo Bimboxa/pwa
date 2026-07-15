@@ -33,4 +33,36 @@ export default function useAutoLoadMapsInThreedEditor({
     );
     threedEditor.loadMaps([mainBaseMap, ...extras], { opacity });
   }, [rendererIsReady, mainBaseMap?.id, baseMapsKey]);
+
+  // Repair effect: right after a Krto import, the baseMap record can be read
+  // before its db.files row exists, so the first load above runs with no
+  // image url and the plane never shows (until refresh). When the liveQuery
+  // re-emits the same baseMap with its blob url resolved, re-ensure the
+  // texture in place — ensureBaseMapLoaded repairs the existing group without
+  // rebuilding the scene (annotations attached to it are untouched). Keyed on
+  // url PRESENCE (booleans), not the blob-url strings, to avoid re-firing on
+  // every new object URL.
+  const urlReadyKey =
+    (mainBaseMap?.image?.imageUrlClient ? "1" : "0") +
+    "|" +
+    baseMaps
+      .map((b) => `${b.id}:${b?.image?.imageUrlClient ? 1 : 0}`)
+      .join(",");
+
+  useEffect(() => {
+    if (!threedEditor?.ensureBaseMapLoaded || !rendererIsReady) return;
+    if (!mainBaseMap?.id) return;
+    const state = store.getState().threedEditor;
+    const opacity = state.baseMapOpacityIn3d;
+    const visibleIds = state.visibleBaseMapIdsIn3d || [];
+    const extras = baseMaps.filter(
+      (b) =>
+        b.id !== mainBaseMap.id &&
+        visibleIds.includes(b.id) &&
+        b?.image?.imageUrlClient
+    );
+    [mainBaseMap, ...extras].forEach((bm) =>
+      threedEditor.ensureBaseMapLoaded(bm, { opacity })
+    );
+  }, [rendererIsReady, mainBaseMap?.id, urlReadyKey]);
 }

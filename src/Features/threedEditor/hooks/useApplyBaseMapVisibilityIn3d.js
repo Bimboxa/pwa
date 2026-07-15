@@ -53,14 +53,13 @@ export default function useApplyBaseMapVisibilityIn3d() {
     const annoModes = annotationsModeByBaseMapId || {};
 
     baseMaps.forEach((bm) => {
-      const eyeOn =
-        bm.id === mainId ? !hideMainImage : visible.has(bm.id);
+      const eyeOn = bm.id === mainId ? !hideMainImage : visible.has(bm.id);
       const annoOn =
         bm.id === mainId || (annoModes[bm.id] && annoModes[bm.id] !== "NONE");
       const shouldParticipate = eyeOn || annoOn;
 
       if (shouldParticipate) {
-        if (!imagesManager.hasImageObject(bm.id)) {
+        if (!imagesManager.hasTexturedImageObject(bm.id)) {
           editor.ensureBaseMapLoaded(bm, { opacity });
         }
         imagesManager.setBaseMapVisible(bm.id, true);
