@@ -12,6 +12,7 @@ import {
   setViewerReturnContext,
 } from "Features/viewers/viewersSlice";
 import { setSelectedMainBaseMapId } from "Features/mapEditor/mapEditorSlice";
+import { setThreedPropertiesTab } from "Features/threedEditor/threedEditorSlice";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useMainBaseMapListing from "../hooks/useMainBaseMapListing";
@@ -22,6 +23,7 @@ import addBackgroundToImage from "Features/images/utils/addBackgroundToImage";
 import stringifyFileSize from "Features/files/utils/stringifyFileSize";
 import db from "App/db/db";
 import activateBaseMapVersion from "Features/baseMaps/utils/activateBaseMapVersion";
+import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 
 import {
   Box,
@@ -57,6 +59,7 @@ export default function PanelBaseMapProperties() {
   const selectedItem = selectedItems[0];
   const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
   const viewerReturnContext = useSelector((s) => s.viewers.viewerReturnContext);
+  const selectedViewerKey = useSelector((s) => s.viewers.selectedViewerKey);
   const deleteEntity = useDeleteEntity();
   const updateEntity = useUpdateEntity();
 
@@ -74,6 +77,8 @@ export default function PanelBaseMapProperties() {
   const [view, setView] = useState("main"); // "main" | "position3d"
 
   // helpers
+
+  const isThreedViewer = isThreedFamilyViewerKey(selectedViewerKey);
 
   const isEditingName = nameValue !== null;
   const displayName = isEditingName ? nameValue : baseMap?.name || "";
@@ -99,6 +104,17 @@ export default function PanelBaseMapProperties() {
     if (viewerReturnContext?.fromViewer) {
       dispatch(setSelectedViewerKey(viewerReturnContext.fromViewer));
       dispatch(setViewerReturnContext(null));
+    }
+  }
+
+  function handlePosition3dClick() {
+    if (isThreedViewer) {
+      // In the 3D viewer, the real position editor is the gizmo-driven
+      // "Fonds de plan" tab of the 3D panel (PanelBaseMapPosition3D).
+      dispatch(setThreedPropertiesTab("BASEMAP"));
+      dispatch(setSelectedMenuItemKey("THREED_PROPERTIES"));
+    } else {
+      setView("position3d");
     }
   }
 
@@ -266,7 +282,7 @@ export default function PanelBaseMapProperties() {
 
         <WhiteSectionGeneric>
           <ButtonBase
-            onClick={() => setView("position3d")}
+            onClick={handlePosition3dClick}
             sx={{
               width: 1,
               p: 1,
@@ -304,7 +320,9 @@ export default function PanelBaseMapProperties() {
         onConfirmAsync={async () => {
           await deleteEntity({
             id: baseMap.id,
-            listingId: selectedItem?.listingId,
+            // The 3D selection payload has no listingId — fall back to the
+            // main baseMap listing.
+            listingId: selectedItem?.listingId ?? mainBaseMapListing?.id,
           });
           dispatch(setSelectedItem({}));
           dispatch(setSelectedMainBaseMapId(null));

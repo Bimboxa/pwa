@@ -137,7 +137,12 @@ export default function PanelSelectionProperties() {
     // node(s) directly to the annotation panels instead of falling through to
     // the LISTING default.
     type = selectedItems.length > 1 ? "MULTI_ANNOTATION" : "ANNOTATION";
-  } else if (isMapViewer && selectedItem?.type === "BASE_MAP") {
+  } else if (
+    (isMapViewer || isThreedViewer) &&
+    selectedItem?.type === "BASE_MAP"
+  ) {
+    // 3D viewer: clicking a baseMap plane selects it as a BASE_MAP item
+    // (MainThreedEditor.handleClick) — show the same panel as the 2D editor.
     type = "BASE_MAP";
   } else if (isBaseMapsViewer && selectedItem?.type === "SCOPE") {
     // Allow navigating back to the scope panel from the baseMap properties.

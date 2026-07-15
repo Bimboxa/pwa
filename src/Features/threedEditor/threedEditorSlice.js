@@ -25,6 +25,10 @@ const threedEditorInitialState = {
   // - BASEMAP_POSITION: shows the position/rotation panel + transform gizmo
   //   for the selected basemap. Annotation creation and lasso are blocked.
   editorMode: "NAVIGATION",
+  // Active tab of PanelThreedProperties ("Scène 3D" | "Fonds de plan").
+  // Lifted to redux so other panels can open the basemap tab directly
+  // (e.g. the "Position 3D" button of PanelBaseMapProperties in 3D).
+  propertiesTab: "SCENE", // "SCENE" | "BASEMAP"
   // Vertical offset (in meters along the basemap's local normal) applied to
   // newly drawn annotations. Set from the basemap-position panel; consumed
   // by the annotation creation flow so a user can stack new annotations
@@ -168,6 +172,9 @@ export const threedEditorSlice = createSlice({
     },
     setEditorMode: (state, action) => {
       state.editorMode = action.payload;
+    },
+    setThreedPropertiesTab: (state, action) => {
+      state.propertiesTab = action.payload;
     },
     setDrawingOffset: (state, action) => {
       state.drawingOffset = action.payload;
@@ -416,6 +423,7 @@ export const {
   setAntiAliasingShrink,
   setRenderMode,
   setEditorMode,
+  setThreedPropertiesTab,
   setDrawingOffset,
   setBaseMapOpacityIn3d,
   toggleBaseMapVisibleIn3d,

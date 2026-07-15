@@ -682,13 +682,22 @@ export default function MainThreedEditor() {
       }
 
       // No annotation hit. A plain click on a basemap image selects that
-      // basemap as the main one (top-bar selector) — shift stays reserved
-      // for the annotation multi-selection / lasso.
+      // basemap: as the main one (top-bar selector) AND as a BASE_MAP
+      // selection item so PanelSelectionProperties routes to the baseMap
+      // properties panel — shift stays reserved for the annotation
+      // multi-selection / lasso.
       if (baseMapHitId && !event.shiftKey) {
         const mainId = store.getState().mapEditor.selectedBaseMapId;
         if (baseMapHitId !== mainId) {
           dispatch(setSelectedMainBaseMapId(baseMapHitId));
         }
+        dispatch(setSelectedNode(null));
+        dispatch(setSelectedItem({ id: baseMapHitId, type: "BASE_MAP" }));
+        dispatch(setShowAnnotationsProperties(false));
+        dispatch(clearSubSelection());
+        dispatch(setAnnotationToolbarPosition(null));
+        dispatch(setAnnotationsToolbarPosition(null));
+        return;
       }
 
       // Shift+click on empty preserves the selection (mirrors the 2D editor
