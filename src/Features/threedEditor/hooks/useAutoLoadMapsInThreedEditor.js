@@ -37,22 +37,27 @@ export default function useAutoLoadMapsInThreedEditor({
   // Repair effect: the first load above can run with an incomplete baseMap —
   // no image url yet (db.files row committed after the baseMaps row during a
   // Krto import) or no scale yet (the creation dialog stores meterByPx null,
-  // producing a 0-sized invisible plane). When the liveQuery re-emits the
-  // same baseMap with its blob url resolved and/or a valid scale, repair the
-  // existing group in place — ensureBaseMapLoaded reattaches a failed
-  // texture, applyBaseMapPlacement resizes the plane — without rebuilding
-  // the scene (annotations attached to the group are untouched). Keyed on
-  // url PRESENCE (booleans, not the blob-url strings, to avoid re-firing on
-  // every new object URL) + the meterByPx values (change rarely).
+  // producing a 0-sized invisible plane) — and the displayed image can change
+  // later (active version switch, version transform edit). When the liveQuery
+  // re-emits the baseMap, repair the existing group in place —
+  // ensureBaseMapLoaded rebuilds the mesh when the image/version changed,
+  // applyBaseMapPlacement resizes the plane on a scale change — without
+  // rebuilding the scene (annotations attached to the group are untouched).
+  // Keyed on the blob url STRING (stable per version thanks to the
+  // baseMapsCache in BaseMap.createFromRecord; it changes exactly when the
+  // active version or its file changes) + the version transform + meterByPx.
+  const versionKeyOf = (b) => {
+    const t = b?.getActiveVersionTransform?.() || {};
+    return [
+      b?.image?.imageUrlClient ?? "",
+      `${t.x ?? 0},${t.y ?? 0},${t.rotation ?? 0},${t.scale ?? 1}`,
+      b?.meterByPx ?? "",
+    ].join(":");
+  };
   const repairKey =
-    `${mainBaseMap?.image?.imageUrlClient ? 1 : 0}:${mainBaseMap?.meterByPx ?? ""}` +
+    versionKeyOf(mainBaseMap) +
     "|" +
-    baseMaps
-      .map(
-        (b) =>
-          `${b.id}:${b?.image?.imageUrlClient ? 1 : 0}:${b?.meterByPx ?? ""}`
-      )
-      .join(",");
+    baseMaps.map((b) => `${b.id}:${versionKeyOf(b)}`).join(",");
 
   useEffect(() => {
     if (!threedEditor?.ensureBaseMapLoaded || !rendererIsReady) return;

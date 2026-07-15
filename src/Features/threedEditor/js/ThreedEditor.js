@@ -68,11 +68,12 @@ export default class ThreedEditor {
       // baseMapsMap's meterByPx, which may have been stored before the scale
       // was set (creation dialog stores meterByPx null).
       imagesManager.baseMapsMap[baseMap.id] = baseMap;
-      // A group whose texture load failed (url resolved late) is NOT "loaded":
-      // fall through so addImageObject can repair it in place.
-      if (imagesManager.hasTexturedImageObject(baseMap.id)) return;
       const image = getEditorImageFromBaseMap(baseMap);
       if (!image?.url) return;
+      // Skip only when the existing mesh matches THIS image — a failed
+      // texture load, an active-version switch or a version-transform edit
+      // all fall through so addImageObject can rebuild the mesh in place.
+      if (imagesManager.hasCurrentImageObject(baseMap.id, image)) return;
       if (typeof options.opacity === "number") image.opacity = options.opacity;
       imagesManager.addImageObject(image, baseMap);
       this.sceneManager.clippingManager?.reapply();
@@ -100,47 +101,22 @@ export default class ThreedEditor {
     group.position.set(t.position.x, t.position.y, t.position.z);
     group.rotation.set(euler.x, euler.y, euler.z);
 
-    // Scale change (e.g. 2-target Recaler): resize the plane by ratio using
-    // the size/scale stashed at creation, so we don't re-resolve image sizes.
-    // A baseMap created WITHOUT a scale (meterByPx null in the creation
-    // dialog) gets a 0-sized — invisible — plane; its stashed scale/size are
-    // unusable for a ratio, so when a valid scale shows up later (set-scale
-    // in 2D), recompute the size absolutely from the image pixel size.
+    // Scale change (e.g. 2-target Recaler, or set-scale after a scale-less
+    // creation): rebuild the plane geometry from the pixel-space placement
+    // stashed on the group — no image re-resolve, so a raw db record is
+    // enough. Also covers a baseMap created WITHOUT a scale (meterByPx null
+    // in the creation dialog, 0-sized invisible plane): the geometry comes
+    // back at the right size as soon as a valid scale shows up.
     const prevMeterByPx = group.userData?.meterByPx;
     const nextMeterByPx = baseMap.meterByPx;
-    const prevSize = group.userData?.sizeInM;
-    const prevIsValid =
-      Number.isFinite(prevMeterByPx) &&
-      prevMeterByPx > 0 &&
-      Number.isFinite(prevSize?.widthInM) &&
-      prevSize.widthInM > 0;
     if (
       Number.isFinite(nextMeterByPx) &&
       nextMeterByPx > 0 &&
       nextMeterByPx !== prevMeterByPx
     ) {
-      let widthInM;
-      let heightInM;
-      if (prevIsValid) {
-        const ratio = nextMeterByPx / prevMeterByPx;
-        widthInM = prevSize.widthInM * ratio;
-        heightInM = prevSize.heightInM * ratio;
-      } else {
-        const pxWidth = baseMap.image?.imageSize?.width ?? baseMap.refWidth;
-        const pxHeight = baseMap.image?.imageSize?.height ?? baseMap.refHeight;
-        if (Number.isFinite(pxWidth) && Number.isFinite(pxHeight)) {
-          widthInM = pxWidth * nextMeterByPx;
-          heightInM = pxHeight * nextMeterByPx;
-        }
-      }
-      if (Number.isFinite(widthInM) && widthInM > 0) {
-        imagesManager.updateBaseMapGeometry(baseMap.id, {
-          widthInM,
-          heightInM,
-        });
-        group.userData.sizeInM = { widthInM, heightInM };
-        group.userData.meterByPx = nextMeterByPx;
-      }
+      imagesManager.updateBaseMapGeometry(baseMap.id, {
+        meterByPx: nextMeterByPx,
+      });
     }
 
     this.renderScene();

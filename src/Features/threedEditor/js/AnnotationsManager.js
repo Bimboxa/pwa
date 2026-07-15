@@ -73,10 +73,15 @@ export default class AnnotationsManager {
 
       // Position/rotation are now carried by the parent basemap Group, so we
       // only need the metrics required to project pixel coords into the
-      // basemap-local meter frame.
+      // basemap-local meter frame. Annotation pixel coords are resolved in
+      // the REFERENCE frame (BaseMap.getImageSize = refWidth/refHeight for
+      // versioned maps), NOT the active version's image size — using the
+      // version size here would shift every annotation when the active
+      // version's pixel size differs from the original image.
+      const refSize = baseMap.getImageSize?.() || baseMap.image?.imageSize;
       const baseMapForRender = {
-        imageWidth: baseMap.image?.imageSize?.width || 1,
-        imageHeight: baseMap.image?.imageSize?.height || 1,
+        imageWidth: refSize?.width || 1,
+        imageHeight: refSize?.height || 1,
         meterByPx: baseMap.meterByPx || 0.01,
         // Needed by REVOLUTION: the revolution axis is the base map normal,
         // which is local +Z for HORIZONTAL and +Y for VERTICAL base maps.

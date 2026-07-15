@@ -8,6 +8,45 @@ import {
 
 import getTextureAsync from "./getTextureAsync";
 
+// Geometry of the basemap plane, expressed in the basemap group's LOCAL meter
+// frame. That local frame is the REFERENCE frame (annotations are projected
+// into it by pixelToWorld, centered on refSize/2): the active version's image
+// is a quad of its own pixel size, placed into the frame by the version
+// transform {x, y (ref px), rotation (deg, clockwise), scale} — the 3D
+// counterpart of the 2D SVG placement in StaticMapContent
+// (`translate(t.x, t.y) scale(t.scale) rotate(t.rotation)`, rotation around
+// the image's top-left corner).
+export function buildBaseMapPlaneGeometry({
+  refSizePx,
+  versionSizePx,
+  versionTransform,
+  meterByPx,
+}) {
+  const t = versionTransform || { x: 0, y: 0, rotation: 0, scale: 1 };
+  const vs = versionSizePx || refSizePx;
+  const m = Number.isFinite(meterByPx) && meterByPx > 0 ? meterByPx : 0;
+  const s = t.scale ?? 1;
+  const widthInM = (vs?.width ?? 0) * s * m;
+  const heightInM = (vs?.height ?? 0) * s * m;
+  const geometry = new PlaneGeometry(widthInM, heightInM);
+  // PlaneGeometry is centered: move the image's top-left corner to the origin
+  // (image y-down maps to local -y).
+  geometry.translate(widthInM / 2, -heightInM / 2, 0);
+  // SVG rotate() is clockwise in the y-down image frame = -angle around +Z in
+  // the y-up local frame, around the top-left corner (the origin here).
+  if (t.rotation) geometry.rotateZ((-t.rotation * Math.PI) / 180);
+  // Move the top-left corner to its reference-frame position (same math as
+  // pixelToWorld).
+  const refW = refSizePx?.width ?? 0;
+  const refH = refSizePx?.height ?? 0;
+  geometry.translate(
+    ((t.x ?? 0) - refW / 2) * m,
+    -((t.y ?? 0) - refH / 2) * m,
+    0
+  );
+  return geometry;
+}
+
 // Create the basemap Group synchronously (so AnnotationsManager can immediately
 // attach annotations as children), then asynchronously load the texture and
 // add the mesh when ready. Returns { group, ready } where `ready` resolves once
@@ -22,13 +61,15 @@ export default function createImageObject(image) {
   group.rotation.set(image.rotation.x, image.rotation.y, image.rotation.z);
   group.userData.kind = "baseMap";
   group.userData.baseMapId = image.id;
-  // Remember the scale + plane size used to build this group so a later
-  // `meterByPx` change (e.g. a 2-target "Recaler") can resize the plane by
-  // ratio without re-resolving image sizes (works for legacy & versioned maps).
+  // Remember the scale + pixel-space plane placement used to build this group
+  // so a later `meterByPx` change (2-target "Recaler", set-scale after a
+  // scale-less creation) can rebuild the plane geometry without re-resolving
+  // image sizes (works for legacy & versioned maps, raw records included).
   group.userData.meterByPx = image.meterByPx;
-  group.userData.sizeInM = {
-    widthInM: image.widthInM,
-    heightInM: image.heightInM,
+  group.userData.planePx = {
+    refSizePx: image.refSizePx,
+    versionSizePx: image.versionSizePx,
+    versionTransform: image.versionTransform,
   };
 
   // Inner mesh wrapper used for the live "drawingOffset" visualisation: the
@@ -48,30 +89,34 @@ export default function createImageObject(image) {
 
 // Load the texture and attach the basemap mesh into an existing group's
 // meshWrap. Split from createImageObject so a group whose texture load failed
-// (blob URL not ready yet after a Krto import) can be repaired in place —
-// annotations already attached to the group are untouched.
+// (blob URL not ready yet after a Krto import) or whose image changed (active
+// version switch) can be repaired in place — annotations already attached to
+// the group are untouched.
 export async function attachBaseMapMesh(group, image) {
   const meshWrap = group.userData.meshWrap;
   if (!meshWrap) return;
   if (meshWrap.children.some((c) => c.userData?.isBasemap)) return;
 
-  // Prefer the size stashed on the group: applyBaseMapPlacement may have
-  // resized it (scale set after creation) while the texture was still
-  // loading, and the mesh must come in at the current size — the geometry
-  // update no-ops until the mesh exists.
-  const stashedSize = group.userData.sizeInM;
-  const stashedIsValid =
-    Number.isFinite(stashedSize?.widthInM) && stashedSize.widthInM > 0;
-  const widthInM = stashedIsValid ? stashedSize.widthInM : image.widthInM;
-  const heightInM = stashedIsValid ? stashedSize.heightInM : image.heightInM;
-  if (!stashedIsValid && Number.isFinite(image.widthInM)) {
-    group.userData.sizeInM = { widthInM, heightInM };
-    group.userData.meterByPx = image.meterByPx;
-  }
-  const url = image.url;
+  // Refresh the pixel-space placement stash — a repair or a version switch
+  // carries fresher data than the group's creation.
+  group.userData.planePx = {
+    refSizePx: image.refSizePx,
+    versionSizePx: image.versionSizePx,
+    versionTransform: image.versionTransform,
+  };
+  // Prefer the scale stashed on the group: applyBaseMapPlacement may have
+  // updated it (scale set after creation) while the texture was still
+  // loading, and the mesh must come in at the current scale.
+  const stashedM = group.userData.meterByPx;
+  const meterByPx =
+    Number.isFinite(stashedM) && stashedM > 0 ? stashedM : image.meterByPx;
+  group.userData.meterByPx = meterByPx;
 
-  const texture = await getTextureAsync(url);
-  const plane = new PlaneGeometry(widthInM, heightInM);
+  const texture = await getTextureAsync(image.url);
+  const plane = buildBaseMapPlaneGeometry({
+    ...group.userData.planePx,
+    meterByPx,
+  });
 
   // Render the basemap as a background plate that loses every depth contest
   // it enters, so any annotation in front of it occludes it correctly.

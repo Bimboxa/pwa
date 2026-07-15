@@ -20,7 +20,9 @@ export default function getClippingPlaneFromSegment({
   pointB,
   sign = 1,
 }) {
-  const imageSize = baseMap?.image?.imageSize;
+  // Normalized coords live in the REFERENCE frame (same frame as annotation
+  // points), not the active version's image size.
+  const imageSize = baseMap?.getImageSize?.() || baseMap?.image?.imageSize;
   const meterByPx = baseMap?.meterByPx;
   if (!imageSize?.width || !meterByPx || !pointA || !pointB) return null;
 

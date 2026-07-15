@@ -15,7 +15,9 @@ import getClippingPlaneFromSegment from "./getClippingPlaneFromSegment";
 // rectangle, and returned as NORMALIZED [0..1] endpoints + the cut sign.
 // Returns null when the plane doesn't cross the image (e.g. parallel).
 export default function getSegmentFromClippingPlane({ baseMap, plane }) {
-  const imageSize = baseMap?.image?.imageSize;
+  // Normalized coords live in the REFERENCE frame (same frame as annotation
+  // points), not the active version's image size.
+  const imageSize = baseMap?.getImageSize?.() || baseMap?.image?.imageSize;
   const meterByPx = baseMap?.meterByPx;
   if (!imageSize?.width || !meterByPx || !plane) return null;
 

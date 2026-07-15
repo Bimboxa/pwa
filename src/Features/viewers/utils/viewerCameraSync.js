@@ -7,8 +7,8 @@ import pixelToWorld from "Features/threedEditor/js/utilsAnnotationsManager/pixel
 
 // Camera math for the seamless 2D <-> 3D viewer switch.
 //
-// Shared anchor space: the baseMap's stored-pixel frame (`baseMap.image.imageSize`,
-// the frame annotation points are resolved into). In 2D it maps to the SVG world
+// Shared anchor space: the baseMap's stored-pixel frame (the REFERENCE frame
+// annotation points are resolved into). In 2D it maps to the SVG world
 // via `basePose` alone (`world2d = basePose + basePose.k * px` — the version
 // image transform only places the *displayed image*, not the annotations). In 3D
 // it is exactly the basemap plane parameterization (`pixelToWorld` + placement).
@@ -29,9 +29,10 @@ export const TOP_DOWN_POLAR_EPSILON = 0.001; // rad
 export function getCameraSyncContext({ baseMap, basePose }) {
   if (!baseMap) return null;
 
-  // 3D plane and stored points are both parameterized on the legacy `image`
-  // field (see getEditorImageFromBaseMap / pixelToWorld call sites).
-  const imageSize = baseMap.image?.imageSize;
+  // 3D plane and stored points are both parameterized on the REFERENCE frame
+  // (BaseMap.getImageSize = refWidth/refHeight for versioned maps — see
+  // getEditorImageFromBaseMap / pixelToWorld call sites).
+  const imageSize = baseMap.getImageSize?.() || baseMap.image?.imageSize;
   if (!(imageSize?.width > 0) || !(imageSize?.height > 0)) return null;
 
   const meterByPx = baseMap.meterByPx;

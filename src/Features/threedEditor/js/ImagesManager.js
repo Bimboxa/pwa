@@ -1,8 +1,24 @@
-import { PlaneGeometry } from "three";
-
 import createImageObject, {
   attachBaseMapMesh,
+  buildBaseMapPlaneGeometry,
 } from "./utilsImagesManager/createImageObject";
+
+// Identity of a basemap mesh: texture url + version image size + version
+// transform + reference frame. When any of these change (active version
+// switch, version transform edit, new file), the mesh must be rebuilt.
+// meterByPx is NOT part of it — scale changes are applied in place by
+// updateBaseMapGeometry.
+function getPlaneSignature(image) {
+  const t = image?.versionTransform || {};
+  const vs = image?.versionSizePx || {};
+  const rs = image?.refSizePx || {};
+  return [
+    image?.url,
+    `${vs.width}x${vs.height}`,
+    `${rs.width}x${rs.height}`,
+    `${t.x ?? 0},${t.y ?? 0},${t.rotation ?? 0},${t.scale ?? 1}`,
+  ].join("|");
+}
 
 export default class ImagesManager {
   constructor({ sceneManager }) {
@@ -27,18 +43,19 @@ export default class ImagesManager {
   }
 
   // Create + add a single basemap group. Idempotent on the group itself: if a
-  // group for this basemap already exists, only retry a failed texture load
-  // (blob URL that resolved late after a Krto import) instead of recreating —
+  // group for this basemap already exists, only rebuild its mesh when needed
+  // (failed texture load, active version switch) instead of recreating —
   // annotations may already be attached as children of the existing group.
   addImageObject(image, baseMap) {
     if (!image) return;
     if (baseMap) this.baseMapsMap[baseMap.id] = baseMap;
     if (this.imagesMap[image.id]) {
-      this.retryImageTexture(image);
+      this.ensureImageTexture(image);
       return;
     }
     const { group, ready } = createImageObject(image);
     group.userData.textureStatus = "pending";
+    group.userData.planeSignature = getPlaneSignature(image);
     this.imagesMap[image.id] = group;
     this.scene.add(group);
     // Re-render once the texture is in. The group is already in the scene
@@ -54,13 +71,31 @@ export default class ImagesManager {
       });
   }
 
-  // Attach the missing basemap mesh into an existing group whose texture load
-  // failed (e.g. the image url wasn't ready yet). No-op while pending/loaded.
-  retryImageTexture(image) {
+  // (Re)attach the basemap mesh of an existing group when its texture load
+  // failed (blob URL that resolved late after a Krto import) OR when the
+  // image changed (active version switch, version transform edit). No-op
+  // while a load is in flight or when the mesh already matches the image.
+  ensureImageTexture(image) {
     const group = this.imagesMap[image?.id];
     if (!group || !image?.url) return;
-    if (group.userData.textureStatus !== "failed") return;
+    const status = group.userData.textureStatus;
+    if (status === "pending") return;
+    const signature = getPlaneSignature(image);
+    if (status === "loaded" && group.userData.planeSignature === signature) {
+      return;
+    }
+    // Drop the current mesh (if any) — geometry AND texture may both change.
+    const meshWrap = group.userData.meshWrap;
+    meshWrap?.children
+      .filter((c) => c.userData?.isBasemap)
+      .forEach((mesh) => {
+        meshWrap.remove(mesh);
+        mesh.geometry?.dispose?.();
+        mesh.material?.map?.dispose?.();
+        mesh.material?.dispose?.();
+      });
     group.userData.textureStatus = "pending";
+    group.userData.planeSignature = signature;
     attachBaseMapMesh(group, image)
       .then(() => {
         group.userData.textureStatus = "loaded";
@@ -68,8 +103,22 @@ export default class ImagesManager {
       })
       .catch((e) => {
         group.userData.textureStatus = "failed";
-        console.warn("[ImagesManager] texture retry failed", e);
+        console.warn("[ImagesManager] texture reload failed", e);
       });
+  }
+
+  // True when the group exists AND its mesh matches this image (texture
+  // loaded, or load in flight) — the lazy-load guard. A "failed" group or a
+  // mesh built for another version must fall through to ensureImageTexture.
+  hasCurrentImageObject(baseMapId, image) {
+    const group = this.imagesMap[baseMapId];
+    if (!group) return false;
+    const status = group.userData.textureStatus;
+    if (status === "pending") return true;
+    return (
+      status === "loaded" &&
+      group.userData.planeSignature === getPlaneSignature(image)
+    );
   }
 
   hasImageObject(baseMapId) {
@@ -120,17 +169,21 @@ export default class ImagesManager {
   }
 
   // Rebuild a loaded basemap's plane geometry in place (after a `meterByPx`
-  // change). Disposes the old PlaneGeometry and swaps in a new one; the mesh,
-  // material/texture and the group transform are untouched.
-  updateBaseMapGeometry(baseMapId, { widthInM, heightInM }) {
+  // change) from the pixel-space placement stashed on the group — no image
+  // re-resolve needed, so it works with raw db records too. The mesh,
+  // material/texture and the group transform are untouched. The new scale is
+  // recorded even when the mesh isn't attached yet: attachBaseMapMesh reads
+  // it when the texture finally lands.
+  updateBaseMapGeometry(baseMapId, { meterByPx }) {
     const group = this.imagesMap[baseMapId];
-    if (!group || !Number.isFinite(widthInM) || !Number.isFinite(heightInM)) {
-      return;
-    }
+    if (!group || !Number.isFinite(meterByPx) || meterByPx <= 0) return;
+    group.userData.meterByPx = meterByPx;
+    const planePx = group.userData.planePx;
+    if (!planePx) return;
     group.traverse?.((child) => {
       if (child.userData?.isBasemap) {
         child.geometry?.dispose?.();
-        child.geometry = new PlaneGeometry(widthInM, heightInM);
+        child.geometry = buildBaseMapPlaneGeometry({ ...planePx, meterByPx });
       }
     });
   }
