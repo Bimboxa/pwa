@@ -6183,12 +6183,40 @@ const InteractionLayer = forwardRef(({
       const { nodeId } = rotateHandle.dataset;
       const worldPos = viewportRef.current?.screenToWorld(e.clientX, e.clientY);
       const startMouseInLocal = toLocalCoords(worldPos);
+      const wrapperInfo = resolveWrapperInfo(nodeId, "ROTATE");
+
+      // Angular rotation context: pivot + rotation at drag start, so the drag
+      // follows the cursor around the pivot instead of mapping drag-x to degrees.
+      let rotationContext = null;
+      if (nodeId === "wrapper") {
+        const firstAnn = annotations?.find(a => a.id === wrapperInfo.wrapperAnnotationIds?.[0]);
+        const b = wrapperInfo.wrapperBbox;
+        if (b) {
+          rotationContext = {
+            center: { x: b.x + b.width / 2, y: b.y + b.height / 2 },
+            startRotation: firstAnn?.rotation ?? 0,
+          };
+        }
+      } else {
+        const ann = annotations?.find(a => a.id === nodeId);
+        if (ann?.bbox) {
+          rotationContext = {
+            center: {
+              x: ann.bbox.x + ann.bbox.width / 2,
+              y: ann.bbox.y + ann.bbox.height / 2,
+            },
+            startRotation: ann.rotation ?? 0,
+          };
+        }
+      }
+
       initAnnotationDrag({
         nodeId,
         startMouseInLocal,
         partType: "ROTATE",
         startMouseScreen: { x: e.clientX, y: e.clientY },
-        ...resolveWrapperInfo(nodeId, "ROTATE"),
+        rotationContext,
+        ...wrapperInfo,
       });
       return;
     }

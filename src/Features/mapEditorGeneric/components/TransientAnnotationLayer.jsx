@@ -36,6 +36,7 @@ export default function TransientAnnotationLayer({
                 baseMapMeterByPx={baseMapMeterByPx}
                 baseMapImageScale={baseMapImageScale}
                 dragged={true}
+                draggedPartType={partType}
                 sizeVariant="FIXED_IN_SCREEN"
                 containerK={basePose.k}
             />

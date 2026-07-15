@@ -1,6 +1,8 @@
 import { memo, useMemo } from "react";
 import theme from "Styles/theme";
 
+import useObject3DTopView from "Features/object3D/hooks/useObject3DTopView";
+
 const HANDLE_SIZE = 10;
 const HALF_HANDLE = HANDLE_SIZE / 2;
 const ROTATION_HANDLE_OFFSET = 30;
@@ -10,6 +12,7 @@ export default memo(function NodeObject3DStatic({
   hovered,
   selected,
   dragged,
+  draggedPartType,
   containerK = 1,
 }) {
   const { bbox, id, opacity } = annotation;
@@ -20,6 +23,10 @@ export default memo(function NodeObject3DStatic({
   const cx = displayWidth / 2;
   const cy = displayHeight / 2;
   const rotation = annotation.rotation || 0;
+
+  // Top-down projection of the GLB (persisted on the template, or lazily
+  // generated from db.files for annotations created before it existed).
+  const topViewUrl = useObject3DTopView(annotation.object3D);
 
   const handleScaleTransform = useMemo(() => {
     const k = containerK || 1;
@@ -105,26 +112,81 @@ export default memo(function NodeObject3DStatic({
     </g>
   );
 
+  // Angle badge shown while rotating (counter-rotated to stay readable)
+  const renderAngleBadge = () => {
+    const displayedAngle = Math.round(((rotation % 360) + 360) % 360);
+    return (
+      <g
+        transform={`translate(${cx}, ${cy}) rotate(${-rotation})`}
+        style={{ pointerEvents: "none" }}
+      >
+        <g style={{ transform: handleScaleTransform }}>
+          <rect
+            x={-26}
+            y={-12}
+            width={52}
+            height={24}
+            rx={12}
+            fill="rgba(0,0,0,0.75)"
+          />
+          <text
+            x={0}
+            y={4}
+            textAnchor="middle"
+            fill="#fff"
+            fontSize={12}
+            fontFamily={theme.typography?.fontFamily}
+          >
+            {displayedAngle}°
+          </text>
+        </g>
+      </g>
+    );
+  };
+
+  const cursorStyle = selected ? "move" : hovered ? "pointer" : "default";
+
   return (
     <g
       transform={`translate(${x || 0}, ${y || 0}) rotate(${rotation}, ${cx}, ${cy})`}
       style={{ opacity: dragged ? 0.7 : opacity ?? 1 }}
     >
       <g {...interactionProps}>
+        {topViewUrl ? (
+          <image
+            href={topViewUrl}
+            x={0}
+            y={0}
+            width={displayWidth}
+            height={displayHeight}
+            preserveAspectRatio="none"
+            style={{ cursor: cursorStyle }}
+          />
+        ) : (
+          <rect
+            x={0}
+            y={0}
+            width={displayWidth}
+            height={displayHeight}
+            fill={fillColor}
+            fillOpacity={0.15}
+            stroke={fillColor}
+            strokeWidth={2}
+            strokeDasharray="6 3"
+            vectorEffect="non-scaling-stroke"
+            style={{ cursor: cursorStyle }}
+          />
+        )}
+
+        {/* Invisible hit area: keeps the whole footprint clickable */}
         <rect
           x={0}
           y={0}
           width={displayWidth}
           height={displayHeight}
-          fill={fillColor}
-          fillOpacity={0.15}
-          stroke={fillColor}
-          strokeWidth={2}
-          strokeDasharray="6 3"
-          vectorEffect="non-scaling-stroke"
-          style={{
-            cursor: selected ? "move" : hovered ? "pointer" : "default",
-          }}
+          fill="transparent"
+          stroke="none"
+          style={{ cursor: cursorStyle }}
         />
 
         {hovered && !selected && !dragged && (
@@ -155,10 +217,12 @@ export default memo(function NodeObject3DStatic({
           />
         )}
 
-        {renderCubeIcon()}
+        {!topViewUrl && renderCubeIcon()}
       </g>
 
       {selected && !dragged && <g>{renderRotationHandle()}</g>}
+
+      {dragged && draggedPartType === "ROTATE" && renderAngleBadge()}
     </g>
   );
 });

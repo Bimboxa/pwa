@@ -124,11 +124,11 @@ export default function useAnnotationDrag({
    * Démarre un drag d'annotation (move, resize, ou rotate).
    * Retourne false si l'utilisateur n'a pas la permission.
    *
-   * @param {{ nodeId: string, startMouseInLocal: {x,y}, partType: string|null, startMouseScreen: {x,y}, nodeContext?: string, wrapperAnnotationIds?: string[], wrapperBbox?: Object }} params
+   * @param {{ nodeId: string, startMouseInLocal: {x,y}, partType: string|null, startMouseScreen: {x,y}, nodeContext?: string, wrapperAnnotationIds?: string[], wrapperBbox?: Object, rotationContext?: {center: {x,y}, startRotation: number} }} params
    * @returns {boolean} true si le drag a été initié
    */
   const initAnnotationDrag = useCallback(
-    ({ nodeId, startMouseInLocal, partType, startMouseScreen, nodeContext, wrapperAnnotationIds, wrapperBbox }) => {
+    ({ nodeId, startMouseInLocal, partType, startMouseScreen, nodeContext, wrapperAnnotationIds, wrapperBbox, rotationContext }) => {
       const isWrapper = nodeId === WRAPPER_NODE_ID;
 
       // GUARD : bloquer si pas propriétaire
@@ -153,6 +153,8 @@ export default function useAnnotationDrag({
         isWrapper,
         wrapperAnnotationIds: isWrapper ? wrapperAnnotationIds : null,
         wrapperBbox: isWrapper ? wrapperBbox : null,
+        // Angular rotation (partType ROTATE): pivot + rotation at drag start
+        rotationContext: rotationContext ?? null,
       };
 
       setDragAnnotationState(newState);
@@ -215,19 +217,64 @@ export default function useAnnotationDrag({
 
       // Active drag
       if (dragAnnotationStateRef.current?.active) {
+        const _cur = dragAnnotationStateRef.current;
         const currentMouseInWorld = viewportRef.current?.screenToWorld(
           event.clientX,
           event.clientY
         );
         const currentMouseInLocal = toLocalCoords(currentMouseInWorld);
-        const deltaPos = {
-          x:
-            currentMouseInLocal.x -
-            dragAnnotationStateRef.current.startMouseInLocal.x,
-          y:
-            currentMouseInLocal.y -
-            dragAnnotationStateRef.current.startMouseInLocal.y,
-        };
+
+        let deltaPos;
+        let rotationTracking = null;
+
+        // ROTATE: angular control — deltaPos.x carries the rotation delta in
+        // degrees (every downstream consumer adds it to the current rotation).
+        // The cursor drives the angle around the pivot; the delta is
+        // accumulated to stay continuous across the ±180° atan2 seam.
+        const rotationCenter =
+          _cur.partType === "ROTATE"
+            ? _cur.rotationContext?.center ??
+              (_cur.wrapperBbox
+                ? {
+                    x: _cur.wrapperBbox.x + _cur.wrapperBbox.width / 2,
+                    y: _cur.wrapperBbox.y + _cur.wrapperBbox.height / 2,
+                  }
+                : null)
+            : null;
+
+        if (rotationCenter) {
+          const pointerAngle = Math.atan2(
+            currentMouseInLocal.y - rotationCenter.y,
+            currentMouseInLocal.x - rotationCenter.x
+          );
+          const prevAngle =
+            _cur.lastPointerAngle ??
+            Math.atan2(
+              _cur.startMouseInLocal.y - rotationCenter.y,
+              _cur.startMouseInLocal.x - rotationCenter.x
+            );
+          let step = pointerAngle - prevAngle;
+          if (step > Math.PI) step -= 2 * Math.PI;
+          if (step < -Math.PI) step += 2 * Math.PI;
+          const rotationAccum = (_cur.rotationAccum ?? 0) + step;
+
+          let deltaDeg = (rotationAccum * 180) / Math.PI;
+
+          // Shift: snap the absolute angle to 15° increments
+          if (event.shiftKey) {
+            const startRotation = _cur.rotationContext?.startRotation ?? 0;
+            const snapped = Math.round((startRotation + deltaDeg) / 15) * 15;
+            deltaDeg = snapped - startRotation;
+          }
+
+          deltaPos = { x: deltaDeg, y: 0 };
+          rotationTracking = { lastPointerAngle: pointerAngle, rotationAccum };
+        } else {
+          deltaPos = {
+            x: currentMouseInLocal.x - _cur.startMouseInLocal.x,
+            y: currentMouseInLocal.y - _cur.startMouseInLocal.y,
+          };
+        }
 
         // Update pendingMove ref (pas de re-render, lu par TransientAnnotationLayer)
         if (dragAnnotationStateRef.current.isWrapper && dragAnnotationStateRef.current.wrapperAnnotationIds) {
@@ -253,6 +300,7 @@ export default function useAnnotationDrag({
           ...dragAnnotationStateRef.current,
           deltaPos,
           localPos: currentMouseInLocal,
+          ...(rotationTracking ?? {}),
         };
         setDragAnnotationState(newState);
         dragAnnotationStateRef.current = newState;

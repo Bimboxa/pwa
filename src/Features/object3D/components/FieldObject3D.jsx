@@ -92,7 +92,23 @@ export default function FieldObject3D({ label, value, onChange }) {
               gap: 2,
             }}
           >
-            <ViewInAr sx={{ fontSize: 40, color: "primary.main" }} />
+            {value?.topViewDataUrl ? (
+              <Box
+                component="img"
+                src={value.topViewDataUrl}
+                alt="Vue de dessus"
+                sx={{
+                  width: 48,
+                  height: 48,
+                  objectFit: "contain",
+                  borderRadius: 1,
+                  bgcolor: "background.paper",
+                  boxShadow: 1,
+                }}
+              />
+            ) : (
+              <ViewInAr sx={{ fontSize: 40, color: "primary.main" }} />
+            )}
             <Box sx={{ flex: 1, minWidth: 0 }}>
               <Typography
                 variant="body2"

@@ -1,4 +1,4 @@
-import { Group, MathUtils, MeshBasicMaterial, DoubleSide } from "three";
+import { Box3, Group, MathUtils, MeshBasicMaterial, DoubleSide } from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
 import db from "App/db/db";
@@ -84,6 +84,15 @@ export default async function createObject3DAnnotation(
       oldMat.dispose();
     });
 
+  // Recenter the model: its glTF origin can be anywhere (wheel base, corner…),
+  // but the 2D footprint and top view are centered on the bounding-box center.
+  // Put the footprint center at the group origin (also the rotation pivot,
+  // matching the 2D rotation around the bbox center) and the base on the plan.
+  const modelBox = new Box3().setFromObject(gltf.scene);
+  gltf.scene.position.x -= (modelBox.min.x + modelBox.max.x) / 2;
+  gltf.scene.position.z -= (modelBox.min.z + modelBox.max.z) / 2;
+  gltf.scene.position.y -= modelBox.min.y;
+
   // Pre-rotated wrapper for the glTF scene so its Y axis ends up world-Y after
   // the basemap transform.
   const modelWrap = new Group();
@@ -92,11 +101,13 @@ export default async function createObject3DAnnotation(
 
   // Outer group holds the 2D rotation (around basemap-local Z, which maps to
   // world Y after the basemap transform applied later by the dispatcher).
+  // Negated: pixelToWorld mirrors the y axis (image y-down -> local y-up), so
+  // the SVG rotation (clockwise on screen) maps to -theta around local Z.
   const outer = new Group();
   const center = bboxCenterPx(bbox);
   const local = pixelToWorld(center, baseMap);
   outer.position.set(local.x, local.y, 0);
-  outer.rotation.z = MathUtils.degToRad(annotation.rotation || 0);
+  outer.rotation.z = MathUtils.degToRad(-(annotation.rotation || 0));
   outer.add(modelWrap);
 
   return outer;
