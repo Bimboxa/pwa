@@ -654,6 +654,7 @@ export default function MainThreedEditor() {
               dispatch(
                 setSelectedNode({
                   id: nodeId,
+                  nodeId,
                   nodeType,
                   annotationType,
                   listingId,

@@ -15,7 +15,7 @@ export default function useAutoSelectEntityId() {
     const selectedNode = useSelector((s) => s.mapEditor.selectedNode);
 
     useLiveQuery(async () => {
-        if (selectedNode?.nodeType === "ANNOTATION") {
+        if (selectedNode?.nodeType === "ANNOTATION" && selectedNode?.nodeId) {
             const annotation = await db.annotations.get(selectedNode.nodeId);
             if (annotation) {
                 dispatch(setSelectedEntityId(annotation.entityId));
