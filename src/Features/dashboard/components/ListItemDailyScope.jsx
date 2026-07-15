@@ -1,9 +1,16 @@
-import { Box, Typography } from "@mui/material";
+import { Box, Typography, Button } from "@mui/material";
+
+import { TEXT_FAINT } from "../utils/dashboardStyles";
 
 // One row of the "daily scopes" list: project name over scope name on the
-// left, author trigram over creation time on the right.
+// left, author trigram + creation time on one line over an "open" button on
+// the right.
 
-export default function ListItemDailyScope({ item }) {
+export default function ListItemDailyScope({ item, onOpen }) {
+  // strings
+
+  const openS = "Ouvrir";
+
   // helpers
 
   const timeS = item.lastConfigurationAt
@@ -38,13 +45,31 @@ export default function ListItemDailyScope({ item }) {
           {item.scopeName}
         </Typography>
       </Box>
-      <Box sx={{ textAlign: "right", flexShrink: 0 }}>
-        <Typography sx={{ fontWeight: 600, fontSize: 13 }}>
-          {item.createdBy?.trigram}
-        </Typography>
-        <Typography variant="caption" sx={{ color: "text.secondary" }}>
-          {timeS}
-        </Typography>
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "flex-end",
+          gap: 0.5,
+          flexShrink: 0,
+        }}
+      >
+        <Box sx={{ display: "flex", alignItems: "baseline", gap: 0.75 }}>
+          <Typography sx={{ fontWeight: 600, fontSize: 13 }}>
+            {item.createdBy?.trigram}
+          </Typography>
+          <Typography variant="caption" sx={{ color: TEXT_FAINT }}>
+            {timeS}
+          </Typography>
+        </Box>
+        <Button
+          size="small"
+          variant="outlined"
+          onClick={() => onOpen?.(item)}
+          sx={{ fontSize: 12, py: 0, px: 1.25, minWidth: 0 }}
+        >
+          {openS}
+        </Button>
       </Box>
     </Box>
   );

@@ -1,8 +1,15 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 import { useTheme } from "@mui/material/styles";
-import { Box, Typography, Chip } from "@mui/material";
-import { EventAvailable, EventNote } from "@mui/icons-material";
+import {
+  Box,
+  Typography,
+  IconButton,
+  CircularProgress,
+  Tooltip,
+} from "@mui/material";
+import { EventAvailable, EventNote, Refresh } from "@mui/icons-material";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useDailyScopes from "Features/dailyScopes/hooks/useDailyScopes";
@@ -10,20 +17,20 @@ import useDailyScopes from "Features/dailyScopes/hooks/useDailyScopes";
 import CardEmptySection from "./CardEmptySection";
 import ListItemDailyScope from "./ListItemDailyScope";
 
-import {
-  SEGMENT_BG,
-  TEXT_MUTED,
-  TEXT_FAINT,
-  fadeUp,
-} from "../utils/dashboardStyles";
+import { TEXT_FAINT, fadeUp } from "../utils/dashboardStyles";
 
 export default function SectionDailyScopes() {
   const theme = useTheme();
+  const navigate = useNavigate();
 
   // data
 
   const appConfig = useAppConfig();
-  const { dailyScopes } = useDailyScopes();
+  const { dailyScopes, fetchDailyScopes } = useDailyScopes();
+
+  // state
+
+  const [refreshing, setRefreshing] = useState(false);
 
   // items — most recent first
 
@@ -43,7 +50,7 @@ export default function SectionDailyScopes() {
   const emptyHintS =
     appConfig?.strings?.scope?.dailyScopeEmptyHint ??
     "Les repérages que vous ouvrez ou modifiez aujourd'hui apparaîtront ici pour un suivi rapide.";
-  const comingSoonS = appConfig?.strings?.general?.comingSoon ?? "Prochainement";
+  const refreshS = "Mettre à jour la liste";
 
   // helpers
 
@@ -55,6 +62,21 @@ export default function SectionDailyScopes() {
     month: "long",
   });
   const dateLabel = dateS.charAt(0).toUpperCase() + dateS.slice(1);
+
+  // handlers
+
+  async function handleRefresh() {
+    setRefreshing(true);
+    try {
+      await fetchDailyScopes();
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
+  function handleOpen(item) {
+    navigate(`/scopes/${item.scopeId}`);
+  }
 
   // render
 
@@ -75,18 +97,21 @@ export default function SectionDailyScopes() {
           <Typography variant="h6" sx={{ fontWeight: 600 }}>
             {titleS}
           </Typography>
-          <Chip
-            size="small"
-            label={comingSoonS}
-            sx={{
-              height: 20,
-              fontSize: 11,
-              fontWeight: 600,
-              bgcolor: SEGMENT_BG,
-              color: TEXT_MUTED,
-              borderRadius: 999,
-            }}
-          />
+          <Tooltip title={refreshS}>
+            <span>
+              <IconButton
+                size="small"
+                onClick={handleRefresh}
+                disabled={refreshing}
+              >
+                {refreshing ? (
+                  <CircularProgress size={16} />
+                ) : (
+                  <Refresh sx={{ color: "text.secondary", fontSize: 18 }} />
+                )}
+              </IconButton>
+            </span>
+          </Tooltip>
         </Box>
         <Typography variant="body2" sx={{ color: TEXT_FAINT }}>
           {dateLabel}
@@ -106,7 +131,11 @@ export default function SectionDailyScopes() {
         ) : (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
             {items.map((item) => (
-              <ListItemDailyScope key={item.scopeId} item={item} />
+              <ListItemDailyScope
+                key={item.scopeId}
+                item={item}
+                onOpen={handleOpen}
+              />
             ))}
           </Box>
         )}
