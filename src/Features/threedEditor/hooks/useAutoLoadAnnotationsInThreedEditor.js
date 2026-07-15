@@ -3,6 +3,7 @@ import { useSelector } from "react-redux";
 
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
+import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useMeshCellRelations from "Features/annotations/hooks/useMeshCellRelations";
 import useExtraBaseMapIdsIn3d from "./useExtraBaseMapIdsIn3d";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
@@ -33,6 +34,7 @@ export default function useAutoLoadAnnotationsInThreedEditor({
   // Other base maps whose annotations are requested (mode !== NONE), excluding
   // the main one (always loaded by `filterByMainBaseMap`).
   const { value: baseMaps = [] } = useBaseMaps();
+  const mainBaseMap = useMainBaseMap();
 
   const extraBaseMapIds = useExtraBaseMapIdsIn3d();
 
@@ -65,10 +67,18 @@ export default function useAutoLoadAnnotationsInThreedEditor({
 
   useEffect(() => {
     if (!threedEditor?.loadAnnotations || !rendererIsReady) return;
-    // Ensure the extra base maps' groups exist before (re)creating annotation
-    // objects — `createAnnotationsObjects` silently skips annotations whose
-    // base map is not in `baseMapsMap`. Idempotent (no-op if already loaded).
+    // Ensure the base maps' groups exist AND their registry entries are fresh
+    // before (re)creating annotation objects — `createAnnotationsObjects`
+    // silently skips annotations whose base map is not in `baseMapsMap`, and
+    // positions them with the registered meterByPx (stale if the entry was
+    // stored before the scale was set). Includes the MAIN base map for that
+    // reason. Idempotent (no-op if already loaded).
     if (threedEditor.ensureBaseMapLoaded) {
+      if (mainBaseMap?.id) {
+        threedEditor.ensureBaseMapLoaded(mainBaseMap, {
+          opacity: baseMapOpacityIn3d,
+        });
+      }
       extraBaseMapIds.forEach((id) => {
         const bm = baseMaps.find((b) => b.id === id);
         if (bm?.image?.imageUrlClient) {
@@ -90,6 +100,7 @@ export default function useAutoLoadAnnotationsInThreedEditor({
     realisticShading,
     extraBaseMapIds,
     baseMaps,
+    mainBaseMap,
     baseMapOpacityIn3d,
   ]);
 

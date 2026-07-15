@@ -63,6 +63,11 @@ export default class ThreedEditor {
     try {
       if (!baseMap?.id) return;
       const imagesManager = this.sceneManager.imagesManager;
+      // Always refresh the annotations' baseMap registry, even when the group
+      // is already loaded: annotation objects are positioned with
+      // baseMapsMap's meterByPx, which may have been stored before the scale
+      // was set (creation dialog stores meterByPx null).
+      imagesManager.baseMapsMap[baseMap.id] = baseMap;
       // A group whose texture load failed (url resolved late) is NOT "loaded":
       // fall through so addImageObject can repair it in place.
       if (imagesManager.hasTexturedImageObject(baseMap.id)) return;
