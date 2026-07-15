@@ -11,6 +11,7 @@ import { Download, CloudUpload } from "@mui/icons-material";
 
 import DialogGeneric from "Features/layout/components/DialogGeneric";
 import ButtonGeneric from "Features/layout/components/ButtonGeneric";
+import parseBackendDate from "Features/date/utils/parseBackendDate";
 
 export default function DialogRemoteNewer({ onRequestSave }) {
   const dispatch = useDispatch();
@@ -33,9 +34,7 @@ export default function DialogRemoteNewer({ onRequestSave }) {
   // helpers
 
   const trigram = lastRemoteConfiguration?.createdBy?.trigram;
-  const createdAt = lastRemoteConfiguration?.createdAt
-    ? new Date(lastRemoteConfiguration.createdAt)
-    : null;
+  const createdAt = parseBackendDate(lastRemoteConfiguration?.createdAt);
   const dateS = createdAt
     ? `${createdAt.toLocaleDateString()} – ${createdAt.toLocaleTimeString([], {
         hour: "2-digit",

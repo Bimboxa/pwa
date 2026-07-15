@@ -8,6 +8,7 @@ import { setOpenScopeCreator } from "../scopeCreatorSlice";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useScopeConfigurationsByProject from "Features/remoteScopeConfigurations/hooks/useScopeConfigurationsByProject";
 import stringifyFileSize from "Features/files/utils/stringifyFileSize";
+import parseBackendDate from "Features/date/utils/parseBackendDate";
 
 import {
     Box,
@@ -135,10 +136,8 @@ export default function SectionLoadRemoteScope() {
 function formatSecondary(config) {
     const parts = [];
     if (config.createdBy?.trigram) parts.push(config.createdBy.trigram);
-    if (config.created_at) {
-        const d = new Date(config.created_at);
-        parts.push(d.toLocaleDateString());
-    }
+    const createdAt = parseBackendDate(config.createdAt ?? config.created_at);
+    if (createdAt) parts.push(createdAt.toLocaleDateString());
     if (config.fileSize) parts.push(stringifyFileSize(config.fileSize));
     if (config.version) parts.push(`v${config.version}`);
     return parts.join(" · ");

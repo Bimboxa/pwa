@@ -9,6 +9,7 @@ import { Box, Typography } from "@mui/material";
 
 import stringifyFileSize from "Features/files/utils/stringifyFileSize";
 import ButtonGeneric from "Features/layout/components/ButtonGeneric";
+import parseBackendDate from "Features/date/utils/parseBackendDate";
 
 
 
@@ -32,7 +33,7 @@ export default function SectionPullRemoteScopeConfiguration() {
     // helpers
 
     const scopeS = appConfig?.strings?.scope?.nameSingular?.toLowerCase() || "dossier";
-    const date = lastRemoteConfiguration?.createdAt ? new Date(lastRemoteConfiguration.createdAt) : null;
+    const date = parseBackendDate(lastRemoteConfiguration?.createdAt);
     const dateS = date?.toLocaleDateString();
     const userS = lastRemoteConfiguration?.createdBy?.trigram;
     const fileSizeS = stringifyFileSize(lastRemoteConfiguration?.fileSize);

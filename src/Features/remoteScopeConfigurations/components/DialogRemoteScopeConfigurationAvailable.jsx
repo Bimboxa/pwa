@@ -8,6 +8,7 @@ import { Download } from "@mui/icons-material";
 
 import DialogGeneric from "Features/layout/components/DialogGeneric";
 import ButtonGeneric from "Features/layout/components/ButtonGeneric";
+import parseBackendDate from "Features/date/utils/parseBackendDate";
 
 export default function DialogRemoteVersionAvailable({
   open,
@@ -24,9 +25,7 @@ export default function DialogRemoteVersionAvailable({
 
   // helpers
 
-  const date = remoteConfig?.createdAt
-    ? new Date(remoteConfig.createdAt)
-    : null;
+  const date = parseBackendDate(remoteConfig?.createdAt);
   const dateS = date?.toLocaleDateString();
   const timeS = date?.toLocaleTimeString();
   const userS = remoteConfig?.createdBy?.trigram;

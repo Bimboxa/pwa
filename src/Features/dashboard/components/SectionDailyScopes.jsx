@@ -13,6 +13,7 @@ import { EventAvailable, EventNote, Refresh } from "@mui/icons-material";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useDailyScopes from "Features/dailyScopes/hooks/useDailyScopes";
+import parseBackendDate from "Features/date/utils/parseBackendDate";
 
 import CardEmptySection from "./CardEmptySection";
 import ListItemDailyScope from "./ListItemDailyScope";
@@ -37,8 +38,8 @@ export default function SectionDailyScopes() {
   const items = useMemo(() => {
     return [...(dailyScopes ?? [])].sort(
       (a, b) =>
-        new Date(b.lastConfigurationAt ?? 0) -
-        new Date(a.lastConfigurationAt ?? 0)
+        (parseBackendDate(b.lastConfigurationAt) ?? 0) -
+        (parseBackendDate(a.lastConfigurationAt) ?? 0)
     );
   }, [dailyScopes]);
 

@@ -11,6 +11,7 @@ import { setSelectedProjectKeyInDashboard } from "../dashboardSlice";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useScopeFavorites from "Features/scopeFavorites/hooks/useScopeFavorites";
 import useFetchProjectScopeConfigurations from "../hooks/useFetchProjectScopeConfigurations";
+import parseBackendDate from "Features/date/utils/parseBackendDate";
 
 import {
   Box,
@@ -55,9 +56,7 @@ export default function PanelDashboardProjectDetail({ item }) {
   // helpers
 
   function formatDate(value) {
-    if (!value) return null;
-    const date = new Date(value);
-    return isNaN(date.getTime()) ? null : date.toLocaleDateString();
+    return parseBackendDate(value)?.toLocaleDateString() ?? null;
   }
 
   // "author trigram, last update" — the last update is the latest

@@ -1,5 +1,7 @@
 import { Box, Typography, Button } from "@mui/material";
 
+import parseBackendDate from "Features/date/utils/parseBackendDate";
+
 import { TEXT_FAINT } from "../utils/dashboardStyles";
 
 // One row of the "daily scopes" list: project name over scope name on the
@@ -13,12 +15,11 @@ export default function ListItemDailyScope({ item, onOpen }) {
 
   // helpers
 
-  const timeS = item.lastConfigurationAt
-    ? new Date(item.lastConfigurationAt).toLocaleTimeString("fr-FR", {
-        hour: "2-digit",
-        minute: "2-digit",
-      })
-    : "";
+  const timeS =
+    parseBackendDate(item.lastConfigurationAt)?.toLocaleTimeString("fr-FR", {
+      hour: "2-digit",
+      minute: "2-digit",
+    }) ?? "";
 
   // render
 
