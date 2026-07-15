@@ -431,6 +431,10 @@ export default function useAnnotationsV2(options) {
     // solo-independent set of visible annotations (soloing must not remove rows
     // from the panel tree or shrink its counts).
     const ignoreSolo = options?.ignoreSolo;
+    // Keep annotations whose template is hidden (they carry `hidden: true` so
+    // callers can re-filter locally). Used by the listings panel to keep
+    // eye-hidden template rows in the tree so they can be re-enabled.
+    const keepHiddenTemplates = options?.keepHiddenTemplates;
 
     // data
 
@@ -1872,7 +1876,7 @@ export default function useAnnotationsV2(options) {
       }
 
       // filter out annotations whose template is hidden
-      result = result.filter((a) => !a.hidden);
+      if (!keepHiddenTemplates) result = result.filter((a) => !a.hidden);
 
       // exclude profile-template annotations (3D viewer only — they stay
       // visible in 2D, but are dropped from the 3D scene)
@@ -2053,6 +2057,7 @@ export default function useAnnotationsV2(options) {
       soloListingId,
       keepSoloDimmed,
       ignoreSolo,
+      keepHiddenTemplates,
       tempAnnotations,
       bgImageTextAnnotations,
       baseMapAnnotationsOnly,

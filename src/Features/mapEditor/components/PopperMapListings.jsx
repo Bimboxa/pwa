@@ -2229,9 +2229,11 @@ export default function PopperMapListings() {
 
   // single annotation source for all counts and for the SELECT-mode visibility
   // filter. `ignoreSolo` keeps this set stable while the user solos a template
-  // (solo must not remove rows from the tree). In 3D, the 3D-specific filters
-  // are mirrored so the set matches what the scene actually shows.
-  const allAnnotations = useAnnotationsV2({
+  // (solo must not remove rows from the tree), `keepHiddenTemplates` keeps
+  // eye-hidden templates' annotations so their rows stay in the tree (greyed)
+  // and can be re-enabled. In 3D, the 3D-specific filters are mirrored so the
+  // set matches what the scene actually shows.
+  const allAnnotationsInclHidden = useAnnotationsV2({
     caller: "PopperMapListings",
     enabled: viewerKey === "MAP" || viewerKey === "BASE_MAPS" || isThreedViewer,
     filterByMainBaseMap: true,
@@ -2241,6 +2243,7 @@ export default function PopperMapListings() {
     excludeIsForBaseMapsListings: viewerKey !== "BASE_MAPS",
     onlyIsForBaseMapsListings: viewerKey === "BASE_MAPS",
     ignoreSolo: true,
+    keepHiddenTemplates: true,
     ...(isThreedViewer
       ? {
           extraBaseMapIds,
@@ -2250,6 +2253,12 @@ export default function PopperMapListings() {
         }
       : {}),
   });
+
+  // visible-only set for counts and qties (matches what's on screen).
+  const allAnnotations = useMemo(
+    () => allAnnotationsInclHidden?.filter((a) => !a.hidden),
+    [allAnnotationsInclHidden]
+  );
 
   const annotationTemplates = useAnnotationTemplates();
   const annotationTemplateById = useMemo(
@@ -2315,25 +2324,38 @@ export default function PopperMapListings() {
   );
 
   // In effective SELECT contexts (2D Selection, 3D, Maillage, ?mode=viewer) the
-  // panel acts as a legend of what's on screen: hide listings/templates that
-  // have no currently-visible annotation. Derived from `allAnnotations`, which
-  // is already filtered by base map / layer / hidden-template visibility.
+  // panel acts as a legend: hide listings/templates that have no annotation on
+  // the displayed base maps (main + the 3D extra base maps). The template eye
+  // does NOT remove rows — eye-hidden templates stay listed (greyed) so they
+  // can be re-enabled. In 3D, masking the main base map's annotations (chip
+  // toggle) removes its annotations from the legend scope.
+  const hideMainAnnotationsIn3d = useSelector(
+    (s) => s.threedEditor.hideMainBaseMapAnnotationsIn3d
+  );
+  const legendAnnotations = useMemo(() => {
+    let arr = allAnnotationsInclHidden ?? [];
+    if (isThreedViewer && hideMainAnnotationsIn3d)
+      arr = arr.filter((a) => a.baseMapId !== baseMap?.id);
+    return arr;
+  }, [allAnnotationsInclHidden, isThreedViewer, hideMainAnnotationsIn3d, baseMap?.id]);
   const isSelectFilter = effectiveInteractionMode === "SELECT";
   const visibleTemplateIds = useMemo(
     () =>
       isSelectFilter
         ? new Set(
-            (allAnnotations ?? [])
+            legendAnnotations
               .filter((a) => a.annotationTemplateId)
               .map((a) => a.annotationTemplateId)
           )
         : null,
-    [isSelectFilter, allAnnotations]
+    [isSelectFilter, legendAnnotations]
   );
   const visibleListingIds = useMemo(
     () =>
-      isSelectFilter ? new Set(Object.keys(annotationsByListingId)) : null,
-    [isSelectFilter, annotationsByListingId]
+      isSelectFilter
+        ? new Set(legendAnnotations.map((a) => a.listingId).filter(Boolean))
+        : null,
+    [isSelectFilter, legendAnnotations]
   );
 
   const scopedListings = visibleListingIds
