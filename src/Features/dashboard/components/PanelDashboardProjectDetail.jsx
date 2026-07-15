@@ -194,28 +194,39 @@ export default function PanelDashboardProjectDetail({ item }) {
           <Typography variant="body2" sx={{ color: "text.secondary" }}>
             {count} élément{count > 1 ? "s" : ""}
           </Typography>
-          {canFetchRemoteScopes &&
-            (remoteScopesLoading ? (
-              <Tooltip title={`Récupération des ${krtoS}s distants…`}>
-                <Box
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 0.5,
-                    color: "text.secondary",
-                  }}
+          {remoteScopesLoading ? (
+            <Tooltip title={`Récupération des ${krtoS}s distants…`}>
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 0.5,
+                  color: "text.secondary",
+                }}
+              >
+                <CloudQueue sx={{ fontSize: "1rem" }} />
+                <CircularProgress size={12} color="inherit" />
+              </Box>
+            </Tooltip>
+          ) : (
+            <Tooltip
+              title={
+                canFetchRemoteScopes
+                  ? `Rechercher les ${krtoS}s sur le serveur`
+                  : `Recherche sur le serveur indisponible pour ce projet`
+              }
+            >
+              <span>
+                <IconButton
+                  size="small"
+                  onClick={refreshRemoteScopes}
+                  disabled={!canFetchRemoteScopes}
                 >
-                  <CloudQueue sx={{ fontSize: "1rem" }} />
-                  <CircularProgress size={12} color="inherit" />
-                </Box>
-              </Tooltip>
-            ) : (
-              <Tooltip title={`Rechercher les ${krtoS}s sur le serveur`}>
-                <IconButton size="small" onClick={refreshRemoteScopes}>
                   <Refresh sx={{ fontSize: "1.1rem" }} />
                 </IconButton>
-              </Tooltip>
-            ))}
+              </span>
+            </Tooltip>
+          )}
         </Box>
         <Button
           variant="contained"
