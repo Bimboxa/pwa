@@ -24,14 +24,15 @@ import useSelectedAnnotation from "../hooks/useSelectedAnnotation";
 import useSelectedAnnotationPart from "../hooks/useSelectedAnnotationPart";
 import useDeleteAnnotation from "../hooks/useDeleteAnnotation";
 import useCloneAnnotationAndEntity from "Features/mapEditor/hooks/useCloneAnnotationAndEntity";
-import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useAnnotationTemplateCandidates from "../hooks/useAnnotationTemplateCandidates";
+import useChangeAnnotationTemplate from "../hooks/useChangeAnnotationTemplate";
 import useUpdateAnnotation from "../hooks/useUpdateAnnotation";
 import useHasThreedViewerPeer from "Features/threedEditor/hooks/useHasThreedViewerPeer";
 import useNavigateThreedCameraToAnnotation from "Features/threedEditor/hooks/useNavigateThreedCameraToAnnotation";
 
 import {
   Box,
+  ButtonBase,
   Checkbox,
   FormControlLabel,
   IconButton,
@@ -94,7 +95,6 @@ import ToggleSingleSelectorGeneric from "Features/layout/components/ToggleSingle
 
 import getAnnotationColor from "../utils/getAnnotationColor";
 import getAnnotationTemplateProps from "../utils/getAnnotationTemplateProps";
-import getAnnotationPropsFromAnnotationTemplateProps from "../utils/getAnnotationPropsFromAnnotationTemplateProps";
 import {
   resolveDrawingShape,
   resolveDrawingShapeFromType,
@@ -113,7 +113,7 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
   const deleteAnnotation = useDeleteAnnotation();
   const cloneAnnotationAndEntity = useCloneAnnotationAndEntity();
   const updateAnnotation = useUpdateAnnotation();
-  const baseMap = useMainBaseMap();
+  const changeAnnotationTemplate = useChangeAnnotationTemplate();
   const hasThreedPeer = useHasThreedViewerPeer();
   const navigateThreedCamera = useNavigateThreedCameraToAnnotation();
 
@@ -247,34 +247,7 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
     const template = sameTypeCandidates?.find(
       (t) => t.id === annotationTemplateId
     );
-    if (!template || !selectedAnnotation?.id) return;
-
-    const templateProps = getAnnotationTemplateProps(template);
-    const resolvedShape = resolveDrawingShape(template);
-    const resolvedType = getAnnotationType(resolvedShape);
-
-    // Only overwrite properties the template locks (overrideFields);
-    // non-overridden fields keep the annotation's own value.
-    const merged = getAnnotationPropsFromAnnotationTemplateProps(
-      selectedAnnotation,
-      templateProps,
-      baseMap
-    );
-    // annotationTemplateProps is a render-time snapshot (useAnnotationsV2
-    // recomputes it); don't persist it to the DB record.
-    delete merged.annotationTemplateProps;
-    const updates = {
-      ...merged,
-      id: selectedAnnotation.id,
-      annotationTemplateId: template.id,
-      templateLabel: template.label,
-      listingId: template.listingId,
-      // Persist the NEW template's lock set so the editor UI reflects it.
-      overrideFields: templateProps.overrideFields,
-    };
-    if (resolvedType) updates.type = resolvedType;
-
-    await updateAnnotation(updates);
+    await changeAnnotationTemplate(selectedAnnotation, template);
     handleTemplateDropdownClose();
   }
 
@@ -577,38 +550,41 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
                 size={16}
               />
 
-              <Typography
-                variant="body2"
-                sx={{
-                  flex: 1,
-                  fontWeight: 600,
-                  fontSize: "0.8rem",
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  minWidth: 0,
-                }}
-              >
-                {label}
-              </Typography>
-
               <Tooltip title="Changer le modèle">
-                <IconButton
-                  size="small"
+                <ButtonBase
                   onClick={handleTemplateDropdownClick}
                   onMouseDown={(e) => e.stopPropagation()}
                   sx={{
-                    flexShrink: 0,
-                    color: "text.disabled",
-                    "&:hover": {
-                      bgcolor: "action.hover",
-                      color: "text.primary",
-                    },
+                    minWidth: 0,
+                    justifyContent: "flex-start",
+                    gap: 0.5,
+                    px: 0.5,
+                    py: 0.25,
+                    borderRadius: 1,
+                    "&:hover": { bgcolor: "action.hover" },
                   }}
                 >
-                  <ArrowDropDownIcon sx={{ fontSize: 20 }} />
-                </IconButton>
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      fontWeight: 600,
+                      fontSize: "0.8rem",
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      minWidth: 0,
+                    }}
+                  >
+                    {label}
+                  </Typography>
+
+                  <ArrowDropDownIcon
+                    sx={{ fontSize: 20, flexShrink: 0, color: "text.disabled" }}
+                  />
+                </ButtonBase>
               </Tooltip>
+
+              <Box sx={{ flex: 1, minWidth: 0 }} />
 
               <Tooltip title="Copy annotation data">
                 <IconButton

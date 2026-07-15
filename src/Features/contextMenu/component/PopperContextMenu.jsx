@@ -8,7 +8,7 @@ import {
 import { Box } from "@mui/material";
 import PopperBox from "Features/layout/components/PopperBox";
 
-import ContextMenuAnnotation from "Features/annotations/components/ContextMenuAnnotation";
+import ContextMenuAnnotationTemplates from "Features/annotations/components/ContextMenuAnnotationTemplates";
 import ContextMenuCreateEntity from "Features/entities/components/ContextMenuCreateEntity";
 import ContextMenuPolylinePoint from "Features/annotations/components/ContextMenuPolylinePoint";
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
@@ -54,7 +54,7 @@ export default function PopupContextMenu() {
       onClose={handleClose}
     >
       {/* {mode === "CREATE" && <ContextMenuCreateEntity />} */}
-      {mode === "ANNOTATION" && <ContextMenuAnnotation />}
+      {mode === "ANNOTATION" && <ContextMenuAnnotationTemplates />}
       {mode === "POLYLINE_POINT" && <ContextMenuPolylinePoint />}
     </PopperBox>
   );
