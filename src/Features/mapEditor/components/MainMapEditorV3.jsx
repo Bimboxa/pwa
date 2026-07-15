@@ -15,6 +15,8 @@ import { resetVersionCompare } from "Features/baseMapEditor/baseMapEditorSlice";
 
 import useMeasure from "react-use-measure";
 
+import theme from "Styles/theme";
+
 import {
     setActiveMapEditor,
     clearActiveMapEditor,
@@ -747,6 +749,9 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
             id: nanoid(),
             type: "POLYLINE",
             points,
+            strokeColor: theme.palette.secondary.main,
+            strokeWidth: 2,
+            strokeWidthUnit: "PX",
             outOfSnapScope: true,
             baseMapId: baseMap.id,
             projectId,

@@ -231,7 +231,9 @@ export default function ToolbarDrawingDraft() {
 
   // render
 
-  if (!enabledDrawingMode) return null;
+  // MEASURE (mise à l'échelle) always draws a fixed orange 2px polyline —
+  // its draft properties must not be editable.
+  if (!enabledDrawingMode || enabledDrawingMode === "MEASURE") return null;
 
   return (
     <Paper

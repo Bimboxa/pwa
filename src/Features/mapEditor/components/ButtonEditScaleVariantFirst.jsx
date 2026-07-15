@@ -6,7 +6,7 @@ import { setEnabledDrawingMode } from "../mapEditorSlice";
 import { setNewAnnotation } from "Features/annotations/annotationsSlice";
 
 import { Architecture as Scale } from "@mui/icons-material";
-import { IconButton, Box, Paper } from "@mui/material";
+import { Button, IconButton, Box, Paper, Tooltip } from "@mui/material";
 
 import theme from "Styles/theme";
 
@@ -17,6 +17,8 @@ export default function ButtonEditScaleVariantFirst() {
 
   const baseMap = useMainBaseMap();
   const enabledDrawingMode = useSelector((s) => s.mapEditor.enabledDrawingMode);
+
+  const noScale = Boolean(baseMap) && !baseMap.meterByPx;
 
   // handler
 
@@ -36,6 +38,19 @@ export default function ButtonEditScaleVariantFirst() {
     return null;
   }
 
+  if (noScale) {
+    return (
+      <Button
+        variant="contained"
+        color="secondary"
+        startIcon={<Scale />}
+        onClick={handleClick}
+      >
+        Mettre à l&apos;échelle
+      </Button>
+    );
+  }
+
   return (
     <Paper
       sx={{
@@ -52,9 +67,11 @@ export default function ButtonEditScaleVariantFirst() {
       }}
     >
       <Box sx={{ p: 0.5 }}>
-        <IconButton onClick={handleClick} >
-          <Scale />
-        </IconButton>
+        <Tooltip title="Prendre une cote">
+          <IconButton onClick={handleClick} >
+            <Scale />
+          </IconButton>
+        </Tooltip>
       </Box>
     </Paper>
   );
