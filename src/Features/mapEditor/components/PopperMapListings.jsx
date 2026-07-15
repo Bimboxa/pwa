@@ -579,17 +579,20 @@ function AnnotationTemplateRow({
     (s) => s.popperMapListings.soloVisibleTemplateIds
   );
   const soloListingId = useSelector((s) => s.popperMapListings.soloListingId);
-  // "Maillage" toggle forces SELECT-like interaction → use the effective mode
-  // for all behavior gating in this row.
+  // "Maillage" toggle and the shared ?mode=viewer lock force SELECT-like
+  // interaction → use the effective mode for all behavior gating in this row.
   const rawInteractionMode = useSelector(
     (s) => s.popperMapListings.interactionMode
   );
   const showMeshCells = useSelector((s) => s.annotations.showMeshCells);
+  const viewerMode = useSelector((s) => s.urlParams.viewerMode);
   const isThreedViewer = useSelector((s) =>
     isThreedFamilyViewerKey(s.viewers.selectedViewerKey)
   );
   const interactionMode =
-    showMeshCells || isThreedViewer ? "SELECT" : rawInteractionMode;
+    showMeshCells || isThreedViewer || viewerMode
+      ? "SELECT"
+      : rawInteractionMode;
   const selectedItem = useSelector((s) => s.selection.selectedItems[0] || null);
   const isEditTarget =
     (interactionMode === "EDIT" || interactionMode === "SELECT") &&

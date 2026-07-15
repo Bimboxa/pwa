@@ -4,6 +4,7 @@ import { useSearchParams } from "react-router-dom";
 
 import { setViewerMode } from "../urlParamsSlice";
 import { setSelectedViewerKey } from "Features/viewers/viewersSlice";
+import { setInteractionMode } from "Features/popperMapListings/popperMapListingsSlice";
 import {
   setSelectedMainBaseMapId,
   setSelectedBaseMapsListingId,
@@ -57,6 +58,10 @@ export default function useApplyUrlParams() {
     }
     if (mode === "viewer") {
       dispatch(setViewerMode(true));
+      // Lock the map editor in "Sélection" — no draw/edit entry point in a
+      // shared viewer link. The D/M/S toolbar and hotkeys are also disabled
+      // downstream (PopperMapListings, useInteractionModeHotkeys).
+      dispatch(setInteractionMode("SELECT"));
     }
   }, [viewer, mode]);
 

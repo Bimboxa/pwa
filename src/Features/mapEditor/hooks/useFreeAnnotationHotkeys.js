@@ -53,6 +53,10 @@ export default function useFreeAnnotationHotkeys() {
       // own the mode switching instead).
       if (s.popperMapListings.interactionMode !== "DRAW") return;
 
+      // The shared ?mode=viewer lock is read-only — never start a draw there,
+      // even if some future path resets interactionMode to DRAW.
+      if (s.urlParams.viewerMode) return;
+
       const key = e.key.toLowerCase();
       let template = null;
       if (key === getFreeAnnotationShortcut(lineTemplate)?.toLowerCase())

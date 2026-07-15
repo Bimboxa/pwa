@@ -409,13 +409,16 @@ const InteractionLayer = forwardRef(({
   const selectedPointIds = useSelector(selectSelectedPointIds);
 
   // PopperMapListings interaction mode (DRAW | EDIT | SELECT). When the
-  // "Maillage" toggle is on, interactions behave exactly like SELECT (no
-  // geometry edit, snapping off), so derive the effective mode here once.
+  // "Maillage" toggle is on or the app is opened via a shared ?mode=viewer
+  // link, interactions behave exactly like SELECT (no geometry edit,
+  // snapping off), so derive the effective mode here once.
   const rawInteractionMode = useSelector(
     (s) => s.popperMapListings.interactionMode
   );
   const showMeshCells = useSelector((s) => s.annotations.showMeshCells);
-  const interactionMode = showMeshCells ? "SELECT" : rawInteractionMode;
+  const viewerMode = useSelector((s) => s.urlParams.viewerMode);
+  const interactionMode =
+    showMeshCells || viewerMode ? "SELECT" : rawInteractionMode;
 
   // Computed selectedNode equivalent (first item)
   const { node: selectedNode, nodes: selectedNodes } = useSelectedNodes();
