@@ -6,10 +6,15 @@ import { setProjectConfigurations } from "Features/remoteScopeConfigurations/rem
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useScopeConfigurationsByProject from "Features/remoteScopeConfigurations/hooks/useScopeConfigurationsByProject";
+import useSearchScopeConfigurations from "Features/remoteScopeConfigurations/hooks/useSearchScopeConfigurations";
 
-// Fetches the remote scope configurations (ByProject) of the selected
-// dashboard item and stores them in Redux, where useDashboardProjectItems
-// merges them into the project items (right panel rows + Krto counts).
+// Fetches the remote scope configurations of the selected dashboard item
+// and stores them in Redux, where useDashboardProjectItems merges them into
+// the project items (right panel rows + Krto counts).
+//
+// Uses the ByProject endpoint when the project has an idMaster (chantier
+// IdObject); falls back to SearchAndFilters with the clientRef (projectNum)
+// otherwise — the backend matches configurations on projectNum.
 
 export default function useFetchProjectScopeConfigurations(item) {
   const dispatch = useDispatch();
@@ -19,12 +24,19 @@ export default function useFetchProjectScopeConfigurations(item) {
   const appConfig = useAppConfig();
   const jwt = useSelector((s) => s.auth.jwt);
   const getByProject = useScopeConfigurationsByProject();
+  const searchConfigurations = useSearchScopeConfigurations();
 
   const getByProjectConfig =
     appConfig?.features?.remoteScopeConfigurations?.getByProject;
+  const searchConfig =
+    appConfig?.features?.remoteScopeConfigurations?.searchAndFilters;
 
   const idMaster = item?.idMaster ? String(item.idMaster) : null;
-  const canFetch = Boolean(idMaster && jwt && getByProjectConfig);
+  const clientRef = item?.clientRef ? String(item.clientRef) : null;
+  const canFetch = Boolean(
+    jwt &&
+      ((idMaster && getByProjectConfig) || (clientRef && searchConfig))
+  );
 
   // state
 
@@ -36,12 +48,23 @@ export default function useFetchProjectScopeConfigurations(item) {
     if (!canFetch) return;
     try {
       setLoading(true);
-      const configurations = await getByProject({
-        project: { idMaster },
-      });
+
+      let configurations;
+      if (idMaster && getByProjectConfig) {
+        configurations = await getByProject({ project: { idMaster } });
+      } else {
+        // no idMaster — search by clientRef (backend matches projectNum)
+        const results = await searchConfigurations({
+          searchValue: clientRef,
+        });
+        configurations = (results ?? []).filter(
+          (config) => String(config.projectClientRef) === clientRef
+        );
+      }
+
       dispatch(
         setProjectConfigurations({
-          idMaster,
+          idMaster: idMaster ?? clientRef,
           configurations: (configurations ?? []).map((config) => ({
             ...config,
             projectIdMaster: idMaster,
@@ -54,7 +77,7 @@ export default function useFetchProjectScopeConfigurations(item) {
     } finally {
       setLoading(false);
     }
-  }, [canFetch, idMaster, jwt]);
+  }, [canFetch, idMaster, clientRef, jwt]);
 
   useEffect(() => {
     fetchConfigs();
