@@ -12,9 +12,9 @@ import DialogGeneric from "Features/layout/components/DialogGeneric";
 import usePovEnhancePrompt from "../hooks/usePovEnhancePrompt";
 
 // "Amélioration IA" toggle (Image tab, under the description): the next
-// "Créer une vue" also sends the capture to the image-transformation
-// endpoint. The icon button shows the prompt used (usedByPov item of the
-// org's imageTransformationPrompts).
+// "Créer une vue" / "Mettre à jour la vue" also sends the capture to the
+// image-transformation endpoint. The icon button shows the prompt used
+// (usedByPov item of the org's imageTransformationPrompts).
 export default function SectionPovAiEnhance() {
   const dispatch = useDispatch();
 

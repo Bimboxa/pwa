@@ -16,6 +16,7 @@ import IconButtonMoreActionsPov from "./IconButtonMoreActionsPov";
 import PanelPovFilters from "./PanelPovFilters";
 import PanelPovFrameProperties from "./PanelPovFrameProperties";
 import SectionPovCadrage from "./SectionPovCadrage";
+import SectionPovAiEnhance from "./SectionPovAiEnhance";
 
 import captureMapAsPng from "Features/mapEditor/utils/captureMapAsPng";
 import snapshotThreedCanvasForCapture from "Features/threedEditor/utils/snapshotThreedCanvasForCapture";
@@ -199,6 +200,9 @@ export default function PanelPovProperties() {
           onChange={(e) => setDescription(e.target.value)}
           onBlur={handleDescriptionBlur}
         />
+
+        {/* AI enhancement of the next "Mettre à jour la vue" */}
+        <SectionPovAiEnhance />
 
         {/* Download (resolution options live in the Cadrage tab) */}
         <WhiteSectionGeneric>

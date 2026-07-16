@@ -19,8 +19,9 @@ import enhanceBaseMapService from "Features/baseMaps/services/enhanceBaseMapServ
 // Floating button at the bottom of the POV viewer, shown over both the 2D
 // and 3D editors (replaces the 3D bottom toolbar). Creates a new POV, or —
 // when a POV is selected — updates it with the displayed view. With the
-// "Amélioration IA" option on, creation also sends a full-res capture to the
-// image-transformation endpoint and shows the result in a comparison dialog.
+// "Amélioration IA" option on, both actions also send a full-res capture to
+// the image-transformation endpoint and show the result in a comparison
+// dialog.
 export default function ButtonSavePov() {
   // strings
 
@@ -114,6 +115,9 @@ export default function ButtonSavePov() {
     try {
       if (selectedPov) {
         await updatePovView(selectedPov);
+        if (aiEnhanceEnabled && aiAvailable) {
+          await runAiEnhance(selectedPov.id);
+        }
       } else {
         const record = await createPov({
           lastSortIndex: povs[povs.length - 1]?.sortIndex ?? null,
