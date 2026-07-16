@@ -10,11 +10,11 @@ import purgeDeletedAnnotationsService from "Features/annotations/services/purgeD
 
 import {
   Box,
+  Card,
   Typography,
   IconButton,
   Tooltip,
   Button,
-  Divider,
   CircularProgress,
 } from "@mui/material";
 import DeleteSweepIcon from "@mui/icons-material/DeleteSweep";
@@ -82,51 +82,54 @@ export default function SectionEditorSettings2d() {
         {"Paramétrage de l'éditeur 2D"}
       </Typography>
 
-      <Box
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          py: 0.25,
-        }}
-      >
-        <Typography variant="body2" color="text.secondary">
-          Taille vertex
+      <Card variant="outlined" sx={{ p: 1.5, mb: 1.5 }}>
+        <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
+          Vertex
         </Typography>
-        <Box sx={{ display: "flex", gap: 0.5, alignItems: "center" }}>
-          {VERTEX_SIZES.map(({ multiplier, boxSize }) => {
-            const isSelected = vertexSizeMultiplier === multiplier;
-            return (
-              <Tooltip key={multiplier} title={`×${multiplier}`}>
-                <span>
-                  <IconButton
-                    size="small"
-                    onClick={() => handleSelectVertexSize(multiplier)}
-                  >
-                    <Box
-                      sx={{
-                        width: boxSize,
-                        height: boxSize,
-                        border: "2px solid",
-                        borderColor: isSelected
-                          ? "primary.main"
-                          : "text.secondary",
-                        bgcolor: isSelected ? "primary.main" : "transparent",
-                        borderRadius: 0.5,
-                      }}
-                    />
-                  </IconButton>
-                </span>
-              </Tooltip>
-            );
-          })}
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            py: 0.25,
+          }}
+        >
+          <Typography variant="body2" color="text.secondary">
+            Taille vertex
+          </Typography>
+          <Box sx={{ display: "flex", gap: 0.5, alignItems: "center" }}>
+            {VERTEX_SIZES.map(({ multiplier, boxSize }) => {
+              const isSelected = vertexSizeMultiplier === multiplier;
+              return (
+                <Tooltip key={multiplier} title={`×${multiplier}`}>
+                  <span>
+                    <IconButton
+                      size="small"
+                      onClick={() => handleSelectVertexSize(multiplier)}
+                    >
+                      <Box
+                        sx={{
+                          width: boxSize,
+                          height: boxSize,
+                          border: "2px solid",
+                          borderColor: isSelected
+                            ? "primary.main"
+                            : "text.secondary",
+                          bgcolor: isSelected ? "primary.main" : "transparent",
+                          borderRadius: 0.5,
+                        }}
+                      />
+                    </IconButton>
+                  </span>
+                </Tooltip>
+              );
+            })}
+          </Box>
         </Box>
-      </Box>
+      </Card>
 
-      <Divider sx={{ my: 1 }} />
-
-      <Box sx={{ py: 0.25 }}>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+      <Card variant="outlined" sx={{ p: 1.5, mb: 1.5 }}>
+        <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
           Maintenance
         </Typography>
 
@@ -175,7 +178,7 @@ export default function SectionEditorSettings2d() {
             Purger les suppressions
           </Button>
         )}
-      </Box>
+      </Card>
     </Box>
   );
 }
