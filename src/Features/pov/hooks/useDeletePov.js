@@ -5,17 +5,29 @@ import {
   selectSelectedItem,
 } from "Features/selection/selectionSlice";
 
-import db from "App/db/db";
+import db, { withHardDelete } from "App/db/db";
 
-// Soft-deletes a POV (middleware turns the delete into a deletedAt put). The
-// db.files thumbnail row is kept: harmless, and the POV can be restored.
+// Hard-deletes a POV (withHardDelete bypasses the soft-delete middleware —
+// no deletedAt tombstone) along with its db.files rows (capture thumbnail +
+// saved AI-transformed image).
 export default function useDeletePov() {
   const dispatch = useDispatch();
   const selectedItem = useSelector(selectSelectedItem);
 
   return async function deletePov(id) {
     if (!id) return;
-    await db.povs.delete(id);
+
+    const pov = await db.povs.get(id);
+
+    await withHardDelete(async () => {
+      const fileNames = [
+        pov?.image?.fileName,
+        pov?.transformedImage?.fileName,
+      ].filter(Boolean);
+      if (fileNames.length > 0) await db.files.bulkDelete(fileNames);
+      await db.povs.delete(id);
+    });
+
     if (selectedItem?.type === "POV" && selectedItem?.id === id) {
       dispatch(clearSelection());
     }
