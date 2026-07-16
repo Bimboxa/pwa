@@ -40,6 +40,8 @@ export default function getAnnotationTemplateProps(annotationTemplate) {
 
     hideSlope: annotationTemplate?.hideSlope,
 
+    material3d: annotationTemplate?.material3d,
+
     isExt: annotationTemplate?.isExt,
 
     height: annotationTemplate?.height,

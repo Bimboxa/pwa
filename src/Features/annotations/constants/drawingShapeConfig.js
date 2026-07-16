@@ -90,6 +90,7 @@ const DRAWING_SHAPE_CONFIG = {
       "strokeType",
       "strokeOffset",
       "height",
+      "material3d",
     ],
     defaults: {
       strokeColor: secondary,
@@ -113,7 +114,14 @@ const DRAWING_SHAPE_CONFIG = {
       "STRIP_SEGMENT",
       "RAMP",
     ],
-    configurableProps: ["fillColor", "fillOpacity", "fillType", "hideSlope", "height"],
+    configurableProps: [
+      "fillColor",
+      "fillOpacity",
+      "fillType",
+      "hideSlope",
+      "height",
+      "material3d",
+    ],
     defaults: {
       fillColor: secondary,
       fillOpacity: 0.8,

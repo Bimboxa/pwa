@@ -8,6 +8,8 @@ import buildResolvedSourceObjectAsync from "./utilsAnnotationsManager/buildResol
 import getSolidMeshFromObject3D from "./utilsAnnotationsManager/getSolidMeshFromObject3D";
 
 import { getShape3DKey } from "Features/annotations/constants/shape3DConfig";
+import applyWorldBoxUVs from "Features/photorealRender/utils/applyWorldBoxUVs";
+import ensureMaterial3dMaps from "Features/photorealRender/utils/ensureMaterial3dMaps";
 
 export default class AnnotationsManager {
   constructor({ sceneManager }) {
@@ -51,17 +53,31 @@ export default class AnnotationsManager {
       ? new Vector2(dom.clientWidth, dom.clientHeight)
       : new Vector2(1, 1);
 
-    // Realistic render modes: annotation meshes cast shadows but do NOT
-    // receive them — cast shadows land only on the basemap shadow catchers,
-    // keeping the model itself clean (a wall shadow smeared across a floor
-    // annotation reads as a dirty blob, not as depth). Grid / gizmos / lines
-    // / hover overlays never get the flag. Re-run on async loads (GLB /
-    // profile sweeps) so late children are covered too.
+    // Per-root finishing pass for the realistic render modes. Grid / gizmos /
+    // lines / hover overlays never get the flags. Re-run on async loads (GLB /
+    // profile sweeps) and after a CSG carve so late children / swapped
+    // geometry are covered too.
+    // - castShadow: REALISTIC + PHOTOREAL (only PHOTOREAL enables the shadow
+    //   map, so it stays inert in REALISTIC).
+    // - receiveShadow: PHOTOREAL only — annotation-on-annotation shadows are
+    //   a large part of the archviz look (the basemap keeps its ShadowMaterial
+    //   catcher, see RenderModeManager).
+    // - world-box UVs: meshes whose material3d preset is textured (the flag is
+    //   set synchronously at material creation); the carve strips the uv
+    //   attribute, so the post-carve call re-projects it.
     const applyShadowFlags = (root) => {
       if (!options?.realisticShading || !root) return;
       root.traverse?.((child) => {
-        if (child.isMesh && !child.userData?.isHoverOverlay) {
-          child.castShadow = true;
+        if (!child.isMesh || child.userData?.isHoverOverlay) return;
+        child.castShadow = true;
+        if (options?.photorealShading) child.receiveShadow = true;
+        if (child.material?.userData?.material3dNeedsBoxUvs) {
+          applyWorldBoxUVs(child);
+          // Covers material clones created before the async textures landed
+          // (e.g. the ramp-surface clone) — no-op once maps are attached.
+          ensureMaterial3dMaps(child.material, () =>
+            this.sceneManager.renderScene()
+          );
         }
       });
     };

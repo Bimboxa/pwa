@@ -13,12 +13,17 @@ function toExportableMaterial(source) {
   return new MeshStandardMaterial({
     color: source?.color ? source.color.clone() : 0xffffff,
     map: source?.map ?? null,
+    // material3d presets (PHOTOREAL) carry normal/roughness maps + tuned
+    // scalars — keep them so the .usdz preserves the textured look. UVs are
+    // guaranteed by applyWorldBoxUVs on the source geometry.
+    normalMap: source?.normalMap ?? null,
+    roughnessMap: source?.roughnessMap ?? null,
     transparent: !!source?.transparent,
     opacity: source?.opacity ?? 1,
     side: source?.side,
     vertexColors: !!source?.vertexColors,
-    metalness: 0,
-    roughness: 1,
+    metalness: source?.metalness ?? 0,
+    roughness: source?.roughness ?? 1,
   });
 }
 

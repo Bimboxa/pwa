@@ -88,8 +88,6 @@ export default class SceneManager {
     this.renderer.setSize(width, height);
     this._updateCamera({ width, height });
     this.sectionContourManager?.onResize();
-    // Aspect changed → reset the path tracer's sample accumulation.
-    this.renderModeManager?.onCameraChange();
     this.renderScene();
   };
 
@@ -109,12 +107,6 @@ export default class SceneManager {
 
   renderScene = () => {
     if (!this.scene || !this.camera) return;
-    // While path tracing, an explicit render request means the scene changed
-    // (camera moves are handled by ControlsManager directly): invalidate the
-    // tracer, then still present a raster frame — synchronous callers (e.g.
-    // the screenshot capture, which reads the canvas right after) rely on
-    // renderScene actually drawing (no preserveDrawingBuffer).
-    this.renderModeManager?.markSceneDirtyIfPathTracing?.();
     this.renderer.render(this.scene, this.camera);
   };
 

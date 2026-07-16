@@ -31,6 +31,10 @@ import {
   getDefaultsForShape,
   resolveDrawingShape,
 } from "Features/annotations/constants/drawingShapeConfig";
+import {
+  MATERIAL3D_NONE_KEY,
+  MATERIAL3D_OPTIONS,
+} from "Features/photorealRender/utils/material3dPresets";
 import { getDrawingToolsByShape } from "Features/mapEditor/constants/drawingTools.jsx";
 
 export default function FormAnnotationTemplateVariantBlock({
@@ -69,6 +73,7 @@ export default function FormAnnotationTemplateVariantBlock({
     height,
     image,
     object3D,
+    material3d,
     meterByPx,
     variant,
     size,
@@ -126,6 +131,7 @@ export default function FormAnnotationTemplateVariantBlock({
   const hasMeterByPx = configurableProps.includes("meterByPx");
   const hasCoteProps = configurableProps.includes("unit");
   const hasHideSlope = configurableProps.includes("hideSlope");
+  const hasMaterial3d = configurableProps.includes("material3d");
 
   const coteUnitOptions = [
     { key: "MM", label: "Millimètres (mm)" },
@@ -278,6 +284,13 @@ export default function FormAnnotationTemplateVariantBlock({
     onChange({ ...annotationTemplate, hideSlope });
   }
 
+  function handleMaterial3dChange(key) {
+    onChange({
+      ...annotationTemplate,
+      material3d: key === MATERIAL3D_NONE_KEY ? null : key,
+    });
+  }
+
   function handleToggleOverride(field) {
     const current = Array.isArray(overrideFields) ? [...overrideFields] : [];
     const index = current.indexOf(field);
@@ -422,6 +435,17 @@ export default function FormAnnotationTemplateVariantBlock({
           onChange={handleStrokeChange}
           overrideFields={overrideFields}
           onOverrideFieldsChange={handleOverrideFieldsChange}
+        />
+      )}
+
+      {/* 3D material preset, used by the "Photoréaliste" render mode */}
+      {hasMaterial3d && (
+        <FieldOptionKey
+          label="Matériau 3D (rendu photoréaliste)"
+          value={material3d ?? MATERIAL3D_NONE_KEY}
+          onChange={handleMaterial3dChange}
+          valueOptions={MATERIAL3D_OPTIONS}
+          options={{ showAsSection: true }}
         />
       )}
 
