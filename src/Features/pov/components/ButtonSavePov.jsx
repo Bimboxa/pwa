@@ -4,7 +4,7 @@ import { useSelector } from "react-redux";
 import { selectSelectedItem } from "Features/selection/selectionSlice";
 
 import { Button } from "@mui/material";
-import { PhotoCamera } from "@mui/icons-material";
+import { Add, Refresh } from "@mui/icons-material";
 
 import usePovs from "../hooks/usePovs";
 import useCreatePov from "../hooks/useCreatePov";
@@ -16,7 +16,7 @@ import useUpdatePovView from "../hooks/useUpdatePovView";
 export default function ButtonSavePov() {
   // strings
 
-  const saveS = "Enregistrer la vue";
+  const createS = "Créer une vue";
   const updateS = "Mettre à jour la vue";
 
   // data
@@ -60,8 +60,8 @@ export default function ButtonSavePov() {
   return (
     <Button
       variant="contained"
-      color={selectedPov ? "secondary" : "primary"}
-      startIcon={<PhotoCamera />}
+      color="secondary"
+      startIcon={selectedPov ? <Refresh /> : <Add />}
       onClick={handleClick}
       disabled={busy}
       sx={{
@@ -74,7 +74,7 @@ export default function ButtonSavePov() {
         boxShadow: 4,
       }}
     >
-      {selectedPov ? updateS : saveS}
+      {selectedPov ? updateS : createS}
     </Button>
   );
 }
