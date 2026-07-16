@@ -31,8 +31,9 @@ export default function SectionViewer() {
   // POINT_OF_VIEW is a meta viewer: it shows the MAP or THREED editor (per
   // pov.viewerMode) with the capture framing forced on, plus its own drawer.
   const isPov = viewerKey === "POINT_OF_VIEW";
+  // Fall back to MAP when 3D is disabled so POV never shows a blank viewer.
   const effectiveKey = isPov
-    ? povViewerMode === "THREED"
+    ? povViewerMode === "THREED" && !disable3D
       ? "THREED"
       : "MAP"
     : viewerKey;

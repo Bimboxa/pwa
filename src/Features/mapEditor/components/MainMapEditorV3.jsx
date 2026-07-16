@@ -379,7 +379,10 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     const isMapViewer = forViewerKey === "MAP";
     const imageModeEnabled = useSelector((s) => s.mapEditor.imageModeEnabled);
     const isPovViewer = useSelector(selectIsPovViewer);
-    const imageModeActive = isMapViewer && (imageModeEnabled || isPovViewer);
+    // isActiveViewer scoping: when POV displays the 3D editor, this (hidden)
+    // 2D instance must not run the framing overlay / label layout.
+    const imageModeActive =
+        isMapViewer && (imageModeEnabled || (isPovViewer && isActiveViewer));
     // Same hook as Portfolio's LegendBlockSvg so the capture legend items
     // (shape, ordering, groupings) match exactly.
     const imageModeLegendItems = useLegendItemsByBaseMapId(baseMap?.id);

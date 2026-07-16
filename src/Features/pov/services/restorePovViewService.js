@@ -28,6 +28,10 @@ import activateBaseMapVersion from "Features/baseMaps/utils/activateBaseMapVersi
 // covers the render pass; the late re-apply covers slower settling.
 const CAMERA_REAPPLY_DELAY_MS = 500;
 
+// Guards the deferred camera callbacks: clicking POV B while POV A's late
+// re-apply is still pending must cancel A's callback, not snap back to A.
+let _restoreGeneration = 0;
+
 function applyCamera2d({ camera2d, aspectRatio, rightInset }) {
   const footprint = camera2d?.footprint;
   const mapEditor = getActiveMapEditor();
@@ -98,6 +102,8 @@ function applyCamera3d({ camera3d, aspectRatio, rightInset }) {
 
 export default async function restorePovViewService({ pov, dispatch }) {
   if (!pov) return;
+
+  const generation = ++_restoreGeneration;
 
   const state = store.getState();
   const viewerMode = pov.viewerMode === "THREED" ? "THREED" : "MAP";
@@ -190,6 +196,7 @@ export default async function restorePovViewService({ pov, dispatch }) {
   };
 
   const applyCamera = () => {
+    if (generation !== _restoreGeneration) return; // superseded by a newer restore
     const aspectRatio = pov.aspectRatio;
     const rightInset = rightInsetNow();
     if (viewerMode === "MAP") {

@@ -6,15 +6,13 @@ import {
   selectSelectedItem,
 } from "Features/selection/selectionSlice";
 
-import { Box, Button, IconButton, TextField, Typography } from "@mui/material";
-import {
-  ArrowBack as Back,
-  Delete as DeleteIcon,
-  PhotoCamera,
-} from "@mui/icons-material";
+import { Box, IconButton, TextField, Typography } from "@mui/material";
+import { ArrowBack as Back, PhotoCamera } from "@mui/icons-material";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
+import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 import SectionCaptureExport from "Features/mapEditor/components/SectionCaptureExport";
+import IconButtonMoreActionsPov from "./IconButtonMoreActionsPov";
 
 import captureMapAsPng from "Features/mapEditor/utils/captureMapAsPng";
 import snapshotThreedCanvasForCapture from "Features/threedEditor/utils/snapshotThreedCanvasForCapture";
@@ -22,7 +20,7 @@ import snapshotThreedCanvasForCapture from "Features/threedEditor/utils/snapshot
 import usePovs from "../hooks/usePovs";
 import usePovImageUrl from "../hooks/usePovImageUrl";
 import useUpdatePov from "../hooks/useUpdatePov";
-import useDeletePov from "../hooks/useDeletePov";
+import getPovCaption, { getPovModeLabel } from "../utils/getPovCaption";
 
 // Properties panel for the selected POV: thumbnail, description (persisted on
 // blur) and a download section (fresh full-resolution capture of the current
@@ -35,7 +33,6 @@ export default function PanelPovProperties() {
 
   const captionS = "Point de vue";
   const descriptionS = "Description";
-  const deleteS = "Supprimer";
 
   // data
 
@@ -45,7 +42,6 @@ export default function PanelPovProperties() {
 
   const imageUrl = usePovImageUrl(pov?.image?.fileName);
   const updatePov = useUpdatePov();
-  const deletePov = useDeletePov();
 
   const viewerMode = useSelector((s) => s.pov.viewerMode);
   const aspectRatio = useSelector((s) => s.mapEditor.imageModeAspectRatio);
@@ -65,12 +61,7 @@ export default function PanelPovProperties() {
 
   // helpers
 
-  const createdDate = pov?.createdAt
-    ? new Date(pov.createdAt).toLocaleDateString("fr-FR")
-    : null;
-  const caption = [pov?.createdBy?.trigram, createdDate]
-    .filter(Boolean)
-    .join(" — ");
+  const caption = getPovCaption(pov);
 
   // handlers
 
@@ -82,11 +73,6 @@ export default function PanelPovProperties() {
     if (!pov) return;
     if ((pov.description ?? "") === description) return;
     updatePov(pov.id, { description });
-  }
-
-  async function handleDeleteClick() {
-    if (!pov) return;
-    await deletePov(pov.id);
   }
 
   // Fresh capture of the currently displayed framed view (the click on the
@@ -121,20 +107,35 @@ export default function PanelPovProperties() {
   return (
     <BoxFlexVStretch>
       {/* Header */}
-      <Box sx={{ display: "flex", alignItems: "center", p: 0.5, pl: 1 }}>
-        <IconButton onClick={handleBack}>
-          <Back />
-        </IconButton>
-        <PhotoCamera fontSize="small" sx={{ mx: 1, color: "text.secondary" }} />
-        <Box>
-          <Typography variant="caption" color="text.secondary">
-            {captionS}
-          </Typography>
-          <Typography variant="body2" sx={{ fontWeight: "bold" }}>
-            {pov.viewerMode === "THREED" ? "3D" : "2D"}
-            {caption ? ` · ${caption}` : ""}
-          </Typography>
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          p: 0.5,
+          pl: 1,
+        }}
+      >
+        <Box sx={{ display: "flex", alignItems: "center" }}>
+          <IconButton onClick={handleBack}>
+            <Back />
+          </IconButton>
+          <PhotoCamera
+            fontSize="small"
+            sx={{ mx: 1, color: "text.secondary" }}
+          />
+          <Box>
+            <Typography variant="caption" color="text.secondary">
+              {captionS}
+            </Typography>
+            <Typography variant="body2" sx={{ fontWeight: "bold" }}>
+              {getPovModeLabel(pov)}
+              {caption ? ` · ${caption}` : ""}
+            </Typography>
+          </Box>
         </Box>
+
+        <IconButtonMoreActionsPov pov={pov} />
       </Box>
 
       <Box
@@ -182,20 +183,12 @@ export default function PanelPovProperties() {
         />
 
         {/* Download */}
-        <SectionCaptureExport
-          onExport={handleExport}
-          defaultFilename="point_de_vue"
-        />
-
-        <Button
-          size="small"
-          color="error"
-          startIcon={<DeleteIcon />}
-          onClick={handleDeleteClick}
-          sx={{ textTransform: "none", alignSelf: "flex-start" }}
-        >
-          {deleteS}
-        </Button>
+        <WhiteSectionGeneric>
+          <SectionCaptureExport
+            onExport={handleExport}
+            defaultFilename="point_de_vue"
+          />
+        </WhiteSectionGeneric>
       </Box>
     </BoxFlexVStretch>
   );

@@ -11,3 +11,10 @@ export const selectEffectiveViewerKey = (s) => {
   if (key !== "POINT_OF_VIEW") return key;
   return s.pov.viewerMode === "THREED" ? "THREED" : "MAP";
 };
+
+// The capture framing ("Export rapide" mask + rect + legend) is active when
+// the Export tool enabled it OR when the POV viewer is displayed. Editing
+// interactions gated on image mode must use this derived flag so the POV
+// viewer freezes them exactly like the Export tool does.
+export const selectCaptureFramingActive = (s) =>
+  s.mapEditor.imageModeEnabled || selectIsPovViewer(s);

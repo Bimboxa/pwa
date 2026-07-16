@@ -41,15 +41,16 @@ export default async function snapshotPovViewService({ rightInset = 0 } = {}) {
     ...new Set([mainBaseMapId, ...visibleBaseMapIdsIn3d].filter(Boolean)),
   ];
   const activeVersionIdByBaseMapId = {};
-  for (const baseMapId of relevantBaseMapIds) {
-    const versions = await db.baseMapVersions
-      .where("baseMapId")
-      .equals(baseMapId)
-      .toArray();
-    const liveVersions = versions.filter((v) => !v.deletedAt);
+  const versionsByBaseMap = await Promise.all(
+    relevantBaseMapIds.map((baseMapId) =>
+      db.baseMapVersions.where("baseMapId").equals(baseMapId).toArray()
+    )
+  );
+  relevantBaseMapIds.forEach((baseMapId, i) => {
+    const liveVersions = versionsByBaseMap[i].filter((v) => !v.deletedAt);
     const active = liveVersions.find((v) => v.isActive) || liveVersions[0];
     if (active) activeVersionIdByBaseMapId[baseMapId] = active.id;
-  }
+  });
 
   const baseMaps = {
     mainBaseMapId,

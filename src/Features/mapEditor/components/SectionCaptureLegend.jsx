@@ -25,11 +25,17 @@ const LABEL_SX = {
 export default function SectionCaptureLegend() {
   const dispatch = useDispatch();
 
+  // data
+
   const overlay = useSelector((s) => s.mapEditor.imageModeLegendOverlay);
+
+  // helpers
 
   const showQty = overlay?.showQty ?? true;
   const legendVisible = overlay?.visible ?? true;
   const fontSize = overlay?.fontSize || 12;
+
+  // handlers
 
   function handleFontSizeChange(_, value) {
     if (!value) return;
@@ -49,6 +55,8 @@ export default function SectionCaptureLegend() {
       setImageModeLegendOverlay({ ...overlay, visible: !legendVisible })
     );
   }
+
+  // render
 
   return (
     <Box>

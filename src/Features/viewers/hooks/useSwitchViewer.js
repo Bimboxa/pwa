@@ -10,6 +10,7 @@ import {
   switchThreedToMap,
 } from "../services/syncCamerasOnViewerSwitch";
 import { isThreedFamilyViewerKey } from "../utils/threedViewerKeys";
+import { selectEffectiveViewerKey } from "../utils/effectiveViewerKey";
 
 // Central entry point for viewer changes. Intercepts the MAP <-> 3D-family
 // (THREED / MESHES) transitions to keep the baseMap image at the same
@@ -20,7 +21,8 @@ export default function useSwitchViewer() {
   const dispatch = useDispatch();
 
   const selectedViewerKey = useSelector((s) => s.viewers.selectedViewerKey);
-  const povViewerMode = useSelector((s) => s.pov.viewerMode);
+  // POV resolves to the editor it displays (MAP or THREED).
+  const effectiveFromKey = useSelector(selectEffectiveViewerKey);
   const disable3D = useSelector((s) => s.appConfig.disable3D);
   const basePose = useSelector((s) => s.mapEditor.baseMapPoseInBg);
   const baseMap = useMainBaseMap();
@@ -42,14 +44,7 @@ export default function useSwitchViewer() {
     }
 
     // Leaving POV: the camera sync must run against the editor POV was
-    // actually displaying, not against the "POINT_OF_VIEW" key itself.
-    const effectiveFromKey =
-      selectedViewerKey === "POINT_OF_VIEW"
-        ? povViewerMode === "THREED"
-          ? "THREED"
-          : "MAP"
-        : selectedViewerKey;
-
+    // actually displaying (effectiveFromKey), not the "POINT_OF_VIEW" key.
     const fromThreed = isThreedFamilyViewerKey(effectiveFromKey);
     const toThreed = isThreedFamilyViewerKey(viewerKey);
 

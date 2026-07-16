@@ -168,9 +168,10 @@ export default function MainThreedEditor() {
   // Capture mode ("Export rapide", shared with the 2D viewer). Toggles are
   // rare, so the re-render cost is acceptable here.
   const imageModeEnabled = useSelector((s) => s.mapEditor.imageModeEnabled);
-  // The POV viewer forces the capture framing on (mask + rect + legend).
+  // The POV viewer forces the capture framing on (mask + rect + legend) —
+  // only when this 3D editor is the one POV displays (isThreedViewer).
   const isPovViewer = useSelector(selectIsPovViewer);
-  const captureFramingActive = imageModeEnabled || isPovViewer;
+  const captureFramingActive = imageModeEnabled || (isPovViewer && isThreedViewer);
   // Render mode (Standard / Réaliste / Photoréaliste). Mirrored into a ref so
   // the hover raycast can read it without re-creating its callback.
   const renderMode = useSelector((s) => s.threedEditor.renderMode);

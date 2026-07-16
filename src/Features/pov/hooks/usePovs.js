@@ -17,6 +17,8 @@ export default function usePovs() {
       .toArray();
     return records
       .filter((r) => !r.deletedAt)
-      .sort((a, b) => (a.sortIndex ?? "").localeCompare(b.sortIndex ?? ""));
+      // Plain ASCII comparison — fractional-indexing keys are NOT locale
+      // collated (localeCompare would misorder uppercase-prefixed keys).
+      .sort((a, b) => ((a.sortIndex ?? "") < (b.sortIndex ?? "") ? -1 : 1));
   }, [projectId, scopeId]);
 }

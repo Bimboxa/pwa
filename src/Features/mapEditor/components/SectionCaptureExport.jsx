@@ -56,18 +56,26 @@ export default function SectionCaptureExport({
 }) {
   const dispatch = useDispatch();
 
+  // data
+
   const highRes = useSelector((s) => s.mapEditor.imageModeHighRes);
   const whiteBackground = useSelector(
     (s) => s.mapEditor.imageModeWhiteBackground
   );
 
+  // state
+
   const [filename, setFilename] = useState(defaultFilename);
   const [mode, setMode] = useState("pdf"); // "pdf" | "png" | "clipboard"
+
+  // helpers
 
   const modeCfg = EXPORT_MODES[mode];
 
   // High def doubles the html-to-image pixelRatio (default 2 → 4).
   const pixelRatio = highRes ? 4 : 2;
+
+  // handlers
 
   function handleModeChange(_, value) {
     if (!value) return;
@@ -95,6 +103,8 @@ export default function SectionCaptureExport({
       console.error("[SectionCaptureExport] export failed", err);
     }
   }
+
+  // render
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>

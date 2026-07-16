@@ -4,6 +4,7 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
 import usePovImageUrl from "../hooks/usePovImageUrl";
+import getPovCaption, { getPovModeLabel } from "../utils/getPovCaption";
 
 // One row of the POV list: draggable (dnd-kit sortable), thumbnail +
 // description + creation caption (trigram — date).
@@ -23,15 +24,8 @@ export default function PovListItem({ pov, isSelected, onClick }) {
   };
 
   const description = pov.description?.trim();
-
-  const createdDate = pov.createdAt
-    ? new Date(pov.createdAt).toLocaleDateString("fr-FR")
-    : null;
-  const caption = [pov.createdBy?.trigram, createdDate]
-    .filter(Boolean)
-    .join(" — ");
-
-  const modeLabel = pov.viewerMode === "THREED" ? "3D" : "2D";
+  const caption = getPovCaption(pov);
+  const modeLabel = getPovModeLabel(pov);
 
   // render
 

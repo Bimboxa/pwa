@@ -94,9 +94,10 @@ export default async function createKrtoZip(scopeId, options) {
     // (cas où plusieurs versions partagent la même image, ex. duplication).
     for (const fn of liveVersionFileNames) deletedVersionFileNames.delete(fn);
 
-    // 2ter. Vignettes des POV : leurs fichiers n'ont pas de listingId (le POV
-    // n'appartient à aucun listing), donc le filtre files standard les
-    // exclurait. On les whiteliste explicitement (POV vivants uniquement).
+    // 2ter. POV thumbnails: their file rows carry no listingId (a POV belongs
+    // to no listing), so the standard files filter would drop them. Whitelist
+    // them explicitly (live POVs only — deleted POVs keep their tombstone row
+    // in the export but their image is excluded, like deleted versions).
     const scopePovs = (
         await db.povs.where("scopeId").equals(scopeId).toArray()
     ).filter((p) => !p.deletedAt);
