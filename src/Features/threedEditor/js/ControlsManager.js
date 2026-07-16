@@ -60,6 +60,12 @@ export default class ControlsManager {
     this._rafId = null;
     this._disposed = false;
 
+    // While suspended (walk mode), the loop skips cameraControls.update()
+    // entirely: update() rewrites camera.position and lookAt(target) every
+    // call — even when `enabled` is false — which would clobber a camera
+    // pose owned by another controller.
+    this._suspended = false;
+
     // maxDistance stashed by animateFovTo, restored by restorePerspectiveFov.
     this._stashedMaxDistance = null;
 
@@ -150,8 +156,20 @@ export default class ControlsManager {
 
   // ----- continuous update loop (render only on change) ----------------
 
+  // Walk mode owns the camera: pause the update loop (rendering included —
+  // the walk controller renders). On resume, flush the accumulated clock
+  // delta so the suspended time isn't integrated as one huge damping step.
+  setSuspended = (suspended) => {
+    this._suspended = !!suspended;
+    if (!suspended) this._clock.getDelta();
+  };
+
   _loop = () => {
     if (this._disposed) return;
+    if (this._suspended) {
+      this._rafId = requestAnimationFrame(this._loop);
+      return;
+    }
     const delta = this._clock.getDelta();
     const updated = this.cameraControls.update(delta);
     const renderModeManager = this.sceneManager.renderModeManager;

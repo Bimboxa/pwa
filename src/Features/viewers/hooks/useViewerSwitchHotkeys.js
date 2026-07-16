@@ -67,6 +67,8 @@ export default function useViewerSwitchHotkeys() {
       if (!targetViewerKey) return;
 
       const s = store.getState();
+      // Walk mode owns the keyboard (arrows, Space, W to exit).
+      if (s.threedEditor.walkMode.active) return;
       if (s.mapEditor.enabledDrawingMode) return;
       if (s.mapEditor.pasteClipboard || s.mapEditor.subtractSourceAnnotationId)
         return;

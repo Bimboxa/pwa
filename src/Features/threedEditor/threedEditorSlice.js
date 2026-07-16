@@ -137,6 +137,15 @@ const threedEditorInitialState = {
     // Side of the maille the reference vertex is picked on. Default LEFT
     // (resp. BOTTOM for horizontal cuts), flipped with the "S" key.
     cutSide: "LEFT", // "LEFT" | "RIGHT"
+    // Fun sub-mode: Doom-like concrete-projection lance. While on, the cut
+    // tools are suspended and a click sprays concrete toward the cursor.
+    shootActive: false,
+  },
+  // First-person walk mode (W in the 3D viewer). Camera-controls suspended:
+  // pointer-locked mouse looks, arrow keys move on the selected baseMap,
+  // Space fires the concrete lance at the screen center.
+  walkMode: {
+    active: false,
   },
   // Sub-selection inside the currently-selected annotation (vertex or edge).
   // Populated when the user clicks a vertex / edge of an already-selected
@@ -245,6 +254,8 @@ export const threedEditorSlice = createSlice({
         state.dimensionMode.startPoint = null;
         state.meshingMode.active = false;
         state.meshingMode.tool = "SELECT";
+        state.meshingMode.shootActive = false;
+        state.walkMode.active = false;
       }
     },
     bumpSnapIndexEpoch: (state) => {
@@ -266,6 +277,8 @@ export const threedEditorSlice = createSlice({
         state.dimensionMode.startPoint = null;
         state.meshingMode.active = false;
         state.meshingMode.tool = "SELECT";
+        state.meshingMode.shootActive = false;
+        state.walkMode.active = false;
       }
     },
     setMoveSelectedAnnotationId: (state, action) => {
@@ -374,6 +387,8 @@ export const threedEditorSlice = createSlice({
         state.moveMode.deltaZ = 0;
         state.meshingMode.active = false;
         state.meshingMode.tool = "SELECT";
+        state.meshingMode.shootActive = false;
+        state.walkMode.active = false;
       }
     },
     setDimensionStartPoint: (state, action) => {
@@ -387,6 +402,7 @@ export const threedEditorSlice = createSlice({
       if (!action.payload) {
         state.meshingMode.tool = "SELECT";
         state.meshingMode.cutSide = "LEFT";
+        state.meshingMode.shootActive = false;
       } else {
         // Mutually exclusive with drawing, move and dimension modes.
         state.drawingMode.active = false;
@@ -398,6 +414,7 @@ export const threedEditorSlice = createSlice({
         state.moveMode.deltaZ = 0;
         state.dimensionMode.active = false;
         state.dimensionMode.startPoint = null;
+        state.walkMode.active = false;
       }
     },
     setMeshingTool: (state, action) => {
@@ -410,6 +427,27 @@ export const threedEditorSlice = createSlice({
     toggleMeshingCutSide: (state) => {
       state.meshingMode.cutSide =
         state.meshingMode.cutSide === "LEFT" ? "RIGHT" : "LEFT";
+    },
+    setMeshingShootActive: (state, action) => {
+      state.meshingMode.shootActive = !!action.payload;
+    },
+    setWalkModeActive: (state, action) => {
+      state.walkMode.active = !!action.payload;
+      if (action.payload) {
+        // Mutually exclusive with every 3D tool mode.
+        state.drawingMode.active = false;
+        state.drawingMode.inProgressPolyline = [];
+        state.drawingMode.trait3DSegments = [];
+        state.drawingMode.axisLock = null;
+        state.moveMode.active = false;
+        state.moveMode.selectedAnnotationId = null;
+        state.moveMode.deltaZ = 0;
+        state.dimensionMode.active = false;
+        state.dimensionMode.startPoint = null;
+        state.meshingMode.active = false;
+        state.meshingMode.tool = "SELECT";
+        state.meshingMode.shootActive = false;
+      }
     },
     setHideAnnotationsIn3d: (state, action) => {
       state.hideAnnotationsIn3d = action.payload;
@@ -474,6 +512,8 @@ export const {
   setMeshingTool,
   setMeshingOffset,
   toggleMeshingCutSide,
+  setMeshingShootActive,
+  setWalkModeActive,
   setHideAnnotationsIn3d,
   setMesh3dLabels,
 } = threedEditorSlice.actions;
