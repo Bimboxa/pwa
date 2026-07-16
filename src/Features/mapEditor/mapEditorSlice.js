@@ -75,6 +75,12 @@ const mapEditorInitialState = {
   imageModeShowWatermark: false, // when true, render the org's watermark SVG inside the capture rect
   imageModeShowLogo: false, // when true, render the org's logo SVG anchored bottom-right of the capture rect
   imageModeWhiteBackground: false, // when true, captureMapAsPng fills the canvas with white (no transparency)
+  imageModeBorder: false, // when true, a rounded secondary border is drawn and pixels outside it are made transparent at capture
+  // title banner (top-left of the capture rect) showing the POV description
+  imageModeTitle: {
+    visible: false,
+    fontSize: 12,
+  },
   imageModeLabelsAutoLayout: false, // when true, labels are auto-arranged (display-only) to avoid overlaps
   imageModeLabelsInMargin: false, // when true (and autoLayout on), labels are packed in a band inside the capture rect border
   // legend overlay: position/size in pixels relative to the capture rect.
@@ -358,6 +364,12 @@ export const mapEditorSlice = createSlice({
     },
     setImageModeWhiteBackground: (state, action) => {
       state.imageModeWhiteBackground = action.payload;
+    },
+    setImageModeBorder: (state, action) => {
+      state.imageModeBorder = Boolean(action.payload);
+    },
+    setImageModeTitle: (state, action) => {
+      state.imageModeTitle = { ...state.imageModeTitle, ...action.payload };
     },
     setImageModeLabelsAutoLayout: (state, action) => {
       state.imageModeLabelsAutoLayout = action.payload;
@@ -740,6 +752,8 @@ export const {
   setImageModeShowWatermark,
   setImageModeShowLogo,
   setImageModeWhiteBackground,
+  setImageModeBorder,
+  setImageModeTitle,
   setImageModeLabelsAutoLayout,
   setImageModeLabelsInMargin,
   //

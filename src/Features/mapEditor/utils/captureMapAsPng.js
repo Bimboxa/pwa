@@ -4,6 +4,10 @@ import downloadBlob from "Features/files/utils/downloadBlob";
 import imageToPdfAsync from "Features/pdf/utils/imageToPdfAsync";
 
 import getCaptureRectBounds from "./getCaptureRectBounds";
+import {
+  CAPTURE_BORDER_INSET,
+  CAPTURE_BORDER_RADIUS,
+} from "./captureBorderConstants";
 
 // A4 page sizes (pdf-lib points) matched to the capture aspect ratio so the
 // cropped image fills the PDF page with minimal margins.
@@ -41,6 +45,8 @@ function getPdfPageSize(aspectRatio) {
  * @param {number} [opts.rightInset] width occluded by an open right panel; the
  *   capture rect is centered within the visible zone (must match the overlay).
  * @param {"png"|"pdf"} [opts.format] download format ("pdf" only for download)
+ * @param {boolean} [opts.roundedBorderMask] make every pixel outside the
+ *   rounded border (imageModeBorder overlay) transparent in the output.
  * @param {(host: HTMLElement, ctx: {pixelRatio: number}) => Promise<() => void>}
  *   [opts.prepareHost] pre-capture step making non-clonable content capturable
  *   (e.g. snapshotting a WebGL canvas into a `data-capture-keep` img — the
@@ -57,6 +63,7 @@ export default async function captureMapAsPng({
   whiteBackground = false,
   rightInset = 0,
   format = "png",
+  roundedBorderMask = false,
   prepareHost,
 } = {}) {
   const host = document.querySelector(
@@ -137,6 +144,26 @@ export default async function captureMapAsPng({
     const ctx = out.getContext("2d");
     ctx.drawImage(fullCanvas, sx, sy, sw, sh, 0, 0, sw, sh);
 
+    // Rounded-border clipping: keep only the pixels inside the border path
+    // (same geometry as the ImageModeOverlay border, scaled by pixelRatio) —
+    // the outside becomes transparent, white background included.
+    if (roundedBorderMask) {
+      const inset = CAPTURE_BORDER_INSET * pixelRatio;
+      const radius = CAPTURE_BORDER_RADIUS * pixelRatio;
+      ctx.globalCompositeOperation = "destination-in";
+      ctx.beginPath();
+      roundedRectPath(
+        ctx,
+        inset,
+        inset,
+        Math.max(0, sw - 2 * inset),
+        Math.max(0, sh - 2 * inset),
+        radius
+      );
+      ctx.fill();
+      ctx.globalCompositeOperation = "source-over";
+    }
+
     const blob = await new Promise((resolve) =>
       out.toBlob(resolve, "image/png")
     );
@@ -177,4 +204,15 @@ export default async function captureMapAsPng({
     });
     cleanupPrepare?.();
   }
+}
+
+// ctx.roundRect is not available on every supported browser yet.
+function roundedRectPath(ctx, x, y, w, h, r) {
+  const radius = Math.min(r, w / 2, h / 2);
+  ctx.moveTo(x + radius, y);
+  ctx.arcTo(x + w, y, x + w, y + h, radius);
+  ctx.arcTo(x + w, y + h, x, y + h, radius);
+  ctx.arcTo(x, y + h, x, y, radius);
+  ctx.arcTo(x, y, x + w, y, radius);
+  ctx.closePath();
 }

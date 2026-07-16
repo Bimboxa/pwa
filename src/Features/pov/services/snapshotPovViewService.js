@@ -24,6 +24,8 @@ export default async function snapshotPovViewService({ rightInset = 0 } = {}) {
   const aspectRatio = state.mapEditor.imageModeAspectRatio;
   const legendOverlay = state.mapEditor.imageModeLegendOverlay;
   const whiteBackground = Boolean(state.mapEditor.imageModeWhiteBackground);
+  const border = Boolean(state.mapEditor.imageModeBorder);
+  const title = state.mapEditor.imageModeTitle;
   const projectId = state.projects.selectedProjectId;
 
   // hidden annotation templates (persistent `hidden` flag on the records)
@@ -129,6 +131,8 @@ export default async function snapshotPovViewService({ rightInset = 0 } = {}) {
     aspectRatio,
     legendOverlay,
     whiteBackground,
+    border,
+    title,
     hiddenAnnotationTemplateIds,
     baseMaps,
     camera2d,

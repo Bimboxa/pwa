@@ -50,6 +50,7 @@ export default function PanelCaptureMode({ viewerKey = "MAP" }) {
   );
   const panelWidth = useSelector((s) => s.rightPanel.width);
   const rightInset = panelOpen ? panelWidth : 0;
+  const roundedBorderMask = useSelector((s) => s.mapEditor.imageModeBorder);
 
   // handlers
 
@@ -64,6 +65,7 @@ export default function PanelCaptureMode({ viewerKey = "MAP" }) {
         aspectRatio,
         pixelRatio,
         whiteBackground,
+        roundedBorderMask,
         rightInset,
         prepareHost,
       });
@@ -76,6 +78,7 @@ export default function PanelCaptureMode({ viewerKey = "MAP" }) {
         aspectRatio,
         pixelRatio,
         whiteBackground,
+        roundedBorderMask,
         rightInset,
         prepareHost,
       });

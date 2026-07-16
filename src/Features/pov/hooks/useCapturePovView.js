@@ -19,6 +19,7 @@ export default function useCapturePovView() {
   const whiteBackground = useSelector(
     (s) => s.mapEditor.imageModeWhiteBackground
   );
+  const roundedBorderMask = useSelector((s) => s.mapEditor.imageModeBorder);
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const panelOpen = useSelector((s) =>
     Boolean(s.rightPanel.selectedMenuItemKey)
@@ -37,6 +38,7 @@ export default function useCapturePovView() {
       aspectRatio,
       pixelRatio: 1,
       whiteBackground,
+      roundedBorderMask,
       rightInset,
       prepareHost: isThreed ? snapshotThreedCanvasForCapture : undefined,
     });

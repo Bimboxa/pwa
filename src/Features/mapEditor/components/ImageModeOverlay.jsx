@@ -16,6 +16,14 @@ import { setImageModeLegendOverlay } from "../mapEditorSlice";
 
 import NodeLegendStatic from "Features/mapEditorGeneric/components/NodeLegendStatic";
 import getCaptureRectBounds from "../utils/getCaptureRectBounds";
+import {
+  CAPTURE_BORDER_INSET,
+  CAPTURE_BORDER_RADIUS,
+  CAPTURE_BORDER_STROKE_WIDTH,
+} from "../utils/captureBorderConstants";
+import usePovTitleText from "Features/pov/hooks/usePovTitleText";
+
+import theme from "Styles/theme";
 
 const DIM_FILL = "rgba(0,0,0,0.45)";
 const RECT_STROKE = "rgba(255,255,255,0.95)";
@@ -49,6 +57,9 @@ export default function ImageModeOverlay({
   const logoUrl = useSelector(
     (s) => s.appConfig.value?.features?.watermark?.logoUrl ?? null
   );
+  const showBorder = useSelector((s) => s.mapEditor.imageModeBorder);
+  const title = useSelector((s) => s.mapEditor.imageModeTitle);
+  const titleText = usePovTitleText();
 
   // When the right panel is open it floats over the viewport without
   // shrinking it; center the capture rect within the visible zone.
@@ -228,6 +239,63 @@ export default function ImageModeOverlay({
           strokeDasharray="4 4"
         />
       </g>
+
+      {/* ROUNDED BORDER (secondary color) — at capture time, pixels outside
+          this path are made transparent (captureMapAsPng roundedBorderMask). */}
+      {showBorder && (
+        <rect
+          data-capture-keep
+          x={rect.left + CAPTURE_BORDER_INSET}
+          y={rect.top + CAPTURE_BORDER_INSET}
+          width={Math.max(0, rect.width - 2 * CAPTURE_BORDER_INSET)}
+          height={Math.max(0, rect.height - 2 * CAPTURE_BORDER_INSET)}
+          rx={CAPTURE_BORDER_RADIUS}
+          fill="none"
+          stroke={theme.palette.secondary.main}
+          strokeWidth={CAPTURE_BORDER_STROKE_WIDTH}
+          style={{ pointerEvents: "none" }}
+        />
+      )}
+
+      {/* TITLE BANNER (top-left of the capture rect): the POV description on
+          a secondary-color rounded chip. */}
+      {title?.visible && titleText && (() => {
+        const fontSize = title.fontSize || 12;
+        const padX = fontSize;
+        const bannerH = fontSize * 2.2;
+        const bannerW = Math.min(
+          rect.width * 0.7,
+          titleText.length * fontSize * 0.62 + 2 * padX
+        );
+        const M = CAPTURE_BORDER_INSET + 12;
+        return (
+          <g
+            data-capture-keep
+            transform={`translate(${rect.left + M}, ${rect.top + M})`}
+            style={{ pointerEvents: "none" }}
+          >
+            <rect
+              x={0}
+              y={0}
+              width={bannerW}
+              height={bannerH}
+              rx={6}
+              fill={theme.palette.secondary.main}
+            />
+            <text
+              x={padX}
+              y={bannerH / 2}
+              dominantBaseline="central"
+              fontSize={fontSize}
+              fontFamily="sans-serif"
+              fontWeight={600}
+              fill="#fff"
+            >
+              {titleText}
+            </text>
+          </g>
+        );
+      })()}
 
       {/* WATERMARK (above the map, below the legend).
           The SVG asset is authored in mid-grey (stroke #888); opacity

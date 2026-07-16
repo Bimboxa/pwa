@@ -4,6 +4,7 @@ import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 import SectionCaptureFormat from "Features/mapEditor/components/SectionCaptureFormat";
 import SectionCaptureLegend from "Features/mapEditor/components/SectionCaptureLegend";
 import SectionCaptureOptions from "Features/mapEditor/components/SectionCaptureOptions";
+import SectionCaptureTitle from "Features/mapEditor/components/SectionCaptureTitle";
 
 const LABEL_SX = {
   fontWeight: 600,
@@ -12,9 +13,9 @@ const LABEL_SX = {
 };
 
 // "Cadrage" tab content of the POV properties panels (selected POV and
-// "Nouveau point de vue"): two white sections driving the shared imageMode
-// state — Image (format + white background) and Légende (visibility, size,
-// quantities).
+// "Nouveau point de vue"): white sections driving the shared imageMode
+// state — Image (format + white background + border), Titre (description
+// banner) and Légende (visibility, size, quantities).
 export default function SectionPovCadrage() {
   return (
     <Box
@@ -36,6 +37,10 @@ export default function SectionPovCadrage() {
           <SectionCaptureFormat />
           <SectionCaptureOptions />
         </Box>
+      </WhiteSectionGeneric>
+
+      <WhiteSectionGeneric>
+        <SectionCaptureTitle />
       </WhiteSectionGeneric>
 
       <WhiteSectionGeneric>
