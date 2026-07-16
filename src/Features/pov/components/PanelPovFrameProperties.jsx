@@ -9,6 +9,7 @@ import { PhotoCamera } from "@mui/icons-material";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import PanelPovFilters from "./PanelPovFilters";
 import SectionPovCadrage from "./SectionPovCadrage";
+import SectionPovAiEnhance from "./SectionPovAiEnhance";
 
 // Default properties panel of the POV viewer (no POV selected): drives what
 // the next "Créer une vue" will capture — Image (placeholder + draft
@@ -120,6 +121,9 @@ export default function PanelPovFrameProperties() {
             value={draftDescription}
             onChange={handleDescriptionChange}
           />
+
+          {/* AI enhancement of the next created view */}
+          <SectionPovAiEnhance />
         </Box>
       )}
     </BoxFlexVStretch>
