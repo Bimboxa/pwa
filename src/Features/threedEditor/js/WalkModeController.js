@@ -23,6 +23,18 @@ const GRAVITY_RATE = 5; // 1/s, exponential glide back to eye height
 const EXIT_TARGET_DIST = 5; // m, orbit target handed back on exit
 const MIN_HEAD_CLEARANCE = 0.3; // m, floor clamp while descending
 
+// Entry "landing" animation: the camera descends from its orbit pose onto
+// the walking eye height while the gaze levels out to the horizon. Duration
+// scales with the drop height so short hops don't drag and long dives don't
+// snap.
+const LANDING_MS_PER_M = 60;
+const LANDING_MS_MIN = 500;
+const LANDING_MS_MAX = 1500;
+
+function easeInOutCubic(t) {
+  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+}
+
 const _dir = new Vector3();
 
 export default class WalkModeController {
@@ -41,6 +53,13 @@ export default class WalkModeController {
     this._rafId = null;
     this._lastT = 0;
     this._prevRotationOrder = null;
+
+    // Landing animation state (see _tick).
+    this._landing = false;
+    this._landingT0 = 0;
+    this._landingMs = 0;
+    this._landingFromY = 0;
+    this._landingFromPitch = 0;
   }
 
   setGroundY = (y) => {
@@ -67,8 +86,19 @@ export default class WalkModeController {
       PITCH_LIMIT
     );
 
-    // Drop onto the ground plane (keep x/z) at walking eye height.
-    camera.position.y = this.groundY + EYE_HEIGHT;
+    // Land onto the ground plane (keep x/z): animate the descent to walking
+    // eye height while the gaze levels out to the horizon.
+    const eyeY = this.groundY + EYE_HEIGHT;
+    this._landingFromY = camera.position.y;
+    this._landingFromPitch = this._pitch;
+    this._landingMs = MathUtils.clamp(
+      Math.abs(eyeY - camera.position.y) * LANDING_MS_PER_M,
+      LANDING_MS_MIN,
+      LANDING_MS_MAX
+    );
+    this._landingT0 = performance.now();
+    this._landing = true;
+
     this._prevRotationOrder = camera.rotation.order;
     camera.rotation.order = "YXZ";
     this._applyLook();
@@ -156,6 +186,8 @@ export default class WalkModeController {
 
   _onPointerMove = (e) => {
     if (!this._locked) return;
+    // The landing animation owns the gaze — mouse look resumes on touchdown.
+    if (this._landing) return;
     this._yaw -= e.movementX * SENSITIVITY;
     this._pitch = MathUtils.clamp(
       this._pitch - e.movementY * SENSITIVITY,
@@ -233,6 +265,21 @@ export default class WalkModeController {
     const camera = this.sceneManager.camera;
     let moved = false;
 
+    if (this._landing) {
+      // Entry animation: eased vertical descent onto the walking eye height,
+      // gaze leveling out to the horizon. Movement keys wait for touchdown.
+      const p = Math.min((now - this._landingT0) / this._landingMs, 1);
+      const eased = easeInOutCubic(p);
+      const eyeY = this.groundY + EYE_HEIGHT;
+      camera.position.y = MathUtils.lerp(this._landingFromY, eyeY, eased);
+      this._pitch = MathUtils.lerp(this._landingFromPitch, 0, eased);
+      this._applyLook();
+      this._lookDirty = false;
+      if (p >= 1) this._landing = false;
+      this._renderTick(true);
+      return;
+    }
+
     const fwdSign = (this._keys.fwd ? 1 : 0) - (this._keys.back ? 1 : 0);
     const strafeSign = (this._keys.right ? 1 : 0) - (this._keys.left ? 1 : 0);
     const climbing = Math.abs(this._pitch) > CLIMB_PITCH;
@@ -279,9 +326,13 @@ export default class WalkModeController {
       moved = true;
     }
 
-    // Same render policy as ControlsManager._loop: in PHOTOREAL the path
-    // tracer renders every frame (idle frames accumulate samples) and resets
-    // on camera moves; otherwise render on-demand only.
+    this._renderTick(moved);
+  };
+
+  // Same render policy as ControlsManager._loop: in PHOTOREAL the path
+  // tracer renders every frame (idle frames accumulate samples) and resets
+  // on camera moves; otherwise render on-demand only.
+  _renderTick = (moved) => {
     const renderModeManager = this.sceneManager.renderModeManager;
     if (renderModeManager?.isPathTracing) {
       if (moved) renderModeManager.onCameraChange();
