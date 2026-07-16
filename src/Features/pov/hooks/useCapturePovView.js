@@ -16,6 +16,9 @@ const MAX_IMAGE_SIZE = 200 * 1024; // thumbnail budget (POV list + Krto export)
 export default function useCapturePovView() {
   const viewerMode = useSelector((s) => s.pov.viewerMode);
   const aspectRatio = useSelector((s) => s.mapEditor.imageModeAspectRatio);
+  const whiteBackground = useSelector(
+    (s) => s.mapEditor.imageModeWhiteBackground
+  );
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const panelOpen = useSelector((s) =>
     Boolean(s.rightPanel.selectedMenuItemKey)
@@ -33,6 +36,7 @@ export default function useCapturePovView() {
       target: "blob",
       aspectRatio,
       pixelRatio: 1,
+      whiteBackground,
       rightInset,
       prepareHost: isThreed ? snapshotThreedCanvasForCapture : undefined,
     });

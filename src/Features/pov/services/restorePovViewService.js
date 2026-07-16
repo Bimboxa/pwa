@@ -5,6 +5,7 @@ import { setPovViewerMode } from "../povSlice";
 import {
   setImageModeAspectRatio,
   setImageModeLegendOverlay,
+  setImageModeWhiteBackground,
   setSelectedMainBaseMapId,
 } from "Features/mapEditor/mapEditorSlice";
 import {
@@ -118,9 +119,11 @@ export default async function restorePovViewService({ pov, dispatch }) {
     dispatch(setPovViewerMode(viewerMode));
   }
 
-  // 2. frame + legend
+  // 2. frame + legend + background
   if (pov.aspectRatio) dispatch(setImageModeAspectRatio(pov.aspectRatio));
   if (pov.legendOverlay) dispatch(setImageModeLegendOverlay(pov.legendOverlay));
+  if (pov.whiteBackground !== undefined)
+    dispatch(setImageModeWhiteBackground(Boolean(pov.whiteBackground)));
 
   // 3. annotation templates visibility — one batch write, only where the
   // hidden flag actually changes (useUpdateAnnotationTemplates pattern).
