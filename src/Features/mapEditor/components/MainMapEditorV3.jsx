@@ -47,6 +47,10 @@ import shadeMeshCellColor from "Features/mesh/utils/meshCellColor";
 import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
 import useLegendItems from "Features/legend/hooks/useLegendItems";
 import useLegendItemsByBaseMapId from "Features/legend/hooks/useLegendItemsByBaseMapId";
+import {
+  selectEffectiveViewerKey,
+  selectIsPovViewer,
+} from "Features/viewers/utils/effectiveViewerKey";
 import useAnnotationTemplateQtiesByIdForBaseMap from "Features/annotations/hooks/useAnnotationTemplateQtiesByIdForBaseMap";
 
 import { Box } from "@mui/material";
@@ -220,7 +224,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
 
     const hiddenListingsIds = useSelector((s) => s.listings.hiddenListingsIds);
     const grayLevelThreshold = useSelector((s) => s.baseMapEditor.grayLevelThreshold);
-    const viewerKey = useSelector((s) => s.viewers.selectedViewerKey);
+    const viewerKey = useSelector(selectEffectiveViewerKey);
     const isActiveViewer = viewerKey === forViewerKey;
     const hiddenVersionIds = useSelector((s) => s.baseMapEditor.hiddenVersionIds);
     const selectedVersionId = useSelector((s) => s.baseMapEditor.selectedVersionId);
@@ -371,10 +375,14 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
 
     const isLegendSelected = showBgImage && selectedNode?.nodeType === "LEGEND";
 
-    // image mode (MAP viewer only)
+    // image mode (MAP viewer only) — framing is forced on under the POV viewer
     const isMapViewer = forViewerKey === "MAP";
     const imageModeEnabled = useSelector((s) => s.mapEditor.imageModeEnabled);
-    const imageModeActive = isMapViewer && imageModeEnabled;
+    const isPovViewer = useSelector(selectIsPovViewer);
+    // isActiveViewer scoping: when POV displays the 3D editor, this (hidden)
+    // 2D instance must not run the framing overlay / label layout.
+    const imageModeActive =
+        isMapViewer && (imageModeEnabled || (isPovViewer && isActiveViewer));
     // Same hook as Portfolio's LegendBlockSvg so the capture legend items
     // (shape, ordering, groupings) match exactly.
     const imageModeLegendItems = useLegendItemsByBaseMapId(baseMap?.id);
@@ -1843,7 +1851,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                 />
             )}
 
-            {imageModeActive && <ButtonCloseImageMode />}
+            {imageModeActive && !isPovViewer && <ButtonCloseImageMode />}
         </Box>
         </DrawingMetricsProvider>
         </SmartZoomProvider>

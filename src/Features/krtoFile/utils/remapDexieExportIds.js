@@ -197,6 +197,36 @@ export default function remapDexieExportIds(jsonData, opts) {
           );
       }
 
+      // POV view metadata (nested baseMap / version / template refs used to
+      // restore the saved view).
+      if (tableName === "povs") {
+        if (Array.isArray(row.hiddenAnnotationTemplateIds)) {
+          row.hiddenAnnotationTemplateIds = row.hiddenAnnotationTemplateIds.map(
+            (id) => remapId("annotationTemplates", id)
+          );
+        }
+        if (row.baseMaps) {
+          const b = row.baseMaps;
+          if (b.mainBaseMapId)
+            b.mainBaseMapId = remapId("baseMaps", b.mainBaseMapId);
+          if (Array.isArray(b.visibleBaseMapIdsIn3d)) {
+            b.visibleBaseMapIdsIn3d = b.visibleBaseMapIdsIn3d.map((id) =>
+              remapId("baseMaps", id)
+            );
+          }
+          if (b.activeVersionIdByBaseMapId) {
+            b.activeVersionIdByBaseMapId = Object.fromEntries(
+              Object.entries(b.activeVersionIdByBaseMapId).map(
+                ([baseMapId, versionId]) => [
+                  remapId("baseMaps", baseMapId),
+                  remapId("baseMapVersions", versionId),
+                ]
+              )
+            );
+          }
+        }
+      }
+
       // Annotation point refs (points[] and cuts[*].points[]).
       if (tableName === "annotations") {
         if (Array.isArray(row.points)) {

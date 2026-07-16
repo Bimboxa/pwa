@@ -9,13 +9,21 @@
 // resize-width target. The dim mask and rect border are pointer-events:
 // none so the user can still pan/zoom the map underneath.
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import { setImageModeLegendOverlay } from "../mapEditorSlice";
 
 import NodeLegendStatic from "Features/mapEditorGeneric/components/NodeLegendStatic";
 import getCaptureRectBounds from "../utils/getCaptureRectBounds";
+import {
+  CAPTURE_BORDER_INSET,
+  CAPTURE_BORDER_RADIUS,
+  CAPTURE_BORDER_STROKE_WIDTH,
+} from "../utils/captureBorderConstants";
+import usePovTitleText from "Features/pov/hooks/usePovTitleText";
+
+import theme from "Styles/theme";
 
 const DIM_FILL = "rgba(0,0,0,0.45)";
 const RECT_STROKE = "rgba(255,255,255,0.95)";
@@ -49,6 +57,9 @@ export default function ImageModeOverlay({
   const logoUrl = useSelector(
     (s) => s.appConfig.value?.features?.watermark?.logoUrl ?? null
   );
+  const showBorder = useSelector((s) => s.mapEditor.imageModeBorder);
+  const title = useSelector((s) => s.mapEditor.imageModeTitle);
+  const titleText = usePovTitleText();
 
   // When the right panel is open it floats over the viewport without
   // shrinking it; center the capture rect within the visible zone.
@@ -229,6 +240,36 @@ export default function ImageModeOverlay({
         />
       </g>
 
+      {/* ROUNDED BORDER (secondary color) — at capture time, pixels outside
+          this path are made transparent (captureMapAsPng roundedBorderMask). */}
+      {showBorder && (
+        <rect
+          data-capture-keep
+          x={rect.left + CAPTURE_BORDER_INSET}
+          y={rect.top + CAPTURE_BORDER_INSET}
+          width={Math.max(0, rect.width - 2 * CAPTURE_BORDER_INSET)}
+          height={Math.max(0, rect.height - 2 * CAPTURE_BORDER_INSET)}
+          rx={CAPTURE_BORDER_RADIUS}
+          fill="none"
+          stroke={theme.palette.secondary.main}
+          strokeWidth={CAPTURE_BORDER_STROKE_WIDTH}
+          style={{ pointerEvents: "none" }}
+        />
+      )}
+
+      {/* TITLE BANNER: the POV description on a secondary-color rounded chip
+          hugging the border's top-left corner — same origin and radius so the
+          two shapes fit together. */}
+      {title?.visible && titleText && (
+        <TitleBanner
+          x={rect.left + CAPTURE_BORDER_INSET}
+          y={rect.top + CAPTURE_BORDER_INSET}
+          maxWidth={rect.width * 0.7}
+          text={titleText}
+          fontSize={title.fontSize || 12}
+        />
+      )}
+
       {/* WATERMARK (above the map, below the legend).
           The SVG asset is authored in mid-grey (stroke #888); opacity
           on the `<image>` softens it further. */}
@@ -349,4 +390,52 @@ export default function ImageModeOverlay({
 
 function clamp(v, min, max) {
   return Math.max(min, Math.min(max, v));
+}
+
+// The chip is sized from the ACTUAL rendered text width (measured with
+// getComputedTextLength once the <text> is in the DOM) so the horizontal
+// padding is identical on both sides — the length-based estimate is only the
+// first-paint fallback.
+function TitleBanner({ x, y, maxWidth, text, fontSize }) {
+  const textRef = useRef(null);
+  const [textWidth, setTextWidth] = useState(null);
+
+  useLayoutEffect(() => {
+    const w = textRef.current?.getComputedTextLength?.();
+    setTextWidth(w || null);
+  }, [text, fontSize]);
+
+  const padX = fontSize;
+  const bannerH = Math.max(fontSize * 2.2, 2 * CAPTURE_BORDER_RADIUS);
+  const measuredW = textWidth ?? text.length * fontSize * 0.62;
+  const bannerW = Math.min(maxWidth, measuredW + 2 * padX);
+
+  return (
+    <g
+      data-capture-keep
+      transform={`translate(${x}, ${y})`}
+      style={{ pointerEvents: "none" }}
+    >
+      <rect
+        x={0}
+        y={0}
+        width={bannerW}
+        height={bannerH}
+        rx={CAPTURE_BORDER_RADIUS}
+        fill={theme.palette.secondary.main}
+      />
+      <text
+        ref={textRef}
+        x={padX}
+        y={bannerH / 2}
+        dominantBaseline="central"
+        fontSize={fontSize}
+        fontFamily="sans-serif"
+        fontWeight={600}
+        fill="#fff"
+      >
+        {text}
+      </text>
+    </g>
+  );
 }

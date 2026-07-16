@@ -9,6 +9,7 @@ import {
   orange,
   purple,
   teal,
+  indigo,
 } from "@mui/material/colors";
 import { frFR } from "@mui/x-data-grid-pro/locales";
 
@@ -123,6 +124,7 @@ let theme = createTheme(
         map: blue[600],
         threed: pink[600],
         meshes: orange[700],
+        pov: indigo[600],
         portfolio: purple[600],
         admin: teal[700],
         listing: green[600],

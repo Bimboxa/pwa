@@ -198,6 +198,15 @@ export const threedEditorSlice = createSlice({
         state.visibleBaseMapIdsIn3d.splice(i, 1);
       }
     },
+    setVisibleBaseMapIdsIn3d: (state, action) => {
+      state.visibleBaseMapIdsIn3d = action.payload ?? [];
+    },
+    setHideMainBaseMapImageIn3d: (state, action) => {
+      state.hideMainBaseMapImageIn3d = Boolean(action.payload);
+    },
+    setHideMainBaseMapAnnotationsIn3d: (state, action) => {
+      state.hideMainBaseMapAnnotationsIn3d = Boolean(action.payload);
+    },
     setBaseMapAnnotationsModeIn3d: (state, action) => {
       const { baseMapId, mode } = action.payload || {};
       if (!baseMapId) return;
@@ -434,6 +443,9 @@ export const {
   setBaseMapOpacityIn3d,
   setBaseMapOpacityByIdIn3d,
   toggleBaseMapVisibleIn3d,
+  setVisibleBaseMapIdsIn3d,
+  setHideMainBaseMapImageIn3d,
+  setHideMainBaseMapAnnotationsIn3d,
   setBaseMapAnnotationsModeIn3d,
   toggleMainBaseMapImageIn3d,
   toggleMainBaseMapAnnotationsIn3d,

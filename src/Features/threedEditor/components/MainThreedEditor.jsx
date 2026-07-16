@@ -25,6 +25,10 @@ import {
 } from "Features/selection/selectionSlice";
 import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
+import {
+  selectEffectiveViewerKey,
+  selectIsPovViewer,
+} from "Features/viewers/utils/effectiveViewerKey";
 
 import applyAnnotationMaterialState, {
   // states
@@ -139,7 +143,7 @@ export default function MainThreedEditor() {
   // useAutoLoadAnnotationsInThreedEditor and destroy + recreate every
   // annotation 3D object.
   const store = useStore();
-  const selectedViewerKey = useSelector((s) => s.viewers.selectedViewerKey);
+  const selectedViewerKey = useSelector(selectEffectiveViewerKey);
   const isThreedViewer = isThreedFamilyViewerKey(selectedViewerKey);
 
   // Entering the 3D viewer keeps whatever right panel was open in 2D (no
@@ -164,6 +168,10 @@ export default function MainThreedEditor() {
   // Capture mode ("Export rapide", shared with the 2D viewer). Toggles are
   // rare, so the re-render cost is acceptable here.
   const imageModeEnabled = useSelector((s) => s.mapEditor.imageModeEnabled);
+  // The POV viewer forces the capture framing on (mask + rect + legend) —
+  // only when this 3D editor is the one POV displays (isThreedViewer).
+  const isPovViewer = useSelector(selectIsPovViewer);
+  const captureFramingActive = imageModeEnabled || (isPovViewer && isThreedViewer);
   // Render mode (Standard / Réaliste / Photoréaliste). Mirrored into a ref so
   // the hover raycast can read it without re-creating its callback.
   const renderMode = useSelector((s) => s.threedEditor.renderMode);
@@ -1587,7 +1595,7 @@ export default function MainThreedEditor() {
       }}
     >
       <Box sx={{ width: 1, height: 1 }} ref={containerRef} />
-      {isThreedViewer && !imageModeEnabled && <PopperMapListings />}
+      {isThreedViewer && !captureFramingActive && <PopperMapListings />}
       {isThreedViewer && <PopperEditAnnotation viewerKey="THREED" />}
       {isThreedViewer && <ThreedPopperEditAnnotations />}
       {isThreedViewer && (
@@ -1604,8 +1612,10 @@ export default function MainThreedEditor() {
       {isThreedViewer && (
         <ThreedAnnotationsVisibility threedEditorRef={threedEditorRef} />
       )}
-      {isThreedViewer && !imageModeEnabled && <TopBaseMapChipsThreed />}
+      {isThreedViewer && !captureFramingActive && <TopBaseMapChipsThreed />}
+      {/* No 3D toolbars in the POV viewer — its own save button sits there. */}
       {isThreedViewer &&
+        !isPovViewer &&
         (clippingEditing ? (
           <ClippingToolbarThreed />
         ) : meshingActive ? (

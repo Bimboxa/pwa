@@ -24,7 +24,11 @@ import { ANNOTATIONS_DISPLAY_MODE } from "Features/threedEditor/constants/annota
 // BaseMapSelector) — same as clicking its image in the 3D scene
 // (MainThreedEditor.handleClick). The scene sync is already handled by
 // useApplyBaseMapVisibilityIn3d / ThreedAnnotationsVisibility.
-export default function TopBaseMapChipsThreed() {
+//
+// `inTopBar` renders the row in flow (no absolute pinning) so it can live in
+// the top bar — used by the POV viewer, where nothing may float over the
+// capture frame mask.
+export default function TopBaseMapChipsThreed({ inTopBar = false }) {
   const dispatch = useDispatch();
 
   // data
@@ -82,16 +86,24 @@ export default function TopBaseMapChipsThreed() {
     <Stack
       direction="row"
       spacing={1}
-      sx={{
-        position: "absolute",
-        top: 12,
-        left: "50%",
-        transform: "translateX(-50%)",
-        maxWidth: "80%",
-        overflowX: "auto",
-        zIndex: 10,
-        p: 0.5,
-      }}
+      sx={
+        inTopBar
+          ? {
+              maxWidth: "40vw",
+              overflowX: "auto",
+              p: 0.5,
+            }
+          : {
+              position: "absolute",
+              top: 12,
+              left: "50%",
+              transform: "translateX(-50%)",
+              maxWidth: "80%",
+              overflowX: "auto",
+              zIndex: 10,
+              p: 0.5,
+            }
+      }
     >
       {baseMaps.map((map) => {
         const isMain = map.id === mainBaseMap?.id;

@@ -168,6 +168,9 @@ export async function switchMapToThreed({
   baseMap,
   basePose,
   targetViewerKey = "THREED",
+  // Committed once the 3D start pose is applied. The POV viewer overrides
+  // this to flip its internal 2D/3D mode instead of the selected viewer.
+  commit = (d) => d(setSelectedViewerKey(targetViewerKey)),
 }) {
   if (isSwitching) return;
   isSwitching = true;
@@ -215,7 +218,7 @@ export async function switchMapToThreed({
     } catch (e) {
       console.log("[viewerSwitch] 2D->3D camera sync failed", e);
     } finally {
-      dispatch(setSelectedViewerKey(targetViewerKey));
+      commit(dispatch);
     }
 
     if (animation) {
@@ -230,7 +233,13 @@ export async function switchMapToThreed({
   }
 }
 
-export async function switchThreedToMap({ dispatch, baseMap, basePose }) {
+export async function switchThreedToMap({
+  dispatch,
+  baseMap,
+  basePose,
+  // See switchMapToThreed.
+  commit = (d) => d(setSelectedViewerKey("MAP")),
+}) {
   if (isSwitching) return;
   isSwitching = true;
   let s = null;
@@ -295,7 +304,7 @@ export async function switchThreedToMap({ dispatch, baseMap, basePose }) {
     console.log("[viewerSwitch] 3D->2D camera sync failed", e);
   } finally {
     isSwitching = false;
-    dispatch(setSelectedViewerKey("MAP"));
+    commit(dispatch);
     // Put the (soon hidden) 3D camera back on the reference perspective so
     // other 3D flows keep their usual fov and dolly limits. Deferred past the
     // panel swap paint: restoring synchronously would let the render loop

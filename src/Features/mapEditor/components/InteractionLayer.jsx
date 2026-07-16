@@ -12,6 +12,7 @@ import { setEnabledDrawingMode, setSelectedNodes, setMapEditorMode } from 'Featu
 import { setSelectedNode, toggleSelectedNode } from 'Features/mapEditor/mapEditorSlice';
 import { setAnnotationToolbarPosition, setAnnotationsToolbarPosition } from 'Features/mapEditor/mapEditorSlice';
 import { setImageModeLegendSelected } from 'Features/mapEditor/mapEditorSlice';
+import { selectCaptureFramingActive } from 'Features/viewers/utils/effectiveViewerKey';
 import {
   setPasteClipboard,
   clearPasteClipboard,
@@ -2118,10 +2119,9 @@ const InteractionLayer = forwardRef(({
   }, [enabledDrawingMode]);
 
   // Image-mode flags (read inside event handlers via refs so we don't
-  // re-bind handlers on every redux change).
-  const imageModeEnabled = useSelector(
-    (s) => s.mapEditor.imageModeEnabled
-  );
+  // re-bind handlers on every redux change). Derived flag: also true in the
+  // POV viewer, which forces the capture framing on (no editing there).
+  const imageModeEnabled = useSelector(selectCaptureFramingActive);
   const imageModeEnabledRef = useRef(imageModeEnabled);
   useEffect(() => {
     imageModeEnabledRef.current = imageModeEnabled;

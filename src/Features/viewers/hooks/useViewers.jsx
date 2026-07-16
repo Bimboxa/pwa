@@ -13,12 +13,14 @@ import {
   FormatListBulleted,
   ViewInAr,
   GridOn,
+  PhotoCamera,
 } from "@mui/icons-material";
 
 import theme from "Styles/theme";
 
 export default function useViewers() {
   const advancedLayout = useSelector((s) => s.appConfig.advancedLayout);
+  const legacy = useSelector((s) => s.appConfig.enableMapEditorLegacy);
 
   const viewers = [
     // {
@@ -39,6 +41,15 @@ export default function useViewers() {
       shortLabel: "Dessin",
       icon: <Draw />,
       bgcolor: theme.palette.viewers.map,
+    },
+    {
+      key: "POINT_OF_VIEW",
+      label: "Points de vue",
+      shortLabel: "Points de vue",
+      icon: <PhotoCamera />,
+      bgcolor: theme.palette.viewers.pov,
+      // The POV viewer relies on the V3 map editor capture host.
+      disabled: legacy,
     },
     {
       key: "PORTFOLIO",

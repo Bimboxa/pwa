@@ -41,7 +41,7 @@ export default async function createKrtoZip(scopeId, options) {
     // Tables avec scopeId direct
     const tablesWithScopeId = new Set([
         "baseMapViews", "syncFiles", "layers",
-        "portfolioBaseMapContainers", "meshes3d",
+        "portfolioBaseMapContainers", "meshes3d", "povs",
     ]);
 
     // Tables avec listingId (sans projectId)
@@ -94,6 +94,19 @@ export default async function createKrtoZip(scopeId, options) {
     // (cas où plusieurs versions partagent la même image, ex. duplication).
     for (const fn of liveVersionFileNames) deletedVersionFileNames.delete(fn);
 
+    // 2ter. POV thumbnails: their file rows carry no listingId (a POV belongs
+    // to no listing), so the standard files filter would drop them. Whitelist
+    // them explicitly (live POVs only — deleted POVs keep their tombstone row
+    // in the export but their image is excluded, like deleted versions).
+    const scopePovs = (
+        await db.povs.where("scopeId").equals(scopeId).toArray()
+    ).filter((p) => !p.deletedAt);
+    const povImageFileNames = new Set(
+        scopePovs
+            .flatMap((p) => [p.image?.fileName, p.transformedImage?.fileName])
+            .filter(Boolean)
+    );
+
     // 3. Export via Dexie
     const blob = await db.export({
         filter: (table, value) => {
@@ -125,6 +138,9 @@ export default async function createKrtoZip(scopeId, options) {
 
             // Fichiers : on exclut les images des versions supprimées orphelines
             if (table === "files") {
+                if (povImageFileNames.has(value.fileName)) {
+                    return value.projectId === projectId;
+                }
                 return (
                     value.projectId === projectId &&
                     listingIds.has(value.listingId) &&
