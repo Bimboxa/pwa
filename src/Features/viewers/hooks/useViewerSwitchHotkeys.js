@@ -3,9 +3,10 @@ import { useStore } from "react-redux";
 
 import useSwitchViewer from "./useSwitchViewer";
 import useViewers from "./useViewers";
+import { selectEffectiveViewerKey } from "../utils/effectiveViewerKey";
 
-// Letters that keep their map-editor meaning while the Dessin viewer is
-// displayed (see the guard in the handler below).
+// Letters that keep their map-editor meaning while the Dessin module
+// displays the 2D editor (see the guard in the handler below).
 const MAP_EDITOR_OWNED_LETTERS = new Set(["c"]);
 
 const isEditableTarget = (el) => {
@@ -19,10 +20,10 @@ const isEditableTarget = (el) => {
   );
 };
 
-// Global viewer-switch shortcuts (D = Dessin, F = Fonds de plan, V = Points
+// Global module-switch shortcuts (D = Dessin, F = Fonds de plan, V = Points
 // de vue, I = Maillage, C = Carnet de plans — the letters displayed under the
-// viewer labels in the left band; the 3D "T" badge is bound elsewhere, see
-// hotkeyExternal below).
+// module labels in the left band; "T" toggles the editor inside the current
+// module instead, see useToggleThreedViewerHotkey).
 //
 // They are kept state-disjoint from the editor hotkeys so listener order can
 // never decide a race:
@@ -39,11 +40,9 @@ export default function useViewerSwitchHotkeys() {
   const switchViewer = useSwitchViewer();
   const viewers = useViewers();
 
-  // Letter → viewer key, rebuilt from the live viewer list so a disabled
-  // viewer (e.g. POV under the legacy editor) never binds its letter. Viewers
-  // flagged hotkeyExternal display their badge but keep their own binding
-  // (THREED "T" → useToggleThreedViewerHotkey, which toggles instead of
-  // switching and flips the 2D/3D mode inside POV).
+  // Letter → module key, rebuilt from the live module list so a disabled
+  // module (e.g. POV under the legacy editor) never binds its letter. Modules
+  // flagged hotkeyExternal display their badge but keep their own binding.
   const viewerKeyByLetter = {};
   viewers.forEach((v) => {
     if (v.hotkey && !v.hotkeyExternal)
@@ -74,12 +73,13 @@ export default function useViewerSwitchHotkeys() {
         return;
       // Already there — leave the letter to the editor shortcuts (D → DRAW).
       if (targetViewerKey === s.viewers.selectedViewerKey) return;
-      // Inside the Dessin viewer the editor owns these letters: "m" is the
-      // Modification mode (D/M/S trio) and "c" starts "Couper un segment"
-      // (useToolGroupHotkey). Those hooks conversely yield outside the MAP
-      // viewer, keeping the two systems state-disjoint.
+      // While the Dessin module displays the 2D editor, that editor owns
+      // these letters: "c" starts "Couper un segment" (useToolGroupHotkey).
+      // Those hooks conversely yield outside Dessin+2D (other modules,
+      // Dessin's 3D editor), keeping the two systems state-disjoint.
       if (
         s.viewers.selectedViewerKey === "MAP" &&
+        selectEffectiveViewerKey(s) === "MAP" &&
         MAP_EDITOR_OWNED_LETTERS.has(e.key.toLowerCase())
       )
         return;

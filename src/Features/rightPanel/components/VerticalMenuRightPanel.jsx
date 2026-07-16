@@ -26,7 +26,7 @@ import {
   Height,
   Upload,
   AutoAwesome,
-  ViewInAr,
+  Settings,
 } from "@mui/icons-material";
 
 import { Box, Paper } from "@mui/material";
@@ -105,11 +105,13 @@ export default function VerticalMenuRightPanel() {
   // right below "Propriétés" while their viewer is active.
 
   const contextualTools = [
+    // Settings of the editor actually displayed (3D view settings — the
+    // former "Vue 3D" tool — when a 3D editor is active, 2D editor settings
+    // otherwise). No `viewers` constraint: available in every module.
     {
-      key: "THREED_PROPERTIES",
-      label: "Vue 3D",
-      icon: <ViewInAr />,
-      viewers: ["THREED", "MESHES"],
+      key: "SETTINGS",
+      label: "Réglages",
+      icon: <Settings />,
     },
     {
       key: "BASE_MAP_TRANSFORMS",
@@ -132,14 +134,26 @@ export default function VerticalMenuRightPanel() {
   const toolsKeys = appConfig?.features?.tools ?? [];
   let menuItems = toolsKeys.map((key) => ({ ...toolsMap[key], key, enabled: Boolean(toolsMap[key]) })).filter(t => t.enabled);
 
-  // filter
+  // filter — the tools list is MODULE-driven (selectedViewerKey is the
+  // module key): it never changes with the editor (2D/3D) displayed inside
+  // the module.
   menuItems = menuItems.filter(t => !t.disabled);
   menuItems = menuItems.filter(
     (t) => !t.viewers || t.viewers.includes(selectedViewerKey)
   );
 
-  const activeContextualTools = contextualTools.filter((t) =>
-    t.viewers.includes(selectedViewerKey)
+  // Every module shows at least the "Propriétés" tool, whichever editor is
+  // displayed — guaranteed here so no appConfig or filter can drop it.
+  if (!menuItems.some((t) => t.key === "SELECTION_PROPERTIES")) {
+    menuItems.unshift({
+      ...toolsMap.SELECTION_PROPERTIES,
+      key: "SELECTION_PROPERTIES",
+      enabled: true,
+    });
+  }
+
+  const activeContextualTools = contextualTools.filter(
+    (t) => !t.viewers || t.viewers.includes(selectedViewerKey)
   );
   if (activeContextualTools.length > 0) {
     const propertiesIndex = menuItems.findIndex(

@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useSelector } from "react-redux";
 
-import useSwitchViewer from "./useSwitchViewer";
+import useToggleModuleEditor from "./useToggleModuleEditor";
 import useTogglePovViewerMode from "Features/pov/hooks/useTogglePovViewerMode";
 
 const isEditableTarget = (el) => {
@@ -15,11 +15,13 @@ const isEditableTarget = (el) => {
   );
 };
 
-// "T" toggles the 2D map <-> 3D viewer, like the topBar button. Fires
-// upstream only (!enabledDrawingMode) so it never contends with the
-// in-draw "T" (arc toggle) or LOCALIZED_REPAIR "T" (T-junction).
+// "T" toggles the 2D/3D editor displayed inside the current multi-editor
+// module (Dessin, POV) — the left-band selection does not move. Inert in
+// single-editor modules (THREED recap, MESHES, ...). Fires upstream only
+// (!enabledDrawingMode) so it never contends with the in-draw "T" (arc
+// toggle) or LOCALIZED_REPAIR "T" (T-junction).
 export default function useToggleThreedViewerHotkey() {
-  const switchViewer = useSwitchViewer();
+  const toggleModuleEditor = useToggleModuleEditor();
   const togglePovViewerMode = useTogglePovViewerMode();
   const selectedViewerKey = useSelector((s) => s.viewers.selectedViewerKey);
   const enabledDrawingMode = useSelector((s) => s.mapEditor.enabledDrawingMode);
@@ -36,10 +38,14 @@ export default function useToggleThreedViewerHotkey() {
       if (e.key.toLowerCase() !== "t") return;
 
       if (selectedViewerKey === "POINT_OF_VIEW") {
-        // Inside the POV viewer, T flips the displayed 2D/3D editor.
+        // POV keeps its own editor mode until it migrates to
+        // editorKeyByModule (see issue #296).
         togglePovViewerMode();
+      } else if (selectedViewerKey === "MAP") {
+        toggleModuleEditor();
       } else {
-        switchViewer(selectedViewerKey === "THREED" ? "MAP" : "THREED");
+        // Single-editor modules: no 2D<->3D toggle.
+        return;
       }
       e.preventDefault();
       e.stopImmediatePropagation();
@@ -51,7 +57,7 @@ export default function useToggleThreedViewerHotkey() {
     enabledDrawingMode,
     walkModeActive,
     selectedViewerKey,
-    switchViewer,
+    toggleModuleEditor,
     togglePovViewerMode,
   ]);
 }

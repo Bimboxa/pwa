@@ -17,6 +17,7 @@ import PanelMeshesViewer from "Features/threedMesh/components/PanelMeshesViewer"
 import PanelPovList from "Features/pov/components/PanelPovList";
 import ButtonSavePov from "Features/pov/components/ButtonSavePov";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
+import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 
 import { Box } from "@mui/material";
 
@@ -25,19 +26,14 @@ export default function SectionViewer() {
   const viewerKey = useSelector((s) => s.viewers.selectedViewerKey);
   const legacy = useSelector((s) => s.appConfig.enableMapEditorLegacy);
   const disable3D = useSelector((s) => s.appConfig.disable3D);
-  const povViewerMode = useSelector((s) => s.pov.viewerMode);
 
   // helpers
 
-  // POINT_OF_VIEW is a meta viewer: it shows the MAP or THREED editor (per
-  // pov.viewerMode) with the capture framing forced on, plus its own drawer.
+  // viewerKey is the selected MODULE; multi-editor modules (Dessin, POV)
+  // resolve to the editor they display (the disable3D fallback to MAP is
+  // centralized in the selector).
   const isPov = viewerKey === "POINT_OF_VIEW";
-  // Fall back to MAP when 3D is disabled so POV never shows a blank viewer.
-  const effectiveKey = isPov
-    ? povViewerMode === "THREED" && !disable3D
-      ? "THREED"
-      : "MAP"
-    : viewerKey;
+  const effectiveKey = useSelector(selectEffectiveViewerKey);
 
   const showMap = effectiveKey === "MAP";
   // THREED and MESHES share the single MainThreedEditor instance (WebGL

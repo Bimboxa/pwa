@@ -17,14 +17,18 @@ import RightPanelContainer from "Features/rightPanel/components/RightPanelContai
 import VerticalMenuViewers from "Features/viewers/components/VerticalMenuViewers";
 
 import useViewerSwitchHotkeys from "Features/viewers/hooks/useViewerSwitchHotkeys";
+import useToggleThreedViewerHotkey from "Features/viewers/hooks/useToggleThreedViewerHotkey";
 
 export default function LayoutDesktop() {
   const dispatch = useDispatch();
 
-  // hotkeys — switch viewer (D = Dessin, F = Fonds de plan, V = Points de vue).
+  // hotkeys — switch module (D = Dessin, F = Fonds de plan, V = Points de vue).
   // Mounted here (not in VerticalMenuViewers) so they survive full screen,
   // where the viewers band is unmounted.
   useViewerSwitchHotkeys();
+  // "T" — toggle the 2D/3D editor inside the current module. Mounted here
+  // (not in ButtonToggleThreedViewer) since the button is conditional.
+  useToggleThreedViewerHotkey();
 
   // data
 
