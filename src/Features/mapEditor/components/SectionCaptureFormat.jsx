@@ -5,15 +5,10 @@ import { setImageModeAspectRatio } from "../mapEditorSlice";
 import { Box, Typography, ToggleButton, ToggleButtonGroup } from "@mui/material";
 import { CropLandscape, CropSquare, CropPortrait } from "@mui/icons-material";
 
-const LABEL_SX = {
-  fontWeight: 600,
-  color: "text.secondary",
-  lineHeight: 1.2,
-};
-
 // Capture frame aspect ratio selector (shared imageMode state, read by
 // ImageModeOverlay in both 2D and 3D). Used by PanelCaptureMode ("Export
-// rapide") and by the POV frame properties panel.
+// rapide") and by the POV frame properties panel. Rendered as an option row
+// (same style as the legend's "Taille"), not as a section title.
 export default function SectionCaptureFormat() {
   const dispatch = useDispatch();
 
@@ -33,7 +28,7 @@ export default function SectionCaptureFormat() {
         gap: 1,
       }}
     >
-      <Typography variant="overline" sx={LABEL_SX}>
+      <Typography variant="caption" color="text.secondary">
         Format
       </Typography>
       <ToggleButtonGroup
