@@ -11,12 +11,10 @@ import { ArrowBack as Back, PhotoCamera } from "@mui/icons-material";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
-import SectionCaptureFormat from "Features/mapEditor/components/SectionCaptureFormat";
-import SectionCaptureLegend from "Features/mapEditor/components/SectionCaptureLegend";
-import SectionCaptureOptions from "Features/mapEditor/components/SectionCaptureOptions";
 import SectionCaptureExport from "Features/mapEditor/components/SectionCaptureExport";
 import IconButtonMoreActionsPov from "./IconButtonMoreActionsPov";
 import PanelPovFilters from "./PanelPovFilters";
+import SectionPovCadrage from "./SectionPovCadrage";
 
 import captureMapAsPng from "Features/mapEditor/utils/captureMapAsPng";
 import snapshotThreedCanvasForCapture from "Features/threedEditor/utils/snapshotThreedCanvasForCapture";
@@ -216,29 +214,9 @@ export default function PanelPovProperties() {
       </Box>
       )}
 
-      {tab === "CADRAGE" && (
-      <Box
-        sx={{
-          flex: 1,
-          minHeight: 0,
-          overflowY: "auto",
-          p: 1,
-          display: "flex",
-          flexDirection: "column",
-          gap: 1.5,
-        }}
-      >
-        {/* Frame + legend + output options (shared imageMode state): tweak
-            them, then "Mettre à jour la vue" persists them into this POV. */}
-        <WhiteSectionGeneric>
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-            <SectionCaptureFormat />
-            <SectionCaptureLegend />
-            <SectionCaptureOptions />
-          </Box>
-        </WhiteSectionGeneric>
-      </Box>
-      )}
+      {/* Frame + legend settings (shared imageMode state): tweak them, then
+          "Mettre à jour la vue" persists them into this POV. */}
+      {tab === "CADRAGE" && <SectionPovCadrage />}
     </BoxFlexVStretch>
   );
 }

@@ -4,11 +4,8 @@ import { Box, Tab, Tabs, Typography } from "@mui/material";
 import { PhotoCamera } from "@mui/icons-material";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
-import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
-import SectionCaptureFormat from "Features/mapEditor/components/SectionCaptureFormat";
-import SectionCaptureLegend from "Features/mapEditor/components/SectionCaptureLegend";
-import SectionCaptureOptions from "Features/mapEditor/components/SectionCaptureOptions";
 import PanelPovFilters from "./PanelPovFilters";
+import SectionPovCadrage from "./SectionPovCadrage";
 
 // Default properties panel of the POV viewer (no POV selected): drives what
 // the next "Créer une vue" will capture — Cadrage (frame + legend, shared
@@ -60,27 +57,7 @@ export default function PanelPovFrameProperties() {
 
       {tab === "FILTRES" && <PanelPovFilters />}
 
-      {tab === "CADRAGE" && (
-        <Box
-          sx={{
-            flex: 1,
-            minHeight: 0,
-            overflowY: "auto",
-            p: 1,
-            display: "flex",
-            flexDirection: "column",
-            gap: 1.5,
-          }}
-        >
-          <WhiteSectionGeneric>
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-              <SectionCaptureFormat />
-              <SectionCaptureLegend />
-              <SectionCaptureOptions />
-            </Box>
-          </WhiteSectionGeneric>
-        </Box>
-      )}
+      {tab === "CADRAGE" && <SectionPovCadrage />}
     </BoxFlexVStretch>
   );
 }
