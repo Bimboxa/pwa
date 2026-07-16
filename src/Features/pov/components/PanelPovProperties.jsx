@@ -14,6 +14,7 @@ import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 import SectionCaptureExport from "Features/mapEditor/components/SectionCaptureExport";
 import IconButtonMoreActionsPov from "./IconButtonMoreActionsPov";
 import PanelPovFilters from "./PanelPovFilters";
+import PanelPovFrameProperties from "./PanelPovFrameProperties";
 import SectionPovCadrage from "./SectionPovCadrage";
 
 import captureMapAsPng from "Features/mapEditor/utils/captureMapAsPng";
@@ -99,15 +100,9 @@ export default function PanelPovProperties() {
 
   // render
 
-  if (!pov) {
-    return (
-      <Box sx={{ p: 2 }}>
-        <Typography variant="body2" color="text.secondary">
-          Aucun point de vue sélectionné
-        </Typography>
-      </Box>
-    );
-  }
+  // No resolved POV (nothing selected, record deleted, or list still
+  // loading): always fall back to the "Nouveau point de vue" panel.
+  if (!pov) return <PanelPovFrameProperties />;
 
   return (
     <BoxFlexVStretch>
