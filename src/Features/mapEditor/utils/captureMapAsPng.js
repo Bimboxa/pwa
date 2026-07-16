@@ -10,8 +10,9 @@ import {
 } from "./captureBorderConstants";
 
 // A4 page sizes (pdf-lib points) matched to the capture aspect ratio so the
-// cropped image fills the PDF page with minimal margins.
-function getPdfPageSize(aspectRatio) {
+// cropped image fills the PDF page with minimal margins. Exported for flows
+// exporting an already-stored capture (POV transformed image).
+export function getPdfPageSize(aspectRatio) {
   switch (aspectRatio) {
     case "PORTRAIT":
       return { pageWidth: 595, pageHeight: 842 };

@@ -5,18 +5,17 @@ import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import ButtonGeneric from "Features/layout/components/ButtonGeneric";
 import SectionCompareTwoImages from "Features/baseMapTransforms/components/SectionCompareTwoImages";
 
-import downloadBlob from "Features/files/utils/downloadBlob";
-
 // Centered dialog of the POV "Amélioration IA" flow: shows the captured view
 // with a sweeping-shine waiting effect while the transformation endpoint
 // works, then the original/enhanced comparison slider (same principle as the
-// baseMap "Transformation IA" result).
-export default function DialogPovAiEnhance({ state, onClose }) {
+// baseMap "Transformation IA" result). `onSave` persists the enhanced image
+// into the POV's transformedImage field.
+export default function DialogPovAiEnhance({ state, onClose, onSave }) {
   // strings
 
   const waitingS = "Amélioration en cours...";
   const errorS = "L'amélioration a échoué. Réessayez plus tard.";
-  const downloadS = "Télécharger";
+  const saveS = "Enregistrer la transformation";
 
   // helpers
 
@@ -25,8 +24,8 @@ export default function DialogPovAiEnhance({ state, onClose }) {
 
   // handlers
 
-  function handleDownload() {
-    if (enhancedBlob) downloadBlob(enhancedBlob, "vue_amelioree.png");
+  function handleSave() {
+    if (enhancedBlob) onSave?.(enhancedBlob);
   }
 
   // render
@@ -54,10 +53,10 @@ export default function DialogPovAiEnhance({ state, onClose }) {
               }}
             >
               <ButtonGeneric
-                label={downloadS}
+                label={saveS}
                 variant="contained"
                 color="secondary"
-                onClick={handleDownload}
+                onClick={handleSave}
               />
             </Box>
           </>

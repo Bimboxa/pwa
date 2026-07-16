@@ -14,12 +14,18 @@ export default function useUpdatePovView() {
     const view = await capturePovView();
     if (!view) return null;
 
-    await db.povs.update(pov.id, view);
+    // The saved AI-transformed image (if any) no longer matches the
+    // re-captured view: drop it (a new transformation can be saved after).
+    await db.povs.update(pov.id, { ...view, transformedImage: null });
 
-    // The files table is not soft-deleted: drop the replaced thumbnail row.
+    // The files table is not soft-deleted: drop the replaced rows.
     const oldFileName = pov.image?.fileName;
     if (oldFileName && oldFileName !== view.image.fileName) {
       await db.files.delete(oldFileName);
+    }
+    const oldTransformedFileName = pov.transformedImage?.fileName;
+    if (oldTransformedFileName) {
+      await db.files.delete(oldTransformedFileName);
     }
 
     return view;

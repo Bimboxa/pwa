@@ -102,7 +102,9 @@ export default async function createKrtoZip(scopeId, options) {
         await db.povs.where("scopeId").equals(scopeId).toArray()
     ).filter((p) => !p.deletedAt);
     const povImageFileNames = new Set(
-        scopePovs.map((p) => p.image?.fileName).filter(Boolean)
+        scopePovs
+            .flatMap((p) => [p.image?.fileName, p.transformedImage?.fileName])
+            .filter(Boolean)
     );
 
     // 3. Export via Dexie

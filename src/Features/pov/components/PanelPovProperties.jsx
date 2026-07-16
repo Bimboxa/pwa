@@ -20,6 +20,7 @@ import SectionPovAiEnhance from "./SectionPovAiEnhance";
 
 import captureMapAsPng from "Features/mapEditor/utils/captureMapAsPng";
 import snapshotThreedCanvasForCapture from "Features/threedEditor/utils/snapshotThreedCanvasForCapture";
+import exportPovImageService from "../services/exportPovImageService";
 
 import usePovs from "../hooks/usePovs";
 import usePovImageUrl from "../hooks/usePovImageUrl";
@@ -44,7 +45,11 @@ export default function PanelPovProperties() {
   const povs = usePovs() ?? [];
   const pov = povs.find((p) => p.id === selectedItem?.id) ?? null;
 
-  const imageUrl = usePovImageUrl(pov?.image?.fileName);
+  // The saved AI-transformed image wins over the capture thumbnail, for the
+  // preview and for the download.
+  const displayedFileName =
+    pov?.transformedImage?.fileName ?? pov?.image?.fileName;
+  const imageUrl = usePovImageUrl(displayedFileName);
   const updatePov = useUpdatePov();
 
   const viewerMode = useSelector((s) => s.pov.viewerMode);
@@ -81,9 +86,20 @@ export default function PanelPovProperties() {
     updatePov(pov.id, { description });
   }
 
-  // Fresh capture of the currently displayed framed view (the click on the
-  // POV item restored it), at full resolution.
+  // Export: the saved AI-transformed image when it exists, else a fresh
+  // capture of the currently displayed framed view (the click on the POV
+  // item restored it), at full resolution.
   async function handleExport({ mode, fileName, pixelRatio, whiteBackground }) {
+    if (pov?.transformedImage?.fileName) {
+      const exported = await exportPovImageService({
+        storedFileName: pov.transformedImage.fileName,
+        mode,
+        fileName,
+        aspectRatio: pov.aspectRatio ?? aspectRatio,
+      });
+      if (exported) return;
+      // stored file missing → fall through to a fresh capture
+    }
     const isThreed = viewerMode === "THREED";
     await captureMapAsPng({
       viewerKey: isThreed ? "THREED" : "MAP",

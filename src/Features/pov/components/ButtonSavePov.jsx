@@ -11,6 +11,7 @@ import usePovs from "../hooks/usePovs";
 import useCreatePov from "../hooks/useCreatePov";
 import useUpdatePovView from "../hooks/useUpdatePovView";
 import usePovEnhancePrompt from "../hooks/usePovEnhancePrompt";
+import useSavePovTransformedImage from "../hooks/useSavePovTransformedImage";
 
 import captureMapAsPng from "Features/mapEditor/utils/captureMapAsPng";
 import snapshotThreedCanvasForCapture from "Features/threedEditor/utils/snapshotThreedCanvasForCapture";
@@ -33,6 +34,7 @@ export default function ButtonSavePov() {
   const povs = usePovs() ?? [];
   const createPov = useCreatePov();
   const updatePovView = useUpdatePovView();
+  const savePovTransformedImage = useSavePovTransformedImage();
   const selectedItem = useSelector(selectSelectedItem);
 
   const aiEnhanceEnabled = useSelector((s) => s.pov.aiEnhanceEnabled);
@@ -53,7 +55,7 @@ export default function ButtonSavePov() {
   // state
 
   const [busy, setBusy] = useState(false);
-  // {originalUrl, enhancedUrl, enhancedBlob, loading, error} | null
+  // {povId, originalUrl, enhancedUrl, enhancedBlob, loading, error} | null
   const [aiState, setAiState] = useState(null);
 
   // helpers
@@ -82,7 +84,7 @@ export default function ButtonSavePov() {
     if (!blob) return;
 
     const originalUrl = URL.createObjectURL(blob);
-    setAiState({ originalUrl, loading: true });
+    setAiState({ povId, originalUrl, loading: true });
 
     enhanceBaseMapService({
       baseMapId: `pov_${povId ?? "draft"}`,
@@ -107,6 +109,13 @@ export default function ButtonSavePov() {
     if (aiState?.originalUrl) URL.revokeObjectURL(aiState.originalUrl);
     if (aiState?.enhancedUrl) URL.revokeObjectURL(aiState.enhancedUrl);
     setAiState(null);
+  }
+
+  async function handleSaveAiResult(enhancedBlob) {
+    if (aiState?.povId) {
+      await savePovTransformedImage(aiState.povId, enhancedBlob);
+    }
+    handleCloseAiDialog();
   }
 
   async function handleClick() {
@@ -155,7 +164,11 @@ export default function ButtonSavePov() {
       </Button>
 
       {aiState && (
-        <DialogPovAiEnhance state={aiState} onClose={handleCloseAiDialog} />
+        <DialogPovAiEnhance
+          state={aiState}
+          onClose={handleCloseAiDialog}
+          onSave={handleSaveAiResult}
+        />
       )}
     </>
   );
