@@ -7,6 +7,7 @@ import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 import SectionCaptureFormat from "Features/mapEditor/components/SectionCaptureFormat";
 import SectionCaptureLegend from "Features/mapEditor/components/SectionCaptureLegend";
+import SectionCaptureOptions from "Features/mapEditor/components/SectionCaptureOptions";
 import PanelPovFilters from "./PanelPovFilters";
 
 // Default properties panel of the POV viewer (no POV selected): drives what
@@ -75,6 +76,7 @@ export default function PanelPovFrameProperties() {
             <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
               <SectionCaptureFormat />
               <SectionCaptureLegend />
+              <SectionCaptureOptions />
             </Box>
           </WhiteSectionGeneric>
         </Box>

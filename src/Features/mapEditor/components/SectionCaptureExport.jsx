@@ -1,10 +1,5 @@
 import { useState } from "react";
-import { useSelector, useDispatch } from "react-redux";
-
-import {
-  setImageModeHighRes,
-  setImageModeWhiteBackground,
-} from "../mapEditorSlice";
+import { useSelector } from "react-redux";
 
 import {
   Box,
@@ -22,7 +17,7 @@ import {
   Download,
 } from "@mui/icons-material";
 
-import FieldCheck from "Features/form/components/FieldCheck";
+import SectionCaptureOptions from "./SectionCaptureOptions";
 
 // Export modes (output format selector). Label + extension are driven by the
 // selected mode.
@@ -46,16 +41,17 @@ const SEG_SX = {
   fontSize: 11,
 };
 
-// Export controls (filename + pdf/png/clipboard + resolution + white
-// background). The high-res / white-background switches drive the shared
-// imageMode state; the actual capture is delegated to `onExport`. Used by
-// PanelCaptureMode ("Export rapide") and by the POV properties panel.
+// Export controls (filename + pdf/png/clipboard + primary button). The
+// resolution / white-background options (shared imageMode state, read here
+// for the capture args) are shown inline unless the host panel displays
+// SectionCaptureOptions elsewhere (showOptions={false} — POV Cadrage tab).
+// The actual capture is delegated to `onExport`. Used by PanelCaptureMode
+// ("Export rapide") and by the POV properties panel.
 export default function SectionCaptureExport({
   onExport,
   defaultFilename = "capture",
+  showOptions = true,
 }) {
-  const dispatch = useDispatch();
-
   // data
 
   const highRes = useSelector((s) => s.mapEditor.imageModeHighRes);
@@ -80,14 +76,6 @@ export default function SectionCaptureExport({
   function handleModeChange(_, value) {
     if (!value) return;
     setMode(value);
-  }
-
-  function handleToggleHighRes(checked) {
-    dispatch(setImageModeHighRes(Boolean(checked)));
-  }
-
-  function handleToggleWhiteBackground(checked) {
-    dispatch(setImageModeWhiteBackground(Boolean(checked)));
   }
 
   async function handlePrimaryExport() {
@@ -162,18 +150,7 @@ export default function SectionCaptureExport({
       </ToggleButtonGroup>
 
       {/* Options */}
-      <FieldCheck
-        value={highRes}
-        onChange={handleToggleHighRes}
-        label="Haute définition"
-        options={{ type: "switch", showAsInline: true }}
-      />
-      <FieldCheck
-        value={whiteBackground}
-        onChange={handleToggleWhiteBackground}
-        label="Fond blanc"
-        options={{ type: "switch", showAsInline: true }}
-      />
+      {showOptions && <SectionCaptureOptions />}
 
       {/* Action principale */}
       <Button

@@ -13,6 +13,7 @@ import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 import SectionCaptureFormat from "Features/mapEditor/components/SectionCaptureFormat";
 import SectionCaptureLegend from "Features/mapEditor/components/SectionCaptureLegend";
+import SectionCaptureOptions from "Features/mapEditor/components/SectionCaptureOptions";
 import SectionCaptureExport from "Features/mapEditor/components/SectionCaptureExport";
 import IconButtonMoreActionsPov from "./IconButtonMoreActionsPov";
 import PanelPovFilters from "./PanelPovFilters";
@@ -56,7 +57,7 @@ export default function PanelPovProperties() {
 
   // state
 
-  const [tab, setTab] = useState("CADRAGE");
+  const [tab, setTab] = useState("IMAGE");
   const [description, setDescription] = useState(pov?.description ?? "");
 
   useEffect(() => {
@@ -152,13 +153,14 @@ export default function PanelPovProperties() {
           borderColor: "divider",
         }}
       >
+        <Tab label="Image" value="IMAGE" sx={{ minHeight: 36, py: 0.5 }} />
         <Tab label="Cadrage" value="CADRAGE" sx={{ minHeight: 36, py: 0.5 }} />
         <Tab label="Filtres" value="FILTRES" sx={{ minHeight: 36, py: 0.5 }} />
       </Tabs>
 
       {tab === "FILTRES" && <PanelPovFilters />}
 
-      {tab === "CADRAGE" && (
+      {tab === "IMAGE" && (
       <Box
         sx={{
           flex: 1,
@@ -203,21 +205,37 @@ export default function PanelPovProperties() {
           onBlur={handleDescriptionBlur}
         />
 
-        {/* Frame + legend settings (shared imageMode state): tweak them, then
-            "Mettre à jour la vue" persists them into this POV. */}
-        <WhiteSectionGeneric>
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-            <SectionCaptureFormat />
-            <SectionCaptureLegend />
-          </Box>
-        </WhiteSectionGeneric>
-
-        {/* Download */}
+        {/* Download (resolution options live in the Cadrage tab) */}
         <WhiteSectionGeneric>
           <SectionCaptureExport
             onExport={handleExport}
             defaultFilename="point_de_vue"
+            showOptions={false}
           />
+        </WhiteSectionGeneric>
+      </Box>
+      )}
+
+      {tab === "CADRAGE" && (
+      <Box
+        sx={{
+          flex: 1,
+          minHeight: 0,
+          overflowY: "auto",
+          p: 1,
+          display: "flex",
+          flexDirection: "column",
+          gap: 1.5,
+        }}
+      >
+        {/* Frame + legend + output options (shared imageMode state): tweak
+            them, then "Mettre à jour la vue" persists them into this POV. */}
+        <WhiteSectionGeneric>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+            <SectionCaptureFormat />
+            <SectionCaptureLegend />
+            <SectionCaptureOptions />
+          </Box>
         </WhiteSectionGeneric>
       </Box>
       )}
