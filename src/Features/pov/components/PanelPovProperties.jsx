@@ -45,10 +45,13 @@ export default function PanelPovProperties() {
   const povs = usePovs() ?? [];
   const pov = povs.find((p) => p.id === selectedItem?.id) ?? null;
 
-  // The saved AI-transformed image wins over the capture thumbnail, for the
-  // preview and for the download.
-  const displayedFileName =
-    pov?.transformedImage?.fileName ?? pov?.image?.fileName;
+  // With "Amélioration IA" on, the saved transformed image wins over the
+  // capture thumbnail — for the preview and for the download. Toggling the
+  // switch flips the preview between the two.
+  const aiEnhanceEnabled = useSelector((s) => s.pov.aiEnhanceEnabled);
+  const transformedFileName =
+    aiEnhanceEnabled ? pov?.transformedImage?.fileName : null;
+  const displayedFileName = transformedFileName ?? pov?.image?.fileName;
   const imageUrl = usePovImageUrl(displayedFileName);
   const updatePov = useUpdatePov();
 
@@ -86,13 +89,13 @@ export default function PanelPovProperties() {
     updatePov(pov.id, { description });
   }
 
-  // Export: the saved AI-transformed image when it exists, else a fresh
-  // capture of the currently displayed framed view (the click on the POV
-  // item restored it), at full resolution.
+  // Export: the saved AI-transformed image when the toggle shows it, else a
+  // fresh capture of the currently displayed framed view (the click on the
+  // POV item restored it), at full resolution.
   async function handleExport({ mode, fileName, pixelRatio, whiteBackground }) {
-    if (pov?.transformedImage?.fileName) {
+    if (transformedFileName) {
       const exported = await exportPovImageService({
-        storedFileName: pov.transformedImage.fileName,
+        storedFileName: transformedFileName,
         mode,
         fileName,
         aspectRatio: pov.aspectRatio ?? aspectRatio,
