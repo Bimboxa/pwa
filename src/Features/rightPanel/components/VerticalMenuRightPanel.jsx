@@ -132,11 +132,23 @@ export default function VerticalMenuRightPanel() {
   const toolsKeys = appConfig?.features?.tools ?? [];
   let menuItems = toolsKeys.map((key) => ({ ...toolsMap[key], key, enabled: Boolean(toolsMap[key]) })).filter(t => t.enabled);
 
-  // filter
+  // filter — the tools list is MODULE-driven (selectedViewerKey is the
+  // module key): it never changes with the editor (2D/3D) displayed inside
+  // the module.
   menuItems = menuItems.filter(t => !t.disabled);
   menuItems = menuItems.filter(
     (t) => !t.viewers || t.viewers.includes(selectedViewerKey)
   );
+
+  // Every module shows at least the "Propriétés" tool, whichever editor is
+  // displayed — guaranteed here so no appConfig or filter can drop it.
+  if (!menuItems.some((t) => t.key === "SELECTION_PROPERTIES")) {
+    menuItems.unshift({
+      ...toolsMap.SELECTION_PROPERTIES,
+      key: "SELECTION_PROPERTIES",
+      enabled: true,
+    });
+  }
 
   const activeContextualTools = contextualTools.filter((t) =>
     t.viewers.includes(selectedViewerKey)
