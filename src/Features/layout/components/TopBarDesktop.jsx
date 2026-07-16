@@ -48,6 +48,7 @@ import ToolbarDrawingTools from "Features/mapEditor/components/ToolbarDrawingToo
 import BlockVersionInTopBar from "Features/versions/components/BlockVersionInTopBar";
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 import BaseMapSelectorInMapEditorV2 from "Features/baseMaps/components/BaseMapSelectorInMapEditorV2";
+import TopBaseMapChipsThreed from "Features/threedEditor/components/TopBaseMapChipsThreed";
 import BaseMapVersionSelectorInTopBar from "Features/baseMaps/components/BaseMapVersionSelectorInTopBar";
 import FieldBaseMapZInTopBar from "Features/baseMaps/components/FieldBaseMapZInTopBar";
 
@@ -91,6 +92,13 @@ export default function TopBarDesktop() {
   const returnLabel = returnLabelByViewer[returnViewer];
 
   const isPortfolioViewer = viewerKey === "PORTFOLIO";
+
+  // POV viewer: the top bar hosts the baseMap controls (2D selector / 3D
+  // chips) — nothing may float over the capture frame mask in the viewer.
+  const povViewerMode = useSelector((s) => s.pov.viewerMode);
+  const isPovViewer = viewerKey === "POINT_OF_VIEW";
+  const isPovMap = isPovViewer && povViewerMode !== "THREED";
+  const isPovThreed = isPovViewer && povViewerMode === "THREED";
 
   // handlers
 
@@ -233,13 +241,24 @@ export default function TopBarDesktop() {
       </Box>
 
       {/* Center section - baseMap selectors or portfolio return */}
-      {(viewerKey === "MAP" || viewerKey === "BASE_MAPS") && (
+      {(viewerKey === "MAP" || viewerKey === "BASE_MAPS" || isPovMap) && (
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
           <BaseMapSelectorInMapEditorV2
             onEdit={viewerKey === "MAP" ? handleGoToBaseMapsDetail : undefined}
           />
           <BaseMapVersionSelectorInTopBar />
           <FieldBaseMapZInTopBar />
+        </Box>
+      )}
+      {isPovThreed && (
+        <Box
+          sx={{
+            display: { xs: "none", md: "flex" },
+            alignItems: "center",
+            minWidth: 0,
+          }}
+        >
+          <TopBaseMapChipsThreed inTopBar />
         </Box>
       )}
       {isThreedFamilyViewerKey(viewerKey) && (
