@@ -14,7 +14,7 @@ import ViewerAdmin from "Features/adminEditor/components/ViewerAdmin";
 import MainListingViewer from "Features/listingViewer/components/MainListingViewer";
 import LeftDrawerPanel from "Features/leftPanel/components/LeftDrawerPanel";
 import PanelMeshesViewer from "Features/threedMesh/components/PanelMeshesViewer";
-import PanelPovList from "Features/pov/components/PanelPovList";
+import PanelPovDrawer from "Features/pov/components/PanelPovDrawer";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 
 import { Box } from "@mui/material";
@@ -58,7 +58,7 @@ export default function SectionViewer() {
           the displayed 2D/3D editor, drawer mode slides over it on hover). */}
       {isPov && (
         <LeftDrawerPanel width={300} viewerKey="POINT_OF_VIEW">
-          <PanelPovList />
+          <PanelPovDrawer />
         </LeftDrawerPanel>
       )}
 

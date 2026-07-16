@@ -38,7 +38,6 @@ export default function PanelPovList() {
 
   // strings
 
-  const title = "Points de vue";
   const saveS = "Enregistrer la vue";
   const emptyS = "Aucun point de vue. Cadrez la vue puis enregistrez-la.";
 
@@ -114,23 +113,18 @@ export default function PanelPovList() {
       sx={{
         display: "flex",
         flexDirection: "column",
-        height: 1,
+        flex: 1,
         minHeight: 0,
         bgcolor: "background.default",
       }}
     >
-      <Box sx={{ p: 1, pl: 2 }}>
-        <Typography variant="subtitle2" sx={{ fontWeight: "bold" }}>
-          {title}
-        </Typography>
-      </Box>
-
       <Box
         sx={{
           flex: 1,
           minHeight: 0,
           overflowY: "auto",
           px: 1,
+          pt: 1,
           display: "flex",
           flexDirection: "column",
           gap: 1,
