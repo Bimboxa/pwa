@@ -1,5 +1,7 @@
 import { useState } from "react";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
+
+import { setImageModeHighRes } from "../mapEditorSlice";
 
 import {
   Box,
@@ -17,6 +19,7 @@ import {
   Download,
 } from "@mui/icons-material";
 
+import FieldCheck from "Features/form/components/FieldCheck";
 import SectionCaptureOptions from "./SectionCaptureOptions";
 
 // Export modes (output format selector). Label + extension are driven by the
@@ -41,17 +44,20 @@ const SEG_SX = {
   fontSize: 11,
 };
 
-// Export controls (filename + pdf/png/clipboard + primary button). The
-// resolution / white-background options (shared imageMode state, read here
-// for the capture args) are shown inline unless the host panel displays
-// SectionCaptureOptions elsewhere (showOptions={false} — POV Cadrage tab).
-// The actual capture is delegated to `onExport`. Used by PanelCaptureMode
+// Export controls (filename + pdf/png/clipboard + "Haute définition" +
+// primary button). Resolution is an export-time option, so its switch always
+// lives here; the framing options (SectionCaptureOptions — white background)
+// are shown inline unless the host panel displays them elsewhere
+// (showOptions={false} — the POV panel puts them in its Cadrage tab). The
+// actual capture is delegated to `onExport`. Used by PanelCaptureMode
 // ("Export rapide") and by the POV properties panel.
 export default function SectionCaptureExport({
   onExport,
   defaultFilename = "capture",
   showOptions = true,
 }) {
+  const dispatch = useDispatch();
+
   // data
 
   const highRes = useSelector((s) => s.mapEditor.imageModeHighRes);
@@ -76,6 +82,10 @@ export default function SectionCaptureExport({
   function handleModeChange(_, value) {
     if (!value) return;
     setMode(value);
+  }
+
+  function handleToggleHighRes(checked) {
+    dispatch(setImageModeHighRes(Boolean(checked)));
   }
 
   async function handlePrimaryExport() {
@@ -149,7 +159,15 @@ export default function SectionCaptureExport({
         </ToggleButton>
       </ToggleButtonGroup>
 
-      {/* Options */}
+      {/* Résolution (export-time option) */}
+      <FieldCheck
+        value={highRes}
+        onChange={handleToggleHighRes}
+        label="Haute définition"
+        options={{ type: "switch", showAsInline: true }}
+      />
+
+      {/* Options de cadrage (fond blanc) */}
       {showOptions && <SectionCaptureOptions />}
 
       {/* Action principale */}
