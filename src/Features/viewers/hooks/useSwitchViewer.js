@@ -1,9 +1,10 @@
 import { useDispatch, useSelector } from "react-redux";
 
-import { setSelectedViewerKey } from "../viewersSlice";
+import { setSelectedViewerKey, setModuleEditorKey } from "../viewersSlice";
 import { setPovViewerMode } from "Features/pov/povSlice";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
+import useViewers from "./useViewers";
 
 import {
   switchMapToThreed,
@@ -12,17 +13,21 @@ import {
 import { isThreedFamilyViewerKey } from "../utils/threedViewerKeys";
 import { selectEffectiveViewerKey } from "../utils/effectiveViewerKey";
 
-// Central entry point for viewer changes. Intercepts the MAP <-> 3D-family
-// (THREED / MESHES) transitions to keep the baseMap image at the same
-// on-screen place/size (camera sync + 3D top-down animation); any other
-// transition — including THREED <-> MESHES, which share the same 3D editor —
-// is a plain `setSelectedViewerKey` dispatch.
+// Central entry point for MODULE changes (the left-band selection). A module
+// switch never changes the displayed editor family when the target module
+// supports it (multi-editor modules inherit the current editor); when the
+// displayed editor does change family, the MAP <-> 3D camera sync keeps the
+// baseMap image at the same on-screen place/size. Editor toggles WITHIN a
+// module go through useToggleModuleEditor instead.
 export default function useSwitchViewer() {
   const dispatch = useDispatch();
 
+  const viewers = useViewers();
   const selectedViewerKey = useSelector((s) => s.viewers.selectedViewerKey);
-  // POV resolves to the editor it displays (MAP or THREED).
+  // The editor actually displayed (multi-editor modules resolve to it).
   const effectiveFromKey = useSelector(selectEffectiveViewerKey);
+  const editorKeyByModule = useSelector((s) => s.viewers.editorKeyByModule);
+  const povViewerMode = useSelector((s) => s.pov.viewerMode);
   const disable3D = useSelector((s) => s.appConfig.disable3D);
   const basePose = useSelector((s) => s.mapEditor.baseMapPoseInBg);
   const baseMap = useMainBaseMap();
@@ -30,35 +35,53 @@ export default function useSwitchViewer() {
   return function switchViewer(viewerKey) {
     if (viewerKey === selectedViewerKey) return;
 
-    // Entering POV: inherit the 2D/3D mode from the current viewer (MAP -> 2D,
-    // 3D family -> 3D, anything else keeps the previous mode). The displayed
-    // editor stays the same, so no camera sync is needed.
-    if (viewerKey === "POINT_OF_VIEW") {
-      let inherited = null;
-      if (selectedViewerKey === "MAP") inherited = "MAP";
-      if (isThreedFamilyViewerKey(selectedViewerKey)) inherited = "THREED";
-      if (disable3D) inherited = "MAP";
-      if (inherited) dispatch(setPovViewerMode(inherited));
-      dispatch(setSelectedViewerKey("POINT_OF_VIEW"));
-      return;
-    }
+    const targetModule = viewers.find((v) => v.key === viewerKey);
+    const editors = targetModule?.editors ?? [viewerKey];
 
-    // Leaving POV: the camera sync must run against the editor POV was
-    // actually displaying (effectiveFromKey), not the "POINT_OF_VIEW" key.
+    // Resolve the editor the target module will display.
+    let targetEditorKey;
+    if (editors.length === 1) {
+      targetEditorKey = editors[0];
+    } else if (
+      isThreedFamilyViewerKey(effectiveFromKey) &&
+      editors.includes("THREED")
+    ) {
+      // Inherit the currently displayed editor family (no camera jump).
+      targetEditorKey = "THREED";
+    } else if (effectiveFromKey === "MAP" && editors.includes("MAP")) {
+      targetEditorKey = "MAP";
+    } else {
+      // From an unrelated editor (BASE_MAPS, PORTFOLIO...): keep the target
+      // module's memory. POV keeps its own editor mode until it migrates to
+      // editorKeyByModule (see issue #296).
+      targetEditorKey =
+        viewerKey === "POINT_OF_VIEW"
+          ? povViewerMode
+          : (editorKeyByModule?.[viewerKey] ?? editors[0]);
+    }
+    if (disable3D && targetEditorKey === "THREED" && editors.includes("MAP"))
+      targetEditorKey = "MAP";
+
+    const commit = (d) => {
+      if (editors.length > 1) {
+        if (viewerKey === "POINT_OF_VIEW") {
+          d(setPovViewerMode(targetEditorKey === "THREED" ? "THREED" : "MAP"));
+        } else {
+          d(setModuleEditorKey({ moduleKey: viewerKey, editorKey: targetEditorKey }));
+        }
+      }
+      d(setSelectedViewerKey(viewerKey));
+    };
+
     const fromThreed = isThreedFamilyViewerKey(effectiveFromKey);
-    const toThreed = isThreedFamilyViewerKey(viewerKey);
+    const toThreed = isThreedFamilyViewerKey(targetEditorKey);
 
     if (effectiveFromKey === "MAP" && toThreed) {
-      switchMapToThreed({
-        dispatch,
-        baseMap,
-        basePose,
-        targetViewerKey: viewerKey,
-      });
-    } else if (fromThreed && viewerKey === "MAP") {
-      switchThreedToMap({ dispatch, baseMap, basePose });
+      switchMapToThreed({ dispatch, baseMap, basePose, commit });
+    } else if (fromThreed && targetEditorKey === "MAP") {
+      switchThreedToMap({ dispatch, baseMap, basePose, commit });
     } else {
-      dispatch(setSelectedViewerKey(viewerKey));
+      commit(dispatch);
     }
   };
 }

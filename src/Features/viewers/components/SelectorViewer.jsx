@@ -1,8 +1,5 @@
-import { useDispatch } from "react-redux";
-
-import { setSelectedViewerKey } from "../viewersSlice";
-
 import useViewers from "../hooks/useViewers";
+import useSwitchViewer from "../hooks/useSwitchViewer";
 
 import { Box, Tooltip, Typography } from "@mui/material";
 import ButtonMenu from "Features/layout/components/ButtonMenu";
@@ -10,7 +7,7 @@ import ButtonMenu from "Features/layout/components/ButtonMenu";
 import useSelectedViewer from "../hooks/useSelectedViewer";
 
 export default function SelectorViewer() {
-  const dispatch = useDispatch();
+  const switchViewer = useSwitchViewer();
 
   // string
 
@@ -35,7 +32,8 @@ export default function SelectorViewer() {
   // handler
 
   function handleClick(viewer) {
-    dispatch(setSelectedViewerKey(viewer.key));
+    // Route through switchViewer so the 2D <-> 3D camera sync runs.
+    switchViewer(viewer.key);
   }
 
   // return <BlockViewer viewer={viewer} />;
