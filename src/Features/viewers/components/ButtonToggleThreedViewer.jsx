@@ -1,36 +1,40 @@
 import { useSelector } from "react-redux";
 
-import useSwitchViewer from "../hooks/useSwitchViewer";
-import useToggleThreedViewerHotkey from "../hooks/useToggleThreedViewerHotkey";
+import useSelectedViewer from "../hooks/useSelectedViewer";
+import useToggleModuleEditor from "../hooks/useToggleModuleEditor";
 import useTogglePovViewerMode from "Features/pov/hooks/useTogglePovViewerMode";
+import { selectEffectiveViewerKey } from "../utils/effectiveViewerKey";
 
 import { Button, Typography } from "@mui/material";
 
 import ShortcutBadge from "Features/smartDetect/components/ShortcutBadge";
 
+// Toggles the 2D/3D editor displayed inside the current module — the
+// left-band (module) selection does not move. Rendered only in multi-editor
+// modules (Dessin, POV); single-editor modules (THREED recap, MESHES, ...)
+// have no toggle.
 export default function ButtonToggleThreedViewer() {
-  const switchViewer = useSwitchViewer();
+  const toggleModuleEditor = useToggleModuleEditor();
   const togglePovViewerMode = useTogglePovViewerMode();
 
-  useToggleThreedViewerHotkey();
-
+  const selectedViewer = useSelectedViewer();
   const selectedViewerKey = useSelector((s) => s.viewers.selectedViewerKey);
-  const povViewerMode = useSelector((s) => s.pov.viewerMode);
+  const effectiveViewerKey = useSelector(selectEffectiveViewerKey);
+  const disable3D = useSelector((s) => s.appConfig.disable3D);
 
-  // Inside the POV viewer the button toggles the displayed editor (2D/3D)
-  // without leaving the viewer.
-  const isPovViewer = selectedViewerKey === "POINT_OF_VIEW";
-  const isThreed = isPovViewer
-    ? povViewerMode === "THREED"
-    : selectedViewerKey === "THREED";
+  const hasEditorToggle = selectedViewer?.editors?.length > 1;
+  if (!hasEditorToggle || disable3D) return null;
 
+  const isThreed = effectiveViewerKey === "THREED";
   const buttonLabel = isThreed ? "2D" : "3D";
 
   function handleClick() {
-    if (isPovViewer) {
+    if (selectedViewerKey === "POINT_OF_VIEW") {
+      // POV keeps its own editor mode until it migrates to
+      // editorKeyByModule (see issue #296).
       togglePovViewerMode();
     } else {
-      switchViewer(isThreed ? "MAP" : "THREED");
+      toggleModuleEditor();
     }
   }
 
