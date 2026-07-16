@@ -4,7 +4,6 @@ import {
   Map,
   MenuBook,
   PictureAsPdf as PdfIcon,
-  Image,
   TableChart as Table,
   Print,
   AdminPanelSettings,
@@ -34,6 +33,7 @@ export default function useViewers() {
       shortLabel: "Fonds de plan",
       icon: <Layers />,
       bgcolor: theme.palette.viewers.map,
+      hotkey: "F",
     },
     {
       key: "MAP",
@@ -41,6 +41,7 @@ export default function useViewers() {
       shortLabel: "Dessin",
       icon: <Draw />,
       bgcolor: theme.palette.viewers.map,
+      hotkey: "D",
     },
     {
       key: "POINT_OF_VIEW",
@@ -50,6 +51,7 @@ export default function useViewers() {
       bgcolor: theme.palette.viewers.pov,
       // The POV viewer relies on the V3 map editor capture host.
       disabled: legacy,
+      hotkey: "V",
     },
     {
       key: "PORTFOLIO",
@@ -57,6 +59,7 @@ export default function useViewers() {
       shortLabel: "Carnet de plans",
       icon: <MenuBook />,
       bgcolor: theme.palette.viewers.portfolio,
+      hotkey: "C",
     },
     {
       key: "THREED",
@@ -64,6 +67,11 @@ export default function useViewers() {
       shortLabel: "3D",
       bgcolor: theme.palette.viewers.threed,
       icon: <ViewInAr />,
+      // "T" is bound by useToggleThreedViewerHotkey (2D <-> 3D toggle + POV
+      // mode flip) — displayed here as a badge only, never bound by
+      // useViewerSwitchHotkeys.
+      hotkey: "T",
+      hotkeyExternal: true,
     },
     {
       key: "MESHES",
@@ -71,6 +79,10 @@ export default function useViewers() {
       shortLabel: "Maillage",
       icon: <GridOn />,
       bgcolor: theme.palette.viewers.meshes,
+      // Not "M", which keeps its Modification meaning (D/M/S trio) in the
+      // 2D editors. "I" only clashes with the paste-mode letters, and the
+      // viewer hotkeys are inert while pasting.
+      hotkey: "I",
     },
     {
       key: "LISTING",

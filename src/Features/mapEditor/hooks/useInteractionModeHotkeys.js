@@ -46,6 +46,13 @@ export default function useInteractionModeHotkeys() {
 
       const s = store.getState();
 
+      // "D" doubles as the global "go to Dessin viewer" shortcut
+      // (useViewerSwitchHotkeys). The DRAW-mode meaning only applies while the
+      // Dessin viewer is already displayed; anywhere else (BASE_MAPS, POV, …)
+      // the viewer switch owns the letter — yield so the two capture-phase
+      // listeners stay state-disjoint regardless of registration order.
+      if (next === "DRAW" && s.viewers.selectedViewerKey !== "MAP") return;
+
       // Don't fight modes that own these letters (paste / subtract).
       if (s.mapEditor.pasteClipboard || s.mapEditor.subtractSourceAnnotationId)
         return;

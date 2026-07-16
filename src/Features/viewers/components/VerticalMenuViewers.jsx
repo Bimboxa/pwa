@@ -75,6 +75,23 @@ export default function VerticalMenuViewers() {
         >
           {viewer.shortLabel}
         </Typography>
+        {viewer.hotkey && (
+          <Typography
+            variant="caption"
+            sx={{
+              color: "common.white",
+              fontSize: "0.6rem",
+              lineHeight: 1,
+              px: 0.5,
+              py: 0.25,
+              border: "1px solid rgba(255,255,255,0.4)",
+              borderRadius: 0.5,
+              opacity: 0.8,
+            }}
+          >
+            {viewer.hotkey}
+          </Typography>
+        )}
       </ButtonBase>
     );
   });

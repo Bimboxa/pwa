@@ -51,6 +51,13 @@ export default function useToolGroupHotkey(hotkey, templateId) {
       if (s.mapEditor.pasteClipboard || s.mapEditor.subtractSourceAnnotationId)
         return;
 
+      // Only start a draw while the Dessin viewer is displayed. The editor is
+      // kept mounted under every viewer, so without this guard a keypress in
+      // another viewer would start an invisible draw — and "c" doubles as the
+      // global "go to Carnet de plans" shortcut (useViewerSwitchHotkeys),
+      // which owns the letter outside the MAP viewer.
+      if (s.viewers.selectedViewerKey !== "MAP") return;
+
       const tools = getDrawingToolsByType(templateId);
       if (tools.length === 0) return;
       const selectedKey = s.mapEditor.selectedToolKeyByTemplateId?.[templateId];

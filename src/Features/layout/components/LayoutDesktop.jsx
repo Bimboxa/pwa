@@ -16,8 +16,15 @@ import LeftPanel from "Features/leftPanel/components/LeftPanel";
 import RightPanelContainer from "Features/rightPanel/components/RightPanelContainer";
 import VerticalMenuViewers from "Features/viewers/components/VerticalMenuViewers";
 
+import useViewerSwitchHotkeys from "Features/viewers/hooks/useViewerSwitchHotkeys";
+
 export default function LayoutDesktop() {
   const dispatch = useDispatch();
+
+  // hotkeys — switch viewer (D = Dessin, F = Fonds de plan, V = Points de vue).
+  // Mounted here (not in VerticalMenuViewers) so they survive full screen,
+  // where the viewers band is unmounted.
+  useViewerSwitchHotkeys();
 
   // data
 
