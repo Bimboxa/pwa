@@ -1,15 +1,27 @@
-// POINT_OF_VIEW is a "meta" viewer: it displays the MAP or THREED editor
-// (per s.pov.viewerMode) with the capture framing forced on. Components that
-// gate their behavior on the selected viewer should use the effective key so
-// the underlying editor behaves as if it were the active viewer.
+// The left-band selection is a MODULE key; multi-editor modules (Dessin,
+// POINT_OF_VIEW) display one of several editors. Components that gate their
+// behavior on what is actually displayed (canvas, editor toolbars, tool
+// hotkeys, camera sync) must use the effective key; module-driven UI (right
+// panel, top bar, side panels) keeps reading selectedViewerKey.
+
+export const selectSelectedModuleKey = (s) => s.viewers.selectedViewerKey;
 
 export const selectIsPovViewer = (s) =>
   s.viewers.selectedViewerKey === "POINT_OF_VIEW";
 
 export const selectEffectiveViewerKey = (s) => {
-  const key = s.viewers.selectedViewerKey;
-  if (key !== "POINT_OF_VIEW") return key;
-  return s.pov.viewerMode === "THREED" ? "THREED" : "MAP";
+  const moduleKey = s.viewers.selectedViewerKey;
+  // POINT_OF_VIEW keeps its own editor mode until it migrates to
+  // editorKeyByModule (see issue #296).
+  if (moduleKey === "POINT_OF_VIEW")
+    return s.pov.viewerMode === "THREED" && !s.appConfig.disable3D
+      ? "THREED"
+      : "MAP";
+  const editorKey = s.viewers.editorKeyByModule?.[moduleKey] ?? moduleKey;
+  // disable3D: a module whose active editor is 3D falls back to its 2D editor.
+  if (editorKey === "THREED" && moduleKey === "MAP" && s.appConfig.disable3D)
+    return "MAP";
+  return editorKey;
 };
 
 // The capture framing ("Export rapide" mask + rect + legend) is active when

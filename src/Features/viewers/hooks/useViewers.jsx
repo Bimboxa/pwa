@@ -17,6 +17,10 @@ import {
 
 import theme from "Styles/theme";
 
+// Each entry is a MODULE of the left band. `editors` lists the editors the
+// module can display (default: the module's own key). Multi-editor modules
+// (MAP, POINT_OF_VIEW) expose the 2D/3D toggle ("T" + topBar button), which
+// changes the displayed editor without moving the left-band selection.
 export default function useViewers() {
   const advancedLayout = useSelector((s) => s.appConfig.advancedLayout);
   const legacy = useSelector((s) => s.appConfig.enableMapEditorLegacy);
@@ -42,6 +46,7 @@ export default function useViewers() {
       icon: <Draw />,
       bgcolor: theme.palette.viewers.map,
       hotkey: "D",
+      editors: ["MAP", "THREED"],
     },
     {
       key: "POINT_OF_VIEW",
@@ -52,6 +57,7 @@ export default function useViewers() {
       // The POV viewer relies on the V3 map editor capture host.
       disabled: legacy,
       hotkey: "V",
+      editors: ["MAP", "THREED"],
     },
     {
       key: "PORTFOLIO",
@@ -67,11 +73,8 @@ export default function useViewers() {
       shortLabel: "3D",
       bgcolor: theme.palette.viewers.threed,
       icon: <ViewInAr />,
-      // "T" is bound by useToggleThreedViewerHotkey (2D <-> 3D toggle + POV
-      // mode flip) — displayed here as a badge only, never bound by
-      // useViewerSwitchHotkeys.
-      hotkey: "T",
-      hotkeyExternal: true,
+      // No hotkey: "T" toggles the editor inside multi-editor modules
+      // (useToggleThreedViewerHotkey), it no longer selects this module.
     },
     {
       key: "MESHES",
@@ -133,5 +136,7 @@ export default function useViewers() {
     },
   ];
 
-  return viewers.filter((v) => !v.disabled);
+  return viewers
+    .filter((v) => !v.disabled)
+    .map((v) => ({ ...v, editors: v.editors ?? [v.key] }));
 }
