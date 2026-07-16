@@ -62,16 +62,15 @@ export default function DialogPovAiEnhance({ state, onClose, onSave }) {
           </>
         )}
 
-        {/* Waiting: the captured view under a sweeping shine + progress */}
+        {/* Waiting: the captured view under a sweeping shine + progress.
+            Same footprint as the compare slider (height-driven, fit-content
+            width) so the dialog keeps the same size in both phases. */}
         {!enhancedUrl && (
           <Box
             sx={{
-              flex: 1,
-              minHeight: 0,
               position: "relative",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
+              height: 1,
+              width: "fit-content",
               overflow: "hidden",
               bgcolor: "grey.100",
             }}
@@ -82,9 +81,9 @@ export default function DialogPovAiEnhance({ state, onClose, onSave }) {
                 src={originalUrl}
                 alt=""
                 sx={{
-                  maxWidth: 1,
-                  maxHeight: 1,
-                  objectFit: "contain",
+                  height: 1,
+                  width: "auto",
+                  display: "block",
                   opacity: loading ? 0.6 : 1,
                   filter: loading ? "saturate(0.6)" : "none",
                   transition: "opacity 0.3s",
@@ -113,21 +112,31 @@ export default function DialogPovAiEnhance({ state, onClose, onSave }) {
                 <Box
                   sx={{
                     position: "absolute",
+                    inset: 0,
                     display: "flex",
-                    flexDirection: "column",
                     alignItems: "center",
-                    gap: 1.5,
-                    bgcolor: "rgba(255,255,255,0.85)",
-                    borderRadius: 2,
-                    px: 3,
-                    py: 2,
-                    boxShadow: 3,
+                    justifyContent: "center",
+                    pointerEvents: "none",
                   }}
                 >
-                  <CircularProgress size={28} color="secondary" />
-                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                    {waitingS}
-                  </Typography>
+                  <Box
+                    sx={{
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      gap: 1.5,
+                      bgcolor: "rgba(255,255,255,0.85)",
+                      borderRadius: 2,
+                      px: 3,
+                      py: 2,
+                      boxShadow: 3,
+                    }}
+                  >
+                    <CircularProgress size={28} color="secondary" />
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                      {waitingS}
+                    </Typography>
+                  </Box>
                 </Box>
               </>
             )}
@@ -136,16 +145,25 @@ export default function DialogPovAiEnhance({ state, onClose, onSave }) {
               <Box
                 sx={{
                   position: "absolute",
-                  bgcolor: "rgba(255,255,255,0.9)",
-                  borderRadius: 2,
-                  px: 3,
-                  py: 2,
-                  boxShadow: 3,
+                  inset: 0,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
                 }}
               >
-                <Typography variant="body2" color="error">
-                  {errorS}
-                </Typography>
+                <Box
+                  sx={{
+                    bgcolor: "rgba(255,255,255,0.9)",
+                    borderRadius: 2,
+                    px: 3,
+                    py: 2,
+                    boxShadow: 3,
+                  }}
+                >
+                  <Typography variant="body2" color="error">
+                    {errorS}
+                  </Typography>
+                </Box>
               </Box>
             )}
           </Box>
