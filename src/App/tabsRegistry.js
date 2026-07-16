@@ -4,6 +4,7 @@ import {
   getCurrentPathname,
 } from "Features/layout/utils/isEffectivelyCoupled";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
+import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 
 const CHANNEL_NAME = "tabs-registry";
 const HEARTBEAT_INTERVAL_MS = 2000;
@@ -83,8 +84,10 @@ function getLocalInSyncGroup() {
 function getLocalIs3dView() {
   if (!getStoreRef) return false;
   try {
+    // Effective editor, not module: "a 3D scene is displayed" also covers
+    // the Dessin module showing its 3D editor.
     return isThreedFamilyViewerKey(
-      getStoreRef().getState().viewers?.selectedViewerKey
+      selectEffectiveViewerKey(getStoreRef().getState())
     );
   } catch {
     return false;

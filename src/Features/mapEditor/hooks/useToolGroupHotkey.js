@@ -9,6 +9,7 @@ import { setNewAnnotation } from "Features/annotations/annotationsSlice";
 
 import { getDrawingToolsByType } from "../constants/drawingTools.jsx";
 import buildToolDraft from "../utils/buildToolDraft";
+import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 
 const isEditableTarget = (el) => {
   if (!el) return false;
@@ -51,12 +52,14 @@ export default function useToolGroupHotkey(hotkey, templateId) {
       if (s.mapEditor.pasteClipboard || s.mapEditor.subtractSourceAnnotationId)
         return;
 
-      // Only start a draw while the Dessin viewer is displayed. The editor is
-      // kept mounted under every viewer, so without this guard a keypress in
-      // another viewer would start an invisible draw — and "c" doubles as the
-      // global "go to Carnet de plans" shortcut (useViewerSwitchHotkeys),
-      // which owns the letter outside the MAP viewer.
+      // Only start a draw while the Dessin module displays the 2D editor.
+      // The editor is kept mounted under every module, so without this guard
+      // a keypress in another module (or in Dessin's 3D editor) would start
+      // an invisible draw — and "c" doubles as the global "go to Carnet de
+      // plans" shortcut (useViewerSwitchHotkeys), which owns the letter
+      // outside the MAP module.
       if (s.viewers.selectedViewerKey !== "MAP") return;
+      if (selectEffectiveViewerKey(s) !== "MAP") return;
 
       const tools = getDrawingToolsByType(templateId);
       if (tools.length === 0) return;

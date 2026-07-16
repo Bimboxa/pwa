@@ -28,8 +28,7 @@ export default function useToggleModuleEditor() {
         dispatch,
         baseMap,
         basePose,
-        commit: (d) =>
-          d(setModuleEditorKey({ moduleKey, editorKey: "MAP" })),
+        commit: (d) => d(setModuleEditorKey({ moduleKey, editorKey: "MAP" })),
       });
     } else {
       if (disable3D) return;

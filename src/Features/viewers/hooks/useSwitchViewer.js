@@ -67,7 +67,12 @@ export default function useSwitchViewer() {
         if (viewerKey === "POINT_OF_VIEW") {
           d(setPovViewerMode(targetEditorKey === "THREED" ? "THREED" : "MAP"));
         } else {
-          d(setModuleEditorKey({ moduleKey: viewerKey, editorKey: targetEditorKey }));
+          d(
+            setModuleEditorKey({
+              moduleKey: viewerKey,
+              editorKey: targetEditorKey,
+            })
+          );
         }
       }
       d(setSelectedViewerKey(viewerKey));

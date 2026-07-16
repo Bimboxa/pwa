@@ -1,9 +1,6 @@
 import { useDispatch, useSelector } from "react-redux";
 
-import {
-  setSelectedViewerKey,
-  setViewerReturnContext,
-} from "Features/viewers/viewersSlice";
+import { setViewerReturnContext } from "Features/viewers/viewersSlice";
 import {
   setIsCalibrating,
   setShowCalibration,
@@ -21,6 +18,8 @@ import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 import { setDisplayedPortfolioId } from "Features/portfolios/portfoliosSlice";
 import { setListingViewerSelectedListingId } from "Features/listingViewer/listingViewerSlice";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
+import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
+import useSwitchViewer from "Features/viewers/hooks/useSwitchViewer";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useMainBaseMapListing from "Features/baseMaps/hooks/useMainBaseMapListing";
@@ -54,6 +53,7 @@ import FieldBaseMapZInTopBar from "Features/baseMaps/components/FieldBaseMapZInT
 
 export default function TopBarDesktop() {
   const dispatch = useDispatch();
+  const switchViewer = useSwitchViewer();
 
   // data
 
@@ -93,17 +93,20 @@ export default function TopBarDesktop() {
 
   const isPortfolioViewer = viewerKey === "PORTFOLIO";
 
-  // POV viewer: the top bar hosts the baseMap controls (2D selector / 3D
-  // chips) — nothing may float over the capture frame mask in the viewer.
-  const povViewerMode = useSelector((s) => s.pov.viewerMode);
+  // The top bar is module-driven: the Dessin module keeps its baseMap
+  // selector (the baseMap drawn annotations get linked to) whichever editor
+  // (2D/3D) it displays; the 3D recap and Maillage modules have none (pure
+  // viewers / per-scope mailles). POV is the exception: its baseMap controls
+  // follow the displayed editor (2D selector vs 3D chips).
+  const effectiveViewerKey = useSelector(selectEffectiveViewerKey);
   const isPovViewer = viewerKey === "POINT_OF_VIEW";
-  const isPovMap = isPovViewer && povViewerMode !== "THREED";
-  const isPovThreed = isPovViewer && povViewerMode === "THREED";
+  const isPovMap = isPovViewer && effectiveViewerKey === "MAP";
+  const isPovThreed = isPovViewer && effectiveViewerKey === "THREED";
 
   // handlers
 
   function handleReturnToDrawing() {
-    dispatch(setSelectedViewerKey("MAP"));
+    switchViewer("MAP");
     dispatch(setViewerReturnContext(null));
   }
 
@@ -181,7 +184,7 @@ export default function TopBarDesktop() {
       })
     );
     dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
-    dispatch(setSelectedViewerKey("BASE_MAPS"));
+    switchViewer("BASE_MAPS");
     dispatch(setViewerReturnContext({ fromViewer: "MAP" }));
   }
 
@@ -194,7 +197,7 @@ export default function TopBarDesktop() {
         setListingViewerSelectedListingId(viewerReturnContext.listingId)
       );
     }
-    dispatch(setSelectedViewerKey(returnViewer));
+    switchViewer(returnViewer);
     dispatch(setViewerReturnContext(null));
   }
 
@@ -259,17 +262,6 @@ export default function TopBarDesktop() {
           }}
         >
           <TopBaseMapChipsThreed inTopBar />
-        </Box>
-      )}
-      {isThreedFamilyViewerKey(viewerKey) && (
-        <Box
-          sx={{
-            display: { xs: "none", md: "flex" },
-            alignItems: "center",
-            gap: 1,
-          }}
-        >
-          <BaseMapSelectorInMapEditorV2 />
         </Box>
       )}
       {isPortfolioViewer && (
