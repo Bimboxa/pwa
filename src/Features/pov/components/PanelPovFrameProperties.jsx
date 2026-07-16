@@ -1,5 +1,6 @@
-import { Box, Divider, Typography } from "@mui/material";
+import { Box, Typography } from "@mui/material";
 
+import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 import SectionCaptureFormat from "Features/mapEditor/components/SectionCaptureFormat";
 import SectionCaptureLegend from "Features/mapEditor/components/SectionCaptureLegend";
 
@@ -12,9 +13,12 @@ export default function PanelPovFrameProperties() {
       <Typography variant="subtitle2" sx={{ fontWeight: "bold", pl: 1 }}>
         Cadre
       </Typography>
-      <Divider />
-      <SectionCaptureFormat />
-      <SectionCaptureLegend />
+      <WhiteSectionGeneric>
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+          <SectionCaptureFormat />
+          <SectionCaptureLegend />
+        </Box>
+      </WhiteSectionGeneric>
     </Box>
   );
 }

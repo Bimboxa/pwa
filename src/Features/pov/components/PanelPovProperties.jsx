@@ -11,6 +11,8 @@ import { ArrowBack as Back, PhotoCamera } from "@mui/icons-material";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
+import SectionCaptureFormat from "Features/mapEditor/components/SectionCaptureFormat";
+import SectionCaptureLegend from "Features/mapEditor/components/SectionCaptureLegend";
 import SectionCaptureExport from "Features/mapEditor/components/SectionCaptureExport";
 import IconButtonMoreActionsPov from "./IconButtonMoreActionsPov";
 
@@ -181,6 +183,15 @@ export default function PanelPovProperties() {
           onChange={(e) => setDescription(e.target.value)}
           onBlur={handleDescriptionBlur}
         />
+
+        {/* Frame + legend settings (shared imageMode state): tweak them, then
+            "Mettre à jour la vue" persists them into this POV. */}
+        <WhiteSectionGeneric>
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+            <SectionCaptureFormat />
+            <SectionCaptureLegend />
+          </Box>
+        </WhiteSectionGeneric>
 
         {/* Download */}
         <WhiteSectionGeneric>
