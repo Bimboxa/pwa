@@ -9,7 +9,7 @@
 // resize-width target. The dim mask and rect border are pointer-events:
 // none so the user can still pan/zoom the map underneath.
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import { setImageModeLegendOverlay } from "../mapEditorSlice";
@@ -260,43 +260,15 @@ export default function ImageModeOverlay({
       {/* TITLE BANNER: the POV description on a secondary-color rounded chip
           hugging the border's top-left corner — same origin and radius so the
           two shapes fit together. */}
-      {title?.visible && titleText && (() => {
-        const fontSize = title.fontSize || 12;
-        const padX = fontSize;
-        const bannerH = Math.max(fontSize * 2.2, 2 * CAPTURE_BORDER_RADIUS);
-        const bannerW = Math.min(
-          rect.width * 0.7,
-          titleText.length * fontSize * 0.62 + 2 * padX
-        );
-        const M = CAPTURE_BORDER_INSET;
-        return (
-          <g
-            data-capture-keep
-            transform={`translate(${rect.left + M}, ${rect.top + M})`}
-            style={{ pointerEvents: "none" }}
-          >
-            <rect
-              x={0}
-              y={0}
-              width={bannerW}
-              height={bannerH}
-              rx={CAPTURE_BORDER_RADIUS}
-              fill={theme.palette.secondary.main}
-            />
-            <text
-              x={padX}
-              y={bannerH / 2}
-              dominantBaseline="central"
-              fontSize={fontSize}
-              fontFamily="sans-serif"
-              fontWeight={600}
-              fill="#fff"
-            >
-              {titleText}
-            </text>
-          </g>
-        );
-      })()}
+      {title?.visible && titleText && (
+        <TitleBanner
+          x={rect.left + CAPTURE_BORDER_INSET}
+          y={rect.top + CAPTURE_BORDER_INSET}
+          maxWidth={rect.width * 0.7}
+          text={titleText}
+          fontSize={title.fontSize || 12}
+        />
+      )}
 
       {/* WATERMARK (above the map, below the legend).
           The SVG asset is authored in mid-grey (stroke #888); opacity
@@ -418,4 +390,52 @@ export default function ImageModeOverlay({
 
 function clamp(v, min, max) {
   return Math.max(min, Math.min(max, v));
+}
+
+// The chip is sized from the ACTUAL rendered text width (measured with
+// getComputedTextLength once the <text> is in the DOM) so the horizontal
+// padding is identical on both sides — the length-based estimate is only the
+// first-paint fallback.
+function TitleBanner({ x, y, maxWidth, text, fontSize }) {
+  const textRef = useRef(null);
+  const [textWidth, setTextWidth] = useState(null);
+
+  useLayoutEffect(() => {
+    const w = textRef.current?.getComputedTextLength?.();
+    setTextWidth(w || null);
+  }, [text, fontSize]);
+
+  const padX = fontSize;
+  const bannerH = Math.max(fontSize * 2.2, 2 * CAPTURE_BORDER_RADIUS);
+  const measuredW = textWidth ?? text.length * fontSize * 0.62;
+  const bannerW = Math.min(maxWidth, measuredW + 2 * padX);
+
+  return (
+    <g
+      data-capture-keep
+      transform={`translate(${x}, ${y})`}
+      style={{ pointerEvents: "none" }}
+    >
+      <rect
+        x={0}
+        y={0}
+        width={bannerW}
+        height={bannerH}
+        rx={CAPTURE_BORDER_RADIUS}
+        fill={theme.palette.secondary.main}
+      />
+      <text
+        ref={textRef}
+        x={padX}
+        y={bannerH / 2}
+        dominantBaseline="central"
+        fontSize={fontSize}
+        fontFamily="sans-serif"
+        fontWeight={600}
+        fill="#fff"
+      >
+        {text}
+      </text>
+    </g>
+  );
 }
