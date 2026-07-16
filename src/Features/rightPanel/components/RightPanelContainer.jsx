@@ -34,8 +34,11 @@ import PanelPrint from "Features/print/components/PanelPrint";
 import PanelElevation from "Features/elevation/components/PanelElevation";
 import PanelImportAnnotations from "Features/importAnnotations/components/PanelImportAnnotations";
 import PanelLocalLlm from "Features/localLlm/components/PanelLocalLlm";
-import PanelThreedProperties from "Features/threedEditor/components/PanelThreedProperties";
+import PanelEditorSettings from "Features/settings/components/PanelEditorSettings";
 import PanelBaseMapTransforms from "Features/baseMapTransforms/components/PanelBaseMapTransforms";
+
+import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
+import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 
 export default function RightPanelContainer() {
   const dispatch = useDispatch();
@@ -60,11 +63,15 @@ export default function RightPanelContainer() {
     typeof window !== "undefined" ? window.innerWidth : 1200;
   const elevationDefaultWidth = Math.round(viewportWidth * 0.5);
 
-  // The 3D properties panel hosts the basemap rotation/translation rows, which
+  // The SETTINGS tool shows the 3D view settings while a 3D editor is
+  // displayed — that panel hosts the basemap rotation/translation rows, which
   // need more room than the default fixed width.
+  const effectiveViewerKey = useSelector(selectEffectiveViewerKey);
+  const isThreedSettings =
+    selectedKey === "SETTINGS" && isThreedFamilyViewerKey(effectiveViewerKey);
   const width = isElevation
     ? (elevationViewerWidth ?? elevationDefaultWidth)
-    : selectedKey === "THREED_PROPERTIES"
+    : isThreedSettings
       ? 380
       : fixedWidth;
 
@@ -176,7 +183,7 @@ export default function RightPanelContainer() {
           {selectedKey === "ELEVATION" && <PanelElevation />}
           {selectedKey === "IMPORT_ANNOTATIONS" && <PanelImportAnnotations />}
           {selectedKey === "LOCAL_LLM" && <PanelLocalLlm />}
-          {selectedKey === "THREED_PROPERTIES" && <PanelThreedProperties />}
+          {selectedKey === "SETTINGS" && <PanelEditorSettings />}
           {selectedKey === "BASE_MAP_TRANSFORMS" && <PanelBaseMapTransforms />}
         </Box>
       </Slide>

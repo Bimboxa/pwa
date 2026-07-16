@@ -26,7 +26,7 @@ import {
   Height,
   Upload,
   AutoAwesome,
-  ViewInAr,
+  Settings,
 } from "@mui/icons-material";
 
 import { Box, Paper } from "@mui/material";
@@ -105,11 +105,13 @@ export default function VerticalMenuRightPanel() {
   // right below "Propriétés" while their viewer is active.
 
   const contextualTools = [
+    // Settings of the editor actually displayed (3D view settings — the
+    // former "Vue 3D" tool — when a 3D editor is active, 2D editor settings
+    // otherwise). No `viewers` constraint: available in every module.
     {
-      key: "THREED_PROPERTIES",
-      label: "Vue 3D",
-      icon: <ViewInAr />,
-      viewers: ["THREED", "MESHES"],
+      key: "SETTINGS",
+      label: "Réglages",
+      icon: <Settings />,
     },
     {
       key: "BASE_MAP_TRANSFORMS",
@@ -150,8 +152,8 @@ export default function VerticalMenuRightPanel() {
     });
   }
 
-  const activeContextualTools = contextualTools.filter((t) =>
-    t.viewers.includes(selectedViewerKey)
+  const activeContextualTools = contextualTools.filter(
+    (t) => !t.viewers || t.viewers.includes(selectedViewerKey)
   );
   if (activeContextualTools.length > 0) {
     const propertiesIndex = menuItems.findIndex(

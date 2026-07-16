@@ -30,8 +30,8 @@ import exportSceneAsObjService from "Features/threedEditor/services/exportSceneA
 import PanelBaseMapPosition3D from "./PanelBaseMapPosition3D";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 
-// Right-panel content for the 3D viewer. Auto-opened when the user enters the
-// THREED viewer (see MainThreedEditor). Holds the viewer toggles plus the
+// 3D view settings, shown by the right-panel SETTINGS tool while a 3D editor
+// is displayed (see PanelEditorSettings). Holds the viewer toggles plus the
 // USDZ / OBJ export action. Screenshot capture + legend display moved to the
 // shared "Export rapide" flow (Export panel, same as the 2D viewer).
 export default function PanelThreedProperties() {

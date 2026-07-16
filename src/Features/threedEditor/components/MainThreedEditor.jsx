@@ -23,7 +23,6 @@ import {
   toggleItemSelection,
   setShowAnnotationsProperties,
 } from "Features/selection/selectionSlice";
-import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 import {
   selectEffectiveViewerKey,
@@ -149,23 +148,9 @@ export default function MainThreedEditor() {
   const selectedViewerKey = useSelector(selectEffectiveViewerKey);
   const isThreedViewer = isThreedFamilyViewerKey(selectedViewerKey);
 
-  // Entering the 3D viewer keeps whatever right panel was open in 2D (no
-  // auto-open of THREED_PROPERTIES). Leaving the 3D viewer closes the
-  // THREED_PROPERTIES panel if it is the active one, since its menu item only
-  // exists while the 3D viewer is active. The current panel key is read from
-  // the store directly to avoid re-rendering MainThreedEditor on every
-  // right-panel change (which would recreate the 3D annotation objects).
-  const prevIsThreedRef = useRef(false);
-  useEffect(() => {
-    if (!isThreedViewer && prevIsThreedRef.current) {
-      if (
-        store.getState().rightPanel.selectedMenuItemKey === "THREED_PROPERTIES"
-      ) {
-        dispatch(setSelectedMenuItemKey(null));
-      }
-    }
-    prevIsThreedRef.current = isThreedViewer;
-  }, [isThreedViewer, dispatch, store]);
+  // Entering/leaving the 3D viewer keeps whatever right panel is open: the
+  // SETTINGS panel switches its content (3D view settings <-> 2D editor
+  // settings) with the displayed editor, so nothing needs closing.
 
   const showGrid = useSelector((s) => s.threedEditor.showGrid);
   // Capture mode ("Export rapide", shared with the 2D viewer). Toggles are
