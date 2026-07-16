@@ -21,6 +21,7 @@ import {
   setDisableOpacity,
   setAntiAliasingShrink,
   setRenderMode,
+  setEnvironment3d,
 } from "Features/threedEditor/threedEditorSlice";
 import exportSceneAsUsdzService from "Features/threedEditor/services/exportSceneAsUsdzService";
 import exportSceneAsObjService from "Features/threedEditor/services/exportSceneAsObjService";
@@ -44,9 +45,7 @@ export default function PanelThreedProperties() {
     (s) => s.threedEditor.antiAliasingShrink
   );
   const renderMode = useSelector((s) => s.threedEditor.renderMode);
-  const clippingEnabled = useSelector(
-    (s) => s.threedEditor.clippingPlane.enabled
-  );
+  const environment3d = useSelector((s) => s.threedEditor.environment3d);
   // handlers
 
   async function handleDownload3D() {
@@ -140,9 +139,9 @@ export default function PanelThreedProperties() {
             color="text.secondary"
             sx={{ display: "block", mb: 1 }}
           >
-            Réaliste : matériaux + ombres en temps réel. Photoréaliste : rendu
-            progressif (l'image converge quand la caméra est immobile),
-            indisponible avec le plan de coupe.
+            Réaliste : matériaux physiques + éclairage d&apos;ambiance.
+            Photoréaliste : ciel HDR, ombres portées du soleil et matériaux
+            texturés.
           </Typography>
           <ToggleButtonGroup
             size="small"
@@ -159,14 +158,41 @@ export default function PanelThreedProperties() {
             <ToggleButton value="REALISTIC" sx={{ textTransform: "none" }}>
               Réaliste
             </ToggleButton>
-            <ToggleButton
-              value="PHOTOREAL"
-              sx={{ textTransform: "none" }}
-              disabled={clippingEnabled}
-            >
+            <ToggleButton value="PHOTOREAL" sx={{ textTransform: "none" }}>
               Photoréaliste
             </ToggleButton>
           </ToggleButtonGroup>
+          {renderMode === "PHOTOREAL" && (
+            <>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ display: "block", mt: 1.5, mb: 1 }}
+              >
+                Environnement : studio neutre, ciel extérieur ou éclairage
+                intérieur (ex. parking).
+              </Typography>
+              <ToggleButtonGroup
+                size="small"
+                exclusive
+                fullWidth
+                value={environment3d}
+                onChange={(_e, v) => {
+                  if (v) dispatch(setEnvironment3d(v));
+                }}
+              >
+                <ToggleButton value="STANDARD" sx={{ textTransform: "none" }}>
+                  Standard
+                </ToggleButton>
+                <ToggleButton value="EXTERIOR" sx={{ textTransform: "none" }}>
+                  Extérieur
+                </ToggleButton>
+                <ToggleButton value="INTERIOR" sx={{ textTransform: "none" }}>
+                  Intérieur
+                </ToggleButton>
+              </ToggleButtonGroup>
+            </>
+          )}
         </Card>
 
         <Card variant="outlined" sx={{ p: 1.5, mb: 1.5 }}>

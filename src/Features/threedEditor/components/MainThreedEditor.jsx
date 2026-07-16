@@ -160,13 +160,10 @@ export default function MainThreedEditor() {
   // only when this 3D editor is the one POV displays (isThreedViewer).
   const isPovViewer = useSelector(selectIsPovViewer);
   const captureFramingActive = imageModeEnabled || (isPovViewer && isThreedViewer);
-  // Render mode (Standard / Réaliste / Photoréaliste). Mirrored into a ref so
-  // the hover raycast can read it without re-creating its callback.
+  // Render mode (Standard / Réaliste / Photoréaliste).
   const renderMode = useSelector((s) => s.threedEditor.renderMode);
-  const renderModeRef = useRef(renderMode);
-  useEffect(() => {
-    renderModeRef.current = renderMode;
-  }, [renderMode]);
+  // PHOTOREAL environment (Standard / Extérieur / Intérieur).
+  const environment3d = useSelector((s) => s.threedEditor.environment3d);
   const clippingEnabled = useSelector(
     (s) => s.threedEditor.clippingPlane.enabled
   );
@@ -311,8 +308,8 @@ export default function MainThreedEditor() {
     editor.renderScene();
   }, [showGrid, rendererIsReady]);
 
-  // Sync renderMode → RenderModeManager (tone mapping / shadows / environment
-  // / path tracing). The annotation materials rebuild independently through
+  // Sync renderMode → RenderModeManager (tone mapping / shadows /
+  // environment). The annotation materials rebuild independently through
   // useAutoLoadAnnotationsInThreedEditor (realisticShading option).
   useEffect(() => {
     if (!rendererIsReady) return;
@@ -320,6 +317,17 @@ export default function MainThreedEditor() {
       renderMode
     );
   }, [renderMode, rendererIsReady]);
+
+  // Sync environment3d (Standard / Extérieur / Intérieur) → RenderModeManager.
+  // Ordered BEFORE the setMode sync would also work: setEnvironment only
+  // re-applies the renderer state when PHOTOREAL is active, and setMode reads
+  // the stored envKey when entering PHOTOREAL.
+  useEffect(() => {
+    if (!rendererIsReady) return;
+    threedEditorRef.current?.sceneManager?.renderModeManager?.setEnvironment(
+      environment3d
+    );
+  }, [environment3d, rendererIsReady]);
 
   // Sync clipping plane enabled → ClippingManager (create on first enable).
   useEffect(() => {
@@ -1114,16 +1122,13 @@ export default function MainThreedEditor() {
     if (lassoStartRef.current) return;
     // Hover highlight is always on — except in BASEMAP_POSITION (pointer
     // reserved for the transform gizmo), in meshing mode, which runs its
-    // own hover (stipple + cursor helper) in useMeshingPointerHandlers, in
-    // walk mode (pointer locked: client coords are frozen, the camera moves),
-    // and in PHOTOREAL: every material change invalidates the path tracer's
-    // BVH (a rebuild per mousemove), and the highlight is invisible in the
-    // traced image anyway.
+    // own hover (stipple + cursor helper) in useMeshingPointerHandlers, and
+    // in walk mode (pointer locked: client coords are frozen, the camera
+    // moves).
     if (
       editorModeRef.current === "BASEMAP_POSITION" ||
       meshingActiveRef.current ||
-      walkActiveRef.current ||
-      renderModeRef.current === "PHOTOREAL"
+      walkActiveRef.current
     ) {
       if (prevHoveredObjectRef.current) {
         const prevId = prevHoveredObjectRef.current.userData?.nodeId;

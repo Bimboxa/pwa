@@ -339,26 +339,12 @@ export default class WalkModeController {
     this._renderTick(moved);
   };
 
-  // Same render policy as ControlsManager._loop: in PHOTOREAL the path
-  // tracer renders every frame (idle frames accumulate samples) and resets
-  // on camera moves; otherwise render on-demand only.
+  // Same render policy as ControlsManager._loop: render on-demand only.
   _renderTick = (moved) => {
-    const renderModeManager = this.sceneManager.renderModeManager;
-    if (renderModeManager?.isPathTracing) {
-      if (moved) renderModeManager.onCameraChange();
-      renderModeManager.renderFrame();
-    } else if (moved) {
-      this.sceneManager.renderScene();
-    }
+    if (moved) this.sceneManager.renderScene();
   };
 
   _render = () => {
-    const renderModeManager = this.sceneManager.renderModeManager;
-    if (renderModeManager?.isPathTracing) {
-      renderModeManager.onCameraChange();
-      renderModeManager.renderFrame();
-    } else {
-      this.sceneManager.renderScene();
-    }
+    this.sceneManager.renderScene();
   };
 }

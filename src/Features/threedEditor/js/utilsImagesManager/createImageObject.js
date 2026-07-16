@@ -142,8 +142,10 @@ export async function attachBaseMapMesh(group, image) {
   //   transparent annotations behind it, even at low slider values.
   //   polygonOffset still keeps the basemap behind coplanar geometry
   //   (grid, flush annotations).
-  // - Path-tracer rendering ignores these flags (it traces rays from BVH),
-  //   so the photoreal export still composes the basemap correctly.
+  // - toneMapped=false: the realistic modes use ACES tone mapping, which
+  //   compresses pure white to a light gray. The basemap is an unlit
+  //   document, not part of the lit scene — bypass tone mapping so the
+  //   floorplan stays paper-white in every render mode.
   const opacity = typeof image.opacity === "number" ? image.opacity : 1;
   const material = new MeshBasicMaterial({
     map: texture,
@@ -152,6 +154,7 @@ export async function attachBaseMapMesh(group, image) {
     depthTest: true,
     transparent: true,
     opacity,
+    toneMapped: false,
     polygonOffset: true,
     polygonOffsetFactor: 1,
     polygonOffsetUnits: 4,
@@ -159,9 +162,9 @@ export async function attachBaseMapMesh(group, image) {
 
   const mesh = new Mesh(plane, material);
   mesh.renderOrder = -1;
-  // Tag so the photoreal swap can recognise basemap meshes and turn them
-  // into emissive PBR surfaces instead of standard ones — otherwise the
-  // env-map ambient shading turns a white floorplan into a dim gray.
+  // Tag consumed by opacity controls, raycast filters and the PHOTOREAL
+  // shadow catchers (RenderModeManager overlays a coplanar ShadowMaterial
+  // child on every mesh carrying this flag).
   mesh.userData.isBasemap = true;
   meshWrap.add(mesh);
 }

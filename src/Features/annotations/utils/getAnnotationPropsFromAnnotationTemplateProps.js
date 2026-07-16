@@ -12,7 +12,7 @@ export default function getAnnotationPropsFromAnnotationTemplateProps(annotation
 
     // 2. On parcourt toutes les clés des props du template
     Object.keys(annotationTemplateProps).forEach((key) => {
-        if (key === "overrideFields" || key === "hidden" || key === "hideSlope") return;
+        if (key === "overrideFields" || key === "hidden" || key === "hideSlope" || key === "material3d") return;
 
         // Only override fields explicitly listed in overrideFields
         if (!Array.isArray(overrideFields) || !overrideFields.includes(key)) {
@@ -93,6 +93,13 @@ export default function getAnnotationPropsFromAnnotationTemplateProps(annotation
     // (not a per-annotation style override, so not gated by overrideFields).
     if (annotationTemplateProps.hideSlope !== null && annotationTemplateProps.hideSlope !== undefined) {
         result.hideSlope = annotationTemplateProps.hideSlope;
+    }
+
+    // material3d (PHOTOREAL material preset) is a template-level rendering
+    // choice and is always applied (not a per-annotation style override, so
+    // not gated by overrideFields).
+    if (annotationTemplateProps.material3d !== null && annotationTemplateProps.material3d !== undefined) {
+        result.material3d = annotationTemplateProps.material3d;
     }
 
     // isExt (exterior-side guide flag) is handled by the generic overrideFields

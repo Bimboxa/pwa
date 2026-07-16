@@ -8,21 +8,25 @@ import {
   Mesh,
   ShadowMaterial,
 } from "three";
-import { WebGLPathTracer } from "three-gpu-pathtracer";
 
 import buildWhiteEnvironment from "Features/photorealRender/utils/environment";
-import {
-  setVisibilityByPredicate,
-  isBasemap,
-} from "Features/photorealRender/utils/sceneVisibility";
+import loadHdrEnvironmentAsync, {
+  disposeCachedHdrEnvironments,
+} from "Features/photorealRender/services/loadHdrEnvironmentAsync";
 
 // Viewport render modes. STANDARD is the historical unlit/Lambert look;
 // REALISTIC upgrades the SAME raster pipeline to PBR + environment lighting +
-// shadows + ACES; PHOTOREAL keeps the REALISTIC renderer state and adds
-// progressive path tracing on top (raster fallback while the camera moves).
+// ACES (no cast shadows); PHOTOREAL is the full raster "archviz" state: an
+// environment (see PHOTOREAL_ENVIRONMENTS) as IBL, a key light with cast
+// shadows, and textured PBR materials (see material3dPresets).
 export const RENDER_MODE_STANDARD = "STANDARD";
 export const RENDER_MODE_REALISTIC = "REALISTIC";
 export const RENDER_MODE_PHOTOREAL = "PHOTOREAL";
+
+// PHOTOREAL environments (threedEditorSlice.environment3d).
+export const ENVIRONMENT3D_STANDARD = "STANDARD";
+export const ENVIRONMENT3D_EXTERIOR = "EXTERIOR";
+export const ENVIRONMENT3D_INTERIOR = "INTERIOR";
 
 // Light intensities. STANDARD restores the values from SceneManager's
 // _add*Light. REALISTIC aims for an archviz "lit from above" look: a strong
@@ -31,12 +35,7 @@ export const RENDER_MODE_PHOTOREAL = "PHOTOREAL";
 // job is the subtle ground shadow. Tuned by eye under ACES tone mapping.
 const STANDARD_LIGHTS = { ambient: 0.65, hemisphere: 0.9, directional: 0.6 };
 const REALISTIC_LIGHTS = { ambient: 0.45, hemisphere: 0.7, directional: 0.9 };
-// The white gradient environment serves two different purposes: in the raster
-// REALISTIC mode it only adds a subtle PBR fill (ambient/hemisphere carry the
-// lighting), while in PHOTOREAL (and the export) it IS the main light source
-// of the path tracer — hence two intensities.
 const ENV_INTENSITY_RASTER = 0.3;
-const ENV_INTENSITY_TRACED = 1.5;
 const TONE_MAPPING_EXPOSURE = 1.0;
 
 // Moderately LATERAL key light: two walls meeting at 90° receive a different
@@ -44,44 +43,60 @@ const TONE_MAPPING_EXPOSURE = 1.0;
 // every vertical face equal → invisible corners).
 const KEY_LIGHT_DIRECTION = new Vector3(6, 9, 3.5).normalize();
 
-// Cast shadows in the raster REALISTIC mode — currently OFF (user prefers a
-// clean flat-lit model; the edge contrast comes from the lateral key light).
-// The full machinery (scene-fitted shadow frustum + ShadowMaterial catchers
-// over the basemaps, annotations casting onto the ground only) stays in place
-// behind this flag. PHOTOREAL is unaffected: the path tracer computes its own
-// GI shadows regardless.
-const ENABLE_CAST_SHADOWS = false;
+// PHOTOREAL lighting — grouped here for visual tuning. The environment
+// carries most of the fill (ambient/hemisphere drop to a small floor), the
+// key light carries the shadows. Each environment tunes its own key light:
+// - STANDARD: neutral studio (white gradient env, no background) — clean
+//   archviz look without any sky.
+// - EXTERIOR: HDR sky as IBL + background, warm sun roughly matching the sun
+//   baked in the HDR (elevation ≈ 48°).
+// - INTERIOR: indoor HDR (warehouse) as IBL, no background — for scenes like
+//   parking levels where a sky would be wrong; near-vertical white key reads
+//   as ceiling lighting.
+const PHOTOREAL_FILL_LIGHTS = { ambient: 0.15, hemisphere: 0.25 };
+const HDR_BASE_URL = `${import.meta.env.BASE_URL}photoreal/env`;
+const PHOTOREAL_ENVIRONMENTS = {
+  [ENVIRONMENT3D_STANDARD]: {
+    hdrUrl: null,
+    showBackground: false,
+    envIntensity: 1.0,
+    sunColor: 0xffffff,
+    sunIntensity: 2.0,
+    sunDirection: new Vector3(6, 8, 4).normalize(),
+  },
+  [ENVIRONMENT3D_EXTERIOR]: {
+    hdrUrl: `${HDR_BASE_URL}/sky_1k.hdr`,
+    showBackground: true,
+    envIntensity: 1.0,
+    sunColor: 0xfff1e0,
+    sunIntensity: 2.5,
+    sunDirection: new Vector3(6, 8, 4).normalize(),
+  },
+  [ENVIRONMENT3D_INTERIOR]: {
+    hdrUrl: `${HDR_BASE_URL}/interior_1k.hdr`,
+    showBackground: false,
+    envIntensity: 1.0,
+    sunColor: 0xffffff,
+    sunIntensity: 1.2,
+    sunDirection: new Vector3(1.5, 8, 1).normalize(),
+  },
+};
+
 const SHADOW_MAP_SIZE = 2048;
 const SHADOW_CATCHER_OPACITY = 0.15;
-
-// Path tracing tuning. The tracer's own raster fallback covers camera
-// interaction (rasterizeScene); samples accumulate while idle and stop at
-// MAX_SAMPLES (the canvas keeps the last presented frame — zero GPU work).
-// Scene mutations are debounced before the (synchronous, main-thread) BVH
-// rebuild so a burst of edits triggers a single setScene.
-const MAX_SAMPLES = 512;
-const REBUILD_DEBOUNCE_MS = 400;
-const TRACER_BOUNCES = 2;
-const TRACER_TRANSMISSIVE_BOUNCES = 6;
-const TRACER_MIN_SAMPLES = 3;
-const TRACER_RENDER_DELAY_MS = 150;
-const TRACER_FADE_DURATION_MS = 300;
 
 export default class RenderModeManager {
   constructor({ sceneManager }) {
     this.sceneManager = sceneManager;
     this.mode = RENDER_MODE_STANDARD;
-    this.isPathTracing = false;
+    this.envKey = ENVIRONMENT3D_EXTERIOR;
 
-    this.tracer = null;
     this._env = null;
+    this._hdrTextures = {}; // url → resolved texture (avoids a fallback frame)
     this._lightTarget = null;
     this._shadowCatchers = [];
-    this._savedPixelRatio = null;
     this._savedBackground = null;
-    this._sceneDirty = false;
-    this._sceneDirtyAt = 0;
-    this._tracerFailed = false;
+    this._appliedBackground = null;
   }
 
   ///////////   PUBLIC   ///////////
@@ -90,95 +105,71 @@ export default class RenderModeManager {
     if (mode === this.mode) return;
     const prev = this.mode;
     this.mode = mode;
+    if (prev === RENDER_MODE_PHOTOREAL) this._restoreBackground();
     if (mode === RENDER_MODE_PHOTOREAL) {
-      this._applyRealisticRenderer();
-      this._enterPathTracing();
+      this._applyPhotorealRenderer();
     } else if (mode === RENDER_MODE_REALISTIC) {
-      this._exitPathTracing(prev);
       this._applyRealisticRenderer();
     } else {
-      this._exitPathTracing(prev);
       this._applyStandardRenderer();
     }
     this.sceneManager.renderScene();
   };
 
+  // PHOTOREAL environment (Standard / Extérieur / Intérieur). Stored even
+  // outside PHOTOREAL so entering the mode later picks it up.
+  setEnvironment = (envKey) => {
+    if (envKey === this.envKey) return;
+    this.envKey = envKey;
+    if (this.mode !== RENDER_MODE_PHOTOREAL) return;
+    this._applyPhotorealRenderer();
+    this.sceneManager.renderScene();
+  };
+
   // Called by ThreedEditor after basemaps / annotations are (re)loaded, next
   // to clippingManager.reapply(): refit the shadow frustum + shadow catchers
-  // to the new scene extent. The tracer invalidation comes for free from the
-  // renderScene() call that follows (see SceneManager.renderScene).
+  // to the new scene extent.
   onSceneStructureChanged = () => {
-    if (!ENABLE_CAST_SHADOWS || this.mode === RENDER_MODE_STANDARD) return;
+    if (!this._shadowsEnabled()) return;
     this._fitDirectionalShadow();
     this._addShadowCatchers();
   };
 
-  // Every explicit render request while path tracing means the scene changed
-  // (camera moves never go through SceneManager.renderScene in PHOTOREAL —
-  // ControlsManager handles them via onCameraChange).
-  markSceneDirty = () => {
-    this._sceneDirty = true;
-    this._sceneDirtyAt = performance.now();
-  };
-
-  // Convenience for SceneManager.renderScene: invalidate only when the
-  // tracer actually owns the canvas.
-  markSceneDirtyIfPathTracing = () => {
-    if (this.isPathTracing) this.markSceneDirty();
-  };
-
-  // Camera moved (orbit/pan/zoom) or resized: reset the sample accumulation.
-  onCameraChange = () => {
-    if (!this.isPathTracing || !this.tracer) return;
-    if (this._sceneDirty) return; // setScene will re-sync the camera anyway
-    this.tracer.updateCamera();
-  };
-
-  // One frame of the PHOTOREAL loop (called every rAF by ControlsManager).
-  renderFrame = () => {
-    const { renderer, scene, camera } = this.sceneManager;
-    if (!this.tracer || this._tracerFailed) {
-      renderer.render(scene, camera);
-      return;
-    }
-    if (this._sceneDirty) {
-      // Live raster view while the BVH is stale — the user sees edits
-      // instantly, and the debounce coalesces edit bursts into one rebuild.
-      renderer.render(scene, camera);
-      if (performance.now() - this._sceneDirtyAt > REBUILD_DEBOUNCE_MS) {
-        this._rebuildTracerScene();
-      }
-      return;
-    }
-    if (this.tracer.samples < MAX_SAMPLES) this.tracer.renderSample();
-  };
-
   dispose = () => {
-    this.isPathTracing = false;
-    if (this.tracer) {
-      // dispose() is fixed in three-gpu-pathtracer 0.0.24 (0.0.23 referenced
-      // an undefined property and threw) — keep the guard for safety.
-      try {
-        this.tracer.dispose();
-      } catch (e) {
-        console.error("[RenderModeManager] tracer dispose failed", e);
-      }
-      this.tracer = null;
-    }
     this._removeShadowCatchers();
     if (this._env) {
       this._env.dispose();
       this._env = null;
     }
+    this._hdrTextures = {};
+    disposeCachedHdrEnvironments();
   };
 
-  ///////////   RENDERER STATE (REALISTIC)   ///////////
+  ///////////   RENDERER STATES   ///////////
+
+  _shadowsEnabled() {
+    return this.mode === RENDER_MODE_PHOTOREAL;
+  }
+
+  _envConfig() {
+    return (
+      PHOTOREAL_ENVIRONMENTS[this.envKey] ??
+      PHOTOREAL_ENVIRONMENTS[ENVIRONMENT3D_EXTERIOR]
+    );
+  }
+
+  _sunDirection() {
+    return this.mode === RENDER_MODE_PHOTOREAL
+      ? this._envConfig().sunDirection
+      : KEY_LIGHT_DIRECTION;
+  }
 
   _applyRealisticRenderer() {
     const { renderer, scene, ambiantLight, hemisphereLight, directionalLight } =
       this.sceneManager;
     renderer.toneMapping = ACESFilmicToneMapping;
     renderer.toneMappingExposure = TONE_MAPPING_EXPOSURE;
+    renderer.shadowMap.enabled = false;
 
     if (!this._env) this._env = buildWhiteEnvironment();
     scene.environment = this._env;
@@ -187,27 +178,116 @@ export default class RenderModeManager {
     ambiantLight.intensity = REALISTIC_LIGHTS.ambient;
     hemisphereLight.intensity = REALISTIC_LIGHTS.hemisphere;
     directionalLight.intensity = REALISTIC_LIGHTS.directional;
+    directionalLight.color.set(0xffffff);
+    directionalLight.castShadow = false;
     // Key light direction (a DirectionalLight only uses position → target;
-    // the default target sits at the origin). _fitDirectionalShadow refines
-    // position/target to the scene extent when shadows are enabled.
+    // the default target sits at the origin).
     directionalLight.position.copy(KEY_LIGHT_DIRECTION).multiplyScalar(20);
     if (this._lightTarget) this._lightTarget.position.set(0, 0, 0);
 
-    if (ENABLE_CAST_SHADOWS) {
-      renderer.shadowMap.enabled = true;
-      renderer.shadowMap.type = PCFSoftShadowMap;
-      directionalLight.castShadow = true;
-      directionalLight.shadow.mapSize.set(SHADOW_MAP_SIZE, SHADOW_MAP_SIZE);
-      directionalLight.shadow.bias = -0.0001;
-      directionalLight.shadow.normalBias = 0.02;
-      this._fitDirectionalShadow();
-      this._addShadowCatchers();
-    } else {
-      renderer.shadowMap.enabled = false;
-      directionalLight.castShadow = false;
-      this._removeShadowCatchers();
-    }
+    this._removeShadowCatchers();
     this._forceMaterialsRecompile();
+  }
+
+  // The sponza-like raster state: ACES + environment IBL + key light with
+  // cast shadows. The environment (studio / HDR sky / HDR interior) comes
+  // from this.envKey — see PHOTOREAL_ENVIRONMENTS.
+  _applyPhotorealRenderer() {
+    const { renderer, ambiantLight, hemisphereLight, directionalLight } =
+      this.sceneManager;
+    const cfg = this._envConfig();
+
+    renderer.toneMapping = ACESFilmicToneMapping;
+    renderer.toneMappingExposure = TONE_MAPPING_EXPOSURE;
+
+    this._applyPhotorealEnvironment(cfg);
+
+    ambiantLight.intensity = PHOTOREAL_FILL_LIGHTS.ambient;
+    hemisphereLight.intensity = PHOTOREAL_FILL_LIGHTS.hemisphere;
+    directionalLight.intensity = cfg.sunIntensity;
+    directionalLight.color.set(cfg.sunColor);
+    directionalLight.position.copy(cfg.sunDirection).multiplyScalar(20);
+    if (this._lightTarget) this._lightTarget.position.set(0, 0, 0);
+
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = PCFSoftShadowMap;
+    directionalLight.castShadow = true;
+    directionalLight.shadow.mapSize.set(SHADOW_MAP_SIZE, SHADOW_MAP_SIZE);
+    directionalLight.shadow.bias = -0.0001;
+    directionalLight.shadow.normalBias = 0.02;
+    this._fitDirectionalShadow();
+    this._addShadowCatchers();
+
+    this._forceMaterialsRecompile();
+  }
+
+  // Environment + background for the current PHOTOREAL env config. HDRs load
+  // async — the white gradient fills in until the texture lands so the first
+  // frame is never black.
+  _applyPhotorealEnvironment(cfg) {
+    const { scene } = this.sceneManager;
+
+    if (!cfg.hdrUrl) {
+      if (!this._env) this._env = buildWhiteEnvironment();
+      scene.environment = this._env;
+      scene.environmentIntensity = cfg.envIntensity;
+      this._restoreBackground();
+      return;
+    }
+
+    const cached = this._hdrTextures[cfg.hdrUrl];
+    if (cached) {
+      this._applyHdrEnvironment(cached, cfg);
+      return;
+    }
+
+    if (!this._env) this._env = buildWhiteEnvironment();
+    scene.environment = this._env;
+    scene.environmentIntensity = ENV_INTENSITY_RASTER;
+    this._restoreBackground();
+    const requestedEnvKey = this.envKey;
+    loadHdrEnvironmentAsync(cfg.hdrUrl)
+      .then((texture) => {
+        this._hdrTextures[cfg.hdrUrl] = texture;
+        // Stale if the user left PHOTOREAL or switched environment meanwhile.
+        if (this.mode !== RENDER_MODE_PHOTOREAL) return;
+        if (this.envKey !== requestedEnvKey) return;
+        this._applyHdrEnvironment(texture, cfg);
+        this.sceneManager.renderScene();
+      })
+      .catch((e) => {
+        // Offline / missing asset: PHOTOREAL keeps the white-gradient IBL.
+        console.error("[RenderModeManager] HDR environment failed", e);
+      });
+  }
+
+  _applyHdrEnvironment(texture, cfg) {
+    const { scene } = this.sceneManager;
+    scene.environment = texture;
+    scene.environmentIntensity = cfg.envIntensity;
+    if (!cfg.showBackground) {
+      this._restoreBackground();
+      return;
+    }
+    if (scene.background !== texture) {
+      // Save the pre-PHOTOREAL background only once (an env switch would
+      // otherwise capture our own HDR as the value to restore).
+      if (this._appliedBackground === null) {
+        this._savedBackground = scene.background;
+      }
+      scene.background = texture;
+      this._appliedBackground = texture;
+    }
+  }
+
+  _restoreBackground() {
+    const { scene } = this.sceneManager;
+    if (this._appliedBackground === null) return;
+    if (scene.background === this._appliedBackground) {
+      scene.background = this._savedBackground ?? null;
+    }
+    this._savedBackground = null;
+    this._appliedBackground = null;
   }
 
   _applyStandardRenderer() {
@@ -223,6 +303,7 @@ export default class RenderModeManager {
     ambiantLight.intensity = STANDARD_LIGHTS.ambient;
     hemisphereLight.intensity = STANDARD_LIGHTS.hemisphere;
     directionalLight.intensity = STANDARD_LIGHTS.directional;
+    directionalLight.color.set(0xffffff);
     directionalLight.castShadow = false;
     // Restore the exact STANDARD light direction: position (8, 15, 6) aiming
     // at the origin (the fitted target may sit at the scene center).
@@ -293,7 +374,7 @@ export default class RenderModeManager {
     directionalLight.target = this._lightTarget;
     directionalLight.position
       .copy(center)
-      .addScaledVector(KEY_LIGHT_DIRECTION, 2 * r);
+      .addScaledVector(this._sunDirection(), 2 * r);
 
     const cam = directionalLight.shadow.camera;
     cam.left = -r;
@@ -314,7 +395,7 @@ export default class RenderModeManager {
   // the images cleanup traverse (per-catcher material, shared geometry).
   _addShadowCatchers() {
     this._removeShadowCatchers();
-    if (this.mode === RENDER_MODE_STANDARD) return;
+    if (!this._shadowsEnabled()) return;
     this.sceneManager.scene.traverse((obj) => {
       if (!obj.isMesh || !obj.userData?.isBasemap) return;
       const catcher = new Mesh(
@@ -340,108 +421,4 @@ export default class RenderModeManager {
     });
     this._shadowCatchers = [];
   }
-
-  ///////////   PATH TRACING (PHOTOREAL)   ///////////
-
-  _enterPathTracing() {
-    const { renderer, scene } = this.sceneManager;
-    this._savedPixelRatio = renderer.getPixelRatio();
-    renderer.setPixelRatio(1);
-
-    if (!this.tracer) {
-      this.tracer = new WebGLPathTracer(renderer);
-      this.tracer.bounces = TRACER_BOUNCES;
-      this.tracer.transmissiveBounces = TRACER_TRANSMISSIVE_BOUNCES;
-      this.tracer.tiles.set(2, 2);
-      this.tracer.minSamples = TRACER_MIN_SAMPLES;
-      this.tracer.renderDelay = TRACER_RENDER_DELAY_MS;
-      this.tracer.fadeDuration = TRACER_FADE_DURATION_MS;
-      // Built-in fallback: renderSample() rasterizes the full scene while the
-      // traced layer hasn't converged / the camera is moving.
-      this.tracer.rasterizeScene = true;
-      this.tracer.renderToCanvas = true;
-      this.tracer.renderToCanvasCallback = this._compositeToCanvas;
-    }
-
-    // Transparent traced background (backgroundAlpha = 0) so the composite
-    // can raster the crisp basemap underneath — same recipe as the export.
-    this._savedBackground = scene.background;
-    scene.background = null;
-    // The tracer ignores ambient/hemisphere fills: the environment carries
-    // the lighting there (setMode restores the raster value on exit via
-    // _applyRealisticRenderer / _applyStandardRenderer).
-    scene.environmentIntensity = ENV_INTENSITY_TRACED;
-
-    this._tracerFailed = false;
-    this._sceneDirty = true;
-    this._sceneDirtyAt = 0; // force an immediate first build in the loop
-    this.isPathTracing = true;
-  }
-
-  _exitPathTracing(prevMode) {
-    if (prevMode !== RENDER_MODE_PHOTOREAL) return;
-    this.isPathTracing = false;
-    this._sceneDirty = false;
-    const { renderer, scene } = this.sceneManager;
-    if (this._savedPixelRatio) renderer.setPixelRatio(this._savedPixelRatio);
-    scene.background = this._savedBackground ?? null;
-    // Keep the tracer instance for the session — rebuilding it is expensive
-    // and re-entering PHOTOREAL is cheap this way. Freed in dispose().
-  }
-
-  // Rebuild the tracer's BVH from the current scene, tracing annotation
-  // solids only: basemaps are composited as a raster underlay (crisp texture),
-  // and helpers/gizmos/sprites/lines must not leak into the trace. Synchronous
-  // (main-thread) build — the preceding raster frames keep the view live.
-  _rebuildTracerScene() {
-    const { scene, camera, annotationsManager } = this.sceneManager;
-    const roots = new Set(
-      Object.values(annotationsManager?.annotationsObjectsMap || {}).filter(
-        Boolean
-      )
-    );
-    const keep = (obj) => {
-      if (!obj.isMesh) return false; // lines / sprites / points never trace
-      if (obj.isLine2 || obj.isLineSegments2) return false; // fat lines extend Mesh
-      if (obj.userData?.isHoverOverlay) return false;
-      if (obj.userData?.isShadowCatcher) return false;
-      let p = obj;
-      while (p) {
-        if (roots.has(p)) return true;
-        p = p.parent;
-      }
-      return false;
-    };
-    const restore = setVisibilityByPredicate(scene, keep);
-    try {
-      this.tracer.setScene(scene, camera);
-      this._sceneDirty = false;
-    } catch (e) {
-      console.error("[RenderModeManager] path tracer setScene failed", e);
-      // Fall back to plain raster frames for the rest of the session.
-      this._tracerFailed = true;
-      this._sceneDirty = false;
-    } finally {
-      restore();
-    }
-  }
-
-  // Replaces the tracer's default canvas blit. While the traced layer is
-  // still fading in, renderSample() has just rastered the FULL scene under
-  // it — keep the default blit so the crossfade reads seamlessly. Once fully
-  // faded in, re-raster only the basemaps (crisp texture) and blit the traced
-  // annotations on top (alpha where only the basemap shows).
-  _compositeToCanvas = (target, renderer, quad) => {
-    if (quad.material.opacity >= 1) {
-      const { scene, camera } = this.sceneManager;
-      const restore = setVisibilityByPredicate(scene, isBasemap);
-      renderer.setClearColor(0x000000, 0);
-      renderer.render(scene, camera);
-      restore();
-    }
-    const prevAutoClear = renderer.autoClear;
-    renderer.autoClear = false;
-    quad.render(renderer);
-    renderer.autoClear = prevAutoClear;
-  };
 }

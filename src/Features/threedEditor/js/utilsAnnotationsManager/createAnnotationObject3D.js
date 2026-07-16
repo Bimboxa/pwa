@@ -35,7 +35,10 @@ import {
 } from "Features/geometry/utils/arcSampling";
 import stripSlidingFromAnnotation from "Features/annotations/utils/stripSlidingFromAnnotation";
 import shadeMeshCellColor from "Features/mesh/utils/meshCellColor";
-import { createAnnotationPbrMaterial } from "Features/photorealRender/utils/pbrMaterials";
+import {
+  createAnnotationPbrMaterial,
+  createMaterial3dMaterial,
+} from "Features/photorealRender/utils/pbrMaterials";
 
 // Match the codebase convention used by other arc-aware paths.
 const GUIDE_ARC_SAMPLES = 6;
@@ -158,6 +161,16 @@ export function makeMaterial(annotation, options) {
   // + shadows convey the 3D form. Same material mapping as the photoreal
   // export, so the live view and the exported image stay consistent.
   if (options?.realisticShading) {
+    // PHOTOREAL honors the template's material3d preset (textured PBR);
+    // REALISTIC keeps the flat-color PBR material.
+    if (options?.photorealShading && annotation.material3d) {
+      return createMaterial3dMaterial({
+        presetKey: annotation.material3d,
+        color: baseColor,
+        opacity,
+        onMapsLoaded: options?.onAsyncLoaded,
+      });
+    }
     return createAnnotationPbrMaterial({ color: baseColor, opacity });
   }
   // MeshLambertMaterial (was MeshBasicMaterial): diffuse shading reacts to the

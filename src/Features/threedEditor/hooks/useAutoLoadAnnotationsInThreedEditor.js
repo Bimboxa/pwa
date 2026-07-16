@@ -26,6 +26,9 @@ export default function useAutoLoadAnnotationsInThreedEditor({
   // it would fight the hover/dim originalMaterial cache.
   const renderMode = useSelector((s) => s.threedEditor.renderMode);
   const realisticShading = renderMode !== "STANDARD";
+  // PHOTOREAL additionally activates the material3d textured presets +
+  // receiveShadow — a REALISTIC↔PHOTOREAL toggle must rebuild objects too.
+  const photorealShading = renderMode === "PHOTOREAL";
   const showMeshCells = useSelector((s) => s.annotations.showMeshCells);
   const { parentIdSet } = useMeshCellRelations();
   const baseMapOpacityIn3d = useSelector(
@@ -101,6 +104,7 @@ export default function useAutoLoadAnnotationsInThreedEditor({
       disableOpacity,
       antiAliasingShrink,
       realisticShading,
+      photorealShading,
     });
   }, [
     rendererIsReady,
@@ -109,6 +113,7 @@ export default function useAutoLoadAnnotationsInThreedEditor({
     disableOpacity,
     antiAliasingShrink,
     realisticShading,
+    photorealShading,
     extraBaseMapIds,
     baseMaps,
     mainBaseMap,
