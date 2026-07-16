@@ -145,11 +145,21 @@ export default class WalkModeController {
     if (document.pointerLockElement === dom) document.exitPointerLock();
 
     const camera = sm.camera;
-    camera.rotation.order = this._prevRotationOrder ?? "XYZ";
 
-    // Hand the pose back to camera-controls: orbit target a few meters ahead
-    // along the look direction (pitch is clamped away from the poles, so the
-    // spherical decomposition is safe).
+    // Restore the euler order WITHOUT moving the camera: three.js's Euler
+    // `order` setter recomputes the quaternion from the SAME angles in the
+    // new order, which would corrupt the orientation (and the exit target
+    // derived from it) — the camera would visibly jump. Re-express the
+    // current quaternion in the restored order instead.
+    const orientation = camera.quaternion.clone();
+    camera.rotation.order = this._prevRotationOrder ?? "XYZ";
+    camera.quaternion.copy(orientation);
+
+    // Hand the pose back to camera-controls: same position, orbit target a
+    // few meters ahead along the look direction (pitch is clamped away from
+    // the poles, so the spherical decomposition is safe). setLookAt rebuilds
+    // the exact same orientation (position -> target, +Y up, no roll), so
+    // the switch back to orbit is seamless.
     const fwd = camera.getWorldDirection(new Vector3());
     const target = camera.position
       .clone()
