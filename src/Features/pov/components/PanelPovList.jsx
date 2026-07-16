@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import {
@@ -7,8 +6,7 @@ import {
 } from "Features/selection/selectionSlice";
 import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 
-import { Box, Button, Typography } from "@mui/material";
-import { PhotoCamera } from "@mui/icons-material";
+import { Box, Typography } from "@mui/material";
 
 import {
   DndContext,
@@ -27,31 +25,25 @@ import { generateKeyBetween } from "fractional-indexing";
 
 import PovListItem from "./PovListItem";
 import usePovs from "../hooks/usePovs";
-import useCreatePov from "../hooks/useCreatePov";
 import useUpdatePov from "../hooks/useUpdatePov";
 import useRestorePov from "../hooks/useRestorePov";
 
 // POV viewer left drawer: sortable list of saved views (fractional index,
-// same dnd mechanics as the portfolio pages tree) + "Enregistrer la vue".
+// same dnd mechanics as the portfolio pages tree). Views are created via
+// the floating ButtonSavePov at the bottom of the viewer.
 export default function PanelPovList() {
   const dispatch = useDispatch();
 
   // strings
 
-  const saveS = "Enregistrer la vue";
   const emptyS = "Aucun point de vue. Cadrez la vue puis enregistrez-la.";
 
   // data
 
   const povs = usePovs() ?? [];
-  const createPov = useCreatePov();
   const updatePov = useUpdatePov();
   const restorePov = useRestorePov();
   const selectedItem = useSelector(selectSelectedItem);
-
-  // state
-
-  const [creating, setCreating] = useState(false);
 
   // helpers
 
@@ -92,18 +84,6 @@ export default function PanelPovList() {
     dispatch(setSelectedItem({ id: pov.id, type: "POV" }));
     dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
     await restorePov(pov);
-  }
-
-  async function handleCreateClick() {
-    if (creating) return;
-    setCreating(true);
-    try {
-      await createPov({
-        lastSortIndex: povs[povs.length - 1]?.sortIndex ?? null,
-      });
-    } finally {
-      setCreating(false);
-    }
   }
 
   // render
@@ -154,19 +134,6 @@ export default function PanelPovList() {
             ))}
           </SortableContext>
         </DndContext>
-      </Box>
-
-      <Box sx={{ p: 1 }}>
-        <Button
-          fullWidth
-          variant="contained"
-          startIcon={<PhotoCamera />}
-          onClick={handleCreateClick}
-          disabled={creating}
-          sx={{ textTransform: "none" }}
-        >
-          {saveS}
-        </Button>
       </Box>
     </Box>
   );

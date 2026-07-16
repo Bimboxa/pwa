@@ -1613,7 +1613,9 @@ export default function MainThreedEditor() {
         <ThreedAnnotationsVisibility threedEditorRef={threedEditorRef} />
       )}
       {isThreedViewer && !captureFramingActive && <TopBaseMapChipsThreed />}
+      {/* No 3D toolbars in the POV viewer — its own save button sits there. */}
       {isThreedViewer &&
+        !isPovViewer &&
         (clippingEditing ? (
           <ClippingToolbarThreed />
         ) : meshingActive ? (

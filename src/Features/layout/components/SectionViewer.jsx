@@ -15,6 +15,7 @@ import MainListingViewer from "Features/listingViewer/components/MainListingView
 import LeftDrawerPanel from "Features/leftPanel/components/LeftDrawerPanel";
 import PanelMeshesViewer from "Features/threedMesh/components/PanelMeshesViewer";
 import PanelPovDrawer from "Features/pov/components/PanelPovDrawer";
+import ButtonSavePov from "Features/pov/components/ButtonSavePov";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 
 import { Box } from "@mui/material";
@@ -120,6 +121,10 @@ export default function SectionViewer() {
       {showAdmin && <PanelShowable show={showAdmin} sx={{ position: "absolute", zIndex: 0 }}>
         <ViewerAdmin />
       </PanelShowable>}
+
+      {/* POV: floating save button at the bottom of the displayed editor
+          (replaces the 3D bottom toolbar, hidden under POV). */}
+      {isPov && <ButtonSavePov />}
       </Box>
     </BoxCenter>
   );
