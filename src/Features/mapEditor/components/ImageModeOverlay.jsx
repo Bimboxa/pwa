@@ -257,17 +257,18 @@ export default function ImageModeOverlay({
         />
       )}
 
-      {/* TITLE BANNER (top-left of the capture rect): the POV description on
-          a secondary-color rounded chip. */}
+      {/* TITLE BANNER: the POV description on a secondary-color rounded chip
+          hugging the border's top-left corner — same origin and radius so the
+          two shapes fit together. */}
       {title?.visible && titleText && (() => {
         const fontSize = title.fontSize || 12;
         const padX = fontSize;
-        const bannerH = fontSize * 2.2;
+        const bannerH = Math.max(fontSize * 2.2, 2 * CAPTURE_BORDER_RADIUS);
         const bannerW = Math.min(
           rect.width * 0.7,
           titleText.length * fontSize * 0.62 + 2 * padX
         );
-        const M = CAPTURE_BORDER_INSET + 12;
+        const M = CAPTURE_BORDER_INSET;
         return (
           <g
             data-capture-keep
@@ -279,7 +280,7 @@ export default function ImageModeOverlay({
               y={0}
               width={bannerW}
               height={bannerH}
-              rx={6}
+              rx={CAPTURE_BORDER_RADIUS}
               fill={theme.palette.secondary.main}
             />
             <text
