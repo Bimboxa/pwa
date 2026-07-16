@@ -41,7 +41,7 @@ export default async function createKrtoZip(scopeId, options) {
     // Tables avec scopeId direct
     const tablesWithScopeId = new Set([
         "baseMapViews", "syncFiles", "layers",
-        "portfolioBaseMapContainers", "meshes3d",
+        "portfolioBaseMapContainers", "meshes3d", "povs",
     ]);
 
     // Tables avec listingId (sans projectId)
@@ -94,6 +94,16 @@ export default async function createKrtoZip(scopeId, options) {
     // (cas où plusieurs versions partagent la même image, ex. duplication).
     for (const fn of liveVersionFileNames) deletedVersionFileNames.delete(fn);
 
+    // 2ter. Vignettes des POV : leurs fichiers n'ont pas de listingId (le POV
+    // n'appartient à aucun listing), donc le filtre files standard les
+    // exclurait. On les whiteliste explicitement (POV vivants uniquement).
+    const scopePovs = (
+        await db.povs.where("scopeId").equals(scopeId).toArray()
+    ).filter((p) => !p.deletedAt);
+    const povImageFileNames = new Set(
+        scopePovs.map((p) => p.image?.fileName).filter(Boolean)
+    );
+
     // 3. Export via Dexie
     const blob = await db.export({
         filter: (table, value) => {
@@ -125,6 +135,9 @@ export default async function createKrtoZip(scopeId, options) {
 
             // Fichiers : on exclut les images des versions supprimées orphelines
             if (table === "files") {
+                if (povImageFileNames.has(value.fileName)) {
+                    return value.projectId === projectId;
+                }
                 return (
                     value.projectId === projectId &&
                     listingIds.has(value.listingId) &&

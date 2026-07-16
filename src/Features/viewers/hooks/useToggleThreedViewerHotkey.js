@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useSelector } from "react-redux";
 
 import useSwitchViewer from "./useSwitchViewer";
+import useTogglePovViewerMode from "Features/pov/hooks/useTogglePovViewerMode";
 
 const isEditableTarget = (el) => {
   if (!el) return false;
@@ -19,6 +20,7 @@ const isEditableTarget = (el) => {
 // in-draw "T" (arc toggle) or LOCALIZED_REPAIR "T" (T-junction).
 export default function useToggleThreedViewerHotkey() {
   const switchViewer = useSwitchViewer();
+  const togglePovViewerMode = useTogglePovViewerMode();
   const selectedViewerKey = useSelector((s) => s.viewers.selectedViewerKey);
   const enabledDrawingMode = useSelector((s) => s.mapEditor.enabledDrawingMode);
 
@@ -30,12 +32,17 @@ export default function useToggleThreedViewerHotkey() {
       if (isEditableTarget(e.target)) return;
       if (e.key.toLowerCase() !== "t") return;
 
-      switchViewer(selectedViewerKey === "THREED" ? "MAP" : "THREED");
+      if (selectedViewerKey === "POINT_OF_VIEW") {
+        // Inside the POV viewer, T flips the displayed 2D/3D editor.
+        togglePovViewerMode();
+      } else {
+        switchViewer(selectedViewerKey === "THREED" ? "MAP" : "THREED");
+      }
       e.preventDefault();
       e.stopImmediatePropagation();
     };
 
     window.addEventListener("keydown", handleKeyDown, true);
     return () => window.removeEventListener("keydown", handleKeyDown, true);
-  }, [enabledDrawingMode, selectedViewerKey, switchViewer]);
+  }, [enabledDrawingMode, selectedViewerKey, switchViewer, togglePovViewerMode]);
 }

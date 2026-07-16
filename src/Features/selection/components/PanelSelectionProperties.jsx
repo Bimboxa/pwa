@@ -26,6 +26,8 @@ import PanelPropertiesGuideline from "Features/annotations/components/PanelPrope
 import PanelPropertiesPointsAndSegments from "Features/points/components/PanelPropertiesPointsAndSegments";
 import PanelMesh3dProperties from "Features/threedMesh/components/PanelMesh3dProperties";
 import PanelDimension3dProperties from "Features/threedDimensions/components/PanelDimension3dProperties";
+import PanelPovProperties from "Features/pov/components/PanelPovProperties";
+import PanelPovFrameProperties from "Features/pov/components/PanelPovFrameProperties";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 
 export default function PanelSelectionProperties() {
@@ -53,6 +55,7 @@ export default function PanelSelectionProperties() {
 
   const isPortfolioViewer = selectedViewerKey === "PORTFOLIO";
   const isBaseMapsViewer = selectedViewerKey === "BASE_MAPS";
+  const isPovViewer = selectedViewerKey === "POINT_OF_VIEW";
 
   const isMapViewer = selectedViewerKey === "MAP";
   const isListingViewer = selectedViewerKey === "LISTING";
@@ -63,7 +66,10 @@ export default function PanelSelectionProperties() {
   const isCanvasViewer = isMapViewer || isBaseMapsViewer;
 
   let type = "LISTING";
-  if (
+  if (isPovViewer) {
+    // POV viewer: either the selected POV, or the frame settings by default.
+    type = selectedItem?.type === "POV" ? "POV" : "POV_FRAME";
+  } else if (
     isCanvasViewer &&
     selectedPointIds.length > 0 &&
     selectedPartIds.length > 0 &&
@@ -238,6 +244,10 @@ export default function PanelSelectionProperties() {
       {type === "MESH3D" && <PanelMesh3dProperties />}
 
       {type === "DIMENSION3D" && <PanelDimension3dProperties />}
+
+      {type === "POV" && <PanelPovProperties />}
+
+      {type === "POV_FRAME" && <PanelPovFrameProperties />}
     </BoxFlexVStretch>
   );
 }

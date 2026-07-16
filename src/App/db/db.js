@@ -142,6 +142,19 @@ db.version(24).stores({
   meshes3d: "id,projectId,scopeId,[projectId+scopeId]",
 });
 
+db.version(25).stores({
+  // {id, projectId, scopeId, sortIndex, description, createdBy:{idMaster,trigram},
+  //  image:{fileName}, viewerMode, aspectRatio, legendOverlay,
+  //  hiddenAnnotationTemplateIds, baseMaps, camera2d, camera3d}
+  // Point of view ("POV"): a saved framed view of the 2D map or 3D scene.
+  // `image` references a db.files row (PNG <= 200 KB). The metadata fields
+  // (viewerMode, aspectRatio, baseMaps + active versions, hidden templates,
+  // camera2d footprint in baseMap image px / camera3d pose + frameFraction)
+  // allow reproducing the same framed view on any screen size. Ordered by
+  // fractional `sortIndex`. Soft-deleted via middleware.
+  povs: "id,projectId,scopeId,[projectId+scopeId]",
+});
+
 // --- AUDIT HOOKS ---
 
 const AUDIT_TABLES = [
@@ -175,6 +188,7 @@ const AUDIT_TABLES = [
   "relAnnotationMeshCells",
   "dimensions3d",
   "meshes3d",
+  "povs",
 ];
 
 // Shared/collaborative tables exempt from the ownership guard: records here can
@@ -186,6 +200,8 @@ const OWNERSHIP_EXEMPT_TABLES = new Set([
   // move or delete them (and their versions), not only their creator.
   "baseMaps",
   "baseMapVersions",
+  // POVs are a shared list: anyone can reorder, edit or delete them.
+  "povs",
 ]);
 
 AUDIT_TABLES.forEach((tableName) => {
@@ -318,6 +334,7 @@ const SOFT_DELETE_TABLES = new Set([
   "relAnnotationMeshCells",
   "dimensions3d",
   "meshes3d",
+  "povs",
 ]);
 
 let _skipSoftDelete = false;

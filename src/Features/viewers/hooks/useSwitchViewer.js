@@ -1,6 +1,7 @@
 import { useDispatch, useSelector } from "react-redux";
 
 import { setSelectedViewerKey } from "../viewersSlice";
+import { setPovViewerMode } from "Features/pov/povSlice";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 
@@ -19,16 +20,40 @@ export default function useSwitchViewer() {
   const dispatch = useDispatch();
 
   const selectedViewerKey = useSelector((s) => s.viewers.selectedViewerKey);
+  const povViewerMode = useSelector((s) => s.pov.viewerMode);
+  const disable3D = useSelector((s) => s.appConfig.disable3D);
   const basePose = useSelector((s) => s.mapEditor.baseMapPoseInBg);
   const baseMap = useMainBaseMap();
 
   return function switchViewer(viewerKey) {
     if (viewerKey === selectedViewerKey) return;
 
-    const fromThreed = isThreedFamilyViewerKey(selectedViewerKey);
+    // Entering POV: inherit the 2D/3D mode from the current viewer (MAP -> 2D,
+    // 3D family -> 3D, anything else keeps the previous mode). The displayed
+    // editor stays the same, so no camera sync is needed.
+    if (viewerKey === "POINT_OF_VIEW") {
+      let inherited = null;
+      if (selectedViewerKey === "MAP") inherited = "MAP";
+      if (isThreedFamilyViewerKey(selectedViewerKey)) inherited = "THREED";
+      if (disable3D) inherited = "MAP";
+      if (inherited) dispatch(setPovViewerMode(inherited));
+      dispatch(setSelectedViewerKey("POINT_OF_VIEW"));
+      return;
+    }
+
+    // Leaving POV: the camera sync must run against the editor POV was
+    // actually displaying, not against the "POINT_OF_VIEW" key itself.
+    const effectiveFromKey =
+      selectedViewerKey === "POINT_OF_VIEW"
+        ? povViewerMode === "THREED"
+          ? "THREED"
+          : "MAP"
+        : selectedViewerKey;
+
+    const fromThreed = isThreedFamilyViewerKey(effectiveFromKey);
     const toThreed = isThreedFamilyViewerKey(viewerKey);
 
-    if (selectedViewerKey === "MAP" && toThreed) {
+    if (effectiveFromKey === "MAP" && toThreed) {
       switchMapToThreed({
         dispatch,
         baseMap,

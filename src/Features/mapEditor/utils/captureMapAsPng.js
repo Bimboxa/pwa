@@ -33,7 +33,8 @@ function getPdfPageSize(aspectRatio) {
  *
  * @param {Object} opts
  * @param {string} opts.viewerKey
- * @param {"clipboard"|"download"} opts.target
+ * @param {"clipboard"|"download"|"blob"} opts.target "blob" returns the
+ *   cropped PNG Blob instead of downloading/copying it (POV thumbnails).
  * @param {string} [opts.fileName]
  * @param {"LANDSCAPE"|"SQUARE"|"PORTRAIT"} [opts.aspectRatio]
  * @param {number} [opts.pixelRatio]
@@ -140,6 +141,10 @@ export default async function captureMapAsPng({
       out.toBlob(resolve, "image/png")
     );
     if (!blob) return;
+
+    if (target === "blob") {
+      return blob;
+    }
 
     if (target === "clipboard") {
       // Clipboard is always PNG.

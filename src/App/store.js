@@ -68,6 +68,7 @@ import layersReducer from "Features/layers/layersSlice";
 import popperMapListingsReducer from "Features/popperMapListings/popperMapListingsSlice";
 import elevationReducer from "Features/elevation/elevationSlice";
 import meshReducer from "Features/mesh/meshSlice";
+import povReducer from "Features/pov/povSlice";
 import urlParamsReducer from "Features/urlParams/urlParamsSlice";
 
 import { syncTabsMiddleware, initSyncTabsListener } from "./syncTabsMiddleware";
@@ -143,6 +144,7 @@ const store = configureStore({
     popperMapListings: popperMapListingsReducer,
     elevation: elevationReducer,
     mesh: meshReducer,
+    pov: povReducer,
     urlParams: urlParamsReducer,
   },
   middleware: (getDefaultMiddleware) =>
