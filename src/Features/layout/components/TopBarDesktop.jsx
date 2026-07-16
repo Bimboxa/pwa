@@ -17,7 +17,6 @@ import { setSelectedItem } from "Features/selection/selectionSlice";
 import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 import { setDisplayedPortfolioId } from "Features/portfolios/portfoliosSlice";
 import { setListingViewerSelectedListingId } from "Features/listingViewer/listingViewerSlice";
-import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 import useSwitchViewer from "Features/viewers/hooks/useSwitchViewer";
 
@@ -330,7 +329,9 @@ export default function TopBarDesktop() {
         }}
       >
         {!disable3D && <ButtonToggleThreedViewer />}
-        {!isThreedFamilyViewerKey(viewerKey) && !viewerMode && (
+        {/* Scope-level actions (save/sync, history, share): available in
+            every module, whichever editor it displays. */}
+        {!viewerMode && (
           <Box
             sx={{
               display: { xs: "none", md: "flex" },
