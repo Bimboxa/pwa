@@ -92,6 +92,7 @@ import PopperEditMesh3d from "Features/threedMesh/components/PopperEditMesh3d";
 import PopperEditMeshes3d from "Features/threedMesh/components/PopperEditMeshes3d";
 import useMeshingPointerHandlers from "Features/threedMesh/hooks/useMeshingPointerHandlers";
 import useShootPointerHandlers from "Features/threedMesh/hooks/useShootPointerHandlers";
+import useWalkMode from "Features/threedEditor/hooks/useWalkMode";
 import {
   getMesh3dSprites,
   getMesh3dFaceMeshes,
@@ -230,6 +231,15 @@ export default function MainThreedEditor() {
     meshingActiveRef.current = meshingActive;
   }, [meshingActive]);
 
+  // Same pattern for walk mode — WalkModeController owns the camera and the
+  // keyboard; clicks are the pointer-lock re-acquire fallback, and hover
+  // raycasts would read frozen client coords while the pointer is locked.
+  const walkActive = useSelector((s) => s.threedEditor.walkMode.active);
+  const walkActiveRef = useRef(walkActive);
+  useEffect(() => {
+    walkActiveRef.current = walkActive;
+  }, [walkActive]);
+
   // Sub-selection (vertex / edge inside the selected annotation). Sourced
   // from threedEditorSlice. We subscribe via useSelector with a primitive
   // key so React only re-renders when the meaningful identity changes.
@@ -245,6 +255,7 @@ export default function MainThreedEditor() {
   useDimensionPointerHandlers();
   useMeshingPointerHandlers();
   useShootPointerHandlers();
+  useWalkMode();
 
   // Drive the 3D clipping plane from the 2D-defined segment (top view).
   useSyncClippingPlanTo3D({ threedEditorRef, rendererIsReady });
@@ -424,6 +435,8 @@ export default function MainThreedEditor() {
       if (dimensionActiveRef.current) return;
       // Meshing mode owns the pointer; useMeshingPointerHandlers handles it.
       if (meshingActiveRef.current) return;
+      // Walk mode: clicks only re-acquire the pointer lock, never select.
+      if (walkActiveRef.current) return;
 
       const threedEditor = threedEditorRef.current;
       const sceneManager = threedEditor.sceneManager;
@@ -1116,13 +1129,15 @@ export default function MainThreedEditor() {
     if (lassoStartRef.current) return;
     // Hover highlight is always on — except in BASEMAP_POSITION (pointer
     // reserved for the transform gizmo), in meshing mode, which runs its
-    // own hover (stipple + cursor helper) in useMeshingPointerHandlers, and
-    // in PHOTOREAL: every material change invalidates the path tracer's BVH
-    // (a rebuild per mousemove), and the highlight is invisible in the traced
-    // image anyway.
+    // own hover (stipple + cursor helper) in useMeshingPointerHandlers, in
+    // walk mode (pointer locked: client coords are frozen, the camera moves),
+    // and in PHOTOREAL: every material change invalidates the path tracer's
+    // BVH (a rebuild per mousemove), and the highlight is invisible in the
+    // traced image anyway.
     if (
       editorModeRef.current === "BASEMAP_POSITION" ||
       meshingActiveRef.current ||
+      walkActiveRef.current ||
       renderModeRef.current === "PHOTOREAL"
     ) {
       if (prevHoveredObjectRef.current) {

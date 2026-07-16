@@ -1,48 +1,20 @@
 import { useEffect } from "react";
 
 import { useDispatch, useSelector } from "react-redux";
-import { Raycaster, Vector2 } from "three";
 
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 import { setMeshingShootActive } from "Features/threedEditor/threedEditorSlice";
-import {
-  getActiveClippingPlane,
-  filterIntersectionsByClipping,
-} from "Features/threedEditor/js/utilsAnnotationsManager/clippingPick";
-import { filterIntersectionsByVisibility } from "Features/threedEditor/js/utilsAnnotationsManager/visibilityPick";
 
+import { emitShoot } from "../services/shootAimStore";
+import { pickWorldTargetAtNdc, getMuzzleOrigin } from "../services/shootPick";
 import { createShootSprayController } from "../services/shootSprayController";
 
 const DRAG_THRESHOLD_PX = 4;
-const VOID_TARGET_DIST = 30; // spray reach when the click hits nothing
-const MUZZLE_DIST = 0.6; // spray origin, in front of the camera near plane
 
-// --- Lance aim store -------------------------------------------------------
-// Tiny external store connecting this hook (imperative pointer code) to the
-// ShootLanceOverlayThreed DOM overlay. `aim` is px relative to the 3D canvas;
-// `firingUntil` re-arms the recoil animation on each shot.
-
-let _state = { aim: null, firingUntil: 0 };
-const _listeners = new Set();
-
-function emitShoot(partial) {
-  _state = { ..._state, ...partial };
-  _listeners.forEach((listener) => listener());
-}
-
-export function getShootState() {
-  return _state;
-}
-
-export function subscribeShoot(listener) {
-  _listeners.add(listener);
-  return () => _listeners.delete(listener);
-}
-
-// --- Pointer handlers ------------------------------------------------------
 // Owns the pointer while meshingMode.shootActive: aim feeds the lance
-// overlay, a clean click (no drag — camera-controls keeps orbiting on drags)
-// fires a 1s concrete burst toward the point under the cursor.
+// overlay (via shootAimStore), a clean click (no drag — camera-controls keeps
+// orbiting on drags) fires a 1s concrete burst toward the point under the
+// cursor.
 export default function useShootPointerHandlers() {
   const dispatch = useDispatch();
 
@@ -59,8 +31,6 @@ export default function useShootPointerHandlers() {
     const dom = sceneManager?.renderer?.domElement;
     if (!sceneManager || !dom) return;
 
-    const raycaster = new Raycaster();
-    const mouse = new Vector2();
     let downPos = null;
     let dragging = false;
 
@@ -68,44 +38,13 @@ export default function useShootPointerHandlers() {
 
     dom.style.cursor = "crosshair";
 
-    // World point under the cursor: first mesh hit (clipping/visibility
-    // aware, fat lines excluded — same filter as useMeshingPointerHandlers'
-    // pickScene), else a far point along the mouse ray.
+    // World point under the cursor (see pickWorldTargetAtNdc).
     function pickTarget(e) {
       const rect = dom.getBoundingClientRect();
       if (!rect.width || !rect.height) return null;
-      mouse.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-      mouse.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-      raycaster.setFromCamera(mouse, sceneManager.camera);
-      const clippingPlane = getActiveClippingPlane(sceneManager);
-
-      const targets = [];
-      sceneManager.scene.traverse((obj) => {
-        if (obj.isMesh && !obj.isLine2 && !obj.isLineSegments2) {
-          targets.push(obj);
-        }
-      });
-
-      const intersects = filterIntersectionsByVisibility(
-        filterIntersectionsByClipping(
-          raycaster.intersectObjects(targets, false),
-          clippingPlane
-        )
-      );
-
-      if (intersects.length) return intersects[0].point.clone();
-      return raycaster.ray.origin
-        .clone()
-        .addScaledVector(raycaster.ray.direction, VOID_TARGET_DIST);
-    }
-
-    // Spray origin: bottom-center of the screen, just in front of the camera
-    // — matches the lance muzzle of the DOM overlay.
-    function getOrigin() {
-      raycaster.setFromCamera(new Vector2(0, -0.85), sceneManager.camera);
-      return raycaster.ray.origin
-        .clone()
-        .addScaledVector(raycaster.ray.direction, MUZZLE_DIST);
+      const ndcX = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+      const ndcY = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+      return pickWorldTargetAtNdc({ sceneManager, ndcX, ndcY });
     }
 
     function onPointerDown(e) {
@@ -134,7 +73,7 @@ export default function useShootPointerHandlers() {
 
       const target = pickTarget(e);
       if (!target) return;
-      controller.fire({ origin: getOrigin(), target });
+      controller.fire({ origin: getMuzzleOrigin(sceneManager), target });
       emitShoot({ firingUntil: Date.now() + 1000 });
     }
 

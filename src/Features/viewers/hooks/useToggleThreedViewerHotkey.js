@@ -23,9 +23,12 @@ export default function useToggleThreedViewerHotkey() {
   const togglePovViewerMode = useTogglePovViewerMode();
   const selectedViewerKey = useSelector((s) => s.viewers.selectedViewerKey);
   const enabledDrawingMode = useSelector((s) => s.mapEditor.enabledDrawingMode);
+  const walkModeActive = useSelector((s) => s.threedEditor.walkMode.active);
 
   useEffect(() => {
     if (enabledDrawingMode) return undefined;
+    // Walk mode owns the keyboard (arrows, Space, W to exit).
+    if (walkModeActive) return undefined;
 
     const handleKeyDown = (e) => {
       if (e.ctrlKey || e.metaKey || e.altKey) return;
@@ -44,5 +47,11 @@ export default function useToggleThreedViewerHotkey() {
 
     window.addEventListener("keydown", handleKeyDown, true);
     return () => window.removeEventListener("keydown", handleKeyDown, true);
-  }, [enabledDrawingMode, selectedViewerKey, switchViewer, togglePovViewerMode]);
+  }, [
+    enabledDrawingMode,
+    walkModeActive,
+    selectedViewerKey,
+    switchViewer,
+    togglePovViewerMode,
+  ]);
 }

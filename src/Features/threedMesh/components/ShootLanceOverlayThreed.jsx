@@ -4,10 +4,7 @@ import { useSelector } from "react-redux";
 
 import { Box } from "@mui/material";
 
-import {
-  getShootState,
-  subscribeShoot,
-} from "../hooks/useShootPointerHandlers";
+import { getShootState, subscribeShoot } from "../services/shootAimStore";
 
 // Rotation clamp of the lance, degrees from vertical.
 const MAX_ANGLE_DEG = 60;
@@ -15,14 +12,16 @@ const MAX_ANGLE_DEG = 60;
 const ANCHOR_BELOW_PX = 30;
 
 // Doom-like concrete-projection lance shown at the bottom of the 3D view
-// while the meshing "shoot" sub-mode is on. Aims toward the mouse (fed by
-// useShootPointerHandlers through its store), idle-sways, and recoils on
-// fire. Pure DOM/SVG, pointer-transparent.
+// while the meshing "shoot" sub-mode or the walk mode is on. Aims toward the
+// mouse (fed by useShootPointerHandlers through the shootAimStore) — straight
+// ahead in walk mode, where a crosshair marks the fire target at screen
+// center — idle-sways, and recoils on fire. Pure DOM/SVG, pointer-transparent.
 export default function ShootLanceOverlayThreed() {
   const meshingActive = useSelector((s) => s.threedEditor.meshingMode.active);
   const shootActive = useSelector(
     (s) => s.threedEditor.meshingMode.shootActive
   );
+  const walkActive = useSelector((s) => s.threedEditor.walkMode.active);
 
   const { aim, firingUntil } = useSyncExternalStore(
     subscribeShoot,
@@ -42,7 +41,7 @@ export default function ShootLanceOverlayThreed() {
     return () => clearTimeout(timeout);
   }, [firingUntil]);
 
-  if (!meshingActive || !shootActive) return null;
+  if (!walkActive && !(meshingActive && shootActive)) return null;
 
   return (
     <Box
@@ -66,7 +65,45 @@ export default function ShootLanceOverlayThreed() {
         },
       }}
     >
-      <LanceBody aim={aim} firing={firing} />
+      {/* In walk mode the mouse steers the camera, not the lance: aim
+          straight ahead and mark the fire target with a crosshair. */}
+      <LanceBody aim={walkActive ? null : aim} firing={firing} />
+      {walkActive && <Crosshair />}
+    </Box>
+  );
+}
+
+function Crosshair() {
+  return (
+    <Box
+      component="svg"
+      viewBox="0 0 16 16"
+      sx={{
+        position: "absolute",
+        left: "50%",
+        top: "50%",
+        transform: "translate(-50%, -50%)",
+        width: 16,
+        height: 16,
+        filter: "drop-shadow(0 0 1px rgba(0,0,0,0.8))",
+      }}
+    >
+      <line
+        x1="8"
+        y1="1"
+        x2="8"
+        y2="15"
+        stroke="rgba(255,255,255,0.9)"
+        strokeWidth="1.5"
+      />
+      <line
+        x1="1"
+        y1="8"
+        x2="15"
+        y2="8"
+        stroke="rgba(255,255,255,0.9)"
+        strokeWidth="1.5"
+      />
     </Box>
   );
 }
