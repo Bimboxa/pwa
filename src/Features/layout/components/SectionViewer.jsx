@@ -52,8 +52,11 @@ export default function SectionViewer() {
 
   return (
     // overflow hidden clips the sliding POV drawer at the viewer's left edge
-    // so it slides under the black viewers band (same as MainPortfolioEditor).
-    <BoxCenter sx={{ position: "relative", overflow: "hidden" }}>
+    // so it slides under the black viewers band; stretch makes the docked POV
+    // drawer fill the full height (same flex-row archi as MainBaseMapViewer).
+    <BoxCenter
+      sx={{ position: "relative", overflow: "hidden", alignItems: "stretch" }}
+    >
       {/* POV drawer: in-flow sibling of the editors area (docked mode shrinks
           the displayed 2D/3D editor, drawer mode slides over it on hover). */}
       {isPov && (
