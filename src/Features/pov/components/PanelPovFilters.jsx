@@ -267,11 +267,11 @@ export default function PanelPovFilters() {
     [legendAnnotations]
   );
 
+  // The free-annotations system listing ("Annotations libres") is included:
+  // its templates (Ligne / Polygone) carry the same hidden flag, so the eye
+  // works like any other row.
   const displayedListings = useMemo(
-    () =>
-      (listings ?? []).filter(
-        (l) => !l.isFreeAnnotationsListing && visibleListingIds.has(l.id)
-      ),
+    () => (listings ?? []).filter((l) => visibleListingIds.has(l.id)),
     [listings, visibleListingIds]
   );
 
