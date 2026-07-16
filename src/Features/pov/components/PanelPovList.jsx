@@ -93,7 +93,7 @@ export default function PanelPovList() {
       sx={{
         display: "flex",
         flexDirection: "column",
-        flex: 1,
+        height: 1,
         minHeight: 0,
         bgcolor: "background.default",
       }}

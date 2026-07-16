@@ -6,7 +6,7 @@ import {
   selectSelectedItem,
 } from "Features/selection/selectionSlice";
 
-import { Box, IconButton, TextField, Typography } from "@mui/material";
+import { Box, IconButton, Tab, Tabs, TextField, Typography } from "@mui/material";
 import { ArrowBack as Back, PhotoCamera } from "@mui/icons-material";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
@@ -15,6 +15,7 @@ import SectionCaptureFormat from "Features/mapEditor/components/SectionCaptureFo
 import SectionCaptureLegend from "Features/mapEditor/components/SectionCaptureLegend";
 import SectionCaptureExport from "Features/mapEditor/components/SectionCaptureExport";
 import IconButtonMoreActionsPov from "./IconButtonMoreActionsPov";
+import PanelPovFilters from "./PanelPovFilters";
 
 import captureMapAsPng from "Features/mapEditor/utils/captureMapAsPng";
 import snapshotThreedCanvasForCapture from "Features/threedEditor/utils/snapshotThreedCanvasForCapture";
@@ -55,6 +56,7 @@ export default function PanelPovProperties() {
 
   // state
 
+  const [tab, setTab] = useState("CADRAGE");
   const [description, setDescription] = useState(pov?.description ?? "");
 
   useEffect(() => {
@@ -140,6 +142,23 @@ export default function PanelPovProperties() {
         <IconButtonMoreActionsPov pov={pov} />
       </Box>
 
+      <Tabs
+        value={tab}
+        onChange={(_, v) => setTab(v)}
+        variant="fullWidth"
+        sx={{
+          minHeight: 36,
+          borderBottom: "1px solid",
+          borderColor: "divider",
+        }}
+      >
+        <Tab label="Cadrage" value="CADRAGE" sx={{ minHeight: 36, py: 0.5 }} />
+        <Tab label="Filtres" value="FILTRES" sx={{ minHeight: 36, py: 0.5 }} />
+      </Tabs>
+
+      {tab === "FILTRES" && <PanelPovFilters />}
+
+      {tab === "CADRAGE" && (
       <Box
         sx={{
           flex: 1,
@@ -201,6 +220,7 @@ export default function PanelPovProperties() {
           />
         </WhiteSectionGeneric>
       </Box>
+      )}
     </BoxFlexVStretch>
   );
 }
