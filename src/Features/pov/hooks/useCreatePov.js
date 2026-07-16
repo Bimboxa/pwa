@@ -4,6 +4,7 @@ import { generateKeyBetween } from "fractional-indexing";
 
 import { setSelectedItem } from "Features/selection/selectionSlice";
 import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
+import { setPovDraftDescription } from "../povSlice";
 
 import db from "App/db/db";
 
@@ -18,6 +19,7 @@ export default function useCreatePov() {
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const scopeId = useSelector((s) => s.scopes.selectedScopeId);
   const userProfile = useSelector((s) => s.auth.userProfile);
+  const draftDescription = useSelector((s) => s.pov.draftDescription);
 
   const capturePovView = useCapturePovView();
 
@@ -39,12 +41,13 @@ export default function useCreatePov() {
       projectId,
       scopeId,
       sortIndex: generateKeyBetween(lastSortIndex, null),
-      description: "",
+      description: draftDescription ?? "",
       createdBy,
       ...view,
     };
 
     await db.povs.add(record);
+    dispatch(setPovDraftDescription(""));
 
     // select the new POV and open its properties panel
     dispatch(setSelectedItem({ id: record.id, type: "POV" }));

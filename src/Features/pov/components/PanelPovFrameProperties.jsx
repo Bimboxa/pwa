@@ -1,6 +1,9 @@
 import { useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
 
-import { Box, Tab, Tabs, Typography } from "@mui/material";
+import { setPovDraftDescription } from "../povSlice";
+
+import { Box, Tab, Tabs, TextField, Typography } from "@mui/material";
 import { PhotoCamera } from "@mui/icons-material";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
@@ -8,18 +11,32 @@ import PanelPovFilters from "./PanelPovFilters";
 import SectionPovCadrage from "./SectionPovCadrage";
 
 // Default properties panel of the POV viewer (no POV selected): drives what
-// the next "Créer une vue" will capture — Cadrage (frame + legend, shared
-// imageMode state read by ImageModeOverlay in 2D and 3D) and Filtres
-// (annotation templates visibility) tabs.
+// the next "Créer une vue" will capture — Image (placeholder + draft
+// description, no export yet), Cadrage (frame + legend + background) and
+// Filtres (annotation templates visibility) tabs.
 export default function PanelPovFrameProperties() {
+  const dispatch = useDispatch();
+
   // strings
 
   const captionS = "Point de vue";
   const titleS = "Nouveau point de vue";
+  const descriptionS = "Description";
+  const placeholderS = 'Cliquer sur "Créer une vue" dans l\'éditeur';
+
+  // data
+
+  const draftDescription = useSelector((s) => s.pov.draftDescription);
 
   // state
 
-  const [tab, setTab] = useState("CADRAGE");
+  const [tab, setTab] = useState("IMAGE");
+
+  // handlers
+
+  function handleDescriptionChange(e) {
+    dispatch(setPovDraftDescription(e.target.value));
+  }
 
   // render
 
@@ -51,6 +68,7 @@ export default function PanelPovFrameProperties() {
           borderColor: "divider",
         }}
       >
+        <Tab label="Image" value="IMAGE" sx={{ minHeight: 36, py: 0.5 }} />
         <Tab label="Cadrage" value="CADRAGE" sx={{ minHeight: 36, py: 0.5 }} />
         <Tab label="Filtres" value="FILTRES" sx={{ minHeight: 36, py: 0.5 }} />
       </Tabs>
@@ -58,6 +76,52 @@ export default function PanelPovFrameProperties() {
       {tab === "FILTRES" && <PanelPovFilters />}
 
       {tab === "CADRAGE" && <SectionPovCadrage />}
+
+      {tab === "IMAGE" && (
+        <Box
+          sx={{
+            flex: 1,
+            minHeight: 0,
+            overflowY: "auto",
+            p: 1,
+            display: "flex",
+            flexDirection: "column",
+            gap: 1.5,
+          }}
+        >
+          {/* Placeholder: no capture yet */}
+          <Box
+            sx={{
+              borderRadius: 1,
+              bgcolor: "action.hover",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              minHeight: 120,
+              p: 2,
+            }}
+          >
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={{ textAlign: "center" }}
+            >
+              {placeholderS}
+            </Typography>
+          </Box>
+
+          {/* Draft description, consumed by the next "Créer une vue" */}
+          <TextField
+            size="small"
+            fullWidth
+            multiline
+            minRows={2}
+            label={descriptionS}
+            value={draftDescription}
+            onChange={handleDescriptionChange}
+          />
+        </Box>
+      )}
     </BoxFlexVStretch>
   );
 }
