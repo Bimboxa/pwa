@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import {
@@ -9,8 +9,6 @@ import {
   Divider,
   FormControlLabel,
   Switch,
-  Tab,
-  Tabs,
   ToggleButton,
   ToggleButtonGroup,
   Typography,
@@ -23,46 +21,21 @@ import {
   setDisableOpacity,
   setAntiAliasingShrink,
   setRenderMode,
-  setEditorMode,
 } from "Features/threedEditor/threedEditorSlice";
 import exportSceneAsUsdzService from "Features/threedEditor/services/exportSceneAsUsdzService";
 import exportSceneAsObjService from "Features/threedEditor/services/exportSceneAsObjService";
-import PanelBaseMapPosition3D from "./PanelBaseMapPosition3D";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 
 // 3D view settings, shown by the right-panel SETTINGS tool while a 3D editor
 // is displayed (see PanelEditorSettings). Holds the viewer toggles plus the
 // USDZ / OBJ export action. Screenshot capture + legend display moved to the
-// shared "Export rapide" flow (Export panel, same as the 2D viewer).
+// shared "Export rapide" flow (Export panel); the baseMap position tools
+// moved to the horizontal baseMap chips band of the 3D viewer.
 export default function PanelThreedProperties() {
   const dispatch = useDispatch();
 
-  const [tab, setTab] = useState("SCENE"); // "SCENE" | "BASEMAP"
   const [exporting, setExporting] = useState(false);
   const [exportFormat, setExportFormat] = useState("USDZ"); // "USDZ" | "OBJ"
-
-  // While the "Fonds de plan" tab is active, put the 3D viewer in
-  // BASEMAP_POSITION mode (pointer reserved for the transform gizmo, annotation
-  // selection/hover suppressed). Restore navigation when leaving the tab — and
-  // on unmount (panel closed / left the 3D viewer) so the viewer isn't stuck
-  // with annotation interactions disabled.
-  const prevTabRef = useRef("SCENE");
-  useEffect(() => {
-    const prev = prevTabRef.current;
-    if (tab === "BASEMAP" && prev !== "BASEMAP") {
-      dispatch(setEditorMode("BASEMAP_POSITION"));
-    } else if (tab !== "BASEMAP" && prev === "BASEMAP") {
-      dispatch(setEditorMode("NAVIGATION"));
-    }
-    prevTabRef.current = tab;
-  }, [tab, dispatch]);
-  useEffect(() => {
-    return () => {
-      if (prevTabRef.current === "BASEMAP") {
-        dispatch(setEditorMode("NAVIGATION"));
-      }
-    };
-  }, [dispatch]);
 
   const showGrid = useSelector((s) => s.threedEditor.showGrid);
   const hideBaseMaps = useSelector((s) => s.threedEditor.hideBaseMaps);
@@ -100,181 +73,152 @@ export default function PanelThreedProperties() {
 
   return (
     <BoxFlexVStretch sx={{ height: 1 }}>
-      <Tabs
-        value={tab}
-        onChange={(_e, v) => setTab(v)}
-        variant="fullWidth"
-        sx={{
-          minHeight: 40,
-          borderBottom: (theme) => `1px solid ${theme.palette.divider}`,
-          "& .MuiTab-root": { minHeight: 40, textTransform: "none" },
-        }}
-      >
-        <Tab value="SCENE" label="Scène 3D" />
-        <Tab value="BASEMAP" label="Fonds de plan" />
-      </Tabs>
-
-      {tab === "SCENE" && (
-        <Box sx={{ p: 2, overflowY: "auto", flexGrow: 1, minHeight: 0 }}>
-          <Box sx={{ display: "flex", flexDirection: "column" }}>
-            <FormControlLabel
-              control={
-                <Switch
-                  size="small"
-                  checked={showGrid}
-                  onChange={(e) => dispatch(setShowGrid(e.target.checked))}
-                />
-              }
-              label={
-                <Typography variant="body2">Afficher la grille</Typography>
-              }
-            />
-            <FormControlLabel
-              control={
-                <Switch
-                  size="small"
-                  checked={hideBaseMaps}
-                  onChange={(e) => dispatch(setHideBaseMaps(e.target.checked))}
-                />
-              }
-              label={
-                <Typography variant="body2">
-                  Masquer les fonds de plan
-                </Typography>
-              }
-            />
-            <FormControlLabel
-              control={
-                <Switch
-                  size="small"
-                  checked={!disableOpacity}
-                  onChange={(e) =>
-                    dispatch(setDisableOpacity(!e.target.checked))
-                  }
-                />
-              }
-              label={
-                <Typography variant="body2">
-                  Transparence des annotations
-                </Typography>
-              }
-            />
-            <FormControlLabel
-              control={
-                <Switch
-                  size="small"
-                  checked={antiAliasingShrink}
-                  onChange={(e) =>
-                    dispatch(setAntiAliasingShrink(e.target.checked))
-                  }
-                />
-              }
-              label={
-                <Typography variant="body2">
-                  Réduire le crénelage des parements
-                </Typography>
-              }
-            />
-          </Box>
-
-          <Divider sx={{ my: 1.5 }} />
-
-          <Card variant="outlined" sx={{ p: 1.5, mb: 1.5 }}>
-            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
-              Rendu
-            </Typography>
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              sx={{ display: "block", mb: 1 }}
-            >
-              Réaliste : matériaux + ombres en temps réel. Photoréaliste : rendu
-              progressif (l'image converge quand la caméra est immobile),
-              indisponible avec le plan de coupe.
-            </Typography>
-            <ToggleButtonGroup
-              size="small"
-              exclusive
-              fullWidth
-              value={renderMode}
-              onChange={(_e, v) => {
-                if (v) dispatch(setRenderMode(v));
-              }}
-            >
-              <ToggleButton value="STANDARD" sx={{ textTransform: "none" }}>
-                Standard
-              </ToggleButton>
-              <ToggleButton value="REALISTIC" sx={{ textTransform: "none" }}>
-                Réaliste
-              </ToggleButton>
-              <ToggleButton
-                value="PHOTOREAL"
-                sx={{ textTransform: "none" }}
-                disabled={clippingEnabled}
-              >
-                Photoréaliste
-              </ToggleButton>
-            </ToggleButtonGroup>
-          </Card>
-
-          <Card variant="outlined" sx={{ p: 1.5, mb: 1.5 }}>
-            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
-              Télécharger la 3D
-            </Typography>
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              sx={{ display: "block", mb: 1.25 }}
-            >
-              Export de la scène (fond de plan + objets 3D). USDZ pour iPhone /
-              AR, OBJ pour SketchUp.
-            </Typography>
-            <ToggleButtonGroup
-              size="small"
-              exclusive
-              fullWidth
-              value={exportFormat}
-              onChange={(_e, v) => {
-                if (v) setExportFormat(v);
-              }}
-              disabled={exporting}
-              sx={{ mb: 1.25 }}
-            >
-              <ToggleButton value="USDZ" sx={{ textTransform: "none" }}>
-                USDZ (iPhone / AR)
-              </ToggleButton>
-              <ToggleButton value="OBJ" sx={{ textTransform: "none" }}>
-                OBJ (SketchUp)
-              </ToggleButton>
-            </ToggleButtonGroup>
-            <Button
-              size="small"
-              variant="outlined"
-              fullWidth
-              startIcon={
-                exporting ? (
-                  <CircularProgress size={14} thickness={5} />
-                ) : (
-                  <ViewInAr sx={{ fontSize: 16 }} />
-                )
-              }
-              disabled={exporting}
-              onClick={handleDownload3D}
-            >
-              {exporting
-                ? "Export en cours…"
-                : `Télécharger (.${exportFormat.toLowerCase()})`}
-            </Button>
-          </Card>
-
+      <Box sx={{ p: 2, overflowY: "auto", flexGrow: 1, minHeight: 0 }}>
+        <Box sx={{ display: "flex", flexDirection: "column" }}>
+          <FormControlLabel
+            control={
+              <Switch
+                size="small"
+                checked={showGrid}
+                onChange={(e) => dispatch(setShowGrid(e.target.checked))}
+              />
+            }
+            label={<Typography variant="body2">Afficher la grille</Typography>}
+          />
+          <FormControlLabel
+            control={
+              <Switch
+                size="small"
+                checked={hideBaseMaps}
+                onChange={(e) => dispatch(setHideBaseMaps(e.target.checked))}
+              />
+            }
+            label={
+              <Typography variant="body2">Masquer les fonds de plan</Typography>
+            }
+          />
+          <FormControlLabel
+            control={
+              <Switch
+                size="small"
+                checked={!disableOpacity}
+                onChange={(e) => dispatch(setDisableOpacity(!e.target.checked))}
+              />
+            }
+            label={
+              <Typography variant="body2">
+                Transparence des annotations
+              </Typography>
+            }
+          />
+          <FormControlLabel
+            control={
+              <Switch
+                size="small"
+                checked={antiAliasingShrink}
+                onChange={(e) =>
+                  dispatch(setAntiAliasingShrink(e.target.checked))
+                }
+              />
+            }
+            label={
+              <Typography variant="body2">
+                Réduire le crénelage des parements
+              </Typography>
+            }
+          />
         </Box>
-      )}
 
-      {tab === "BASEMAP" && (
-        <Box sx={{ p: 2, overflowY: "auto", flexGrow: 1, minHeight: 0 }}>
-          <PanelBaseMapPosition3D />
-        </Box>
-      )}
+        <Divider sx={{ my: 1.5 }} />
+
+        <Card variant="outlined" sx={{ p: 1.5, mb: 1.5 }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
+            Rendu
+          </Typography>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ display: "block", mb: 1 }}
+          >
+            Réaliste : matériaux + ombres en temps réel. Photoréaliste : rendu
+            progressif (l'image converge quand la caméra est immobile),
+            indisponible avec le plan de coupe.
+          </Typography>
+          <ToggleButtonGroup
+            size="small"
+            exclusive
+            fullWidth
+            value={renderMode}
+            onChange={(_e, v) => {
+              if (v) dispatch(setRenderMode(v));
+            }}
+          >
+            <ToggleButton value="STANDARD" sx={{ textTransform: "none" }}>
+              Standard
+            </ToggleButton>
+            <ToggleButton value="REALISTIC" sx={{ textTransform: "none" }}>
+              Réaliste
+            </ToggleButton>
+            <ToggleButton
+              value="PHOTOREAL"
+              sx={{ textTransform: "none" }}
+              disabled={clippingEnabled}
+            >
+              Photoréaliste
+            </ToggleButton>
+          </ToggleButtonGroup>
+        </Card>
+
+        <Card variant="outlined" sx={{ p: 1.5, mb: 1.5 }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
+            Télécharger la 3D
+          </Typography>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ display: "block", mb: 1.25 }}
+          >
+            Export de la scène (fond de plan + objets 3D). USDZ pour iPhone /
+            AR, OBJ pour SketchUp.
+          </Typography>
+          <ToggleButtonGroup
+            size="small"
+            exclusive
+            fullWidth
+            value={exportFormat}
+            onChange={(_e, v) => {
+              if (v) setExportFormat(v);
+            }}
+            disabled={exporting}
+            sx={{ mb: 1.25 }}
+          >
+            <ToggleButton value="USDZ" sx={{ textTransform: "none" }}>
+              USDZ (iPhone / AR)
+            </ToggleButton>
+            <ToggleButton value="OBJ" sx={{ textTransform: "none" }}>
+              OBJ (SketchUp)
+            </ToggleButton>
+          </ToggleButtonGroup>
+          <Button
+            size="small"
+            variant="outlined"
+            fullWidth
+            startIcon={
+              exporting ? (
+                <CircularProgress size={14} thickness={5} />
+              ) : (
+                <ViewInAr sx={{ fontSize: 16 }} />
+              )
+            }
+            disabled={exporting}
+            onClick={handleDownload3D}
+          >
+            {exporting
+              ? "Export en cours…"
+              : `Télécharger (.${exportFormat.toLowerCase()})`}
+          </Button>
+        </Card>
+      </Box>
     </BoxFlexVStretch>
   );
 }
