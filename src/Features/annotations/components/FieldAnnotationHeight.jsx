@@ -74,7 +74,13 @@ export default function FieldAnnotationHeight({
     debounceTimer.current = setTimeout(() => {
       const finalValue = processValue(newValue);
 
-      // Commit change to parent
+      // Transient typing states ("2.", "abc") must stay local: persisting a
+      // string breaks consumers that call height.toFixed(). Only commit a
+      // number, or null when the field was cleared.
+      if (typeof finalValue === "string") {
+        if (finalValue === "") onChange({ ...annotation, [field]: null });
+        return;
+      }
       onChange({ ...annotation, [field]: finalValue });
     }, 400);
   }

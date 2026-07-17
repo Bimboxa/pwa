@@ -64,8 +64,10 @@ export default function useLegendItemsByBaseMapId(baseMapId, { viewBox, disabled
           fillType,
           label: (() => {
             const base = template?.labelLegend || (template?.label ?? "A définir");
-            return !hideHeight && template?.height > 0
-              ? `${base} [ht. ${template.height.toFixed(2)} m]`
+            // height may have been persisted as a string by older builds
+            const height = Number(template?.height);
+            return !hideHeight && Number.isFinite(height) && height > 0
+              ? `${base} [ht. ${height.toFixed(2)} m]`
               : base;
           })(),
           groupLabel: template?.groupLabel,
