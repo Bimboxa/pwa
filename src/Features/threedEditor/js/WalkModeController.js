@@ -5,7 +5,7 @@ import { MathUtils, Vector3 } from "three";
 // (update() rewrites the camera pose every call, even when disabled — see
 // ControlsManager.setSuspended). Pointer-locked mouse looks around, arrow
 // keys move, holding Space sprays (onFireStart on press, onFireStop on
-// release / blur / exit).
+// release / blur / exit), R clears the paint splats (onClearSplats).
 //
 // Movement model (user-validated):
 // - eye at groundY + EYE_HEIGHT above the selected baseMap plane;
@@ -45,12 +45,14 @@ export default class WalkModeController {
     onRequestExit,
     onFireStart,
     onFireStop,
+    onClearSplats,
   }) {
     this.sceneManager = sceneManager;
     this.groundY = groundY;
     this.onRequestExit = onRequestExit;
     this.onFireStart = onFireStart;
     this.onFireStop = onFireStop;
+    this.onClearSplats = onClearSplats;
 
     this._yaw = 0;
     this._pitch = 0;
@@ -251,6 +253,13 @@ export default class WalkModeController {
       // Held key = continuous jet; released in _onKeyUp.
       if (!e.repeat) this.onFireStart?.();
       // Space would scroll the page or "click" a focused button.
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      return;
+    }
+    if (e.key.toLowerCase() === "r") {
+      // Wipe the paint splats off the walls.
+      if (!e.repeat) this.onClearSplats?.();
       e.preventDefault();
       e.stopImmediatePropagation();
       return;
