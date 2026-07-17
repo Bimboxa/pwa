@@ -4,7 +4,8 @@ import { MathUtils, Vector3 } from "three";
 // owns the camera: camera-controls is disabled AND its update loop suspended
 // (update() rewrites the camera pose every call, even when disabled — see
 // ControlsManager.setSuspended). Pointer-locked mouse looks around, arrow
-// keys move, Space fires (delegated to `onFire`).
+// keys move, holding Space sprays (onFireStart on press, onFireStop on
+// release / blur / exit).
 //
 // Movement model (user-validated):
 // - eye at groundY + EYE_HEIGHT above the selected baseMap plane;
@@ -38,11 +39,18 @@ function easeInOutCubic(t) {
 const _dir = new Vector3();
 
 export default class WalkModeController {
-  constructor({ sceneManager, groundY = 0, onRequestExit, onFire }) {
+  constructor({
+    sceneManager,
+    groundY = 0,
+    onRequestExit,
+    onFireStart,
+    onFireStop,
+  }) {
     this.sceneManager = sceneManager;
     this.groundY = groundY;
     this.onRequestExit = onRequestExit;
-    this.onFire = onFire;
+    this.onFireStart = onFireStart;
+    this.onFireStop = onFireStop;
 
     this._yaw = 0;
     this._pitch = 0;
@@ -125,6 +133,7 @@ export default class WalkModeController {
   };
 
   exit = () => {
+    this.onFireStop?.(); // never leave a stream running past the mode
     if (this._rafId != null) {
       cancelAnimationFrame(this._rafId);
       this._rafId = null;
@@ -239,7 +248,8 @@ export default class WalkModeController {
       return;
     }
     if (e.code === "Space") {
-      if (!e.repeat) this.onFire?.();
+      // Held key = continuous jet; released in _onKeyUp.
+      if (!e.repeat) this.onFireStart?.();
       // Space would scroll the page or "click" a focused button.
       e.preventDefault();
       e.stopImmediatePropagation();
@@ -253,6 +263,12 @@ export default class WalkModeController {
   };
 
   _onKeyUp = (e) => {
+    if (e.code === "Space") {
+      this.onFireStop?.();
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      return;
+    }
     if (this._setKeyFromEvent(e, false)) {
       e.preventDefault();
       e.stopImmediatePropagation();
@@ -260,8 +276,10 @@ export default class WalkModeController {
   };
 
   _onBlur = () => {
-    // Focus loss eats the keyup events — don't keep walking forever.
+    // Focus loss eats the keyup events — don't keep walking (or spraying)
+    // forever.
     this._keys = { fwd: false, back: false, left: false, right: false };
+    this.onFireStop?.();
   };
 
   // ----- movement loop -------------------------------------------------------

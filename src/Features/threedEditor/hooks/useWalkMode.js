@@ -123,42 +123,52 @@ export default function useWalkMode() {
         opacity: 0.9,
       },
     });
+    // Live aim of the stream, re-read every frame while Space is held.
+    // Origin: with the RPG image displayed, the jet exits its nozzle —
+    // measure the on-screen image rect (robust to resize and to the CSS
+    // tilt) and place the muzzle at the configured anchor
+    // (features.walkMode.muzzleAnchor, fractions of the image rect from its
+    // top-left). Fallback: the bottom-center muzzle of the SVG lance.
+    // Target: the point under the screen-center crosshair.
+    const getStreamAim = () => {
+      const target = pickWorldTargetAtNdc({ sceneManager, ndcX: 0, ndcY: 0 });
+      if (!target) return null;
+      const walkConfig = store.getState().appConfig.value?.features?.walkMode;
+      const weaponEl = document.querySelector('[data-walk-rpg-weapon="true"]');
+      const canvasRect =
+        sceneManager.renderer.domElement.getBoundingClientRect();
+      let origin = null;
+      if (weaponEl && canvasRect.width && canvasRect.height) {
+        const anchor = walkConfig?.muzzleAnchor ?? {};
+        const anchorX = Number.isFinite(anchor.x) ? anchor.x : 0.2;
+        const anchorY = Number.isFinite(anchor.y) ? anchor.y : 0.12;
+        const weaponRect = weaponEl.getBoundingClientRect();
+        const px = weaponRect.left + anchorX * weaponRect.width;
+        const py = weaponRect.top + anchorY * weaponRect.height;
+        origin = getMuzzleOrigin(sceneManager, {
+          ndcX: ((px - canvasRect.left) / canvasRect.width) * 2 - 1,
+          ndcY: -((py - canvasRect.top) / canvasRect.height) * 2 + 1,
+          dist: 0.8,
+        });
+      }
+      if (!origin) origin = getMuzzleOrigin(sceneManager);
+      return { origin, target };
+    };
+
     const controller = new WalkModeController({
       sceneManager,
       groundY: groundYRef.current,
       onRequestExit: () => dispatch(setWalkModeActive(false)),
-      onFire: () => {
-        const target = pickWorldTargetAtNdc({ sceneManager, ndcX: 0, ndcY: 0 });
-        if (!target) return;
-        // With the RPG image displayed, the jet exits its nozzle: measure
-        // the on-screen image rect at fire time (robust to resize and to
-        // the CSS tilt) and place the muzzle at the configured anchor
-        // (features.walkMode.muzzleAnchor, fractions of the image rect from
-        // its top-left). Fallback: the bottom-center muzzle of the SVG
-        // lance.
-        const walkConfig = store.getState().appConfig.value?.features?.walkMode;
-        const weaponEl = document.querySelector(
-          '[data-walk-rpg-weapon="true"]'
-        );
-        const canvasRect =
-          sceneManager.renderer.domElement.getBoundingClientRect();
-        let origin = null;
-        if (weaponEl && canvasRect.width && canvasRect.height) {
-          const anchor = walkConfig?.muzzleAnchor ?? {};
-          const anchorX = Number.isFinite(anchor.x) ? anchor.x : 0.2;
-          const anchorY = Number.isFinite(anchor.y) ? anchor.y : 0.12;
-          const weaponRect = weaponEl.getBoundingClientRect();
-          const px = weaponRect.left + anchorX * weaponRect.width;
-          const py = weaponRect.top + anchorY * weaponRect.height;
-          origin = getMuzzleOrigin(sceneManager, {
-            ndcX: ((px - canvasRect.left) / canvasRect.width) * 2 - 1,
-            ndcY: -((py - canvasRect.top) / canvasRect.height) * 2 + 1,
-            dist: 0.8,
-          });
-        }
-        if (!origin) origin = getMuzzleOrigin(sceneManager);
-        spray.fire({ origin, target });
-        emitShoot({ firingUntil: Date.now() + 1000 }); // weapon recoil
+      // Space held = continuous jet; the recoil/shake animation of the
+      // weapon overlay runs for the whole hold (firingUntil far ahead,
+      // reset on release).
+      onFireStart: () => {
+        spray.startStream(getStreamAim);
+        emitShoot({ firingUntil: Date.now() + 3600 * 1000 });
+      },
+      onFireStop: () => {
+        spray.stopStream();
+        emitShoot({ firingUntil: 0 });
       },
     });
     controller.enter();
