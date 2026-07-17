@@ -106,7 +106,18 @@ export default function useWalkMode() {
       return;
     }
 
-    const spray = createShootSprayController({ editor, sceneManager });
+    const spray = createShootSprayController({
+      editor,
+      sceneManager,
+      // Walk-mode jet: much coarser, tighter and straighter than the meshing
+      // lance spray — reads as a pressure jet along the muzzle→target line.
+      options: {
+        particleSize: 0.18,
+        spreadDeg: 2,
+        gravityY: -1.5,
+        crossingTimeS: 0.3,
+      },
+    });
     const controller = new WalkModeController({
       sceneManager,
       groundY: groundYRef.current,
@@ -114,8 +125,20 @@ export default function useWalkMode() {
       onFire: () => {
         const target = pickWorldTargetAtNdc({ sceneManager, ndcX: 0, ndcY: 0 });
         if (!target) return;
-        spray.fire({ origin: getMuzzleOrigin(sceneManager), target });
-        emitShoot({ firingUntil: Date.now() + 1000 }); // lance recoil
+        // With the RPG image displayed, the jet exits its nozzle (bottom
+        // right of the view); otherwise fall back to the bottom-center
+        // muzzle of the SVG lance.
+        const rpgImageUrl =
+          store.getState().appConfig.value?.features?.walkMode?.rpgImageUrl;
+        const origin = rpgImageUrl
+          ? getMuzzleOrigin(sceneManager, {
+              ndcX: 0.35,
+              ndcY: -0.25,
+              dist: 0.8,
+            })
+          : getMuzzleOrigin(sceneManager);
+        spray.fire({ origin, target });
+        emitShoot({ firingUntil: Date.now() + 1000 }); // weapon recoil
       },
     });
     controller.enter();
@@ -127,7 +150,7 @@ export default function useWalkMode() {
       spray.dispose();
       emitShoot({ aim: null, firingUntil: 0 });
     };
-  }, [walkActive, dispatch]);
+  }, [walkActive, dispatch, store]);
 
   // Switching the selected baseMap mid-walk re-targets gravity.
   useEffect(() => {
