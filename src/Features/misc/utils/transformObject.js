@@ -47,6 +47,14 @@ const transformObject = (source, mappingConfig) => {
         // Cas 2 : Valeur issue d'un champ source
         else if (rule.field) {
             finalValue = getDeepValue(source, rule.field);
+
+            // Cas 2b : tableau d'objets avec son propre mapping par item
+            // (ex: povPreviews dans les réponses ScopesConfigurations)
+            if (rule.itemsMapping && Array.isArray(finalValue)) {
+                finalValue = finalValue.map((item) =>
+                    transformObject(item, rule.itemsMapping)
+                );
+            }
         }
 
         // On écrit le résultat dans l'objet de destination

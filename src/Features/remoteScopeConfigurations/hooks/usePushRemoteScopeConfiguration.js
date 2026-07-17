@@ -11,8 +11,9 @@ import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
 import useSelectedProject from "Features/projects/hooks/useSelectedProject";
 
 import resolveUrl from "Features/appConfig/utils/resolveUrl";
+import resolveBodyTemplate from "Features/appConfig/utils/resolveBodyTemplate";
 import createKrtoZip from "Features/krtoFile/services/createKrtoZip";
-import resolveRoute, { getNestedValue } from "../utils/resolveRoute";
+import resolveRoute from "../utils/resolveRoute";
 
 import getDebugAuthFromLocalStorage from "Features/auth/services/getDebugAuthFromLocalStorage";
 
@@ -70,8 +71,11 @@ export default function usePushRemoteScopeConfiguration() {
 
       // 3. Construire le body en FormData
       const context = { scope, project, userProfile, file };
-      const bodyTemplate = fetchParams.body;
-      const formData = buildFormData(bodyTemplate, context);
+      const body = resolveBodyTemplate(fetchParams.body, context);
+      const formData = new FormData();
+      Object.entries(body).forEach(([key, value]) =>
+        formData.append(key, value)
+      );
 
       // debug : log du FormData en objet lisible
       const debugBody = {};
@@ -119,44 +123,4 @@ export default function usePushRemoteScopeConfiguration() {
   };
 
   return push;
-}
-
-// --- Helpers ---
-
-/**
- * Construit un FormData à partir du template body de la config et du contexte.
- * Les valeurs {{variable}} sont résolues. Le champ File reçoit l'objet File directement.
- */
-function buildFormData(bodyTemplate, context) {
-  const formData = new FormData();
-
-  if (!bodyTemplate) return formData;
-
-  for (const [key, valueTemplate] of Object.entries(bodyTemplate)) {
-    const resolvedValue = resolveValue(valueTemplate, context);
-    if (resolvedValue !== undefined && resolvedValue !== null) {
-      formData.append(key, resolvedValue);
-    }
-  }
-
-  return formData;
-}
-
-/**
- * Résout une valeur template.
- * - "{{file}}" → retourne l'objet File directement (pour FormData)
- * - "{{file.size}}" → retourne la taille du fichier
- * - "{{scope.name}}" → retourne la valeur dans le contexte
- * - valeur non-template → retourne telle quelle
- */
-function resolveValue(template, context) {
-  if (typeof template !== "string") return template;
-
-  const match = template.match(/^\{\{\s*([a-zA-Z0-9_.]+)\s*\}\}$/);
-  if (match) {
-    return getNestedValue(context, match[1]);
-  }
-
-  // Pas de template, on retourne la valeur brute
-  return template;
 }

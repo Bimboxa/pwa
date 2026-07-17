@@ -11,6 +11,7 @@ import { CloudQueue } from "@mui/icons-material";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 import ChipProjectType from "./ChipProjectType";
+import StackPovPreviews from "./StackPovPreviews";
 
 import {
   CARD_BORDER,
@@ -99,6 +100,11 @@ export default function ListItemDashboardProject({
           )}
         </Box>
       </Box>
+      {item.povPreviews?.length > 0 && (
+        <Box sx={{ ml: 1, alignSelf: "center" }}>
+          <StackPovPreviews povPreviews={item.povPreviews} />
+        </Box>
+      )}
       <Typography
         variant="caption"
         sx={{

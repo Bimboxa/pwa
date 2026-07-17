@@ -18,10 +18,25 @@ import getFoundItems from "Features/search/getFoundItems";
 //   scopes,        // local Dexie scopes
 //   remoteConfigs, // remote scope configurations not installed locally
 //   scopeCount,
+//   povPreviews,   // shared POV previews from the remote configurations
 // }
 
 function getRemoteKey({ idMaster, clientRef, name }) {
   return `remote_${idMaster ?? clientRef ?? name}`;
+}
+
+// dedupe by idMaster + sort by fractional sortIndex (plain ASCII comparison,
+// same rule as usePovs)
+function finalizePovPreviews(item) {
+  const seen = new Set();
+  item.povPreviews = (item.povPreviews ?? [])
+    .filter((p) => {
+      const id = String(p?.idMaster ?? "");
+      if (!id || seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    })
+    .sort((a, b) => ((a.sortIndex ?? "") < (b.sortIndex ?? "") ? -1 : 1));
 }
 
 export default function useDashboardProjectItems({
@@ -73,6 +88,7 @@ export default function useDashboardProjectItems({
         city: masterProject?.address?.city,
         scopes: scopesByProjectId[project.id] ?? [],
         remoteConfigs: [],
+        povPreviews: [],
       };
     });
 
@@ -103,29 +119,35 @@ export default function useDashboardProjectItems({
 
       const isInstalled = config.scopeId && localScopeIds.has(String(config.scopeId));
 
-      if (localItem) {
-        if (!isInstalled) localItem.remoteConfigs.push(config);
-        return;
+      let targetItem = localItem;
+
+      if (!targetItem) {
+        // remote-only project derived from the configuration
+        const key = getRemoteKey({
+          clientRef: config.projectClientRef,
+          name: config.projectName,
+        });
+        targetItem = remoteOnlyByKey[key] = remoteOnlyByKey[key] ?? {
+          key,
+          isLocal: false,
+          projectId: null,
+          idMaster: null,
+          name: config.projectName,
+          clientRef: config.projectClientRef,
+          type: config.projectType,
+          city: null,
+          scopes: [],
+          remoteConfigs: [],
+          povPreviews: [],
+        };
       }
 
-      // remote-only project derived from the configuration
-      const key = getRemoteKey({
-        clientRef: config.projectClientRef,
-        name: config.projectName,
-      });
-      const item = (remoteOnlyByKey[key] = remoteOnlyByKey[key] ?? {
-        key,
-        isLocal: false,
-        projectId: null,
-        idMaster: null,
-        name: config.projectName,
-        clientRef: config.projectClientRef,
-        type: config.projectType,
-        city: null,
-        scopes: [],
-        remoteConfigs: [],
-      });
-      if (!isInstalled) item.remoteConfigs.push(config);
+      // POV previews come from the backend even for installed scopes
+      if (config.povPreviews?.length) {
+        targetItem.povPreviews.push(...config.povPreviews);
+      }
+
+      if (!isInstalled) targetItem.remoteConfigs.push(config);
     });
 
     let allItems = [...localItems, ...Object.values(remoteOnlyByKey)];
@@ -139,6 +161,7 @@ export default function useDashboardProjectItems({
         seen.add(id);
         return true;
       });
+      finalizePovPreviews(item);
       item.scopeCount = item.scopes.length + item.remoteConfigs.length;
       item.scopeNames = [
         ...item.scopes.map((s) => s.name),
@@ -190,6 +213,7 @@ export default function useDashboardProjectItems({
           scopes: [],
           remoteConfigs: [],
           scopeCount: 0,
+          povPreviews: [],
         });
         if (idMaster) knownIdMasters.add(idMaster);
         if (mp.clientRef) knownClientRefs.add(mp.clientRef);
@@ -224,6 +248,7 @@ export default function useDashboardProjectItems({
           scopes: [],
           remoteConfigs: [],
           scopeCount: 0,
+          povPreviews: [],
         });
         if (!cloudItems.includes(item)) cloudItems.push(item);
         const alreadyThere = item.remoteConfigs.some(
@@ -232,8 +257,13 @@ export default function useDashboardProjectItems({
         if (!alreadyThere) {
           item.remoteConfigs.push(config);
           item.scopeCount = item.remoteConfigs.length;
+          if (config.povPreviews?.length) {
+            item.povPreviews.push(...config.povPreviews);
+          }
         }
       });
+
+      cloudItems.forEach(finalizePovPreviews);
     }
 
     return { items: visibleItems ?? [], cloudItems };
