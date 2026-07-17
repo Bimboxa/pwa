@@ -137,9 +137,6 @@ const threedEditorInitialState = {
     // Side of the maille the reference vertex is picked on. Default LEFT
     // (resp. BOTTOM for horizontal cuts), flipped with the "S" key.
     cutSide: "LEFT", // "LEFT" | "RIGHT"
-    // Fun sub-mode: Doom-like concrete-projection lance. While on, the cut
-    // tools are suspended and a click sprays concrete toward the cursor.
-    shootActive: false,
   },
   // First-person walk mode (W in the 3D viewer). Camera-controls suspended:
   // pointer-locked mouse looks, arrow keys move on the selected baseMap,
@@ -254,7 +251,6 @@ export const threedEditorSlice = createSlice({
         state.dimensionMode.startPoint = null;
         state.meshingMode.active = false;
         state.meshingMode.tool = "SELECT";
-        state.meshingMode.shootActive = false;
         state.walkMode.active = false;
       }
     },
@@ -277,7 +273,6 @@ export const threedEditorSlice = createSlice({
         state.dimensionMode.startPoint = null;
         state.meshingMode.active = false;
         state.meshingMode.tool = "SELECT";
-        state.meshingMode.shootActive = false;
         state.walkMode.active = false;
       }
     },
@@ -387,7 +382,6 @@ export const threedEditorSlice = createSlice({
         state.moveMode.deltaZ = 0;
         state.meshingMode.active = false;
         state.meshingMode.tool = "SELECT";
-        state.meshingMode.shootActive = false;
         state.walkMode.active = false;
       }
     },
@@ -402,7 +396,6 @@ export const threedEditorSlice = createSlice({
       if (!action.payload) {
         state.meshingMode.tool = "SELECT";
         state.meshingMode.cutSide = "LEFT";
-        state.meshingMode.shootActive = false;
       } else {
         // Mutually exclusive with drawing, move and dimension modes.
         state.drawingMode.active = false;
@@ -428,9 +421,6 @@ export const threedEditorSlice = createSlice({
       state.meshingMode.cutSide =
         state.meshingMode.cutSide === "LEFT" ? "RIGHT" : "LEFT";
     },
-    setMeshingShootActive: (state, action) => {
-      state.meshingMode.shootActive = !!action.payload;
-    },
     setWalkModeActive: (state, action) => {
       state.walkMode.active = !!action.payload;
       if (action.payload) {
@@ -446,7 +436,6 @@ export const threedEditorSlice = createSlice({
         state.dimensionMode.startPoint = null;
         state.meshingMode.active = false;
         state.meshingMode.tool = "SELECT";
-        state.meshingMode.shootActive = false;
       }
     },
     setHideAnnotationsIn3d: (state, action) => {
@@ -512,7 +501,6 @@ export const {
   setMeshingTool,
   setMeshingOffset,
   toggleMeshingCutSide,
-  setMeshingShootActive,
   setWalkModeActive,
   setHideAnnotationsIn3d,
   setMesh3dLabels,
