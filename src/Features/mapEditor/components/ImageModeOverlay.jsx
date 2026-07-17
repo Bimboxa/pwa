@@ -18,9 +18,14 @@ import {
 } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
-import { setImageModeLegendOverlay } from "../mapEditorSlice";
+import {
+  setImageModeLegendOverlay,
+  setImageModeLegendQtyRows,
+} from "../mapEditorSlice";
 
 import NodeLegendStatic from "Features/mapEditorGeneric/components/NodeLegendStatic";
+import applyHardCodedQties from "Features/legend/utils/applyHardCodedQties";
+import parseMainQtyLabel from "Features/legend/utils/parseMainQtyLabel";
 import getCaptureRectBounds from "../utils/getCaptureRectBounds";
 import {
   CAPTURE_BORDER_INSET,
@@ -86,6 +91,31 @@ export default function ImageModeOverlay({
   const resolvedX =
     overlay.x ?? Math.max(0, rect.width - overlay.width - DEFAULT_PADDING);
   const resolvedY = overlay.y ?? DEFAULT_PADDING;
+
+  // Mirror the current legend rows (id / label / computed qty) to Redux so
+  // the "Quantités manuelles" section of SectionCaptureLegend can edit the
+  // overrides without recomputing the legend data (the 3D annotation set is
+  // owned by MainThreedEditor and unreachable from the panel).
+  const lastQtyRowsJsonRef = useRef("");
+  useEffect(() => {
+    const rows = (legendItems ?? [])
+      .filter((it) => it.id)
+      .map((it) => {
+        const computedLabel = qtiesById?.[it.id]?.mainQtyLabel ?? "";
+        const { value: computedValue, unit } = parseMainQtyLabel(computedLabel);
+        return {
+          id: it.id,
+          label: it.label,
+          computedValue,
+          unit,
+          computedLabel,
+        };
+      });
+    const json = JSON.stringify(rows);
+    if (json === lastQtyRowsJsonRef.current) return;
+    lastQtyRowsJsonRef.current = json;
+    dispatch(setImageModeLegendQtyRows(rows));
+  }, [legendItems, qtiesById, dispatch]);
 
   // measure legend height (provided by NodeLegendStatic)
   const [legendHeight, setLegendHeight] = useState(60);
@@ -340,7 +370,10 @@ export default function ImageModeOverlay({
                 fontSize: overlay.fontSize,
               }}
               showQty={overlay.showQty}
-              qtiesById={qtiesById}
+              qtiesById={applyHardCodedQties(
+                qtiesById,
+                overlay.hardCodedQtiesById
+              )}
               onSizeChange={handleLegendSizeChange}
             />
           ) : (

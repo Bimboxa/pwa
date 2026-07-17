@@ -13,6 +13,8 @@ import useAnnotationTemplateQtiesByIdForBaseMap from "Features/annotations/hooks
 import NodeLegendStatic from "Features/mapEditorGeneric/components/NodeLegendStatic";
 import LegendTransformOverlay from "./LegendTransformOverlay";
 
+import applyHardCodedQties from "Features/legend/utils/applyHardCodedQties";
+
 import db from "App/db/db";
 
 const DEFAULT_WIDTH = 280;
@@ -100,7 +102,10 @@ export default function LegendBlockSvg({ container, zoom }) {
           spriteImage={spriteImage}
           legendFormat={legendFormat}
           showQty={legendFormat.showQty}
-          qtiesById={qtiesById}
+          qtiesById={applyHardCodedQties(
+            qtiesById,
+            container.legendFormat?.hardCodedQtiesById
+          )}
           onSizeChange={handleSizeChange}
         />
       </g>

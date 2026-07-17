@@ -12,6 +12,7 @@ import {
 import { FormatSize, Visibility, VisibilityOff } from "@mui/icons-material";
 
 import FieldCheck from "Features/form/components/FieldCheck";
+import SectionLegendManualQties from "Features/legend/components/SectionLegendManualQties";
 
 const LABEL_SX = {
   fontWeight: 600,
@@ -28,12 +29,14 @@ export default function SectionCaptureLegend() {
   // data
 
   const overlay = useSelector((s) => s.mapEditor.imageModeLegendOverlay);
+  const qtyRows = useSelector((s) => s.mapEditor.imageModeLegendQtyRows);
 
   // helpers
 
   const showQty = overlay?.showQty ?? true;
   const legendVisible = overlay?.visible ?? true;
   const fontSize = overlay?.fontSize || 12;
+  const hardCodedQtiesById = overlay?.hardCodedQtiesById ?? {};
 
   // handlers
 
@@ -53,6 +56,15 @@ export default function SectionCaptureLegend() {
   function handleToggleLegendVisible() {
     dispatch(
       setImageModeLegendOverlay({ ...overlay, visible: !legendVisible })
+    );
+  }
+
+  function handleHardCodedQtyChange(templateId, value) {
+    const next = { ...hardCodedQtiesById };
+    if (value == null) delete next[templateId];
+    else next[templateId] = value;
+    dispatch(
+      setImageModeLegendOverlay({ ...overlay, hardCodedQtiesById: next })
     );
   }
 
@@ -120,6 +132,23 @@ export default function SectionCaptureLegend() {
             label="Afficher les quantités"
             options={{ type: "switch", showAsInline: true }}
           />
+
+          {showQty && (
+            <Box sx={{ mt: 1.5 }}>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ fontWeight: 600, display: "block", mb: 0.5 }}
+              >
+                Quantités manuelles
+              </Typography>
+              <SectionLegendManualQties
+                rows={qtyRows}
+                hardCodedQtiesById={hardCodedQtiesById}
+                onChange={handleHardCodedQtyChange}
+              />
+            </Box>
+          )}
         </Box>
       )}
     </Box>

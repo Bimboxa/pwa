@@ -94,7 +94,12 @@ const mapEditorInitialState = {
     fontSize: 12,
     showQty: true,
     visible: true,
+    hardCodedQtiesById: {}, // { [templateId]: number } manual qty overrides (session-only)
   },
+  // Legend rows mirrored by ImageModeOverlay ({ id, label, computedValue,
+  // unit, computedLabel }) so the "Quantités manuelles" panel section can
+  // edit overrides without recomputing the 2D/3D legend data.
+  imageModeLegendQtyRows: [],
   //
   selectedAnnotationTemplateId: null,
 
@@ -352,6 +357,9 @@ export const mapEditorSlice = createSlice({
     },
     setImageModeLegendOverlay: (state, action) => {
       state.imageModeLegendOverlay = action.payload;
+    },
+    setImageModeLegendQtyRows: (state, action) => {
+      state.imageModeLegendQtyRows = action.payload;
     },
     setImageModeHighRes: (state, action) => {
       state.imageModeHighRes = action.payload;
@@ -748,6 +756,7 @@ export const {
   setImageModeLegendSelected,
   setImageModeAspectRatio,
   setImageModeLegendOverlay,
+  setImageModeLegendQtyRows,
   setImageModeHighRes,
   setImageModeShowWatermark,
   setImageModeShowLogo,

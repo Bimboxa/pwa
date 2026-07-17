@@ -22,7 +22,10 @@ export default async function snapshotPovViewService({ rightInset = 0 } = {}) {
 
   const viewerMode = state.pov.viewerMode === "THREED" ? "THREED" : "MAP";
   const aspectRatio = state.mapEditor.imageModeAspectRatio;
-  const legendOverlay = state.mapEditor.imageModeLegendOverlay;
+  // Manual qty overrides (hardCodedQtiesById) are session-only by design —
+  // they must not be persisted on the pov record.
+  const legendOverlay = { ...state.mapEditor.imageModeLegendOverlay };
+  delete legendOverlay.hardCodedQtiesById;
   const whiteBackground = Boolean(state.mapEditor.imageModeWhiteBackground);
   const border = Boolean(state.mapEditor.imageModeBorder);
   const title = state.mapEditor.imageModeTitle;
