@@ -37,13 +37,16 @@ const PENCIL_MAX_SUBDIVISIONS = 8;
 const PENCIL_AMPLITUDE_RATIO = 0.012;
 const PENCIL_MAX_AMPLITUDE = 0.05;
 
-const PAPER_LERP = 0.45;
-const SATURATION_FACTOR = 0.45;
+// Wash mapping: the HUE must survive (an orange floor stays clearly orange,
+// see the pool-blue in the reference sketch) — so only a light paper tint
+// and a mild desaturation; the "diluted" feel comes from lifting lightness.
+const PAPER_LERP = 0.12;
+const SATURATION_FACTOR = 0.8;
 // Lightness is REMAPPED into a pale band (not just multiplied): a watercolor
 // wash is always light — even a "dark" template color must land as a tinted
 // wash, or the post-process grain reads as pointillism over the whole face.
-const LIGHTNESS_FLOOR = 0.55;
-const LIGHTNESS_RANGE = 0.35;
+const LIGHTNESS_FLOOR = 0.4;
+const LIGHTNESS_RANGE = 0.45;
 const LIGHTNESS_MAX = 0.92;
 
 // 3-step toon gradient — module singleton shared by every aquarelle material.
