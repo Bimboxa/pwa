@@ -11,6 +11,13 @@ const MAX_ANGLE_DEG = 60;
 // The pivot sits below the viewport edge so the arc reads as a held weapon.
 const ANCHOR_BELOW_PX = 30;
 
+// Base placement of the RPG image: centered, pushed right by 3/4 of its
+// width, and tilted back (top away from the viewer) so the gun reads as
+// aimed at the crosshair. Keyframes must repeat the full chain (a keyframe
+// transform replaces the base one), hence this helper.
+const rpgTransform = (dxPx, dyPx) =>
+  `translate(calc(25% + ${dxPx}px), ${dyPx}px) perspective(800px) rotateX(14deg)`;
+
 // Doom-like weapon overlay shown at the bottom of the 3D view.
 // - Meshing "shoot" sub-mode: the built-in SVG concrete lance, aiming toward
 //   the mouse (fed by useShootPointerHandlers through the shootAimStore),
@@ -70,21 +77,19 @@ export default function ShootLanceOverlayThreed() {
           from: { transform: "translate(-2px, 1px)" },
           to: { transform: "translate(2px, -1px)" },
         },
-        // RPG image variants: the positioning translateX (centered, then
-        // pushed right by 3/4 of the image width: -50% + 75% = 25%) must
-        // live inside the keyframes (a keyframe transform replaces the base
-        // one).
+        // RPG image variants — full placement chain in every keyframe, see
+        // rpgTransform.
         "@keyframes rpgSway": {
-          from: { transform: "translateX(calc(25% - 4px))" },
-          to: { transform: "translateX(calc(25% + 4px))" },
+          from: { transform: rpgTransform(-4, 0) },
+          to: { transform: rpgTransform(4, 0) },
         },
         "@keyframes rpgRecoil": {
-          from: { transform: "translate(25%, 14px)" },
-          to: { transform: "translate(25%, 0px)" },
+          from: { transform: rpgTransform(0, 14) },
+          to: { transform: rpgTransform(0, 0) },
         },
         "@keyframes rpgShake": {
-          from: { transform: "translate(calc(25% - 2px), 1px)" },
-          to: { transform: "translate(calc(25% + 2px), -1px)" },
+          from: { transform: rpgTransform(-2, 1) },
+          to: { transform: rpgTransform(2, -1) },
         },
       }}
     >
@@ -113,8 +118,9 @@ function RpgWeapon({ url, firing }) {
         position: "absolute",
         left: "50%",
         bottom: -6,
-        // Centered, then offset right by 3/4 of the image width.
-        transform: "translateX(25%)",
+        transform: rpgTransform(0, 0),
+        // The tilt pivots around the bottom edge (the held end of the gun).
+        transformOrigin: "50% 100%",
         // Percentages resolve against the 3D view (absolutely positioned
         // inside the inset-0 overlay).
         maxHeight: "42%",

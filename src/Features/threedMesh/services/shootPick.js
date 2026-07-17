@@ -37,12 +37,16 @@ export function pickWorldTargetAtNdc({ sceneManager, ndcX, ndcY }) {
     .addScaledVector(raycaster.ray.direction, VOID_TARGET_DIST);
 }
 
-// Spray origin: bottom-center of the screen, just in front of the camera —
-// matches the lance muzzle of the DOM overlay.
-export function getMuzzleOrigin(sceneManager) {
+// Spray origin: a screen-anchored point just in front of the camera,
+// matching the muzzle of the DOM weapon overlay. Defaults to bottom-center
+// (the SVG lance); walk mode passes the RPG image's nozzle position instead.
+export function getMuzzleOrigin(
+  sceneManager,
+  { ndcX = 0, ndcY = -0.85, dist = MUZZLE_DIST } = {}
+) {
   const raycaster = new Raycaster();
-  raycaster.setFromCamera(new Vector2(0, -0.85), sceneManager.camera);
+  raycaster.setFromCamera(new Vector2(ndcX, ndcY), sceneManager.camera);
   return raycaster.ray.origin
     .clone()
-    .addScaledVector(raycaster.ray.direction, MUZZLE_DIST);
+    .addScaledVector(raycaster.ray.direction, dist);
 }

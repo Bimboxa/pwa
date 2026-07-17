@@ -8,21 +8,31 @@ import {
   Vector3,
 } from "three";
 
-// Ephemeral concrete jet of the meshing "shoot" sub-mode. Each fire() spawns
-// a 1s burst of grey particles from `origin` toward `target`; particles are
-// simulated CPU-side in a private rAF loop (the editor has no continuous
-// render loop) and everything is disposed when the burst ends. Overlapping
-// bursts (click spam) share the same loop.
+// Ephemeral concrete jet of the meshing "shoot" sub-mode and the walk mode.
+// Each fire() spawns a 1s burst of grey particles from `origin` toward
+// `target`; particles are simulated CPU-side in a private rAF loop (the
+// editor has no continuous render loop) and everything is disposed when the
+// burst ends. Overlapping bursts (click spam) share the same loop.
+//
+// `options` tunes the jet per consumer (walk mode wants a coarser, tighter,
+// straighter jet than the meshing lance); defaults keep the historical look.
 
 const PARTICLE_COUNT = 350;
 const EMIT_MS = 1000;
 const FADE_MS = 150;
-const GRAVITY_Y = -6; // softened gravity, stylized arc
-const SPREAD_TAN = Math.tan(MathUtils.degToRad(6)); // spray cone half-angle
 const PARKED_Y = -9999; // off-scene parking spot for unspawned/dead particles
 const MAX_FLIGHT_S = 0.6;
 
-export function createShootSprayController({ editor, sceneManager }) {
+const DEFAULT_OPTIONS = {
+  gravityY: -6, // softened gravity, stylized arc
+  spreadDeg: 6, // spray cone half-angle
+  particleSize: 0.07,
+  crossingTimeS: 0.4, // time to cross the gap regardless of range
+};
+
+export function createShootSprayController({ editor, sceneManager, options }) {
+  const opts = { ...DEFAULT_OPTIONS, ...options };
+  const spreadTan = Math.tan(MathUtils.degToRad(opts.spreadDeg));
   const group = new Group();
   group.name = "ShootSpray";
   sceneManager.scene.add(group);
@@ -57,7 +67,7 @@ export function createShootSprayController({ editor, sceneManager }) {
         } else {
           positions[i3] = origin.x + velocities[i3] * t;
           positions[i3 + 1] =
-            origin.y + velocities[i3 + 1] * t + 0.5 * GRAVITY_Y * t * t;
+            origin.y + velocities[i3 + 1] * t + 0.5 * opts.gravityY * t * t;
           positions[i3 + 2] = origin.z + velocities[i3 + 2] * t;
         }
       }
@@ -83,8 +93,7 @@ export function createShootSprayController({ editor, sceneManager }) {
     const dir = new Vector3().subVectors(target, origin);
     const dist = Math.max(dir.length(), 0.1);
     dir.normalize();
-    // Cross the gap in ~0.4s regardless of range.
-    const baseSpeed = MathUtils.clamp(dist / 0.4, 8, 40);
+    const baseSpeed = MathUtils.clamp(dist / opts.crossingTimeS, 8, 40);
 
     // Two perpendiculars spanning the spread cone around dir.
     const up =
@@ -104,7 +113,7 @@ export function createShootSprayController({ editor, sceneManager }) {
       positions[i3 + 2] = 0;
 
       const speed = baseSpeed * (0.85 + 0.3 * Math.random());
-      const spread = SPREAD_TAN * speed;
+      const spread = spreadTan * speed;
       const angle = Math.random() * Math.PI * 2;
       const radius = Math.random() * spread;
       velocities[i3] =
@@ -130,7 +139,7 @@ export function createShootSprayController({ editor, sceneManager }) {
 
     const material = new PointsMaterial({
       color: 0x8d8d8d, // concrete grey
-      size: 0.07,
+      size: opts.particleSize,
       sizeAttenuation: true,
       transparent: true,
       opacity: 0.95,
