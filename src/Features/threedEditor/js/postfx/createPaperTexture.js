@@ -5,7 +5,10 @@ import { CanvasTexture, RepeatWrapping } from "three";
 // Multiplied over the final frame by SketchShader, so values stay near white.
 const SIZE = 512;
 const BASE_COLOR = "#f4f1ea";
-const NOISE_AMPLITUDE = 7; // ± around the base, in 0..255 channel units
+// ± around the base, in 0..255 channel units. Kept subtle: the paper is
+// multiplied over the whole frame, a strong per-pixel noise here reads as
+// pointillism on the color washes.
+const NOISE_AMPLITUDE = 4;
 const FIBER_COUNT = 300;
 
 export default function createPaperTexture() {

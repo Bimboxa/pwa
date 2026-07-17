@@ -18,14 +18,18 @@ import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 
 export const PAPER_COLOR = "#f4f1ea";
 const EDGE_COLOR = "#2a2a2a";
-const EDGE_LINEWIDTH_PX = 2.5;
+const EDGE_LINEWIDTH_PX = 1.8;
 const EDGE_THRESHOLD_ANGLE = 15;
 // "Construction line" overshoot: each edge segment is extended by this
 // fraction of its length at both ends.
 const EDGE_EXTENSION = 0.04;
-const PAPER_LERP = 0.35;
-const SATURATION_FACTOR = 0.55;
-const LIGHTNESS_LIFT = 1.1;
+const PAPER_LERP = 0.45;
+const SATURATION_FACTOR = 0.45;
+// Lightness is REMAPPED into a pale band (not just multiplied): a watercolor
+// wash is always light — even a "dark" template color must land as a tinted
+// wash, or the post-process grain reads as pointillism over the whole face.
+const LIGHTNESS_FLOOR = 0.55;
+const LIGHTNESS_RANGE = 0.35;
 const LIGHTNESS_MAX = 0.92;
 
 // 3-step toon gradient — module singleton shared by every aquarelle material.
@@ -35,7 +39,9 @@ let _gradientMap = null;
 export function getToonGradientMap() {
   if (!_gradientMap) {
     _gradientMap = new DataTexture(
-      new Uint8Array([120, 180, 235]),
+      // Gentle steps: the darkest band stays a readable wash (a 120/255 low
+      // step turned every shaded face near-black under the single key light).
+      new Uint8Array([165, 205, 240]),
       3,
       1,
       RedFormat
@@ -56,7 +62,7 @@ export function toWatercolorColor(color) {
   c.setHSL(
     hsl.h,
     hsl.s * SATURATION_FACTOR,
-    Math.min(hsl.l * LIGHTNESS_LIFT, LIGHTNESS_MAX)
+    Math.min(LIGHTNESS_FLOOR + hsl.l * LIGHTNESS_RANGE, LIGHTNESS_MAX)
   );
   return c;
 }

@@ -2,6 +2,7 @@ import { WebGLRenderTarget, Vector2 } from "three";
 import { EffectComposer } from "three/examples/jsm/postprocessing/EffectComposer.js";
 import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js";
+import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 
 import SketchShader from "./SketchShader";
 import createPaperTexture from "./createPaperTexture";
@@ -65,6 +66,11 @@ export default class SketchPostFxManager {
     this.composer = new EffectComposer(renderer, target);
     // scene/camera are stable refs on SceneManager — lazy creation once is safe.
     this.composer.addPass(new RenderPass(scene, camera));
+    // The render target is linear — without this pass the frame reaches the
+    // screen without the linear→sRGB conversion and everything looks dark and
+    // muddy. Must run BEFORE the sketch pass so grain/paper act on display
+    // colors (their luminance weighting assumes sRGB).
+    this.composer.addPass(new OutputPass());
     this._paperTexture = createPaperTexture();
     this._sketchPass = new ShaderPass(SketchShader);
     this._sketchPass.uniforms.tPaper.value = this._paperTexture;
