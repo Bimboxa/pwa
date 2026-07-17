@@ -10,6 +10,7 @@ import getSolidMeshFromObject3D from "./utilsAnnotationsManager/getSolidMeshFrom
 import { getShape3DKey } from "Features/annotations/constants/shape3DConfig";
 import applyWorldBoxUVs from "Features/photorealRender/utils/applyWorldBoxUVs";
 import ensureMaterial3dMaps from "Features/photorealRender/utils/ensureMaterial3dMaps";
+import { applySketchEdges } from "./postfx/aquarelleMaterials";
 
 export default class AnnotationsManager {
   constructor({ sceneManager }) {
@@ -82,6 +83,14 @@ export default class AnnotationsManager {
       });
     };
 
+    // AQUARELLE ink edges follow the same per-root finishing lifecycle as the
+    // shadow flags: rebuilt from the CURRENT geometry on async loads and
+    // after a CSG carve, so the lines always match the displayed mesh.
+    const finishRoot = (root) => {
+      applyShadowFlags(root);
+      if (options?.aquarelleShading) applySketchEdges(root, { resolution });
+    };
+
     annotations.forEach((annotation) => {
       const baseMap =
         this.sceneManager.imagesManager.baseMapsMap[annotation.baseMapId];
@@ -110,13 +119,13 @@ export default class AnnotationsManager {
         onAsyncLoaded: () => {
           // Late-arriving children (GLB scene, async profile sweep) — the map
           // holds the current root (it may have been swapped by a carve).
-          applyShadowFlags(this.annotationsObjectsMap[annotation.id]);
+          finishRoot(this.annotationsObjectsMap[annotation.id]);
           this.sceneManager.renderScene();
           this._notifyAnnotationReady(annotation.id);
         },
       });
       if (!object) return;
-      applyShadowFlags(object);
+      finishRoot(object);
 
       // Mesh cells carry an in-scene card (name + surface). Only cells reach
       // this builder when "Afficher les mailles" is on, so keying off
@@ -221,7 +230,7 @@ export default class AnnotationsManager {
             });
 
             // The carve may have swapped in a freshly-built source object.
-            applyShadowFlags(this.annotationsObjectsMap[annotation.id]);
+            finishRoot(this.annotationsObjectsMap[annotation.id]);
             this.sceneManager.renderScene();
             this._notifyAnnotationReady(annotation.id);
           } catch (e) {

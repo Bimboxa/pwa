@@ -141,7 +141,7 @@ export default function PanelThreedProperties() {
           >
             Réaliste : matériaux physiques + éclairage d&apos;ambiance.
             Photoréaliste : ciel HDR, ombres portées du soleil et matériaux
-            texturés.
+            texturés. Aquarelle : croquis d&apos;architecte à l&apos;aquarelle.
           </Typography>
           <ToggleButtonGroup
             size="small"
@@ -160,6 +160,9 @@ export default function PanelThreedProperties() {
             </ToggleButton>
             <ToggleButton value="PHOTOREAL" sx={{ textTransform: "none" }}>
               Photoréaliste
+            </ToggleButton>
+            <ToggleButton value="AQUARELLE" sx={{ textTransform: "none" }}>
+              Aquarelle
             </ToggleButton>
           </ToggleButtonGroup>
           {renderMode === "PHOTOREAL" && (

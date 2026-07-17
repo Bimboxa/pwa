@@ -7,21 +7,29 @@ import {
   Object3D,
   Mesh,
   ShadowMaterial,
+  Color,
 } from "three";
 
 import buildWhiteEnvironment from "Features/photorealRender/utils/environment";
 import loadHdrEnvironmentAsync, {
   disposeCachedHdrEnvironments,
 } from "Features/photorealRender/services/loadHdrEnvironmentAsync";
+import {
+  PAPER_COLOR,
+  disposeAquarelleShared,
+} from "./postfx/aquarelleMaterials";
 
 // Viewport render modes. STANDARD is the historical unlit/Lambert look;
 // REALISTIC upgrades the SAME raster pipeline to PBR + environment lighting +
 // ACES (no cast shadows); PHOTOREAL is the full raster "archviz" state: an
 // environment (see PHOTOREAL_ENVIRONMENTS) as IBL, a key light with cast
-// shadows, and textured PBR materials (see material3dPresets).
+// shadows, and textured PBR materials (see material3dPresets); AQUARELLE is
+// the watercolor-sketch look: toon materials + ink edges (built at object
+// rebuild) and a full-screen sketch pass (SketchPostFxManager).
 export const RENDER_MODE_STANDARD = "STANDARD";
 export const RENDER_MODE_REALISTIC = "REALISTIC";
 export const RENDER_MODE_PHOTOREAL = "PHOTOREAL";
+export const RENDER_MODE_AQUARELLE = "AQUARELLE";
 
 // PHOTOREAL environments (threedEditorSlice.environment3d).
 export const ENVIRONMENT3D_STANDARD = "STANDARD";
@@ -35,6 +43,10 @@ export const ENVIRONMENT3D_INTERIOR = "INTERIOR";
 // job is the subtle ground shadow. Tuned by eye under ACES tone mapping.
 const STANDARD_LIGHTS = { ambient: 0.65, hemisphere: 0.9, directional: 0.6 };
 const REALISTIC_LIGHTS = { ambient: 0.45, hemisphere: 0.7, directional: 0.9 };
+// AQUARELLE: a single strong lateral key so the 3-step toon gradient
+// quantizes into crisp wash bands; hemisphere off to keep the steps clean.
+const AQUARELLE_LIGHTS = { ambient: 0.4, hemisphere: 0.0, directional: 2.0 };
+const AQUARELLE_BACKGROUND = new Color(PAPER_COLOR);
 const ENV_INTENSITY_RASTER = 0.3;
 const TONE_MAPPING_EXPOSURE = 1.0;
 
@@ -105,11 +117,18 @@ export default class RenderModeManager {
     if (mode === this.mode) return;
     const prev = this.mode;
     this.mode = mode;
-    if (prev === RENDER_MODE_PHOTOREAL) this._restoreBackground();
+    if (prev === RENDER_MODE_PHOTOREAL || prev === RENDER_MODE_AQUARELLE) {
+      this._restoreBackground();
+    }
+    if (prev === RENDER_MODE_AQUARELLE) {
+      this.sceneManager.sketchPostFx?.setEnabled(false);
+    }
     if (mode === RENDER_MODE_PHOTOREAL) {
       this._applyPhotorealRenderer();
     } else if (mode === RENDER_MODE_REALISTIC) {
       this._applyRealisticRenderer();
+    } else if (mode === RENDER_MODE_AQUARELLE) {
+      this._applyAquarelleRenderer();
     } else {
       this._applyStandardRenderer();
     }
@@ -143,6 +162,8 @@ export default class RenderModeManager {
     }
     this._hdrTextures = {};
     disposeCachedHdrEnvironments();
+    this.sceneManager.sketchPostFx?.dispose();
+    disposeAquarelleShared();
   };
 
   ///////////   RENDERER STATES   ///////////
@@ -288,6 +309,40 @@ export default class RenderModeManager {
     }
     this._savedBackground = null;
     this._appliedBackground = null;
+  }
+
+  // Watercolor sketch: flat toon shading (materials are built by the object
+  // rebuild, see createAnnotationObject3D) + the full-screen SketchShader
+  // pass. The paper-cream background is mandatory — the composer's tDiffuse
+  // would otherwise be transparent black and the paper multiply would break.
+  _applyAquarelleRenderer() {
+    const { renderer, scene, ambiantLight, hemisphereLight, directionalLight } =
+      this.sceneManager;
+    renderer.toneMapping = NoToneMapping;
+    renderer.toneMappingExposure = 1.0;
+    renderer.shadowMap.enabled = false;
+
+    scene.environment = null;
+    scene.environmentIntensity = 1;
+
+    // Save the pre-AQUARELLE background once (same machinery as PHOTOREAL).
+    if (this._appliedBackground === null) {
+      this._savedBackground = scene.background;
+    }
+    scene.background = AQUARELLE_BACKGROUND;
+    this._appliedBackground = AQUARELLE_BACKGROUND;
+
+    ambiantLight.intensity = AQUARELLE_LIGHTS.ambient;
+    hemisphereLight.intensity = AQUARELLE_LIGHTS.hemisphere;
+    directionalLight.intensity = AQUARELLE_LIGHTS.directional;
+    directionalLight.color.set(0xffffff);
+    directionalLight.castShadow = false;
+    directionalLight.position.copy(KEY_LIGHT_DIRECTION).multiplyScalar(20);
+    if (this._lightTarget) this._lightTarget.position.set(0, 0, 0);
+
+    this._removeShadowCatchers();
+    this.sceneManager.ensureSketchPostFx().setEnabled(true);
+    this._forceMaterialsRecompile();
   }
 
   _applyStandardRenderer() {
