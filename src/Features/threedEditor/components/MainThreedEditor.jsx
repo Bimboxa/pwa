@@ -90,7 +90,6 @@ import ThreedMeshes from "Features/threedMesh/components/ThreedMeshes";
 import PopperEditMesh3d from "Features/threedMesh/components/PopperEditMesh3d";
 import PopperEditMeshes3d from "Features/threedMesh/components/PopperEditMeshes3d";
 import useMeshingPointerHandlers from "Features/threedMesh/hooks/useMeshingPointerHandlers";
-import useShootPointerHandlers from "Features/threedMesh/hooks/useShootPointerHandlers";
 import useWalkMode from "Features/threedEditor/hooks/useWalkMode";
 import {
   getMesh3dSprites,
@@ -236,7 +235,6 @@ export default function MainThreedEditor() {
   useDrawingPointerHandlers();
   useDimensionPointerHandlers();
   useMeshingPointerHandlers();
-  useShootPointerHandlers();
   useWalkMode();
 
   // Drive the 3D clipping plane from the 2D-defined segment (top view).

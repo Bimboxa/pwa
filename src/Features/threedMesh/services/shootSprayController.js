@@ -18,22 +18,15 @@ import {
   makeDropletTexture,
 } from "./sprayRendering";
 
-// Ephemeral concrete jet of the meshing "shoot" sub-mode and the walk mode.
-// Two firing APIs share one CPU-side rAF simulation loop (the editor has no
-// continuous render loop):
-// - fire({origin, target}): a 1s burst (meshing lance click);
-// - startStream(getAim) / stopStream(): continuous emission while a key is
-//   held (walk mode Space). `getAim` is re-read every frame so the stream
-//   follows the live camera aim; on stop, emission ceases immediately and
-//   the in-flight droplets finish their run.
-// Everything is disposed when the last burst/stream ends.
+// Ephemeral resin jet of the walk mode (Space held): startStream(getAim)
+// emits droplets continuously — `getAim` is re-read every frame so the
+// stream follows the live camera aim — and stopStream() ceases emission
+// immediately, letting the in-flight droplets finish their run. Simulated
+// CPU-side in a private rAF loop (the editor has no continuous render
+// loop); everything is disposed when the stream ends.
 //
-// `options` tunes the jet per consumer (walk mode wants a tighter, straighter
-// jet than the meshing lance); defaults keep the historical look.
-// `particleCount` is both the burst total and the stream rate (droplets/s).
+// `options` tunes the jet; `particleCount` is the stream rate (droplets/s).
 
-const EMIT_MS = 1000;
-const FADE_MS = 150;
 const MAX_FLIGHT_S = 0.6;
 
 const DEFAULT_OPTIONS = {
@@ -73,7 +66,6 @@ export function createShootSprayController({ editor, sceneManager, options }) {
   group.name = "ShootSpray";
   sceneManager.scene.add(group);
 
-  const bursts = [];
   // Continuous stream (walk mode Space): a ring buffer of droplets emitted
   // at opts.particleCount per second from the live aim. Single stream at a
   // time — startStream while running just swaps the aim callback.
@@ -128,8 +120,8 @@ export function createShootSprayController({ editor, sceneManager, options }) {
     geometry.setAttribute("aSize", new BufferAttribute(sizes, 1));
 
     // Same depth attenuation as PointsMaterial's sizeAttenuation: uScale is
-    // half the drawing buffer height (px). Read once per burst/stream — a
-    // resize mid-life is negligible.
+    // half the drawing buffer height (px). Read once per stream — a resize
+    // mid-life is negligible.
     const bufferSize = sceneManager.renderer.getDrawingBufferSize(
       new Vector2()
     );
@@ -152,53 +144,10 @@ export function createShootSprayController({ editor, sceneManager, options }) {
     return { positions, sizes, geometry, material, points };
   }
 
-  function removeBurst(burst) {
-    group.remove(burst.points);
-    burst.points.geometry.dispose();
-    burst.points.material.dispose();
-    const index = bursts.indexOf(burst);
-    if (index !== -1) bursts.splice(index, 1);
-  }
-
   function tick() {
     rafId = null;
     if (disposed) return;
     const now = performance.now();
-
-    for (const burst of [...bursts]) {
-      const { positions, velocities, spawnTimes, flightTimes, sizes, origin } =
-        burst;
-      for (let i = 0; i < opts.particleCount; i++) {
-        const t = (now - spawnTimes[i]) / 1000;
-        const i3 = i * 3;
-        if (t < 0 || t > flightTimes[i]) {
-          // Not yet emitted, or reached the wall: parked (ephemeral, no splat).
-          positions[i3] = 0;
-          positions[i3 + 1] = PARKED_Y;
-          positions[i3 + 2] = 0;
-        } else {
-          positions[i3] = origin.x + velocities[i3] * t;
-          positions[i3 + 1] =
-            origin.y + velocities[i3 + 1] * t + 0.5 * opts.gravityY * t * t;
-          positions[i3 + 2] = origin.z + velocities[i3 + 2] * t;
-          if (sizeGrows) {
-            // Needle-thin at the nozzle, blooming toward the impact.
-            sizes[i] = sizeStart + (sizeEnd - sizeStart) * (t / flightTimes[i]);
-          }
-        }
-      }
-      burst.points.geometry.attributes.position.needsUpdate = true;
-      if (sizeGrows) burst.points.geometry.attributes.aSize.needsUpdate = true;
-
-      const sinceEmitEnd = now - (burst.t0 + EMIT_MS);
-      if (sinceEmitEnd > 0) {
-        // Emission over: quick opacity fade, then remove + dispose.
-        if (sinceEmitEnd >= FADE_MS) removeBurst(burst);
-        else
-          burst.points.material.uniforms.uOpacity.value =
-            opts.opacity * (1 - sinceEmitEnd / FADE_MS);
-      }
-    }
 
     if (stream) {
       const s = stream;
@@ -234,7 +183,7 @@ export function createShootSprayController({ editor, sceneManager, options }) {
         }
       }
 
-      // Integrate — like bursts, but each droplet flies from its own origin.
+      // Integrate — each droplet flies from its own (per-emission) origin.
       let anyAlive = false;
       for (let i = 0; i < s.capacity; i++) {
         const t = (now - s.spawnTimes[i]) / 1000;
@@ -292,41 +241,7 @@ export function createShootSprayController({ editor, sceneManager, options }) {
     }
 
     editor.renderScene?.();
-    if (bursts.length || stream) rafId = requestAnimationFrame(tick);
-  }
-
-  function fire({ origin, target }) {
-    if (disposed) return;
-    const t0 = performance.now();
-
-    const frame = computeAimFrame(origin, target);
-    const velocities = new Float32Array(opts.particleCount * 3);
-    const spawnTimes = new Float32Array(opts.particleCount);
-    const flightTimes = new Float32Array(opts.particleCount);
-
-    for (let i = 0; i < opts.particleCount; i++) {
-      fillVelocity(velocities, flightTimes, i, frame);
-      // Staggered emission: a continuous jet, not a shotgun blast.
-      spawnTimes[i] = t0 + (i / opts.particleCount) * EMIT_MS;
-    }
-
-    const { positions, sizes, points } = makeSprayGeometryAndMaterial(
-      opts.particleCount
-    );
-    group.add(points);
-
-    bursts.push({
-      t0,
-      points,
-      positions,
-      velocities,
-      spawnTimes,
-      flightTimes,
-      sizes,
-      origin: origin.clone(),
-    });
-
-    if (rafId == null) rafId = requestAnimationFrame(tick);
+    if (stream) rafId = requestAnimationFrame(tick);
   }
 
   // Continuous jet while a key is held. `getAim` returns the live
@@ -379,7 +294,6 @@ export function createShootSprayController({ editor, sceneManager, options }) {
       cancelAnimationFrame(rafId);
       rafId = null;
     }
-    [...bursts].forEach(removeBurst);
     if (stream) {
       group.remove(stream.points);
       stream.points.geometry.dispose();
@@ -391,5 +305,5 @@ export function createShootSprayController({ editor, sceneManager, options }) {
     editor.renderScene?.();
   }
 
-  return { fire, startStream, stopStream, dispose };
+  return { startStream, stopStream, dispose };
 }

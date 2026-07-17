@@ -1,9 +1,8 @@
-// Tiny external store connecting the imperative shoot producers (meshing
-// pointer handlers, walk mode) to the ShootLanceOverlayThreed DOM overlay.
-// `aim` is px relative to the 3D canvas (null = aim straight ahead);
-// `firingUntil` re-arms the recoil animation on each shot.
+// Tiny external store connecting the imperative walk-mode spray code to the
+// ShootLanceOverlayThreed DOM overlay: `firingUntil` drives the weapon
+// recoil/shake animation (far ahead while Space is held, reset on release).
 
-let _state = { aim: null, firingUntil: 0 };
+let _state = { firingUntil: 0 };
 const _listeners = new Set();
 
 export function emitShoot(partial) {

@@ -192,7 +192,7 @@ export default function useWalkMode() {
       controllerRef.current = null;
       controller.exit();
       spray.dispose();
-      emitShoot({ aim: null, firingUntil: 0 });
+      emitShoot({ firingUntil: 0 });
     };
   }, [walkActive, dispatch, store]);
 

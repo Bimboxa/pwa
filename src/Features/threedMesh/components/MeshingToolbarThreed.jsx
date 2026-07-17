@@ -5,7 +5,6 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   setMeshingModeActive,
   setMeshingOffset,
-  setMeshingShootActive,
   setMeshingTool,
 } from "Features/threedEditor/threedEditorSlice";
 
@@ -25,7 +24,6 @@ import {
 import CloseIcon from "@mui/icons-material/Close";
 import NearMeIcon from "@mui/icons-material/NearMe";
 import TimelineIcon from "@mui/icons-material/Timeline";
-import SanitizerIcon from "@mui/icons-material/Sanitizer";
 
 // Tool glyphs match the mockup: plain strokes for the three cut lines.
 const TOOLS = [
@@ -75,9 +73,6 @@ export default function MeshingToolbarThreed() {
 
   const tool = useSelector((s) => s.threedEditor.meshingMode.tool);
   const offset = useSelector((s) => s.threedEditor.meshingMode.offset);
-  const shootActive = useSelector(
-    (s) => s.threedEditor.meshingMode.shootActive
-  );
 
   // Local text state so the user can type freely ("2.", "2,5", "").
   const [offsetText, setOffsetText] = useState(String(offset));
@@ -126,12 +121,7 @@ export default function MeshingToolbarThreed() {
           Mailler
         </Typography>
 
-        <ToggleButtonGroup
-          exclusive
-          value={tool}
-          onChange={handleTool}
-          disabled={shootActive}
-        >
+        <ToggleButtonGroup exclusive value={tool} onChange={handleTool}>
           {TOOLS.map(({ value, label, render }) => (
             <Tooltip key={value} title={label}>
               <ToggleButton value={value} size="small">
@@ -158,18 +148,6 @@ export default function MeshingToolbarThreed() {
 
         <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
 
-        <Tooltip title="Shoot — lance à béton : clic dans la vue pour projeter">
-          <ToggleButton
-            value="SHOOT"
-            size="small"
-            selected={shootActive}
-            onChange={() => dispatch(setMeshingShootActive(!shootActive))}
-          >
-            <SanitizerIcon sx={{ fontSize: 18 }} />
-          </ToggleButton>
-        </Tooltip>
-
-        <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
         <Tooltip title="Quitter le mode maillage">
           <IconButton onClick={handleClose}>
             <CloseIcon />
