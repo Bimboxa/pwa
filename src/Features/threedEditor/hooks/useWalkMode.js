@@ -11,7 +11,7 @@ import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewer
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 import { emitShoot } from "Features/threedMesh/services/shootAimStore";
 import {
-  pickWorldTargetAtNdc,
+  pickWorldHitAtNdc,
   getMuzzleOrigin,
 } from "Features/threedMesh/services/shootPick";
 import { createShootSprayController } from "Features/threedMesh/services/shootSprayController";
@@ -121,6 +121,10 @@ export default function useWalkMode() {
         crossingTimeS: 0.18,
         color: 0x8d8d8d,
         opacity: 0.9,
+        // Droplets landing on a face leave in-memory paint dots (write on
+        // the walls!); nothing persisted, cleared on reload.
+        leaveSplats: true,
+        splatSize: 0.06,
       },
     });
     // Live aim of the stream, re-read every frame while Space is held.
@@ -131,7 +135,11 @@ export default function useWalkMode() {
     // top-left). Fallback: the bottom-center muzzle of the SVG lance.
     // Target: the point under the screen-center crosshair.
     const getStreamAim = () => {
-      const target = pickWorldTargetAtNdc({ sceneManager, ndcX: 0, ndcY: 0 });
+      const { point: target, isHit } = pickWorldHitAtNdc({
+        sceneManager,
+        ndcX: 0,
+        ndcY: 0,
+      });
       if (!target) return null;
       const walkConfig = store.getState().appConfig.value?.features?.walkMode;
       const weaponEl = document.querySelector('[data-walk-rpg-weapon="true"]');
@@ -152,7 +160,7 @@ export default function useWalkMode() {
         });
       }
       if (!origin) origin = getMuzzleOrigin(sceneManager);
-      return { origin, target };
+      return { origin, target, targetIsSurface: isHit };
     };
 
     const controller = new WalkModeController({

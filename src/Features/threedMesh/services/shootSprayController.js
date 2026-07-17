@@ -1,7 +1,6 @@
 import {
   BufferAttribute,
   BufferGeometry,
-  CanvasTexture,
   Color,
   Group,
   MathUtils,
@@ -10,6 +9,14 @@ import {
   Vector2,
   Vector3,
 } from "three";
+
+import { getOrCreateSplatLayer } from "./shootSplatsLayer";
+import {
+  SPRAY_VERTEX_SHADER,
+  SPRAY_FRAGMENT_SHADER,
+  PARKED_Y,
+  makeDropletTexture,
+} from "./sprayRendering";
 
 // Ephemeral concrete jet of the meshing "shoot" sub-mode and the walk mode.
 // Two firing APIs share one CPU-side rAF simulation loop (the editor has no
@@ -27,7 +34,6 @@ import {
 
 const EMIT_MS = 1000;
 const FADE_MS = 150;
-const PARKED_Y = -9999; // off-scene parking spot for unspawned/dead particles
 const MAX_FLIGHT_S = 0.6;
 
 const DEFAULT_OPTIONS = {
@@ -42,47 +48,15 @@ const DEFAULT_OPTIONS = {
   crossingTimeS: 0.4, // time to cross the gap regardless of range
   color: 0x8d8d8d, // concrete grey
   opacity: 0.95,
+  // Stream droplets landing on a real face leave a permanent (in-memory)
+  // dot in the scene's splat layer — spray-paint traces on the walls.
+  leaveSplats: false,
+  splatSize: null, // default: particleSizeEnd
+  // Pull each dot slightly back toward the shooter (along the droplet's
+  // flight direction) so the screen-facing sprite doesn't z-fight with, or
+  // sink into, the face it landed on.
+  splatOffsetM: 0.03,
 };
-
-// Points shader with a PER-PARTICLE size attribute (PointsMaterial only
-// supports one global size): aSize is world meters, attenuated with depth
-// exactly like PointsMaterial's sizeAttenuation (uScale = half the drawing
-// buffer height in px).
-const VERTEX_SHADER = `
-  attribute float aSize;
-  uniform float uScale;
-  void main() {
-    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
-    gl_PointSize = aSize * uScale / -mvPosition.z;
-    gl_Position = projectionMatrix * mvPosition;
-  }
-`;
-
-const FRAGMENT_SHADER = `
-  uniform vec3 uColor;
-  uniform float uOpacity;
-  uniform sampler2D uMap;
-  void main() {
-    vec4 sprite = texture2D(uMap, gl_PointCoord);
-    gl_FragColor = vec4(uColor, uOpacity) * sprite;
-  }
-`;
-
-// Soft round droplet sprite (radial white gradient), so particles read as
-// liquid droplets instead of the square PointsMaterial default. Tinted via
-// the material color.
-function makeDropletTexture() {
-  const canvas = document.createElement("canvas");
-  canvas.width = canvas.height = 64;
-  const ctx = canvas.getContext("2d");
-  const gradient = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
-  gradient.addColorStop(0, "rgba(255,255,255,1)");
-  gradient.addColorStop(0.45, "rgba(255,255,255,0.85)");
-  gradient.addColorStop(1, "rgba(255,255,255,0)");
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, 64, 64);
-  return new CanvasTexture(canvas);
-}
 
 export function createShootSprayController({ editor, sceneManager, options }) {
   const opts = { ...DEFAULT_OPTIONS, ...options };
@@ -90,6 +64,10 @@ export function createShootSprayController({ editor, sceneManager, options }) {
   const sizeStart = opts.particleSizeStart ?? opts.particleSize;
   const sizeEnd = opts.particleSizeEnd ?? opts.particleSize;
   const sizeGrows = sizeStart !== sizeEnd;
+  const splatLayer = opts.leaveSplats
+    ? getOrCreateSplatLayer(sceneManager, { color: opts.color })
+    : null;
+  const splatSize = opts.splatSize ?? sizeEnd;
   const dropletTexture = makeDropletTexture();
   const group = new Group();
   group.name = "ShootSpray";
@@ -162,8 +140,8 @@ export function createShootSprayController({ editor, sceneManager, options }) {
         uOpacity: { value: opts.opacity },
         uScale: { value: bufferSize.y * 0.5 },
       },
-      vertexShader: VERTEX_SHADER,
-      fragmentShader: FRAGMENT_SHADER,
+      vertexShader: SPRAY_VERTEX_SHADER,
+      fragmentShader: SPRAY_FRAGMENT_SHADER,
       transparent: true,
       depthWrite: false,
     });
@@ -244,6 +222,10 @@ export function createShootSprayController({ editor, sceneManager, options }) {
             s.origins[i3 + 2] = aim.origin.z;
             fillVelocity(s.velocities, s.flightTimes, i, frame);
             s.spawnTimes[i] = s.nextEmitAt;
+            // Droplets aimed at the void (ray fallback target) must not
+            // paint a floating dot in mid-air.
+            s.eligible[i] = aim.targetIsSurface === false ? 0 : 1;
+            s.landed[i] = 0;
             s.nextEmitAt += interval;
           }
           if (s.nextEmitAt <= now) s.nextEmitAt = now; // budget hit: drop late ones
@@ -258,6 +240,28 @@ export function createShootSprayController({ editor, sceneManager, options }) {
         const t = (now - s.spawnTimes[i]) / 1000;
         const i3 = i * 3;
         if (t < 0 || t > s.flightTimes[i]) {
+          // First frame past the flight end: the droplet just landed —
+          // stamp a permanent dot on the splat layer at its end position.
+          if (t > s.flightTimes[i] && !s.landed[i]) {
+            s.landed[i] = 1;
+            if (splatLayer && s.eligible[i]) {
+              const T = s.flightTimes[i];
+              const vx = s.velocities[i3];
+              const vy = s.velocities[i3 + 1];
+              const vz = s.velocities[i3 + 2];
+              const vLen = Math.hypot(vx, vy, vz) || 1;
+              const back = opts.splatOffsetM / vLen;
+              splatLayer.addSplat(
+                s.origins[i3] + vx * T - vx * back,
+                s.origins[i3 + 1] +
+                  vy * T +
+                  0.5 * opts.gravityY * T * T -
+                  vy * back,
+                s.origins[i3 + 2] + vz * T - vz * back,
+                splatSize * (0.75 + 0.5 * Math.random())
+              );
+            }
+          }
           s.positions[i3] = 0;
           s.positions[i3 + 1] = PARKED_Y;
           s.positions[i3 + 2] = 0;
@@ -350,6 +354,10 @@ export function createShootSprayController({ editor, sceneManager, options }) {
       origins: new Float32Array(capacity * 3),
       spawnTimes,
       flightTimes: new Float32Array(capacity),
+      // Per-droplet splat bookkeeping: eligible = aimed at a real face,
+      // landed = end-of-flight already stamped.
+      eligible: new Uint8Array(capacity),
+      landed: new Uint8Array(capacity),
       capacity,
       cursor: 0,
       nextEmitAt: null,
