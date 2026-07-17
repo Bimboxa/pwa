@@ -42,9 +42,17 @@ export default function buildExportScene(
   const exportScene = new Scene();
   const walk = (obj) => {
     if (obj.visible === false) return; // honor hidden basemaps / annotations
-    // Realistic-mode helpers living INSIDE the whitelisted roots: the shadow
-    // catcher overlays the basemap plane, the hover stipple overlays a face.
-    if (obj.userData?.isShadowCatcher || obj.userData?.isHoverOverlay) return;
+    // Render-mode helpers living INSIDE the whitelisted roots: the shadow
+    // catcher overlays the basemap plane, the hover stipple overlays a face,
+    // the aquarelle ink edges are children of every mesh (LineSegments2 is an
+    // isMesh — it would export as broken geometry).
+    if (
+      obj.userData?.isShadowCatcher ||
+      obj.userData?.isHoverOverlay ||
+      obj.userData?.isSketchEdge
+    ) {
+      return;
+    }
     if (obj.isMesh) {
       const cloned = new Mesh(obj.geometry, makeMaterial(obj.material));
       cloned.matrix.copy(obj.matrixWorld);

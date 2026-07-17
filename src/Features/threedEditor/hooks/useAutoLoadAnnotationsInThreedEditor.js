@@ -25,10 +25,13 @@ export default function useAutoLoadAnnotationsInThreedEditor({
   // lifecycle as disableOpacity) — post-hoc material swapping is forbidden,
   // it would fight the hover/dim originalMaterial cache.
   const renderMode = useSelector((s) => s.threedEditor.renderMode);
-  const realisticShading = renderMode !== "STANDARD";
+  const realisticShading =
+    renderMode === "REALISTIC" || renderMode === "PHOTOREAL";
   // PHOTOREAL additionally activates the material3d textured presets +
   // receiveShadow — a REALISTIC↔PHOTOREAL toggle must rebuild objects too.
   const photorealShading = renderMode === "PHOTOREAL";
+  // AQUARELLE builds toon "lavis" materials + ink edge lines at rebuild time.
+  const aquarelleShading = renderMode === "AQUARELLE";
   const showMeshCells = useSelector((s) => s.annotations.showMeshCells);
   const { parentIdSet } = useMeshCellRelations();
   const baseMapOpacityIn3d = useSelector(
@@ -105,6 +108,7 @@ export default function useAutoLoadAnnotationsInThreedEditor({
       antiAliasingShrink,
       realisticShading,
       photorealShading,
+      aquarelleShading,
     });
   }, [
     rendererIsReady,
@@ -114,6 +118,7 @@ export default function useAutoLoadAnnotationsInThreedEditor({
     antiAliasingShrink,
     realisticShading,
     photorealShading,
+    aquarelleShading,
     extraBaseMapIds,
     baseMaps,
     mainBaseMap,

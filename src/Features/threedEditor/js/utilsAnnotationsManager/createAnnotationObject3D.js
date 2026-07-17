@@ -39,6 +39,7 @@ import {
   createAnnotationPbrMaterial,
   createMaterial3dMaterial,
 } from "Features/photorealRender/utils/pbrMaterials";
+import { createAquarelleMaterial } from "../postfx/aquarelleMaterials";
 
 // Match the codebase convention used by other arc-aware paths.
 const GUIDE_ARC_SAMPLES = 6;
@@ -156,6 +157,12 @@ export function makeMaterial(annotation, options) {
     : (annotation.fillOpacity ?? 1);
   const opacity = options?.disableOpacity ? 1 : rawOpacity;
   const baseColor = new Color(color);
+  // AQUARELLE: flat toon washes (desaturated color + 3-step gradient), no
+  // emissive lift and no interior-darken hack — the ink edge lines added by
+  // AnnotationsManager's finishing pass carry the 3D form.
+  if (options?.aquarelleShading) {
+    return createAquarelleMaterial({ color: baseColor, opacity });
+  }
   // Realistic render modes (Réaliste / Photoréaliste): true PBR material, no
   // emissive lift and no back-face darkening hack — the environment lighting
   // + shadows convey the 3D form. Same material mapping as the photoreal

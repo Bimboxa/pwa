@@ -15,6 +15,7 @@ import TransformControlsManager from "./TransformControlsManager";
 import ClippingManager from "./ClippingManager";
 import SectionContourManager from "./SectionContourManager";
 import RenderModeManager from "./RenderModeManager";
+import SketchPostFxManager from "./postfx/SketchPostFxManager";
 
 export default class SceneManager {
   constructor({ containerEl, onRendererIsReady }) {
@@ -46,9 +47,11 @@ export default class SceneManager {
     this.sectionContourManager = new SectionContourManager({
       sceneManager: this,
     });
-    // Render mode (Standard / Réaliste / Photoréaliste). Lazy: it only
-    // touches the renderer/lights when setMode is called (post initScene).
+    // Render mode (Standard / Réaliste / Photoréaliste / Aquarelle). Lazy: it
+    // only touches the renderer/lights when setMode is called (post initScene).
     this.renderModeManager = new RenderModeManager({ sceneManager: this });
+    // AQUARELLE post-processing — created on first use only (ensureSketchPostFx).
+    this.sketchPostFx = null;
 
     window.addEventListener("resize", this.resizeScene);
   }
@@ -107,7 +110,17 @@ export default class SceneManager {
 
   renderScene = () => {
     if (!this.scene || !this.camera) return;
-    this.renderer.render(this.scene, this.camera);
+    // AQUARELLE routes the single draw path through the sketch composer, so
+    // every caller (resize, hover, capture, controls) picks up the effect.
+    if (this.sketchPostFx?.enabled) this.sketchPostFx.render();
+    else this.renderer.render(this.scene, this.camera);
+  };
+
+  ensureSketchPostFx = () => {
+    if (!this.sketchPostFx) {
+      this.sketchPostFx = new SketchPostFxManager({ sceneManager: this });
+    }
+    return this.sketchPostFx;
   };
 
   ///////////   INIT  ///////////
