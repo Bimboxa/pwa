@@ -11,17 +11,24 @@ const MAX_ANGLE_DEG = 60;
 // The pivot sits below the viewport edge so the arc reads as a held weapon.
 const ANCHOR_BELOW_PX = 30;
 
-// Doom-like concrete-projection lance shown at the bottom of the 3D view
-// while the meshing "shoot" sub-mode or the walk mode is on. Aims toward the
-// mouse (fed by useShootPointerHandlers through the shootAimStore) — straight
-// ahead in walk mode, where a crosshair marks the fire target at screen
-// center — idle-sways, and recoils on fire. Pure DOM/SVG, pointer-transparent.
+// Doom-like weapon overlay shown at the bottom of the 3D view.
+// - Meshing "shoot" sub-mode: the built-in SVG concrete lance, aiming toward
+//   the mouse (fed by useShootPointerHandlers through the shootAimStore),
+//   idle-swaying and recoiling on fire.
+// - Walk mode: the org-configured RPG image (features.walkMode.rpgImageUrl,
+//   resolved from Data/<orga>/ by resolveAppConfig) bottom-center, plus a
+//   crosshair marking the screen-center fire target. Without a resolved
+//   image, no weapon is displayed.
+// Pure DOM, pointer-transparent.
 export default function ShootLanceOverlayThreed() {
   const meshingActive = useSelector((s) => s.threedEditor.meshingMode.active);
   const shootActive = useSelector(
     (s) => s.threedEditor.meshingMode.shootActive
   );
   const walkActive = useSelector((s) => s.threedEditor.walkMode.active);
+  const rpgImageUrl = useSelector(
+    (s) => s.appConfig.value?.features?.walkMode?.rpgImageUrl
+  );
 
   const { aim, firingUntil } = useSyncExternalStore(
     subscribeShoot,
@@ -63,13 +70,58 @@ export default function ShootLanceOverlayThreed() {
           from: { transform: "translate(-2px, 1px)" },
           to: { transform: "translate(2px, -1px)" },
         },
+        // RPG image variants: the centering translateX(-50%) must live inside
+        // the keyframes (a keyframe transform replaces the base one).
+        "@keyframes rpgSway": {
+          from: { transform: "translateX(calc(-50% - 4px))" },
+          to: { transform: "translateX(calc(-50% + 4px))" },
+        },
+        "@keyframes rpgRecoil": {
+          from: { transform: "translate(-50%, 14px)" },
+          to: { transform: "translate(-50%, 0px)" },
+        },
+        "@keyframes rpgShake": {
+          from: { transform: "translate(calc(-50% - 2px), 1px)" },
+          to: { transform: "translate(calc(-50% + 2px), -1px)" },
+        },
       }}
     >
-      {/* In walk mode the mouse steers the camera, not the lance: aim
-          straight ahead and mark the fire target with a crosshair. */}
-      <LanceBody aim={walkActive ? null : aim} firing={firing} />
-      {walkActive && <Crosshair />}
+      {/* In walk mode the mouse steers the camera, not the weapon: show the
+          org RPG image (or nothing) and mark the fire target with a
+          crosshair. */}
+      {walkActive ? (
+        <>
+          {rpgImageUrl && <RpgWeapon url={rpgImageUrl} firing={firing} />}
+          <Crosshair />
+        </>
+      ) : (
+        <LanceBody aim={aim} firing={firing} />
+      )}
     </Box>
+  );
+}
+
+function RpgWeapon({ url, firing }) {
+  return (
+    <Box
+      component="img"
+      src={url}
+      alt=""
+      sx={{
+        position: "absolute",
+        left: "50%",
+        bottom: -6,
+        transform: "translateX(-50%)",
+        // Percentages resolve against the 3D view (absolutely positioned
+        // inside the inset-0 overlay).
+        maxHeight: "42%",
+        maxWidth: "70%",
+        filter: "drop-shadow(0 4px 8px rgba(0,0,0,0.45))",
+        animation: firing
+          ? "rpgRecoil 120ms ease-out, rpgShake 90ms linear 120ms infinite alternate"
+          : "rpgSway 3s ease-in-out infinite alternate",
+      }}
+    />
   );
 }
 
