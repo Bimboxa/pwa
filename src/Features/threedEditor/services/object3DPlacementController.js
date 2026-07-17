@@ -1,6 +1,7 @@
 import {
   CircleGeometry,
   Group,
+  MathUtils,
   Mesh,
   MeshBasicMaterial,
   Plane,
@@ -35,6 +36,9 @@ const FALLBACK_FOOTPRINT_M = 0.5;
 const BLINK_PERIOD_MS = 1000;
 // Lift the footprint circle off the landing plane to avoid z-fighting.
 const RING_LIFT_M = 0.01;
+// Arrow-key rotation steps (degrees) — Shift = fine step.
+const ROTATE_STEP_DEG = 10;
+const ROTATE_FINE_STEP_DEG = 1;
 
 // Mouse-follow placement of an OBJECT_3D template in the 3D editor: the GLB
 // model + a blinking green footprint circle track the horizontal plane under
@@ -69,6 +73,10 @@ export default function createObject3DPlacementController({
 
   // Current landing spot ({ host, xNorm, yNorm, offset } or null).
   let target = null;
+
+  // In-placement rotation (degrees, 2D convention: clockwise on screen —
+  // rendered as -deg around basemap-local Z, same as the committed renderer).
+  let rotationDeg = 0;
 
   // ── preview scene objects ────────────────────────────────────────────────
 
@@ -303,6 +311,7 @@ export default function createObject3DPlacementController({
       xNorm: target.xNorm,
       yNorm: target.yNorm,
       offset: target.offset,
+      rotationDeg: ((rotationDeg % 360) + 360) % 360,
     });
   }
 
@@ -312,8 +321,30 @@ export default function createObject3DPlacementController({
     previewGroup.visible = false;
   }
 
+  function applyRotation() {
+    // Same sign convention as the committed renderer (createObject3DAnnotation):
+    // SVG rotation is clockwise on screen → -deg around basemap-local Z.
+    previewGroup.rotation.z = MathUtils.degToRad(-rotationDeg);
+  }
+
   function onKeyDown(e) {
-    if (e.key === "Escape") onCancel?.({ reason: "ESCAPE" });
+    // Never steal keys from form fields (e.g. a search input elsewhere).
+    if (e.target?.closest?.("input, textarea, [contenteditable]")) return;
+    if (e.key === "Escape") {
+      onCancel?.({ reason: "ESCAPE" });
+      return;
+    }
+    if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+      e.preventDefault();
+      const step = e.shiftKey ? ROTATE_FINE_STEP_DEG : ROTATE_STEP_DEG;
+      rotationDeg += e.key === "ArrowRight" ? step : -step;
+      applyRotation();
+      return;
+    }
+    if (e.key === "r" || e.key === "R") {
+      rotationDeg = 0;
+      applyRotation();
+    }
   }
 
   dom.addEventListener("pointerdown", onPointerDown);

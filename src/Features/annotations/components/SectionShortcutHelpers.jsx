@@ -3,7 +3,9 @@ import { useSelector } from 'react-redux';
 import { Box, Typography, Stack, alpha } from '@mui/material';
 import KeyboardReturnIcon from '@mui/icons-material/KeyboardReturn';
 
-export default function SectionShortcutHelpers() {
+// `shortcuts` prop overrides the drawing-mode-derived list (e.g. the 3D
+// OBJECT_3D placement mode shows its own rotation shortcuts).
+export default function SectionShortcutHelpers({ shortcuts: shortcutsProp }) {
     // data
 
     const newAnnotationType = useSelector((s) => s.annotations.newAnnotation?.type);
@@ -13,7 +15,7 @@ export default function SectionShortcutHelpers() {
 
     // Note: loupe size / constraint-length shortcuts are shown inline inside
     // CardLoupe and SectionSegmentLength respectively — no longer here.
-    const shortcuts = isLocalizedRepair
+    const derivedShortcuts = isLocalizedRepair
         ? [
             { key: "Espace", label: "Valider la réparation" },
             { key: "Esc", label: "Annuler / Quitter" },
@@ -42,6 +44,8 @@ export default function SectionShortcutHelpers() {
             ? [{ key: "T", label: "Basculer le dernier point en arc" }]
             : []),
     ];
+
+    const shortcuts = shortcutsProp ?? derivedShortcuts;
 
     return (
         <Box

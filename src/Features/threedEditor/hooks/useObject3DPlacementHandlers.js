@@ -92,7 +92,13 @@ export default function useObject3DPlacementHandlers() {
       dispatch(setNewAnnotation({}));
     };
 
-    const handleCommit = async ({ hostBaseMap, xNorm, yNorm, offset }) => {
+    const handleCommit = async ({
+      hostBaseMap,
+      xNorm,
+      yNorm,
+      offset,
+      rotationDeg,
+    }) => {
       if (committingRef.current) return;
       const na = newAnnotationRef.current;
       // Tolerant to both BaseMap instances and plain records (same pattern
@@ -134,6 +140,7 @@ export default function useObject3DPlacementHandlers() {
               height: hN,
             },
             ...(offset > MIN_OFFSET_Z_M ? { offsetZ: offset } : {}),
+            ...(rotationDeg ? { rotation: rotationDeg } : {}),
             ...(activeLayerIdRef.current
               ? { layerId: activeLayerIdRef.current }
               : {}),

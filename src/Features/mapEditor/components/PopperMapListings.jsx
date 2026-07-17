@@ -1554,6 +1554,15 @@ const SEGMENT_SELECT_MODES = [
   "SPLIT_POLYLINE_CLICK",
 ];
 
+// Shortcuts of the 3D OBJECT_3D placement mode (Dessin module toggled to 3D)
+// — handled by object3DPlacementController.
+const THREED_PLACEMENT_SHORTCUTS = [
+  { key: "← →", label: "Tourner l'objet de 10°" },
+  { key: "⇧ ← →", label: "Tourner l'objet de 1°" },
+  { key: "R", label: "Réinitialiser la rotation" },
+  { key: "Esc", label: "Quitter le mode dessin" },
+];
+
 // Modes where the "Détection auto" card makes sense — the base drawing
 // tool has a backing detection algorithm (see getEffectiveDetectionMode).
 const SMART_DETECT_CAPABLE_MODES = [
@@ -1739,7 +1748,7 @@ function PopperDrawingHelper() {
               textAlign: "center",
             }}
           >
-            {"Cliquez sur le plan pour poser l'objet 3D (Esc pour quitter)"}
+            {"Cliquez sur le plan pour poser l'objet 3D"}
           </Box>
         )}
         {enabledDrawingMode === "LOCALIZED_REPAIR" && <SectionRepairModes />}
@@ -1884,7 +1893,11 @@ function PopperDrawingHelper() {
             />
           </Paper>
         )}
-        {!isThreedToggledEditor && <SectionShortcutHelpers />}
+        <SectionShortcutHelpers
+          shortcuts={
+            isThreedToggledEditor ? THREED_PLACEMENT_SHORTCUTS : undefined
+          }
+        />
       </Box>
     </Paper>
   );
