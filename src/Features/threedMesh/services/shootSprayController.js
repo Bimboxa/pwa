@@ -12,13 +12,18 @@ import {
 } from "three";
 
 // Ephemeral concrete jet of the meshing "shoot" sub-mode and the walk mode.
-// Each fire() spawns a 1s burst of grey particles from `origin` toward
-// `target`; particles are simulated CPU-side in a private rAF loop (the
-// editor has no continuous render loop) and everything is disposed when the
-// burst ends. Overlapping bursts (click spam) share the same loop.
+// Two firing APIs share one CPU-side rAF simulation loop (the editor has no
+// continuous render loop):
+// - fire({origin, target}): a 1s burst (meshing lance click);
+// - startStream(getAim) / stopStream(): continuous emission while a key is
+//   held (walk mode Space). `getAim` is re-read every frame so the stream
+//   follows the live camera aim; on stop, emission ceases immediately and
+//   the in-flight droplets finish their run.
+// Everything is disposed when the last burst/stream ends.
 //
-// `options` tunes the jet per consumer (walk mode wants a coarser, tighter,
-// straighter jet than the meshing lance); defaults keep the historical look.
+// `options` tunes the jet per consumer (walk mode wants a tighter, straighter
+// jet than the meshing lance); defaults keep the historical look.
+// `particleCount` is both the burst total and the stream rate (droplets/s).
 
 const EMIT_MS = 1000;
 const FADE_MS = 150;
@@ -91,8 +96,83 @@ export function createShootSprayController({ editor, sceneManager, options }) {
   sceneManager.scene.add(group);
 
   const bursts = [];
+  // Continuous stream (walk mode Space): a ring buffer of droplets emitted
+  // at opts.particleCount per second from the live aim. Single stream at a
+  // time — startStream while running just swaps the aim callback.
+  let stream = null;
   let rafId = null;
   let disposed = false;
+
+  // Direction frame of a shot: normalized dir, spread perpendiculars and
+  // speed to cross the gap in ~crossingTimeS.
+  function computeAimFrame(origin, target) {
+    const dir = new Vector3().subVectors(target, origin);
+    const dist = Math.max(dir.length(), 0.1);
+    dir.normalize();
+    const baseSpeed = MathUtils.clamp(dist / opts.crossingTimeS, 8, 40);
+    const up =
+      Math.abs(dir.y) > 0.9 ? new Vector3(1, 0, 0) : new Vector3(0, 1, 0);
+    const perpA = new Vector3().crossVectors(dir, up).normalize();
+    const perpB = new Vector3().crossVectors(dir, perpA).normalize();
+    return { dir, dist, baseSpeed, perpA, perpB };
+  }
+
+  // Random velocity inside the spread cone + matching flight time.
+  function fillVelocity(velocities, flightTimes, i, frame) {
+    const i3 = i * 3;
+    const speed = frame.baseSpeed * (0.85 + 0.3 * Math.random());
+    const spread = spreadTan * speed;
+    const angle = Math.random() * Math.PI * 2;
+    const radius = Math.random() * spread;
+    velocities[i3] =
+      frame.dir.x * speed +
+      frame.perpA.x * Math.cos(angle) * radius +
+      frame.perpB.x * Math.sin(angle) * radius;
+    velocities[i3 + 1] =
+      frame.dir.y * speed +
+      frame.perpA.y * Math.cos(angle) * radius +
+      frame.perpB.y * Math.sin(angle) * radius;
+    velocities[i3 + 2] =
+      frame.dir.z * speed +
+      frame.perpA.z * Math.cos(angle) * radius +
+      frame.perpB.z * Math.sin(angle) * radius;
+    flightTimes[i] = Math.min(frame.dist / speed, MAX_FLIGHT_S);
+  }
+
+  function makeSprayGeometryAndMaterial(count) {
+    const positions = new Float32Array(count * 3);
+    for (let i = 0; i < count; i++) positions[i * 3 + 1] = PARKED_Y;
+    const sizes = new Float32Array(count);
+    sizes.fill(sizeStart);
+
+    const geometry = new BufferGeometry();
+    geometry.setAttribute("position", new BufferAttribute(positions, 3));
+    geometry.setAttribute("aSize", new BufferAttribute(sizes, 1));
+
+    // Same depth attenuation as PointsMaterial's sizeAttenuation: uScale is
+    // half the drawing buffer height (px). Read once per burst/stream — a
+    // resize mid-life is negligible.
+    const bufferSize = sceneManager.renderer.getDrawingBufferSize(
+      new Vector2()
+    );
+    const material = new ShaderMaterial({
+      uniforms: {
+        uMap: { value: dropletTexture },
+        uColor: { value: new Color(opts.color) },
+        uOpacity: { value: opts.opacity },
+        uScale: { value: bufferSize.y * 0.5 },
+      },
+      vertexShader: VERTEX_SHADER,
+      fragmentShader: FRAGMENT_SHADER,
+      transparent: true,
+      depthWrite: false,
+    });
+
+    const points = new Points(geometry, material);
+    // Positions churn every frame — skip bounding-sphere culling logic.
+    points.frustumCulled = false;
+    return { positions, sizes, geometry, material, points };
+  }
 
   function removeBurst(burst) {
     group.remove(burst.points);
@@ -142,87 +222,93 @@ export function createShootSprayController({ editor, sceneManager, options }) {
       }
     }
 
+    if (stream) {
+      const s = stream;
+
+      // Emit the droplets due since the last frame, all along the CURRENT
+      // aim (the stream follows the camera while the key is held).
+      if (!s.stopping) {
+        if (s.nextEmitAt == null) s.nextEmitAt = now;
+        const interval = 1000 / opts.particleCount;
+        const aim = s.getAim?.();
+        if (aim) {
+          const frame = computeAimFrame(aim.origin, aim.target);
+          // Cap per-frame emission so a long tab-switch gap can't burst.
+          let budget = Math.ceil(opts.particleCount / 10);
+          while (s.nextEmitAt <= now && budget-- > 0) {
+            const i = s.cursor;
+            s.cursor = (s.cursor + 1) % s.capacity;
+            const i3 = i * 3;
+            s.origins[i3] = aim.origin.x;
+            s.origins[i3 + 1] = aim.origin.y;
+            s.origins[i3 + 2] = aim.origin.z;
+            fillVelocity(s.velocities, s.flightTimes, i, frame);
+            s.spawnTimes[i] = s.nextEmitAt;
+            s.nextEmitAt += interval;
+          }
+          if (s.nextEmitAt <= now) s.nextEmitAt = now; // budget hit: drop late ones
+        } else {
+          s.nextEmitAt = now; // nothing to aim at this frame, don't backlog
+        }
+      }
+
+      // Integrate — like bursts, but each droplet flies from its own origin.
+      let anyAlive = false;
+      for (let i = 0; i < s.capacity; i++) {
+        const t = (now - s.spawnTimes[i]) / 1000;
+        const i3 = i * 3;
+        if (t < 0 || t > s.flightTimes[i]) {
+          s.positions[i3] = 0;
+          s.positions[i3 + 1] = PARKED_Y;
+          s.positions[i3 + 2] = 0;
+        } else {
+          anyAlive = true;
+          s.positions[i3] = s.origins[i3] + s.velocities[i3] * t;
+          s.positions[i3 + 1] =
+            s.origins[i3 + 1] +
+            s.velocities[i3 + 1] * t +
+            0.5 * opts.gravityY * t * t;
+          s.positions[i3 + 2] = s.origins[i3 + 2] + s.velocities[i3 + 2] * t;
+          if (sizeGrows) {
+            s.sizes[i] =
+              sizeStart + (sizeEnd - sizeStart) * (t / s.flightTimes[i]);
+          }
+        }
+      }
+      s.points.geometry.attributes.position.needsUpdate = true;
+      if (sizeGrows) s.points.geometry.attributes.aSize.needsUpdate = true;
+
+      // Key released and every in-flight droplet landed: clean up.
+      if (s.stopping && !anyAlive) {
+        group.remove(s.points);
+        s.points.geometry.dispose();
+        s.points.material.dispose();
+        stream = null;
+      }
+    }
+
     editor.renderScene?.();
-    if (bursts.length) rafId = requestAnimationFrame(tick);
+    if (bursts.length || stream) rafId = requestAnimationFrame(tick);
   }
 
   function fire({ origin, target }) {
     if (disposed) return;
     const t0 = performance.now();
 
-    const dir = new Vector3().subVectors(target, origin);
-    const dist = Math.max(dir.length(), 0.1);
-    dir.normalize();
-    const baseSpeed = MathUtils.clamp(dist / opts.crossingTimeS, 8, 40);
-
-    // Two perpendiculars spanning the spread cone around dir.
-    const up =
-      Math.abs(dir.y) > 0.9 ? new Vector3(1, 0, 0) : new Vector3(0, 1, 0);
-    const perpA = new Vector3().crossVectors(dir, up).normalize();
-    const perpB = new Vector3().crossVectors(dir, perpA).normalize();
-
-    const positions = new Float32Array(opts.particleCount * 3);
+    const frame = computeAimFrame(origin, target);
     const velocities = new Float32Array(opts.particleCount * 3);
     const spawnTimes = new Float32Array(opts.particleCount);
     const flightTimes = new Float32Array(opts.particleCount);
 
     for (let i = 0; i < opts.particleCount; i++) {
-      const i3 = i * 3;
-      positions[i3] = 0;
-      positions[i3 + 1] = PARKED_Y;
-      positions[i3 + 2] = 0;
-
-      const speed = baseSpeed * (0.85 + 0.3 * Math.random());
-      const spread = spreadTan * speed;
-      const angle = Math.random() * Math.PI * 2;
-      const radius = Math.random() * spread;
-      velocities[i3] =
-        dir.x * speed +
-        perpA.x * Math.cos(angle) * radius +
-        perpB.x * Math.sin(angle) * radius;
-      velocities[i3 + 1] =
-        dir.y * speed +
-        perpA.y * Math.cos(angle) * radius +
-        perpB.y * Math.sin(angle) * radius;
-      velocities[i3 + 2] =
-        dir.z * speed +
-        perpA.z * Math.cos(angle) * radius +
-        perpB.z * Math.sin(angle) * radius;
-
+      fillVelocity(velocities, flightTimes, i, frame);
       // Staggered emission: a continuous jet, not a shotgun blast.
       spawnTimes[i] = t0 + (i / opts.particleCount) * EMIT_MS;
-      flightTimes[i] = Math.min(dist / speed, MAX_FLIGHT_S);
     }
 
-    const sizes = new Float32Array(opts.particleCount);
-    sizes.fill(sizeStart);
-
-    const geometry = new BufferGeometry();
-    geometry.setAttribute("position", new BufferAttribute(positions, 3));
-    geometry.setAttribute("aSize", new BufferAttribute(sizes, 1));
-
-    // Same depth attenuation as PointsMaterial's sizeAttenuation: uScale is
-    // half the drawing buffer height (px). Read once per burst — a resize
-    // mid-burst (~1s) is negligible.
-    const bufferSize = sceneManager.renderer.getDrawingBufferSize(
-      new Vector2()
+    const { positions, sizes, points } = makeSprayGeometryAndMaterial(
+      opts.particleCount
     );
-    const material = new ShaderMaterial({
-      uniforms: {
-        uMap: { value: dropletTexture },
-        uColor: { value: new Color(opts.color) },
-        uOpacity: { value: opts.opacity },
-        uScale: { value: bufferSize.y * 0.5 },
-      },
-      vertexShader: VERTEX_SHADER,
-      fragmentShader: FRAGMENT_SHADER,
-      transparent: true,
-      depthWrite: false,
-    });
-
-    const points = new Points(geometry, material);
-    // Positions churn every frame — skip bounding-sphere culling logic.
-    points.frustumCulled = false;
     group.add(points);
 
     bursts.push({
@@ -239,6 +325,46 @@ export function createShootSprayController({ editor, sceneManager, options }) {
     if (rafId == null) rafId = requestAnimationFrame(tick);
   }
 
+  // Continuous jet while a key is held. `getAim` returns the live
+  // {origin, target} (or null to pause emission); it is re-read every frame.
+  function startStream(getAim) {
+    if (disposed) return;
+    if (stream) {
+      // Already streaming (e.g. re-press before the tail landed): keep the
+      // ring, just resume emission with the fresh aim callback.
+      stream.getAim = getAim;
+      stream.stopping = false;
+      return;
+    }
+    // Ring sized to hold every droplet alive at once at the emission rate.
+    const capacity = Math.ceil(opts.particleCount * (MAX_FLIGHT_S + 0.15));
+    const { positions, sizes, points } = makeSprayGeometryAndMaterial(capacity);
+    group.add(points);
+    const spawnTimes = new Float32Array(capacity);
+    spawnTimes.fill(Number.POSITIVE_INFINITY); // never spawned yet
+    stream = {
+      points,
+      positions,
+      sizes,
+      velocities: new Float32Array(capacity * 3),
+      origins: new Float32Array(capacity * 3),
+      spawnTimes,
+      flightTimes: new Float32Array(capacity),
+      capacity,
+      cursor: 0,
+      nextEmitAt: null,
+      getAim,
+      stopping: false,
+    };
+    if (rafId == null) rafId = requestAnimationFrame(tick);
+  }
+
+  function stopStream() {
+    // Emission stops now; the tick keeps running until the in-flight
+    // droplets land, then disposes the ring.
+    if (stream) stream.stopping = true;
+  }
+
   function dispose() {
     disposed = true;
     if (rafId != null) {
@@ -246,10 +372,16 @@ export function createShootSprayController({ editor, sceneManager, options }) {
       rafId = null;
     }
     [...bursts].forEach(removeBurst);
+    if (stream) {
+      group.remove(stream.points);
+      stream.points.geometry.dispose();
+      stream.points.material.dispose();
+      stream = null;
+    }
     sceneManager.scene.remove(group);
     dropletTexture.dispose();
     editor.renderScene?.();
   }
 
-  return { fire, dispose };
+  return { fire, startStream, stopStream, dispose };
 }
