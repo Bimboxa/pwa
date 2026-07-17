@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { useSelector } from "react-redux";
 
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
@@ -7,6 +8,7 @@ import useListings from "Features/listings/hooks/useListings";
 import computeAnnotationTemplateQties from "Features/annotations/utils/computeAnnotationTemplateQties";
 import sortAnnotationTemplatesByOrder from "Features/annotations/utils/sortAnnotationTemplatesByOrder";
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
+import { toWatercolorHexColor } from "Features/threedEditor/js/postfx/aquarelleMaterials";
 
 /**
  * Builds the flat legend list for the 3D viewer from the exact annotation set
@@ -30,6 +32,15 @@ export default function useThreedLegendItems(annotations) {
   const annotationTemplates = useAnnotationTemplates();
   const { value: baseMaps = [] } = useBaseMaps();
   const { value: listings = [] } = useListings();
+
+  // AQUARELLE renders every object with a watercolor-shifted color — the
+  // legend icons must show the same wash, not the raw template color. Other
+  // modes keep colors close to native, so no transform is needed there.
+  const renderMode = useSelector((s) => s.threedEditor.renderMode);
+  const toDisplayColor = useMemo(
+    () => (renderMode === "AQUARELLE" ? toWatercolorHexColor : (c) => c),
+    [renderMode]
+  );
 
   // helpers - lookup maps
 
@@ -107,8 +118,10 @@ export default function useThreedLegendItems(annotations) {
           id: templateId,
           type: annotation.type,
           iconKey: annotation.iconKey,
-          fillColor: annotation.fillColor ?? template.fillColor,
-          strokeColor: annotation.strokeColor ?? template.strokeColor,
+          fillColor: toDisplayColor(annotation.fillColor ?? template.fillColor),
+          strokeColor: toDisplayColor(
+            annotation.strokeColor ?? template.strokeColor
+          ),
           fillType: annotation.fillType,
           strokeType: annotation.strokeType,
           variant: annotation.variant,
@@ -168,6 +181,7 @@ export default function useThreedLegendItems(annotations) {
     baseMapById,
     listingNameById,
     orderRankByTemplateId,
+    toDisplayColor,
   ]);
 
   // qty lookup in the shape NodeLegendStatic reads (qtiesById[id].mainQtyLabel)
