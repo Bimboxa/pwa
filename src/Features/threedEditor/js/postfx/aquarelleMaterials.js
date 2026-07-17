@@ -119,6 +119,11 @@ function getSharedPencilLineMaterial() {
       color: PENCIL_COLOR,
       linewidth: PENCIL_LINEWIDTH_PX,
       worldUnits: false,
+      // The wavy pencil bows in front of the straight ink line in places; if
+      // it wrote depth, the ink (drawn after, renderOrder above) would lose
+      // the depth test there and the gray would sit on top. Depth TEST stays
+      // on, so walls still occlude the pencil.
+      depthWrite: false,
     });
   }
   return _pencilMaterial;
