@@ -11,8 +11,9 @@ const MUZZLE_DIST = 0.6; // spray origin, in front of the camera near plane
 
 // World point under an NDC coordinate: first mesh hit (clipping/visibility
 // aware, fat lines excluded — same filter as useMeshingPointerHandlers'
-// pickScene), else a far point along the ray.
-export function pickWorldTargetAtNdc({ sceneManager, ndcX, ndcY }) {
+// pickScene), else a far point along the ray. `isHit` tells a real surface
+// from the void fallback (the spray splats only on real faces).
+export function pickWorldHitAtNdc({ sceneManager, ndcX, ndcY }) {
   const raycaster = new Raycaster();
   raycaster.setFromCamera(new Vector2(ndcX, ndcY), sceneManager.camera);
   const clippingPlane = getActiveClippingPlane(sceneManager);
@@ -31,10 +32,18 @@ export function pickWorldTargetAtNdc({ sceneManager, ndcX, ndcY }) {
     )
   );
 
-  if (intersects.length) return intersects[0].point.clone();
-  return raycaster.ray.origin
-    .clone()
-    .addScaledVector(raycaster.ray.direction, VOID_TARGET_DIST);
+  if (intersects.length)
+    return { point: intersects[0].point.clone(), isHit: true };
+  return {
+    point: raycaster.ray.origin
+      .clone()
+      .addScaledVector(raycaster.ray.direction, VOID_TARGET_DIST),
+    isHit: false,
+  };
+}
+
+export function pickWorldTargetAtNdc(args) {
+  return pickWorldHitAtNdc(args).point;
 }
 
 // Spray origin: a screen-anchored point just in front of the camera,
