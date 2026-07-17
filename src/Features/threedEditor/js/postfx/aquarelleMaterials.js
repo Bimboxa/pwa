@@ -81,6 +81,13 @@ export function toWatercolorColor(color) {
   return c;
 }
 
+// Hex-string variant for React consumers (legend icons must show the same
+// wash color as the 3D objects). Falls through non-parsable values.
+export function toWatercolorHexColor(hex) {
+  if (!hex) return hex;
+  return `#${toWatercolorColor(new Color(hex)).getHexString()}`;
+}
+
 export function createAquarelleMaterial({ color, opacity }) {
   return new MeshToonMaterial({
     color: toWatercolorColor(color),
