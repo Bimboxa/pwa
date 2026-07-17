@@ -2,10 +2,12 @@ import {
   BufferAttribute,
   BufferGeometry,
   CanvasTexture,
+  Color,
   Group,
   MathUtils,
   Points,
-  PointsMaterial,
+  ShaderMaterial,
+  Vector2,
   Vector3,
 } from "three";
 
@@ -28,10 +30,38 @@ const DEFAULT_OPTIONS = {
   gravityY: -6, // softened gravity, stylized arc
   spreadDeg: 6, // spray cone half-angle
   particleSize: 0.07,
+  // Droplet size along the flight: needle-thin at the nozzle, blooming
+  // toward the impact. Both default to particleSize (constant size).
+  particleSizeStart: null,
+  particleSizeEnd: null,
   crossingTimeS: 0.4, // time to cross the gap regardless of range
   color: 0x8d8d8d, // concrete grey
   opacity: 0.95,
 };
+
+// Points shader with a PER-PARTICLE size attribute (PointsMaterial only
+// supports one global size): aSize is world meters, attenuated with depth
+// exactly like PointsMaterial's sizeAttenuation (uScale = half the drawing
+// buffer height in px).
+const VERTEX_SHADER = `
+  attribute float aSize;
+  uniform float uScale;
+  void main() {
+    vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+    gl_PointSize = aSize * uScale / -mvPosition.z;
+    gl_Position = projectionMatrix * mvPosition;
+  }
+`;
+
+const FRAGMENT_SHADER = `
+  uniform vec3 uColor;
+  uniform float uOpacity;
+  uniform sampler2D uMap;
+  void main() {
+    vec4 sprite = texture2D(uMap, gl_PointCoord);
+    gl_FragColor = vec4(uColor, uOpacity) * sprite;
+  }
+`;
 
 // Soft round droplet sprite (radial white gradient), so particles read as
 // liquid droplets instead of the square PointsMaterial default. Tinted via
@@ -52,6 +82,9 @@ function makeDropletTexture() {
 export function createShootSprayController({ editor, sceneManager, options }) {
   const opts = { ...DEFAULT_OPTIONS, ...options };
   const spreadTan = Math.tan(MathUtils.degToRad(opts.spreadDeg));
+  const sizeStart = opts.particleSizeStart ?? opts.particleSize;
+  const sizeEnd = opts.particleSizeEnd ?? opts.particleSize;
+  const sizeGrows = sizeStart !== sizeEnd;
   const dropletTexture = makeDropletTexture();
   const group = new Group();
   group.name = "ShootSpray";
@@ -75,7 +108,8 @@ export function createShootSprayController({ editor, sceneManager, options }) {
     const now = performance.now();
 
     for (const burst of [...bursts]) {
-      const { positions, velocities, spawnTimes, flightTimes, origin } = burst;
+      const { positions, velocities, spawnTimes, flightTimes, sizes, origin } =
+        burst;
       for (let i = 0; i < opts.particleCount; i++) {
         const t = (now - spawnTimes[i]) / 1000;
         const i3 = i * 3;
@@ -89,16 +123,21 @@ export function createShootSprayController({ editor, sceneManager, options }) {
           positions[i3 + 1] =
             origin.y + velocities[i3 + 1] * t + 0.5 * opts.gravityY * t * t;
           positions[i3 + 2] = origin.z + velocities[i3 + 2] * t;
+          if (sizeGrows) {
+            // Needle-thin at the nozzle, blooming toward the impact.
+            sizes[i] = sizeStart + (sizeEnd - sizeStart) * (t / flightTimes[i]);
+          }
         }
       }
       burst.points.geometry.attributes.position.needsUpdate = true;
+      if (sizeGrows) burst.points.geometry.attributes.aSize.needsUpdate = true;
 
       const sinceEmitEnd = now - (burst.t0 + EMIT_MS);
       if (sinceEmitEnd > 0) {
         // Emission over: quick opacity fade, then remove + dispose.
         if (sinceEmitEnd >= FADE_MS) removeBurst(burst);
         else
-          burst.points.material.opacity =
+          burst.points.material.uniforms.uOpacity.value =
             opts.opacity * (1 - sinceEmitEnd / FADE_MS);
       }
     }
@@ -155,16 +194,29 @@ export function createShootSprayController({ editor, sceneManager, options }) {
       flightTimes[i] = Math.min(dist / speed, MAX_FLIGHT_S);
     }
 
+    const sizes = new Float32Array(opts.particleCount);
+    sizes.fill(sizeStart);
+
     const geometry = new BufferGeometry();
     geometry.setAttribute("position", new BufferAttribute(positions, 3));
+    geometry.setAttribute("aSize", new BufferAttribute(sizes, 1));
 
-    const material = new PointsMaterial({
-      color: opts.color,
-      map: dropletTexture,
-      size: opts.particleSize,
-      sizeAttenuation: true,
+    // Same depth attenuation as PointsMaterial's sizeAttenuation: uScale is
+    // half the drawing buffer height (px). Read once per burst — a resize
+    // mid-burst (~1s) is negligible.
+    const bufferSize = sceneManager.renderer.getDrawingBufferSize(
+      new Vector2()
+    );
+    const material = new ShaderMaterial({
+      uniforms: {
+        uMap: { value: dropletTexture },
+        uColor: { value: new Color(opts.color) },
+        uOpacity: { value: opts.opacity },
+        uScale: { value: bufferSize.y * 0.5 },
+      },
+      vertexShader: VERTEX_SHADER,
+      fragmentShader: FRAGMENT_SHADER,
       transparent: true,
-      opacity: opts.opacity,
       depthWrite: false,
     });
 
@@ -180,6 +232,7 @@ export function createShootSprayController({ editor, sceneManager, options }) {
       velocities,
       spawnTimes,
       flightTimes,
+      sizes,
       origin: origin.clone(),
     });
 
