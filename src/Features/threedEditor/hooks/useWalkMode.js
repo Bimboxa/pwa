@@ -109,12 +109,13 @@ export default function useWalkMode() {
     const spray = createShootSprayController({
       editor,
       sceneManager,
-      // Walk-mode jet: high-pressure resin stream — many tiny grey droplets
-      // (large sizes read as mist at the nozzle) in a very tight cone,
-      // nearly straight to the target.
+      // Walk-mode jet: high-pressure resin stream — needle-thin grey
+      // droplets at the nozzle exit that bloom toward the impact, in a very
+      // tight cone, nearly straight to the target.
       options: {
         particleCount: 1200,
-        particleSize: 0.04,
+        particleSizeStart: 0.012,
+        particleSizeEnd: 0.09,
         spreadDeg: 0.8,
         gravityY: -1,
         crossingTimeS: 0.18,
