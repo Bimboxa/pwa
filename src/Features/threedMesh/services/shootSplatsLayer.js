@@ -29,6 +29,12 @@ const CAPACITY = 50000;
 
 const layersByScene = new WeakMap();
 
+// Existing layer of the scene, or null — for consumers that must not
+// allocate the ring just to act on it (e.g. the R "clear graffiti" key).
+export function getSplatLayer(sceneManager) {
+  return layersByScene.get(sceneManager.scene) ?? null;
+}
+
 export function getOrCreateSplatLayer(sceneManager, { color = 0x8d8d8d } = {}) {
   const scene = sceneManager.scene;
   let layer = layersByScene.get(scene);

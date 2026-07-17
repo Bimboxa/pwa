@@ -15,6 +15,7 @@ import {
   getMuzzleOrigin,
 } from "Features/threedMesh/services/shootPick";
 import { createShootSprayController } from "Features/threedMesh/services/shootSprayController";
+import { getSplatLayer } from "Features/threedMesh/services/shootSplatsLayer";
 
 import WalkModeController from "../js/WalkModeController";
 import { getActiveThreedEditor } from "../services/threedEditorRegistry";
@@ -177,6 +178,11 @@ export default function useWalkMode() {
       onFireStop: () => {
         spray.stopStream();
         emitShoot({ firingUntil: 0 });
+      },
+      // R wipes the in-memory graffiti off the walls.
+      onClearSplats: () => {
+        getSplatLayer(sceneManager)?.clear();
+        editor.renderScene?.();
       },
     });
     controller.enter();
