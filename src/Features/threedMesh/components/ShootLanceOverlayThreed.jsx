@@ -70,19 +70,21 @@ export default function ShootLanceOverlayThreed() {
           from: { transform: "translate(-2px, 1px)" },
           to: { transform: "translate(2px, -1px)" },
         },
-        // RPG image variants: the centering translateX(-50%) must live inside
-        // the keyframes (a keyframe transform replaces the base one).
+        // RPG image variants: the positioning translateX (centered, then
+        // pushed right by 3/4 of the image width: -50% + 75% = 25%) must
+        // live inside the keyframes (a keyframe transform replaces the base
+        // one).
         "@keyframes rpgSway": {
-          from: { transform: "translateX(calc(-50% - 4px))" },
-          to: { transform: "translateX(calc(-50% + 4px))" },
+          from: { transform: "translateX(calc(25% - 4px))" },
+          to: { transform: "translateX(calc(25% + 4px))" },
         },
         "@keyframes rpgRecoil": {
-          from: { transform: "translate(-50%, 14px)" },
-          to: { transform: "translate(-50%, 0px)" },
+          from: { transform: "translate(25%, 14px)" },
+          to: { transform: "translate(25%, 0px)" },
         },
         "@keyframes rpgShake": {
-          from: { transform: "translate(calc(-50% - 2px), 1px)" },
-          to: { transform: "translate(calc(-50% + 2px), -1px)" },
+          from: { transform: "translate(calc(25% - 2px), 1px)" },
+          to: { transform: "translate(calc(25% + 2px), -1px)" },
         },
       }}
     >
@@ -111,7 +113,8 @@ function RpgWeapon({ url, firing }) {
         position: "absolute",
         left: "50%",
         bottom: -6,
-        transform: "translateX(-50%)",
+        // Centered, then offset right by 3/4 of the image width.
+        transform: "translateX(25%)",
         // Percentages resolve against the 3D view (absolutely positioned
         // inside the inset-0 overlay).
         maxHeight: "42%",
