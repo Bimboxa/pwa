@@ -114,6 +114,9 @@ function RpgWeapon({ url, firing }) {
       component="img"
       src={url}
       alt=""
+      // Queried at fire time (useWalkMode) to anchor the spray origin on the
+      // gun nozzle (features.walkMode.muzzleAnchor, fractions of this rect).
+      data-walk-rpg-weapon="true"
       sx={{
         position: "absolute",
         left: "50%",
