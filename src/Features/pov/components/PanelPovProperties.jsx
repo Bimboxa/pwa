@@ -6,7 +6,14 @@ import {
   selectSelectedItem,
 } from "Features/selection/selectionSlice";
 
-import { Box, IconButton, Tab, Tabs, TextField, Typography } from "@mui/material";
+import {
+  Box,
+  IconButton,
+  Tab,
+  Tabs,
+  TextField,
+  Typography,
+} from "@mui/material";
 import { ArrowBack as Back, PhotoCamera } from "@mui/icons-material";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
@@ -45,12 +52,10 @@ export default function PanelPovProperties() {
   const povs = usePovs() ?? [];
   const pov = povs.find((p) => p.id === selectedItem?.id) ?? null;
 
-  // With "Amélioration IA" on, the saved transformed image wins over the
-  // capture thumbnail — for the preview and for the download. Toggling the
-  // switch flips the preview between the two.
-  const aiEnhanceEnabled = useSelector((s) => s.pov.aiEnhanceEnabled);
-  const transformedFileName =
-    aiEnhanceEnabled ? pov?.transformedImage?.fileName : null;
+  // The saved AI-transformed image (when the user kept one) wins over the
+  // capture thumbnail — for the preview and for the download. Downloading
+  // never re-launches a generation: it exports the stored file as-is.
+  const transformedFileName = pov?.transformedImage?.fileName ?? null;
   const displayedFileName = transformedFileName ?? pov?.image?.fileName;
   const imageUrl = usePovImageUrl(displayedFileName);
   const updatePov = useUpdatePov();
@@ -176,62 +181,62 @@ export default function PanelPovProperties() {
       {tab === "FILTRES" && <PanelPovFilters />}
 
       {tab === "IMAGE" && (
-      <Box
-        sx={{
-          flex: 1,
-          minHeight: 0,
-          overflowY: "auto",
-          p: 1,
-          display: "flex",
-          flexDirection: "column",
-          gap: 1.5,
-        }}
-      >
-        {/* Image */}
         <Box
           sx={{
-            borderRadius: 1,
-            overflow: "hidden",
-            bgcolor: "action.hover",
+            flex: 1,
+            minHeight: 0,
+            overflowY: "auto",
+            p: 1,
             display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
+            flexDirection: "column",
+            gap: 1.5,
           }}
         >
-          {imageUrl && (
-            <Box
-              component="img"
-              src={imageUrl}
-              alt=""
-              sx={{ width: 1, objectFit: "contain" }}
-            />
-          )}
-        </Box>
+          {/* Image */}
+          <Box
+            sx={{
+              borderRadius: 1,
+              overflow: "hidden",
+              bgcolor: "action.hover",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            {imageUrl && (
+              <Box
+                component="img"
+                src={imageUrl}
+                alt=""
+                sx={{ width: 1, objectFit: "contain" }}
+              />
+            )}
+          </Box>
 
-        {/* Description */}
-        <TextField
-          size="small"
-          fullWidth
-          multiline
-          minRows={2}
-          label={descriptionS}
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          onBlur={handleDescriptionBlur}
-        />
-
-        {/* AI enhancement of the next "Mettre à jour la vue" */}
-        <SectionPovAiEnhance />
-
-        {/* Download (resolution options live in the Cadrage tab) */}
-        <WhiteSectionGeneric>
-          <SectionCaptureExport
-            onExport={handleExport}
-            defaultFilename="point_de_vue"
-            showOptions={false}
+          {/* Description */}
+          <TextField
+            size="small"
+            fullWidth
+            multiline
+            minRows={2}
+            label={descriptionS}
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            onBlur={handleDescriptionBlur}
           />
-        </WhiteSectionGeneric>
-      </Box>
+
+          {/* AI enhancement of the next "Mettre à jour la vue" */}
+          <SectionPovAiEnhance />
+
+          {/* Download (resolution options live in the Cadrage tab) */}
+          <WhiteSectionGeneric>
+            <SectionCaptureExport
+              onExport={handleExport}
+              defaultFilename="point_de_vue"
+              showOptions={false}
+            />
+          </WhiteSectionGeneric>
+        </Box>
       )}
 
       {/* Frame + legend settings (shared imageMode state): tweak them, then

@@ -48,6 +48,12 @@ export function getPdfPageSize(aspectRatio) {
  * @param {"png"|"pdf"} [opts.format] download format ("pdf" only for download)
  * @param {boolean} [opts.roundedBorderMask] make every pixel outside the
  *   rounded border (imageModeBorder overlay) transparent in the output.
+ * @param {boolean} [opts.excludeDecor] hide the `data-capture-decor` elements
+ *   (border, title banner, watermark, logo) — content + legend only (the
+ *   POV AI-enhance input image).
+ * @param {boolean} [opts.decorOnly] capture ONLY the `data-capture-decor`
+ *   elements over transparency (the overlay composited back over the
+ *   AI-enhanced image).
  * @param {(host: HTMLElement, ctx: {pixelRatio: number}) => Promise<() => void>}
  *   [opts.prepareHost] pre-capture step making non-clonable content capturable
  *   (e.g. snapshotting a WebGL canvas into a `data-capture-keep` img — the
@@ -65,15 +71,15 @@ export default async function captureMapAsPng({
   rightInset = 0,
   format = "png",
   roundedBorderMask = false,
+  excludeDecor = false,
+  decorOnly = false,
   prepareHost,
 } = {}) {
   const host = document.querySelector(
     `[data-image-capture-host="${viewerKey}"]`
   );
   if (!host) {
-    console.warn(
-      `[captureMapAsPng] no host found for viewerKey=${viewerKey}`
-    );
+    console.warn(`[captureMapAsPng] no host found for viewerKey=${viewerKey}`);
     return;
   }
 
@@ -109,12 +115,26 @@ export default async function captureMapAsPng({
     el.style.visibility = "hidden";
   });
 
-  host.querySelectorAll("[data-capture-keep]").forEach((keep) => {
+  // decorOnly narrows the whitelist to the decor elements themselves;
+  // excludeDecor re-hides them after the regular keep pass.
+  const keepSelector = decorOnly
+    ? "[data-capture-decor]"
+    : "[data-capture-keep]";
+  host.querySelectorAll(keepSelector).forEach((keep) => {
     keep.style.visibility = "visible";
     keep.querySelectorAll("*").forEach((child) => {
       child.style.visibility = "visible";
     });
   });
+
+  if (excludeDecor && !decorOnly) {
+    host.querySelectorAll("[data-capture-decor]").forEach((decor) => {
+      decor.style.visibility = "hidden";
+      decor.querySelectorAll("*").forEach((child) => {
+        child.style.visibility = "hidden";
+      });
+    });
+  }
 
   host.querySelectorAll("[data-capture-hide]").forEach((hide) => {
     hide.style.visibility = "hidden";
@@ -207,8 +227,10 @@ export default async function captureMapAsPng({
   }
 }
 
-// ctx.roundRect is not available on every supported browser yet.
-function roundedRectPath(ctx, x, y, w, h, r) {
+// ctx.roundRect is not available on every supported browser yet. Exported
+// for flows re-applying the border mask on a composited image (POV
+// AI-enhance final image).
+export function roundedRectPath(ctx, x, y, w, h, r) {
   const radius = Math.min(r, w / 2, h / 2);
   ctx.moveTo(x + radius, y);
   ctx.arcTo(x + w, y, x + w, y + h, radius);

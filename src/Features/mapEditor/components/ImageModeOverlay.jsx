@@ -9,7 +9,13 @@
 // resize-width target. The dim mask and rect border are pointer-events:
 // none so the user can still pan/zoom the map underneath.
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import { setImageModeLegendOverlay } from "../mapEditorSlice";
@@ -44,9 +50,7 @@ export default function ImageModeOverlay({
 
   const aspectRatio = useSelector((s) => s.mapEditor.imageModeAspectRatio);
   const overlay = useSelector((s) => s.mapEditor.imageModeLegendOverlay);
-  const showWatermark = useSelector(
-    (s) => s.mapEditor.imageModeShowWatermark
-  );
+  const showWatermark = useSelector((s) => s.mapEditor.imageModeShowWatermark);
   const watermarkUrl = useSelector(
     (s) =>
       s.appConfig.value?.features?.watermark?.urlsByAspectRatio?.[
@@ -241,10 +245,14 @@ export default function ImageModeOverlay({
       </g>
 
       {/* ROUNDED BORDER (secondary color) — at capture time, pixels outside
-          this path are made transparent (captureMapAsPng roundedBorderMask). */}
+          this path are made transparent (captureMapAsPng roundedBorderMask).
+          data-capture-decor: border/title/watermark/logo are "decor" —
+          excludable (AI-enhance input) or capturable alone (decor overlay
+          composited over the enhanced image). */}
       {showBorder && (
         <rect
           data-capture-keep
+          data-capture-decor
           x={rect.left + CAPTURE_BORDER_INSET}
           y={rect.top + CAPTURE_BORDER_INSET}
           width={Math.max(0, rect.width - 2 * CAPTURE_BORDER_INSET)}
@@ -276,6 +284,7 @@ export default function ImageModeOverlay({
       {showWatermark && watermarkUrl && (
         <image
           data-capture-keep
+          data-capture-decor
           href={watermarkUrl}
           x={rect.left}
           y={rect.top}
@@ -289,100 +298,103 @@ export default function ImageModeOverlay({
 
       {/* LOGO (anchored bottom-right of the capture rect, 60px from bottom).
           Sized 200x50 (4:1 aspect). */}
-      {showLogo && logoUrl && (() => {
-        const LOGO_W = 200;
-        const LOGO_H = 50;
-        const BOTTOM_MARGIN = 60;
-        const x = rect.left + rect.width - LOGO_W;
-        const y = rect.top + rect.height - BOTTOM_MARGIN - LOGO_H;
-        return (
-          <image
-            data-capture-keep
-            href={logoUrl}
-            x={x}
-            y={y}
-            width={LOGO_W}
-            height={LOGO_H}
-            preserveAspectRatio="xMaxYMax meet"
-            style={{ pointerEvents: "none" }}
-          />
-        );
-      })()}
+      {showLogo &&
+        logoUrl &&
+        (() => {
+          const LOGO_W = 200;
+          const LOGO_H = 50;
+          const BOTTOM_MARGIN = 60;
+          const x = rect.left + rect.width - LOGO_W;
+          const y = rect.top + rect.height - BOTTOM_MARGIN - LOGO_H;
+          return (
+            <image
+              data-capture-keep
+              data-capture-decor
+              href={logoUrl}
+              x={x}
+              y={y}
+              width={LOGO_W}
+              height={LOGO_H}
+              preserveAspectRatio="xMaxYMax meet"
+              style={{ pointerEvents: "none" }}
+            />
+          );
+        })()}
 
       {/* LEGEND OVERLAY (inside the capture rect) */}
       {overlay.visible !== false && (
-      <g
-        data-capture-keep
-        transform={`translate(${legendX}, ${legendY})`}
-        onMouseDown={startMove}
-        style={{ cursor: "grab" }}
-      >
-        {legendItems?.length > 0 ? (
-          <NodeLegendStatic
-            legendItems={legendItems}
-            spriteImage={spriteImage}
-            legendFormat={{
-              x: 0,
-              y: 0,
-              width: overlay.width,
-              fontSize: overlay.fontSize,
-            }}
-            showQty={overlay.showQty}
-            qtiesById={qtiesById}
-            onSizeChange={handleLegendSizeChange}
-          />
-        ) : (
-          // Empty-state placeholder: keeps the drag target alive even when
-          // there are no items to render yet (annotations still loading, no
-          // visible annotations, etc.).
+        <g
+          data-capture-keep
+          transform={`translate(${legendX}, ${legendY})`}
+          onMouseDown={startMove}
+          style={{ cursor: "grab" }}
+        >
+          {legendItems?.length > 0 ? (
+            <NodeLegendStatic
+              legendItems={legendItems}
+              spriteImage={spriteImage}
+              legendFormat={{
+                x: 0,
+                y: 0,
+                width: overlay.width,
+                fontSize: overlay.fontSize,
+              }}
+              showQty={overlay.showQty}
+              qtiesById={qtiesById}
+              onSizeChange={handleLegendSizeChange}
+            />
+          ) : (
+            // Empty-state placeholder: keeps the drag target alive even when
+            // there are no items to render yet (annotations still loading, no
+            // visible annotations, etc.).
+            <g data-capture-hide>
+              <rect
+                x={0}
+                y={0}
+                width={overlay.width}
+                height={legendHeight}
+                fill="rgba(255,255,255,0.85)"
+                stroke="#2196f3"
+                strokeWidth={1}
+                strokeDasharray="3 3"
+                rx={4}
+                style={{ pointerEvents: "auto" }}
+              />
+              <foreignObject
+                x={8}
+                y={8}
+                width={overlay.width - 16}
+                height={legendHeight - 16}
+              >
+                <div
+                  style={{
+                    font: "12px sans-serif",
+                    color: "#666",
+                    pointerEvents: "auto",
+                  }}
+                >
+                  Légende vide
+                </div>
+              </foreignObject>
+            </g>
+          )}
+
+          {/* SE resize handle (data-capture-hide) */}
           <g data-capture-hide>
             <rect
-              x={0}
-              y={0}
-              width={overlay.width}
-              height={legendHeight}
-              fill="rgba(255,255,255,0.85)"
-              stroke="#2196f3"
+              x={overlay.width - HANDLE_SIZE / 2}
+              y={legendHeight - HANDLE_SIZE / 2}
+              width={HANDLE_SIZE}
+              height={HANDLE_SIZE}
+              fill="#2196f3"
+              stroke="white"
               strokeWidth={1}
-              strokeDasharray="3 3"
-              rx={4}
-              style={{ pointerEvents: "auto" }}
+              rx={2}
+              style={{ cursor: "ew-resize", pointerEvents: "auto" }}
+              onMouseDown={startResize}
             />
-            <foreignObject
-              x={8}
-              y={8}
-              width={overlay.width - 16}
-              height={legendHeight - 16}
-            >
-              <div
-                style={{
-                  font: "12px sans-serif",
-                  color: "#666",
-                  pointerEvents: "auto",
-                }}
-              >
-                Légende vide
-              </div>
-            </foreignObject>
           </g>
-        )}
-
-        {/* SE resize handle (data-capture-hide) */}
-        <g data-capture-hide>
-          <rect
-            x={overlay.width - HANDLE_SIZE / 2}
-            y={legendHeight - HANDLE_SIZE / 2}
-            width={HANDLE_SIZE}
-            height={HANDLE_SIZE}
-            fill="#2196f3"
-            stroke="white"
-            strokeWidth={1}
-            rx={2}
-            style={{ cursor: "ew-resize", pointerEvents: "auto" }}
-            onMouseDown={startResize}
-          />
         </g>
-      </g>
       )}
     </svg>
   );
@@ -413,6 +425,7 @@ function TitleBanner({ x, y, maxWidth, text, fontSize }) {
   return (
     <g
       data-capture-keep
+      data-capture-decor
       transform={`translate(${x}, ${y})`}
       style={{ pointerEvents: "none" }}
     >
