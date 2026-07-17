@@ -1,6 +1,7 @@
 import {
   BufferAttribute,
   BufferGeometry,
+  CanvasTexture,
   Group,
   MathUtils,
   Points,
@@ -17,22 +18,41 @@ import {
 // `options` tunes the jet per consumer (walk mode wants a coarser, tighter,
 // straighter jet than the meshing lance); defaults keep the historical look.
 
-const PARTICLE_COUNT = 350;
 const EMIT_MS = 1000;
 const FADE_MS = 150;
 const PARKED_Y = -9999; // off-scene parking spot for unspawned/dead particles
 const MAX_FLIGHT_S = 0.6;
 
 const DEFAULT_OPTIONS = {
+  particleCount: 350,
   gravityY: -6, // softened gravity, stylized arc
   spreadDeg: 6, // spray cone half-angle
   particleSize: 0.07,
   crossingTimeS: 0.4, // time to cross the gap regardless of range
+  color: 0x8d8d8d, // concrete grey
+  opacity: 0.95,
 };
+
+// Soft round droplet sprite (radial white gradient), so particles read as
+// liquid droplets instead of the square PointsMaterial default. Tinted via
+// the material color.
+function makeDropletTexture() {
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = 64;
+  const ctx = canvas.getContext("2d");
+  const gradient = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+  gradient.addColorStop(0, "rgba(255,255,255,1)");
+  gradient.addColorStop(0.45, "rgba(255,255,255,0.85)");
+  gradient.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, 64, 64);
+  return new CanvasTexture(canvas);
+}
 
 export function createShootSprayController({ editor, sceneManager, options }) {
   const opts = { ...DEFAULT_OPTIONS, ...options };
   const spreadTan = Math.tan(MathUtils.degToRad(opts.spreadDeg));
+  const dropletTexture = makeDropletTexture();
   const group = new Group();
   group.name = "ShootSpray";
   sceneManager.scene.add(group);
@@ -56,7 +76,7 @@ export function createShootSprayController({ editor, sceneManager, options }) {
 
     for (const burst of [...bursts]) {
       const { positions, velocities, spawnTimes, flightTimes, origin } = burst;
-      for (let i = 0; i < PARTICLE_COUNT; i++) {
+      for (let i = 0; i < opts.particleCount; i++) {
         const t = (now - spawnTimes[i]) / 1000;
         const i3 = i * 3;
         if (t < 0 || t > flightTimes[i]) {
@@ -78,7 +98,8 @@ export function createShootSprayController({ editor, sceneManager, options }) {
         // Emission over: quick opacity fade, then remove + dispose.
         if (sinceEmitEnd >= FADE_MS) removeBurst(burst);
         else
-          burst.points.material.opacity = 0.95 * (1 - sinceEmitEnd / FADE_MS);
+          burst.points.material.opacity =
+            opts.opacity * (1 - sinceEmitEnd / FADE_MS);
       }
     }
 
@@ -101,12 +122,12 @@ export function createShootSprayController({ editor, sceneManager, options }) {
     const perpA = new Vector3().crossVectors(dir, up).normalize();
     const perpB = new Vector3().crossVectors(dir, perpA).normalize();
 
-    const positions = new Float32Array(PARTICLE_COUNT * 3);
-    const velocities = new Float32Array(PARTICLE_COUNT * 3);
-    const spawnTimes = new Float32Array(PARTICLE_COUNT);
-    const flightTimes = new Float32Array(PARTICLE_COUNT);
+    const positions = new Float32Array(opts.particleCount * 3);
+    const velocities = new Float32Array(opts.particleCount * 3);
+    const spawnTimes = new Float32Array(opts.particleCount);
+    const flightTimes = new Float32Array(opts.particleCount);
 
-    for (let i = 0; i < PARTICLE_COUNT; i++) {
+    for (let i = 0; i < opts.particleCount; i++) {
       const i3 = i * 3;
       positions[i3] = 0;
       positions[i3 + 1] = PARKED_Y;
@@ -130,7 +151,7 @@ export function createShootSprayController({ editor, sceneManager, options }) {
         perpB.z * Math.sin(angle) * radius;
 
       // Staggered emission: a continuous jet, not a shotgun blast.
-      spawnTimes[i] = t0 + (i / PARTICLE_COUNT) * EMIT_MS;
+      spawnTimes[i] = t0 + (i / opts.particleCount) * EMIT_MS;
       flightTimes[i] = Math.min(dist / speed, MAX_FLIGHT_S);
     }
 
@@ -138,11 +159,12 @@ export function createShootSprayController({ editor, sceneManager, options }) {
     geometry.setAttribute("position", new BufferAttribute(positions, 3));
 
     const material = new PointsMaterial({
-      color: 0x8d8d8d, // concrete grey
+      color: opts.color,
+      map: dropletTexture,
       size: opts.particleSize,
       sizeAttenuation: true,
       transparent: true,
-      opacity: 0.95,
+      opacity: opts.opacity,
       depthWrite: false,
     });
 
@@ -172,6 +194,7 @@ export function createShootSprayController({ editor, sceneManager, options }) {
     }
     [...bursts].forEach(removeBurst);
     sceneManager.scene.remove(group);
+    dropletTexture.dispose();
     editor.renderScene?.();
   }
 

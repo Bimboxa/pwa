@@ -109,13 +109,16 @@ export default function useWalkMode() {
     const spray = createShootSprayController({
       editor,
       sceneManager,
-      // Walk-mode jet: much coarser, tighter and straighter than the meshing
-      // lance spray — reads as a pressure jet along the muzzle→target line.
+      // Walk-mode jet: high-pressure water look — dense stream of small
+      // bluish droplets in a very tight cone, nearly straight to the target.
       options: {
-        particleSize: 0.18,
-        spreadDeg: 2,
-        gravityY: -1.5,
-        crossingTimeS: 0.3,
+        particleCount: 700,
+        particleSize: 0.09,
+        spreadDeg: 1.2,
+        gravityY: -1,
+        crossingTimeS: 0.18,
+        color: 0x9ec9e2,
+        opacity: 0.85,
       },
     });
     const controller = new WalkModeController({
@@ -125,18 +128,33 @@ export default function useWalkMode() {
       onFire: () => {
         const target = pickWorldTargetAtNdc({ sceneManager, ndcX: 0, ndcY: 0 });
         if (!target) return;
-        // With the RPG image displayed, the jet exits its nozzle (bottom
-        // right of the view); otherwise fall back to the bottom-center
-        // muzzle of the SVG lance.
-        const rpgImageUrl =
-          store.getState().appConfig.value?.features?.walkMode?.rpgImageUrl;
-        const origin = rpgImageUrl
-          ? getMuzzleOrigin(sceneManager, {
-              ndcX: 0.35,
-              ndcY: -0.25,
-              dist: 0.8,
-            })
-          : getMuzzleOrigin(sceneManager);
+        // With the RPG image displayed, the jet exits its nozzle: measure
+        // the on-screen image rect at fire time (robust to resize and to
+        // the CSS tilt) and place the muzzle at the configured anchor
+        // (features.walkMode.muzzleAnchor, fractions of the image rect from
+        // its top-left). Fallback: the bottom-center muzzle of the SVG
+        // lance.
+        const walkConfig = store.getState().appConfig.value?.features?.walkMode;
+        const weaponEl = document.querySelector(
+          '[data-walk-rpg-weapon="true"]'
+        );
+        const canvasRect =
+          sceneManager.renderer.domElement.getBoundingClientRect();
+        let origin = null;
+        if (weaponEl && canvasRect.width && canvasRect.height) {
+          const anchor = walkConfig?.muzzleAnchor ?? {};
+          const anchorX = Number.isFinite(anchor.x) ? anchor.x : 0.2;
+          const anchorY = Number.isFinite(anchor.y) ? anchor.y : 0.12;
+          const weaponRect = weaponEl.getBoundingClientRect();
+          const px = weaponRect.left + anchorX * weaponRect.width;
+          const py = weaponRect.top + anchorY * weaponRect.height;
+          origin = getMuzzleOrigin(sceneManager, {
+            ndcX: ((px - canvasRect.left) / canvasRect.width) * 2 - 1,
+            ndcY: -((py - canvasRect.top) / canvasRect.height) * 2 + 1,
+            dist: 0.8,
+          });
+        }
+        if (!origin) origin = getMuzzleOrigin(sceneManager);
         spray.fire({ origin, target });
         emitShoot({ firingUntil: Date.now() + 1000 }); // weapon recoil
       },
