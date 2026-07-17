@@ -29,19 +29,15 @@ function bboxCenterPx(bbox) {
   };
 }
 
-export default async function createObject3DAnnotation(
-  annotation,
-  baseMap,
-  options
-) {
-  const fileName = annotation?.object3D?.fileName;
-  const bbox = annotation?.bbox;
-  if (!fileName || !bbox) {
-    console.warn("[OBJECT_3D] missing fileName or bbox", {
-      annotationId: annotation?.id,
-      fileName,
-      bbox,
-    });
+// Loads the GLB referenced by an `object3D` field ({fileName, …}) from
+// db.files and returns a basemap-local-Z-up `modelWrap` Group: footprint
+// center at the origin, base at local Z = 0. Shared by the committed
+// annotation renderer below and the placement-mode mouse preview so both
+// render the exact same model.
+export async function buildObject3DModelWrap(object3D, options) {
+  const fileName = object3D?.fileName;
+  if (!fileName) {
+    console.warn("[OBJECT_3D] missing fileName", object3D);
     return null;
   }
 
@@ -99,6 +95,27 @@ export default async function createObject3DAnnotation(
   modelWrap.rotation.x = GLTF_TO_BASEMAP_ROTATION_X;
   modelWrap.add(gltf.scene);
 
+  return modelWrap;
+}
+
+export default async function createObject3DAnnotation(
+  annotation,
+  baseMap,
+  options
+) {
+  const bbox = annotation?.bbox;
+  if (!annotation?.object3D?.fileName || !bbox) {
+    console.warn("[OBJECT_3D] missing fileName or bbox", {
+      annotationId: annotation?.id,
+      fileName: annotation?.object3D?.fileName,
+      bbox,
+    });
+    return null;
+  }
+
+  const modelWrap = await buildObject3DModelWrap(annotation.object3D, options);
+  if (!modelWrap) return null;
+
   // Outer group holds the 2D rotation (around basemap-local Z, which maps to
   // world Y after the basemap transform applied later by the dispatcher).
   // Negated: pixelToWorld mirrors the y axis (image y-down -> local y-up), so
@@ -106,7 +123,9 @@ export default async function createObject3DAnnotation(
   const outer = new Group();
   const center = bboxCenterPx(bbox);
   const local = pixelToWorld(center, baseMap);
-  outer.position.set(local.x, local.y, 0);
+  // Basemap-local Z is the plane normal: offsetZ lifts the object above the
+  // plane (e.g. placed on the top face of an extruded annotation in 3D).
+  outer.position.set(local.x, local.y, Number(annotation.offsetZ) || 0);
   outer.rotation.z = MathUtils.degToRad(-(annotation.rotation || 0));
   outer.add(modelWrap);
 

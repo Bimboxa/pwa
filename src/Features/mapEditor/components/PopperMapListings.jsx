@@ -20,6 +20,7 @@ import { setSelectedListingId } from "Features/listings/listingsSlice";
 import { setSelectedItem } from "Features/selection/selectionSlice";
 import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
+import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 
 import {
   Box,
@@ -587,6 +588,12 @@ function AnnotationTemplateRow({
   const isThreedViewer = useSelector((s) =>
     isThreedFamilyViewerKey(s.viewers.selectedViewerKey)
   );
+  // Dessin module toggled to its 3D editor (raw module key stays "MAP"):
+  // only OBJECT_3D templates can start a draw there (3D placement mode) —
+  // other shapes would set a dead-end 2D drawing state.
+  const isThreedToggledEditor = useSelector((s) =>
+    isThreedFamilyViewerKey(selectEffectiveViewerKey(s))
+  );
   const interactionMode =
     showMeshCells || isThreedViewer || viewerMode
       ? "SELECT"
@@ -621,6 +628,7 @@ function AnnotationTemplateRow({
 
   const handleStartDraw = () => {
     if (isEditing || !activeTool) return;
+    if (isThreedToggledEditor && drawingShape !== "OBJECT_3D") return;
     dispatch(setSelectedListingId(listingId));
     const baseProps = getNewAnnotationPropsFromAnnotationTemplate(annotationTemplate);
     if (activeTool.annotationType) {
@@ -684,6 +692,7 @@ function AnnotationTemplateRow({
   const handleSelectTool = (tool) => {
     dispatch(setSelectedToolKeyForTemplate({ templateId: annotationTemplate?.id, toolKey: tool.key }));
     // Activate drawing with this tool
+    if (isThreedToggledEditor && drawingShape !== "OBJECT_3D") return;
     dispatch(setSelectedListingId(listingId));
     const baseProps = getNewAnnotationPropsFromAnnotationTemplate(annotationTemplate);
     if (tool.annotationType) {
@@ -1545,6 +1554,15 @@ const SEGMENT_SELECT_MODES = [
   "SPLIT_POLYLINE_CLICK",
 ];
 
+// Shortcuts of the 3D OBJECT_3D placement mode (Dessin module toggled to 3D)
+// — handled by object3DPlacementController.
+const THREED_PLACEMENT_SHORTCUTS = [
+  { key: "← →", label: "Tourner l'objet de 10°" },
+  { key: "⇧ ← →", label: "Tourner l'objet de 1°" },
+  { key: "R", label: "Réinitialiser la rotation" },
+  { key: "Esc", label: "Quitter le mode dessin" },
+];
+
 // Modes where the "Détection auto" card makes sense — the base drawing
 // tool has a backing detection algorithm (see getEffectiveDetectionMode).
 const SMART_DETECT_CAPABLE_MODES = [
@@ -1629,6 +1647,12 @@ function PopperDrawingHelper() {
   const smartDetectEnabled = useSelector(
     (s) => s.mapEditor.smartDetectEnabled
   );
+  // Dessin module toggled to its 3D editor: the drawing state drives the 3D
+  // OBJECT_3D placement mode. The 2D-only helpers (loupe, 2D shortcuts) must
+  // not mount — CardLoupe's SmartZoomContext only exists in the 2D editor.
+  const isThreedToggledEditor = useSelector((s) =>
+    isThreedFamilyViewerKey(selectEffectiveViewerKey(s))
+  );
   const autoMergeOnCommit = useSelector(
     (s) => s.mapEditor.autoMergeOnCommit
   );
@@ -1707,9 +1731,26 @@ function PopperDrawingHelper() {
       </Box>
 
       <Box sx={{ p: 1, display: "flex", flexDirection: "column", gap: 1 }}>
-        {!isSegmentSelectMode &&
+        {!isThreedToggledEditor &&
+          !isSegmentSelectMode &&
           enabledDrawingMode !== "REASSIGN_TEMPLATE" &&
           enabledDrawingMode !== "LOCALIZED_REPAIR" && <CardLoupe />}
+        {isThreedToggledEditor && (
+          <Box
+            sx={{
+              px: 1.5,
+              py: 1.5,
+              borderRadius: 1,
+              bgcolor: "primary.main",
+              color: "primary.contrastText",
+              fontSize: "0.875rem",
+              fontWeight: 600,
+              textAlign: "center",
+            }}
+          >
+            {"Cliquez sur le plan pour poser l'objet 3D"}
+          </Box>
+        )}
         {enabledDrawingMode === "LOCALIZED_REPAIR" && <SectionRepairModes />}
         {enabledDrawingMode === "REASSIGN_TEMPLATE" && (
           <Box
@@ -1852,7 +1893,11 @@ function PopperDrawingHelper() {
             />
           </Paper>
         )}
-        <SectionShortcutHelpers />
+        <SectionShortcutHelpers
+          shortcuts={
+            isThreedToggledEditor ? THREED_PLACEMENT_SHORTCUTS : undefined
+          }
+        />
       </Box>
     </Paper>
   );

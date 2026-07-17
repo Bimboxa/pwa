@@ -91,6 +91,8 @@ import PopperEditMesh3d from "Features/threedMesh/components/PopperEditMesh3d";
 import PopperEditMeshes3d from "Features/threedMesh/components/PopperEditMeshes3d";
 import useMeshingPointerHandlers from "Features/threedMesh/hooks/useMeshingPointerHandlers";
 import useWalkMode from "Features/threedEditor/hooks/useWalkMode";
+import useObject3DPlacementHandlers from "Features/threedEditor/hooks/useObject3DPlacementHandlers";
+import { selectIsObject3DPlacementActive } from "Features/threedEditor/utils/object3DPlacementSelectors";
 import {
   getMesh3dSprites,
   getMesh3dFaceMeshes,
@@ -221,6 +223,14 @@ export default function MainThreedEditor() {
     walkActiveRef.current = walkActive;
   }, [walkActive]);
 
+  // Same pattern for OBJECT_3D placement mode (derived state) —
+  // useObject3DPlacementHandlers owns the pointer while active.
+  const placementActive = useSelector(selectIsObject3DPlacementActive);
+  const placementActiveRef = useRef(placementActive);
+  useEffect(() => {
+    placementActiveRef.current = placementActive;
+  }, [placementActive]);
+
   // Sub-selection (vertex / edge inside the selected annotation). Sourced
   // from threedEditorSlice. We subscribe via useSelector with a primitive
   // key so React only re-renders when the meaningful identity changes.
@@ -236,6 +246,7 @@ export default function MainThreedEditor() {
   useDimensionPointerHandlers();
   useMeshingPointerHandlers();
   useWalkMode();
+  useObject3DPlacementHandlers();
 
   // Drive the 3D clipping plane from the 2D-defined segment (top view).
   useSyncClippingPlanTo3D({ threedEditorRef, rendererIsReady });
@@ -428,6 +439,9 @@ export default function MainThreedEditor() {
       if (meshingActiveRef.current) return;
       // Walk mode: clicks only re-acquire the pointer lock, never select.
       if (walkActiveRef.current) return;
+      // OBJECT_3D placement owns the pointer; useObject3DPlacementHandlers
+      // handles it.
+      if (placementActiveRef.current) return;
 
       const threedEditor = threedEditorRef.current;
       const sceneManager = threedEditor.sceneManager;
@@ -1126,7 +1140,8 @@ export default function MainThreedEditor() {
     if (
       editorModeRef.current === "BASEMAP_POSITION" ||
       meshingActiveRef.current ||
-      walkActiveRef.current
+      walkActiveRef.current ||
+      placementActiveRef.current
     ) {
       if (prevHoveredObjectRef.current) {
         const prevId = prevHoveredObjectRef.current.userData?.nodeId;
