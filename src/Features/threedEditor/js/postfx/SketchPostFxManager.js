@@ -6,7 +6,7 @@ import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 
 import SketchShader from "./SketchShader";
 import createPaperTexture from "./createPaperTexture";
-import { getSharedEdgeLineMaterial } from "./aquarelleMaterials";
+import { setSketchEdgeResolution } from "./aquarelleMaterials";
 
 // Post-processing pipeline for the AQUARELLE render mode. Owned (lazily) by
 // SceneManager; toggled by RenderModeManager. When `enabled`, renderScene
@@ -49,8 +49,8 @@ export default class SketchPostFxManager {
         width * ratio,
         height * ratio
       );
-      // LineMaterial wants CSS px (matches AnnotationsManager's resolution).
-      getSharedEdgeLineMaterial().resolution.set(width, height);
+      // LineMaterials want CSS px (matches AnnotationsManager's resolution).
+      setSketchEdgeResolution(width, height);
       this._lastSize.set(width, height);
       this._lastRatio = ratio;
     }

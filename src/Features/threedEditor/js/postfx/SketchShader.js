@@ -20,7 +20,10 @@ const SketchShader = {
     tDiffuse: { value: null },
     tPaper: { value: null },
     uResolution: { value: new Vector2(1, 1) },
-    uWobbleAmp: { value: 0.0009 },
+    // Screen-space wobble is OFF: the ink lines must stay perfectly straight
+    // (the hand-drawn waviness lives in the pencil line GEOMETRY instead, see
+    // aquarelleMaterials.jitterSegments). Kept as a uniform for tuning.
+    uWobbleAmp: { value: 0.0 },
     uWobbleFreq: { value: 30.0 },
     uGrainScale: { value: 220.0 },
     uGrainStrength: { value: 0.08 },
