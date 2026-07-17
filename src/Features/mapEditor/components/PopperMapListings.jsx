@@ -1638,6 +1638,12 @@ function PopperDrawingHelper() {
   const smartDetectEnabled = useSelector(
     (s) => s.mapEditor.smartDetectEnabled
   );
+  // Dessin module toggled to its 3D editor: the drawing state drives the 3D
+  // OBJECT_3D placement mode. The 2D-only helpers (loupe, 2D shortcuts) must
+  // not mount — CardLoupe's SmartZoomContext only exists in the 2D editor.
+  const isThreedToggledEditor = useSelector((s) =>
+    isThreedFamilyViewerKey(selectEffectiveViewerKey(s))
+  );
   const autoMergeOnCommit = useSelector(
     (s) => s.mapEditor.autoMergeOnCommit
   );
@@ -1716,9 +1722,26 @@ function PopperDrawingHelper() {
       </Box>
 
       <Box sx={{ p: 1, display: "flex", flexDirection: "column", gap: 1 }}>
-        {!isSegmentSelectMode &&
+        {!isThreedToggledEditor &&
+          !isSegmentSelectMode &&
           enabledDrawingMode !== "REASSIGN_TEMPLATE" &&
           enabledDrawingMode !== "LOCALIZED_REPAIR" && <CardLoupe />}
+        {isThreedToggledEditor && (
+          <Box
+            sx={{
+              px: 1.5,
+              py: 1.5,
+              borderRadius: 1,
+              bgcolor: "primary.main",
+              color: "primary.contrastText",
+              fontSize: "0.875rem",
+              fontWeight: 600,
+              textAlign: "center",
+            }}
+          >
+            {"Cliquez sur le plan pour poser l'objet 3D (Esc pour quitter)"}
+          </Box>
+        )}
         {enabledDrawingMode === "LOCALIZED_REPAIR" && <SectionRepairModes />}
         {enabledDrawingMode === "REASSIGN_TEMPLATE" && (
           <Box
@@ -1861,7 +1884,7 @@ function PopperDrawingHelper() {
             />
           </Paper>
         )}
-        <SectionShortcutHelpers />
+        {!isThreedToggledEditor && <SectionShortcutHelpers />}
       </Box>
     </Paper>
   );
