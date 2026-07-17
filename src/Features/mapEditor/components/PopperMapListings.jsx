@@ -20,6 +20,7 @@ import { setSelectedListingId } from "Features/listings/listingsSlice";
 import { setSelectedItem } from "Features/selection/selectionSlice";
 import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
+import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 
 import {
   Box,
@@ -587,6 +588,12 @@ function AnnotationTemplateRow({
   const isThreedViewer = useSelector((s) =>
     isThreedFamilyViewerKey(s.viewers.selectedViewerKey)
   );
+  // Dessin module toggled to its 3D editor (raw module key stays "MAP"):
+  // only OBJECT_3D templates can start a draw there (3D placement mode) —
+  // other shapes would set a dead-end 2D drawing state.
+  const isThreedToggledEditor = useSelector((s) =>
+    isThreedFamilyViewerKey(selectEffectiveViewerKey(s))
+  );
   const interactionMode =
     showMeshCells || isThreedViewer || viewerMode
       ? "SELECT"
@@ -621,6 +628,7 @@ function AnnotationTemplateRow({
 
   const handleStartDraw = () => {
     if (isEditing || !activeTool) return;
+    if (isThreedToggledEditor && drawingShape !== "OBJECT_3D") return;
     dispatch(setSelectedListingId(listingId));
     const baseProps = getNewAnnotationPropsFromAnnotationTemplate(annotationTemplate);
     if (activeTool.annotationType) {
@@ -684,6 +692,7 @@ function AnnotationTemplateRow({
   const handleSelectTool = (tool) => {
     dispatch(setSelectedToolKeyForTemplate({ templateId: annotationTemplate?.id, toolKey: tool.key }));
     // Activate drawing with this tool
+    if (isThreedToggledEditor && drawingShape !== "OBJECT_3D") return;
     dispatch(setSelectedListingId(listingId));
     const baseProps = getNewAnnotationPropsFromAnnotationTemplate(annotationTemplate);
     if (tool.annotationType) {
