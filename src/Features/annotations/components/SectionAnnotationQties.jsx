@@ -6,6 +6,7 @@ import { Box, Typography } from "@mui/material";
 
 import getAnnotationQties from "../utils/getAnnotationQties";
 import getAnnotationSubtractionQties from "../utils/getAnnotationSubtractionQties";
+import getAnnotationOpeningQties from "../utils/getAnnotationOpeningQties";
 
 export default function SectionAnnotationQties({ annotation }) {
   const { type } = annotation ?? {};
@@ -30,6 +31,27 @@ export default function SectionAnnotationQties({ annotation }) {
     if (subQ) {
       qties.surface = subQ.surface;
       qties.surfaceDeveloped = subQ.surfaceDeveloped;
+    }
+  }
+
+  // Glued openings (relAnnotationOpenings, resolved by useAnnotationsV2 as
+  // `annotation.openings`) deduct width × overlapHeight from the surface —
+  // even when their template is hidden.
+  if (qties && annotation?.openings?.length > 0) {
+    const openQ = getAnnotationOpeningQties({
+      host: annotation,
+      openings: annotation.openings,
+    });
+    if (openQ?.deductedM2 > 0) {
+      if (Number.isFinite(qties.surface)) {
+        qties.surface = Math.max(0, qties.surface - openQ.deductedM2);
+      }
+      if (Number.isFinite(qties.surfaceDeveloped)) {
+        qties.surfaceDeveloped = Math.max(
+          0,
+          qties.surfaceDeveloped - openQ.deductedM2
+        );
+      }
     }
   }
 

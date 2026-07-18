@@ -172,6 +172,10 @@ export default async function applyOpeningOnPolygon({
     // loop; collapseArcsInPolyline scans it as a polyline, so an arc straddling
     // the (arbitrary) ring seam stays faceted — acceptable for cut contours.
     const newDbPoints = [];
+    // px position of every minted ring point, keyed by its new id — lets the
+    // caller re-derive geometry-based anchors (openings) on the carved ring
+    // without re-reading db.points.
+    const newPointsPxById = {};
     const pushRef = (p) => {
         const id = nanoid();
         newDbPoints.push({
@@ -182,6 +186,7 @@ export default async function applyOpeningOnPolygon({
             projectId,
             listingId,
         });
+        newPointsPxById[id] = { x: p.x, y: p.y };
         return p.type === "circle" ? { id, type: "circle" } : { id };
     };
     const buildRingRefs = (pointsPx) => {
@@ -215,6 +220,7 @@ export default async function applyOpeningOnPolygon({
 
     return {
         handled: true,
+        newPointsPxById,
         updatedAnnotation: {
             ...host,
             points: newOuterPointRefs,

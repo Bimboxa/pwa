@@ -74,7 +74,8 @@ async function duplicateAnnotations(annotationIds, newLayerId) {
   // collect all referenced point IDs (points, innerPoints, cuts, point,
   // guideLines) and fetch source points + rels before the write transaction
   const pointIds = collectReferencedPointIds(sourceAnnotations);
-  const [sourcePoints, meshRels, subtractionRels] = await Promise.all([
+  const [sourcePoints, meshRels, subtractionRels, openingRels] =
+    await Promise.all([
     pointIds.size > 0
       ? db.points.bulkGet([...pointIds]).then((pts) => pts.filter(Boolean))
       : [],
@@ -84,6 +85,10 @@ async function duplicateAnnotations(annotationIds, newLayerId) {
       .toArray(),
     db.relAnnotationSubtractions
       .where("sourceAnnotationId")
+      .anyOf(sourceIds)
+      .toArray(),
+    db.relAnnotationOpenings
+      .where("hostAnnotationId")
       .anyOf(sourceIds)
       .toArray(),
   ]);
@@ -150,6 +155,38 @@ async function duplicateAnnotations(annotationIds, newLayerId) {
       updatedAt: undefined,
       createdByUserIdMaster: undefined,
     }));
+  const newOpeningRels = openingRels
+    .filter(
+      (r) =>
+        !r.deletedAt &&
+        annotationIdMap[r.hostAnnotationId] &&
+        annotationIdMap[r.openingAnnotationId]
+    )
+    .map((r) => ({
+      ...r,
+      id: nanoid(),
+      hostAnnotationId: annotationIdMap[r.hostAnnotationId],
+      openingAnnotationId: annotationIdMap[r.openingAnnotationId],
+      hostSegmentStartPointId:
+        pointIdMap[r.hostSegmentStartPointId] ?? r.hostSegmentStartPointId,
+      hostSegmentEndPointId:
+        pointIdMap[r.hostSegmentEndPointId] ?? r.hostSegmentEndPointId,
+      hostArcControlPointId: r.hostArcControlPointId
+        ? (pointIdMap[r.hostArcControlPointId] ?? r.hostArcControlPointId)
+        : null,
+      carve:
+        r.carve && Array.isArray(r.carve.notchPointIds)
+          ? {
+              ...r.carve,
+              notchPointIds: r.carve.notchPointIds.map(
+                (pid) => pointIdMap[pid] ?? pid
+              ),
+            }
+          : r.carve,
+      createdAt: undefined,
+      updatedAt: undefined,
+      createdByUserIdMaster: undefined,
+    }));
 
   // single transaction, single triggerAnnotationsUpdate dispatched by caller
   await db.transaction(
@@ -159,6 +196,7 @@ async function duplicateAnnotations(annotationIds, newLayerId) {
       db.annotations,
       db.relAnnotationMeshCells,
       db.relAnnotationSubtractions,
+      db.relAnnotationOpenings,
     ],
     async () => {
       if (newPoints.length > 0) await db.points.bulkAdd(newPoints);
@@ -167,6 +205,8 @@ async function duplicateAnnotations(annotationIds, newLayerId) {
         await db.relAnnotationMeshCells.bulkAdd(newMeshRels);
       if (newSubtractionRels.length > 0)
         await db.relAnnotationSubtractions.bulkAdd(newSubtractionRels);
+      if (newOpeningRels.length > 0)
+        await db.relAnnotationOpenings.bulkAdd(newOpeningRels);
     }
   );
 }

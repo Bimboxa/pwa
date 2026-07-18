@@ -145,7 +145,31 @@ export default class AnnotationsManager {
       // SAME basemap group as the source so both share a world frame, then
       // removed after the carve (they keep rendering as their own annotations
       // only when visible). EXTRUSION_PROFILE solids resolve asynchronously.
-      const subtractionTargets = annotation.subtractionTargets || [];
+      // Glued openings (relAnnotationOpenings, resolved by useAnnotationsV2 as
+      // `annotation.openings` BEFORE the hidden filter) pierce the host mesh
+      // too: each opening becomes a band solid — width along the wall ×
+      // strokeWidth thickness × opening height — subtracted like a regular
+      // target, even when the opening's template is hidden in 2D.
+      const openingSolids = (annotation.openings || [])
+        .filter((o) => o?.points?.length === 2 && Number(o.height) > 0)
+        .map((o) => ({
+          id: `opening-solid-${o.id}`,
+          type: "POLYLINE",
+          points: o.points,
+          // Slightly thicker than the stored band so the boolean fully
+          // pierces the wall instead of leaving coplanar CSG faces.
+          strokeWidth: (Number(o.strokeWidth) || 20) * 1.2,
+          strokeWidthUnit: o.strokeWidthUnit ?? "CM",
+          height: o.height,
+          // v1: the opening base sits at the host's floor level.
+          offsetZ: annotation.offsetZ ?? 0,
+          baseMapId: annotation.baseMapId,
+        }));
+
+      const subtractionTargets = [
+        ...(annotation.subtractionTargets || []),
+        ...openingSolids,
+      ];
       if (subtractionTargets.length > 0) {
         (async () => {
           try {

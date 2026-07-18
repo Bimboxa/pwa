@@ -133,6 +133,30 @@ const DRAWING_SHAPE_CONFIG = {
     },
     shapeCategory: "rectangle",
   },
+  OPENING: {
+    label: "Ouverture",
+    annotationType: "POLYLINE",
+    tools: ["OPENING_SEGMENT"],
+    configurableProps: [
+      "width", // opening width ALONG the wall, meters
+      "strokeColor",
+      "strokeWidth",
+      "strokeWidthUnit",
+      "strokeOpacity",
+      "height", // opening height, meters (3D / quantities)
+    ],
+    defaults: {
+      isOpening: true, // rides into the draft via {...defaults}
+      width: 0.9,
+      height: 2.1,
+      strokeColor: "#ff0000", // OPENING_COLOR (buildToolDraft.js)
+      strokeWidth: 20,
+      strokeWidthUnit: "CM",
+      strokeOpacity: 0.8,
+      strokeType: "SOLID",
+    },
+    shapeCategory: "polyline",
+  },
   OBJECT_3D: {
     label: "Objet 3D",
     annotationType: "OBJECT_3D",

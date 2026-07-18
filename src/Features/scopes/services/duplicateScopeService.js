@@ -198,7 +198,14 @@ export default async function duplicateScopeService({
     entityIdsByTable[table].add(a.entityId);
   });
 
-  const [sourcePoints, meshRels, subtractionRels, mappingRels, entityGroups] =
+  const [
+    sourcePoints,
+    meshRels,
+    subtractionRels,
+    openingRels,
+    mappingRels,
+    entityGroups,
+  ] =
     await Promise.all([
       pointIds.size > 0
         ? db.points
@@ -215,6 +222,13 @@ export default async function duplicateScopeService({
       keptAnnotationIds.length > 0
         ? db.relAnnotationSubtractions
             .where("sourceAnnotationId")
+            .anyOf(keptAnnotationIds)
+            .toArray()
+            .then((rows) => rows.filter(notDeleted))
+        : [],
+      keptAnnotationIds.length > 0
+        ? db.relAnnotationOpenings
+            .where("hostAnnotationId")
             .anyOf(keptAnnotationIds)
             .toArray()
             .then((rows) => rows.filter(notDeleted))
@@ -345,6 +359,38 @@ export default async function duplicateScopeService({
       targetAnnotationId: annotationIdMap[r.targetAnnotationId],
     }));
 
+  // Opening rels: remap both annotation ids AND the anchor point ids (the
+  // anchor payload references db.points rows of the host contour).
+  const newOpeningRels = openingRels
+    .filter(
+      (r) =>
+        annotationIdMap[r.hostAnnotationId] &&
+        annotationIdMap[r.openingAnnotationId]
+    )
+    .map((r) => ({
+      ...prepareCopy(r, createdBy),
+      id: nanoid(),
+      hostAnnotationId: annotationIdMap[r.hostAnnotationId],
+      openingAnnotationId: annotationIdMap[r.openingAnnotationId],
+      hostSegmentStartPointId:
+        pointIdMap[r.hostSegmentStartPointId] ?? r.hostSegmentStartPointId,
+      hostSegmentEndPointId:
+        pointIdMap[r.hostSegmentEndPointId] ?? r.hostSegmentEndPointId,
+      hostArcControlPointId: r.hostArcControlPointId
+        ? (pointIdMap[r.hostArcControlPointId] ?? r.hostArcControlPointId)
+        : null,
+      carve: r.carve
+        ? {
+            ...r.carve,
+            ...(Array.isArray(r.carve.notchPointIds) && {
+              notchPointIds: r.carve.notchPointIds.map(
+                (pid) => pointIdMap[pid] ?? pid
+              ),
+            }),
+          }
+        : r.carve,
+    }));
+
   const newMappingRels = mappingRels
     .filter((r) => annotationIdMap[r.annotationId])
     .map((r) => ({
@@ -387,6 +433,7 @@ export default async function duplicateScopeService({
           db.annotations,
           db.relAnnotationMeshCells,
           db.relAnnotationSubtractions,
+          db.relAnnotationOpenings,
           db.relAnnotationMappingCategory,
           db.baseMapViews,
           db.dimensions3d,
@@ -407,6 +454,8 @@ export default async function duplicateScopeService({
             await db.relAnnotationMeshCells.bulkAdd(newMeshRels);
           if (newSubtractionRels.length > 0)
             await db.relAnnotationSubtractions.bulkAdd(newSubtractionRels);
+          if (newOpeningRels.length > 0)
+            await db.relAnnotationOpenings.bulkAdd(newOpeningRels);
           if (newMappingRels.length > 0)
             await db.relAnnotationMappingCategory.bulkAdd(newMappingRels);
           if (newBaseMapViews.length > 0)

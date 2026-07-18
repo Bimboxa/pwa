@@ -101,8 +101,12 @@ export default function useDrawingToolHotkeys() {
       // rather than a drawing-shape group, so they get a dedicated branch:
       // Tab cycles all CUT variants, S/R/L/B jump to a specific one.
       const newAnnotation = s.annotations.newAnnotation;
+      // Template-driven OPENING drafts (drawingShape "OPENING") are NOT part
+      // of the CUT tool group — their S/R keys are handled by the
+      // OPENING_SEGMENT mode in InteractionLayer.
       const isOpening =
-        newAnnotation?.type === "CUT" || newAnnotation?.isOpening === true;
+        (newAnnotation?.type === "CUT" || newAnnotation?.isOpening === true) &&
+        newAnnotation?.drawingShape !== "OPENING";
       if (isOpening) {
         const openingTools = getDrawingToolsByType("CUT");
         if (openingTools.length === 0) return;

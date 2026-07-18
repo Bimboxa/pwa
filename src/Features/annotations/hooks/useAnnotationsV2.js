@@ -363,6 +363,8 @@ import getEntityWithImagesAsync from "Features/entities/services/getEntityWithIm
 import testObjectHasProp from "Features/misc/utils/testObjectHasProp";
 import getAnnotationQties from "Features/annotations/utils/getAnnotationQties";
 import getAnnotationSubtractionQties from "Features/annotations/utils/getAnnotationSubtractionQties";
+import getAnnotationOpeningQties from "Features/annotations/utils/getAnnotationOpeningQties";
+import useAnnotationOpenings from "Features/annotations/hooks/useAnnotationOpenings";
 import getExtrusionProfileFootprintShapes from "Features/annotations/utils/getExtrusionProfileFootprintShapes";
 import useAnnotationSubtractions from "Features/annotations/hooks/useAnnotationSubtractions";
 import { getShape3DKey } from "Features/annotations/constants/shape3DConfig";
@@ -486,6 +488,8 @@ export default function useAnnotationsV2(options) {
 
     const { targetIdsBySource: subtractionTargetIdsBySource } =
       useAnnotationSubtractions();
+
+    const { rowsByHostId: openingRowsByHostId } = useAnnotationOpenings();
 
     const { value: baseMaps, baseMapsUpdatedAt } = useBaseMaps();
     const baseMapById = useMemo(
@@ -1875,6 +1879,57 @@ export default function useAnnotationsV2(options) {
         });
       }
 
+      // -- OPENINGS --
+      // Attach glued openings (relAnnotationOpenings) to their host wall and
+      // deduct width × overlapHeight from the host's surface quantities.
+      // Runs BEFORE the hidden-template filter so openings whose template is
+      // hidden still deduct quantities and pierce the 3D meshes — the host
+      // keeps the resolved `openings` payload even when the opening
+      // annotation itself is dropped from the visible set.
+      if (openingRowsByHostId?.size > 0) {
+        const resultById = getItemsByKey(result, "id");
+        result = result.map((a) => {
+          const rels = openingRowsByHostId.get(a?.id);
+          if (!rels || rels.length === 0) return a;
+          const openings = rels
+            .map((rel) => {
+              const o = resultById[rel.openingAnnotationId];
+              if (!o) return null;
+              return {
+                id: o.id,
+                relId: rel.id,
+                width: o.width,
+                height: o.height,
+                offsetZ: o.offsetZ,
+                strokeWidth: o.strokeWidth,
+                strokeWidthUnit: o.strokeWidthUnit,
+                points: o.points,
+                hostDistanceM: rel.hostDistanceM,
+              };
+            })
+            .filter(Boolean);
+          if (openings.length === 0) return a;
+          const withOpenings = { ...a, openings };
+          if (withQties && withOpenings.qties) {
+            const openQ = getAnnotationOpeningQties({ host: a, openings });
+            if (openQ?.deductedM2 > 0) {
+              const q = { ...withOpenings.qties };
+              if (Number.isFinite(q.surface)) {
+                q.surface = Math.max(0, q.surface - openQ.deductedM2);
+              }
+              if (Number.isFinite(q.surfaceDeveloped)) {
+                q.surfaceDeveloped = Math.max(
+                  0,
+                  q.surfaceDeveloped - openQ.deductedM2
+                );
+              }
+              withOpenings.qties = q;
+            }
+          }
+          return withOpenings;
+        });
+      }
+
       // filter out annotations whose template is hidden
       if (!keepHiddenTemplates) result = result.filter((a) => !a.hidden);
 
@@ -2066,6 +2121,7 @@ export default function useAnnotationsV2(options) {
       groupByBaseMap,
       listingsUpdatedAt,
       subtractionTargetIdsBySource,
+      openingRowsByHostId,
       excludeProfileTemplates,
     ]);
 

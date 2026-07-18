@@ -3,6 +3,9 @@ import React, { useMemo } from 'react';
 import NodePolylineStatic from './NodePolylineStatic';
 import NodeStripStatic from './NodeStripStatic';
 import NodeCoteStatic from './NodeCoteStatic';
+import NodeOpeningStatic from './NodeOpeningStatic';
+
+import computeOpeningEndpointsFromHost from 'Features/mapEditor/utils/computeOpeningEndpointsFromHost';
 
 export default function TransientTopologyLayer({
     annotations,
@@ -14,6 +17,7 @@ export default function TransientTopologyLayer({
     viewportScale,
     containerK,
     baseMapMeterByPx,
+    openingRels, // relAnnotationOpenings rows — live reflow of glued openings
 }) {
 
     const modifiedAnnotations = useMemo(() => {
@@ -165,7 +169,65 @@ export default function TransientTopologyLayer({
             return false;
         });
 
-        return affected.map(ann => {
+        // Openings glued on a host segment whose endpoint is being dragged:
+        // recompute their 2 endpoints per frame from the moved host geometry
+        // (fixed distance from the reference vertex, fixed length). Openings
+        // own their point rows, so they are NOT in `affected` — the anchor
+        // link comes from the relAnnotationOpenings rows.
+        const openingReflows = [];
+        if (Array.isArray(openingRels) && baseMapMeterByPx > 0) {
+            for (const rel of openingRels) {
+                const anchoredOnMovingPoint =
+                    rel.hostSegmentStartPointId === movingPointId ||
+                    rel.hostSegmentEndPointId === movingPointId ||
+                    rel.hostArcControlPointId === movingPointId;
+                if (!anchoredOnMovingPoint) continue;
+
+                const openingAnn = annotations.find(
+                    (a) => a.id === rel.openingAnnotationId
+                );
+                const hostAnn = annotations.find(
+                    (a) => a.id === rel.hostAnnotationId
+                );
+                if (!openingAnn || openingAnn.points?.length !== 2) continue;
+
+                const findPt = (id) => {
+                    if (!id) return null;
+                    if (id === movingPointId) return currentPos;
+                    const inMain = hostAnn?.points?.find((p) => p.id === id);
+                    return inMain ?? null;
+                };
+                const segStartPx = findPt(rel.hostSegmentStartPointId);
+                const segEndPx = findPt(rel.hostSegmentEndPointId);
+                const arcControlPx = rel.hostArcControlPointId
+                    ? findPt(rel.hostArcControlPointId)
+                    : null;
+                if (!segStartPx || !segEndPx) continue;
+
+                const widthM = Number(openingAnn.width);
+                if (!(widthM > 0)) continue;
+
+                const res = computeOpeningEndpointsFromHost({
+                    segStartPx,
+                    segEndPx,
+                    hostDistancePx:
+                        (Number(rel.hostDistanceM) || 0) / baseMapMeterByPx,
+                    openingLengthPx: widthM / baseMapMeterByPx,
+                    arcControlPx,
+                });
+
+                openingReflows.push({
+                    ...openingAnn,
+                    points: openingAnn.points.map((pt, i) => ({
+                        ...pt,
+                        x: i === 0 ? res.p1.x : res.p2.x,
+                        y: i === 0 ? res.p1.y : res.p2.y,
+                    })),
+                });
+            }
+        }
+
+        const mapped = affected.map(ann => {
             const _ann = { ...ann };
 
             // A. Main Points
@@ -218,15 +280,27 @@ export default function TransientTopologyLayer({
             return _ann;
         });
 
-    }, [annotations, movingPointId, currentPos, virtualInsertion, originalPointIdForDuplication, selectedAnnotationId]);
+        return [...mapped, ...openingReflows];
+
+    }, [annotations, movingPointId, currentPos, virtualInsertion, originalPointIdForDuplication, selectedAnnotationId, openingRels, baseMapMeterByPx]);
 
     if (modifiedAnnotations.length === 0) return null;
 
     return (
         <g className="transient-layer">
             {modifiedAnnotations.map(ann => {
+                const isOpeningNode =
+                    ann.drawingShape === "OPENING" ||
+                    (ann.isOpening && ann.points?.length === 2);
                 return <React.Fragment key={ann.id}>
-                    {["POLYGON", "POLYLINE", "REVOLUTION_AXIS"].includes(ann.type) && <NodePolylineStatic
+                    {isOpeningNode && <NodeOpeningStatic
+                        annotation={ann}
+                        annotationOverride={{ strokeOpacity: 0.5 }}
+                        baseMapMeterByPx={baseMapMeterByPx}
+                        isTransient={true}
+                    />}
+
+                    {!isOpeningNode && ["POLYGON", "POLYLINE", "REVOLUTION_AXIS"].includes(ann.type) && <NodePolylineStatic
                         annotation={ann}
                         annotationOverride={{
                             strokeColor: "#2196f3",

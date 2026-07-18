@@ -77,6 +77,46 @@ const DRAWING_SHAPES = [
     ),
   },
   {
+    key: "OPENING",
+    label: "Ouverture",
+    icon: (
+      <SvgIcon fontSize="small" viewBox="0 0 20 20">
+        <line
+          x1="2"
+          y1="10"
+          x2="7"
+          y2="10"
+          stroke="currentColor"
+          strokeWidth="4"
+        />
+        <line
+          x1="13"
+          y1="10"
+          x2="18"
+          y2="10"
+          stroke="currentColor"
+          strokeWidth="4"
+        />
+        <line
+          x1="7"
+          y1="6"
+          x2="7"
+          y2="14"
+          stroke="currentColor"
+          strokeWidth="1.5"
+        />
+        <line
+          x1="13"
+          y1="6"
+          x2="13"
+          y2="14"
+          stroke="currentColor"
+          strokeWidth="1.5"
+        />
+      </SvgIcon>
+    ),
+  },
+  {
     key: "COTE",
     label: "Cote",
     icon: (

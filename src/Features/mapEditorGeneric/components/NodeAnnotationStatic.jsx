@@ -8,6 +8,7 @@ import NodeLabelStatic from "./NodeLabelStatic";
 import NodeImageStatic from "./NodeImageStatic";
 import NodeObject3DStatic from "./NodeObject3DStatic";
 import NodePointStatic from "./NodePointStatic";
+import NodeOpeningStatic from "./NodeOpeningStatic";
 import NodeRectangleStatic from "./NodeRectangleStatic";
 import NodeCoteStatic from "./NodeCoteStatic";
 import NodeRevolutionPointStatic from "./NodeRevolutionPointStatic";
@@ -99,6 +100,14 @@ function NodeAnnotationStatic({
       return <NodePolylineStatic {...props} annotation={resolvedAnnotation} />;
 
     case "POLYLINE":
+      // OPENING: template-driven wall opening (2-point POLYLINE glued on a
+      // host wall) — dedicated band + jamb-ticks renderer.
+      if (
+        resolvedAnnotation.drawingShape === "OPENING" ||
+        (resolvedAnnotation.isOpening && resolvedAnnotation.points?.length === 2)
+      ) {
+        return <NodeOpeningStatic {...props} annotation={resolvedAnnotation} />;
+      }
       return <NodePolylineStatic {...props} annotation={resolvedAnnotation} />;
 
     case "STRIP":
