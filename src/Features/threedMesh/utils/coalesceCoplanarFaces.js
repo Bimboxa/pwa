@@ -25,22 +25,78 @@ export const COALESCE_NORMAL_TOL_RAD = 1e-2;
 export const COALESCE_PLANE_TOL_M = 1e-3;
 
 // 2D grid snap (meters) applied before the union so near-identical boundary
-// vertices of touching faces land on the same coordinates.
-const SNAP_M = 1e-6;
+// vertices of touching faces land on the same coordinates. The grid is
+// scale-aware: CSG-carved geometries store float32 positions, so two copies of
+// the same seam vertex differ by ~|coord| * 2^-23 — a fixed 1e-6 grid stops
+// welding a few meters away from the local origin. Capped at WELD_PRECISION
+// (1e-4, the codebase-wide "same point" scale).
+const SNAP_MIN_M = 1e-6;
+const SNAP_FLOAT32_REL = 4e-6;
+const SNAP_MAX_M = 1e-4;
 
 // Collinear-vertex cleanup on union output (T-junction seams leave mid-edge
 // vertices behind). Same sin threshold as extractRegionBoundaryLoops.
 const COLLINEAR_SIN = 1e-4;
 
-const snap = (v) => Math.round(v / SNAP_M) * SNAP_M;
+// T-junction repair skips groups bigger than this (O(points × segments)).
+const REPAIR_MAX_POINTS = 4000;
 
-const closeRing = (loop) => {
-  const ring = loop.map((p) => [snap(p.x), snap(p.y)]);
+const closeRing = (ring) => {
   const [fx, fy] = ring[0];
   const [lx, ly] = ring[ring.length - 1];
   if (fx !== lx || fy !== ly) ring.push([fx, fy]);
   return ring;
 };
+
+// Dissolving a T-junction seam requires BOTH sides to carry the same
+// vertices: a fragment whose long edge passes through another fragment's
+// mid-edge vertex (within eps) gets that vertex spliced into the edge, so
+// after snapping the two seam copies coincide exactly and the union removes
+// them. Mutates the rings in place; inserted points are cleaned up by the
+// collinear filter on the union output.
+function repairTJunctions(rings, eps) {
+  const points = [];
+  const seen = new Set();
+  for (const ring of rings) {
+    for (const p of ring) {
+      const key = `${p[0]}_${p[1]}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        points.push(p);
+      }
+    }
+  }
+  if (points.length > REPAIR_MAX_POINTS) return;
+
+  const epsSq = eps * eps;
+  for (const ring of rings) {
+    for (let i = 0; i < ring.length; i++) {
+      const [ax, ay] = ring[i];
+      const [bx, by] = ring[(i + 1) % ring.length];
+      const ex = bx - ax;
+      const ey = by - ay;
+      const lenSq = ex * ex + ey * ey;
+      if (lenSq <= epsSq) continue;
+
+      const inserts = [];
+      for (const p of points) {
+        const [px, py] = p;
+        if ((px === ax && py === ay) || (px === bx && py === by)) continue;
+        const t = ((px - ax) * ex + (py - ay) * ey) / lenSq;
+        if (t <= 0 || t >= 1) continue;
+        const dx = px - (ax + t * ex);
+        const dy = py - (ay + t * ey);
+        if (dx * dx + dy * dy > epsSq) continue;
+        inserts.push({ t, p });
+      }
+      if (inserts.length) {
+        inserts.sort((i1, i2) => i1.t - i2.t);
+        ring.splice(i + 1, 0, ...inserts.map((ins) => ins.p));
+        i += inserts.length;
+      }
+    }
+  }
+}
 
 const openLoop = (ring) =>
   ring.slice(0, ring.length - 1).map(([x, y]) => ({ x, y }));
@@ -76,29 +132,51 @@ function withWinding(loop, ccw) {
 function unionGroup(group) {
   const basis = computePlaneBasis(group.n, group.faces[0].contour[0]);
 
+  // Scale-aware snap grid: sized on the largest 3D coordinate magnitude so
+  // float32 noise (~|coord| * 2^-23) always lands inside one cell.
+  let maxAbs = 0;
+  for (const face of group.faces) {
+    for (const loop of [face.contour, ...(face.holes || [])]) {
+      for (const p of loop || []) {
+        const m = Math.max(Math.abs(p.x), Math.abs(p.y), Math.abs(p.z));
+        if (m > maxAbs) maxAbs = m;
+      }
+    }
+  }
+  const grid = Math.min(
+    SNAP_MAX_M,
+    Math.max(SNAP_MIN_M, maxAbs * SNAP_FLOAT32_REL)
+  );
+  const snap = (v) => Math.round(v / grid) * grid;
+
   let minX = Infinity;
   let minY = Infinity;
   let maxX = -Infinity;
   let maxY = -Infinity;
+  const allRings = [];
   const polygons = group.faces.map((face) => {
-    const contour2d = projectLoopTo2d(face.contour, basis);
-    for (const p of contour2d) {
-      if (p.x < minX) minX = p.x;
-      if (p.y < minY) minY = p.y;
-      if (p.x > maxX) maxX = p.x;
-      if (p.y > maxY) maxY = p.y;
-    }
-    return [
-      closeRing(contour2d),
-      ...(face.holes || [])
-        .filter((hole) => hole?.length >= 3)
-        .map((hole) => closeRing(projectLoopTo2d(hole, basis))),
-    ];
+    const rings = [face.contour, ...(face.holes || [])]
+      .filter((loop) => loop?.length >= 3)
+      .map((loop) =>
+        projectLoopTo2d(loop, basis).map((p) => {
+          if (p.x < minX) minX = p.x;
+          if (p.y < minY) minY = p.y;
+          if (p.x > maxX) maxX = p.x;
+          if (p.y > maxY) maxY = p.y;
+          return [snap(p.x), snap(p.y)];
+        })
+      );
+    allRings.push(...rings);
+    return rings;
   });
+
+  repairTJunctions(allRings, grid * 1.5);
 
   let unioned;
   try {
-    unioned = polygonClipping.union(...polygons.map((p) => [p]));
+    unioned = polygonClipping.union(
+      ...polygons.map((rings) => [rings.map((ring) => closeRing([...ring]))])
+    );
   } catch (error) {
     console.error("[coalesceCoplanarFaces] polygon-clipping error:", error);
     return group.faces;
