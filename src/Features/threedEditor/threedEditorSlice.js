@@ -133,13 +133,15 @@ const threedEditorInitialState = {
   },
   meshingMode: {
     active: false,
-    tool: "SELECT", // "SELECT" | "CUT_VERTICAL" | "CUT_HORIZONTAL" | "CUT_FREE" | "CUT_POLYLINE"
+    tool: "SELECT", // "SELECT" | "CUT_VERTICAL" | "CUT_HORIZONTAL" | "CUT_FREE" | "CUT_POLYLINE" | "NUMBER"
     // "Décalage": distance (m) from the reference vertex to the guide vertex
     // used by the vertical / horizontal cut tools.
     offset: 2,
     // Side of the maille the reference vertex is picked on. Default LEFT
     // (resp. BOTTOM for horizontal cuts), flipped with the "S" key.
     cutSide: "LEFT", // "LEFT" | "RIGHT"
+    // "Numéroter": next number assigned to the clicked maille (then +1).
+    numberingNext: 1,
   },
   // First-person walk mode (W in the 3D viewer). Camera-controls suspended:
   // pointer-locked mouse looks, arrow keys move on the selected baseMap,
@@ -415,6 +417,9 @@ export const threedEditorSlice = createSlice({
     setMeshingOffset: (state, action) => {
       state.meshingMode.offset = action.payload;
     },
+    setMeshingNumberingNext: (state, action) => {
+      state.meshingMode.numberingNext = action.payload;
+    },
     toggleMeshingCutSide: (state) => {
       state.meshingMode.cutSide =
         state.meshingMode.cutSide === "LEFT" ? "RIGHT" : "LEFT";
@@ -499,6 +504,7 @@ export const {
   setMeshingModeActive,
   setMeshingTool,
   setMeshingOffset,
+  setMeshingNumberingNext,
   toggleMeshingCutSide,
   setWalkModeActive,
   setHideAnnotationsIn3d,

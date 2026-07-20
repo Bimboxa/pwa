@@ -1,21 +1,19 @@
-import { useEffect, useState } from "react";
-
 import { useDispatch, useSelector } from "react-redux";
 
 import {
   setMeshingModeActive,
+  setMeshingNumberingNext,
   setMeshingOffset,
   setMeshingTool,
 } from "Features/threedEditor/threedEditorSlice";
+import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 
 import {
   Box,
   Divider,
   IconButton,
-  InputAdornment,
   Paper,
   Stack,
-  TextField,
   ToggleButton,
   ToggleButtonGroup,
   Tooltip,
@@ -24,6 +22,8 @@ import {
 import CloseIcon from "@mui/icons-material/Close";
 import NearMeIcon from "@mui/icons-material/NearMe";
 import TimelineIcon from "@mui/icons-material/Timeline";
+
+import FieldNumberCompact from "./FieldNumberCompact";
 
 // Tool glyphs match the mockup: plain strokes for the three cut lines.
 const TOOLS = [
@@ -67,18 +67,18 @@ function Glyph({ children }) {
 }
 
 // Specialized bottom toolbar shown while meshing mode is active. Replaces
-// BottomToolbarThreed (same swap pattern as ClippingToolbarThreed).
+// BottomToolbarThreed (same swap pattern as ClippingToolbarThreed). In the
+// Maillage module (MESHES viewer) it is the only bottom toolbar, so the
+// close button is hidden there.
 export default function MeshingToolbarThreed() {
   const dispatch = useDispatch();
 
   const tool = useSelector((s) => s.threedEditor.meshingMode.tool);
   const offset = useSelector((s) => s.threedEditor.meshingMode.offset);
-
-  // Local text state so the user can type freely ("2.", "2,5", "").
-  const [offsetText, setOffsetText] = useState(String(offset));
-  useEffect(() => {
-    setOffsetText(String(offset));
-  }, [offset]);
+  const numberingNext = useSelector(
+    (s) => s.threedEditor.meshingMode.numberingNext
+  );
+  const isMeshesViewer = useSelector(selectEffectiveViewerKey) === "MESHES";
 
   // handlers
 
@@ -87,13 +87,17 @@ export default function MeshingToolbarThreed() {
     dispatch(setMeshingTool(value));
   }
 
-  function handleOffsetChange(e) {
-    const text = e.target.value;
-    setOffsetText(text);
-    const value = parseFloat(text.replace(",", "."));
-    if (Number.isFinite(value) && value >= 0) {
-      dispatch(setMeshingOffset(value));
-    }
+  function handleOffsetChange(value) {
+    if (value >= 0) dispatch(setMeshingOffset(value));
+  }
+
+  function handleNumberingNextChange(value) {
+    const number = Math.round(value);
+    if (number >= 1) dispatch(setMeshingNumberingNext(number));
+  }
+
+  function handleNumberingToggle() {
+    dispatch(setMeshingTool(tool === "NUMBER" ? "SELECT" : "NUMBER"));
   }
 
   function handleClose() {
@@ -133,26 +137,44 @@ export default function MeshingToolbarThreed() {
 
         <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
 
-        <TextField
-          value={offsetText}
-          onChange={handleOffsetChange}
+        <FieldNumberCompact
           label="Décalage"
-          size="small"
-          sx={{ width: 110 }}
-          slotProps={{
-            input: {
-              endAdornment: <InputAdornment position="end">m</InputAdornment>,
-            },
-          }}
+          value={offset}
+          onChange={handleOffsetChange}
+          unit="m"
         />
 
         <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
 
-        <Tooltip title="Quitter le mode maillage">
-          <IconButton onClick={handleClose}>
-            <CloseIcon />
-          </IconButton>
+        <FieldNumberCompact
+          label="N°"
+          value={numberingNext}
+          onChange={handleNumberingNextChange}
+        />
+
+        <Tooltip title="Numéroter — cliquez sur une maille pour lui affecter le numéro, puis +1">
+          <ToggleButton
+            value="NUMBER"
+            selected={tool === "NUMBER"}
+            onChange={handleNumberingToggle}
+            size="small"
+            sx={{ textTransform: "none", px: 1 }}
+          >
+            Numéroter
+          </ToggleButton>
         </Tooltip>
+
+        {!isMeshesViewer && (
+          <>
+            <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+
+            <Tooltip title="Quitter le mode maillage">
+              <IconButton onClick={handleClose}>
+                <CloseIcon />
+              </IconButton>
+            </Tooltip>
+          </>
+        )}
       </Stack>
     </Paper>
   );

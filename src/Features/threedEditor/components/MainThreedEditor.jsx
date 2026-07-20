@@ -78,6 +78,7 @@ import useTemplateFaceDrawBridge from "Features/threedDrawing/hooks/useTemplateF
 import useTemplateCoteDrawBridge from "Features/threedDrawing/hooks/useTemplateCoteDrawBridge";
 import {
   clearSubSelection,
+  setMeshingModeActive,
   setSubSelection,
 } from "Features/threedEditor/threedEditorSlice";
 import DimensionDraftOverlayThreed from "Features/threedDimensions/components/DimensionDraftOverlayThreed";
@@ -177,6 +178,13 @@ export default function MainThreedEditor() {
   const store = useStore();
   const selectedViewerKey = useSelector(selectEffectiveViewerKey);
   const isThreedViewer = isThreedFamilyViewerKey(selectedViewerKey);
+  // The Maillage module (MESHES viewer) is meshing-only: meshing mode is
+  // forced on so MeshingToolbarThreed is the sole bottom toolbar and its
+  // pointer handlers work right away.
+  const isMeshesViewer = selectedViewerKey === "MESHES";
+  useEffect(() => {
+    dispatch(setMeshingModeActive(isMeshesViewer));
+  }, [isMeshesViewer, dispatch]);
 
   // Entering/leaving the 3D viewer keeps whatever right panel is open: the
   // SETTINGS panel switches its content (3D view settings <-> 2D editor
@@ -1717,7 +1725,7 @@ export default function MainThreedEditor() {
         !isPovViewer &&
         (clippingEditing ? (
           <ClippingToolbarThreed />
-        ) : meshingActive ? (
+        ) : meshingActive || isMeshesViewer ? (
           <MeshingToolbarThreed />
         ) : (
           <BottomToolbarThreed />

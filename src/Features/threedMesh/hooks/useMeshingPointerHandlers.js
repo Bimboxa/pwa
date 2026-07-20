@@ -7,8 +7,11 @@ import db from "App/db/db";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 import {
   setMeshingModeActive,
+  setMeshingNumberingNext,
+  setMeshingTool,
   toggleMeshingCutSide,
 } from "Features/threedEditor/threedEditorSlice";
+import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 import {
   setSelectedItem,
   toggleItemSelection,
@@ -53,6 +56,10 @@ export default function useMeshingPointerHandlers() {
   const tool = useSelector((s) => s.threedEditor.meshingMode.tool);
   const offset = useSelector((s) => s.threedEditor.meshingMode.offset);
   const cutSide = useSelector((s) => s.threedEditor.meshingMode.cutSide);
+  const numberingNext = useSelector(
+    (s) => s.threedEditor.meshingMode.numberingNext
+  );
+  const isMeshesViewer = useSelector(selectEffectiveViewerKey) === "MESHES";
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const scopeId = useSelector((s) => s.scopes.selectedScopeId);
 
@@ -67,6 +74,14 @@ export default function useMeshingPointerHandlers() {
   useEffect(() => {
     cutSideRef.current = cutSide;
   }, [cutSide]);
+  const numberingNextRef = useRef(numberingNext);
+  useEffect(() => {
+    numberingNextRef.current = numberingNext;
+  }, [numberingNext]);
+  const isMeshesViewerRef = useRef(isMeshesViewer);
+  useEffect(() => {
+    isMeshesViewerRef.current = isMeshesViewer;
+  }, [isMeshesViewer]);
   const idsRef = useRef({ projectId, scopeId });
   useEffect(() => {
     idsRef.current = { projectId, scopeId };
@@ -109,7 +124,7 @@ export default function useMeshingPointerHandlers() {
       getAllMeshes3d: () => Object.values(mesh3dByIdRef.current),
     });
 
-    dom.style.cursor = "crosshair";
+    dom.style.cursor = tool === "NUMBER" ? "default" : "crosshair";
 
     function clearStipple() {
       if (hover.overlay) {
@@ -233,8 +248,26 @@ export default function useMeshingPointerHandlers() {
 
       if (tool === "SELECT") {
         updateSelectHover(e, pick);
+      } else if (tool === "NUMBER") {
+        setMeshingOverlay({ cursor: null });
+        dom.style.cursor = pick?.kind === "MESH3D" ? "pointer" : "default";
       } else {
         cutController.onHover(e, pick);
+      }
+    }
+
+    // NUMBER tool: assign the typed number to the clicked maille, then +1.
+    // Duplicates are allowed; the label override is cleared so the new
+    // prefix + number becomes visible.
+    async function handleNumberClick(pick) {
+      if (pick?.kind !== "MESH3D") return;
+      const number = Math.round(numberingNextRef.current);
+      if (!Number.isFinite(number) || number < 1) return;
+      try {
+        await db.meshes3d.update(pick.mesh3dId, { number, label: null });
+        dispatch(setMeshingNumberingNext(number + 1));
+      } catch (err) {
+        console.error("[threedMesh] numbering failed", err);
       }
     }
 
@@ -311,6 +344,8 @@ export default function useMeshingPointerHandlers() {
       const pick = pickScene(e);
       if (tool === "SELECT") {
         handleSelectClick(e, pick);
+      } else if (tool === "NUMBER") {
+        handleNumberClick(pick);
       } else {
         cutController.onClick(e, pick);
       }
@@ -335,13 +370,16 @@ export default function useMeshingPointerHandlers() {
     function onKeyDown(e) {
       if (e.key === "Escape") {
         if (tool === "SELECT") {
-          dispatch(setMeshingModeActive(false));
+          // In the Maillage module meshing mode is permanent — nothing to exit.
+          if (!isMeshesViewerRef.current) dispatch(setMeshingModeActive(false));
+        } else if (tool === "NUMBER") {
+          dispatch(setMeshingTool("SELECT"));
         } else {
           cutController.onEscape();
         }
       }
       if ((e.key === "s" || e.key === "S") && !e.repeat) {
-        if (tool !== "SELECT") {
+        if (tool !== "SELECT" && tool !== "NUMBER") {
           dispatch(toggleMeshingCutSide());
           // Redraw the cut line with the flipped side on the next frame.
           if (lastEvent && rafId == null) {
