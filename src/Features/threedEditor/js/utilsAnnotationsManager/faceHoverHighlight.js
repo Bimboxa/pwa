@@ -31,6 +31,11 @@ const MAX_TRIS_FOR_ADJACENCY = 100_000;
 // vertices per face; hashing positions at 0.1 mm is what makes edges "shared".
 const WELD_PRECISION = 1e-4;
 
+// Plane mode ({plane: true}): max distance (mesh-local meters) of a triangle
+// vertex to the seed plane. Aligned with WELD_PRECISION — CSG intersection
+// noise is well below this at building scale.
+const PLANE_DIST_TOL = 1e-4;
+
 // ---------------------------------------------------------------------------
 // Adjacency cache
 // ---------------------------------------------------------------------------
@@ -106,6 +111,9 @@ function buildAdjacency(geometry) {
     edgeToTris,
     triNormals,
     regionOfTri: new Int32Array(triCount).fill(-1),
+    // Separate stamp array for plane-mode regions so BFS stamps never
+    // short-circuit plane mode and vice versa.
+    planeRegionOfTri: new Int32Array(triCount).fill(-1),
     // Edge keys per triangle are recomputed during BFS via triEdgeKeys below,
     // so we also keep the welded corner ids to avoid re-hashing positions.
     cornerIds: buildCornerIds(triCount, vertIndex, weldedId),
@@ -141,7 +149,15 @@ function triEdgeKeys(cornerIds, t) {
 // stable for a given face (min tri index of the region) so callers can key
 // the overlay on `${mesh.uuid}:${regionId}` and skip rebuilds while the
 // cursor stays on the same face.
-export function getCoplanarRegion(geometry, faceIndex) {
+//
+// `plane: true` skips the edge-adjacency walk and selects EVERY triangle
+// lying on the seed triangle's plane (signed normal within TOLERANCE_RAD, all
+// three vertices within PLANE_DIST_TOL of the plane). CSG-carved geometries
+// (userData.hasSubtraction) need this: boolean cuts leave T-junctions the
+// vertex weld cannot bridge, so edge-adjacency fragments a coplanar surface
+// into disconnected components. Callers must use the same mode for hover and
+// creation so what is highlighted is what gets created.
+export function getCoplanarRegion(geometry, faceIndex, { plane = false } = {}) {
   if (!geometry?.isBufferGeometry) return null;
   const position = geometry.getAttribute("position");
   if (!position) return null;
@@ -158,6 +174,8 @@ export function getCoplanarRegion(geometry, faceIndex) {
     cache = buildAdjacency(geometry);
     adjacencyCache.set(geometry, cache);
   }
+
+  if (plane) return getPlaneRegion(geometry, faceIndex, cache);
 
   const { edgeToTris, triNormals, regionOfTri, cornerIds } = cache;
 
@@ -206,6 +224,69 @@ export function getCoplanarRegion(geometry, faceIndex) {
   // Stamping seed-grown regions is a deliberate approximation (seed-relative
   // growth isn't a strict equivalence relation) — good enough for hover.
   for (const t of region) regionOfTri[t] = regionId;
+
+  return { regionId, tris: region };
+}
+
+// Plane mode: O(triCount) sweep over the cached triangle normals, no
+// adjacency walk. Signed dot against the seed normal (like the BFS) so
+// coincident opposite-facing CSG triangles never join; the 3-vertex distance
+// check rejects within-normal-tolerance triangles that merely cross the plane.
+function getPlaneRegion(geometry, faceIndex, cache) {
+  const position = geometry.getAttribute("position");
+  const index = geometry.getIndex();
+  const vertIndex = index
+    ? (t, c) => index.getX(3 * t + c)
+    : (t, c) => 3 * t + c;
+
+  const { triNormals, planeRegionOfTri } = cache;
+
+  // Fast path: this face's plane region was already computed.
+  const stamped = planeRegionOfTri[faceIndex];
+  if (stamped >= 0) {
+    const tris = [];
+    for (let t = 0; t < planeRegionOfTri.length; t++) {
+      if (planeRegionOfTri[t] === stamped) tris.push(t);
+    }
+    return { regionId: stamped, tris };
+  }
+
+  const seedNx = triNormals[3 * faceIndex];
+  const seedNy = triNormals[3 * faceIndex + 1];
+  const seedNz = triNormals[3 * faceIndex + 2];
+  // Degenerate seed triangle (zero normal): single-tri region.
+  if (seedNx === 0 && seedNy === 0 && seedNz === 0) {
+    planeRegionOfTri[faceIndex] = faceIndex;
+    return { regionId: faceIndex, tris: [faceIndex] };
+  }
+
+  const planeDist = (vi) =>
+    seedNx * position.getX(vi) +
+    seedNy * position.getY(vi) +
+    seedNz * position.getZ(vi);
+  const d = planeDist(vertIndex(faceIndex, 0));
+  const cosTol = Math.cos(TOLERANCE_RAD);
+
+  const region = [];
+  for (let t = 0; t < planeRegionOfTri.length; t++) {
+    const dot =
+      seedNx * triNormals[3 * t] +
+      seedNy * triNormals[3 * t + 1] +
+      seedNz * triNormals[3 * t + 2];
+    if (dot < cosTol) continue;
+    if (
+      Math.abs(planeDist(vertIndex(t, 0)) - d) > PLANE_DIST_TOL ||
+      Math.abs(planeDist(vertIndex(t, 1)) - d) > PLANE_DIST_TOL ||
+      Math.abs(planeDist(vertIndex(t, 2)) - d) > PLANE_DIST_TOL
+    ) {
+      continue;
+    }
+    region.push(t);
+  }
+  if (!region.includes(faceIndex)) region.push(faceIndex);
+
+  const regionId = Math.min(...region);
+  for (const t of region) planeRegionOfTri[t] = regionId;
 
   return { regionId, tris: region };
 }

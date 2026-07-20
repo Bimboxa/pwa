@@ -198,7 +198,12 @@ export default function useMeshingPointerHandlers() {
     // face meshes — a hovered maille gets the same highlight, including while
     // a cut tool is active.
     function applyStipple(object, faceIndex) {
-      const region = getCoplanarRegion(object.geometry, faceIndex);
+      // Plane mode on CSG-carved meshes: highlight the whole coplanar surface
+      // (T-junctions break the edge-adjacency walk). Must match the region
+      // used by handleSelectClick.
+      const region = getCoplanarRegion(object.geometry, faceIndex, {
+        plane: !!object.userData?.hasSubtraction,
+      });
       const key = region ? `${object.uuid}:${region.regionId}` : null;
       if (key !== hover.key) {
         disposeFaceHoverOverlay(hover.overlay);
@@ -285,9 +290,12 @@ export default function useMeshingPointerHandlers() {
       }
 
       if (pick?.kind === "ANNOTATION") {
+        // Same mode as applyStipple: the created maille covers exactly the
+        // highlighted region.
         const region = getCoplanarRegion(
           pick.hitObject.geometry,
-          pick.intersect.faceIndex
+          pick.intersect.faceIndex,
+          { plane: !!pick.hitObject.userData?.hasSubtraction }
         );
         const faces = region
           ? buildFacesFromRegion(pick.hitObject, region.tris)

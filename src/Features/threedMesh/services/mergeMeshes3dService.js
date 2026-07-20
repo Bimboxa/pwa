@@ -1,11 +1,14 @@
 import db from "App/db/db";
 
+import coalesceCoplanarFaces from "../utils/coalesceCoplanarFaces";
 import { computeMesh3dSurface } from "../utils/computeFaceArea";
 
 // Merges N mailles into one — faces may lie on DIFFERENT planes (a maille is
-// multi-face by design). The survivor is the maille with the LOWEST number
-// (it keeps id / number / label / color); the others are soft-deleted. The
-// merged surface is the sum of all face areas.
+// multi-face by design). Coplanar same-facing faces that touch or overlap are
+// unioned into a single face (single displayed mesh); the others are kept
+// as-is. The survivor is the maille with the LOWEST number (it keeps id /
+// number / label / color); the others are soft-deleted. The merged surface is
+// the sum of all face areas.
 export default async function mergeMeshes3dService(mesh3dIds) {
   const ids = (mesh3dIds || []).filter(Boolean);
   if (ids.length < 2) return null;
@@ -19,7 +22,7 @@ export default async function mergeMeshes3dService(mesh3dIds) {
     records.sort((r1, r2) => (r1.number || 0) - (r2.number || 0));
     const [survivor, ...others] = records;
 
-    const faces = records.flatMap((r) => r.faces || []);
+    const faces = coalesceCoplanarFaces(records.flatMap((r) => r.faces || []));
     await db.meshes3d.update(survivor.id, {
       faces,
       surface: computeMesh3dSurface(faces),

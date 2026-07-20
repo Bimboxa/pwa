@@ -1438,9 +1438,12 @@ export default function MainThreedEditor() {
       clearFaceHoverOverlay();
     } else {
       const hitObject = overlayIntersect.object;
+      // Plane mode on CSG-carved meshes: highlight the whole coplanar surface
+      // (T-junctions break the edge-adjacency walk).
       const region = getCoplanarRegion(
         hitObject.geometry,
-        overlayIntersect.faceIndex
+        overlayIntersect.faceIndex,
+        { plane: !!hitObject.userData?.hasSubtraction }
       );
       const key = region ? `${hitObject.uuid}:${region.regionId}` : null;
       if (key !== faceHoverKeyRef.current) {
