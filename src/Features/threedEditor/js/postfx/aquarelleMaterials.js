@@ -11,6 +11,8 @@ import { LineSegments2 } from "three/examples/jsm/lines/LineSegments2.js";
 import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeometry.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 
+import extractPlanarSketchEdges from "./extractPlanarSketchEdges.js";
+
 // AQUARELLE render mode building blocks: toon "lavis" materials + a two-layer
 // edge drawing per mesh, mimicking a real architectural sketch:
 // - a light-gray PENCIL under-drawing: wavy (geometry-level bow + jitter),
@@ -284,9 +286,18 @@ export function applySketchEdges(root, { resolution }) {
   if (resolution) setSketchEdgeResolution(resolution.x, resolution.y);
 
   meshes.forEach((mesh) => {
-    const edges = new EdgesGeometry(mesh.geometry, EDGE_THRESHOLD_ANGLE);
-    const positions = edges.attributes.position.array;
-    edges.dispose();
+    // CSG-carved meshes are triangle soups with T-junctions: EdgesGeometry
+    // cannot pair triangles across them and draws interior triangulation
+    // edges as big strokes across flat faces — use the planar-outline
+    // extraction instead (falls back to EdgesGeometry when unusable).
+    let positions = mesh.userData?.hasSubtraction
+      ? extractPlanarSketchEdges(mesh.geometry)
+      : null;
+    if (!positions) {
+      const edges = new EdgesGeometry(mesh.geometry, EDGE_THRESHOLD_ANGLE);
+      positions = edges.attributes.position.array;
+      edges.dispose();
+    }
     if (positions.length === 0) return;
 
     const baseOrder = mesh.renderOrder ?? 0;
