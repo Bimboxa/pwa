@@ -64,6 +64,7 @@ import {
 } from "Features/selection/selectionSlice";
 
 import useResetNewAnnotation from 'Features/annotations/hooks/useResetNewAnnotation';
+import useAnnotationOpenings from 'Features/annotations/hooks/useAnnotationOpenings';
 import useLassoSelection from 'Features/mapEditorGeneric/hooks/useLassoSelection';
 import useLassoPointSelection from 'Features/annotations/hooks/useLassoPointSelection';
 import getAnnotationLassoSegments from 'Features/annotations/utils/getAnnotationLassoSegments';
@@ -95,6 +96,7 @@ import TransientAnnotationLayer from 'Features/mapEditorGeneric/components/Trans
 import DropZoneLayer from 'Features/mapEditorGeneric/components/DropZoneLayer';
 
 import TransientDetectedShapeLayer from 'Features/mapEditorGeneric/components/TransientDetectedShapeLayer';
+import TransientOpeningSegmentLayer from 'Features/mapEditorGeneric/components/TransientOpeningSegmentLayer';
 import computeWrapperBbox from '../utils/computeWrapperBbox';
 import anchorAnnotationToTarget from 'Features/annotations/services/anchorAnnotationToTarget';
 import addAnnotationSubtraction from 'Features/annotations/services/addAnnotationSubtraction';
@@ -140,6 +142,7 @@ import LassoOverlay from 'Features/mapEditorGeneric/components/LassoOverlay';
 import mergeBboxes from 'Features/misc/utils/mergeBboxes';
 import snapToAngle from 'Features/mapEditor/utils/snapToAngle';
 import getBestSnap from 'Features/mapEditor/utils/getBestSnap';
+import computeOpeningSegmentPlacement from 'Features/mapEditor/utils/computeOpeningSegmentPlacement';
 import getAxisSnap from 'Features/mapEditor/utils/getAxisSnap';
 import getSnapModes from 'Features/mapEditor/utils/getSnapModes';
 import getEffectiveDetectionMode, { SEGMENT_SNAP_MODES } from 'Features/mapEditor/utils/getEffectiveDetectionMode';
@@ -169,6 +172,10 @@ import useUndo from "App/db/useUndo";
 // constants
 
 const SNAP_THRESHOLD_ABSOLUTE = 12;
+
+// OPENING_SEGMENT: max cursor↔wall distance (meters on the plan) below which
+// the opening segment glues to the host polyline; beyond it, free placement.
+const OPENING_HOVER_THRESHOLD_M = 0.10;
 
 // Distant-point axis snapping (issue #282), in SCREEN pixels (zoom-independent).
 const AXIS_SNAP_PX = 3; // active snap threshold (red fill)
@@ -1960,6 +1967,11 @@ const InteractionLayer = forwardRef(({
     orthoSnapAngleOffsetRef.current = orthoSnapAngleOffset;
   }, [orthoSnapAngleOffset]);
 
+  // Opening relations — used by the transient topology layer to reflow glued
+  // openings in real time while a host vertex is dragged, and by usePointDrag
+  // to hide their static render during the drag.
+  const { rows: openingRelRows } = useAnnotationOpenings();
+
   // drag state — point drag (extracted to usePointDrag)
 
   const {
@@ -1977,6 +1989,7 @@ const InteractionLayer = forwardRef(({
     toLocalCoords,
     permissions,
     setHiddenAnnotationIds,
+    openingRels: openingRelRows,
     onPointMoveCommit,
     onPointSnapReplace,
     onPointDuplicateAndMoveCommit,
@@ -2456,6 +2469,95 @@ const InteractionLayer = forwardRef(({
     newAnnotationRef.current = newAnnotation;
   }, [newAnnotation]);
 
+  // --- OPENING_SEGMENT placement state ---
+  const openingSegmentStateRef = useRef(null); // last computed placement
+  const openingLastCursorRef = useRef(null); // last cursor (image space)
+  const openingAnchorEndRef = useRef("start"); // S key: which endpoint the mouse holds
+  const openingFreeAngleRef = useRef(0); // R key: free-mode orientation, degrees
+  const openingPreviewLayerRef = useRef(null);
+  // Re-assigned each render so the once-bound keydown closure always runs the
+  // preview computation with fresh scope (annotations, camera pose...).
+  const updateOpeningPreviewRef = useRef(null);
+  updateOpeningPreviewRef.current = (cursorLocal) => {
+    const mbp = meterByPxRef.current;
+    const na = newAnnotationRef.current;
+    const widthM = Number(na?.width);
+    if (!cursorLocal || !(mbp > 0) || !(widthM > 0)) {
+      openingSegmentStateRef.current = null;
+      openingPreviewLayerRef.current?.clear();
+      snappingLayerRef.current?.update(null);
+      return;
+    }
+
+    const scale = getTargetScale() * (viewportRef.current?.getZoom() || 1);
+    const openingLengthPx = widthM / mbp;
+    const anns = (annotationsRef.current || []).filter((a) => !a?.isProxy);
+
+    const placement = computeOpeningSegmentPlacement({
+      cursorPx: cursorLocal,
+      annotations: anns,
+      openingLengthPx,
+      hoverThresholdPx: OPENING_HOVER_THRESHOLD_M / mbp,
+      vertexSnapPx: SNAP_THRESHOLD_ABSOLUTE / scale,
+      anchorEnd: openingAnchorEndRef.current,
+    });
+
+    let state;
+    if (placement) {
+      state = { ...placement, free: false };
+    } else {
+      // Free placement: fixed-length segment, held endpoint under the cursor,
+      // orientation controlled by the R key (45° steps).
+      const theta = (openingFreeAngleRef.current * Math.PI) / 180;
+      const dx = Math.cos(theta) * openingLengthPx;
+      const dy = Math.sin(theta) * openingLengthPx;
+      const holdEnd = openingAnchorEndRef.current === "end";
+      const p1 = holdEnd
+        ? { x: cursorLocal.x - dx, y: cursorLocal.y - dy }
+        : { x: cursorLocal.x, y: cursorLocal.y };
+      const p2 = holdEnd
+        ? { x: cursorLocal.x, y: cursorLocal.y }
+        : { x: cursorLocal.x + dx, y: cursorLocal.y + dy };
+      state = { p1, p2, free: true, fits: true, snapped: null };
+    }
+
+    const strokeWidth = Number(na?.strokeWidth) || 0;
+    const bandWidthPx =
+      na?.strokeWidthUnit === "CM" ? (strokeWidth * 0.01) / mbp : strokeWidth;
+
+    openingSegmentStateRef.current = state;
+    openingPreviewLayerRef.current?.update({
+      ...state,
+      bandWidthPx,
+      strokeColor: na?.strokeColor,
+      strokeOpacity: na?.strokeOpacity,
+    });
+
+    // Snap marker on the magnetized endpoint (screen coords).
+    if (state.snapped) {
+      const pose = getTargetPose();
+      const worldX = state.snapped.x * pose.k + pose.x;
+      const worldY = state.snapped.y * pose.k + pose.y;
+      const screenSnap = viewportRef.current?.worldToViewport(worldX, worldY);
+      if (screenSnap) {
+        snappingLayerRef.current?.update({ ...screenSnap, type: "VERTEX" });
+      }
+    } else {
+      snappingLayerRef.current?.update(null);
+    }
+  };
+
+  // Reset the opening-placement state when leaving the OPENING_SEGMENT mode.
+  useEffect(() => {
+    if (enabledDrawingMode !== "OPENING_SEGMENT") {
+      openingSegmentStateRef.current = null;
+      openingLastCursorRef.current = null;
+      openingAnchorEndRef.current = "start";
+      openingFreeAngleRef.current = 0;
+      openingPreviewLayerRef.current?.clear();
+    }
+  }, [enabledDrawingMode]);
+
   const mapEditorModeRef = useRef(mapEditorMode);
   useEffect(() => {
     mapEditorModeRef.current = mapEditorMode;
@@ -2899,6 +3001,32 @@ const InteractionLayer = forwardRef(({
           dispatch(setRepairMode(nextRepairMode));
           repairModeRef.current = nextRepairMode;
           recomputeRepairProposal();
+          return;
+        }
+      }
+
+      // --- OPENING_SEGMENT: S swaps the endpoint held by the mouse, R rotates
+      // the free-mode segment by 45°. Handled before the generic switch so the
+      // global 's' (smart detect) shortcut doesn't collide. ---
+      if (
+        enabledDrawingMode === "OPENING_SEGMENT" &&
+        !e.ctrlKey &&
+        !e.metaKey &&
+        !e.altKey
+      ) {
+        const openingKey = e.key?.toLowerCase();
+        if (openingKey === "s" || openingKey === "r") {
+          e.preventDefault();
+          if (openingKey === "s") {
+            openingAnchorEndRef.current =
+              openingAnchorEndRef.current === "start" ? "end" : "start";
+          } else {
+            openingFreeAngleRef.current =
+              (openingFreeAngleRef.current + 45) % 360;
+          }
+          if (openingLastCursorRef.current) {
+            updateOpeningPreviewRef.current?.(openingLastCursorRef.current);
+          }
           return;
         }
       }
@@ -4294,6 +4422,36 @@ const InteractionLayer = forwardRef(({
       return;
     }
 
+    // --- OPENING_SEGMENT: one-click fixed-length opening placement ---
+    if (enabledDrawingMode === "OPENING_SEGMENT") {
+      const state = openingSegmentStateRef.current;
+      if (!state || state.fits === false) return; // no preview / doesn't fit
+      onCommitDrawingRef.current({
+        points: [
+          { x: state.p1.x, y: state.p1.y },
+          { x: state.p2.x, y: state.p2.y },
+        ],
+        options: state.free
+          ? {}
+          : {
+              openingHostId: state.hostAnnotationId,
+              openingHostSegmentStartPointId: state.segStartId,
+              openingHostSegmentEndPointId: state.segEndId,
+              openingHostArcControlPointId: state.arcControlId ?? null,
+              openingHostSegStartPx: state.segStart,
+              openingHostSegEndPx: state.segEnd,
+              openingHostDistanceM:
+                state.hostDistancePx * (meterByPxRef.current || 1),
+            },
+      });
+      // Sticky tool: stay in OPENING_SEGMENT for the next placement; the
+      // preview recomputes on the next mouse move.
+      openingSegmentStateRef.current = null;
+      openingPreviewLayerRef.current?.clear();
+      snappingLayerRef.current?.update(null);
+      return;
+    }
+
     // --- SPLIT_POLYLINE_CLICK: single-click split at snap point ---
     if (enabledDrawingMode === "SPLIT_POLYLINE_CLICK") {
       const snap = currentSnapRef.current;
@@ -5418,7 +5576,9 @@ const InteractionLayer = forwardRef(({
     // Shift outside drawing means the user is starting a selection (lasso or
     // shift+click). Snap helpers would intercept the click — suppress them.
     const isShiftSelection = !enabledDrawingMode && Boolean(event.shiftKey || event.evt?.shiftKey);
-    const preventSnapping = isPanning || dragAnnotationState?.active || dragBaseMapState?.active || POINTER_CLICK_MODES.includes(enabledDrawingMode) || interactionMode === "SELECT" || isShiftSelection;
+    // OPENING_SEGMENT drives its own glue + snap markers — the generic cursor
+    // snap would fight it.
+    const preventSnapping = isPanning || dragAnnotationState?.active || dragBaseMapState?.active || POINTER_CLICK_MODES.includes(enabledDrawingMode) || enabledDrawingMode === "OPENING_SEGMENT" || interactionMode === "SELECT" || isShiftSelection;
 
     let snapResult;
     if (snappingEnabled && !preventSnapping) {
@@ -5461,6 +5621,14 @@ const InteractionLayer = forwardRef(({
     } else {
       // Nettoyage si on ne snap pas
       snappingLayerRef.current?.update(null);
+    }
+
+    // D'. OPENING_SEGMENT PREVIEW — fixed-length segment glued to the nearest
+    // wall edge (or free placement when no wall is within 10cm).
+    if (enabledDrawingMode === "OPENING_SEGMENT") {
+      const cursorLocal = toLocalCoords(worldPos);
+      openingLastCursorRef.current = cursorLocal;
+      updateOpeningPreviewRef.current?.(cursorLocal);
     }
 
     // E. DRAWING PREVIEW
@@ -6560,6 +6728,10 @@ const InteractionLayer = forwardRef(({
             ref={transientRepairProposalRef}
             containerK={targetPose.k}
           />
+          <TransientOpeningSegmentLayer
+            ref={openingPreviewLayerRef}
+            containerK={targetPose.k}
+          />
         </g>
 
         {(dragState?.active || dragState?.frozen) && (
@@ -6567,6 +6739,7 @@ const InteractionLayer = forwardRef(({
             <TransientTopologyLayer
               annotations={annotations}
               baseMapMeterByPx={baseMapMeterByPx}
+              openingRels={openingRelRows}
               movingPointId={dragState.pointId}
               originalPointIdForDuplication={dragState.isDuplicateMode ? dragState.originalPointId : null}
               currentPos={dragState.currentPos}

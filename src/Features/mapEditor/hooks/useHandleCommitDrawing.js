@@ -25,6 +25,8 @@ import mergePolygonAnnotationsService from "Features/annotations/services/mergeP
 import avoidVisibleAnnotationsService from "Features/annotations/services/avoidVisibleAnnotationsService";
 import applyOpeningOnPolygon from "Features/annotations/utils/applyOpeningOnPolygon";
 import findCutHostAnnotationId from "Features/annotations/utils/findCutHostAnnotationId";
+import addAnnotationOpening from "Features/annotations/services/addAnnotationOpening";
+import deriveOpeningContourAnchor from "Features/mapEditor/utils/deriveOpeningContourAnchor";
 import getAnnotationAsPolygons from "Features/geometry/utils/getAnnotationAsPolygons";
 import createRevolutionProxiesOnPlan from "Features/elevation/services/createRevolutionProxiesOnPlan";
 
@@ -138,9 +140,17 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
 
         const { width, height } = baseMap?.getImageSize?.() ?? {}
 
+        // OPENING_SEGMENT (template-driven opening placement): the 2 raw points
+        // are the opening segment glued on the host wall. The host carve runs
+        // in a dedicated block below, then the commit FALLS THROUGH to the
+        // normal creation path so a 2-point POLYLINE opening annotation is
+        // persisted and linked to its host via relAnnotationOpenings.
+        const isOpeningSegmentCommit =
+            enabledDrawingMode === "OPENING_SEGMENT" && rawPoints?.length === 2;
+
         // cuts
 
-        if (newAnnotation.type === "CUT" || newAnnotation.isOpening) {
+        if ((newAnnotation.type === "CUT" || newAnnotation.isOpening) && !isOpeningSegmentCommit) {
             // Opening-from-centerline tools (CUT_POLYLINE / CUT_STRIP …) draw a
             // POLYLINE / STRIP centerline; polygonize it into the band contour
             // (centered band for POLYLINE, one-sided offset band for STRIP) and
@@ -218,6 +228,97 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
         // early return (carve/merge paths).
         const pendingPointRows = [];
         const pendingAnnotationUpdates = [];
+
+        // OPENING_SEGMENT: carve the host wall with the opening band before the
+        // normal creation path persists the 2-point opening annotation.
+        // `openingCarve` records how the host was carved so the reflow service
+        // can refresh the notch/cut when the host moves; `openingAnchor` holds
+        // the (possibly re-derived) host anchor written to relAnnotationOpenings.
+        let openingCarve = null;
+        let openingAnchor = null;
+        const openingHostId = options?.openingHostId;
+        if (isOpeningSegmentCommit && openingHostId && width && height) {
+            openingCarve = { mode: "NONE" };
+            openingAnchor = {
+                hostSegmentStartPointId: options?.openingHostSegmentStartPointId,
+                hostSegmentEndPointId: options?.openingHostSegmentEndPointId,
+                hostArcControlPointId: options?.openingHostArcControlPointId ?? null,
+                hostDistanceM: options?.openingHostDistanceM,
+            };
+
+            const host = await db.annotations.get(openingHostId);
+            if (host?.type === "POLYGON") {
+                // Band polygon across the wall: length = the opening segment,
+                // thickness = the template strokeWidth (CM).
+                const polys = getAnnotationAsPolygons(
+                    {
+                        type: "POLYLINE",
+                        points: rawPoints,
+                        strokeWidth: newAnnotation.strokeWidth,
+                        strokeWidthUnit: newAnnotation.strokeWidthUnit,
+                    },
+                    { meterByPx: baseMap?.getMeterByPx?.() }
+                );
+                const bandPx = polys?.[0]?.points?.map((p) => ({ x: p.x, y: p.y }));
+
+                if (bandPx?.length >= 3) {
+                    const contourResult = await applyOpeningOnPolygon({
+                        host,
+                        openingPointsPx: bandPx,
+                        imageSize: { width, height },
+                        baseMapId,
+                        projectId,
+                        listingId,
+                    });
+                    if (contourResult?.handled) {
+                        if (contourResult.updatedAnnotation) {
+                            await updateAnnotation(contourResult.updatedAnnotation);
+                            // The carve re-minted every ring point id — re-derive
+                            // the anchor ids + notch ids on the carved ring.
+                            const derived = deriveOpeningContourAnchor({
+                                ringRefs: contourResult.updatedAnnotation.points,
+                                pxById: contourResult.newPointsPxById,
+                                segStartPx: options?.openingHostSegStartPx,
+                                segEndPx: options?.openingHostSegEndPx,
+                                bandPx,
+                            });
+                            openingCarve = {
+                                mode: "CONTOUR",
+                                notchPointIds: derived.notchPointIds,
+                            };
+                            if (derived.startId) {
+                                openingAnchor.hostSegmentStartPointId = derived.startId;
+                            }
+                            if (derived.endId) {
+                                openingAnchor.hostSegmentEndPointId = derived.endId;
+                            }
+                        }
+                    } else {
+                        // Band strictly inside the host → append an inner-ring cut.
+                        const cutId = nanoid();
+                        const cutRefs = bandPx.map((p) => {
+                            const id = nanoid();
+                            pendingPointRows.push({
+                                id,
+                                x: p.x / width,
+                                y: p.y / height,
+                                baseMapId,
+                                projectId,
+                                listingId,
+                            });
+                            return { id };
+                        });
+                        pendingAnnotationUpdates.push({
+                            id: host.id,
+                            changes: {
+                                cuts: [...(host.cuts ?? []), { id: cutId, points: cutRefs }],
+                            },
+                        });
+                        openingCarve = { mode: "CUT", cutId };
+                    }
+                }
+            }
+        }
 
         // ETAPE : création de l'entité ou non
 
@@ -832,6 +933,19 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
             await createAnnotation(_newAnnotation, {
                 pointRowsToSave: pendingPointRows,
                 annotationUpdatesInTx: pendingAnnotationUpdates,
+            });
+        }
+
+        // OPENING_SEGMENT: link the persisted opening annotation to its host
+        // wall (anchor = host segment point ids + fixed distance in meters
+        // from the reference vertex). Free placements (no host) skip this.
+        if (isOpeningSegmentCommit && openingHostId && openingAnchor && _newAnnotation?.id) {
+            await addAnnotationOpening({
+                projectId,
+                hostAnnotationId: openingHostId,
+                openingAnnotationId: _newAnnotation.id,
+                ...openingAnchor,
+                carve: openingCarve ?? { mode: "NONE" },
             });
         }
 

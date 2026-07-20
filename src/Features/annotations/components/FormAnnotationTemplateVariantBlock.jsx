@@ -126,6 +126,7 @@ export default function FormAnnotationTemplateVariantBlock({
     configurableProps.includes("strokeWidth");
   const hasIcon = configurableProps.includes("iconKey");
   const hasHeight = configurableProps.includes("height");
+  const hasWidth = configurableProps.includes("width");
   const hasImage = configurableProps.includes("image");
   const hasObject3D = configurableProps.includes("object3D");
   const hasMeterByPx = configurableProps.includes("meterByPx");
@@ -185,6 +186,10 @@ export default function FormAnnotationTemplateVariantBlock({
 
   function handleHeightChange(height) {
     onChange({ ...annotationTemplate, height });
+  }
+
+  function handleWidthChange(width) {
+    onChange({ ...annotationTemplate, width });
   }
 
   function handleImageChange(image) {
@@ -370,6 +375,25 @@ export default function FormAnnotationTemplateVariantBlock({
           valueOptions={DRAWING_SHAPES}
         />
       </WhiteSectionGeneric>
+
+      {/* Width (OPENING) — opening width along the wall */}
+      {hasWidth && (
+        <WhiteSectionGeneric>
+          <Box sx={{ display: "flex", alignItems: "center" }}>
+            <OverrideToggle
+              field="width"
+              overrideFields={overrideFields}
+              onToggle={handleToggleOverride}
+            />
+            <FieldAnnotationHeight
+              annotation={annotationTemplate}
+              field="width"
+              label="Largeur"
+              onChange={(updated) => handleWidthChange(updated.width)}
+            />
+          </Box>
+        </WhiteSectionGeneric>
+      )}
 
       {/* Height (POLYLINE, POINT) */}
       {hasHeight && (

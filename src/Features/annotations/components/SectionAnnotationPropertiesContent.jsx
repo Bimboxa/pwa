@@ -12,6 +12,7 @@ import FieldAnnotationHeight from "./FieldAnnotationHeight";
 import SectionAnnotationQties from "./SectionAnnotationQties";
 import SectionAnnotationPentes from "./SectionAnnotationPentes";
 import SectionAnnotationSubtractions from "./SectionAnnotationSubtractions";
+import SectionAnnotationOpenings from "./SectionAnnotationOpenings";
 import ButtonAnnotationTemplate from "./ButtonAnnotationTemplate";
 import FieldWrapperDimensions from "./FieldWrapperDimensions";
 import FieldAnnotationRotation from "./FieldAnnotationRotation";
@@ -122,6 +123,8 @@ export default function SectionAnnotationPropertiesContent({ annotation }) {
       {["POLYGON", "RECTANGLE", "POLYLINE", "STRIP"].includes(type) && (
         <SectionAnnotationSubtractions annotation={annotation} />
       )}
+
+      <SectionAnnotationOpenings annotation={annotation} />
     </>
   );
 }

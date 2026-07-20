@@ -219,6 +219,18 @@ const DRAWING_TOOLS = [
     drawingMode: "STRIP_SEGMENT",
     isOpening: true,
   },
+  // OPENING_SEGMENT tool — template-driven opening placement. The preview is a
+  // fixed-length segment (template width in meters) with one endpoint under
+  // the mouse; near a host POLYLINE/POLYGON edge it glues along the wall, away
+  // from any host it places freely (R rotates by 45°, S swaps the held
+  // endpoint). One click commits in both cases.
+  {
+    key: "OPENING_SEGMENT",
+    label: "Ouverture (1 clic)",
+    Icon: IconPolylineSegment,
+    annotationType: "POLYLINE",
+    behavior: "OPENING_SEGMENT",
+  },
   // SPLIT tools (Diviser)
   {
     key: "SPLIT_CLICK",

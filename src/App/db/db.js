@@ -157,6 +157,19 @@ db.version(25).stores({
   povs: "id,projectId,scopeId,[projectId+scopeId]",
 });
 
+db.version(26).stores({
+  // {id, projectId, hostAnnotationId, openingAnnotationId,
+  //  hostSegmentStartPointId, hostSegmentEndPointId, hostArcControlPointId,
+  //  hostDistanceM, carve}
+  // Opening relation: links a host wall annotation to an opening annotation
+  // glued on one of its segments. The opening center is anchored at a FIXED
+  // distance (meters) from the reference vertex hostSegmentStartPointId.
+  // `carve` records how the host was carved at commit:
+  //   { mode: "CONTOUR", notchPointIds } | { mode: "CUT", cutId } | { mode: "NONE" }
+  // Soft-deleted when either annotation is deleted.
+  relAnnotationOpenings: "id, projectId, hostAnnotationId, openingAnnotationId",
+});
+
 // --- AUDIT HOOKS ---
 
 const AUDIT_TABLES = [
@@ -188,6 +201,7 @@ const AUDIT_TABLES = [
   "layers",
   "relAnnotationSubtractions",
   "relAnnotationMeshCells",
+  "relAnnotationOpenings",
   "dimensions3d",
   "meshes3d",
   "povs",
@@ -334,6 +348,7 @@ const SOFT_DELETE_TABLES = new Set([
   "layers",
   "relAnnotationSubtractions",
   "relAnnotationMeshCells",
+  "relAnnotationOpenings",
   "dimensions3d",
   "meshes3d",
   "povs",

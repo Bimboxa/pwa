@@ -76,8 +76,12 @@ export default function ToolbarDrawingDraft() {
   // recognized via the draft's `isOpening` flag instead. We still surface the
   // "Ouverture" variant toggle (group "CUT") and show the line-width field for
   // them, while hiding the per-annotation colour (openings are forced red).
+  // Template-driven OPENING drafts (OPENING_SEGMENT tool) also carry
+  // isOpening + type POLYLINE but are NOT centerline CUT bands — they keep
+  // their own template style and width/height fields.
   const isOpeningBand =
     Boolean(newAnnotation?.isOpening) &&
+    newAnnotation?.drawingShape !== "OPENING" &&
     (newAnnotation?.type === "POLYLINE" || newAnnotation?.type === "STRIP");
   const isToolGroup = isCuttingTool || isOpeningBand;
   const toolGroupType = isCuttingTool ? toolType : isOpeningBand ? "CUT" : null;
@@ -95,12 +99,19 @@ export default function ToolbarDrawingDraft() {
   const showThickness =
     !isRampTool &&
     !isFieldOverridden("strokeWidth") &&
-    ((!isToolGroup && drawingShape === "POLYLINE") || isOpeningBand);
+    ((!isToolGroup &&
+      (drawingShape === "POLYLINE" || drawingShape === "OPENING")) ||
+      isOpeningBand);
   const showOffset =
     !isToolGroup && !isRampTool && !isFieldOverridden("offsetZ");
   const showHeight =
     !isToolGroup && !isRampTool && !isFieldOverridden("height");
-  const showAnyField = showThickness || showOffset || showHeight || isRampTool;
+  // OPENING drafts: width (m) along the wall — edits the draft only, the
+  // preview reads newAnnotation.width live on each mouse move.
+  const showWidth =
+    drawingShape === "OPENING" && !isFieldOverridden("width");
+  const showAnyField =
+    showThickness || showOffset || showHeight || showWidth || isRampTool;
 
   const tools = toolGroupType
     ? getDrawingToolsByType(toolGroupType)
@@ -288,6 +299,14 @@ export default function ToolbarDrawingDraft() {
         <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
       )}
 
+      {showWidth && (
+        <FieldAnnotationHeight
+          annotation={newAnnotation}
+          onChange={handleFieldChange}
+          field="width"
+          label="larg."
+        />
+      )}
       {showThickness && (
         <FieldAnnotationThickness
           annotation={newAnnotation}

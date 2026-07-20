@@ -43,6 +43,7 @@ import useNewAnnotationType from "Features/annotations/hooks/useNewAnnotationTyp
 import useResetNewAnnotation from "Features/annotations/hooks/useResetNewAnnotation";
 import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
 import applyOpeningOnPolygon from "Features/annotations/utils/applyOpeningOnPolygon";
+import reflowOpeningsForHost from "Features/mapEditor/services/reflowOpeningsForHostService";
 import shadeMeshCellColor from "Features/mesh/utils/meshCellColor";
 import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
 import useLegendItems from "Features/legend/hooks/useLegendItems";
@@ -784,6 +785,26 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
 
     // handlers - move point
 
+    // Reflow openings glued on a host whose geometry just changed: reposition
+    // their own point rows (fixed distance from the reference vertex) and
+    // refresh the host carve. Fire-and-forget wrapper with shared context.
+    const reflowOpenings = async ({ movedPointIds, hostIds }) => {
+        const imageSize = baseMap?.getImageSize?.();
+        const meterByPx = baseMap?.getMeterByPx?.();
+        if (!imageSize || !(meterByPx > 0) || !projectId) return;
+        try {
+            await reflowOpeningsForHost({
+                movedPointIds,
+                hostIds,
+                projectId,
+                imageSize,
+                meterByPx,
+            });
+        } catch (e) {
+            console.error("[openings] reflow failed", e);
+        }
+    };
+
     const handlePointMoveCommit = async (pointId, newPos) => {
         const imageSize = baseMap?.getImageSize?.();
         if (!imageSize) return;
@@ -853,6 +874,10 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                 }
             }
         }
+
+        // Reposition openings anchored on the moved vertex (glued openings
+        // follow their host wall) + refresh their carve.
+        await reflowOpenings({ movedPointIds: [pointId] });
     };
 
     const handleDuplicateAndMovePoint = async ({ originalPointId, annotationId, newPos }) => {
@@ -1031,6 +1056,12 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                 );
 
                 console.log("Segment split successfully committed (Main or Cut).");
+
+                // Openings anchored on the split segment re-anchor to the
+                // right sub-segment (adjacency check fails → projection).
+                await reflowOpenings({
+                    movedPointIds: [segmentStartId, segmentEndId],
+                });
             } catch (error) {
                 console.error("Failed to split segment:", error);
             }
@@ -1152,6 +1183,9 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                 moveDelta: (!partType || partType === "MOVE") ? deltaPos : null,
                 isResize: partType?.startsWith("RESIZE_"),
             });
+
+            // Openings glued on a transformed wall follow it.
+            await reflowOpenings({ hostIds: wrapperAnnotationIds });
 
             dispatch(triggerAnnotationsUpdate());
             return;

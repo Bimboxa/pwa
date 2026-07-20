@@ -80,6 +80,26 @@ export default function useDeleteAnnotations() {
       ),
     ];
 
+    // 1c. Cascade: collect opening relations where a deleted annotation is
+    // either the host wall or the opening itself.
+    const [openingRelsAsHost, openingRelsAsOpening] = await Promise.all([
+      db.relAnnotationOpenings
+        .where("hostAnnotationId")
+        .anyOf(idsToDelete)
+        .toArray(),
+      db.relAnnotationOpenings
+        .where("openingAnnotationId")
+        .anyOf(idsToDelete)
+        .toArray(),
+    ]);
+    const openingRelIds = [
+      ...new Set(
+        [...openingRelsAsHost, ...openingRelsAsOpening]
+          .filter((r) => !r.deletedAt)
+          .map((r) => r.id)
+      ),
+    ];
+
     // 2. Determine which annotations are cutHosts (batch template lookup)
     const uniqueTemplateIds = [
       ...new Set(
@@ -180,6 +200,7 @@ export default function useDeleteAnnotations() {
         db.listings,
         db.relAnnotationSubtractions,
         db.relAnnotationMeshCells,
+        db.relAnnotationOpenings,
       ],
       async () => {
         // Cascade soft-delete subtraction relations
@@ -190,6 +211,11 @@ export default function useDeleteAnnotations() {
         // Cascade soft-delete mesh relations
         if (meshRelIds.length > 0) {
           await db.relAnnotationMeshCells.bulkDelete(meshRelIds);
+        }
+
+        // Cascade soft-delete opening relations
+        if (openingRelIds.length > 0) {
+          await db.relAnnotationOpenings.bulkDelete(openingRelIds);
         }
 
         // Batch cuts-cleanup updates
