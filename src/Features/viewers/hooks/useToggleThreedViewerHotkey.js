@@ -41,7 +41,7 @@ export default function useToggleThreedViewerHotkey() {
         // POV keeps its own editor mode until it migrates to
         // editorKeyByModule (see issue #296).
         togglePovViewerMode();
-      } else if (selectedViewerKey === "MAP") {
+      } else if (selectedViewerKey === "MAP" || selectedViewerKey === "ZONES") {
         toggleModuleEditor();
       } else {
         // Single-editor modules: no 2D<->3D toggle.

@@ -26,6 +26,7 @@ import PanelPropertiesGuideline from "Features/annotations/components/PanelPrope
 import PanelPropertiesPointsAndSegments from "Features/points/components/PanelPropertiesPointsAndSegments";
 import PanelMesh3dProperties from "Features/threedMesh/components/PanelMesh3dProperties";
 import PanelPovProperties from "Features/pov/components/PanelPovProperties";
+import PanelZoneProperties from "Features/zonings/components/PanelZoneProperties";
 import PanelPovFrameProperties from "Features/pov/components/PanelPovFrameProperties";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 
@@ -161,6 +162,10 @@ export default function PanelSelectionProperties() {
       // PORTFOLIO_HEADER, PORTFOLIO, or no selection
       type = "PORTFOLIO_HEADER";
     }
+  } else if (selectedItem?.type === "ZONE") {
+    // Zone selected in the zonings drawer (ZONES module): legend of the
+    // annotations linked to the zone.
+    type = "ZONE";
   } else if (selectedItem?.type === "ENTITY") {
     type = "ENTITY";
   } else if (selectedItem?.type === "ANNOTATION_TEMPLATE") {
@@ -235,6 +240,8 @@ export default function PanelSelectionProperties() {
 
       {type === "MESH3D" && <PanelMesh3dProperties />}
 
+
+      {type === "ZONE" && <PanelZoneProperties />}
 
       {type === "POV" && <PanelPovProperties />}
 

@@ -1,8 +1,3 @@
-import { useEffect } from "react";
-import { useDispatch } from "react-redux";
-
-import { setSoloZone, setSelectedZoneId } from "../zoningsSlice";
-
 import { Box } from "@mui/material";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
@@ -12,20 +7,13 @@ import LeftDrawerPanel from "Features/leftPanel/components/LeftDrawerPanel";
 import ZoningsTree from "./ZoningsTree";
 
 export default function MainZonesViewer() {
-  const dispatch = useDispatch();
-
   // helpers
 
   const treeWidth = 300;
 
-  // effects — leaving the module clears the zone solo & selection
-
-  useEffect(() => {
-    return () => {
-      dispatch(setSoloZone(null));
-      dispatch(setSelectedZoneId(null));
-    };
-  }, [dispatch]);
+  // NOTE: no unmount cleanup here — this viewer unmounts on the 2D→3D editor
+  // toggle (T) while the module stays selected. The zone solo/selection is
+  // cleared by the zoningsSlice extraReducer on setSelectedViewerKey instead.
 
   // render
 

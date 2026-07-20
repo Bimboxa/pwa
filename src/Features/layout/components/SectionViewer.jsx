@@ -11,6 +11,7 @@ import TableViewer from "Features/tables/components/ViewerTable";
 import MainPortfolioEditor from "Features/portfolioEditor/components/MainPortfolioEditor";
 import MainBaseMapViewer from "Features/baseMapEditor/components/MainBaseMapViewer";
 import MainZonesViewer from "Features/zonings/components/MainZonesViewer";
+import ZoningsTree from "Features/zonings/components/ZoningsTree";
 import ViewerAdmin from "Features/adminEditor/components/ViewerAdmin";
 import MainListingViewer from "Features/listingViewer/components/MainListingViewer";
 import LeftDrawerPanel from "Features/leftPanel/components/LeftDrawerPanel";
@@ -45,7 +46,12 @@ export default function SectionViewer() {
   const showTable = viewerKey === "TABLE";
   const showPortfolio = viewerKey === "PORTFOLIO";
   const showBaseMaps = viewerKey === "BASE_MAPS";
-  const showZones = viewerKey === "ZONES";
+  // ZONES is multi-editor (T toggle): its 2D viewer hides when the module
+  // displays the 3D editor; the zones drawer then moves to the 3D branch.
+  const showZones =
+    viewerKey === "ZONES" && !isThreedFamilyViewerKey(effectiveKey);
+  const showZonesIn3d =
+    viewerKey === "ZONES" && isThreedFamilyViewerKey(effectiveKey);
   const showListing = viewerKey === "LISTING";
   const showAdmin = viewerKey === "ADMIN";
 
@@ -84,6 +90,11 @@ export default function SectionViewer() {
           {showMeshes && (
             <LeftDrawerPanel width={280} viewerKey="MESHES">
               <PanelMeshesViewer />
+            </LeftDrawerPanel>
+          )}
+          {showZonesIn3d && (
+            <LeftDrawerPanel width={300} viewerKey="ZONES">
+              <ZoningsTree />
             </LeftDrawerPanel>
           )}
           <Box sx={{ flex: 1, minWidth: 0, position: "relative" }}>

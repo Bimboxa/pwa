@@ -69,6 +69,7 @@ import IconButtonContours from "./IconButtonContours";
 import IconButtonCloseEnvelope from "./IconButtonCloseEnvelope";
 import IconButtonDilateAnnotation from "./IconButtonDilateAnnotation";
 import ChipLayerSelector from "Features/layers/components/ChipLayerSelector";
+import SectionZonesBandInToolbar from "Features/zonings/components/SectionZonesBandInToolbar";
 import DialogGeneric from "Features/layout/components/DialogGeneric";
 import DatagridAnnotations from "./DatagridAnnotations";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
@@ -670,6 +671,10 @@ export default function ToolbarEditAnnotations({
             ) : null
           }
         />
+
+        {/* Zones band (ZONES module): link the selection to zones */}
+        <SectionZonesBandInToolbar annotations={annotations} />
+
         {/* Clone template selector menu */}
         <Menu
           open={Boolean(cloneAnchorEl)}

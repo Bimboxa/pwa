@@ -74,6 +74,8 @@ import IconButtonDetectSimilarStrips from "./IconButtonDetectSimilarStrips";
 import IconButtonAnchorAnnotation from "./IconButtonAnchorAnnotation";
 import IconButtonSubtractAnnotation from "./IconButtonSubtractAnnotation";
 import IconButtonHollowOutAnnotation from "./IconButtonHollowOutAnnotation";
+import IconButtonAssignZoneAnnotations from "Features/zonings/components/IconButtonAssignZoneAnnotations";
+import SectionZonesBandInToolbar from "Features/zonings/components/SectionZonesBandInToolbar";
 import IconButtonDilateAnnotation from "./IconButtonDilateAnnotation";
 import IconButtonRepairAnnotation from "./IconButtonRepairAnnotation";
 import IconButtonSplitInSegments from "./IconButtonSplitInSegments";
@@ -891,6 +893,13 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
                     accentColor={accentColor}
                   />
                 )}
+                {selectedAnnotation?.isZoneAnnotation &&
+                  selectedAnnotation?.type === "POLYGON" && (
+                    <IconButtonAssignZoneAnnotations
+                      annotation={selectedAnnotation}
+                      accentColor={accentColor}
+                    />
+                  )}
                 {selectedAnnotation?.type === "POLYGON" && (
                   <IconButtonConvertAnnotation
                     annotations={[selectedAnnotation]}
@@ -964,6 +973,11 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
             ) : null
           }
         />
+
+        {/* Row 5 - Zones band (ZONES module): link the selection to zones */}
+        {!hasPart && selectedAnnotation && (
+          <SectionZonesBandInToolbar annotations={[selectedAnnotation]} />
+        )}
 
         {/* Template selector menu (same type) */}
         <Menu

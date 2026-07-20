@@ -1,5 +1,7 @@
 import { createSlice } from "@reduxjs/toolkit";
 
+import { setSelectedViewerKey } from "Features/viewers/viewersSlice";
+
 const zoningsInitialState = {
   // db trigger ticks
   zonesUpdatedAt: null,
@@ -49,6 +51,18 @@ export const zoningsSlice = createSlice({
     setSoloZone: (state, action) => {
       state.soloZone = action.payload;
     },
+  },
+  extraReducers: (builder) => {
+    // Leaving the ZONES module clears the zone solo & selection. Keyed on the
+    // MODULE switch (not on a viewer unmount): the 2D↔3D editor toggle (T)
+    // unmounts the 2D viewer while the module stays selected, and the solo
+    // must survive it.
+    builder.addCase(setSelectedViewerKey, (state, action) => {
+      if (action.payload !== "ZONES") {
+        state.soloZone = null;
+        state.selectedZoneId = null;
+      }
+    });
   },
 });
 

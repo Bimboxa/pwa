@@ -95,6 +95,7 @@ export default function useViewers() {
       icon: <AccountTree />,
       bgcolor: theme.palette.viewers.zones,
       hotkey: "Z",
+      editors: ["ZONES", "THREED"],
     },
     {
       key: "LISTING",

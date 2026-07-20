@@ -10,7 +10,7 @@ import {
 import { selectEffectiveViewerKey } from "../utils/effectiveViewerKey";
 
 // Toggles the 2D/3D editor displayed inside the current multi-editor module
-// (Dessin), reusing the MAP <-> THREED camera sync but committing the
+// (Dessin, Zones), reusing the MAP <-> THREED camera sync but committing the
 // module's editor key instead of the selected module: the left-band
 // selection stays put. Generalizes the POV useTogglePovViewerMode pattern.
 export default function useToggleModuleEditor() {
@@ -24,11 +24,14 @@ export default function useToggleModuleEditor() {
 
   return function toggleModuleEditor() {
     if (effectiveViewerKey === "THREED") {
+      // The module's own 2D editor key is the module key itself (MAP → MAP,
+      // ZONES → ZONES — MainMapEditorV3 forViewerKey="ZONES").
       switchThreedToMap({
         dispatch,
         baseMap,
         basePose,
-        commit: (d) => d(setModuleEditorKey({ moduleKey, editorKey: "MAP" })),
+        commit: (d) =>
+          d(setModuleEditorKey({ moduleKey, editorKey: moduleKey })),
       });
     } else {
       if (disable3D) return;

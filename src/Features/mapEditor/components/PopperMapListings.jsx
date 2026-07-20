@@ -129,6 +129,7 @@ import useListings from "Features/listings/hooks/useListings";
 import useFreeAnnotationTemplates from "Features/mapEditor/hooks/useFreeAnnotationTemplates";
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
 import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
+import useSelectedZone from "Features/zonings/hooks/useSelectedZone";
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 import useExtraBaseMapIdsIn3d from "Features/threedEditor/hooks/useExtraBaseMapIdsIn3d";
 import useUpdateAnnotationTemplate from "Features/annotations/hooks/useUpdateAnnotationTemplate";
@@ -527,6 +528,9 @@ function AnnotationTemplateRow({
   sortableAttributes,
   dragListeners,
   onSoloToggle,
+  // "Nouvelle zone" section (ZONES module): the row stays a DRAW entry even
+  // though the module forces the listings into SELECT.
+  forceDrawMode,
 }) {
   const dispatch = useDispatch();
   const updateAnnotationTemplate = useUpdateAnnotationTemplate();
@@ -596,8 +600,12 @@ function AnnotationTemplateRow({
   const isThreedToggledEditor = useSelector((s) =>
     isThreedFamilyViewerKey(selectEffectiveViewerKey(s))
   );
-  const interactionMode =
-    showMeshCells || isThreedViewer || viewerMode
+  const isZonesViewerRow = useSelector(
+    (s) => s.viewers.selectedViewerKey === "ZONES"
+  );
+  const interactionMode = forceDrawMode
+    ? "DRAW"
+    : showMeshCells || isThreedViewer || viewerMode || isZonesViewerRow
       ? "SELECT"
       : rawInteractionMode;
   const selectedItem = useSelector((s) => s.selection.selectedItems[0] || null);
@@ -2251,8 +2259,13 @@ export default function PopperMapListings() {
   const showMeshCells = useSelector((s) => s.annotations.showMeshCells);
   // viewer mode (?mode=viewer) locks the editor to read-only SELECT.
   const viewerMode = useSelector((s) => s.urlParams.viewerMode);
+  // ZONES module: the template listings are a read-only legend (display
+  // actions only, like the Dessin SELECT mode); drawing goes through the
+  // dedicated "Nouvelle zone" section.
   const effectiveInteractionMode =
-    showMeshCells || isThreedViewer || viewerMode ? "SELECT" : interactionMode;
+    showMeshCells || isThreedViewer || viewerMode || isZonesViewer
+      ? "SELECT"
+      : interactionMode;
   const collapsed = useSelector((s) => s.popperMapListings.collapsed);
   const selectedItem = useSelector((s) => s.selection.selectedItems[0] || null);
 
@@ -2271,8 +2284,12 @@ export default function PopperMapListings() {
   // Entering 3D enables it; leaving 3D restores the 2D mode's solo state and prevents
   // the solo filter from leaking into the 2D MAP viewer (where the button is hidden in DRAW).
   useEffect(() => {
-    dispatch(setSoloMode(isThreedViewer || interactionMode === "SELECT"));
-  }, [isThreedViewer]);
+    dispatch(
+      setSoloMode(
+        isThreedViewer || isZonesViewer || interactionMode === "SELECT"
+      )
+    );
+  }, [isThreedViewer, isZonesViewer]);
 
   // 3D can show annotations from several base maps at once; mirror those extra
   // base maps here so the panel's visible set matches the 3D scene.
@@ -2321,6 +2338,17 @@ export default function PopperMapListings() {
     [annotationTemplates]
   );
 
+  // ZONES module: the zone selected in the drawer drives the "Nouvelle zone"
+  // section (its template row is the module's only drawing entry).
+  const { template: selectedZoneTemplate } = useSelectedZone();
+  const spriteImage = useAnnotationSpriteImage();
+  const selectedZoneAnnotationsCount = useMemo(() => {
+    if (!isZonesViewer || !selectedZoneTemplate) return 0;
+    return (allAnnotationsInclHidden ?? []).filter(
+      (a) => a.annotationTemplateId === selectedZoneTemplate.id
+    ).length;
+  }, [isZonesViewer, selectedZoneTemplate, allAnnotationsInclHidden]);
+
   const annotationCountByListingId = useMemo(() => {
     if (!allAnnotations) return {};
     return allAnnotations.reduce((acc, a) => {
@@ -2344,25 +2372,13 @@ export default function PopperMapListings() {
     ? "Dessins sur fond de plan"
     : "Annotations";
 
-  const { value: locatedListings } = useListings({
+  const { value: listings } = useListings({
     filterByScopeId: selectedScopeId,
     filterByEntityModelType: "LOCATED_ENTITY",
     ...(isBaseMapsViewer
       ? { filterByIsForBaseMaps: true }
       : { excludeIsForBaseMaps: true }),
   });
-
-  // ZONES module: the zoning listings (one template per zone) are listed ahead
-  // of the normal listings so zone polygons can be drawn from the popper.
-  const { value: zoningListings } = useListings({
-    filterByScopeId: selectedScopeId,
-    filterByEntityModelType: "ZONING",
-  });
-
-  const listings = useMemo(() => {
-    if (!isZonesViewer) return locatedListings;
-    return [...(zoningListings ?? []), ...(locatedListings ?? [])];
-  }, [isZonesViewer, zoningListings, locatedListings]);
 
   const createVersion = useCreateBaseMapVersion();
   const replaceVersionImage = useReplaceVersionImage();
@@ -2692,7 +2708,7 @@ export default function PopperMapListings() {
 
       {!collapsed && (<>
       {/* Interaction mode toggle (DRAW / EDIT / SELECT) — hidden in 3D and viewer mode (read-only) */}
-      {!isThreedViewer && !viewerMode && (
+      {!isThreedViewer && !viewerMode && !isZonesViewer && (
         <Box
           sx={{
             px: 1,
@@ -2778,11 +2794,43 @@ export default function PopperMapListings() {
           <SectionLayers baseMapId={baseMap?.id} />
         )}
 
+        {/* Nouvelle zone (ZONES module) — dedicated section showing the zone
+            selected in the drawer as a DRAW-armed template row: this is the
+            only drawing entry of the module (the listings below are a
+            read-only legend). */}
+        {isZonesViewer && selectedZoneTemplate && (
+          <Box
+            sx={{
+              borderBottom: "1px solid",
+              borderColor: "panel.border",
+            }}
+          >
+            {/* Same typography as the listing section headers below. */}
+            <Box sx={{ px: 1, py: 0.75, bgcolor: "secondary.main" }}>
+              <Typography
+                variant="body2"
+                sx={{ fontWeight: 600, color: "secondary.contrastText" }}
+              >
+                Nouvelle zone
+              </Typography>
+            </Box>
+            <List dense disablePadding>
+              <AnnotationTemplateRow
+                annotationTemplate={selectedZoneTemplate}
+                listingId={selectedZoneTemplate.listingId}
+                count={selectedZoneAnnotationsCount}
+                spriteImage={spriteImage}
+                forceDrawMode
+              />
+            </List>
+          </Box>
+        )}
+
         {/* Free annotations — untitled section at the very top: just
             "Ligne" + "Surface" (no entity, hidden per-scope templates).
             Always shown, even when no listing exists, since these are
-            system templates. */}
-        {!isBaseMapsViewer && (
+            system templates. Hidden in ZONES (display-only legend). */}
+        {!isBaseMapsViewer && !isZonesViewer && (
           <Box
             sx={{
               borderBottom: "1px solid",
@@ -2839,8 +2887,9 @@ export default function PopperMapListings() {
                   ))}
                 </>}
 
-            {/* Outils section — only in DRAW mode */}
-            {effectiveInteractionMode === "DRAW" && (
+            {/* Outils section — DRAW mode, and always in the ZONES module
+                (openings / splits on the zone delimitation polygons) */}
+            {(effectiveInteractionMode === "DRAW" || isZonesViewer) && (
               <>
                 <Box
                   sx={{

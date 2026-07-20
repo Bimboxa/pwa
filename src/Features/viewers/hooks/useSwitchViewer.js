@@ -37,6 +37,10 @@ export default function useSwitchViewer() {
 
     const targetModule = viewers.find((v) => v.key === viewerKey);
     const editors = targetModule?.editors ?? [viewerKey];
+    // The target module's 2D editor key (MAP for Dessin/POV, ZONES for Zones).
+    const target2dEditorKey = editors.find((e) => !isThreedFamilyViewerKey(e));
+    // 2D map-family editors share the same camera frame (MainMapEditorV3).
+    const from2dMapEditor = ["MAP", "ZONES"].includes(effectiveFromKey);
 
     // Resolve the editor the target module will display.
     let targetEditorKey;
@@ -48,8 +52,8 @@ export default function useSwitchViewer() {
     ) {
       // Inherit the currently displayed editor family (no camera jump).
       targetEditorKey = "THREED";
-    } else if (effectiveFromKey === "MAP" && editors.includes("MAP")) {
-      targetEditorKey = "MAP";
+    } else if (from2dMapEditor && target2dEditorKey) {
+      targetEditorKey = target2dEditorKey;
     } else {
       // From an unrelated editor (BASE_MAPS, PORTFOLIO...): keep the target
       // module's memory. POV keeps its own editor mode until it migrates to
@@ -59,8 +63,8 @@ export default function useSwitchViewer() {
           ? povViewerMode
           : (editorKeyByModule?.[viewerKey] ?? editors[0]);
     }
-    if (disable3D && targetEditorKey === "THREED" && editors.includes("MAP"))
-      targetEditorKey = "MAP";
+    if (disable3D && targetEditorKey === "THREED" && target2dEditorKey)
+      targetEditorKey = target2dEditorKey;
 
     const commit = (d) => {
       if (editors.length > 1) {
@@ -81,9 +85,9 @@ export default function useSwitchViewer() {
     const fromThreed = isThreedFamilyViewerKey(effectiveFromKey);
     const toThreed = isThreedFamilyViewerKey(targetEditorKey);
 
-    if (effectiveFromKey === "MAP" && toThreed) {
+    if (from2dMapEditor && toThreed) {
       switchMapToThreed({ dispatch, baseMap, basePose, commit });
-    } else if (fromThreed && targetEditorKey === "MAP") {
+    } else if (fromThreed && ["MAP", "ZONES"].includes(targetEditorKey)) {
       switchThreedToMap({ dispatch, baseMap, basePose, commit });
     } else {
       commit(dispatch);
