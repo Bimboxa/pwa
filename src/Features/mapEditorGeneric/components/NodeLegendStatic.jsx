@@ -80,7 +80,7 @@ export default memo(function NodeLegendStatic({
     } = spriteImage || {};
 
     // Helper Icon Component (Statique)
-    function LegendIcon({ type, iconKey, fillColor, strokeColor, fillType, strokeType, variant }) {
+    function LegendIcon({ type, iconKey, fillColor, strokeColor, fillType, strokeType, variant, topViewDataUrl }) {
         const commonStyle = {
             width: `${ICON_PX}px`,
             height: `${ICON_PX}px`,
@@ -143,6 +143,27 @@ export default memo(function NodeLegendStatic({
                     //border: `2px solid ${fillColor}`
                 }}>
                     <Rectangle style={{ ...muiIconStyle }} />
+                </div>
+            );
+        }
+
+        if (type === "OBJECT_3D") {
+            return (
+                <div style={{ ...commonStyle, background: "white" }}>
+                    {topViewDataUrl ? (
+                        <img
+                            src={topViewDataUrl}
+                            alt=""
+                            style={{
+                                width: "100%",
+                                height: "100%",
+                                objectFit: "contain",
+                                display: "block",
+                            }}
+                        />
+                    ) : (
+                        <Square style={{ ...muiIconStyle }} />
+                    )}
                 </div>
             );
         }
@@ -296,6 +317,7 @@ export default memo(function NodeLegendStatic({
                                             strokeType={it.strokeType}
                                             fillType={it.fillType}
                                             closeLine={it.closeLine}
+                                            topViewDataUrl={it.topViewDataUrl}
                                         />
                                     </div>
                                     <div

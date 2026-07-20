@@ -4,11 +4,13 @@ import { Box } from "@mui/material";
 
 import { resolveShapeCategory } from "Features/annotations/constants/drawingShapes.jsx";
 import { resolveDrawingShape } from "Features/annotations/constants/drawingShapeConfig";
+import useObject3DTopView from "Features/object3D/hooks/useObject3DTopView";
 
 export default function AnnotationTemplateIcon({ template, size = 20, spriteImage }) {
   // helpers
 
   const shape = resolveDrawingShape(template);
+  const topViewUrl = useObject3DTopView(template?.object3D);
   const shapeType = resolveShapeCategory(shape);
   const color =
     shapeType === "polyline"
@@ -55,6 +57,29 @@ export default function AnnotationTemplateIcon({ template, size = 20, spriteImag
     const row = Math.floor(index / columns);
     return { x: col * tile, y: row * tile, tile };
   }, [hasSprite, spriteImage, template.iconKey]);
+
+  // render — OBJECT_3D template: show the 2D top view of the object
+  if (shape === "OBJECT_3D" && topViewUrl) {
+    return (
+      <Box
+        sx={{
+          width: size,
+          height: size,
+          flexShrink: 0,
+          borderRadius: 0.5,
+          overflow: "hidden",
+          border: "1px solid",
+          borderColor: "divider",
+        }}
+      >
+        <Box
+          component="img"
+          src={topViewUrl}
+          sx={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }}
+        />
+      </Box>
+    );
+  }
 
   // render — IMAGE template: show image preview or image icon
   if (shape === "IMAGE") {

@@ -126,6 +126,9 @@ export default function useThreedLegendItems(annotations) {
           strokeType: annotation.strokeType,
           variant: annotation.variant,
           closeLine: annotation.closeLine,
+          topViewDataUrl:
+            template.object3D?.topViewDataUrl ??
+            annotation.object3D?.topViewDataUrl,
           groupLabel: template.groupLabel,
           label: (() => {
             const base =
