@@ -589,8 +589,9 @@ function AnnotationTemplateRow({
     isThreedFamilyViewerKey(s.viewers.selectedViewerKey)
   );
   // Dessin module toggled to its 3D editor (raw module key stays "MAP"):
-  // only OBJECT_3D templates can start a draw there (3D placement mode) —
-  // other shapes would set a dead-end 2D drawing state.
+  // only OBJECT_3D (3D placement mode) and POLYGON / POLYLINE templates
+  // (template-driven 3D face drawing) can start a draw there — other shapes
+  // would set a dead-end 2D drawing state.
   const isThreedToggledEditor = useSelector((s) =>
     isThreedFamilyViewerKey(selectEffectiveViewerKey(s))
   );
@@ -628,7 +629,11 @@ function AnnotationTemplateRow({
 
   const handleStartDraw = () => {
     if (isEditing || !activeTool) return;
-    if (isThreedToggledEditor && drawingShape !== "OBJECT_3D") return;
+    if (
+      isThreedToggledEditor &&
+      !["OBJECT_3D", "POLYGON", "POLYLINE"].includes(drawingShape)
+    )
+      return;
     dispatch(setSelectedListingId(listingId));
     const baseProps = getNewAnnotationPropsFromAnnotationTemplate(annotationTemplate);
     if (activeTool.annotationType) {
@@ -692,7 +697,11 @@ function AnnotationTemplateRow({
   const handleSelectTool = (tool) => {
     dispatch(setSelectedToolKeyForTemplate({ templateId: annotationTemplate?.id, toolKey: tool.key }));
     // Activate drawing with this tool
-    if (isThreedToggledEditor && drawingShape !== "OBJECT_3D") return;
+    if (
+      isThreedToggledEditor &&
+      !["OBJECT_3D", "POLYGON", "POLYLINE"].includes(drawingShape)
+    )
+      return;
     dispatch(setSelectedListingId(listingId));
     const baseProps = getNewAnnotationPropsFromAnnotationTemplate(annotationTemplate);
     if (tool.annotationType) {

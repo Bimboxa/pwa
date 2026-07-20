@@ -74,6 +74,7 @@ import BottomToolbarThreed from "Features/threedDrawing/components/BottomToolbar
 import DrawingOverlayThreed from "Features/threedDrawing/components/DrawingOverlayThreed";
 import MoveGizmoThreed from "Features/threedDrawing/components/MoveGizmoThreed";
 import useDrawingPointerHandlers from "Features/threedDrawing/hooks/useDrawingPointerHandlers";
+import useTemplateFaceDrawBridge from "Features/threedDrawing/hooks/useTemplateFaceDrawBridge";
 import {
   clearSubSelection,
   setSubSelection,
@@ -247,6 +248,7 @@ export default function MainThreedEditor() {
   useMeshingPointerHandlers();
   useWalkMode();
   useObject3DPlacementHandlers();
+  useTemplateFaceDrawBridge();
 
   // Drive the 3D clipping plane from the 2D-defined segment (top view).
   useSyncClippingPlanTo3D({ threedEditorRef, rendererIsReady });

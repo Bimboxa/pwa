@@ -2,6 +2,8 @@ import { useEffect, useRef } from "react";
 
 import { useDispatch, useSelector } from "react-redux";
 
+import { setNewAnnotation } from "Features/annotations/annotationsSlice";
+import { setEnabledDrawingMode } from "Features/mapEditor/mapEditorSlice";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 import {
   bumpSnapIndexEpoch,
@@ -11,7 +13,10 @@ import {
   pushDrawingVertex,
 } from "Features/threedEditor/threedEditorSlice";
 
+import useCreateAnnotation from "Features/annotations/hooks/useCreateAnnotation";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
+import useCreateEntity from "Features/entities/hooks/useCreateEntity";
+import useNewEntity from "Features/entities/hooks/useNewEntity";
 
 import commitDrawnFaceService from "../services/commitDrawnFaceService";
 import { getLastSnap } from "../services/lastSnapStore";
@@ -43,6 +48,27 @@ export default function useDrawingPointerHandlers() {
   const listingId = useSelector((s) => s.listings.selectedListingId);
 
   const baseMaps = useBaseMaps()?.value;
+
+  // Template-driven mode (see useTemplateFaceDrawBridge): the committed face
+  // carries the armed template + entity + layer instead of isPendingTemplate.
+  const createAnnotation = useCreateAnnotation();
+  const createEntity = useCreateEntity();
+  const newEntity = useNewEntity();
+  const newAnnotation = useSelector((s) => s.annotations.newAnnotation);
+  const activeLayerId = useSelector((s) => s.layers?.activeLayerId);
+
+  const newAnnotationRef = useRef(newAnnotation);
+  useEffect(() => {
+    newAnnotationRef.current = newAnnotation;
+  }, [newAnnotation]);
+  const newEntityRef = useRef(newEntity);
+  useEffect(() => {
+    newEntityRef.current = newEntity;
+  }, [newEntity]);
+  const activeLayerIdRef = useRef(activeLayerId);
+  useEffect(() => {
+    activeLayerIdRef.current = activeLayerId;
+  }, [activeLayerId]);
 
   const downPosRef = useRef(null);
   const isDraggingRef = useRef(false);
@@ -86,7 +112,7 @@ export default function useDrawingPointerHandlers() {
       };
       const nextPolyline = [...inProgressPolyline, newVertex];
 
-      let detected = null;
+      let detectedFaces = [];
       if (nextPolyline.length >= 2) {
         const inProgressSegments = [];
         for (let i = 0; i < nextPolyline.length - 1; i++) {
@@ -97,19 +123,47 @@ export default function useDrawingPointerHandlers() {
         }
         const allSegments = [...trait3DSegments, ...inProgressSegments];
         const lastIdx = allSegments.length - 1;
-        detected = detectClosedFace(allSegments, lastIdx);
+        detectedFaces = detectClosedFace(allSegments, lastIdx);
       }
 
-      if (detected) {
+      if (detectedFaces.length > 0) {
         try {
-          const created = await commitDrawnFaceService({
-            cornersInOrder: detected.cornersInOrder,
-            baseMaps: baseMaps || [],
-            projectId,
-            listingId,
-          });
-          if (created) {
-            dispatch(consumeFaceSegments(detected.consumedSegments));
+          const na = newAnnotationRef.current;
+          const hasTemplate = Boolean(
+            na?.annotationTemplateId &&
+              (na?.type === "POLYGON" || na?.type === "POLYLINE")
+          );
+          // Several closures (e.g. a notch diagonal closing both the floor
+          // triangle and the wall rectangle) all commit — one annotation
+          // (and entity) per face; the user deletes the unwanted one.
+          let committedAny = false;
+          const consumed = [];
+          for (const face of detectedFaces) {
+            // Entity parity with the 2D commit (useHandleCommitDrawing):
+            // free annotations are backed by a hidden system template and
+            // carry no entity.
+            let entityId = null;
+            if (hasTemplate && !na.isFreeAnnotation) {
+              const entity = await createEntity(newEntityRef.current);
+              entityId = entity?.id ?? null;
+            }
+            const created = await commitDrawnFaceService({
+              cornersInOrder: face.cornersInOrder,
+              baseMaps: baseMaps || [],
+              projectId,
+              listingId,
+              templateProps: hasTemplate ? na : null,
+              entityId,
+              layerId: hasTemplate ? (activeLayerIdRef.current ?? null) : null,
+              createAnnotationFn: hasTemplate ? createAnnotation : null,
+            });
+            if (created) {
+              committedAny = true;
+              consumed.push(...face.consumedSegments);
+            }
+          }
+          if (committedAny) {
+            dispatch(consumeFaceSegments(consumed));
             // Schedule a snap-index rebuild so the freshly-created
             // annotation's vertices/edges become snappable. Delay lets the
             // db → liveQuery → AnnotationsManager pipeline add the new
@@ -133,7 +187,15 @@ export default function useDrawingPointerHandlers() {
       if (e.key === "Enter") {
         dispatch(flushInProgressAsTrait3D());
       } else if (e.key === "Escape") {
-        dispatch(cancelInProgressPolyline());
+        const na = newAnnotationRef.current;
+        if (inProgressPolyline.length === 0 && na?.annotationTemplateId) {
+          // Template-driven mode, nothing in progress: exit entirely by
+          // clearing the 2D drawing state (the bridge deactivates the mode).
+          dispatch(setEnabledDrawingMode(null));
+          dispatch(setNewAnnotation({}));
+        } else {
+          dispatch(cancelInProgressPolyline());
+        }
       }
     }
 

@@ -3,8 +3,9 @@ import { nanoid } from "@reduxjs/toolkit";
 import db from "App/db/db";
 
 import createAnnotationService from "Features/annotations/services/createAnnotationService";
-import { getDefaultsForShape } from "Features/annotations/constants/drawingShapeConfig";
 
+import buildFaceAnnotationFields from "../utils/buildFaceAnnotationFields";
+import buildVerticalBandPoints from "../utils/buildVerticalBandPoints";
 import classifyFaceVsBaseMap from "../utils/classifyFaceVsBaseMap";
 import pickHostBaseMap from "../utils/pickHostBaseMap";
 import roundForDisplay from "../utils/roundForDisplay";
@@ -95,6 +96,12 @@ async function insertOrReusePoints({
 //   - cornersInOrder: ordered 3D vertices of the face (length >= 3)
 //   - baseMaps: array of resolved BaseMap instances to choose host from
 //   - projectId, listingId: ownership for the new annotation/points
+//   - templateProps: the template-armed newAnnotation (template-driven mode);
+//     null for the template-less ButtonDrawThreed entry (isPendingTemplate)
+//   - entityId / layerId: linkage for the template-driven mode
+//   - createAnnotationFn: useCreateAnnotation's fn — routes the templated
+//     commit through mapping-category rels + update triggers; falls back to
+//     the plain createAnnotationService when absent
 //
 // Returns the created annotation record, or null on failure (no host baseMap,
 // degenerate geometry, etc.).
@@ -103,6 +110,10 @@ export default async function commitDrawnFaceService({
   baseMaps,
   projectId,
   listingId,
+  templateProps = null,
+  entityId = null,
+  layerId = null,
+  createAnnotationFn = null,
 }) {
   if (!cornersInOrder?.length || cornersInOrder.length < 3) return null;
   if (!baseMaps?.length) return null;
@@ -118,7 +129,6 @@ export default async function commitDrawnFaceService({
 
   switch (classification.kind) {
     case "PARALLEL": {
-      const polygonDefaults = getDefaultsForShape("POLYGON");
       projectedPoints = dedupeAdjacent(
         classification.projected.map((p) => ({
           x: p.x,
@@ -128,45 +138,40 @@ export default async function commitDrawnFaceService({
         }))
       );
       if (projectedPoints.length < 3) return null;
-      annotationFields = {
-        type: "POLYGON",
-        offsetZ: roundForDisplay(classification.offset),
-        height: 0,
-        ...polygonDefaults,
-      };
+      annotationFields = buildFaceAnnotationFields({
+        classifiedShape: "POLYGON",
+        classificationFields: {
+          type: "POLYGON",
+          offsetZ: roundForDisplay(classification.offset),
+          height: 0,
+        },
+        templateProps,
+      });
       break;
     }
     case "PERPENDICULAR": {
-      // Vertical face (perpendicular to baseMap plane). Renders as a closed
-      // POLYLINE walking the face's cycle, with per-vertex `offsetTop` so the
-      // top edge follows the actual 3D geometry. extrudePolylineWall builds
-      // one quad per cycle segment; degenerate ones (sol-à-sol or stacked
-      // vertically) collapse to triangles or zero-area, which is exactly
-      // what we want for ribbons (rectangles), vertical triangles, vertical
-      // N-gons, etc.
-      const polylineDefaults = getDefaultsForShape("POLYLINE");
-      const offsets = classification.projected.map((p) => p.offset);
-      const minOffset = Math.min(...offsets);
-      const maxOffset = Math.max(...offsets);
-      const wallHeight = maxOffset - minOffset;
-      projectedPoints = classification.projected.map((p) => ({
-        x: p.x,
-        y: p.y,
-        offsetBottom: 0,
-        offsetTop: roundForDisplay(p.offset - maxOffset),
-      }));
-      if (projectedPoints.length < 2) return null;
-      annotationFields = {
-        type: "POLYLINE",
-        closeLine: true,
-        offsetZ: roundForDisplay(minOffset),
-        height: roundForDisplay(wallHeight),
-        ...polylineDefaults,
-      };
+      // Vertical face (perpendicular to baseMap plane). Encoded as an OPEN
+      // POLYLINE band — one point per unique plan position with per-vertex
+      // offsetBottom/offsetTop wrapping the local z interval (see
+      // buildVerticalBandPoints) — so triangles, gables and ribbons render
+      // exactly instead of walking the cycle (which double-covered the band
+      // and drew the full bounding rectangle).
+      const band = buildVerticalBandPoints(classification.projected);
+      if (!band) return null;
+      projectedPoints = band.points;
+      annotationFields = buildFaceAnnotationFields({
+        classifiedShape: "POLYLINE",
+        classificationFields: {
+          type: "POLYLINE",
+          closeLine: false,
+          offsetZ: band.offsetZ,
+          height: band.height,
+        },
+        templateProps,
+      });
       break;
     }
     case "OBLIQUE": {
-      const polygonDefaults = getDefaultsForShape("POLYGON");
       // Triangulator Z math (per docstring of triangulateAnnotationGeometry):
       //   top = verticalLift + height + offsetBottom + offsetTop
       // For a flat polygon (height = 0), both offsetBottom and offsetTop
@@ -184,12 +189,15 @@ export default async function commitDrawnFaceService({
         }))
       );
       if (projectedPoints.length < 3) return null;
-      annotationFields = {
-        type: "POLYGON",
-        offsetZ: roundForDisplay(baseOffset),
-        height: 0,
-        ...polygonDefaults,
-      };
+      annotationFields = buildFaceAnnotationFields({
+        classifiedShape: "POLYGON",
+        classificationFields: {
+          type: "POLYGON",
+          offsetZ: roundForDisplay(baseOffset),
+          height: 0,
+        },
+        templateProps,
+      });
       break;
     }
     default:
@@ -208,13 +216,19 @@ export default async function commitDrawnFaceService({
     projectId,
     listingId,
     baseMapId: host.id,
-    annotationTemplateId: null,
-    isPendingTemplate: true,
+    annotationTemplateId: templateProps?.annotationTemplateId ?? null,
+    // The pending-template flow only exists for the template-less entry
+    // (ButtonDrawThreed); it lets the record pass createAnnotationService's
+    // guard until the user assigns a template.
+    ...(templateProps ? {} : { isPendingTemplate: true }),
+    ...(entityId ? { entityId } : {}),
+    ...(layerId ? { layerId } : {}),
     points: pointRefs,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     ...annotationFields,
   };
 
-  return await createAnnotationService(annotation);
+  const create = createAnnotationFn ?? createAnnotationService;
+  return await create(annotation);
 }

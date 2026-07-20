@@ -51,43 +51,103 @@ function buildGraph(segments, meshAdj) {
   return { nodes, adj };
 }
 
-function bfsShortestPath(adj, startKey, endKey, forbiddenEdgeIdx) {
-  if (startKey === endKey) return null;
-  const prev = new Map();
-  prev.set(startKey, null);
-  const queue = [startKey];
+// Enumeration guards. Candidate closures may legitimately be longer than the
+// shortest one (a wall rectangle behind a shorter cap triangle), so the DFS
+// explores up to shortest + MAX_EXTRA_EDGES — bounded, since junk closures
+// (e.g. the complementary region of a split face) are discarded later by the
+// shortest-per-plane rule.
+const MAX_CANDIDATE_PATHS = 64;
+const MAX_EXTRA_EDGES = 2;
+const MAX_CYCLE_EDGES = 10;
+
+// All simple paths startKey → endKey with at most (shortest + MAX_EXTRA_EDGES)
+// edges, excluding the just-drawn segment and the direct startKey → endKey
+// step. Pruned by a reverse-BFS distance-to-end bound.
+function enumerateClosingPaths(adj, startKey, endKey, forbiddenEdgeIdx) {
+  if (startKey === endKey) return [];
+
+  const distEnd = new Map([[endKey, 0]]);
+  const queue = [endKey];
   while (queue.length) {
     const cur = queue.shift();
-    if (cur === endKey) break;
-    const neighbors = adj.get(cur) || [];
-    for (const { neighborKey, edgeIdx } of neighbors) {
+    const d = distEnd.get(cur);
+    for (const { neighborKey } of adj.get(cur) || []) {
+      if (!distEnd.has(neighborKey)) {
+        distEnd.set(neighborKey, d + 1);
+        queue.push(neighborKey);
+      }
+    }
+  }
+  const shortest = distEnd.get(startKey);
+  if (shortest == null) return [];
+  const maxLen = Math.min(
+    Math.max(shortest, 2) + MAX_EXTRA_EDGES,
+    MAX_CYCLE_EDGES
+  );
+
+  const paths = [];
+  const visited = new Set([startKey]);
+  function dfs(cur, pathNodes, edgeIdxs) {
+    if (paths.length >= MAX_CANDIDATE_PATHS) return;
+    for (const { neighborKey, edgeIdx } of adj.get(cur) || []) {
       if (edgeIdx === forbiddenEdgeIdx && edgeIdx !== MESH_EDGE_IDX) continue;
       // Forbid the direct startKey → endKey step regardless of which edge
       // it would take. The just-added user segment IS this direct edge; if
       // a *parallel* mesh edge exists between the same pair, taking it
       // would yield a degenerate 2-edge cycle. We want cycles of length ≥
-      // 3 (i.e., BFS path length ≥ 2).
+      // 3 (i.e., path length ≥ 2).
       if (cur === startKey && neighborKey === endKey) continue;
-      if (prev.has(neighborKey)) continue;
-      prev.set(neighborKey, { from: cur, edgeIdx });
-      queue.push(neighborKey);
+      if (neighborKey === endKey) {
+        if (edgeIdxs.length + 1 >= 2) {
+          paths.push({
+            pathNodes: [...pathNodes, endKey],
+            edgeIdxs: [...edgeIdxs, edgeIdx],
+          });
+        }
+        continue;
+      }
+      if (visited.has(neighborKey)) continue;
+      const bound = edgeIdxs.length + 1 + (distEnd.get(neighborKey) ?? Infinity);
+      if (bound > maxLen) continue;
+      visited.add(neighborKey);
+      dfs(neighborKey, [...pathNodes, neighborKey], [...edgeIdxs, edgeIdx]);
+      visited.delete(neighborKey);
     }
   }
-  if (!prev.has(endKey)) return null;
+  dfs(startKey, [startKey], []);
+  return paths;
+}
 
-  const pathNodes = [];
-  const edgeIdxs = [];
-  let cur = endKey;
-  while (cur !== startKey) {
-    const step = prev.get(cur);
-    pathNodes.push(cur);
-    edgeIdxs.push(step.edgeIdx);
-    cur = step.from;
+// Canonical key of the plane holding a coplanar cycle (Newell normal with a
+// canonical sign + quantized offset). Used to group candidate closures: two
+// closures in the SAME plane are alternatives splitting that plane (keep the
+// shortest ones), while closures in different planes are genuinely different
+// faces (commit them all).
+function planeKeyOf(points) {
+  let nx = 0,
+    ny = 0,
+    nz = 0;
+  for (let i = 0; i < points.length; i++) {
+    const p = points[i];
+    const q = points[(i + 1) % points.length];
+    nx += (p.y - q.y) * (p.z + q.z);
+    ny += (p.z - q.z) * (p.x + q.x);
+    nz += (p.x - q.x) * (p.y + q.y);
   }
-  pathNodes.push(startKey);
-  pathNodes.reverse();
-  edgeIdxs.reverse();
-  return { pathNodes, edgeIdxs };
+  const len = Math.sqrt(nx * nx + ny * ny + nz * nz);
+  if (len < 1e-12) return "degenerate";
+  nx /= len;
+  ny /= len;
+  nz /= len;
+  if (nx < -1e-6 || (nx <= 1e-6 && (ny < -1e-6 || (ny <= 1e-6 && nz < 0)))) {
+    nx = -nx;
+    ny = -ny;
+    nz = -nz;
+  }
+  const d = nx * points[0].x + ny * points[0].y + nz * points[0].z;
+  return `${Math.round(nx * 100)}_${Math.round(ny * 100)}_${Math.round(
+    nz * 100
+  )}_${Math.round(d * 200)}`;
 }
 
 function isCoplanar(points) {
@@ -146,43 +206,70 @@ function isCoplanar(points) {
   return true;
 }
 
-// Detect a closed coplanar cycle that contains the segment at index
-// `lastSegmentIdx` (the one just added by the user) AND at least one OTHER
-// user/trait segment. Mesh edges (from existing geometry) act as silent
-// borders — they connect picked vertices through actual mesh topology so
-// the user doesn't have to redraw them.
+// Detect the closed coplanar cycles that contain the segment at index
+// `lastSegmentIdx` (the one just added by the user). Mesh edges (from
+// existing geometry) act as silent borders — they connect picked vertices
+// through actual mesh topology so the user doesn't have to redraw them.
 //
-// Returns { cornersInOrder: Array<{x,y,z}>, consumedSegments: Array<{a,b}> }
-// or null. consumedSegments only includes user-drawn segments — mesh edges
-// are not consumed.
+// Multiple-closure rule: when the drawn segment closes several faces (e.g. a
+// notch diagonal that closes both the floor triangle and the wall rectangle
+// behind it), ALL of them are returned and committed — the user then deletes
+// the face(s) they don't want. To avoid committing junk, closures lying in
+// the SAME plane are alternatives splitting that plane: only the shortest
+// ones there survive (ties kept — a wall diagonal commits both its upper and
+// lower triangle), which drops e.g. the complementary contour of a split cap.
+//
+// Returns Array<{ cornersInOrder: Array<{x,y,z}>, consumedSegments:
+// Array<{a,b}> }> (empty when nothing closes). consumedSegments only
+// includes user-drawn segments — mesh edges are not consumed.
 export default function detectClosedFace(allSegments, lastSegmentIdx) {
-  if (!Array.isArray(allSegments) || allSegments.length === 0) return null;
-  if (lastSegmentIdx < 0 || lastSegmentIdx >= allSegments.length) return null;
+  if (!Array.isArray(allSegments) || allSegments.length === 0) return [];
+  if (lastSegmentIdx < 0 || lastSegmentIdx >= allSegments.length) return [];
 
   const meshAdj = getMeshAdjacency();
   const { nodes, adj } = buildGraph(allSegments, meshAdj);
   const lastSeg = allSegments[lastSegmentIdx];
   const startKey = quantizeVertex(lastSeg.a);
   const endKey = quantizeVertex(lastSeg.b);
-  if (startKey === endKey) return null;
-  if (!adj.has(startKey) || !adj.has(endKey)) return null;
+  if (startKey === endKey) return [];
+  if (!adj.has(startKey) || !adj.has(endKey)) return [];
 
-  const path = bfsShortestPath(adj, startKey, endKey, lastSegmentIdx);
-  if (!path) return null;
-  if (path.pathNodes.length < 3) return null;
+  const paths = enumerateClosingPaths(adj, startKey, endKey, lastSegmentIdx);
 
-  const cornerPoints = path.pathNodes.map((k) => nodes.get(k));
-  if (!isCoplanar(cornerPoints)) return null;
+  const candidates = [];
+  for (const path of paths) {
+    if (path.pathNodes.length < 3) continue;
+    const cornerPoints = path.pathNodes.map((k) => nodes.get(k));
+    if (!isCoplanar(cornerPoints)) continue;
+    candidates.push({
+      path,
+      cornerPoints,
+      planeKey: planeKeyOf(cornerPoints),
+      len: path.edgeIdxs.length,
+    });
+  }
+  if (candidates.length === 0) return [];
 
-  const consumedSegments = [
-    lastSeg,
-    ...path.edgeIdxs
-      .filter((i) => i !== MESH_EDGE_IDX)
-      .map((i) => allSegments[i]),
-  ];
+  const bestByPlane = new Map(); // planeKey -> Array<candidate> (shortest, ties kept)
+  for (const c of candidates) {
+    const group = bestByPlane.get(c.planeKey);
+    if (!group || c.len < group[0].len) bestByPlane.set(c.planeKey, [c]);
+    else if (c.len === group[0].len) group.push(c);
+  }
 
-  return {
-    cornersInOrder: cornerPoints.map((v) => ({ x: v.x, y: v.y, z: v.z })),
-    consumedSegments,
-  };
+  const faces = [];
+  for (const group of bestByPlane.values()) {
+    for (const { path, cornerPoints } of group) {
+      faces.push({
+        cornersInOrder: cornerPoints.map((v) => ({ x: v.x, y: v.y, z: v.z })),
+        consumedSegments: [
+          lastSeg,
+          ...path.edgeIdxs
+            .filter((i) => i !== MESH_EDGE_IDX)
+            .map((i) => allSegments[i]),
+        ],
+      });
+    }
+  }
+  return faces;
 }

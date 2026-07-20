@@ -1,5 +1,7 @@
 import { useEffect, useMemo } from "react";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
+
+import { bumpSnapIndexEpoch } from "Features/threedEditor/threedEditorSlice";
 
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
@@ -14,6 +16,7 @@ export default function useAutoLoadAnnotationsInThreedEditor({
   threedEditor,
   rendererIsReady,
 }) {
+  const dispatch = useDispatch();
   const selectedViewerKey = useSelector(selectEffectiveViewerKey);
   const isActiveViewer = isThreedFamilyViewerKey(selectedViewerKey);
   const disableOpacity = useSelector((s) => s.threedEditor.disableOpacity);
@@ -110,6 +113,13 @@ export default function useAutoLoadAnnotationsInThreedEditor({
       photorealShading,
       aquarelleShading,
     });
+    // The scene's annotation objects just changed: resync the drawing snap /
+    // face-detection index. Deterministic counterpart of the 350 ms
+    // post-commit bump in useDrawingPointerHandlers, which loses the race
+    // when the liveQuery → resolve → load pipeline takes longer (a freshly
+    // committed face's edges then silently never became snappable). The
+    // rebuild itself only runs while the 3D drawing mode is active.
+    dispatch(bumpSnapIndexEpoch());
   }, [
     rendererIsReady,
     annotationsForThreed,
