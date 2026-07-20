@@ -75,14 +75,15 @@ import DrawingOverlayThreed from "Features/threedDrawing/components/DrawingOverl
 import MoveGizmoThreed from "Features/threedDrawing/components/MoveGizmoThreed";
 import useDrawingPointerHandlers from "Features/threedDrawing/hooks/useDrawingPointerHandlers";
 import useTemplateFaceDrawBridge from "Features/threedDrawing/hooks/useTemplateFaceDrawBridge";
+import useTemplateCoteDrawBridge from "Features/threedDrawing/hooks/useTemplateCoteDrawBridge";
 import {
   clearSubSelection,
   setSubSelection,
 } from "Features/threedEditor/threedEditorSlice";
 import DimensionDraftOverlayThreed from "Features/threedDimensions/components/DimensionDraftOverlayThreed";
-import ThreedDimensions from "Features/threedDimensions/components/ThreedDimensions";
-import PopperEditDimension from "Features/threedDimensions/components/PopperEditDimension";
+import ThreedCoteAnnotations from "Features/threedDimensions/components/ThreedCoteAnnotations";
 import useDimensionPointerHandlers from "Features/threedDimensions/hooks/useDimensionPointerHandlers";
+import useCoteLabelDragHandlers from "Features/threedDimensions/hooks/useCoteLabelDragHandlers";
 import { getDimensionObjects } from "Features/threedDimensions/services/dimensionObjectsStore";
 import MeshingToolbarThreed from "Features/threedMesh/components/MeshingToolbarThreed";
 import MeshingOverlayThreed from "Features/threedMesh/components/MeshingOverlayThreed";
@@ -276,6 +277,8 @@ export default function MainThreedEditor() {
   useWalkMode();
   useObject3DPlacementHandlers();
   useTemplateFaceDrawBridge();
+  useTemplateCoteDrawBridge();
+  useCoteLabelDragHandlers({ rendererIsReady });
 
   // Drive the 3D clipping plane from the 2D-defined segment (top view).
   useSyncClippingPlanTo3D({ threedEditorRef, rendererIsReady });
@@ -503,10 +506,11 @@ export default function MainThreedEditor() {
         return;
       }
 
-      // Dimension ("cote") sprite hit-test — runs before the annotation
-      // raycast (which filters `.isMesh` and so never sees the label sprites).
-      // A cote sprite carries `userData.coteId`; selecting it makes it a
-      // DIMENSION node in selectionSlice so PopperEditDimension shows up.
+      // Cote label sprite hit-test — runs before the annotation raycast
+      // (which filters `.isMesh` and so never sees the label sprites). The
+      // sprite carries the owning COTE annotation id; selecting it dispatches
+      // the SAME payload as the generic annotation branch below, so the
+      // normal annotation popper / properties / Delete-key flows apply.
       const dimensionObjects = getDimensionObjects();
       if (dimensionObjects.length > 0) {
         mouseRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
@@ -517,20 +521,39 @@ export default function MainThreedEditor() {
           raycasterRef.current.intersectObjects(dimensionObjects, false),
           clippingPlane
         );
-        const coteId = coteHits[0]?.object?.userData?.coteId;
-        if (coteId) {
+        const spriteHit = coteHits[0]?.object;
+        const coteAnnotationId = spriteHit?.userData?.annotationId;
+        if (coteAnnotationId) {
+          const { annotationType, listingId, annotationTemplateId } =
+            spriteHit.userData;
+          const item = {
+            id: coteAnnotationId,
+            nodeId: coteAnnotationId,
+            type: "NODE",
+            nodeType: "ANNOTATION",
+            annotationType,
+            listingId,
+            annotationTemplateId,
+          };
           const position = { x: event.clientX, y: event.clientY };
-          dispatch(
-            setSelectedItem({
-              id: coteId,
-              nodeId: coteId,
-              type: "NODE",
-              nodeType: "DIMENSION",
-            })
-          );
-          dispatch(setSelectedNode(null));
+          if (event.shiftKey) {
+            dispatch(toggleItemSelection(item));
+          } else {
+            dispatch(
+              setSelectedNode({
+                id: coteAnnotationId,
+                nodeId: coteAnnotationId,
+                nodeType: "ANNOTATION",
+                annotationType,
+                listingId,
+              })
+            );
+            dispatch(setSelectedItem(item));
+            dispatch(setShowAnnotationsProperties(true));
+          }
           dispatch(clearSubSelection());
           dispatch(setAnnotationToolbarPosition(position));
+          dispatch(setAnnotationsToolbarPosition(position));
           return;
         }
       }
@@ -1701,9 +1724,10 @@ export default function MainThreedEditor() {
         ))}
       {isThreedViewer && <DrawingOverlayThreed />}
       {isThreedViewer && <MoveGizmoThreed />}
-      {isThreedViewer && rendererIsReady && <ThreedDimensions />}
+      {isThreedViewer && rendererIsReady && (
+        <ThreedCoteAnnotations annotations={annotations} />
+      )}
       {isThreedViewer && <DimensionDraftOverlayThreed />}
-      {isThreedViewer && <PopperEditDimension viewerKey="THREED" />}
       {isThreedViewer && rendererIsReady && <ThreedMeshes />}
       {isThreedViewer && <MeshingOverlayThreed />}
       {isThreedViewer && <ShootLanceOverlayThreed />}

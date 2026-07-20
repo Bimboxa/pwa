@@ -589,9 +589,10 @@ function AnnotationTemplateRow({
     isThreedFamilyViewerKey(s.viewers.selectedViewerKey)
   );
   // Dessin module toggled to its 3D editor (raw module key stays "MAP"):
-  // only OBJECT_3D (3D placement mode) and POLYGON / POLYLINE templates
-  // (template-driven 3D face drawing) can start a draw there — other shapes
-  // would set a dead-end 2D drawing state.
+  // only OBJECT_3D (3D placement mode), POLYGON / POLYLINE templates
+  // (template-driven 3D face drawing) and COTE templates (template-driven
+  // 2-click cote) can start a draw there — other shapes would set a
+  // dead-end 2D drawing state.
   const isThreedToggledEditor = useSelector((s) =>
     isThreedFamilyViewerKey(selectEffectiveViewerKey(s))
   );
@@ -631,7 +632,7 @@ function AnnotationTemplateRow({
     if (isEditing || !activeTool) return;
     if (
       isThreedToggledEditor &&
-      !["OBJECT_3D", "POLYGON", "POLYLINE"].includes(drawingShape)
+      !["OBJECT_3D", "POLYGON", "POLYLINE", "COTE"].includes(drawingShape)
     )
       return;
     dispatch(setSelectedListingId(listingId));
@@ -699,7 +700,7 @@ function AnnotationTemplateRow({
     // Activate drawing with this tool
     if (
       isThreedToggledEditor &&
-      !["OBJECT_3D", "POLYGON", "POLYLINE"].includes(drawingShape)
+      !["OBJECT_3D", "POLYGON", "POLYLINE", "COTE"].includes(drawingShape)
     )
       return;
     dispatch(setSelectedListingId(listingId));

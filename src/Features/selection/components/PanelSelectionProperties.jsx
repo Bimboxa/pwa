@@ -25,7 +25,6 @@ import PanelPropertiesSegment from "Features/points/components/PanelPropertiesSe
 import PanelPropertiesGuideline from "Features/annotations/components/PanelPropertiesGuideline";
 import PanelPropertiesPointsAndSegments from "Features/points/components/PanelPropertiesPointsAndSegments";
 import PanelMesh3dProperties from "Features/threedMesh/components/PanelMesh3dProperties";
-import PanelDimension3dProperties from "Features/threedDimensions/components/PanelDimension3dProperties";
 import PanelPovProperties from "Features/pov/components/PanelPovProperties";
 import PanelPovFrameProperties from "Features/pov/components/PanelPovFrameProperties";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
@@ -126,13 +125,6 @@ export default function PanelSelectionProperties() {
     // Maille(s) selected in the 3D viewer — the panel handles both single and
     // multi selections (mirroring ToolbarEditMesh3d / ToolbarEditMeshes3d).
     type = "MESH3D";
-  } else if (
-    isThreedViewer &&
-    selectedItem?.type === "NODE" &&
-    selectedItem?.nodeType === "DIMENSION"
-  ) {
-    // Cote selected in the 3D viewer (always a single selection).
-    type = "DIMENSION3D";
   } else if (
     isThreedViewer &&
     selectedItem?.type === "NODE" &&
@@ -243,7 +235,6 @@ export default function PanelSelectionProperties() {
 
       {type === "MESH3D" && <PanelMesh3dProperties />}
 
-      {type === "DIMENSION3D" && <PanelDimension3dProperties />}
 
       {type === "POV" && <PanelPovProperties />}
 

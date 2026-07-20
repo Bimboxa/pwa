@@ -4,6 +4,10 @@ import { darken } from "@mui/material/styles";
 import getCoteDisplayValue from "Features/annotations/utils/getCoteDisplayValue";
 import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
 
+// Default screen-px placement of a degenerate (vertical) cote's value label
+// relative to its marker, when the user hasn't dragged it yet.
+const DEGENERATE_LABEL_DEFAULT_OFFSET = { x: 12, y: -12 };
+
 export default function NodeCoteStatic({
   annotation,
   annotationOverride,
@@ -191,17 +195,177 @@ export default function NodeCoteStatic({
     ]
   );
 
+  // ---- degenerate (vertical) cote label drag ----
+  // The label of a degenerate cote has no perpendicular direction to slide
+  // along; instead it carries a free 2D placement offset in SCREEN px
+  // (`annotation.labelOffset`), consistent with the label's constant
+  // on-screen size — 1 dragged client px = 1 offset px.
+
+  const storedLabelOffset = merged?.labelOffset;
+  const degenerateDragRef = useRef(null);
+  const [dragLabelOffset, setDragLabelOffset] = useState(null);
+
+  const handleDegenerateLabelPointerDown = useCallback(
+    (e) => {
+      if (printMode || isTransient) return;
+      if (e.button !== undefined && e.button !== 0) return;
+      const initial = storedLabelOffset ?? DEGENERATE_LABEL_DEFAULT_OFFSET;
+      degenerateDragRef.current = {
+        startClient: { x: e.clientX, y: e.clientY },
+        initialOffset: { x: initial.x, y: initial.y },
+      };
+      try {
+        e.target.setPointerCapture?.(e.pointerId);
+      } catch {
+        /* noop */
+      }
+      e.stopPropagation();
+      e.preventDefault?.();
+    },
+    [storedLabelOffset, printMode, isTransient]
+  );
+
+  const handleDegenerateLabelPointerMove = useCallback((e) => {
+    const drag = degenerateDragRef.current;
+    if (!drag) return;
+    setDragLabelOffset({
+      x: drag.initialOffset.x + (e.clientX - drag.startClient.x),
+      y: drag.initialOffset.y + (e.clientY - drag.startClient.y),
+    });
+    e.stopPropagation();
+  }, []);
+
+  const handleDegenerateLabelPointerUp = useCallback(
+    async (e) => {
+      const drag = degenerateDragRef.current;
+      if (!drag) return;
+      degenerateDragRef.current = null;
+      try {
+        e.target.releasePointerCapture?.(e.pointerId);
+      } catch {
+        /* noop */
+      }
+      const next = dragLabelOffset ?? drag.initialOffset;
+      try {
+        await updateAnnotation({
+          id: annotationId,
+          labelOffset: { x: Math.round(next.x), y: Math.round(next.y) },
+        });
+      } finally {
+        setDragLabelOffset(null);
+      }
+      e.stopPropagation();
+    },
+    [annotationId, dragLabelOffset, updateAnnotation]
+  );
+
   // ---- geometry — points are already resolved to pixel coordinates ----
 
   if (!points || points.length < 2) return null;
   const p1 = points[0];
   const p2 = points[1];
   if (!p1 || !p2) return null;
-  if (p1.x === p2.x && p1.y === p2.y) return null;
+
+  // vertical delta between the two endpoints (meters) — non-zero for cotes
+  // drawn in 3D; the annotation-level offsetZ cancels out in the difference.
+  const deltaZMeters = (p2.offsetBottom ?? 0) - (p1.offsetBottom ?? 0);
 
   const dx = p2.x - p1.x;
   const dy = p2.y - p1.y;
   const length = Math.hypot(dx, dy);
+
+  const strokeOpacity = selected ? 1 : (merged.strokeOpacity ?? 1);
+
+  const labelCursor = printMode || isTransient ? "default" : "grab";
+
+  // value text — measured between the click points (not the offset line)
+
+  const valueText = getCoteDisplayValue({
+    p1,
+    p2,
+    meterByPx: baseMapMeterByPx,
+    unit,
+    decimals,
+    showUnitLabel,
+    deltaZMeters,
+  });
+
+  // Degenerate cote: both endpoints project to (nearly) the same plan
+  // position — e.g. a vertical cote drawn in 3D. Render a small marker, a
+  // dashed leader line and the value ("ht: …"); the label is draggable and
+  // its free screen-px placement is stored in `annotation.labelOffset`.
+  if (length < 0.5) {
+    const labelOffset =
+      dragLabelOffset ?? storedLabelOffset ?? DEGENERATE_LABEL_DEFAULT_OFFSET;
+    const lx = labelOffset.x;
+    const ly = labelOffset.y;
+    return (
+      <g {...dataProps} ref={rootGRef}>
+        <g transform={`translate(${p1.x}, ${p1.y})`}>
+          <g
+            style={
+              counterScaleTransform
+                ? { transform: counterScaleTransform }
+                : undefined
+            }
+          >
+            <circle
+              r={10}
+              fill="transparent"
+              style={{ cursor: "pointer", pointerEvents: "all" }}
+            />
+            <circle
+              r={3}
+              fill={displayStrokeColor}
+              fillOpacity={strokeOpacity}
+              stroke={selected ? "#2196f3" : "none"}
+              strokeWidth={selected ? 2 : 0}
+              pointerEvents="none"
+            />
+            {/* leader line: measured point → value label */}
+            <line
+              x1={0}
+              y1={0}
+              x2={lx}
+              y2={ly}
+              stroke={displayStrokeColor}
+              strokeOpacity={strokeOpacity}
+              strokeWidth={1}
+              strokeDasharray="3 3"
+              pointerEvents="none"
+            />
+            <text
+              x={lx}
+              y={ly}
+              textAnchor={lx >= 0 ? "start" : "end"}
+              dominantBaseline={ly <= 0 ? "alphabetic" : "hanging"}
+              fontSize={fontSize}
+              fontFamily='"Roboto", "Helvetica", "Arial", sans-serif'
+              fill={displayStrokeColor}
+              data-cote-label="1"
+              onPointerDown={handleDegenerateLabelPointerDown}
+              onPointerMove={handleDegenerateLabelPointerMove}
+              onPointerUp={handleDegenerateLabelPointerUp}
+              onPointerCancel={handleDegenerateLabelPointerUp}
+              style={{
+                userSelect: "none",
+                cursor: labelCursor,
+                pointerEvents: "auto",
+                paintOrder: "stroke",
+                stroke: "white",
+                strokeWidth: 3,
+                strokeLinejoin: "round",
+                touchAction: "none",
+              }}
+            >
+              {`ht: ${valueText}`}
+            </text>
+          </g>
+        </g>
+      </g>
+    );
+  }
+
   const ux = dx / length;
   const uy = dy / length;
   // canonical perpendicular unit vector (90° CW in y-down screen coords)
@@ -215,17 +379,6 @@ export default function NodeCoteStatic({
   const D2 = { x: p2.x + ox, y: p2.y + oy };
 
   const showExtensions = Math.abs(effectiveOffsetPx) > 0.001;
-
-  // value text — measured between the click points (not the offset line)
-
-  const valueText = getCoteDisplayValue({
-    p1,
-    p2,
-    meterByPx: baseMapMeterByPx,
-    unit,
-    decimals,
-    showUnitLabel,
-  });
 
   // label transform — at midpoint of the dimension line, rotated, upright
 
@@ -249,10 +402,6 @@ export default function NodeCoteStatic({
   const offsetSign = effectiveOffsetPx >= 0 ? 1 : -1;
   const flipSign = textFlip ? -1 : 1;
   const textNormalSign = flipSign * offsetSign;
-
-  const strokeOpacity = selected ? 1 : (merged.strokeOpacity ?? 1);
-
-  const labelCursor = printMode || isTransient ? "default" : "grab";
 
   return (
     <g {...dataProps} ref={rootGRef}>

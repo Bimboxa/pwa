@@ -14,7 +14,6 @@ import OpenWithIcon from "@mui/icons-material/OpenWith";
 import ContentCutIcon from "@mui/icons-material/ContentCut";
 
 import ButtonDrawThreed from "./ButtonDrawThreed";
-import ButtonDimensionThreed from "Features/threedDimensions/components/ButtonDimensionThreed";
 import ButtonMeshThreed from "Features/threedMesh/components/ButtonMeshThreed";
 import ButtonZoomOutThreed from "Features/threedEditor/components/ButtonZoomOutThreed";
 
@@ -121,7 +120,6 @@ export default function BottomToolbarThreed() {
           <>
             <ButtonDrawThreed />
             {isMeshesViewer && <ButtonMeshThreed />}
-            <ButtonDimensionThreed />
           </>
         )}
         <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />

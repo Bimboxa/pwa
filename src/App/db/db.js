@@ -125,10 +125,9 @@ db.version(22).stores({
 
 db.version(23).stores({
   // {id, projectId, scopeId, a:{x,y,z}, b:{x,y,z}, length}
-  // 3D dimension ("cote"): a measured distance between two world-space points
-  // snapped to mesh vertices/edges in the 3D viewer. Endpoints are stored in
-  // three.js world coordinates; `length` is cached in meters. Scoped per
-  // project + scope. Soft-deleted via middleware.
+  // LEGACY — no longer read/written: 3D cotes are now standard COTE
+  // annotations (drawn via a template + commitDrawnCoteService). The table
+  // stays in the schema to avoid a version bump; old records are dead.
   dimensions3d: "id,projectId,scopeId,[projectId+scopeId]",
 });
 
@@ -202,7 +201,7 @@ const AUDIT_TABLES = [
   "relAnnotationSubtractions",
   "relAnnotationMeshCells",
   "relAnnotationOpenings",
-  "dimensions3d",
+  "dimensions3d", // legacy — replaced by COTE annotations
   "meshes3d",
   "povs",
 ];
@@ -349,7 +348,7 @@ const SOFT_DELETE_TABLES = new Set([
   "relAnnotationSubtractions",
   "relAnnotationMeshCells",
   "relAnnotationOpenings",
-  "dimensions3d",
+  "dimensions3d", // legacy — replaced by COTE annotations
   "meshes3d",
   "povs",
 ]);

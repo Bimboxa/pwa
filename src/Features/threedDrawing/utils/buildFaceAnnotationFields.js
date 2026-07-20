@@ -2,7 +2,7 @@ import { getDefaultsForShape } from "Features/annotations/constants/drawingShape
 
 // Keys owned by the face geometry/classification or the commit service —
 // never taken from the template-armed newAnnotation.
-const NON_TEMPLATE_KEYS = new Set([
+export const NON_TEMPLATE_KEYS = new Set([
   "id",
   "type",
   "points",
