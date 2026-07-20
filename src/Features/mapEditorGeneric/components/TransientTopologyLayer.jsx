@@ -1,11 +1,14 @@
 import React, { useMemo } from 'react';
 
+import { lighten } from '@mui/material/styles';
+
 import NodePolylineStatic from './NodePolylineStatic';
 import NodeStripStatic from './NodeStripStatic';
 import NodeCoteStatic from './NodeCoteStatic';
 import NodeOpeningStatic from './NodeOpeningStatic';
 
-import computeOpeningEndpointsFromHost from 'Features/mapEditor/utils/computeOpeningEndpointsFromHost';
+import computeOpeningEndpointsFromHost, { buildHostCurve } from 'Features/mapEditor/utils/computeOpeningEndpointsFromHost';
+import computeOpeningSegmentPlacement from 'Features/mapEditor/utils/computeOpeningSegmentPlacement';
 
 export default function TransientTopologyLayer({
     annotations,
@@ -181,52 +184,115 @@ export default function TransientTopologyLayer({
                     rel.hostSegmentStartPointId === movingPointId ||
                     rel.hostSegmentEndPointId === movingPointId ||
                     rel.hostArcControlPointId === movingPointId;
-                if (!anchoredOnMovingPoint) continue;
+
+                const hostAnn = annotations.find(
+                    (a) => a.id === rel.hostAnnotationId
+                );
+                const hostContainsMovingPoint = hostAnn?.points?.some(
+                    (p) => p.id === movingPointId
+                );
+                // Reflow when the dragged vertex belongs to the host wall:
+                // via the stored anchor when the anchor itself moves, else via
+                // projection (stale anchor — a carve re-minted the ring ids).
+                if (!anchoredOnMovingPoint && !hostContainsMovingPoint) continue;
 
                 const openingAnn = annotations.find(
                     (a) => a.id === rel.openingAnnotationId
                 );
-                const hostAnn = annotations.find(
-                    (a) => a.id === rel.hostAnnotationId
-                );
                 if (!openingAnn || openingAnn.points?.length !== 2) continue;
-
-                const findPt = (id) => {
-                    if (!id) return null;
-                    if (id === movingPointId) return currentPos;
-                    const inMain = hostAnn?.points?.find((p) => p.id === id);
-                    return inMain ?? null;
-                };
-                const segStartPx = findPt(rel.hostSegmentStartPointId);
-                const segEndPx = findPt(rel.hostSegmentEndPointId);
-                const arcControlPx = rel.hostArcControlPointId
-                    ? findPt(rel.hostArcControlPointId)
-                    : null;
-                if (!segStartPx || !segEndPx) continue;
 
                 const widthM = Number(openingAnn.width);
                 if (!(widthM > 0)) continue;
+                const openingLengthPx = widthM / baseMapMeterByPx;
 
-                const res = computeOpeningEndpointsFromHost({
-                    segStartPx,
-                    segEndPx,
-                    hostDistancePx:
-                        (Number(rel.hostDistanceM) || 0) / baseMapMeterByPx,
-                    openingLengthPx: widthM / baseMapMeterByPx,
-                    arcControlPx,
-                });
+                let endpoints = null;
+
+                if (anchoredOnMovingPoint) {
+                    const findPt = (id) => {
+                        if (!id) return null;
+                        if (id === movingPointId) return currentPos;
+                        const inMain = hostAnn?.points?.find((p) => p.id === id);
+                        return inMain ?? null;
+                    };
+                    const segStartPx = findPt(rel.hostSegmentStartPointId);
+                    const segEndPx = findPt(rel.hostSegmentEndPointId);
+                    const arcControlPx = rel.hostArcControlPointId
+                        ? findPt(rel.hostArcControlPointId)
+                        : null;
+                    if (segStartPx && segEndPx) {
+                        endpoints = computeOpeningEndpointsFromHost({
+                            segStartPx,
+                            segEndPx,
+                            hostDistancePx:
+                                (Number(rel.hostDistanceM) || 0) / baseMapMeterByPx,
+                            openingLengthPx,
+                            arcControlPx,
+                        });
+                    }
+                }
+
+                if (!endpoints) {
+                    // Stale anchor (e.g. ids re-minted by a contour carve):
+                    // mirror the commit reflow — project the opening center
+                    // onto the moved host contour stripped of this rel's
+                    // notch points, so the ghost tracks the real wall segment.
+                    const notchSet = new Set(
+                        rel.carve?.mode === "CONTOUR"
+                            ? rel.carve.notchPointIds ?? []
+                            : []
+                    );
+                    const movedHostPoints = (hostAnn?.points ?? [])
+                        .filter((p) => !notchSet.has(p.id))
+                        .map((p) =>
+                            p.id === movingPointId
+                                ? { ...p, x: currentPos.x, y: currentPos.y }
+                                : p
+                        );
+                    if (movedHostPoints.length < 2) continue;
+                    const center = {
+                        x: (openingAnn.points[0].x + openingAnn.points[1].x) / 2,
+                        y: (openingAnn.points[0].y + openingAnn.points[1].y) / 2,
+                    };
+                    const placement = computeOpeningSegmentPlacement({
+                        cursorPx: center,
+                        annotations: [
+                            { ...hostAnn, points: movedHostPoints, isOpening: false },
+                        ],
+                        openingLengthPx,
+                        hoverThresholdPx: Infinity,
+                        vertexSnapPx: 0,
+                        anchorEnd: "start",
+                    });
+                    if (!placement) continue;
+                    // Keep the opening CENTER at its projection on the found
+                    // segment (placement.hostDistancePx anchors the p1
+                    // endpoint at the cursor — drawing-preview semantics).
+                    const segCurve = buildHostCurve(
+                        placement.segStart,
+                        placement.segEnd,
+                        placement.arcControl
+                    );
+                    endpoints = computeOpeningEndpointsFromHost({
+                        segStartPx: placement.segStart,
+                        segEndPx: placement.segEnd,
+                        hostDistancePx: segCurve.project(center).s,
+                        openingLengthPx,
+                        arcControlPx: placement.arcControl,
+                    });
+                }
+
+                if (!endpoints) continue;
 
                 openingReflows.push({
                     ...openingAnn,
                     points: openingAnn.points.map((pt, i) => ({
                         ...pt,
-                        x: i === 0 ? res.p1.x : res.p2.x,
-                        y: i === 0 ? res.p1.y : res.p2.y,
+                        x: i === 0 ? endpoints.p1.x : endpoints.p2.x,
+                        y: i === 0 ? endpoints.p1.y : endpoints.p2.y,
                     })),
                 });
             }
         }
-
         const mapped = affected.map(ann => {
             const _ann = { ...ann };
 
@@ -295,7 +361,19 @@ export default function TransientTopologyLayer({
                 return <React.Fragment key={ann.id}>
                     {isOpeningNode && <NodeOpeningStatic
                         annotation={ann}
-                        annotationOverride={{ strokeOpacity: 0.5 }}
+                        // Lighter tone than the host stroke so the moving
+                        // ghost stays readable over the dragged wall preview
+                        // (the static opening is hidden during the drag).
+                        annotationOverride={{
+                            strokeColor: (() => {
+                                try {
+                                    return lighten(ann.strokeColor || "#ff0000", 0.45);
+                                } catch {
+                                    return "#64b5f6";
+                                }
+                            })(),
+                            strokeOpacity: 0.7,
+                        }}
                         baseMapMeterByPx={baseMapMeterByPx}
                         isTransient={true}
                     />}

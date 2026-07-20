@@ -2,7 +2,9 @@ import { nanoid } from "@reduxjs/toolkit";
 
 import db from "App/db/db";
 
-import computeOpeningEndpointsFromHost from "Features/mapEditor/utils/computeOpeningEndpointsFromHost";
+import computeOpeningEndpointsFromHost, {
+  buildHostCurve,
+} from "Features/mapEditor/utils/computeOpeningEndpointsFromHost";
 import computeOpeningSegmentPlacement from "Features/mapEditor/utils/computeOpeningSegmentPlacement";
 import deriveOpeningContourAnchor from "Features/mapEditor/utils/deriveOpeningContourAnchor";
 import updateAnnotationOpeningAnchor from "Features/annotations/services/updateAnnotationOpeningAnchor";
@@ -30,10 +32,31 @@ async function resolveAnnotationPx(ann, imageSize) {
   return resolvePoints({ points: ann.points, pointsIndex, imageSize });
 }
 
+// Notch point ids carved into the host contour by THIS rel's opening
+// (empty set for CUT / NONE carve modes).
+function getRelNotchSet(rel) {
+  return new Set(
+    rel?.carve?.mode === "CONTOUR" ? rel.carve.notchPointIds ?? [] : []
+  );
+}
+
 // Are the two anchor ids adjacent in the host contour (allowing one arc
-// control point between them)?
+// control point between them)? The rel's own notch points are ignored for
+// the adjacency test: a CONTOUR carve inserts them BETWEEN the anchor
+// vertices, which must not invalidate the anchor at every reflow.
 function anchorIsValid(hostPointsRefs, rel, closed) {
-  const ids = (hostPointsRefs ?? []).map((p) => p?.id);
+  const notchSet = getRelNotchSet(rel);
+  // An anchor stored on its own notch points is corrupt (legacy re-anchor
+  // onto the carved contour) — force a re-anchor by projection.
+  if (
+    notchSet.has(rel.hostSegmentStartPointId) ||
+    notchSet.has(rel.hostSegmentEndPointId)
+  ) {
+    return false;
+  }
+  const ids = (hostPointsRefs ?? [])
+    .map((p) => p?.id)
+    .filter((id) => !notchSet.has(id));
   const n = ids.length;
   if (n < 2) return false;
   const i = ids.indexOf(rel.hostSegmentStartPointId);
@@ -119,6 +142,9 @@ export default async function reflowOpeningsForHost({
 
     // Re-anchor when the stored segment no longer exists as-is in the host
     // contour (split / carve re-minted ids between the two vertices).
+    // The projection runs on the RESTORED contour (this rel's notch points
+    // dropped): projecting on the carved ring would anchor the opening onto
+    // its own notch edges instead of the real wall segment.
     if (!anchorIsValid(host.points, rel, closed)) {
       const openingPx = await resolveAnnotationPx(opening, imageSize);
       if (openingPx?.length !== 2) continue;
@@ -126,7 +152,10 @@ export default async function reflowOpeningsForHost({
         x: (openingPx[0].x + openingPx[1].x) / 2,
         y: (openingPx[0].y + openingPx[1].y) / 2,
       };
-      const resolvedHost = { ...host, points: hostPx, isOpening: false };
+      const notchSet = getRelNotchSet(rel);
+      const restoredHostPx = hostPx.filter((p) => !notchSet.has(p?.id));
+      if (restoredHostPx.length < 2) continue;
+      const resolvedHost = { ...host, points: restoredHostPx, isOpening: false };
       const placement = computeOpeningSegmentPlacement({
         cursorPx: center,
         annotations: [resolvedHost],
@@ -136,11 +165,20 @@ export default async function reflowOpeningsForHost({
         anchorEnd: "start",
       });
       if (!placement) continue;
+      // placement.hostDistancePx anchors the p1 ENDPOINT at the cursor
+      // (drawing-preview semantics) — re-anchoring must instead keep the
+      // opening CENTER at its projection on the found segment, otherwise
+      // every re-anchor shifts the opening by half its width.
+      const segCurve = buildHostCurve(
+        placement.segStart,
+        placement.segEnd,
+        placement.arcControl
+      );
       anchor = {
         startId: placement.segStartId,
         endId: placement.segEndId,
         arcControlId: placement.arcControlId ?? null,
-        distancePx: placement.hostDistancePx,
+        distancePx: segCurve.project(center).s,
       };
       await updateAnnotationOpeningAnchor(rel.id, {
         hostSegmentStartPointId: anchor.startId,

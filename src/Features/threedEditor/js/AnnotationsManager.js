@@ -161,8 +161,9 @@ export default class AnnotationsManager {
           strokeWidth: (Number(o.strokeWidth) || 20) * 1.2,
           strokeWidthUnit: o.strokeWidthUnit ?? "CM",
           height: o.height,
-          // v1: the opening base sits at the host's floor level.
-          offsetZ: annotation.offsetZ ?? 0,
+          // Opening base at its own allège height when set (same absolute
+          // Z frame as the rendered opening band), else at the host's base.
+          offsetZ: o.offsetZ ?? annotation.offsetZ ?? 0,
           baseMapId: annotation.baseMapId,
         }));
 

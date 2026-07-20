@@ -22,6 +22,7 @@ export default function usePointDrag({
   toLocalCoords,
   permissions,
   setHiddenAnnotationIds,
+  openingRels, // relAnnotationOpenings rows — openings glued on host walls
   // callbacks
   onPointMoveCommit,
   onPointSnapReplace,
@@ -56,6 +57,9 @@ export default function usePointDrag({
 
   const selectedNodeRef = useRef(selectedNode);
   selectedNodeRef.current = selectedNode;
+
+  const openingRelsRef = useRef(openingRels);
+  openingRelsRef.current = openingRels;
 
   const callbacksRef = useRef({
     onPointMoveCommit,
@@ -233,7 +237,27 @@ export default function usePointDrag({
           setDragState(newDragState);
           dragStateRef.current = newDragState;
 
-          setHiddenAnnotationIds(idsToHide);
+          // Openings glued on a hidden host follow the drag as a ghost in
+          // TransientTopologyLayer — hide their static render too. Display
+          // only: dragState.affectedIds keeps the commit semantics untouched.
+          // Skipped in fork/duplicate mode (no opening ghost in that mode).
+          let idsToHideWithOpenings = idsToHide;
+          if (!finalIsDuplicateMode) {
+            const hideSet = new Set(idsToHide);
+            const openingIds = (openingRelsRef.current ?? [])
+              .filter((rel) => hideSet.has(rel.hostAnnotationId))
+              .map((rel) => rel.openingAnnotationId)
+              .filter((id) => {
+                const o = annotationsRef.current?.find((a) => a.id === id);
+                return o?.points?.length === 2 && Number(o.width) > 0;
+              });
+            if (openingIds.length > 0) {
+              idsToHideWithOpenings = [
+                ...new Set([...idsToHide, ...openingIds]),
+              ];
+            }
+          }
+          setHiddenAnnotationIds(idsToHideWithOpenings);
         } else {
           return true; // Absorbe le mouvement (pas encore de drag)
         }

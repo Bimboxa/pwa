@@ -1967,6 +1967,11 @@ const InteractionLayer = forwardRef(({
     orthoSnapAngleOffsetRef.current = orthoSnapAngleOffset;
   }, [orthoSnapAngleOffset]);
 
+  // Opening relations — used by the transient topology layer to reflow glued
+  // openings in real time while a host vertex is dragged, and by usePointDrag
+  // to hide their static render during the drag.
+  const { rows: openingRelRows } = useAnnotationOpenings();
+
   // drag state — point drag (extracted to usePointDrag)
 
   const {
@@ -1984,6 +1989,7 @@ const InteractionLayer = forwardRef(({
     toLocalCoords,
     permissions,
     setHiddenAnnotationIds,
+    openingRels: openingRelRows,
     onPointMoveCommit,
     onPointSnapReplace,
     onPointDuplicateAndMoveCommit,
@@ -2462,10 +2468,6 @@ const InteractionLayer = forwardRef(({
   useEffect(() => {
     newAnnotationRef.current = newAnnotation;
   }, [newAnnotation]);
-
-  // Opening relations — used by the transient topology layer to reflow glued
-  // openings in real time while a host vertex is dragged.
-  const { rows: openingRelRows } = useAnnotationOpenings();
 
   // --- OPENING_SEGMENT placement state ---
   const openingSegmentStateRef = useRef(null); // last computed placement

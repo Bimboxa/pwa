@@ -3,9 +3,10 @@
  * (relAnnotationOpenings): deducted m² = Σ opening.width × overlapHeight.
  *
  * The overlap is clipped to the host's vertical range
- * [host.offsetZ, host.offsetZ + host.height]: an opening (measured from the
- * floor, Z=0) taller than the wall — or a host with a raised offsetZ
- * (allège) — only deducts the overlapping band.
+ * [host.offsetZ, host.offsetZ + host.height]: the opening band
+ * [opening.offsetZ, opening.offsetZ + opening.height] (base at the opening's
+ * own allège height when set, else at the host's base) only deducts the
+ * overlapping band.
  *
  * Note: this deduction targets the VERTICAL surface quantities of wall-type
  * hosts (linéaire × hauteur). The 2D carve (applyOpeningOnPolygon) already
@@ -14,7 +15,7 @@
  *
  * @param {Object} args
  * @param {Object} args.host - host annotation (with height / offsetZ)
- * @param {Array<{width:number, height:number}>} args.openings
+ * @param {Array<{width:number, height:number, offsetZ:number}>} args.openings
  * @returns {{deductedM2:number}|null}
  */
 export default function getAnnotationOpeningQties({ host, openings }) {
@@ -29,7 +30,10 @@ export default function getAnnotationOpeningQties({ host, openings }) {
     const w = Number(o?.width);
     const h = Number(o?.height);
     if (!(w > 0) || !(h > 0)) continue;
-    const overlap = Math.max(0, Math.min(h, z1) - Math.max(0, z0));
+    const oz = o?.offsetZ != null && Number.isFinite(Number(o.offsetZ))
+      ? Number(o.offsetZ)
+      : z0;
+    const overlap = Math.max(0, Math.min(oz + h, z1) - Math.max(oz, z0));
     deducted += w * overlap;
   }
 
