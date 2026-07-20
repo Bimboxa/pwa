@@ -109,9 +109,10 @@ const threedEditorInitialState = {
     enabled: false,
     editing: false,
   },
-  // Dimension ("cote") tool: click two mesh-snapped points to create a 3D
-  // distance measurement. Mutually exclusive with `drawingMode.active` and
-  // `moveMode.active`.
+  // Dimension ("cote") mode: click two mesh-snapped points to create a COTE
+  // annotation (template-driven via useTemplateCoteDrawBridge, committed by
+  // commitDrawnCoteService). Mutually exclusive with `drawingMode.active`
+  // and `moveMode.active`.
   dimensionMode: {
     active: false,
     // First clicked endpoint, world space, while the second is pending.

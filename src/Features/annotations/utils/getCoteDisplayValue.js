@@ -17,6 +17,7 @@ export default function getCoteDisplayValue({
   unit = "CM",
   decimals = 0,
   showUnitLabel = false,
+  deltaZMeters = 0,
 }) {
   if (!p1 || !p2) return "";
 
@@ -27,7 +28,9 @@ export default function getCoteDisplayValue({
   const hasScale = Number.isFinite(meterByPx) && meterByPx > 0;
   if (!hasScale) return "—";
 
-  const meters = pixelDistance * meterByPx;
+  // 3D-aware length: cotes drawn in 3D carry a vertical delta (meters);
+  // Math.hypot(x, 0) === |x| so pure-2D cotes are unaffected.
+  const meters = Math.hypot(pixelDistance * meterByPx, deltaZMeters || 0);
   const factor = UNIT_FACTORS_FROM_METERS[unit] ?? UNIT_FACTORS_FROM_METERS.CM;
   const value = meters * factor;
 

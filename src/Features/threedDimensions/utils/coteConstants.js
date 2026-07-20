@@ -4,14 +4,6 @@
 export const UNIT_FACTORS_FROM_METERS = { MM: 1000, CM: 100, M: 1 };
 export const UNIT_SUFFIXES = { MM: "mm", CM: "cm", M: "m" };
 
-// Unit options for the FieldOptionKey selector (same labels as the annotation
-// template cote form).
-export const COTE_UNIT_OPTIONS = [
-  { key: "MM", label: "Millimètres (mm)" },
-  { key: "CM", label: "Centimètres (cm)" },
-  { key: "M", label: "Mètres (m)" },
-];
-
 export const DEFAULT_COTE_COLOR = "#37474f";
 export const DEFAULT_COTE_UNIT = "M";
 export const DEFAULT_COTE_DECIMALS = 2;
