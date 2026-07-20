@@ -102,6 +102,32 @@ import { filterIntersectionsByVisibility } from "Features/threedEditor/js/utilsA
 import ThreedAnnotationsVisibility from "./ThreedAnnotationsVisibility";
 import TopBaseMapChipsThreed from "./TopBaseMapChipsThreed";
 
+// Maille groups currently in the scene (mesh3dId → parent group). Empty
+// outside the MESHES viewer: ThreedMeshes unpublishes its objects there.
+function collectMesh3dGroups() {
+  const groups = new Map();
+  for (const faceMesh of getMesh3dFaceMeshes()) {
+    const mesh3dId = faceMesh.userData?.mesh3dId;
+    const group = faceMesh.parent;
+    if (mesh3dId && group && !groups.has(mesh3dId)) {
+      groups.set(mesh3dId, group);
+    }
+  }
+  return groups;
+}
+
+// Lasso hover cue for a maille: emissive tint on the face materials. The
+// selected/dimmed look of mailles is baked at rebuild time (buildFaceGeometry),
+// so a reversible emissive override is the non-destructive live highlight.
+function setMesh3dGroupLassoHover(group, hovered) {
+  group.traverse((child) => {
+    if (child.isMesh && child.material?.emissive) {
+      child.material.emissive.setHex(hovered ? 0x00ff00 : 0x000000);
+      child.material.emissiveIntensity = hovered ? 0.5 : 1;
+    }
+  });
+}
+
 export default function MainThreedEditor() {
   // ref
 
@@ -122,6 +148,7 @@ export default function MainThreedEditor() {
   const lassoOverlayRef = useRef(null); // imperative API of <ThreedLassoOverlay />
   const orbitWasEnabledRef = useRef(true); // remember orbit state to restore
   const lassoLiveIdsRef = useRef(new Set()); // ids currently shown as green during the drag
+  const lassoLiveMesh3dIdsRef = useRef(new Set()); // maille ids currently shown as green
   const lassoPreviewRafRef = useRef(null); // rAF handle for the preview pass
   // Sub-selection helpers (vertex/edge highlight on the selected annotation):
   // ephemeral hover helper (replaced as the cursor moves) and persistent
@@ -842,24 +869,36 @@ export default function MainThreedEditor() {
 
     const canvasRect = renderer.domElement.getBoundingClientRect();
     const plane = getActiveClippingPlane(editor?.sceneManager);
+
+    const insideRect = (point) =>
+      point.x >= rect.x &&
+      point.x <= rect.x + rect.width &&
+      point.y >= rect.y &&
+      point.y <= rect.y + rect.height;
+
+    // Mailles inside the rect (MESHES viewer only — empty elsewhere).
+    const mesh3dGroups = collectMesh3dGroups();
+    const newMesh3dSet = new Set();
+    mesh3dGroups.forEach((group, mesh3dId) => {
+      if (group.visible === false) return;
+      const point = projectAnnotationToClient(group, camera, canvasRect, plane);
+      if (point && insideRect(point)) newMesh3dSet.add(mesh3dId);
+    });
+
+    // Annotations inside the rect. Mirrors the commit rule (mailles win over
+    // annotations): when mailles are hit, no annotation previews as green.
     const newSet = new Set();
-    for (const id in map) {
-      const object = map[id];
-      if (!object || object.visible === false) continue;
-      const point = projectAnnotationToClient(
-        object,
-        camera,
-        canvasRect,
-        plane
-      );
-      if (!point) continue;
-      if (
-        point.x >= rect.x &&
-        point.x <= rect.x + rect.width &&
-        point.y >= rect.y &&
-        point.y <= rect.y + rect.height
-      ) {
-        newSet.add(id);
+    if (newMesh3dSet.size === 0) {
+      for (const id in map) {
+        const object = map[id];
+        if (!object || object.visible === false) continue;
+        const point = projectAnnotationToClient(
+          object,
+          camera,
+          canvasRect,
+          plane
+        );
+        if (point && insideRect(point)) newSet.add(id);
       }
     }
 
@@ -882,6 +921,24 @@ export default function MainThreedEditor() {
       }
     }
     lassoLiveIdsRef.current = newSet;
+
+    const prevMesh3d = lassoLiveMesh3dIdsRef.current;
+    for (const id of newMesh3dSet) {
+      if (!prevMesh3d.has(id)) {
+        const group = mesh3dGroups.get(id);
+        if (group) setMesh3dGroupLassoHover(group, true);
+        changed = true;
+      }
+    }
+    for (const id of prevMesh3d) {
+      if (!newMesh3dSet.has(id)) {
+        const group = mesh3dGroups.get(id);
+        if (group) setMesh3dGroupLassoHover(group, false);
+        changed = true;
+      }
+    }
+    lassoLiveMesh3dIdsRef.current = newMesh3dSet;
+
     if (changed) editor.renderScene?.();
   }, [getStateForId, projectAnnotationToClient]);
 
@@ -916,6 +973,15 @@ export default function MainThreedEditor() {
       lassoLiveIdsRef.current = new Set();
       threedEditorRef.current?.renderScene?.();
     }
+    if (lassoLiveMesh3dIdsRef.current.size > 0) {
+      const groups = collectMesh3dGroups();
+      for (const id of lassoLiveMesh3dIdsRef.current) {
+        const group = groups.get(id);
+        if (group) setMesh3dGroupLassoHover(group, false);
+      }
+      lassoLiveMesh3dIdsRef.current = new Set();
+      threedEditorRef.current?.renderScene?.();
+    }
 
     if (!startCoords || !rect) return;
     // Treat tiny rectangles as a click (not a lasso) — handlePointerUp will
@@ -932,8 +998,14 @@ export default function MainThreedEditor() {
     const map = manager.annotationsObjectsMap || {};
     const plane = getActiveClippingPlane(editor?.sceneManager);
 
-    const newItems = [];
-    Object.entries(map).forEach(([id, object]) => {
+    const insideRect = (point) =>
+      point.x >= rect.x &&
+      point.x <= rect.x + rect.width &&
+      point.y >= rect.y &&
+      point.y <= rect.y + rect.height;
+
+    const annotationItems = [];
+    Object.values(map).forEach((object) => {
       if (!object || object.visible === false) return;
       const point = projectAnnotationToClient(
         object,
@@ -941,13 +1013,7 @@ export default function MainThreedEditor() {
         canvasRect,
         plane
       );
-      if (!point) return;
-      const inside =
-        point.x >= rect.x &&
-        point.x <= rect.x + rect.width &&
-        point.y >= rect.y &&
-        point.y <= rect.y + rect.height;
-      if (!inside) return;
+      if (!point || !insideRect(point)) return;
       const {
         nodeId,
         nodeType,
@@ -956,7 +1022,7 @@ export default function MainThreedEditor() {
         annotationTemplateId,
       } = object.userData || {};
       if (!nodeId) return;
-      newItems.push({
+      annotationItems.push({
         id: nodeId,
         nodeId,
         type: "NODE",
@@ -967,41 +1033,28 @@ export default function MainThreedEditor() {
       });
     });
 
-    // With "Masquer les annotations" on, the lasso selects the mailles
-    // instead (only annotations OR only mailles — a mixed selection would
-    // confuse the edit toolbars). Maille groups are the parents of the
-    // published face meshes; their bbox center follows the annotation rule.
-    if (store.getState().threedEditor.hideAnnotationsIn3d) {
-      const mesh3dGroups = new Map();
-      for (const faceMesh of getMesh3dFaceMeshes()) {
-        const mesh3dId = faceMesh.userData?.mesh3dId;
-        const group = faceMesh.parent;
-        if (mesh3dId && group && !mesh3dGroups.has(mesh3dId)) {
-          mesh3dGroups.set(mesh3dId, group);
-        }
-      }
-      mesh3dGroups.forEach((group, mesh3dId) => {
-        const point = projectAnnotationToClient(
-          group,
-          camera,
-          canvasRect,
-          plane
-        );
-        if (!point) return;
-        const inside =
-          point.x >= rect.x &&
-          point.x <= rect.x + rect.width &&
-          point.y >= rect.y &&
-          point.y <= rect.y + rect.height;
-        if (!inside) return;
-        newItems.push({
-          id: mesh3dId,
-          nodeId: mesh3dId,
-          type: "NODE",
-          nodeType: "MESH3D",
-        });
+    // Mailles are lasso candidates whenever they are in the scene (MESHES
+    // viewer — collectMesh3dGroups is empty elsewhere). Maille groups are the
+    // parents of the published face meshes; their bbox center follows the
+    // annotation rule.
+    const mesh3dItems = [];
+    collectMesh3dGroups().forEach((group, mesh3dId) => {
+      if (group.visible === false) return;
+      const point = projectAnnotationToClient(group, camera, canvasRect, plane);
+      if (!point || !insideRect(point)) return;
+      mesh3dItems.push({
+        id: mesh3dId,
+        nodeId: mesh3dId,
+        type: "NODE",
+        nodeType: "MESH3D",
       });
-    }
+    });
+
+    // Only annotations OR only mailles — a mixed selection would confuse the
+    // edit toolbars (each popper requires a homogeneous selection). Mailles
+    // win: in the Maillage viewer they overlay the annotations they were
+    // built from, so they are the primary lasso target there.
+    const newItems = mesh3dItems.length > 0 ? mesh3dItems : annotationItems;
 
     // Lasso replaces the selection (matches the 2D editor).
     dispatch(setSelectedItems(newItems));
@@ -1014,7 +1067,7 @@ export default function MainThreedEditor() {
       dispatch(setAnnotationToolbarPosition(null));
       dispatch(setAnnotationsToolbarPosition(null));
     }
-  }, [dispatch, projectAnnotationToClient, getStateForId, store]);
+  }, [dispatch, projectAnnotationToClient, getStateForId]);
 
   // Handle pointer down to detect drags
   const handlePointerDown = useCallback(
