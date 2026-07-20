@@ -10,6 +10,7 @@ import MainGoogleMapEditor from "Features/gmap/components/MainGoogleMapEditor";
 import TableViewer from "Features/tables/components/ViewerTable";
 import MainPortfolioEditor from "Features/portfolioEditor/components/MainPortfolioEditor";
 import MainBaseMapViewer from "Features/baseMapEditor/components/MainBaseMapViewer";
+import MainZonesViewer from "Features/zonings/components/MainZonesViewer";
 import ViewerAdmin from "Features/adminEditor/components/ViewerAdmin";
 import MainListingViewer from "Features/listingViewer/components/MainListingViewer";
 import LeftDrawerPanel from "Features/leftPanel/components/LeftDrawerPanel";
@@ -44,6 +45,7 @@ export default function SectionViewer() {
   const showTable = viewerKey === "TABLE";
   const showPortfolio = viewerKey === "PORTFOLIO";
   const showBaseMaps = viewerKey === "BASE_MAPS";
+  const showZones = viewerKey === "ZONES";
   const showListing = viewerKey === "LISTING";
   const showAdmin = viewerKey === "ADMIN";
 
@@ -108,6 +110,10 @@ export default function SectionViewer() {
 
       {showBaseMaps && <PanelShowable show={showBaseMaps} sx={{ position: "absolute", zIndex: 0 }}>
         <MainBaseMapViewer />
+      </PanelShowable>}
+
+      {showZones && <PanelShowable show={showZones} sx={{ position: "absolute", zIndex: 0 }}>
+        <MainZonesViewer />
       </PanelShowable>}
 
       {showListing && <PanelShowable show={showListing} sx={{ position: "absolute", zIndex: 0 }}>

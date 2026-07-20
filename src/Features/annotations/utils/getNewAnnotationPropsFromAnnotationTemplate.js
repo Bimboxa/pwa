@@ -21,6 +21,9 @@ const ALWAYS_COPY_KEYS = [
   // Free annotations (no entity, no user-managed template) are backed by a
   // hidden system template carrying this flag; it must reach the annotation.
   "isFreeAnnotation",
+  // Zone delimitation polygons (zonings module): per-zone templates carry this
+  // flag; the commit skips the entity creation for them.
+  "isZoneAnnotation",
 ];
 
 export default function getNewAnnotationPropsFromAnnotationTemplate(

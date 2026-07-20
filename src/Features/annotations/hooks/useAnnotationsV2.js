@@ -367,6 +367,7 @@ import getAnnotationOpeningQties from "Features/annotations/utils/getAnnotationO
 import useAnnotationOpenings from "Features/annotations/hooks/useAnnotationOpenings";
 import getExtrusionProfileFootprintShapes from "Features/annotations/utils/getExtrusionProfileFootprintShapes";
 import useAnnotationSubtractions from "Features/annotations/hooks/useAnnotationSubtractions";
+import useZoneSoloAnnotationIdSet from "Features/zonings/hooks/useZoneSoloAnnotationIdSet";
 import { getShape3DKey } from "Features/annotations/constants/shape3DConfig";
 import { resolveProfileFromDb } from "Features/annotations/hooks/useProfileResolution";
 import computeSubtractedSurfaceM2Async from "Features/threedEditor/js/utilsAnnotationsManager/computeSubtractedSurfaceM2Async";
@@ -485,6 +486,13 @@ export default function useAnnotationsV2(options) {
       (s) => s.popperMapListings.soloVisibleTemplateIds
     );
     const soloListingId = useSelector((s) => s.popperMapListings.soloListingId);
+
+    // zone SOLO (zonings module): {zoneId, listingId, templateId} | null.
+    // Independent of popperMapListings.soloMode so it also applies in DRAW mode.
+    const soloZone = useSelector((s) => s.zonings?.soloZone ?? null);
+    const zoneSoloAnnotationIdSet = useZoneSoloAnnotationIdSet(
+      soloZone?.zoneId
+    );
 
     const { targetIdsBySource: subtractionTargetIdsBySource } =
       useAnnotationSubtractions();
@@ -1969,6 +1977,23 @@ export default function useAnnotationsV2(options) {
         }
       }
 
+      // zone solo (zonings module): keep the zone's delimitation polygons
+      // (its template) and the annotations linked to the zone via
+      // relsZoneAnnotation. Base-map (background) annotations are always kept.
+      if (!ignoreSolo && soloZone) {
+        const isInZoneSolo = (a) =>
+          a.isBaseMapAnnotation ||
+          a.annotationTemplateId === soloZone.templateId ||
+          zoneSoloAnnotationIdSet.has(a.id);
+        if (keepSoloDimmed) {
+          result = result.map((a) =>
+            isInZoneSolo(a) ? a : { ...a, _soloDimmed: true }
+          );
+        } else {
+          result = result.filter(isInZoneSolo);
+        }
+      }
+
       // override with temp annotations
       result = [...result, ...(tempAnnotations ?? [])];
 
@@ -2110,6 +2135,8 @@ export default function useAnnotationsV2(options) {
       soloMode,
       soloVisibleTemplateIds,
       soloListingId,
+      soloZone,
+      zoneSoloAnnotationIdSet,
       keepSoloDimmed,
       ignoreSolo,
       keepHiddenTemplates,

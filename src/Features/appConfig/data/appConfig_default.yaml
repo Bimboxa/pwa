@@ -212,6 +212,15 @@ entityModelsObject:
         options:
           maxSize: 5000
 
+  zoning:
+    key: zoning
+    name: Zonage
+    type: ZONING
+    defaultTable: zones
+    defaultListingName: Zonage
+    strings:
+      labelNew: Nouveau zonage
+
   legend:
     key: legend
     type: "LEGEND_ENTITY"

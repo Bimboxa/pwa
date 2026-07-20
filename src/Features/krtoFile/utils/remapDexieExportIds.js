@@ -39,6 +39,12 @@ export default function remapDexieExportIds(jsonData, opts) {
     zoningId: "listings", // zonings is keyed by listingId
     relListingId: "listings",
     annotationId: "annotations",
+    // zones v2 (flat rows): zone tree + per-zone template refs. Legacy
+    // relsZoneEntity.zoneId (blob zonesTree ids, never rows of db.zones)
+    // falls through remapId unchanged — the blob ids are not remapped either.
+    zoneId: "zones",
+    parentId: "zones",
+    templateId: "annotationTemplates",
     sourceAnnotationId: "annotations",
     targetAnnotationId: "annotations",
     parentAnnotationId: "annotations",

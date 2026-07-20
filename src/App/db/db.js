@@ -169,6 +169,19 @@ db.version(26).stores({
   relAnnotationOpenings: "id, projectId, hostAnnotationId, openingAnnotationId",
 });
 
+db.version(27).stores({
+  // {id, listingId (ZONING listing), parentId|null, label, color,
+  //  sortIndex (fractional index among siblings), scopeId, projectId}
+  // Flat zone rows (zonings v2) — one row per zone of a ZONING listing tree.
+  // The legacy `zonings` blob table (one row per listing) stays untouched.
+  zones: "id,listingId,projectId,scopeId,parentId",
+  // {id, projectId, annotationId, zoneId, listingId (zoning listingId), scopeId}
+  // Links ANY annotation to a zone. Invariant: at most ONE live rel per
+  // (annotationId, listingId) — enforced by addZoneToAnnotationService
+  // (associating to another zone of the same zoning replaces the old rel).
+  relsZoneAnnotation: "id,projectId,annotationId,zoneId,listingId",
+});
+
 // --- AUDIT HOOKS ---
 
 const AUDIT_TABLES = [
@@ -204,6 +217,8 @@ const AUDIT_TABLES = [
   "dimensions3d", // legacy — replaced by COTE annotations
   "meshes3d",
   "povs",
+  "zones",
+  "relsZoneAnnotation",
 ];
 
 // Shared/collaborative tables exempt from the ownership guard: records here can
@@ -217,6 +232,11 @@ const OWNERSHIP_EXEMPT_TABLES = new Set([
   "baseMapVersions",
   // POVs are a shared list: anyone can reorder, edit or delete them.
   "povs",
+  // Zones are shared structure (anyone renames/reorders/recolors), and the
+  // one-zone-per-zoning replace rule must be able to soft-delete rels
+  // created by other users.
+  "zones",
+  "relsZoneAnnotation",
 ]);
 
 AUDIT_TABLES.forEach((tableName) => {
@@ -351,6 +371,8 @@ const SOFT_DELETE_TABLES = new Set([
   "dimensions3d", // legacy — replaced by COTE annotations
   "meshes3d",
   "povs",
+  "zones",
+  "relsZoneAnnotation",
 ]);
 
 let _skipSoftDelete = false;

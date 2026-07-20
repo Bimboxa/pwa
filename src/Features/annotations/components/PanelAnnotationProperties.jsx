@@ -19,6 +19,7 @@ import SectionAnnotationPartPropertiesContent from "./SectionAnnotationPartPrope
 import SectionMultiPartProperties from "./SectionMultiPartProperties";
 import FormEntity from "Features/entities/components/FormEntity";
 import SectionEntityAnnotations from "Features/entities/components/SectionEntityAnnotations";
+import SectionAnnotationZones from "Features/zonings/components/SectionAnnotationZones";
 
 const tabs = [
   { id: "PROPERTIES", label: "Propriété" },
@@ -109,7 +110,14 @@ export default function PanelAnnotationProperties() {
         )}
 
         {!hasPart && tab === "PROPERTIES" && (
-          <SectionAnnotationPropertiesContent annotation={annotation} />
+          <>
+            <SectionAnnotationPropertiesContent annotation={annotation} />
+            {/* Zone links (zonings module) — not for the zone delimitation
+                polygons themselves. */}
+            {!annotation?.isZoneAnnotation && (
+              <SectionAnnotationZones annotation={annotation} />
+            )}
+          </>
         )}
 
         {!hasPart && tab === "ENTITY" && (

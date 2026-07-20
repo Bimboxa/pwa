@@ -324,7 +324,10 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
 
         let entityId = newAnnotation?.entityId;
         const isFreeAnnotation = newAnnotation?.isFreeAnnotation;
-        if (!entityId && !isBaseMapAnnotation && !isRevolutionHelper && !isFreeAnnotation) {
+        // Zone delimitation polygons live in a ZONING listing whose table is
+        // `zones` — creating an entity there would write a garbage zone row.
+        const isZoneAnnotation = newAnnotation?.isZoneAnnotation;
+        if (!entityId && !isBaseMapAnnotation && !isRevolutionHelper && !isFreeAnnotation && !isZoneAnnotation) {
             const entity = await createEntity(newEntity)
             entityId = entity.id;
         }

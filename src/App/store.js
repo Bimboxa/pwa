@@ -28,6 +28,7 @@ import listingsReducer from "Features/listings/listingsSlice";
 import entitiesReducer from "Features/entities/entitiesSlice";
 import entityPropsReducer from "Features/entityProps/entityPropsSlice";
 import zonesReducer from "Features/zones/zonesSlice";
+import zoningsReducer from "Features/zonings/zoningsSlice";
 import relsZoneEntityReducer from "Features/relsZoneEntity/relsZoneEntitySlice";
 import locatedEntitiesReducer from "Features/locatedEntities/locatedEntitiesSlice";
 import pointsReducer from "Features/points/pointsSlice";
@@ -103,6 +104,7 @@ const store = configureStore({
     entities: entitiesReducer,
     entityProps: entityPropsReducer,
     zones: zonesReducer,
+    zonings: zoningsReducer,
     relsZoneEntity: relsZoneEntityReducer,
     locatedEntities: locatedEntitiesReducer,
     viewers: viewersReducer,

@@ -61,6 +61,7 @@ export default async function createKrtoZip(scopeId, options) {
         "baseMaps", "baseMapVersions", "entities", "maps", "materials", "relsZoneEntity",
         "annotations", "annotationTemplates",
         "portfolioPages",
+        "zones", "relsZoneAnnotation",
     ]);
 
     // Points: annotation geometry lives in db.points, but a point row's

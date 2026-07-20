@@ -13,6 +13,7 @@ import {
   ViewInAr,
   GridOn,
   PhotoCamera,
+  AccountTree,
 } from "@mui/icons-material";
 
 import theme from "Styles/theme";
@@ -86,6 +87,14 @@ export default function useViewers() {
       // 2D editors. "I" only clashes with the paste-mode letters, and the
       // viewer hotkeys are inert while pasting.
       hotkey: "I",
+    },
+    {
+      key: "ZONES",
+      label: "Zones",
+      shortLabel: "Zones",
+      icon: <AccountTree />,
+      bgcolor: theme.palette.viewers.zones,
+      hotkey: "Z",
     },
     {
       key: "LISTING",

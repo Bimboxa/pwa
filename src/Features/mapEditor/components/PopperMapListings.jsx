@@ -2240,6 +2240,7 @@ export default function PopperMapListings() {
     (s) => s.mapEditor.showMapListingsPanel
   );
   const isBaseMapsViewer = viewerKey === "BASE_MAPS";
+  const isZonesViewer = viewerKey === "ZONES";
   const isThreedViewer = isThreedFamilyViewerKey(viewerKey);
   const showLayers = useSelector((s) => s.popperMapListings.showLayers);
   const interactionMode = useSelector(
@@ -2285,7 +2286,11 @@ export default function PopperMapListings() {
   // set matches what the scene actually shows.
   const allAnnotationsInclHidden = useAnnotationsV2({
     caller: "PopperMapListings",
-    enabled: viewerKey === "MAP" || viewerKey === "BASE_MAPS" || isThreedViewer,
+    enabled:
+      viewerKey === "MAP" ||
+      viewerKey === "BASE_MAPS" ||
+      viewerKey === "ZONES" ||
+      isThreedViewer,
     filterByMainBaseMap: true,
     hideBaseMapAnnotations: true,
     excludeBgAnnotations: true,
@@ -2339,13 +2344,25 @@ export default function PopperMapListings() {
     ? "Dessins sur fond de plan"
     : "Annotations";
 
-  const { value: listings } = useListings({
+  const { value: locatedListings } = useListings({
     filterByScopeId: selectedScopeId,
     filterByEntityModelType: "LOCATED_ENTITY",
     ...(isBaseMapsViewer
       ? { filterByIsForBaseMaps: true }
       : { excludeIsForBaseMaps: true }),
   });
+
+  // ZONES module: the zoning listings (one template per zone) are listed ahead
+  // of the normal listings so zone polygons can be drawn from the popper.
+  const { value: zoningListings } = useListings({
+    filterByScopeId: selectedScopeId,
+    filterByEntityModelType: "ZONING",
+  });
+
+  const listings = useMemo(() => {
+    if (!isZonesViewer) return locatedListings;
+    return [...(zoningListings ?? []), ...(locatedListings ?? [])];
+  }, [isZonesViewer, zoningListings, locatedListings]);
 
   const createVersion = useCreateBaseMapVersion();
   const replaceVersionImage = useReplaceVersionImage();
