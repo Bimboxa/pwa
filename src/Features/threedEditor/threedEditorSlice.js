@@ -7,7 +7,7 @@ const threedEditorInitialState = {
   hideBaseMaps: false,
   // When true, annotation materials ignore `annotation.opacity` and render
   // fully opaque. Exposed as the "Transparence des annotations" switch.
-  disableOpacity: true,
+  disableOpacity: false,
   // When true, CM-width POLYLINE footprints are contracted by 5 mm before
   // extrusion to avoid coplanar-face aliasing when a parement abuts a wall.
   antiAliasingShrink: true,
