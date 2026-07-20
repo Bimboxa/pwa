@@ -6,11 +6,13 @@ import { selectSelectedItems, clearSelection } from "Features/selection/selectio
 import DialogDeleteRessource from "Features/layout/components/DialogDeleteRessource";
 
 import useDeleteAnnotations from "../hooks/useDeleteAnnotations";
+import useDeleteMeshes3d from "Features/threedMesh/hooks/useDeleteMeshes3d";
 import { setAnnotationToolbarPosition } from "Features/mapEditor/mapEditorSlice";
 
 export default function DialogDeleteSelectedAnnotation() {
   const dispatch = useDispatch();
   const deleteAnnotations = useDeleteAnnotations();
+  const deleteMeshes3d = useDeleteMeshes3d();
 
   // data
 
@@ -25,12 +27,18 @@ export default function DialogDeleteSelectedAnnotation() {
   }
 
   async function handleDelete() {
-    const annotationIds = selectedItems
-      .filter((item) => item.nodeId)
+    // MESH3D nodes live in db.meshes3d, not db.annotations — routing a maille
+    // id through deleteAnnotations would target the wrong table.
+    const mesh3dIds = selectedItems
+      .filter((item) => item.nodeId && item.nodeType === "MESH3D")
       .map((item) => item.nodeId);
-    if (annotationIds.length === 0) return;
+    const annotationIds = selectedItems
+      .filter((item) => item.nodeId && item.nodeType !== "MESH3D")
+      .map((item) => item.nodeId);
+    if (mesh3dIds.length === 0 && annotationIds.length === 0) return;
 
-    await deleteAnnotations(annotationIds);
+    if (mesh3dIds.length > 0) await deleteMeshes3d(mesh3dIds);
+    if (annotationIds.length > 0) await deleteAnnotations(annotationIds);
     dispatch(clearSelection());
     handleClose();
   }

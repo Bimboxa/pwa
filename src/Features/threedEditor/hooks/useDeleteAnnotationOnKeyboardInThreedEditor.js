@@ -30,7 +30,10 @@ export default function useDeleteAnnotationOnKeyboardInThreedEditor({
       const nodeId = selectedNode?.nodeId;
       if (!nodeId) return;
 
-      if (!canEditAnnotation(nodeId)) return;
+      // Mailles (db.meshes3d) have no ownership guard — the annotation
+      // permission check doesn't apply to them.
+      const isMesh3d = selectedNode.nodeType === "MESH3D";
+      if (!isMesh3d && !canEditAnnotation(nodeId)) return;
 
       dispatch(setOpenDialogDeleteSelectedAnnotation(true));
       e.stopPropagation();
