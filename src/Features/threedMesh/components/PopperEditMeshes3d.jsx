@@ -6,12 +6,15 @@ import useToolbarDrag from "Features/mapEditor/hooks/useToolbarDrag";
 import { Box } from "@mui/material";
 
 import ToolbarEditMeshes3d from "./ToolbarEditMeshes3d";
+import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 import { matchesActiveViewerKey } from "Features/viewers/utils/threedViewerKeys";
 
 // Floating edit toolbar shown when 2+ mailles (and nothing else) are
 // selected. Same popper pattern as PopperEditAnnotations.
 export default function PopperEditMeshes3d({ viewerKey = null }) {
-  const activeViewerKey = useSelector((s) => s.viewers.selectedViewerKey);
+  // Effective key, not the raw module key: the toolbar follows the editor
+  // actually displayed (e.g. the Dessin module toggled to its 3D editor).
+  const activeViewerKey = useSelector(selectEffectiveViewerKey);
   const selectedItems = useSelector(selectSelectedItems);
 
   const shouldShow = viewerKey

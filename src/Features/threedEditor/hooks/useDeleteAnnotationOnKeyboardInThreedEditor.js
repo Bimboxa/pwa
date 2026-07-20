@@ -3,6 +3,7 @@ import { useDispatch, useStore } from "react-redux";
 
 import { setOpenDialogDeleteSelectedAnnotation } from "Features/annotations/annotationsSlice";
 import useAnnotationPermissions from "Features/mapEditor/hooks/useAnnotationPermissions";
+import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 
 export default function useDeleteAnnotationOnKeyboardInThreedEditor({
@@ -19,7 +20,9 @@ export default function useDeleteAnnotationOnKeyboardInThreedEditor({
         return;
 
       const state = store.getState();
-      if (!isThreedFamilyViewerKey(state.viewers.selectedViewerKey)) return;
+      // Effective key, not the raw module key: the shortcut follows the
+      // editor actually displayed (e.g. the Dessin module toggled to 3D).
+      if (!isThreedFamilyViewerKey(selectEffectiveViewerKey(state))) return;
 
       const selectedNode = state.selection.selectedItems.find(
         (item) => item.type === "NODE"

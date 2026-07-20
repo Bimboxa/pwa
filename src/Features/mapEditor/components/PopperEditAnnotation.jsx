@@ -9,6 +9,7 @@ import useToolbarDrag from "../hooks/useToolbarDrag";
 
 import { Box } from "@mui/material";
 import ToolbarEditAnnotation from "Features/annotations/components/ToolbarEditAnnotation";
+import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 import { matchesActiveViewerKey } from "Features/viewers/utils/threedViewerKeys";
 
 
@@ -21,7 +22,9 @@ export default function PopperEditAnnotation({ viewerKey = null }) {
 
   const { node: selectedNode } = useSelectedNodes();
 
-  const activeViewerKey = useSelector((s) => s.viewers.selectedViewerKey);
+  // Effective key, not the raw module key: the toolbar follows the editor
+  // actually displayed (e.g. the Dessin module toggled to its 3D editor).
+  const activeViewerKey = useSelector(selectEffectiveViewerKey);
   const selectedAnnotation = useSelectedAnnotation();
   const selectedItems = useSelector(selectSelectedItems);
   const isWidest = useIsWidestCoupledTab();
