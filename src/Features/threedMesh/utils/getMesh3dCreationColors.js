@@ -16,7 +16,7 @@ const SHADES = [
   (c) => lighten(c, 0.42),
 ];
 
-function toRgb(color) {
+export function toRgb(color) {
   try {
     const { values } = decomposeColor(color);
     return values;
@@ -25,7 +25,7 @@ function toRgb(color) {
   }
 }
 
-const rgbDistSq = (c1, c2) =>
+export const rgbDistSq = (c1, c2) =>
   (c1[0] - c2[0]) ** 2 + (c1[1] - c2[1]) ** 2 + (c1[2] - c2[2]) ** 2;
 
 export default function getMesh3dCreationColors(

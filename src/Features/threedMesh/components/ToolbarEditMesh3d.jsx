@@ -1,4 +1,4 @@
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 
 import { clearSelection } from "Features/selection/selectionSlice";
 
@@ -14,16 +14,20 @@ import {
 import GridOnIcon from "@mui/icons-material/GridOn";
 import DeleteIcon from "@mui/icons-material/Delete";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
+import RefreshIcon from "@mui/icons-material/Refresh";
 
 import FieldColorV2 from "Features/form/components/FieldColorV2";
 import FieldTextV2 from "Features/form/components/FieldTextV2";
 
 import useSelectedMeshes3d from "../hooks/useSelectedMeshes3d";
+import useMeshes3d from "../hooks/useMeshes3d";
 import useUpdateMesh3d from "../hooks/useUpdateMesh3d";
 import useDeleteMeshes3d from "../hooks/useDeleteMeshes3d";
 import useMesh3dLabelPrefix from "../hooks/useMesh3dLabelPrefix";
+import findAdjacentMeshes3d from "../utils/findAdjacentMeshes3d";
 import formatSurfaceM2 from "../utils/formatSurfaceM2";
 import getMesh3dDisplayLabel from "../utils/getMesh3dDisplayLabel";
+import getMesh3dRefreshedColor from "../utils/getMesh3dRefreshedColor";
 import { DEFAULT_MESH3D_COLOR } from "../utils/mesh3dConstants";
 
 // Edit toolbar shown when exactly one maille is selected (mirrors
@@ -31,7 +35,11 @@ import { DEFAULT_MESH3D_COLOR } from "../utils/mesh3dConstants";
 export default function ToolbarEditMesh3d({ onDragStart }) {
   const dispatch = useDispatch();
 
+  const projectId = useSelector((s) => s.projects.selectedProjectId);
+  const scopeId = useSelector((s) => s.scopes.selectedScopeId);
+
   const meshes3d = useSelectedMeshes3d();
+  const allMeshes3d = useMeshes3d({ projectId, scopeId });
   const updateMesh3d = useUpdateMesh3d();
   const deleteMeshes3d = useDeleteMeshes3d();
   const { prefix } = useMesh3dLabelPrefix();
@@ -49,6 +57,18 @@ export default function ToolbarEditMesh3d({ onDragStart }) {
 
   function handleColorChange(hex) {
     updateMesh3d(mesh3d.id, { color: hex });
+  }
+
+  function handleRefreshColor() {
+    const siblings = (allMeshes3d || []).filter((m) => m.id !== mesh3d.id);
+    const neighbors = findAdjacentMeshes3d(mesh3d.faces, siblings);
+    const neighborColors = neighbors.map((n) => n.color || DEFAULT_MESH3D_COLOR);
+    const newColor = getMesh3dRefreshedColor(
+      mesh3d.baseColor,
+      color,
+      neighborColors
+    );
+    if (newColor) updateMesh3d(mesh3d.id, { color: newColor });
   }
 
   async function handleDeleteClick() {
@@ -107,6 +127,13 @@ export default function ToolbarEditMesh3d({ onDragStart }) {
           label="Couleur"
           value={color}
           onChange={handleColorChange}
+          action={
+            <Tooltip title="Couleur différenciante des mailles adjacentes">
+              <IconButton size="small" onClick={handleRefreshColor}>
+                <RefreshIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          }
           options={{ showAsSection: true }}
         />
       </Box>

@@ -5,7 +5,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import defaultColors from "Features/colors/data/defaultColors";
 import WhiteSectionGeneric from "./WhiteSectionGeneric";
 
-export default function FieldColorV2({ value, onChange, label, options }) {
+export default function FieldColorV2({ value, onChange, label, options, action }) {
   const [anchorEl, setAnchorEl] = useState(null);
   const showAsSection = options?.showAsSection;
 
@@ -39,21 +39,25 @@ export default function FieldColorV2({ value, onChange, label, options }) {
           }}>
             <Typography variant="body2" sx={{ fontWeight: "bold" }}>{label}</Typography>
 
-            {/* Le rond de couleur cliquable */}
-            <Box
-              onClick={handleClick}
-              sx={{
-                width: 24,
-                height: 24,
-                borderRadius: '50%',
-                bgcolor: value || '#fff',
-                cursor: 'pointer',
-                border: '2px solid',
-                borderColor: 'divider',
-                '&:hover': { transform: 'scale(1.1)' },
-                transition: 'transform 0.2s'
-              }}
-            />
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              {action}
+
+              {/* Le rond de couleur cliquable */}
+              <Box
+                onClick={handleClick}
+                sx={{
+                  width: 24,
+                  height: 24,
+                  borderRadius: '50%',
+                  bgcolor: value || '#fff',
+                  cursor: 'pointer',
+                  border: '2px solid',
+                  borderColor: 'divider',
+                  '&:hover': { transform: 'scale(1.1)' },
+                  transition: 'transform 0.2s'
+                }}
+              />
+            </Box>
           </Box>
         </WhiteSectionGeneric>
 
