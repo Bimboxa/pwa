@@ -22,8 +22,11 @@ import triangulateAnnotationGeometry, {
 import { expandRingWithOffsets } from "Features/geometry/utils/arcSampling";
 import extractPlanarSketchEdges from "Features/threedEditor/js/postfx/extractPlanarSketchEdges";
 
-// Match the codebase convention used by other arc-aware paths.
-const ARC_SAMPLES = 6;
+// Segments per S-C-S arc when expanding rings for the per-vertex-Z mesh
+// paths — 24 so a (near-)full circle reads as a smooth circle in 3D. Must
+// stay in sync with getAnnotationQties' ARC_SAMPLES (the developed surface
+// is computed on the same expanded rings).
+const ARC_SAMPLES = 24;
 
 function getCircleInfo(p0, p1, p2) {
   const x1 = p0.x;

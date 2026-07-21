@@ -15,7 +15,7 @@ import { getEffectiveShellMode } from "Features/annotations/constants/shape3DCon
 // Match the ARC_SAMPLES used by the 3D mesh builder (extrudeClosedShape) so the
 // developed surface is triangulated on the SAME arc-expanded contour as the
 // rendered geometry.
-const ARC_SAMPLES = 6;
+const ARC_SAMPLES = 24;
 
 // True iff any point on the contour, any cut, or any innerPoint carries a
 // non-zero offsetBottom / offsetTop. Used to gate the per-vertex-Z surface
