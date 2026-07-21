@@ -90,6 +90,7 @@ import IconButtonSlopeWalls from "./IconButtonSlopeWalls";
 import IconButtonContours from "./IconButtonContours";
 import IconButtonCloseEnvelope from "./IconButtonCloseEnvelope";
 import IconButtonAddGuideLine from "./IconButtonAddGuideLine";
+import IconButtonAutoSlope from "./IconButtonAutoSlope";
 import ToolbarEditGuideLine from "./ToolbarEditGuideLine";
 import DialogDuplicateContourSegments from "./DialogDuplicateContourSegments";
 
@@ -920,6 +921,9 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
                 )}
                 {selectedAnnotation?.type === "POLYGON" && (
                   <IconButtonAddGuideLine accentColor={accentColor} />
+                )}
+                {selectedAnnotation?.type === "POLYGON" && (
+                  <IconButtonAutoSlope accentColor={accentColor} />
                 )}
                 {selectedAnnotation?.type === "POLYGON" &&
                   selectedAnnotation?.guideLines?.some(
