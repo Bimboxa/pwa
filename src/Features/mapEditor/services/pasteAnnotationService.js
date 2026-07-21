@@ -80,6 +80,10 @@ export default async function pasteAnnotationService({
 
     // Start from the source but strip hydrated/runtime-only fields so we don't
     // bloat the DB record with computed data from useAnnotationsV2.
+    // `guideLines` is stripped too: its refs point at the SOURCE's db.points,
+    // so carrying it over would draw the copy's guide line at the original
+    // location and share points with it. It is rebuilt below from the
+    // clipboard's baseGuideLines snapshot (same rigid transform, fresh points).
     const {
       points: _srcPoints,
       cuts: _srcCuts,
@@ -88,6 +92,7 @@ export default async function pasteAnnotationService({
       baseMapName: _srcBaseMapName,
       templateLabel: _srcTemplateLabel,
       annotationTemplate: _srcAnnotationTemplate,
+      guideLines: _srcGuideLines,
       ...sourceAnnotationCleaned
     } = sourceAnnotation;
 
@@ -137,6 +142,28 @@ export default async function pasteAnnotationService({
         });
       } else if (type === "POLYGON") {
         clonedAnnotation.cuts = [];
+      }
+
+      // Guide lines: same rigid transform as the contour, fresh db.points,
+      // meta (slopePct, isStairs, stairsCount, ...) carried from the snapshot.
+      // Ref key is `pointId` (not `id`) — see resolveGuideLine.
+      if (item.baseGuideLines?.length) {
+        clonedAnnotation.guideLines = item.baseGuideLines.map((gl) => {
+          const { points: glPoints, ...meta } = gl;
+          const glTransformed = applyPasteTransformToPoints(
+            glPoints,
+            sourceCenter,
+            targetCenter,
+            pasteTransform,
+          );
+          return {
+            ...meta,
+            points: glTransformed.map((pt, i) => ({
+              pointId: normalize(pt, sourceAnnotation),
+              type: glPoints[i]?.type === "circle" ? "circle" : "square",
+            })),
+          };
+        });
       }
     } else if (type === "POINT" || type === "MARKER") {
       if (!item.basePoint) continue;

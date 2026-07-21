@@ -263,6 +263,27 @@ function buildClipboardItem(ann) {
       item.stripWidthPx = ann.stripWidthPx ?? ann.width ?? null;
       item.stripOrientation = ann.stripOrientation ?? 1;
     }
+    // Guide lines (slope/stairs ramp axes): snapshot resolved pixel geometry
+    // + meta (slopePct, isStairs, ...) so paste can rebuild them with fresh
+    // db.points. Without this the pasted annotation would keep refs to the
+    // SOURCE's points and its guide line would stay at the original location.
+    if (Array.isArray(ann.guideLines) && ann.guideLines.length) {
+      item.baseGuideLines = ann.guideLines
+        .map((gl) => {
+          const { points, ...meta } = gl || {};
+          return {
+            ...meta,
+            points: (points || [])
+              .filter((p) => typeof p?.x === "number" && typeof p?.y === "number")
+              .map((p) => ({
+                x: p.x,
+                y: p.y,
+                ...(p.type ? { type: p.type } : {}),
+              })),
+          };
+        })
+        .filter((gl) => gl.points.length >= 2);
+    }
   } else if (type === "POINT" || type === "MARKER") {
     const p = ann.point || ann.targetPoint;
     if (!p) return null;
@@ -3074,6 +3095,8 @@ const InteractionLayer = forwardRef(({
         for (const it of items) {
           if (it.basePoints) it.basePoints.forEach(acc);
           if (it.baseCuts) it.baseCuts.forEach((c) => c.points.forEach(acc));
+          if (it.baseGuideLines)
+            it.baseGuideLines.forEach((g) => g.points.forEach(acc));
           if (it.basePoint) acc(it.basePoint);
         }
         const sourceCenter = Number.isFinite(minX)

@@ -67,6 +67,40 @@ export default function duplicateAnnotationPoints(annotation, ctx) {
     });
   }
 
+  // Guide-line refs key on `pointId` (not `id`) and resolve to
+  // {pointId, id, type, x, y} — see resolveGuideLine. Mint new points from the
+  // resolved pixel coords and return storage-shaped refs ({pointId, type}) so
+  // the duplicate's guide lines no longer share points with the source.
+  function remapGuideLineRefs(refs) {
+    if (!Array.isArray(refs)) return refs;
+    return refs.map((ref) => {
+      if (!ref || ref.pointId == null) return ref;
+
+      const hasCoords =
+        typeof ref.x === "number" &&
+        typeof ref.y === "number" &&
+        width > 0 &&
+        height > 0;
+      if (!hasCoords) return ref;
+
+      let newId = idMap.get(ref.pointId);
+      if (!newId) {
+        newId = nanoid();
+        idMap.set(ref.pointId, newId);
+        pointRecords.push({
+          id: newId,
+          x: ref.x / width,
+          y: ref.y / height,
+          projectId,
+          baseMapId,
+          listingId,
+        });
+      }
+
+      return { pointId: newId, ...(ref.type ? { type: ref.type } : {}) };
+    });
+  }
+
   const nextAnnotation = { ...annotation };
 
   if (Array.isArray(annotation.points)) {
@@ -78,6 +112,14 @@ export default function duplicateAnnotationPoints(annotation, ctx) {
       cut && Array.isArray(cut.points)
         ? { ...cut, points: remapRefs(cut.points) }
         : cut
+    );
+  }
+
+  if (Array.isArray(annotation.guideLines)) {
+    nextAnnotation.guideLines = annotation.guideLines.map((gl) =>
+      gl && Array.isArray(gl.points)
+        ? { ...gl, points: remapGuideLineRefs(gl.points) }
+        : gl
     );
   }
 
