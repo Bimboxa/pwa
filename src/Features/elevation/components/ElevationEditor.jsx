@@ -24,6 +24,7 @@ import setElevationGuideService from "Features/elevation/services/setElevationGu
 import updateProfileVertexHeightService from "Features/elevation/services/updateProfileVertexHeightService";
 import insertProfileVertexService from "Features/elevation/services/insertProfileVertexService";
 import deleteProfileVertexService from "Features/elevation/services/deleteProfileVertexService";
+import toggleProfileVertexTypeService from "Features/elevation/services/toggleProfileVertexTypeService";
 
 // Picks the segment whose projected X-band contains `x` (smallest band wins on
 // overlap from fold-backs); falls back to the nearest band. Returns the
@@ -375,6 +376,20 @@ export default function ElevationEditor({
     [startProfileVertexDrag, editedProfileIndex, sectionProfile]
   );
 
+  // Re-click on the already-selected vertex toggles its type square ↔ circle
+  // (arc control point of the vertical section curve).
+  const handleToggleProfileVertexType = useCallback(
+    (vertexIndex) => {
+      toggleProfileVertexTypeService({
+        annotationId,
+        profileIndex: editedProfileIndex,
+        vertexIndex,
+        dispatch,
+      });
+    },
+    [annotationId, editedProfileIndex, dispatch]
+  );
+
   const handleCommitProfileVertexHeight = useCallback(
     (vertexIndex, value) => {
       updateProfileVertexHeightService({
@@ -667,6 +682,7 @@ export default function ElevationEditor({
             selectedVertexIndex={selectedProfileVertexIndex}
             onVertexMouseDown={handleProfileVertexMouseDown}
             onSelectVertex={setSelectedProfileVertexIndex}
+            onToggleVertexType={handleToggleProfileVertexType}
             onCommitVertexHeight={handleCommitProfileVertexHeight}
             onCommitOffsetZ={handleCommitOffsetZ}
             hoverWorldPos={hoverWorldPos}

@@ -5,6 +5,7 @@ import partitionPolygonByChords from "./partitionPolygonByChords";
 import computeDomeSteinerField from "./computeDomeSteinerField";
 import prepareShellProfiles from "./prepareShellProfiles";
 import delaunayTriangulate from "./delaunayTriangulate";
+import expandShellProfileArcs from "./expandShellProfileArcs";
 
 // Number of iso-height bands used for guideLine ramps. Single-sourced so the
 // 3D mesh, the visible iso lines and the developed-surface quantity all agree.
@@ -92,10 +93,11 @@ export default function triangulateAnnotationGeometry({
     isoBandLevels = 0;
 
     // Constraint set = profiles (per-vertex heights, contour-inheriting
-    // endpoints) + iso chords (constant height, contour-PINNING endpoints).
+    // endpoints, vertical S-C-S arcs expanded into samples) + iso chords
+    // (constant height, contour-PINNING endpoints).
     const constraintLines = [
       ...shell.profiles.map((p) => ({
-        polyline: p.polyline,
+        polyline: expandShellProfileArcs(p.polyline),
         inheritEndpoints: true,
       })),
       ...(isoPartition?.isoChords || []).map((c) => ({

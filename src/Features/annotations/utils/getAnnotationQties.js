@@ -602,6 +602,9 @@ export default function getAnnotationQties({
                       x: p.x * meterByPx,
                       y: p.y * meterByPx,
                       height: Number(p?.height) || 0,
+                      // vertical-arc control flag (expanded in the shell
+                      // triangulation)
+                      ...(p?.type === "circle" ? { type: "circle" } : {}),
                     })),
                 })),
             }

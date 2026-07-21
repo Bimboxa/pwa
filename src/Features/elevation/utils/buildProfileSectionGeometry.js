@@ -42,6 +42,8 @@ export default function buildProfileSectionGeometry({
       height: h,
       vertexIndex: i,
       locked: p.locked === true || i === 0 || i === last,
+      // "circle" = arc control point of the vertical section curve (S-C-S).
+      type: p.type === "circle" ? "circle" : "square",
     };
   });
 

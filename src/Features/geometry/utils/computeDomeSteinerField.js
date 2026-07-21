@@ -1,64 +1,52 @@
-// DOME shell solver: computes a Steiner point field whose offsetTop values
-// form a harmonic (soap-film / membrane) surface constrained by:
-//   - the polygon contour heights (Dirichlet boundary = interpolated
-//     offsetTop along the ring), and
-//   - the profile polylines (Dirichlet ridges = per-vertex heights).
+// DOME shell field: "revolution + drape" model.
 //
-// The output points are fed through the EXISTING innerPoints machinery of
-// triangulateAnnotationGeometry (insertSteinerPoints + per-vertex offsetTop),
-// so walls, areas and volume stay consistent for free.
+// Each constraint line (profile or iso line) generates a LOCAL DOME: the
+// surface of revolution of the line around the VERTICAL axis through the
+// midpoint M of the segment joining its two endpoints. Radially, the dome is
+// the upper envelope h_i(r) of the line's sampled (r = plan distance to M,
+// h = height) points — a diameter arch on a disc revolves into a true dome, a
+// constant-height iso chord into a flat plateau.
 //
-// Method: regular grid over the polygon bbox, 4-neighbor graph Laplacian,
-// Gauss-Seidel sweeps with successive over-relaxation (SOR). Neighbors
-// falling outside the polygon contribute the contour's interpolated offsetTop
-// at the ghost position (first-order boundary condition). Nodes within h/2 of
-// a profile are fixed to the profile's interpolated height. Exact constraint
-// points (every profile vertex + samples every `h` along segments) are
-// appended so the surface passes exactly through the profiles.
+// The shell is then a "sheet" (drap) laid over the local domes:
+//   z(x, y) = max( base(x, y), max_i h_i(|p − M_i|) )
+// where base = the contour's interpolated offsetTop at the nearest ring point
+// (the sheet falls back onto the polygon base away from the domes). Inside a
+// dome's inner hole (r < rMin, line not reaching its axis) the sheet spans
+// flat at h_i(rMin); beyond rMax the dome contributes nothing.
 //
-// Units: x/y in any consistent 2D unit (basemap-local for 3D, pixels for
-// qties) — the harmonic interpolation of the height VALUE field is
-// unit-independent. Heights in meters (offsetTop semantics).
+// Output: a Steiner point field [{x, y, offsetTop}] (exact on-line samples
+// first, then grid nodes) evaluated through the drape — consumed by
+// buildDomeTopMesh (Delaunay top mesh) in triangulateAnnotationGeometry.
+//
+// Units: x/y in any consistent 2D unit (basemap-local for 3D, meters for
+// qties); heights in meters (offsetTop semantics). Vertical S-C-S arcs of the
+// profiles must be expanded BEFORE calling (expandShellProfileArcs).
 //
 // Inputs:
 //   - contour: outer ring [{x, y, offsetTop?}, ...] (arc-expanded)
 //   - holes: cut rings (same shape) — V1 callers bail to TENT when holes
-//     exist, but the solver itself tolerates them (nodes inside holes are
-//     excluded and hole rings contribute boundary values).
-//   - profiles: [{ polyline: [{x, y, height}, ...] }] (post
-//     prepareShellProfiles: junctions inserted, heights baked)
+//     exist, but the field itself tolerates them (nodes inside holes are
+//     excluded).
+//   - profiles: [{ polyline: [{x, y, height}, ...] }]
 //
-// Returns [{ x, y, offsetTop }] (exact profile samples first, then grid
-// nodes) or null when the solve cannot apply.
+// Returns the field or null when it cannot apply.
 export default function computeDomeSteinerField({
   contour,
   holes = [],
   profiles = [],
   gridN = 24,
   maxNodes = 800,
-  maxSweeps = 400,
-  convergenceTol = 1e-4,
-  omega = 1.8,
 }) {
   if (!Array.isArray(contour) || contour.length < 3) return null;
 
-  const segments = [];
-  for (const prof of profiles || []) {
-    const pl = (prof?.polyline || []).filter(
-      (p) => Number.isFinite(p?.x) && Number.isFinite(p?.y)
-    );
-    for (let i = 0; i < pl.length - 1; i++) {
-      segments.push({
-        ax: pl[i].x,
-        ay: pl[i].y,
-        ah: Number(pl[i].height) || 0,
-        bx: pl[i + 1].x,
-        by: pl[i + 1].y,
-        bh: Number(pl[i + 1].height) || 0,
-      });
-    }
-  }
-  if (segments.length === 0) return null;
+  const lines = (profiles || [])
+    .map((prof) =>
+      (prof?.polyline || []).filter(
+        (p) => Number.isFinite(p?.x) && Number.isFinite(p?.y)
+      )
+    )
+    .filter((pl) => pl.length >= 2);
+  if (lines.length === 0) return null;
 
   const validHoles = (holes || []).filter(
     (h) => Array.isArray(h) && h.length >= 3
@@ -80,7 +68,7 @@ export default function computeDomeSteinerField({
   if (bboxW <= 0 || bboxH <= 0) return null;
 
   // Grid spacing: ~gridN cells across the larger bbox side, degraded so the
-  // interior node count stays under maxNodes (Steiner insertion is O(n × t)).
+  // node count stays under maxNodes (the Delaunay meshing is O(n²)).
   let h = Math.max(bboxW, bboxH) / gridN;
   const estimate = (bboxW / h) * (bboxH / h);
   if (estimate > maxNodes * 1.6) {
@@ -135,26 +123,7 @@ export default function computeDomeSteinerField({
     return best ? best.height : 0;
   };
 
-  // Distance to the nearest profile segment + interpolated height there.
-  const profileAt = (p) => {
-    let best = null;
-    for (const s of segments) {
-      const abx = s.bx - s.ax;
-      const aby = s.by - s.ay;
-      const len2 = abx * abx + aby * aby;
-      if (len2 < 1e-18) continue;
-      let t = ((p.x - s.ax) * abx + (p.y - s.ay) * aby) / len2;
-      t = Math.max(0, Math.min(1, t));
-      const dx = p.x - (s.ax + abx * t);
-      const dy = p.y - (s.ay + aby * t);
-      const d2 = dx * dx + dy * dy;
-      if (!best || d2 < best.d2) {
-        best = { d2, height: s.ah + (s.bh - s.ah) * t };
-      }
-    }
-    return best;
-  };
-  // Distance to the nearest contour/hole ring (to drop sliver-prone nodes).
+  // Distance² to the nearest contour/hole ring (drop sliver-prone nodes).
   const contourDist2 = (p) => {
     let best = Infinity;
     for (const ring of rings) {
@@ -177,17 +146,120 @@ export default function computeDomeSteinerField({
     return best;
   };
 
-  // --- Build the grid ------------------------------------------------------
+  // --- Local domes (revolution of each line around its own axis) ----------
+  // Radial samples (r, h) along the line, densified so the envelope follows
+  // the plan geometry (r is not linear in the curvilinear abscissa).
+  const SAMPLE_STEP = h / 2;
+  const domes = lines.map((pl) => {
+    const M = {
+      x: (pl[0].x + pl[pl.length - 1].x) / 2,
+      y: (pl[0].y + pl[pl.length - 1].y) / 2,
+    };
+    const samples = [];
+    const pushSample = (x, y, hh) => {
+      samples.push({ r: Math.hypot(x - M.x, y - M.y), h: hh });
+    };
+    for (let i = 0; i < pl.length; i++) {
+      const hi = Number(pl[i].height) || 0;
+      pushSample(pl[i].x, pl[i].y, hi);
+      if (i < pl.length - 1) {
+        const a = pl[i];
+        const b = pl[i + 1];
+        const hb = Number(b.height) || 0;
+        const len = Math.hypot(b.x - a.x, b.y - a.y);
+        const steps = Math.floor(len / SAMPLE_STEP);
+        for (let s = 1; s < steps; s++) {
+          const t = s / steps;
+          pushSample(
+            a.x + (b.x - a.x) * t,
+            a.y + (b.y - a.y) * t,
+            hi + (hb - hi) * t
+          );
+        }
+      }
+    }
+    let rMin = Infinity;
+    let rMax = -Infinity;
+    let hAtRMin = 0;
+    for (const s of samples) {
+      if (s.r < rMin) {
+        rMin = s.r;
+        hAtRMin = s.h;
+      }
+      if (s.r > rMax) rMax = s.r;
+    }
+    return { M, samples, rMin, rMax, hAtRMin };
+  });
+
+  // Revolved height of one dome at radius r: upper envelope over the line's
+  // consecutive (r, h) sample pairs; flat cap inside the inner hole; nothing
+  // beyond the outer radius.
+  const domeHeightAt = (dome, r) => {
+    if (r > dome.rMax + 1e-9) return null;
+    let best = null;
+    if (r <= dome.rMin) {
+      best = dome.hAtRMin;
+    }
+    const s = dome.samples;
+    for (let i = 0; i < s.length - 1; i++) {
+      const r0 = s[i].r;
+      const r1 = s[i + 1].r;
+      const lo = Math.min(r0, r1);
+      const hi = Math.max(r0, r1);
+      if (r < lo - 1e-9 || r > hi + 1e-9) continue;
+      const span = r1 - r0;
+      const t = Math.abs(span) < 1e-12 ? 0 : (r - r0) / span;
+      const hh = s[i].h + (s[i + 1].h - s[i].h) * t;
+      if (best == null || hh > best) best = hh;
+    }
+    return best;
+  };
+
+  // The drape: sheet laid over the local domes, resting on the contour base
+  // elsewhere.
+  const drapeAt = (p) => {
+    let z = contourHeightAt(p);
+    for (const dome of domes) {
+      const r = Math.hypot(p.x - dome.M.x, p.y - dome.M.y);
+      const hh = domeHeightAt(dome, r);
+      if (hh != null && hh > z) z = hh;
+    }
+    return z;
+  };
+
+  // Distance² to the nearest constraint line (drop grid nodes hugging the
+  // ridge samples so the Delaunay keeps the ridge edges).
+  const lineDist2 = (p) => {
+    let best = Infinity;
+    for (const pl of lines) {
+      for (let i = 0; i < pl.length - 1; i++) {
+        const a = pl[i];
+        const b = pl[i + 1];
+        const abx = b.x - a.x;
+        const aby = b.y - a.y;
+        const len2 = abx * abx + aby * aby;
+        if (len2 < 1e-18) continue;
+        let t = ((p.x - a.x) * abx + (p.y - a.y) * aby) / len2;
+        t = Math.max(0, Math.min(1, t));
+        const dx = p.x - (a.x + abx * t);
+        const dy = p.y - (a.y + aby * t);
+        const d2 = dx * dx + dy * dy;
+        if (d2 < best) best = d2;
+      }
+    }
+    return best;
+  };
+
+  // --- Grid nodes evaluated through the drape -----------------------------
   const cols = Math.max(1, Math.floor(bboxW / h));
   const rows = Math.max(1, Math.floor(bboxH / h));
   const x0 = minX + (bboxW - cols * h) / 2 + h / 2;
   const y0 = minY + (bboxH - rows * h) / 2 + h / 2;
 
-  const NEAR_CONTOUR_2 = 0.3 * h * (0.3 * h); // drop sliver-prone nodes
-  const CONSTRAINT_R2 = 0.5 * h * (0.5 * h); // profile capture radius
+  const NEAR_CONTOUR_2 = 0.3 * h * (0.3 * h);
+  const NEAR_LINE_2 = 0.55 * h * (0.55 * h);
 
-  const idxGrid = new Int32Array(cols * rows).fill(-1);
-  const nodes = []; // { x, y, fixed, value, profD2 }
+  const gridOut = [];
   for (let j = 0; j < rows; j++) {
     for (let i = 0; i < cols; i++) {
       // Deterministic sub-cell jitter: breaks the exact cocircular quads of a
@@ -198,97 +270,24 @@ export default function computeDomeSteinerField({
       const p = { x: x0 + i * h + jx, y: y0 + j * h + jy };
       if (!insidePolygon(p)) continue;
       if (contourDist2(p) < NEAR_CONTOUR_2) continue;
-      const prof = profileAt(p);
-      const fixed = prof && prof.d2 <= CONSTRAINT_R2;
-      idxGrid[j * cols + i] = nodes.length;
-      nodes.push({
-        x: p.x,
-        y: p.y,
-        fixed: !!fixed,
-        value: fixed ? prof.height : 0,
-        profD2: prof ? prof.d2 : Infinity,
-      });
-    }
-  }
-  if (nodes.length === 0) return null;
-
-  // --- Precompute neighbor slots for free nodes ---------------------------
-  // Each slot is either { node: idx } or { ghost: boundaryValue }.
-  const free = [];
-  for (let j = 0; j < rows; j++) {
-    for (let i = 0; i < cols; i++) {
-      const k = idxGrid[j * cols + i];
-      if (k < 0 || nodes[k].fixed) continue;
-      const slots = [];
-      const neighbor = (ii, jj) => {
-        const inBounds = ii >= 0 && ii < cols && jj >= 0 && jj < rows;
-        const nk = inBounds ? idxGrid[jj * cols + ii] : -1;
-        if (nk >= 0) {
-          slots.push({ node: nk });
-        } else {
-          // Ghost outside the polygon (or dropped near-contour node): the
-          // boundary condition is the contour height at the ghost position.
-          slots.push({
-            ghost: contourHeightAt({ x: x0 + ii * h, y: y0 + jj * h }),
-          });
-        }
-      };
-      neighbor(i - 1, j);
-      neighbor(i + 1, j);
-      neighbor(i, j - 1);
-      neighbor(i, j + 1);
-      free.push({ k, slots });
+      if (lineDist2(p) < NEAR_LINE_2) continue;
+      gridOut.push({ x: p.x, y: p.y, offsetTop: drapeAt(p) });
     }
   }
 
-  // Initialize free nodes with their boundary estimate for faster
-  // convergence (pure ghost average when available, else 0).
-  for (const f of free) {
-    let sum = 0;
-    for (const s of f.slots) {
-      sum += s.ghost !== undefined ? s.ghost : nodes[s.node].value;
-    }
-    nodes[f.k].value = sum / f.slots.length;
-  }
-
-  // --- Gauss-Seidel + SOR sweeps ------------------------------------------
-  if (free.length > 0) {
-    for (let sweep = 0; sweep < maxSweeps; sweep++) {
-      let maxDelta = 0;
-      for (const f of free) {
-        let sum = 0;
-        for (const s of f.slots) {
-          sum += s.ghost !== undefined ? s.ghost : nodes[s.node].value;
-        }
-        const target = sum / f.slots.length;
-        const prev = nodes[f.k].value;
-        const next = prev + omega * (target - prev);
-        nodes[f.k].value = next;
-        const d = Math.abs(next - prev);
-        if (d > maxDelta) maxDelta = d;
-      }
-      if (maxDelta < convergenceTol) break;
-    }
-  }
-
-  // --- Exact profile constraint points ------------------------------------
-  // Every profile vertex + samples every h/2 along segments, so the surface
-  // passes exactly through the profiles (piecewise-linear along them) AND the
-  // downstream Delaunay keeps the ridge sub-segments as mesh edges: with
-  // samples h/2 apart, each sub-segment's diametral circle has radius h/4,
-  // and every non-ridge point sits at least ~0.55h from the ridge line (grid
-  // nodes near the profiles are excluded below) — no invasion, no flips.
+  // --- Exact on-line samples ----------------------------------------------
+  // Every line vertex + samples every h/2 along segments, evaluated through
+  // the drape (a line covered by a higher dome lies UNDER the sheet — the
+  // sheet wins). Dense sampling also keeps the ridge edges in the Delaunay:
+  // each sub-segment's diametral circle (radius h/4) is empty since every
+  // other point sits at least ~0.55h from the line.
   const exact = [];
-  const pushExact = (x, y, height) => {
-    exact.push({ x, y, offsetTop: height });
+  const pushExact = (x, y) => {
+    exact.push({ x, y, offsetTop: drapeAt({ x, y }) });
   };
-  const SAMPLE_STEP = h / 2;
-  for (const prof of profiles || []) {
-    const pl = (prof?.polyline || []).filter(
-      (p) => Number.isFinite(p?.x) && Number.isFinite(p?.y)
-    );
+  for (const pl of lines) {
     for (let i = 0; i < pl.length; i++) {
-      pushExact(pl[i].x, pl[i].y, Number(pl[i].height) || 0);
+      pushExact(pl[i].x, pl[i].y);
       if (i < pl.length - 1) {
         const a = pl[i];
         const b = pl[i + 1];
@@ -296,25 +295,13 @@ export default function computeDomeSteinerField({
         const steps = Math.floor(len / SAMPLE_STEP);
         for (let s = 1; s < steps; s++) {
           const t = s / steps;
-          pushExact(
-            a.x + (b.x - a.x) * t,
-            a.y + (b.y - a.y) * t,
-            (Number(a.height) || 0) +
-              ((Number(b.height) || 0) - (Number(a.height) || 0)) * t
-          );
+          pushExact(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t);
         }
       }
     }
   }
 
-  // Grid nodes too close to a profile line would create slivers against the
-  // dense ridge samples (and could steal their Delaunay edges) — drop them
-  // from the OUTPUT (they still served as Dirichlet constraints in the solve).
-  const NEAR_PROFILE_2 = 0.55 * h * (0.55 * h);
-  const gridOut = nodes.filter((nd) => nd.profD2 >= NEAR_PROFILE_2);
+  if (exact.length === 0 && gridOut.length === 0) return null;
 
-  return [
-    ...exact,
-    ...gridOut.map((nd) => ({ x: nd.x, y: nd.y, offsetTop: nd.value })),
-  ];
+  return [...exact, ...gridOut];
 }
