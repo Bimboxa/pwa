@@ -16,9 +16,27 @@
 // referenced REVOLUTION_AXIS annotation (shape3D = { key: "REVOLUTION",
 // axisAnnotationId }). The Shape3DSelector adds a dynamic "Révolution" section
 // listing the available axes, so there are no static POLYLINE entries here.
+//
+// POLYGON shell shapes (coques) only make sense when the polygon carries
+// profileLines — `isAvailable` gates the menu entries accordingly.
+const hasShellProfiles = (annotation) =>
+  !!annotation?.profileLines?.some((l) => (l?.points?.length ?? 0) >= 2);
+
 const SHAPE_3D_CONFIG = {
   POLYLINE: [],
   STRIP: [],
+  POLYGON: [
+    {
+      key: "SHELL_DOME",
+      label: "Coque — Dôme",
+      isAvailable: hasShellProfiles,
+    },
+    {
+      key: "SHELL_TENT",
+      label: "Coque — Tente",
+      isAvailable: hasShellProfiles,
+    },
+  ],
 };
 
 // Annotation types that support the dynamic "Révolution" section (axis-based).
@@ -27,6 +45,8 @@ export const TYPES_SUPPORTING_REVOLUTION = ["POLYLINE"];
 export const SHAPE_3D_KEYS = {
   REVOLUTION: "REVOLUTION",
   EXTRUSION_PROFILE: "EXTRUSION_PROFILE",
+  SHELL_DOME: "SHELL_DOME",
+  SHELL_TENT: "SHELL_TENT",
 };
 
 // Annotation types that support EXTRUSION_PROFILE (dynamic profile shapes).
@@ -45,6 +65,16 @@ export function getShape3DEntry(annotationType, key) {
 // `{ key, ... }` only (the previous string form is no longer supported).
 export function getShape3DKey(shape3D) {
   return shape3D?.key ?? null;
+}
+
+// Effective shell mode for a POLYGON with profileLines: null when no
+// profiles; the explicit SHELL_TENT choice; otherwise DOME (the DEFAULT even
+// when shape3D is unset). Used by the 3D build and the qties path.
+export function getEffectiveShellMode(annotation) {
+  if (!hasShellProfiles(annotation)) return null;
+  return getShape3DKey(annotation?.shape3D) === SHAPE_3D_KEYS.SHELL_TENT
+    ? "TENT"
+    : "DOME";
 }
 
 export default SHAPE_3D_CONFIG;

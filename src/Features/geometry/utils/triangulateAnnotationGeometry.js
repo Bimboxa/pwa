@@ -1,6 +1,10 @@
 import { Vector2, ShapeUtils } from "three";
 
 import partitionPolygonByIsoLines from "./partitionPolygonByIsoLines";
+import partitionPolygonByChords from "./partitionPolygonByChords";
+import computeDomeSteinerField from "./computeDomeSteinerField";
+import prepareShellProfiles from "./prepareShellProfiles";
+import delaunayTriangulate from "./delaunayTriangulate";
 
 // Number of iso-height bands used for guideLine ramps. Single-sourced so the
 // 3D mesh, the visible iso lines and the developed-surface quantity all agree.
@@ -47,6 +51,18 @@ export default function triangulateAnnotationGeometry({
   // failure the per-vertex-z earcut path runs with the interpolated heights
   // baked at resolve time — same field, seam exactness lost.
   isoPartition = null,
+  // Shell (profileLines): { mode: "DOME"|"TENT",
+  //   profiles: [{ polyline: [{x, y, height}, ...] }] } — heights in meters
+  // (offsetTop semantics), endpoints already contour-continuous. When
+  // isoPartition chords are ALSO present they join the shell as
+  // constant-height constraint lines (profiles and iso lines coexist on one
+  // surface); crossings between all lines are resolved here
+  // (prepareShellProfiles). Exclusive with isoBandLevels only.
+  //   DOME (default): harmonic Steiner field + Delaunay top mesh; falls back
+  //     to TENT when the solver can't apply or cuts exist.
+  //   TENT: exact planar-strip chord partition (crossings pre-split);
+  //     falls back to the plain per-vertex-z earcut on failure.
+  shell = null,
 }) {
   if (!Array.isArray(contour) || contour.length < 3) {
     return emptyResult();
@@ -67,6 +83,85 @@ export default function triangulateAnnotationGeometry({
   let isoSegments = null;
   let extraPts = [];
   let isoPartitionApplied = false;
+  let shellApplied = null; // "DOME" | "TENT" | null
+  let shellProfileSegments = null;
+
+  // --- SHELL (profileLines): absorbs the iso chords (constant-height
+  // constraint lines) so profiles and iso lines constrain ONE surface.
+  if (shell?.profiles?.length) {
+    isoBandLevels = 0;
+
+    // Constraint set = profiles (per-vertex heights, contour-inheriting
+    // endpoints) + iso chords (constant height, contour-PINNING endpoints).
+    const constraintLines = [
+      ...shell.profiles.map((p) => ({
+        polyline: p.polyline,
+        inheritEndpoints: true,
+      })),
+      ...(isoPartition?.isoChords || []).map((c) => ({
+        polyline: (c?.polyline || []).map((p) => ({
+          x: p.x,
+          y: p.y,
+          height: Number(c?.height) || 0,
+        })),
+        inheritEndpoints: false,
+      })),
+    ];
+    isoPartition = null; // absorbed above
+
+    // Resolve crossings once (shared junction vertex objects + averaged
+    // heights) — used by both modes.
+    const prepared = prepareShellProfiles({ profiles: constraintLines });
+
+    // 3D profile ridge segments (drawn by the caller as surface lines).
+    shellProfileSegments = [];
+    for (const prof of prepared) {
+      const pl = prof.polyline;
+      for (let i = 0; i < pl.length - 1; i++) {
+        shellProfileSegments.push([
+          pl[i].x,
+          pl[i].y,
+          verticalLift + height + (pl[i].height || 0) + zFightOffset,
+          pl[i + 1].x,
+          pl[i + 1].y,
+          verticalLift + height + (pl[i + 1].height || 0) + zFightOffset,
+        ]);
+      }
+    }
+
+    const wantDome = shell.mode !== "TENT";
+    // DOME with cuts is V1-conservative: the unconstrained Delaunay meshing
+    // below has no hole-edge enforcement — bail to the TENT partition (which
+    // handles holes).
+    if (wantDome && validHoles.length === 0) {
+      const domeTri = buildDomeTopMesh(contour, prepared);
+      if (domeTri) {
+        bandedTris = domeTri.tris;
+        extraPts = domeTri.extraPoints;
+        shellApplied = "DOME";
+      }
+    }
+    if (!shellApplied) {
+      const part = partitionPolygonByChords({
+        contour,
+        holes: validHoles,
+        chords: prepared.map((p) => ({
+          polyline: p.polyline,
+          inheritEndpoints: p.inheritEndpoints,
+        })),
+      });
+      if (part) {
+        contour = part.augContour;
+        validHoles = part.augHoles;
+        bandedTris = part.tris;
+        extraPts = part.extraPoints;
+        isoPartitionApplied = true; // planar strips → sketch fold edges
+        shellApplied = "TENT";
+      }
+      // else: plain per-vertex-z earcut (contour offsets only).
+    }
+  }
+
   if (isoPartition?.isoChords?.length) {
     const part = partitionPolygonByIsoLines({
       contour,
@@ -209,6 +304,11 @@ export default function triangulateAnnotationGeometry({
     // True when the explicit iso-chord partition replaced the top
     // triangulation (callers then draw planar sketch edges).
     isoPartitionApplied,
+    // "DOME" | "TENT" | null — which shell build actually applied.
+    shellApplied,
+    // 3D ridge segments along the shell profiles ([ax,ay,az, bx,by,bz][]),
+    // null when no shell profiles were passed.
+    shellProfileSegments,
     topRange,
     bottomRange,
     sideRange,
@@ -218,6 +318,130 @@ export default function triangulateAnnotationGeometry({
     areaSides: areaSides * k2,
     volume: volume * k3,
   };
+}
+
+// DOME top mesh: harmonic Steiner field (computeDomeSteinerField) + Delaunay
+// triangulation of [contour, field]. The contour ring itself is NOT augmented
+// (walls stay unchanged); the field points become extraPoints carrying their
+// solved offsetTop. Returns { tris, extraPoints } in the flatPts layout
+// [contour, ...(no holes), ...extraPoints], or null when the mesh cannot be
+// trusted (solver failed, Delaunay failed, or the triangulation does not
+// cover the polygon area — missing boundary edges on concave contours). The
+// caller then falls back to the TENT partition.
+function buildDomeTopMesh(contour, preparedProfiles) {
+  const field = computeDomeSteinerField({
+    contour,
+    holes: [],
+    profiles: preparedProfiles,
+  });
+  if (!field?.length) return null;
+
+  // Dedupe field points against the contour vertices and one another —
+  // duplicate points make Delaunay degenerate.
+  let minX = Infinity,
+    minY = Infinity,
+    maxX = -Infinity,
+    maxY = -Infinity;
+  for (const p of contour) {
+    if (p.x < minX) minX = p.x;
+    if (p.y < minY) minY = p.y;
+    if (p.x > maxX) maxX = p.x;
+    if (p.y > maxY) maxY = p.y;
+  }
+  const diag = Math.hypot(maxX - minX, maxY - minY);
+  if (!Number.isFinite(diag) || diag < 1e-9) return null;
+  const WELD_2 = (diag * 1e-4) ** 2;
+  const kept = [];
+  for (const p of field) {
+    let dup = false;
+    for (const q of contour) {
+      const dx = p.x - q.x;
+      const dy = p.y - q.y;
+      if (dx * dx + dy * dy < WELD_2) {
+        dup = true;
+        break;
+      }
+    }
+    if (!dup) {
+      for (const q of kept) {
+        const dx = p.x - q.x;
+        const dy = p.y - q.y;
+        if (dx * dx + dy * dy < WELD_2) {
+          dup = true;
+          break;
+        }
+      }
+    }
+    if (!dup) kept.push(p);
+  }
+  if (kept.length === 0) return null;
+
+  const extraPoints = kept.map((p) => ({
+    x: p.x,
+    y: p.y,
+    type: "square",
+    offsetBottom: 0,
+    offsetTop: p.offsetTop,
+  }));
+
+  const allPts = [...contour, ...extraPoints];
+  const delTris = delaunayTriangulate(allPts);
+  if (!delTris) return null;
+
+  // Keep triangles whose centroid lies inside the polygon (Delaunay covers
+  // the convex hull; concave pockets must be dropped).
+  const inRing = (p, ring) => {
+    let inside = false;
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      const a = ring[i];
+      const b = ring[j];
+      if (
+        a.y > p.y !== b.y > p.y &&
+        p.x < ((b.x - a.x) * (p.y - a.y)) / (b.y - a.y) + a.x
+      ) {
+        inside = !inside;
+      }
+    }
+    return inside;
+  };
+  // Normalize winding to the contour's (Delaunay output is arbitrary; mixed
+  // winding would flip vertex normals per-face and break the shading).
+  let ringArea2 = 0;
+  for (let i = 0; i < contour.length; i++) {
+    const a = contour[i];
+    const b = contour[(i + 1) % contour.length];
+    ringArea2 += a.x * b.y - b.x * a.y;
+  }
+  const outerSign = Math.sign(ringArea2);
+  if (outerSign === 0) return null;
+
+  const tris = [];
+  let covered = 0;
+  for (let [a, b, c] of delTris) {
+    const centroid = {
+      x: (allPts[a].x + allPts[b].x + allPts[c].x) / 3,
+      y: (allPts[a].y + allPts[b].y + allPts[c].y) / 3,
+    };
+    if (!inRing(centroid, contour)) continue;
+    const area = triPlanarArea(allPts[a], allPts[b], allPts[c]);
+    if (Math.sign(area) !== outerSign) {
+      const tmp = b;
+      b = c;
+      c = tmp;
+    }
+    tris.push([a, b, c]);
+    covered += Math.abs(area);
+  }
+  if (tris.length === 0) return null;
+
+  // Coverage self-check: the kept triangles must tile the polygon (missing
+  // contour edges would leave cracks along the boundary).
+  const polyArea = ringPlanarArea(contour);
+  if (!(polyArea > 0) || Math.abs(covered - polyArea) > polyArea * 0.01) {
+    return null;
+  }
+
+  return { tris, extraPoints };
 }
 
 // Re-mesh the TOP as iso-height bands. Returns { augContour, tris } where the

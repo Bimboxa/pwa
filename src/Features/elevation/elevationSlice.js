@@ -20,6 +20,10 @@ const initialState = {
   // id of the annotation the current selection was computed for — used to
   // re-seed the default chain when the selected annotation changes
   selectionAnnotationId: null,
+  // profileLines section mode: index of the edited profile (null = surface
+  // silhouette mode). Synced from the map-editor sub-selection and the panel
+  // chips.
+  editedProfileIndex: null,
 };
 
 export const elevationSlice = createSlice({
@@ -54,6 +58,9 @@ export const elevationSlice = createSlice({
     setHoveredSegmentIndex: (state, action) => {
       state.hoveredSegmentIndex = action.payload;
     },
+    setEditedProfileIndex: (state, action) => {
+      state.editedProfileIndex = action.payload;
+    },
     resetElevationSelection: () => initialState,
   },
 });
@@ -64,6 +71,7 @@ export const {
   setEditedSegmentIndex,
   setHoveredSegmentIndex,
   setObservationSign,
+  setEditedProfileIndex,
   resetElevationSelection,
 } = elevationSlice.actions;
 

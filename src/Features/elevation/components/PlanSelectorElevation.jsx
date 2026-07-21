@@ -59,9 +59,15 @@ export default function PlanSelectorElevation({
   // isoHeightLines (resolved: [{points: [{x,y}...], height}]) — drawn dashed
   // purple, non-interactive, so the user sees which lines will project.
   isoLines = null,
+  // shell profileLines (resolved: [{points: [{x,y,height}...]}]) — drawn
+  // dashed teal, CLICKABLE: clicking one selects its developed section in the
+  // editor below (editedProfileIndex).
+  profileLines = null,
+  editedProfileIndex = null,
   onHoverSegment,
   onSelectSegment,
   onSetObservation,
+  onSelectProfile,
 }) {
   // helper - bounds + viewBox (fit-contain over all points, with padding)
 
@@ -267,6 +273,42 @@ export default function PlanSelectorElevation({
               vectorEffect="non-scaling-stroke"
               style={{ pointerEvents: "none" }}
             />
+          );
+        })}
+
+        {/* shell profileLines (dashed teal) — clicking selects the profile's
+            developed section in the editor below */}
+        {(profileLines || []).map((line, li) => {
+          const pts = (line?.points || []).filter(
+            (p) => typeof p?.x === "number" && typeof p?.y === "number"
+          );
+          if (pts.length < 2) return null;
+          const isEdited = editedProfileIndex === li;
+          const ptsStr = pts.map((p) => `${p.x},${p.y}`).join(" ");
+          return (
+            <g key={`profile-${li}`}>
+              <polyline
+                points={ptsStr}
+                fill="none"
+                stroke={isEdited ? "#00c853" : "#00897b"}
+                strokeWidth={isEdited ? 4 : 2}
+                strokeDasharray="8 4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                vectorEffect="non-scaling-stroke"
+                style={{ pointerEvents: "none" }}
+              />
+              {/* invisible thick hit area */}
+              <polyline
+                points={ptsStr}
+                fill="none"
+                stroke="transparent"
+                strokeWidth={16}
+                vectorEffect="non-scaling-stroke"
+                style={{ cursor: "pointer" }}
+                onClick={() => onSelectProfile?.(li)}
+              />
+            </g>
           );
         })}
 

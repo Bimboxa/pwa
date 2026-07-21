@@ -34,9 +34,11 @@ import useAutoBgImageRawTextAnnotations from "Features/bgImage/hooks/useAutoBgIm
 import useHandleCommitDrawing from "../hooks/useHandleCommitDrawing";
 import useHandleCommitGuideLine from "../hooks/useHandleCommitGuideLine";
 import useHandleCommitIsoHeightLine from "../hooks/useHandleCommitIsoHeightLine";
+import useHandleCommitProfileLine from "../hooks/useHandleCommitProfileLine";
 import useHandleCommitRamp from "../hooks/useHandleCommitRamp";
 import useDeleteGuideLine from "Features/annotations/hooks/useDeleteGuideLine";
 import useDeleteIsoHeightLine from "Features/annotations/hooks/useDeleteIsoHeightLine";
+import useDeleteProfileLine from "Features/annotations/hooks/useDeleteProfileLine";
 import useHandleSplitCommit from "../hooks/useHandleSplitCommit";
 import useHandleCompleteAnnotation from "../hooks/useHandleCompleteAnnotation";
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
@@ -470,9 +472,11 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     const { handleSplitPolylineClickPoint } = useHandleSplitPolylineClick({ newEntity });
     const handleCommitGuideLine = useHandleCommitGuideLine();
     const handleCommitIsoHeightLine = useHandleCommitIsoHeightLine();
+    const handleCommitProfileLine = useHandleCommitProfileLine();
     const handleCommitRamp = useHandleCommitRamp({ newEntity });
     const deleteGuideLine = useDeleteGuideLine();
     const deleteIsoHeightLine = useDeleteIsoHeightLine();
+    const deleteProfileLine = useDeleteProfileLine();
     const { handleCompleteAnnotationCommit } = useHandleCompleteAnnotation({ newEntity });
     const saveTempAnnotations = useSaveTempAnnotations();
     const createAnnotationsFromDetectedStrips = useCreateAnnotationsFromDetectedStrips();
@@ -1636,6 +1640,9 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     // Same for isoHeightLines (constant-height contour lines).
     const handleDeleteIsoHeightLine = deleteIsoHeightLine;
 
+    // Same for profileLines (shell cross-sections).
+    const handleDeleteProfileLine = deleteProfileLine;
+
     // snapping
 
     //const isSnappingEnabled = enabledDrawingMode || !selectedNode;
@@ -1732,6 +1739,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                     onRemoveCut={handleRemoveCut}
                     onDeleteGuideLine={handleDeleteGuideLine}
                     onDeleteIsoHeightLine={handleDeleteIsoHeightLine}
+                    onDeleteProfileLine={handleDeleteProfileLine}
                     onAnnotationMoveCommit={handleAnnotationMoveCommit}
                     onSegmentSplit={handleSegmentSplit}
                     onCutSegment={handleCutSegment}
@@ -1742,6 +1750,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                     onSplitPolylineClickPoint={handleSplitPolylineClickPoint}
                     onCommitGuideLine={handleCommitGuideLine}
                     onCommitIsoHeightLine={handleCommitIsoHeightLine}
+                    onCommitProfileLine={handleCommitProfileLine}
                     onCommitRamp={handleCommitRamp}
                     onProjectionSnapInsert={handleProjectionSnapInsert}
                     snappingEnabled={isSnappingEnabled}

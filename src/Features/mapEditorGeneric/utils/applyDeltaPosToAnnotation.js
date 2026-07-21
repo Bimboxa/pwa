@@ -295,6 +295,13 @@ export default function applyDeltaPosToAnnotation(annotation, deltaPos, partType
                 points: transformPoints(line.points),
             }));
         }
+
+        if (_annotation.profileLines) {
+            _annotation.profileLines = _annotation.profileLines.map(line => ({
+                ...line,
+                points: transformPoints(line.points),
+            }));
+        }
     }
 
     return _annotation;

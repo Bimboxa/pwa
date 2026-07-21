@@ -77,7 +77,10 @@ export default function useAnnotationPermissions({ annotations }) {
         const inIso = ann.isoHeightLines?.some((l) =>
           l?.points?.some((g) => g.pointId === pointId || g.id === pointId)
         );
-        if (inMain || inCuts || inInner || inGuide || inIso) {
+        const inProfile = ann.profileLines?.some((l) =>
+          l?.points?.some((g) => g.pointId === pointId || g.id === pointId)
+        );
+        if (inMain || inCuts || inInner || inGuide || inIso || inProfile) {
           if (canEditRecord(ann, currentUserId)) {
             myIds.push(ann.id);
           } else {

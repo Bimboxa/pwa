@@ -168,6 +168,7 @@ export default function useCloneAnnotationAndEntity() {
             if (hasPart) {
                 delete clonedAnnotation.guideLines;
                 delete clonedAnnotation.isoHeightLines;
+                delete clonedAnnotation.profileLines;
                 delete clonedAnnotation.innerPoints;
                 delete clonedAnnotation.hiddenSegmentsIdx;
                 delete clonedAnnotation.isoHeightSegmentsIdx;

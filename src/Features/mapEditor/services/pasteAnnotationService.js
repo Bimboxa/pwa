@@ -94,6 +94,7 @@ export default async function pasteAnnotationService({
       annotationTemplate: _srcAnnotationTemplate,
       guideLines: _srcGuideLines,
       isoHeightLines: _srcIsoHeightLines,
+      profileLines: _srcProfileLines,
       ...sourceAnnotationCleaned
     } = sourceAnnotation;
 
@@ -183,6 +184,31 @@ export default async function pasteAnnotationService({
             points: lTransformed.map((pt) => ({
               pointId: normalize(pt, sourceAnnotation),
               type: "square",
+            })),
+          };
+        });
+      }
+
+      // Profile lines: same rigid transform + fresh db.points. Refs carry an
+      // inline per-vertex `height` (meters) that must be re-attached from the
+      // snapshot refs.
+      if (item.baseProfileLines?.length) {
+        clonedAnnotation.profileLines = item.baseProfileLines.map((l) => {
+          const { points: lPoints, ...meta } = l;
+          const lTransformed = applyPasteTransformToPoints(
+            lPoints,
+            sourceCenter,
+            targetCenter,
+            pasteTransform,
+          );
+          return {
+            ...meta,
+            points: lTransformed.map((pt, i) => ({
+              pointId: normalize(pt, sourceAnnotation),
+              type: "square",
+              ...(typeof lPoints[i]?.height === "number"
+                ? { height: lPoints[i].height }
+                : {}),
             })),
           };
         });

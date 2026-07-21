@@ -6,9 +6,11 @@ import {
   setEditedSegmentIndex,
   setHoveredSegmentIndex,
   setObservationSign,
+  setEditedProfileIndex,
 } from "Features/elevation/elevationSlice";
+import { selectSelectedItem } from "Features/selection/selectionSlice";
 
-import { Box, IconButton, Tooltip, Typography } from "@mui/material";
+import { Box, Chip, IconButton, Tooltip, Typography } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
@@ -39,6 +41,7 @@ export default function PanelElevation() {
     offsetZ,
     color,
     isoHeightLines,
+    profileLines,
   } = useElevationAnnotation();
 
 
@@ -61,6 +64,20 @@ export default function PanelElevation() {
   const selectionAnnotationId = useSelector(
     (s) => s.elevation.selectionAnnotationId
   );
+  const editedProfileIndex = useSelector((s) => s.elevation.editedProfileIndex);
+  const selectedItem = useSelector(selectSelectedItem);
+
+  // Shell profiles with enough points to have a section.
+  const sectionProfiles = (profileLines ?? []).filter(
+    (l) => (l?.points?.length ?? 0) >= 2
+  );
+  const hasProfiles = isPolygon && sectionProfiles.length > 0;
+  const effectiveProfileIndex =
+    hasProfiles &&
+    editedProfileIndex != null &&
+    profileLines?.[editedProfileIndex]?.points?.length >= 2
+      ? editedProfileIndex
+      : null;
 
   // effect - default selection = projectable chain of the first segment when
   // the selected annotation changes
@@ -89,6 +106,25 @@ export default function PanelElevation() {
     selectionAnnotationId,
     dispatch,
   ]);
+
+  // Sync the edited profile from the map-editor sub-selection: selecting a
+  // PROFILE_LINE part in 2D targets its section here.
+  const subPartId = selectedItem?.partId;
+  const subPartType = selectedItem?.partType;
+  useEffect(() => {
+    if (subPartType !== "PROFILE_LINE" || !subPartId) return;
+    const [annId, , idxStr] = String(subPartId).split("::");
+    if (annId !== annotationId) return;
+    const idx = Number(idxStr);
+    if (Number.isInteger(idx)) dispatch(setEditedProfileIndex(idx));
+  }, [subPartId, subPartType, annotationId, dispatch]);
+
+  // Leave section mode when the annotation changes or its profiles disappear.
+  useEffect(() => {
+    if (editedProfileIndex != null && effectiveProfileIndex == null) {
+      dispatch(setEditedProfileIndex(null));
+    }
+  }, [editedProfileIndex, effectiveProfileIndex, dispatch]);
 
   // handlers
 
@@ -161,10 +197,50 @@ export default function PanelElevation() {
         hoveredSegmentIndex={hoveredSegmentIndex}
         observationSign={observationSign}
         isoLines={isoHeightLines}
+        profileLines={profileLines}
+        editedProfileIndex={effectiveProfileIndex}
         onHoverSegment={handleHoverSegment}
         onSelectSegment={handleSelectSeedSegment}
         onSetObservation={handleSetObservation}
+        onSelectProfile={(i) => dispatch(setEditedProfileIndex(i))}
       />
+
+      {/* Shell profiles: chips switching between the surface silhouette and
+          each profile's developed section. */}
+      {hasProfiles && (
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 0.5,
+            px: 1,
+            py: 0.5,
+            flexWrap: "wrap",
+            borderBottom: (theme) => `1px solid ${theme.palette.divider}`,
+            bgcolor: "background.paper",
+          }}
+        >
+          <Chip
+            size="small"
+            label="Silhouette"
+            color={effectiveProfileIndex == null ? "primary" : "default"}
+            variant={effectiveProfileIndex == null ? "filled" : "outlined"}
+            onClick={() => dispatch(setEditedProfileIndex(null))}
+          />
+          {(profileLines ?? []).map((l, i) =>
+            (l?.points?.length ?? 0) >= 2 ? (
+              <Chip
+                key={`profile-chip-${i}`}
+                size="small"
+                label={`Profil ${i + 1}`}
+                color={effectiveProfileIndex === i ? "primary" : "default"}
+                variant={effectiveProfileIndex === i ? "filled" : "outlined"}
+                onClick={() => dispatch(setEditedProfileIndex(i))}
+              />
+            ) : null
+          )}
+        </Box>
+      )}
 
       {/* Guide baseMap: pick a VERTICAL baseMap (elevation drawing) shown as
           a background image in the editor below. */}
@@ -214,6 +290,8 @@ export default function PanelElevation() {
           isoLines={isoHeightLines}
           surfaceMode={isPolygon}
           elevationGuide={elevationGuide}
+          profileLines={profileLines}
+          editedProfileIndex={effectiveProfileIndex}
           onSelectSegment={handleSelectEditedSegment}
         />
       </Box>

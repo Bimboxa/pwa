@@ -340,6 +340,9 @@ const _collectPointRowRefs = (annotation, pointsIndex) => {
   (annotation?.isoHeightLines ?? []).forEach((l) =>
     (l?.points ?? []).forEach(push)
   );
+  (annotation?.profileLines ?? []).forEach((l) =>
+    (l?.points ?? []).forEach(push)
+  );
   return refs;
 };
 
@@ -354,8 +357,10 @@ import collectReferencedPointIds from "Features/annotations/utils/collectReferen
 import resolvePoints from "Features/annotations/utils/resolvePoints";
 import resolveCuts from "Features/annotations/utils/resolveCuts";
 import resolveGuideLine from "Features/annotations/utils/resolveGuideLine";
+import resolveProfileLine from "Features/annotations/utils/resolveProfileLine";
 import applyGuideLineRampToRings from "Features/annotations/utils/applyGuideLineRampToRings";
 import applyIsoHeightLinesToRings from "Features/annotations/utils/applyIsoHeightLinesToRings";
+import applyProfileEndpointContinuity from "Features/annotations/utils/applyProfileEndpointContinuity";
 
 import db from "App/db/db";
 
@@ -1147,6 +1152,28 @@ export default function useAnnotationsV2(options) {
                 })
               );
             }
+            // profileLines (shell cross-sections) share the guideLine ref
+            // shape plus an inline per-vertex `height` — dedicated resolver
+            // so heights pass through.
+            if (Array.isArray(annotation.profileLines)) {
+              _annotation.profileLines = annotation.profileLines.map((l) => ({
+                ...l,
+                points: _splitResolved(
+                  resolveProfileLine({
+                    profileLine: l?.points,
+                    pointsIndex,
+                    imageSize,
+                  }),
+                  corruptedIds
+                ),
+              }));
+            }
+            // profileLines and isoHeightLines COEXIST: both constrain the
+            // same surface (the shell build merges them as constraint lines).
+            // Only the guideLine ramp is exclusive with them.
+            const hasProfileLines = _annotation.profileLines?.some(
+              (l) => l?.points?.length >= 2
+            );
             const hasIsoHeightLines = _annotation.isoHeightLines?.some(
               (l) => l?.points?.length >= 2
             );
@@ -1159,9 +1186,11 @@ export default function useAnnotationsV2(options) {
             // Stairs guideLines (isStairs) opt out: the stepped surface is
             // built by the dedicated 3D stairs builder and the stairs qties
             // path, not by per-vertex ramp offsets.
-            // isoHeightLines take precedence: when present they alone drive
-            // the surface heights, so the guideLine ramp bake is skipped.
+            // isoHeightLines / profileLines take precedence: when present
+            // they drive the surface heights, so the guideLine ramp bake is
+            // skipped.
             if (
+              !hasProfileLines &&
               !hasIsoHeightLines &&
               !_annotation.guideLines?.some(
                 (g) => g?.isStairs && g?.points?.length >= 2
@@ -1196,6 +1225,19 @@ export default function useAnnotationsV2(options) {
               _annotation.points = isoed.points;
               _annotation.cuts = isoed.cuts;
               _annotation.innerPoints = isoed.innerPoints;
+            }
+
+            // profileLines never pin ring vertices — continuity goes the
+            // other way: profile ENDPOINTS inherit the contour's interpolated
+            // offsetTop (baked here, AFTER the iso pinning so an endpoint
+            // landing on an iso-pinned vertex inherits the pinned height).
+            // Single source of truth for 2D / elevation / 3D.
+            if (hasProfileLines) {
+              _annotation.profileLines = applyProfileEndpointContinuity({
+                profileLines: _annotation.profileLines,
+                points: _annotation.points,
+                cuts: _annotation.cuts,
+              });
             }
           }
 

@@ -18,6 +18,7 @@ import useAnnotationSpriteImage from "../hooks/useAnnotationSpriteImage";
 import {
   getShape3DKey,
   getShape3DOptionsForType,
+  getEffectiveShellMode,
   TYPES_SUPPORTING_PROFILES,
   TYPES_SUPPORTING_REVOLUTION,
 } from "../constants/shape3DConfig";
@@ -33,7 +34,11 @@ export default function Shape3DSelector({ annotation }) {
   const profileTemplates = useProfileAnnotationTemplates();
   const revolutionAxes = useRevolutionAxes();
   const spriteImage = useAnnotationSpriteImage();
-  const staticOptions = getShape3DOptionsForType(annotation?.type);
+  // Entries may be gated on the annotation's own data (e.g. shell shapes only
+  // when profileLines exist).
+  const staticOptions = getShape3DOptionsForType(annotation?.type).filter(
+    (o) => !o.isAvailable || o.isAvailable(annotation)
+  );
 
   // state
 
@@ -73,6 +78,11 @@ export default function Shape3DSelector({ annotation }) {
   } else if (currentKey != null) {
     const entry = staticOptions.find((o) => o.key === currentKey);
     chipLabel = entry?.label ?? DEFAULT_LABEL;
+  } else if (getEffectiveShellMode(annotation) === "DOME") {
+    // Profiles present with no explicit shape3D → the DOME shell is the
+    // effective default; surface it on the chip.
+    chipLabel =
+      staticOptions.find((o) => o.key === "SHELL_DOME")?.label ?? DEFAULT_LABEL;
   }
 
   // handlers

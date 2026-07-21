@@ -170,6 +170,7 @@ export default function TransientTopologyLayer({
             if (ann.innerPoints?.some(pt => pt.id === movingPointId)) return true;
             if (ann.guideLines?.some(gl => gl?.points?.some(g => g.pointId === movingPointId || g.id === movingPointId))) return true;
             if (ann.isoHeightLines?.some(l => l?.points?.some(g => g.pointId === movingPointId || g.id === movingPointId))) return true;
+            if (ann.profileLines?.some(l => l?.points?.some(g => g.pointId === movingPointId || g.id === movingPointId))) return true;
             return false;
         });
 
@@ -347,6 +348,18 @@ export default function TransientTopologyLayer({
             // E. isoHeightLines (same resolved ref shape as guideLines)
             if (_ann.isoHeightLines?.some(l => l?.points?.some(g => g.pointId === movingPointId || g.id === movingPointId))) {
                 _ann.isoHeightLines = _ann.isoHeightLines.map(l => ({
+                    ...l,
+                    points: (l?.points || []).map(g =>
+                        (g.pointId === movingPointId || g.id === movingPointId)
+                            ? { ...g, x: currentPos.x, y: currentPos.y }
+                            : g
+                    ),
+                }));
+            }
+
+            // F. profileLines (same resolved ref shape as guideLines)
+            if (_ann.profileLines?.some(l => l?.points?.some(g => g.pointId === movingPointId || g.id === movingPointId))) {
+                _ann.profileLines = _ann.profileLines.map(l => ({
                     ...l,
                     points: (l?.points || []).map(g =>
                         (g.pointId === movingPointId || g.id === movingPointId)

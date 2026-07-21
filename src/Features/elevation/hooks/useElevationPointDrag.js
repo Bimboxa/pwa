@@ -4,6 +4,7 @@ import { useDispatch } from "react-redux";
 import commitElevationOffsetService from "Features/elevation/services/commitElevationOffsetService";
 import commitElevationOffsetsService from "Features/elevation/services/commitElevationOffsetsService";
 import moveIsoHeightLineService from "Features/elevation/services/moveIsoHeightLineService";
+import updateProfileVertexHeightService from "Features/elevation/services/updateProfileVertexHeightService";
 
 // Drag of an elevation handle:
 //   - vertex TOP/BOTTOM handle: vertical only (X fixed by the plan geometry),
@@ -59,6 +60,12 @@ export default function useElevationPointDrag({
           worldY: worldPos.y,
           worldDx: worldPos.x - drag.startWorld.x,
         });
+      } else if (drag.profileVertexIndex != null) {
+        setDragPreview({
+          profileIndex: drag.profileIndex,
+          profileVertexIndex: drag.profileVertexIndex,
+          worldY: worldPos.y,
+        });
       } else if (drag.extremityPointIndexes) {
         setDragPreview({
           extremityPointIndexes: drag.extremityPointIndexes,
@@ -100,6 +107,18 @@ export default function useElevationPointDrag({
             dx: sign * worldDx * ux,
             dy: sign * worldDx * uy,
           },
+          dispatch,
+        });
+        return;
+      }
+      if (drag.profileVertexIndex != null) {
+        // Profile section vertex: vertical drag only (the plan position is
+        // authored in 2D) — same TOP math as a vertex handle.
+        updateProfileVertexHeightService({
+          annotationId,
+          profileIndex: drag.profileIndex,
+          vertexIndex: drag.profileVertexIndex,
+          height: worldYToValue(worldPos.y, "TOP"),
           dispatch,
         });
         return;
@@ -174,5 +193,19 @@ export default function useElevationPointDrag({
     [startDrag]
   );
 
-  return { startHandleDrag, startIsoHandleDrag, startExtremityDrag, dragPreview };
+  // Shell profile section vertex: vertical drag of one interior vertex's
+  // inline height.
+  const startProfileVertexDrag = useCallback(
+    (e, { profileIndex, vertexIndex }) =>
+      startDrag(e, { profileIndex, profileVertexIndex: vertexIndex }),
+    [startDrag]
+  );
+
+  return {
+    startHandleDrag,
+    startIsoHandleDrag,
+    startExtremityDrag,
+    startProfileVertexDrag,
+    dragPreview,
+  };
 }

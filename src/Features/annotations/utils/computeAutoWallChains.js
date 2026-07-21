@@ -195,6 +195,9 @@ function subdivideAtStairsJumps(nodes, sampler, key) {
 
 function getIsoBreakpoints(annotation) {
   const out = [];
+  // Note: profileLines coexist with iso lines but add no breakpoints of
+  // their own — their endpoints INHERIT the contour height (continuity), so
+  // boundary edge heights are unchanged by them.
   for (const l of annotation?.isoHeightLines ?? []) {
     const pts = (l?.points ?? []).filter(
       (p) => typeof p?.x === "number" && typeof p?.y === "number"

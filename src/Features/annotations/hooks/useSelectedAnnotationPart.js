@@ -154,6 +154,24 @@ export default function useSelectedAnnotationPart() {
       };
     }
 
+    // --- PROFILE (one profileLine — shell cross-section) ----------------------
+    if (effectivePartType === "PROFILE_LINE") {
+      const idx = Number(String(partId || "").split("::")[2]);
+      const line = Number.isInteger(idx)
+        ? annotation.profileLines?.[idx]
+        : null;
+      const linePx = line?.points || [];
+      if (linePx.length < 2) return { kind: "NONE" };
+      return {
+        kind: "PROFILE",
+        captionFr: "Profil",
+        label: `Profil (${linePx.length} points)`,
+        pointRefs: linePx,
+        geometryPx: linePx,
+        targetAnnotationType: "POLYLINE",
+      };
+    }
+
     // --- CUT (whole opening) --------------------------------------------------
     if (effectivePartType === "CUT") {
       // partId form: "{annotationId}::CUT::{cutIdx}"
@@ -363,6 +381,10 @@ function findPointInAnnotation(annotation, pointId) {
     {
       ring: (annotation.isoHeightLines || []).flatMap((l) => l?.points || []),
       label: "Point courbe de niveau",
+    },
+    {
+      ring: (annotation.profileLines || []).flatMap((l) => l?.points || []),
+      label: "Point profil",
     },
   ];
   for (const { ring, label } of rings) {

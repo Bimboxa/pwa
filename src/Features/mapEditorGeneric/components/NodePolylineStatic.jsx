@@ -1333,6 +1333,30 @@ function NodePolylineStatic({
       .filter(Boolean);
   }, [type, mergedAnnotation.isoHeightLines, annotationId]);
 
+  // profileLines (shell cross-sections): per-line pixel polyline. Straight
+  // segments only (V1). Each line carries an indexed partId so it can be
+  // selected / deleted independently; the vertical profile itself is edited
+  // in the Élévation panel.
+  const profileLinesData = useMemo(() => {
+    if (type !== "POLYGON") return [];
+    const lines = mergedAnnotation.profileLines;
+    if (!Array.isArray(lines)) return [];
+    return lines
+      .map((l, index) => {
+        const vertices = (l?.points || []).filter(
+          (p) => typeof p?.x === "number" && typeof p?.y === "number"
+        );
+        if (vertices.length < 2) return null;
+        return {
+          index,
+          partId: `${annotationId}::PROFILE_LINE::${index}`,
+          polyline: vertices.map((p) => ({ x: p.x, y: p.y })),
+          vertices,
+        };
+      })
+      .filter(Boolean);
+  }, [type, mergedAnnotation.profileLines, annotationId]);
+
   // Stairs nosings: transverse strokes (one per step) clipped to the polygon
   // outline, for every guideLine flagged `isStairs`. Always visible (they are
   // part of the plan drawing), rendered in the annotation color.
@@ -1950,6 +1974,103 @@ function NodePolylineStatic({
           );
         })}
 
+      {/* profileLines when the annotation is NOT selected: always visible
+                as a discreet 1px long-dashed stroke in the annotation color
+                (they are part of the plan drawing). */}
+      {(!selected || disableVertexEditing) &&
+        profileLinesData.map((line) => (
+          <polyline
+            key={`profile-idle-${line.partId}`}
+            points={line.polyline.map((p) => `${p.x},${p.y}`).join(" ")}
+            fill="none"
+            stroke={strokeColor}
+            strokeWidth={1}
+            strokeDasharray="8 4"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            vectorEffect="non-scaling-stroke"
+            style={{ pointerEvents: "none" }}
+          />
+        ))}
+
+      {/* profileLines: shell cross-sections, drawn while the annotation is
+                selected. Long-dashed teal (vs iso lines dashed purple), with
+                square markers on interior vertices. The vertical profile is
+                edited in the Élévation panel. */}
+      {selected &&
+        !disableVertexEditing &&
+        profileLinesData.map((line) => {
+          const profilePartId = line.partId;
+          const isSelectedProfile = selectedPartId === profilePartId;
+          const isHoveredProfile = effectiveHoveredPartId === profilePartId;
+          const pointsStr = line.polyline.map((p) => `${p.x},${p.y}`).join(" ");
+          const profileStroke = isSelectedProfile
+            ? STYLE_CONSTANTS.COLORS.SELECTED_PART
+            : "#00897b";
+          const profileStrokeWidth =
+            isSelectedProfile || isHoveredProfile ? 3 : 2;
+          const profileStrokeOpacity =
+            isSelectedProfile || isHoveredProfile ? 1 : 0.7;
+          return (
+            <g
+              key={profilePartId}
+              onMouseEnter={(e) => {
+                e.stopPropagation();
+                if (!isTransient) setHoveredPartId(profilePartId);
+              }}
+              onMouseLeave={() => setHoveredPartId(null)}
+              data-part-id={profilePartId}
+              data-part-type="PROFILE_LINE"
+              data-node-id={annotationId}
+              style={{ cursor: getPartCursor(profilePartId) }}
+            >
+              {/* Hit area (transparent wide stroke) */}
+              <polyline
+                points={pointsStr}
+                fill="none"
+                stroke="transparent"
+                strokeWidth={POLYGON_HIT_STROKE_WIDTH_PX}
+                vectorEffect="non-scaling-stroke"
+              />
+              {/* Visible stroke */}
+              <polyline
+                points={pointsStr}
+                fill="none"
+                stroke={profileStroke}
+                strokeWidth={profileStrokeWidth}
+                strokeOpacity={profileStrokeOpacity}
+                strokeDasharray="8 4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                vectorEffect="non-scaling-stroke"
+                style={{ pointerEvents: "none" }}
+              />
+              {/* Interior vertex markers (endpoints are contour-anchored) */}
+              {line.vertices.map((p, vi) =>
+                vi === 0 || vi === line.vertices.length - 1 ? null : (
+                  <g
+                    key={`profile-v-${line.partId}-${vi}`}
+                    transform={`translate(${p.x}, ${p.y})`}
+                    style={{ pointerEvents: "none" }}
+                  >
+                    <g style={{ transform: vertexScaleTransform }}>
+                      <rect
+                        x={-3}
+                        y={-3}
+                        width={6}
+                        height={6}
+                        fill="white"
+                        stroke={profileStroke}
+                        strokeWidth={1.5}
+                      />
+                    </g>
+                  </g>
+                )
+              )}
+            </g>
+          );
+        })}
+
       {/* Slope arrow along the MIDDLE of the guideLine, following the
                 curve and pointing uphill (replaces the centroid arrow when a
                 guideLine exists). */}
@@ -2011,9 +2132,10 @@ function NodePolylineStatic({
           })}
 
       {guideLinesData.length === 0 &&
-        // isoHeightLines pin heights locally: a single best-fit plane slope
-        // is meaningless there.
+        // isoHeightLines / profileLines pin heights locally: a single
+        // best-fit plane slope is meaningless there.
         isoHeightLinesData.length === 0 &&
+        profileLinesData.length === 0 &&
         slope &&
         slopeCentroid &&
         Math.round(slope.slopePct) >= 1 &&

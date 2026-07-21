@@ -11,6 +11,7 @@ import {
   Straighten,
   Timeline as GuideLineIcon,
   SsidChart as IsoHeightLineIcon,
+  ShowChart as ProfileLineIcon,
   NorthEast as RampIcon,
   AutoFixHigh as LocalizedRepairIcon,
   Height as RevolutionAxisIcon,
@@ -336,6 +337,16 @@ const DRAWING_TOOLS = [
     annotationType: "ISO_HEIGHT_LINE",
     behavior: "CLICK",
   },
+  // ADD_PROFILE_LINE tool — draw a profile polyline (shell cross-section) on
+  // the selected POLYGON. Multi-click, finish with Enter, cancel with Escape.
+  // The vertical projection is then edited in the Élévation panel.
+  {
+    key: "ADD_PROFILE_LINE",
+    label: "Ajouter un profil",
+    Icon: ProfileLineIcon,
+    annotationType: "PROFILE_LINE",
+    behavior: "CLICK",
+  },
   // RAMP tool (Rampe) — draw a median line, commit a centered band POLYGON
   // whose slope is derived from a delta-H value. The drawn line is stored as a
   // guideLine on the polygon so the slope renders in 2D and ramps in 3D.
@@ -398,6 +409,7 @@ export const DRAWING_TOOLS_BY_TYPE = {
   ADD_INNER_POINT: ["ADD_INNER_POINT"],
   GUIDE_LINE: ["ADD_GUIDE_LINE"],
   ISO_HEIGHT_LINE: ["ADD_ISO_HEIGHT_LINE"],
+  PROFILE_LINE: ["ADD_PROFILE_LINE"],
   LOCALIZED_REPAIR: ["LOCALIZED_REPAIR"],
   REVOLUTION: ["REVOLUTION_AXIS_LINE", "REVOLUTION_POINT_MARK"],
 };

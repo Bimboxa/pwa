@@ -43,8 +43,13 @@ export default function applyWrapperTransformToPoints({
         allPoints.set(pt.id, { x: pt.x, y: pt.y });
       }
     }
-    // guideLines / isoHeightLines refs key on `pointId` (see resolveGuideLine)
-    for (const line of [...(ann.guideLines ?? []), ...(ann.isoHeightLines ?? [])]) {
+    // guideLines / isoHeightLines / profileLines refs key on `pointId` (see
+    // resolveGuideLine)
+    for (const line of [
+      ...(ann.guideLines ?? []),
+      ...(ann.isoHeightLines ?? []),
+      ...(ann.profileLines ?? []),
+    ]) {
       for (const pt of line?.points ?? []) {
         const pointId = pt.pointId ?? pt.id;
         if (pointId != null && pt.x != null && pt.y != null) {

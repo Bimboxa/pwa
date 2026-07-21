@@ -10,6 +10,7 @@ import {
 import getGuideLineStairsLayout, {
   findStairsGuideLine,
 } from "Features/annotations/utils/getGuideLineStairsLayout";
+import { getEffectiveShellMode } from "Features/annotations/constants/shape3DConfig";
 
 // Match the ARC_SAMPLES used by the 3D mesh builder (extrudeClosedShape) so the
 // developed surface is triangulated on the SAME arc-expanded contour as the
@@ -522,10 +523,19 @@ export default function getAnnotationQties({
     // available for offset-bearing annotations too.
     // isoHeightLines slope the top face through the partition even when every
     // ring offset is 0, so they force the developed-surface path too.
+    // profileLines (3D shell) COEXIST with iso lines: when both are present
+    // the triangulation merges the iso chords into the shell constraint set —
+    // same rule as the 3D build and useAnnotationsV2.
+    const hasProfileLines = annotation?.profileLines?.some(
+      (l) => l?.points?.length >= 2
+    );
     const hasIsoHeightLines = annotation?.isoHeightLines?.some(
       (l) => l?.points?.length >= 2
     );
-    if (closeLine && (hasPerVertexZOffsets(annotation) || hasIsoHeightLines)) {
+    if (
+      closeLine &&
+      (hasPerVertexZOffsets(annotation) || hasIsoHeightLines || hasProfileLines)
+    ) {
       const cutsRings = (annotation.cuts || [])
         .map((c) =>
           (c?.points || []).filter((p) => p && typeof p.x === "number")
@@ -566,9 +576,7 @@ export default function getAnnotationQties({
           : 0,
         // Match the iso-chord partitioned 3D mesh (isoHeightLines). Chords
         // are scaled to meters like the rings; heights are already meters.
-        isoPartition: annotation?.isoHeightLines?.some(
-          (l) => l?.points?.length >= 2
-        )
+        isoPartition: hasIsoHeightLines
           ? {
               isoChords: annotation.isoHeightLines
                 .filter((l) => l?.points?.length >= 2)
@@ -577,6 +585,24 @@ export default function getAnnotationQties({
                     .filter((p) => typeof p?.x === "number")
                     .map((p) => ({ x: p.x * meterByPx, y: p.y * meterByPx })),
                   height: Number(l?.height) || 0,
+                })),
+            }
+          : null,
+        // Match the 3D shell (profileLines). Profiles scaled to meters like
+        // the rings; per-vertex heights are already meters.
+        shell: hasProfileLines
+          ? {
+              mode: getEffectiveShellMode(annotation),
+              profiles: annotation.profileLines
+                .filter((l) => l?.points?.length >= 2)
+                .map((l) => ({
+                  polyline: (l.points || [])
+                    .filter((p) => typeof p?.x === "number")
+                    .map((p) => ({
+                      x: p.x * meterByPx,
+                      y: p.y * meterByPx,
+                      height: Number(p?.height) || 0,
+                    })),
                 })),
             }
           : null,
