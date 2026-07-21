@@ -49,8 +49,11 @@ import {
   getShape3DOptionsForType,
 } from "Features/annotations/constants/shape3DConfig";
 
+import { isStairsGuideLine } from "Features/annotations/utils/getGuideLineStairsLayout";
+
 import pixelToWorld from "./pixelToWorld";
 import extrudeClosedShape from "./extrudeClosedShape";
+import buildStairsFromGuideLine from "./buildStairsFromGuideLine";
 import extrudePolylineWall from "./extrudePolylineWall";
 import buildRevolutionMesh from "./buildRevolutionMesh";
 import getRevolutionPhi from "./getRevolutionPhi";
@@ -663,8 +666,24 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
         .map((cut) => pointsToLocal(cut.points || [], baseMap))
         .filter((c) => c.length >= 3);
       const innerPts = pointsToLocal(annotation.innerPoints || [], baseMap);
+      // Stairs guideLine: stepped treads + risers surface instead of the
+      // continuous ramp nappe. annotation.height is ignored (surface-only,
+      // like the ramp). On a degenerate layout, fall through to the flat
+      // extrusion below.
+      if (annotation.guideLines?.some(isStairsGuideLine)) {
+        const stairs = buildStairsFromGuideLine({
+          annotation,
+          baseMap,
+          material,
+          verticalLift,
+        });
+        if (stairs) {
+          object = stairs;
+          break;
+        }
+      }
       const hasGuideLineRamp = !!annotation.guideLines?.some(
-        (g) => g?.points?.length >= 2
+        (g) => !g?.isStairs && g?.points?.length >= 2
       );
       // A ramp/nappe POLYGON is a sloped SURFACE (no volume): both faces must
       // read with the SAME color, so drop the back-face darkening that
