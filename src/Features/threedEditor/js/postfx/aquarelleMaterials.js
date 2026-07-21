@@ -286,13 +286,19 @@ export function applySketchEdges(root, { resolution }) {
   if (resolution) setSketchEdgeResolution(resolution.x, resolution.y);
 
   meshes.forEach((mesh) => {
-    // CSG-carved meshes are triangle soups with T-junctions: EdgesGeometry
+    // CSG-carved meshes are triangle soups with T-junctions, and polyline
+    // walls are independent quads with no shared vertices: EdgesGeometry
     // cannot pair triangles across them and draws interior triangulation
-    // edges as big strokes across flat faces — use the planar-outline
-    // extraction instead (falls back to EdgesGeometry when unusable).
-    let positions = mesh.userData?.hasSubtraction
-      ? extractPlanarSketchEdges(mesh.geometry)
-      : null;
+    // edges / quad seams as big strokes across flat faces — use the
+    // planar-outline extraction instead (falls back to EdgesGeometry when
+    // unusable). Near-coplanar facet seams below the dihedral threshold are
+    // suppressed, matching the EdgesGeometry threshold.
+    let positions =
+      mesh.userData?.hasSubtraction || mesh.userData?.sketchEdgesPlanarOutline
+        ? extractPlanarSketchEdges(mesh.geometry, {
+            seamDihedralDeg: EDGE_THRESHOLD_ANGLE,
+          })
+        : null;
     if (!positions) {
       const edges = new EdgesGeometry(mesh.geometry, EDGE_THRESHOLD_ANGLE);
       positions = edges.attributes.position.array;

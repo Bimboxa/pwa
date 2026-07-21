@@ -19,16 +19,23 @@ const EDGE_MATERIAL = new LineBasicMaterial({
   opacity: 0.5,
 });
 
+// Facet boundaries with a dihedral angle below this are construction seams
+// (arc sampling, stairs subdivisions), not real geometry — they are not drawn.
+const WALL_SEAM_DIHEDRAL_DEG = 15;
+
 // Edge lines of the wall mesh. The quads are independent (no shared vertices
 // between adjacent segments), so EdgesGeometry treats every quad border as a
 // boundary edge and draws vertical seams across coplanar faces (arc samples,
 // stairs subdivisions, opening splits). Coalescing coplanar faces keeps only
 // the true outline of each planar cluster; the corner edge shared by two
 // clusters comes out once per cluster, so identical segments are deduped to
-// keep the original stroke opacity. Falls back to EdgesGeometry when the
-// extraction is unusable.
+// keep the original stroke opacity. Near-coplanar cluster boundaries (below
+// WALL_SEAM_DIHEDRAL_DEG) are suppressed entirely. Falls back to EdgesGeometry
+// when the extraction is unusable.
 function buildWallEdges(geom) {
-  const positions = extractPlanarSketchEdges(geom);
+  const positions = extractPlanarSketchEdges(geom, {
+    seamDihedralDeg: WALL_SEAM_DIHEDRAL_DEG,
+  });
   if (!positions?.length) {
     return new LineSegments(new EdgesGeometry(geom), EDGE_MATERIAL);
   }
@@ -170,7 +177,11 @@ export default function extrudePolylineWall(
 
   const wallMat = material.clone();
   wallMat.side = DoubleSide;
-  group.add(new Mesh(geom, wallMat));
+  const mesh = new Mesh(geom, wallMat);
+  // Independent quads share no vertices: EdgesGeometry cannot pair triangles
+  // across segments, so sketch-edge passes must use the planar extraction.
+  mesh.userData.sketchEdgesPlanarOutline = true;
+  group.add(mesh);
 
   group.add(buildWallEdges(geom));
 
