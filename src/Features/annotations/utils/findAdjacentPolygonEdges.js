@@ -5,8 +5,10 @@
 // a neighbor vertex OR sits within thresholdCm (real-world, converted to px
 // via meterByPx) of the neighbor's boundary (vertex or segment) — drawn
 // polygons often duplicate coincident points under distinct ids, so id
-// equality alone is not enough. Works on resolved (pixel-space) annotations;
-// cuts/innerPoints are ignored.
+// equality alone is not enough. Works on resolved (pixel-space) annotations.
+// The neighbor's boundary includes its cut rings (a polygon drawn inside
+// another polygon's hole is adjacent through the cut contour); the selected
+// polygon's own cuts/innerPoints are ignored.
 //
 // Returns [{ neighbor, chain }] where chain = the selected ring's resolved
 // points ({id, x, y, ...}) forming the longest maximal shared run with that
@@ -95,14 +97,19 @@ export default function findAdjacentPolygonEdges({
 
   const result = [];
   for (const neighbor of candidates ?? []) {
-    const neighborRing = dedupeRing(neighbor?.points);
-    if (neighborRing.length < 2) continue;
-    const neighborIds = new Set(neighborRing.map((p) => p.id));
+    const neighborRings = [
+      dedupeRing(neighbor?.points),
+      ...(neighbor?.cuts ?? []).map((cut) => dedupeRing(cut?.points)),
+    ].filter((r) => r.length >= 2);
+    if (!neighborRings.length) continue;
+    const neighborIds = new Set(
+      neighborRings.flatMap((r) => r.map((p) => p.id))
+    );
 
     const sharedFlags = ring.map(
       (p) =>
         neighborIds.has(p.id) ||
-        isOnRingBoundary(p, neighborRing, thresholdSq)
+        neighborRings.some((r) => isOnRingBoundary(p, r, thresholdSq))
     );
     const chain = getLongestSharedChain(ring, sharedFlags);
     if (chain) result.push({ neighbor, chain });

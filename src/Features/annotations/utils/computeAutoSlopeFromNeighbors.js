@@ -42,7 +42,11 @@ function getChainMidpoint(chain) {
 function getNeighborTopAtChain({ neighbor, chain }, thresholdPx) {
   const thresholdSq = thresholdPx * thresholdPx;
   const chainIds = new Set(chain.map((p) => p.id));
-  const refs = (neighbor.points ?? []).filter(
+  const neighborRefs = [
+    ...(neighbor.points ?? []),
+    ...(neighbor.cuts ?? []).flatMap((cut) => cut?.points ?? []),
+  ];
+  const refs = neighborRefs.filter(
     (p) =>
       chainIds.has(p.id) ||
       (p.x != null &&
