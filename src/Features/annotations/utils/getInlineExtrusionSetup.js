@@ -222,26 +222,40 @@ export default function getInlineExtrusionSetup({
   const tLen = Math.hypot(tx, ty) || 1;
   const nx = ty / tLen;
   const ny = -tx / tLen;
-  // Plan direction of the profile at abscissa s_E.
-  const planAt = (s) => {
-    const sc = Math.max(0, Math.min(cum[cum.length - 1], s));
+  const total = cum[cum.length - 1];
+  // Plan TANGENT DIRECTION of the profile at abscissa s (segment vector, not
+  // a sampled point) — extrapolating past the ends by reusing the nearest end
+  // segment's direction. Using the segment vector directly (instead of
+  // sampling two nearby points and differencing) avoids a degenerate
+  // zero-vector: E is routinely EXTRAPOLATED before the profile's first
+  // vertex (E.s < 0, e.g. a profile starting strictly inside a circular
+  // guide) — sampling at s=E.s and s=E.s+eps would both clamp to profile[0]
+  // in that case, collapsing dirDot to 0 and silently defaulting dirSign to
+  // +1 regardless of the profile's real direction (wrong side of the guide).
+  const tangentAt = (s) => {
+    if (s <= 0) {
+      return {
+        dx: profile[1].x - profile[0].x,
+        dy: profile[1].y - profile[0].y,
+      };
+    }
+    if (s >= total) {
+      const a = profile[profile.length - 2];
+      const b = profile[profile.length - 1];
+      return { dx: b.x - a.x, dy: b.y - a.y };
+    }
     for (let i = 0; i < profile.length - 1; i += 1) {
-      if (sc <= cum[i + 1] || i === profile.length - 2) {
-        const span = Math.max(cum[i + 1] - cum[i], 1e-9);
-        const t = Math.max(0, Math.min(1, (sc - cum[i]) / span));
+      if (s <= cum[i + 1] || i === profile.length - 2) {
         return {
-          x: profile[i].x + (profile[i + 1].x - profile[i].x) * t,
-          y: profile[i].y + (profile[i + 1].y - profile[i].y) * t,
+          dx: profile[i + 1].x - profile[i].x,
+          dy: profile[i + 1].y - profile[i].y,
         };
       }
     }
-    return { x: profile[0].x, y: profile[0].y };
+    return { dx: profile[1].x - profile[0].x, dy: profile[1].y - profile[0].y };
   };
-  const total = cum[cum.length - 1];
-  const eps = Math.max(total * 1e-3, 1e-6);
-  const p0 = planAt(Math.min(E.s, total - eps));
-  const p1 = planAt(Math.min(E.s + eps, total));
-  const dirDot = (p1.x - p0.x) * nx + (p1.y - p0.y) * ny;
+  const { dx: tdx, dy: tdy } = tangentAt(E.s);
+  const dirDot = tdx * nx + tdy * ny;
   const dirSign = dirDot >= 0 ? 1 : -1;
 
   // --- Cross-section + extents --------------------------------------------

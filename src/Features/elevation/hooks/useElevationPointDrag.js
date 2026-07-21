@@ -183,6 +183,21 @@ export default function useElevationPointDrag({
           planPos,
           dispatch,
         });
+        // FREEZE the preview at the committed position (overrides the null set
+        // above — batched, so this wins) until the resolved geometry lands.
+        // The commit is an async Dexie round-trip (useAnnotationsV2 liveQuery);
+        // clearing the preview now would flash the vertex back to its pre-drag
+        // position for a frame. The editor clears this `committed` preview once
+        // the fresh section reflects the move.
+        setDragPreview({
+          profileIndex: drag.profileIndex,
+          profileVertexIndex: drag.profileVertexIndex,
+          worldY: worldPos.y,
+          worldX: worldPos.x,
+          sMin: drag.sMin,
+          sMax: drag.sMax,
+          committed: true,
+        });
         return;
       }
       if (drag.extremityPointIndexes) {
@@ -233,6 +248,10 @@ export default function useElevationPointDrag({
     },
     [handleWindowMove, handleWindowUp]
   );
+
+  // Drop the frozen `committed` profile-vertex preview once the caller sees
+  // the resolved geometry reflect the move (see handleWindowUp).
+  const clearDragPreview = useCallback(() => setDragPreview(null), []);
 
   const startHandleDrag = useCallback(
     (e, pointIndex, edge) => startDrag(e, { pointIndex, edge }),
@@ -297,5 +316,6 @@ export default function useElevationPointDrag({
     startExtremityDrag,
     startProfileVertexDrag,
     dragPreview,
+    clearDragPreview,
   };
 }

@@ -374,6 +374,7 @@ export default function ElevationEditor({
     startExtremityDrag,
     startProfileVertexDrag,
     dragPreview,
+    clearDragPreview,
   } = useElevationPointDrag({
     viewportRef,
     meterByPx,
@@ -382,6 +383,18 @@ export default function ElevationEditor({
     annotationId,
     basis,
   });
+
+  // On commit, the profile-vertex preview is FROZEN at its final position
+  // (committed) instead of cleared, so the vertex doesn't flash back to its
+  // pre-drag position during the async Dexie round-trip. Once the resolved
+  // section reflects the move (sectionProfile gets a fresh reference), drop
+  // the frozen preview. Read the current preview via a ref so this effect
+  // fires on the DATA change only, not on setting the committed preview.
+  const dragPreviewRef = useRef(dragPreview);
+  dragPreviewRef.current = dragPreview;
+  useEffect(() => {
+    if (dragPreviewRef.current?.committed) clearDragPreview();
+  }, [sectionProfile, clearDragPreview]);
 
   // --- shell profile section mode: vertex selection / edit / insert ---
 
