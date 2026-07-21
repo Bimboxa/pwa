@@ -43,6 +43,14 @@ export default async function commitWrapperTransform({
     for (const cut of ann.cuts ?? []) {
       for (const pt of cut.points ?? []) addRef(pt.id);
     }
+    for (const pt of ann.innerPoints ?? []) addRef(pt.id);
+    // guideLines / isoHeightLines refs key on `pointId` (see resolveGuideLine)
+    for (const line of [...(ann.guideLines ?? []), ...(ann.isoHeightLines ?? [])]) {
+      for (const pt of line?.points ?? []) {
+        const pointId = pt.pointId ?? pt.id;
+        if (pointId != null) addRef(pointId);
+      }
+    }
   }
 
   // 2. Classify points: exclusive vs shared_external
@@ -115,6 +123,29 @@ export default async function commitWrapperTransform({
         const newId = oldToNewIdMap.get(pt.id);
         return newId ? { ...pt, id: newId } : pt;
       };
+      // guideLines / isoHeightLines refs key on `pointId` (resolved refs also
+      // mirror it on `id`, keep both in sync)
+      const replaceLineRef = (ref) => {
+        const newId = oldToNewIdMap.get(ref.pointId ?? ref.id);
+        if (!newId) return ref;
+        const next = { ...ref, pointId: newId };
+        if (ref.id != null) next.id = newId;
+        return next;
+      };
+      const replaceLinesRefs = (lines) =>
+        lines.map((line) => ({
+          ...line,
+          points: line.points?.map(replaceLineRef),
+        }));
+      const linesChanged = (newLines, oldLines) =>
+        newLines.some((line, li) =>
+          line.points?.some(
+            (ref, ri) =>
+              (ref.pointId ?? ref.id) !==
+              (oldLines[li].points?.[ri]?.pointId ??
+                oldLines[li].points?.[ri]?.id)
+          )
+        );
 
       for (const annId of selectedAnnotationIds) {
         const ann = allAnnotations.find((a) => a.id === annId);
@@ -141,6 +172,30 @@ export default async function commitWrapperTransform({
           );
           if (cutsChanged) {
             updates.cuts = newCuts;
+            hasChanges = true;
+          }
+        }
+
+        if (ann.innerPoints) {
+          const newInnerPoints = ann.innerPoints.map(replacePointId);
+          if (newInnerPoints.some((pt, i) => pt.id !== ann.innerPoints[i].id)) {
+            updates.innerPoints = newInnerPoints;
+            hasChanges = true;
+          }
+        }
+
+        if (ann.guideLines) {
+          const newGuideLines = replaceLinesRefs(ann.guideLines);
+          if (linesChanged(newGuideLines, ann.guideLines)) {
+            updates.guideLines = newGuideLines;
+            hasChanges = true;
+          }
+        }
+
+        if (ann.isoHeightLines) {
+          const newIsoHeightLines = replaceLinesRefs(ann.isoHeightLines);
+          if (linesChanged(newIsoHeightLines, ann.isoHeightLines)) {
+            updates.isoHeightLines = newIsoHeightLines;
             hasChanges = true;
           }
         }
