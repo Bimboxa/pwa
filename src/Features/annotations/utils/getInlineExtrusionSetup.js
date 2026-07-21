@@ -1,4 +1,5 @@
-import projectPointOnPolyline from "Features/annotations/utils/projectPointOnPolyline";
+// (no imports — self-contained projections; the extremity projection must be
+// UNCLAMPED, which projectPointOnPolyline does not provide)
 
 // Registration of a POLYLINE "Extrusion" profile (annotation.profileLines
 // drawn directly on the plan) against its guide polyline.
@@ -19,11 +20,10 @@ import projectPointOnPolyline from "Features/annotations/utils/projectPointOnPol
 //         gets built).
 //
 // Inputs are RESOLVED points in consistent plan units (pixels for 2D /
-// elevation, basemap-local meters for 3D — pass meterByPx=1 then):
-//   - guidePoints: [{x, y, offsetBottom?}, ...] (the polyline chain)
+// elevation, basemap-local meters for 3D):
+//   - guidePoints: [{x, y, offsetBottom?}, ...] (the polyline chain,
+//     arc-expanded by the caller)
 //   - profilePoints: [{x, y, height, type?}, ...]
-//   - meterByPx: meters per plan unit (used to compare section-space
-//     distances where X is plan units and Z is meters)
 //   - closeLine: whether the guide chain closes
 //
 // Returns null when degenerate, else:
@@ -36,11 +36,14 @@ import projectPointOnPolyline from "Features/annotations/utils/projectPointOnPol
 //   dirSign,                          // +1|-1 (section X → plan side)
 //   crossSection: [{ u, h, type? }],  // per profile vertex, u in plan units
 //   extents: { uMin, uMax },          // transverse extents (plan units)
+//   footprint: { sMin, sMax },        // FULL guide chain projected on the
+//                                     // profile axis (unclamped abscissae) —
+//                                     // the whole polyline footprint in the
+//                                     // section view
 // }
 export default function getInlineExtrusionSetup({
   guidePoints,
   profilePoints,
-  meterByPx = 1,
   closeLine = false,
 }) {
   const guide = (guidePoints || []).filter(
@@ -119,37 +122,81 @@ export default function getInlineExtrusionSetup({
   const segB = guide[(crossedSegIndex + 1) % guide.length];
 
   // --- Extremities in section coordinates ---------------------------------
-  const projOf = (p) =>
-    projectPointOnPolyline({ x: p.x, y: p.y }, profileChain);
-  const extremities = [segA, segB].map((p) => {
-    const proj = projOf(p);
-    return {
-      s: proj ? proj.s : 0,
-      z: p.offsetBottom ?? 0,
-      x: p.x,
-      y: p.y,
-    };
-  });
-
-  // E = extremity whose section position is closest to a profile vertex
-  // (section distances compare plan units on X and meters/meterByPx on Y).
-  const pxPerMeter = meterByPx > 0 ? 1 / meterByPx : 1;
-  const sectionDist = (ext, i) =>
-    Math.hypot(
-      cum[i] - ext.s,
-      ((Number(profile[i].height) || 0) - ext.z) * pxPerMeter
-    );
-  let anchorExtremityIndex = 0;
-  let bestD = Infinity;
-  extremities.forEach((ext, ei) => {
-    for (let i = 0; i < profile.length; i += 1) {
-      const d = sectionDist(ext, i);
-      if (d < bestD) {
-        bestD = d;
-        anchorExtremityIndex = ei;
+  // UNCLAMPED abscissa: a guide point may project BEYOND the profile's ends
+  // (e.g. the profile starts strictly inside a circular guide). Clamping
+  // would glue the registration origin onto the profile's end vertex and
+  // shift the whole section — the abscissa must extrapolate along the first
+  // / last segment instead, so the band boundaries pass exactly through the
+  // profile extremities.
+  const unclampedS = (p) => {
+    let best = null;
+    for (let i = 0; i < profileChain.length - 1; i += 1) {
+      const a = profileChain[i];
+      const b = profileChain[i + 1];
+      const abx = b.x - a.x;
+      const aby = b.y - a.y;
+      const len2 = abx * abx + aby * aby;
+      if (len2 < 1e-18) continue;
+      const len = Math.sqrt(len2);
+      const tRaw = ((p.x - a.x) * abx + (p.y - a.y) * aby) / len2;
+      // Extrapolation allowed only on the end segments (interior overlaps
+      // are owned by the neighbor segment).
+      const tMin = i === 0 ? -Infinity : 0;
+      const tMax = i === profileChain.length - 2 ? Infinity : 1;
+      const t = Math.max(tMin, Math.min(tMax, tRaw));
+      const fx = a.x + abx * t;
+      const fy = a.y + aby * t;
+      const d2 = (p.x - fx) ** 2 + (p.y - fy) ** 2;
+      if (!best || d2 < best.d2) {
+        best = { d2, s: cum[i] + t * len };
       }
     }
-  });
+    return best ? best.s : 0;
+  };
+  const extremities = [segA, segB].map((p) => ({
+    s: unclampedS(p),
+    z: p.offsetBottom ?? 0,
+    x: p.x,
+    y: p.y,
+  }));
+
+  // Full guide footprint on the section plane: every guide vertex projected
+  // (unclamped) onto the profile axis.
+  let footSMin = Infinity;
+  let footSMax = -Infinity;
+  for (const p of guide) {
+    const s = unclampedS(p);
+    if (s < footSMin) footSMin = s;
+    if (s > footSMax) footSMax = s;
+  }
+
+  // E = extremity closest to the profile IN PLAN (perpendicular distance to
+  // the profile chain). The section-space abscissa alone would let an
+  // off-plane extremity win (its projection can land closer along the axis
+  // while sitting far from the section plane), shifting the registration —
+  // the guide point that actually meets the section plane must anchor it.
+  const planDistToProfile = (p) => {
+    let best = Infinity;
+    for (let i = 0; i < profileChain.length - 1; i += 1) {
+      const a = profileChain[i];
+      const b = profileChain[i + 1];
+      const abx = b.x - a.x;
+      const aby = b.y - a.y;
+      const len2 = abx * abx + aby * aby;
+      if (len2 < 1e-18) continue;
+      let t = ((p.x - a.x) * abx + (p.y - a.y) * aby) / len2;
+      t = Math.max(0, Math.min(1, t));
+      const dx = p.x - (a.x + abx * t);
+      const dy = p.y - (a.y + aby * t);
+      const d2 = dx * dx + dy * dy;
+      if (d2 < best) best = d2;
+    }
+    return best;
+  };
+  const anchorExtremityIndex =
+    planDistToProfile(extremities[0]) <= planDistToProfile(extremities[1])
+      ? 0
+      : 1;
   const E = extremities[anchorExtremityIndex];
 
   // --- Section X axis → plan side of the guide ----------------------------
@@ -200,6 +247,7 @@ export default function getInlineExtrusionSetup({
     anchorExtremityIndex,
     dirSign,
     crossSection,
+    footprint: { sMin: footSMin, sMax: footSMax },
     extents: { uMin, uMax },
   };
 }

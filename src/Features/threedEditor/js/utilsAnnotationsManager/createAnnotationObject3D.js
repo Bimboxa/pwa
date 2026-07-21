@@ -869,7 +869,6 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
         const setup = getInlineExtrusionSetup({
           guidePoints: guideLocal,
           profilePoints: profileLocal,
-          meterByPx: 1,
           closeLine: !!annotation.closeLine,
         });
         if (setup) {

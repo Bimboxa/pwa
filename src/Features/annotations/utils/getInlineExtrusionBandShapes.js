@@ -31,7 +31,6 @@ export default function getInlineExtrusionBandMetrics(annotation, meterByPx) {
   const setup = getInlineExtrusionSetup({
     guidePoints: guide,
     profilePoints: line.points,
-    meterByPx: meterByPx || 1,
     closeLine: !!annotation.closeLine,
   });
   if (!setup) return null;

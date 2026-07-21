@@ -189,22 +189,26 @@ export default function ElevationProfileSectionSvg({
         vectorEffect="non-scaling-stroke"
       />
 
-      {/* POLYLINE extrusion reference trait: the crossed guide segment
-          projected on the section plane. Its extremities are the snap /
-          registration targets of the sweep (anchor extremity filled). */}
+      {/* POLYLINE extrusion reference trait: the FULL polyline footprint
+          projected on the section plane (horizontal line), with the crossed
+          guide segment's extremities as snap / registration targets (anchor
+          extremity filled). */}
       {guideTrait && guideTrait.extremities?.length === 2 && (
         <g style={{ pointerEvents: "none" }}>
           <line
-            x1={guideTrait.extremities[0].s}
-            y1={guideTrait.extremities[0].y}
-            x2={guideTrait.extremities[1].s}
-            y2={guideTrait.extremities[1].y}
+            x1={guideTrait.footprint?.s1 ?? guideTrait.extremities[0].s}
+            y1={guideTrait.footprint?.y ?? guideTrait.extremities[0].y}
+            x2={guideTrait.footprint?.s2 ?? guideTrait.extremities[1].s}
+            y2={guideTrait.footprint?.y ?? guideTrait.extremities[1].y}
             stroke="#2962ff"
             strokeWidth={2}
             vectorEffect="non-scaling-stroke"
           />
           {guideTrait.extremities.map((ext, ei) => (
-            <g key={`trait-ext-${ei}`} transform={`translate(${ext.s}, ${ext.y})`}>
+            <g
+              key={`trait-ext-${ei}`}
+              transform={`translate(${ext.s}, ${ext.y})`}
+            >
               <g style={COUNTER_ZOOM}>
                 <circle
                   r={HALF - 1}

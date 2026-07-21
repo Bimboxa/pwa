@@ -192,23 +192,41 @@ export default function ElevationEditor({
 
   // POLYLINE extrusion: reference "trait" = the guide segment crossed by the
   // profile, projected onto the section plane; its extremities are snap
-  // targets and the registration origin of the 3D sweep.
+  // targets and the registration origin of the 3D sweep. The guide is
+  // arc-expanded EXACTLY like the band / 3D callers so all three agree on
+  // the crossed segment and its extremities.
   const guideTrait = useMemo(() => {
     if (!profileSectionMode || surfaceMode || !sectionProfile) return null;
+    const expandedGuide = expandArcsInPath(
+      (points || []).filter(
+        (p) => Number.isFinite(p?.x) && Number.isFinite(p?.y)
+      ),
+      6,
+      !!closeLine
+    );
     const setup = getInlineExtrusionSetup({
-      guidePoints: points,
+      guidePoints: expandedGuide,
       profilePoints: sectionProfile.points,
-      meterByPx,
       closeLine,
     });
     if (!setup) return null;
     const pxPerMeter = meterByPx > 0 ? 1 / meterByPx : 1;
+    const traitY =
+      -((setup.extremities[setup.anchorExtremityIndex]?.z ?? 0) + offsetZ) *
+      pxPerMeter;
     return {
       extremities: setup.extremities.map((e) => ({
         s: e.s,
         y: -(e.z + offsetZ) * pxPerMeter,
       })),
       anchorExtremityIndex: setup.anchorExtremityIndex,
+      // FULL polyline footprint projected on the section plane — the trait
+      // spans the whole guide, not just the crossed segment.
+      footprint: {
+        s1: setup.footprint.sMin,
+        s2: setup.footprint.sMax,
+        y: traitY,
+      },
     };
   }, [
     profileSectionMode,
