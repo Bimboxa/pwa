@@ -4,7 +4,7 @@ import { useDispatch } from "react-redux";
 import commitElevationOffsetService from "Features/elevation/services/commitElevationOffsetService";
 import commitElevationOffsetsService from "Features/elevation/services/commitElevationOffsetsService";
 import moveIsoHeightLineService from "Features/elevation/services/moveIsoHeightLineService";
-import updateProfileVertexHeightService from "Features/elevation/services/updateProfileVertexHeightService";
+import moveProfileVertexService from "Features/elevation/services/moveProfileVertexService";
 
 // Drag of an elevation handle:
 //   - vertex TOP/BOTTOM handle: vertical only (X fixed by the plan geometry),
@@ -65,6 +65,9 @@ export default function useElevationPointDrag({
           profileIndex: drag.profileIndex,
           profileVertexIndex: drag.profileVertexIndex,
           worldY: worldPos.y,
+          worldX: worldPos.x,
+          sMin: drag.sMin,
+          sMax: drag.sMax,
         });
       } else if (drag.extremityPointIndexes) {
         setDragPreview({
@@ -112,13 +115,25 @@ export default function useElevationPointDrag({
         return;
       }
       if (drag.profileVertexIndex != null) {
-        // Profile section vertex: vertical drag only (the plan position is
-        // authored in 2D) — same TOP math as a vertex handle.
-        updateProfileVertexHeightService({
+        // Profile section vertex: FREE 2-axis drag — Y edits the height (same
+        // TOP math as a vertex handle), X slides the vertex along the profile
+        // path in plan (curvilinear s, clamped between its neighbors; the
+        // s → plan mapping is provided by the caller at drag start).
+        let planPos = null;
+        if (
+          typeof drag.planAt === "function" &&
+          Number.isFinite(drag.sMin) &&
+          Number.isFinite(drag.sMax)
+        ) {
+          const s = Math.max(drag.sMin, Math.min(drag.sMax, worldPos.x));
+          planPos = drag.planAt(s);
+        }
+        moveProfileVertexService({
           annotationId,
           profileIndex: drag.profileIndex,
           vertexIndex: drag.profileVertexIndex,
           height: worldYToValue(worldPos.y, "TOP"),
+          planPos,
           dispatch,
         });
         return;
@@ -193,11 +208,20 @@ export default function useElevationPointDrag({
     [startDrag]
   );
 
-  // Shell profile section vertex: vertical drag of one interior vertex's
-  // inline height.
+  // Shell profile section vertex: free 2-axis drag of one interior vertex —
+  // Y edits its inline height, X slides it along the profile path in plan.
+  // `sMin` / `sMax` bound the slide between the neighbor vertices and
+  // `planAt(s)` maps a curvilinear abscissa back to a plan pixel position
+  // (both provided by the section editor).
   const startProfileVertexDrag = useCallback(
-    (e, { profileIndex, vertexIndex }) =>
-      startDrag(e, { profileIndex, profileVertexIndex: vertexIndex }),
+    (e, { profileIndex, vertexIndex, sMin, sMax, planAt }) =>
+      startDrag(e, {
+        profileIndex,
+        profileVertexIndex: vertexIndex,
+        sMin,
+        sMax,
+        planAt,
+      }),
     [startDrag]
   );
 

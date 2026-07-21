@@ -13,7 +13,8 @@ const PROFILE_COLOR = "#00897b";
 // (plan px), Y = -(z_m) / meterByPx — see buildProfileSectionGeometry.
 //
 //   - the section polyline (teal, like the 2D profile stroke),
-//   - interior vertices: draggable square handles (vertical only) + one
+//   - interior vertices: freely draggable square handles (Y = height, X =
+//     slide along the profile path in plan, clamped between neighbors) + one
 //     numeric field each (height in meters, offsetTop semantics),
 //   - endpoints: grey locked circles (continuity with the contour) with a
 //     read-only value label,
@@ -38,14 +39,26 @@ export default function ElevationProfileSectionSvg({
   const theme = useTheme();
   const secondary = theme.palette.secondary.main;
 
-  // preview-applied vertices (the dragged handle's Y follows the cursor)
+  // preview-applied vertices: the dragged handle follows the cursor on BOTH
+  // axes — Y (height) freely, X (curvilinear s) clamped between its neighbor
+  // vertices (same bounds as the commit).
   const verts = useMemo(() => {
     if (!dragPreview || dragPreview.profileVertexIndex == null) return vertices;
-    return vertices.map((v) =>
-      v.vertexIndex === dragPreview.profileVertexIndex
-        ? { ...v, topY: dragPreview.worldY }
-        : v
-    );
+    return vertices.map((v) => {
+      if (v.vertexIndex !== dragPreview.profileVertexIndex) return v;
+      const next = { ...v, topY: dragPreview.worldY };
+      if (
+        Number.isFinite(dragPreview.worldX) &&
+        Number.isFinite(dragPreview.sMin) &&
+        Number.isFinite(dragPreview.sMax)
+      ) {
+        next.s = Math.max(
+          dragPreview.sMin,
+          Math.min(dragPreview.sMax, dragPreview.worldX)
+        );
+      }
+      return next;
+    });
   }, [vertices, dragPreview]);
 
   // Snap helper: projection of the cursor on the nearest section segment.
@@ -202,7 +215,7 @@ export default function ElevationProfileSectionSvg({
                   stroke={PROFILE_COLOR}
                   strokeWidth={1.5}
                   data-elev-handle="1"
-                  style={{ cursor: "ns-resize" }}
+                  style={{ cursor: "move" }}
                   onMouseDown={(e) => {
                     onSelectVertex?.(v.vertexIndex);
                     onVertexMouseDown?.(e, { vertexIndex: v.vertexIndex });

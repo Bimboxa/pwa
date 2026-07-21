@@ -328,13 +328,51 @@ export default function ElevationEditor({
     setSelectedProfileVertexIndex(null);
   }, [annotationId, editedProfileIndex]);
 
+  // Free 2-axis drag: Y = height, X = slide along the profile path in plan.
+  // The s → plan mapping walks the CURRENT resolved polyline (so the vertex
+  // slides along the drawn path, through its own previous position); the
+  // slide is clamped strictly between the neighbor vertices.
   const handleProfileVertexMouseDown = useCallback(
-    (e, { vertexIndex }) =>
+    (e, { vertexIndex }) => {
+      const pts = (sectionProfile?.points ?? []).filter(
+        (p) => Number.isFinite(p?.x) && Number.isFinite(p?.y)
+      );
+      if (pts.length < 2 || vertexIndex <= 0 || vertexIndex >= pts.length - 1) {
+        return;
+      }
+      const cum = [0];
+      for (let i = 1; i < pts.length; i += 1) {
+        cum.push(
+          cum[i - 1] +
+            Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y)
+        );
+      }
+      const planAt = (s) => {
+        for (let i = 0; i < pts.length - 1; i += 1) {
+          if (s <= cum[i + 1] || i === pts.length - 2) {
+            const span = Math.max(cum[i + 1] - cum[i], 1e-9);
+            const t = Math.max(0, Math.min(1, (s - cum[i]) / span));
+            return {
+              x: pts[i].x + (pts[i + 1].x - pts[i].x) * t,
+              y: pts[i].y + (pts[i + 1].y - pts[i].y) * t,
+            };
+          }
+        }
+        return { x: pts[0].x, y: pts[0].y };
+      };
+      // Keep a small margin so the vertex never lands ON a neighbor
+      // (degenerate segment).
+      const margin =
+        Math.max(cum[vertexIndex + 1] - cum[vertexIndex - 1], 1e-6) * 0.02;
       startProfileVertexDrag(e, {
         profileIndex: editedProfileIndex,
         vertexIndex,
-      }),
-    [startProfileVertexDrag, editedProfileIndex]
+        sMin: cum[vertexIndex - 1] + margin,
+        sMax: cum[vertexIndex + 1] - margin,
+        planAt,
+      });
+    },
+    [startProfileVertexDrag, editedProfileIndex, sectionProfile]
   );
 
   const handleCommitProfileVertexHeight = useCallback(
