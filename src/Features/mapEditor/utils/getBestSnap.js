@@ -191,6 +191,16 @@ const getBestSnap = (mousePos, annotations, threshold, { vertex = true, midpoint
                 });
             }
 
+            // F. profileLines points (same resolved ref shape as guideLines)
+            // so the shell-profile vertices are snappable / draggable too.
+            if (Array.isArray(ann.profileLines)) {
+                ann.profileLines.forEach((l) => {
+                    if (l?.points?.length) {
+                        pointArraysToCheck.push({ list: l.points, cutIndex: undefined, source: "PROFILE" });
+                    }
+                });
+            }
+
             for (const { list, cutIndex, source } of pointArraysToCheck) {
                 for (const pt of list) {
                     const d2 = dist2(pt, mousePos);

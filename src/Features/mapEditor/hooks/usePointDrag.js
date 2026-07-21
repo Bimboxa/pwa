@@ -134,7 +134,10 @@ export default function usePointDrag({
             const inIso = ann.isoHeightLines?.some((l) =>
               l?.points?.some((g) => g.pointId === pointId || g.id === pointId)
             );
-            return inMain || inCuts || inInner || inGuide || inIso;
+            const inProfile = ann.profileLines?.some((l) =>
+              l?.points?.some((g) => g.pointId === pointId || g.id === pointId)
+            );
+            return inMain || inCuts || inInner || inGuide || inIso || inProfile;
           })
           .map((ann) => ann.id);
 

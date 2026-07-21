@@ -28,6 +28,10 @@ export async function getAnnotationContourRingsPx(ann, imageSize) {
             x: row.x * imageSize.width,
             y: row.y * imageSize.height,
             ...(r?.type ? { type: r.type } : {}),
+            // Per-vertex vertical offset (meters) lives on the annotation ref,
+            // not the point row — carried so callers can interpolate contour
+            // heights (profile endpoint continuity).
+            ...(Number.isFinite(r?.offsetTop) ? { offsetTop: r.offsetTop } : {}),
           };
         })
         .filter(Boolean)

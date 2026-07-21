@@ -19,11 +19,16 @@ import {
 import triangulateAnnotationGeometry, {
   ISO_BAND_LEVELS,
 } from "Features/geometry/utils/triangulateAnnotationGeometry";
-import { expandRingWithOffsets } from "Features/geometry/utils/arcSampling";
+import {
+  expandRingWithOffsets,
+  adaptiveArcSamples,
+} from "Features/geometry/utils/arcSampling";
 import extractPlanarSketchEdges from "Features/threedEditor/js/postfx/extractPlanarSketchEdges";
 
-// Match the codebase convention used by other arc-aware paths.
-const ARC_SAMPLES = 6;
+// Angle-adaptive per-arc sampling (shared with getAnnotationQties' developed
+// surface so mesh and quantities agree): a full circle reads as ~24 segments,
+// short fillet arcs keep a handful of samples.
+const ARC_SAMPLES = adaptiveArcSamples;
 
 function getCircleInfo(p0, p1, p2) {
   const x1 = p0.x;
@@ -258,8 +263,14 @@ export default function extrudeClosedShape(
   // their own offsets), so the flat Shape path would silently ignore them.
   const hasIsoChords =
     Array.isArray(options.isoHeightChords) && options.isoHeightChords.length > 0;
+  // Shell profiles (profileLines) force the per-vertex-Z path too: the shell
+  // heights live in the profiles, not on the ring offsets.
+  const hasShell = (options.shell?.profiles?.length ?? 0) > 0;
   const isPerVertexZPath =
-    hasPerVertexZ(points, holes, innerPoints) || hasInnerPoints || hasIsoChords;
+    hasPerVertexZ(points, holes, innerPoints) ||
+    hasInnerPoints ||
+    hasIsoChords ||
+    hasShell;
 
   let geometry;
   if (!isPerVertexZPath) {
@@ -296,6 +307,9 @@ export default function extrudeClosedShape(
       isoPartition: options.isoHeightChords?.length
         ? { isoChords: options.isoHeightChords }
         : null,
+      // Shell (profileLines): { mode: "DOME"|"TENT", profiles } — takes
+      // precedence internally over isoPartition / banding.
+      shell: hasShell ? options.shell : null,
     });
     geometry = new BufferGeometry();
     geometry.setAttribute(
@@ -309,6 +323,13 @@ export default function extrudeClosedShape(
       // Fold edges on the iso lines + contour outlines (planar strips).
       const sketchEdges = buildSketchEdges(geometry);
       if (sketchEdges) group.add(sketchEdges);
+    }
+
+    if (tri.shellProfileSegments?.length) {
+      // Shell profile ridges drawn as white surface lines (like iso lines) —
+      // the DOME top is smooth, so the profiles are the surface's structure.
+      const ridgeLines = buildIsoLinesFromSegments(tri.shellProfileSegments);
+      if (ridgeLines) group.add(ridgeLines);
     }
 
     if (options.isoLines) {

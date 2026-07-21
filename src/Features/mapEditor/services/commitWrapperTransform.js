@@ -44,8 +44,13 @@ export default async function commitWrapperTransform({
       for (const pt of cut.points ?? []) addRef(pt.id);
     }
     for (const pt of ann.innerPoints ?? []) addRef(pt.id);
-    // guideLines / isoHeightLines refs key on `pointId` (see resolveGuideLine)
-    for (const line of [...(ann.guideLines ?? []), ...(ann.isoHeightLines ?? [])]) {
+    // guideLines / isoHeightLines / profileLines refs key on `pointId` (see
+    // resolveGuideLine)
+    for (const line of [
+      ...(ann.guideLines ?? []),
+      ...(ann.isoHeightLines ?? []),
+      ...(ann.profileLines ?? []),
+    ]) {
       for (const pt of line?.points ?? []) {
         const pointId = pt.pointId ?? pt.id;
         if (pointId != null) addRef(pointId);
@@ -196,6 +201,14 @@ export default async function commitWrapperTransform({
           const newIsoHeightLines = replaceLinesRefs(ann.isoHeightLines);
           if (linesChanged(newIsoHeightLines, ann.isoHeightLines)) {
             updates.isoHeightLines = newIsoHeightLines;
+            hasChanges = true;
+          }
+        }
+
+        if (ann.profileLines) {
+          const newProfileLines = replaceLinesRefs(ann.profileLines);
+          if (linesChanged(newProfileLines, ann.profileLines)) {
+            updates.profileLines = newProfileLines;
             hasChanges = true;
           }
         }

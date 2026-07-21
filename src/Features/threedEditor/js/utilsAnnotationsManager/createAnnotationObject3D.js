@@ -47,6 +47,7 @@ const GUIDE_ARC_SAMPLES = 6;
 import {
   getShape3DKey,
   getShape3DOptionsForType,
+  getEffectiveShellMode,
 } from "Features/annotations/constants/shape3DConfig";
 
 import { isStairsGuideLine } from "Features/annotations/utils/getGuideLineStairsLayout";
@@ -666,9 +667,13 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
         .map((cut) => pointsToLocal(cut.points || [], baseMap))
         .filter((c) => c.length >= 3);
       const innerPts = pointsToLocal(annotation.innerPoints || [], baseMap);
-      // isoHeightLines take precedence over guideLines (stairs and ramps):
-      // when present, the vertex heights baked from the iso lines alone
-      // drive the surface (see applyIsoHeightLinesToRings).
+      // profileLines and isoHeightLines COEXIST: when profiles exist the
+      // shell build (triangulateAnnotationGeometry) merges the iso chords as
+      // constant-height constraint lines. Only guideLines (stairs / ramps)
+      // are exclusive with them.
+      const hasProfileLines = !!annotation.profileLines?.some(
+        (l) => l?.points?.length >= 2
+      );
       const hasIsoHeightLines = !!annotation.isoHeightLines?.some(
         (l) => l?.points?.length >= 2
       );
@@ -676,7 +681,11 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
       // continuous ramp nappe. annotation.height is ignored (surface-only,
       // like the ramp). On a degenerate layout, fall through to the flat
       // extrusion below.
-      if (!hasIsoHeightLines && annotation.guideLines?.some(isStairsGuideLine)) {
+      if (
+        !hasProfileLines &&
+        !hasIsoHeightLines &&
+        annotation.guideLines?.some(isStairsGuideLine)
+      ) {
         const stairs = buildStairsFromGuideLine({
           annotation,
           baseMap,
@@ -689,6 +698,7 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
         }
       }
       const hasGuideLineRamp =
+        !hasProfileLines &&
         !hasIsoHeightLines &&
         !!annotation.guideLines?.some(
           (g) => !g?.isStairs && g?.points?.length >= 2
@@ -699,7 +709,10 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
       // buildSlopedStripGroup. A distinct cache key forces three to compile
       // this un-darkened program separately from the shared material.
       let polyMaterial = material;
-      if ((hasGuideLineRamp || hasIsoHeightLines) && (!height || height <= 0)) {
+      if (
+        (hasGuideLineRamp || hasIsoHeightLines || hasProfileLines) &&
+        (!height || height <= 0)
+      ) {
         polyMaterial = material.clone();
         polyMaterial.side = DoubleSide;
         polyMaterial.onBeforeCompile = () => {};
@@ -718,6 +731,19 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
             }))
             .filter((c) => c.polyline.length >= 2)
         : [];
+      // Shell profiles in basemap-local units (per-vertex heights stay in
+      // meters — pointsToLocal drops extra fields, so re-attach by index).
+      const shellProfiles = hasProfileLines
+        ? (annotation.profileLines || [])
+            .filter((l) => l?.points?.length >= 2)
+            .map((l) => ({
+              polyline: pointsToLocal(l.points, baseMap).map((q, i) => ({
+                ...q,
+                height: Number(l.points[i]?.height) || 0,
+              })),
+            }))
+            .filter((c) => c.polyline.length >= 2)
+        : [];
       object = extrudeClosedShape(
         pts,
         height,
@@ -728,6 +754,14 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
         {
           isoLines: hasGuideLineRamp,
           isoHeightChords,
+          ...(shellProfiles.length
+            ? {
+                shell: {
+                  mode: getEffectiveShellMode(annotation),
+                  profiles: shellProfiles,
+                },
+              }
+            : {}),
         }
       );
       break;

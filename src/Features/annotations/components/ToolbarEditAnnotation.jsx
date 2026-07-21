@@ -92,9 +92,11 @@ import IconButtonContours from "./IconButtonContours";
 import IconButtonCloseEnvelope from "./IconButtonCloseEnvelope";
 import IconButtonAddGuideLine from "./IconButtonAddGuideLine";
 import IconButtonAddIsoHeightLine from "./IconButtonAddIsoHeightLine";
+import IconButtonAddProfileLine from "./IconButtonAddProfileLine";
 import IconButtonAutoSlope from "./IconButtonAutoSlope";
 import ToolbarEditGuideLine from "./ToolbarEditGuideLine";
 import ToolbarEditIsoHeightLine from "./ToolbarEditIsoHeightLine";
+import ToolbarEditProfileLine from "./ToolbarEditProfileLine";
 import DialogDuplicateContourSegments from "./DialogDuplicateContourSegments";
 
 import ToggleSingleSelectorGeneric from "Features/layout/components/ToggleSingleSelectorGeneric";
@@ -664,6 +666,11 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
           <ToolbarEditIsoHeightLine accentColor={accentColor} />
         )}
 
+        {/* Profile line edit row — open Élévation panel / delete */}
+        {hasPart && part.kind === "PROFILE" && (
+          <ToolbarEditProfileLine accentColor={accentColor} />
+        )}
+
         {/* Group rows — only in MIXED mode (1 row per kind with key qty + remove) */}
         {isMixedPart && (
           <Box
@@ -932,6 +939,9 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
                 )}
                 {selectedAnnotation?.type === "POLYGON" && (
                   <IconButtonAddIsoHeightLine accentColor={accentColor} />
+                )}
+                {selectedAnnotation?.type === "POLYGON" && (
+                  <IconButtonAddProfileLine accentColor={accentColor} />
                 )}
                 {selectedAnnotation?.type === "POLYGON" && (
                   <IconButtonAutoSlope accentColor={accentColor} />

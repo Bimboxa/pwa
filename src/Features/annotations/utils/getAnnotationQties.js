@@ -6,15 +6,20 @@ import triangulateAnnotationGeometry, {
 import {
   expandRingWithOffsets,
   expandRingWithOffsetsAndHiddenMap,
+  adaptiveArcSamples,
 } from "Features/geometry/utils/arcSampling";
 import getGuideLineStairsLayout, {
   findStairsGuideLine,
 } from "Features/annotations/utils/getGuideLineStairsLayout";
+import { getEffectiveShellMode } from "Features/annotations/constants/shape3DConfig";
 
-// Match the ARC_SAMPLES used by the 3D mesh builder (extrudeClosedShape) so the
-// developed surface is triangulated on the SAME arc-expanded contour as the
-// rendered geometry.
-const ARC_SAMPLES = 6;
+// Match the sampling used by the 3D mesh builders so quantities are computed
+// on the SAME arc-expanded rings as the rendered geometry:
+//   - developed surface path → extrudeClosedShape (angle-adaptive, ~24
+//     segments per full circle),
+//   - wall path → extrudePolylineWall (GUIDE_ARC_SAMPLES = 6 per half-arc).
+const ARC_SAMPLES = adaptiveArcSamples;
+const WALL_ARC_SAMPLES = 6;
 
 // True iff any point on the contour, any cut, or any innerPoint carries a
 // non-zero offsetBottom / offsetTop. Used to gate the per-vertex-Z surface
@@ -457,7 +462,7 @@ export default function getAnnotationQties({
         const { points: wallPts, hiddenSegmentsIdx: wallHidden } =
           expandRingWithOffsetsAndHiddenMap(
             points,
-            ARC_SAMPLES,
+            WALL_ARC_SAMPLES,
             annotation.hiddenSegmentsIdx || [],
             !!closeLine
           );
@@ -522,10 +527,19 @@ export default function getAnnotationQties({
     // available for offset-bearing annotations too.
     // isoHeightLines slope the top face through the partition even when every
     // ring offset is 0, so they force the developed-surface path too.
+    // profileLines (3D shell) COEXIST with iso lines: when both are present
+    // the triangulation merges the iso chords into the shell constraint set —
+    // same rule as the 3D build and useAnnotationsV2.
+    const hasProfileLines = annotation?.profileLines?.some(
+      (l) => l?.points?.length >= 2
+    );
     const hasIsoHeightLines = annotation?.isoHeightLines?.some(
       (l) => l?.points?.length >= 2
     );
-    if (closeLine && (hasPerVertexZOffsets(annotation) || hasIsoHeightLines)) {
+    if (
+      closeLine &&
+      (hasPerVertexZOffsets(annotation) || hasIsoHeightLines || hasProfileLines)
+    ) {
       const cutsRings = (annotation.cuts || [])
         .map((c) =>
           (c?.points || []).filter((p) => p && typeof p.x === "number")
@@ -566,9 +580,7 @@ export default function getAnnotationQties({
           : 0,
         // Match the iso-chord partitioned 3D mesh (isoHeightLines). Chords
         // are scaled to meters like the rings; heights are already meters.
-        isoPartition: annotation?.isoHeightLines?.some(
-          (l) => l?.points?.length >= 2
-        )
+        isoPartition: hasIsoHeightLines
           ? {
               isoChords: annotation.isoHeightLines
                 .filter((l) => l?.points?.length >= 2)
@@ -577,6 +589,27 @@ export default function getAnnotationQties({
                     .filter((p) => typeof p?.x === "number")
                     .map((p) => ({ x: p.x * meterByPx, y: p.y * meterByPx })),
                   height: Number(l?.height) || 0,
+                })),
+            }
+          : null,
+        // Match the 3D shell (profileLines). Profiles scaled to meters like
+        // the rings; per-vertex heights are already meters.
+        shell: hasProfileLines
+          ? {
+              mode: getEffectiveShellMode(annotation),
+              profiles: annotation.profileLines
+                .filter((l) => l?.points?.length >= 2)
+                .map((l) => ({
+                  polyline: (l.points || [])
+                    .filter((p) => typeof p?.x === "number")
+                    .map((p) => ({
+                      x: p.x * meterByPx,
+                      y: p.y * meterByPx,
+                      height: Number(p?.height) || 0,
+                      // vertical-arc control flag (expanded in the shell
+                      // triangulation)
+                      ...(p?.type === "circle" ? { type: "circle" } : {}),
+                    })),
                 })),
             }
           : null,

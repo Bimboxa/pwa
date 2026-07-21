@@ -97,7 +97,13 @@ export default function duplicateAnnotationPoints(annotation, ctx) {
         });
       }
 
-      return { pointId: newId, ...(ref.type ? { type: ref.type } : {}) };
+      return {
+        pointId: newId,
+        ...(ref.type ? { type: ref.type } : {}),
+        // Profile-line refs carry an inline per-vertex height (meters) that
+        // must survive duplication; guide/iso refs simply never have one.
+        ...(typeof ref.height === "number" ? { height: ref.height } : {}),
+      };
     });
   }
 
@@ -126,6 +132,15 @@ export default function duplicateAnnotationPoints(annotation, ctx) {
   // Iso height lines share the guide-line ref shape ({pointId, type}).
   if (Array.isArray(annotation.isoHeightLines)) {
     nextAnnotation.isoHeightLines = annotation.isoHeightLines.map((l) =>
+      l && Array.isArray(l.points)
+        ? { ...l, points: remapGuideLineRefs(l.points) }
+        : l
+    );
+  }
+
+  // Profile lines share the same ref shape plus an inline height per vertex.
+  if (Array.isArray(annotation.profileLines)) {
+    nextAnnotation.profileLines = annotation.profileLines.map((l) =>
       l && Array.isArray(l.points)
         ? { ...l, points: remapGuideLineRefs(l.points) }
         : l

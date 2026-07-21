@@ -5,6 +5,7 @@ import { Box, Typography } from "@mui/material";
 
 import MapEditorViewport from "Features/mapEditorGeneric/components/MapEditorViewport";
 import ElevationProfileSvg from "./ElevationProfileSvg";
+import ElevationProfileSectionSvg from "./ElevationProfileSectionSvg";
 
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import useElevationProfile from "Features/elevation/hooks/useElevationProfile";
@@ -12,6 +13,7 @@ import useElevationPointDrag from "Features/elevation/hooks/useElevationPointDra
 import useDeleteIsoHeightLine from "Features/annotations/hooks/useDeleteIsoHeightLine";
 import { triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice";
 import { expandArcsInPath } from "Features/geometry/utils/arcSampling";
+import buildProfileSectionGeometry from "Features/elevation/utils/buildProfileSectionGeometry";
 import commitElevationOffsetService from "Features/elevation/services/commitElevationOffsetService";
 import commitElevationOffsetsService from "Features/elevation/services/commitElevationOffsetsService";
 import commitIsoHeightLineHeightService from "Features/elevation/services/commitIsoHeightLineHeightService";
@@ -19,6 +21,10 @@ import createIsoHeightLineService from "Features/elevation/services/createIsoHei
 import setAnnotationOffsetZService from "Features/elevation/services/setAnnotationOffsetZService";
 import setAnnotationHeightService from "Features/elevation/services/setAnnotationHeightService";
 import setElevationGuideService from "Features/elevation/services/setElevationGuideService";
+import updateProfileVertexHeightService from "Features/elevation/services/updateProfileVertexHeightService";
+import insertProfileVertexService from "Features/elevation/services/insertProfileVertexService";
+import deleteProfileVertexService from "Features/elevation/services/deleteProfileVertexService";
+import toggleProfileVertexTypeService from "Features/elevation/services/toggleProfileVertexTypeService";
 
 // Picks the segment whose projected X-band contains `x` (smallest band wins on
 // overlap from fold-backs); falls back to the nearest band. Returns the
@@ -74,6 +80,12 @@ export default function ElevationEditor({
   // Guide image config ({ baseMapId, x?, y? }) — a VERTICAL baseMap drawn
   // under the profile as a background guide for the isoHeight points.
   elevationGuide = null,
+  // Shell profile section mode: resolved profileLines + the edited index
+  // (null = silhouette / wall mode). When active, the editor shows ONE
+  // profile's developed section (x = curvilinear distance) instead of the
+  // projected silhouette.
+  profileLines = [],
+  editedProfileIndex = null,
   onSelectSegment,
 }) {
   const viewportRef = useRef(null);
@@ -142,7 +154,7 @@ export default function ElevationEditor({
 
   // data
 
-  const { vertices, bbox, isoMarkers, basis } = useElevationProfile({
+  const { vertices, bbox: profileBbox, isoMarkers, basis } = useElevationProfile({
     points,
     selectedSegmentIndices,
     seedSegmentIndex,
@@ -152,6 +164,24 @@ export default function ElevationEditor({
     offsetZ,
     isoLines,
   });
+
+  // Shell profile section (x = curvilinear distance along the profile).
+  const sectionProfile =
+    editedProfileIndex != null ? profileLines?.[editedProfileIndex] : null;
+  const sectionGeometry = useMemo(
+    () =>
+      sectionProfile
+        ? buildProfileSectionGeometry({
+            profilePoints: sectionProfile.points,
+            meterByPx,
+            height,
+            offsetZ,
+          })
+        : null,
+    [sectionProfile, meterByPx, height, offsetZ]
+  );
+  const profileSectionMode = !!sectionGeometry;
+  const bbox = profileSectionMode ? sectionGeometry.bbox : profileBbox;
 
   // --- guide image (background elevation drawing) ---
 
@@ -275,15 +305,145 @@ export default function ElevationEditor({
     return () => window.removeEventListener("mouseup", markDrag, true);
   }, []);
 
-  const { startHandleDrag, startIsoHandleDrag, startExtremityDrag, dragPreview } =
-    useElevationPointDrag({
-      viewportRef,
-      meterByPx,
-      height,
-      offsetZ,
-      annotationId,
-      basis,
-    });
+  const {
+    startHandleDrag,
+    startIsoHandleDrag,
+    startExtremityDrag,
+    startProfileVertexDrag,
+    dragPreview,
+  } = useElevationPointDrag({
+    viewportRef,
+    meterByPx,
+    height,
+    offsetZ,
+    annotationId,
+    basis,
+  });
+
+  // --- shell profile section mode: vertex selection / edit / insert ---
+
+  const [selectedProfileVertexIndex, setSelectedProfileVertexIndex] =
+    useState(null);
+
+  useEffect(() => {
+    setSelectedProfileVertexIndex(null);
+  }, [annotationId, editedProfileIndex]);
+
+  // Free 2-axis drag: Y = height, X = slide along the profile path in plan.
+  // The s → plan mapping walks the CURRENT resolved polyline (so the vertex
+  // slides along the drawn path, through its own previous position); the
+  // slide is clamped strictly between the neighbor vertices.
+  const handleProfileVertexMouseDown = useCallback(
+    (e, { vertexIndex }) => {
+      const pts = (sectionProfile?.points ?? []).filter(
+        (p) => Number.isFinite(p?.x) && Number.isFinite(p?.y)
+      );
+      if (pts.length < 2 || vertexIndex <= 0 || vertexIndex >= pts.length - 1) {
+        return;
+      }
+      const cum = [0];
+      for (let i = 1; i < pts.length; i += 1) {
+        cum.push(
+          cum[i - 1] +
+            Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y)
+        );
+      }
+      const planAt = (s) => {
+        for (let i = 0; i < pts.length - 1; i += 1) {
+          if (s <= cum[i + 1] || i === pts.length - 2) {
+            const span = Math.max(cum[i + 1] - cum[i], 1e-9);
+            const t = Math.max(0, Math.min(1, (s - cum[i]) / span));
+            return {
+              x: pts[i].x + (pts[i + 1].x - pts[i].x) * t,
+              y: pts[i].y + (pts[i + 1].y - pts[i].y) * t,
+            };
+          }
+        }
+        return { x: pts[0].x, y: pts[0].y };
+      };
+      // Keep a small margin so the vertex never lands ON a neighbor
+      // (degenerate segment).
+      const margin =
+        Math.max(cum[vertexIndex + 1] - cum[vertexIndex - 1], 1e-6) * 0.02;
+      startProfileVertexDrag(e, {
+        profileIndex: editedProfileIndex,
+        vertexIndex,
+        sMin: cum[vertexIndex - 1] + margin,
+        sMax: cum[vertexIndex + 1] - margin,
+        planAt,
+      });
+    },
+    [startProfileVertexDrag, editedProfileIndex, sectionProfile]
+  );
+
+  // Re-click on the already-selected vertex toggles its type square ↔ circle
+  // (arc control point of the vertical section curve).
+  const handleToggleProfileVertexType = useCallback(
+    (vertexIndex) => {
+      toggleProfileVertexTypeService({
+        annotationId,
+        profileIndex: editedProfileIndex,
+        vertexIndex,
+        dispatch,
+      });
+    },
+    [annotationId, editedProfileIndex, dispatch]
+  );
+
+  const handleCommitProfileVertexHeight = useCallback(
+    (vertexIndex, value) => {
+      updateProfileVertexHeightService({
+        annotationId,
+        profileIndex: editedProfileIndex,
+        vertexIndex,
+        height: value,
+        dispatch,
+      });
+    },
+    [annotationId, editedProfileIndex, dispatch]
+  );
+
+  const handleInsertProfileVertex = useCallback(
+    ({ segIndex, t, height: vertexHeight }) => {
+      insertProfileVertexService({
+        annotationId,
+        profileIndex: editedProfileIndex,
+        segIndex,
+        t,
+        height: vertexHeight,
+        dispatch,
+      });
+    },
+    [annotationId, editedProfileIndex, dispatch]
+  );
+
+  // Delete/Backspace removes the selected profile vertex (interior only).
+  // Capture phase + stopPropagation, like the iso-line delete above.
+  useEffect(() => {
+    if (!profileSectionMode || selectedProfileVertexIndex == null) return;
+    const onKey = async (e) => {
+      if (e.key !== "Delete" && e.key !== "Backspace") return;
+      const tag = e.target?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA") return;
+      e.preventDefault();
+      e.stopPropagation();
+      await deleteProfileVertexService({
+        annotationId,
+        profileIndex: editedProfileIndex,
+        vertexIndex: selectedProfileVertexIndex,
+        dispatch,
+      });
+      setSelectedProfileVertexIndex(null);
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [
+    profileSectionMode,
+    selectedProfileVertexIndex,
+    annotationId,
+    editedProfileIndex,
+    dispatch,
+  ]);
 
   // --- iso point selection (click a diamond → select; Delete removes) ---
 
@@ -365,17 +525,17 @@ export default function ElevationEditor({
   const handleWorldMouseMove = useCallback(
     ({ worldPos, isPanning }) => {
       if (isPanning) {
-        if (surfaceMode) setHoverWorldPos(null);
+        if (surfaceMode || profileSectionMode) setHoverWorldPos(null);
         return;
       }
-      if (surfaceMode) {
+      if (surfaceMode || profileSectionMode) {
         setHoverWorldPos(worldPos);
         return;
       }
       const seg = pickSegmentAtX(worldPos.x, vertices);
       setHoveredSegmentIndex((prev) => (prev === seg ? prev : seg));
     },
-    [vertices, surfaceMode]
+    [vertices, surfaceMode, profileSectionMode]
   );
 
   const handleWorldClick = useCallback(
@@ -384,19 +544,20 @@ export default function ElevationEditor({
       // own clicks are stopped before reaching the viewport).
       setGuideSelected(false);
       setSelectedIsoIndex(null);
-      if (surfaceMode) return;
+      setSelectedProfileVertexIndex(null);
+      if (surfaceMode || profileSectionMode) return;
       const seg = pickSegmentAtX(worldPos.x, vertices);
       if (seg != null) onSelectSegment?.(seg);
     },
-    [vertices, onSelectSegment, surfaceMode]
+    [vertices, onSelectSegment, surfaceMode, profileSectionMode]
   );
 
   // helper - fit-contain camera (refit when the projection/seed changes, so the
   // selected segment is laid out horizontal; not on every edit)
 
-  const fitKey = `${annotationId}:${seedSegmentIndex}:${observationSign}:${(
-    selectedSegmentIndices ?? []
-  ).join(",")}`;
+  const fitKey = `${annotationId}:${seedSegmentIndex}:${observationSign}:${
+    editedProfileIndex ?? "-"
+  }:${(selectedSegmentIndices ?? []).join(",")}`;
 
   useEffect(() => {
     if (!bbox || !viewportRef.current) return;
@@ -416,9 +577,12 @@ export default function ElevationEditor({
       // this upward headroom is a generous allowance that comfortably contains
       // them at the fitted zoom.
       const profileW = Math.max(bbox.maxX - bbox.minX, 1);
-      // Surface mode has no "vue de dessus" recap above the profile — a small
-      // headroom is enough.
-      const fitMinY = bbox.minY - profileW * (surfaceMode ? 0.15 : 0.8) - 16;
+      // Surface / profile-section modes have no "vue de dessus" recap above
+      // the profile — a small headroom is enough.
+      const fitMinY =
+        bbox.minY -
+        profileW * (surfaceMode || profileSectionMode ? 0.15 : 0.8) -
+        16;
       // down to the baseMap reference plane (worldY = 0)
       const fitMaxY = Math.max(bbox.maxY, 0) + profileW * 0.12 + 16;
       // extra left margin to keep the Offset field (left of the baseMap line)
@@ -447,7 +611,7 @@ export default function ElevationEditor({
 
   // render
 
-  if (!vertices || vertices.length < 2) {
+  if (!profileSectionMode && (!vertices || vertices.length < 2)) {
     return (
       <Box
         sx={{
@@ -507,6 +671,25 @@ export default function ElevationEditor({
             )}
           </g>
         )}
+        {profileSectionMode && (
+          <ElevationProfileSectionSvg
+            vertices={sectionGeometry.vertices}
+            meterByPx={meterByPx}
+            height={height}
+            offsetZ={offsetZ}
+            zoom={zoom}
+            dragPreview={dragPreview}
+            selectedVertexIndex={selectedProfileVertexIndex}
+            onVertexMouseDown={handleProfileVertexMouseDown}
+            onSelectVertex={setSelectedProfileVertexIndex}
+            onToggleVertexType={handleToggleProfileVertexType}
+            onCommitVertexHeight={handleCommitProfileVertexHeight}
+            onCommitOffsetZ={handleCommitOffsetZ}
+            hoverWorldPos={hoverWorldPos}
+            onInsertVertex={handleInsertProfileVertex}
+          />
+        )}
+        {!profileSectionMode && (
         <ElevationProfileSvg
           vertices={vertices}
           editedSegmentIndex={editedSegmentIndex}
@@ -532,6 +715,7 @@ export default function ElevationEditor({
           onAddIsoPoint={handleAddIsoPoint}
           surfaceMode={surfaceMode}
         />
+        )}
       </MapEditorViewport>
     </Box>
   );

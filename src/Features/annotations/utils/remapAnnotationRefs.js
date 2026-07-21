@@ -49,6 +49,18 @@ export function remapPointIds(annotation, pointIdMap) {
         : l.points,
     }));
   }
+  if (Array.isArray(annotation.profileLines)) {
+    annotation.profileLines = annotation.profileLines.map((l) => ({
+      ...l,
+      points: Array.isArray(l.points)
+        ? l.points.map((ref) =>
+            ref?.pointId && pointIdMap[ref.pointId]
+              ? { ...ref, pointId: pointIdMap[ref.pointId] }
+              : ref
+          )
+        : l.points,
+    }));
+  }
   if (annotation.point?.id && pointIdMap[annotation.point.id]) {
     annotation.point = {
       ...annotation.point,

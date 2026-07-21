@@ -13,6 +13,7 @@
 //   - annotation.cuts[].points[].id          (holes)
 //   - annotation.guideLines[].points[].pointId (slope guide lines — note key)
 //   - annotation.isoHeightLines[].points[].pointId (contour lines — note key)
+//   - annotation.profileLines[].points[].pointId (shell profiles — note key)
 export default function collectReferencedPointIds(annotations, target) {
   const ids = target instanceof Set ? target : new Set();
   if (!Array.isArray(annotations)) return ids;
@@ -33,6 +34,10 @@ export default function collectReferencedPointIds(annotations, target) {
           for (const ref of g.points) if (ref?.pointId) ids.add(ref.pointId);
     if (Array.isArray(a.isoHeightLines))
       for (const l of a.isoHeightLines)
+        if (Array.isArray(l?.points))
+          for (const ref of l.points) if (ref?.pointId) ids.add(ref.pointId);
+    if (Array.isArray(a.profileLines))
+      for (const l of a.profileLines)
         if (Array.isArray(l?.points))
           for (const ref of l.points) if (ref?.pointId) ids.add(ref.pointId);
   }
