@@ -33,8 +33,10 @@ import useAutoShowBgImage from "Features/bgImage/hooks/useAutoShowBgImage";
 import useAutoBgImageRawTextAnnotations from "Features/bgImage/hooks/useAutoBgImageRawTextAnnotations";
 import useHandleCommitDrawing from "../hooks/useHandleCommitDrawing";
 import useHandleCommitGuideLine from "../hooks/useHandleCommitGuideLine";
+import useHandleCommitIsoHeightLine from "../hooks/useHandleCommitIsoHeightLine";
 import useHandleCommitRamp from "../hooks/useHandleCommitRamp";
 import useDeleteGuideLine from "Features/annotations/hooks/useDeleteGuideLine";
+import useDeleteIsoHeightLine from "Features/annotations/hooks/useDeleteIsoHeightLine";
 import useHandleSplitCommit from "../hooks/useHandleSplitCommit";
 import useHandleCompleteAnnotation from "../hooks/useHandleCompleteAnnotation";
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
@@ -467,8 +469,10 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     const { handleSplitPolylineClick, handleSplitPolylineEnter, resetSplitPolyline } = useHandleSplitPolyline({ newEntity });
     const { handleSplitPolylineClickPoint } = useHandleSplitPolylineClick({ newEntity });
     const handleCommitGuideLine = useHandleCommitGuideLine();
+    const handleCommitIsoHeightLine = useHandleCommitIsoHeightLine();
     const handleCommitRamp = useHandleCommitRamp({ newEntity });
     const deleteGuideLine = useDeleteGuideLine();
+    const deleteIsoHeightLine = useDeleteIsoHeightLine();
     const { handleCompleteAnnotationCommit } = useHandleCompleteAnnotation({ newEntity });
     const saveTempAnnotations = useSaveTempAnnotations();
     const createAnnotationsFromDetectedStrips = useCreateAnnotationsFromDetectedStrips();
@@ -1629,6 +1633,9 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     // guideLine polyline is the selected part.
     const handleDeleteGuideLine = deleteGuideLine;
 
+    // Same for isoHeightLines (constant-height contour lines).
+    const handleDeleteIsoHeightLine = deleteIsoHeightLine;
+
     // snapping
 
     //const isSnappingEnabled = enabledDrawingMode || !selectedNode;
@@ -1724,6 +1731,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                     onHideSegments={handleHideSegments}
                     onRemoveCut={handleRemoveCut}
                     onDeleteGuideLine={handleDeleteGuideLine}
+                    onDeleteIsoHeightLine={handleDeleteIsoHeightLine}
                     onAnnotationMoveCommit={handleAnnotationMoveCommit}
                     onSegmentSplit={handleSegmentSplit}
                     onCutSegment={handleCutSegment}
@@ -1733,6 +1741,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                     onSplitPolylineReset={resetSplitPolyline}
                     onSplitPolylineClickPoint={handleSplitPolylineClickPoint}
                     onCommitGuideLine={handleCommitGuideLine}
+                    onCommitIsoHeightLine={handleCommitIsoHeightLine}
                     onCommitRamp={handleCommitRamp}
                     onProjectionSnapInsert={handleProjectionSnapInsert}
                     snappingEnabled={isSnappingEnabled}

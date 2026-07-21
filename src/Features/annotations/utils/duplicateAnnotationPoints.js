@@ -123,5 +123,14 @@ export default function duplicateAnnotationPoints(annotation, ctx) {
     );
   }
 
+  // Iso height lines share the guide-line ref shape ({pointId, type}).
+  if (Array.isArray(annotation.isoHeightLines)) {
+    nextAnnotation.isoHeightLines = annotation.isoHeightLines.map((l) =>
+      l && Array.isArray(l.points)
+        ? { ...l, points: remapGuideLineRefs(l.points) }
+        : l
+    );
+  }
+
   return { annotation: nextAnnotation, pointRecords };
 }

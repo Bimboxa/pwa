@@ -167,6 +167,7 @@ export default function useCloneAnnotationAndEntity() {
             // host-only ring metadata that doesn't belong to the slice we kept.
             if (hasPart) {
                 delete clonedAnnotation.guideLines;
+                delete clonedAnnotation.isoHeightLines;
                 delete clonedAnnotation.innerPoints;
                 delete clonedAnnotation.hiddenSegmentsIdx;
                 delete clonedAnnotation.isoHeightSegmentsIdx;

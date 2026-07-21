@@ -3,6 +3,12 @@ import {
   circleFromThreePoints,
   sampleArcPoints,
 } from "Features/geometry/utils/arcSampling";
+import projectPointOnPolyline from "Features/annotations/utils/projectPointOnPolyline";
+import projectPointOnSegment from "Features/annotations/utils/projectPointOnSegment";
+
+// Same tolerance as applyIsoHeightLinesToRings: a ring vertex within this
+// distance (image px) of an iso line is pinned to the line's height.
+const ON_ISO_LINE_TOL_PX = 1.5;
 
 // Builds the elevation geometry (in the editor's SVG world space) for the
 // selected projectable chain. Both axes are expressed in map pixels:
@@ -43,8 +49,18 @@ export default function buildElevationProfile({
   meterByPx,
   height,
   offsetZ,
+  // Optional isoHeightLines (POLYGON contour lines), resolved:
+  // [{ points: [{x,y}, ...], height }]. Each becomes an `isoMarkers` entry —
+  // its two endpoints projected on the same axis, at the line's constant top
+  // z — so the elevation editor can show / drag the whole line as one handle.
+  isoLines = null,
 }) {
-  const empty = { vertices: [], bbox: null, chainPointIndices: [] };
+  const empty = {
+    vertices: [],
+    bbox: null,
+    chainPointIndices: [],
+    isoMarkers: [],
+  };
 
   if (
     !Array.isArray(points) ||
@@ -225,10 +241,111 @@ export default function buildElevationProfile({
     }
   }
 
+  const isoPolys = (isoLines || []).map((l) =>
+    (l?.points || [])
+      .filter((p) => typeof p?.x === "number" && typeof p?.y === "number")
+      .map((p) => ({ x: p.x, y: p.y }))
+  );
+
+  // Insert virtual vertices where an iso line ENDPOINT lands on a chain
+  // segment: the 3D partition splits the ring there (fold on the line), but
+  // the hydrated ring has no vertex at that spot — without this the profile
+  // stays flat across the fold instead of forming the "chapeau". The inserted
+  // vertex is pinned at the line's height (pointIndex null, like arc
+  // samples).
+  if (isoPolys.some((p) => p.length >= 2)) {
+    for (let m = raw.length - 2; m >= 0; m--) {
+      const a = raw[m];
+      const b = raw[m + 1];
+      const segLen = Math.hypot(b.px - a.px, b.py - a.py);
+      if (segLen < 1e-9) continue;
+      const inserts = [];
+      (isoLines || []).forEach((line, li) => {
+        const poly = isoPolys[li];
+        if (poly.length < 2) return;
+        const h = Number(line?.height) || 0;
+        for (const e of [poly[0], poly[poly.length - 1]]) {
+          // Skip endpoints sitting on an existing (already pinned) vertex.
+          if (
+            Math.hypot(e.x - a.px, e.y - a.py) <= ON_ISO_LINE_TOL_PX ||
+            Math.hypot(e.x - b.px, e.y - b.py) <= ON_ISO_LINE_TOL_PX
+          ) {
+            continue;
+          }
+          const proj = projectPointOnSegment(
+            e,
+            { x: a.px, y: a.py },
+            { x: b.px, y: b.py }
+          );
+          if (!proj || proj.distance > ON_ISO_LINE_TOL_PX) continue;
+          const t = proj.t;
+          inserts.push({
+            t,
+            vertex: makeVertex({
+              px: e.x,
+              py: e.y,
+              offsetTop: h,
+              offsetBottom: lerp(
+                a.bottomY != null ? -a.bottomY * meterByPx - offsetZ : 0,
+                b.bottomY != null ? -b.bottomY * meterByPx - offsetZ : 0,
+                t
+              ),
+              pointIndex: null,
+              segIndex: a.segIndex,
+            }),
+          });
+        }
+      });
+      if (inserts.length > 0) {
+        inserts.sort((u, v) => u.t - v.t);
+        raw.splice(m + 1, 0, ...inserts.map((i) => i.vertex));
+      }
+    }
+  }
+
+  // Tag each vertex with the iso line it lies on (pinned height), so the
+  // editor can move the connected segments live while an iso handle is
+  // dragged (`isoIndex`, null when the vertex is not on any line).
+  for (const v of raw) {
+    v.isoIndex = null;
+    for (let li = 0; li < isoPolys.length; li++) {
+      if (isoPolys[li].length < 2) continue;
+      const proj = projectPointOnPolyline({ x: v.px, y: v.py }, isoPolys[li]);
+      if (proj && proj.distance <= ON_ISO_LINE_TOL_PX) {
+        v.isoIndex = li;
+        break;
+      }
+    }
+  }
+
   // shift so the left-most projected vertex sits at x = 0
   let minRawX = Infinity;
   for (const v of raw) minRawX = Math.min(minRawX, v.rawX);
   const vertices = raw.map((v) => ({ ...v, x: v.rawX - minRawX }));
+
+  // isoHeightLines markers: endpoints projected on the same axis / same shift,
+  // top y from the line's single height (offsetTop semantics).
+  const isoMarkers = [];
+  (isoLines || []).forEach((line, index) => {
+    const pts = (line?.points || []).filter(
+      (p) => typeof p?.x === "number" && typeof p?.y === "number"
+    );
+    if (pts.length < 2) return;
+    const e0 = pts[0];
+    const e1 = pts[pts.length - 1];
+    const h = Number(line?.height) || 0;
+    const zTop = height + h + offsetZ;
+    const xA = projectX(e0.x, e0.y) - minRawX;
+    const xB = projectX(e1.x, e1.y) - minRawX;
+    isoMarkers.push({
+      index,
+      xA: Math.min(xA, xB),
+      xB: Math.max(xA, xB),
+      topY: -zTop * pxPerMeter,
+      zTop,
+      height: h,
+    });
+  });
 
   // bbox over the elevation body (top/bottom), used for fit-contain
   let minX = Infinity;
@@ -241,10 +358,27 @@ export default function buildElevationProfile({
     minY = Math.min(minY, v.topY, v.bottomY);
     maxY = Math.max(maxY, v.topY, v.bottomY);
   }
+  for (const m of isoMarkers) {
+    minX = Math.min(minX, m.xA);
+    maxX = Math.max(maxX, m.xB);
+    minY = Math.min(minY, m.topY);
+    maxY = Math.max(maxY, m.topY);
+  }
 
   return {
     vertices,
     chainPointIndices,
+    isoMarkers,
     bbox: { minX, maxX, minY, maxY },
+    // Projection basis, so callers can map profile coords back to PLAN
+    // coords: rawX = sign * ((p - origin)·u), displayed x = rawX - minRawX.
+    basis: {
+      originX: origin.x,
+      originY: origin.y,
+      ux,
+      uy,
+      sign: observationSign,
+      minRawX,
+    },
   };
 }

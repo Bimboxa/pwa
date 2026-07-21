@@ -284,6 +284,26 @@ function buildClipboardItem(ann) {
         })
         .filter((gl) => gl.points.length >= 2);
     }
+    // Iso height lines (constant-height contour lines): same snapshot logic as
+    // guide lines — resolved pixel geometry + meta (height) so paste rebuilds
+    // them with fresh db.points.
+    if (Array.isArray(ann.isoHeightLines) && ann.isoHeightLines.length) {
+      item.baseIsoHeightLines = ann.isoHeightLines
+        .map((l) => {
+          const { points, ...meta } = l || {};
+          return {
+            ...meta,
+            points: (points || [])
+              .filter((p) => typeof p?.x === "number" && typeof p?.y === "number")
+              .map((p) => ({
+                x: p.x,
+                y: p.y,
+                ...(p.type ? { type: p.type } : {}),
+              })),
+          };
+        })
+        .filter((l) => l.points.length >= 2);
+    }
   } else if (type === "POINT" || type === "MARKER") {
     const p = ann.point || ann.targetPoint;
     if (!p) return null;
@@ -302,6 +322,7 @@ const InteractionLayer = forwardRef(({
   newAnnotation,
   onCommitDrawing,
   onCommitGuideLine,
+  onCommitIsoHeightLine,
   onCommitRamp,
   onCommitSplitAtVertex,
   onCommitPointsFromSurfaceDrop,
@@ -331,6 +352,7 @@ const InteractionLayer = forwardRef(({
   onHideSegments,
   onRemoveCut,
   onDeleteGuideLine,
+  onDeleteIsoHeightLine,
   onAnnotationMoveCommit,
   onSegmentSplit,
   onCutSegment,
@@ -1686,10 +1708,19 @@ const InteractionLayer = forwardRef(({
     const candidates = [];
     for (const ann of anns) {
       const pts = ann?.points;
-      if (!pts) continue;
-      for (const p of pts) {
-        if (excludePointId && p?.id === excludePointId) continue;
-        if (Number.isFinite(p?.x) && Number.isFinite(p?.y)) candidates.push(p);
+      if (pts) {
+        for (const p of pts) {
+          if (excludePointId && p?.id === excludePointId) continue;
+          if (Number.isFinite(p?.x) && Number.isFinite(p?.y)) candidates.push(p);
+        }
+      }
+      // isoHeightLines points (resolved refs mirror `id` from `pointId`) —
+      // dragging one iso endpoint must X/Y-align with the other endpoint.
+      for (const l of ann?.isoHeightLines || []) {
+        for (const p of l?.points || []) {
+          if (excludePointId && (p?.id === excludePointId || p?.pointId === excludePointId)) continue;
+          if (Number.isFinite(p?.x) && Number.isFinite(p?.y)) candidates.push(p);
+        }
       }
     }
     for (const p of (drawingPointsRef.current || [])) {
@@ -1928,6 +1959,7 @@ const InteractionLayer = forwardRef(({
       ...(ann.cuts || []).flatMap((c) => c?.points || []),
       ...(ann.innerPoints || []),
       ...(ann.guideLines || []).flatMap((g) => g?.points || []),
+      ...(ann.isoHeightLines || []).flatMap((l) => l?.points || []),
     ];
   }, [selectedNode?.nodeId, annotations]);
 
@@ -2642,6 +2674,11 @@ const InteractionLayer = forwardRef(({
     onCommitGuideLineRef.current = onCommitGuideLine;
   }, [onCommitGuideLine]);
 
+  const onCommitIsoHeightLineRef = useRef(onCommitIsoHeightLine);
+  useEffect(() => {
+    onCommitIsoHeightLineRef.current = onCommitIsoHeightLine;
+  }, [onCommitIsoHeightLine]);
+
   const onCommitRampRef = useRef(onCommitRamp);
   useEffect(() => {
     onCommitRampRef.current = onCommitRamp;
@@ -2755,6 +2792,33 @@ const InteractionLayer = forwardRef(({
     return () => window.removeEventListener("keydown", onKey, true);
   }, [enabledDrawingMode, dispatch, setDrawingPoints, drawingPointsRef]);
 
+  // ADD_ISO_HEIGHT_LINE: same multi-click capture as ADD_GUIDE_LINE. Enter
+  // commits the polyline as an isoHeightLine (constant-height contour line)
+  // on the selected annotation, Escape cancels.
+  useEffect(() => {
+    if (enabledDrawingMode !== "ADD_ISO_HEIGHT_LINE") return;
+    const clear = () => {
+      setDrawingPoints([]);
+      drawingPointsRef.current = [];
+      drawingLayerRef.current?.setPoints?.([]);
+    };
+    const onKey = (e) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        const pts = drawingPointsRef.current || [];
+        if (pts.length >= 2) onCommitIsoHeightLineRef.current?.(pts);
+        clear();
+        dispatch(setEnabledDrawingMode(null));
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        clear();
+        dispatch(setEnabledDrawingMode(null));
+      }
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [enabledDrawingMode, dispatch, setDrawingPoints, drawingPointsRef]);
+
   // RAMP: self-contained multi-click capture of the median line (reuses the
   // generic drawingPoints/DrawingLayer preview in local pixel space). Enter
   // commits the median line → a centered band POLYGON + guideLine slope,
@@ -2816,6 +2880,7 @@ const InteractionLayer = forwardRef(({
     onHideSegments,
     onRemoveCut,
     onDeleteGuideLine,
+    onDeleteIsoHeightLine,
     permissions,
   });
   useEffect(() => {
@@ -2831,10 +2896,11 @@ const InteractionLayer = forwardRef(({
       onHideSegments,
       onRemoveCut,
       onDeleteGuideLine,
+      onDeleteIsoHeightLine,
       enabledDrawingMode,
       permissions,
     };
-  }, [selectedNode?.nodeId, selectedPointId, selectedPartId, selectedPointIds, selectedPartIds, onDeletePoint, onDeletePoints, onHideSegment, onHideSegments, onRemoveCut, onDeleteGuideLine, enabledDrawingMode, permissions]);
+  }, [selectedNode?.nodeId, selectedPointId, selectedPartId, selectedPointIds, selectedPartIds, onDeletePoint, onDeletePoints, onHideSegment, onHideSegments, onRemoveCut, onDeleteGuideLine, onDeleteIsoHeightLine, enabledDrawingMode, permissions]);
 
 
   // 1. Calculer le style curseur du conteneur
@@ -3097,6 +3163,8 @@ const InteractionLayer = forwardRef(({
           if (it.baseCuts) it.baseCuts.forEach((c) => c.points.forEach(acc));
           if (it.baseGuideLines)
             it.baseGuideLines.forEach((g) => g.points.forEach(acc));
+          if (it.baseIsoHeightLines)
+            it.baseIsoHeightLines.forEach((l) => l.points.forEach(acc));
           if (it.basePoint) acc(it.basePoint);
         }
         const sourceCenter = Number.isFinite(minX)
@@ -4141,6 +4209,15 @@ const InteractionLayer = forwardRef(({
               e.stopPropagation();
               return;
             }
+
+            // E. Suppression de la isoHeightLine
+            const { onDeleteIsoHeightLine } = stateRef.current;
+            if (type === 'ISO_HEIGHT_LINE' && onDeleteIsoHeightLine) {
+              onDeleteIsoHeightLine({ annotationId: selectedNode.nodeId, index });
+              dispatch(setSubSelection({ partId: null, partType: null }));
+              e.stopPropagation();
+              return;
+            }
           }
           else if (selectedNode?.nodeId) {
             // PERMISSION GUARD : bloquer si pas propriétaire de l'annotation
@@ -4405,10 +4482,14 @@ const InteractionLayer = forwardRef(({
       return;
     }
 
-    // --- ADD_GUIDE_LINE: accumulate a polyline on the selected annotation ---
-    // Each click appends a point (local pixel space); DrawingLayer renders
-    // the in-progress polyline. Enter/Escape (keydown effect) finishes.
-    if (enabledDrawingMode === "ADD_GUIDE_LINE") {
+    // --- ADD_GUIDE_LINE / ADD_ISO_HEIGHT_LINE: accumulate a polyline on the
+    // selected annotation --- Each click appends a point (local pixel space);
+    // DrawingLayer renders the in-progress polyline. Enter/Escape (keydown
+    // effect) finishes.
+    if (
+      enabledDrawingMode === "ADD_GUIDE_LINE" ||
+      enabledDrawingMode === "ADD_ISO_HEIGHT_LINE"
+    ) {
       const local = toLocalCoords(worldPos);
       const next = [...(drawingPointsRef.current || []), local];
       setDrawingPoints(next);
@@ -5655,7 +5736,7 @@ const InteractionLayer = forwardRef(({
     }
 
     // E. DRAWING PREVIEW
-    if (['CLICK', 'POLYLINE_CLICK', 'POLYGON_CLICK', 'CUT_CLICK', 'SPLIT_CLICK', 'STRIP', 'ONE_CLICK', "MEASURE", "SEGMENT", "POLYLINE_SEGMENT", "STRIP_SEGMENT", "RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", "LOCALIZED_REPAIR", "CIRCLE", "POLYLINE_CIRCLE", "POLYGON_CIRCLE", "CUT_CIRCLE", "POLYLINE_CIRCLE_RADIUS", "POLYGON_CIRCLE_RADIUS", "ARC", "POLYLINE_ARC", "COMPLETE_ANNOTATION", "COTE_TWO_CLICK", "ADD_GUIDE_LINE", "RAMP"].includes(enabledDrawingMode)) {
+    if (['CLICK', 'POLYLINE_CLICK', 'POLYGON_CLICK', 'CUT_CLICK', 'SPLIT_CLICK', 'STRIP', 'ONE_CLICK', "MEASURE", "SEGMENT", "POLYLINE_SEGMENT", "STRIP_SEGMENT", "RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", "LOCALIZED_REPAIR", "CIRCLE", "POLYLINE_CIRCLE", "POLYGON_CIRCLE", "CUT_CIRCLE", "POLYLINE_CIRCLE_RADIUS", "POLYGON_CIRCLE_RADIUS", "ARC", "POLYLINE_ARC", "COMPLETE_ANNOTATION", "COTE_TWO_CLICK", "ADD_GUIDE_LINE", "ADD_ISO_HEIGHT_LINE", "RAMP"].includes(enabledDrawingMode)) {
       const localPos = toLocalCoords(worldPos);
       let previewPos = localPos;
 

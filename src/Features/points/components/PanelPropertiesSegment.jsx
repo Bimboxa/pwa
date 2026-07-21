@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { useDispatch } from "react-redux";
 
 import { setSubSelection } from "Features/selection/selectionSlice";
@@ -16,6 +17,7 @@ import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 
 import useSelectedSegmentData from "Features/points/hooks/useSelectedSegmentData";
 import useToggleSegmentIsoHeight from "Features/points/hooks/useToggleSegmentIsoHeight";
+import setIsoContourSegmentHeightService from "Features/points/services/setIsoContourSegmentHeightService";
 import useSegmentsExtEdge from "Features/points/hooks/useSegmentsExtEdge";
 import useSegmentsIntEdge from "Features/points/hooks/useSegmentsIntEdge";
 
@@ -31,12 +33,47 @@ function ReadOnlyOffset({ label, value }) {
   );
 }
 
+// Editable height (m) of an iso-flagged contour segment: one value for the
+// whole segment, written as offsetTop onto both endpoints.
+function FieldIsoSegmentHeight({ annotationId, cutIdx, segIdx, value }) {
+  const [localValue, setLocalValue] = useState(value ?? 0);
+
+  useEffect(() => {
+    setLocalValue(value ?? 0);
+  }, [value, annotationId, cutIdx, segIdx]);
+
+  function commit() {
+    const h = parseFloat(String(localValue).replace(",", "."));
+    if (!Number.isFinite(h)) {
+      setLocalValue(value ?? 0);
+      return;
+    }
+    setIsoContourSegmentHeightService({ annotationId, cutIdx, segIdx, height: h });
+  }
+
+  return (
+    <TextField
+      label="Hauteur (m)"
+      size="small"
+      value={localValue}
+      onChange={(e) => setLocalValue(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") e.target.blur();
+        e.stopPropagation();
+      }}
+      variant="filled"
+    />
+  );
+}
+
 export default function PanelPropertiesSegment() {
   const dispatch = useDispatch();
 
   // data
 
-  const { segIdx, pointA, pointB, isIso } = useSelectedSegmentData();
+  const { annotation, segIdx, cutIdx, pointA, pointB, isIso } =
+    useSelectedSegmentData();
   const toggleIsoHeight = useToggleSegmentIsoHeight();
   const { checked: isExtEdge, toggle: toggleExtEdge } = useSegmentsExtEdge();
   const { checked: isIntEdge, toggle: toggleIntEdge } = useSegmentsIntEdge();
@@ -105,6 +142,16 @@ export default function PanelPropertiesSegment() {
               </Typography>
             }
           />
+          {isIso && (
+            <Box sx={{ ml: 4, my: 1 }}>
+              <FieldIsoSegmentHeight
+                annotationId={annotation?.id}
+                cutIdx={cutIdx}
+                segIdx={segIdx}
+                value={pointA?.offsetTop ?? 0}
+              />
+            </Box>
+          )}
           <FormControlLabel
             control={
               <Checkbox

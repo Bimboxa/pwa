@@ -186,6 +186,104 @@ function subdivideAtStairsJumps(nodes, sampler, key) {
   return out;
 }
 
+// ─── isoHeightLines breakpoints ─────────────────────────────────────────────
+// An annotation with isoHeightLines has a piecewise-linear surface profile
+// along its boundary: the chord ENDPOINTS (pinned at the line's height) are
+// breakpoints between which the edge heights interpolate linearly. Walls must
+// subdivide at those breakpoints — a plain corner-to-corner lerp would ignore
+// the iso heights entirely.
+
+function getIsoBreakpoints(annotation) {
+  const out = [];
+  for (const l of annotation?.isoHeightLines ?? []) {
+    const pts = (l?.points ?? []).filter(
+      (p) => typeof p?.x === "number" && typeof p?.y === "number"
+    );
+    if (pts.length < 2) continue;
+    const h = Number(l?.height) || 0;
+    out.push({ x: pts[0].x, y: pts[0].y, height: h });
+    out.push({ x: pts[pts.length - 1].x, y: pts[pts.length - 1].y, height: h });
+  }
+  return out;
+}
+
+// Inserts the breakpoints lying on a ring edge as ring vertices (offsetTop =
+// the iso height), so nearestSegmentProjection interpolates the neighbor top
+// with the right profile.
+function augmentRingsWithIsoBreakpoints(rings, breakpoints, tolPx) {
+  if (!breakpoints.length) return rings ?? [];
+  const tolSq = tolPx * tolPx;
+  return (rings ?? []).map((ring) => {
+    const pts = ring.points;
+    const n = pts.length;
+    const count = ring.closed ? n : n - 1;
+    const newPts = [];
+    for (let i = 0; i < count; i += 1) {
+      const a = pts[i];
+      const b = pts[(i + 1) % n];
+      newPts.push(a);
+      const abx = b.x - a.x;
+      const aby = b.y - a.y;
+      const lenSq = abx * abx + aby * aby;
+      if (lenSq <= 0) continue;
+      const inserts = [];
+      for (const bp of breakpoints) {
+        const t = ((bp.x - a.x) * abx + (bp.y - a.y) * aby) / lenSq;
+        if (t <= 1e-6 || t >= 1 - 1e-6) continue;
+        const dx = bp.x - (a.x + t * abx);
+        const dy = bp.y - (a.y + t * aby);
+        if (dx * dx + dy * dy > tolSq) continue;
+        inserts.push({ t, x: bp.x, y: bp.y, offsetTop: bp.height });
+      }
+      inserts.sort((u, v) => u.t - v.t);
+      newPts.push(...inserts);
+    }
+    if (!ring.closed) newPts.push(pts[n - 1]);
+    return { ...ring, points: newPts };
+  });
+}
+
+// Subdivides the wall chain at the breakpoints projecting onto it. `pinned`
+// nodes (breakpoints of the SELECTED side, whose ring carries the chain) take
+// the iso height directly; neighbor-side breakpoints get the selected top by
+// lerp (valid: the selected side's own breakpoints are inserted first).
+function subdivideChainAtIsoBreakpoints(nodes, breakpoints, tolPx, pinned) {
+  if (!breakpoints.length || nodes.length < 2) return nodes;
+  const tolSq = tolPx * tolPx;
+  const out = [];
+  for (let i = 0; i < nodes.length - 1; i += 1) {
+    const A = nodes[i];
+    const B = nodes[i + 1];
+    out.push(A);
+    const abx = B.x - A.x;
+    const aby = B.y - A.y;
+    const lenSq = abx * abx + aby * aby;
+    if (lenSq <= 0) continue;
+    const inserts = [];
+    for (const bp of breakpoints) {
+      const t = ((bp.x - A.x) * abx + (bp.y - A.y) * aby) / lenSq;
+      if (t <= 1e-6 || t >= 1 - 1e-6) continue;
+      const px = A.x + t * abx;
+      const py = A.y + t * aby;
+      const dx = bp.x - px;
+      const dy = bp.y - py;
+      if (dx * dx + dy * dy > tolSq) continue;
+      inserts.push({
+        t,
+        x: px,
+        y: py,
+        offsetTop: pinned
+          ? bp.height
+          : (A.offsetTop ?? 0) + t * ((B.offsetTop ?? 0) - (A.offsetTop ?? 0)),
+      });
+    }
+    inserts.sort((u, v) => u.t - v.t);
+    out.push(...inserts);
+  }
+  out.push(nodes[nodes.length - 1]);
+  return out;
+}
+
 // ─── main ───────────────────────────────────────────────────────────────────
 
 export default function computeAutoWallChains({
@@ -197,22 +295,53 @@ export default function computeAutoWallChains({
 }) {
   const selBase =
     (selectedAnnotation?.offsetZ ?? 0) + (selectedAnnotation?.height ?? 0);
-  const selSampler = makeStairsSampler(selectedAnnotation, meterByPx);
+  // isoHeightLines take precedence over guideLines (like the 3D build): a
+  // surface with iso lines never uses the stairs sampler.
+  const selIsoBreakpoints = getIsoBreakpoints(selectedAnnotation);
+  const selSampler = selIsoBreakpoints.length
+    ? null
+    : makeStairsSampler(selectedAnnotation, meterByPx);
 
   const wallChains = [];
 
   for (const { neighbor, neighborRings, chain } of sharedChains ?? []) {
     const nbBase = (neighbor?.offsetZ ?? 0) + (neighbor?.height ?? 0);
-    const nbSampler = makeStairsSampler(neighbor, meterByPx);
-    const segments = (neighborRings ?? []).flatMap(ringSegments);
+    const nbIsoBreakpoints = getIsoBreakpoints(neighbor);
+    const nbSampler = nbIsoBreakpoints.length
+      ? null
+      : makeStairsSampler(neighbor, meterByPx);
+    // Neighbor rings augmented at its iso breakpoints so the projected top
+    // follows the piecewise iso profile instead of a corner-to-corner lerp.
+    const segments = augmentRingsWithIsoBreakpoints(
+      neighborRings,
+      nbIsoBreakpoints,
+      3 * thresholdPx
+    ).flatMap(ringSegments);
     if (!segments.length) continue;
 
-    // 0. subdivide the chain at the stairs nosings of either side
+    // 0. subdivide the chain at the iso breakpoints of either side, then at
+    // the stairs nosings of either side
     let nodes = chain.map((p) => ({
       x: p.x,
       y: p.y,
       offsetTop: p.offsetTop ?? 0,
     }));
+    if (selIsoBreakpoints.length) {
+      nodes = subdivideChainAtIsoBreakpoints(
+        nodes,
+        selIsoBreakpoints,
+        3 * thresholdPx,
+        true
+      );
+    }
+    if (nbIsoBreakpoints.length) {
+      nodes = subdivideChainAtIsoBreakpoints(
+        nodes,
+        nbIsoBreakpoints,
+        3 * thresholdPx,
+        false
+      );
+    }
     if (selSampler) nodes = subdivideAtStairsJumps(nodes, selSampler, "sS");
     if (nbSampler) nodes = subdivideAtStairsJumps(nodes, nbSampler, "sN");
     if (nodes.length < 2) continue;

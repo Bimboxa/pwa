@@ -36,7 +36,7 @@ function partitionPartIds(partIds) {
 // on a single resolved object instead of decoding partId strings themselves.
 //
 // Returns: {
-//   kind: "NONE" | "SEGMENT" | "SEGMENTS" | "CUT_SEG" | "CUT" | "POINT" | "GUIDE",
+//   kind: "NONE" | "SEGMENT" | "SEGMENTS" | "CUT_SEG" | "CUT" | "POINT" | "GUIDE" | "ISO",
 //   captionFr: string,           // "Segment" / "Segments" / "Ouverture" / "Point" / "Guide"
 //   label: string,               // user-facing detail (e.g. "Segment 3", "Ouverture #1", "2 segments")
 //   pointRefs: [{id, ...}],       // ordered DB-style refs spanning the part (used for clone)
@@ -132,6 +132,24 @@ export default function useSelectedAnnotationPart() {
         label: `Guide (${guidePx.length} points)`,
         pointRefs: guidePx,
         geometryPx: guidePx,
+        targetAnnotationType: "POLYLINE",
+      };
+    }
+
+    // --- ISO (one isoHeightLine — constant-height contour line) ---------------
+    if (effectivePartType === "ISO_HEIGHT_LINE") {
+      const idx = Number(String(partId || "").split("::")[2]);
+      const line = Number.isInteger(idx)
+        ? annotation.isoHeightLines?.[idx]
+        : null;
+      const linePx = line?.points || [];
+      if (linePx.length < 2) return { kind: "NONE" };
+      return {
+        kind: "ISO",
+        captionFr: "Courbe de niveau",
+        label: `Courbe de niveau (${linePx.length} points)`,
+        pointRefs: linePx,
+        geometryPx: linePx,
         targetAnnotationType: "POLYLINE",
       };
     }
@@ -341,6 +359,10 @@ function findPointInAnnotation(annotation, pointId) {
     {
       ring: (annotation.guideLines || []).flatMap((g) => g?.points || []),
       label: "Point guide",
+    },
+    {
+      ring: (annotation.isoHeightLines || []).flatMap((l) => l?.points || []),
+      label: "Point courbe de niveau",
     },
   ];
   for (const { ring, label } of rings) {

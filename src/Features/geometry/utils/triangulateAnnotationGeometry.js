@@ -1,5 +1,7 @@
 import { Vector2, ShapeUtils } from "three";
 
+import partitionPolygonByIsoLines from "./partitionPolygonByIsoLines";
+
 // Number of iso-height bands used for guideLine ramps. Single-sourced so the
 // 3D mesh, the visible iso lines and the developed-surface quantity all agree.
 export const ISO_BAND_LEVELS = 12;
@@ -39,25 +41,53 @@ export default function triangulateAnnotationGeometry({
   // back to the earcut triangulation when banding cannot apply (holes,
   // Steiner points, flat, or non-monotone rails).
   isoBandLevels = 0,
+  // Explicit iso chords ({ isoChords: [{polyline, height}] }, isoHeightLines):
+  // exact planar-strip partition of the top face along the chords. Mutually
+  // exclusive with isoBandLevels (iso lines take precedence over ramps). On
+  // failure the per-vertex-z earcut path runs with the interpolated heights
+  // baked at resolve time — same field, seam exactness lost.
+  isoPartition = null,
 }) {
   if (!Array.isArray(contour) || contour.length < 3) {
     return emptyResult();
   }
 
-  const validHoles = (holes || []).filter(
+  let validHoles = (holes || []).filter(
     (h) => Array.isArray(h) && h.length >= 3
   );
   const validInnerEarly = (innerPoints || []).filter(
     (p) => p && Number.isFinite(p.x) && Number.isFinite(p.y)
   );
 
+  // --- ISO-CHORD PARTITION (isoHeightLines): split the polygon into regions
+  // along the drawn contour lines; every chord becomes a real shared mesh
+  // edge, so the top face folds exactly on the iso lines. Walls / bottom /
+  // quantities run on the SAME augmented rings.
+  let bandedTris = null;
+  let isoSegments = null;
+  let extraPts = [];
+  let isoPartitionApplied = false;
+  if (isoPartition?.isoChords?.length) {
+    const part = partitionPolygonByIsoLines({
+      contour,
+      holes: validHoles,
+      isoChords: isoPartition.isoChords,
+    });
+    if (part) {
+      contour = part.augContour;
+      validHoles = part.augHoles;
+      bandedTris = part.tris;
+      extraPts = part.extraPoints;
+      isoPartitionApplied = true;
+    }
+  }
+
   // --- ISO-BANDED TOP (guideLine ramp): rebuild contour + top triangles so
   // every iso-height segment is an edge shared by the band faces above and
   // below it. Walls / bottom / quantities then run on the SAME augmented
   // contour, keeping the mesh and the area/volume figures consistent.
-  let bandedTris = null;
-  let isoSegments = null;
   if (
+    !bandedTris &&
     isoBandLevels > 0 &&
     validHoles.length === 0 &&
     validInnerEarly.length === 0
@@ -81,6 +111,9 @@ export default function triangulateAnnotationGeometry({
   let tris = bandedTris || ShapeUtils.triangulateShape(contourV2, holesV2) || [];
 
   let flatPts = [contour, ...validHoles].flat();
+  // Iso-chord interior vertices (shared fold points) sit after the rings in
+  // the flat layout — see partitionPolygonByIsoLines.
+  if (extraPts.length > 0) flatPts = flatPts.concat(extraPts);
 
   // Steiner points (POLYGON innerPoints) — each interior point becomes a new
   // vertex in the mesh, splitting the triangle that contains it into three
@@ -173,6 +206,9 @@ export default function triangulateAnnotationGeometry({
     // Clean transverse iso-height segments [ax,ay,az, bx,by,bz, ...], aligned
     // with the band boundaries of the mesh. Null when banding didn't apply.
     isoSegments,
+    // True when the explicit iso-chord partition replaced the top
+    // triangulation (callers then draw planar sketch edges).
+    isoPartitionApplied,
     topRange,
     bottomRange,
     sideRange,

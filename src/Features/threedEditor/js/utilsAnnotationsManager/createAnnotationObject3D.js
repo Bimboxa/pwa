@@ -666,11 +666,17 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
         .map((cut) => pointsToLocal(cut.points || [], baseMap))
         .filter((c) => c.length >= 3);
       const innerPts = pointsToLocal(annotation.innerPoints || [], baseMap);
+      // isoHeightLines take precedence over guideLines (stairs and ramps):
+      // when present, the vertex heights baked from the iso lines alone
+      // drive the surface (see applyIsoHeightLinesToRings).
+      const hasIsoHeightLines = !!annotation.isoHeightLines?.some(
+        (l) => l?.points?.length >= 2
+      );
       // Stairs guideLine: stepped treads + risers surface instead of the
       // continuous ramp nappe. annotation.height is ignored (surface-only,
       // like the ramp). On a degenerate layout, fall through to the flat
       // extrusion below.
-      if (annotation.guideLines?.some(isStairsGuideLine)) {
+      if (!hasIsoHeightLines && annotation.guideLines?.some(isStairsGuideLine)) {
         const stairs = buildStairsFromGuideLine({
           annotation,
           baseMap,
@@ -682,16 +688,18 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
           break;
         }
       }
-      const hasGuideLineRamp = !!annotation.guideLines?.some(
-        (g) => !g?.isStairs && g?.points?.length >= 2
-      );
+      const hasGuideLineRamp =
+        !hasIsoHeightLines &&
+        !!annotation.guideLines?.some(
+          (g) => !g?.isStairs && g?.points?.length >= 2
+        );
       // A ramp/nappe POLYGON is a sloped SURFACE (no volume): both faces must
       // read with the SAME color, so drop the back-face darkening that
       // makeMaterial bakes in for closed shells (gl_FrontFacing). Mirrors
       // buildSlopedStripGroup. A distinct cache key forces three to compile
       // this un-darkened program separately from the shared material.
       let polyMaterial = material;
-      if (hasGuideLineRamp && (!height || height <= 0)) {
+      if ((hasGuideLineRamp || hasIsoHeightLines) && (!height || height <= 0)) {
         polyMaterial = material.clone();
         polyMaterial.side = DoubleSide;
         polyMaterial.onBeforeCompile = () => {};
@@ -699,6 +707,17 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
           "annotationPolygonSurfaceNoDarken";
         polyMaterial.needsUpdate = true;
       }
+      // isoHeightLines chords in basemap-local units for the exact
+      // planar-strip partition (heights stay in meters).
+      const isoHeightChords = hasIsoHeightLines
+        ? (annotation.isoHeightLines || [])
+            .filter((l) => l?.points?.length >= 2)
+            .map((l) => ({
+              polyline: pointsToLocal(l.points, baseMap),
+              height: Number(l?.height) || 0,
+            }))
+            .filter((c) => c.polyline.length >= 2)
+        : [];
       object = extrudeClosedShape(
         pts,
         height,
@@ -708,6 +727,7 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
         innerPts,
         {
           isoLines: hasGuideLineRamp,
+          isoHeightChords,
         }
       );
       break;

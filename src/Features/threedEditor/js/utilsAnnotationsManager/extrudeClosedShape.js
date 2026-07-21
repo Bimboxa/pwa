@@ -20,6 +20,7 @@ import triangulateAnnotationGeometry, {
   ISO_BAND_LEVELS,
 } from "Features/geometry/utils/triangulateAnnotationGeometry";
 import { expandRingWithOffsets } from "Features/geometry/utils/arcSampling";
+import extractPlanarSketchEdges from "Features/threedEditor/js/postfx/extractPlanarSketchEdges";
 
 // Match the codebase convention used by other arc-aware paths.
 const ARC_SAMPLES = 6;
@@ -178,6 +179,39 @@ function buildIsoHeightLines(expContour, expHoles, topZOf) {
   );
 }
 
+// Black planar-outline edges for the iso-chord partition path: each iso strip
+// is one planar face, so coalescing coplanar facets yields exactly the fold
+// edges on the iso lines + the contour (no triangulation diagonals). Same
+// approach as extrudePolylineWall's buildWallEdges. The 1° seam threshold
+// removes near-coplanar construction seams (wall quads along a straight
+// contour side) while keeping the gentle folds between adjacent iso strips.
+const SKETCH_SEAM_DIHEDRAL_DEG = 1;
+
+function buildSketchEdges(geometry) {
+  const positions = extractPlanarSketchEdges(geometry, {
+    seamDihedralDeg: SKETCH_SEAM_DIHEDRAL_DEG,
+  });
+  if (!positions?.length) return null;
+  const deduped = [];
+  const seen = new Set();
+  const q = (v) => Math.round(v * 1e4);
+  for (let i = 0; i + 5 < positions.length; i += 6) {
+    const a = `${q(positions[i])},${q(positions[i + 1])},${q(positions[i + 2])}`;
+    const b = `${q(positions[i + 3])},${q(positions[i + 4])},${q(positions[i + 5])}`;
+    const key = a <= b ? `${a}|${b}` : `${b}|${a}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    for (let k = 0; k < 6; k++) deduped.push(positions[i + k]);
+  }
+  if (deduped.length === 0) return null;
+  const g = new BufferGeometry();
+  g.setAttribute("position", new Float32BufferAttribute(deduped, 3));
+  return new LineSegments(
+    g,
+    new LineBasicMaterial({ color: 0x000000, transparent: true, opacity: 0.5 })
+  );
+}
+
 // White iso lines built from the mesh's own iso-band segments
 // ([ax,ay,az, bx,by,bz, ...] in local space). Lifted slightly above the
 // surface to avoid z-fighting. These are the band boundaries themselves, so
@@ -219,8 +253,13 @@ export default function extrudeClosedShape(
   // even if no offsets are set yet — otherwise the fast Shape/ExtrudeGeometry
   // path would silently drop them, which is confusing during authoring.
   const hasInnerPoints = Array.isArray(innerPoints) && innerPoints.length > 0;
+  // Iso chords force the per-vertex-Z path even when every ring offset is 0:
+  // the chord heights only exist in the partition (contour vertices keep
+  // their own offsets), so the flat Shape path would silently ignore them.
+  const hasIsoChords =
+    Array.isArray(options.isoHeightChords) && options.isoHeightChords.length > 0;
   const isPerVertexZPath =
-    hasPerVertexZ(points, holes, innerPoints) || hasInnerPoints;
+    hasPerVertexZ(points, holes, innerPoints) || hasInnerPoints || hasIsoChords;
 
   let geometry;
   if (!isPerVertexZPath) {
@@ -251,6 +290,12 @@ export default function extrudeClosedShape(
       verticalLift,
       zFightOffset: Z_FIGHT_OFFSET,
       isoBandLevels: options.isoLines ? ISO_LEVELS : 0,
+      // isoHeightLines chords (local units): exact planar-strip partition of
+      // the top face. Falls back internally to the interpolated-height earcut
+      // path when the partition doesn't apply.
+      isoPartition: options.isoHeightChords?.length
+        ? { isoChords: options.isoHeightChords }
+        : null,
     });
     geometry = new BufferGeometry();
     geometry.setAttribute(
@@ -259,6 +304,12 @@ export default function extrudeClosedShape(
     );
     geometry.setIndex(Array.from(tri.indices));
     geometry.computeVertexNormals();
+
+    if (tri.isoPartitionApplied) {
+      // Fold edges on the iso lines + contour outlines (planar strips).
+      const sketchEdges = buildSketchEdges(geometry);
+      if (sketchEdges) group.add(sketchEdges);
+    }
 
     if (options.isoLines) {
       // Prefer the mesh's own iso-band segments (regular, surface-aligned).

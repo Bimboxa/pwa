@@ -74,7 +74,10 @@ export default function useAnnotationPermissions({ annotations }) {
         const inGuide = ann.guideLines?.some((gl) =>
           gl?.points?.some((g) => g.pointId === pointId || g.id === pointId)
         );
-        if (inMain || inCuts || inInner || inGuide) {
+        const inIso = ann.isoHeightLines?.some((l) =>
+          l?.points?.some((g) => g.pointId === pointId || g.id === pointId)
+        );
+        if (inMain || inCuts || inInner || inGuide || inIso) {
           if (canEditRecord(ann, currentUserId)) {
             myIds.push(ann.id);
           } else {

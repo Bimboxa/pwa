@@ -4,6 +4,8 @@ import { useTheme } from "@mui/material";
 
 import { GAP_PX, RECAP_PAD_PX } from "../elevationLayout";
 
+import projectPointOnPolyline from "Features/annotations/utils/projectPointOnPolyline";
+
 import FieldElevationOffset from "./FieldElevationOffset";
 
 // Renders, inside the viewport's camera group (world = map pixels):
@@ -33,13 +35,51 @@ export default function ElevationProfileSvg({
   onCommitOffset,
   onCommitOffsetZ,
   onCommitHeight,
+  // isoHeightLines markers ({index, xA, xB, topY, height}) — one horizontal
+  // dashed segment + ONE diamond handle per line (the whole line moves, in
+  // BOTH directions: height and position along the axis).
+  isoMarkers = [],
+  onIsoHandleMouseDown,
+  onCommitIsoHeight,
+  // iso point selection (click a diamond → select; Delete removes the line)
+  selectedIsoIndex = null,
+  onSelectIso,
+  // profile extremity handles (vertical batch edit of the end heights)
+  onExtremityMouseDown,
+  onCommitExtremityOffset,
+  // add-point snap helper: cursor world position + creation callback
+  hoverWorldPos = null,
+  onAddIsoPoint,
+  // POLYGON surface: show ONLY the top profile projected on the vertical
+  // plane — no per-segment quads/bottom line, no "vue de dessus" recap, no
+  // grid, no Ht field, TOP handles only.
+  surfaceMode = false,
 }) {
   const theme = useTheme();
   const secondary = theme.palette.secondary.main;
 
-  // preview-applied vertices (only affects the dragged handle)
+  // preview-applied vertices: the dragged handle's vertex, an extremity
+  // group, or — for an iso drag — every vertex pinned on the dragged iso line
+  // (height AND x), so the connected segments follow in real time.
   const verts = useMemo(() => {
     if (!dragPreview) return vertices;
+    if (dragPreview.isoIndex != null) {
+      const dx = dragPreview.worldDx || 0;
+      return vertices.map((v) =>
+        v.isoIndex === dragPreview.isoIndex
+          ? { ...v, topY: dragPreview.worldY, x: v.x + dx }
+          : v
+      );
+    }
+    if (dragPreview.extremityPointIndexes) {
+      const set = new Set(dragPreview.extremityPointIndexes);
+      return vertices.map((v) =>
+        v.pointIndex != null && set.has(v.pointIndex)
+          ? { ...v, topY: dragPreview.worldY }
+          : v
+      );
+    }
+    if (dragPreview.pointIndex == null) return vertices;
     return vertices.map((v) =>
       v.pointIndex === dragPreview.pointIndex
         ? {
@@ -50,6 +90,199 @@ export default function ElevationProfileSvg({
         : v
     );
   }, [vertices, dragPreview]);
+
+  // preview-applied iso markers (whole line follows the dragged handle, in
+  // both directions)
+  const markers = useMemo(() => {
+    if (!dragPreview || dragPreview.isoIndex == null) return isoMarkers;
+    const dx = dragPreview.worldDx || 0;
+    return isoMarkers.map((m) =>
+      m.index === dragPreview.isoIndex
+        ? { ...m, topY: dragPreview.worldY, xA: m.xA + dx, xB: m.xB + dx }
+        : m
+    );
+  }, [isoMarkers, dragPreview]);
+
+  // Surface silhouette (surface mode): the projection of the polygon's top
+  // surface on the vertical plane is drawn as ONE line — the upper envelope
+  // (highest topY per x) of every projected ring edge. Front/back edges of the
+  // closed ring overlap in x; drawing them all would show crossing "return"
+  // strokes instead of the surface seen edge-on.
+  const silhouette = useMemo(() => {
+    // Built from `verts` (preview-applied) so the profile follows handle and
+    // iso-line drags in real time.
+    if (!surfaceMode || !verts || verts.length < 2) return null;
+    const segs = [];
+    const xs = new Set();
+    for (let j = 0; j < verts.length - 1; j++) {
+      const a = verts[j];
+      const b = verts[j + 1];
+      xs.add(a.x);
+      xs.add(b.x);
+      if (Math.abs(a.x - b.x) < 1e-9) continue; // edge-on segment: no width
+      segs.push([a, b]);
+    }
+    // Iso lines are ON the surface: their projection constrains the
+    // silhouette (fold peak) even where no ring vertex sits on the line. A
+    // chord seen edge-on projects to a point — widen it slightly so the
+    // sample at its x catches it.
+    for (const m of markers) {
+      const w = Math.abs(m.xB - m.xA);
+      const midX = (m.xA + m.xB) / 2;
+      xs.add(midX);
+      if (w < 1e-9) {
+        segs.push([
+          { x: midX - 0.25, topY: m.topY },
+          { x: midX + 0.25, topY: m.topY },
+        ]);
+      } else {
+        xs.add(m.xA);
+        xs.add(m.xB);
+        segs.push([
+          { x: m.xA, topY: m.topY },
+          { x: m.xB, topY: m.topY },
+        ]);
+      }
+    }
+    if (segs.length === 0) return null;
+    const sorted = [...xs].sort((u, v) => u - v);
+    // Sample at every vertex x + a few interior points per interval, so
+    // envelope switches at segment crossings are caught.
+    const samples = [];
+    for (let i = 0; i < sorted.length; i++) {
+      samples.push(sorted[i]);
+      if (i < sorted.length - 1) {
+        const x0 = sorted[i];
+        const x1 = sorted[i + 1];
+        for (let k = 1; k <= 4; k++) samples.push(x0 + ((x1 - x0) * k) / 5);
+      }
+    }
+    const pts = [];
+    for (const x of samples) {
+      let top = Infinity; // screen y: smaller = higher
+      for (const [a, b] of segs) {
+        const lo = Math.min(a.x, b.x);
+        const hi = Math.max(a.x, b.x);
+        if (x < lo - 1e-9 || x > hi + 1e-9) continue;
+        const t = (x - a.x) / (b.x - a.x);
+        const y = a.topY + (b.topY - a.topY) * t;
+        if (y < top) top = y;
+      }
+      if (Number.isFinite(top)) pts.push({ x, y: top });
+    }
+    return pts.length >= 2 ? pts : null;
+  }, [surfaceMode, verts, markers]);
+
+  // Profile extremities (surface mode): the ring vertices sharing the min /
+  // max projected x — one vertical handle drives them all (batch offsetTop).
+  const extremities = useMemo(() => {
+    if (!surfaceMode || !vertices || vertices.length === 0) return [];
+    const anchors = vertices.filter((v) => v.pointIndex != null);
+    if (anchors.length === 0) return [];
+    let minX = Infinity;
+    let maxX = -Infinity;
+    for (const a of anchors) {
+      if (a.x < minX) minX = a.x;
+      if (a.x > maxX) maxX = a.x;
+    }
+    const TOL = 0.5;
+    const make = (x0, key) => {
+      const pointIndexes = [
+        ...new Set(
+          anchors
+            .filter((a) => Math.abs(a.x - x0) <= TOL)
+            .map((a) => a.pointIndex)
+        ),
+      ];
+      return { key, x: x0, pointIndexes };
+    };
+    const res = [make(minX, "MIN")];
+    if (maxX - minX > TOL) res.push(make(maxX, "MAX"));
+    return res;
+  }, [surfaceMode, vertices]);
+
+  // Anchor Y for a value label at x: the HIGHEST silhouette point within the
+  // label's horizontal footprint, so the label always sits above the strokes
+  // (a label anchored on a mid-slope handle would otherwise cross the rising
+  // line). Falls back to the handle's own y (wall mode: no silhouette).
+  const labelAnchorY = (x, fallbackY) => {
+    const pts = silhouette;
+    if (!pts || pts.length === 0) return fallbackY;
+    const halfW = 44 / zoom; // ~ half label width + margin, in world units
+    let top = fallbackY;
+    for (let i = 0; i < pts.length; i++) {
+      const p = pts[i];
+      if (p.x >= x - halfW && p.x <= x + halfW && p.y < top) top = p.y;
+      if (i < pts.length - 1) {
+        const q = pts[i + 1];
+        for (const bx of [x - halfW, x + halfW]) {
+          if ((p.x - bx) * (q.x - bx) < 0) {
+            const t = (bx - p.x) / (q.x - p.x);
+            const y = p.y + (q.y - p.y) * t;
+            if (y < top) top = y;
+          }
+        }
+      }
+    }
+    return top;
+  };
+
+  // Y of an extremity handle = highest preview-applied top among its group.
+  const extremityY = (ext) => {
+    let y = Infinity;
+    for (const v of verts) {
+      if (v.pointIndex != null && ext.pointIndexes.includes(v.pointIndex)) {
+        if (v.topY < y) y = v.topY;
+      }
+    }
+    return Number.isFinite(y) ? y : 0;
+  };
+
+  // Add-point snap helper (surface mode): projection of the cursor on the
+  // nearest silhouette segment. Shown when the cursor is close (screen px);
+  // clicking INSIDE the 8px circle creates a new iso line at that spot.
+  // Hidden near an EXISTING handle (iso diamond / extremity circle) so those
+  // stay clickable for selection / drag.
+  const snapHelper = useMemo(() => {
+    if (!surfaceMode || !silhouette || !hoverWorldPos || dragPreview) {
+      return null;
+    }
+    // Existing handles win over creation: no helper when the cursor is close
+    // to one of them.
+    const NEAR_HANDLE_PX = 14;
+    const nearHandle = (hx, hy) =>
+      Math.hypot(hoverWorldPos.x - hx, hoverWorldPos.y - hy) * zoom <=
+      NEAR_HANDLE_PX;
+    for (const m of markers) {
+      if (nearHandle((m.xA + m.xB) / 2, m.topY)) return null;
+    }
+    for (const ext of extremities) {
+      let y = Infinity;
+      for (const v of verts) {
+        if (v.pointIndex != null && ext.pointIndexes.includes(v.pointIndex)) {
+          if (v.topY < y) y = v.topY;
+        }
+      }
+      if (Number.isFinite(y) && nearHandle(ext.x, y)) return null;
+    }
+    const proj = projectPointOnPolyline(
+      { x: hoverWorldPos.x, y: hoverWorldPos.y },
+      silhouette.map((p) => ({ x: p.x, y: p.y }))
+    );
+    if (!proj) return null;
+    const screenDist = proj.distance * zoom;
+    if (screenDist > 24) return null;
+    return { x: proj.projected.x, y: proj.projected.y };
+  }, [
+    surfaceMode,
+    silhouette,
+    hoverWorldPos,
+    dragPreview,
+    zoom,
+    markers,
+    extremities,
+    verts,
+  ]);
 
   if (!vertices || vertices.length < 2) return null;
 
@@ -114,35 +347,40 @@ export default function ElevationProfileSvg({
   return (
     <g>
       {/* white background band behind the "vue de dessus" recap */}
-      <rect
-        x={xMin - xPad}
-        y={recapBandTop}
-        width={xMax - xMin + xPad * 2}
-        height={recapBandBottom - recapBandTop}
-        fill="#ffffff"
-        stroke="none"
-      />
+      {!surfaceMode && (
+        <rect
+          x={xMin - xPad}
+          y={recapBandTop}
+          width={xMax - xMin + xPad * 2}
+          height={recapBandBottom - recapBandTop}
+          fill="#ffffff"
+          stroke="none"
+        />
+      )}
 
       {/* "Vue de dessus" label, left side, vertically centered on the band */}
-      <g transform={`translate(${xMin - xPad}, ${recapBandCenter})`}>
-        <g style={COUNTER_ZOOM}>
-          <text
-            x={-128}
-            y={0}
-            fontSize={12}
-            fill="#666"
-            dominantBaseline="middle"
-            style={{ userSelect: "none" }}
-          >
-            Vue de dessus
-          </text>
+      {!surfaceMode && (
+        <g transform={`translate(${xMin - xPad}, ${recapBandCenter})`}>
+          <g style={COUNTER_ZOOM}>
+            <text
+              x={-128}
+              y={0}
+              fontSize={12}
+              fill="#666"
+              dominantBaseline="middle"
+              style={{ userSelect: "none" }}
+            >
+              Vue de dessus
+            </text>
+          </g>
         </g>
-      </g>
+      )}
 
       {/* vertical separations: grey (dashed) outside the surface, primary
           (dashed) across the surface. Only on real anchors — sampled arc
           points would otherwise draw a separation at every curve sample. */}
-      {verts.map((v) => {
+      {!surfaceMode &&
+        verts.map((v) => {
         if (v.pointIndex == null) return null;
         const top = Math.min(v.topY, v.bottomY);
         const bottom = Math.max(v.topY, v.bottomY);
@@ -183,76 +421,92 @@ export default function ElevationProfileSvg({
       })}
 
       {/* vue de dessus recap (edited segment = primary color, rest = grey) */}
-      {verts.slice(0, -1).map((v, j) => {
-        const a = verts[j];
-        const b = verts[j + 1];
-        const isEdited = a.segIndex === editedSegmentIndex;
-        const isHovered = a.segIndex === hoveredSegmentIndex;
-        return (
-          <line
-            key={`recap-${j}`}
-            x1={a.x}
-            y1={recapY(a.planY)}
-            x2={b.x}
-            y2={recapY(b.planY)}
-            stroke={isEdited || isHovered ? color : GREY}
-            strokeWidth={isEdited ? 4 : isHovered ? 3 : 1.5}
-            strokeLinecap="round"
-            vectorEffect="non-scaling-stroke"
-          />
-        );
-      })}
-      {verts.map((v, j) =>
-        v.pointIndex == null ? null : (
-          <circle
-            key={`recap-v-${j}`}
-            cx={v.x}
-            cy={recapY(v.planY)}
-            r={2.5}
-            fill="#fff"
-            stroke={GREY}
-            strokeWidth={1}
-            vectorEffect="non-scaling-stroke"
-          />
-        )
-      )}
+      {!surfaceMode &&
+        verts.slice(0, -1).map((v, j) => {
+          const a = verts[j];
+          const b = verts[j + 1];
+          const isEdited = a.segIndex === editedSegmentIndex;
+          const isHovered = a.segIndex === hoveredSegmentIndex;
+          return (
+            <line
+              key={`recap-${j}`}
+              x1={a.x}
+              y1={recapY(a.planY)}
+              x2={b.x}
+              y2={recapY(b.planY)}
+              stroke={isEdited || isHovered ? color : GREY}
+              strokeWidth={isEdited ? 4 : isHovered ? 3 : 1.5}
+              strokeLinecap="round"
+              vectorEffect="non-scaling-stroke"
+            />
+          );
+        })}
+      {!surfaceMode &&
+        verts.map((v, j) =>
+          v.pointIndex == null ? null : (
+            <circle
+              key={`recap-v-${j}`}
+              cx={v.x}
+              cy={recapY(v.planY)}
+              r={2.5}
+              fill="#fff"
+              stroke={GREY}
+              strokeWidth={1}
+              vectorEffect="non-scaling-stroke"
+            />
+          )
+        )}
 
-      {/* elevation of the whole chain (per-segment quads): edited band in the
-          primary color, neighbours clarified */}
-      {verts.slice(0, -1).map((v, j) => {
-        const a = verts[j];
-        const b = verts[j + 1];
-        const isEdited = a.segIndex === editedSegmentIndex;
-        const isHovered = a.segIndex === hoveredSegmentIndex;
-        return (
-          <g key={`elev-${j}`}>
-            <path
-              d={`M ${a.x} ${a.topY} L ${b.x} ${b.topY} L ${b.x} ${b.bottomY} L ${a.x} ${a.bottomY} Z`}
-              fill={color}
-              fillOpacity={isEdited ? 0.45 : isHovered ? 0.3 : 0.15}
-              stroke="none"
-            />
-            <line
-              x1={a.x}
-              y1={a.bottomY}
-              x2={b.x}
-              y2={b.bottomY}
-              stroke={color}
-              strokeWidth={2}
-              vectorEffect="non-scaling-stroke"
-            />
-            <line
-              x1={a.x}
-              y1={a.topY}
-              x2={b.x}
-              y2={b.topY}
-              stroke={color}
-              strokeWidth={2}
-              vectorEffect="non-scaling-stroke"
-            />
-          </g>
-        );
-      })}
+      {/* elevation. Surface mode (POLYGON): ONE line — the silhouette of the
+          surface projected on the vertical plane (upper envelope of the ring
+          edges). Wall mode (POLYLINE): per-segment quads, edited band in the
+          primary color, neighbours clarified. */}
+      {surfaceMode && silhouette && (
+        <polyline
+          points={silhouette.map((p) => `${p.x},${p.y}`).join(" ")}
+          fill="none"
+          stroke={color}
+          strokeWidth={2.5}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          vectorEffect="non-scaling-stroke"
+        />
+      )}
+      {!surfaceMode &&
+        verts.slice(0, -1).map((v, j) => {
+          const a = verts[j];
+          const b = verts[j + 1];
+          const isEdited = a.segIndex === editedSegmentIndex;
+          const isHovered = a.segIndex === hoveredSegmentIndex;
+          return (
+            <g key={`elev-${j}`}>
+              <path
+                d={`M ${a.x} ${a.topY} L ${b.x} ${b.topY} L ${b.x} ${b.bottomY} L ${a.x} ${a.bottomY} Z`}
+                fill={color}
+                fillOpacity={isEdited ? 0.45 : isHovered ? 0.3 : 0.15}
+                stroke="none"
+              />
+              <line
+                x1={a.x}
+                y1={a.bottomY}
+                x2={b.x}
+                y2={b.bottomY}
+                stroke={color}
+                strokeWidth={2}
+                vectorEffect="non-scaling-stroke"
+              />
+              <line
+                x1={a.x}
+                y1={a.topY}
+                x2={b.x}
+                y2={b.topY}
+                stroke={color}
+                strokeWidth={2}
+                vectorEffect="non-scaling-stroke"
+              />
+            </g>
+          );
+        })}
 
       {/* baseMap reference plane (Z = 0): full-width grey dashed line — the
           annotation offset (offsetZ) is measured from it */}
@@ -267,7 +521,9 @@ export default function ElevationProfileSvg({
         vectorEffect="non-scaling-stroke"
       />
 
-      {/* height field, on the far left at mid-wall level (primary color) */}
+      {/* height field, on the far left at mid-wall level (primary color) —
+          hidden in surface mode (a surface has no wall height) */}
+      {!surfaceMode && (
       <g transform={`translate(${xMin - xPad}, ${(eMinY + eMaxY) / 2})`}>
         <g style={COUNTER_ZOOM}>
           <foreignObject
@@ -287,6 +543,7 @@ export default function ElevationProfileSvg({
           </foreignObject>
         </g>
       </g>
+      )}
 
       {/* offset field, at the baseMap line level but shifted to the left of it
           so it never overlaps the first vertex's offsetBottom field */}
@@ -311,8 +568,152 @@ export default function ElevationProfileSvg({
         </g>
       </g>
 
-      {/* handles: only the edited segment's two vertices */}
-      {selA &&
+      {/* isoHeightLines: one dashed purple segment + ONE diamond handle at the
+          midpoint + height field per line — dragging moves the whole line */}
+      {markers.map((m) => {
+        const ISO_COLOR = "#9c27b0";
+        const midX = (m.xA + m.xB) / 2;
+        // live height (meters) from the marker's screen Y (same math as TOP)
+        const liveHeight = -m.topY * meterByPx - height - offsetZ;
+        const FW = 66;
+        const FH = 22;
+        return (
+          <g key={`iso-${m.index}`}>
+            <line
+              x1={m.xA}
+              y1={m.topY}
+              x2={m.xB}
+              y2={m.topY}
+              stroke={ISO_COLOR}
+              strokeWidth={2}
+              strokeDasharray="4 4"
+              vectorEffect="non-scaling-stroke"
+            />
+            <g transform={`translate(${midX}, ${m.topY})`}>
+              <g style={COUNTER_ZOOM}>
+                <rect
+                  x={-HALF}
+                  y={-HALF}
+                  width={HALF * 2}
+                  height={HALF * 2}
+                  transform="rotate(45)"
+                  fill={selectedIsoIndex === m.index ? ISO_COLOR : "#ffffff"}
+                  stroke={ISO_COLOR}
+                  strokeWidth={1.5}
+                  data-elev-handle="1"
+                  data-iso-index={m.index}
+                  style={{ cursor: "move" }}
+                  onMouseDown={(e) => {
+                    onSelectIso?.(m.index);
+                    onIsoHandleMouseDown?.(e, m.index);
+                  }}
+                />
+              </g>
+            </g>
+            {/* value label, above the strokes around the handle */}
+            <g
+              transform={`translate(${midX}, ${labelAnchorY(midX, m.topY)})`}
+            >
+              <g style={COUNTER_ZOOM}>
+                <foreignObject
+                  x={-FW / 2}
+                  y={-FH - 10}
+                  width={FW}
+                  height={FH}
+                  style={{ overflow: "visible" }}
+                >
+                  <FieldElevationOffset
+                    label="Iso"
+                    value={liveHeight}
+                    accentColor={ISO_COLOR}
+                    onCommit={(val) => onCommitIsoHeight?.(m.index, val)}
+                  />
+                </foreignObject>
+              </g>
+            </g>
+          </g>
+        );
+      })}
+
+      {/* profile extremity handles (surface mode): one circle per end of the
+          silhouette — vertical drag (or the field) edits the offsetTop of
+          every ring vertex sharing that projected x */}
+      {extremities.map((ext) => {
+        const y = extremityY(ext);
+        // live height (meters) from the handle's screen Y (TOP semantics)
+        const liveHeight = -y * meterByPx - height - offsetZ;
+        const FW = 66;
+        const FH = 22;
+        return (
+          <g key={`ext-${ext.key}`}>
+            <g transform={`translate(${ext.x}, ${y})`}>
+              <g style={COUNTER_ZOOM}>
+                <circle
+                  r={HALF}
+                  fill="#ffffff"
+                  stroke={color}
+                  strokeWidth={1.5}
+                  data-elev-handle="1"
+                  style={{ cursor: "ns-resize" }}
+                  onMouseDown={(e) =>
+                    onExtremityMouseDown?.(e, ext.pointIndexes)
+                  }
+                />
+              </g>
+            </g>
+            {/* value label, above the strokes around the handle */}
+            <g
+              transform={`translate(${ext.x}, ${labelAnchorY(ext.x, y)})`}
+            >
+              <g style={COUNTER_ZOOM}>
+                <foreignObject
+                  x={-FW / 2}
+                  y={-FH - 10}
+                  width={FW}
+                  height={FH}
+                  style={{ overflow: "visible" }}
+                >
+                  <FieldElevationOffset
+                    label="Δ"
+                    value={liveHeight}
+                    accentColor={color}
+                    onCommit={(val) =>
+                      onCommitExtremityOffset?.(ext.pointIndexes, val)
+                    }
+                  />
+                </foreignObject>
+              </g>
+            </g>
+          </g>
+        );
+      })}
+
+      {/* add-point snap helper: 8px circle on the nearest silhouette segment;
+          clicking inside it creates a new iso line at that spot */}
+      {snapHelper && (
+        <g transform={`translate(${snapHelper.x}, ${snapHelper.y})`}>
+          <g style={COUNTER_ZOOM}>
+            <circle
+              r={4}
+              fill="rgba(156, 39, 176, 0.25)"
+              stroke="#9c27b0"
+              strokeWidth={1.5}
+              data-elev-handle="1"
+              style={{ cursor: "copy" }}
+              onClick={(e) => {
+                e.stopPropagation();
+                onAddIsoPoint?.(snapHelper.x, snapHelper.y);
+              }}
+            />
+          </g>
+        </g>
+      )}
+
+      {/* handles: only the edited segment's two vertices. Hidden in surface
+          mode — the surface silhouette is edited through the iso-line helpers
+          only. */}
+      {!surfaceMode &&
+        selA &&
         selB &&
         [selA, selB].map((v) =>
           ["TOP", "BOTTOM"].map((edge) => {
@@ -345,9 +746,10 @@ export default function ElevationProfileSvg({
           })
         )}
 
-      {/* offset fields: 4 minimalist inputs fixed to the edited segment's
-          vertices (top/bottom), constant screen size */}
-      {selA &&
+      {/* offset fields: minimalist inputs fixed to the edited segment's
+          vertices (top/bottom), constant screen size. Hidden in surface mode. */}
+      {!surfaceMode &&
+        selA &&
         selB &&
         [selA, selB].map((v) =>
           ["TOP", "BOTTOM"].map((edge) => {

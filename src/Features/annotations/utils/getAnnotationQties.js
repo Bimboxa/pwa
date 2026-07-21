@@ -520,7 +520,12 @@ export default function getAnnotationQties({
     // above is left untouched so existing readers see no behavior change for
     // offset-free annotations and the planar footprint metric remains
     // available for offset-bearing annotations too.
-    if (closeLine && hasPerVertexZOffsets(annotation)) {
+    // isoHeightLines slope the top face through the partition even when every
+    // ring offset is 0, so they force the developed-surface path too.
+    const hasIsoHeightLines = annotation?.isoHeightLines?.some(
+      (l) => l?.points?.length >= 2
+    );
+    if (closeLine && (hasPerVertexZOffsets(annotation) || hasIsoHeightLines)) {
       const cutsRings = (annotation.cuts || [])
         .map((c) =>
           (c?.points || []).filter((p) => p && typeof p.x === "number")
@@ -559,6 +564,22 @@ export default function getAnnotationQties({
         )
           ? ISO_BAND_LEVELS
           : 0,
+        // Match the iso-chord partitioned 3D mesh (isoHeightLines). Chords
+        // are scaled to meters like the rings; heights are already meters.
+        isoPartition: annotation?.isoHeightLines?.some(
+          (l) => l?.points?.length >= 2
+        )
+          ? {
+              isoChords: annotation.isoHeightLines
+                .filter((l) => l?.points?.length >= 2)
+                .map((l) => ({
+                  polyline: (l.points || [])
+                    .filter((p) => typeof p?.x === "number")
+                    .map((p) => ({ x: p.x * meterByPx, y: p.y * meterByPx })),
+                  height: Number(l?.height) || 0,
+                })),
+            }
+          : null,
       });
       result.surfaceDeveloped = tri.areaTop;
 

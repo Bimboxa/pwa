@@ -93,6 +93,7 @@ export default async function pasteAnnotationService({
       templateLabel: _srcTemplateLabel,
       annotationTemplate: _srcAnnotationTemplate,
       guideLines: _srcGuideLines,
+      isoHeightLines: _srcIsoHeightLines,
       ...sourceAnnotationCleaned
     } = sourceAnnotation;
 
@@ -161,6 +162,27 @@ export default async function pasteAnnotationService({
             points: glTransformed.map((pt, i) => ({
               pointId: normalize(pt, sourceAnnotation),
               type: glPoints[i]?.type === "circle" ? "circle" : "square",
+            })),
+          };
+        });
+      }
+
+      // Iso height lines: same rigid transform + fresh db.points, meta
+      // (height) carried from the snapshot. Ref key is `pointId` too.
+      if (item.baseIsoHeightLines?.length) {
+        clonedAnnotation.isoHeightLines = item.baseIsoHeightLines.map((l) => {
+          const { points: lPoints, ...meta } = l;
+          const lTransformed = applyPasteTransformToPoints(
+            lPoints,
+            sourceCenter,
+            targetCenter,
+            pasteTransform,
+          );
+          return {
+            ...meta,
+            points: lTransformed.map((pt) => ({
+              pointId: normalize(pt, sourceAnnotation),
+              type: "square",
             })),
           };
         });

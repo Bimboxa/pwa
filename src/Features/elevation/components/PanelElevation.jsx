@@ -8,16 +8,19 @@ import {
   setObservationSign,
 } from "Features/elevation/elevationSlice";
 
-import { Box, Typography } from "@mui/material";
+import { Box, IconButton, Tooltip, Typography } from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import PlanSelectorElevation from "./PlanSelectorElevation";
+import ElevationBaseMapSelector from "./ElevationBaseMapSelector";
 import ElevationEditor from "./ElevationEditor";
 import PanelElevationBaseMapView from "./PanelElevationBaseMapView";
 
 import useElevationAnnotation from "Features/elevation/hooks/useElevationAnnotation";
 import useSelectedAnnotation from "Features/annotations/hooks/useSelectedAnnotation";
 import getProjectableSegmentChain from "Features/elevation/utils/getProjectableSegmentChain";
+import setElevationGuideService from "Features/elevation/services/setElevationGuideService";
 
 export default function PanelElevation() {
   const dispatch = useDispatch();
@@ -27,21 +30,24 @@ export default function PanelElevation() {
   const {
     annotation,
     annotationId,
-    isPolyline,
+    isPolygon,
+    isProfileTarget,
     points,
     closeLine,
     meterByPx,
     height,
     offsetZ,
     color,
+    isoHeightLines,
   } = useElevationAnnotation();
+
 
   const selectedAnnotation = useSelectedAnnotation();
 
-  // The profile editor sub-panel is for a plain (non-proxy) polyline; any other
-  // selection (empty, a plan "donut" proxy, a non-polyline…) shows the baseMap
-  // viewer sub-panel.
-  const showProfileEditor = isPolyline && !selectedAnnotation?.isProxy;
+  // The profile editor sub-panel is for a plain (non-proxy) polyline or
+  // polygon; any other selection (empty, a plan "donut" proxy…) shows the
+  // baseMap viewer sub-panel.
+  const showProfileEditor = isProfileTarget && !selectedAnnotation?.isProxy;
 
   const selectedSegmentIndices = useSelector(
     (s) => s.elevation.selectedSegmentIndices
@@ -60,18 +66,23 @@ export default function PanelElevation() {
   // the selected annotation changes
 
   useEffect(() => {
-    if (!isPolyline || !annotationId || points.length < 2) return;
+    if (!isProfileTarget || !annotationId || points.length < 2) return;
     if (selectionAnnotationId === annotationId) return;
     dispatch(
       setSelectedSegmentIndices({
-        segmentIndices: getProjectableSegmentChain(points, 0, { closeLine }),
+        // POLYGON = a surface: project the FULL ring (closed silhouette), not
+        // a projectable sub-chain.
+        segmentIndices: isPolygon
+          ? points.map((_, k) => k)
+          : getProjectableSegmentChain(points, 0, { closeLine }),
         seedSegmentIndex: 0,
         annotationId,
       })
     );
     dispatch(setHoveredSegmentIndex(null));
   }, [
-    isPolyline,
+    isProfileTarget,
+    isPolygon,
     annotationId,
     points,
     closeLine,
@@ -90,7 +101,11 @@ export default function PanelElevation() {
   function handleSelectSeedSegment(i) {
     dispatch(
       setSelectedSegmentIndices({
-        segmentIndices: getProjectableSegmentChain(points, i, { closeLine }),
+        // Full ring starting at the picked side (its start vertex becomes the
+        // projection origin), so the seed segment lays horizontal.
+        segmentIndices: isPolygon
+          ? points.map((_, k) => (i + k) % points.length)
+          : getProjectableSegmentChain(points, i, { closeLine }),
         seedSegmentIndex: i,
         annotationId,
       })
@@ -106,6 +121,22 @@ export default function PanelElevation() {
   // arrows on each side of the principal segment: pick the viewing side
   function handleSetObservation(sign) {
     dispatch(setObservationSign(sign));
+  }
+
+  // guide baseMap (elevation drawing used as a background guide to move the
+  // isoHeight points): stored on the annotation as elevationGuide
+  const elevationGuide = annotation?.elevationGuide ?? null;
+
+  function handleGuideBaseMapChange(baseMapId) {
+    setElevationGuideService({
+      annotationId,
+      guide: baseMapId ? { baseMapId } : null,
+      dispatch,
+    });
+  }
+
+  function handleGuideBaseMapRemove() {
+    setElevationGuideService({ annotationId, guide: null, dispatch });
   }
 
   // render
@@ -129,10 +160,37 @@ export default function PanelElevation() {
         seedSegmentIndex={seedSegmentIndex}
         hoveredSegmentIndex={hoveredSegmentIndex}
         observationSign={observationSign}
+        isoLines={isoHeightLines}
         onHoverSegment={handleHoverSegment}
         onSelectSegment={handleSelectSeedSegment}
         onSetObservation={handleSetObservation}
       />
+
+      {/* Guide baseMap: pick a VERTICAL baseMap (elevation drawing) shown as
+          a background image in the editor below. */}
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 0.5,
+          py: 0.5,
+          borderBottom: (theme) => `1px solid ${theme.palette.divider}`,
+          bgcolor: "background.paper",
+        }}
+      >
+        <ElevationBaseMapSelector
+          value={elevationGuide?.baseMapId ?? null}
+          onChange={handleGuideBaseMapChange}
+        />
+        {elevationGuide?.baseMapId && (
+          <Tooltip title="Retirer le fond de plan">
+            <IconButton size="small" onClick={handleGuideBaseMapRemove}>
+              <CloseIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        )}
+      </Box>
 
       <Box
         sx={{
@@ -153,6 +211,9 @@ export default function PanelElevation() {
           height={height}
           offsetZ={offsetZ}
           color={color}
+          isoLines={isoHeightLines}
+          surfaceMode={isPolygon}
+          elevationGuide={elevationGuide}
           onSelectSegment={handleSelectEditedSegment}
         />
       </Box>

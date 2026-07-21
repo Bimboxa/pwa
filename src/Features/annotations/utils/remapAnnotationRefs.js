@@ -37,6 +37,18 @@ export function remapPointIds(annotation, pointIdMap) {
         : g.points,
     }));
   }
+  if (Array.isArray(annotation.isoHeightLines)) {
+    annotation.isoHeightLines = annotation.isoHeightLines.map((l) => ({
+      ...l,
+      points: Array.isArray(l.points)
+        ? l.points.map((ref) =>
+            ref?.pointId && pointIdMap[ref.pointId]
+              ? { ...ref, pointId: pointIdMap[ref.pointId] }
+              : ref
+          )
+        : l.points,
+    }));
+  }
   if (annotation.point?.id && pointIdMap[annotation.point.id]) {
     annotation.point = {
       ...annotation.point,

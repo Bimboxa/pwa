@@ -18,8 +18,20 @@ export default async function commitElevationOffsetService({
   if (!annotation?.points?.[pointIndex]) return;
 
   const field = edge === "TOP" ? "offsetTop" : "offsetBottom";
+  // Iso-flagged contour segments (isoHeightSegmentsIdx) are constant-height:
+  // dragging one endpoint's TOP mirrors the value to the other endpoint so the
+  // segment stays level.
+  const targetIdxs = new Set([pointIndex]);
+  if (edge === "TOP" && Array.isArray(annotation.isoHeightSegmentsIdx)) {
+    const nRing = annotation.points.length;
+    for (const segIdx of annotation.isoHeightSegmentsIdx) {
+      if (!Number.isInteger(segIdx)) continue;
+      if (segIdx === pointIndex) targetIdxs.add((segIdx + 1) % nRing);
+      else if ((segIdx + 1) % nRing === pointIndex) targetIdxs.add(segIdx);
+    }
+  }
   const nextPoints = annotation.points.map((p, i) =>
-    i === pointIndex ? { ...p, [field]: value } : p
+    targetIdxs.has(i) ? { ...p, [field]: value } : p
   );
 
   await db.annotations.update(annotationId, { points: nextPoints });

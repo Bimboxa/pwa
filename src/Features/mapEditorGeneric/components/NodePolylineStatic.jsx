@@ -1284,6 +1284,55 @@ function NodePolylineStatic({
       .filter(Boolean);
   }, [type, mergedAnnotation.guideLines, annotationId]);
 
+  // isoHeightLines (constant-height contour lines): per-line pixel polyline +
+  // midpoint (for the height label). Straight segments only (V1: no arcs).
+  // Each line carries an indexed partId so it can be selected / edited
+  // independently.
+  const isoHeightLinesData = useMemo(() => {
+    if (type !== "POLYGON") return [];
+    const lines = mergedAnnotation.isoHeightLines;
+    if (!Array.isArray(lines)) return [];
+    return lines
+      .map((l, index) => {
+        const polyline = (l?.points || [])
+          .filter((p) => typeof p?.x === "number" && typeof p?.y === "number")
+          .map((p) => ({ x: p.x, y: p.y }));
+        if (polyline.length < 2) return null;
+
+        // Midpoint by cumulative arc length (label anchor).
+        const cum = [0];
+        for (let i = 0; i < polyline.length - 1; i++) {
+          cum.push(
+            cum[i] +
+              Math.hypot(
+                polyline[i + 1].x - polyline[i].x,
+                polyline[i + 1].y - polyline[i].y
+              )
+          );
+        }
+        const L2D = cum[cum.length - 1];
+        if (!Number.isFinite(L2D) || L2D < 1e-6) return null;
+        const half = L2D / 2;
+        let i = 0;
+        while (i < cum.length - 2 && cum[i + 1] < half) i++;
+        const seg = cum[i + 1] - cum[i] || 1;
+        const f = (half - cum[i]) / seg;
+        const mid = {
+          x: polyline[i].x + (polyline[i + 1].x - polyline[i].x) * f,
+          y: polyline[i].y + (polyline[i + 1].y - polyline[i].y) * f,
+        };
+
+        return {
+          index,
+          partId: `${annotationId}::ISO_HEIGHT_LINE::${index}`,
+          polyline,
+          height: Number(l?.height) || 0,
+          mid,
+        };
+      })
+      .filter(Boolean);
+  }, [type, mergedAnnotation.isoHeightLines, annotationId]);
+
   // Stairs nosings: transverse strokes (one per step) clipped to the polygon
   // outline, for every guideLine flagged `isStairs`. Always visible (they are
   // part of the plan drawing), rendered in the annotation color.
@@ -1424,6 +1473,9 @@ function NodePolylineStatic({
     ...(mergedAnnotation.guideLines || [])
       .flatMap((g) => g?.points || [])
       .map((p) => ({ point: p, cutIndex: undefined, source: "GUIDE" })),
+    ...(mergedAnnotation.isoHeightLines || [])
+      .flatMap((l) => l?.points || [])
+      .map((p) => ({ point: p, cutIndex: undefined, source: "ISO" })),
   ];
 
   let pointEntriesToRender = [];
@@ -1464,6 +1516,9 @@ function NodePolylineStatic({
       ...(mergedAnnotation.guideLines || [])
         .flatMap((g) => g?.points || [])
         .map((p) => ({ point: p, cutIndex: undefined, source: "GUIDE" })),
+      ...(mergedAnnotation.isoHeightLines || [])
+        .flatMap((l) => l?.points || [])
+        .map((p) => ({ point: p, cutIndex: undefined, source: "ISO" })),
     ];
   } else {
     pointEntriesToRender = allPointEntries;
@@ -1793,6 +1848,108 @@ function NodePolylineStatic({
           );
         })}
 
+      {/* isoHeightLines when the annotation is NOT selected: always visible
+                as a discreet 1px dashed stroke in the annotation color (they
+                are part of the plan drawing). */}
+      {(!selected || disableVertexEditing) &&
+        isoHeightLinesData.map((line) => (
+          <polyline
+            key={`iso-idle-${line.partId}`}
+            points={line.polyline.map((p) => `${p.x},${p.y}`).join(" ")}
+            fill="none"
+            stroke={strokeColor}
+            strokeWidth={1}
+            strokeDasharray="2 4"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            vectorEffect="non-scaling-stroke"
+            style={{ pointerEvents: "none" }}
+          />
+        ))}
+
+      {/* isoHeightLines: constant-height contour lines, drawn while the
+                annotation is selected. Dashed purple (vs guideLines solid
+                blue and iso contour segments red), with the line height (m)
+                labelled at the midpoint. */}
+      {selected &&
+        !disableVertexEditing &&
+        isoHeightLinesData.map((line) => {
+          const isoPartId = line.partId;
+          const isSelectedIso = selectedPartId === isoPartId;
+          const isHoveredIso = effectiveHoveredPartId === isoPartId;
+          const pointsStr = line.polyline.map((p) => `${p.x},${p.y}`).join(" ");
+          const strokeColor = isSelectedIso
+            ? STYLE_CONSTANTS.COLORS.SELECTED_PART
+            : "#9c27b0";
+          const strokeWidth = isSelectedIso || isHoveredIso ? 3 : 2;
+          const strokeOpacity = isSelectedIso || isHoveredIso ? 1 : 0.7;
+          const heightLabel = `${line.height >= 0 ? "+" : ""}${
+            Math.round(line.height * 100) / 100
+          } m`;
+          return (
+            <g
+              key={isoPartId}
+              onMouseEnter={(e) => {
+                e.stopPropagation();
+                if (!isTransient) setHoveredPartId(isoPartId);
+              }}
+              onMouseLeave={() => setHoveredPartId(null)}
+              data-part-id={isoPartId}
+              data-part-type="ISO_HEIGHT_LINE"
+              data-node-id={annotationId}
+              style={{ cursor: getPartCursor(isoPartId) }}
+            >
+              {/* Hit area (transparent wide stroke) */}
+              <polyline
+                points={pointsStr}
+                fill="none"
+                stroke="transparent"
+                strokeWidth={POLYGON_HIT_STROKE_WIDTH_PX}
+                vectorEffect="non-scaling-stroke"
+              />
+              {/* Visible stroke */}
+              <polyline
+                points={pointsStr}
+                fill="none"
+                stroke={strokeColor}
+                strokeWidth={strokeWidth}
+                strokeOpacity={strokeOpacity}
+                strokeDasharray="2 4"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                vectorEffect="non-scaling-stroke"
+                style={{ pointerEvents: "none" }}
+              />
+              {/* Height label at the midpoint */}
+              <g
+                transform={`translate(${line.mid.x}, ${line.mid.y})`}
+                style={{ pointerEvents: "none" }}
+              >
+                <g style={{ transform: vertexScaleTransform }}>
+                  <text
+                    x={0}
+                    y={-8}
+                    textAnchor="middle"
+                    dominantBaseline="alphabetic"
+                    fontSize={12}
+                    fontFamily='"Roboto", "Helvetica", "Arial", sans-serif'
+                    fill={strokeColor}
+                    style={{
+                      userSelect: "none",
+                      paintOrder: "stroke",
+                      stroke: "white",
+                      strokeWidth: 3,
+                      strokeLinejoin: "round",
+                    }}
+                  >
+                    {heightLabel}
+                  </text>
+                </g>
+              </g>
+            </g>
+          );
+        })}
+
       {/* Slope arrow along the MIDDLE of the guideLine, following the
                 curve and pointing uphill (replaces the centroid arrow when a
                 guideLine exists). */}
@@ -1854,6 +2011,9 @@ function NodePolylineStatic({
           })}
 
       {guideLinesData.length === 0 &&
+        // isoHeightLines pin heights locally: a single best-fit plane slope
+        // is meaningless there.
+        isoHeightLinesData.length === 0 &&
         slope &&
         slopeCentroid &&
         Math.round(slope.slopePct) >= 1 &&

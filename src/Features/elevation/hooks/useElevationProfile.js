@@ -13,6 +13,7 @@ export default function useElevationProfile({
   meterByPx,
   height,
   offsetZ,
+  isoLines = null,
 }) {
   return useMemo(
     () =>
@@ -24,6 +25,7 @@ export default function useElevationProfile({
         meterByPx,
         height,
         offsetZ,
+        isoLines,
       }),
     [
       points,
@@ -33,6 +35,7 @@ export default function useElevationProfile({
       meterByPx,
       height,
       offsetZ,
+      isoLines,
     ]
   );
 }

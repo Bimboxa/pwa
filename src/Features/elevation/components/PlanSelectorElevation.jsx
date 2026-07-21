@@ -56,6 +56,9 @@ export default function PlanSelectorElevation({
   seedSegmentIndex,
   hoveredSegmentIndex,
   observationSign = 1,
+  // isoHeightLines (resolved: [{points: [{x,y}...], height}]) — drawn dashed
+  // purple, non-interactive, so the user sees which lines will project.
+  isoLines = null,
   onHoverSegment,
   onSelectSegment,
   onSetObservation,
@@ -243,6 +246,27 @@ export default function PlanSelectorElevation({
                 onClick={() => onSelectSegment?.(i)}
               />
             </g>
+          );
+        })}
+
+        {/* isoHeightLines (dashed purple, non-interactive) */}
+        {(isoLines || []).map((line, li) => {
+          const pts = (line?.points || []).filter(
+            (p) => typeof p?.x === "number" && typeof p?.y === "number"
+          );
+          if (pts.length < 2) return null;
+          return (
+            <polyline
+              key={`iso-${li}`}
+              points={pts.map((p) => `${p.x},${p.y}`).join(" ")}
+              fill="none"
+              stroke="#9c27b0"
+              strokeWidth={2}
+              strokeDasharray="4 4"
+              strokeLinecap="round"
+              vectorEffect="non-scaling-stroke"
+              style={{ pointerEvents: "none" }}
+            />
           );
         })}
 

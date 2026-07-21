@@ -169,6 +169,7 @@ export default function TransientTopologyLayer({
             if (ann.cuts?.some(cut => cut.points?.some(pt => pt.id === movingPointId))) return true;
             if (ann.innerPoints?.some(pt => pt.id === movingPointId)) return true;
             if (ann.guideLines?.some(gl => gl?.points?.some(g => g.pointId === movingPointId || g.id === movingPointId))) return true;
+            if (ann.isoHeightLines?.some(l => l?.points?.some(g => g.pointId === movingPointId || g.id === movingPointId))) return true;
             return false;
         });
 
@@ -336,6 +337,18 @@ export default function TransientTopologyLayer({
                 _ann.guideLines = _ann.guideLines.map(gl => ({
                     ...gl,
                     points: (gl?.points || []).map(g =>
+                        (g.pointId === movingPointId || g.id === movingPointId)
+                            ? { ...g, x: currentPos.x, y: currentPos.y }
+                            : g
+                    ),
+                }));
+            }
+
+            // E. isoHeightLines (same resolved ref shape as guideLines)
+            if (_ann.isoHeightLines?.some(l => l?.points?.some(g => g.pointId === movingPointId || g.id === movingPointId))) {
+                _ann.isoHeightLines = _ann.isoHeightLines.map(l => ({
+                    ...l,
+                    points: (l?.points || []).map(g =>
                         (g.pointId === movingPointId || g.id === movingPointId)
                             ? { ...g, x: currentPos.x, y: currentPos.y }
                             : g

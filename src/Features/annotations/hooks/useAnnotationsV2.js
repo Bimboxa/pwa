@@ -337,6 +337,9 @@ const _collectPointRowRefs = (annotation, pointsIndex) => {
   (annotation?.guideLines ?? []).forEach((g) =>
     (g?.points ?? []).forEach(push)
   );
+  (annotation?.isoHeightLines ?? []).forEach((l) =>
+    (l?.points ?? []).forEach(push)
+  );
   return refs;
 };
 
@@ -352,6 +355,7 @@ import resolvePoints from "Features/annotations/utils/resolvePoints";
 import resolveCuts from "Features/annotations/utils/resolveCuts";
 import resolveGuideLine from "Features/annotations/utils/resolveGuideLine";
 import applyGuideLineRampToRings from "Features/annotations/utils/applyGuideLineRampToRings";
+import applyIsoHeightLinesToRings from "Features/annotations/utils/applyIsoHeightLinesToRings";
 
 import db from "App/db/db";
 
@@ -1125,6 +1129,27 @@ export default function useAnnotationsV2(options) {
                 ),
               }));
             }
+            // isoHeightLines (constant-height contour lines) share the
+            // guideLine ref shape ({pointId, type}) — resolve them the same
+            // way. `height` (meters, offsetTop semantics) passes through.
+            if (Array.isArray(annotation.isoHeightLines)) {
+              _annotation.isoHeightLines = annotation.isoHeightLines.map(
+                (l) => ({
+                  ...l,
+                  points: _splitResolved(
+                    resolveGuideLine({
+                      guideLine: l?.points,
+                      pointsIndex,
+                      imageSize,
+                    }),
+                    corruptedIds
+                  ),
+                })
+              );
+            }
+            const hasIsoHeightLines = _annotation.isoHeightLines?.some(
+              (l) => l?.points?.length >= 2
+            );
 
             // guideLines ramp: derive each vertex's offsetTop from its
             // projection onto the nearest guideLine (height accumulates
@@ -1134,7 +1159,10 @@ export default function useAnnotationsV2(options) {
             // Stairs guideLines (isStairs) opt out: the stepped surface is
             // built by the dedicated 3D stairs builder and the stairs qties
             // path, not by per-vertex ramp offsets.
+            // isoHeightLines take precedence: when present they alone drive
+            // the surface heights, so the guideLine ramp bake is skipped.
             if (
+              !hasIsoHeightLines &&
               !_annotation.guideLines?.some(
                 (g) => g?.isStairs && g?.points?.length >= 2
               ) &&
@@ -1152,6 +1180,22 @@ export default function useAnnotationsV2(options) {
               _annotation.points = ramped.points;
               _annotation.cuts = ramped.cuts;
               _annotation.innerPoints = ramped.innerPoints;
+            }
+
+            // isoHeightLines: pin the offsetTop of every ring vertex lying ON
+            // an iso line to that line's height. Other vertices keep their own
+            // stored offsetTop — dragging an iso line must not move them (the
+            // sloped faces between constraints are built by the 3D partition).
+            if (hasIsoHeightLines) {
+              const isoed = applyIsoHeightLinesToRings({
+                points: _annotation.points,
+                cuts: _annotation.cuts,
+                innerPoints: _annotation.innerPoints,
+                isoHeightLines: _annotation.isoHeightLines,
+              });
+              _annotation.points = isoed.points;
+              _annotation.cuts = isoed.cuts;
+              _annotation.innerPoints = isoed.innerPoints;
             }
           }
 

@@ -181,6 +181,16 @@ const getBestSnap = (mousePos, annotations, threshold, { vertex = true, midpoint
                 });
             }
 
+            // E. isoHeightLines points (same resolved ref shape as guideLines)
+            // so the contour-line endpoints are snappable / draggable too.
+            if (Array.isArray(ann.isoHeightLines)) {
+                ann.isoHeightLines.forEach((l) => {
+                    if (l?.points?.length) {
+                        pointArraysToCheck.push({ list: l.points, cutIndex: undefined, source: "ISO" });
+                    }
+                });
+            }
+
             for (const { list, cutIndex, source } of pointArraysToCheck) {
                 for (const pt of list) {
                     const d2 = dist2(pt, mousePos);

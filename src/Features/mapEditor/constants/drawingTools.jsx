@@ -10,6 +10,7 @@ import {
   AddLocationAlt as AddInnerPoint,
   Straighten,
   Timeline as GuideLineIcon,
+  SsidChart as IsoHeightLineIcon,
   NorthEast as RampIcon,
   AutoFixHigh as LocalizedRepairIcon,
   Height as RevolutionAxisIcon,
@@ -325,6 +326,16 @@ const DRAWING_TOOLS = [
     annotationType: "GUIDE_LINE",
     behavior: "CLICK",
   },
+  // ADD_ISO_HEIGHT_LINE tool — draw an isoHeightLine (constant-height contour
+  // line) on the selected POLYGON. Multi-click, finish with Enter, cancel with
+  // Escape.
+  {
+    key: "ADD_ISO_HEIGHT_LINE",
+    label: "Ajouter une courbe de niveau",
+    Icon: IsoHeightLineIcon,
+    annotationType: "ISO_HEIGHT_LINE",
+    behavior: "CLICK",
+  },
   // RAMP tool (Rampe) — draw a median line, commit a centered band POLYGON
   // whose slope is derived from a delta-H value. The drawn line is stored as a
   // guideLine on the polygon so the slope renders in 2D and ramps in 3D.
@@ -386,6 +397,7 @@ export const DRAWING_TOOLS_BY_TYPE = {
   COMPLETE_ANNOTATION: ["COMPLETE_ANNOTATION"],
   ADD_INNER_POINT: ["ADD_INNER_POINT"],
   GUIDE_LINE: ["ADD_GUIDE_LINE"],
+  ISO_HEIGHT_LINE: ["ADD_ISO_HEIGHT_LINE"],
   LOCALIZED_REPAIR: ["LOCALIZED_REPAIR"],
   REVOLUTION: ["REVOLUTION_AXIS_LINE", "REVOLUTION_POINT_MARK"],
 };
