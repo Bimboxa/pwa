@@ -38,6 +38,20 @@ export default function applyWrapperTransformToPoints({
         }
       }
     }
+    for (const pt of ann.innerPoints ?? []) {
+      if (pt.x != null && pt.y != null) {
+        allPoints.set(pt.id, { x: pt.x, y: pt.y });
+      }
+    }
+    // guideLines / isoHeightLines refs key on `pointId` (see resolveGuideLine)
+    for (const line of [...(ann.guideLines ?? []), ...(ann.isoHeightLines ?? [])]) {
+      for (const pt of line?.points ?? []) {
+        const pointId = pt.pointId ?? pt.id;
+        if (pointId != null && pt.x != null && pt.y != null) {
+          allPoints.set(pointId, { x: pt.x, y: pt.y });
+        }
+      }
+    }
   }
 
   // MOVE

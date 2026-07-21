@@ -277,6 +277,24 @@ export default function applyDeltaPosToAnnotation(annotation, deltaPos, partType
                 points: transformPoints(cut.points),
             }));
         }
+
+        if (_annotation.innerPoints) {
+            _annotation.innerPoints = transformPoints(_annotation.innerPoints);
+        }
+
+        if (_annotation.guideLines) {
+            _annotation.guideLines = _annotation.guideLines.map(line => ({
+                ...line,
+                points: transformPoints(line.points),
+            }));
+        }
+
+        if (_annotation.isoHeightLines) {
+            _annotation.isoHeightLines = _annotation.isoHeightLines.map(line => ({
+                ...line,
+                points: transformPoints(line.points),
+            }));
+        }
     }
 
     return _annotation;
