@@ -47,23 +47,40 @@ export default function useElevationPointDrag({
     [meterByPx, height, offsetZ]
   );
 
-  // Magnetic snap of the dragged position onto the drag's `snapTargets`
-  // (world coords) within ~SNAP_PX screen pixels. Used by the profile-section
-  // vertex drag to land exactly on the guide trait's extremities.
+  // Magnetic snap of the dragged position within ~SNAP_PX screen pixels onto:
+  //   - `snapTargets`  (world POINTS): snaps both axes (guide trait extremities),
+  //   - `snapLinesX`   (world X values): vertical lines — snaps X only, height
+  //                    stays free (the median axis).
+  // Point snaps win over line snaps when both are in range.
   const SNAP_PX = 12;
   const applySnap = useCallback(
     (worldPos, drag) => {
-      if (!drag?.snapTargets?.length || !viewportRef.current) return worldPos;
+      const hasPoints = drag?.snapTargets?.length > 0;
+      const hasLines = drag?.snapLinesX?.length > 0;
+      if ((!hasPoints && !hasLines) || !viewportRef.current) return worldPos;
       const a = viewportRef.current.screenToWorld(0, 0);
       const b = viewportRef.current.screenToWorld(SNAP_PX, 0);
       const thresholdWorld = Math.abs(b.x - a.x) || 0;
       if (!(thresholdWorld > 0)) return worldPos;
-      let best = null;
-      for (const t of drag.snapTargets) {
-        const d = Math.hypot(worldPos.x - t.x, worldPos.y - t.y);
-        if (d <= thresholdWorld && (!best || d < best.d)) best = { t, d };
+      let bestPoint = null;
+      if (hasPoints) {
+        for (const t of drag.snapTargets) {
+          const d = Math.hypot(worldPos.x - t.x, worldPos.y - t.y);
+          if (d <= thresholdWorld && (!bestPoint || d < bestPoint.d))
+            bestPoint = { t, d };
+        }
       }
-      return best ? { x: best.t.x, y: best.t.y } : worldPos;
+      if (bestPoint) return { x: bestPoint.t.x, y: bestPoint.t.y };
+      if (hasLines) {
+        let bestLine = null;
+        for (const lx of drag.snapLinesX) {
+          const d = Math.abs(worldPos.x - lx);
+          if (d <= thresholdWorld && (!bestLine || d < bestLine.d))
+            bestLine = { lx, d };
+        }
+        if (bestLine) return { x: bestLine.lx, y: worldPos.y };
+      }
+      return worldPos;
     },
     [viewportRef]
   );
@@ -237,20 +254,29 @@ export default function useElevationPointDrag({
   // Profile extremity: several ring vertices share the projected x — one
   // vertical handle drives them all.
   const startExtremityDrag = useCallback(
-    (e, pointIndexes) =>
-      startDrag(e, { extremityPointIndexes: pointIndexes }),
+    (e, pointIndexes) => startDrag(e, { extremityPointIndexes: pointIndexes }),
     [startDrag]
   );
 
   // Shell / extrusion profile section vertex: free 2-axis drag — Y edits the
   // inline height, X slides along the profile path in plan. `sMin`/`sMax`
   // bound the slide, `planAt(s)` maps abscissa → plan position (may
-  // extrapolate for endpoints), `sectionHeight` sets the z reference and
-  // `snapTargets` are magnetic world positions (guide trait extremities).
+  // extrapolate for endpoints), `sectionHeight` sets the z reference,
+  // `snapTargets` are magnetic world POINTS (guide trait extremities) and
+  // `snapLinesX` magnetic vertical lines (the median axis).
   const startProfileVertexDrag = useCallback(
     (
       e,
-      { profileIndex, vertexIndex, sMin, sMax, planAt, sectionHeight, snapTargets }
+      {
+        profileIndex,
+        vertexIndex,
+        sMin,
+        sMax,
+        planAt,
+        sectionHeight,
+        snapTargets,
+        snapLinesX,
+      }
     ) =>
       startDrag(e, {
         profileIndex,
@@ -260,6 +286,7 @@ export default function useElevationPointDrag({
         planAt,
         sectionHeight,
         snapTargets,
+        snapLinesX,
       }),
     [startDrag]
   );

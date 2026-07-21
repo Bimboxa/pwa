@@ -156,7 +156,12 @@ export default function ElevationEditor({
 
   // data
 
-  const { vertices, bbox: profileBbox, isoMarkers, basis } = useElevationProfile({
+  const {
+    vertices,
+    bbox: profileBbox,
+    isoMarkers,
+    basis,
+  } = useElevationProfile({
     points,
     selectedSegmentIndices,
     seedSegmentIndex,
@@ -227,6 +232,9 @@ export default function ElevationEditor({
         s2: setup.footprint.sMax,
         y: traitY,
       },
+      // Median axis (circle center projected on the profile axis) — section
+      // X = s, so the vertical axis sits at x = medianS.
+      medianS: setup.medianS,
     };
   }, [
     profileSectionMode,
@@ -449,8 +457,7 @@ export default function ElevationEditor({
             ? Math.max(total - cum[last - 1], 1e-6) * 0.02
             : Math.max(cum[vertexIndex + 1] - cum[vertexIndex - 1], 1e-6) *
               0.02;
-      const sMin =
-        vertexIndex === 0 ? -EXT : cum[vertexIndex - 1] + margin;
+      const sMin = vertexIndex === 0 ? -EXT : cum[vertexIndex - 1] + margin;
       const sMax =
         vertexIndex === last ? total + EXT : cum[vertexIndex + 1] - margin;
       startProfileVertexDrag(e, {
@@ -466,6 +473,12 @@ export default function ElevationEditor({
         snapTargets: guideTrait
           ? guideTrait.extremities.map((t) => ({ x: t.s, y: t.y }))
           : null,
+        // Vertical snap lines (world X): the median axis (circle center) — a
+        // dragged vertex X snaps onto it while its height stays free.
+        snapLinesX:
+          guideTrait && Number.isFinite(guideTrait.medianS)
+            ? [guideTrait.medianS]
+            : null,
       });
     },
     [
@@ -793,31 +806,31 @@ export default function ElevationEditor({
           />
         )}
         {!profileSectionMode && (
-        <ElevationProfileSvg
-          vertices={vertices}
-          editedSegmentIndex={editedSegmentIndex}
-          hoveredSegmentIndex={hoveredSegmentIndex}
-          height={height}
-          meterByPx={meterByPx}
-          offsetZ={offsetZ}
-          color={color}
-          zoom={zoom}
-          dragPreview={dragPreview}
-          onHandleMouseDown={startHandleDrag}
-          onCommitOffset={handleCommitOffset}
-          onCommitOffsetZ={handleCommitOffsetZ}
-          onCommitHeight={handleCommitHeight}
-          isoMarkers={isoMarkers}
-          onIsoHandleMouseDown={startIsoHandleDrag}
-          onCommitIsoHeight={handleCommitIsoHeight}
-          selectedIsoIndex={selectedIsoIndex}
-          onSelectIso={setSelectedIsoIndex}
-          onExtremityMouseDown={startExtremityDrag}
-          onCommitExtremityOffset={handleCommitExtremityOffset}
-          hoverWorldPos={hoverWorldPos}
-          onAddIsoPoint={handleAddIsoPoint}
-          surfaceMode={surfaceMode}
-        />
+          <ElevationProfileSvg
+            vertices={vertices}
+            editedSegmentIndex={editedSegmentIndex}
+            hoveredSegmentIndex={hoveredSegmentIndex}
+            height={height}
+            meterByPx={meterByPx}
+            offsetZ={offsetZ}
+            color={color}
+            zoom={zoom}
+            dragPreview={dragPreview}
+            onHandleMouseDown={startHandleDrag}
+            onCommitOffset={handleCommitOffset}
+            onCommitOffsetZ={handleCommitOffsetZ}
+            onCommitHeight={handleCommitHeight}
+            isoMarkers={isoMarkers}
+            onIsoHandleMouseDown={startIsoHandleDrag}
+            onCommitIsoHeight={handleCommitIsoHeight}
+            selectedIsoIndex={selectedIsoIndex}
+            onSelectIso={setSelectedIsoIndex}
+            onExtremityMouseDown={startExtremityDrag}
+            onCommitExtremityOffset={handleCommitExtremityOffset}
+            hoverWorldPos={hoverWorldPos}
+            onAddIsoPoint={handleAddIsoPoint}
+            surfaceMode={surfaceMode}
+          />
         )}
       </MapEditorViewport>
     </Box>

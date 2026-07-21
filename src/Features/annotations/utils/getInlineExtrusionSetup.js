@@ -40,6 +40,9 @@
 //                                     // profile axis (unclamped abscissae) —
 //                                     // the whole polyline footprint in the
 //                                     // section view
+//   medianS,                          // guide centroid (circle center)
+//                                     // projected on the profile axis — the
+//                                     // median axis / snap target
 // }
 export default function getInlineExtrusionSetup({
   guidePoints,
@@ -170,6 +173,19 @@ export default function getInlineExtrusionSetup({
     if (s > footSMax) footSMax = s;
   }
 
+  // Median axis: the guide's CENTER (centroid of its vertices — the circle
+  // center for a circular guide, the segment midpoint for a straight one)
+  // projected (unclamped) onto the profile axis. Marks the middle of the
+  // projected main annotation in the section view and is a snap target.
+  let cX = 0;
+  let cY = 0;
+  for (const p of guide) {
+    cX += p.x;
+    cY += p.y;
+  }
+  const centroid = { x: cX / guide.length, y: cY / guide.length };
+  const medianS = unclampedS(centroid);
+
   // E = extremity closest to the profile IN PLAN (perpendicular distance to
   // the profile chain). The section-space abscissa alone would let an
   // off-plane extremity win (its projection can land closer along the axis
@@ -248,6 +264,7 @@ export default function getInlineExtrusionSetup({
     dirSign,
     crossSection,
     footprint: { sMin: footSMin, sMax: footSMax },
+    medianS,
     extents: { uMin, uMax },
   };
 }

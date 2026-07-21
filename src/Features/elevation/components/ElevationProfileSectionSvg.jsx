@@ -148,12 +148,22 @@ export default function ElevationProfileSectionSvg({
 
   let xMin = Infinity;
   let xMax = -Infinity;
+  let yTop = 0;
+  let yBottom = 0;
   for (const v of vertices) {
     if (v.s < xMin) xMin = v.s;
     if (v.s > xMax) xMax = v.s;
+    if (v.topY < yTop) yTop = v.topY;
+    if (v.topY > yBottom) yBottom = v.topY;
+  }
+  if (guideTrait?.footprint?.y != null) {
+    if (guideTrait.footprint.y < yTop) yTop = guideTrait.footprint.y;
+    if (guideTrait.footprint.y > yBottom) yBottom = guideTrait.footprint.y;
   }
   const span = Math.max(xMax - xMin, 1);
   const xPad = span * 0.08 + 10;
+  const yExtent = Math.max(yBottom - yTop, 1);
+  const yPad = yExtent * 0.15 + 10;
 
   const COUNTER_ZOOM = { transform: "scale(calc(1 / var(--map-zoom, 1)))" };
   const HALF = 5;
@@ -224,6 +234,24 @@ export default function ElevationProfileSectionSvg({
             </g>
           ))}
         </g>
+      )}
+
+      {/* Median axis: vertical dashed line at the guide center (circle
+          center) projected on the profile axis — a snap target for the
+          profile vertices. */}
+      {guideTrait && Number.isFinite(guideTrait.medianS) && (
+        <line
+          x1={guideTrait.medianS}
+          y1={yTop - yPad}
+          x2={guideTrait.medianS}
+          y2={yBottom + yPad}
+          stroke="#2962ff"
+          strokeWidth={1.25}
+          strokeDasharray="5 4"
+          strokeOpacity={0.7}
+          vectorEffect="non-scaling-stroke"
+          style={{ pointerEvents: "none" }}
+        />
       )}
 
       {/* offset field, left of the Z = 0 line */}
