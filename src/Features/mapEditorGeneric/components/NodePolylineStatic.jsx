@@ -102,6 +102,10 @@ function offsetPointsAlongNormals(pts, distance, closed) {
 // independent band is what the user can rely on to click a specific edge.
 const POLYGON_HIT_STROKE_WIDTH_PX = 10;
 
+// Per-half-arc sampling of the guide when building the inline "Extrusion"
+// band (its offset must follow the true arc tangent — see the band memo).
+const EXTRUSION_BAND_ARC_SAMPLES = 12;
+
 // --- CONSTANTES DE STYLE ---
 const STYLE_CONSTANTS = {
   COLORS: {
@@ -1374,8 +1378,21 @@ function NodePolylineStatic({
       baseMapMeterByPx
     );
     if (!metrics) return null;
-    const offsetPts = offsetPointsAlongNormals(
+    // Expand the guide's S-C-S arcs to a polyline BEFORE offsetting: the
+    // per-vertex normal used to offset must follow the true arc TANGENT.
+    // Offsetting the raw control points instead derives the endpoint normal
+    // from the chord (control point → endpoint), which diverges wildly from
+    // the arc tangent on a strongly-curved end arc — the band then overshoots
+    // past the guide's end and tilts. Sampled points carry no `type`, so the
+    // band renders as straight sub-segments (butt caps end it flush on the
+    // guide's transverse end-cut).
+    const guidePoly = expandArcsInPath(
       points,
+      EXTRUSION_BAND_ARC_SAMPLES,
+      closeLine
+    );
+    const offsetPts = offsetPointsAlongNormals(
+      guidePoly,
       metrics.offset,
       closeLine
     );
