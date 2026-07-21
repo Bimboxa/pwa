@@ -1753,7 +1753,10 @@ function NodePolylineStatic({
           stroke={strokeColor}
           strokeWidth={inlineExtrusionBand.width}
           strokeOpacity={0.5}
-          strokeLinecap="round"
+          // Butt caps: the 3D sweep ends FLUSH at the guide's end
+          // cross-section (a straight transverse cut) — round caps would
+          // bulge half the band width past each end (lollipop ends).
+          strokeLinecap="butt"
           strokeLinejoin="round"
           data-part-id={`${annotationId}::MAIN`}
           data-part-type="MAIN"
