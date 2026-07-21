@@ -14,8 +14,11 @@
 // dome's inner hole (r < rMin, line not reaching its axis) the sheet spans
 // flat at h_i(rMin); beyond rMax the dome contributes nothing.
 //
-// Output: a Steiner point field [{x, y, offsetTop}] (exact on-line samples
-// first, then grid nodes) evaluated through the drape — consumed by
+// Output: { points, drapeAt } where `points` is the Steiner field
+// [{x, y, offsetTop}] (exact on-line samples first, then grid nodes)
+// evaluated through the drape, and `drapeAt({x, y})` evaluates the sheet
+// height anywhere (used to pin the hole rims: the sheet stops SHARP at a
+// cut, it must not fall back to the ring's own offsets there). Consumed by
 // buildDomeTopMesh (Delaunay top mesh) in triangulateAnnotationGeometry.
 //
 // Units: x/y in any consistent 2D unit (basemap-local for 3D, meters for
@@ -171,16 +174,28 @@ export default function computeDomeSteinerField({
 
   // --- Local domes (revolution of each line around its own axis) ----------
   // Radial samples (r, h) along the line, densified so the envelope follows
-  // the plan geometry (r is not linear in the curvilinear abscissa).
+  // the plan geometry (r is not linear in the curvilinear abscissa). The line
+  // is SPLIT at its closest approach to the axis and only the LONGEST strand
+  // is revolved — a clean single generatrix instead of the two overlapping
+  // branches of a through-going profile.
   const SAMPLE_STEP = h / 2;
   const domes = lines.map((pl) => {
     const M = {
       x: (pl[0].x + pl[pl.length - 1].x) / 2,
       y: (pl[0].y + pl[pl.length - 1].y) / 2,
     };
-    const samples = [];
+    // Dense samples along the whole line, with cumulative 3D length (plan +
+    // height): a straight profile has equal-length strands in plan (the axis
+    // IS the midpoint), so the split must weigh the vertical development —
+    // the strand carrying the apex is the longer generatrix.
+    const all = [];
+    let cum = 0;
     const pushSample = (x, y, hh) => {
-      samples.push({ r: Math.hypot(x - M.x, y - M.y), h: hh });
+      if (all.length > 0) {
+        const prev = all[all.length - 1];
+        cum += Math.hypot(x - prev.x, y - prev.y, hh - prev.h);
+      }
+      all.push({ x, y, h: hh, s: cum, r: Math.hypot(x - M.x, y - M.y) });
     };
     for (let i = 0; i < pl.length; i++) {
       const hi = Number(pl[i].height) || 0;
@@ -201,6 +216,15 @@ export default function computeDomeSteinerField({
         }
       }
     }
+    // Split at the closest approach to the axis; revolve the longest strand.
+    let iMin = 0;
+    for (let i = 1; i < all.length; i++) {
+      if (all[i].r < all[iMin].r) iMin = i;
+    }
+    const lenA = all[iMin].s - all[0].s;
+    const lenB = all[all.length - 1].s - all[iMin].s;
+    const strand = lenA >= lenB ? all.slice(0, iMin + 1) : all.slice(iMin);
+    const samples = strand.map(({ r, h: hh }) => ({ r, h: hh }));
     let rMin = Infinity;
     let rMax = -Infinity;
     let hAtRMin = 0;
@@ -329,5 +353,5 @@ export default function computeDomeSteinerField({
 
   if (exact.length === 0 && gridOut.length === 0) return null;
 
-  return [...exact, ...gridOut];
+  return { points: [...exact, ...gridOut], drapeAt };
 }

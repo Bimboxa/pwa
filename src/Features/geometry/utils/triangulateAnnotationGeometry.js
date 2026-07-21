@@ -383,12 +383,23 @@ function buildDomeTopMesh(rawContour, holes, preparedProfiles) {
   const validHoles = (holes || [])
     .filter((h) => Array.isArray(h) && h.length >= 3)
     .map((h) => densifyRing(h, spacing / 2));
-  const field = computeDomeSteinerField({
+  const result = computeDomeSteinerField({
     contour,
     holes: validHoles,
     profiles: preparedProfiles,
   });
+  const field = result?.points;
   if (!field?.length) return null;
+
+  // The sheet stops SHARP at a cut: hole rim vertices carry the DRAPE height
+  // (not their own offsets), so the top face ends at the sheet level and the
+  // hole wall becomes a vertical cliff — instead of the surface being pulled
+  // down to the ring offsets (crater artifact).
+  for (const hole of validHoles) {
+    for (const p of hole) {
+      p.offsetTop = result.drapeAt(p);
+    }
+  }
 
   // Dedupe field points against the ring vertices and one another —
   // duplicate points make Delaunay degenerate.
