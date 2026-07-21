@@ -13,6 +13,36 @@ import expandShellProfileArcs from "./expandShellProfileArcs";
 // 3D mesh, the visible iso lines and the developed-surface quantity all agree.
 export const ISO_BAND_LEVELS = 12;
 
+// Memo cache for the shell build (the DOME drape + Delaunay costs ~5-10 ms):
+// the resolve/rebuild pipelines re-run the FULL triangulation of every
+// annotation on each db write, so identical shell inputs must not pay the
+// build twice. Keyed by a rounded-coordinates signature of every input that
+// shapes the result. Insertion-ordered Map used as a small LRU.
+const _shellBuildCache = new Map();
+const SHELL_CACHE_MAX = 32;
+
+function shellBuildSignature(contour, holes, shellProfiles, mode, isoChords) {
+  const num = (v) => Math.round((v || 0) * 1e5);
+  const pt = (p) =>
+    `${num(p.x)},${num(p.y)},${num(p.offsetTop)},${num(p.offsetBottom)}`;
+  const ring = (r) => r.map(pt).join(";");
+  const prof = (p) =>
+    (p?.polyline || [])
+      .map(
+        (q) => `${num(q.x)},${num(q.y)},${num(q.height)},${q.type === "circle" ? 1 : 0}`
+      )
+      .join(";");
+  const iso = (c) =>
+    `${(c?.polyline || []).map((q) => `${num(q.x)},${num(q.y)}`).join(";")}|${num(c?.height)}`;
+  return [
+    mode,
+    ring(contour),
+    (holes || []).map(ring).join("#"),
+    (shellProfiles || []).map(prof).join("#"),
+    (isoChords || []).map(iso).join("#"),
+  ].join("§");
+}
+
 // Triangulate a 2D contour (+ optional holes) into a non-planar 3D mesh,
 // applying per-point Z lifts. Used both for 3D rendering (extrudeClosedShape's
 // per-vertex-Z path) and for quantity computation (getAnnotationQties), so the
@@ -94,85 +124,132 @@ export default function triangulateAnnotationGeometry({
   if (shell?.profiles?.length) {
     isoBandLevels = 0;
 
-    // Constraint set = profiles (per-vertex heights, contour-inheriting
-    // endpoints, vertical S-C-S arcs expanded into samples) + iso chords
-    // (constant height, contour-PINNING endpoints).
-    const constraintLines = [
-      ...shell.profiles.map((p) => ({
-        polyline: expandShellProfileArcs(p.polyline),
-        inheritEndpoints: true,
-      })),
-      ...(isoPartition?.isoChords || []).map((c) => ({
-        polyline: (c?.polyline || []).map((p) => ({
-          x: p.x,
-          y: p.y,
-          height: Number(c?.height) || 0,
+    const sig = shellBuildSignature(
+      contour,
+      validHoles,
+      shell.profiles,
+      shell.mode === "TENT" ? "TENT" : "DOME",
+      isoPartition?.isoChords
+    );
+    // Ridge segments depend on the caller's height / verticalLift (qties
+    // call with height 0, the 3D build with the annotation height) — they are
+    // rebuilt from the prepared polylines on both cache paths, and the cache
+    // key stays caller-independent.
+    const buildRidgeSegments = (polylines) => {
+      const segs = [];
+      for (const pl of polylines) {
+        for (let i = 0; i < pl.length - 1; i++) {
+          segs.push([
+            pl[i].x,
+            pl[i].y,
+            verticalLift + height + (pl[i].height || 0) + zFightOffset,
+            pl[i + 1].x,
+            pl[i + 1].y,
+            verticalLift + height + (pl[i + 1].height || 0) + zFightOffset,
+          ]);
+        }
+      }
+      return segs;
+    };
+
+    const cached = _shellBuildCache.get(sig);
+    if (cached) {
+      // Refresh LRU recency.
+      _shellBuildCache.delete(sig);
+      _shellBuildCache.set(sig, cached);
+      if (cached.shellApplied) {
+        contour = cached.contour;
+        validHoles = cached.validHoles;
+        bandedTris = cached.bandedTris;
+        extraPts = cached.extraPts;
+        isoPartitionApplied = cached.isoPartitionApplied;
+        shellApplied = cached.shellApplied;
+      }
+      shellProfileSegments = buildRidgeSegments(cached.preparedPolylines);
+      isoPartition = null; // absorbed
+    } else {
+      // Constraint set = profiles (per-vertex heights, contour-inheriting
+      // endpoints, vertical S-C-S arcs expanded into samples) + iso chords
+      // (constant height, contour-PINNING endpoints).
+      const constraintLines = [
+        ...shell.profiles.map((p) => ({
+          polyline: expandShellProfileArcs(p.polyline),
+          inheritEndpoints: true,
         })),
-        inheritEndpoints: false,
-      })),
-    ];
-    isoPartition = null; // absorbed above
+        ...(isoPartition?.isoChords || []).map((c) => ({
+          polyline: (c?.polyline || []).map((p) => ({
+            x: p.x,
+            y: p.y,
+            height: Number(c?.height) || 0,
+          })),
+          inheritEndpoints: false,
+        })),
+      ];
+      isoPartition = null; // absorbed above
 
-    // Resolve crossings once (shared junction vertex objects + averaged
-    // heights) — used by both modes.
-    const prepared = prepareShellProfiles({ profiles: constraintLines });
+      // Resolve crossings once (shared junction vertex objects + averaged
+      // heights) — used by both modes.
+      const prepared = prepareShellProfiles({ profiles: constraintLines });
 
-    // 3D profile ridge segments (drawn by the caller as surface lines).
-    shellProfileSegments = [];
-    for (const prof of prepared) {
-      const pl = prof.polyline;
-      for (let i = 0; i < pl.length - 1; i++) {
-        shellProfileSegments.push([
-          pl[i].x,
-          pl[i].y,
-          verticalLift + height + (pl[i].height || 0) + zFightOffset,
-          pl[i + 1].x,
-          pl[i + 1].y,
-          verticalLift + height + (pl[i + 1].height || 0) + zFightOffset,
-        ]);
+      // 3D profile ridge segments (drawn by the caller as surface lines).
+      const preparedPolylines = prepared.map((p) => p.polyline);
+      shellProfileSegments = buildRidgeSegments(preparedPolylines);
+
+      const wantDome = shell.mode !== "TENT";
+      if (wantDome) {
+        const domeTri = buildDomeTopMesh(contour, validHoles, prepared);
+        if (domeTri) {
+          contour = domeTri.augContour;
+          validHoles = domeTri.augHoles;
+          bandedTris = domeTri.tris;
+          extraPts = domeTri.extraPoints;
+          shellApplied = "DOME";
+        }
       }
-    }
-
-    const wantDome = shell.mode !== "TENT";
-    if (wantDome) {
-      const domeTri = buildDomeTopMesh(contour, validHoles, prepared);
-      if (domeTri) {
-        contour = domeTri.augContour;
-        validHoles = domeTri.augHoles;
-        bandedTris = domeTri.tris;
-        extraPts = domeTri.extraPoints;
-        shellApplied = "DOME";
+      if (!shellApplied) {
+        const part = partitionPolygonByChords({
+          contour,
+          holes: validHoles,
+          chords: prepared.map((p) => ({
+            polyline: p.polyline,
+            inheritEndpoints: p.inheritEndpoints,
+          })),
+        });
+        if (part) {
+          contour = part.augContour;
+          validHoles = part.augHoles;
+          bandedTris = part.tris;
+          extraPts = part.extraPoints;
+          isoPartitionApplied = true; // planar strips → sketch fold edges
+          shellApplied = "TENT";
+        }
       }
-    }
-    if (!shellApplied) {
-      const part = partitionPolygonByChords({
+      // TENT failure (e.g. chords crossing a hole) falls back to the DOME
+      // drape, which handles holes natively; then plain per-vertex-z earcut.
+      if (!shellApplied && !wantDome) {
+        const domeTri = buildDomeTopMesh(contour, validHoles, prepared);
+        if (domeTri) {
+          contour = domeTri.augContour;
+          validHoles = domeTri.augHoles;
+          bandedTris = domeTri.tris;
+          extraPts = domeTri.extraPoints;
+          shellApplied = "DOME";
+        }
+      }
+
+      // Cache the build (results are treated as immutable downstream).
+      if (_shellBuildCache.size >= SHELL_CACHE_MAX) {
+        _shellBuildCache.delete(_shellBuildCache.keys().next().value);
+      }
+      _shellBuildCache.set(sig, {
+        shellApplied,
         contour,
-        holes: validHoles,
-        chords: prepared.map((p) => ({
-          polyline: p.polyline,
-          inheritEndpoints: p.inheritEndpoints,
-        })),
+        validHoles,
+        bandedTris,
+        extraPts,
+        isoPartitionApplied,
+        preparedPolylines,
       });
-      if (part) {
-        contour = part.augContour;
-        validHoles = part.augHoles;
-        bandedTris = part.tris;
-        extraPts = part.extraPoints;
-        isoPartitionApplied = true; // planar strips → sketch fold edges
-        shellApplied = "TENT";
-      }
-    }
-    // TENT failure (e.g. chords crossing a hole) falls back to the DOME
-    // drape, which handles holes natively; then plain per-vertex-z earcut.
-    if (!shellApplied && !wantDome) {
-      const domeTri = buildDomeTopMesh(contour, validHoles, prepared);
-      if (domeTri) {
-        contour = domeTri.augContour;
-        validHoles = domeTri.augHoles;
-        bandedTris = domeTri.tris;
-        extraPts = domeTri.extraPoints;
-        shellApplied = "DOME";
-      }
     }
   }
 

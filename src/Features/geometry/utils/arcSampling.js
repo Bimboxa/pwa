@@ -408,6 +408,40 @@ export function expandArcsInPathAdaptive(
 
 const lerp = (a, b, t) => a + (b - a) * t;
 
+// Directional sweep angle (radians, absolute) of the arc from `from` to `to`
+// around `center` — same normalization as sampleArcPoints.
+function arcSweepAngle(center, from, to, isCW) {
+  const a0 = angleFromCenter(center, from);
+  const a1 = angleFromCenter(center, to);
+  const TWO_PI = Math.PI * 2;
+  let diff = a1 - a0;
+  if (isCW) {
+    while (diff < 0) diff += TWO_PI;
+    while (diff >= TWO_PI) diff -= TWO_PI;
+  } else {
+    while (diff > 0) diff -= TWO_PI;
+    while (diff <= -TWO_PI) diff += TWO_PI;
+  }
+  return Math.abs(diff);
+}
+
+// Angle-adaptive per-half-arc sample count for the per-vertex-Z mesh paths
+// (extrudeClosedShape + getAnnotationQties developed surface — MUST stay
+// shared so the rendered mesh and the computed quantities agree): a full
+// circle reads as ~SEGMENTS_PER_FULL_CIRCLE segments, while short fillet
+// arcs keep a handful of samples instead of a fixed dense count (fixed 24
+// per half-arc made every arc annotation ~4× heavier on each rebuild).
+export const SEGMENTS_PER_FULL_CIRCLE = 24;
+export function adaptiveArcSamples(spanRad) {
+  return Math.max(
+    2,
+    Math.min(
+      12,
+      Math.ceil((spanRad * SEGMENTS_PER_FULL_CIRCLE) / (2 * Math.PI))
+    )
+  );
+}
+
 /**
  * Same geometry as `expandArcsInPath`, but also carries per-vertex
  * `offsetTop` / `offsetBottom` onto the sampled arc points by linearly
@@ -418,11 +452,18 @@ const lerp = (a, b, t) => a + (b - a) * t;
  * corner follows the ramp instead of collapsing onto the chord polygon of
  * its control points. Single-sourced so the rendered mesh and the computed
  * developed surface stay in sync.
+ *
+ * `samples` is a per-HALF-arc count: either a number, or a function
+ * (spanRadians) => count for angle-adaptive sampling (adaptiveArcSamples).
  */
 export function expandRingWithOffsets(ring, samples = 6, closeLine = false) {
   const n = (ring || []).length;
   if (n < 3) return (ring || []).map((p) => ({ ...p }));
   const get = closeLine ? (k) => ring[((k % n) + n) % n] : (k) => ring[k];
+  const resolveSamples = (center, from, to, isCW) =>
+    typeof samples === "function"
+      ? samples(arcSweepAngle(center, from, to, isCW))
+      : samples;
   const out = [];
   let i = 0;
   let consumed = 0;
@@ -448,17 +489,12 @@ export function expandRingWithOffsets(ring, samples = 6, closeLine = false) {
         const b1 = p1.offsetBottom ?? 0;
         const t2 = p2.offsetTop ?? 0;
         const b2 = p2.offsetBottom ?? 0;
+        const s01 = resolveSamples(circ.center, p0, p1, isCW);
+        const s12 = resolveSamples(circ.center, p1, p2, isCW);
         out.push({ ...p0 });
-        const arc01 = sampleArcPoints(
-          p0,
-          p1,
-          circ.center,
-          circ.r,
-          isCW,
-          samples
-        );
+        const arc01 = sampleArcPoints(p0, p1, circ.center, circ.r, isCW, s01);
         arc01.forEach((s, k) => {
-          const f = (k + 1) / samples;
+          const f = (k + 1) / s01;
           out.push({
             x: s.x,
             y: s.y,
@@ -466,16 +502,9 @@ export function expandRingWithOffsets(ring, samples = 6, closeLine = false) {
             offsetBottom: lerp(b0, b1, f),
           });
         });
-        const arc12 = sampleArcPoints(
-          p1,
-          p2,
-          circ.center,
-          circ.r,
-          isCW,
-          samples
-        );
+        const arc12 = sampleArcPoints(p1, p2, circ.center, circ.r, isCW, s12);
         for (let k = 0; k < arc12.length - 1; k++) {
-          const f = (k + 1) / samples;
+          const f = (k + 1) / s12;
           out.push({
             x: arc12[k].x,
             y: arc12[k].y,

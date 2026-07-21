@@ -19,14 +19,16 @@ import {
 import triangulateAnnotationGeometry, {
   ISO_BAND_LEVELS,
 } from "Features/geometry/utils/triangulateAnnotationGeometry";
-import { expandRingWithOffsets } from "Features/geometry/utils/arcSampling";
+import {
+  expandRingWithOffsets,
+  adaptiveArcSamples,
+} from "Features/geometry/utils/arcSampling";
 import extractPlanarSketchEdges from "Features/threedEditor/js/postfx/extractPlanarSketchEdges";
 
-// Segments per S-C-S arc when expanding rings for the per-vertex-Z mesh
-// paths — 24 so a (near-)full circle reads as a smooth circle in 3D. Must
-// stay in sync with getAnnotationQties' ARC_SAMPLES (the developed surface
-// is computed on the same expanded rings).
-const ARC_SAMPLES = 24;
+// Angle-adaptive per-arc sampling (shared with getAnnotationQties' developed
+// surface so mesh and quantities agree): a full circle reads as ~24 segments,
+// short fillet arcs keep a handful of samples.
+const ARC_SAMPLES = adaptiveArcSamples;
 
 function getCircleInfo(p0, p1, p2) {
   const x1 = p0.x;

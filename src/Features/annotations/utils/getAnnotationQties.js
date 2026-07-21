@@ -6,16 +6,20 @@ import triangulateAnnotationGeometry, {
 import {
   expandRingWithOffsets,
   expandRingWithOffsetsAndHiddenMap,
+  adaptiveArcSamples,
 } from "Features/geometry/utils/arcSampling";
 import getGuideLineStairsLayout, {
   findStairsGuideLine,
 } from "Features/annotations/utils/getGuideLineStairsLayout";
 import { getEffectiveShellMode } from "Features/annotations/constants/shape3DConfig";
 
-// Match the ARC_SAMPLES used by the 3D mesh builder (extrudeClosedShape) so the
-// developed surface is triangulated on the SAME arc-expanded contour as the
-// rendered geometry.
-const ARC_SAMPLES = 24;
+// Match the sampling used by the 3D mesh builders so quantities are computed
+// on the SAME arc-expanded rings as the rendered geometry:
+//   - developed surface path → extrudeClosedShape (angle-adaptive, ~24
+//     segments per full circle),
+//   - wall path → extrudePolylineWall (GUIDE_ARC_SAMPLES = 6 per half-arc).
+const ARC_SAMPLES = adaptiveArcSamples;
+const WALL_ARC_SAMPLES = 6;
 
 // True iff any point on the contour, any cut, or any innerPoint carries a
 // non-zero offsetBottom / offsetTop. Used to gate the per-vertex-Z surface
@@ -458,7 +462,7 @@ export default function getAnnotationQties({
         const { points: wallPts, hiddenSegmentsIdx: wallHidden } =
           expandRingWithOffsetsAndHiddenMap(
             points,
-            ARC_SAMPLES,
+            WALL_ARC_SAMPLES,
             annotation.hiddenSegmentsIdx || [],
             !!closeLine
           );
