@@ -11,11 +11,42 @@ import {
   DoubleSide,
 } from "three";
 
+import extractPlanarSketchEdges from "../postfx/extractPlanarSketchEdges.js";
+
 const EDGE_MATERIAL = new LineBasicMaterial({
   color: 0x000000,
   transparent: true,
   opacity: 0.5,
 });
+
+// Edge lines of the wall mesh. The quads are independent (no shared vertices
+// between adjacent segments), so EdgesGeometry treats every quad border as a
+// boundary edge and draws vertical seams across coplanar faces (arc samples,
+// stairs subdivisions, opening splits). Coalescing coplanar faces keeps only
+// the true outline of each planar cluster; the corner edge shared by two
+// clusters comes out once per cluster, so identical segments are deduped to
+// keep the original stroke opacity. Falls back to EdgesGeometry when the
+// extraction is unusable.
+function buildWallEdges(geom) {
+  const positions = extractPlanarSketchEdges(geom);
+  if (!positions?.length) {
+    return new LineSegments(new EdgesGeometry(geom), EDGE_MATERIAL);
+  }
+  const deduped = [];
+  const seen = new Set();
+  const q = (v) => Math.round(v * 1e4);
+  for (let i = 0; i + 5 < positions.length; i += 6) {
+    const a = `${q(positions[i])},${q(positions[i + 1])},${q(positions[i + 2])}`;
+    const b = `${q(positions[i + 3])},${q(positions[i + 4])},${q(positions[i + 5])}`;
+    const key = a <= b ? `${a}|${b}` : `${b}|${a}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    for (let k = 0; k < 6; k++) deduped.push(positions[i + k]);
+  }
+  const edgeGeom = new BufferGeometry();
+  edgeGeom.setAttribute("position", new Float32BufferAttribute(deduped, 3));
+  return new LineSegments(edgeGeom, EDGE_MATERIAL);
+}
 
 // Span (top_z - bottom_z) at a single corner. With the new convention the
 // wall top stays fixed at (verticalLift + height + offsetTop): only the bottom
@@ -141,7 +172,7 @@ export default function extrudePolylineWall(
   wallMat.side = DoubleSide;
   group.add(new Mesh(geom, wallMat));
 
-  group.add(new LineSegments(new EdgesGeometry(geom), EDGE_MATERIAL));
+  group.add(buildWallEdges(geom));
 
   return group;
 }
