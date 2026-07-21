@@ -3,15 +3,16 @@ import getInlineExtrusionSetup from "Features/annotations/utils/getInlineExtrusi
 
 const GUIDE_ARC_SAMPLES = 6;
 
-// 2D plan footprint of the inline "Extrusion" (POLYLINE + profileLines): a
-// thick band along the guide showing the swept profile's transverse extents
-// (same registration as the 3D sweep — u offsets from the crossed segment's
-// extremity, mapped onto the right-of-tangent normal). One quad per visible
-// guide segment, in PIXEL space, ready to render as a filled band.
+// Metrics of the inline "Extrusion" band (POLYLINE + profileLines): the plan
+// projection of the swept profile is rendered as ONE thick stroke along the
+// guide — offset to the CENTER of the profile's transverse extents, with the
+// extents' width. Same registration as the 3D sweep (u offsets from the
+// crossed segment's extremity, right-of-tangent normal).
 //
 // Input: RESOLVED annotation (points + profileLines in px, heights meters).
-// Returns [{ points: [{x, y}×4] }] or null.
-export default function getInlineExtrusionBandShapes(annotation, meterByPx) {
+// Returns { offset, width } in image px (offset along the right-of-tangent
+// normal, matching offsetPointsAlongNormals), or null.
+export default function getInlineExtrusionBandMetrics(annotation, meterByPx) {
   if (annotation?.type !== "POLYLINE") return null;
   const line = (annotation.profileLines || []).find(
     (l) => (l?.points?.length ?? 0) >= 2
@@ -35,30 +36,8 @@ export default function getInlineExtrusionBandShapes(annotation, meterByPx) {
   });
   if (!setup) return null;
   const { uMin, uMax } = setup.extents;
-  if (!(uMax - uMin > 1e-6)) return null;
+  const width = uMax - uMin;
+  if (!(width > 1e-6)) return null;
 
-  const hidden = new Set(annotation.hiddenSegmentsIdx || []);
-  const n = guide.length;
-  const segCount = annotation.closeLine ? n : n - 1;
-  const shapes = [];
-  for (let i = 0; i < segCount; i += 1) {
-    if (hidden.has(i)) continue;
-    const a = guide[i];
-    const b = guide[(i + 1) % n];
-    const dx = b.x - a.x;
-    const dy = b.y - a.y;
-    const len = Math.hypot(dx, dy);
-    if (len < 1e-9) continue;
-    const nx = dy / len;
-    const ny = -dx / len;
-    shapes.push({
-      points: [
-        { x: a.x + nx * uMin, y: a.y + ny * uMin },
-        { x: b.x + nx * uMin, y: b.y + ny * uMin },
-        { x: b.x + nx * uMax, y: b.y + ny * uMax },
-        { x: a.x + nx * uMax, y: a.y + ny * uMax },
-      ],
-    });
-  }
-  return shapes.length > 0 ? shapes : null;
+  return { offset: (uMin + uMax) / 2, width };
 }

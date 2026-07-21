@@ -60,7 +60,7 @@ import getGuideLineStairsLayout, {
 import coerceAnnotationNumericFields from "Features/annotations/utils/coerceAnnotationNumericFields";
 import { expandArcsInPath } from "Features/geometry/utils/arcSampling";
 import useProfileResolution from "Features/annotations/hooks/useProfileResolution";
-import getInlineExtrusionBandShapes from "Features/annotations/utils/getInlineExtrusionBandShapes";
+import getInlineExtrusionBandMetrics from "Features/annotations/utils/getInlineExtrusionBandShapes";
 import NodeLabelStatic from "./NodeLabelStatic";
 import getInnerOffsetSegmentPath from "Features/mapEditorGeneric/utils/getInnerOffsetSegmentPath";
 
@@ -1360,15 +1360,29 @@ function NodePolylineStatic({
   }, [type, mergedAnnotation.profileLines, annotationId]);
 
   // Inline "Extrusion" band (POLYLINE + profileLines): plan footprint of the
-  // swept profile — a thick band along the guide showing the transverse
-  // extents of the cross-section, with the sweep's own registration.
+  // swept profile — ONE thick stroke along the guide, offset to the center of
+  // the profile's transverse extents, width = the extents (image px, scales
+  // with zoom). Clickable: it lives inside the node group, so clicking it
+  // selects the annotation.
   const inlineExtrusionBand = useMemo(() => {
     if (type !== "POLYLINE") return null;
     if (!mergedAnnotation.profileLines?.some((l) => l?.points?.length >= 2)) {
       return null;
     }
-    return getInlineExtrusionBandShapes(mergedAnnotation, baseMapMeterByPx);
-  }, [type, mergedAnnotation, baseMapMeterByPx]);
+    const metrics = getInlineExtrusionBandMetrics(
+      mergedAnnotation,
+      baseMapMeterByPx
+    );
+    if (!metrics) return null;
+    const offsetPts = offsetPointsAlongNormals(
+      points,
+      metrics.offset,
+      closeLine
+    );
+    const { d } = buildPathAndMap(offsetPts, closeLine);
+    if (!d) return null;
+    return { d, width: metrics.width };
+  }, [type, mergedAnnotation, baseMapMeterByPx, points, closeLine]);
 
   // Stairs nosings: transverse strokes (one per step) clipped to the polygon
   // outline, for every guideLine flagged `isStairs`. Always visible (they are
@@ -1729,22 +1743,24 @@ function NodePolylineStatic({
       {renderExtrusionOffset()}
 
       {/* Inline "Extrusion" band: plan footprint of the profile swept along
-          the whole chain (transverse extents, sweep registration). Drawn
-          under the main strokes in the annotation color. */}
-      {inlineExtrusionBand &&
-        inlineExtrusionBand.map((shape, si) => (
-          <polygon
-            key={`extrusion-band-${si}`}
-            points={shape.points.map((p) => `${p.x},${p.y}`).join(" ")}
-            fill={fillColor || strokeColor}
-            fillOpacity={0.18}
-            stroke={strokeColor}
-            strokeWidth={1}
-            strokeOpacity={0.35}
-            vectorEffect="non-scaling-stroke"
-            style={{ pointerEvents: "none" }}
-          />
-        ))}
+          the whole chain — ONE thick stroke (real-world width, centered on
+          the projection's middle), behind the main strokes. Clickable so the
+          band selects the annotation. */}
+      {inlineExtrusionBand && (
+        <path
+          d={inlineExtrusionBand.d}
+          fill="none"
+          stroke={strokeColor}
+          strokeWidth={inlineExtrusionBand.width}
+          strokeOpacity={0.5}
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          data-part-id={`${annotationId}::MAIN`}
+          data-part-type="MAIN"
+          data-node-id={annotationId}
+          style={{ cursor: "pointer" }}
+        />
+      )}
 
       {/* STROKES (Main) — continuous visual runs, then per-segment hit areas */}
       {strokeType !== "NONE" &&
