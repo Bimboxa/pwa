@@ -67,6 +67,11 @@ export default function ElevationProfileSectionSvg({
   onCommitOffsetZ,
   hoverWorldPos = null,
   onInsertVertex,
+  // POLYLINE extrusion: reference "trait" = the crossed guide segment
+  // projected on the section plane ({ extremities: [{s, y}×2],
+  // anchorExtremityIndex }). Its extremities are the registration/snap
+  // targets of the 3D sweep.
+  guideTrait = null,
 }) {
   const theme = useTheme();
   const secondary = theme.palette.secondary.main;
@@ -118,10 +123,14 @@ export default function ElevationProfileSectionSvg({
     );
     if (!proj) return null;
     if (proj.distance * zoom > 24) return null;
-    // Segment index + parameter from the arc-length `s`.
+    // Locate the segment + parameter from the projected point's ABSCISSA
+    // (section X = s). proj.s is the arc-length along the sloped (s, topY)
+    // polyline — comparing it to the vertices' s (their x) would overshoot on
+    // a sloped section and drop the point away from the click.
+    const px = proj.projected.x;
     let segIndex = 0;
     for (let j = 0; j < verts.length - 1; j++) {
-      if (proj.s >= verts[j].s && proj.s <= verts[j + 1].s + 1e-9) {
+      if (px >= verts[j].s - 1e-9 && px <= verts[j + 1].s + 1e-9) {
         segIndex = j;
         break;
       }
@@ -129,7 +138,7 @@ export default function ElevationProfileSectionSvg({
     const a = verts[segIndex];
     const b = verts[segIndex + 1];
     const span = Math.max(b.s - a.s, 1e-9);
-    const t = Math.max(0, Math.min(1, (proj.s - a.s) / span));
+    const t = Math.max(0, Math.min(1, (px - a.s) / span));
     return {
       x: proj.projected.x,
       y: proj.projected.y,
@@ -143,12 +152,22 @@ export default function ElevationProfileSectionSvg({
 
   let xMin = Infinity;
   let xMax = -Infinity;
+  let yTop = 0;
+  let yBottom = 0;
   for (const v of vertices) {
     if (v.s < xMin) xMin = v.s;
     if (v.s > xMax) xMax = v.s;
+    if (v.topY < yTop) yTop = v.topY;
+    if (v.topY > yBottom) yBottom = v.topY;
+  }
+  if (guideTrait?.footprint?.y != null) {
+    if (guideTrait.footprint.y < yTop) yTop = guideTrait.footprint.y;
+    if (guideTrait.footprint.y > yBottom) yBottom = guideTrait.footprint.y;
   }
   const span = Math.max(xMax - xMin, 1);
   const xPad = span * 0.08 + 10;
+  const yExtent = Math.max(yBottom - yTop, 1);
+  const yPad = yExtent * 0.15 + 10;
 
   const COUNTER_ZOOM = { transform: "scale(calc(1 / var(--map-zoom, 1)))" };
   const HALF = 5;
@@ -183,6 +202,61 @@ export default function ElevationProfileSectionSvg({
         strokeDasharray="6 4"
         vectorEffect="non-scaling-stroke"
       />
+
+      {/* POLYLINE extrusion reference trait: the FULL polyline footprint
+          projected on the section plane (horizontal line), with the crossed
+          guide segment's extremities as snap / registration targets (anchor
+          extremity filled). */}
+      {guideTrait && guideTrait.extremities?.length === 2 && (
+        <g style={{ pointerEvents: "none" }}>
+          <line
+            x1={guideTrait.footprint?.s1 ?? guideTrait.extremities[0].s}
+            y1={guideTrait.footprint?.y ?? guideTrait.extremities[0].y}
+            x2={guideTrait.footprint?.s2 ?? guideTrait.extremities[1].s}
+            y2={guideTrait.footprint?.y ?? guideTrait.extremities[1].y}
+            stroke="#2962ff"
+            strokeWidth={2}
+            vectorEffect="non-scaling-stroke"
+          />
+          {guideTrait.extremities.map((ext, ei) => (
+            <g
+              key={`trait-ext-${ei}`}
+              transform={`translate(${ext.s}, ${ext.y})`}
+            >
+              <g style={COUNTER_ZOOM}>
+                <circle
+                  r={HALF - 1}
+                  fill={
+                    ei === guideTrait.anchorExtremityIndex
+                      ? "#2962ff"
+                      : "#ffffff"
+                  }
+                  stroke="#2962ff"
+                  strokeWidth={1.5}
+                />
+              </g>
+            </g>
+          ))}
+        </g>
+      )}
+
+      {/* Median axis: vertical dashed line at the guide center (circle
+          center) projected on the profile axis — a snap target for the
+          profile vertices. */}
+      {guideTrait && Number.isFinite(guideTrait.medianS) && (
+        <line
+          x1={guideTrait.medianS}
+          y1={yTop - yPad}
+          x2={guideTrait.medianS}
+          y2={yBottom + yPad}
+          stroke="#2962ff"
+          strokeWidth={1.25}
+          strokeDasharray="5 4"
+          strokeOpacity={0.7}
+          vectorEffect="non-scaling-stroke"
+          style={{ pointerEvents: "none" }}
+        />
+      )}
 
       {/* offset field, left of the Z = 0 line */}
       <g transform={`translate(${xMin - xPad}, 0)`}>

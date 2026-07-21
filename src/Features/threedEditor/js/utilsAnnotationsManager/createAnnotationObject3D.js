@@ -59,6 +59,9 @@ import extrudePolylineWall from "./extrudePolylineWall";
 import buildRevolutionMesh from "./buildRevolutionMesh";
 import getRevolutionPhi from "./getRevolutionPhi";
 import buildExtrudedProfileMesh from "./buildExtrudedProfileMesh";
+import buildInlineExtrusionMesh from "./buildInlineExtrusionMesh";
+import expandShellProfileArcs from "Features/geometry/utils/expandShellProfileArcs";
+import getInlineExtrusionSetup from "Features/annotations/utils/getInlineExtrusionSetup";
 import createObject3DAnnotation from "./createObject3DAnnotation";
 
 // Screen-space thickness (px) of the vertical "trait" rendered for a POINT
@@ -837,6 +840,48 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
           options?.onAsyncLoaded
         );
         break;
+      }
+      // "Extrusion" (inline profile): a POLYLINE carrying profileLines sweeps
+      // its own cross-section along the whole chain — the simple default
+      // mechanism (no separate profile baseMap). Registration against the
+      // crossed guide segment comes from getInlineExtrusionSetup (WYSIWYG
+      // with the Élévation section editor).
+      if (annotation.profileLines?.some((l) => l?.points?.length >= 2)) {
+        const line = annotation.profileLines.find(
+          (l) => l?.points?.length >= 2
+        );
+        const { points: expandedPts, hiddenSegmentsIdx: expandedHidden } =
+          expandArcsInPathWithHiddenMap(
+            annotation.points || [],
+            GUIDE_ARC_SAMPLES,
+            annotation.hiddenSegmentsIdx || [],
+            !!annotation.closeLine
+          );
+        const guideLocal = pointsToLocal(expandedPts, baseMap);
+        // Profile in basemap-local units, heights (m) re-attached by index,
+        // vertical S-C-S arcs expanded.
+        const profileLocal = expandShellProfileArcs(
+          pointsToLocal(line.points, baseMap).map((q, i) => ({
+            ...q,
+            height: Number(line.points[i]?.height) || 0,
+          }))
+        );
+        const setup = getInlineExtrusionSetup({
+          guidePoints: guideLocal,
+          profilePoints: profileLocal,
+          closeLine: !!annotation.closeLine,
+        });
+        if (setup) {
+          object = buildInlineExtrusionMesh({
+            guidePointsLocal: guideLocal,
+            crossSection: setup.crossSection,
+            material,
+            verticalLift,
+            hiddenSegmentsIdx: expandedHidden,
+            closeLine: !!annotation.closeLine,
+          });
+          if (object) break;
+        }
       }
       // CM-width polylines have a real-world stroke width — render them as
       // an extruded polygon (using the same offset algorithm as the 2D

@@ -1232,7 +1232,9 @@ export default function useAnnotationsV2(options) {
             // offsetTop (baked here, AFTER the iso pinning so an endpoint
             // landing on an iso-pinned vertex inherits the pinned height).
             // Single source of truth for 2D / elevation / 3D.
-            if (hasProfileLines) {
+            // POLYGON shells only — POLYLINE extrusion profiles are FREE
+            // cross-sections (all vertices keep their own inline height).
+            if (hasProfileLines && annotation.type === "POLYGON") {
               _annotation.profileLines = applyProfileEndpointContinuity({
                 profileLines: _annotation.profileLines,
                 points: _annotation.points,

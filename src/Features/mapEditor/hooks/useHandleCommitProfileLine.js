@@ -46,29 +46,41 @@ export default function useHandleCommitProfileLine() {
     const imageSize = baseMapRecord?.image?.imageSize;
     if (!imageSize?.width || !imageSize?.height) return;
 
-    const rings = await getAnnotationContourRingsPx(ann, imageSize);
+    // POLYGON shells: endpoints anchor on the contour (projected + heights
+    // derived at resolve time — continuity). POLYLINE extrusions: the profile
+    // is a FREE cross-section (endpoints keep their drawn position and carry
+    // their own height, default 0).
+    const isPolygon = ann.type === "POLYGON";
 
-    const snappedPts = pixelPts.map((p, i) =>
-      i === 0 || i === pixelPts.length - 1
-        ? { ...p, ...projectPointOnContourRings(p, rings, CONTOUR_SNAP_TOL_PX) }
-        : p
-    );
-
-    // Default interior heights: lerp between the endpoint contour heights by
-    // cumulative distance along the drawn polyline.
-    const h0 = getContourHeightAt(snappedPts[0], rings);
-    const h1 = getContourHeightAt(snappedPts[snappedPts.length - 1], rings);
-    const cum = [0];
-    for (let i = 1; i < snappedPts.length; i += 1) {
-      cum.push(
-        cum[i - 1] +
-          Math.hypot(
-            snappedPts[i].x - snappedPts[i - 1].x,
-            snappedPts[i].y - snappedPts[i - 1].y
-          )
+    let snappedPts = pixelPts;
+    let heightAt = () => 0;
+    if (isPolygon) {
+      const rings = await getAnnotationContourRingsPx(ann, imageSize);
+      snappedPts = pixelPts.map((p, i) =>
+        i === 0 || i === pixelPts.length - 1
+          ? {
+              ...p,
+              ...projectPointOnContourRings(p, rings, CONTOUR_SNAP_TOL_PX),
+            }
+          : p
       );
+      // Default interior heights: lerp between the endpoint contour heights
+      // by cumulative distance along the drawn polyline.
+      const h0 = getContourHeightAt(snappedPts[0], rings);
+      const h1 = getContourHeightAt(snappedPts[snappedPts.length - 1], rings);
+      const cum = [0];
+      for (let i = 1; i < snappedPts.length; i += 1) {
+        cum.push(
+          cum[i - 1] +
+            Math.hypot(
+              snappedPts[i].x - snappedPts[i - 1].x,
+              snappedPts[i].y - snappedPts[i - 1].y
+            )
+        );
+      }
+      const total = cum[cum.length - 1] || 1;
+      heightAt = (i) => h0 + (h1 - h0) * (cum[i] / total);
     }
-    const total = cum[cum.length - 1] || 1;
 
     const newPoints = snappedPts.map((p) => ({
       id: nanoid(),
@@ -84,15 +96,16 @@ export default function useHandleCommitProfileLine() {
       : [];
     const last = newPoints.length - 1;
     const newProfileLine = {
-      // V1: profile lines carry straight segments only (no arcs) — type is
-      // always "square". Endpoints store NO height (derived from the contour
-      // at resolve time — continuity).
+      // V1: profile lines carry straight segments only at commit — type is
+      // always "square". POLYGON endpoints store NO height (derived from the
+      // contour at resolve time — continuity); POLYLINE vertices all carry an
+      // inline height (free cross-section).
       points: newPoints.map((np, i) => ({
         pointId: np.id,
         type: "square",
-        ...(i === 0 || i === last
+        ...(isPolygon && (i === 0 || i === last)
           ? {}
-          : { height: h0 + (h1 - h0) * (cum[i] / total) }),
+          : { height: heightAt(i) }),
       })),
     };
 

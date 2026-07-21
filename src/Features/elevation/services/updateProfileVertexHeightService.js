@@ -23,7 +23,14 @@ export default async function updateProfileVertexHeightService({
   const annotation = await db.annotations.get(annotationId);
   const line = annotation?.profileLines?.[profileIndex];
   if (!line?.points?.[vertexIndex]) return;
-  if (vertexIndex === 0 || vertexIndex === line.points.length - 1) return;
+  // POLYGON endpoints are continuity-locked; POLYLINE (extrusion) endpoints
+  // are free cross-section vertices.
+  if (
+    annotation.type === "POLYGON" &&
+    (vertexIndex === 0 || vertexIndex === line.points.length - 1)
+  ) {
+    return;
+  }
 
   const h = Number(height) || 0;
   const profileLines = annotation.profileLines.map((l, i) =>

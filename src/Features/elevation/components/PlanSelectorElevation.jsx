@@ -40,8 +40,7 @@ function segmentPathD(points, i, n) {
 
   const circ = circleFromThreePoints(p0, p1, p2);
   if (!circ || !Number.isFinite(circ.r) || circ.r <= 0) return straight;
-  const cross =
-    (p1.x - p0.x) * (p2.y - p0.y) - (p1.y - p0.y) * (p2.x - p0.x);
+  const cross = (p1.x - p0.x) * (p2.y - p0.y) - (p1.y - p0.y) * (p2.x - p0.x);
   const sweep = cross > 0 ? 1 : 0;
   return `M ${a.x} ${a.y} A ${circ.r} ${circ.r} 0 0 ${sweep} ${b.x} ${b.y}`;
 }
@@ -116,29 +115,40 @@ export default function PlanSelectorElevation({
     return () => ro.disconnect();
   }, []);
 
-  // projection line (droite) carried by the seed segment, extended to span the
-  // whole view — this is the axis the elevation is projected onto
+  // projection line (droite): in profile-section mode it is the CUT LINE
+  // carried by the edited profile (parallel to it, through its midpoint);
+  // otherwise the axis carried by the seed segment. Extended to span the
+  // whole view.
   const projectionLine = useMemo(() => {
+    const { minX, minY, maxX, maxY } = bounds;
+    const span = (Math.hypot(maxX - minX, maxY - minY) || 1) * 1.5;
+    const makeLine = (a, b) => {
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const len = Math.hypot(dx, dy) || 1;
+      const ux = dx / len;
+      const uy = dy / len;
+      const cx = (a.x + b.x) / 2;
+      const cy = (a.y + b.y) / 2;
+      return {
+        x1: cx - ux * span,
+        y1: cy - uy * span,
+        x2: cx + ux * span,
+        y2: cy + uy * span,
+      };
+    };
+    if (editedProfileIndex != null) {
+      const pts = (profileLines?.[editedProfileIndex]?.points || []).filter(
+        (p) => typeof p?.x === "number" && typeof p?.y === "number"
+      );
+      if (pts.length >= 2) return makeLine(pts[0], pts[pts.length - 1]);
+    }
     const n = points?.length ?? 0;
     const a = points?.[seedSegmentIndex];
     const b = n > 0 ? points?.[(seedSegmentIndex + 1) % n] : null;
     if (!a || !b) return null;
-    const dx = b.x - a.x;
-    const dy = b.y - a.y;
-    const len = Math.hypot(dx, dy) || 1;
-    const ux = dx / len;
-    const uy = dy / len;
-    const { minX, minY, maxX, maxY } = bounds;
-    const span = (Math.hypot(maxX - minX, maxY - minY) || 1) * 1.5;
-    const cx = (a.x + b.x) / 2;
-    const cy = (a.y + b.y) / 2;
-    return {
-      x1: cx - ux * span,
-      y1: cy - uy * span,
-      x2: cx + ux * span,
-      y2: cy + uy * span,
-    };
-  }, [points, seedSegmentIndex, bounds]);
+    return makeLine(a, b);
+  }, [points, seedSegmentIndex, bounds, profileLines, editedProfileIndex]);
 
   // two arrows on each side of the seed segment → pick the viewing side
   const observationArrows = useMemo(() => {
@@ -326,22 +336,24 @@ export default function PlanSelectorElevation({
           />
         ))}
 
-        {/* observation-side arrows */}
-        {observationArrows?.map((arr) => {
-          const active = arr.sign === observationSign;
-          return (
-            <polygon
-              key={`arrow-${arr.sign}`}
-              points={arr.points}
-              fill={active ? "#76ff03" : "rgba(255,255,255,0.9)"}
-              stroke="#5fae00"
-              strokeWidth={1.5}
-              vectorEffect="non-scaling-stroke"
-              style={{ cursor: "pointer" }}
-              onClick={() => onSetObservation?.(arr.sign)}
-            />
-          );
-        })}
+        {/* observation-side arrows — hidden in profile-section mode (the cut
+            line follows the profile, the wall-mode viewing side is moot) */}
+        {editedProfileIndex == null &&
+          observationArrows?.map((arr) => {
+            const active = arr.sign === observationSign;
+            return (
+              <polygon
+                key={`arrow-${arr.sign}`}
+                points={arr.points}
+                fill={active ? "#76ff03" : "rgba(255,255,255,0.9)"}
+                stroke="#5fae00"
+                strokeWidth={1.5}
+                vectorEffect="non-scaling-stroke"
+                style={{ cursor: "pointer" }}
+                onClick={() => onSetObservation?.(arr.sign)}
+              />
+            );
+          })}
       </svg>
     </Box>
   );

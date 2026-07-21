@@ -17,6 +17,9 @@ export default function buildProfileSectionGeometry({
   meterByPx,
   height = 0,
   offsetZ = 0,
+  // POLYGON shells lock the endpoints (contour continuity); POLYLINE
+  // extrusion cross-sections keep them free.
+  lockEndpoints = true,
 }) {
   if (!Array.isArray(profilePoints) || profilePoints.length < 2) return null;
   if (!meterByPx || !(meterByPx > 0)) return null;
@@ -41,7 +44,7 @@ export default function buildProfileSectionGeometry({
       topY: -zTop * pxPerMeter,
       height: h,
       vertexIndex: i,
-      locked: p.locked === true || i === 0 || i === last,
+      locked: lockEndpoints && (p.locked === true || i === 0 || i === last),
       // "circle" = arc control point of the vertical section curve (S-C-S).
       type: p.type === "circle" ? "circle" : "square",
     };
