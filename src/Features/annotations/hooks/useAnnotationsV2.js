@@ -1131,7 +1131,13 @@ export default function useAnnotationsV2(options) {
             // along the ordered lines) so the sloped surface is a pure
             // function of position (iso-lines normal to the guideLines)
             // and stays correct when the contour is edited.
+            // Stairs guideLines (isStairs) opt out: the stepped surface is
+            // built by the dedicated 3D stairs builder and the stairs qties
+            // path, not by per-vertex ramp offsets.
             if (
+              !_annotation.guideLines?.some(
+                (g) => g?.isStairs && g?.points?.length >= 2
+              ) &&
               _annotation.guideLines?.some(
                 (g) => g?.points?.length >= 2 && g?.slopePct
               )

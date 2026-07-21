@@ -7,6 +7,9 @@ import {
   expandRingWithOffsets,
   expandRingWithOffsetsAndHiddenMap,
 } from "Features/geometry/utils/arcSampling";
+import getGuideLineStairsLayout, {
+  findStairsGuideLine,
+} from "Features/annotations/utils/getGuideLineStairsLayout";
 
 // Match the ARC_SAMPLES used by the 3D mesh builder (extrudeClosedShape) so the
 // developed surface is triangulated on the SAME arc-expanded contour as the
@@ -484,6 +487,33 @@ export default function getAnnotationQties({
       length: totalLengthPx * meterByPx,
       surface: Math.max(0, totalSurfacePx) * (meterByPx * meterByPx),
     };
+
+    // Stairs guideLine: developed surface = treads (planar footprint, cuts
+    // already subtracted) + risers (Σ nosing length × riser height), and
+    // developed length = Σ nosing lengths (nez de marches). The stairs path
+    // writes no per-vertex offsets, so the ramp block below stays off.
+    const stairsGuideLine =
+      annotation.type === "POLYGON"
+        ? findStairsGuideLine(annotation.guideLines)
+        : null;
+    if (stairsGuideLine) {
+      const layout = getGuideLineStairsLayout({
+        guideLine: stairsGuideLine,
+        polygonPts: points,
+        cuts: (annotation.cuts || []).map((c) => c?.points || []),
+        meterByPx,
+      });
+      if (layout) {
+        let nosingsLengthM = 0;
+        let risersSurface = 0;
+        layout.nosings.forEach((nosing) => {
+          nosingsLengthM += nosing.lengthM;
+          risersSurface += nosing.lengthM * layout.riserH;
+        });
+        result.surfaceDeveloped = result.surface + risersSurface;
+        result.lengthDeveloped = nosingsLengthM;
+      }
+    }
 
     // When per-vertex offsets are present (sloped top face), expose the
     // developed top-face surface as a separate field. The planar `surface`

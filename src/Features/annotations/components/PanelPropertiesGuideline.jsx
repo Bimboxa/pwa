@@ -19,20 +19,30 @@ import {
 } from "@mui/icons-material";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
+import FieldCheck from "Features/form/components/FieldCheck";
 
 import useSelectedGuideLineData from "Features/annotations/hooks/useSelectedGuideLineData";
 import useApplyGuideLineSlope from "Features/annotations/hooks/useApplyGuideLineSlope";
 import useDeleteGuideLine from "Features/annotations/hooks/useDeleteGuideLine";
+import useUpdateGuideLine from "Features/annotations/hooks/useUpdateGuideLine";
 
 export default function PanelPropertiesGuideline() {
   const dispatch = useDispatch();
 
   // data
 
-  const { annotation, index, slopePct, hasGuideLine, count } =
-    useSelectedGuideLineData();
+  const {
+    annotation,
+    index,
+    slopePct,
+    hasGuideLine,
+    count,
+    isStairs,
+    stairsCount,
+  } = useSelectedGuideLineData();
   const applySlope = useApplyGuideLineSlope();
   const deleteGuideLine = useDeleteGuideLine();
+  const updateGuideLine = useUpdateGuideLine();
 
   // state
 
@@ -40,12 +50,17 @@ export default function PanelPropertiesGuideline() {
   const round1 = (v) => Math.round((Number(v) || 0) * 10) / 10;
 
   const [value, setValue] = useState(String(round1(slopePct)));
+  const [countValue, setCountValue] = useState(String(stairsCount));
   const [anchorEl, setAnchorEl] = useState(null);
 
-  // keep the field in sync when the underlying slope changes (e.g. undo)
+  // keep the fields in sync when the underlying values change (e.g. undo)
   useEffect(() => {
     setValue(String(round1(Number.isFinite(slopePct) ? slopePct : 0)));
   }, [slopePct]);
+
+  useEffect(() => {
+    setCountValue(String(stairsCount));
+  }, [stairsCount]);
 
   // handlers
 
@@ -58,6 +73,27 @@ export default function PanelPropertiesGuideline() {
     if (!Number.isFinite(next)) return;
     if (next === Number(slopePct)) return;
     applySlope(index, next);
+  }
+
+  function commitStairsCount() {
+    const next = Math.max(1, Math.round(parseFloat(countValue)));
+    if (!Number.isFinite(next)) {
+      setCountValue(String(stairsCount));
+      return;
+    }
+    if (next === stairsCount) {
+      setCountValue(String(next));
+      return;
+    }
+    updateGuideLine(index, { stairsCount: next });
+  }
+
+  function handleIsStairsChange(checked) {
+    // Seed an explicit stairsCount when enabling so the DB record is complete.
+    updateGuideLine(index, {
+      isStairs: checked,
+      ...(checked ? { stairsCount } : {}),
+    });
   }
 
   function handleKeyDown(e) {
@@ -117,22 +153,41 @@ export default function PanelPropertiesGuideline() {
       </Box>
 
       <Box sx={{ p: 2, display: "flex", flexDirection: "column", gap: 2 }}>
-        <TextField
-          label="Pente"
-          type="number"
-          size="small"
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          onBlur={commit}
-          onKeyDown={handleKeyDown}
-          InputProps={{
-            endAdornment: <InputAdornment position="end">%</InputAdornment>,
-          }}
+        <FieldCheck
+          value={isStairs}
+          onChange={handleIsStairsChange}
+          label="Escaliers"
+          options={{ type: "switch", showAsSection: true }}
         />
+        {isStairs ? (
+          <TextField
+            label="Nbre marches"
+            type="number"
+            size="small"
+            value={countValue}
+            onChange={(e) => setCountValue(e.target.value)}
+            onBlur={commitStairsCount}
+            onKeyDown={handleKeyDown}
+            inputProps={{ min: 1, step: 1 }}
+          />
+        ) : (
+          <TextField
+            label="Pente"
+            type="number"
+            size="small"
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            onBlur={commit}
+            onKeyDown={handleKeyDown}
+            InputProps={{
+              endAdornment: <InputAdornment position="end">%</InputAdornment>,
+            }}
+          />
+        )}
         <Typography variant="caption" color="text.secondary">
-          La hauteur de chaque sommet est interpolée le long de la ligne guide
-          (lignes iso perpendiculaires). La surface et le périmètre sont
-          recalculés en conséquence.
+          {isStairs
+            ? "La volée est découpée en marches égales le long de la ligne guide. Les nez de marches sont dessinés perpendiculairement à la ligne, et ΔH répartit la hauteur totale sur les marches."
+            : "La hauteur de chaque sommet est interpolée le long de la ligne guide (lignes iso perpendiculaires). La surface et le périmètre sont recalculés en conséquence."}
         </Typography>
       </Box>
     </BoxFlexVStretch>

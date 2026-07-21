@@ -54,6 +54,9 @@ const CURSOR_REMOVE = `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.or
 
 import getAnnotationLabelPropsFromAnnotation from "Features/annotations/utils/getAnnotationLabelPropsFromAnnotation";
 import getPolygonSlope from "Features/annotations/utils/getPolygonSlope";
+import getGuideLineStairsLayout, {
+  isStairsGuideLine,
+} from "Features/annotations/utils/getGuideLineStairsLayout";
 import coerceAnnotationNumericFields from "Features/annotations/utils/coerceAnnotationNumericFields";
 import { expandArcsInPath } from "Features/geometry/utils/arcSampling";
 import useProfileResolution from "Features/annotations/hooks/useProfileResolution";
@@ -1271,6 +1274,7 @@ function NodePolylineStatic({
           partId: `${annotationId}::GUIDE_LINE::${index}`,
           polyline,
           slopePct,
+          isStairs: Boolean(g?.isStairs),
           shaft,
           head,
           angleDeg,
@@ -1279,6 +1283,34 @@ function NodePolylineStatic({
       })
       .filter(Boolean);
   }, [type, mergedAnnotation.guideLines, annotationId]);
+
+  // Stairs nosings: transverse strokes (one per step) clipped to the polygon
+  // outline, for every guideLine flagged `isStairs`. Always visible (they are
+  // part of the plan drawing), rendered in the annotation color.
+  const stairsNosingSegments = useMemo(() => {
+    if (type !== "POLYGON") return [];
+    const gls = mergedAnnotation.guideLines;
+    if (!Array.isArray(gls) || !gls.some(isStairsGuideLine)) return [];
+    const segments = [];
+    gls.forEach((g, index) => {
+      const layout = getGuideLineStairsLayout({
+        guideLine: g,
+        polygonPts: points,
+        cuts: (mergedAnnotation.cuts || []).map((c) => c?.points || []),
+      });
+      if (!layout) return;
+      layout.nosings.forEach((nosing) => {
+        nosing.segments.forEach((seg, si) => {
+          segments.push({
+            key: `stairs-${index}-${nosing.index}-${si}`,
+            a: seg.a,
+            b: seg.b,
+          });
+        });
+      });
+    });
+    return segments;
+  }, [type, mergedAnnotation.guideLines, points, mergedAnnotation.cuts]);
 
   // Counter-scale for patterns (hatching, eraser) to keep fixed size on screen in PX mode
   const patternTransformStyle = useMemo(() => {
@@ -1689,6 +1721,25 @@ function NodePolylineStatic({
                 wrapped in `vertexScaleTransform` so they keep a constant
                 on-screen size in both Map and Portfolio viewers, matching
                 the technique used by NodeCoteStatic. */}
+      {/* STAIRS NOSINGS — transverse strokes separating the steps of an
+                `isStairs` guideLine, clipped to the polygon outline. Always
+                visible (part of the plan drawing), annotation color. */}
+      {stairsNosingSegments.map((seg) => (
+        <line
+          key={seg.key}
+          x1={seg.a.x}
+          y1={seg.a.y}
+          x2={seg.b.x}
+          y2={seg.b.y}
+          stroke={displayStrokeColor}
+          strokeWidth={1.5}
+          strokeOpacity={strokeOpacity ?? 1}
+          strokeLinecap="round"
+          vectorEffect="non-scaling-stroke"
+          style={{ pointerEvents: "none" }}
+        />
+      ))}
+
       {/* guideLine: drawn while the annotation is selected so the user
                 can see / re-draw the ramp axis. Solid when the slope arrow is
                 shown, dashed otherwise. */}
@@ -1747,7 +1798,10 @@ function NodePolylineStatic({
                 guideLine exists). */}
       {!mergedAnnotation.hideSlope &&
         guideLinesData
-          .filter((gl) => Math.round(Math.abs(gl.slopePct)) >= 1)
+          // Stairs guideLines replace the slope with a step count: no % arrow.
+          .filter(
+            (gl) => !gl.isStairs && Math.round(Math.abs(gl.slopePct)) >= 1
+          )
           .map((gl) => {
             const headLen = 12;
             const headW = 9;

@@ -20,13 +20,22 @@ export default function useSelectedGuideLineData() {
   const guideLine =
     Number.isInteger(index) && index >= 0 ? guideLines[index] : null;
   const hasGuideLine = !!guideLine && (guideLine.points?.length ?? 0) >= 2;
-  const slopePct = Number.isFinite(guideLine?.slopePct) ? guideLine.slopePct : 0;
+  const slopePct = Number.isFinite(guideLine?.slopePct)
+    ? guideLine.slopePct
+    : 0;
+  const isStairs = Boolean(guideLine?.isStairs);
+  const stairsCount =
+    Number.isFinite(guideLine?.stairsCount) && guideLine.stairsCount >= 1
+      ? Math.round(guideLine.stairsCount)
+      : 1;
 
   return {
     annotation,
     index,
     guideLine,
     slopePct,
+    isStairs,
+    stairsCount,
     hasGuideLine,
     count: guideLines.length,
   };
