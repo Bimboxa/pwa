@@ -29,6 +29,34 @@
 //     may CROSS a hole; its dome still shapes the surface around it).
 //   - profiles: [{ polyline: [{x, y, height}, ...] }]
 //
+// Grid spacing used by the drape field: ~gridN cells across the larger bbox
+// side, degraded so the node count stays under maxNodes (the Delaunay meshing
+// is O(n²)). Exported so buildDomeTopMesh densifies the rings with the SAME
+// spacing (ring edges must be shorter than the grid step to survive the
+// Delaunay — see the ridge-edge note below).
+export function computeDomeGridSpacing(contour, gridN = 24, maxNodes = 800) {
+  let minX = Infinity,
+    minY = Infinity,
+    maxX = -Infinity,
+    maxY = -Infinity;
+  for (const p of contour || []) {
+    if (p.x < minX) minX = p.x;
+    if (p.y < minY) minY = p.y;
+    if (p.x > maxX) maxX = p.x;
+    if (p.y > maxY) maxY = p.y;
+  }
+  const bboxW = maxX - minX;
+  const bboxH = maxY - minY;
+  if (!Number.isFinite(bboxW) || !Number.isFinite(bboxH)) return null;
+  if (bboxW <= 0 || bboxH <= 0) return null;
+  let h = Math.max(bboxW, bboxH) / gridN;
+  const estimate = (bboxW / h) * (bboxH / h);
+  if (estimate > maxNodes * 1.6) {
+    h *= Math.sqrt(estimate / (maxNodes * 1.6));
+  }
+  return h;
+}
+
 // Returns the field or null when it cannot apply.
 export default function computeDomeSteinerField({
   contour,
@@ -67,13 +95,8 @@ export default function computeDomeSteinerField({
   if (!Number.isFinite(bboxW) || !Number.isFinite(bboxH)) return null;
   if (bboxW <= 0 || bboxH <= 0) return null;
 
-  // Grid spacing: ~gridN cells across the larger bbox side, degraded so the
-  // node count stays under maxNodes (the Delaunay meshing is O(n²)).
-  let h = Math.max(bboxW, bboxH) / gridN;
-  const estimate = (bboxW / h) * (bboxH / h);
-  if (estimate > maxNodes * 1.6) {
-    h *= Math.sqrt(estimate / (maxNodes * 1.6));
-  }
+  const h = computeDomeGridSpacing(contour, gridN, maxNodes);
+  if (!h) return null;
 
   const pointInRing = (p, ring) => {
     let inside = false;

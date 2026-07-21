@@ -2,7 +2,9 @@ import { Vector2, ShapeUtils } from "three";
 
 import partitionPolygonByIsoLines from "./partitionPolygonByIsoLines";
 import partitionPolygonByChords from "./partitionPolygonByChords";
-import computeDomeSteinerField from "./computeDomeSteinerField";
+import computeDomeSteinerField, {
+  computeDomeGridSpacing,
+} from "./computeDomeSteinerField";
 import prepareShellProfiles from "./prepareShellProfiles";
 import delaunayTriangulate from "./delaunayTriangulate";
 import expandShellProfileArcs from "./expandShellProfileArcs";
@@ -135,6 +137,8 @@ export default function triangulateAnnotationGeometry({
     if (wantDome) {
       const domeTri = buildDomeTopMesh(contour, validHoles, prepared);
       if (domeTri) {
+        contour = domeTri.augContour;
+        validHoles = domeTri.augHoles;
         bandedTris = domeTri.tris;
         extraPts = domeTri.extraPoints;
         shellApplied = "DOME";
@@ -163,6 +167,8 @@ export default function triangulateAnnotationGeometry({
     if (!shellApplied && !wantDome) {
       const domeTri = buildDomeTopMesh(contour, validHoles, prepared);
       if (domeTri) {
+        contour = domeTri.augContour;
+        validHoles = domeTri.augHoles;
         bandedTris = domeTri.tris;
         extraPts = domeTri.extraPoints;
         shellApplied = "DOME";
@@ -328,18 +334,55 @@ export default function triangulateAnnotationGeometry({
   };
 }
 
+// Insert points along a ring's segments so no edge exceeds `maxLen`
+// (offsets lerped). The added points are collinear with their segment, so the
+// ring GEOMETRY (walls, bottom, areas) is unchanged — only the sampling is
+// finer.
+function densifyRing(ring, maxLen) {
+  const out = [];
+  const n = ring.length;
+  for (let i = 0; i < n; i++) {
+    const a = ring[i];
+    const b = ring[(i + 1) % n];
+    out.push(a);
+    const len = Math.hypot(b.x - a.x, b.y - a.y);
+    const steps = Math.ceil(len / maxLen);
+    for (let s = 1; s < steps; s++) {
+      const t = s / steps;
+      out.push({
+        x: a.x + (b.x - a.x) * t,
+        y: a.y + (b.y - a.y) * t,
+        type: "square",
+        offsetBottom:
+          (a.offsetBottom ?? 0) +
+          ((b.offsetBottom ?? 0) - (a.offsetBottom ?? 0)) * t,
+        offsetTop:
+          (a.offsetTop ?? 0) + ((b.offsetTop ?? 0) - (a.offsetTop ?? 0)) * t,
+      });
+    }
+  }
+  return out;
+}
+
 // DOME top mesh: drape Steiner field (computeDomeSteinerField) + Delaunay
-// triangulation of [contour, holes, field]. The rings themselves are NOT
-// augmented (walls stay unchanged); the field points become extraPoints
-// carrying their drape offsetTop. Returns { tris, extraPoints } in the
-// flatPts layout [contour, ...holes, ...extraPoints], or null when the mesh
-// cannot be trusted (field failed, Delaunay failed, or the triangulation
-// does not cover the polygon area — missing boundary edges on concave
-// contours or tiny holes). The caller then falls back to the TENT partition.
-function buildDomeTopMesh(contour, holes, preparedProfiles) {
-  const validHoles = (holes || []).filter(
-    (h) => Array.isArray(h) && h.length >= 3
-  );
+// triangulation of [augContour, augHoles, field]. The rings are DENSIFIED to
+// the field's half grid spacing first — an unconstrained Delaunay only keeps
+// a boundary edge whose diametral circle is empty, so ring edges must be
+// SHORTER than the interior point spacing or the mesh cuts corners and
+// bridges the holes (jagged star-shaped rims). Densified points are collinear
+// with their segments, so walls / bottom / areas built on the augmented rings
+// are geometrically identical. Returns { augContour, augHoles, tris,
+// extraPoints } in the flatPts layout [augContour, ...augHoles,
+// ...extraPoints], or null when the mesh cannot be trusted (field failed,
+// Delaunay failed, or the triangulation does not cover the polygon area).
+// The caller then falls back to the TENT partition.
+function buildDomeTopMesh(rawContour, holes, preparedProfiles) {
+  const spacing = computeDomeGridSpacing(rawContour);
+  if (!spacing) return null;
+  const contour = densifyRing(rawContour, spacing / 2);
+  const validHoles = (holes || [])
+    .filter((h) => Array.isArray(h) && h.length >= 3)
+    .map((h) => densifyRing(h, spacing / 2));
   const field = computeDomeSteinerField({
     contour,
     holes: validHoles,
@@ -466,7 +509,7 @@ function buildDomeTopMesh(contour, holes, preparedProfiles) {
     return null;
   }
 
-  return { tris, extraPoints };
+  return { augContour: contour, augHoles: validHoles, tris, extraPoints };
 }
 
 // Re-mesh the TOP as iso-height bands. Returns { augContour, tris } where the
