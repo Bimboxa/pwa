@@ -87,6 +87,7 @@ import IconButtonArcifyAnnotation from "./IconButtonArcifyAnnotation";
 import IconButtonArcifySelectedPoints from "./IconButtonArcifySelectedPoints";
 import IconButtonCloseWallFootprint from "./IconButtonCloseWallFootprint";
 import IconButtonSlopeWalls from "./IconButtonSlopeWalls";
+import IconButtonAutoWalls from "./IconButtonAutoWalls";
 import IconButtonContours from "./IconButtonContours";
 import IconButtonCloseEnvelope from "./IconButtonCloseEnvelope";
 import IconButtonAddGuideLine from "./IconButtonAddGuideLine";
@@ -934,6 +935,9 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
                       accentColor={accentColor}
                     />
                   )}
+                {["POLYGON", "POLYLINE"].includes(selectedAnnotation?.type) && (
+                  <IconButtonAutoWalls accentColor={accentColor} />
+                )}
                 {["POLYLINE", "POLYGON", "STRIP"].includes(
                   selectedAnnotation?.type
                 ) && (
