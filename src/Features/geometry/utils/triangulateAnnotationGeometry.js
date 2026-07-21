@@ -132,11 +132,8 @@ export default function triangulateAnnotationGeometry({
     }
 
     const wantDome = shell.mode !== "TENT";
-    // DOME with cuts is V1-conservative: the unconstrained Delaunay meshing
-    // below has no hole-edge enforcement — bail to the TENT partition (which
-    // handles holes).
-    if (wantDome && validHoles.length === 0) {
-      const domeTri = buildDomeTopMesh(contour, prepared);
+    if (wantDome) {
+      const domeTri = buildDomeTopMesh(contour, validHoles, prepared);
       if (domeTri) {
         bandedTris = domeTri.tris;
         extraPts = domeTri.extraPoints;
@@ -160,7 +157,16 @@ export default function triangulateAnnotationGeometry({
         isoPartitionApplied = true; // planar strips → sketch fold edges
         shellApplied = "TENT";
       }
-      // else: plain per-vertex-z earcut (contour offsets only).
+    }
+    // TENT failure (e.g. chords crossing a hole) falls back to the DOME
+    // drape, which handles holes natively; then plain per-vertex-z earcut.
+    if (!shellApplied && !wantDome) {
+      const domeTri = buildDomeTopMesh(contour, validHoles, prepared);
+      if (domeTri) {
+        bandedTris = domeTri.tris;
+        extraPts = domeTri.extraPoints;
+        shellApplied = "DOME";
+      }
     }
   }
 
@@ -322,23 +328,26 @@ export default function triangulateAnnotationGeometry({
   };
 }
 
-// DOME top mesh: harmonic Steiner field (computeDomeSteinerField) + Delaunay
-// triangulation of [contour, field]. The contour ring itself is NOT augmented
-// (walls stay unchanged); the field points become extraPoints carrying their
-// solved offsetTop. Returns { tris, extraPoints } in the flatPts layout
-// [contour, ...(no holes), ...extraPoints], or null when the mesh cannot be
-// trusted (solver failed, Delaunay failed, or the triangulation does not
-// cover the polygon area — missing boundary edges on concave contours). The
-// caller then falls back to the TENT partition.
-function buildDomeTopMesh(contour, preparedProfiles) {
+// DOME top mesh: drape Steiner field (computeDomeSteinerField) + Delaunay
+// triangulation of [contour, holes, field]. The rings themselves are NOT
+// augmented (walls stay unchanged); the field points become extraPoints
+// carrying their drape offsetTop. Returns { tris, extraPoints } in the
+// flatPts layout [contour, ...holes, ...extraPoints], or null when the mesh
+// cannot be trusted (field failed, Delaunay failed, or the triangulation
+// does not cover the polygon area — missing boundary edges on concave
+// contours or tiny holes). The caller then falls back to the TENT partition.
+function buildDomeTopMesh(contour, holes, preparedProfiles) {
+  const validHoles = (holes || []).filter(
+    (h) => Array.isArray(h) && h.length >= 3
+  );
   const field = computeDomeSteinerField({
     contour,
-    holes: [],
+    holes: validHoles,
     profiles: preparedProfiles,
   });
   if (!field?.length) return null;
 
-  // Dedupe field points against the contour vertices and one another —
+  // Dedupe field points against the ring vertices and one another —
   // duplicate points make Delaunay degenerate.
   let minX = Infinity,
     minY = Infinity,
@@ -353,10 +362,11 @@ function buildDomeTopMesh(contour, preparedProfiles) {
   const diag = Math.hypot(maxX - minX, maxY - minY);
   if (!Number.isFinite(diag) || diag < 1e-9) return null;
   const WELD_2 = (diag * 1e-4) ** 2;
+  const ringPts = [...contour, ...validHoles.flat()];
   const kept = [];
   for (const p of field) {
     let dup = false;
-    for (const q of contour) {
+    for (const q of ringPts) {
       const dx = p.x - q.x;
       const dy = p.y - q.y;
       if (dx * dx + dy * dy < WELD_2) {
@@ -386,12 +396,15 @@ function buildDomeTopMesh(contour, preparedProfiles) {
     offsetTop: p.offsetTop,
   }));
 
-  const allPts = [...contour, ...extraPoints];
+  // Point order MUST match the flatPts layout the caller builds:
+  // [contour, ...holes, ...extraPoints].
+  const allPts = [...contour, ...validHoles.flat(), ...extraPoints];
   const delTris = delaunayTriangulate(allPts);
   if (!delTris) return null;
 
-  // Keep triangles whose centroid lies inside the polygon (Delaunay covers
-  // the convex hull; concave pockets must be dropped).
+  // Keep triangles whose centroid lies inside the polygon and outside every
+  // hole (Delaunay covers the convex hull; pockets and holes must be
+  // dropped).
   const inRing = (p, ring) => {
     let inside = false;
     for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
@@ -425,6 +438,14 @@ function buildDomeTopMesh(contour, preparedProfiles) {
       y: (allPts[a].y + allPts[b].y + allPts[c].y) / 3,
     };
     if (!inRing(centroid, contour)) continue;
+    let inHole = false;
+    for (const hole of validHoles) {
+      if (inRing(centroid, hole)) {
+        inHole = true;
+        break;
+      }
+    }
+    if (inHole) continue;
     const area = triPlanarArea(allPts[a], allPts[b], allPts[c]);
     if (Math.sign(area) !== outerSign) {
       const tmp = b;
@@ -436,9 +457,11 @@ function buildDomeTopMesh(contour, preparedProfiles) {
   }
   if (tris.length === 0) return null;
 
-  // Coverage self-check: the kept triangles must tile the polygon (missing
-  // contour edges would leave cracks along the boundary).
-  const polyArea = ringPlanarArea(contour);
+  // Coverage self-check: the kept triangles must tile the polygon minus its
+  // holes (missing ring edges would leave cracks along the boundaries).
+  const polyArea =
+    ringPlanarArea(contour) -
+    validHoles.reduce((s, h) => s + ringPlanarArea(h), 0);
   if (!(polyArea > 0) || Math.abs(covered - polyArea) > polyArea * 0.01) {
     return null;
   }

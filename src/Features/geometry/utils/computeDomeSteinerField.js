@@ -24,9 +24,9 @@
 //
 // Inputs:
 //   - contour: outer ring [{x, y, offsetTop?}, ...] (arc-expanded)
-//   - holes: cut rings (same shape) — V1 callers bail to TENT when holes
-//     exist, but the field itself tolerates them (nodes inside holes are
-//     excluded).
+//   - holes: cut rings (same shape) — the sheet simply does not cover them:
+//     grid nodes and on-line samples inside a hole are excluded (a profile
+//     may CROSS a hole; its dome still shapes the surface around it).
 //   - profiles: [{ polyline: [{x, y, height}, ...] }]
 //
 // Returns the field or null when it cannot apply.
@@ -283,6 +283,9 @@ export default function computeDomeSteinerField({
   // other point sits at least ~0.55h from the line.
   const exact = [];
   const pushExact = (x, y) => {
+    // Samples outside the sheet's footprint (inside a hole / off the
+    // polygon, e.g. a profile crossing a cut) are not mesh vertices.
+    if (!insidePolygon({ x, y })) return;
     exact.push({ x, y, offsetTop: drapeAt({ x, y }) });
   };
   for (const pl of lines) {
