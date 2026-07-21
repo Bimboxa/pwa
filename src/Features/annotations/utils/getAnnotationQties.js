@@ -451,6 +451,38 @@ export default function getAnnotationQties({
           surface: profileLengthMeters * guideLengthM,
         };
       }
+      // Inline "Extrusion" (profileLines drawn on the polyline): developed
+      // surface = developed cross-section length × guide length, mirroring
+      // the EXTRUSION_PROFILE rule. The profile's developed length mixes its
+      // plan extent (px × meterByPx) and its vertical rise (heights, meters).
+      {
+        const inlineProfile = (annotation.profileLines || []).find(
+          (l) => (l?.points?.length ?? 0) >= 2
+        );
+        if (inlineProfile) {
+          const pts = inlineProfile.points.filter(
+            (p) => typeof p?.x === "number" && typeof p?.y === "number"
+          );
+          let profLenM = 0;
+          for (let i = 0; i < pts.length - 1; i += 1) {
+            profLenM += Math.hypot(
+              Math.hypot(
+                pts[i + 1].x - pts[i].x,
+                pts[i + 1].y - pts[i].y
+              ) * meterByPx,
+              (Number(pts[i + 1].height) || 0) - (Number(pts[i].height) || 0)
+            );
+          }
+          const guideLengthM = totalLengthPx * meterByPx;
+          if (profLenM > 0 && guideLengthM > 0) {
+            return {
+              enabled: true,
+              length: guideLengthM,
+              surface: profLenM * guideLengthM,
+            };
+          }
+        }
+      }
       // Vertical wall (paroi): per-vertex offsets define a vertical band.
       // Length = the bottom junction line with the ramp (3D); surface = the
       // wall's lateral area. Takes precedence over the height-based surface.

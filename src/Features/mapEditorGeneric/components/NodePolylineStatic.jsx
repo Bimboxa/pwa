@@ -60,6 +60,7 @@ import getGuideLineStairsLayout, {
 import coerceAnnotationNumericFields from "Features/annotations/utils/coerceAnnotationNumericFields";
 import { expandArcsInPath } from "Features/geometry/utils/arcSampling";
 import useProfileResolution from "Features/annotations/hooks/useProfileResolution";
+import getInlineExtrusionBandShapes from "Features/annotations/utils/getInlineExtrusionBandShapes";
 import NodeLabelStatic from "./NodeLabelStatic";
 import getInnerOffsetSegmentPath from "Features/mapEditorGeneric/utils/getInnerOffsetSegmentPath";
 
@@ -1333,12 +1334,13 @@ function NodePolylineStatic({
       .filter(Boolean);
   }, [type, mergedAnnotation.isoHeightLines, annotationId]);
 
-  // profileLines (shell cross-sections): per-line pixel polyline. Straight
-  // segments only (V1). Each line carries an indexed partId so it can be
-  // selected / deleted independently; the vertical profile itself is edited
-  // in the Élévation panel.
+  // profileLines (shell / extrusion cross-sections): per-line pixel polyline.
+  // Straight segments only (V1). Each line carries an indexed partId so it
+  // can be selected / deleted independently; the vertical profile itself is
+  // edited in the Élévation panel. POLYGON = shell (Coque); POLYLINE =
+  // extrusion of the profile along the whole chain.
   const profileLinesData = useMemo(() => {
-    if (type !== "POLYGON") return [];
+    if (type !== "POLYGON" && type !== "POLYLINE") return [];
     const lines = mergedAnnotation.profileLines;
     if (!Array.isArray(lines)) return [];
     return lines
@@ -1356,6 +1358,17 @@ function NodePolylineStatic({
       })
       .filter(Boolean);
   }, [type, mergedAnnotation.profileLines, annotationId]);
+
+  // Inline "Extrusion" band (POLYLINE + profileLines): plan footprint of the
+  // swept profile — a thick band along the guide showing the transverse
+  // extents of the cross-section, with the sweep's own registration.
+  const inlineExtrusionBand = useMemo(() => {
+    if (type !== "POLYLINE") return null;
+    if (!mergedAnnotation.profileLines?.some((l) => l?.points?.length >= 2)) {
+      return null;
+    }
+    return getInlineExtrusionBandShapes(mergedAnnotation, baseMapMeterByPx);
+  }, [type, mergedAnnotation, baseMapMeterByPx]);
 
   // Stairs nosings: transverse strokes (one per step) clipped to the polygon
   // outline, for every guideLine flagged `isStairs`. Always visible (they are
@@ -1714,6 +1727,24 @@ function NodePolylineStatic({
       {/* EXTRUSION PROFILE OFFSET — drawn UNDER the main strokes so it
                 never blocks selection / editing of the contour. */}
       {renderExtrusionOffset()}
+
+      {/* Inline "Extrusion" band: plan footprint of the profile swept along
+          the whole chain (transverse extents, sweep registration). Drawn
+          under the main strokes in the annotation color. */}
+      {inlineExtrusionBand &&
+        inlineExtrusionBand.map((shape, si) => (
+          <polygon
+            key={`extrusion-band-${si}`}
+            points={shape.points.map((p) => `${p.x},${p.y}`).join(" ")}
+            fill={fillColor || strokeColor}
+            fillOpacity={0.18}
+            stroke={strokeColor}
+            strokeWidth={1}
+            strokeOpacity={0.35}
+            vectorEffect="non-scaling-stroke"
+            style={{ pointerEvents: "none" }}
+          />
+        ))}
 
       {/* STROKES (Main) — continuous visual runs, then per-segment hit areas */}
       {strokeType !== "NONE" &&

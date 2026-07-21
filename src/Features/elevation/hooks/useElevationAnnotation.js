@@ -31,9 +31,10 @@ export default function useElevationAnnotation() {
   const color = annotation?.strokeColor || annotation?.fillColor || "#c0392b";
 
   const isoHeightLines = isPolygon ? (annotation?.isoHeightLines ?? []) : [];
-  // Resolved profileLines ({points: [{x, y, height, locked?}...]}) — heights
-  // baked with endpoint continuity by useAnnotationsV2.
-  const profileLines = isPolygon ? (annotation?.profileLines ?? []) : [];
+  // Resolved profileLines ({points: [{x, y, height, locked?}...]}). POLYGON:
+  // heights baked with endpoint continuity by useAnnotationsV2. POLYLINE
+  // (extrusion cross-section): free endpoints, all heights inline.
+  const profileLines = isProfileTarget ? (annotation?.profileLines ?? []) : [];
 
   return {
     annotation: isProfileTarget ? annotation : null,

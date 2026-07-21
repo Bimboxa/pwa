@@ -67,6 +67,11 @@ export default function ElevationProfileSectionSvg({
   onCommitOffsetZ,
   hoverWorldPos = null,
   onInsertVertex,
+  // POLYLINE extrusion: reference "trait" = the crossed guide segment
+  // projected on the section plane ({ extremities: [{s, y}×2],
+  // anchorExtremityIndex }). Its extremities are the registration/snap
+  // targets of the 3D sweep.
+  guideTrait = null,
 }) {
   const theme = useTheme();
   const secondary = theme.palette.secondary.main;
@@ -183,6 +188,39 @@ export default function ElevationProfileSectionSvg({
         strokeDasharray="6 4"
         vectorEffect="non-scaling-stroke"
       />
+
+      {/* POLYLINE extrusion reference trait: the crossed guide segment
+          projected on the section plane. Its extremities are the snap /
+          registration targets of the sweep (anchor extremity filled). */}
+      {guideTrait && guideTrait.extremities?.length === 2 && (
+        <g style={{ pointerEvents: "none" }}>
+          <line
+            x1={guideTrait.extremities[0].s}
+            y1={guideTrait.extremities[0].y}
+            x2={guideTrait.extremities[1].s}
+            y2={guideTrait.extremities[1].y}
+            stroke="#2962ff"
+            strokeWidth={2}
+            vectorEffect="non-scaling-stroke"
+          />
+          {guideTrait.extremities.map((ext, ei) => (
+            <g key={`trait-ext-${ei}`} transform={`translate(${ext.s}, ${ext.y})`}>
+              <g style={COUNTER_ZOOM}>
+                <circle
+                  r={HALF - 1}
+                  fill={
+                    ei === guideTrait.anchorExtremityIndex
+                      ? "#2962ff"
+                      : "#ffffff"
+                  }
+                  stroke="#2962ff"
+                  strokeWidth={1.5}
+                />
+              </g>
+            </g>
+          ))}
+        </g>
+      )}
 
       {/* offset field, left of the Z = 0 line */}
       <g transform={`translate(${xMin - xPad}, 0)`}>

@@ -940,7 +940,7 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
                 {selectedAnnotation?.type === "POLYGON" && (
                   <IconButtonAddIsoHeightLine accentColor={accentColor} />
                 )}
-                {selectedAnnotation?.type === "POLYGON" && (
+                {["POLYGON", "POLYLINE"].includes(selectedAnnotation?.type) && (
                   <IconButtonAddProfileLine accentColor={accentColor} />
                 )}
                 {selectedAnnotation?.type === "POLYGON" && (

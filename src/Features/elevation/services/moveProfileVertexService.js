@@ -26,7 +26,14 @@ export default async function moveProfileVertexService({
   const line = annotation?.profileLines?.[profileIndex];
   const ref = line?.points?.[vertexIndex];
   if (!ref?.pointId) return;
-  if (vertexIndex === 0 || vertexIndex === line.points.length - 1) return;
+  // POLYGON endpoints are continuity-locked; POLYLINE (extrusion) endpoints
+  // are free cross-section vertices.
+  if (
+    annotation.type === "POLYGON" &&
+    (vertexIndex === 0 || vertexIndex === line.points.length - 1)
+  ) {
+    return;
+  }
 
   let normalized = null;
   if (planPos && Number.isFinite(planPos.x) && Number.isFinite(planPos.y)) {

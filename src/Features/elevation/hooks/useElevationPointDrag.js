@@ -47,13 +47,37 @@ export default function useElevationPointDrag({
     [meterByPx, height, offsetZ]
   );
 
+  // Magnetic snap of the dragged position onto the drag's `snapTargets`
+  // (world coords) within ~SNAP_PX screen pixels. Used by the profile-section
+  // vertex drag to land exactly on the guide trait's extremities.
+  const SNAP_PX = 12;
+  const applySnap = useCallback(
+    (worldPos, drag) => {
+      if (!drag?.snapTargets?.length || !viewportRef.current) return worldPos;
+      const a = viewportRef.current.screenToWorld(0, 0);
+      const b = viewportRef.current.screenToWorld(SNAP_PX, 0);
+      const thresholdWorld = Math.abs(b.x - a.x) || 0;
+      if (!(thresholdWorld > 0)) return worldPos;
+      let best = null;
+      for (const t of drag.snapTargets) {
+        const d = Math.hypot(worldPos.x - t.x, worldPos.y - t.y);
+        if (d <= thresholdWorld && (!best || d < best.d)) best = { t, d };
+      }
+      return best ? { x: best.t.x, y: best.t.y } : worldPos;
+    },
+    [viewportRef]
+  );
+
   const handleWindowMove = useCallback(
     (e) => {
       const drag = dragRef.current;
       if (!drag || !viewportRef.current) return;
       if (Math.abs(e.clientY - drag.startClientY) > 3) drag.moved = true;
       if (Math.abs(e.clientX - drag.startClientX) > 3) drag.moved = true;
-      const worldPos = viewportRef.current.screenToWorld(e.clientX, e.clientY);
+      const worldPos = applySnap(
+        viewportRef.current.screenToWorld(e.clientX, e.clientY),
+        drag
+      );
       if (drag.isoIndex != null) {
         setDragPreview({
           isoIndex: drag.isoIndex,
@@ -82,7 +106,7 @@ export default function useElevationPointDrag({
         });
       }
     },
-    [viewportRef]
+    [viewportRef, applySnap]
   );
 
   const handleWindowUp = useCallback(
@@ -95,7 +119,10 @@ export default function useElevationPointDrag({
       setDragPreview(null);
       if (!drag || !drag.moved || !viewportRef.current) return;
 
-      const worldPos = viewportRef.current.screenToWorld(e.clientX, e.clientY);
+      const worldPos = applySnap(
+        viewportRef.current.screenToWorld(e.clientX, e.clientY),
+        drag
+      );
       if (drag.isoIndex != null) {
         // Height from Y; plan translation from the profile ∆x via the basis.
         const worldDx = worldPos.x - drag.startWorld.x;
@@ -115,10 +142,12 @@ export default function useElevationPointDrag({
         return;
       }
       if (drag.profileVertexIndex != null) {
-        // Profile section vertex: FREE 2-axis drag — Y edits the height (same
-        // TOP math as a vertex handle), X slides the vertex along the profile
-        // path in plan (curvilinear s, clamped between its neighbors; the
-        // s → plan mapping is provided by the caller at drag start).
+        // Profile section vertex: FREE 2-axis drag — Y edits the height, X
+        // slides the vertex along the profile path in plan (curvilinear s,
+        // bounded by the caller; endpoints may extrapolate). The section z
+        // reference is per-caller: POLYGON shells include the annotation
+        // height (drag.sectionHeight = height), POLYLINE extrusions do not
+        // (drag.sectionHeight = 0).
         let planPos = null;
         if (
           typeof drag.planAt === "function" &&
@@ -128,11 +157,12 @@ export default function useElevationPointDrag({
           const s = Math.max(drag.sMin, Math.min(drag.sMax, worldPos.x));
           planPos = drag.planAt(s);
         }
+        const zM = -worldPos.y * meterByPx;
         moveProfileVertexService({
           annotationId,
           profileIndex: drag.profileIndex,
           vertexIndex: drag.profileVertexIndex,
-          height: worldYToValue(worldPos.y, "TOP"),
+          height: zM - (drag.sectionHeight ?? height) - offsetZ,
           planPos,
           dispatch,
         });
@@ -161,6 +191,10 @@ export default function useElevationPointDrag({
       handleWindowMove,
       viewportRef,
       worldYToValue,
+      applySnap,
+      meterByPx,
+      height,
+      offsetZ,
       annotationId,
       basis,
       dispatch,
@@ -208,19 +242,24 @@ export default function useElevationPointDrag({
     [startDrag]
   );
 
-  // Shell profile section vertex: free 2-axis drag of one interior vertex —
-  // Y edits its inline height, X slides it along the profile path in plan.
-  // `sMin` / `sMax` bound the slide between the neighbor vertices and
-  // `planAt(s)` maps a curvilinear abscissa back to a plan pixel position
-  // (both provided by the section editor).
+  // Shell / extrusion profile section vertex: free 2-axis drag — Y edits the
+  // inline height, X slides along the profile path in plan. `sMin`/`sMax`
+  // bound the slide, `planAt(s)` maps abscissa → plan position (may
+  // extrapolate for endpoints), `sectionHeight` sets the z reference and
+  // `snapTargets` are magnetic world positions (guide trait extremities).
   const startProfileVertexDrag = useCallback(
-    (e, { profileIndex, vertexIndex, sMin, sMax, planAt }) =>
+    (
+      e,
+      { profileIndex, vertexIndex, sMin, sMax, planAt, sectionHeight, snapTargets }
+    ) =>
       startDrag(e, {
         profileIndex,
         profileVertexIndex: vertexIndex,
         sMin,
         sMax,
         planAt,
+        sectionHeight,
+        snapTargets,
       }),
     [startDrag]
   );

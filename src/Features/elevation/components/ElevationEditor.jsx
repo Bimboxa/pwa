@@ -14,6 +14,7 @@ import useDeleteIsoHeightLine from "Features/annotations/hooks/useDeleteIsoHeigh
 import { triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice";
 import { expandArcsInPath } from "Features/geometry/utils/arcSampling";
 import buildProfileSectionGeometry from "Features/elevation/utils/buildProfileSectionGeometry";
+import getInlineExtrusionSetup from "Features/annotations/utils/getInlineExtrusionSetup";
 import commitElevationOffsetService from "Features/elevation/services/commitElevationOffsetService";
 import commitElevationOffsetsService from "Features/elevation/services/commitElevationOffsetsService";
 import commitIsoHeightLineHeightService from "Features/elevation/services/commitIsoHeightLineHeightService";
@@ -65,6 +66,7 @@ function pickSegmentAtX(x, vertices) {
 export default function ElevationEditor({
   annotationId,
   points,
+  closeLine = false,
   selectedSegmentIndices,
   seedSegmentIndex,
   editedSegmentIndex,
@@ -165,23 +167,58 @@ export default function ElevationEditor({
     isoLines,
   });
 
-  // Shell profile section (x = curvilinear distance along the profile).
+  // Shell / extrusion profile section (x = curvilinear distance along the
+  // profile). POLYGON shells: section z includes the annotation height
+  // (offsetTop semantics) and endpoints are continuity-locked. POLYLINE
+  // extrusions: absolute cross-section (z = offsetZ + h), free endpoints.
   const sectionProfile =
     editedProfileIndex != null ? profileLines?.[editedProfileIndex] : null;
+  const sectionHeight = surfaceMode ? height : 0;
   const sectionGeometry = useMemo(
     () =>
       sectionProfile
         ? buildProfileSectionGeometry({
             profilePoints: sectionProfile.points,
             meterByPx,
-            height,
+            height: surfaceMode ? height : 0,
             offsetZ,
+            lockEndpoints: surfaceMode,
           })
         : null,
-    [sectionProfile, meterByPx, height, offsetZ]
+    [sectionProfile, meterByPx, height, offsetZ, surfaceMode]
   );
   const profileSectionMode = !!sectionGeometry;
   const bbox = profileSectionMode ? sectionGeometry.bbox : profileBbox;
+
+  // POLYLINE extrusion: reference "trait" = the guide segment crossed by the
+  // profile, projected onto the section plane; its extremities are snap
+  // targets and the registration origin of the 3D sweep.
+  const guideTrait = useMemo(() => {
+    if (!profileSectionMode || surfaceMode || !sectionProfile) return null;
+    const setup = getInlineExtrusionSetup({
+      guidePoints: points,
+      profilePoints: sectionProfile.points,
+      meterByPx,
+      closeLine,
+    });
+    if (!setup) return null;
+    const pxPerMeter = meterByPx > 0 ? 1 / meterByPx : 1;
+    return {
+      extremities: setup.extremities.map((e) => ({
+        s: e.s,
+        y: -(e.z + offsetZ) * pxPerMeter,
+      })),
+      anchorExtremityIndex: setup.anchorExtremityIndex,
+    };
+  }, [
+    profileSectionMode,
+    surfaceMode,
+    sectionProfile,
+    points,
+    meterByPx,
+    closeLine,
+    offsetZ,
+  ]);
 
   // --- guide image (background elevation drawing) ---
 
@@ -331,16 +368,20 @@ export default function ElevationEditor({
 
   // Free 2-axis drag: Y = height, X = slide along the profile path in plan.
   // The s → plan mapping walks the CURRENT resolved polyline (so the vertex
-  // slides along the drawn path, through its own previous position); the
-  // slide is clamped strictly between the neighbor vertices.
+  // slides along the drawn path, through its own previous position). Interior
+  // vertices are clamped strictly between their neighbors; POLYLINE-extrusion
+  // ENDPOINTS may also extend/shrink along their end segment (extrapolation).
   const handleProfileVertexMouseDown = useCallback(
     (e, { vertexIndex }) => {
       const pts = (sectionProfile?.points ?? []).filter(
         (p) => Number.isFinite(p?.x) && Number.isFinite(p?.y)
       );
-      if (pts.length < 2 || vertexIndex <= 0 || vertexIndex >= pts.length - 1) {
-        return;
-      }
+      if (pts.length < 2) return;
+      const last = pts.length - 1;
+      const isEndpoint = vertexIndex === 0 || vertexIndex === last;
+      // POLYGON endpoints are continuity-locked (no drag at all).
+      if (isEndpoint && surfaceMode) return;
+      if (vertexIndex < 0 || vertexIndex > last) return;
       const cum = [0];
       for (let i = 1; i < pts.length; i += 1) {
         cum.push(
@@ -348,7 +389,25 @@ export default function ElevationEditor({
             Math.hypot(pts[i].x - pts[i - 1].x, pts[i].y - pts[i - 1].y)
         );
       }
+      const total = cum[last];
+      // Extrapolates beyond the chain ends along the end-segment directions,
+      // so endpoints can EXTEND the profile.
       const planAt = (s) => {
+        if (s < 0) {
+          const len = Math.max(cum[1], 1e-9);
+          const ux = (pts[1].x - pts[0].x) / len;
+          const uy = (pts[1].y - pts[0].y) / len;
+          return { x: pts[0].x + ux * s, y: pts[0].y + uy * s };
+        }
+        if (s > total) {
+          const len = Math.max(total - cum[last - 1], 1e-9);
+          const ux = (pts[last].x - pts[last - 1].x) / len;
+          const uy = (pts[last].y - pts[last - 1].y) / len;
+          return {
+            x: pts[last].x + ux * (s - total),
+            y: pts[last].y + uy * (s - total),
+          };
+        }
         for (let i = 0; i < pts.length - 1; i += 1) {
           if (s <= cum[i + 1] || i === pts.length - 2) {
             const span = Math.max(cum[i + 1] - cum[i], 1e-9);
@@ -362,18 +421,43 @@ export default function ElevationEditor({
         return { x: pts[0].x, y: pts[0].y };
       };
       // Keep a small margin so the vertex never lands ON a neighbor
-      // (degenerate segment).
+      // (degenerate segment). Endpoints may extend outward up to the profile
+      // length.
+      const EXT = Math.max(total, 1);
       const margin =
-        Math.max(cum[vertexIndex + 1] - cum[vertexIndex - 1], 1e-6) * 0.02;
+        vertexIndex === 0
+          ? Math.max(cum[1], 1e-6) * 0.02
+          : vertexIndex === last
+            ? Math.max(total - cum[last - 1], 1e-6) * 0.02
+            : Math.max(cum[vertexIndex + 1] - cum[vertexIndex - 1], 1e-6) *
+              0.02;
+      const sMin =
+        vertexIndex === 0 ? -EXT : cum[vertexIndex - 1] + margin;
+      const sMax =
+        vertexIndex === last ? total + EXT : cum[vertexIndex + 1] - margin;
       startProfileVertexDrag(e, {
         profileIndex: editedProfileIndex,
         vertexIndex,
-        sMin: cum[vertexIndex - 1] + margin,
-        sMax: cum[vertexIndex + 1] - margin,
+        sMin,
+        sMax,
         planAt,
+        sectionHeight,
+        // Snap targets (world coords of the section view): the reference
+        // trait's extremities — placing a vertex ON one registers the
+        // extrusion exactly on the guide.
+        snapTargets: guideTrait
+          ? guideTrait.extremities.map((t) => ({ x: t.s, y: t.y }))
+          : null,
       });
     },
-    [startProfileVertexDrag, editedProfileIndex, sectionProfile]
+    [
+      startProfileVertexDrag,
+      editedProfileIndex,
+      sectionProfile,
+      surfaceMode,
+      sectionHeight,
+      guideTrait,
+    ]
   );
 
   // Re-click on the already-selected vertex toggles its type square ↔ circle
@@ -675,9 +759,10 @@ export default function ElevationEditor({
           <ElevationProfileSectionSvg
             vertices={sectionGeometry.vertices}
             meterByPx={meterByPx}
-            height={height}
+            height={sectionHeight}
             offsetZ={offsetZ}
             zoom={zoom}
+            guideTrait={guideTrait}
             dragPreview={dragPreview}
             selectedVertexIndex={selectedProfileVertexIndex}
             onVertexMouseDown={handleProfileVertexMouseDown}

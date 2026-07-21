@@ -67,11 +67,11 @@ export default function PanelElevation() {
   const editedProfileIndex = useSelector((s) => s.elevation.editedProfileIndex);
   const selectedItem = useSelector(selectSelectedItem);
 
-  // Shell profiles with enough points to have a section.
+  // Shell / extrusion profiles with enough points to have a section.
   const sectionProfiles = (profileLines ?? []).filter(
     (l) => (l?.points?.length ?? 0) >= 2
   );
-  const hasProfiles = isPolygon && sectionProfiles.length > 0;
+  const hasProfiles = isProfileTarget && sectionProfiles.length > 0;
   const effectiveProfileIndex =
     hasProfiles &&
     editedProfileIndex != null &&
@@ -222,7 +222,7 @@ export default function PanelElevation() {
         >
           <Chip
             size="small"
-            label="Silhouette"
+            label={isPolygon ? "Silhouette" : "Élévation"}
             color={effectiveProfileIndex == null ? "primary" : "default"}
             variant={effectiveProfileIndex == null ? "filled" : "outlined"}
             onClick={() => dispatch(setEditedProfileIndex(null))}
@@ -279,6 +279,7 @@ export default function PanelElevation() {
         <ElevationEditor
           annotationId={annotationId}
           points={points}
+          closeLine={closeLine}
           selectedSegmentIndices={selectedSegmentIndices}
           seedSegmentIndex={seedSegmentIndex}
           editedSegmentIndex={editedSegmentIndex}
