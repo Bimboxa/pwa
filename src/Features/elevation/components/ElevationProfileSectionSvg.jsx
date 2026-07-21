@@ -123,10 +123,14 @@ export default function ElevationProfileSectionSvg({
     );
     if (!proj) return null;
     if (proj.distance * zoom > 24) return null;
-    // Segment index + parameter from the arc-length `s`.
+    // Locate the segment + parameter from the projected point's ABSCISSA
+    // (section X = s). proj.s is the arc-length along the sloped (s, topY)
+    // polyline — comparing it to the vertices' s (their x) would overshoot on
+    // a sloped section and drop the point away from the click.
+    const px = proj.projected.x;
     let segIndex = 0;
     for (let j = 0; j < verts.length - 1; j++) {
-      if (proj.s >= verts[j].s && proj.s <= verts[j + 1].s + 1e-9) {
+      if (px >= verts[j].s - 1e-9 && px <= verts[j + 1].s + 1e-9) {
         segIndex = j;
         break;
       }
@@ -134,7 +138,7 @@ export default function ElevationProfileSectionSvg({
     const a = verts[segIndex];
     const b = verts[segIndex + 1];
     const span = Math.max(b.s - a.s, 1e-9);
-    const t = Math.max(0, Math.min(1, (proj.s - a.s) / span));
+    const t = Math.max(0, Math.min(1, (px - a.s) / span));
     return {
       x: proj.projected.x,
       y: proj.projected.y,
