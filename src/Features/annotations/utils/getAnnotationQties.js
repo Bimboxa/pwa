@@ -285,6 +285,18 @@ export default function getAnnotationQties({
         };
       }
 
+      // Strip with a height (extruded band, e.g. plinth / acrotère): the
+      // surface is the VERTICAL face developed along the neutral line, not the
+      // ribbon footprint drawn on the plan.
+      const heightM = parseFloat(annotation.height);
+      if (Number.isFinite(heightM) && heightM > 0) {
+        return {
+          enabled: true,
+          length,
+          surface: heightM * length,
+        };
+      }
+
       // Sloped single-surface strip (per-point offsetTop): report the DEVELOPED
       // (3D) length and surface, computed from the same rails as the rendered
       // nappe so quantities and the 3D mesh stay consistent.
