@@ -1,8 +1,23 @@
 import { Muxer, ArrayBufferTarget } from "mp4-muxer";
 
-// H.264 profiles tried in order (High 4.0 → Main 4.0 → Baseline 3.0). The
-// browser picks the first one it can hardware-encode at the requested size.
-const CODEC_CANDIDATES = ["avc1.640028", "avc1.4D0028", "avc1.42E01E"];
+// H.264 profile+level candidates, best first. The LEVEL matters as much as
+// the profile: the A4 frame ratio gives tall outputs (1920×1358 = 10200
+// macroblocks) that blow past level 4.0's 8192 MB limit, so a 4.0-only list
+// gets "unsupported" for every candidate. 5.x first, then the lower levels
+// for the smaller export sizes.
+const CODEC_CANDIDATES = [
+  "avc1.640034", // High 5.2
+  "avc1.640033", // High 5.1
+  "avc1.640032", // High 5.0
+  "avc1.64002a", // High 4.2
+  "avc1.640028", // High 4.0
+  "avc1.4d0034", // Main 5.2
+  "avc1.4d0032", // Main 5.0
+  "avc1.4d0028", // Main 4.0
+  "avc1.420034", // Baseline 5.2
+  "avc1.420032", // Baseline 5.0
+  "avc1.42e01e", // Baseline 3.0
+];
 
 // ~0.13 bit per pixel ≈ 8 Mbps at 1080p30 — the usual H.264 quality point.
 const BITS_PER_PIXEL = 0.15;
@@ -39,22 +54,40 @@ export default async function createMp4Encoder({ width, height, fps }) {
     avc: { format: "avc" },
   };
 
+  // Two probe rounds: the full config, then a minimal one — an unsupported
+  // optional field (latencyMode, avc.format) makes isConfigSupported throw a
+  // TypeError for EVERY candidate, which would look like "no codec at all".
+  const minimalConfig = {
+    width,
+    height,
+    bitrate: baseConfig.bitrate,
+  };
+
   let codec = null;
-  for (const candidate of CODEC_CANDIDATES) {
-    try {
-      const { supported } = await window.VideoEncoder.isConfigSupported({
-        ...baseConfig,
-        codec: candidate,
-      });
-      if (supported) {
-        codec = candidate;
-        break;
+  let config = null;
+  for (const probeConfig of [baseConfig, minimalConfig]) {
+    for (const candidate of CODEC_CANDIDATES) {
+      try {
+        const { supported } = await window.VideoEncoder.isConfigSupported({
+          ...probeConfig,
+          codec: candidate,
+        });
+        if (supported) {
+          codec = candidate;
+          config = { ...probeConfig, codec: candidate };
+          break;
+        }
+      } catch {
+        // invalid codec strings / configs throw instead of returning false
       }
-    } catch {
-      // unsupported config strings throw instead of returning supported:false
     }
+    if (codec) break;
   }
-  if (!codec) throw new Error("NO_AVC_CODEC");
+  if (!codec) {
+    throw new Error(
+      `NO_AVC_CODEC (${width}x${height} @ ${fps}fps) — no H.264 profile/level supported by this browser`
+    );
+  }
 
   const muxer = new Muxer({
     target: new ArrayBufferTarget(),
@@ -69,7 +102,7 @@ export default async function createMp4Encoder({ width, height, fps }) {
       encodeError = error;
     },
   });
-  encoder.configure({ ...baseConfig, codec });
+  encoder.configure(config);
 
   const frameDurationUs = Math.round(1e6 / fps);
   const keyFrameInterval = Math.max(1, fps * 2); // keyframe every 2 s
