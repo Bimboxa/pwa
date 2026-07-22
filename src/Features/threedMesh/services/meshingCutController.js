@@ -35,6 +35,9 @@ import { MESH3D_SNAP_PX } from "../utils/mesh3dConstants";
 const CUT_COLOR = 0xd32f2f;
 const LINEWIDTH = 2.5;
 const LINEWIDTH_SNAPPED = 4.5;
+// Offset guide on a shell: a hairline dotted contour, dash length in meters.
+const GUIDE_LINEWIDTH = 1;
+const GUIDE_DASH_M = 0.03;
 // Draft geometry is drawn slightly off the face plane so the red line never
 // z-fights with the maille surface (which sits 1 mm off the source face).
 const DRAFT_LIFT_M = 0.012;
@@ -168,7 +171,11 @@ export function createMeshingCutController({
   // Same red line as drawSegment, but for the many short segments of a shell
   // cut (plane ∩ shell): one LineSegments2 instead of N Line2 objects, which
   // would allocate a material + geometry per facet on every hover frame.
-  function drawSegments(segments, { snapped = false } = {}) {
+  //
+  // `dashed`: thin dotted variant used for the offset guide — on a faceted
+  // shell the guide is a whole contour around the mesh, where a single marker
+  // point would be unreadable.
+  function drawSegments(segments, { snapped = false, dashed = false } = {}) {
     if (!segments?.length) return;
     const positions = [];
     for (const [p, q] of segments) {
@@ -176,15 +183,25 @@ export function createMeshingCutController({
     }
     const material = new LineMaterial({
       color: CUT_COLOR,
-      linewidth: snapped ? LINEWIDTH_SNAPPED : LINEWIDTH,
+      linewidth: dashed
+        ? GUIDE_LINEWIDTH
+        : snapped
+          ? LINEWIDTH_SNAPPED
+          : LINEWIDTH,
       resolution: getResolution(),
       worldUnits: false,
       transparent: true,
       depthTest: false,
+      dashed,
+      dashSize: GUIDE_DASH_M,
+      gapSize: GUIDE_DASH_M,
     });
     const geometry = new LineSegmentsGeometry();
     geometry.setPositions(positions);
     const lines = new LineSegments2(geometry, material);
+    // Dashes are laid out along the accumulated distance, so the pattern runs
+    // continuously around the contour instead of restarting per facet.
+    if (dashed) lines.computeLineDistances();
     lines.renderOrder = 1002;
     lines.raycast = () => {};
     ensureDraftGroup().add(lines);
@@ -365,6 +382,18 @@ export function createMeshingCutController({
       })
       .filter(Boolean);
 
+    // The guide is shown as the dotted contour where its plane meets the
+    // shell (a marker point on a faceted surface reads as noise); it is
+    // dropped once the cut has snapped onto it, since the solid red line then
+    // sits exactly there.
+    const guideSegments =
+      guideDist !== null && !snapped
+        ? cutShellByPlane({
+            positions: mesh3d.shell.positions,
+            plane: { normal, constant: guideDist },
+          }).segments
+        : [];
+
     const guidePoint =
       guideDist !== null
         ? {
@@ -396,8 +425,10 @@ export function createMeshingCutController({
       segments.map(([p, q]) => [liftToCamera(p), liftToCamera(q)]),
       { snapped }
     );
-    drawRing(liftToCamera(ref));
-    if (guidePoint) drawRing(liftToCamera(guidePoint));
+    drawSegments(
+      guideSegments.map(([p, q]) => [liftToCamera(p), liftToCamera(q)]),
+      { dashed: true }
+    );
     setMeshingOverlay({ areaChips, offsetChip, cursor: null });
     renderScene();
 
