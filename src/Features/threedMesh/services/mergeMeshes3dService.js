@@ -9,6 +9,9 @@ import { computeMesh3dSurface } from "../utils/computeFaceArea";
 // as-is. The survivor is the maille with the LOWEST number (it keeps id /
 // number / label / color); the others are soft-deleted. The merged surface is
 // the sum of all face areas.
+//
+// Curved (shell) mailles are excluded: a triangulated surface has no polygon
+// to union, so merging one would silently drop its geometry.
 export default async function mergeMeshes3dService(mesh3dIds) {
   const ids = (mesh3dIds || []).filter(Boolean);
   if (ids.length < 2) return null;
@@ -18,6 +21,7 @@ export default async function mergeMeshes3dService(mesh3dIds) {
       (r) => r && !r.deletedAt
     );
     if (records.length < 2) return null;
+    if (records.some((r) => r.shell?.positions?.length)) return null;
 
     records.sort((r1, r2) => (r1.number || 0) - (r2.number || 0));
     const [survivor, ...others] = records;

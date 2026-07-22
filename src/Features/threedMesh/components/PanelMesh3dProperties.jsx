@@ -51,6 +51,8 @@ export default function PanelMesh3dProperties() {
   const isMulti = meshes3d.length > 1;
   const mesh3d = meshes3d.length === 1 ? meshes3d[0] : null;
   const totalSurface = meshes3d.reduce((s, m) => s + (m.surface || 0), 0);
+  // Curved mailles have no polygon to union — merge stays a planar operation.
+  const hasCurvedMaille = meshes3d.some((m) => m.shell?.positions?.length);
 
   const color = (mesh3d ? mesh3d.color : meshes3d[0]?.color) || DEFAULT_MESH3D_COLOR;
   const displayLabel = mesh3d ? getMesh3dDisplayLabel(mesh3d, prefix) : null;
@@ -160,6 +162,7 @@ export default function PanelMesh3dProperties() {
             <Button
               startIcon={<MergeIcon />}
               onClick={handleMergeClick}
+              disabled={hasCurvedMaille}
               fullWidth
               size="small"
               sx={{ mb: 1 }}

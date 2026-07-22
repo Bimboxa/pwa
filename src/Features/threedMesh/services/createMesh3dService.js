@@ -4,6 +4,7 @@ import db from "App/db/db";
 
 import { computeMesh3dSurface } from "../utils/computeFaceArea";
 import getMesh3dCreationColors from "../utils/getMesh3dCreationColors";
+import getMesh3dLoops from "../utils/getMesh3dLoops";
 import findAdjacentMeshes3d from "../utils/findAdjacentMeshes3d";
 
 // Creates a maille. `number` is allocated inside the transaction as
@@ -18,14 +19,17 @@ import findAdjacentMeshes3d from "../utils/findAdjacentMeshes3d";
 export default async function createMesh3dService({
   projectId,
   scopeId,
-  faces,
+  faces = null,
+  shell = null,
   baseColor = null,
   color = null,
   edgeColor = null,
   label = null,
   sourceInfo = null,
 }) {
-  if (!projectId || !scopeId || !faces?.length) return null;
+  if (!projectId || !scopeId) return null;
+  // A maille is either planar (polygon faces) or curved (triangulated shell).
+  if (!faces?.length && !shell?.positions?.length) return null;
 
   return db.transaction("rw", db.meshes3d, async () => {
     const rows = await db.meshes3d
@@ -35,7 +39,7 @@ export default async function createMesh3dService({
     const number = 1 + rows.reduce((max, r) => Math.max(max, r.number || 0), 0);
 
     const neighbors = findAdjacentMeshes3d(
-      faces,
+      getMesh3dLoops({ faces, shell }),
       rows.filter((r) => !r.deletedAt)
     );
     const colors = getMesh3dCreationColors(
@@ -53,8 +57,9 @@ export default async function createMesh3dService({
       baseColor,
       color: color || colors.color,
       edgeColor: edgeColor || colors.edgeColor,
-      surface: computeMesh3dSurface(faces),
-      faces,
+      surface: shell ? shell.surface : computeMesh3dSurface(faces),
+      faces: faces || [],
+      shell: shell || null,
       sourceInfo,
     };
     await db.meshes3d.add(record);

@@ -11,6 +11,7 @@ import useMesh3dLabelPrefix from "../hooks/useMesh3dLabelPrefix";
 import createMesh3dLabelSprite from "../services/createMesh3dLabelSprite";
 import { setMesh3dObjects } from "../services/mesh3dObjectsStore";
 import buildFaceGeometry from "../utils/buildFaceGeometry";
+import buildShellGeometry from "../utils/buildShellGeometry";
 import computeFaceArea, { polygonCentroid2d } from "../utils/computeFaceArea";
 import computePlaneBasis from "../utils/computePlaneBasis";
 import { projectLoopTo2d, liftPointTo3d } from "../utils/planeProjection";
@@ -34,9 +35,39 @@ function disposeObject(obj) {
   });
 }
 
+// Anchor of the label sprite on a curved maille: area-weighted centroid of
+// its triangles, lifted along their area-weighted average normal.
+function getShellLabelPosition(shell) {
+  const p = shell?.positions;
+  if (!p || p.length < 9) return null;
+  const a = new Vector3();
+  const b = new Vector3();
+  const c = new Vector3();
+  const n = new Vector3();
+  const centroid = new Vector3();
+  const normal = new Vector3();
+  let area = 0;
+  for (let t = 0; t < p.length / 9; t++) {
+    a.fromArray(p, 9 * t);
+    b.fromArray(p, 9 * t + 3);
+    c.fromArray(p, 9 * t + 6);
+    n.subVectors(b, a).cross(new Vector3().subVectors(c, a));
+    const triArea = n.length() / 2;
+    if (triArea === 0) continue;
+    area += triArea;
+    centroid.addScaledVector(a.add(b).add(c).divideScalar(3), triArea);
+    normal.add(n);
+  }
+  if (area === 0) return null;
+  centroid.divideScalar(area);
+  if (normal.lengthSq() > 0) normal.normalize();
+  return centroid.addScaledVector(normal, LABEL_LIFT_M);
+}
+
 // Anchor of the label sprite: centroid of the maille's largest face, lifted
 // along that face's normal.
 function getLabelPosition(mesh3d) {
+  if (mesh3d.shell) return getShellLabelPosition(mesh3d.shell);
   let best = null;
   let bestArea = -1;
   for (const face of mesh3d.faces || []) {
@@ -74,6 +105,11 @@ export default function ThreedMeshes() {
     (s) => s.viewers.selectedViewerKey !== "MESHES"
   );
   const labelsOptions = useSelector((s) => s.threedEditor.mesh3dLabels);
+  // Outline threshold of curved mailles: the angle that grew the region, so
+  // the smooth facet seams inside a shell stay invisible.
+  const faceSelectionAngleDeg = useSelector(
+    (s) => s.threedEditor.faceSelectionAngleDeg
+  );
 
   // Selected maille ids, serialized so the rebuild effect only re-runs when
   // the MESH3D selection actually changes.
@@ -144,7 +180,7 @@ export default function ThreedMeshes() {
     const faceMeshes = [];
 
     (meshes3d || []).forEach((mesh3d) => {
-      if (!mesh3d?.faces?.length) return;
+      if (!mesh3d?.faces?.length && !mesh3d?.shell?.positions?.length) return;
       const selected = selectedIds.has(mesh3d.id);
       const dimmed = hasSelection && !selected;
       const color = mesh3d.color || DEFAULT_MESH3D_COLOR;
@@ -152,7 +188,28 @@ export default function ThreedMeshes() {
       const group = new Group();
       group.userData = { mesh3dId: mesh3d.id, isMesh3d: true };
 
-      mesh3d.faces.forEach((face, faceIndex) => {
+      // Curved maille: one surface for the whole shell (faceIndex 0). Planar
+      // maille: one surface per polygon face.
+      if (mesh3d.shell?.positions?.length) {
+        const shellMesh = buildShellGeometry(mesh3d.shell, {
+          color,
+          edgeColor: mesh3d.edgeColor,
+          selected,
+          dimmed,
+          edgeAngleDeg: faceSelectionAngleDeg,
+        });
+        if (shellMesh) {
+          shellMesh.userData = {
+            mesh3dId: mesh3d.id,
+            faceIndex: 0,
+            isMesh3d: true,
+          };
+          group.add(shellMesh);
+          faceMeshes.push(shellMesh);
+        }
+      }
+
+      (mesh3d.faces || []).forEach((face, faceIndex) => {
         const faceMesh = buildFaceGeometry(face, {
           color,
           edgeColor: mesh3d.edgeColor,
@@ -209,6 +266,7 @@ export default function ThreedMeshes() {
     hideMeshes3d,
     hasSelection,
     labelsOptions,
+    faceSelectionAngleDeg,
   ]);
 
   return null;

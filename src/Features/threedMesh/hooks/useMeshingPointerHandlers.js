@@ -34,7 +34,7 @@ import {
   clearMeshingOverlay,
 } from "../services/meshingOverlayStore";
 import { createMeshingCutController } from "../services/meshingCutController";
-import buildFacesFromRegion from "../utils/buildFacesFromRegion";
+import buildMeshDataFromRegion from "../utils/buildMeshDataFromRegion";
 
 // Mirrors useDrawingPointerHandlers / useDimensionPointerHandlers.
 const DRAG_THRESHOLD_PX = 4;
@@ -311,10 +311,12 @@ export default function useMeshingPointerHandlers() {
             angleDeg: faceSelectionAngleDegRef.current,
           }
         );
-        const faces = region
-          ? buildFacesFromRegion(pick.hitObject, region.tris)
+        // Planar region → polygon faces; curved one (revolution, swept
+        // profile) → triangulated shell.
+        const meshData = region
+          ? buildMeshDataFromRegion(pick.hitObject, region.tris)
           : null;
-        if (faces) {
+        if (meshData) {
           const { projectId: pId, scopeId: sId } = idsRef.current;
           try {
             // The maille takes the source annotation's hue (lightened fill +
@@ -325,7 +327,8 @@ export default function useMeshingPointerHandlers() {
             await createMesh3dService({
               projectId: pId,
               scopeId: sId,
-              faces,
+              faces: meshData.faces,
+              shell: meshData.shell,
               baseColor,
               sourceInfo: { annotationId: pick.nodeId },
             });

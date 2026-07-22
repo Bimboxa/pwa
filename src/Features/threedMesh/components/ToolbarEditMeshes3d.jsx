@@ -40,6 +40,8 @@ export default function ToolbarEditMeshes3d({ onDragStart }) {
   if (meshes3d.length < 2) return null;
 
   const totalSurface = meshes3d.reduce((s, m) => s + (m.surface || 0), 0);
+  // Curved mailles have no polygon to union — merge stays a planar operation.
+  const hasCurvedMaille = meshes3d.some((m) => m.shell?.positions?.length);
 
   function handleColorChange(hex) {
     meshes3d.forEach((m) => updateMesh3d(m.id, { color: hex }));
@@ -121,6 +123,7 @@ export default function ToolbarEditMeshes3d({ onDragStart }) {
           size="small"
           startIcon={<MergeIcon fontSize="small" />}
           onClick={handleMergeClick}
+          disabled={hasCurvedMaille}
           sx={{ textTransform: "none" }}
         >
           Fusionner
