@@ -1,9 +1,9 @@
 import { useDispatch, useSelector } from "react-redux";
 
 import {
+  clearExtrudeValueBuffer,
   setExtrudeModeActive,
-  setExtrudeTypedValue,
-  setExtrudeValueLocked,
+  setExtrudeValueBuffer,
 } from "Features/threedEditor/threedEditorSlice";
 
 import {
@@ -15,44 +15,50 @@ import {
   Typography,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
-import MouseIcon from "@mui/icons-material/Mouse";
+import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
 
 import FieldNumberCompact from "Features/threedMesh/components/FieldNumberCompact";
 
 // Specialized bottom toolbar shown while extrude mode is active. Replaces
 // BottomToolbarThreed (same swap pattern as MeshingToolbarThreed): the
 // extrusion value takes the place of the tool buttons.
+//
+// The value shown is the typed buffer when there is one (digits captured from
+// the keyboard by useExtrudePointerHandlers, no focus needed — same model as
+// the 2D drawing constraint buffer), otherwise the live mouse-derived value.
+// The field stays editable: what is typed in it feeds the same buffer.
 export default function ExtrudeToolbarThreed() {
   const dispatch = useDispatch();
 
   const value = useSelector((s) => s.threedEditor.extrudeMode.value);
-  const valueLocked = useSelector(
-    (s) => s.threedEditor.extrudeMode.valueLocked
+  const valueBuffer = useSelector(
+    (s) => s.threedEditor.extrudeMode.valueBuffer
   );
   const targetAnnotationId = useSelector(
     (s) => s.threedEditor.extrudeMode.targetAnnotationId
   );
 
   const armed = !!targetAnnotationId;
+  const typed = valueBuffer !== "";
 
   // strings
 
-  const hintS = valueLocked
-    ? "Valeur saisie — cliquez une face pour l'appliquer"
+  const hintS = typed
+    ? armed
+      ? "Entrée ou clic pour valider (⌫ : effacer la saisie)"
+      : "Valeur saisie — cliquez une face pour l'appliquer"
     : armed
-      ? "Déplacez la souris, clic ou Entrée pour valider (Échap : annuler)"
+      ? "Déplacez la souris ou tapez une valeur, clic pour valider (Échap : annuler)"
       : "Cliquez une face du dessus";
 
   // handlers
 
-  // Typing wins over the mouse until the user hands control back, otherwise
-  // moving the cursor back onto the face would overwrite what was typed.
-  function handleValueChange(newValue) {
-    dispatch(setExtrudeTypedValue(newValue));
+  function handleValueText(text) {
+    dispatch(setExtrudeValueBuffer(text));
   }
 
-  function handleUnlock() {
-    dispatch(setExtrudeValueLocked(false));
+  function handleClearBuffer() {
+    dispatch(clearExtrudeValueBuffer());
   }
 
   function handleClose() {
@@ -84,15 +90,15 @@ export default function ExtrudeToolbarThreed() {
 
         <FieldNumberCompact
           label="Extrusion"
-          value={value}
-          onChange={handleValueChange}
+          value={typed ? valueBuffer : value}
+          onChangeText={handleValueText}
           unit="m"
         />
 
-        {valueLocked && (
-          <Tooltip title="Reprendre le réglage à la souris">
-            <IconButton size="small" onClick={handleUnlock}>
-              <MouseIcon sx={{ fontSize: 18 }} />
+        {typed && (
+          <Tooltip title="Effacer la valeur saisie (retour au réglage à la souris)">
+            <IconButton size="small" onClick={handleClearBuffer}>
+              <LockOutlinedIcon sx={{ fontSize: 18 }} color="primary" />
             </IconButton>
           </Tooltip>
         )}

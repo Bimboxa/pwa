@@ -6,6 +6,9 @@ import { Raycaster, Vector2 } from "three";
 import db from "App/db/db";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 import {
+  appendToExtrudeValueBuffer,
+  clearExtrudeValueBuffer,
+  deleteLastExtrudeValueBuffer,
   setExtrudeModeActive,
   setExtrudeTargetAnnotationId,
   setExtrudeValue,
@@ -38,12 +41,27 @@ import {
 import getAxisDragValue from "../utils/getAxisDragValue";
 import isAnnotationExtrudable from "../utils/isAnnotationExtrudable";
 import isExtrudableFaceHit from "../utils/isExtrudableFaceHit";
+import parseExtrudeValueBuffer, {
+  EXTRUDE_BUFFER_CHAR_RE,
+} from "../utils/parseExtrudeValueBuffer";
 
 // Mirrors useMeshingPointerHandlers / useDrawingPointerHandlers.
 const DRAG_THRESHOLD_PX = 4;
 // The armed value only starts following the cursor once it has really moved,
-// so a click-click without moving applies the value typed in the toolbar.
+// so a click-click without moving applies the value shown in the toolbar.
 const TRACKING_THRESHOLD_PX = 4;
+
+// Same guard as the 2D hotkeys: never steal keystrokes from a real field.
+const isEditableTarget = (el) => {
+  if (!el) return false;
+  const tag = el.tagName;
+  return (
+    tag === "INPUT" ||
+    tag === "TEXTAREA" ||
+    tag === "SELECT" ||
+    el.isContentEditable
+  );
+};
 
 function roundCm(value) {
   return Math.round(value * 100) / 100;
@@ -73,6 +91,10 @@ function disposeObject(obj) {
 //   replaced by a transient ghost rebuilt at every value change.
 // - mouse move: the value follows the cursor along the axis (toolbar field +
 //   ghost + cursor chip).
+// - typing digits: captured straight from the keyboard into
+//   `extrudeMode.valueBuffer` — no focused field, exactly like the 2D drawing
+//   constraint buffer. A non-empty buffer wins over the mouse; Backspace
+//   erases it character by character.
 // - click 2 / Enter: commits `height = max(0, height + value)`. Escape cancels
 //   the armed state, or leaves the mode when nothing is armed.
 export default function useExtrudePointerHandlers() {
@@ -80,8 +102,8 @@ export default function useExtrudePointerHandlers() {
 
   const active = useSelector((s) => s.threedEditor.extrudeMode.active);
   const value = useSelector((s) => s.threedEditor.extrudeMode.value);
-  const valueLocked = useSelector(
-    (s) => s.threedEditor.extrudeMode.valueLocked
+  const valueBuffer = useSelector(
+    (s) => s.threedEditor.extrudeMode.valueBuffer
   );
   const faceSelectionAngleDeg = useSelector(
     (s) => s.threedEditor.faceSelectionAngleDeg
@@ -89,15 +111,19 @@ export default function useExtrudePointerHandlers() {
 
   const updateAnnotation = useUpdateAnnotation();
 
+  // The typed buffer wins over the mouse-derived value as soon as it holds a
+  // parsable number.
+  const effectiveValue = parseExtrudeValueBuffer(valueBuffer) ?? value;
+
   // Values read inside the (stable-per-activation) listeners.
-  const valueRef = useRef(value);
+  const valueRef = useRef(effectiveValue);
   useEffect(() => {
-    valueRef.current = value;
-  }, [value]);
-  const valueLockedRef = useRef(valueLocked);
+    valueRef.current = effectiveValue;
+  }, [effectiveValue]);
+  const valueBufferRef = useRef(valueBuffer);
   useEffect(() => {
-    valueLockedRef.current = valueLocked;
-  }, [valueLocked]);
+    valueBufferRef.current = valueBuffer;
+  }, [valueBuffer]);
   const faceSelectionAngleDegRef = useRef(faceSelectionAngleDeg);
   useEffect(() => {
     faceSelectionAngleDegRef.current = faceSelectionAngleDeg;
@@ -329,10 +355,17 @@ export default function useExtrudePointerHandlers() {
     async function commit() {
       if (!armed) return;
       const { annotationId, baseHeight } = armed;
-      const height = Math.max(0, baseHeight + (valueRef.current || 0));
+      const applied = valueRef.current || 0;
+      const height = Math.max(0, baseHeight + applied);
       // Restore the real mesh first: the AnnotationsManager rebuilds it from
       // the new record as soon as the write propagates.
       cancelArm();
+      // The typed value is consumed by the commit (same as the 2D constraint
+      // buffer), but stays displayed so the next face can reuse it.
+      if (valueBufferRef.current !== "") {
+        dispatch(setExtrudeValue(applied));
+        dispatch(clearExtrudeValueBuffer());
+      }
       try {
         await updateAnnotationRef.current({ id: annotationId, height });
       } catch (err) {
@@ -343,7 +376,7 @@ export default function useExtrudePointerHandlers() {
     // Armed: the value follows the cursor along the extrusion axis — unless
     // the user typed one, which wins until they hand control back.
     function updateArmedValue(e) {
-      if (valueLockedRef.current) return;
+      if (valueBufferRef.current !== "") return;
       const rect = dom.getBoundingClientRect();
       if (!rect.width || !rect.height) return;
       if (!armed.tracking) {
@@ -455,12 +488,38 @@ export default function useExtrudePointerHandlers() {
     }
 
     function onKeyDown(e) {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+
       if (e.key === "Escape") {
+        if (valueBufferRef.current !== "") dispatch(clearExtrudeValueBuffer());
         if (armed) cancelArm();
-        else dispatch(setExtrudeModeActive(false));
+        else if (valueBufferRef.current === "")
+          dispatch(setExtrudeModeActive(false));
+        return;
       }
-      if (e.key === "Enter" && armed) {
-        commit();
+      if (e.key === "Enter") {
+        if (armed) commit();
+        return;
+      }
+
+      // Everything below is the typed-value buffer — leave real fields alone
+      // (the toolbar field feeds the same buffer through onChangeText).
+      if (isEditableTarget(e.target)) return;
+
+      if (e.key === "Backspace" || e.key === "Delete") {
+        if (valueBufferRef.current === "") return;
+        e.preventDefault();
+        e.stopPropagation();
+        dispatch(deleteLastExtrudeValueBuffer());
+        return;
+      }
+      if (EXTRUDE_BUFFER_CHAR_RE.test(e.key)) {
+        // A minus only makes sense as the first character (pull the face back
+        // down); anywhere else it would just break parseFloat.
+        if (e.key === "-" && valueBufferRef.current !== "") return;
+        e.preventDefault();
+        e.stopPropagation();
+        dispatch(appendToExtrudeValueBuffer(e.key === "," ? "." : e.key));
       }
     }
 
@@ -484,7 +543,10 @@ export default function useExtrudePointerHandlers() {
     dom.addEventListener("pointerup", onPointerUp);
     dom.addEventListener("pointercancel", onPointerCancel);
     dom.addEventListener("pointerleave", onPointerLeave);
-    window.addEventListener("keydown", onKeyDown);
+    // Capture phase: the typed digits / Backspace must reach the buffer before
+    // the window-scoped shortcuts of the other features (delete annotation,
+    // drawing-tool hotkeys) see them.
+    window.addEventListener("keydown", onKeyDown, true);
 
     return () => {
       dom.removeEventListener("pointerdown", onPointerDown);
@@ -492,7 +554,7 @@ export default function useExtrudePointerHandlers() {
       dom.removeEventListener("pointerup", onPointerUp);
       dom.removeEventListener("pointercancel", onPointerCancel);
       dom.removeEventListener("pointerleave", onPointerLeave);
-      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keydown", onKeyDown, true);
       unsubReady?.();
       rebuildGhostRef.current = null;
       if (rafId != null) cancelAnimationFrame(rafId);
@@ -504,10 +566,14 @@ export default function useExtrudePointerHandlers() {
   }, [active, dispatch]);
 
   // Typed value → refresh the ghost. The mouse-driven path rebuilds it
-  // itself; here we only cover the keyboard, which never goes through the
-  // pointer handlers (`valueLocked` is set by every field edit).
+  // itself, so we only act while the buffer holds something — plus the one
+  // tick where it is emptied, to hand the ghost back to the mouse value.
+  const prevValueBufferRef = useRef(valueBuffer);
   useEffect(() => {
-    if (!active || !valueLocked) return;
-    rebuildGhostRef.current?.(value);
-  }, [active, value, valueLocked]);
+    const prev = prevValueBufferRef.current;
+    prevValueBufferRef.current = valueBuffer;
+    if (!active) return;
+    if (valueBuffer === "" && prev === "") return;
+    rebuildGhostRef.current?.(effectiveValue);
+  }, [active, valueBuffer, effectiveValue]);
 }

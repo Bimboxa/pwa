@@ -157,10 +157,11 @@ const threedEditorInitialState = {
     // from the mouse while a face is armed. Kept across commits so the next
     // face reuses the last value (SketchUp behaviour).
     value: 0.1,
-    // Numeric entry wins over the mouse: set as soon as the user types in the
-    // toolbar field, so moving the cursor back to the face does not overwrite
-    // what was typed. Released from the toolbar (or by leaving the mode).
-    valueLocked: false,
+    // Digits typed on the keyboard, exactly like the 2D drawing constraint
+    // buffer (mapEditor.constraintBuffer): no focused field involved, the
+    // pointer handlers capture the keystrokes. A non-empty buffer wins over
+    // the mouse-derived `value`. Cleared on commit / mode (re)activation.
+    valueBuffer: "",
     // Annotation armed by the first click (null = waiting for a face).
     targetAnnotationId: null,
   },
@@ -459,7 +460,7 @@ export const threedEditorSlice = createSlice({
     setExtrudeModeActive: (state, action) => {
       state.extrudeMode.active = action.payload;
       state.extrudeMode.targetAnnotationId = null;
-      state.extrudeMode.valueLocked = false;
+      state.extrudeMode.valueBuffer = "";
       if (action.payload) {
         // Mutually exclusive with every other 3D tool mode.
         state.drawingMode.active = false;
@@ -476,18 +477,26 @@ export const threedEditorSlice = createSlice({
         state.walkMode.active = false;
       }
     },
-    // Mouse-driven update: never touches the lock (it is a no-op while locked,
-    // the pointer handlers skip tracking).
+    // Mouse-driven update. A no-op while the typed buffer is non-empty — the
+    // pointer handlers skip tracking there.
     setExtrudeValue: (state, action) => {
       state.extrudeMode.value = action.payload;
     },
-    // Keyboard-driven update: locks the value so the mouse stops fighting it.
-    setExtrudeTypedValue: (state, action) => {
-      state.extrudeMode.value = action.payload;
-      state.extrudeMode.valueLocked = true;
+    // Typed buffer (mirrors mapEditor's constraintBuffer reducers).
+    setExtrudeValueBuffer: (state, action) => {
+      state.extrudeMode.valueBuffer = action.payload ?? "";
     },
-    setExtrudeValueLocked: (state, action) => {
-      state.extrudeMode.valueLocked = Boolean(action.payload);
+    appendToExtrudeValueBuffer: (state, action) => {
+      state.extrudeMode.valueBuffer += action.payload;
+    },
+    deleteLastExtrudeValueBuffer: (state) => {
+      state.extrudeMode.valueBuffer = state.extrudeMode.valueBuffer.slice(
+        0,
+        -1
+      );
+    },
+    clearExtrudeValueBuffer: (state) => {
+      state.extrudeMode.valueBuffer = "";
     },
     setExtrudeTargetAnnotationId: (state, action) => {
       state.extrudeMode.targetAnnotationId = action.payload;
@@ -579,8 +588,10 @@ export const {
   toggleMeshingCutSide,
   setExtrudeModeActive,
   setExtrudeValue,
-  setExtrudeTypedValue,
-  setExtrudeValueLocked,
+  setExtrudeValueBuffer,
+  appendToExtrudeValueBuffer,
+  deleteLastExtrudeValueBuffer,
+  clearExtrudeValueBuffer,
   setExtrudeTargetAnnotationId,
   setWalkModeActive,
   setHideAnnotationsIn3d,
