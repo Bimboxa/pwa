@@ -24,6 +24,7 @@ import {
 import { generateKeyBetween } from "fractional-indexing";
 
 import PovListItem from "./PovListItem";
+import ButtonGeneratePovVideo from "./ButtonGeneratePovVideo";
 import usePovs from "../hooks/usePovs";
 import useUpdatePov from "../hooks/useUpdatePov";
 import useRestorePov from "../hooks/useRestorePov";
@@ -142,6 +143,8 @@ export default function PanelPovList() {
           </SortableContext>
         </DndContext>
       </Box>
+
+      <ButtonGeneratePovVideo />
     </Box>
   );
 }

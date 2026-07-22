@@ -46,6 +46,7 @@
     "jwt-decode": "^4.0.0",
     "konva": "^9.3.18",
     "leaflet": "^1.9.4",
+    "mp4-muxer": "^5.2.2",
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^5.2.133",
     "polygon-clipping": "^0.15.7",
