@@ -5,6 +5,11 @@ import { Box, Typography } from "@mui/material";
 import MapEditorViewport from "Features/mapEditorGeneric/components/MapEditorViewport";
 import NodeSvgImage from "Features/mapEditorGeneric/components/NodeSvgImage";
 import NodeAnnotationStatic from "Features/mapEditorGeneric/components/NodeAnnotationStatic";
+import { TargetPair } from "Features/mapEditor/components/CalibrationLayer";
+import {
+  setDragCursor,
+  clearDragCursor,
+} from "Features/mapEditor/utils/dragCursor";
 
 import useBaseMap from "Features/baseMaps/hooks/useBaseMap";
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
@@ -17,12 +22,18 @@ import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 //
 // World space = baseMap image pixels (annotations come back from useAnnotationsV2
 // already resolved to pixel space).
+//
+// Optional `targets` ({red, green} relative [0..1] positions) draws the very
+// same calibration targets as the main 2D editor, draggable, and reports every
+// move through `onTargetsChange`.
 export default function ElevationBaseMapViewer({
   baseMapId,
   selectedAxisId,
   highlightAnnotationId,
+  targets,
   onSelectAxis,
   onSelectAnnotation,
+  onTargetsChange,
 }) {
   const viewportRef = useRef(null);
 
@@ -85,6 +96,51 @@ export default function ElevationBaseMapViewer({
     [annotationsById, onSelectAxis, onSelectAnnotation]
   );
 
+  // handlers - calibration target drag (world = image pixels, so the relative
+  // position is just world / imageSize — no clamping, same as
+  // useCalibrationDrag in the main editor).
+
+  const targetsRef = useRef(targets);
+  targetsRef.current = targets;
+  const onTargetsChangeRef = useRef(onTargetsChange);
+  onTargetsChangeRef.current = onTargetsChange;
+  const imageSizeRef = useRef(imageSize);
+  imageSizeRef.current = imageSize;
+
+  const handleTargetMouseDown = useCallback((e) => {
+    const handle = e.target?.closest?.(
+      '[data-interaction="calibration-target"]'
+    );
+    const color = handle?.getAttribute?.("data-target-color");
+    if (!color) return;
+
+    e.stopPropagation();
+
+    const move = (ev) => {
+      const world = viewportRef.current?.screenToWorld(ev.clientX, ev.clientY);
+      const size = imageSizeRef.current;
+      if (!world || !size?.width || !size?.height) return;
+      onTargetsChangeRef.current?.({
+        ...targetsRef.current,
+        [color]: { x: world.x / size.width, y: world.y / size.height },
+      });
+    };
+    const up = () => {
+      window.removeEventListener("mousemove", move);
+      window.removeEventListener("mouseup", up);
+      clearDragCursor();
+    };
+    window.addEventListener("mousemove", move);
+    window.addEventListener("mouseup", up);
+    setDragCursor("crosshair");
+  }, []);
+
+  const shouldDisablePan = useCallback(
+    (e) =>
+      Boolean(e.target?.closest?.('[data-interaction="calibration-target"]')),
+    []
+  );
+
   // helper - fit-contain the image on baseMap change
 
   useEffect(() => {
@@ -134,8 +190,12 @@ export default function ElevationBaseMapViewer({
 
   return (
     <Box sx={{ flexGrow: 1, minHeight: 0, position: "relative" }}>
-      <MapEditorViewport ref={viewportRef} onWorldClick={handleWorldClick}>
-        <g>
+      <MapEditorViewport
+        ref={viewportRef}
+        onWorldClick={handleWorldClick}
+        shouldDisablePan={shouldDisablePan}
+      >
+        <g onMouseDown={handleTargetMouseDown}>
           {imageUrl && imageSize && (
             <NodeSvgImage
               src={imageUrl}
@@ -161,6 +221,20 @@ export default function ElevationBaseMapViewer({
               />
             );
           })}
+
+          {targets && imageSize && (
+            <TargetPair
+              targets={targets}
+              width={imageSize.width}
+              height={imageSize.height}
+              // World = image pixels here (no extra content scale), like
+              // NodeAnnotationStatic above.
+              containerK={1}
+              versionId={null}
+              opacity={1}
+              visible={{ red: true, green: true }}
+            />
+          )}
         </g>
       </MapEditorViewport>
     </Box>

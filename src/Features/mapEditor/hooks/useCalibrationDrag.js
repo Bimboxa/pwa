@@ -2,27 +2,13 @@ import { useState, useRef, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { setCalibrationTargets } from "Features/baseMapEditor/baseMapEditorSlice";
 import { DEFAULT_RED, DEFAULT_GREEN } from "Features/mapEditor/utils/computeCalibrationTransform";
+import { setDragCursor, clearDragCursor } from "Features/mapEditor/utils/dragCursor";
 
 /**
  * Hook that manages drag of calibration targets (red/green).
  * Targets are stored as relative positions in the image reference space, per active version.
  * No clamping: targets can be placed outside image bounds.
  */
-// Injected style element to force cursor during drag
-let dragStyleEl = null;
-function setDragCursor(cursor) {
-  if (!dragStyleEl) {
-    dragStyleEl = document.createElement("style");
-    document.head.appendChild(dragStyleEl);
-  }
-  dragStyleEl.textContent = `* { cursor: ${cursor} !important; }`;
-}
-function clearDragCursor() {
-  if (dragStyleEl) {
-    dragStyleEl.remove();
-    dragStyleEl = null;
-  }
-}
 
 export default function useCalibrationDrag({ basePose, viewportRef, baseMap }) {
   const dispatch = useDispatch();

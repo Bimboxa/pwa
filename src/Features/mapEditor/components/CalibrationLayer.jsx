@@ -61,7 +61,9 @@ function CalibrationTarget({
   );
 }
 
-function TargetPair({
+// Exported so other viewers (the Élévation panel) can draw the very same
+// targets in their own local viewport.
+export function TargetPair({
   targets,
   width,
   height,

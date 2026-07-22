@@ -9,6 +9,7 @@ import {
   setEditedProfileIndex,
 } from "Features/elevation/elevationSlice";
 import { selectSelectedItem } from "Features/selection/selectionSlice";
+import { selectSelectedModuleKey } from "Features/viewers/utils/effectiveViewerKey";
 
 import { Box, Chip, IconButton, Tooltip, Typography } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
@@ -18,6 +19,7 @@ import PlanSelectorElevation from "./PlanSelectorElevation";
 import ElevationBaseMapSelector from "./ElevationBaseMapSelector";
 import ElevationEditor from "./ElevationEditor";
 import PanelElevationBaseMapView from "./PanelElevationBaseMapView";
+import PanelElevationLocateBaseMap from "./PanelElevationLocateBaseMap";
 
 import useElevationAnnotation from "Features/elevation/hooks/useElevationAnnotation";
 import useSelectedAnnotation from "Features/annotations/hooks/useSelectedAnnotation";
@@ -66,6 +68,9 @@ export default function PanelElevation() {
   );
   const editedProfileIndex = useSelector((s) => s.elevation.editedProfileIndex);
   const selectedItem = useSelector(selectSelectedItem);
+  // The right panel is module-driven: in BASE_MAPS the Élévation tool is the
+  // "locate a vertical baseMap" panel, whatever the current selection.
+  const moduleKey = useSelector(selectSelectedModuleKey);
 
   // Shell / extrusion profiles with enough points to have a section.
   const sectionProfiles = (profileLines ?? []).filter(
@@ -176,6 +181,10 @@ export default function PanelElevation() {
   }
 
   // render
+
+  if (moduleKey === "BASE_MAPS") {
+    return <PanelElevationLocateBaseMap />;
+  }
 
   if (!showProfileEditor) {
     return <PanelElevationBaseMapView />;

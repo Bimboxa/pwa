@@ -83,7 +83,9 @@ export default function VerticalMenuRightPanel() {
     ELEVATION: {
       label: "Élévation",
       icon: <Height />,
-      viewers: ["MAP", "THREED", "MESHES"],
+      // In BASE_MAPS the panel has a dedicated role: browse the vertical
+      // baseMaps and locate them against a plan view.
+      viewers: ["MAP", "THREED", "MESHES", "BASE_MAPS"],
     },
     CHAT: {
       label: "Chat",
