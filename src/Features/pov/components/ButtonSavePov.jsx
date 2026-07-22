@@ -31,22 +31,6 @@ import snapshotThreedCanvasForCapture from "Features/threedEditor/utils/snapshot
 import enhanceBaseMapService from "Features/baseMaps/services/enhanceBaseMapService";
 import composeEnhancedPovImage from "../utils/composeEnhancedPovImage";
 
-// Appended to the org's usedByPov prompt: harmonize the legend with the
-// drawing and hand-letter the texts like an architect on a hand-drawn plan.
-const ENHANCE_PROMPT_SUFFIX =
-  "\n\nKeep the EXACT camera viewpoint, framing and perspective of the " +
-  "input image: do not zoom, crop, shift, tilt or rotate anything — every " +
-  "wall, surface and object must stay at its exact position and size.\n" +
-  "The legend box must be restyled too, never left as a digital UI " +
-  "element: align its swatch colors with the exact colors used in the " +
-  "drawing, and REDRAW every single text in it (title, labels, numbers and " +
-  "units) by hand — do not keep any original typography, no clean " +
-  "sans-serif or printed font may remain anywhere in the image. All " +
-  "lettering must look hand-written with an ink pen by an architect on a " +
-  "hand-drawn plan: one single consistent handwriting style, precise and " +
-  "highly legible, in the spirit of the 'Architects Daughter' typeface, " +
-  "with the slight irregularities of real handwriting.";
-
 // Save bar anchored at the bottom-center of the capture frame, shown over
 // both the 2D and 3D editors (replaces the 3D bottom toolbar): the
 // "Amélioration IA" checkbox chip + the create/update button. Creates a new
@@ -155,7 +139,7 @@ export default function ButtonSavePov() {
       baseMapId: `pov_${povId ?? "draft"}`,
       transformId: prompt.id,
       file: new File([blob], "pov.png", { type: "image/png" }),
-      prompt: `${promptText}${ENHANCE_PROMPT_SUFFIX}`,
+      prompt: promptText,
       serviceUrl,
       onSuccess: ({ blob: enhancedBlob, objectUrl: enhancedUrl }) => {
         setAiState((prev) =>
