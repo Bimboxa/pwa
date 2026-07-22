@@ -53,6 +53,12 @@ const TOOLS = [
       "Polyligne de découpe — clics successifs depuis un bord, terminer sur un bord (Échap : annuler)",
     render: () => <TimelineIcon sx={{ fontSize: 18 }} />,
   },
+  {
+    value: "CUT_ANGULAR",
+    label:
+      "Découpe angulaire — 3 clics : extrémité A, sommet de l'angle O, extrémité B (saisir l'angle en degrés au clavier ; Échap : annuler)",
+    render: () => <Glyph>∠</Glyph>,
+  },
 ];
 
 function Glyph({ children }) {

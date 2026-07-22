@@ -138,7 +138,9 @@ const threedEditorInitialState = {
   },
   meshingMode: {
     active: false,
-    tool: "SELECT", // "SELECT" | "CUT_VERTICAL" | "CUT_HORIZONTAL" | "CUT_FREE" | "CUT_POLYLINE" | "NUMBER"
+    // "SELECT" | "CUT_VERTICAL" | "CUT_HORIZONTAL" | "CUT_FREE"
+    // | "CUT_POLYLINE" | "CUT_ANGULAR" | "NUMBER"
+    tool: "SELECT",
     // "Décalage": distance (m) from the reference vertex to the guide vertex
     // used by the vertical / horizontal cut tools.
     offset: 2,
@@ -147,6 +149,11 @@ const threedEditorInitialState = {
     cutSide: "LEFT", // "LEFT" | "RIGHT"
     // "Numéroter": next number assigned to the clicked maille (then +1).
     numberingNext: 1,
+    // Angular cut: digits typed on the keyboard to constrain the angle (deg),
+    // exactly like extrudeMode.valueBuffer — no focused field, the pointer
+    // handlers capture the keystrokes. A parsable buffer wins over the mouse,
+    // which then only picks the side the angle opens to.
+    angleBuffer: "",
   },
   // Extrusion ("push/pull") mode, SketchUp-style: click a top face, move the
   // mouse to set the value, click again to commit `annotation.height`.
@@ -446,6 +453,7 @@ export const threedEditorSlice = createSlice({
     setMeshingTool: (state, action) => {
       state.meshingMode.tool = action.payload;
       state.meshingMode.cutSide = "LEFT";
+      state.meshingMode.angleBuffer = "";
     },
     setMeshingOffset: (state, action) => {
       state.meshingMode.offset = action.payload;
@@ -456,6 +464,19 @@ export const threedEditorSlice = createSlice({
     toggleMeshingCutSide: (state) => {
       state.meshingMode.cutSide =
         state.meshingMode.cutSide === "LEFT" ? "RIGHT" : "LEFT";
+    },
+    // Typed angle buffer of the angular cut (mirrors the extrude buffer).
+    appendToMeshingAngleBuffer: (state, action) => {
+      state.meshingMode.angleBuffer += action.payload;
+    },
+    deleteLastMeshingAngleBuffer: (state) => {
+      state.meshingMode.angleBuffer = state.meshingMode.angleBuffer.slice(
+        0,
+        -1
+      );
+    },
+    clearMeshingAngleBuffer: (state) => {
+      state.meshingMode.angleBuffer = "";
     },
     setExtrudeModeActive: (state, action) => {
       state.extrudeMode.active = action.payload;
@@ -586,6 +607,9 @@ export const {
   setMeshingOffset,
   setMeshingNumberingNext,
   toggleMeshingCutSide,
+  appendToMeshingAngleBuffer,
+  deleteLastMeshingAngleBuffer,
+  clearMeshingAngleBuffer,
   setExtrudeModeActive,
   setExtrudeValue,
   setExtrudeValueBuffer,

@@ -28,6 +28,10 @@ import {
 } from "../utils/planeProjection";
 import splitFacePolygon from "../utils/splitFacePolygon";
 import pointInPolygon2d from "../utils/pointInPolygon2d";
+import getAngularCutPath, {
+  getAngularCutLine,
+  supportsAngularCut,
+} from "../utils/getAngularCutPath";
 import { polygonCentroid2d } from "../utils/computeFaceArea";
 import formatSurfaceM2 from "../utils/formatSurfaceM2";
 import { MESH3D_SNAP_PX } from "../utils/mesh3dConstants";
@@ -95,6 +99,8 @@ export function createMeshingCutController({
   getTool,
   getOffset,
   getCutSide,
+  getAngleDeg,
+  clearAngleBuffer,
   getMesh3dById,
   getAllMeshes3d,
 }) {
@@ -120,6 +126,15 @@ export function createMeshingCutController({
   let polyCandidates = null;
   let polyEndWorld = null;
   let polyCommit = null;
+
+  // Angular-cut state: A (reference extremity, on a maille face), O (angle
+  // vertex, in the horizontal plane of A) and the resolved commit context set
+  // on hover once the V path actually splits the face.
+  // angA: { world, mesh3dId, faceIndex }, angO: { world }
+  let angA = null;
+  let angO = null;
+  let angHoverA = null;
+  let angCommit = null;
 
   // --- three helpers -------------------------------------------------------
 
@@ -278,8 +293,15 @@ export function createMeshingCutController({
     freeCrossed = null;
     polyEndWorld = null;
     polyCommit = null;
+    angHoverA = null;
+    angCommit = null;
     clearDraft();
-    setMeshingOverlay({ areaChips: [], offsetChip: null, cursor: null });
+    setMeshingOverlay({
+      areaChips: [],
+      offsetChip: null,
+      angleChip: null,
+      cursor: null,
+    });
     renderScene();
   }
 
@@ -288,6 +310,14 @@ export function createMeshingCutController({
     polyCandidates = null;
     polyEndWorld = null;
     polyCommit = null;
+  }
+
+  function resetAngular() {
+    angA = null;
+    angO = null;
+    angHoverA = null;
+    angCommit = null;
+    clearAngleBuffer?.();
   }
 
   // --- shell axis cuts (curved mailles) ------------------------------------
@@ -918,6 +948,221 @@ export function createMeshingCutController({
     if (point) polyPoints = [...polyPoints, point];
   }
 
+  // --- angular cut (CUT_ANGULAR) --------------------------------------------
+
+  // 3 clicks: A (reference extremity, picked on a maille face), O (angle
+  // vertex, constrained to the horizontal plane of A) and B (second
+  // extremity). Both branches of the cut live in VERTICAL planes crossing on
+  // the vertical line through O, which pierces the face at the V vertex — see
+  // getAngularCutPath. Typing digits constrains the opening angle; the mouse
+  // then only picks the side it opens to.
+
+  // Cursor projected on the horizontal plane at altitude `y`.
+  function projectCursorToHorizontalPlane(e, rect, y) {
+    const plane = new Plane(new Vector3(0, 1, 0), -y);
+    const ndc = new Vector2(
+      ((e.clientX - rect.left) / rect.width) * 2 - 1,
+      -((e.clientY - rect.top) / rect.height) * 2 + 1
+    );
+    const target = new Vector3();
+    planeRaycaster.setFromCamera(ndc, sceneManager.camera);
+    if (!planeRaycaster.ray.intersectPlane(plane, target)) return null;
+    return { x: target.x, y: target.y, z: target.z };
+  }
+
+  // Candidate A under the cursor: the hit point on a maille face, snapped to
+  // that face's boundary when one runs within the snap radius.
+  function getAngularPointA(e, pick) {
+    if (pick?.kind !== "MESH3D") return null;
+    // Curved (shell) mailles have no face polygon, vertical faces no angular
+    // cut at all: neither can be armed.
+    const ctx = getFaceContext(pick.mesh3dId, pick.faceIndex);
+    if (!ctx || !supportsAngularCut(ctx.basis)) return null;
+    const point = pick.intersect.point;
+    const snap = findEdgeSnap(e, pick.rect);
+    const world =
+      snap &&
+      snap.mesh3dId === pick.mesh3dId &&
+      snap.faceIndex === pick.faceIndex
+        ? snap.world
+        : { x: point.x, y: point.y, z: point.z };
+    return { world, mesh3dId: pick.mesh3dId, faceIndex: pick.faceIndex };
+  }
+
+  // Screen anchor of the angle chip: a short step along the bisector of the V,
+  // so the value reads inside the angle instead of on top of its vertex.
+  function getAngleChipPosition(cut, ctx, rect) {
+    const bisector = {
+      x: cut.dirA2d.x + cut.dirB2d.x,
+      y: cut.dirA2d.y + cut.dirB2d.y,
+    };
+    const len = Math.hypot(bisector.x, bisector.y);
+    // Flat angle: no bisector, fall back to the vertex itself.
+    const step = 0.25 * Math.min(cut.endA2d.length, cut.endB2d.length);
+    const p2 =
+      len < 1e-6
+        ? cut.v2d
+        : {
+            x: cut.v2d.x + (bisector.x / len) * step,
+            y: cut.v2d.y + (bisector.y / len) * step,
+          };
+    return worldToScreen(liftPointTo3d(p2, ctx.basis), rect);
+  }
+
+  function onHoverAngularCut(e, pick) {
+    const rect =
+      pick?.rect ||
+      (() => {
+        const r = dom.getBoundingClientRect();
+        return r.width && r.height ? r : null;
+      })();
+    if (!rect) return;
+
+    // Phase 1: pick A on a maille face.
+    if (!angA) {
+      angHoverA = getAngularPointA(e, pick);
+      clearDraft();
+      if (angHoverA) drawRing(angHoverA.world);
+      setMeshingOverlay({
+        areaChips: [],
+        offsetChip: null,
+        angleChip: null,
+        cursor: null,
+      });
+      renderScene();
+      return;
+    }
+
+    const ctx = getFaceContext(angA.mesh3dId, angA.faceIndex);
+    const point = projectCursorToHorizontalPlane(e, rect, angA.world.y);
+    if (!ctx || !point) {
+      resetHover();
+      return;
+    }
+
+    // Phase 2: O follows the cursor, the reference plane cuts the face.
+    if (!angO) {
+      const line = getAngularCutLine({
+        basis: ctx.basis,
+        contour2d: ctx.contour2d,
+        a: angA.world,
+        o: point,
+      });
+      clearDraft();
+      drawRing(angA.world);
+      if (line) {
+        drawSegment(
+          liftDraft(line.line2d[0], ctx),
+          liftDraft(line.line2d[1], ctx)
+        );
+        drawRing(liftDraft(line.v2d, ctx));
+      }
+      setMeshingOverlay({
+        areaChips: [],
+        offsetChip: null,
+        angleChip: null,
+        cursor: null,
+      });
+      renderScene();
+      return;
+    }
+
+    // Phase 3: B follows the cursor, the V path splits the face.
+    angCommit = null;
+    const typedAngle = getAngleDeg?.();
+    const cut = getAngularCutPath({
+      basis: ctx.basis,
+      contour2d: ctx.contour2d,
+      holes2d: ctx.holes2d,
+      a: angA.world,
+      o: angO.world,
+      b: point,
+      angleDeg: typedAngle,
+    });
+
+    clearDraft();
+    drawRing(angA.world);
+    const areaChips = [];
+    let angleChip = null;
+
+    if (cut) {
+      // A constrained (typed) angle draws as the thicker "snapped" line.
+      const snapped = typedAngle != null;
+      drawSegment(liftDraft(cut.endA2d, ctx), liftDraft(cut.v2d, ctx), {
+        snapped,
+      });
+      drawSegment(liftDraft(cut.v2d, ctx), liftDraft(cut.endB2d, ctx), {
+        snapped,
+      });
+      drawRing(liftDraft(cut.v2d, ctx));
+
+      const chipPos = getAngleChipPosition(cut, ctx, rect);
+      angleChip = {
+        x: chipPos.x,
+        y: chipPos.y,
+        typed: typedAngle != null,
+        text: `${cut.angleDeg.toLocaleString("fr-FR", {
+          maximumFractionDigits: 1,
+        })}°`,
+      };
+
+      const pieces = splitFacePolygon({
+        contour: ctx.contour2d,
+        holes: ctx.holes2d,
+        path: cut.path2d,
+      });
+      if (pieces) {
+        angCommit = { ctx, path2d: cut.path2d };
+        pieces.forEach((piece) => {
+          const c = worldToScreen(
+            liftPointTo3d(polygonCentroid2d(piece.contour), ctx.basis),
+            rect
+          );
+          areaChips.push({ x: c.x, y: c.y, text: formatSurfaceM2(piece.area) });
+        });
+      }
+    }
+
+    setMeshingOverlay({ areaChips, offsetChip: null, angleChip, cursor: null });
+    renderScene();
+  }
+
+  async function onClickAngularCut(e, pick) {
+    if (!angA) {
+      const a = angHoverA || getAngularPointA(e, pick);
+      if (a) angA = a;
+      return;
+    }
+
+    if (!angO) {
+      const rect = pick?.rect || dom.getBoundingClientRect();
+      const point = projectCursorToHorizontalPlane(e, rect, angA.world.y);
+      // O must define an azimuth: a click on A's own vertical is meaningless.
+      if (!point) return;
+      const dx = point.x - angA.world.x;
+      const dz = point.z - angA.world.z;
+      if (Math.hypot(dx, dz) < 1e-6) return;
+      angO = { world: point };
+      return;
+    }
+
+    if (!angCommit) return;
+    const { ctx, path2d } = angCommit;
+    resetAngular();
+    try {
+      await splitMesh3dService({
+        mesh3d: ctx.mesh3d,
+        faceIndex: ctx.faceIndex,
+        path: path2d,
+      });
+    } catch (err) {
+      console.error("[threedMesh] angular split failed", err);
+    }
+    clearDraft();
+    setMeshingOverlay({ areaChips: [], offsetChip: null, angleChip: null });
+    renderScene();
+  }
+
   // --- public API -----------------------------------------------------------
 
   return {
@@ -927,8 +1172,9 @@ export function createMeshingCutController({
       else if (tool === "CUT_HORIZONTAL") onHoverAxisCut(e, pick, "y");
       else if (tool === "CUT_FREE") onHoverFreeCut(e, pick);
       else if (tool === "CUT_POLYLINE") onHoverPolylineCut(e, pick);
+      else if (tool === "CUT_ANGULAR") onHoverAngularCut(e, pick);
     },
-    onClick() {
+    onClick(e, pick) {
       const tool = getTool();
       if (tool === "CUT_VERTICAL" || tool === "CUT_HORIZONTAL") {
         onClickAxisCut();
@@ -936,6 +1182,8 @@ export function createMeshingCutController({
         onClickFreeCut();
       } else if (tool === "CUT_POLYLINE") {
         onClickPolylineCut();
+      } else if (tool === "CUT_ANGULAR") {
+        onClickAngularCut(e, pick);
       }
     },
     onLeave() {
@@ -944,7 +1192,12 @@ export function createMeshingCutController({
     onEscape() {
       firstPoint = null;
       resetPolyline();
+      resetAngular();
       resetHover();
+    },
+    // A change of the typed angle must redraw the V without a mouse move.
+    isAngularArmed() {
+      return !!angO;
     },
     dispose() {
       resetHover();

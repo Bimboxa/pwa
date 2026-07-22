@@ -6,6 +6,9 @@ import { Raycaster, Vector2 } from "three";
 import db from "App/db/db";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 import {
+  appendToMeshingAngleBuffer,
+  clearMeshingAngleBuffer,
+  deleteLastMeshingAngleBuffer,
   setMeshingModeActive,
   setMeshingNumberingNext,
   setMeshingTool,
@@ -36,6 +39,9 @@ import {
 import { createMeshingCutController } from "../services/meshingCutController";
 import { isMesh3dLabelGestureActive } from "../services/mesh3dLabelGestureStore";
 import buildMeshDataFromRegion from "../utils/buildMeshDataFromRegion";
+import parseMeshingAngleBuffer, {
+  MESHING_ANGLE_BUFFER_CHAR_RE,
+} from "../utils/parseMeshingAngleBuffer";
 
 // Mirrors useDrawingPointerHandlers / useDimensionPointerHandlers.
 const DRAG_THRESHOLD_PX = 4;
@@ -47,9 +53,10 @@ const DRAG_THRESHOLD_PX = 4;
 //   overlay as the selection-mode hover) + a "+ nouvelle maille" cursor
 //   helper; a click creates a maille from the hovered face. Clicking an
 //   existing maille selects it (shift+click toggles).
-// - CUT_VERTICAL / CUT_HORIZONTAL / CUT_FREE / CUT_POLYLINE: delegated to
-//   meshingCutController (red cut line, reference/guide vertices, area chips,
-//   split on click).
+// - CUT_VERTICAL / CUT_HORIZONTAL / CUT_FREE / CUT_POLYLINE / CUT_ANGULAR:
+//   delegated to meshingCutController (red cut line, reference/guide vertices,
+//   area chips, split on click). CUT_ANGULAR also captures typed digits into
+//   meshingMode.angleBuffer to constrain its opening angle.
 export default function useMeshingPointerHandlers() {
   const dispatch = useDispatch();
 
@@ -57,6 +64,9 @@ export default function useMeshingPointerHandlers() {
   const tool = useSelector((s) => s.threedEditor.meshingMode.tool);
   const offset = useSelector((s) => s.threedEditor.meshingMode.offset);
   const cutSide = useSelector((s) => s.threedEditor.meshingMode.cutSide);
+  const angleBuffer = useSelector(
+    (s) => s.threedEditor.meshingMode.angleBuffer
+  );
   const numberingNext = useSelector(
     (s) => s.threedEditor.meshingMode.numberingNext
   );
@@ -78,6 +88,12 @@ export default function useMeshingPointerHandlers() {
   useEffect(() => {
     cutSideRef.current = cutSide;
   }, [cutSide]);
+  const angleBufferRef = useRef(angleBuffer);
+  useEffect(() => {
+    angleBufferRef.current = angleBuffer;
+  }, [angleBuffer]);
+  // Set by the listeners effect: redraws the hover without a mouse move.
+  const refreshHoverRef = useRef(null);
   const numberingNextRef = useRef(numberingNext);
   useEffect(() => {
     numberingNextRef.current = numberingNext;
@@ -128,6 +144,10 @@ export default function useMeshingPointerHandlers() {
       getTool: () => tool,
       getOffset: () => offsetRef.current,
       getCutSide: () => cutSideRef.current,
+      getAngleDeg: () => parseMeshingAngleBuffer(angleBufferRef.current),
+      clearAngleBuffer: () => {
+        if (angleBufferRef.current !== "") dispatch(clearMeshingAngleBuffer());
+      },
       getMesh3dById: (id) => mesh3dByIdRef.current[id],
       getAllMeshes3d: () => Object.values(mesh3dByIdRef.current),
     });
@@ -410,7 +430,7 @@ export default function useMeshingPointerHandlers() {
         }
       }
       if ((e.key === "s" || e.key === "S") && !e.repeat) {
-        if (tool !== "SELECT" && tool !== "NUMBER") {
+        if (tool !== "SELECT" && tool !== "NUMBER" && tool !== "CUT_ANGULAR") {
           dispatch(toggleMeshingCutSide());
           // Redraw the cut line with the flipped side on the next frame.
           if (lastEvent && rafId == null) {
@@ -420,12 +440,40 @@ export default function useMeshingPointerHandlers() {
       }
     }
 
+    // Typed angle of the angular cut: digits captured straight from the
+    // keyboard into meshingMode.angleBuffer, exactly like the extrude value
+    // buffer. Capture phase so the digits reach the buffer before the
+    // window-scoped shortcuts of the other features see them.
+    function onKeyDownAngle(e) {
+      if (tool !== "CUT_ANGULAR") return;
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (isEditableTarget(e.target)) return;
+
+      if (e.key === "Backspace" || e.key === "Delete") {
+        if (angleBufferRef.current === "") return;
+        e.preventDefault();
+        e.stopPropagation();
+        dispatch(deleteLastMeshingAngleBuffer());
+        return;
+      }
+      if (MESHING_ANGLE_BUFFER_CHAR_RE.test(e.key)) {
+        e.preventDefault();
+        e.stopPropagation();
+        dispatch(appendToMeshingAngleBuffer(e.key === "," ? "." : e.key));
+      }
+    }
+
+    refreshHoverRef.current = () => {
+      if (lastEvent && rafId == null) rafId = requestAnimationFrame(runHover);
+    };
+
     dom.addEventListener("pointerdown", onPointerDown);
     dom.addEventListener("pointermove", onPointerMove);
     dom.addEventListener("pointerup", onPointerUp);
     dom.addEventListener("pointercancel", onPointerCancel);
     dom.addEventListener("pointerleave", onPointerLeave);
     window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("keydown", onKeyDownAngle, true);
 
     return () => {
       dom.removeEventListener("pointerdown", onPointerDown);
@@ -434,6 +482,8 @@ export default function useMeshingPointerHandlers() {
       dom.removeEventListener("pointercancel", onPointerCancel);
       dom.removeEventListener("pointerleave", onPointerLeave);
       window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keydown", onKeyDownAngle, true);
+      refreshHoverRef.current = null;
       if (rafId != null) cancelAnimationFrame(rafId);
       clearStipple();
       cutController.dispose();
@@ -441,4 +491,23 @@ export default function useMeshingPointerHandlers() {
       dom.style.cursor = "";
     };
   }, [active, tool, dispatch]);
+
+  // Typed angle → redraw the V cut in place (the mouse has not moved).
+  useEffect(() => {
+    if (!active || tool !== "CUT_ANGULAR") return;
+    refreshHoverRef.current?.();
+  }, [active, tool, angleBuffer]);
+}
+
+// Same guard as the other keyboard-buffer features: never swallow keystrokes
+// aimed at a real field.
+function isEditableTarget(el) {
+  if (!el) return false;
+  const tag = el.tagName;
+  return (
+    tag === "INPUT" ||
+    tag === "TEXTAREA" ||
+    tag === "SELECT" ||
+    el.isContentEditable
+  );
 }

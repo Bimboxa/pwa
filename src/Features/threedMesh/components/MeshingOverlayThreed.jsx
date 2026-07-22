@@ -23,7 +23,7 @@ export default function MeshingOverlayThreed() {
   );
 
   if (!active) return null;
-  const { cursor, areaChips, offsetChip } = state;
+  const { cursor, areaChips, offsetChip, angleChip } = state;
 
   return (
     <Box
@@ -97,6 +97,27 @@ export default function MeshingOverlayThreed() {
           }}
         >
           {offsetChip.text}
+        </Box>
+      )}
+
+      {angleChip && (
+        <Box
+          sx={{
+            position: "absolute",
+            left: angleChip.x,
+            top: angleChip.y,
+            transform: "translate(-50%, -50%)",
+            bgcolor: angleChip.typed ? "#b71c1c" : "#f8c9c9",
+            color: angleChip.typed ? "#fff" : "#b71c1c",
+            borderRadius: "8px",
+            px: 1,
+            py: 0.25,
+            fontSize: 12,
+            fontWeight: "bold",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {angleChip.text}
         </Box>
       )}
     </Box>
