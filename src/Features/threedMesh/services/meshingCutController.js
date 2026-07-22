@@ -28,10 +28,9 @@ import {
 } from "../utils/planeProjection";
 import splitFacePolygon from "../utils/splitFacePolygon";
 import pointInPolygon2d from "../utils/pointInPolygon2d";
-import getAngularCutPath, {
-  getAngularCutLine,
-  supportsAngularCut,
-} from "../utils/getAngularCutPath";
+import getAngularWedge, { getReferencePlane } from "../utils/getAngularWedge";
+import cutMesh3dByPlanes from "../utils/cutMesh3dByPlanes";
+import splitMesh3dByWedgeService from "./splitMesh3dByWedgeService";
 import { polygonCentroid2d } from "../utils/computeFaceArea";
 import formatSurfaceM2 from "../utils/formatSurfaceM2";
 import { MESH3D_SNAP_PX } from "../utils/mesh3dConstants";
@@ -91,7 +90,9 @@ function createMarkerSprite(shape = "RING") {
 // Cut-tools machinery of the 3D meshing mode. One controller instance lives
 // per meshing-mode activation (created by useMeshingPointerHandlers): it owns
 // a draft Group in the scene (red cut line + vertex rings) and the DOM chips
-// (areas, offset), and commits splits through splitMesh3dService.
+// (areas, offset, angle), and commits splits through splitMesh3dService — or
+// splitMesh3dByWedgeService for the angular cut, which splits the maille as a
+// whole instead of one of its faces.
 export function createMeshingCutController({
   editor,
   sceneManager,
@@ -127,10 +128,10 @@ export function createMeshingCutController({
   let polyEndWorld = null;
   let polyCommit = null;
 
-  // Angular-cut state: A (reference extremity, on a maille face), O (angle
-  // vertex, in the horizontal plane of A) and the resolved commit context set
-  // on hover once the V path actually splits the face.
-  // angA: { world, mesh3dId, faceIndex }, angO: { world }
+  // Angular-cut state: A (reference extremity, on a maille), O (angle vertex,
+  // in the horizontal plane of A) and the resolved commit context set on hover
+  // once the wedge actually splits the maille.
+  // angA: { world, mesh3dId }, angO: { world }
   let angA = null;
   let angO = null;
   let angHoverA = null;
@@ -950,12 +951,16 @@ export function createMeshingCutController({
 
   // --- angular cut (CUT_ANGULAR) --------------------------------------------
 
-  // 3 clicks: A (reference extremity, picked on a maille face), O (angle
+  // 3 clicks: A (reference extremity, picked anywhere on a maille), O (angle
   // vertex, constrained to the horizontal plane of A) and B (second
-  // extremity). Both branches of the cut live in VERTICAL planes crossing on
-  // the vertical line through O, which pierces the face at the V vertex — see
-  // getAngularCutPath. Typing digits constrains the opening angle; the mouse
-  // then only picks the side it opens to.
+  // extremity). The cut is the WEDGE between the two vertical half-planes
+  // bounded by the vertical line through O — a pair of world half-spaces, so
+  // it cuts the maille as a whole whatever its model: a single planar face, a
+  // multi-face record (a profile swept along a polyline) or a curved shell,
+  // vertical faces included. See getAngularWedge / cutMesh3dByPlanes.
+  //
+  // Typing digits constrains the opening angle; the mouse then only picks the
+  // side it opens to.
 
   // Cursor projected on the horizontal plane at altitude `y`.
   function projectCursorToHorizontalPlane(e, rect, y) {
@@ -970,43 +975,45 @@ export function createMeshingCutController({
     return { x: target.x, y: target.y, z: target.z };
   }
 
-  // Candidate A under the cursor: the hit point on a maille face, snapped to
-  // that face's boundary when one runs within the snap radius.
+  // Candidate A under the cursor: the hit point on a maille, snapped to that
+  // maille's boundary when one runs within the snap radius.
   function getAngularPointA(e, pick) {
     if (pick?.kind !== "MESH3D") return null;
-    // Curved (shell) mailles have no face polygon, vertical faces no angular
-    // cut at all: neither can be armed.
-    const ctx = getFaceContext(pick.mesh3dId, pick.faceIndex);
-    if (!ctx || !supportsAngularCut(ctx.basis)) return null;
+    if (!getMesh3dById(pick.mesh3dId)) return null;
     const point = pick.intersect.point;
     const snap = findEdgeSnap(e, pick.rect);
     const world =
-      snap &&
-      snap.mesh3dId === pick.mesh3dId &&
-      snap.faceIndex === pick.faceIndex
+      snap && snap.mesh3dId === pick.mesh3dId
         ? snap.world
         : { x: point.x, y: point.y, z: point.z };
-    return { world, mesh3dId: pick.mesh3dId, faceIndex: pick.faceIndex };
+    return { world, mesh3dId: pick.mesh3dId };
   }
 
-  // Screen anchor of the angle chip: a short step along the bisector of the V,
-  // so the value reads inside the angle instead of on top of its vertex.
-  function getAngleChipPosition(cut, ctx, rect) {
+  // Screen anchor of the angle chip: a step along the bisector from O, so the
+  // value reads inside the sector instead of on top of its vertex.
+  function getAngleChipPosition(wedge, o, a, rect) {
     const bisector = {
-      x: cut.dirA2d.x + cut.dirB2d.x,
-      y: cut.dirA2d.y + cut.dirB2d.y,
+      x: wedge.dirA.x + wedge.dirB.x,
+      z: wedge.dirA.z + wedge.dirB.z,
     };
-    const len = Math.hypot(bisector.x, bisector.y);
-    // Flat angle: no bisector, fall back to the vertex itself.
-    const step = 0.25 * Math.min(cut.endA2d.length, cut.endB2d.length);
-    const p2 =
+    const len = Math.hypot(bisector.x, bisector.z);
+    const step = 0.3 * Math.hypot(a.x - o.x, a.z - o.z);
+    const p =
       len < 1e-6
-        ? cut.v2d
+        ? o
         : {
-            x: cut.v2d.x + (bisector.x / len) * step,
-            y: cut.v2d.y + (bisector.y / len) * step,
+            x: o.x + (bisector.x / len) * step,
+            y: o.y,
+            z: o.z + (bisector.z / len) * step,
           };
-    return worldToScreen(liftPointTo3d(p2, ctx.basis), rect);
+    return worldToScreen(p, rect);
+  }
+
+  function drawCutSegments(segments, options) {
+    drawSegments(
+      (segments || []).map(([p, q]) => [liftToCamera(p), liftToCamera(q)]),
+      options
+    );
   }
 
   function onHoverAngularCut(e, pick) {
@@ -1018,7 +1025,7 @@ export function createMeshingCutController({
       })();
     if (!rect) return;
 
-    // Phase 1: pick A on a maille face.
+    // Phase 1: pick A on a maille.
     if (!angA) {
       angHoverA = getAngularPointA(e, pick);
       clearDraft();
@@ -1033,30 +1040,21 @@ export function createMeshingCutController({
       return;
     }
 
-    const ctx = getFaceContext(angA.mesh3dId, angA.faceIndex);
+    const mesh3d = getMesh3dById(angA.mesh3dId);
     const point = projectCursorToHorizontalPlane(e, rect, angA.world.y);
-    if (!ctx || !point) {
+    if (!mesh3d || !point) {
       resetHover();
       return;
     }
 
-    // Phase 2: O follows the cursor, the reference plane cuts the face.
+    // Phase 2: O follows the cursor, the reference plane cuts the maille.
     if (!angO) {
-      const line = getAngularCutLine({
-        basis: ctx.basis,
-        contour2d: ctx.contour2d,
-        a: angA.world,
-        o: point,
-      });
+      const plane = getReferencePlane({ o: point, a: angA.world });
+      const cut = plane ? cutMesh3dByPlanes({ mesh3d, planes: [plane] }) : null;
       clearDraft();
       drawRing(angA.world);
-      if (line) {
-        drawSegment(
-          liftDraft(line.line2d[0], ctx),
-          liftDraft(line.line2d[1], ctx)
-        );
-        drawRing(liftDraft(line.v2d, ctx));
-      }
+      drawRing(point);
+      drawCutSegments(cut?.segments);
       setMeshingOverlay({
         areaChips: [],
         offsetChip: null,
@@ -1067,58 +1065,50 @@ export function createMeshingCutController({
       return;
     }
 
-    // Phase 3: B follows the cursor, the V path splits the face.
+    // Phase 3: B follows the cursor, the wedge splits the maille in two.
     angCommit = null;
     const typedAngle = getAngleDeg?.();
-    const cut = getAngularCutPath({
-      basis: ctx.basis,
-      contour2d: ctx.contour2d,
-      holes2d: ctx.holes2d,
-      a: angA.world,
+    const wedge = getAngularWedge({
       o: angO.world,
+      a: angA.world,
       b: point,
       angleDeg: typedAngle,
     });
+    const cut = wedge
+      ? cutMesh3dByPlanes({ mesh3d, planes: wedge.planes })
+      : null;
 
     clearDraft();
     drawRing(angA.world);
+    drawRing(angO.world);
     const areaChips = [];
     let angleChip = null;
 
-    if (cut) {
+    if (wedge) {
       // A constrained (typed) angle draws as the thicker "snapped" line.
-      const snapped = typedAngle != null;
-      drawSegment(liftDraft(cut.endA2d, ctx), liftDraft(cut.v2d, ctx), {
-        snapped,
-      });
-      drawSegment(liftDraft(cut.v2d, ctx), liftDraft(cut.endB2d, ctx), {
-        snapped,
-      });
-      drawRing(liftDraft(cut.v2d, ctx));
+      drawCutSegments(cut?.segments, { snapped: typedAngle != null });
 
-      const chipPos = getAngleChipPosition(cut, ctx, rect);
+      const chipPos = getAngleChipPosition(wedge, angO.world, angA.world, rect);
       angleChip = {
         x: chipPos.x,
         y: chipPos.y,
         typed: typedAngle != null,
-        text: `${cut.angleDeg.toLocaleString("fr-FR", {
+        text: `${wedge.angleDeg.toLocaleString("fr-FR", {
           maximumFractionDigits: 1,
         })}°`,
       };
 
-      const pieces = splitFacePolygon({
-        contour: ctx.contour2d,
-        holes: ctx.holes2d,
-        path: cut.path2d,
-      });
-      if (pieces) {
-        angCommit = { ctx, path2d: cut.path2d };
-        pieces.forEach((piece) => {
-          const c = worldToScreen(
-            liftPointTo3d(polygonCentroid2d(piece.contour), ctx.basis),
-            rect
-          );
-          areaChips.push({ x: c.x, y: c.y, text: formatSurfaceM2(piece.area) });
+      // Both sides non-empty = the wedge really splits the maille.
+      if (cut?.inside && cut?.outside) {
+        angCommit = { mesh3d, inside: cut.inside, outside: cut.outside };
+        [cut.inside, cut.outside].forEach((side) => {
+          if (!side.centroid) return;
+          const c = worldToScreen(side.centroid, rect);
+          areaChips.push({
+            x: c.x,
+            y: c.y,
+            text: formatSurfaceM2(side.surface),
+          });
         });
       }
     }
@@ -1147,14 +1137,10 @@ export function createMeshingCutController({
     }
 
     if (!angCommit) return;
-    const { ctx, path2d } = angCommit;
+    const committed = angCommit;
     resetAngular();
     try {
-      await splitMesh3dService({
-        mesh3d: ctx.mesh3d,
-        faceIndex: ctx.faceIndex,
-        path: path2d,
-      });
+      await splitMesh3dByWedgeService(committed);
     } catch (err) {
       console.error("[threedMesh] angular split failed", err);
     }
