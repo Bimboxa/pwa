@@ -29,6 +29,7 @@ import {
 import splitFacePolygon from "../utils/splitFacePolygon";
 import pointInPolygon2d from "../utils/pointInPolygon2d";
 import getAngularWedge, { getReferencePlane } from "../utils/getAngularWedge";
+import getMesh3dLoops from "../utils/getMesh3dLoops";
 import cutMesh3dByPlanes from "../utils/cutMesh3dByPlanes";
 import splitMesh3dByWedgeService from "./splitMesh3dByWedgeService";
 import { polygonCentroid2d } from "../utils/computeFaceArea";
@@ -975,18 +976,99 @@ export function createMeshingCutController({
     return { x: target.x, y: target.y, z: target.z };
   }
 
+  // Nearest maille boundary point to the cursor (screen space), scanning the
+  // loops of EVERY geometry model through getMesh3dLoops — face contours and
+  // holes, shell boundaries — unlike findEdgeSnap, which only knows about
+  // polygon faces because the free / polyline cuts need a faceIndex.
+  // A loop vertex within the radius wins over a plain edge point.
+  function findLoopSnap(e, rect, { mesh3dId = null } = {}) {
+    const cursor = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    let bestVertex = null;
+    let bestEdge = null;
+
+    for (const mesh3d of getAllMeshes3d()) {
+      if (mesh3dId && mesh3d.id !== mesh3dId) continue;
+      for (const loop of getMesh3dLoops(mesh3d)) {
+        const nPts = loop.length;
+        for (let i = 0; i < nPts; i++) {
+          const p3 = loop[i];
+          const q3 = loop[(i + 1) % nPts];
+          const p = worldToScreen(p3, rect);
+          const q = worldToScreen(q3, rect);
+
+          const vDist = Math.hypot(cursor.x - p.x, cursor.y - p.y);
+          if (
+            vDist <= MESH3D_SNAP_PX &&
+            (!bestVertex || vDist < bestVertex.dist)
+          ) {
+            bestVertex = {
+              dist: vDist,
+              world: { x: p3.x, y: p3.y, z: p3.z },
+              mesh3dId: mesh3d.id,
+              isVertex: true,
+            };
+          }
+
+          const dx = q.x - p.x;
+          const dy = q.y - p.y;
+          const lenSq = dx * dx + dy * dy;
+          if (lenSq === 0) continue;
+          let t = ((cursor.x - p.x) * dx + (cursor.y - p.y) * dy) / lenSq;
+          t = Math.max(0, Math.min(1, t));
+          const dist = Math.hypot(
+            cursor.x - (p.x + t * dx),
+            cursor.y - (p.y + t * dy)
+          );
+          if (dist > MESH3D_SNAP_PX) continue;
+          if (bestEdge && dist >= bestEdge.dist) continue;
+          bestEdge = {
+            dist,
+            world: {
+              x: p3.x + t * (q3.x - p3.x),
+              y: p3.y + t * (q3.y - p3.y),
+              z: p3.z + t * (q3.z - p3.z),
+            },
+            mesh3dId: mesh3d.id,
+            isVertex: false,
+          };
+        }
+      }
+    }
+    return bestVertex || bestEdge;
+  }
+
+  // Marker of a snapped point: a ring on a loop vertex, a square on an edge.
+  function drawSnapMarker(snap) {
+    if (!snap) return;
+    if (snap.isVertex) drawRing(snap.world);
+    else drawSquare(snap.world);
+  }
+
   // Candidate A under the cursor: the hit point on a maille, snapped to that
-  // maille's boundary when one runs within the snap radius.
+  // maille's edges / vertices when one runs within the snap radius.
   function getAngularPointA(e, pick) {
     if (pick?.kind !== "MESH3D") return null;
     if (!getMesh3dById(pick.mesh3dId)) return null;
     const point = pick.intersect.point;
-    const snap = findEdgeSnap(e, pick.rect);
-    const world =
-      snap && snap.mesh3dId === pick.mesh3dId
-        ? snap.world
-        : { x: point.x, y: point.y, z: point.z };
-    return { world, mesh3dId: pick.mesh3dId };
+    const snap = findLoopSnap(e, pick.rect, { mesh3dId: pick.mesh3dId });
+    return {
+      world: snap?.world || { x: point.x, y: point.y, z: point.z },
+      mesh3dId: pick.mesh3dId,
+      snap,
+    };
+  }
+
+  // O and B: the cursor on the horizontal plane of A, or — when an edge /
+  // vertex of a maille is within the snap radius — that point dropped onto
+  // A's plane. Only the horizontal position matters (both cut planes are
+  // vertical), so snapping to any edge of the scene stays exact.
+  function resolveAngularPoint(e, rect, y) {
+    const snap = findLoopSnap(e, rect);
+    if (snap) {
+      return { point: { x: snap.world.x, y, z: snap.world.z }, snap };
+    }
+    const point = projectCursorToHorizontalPlane(e, rect, y);
+    return point ? { point, snap: null } : null;
   }
 
   // Screen anchor of the angle chip: a step along the bisector from O, so the
@@ -1029,7 +1111,8 @@ export function createMeshingCutController({
     if (!angA) {
       angHoverA = getAngularPointA(e, pick);
       clearDraft();
-      if (angHoverA) drawRing(angHoverA.world);
+      if (angHoverA?.snap) drawSnapMarker(angHoverA.snap);
+      else if (angHoverA) drawRing(angHoverA.world);
       setMeshingOverlay({
         areaChips: [],
         offsetChip: null,
@@ -1041,11 +1124,12 @@ export function createMeshingCutController({
     }
 
     const mesh3d = getMesh3dById(angA.mesh3dId);
-    const point = projectCursorToHorizontalPlane(e, rect, angA.world.y);
-    if (!mesh3d || !point) {
+    const resolved = resolveAngularPoint(e, rect, angA.world.y);
+    if (!mesh3d || !resolved) {
       resetHover();
       return;
     }
+    const { point, snap } = resolved;
 
     // Phase 2: O follows the cursor, the reference plane cuts the maille.
     if (!angO) {
@@ -1054,6 +1138,7 @@ export function createMeshingCutController({
       clearDraft();
       drawRing(angA.world);
       drawRing(point);
+      drawSnapMarker(snap);
       drawCutSegments(cut?.segments);
       setMeshingOverlay({
         areaChips: [],
@@ -1081,6 +1166,8 @@ export function createMeshingCutController({
     clearDraft();
     drawRing(angA.world);
     drawRing(angO.world);
+    // A typed angle drives the second half-plane: the snap no longer applies.
+    if (typedAngle == null) drawSnapMarker(snap);
     const areaChips = [];
     let angleChip = null;
 
@@ -1126,7 +1213,7 @@ export function createMeshingCutController({
 
     if (!angO) {
       const rect = pick?.rect || dom.getBoundingClientRect();
-      const point = projectCursorToHorizontalPlane(e, rect, angA.world.y);
+      const point = resolveAngularPoint(e, rect, angA.world.y)?.point;
       // O must define an azimuth: a click on A's own vertical is meaningless.
       if (!point) return;
       const dx = point.x - angA.world.x;
