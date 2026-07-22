@@ -44,12 +44,14 @@ export default function PanelPovList() {
   const updatePov = useUpdatePov();
   const restorePov = useRestorePov();
   const selectedItem = useSelector(selectSelectedItem);
+  const rightPanelIsOpen = useSelector((s) =>
+    Boolean(s.rightPanel.selectedMenuItemKey)
+  );
 
   // helpers
 
   const povIds = povs.map((p) => p.id);
-  const selectedPovId =
-    selectedItem?.type === "POV" ? selectedItem.id : null;
+  const selectedPovId = selectedItem?.type === "POV" ? selectedItem.id : null;
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -69,7 +71,8 @@ export default function PanelPovList() {
     let newSortIndex;
     if (oldIndex < newIndex) {
       const b = povs[newIndex]?.sortIndex ?? null;
-      const a = newIndex + 1 < povs.length ? povs[newIndex + 1]?.sortIndex : null;
+      const a =
+        newIndex + 1 < povs.length ? povs[newIndex + 1]?.sortIndex : null;
       newSortIndex = generateKeyBetween(b, a);
     } else {
       const b = newIndex > 0 ? povs[newIndex - 1]?.sortIndex : null;
@@ -82,7 +85,11 @@ export default function PanelPovList() {
 
   async function handleItemClick(pov) {
     dispatch(setSelectedItem({ id: pov.id, type: "POV" }));
-    dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
+    // Only switch an ALREADY open right panel to the POV properties: opening
+    // it would shift the capture frame (rightInset) and change the framing of
+    // the view being restored.
+    if (rightPanelIsOpen)
+      dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
     await restorePov(pov);
   }
 

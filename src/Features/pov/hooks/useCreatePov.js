@@ -20,6 +20,9 @@ export default function useCreatePov() {
   const scopeId = useSelector((s) => s.scopes.selectedScopeId);
   const userProfile = useSelector((s) => s.auth.userProfile);
   const draftDescription = useSelector((s) => s.pov.draftDescription);
+  const rightPanelIsOpen = useSelector((s) =>
+    Boolean(s.rightPanel.selectedMenuItemKey)
+  );
 
   const capturePovView = useCapturePovView();
 
@@ -49,9 +52,12 @@ export default function useCreatePov() {
     await db.povs.add(record);
     dispatch(setPovDraftDescription(""));
 
-    // select the new POV and open its properties panel
+    // Select the new POV. The right panel is only switched to its properties
+    // when it is ALREADY open: opening it would shift the capture frame
+    // (rightInset) right after the view was snapshotted with the frame it had.
     dispatch(setSelectedItem({ id: record.id, type: "POV" }));
-    dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
+    if (rightPanelIsOpen)
+      dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
 
     return record;
   };
