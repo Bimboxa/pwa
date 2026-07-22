@@ -14,6 +14,11 @@ const povInitialState = {
   // Description typed in the "Nouveau point de vue" panel before the view
   // exists; consumed (then cleared) by the next "Créer une vue".
   draftDescription: "",
+  // Title banner text forced by a batch capture (video generation), which
+  // renders each POV in turn WITHOUT touching the selection — the banner would
+  // otherwise show the selected POV's description on every frame. null = the
+  // banner follows the selection / draft as usual (see usePovTitleText).
+  captureTitleOverride: null,
   // "Amélioration IA": when on, "Créer une vue" also sends the capture to the
   // image-transformation endpoint (usedByPov prompt) and shows the result in
   // a comparison dialog.
@@ -42,6 +47,10 @@ export const povSlice = createSlice({
     setPovDraftDescription: (state, action) => {
       state.draftDescription = action.payload ?? "";
     },
+    // string to force the banner text, null to release it
+    setPovCaptureTitleOverride: (state, action) => {
+      state.captureTitleOverride = action.payload ?? null;
+    },
     // {povId, createdBefore} | null
     setPovViewFreeze: (state, action) => {
       state.viewFreeze = action.payload ?? null;
@@ -68,6 +77,7 @@ export const {
   setPovViewerMode,
   setPovFramingActive,
   setPovDraftDescription,
+  setPovCaptureTitleOverride,
   setPovViewFreeze,
   setPovAiEnhanceEnabled,
   setPovAiEnhancePrompt,

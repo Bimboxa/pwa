@@ -358,6 +358,25 @@ export default async function resolveAppConfig(appConfig) {
     newAppConfig.features.bgImages.options = options;
   }
 
+  // pov - resolve the logo stamped on the capture frame (relative to
+  // Data/<orga>/). Output: features.pov.logoUrl. Optional: without it, the POV
+  // logo falls back to the portfolio one (usePovLogoUrl).
+  if (orgaCode && newAppConfig.features?.pov?.logoPath) {
+    const relPath = newAppConfig.features.pov.logoPath;
+    const fullPath = `../../../Data/${orgaCode}/${relPath}`;
+    const loader =
+      DATA_IMAGE_URL_LOADERS[fullPath] || DATA_SVG_URL_LOADERS[fullPath];
+    if (loader) {
+      try {
+        newAppConfig.features.pov.logoUrl = await loader();
+      } catch (error) {
+        console.error(`[resolveAppConfig] Error loading pov logo:`, error);
+      }
+    } else {
+      console.warn(`[resolveAppConfig] pov logo not found at ${fullPath}`);
+    }
+  }
+
   // watermark - resolve per-org SVG paths to URLs (one per aspect ratio).
   // Source: features.watermark.pathsByAspectRatio (relative to Data/<orga>/).
   // Output:  features.watermark.urlsByAspectRatio (same keys, full URLs).

@@ -145,8 +145,9 @@ db.version(25).stores({
   // {id, projectId, scopeId, sortIndex, description, createdBy:{idMaster,trigram},
   //  image:{fileName}, transformedImage:{fileName}|null, viewerMode,
   //  aspectRatio, legendOverlay, whiteBackground, border,
-  //  title:{visible,fontSize}, viewCreatedAt, hiddenAnnotationTemplateIds,
-  //  visibleAnnotationTemplateIds, baseMaps, camera2d, camera3d}
+  //  title:{visible,fontSize}, showLogo, viewCreatedAt,
+  //  hiddenAnnotationTemplateIds, visibleAnnotationTemplateIds, baseMaps,
+  //  camera2d, camera3d}
   // Point of view ("POV"): a saved framed view of the 2D map or 3D scene.
   // `image` references a db.files row (PNG <= 200 KB). The metadata fields
   // (viewerMode, aspectRatio, baseMaps + active versions + visibleBaseMapIds,

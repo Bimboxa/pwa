@@ -32,6 +32,7 @@ export default async function snapshotPovViewService() {
   const whiteBackground = Boolean(state.mapEditor.imageModeWhiteBackground);
   const border = Boolean(state.mapEditor.imageModeBorder);
   const title = state.mapEditor.imageModeTitle;
+  const showLogo = Boolean(state.mapEditor.imageModeShowLogo);
   const projectId = state.projects.selectedProjectId;
 
   // Generation date of the view: the restored view is frozen at this instant
@@ -147,6 +148,7 @@ export default async function snapshotPovViewService() {
     whiteBackground,
     border,
     title,
+    showLogo,
     hiddenAnnotationTemplateIds,
     visibleAnnotationTemplateIds,
     baseMaps,

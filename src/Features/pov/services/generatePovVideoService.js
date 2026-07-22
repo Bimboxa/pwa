@@ -1,4 +1,4 @@
-import { setPovViewerMode } from "../povSlice";
+import { setPovViewerMode, setPovCaptureTitleOverride } from "../povSlice";
 import { setSelectedItem } from "Features/selection/selectionSlice";
 
 import applyPovSceneStateService from "./applyPovSceneStateService";
@@ -124,6 +124,45 @@ async function captureOverlay({ aspectRatio }) {
   return { bitmap: await createImageBitmap(blob), size: blob.size };
 }
 
+// Margin (output px) painted around the POV image inside the video frame.
+const FRAME_MARGIN_PX = 18;
+
+// Box the POV image is drawn into: centered, with AT LEAST FRAME_MARGIN_PX
+// around it. The aspect ratio is preserved rather than stretched to an exact
+// 18px inset on all four sides — the decor overlay is composited on the very
+// same box, so a stretch would show on the legend and title text. The margin
+// is therefore exactly 18px on the constraining axis, slightly more on the
+// other.
+function getContentBox({ width, height }) {
+  const scale = Math.min(
+    (width - 2 * FRAME_MARGIN_PX) / width,
+    (height - 2 * FRAME_MARGIN_PX) / height
+  );
+  const w = Math.max(1, Math.round(width * scale));
+  const h = Math.max(1, Math.round(height * scale));
+  return {
+    x: Math.round((width - w) / 2),
+    y: Math.round((height - h) / 2),
+    w,
+    h,
+  };
+}
+
+// Background painted under the WebGL frame. The renderer is created with
+// `alpha: true` and never clears to a color, so everything the scene does not
+// cover is transparent — on screen the host's CSS background shows through,
+// and in the video it would come out black. "Fond blanc" forces white, like
+// the still capture (captureMapAsPng backgroundColor).
+function getFrameBackground({ whiteBackground }) {
+  if (whiteBackground) return "#ffffff";
+  const host = document.querySelector('[data-image-capture-host="THREED"]');
+  const hostBg = host && getComputedStyle(host).backgroundColor;
+  // Transparent host (rgba(...,0) / "transparent") → white rather than black.
+  if (!hostBg || hostBg === "transparent" || /,\s*0\s*\)$/.test(hostBg))
+    return "#ffffff";
+  return hostBg;
+}
+
 function fileNameNow() {
   const d = new Date();
   const p = (v) => String(v).padStart(2, "0");
@@ -196,12 +235,13 @@ export default async function generatePovVideoService({
 
   let frameIndex = 0;
   const overlays = [];
+  const content = getContentBox({ width, height });
 
   function checkCancelled() {
     if (shouldCancel?.()) throw new PovVideoCancelled();
   }
 
-  async function encodeFrame(pose, overlayLayers, crop) {
+  async function encodeFrame(pose, overlayLayers, crop, background) {
     checkCancelled();
 
     camera.fov = pose.fovDeg;
@@ -225,22 +265,25 @@ export default async function generatePovVideoService({
 
     // Same task as the render: the WebGL drawing buffer is not preserved and
     // gets cleared at the next composite.
-    ctx.clearRect(0, 0, width, height);
+    ctx.fillStyle = background ?? "#ffffff";
+    ctx.fillRect(0, 0, width, height);
+    // Scene and decor share the same inset box, so the legend / title / border
+    // stay exactly where they sit inside the capture frame.
     ctx.drawImage(
       renderer.domElement,
       crop.sx,
       crop.sy,
       crop.sw,
       crop.sh,
-      0,
-      0,
-      width,
-      height
+      content.x,
+      content.y,
+      content.w,
+      content.h
     );
     overlayLayers.forEach(({ bitmap, alpha }) => {
       if (!bitmap || alpha <= 0) return;
       ctx.globalAlpha = alpha;
-      ctx.drawImage(bitmap, 0, 0, width, height);
+      ctx.drawImage(bitmap, content.x, content.y, content.w, content.h);
     });
     ctx.globalAlpha = 1;
 
@@ -256,10 +299,16 @@ export default async function generatePovVideoService({
 
     let previousPose = null;
     let previousOverlay = null;
+    let previousBackground = null;
 
     for (const pov of povs) {
       checkCancelled();
 
+      // The title banner follows the SELECTION (usePovTitleText) and the
+      // generator never changes it, so each POV publishes its own description
+      // here. Dispatched before settleScene so the banner is re-rendered by
+      // the time the overlay is captured.
+      dispatch(setPovCaptureTitleOverride(pov.description ?? ""));
       await applyPovSceneStateService({
         pov,
         dispatch,
@@ -269,18 +318,26 @@ export default async function generatePovVideoService({
       checkCancelled();
 
       // Export pixel ratio: enough backing-store pixels in the frame to fill
-      // the output width without upscaling.
+      // the drawn content width (the output minus its margin) without
+      // upscaling.
       const cssRect = getFrameCssRect({ aspectRatio });
       const exportPixelRatio = Math.min(
         MAX_EXPORT_PIXEL_RATIO,
-        Math.max(1, cssRect?.width ? width / cssRect.width : 1)
+        Math.max(1, cssRect?.width ? content.w / cssRect.width : 1)
       );
       if (renderer.getPixelRatio() !== exportPixelRatio) {
         renderer.setPixelRatio(exportPixelRatio);
       }
 
+      // Decor (title, border, logo) and background follow the POV's own
+      // options: applyPovSceneStateService just dispatched them, so the
+      // overlay capture below already carries them.
       const overlay = await captureOverlay({ aspectRatio });
       if (overlay) overlays.push(overlay);
+
+      const background = getFrameBackground({
+        whiteBackground: pov.whiteBackground,
+      });
 
       const crop = getCropRect({ sceneManager, aspectRatio });
       if (!crop) throw new Error("NO_CAPTURE_FRAME");
@@ -308,17 +365,25 @@ export default async function generatePovVideoService({
                 { bitmap: previousOverlay?.bitmap, alpha: 1 - t },
                 { bitmap: overlay?.bitmap, alpha: t },
               ];
-          await encodeFrame(flightPose, layers, crop);
+          // The background switches at mid-flight (a solid colour cannot be
+          // crossfaded under an opaque frame without banding).
+          await encodeFrame(
+            flightPose,
+            layers,
+            crop,
+            t < 0.5 ? (previousBackground ?? background) : background
+          );
         }
       }
 
       const holdLayers = [{ bitmap: overlay?.bitmap, alpha: 1 }];
       for (let f = 0; f < holdFrames; f++) {
-        await encodeFrame(pose, holdLayers, crop);
+        await encodeFrame(pose, holdLayers, crop, background);
       }
 
       previousPose = pose;
       previousOverlay = overlay;
+      previousBackground = background;
     }
 
     const blob = await encoder.finish();
@@ -328,6 +393,9 @@ export default async function generatePovVideoService({
   } finally {
     encoder.close();
     overlays.forEach((o) => o.bitmap?.close?.());
+
+    // Release the banner: it follows the selection again.
+    dispatch(setPovCaptureTitleOverride(null));
 
     renderer.setPixelRatio(prevPixelRatio);
     camera.fov = prevFov;

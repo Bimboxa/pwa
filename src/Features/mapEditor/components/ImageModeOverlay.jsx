@@ -33,6 +33,8 @@ import {
   CAPTURE_BORDER_STROKE_WIDTH,
 } from "../utils/captureBorderConstants";
 import usePovTitleText from "Features/pov/hooks/usePovTitleText";
+import usePovLogoUrl from "Features/pov/hooks/usePovLogoUrl";
+import { selectPovFramingActive } from "Features/viewers/utils/effectiveViewerKey";
 
 import theme from "Styles/theme";
 
@@ -62,10 +64,15 @@ export default function ImageModeOverlay({
         s.mapEditor.imageModeAspectRatio
       ] ?? null
   );
+  // Logo: the POV frame stamps the org / portfolio logo (usePovLogoUrl), the
+  // "Export rapide" one keeps the watermark asset.
   const showLogo = useSelector((s) => s.mapEditor.imageModeShowLogo);
-  const logoUrl = useSelector(
+  const povFramingActive = useSelector(selectPovFramingActive);
+  const povLogoUrl = usePovLogoUrl();
+  const watermarkLogoUrl = useSelector(
     (s) => s.appConfig.value?.features?.watermark?.logoUrl ?? null
   );
+  const logoUrl = povFramingActive ? povLogoUrl : watermarkLogoUrl;
   const showBorder = useSelector((s) => s.mapEditor.imageModeBorder);
   const title = useSelector((s) => s.mapEditor.imageModeTitle);
   const titleText = usePovTitleText();
@@ -329,16 +336,16 @@ export default function ImageModeOverlay({
         />
       )}
 
-      {/* LOGO (anchored bottom-right of the capture rect, 60px from bottom).
-          Sized 200x50 (4:1 aspect). */}
+      {/* LOGO — bottom-right corner of the capture rect, inside a 200x50 box
+          it fits into (any aspect ratio), with the same padding as the
+          legend's default position. */}
       {showLogo &&
         logoUrl &&
         (() => {
           const LOGO_W = 200;
           const LOGO_H = 50;
-          const BOTTOM_MARGIN = 60;
-          const x = rect.left + rect.width - LOGO_W;
-          const y = rect.top + rect.height - BOTTOM_MARGIN - LOGO_H;
+          const x = rect.left + rect.width - LOGO_W - DEFAULT_PADDING;
+          const y = rect.top + rect.height - LOGO_H - DEFAULT_PADDING;
           return (
             <image
               data-capture-keep

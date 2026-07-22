@@ -8,6 +8,7 @@ import {
   setImageModeWhiteBackground,
   setImageModeBorder,
   setImageModeTitle,
+  setImageModeShowLogo,
   setSelectedMainBaseMapId,
 } from "Features/mapEditor/mapEditorSlice";
 import {
@@ -74,6 +75,8 @@ export default async function applyPovSceneStateService({
   if (pov.border !== undefined)
     dispatch(setImageModeBorder(Boolean(pov.border)));
   if (pov.title !== undefined) dispatch(setImageModeTitle(pov.title));
+  if (pov.showLogo !== undefined)
+    dispatch(setImageModeShowLogo(Boolean(pov.showLogo)));
 
   // 3. annotation templates visibility — one batch write, only where the
   // hidden flag actually changes (useUpdateAnnotationTemplates pattern).

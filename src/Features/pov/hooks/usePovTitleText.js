@@ -12,9 +12,14 @@ export default function usePovTitleText() {
   const isPovViewer = useSelector(selectIsPovViewer);
   const selectedItem = useSelector(selectSelectedItem);
   const draftDescription = useSelector((s) => s.pov.draftDescription);
+  const captureTitleOverride = useSelector((s) => s.pov.captureTitleOverride);
   const povs = usePovs() ?? [];
 
   if (!isPovViewer) return "";
+
+  // Batch capture (video): the POV being rendered drives the banner, not the
+  // selection — which the generator leaves untouched.
+  if (captureTitleOverride !== null) return captureTitleOverride.trim();
 
   const pov =
     selectedItem?.type === "POV"
