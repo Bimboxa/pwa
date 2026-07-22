@@ -7,19 +7,27 @@ import {
 
 import {
   Box,
+  Button,
   FormControlLabel,
   Switch,
   TextField,
   Typography,
 } from "@mui/material";
-import { GridOn } from "@mui/icons-material";
+import { FilterCenterFocus, GridOn } from "@mui/icons-material";
 
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
+
+import { hasMesh3dLabelOffset } from "../hooks/useResetMeshes3dLabelPositions";
 
 // "Réglages" tab of the mailles drawer: display settings moved from the old
 // rightPanel PanelMesh3d. No "Masquer les mailles" toggle here — mailles are
 // always displayed in the MESHES viewer.
-export default function SectionMeshes3dSettings({ prefix, onPrefixChange }) {
+export default function SectionMeshes3dSettings({
+  prefix,
+  onPrefixChange,
+  meshes3d,
+  onResetLabelPositions,
+}) {
   const dispatch = useDispatch();
 
   // data
@@ -28,6 +36,10 @@ export default function SectionMeshes3dSettings({ prefix, onPrefixChange }) {
     (s) => s.threedEditor.hideAnnotationsIn3d
   );
   const mesh3dLabels = useSelector((s) => s.threedEditor.mesh3dLabels);
+
+  // helpers
+
+  const movedLabelsCount = (meshes3d || []).filter(hasMesh3dLabelOffset).length;
 
   // render
 
@@ -109,6 +121,26 @@ export default function SectionMeshes3dSettings({ prefix, onPrefixChange }) {
               <Typography variant="body2">Afficher les quantités</Typography>
             }
           />
+        </Box>
+
+        {/* Bulk version of the per-maille "Recentrer l'étiquette" */}
+        <Box sx={{ mt: 1 }}>
+          <Button
+            size="small"
+            variant="outlined"
+            startIcon={<FilterCenterFocus fontSize="small" />}
+            disabled={!movedLabelsCount}
+            onClick={onResetLabelPositions}
+          >
+            Réinitialiser les positions
+          </Button>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ display: "block", mt: 0.5 }}
+          >
+            Replace chaque étiquette déplacée sur sa maille.
+          </Typography>
         </Box>
       </WhiteSectionGeneric>
 

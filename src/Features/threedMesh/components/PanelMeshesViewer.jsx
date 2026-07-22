@@ -8,6 +8,7 @@ import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 
 import useMeshes3d from "../hooks/useMeshes3d";
 import useMesh3dLabelPrefix from "../hooks/useMesh3dLabelPrefix";
+import useResetMeshes3dLabelPositions from "../hooks/useResetMeshes3dLabelPositions";
 import formatSurfaceM2 from "../utils/formatSurfaceM2";
 import getMesh3dDisplayLabel from "../utils/getMesh3dDisplayLabel";
 
@@ -26,6 +27,7 @@ export default function PanelMeshesViewer() {
 
   const meshes3d = useMeshes3d({ projectId, scopeId });
   const { prefix, setPrefix } = useMesh3dLabelPrefix();
+  const resetLabelPositions = useResetMeshes3dLabelPositions();
 
   const sorted = [...(meshes3d || [])].sort(
     (m1, m2) => (m1.number || 0) - (m2.number || 0)
@@ -102,7 +104,12 @@ export default function PanelMeshesViewer() {
       )}
       {tab === "SETTINGS" && (
         <BoxFlexVStretch sx={{ overflow: "auto" }}>
-          <SectionMeshes3dSettings prefix={prefix} onPrefixChange={setPrefix} />
+          <SectionMeshes3dSettings
+            prefix={prefix}
+            onPrefixChange={setPrefix}
+            meshes3d={sorted}
+            onResetLabelPositions={() => resetLabelPositions(sorted)}
+          />
         </BoxFlexVStretch>
       )}
     </BoxFlexVStretch>
