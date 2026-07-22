@@ -20,7 +20,6 @@ import splitMesh3dService from "./splitMesh3dService";
 import { setMeshingOverlay } from "./meshingOverlayStore";
 import computePlaneBasis from "../utils/computePlaneBasis";
 import cutShellByPlane from "../utils/cutShellByPlane";
-import getShellCentroid from "../utils/getShellCentroid";
 import {
   projectPointTo2d,
   projectLoopTo2d,
@@ -29,6 +28,9 @@ import {
 import splitFacePolygon from "../utils/splitFacePolygon";
 import pointInPolygon2d from "../utils/pointInPolygon2d";
 import getAngularWedge, { getReferencePlane } from "../utils/getAngularWedge";
+import cutMesh3dByPlaneNear from "../utils/cutMesh3dByPlaneNear";
+import getAxisCutPlane from "../utils/getAxisCutPlane";
+import splitMesh3dByNearPlaneService from "./splitMesh3dByNearPlaneService";
 import getMesh3dLoops from "../utils/getMesh3dLoops";
 import cutMesh3dByPlanes from "../utils/cutMesh3dByPlanes";
 import splitMesh3dByWedgeService from "./splitMesh3dByWedgeService";
@@ -322,6 +324,18 @@ export function createMeshingCutController({
     clearAngleBuffer?.();
   }
 
+  // Area chip per resulting piece. A single chip means the cut opened the
+  // maille without separating it (a 360° ribbon cut once).
+  function buildPieceAreaChips(pieces, rect) {
+    return (pieces || [])
+      .map((piece) => {
+        if (!piece.centroid) return null;
+        const c = worldToScreen(piece.centroid, rect);
+        return { x: c.x, y: c.y, text: formatSurfaceM2(piece.surface) };
+      })
+      .filter(Boolean);
+  }
+
   // --- shell axis cuts (curved mailles) ------------------------------------
 
   // Cut plane of a curved maille, in WORLD space:
@@ -396,23 +410,15 @@ export function createMeshingCutController({
     }
 
     const plane = { normal, constant };
-    const { positive, negative, segments } = cutShellByPlane({
-      positions: mesh3d.shell.positions,
-      plane,
-    });
-    if (!positive || !negative || !segments.length) {
+    // Only the chain of facets facing the user is cut — see
+    // cutMesh3dByPlaneNear.
+    const cut = cutMesh3dByPlaneNear({ mesh3d, plane, hitPoint: hit });
+    if (!cut?.segments?.length) {
       resetHover();
       return;
     }
-
-    const areaChips = [positive, negative]
-      .map((sideShell) => {
-        const info = getShellCentroid(sideShell.positions);
-        if (!info) return null;
-        const c = worldToScreen(info.centroid, rect);
-        return { x: c.x, y: c.y, text: formatSurfaceM2(sideShell.surface) };
-      })
-      .filter(Boolean);
+    const segments = cut.segments;
+    const areaChips = buildPieceAreaChips(cut.pieces, rect);
 
     // The guide is shown as the dotted contour where its plane meets the
     // shell (a marker point on a faceted surface reads as noise); it is
@@ -464,7 +470,7 @@ export function createMeshingCutController({
     setMeshingOverlay({ areaChips, offsetChip, cursor: null });
     renderScene();
 
-    hoverCut = { mesh3d, plane };
+    hoverCut = { mesh3d, pieces: cut.pieces };
   }
 
   // --- axis cuts (CUT_VERTICAL / CUT_HORIZONTAL) ---------------------------
@@ -552,38 +558,21 @@ export function createMeshingCutController({
       }
     }
 
-    // Clip the cut line to the contour.
-    const ts = [];
-    const n = ctx.contour2d.length;
-    for (let i = 0; i < n; i++) {
-      const p = ctx.contour2d[i];
-      const q = ctx.contour2d[(i + 1) % n];
-      const d = q[axis] - p[axis];
-      if (Math.abs(d) < 1e-12) continue;
-      const t = (cutPos - p[axis]) / d;
-      if (t >= 0 && t <= 1) ts.push(p[other] + t * (q[other] - p[other]));
-    }
-    if (ts.length < 2) {
+    // The cut line of the hovered face becomes the world plane holding it,
+    // which then cuts every facet of the maille the user faces — a maille is
+    // multi-face by design (a profile swept along a polyline), and cutting the
+    // hovered facet alone would carve a sliver out of it.
+    const plane = getAxisCutPlane(ctx.basis, axis, cutPos);
+    const cut = cutMesh3dByPlaneNear({
+      mesh3d: ctx.mesh3d,
+      plane,
+      hitPoint: { x: hitPoint.x, y: hitPoint.y, z: hitPoint.z },
+    });
+    if (!cut?.segments?.length) {
       resetHover();
       return;
     }
-    const a2 = { [axis]: cutPos, [other]: Math.min(...ts) };
-    const b2 = { [axis]: cutPos, [other]: Math.max(...ts) };
-
-    // Would-be pieces → area chips at their centroids.
-    const pieces = splitFacePolygon({
-      contour: ctx.contour2d,
-      holes: ctx.holes2d,
-      a: a2,
-      b: b2,
-    });
-    const areaChips = (pieces || []).map((piece) => {
-      const c = worldToScreen(
-        liftPointTo3d(polygonCentroid2d(piece.contour), ctx.basis),
-        rect
-      );
-      return { x: c.x, y: c.y, text: formatSurfaceM2(piece.area) };
-    });
+    const areaChips = buildPieceAreaChips(cut.pieces, rect);
 
     const offsetChip = guide
       ? (() => {
@@ -606,16 +595,17 @@ export function createMeshingCutController({
       : null;
 
     clearDraft();
-    drawSegment(liftDraft(a2, ctx), liftDraft(b2, ctx), { snapped });
+    drawSegments(
+      cut.segments.map(([p, q]) => [liftToCamera(p), liftToCamera(q)]),
+      { snapped }
+    );
     drawRing(liftDraft(ref, ctx));
     if (guide) drawRing(liftDraft(guide, ctx));
     if (edgeMid) drawSquare(liftDraft(edgeMid, ctx));
     setMeshingOverlay({ areaChips, offsetChip, cursor: null });
     renderScene();
 
-    hoverCut = pieces
-      ? { mesh3d: ctx.mesh3d, faceIndex: ctx.faceIndex, a: a2, b: b2 }
-      : null;
+    hoverCut = { mesh3d: ctx.mesh3d, pieces: cut.pieces };
   }
 
   async function onClickAxisCut() {
@@ -623,12 +613,9 @@ export function createMeshingCutController({
     const committed = hoverCut;
     hoverCut = null;
     try {
-      await splitMesh3dService({
+      await splitMesh3dByNearPlaneService({
         mesh3d: committed.mesh3d,
-        faceIndex: committed.faceIndex,
-        a: committed.a,
-        b: committed.b,
-        plane: committed.plane,
+        pieces: committed.pieces,
       });
     } catch (err) {
       console.error("[threedMesh] split failed", err);

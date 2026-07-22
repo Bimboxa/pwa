@@ -21,6 +21,8 @@ export default async function createMesh3dService({
   scopeId,
   faces = null,
   shell = null,
+  // Cut segments the maille is already opened along — see seamUtils.
+  seams = [],
   baseColor = null,
   color = null,
   edgeColor = null,
@@ -60,6 +62,7 @@ export default async function createMesh3dService({
       surface: shell ? shell.surface : computeMesh3dSurface(faces),
       faces: faces || [],
       shell: shell || null,
+      seams: seams || [],
       sourceInfo,
     };
     await db.meshes3d.add(record);

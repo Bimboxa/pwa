@@ -35,12 +35,15 @@ export default async function splitMesh3dByWedgeService({
       shell: keepPayload.shell || null,
       surface: keepPayload.surface,
     });
+    const seams = mesh3d.seams || [];
 
     const record = await createMesh3dService({
       projectId: mesh3d.projectId,
       scopeId: mesh3d.scopeId,
       faces: restPayload.faces || null,
       shell: restPayload.shell || null,
+      // Both sides stay open along the seams the maille already carried.
+      seams,
       baseColor: mesh3d.baseColor ?? mesh3d.color,
       edgeColor: mesh3d.edgeColor || null,
       sourceInfo: mesh3d.sourceInfo || null,

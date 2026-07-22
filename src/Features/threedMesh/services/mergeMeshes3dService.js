@@ -30,6 +30,11 @@ export default async function mergeMeshes3dService(mesh3dIds) {
     await db.meshes3d.update(survivor.id, {
       faces,
       surface: computeMesh3dSurface(faces),
+      // Merging is the explicit "these are one maille again" gesture, so the
+      // seams the cuts left behind are dropped — keeping them would leave the
+      // survivor open right where the pieces were just rejoined, and the next
+      // axis cut would split them apart again (see seamUtils).
+      seams: [],
     });
     await db.meshes3d.bulkDelete(others.map((r) => r.id));
 
