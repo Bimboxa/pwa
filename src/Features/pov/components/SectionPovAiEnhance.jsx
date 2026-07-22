@@ -3,11 +3,12 @@ import { useDispatch, useSelector } from "react-redux";
 
 import { setPovAiEnhanceEnabled } from "../povSlice";
 
-import { Box, IconButton, Typography } from "@mui/material";
-import { Notes as PromptIcon } from "@mui/icons-material";
+import { Badge, Box, IconButton } from "@mui/material";
+import { Edit as PromptIcon } from "@mui/icons-material";
 
 import FieldCheck from "Features/form/components/FieldCheck";
-import DialogGeneric from "Features/layout/components/DialogGeneric";
+
+import DialogPovEnhancePrompt from "./DialogPovEnhancePrompt";
 
 import usePovEnhancePrompt from "../hooks/usePovEnhancePrompt";
 
@@ -21,12 +22,12 @@ export default function SectionPovAiEnhance() {
   // strings
 
   const labelS = "Amélioration IA";
-  const promptTitleS = "Prompt utilisé";
+  const promptTitleS = "Modifier le prompt d'amélioration IA";
 
   // data
 
   const aiEnhanceEnabled = useSelector((s) => s.pov.aiEnhanceEnabled);
-  const { prompt, enabled } = usePovEnhancePrompt();
+  const { isCustom, enabled } = usePovEnhancePrompt();
 
   // state
 
@@ -62,21 +63,15 @@ export default function SectionPovAiEnhance() {
         onClick={() => setOpenPrompt(true)}
         title={promptTitleS}
       >
-        <PromptIcon fontSize="small" />
+        <Badge color="secondary" variant="dot" invisible={!isCustom}>
+          <PromptIcon fontSize="small" />
+        </Badge>
       </IconButton>
 
-      <DialogGeneric
+      <DialogPovEnhancePrompt
         open={openPrompt}
         onClose={() => setOpenPrompt(false)}
-        title={promptTitleS}
-        width={520}
-      >
-        <Box sx={{ p: 2, overflowY: "auto" }}>
-          <Typography variant="body2" sx={{ whiteSpace: "pre-wrap" }}>
-            {prompt?.prompt}
-          </Typography>
-        </Box>
-      </DialogGeneric>
+      />
     </Box>
   );
 }

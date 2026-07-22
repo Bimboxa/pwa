@@ -6,15 +6,19 @@ import { setPovAiEnhanceEnabled } from "../povSlice";
 import { selectSelectedItem } from "Features/selection/selectionSlice";
 
 import {
+  Badge,
   Box,
   Button,
   Checkbox,
-  FormControlLabel,
+  Divider,
+  IconButton,
+  Tooltip,
   Typography,
 } from "@mui/material";
-import { Add, Refresh } from "@mui/icons-material";
+import { Add, AutoAwesome, Edit, Refresh } from "@mui/icons-material";
 
 import PovAiEnhanceFrameOverlay from "./PovAiEnhanceFrameOverlay";
+import DialogPovEnhancePrompt from "./DialogPovEnhancePrompt";
 import usePovs from "../hooks/usePovs";
 import useCreatePov from "../hooks/useCreatePov";
 import useUpdatePovView from "../hooks/useUpdatePovView";
@@ -57,7 +61,9 @@ export default function ButtonSavePov() {
 
   const createS = "Créer une vue";
   const updateS = "Mettre à jour la vue";
-  const aiEnhanceS = "Amélioration IA";
+  const aiEnhanceS = "IA";
+  const aiEnhanceTooltipS = "Amélioration IA";
+  const editPromptS = "Modifier le prompt d'amélioration IA";
 
   // data
 
@@ -68,7 +74,13 @@ export default function ButtonSavePov() {
   const selectedItem = useSelector(selectSelectedItem);
 
   const aiEnhanceEnabled = useSelector((s) => s.pov.aiEnhanceEnabled);
-  const { prompt, serviceUrl, enabled: aiAvailable } = usePovEnhancePrompt();
+  const {
+    prompt,
+    promptText,
+    isCustom: isCustomPrompt,
+    serviceUrl,
+    enabled: aiAvailable,
+  } = usePovEnhancePrompt();
 
   const viewerMode = useSelector((s) => s.pov.viewerMode);
   const aspectRatio = useSelector((s) => s.mapEditor.imageModeAspectRatio);
@@ -89,6 +101,7 @@ export default function ButtonSavePov() {
   const [busy, setBusy] = useState(false);
   // {povId, originalUrl, enhancedUrl, enhancedBlob, loading, error} | null
   const [aiState, setAiState] = useState(null);
+  const [openPrompt, setOpenPrompt] = useState(false);
 
   // helpers
 
@@ -142,7 +155,7 @@ export default function ButtonSavePov() {
       baseMapId: `pov_${povId ?? "draft"}`,
       transformId: prompt.id,
       file: new File([blob], "pov.png", { type: "image/png" }),
-      prompt: `${prompt.prompt}${ENHANCE_PROMPT_SUFFIX}`,
+      prompt: `${promptText}${ENHANCE_PROMPT_SUFFIX}`,
       serviceUrl,
       onSuccess: ({ blob: enhancedBlob, objectUrl: enhancedUrl }) => {
         setAiState((prev) =>
@@ -223,25 +236,28 @@ export default function ButtonSavePov() {
             position: "absolute",
             zIndex: 30,
             display: "flex",
-            alignItems: "center",
-            gap: 1.5,
+            alignItems: "stretch",
+            bgcolor: "white",
+            borderRadius: 2,
+            boxShadow: 4,
+            overflow: "hidden",
             ...barPositionSx,
           }}
         >
-          {/* "Amélioration IA" checkbox chip, in front of the button */}
+          {/* "Amélioration IA": toggle + prompt edition, in one pill with
+              the create/update button */}
           {aiAvailable && (
-            <Box
-              sx={{
-                bgcolor: "white",
-                borderRadius: 1,
-                pl: 0.5,
-                pr: 1.5,
-                boxShadow: 4,
-              }}
-            >
-              <FormControlLabel
-                sx={{ m: 0 }}
-                control={
+            <>
+              <Tooltip title={aiEnhanceTooltipS}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 0.5,
+                    pl: 0.5,
+                    pr: 1.5,
+                  }}
+                >
                   <Checkbox
                     size="small"
                     color="secondary"
@@ -250,14 +266,29 @@ export default function ButtonSavePov() {
                       dispatch(setPovAiEnhanceEnabled(e.target.checked))
                     }
                   />
-                }
-                label={
+                  <AutoAwesome fontSize="small" color="secondary" />
                   <Typography variant="body2" sx={{ fontWeight: 500 }}>
                     {aiEnhanceS}
                   </Typography>
-                }
-              />
-            </Box>
+                </Box>
+              </Tooltip>
+
+              <Divider orientation="vertical" flexItem />
+
+              <Tooltip title={editPromptS}>
+                <Box sx={{ display: "flex", alignItems: "center", px: 0.5 }}>
+                  <IconButton size="small" onClick={() => setOpenPrompt(true)}>
+                    <Badge
+                      color="secondary"
+                      variant="dot"
+                      invisible={!isCustomPrompt}
+                    >
+                      <Edit fontSize="small" />
+                    </Badge>
+                  </IconButton>
+                </Box>
+              </Tooltip>
+            </>
           )}
 
           <Button
@@ -266,7 +297,12 @@ export default function ButtonSavePov() {
             startIcon={selectedPov ? <Refresh /> : <Add />}
             onClick={handleClick}
             disabled={busy}
-            sx={{ textTransform: "none", boxShadow: 4 }}
+            sx={{
+              textTransform: "none",
+              boxShadow: "none",
+              borderRadius: 2,
+              px: 2.5,
+            }}
           >
             {selectedPov ? updateS : createS}
           </Button>
@@ -280,6 +316,11 @@ export default function ButtonSavePov() {
           onSaveEnhanced={handleSaveEnhanced}
         />
       )}
+
+      <DialogPovEnhancePrompt
+        open={openPrompt}
+        onClose={() => setOpenPrompt(false)}
+      />
     </>
   );
 }
