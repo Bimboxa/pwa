@@ -11,6 +11,11 @@ const threedEditorInitialState = {
   // When true, CM-width POLYLINE footprints are contracted by 5 mm before
   // extrusion to avoid coplanar-face aliasing when a parement abuts a wall.
   antiAliasingShrink: true,
+  // Max dihedral angle (degrees) joining two adjacent facets into the same
+  // "face" when hovering / picking a surface in 3D (see faceHoverHighlight).
+  // 0 = strictly coplanar facets only; 25 follows a revolution or swept
+  // surface across its facets without crossing a real crease.
+  faceSelectionAngleDeg: 25,
   // Viewport render mode (session-only). "STANDARD" = the historical unlit /
   // Lambert look. "REALISTIC" = real-time PBR: physical materials, white
   // environment lighting, ACES tone mapping. "PHOTOREAL" = the full raster
@@ -178,6 +183,9 @@ export const threedEditorSlice = createSlice({
     },
     setAntiAliasingShrink: (state, action) => {
       state.antiAliasingShrink = action.payload;
+    },
+    setFaceSelectionAngleDeg: (state, action) => {
+      state.faceSelectionAngleDeg = action.payload;
     },
     setRenderMode: (state, action) => {
       state.renderMode = action.payload;
@@ -467,6 +475,7 @@ export const {
   setHideBaseMaps,
   setDisableOpacity,
   setAntiAliasingShrink,
+  setFaceSelectionAngleDeg,
   setRenderMode,
   setEnvironment3d,
   setEditorMode,

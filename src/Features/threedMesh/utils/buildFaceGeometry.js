@@ -1,6 +1,6 @@
 import {
+  DoubleSide,
   EdgesGeometry,
-  ExtrudeGeometry,
   LineBasicMaterial,
   LineSegments,
   Matrix4,
@@ -8,13 +8,14 @@ import {
   MeshStandardMaterial,
   Path,
   Shape,
+  ShapeGeometry,
   Vector3,
 } from "three";
 import { lighten } from "@mui/material/styles";
 
 import computePlaneBasis from "./computePlaneBasis.js";
 import { projectLoopTo2d } from "./planeProjection.js";
-import { MESH3D_EXTRUDE_M } from "./mesh3dConstants.js";
+import { MESH3D_LIFT_M } from "./mesh3dConstants.js";
 
 function safeLighten(color, amount, fallback) {
   try {
@@ -24,10 +25,10 @@ function safeLighten(color, amount, fallback) {
   }
 }
 
-// Builds the THREE.Mesh of one maille face: the planar loop extruded by 5 mm
-// along the face normal (so the shell never z-fights with the source face it
-// was created from). The extrusion happens in the (u, v, n) plane basis and is
-// placed in world space via a basis matrix.
+// Builds the THREE.Mesh of one maille face: the planar loop as a flat,
+// double-sided surface (no thickness), triangulated in the (u, v) plane basis
+// and placed in world space via a basis matrix. Polygon offset + a 1 mm lift
+// along the normal keep it off the source face it was created from.
 export default function buildFaceGeometry(
   face,
   { color, edgeColor, selected, dimmed } = {}
@@ -57,29 +58,33 @@ export default function buildFaceGeometry(
     shape.holes.push(path);
   }
 
-  const geometry = new ExtrudeGeometry(shape, {
-    depth: MESH3D_EXTRUDE_M,
-    bevelEnabled: false,
-  });
+  const geometry = new ShapeGeometry(shape);
 
-  // Shape space (x, y, z) → world: x·u + y·v + z·n + origin.
+  // Shape space (x, y, z) → world: x·u + y·v + z·n + origin, with the origin
+  // lifted along the normal.
   const matrix = new Matrix4().makeBasis(
     new Vector3(basis.u.x, basis.u.y, basis.u.z),
     new Vector3(basis.v.x, basis.v.y, basis.v.z),
     new Vector3(basis.n.x, basis.n.y, basis.n.z)
   );
-  matrix.setPosition(basis.origin.x, basis.origin.y, basis.origin.z);
+  matrix.setPosition(
+    basis.origin.x + basis.n.x * MESH3D_LIFT_M,
+    basis.origin.y + basis.n.y * MESH3D_LIFT_M,
+    basis.origin.z + basis.n.z * MESH3D_LIFT_M
+  );
   geometry.applyMatrix4(matrix);
 
   // `dimmed`: a selection exists elsewhere — same "everything translucent
   // except the selection" mechanism as annotations (STATE_DIM).
+  // DoubleSide: a surface with no thickness must still read from behind.
   const material = new MeshStandardMaterial({
     color: selected ? safeLighten(color, 0.3, color) : color,
     transparent: true,
     opacity: dimmed ? 0.2 : 0.9,
+    side: DoubleSide,
     polygonOffset: true,
-    polygonOffsetFactor: -1,
-    polygonOffsetUnits: -1,
+    polygonOffsetFactor: -4,
+    polygonOffsetUnits: -4,
   });
 
   const mesh = new Mesh(geometry, material);

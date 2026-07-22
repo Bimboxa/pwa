@@ -27,6 +27,7 @@ import useMesh3dLabelPrefix from "../hooks/useMesh3dLabelPrefix";
 import findAdjacentMeshes3d from "../utils/findAdjacentMeshes3d";
 import formatSurfaceM2 from "../utils/formatSurfaceM2";
 import getMesh3dDisplayLabel from "../utils/getMesh3dDisplayLabel";
+import getMesh3dLoops from "../utils/getMesh3dLoops";
 import getMesh3dRefreshedColor from "../utils/getMesh3dRefreshedColor";
 import { DEFAULT_MESH3D_COLOR } from "../utils/mesh3dConstants";
 
@@ -61,8 +62,10 @@ export default function ToolbarEditMesh3d({ onDragStart }) {
 
   function handleRefreshColor() {
     const siblings = (allMeshes3d || []).filter((m) => m.id !== mesh3d.id);
-    const neighbors = findAdjacentMeshes3d(mesh3d.faces, siblings);
-    const neighborColors = neighbors.map((n) => n.color || DEFAULT_MESH3D_COLOR);
+    const neighbors = findAdjacentMeshes3d(getMesh3dLoops(mesh3d), siblings);
+    const neighborColors = neighbors.map(
+      (n) => n.color || DEFAULT_MESH3D_COLOR
+    );
     const newColor = getMesh3dRefreshedColor(
       mesh3d.baseColor,
       color,

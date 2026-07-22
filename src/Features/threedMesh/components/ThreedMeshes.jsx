@@ -11,11 +11,13 @@ import useMesh3dLabelPrefix from "../hooks/useMesh3dLabelPrefix";
 import createMesh3dLabelSprite from "../services/createMesh3dLabelSprite";
 import { setMesh3dObjects } from "../services/mesh3dObjectsStore";
 import buildFaceGeometry from "../utils/buildFaceGeometry";
+import buildShellGeometry from "../utils/buildShellGeometry";
 import computeFaceArea, { polygonCentroid2d } from "../utils/computeFaceArea";
 import computePlaneBasis from "../utils/computePlaneBasis";
 import { projectLoopTo2d, liftPointTo3d } from "../utils/planeProjection";
 import formatSurfaceM2 from "../utils/formatSurfaceM2";
 import getMesh3dDisplayLabel from "../utils/getMesh3dDisplayLabel";
+import getShellCentroid from "../utils/getShellCentroid";
 import { DEFAULT_MESH3D_COLOR } from "../utils/mesh3dConstants";
 
 // Lift of the label sprite off the face plane (meters).
@@ -35,8 +37,18 @@ function disposeObject(obj) {
 }
 
 // Anchor of the label sprite: centroid of the maille's largest face, lifted
-// along that face's normal.
+// along that face's normal — or, on a curved maille, the area-weighted
+// centroid of its triangles lifted along their average normal.
 function getLabelPosition(mesh3d) {
+  if (mesh3d.shell) {
+    const shell = getShellCentroid(mesh3d.shell.positions);
+    if (!shell) return null;
+    return new Vector3(
+      shell.centroid.x + shell.normal.x * LABEL_LIFT_M,
+      shell.centroid.y + shell.normal.y * LABEL_LIFT_M,
+      shell.centroid.z + shell.normal.z * LABEL_LIFT_M
+    );
+  }
   let best = null;
   let bestArea = -1;
   for (const face of mesh3d.faces || []) {
@@ -58,7 +70,7 @@ function getLabelPosition(mesh3d) {
 }
 
 // Renders persistent 3D mesh cells ("mailles") read from db.meshes3d for the
-// current project + scope: one 5 mm-extruded shell per face + a clickable
+// current project + scope: one flat surface per face + a clickable
 // label sprite (label, plus surface when selected). Face meshes and sprites
 // are published to mesh3dObjectsStore for picking (selection click in
 // MainThreedEditor, hover / cut targets in useMeshingPointerHandlers).
@@ -74,6 +86,11 @@ export default function ThreedMeshes() {
     (s) => s.viewers.selectedViewerKey !== "MESHES"
   );
   const labelsOptions = useSelector((s) => s.threedEditor.mesh3dLabels);
+  // Outline threshold of curved mailles: the angle that grew the region, so
+  // the smooth facet seams inside a shell stay invisible.
+  const faceSelectionAngleDeg = useSelector(
+    (s) => s.threedEditor.faceSelectionAngleDeg
+  );
 
   // Selected maille ids, serialized so the rebuild effect only re-runs when
   // the MESH3D selection actually changes.
@@ -144,7 +161,7 @@ export default function ThreedMeshes() {
     const faceMeshes = [];
 
     (meshes3d || []).forEach((mesh3d) => {
-      if (!mesh3d?.faces?.length) return;
+      if (!mesh3d?.faces?.length && !mesh3d?.shell?.positions?.length) return;
       const selected = selectedIds.has(mesh3d.id);
       const dimmed = hasSelection && !selected;
       const color = mesh3d.color || DEFAULT_MESH3D_COLOR;
@@ -152,7 +169,28 @@ export default function ThreedMeshes() {
       const group = new Group();
       group.userData = { mesh3dId: mesh3d.id, isMesh3d: true };
 
-      mesh3d.faces.forEach((face, faceIndex) => {
+      // Curved maille: one surface for the whole shell (faceIndex 0). Planar
+      // maille: one surface per polygon face.
+      if (mesh3d.shell?.positions?.length) {
+        const shellMesh = buildShellGeometry(mesh3d.shell, {
+          color,
+          edgeColor: mesh3d.edgeColor,
+          selected,
+          dimmed,
+          edgeAngleDeg: faceSelectionAngleDeg,
+        });
+        if (shellMesh) {
+          shellMesh.userData = {
+            mesh3dId: mesh3d.id,
+            faceIndex: 0,
+            isMesh3d: true,
+          };
+          group.add(shellMesh);
+          faceMeshes.push(shellMesh);
+        }
+      }
+
+      (mesh3d.faces || []).forEach((face, faceIndex) => {
         const faceMesh = buildFaceGeometry(face, {
           color,
           edgeColor: mesh3d.edgeColor,
@@ -209,6 +247,7 @@ export default function ThreedMeshes() {
     hideMeshes3d,
     hasSelection,
     labelsOptions,
+    faceSelectionAngleDeg,
   ]);
 
   return null;

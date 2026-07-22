@@ -13,10 +13,14 @@ import {
 import { Line2 } from "three/examples/jsm/lines/Line2.js";
 import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
+import { LineSegments2 } from "three/examples/jsm/lines/LineSegments2.js";
+import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeometry.js";
 
 import splitMesh3dService from "./splitMesh3dService";
 import { setMeshingOverlay } from "./meshingOverlayStore";
 import computePlaneBasis from "../utils/computePlaneBasis";
+import cutShellByPlane from "../utils/cutShellByPlane";
+import getShellCentroid from "../utils/getShellCentroid";
 import {
   projectPointTo2d,
   projectLoopTo2d,
@@ -31,8 +35,11 @@ import { MESH3D_SNAP_PX } from "../utils/mesh3dConstants";
 const CUT_COLOR = 0xd32f2f;
 const LINEWIDTH = 2.5;
 const LINEWIDTH_SNAPPED = 4.5;
-// Draft geometry is drawn slightly off the face plane (the maille shell is
-// already 5 mm thick) so the red line never z-fights with the shell.
+// Offset guide on a shell: a hairline dotted contour, dash length in meters.
+const GUIDE_LINEWIDTH = 1;
+const GUIDE_DASH_M = 0.03;
+// Draft geometry is drawn slightly off the face plane so the red line never
+// z-fights with the maille surface (which sits 1 mm off the source face).
 const DRAFT_LIFT_M = 0.012;
 const RING_SCREEN_SIZE = 0.028;
 
@@ -161,6 +168,45 @@ export function createMeshingCutController({
     ensureDraftGroup().add(line);
   }
 
+  // Same red line as drawSegment, but for the many short segments of a shell
+  // cut (plane ∩ shell): one LineSegments2 instead of N Line2 objects, which
+  // would allocate a material + geometry per facet on every hover frame.
+  //
+  // `dashed`: thin dotted variant used for the offset guide — on a faceted
+  // shell the guide is a whole contour around the mesh, where a single marker
+  // point would be unreadable.
+  function drawSegments(segments, { snapped = false, dashed = false } = {}) {
+    if (!segments?.length) return;
+    const positions = [];
+    for (const [p, q] of segments) {
+      positions.push(p.x, p.y, p.z, q.x, q.y, q.z);
+    }
+    const material = new LineMaterial({
+      color: CUT_COLOR,
+      linewidth: dashed
+        ? GUIDE_LINEWIDTH
+        : snapped
+          ? LINEWIDTH_SNAPPED
+          : LINEWIDTH,
+      resolution: getResolution(),
+      worldUnits: false,
+      transparent: true,
+      depthTest: false,
+      dashed,
+      dashSize: GUIDE_DASH_M,
+      gapSize: GUIDE_DASH_M,
+    });
+    const geometry = new LineSegmentsGeometry();
+    geometry.setPositions(positions);
+    const lines = new LineSegments2(geometry, material);
+    // Dashes are laid out along the accumulated distance, so the pattern runs
+    // continuously around the contour instead of restarting per facet.
+    if (dashed) lines.computeLineDistances();
+    lines.renderOrder = 1002;
+    lines.raycast = () => {};
+    ensureDraftGroup().add(lines);
+  }
+
   function drawRing(p) {
     const ring = createMarkerSprite("RING");
     ring.position.set(p.x, p.y, p.z);
@@ -244,6 +290,151 @@ export function createMeshingCutController({
     polyCommit = null;
   }
 
+  // --- shell axis cuts (curved mailles) ------------------------------------
+
+  // Cut plane of a curved maille, in WORLD space:
+  // - horizontal tool: the plane normal is world up (+Y).
+  // - vertical tool: a vertical plane holding the camera→hit axis — a knife
+  //   held facing you. Its normal is horizontal and perpendicular to the line
+  //   of sight (up × viewDir), so it never depends on the shell's own shape
+  //   (a swept profile has no revolution axis to key off).
+  function getShellCutNormal(hit, axis) {
+    if (axis === "y") return { x: 0, y: 1, z: 0 };
+    const cam = sceneManager.camera.position;
+    const dx = hit.x - cam.x;
+    const dz = hit.z - cam.z;
+    const len = Math.hypot(dx, dz);
+    if (len < 1e-6) return null; // looking straight down: no horizontal axis
+    return { x: dz / len, y: 0, z: -dx / len };
+  }
+
+  const planeDist = (n, p) => n.x * p.x + n.y * p.y + n.z * p.z;
+
+  // Lift a world point toward the camera so the red line never z-fights with
+  // the maille surface it runs on.
+  function liftToCamera(p) {
+    const cam = sceneManager.camera.position;
+    const d = new Vector3(cam.x - p.x, cam.y - p.y, cam.z - p.z);
+    const len = d.length();
+    if (len === 0) return { ...p };
+    d.multiplyScalar(DRAFT_LIFT_M / len);
+    return { x: p.x + d.x, y: p.y + d.y, z: p.z + d.z };
+  }
+
+  function onHoverShellCut(e, pick, mesh3d, axis) {
+    const hit = pick.intersect.point;
+    const normal = getShellCutNormal(hit, axis);
+    if (!normal) {
+      resetHover();
+      return;
+    }
+    const rect = pick.rect;
+
+    // Reference = the shell boundary vertex furthest along the cut axis, on
+    // the cursor's side (flipped by S / cutSide); "Décalage" then moves the
+    // plane inwards from it. Offset 0 → plane through the hovered point.
+    const boundaryPoints = (mesh3d.shell.boundaries || []).flat();
+    if (boundaryPoints.length < 2) {
+      resetHover();
+      return;
+    }
+    const side = getCutSide();
+    const dir = side === "LEFT" ? 1 : -1;
+    const ref = boundaryPoints.reduce((best, p) =>
+      dir * planeDist(normal, p) < dir * planeDist(normal, best) ? p : best
+    );
+
+    const offset = getOffset();
+    const refDist = planeDist(normal, ref);
+    const guideDist = offset > 0 ? refDist + dir * offset : null;
+
+    // Snap the cut to the guide plane when it is within the screen radius.
+    let constant = planeDist(normal, hit);
+    let snapped = false;
+    if (guideDist !== null) {
+      const onGuide = {
+        x: hit.x + normal.x * (guideDist - constant),
+        y: hit.y + normal.y * (guideDist - constant),
+        z: hit.z + normal.z * (guideDist - constant),
+      };
+      if (screenDist(hit, onGuide, rect) < MESH3D_SNAP_PX) {
+        constant = guideDist;
+        snapped = true;
+      }
+    }
+
+    const plane = { normal, constant };
+    const { positive, negative, segments } = cutShellByPlane({
+      positions: mesh3d.shell.positions,
+      plane,
+    });
+    if (!positive || !negative || !segments.length) {
+      resetHover();
+      return;
+    }
+
+    const areaChips = [positive, negative]
+      .map((sideShell) => {
+        const info = getShellCentroid(sideShell.positions);
+        if (!info) return null;
+        const c = worldToScreen(info.centroid, rect);
+        return { x: c.x, y: c.y, text: formatSurfaceM2(sideShell.surface) };
+      })
+      .filter(Boolean);
+
+    // The guide is shown as the dotted contour where its plane meets the
+    // shell (a marker point on a faceted surface reads as noise); it is
+    // dropped once the cut has snapped onto it, since the solid red line then
+    // sits exactly there.
+    const guideSegments =
+      guideDist !== null && !snapped
+        ? cutShellByPlane({
+            positions: mesh3d.shell.positions,
+            plane: { normal, constant: guideDist },
+          }).segments
+        : [];
+
+    const guidePoint =
+      guideDist !== null
+        ? {
+            x: ref.x + normal.x * (guideDist - refDist),
+            y: ref.y + normal.y * (guideDist - refDist),
+            z: ref.z + normal.z * (guideDist - refDist),
+          }
+        : null;
+    const offsetChip = guidePoint
+      ? (() => {
+          const mid = worldToScreen(
+            {
+              x: (ref.x + guidePoint.x) / 2,
+              y: (ref.y + guidePoint.y) / 2,
+              z: (ref.z + guidePoint.z) / 2,
+            },
+            rect
+          );
+          return {
+            x: mid.x,
+            y: mid.y + 18,
+            text: `${offset.toLocaleString("fr-FR")}m`,
+          };
+        })()
+      : null;
+
+    clearDraft();
+    drawSegments(
+      segments.map(([p, q]) => [liftToCamera(p), liftToCamera(q)]),
+      { snapped }
+    );
+    drawSegments(
+      guideSegments.map(([p, q]) => [liftToCamera(p), liftToCamera(q)]),
+      { dashed: true }
+    );
+    setMeshingOverlay({ areaChips, offsetChip, cursor: null });
+    renderScene();
+
+    hoverCut = { mesh3d, plane };
+  }
+
   // --- axis cuts (CUT_VERTICAL / CUT_HORIZONTAL) ---------------------------
 
   // axis = "x": vertical tool (cut line at constant u, running along v).
@@ -251,6 +442,11 @@ export function createMeshingCutController({
   function onHoverAxisCut(e, pick, axis) {
     if (pick?.kind !== "MESH3D") {
       resetHover();
+      return;
+    }
+    const picked = getMesh3dById(pick.mesh3dId);
+    if (picked?.shell?.positions?.length) {
+      onHoverShellCut(e, pick, picked, axis);
       return;
     }
     const ctx = getFaceContext(pick.mesh3dId, pick.faceIndex);
@@ -400,6 +596,7 @@ export function createMeshingCutController({
         faceIndex: committed.faceIndex,
         a: committed.a,
         b: committed.b,
+        plane: committed.plane,
       });
     } catch (err) {
       console.error("[threedMesh] split failed", err);

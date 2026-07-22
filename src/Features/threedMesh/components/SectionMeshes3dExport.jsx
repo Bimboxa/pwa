@@ -87,7 +87,10 @@ export default function SectionMeshes3dExport({ rows }) {
                   <TableCell align="right">
                     {formatSurfaceM2(row.surface)}
                   </TableCell>
-                  <TableCell align="right">{row.faces?.length ?? 0}</TableCell>
+                  {/* A curved maille is one surface, whatever its facet count */}
+                  <TableCell align="right">
+                    {row.faces?.length || (row.shell ? 1 : 0)}
+                  </TableCell>
                   <TableCell>
                     <Box
                       sx={{

@@ -1,8 +1,10 @@
 // 3D mesh cells ("mailles") — shared constants.
 
-// Extrusion depth (meters) applied along the face normal so a maille never
-// z-fights with the source face it was created from.
-export const MESH3D_EXTRUDE_M = 0.005;
+// Mailles are drawn as SURFACES (no thickness): a maille face is the flat
+// polygon itself, kept off the source face by polygon offset plus this tiny
+// lift (meters) along the face normal. A real extrusion would show its rim
+// edges and cannot represent a curved (shell) maille.
+export const MESH3D_LIFT_M = 0.001;
 
 // Display label = mesh3d.label ?? `${prefix}${mesh3d.number}`. The prefix is
 // configurable per scope (scope.mesh3dSettings.labelPrefix).

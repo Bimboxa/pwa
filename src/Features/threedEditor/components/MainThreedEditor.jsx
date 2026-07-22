@@ -50,8 +50,9 @@ import {
 } from "Features/threedEditor/js/utilsAnnotationsManager/clippingPick";
 import {
   buildFaceHoverOverlay,
+  getFaceRegion,
+  DEFAULT_FACE_ANGLE_DEG,
   disposeFaceHoverOverlay,
-  getCoplanarRegion,
   setFaceHoverClippingPlanes,
 } from "Features/threedEditor/js/utilsAnnotationsManager/faceHoverHighlight";
 import ThreedHoverTooltip from "./ThreedHoverTooltip";
@@ -158,9 +159,10 @@ export default function MainThreedEditor() {
   const subHoverHelperRef = useRef(null);
   const subSelectedHelperRef = useRef(null);
   const subHoverKeyRef = useRef(null); // "V:<idx>" or "E:<a>-<b>" or null
-  // Face hover overlay (blue-dot stipple on the hovered coplanar face):
-  // transient Mesh added as a child of the hit mesh, keyed on
-  // `${mesh.uuid}:${regionId}` so moving within the same face never rebuilds.
+  // Face hover overlay (blue-dot stipple on the hovered face): transient Mesh
+  // added as a child of the hit mesh, keyed on
+  // `${mesh.uuid}:${angleDeg}:${regionId}` so moving within the same face
+  // never rebuilds — and so changing the angle setting does rebuild.
   const faceHoverOverlayRef = useRef(null);
   const faceHoverKeyRef = useRef(null);
 
@@ -197,7 +199,8 @@ export default function MainThreedEditor() {
   // The POV viewer forces the capture framing on (mask + rect + legend) —
   // only when this 3D editor is the one POV displays (isThreedViewer).
   const isPovViewer = useSelector(selectIsPovViewer);
-  const captureFramingActive = imageModeEnabled || (isPovViewer && isThreedViewer);
+  const captureFramingActive =
+    imageModeEnabled || (isPovViewer && isThreedViewer);
   // Render mode (Standard / Réaliste / Photoréaliste).
   const renderMode = useSelector((s) => s.threedEditor.renderMode);
   // PHOTOREAL environment (Standard / Extérieur / Intérieur).
@@ -799,7 +802,13 @@ export default function MainThreedEditor() {
         dispatch(setAnnotationsToolbarPosition(null));
       }
     },
-    [dispatch, rendererIsReady, isThreedViewer, getSoloSelectedAnnotationId, store]
+    [
+      dispatch,
+      rendererIsReady,
+      isThreedViewer,
+      getSoloSelectedAnnotationId,
+      store,
+    ]
   );
 
   // Helper to check if an event target is within a MUI Popper or portal
@@ -1440,12 +1449,20 @@ export default function MainThreedEditor() {
       const hitObject = overlayIntersect.object;
       // Plane mode on CSG-carved meshes: highlight the whole coplanar surface
       // (T-junctions break the edge-adjacency walk).
-      const region = getCoplanarRegion(
+      // Read from the store (not useSelector): MainThreedEditor must not
+      // re-render on a settings change, and the next hover tick picks the new
+      // angle up on its own — the overlay key carries it.
+      const angleDeg =
+        store.getState().threedEditor.faceSelectionAngleDeg ??
+        DEFAULT_FACE_ANGLE_DEG;
+      const region = getFaceRegion(
         hitObject.geometry,
         overlayIntersect.faceIndex,
-        { plane: !!hitObject.userData?.hasSubtraction }
+        { plane: !!hitObject.userData?.hasSubtraction, angleDeg }
       );
-      const key = region ? `${hitObject.uuid}:${region.regionId}` : null;
+      const key = region
+        ? `${hitObject.uuid}:${angleDeg}:${region.regionId}`
+        : null;
       if (key !== faceHoverKeyRef.current) {
         disposeFaceHoverOverlay(faceHoverOverlayRef.current);
         faceHoverOverlayRef.current = null;
@@ -1463,6 +1480,7 @@ export default function MainThreedEditor() {
   }, [
     rendererIsReady,
     isThreedViewer,
+    store,
     getStateForId,
     getSoloSelectedAnnotationId,
     clearSubHoverHelper,
@@ -1708,9 +1726,7 @@ export default function MainThreedEditor() {
       {isThreedViewer && !captureFramingActive && <PopperMapListings />}
       {isThreedViewer && <PopperEditAnnotation viewerKey="THREED" />}
       {isThreedViewer && <ThreedPopperEditAnnotations />}
-      {isThreedViewer && (
-        <ThreedImageModeOverlay annotations={annotations} />
-      )}
+      {isThreedViewer && <ThreedImageModeOverlay annotations={annotations} />}
       {isThreedViewer && <ThreedHoverTooltip ref={tooltipApiRef} />}
       {isThreedViewer && <ThreedLassoOverlay ref={lassoOverlayRef} />}
       {isThreedViewer && (

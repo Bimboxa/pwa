@@ -1,17 +1,19 @@
-// Mailles adjacent to a set of faces (world coords): a maille is adjacent
-// when one of its boundary loops (contour or hole) touches a boundary loop of
-// the given faces — i.e. a vertex of one lies on an edge of the other within
-// tolerance. Overlapping collinear edges (the common case after a split)
-// always put at least one vertex on the other segment, so this catches shared
-// borders without a full segment/segment overlap test.
+import getMesh3dLoops from "./getMesh3dLoops.js";
+
+// Mailles adjacent to a set of boundary loops (world coords): a maille is
+// adjacent when one of its own boundary loops touches one of the given loops
+// — i.e. a vertex of one lies on an edge of the other within tolerance.
+// Overlapping collinear edges (the common case after a split) always put at
+// least one vertex on the other segment, so this catches shared borders
+// without a full segment/segment overlap test.
+//
+// Loops come from getMesh3dLoops, so planar and curved (shell) mailles are
+// handled the same way.
 
 const TOL_M = 1e-3;
 const TOL_SQ = TOL_M * TOL_M;
 
-const faceLoops = (face) =>
-  [face?.contour, ...(face?.holes || [])].filter((loop) => loop?.length >= 2);
-
-function bboxOfFaces(faces) {
+function bboxOfLoops(loops) {
   const box = {
     minX: Infinity,
     minY: Infinity,
@@ -20,16 +22,14 @@ function bboxOfFaces(faces) {
     maxY: -Infinity,
     maxZ: -Infinity,
   };
-  for (const face of faces) {
-    for (const loop of faceLoops(face)) {
-      for (const p of loop) {
-        if (p.x < box.minX) box.minX = p.x;
-        if (p.y < box.minY) box.minY = p.y;
-        if (p.z < box.minZ) box.minZ = p.z;
-        if (p.x > box.maxX) box.maxX = p.x;
-        if (p.y > box.maxY) box.maxY = p.y;
-        if (p.z > box.maxZ) box.maxZ = p.z;
-      }
+  for (const loop of loops) {
+    for (const p of loop) {
+      if (p.x < box.minX) box.minX = p.x;
+      if (p.y < box.minY) box.minY = p.y;
+      if (p.z < box.minZ) box.minZ = p.z;
+      if (p.x > box.maxX) box.maxX = p.x;
+      if (p.y > box.maxY) box.maxY = p.y;
+      if (p.z > box.maxZ) box.maxZ = p.z;
     }
   }
   return box;
@@ -74,26 +74,28 @@ function vertexOnLoop(loopA, loopB) {
 const loopsTouch = (loopA, loopB) =>
   vertexOnLoop(loopA, loopB) || vertexOnLoop(loopB, loopA);
 
-function facesTouch(facesA, facesB) {
-  for (const fa of facesA) {
-    for (const fb of facesB) {
-      for (const la of faceLoops(fa)) {
-        for (const lb of faceLoops(fb)) {
-          if (loopsTouch(la, lb)) return true;
-        }
-      }
+function anyLoopsTouch(loopsA, loopsB) {
+  for (const la of loopsA) {
+    for (const lb of loopsB) {
+      if (loopsTouch(la, lb)) return true;
     }
   }
   return false;
 }
 
-export default function findAdjacentMeshes3d(faces, rows) {
-  if (!faces?.length || !rows?.length) return [];
-  const bbox = bboxOfFaces(faces);
-  return rows.filter(
-    (row) =>
-      row?.faces?.length &&
-      bboxesTouch(bbox, bboxOfFaces(row.faces)) &&
-      facesTouch(faces, row.faces)
-  );
+/**
+ * @param {[[{x,y,z}]]} loops - boundary loops of the reference maille
+ * @param {object[]} rows - candidate maille records
+ */
+export default function findAdjacentMeshes3d(loops, rows) {
+  if (!loops?.length || !rows?.length) return [];
+  const bbox = bboxOfLoops(loops);
+  return rows.filter((row) => {
+    const rowLoops = getMesh3dLoops(row);
+    return (
+      rowLoops.length &&
+      bboxesTouch(bbox, bboxOfLoops(rowLoops)) &&
+      anyLoopsTouch(loops, rowLoops)
+    );
+  });
 }
