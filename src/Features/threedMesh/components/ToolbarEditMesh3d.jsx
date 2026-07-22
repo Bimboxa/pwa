@@ -15,6 +15,7 @@ import GridOnIcon from "@mui/icons-material/GridOn";
 import DeleteIcon from "@mui/icons-material/Delete";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 import RefreshIcon from "@mui/icons-material/Refresh";
+import FilterCenterFocusIcon from "@mui/icons-material/FilterCenterFocus";
 
 import FieldColorV2 from "Features/form/components/FieldColorV2";
 import FieldTextV2 from "Features/form/components/FieldTextV2";
@@ -72,6 +73,11 @@ export default function ToolbarEditMesh3d({ onDragStart }) {
       neighborColors
     );
     if (newColor) updateMesh3d(mesh3d.id, { color: newColor });
+  }
+
+  // Undo the label drag: card + leader target back on the maille centroid.
+  function handleResetLabelPosition() {
+    updateMesh3d(mesh3d.id, { labelOffset: null, labelTargetOffset: null });
   }
 
   async function handleDeleteClick() {
@@ -150,6 +156,13 @@ export default function ToolbarEditMesh3d({ onDragStart }) {
         justifyContent="flex-end"
         sx={{ px: 1, py: 0.5 }}
       >
+        {(mesh3d.labelOffset || mesh3d.labelTargetOffset) && (
+          <Tooltip title="Recentrer l'étiquette">
+            <IconButton size="small" onClick={handleResetLabelPosition}>
+              <FilterCenterFocusIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        )}
         <Tooltip title="Supprimer la maille">
           <IconButton size="small" color="error" onClick={handleDeleteClick}>
             <DeleteIcon fontSize="small" />

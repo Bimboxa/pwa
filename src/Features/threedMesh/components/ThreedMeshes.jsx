@@ -1,27 +1,26 @@
 import { useEffect, useMemo, useRef } from "react";
 
 import { useSelector } from "react-redux";
-import { Group, Vector3 } from "three";
+import { Group } from "three";
 
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 import { selectSelectedItems } from "Features/selection/selectionSlice";
 
 import useMeshes3d from "../hooks/useMeshes3d";
 import useMesh3dLabelPrefix from "../hooks/useMesh3dLabelPrefix";
+import createMesh3dLabelLeader from "../services/createMesh3dLabelLeader";
 import createMesh3dLabelSprite from "../services/createMesh3dLabelSprite";
+import createMesh3dLabelTargetHandle from "../services/createMesh3dLabelTargetHandle";
 import { setMesh3dObjects } from "../services/mesh3dObjectsStore";
 import buildFaceGeometry from "../utils/buildFaceGeometry";
 import buildShellGeometry from "../utils/buildShellGeometry";
-import computeFaceArea, { polygonCentroid2d } from "../utils/computeFaceArea";
-import computePlaneBasis from "../utils/computePlaneBasis";
-import { projectLoopTo2d, liftPointTo3d } from "../utils/planeProjection";
 import formatSurfaceM2 from "../utils/formatSurfaceM2";
 import getMesh3dDisplayLabel from "../utils/getMesh3dDisplayLabel";
-import getShellCentroid from "../utils/getShellCentroid";
+import getMesh3dLabelAnchor, {
+  getMesh3dPlanePoint,
+  readMesh3dOffset,
+} from "../utils/getMesh3dLabelAnchor";
 import { DEFAULT_MESH3D_COLOR } from "../utils/mesh3dConstants";
-
-// Lift of the label sprite off the face plane (meters).
-const LABEL_LIFT_M = 0.05;
 
 function disposeObject(obj) {
   if (!obj) return;
@@ -34,39 +33,6 @@ function disposeObject(obj) {
       child.material?.dispose?.();
     }
   });
-}
-
-// Anchor of the label sprite: centroid of the maille's largest face, lifted
-// along that face's normal — or, on a curved maille, the area-weighted
-// centroid of its triangles lifted along their average normal.
-function getLabelPosition(mesh3d) {
-  if (mesh3d.shell) {
-    const shell = getShellCentroid(mesh3d.shell.positions);
-    if (!shell) return null;
-    return new Vector3(
-      shell.centroid.x + shell.normal.x * LABEL_LIFT_M,
-      shell.centroid.y + shell.normal.y * LABEL_LIFT_M,
-      shell.centroid.z + shell.normal.z * LABEL_LIFT_M
-    );
-  }
-  let best = null;
-  let bestArea = -1;
-  for (const face of mesh3d.faces || []) {
-    const area = computeFaceArea(face);
-    if (area > bestArea) {
-      bestArea = area;
-      best = face;
-    }
-  }
-  if (!best) return null;
-  const basis = computePlaneBasis(best.normal, best.contour[0]);
-  const centroid2d = polygonCentroid2d(projectLoopTo2d(best.contour, basis));
-  const p = liftPointTo3d(centroid2d, basis);
-  return new Vector3(
-    p.x + best.normal.x * LABEL_LIFT_M,
-    p.y + best.normal.y * LABEL_LIFT_M,
-    p.z + best.normal.z * LABEL_LIFT_M
-  );
 }
 
 // Renders persistent 3D mesh cells ("mailles") read from db.meshes3d for the
@@ -159,6 +125,7 @@ export default function ThreedMeshes() {
 
     const sprites = [];
     const faceMeshes = [];
+    const labelTargetHandles = [];
 
     (meshes3d || []).forEach((mesh3d) => {
       if (!mesh3d?.faces?.length && !mesh3d?.shell?.positions?.length) return;
@@ -214,8 +181,12 @@ export default function ThreedMeshes() {
       const showQties =
         selected || (labelsOptions.visible && labelsOptions.showQties);
 
-      const labelPosition =
-        showNumber || showQties ? getLabelPosition(mesh3d) : null;
+      const anchor =
+        showNumber || showQties ? getMesh3dLabelAnchor(mesh3d) : null;
+      const labelOffset = readMesh3dOffset(mesh3d.labelOffset);
+      const targetOffset = readMesh3dOffset(mesh3d.labelTargetOffset);
+      const labelPosition = getMesh3dPlanePoint(anchor, labelOffset);
+      const targetPosition = getMesh3dPlanePoint(anchor, targetOffset);
       if (labelPosition) {
         const displayLabel = getMesh3dDisplayLabel(mesh3d, prefix);
         const surfaceLabel = formatSurfaceM2(mesh3d.surface);
@@ -229,16 +200,60 @@ export default function ThreedMeshes() {
           color,
           selected,
         });
-        sprite.position.copy(labelPosition);
+        sprite.position.set(labelPosition.x, labelPosition.y, labelPosition.z);
         if (dimmed) sprite.material.opacity = 0.3;
+        // Consumed by useMesh3dLabelDragHandlers: dragging the card moves it
+        // in the maille plane (persisted as mesh3d.labelOffset), dragging the
+        // target handle moves the leader's pointed end
+        // (mesh3d.labelTargetOffset).
+        sprite.userData.labelAnchor = anchor;
+        sprite.userData.color = color;
+        sprite.userData.labelOffset = labelOffset;
+        sprite.userData.labelTargetOffset = targetOffset;
         group.add(sprite);
         sprites.push(sprite);
+
+        // Leader: drawn as soon as either end has been moved away from the
+        // anchor (otherwise the card sits on its target, nothing to link).
+        const leaderLength = Math.hypot(
+          labelOffset.u - targetOffset.u,
+          labelOffset.v - targetOffset.v
+        );
+        if (leaderLength > 1e-4) {
+          const leader = createMesh3dLabelLeader({
+            from: targetPosition,
+            to: labelPosition,
+            color,
+            dimmed,
+          });
+          group.add(leader);
+          sprite.userData.leader = leader;
+        }
+
+        // Target grab handle — selected maille only, to keep the scene clean.
+        if (selected) {
+          const handle = createMesh3dLabelTargetHandle({
+            mesh3dId: mesh3d.id,
+            color,
+          });
+          handle.position.set(
+            targetPosition.x,
+            targetPosition.y,
+            targetPosition.z
+          );
+          handle.userData.labelAnchor = anchor;
+          handle.userData.color = color;
+          handle.userData.labelSprite = sprite;
+          group.add(handle);
+          labelTargetHandles.push(handle);
+          sprite.userData.targetHandle = handle;
+        }
       }
 
       root.add(group);
     });
 
-    setMesh3dObjects({ sprites, faceMeshes });
+    setMesh3dObjects({ sprites, faceMeshes, labelTargetHandles });
     editor.sceneManager.renderScene?.();
   }, [
     meshes3d,

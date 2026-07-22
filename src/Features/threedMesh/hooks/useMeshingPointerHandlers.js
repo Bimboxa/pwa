@@ -34,6 +34,7 @@ import {
   clearMeshingOverlay,
 } from "../services/meshingOverlayStore";
 import { createMeshingCutController } from "../services/meshingCutController";
+import { isMesh3dLabelGestureActive } from "../services/mesh3dLabelGestureStore";
 import buildMeshDataFromRegion from "../utils/buildMeshDataFromRegion";
 
 // Mirrors useDrawingPointerHandlers / useDimensionPointerHandlers.
@@ -346,6 +347,8 @@ export default function useMeshingPointerHandlers() {
 
     function onPointerDown(e) {
       if (e.button !== 0) return;
+      // A maille label card owns this gesture (select + in-plane drag).
+      if (isMesh3dLabelGestureActive()) return;
       downPos = { x: e.clientX, y: e.clientY };
       dragging = false;
     }
@@ -361,6 +364,9 @@ export default function useMeshingPointerHandlers() {
 
     function onPointerUp(e) {
       if (e.button !== 0) return;
+      // Label drag in progress: the sprite is invisible to pickScene, acting
+      // on this pointerup would select/deselect the geometry behind the card.
+      if (isMesh3dLabelGestureActive()) return;
       const wasDrag = dragging;
       downPos = null;
       dragging = false;

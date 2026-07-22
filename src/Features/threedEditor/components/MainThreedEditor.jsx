@@ -94,6 +94,8 @@ import ThreedMeshes from "Features/threedMesh/components/ThreedMeshes";
 import PopperEditMesh3d from "Features/threedMesh/components/PopperEditMesh3d";
 import PopperEditMeshes3d from "Features/threedMesh/components/PopperEditMeshes3d";
 import useMeshingPointerHandlers from "Features/threedMesh/hooks/useMeshingPointerHandlers";
+import useMesh3dLabelDragHandlers from "Features/threedMesh/hooks/useMesh3dLabelDragHandlers";
+import { isMesh3dLabelGestureActive } from "Features/threedMesh/services/mesh3dLabelGestureStore";
 import ExtrudeToolbarThreed from "Features/threedExtrude/components/ExtrudeToolbarThreed";
 import ExtrudeOverlayThreed from "Features/threedExtrude/components/ExtrudeOverlayThreed";
 import useExtrudePointerHandlers from "Features/threedExtrude/hooks/useExtrudePointerHandlers";
@@ -302,6 +304,7 @@ export default function MainThreedEditor() {
   useTemplateFaceDrawBridge();
   useTemplateCoteDrawBridge();
   useCoteLabelDragHandlers({ rendererIsReady });
+  useMesh3dLabelDragHandlers({ rendererIsReady });
 
   // Drive the 3D clipping plane from the 2D-defined segment (top view).
   useSyncClippingPlanTo3D({ threedEditorRef, rendererIsReady });
@@ -1566,6 +1569,16 @@ export default function MainThreedEditor() {
   // Handle pointer up - if not dragging, treat as click
   const handlePointerUp = useCallback(
     (event) => {
+      // A maille label card owns this gesture (select + in-plane drag, see
+      // useMesh3dLabelDragHandlers): the sprite is invisible to the `.isMesh`
+      // pick below, which would act on the geometry behind the card.
+      if (isMesh3dLabelGestureActive()) {
+        if (lassoStartRef.current) finalizeLasso();
+        isDraggingRef.current = false;
+        dragStartRef.current = { x: 0, y: 0 };
+        return;
+      }
+
       // Check if the click target is within a MUI Popper
       // This prevents clicks on PopperEditAnnotation from triggering the raycaster
       if (isWithinPopper(event)) {
