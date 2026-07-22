@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
-import { setPovAiEnhanceEnabled } from "../povSlice";
+import { setPovAiEnhanceEnabled, setPovDraftDescription } from "../povSlice";
 
 import { selectSelectedItem } from "Features/selection/selectionSlice";
 
@@ -12,6 +12,7 @@ import {
   Checkbox,
   Divider,
   IconButton,
+  TextField,
   Tooltip,
   Typography,
 } from "@mui/material";
@@ -22,6 +23,7 @@ import DialogPovEnhancePrompt from "./DialogPovEnhancePrompt";
 import usePovs from "../hooks/usePovs";
 import useCreatePov from "../hooks/useCreatePov";
 import useUpdatePovView from "../hooks/useUpdatePovView";
+import useUpdatePov from "../hooks/useUpdatePov";
 import usePovEnhancePrompt from "../hooks/usePovEnhancePrompt";
 import useSavePovTransformedImage from "../hooks/useSavePovTransformedImage";
 import useCaptureFrameBounds from "../hooks/useCaptureFrameBounds";
@@ -31,9 +33,9 @@ import snapshotThreedCanvasForCapture from "Features/threedEditor/utils/snapshot
 import enhanceBaseMapService from "Features/baseMaps/services/enhanceBaseMapService";
 import composeEnhancedPovImage from "../utils/composeEnhancedPovImage";
 
-// Save bar anchored at the bottom-center of the capture frame, shown over
-// both the 2D and 3D editors (replaces the 3D bottom toolbar): the
-// "Amélioration IA" checkbox chip + the create/update button. Creates a new
+// Save bar anchored below the capture frame, shown over both the 2D and 3D
+// editors (replaces the 3D bottom toolbar): the view name field, the
+// "Amélioration IA" checkbox and the create/update button. Creates a new
 // POV, or — when a POV is selected — updates it with the displayed view.
 // With the checkbox on, both actions also send a full-res capture to the
 // image-transformation endpoint and show the result in-frame
@@ -48,6 +50,7 @@ export default function ButtonSavePov() {
   const aiEnhanceS = "IA";
   const aiEnhanceTooltipS = "Amélioration IA";
   const editPromptS = "Modifier le prompt d'amélioration IA";
+  const namePlaceholderS = "Nom de la vue";
 
   // data
 
@@ -55,7 +58,9 @@ export default function ButtonSavePov() {
   const createPov = useCreatePov();
   const updatePovView = useUpdatePovView();
   const savePovTransformedImage = useSavePovTransformedImage();
+  const updatePov = useUpdatePov();
   const selectedItem = useSelector(selectSelectedItem);
+  const draftDescription = useSelector((s) => s.pov.draftDescription);
 
   const aiEnhanceEnabled = useSelector((s) => s.pov.aiEnhanceEnabled);
   const {
@@ -86,6 +91,7 @@ export default function ButtonSavePov() {
   // {povId, originalUrl, enhancedUrl, enhancedBlob, loading, error} | null
   const [aiState, setAiState] = useState(null);
   const [openPrompt, setOpenPrompt] = useState(false);
+  const [name, setName] = useState("");
 
   // helpers
 
@@ -94,15 +100,27 @@ export default function ButtonSavePov() {
       ? povs.find((p) => p.id === selectedItem.id)
       : null;
 
-  // helpers - save bar position (bottom-center of the capture frame; falls
-  // back to bottom-center of the viewer while the host is not measured yet)
+  // effect - the name field shows the selected POV's description, or the
+  // draft description typed for the next "Créer une vue"
+
+  useEffect(() => {
+    setName((selectedPov ? selectedPov.description : draftDescription) ?? "");
+  }, [selectedPov?.id, selectedPov?.description, draftDescription]);
+
+  // helpers - save bar position (centered just below the capture frame;
+  // falls back to bottom-center of the viewer while the host is not measured
+  // yet)
 
   const rect = frameBounds?.rect;
+  const hostHeight = frameBounds?.hostBounds?.height ?? 0;
+  // ~48px tall bar + 8px of breathing room: kept inside the host when the
+  // frame margin is too thin to host it entirely below the frame.
+  const maxBarTop = hostHeight - 56;
   const barPositionSx = rect
     ? {
         left: rect.left + rect.width / 2,
-        top: rect.top + rect.height - 16,
-        transform: "translate(-50%, -100%)",
+        top: Math.min(rect.top + rect.height + 12, maxBarTop),
+        transform: "translate(-50%, 0)",
       }
     : {
         left: "50%",
@@ -111,6 +129,19 @@ export default function ButtonSavePov() {
       };
 
   // handlers
+
+  // The name feeds the frame title (usePovTitleText): live on the draft,
+  // persisted on blur on an existing POV (PanelPovProperties pattern).
+  function handleNameChange(value) {
+    setName(value);
+    if (!selectedPov) dispatch(setPovDraftDescription(value));
+  }
+
+  function handleNameBlur() {
+    if (!selectedPov) return;
+    if ((selectedPov.description ?? "") === name) return;
+    updatePov(selectedPov.id, { description: name });
+  }
 
   // The AI input is the framed view WITHOUT the decor (no border, no title,
   // no watermark/logo — background image + legend only). Captured BEFORE
@@ -228,6 +259,24 @@ export default function ButtonSavePov() {
             ...barPositionSx,
           }}
         >
+          {/* view name: draft description before the POV exists, the
+              selected POV's description afterwards */}
+          <TextField
+            variant="standard"
+            placeholder={namePlaceholderS}
+            value={name}
+            onChange={(e) => handleNameChange(e.target.value)}
+            onBlur={handleNameBlur}
+            slotProps={{ input: { disableUnderline: true } }}
+            sx={{
+              width: 200,
+              px: 2,
+              "& .MuiInputBase-root": { height: "100%" },
+            }}
+          />
+
+          <Divider orientation="vertical" flexItem />
+
           {/* "Amélioration IA": toggle + prompt edition, in one pill with
               the create/update button */}
           {aiAvailable && (
@@ -257,21 +306,31 @@ export default function ButtonSavePov() {
                 </Box>
               </Tooltip>
 
-              <Divider orientation="vertical" flexItem />
+              {/* the prompt is only editable once the option is on */}
+              {aiEnhanceEnabled && (
+                <>
+                  <Divider orientation="vertical" flexItem />
 
-              <Tooltip title={editPromptS}>
-                <Box sx={{ display: "flex", alignItems: "center", px: 0.5 }}>
-                  <IconButton size="small" onClick={() => setOpenPrompt(true)}>
-                    <Badge
-                      color="secondary"
-                      variant="dot"
-                      invisible={!isCustomPrompt}
+                  <Tooltip title={editPromptS}>
+                    <Box
+                      sx={{ display: "flex", alignItems: "center", px: 0.5 }}
                     >
-                      <Edit fontSize="small" />
-                    </Badge>
-                  </IconButton>
-                </Box>
-              </Tooltip>
+                      <IconButton
+                        size="small"
+                        onClick={() => setOpenPrompt(true)}
+                      >
+                        <Badge
+                          color="secondary"
+                          variant="dot"
+                          invisible={!isCustomPrompt}
+                        >
+                          <Edit fontSize="small" />
+                        </Badge>
+                      </IconButton>
+                    </Box>
+                  </Tooltip>
+                </>
+              )}
             </>
           )}
 
@@ -284,7 +343,8 @@ export default function ButtonSavePov() {
             sx={{
               textTransform: "none",
               boxShadow: "none",
-              borderRadius: 2,
+              // the pill's overflow:hidden rounds the outer corners
+              borderRadius: 0,
               px: 2.5,
             }}
           >
