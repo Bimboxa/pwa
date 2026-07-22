@@ -4,16 +4,12 @@ export default function createSheetMeshes3d(workbook, meshes3d) {
   const items = (meshes3d || []).map((mesh3d) => ({
     label: mesh3d.displayLabel ?? mesh3d.label ?? `M${mesh3d.number ?? ""}`,
     surface: Math.round((mesh3d.surface ?? 0) * 100) / 100,
-    facesCount: mesh3d.faces?.length ?? 0,
-    color: mesh3d.color ?? "-",
   }));
 
   // 2. Column definitions
   const columnsDef = [
     { key: "label", label: "Maille", width: 20 },
     { key: "surface", label: "Surface (m²)", width: 15 },
-    { key: "facesCount", label: "Nb faces", width: 10 },
-    { key: "color", label: "Couleur", width: 12 },
   ];
 
   const sheet = workbook.addWorksheet("Maillage");

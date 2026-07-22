@@ -2,14 +2,16 @@ import { useState } from "react";
 
 import {
   Box,
+  IconButton,
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableRow,
+  Tooltip,
   Typography,
 } from "@mui/material";
-import { TableChart } from "@mui/icons-material";
+import { ContentCopy, TableChart } from "@mui/icons-material";
 
 import * as Excel from "exceljs";
 
@@ -41,6 +43,16 @@ export default function SectionMeshes3dExport({ rows }) {
     downloadBlob(blob, "maillage.xlsx");
   }
 
+  // Same columns as the Excel export, TSV so it pastes as cells in Excel.
+  function handleCopyToClipboard() {
+    const header = "Maille\tSurface (m²)";
+    const lines = rows.map((row) => {
+      const surface = Math.round((row.surface ?? 0) * 100) / 100;
+      return `${row.displayLabel}\t${String(surface).replace(".", ",")}`;
+    });
+    navigator.clipboard.writeText([header, ...lines].join("\n"));
+  }
+
   // render
 
   return (
@@ -66,6 +78,14 @@ export default function SectionMeshes3dExport({ rows }) {
         vw="50"
         vh="70"
       >
+        <Box sx={{ display: "flex", justifyContent: "flex-end", p: 0.5 }}>
+          <Tooltip title="Copier pour Excel">
+            <IconButton size="small" onClick={handleCopyToClipboard}>
+              <ContentCopy fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        </Box>
+
         <BoxFlexVStretch sx={{ overflow: "auto" }}>
           <Table size="small" stickyHeader>
             <TableHead>
@@ -74,10 +94,6 @@ export default function SectionMeshes3dExport({ rows }) {
                 <TableCell sx={{ fontWeight: "bold" }} align="right">
                   Surface
                 </TableCell>
-                <TableCell sx={{ fontWeight: "bold" }} align="right">
-                  Nb faces
-                </TableCell>
-                <TableCell sx={{ fontWeight: "bold" }}>Couleur</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -86,22 +102,6 @@ export default function SectionMeshes3dExport({ rows }) {
                   <TableCell>{row.displayLabel}</TableCell>
                   <TableCell align="right">
                     {formatSurfaceM2(row.surface)}
-                  </TableCell>
-                  {/* A curved maille is one surface, whatever its facet count */}
-                  <TableCell align="right">
-                    {row.faces?.length || (row.shell ? 1 : 0)}
-                  </TableCell>
-                  <TableCell>
-                    <Box
-                      sx={{
-                        width: 16,
-                        height: 16,
-                        borderRadius: "4px",
-                        bgcolor: row.color,
-                        border: "1px solid",
-                        borderColor: "divider",
-                      }}
-                    />
                   </TableCell>
                 </TableRow>
               ))}
