@@ -82,6 +82,7 @@ import {
   setMeshingModeActive,
   setSubSelection,
 } from "Features/threedEditor/threedEditorSlice";
+import CoteToolbarThreed from "Features/threedDimensions/components/CoteToolbarThreed";
 import DimensionDraftOverlayThreed from "Features/threedDimensions/components/DimensionDraftOverlayThreed";
 import ThreedCoteAnnotations from "Features/threedDimensions/components/ThreedCoteAnnotations";
 import useDimensionPointerHandlers from "Features/threedDimensions/hooks/useDimensionPointerHandlers";
@@ -187,11 +188,9 @@ export default function MainThreedEditor() {
   const isThreedViewer = isThreedFamilyViewerKey(selectedViewerKey);
   // The Maillage module (MESHES viewer) is meshing-only: meshing mode is
   // forced on so MeshingToolbarThreed is the sole bottom toolbar and its
-  // pointer handlers work right away.
+  // pointer handlers work right away (see the effect below, which also re-arms
+  // meshing after a cote session).
   const isMeshesViewer = selectedViewerKey === "MESHES";
-  useEffect(() => {
-    dispatch(setMeshingModeActive(isMeshesViewer));
-  }, [isMeshesViewer, dispatch]);
 
   // Entering/leaving the 3D viewer keeps whatever right panel is open: the
   // SETTINGS panel switches its content (3D view settings <-> 2D editor
@@ -250,6 +249,19 @@ export default function MainThreedEditor() {
   useEffect(() => {
     dimensionActiveRef.current = dimensionActive;
   }, [dimensionActive]);
+
+  // Maillage module: meshing is forced on. Arming a cote (COTE template row in
+  // PopperMapListings) switches meshing off via the slice's mutual exclusion,
+  // so meshing is re-armed as soon as the cote mode ends — otherwise the
+  // meshing tools would stay inert until the user leaves and re-enters the
+  // module.
+  useEffect(() => {
+    if (!isMeshesViewer) {
+      dispatch(setMeshingModeActive(false));
+      return;
+    }
+    if (!dimensionActive) dispatch(setMeshingModeActive(true));
+  }, [isMeshesViewer, dimensionActive, dispatch]);
 
   // Same pattern for meshing mode — useMeshingPointerHandlers owns the
   // pointer (hover stipple, maille creation, cut tools) while active.
@@ -1774,6 +1786,8 @@ export default function MainThreedEditor() {
           <ClippingToolbarThreed />
         ) : extrudeActive ? (
           <ExtrudeToolbarThreed />
+        ) : dimensionActive ? (
+          <CoteToolbarThreed />
         ) : meshingActive || isMeshesViewer ? (
           <MeshingToolbarThreed />
         ) : (

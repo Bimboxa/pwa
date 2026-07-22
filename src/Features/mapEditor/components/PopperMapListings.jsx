@@ -528,8 +528,9 @@ function AnnotationTemplateRow({
   sortableAttributes,
   dragListeners,
   onSoloToggle,
-  // "Nouvelle zone" section (ZONES module): the row stays a DRAW entry even
-  // though the module forces the listings into SELECT.
+  // "Nouvelle zone" section (ZONES module) and COTE templates in the Maillage
+  // module: the row stays a DRAW entry even though the module forces the
+  // listings into SELECT.
   forceDrawMode,
 }) {
   const dispatch = useDispatch();
@@ -613,6 +614,17 @@ function AnnotationTemplateRow({
     (interactionMode === "EDIT" || interactionMode === "SELECT") &&
     selectedItem?.type === "ANNOTATION_TEMPLATE" &&
     selectedItem.id === annotationTemplate?.id;
+  // Maillage module: this row is the only entry point of the 2-click cote mode,
+  // so it shows the armed state itself (the panel stays a legend in 3D — no
+  // PopperDrawingHelper swap) and a second click disarms it.
+  const isArmedCoteRow = useSelector(
+    (s) =>
+      Boolean(forceDrawMode) &&
+      s.mapEditor.enabledDrawingMode === "COTE_TWO_CLICK" &&
+      s.annotations.newAnnotation?.annotationTemplateId ===
+        annotationTemplate?.id
+  );
+  const isHighlighted = isEditTarget || isArmedCoteRow;
 
   // helpers
 
@@ -666,10 +678,19 @@ function AnnotationTemplateRow({
 
   const handleRowClick = () => {
     if (isEditing) return;
+    // Armed cote row (Maillage module): click again to disarm — same dispatch
+    // pair as the Esc handler of useDimensionPointerHandlers, so the bridge
+    // deactivates the 3D dimension mode.
+    if (isArmedCoteRow) {
+      dispatch(setEnabledDrawingMode(null));
+      dispatch(setNewAnnotation({}));
+      return;
+    }
     // 3D viewer: read-only panel — clicking a row toggles solo mode for this
     // template (isolate it; the others render translucent). Visibility stays
-    // available via the eye button.
-    if (isThreedViewer) {
+    // available via the eye button. DRAW-forced rows (COTE templates in the
+    // Maillage module) keep their drawing action.
+    if (isThreedViewer && !forceDrawMode) {
       onSoloToggle?.(annotationTemplate?.id, listingId);
       return;
     }
@@ -783,7 +804,7 @@ function AnnotationTemplateRow({
         onMouseLeave={() => { if (!toolMenuAnchor) setIsHovered(false); }}
         sx={{
           position: "relative",
-          bgcolor: isEditTarget
+          bgcolor: isHighlighted
             ? alpha(annotationTemplate?.fillColor ?? annotationTemplate?.strokeColor ?? "#1976d2", 0.18)
             : "white",
           alignItems: "center",
@@ -792,7 +813,7 @@ function AnnotationTemplateRow({
           pr: 1,
           py: 0.5,
           borderLeft: "3px solid",
-          borderColor: isEditTarget
+          borderColor: isHighlighted
             ? annotationTemplate?.fillColor ?? annotationTemplate?.strokeColor ?? "primary.main"
             : isHovered
             ? annotationTemplate?.fillColor ?? annotationTemplate?.strokeColor ?? "transparent"
@@ -1144,6 +1165,11 @@ function AnnotationTemplatesForListing({
   const isThreedViewer = useSelector((s) =>
     isThreedFamilyViewerKey(s.viewers.selectedViewerKey)
   );
+  // Maillage module: COTE template rows stay drawing entries (2-click cote on
+  // the mailles) although the module forces the panel into SELECT.
+  const isMeshesModule = useSelector(
+    (s) => s.viewers.selectedViewerKey === "MESHES"
+  );
   const soloVisibleTemplateIds = useSelector(
     (s) => s.popperMapListings.soloVisibleTemplateIds
   );
@@ -1318,6 +1344,9 @@ function AnnotationTemplatesForListing({
                   listingId={listingId}
                   spriteImage={spriteImage}
                   onSoloToggle={handleSoloToggle}
+                  forceDrawMode={
+                    isMeshesModule && resolveDrawingShape(item) === "COTE"
+                  }
                 />
               );
             })}
@@ -2422,23 +2451,40 @@ export default function PopperMapListings() {
     return arr;
   }, [allAnnotationsInclHidden, isThreedViewer, hideMainAnnotationsIn3d, baseMap?.id]);
   const isSelectFilter = effectiveInteractionMode === "SELECT";
+  // Maillage module: COTE templates are drawing entries there (see the
+  // forceDrawMode rows), so they escape the legend filter — their row must be
+  // reachable before any cote exists, and so must their listing.
+  const isMeshesModule = viewerKey === "MESHES";
+  const coteTemplates = useMemo(
+    () =>
+      isMeshesModule
+        ? (annotationTemplates ?? []).filter(
+            (t) => resolveDrawingShape(t) === "COTE"
+          )
+        : [],
+    [isMeshesModule, annotationTemplates]
+  );
   const visibleTemplateIds = useMemo(
     () =>
       isSelectFilter
-        ? new Set(
-            legendAnnotations
+        ? new Set([
+            ...legendAnnotations
               .filter((a) => a.annotationTemplateId)
-              .map((a) => a.annotationTemplateId)
-          )
+              .map((a) => a.annotationTemplateId),
+            ...coteTemplates.map((t) => t.id),
+          ])
         : null,
-    [isSelectFilter, legendAnnotations]
+    [isSelectFilter, legendAnnotations, coteTemplates]
   );
   const visibleListingIds = useMemo(
     () =>
       isSelectFilter
-        ? new Set(legendAnnotations.map((a) => a.listingId).filter(Boolean))
+        ? new Set([
+            ...legendAnnotations.map((a) => a.listingId).filter(Boolean),
+            ...coteTemplates.map((t) => t.listingId).filter(Boolean),
+          ])
         : null,
-    [isSelectFilter, legendAnnotations]
+    [isSelectFilter, legendAnnotations, coteTemplates]
   );
 
   const scopedListings = visibleListingIds
