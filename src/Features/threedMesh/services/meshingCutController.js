@@ -20,7 +20,6 @@ import splitMesh3dService from "./splitMesh3dService";
 import { setMeshingOverlay } from "./meshingOverlayStore";
 import computePlaneBasis from "../utils/computePlaneBasis";
 import cutShellByPlane from "../utils/cutShellByPlane";
-import getShellCentroid from "../utils/getShellCentroid";
 import {
   projectPointTo2d,
   projectLoopTo2d,
@@ -28,6 +27,14 @@ import {
 } from "../utils/planeProjection";
 import splitFacePolygon from "../utils/splitFacePolygon";
 import pointInPolygon2d from "../utils/pointInPolygon2d";
+import getAngularWedge, { getReferencePlane } from "../utils/getAngularWedge";
+import cutMesh3dByPlaneNear from "../utils/cutMesh3dByPlaneNear";
+import getAxisCutPlane from "../utils/getAxisCutPlane";
+import splitMeshes3dByNearPlaneService from "./splitMeshes3dByNearPlaneService";
+import getMesh3dLoops from "../utils/getMesh3dLoops";
+import findAdjacentMeshes3d from "../utils/findAdjacentMeshes3d";
+import cutMesh3dByPlanes from "../utils/cutMesh3dByPlanes";
+import splitMeshes3dByWedgeService from "./splitMeshes3dByWedgeService";
 import { polygonCentroid2d } from "../utils/computeFaceArea";
 import formatSurfaceM2 from "../utils/formatSurfaceM2";
 import { MESH3D_SNAP_PX } from "../utils/mesh3dConstants";
@@ -87,7 +94,9 @@ function createMarkerSprite(shape = "RING") {
 // Cut-tools machinery of the 3D meshing mode. One controller instance lives
 // per meshing-mode activation (created by useMeshingPointerHandlers): it owns
 // a draft Group in the scene (red cut line + vertex rings) and the DOM chips
-// (areas, offset), and commits splits through splitMesh3dService.
+// (areas, offset, angle), and commits splits through splitMesh3dService — or
+// splitMesh3dByWedgeService for the angular cut, which splits the maille as a
+// whole instead of one of its faces.
 export function createMeshingCutController({
   editor,
   sceneManager,
@@ -95,6 +104,9 @@ export function createMeshingCutController({
   getTool,
   getOffset,
   getCutSide,
+  getAngleDeg,
+  getMultiCut,
+  clearAngleBuffer,
   getMesh3dById,
   getAllMeshes3d,
 }) {
@@ -120,6 +132,15 @@ export function createMeshingCutController({
   let polyCandidates = null;
   let polyEndWorld = null;
   let polyCommit = null;
+
+  // Angular-cut state: A (reference extremity, on a maille), O (angle vertex,
+  // in the horizontal plane of A) and the resolved commit context set on hover
+  // once the wedge actually splits the maille.
+  // angA: { world, mesh3dId }, angO: { world }
+  let angA = null;
+  let angO = null;
+  let angHoverA = null;
+  let angCommit = null;
 
   // --- three helpers -------------------------------------------------------
 
@@ -278,8 +299,15 @@ export function createMeshingCutController({
     freeCrossed = null;
     polyEndWorld = null;
     polyCommit = null;
+    angHoverA = null;
+    angCommit = null;
     clearDraft();
-    setMeshingOverlay({ areaChips: [], offsetChip: null, cursor: null });
+    setMeshingOverlay({
+      areaChips: [],
+      offsetChip: null,
+      angleChip: null,
+      cursor: null,
+    });
     renderScene();
   }
 
@@ -288,6 +316,81 @@ export function createMeshingCutController({
     polyCandidates = null;
     polyEndWorld = null;
     polyCommit = null;
+  }
+
+  function resetAngular() {
+    angA = null;
+    angO = null;
+    angHoverA = null;
+    angCommit = null;
+    clearAngleBuffer?.();
+  }
+
+  // --- multi-maille cuts ----------------------------------------------------
+
+  // Mailles a cut applies to. Off (the default): the hovered one alone. On:
+  // the cluster of mailles touching it, transitively — a cut plane is
+  // infinite, so bounding it to the mailles actually joined to the target is
+  // what keeps it from silently slicing something at the other end of the
+  // scope. The cluster only changes when the target or the maille list does,
+  // so it is cached across hover frames.
+  let cutTargetsCache = null;
+
+  function getCutTargets(mesh3d) {
+    if (!mesh3d) return [];
+    const all = getAllMeshes3d().filter(Boolean);
+    if (!getMultiCut?.()) return [mesh3d];
+
+    const key = `${mesh3d.id}:${all.length}`;
+    if (cutTargetsCache?.key === key) {
+      // Re-read the records: the cached ids may point at stale geometry.
+      return cutTargetsCache.ids.map((id) => getMesh3dById(id)).filter(Boolean);
+    }
+
+    const seen = new Set([mesh3d.id]);
+    const cluster = [mesh3d];
+    const stack = [mesh3d];
+    while (stack.length) {
+      const current = stack.pop();
+      const rest = all.filter((m) => !seen.has(m.id));
+      if (!rest.length) break;
+      for (const neighbor of findAdjacentMeshes3d(
+        getMesh3dLoops(current),
+        rest
+      )) {
+        seen.add(neighbor.id);
+        cluster.push(neighbor);
+        stack.push(neighbor);
+      }
+    }
+    cutTargetsCache = { key, ids: cluster.map((m) => m.id) };
+    return cluster;
+  }
+
+  // Run a per-maille cut over every target, dropping those the cut misses.
+  // Returns the commits to run on click plus the whole red preview line.
+  function collectCuts(mesh3d, runCut) {
+    const cuts = [];
+    const segments = [];
+    for (const target of getCutTargets(mesh3d)) {
+      const cut = runCut(target);
+      if (!cut?.segments?.length) continue;
+      cuts.push({ mesh3d: target, cut });
+      segments.push(...cut.segments);
+    }
+    return { cuts, segments };
+  }
+
+  // Area chip per resulting piece. A single chip means the cut opened the
+  // maille without separating it (a 360° ribbon cut once).
+  function buildPieceAreaChips(pieces, rect) {
+    return (pieces || [])
+      .map((piece) => {
+        if (!piece.centroid) return null;
+        const c = worldToScreen(piece.centroid, rect);
+        return { x: c.x, y: c.y, text: formatSurfaceM2(piece.surface) };
+      })
+      .filter(Boolean);
   }
 
   // --- shell axis cuts (curved mailles) ------------------------------------
@@ -364,23 +467,20 @@ export function createMeshingCutController({
     }
 
     const plane = { normal, constant };
-    const { positive, negative, segments } = cutShellByPlane({
-      positions: mesh3d.shell.positions,
-      plane,
-    });
-    if (!positive || !negative || !segments.length) {
+    // Only the chain of facets facing the user is cut — see
+    // cutMesh3dByPlaneNear — on the hovered maille, or on all of its
+    // neighbours too when the multi-maille toggle is on.
+    const { cuts, segments } = collectCuts(mesh3d, (target) =>
+      cutMesh3dByPlaneNear({ mesh3d: target, plane, hitPoint: hit })
+    );
+    if (!segments.length) {
       resetHover();
       return;
     }
-
-    const areaChips = [positive, negative]
-      .map((sideShell) => {
-        const info = getShellCentroid(sideShell.positions);
-        if (!info) return null;
-        const c = worldToScreen(info.centroid, rect);
-        return { x: c.x, y: c.y, text: formatSurfaceM2(sideShell.surface) };
-      })
-      .filter(Boolean);
+    const areaChips = buildPieceAreaChips(
+      cuts.flatMap((entry) => entry.cut.pieces),
+      rect
+    );
 
     // The guide is shown as the dotted contour where its plane meets the
     // shell (a marker point on a faceted surface reads as noise); it is
@@ -425,14 +525,26 @@ export function createMeshingCutController({
       segments.map(([p, q]) => [liftToCamera(p), liftToCamera(q)]),
       { snapped }
     );
-    drawSegments(
-      guideSegments.map(([p, q]) => [liftToCamera(p), liftToCamera(q)]),
-      { dashed: true }
-    );
+    if (guideSegments.length) {
+      drawSegments(
+        guideSegments.map(([p, q]) => [liftToCamera(p), liftToCamera(q)]),
+        { dashed: true }
+      );
+    } else if (guidePoint && !snapped) {
+      // The guide plane can miss the maille entirely — a 2 m "Décalage" on a
+      // 30 cm swept profile lands well above it — and the contour then has
+      // nothing to run along, leaving the pink chip labelling thin air. Fall
+      // back to the offset itself: a dotted segment from the reference vertex
+      // to the guide point (which the chip already sits on the middle of).
+      drawSegments([[liftToCamera(ref), liftToCamera(guidePoint)]], {
+        dashed: true,
+      });
+      drawRing(liftToCamera(guidePoint));
+    }
     setMeshingOverlay({ areaChips, offsetChip, cursor: null });
     renderScene();
 
-    hoverCut = { mesh3d, plane };
+    hoverCut = { cuts };
   }
 
   // --- axis cuts (CUT_VERTICAL / CUT_HORIZONTAL) ---------------------------
@@ -520,38 +632,23 @@ export function createMeshingCutController({
       }
     }
 
-    // Clip the cut line to the contour.
-    const ts = [];
-    const n = ctx.contour2d.length;
-    for (let i = 0; i < n; i++) {
-      const p = ctx.contour2d[i];
-      const q = ctx.contour2d[(i + 1) % n];
-      const d = q[axis] - p[axis];
-      if (Math.abs(d) < 1e-12) continue;
-      const t = (cutPos - p[axis]) / d;
-      if (t >= 0 && t <= 1) ts.push(p[other] + t * (q[other] - p[other]));
-    }
-    if (ts.length < 2) {
+    // The cut line of the hovered face becomes the world plane holding it,
+    // which then cuts every facet of the maille the user faces — a maille is
+    // multi-face by design (a profile swept along a polyline), and cutting the
+    // hovered facet alone would carve a sliver out of it.
+    const plane = getAxisCutPlane(ctx.basis, axis, cutPos);
+    const hitWorld = { x: hitPoint.x, y: hitPoint.y, z: hitPoint.z };
+    const { cuts, segments } = collectCuts(ctx.mesh3d, (target) =>
+      cutMesh3dByPlaneNear({ mesh3d: target, plane, hitPoint: hitWorld })
+    );
+    if (!segments.length) {
       resetHover();
       return;
     }
-    const a2 = { [axis]: cutPos, [other]: Math.min(...ts) };
-    const b2 = { [axis]: cutPos, [other]: Math.max(...ts) };
-
-    // Would-be pieces → area chips at their centroids.
-    const pieces = splitFacePolygon({
-      contour: ctx.contour2d,
-      holes: ctx.holes2d,
-      a: a2,
-      b: b2,
-    });
-    const areaChips = (pieces || []).map((piece) => {
-      const c = worldToScreen(
-        liftPointTo3d(polygonCentroid2d(piece.contour), ctx.basis),
-        rect
-      );
-      return { x: c.x, y: c.y, text: formatSurfaceM2(piece.area) };
-    });
+    const areaChips = buildPieceAreaChips(
+      cuts.flatMap((entry) => entry.cut.pieces),
+      rect
+    );
 
     const offsetChip = guide
       ? (() => {
@@ -574,30 +671,31 @@ export function createMeshingCutController({
       : null;
 
     clearDraft();
-    drawSegment(liftDraft(a2, ctx), liftDraft(b2, ctx), { snapped });
+    drawSegments(
+      segments.map(([p, q]) => [liftToCamera(p), liftToCamera(q)]),
+      { snapped }
+    );
     drawRing(liftDraft(ref, ctx));
     if (guide) drawRing(liftDraft(guide, ctx));
     if (edgeMid) drawSquare(liftDraft(edgeMid, ctx));
     setMeshingOverlay({ areaChips, offsetChip, cursor: null });
     renderScene();
 
-    hoverCut = pieces
-      ? { mesh3d: ctx.mesh3d, faceIndex: ctx.faceIndex, a: a2, b: b2 }
-      : null;
+    hoverCut = { cuts };
   }
 
   async function onClickAxisCut() {
-    if (!hoverCut) return;
-    const committed = hoverCut;
+    if (!hoverCut?.cuts?.length) return;
+    const committed = hoverCut.cuts;
     hoverCut = null;
+    cutTargetsCache = null;
     try {
-      await splitMesh3dService({
-        mesh3d: committed.mesh3d,
-        faceIndex: committed.faceIndex,
-        a: committed.a,
-        b: committed.b,
-        plane: committed.plane,
-      });
+      await splitMeshes3dByNearPlaneService(
+        committed.map((entry) => ({
+          mesh3d: entry.mesh3d,
+          pieces: entry.cut.pieces,
+        }))
+      );
     } catch (err) {
       console.error("[threedMesh] split failed", err);
     }
@@ -918,6 +1016,322 @@ export function createMeshingCutController({
     if (point) polyPoints = [...polyPoints, point];
   }
 
+  // --- angular cut (CUT_ANGULAR) --------------------------------------------
+
+  // 3 clicks: A (reference extremity, picked anywhere on a maille), O (angle
+  // vertex, constrained to the horizontal plane of A) and B (second
+  // extremity). The cut is the WEDGE between the two vertical half-planes
+  // bounded by the vertical line through O — a pair of world half-spaces, so
+  // it cuts the maille as a whole whatever its model: a single planar face, a
+  // multi-face record (a profile swept along a polyline) or a curved shell,
+  // vertical faces included. See getAngularWedge / cutMesh3dByPlanes.
+  //
+  // Typing digits constrains the opening angle; the mouse then only picks the
+  // side it opens to.
+
+  // Cursor projected on the horizontal plane at altitude `y`.
+  function projectCursorToHorizontalPlane(e, rect, y) {
+    const plane = new Plane(new Vector3(0, 1, 0), -y);
+    const ndc = new Vector2(
+      ((e.clientX - rect.left) / rect.width) * 2 - 1,
+      -((e.clientY - rect.top) / rect.height) * 2 + 1
+    );
+    const target = new Vector3();
+    planeRaycaster.setFromCamera(ndc, sceneManager.camera);
+    if (!planeRaycaster.ray.intersectPlane(plane, target)) return null;
+    return { x: target.x, y: target.y, z: target.z };
+  }
+
+  // Nearest maille boundary point to the cursor (screen space), scanning the
+  // loops of EVERY geometry model through getMesh3dLoops — face contours and
+  // holes, shell boundaries — unlike findEdgeSnap, which only knows about
+  // polygon faces because the free / polyline cuts need a faceIndex.
+  // A loop vertex within the radius wins over a plain edge point.
+  function findLoopSnap(e, rect) {
+    const cursor = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    let bestVertex = null;
+    let bestEdge = null;
+
+    for (const mesh3d of getAllMeshes3d()) {
+      for (const loop of getMesh3dLoops(mesh3d)) {
+        const nPts = loop.length;
+        for (let i = 0; i < nPts; i++) {
+          const p3 = loop[i];
+          const q3 = loop[(i + 1) % nPts];
+          const p = worldToScreen(p3, rect);
+          const q = worldToScreen(q3, rect);
+
+          const vDist = Math.hypot(cursor.x - p.x, cursor.y - p.y);
+          if (
+            vDist <= MESH3D_SNAP_PX &&
+            (!bestVertex || vDist < bestVertex.dist)
+          ) {
+            bestVertex = {
+              dist: vDist,
+              world: { x: p3.x, y: p3.y, z: p3.z },
+              mesh3dId: mesh3d.id,
+              isVertex: true,
+            };
+          }
+
+          const dx = q.x - p.x;
+          const dy = q.y - p.y;
+          const lenSq = dx * dx + dy * dy;
+          if (lenSq === 0) continue;
+          let t = ((cursor.x - p.x) * dx + (cursor.y - p.y) * dy) / lenSq;
+          t = Math.max(0, Math.min(1, t));
+          const dist = Math.hypot(
+            cursor.x - (p.x + t * dx),
+            cursor.y - (p.y + t * dy)
+          );
+          if (dist > MESH3D_SNAP_PX) continue;
+          if (bestEdge && dist >= bestEdge.dist) continue;
+          bestEdge = {
+            dist,
+            world: {
+              x: p3.x + t * (q3.x - p3.x),
+              y: p3.y + t * (q3.y - p3.y),
+              z: p3.z + t * (q3.z - p3.z),
+            },
+            mesh3dId: mesh3d.id,
+            isVertex: false,
+          };
+        }
+      }
+    }
+    return bestVertex || bestEdge;
+  }
+
+  // Marker of a snapped point: a ring on a loop vertex, a square on an edge.
+  function drawSnapMarker(snap) {
+    if (!snap) return;
+    if (snap.isVertex) drawRing(snap.world);
+    else drawSquare(snap.world);
+  }
+
+  // Candidate A under the cursor: an edge / vertex of ANY existing maille
+  // within the snap radius, else the raycast hit on the hovered maille.
+  //
+  // The snap is not gated on the raycast: a corner of a maille sits on its
+  // silhouette, so the cursor is regularly a few pixels OUTSIDE the surface
+  // while the vertex is well within the radius — requiring a hit would make
+  // exactly the most useful points unreachable.
+  //
+  // Target maille = the one under the cursor when there is one (you cut what
+  // you point at, even while snapping on a neighbour's corner), else the
+  // snapped one.
+  function getAngularPointA(e, pick) {
+    const rect =
+      pick?.rect ||
+      (() => {
+        const r = dom.getBoundingClientRect();
+        return r.width && r.height ? r : null;
+      })();
+    if (!rect) return null;
+
+    const snap = findLoopSnap(e, rect);
+    const mesh3dId =
+      pick?.kind === "MESH3D" ? pick.mesh3dId : snap?.mesh3dId || null;
+    if (!mesh3dId || !getMesh3dById(mesh3dId)) return null;
+
+    const hit = pick?.kind === "MESH3D" ? pick.intersect.point : null;
+    const world =
+      snap?.world || (hit ? { x: hit.x, y: hit.y, z: hit.z } : null);
+    if (!world) return null;
+
+    return { world, mesh3dId, snap };
+  }
+
+  // O and B: the cursor on the horizontal plane of A, or — when an edge /
+  // vertex of a maille is within the snap radius — that point dropped onto
+  // A's plane. Only the horizontal position matters (both cut planes are
+  // vertical), so snapping to any edge of the scene stays exact.
+  function resolveAngularPoint(e, rect, y) {
+    const snap = findLoopSnap(e, rect);
+    if (snap) {
+      return { point: { x: snap.world.x, y, z: snap.world.z }, snap };
+    }
+    const point = projectCursorToHorizontalPlane(e, rect, y);
+    return point ? { point, snap: null } : null;
+  }
+
+  // Screen anchor of the angle chip: a step along the bisector from O, so the
+  // value reads inside the sector instead of on top of its vertex.
+  function getAngleChipPosition(wedge, o, a, rect) {
+    const bisector = {
+      x: wedge.dirA.x + wedge.dirB.x,
+      z: wedge.dirA.z + wedge.dirB.z,
+    };
+    const len = Math.hypot(bisector.x, bisector.z);
+    const step = 0.3 * Math.hypot(a.x - o.x, a.z - o.z);
+    const p =
+      len < 1e-6
+        ? o
+        : {
+            x: o.x + (bisector.x / len) * step,
+            y: o.y,
+            z: o.z + (bisector.z / len) * step,
+          };
+    return worldToScreen(p, rect);
+  }
+
+  function drawCutSegments(segments, options) {
+    drawSegments(
+      (segments || []).map(([p, q]) => [liftToCamera(p), liftToCamera(q)]),
+      options
+    );
+  }
+
+  function onHoverAngularCut(e, pick) {
+    const rect =
+      pick?.rect ||
+      (() => {
+        const r = dom.getBoundingClientRect();
+        return r.width && r.height ? r : null;
+      })();
+    if (!rect) return;
+
+    // Phase 1: pick A on a maille.
+    if (!angA) {
+      angHoverA = getAngularPointA(e, pick);
+      clearDraft();
+      if (angHoverA?.snap) drawSnapMarker(angHoverA.snap);
+      else if (angHoverA) drawRing(angHoverA.world);
+      setMeshingOverlay({
+        areaChips: [],
+        offsetChip: null,
+        angleChip: null,
+        cursor: null,
+      });
+      renderScene();
+      return;
+    }
+
+    const mesh3d = getMesh3dById(angA.mesh3dId);
+    const resolved = resolveAngularPoint(e, rect, angA.world.y);
+    if (!mesh3d || !resolved) {
+      resetHover();
+      return;
+    }
+    const { point, snap } = resolved;
+
+    // Phase 2: O follows the cursor, the reference plane cuts the maille.
+    if (!angO) {
+      const plane = getReferencePlane({ o: point, a: angA.world });
+      const cut = plane ? cutMesh3dByPlanes({ mesh3d, planes: [plane] }) : null;
+      clearDraft();
+      drawRing(angA.world);
+      drawRing(point);
+      drawSnapMarker(snap);
+      drawCutSegments(cut?.segments);
+      setMeshingOverlay({
+        areaChips: [],
+        offsetChip: null,
+        angleChip: null,
+        cursor: null,
+      });
+      renderScene();
+      return;
+    }
+
+    // Phase 3: B follows the cursor, the wedge splits the maille in two.
+    angCommit = null;
+    const typedAngle = getAngleDeg?.();
+    const wedge = getAngularWedge({
+      o: angO.world,
+      a: angA.world,
+      b: point,
+      angleDeg: typedAngle,
+    });
+    const { cuts, segments } = wedge
+      ? collectCuts(mesh3d, (target) =>
+          cutMesh3dByPlanes({ mesh3d: target, planes: wedge.planes })
+        )
+      : { cuts: [], segments: [] };
+
+    clearDraft();
+    drawRing(angA.world);
+    drawRing(angO.world);
+    // A typed angle drives the second half-plane: the snap no longer applies.
+    if (typedAngle == null) drawSnapMarker(snap);
+    const areaChips = [];
+    let angleChip = null;
+
+    if (wedge) {
+      // A constrained (typed) angle draws as the thicker "snapped" line.
+      drawCutSegments(segments, { snapped: typedAngle != null });
+
+      const chipPos = getAngleChipPosition(wedge, angO.world, angA.world, rect);
+      angleChip = {
+        x: chipPos.x,
+        y: chipPos.y,
+        typed: typedAngle != null,
+        text: `${wedge.angleDeg.toLocaleString("fr-FR", {
+          maximumFractionDigits: 1,
+        })}°`,
+      };
+
+      // Both sides non-empty = the wedge really splits that maille.
+      const split = cuts.filter(
+        (entry) => entry.cut.inside && entry.cut.outside
+      );
+      if (split.length) {
+        angCommit = split.map((entry) => ({
+          mesh3d: entry.mesh3d,
+          inside: entry.cut.inside,
+          outside: entry.cut.outside,
+        }));
+        split.forEach((entry) => {
+          [entry.cut.inside, entry.cut.outside].forEach((side) => {
+            if (!side.centroid) return;
+            const c = worldToScreen(side.centroid, rect);
+            areaChips.push({
+              x: c.x,
+              y: c.y,
+              text: formatSurfaceM2(side.surface),
+            });
+          });
+        });
+      }
+    }
+
+    setMeshingOverlay({ areaChips, offsetChip: null, angleChip, cursor: null });
+    renderScene();
+  }
+
+  async function onClickAngularCut(e, pick) {
+    if (!angA) {
+      const a = angHoverA || getAngularPointA(e, pick);
+      if (a) angA = a;
+      return;
+    }
+
+    if (!angO) {
+      const rect = pick?.rect || dom.getBoundingClientRect();
+      const point = resolveAngularPoint(e, rect, angA.world.y)?.point;
+      // O must define an azimuth: a click on A's own vertical is meaningless.
+      if (!point) return;
+      const dx = point.x - angA.world.x;
+      const dz = point.z - angA.world.z;
+      if (Math.hypot(dx, dz) < 1e-6) return;
+      angO = { world: point };
+      return;
+    }
+
+    if (!angCommit?.length) return;
+    const committed = angCommit;
+    resetAngular();
+    cutTargetsCache = null;
+    try {
+      await splitMeshes3dByWedgeService(committed);
+    } catch (err) {
+      console.error("[threedMesh] angular split failed", err);
+    }
+    clearDraft();
+    setMeshingOverlay({ areaChips: [], offsetChip: null, angleChip: null });
+    renderScene();
+  }
+
   // --- public API -----------------------------------------------------------
 
   return {
@@ -927,8 +1341,9 @@ export function createMeshingCutController({
       else if (tool === "CUT_HORIZONTAL") onHoverAxisCut(e, pick, "y");
       else if (tool === "CUT_FREE") onHoverFreeCut(e, pick);
       else if (tool === "CUT_POLYLINE") onHoverPolylineCut(e, pick);
+      else if (tool === "CUT_ANGULAR") onHoverAngularCut(e, pick);
     },
-    onClick() {
+    onClick(e, pick) {
       const tool = getTool();
       if (tool === "CUT_VERTICAL" || tool === "CUT_HORIZONTAL") {
         onClickAxisCut();
@@ -936,6 +1351,8 @@ export function createMeshingCutController({
         onClickFreeCut();
       } else if (tool === "CUT_POLYLINE") {
         onClickPolylineCut();
+      } else if (tool === "CUT_ANGULAR") {
+        onClickAngularCut(e, pick);
       }
     },
     onLeave() {
@@ -944,7 +1361,12 @@ export function createMeshingCutController({
     onEscape() {
       firstPoint = null;
       resetPolyline();
+      resetAngular();
       resetHover();
+    },
+    // A change of the typed angle must redraw the V without a mouse move.
+    isAngularArmed() {
+      return !!angO;
     },
     dispose() {
       resetHover();

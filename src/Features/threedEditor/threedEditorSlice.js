@@ -138,15 +138,27 @@ const threedEditorInitialState = {
   },
   meshingMode: {
     active: false,
-    tool: "SELECT", // "SELECT" | "CUT_VERTICAL" | "CUT_HORIZONTAL" | "CUT_FREE" | "CUT_POLYLINE" | "NUMBER"
+    // "SELECT" | "CUT_VERTICAL" | "CUT_HORIZONTAL" | "CUT_FREE"
+    // | "CUT_POLYLINE" | "CUT_ANGULAR" | "NUMBER"
+    tool: "SELECT",
     // "Décalage": distance (m) from the reference vertex to the guide vertex
     // used by the vertical / horizontal cut tools.
     offset: 2,
     // Side of the maille the reference vertex is picked on. Default LEFT
     // (resp. BOTTOM for horizontal cuts), flipped with the "S" key.
     cutSide: "LEFT", // "LEFT" | "RIGHT"
+    // "Multi-mailles": the cut runs through every touching maille the plane
+    // (or the angular wedge) crosses, not only the hovered one — a horizontal
+    // trait across two vertical bands then yields four mailles. Opt-in: an
+    // infinite plane would otherwise reach mailles the user cannot even see.
+    multiCut: false,
     // "Numéroter": next number assigned to the clicked maille (then +1).
     numberingNext: 1,
+    // Angular cut: digits typed on the keyboard to constrain the angle (deg),
+    // exactly like extrudeMode.valueBuffer — no focused field, the pointer
+    // handlers capture the keystrokes. A parsable buffer wins over the mouse,
+    // which then only picks the side the angle opens to.
+    angleBuffer: "",
   },
   // Extrusion ("push/pull") mode, SketchUp-style: click a top face, move the
   // mouse to set the value, click again to commit `annotation.height`.
@@ -446,6 +458,7 @@ export const threedEditorSlice = createSlice({
     setMeshingTool: (state, action) => {
       state.meshingMode.tool = action.payload;
       state.meshingMode.cutSide = "LEFT";
+      state.meshingMode.angleBuffer = "";
     },
     setMeshingOffset: (state, action) => {
       state.meshingMode.offset = action.payload;
@@ -453,9 +466,25 @@ export const threedEditorSlice = createSlice({
     setMeshingNumberingNext: (state, action) => {
       state.meshingMode.numberingNext = action.payload;
     },
+    setMeshingMultiCut: (state, action) => {
+      state.meshingMode.multiCut = !!action.payload;
+    },
     toggleMeshingCutSide: (state) => {
       state.meshingMode.cutSide =
         state.meshingMode.cutSide === "LEFT" ? "RIGHT" : "LEFT";
+    },
+    // Typed angle buffer of the angular cut (mirrors the extrude buffer).
+    appendToMeshingAngleBuffer: (state, action) => {
+      state.meshingMode.angleBuffer += action.payload;
+    },
+    deleteLastMeshingAngleBuffer: (state) => {
+      state.meshingMode.angleBuffer = state.meshingMode.angleBuffer.slice(
+        0,
+        -1
+      );
+    },
+    clearMeshingAngleBuffer: (state) => {
+      state.meshingMode.angleBuffer = "";
     },
     setExtrudeModeActive: (state, action) => {
       state.extrudeMode.active = action.payload;
@@ -586,6 +615,10 @@ export const {
   setMeshingOffset,
   setMeshingNumberingNext,
   toggleMeshingCutSide,
+  setMeshingMultiCut,
+  appendToMeshingAngleBuffer,
+  deleteLastMeshingAngleBuffer,
+  clearMeshingAngleBuffer,
   setExtrudeModeActive,
   setExtrudeValue,
   setExtrudeValueBuffer,

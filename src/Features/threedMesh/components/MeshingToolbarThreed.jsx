@@ -2,6 +2,7 @@ import { useDispatch, useSelector } from "react-redux";
 
 import {
   setMeshingModeActive,
+  setMeshingMultiCut,
   setMeshingNumberingNext,
   setMeshingOffset,
   setMeshingTool,
@@ -53,6 +54,12 @@ const TOOLS = [
       "Polyligne de découpe — clics successifs depuis un bord, terminer sur un bord (Échap : annuler)",
     render: () => <TimelineIcon sx={{ fontSize: 18 }} />,
   },
+  {
+    value: "CUT_ANGULAR",
+    label:
+      "Découpe angulaire — 3 clics : extrémité A, sommet de l'angle O, extrémité B (saisir l'angle en degrés au clavier ; Échap : annuler)",
+    render: () => <Glyph>∠</Glyph>,
+  },
 ];
 
 function Glyph({ children }) {
@@ -78,6 +85,7 @@ export default function MeshingToolbarThreed() {
   const numberingNext = useSelector(
     (s) => s.threedEditor.meshingMode.numberingNext
   );
+  const multiCut = useSelector((s) => s.threedEditor.meshingMode.multiCut);
   const isMeshesViewer = useSelector(selectEffectiveViewerKey) === "MESHES";
 
   // handlers
@@ -94,6 +102,10 @@ export default function MeshingToolbarThreed() {
   function handleNumberingNextChange(value) {
     const number = Math.round(value);
     if (number >= 1) dispatch(setMeshingNumberingNext(number));
+  }
+
+  function handleMultiCutToggle() {
+    dispatch(setMeshingMultiCut(!multiCut));
   }
 
   function handleNumberingToggle() {
@@ -134,6 +146,18 @@ export default function MeshingToolbarThreed() {
             </Tooltip>
           ))}
         </ToggleButtonGroup>
+
+        <Tooltip title="Découpe multi-mailles — le trait traverse aussi les mailles voisines qu'il rencontre (un trait horizontal sur 2 bandes verticales donne 4 mailles)">
+          <ToggleButton
+            value="MULTI_CUT"
+            selected={multiCut}
+            onChange={handleMultiCutToggle}
+            size="small"
+            sx={{ textTransform: "none", px: 1 }}
+          >
+            Multi-mailles
+          </ToggleButton>
+        </Tooltip>
 
         <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
 
