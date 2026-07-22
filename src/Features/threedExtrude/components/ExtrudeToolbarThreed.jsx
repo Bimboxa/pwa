@@ -2,7 +2,8 @@ import { useDispatch, useSelector } from "react-redux";
 
 import {
   setExtrudeModeActive,
-  setExtrudeValue,
+  setExtrudeTypedValue,
+  setExtrudeValueLocked,
 } from "Features/threedEditor/threedEditorSlice";
 
 import {
@@ -14,6 +15,7 @@ import {
   Typography,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
+import MouseIcon from "@mui/icons-material/Mouse";
 
 import FieldNumberCompact from "Features/threedMesh/components/FieldNumberCompact";
 
@@ -24,16 +26,33 @@ export default function ExtrudeToolbarThreed() {
   const dispatch = useDispatch();
 
   const value = useSelector((s) => s.threedEditor.extrudeMode.value);
+  const valueLocked = useSelector(
+    (s) => s.threedEditor.extrudeMode.valueLocked
+  );
   const targetAnnotationId = useSelector(
     (s) => s.threedEditor.extrudeMode.targetAnnotationId
   );
 
   const armed = !!targetAnnotationId;
 
+  // strings
+
+  const hintS = valueLocked
+    ? "Valeur saisie — cliquez une face pour l'appliquer"
+    : armed
+      ? "Déplacez la souris, clic ou Entrée pour valider (Échap : annuler)"
+      : "Cliquez une face du dessus";
+
   // handlers
 
+  // Typing wins over the mouse until the user hands control back, otherwise
+  // moving the cursor back onto the face would overwrite what was typed.
   function handleValueChange(newValue) {
-    dispatch(setExtrudeValue(newValue));
+    dispatch(setExtrudeTypedValue(newValue));
+  }
+
+  function handleUnlock() {
+    dispatch(setExtrudeValueLocked(false));
   }
 
   function handleClose() {
@@ -70,10 +89,16 @@ export default function ExtrudeToolbarThreed() {
           unit="m"
         />
 
+        {valueLocked && (
+          <Tooltip title="Reprendre le réglage à la souris">
+            <IconButton size="small" onClick={handleUnlock}>
+              <MouseIcon sx={{ fontSize: 18 }} />
+            </IconButton>
+          </Tooltip>
+        )}
+
         <Typography variant="caption" color="text.secondary" sx={{ px: 0.5 }}>
-          {armed
-            ? "Déplacez la souris, clic ou Entrée pour valider (Échap : annuler)"
-            : "Cliquez une face du dessus"}
+          {hintS}
         </Typography>
 
         <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />

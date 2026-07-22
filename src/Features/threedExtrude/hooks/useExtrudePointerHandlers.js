@@ -80,6 +80,9 @@ export default function useExtrudePointerHandlers() {
 
   const active = useSelector((s) => s.threedEditor.extrudeMode.active);
   const value = useSelector((s) => s.threedEditor.extrudeMode.value);
+  const valueLocked = useSelector(
+    (s) => s.threedEditor.extrudeMode.valueLocked
+  );
   const faceSelectionAngleDeg = useSelector(
     (s) => s.threedEditor.faceSelectionAngleDeg
   );
@@ -91,6 +94,10 @@ export default function useExtrudePointerHandlers() {
   useEffect(() => {
     valueRef.current = value;
   }, [value]);
+  const valueLockedRef = useRef(valueLocked);
+  useEffect(() => {
+    valueLockedRef.current = valueLocked;
+  }, [valueLocked]);
   const faceSelectionAngleDegRef = useRef(faceSelectionAngleDeg);
   useEffect(() => {
     faceSelectionAngleDegRef.current = faceSelectionAngleDeg;
@@ -99,6 +106,9 @@ export default function useExtrudePointerHandlers() {
   useEffect(() => {
     updateAnnotationRef.current = updateAnnotation;
   }, [updateAnnotation]);
+  // Set by the main effect so the typed-value effect below can refresh the
+  // ghost without going through the pointer handlers.
+  const rebuildGhostRef = useRef(null);
 
   useEffect(() => {
     if (!active) return;
@@ -268,6 +278,7 @@ export default function useExtrudePointerHandlers() {
       }
       sceneManager.renderScene?.();
     }
+    rebuildGhostRef.current = rebuildGhost;
 
     // Restore the real mesh and drop the armed state. Never writes to the db.
     function cancelArm() {
@@ -329,8 +340,10 @@ export default function useExtrudePointerHandlers() {
       }
     }
 
-    // Armed: the value follows the cursor along the extrusion axis.
+    // Armed: the value follows the cursor along the extrusion axis — unless
+    // the user typed one, which wins until they hand control back.
     function updateArmedValue(e) {
+      if (valueLockedRef.current) return;
       const rect = dom.getBoundingClientRect();
       if (!rect.width || !rect.height) return;
       if (!armed.tracking) {
@@ -481,6 +494,7 @@ export default function useExtrudePointerHandlers() {
       dom.removeEventListener("pointerleave", onPointerLeave);
       window.removeEventListener("keydown", onKeyDown);
       unsubReady?.();
+      rebuildGhostRef.current = null;
       if (rafId != null) cancelAnimationFrame(rafId);
       cancelArm();
       clearStipple();
@@ -488,4 +502,12 @@ export default function useExtrudePointerHandlers() {
       dom.style.cursor = "";
     };
   }, [active, dispatch]);
+
+  // Typed value → refresh the ghost. The mouse-driven path rebuilds it
+  // itself; here we only cover the keyboard, which never goes through the
+  // pointer handlers (`valueLocked` is set by every field edit).
+  useEffect(() => {
+    if (!active || !valueLocked) return;
+    rebuildGhostRef.current?.(value);
+  }, [active, value, valueLocked]);
 }
