@@ -94,6 +94,9 @@ import ThreedMeshes from "Features/threedMesh/components/ThreedMeshes";
 import PopperEditMesh3d from "Features/threedMesh/components/PopperEditMesh3d";
 import PopperEditMeshes3d from "Features/threedMesh/components/PopperEditMeshes3d";
 import useMeshingPointerHandlers from "Features/threedMesh/hooks/useMeshingPointerHandlers";
+import ExtrudeToolbarThreed from "Features/threedExtrude/components/ExtrudeToolbarThreed";
+import ExtrudeOverlayThreed from "Features/threedExtrude/components/ExtrudeOverlayThreed";
+import useExtrudePointerHandlers from "Features/threedExtrude/hooks/useExtrudePointerHandlers";
 import useWalkMode from "Features/threedEditor/hooks/useWalkMode";
 import useObject3DPlacementHandlers from "Features/threedEditor/hooks/useObject3DPlacementHandlers";
 import { selectIsObject3DPlacementActive } from "Features/threedEditor/utils/object3DPlacementSelectors";
@@ -254,6 +257,14 @@ export default function MainThreedEditor() {
     meshingActiveRef.current = meshingActive;
   }, [meshingActive]);
 
+  // Same pattern for extrude mode — useExtrudePointerHandlers owns the
+  // pointer (top-face hover stipple, arm / commit) while active.
+  const extrudeActive = useSelector((s) => s.threedEditor.extrudeMode.active);
+  const extrudeActiveRef = useRef(extrudeActive);
+  useEffect(() => {
+    extrudeActiveRef.current = extrudeActive;
+  }, [extrudeActive]);
+
   // Same pattern for walk mode — WalkModeController owns the camera and the
   // keyboard; clicks are the pointer-lock re-acquire fallback, and hover
   // raycasts would read frozen client coords while the pointer is locked.
@@ -285,6 +296,7 @@ export default function MainThreedEditor() {
   useDrawingPointerHandlers();
   useDimensionPointerHandlers();
   useMeshingPointerHandlers();
+  useExtrudePointerHandlers();
   useWalkMode();
   useObject3DPlacementHandlers();
   useTemplateFaceDrawBridge();
@@ -480,6 +492,8 @@ export default function MainThreedEditor() {
       if (dimensionActiveRef.current) return;
       // Meshing mode owns the pointer; useMeshingPointerHandlers handles it.
       if (meshingActiveRef.current) return;
+      // Extrude mode owns the pointer; useExtrudePointerHandlers handles it.
+      if (extrudeActiveRef.current) return;
       // Walk mode: clicks only re-acquire the pointer lock, never select.
       if (walkActiveRef.current) return;
       // OBJECT_3D placement owns the pointer; useObject3DPlacementHandlers
@@ -1228,13 +1242,14 @@ export default function MainThreedEditor() {
     // moves off an object that's still inside the rect.
     if (lassoStartRef.current) return;
     // Hover highlight is always on — except in BASEMAP_POSITION (pointer
-    // reserved for the transform gizmo), in meshing mode, which runs its
-    // own hover (stipple + cursor helper) in useMeshingPointerHandlers, and
-    // in walk mode (pointer locked: client coords are frozen, the camera
-    // moves).
+    // reserved for the transform gizmo), in meshing and extrude modes, which
+    // run their own hover (stipple + cursor helper) in their pointer-handler
+    // hooks, and in walk mode (pointer locked: client coords are frozen, the
+    // camera moves).
     if (
       editorModeRef.current === "BASEMAP_POSITION" ||
       meshingActiveRef.current ||
+      extrudeActiveRef.current ||
       walkActiveRef.current ||
       placementActiveRef.current
     ) {
@@ -1744,6 +1759,8 @@ export default function MainThreedEditor() {
         !isPovViewer &&
         (clippingEditing ? (
           <ClippingToolbarThreed />
+        ) : extrudeActive ? (
+          <ExtrudeToolbarThreed />
         ) : meshingActive || isMeshesViewer ? (
           <MeshingToolbarThreed />
         ) : (
@@ -1757,6 +1774,7 @@ export default function MainThreedEditor() {
       {isThreedViewer && <DimensionDraftOverlayThreed />}
       {isThreedViewer && rendererIsReady && <ThreedMeshes />}
       {isThreedViewer && <MeshingOverlayThreed />}
+      {isThreedViewer && <ExtrudeOverlayThreed />}
       {isThreedViewer && <ShootLanceOverlayThreed />}
       {isThreedViewer && <PopperEditMesh3d viewerKey="THREED" />}
       {isThreedViewer && <PopperEditMeshes3d viewerKey="THREED" />}

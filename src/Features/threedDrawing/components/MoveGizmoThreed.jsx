@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { useDispatch, useSelector } from "react-redux";
-import { Box3, Object3D, Quaternion, Vector3 } from "three";
+import { Box3, Object3D, Vector3 } from "three";
 
 import db from "App/db/db";
 
@@ -28,6 +28,8 @@ import {
   loadAnnotationSnapshot,
 } from "../services/buildTransientFaceMesh";
 import getAnnotationFaceNormal from "../utils/getAnnotationFaceNormal";
+import getBaseMapNormalWorld from "../utils/getBaseMapNormalWorld";
+import { deepHide, deepShow } from "../utils/deepVisibility";
 import roundForDisplay from "../utils/roundForDisplay";
 import { buildIndex } from "../hooks/useVertexSnap";
 import {
@@ -57,37 +59,6 @@ const SNAP_PX = 12;
 const SNAP_COLOR = "#ff2d8d";
 const SNAP_CIRCLE_RADIUS_PX = 6;
 const SNAP_CIRCLE_STROKE_PX = 2;
-
-// In sub-selection (vertex/edge) mode the user expects the constraint axis
-// to be the BASEMAP normal — not the per-face normal. For a horizontal
-// basemap the basemap-local Z axis (the normal) maps to world +Y.
-function getBaseMapNormalWorld(annoObject) {
-  // The annotation is a child of the basemap group, so the parent's world
-  // quaternion encodes the basemap orientation.
-  const parent = annoObject?.parent;
-  if (!parent) return new Vector3(0, 1, 0);
-  const q = parent.getWorldQuaternion(new Quaternion());
-  return new Vector3(0, 0, 1).applyQuaternion(q).normalize();
-}
-
-// Recursively hide an Object3D and every descendant. Setting visible=false on
-// the root is sufficient for rendering, but we also flip every child as a
-// defensive measure in case some other code reads `.visible` per-mesh.
-function deepHide(obj) {
-  if (!obj) return;
-  obj.visible = false;
-  obj.traverse?.((child) => {
-    child.visible = false;
-  });
-}
-
-function deepShow(obj) {
-  if (!obj) return;
-  obj.visible = true;
-  obj.traverse?.((child) => {
-    child.visible = true;
-  });
-}
 
 function getBaseMapInverseRotationQuat(baseMap) {
   const transform = getBaseMapTransform(baseMap);

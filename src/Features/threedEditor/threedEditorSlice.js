@@ -148,6 +148,18 @@ const threedEditorInitialState = {
     // "Numéroter": next number assigned to the clicked maille (then +1).
     numberingNext: 1,
   },
+  // Extrusion ("push/pull") mode, SketchUp-style: click a top face, move the
+  // mouse to set the value, click again to commit `annotation.height`.
+  // Mutually exclusive with the other 3D tool modes.
+  extrudeMode: {
+    active: false,
+    // Live extrusion value in meters — typed in the toolbar field OR derived
+    // from the mouse while a face is armed. Kept across commits so the next
+    // face reuses the last value (SketchUp behaviour).
+    value: 0.1,
+    // Annotation armed by the first click (null = waiting for a face).
+    targetAnnotationId: null,
+  },
   // First-person walk mode (W in the 3D viewer). Camera-controls suspended:
   // pointer-locked mouse looks, arrow keys move on the selected baseMap,
   // Space fires the concrete lance at the screen center.
@@ -268,6 +280,8 @@ export const threedEditorSlice = createSlice({
         state.meshingMode.active = false;
         state.meshingMode.tool = "SELECT";
         state.walkMode.active = false;
+        state.extrudeMode.active = false;
+        state.extrudeMode.targetAnnotationId = null;
       }
     },
     bumpSnapIndexEpoch: (state) => {
@@ -290,6 +304,8 @@ export const threedEditorSlice = createSlice({
         state.meshingMode.active = false;
         state.meshingMode.tool = "SELECT";
         state.walkMode.active = false;
+        state.extrudeMode.active = false;
+        state.extrudeMode.targetAnnotationId = null;
       }
     },
     setMoveSelectedAnnotationId: (state, action) => {
@@ -391,6 +407,8 @@ export const threedEditorSlice = createSlice({
         state.meshingMode.active = false;
         state.meshingMode.tool = "SELECT";
         state.walkMode.active = false;
+        state.extrudeMode.active = false;
+        state.extrudeMode.targetAnnotationId = null;
       }
     },
     setDimensionStartPoint: (state, action) => {
@@ -416,6 +434,8 @@ export const threedEditorSlice = createSlice({
         state.dimensionMode.active = false;
         state.dimensionMode.startPoint = null;
         state.walkMode.active = false;
+        state.extrudeMode.active = false;
+        state.extrudeMode.targetAnnotationId = null;
       }
     },
     setMeshingTool: (state, action) => {
@@ -432,6 +452,31 @@ export const threedEditorSlice = createSlice({
       state.meshingMode.cutSide =
         state.meshingMode.cutSide === "LEFT" ? "RIGHT" : "LEFT";
     },
+    setExtrudeModeActive: (state, action) => {
+      state.extrudeMode.active = action.payload;
+      state.extrudeMode.targetAnnotationId = null;
+      if (action.payload) {
+        // Mutually exclusive with every other 3D tool mode.
+        state.drawingMode.active = false;
+        state.drawingMode.inProgressPolyline = [];
+        state.drawingMode.trait3DSegments = [];
+        state.drawingMode.axisLock = null;
+        state.moveMode.active = false;
+        state.moveMode.selectedAnnotationId = null;
+        state.moveMode.deltaZ = 0;
+        state.dimensionMode.active = false;
+        state.dimensionMode.startPoint = null;
+        state.meshingMode.active = false;
+        state.meshingMode.tool = "SELECT";
+        state.walkMode.active = false;
+      }
+    },
+    setExtrudeValue: (state, action) => {
+      state.extrudeMode.value = action.payload;
+    },
+    setExtrudeTargetAnnotationId: (state, action) => {
+      state.extrudeMode.targetAnnotationId = action.payload;
+    },
     setWalkModeActive: (state, action) => {
       state.walkMode.active = !!action.payload;
       if (action.payload) {
@@ -447,6 +492,8 @@ export const threedEditorSlice = createSlice({
         state.dimensionMode.startPoint = null;
         state.meshingMode.active = false;
         state.meshingMode.tool = "SELECT";
+        state.extrudeMode.active = false;
+        state.extrudeMode.targetAnnotationId = null;
       }
     },
     setHideAnnotationsIn3d: (state, action) => {
@@ -515,6 +562,9 @@ export const {
   setMeshingOffset,
   setMeshingNumberingNext,
   toggleMeshingCutSide,
+  setExtrudeModeActive,
+  setExtrudeValue,
+  setExtrudeTargetAnnotationId,
   setWalkModeActive,
   setHideAnnotationsIn3d,
   setMesh3dLabels,
