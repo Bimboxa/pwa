@@ -463,10 +463,22 @@ export function createMeshingCutController({
       segments.map(([p, q]) => [liftToCamera(p), liftToCamera(q)]),
       { snapped }
     );
-    drawSegments(
-      guideSegments.map(([p, q]) => [liftToCamera(p), liftToCamera(q)]),
-      { dashed: true }
-    );
+    if (guideSegments.length) {
+      drawSegments(
+        guideSegments.map(([p, q]) => [liftToCamera(p), liftToCamera(q)]),
+        { dashed: true }
+      );
+    } else if (guidePoint && !snapped) {
+      // The guide plane can miss the maille entirely — a 2 m "Décalage" on a
+      // 30 cm swept profile lands well above it — and the contour then has
+      // nothing to run along, leaving the pink chip labelling thin air. Fall
+      // back to the offset itself: a dotted segment from the reference vertex
+      // to the guide point (which the chip already sits on the middle of).
+      drawSegments([[liftToCamera(ref), liftToCamera(guidePoint)]], {
+        dashed: true,
+      });
+      drawRing(liftToCamera(guidePoint));
+    }
     setMeshingOverlay({ areaChips, offsetChip, cursor: null });
     renderScene();
 
