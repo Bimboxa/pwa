@@ -3,10 +3,7 @@ import useUpdateAnnotation from "./useUpdateAnnotation";
 
 import getAnnotationTemplateProps from "../utils/getAnnotationTemplateProps";
 import getAnnotationPropsFromAnnotationTemplateProps from "../utils/getAnnotationPropsFromAnnotationTemplateProps";
-import {
-  resolveDrawingShape,
-  getAnnotationType,
-} from "../constants/drawingShapeConfig";
+import getAnnotationTypeOnTemplateChange from "../utils/getAnnotationTypeOnTemplateChange";
 
 export default function useChangeAnnotationTemplate() {
   const baseMap = useMainBaseMap();
@@ -16,8 +13,10 @@ export default function useChangeAnnotationTemplate() {
     if (!template || !annotation?.id) return;
 
     const templateProps = getAnnotationTemplateProps(template);
-    const resolvedShape = resolveDrawingShape(template);
-    const resolvedType = getAnnotationType(resolvedShape);
+    const resolvedType = getAnnotationTypeOnTemplateChange(
+      annotation,
+      template
+    );
 
     // Only overwrite properties the template locks (overrideFields);
     // non-overridden fields keep the annotation's own value.

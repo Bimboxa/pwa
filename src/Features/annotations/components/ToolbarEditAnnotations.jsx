@@ -25,6 +25,7 @@ import {
 import stringifyAnnotationData from "../utils/stringifyAnnotationData";
 import getAnnotationQties from "../utils/getAnnotationQties";
 import getAnnotationTemplateProps from "../utils/getAnnotationTemplateProps";
+import getAnnotationTypeOnTemplateChange from "../utils/getAnnotationTypeOnTemplateChange";
 import getAnnotationPropsFromAnnotationTemplateProps from "../utils/getAnnotationPropsFromAnnotationTemplateProps";
 import getCloneTypeOptions from "../utils/getCloneTypeOptions";
 
@@ -359,10 +360,13 @@ export default function ToolbarEditAnnotations({
     if (!template) return;
 
     const templateProps = getAnnotationTemplateProps(template);
-    const resolvedShape = resolveDrawingShape(template);
-    const resolvedType = getAnnotationType(resolvedShape);
 
     const updates = annotations.map((annotation) => {
+      // Types sharing the template drawingShape (STRIP, RECTANGLE) are kept.
+      const resolvedType = getAnnotationTypeOnTemplateChange(
+        annotation,
+        template
+      );
       // Only overwrite properties the template locks (overrideFields);
       // non-overridden fields keep the annotation's own value.
       const merged = getAnnotationPropsFromAnnotationTemplateProps(
