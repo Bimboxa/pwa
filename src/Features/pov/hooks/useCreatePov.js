@@ -4,7 +4,7 @@ import { generateKeyBetween } from "fractional-indexing";
 
 import { setSelectedItem } from "Features/selection/selectionSlice";
 import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
-import { setPovDraftDescription } from "../povSlice";
+import { setPovDraftDescription, setPovViewFreeze } from "../povSlice";
 
 import db from "App/db/db";
 
@@ -51,6 +51,9 @@ export default function useCreatePov() {
 
     await db.povs.add(record);
     dispatch(setPovDraftDescription(""));
+    // The view was just captured on the live content: no freeze to inherit
+    // (its own viewCreatedAt is now, it would filter nothing anyway).
+    dispatch(setPovViewFreeze(null));
 
     // Select the new POV. The right panel is only switched to its properties
     // when it is ALREADY open: opening it would shift the capture frame

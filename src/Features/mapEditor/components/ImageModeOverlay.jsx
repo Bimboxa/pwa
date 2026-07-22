@@ -71,12 +71,15 @@ export default function ImageModeOverlay({
   const titleText = usePovTitleText();
 
   // When the right panel is open it floats over the viewport without
-  // shrinking it; center the capture rect within the visible zone.
+  // shrinking it; in "Export rapide" the capture rect is centered within the
+  // visible zone. The POV viewer ignores the panel on purpose: its frame must
+  // not move with the panel, so capture and camera restore stay consistent.
+  const exportModeEnabled = useSelector((s) => s.mapEditor.imageModeEnabled);
   const panelOpen = useSelector((s) =>
     Boolean(s.rightPanel.selectedMenuItemKey)
   );
   const panelWidth = useSelector((s) => s.rightPanel.width);
-  const rightInset = panelOpen ? panelWidth : 0;
+  const rightInset = exportModeEnabled && panelOpen ? panelWidth : 0;
 
   const rect = getCaptureRectBounds(
     viewportWidth,

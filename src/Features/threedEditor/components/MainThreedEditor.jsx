@@ -27,6 +27,7 @@ import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys
 import {
   selectEffectiveViewerKey,
   selectIsPovViewer,
+  selectPovFramingActive,
 } from "Features/viewers/utils/effectiveViewerKey";
 
 import applyAnnotationMaterialState, {
@@ -200,11 +201,12 @@ export default function MainThreedEditor() {
   // Capture mode ("Export rapide", shared with the 2D viewer). Toggles are
   // rare, so the re-render cost is acceptable here.
   const imageModeEnabled = useSelector((s) => s.mapEditor.imageModeEnabled);
-  // The POV viewer forces the capture framing on (mask + rect + legend) —
+  // The POV viewer arms the capture framing on demand (mask + rect + legend) —
   // only when this 3D editor is the one POV displays (isThreedViewer).
   const isPovViewer = useSelector(selectIsPovViewer);
+  const povFramingActive = useSelector(selectPovFramingActive);
   const captureFramingActive =
-    imageModeEnabled || (isPovViewer && isThreedViewer);
+    imageModeEnabled || (povFramingActive && isThreedViewer);
   // Render mode (Standard / Réaliste / Photoréaliste).
   const renderMode = useSelector((s) => s.threedEditor.renderMode);
   // PHOTOREAL environment (Standard / Extérieur / Intérieur).

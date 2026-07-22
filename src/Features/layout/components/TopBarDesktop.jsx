@@ -46,7 +46,6 @@ import ToolbarDrawingTools from "Features/mapEditor/components/ToolbarDrawingToo
 import BlockVersionInTopBar from "Features/versions/components/BlockVersionInTopBar";
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 import BaseMapSelectorInMapEditorV2 from "Features/baseMaps/components/BaseMapSelectorInMapEditorV2";
-import TopBaseMapChipsThreed from "Features/threedEditor/components/TopBaseMapChipsThreed";
 import BaseMapVersionSelectorInTopBar from "Features/baseMaps/components/BaseMapVersionSelectorInTopBar";
 import FieldBaseMapZInTopBar from "Features/baseMaps/components/FieldBaseMapZInTopBar";
 
@@ -95,12 +94,12 @@ export default function TopBarDesktop() {
   // The top bar is module-driven: the Dessin module keeps its baseMap
   // selector (the baseMap drawn annotations get linked to) whichever editor
   // (2D/3D) it displays; the 3D recap and Maillage modules have none (pure
-  // viewers / per-scope mailles). POV is the exception: its baseMap controls
-  // follow the displayed editor (2D selector vs 3D chips).
+  // viewers / per-scope mailles). POV keeps the 2D selector when it displays
+  // the map editor, and — like the 3D module — nothing when it displays the 3D
+  // editor: the baseMap chips live in the canvas there (TopBaseMapChipsThreed).
   const effectiveViewerKey = useSelector(selectEffectiveViewerKey);
   const isPovViewer = viewerKey === "POINT_OF_VIEW";
   const isPovMap = isPovViewer && effectiveViewerKey === "MAP";
-  const isPovThreed = isPovViewer && effectiveViewerKey === "THREED";
 
   // handlers
 
@@ -250,17 +249,6 @@ export default function TopBarDesktop() {
           />
           <BaseMapVersionSelectorInTopBar />
           <FieldBaseMapZInTopBar />
-        </Box>
-      )}
-      {isPovThreed && (
-        <Box
-          sx={{
-            display: { xs: "none", md: "flex" },
-            alignItems: "center",
-            minWidth: 0,
-          }}
-        >
-          <TopBaseMapChipsThreed inTopBar />
         </Box>
       )}
       {isPortfolioViewer && (

@@ -1,41 +1,28 @@
-import { useState } from "react";
-
-import { useDispatch } from "react-redux";
-
-import { setToaster } from "Features/layout/layoutSlice";
-
-import {
-  Box,
-  Typography,
-  IconButton,
-  Tooltip,
-  CircularProgress,
-} from "@mui/material";
-import { CloudUpload as ShareIcon } from "@mui/icons-material";
+import { Box, Typography, IconButton, Tooltip } from "@mui/material";
+import { CenterFocusStrong as ApplyIcon } from "@mui/icons-material";
 
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
+import IconButtonMoreActionsPov from "./IconButtonMoreActionsPov";
 import usePovImageUrl from "../hooks/usePovImageUrl";
-import usePushPovPreview from "../hooks/usePushPovPreview";
 import getPovCaption, { getPovModeLabel } from "../utils/getPovCaption";
 
 // One row of the POV list: draggable (dnd-kit sortable), thumbnail +
-// description + creation caption (trigram — date) + share button.
-export default function PovListItem({ pov, isSelected, onClick }) {
-  const dispatch = useDispatch();
+// description + creation caption (trigram — date). Clicking the row only
+// SELECTS the view (arms the capture frame); the actions at the bottom right
+// apply the saved view (camera + filters) or open the "..." menu.
+export default function PovListItem({ pov, isSelected, onClick, onApply }) {
+  // strings
+
+  const applyS = "Appliquer la vue";
 
   // data
 
   const imageUrl = usePovImageUrl(pov.image?.fileName);
-  const pushPovPreview = usePushPovPreview();
 
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({ id: pov.id });
-
-  // state
-
-  const [sharing, setSharing] = useState(false);
 
   // helpers
 
@@ -48,25 +35,11 @@ export default function PovListItem({ pov, isSelected, onClick }) {
   const caption = getPovCaption(pov);
   const modeLabel = getPovModeLabel(pov);
 
-  const isShared = Boolean(pov.idMaster);
-  const shareTooltip = isShared ? "Mettre à jour le partage" : "Partager";
-
   // handlers
 
-  async function handleShareClick(event) {
+  function handleApplyClick(event) {
     event.stopPropagation();
-    if (sharing) return;
-    setSharing(true);
-    try {
-      await pushPovPreview(pov);
-    } catch (error) {
-      console.error("[PovListItem] share error", error);
-      dispatch(
-        setToaster({ message: "Échec du partage du point de vue", isError: true })
-      );
-    } finally {
-      setSharing(false);
-    }
+    onApply?.();
   }
 
   // render
@@ -134,39 +107,29 @@ export default function PovListItem({ pov, isSelected, onClick }) {
           {modeLabel}
           {caption ? ` · ${caption}` : ""}
         </Typography>
-      </Box>
 
-      {sharing ? (
+        {/* actions, bottom right of the card */}
         <Box
           sx={{
-            alignSelf: "center",
-            flexShrink: 0,
-            width: 26,
-            height: 26,
             display: "flex",
+            justifyContent: "flex-end",
             alignItems: "center",
-            justifyContent: "center",
           }}
         >
-          <CircularProgress size={16} />
+          <Tooltip title={applyS}>
+            <IconButton
+              size="small"
+              onClick={handleApplyClick}
+              // keep the click away from the row's dnd-kit drag listeners
+              onPointerDown={(e) => e.stopPropagation()}
+            >
+              <ApplyIcon sx={{ fontSize: "1rem" }} />
+            </IconButton>
+          </Tooltip>
+
+          <IconButtonMoreActionsPov pov={pov} size="small" />
         </Box>
-      ) : (
-        <Tooltip title={shareTooltip}>
-          <IconButton
-            size="small"
-            onClick={handleShareClick}
-            // keep the click away from the row's dnd-kit drag listeners
-            onPointerDown={(e) => e.stopPropagation()}
-            sx={{
-              alignSelf: "center",
-              flexShrink: 0,
-              color: isShared ? "primary.main" : "text.secondary",
-            }}
-          >
-            <ShareIcon sx={{ fontSize: "1rem" }} />
-          </IconButton>
-        </Tooltip>
-      )}
+      </Box>
     </Box>
   );
 }

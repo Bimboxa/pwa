@@ -55,6 +55,7 @@ import useLegendItemsByBaseMapId from "Features/legend/hooks/useLegendItemsByBas
 import {
   selectEffectiveViewerKey,
   selectIsPovViewer,
+  selectPovFramingActive,
 } from "Features/viewers/utils/effectiveViewerKey";
 import useAnnotationTemplateQtiesByIdForBaseMap from "Features/annotations/hooks/useAnnotationTemplateQtiesByIdForBaseMap";
 
@@ -380,14 +381,15 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
 
     const isLegendSelected = showBgImage && selectedNode?.nodeType === "LEGEND";
 
-    // image mode (MAP viewer only) — framing is forced on under the POV viewer
+    // image mode (MAP viewer only) — the POV viewer arms the framing on demand
     const isMapViewer = forViewerKey === "MAP";
     const imageModeEnabled = useSelector((s) => s.mapEditor.imageModeEnabled);
     const isPovViewer = useSelector(selectIsPovViewer);
+    const povFramingActive = useSelector(selectPovFramingActive);
     // isActiveViewer scoping: when POV displays the 3D editor, this (hidden)
     // 2D instance must not run the framing overlay / label layout.
     const imageModeActive =
-        isMapViewer && (imageModeEnabled || (isPovViewer && isActiveViewer));
+        isMapViewer && (imageModeEnabled || (povFramingActive && isActiveViewer));
     // Same hook as Portfolio's LegendBlockSvg so the capture legend items
     // (shape, ordering, groupings) match exactly.
     const imageModeLegendItems = useLegendItemsByBaseMapId(baseMap?.id);

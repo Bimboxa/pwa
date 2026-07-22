@@ -22,9 +22,11 @@ import useDeletePov from "../hooks/useDeletePov";
 import usePushPovPreview from "../hooks/usePushPovPreview";
 import useRemovePovPreview from "../hooks/useRemovePovPreview";
 
-// "..." header menu of the POV properties panel (same pattern as
-// IconButtonMoreActionsAnnotationTemplate): actions on the selected POV.
-export default function IconButtonMoreActionsPov({ pov }) {
+// "..." menu of a POV (same pattern as IconButtonMoreActionsAnnotationTemplate):
+// used both in the properties panel header and in the list card. In the card it
+// sits inside a clickable + draggable row, hence the propagation stops (the
+// portaled Menu / Dialog still bubble through the React tree).
+export default function IconButtonMoreActionsPov({ pov, size }) {
   const dispatch = useDispatch();
 
   // data
@@ -102,11 +104,21 @@ export default function IconButtonMoreActionsPov({ pov }) {
 
   return (
     <>
-      <IconButton onClick={handleClick}>
-        <MoreActionsIcon />
+      <IconButton
+        size={size}
+        onClick={handleClick}
+        // keep the click away from the card's dnd-kit drag listeners
+        onPointerDown={(e) => e.stopPropagation()}
+      >
+        <MoreActionsIcon fontSize={size === "small" ? "small" : undefined} />
       </IconButton>
 
-      <Menu open={open} anchorEl={anchorEl} onClose={handleClose}>
+      <Menu
+        open={open}
+        anchorEl={anchorEl}
+        onClose={handleClose}
+        onClick={(e) => e.stopPropagation()}
+      >
         <MenuItem onClick={handleShare} disabled={sharing}>
           {isShared ? "Mettre à jour le partage" : "Partager"}
         </MenuItem>
@@ -117,7 +129,11 @@ export default function IconButtonMoreActionsPov({ pov }) {
         <MenuItem onClick={handleDelete}>Supprimer</MenuItem>
       </Menu>
 
-      <Dialog open={openDelete} onClose={() => setOpenDelete(false)}>
+      <Dialog
+        open={openDelete}
+        onClose={() => setOpenDelete(false)}
+        onClick={(e) => e.stopPropagation()}
+      >
         <DialogTitle>Supprimer le point de vue</DialogTitle>
         <DialogContent>
           <Typography variant="body2">

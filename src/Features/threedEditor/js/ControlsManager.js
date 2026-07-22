@@ -281,6 +281,12 @@ export default class ControlsManager {
       // limit; lift it for the duration of the transition.
       controls.maxDistance = Infinity;
 
+      // The pose is EXACT (position + look axis). setLookAt does not reset
+      // camera-controls' focal offset, and a stale one (left by the
+      // orbit-around-cursor setOrbitPoint calls) would be re-applied on top
+      // of the pose as a lateral shift — zero it first.
+      controls.setFocalOffset(0, 0, 0, false);
+
       camera.fov = fovFrom;
       camera.updateProjectionMatrix();
       controls.setLookAt(

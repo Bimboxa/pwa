@@ -28,9 +28,22 @@ export const selectEffectiveViewerKey = (s) => {
   return editorKey;
 };
 
+// The POV capture frame is armed on demand only ("Créer une vue", or picking a
+// view in the list), not for the whole module: with it off, the POV module
+// behaves like the regular editor (PopperMapListings visible, editing free).
+export const selectPovFramingActive = (s) =>
+  selectIsPovViewer(s) && s.pov.framingActive;
+
 // The capture framing ("Export rapide" mask + rect + legend) is active when
-// the Export tool enabled it OR when the POV viewer is displayed. Editing
+// the Export tool enabled it OR when the POV viewer armed its frame. Editing
 // interactions gated on image mode must use this derived flag so the POV
 // viewer freezes them exactly like the Export tool does.
 export const selectCaptureFramingActive = (s) =>
-  s.mapEditor.imageModeEnabled || selectIsPovViewer(s);
+  s.mapEditor.imageModeEnabled || selectPovFramingActive(s);
+
+// Generation date of the restored POV, or null when nothing is frozen.
+// Annotations created after it are filtered out by useAnnotationsV2, so the
+// restored view matches its saved image. Gated on the POV viewer: leaving the
+// module unfreezes everything, no cleanup needed.
+export const selectPovFreezeCreatedBefore = (s) =>
+  selectIsPovViewer(s) ? (s.pov.viewFreeze?.createdBefore ?? null) : null;

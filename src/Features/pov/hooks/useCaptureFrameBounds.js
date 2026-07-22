@@ -8,16 +8,13 @@ import getCaptureRectBounds from "Features/mapEditor/utils/getCaptureRectBounds"
 // Measures the displayed editor's capture host (the same
 // [data-image-capture-host] element captureMapAsPng snapshots) so UI can be
 // anchored to the frame in both the 2D and 3D editors.
+// The right panel is ignored (like everywhere in the POV flow): the frame —
+// and the save bar centered on it — must not move when the panel opens.
 export default function useCaptureFrameBounds() {
   // data
 
   const viewerMode = useSelector((s) => s.pov.viewerMode);
   const aspectRatio = useSelector((s) => s.mapEditor.imageModeAspectRatio);
-  const panelOpen = useSelector((s) =>
-    Boolean(s.rightPanel.selectedMenuItemKey)
-  );
-  const panelWidth = useSelector((s) => s.rightPanel.width);
-  const rightInset = panelOpen ? panelWidth : 0;
 
   const viewerKey = viewerMode === "THREED" ? "THREED" : "MAP";
 
@@ -64,8 +61,7 @@ export default function useCaptureFrameBounds() {
   const rect = getCaptureRectBounds(
     hostBounds.width,
     hostBounds.height,
-    aspectRatio,
-    { rightInset }
+    aspectRatio
   );
 
   return {

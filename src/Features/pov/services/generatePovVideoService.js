@@ -1,6 +1,5 @@
-import store from "App/store";
-
 import { setPovViewerMode } from "../povSlice";
+import { setSelectedItem } from "Features/selection/selectionSlice";
 
 import applyPovSceneStateService from "./applyPovSceneStateService";
 import restorePovViewService from "./restorePovViewService";
@@ -65,11 +64,6 @@ async function waitForThreedEditor(timeoutMs = 5000) {
   return null;
 }
 
-function getRightInset() {
-  const state = store.getState();
-  return state.rightPanel.selectedMenuItemKey ? state.rightPanel.width : 0;
-}
-
 // Video dimensions from the frame ratio and the requested long side, both
 // even (H.264 encodes in 2×2 chroma blocks).
 function getVideoSize({ aspectRatio, longSide }) {
@@ -81,24 +75,17 @@ function getVideoSize({ aspectRatio, longSide }) {
 }
 
 // On-screen capture frame (CSS px), measured on the 3D capture host.
-function getFrameCssRect({ aspectRatio, rightInset }) {
+function getFrameCssRect({ aspectRatio }) {
   const host = document.querySelector('[data-image-capture-host="THREED"]');
   if (!host) return null;
   const hostBounds = host.getBoundingClientRect();
-  return getCaptureRectBounds(
-    hostBounds.width,
-    hostBounds.height,
-    aspectRatio,
-    {
-      rightInset,
-    }
-  );
+  return getCaptureRectBounds(hostBounds.width, hostBounds.height, aspectRatio);
 }
 
 // Source region of the WebGL canvas matching the on-screen capture frame,
 // in canvas backing-store pixels (same offset math as
 // snapshotThreedCanvasForCapture).
-function getCropRect({ sceneManager, aspectRatio, rightInset }) {
+function getCropRect({ sceneManager, aspectRatio }) {
   const host = document.querySelector('[data-image-capture-host="THREED"]');
   const canvasEl = sceneManager?.renderer?.domElement;
   if (!host || !canvasEl) return null;
@@ -108,8 +95,7 @@ function getCropRect({ sceneManager, aspectRatio, rightInset }) {
   const rect = getCaptureRectBounds(
     hostBounds.width,
     hostBounds.height,
-    aspectRatio,
-    { rightInset }
+    aspectRatio
   );
   if (!(rect.width > 0)) return null;
 
@@ -127,13 +113,12 @@ function getCropRect({ sceneManager, aspectRatio, rightInset }) {
 // live WebGL canvas carries no `data-capture-keep`, so captureMapAsPng's
 // whitelist pass hides it and only the overlay DOM is captured — already
 // cropped to the capture frame.
-async function captureOverlay({ aspectRatio, rightInset }) {
+async function captureOverlay({ aspectRatio }) {
   const blob = await captureMapAsPng({
     viewerKey: "THREED",
     target: "blob",
     aspectRatio,
     pixelRatio: OVERLAY_PIXEL_RATIO,
-    rightInset,
   });
   if (!blob) return null;
   return { bitmap: await createImageBitmap(blob), size: blob.size };
@@ -189,7 +174,6 @@ export default async function generatePovVideoService({
 
   // One single frame ratio for the whole video (fixed output dimensions).
   const aspectRatio = povs[0].aspectRatio ?? "LANDSCAPE";
-  const rightInset = getRightInset();
   const { width, height } = getVideoSize({ aspectRatio, longSide });
 
   const holdFrames = Math.max(1, Math.round((holdMs / 1000) * fps));
@@ -222,6 +206,9 @@ export default async function generatePovVideoService({
 
     camera.fov = pose.fovDeg;
     camera.updateProjectionMatrix();
+    // Exact pose: a stale focal offset (orbit-around-cursor) would shift the
+    // camera laterally on top of setLookAt (cf. applyPoseAndAnimateFov).
+    controls.setFocalOffset(0, 0, 0, false);
     controls.setLookAt(
       pose.position.x,
       pose.position.y,
@@ -283,7 +270,7 @@ export default async function generatePovVideoService({
 
       // Export pixel ratio: enough backing-store pixels in the frame to fill
       // the output width without upscaling.
-      const cssRect = getFrameCssRect({ aspectRatio, rightInset });
+      const cssRect = getFrameCssRect({ aspectRatio });
       const exportPixelRatio = Math.min(
         MAX_EXPORT_PIXEL_RATIO,
         Math.max(1, cssRect?.width ? width / cssRect.width : 1)
@@ -292,16 +279,15 @@ export default async function generatePovVideoService({
         renderer.setPixelRatio(exportPixelRatio);
       }
 
-      const overlay = await captureOverlay({ aspectRatio, rightInset });
+      const overlay = await captureOverlay({ aspectRatio });
       if (overlay) overlays.push(overlay);
 
-      const crop = getCropRect({ sceneManager, aspectRatio, rightInset });
+      const crop = getCropRect({ sceneManager, aspectRatio });
       if (!crop) throw new Error("NO_CAPTURE_FRAME");
 
       const pose = getPov3dCameraTarget({
         camera3d: pov.camera3d,
         aspectRatio,
-        rightInset,
       });
       if (!pose) continue; // POV without a usable 3D camera
 
@@ -350,8 +336,13 @@ export default async function generatePovVideoService({
     controls.enabled = prevEnabled;
     controlsManager.setSuspended(false);
 
-    // Leave the app on a coherent view (the last POV), camera included.
+    // Leave the app on a coherent view (the last POV), camera included. It is
+    // also selected so the displayed content and its freeze stay in sync (the
+    // POV list clears the freeze when the selection changes).
     const lastPov = povs[povs.length - 1];
-    if (lastPov) await restorePovViewService({ pov: lastPov, dispatch });
+    if (lastPov) {
+      dispatch(setSelectedItem({ id: lastPov.id, type: "POV" }));
+      await restorePovViewService({ pov: lastPov, dispatch });
+    }
   }
 }

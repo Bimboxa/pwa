@@ -18,8 +18,12 @@ import LeftDrawerPanel from "Features/leftPanel/components/LeftDrawerPanel";
 import PanelMeshesViewer from "Features/threedMesh/components/PanelMeshesViewer";
 import PanelPovList from "Features/pov/components/PanelPovList";
 import ButtonSavePov from "Features/pov/components/ButtonSavePov";
+import ButtonCreatePovView from "Features/pov/components/ButtonCreatePovView";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
-import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
+import {
+  selectEffectiveViewerKey,
+  selectPovFramingActive,
+} from "Features/viewers/utils/effectiveViewerKey";
 
 import { Box } from "@mui/material";
 
@@ -36,6 +40,9 @@ export default function SectionViewer() {
   // centralized in the selector).
   const isPov = viewerKey === "POINT_OF_VIEW";
   const effectiveKey = useSelector(selectEffectiveViewerKey);
+  // The POV capture frame is armed on demand: without it, the module shows the
+  // "Créer une vue" button instead of the save bar.
+  const povFramingActive = useSelector(selectPovFramingActive);
 
   const showMap = effectiveKey === "MAP";
   // THREED and MESHES share the single MainThreedEditor instance (WebGL
@@ -135,9 +142,10 @@ export default function SectionViewer() {
         <ViewerAdmin />
       </PanelShowable>}
 
-      {/* POV: floating save button at the bottom of the displayed editor
-          (replaces the 3D bottom toolbar, hidden under POV). */}
-      {isPov && <ButtonSavePov />}
+      {/* POV: floating button at the bottom of the displayed editor (replaces
+          the 3D bottom toolbar, hidden under POV) — "Créer une vue" while
+          browsing, the save bar once the frame is armed. */}
+      {isPov && (povFramingActive ? <ButtonSavePov /> : <ButtonCreatePovView />)}
       </Box>
     </BoxCenter>
   );

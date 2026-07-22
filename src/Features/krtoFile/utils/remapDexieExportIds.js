@@ -211,12 +211,23 @@ export default function remapDexieExportIds(jsonData, opts) {
             (id) => remapId("annotationTemplates", id)
           );
         }
+        if (Array.isArray(row.visibleAnnotationTemplateIds)) {
+          row.visibleAnnotationTemplateIds =
+            row.visibleAnnotationTemplateIds.map((id) =>
+              remapId("annotationTemplates", id)
+            );
+        }
         if (row.baseMaps) {
           const b = row.baseMaps;
           if (b.mainBaseMapId)
             b.mainBaseMapId = remapId("baseMaps", b.mainBaseMapId);
           if (Array.isArray(b.visibleBaseMapIdsIn3d)) {
             b.visibleBaseMapIdsIn3d = b.visibleBaseMapIdsIn3d.map((id) =>
+              remapId("baseMaps", id)
+            );
+          }
+          if (Array.isArray(b.visibleBaseMapIds)) {
+            b.visibleBaseMapIds = b.visibleBaseMapIds.map((id) =>
               remapId("baseMaps", id)
             );
           }

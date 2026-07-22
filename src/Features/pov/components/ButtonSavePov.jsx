@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
-import { setPovAiEnhanceEnabled, setPovDraftDescription } from "../povSlice";
+import {
+  setPovAiEnhanceEnabled,
+  setPovDraftDescription,
+  setPovViewFreeze,
+} from "../povSlice";
 
 import { selectSelectedItem } from "Features/selection/selectionSlice";
 
@@ -16,7 +20,7 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import { Add, AutoAwesome, Edit, Refresh } from "@mui/icons-material";
+import { Add, AutoAwesome, Close, Edit, Refresh } from "@mui/icons-material";
 
 import PovAiEnhanceFrameOverlay from "./PovAiEnhanceFrameOverlay";
 import DialogPovEnhancePrompt from "./DialogPovEnhancePrompt";
@@ -27,11 +31,17 @@ import useUpdatePov from "../hooks/useUpdatePov";
 import usePovEnhancePrompt from "../hooks/usePovEnhancePrompt";
 import useSavePovTransformedImage from "../hooks/useSavePovTransformedImage";
 import useCaptureFrameBounds from "../hooks/useCaptureFrameBounds";
+import useExitPovFraming from "../hooks/useExitPovFraming";
 
 import captureMapAsPng from "Features/mapEditor/utils/captureMapAsPng";
 import snapshotThreedCanvasForCapture from "Features/threedEditor/utils/snapshotThreedCanvasForCapture";
 import enhanceBaseMapService from "Features/baseMaps/services/enhanceBaseMapService";
 import composeEnhancedPovImage from "../utils/composeEnhancedPovImage";
+
+// Content re-render budget after the freeze of a restored view is lifted
+// (annotations re-queried, 3D meshes rebuilt) — same order as the video
+// generator's settle delay.
+const UNFREEZE_SETTLE_MS = 900;
 
 // Save bar anchored below the capture frame, shown over both the 2D and 3D
 // editors (replaces the 3D bottom toolbar): the view name field, the
@@ -51,6 +61,7 @@ export default function ButtonSavePov() {
   const aiEnhanceTooltipS = "Amélioration IA";
   const editPromptS = "Modifier le prompt d'amélioration IA";
   const namePlaceholderS = "Nom de la vue";
+  const closeS = "Fermer le cadrage";
 
   // data
 
@@ -59,6 +70,7 @@ export default function ButtonSavePov() {
   const updatePovView = useUpdatePovView();
   const savePovTransformedImage = useSavePovTransformedImage();
   const updatePov = useUpdatePov();
+  const exitFraming = useExitPovFraming();
   const selectedItem = useSelector(selectSelectedItem);
   const draftDescription = useSelector((s) => s.pov.draftDescription);
 
@@ -77,11 +89,8 @@ export default function ButtonSavePov() {
     (s) => s.mapEditor.imageModeWhiteBackground
   );
   const roundedBorderMask = useSelector((s) => s.mapEditor.imageModeBorder);
-  const panelOpen = useSelector((s) =>
-    Boolean(s.rightPanel.selectedMenuItemKey)
-  );
-  const panelWidth = useSelector((s) => s.rightPanel.width);
-  const rightInset = panelOpen ? panelWidth : 0;
+
+  const viewIsFrozen = useSelector((s) => Boolean(s.pov.viewFreeze));
 
   const frameBounds = useCaptureFrameBounds();
 
@@ -143,6 +152,18 @@ export default function ButtonSavePov() {
     updatePov(selectedPov.id, { description: name });
   }
 
+  // "Mettre à jour la vue" regenerates the view date: the restored view must
+  // be unfrozen — and re-rendered — BEFORE any capture, otherwise the image
+  // would still show the old frozen content while the metadata says "now".
+  async function unfreezeView() {
+    if (!viewIsFrozen) return;
+    dispatch(setPovViewFreeze(null));
+    await new Promise((resolve) =>
+      requestAnimationFrame(() => requestAnimationFrame(resolve))
+    );
+    await new Promise((resolve) => setTimeout(resolve, UNFREEZE_SETTLE_MS));
+  }
+
   // The AI input is the framed view WITHOUT the decor (no border, no title,
   // no watermark/logo — background image + legend only). Captured BEFORE
   // createPov/updatePovView run their dispatches (opening the properties
@@ -157,7 +178,6 @@ export default function ButtonSavePov() {
       pixelRatio: 2,
       whiteBackground,
       excludeDecor: true,
-      rightInset,
       prepareHost: isThreed ? snapshotThreedCanvasForCapture : undefined,
     });
   }
@@ -205,7 +225,6 @@ export default function ButtonSavePov() {
         aspectRatio,
         pixelRatio: 2,
         decorOnly: true,
-        rightInset,
       });
 
       // Final image: the enhanced result kept at its native resolution (no
@@ -226,6 +245,7 @@ export default function ButtonSavePov() {
     try {
       const aiOn = aiEnhanceEnabled && aiAvailable;
       if (selectedPov) {
+        await unfreezeView();
         const aiBlob = aiOn ? await captureAiInput() : null;
         await updatePovView(selectedPov);
         if (aiBlob) startAiEnhance(selectedPov.id, aiBlob);
@@ -252,6 +272,9 @@ export default function ButtonSavePov() {
             zIndex: 30,
             display: "flex",
             alignItems: "stretch",
+            // absolute + left:50% would otherwise cap the pill at the
+            // remaining half of the host and wrap the button label
+            width: "max-content",
             bgcolor: "white",
             borderRadius: 2,
             boxShadow: 4,
@@ -346,10 +369,23 @@ export default function ButtonSavePov() {
               // the pill's overflow:hidden rounds the outer corners
               borderRadius: 0,
               px: 2.5,
+              // the label must stay on one line whatever the pill's width
+              whiteSpace: "nowrap",
+              flexShrink: 0,
             }}
           >
             {selectedPov ? updateS : createS}
           </Button>
+
+          {/* back to the module's "browse" state: no frame, no selected view,
+              PopperMapListings in SELECT mode */}
+          <Tooltip title={closeS}>
+            <Box sx={{ display: "flex", alignItems: "center", px: 0.5 }}>
+              <IconButton size="small" onClick={exitFraming}>
+                <Close fontSize="small" />
+              </IconButton>
+            </Box>
+          </Tooltip>
         </Box>
       )}
 

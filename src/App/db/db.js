@@ -145,14 +145,19 @@ db.version(25).stores({
   // {id, projectId, scopeId, sortIndex, description, createdBy:{idMaster,trigram},
   //  image:{fileName}, transformedImage:{fileName}|null, viewerMode,
   //  aspectRatio, legendOverlay, whiteBackground, border,
-  //  title:{visible,fontSize}, hiddenAnnotationTemplateIds, baseMaps,
-  //  camera2d, camera3d}
+  //  title:{visible,fontSize}, viewCreatedAt, hiddenAnnotationTemplateIds,
+  //  visibleAnnotationTemplateIds, baseMaps, camera2d, camera3d}
   // Point of view ("POV"): a saved framed view of the 2D map or 3D scene.
   // `image` references a db.files row (PNG <= 200 KB). The metadata fields
-  // (viewerMode, aspectRatio, baseMaps + active versions, hidden templates,
-  // camera2d footprint in baseMap image px / camera3d pose + frameFraction)
-  // allow reproducing the same framed view on any screen size. Ordered by
-  // fractional `sortIndex`. Soft-deleted via middleware.
+  // (viewerMode, aspectRatio, baseMaps + active versions + visibleBaseMapIds,
+  // visible/hidden templates, camera2d footprint in baseMap image px /
+  // camera3d pose + frameFraction) allow reproducing the same framed view on
+  // any screen size. Ordered by fractional `sortIndex`. Soft-deleted via
+  // middleware.
+  // The view is a FROZEN snapshot: `viewCreatedAt` (regenerated on every
+  // capture, incl. "update the view") gates the annotations at restore time
+  // (povSlice.viewFreeze) and `visibleAnnotationTemplateIds` is a whitelist —
+  // templates created after the capture are hidden too.
   povs: "id,projectId,scopeId,[projectId+scopeId]",
 });
 

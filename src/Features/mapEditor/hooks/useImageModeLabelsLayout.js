@@ -36,13 +36,15 @@ export default function useImageModeLabelsLayout({
   const inMargin = useSelector((s) => s.mapEditor.imageModeLabelsInMargin);
   const aspectRatio = useSelector((s) => s.mapEditor.imageModeAspectRatio);
 
-  // Same inset logic as ImageModeOverlay: the right panel floats over the
-  // viewport, the capture rect is centered within the visible zone.
+  // Same inset logic as ImageModeOverlay: "Export rapide" centers the capture
+  // rect within the zone left visible by the right panel; the POV viewer
+  // ignores the panel (its frame must not move with it).
+  const exportModeEnabled = useSelector((s) => s.mapEditor.imageModeEnabled);
   const panelOpen = useSelector((s) =>
     Boolean(s.rightPanel.selectedMenuItemKey)
   );
   const panelWidth = useSelector((s) => s.rightPanel.width);
-  const rightInset = panelOpen ? panelWidth : 0;
+  const rightInset = exportModeEnabled && panelOpen ? panelWidth : 0;
 
   const [labelOverridesById, setLabelOverridesById] = useState(null);
 

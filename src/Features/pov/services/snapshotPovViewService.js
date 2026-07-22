@@ -1,11 +1,10 @@
-import * as THREE from "three";
-
 import db from "App/db/db";
 import store from "App/store";
 
 import { getActiveMapEditor } from "Features/mapEditor/services/mapEditorRegistry";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 import getCaptureRectBounds from "Features/mapEditor/utils/getCaptureRectBounds";
+import getEffective3dCameraPose from "../utils/getEffective3dCameraPose";
 
 // Snapshots everything needed to reproduce the current framed view on any
 // screen size (see the povs table doc in App/db/db.js).
@@ -17,7 +16,11 @@ import getCaptureRectBounds from "Features/mapEditor/utils/getCaptureRectBounds"
 // 3D: the camera pose is stored in world coords + the frame fraction
 // (rect.height / viewport.height) so the fov can be adjusted at restore time
 // to keep the same content inside the frame.
-export default async function snapshotPovViewService({ rightInset = 0 } = {}) {
+//
+// The right panel is ignored on purpose (no rightInset anywhere in the POV
+// flow): the capture frame does not move with the panel, so snapshot and
+// restore always agree on the same rect.
+export default async function snapshotPovViewService() {
   const state = store.getState();
 
   const viewerMode = state.pov.viewerMode === "THREED" ? "THREED" : "MAP";
@@ -31,13 +34,24 @@ export default async function snapshotPovViewService({ rightInset = 0 } = {}) {
   const title = state.mapEditor.imageModeTitle;
   const projectId = state.projects.selectedProjectId;
 
-  // hidden annotation templates (persistent `hidden` flag on the records)
+  // Generation date of the view: the restored view is frozen at this instant
+  // (annotations created later are filtered out, see selectPovFreezeCreatedBefore).
+  const viewCreatedAt = new Date().toISOString();
+
+  // annotation templates visibility (persistent `hidden` flag on the records).
+  // The whitelist is what drives the restore: a template created AFTER this
+  // snapshot is absent from it, hence hidden when the view is restored.
+  // The legacy blacklist is kept for records/Krto files written before.
   const templates = await db.annotationTemplates
     .where("projectId")
     .equals(projectId)
     .toArray();
-  const hiddenAnnotationTemplateIds = templates
-    .filter((t) => !t.deletedAt && t.hidden)
+  const liveTemplates = templates.filter((t) => !t.deletedAt);
+  const hiddenAnnotationTemplateIds = liveTemplates
+    .filter((t) => t.hidden)
+    .map((t) => t.id);
+  const visibleAnnotationTemplateIds = liveTemplates
+    .filter((t) => !t.hidden)
     .map((t) => t.id);
 
   // baseMaps & active versions
@@ -62,6 +76,9 @@ export default async function snapshotPovViewService({ rightInset = 0 } = {}) {
     mainBaseMapId,
     activeVersionIdByBaseMapId,
     visibleBaseMapIdsIn3d,
+    // Explicit record of the baseMaps displayed in the view (main one + the
+    // extra ones shown in 3D).
+    visibleBaseMapIds: relevantBaseMapIds,
     hideMainBaseMapImageIn3d: state.threedEditor.hideMainBaseMapImageIn3d,
     hideMainBaseMapAnnotationsIn3d:
       state.threedEditor.hideMainBaseMapAnnotationsIn3d,
@@ -80,8 +97,7 @@ export default async function snapshotPovViewService({ rightInset = 0 } = {}) {
       const rect = getCaptureRectBounds(
         viewport.width,
         viewport.height,
-        aspectRatio,
-        { rightInset }
+        aspectRatio
       );
       const toImage = (screenX, screenY) => ({
         x: ((screenX - m.x) / m.k - basePose.x) / basePose.k,
@@ -112,24 +128,19 @@ export default async function snapshotPovViewService({ rightInset = 0 } = {}) {
       const rect = getCaptureRectBounds(
         hostBounds.width,
         hostBounds.height,
-        aspectRatio,
-        { rightInset }
+        aspectRatio
       );
-      const target = controls.getTarget(new THREE.Vector3());
+      // The stored pose is the EFFECTIVE one (target on the look axis), not
+      // controls.getTarget() — see getEffective3dCameraPose.
       camera3d = {
-        position: {
-          x: camera.position.x,
-          y: camera.position.y,
-          z: camera.position.z,
-        },
-        target: { x: target.x, y: target.y, z: target.z },
-        fovDeg: camera.getEffectiveFOV?.() ?? camera.fov,
+        ...getEffective3dCameraPose({ camera, controls }),
         frameFraction: hostBounds.height ? rect.height / hostBounds.height : 1,
       };
     }
   }
 
   return {
+    viewCreatedAt,
     viewerMode,
     aspectRatio,
     legendOverlay,
@@ -137,6 +148,7 @@ export default async function snapshotPovViewService({ rightInset = 0 } = {}) {
     border,
     title,
     hiddenAnnotationTemplateIds,
+    visibleAnnotationTemplateIds,
     baseMaps,
     camera2d,
     camera3d,

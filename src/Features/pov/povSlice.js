@@ -7,6 +7,10 @@ import {
 
 const povInitialState = {
   viewerMode: "MAP", // "MAP" | "THREED" — editor shown inside the POINT_OF_VIEW viewer
+  // The capture frame is only armed while a view is being created / updated:
+  // otherwise the POV module behaves like the regular editor (PopperMapListings
+  // visible, editing free) so the user can filter before framing.
+  framingActive: false,
   // Description typed in the "Nouveau point de vue" panel before the view
   // exists; consumed (then cleared) by the next "Créer une vue".
   draftDescription: "",
@@ -14,6 +18,11 @@ const povInitialState = {
   // image-transformation endpoint (usedByPov prompt) and shows the result in
   // a comparison dialog.
   aiEnhanceEnabled: false,
+  // Restored view freeze: {povId, createdBefore} | null. A restored POV shows
+  // its content AS OF its generation date — annotations created later are
+  // filtered out of every useAnnotationsV2 read while the POV viewer is
+  // displayed (see selectPovFreezeCreatedBefore).
+  viewFreeze: null,
   // User edits of the "Amélioration IA" prompt, {[promptId]: text}. Loaded
   // from / persisted to localStorage; an entry only exists while the user
   // has customized the org's default prompt.
@@ -27,8 +36,15 @@ export const povSlice = createSlice({
     setPovViewerMode: (state, action) => {
       state.viewerMode = action.payload;
     },
+    setPovFramingActive: (state, action) => {
+      state.framingActive = Boolean(action.payload);
+    },
     setPovDraftDescription: (state, action) => {
       state.draftDescription = action.payload ?? "";
+    },
+    // {povId, createdBefore} | null
+    setPovViewFreeze: (state, action) => {
+      state.viewFreeze = action.payload ?? null;
     },
     setPovAiEnhanceEnabled: (state, action) => {
       state.aiEnhanceEnabled = Boolean(action.payload);
@@ -50,7 +66,9 @@ export const povSlice = createSlice({
 
 export const {
   setPovViewerMode,
+  setPovFramingActive,
   setPovDraftDescription,
+  setPovViewFreeze,
   setPovAiEnhanceEnabled,
   setPovAiEnhancePrompt,
 } = povSlice.actions;

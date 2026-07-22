@@ -3206,6 +3206,41 @@ const InteractionLayer = forwardRef(({
         snappingLayerRef.current?.update(null);
       }
 
+      // --- Ctrl/Cmd+Z while drawing: remove the LAST placed point instead of
+      // running the global db undo (useUndo is suspended while a drawing tool
+      // is active). Escape still drops the whole in-progress geometry. ---
+      if (
+        isActiveViewerRef.current &&
+        (e.ctrlKey || e.metaKey) &&
+        !e.shiftKey &&
+        (e.key === "z" || e.key === "Z")
+      ) {
+        if (!enabledDrawingMode) return; // no tool → global undo handles it
+        e.preventDefault();
+        e.stopPropagation();
+        const pts = drawingPointsRef.current || [];
+        if (pts.length === 0) return; // nothing to pop, stay in the tool
+        const next = pts.slice(0, -1);
+        setDrawingPoints(next);
+        drawingPointsRef.current = next;
+        // Push fresh points to DrawingLayer so updatePreview reads them.
+        drawingLayerRef.current?.setPoints?.(next);
+        if (next.length === 0) {
+          // Back to a clean click cycle — same cleanup as the mid-drawing
+          // Escape branch, minus dropping the tool itself.
+          clearRectBuffers();
+          setCutHostId(null);
+          completeAnnotationRef.current = null;
+          completeStartPointRef.current = null;
+          drawingLayerRef.current?.clearPreview?.();
+        } else if (lastPreviewPosRef.current) {
+          requestAnimationFrame(() => {
+            drawingLayerRef.current?.updatePreview(lastPreviewPosRef.current);
+          });
+        }
+        return;
+      }
+
       // --- Copy/paste: Ctrl/Cmd+C captures the selected annotation as a
       // paste-clipboard snapshot. Only fires on the active viewer.
       if (

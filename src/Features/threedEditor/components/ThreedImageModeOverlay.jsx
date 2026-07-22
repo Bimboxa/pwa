@@ -8,7 +8,10 @@ import ImageModeOverlay from "Features/mapEditor/components/ImageModeOverlay";
 import ButtonCloseImageMode from "Features/mapEditor/components/ButtonCloseImageMode";
 import useThreedLegendItems from "../hooks/useThreedLegendItems";
 import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
-import { selectIsPovViewer } from "Features/viewers/utils/effectiveViewerKey";
+import {
+  selectIsPovViewer,
+  selectPovFramingActive,
+} from "Features/viewers/utils/effectiveViewerKey";
 
 // 3D counterpart of the 2D image-mode mount in MainMapEditorV3: capture mask +
 // draggable legend + exit button, driven by the same mapEditor.imageMode*
@@ -21,8 +24,10 @@ export default function ThreedImageModeOverlay({ annotations }) {
   // data
 
   const imageModeEnabled = useSelector((s) => s.mapEditor.imageModeEnabled);
-  // The POV viewer forces the framing on (without the exit button).
+  // The POV viewer arms the framing on demand (without the exit button — the
+  // save bar carries its own).
   const isPovViewer = useSelector(selectIsPovViewer);
+  const povFramingActive = useSelector(selectPovFramingActive);
 
   const { legendItems, qtiesById } = useThreedLegendItems(annotations);
   const spriteImage = useAnnotationSpriteImage();
@@ -33,7 +38,7 @@ export default function ThreedImageModeOverlay({ annotations }) {
 
   // render
 
-  if (!imageModeEnabled && !isPovViewer) return null;
+  if (!imageModeEnabled && !povFramingActive) return null;
 
   return (
     <Box

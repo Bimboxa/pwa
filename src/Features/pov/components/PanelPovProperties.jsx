@@ -62,11 +62,6 @@ export default function PanelPovProperties() {
   const viewerMode = useSelector((s) => s.pov.viewerMode);
   const aspectRatio = useSelector((s) => s.mapEditor.imageModeAspectRatio);
   const roundedBorderMask = useSelector((s) => s.mapEditor.imageModeBorder);
-  const panelOpen = useSelector((s) =>
-    Boolean(s.rightPanel.selectedMenuItemKey)
-  );
-  const panelWidth = useSelector((s) => s.rightPanel.width);
-  const rightInset = panelOpen ? panelWidth : 0;
 
   // state
 
@@ -117,7 +112,6 @@ export default function PanelPovProperties() {
       pixelRatio,
       whiteBackground,
       roundedBorderMask,
-      rightInset,
       prepareHost: isThreed ? snapshotThreedCanvasForCapture : undefined,
     });
   }

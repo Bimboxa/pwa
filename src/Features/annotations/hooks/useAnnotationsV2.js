@@ -377,6 +377,7 @@ import useAnnotationOpenings from "Features/annotations/hooks/useAnnotationOpeni
 import getExtrusionProfileFootprintShapes from "Features/annotations/utils/getExtrusionProfileFootprintShapes";
 import useAnnotationSubtractions from "Features/annotations/hooks/useAnnotationSubtractions";
 import useZoneSoloAnnotationIdSet from "Features/zonings/hooks/useZoneSoloAnnotationIdSet";
+import { selectPovFreezeCreatedBefore } from "Features/viewers/utils/effectiveViewerKey";
 import { getShape3DKey } from "Features/annotations/constants/shape3DConfig";
 import { resolveProfileFromDb } from "Features/annotations/hooks/useProfileResolution";
 import computeSubtractedSurfaceM2Async from "Features/threedEditor/js/utilsAnnotationsManager/computeSubtractedSurfaceM2Async";
@@ -481,6 +482,9 @@ export default function useAnnotationsV2(options) {
     // force a re-run from the React side.
 
     const dbWriteTick = useDbWriteTick();
+
+    // Restored POV: the view is frozen at its generation date (null otherwise).
+    const povFreezeCreatedBefore = useSelector(selectPovFreezeCreatedBefore);
 
     const hiddenLayerIds = useSelector((s) => s.layers?.hiddenLayerIds || []);
     const showAnnotationsWithoutLayer = useSelector(
@@ -725,6 +729,16 @@ export default function useAnnotationsV2(options) {
           if (!a.layerId) return showAnnotationsWithoutLayer;
           return !hiddenLayerIds.includes(a.layerId);
         });
+      }
+
+      // POV freeze: a restored view shows its content AS OF its generation
+      // date, so it stays faithful to the saved image — annotations created
+      // later are dropped. createdAt is an ISO string (audit hook), plain
+      // string comparison is correct; rows without one (legacy / temp) stay.
+      if (povFreezeCreatedBefore) {
+        _annotations = _annotations.filter(
+          (a) => !a.createdAt || a.createdAt <= povFreezeCreatedBefore
+        );
       }
 
       const _t2 = performance.now();
@@ -1843,6 +1857,7 @@ export default function useAnnotationsV2(options) {
       showAnnotationsWithoutLayer,
       layersUpdatedAt,
       subtractionTargetIdsBySource,
+      povFreezeCreatedBefore,
       dbWriteTick,
     ]);
 

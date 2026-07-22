@@ -2279,6 +2279,15 @@ export default function PopperMapListings() {
   const isBaseMapsViewer = viewerKey === "BASE_MAPS";
   const isZonesViewer = viewerKey === "ZONES";
   const isThreedViewer = isThreedFamilyViewerKey(viewerKey);
+  // POV module in "browse" state (capture frame off): the popper is shown over
+  // the editor POV displays. When that editor is the 3D one, the 3D-specific
+  // annotation filters must be mirrored exactly like in the 3D module —
+  // isThreedViewer stays module-key based on purpose (Dessin-3D DRAW mode).
+  const isPovViewer = viewerKey === "POINT_OF_VIEW";
+  const isPovThreed = useSelector(
+    (s) => isPovViewer && isThreedFamilyViewerKey(selectEffectiveViewerKey(s))
+  );
+  const mirrors3dFilters = isThreedViewer || isPovThreed;
   const showLayers = useSelector((s) => s.popperMapListings.showLayers);
   const interactionMode = useSelector(
     (s) => s.popperMapListings.interactionMode
@@ -2336,6 +2345,7 @@ export default function PopperMapListings() {
       viewerKey === "MAP" ||
       viewerKey === "BASE_MAPS" ||
       viewerKey === "ZONES" ||
+      isPovViewer ||
       isThreedViewer,
     filterByMainBaseMap: true,
     hideBaseMapAnnotations: true,
@@ -2345,7 +2355,7 @@ export default function PopperMapListings() {
     onlyIsForBaseMapsListings: viewerKey === "BASE_MAPS",
     ignoreSolo: true,
     keepHiddenTemplates: true,
-    ...(isThreedViewer
+    ...(mirrors3dFilters
       ? {
           extraBaseMapIds,
           filterBySelectedScope: true,
@@ -2446,10 +2456,10 @@ export default function PopperMapListings() {
   );
   const legendAnnotations = useMemo(() => {
     let arr = allAnnotationsInclHidden ?? [];
-    if (isThreedViewer && hideMainAnnotationsIn3d)
+    if (mirrors3dFilters && hideMainAnnotationsIn3d)
       arr = arr.filter((a) => a.baseMapId !== baseMap?.id);
     return arr;
-  }, [allAnnotationsInclHidden, isThreedViewer, hideMainAnnotationsIn3d, baseMap?.id]);
+  }, [allAnnotationsInclHidden, mirrors3dFilters, hideMainAnnotationsIn3d, baseMap?.id]);
   const isSelectFilter = effectiveInteractionMode === "SELECT";
   // Maillage module: COTE templates are drawing entries there (see the
   // forceDrawMode rows), so they escape the legend filter — their row must be

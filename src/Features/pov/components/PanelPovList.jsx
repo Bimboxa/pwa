@@ -1,10 +1,8 @@
+import { useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
-import {
-  setSelectedItem,
-  selectSelectedItem,
-} from "Features/selection/selectionSlice";
-import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
+import { selectSelectedItem } from "Features/selection/selectionSlice";
+import { setPovFramingActive, setPovViewFreeze } from "../povSlice";
 
 import { Box, Typography } from "@mui/material";
 
@@ -28,10 +26,13 @@ import ButtonGeneratePovVideo from "./ButtonGeneratePovVideo";
 import usePovs from "../hooks/usePovs";
 import useUpdatePov from "../hooks/useUpdatePov";
 import useRestorePov from "../hooks/useRestorePov";
+import useEnterPovFraming from "../hooks/useEnterPovFraming";
+import useExitPovFraming from "../hooks/useExitPovFraming";
 
 // POV viewer left drawer: sortable list of saved views (fractional index,
 // same dnd mechanics as the portfolio pages tree). Views are created via
-// the floating ButtonSavePov at the bottom of the viewer.
+// the floating ButtonCreatePovView / ButtonSavePov at the bottom of the
+// viewer.
 export default function PanelPovList() {
   const dispatch = useDispatch();
 
@@ -44,15 +45,37 @@ export default function PanelPovList() {
   const povs = usePovs() ?? [];
   const updatePov = useUpdatePov();
   const restorePov = useRestorePov();
+  const enterFraming = useEnterPovFraming();
+  const exitFraming = useExitPovFraming();
   const selectedItem = useSelector(selectSelectedItem);
-  const rightPanelIsOpen = useSelector((s) =>
-    Boolean(s.rightPanel.selectedMenuItemKey)
-  );
 
   // helpers
 
   const povIds = povs.map((p) => p.id);
   const selectedPovId = selectedItem?.type === "POV" ? selectedItem.id : null;
+
+  // effect - the module opens in "browse" mode: no capture frame, no selected
+  // view, PopperMapListings visible in SELECT mode so the annotations can be
+  // filtered before framing. This panel is only mounted under the POV module
+  // (SectionViewer), so mount/unmount == entering/leaving the module.
+
+  const exitFramingRef = useRef(exitFraming);
+  exitFramingRef.current = exitFraming;
+
+  useEffect(() => {
+    exitFramingRef.current();
+    return () => {
+      dispatch(setPovFramingActive(false));
+    };
+  }, [dispatch]);
+
+  // effect - deselecting a view (or selecting another item) unfreezes the
+  // content. Only `selectedPovId` is watched on purpose: the freeze must not
+  // be cleared when it is set without a selection change (video generation
+  // applies each POV's scene without touching the selection).
+  useEffect(() => {
+    if (!selectedPovId) dispatch(setPovViewFreeze(null));
+  }, [selectedPovId, dispatch]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -84,14 +107,17 @@ export default function PanelPovList() {
     await updatePov(active.id, { sortIndex: newSortIndex });
   }
 
-  async function handleItemClick(pov) {
-    dispatch(setSelectedItem({ id: pov.id, type: "POV" }));
-    // Only switch an ALREADY open right panel to the POV properties: opening
-    // it would shift the capture frame (rightInset) and change the framing of
-    // the view being restored.
-    if (rightPanelIsOpen)
-      dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
-    await restorePov(pov);
+  // Selecting only: the frame is armed on the view CURRENTLY displayed, so
+  // "Mettre à jour la vue" can refresh it with the present camera / filters.
+  function handleItemClick(pov) {
+    enterFraming(pov);
+  }
+
+  // "Appliquer la vue": same selection, plus the saved camera + filters — the
+  // camera flies there from the displayed view.
+  async function handleItemApply(pov) {
+    enterFraming(pov);
+    await restorePov(pov, { animate: true });
   }
 
   // render
@@ -138,6 +164,7 @@ export default function PanelPovList() {
                 pov={pov}
                 isSelected={pov.id === selectedPovId}
                 onClick={() => handleItemClick(pov)}
+                onApply={() => handleItemApply(pov)}
               />
             ))}
           </SortableContext>

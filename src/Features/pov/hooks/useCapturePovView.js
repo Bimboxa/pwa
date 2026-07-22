@@ -21,11 +21,6 @@ export default function useCapturePovView() {
   );
   const roundedBorderMask = useSelector((s) => s.mapEditor.imageModeBorder);
   const projectId = useSelector((s) => s.projects.selectedProjectId);
-  const panelOpen = useSelector((s) =>
-    Boolean(s.rightPanel.selectedMenuItemKey)
-  );
-  const panelWidth = useSelector((s) => s.rightPanel.width);
-  const rightInset = panelOpen ? panelWidth : 0;
 
   return async function capturePovView() {
     const isThreed = viewerMode === "THREED";
@@ -39,7 +34,6 @@ export default function useCapturePovView() {
       pixelRatio: 1,
       whiteBackground,
       roundedBorderMask,
-      rightInset,
       prepareHost: isThreed ? snapshotThreedCanvasForCapture : undefined,
     });
     if (!blob) {
@@ -61,7 +55,7 @@ export default function useCapturePovView() {
       projectId,
     });
 
-    const metadata = await snapshotPovViewService({ rightInset });
+    const metadata = await snapshotPovViewService();
 
     return { image: { fileName }, ...metadata };
   };

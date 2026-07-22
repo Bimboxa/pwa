@@ -1,7 +1,7 @@
 import db from "App/db/db";
 import store from "App/store";
 
-import { setPovViewerMode } from "../povSlice";
+import { setPovViewerMode, setPovViewFreeze } from "../povSlice";
 import {
   setImageModeAspectRatio,
   setImageModeLegendOverlay,
@@ -54,6 +54,17 @@ export default async function applyPovSceneStateService({
     dispatch(setPovViewerMode(viewerMode));
   }
 
+  // 1 bis. content freeze — dispatched first so the annotations re-query runs
+  // while the rest of the scene is applied. Views saved before viewCreatedAt
+  // existed simply keep showing the live annotations.
+  dispatch(
+    setPovViewFreeze(
+      pov.viewCreatedAt
+        ? { povId: pov.id, createdBefore: pov.viewCreatedAt }
+        : null
+    )
+  );
+
   // 2. frame + legend + background
   const aspectRatio = overrideAspectRatio ?? pov.aspectRatio;
   if (aspectRatio) dispatch(setImageModeAspectRatio(aspectRatio));
@@ -66,24 +77,30 @@ export default async function applyPovSceneStateService({
 
   // 3. annotation templates visibility — one batch write, only where the
   // hidden flag actually changes (useUpdateAnnotationTemplates pattern).
+  //
+  // `visibleAnnotationTemplateIds` is a WHITELIST: every template outside of
+  // it is hidden, which also covers templates created after the view was
+  // saved. Older records only carry the legacy blacklist.
   const projectId = pov.projectId ?? state.projects.selectedProjectId;
-  if (pov.hiddenAnnotationTemplateIds && projectId) {
-    const hiddenSet = new Set(pov.hiddenAnnotationTemplateIds);
+  const visibleIds = pov.visibleAnnotationTemplateIds;
+  const hiddenIds = pov.hiddenAnnotationTemplateIds;
+  if ((visibleIds || hiddenIds) && projectId) {
+    const visibleSet = visibleIds ? new Set(visibleIds) : null;
+    const hiddenSet = new Set(hiddenIds ?? []);
+    const isHidden = (t) =>
+      visibleSet ? !visibleSet.has(t.id) : hiddenSet.has(t.id);
+
     const templates = await db.annotationTemplates
       .where("projectId")
       .equals(projectId)
       .toArray();
     const updates = templates
       .filter((t) => !t.deletedAt)
-      .filter((t) => Boolean(t.hidden) !== hiddenSet.has(t.id))
-      .map((t) => ({ id: t.id, hidden: hiddenSet.has(t.id) }));
+      .filter((t) => Boolean(t.hidden) !== isHidden(t))
+      .map((t) => ({ key: t.id, changes: { hidden: isHidden(t) } }));
     if (updates.length > 0) {
       await db.transaction("rw", [db.annotationTemplates], async () => {
-        await Promise.all(
-          updates.map(({ id, hidden }) =>
-            db.annotationTemplates.update(id, { hidden })
-          )
-        );
+        await db.annotationTemplates.bulkUpdate(updates);
       });
       dispatch(triggerAnnotationTemplatesUpdate());
       dispatch(triggerAnnotationsUpdate());

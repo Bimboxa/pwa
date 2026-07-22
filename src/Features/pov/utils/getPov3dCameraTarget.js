@@ -8,11 +8,7 @@ import getCaptureRectBounds from "Features/mapEditor/utils/getCaptureRectBounds"
 //
 // Shared by restorePovViewService (single jump) and the video generator
 // (per-frame interpolation), so both land on the exact same framing.
-export default function getPov3dCameraTarget({
-  camera3d,
-  aspectRatio,
-  rightInset = 0,
-}) {
+export default function getPov3dCameraTarget({ camera3d, aspectRatio }) {
   if (!camera3d?.position) return null;
 
   const host = document.querySelector('[data-image-capture-host="THREED"]');
@@ -22,8 +18,7 @@ export default function getPov3dCameraTarget({
   const rect = getCaptureRectBounds(
     hostBounds.width,
     hostBounds.height,
-    aspectRatio,
-    { rightInset }
+    aspectRatio
   );
   const frameFractionNow = hostBounds.height
     ? rect.height / hostBounds.height
