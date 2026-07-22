@@ -9,11 +9,18 @@ export default function FieldNumberCompact({
   label,
   value,
   onChange,
+  // Optional: raw text of every keystroke, before parsing. Needed by callers
+  // that own the text themselves (extrude toolbar → typed value buffer),
+  // otherwise the round-trip through a parsed number would eat intermediate
+  // states like "2." on the way back through `value`.
+  onChangeText,
   unit,
   disabled = false,
 }) {
   // Local text state so the user can type freely ("2.", "2,5", "").
-  const [localValue, setLocalValue] = useState(value != null ? String(value) : "");
+  const [localValue, setLocalValue] = useState(
+    value != null ? String(value) : ""
+  );
 
   useEffect(() => {
     setLocalValue(value != null ? String(value) : "");
@@ -32,8 +39,9 @@ export default function FieldNumberCompact({
   function handleChange(e) {
     const text = e.target.value;
     setLocalValue(text);
+    onChangeText?.(text);
     const parsed = parseFloat(text.replace(",", "."));
-    if (Number.isFinite(parsed)) onChange(parsed);
+    if (Number.isFinite(parsed)) onChange?.(parsed);
   }
 
   function handleKeyDown(e) {
