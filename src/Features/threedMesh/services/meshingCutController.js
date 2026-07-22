@@ -981,13 +981,12 @@ export function createMeshingCutController({
   // holes, shell boundaries — unlike findEdgeSnap, which only knows about
   // polygon faces because the free / polyline cuts need a faceIndex.
   // A loop vertex within the radius wins over a plain edge point.
-  function findLoopSnap(e, rect, { mesh3dId = null } = {}) {
+  function findLoopSnap(e, rect) {
     const cursor = { x: e.clientX - rect.left, y: e.clientY - rect.top };
     let bestVertex = null;
     let bestEdge = null;
 
     for (const mesh3d of getAllMeshes3d()) {
-      if (mesh3dId && mesh3d.id !== mesh3dId) continue;
       for (const loop of getMesh3dLoops(mesh3d)) {
         const nPts = loop.length;
         for (let i = 0; i < nPts; i++) {
@@ -1044,18 +1043,37 @@ export function createMeshingCutController({
     else drawSquare(snap.world);
   }
 
-  // Candidate A under the cursor: the hit point on a maille, snapped to that
-  // maille's edges / vertices when one runs within the snap radius.
+  // Candidate A under the cursor: an edge / vertex of ANY existing maille
+  // within the snap radius, else the raycast hit on the hovered maille.
+  //
+  // The snap is not gated on the raycast: a corner of a maille sits on its
+  // silhouette, so the cursor is regularly a few pixels OUTSIDE the surface
+  // while the vertex is well within the radius — requiring a hit would make
+  // exactly the most useful points unreachable.
+  //
+  // Target maille = the one under the cursor when there is one (you cut what
+  // you point at, even while snapping on a neighbour's corner), else the
+  // snapped one.
   function getAngularPointA(e, pick) {
-    if (pick?.kind !== "MESH3D") return null;
-    if (!getMesh3dById(pick.mesh3dId)) return null;
-    const point = pick.intersect.point;
-    const snap = findLoopSnap(e, pick.rect, { mesh3dId: pick.mesh3dId });
-    return {
-      world: snap?.world || { x: point.x, y: point.y, z: point.z },
-      mesh3dId: pick.mesh3dId,
-      snap,
-    };
+    const rect =
+      pick?.rect ||
+      (() => {
+        const r = dom.getBoundingClientRect();
+        return r.width && r.height ? r : null;
+      })();
+    if (!rect) return null;
+
+    const snap = findLoopSnap(e, rect);
+    const mesh3dId =
+      pick?.kind === "MESH3D" ? pick.mesh3dId : snap?.mesh3dId || null;
+    if (!mesh3dId || !getMesh3dById(mesh3dId)) return null;
+
+    const hit = pick?.kind === "MESH3D" ? pick.intersect.point : null;
+    const world =
+      snap?.world || (hit ? { x: hit.x, y: hit.y, z: hit.z } : null);
+    if (!world) return null;
+
+    return { world, mesh3dId, snap };
   }
 
   // O and B: the cursor on the horizontal plane of A, or — when an edge /
