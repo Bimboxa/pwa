@@ -46,7 +46,7 @@ export default function DialogGeneratePovVideo({
   const descriptionS = `${povs.length} vues 3D seront enchaînées, dans l'ordre de la liste.`;
   const excludedS = `${excluded2dCount} vue(s) 2D ignorée(s) : seules les vues 3D peuvent être animées.`;
   const holdLabelS = "Durée par vue (s)";
-  const flightLabelS = "Durée de transition (s)";
+  const flightLabelS = "Transition (s)";
   const fpsS = "Images / s";
   const qualityS = "Qualité";
   const cancelS = "Annuler";
@@ -127,7 +127,7 @@ export default function DialogGeneratePovVideo({
     <Dialog
       open={open}
       onClose={handleClose}
-      maxWidth="xs"
+      maxWidth="sm"
       fullWidth
       disableScrollLock
     >
@@ -154,6 +154,7 @@ export default function DialogGeneratePovVideo({
               disabled={running}
               onChange={(e) => setHold(Number(e.target.value))}
               inputProps={{ min: 0.5, max: 20, step: 0.5 }}
+              sx={{ flex: 1 }}
             />
             <TextField
               size="small"
@@ -163,6 +164,7 @@ export default function DialogGeneratePovVideo({
               disabled={running}
               onChange={(e) => setFlightSec(Number(e.target.value))}
               inputProps={{ min: 0.5, max: 20, step: 0.5 }}
+              sx={{ flex: 1 }}
             />
           </Box>
 
