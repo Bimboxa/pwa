@@ -147,6 +147,11 @@ const threedEditorInitialState = {
     // Side of the maille the reference vertex is picked on. Default LEFT
     // (resp. BOTTOM for horizontal cuts), flipped with the "S" key.
     cutSide: "LEFT", // "LEFT" | "RIGHT"
+    // "Multi-mailles": the cut runs through every touching maille the plane
+    // (or the angular wedge) crosses, not only the hovered one — a horizontal
+    // trait across two vertical bands then yields four mailles. Opt-in: an
+    // infinite plane would otherwise reach mailles the user cannot even see.
+    multiCut: false,
     // "Numéroter": next number assigned to the clicked maille (then +1).
     numberingNext: 1,
     // Angular cut: digits typed on the keyboard to constrain the angle (deg),
@@ -461,6 +466,9 @@ export const threedEditorSlice = createSlice({
     setMeshingNumberingNext: (state, action) => {
       state.meshingMode.numberingNext = action.payload;
     },
+    setMeshingMultiCut: (state, action) => {
+      state.meshingMode.multiCut = !!action.payload;
+    },
     toggleMeshingCutSide: (state) => {
       state.meshingMode.cutSide =
         state.meshingMode.cutSide === "LEFT" ? "RIGHT" : "LEFT";
@@ -607,6 +615,7 @@ export const {
   setMeshingOffset,
   setMeshingNumberingNext,
   toggleMeshingCutSide,
+  setMeshingMultiCut,
   appendToMeshingAngleBuffer,
   deleteLastMeshingAngleBuffer,
   clearMeshingAngleBuffer,

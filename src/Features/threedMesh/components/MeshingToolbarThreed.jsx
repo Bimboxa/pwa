@@ -2,6 +2,7 @@ import { useDispatch, useSelector } from "react-redux";
 
 import {
   setMeshingModeActive,
+  setMeshingMultiCut,
   setMeshingNumberingNext,
   setMeshingOffset,
   setMeshingTool,
@@ -84,6 +85,7 @@ export default function MeshingToolbarThreed() {
   const numberingNext = useSelector(
     (s) => s.threedEditor.meshingMode.numberingNext
   );
+  const multiCut = useSelector((s) => s.threedEditor.meshingMode.multiCut);
   const isMeshesViewer = useSelector(selectEffectiveViewerKey) === "MESHES";
 
   // handlers
@@ -100,6 +102,10 @@ export default function MeshingToolbarThreed() {
   function handleNumberingNextChange(value) {
     const number = Math.round(value);
     if (number >= 1) dispatch(setMeshingNumberingNext(number));
+  }
+
+  function handleMultiCutToggle() {
+    dispatch(setMeshingMultiCut(!multiCut));
   }
 
   function handleNumberingToggle() {
@@ -140,6 +146,18 @@ export default function MeshingToolbarThreed() {
             </Tooltip>
           ))}
         </ToggleButtonGroup>
+
+        <Tooltip title="Découpe multi-mailles — le trait traverse aussi les mailles voisines qu'il rencontre (un trait horizontal sur 2 bandes verticales donne 4 mailles)">
+          <ToggleButton
+            value="MULTI_CUT"
+            selected={multiCut}
+            onChange={handleMultiCutToggle}
+            size="small"
+            sx={{ textTransform: "none", px: 1 }}
+          >
+            Multi-mailles
+          </ToggleButton>
+        </Tooltip>
 
         <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
 

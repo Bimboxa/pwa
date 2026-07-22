@@ -67,6 +67,7 @@ export default function useMeshingPointerHandlers() {
   const angleBuffer = useSelector(
     (s) => s.threedEditor.meshingMode.angleBuffer
   );
+  const multiCut = useSelector((s) => s.threedEditor.meshingMode.multiCut);
   const numberingNext = useSelector(
     (s) => s.threedEditor.meshingMode.numberingNext
   );
@@ -92,6 +93,10 @@ export default function useMeshingPointerHandlers() {
   useEffect(() => {
     angleBufferRef.current = angleBuffer;
   }, [angleBuffer]);
+  const multiCutRef = useRef(multiCut);
+  useEffect(() => {
+    multiCutRef.current = multiCut;
+  }, [multiCut]);
   // Set by the listeners effect: redraws the hover without a mouse move.
   const refreshHoverRef = useRef(null);
   const numberingNextRef = useRef(numberingNext);
@@ -145,6 +150,7 @@ export default function useMeshingPointerHandlers() {
       getOffset: () => offsetRef.current,
       getCutSide: () => cutSideRef.current,
       getAngleDeg: () => parseMeshingAngleBuffer(angleBufferRef.current),
+      getMultiCut: () => multiCutRef.current,
       clearAngleBuffer: () => {
         if (angleBufferRef.current !== "") dispatch(clearMeshingAngleBuffer());
       },
@@ -497,6 +503,12 @@ export default function useMeshingPointerHandlers() {
     if (!active || tool !== "CUT_ANGULAR") return;
     refreshHoverRef.current?.();
   }, [active, tool, angleBuffer]);
+
+  // Multi-maille toggle → redraw the preview with (or without) the neighbours.
+  useEffect(() => {
+    if (!active) return;
+    refreshHoverRef.current?.();
+  }, [active, multiCut]);
 }
 
 // Same guard as the other keyboard-buffer features: never swallow keystrokes
