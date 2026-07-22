@@ -13,7 +13,6 @@ import { Box, Button, Divider, Paper, Stack, Tooltip } from "@mui/material";
 import OpenWithIcon from "@mui/icons-material/OpenWith";
 import ContentCutIcon from "@mui/icons-material/ContentCut";
 
-import ButtonDrawThreed from "./ButtonDrawThreed";
 import ButtonMeshThreed from "Features/threedMesh/components/ButtonMeshThreed";
 import ButtonZoomOutThreed from "Features/threedEditor/components/ButtonZoomOutThreed";
 
@@ -22,7 +21,9 @@ import ButtonZoomOutThreed from "Features/threedEditor/components/ButtonZoomOutT
 //   - Selection present (annotation, vertex or edge) → label of the
 //     selected entity + a "Déplacer" button that switches to move mode
 //     pre-targeted on that entity.
-//   - Nothing selected → drawing tools (ButtonDrawThreed).
+//   - Nothing selected → the meshing entry point (MESHES viewer only).
+//     Face drawing has no button here: it is armed by picking a template
+//     row in PopperMapListings (see useTemplateFaceDrawBridge).
 export default function BottomToolbarThreed() {
   const dispatch = useDispatch();
 
@@ -117,10 +118,7 @@ export default function BottomToolbarThreed() {
             </Button>
           </>
         ) : (
-          <>
-            <ButtonDrawThreed />
-            {isMeshesViewer && <ButtonMeshThreed />}
-          </>
+          isMeshesViewer && <ButtonMeshThreed />
         )}
         <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
         <Tooltip title="Plan de coupe">

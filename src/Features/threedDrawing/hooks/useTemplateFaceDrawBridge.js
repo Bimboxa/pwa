@@ -42,10 +42,10 @@ export default function useTemplateFaceDrawBridge() {
     }
   }, [derivedActive, dispatch]);
 
-  // Machinery flag dropped while the request is still on (ButtonDrawThreed
-  // toggle-off, or another 3D mode's reducer takeover): clear the 2D drawing
-  // state so the derived request follows. Transition-guarded — at activation
-  // this render still sees the pre-dispatch (false) value.
+  // Machinery flag dropped while the request is still on (another 3D mode's
+  // reducer takeover): clear the 2D drawing state so the derived request
+  // follows. Transition-guarded — at activation this render still sees the
+  // pre-dispatch (false) value.
   const prevDrawingActiveRef = useRef(drawingActive);
   useEffect(() => {
     const prev = prevDrawingActiveRef.current;

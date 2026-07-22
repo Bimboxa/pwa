@@ -37,27 +37,28 @@ function dedupeAdjacent(points, eps = POINT_DEDUPE_EPS) {
 //   - cornersInOrder: ordered 3D vertices of the face (length >= 3)
 //   - baseMaps: array of resolved BaseMap instances to choose host from
 //   - projectId, listingId: ownership for the new annotation/points
-//   - templateProps: the template-armed newAnnotation (template-driven mode);
-//     null for the template-less ButtonDrawThreed entry (isPendingTemplate)
-//   - entityId / layerId: linkage for the template-driven mode
-//   - createAnnotationFn: useCreateAnnotation's fn — routes the templated
-//     commit through mapping-category rels + update triggers; falls back to
-//     the plain createAnnotationService when absent
+//   - templateProps: the template-armed newAnnotation — required, since the
+//     only entry point is the template row click in PopperMapListings
+//   - entityId / layerId: linkage carried by the created annotation
+//   - createAnnotationFn: useCreateAnnotation's fn — routes the commit
+//     through mapping-category rels + update triggers; falls back to the
+//     plain createAnnotationService when absent
 //
-// Returns the created annotation record, or null on failure (no host baseMap,
-// degenerate geometry, etc.).
+// Returns the created annotation record, or null on failure (no template, no
+// host baseMap, degenerate geometry, etc.).
 export default async function commitDrawnFaceService({
   cornersInOrder,
   baseMaps,
   projectId,
   listingId,
-  templateProps = null,
+  templateProps,
   entityId = null,
   layerId = null,
   createAnnotationFn = null,
 }) {
   if (!cornersInOrder?.length || cornersInOrder.length < 3) return null;
   if (!baseMaps?.length) return null;
+  if (!templateProps?.annotationTemplateId) return null;
 
   const host = pickHostBaseMap(cornersInOrder, baseMaps);
   if (!host) return null;
@@ -157,11 +158,7 @@ export default async function commitDrawnFaceService({
     projectId,
     listingId,
     baseMapId: host.id,
-    annotationTemplateId: templateProps?.annotationTemplateId ?? null,
-    // The pending-template flow only exists for the template-less entry
-    // (ButtonDrawThreed); it lets the record pass createAnnotationService's
-    // guard until the user assigns a template.
-    ...(templateProps ? {} : { isPendingTemplate: true }),
+    annotationTemplateId: templateProps.annotationTemplateId,
     ...(entityId ? { entityId } : {}),
     ...(layerId ? { layerId } : {}),
     points: pointRefs,

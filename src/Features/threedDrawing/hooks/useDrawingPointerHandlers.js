@@ -126,13 +126,17 @@ export default function useDrawingPointerHandlers() {
         detectedFaces = detectClosedFace(allSegments, lastIdx);
       }
 
-      if (detectedFaces.length > 0) {
+      const na = newAnnotationRef.current;
+      // The mode is only ever armed by a template row click in
+      // PopperMapListings (useTemplateFaceDrawBridge), so a missing template
+      // means the state is stale — keep drawing, but commit nothing.
+      const hasTemplate = Boolean(
+        na?.annotationTemplateId &&
+        (na?.type === "POLYGON" || na?.type === "POLYLINE")
+      );
+
+      if (detectedFaces.length > 0 && hasTemplate) {
         try {
-          const na = newAnnotationRef.current;
-          const hasTemplate = Boolean(
-            na?.annotationTemplateId &&
-              (na?.type === "POLYGON" || na?.type === "POLYLINE")
-          );
           // Several closures (e.g. a notch diagonal closing both the floor
           // triangle and the wall rectangle) all commit — one annotation
           // (and entity) per face; the user deletes the unwanted one.
@@ -143,7 +147,7 @@ export default function useDrawingPointerHandlers() {
             // free annotations are backed by a hidden system template and
             // carry no entity.
             let entityId = null;
-            if (hasTemplate && !na.isFreeAnnotation) {
+            if (!na.isFreeAnnotation) {
               const entity = await createEntity(newEntityRef.current);
               entityId = entity?.id ?? null;
             }
@@ -152,10 +156,10 @@ export default function useDrawingPointerHandlers() {
               baseMaps: baseMaps || [],
               projectId,
               listingId,
-              templateProps: hasTemplate ? na : null,
+              templateProps: na,
               entityId,
-              layerId: hasTemplate ? (activeLayerIdRef.current ?? null) : null,
-              createAnnotationFn: hasTemplate ? createAnnotation : null,
+              layerId: activeLayerIdRef.current ?? null,
+              createAnnotationFn: createAnnotation,
             });
             if (created) {
               committedAny = true;
