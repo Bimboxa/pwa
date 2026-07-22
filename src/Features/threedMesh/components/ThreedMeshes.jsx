@@ -17,6 +17,7 @@ import computePlaneBasis from "../utils/computePlaneBasis";
 import { projectLoopTo2d, liftPointTo3d } from "../utils/planeProjection";
 import formatSurfaceM2 from "../utils/formatSurfaceM2";
 import getMesh3dDisplayLabel from "../utils/getMesh3dDisplayLabel";
+import getShellCentroid from "../utils/getShellCentroid";
 import { DEFAULT_MESH3D_COLOR } from "../utils/mesh3dConstants";
 
 // Lift of the label sprite off the face plane (meters).
@@ -35,39 +36,19 @@ function disposeObject(obj) {
   });
 }
 
-// Anchor of the label sprite on a curved maille: area-weighted centroid of
-// its triangles, lifted along their area-weighted average normal.
-function getShellLabelPosition(shell) {
-  const p = shell?.positions;
-  if (!p || p.length < 9) return null;
-  const a = new Vector3();
-  const b = new Vector3();
-  const c = new Vector3();
-  const n = new Vector3();
-  const centroid = new Vector3();
-  const normal = new Vector3();
-  let area = 0;
-  for (let t = 0; t < p.length / 9; t++) {
-    a.fromArray(p, 9 * t);
-    b.fromArray(p, 9 * t + 3);
-    c.fromArray(p, 9 * t + 6);
-    n.subVectors(b, a).cross(new Vector3().subVectors(c, a));
-    const triArea = n.length() / 2;
-    if (triArea === 0) continue;
-    area += triArea;
-    centroid.addScaledVector(a.add(b).add(c).divideScalar(3), triArea);
-    normal.add(n);
-  }
-  if (area === 0) return null;
-  centroid.divideScalar(area);
-  if (normal.lengthSq() > 0) normal.normalize();
-  return centroid.addScaledVector(normal, LABEL_LIFT_M);
-}
-
 // Anchor of the label sprite: centroid of the maille's largest face, lifted
-// along that face's normal.
+// along that face's normal — or, on a curved maille, the area-weighted
+// centroid of its triangles lifted along their average normal.
 function getLabelPosition(mesh3d) {
-  if (mesh3d.shell) return getShellLabelPosition(mesh3d.shell);
+  if (mesh3d.shell) {
+    const shell = getShellCentroid(mesh3d.shell.positions);
+    if (!shell) return null;
+    return new Vector3(
+      shell.centroid.x + shell.normal.x * LABEL_LIFT_M,
+      shell.centroid.y + shell.normal.y * LABEL_LIFT_M,
+      shell.centroid.z + shell.normal.z * LABEL_LIFT_M
+    );
+  }
   let best = null;
   let bestArea = -1;
   for (const face of mesh3d.faces || []) {

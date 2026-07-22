@@ -54,7 +54,8 @@ export default function PanelMesh3dProperties() {
   // Curved mailles have no polygon to union — merge stays a planar operation.
   const hasCurvedMaille = meshes3d.some((m) => m.shell?.positions?.length);
 
-  const color = (mesh3d ? mesh3d.color : meshes3d[0]?.color) || DEFAULT_MESH3D_COLOR;
+  const color =
+    (mesh3d ? mesh3d.color : meshes3d[0]?.color) || DEFAULT_MESH3D_COLOR;
   const displayLabel = mesh3d ? getMesh3dDisplayLabel(mesh3d, prefix) : null;
   const title = mesh3d ? displayLabel : `${meshes3d.length} mailles`;
 
