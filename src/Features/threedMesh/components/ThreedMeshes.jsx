@@ -58,7 +58,7 @@ function getLabelPosition(mesh3d) {
 }
 
 // Renders persistent 3D mesh cells ("mailles") read from db.meshes3d for the
-// current project + scope: one 5 mm-extruded shell per face + a clickable
+// current project + scope: one flat surface per face + a clickable
 // label sprite (label, plus surface when selected). Face meshes and sprites
 // are published to mesh3dObjectsStore for picking (selection click in
 // MainThreedEditor, hover / cut targets in useMeshingPointerHandlers).

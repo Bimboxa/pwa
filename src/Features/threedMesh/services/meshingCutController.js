@@ -31,8 +31,8 @@ import { MESH3D_SNAP_PX } from "../utils/mesh3dConstants";
 const CUT_COLOR = 0xd32f2f;
 const LINEWIDTH = 2.5;
 const LINEWIDTH_SNAPPED = 4.5;
-// Draft geometry is drawn slightly off the face plane (the maille shell is
-// already 5 mm thick) so the red line never z-fights with the shell.
+// Draft geometry is drawn slightly off the face plane so the red line never
+// z-fights with the maille surface (which sits 1 mm off the source face).
 const DRAFT_LIFT_M = 0.012;
 const RING_SCREEN_SIZE = 0.028;
 

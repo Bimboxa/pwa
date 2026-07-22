@@ -20,7 +20,7 @@ import { dot } from "./vec3Utils.js";
 export const COALESCE_NORMAL_TOL_RAD = 1e-2;
 
 // Same-plane offset slack (meters). Faces born from the same source plane are
-// exactly coplanar in the DB (the 5 mm display shell is display-only), so
+// exactly coplanar in the DB (the 1 mm display lift is display-only), so
 // 1 mm only absorbs float noise without ever bridging distinct planes.
 export const COALESCE_PLANE_TOL_M = 1e-3;
 
