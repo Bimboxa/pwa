@@ -1,8 +1,8 @@
 const STORAGE_KEY = "mapEditorSettings";
 
-// Allowed vertex handle size multipliers (kept in sync with the
-// SelectorEditorSettings popover). The reference (×1) is the historical
-// hardcoded size.
+// Allowed vertex handle size multipliers (kept in sync with
+// SectionEditorSettings2d). The reference (×1) is the historical hardcoded
+// size.
 const ALLOWED_VERTEX_MULTIPLIERS = [1, 1.5, 2];
 const DEFAULT_VERTEX_MULTIPLIER = 1;
 

@@ -28,9 +28,9 @@ const VERTEX_SIZES = [
   { multiplier: 2, boxSize: 12 },
 ];
 
-// 2D editor settings content, shared between the bottom-toolbar popover
-// (SelectorEditorSettings) and the right-panel SETTINGS tool
-// (PanelEditorSettings). First option: vertex handle size used by
+// 2D editor settings content, rendered by the right-panel SETTINGS tool
+// (PanelEditorSettings) — the sole entry point since the bottom-toolbar
+// toggle was removed. First option: vertex handle size used by
 // NodePolylineStatic; then the deleted-annotations purge.
 export default function SectionEditorSettings2d() {
   // data
