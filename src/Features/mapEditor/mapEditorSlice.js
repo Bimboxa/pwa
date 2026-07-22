@@ -1,5 +1,22 @@
 import { createSlice } from "@reduxjs/toolkit";
 import setInitSelectedMainBaseMapId from "Features/init/services/setInitSelectedMainBaseMapId";
+import { setSelectedViewerKey } from "Features/viewers/viewersSlice";
+
+// Drops the whole drawing session: no tool armed, no in-progress smartDetect
+// state. Shared by setEnabledDrawingMode(null) and the MODULE switch (see the
+// extraReducer below). Persistent option preferences in smartDetectSlice are
+// intentionally kept.
+function resetDrawingSessionState(state) {
+  state.enabledDrawingMode = null;
+  state.showLayerScreenCursor = false;
+  state.drawingHasFirstPoint = false;
+  state.repairMode = "AUTO";
+  state.smartDetectEnabled = false;
+  state.smartDetectMode = "HOVER";
+  state.smartDetectionPresent = false;
+  state.globalDetectionRunning = false;
+  state.stripDetectionMultiple = false;
+}
 
 const mapEditorInitialState = {
   // selector
@@ -239,21 +256,17 @@ export const mapEditorSlice = createSlice({
     },
     setEnabledDrawingMode: (state, action) => {
       const drawingMode = action.payload;
-      state.enabledDrawingMode = drawingMode;
-      state.showLayerScreenCursor = Boolean(drawingMode);
-      // Reset the localized-repair override whenever a tool is (re)selected.
-      state.repairMode = "AUTO";
       // On quitting a drawing mode, reset the in-progress smartDetect session
       // state so a subsequently relaunched tool starts clean (no inherited
-      // detection mode / flags). Persistent option preferences in
-      // smartDetectSlice are intentionally kept.
+      // detection mode / flags).
       if (!drawingMode) {
-        state.smartDetectEnabled = false;
-        state.smartDetectMode = "HOVER";
-        state.smartDetectionPresent = false;
-        state.globalDetectionRunning = false;
-        state.stripDetectionMultiple = false;
+        resetDrawingSessionState(state);
+        return;
       }
+      state.enabledDrawingMode = drawingMode;
+      state.showLayerScreenCursor = true;
+      // Reset the localized-repair override whenever a tool is (re)selected.
+      state.repairMode = "AUTO";
     },
     setDrawingHasFirstPoint: (state, action) => {
       state.drawingHasFirstPoint = action.payload;
@@ -692,6 +705,18 @@ export const mapEditorSlice = createSlice({
     flipPasteClipboardX: (state) => {
       state.pasteTransform.flipX = !state.pasteTransform.flipX;
     },
+  },
+  extraReducers: (builder) => {
+    // A MODULE switch stops the drawing in progress. enabledDrawingMode is
+    // global, so an armed tool would otherwise be inherited by the editor the
+    // target module mounts (BASE_MAPS mounts its own MainMapEditorV3): that
+    // fresh instance would run the smartDetect ROI update from its mount-time
+    // camera reset while its baseMap is still loading. Resetting here (and not
+    // in useSwitchViewer) guarantees the flag is already null in the render
+    // that mounts the new editor, and covers every setSelectedViewerKey
+    // dispatcher. Keyed on the MODULE switch only — the 2D↔3D editor toggle
+    // (T) goes through setModuleEditorKey and keeps the armed tool.
+    builder.addCase(setSelectedViewerKey, resetDrawingSessionState);
   },
 });
 

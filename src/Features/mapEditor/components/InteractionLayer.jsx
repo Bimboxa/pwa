@@ -1847,11 +1847,18 @@ const InteractionLayer = forwardRef(({
 
     const localPos = toLocalCoords(worldPos);
 
+    // Same fallback as every other reader of these values: a camera change can
+    // reach here while the baseMap is still loading (fresh editor instance),
+    // and they are then undefined. Offset via its ref — it is a new object on
+    // every render, so it can't be a dependency of this callback.
+    const imageOffset = baseMapImageOffsetRef.current || { x: 0, y: 0 };
+    const imageScale = baseMapImageScale || 1;
+
     const sourceROI = {
-      x: (localPos.x - sourceWidthInImage / 2 - baseMapImageOffset.x) / baseMapImageScale,
-      y: (localPos.y - sourceHeightInImage / 2 - baseMapImageOffset.y) / baseMapImageScale,
-      width: sourceWidthInImage / baseMapImageScale,
-      height: sourceHeightInImage / baseMapImageScale
+      x: (localPos.x - sourceWidthInImage / 2 - imageOffset.x) / imageScale,
+      y: (localPos.y - sourceHeightInImage / 2 - imageOffset.y) / imageScale,
+      width: sourceWidthInImage / imageScale,
+      height: sourceHeightInImage / imageScale
     };
 
     // B. VISUEL : Positionner la loupe avec les coordonnées LOCALES (viewportPos)
@@ -2916,6 +2923,23 @@ const InteractionLayer = forwardRef(({
     ].includes(enabledDrawingMode);
     setRectHasFirstPoint(isRect && drawingPoints.length === 1);
   }, [enabledDrawingMode, drawingPoints.length, setRectHasFirstPoint]);
+
+  // Leaving a drawing tool drops the in-progress geometry. The tool itself is
+  // dropped in redux (Escape handler, or the MODULE switch extraReducer in
+  // mapEditorSlice), but the points live in this component's local state — so
+  // without this the next tool would inherit a half-drawn polyline and its
+  // preview would stay painted. Selection is deliberately untouched (only the
+  // Escape handler clears it).
+  useEffect(() => {
+    if (enabledDrawingMode) return;
+    if (!drawingPointsRef.current?.length && !brushPath.length) return;
+    setDrawingPoints([]);
+    drawingPointsRef.current = [];
+    drawingLayerRef.current?.setPoints?.([]);
+    drawingLayerRef.current?.clearPreview?.();
+    setBrushPath([]);
+    setCutHostId(null);
+  }, [enabledDrawingMode]);
 
   const saveTempAnnotations = useSaveTempAnnotations();
 
