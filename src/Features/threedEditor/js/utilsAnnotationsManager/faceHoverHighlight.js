@@ -2,13 +2,19 @@
 //
 // Instead of recoloring the whole annotation on hover, we highlight only the
 // "face" under the cursor: the raycast-hit triangle plus every adjacent
-// coplanar triangle (region-grow across shared edges while the geometric
-// normal stays parallel within a small angular tolerance). The face is drawn
-// by a transient overlay Mesh (child of the hit mesh) whose material renders
-// a screen-space pattern of small blue dots over the original material.
+// triangle reachable across shared edges whose DIHEDRAL angle stays below the
+// current threshold. The face is drawn by a transient overlay Mesh (child of
+// the hit mesh) whose material renders a screen-space pattern of small blue
+// dots over the original material.
+//
+// The angle is checked between ADJACENT triangles (not against the seed), so a
+// tessellated curved surface — a revolution lathe, a profile swept along a
+// curve — is picked up as ONE coherent face while a real crease (a wall
+// meeting a slab) still stops the grow. The threshold is the "Sélection de
+// face" 3D view setting (threedEditor.faceSelectionAngleDeg).
 //
 // Lifecycle mirrors subSelectionHelpers: the caller builds/disposes the
-// overlay when the hover key `(mesh.uuid, regionId)` changes.
+// overlay when the hover key `(mesh.uuid, angleDeg, regionId)` changes.
 
 import {
   BufferAttribute,
@@ -19,8 +25,11 @@ import {
   Vector3,
 } from "three";
 
-// Region-grow angular tolerance: neighbors join while
-// dot(seedNormal, neighborNormal) >= cos(TOLERANCE_RAD).
+// Fallback dihedral tolerance (degrees) when the caller passes none.
+export const DEFAULT_FACE_ANGLE_DEG = 25;
+
+// Plane mode ({plane: true}) normal tolerance: triangles join while
+// dot(seedNormal, triNormal) >= cos(TOLERANCE_RAD).
 const TOLERANCE_RAD = 1e-2;
 
 // Above this triangle count we skip the adjacency build entirely (revolution
@@ -40,14 +49,15 @@ const PLANE_DIST_TOL = 1e-4;
 // Adjacency cache
 // ---------------------------------------------------------------------------
 
-// geometry → { edgeToTris, triNormals, regionOfTri }. WeakMap so entries are
-// dropped when AnnotationsManager disposes/rebuilds geometries.
+// geometry → { edgeToTris, triNormals, triCount, regionsByAngle,
+// planeRegionOfTri }. WeakMap so entries are dropped when AnnotationsManager
+// disposes/rebuilds geometries.
 const adjacencyCache = new WeakMap();
 
 function buildAdjacency(geometry) {
   const position = geometry.getAttribute("position");
   const index = geometry.getIndex();
-  const triCount = (index ? index.count : position.count) / 3;
+  const triCount = Math.floor((index ? index.count : position.count) / 3);
 
   const vertIndex = index
     ? (t, c) => index.getX(3 * t + c)
@@ -110,54 +120,117 @@ function buildAdjacency(geometry) {
   return {
     edgeToTris,
     triNormals,
-    regionOfTri: new Int32Array(triCount).fill(-1),
-    // Separate stamp array for plane-mode regions so BFS stamps never
-    // short-circuit plane mode and vice versa.
+    triCount,
+    // Dihedral partitions, keyed by angle threshold (degrees). Built lazily by
+    // getAngleRegions, capped by MAX_CACHED_ANGLES.
+    regionsByAngle: new Map(),
+    // Separate stamp array for plane-mode regions, which is NOT a partition
+    // (seed-relative) and therefore keeps its own lazy stamping.
     planeRegionOfTri: new Int32Array(triCount).fill(-1),
-    // Edge keys per triangle are recomputed during BFS via triEdgeKeys below,
-    // so we also keep the welded corner ids to avoid re-hashing positions.
-    cornerIds: buildCornerIds(triCount, vertIndex, weldedId),
   };
 }
 
-function buildCornerIds(triCount, vertIndex, weldedId) {
-  const cornerIds = new Int32Array(3 * triCount);
+// ---------------------------------------------------------------------------
+// Dihedral-angle region partition
+// ---------------------------------------------------------------------------
+
+// The join predicate is carried by the EDGE (two triangles sharing an edge
+// join when the angle between their normals is below the threshold), so
+// "belongs to the same face" is a true equivalence relation: one union-find
+// pass partitions the whole geometry exactly, and every later hover is a
+// lookup. Regions are cached per angle; a couple of thresholds is all a
+// slider drag needs to keep hot.
+const MAX_CACHED_ANGLES = 3;
+
+function getAngleRegions(cache, angleDeg) {
+  const key = Math.round(angleDeg * 10) / 10;
+  const cached = cache.regionsByAngle.get(key);
+  if (cached) return cached;
+
+  const { triCount, triNormals, edgeToTris } = cache;
+  const cosTol = Math.cos((Math.max(0, key) * Math.PI) / 180);
+
+  const parent = new Int32Array(triCount);
+  for (let t = 0; t < triCount; t++) parent[t] = t;
+  const find = (t) => {
+    let root = t;
+    while (parent[root] !== root) {
+      parent[root] = parent[parent[root]]; // path halving
+      root = parent[root];
+    }
+    return root;
+  };
+  // Always keep the SMALLER index as the root, so a region's id ends up being
+  // its min triangle index (stable key for the hover overlay).
+  const union = (a, b) => {
+    const ra = find(a);
+    const rb = find(b);
+    if (ra === rb) return;
+    if (ra < rb) parent[rb] = ra;
+    else parent[ra] = rb;
+  };
+
+  // Signed dot (no abs) so coincident opposite-facing triangles (e.g.
+  // CSG-subtracted geometry) never merge. Degenerate triangles keep a zero
+  // normal → dot 0 → never join.
+  for (const tris of edgeToTris.values()) {
+    if (tris.length < 2) continue;
+    for (let i = 0; i < tris.length; i++) {
+      const a = tris[i];
+      for (let j = i + 1; j < tris.length; j++) {
+        const b = tris[j];
+        const dot =
+          triNormals[3 * a] * triNormals[3 * b] +
+          triNormals[3 * a + 1] * triNormals[3 * b + 1] +
+          triNormals[3 * a + 2] * triNormals[3 * b + 2];
+        if (dot >= cosTol) union(a, b);
+      }
+    }
+  }
+
+  const regionOfTri = new Int32Array(triCount);
+  const trisByRegion = new Map();
   for (let t = 0; t < triCount; t++) {
-    cornerIds[3 * t] = weldedId(vertIndex(t, 0));
-    cornerIds[3 * t + 1] = weldedId(vertIndex(t, 1));
-    cornerIds[3 * t + 2] = weldedId(vertIndex(t, 2));
+    const root = find(t);
+    regionOfTri[t] = root;
+    let tris = trisByRegion.get(root);
+    if (!tris) {
+      tris = [];
+      trisByRegion.set(root, tris);
+    }
+    tris.push(t);
   }
-  return cornerIds;
+
+  const regions = { regionOfTri, trisByRegion };
+  if (cache.regionsByAngle.size >= MAX_CACHED_ANGLES) {
+    cache.regionsByAngle.delete(cache.regionsByAngle.keys().next().value);
+  }
+  cache.regionsByAngle.set(key, regions);
+  return regions;
 }
 
-function triEdgeKeys(cornerIds, t) {
-  const keys = [];
-  for (let e = 0; e < 3; e++) {
-    const i0 = cornerIds[3 * t + e];
-    const i1 = cornerIds[3 * t + ((e + 1) % 3)];
-    keys.push(i0 < i1 ? `${i0}_${i1}` : `${i1}_${i0}`);
-  }
-  return keys;
-}
-
-// ---------------------------------------------------------------------------
-// Coplanar region grow
-// ---------------------------------------------------------------------------
-
-// Returns { regionId, tris } — the hit triangle plus all adjacent coplanar
-// triangles — or null when the geometry/faceIndex is unusable. `regionId` is
-// stable for a given face (min tri index of the region) so callers can key
-// the overlay on `${mesh.uuid}:${regionId}` and skip rebuilds while the
-// cursor stays on the same face.
+// Returns { regionId, tris } — the hit triangle plus every triangle of its
+// face — or null when the geometry/faceIndex is unusable. `regionId` is stable
+// for a given face (min tri index of the region) so callers can key the
+// overlay on `${mesh.uuid}:${angleDeg}:${regionId}` and skip rebuilds while
+// the cursor stays on the same face.
 //
-// `plane: true` skips the edge-adjacency walk and selects EVERY triangle
+// `angleDeg` is the max dihedral angle joining two adjacent triangles: 0 keeps
+// strictly coplanar facets together, 25 (the default setting) follows a
+// revolution / swept surface across its facets without crossing a real crease.
+//
+// `plane: true` skips the adjacency walk entirely and selects EVERY triangle
 // lying on the seed triangle's plane (signed normal within TOLERANCE_RAD, all
 // three vertices within PLANE_DIST_TOL of the plane). CSG-carved geometries
 // (userData.hasSubtraction) need this: boolean cuts leave T-junctions the
 // vertex weld cannot bridge, so edge-adjacency fragments a coplanar surface
 // into disconnected components. Callers must use the same mode for hover and
 // creation so what is highlighted is what gets created.
-export function getCoplanarRegion(geometry, faceIndex, { plane = false } = {}) {
+export function getFaceRegion(
+  geometry,
+  faceIndex,
+  { plane = false, angleDeg = DEFAULT_FACE_ANGLE_DEG } = {}
+) {
   if (!geometry?.isBufferGeometry) return null;
   const position = geometry.getAttribute("position");
   if (!position) return null;
@@ -177,55 +250,9 @@ export function getCoplanarRegion(geometry, faceIndex, { plane = false } = {}) {
 
   if (plane) return getPlaneRegion(geometry, faceIndex, cache);
 
-  const { edgeToTris, triNormals, regionOfTri, cornerIds } = cache;
-
-  // Fast path: this face was already grown from a previous hover.
-  const stamped = regionOfTri[faceIndex];
-  if (stamped >= 0) {
-    const tris = [];
-    for (let t = 0; t < regionOfTri.length; t++) {
-      if (regionOfTri[t] === stamped) tris.push(t);
-    }
-    return { regionId: stamped, tris };
-  }
-
-  const seedNx = triNormals[3 * faceIndex];
-  const seedNy = triNormals[3 * faceIndex + 1];
-  const seedNz = triNormals[3 * faceIndex + 2];
-  const cosTol = Math.cos(TOLERANCE_RAD);
-
-  // BFS across shared edges. Signed dot (no abs) so coincident opposite-facing
-  // triangles (e.g. CSG-subtracted geometry) never merge. Always compared
-  // against the SEED normal — prevents drift-merging around curved surfaces
-  // (revolution facets highlight one facet, which is the SketchUp behavior).
-  const visited = new Set([faceIndex]);
-  const region = [faceIndex];
-  const stack = [faceIndex];
-  while (stack.length) {
-    const t = stack.pop();
-    for (const key of triEdgeKeys(cornerIds, t)) {
-      const neighbors = edgeToTris.get(key);
-      if (!neighbors) continue;
-      for (const n of neighbors) {
-        if (visited.has(n)) continue;
-        visited.add(n);
-        const dot =
-          seedNx * triNormals[3 * n] +
-          seedNy * triNormals[3 * n + 1] +
-          seedNz * triNormals[3 * n + 2];
-        if (dot < cosTol) continue;
-        region.push(n);
-        stack.push(n);
-      }
-    }
-  }
-
-  const regionId = Math.min(...region);
-  // Stamping seed-grown regions is a deliberate approximation (seed-relative
-  // growth isn't a strict equivalence relation) — good enough for hover.
-  for (const t of region) regionOfTri[t] = regionId;
-
-  return { regionId, tris: region };
+  const { regionOfTri, trisByRegion } = getAngleRegions(cache, angleDeg);
+  const regionId = regionOfTri[faceIndex];
+  return { regionId, tris: trisByRegion.get(regionId) || [faceIndex] };
 }
 
 // Plane mode: O(triCount) sweep over the cached triangle normals, no

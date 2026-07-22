@@ -5,7 +5,7 @@ import extractRegionBoundaryLoops from "./extractRegionBoundaryLoops.js";
 import splitTrisIntoComponents from "./splitTrisIntoComponents.js";
 
 // three.js adapter over the pure boundary extraction: converts the coplanar
-// region of a hit mesh (tris from faceHoverHighlight.getCoplanarRegion) into
+// region of a hit mesh (tris from faceHoverHighlight.getFaceRegion) into
 // maille faces [{contour, holes, normal}] in WORLD coordinates.
 //
 // The region may hold several edge-connected components (plane-mode regions on

@@ -4,7 +4,7 @@ import { signedArea2d } from "./computeFaceArea.js";
 import { cross, length, normalize, sub } from "./vec3Utils.js";
 
 // Boundary extraction for a coplanar triangle region (the output of
-// faceHoverHighlight.getCoplanarRegion): turns a triangle soup into ordered
+// faceHoverHighlight.getFaceRegion): turns a triangle soup into ordered
 // boundary loops, classified as one outer contour + inner holes.
 //
 // Pure (no three.js): operates on plain position arrays in mesh-LOCAL
@@ -64,7 +64,7 @@ export default function extractRegionBoundaryLoops({ positions, index, tris }) {
   // first occurrence (triangle winding) so loops come out consistently
   // oriented (CCW around the region normal for the outer contour, CW for
   // holes, assuming consistent winding — which coplanar regions have, since
-  // getCoplanarRegion joins on the SIGNED normal).
+  // getFaceRegion joins on the SIGNED normal).
   let normal = null;
   const edgeUse = new Map(); // undirectedKey -> {count, a, b}
   for (const t of tris) {

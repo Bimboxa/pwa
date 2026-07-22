@@ -17,7 +17,7 @@ import {
   toggleItemSelection,
 } from "Features/selection/selectionSlice";
 import {
-  getCoplanarRegion,
+  getFaceRegion,
   buildFaceHoverOverlay,
   disposeFaceHoverOverlay,
 } from "Features/threedEditor/js/utilsAnnotationsManager/faceHoverHighlight";
@@ -59,6 +59,9 @@ export default function useMeshingPointerHandlers() {
   const numberingNext = useSelector(
     (s) => s.threedEditor.meshingMode.numberingNext
   );
+  const faceSelectionAngleDeg = useSelector(
+    (s) => s.threedEditor.faceSelectionAngleDeg
+  );
   const isMeshesViewer = useSelector(selectEffectiveViewerKey) === "MESHES";
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const scopeId = useSelector((s) => s.scopes.selectedScopeId);
@@ -78,6 +81,10 @@ export default function useMeshingPointerHandlers() {
   useEffect(() => {
     numberingNextRef.current = numberingNext;
   }, [numberingNext]);
+  const faceSelectionAngleDegRef = useRef(faceSelectionAngleDeg);
+  useEffect(() => {
+    faceSelectionAngleDegRef.current = faceSelectionAngleDeg;
+  }, [faceSelectionAngleDeg]);
   const isMeshesViewerRef = useRef(isMeshesViewer);
   useEffect(() => {
     isMeshesViewerRef.current = isMeshesViewer;
@@ -193,18 +200,22 @@ export default function useMeshingPointerHandlers() {
       return { kind: null, rect };
     }
 
-    // Stipple the coplanar face under the cursor (same overlay as the
-    // selection-mode annotation hover). Works on annotation meshes AND maille
-    // face meshes — a hovered maille gets the same highlight, including while
-    // a cut tool is active.
+    // Stipple the face under the cursor (same overlay as the selection-mode
+    // annotation hover). Works on annotation meshes AND maille face meshes —
+    // a hovered maille gets the same highlight, including while a cut tool is
+    // active.
     function applyStipple(object, faceIndex) {
       // Plane mode on CSG-carved meshes: highlight the whole coplanar surface
       // (T-junctions break the edge-adjacency walk). Must match the region
       // used by handleSelectClick.
-      const region = getCoplanarRegion(object.geometry, faceIndex, {
+      const angleDeg = faceSelectionAngleDegRef.current;
+      const region = getFaceRegion(object.geometry, faceIndex, {
         plane: !!object.userData?.hasSubtraction,
+        angleDeg,
       });
-      const key = region ? `${object.uuid}:${region.regionId}` : null;
+      const key = region
+        ? `${object.uuid}:${angleDeg}:${region.regionId}`
+        : null;
       if (key !== hover.key) {
         disposeFaceHoverOverlay(hover.overlay);
         hover.overlay = null;
@@ -292,10 +303,13 @@ export default function useMeshingPointerHandlers() {
       if (pick?.kind === "ANNOTATION") {
         // Same mode as applyStipple: the created maille covers exactly the
         // highlighted region.
-        const region = getCoplanarRegion(
+        const region = getFaceRegion(
           pick.hitObject.geometry,
           pick.intersect.faceIndex,
-          { plane: !!pick.hitObject.userData?.hasSubtraction }
+          {
+            plane: !!pick.hitObject.userData?.hasSubtraction,
+            angleDeg: faceSelectionAngleDegRef.current,
+          }
         );
         const faces = region
           ? buildFacesFromRegion(pick.hitObject, region.tris)
