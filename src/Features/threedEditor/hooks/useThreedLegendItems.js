@@ -114,13 +114,18 @@ export default function useThreedLegendItems(annotations) {
         // useLegendItemsByBaseMapId): visual props from the first-occurrence
         // annotation, colors falling back to the template (annotations created
         // from a template inherit colors at render time, not on the stored row).
+        // This is the 3D-scoped legend, so color3D (if set) wins over the 2D
+        // color for both fill and stroke — same precedence as makeMaterial.
+        const color3D = annotation.color3D ?? template.color3D;
         itemsByListingId[listingId].push({
           id: templateId,
           type: annotation.type,
           iconKey: annotation.iconKey,
-          fillColor: toDisplayColor(annotation.fillColor ?? template.fillColor),
+          fillColor: toDisplayColor(
+            color3D ?? annotation.fillColor ?? template.fillColor
+          ),
           strokeColor: toDisplayColor(
-            annotation.strokeColor ?? template.strokeColor
+            color3D ?? annotation.strokeColor ?? template.strokeColor
           ),
           fillType: annotation.fillType,
           strokeType: annotation.strokeType,

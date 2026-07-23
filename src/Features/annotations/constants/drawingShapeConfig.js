@@ -90,6 +90,8 @@ const DRAWING_SHAPE_CONFIG = {
       "strokeType",
       "strokeOffset",
       "height",
+      "color3D",
+      "opacity3D",
       "material3d",
     ],
     defaults: {
@@ -120,6 +122,8 @@ const DRAWING_SHAPE_CONFIG = {
       "fillType",
       "hideSlope",
       "height",
+      "color3D",
+      "opacity3D",
       "material3d",
     ],
     defaults: {

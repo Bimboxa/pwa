@@ -13,6 +13,7 @@ import FieldIcon from "Features/form/components/FieldIcon";
 import FieldAnnotationTemplateFill from "./FieldAnnotationTemplateFill";
 import FieldAnnotationTemplatePoint from "./FieldAnnotationTemplatePoint";
 import FieldAnnotationTemplateStroke from "./FieldAnnotationTemplateStroke";
+import FieldAnnotationTemplateRender3d from "./FieldAnnotationTemplateRender3d";
 import FieldAnnotationTemplateDrawingShape from "./FieldAnnotationTemplateDrawingShape";
 import DRAWING_SHAPES from "Features/annotations/constants/drawingShapes.jsx";
 import FieldOptionKeyFromIconsVariantToolbar from "Features/form/components/FieldOptionKeyFromIconsVariantToolbar";
@@ -31,10 +32,7 @@ import {
   getDefaultsForShape,
   resolveDrawingShape,
 } from "Features/annotations/constants/drawingShapeConfig";
-import {
-  MATERIAL3D_NONE_KEY,
-  MATERIAL3D_OPTIONS,
-} from "Features/photorealRender/utils/material3dPresets";
+import { MATERIAL3D_NONE_KEY } from "Features/photorealRender/utils/material3dPresets";
 import { getDrawingToolsByShape } from "Features/mapEditor/constants/drawingTools.jsx";
 
 export default function FormAnnotationTemplateVariantBlock({
@@ -74,6 +72,8 @@ export default function FormAnnotationTemplateVariantBlock({
     image,
     object3D,
     material3d,
+    color3D,
+    opacity3D,
     meterByPx,
     variant,
     size,
@@ -133,6 +133,17 @@ export default function FormAnnotationTemplateVariantBlock({
   const hasCoteProps = configurableProps.includes("unit");
   const hasHideSlope = configurableProps.includes("hideSlope");
   const hasMaterial3d = configurableProps.includes("material3d");
+  const hasRender3d =
+    configurableProps.includes("color3D") ||
+    configurableProps.includes("opacity3D") ||
+    hasMaterial3d;
+
+  // Fallback 2D color/opacity shown as the inherited placeholder in the
+  // "Rendu 3D" section (fill-driven for POLYGON, stroke-driven for POLYLINE).
+  const render3dFallbackColor = hasFill
+    ? fillColor || strokeColor || "#cccccc"
+    : strokeColor || fillColor || "#cccccc";
+  const render3dFallbackOpacity = hasFill ? fillOpacity : strokeOpacity;
 
   const coteUnitOptions = [
     { key: "MM", label: "Millimètres (mm)" },
@@ -294,6 +305,14 @@ export default function FormAnnotationTemplateVariantBlock({
       ...annotationTemplate,
       material3d: key === MATERIAL3D_NONE_KEY ? null : key,
     });
+  }
+
+  function handleColor3DChange(color3D) {
+    onChange({ ...annotationTemplate, color3D });
+  }
+
+  function handleOpacity3DChange(opacity3D) {
+    onChange({ ...annotationTemplate, opacity3D });
   }
 
   function handleToggleOverride(field) {
@@ -462,14 +481,18 @@ export default function FormAnnotationTemplateVariantBlock({
         />
       )}
 
-      {/* 3D material preset, used by the "Photoréaliste" render mode */}
-      {hasMaterial3d && (
-        <FieldOptionKey
-          label="Matériau 3D (rendu photoréaliste)"
-          value={material3d ?? MATERIAL3D_NONE_KEY}
-          onChange={handleMaterial3dChange}
-          valueOptions={MATERIAL3D_OPTIONS}
-          options={{ showAsSection: true }}
+      {/* 3D-only color / opacity overrides + material preset */}
+      {hasRender3d && (
+        <FieldAnnotationTemplateRender3d
+          color3D={color3D}
+          opacity3D={opacity3D}
+          material3d={material3d}
+          fallbackColor={render3dFallbackColor}
+          fallbackOpacity={render3dFallbackOpacity}
+          hasMaterial3d={hasMaterial3d}
+          onColor3DChange={handleColor3DChange}
+          onOpacity3DChange={handleOpacity3DChange}
+          onMaterial3dChange={handleMaterial3dChange}
         />
       )}
 

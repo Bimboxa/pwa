@@ -12,7 +12,7 @@ export default function getAnnotationPropsFromAnnotationTemplateProps(annotation
 
     // 2. On parcourt toutes les clés des props du template
     Object.keys(annotationTemplateProps).forEach((key) => {
-        if (key === "overrideFields" || key === "hidden" || key === "hideSlope" || key === "material3d") return;
+        if (key === "overrideFields" || key === "hidden" || key === "hideSlope" || key === "material3d" || key === "color3D" || key === "opacity3D") return;
 
         // Only override fields explicitly listed in overrideFields
         if (!Array.isArray(overrideFields) || !overrideFields.includes(key)) {
@@ -100,6 +100,16 @@ export default function getAnnotationPropsFromAnnotationTemplateProps(annotation
     // not gated by overrideFields).
     if (annotationTemplateProps.material3d !== null && annotationTemplateProps.material3d !== undefined) {
         result.material3d = annotationTemplateProps.material3d;
+    }
+
+    // color3D / opacity3D are 3D-only rendering overrides, always applied like
+    // material3d (not per-annotation style overrides, so not gated by
+    // overrideFields). Unset (null/undefined) => 3D falls back to the 2D color.
+    if (annotationTemplateProps.color3D !== null && annotationTemplateProps.color3D !== undefined) {
+        result.color3D = annotationTemplateProps.color3D;
+    }
+    if (annotationTemplateProps.opacity3D !== null && annotationTemplateProps.opacity3D !== undefined) {
+        result.opacity3D = annotationTemplateProps.opacity3D;
     }
 
     // isExt (exterior-side guide flag) is handled by the generic overrideFields

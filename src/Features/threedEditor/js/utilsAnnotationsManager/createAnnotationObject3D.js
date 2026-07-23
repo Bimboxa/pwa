@@ -149,19 +149,27 @@ export function makeMaterial(annotation, options) {
   // and render fully opaque.
   const isStrokeDriven =
     annotation.type === "POLYLINE" || annotation.type === "STRIP";
-  const rawColor = normalizeHex(
-    isStrokeDriven
-      ? annotation.strokeColor || annotation.fillColor || "#cccccc"
-      : annotation.fillColor || annotation.strokeColor || "#cccccc"
-  );
+  // color3D / opacity3D are 3D-only overrides carried by the template: they let
+  // an annotation be drawn one way in 2D (e.g. bright translucent, easy to spot
+  // on the plan) and rendered another way in 3D (e.g. solid grey). When unset we
+  // fall back to the 2D color/opacity resolved above — no behavior change.
+  const resolvedColor = annotation.color3D
+    ? normalizeHex(annotation.color3D)
+    : normalizeHex(
+        isStrokeDriven
+          ? annotation.strokeColor || annotation.fillColor || "#cccccc"
+          : annotation.fillColor || annotation.strokeColor || "#cccccc"
+      );
   // adjacent mesh cells get a slightly different shade of the parent's color so
   // they're distinguishable in 3D (keyed by label → same label → same color).
   const color = annotation.isMeshCell
-    ? shadeMeshCellColor(rawColor, annotation.label)
-    : rawColor;
-  const rawOpacity = isStrokeDriven
-    ? (annotation.strokeOpacity ?? 1)
-    : (annotation.fillOpacity ?? 1);
+    ? shadeMeshCellColor(resolvedColor, annotation.label)
+    : resolvedColor;
+  const rawOpacity =
+    annotation.opacity3D ??
+    (isStrokeDriven
+      ? (annotation.strokeOpacity ?? 1)
+      : (annotation.fillOpacity ?? 1));
   const opacity = options?.disableOpacity ? 1 : rawOpacity;
   const baseColor = new Color(color);
   // AQUARELLE: flat toon washes (desaturated color + 3-step gradient), no

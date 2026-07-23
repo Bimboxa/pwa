@@ -1,25 +1,43 @@
 import { useMemo } from "react";
+import { useSelector } from "react-redux";
 
 import { Box } from "@mui/material";
 
 import { resolveShapeCategory } from "Features/annotations/constants/drawingShapes.jsx";
 import { resolveDrawingShape } from "Features/annotations/constants/drawingShapeConfig";
+import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
+import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 import useObject3DTopView from "Features/object3D/hooks/useObject3DTopView";
 
-export default function AnnotationTemplateIcon({ template, size = 20, spriteImage }) {
+// `use3D` lets a caller force the 2D/3D swatch color; when omitted the icon
+// follows the active editor (3D editor => color3D/opacity3D). Same precedence
+// as makeMaterial: color3D ?? 2Dcolor, opacity3D ?? 2Dopacity.
+export default function AnnotationTemplateIcon({
+  template,
+  size = 20,
+  spriteImage,
+  use3D,
+}) {
   // helpers
 
   const shape = resolveDrawingShape(template);
   const topViewUrl = useObject3DTopView(template?.object3D);
   const shapeType = resolveShapeCategory(shape);
-  const color =
+
+  const effectiveViewerKey = useSelector(selectEffectiveViewerKey);
+  const is3D = use3D ?? isThreedFamilyViewerKey(effectiveViewerKey);
+
+  const twoDColor =
     shapeType === "polyline"
       ? (template.strokeColor ?? template.fillColor ?? "#999")
       : (template.fillColor ?? template.strokeColor ?? "#999");
-  const opacity =
+  const twoDOpacity =
     shapeType === "polyline"
       ? (template.strokeOpacity ?? 1)
       : (template.fillOpacity ?? 1);
+
+  const color = is3D && template.color3D ? template.color3D : twoDColor;
+  const opacity = is3D ? (template.opacity3D ?? twoDOpacity) : twoDOpacity;
   const fillType = template.fillType;
 
   // helpers - light color detection
@@ -47,7 +65,8 @@ export default function AnnotationTemplateIcon({ template, size = 20, spriteImag
 
   // helpers - sprite
 
-  const hasSprite = shapeType === "circle" && spriteImage?.url && template.iconKey;
+  const hasSprite =
+    shapeType === "circle" && spriteImage?.url && template.iconKey;
   const spriteOffset = useMemo(() => {
     if (!hasSprite) return null;
     const { iconKeys, columns, tile } = spriteImage;
@@ -75,7 +94,12 @@ export default function AnnotationTemplateIcon({ template, size = 20, spriteImag
         <Box
           component="img"
           src={topViewUrl}
-          sx={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }}
+          sx={{
+            width: "100%",
+            height: "100%",
+            objectFit: "contain",
+            display: "block",
+          }}
         />
       </Box>
     );
@@ -100,17 +124,46 @@ export default function AnnotationTemplateIcon({ template, size = 20, spriteImag
           <Box
             component="img"
             src={imgUrl}
-            sx={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+            sx={{
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+              display: "block",
+            }}
           />
         </Box>
       );
     }
     return (
-      <Box sx={{ width: size, height: size, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <Box
+        sx={{
+          width: size,
+          height: size,
+          flexShrink: 0,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
         <svg width={size} height={size} viewBox="0 0 20 20">
-          <rect x="2" y="3" width="16" height="14" rx="2" fill="none" stroke="#999" strokeWidth="1.5" />
+          <rect
+            x="2"
+            y="3"
+            width="16"
+            height="14"
+            rx="2"
+            fill="none"
+            stroke="#999"
+            strokeWidth="1.5"
+          />
           <circle cx="7" cy="8" r="2" fill="#999" />
-          <polyline points="2,15 7,10 11,14 14,11 18,15" fill="none" stroke="#999" strokeWidth="1.5" strokeLinejoin="round" />
+          <polyline
+            points="2,15 7,10 11,14 14,11 18,15"
+            fill="none"
+            stroke="#999"
+            strokeWidth="1.5"
+            strokeLinejoin="round"
+          />
         </svg>
       </Box>
     );
@@ -119,11 +172,39 @@ export default function AnnotationTemplateIcon({ template, size = 20, spriteImag
   // render — LABEL template: rectangle with text inside
   if (shape === "LABEL") {
     return (
-      <Box sx={{ width: size, height: size, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+      <Box
+        sx={{
+          width: size,
+          height: size,
+          flexShrink: 0,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
         <svg width={size} height={size} viewBox="0 0 20 20">
-          <rect x="1" y="4" width="18" height="12" rx="2" fill={color} opacity={opacity}
-            stroke={isLightColor ? "#bbb" : "none"} strokeWidth={isLightColor ? 1 : 0} />
-          <text x="10" y="13" textAnchor="middle" fontSize="7" fontWeight="bold" fill={isLightColor ? "#666" : "#fff"} fontFamily="sans-serif">Ab</text>
+          <rect
+            x="1"
+            y="4"
+            width="18"
+            height="12"
+            rx="2"
+            fill={color}
+            opacity={opacity}
+            stroke={isLightColor ? "#bbb" : "none"}
+            strokeWidth={isLightColor ? 1 : 0}
+          />
+          <text
+            x="10"
+            y="13"
+            textAnchor="middle"
+            fontSize="7"
+            fontWeight="bold"
+            fill={isLightColor ? "#666" : "#fff"}
+            fontFamily="sans-serif"
+          >
+            Ab
+          </text>
         </svg>
       </Box>
     );
@@ -207,14 +288,33 @@ export default function AnnotationTemplateIcon({ template, size = 20, spriteImag
           </defs>
         )}
 
-        {shapeType === "circle" && shape === "POINT" && template.variant === "SQUARE" && (
-          <rect x="3" y="3" width="14" height="14" rx="1" fill={color} opacity={opacity}
-            stroke={isLightColor ? "#bbb" : "none"} strokeWidth={isLightColor ? 1 : 0} />
-        )}
-        {shapeType === "circle" && !(shape === "POINT" && template.variant === "SQUARE") && (
-          <circle cx="10" cy="10" r="7" fill={color} opacity={opacity}
-            stroke={isLightColor ? "#bbb" : "none"} strokeWidth={isLightColor ? 1 : 0} />
-        )}
+        {shapeType === "circle" &&
+          shape === "POINT" &&
+          template.variant === "SQUARE" && (
+            <rect
+              x="3"
+              y="3"
+              width="14"
+              height="14"
+              rx="1"
+              fill={color}
+              opacity={opacity}
+              stroke={isLightColor ? "#bbb" : "none"}
+              strokeWidth={isLightColor ? 1 : 0}
+            />
+          )}
+        {shapeType === "circle" &&
+          !(shape === "POINT" && template.variant === "SQUARE") && (
+            <circle
+              cx="10"
+              cy="10"
+              r="7"
+              fill={color}
+              opacity={opacity}
+              stroke={isLightColor ? "#bbb" : "none"}
+              strokeWidth={isLightColor ? 1 : 0}
+            />
+          )}
         {shapeType === "polyline" && isLightColor && (
           <line
             x1="2"
@@ -239,8 +339,17 @@ export default function AnnotationTemplateIcon({ template, size = 20, spriteImag
           />
         )}
         {shapeType === "rectangle" && !isHatching && (
-          <rect x="2" y="3" width="16" height="14" rx="2" fill={color} opacity={opacity}
-            stroke={isLightColor ? "#bbb" : "none"} strokeWidth={isLightColor ? 1 : 0} />
+          <rect
+            x="2"
+            y="3"
+            width="16"
+            height="14"
+            rx="2"
+            fill={color}
+            opacity={opacity}
+            stroke={isLightColor ? "#bbb" : "none"}
+            strokeWidth={isLightColor ? 1 : 0}
+          />
         )}
         {shapeType === "rectangle" && isHatching && (
           <g opacity={opacity}>
