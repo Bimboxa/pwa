@@ -1,11 +1,26 @@
 import { useRef, useEffect, useState, useCallback, useMemo } from "react";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 
-import { Box, Typography } from "@mui/material";
+import {
+  setEditedProfileIndex,
+  setShowHeightLabels,
+} from "Features/elevation/elevationSlice";
+
+import {
+  Box,
+  Button,
+  FormControlLabel,
+  Switch,
+  Typography,
+} from "@mui/material";
+import RefreshIcon from "@mui/icons-material/Refresh";
+import SwapHorizIcon from "@mui/icons-material/SwapHoriz";
+import CenterFocusStrongIcon from "@mui/icons-material/CenterFocusStrong";
 
 import MapEditorViewport from "Features/mapEditorGeneric/components/MapEditorViewport";
 import ElevationProfileSvg from "./ElevationProfileSvg";
 import ElevationProfileSectionSvg from "./ElevationProfileSectionSvg";
+import ButtonChooseProfileSource from "./ButtonChooseProfileSource";
 
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import useElevationProfile from "Features/elevation/hooks/useElevationProfile";
@@ -13,7 +28,9 @@ import useElevationPointDrag from "Features/elevation/hooks/useElevationPointDra
 import useDeleteIsoHeightLine from "Features/annotations/hooks/useDeleteIsoHeightLine";
 import { triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice";
 import { expandArcsInPath } from "Features/geometry/utils/arcSampling";
-import buildProfileSectionGeometry from "Features/elevation/utils/buildProfileSectionGeometry";
+import buildProfileSectionGeometry, {
+  getProfileAxis,
+} from "Features/elevation/utils/buildProfileSectionGeometry";
 import getInlineExtrusionSetup from "Features/annotations/utils/getInlineExtrusionSetup";
 import commitElevationOffsetService from "Features/elevation/services/commitElevationOffsetService";
 import commitElevationOffsetsService from "Features/elevation/services/commitElevationOffsetsService";
@@ -23,6 +40,7 @@ import setAnnotationOffsetZService from "Features/elevation/services/setAnnotati
 import setAnnotationHeightService from "Features/elevation/services/setAnnotationHeightService";
 import setElevationGuideService from "Features/elevation/services/setElevationGuideService";
 import updateProfileVertexHeightService from "Features/elevation/services/updateProfileVertexHeightService";
+import applyProfileFromAnnotationService from "Features/elevation/services/applyProfileFromAnnotationService";
 import insertProfileVertexService from "Features/elevation/services/insertProfileVertexService";
 import deleteProfileVertexService from "Features/elevation/services/deleteProfileVertexService";
 import toggleProfileVertexTypeService from "Features/elevation/services/toggleProfileVertexTypeService";
@@ -93,12 +111,23 @@ export default function ElevationEditor({
   const viewportRef = useRef(null);
   const dispatch = useDispatch();
 
+  const showHeightLabels = useSelector((s) => s.elevation.showHeightLabels);
+
   const [hoveredSegmentIndex, setHoveredSegmentIndex] = useState(null);
   // live map zoom (read from the camera) → keeps the recap gap/margins constant
   // in screen pixels at any zoom level (see ElevationProfileSvg)
   const [zoom, setZoom] = useState(1);
+  // live camera pan-x + viewport width → lets us pin the Z axis (and the
+  // things that anchor to it: the Z = 0 dashed line's far end, the Offset
+  // field) to a fixed SCREEN edge while everything else pans/zooms. Small
+  // editor → re-rendering on pan is cheap.
+  const [camX, setCamX] = useState(0);
+  const [viewportWidth, setViewportWidth] = useState(0);
   const handleCameraChange = useCallback((m) => {
     setZoom((z) => (z === m.k ? z : m.k));
+    setCamX((x) => (x === m.x ? x : m.x));
+    const vw = viewportRef.current?.getViewportSize?.().width ?? 0;
+    if (vw) setViewportWidth((w) => (w === vw ? w : vw));
   }, []);
 
   const handleCommitOffset = useCallback(
@@ -405,11 +434,13 @@ export default function ElevationEditor({
     setSelectedProfileVertexIndex(null);
   }, [annotationId, editedProfileIndex]);
 
-  // Free 2-axis drag: Y = height, X = slide along the profile path in plan.
-  // The s → plan mapping walks the CURRENT resolved polyline (so the vertex
-  // slides along the drawn path, through its own previous position). Interior
-  // vertices are clamped strictly between their neighbors; POLYLINE-extrusion
-  // ENDPOINTS may also extend/shrink along their end segment (extrapolation).
+  // Free 2-axis drag: Y = height, X = abscissa.
+  //   - POLYLINE extrusion (free cross-section): X = SIGNED abscissa on the
+  //     cut axis, completely unconstrained — a vertex may fold back past its
+  //     neighbors (Z / U profiles). The plan position is the abscissa mapped
+  //     onto the axis line, so the plan chain stays a segment.
+  //   - POLYGON shell: X slides along the profile path in plan (curvilinear),
+  //     clamped strictly between neighbors, endpoints continuity-locked.
   const handleProfileVertexMouseDown = useCallback(
     (e, { vertexIndex }) => {
       const pts = (sectionProfile?.points ?? []).filter(
@@ -421,6 +452,50 @@ export default function ElevationEditor({
       // POLYGON endpoints are continuity-locked (no drag at all).
       if (isEndpoint && surfaceMode) return;
       if (vertexIndex < 0 || vertexIndex > last) return;
+
+      if (!surfaceMode) {
+        const axis = getProfileAxis(pts);
+        if (!axis) return;
+        const planAt = (s) => ({
+          x: axis.ox + axis.ux * s,
+          y: axis.oy + axis.uy * s,
+        });
+        startProfileVertexDrag(e, {
+          profileIndex: editedProfileIndex,
+          vertexIndex,
+          sMin: -1e9,
+          sMax: 1e9,
+          planAt,
+          sectionHeight,
+          // Snap targets (world coords of the section view): the reference
+          // trait's extremities (registration on the guide) + the trait's
+          // own footprint ends.
+          snapTargets: guideTrait
+            ? [
+                ...guideTrait.extremities.map((t) => ({ x: t.s, y: t.y })),
+                ...(guideTrait.footprint
+                  ? [
+                      {
+                        x: guideTrait.footprint.s1,
+                        y: guideTrait.footprint.y,
+                      },
+                      {
+                        x: guideTrait.footprint.s2,
+                        y: guideTrait.footprint.y,
+                      },
+                    ]
+                  : []),
+              ]
+            : null,
+          // Vertical snap lines (world X): the median axis (circle center).
+          snapLinesX:
+            guideTrait && Number.isFinite(guideTrait.medianS)
+              ? [guideTrait.medianS]
+              : null,
+        });
+        return;
+      }
+
       const cum = [0];
       for (let i = 1; i < pts.length; i += 1) {
         cum.push(
@@ -481,10 +556,18 @@ export default function ElevationEditor({
         planAt,
         sectionHeight,
         // Snap targets (world coords of the section view): the reference
-        // trait's extremities — placing a vertex ON one registers the
-        // extrusion exactly on the guide.
+        // trait's extremities (registration on the guide) + the trait's own
+        // footprint ends (the small vertices at the grey line extremities).
         snapTargets: guideTrait
-          ? guideTrait.extremities.map((t) => ({ x: t.s, y: t.y }))
+          ? [
+              ...guideTrait.extremities.map((t) => ({ x: t.s, y: t.y })),
+              ...(guideTrait.footprint
+                ? [
+                    { x: guideTrait.footprint.s1, y: guideTrait.footprint.y },
+                    { x: guideTrait.footprint.s2, y: guideTrait.footprint.y },
+                  ]
+                : []),
+            ]
           : null,
         // Vertical snap lines (world X): the median axis (circle center) — a
         // dragged vertex X snaps onto it while its height stays free.
@@ -681,22 +764,21 @@ export default function ElevationEditor({
   );
 
   // helper - fit-contain camera (refit when the projection/seed changes, so the
-  // selected segment is laid out horizontal; not on every edit)
+  // selected segment is laid out horizontal; not on every edit). Also exposed
+  // through the "Centrer" button.
 
   const fitKey = `${annotationId}:${seedSegmentIndex}:${observationSign}:${
     editedProfileIndex ?? "-"
   }:${(selectedSegmentIndices ?? []).join(",")}`;
 
-  useEffect(() => {
+  const fitToContent = useCallback(() => {
     if (!bbox || !viewportRef.current) return;
-
-    let raf;
     const fit = () => {
       const vp = viewportRef.current;
       if (!vp) return;
       const { width: vw, height: vh } = vp.getViewportSize();
       if (!vw || !vh) {
-        raf = requestAnimationFrame(fit);
+        requestAnimationFrame(fit);
         return;
       }
       // Margins are proportional to the developed width (meterByPx-independent)
@@ -706,17 +788,25 @@ export default function ElevationEditor({
       // them at the fitted zoom.
       const profileW = Math.max(bbox.maxX - bbox.minX, 1);
       // Surface / profile-section modes have no "vue de dessus" recap above
-      // the profile — a small headroom is enough.
+      // the profile — a small headroom is enough. Section mode fits the
+      // PROFILE bbox only, so opening the panel lands centered on the profile
+      // even when the polyline footprint extends far beyond.
       const fitMinY =
         bbox.minY -
         profileW * (surfaceMode || profileSectionMode ? 0.15 : 0.8) -
         16;
       // down to the baseMap reference plane (worldY = 0)
       const fitMaxY = Math.max(bbox.maxY, 0) + profileW * 0.12 + 16;
-      // extra left margin to keep the Offset field (left of the baseMap line)
-      // in view
-      const fitMinX = bbox.minX - profileW * 0.22 - 40;
-      const fitMaxX = bbox.maxX + profileW * 0.05 + 10;
+      // Section mode: the Offset field + Z axis are SCREEN-fixed overlays (no
+      // world-space element off to the left), so center the profile with
+      // symmetric margins. Other modes keep the extra left margin for the
+      // world-space Offset field left of the baseMap line.
+      const fitMinX = profileSectionMode
+        ? bbox.minX - profileW * 0.12 - 16
+        : bbox.minX - profileW * 0.22 - 40;
+      const fitMaxX = profileSectionMode
+        ? bbox.maxX + profileW * 0.12 + 16
+        : bbox.maxX + profileW * 0.05 + 10;
 
       const bw = Math.max(fitMaxX - fitMinX, 1);
       const bh = Math.max(fitMaxY - fitMinY, 1);
@@ -727,9 +817,93 @@ export default function ElevationEditor({
       vp.setCameraMatrix({ x: vw / 2 - cx * k, y: vh / 2 - cy * k, k });
     };
     fit();
-    return () => raf && cancelAnimationFrame(raf);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bbox, surfaceMode, profileSectionMode]);
+
+  // Refit on projection changes ONLY (fitKey), not on every bbox edit — read
+  // the latest fit through a ref so the effect deps stay honest.
+  const fitToContentRef = useRef(fitToContent);
+  fitToContentRef.current = fitToContent;
+  useEffect(() => {
+    fitToContentRef.current();
   }, [fitKey]);
+
+  // --- Z axis: screen edge, chosen by the profile's side of the annotation
+  // central axis (medianS). Its WORLD x (derived from the camera) lets the
+  // Z = 0 line reach it and the Offset field sit at a fixed screen distance
+  // from it — both re-computed on pan/zoom so they track the fixed edge. ---
+  const Z_AXIS_INSET_PX = 24;
+  const rootRef = useRef(null);
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!el) return;
+    const update = () => setViewportWidth(el.clientWidth);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // profile side: center of the section vs the central (median) axis. Left of
+  // center → axis on the RIGHT (out of the profile's way), and vice-versa.
+  const zAxisSide = useMemo(() => {
+    const median = guideTrait?.medianS;
+    if (!bbox || !Number.isFinite(median)) return "right";
+    const center = (bbox.minX + bbox.maxX) / 2;
+    return center <= median ? "right" : "left";
+  }, [bbox, guideTrait]);
+
+  // world x mapped from the fixed screen edge: viewportX = worldX * k + camX.
+  const zAxisWorldX = useMemo(() => {
+    if (!viewportWidth || !zoom) return null;
+    const screenX =
+      zAxisSide === "right" ? viewportWidth - Z_AXIS_INSET_PX : Z_AXIS_INSET_PX;
+    return (screenX - camX) / zoom;
+  }, [viewportWidth, zoom, camX, zAxisSide]);
+
+  // --- profile from a source annotation ("Choisir un profil" / Actualiser) ---
+
+  // Refit once the freshly applied profile is resolved (fitKey may not change
+  // when the profile is REPLACED at the same index).
+  const pendingFitRef = useRef(false);
+  useEffect(() => {
+    if (pendingFitRef.current && sectionGeometry) {
+      pendingFitRef.current = false;
+      fitToContent();
+    }
+  }, [sectionGeometry, fitToContent]);
+
+  // Target the applied profile once its RESOLVED data lands: when the applied
+  // line is the annotation's first profile, the panel resets the edited index
+  // (no resolved section yet during the Dexie round-trip) — re-select it as
+  // soon as the resolved profileLines carry it.
+  const pendingProfileIndexRef = useRef(null);
+  useEffect(() => {
+    const idx = pendingProfileIndexRef.current;
+    if (idx == null) return;
+    if ((profileLines?.[idx]?.points?.length ?? 0) >= 2) {
+      pendingProfileIndexRef.current = null;
+      dispatch(setEditedProfileIndex(idx));
+    }
+  }, [profileLines, dispatch]);
+
+  const handleApplyProfileFromSource = useCallback(
+    async (sourceAnnotationId, { invert = false } = {}) => {
+      const idx = await applyProfileFromAnnotationService({
+        annotationId,
+        sourceAnnotationId,
+        profileIndex: editedProfileIndex,
+        seedSegmentIndex,
+        invert,
+        dispatch,
+      });
+      if (Number.isInteger(idx)) {
+        pendingFitRef.current = true;
+        pendingProfileIndexRef.current = idx;
+        dispatch(setEditedProfileIndex(idx));
+      }
+    },
+    [annotationId, editedProfileIndex, seedSegmentIndex, dispatch]
+  );
 
   // helpers
 
@@ -758,7 +932,7 @@ export default function ElevationEditor({
   }
 
   return (
-    <Box sx={{ flexGrow: 1, minHeight: 0, position: "relative" }}>
+    <Box ref={rootRef} sx={{ flexGrow: 1, minHeight: 0, position: "relative" }}>
       <MapEditorViewport
         ref={viewportRef}
         shouldDisablePan={shouldDisablePan}
@@ -805,9 +979,13 @@ export default function ElevationEditor({
             meterByPx={meterByPx}
             height={sectionHeight}
             offsetZ={offsetZ}
+            color={color}
             zoom={zoom}
             guideTrait={guideTrait}
             dragPreview={dragPreview}
+            showLabels={showHeightLabels}
+            zAxisWorldX={zAxisWorldX}
+            zAxisSide={zAxisSide}
             selectedVertexIndex={selectedProfileVertexIndex}
             onVertexMouseDown={handleProfileVertexMouseDown}
             onSelectVertex={setSelectedProfileVertexIndex}
@@ -846,6 +1024,152 @@ export default function ElevationEditor({
           />
         )}
       </MapEditorViewport>
+
+      {/* bottom action bar: profile source picker (POLYLINE extrusions) +
+          re-center */}
+      <Box
+        sx={{
+          position: "absolute",
+          bottom: 8,
+          left: 8,
+          right: 8,
+          display: "flex",
+          alignItems: "center",
+          gap: 1,
+          pointerEvents: "none",
+          "& > *": { pointerEvents: "auto" },
+        }}
+      >
+        {!surfaceMode && (
+          <ButtonChooseProfileSource
+            annotationId={annotationId}
+            onSelectSource={handleApplyProfileFromSource}
+          />
+        )}
+        {!surfaceMode && sectionProfile?.sourceAnnotationId && (
+          <>
+            <Button
+              size="small"
+              variant="contained"
+              color="inherit"
+              startIcon={<RefreshIcon />}
+              sx={{ bgcolor: "background.paper", textTransform: "none" }}
+              onClick={() =>
+                handleApplyProfileFromSource(
+                  sectionProfile.sourceAnnotationId,
+                  { invert: Boolean(sectionProfile.sourceInvert) }
+                )
+              }
+            >
+              Actualiser
+            </Button>
+            <Button
+              size="small"
+              variant="contained"
+              color="inherit"
+              startIcon={<SwapHorizIcon />}
+              sx={{ bgcolor: "background.paper", textTransform: "none" }}
+              onClick={() =>
+                handleApplyProfileFromSource(
+                  sectionProfile.sourceAnnotationId,
+                  { invert: !sectionProfile.sourceInvert }
+                )
+              }
+            >
+              Inverser
+            </Button>
+          </>
+        )}
+        <Box sx={{ flexGrow: 1 }} />
+        {profileSectionMode && (
+          <FormControlLabel
+            sx={{
+              m: 0,
+              pl: 1,
+              pr: 0.5,
+              borderRadius: 1,
+              bgcolor: "background.paper",
+            }}
+            control={
+              <Switch
+                size="small"
+                checked={showHeightLabels}
+                onChange={(e) =>
+                  dispatch(setShowHeightLabels(e.target.checked))
+                }
+              />
+            }
+            label={<Typography variant="caption">Hauteurs</Typography>}
+          />
+        )}
+        <Button
+          size="small"
+          variant="contained"
+          color="inherit"
+          startIcon={<CenterFocusStrongIcon />}
+          sx={{ bgcolor: "background.paper", textTransform: "none" }}
+          onClick={fitToContent}
+        >
+          Centrer
+        </Button>
+      </Box>
+
+      {/* Z axis — SCREEN-fixed vertical reference (outside the camera group),
+          pinned to the LEFT or RIGHT edge (zAxisSide) so it never pans /
+          zooms away. Its line center sits Z_AXIS_INSET_PX from that edge,
+          matching zAxisWorldX (which the Z = 0 line + Offset field anchor
+          to). */}
+      {profileSectionMode && (
+        <Box
+          sx={{
+            position: "absolute",
+            top: 12,
+            bottom: 52,
+            [zAxisSide]: Z_AXIS_INSET_PX,
+            width: 0,
+            pointerEvents: "none",
+          }}
+        >
+          <Typography
+            variant="caption"
+            sx={{
+              position: "absolute",
+              top: -4,
+              [zAxisSide === "right" ? "left" : "right"]: 6,
+              color: "grey.600",
+            }}
+          >
+            z
+          </Typography>
+          {/* arrow head */}
+          <Box
+            sx={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              transform: "translateX(-50%)",
+              width: 0,
+              height: 0,
+              borderLeft: "5px solid transparent",
+              borderRight: "5px solid transparent",
+              borderBottom: "8px solid",
+              borderBottomColor: "grey.500",
+            }}
+          />
+          {/* vertical line */}
+          <Box
+            sx={{
+              position: "absolute",
+              top: 7,
+              bottom: 0,
+              left: 0,
+              transform: "translateX(-50%)",
+              width: "2px",
+              bgcolor: "grey.500",
+            }}
+          />
+        </Box>
+      )}
     </Box>
   );
 }

@@ -7,7 +7,7 @@ import { circleFromThreePoints } from "Features/geometry/utils/arcSampling";
 
 import FieldElevationOffset from "./FieldElevationOffset";
 
-const PROFILE_COLOR = "#00897b";
+const DEFAULT_PROFILE_COLOR = "#00897b";
 
 // SVG path of the section curve: straight segments, except around "circle"
 // vertices (arc control points) where prev → control → next is drawn as the
@@ -58,8 +58,20 @@ export default function ElevationProfileSectionSvg({
   height = 0,
   offsetZ = 0,
   zoom = 1,
+  // annotation color — the section curve + its handles are drawn with it
+  color = DEFAULT_PROFILE_COLOR,
   dragPreview,
   selectedVertexIndex = null,
+  // hide the per-vertex Δ height labels (the selected vertex keeps its field
+  // so it stays editable). The Z axis is a screen-fixed overlay in the
+  // parent, not drawn here.
+  showLabels = true,
+  // World x of the screen-fixed Z axis + which edge it is on ("left" /
+  // "right"). The Z = 0 line runs up to it and the Offset field sits a fixed
+  // screen distance from it, on that side. Null → fall back to the profile
+  // extent (no camera yet).
+  zAxisWorldX = null,
+  zAxisSide = "right",
   onVertexMouseDown,
   onSelectVertex,
   onToggleVertexType,
@@ -123,22 +135,13 @@ export default function ElevationProfileSectionSvg({
     );
     if (!proj) return null;
     if (proj.distance * zoom > 24) return null;
-    // Locate the segment + parameter from the projected point's ABSCISSA
-    // (section X = s). proj.s is the arc-length along the sloped (s, topY)
-    // polyline — comparing it to the vertices' s (their x) would overshoot on
-    // a sloped section and drop the point away from the click.
-    const px = proj.projected.x;
-    let segIndex = 0;
-    for (let j = 0; j < verts.length - 1; j++) {
-      if (px >= verts[j].s - 1e-9 && px <= verts[j + 1].s + 1e-9) {
-        segIndex = j;
-        break;
-      }
-    }
+    // The projection carries its own segment + local parameter — an abscissa
+    // scan would be ambiguous on FREE profiles (Z / U shapes fold back, so
+    // several segments span the same section X).
+    const { segIndex, t } = proj;
     const a = verts[segIndex];
     const b = verts[segIndex + 1];
-    const span = Math.max(b.s - a.s, 1e-9);
-    const t = Math.max(0, Math.min(1, (px - a.s) / span));
+    if (!a || !b) return null;
     return {
       x: proj.projected.x,
       y: proj.projected.y,
@@ -174,9 +177,28 @@ export default function ElevationProfileSectionSvg({
   const GREY = "#9e9e9e";
   const FW = 66;
   const FH = 22;
+  // screen-px gap between a vertex and the bottom of its height label, so the
+  // label sits clearly ABOVE the handle and the section stroke
+  const LABEL_GAP = 16;
 
   // live height (meters) from a preview-applied screen Y (TOP semantics)
   const liveHeightOf = (v) => -v.topY * meterByPx - height - offsetZ;
+
+  // Z = 0 line + Offset field anchor to the screen-fixed Z axis (zAxisWorldX)
+  // when known, so the dashed line always reaches it and the field stays a
+  // fixed screen distance from it, on the axis side. Fallback (no camera yet)
+  // = the profile extent / legacy left placement.
+  const hasAxis = Number.isFinite(zAxisWorldX);
+  const z0x1 = hasAxis ? Math.min(xMin - xPad, zAxisWorldX) : xMin - xPad;
+  const z0x2 = hasAxis ? Math.max(xMax + xPad, zAxisWorldX) : xMax + xPad;
+  const OFFSET_GAP_PX = 8; // screen gap between the axis and the field
+  const OFFSET_W = 124; // field width (screen px)
+  const offsetAnchorX = hasAxis ? zAxisWorldX : xMin - xPad;
+  const offsetFieldX = !hasAxis
+    ? -(OFFSET_GAP_PX + OFFSET_W) // legacy: left of the profile
+    : zAxisSide === "right"
+      ? -(OFFSET_GAP_PX + OFFSET_W) // inside, left of the right axis
+      : OFFSET_GAP_PX; // inside, right of the left axis
 
   return (
     <g>
@@ -184,18 +206,18 @@ export default function ElevationProfileSectionSvg({
       <path
         d={sectionPathD(verts)}
         fill="none"
-        stroke={PROFILE_COLOR}
+        stroke={color}
         strokeWidth={2.5}
         strokeLinecap="round"
         strokeLinejoin="round"
         vectorEffect="non-scaling-stroke"
       />
 
-      {/* baseMap reference plane (Z = 0) */}
+      {/* baseMap reference plane (Z = 0) — extended to reach the Z axis */}
       <line
-        x1={xMin - xPad}
+        x1={z0x1}
         y1={0}
-        x2={xMax + xPad}
+        x2={z0x2}
         y2={0}
         stroke={secondary}
         strokeWidth={1.25}
@@ -204,40 +226,20 @@ export default function ElevationProfileSectionSvg({
       />
 
       {/* POLYLINE extrusion reference trait: the FULL polyline footprint
-          projected on the section plane (horizontal line), with the crossed
-          guide segment's extremities as snap / registration targets (anchor
-          extremity filled). */}
+          projected on the section plane — a single grey horizontal line. Its
+          extremities stay SNAP targets for the vertex drag but are not drawn
+          (no marker helpers on the guide trait). */}
       {guideTrait && guideTrait.extremities?.length === 2 && (
-        <g style={{ pointerEvents: "none" }}>
-          <line
-            x1={guideTrait.footprint?.s1 ?? guideTrait.extremities[0].s}
-            y1={guideTrait.footprint?.y ?? guideTrait.extremities[0].y}
-            x2={guideTrait.footprint?.s2 ?? guideTrait.extremities[1].s}
-            y2={guideTrait.footprint?.y ?? guideTrait.extremities[1].y}
-            stroke="#2962ff"
-            strokeWidth={2}
-            vectorEffect="non-scaling-stroke"
-          />
-          {guideTrait.extremities.map((ext, ei) => (
-            <g
-              key={`trait-ext-${ei}`}
-              transform={`translate(${ext.s}, ${ext.y})`}
-            >
-              <g style={COUNTER_ZOOM}>
-                <circle
-                  r={HALF - 1}
-                  fill={
-                    ei === guideTrait.anchorExtremityIndex
-                      ? "#2962ff"
-                      : "#ffffff"
-                  }
-                  stroke="#2962ff"
-                  strokeWidth={1.5}
-                />
-              </g>
-            </g>
-          ))}
-        </g>
+        <line
+          x1={guideTrait.footprint?.s1 ?? guideTrait.extremities[0].s}
+          y1={guideTrait.footprint?.y ?? guideTrait.extremities[0].y}
+          x2={guideTrait.footprint?.s2 ?? guideTrait.extremities[1].s}
+          y2={guideTrait.footprint?.y ?? guideTrait.extremities[1].y}
+          stroke={GREY}
+          strokeWidth={2}
+          vectorEffect="non-scaling-stroke"
+          style={{ pointerEvents: "none" }}
+        />
       )}
 
       {/* Median axis: vertical dashed line at the guide center (circle
@@ -249,7 +251,7 @@ export default function ElevationProfileSectionSvg({
           y1={yTop - yPad}
           x2={guideTrait.medianS}
           y2={yBottom + yPad}
-          stroke="#2962ff"
+          stroke={GREY}
           strokeWidth={1.25}
           strokeDasharray="5 4"
           strokeOpacity={0.7}
@@ -258,24 +260,35 @@ export default function ElevationProfileSectionSvg({
         />
       )}
 
-      {/* offset field, left of the Z = 0 line */}
-      <g transform={`translate(${xMin - xPad}, 0)`}>
+      {/* offset field — fixed screen distance from the Z axis, on its side */}
+      <g transform={`translate(${offsetAnchorX}, 0)`}>
         <g style={COUNTER_ZOOM}>
           <foreignObject
-            x={-128}
+            x={offsetFieldX}
             y={-11}
-            width={124}
+            width={OFFSET_W}
             height={24}
             style={{ overflow: "visible" }}
           >
-            <FieldElevationOffset
-              label="Offset"
-              value={offsetZ}
-              width={46}
-              accentColor={secondary}
-              noShadow
-              onCommit={(v) => onCommitOffsetZ?.(v)}
-            />
+            {/* hug the axis-facing edge so the field stays at a fixed screen
+                distance from the axis whatever its content width */}
+            <div
+              style={{
+                display: "flex",
+                width: "100%",
+                justifyContent:
+                  zAxisSide === "right" || !hasAxis ? "flex-end" : "flex-start",
+              }}
+            >
+              <FieldElevationOffset
+                label="Offset"
+                value={offsetZ}
+                width={46}
+                accentColor={secondary}
+                noShadow
+                onCommit={(v) => onCommitOffsetZ?.(v)}
+              />
+            </div>
           </foreignObject>
         </g>
       </g>
@@ -296,16 +309,18 @@ export default function ElevationProfileSectionSvg({
                     strokeWidth={1.5}
                     style={{ pointerEvents: "none" }}
                   />
-                  <text
-                    x={0}
-                    y={-12}
-                    textAnchor="middle"
-                    fontSize={11}
-                    fill={GREY}
-                    style={{ userSelect: "none" }}
-                  >
-                    {`${Math.round(v.height * 100) / 100} m`}
-                  </text>
+                  {showLabels && (
+                    <text
+                      x={0}
+                      y={-(HALF + LABEL_GAP)}
+                      textAnchor="middle"
+                      fontSize={11}
+                      fill={GREY}
+                      style={{ userSelect: "none" }}
+                    >
+                      {`${Math.round(v.height * 100) / 100} m`}
+                    </text>
+                  )}
                 </g>
               </g>
             </g>
@@ -314,8 +329,8 @@ export default function ElevationProfileSectionSvg({
         const isSelected = selectedVertexIndex === v.vertexIndex;
         const isArc = v.type === "circle";
         const handleProps = {
-          fill: isSelected ? PROFILE_COLOR : "#ffffff",
-          stroke: PROFILE_COLOR,
+          fill: isSelected ? color : "#ffffff",
+          stroke: color,
           strokeWidth: 1.5,
           "data-elev-handle": "1",
           style: { cursor: "move" },
@@ -360,26 +375,30 @@ export default function ElevationProfileSectionSvg({
                 )}
               </g>
             </g>
-            <g transform={`translate(${v.s}, ${v.topY})`}>
-              <g style={COUNTER_ZOOM}>
-                <foreignObject
-                  x={-FW / 2}
-                  y={-FH - 10}
-                  width={FW}
-                  height={FH}
-                  style={{ overflow: "visible" }}
-                >
-                  <FieldElevationOffset
-                    label="Δ"
-                    value={liveHeight}
-                    accentColor={PROFILE_COLOR}
-                    onCommit={(val) =>
-                      onCommitVertexHeight?.(v.vertexIndex, val)
-                    }
-                  />
-                </foreignObject>
+            {/* height field — hidden by the labels switch, but the SELECTED
+                vertex keeps its field so it stays editable */}
+            {(showLabels || isSelected) && (
+              <g transform={`translate(${v.s}, ${v.topY})`}>
+                <g style={COUNTER_ZOOM}>
+                  <foreignObject
+                    x={-FW / 2}
+                    y={-FH - LABEL_GAP}
+                    width={FW}
+                    height={FH}
+                    style={{ overflow: "visible" }}
+                  >
+                    <FieldElevationOffset
+                      label="Δ"
+                      value={liveHeight}
+                      accentColor={color}
+                      onCommit={(val) =>
+                        onCommitVertexHeight?.(v.vertexIndex, val)
+                      }
+                    />
+                  </foreignObject>
+                </g>
               </g>
-            </g>
+            )}
           </g>
         );
       })}
@@ -391,7 +410,7 @@ export default function ElevationProfileSectionSvg({
             <circle
               r={4}
               fill="rgba(0, 137, 123, 0.25)"
-              stroke={PROFILE_COLOR}
+              stroke={color}
               strokeWidth={1.5}
               data-elev-handle="1"
               style={{ cursor: "copy" }}

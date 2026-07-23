@@ -1,6 +1,6 @@
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 
-import { Box } from "@mui/material";
+import { Box, Typography } from "@mui/material";
 
 import {
   typeOf,
@@ -63,28 +63,88 @@ export default function PlanSelectorElevation({
   // editor below (editedProfileIndex).
   profileLines = null,
   editedProfileIndex = null,
+  // annotation color — the edited profile is drawn with it in profile mode
+  color = "#00897b",
   onHoverSegment,
   onSelectSegment,
   onSetObservation,
   onSelectProfile,
 }) {
-  // helper - bounds + viewBox (fit-contain over all points, with padding)
+  // Profile-section mode: the whole plan recap is ROTATED so the edited
+  // profile lays horizontal (the recap then reads like a true "vue de
+  // dessus" of the section plane).
+  const editedProfilePts = useMemo(() => {
+    if (editedProfileIndex == null) return null;
+    const pts = (profileLines?.[editedProfileIndex]?.points || []).filter(
+      (p) => typeof p?.x === "number" && typeof p?.y === "number"
+    );
+    return pts.length >= 2 ? pts : null;
+  }, [profileLines, editedProfileIndex]);
+  const profileMode = !!editedProfilePts;
+
+  // rotation mapping plan coords → display coords (identity out of profile
+  // mode). Rotates by -angle(profile chord) around the chord midpoint.
+  const rot = useMemo(() => {
+    if (!editedProfilePts) return (p) => p;
+    const a = editedProfilePts[0];
+    const b = editedProfilePts[editedProfilePts.length - 1];
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const len = Math.hypot(dx, dy);
+    if (len < 1e-9) return (p) => p;
+    const cos = dx / len;
+    const sin = dy / len;
+    const cx = (a.x + b.x) / 2;
+    const cy = (a.y + b.y) / 2;
+    return (p) => ({
+      ...p,
+      x: cx + (p.x - cx) * cos + (p.y - cy) * sin,
+      y: cy - (p.x - cx) * sin + (p.y - cy) * cos,
+    });
+  }, [editedProfilePts]);
+
+  // display copies (rotated in profile mode)
+  const dPoints = useMemo(() => (points || []).map(rot), [points, rot]);
+  const dIsoLines = useMemo(
+    () =>
+      (isoLines || []).map((l) => ({
+        ...l,
+        points: (l?.points || []).map(rot),
+      })),
+    [isoLines, rot]
+  );
+  const dProfileLines = useMemo(
+    () =>
+      (profileLines || []).map((l) => ({
+        ...l,
+        points: (l?.points || []).map(rot),
+      })),
+    [profileLines, rot]
+  );
+
+  // helper - bounds + viewBox (fit-contain over all points, with padding; in
+  // profile mode the edited profile is part of the fitted content)
 
   const bounds = useMemo(() => {
-    if (!points || points.length === 0)
-      return { minX: 0, minY: 0, maxX: 100, maxY: 100 };
+    const all = [
+      ...dPoints,
+      ...(profileMode
+        ? (dProfileLines?.[editedProfileIndex]?.points ?? [])
+        : []),
+    ].filter((p) => typeof p?.x === "number" && typeof p?.y === "number");
+    if (all.length === 0) return { minX: 0, minY: 0, maxX: 100, maxY: 100 };
     let minX = Infinity;
     let minY = Infinity;
     let maxX = -Infinity;
     let maxY = -Infinity;
-    for (const p of points) {
+    for (const p of all) {
       minX = Math.min(minX, p.x);
       minY = Math.min(minY, p.y);
       maxX = Math.max(maxX, p.x);
       maxY = Math.max(maxY, p.y);
     }
     return { minX, minY, maxX, maxY };
-  }, [points]);
+  }, [dPoints, dProfileLines, editedProfileIndex, profileMode]);
 
   const view = useMemo(() => {
     const { minX, minY, maxX, maxY } = bounds;
@@ -115,46 +175,37 @@ export default function PlanSelectorElevation({
     return () => ro.disconnect();
   }, []);
 
-  // projection line (droite): in profile-section mode it is the CUT LINE
-  // carried by the edited profile (parallel to it, through its midpoint);
-  // otherwise the axis carried by the seed segment. Extended to span the
-  // whole view.
+  // projection line (droite) carried by the seed segment. NOT drawn in
+  // profile mode: the section plane is materialized by the profile itself
+  // (laid horizontal), no observation-plane overlay.
   const projectionLine = useMemo(() => {
+    if (profileMode) return null;
     const { minX, minY, maxX, maxY } = bounds;
     const span = (Math.hypot(maxX - minX, maxY - minY) || 1) * 1.5;
-    const makeLine = (a, b) => {
-      const dx = b.x - a.x;
-      const dy = b.y - a.y;
-      const len = Math.hypot(dx, dy) || 1;
-      const ux = dx / len;
-      const uy = dy / len;
-      const cx = (a.x + b.x) / 2;
-      const cy = (a.y + b.y) / 2;
-      return {
-        x1: cx - ux * span,
-        y1: cy - uy * span,
-        x2: cx + ux * span,
-        y2: cy + uy * span,
-      };
-    };
-    if (editedProfileIndex != null) {
-      const pts = (profileLines?.[editedProfileIndex]?.points || []).filter(
-        (p) => typeof p?.x === "number" && typeof p?.y === "number"
-      );
-      if (pts.length >= 2) return makeLine(pts[0], pts[pts.length - 1]);
-    }
-    const n = points?.length ?? 0;
-    const a = points?.[seedSegmentIndex];
-    const b = n > 0 ? points?.[(seedSegmentIndex + 1) % n] : null;
+    const n = dPoints?.length ?? 0;
+    const a = dPoints?.[seedSegmentIndex];
+    const b = n > 0 ? dPoints?.[(seedSegmentIndex + 1) % n] : null;
     if (!a || !b) return null;
-    return makeLine(a, b);
-  }, [points, seedSegmentIndex, bounds, profileLines, editedProfileIndex]);
+    const dx = b.x - a.x;
+    const dy = b.y - a.y;
+    const len = Math.hypot(dx, dy) || 1;
+    const ux = dx / len;
+    const uy = dy / len;
+    const cx = (a.x + b.x) / 2;
+    const cy = (a.y + b.y) / 2;
+    return {
+      x1: cx - ux * span,
+      y1: cy - uy * span,
+      x2: cx + ux * span,
+      y2: cy + uy * span,
+    };
+  }, [dPoints, seedSegmentIndex, bounds, profileMode]);
 
   // two arrows on each side of the seed segment → pick the viewing side
   const observationArrows = useMemo(() => {
-    const n = points?.length ?? 0;
-    const a = points?.[seedSegmentIndex];
-    const b = n > 0 ? points?.[(seedSegmentIndex + 1) % n] : null;
+    const n = dPoints?.length ?? 0;
+    const a = dPoints?.[seedSegmentIndex];
+    const b = n > 0 ? dPoints?.[(seedSegmentIndex + 1) % n] : null;
     if (!a || !b) return null;
     const dx = b.x - a.x;
     const dy = b.y - a.y;
@@ -192,22 +243,30 @@ export default function PlanSelectorElevation({
       return { sign: s, points: `${tipx},${tipy} ${c1x},${c1y} ${c2x},${c2y}` };
     };
     return [make(1), make(-1)];
-  }, [points, seedSegmentIndex, view, svgSize]);
+  }, [dPoints, seedSegmentIndex, view, svgSize]);
 
   // render
 
-  const n = points?.length ?? 0;
+  const n = dPoints?.length ?? 0;
   const nSegments = closeLine ? n : n - 1;
 
   return (
     <Box
       sx={{
+        position: "relative",
         width: 1,
         height: 150,
         bgcolor: "background.paper",
         borderBottom: (theme) => `1px solid ${theme.palette.divider}`,
       }}
     >
+      <Typography
+        variant="caption"
+        color="text.secondary"
+        sx={{ position: "absolute", top: 4, left: 8, pointerEvents: "none" }}
+      >
+        Vue de dessus
+      </Typography>
       <svg
         ref={svgRef}
         width="100%"
@@ -230,19 +289,25 @@ export default function PlanSelectorElevation({
         )}
 
         {Array.from({ length: Math.max(0, nSegments) }).map((_, i) => {
-          const a = points[i];
-          const b = points[(i + 1) % n];
+          const a = dPoints[i];
+          const b = dPoints[(i + 1) % n];
           if (!a || !b) return null;
-          const isSeed = seedSegmentIndex === i;
+          // profile mode: the polyline is a plain grey witness (no seed
+          // highlight — the section plane is carried by the profile)
+          const isSeed = !profileMode && seedSegmentIndex === i;
           const isHovered = hoveredSegmentIndex === i;
-          const color = isSeed ? "#76ff03" : isHovered ? "#2196f3" : "#9e9e9e";
-          const width = isSeed ? 5 : isHovered ? 3 : 1.5;
+          const strokeColor = isSeed
+            ? "#76ff03"
+            : isHovered
+              ? "#2196f3"
+              : "#9e9e9e";
+          const width = isSeed ? 5 : isHovered ? 3 : profileMode ? 2.5 : 1.5;
           return (
             <g key={i}>
               <path
-                d={segmentPathD(points, i, n)}
+                d={segmentPathD(dPoints, i, n)}
                 fill="none"
-                stroke={color}
+                stroke={strokeColor}
                 strokeWidth={width}
                 strokeLinecap="round"
                 vectorEffect="non-scaling-stroke"
@@ -266,7 +331,7 @@ export default function PlanSelectorElevation({
         })}
 
         {/* isoHeightLines (dashed purple, non-interactive) */}
-        {(isoLines || []).map((line, li) => {
+        {(dIsoLines || []).map((line, li) => {
           const pts = (line?.points || []).filter(
             (p) => typeof p?.x === "number" && typeof p?.y === "number"
           );
@@ -286,9 +351,10 @@ export default function PlanSelectorElevation({
           );
         })}
 
-        {/* shell profileLines (dashed teal) — clicking selects the profile's
-            developed section in the editor below */}
-        {(profileLines || []).map((line, li) => {
+        {/* profileLines — drawn in the ANNOTATION color (the edited one
+            solid and bold, laid horizontal in profile mode); clicking one
+            selects its developed section in the editor below */}
+        {(dProfileLines || []).map((line, li) => {
           const pts = (line?.points || []).filter(
             (p) => typeof p?.x === "number" && typeof p?.y === "number"
           );
@@ -300,9 +366,10 @@ export default function PlanSelectorElevation({
               <polyline
                 points={ptsStr}
                 fill="none"
-                stroke={isEdited ? "#00c853" : "#00897b"}
+                stroke={color}
                 strokeWidth={isEdited ? 4 : 2}
-                strokeDasharray="8 4"
+                strokeDasharray={isEdited ? undefined : "8 4"}
+                strokeOpacity={isEdited ? 1 : 0.6}
                 strokeLinecap="round"
                 strokeLinejoin="round"
                 vectorEffect="non-scaling-stroke"
@@ -323,7 +390,7 @@ export default function PlanSelectorElevation({
         })}
 
         {/* vertices */}
-        {points?.map((p, i) => (
+        {dPoints?.map((p, i) => (
           <circle
             key={`v-${i}`}
             cx={p.x}

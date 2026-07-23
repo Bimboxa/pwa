@@ -47,10 +47,15 @@ export default function useHandleCommitProfileLine() {
     if (!imageSize?.width || !imageSize?.height) return;
 
     // POLYGON shells: endpoints anchor on the contour (projected + heights
-    // derived at resolve time — continuity). POLYLINE extrusions: the profile
-    // is a FREE cross-section (endpoints keep their drawn position and carry
-    // their own height, default 0).
+    // derived at resolve time — continuity). POLYLINE extrusions: the plan
+    // trace is just the profile's PROJECTION — a segment. Only the first and
+    // last drawn points are kept (2 points by default); the free section
+    // shape (Z / U…) is then edited in the Élévation panel or applied from a
+    // "Profil" annotation.
     const isPolygon = ann.type === "POLYGON";
+    if (!isPolygon && pixelPts.length > 2) {
+      pixelPts = [pixelPts[0], pixelPts[pixelPts.length - 1]];
+    }
 
     let snappedPts = pixelPts;
     let heightAt = () => 0;

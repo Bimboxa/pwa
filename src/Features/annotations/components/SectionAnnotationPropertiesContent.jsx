@@ -20,6 +20,8 @@ import FieldAnnotationFill from "./FieldAnnotationFill";
 import FieldAnnotationStroke from "./FieldAnnotationStroke";
 import FieldAnnotationIsEraser from "./FieldAnnotationIsEraser";
 import FieldAnnotationIsExt from "./FieldAnnotationIsExt";
+import FieldAnnotationIsProfile from "./FieldAnnotationIsProfile";
+import FieldAnnotationLabel from "./FieldAnnotationLabel";
 
 export default function SectionAnnotationPropertiesContent({ annotation }) {
   // data
@@ -114,6 +116,8 @@ export default function SectionAnnotationPropertiesContent({ annotation }) {
             overrideFields={overrideFields}
           />
         )}
+        <FieldAnnotationLabel annotation={annotation} />
+        <FieldAnnotationIsProfile annotation={annotation} />
         <FieldAnnotationIsEraser annotation={annotation} />
         {["POLYLINE", "STRIP", "POLYGON"].includes(type) && (
           <FieldAnnotationIsExt annotation={annotation} />

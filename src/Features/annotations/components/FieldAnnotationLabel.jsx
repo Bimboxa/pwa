@@ -1,18 +1,32 @@
+import { useDispatch } from "react-redux";
+
+import { triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice";
+
+import db from "App/db/db";
 import FieldTextV2 from "Features/form/components/FieldTextV2";
 
-export default function FieldAnnotationLabel({ annotation, onChange }) {
+// Editable annotation label (used a.o. to name "Profil" annotations picked in
+// the elevation section editor). Committed on blur.
+export default function FieldAnnotationLabel({ annotation }) {
+  const dispatch = useDispatch();
 
-    // helper
+  // handlers
 
-    const label = annotation.label ?? "";
+  async function handleChange(label) {
+    if (!annotation?.id) return;
+    if ((annotation.label ?? "") === label) return;
+    await db.annotations.update(annotation.id, { label });
+    dispatch(triggerAnnotationsUpdate());
+  }
 
-    // handlers
+  // render
 
-    function handleChange(label) {
-        onChange({ ...annotation, label });
-    }
-
-    return (
-        <FieldTextV2 value={label} onChange={handleChange} />
-    );
+  return (
+    <FieldTextV2
+      label="Label"
+      value={annotation?.label ?? ""}
+      onChange={handleChange}
+      options={{ showAsField: true, changeOnBlur: true, hideMic: true }}
+    />
+  );
 }

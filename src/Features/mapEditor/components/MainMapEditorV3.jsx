@@ -113,6 +113,7 @@ import duplicateAndMovePoint from "../services/duplicateAndMovePoint";
 import replacePointBySnap from "../services/replacePointBySnap";
 import toggleAnnotationPointType from "../services/toggleAnnotationPointType";
 import commitWrapperTransform from "../services/commitWrapperTransform";
+import moveProfileLineService from "Features/elevation/services/moveProfileLineService";
 import computeWrapperBbox from "../utils/computeWrapperBbox";
 import applyWrapperTransformToPoints from "../utils/applyWrapperTransformToPoints";
 import removeCutAsync from "../services/removeCutAsync";
@@ -1158,6 +1159,18 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     const handleAnnotationMoveCommit = async (annotationId, deltaPos, partType, localPos) => {
         const imageSize = baseMap?.getImageSize?.();
         if (!imageSize) return;
+
+        // PROFILE_LINE_MOVE::<index>: slide ONE profile line (extrusion
+        // cross-section) along its cut axis — see moveProfileLineService.
+        if (typeof partType === "string" && partType.startsWith("PROFILE_LINE_MOVE::")) {
+            await moveProfileLineService({
+                annotationId,
+                profileIndex: Number(partType.split("::")[1]),
+                deltaPos,
+                dispatch,
+            });
+            return;
+        }
 
         // WRAPPER (group transform for point-based annotations)
         if (annotationId === "wrapper") {

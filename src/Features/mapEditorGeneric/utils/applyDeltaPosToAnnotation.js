@@ -1,9 +1,12 @@
+import slideProfileLineAlongGuide from "Features/elevation/utils/slideProfileLineAlongGuide";
+
 /**
  * Apply a delta position to an annotation, returning a new annotation object
  * with transformed geometry. Pure function, no React dependencies.
  *
  * Handles all annotation types: MARKER, POINT, LABEL, POLYLINE, POLYGON, STRIP, IMAGE, RECTANGLE
- * Handles partTypes: MOVE (default), TARGET, LABEL_BOX, ROTATE, RESIZE_*
+ * Handles partTypes: MOVE (default), TARGET, LABEL_BOX, ROTATE, RESIZE_*,
+ * PROFILE_LINE_MOVE::<index> (slide ONE profileLine along its cut axis)
  *
  * @param {Object} annotation - The annotation to transform
  * @param {Object} deltaPos - { x, y } delta to apply
@@ -205,6 +208,37 @@ export default function applyDeltaPosToAnnotation(annotation, deltaPos, partType
         _annotation.type === "STRIP" ||
         _annotation.type === "COTE"
     ) {
+
+        // PROFILE_LINE_MOVE::<index> — slide ONE profileLine ALONG the guide
+        // polyline (its crossing follows the contour) while staying NORMAL to
+        // the guide's local tangent; the rest of the annotation stays put.
+        if (typeof partType === "string" && partType.startsWith("PROFILE_LINE_MOVE::")) {
+            const idx = Number(partType.split("::")[1]);
+            const line = _annotation.profileLines?.[idx];
+            const newPositions = line
+                ? slideProfileLineAlongGuide({
+                    guidePoints: _annotation.points,
+                    closeLine: !!_annotation.closeLine,
+                    profilePoints: line.points,
+                    deltaPos,
+                })
+                : null;
+            if (newPositions) {
+                _annotation.profileLines = _annotation.profileLines.map((l, i) =>
+                    i === idx
+                        ? {
+                            ...l,
+                            points: (l.points || []).map((pt, pi) =>
+                                newPositions[pi]
+                                    ? { ...pt, x: newPositions[pi].x, y: newPositions[pi].y }
+                                    : pt
+                            ),
+                        }
+                        : l
+                );
+            }
+            return _annotation;
+        }
 
         const transformPoints = (points) => {
             if (!points) return points;

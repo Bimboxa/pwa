@@ -5,6 +5,12 @@
 // drawn directly on the plan) against its guide polyline.
 //
 // Model (WYSIWYG with the Élévation section editor):
+//   - The profile's plan chain reads as a SEGMENT: every abscissa is a SIGNED
+//     projection onto the profile's cut AXIS (first → last chord — see
+//     getProfileAxis in buildProfileSectionGeometry, duplicated here to keep
+//     this util import-free). The cross-section itself is FREE: a Z / U
+//     profile folds back along the axis, which a curvilinear abscissa cannot
+//     represent — the signed projection can.
 //   - The guide segment CROSSED by the profile in plan (or the nearest one)
 //     projects onto the profile's vertical plane as a horizontal reference
 //     line ("trait") whose extremities are the segment's endpoints.
@@ -57,17 +63,37 @@ export default function getInlineExtrusionSetup({
   );
   if (guide.length < 2 || profile.length < 2) return null;
 
-  // Profile curvilinear abscissa per vertex.
-  const cum = [0];
-  for (let i = 1; i < profile.length; i += 1) {
-    cum.push(
-      cum[i - 1] +
-        Math.hypot(
-          profile[i].x - profile[i - 1].x,
-          profile[i].y - profile[i - 1].y
-        )
-    );
+  // Cut axis: first → last chord (falls back to the dominant bbox direction
+  // for folded profiles whose endpoints meet, then to +X). Every abscissa
+  // below is the SIGNED projection onto this axis, origin = first vertex.
+  const P0 = profile[0];
+  const PL = profile[profile.length - 1];
+  let axDx = PL.x - P0.x;
+  let axDy = PL.y - P0.y;
+  if (Math.hypot(axDx, axDy) < 1e-9) {
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let minY = Infinity;
+    let maxY = -Infinity;
+    for (const p of profile) {
+      if (p.x < minX) minX = p.x;
+      if (p.x > maxX) maxX = p.x;
+      if (p.y < minY) minY = p.y;
+      if (p.y > maxY) maxY = p.y;
+    }
+    axDx = maxX - minX;
+    axDy = maxY - minY;
+    if (Math.abs(axDx) >= Math.abs(axDy)) axDy = 0;
+    else axDx = 0;
+    if (Math.hypot(axDx, axDy) < 1e-9) {
+      axDx = 1;
+      axDy = 0;
+    }
   }
+  const axLen = Math.hypot(axDx, axDy);
+  const axUx = axDx / axLen;
+  const axUy = axDy / axLen;
+  const sOf = (p) => (p.x - P0.x) * axUx + (p.y - P0.y) * axUy;
   const profileChain = profile.map((p) => ({ x: p.x, y: p.y }));
 
   // --- Reference guide segment: crossed by the profile, else nearest -------
@@ -125,50 +151,22 @@ export default function getInlineExtrusionSetup({
   const segB = guide[(crossedSegIndex + 1) % guide.length];
 
   // --- Extremities in section coordinates ---------------------------------
-  // UNCLAMPED abscissa: a guide point may project BEYOND the profile's ends
-  // (e.g. the profile starts strictly inside a circular guide). Clamping
-  // would glue the registration origin onto the profile's end vertex and
-  // shift the whole section — the abscissa must extrapolate along the first
-  // / last segment instead, so the band boundaries pass exactly through the
-  // profile extremities.
-  const unclampedS = (p) => {
-    let best = null;
-    for (let i = 0; i < profileChain.length - 1; i += 1) {
-      const a = profileChain[i];
-      const b = profileChain[i + 1];
-      const abx = b.x - a.x;
-      const aby = b.y - a.y;
-      const len2 = abx * abx + aby * aby;
-      if (len2 < 1e-18) continue;
-      const len = Math.sqrt(len2);
-      const tRaw = ((p.x - a.x) * abx + (p.y - a.y) * aby) / len2;
-      // Extrapolation allowed only on the end segments (interior overlaps
-      // are owned by the neighbor segment).
-      const tMin = i === 0 ? -Infinity : 0;
-      const tMax = i === profileChain.length - 2 ? Infinity : 1;
-      const t = Math.max(tMin, Math.min(tMax, tRaw));
-      const fx = a.x + abx * t;
-      const fy = a.y + aby * t;
-      const d2 = (p.x - fx) ** 2 + (p.y - fy) ** 2;
-      if (!best || d2 < best.d2) {
-        best = { d2, s: cum[i] + t * len };
-      }
-    }
-    return best ? best.s : 0;
-  };
+  // Signed projection on the cut axis — inherently unclamped: a guide point
+  // may project beyond the profile's ends (e.g. the profile starts strictly
+  // inside a circular guide) and its abscissa extrapolates naturally.
   const extremities = [segA, segB].map((p) => ({
-    s: unclampedS(p),
+    s: sOf(p),
     z: p.offsetBottom ?? 0,
     x: p.x,
     y: p.y,
   }));
 
   // Full guide footprint on the section plane: every guide vertex projected
-  // (unclamped) onto the profile axis.
+  // onto the cut axis.
   let footSMin = Infinity;
   let footSMax = -Infinity;
   for (const p of guide) {
-    const s = unclampedS(p);
+    const s = sOf(p);
     if (s < footSMin) footSMin = s;
     if (s > footSMax) footSMax = s;
   }
@@ -184,7 +182,7 @@ export default function getInlineExtrusionSetup({
     cY += p.y;
   }
   const centroid = { x: cX / guide.length, y: cY / guide.length };
-  const medianS = unclampedS(centroid);
+  const medianS = sOf(centroid);
 
   // E = extremity closest to the profile IN PLAN (perpendicular distance to
   // the profile chain). The section-space abscissa alone would let an
@@ -216,51 +214,19 @@ export default function getInlineExtrusionSetup({
   const E = extremities[anchorExtremityIndex];
 
   // --- Section X axis → plan side of the guide ----------------------------
-  // Right-of-tangent normal of the crossed segment.
+  // Right-of-tangent normal of the crossed segment; dirSign aligns the cut
+  // AXIS direction with the plan side the profile extends on.
   const tx = segB.x - segA.x;
   const ty = segB.y - segA.y;
   const tLen = Math.hypot(tx, ty) || 1;
   const nx = ty / tLen;
   const ny = -tx / tLen;
-  const total = cum[cum.length - 1];
-  // Plan TANGENT DIRECTION of the profile at abscissa s (segment vector, not
-  // a sampled point) — extrapolating past the ends by reusing the nearest end
-  // segment's direction. Using the segment vector directly (instead of
-  // sampling two nearby points and differencing) avoids a degenerate
-  // zero-vector: E is routinely EXTRAPOLATED before the profile's first
-  // vertex (E.s < 0, e.g. a profile starting strictly inside a circular
-  // guide) — sampling at s=E.s and s=E.s+eps would both clamp to profile[0]
-  // in that case, collapsing dirDot to 0 and silently defaulting dirSign to
-  // +1 regardless of the profile's real direction (wrong side of the guide).
-  const tangentAt = (s) => {
-    if (s <= 0) {
-      return {
-        dx: profile[1].x - profile[0].x,
-        dy: profile[1].y - profile[0].y,
-      };
-    }
-    if (s >= total) {
-      const a = profile[profile.length - 2];
-      const b = profile[profile.length - 1];
-      return { dx: b.x - a.x, dy: b.y - a.y };
-    }
-    for (let i = 0; i < profile.length - 1; i += 1) {
-      if (s <= cum[i + 1] || i === profile.length - 2) {
-        return {
-          dx: profile[i + 1].x - profile[i].x,
-          dy: profile[i + 1].y - profile[i].y,
-        };
-      }
-    }
-    return { dx: profile[1].x - profile[0].x, dy: profile[1].y - profile[0].y };
-  };
-  const { dx: tdx, dy: tdy } = tangentAt(E.s);
-  const dirDot = tdx * nx + tdy * ny;
+  const dirDot = axUx * nx + axUy * ny;
   const dirSign = dirDot >= 0 ? 1 : -1;
 
   // --- Cross-section + extents --------------------------------------------
-  const crossSection = profile.map((p, i) => ({
-    u: (cum[i] - E.s) * dirSign,
+  const crossSection = profile.map((p) => ({
+    u: (sOf(p) - E.s) * dirSign,
     h: Number(p.height) || 0,
     ...(p.type === "circle" ? { type: "circle" } : {}),
   }));

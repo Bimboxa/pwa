@@ -24,6 +24,9 @@ const initialState = {
   // silhouette mode). Synced from the map-editor sub-selection and the panel
   // chips.
   editedProfileIndex: null,
+  // profile section editor: show the per-vertex height labels (Δ fields).
+  // Toggled by the switch in the editor bottom bar.
+  showHeightLabels: true,
 };
 
 export const elevationSlice = createSlice({
@@ -61,6 +64,9 @@ export const elevationSlice = createSlice({
     setEditedProfileIndex: (state, action) => {
       state.editedProfileIndex = action.payload;
     },
+    setShowHeightLabels: (state, action) => {
+      state.showHeightLabels = action.payload;
+    },
     resetElevationSelection: () => initialState,
   },
 });
@@ -72,6 +78,7 @@ export const {
   setHoveredSegmentIndex,
   setObservationSign,
   setEditedProfileIndex,
+  setShowHeightLabels,
   resetElevationSelection,
 } = elevationSlice.actions;
 

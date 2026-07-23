@@ -48,9 +48,11 @@ export default function PanelPropertiesPoints() {
     ? ""
     : (selectedPoints[0]?.offsetTop ?? 0);
 
-  // Reference / base point — only meaningful for profile annotations and a
-  // single selected vertex (it designates the profile extrusion anchor).
-  const isProfile = !!annotation?.annotationTemplate?.isProfile;
+  // Reference / base point — only meaningful for profile annotations (the
+  // template-level flag OR the per-annotation "Profil" switch) and a single
+  // selected vertex (it designates the profile extrusion anchor).
+  const isProfile =
+    !!annotation?.isProfile || !!annotation?.annotationTemplate?.isProfile;
   const isBasePointValue = !!selectedPoints[0]?.isBasePoint;
 
   // local state for the numeric inputs (so typing doesn't fight the live db value)

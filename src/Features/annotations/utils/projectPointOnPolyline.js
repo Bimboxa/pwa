@@ -2,8 +2,8 @@ import projectPointOnSegment from "Features/annotations/utils/projectPointOnSegm
 
 // Orthogonally projects a 2D point onto a polyline and returns the
 // arc-length parameter `s` (cumulative length from the polyline start to the
-// foot of the perpendicular) of the closest segment, plus that distance and
-// the projected point.
+// foot of the perpendicular) of the closest segment, plus that distance, the
+// projected point, and the owning segment (`segIndex`, local parameter `t`).
 //
 // `polyline` is an ordered array of pixel points [{x,y}, ...] (already
 // arc-expanded by the caller when it carries `type:"circle"` control points).
@@ -24,6 +24,8 @@ export default function projectPointOnPolyline(point, polyline) {
         s: cum + proj.t * segLen,
         distance: proj.distance,
         projected: proj.projectedPoint,
+        segIndex: i,
+        t: proj.t,
       };
     }
     cum += segLen;

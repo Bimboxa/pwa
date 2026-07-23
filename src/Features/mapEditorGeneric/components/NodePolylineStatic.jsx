@@ -61,6 +61,7 @@ import coerceAnnotationNumericFields from "Features/annotations/utils/coerceAnno
 import { expandArcsInPath } from "Features/geometry/utils/arcSampling";
 import useProfileResolution from "Features/annotations/hooks/useProfileResolution";
 import getInlineExtrusionBandMetrics from "Features/annotations/utils/getInlineExtrusionBandShapes";
+import { getProfileAxis } from "Features/elevation/utils/buildProfileSectionGeometry";
 import NodeLabelStatic from "./NodeLabelStatic";
 import getInnerOffsetSegmentPath from "Features/mapEditorGeneric/utils/getInnerOffsetSegmentPath";
 
@@ -1339,25 +1340,46 @@ function NodePolylineStatic({
   }, [type, mergedAnnotation.isoHeightLines, annotationId]);
 
   // profileLines (shell / extrusion cross-sections): per-line pixel polyline.
-  // Straight segments only (V1). Each line carries an indexed partId so it
-  // can be selected / deleted independently; the vertical profile itself is
-  // edited in the Élévation panel. POLYGON = shell (Coque); POLYLINE =
-  // extrusion of the profile along the whole chain.
+  // Each line carries an indexed partId so it can be selected / deleted
+  // independently; the vertical profile itself is edited in the Élévation
+  // panel. POLYGON = shell (Coque): the drawn plan polyline IS the section
+  // path. POLYLINE = extrusion (FREE cross-section): the plan trace is the
+  // profile's PROJECTION — rendered as a plain SEGMENT (the extreme
+  // projections on the cut axis), whatever the vertex count.
   const profileLinesData = useMemo(() => {
     if (type !== "POLYGON" && type !== "POLYLINE") return [];
     const lines = mergedAnnotation.profileLines;
     if (!Array.isArray(lines)) return [];
+    const isExtrusion = type === "POLYLINE";
     return lines
       .map((l, index) => {
         const vertices = (l?.points || []).filter(
           (p) => typeof p?.x === "number" && typeof p?.y === "number"
         );
         if (vertices.length < 2) return null;
+        let polyline = vertices.map((p) => ({ x: p.x, y: p.y }));
+        if (isExtrusion) {
+          const axis = getProfileAxis(vertices);
+          if (axis) {
+            let sMin = Infinity;
+            let sMax = -Infinity;
+            for (const p of vertices) {
+              const s = (p.x - axis.ox) * axis.ux + (p.y - axis.oy) * axis.uy;
+              if (s < sMin) sMin = s;
+              if (s > sMax) sMax = s;
+            }
+            polyline = [
+              { x: axis.ox + axis.ux * sMin, y: axis.oy + axis.uy * sMin },
+              { x: axis.ox + axis.ux * sMax, y: axis.oy + axis.uy * sMax },
+            ];
+          }
+        }
         return {
           index,
           partId: `${annotationId}::PROFILE_LINE::${index}`,
-          polyline: vertices.map((p) => ({ x: p.x, y: p.y })),
+          polyline,
           vertices,
+          isExtrusion,
         };
       })
       .filter(Boolean);
@@ -2091,49 +2113,69 @@ function NodePolylineStatic({
               data-node-id={annotationId}
               style={{ cursor: getPartCursor(profilePartId) }}
             >
-              {/* Hit area (transparent wide stroke) */}
-              <polyline
-                points={pointsStr}
-                fill="none"
-                stroke="transparent"
-                strokeWidth={POLYGON_HIT_STROKE_WIDTH_PX}
-                vectorEffect="non-scaling-stroke"
-              />
-              {/* Visible stroke */}
-              <polyline
-                points={pointsStr}
-                fill="none"
-                stroke={profileStroke}
-                strokeWidth={profileStrokeWidth}
-                strokeOpacity={profileStrokeOpacity}
-                strokeDasharray="8 4"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                vectorEffect="non-scaling-stroke"
-                style={{ pointerEvents: "none" }}
-              />
-              {/* Interior vertex markers (endpoints are contour-anchored) */}
-              {line.vertices.map((p, vi) =>
-                vi === 0 || vi === line.vertices.length - 1 ? null : (
-                  <g
-                    key={`profile-v-${line.partId}-${vi}`}
-                    transform={`translate(${p.x}, ${p.y})`}
-                    style={{ pointerEvents: "none" }}
-                  >
-                    <g style={{ transform: vertexScaleTransform }}>
-                      <rect
-                        x={-3}
-                        y={-3}
-                        width={6}
-                        height={6}
-                        fill="white"
-                        stroke={profileStroke}
-                        strokeWidth={1.5}
-                      />
-                    </g>
-                  </g>
-                )
-              )}
+              {/* POLYLINE extrusion: the whole projection segment is
+                  draggable along its own axis (normal to the guide) — the
+                  inner data-part-type routes the drag (PROFILE_LINE_MOVE)
+                  while the outer data-part-id keeps the click selection. */}
+              <g
+                {...(line.isExtrusion
+                  ? {
+                      "data-interaction": "draggable",
+                      "data-part-type": `PROFILE_LINE_MOVE::${line.index}`,
+                      "data-node-id": annotationId,
+                      style: { cursor: "move" },
+                    }
+                  : {})}
+              >
+                {/* Hit area (transparent wide stroke) */}
+                <polyline
+                  points={pointsStr}
+                  fill="none"
+                  stroke="transparent"
+                  strokeWidth={POLYGON_HIT_STROKE_WIDTH_PX}
+                  vectorEffect="non-scaling-stroke"
+                />
+                {/* Visible stroke */}
+                <polyline
+                  points={pointsStr}
+                  fill="none"
+                  stroke={profileStroke}
+                  strokeWidth={profileStrokeWidth}
+                  strokeOpacity={profileStrokeOpacity}
+                  strokeDasharray="8 4"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  vectorEffect="non-scaling-stroke"
+                  style={{ pointerEvents: "none" }}
+                />
+                {/* Vertex markers. Extrusions: the 2 extremities of the
+                    projection segment only (the free section is edited in
+                    the Élévation panel). Shells: interior vertices
+                    (endpoints are contour-anchored). */}
+                {(line.isExtrusion ? line.polyline : line.vertices).map(
+                  (p, vi) =>
+                    !line.isExtrusion &&
+                    (vi === 0 || vi === line.vertices.length - 1) ? null : (
+                      <g
+                        key={`profile-v-${line.partId}-${vi}`}
+                        transform={`translate(${p.x}, ${p.y})`}
+                        style={{ pointerEvents: "none" }}
+                      >
+                        <g style={{ transform: vertexScaleTransform }}>
+                          <rect
+                            x={-3}
+                            y={-3}
+                            width={6}
+                            height={6}
+                            fill="white"
+                            stroke={profileStroke}
+                            strokeWidth={1.5}
+                          />
+                        </g>
+                      </g>
+                    )
+                )}
+              </g>
             </g>
           );
         })}

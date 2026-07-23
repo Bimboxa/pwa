@@ -46,7 +46,6 @@ export default function PanelElevation() {
     profileLines,
   } = useElevationAnnotation();
 
-
   const selectedAnnotation = useSelectedAnnotation();
 
   // The profile editor sub-panel is for a plain (non-proxy) polyline or
@@ -102,12 +101,22 @@ export default function PanelElevation() {
       })
     );
     dispatch(setHoveredSegmentIndex(null));
+    // POLYLINE with a drawn profile: open directly on the profile section
+    // (the extrusion cross-section is what the user edits), not on the
+    // annotation's own elevation. POLYGON keeps the silhouette default.
+    const firstProfileIndex = isPolygon
+      ? -1
+      : (profileLines ?? []).findIndex((l) => (l?.points?.length ?? 0) >= 2);
+    dispatch(
+      setEditedProfileIndex(firstProfileIndex >= 0 ? firstProfileIndex : null)
+    );
   }, [
     isProfileTarget,
     isPolygon,
     annotationId,
     points,
     closeLine,
+    profileLines,
     selectionAnnotationId,
     dispatch,
   ]);
@@ -208,6 +217,7 @@ export default function PanelElevation() {
         isoLines={isoHeightLines}
         profileLines={profileLines}
         editedProfileIndex={effectiveProfileIndex}
+        color={color}
         onHoverSegment={handleHoverSegment}
         onSelectSegment={handleSelectSeedSegment}
         onSetObservation={handleSetObservation}
