@@ -35,6 +35,7 @@ export default function useFavoriteKrtoItems() {
           type: getPresetScopeLabel(appConfig, scope.presetScopeKey),
           projectName: scope.project?.name,
           projectKey: `local_${scope.projectId}`,
+          projectId: scope.projectId,
           isLocal: true,
         };
       }

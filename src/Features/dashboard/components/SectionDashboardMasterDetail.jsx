@@ -1,7 +1,10 @@
 import { useState } from "react";
 
 import { useDispatch, useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
 
+import { setSelectedScopeId } from "Features/scopes/scopesSlice";
+import { setSelectedProjectId } from "Features/projects/projectsSlice";
 import { setSelectedProjectKeyInDashboard } from "../dashboardSlice";
 
 import useDashboardRemoteSearch from "../hooks/useDashboardRemoteSearch";
@@ -30,6 +33,7 @@ import {
 
 export default function SectionDashboardMasterDetail() {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
 
   // data
 
@@ -114,6 +118,21 @@ export default function SectionDashboardMasterDetail() {
       handleSelectItem(item, { noToggle: true });
     } else if (favorite.isLocal) {
       dispatch(setSelectedProjectKeyInDashboard(targetKey));
+    }
+  }
+
+  // opens the krto directly from the favorite vignette (mirrors the
+  // project-detail scope row "Ouvrir" action)
+  function handleOpenKrto(favorite) {
+    if (favorite.isLocal) {
+      dispatch(setSelectedScopeId(favorite.scopeId));
+      if (favorite.projectId != null) {
+        dispatch(setSelectedProjectId(favorite.projectId));
+      }
+      navigate("/");
+    } else {
+      // remote krto — install & open via the existing loader route
+      navigate(`/scopes/${favorite.scopeId}`);
     }
   }
 
@@ -253,6 +272,7 @@ export default function SectionDashboardMasterDetail() {
             <SectionFavoriteKrtos
               favorites={favoriteItems}
               onOpen={handleOpenFavorite}
+              onOpenKrto={handleOpenKrto}
               onUnfavorite={handleUnfavorite}
               onRefresh={handleRefreshFavorites}
               refreshing={favoritesRefreshing}

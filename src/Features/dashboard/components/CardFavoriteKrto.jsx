@@ -1,12 +1,18 @@
-import { Box, Typography, IconButton, Tooltip } from "@mui/material";
+import { Box, Typography, IconButton, Tooltip, Button } from "@mui/material";
 import {
   Star,
   GridOn,
   FolderOpen,
   CloudQueue,
+  OpenInNew,
 } from "@mui/icons-material";
 
-export default function CardFavoriteKrto({ favorite, onOpen, onUnfavorite }) {
+export default function CardFavoriteKrto({
+  favorite,
+  onOpen,
+  onOpenKrto,
+  onUnfavorite,
+}) {
   // render
 
   return (
@@ -71,6 +77,19 @@ export default function CardFavoriteKrto({ favorite, onOpen, onUnfavorite }) {
           {favorite.projectName}
         </Typography>
       </Box>
+      <Button
+        variant="contained"
+        size="small"
+        fullWidth
+        startIcon={<OpenInNew sx={{ fontSize: "1rem" }} />}
+        onClick={(e) => {
+          e.stopPropagation();
+          onOpenKrto(favorite);
+        }}
+        sx={{ mt: 1, textTransform: "none" }}
+      >
+        Ouvrir
+      </Button>
     </Box>
   );
 }

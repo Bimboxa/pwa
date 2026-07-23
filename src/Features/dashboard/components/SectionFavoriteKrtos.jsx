@@ -23,6 +23,7 @@ import {
 export default function SectionFavoriteKrtos({
   favorites,
   onOpen,
+  onOpenKrto,
   onUnfavorite,
   onRefresh,
   refreshing,
@@ -114,6 +115,7 @@ export default function SectionFavoriteKrtos({
                 key={favorite.scopeId}
                 favorite={favorite}
                 onOpen={onOpen}
+                onOpenKrto={onOpenKrto}
                 onUnfavorite={onUnfavorite}
               />
             ))}
