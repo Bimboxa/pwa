@@ -63,6 +63,7 @@ export default function useCreateAnnotationsFromDetectedFeatures() {
       templateLabel,
       listingId: sourceListingId,
       height: sourceHeight,
+      isExt,
     } = sourceAnnotation || {};
 
     const templateProps = {
@@ -77,6 +78,7 @@ export default function useCreateAnnotationsFromDetectedFeatures() {
       annotationTemplateId,
       templateLabel,
       height: sourceHeight,
+      isExt,
     };
 
     const listingId = sourceListingId ?? listingIdSelected;

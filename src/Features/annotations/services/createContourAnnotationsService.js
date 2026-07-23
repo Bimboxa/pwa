@@ -151,6 +151,7 @@ export default async function createContourAnnotationsService({
       strokeOpacity: boundaryAnnotationTemplate.strokeOpacity ?? 1,
       strokeWidth: boundaryAnnotationTemplate.strokeWidth ?? 2,
       strokeWidthUnit: boundaryAnnotationTemplate.strokeWidthUnit ?? "PX",
+      isExt: boundaryAnnotationTemplate.isExt,
       ...stripProps,
       closeLine: group.closed === true,
       entityId,

@@ -86,6 +86,7 @@ export default function useCreateAnnotationsFromDetectedStrips() {
       templateLabel,
       listingId: sourceListingId,
       height: sourceHeight,
+      isExt,
     } = sourceAnnotation || {};
 
     const templateProps = {
@@ -101,6 +102,7 @@ export default function useCreateAnnotationsFromDetectedStrips() {
       annotationTemplateId,
       templateLabel,
       height: sourceHeight,
+      isExt,
     };
 
     const listingId = sourceListingId ?? listingIdSelected;
