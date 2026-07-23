@@ -9,6 +9,7 @@ import BoxFlexVStretch from "./BoxFlexVStretch";
 import TopBar from "./TopBar";
 import SectionViewer from "./SectionViewer";
 import BottomBarMobile from "./BottomBarMobile";
+import SectionReadOnlyScopeInBottomBar from "Features/scopes/components/SectionReadOnlyScopeInBottomBar";
 import ListPanel from "Features/listPanel/components/ListPanel";
 import PanelListingContainerWithVerticalSelector from "Features/listings/components/PanelListingContainerWithVerticalSelector";
 import PanelChatContainer from "./PanelChatContainer";
@@ -68,6 +69,7 @@ export default function LayoutMobile() {
             <PanelListingContainerWithVerticalSelector />
           </PanelShowable>
         </BoxFlexVStretch>
+        <SectionReadOnlyScopeInBottomBar />
         <BottomBarMobile />
         <PanelChatContainer />
       </BoxFlexV>

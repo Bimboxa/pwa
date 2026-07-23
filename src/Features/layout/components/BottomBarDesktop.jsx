@@ -13,6 +13,7 @@ import RectangleDimsBottomBar from "Features/annotations/components/RectangleDim
 import SegmentLengthBottomBar from "Features/annotations/components/SegmentLengthBottomBar";
 import CircleRadiusBottomBar from "Features/annotations/components/CircleRadiusBottomBar";
 import ToolbarDrawingDraft from "Features/mapEditor/components/ToolbarDrawingDraft";
+import SectionReadOnlyScopeInBottomBar from "Features/scopes/components/SectionReadOnlyScopeInBottomBar";
 
 // Drawing modes that surface a dedicated bottom-bar UI (and hide the regular
 // bottom-bar items so they don't compete for space).
@@ -85,6 +86,7 @@ export default function BottomBarDesktop() {
         {showRectangleDims && <RectangleDimsBottomBar />}
         {showSegmentLength && <SegmentLengthBottomBar />}
         {showCircleRadius && <CircleRadiusBottomBar />}
+        <SectionReadOnlyScopeInBottomBar />
       </Box>
     );
   }
@@ -111,6 +113,8 @@ export default function BottomBarDesktop() {
         <ButtonDialogAppConfig />
         <ButtonDocumentation />
       </Box>
+
+      <SectionReadOnlyScopeInBottomBar />
 
       {helperMessage && (
         <Box sx={{ bgcolor: "warning.main", borderRadius: "0px", px: 1 }}>

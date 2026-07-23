@@ -2,7 +2,9 @@ import { useEffect } from "react";
 
 import { useSelector, useDispatch } from "react-redux";
 
-import { setWindowHeight } from "Features/layout/layoutSlice";
+import { setWindowHeight, setToaster } from "Features/layout/layoutSlice";
+
+import { OwnershipError } from "App/db/ownership";
 
 import useRemoteContainer from "Features/sync/hooks/useRemoteContainer";
 import useDndSensors from "App/hooks/useDndSensors";
@@ -70,6 +72,31 @@ export default function MainAppLayout() {
     window.addEventListener("resize", handleResize);
     return () => {
       window.removeEventListener("resize", handleResize);
+    };
+  }, []);
+
+  // Ownership / read-only scope violations thrown by the db layer can bubble
+  // up from any write path (draw commit, forms, dialogs) — surface them as a
+  // toast instead of an unhandled rejection.
+  useEffect(() => {
+    function handleRejection(event) {
+      // Dexie wraps hook errors: the OwnershipError may be the reason itself
+      // or nested in reason.inner / reason.failures.
+      const reason = event.reason;
+      const error =
+        reason instanceof OwnershipError
+          ? reason
+          : reason?.inner instanceof OwnershipError
+            ? reason.inner
+            : null;
+      if (!error) return;
+      event.preventDefault();
+      dispatch(setToaster({ message: error.message, isError: true }));
+    }
+
+    window.addEventListener("unhandledrejection", handleRejection);
+    return () => {
+      window.removeEventListener("unhandledrejection", handleRejection);
     };
   }, []);
 

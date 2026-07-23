@@ -63,6 +63,7 @@ export default async function duplicateScopeService({
   scope,
   name,
   createdBy,
+  createdByTrigram = null,
   disabledBaseMapIds = [],
   disabledLayerIds = [],
   disabledTemplateKeys = [],
@@ -268,11 +269,14 @@ export default async function duplicateScopeService({
 
   // remap in memory
 
+  // A duplicate is the duplicator's own private copy.
   const newScope = {
     ...prepareCopy(scope, createdBy),
     id: newScopeId,
     name: name.trim(),
     createdBy,
+    createdByTrigram,
+    isPublic: false,
   };
 
   const newListings = listingsToCopy.map((l) => ({
