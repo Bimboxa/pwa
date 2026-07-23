@@ -4,7 +4,13 @@ import { nanoid } from "@reduxjs/toolkit";
 
 import store from "App/store";
 import { UNDO_TABLES, _skipUndo, pushUndo } from "./undoManager";
-import { canEditRecord, OwnershipError } from "./ownership";
+import {
+  canEditRecord,
+  getEffectiveOwner,
+  normalizeOwnerId,
+  OwnershipError,
+  ReadOnlyScopeError,
+} from "./ownership";
 import getUserIdMaster from "Features/auth/utils/getUserIdMaster";
 import { notifyLocalChange } from "Features/remoteScopeConfigurations/services/localChangeTracker";
 
@@ -245,8 +251,53 @@ const OWNERSHIP_EXEMPT_TABLES = new Set([
   "relsZoneAnnotation",
 ]);
 
+// --- READ-ONLY SCOPE GUARD ---
+// A scope with `isPublic !== true` is read-only for everyone but its creator:
+// ALL writes to scope-content tables are blocked while such a scope is
+// selected — including creates, which the per-record ownership guard cannot
+// catch (a visitor's own new records would pass it). The ownership exemption
+// (collaborative tables) does NOT apply here: collaboration is only allowed
+// inside public scopes. System writes (`withSystemWrite`: duplicate, Krto
+// import, remote sync) bypass the guard.
+
+// Scope-content tables = AUDIT_TABLES minus projects/scopes (the scope record
+// itself stays per-record guarded so its creator can always edit it), plus
+// relAnnotationMappingCategory (not audited, but scope content).
+const READ_ONLY_BLOCKED_TABLES = new Set([
+  ...AUDIT_TABLES.filter((t) => t !== "projects" && t !== "scopes"),
+  "relAnnotationMappingCategory",
+]);
+
+// Returns the selected scope's id when it is read-only for the current user,
+// else null. Synchronous read of the redux store (scopes are live-synced into
+// state.scopes.scopesById by dexieSyncService). A freshly created scope not
+// yet synced resolves to null → writable → correct (creator's own scope).
+function getActiveReadOnlyScopeId() {
+  const state = store.getState();
+  const scopeId = state?.scopes?.selectedScopeId;
+  const scope = scopeId ? state?.scopes?.scopesById?.[scopeId] : null;
+  if (!scope || scope.isPublic === true) return null;
+  const owner = getEffectiveOwner(scope);
+  if (owner === null) return null; // legacy ownerless scope: free for all
+  const currentUser = normalizeOwnerId(getUserIdMaster(state.auth.userProfile));
+  return owner === currentUser ? null : scopeId;
+}
+
+function assertNotReadOnlyScope(tableName, obj) {
+  if (_skipOwnershipGuard) return;
+  if (!READ_ONLY_BLOCKED_TABLES.has(tableName)) return;
+  const readOnlyScopeId = getActiveReadOnlyScopeId();
+  if (!readOnlyScopeId) return;
+  // Content explicitly targeting ANOTHER scope stays allowed (e.g. new-scope
+  // creation while the read-only scope is still selected).
+  if (obj?.scopeId && obj.scopeId !== readOnlyScopeId) return;
+  throw new ReadOnlyScopeError();
+}
+
 AUDIT_TABLES.forEach((tableName) => {
   db[tableName].hook("creating", function (primKey, obj) {
+    // Before notifyLocalChange so a read-only scope is never marked dirty.
+    assertNotReadOnlyScope(tableName, obj);
     obj.createdAt = obj.createdAt || new Date().toISOString();
     obj.createdByUserIdMaster =
       obj.createdByUserIdMaster || getCurrentUserIdMaster();
@@ -258,6 +309,7 @@ AUDIT_TABLES.forEach((tableName) => {
   });
 
   db[tableName].hook("updating", function (modifications, primKey, obj) {
+    assertNotReadOnlyScope(tableName, obj);
     if (!_skipOwnershipGuard) notifyLocalChange();
 
     if (_skipOwnershipGuard) {
@@ -289,6 +341,21 @@ AUDIT_TABLES.forEach((tableName) => {
       ? { ...modifications, ...extra }
       : modifications;
   });
+});
+
+// relAnnotationMappingCategory is scope content but not in AUDIT_TABLES (no
+// audit stamping wanted) — give it dedicated read-only guard hooks.
+db.relAnnotationMappingCategory.hook("creating", function (primKey, obj) {
+  assertNotReadOnlyScope("relAnnotationMappingCategory", obj);
+});
+db.relAnnotationMappingCategory.hook(
+  "updating",
+  function (modifications, primKey, obj) {
+    assertNotReadOnlyScope("relAnnotationMappingCategory", obj);
+  }
+);
+db.relAnnotationMappingCategory.hook("deleting", function (primKey, obj) {
+  assertNotReadOnlyScope("relAnnotationMappingCategory", obj);
 });
 
 // --- POINT SCOPE STAMP ---
@@ -405,6 +472,7 @@ async function softDeleteByKeys(downlevelTable, req, tableName) {
   for (let i = 0; i < req.keys.length; i++) {
     const record = existingRecords[i];
     if (record && !record.deletedAt) {
+      assertNotReadOnlyScope(tableName, record);
       if (
         !_skipOwnershipGuard &&
         !OWNERSHIP_EXEMPT_TABLES.has(tableName) &&
@@ -460,6 +528,10 @@ async function softDeleteByRange(downlevelTable, req, tableName) {
   const recordsToDelete = queryResult.result.filter(
     (record) => !record.deletedAt
   );
+
+  for (const record of recordsToDelete) {
+    assertNotReadOnlyScope(tableName, record);
+  }
 
   if (!_skipOwnershipGuard && !OWNERSHIP_EXEMPT_TABLES.has(tableName)) {
     for (const record of recordsToDelete) {

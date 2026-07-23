@@ -64,3 +64,17 @@ export class OwnershipError extends Error {
     this.name = "OwnershipError";
   }
 }
+
+/**
+ * Thrown by the DB layer when a user tries to write inside a private scope
+ * (`isPublic !== true`) created by someone else. Extends OwnershipError so
+ * existing `instanceof OwnershipError` handlers surface it the same way.
+ */
+export class ReadOnlyScopeError extends OwnershipError {
+  constructor(
+    message = "Ce Krto est privé : seul son créateur peut le modifier."
+  ) {
+    super(message);
+    this.name = "ReadOnlyScopeError";
+  }
+}

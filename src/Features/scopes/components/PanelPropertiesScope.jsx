@@ -18,6 +18,7 @@ import {
   Button,
   Chip,
   Tooltip,
+  Switch,
 } from "@mui/material";
 import {
   ChevronRight,
@@ -36,6 +37,8 @@ import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useMainBaseMapListing from "Features/baseMaps/hooks/useMainBaseMapListing";
 import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
 import useUpdateScope from "Features/scopes/hooks/useUpdateScope";
+import useReadOnlyScope from "Features/scopes/hooks/useReadOnlyScope";
+import useCanEditRecord from "App/hooks/useCanEditRecord";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 import useLayers from "Features/layers/hooks/useLayers";
@@ -57,6 +60,10 @@ export default function PanelPropertiesScope() {
 
   const baseMapId = useSelector((s) => s.mapEditor.selectedBaseMapId);
 
+  const { isReadOnly } = useReadOnlyScope();
+  const { canEditRecord: canEdit } = useCanEditRecord();
+  const isCreator = selectedScope ? canEdit(selectedScope) : false;
+
   // Single source: the deprecated useAnnotations hook dropped annotations
   // without an entityId (e.g. procedure-created ones), so the layer counts
   // desynced from the datagrid below (already fed by annotationsV2).
@@ -76,6 +83,7 @@ export default function PanelPropertiesScope() {
 
   const scopeName = selectedScope?.name ?? "-";
   const scopeLabel = appConfig?.strings?.scope?.nameSingular ?? "Repérage";
+  const isPublicLabel = appConfig?.strings?.scope?.isPublicLabel ?? "Krto public";
   const baseMapUrl = baseMap?.getUrl?.();
 
   const annotationsByLayer = useMemo(() => {
@@ -178,13 +186,47 @@ export default function PanelPropertiesScope() {
 
       <BoxFlexVStretch sx={{ overflow: "auto", gap: 1, p: 1 }}>
         {/* Scope name */}
-        {selectedScope && (
+        {selectedScope && !isReadOnly && (
           <FieldTextV2
             label="Nom"
             value={selectedScope.name}
             onChange={handleNameChange}
             options={{ showAsField: true, fullWidth: true, changeOnBlur: true }}
           />
+        )}
+        {selectedScope && isReadOnly && (
+          <WhiteSectionGeneric>
+            <Typography variant="caption" color="text.secondary">
+              Nom
+            </Typography>
+            <Typography variant="body2">{selectedScope.name}</Typography>
+          </WhiteSectionGeneric>
+        )}
+
+        {/* isPublic switch — only the creator can toggle it */}
+        {selectedScope && (
+          <WhiteSectionGeneric>
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
+              <Typography variant="body2">{isPublicLabel}</Typography>
+              <Switch
+                size="small"
+                checked={selectedScope.isPublic === true}
+                disabled={!isCreator}
+                onChange={(e) =>
+                  updateScope({
+                    id: selectedScope.id,
+                    isPublic: e.target.checked,
+                  })
+                }
+              />
+            </Box>
+          </WhiteSectionGeneric>
         )}
 
         {/* Card 1: BaseMap preview + opacity */}

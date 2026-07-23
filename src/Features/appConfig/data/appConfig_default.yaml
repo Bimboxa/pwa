@@ -59,6 +59,9 @@ strings:
     myScopes: "Mes dossiers"
     nameLabel: "Nom du dossier"
     noScope: "Aucun dossier"
+    isPublicLabel: "Dossier public"
+    readOnlyChip: "lecture seule"
+    readOnlyContactMessage: "Données privées. Pour modifier, contactez : "
 
   listing:
     namePlural: "Listes"

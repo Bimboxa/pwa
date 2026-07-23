@@ -1,4 +1,4 @@
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 
 import { setSelectedScopeId } from "../scopesSlice";
 import {
@@ -15,6 +15,7 @@ import duplicateScopeService from "../services/duplicateScopeService";
 export default function useDuplicateScope() {
   const dispatch = useDispatch();
   const { value: userEmail } = useUserEmail();
+  const userTrigram = useSelector((s) => s.auth.userProfile?.trigram ?? null);
 
   return async ({
     scope,
@@ -27,6 +28,7 @@ export default function useDuplicateScope() {
       scope,
       name,
       createdBy: userEmail,
+      createdByTrigram: userTrigram,
       disabledBaseMapIds,
       disabledLayerIds,
       disabledTemplateKeys,

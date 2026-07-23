@@ -1,6 +1,8 @@
 import { nanoid } from "@reduxjs/toolkit";
 
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
+
+import { setSelectedScopeId } from "../scopesSlice";
 
 import useUserEmail from "Features/auth/hooks/useUserEmail";
 import useCreateListings from "Features/listings/hooks/useCreateListings";
@@ -12,12 +14,16 @@ import db from "App/db/db";
 import updateItemSyncFile from "Features/sync/services/updateItemSyncFile";
 
 export default function useCreateScope() {
+  const dispatch = useDispatch();
   const { value: createdBy } = useUserEmail();
 
   const createListings = useCreateListings();
   const createRemoteScope = useCreateRemoteScope();
   const createEntity = useCreateEntity();
   const _projectId = useSelector((s) => s.projects.selectedProjectId);
+  const createdByTrigram = useSelector(
+    (s) => s.auth.userProfile?.trigram ?? null
+  );
 
   const create = async (
     {
@@ -48,12 +54,17 @@ export default function useCreateScope() {
       id: id ?? nanoid(),
       presetScopeKey,
       createdBy,
+      createdByTrigram,
       name,
       clientRef,
       projectId: projectId ?? _projectId,
+      isPublic: false,
     };
     await db.scopes.add(scope);
     console.log("debug_25_04 [db] added scope", scope);
+    // Select the new scope right away so the follow-up listings/entities
+    // writes never hit the read-only guard of a previously selected scope.
+    dispatch(setSelectedScopeId(scope.id));
 
     // update sync file
     if (updateSyncFile) {
