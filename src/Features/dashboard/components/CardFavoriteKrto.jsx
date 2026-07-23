@@ -1,11 +1,5 @@
-import { Box, Typography, IconButton, Tooltip, Button } from "@mui/material";
-import {
-  Star,
-  GridOn,
-  FolderOpen,
-  CloudQueue,
-  OpenInNew,
-} from "@mui/icons-material";
+import { Box, Typography, IconButton, Tooltip, Divider } from "@mui/material";
+import { Star, CloudQueue, OpenInNew } from "@mui/icons-material";
 
 export default function CardFavoriteKrto({
   favorite,
@@ -20,76 +14,101 @@ export default function CardFavoriteKrto({
       onClick={() => onOpen(favorite)}
       sx={{
         flex: "0 0 auto",
-        width: 190,
-        p: 1.25,
-        borderRadius: 2,
-        border: "1px solid",
-        borderColor: "divider",
+        width: 240,
+        p: 2,
+        borderRadius: 3,
         bgcolor: "white",
         cursor: "pointer",
-        transition: "border-color .15s, box-shadow .15s",
+        boxShadow: "0 2px 10px rgba(20,20,50,.06)",
+        transition: "box-shadow .15s",
         "&:hover": {
-          borderColor: "#c9c9d8",
-          boxShadow: "0 2px 10px rgba(20,20,50,.06)",
+          boxShadow: "0 4px 16px rgba(20,20,50,.10)",
+        },
+        // reveal the open button on hover / keyboard focus
+        "&:hover .favorite-open-btn, &:focus-within .favorite-open-btn": {
+          opacity: 1,
+          pointerEvents: "auto",
         },
       }}
     >
-      <Box
-        sx={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "flex-start",
-        }}
-      >
-        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-          <GridOn sx={{ color: "text.secondary", fontSize: "1.05rem" }} />
-          {!favorite.isLocal && (
-            <Tooltip title="Krto non installé sur cet appareil">
-              <CloudQueue sx={{ color: "text.secondary", fontSize: "0.95rem" }} />
-            </Tooltip>
-          )}
-        </Box>
-        <Tooltip title="Retirer des favoris">
-          <IconButton
-            size="small"
-            onClick={(e) => {
-              e.stopPropagation();
-              onUnfavorite(favorite);
-            }}
-            sx={{ p: 0.25, mt: -0.5, mr: -0.5 }}
-          >
-            <Star sx={{ color: "#f5a623", fontSize: "1.1rem" }} />
-          </IconButton>
-        </Tooltip>
-      </Box>
+      {/* title */}
       <Typography
-        sx={{ fontWeight: 600, fontSize: 13, mt: 0.5, lineHeight: 1.25 }}
-        noWrap
+        sx={{
+          fontWeight: 700,
+          fontSize: 16,
+          lineHeight: 1.3,
+          display: "-webkit-box",
+          WebkitLineClamp: 2,
+          WebkitBoxOrient: "vertical",
+          overflow: "hidden",
+        }}
       >
         {favorite.name}
       </Typography>
-      <Typography variant="caption" sx={{ color: "text.secondary" }} noWrap>
-        {favorite.type ?? " "}
-      </Typography>
-      <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 0.75 }}>
-        <FolderOpen sx={{ color: "text.secondary", fontSize: ".85rem" }} />
-        <Typography variant="caption" sx={{ color: "text.secondary" }} noWrap>
-          {favorite.projectName}
-        </Typography>
-      </Box>
-      <Button
-        variant="contained"
-        size="small"
-        fullWidth
-        startIcon={<OpenInNew sx={{ fontSize: "1rem" }} />}
-        onClick={(e) => {
-          e.stopPropagation();
-          onOpenKrto(favorite);
+
+      <Divider sx={{ my: 1.5 }} />
+
+      {/* footer */}
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 1,
         }}
-        sx={{ mt: 1, textTransform: "none" }}
       >
-        Ouvrir
-      </Button>
+        <Box
+          sx={{ display: "flex", alignItems: "center", gap: 0.75, minWidth: 0 }}
+        >
+          <Tooltip title="Retirer des favoris">
+            <IconButton
+              size="small"
+              onClick={(e) => {
+                e.stopPropagation();
+                onUnfavorite(favorite);
+              }}
+              sx={{ p: 0.25, flexShrink: 0 }}
+            >
+              <Star sx={{ color: "#e07a3f", fontSize: "1.3rem" }} />
+            </IconButton>
+          </Tooltip>
+          <Typography
+            sx={{ color: "text.secondary", fontSize: 15 }}
+            noWrap
+          >
+            {favorite.type ?? " "}
+          </Typography>
+          {!favorite.isLocal && (
+            <Tooltip title="Krto non installé sur cet appareil">
+              <CloudQueue
+                sx={{ color: "text.secondary", fontSize: "0.95rem", flexShrink: 0 }}
+              />
+            </Tooltip>
+          )}
+        </Box>
+
+        <Tooltip title="Ouvrir le Krto">
+          <IconButton
+            className="favorite-open-btn"
+            size="small"
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenKrto(favorite);
+            }}
+            sx={{
+              flexShrink: 0,
+              opacity: 0,
+              pointerEvents: "none",
+              transition: "opacity .15s",
+              borderRadius: 1.5,
+              border: "1px solid",
+              borderColor: "divider",
+            }}
+          >
+            <OpenInNew sx={{ fontSize: "1.15rem", color: "text.secondary" }} />
+          </IconButton>
+        </Tooltip>
+      </Box>
     </Box>
   );
 }
