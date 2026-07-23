@@ -1,27 +1,36 @@
-import { useLiveQuery } from "dexie-react-hooks";
+import { useMemo } from "react";
 import { useSelector } from "react-redux";
 
-import db from "App/db/db";
+import useAnnotationsV2 from "./useAnnotationsV2";
 
-// Counts of non-deleted annotations per baseMapId for the selected project —
-// {baseMapId: count}. Same read semantics as the duplicate-scope counts
-// (useDuplicateScopeSourceData): raw per-basemap totals, no scope filtering.
+// Counts of annotations per baseMapId for the current project, with the same
+// non-visibility filters PopperMapListings applies in the 3D viewer (scope,
+// hidden listings, profile templates, hidden templates, base-map annotations,
+// bg-image text). Deliberately omits filterByMainBaseMap/extraBaseMapIds so
+// useAnnotationsV2 falls through to its "all project annotations" fetch path
+// (see useAnnotationsV2.js ~L693) — every baseMap is counted, not just the
+// ones currently visible in 3D. Used by the 3D top base-map chips badges.
 export default function useAnnotationsCountByBaseMapId() {
-  const projectId = useSelector((s) => s.projects.selectedProjectId);
+  const hiddenListingsIds = useSelector(
+    (s) => s.listings.hiddenListingsIds || []
+  );
 
-  const value = useLiveQuery(async () => {
-    if (!projectId) return {};
-    const rows = await db.annotations
-      .where("projectId")
-      .equals(projectId)
-      .toArray();
+  const annotations = useAnnotationsV2({
+    caller: "useAnnotationsCountByBaseMapId",
+    filterBySelectedScope: true,
+    excludeListingsIds: hiddenListingsIds,
+    excludeProfileTemplates: true,
+    hideBaseMapAnnotations: true,
+    excludeIsForBaseMapsListings: true,
+    excludeBgAnnotations: true,
+    ignoreSolo: true,
+  });
+
+  return useMemo(() => {
     const counts = {};
-    rows.forEach((a) => {
-      if (a.deletedAt || !a.baseMapId) return;
-      counts[a.baseMapId] = (counts[a.baseMapId] ?? 0) + 1;
+    (annotations || []).forEach((a) => {
+      if (a.baseMapId) counts[a.baseMapId] = (counts[a.baseMapId] ?? 0) + 1;
     });
     return counts;
-  }, [projectId]);
-
-  return value ?? {};
+  }, [annotations]);
 }
