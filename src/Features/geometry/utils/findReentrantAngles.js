@@ -28,6 +28,11 @@ export default function findReentrantAngles({
 }) {
   if (!polylines?.length || !polygons?.length) return [];
 
+  // Height per polyline id, to derive each reentrant angle's height from the
+  // exact segments that form it (its polylineIds) rather than the arbitrary
+  // first wall passing through the vertex.
+  const heightByPolylineId = new Map(polylines.map((pl) => [pl.id, pl.height]));
+
   // 1. Build polygon edge lists (outer ring + cuts)
   const polygonEdges = polygons.map((polygon) => {
     const edges = buildEdges(polygon.points);
@@ -168,12 +173,26 @@ export default function findReentrantAngles({
     }
 
     if (isReentrant) {
+      // Known limitation: a single vertex hosting two DISTINCT reentrant pairs
+      // (cross / plus junction) accumulates 3-4 ids in polylineIds; the
+      // downstream common-vertical intersection would then over-shrink. This is
+      // a pre-existing one-point → one-angle ambiguity, left as-is here.
+      //
+      // The angle covers the common vertical of its two forming segments: at
+      // detection level (base 0) that is the min of the forming walls' heights.
+      const formingHeights = [...polylineIds]
+        .map((id) => heightByPolylineId.get(id))
+        .filter((h) => h != null);
+      const height = formingHeights.length
+        ? Math.min(...formingHeights)
+        : (vertex.heights[0] ?? null);
+
       results.push({
         x: vertex.x,
         y: vertex.y,
         pointId: vertex.pointId,
         polylineIds: [...polylineIds],
-        height: vertex.heights[0] ?? null,
+        height,
       });
     }
   }
