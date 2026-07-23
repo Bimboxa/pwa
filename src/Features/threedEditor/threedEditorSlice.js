@@ -19,9 +19,10 @@ const threedEditorInitialState = {
   // Viewport render mode (session-only). "STANDARD" = the historical unlit /
   // Lambert look. "REALISTIC" = real-time PBR: physical materials, white
   // environment lighting, ACES tone mapping. "PHOTOREAL" = the full raster
-  // archviz state: HDR sky (IBL + background), warm sun with cast shadows and
-  // textured PBR materials (material3d presets). Clipping-compatible.
-  renderMode: "STANDARD",
+  // archviz state (default): HDR-driven lighting (IBL, no sky background),
+  // warm sun with cast shadows and textured PBR materials (material3d
+  // presets). Clipping-compatible.
+  renderMode: "PHOTOREAL",
   // PHOTOREAL environment (session-only). "STANDARD" = neutral studio (no
   // sky), "EXTERIOR" = HDR sky + warm sun, "INTERIOR" = indoor HDR (e.g. a
   // parking level — a sky background would be wrong there).

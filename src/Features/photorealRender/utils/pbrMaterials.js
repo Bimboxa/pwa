@@ -17,8 +17,28 @@ export function createAnnotationPbrMaterial({
   alphaMap = null,
   side,
   transparent = false,
+  alphaBlend = false,
 }) {
   if (opacity < 1) {
+    // PHOTOREAL (alphaBlend): honor the annotation's opacity with straight
+    // alpha blending — a translucent annotation should read as translucent,
+    // not as refractive glass. depthWrite stays on for stable z-sorting
+    // between overlapping surfaces (same trade-off as the Lambert path).
+    if (alphaBlend) {
+      return new MeshStandardMaterial({
+        color,
+        map,
+        alphaMap,
+        opacity,
+        transparent: true,
+        depthWrite: true,
+        side,
+        roughness: ANNOTATION_ROUGHNESS,
+        metalness: 0,
+      });
+    }
+    // REALISTIC: keep the transmission recipe (no path tracer anymore, but it
+    // still avoids stochastic-alpha banding under the raster env lighting).
     return new MeshPhysicalMaterial({
       color,
       map,
@@ -54,22 +74,13 @@ export function createMaterial3dMaterial({
   onMapsLoaded,
 }) {
   const preset = getMaterial3dPreset(presetKey);
-  if (!preset) return createAnnotationPbrMaterial({ color, opacity, side });
-
-  // Translucent annotations keep the stable transmission recipe (no maps —
-  // a transmissive textured surface reads as dirty glass), with only the
-  // preset's scalar roughness applied.
-  if (opacity < 1) {
-    return new MeshPhysicalMaterial({
+  if (!preset)
+    return createAnnotationPbrMaterial({
       color,
+      opacity,
       side,
-      roughness: preset.roughness ?? ANNOTATION_ROUGHNESS,
-      metalness: preset.metalness ?? 0,
-      transmission: 1 - opacity,
-      thickness: 0,
-      ior: 1,
+      alphaBlend: true,
     });
-  }
 
   const material = new MeshPhysicalMaterial({
     color: preset.tint ? color : new Color(0xffffff),
@@ -79,6 +90,15 @@ export function createMaterial3dMaterial({
     clearcoat: preset.clearcoat ?? 0,
     clearcoatRoughness: preset.clearcoatRoughness ?? 0,
   });
+
+  // Honor the annotation's opacity with straight alpha blending (was a
+  // transmission recipe left over from the path tracer, which read as glass).
+  // The textured albedo simply fades — depthWrite stays on for stable sorting.
+  if (opacity < 1) {
+    material.transparent = true;
+    material.opacity = opacity;
+    material.depthWrite = true;
+  }
 
   if (preset.textures) {
     // Flagged synchronously so the finishing pass (AnnotationsManager) box-

@@ -78,7 +78,10 @@ const PHOTOREAL_ENVIRONMENTS = {
   },
   [ENVIRONMENT3D_EXTERIOR]: {
     hdrUrl: `${HDR_BASE_URL}/sky_1k.hdr`,
-    showBackground: true,
+    // The HDR sky drives the IBL + warm sun (elevation ≈ 48°) but is NOT
+    // painted as the background: users asked to drop the blue sky, so the
+    // scene keeps its neutral pre-PHOTOREAL background across every env.
+    showBackground: false,
     envIntensity: 1.0,
     sunColor: 0xfff1e0,
     sunIntensity: 2.5,

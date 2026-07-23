@@ -177,7 +177,7 @@ export default function PanelThreedProperties() {
             sx={{ display: "block", mb: 1 }}
           >
             Réaliste : matériaux physiques + éclairage d&apos;ambiance.
-            Photoréaliste : ciel HDR, ombres portées du soleil et matériaux
+            Photoréaliste : éclairage HDR, ombres portées du soleil et matériaux
             texturés. Aquarelle : croquis d&apos;architecte à l&apos;aquarelle.
           </Typography>
           <ToggleButtonGroup
@@ -209,8 +209,8 @@ export default function PanelThreedProperties() {
                 color="text.secondary"
                 sx={{ display: "block", mt: 1.5, mb: 1 }}
               >
-                Environnement : studio neutre, ciel extérieur ou éclairage
-                intérieur (ex. parking).
+                Environnement : studio neutre, éclairage extérieur (soleil) ou
+                intérieur (ex. parking). Sans ciel visible.
               </Typography>
               <ToggleButtonGroup
                 size="small"

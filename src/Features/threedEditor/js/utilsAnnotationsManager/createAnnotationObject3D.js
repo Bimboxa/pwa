@@ -193,7 +193,13 @@ export function makeMaterial(annotation, options) {
         onMapsLoaded: options?.onAsyncLoaded,
       });
     }
-    return createAnnotationPbrMaterial({ color: baseColor, opacity });
+    return createAnnotationPbrMaterial({
+      color: baseColor,
+      opacity,
+      // PHOTOREAL respects opacity via alpha blending; REALISTIC keeps the
+      // transmission recipe (see createAnnotationPbrMaterial).
+      alphaBlend: options?.photorealShading,
+    });
   }
   // MeshLambertMaterial (was MeshBasicMaterial): diffuse shading reacts to the
   // scene lights, so a sloped/ramped top face reads as a 3D surface (the mesh
