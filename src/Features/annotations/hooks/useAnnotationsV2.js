@@ -151,7 +151,10 @@ function _rowBelongsToQueryKey(queryKey, row) {
   const val = queryKey.slice(sep + 1);
   if (kind === "baseMaps") return val.split(",").includes(row.baseMapId);
   if (kind === "listing") return row.listingId === val;
-  if (kind === "project") return row.projectId === val;
+  // projectId is numeric on the row but the queryKey segment is a string
+  // ("project:" + projectId): compare as strings so the patched row is
+  // re-added to the project-scoped cache instead of being silently dropped.
+  if (kind === "project") return String(row.projectId) === val;
   return false;
 }
 

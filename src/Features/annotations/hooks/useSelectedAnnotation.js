@@ -72,7 +72,12 @@ export default function useSelectedAnnotation() {
     (t) => t.id === annotation?.annotationTemplateId
   );
 
-  if (!annotation?.isBaseMapAnnotation) {
+  // No annotation resolved for the selected id (e.g. just deleted, or not yet
+  // loaded): return null so the toolbar hides instead of rendering a hollow
+  // "-?" row that looks like a corrupted annotation.
+  if (!annotation) return null;
+
+  if (!annotation.isBaseMapAnnotation) {
     annotation = { ...annotation, templateLabel: template?.label || "-?", annotationTemplate: template };
   }
 
