@@ -11,8 +11,10 @@ import {
   setRampWidthM,
   setRampDeltaHM,
   setOpeningStrokeWidth,
+  setDraftPropsForTemplate,
 } from "../mapEditorSlice";
 import { setNewAnnotation } from "Features/annotations/annotationsSlice";
+import { REMEMBERABLE_DRAFT_KEYS } from "Features/annotations/utils/getNewAnnotationPropsFromAnnotationTemplate";
 
 import {
   getDrawingToolByKey,
@@ -209,14 +211,30 @@ export default function ToolbarDrawingDraft() {
     setColorAnchorEl(e.currentTarget);
   }
 
+  // Persist the whitelisted props just edited so re-arming the same template
+  // restores them as defaults (mapEditor.draftPropsByTemplateId).
+  function rememberDraftProps(changed) {
+    const templateId = newAnnotation?.annotationTemplateId;
+    if (!templateId) return;
+    const props = {};
+    for (const key of REMEMBERABLE_DRAFT_KEYS) {
+      if (changed[key] !== undefined) props[key] = changed[key];
+    }
+    if (Object.keys(props).length > 0) {
+      dispatch(setDraftPropsForTemplate({ templateId, props }));
+    }
+  }
+
   function handleColorChange(picked) {
     dispatch(
       setNewAnnotation({ ...newAnnotation, [colorField]: picked.hex })
     );
+    rememberDraftProps({ [colorField]: picked.hex });
   }
 
   function handleFieldChange(next) {
     dispatch(setNewAnnotation({ ...newAnnotation, ...next }));
+    rememberDraftProps(next);
     // Remember the last line width entered while drawing an opening so the next
     // opening tool activation reuses it instead of resetting to the default.
     if (

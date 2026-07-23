@@ -37,6 +37,9 @@ export default function ToolbarAnnotationInMapEditor() {
   });
   const spriteImage = useAnnotationSpriteImage();
   const newAnnotation = useSelector((s) => s.annotations.newAnnotation);
+  const draftPropsByTemplateId = useSelector(
+    (s) => s.mapEditor.draftPropsByTemplateId
+  );
 
   const resetSelection = useResetSelection();
   const initDefaultNewAnnotation = useInitDefaultNewAnnotation();
@@ -65,7 +68,10 @@ export default function ToolbarAnnotationInMapEditor() {
     dispatch(
       setNewAnnotation({
         ...newAnnotation,
-        ...getNewAnnotationPropsFromAnnotationTemplate(annotationTemplate),
+        ...getNewAnnotationPropsFromAnnotationTemplate(
+          annotationTemplate,
+          draftPropsByTemplateId?.[annotationTemplate?.id]
+        ),
         isFromAnnotation: false,
       })
     );

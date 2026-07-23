@@ -5,6 +5,19 @@ import {
   resolveDrawingShape,
 } from "Features/annotations/constants/drawingShapeConfig";
 
+// Toolbar-editable draft props remembered per template (see mapEditorSlice
+// draftPropsByTemplateId). Structural keys (id, type, points, listingId…) are
+// deliberately excluded.
+export const REMEMBERABLE_DRAFT_KEYS = [
+  "height",
+  "width",
+  "offsetZ",
+  "strokeWidth",
+  "strokeWidthUnit",
+  "fillColor",
+  "strokeColor",
+];
+
 // Keys that are always copied from template to annotation (beyond configurable props).
 const ALWAYS_COPY_KEYS = [
   "listingId",
@@ -27,7 +40,8 @@ const ALWAYS_COPY_KEYS = [
 ];
 
 export default function getNewAnnotationPropsFromAnnotationTemplate(
-  annotationTemplate
+  annotationTemplate,
+  rememberedProps // optional: session overrides from mapEditor.draftPropsByTemplateId
 ) {
   if (!annotationTemplate) return {};
 
@@ -70,6 +84,18 @@ export default function getNewAnnotationPropsFromAnnotationTemplate(
   // Carry forward drawingShape
   if (drawingShape) {
     props.drawingShape = drawingShape;
+  }
+
+  // Overlay the user's last toolbar edits for this template (dimensions +
+  // colour) so re-arming restores them as defaults. Only whitelisted, defined
+  // keys — fields locked to the template (overrideFields) are hidden in the
+  // toolbar, hence never remembered, so the template value stands.
+  if (rememberedProps) {
+    for (const key of REMEMBERABLE_DRAFT_KEYS) {
+      if (rememberedProps[key] !== undefined) {
+        props[key] = rememberedProps[key];
+      }
+    }
   }
 
   return props;

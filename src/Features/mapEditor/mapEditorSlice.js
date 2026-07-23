@@ -172,6 +172,11 @@ const mapEditorInitialState = {
   // last selected drawing tool per annotation template / tool type
   selectedToolKeyByTemplateId: {}, // { [templateId|toolType]: toolKey }
 
+  // last draft props (dimensions + colour) tuned in the drawing toolbar, per
+  // annotation template, so re-arming the same template restores them as
+  // defaults (session-only, not persisted to the template itself)
+  draftPropsByTemplateId: {}, // { [templateId]: { height, width, ... } }
+
   // anchor snap mode
   anchorSourceAnnotationId: null, // annotation ID whose extremities will be anchored
   subtractSourceAnnotationId: null, // POLYGON ID being carved; next clicked annotation becomes a subtraction
@@ -601,6 +606,19 @@ export const mapEditorSlice = createSlice({
       state.selectedToolKeyByTemplateId[templateId] = toolKey;
     },
 
+    // Remember the last draft properties (dimensions + colour) the user tuned in
+    // the drawing toolbar, keyed by annotationTemplateId, so re-arming the same
+    // template restores them as defaults (session-only, not persisted to the
+    // template itself). Merge rather than replace so partial edits accumulate.
+    setDraftPropsForTemplate: (state, action) => {
+      const { templateId, props } = action.payload;
+      if (!templateId || !props) return;
+      state.draftPropsByTemplateId[templateId] = {
+        ...state.draftPropsByTemplateId[templateId],
+        ...props,
+      };
+    },
+
     // anchor snap
     setAnchorSourceAnnotationId: (state, action) => {
       state.anchorSourceAnnotationId = action.payload;
@@ -846,6 +864,7 @@ export const {
 
   // selected tool per template
   setSelectedToolKeyForTemplate,
+  setDraftPropsForTemplate,
 
   // anchor snap
   setAnchorSourceAnnotationId,

@@ -28,11 +28,14 @@ export function resolveActiveToolForTemplate(template, selectedToolKey) {
 // (e.g. isFreeAnnotation) ride along via getNewAnnotationPropsFromAnnotationTemplate.
 export default function startDrawFromTemplate(
   dispatch,
-  { template, listingId, activeTool }
+  { template, listingId, activeTool, rememberedProps }
 ) {
   if (!template || !activeTool) return;
   dispatch(setSelectedListingId(listingId));
-  const baseProps = getNewAnnotationPropsFromAnnotationTemplate(template);
+  const baseProps = getNewAnnotationPropsFromAnnotationTemplate(
+    template,
+    rememberedProps
+  );
   if (activeTool.annotationType) {
     dispatch(
       setNewAnnotation({ ...baseProps, type: activeTool.annotationType })

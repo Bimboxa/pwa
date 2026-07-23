@@ -578,6 +578,9 @@ function AnnotationTemplateRow({
   const selectedToolKey = useSelector(
     (s) => s.mapEditor.selectedToolKeyByTemplateId[annotationTemplate?.id]
   );
+  const rememberedDraftProps = useSelector(
+    (s) => s.mapEditor.draftPropsByTemplateId?.[annotationTemplate?.id]
+  );
   const soloMode = useSelector((s) => s.popperMapListings.soloMode);
   const soloVisibleTemplateIds = useSelector(
     (s) => s.popperMapListings.soloVisibleTemplateIds
@@ -656,7 +659,10 @@ function AnnotationTemplateRow({
     )
       return;
     dispatch(setSelectedListingId(listingId));
-    const baseProps = getNewAnnotationPropsFromAnnotationTemplate(annotationTemplate);
+    const baseProps = getNewAnnotationPropsFromAnnotationTemplate(
+      annotationTemplate,
+      rememberedDraftProps
+    );
     if (activeTool.annotationType) {
       dispatch(setNewAnnotation({ ...baseProps, type: activeTool.annotationType }));
     } else {
@@ -733,7 +739,10 @@ function AnnotationTemplateRow({
     )
       return;
     dispatch(setSelectedListingId(listingId));
-    const baseProps = getNewAnnotationPropsFromAnnotationTemplate(annotationTemplate);
+    const baseProps = getNewAnnotationPropsFromAnnotationTemplate(
+      annotationTemplate,
+      rememberedDraftProps
+    );
     if (tool.annotationType) {
       dispatch(setNewAnnotation({ ...baseProps, type: tool.annotationType }));
     } else {

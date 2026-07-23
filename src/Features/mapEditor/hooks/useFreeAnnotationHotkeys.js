@@ -75,7 +75,14 @@ export default function useFreeAnnotationHotkeys() {
       );
       if (!activeTool) return;
 
-      startDrawFromTemplate(dispatch, { template, listingId, activeTool });
+      const rememberedProps =
+        store.getState().mapEditor.draftPropsByTemplateId?.[template.id];
+      startDrawFromTemplate(dispatch, {
+        template,
+        listingId,
+        activeTool,
+        rememberedProps,
+      });
       e.preventDefault();
       e.stopImmediatePropagation();
     };
