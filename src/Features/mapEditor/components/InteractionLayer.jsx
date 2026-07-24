@@ -7210,7 +7210,7 @@ const InteractionLayer = forwardRef(({
           );
         })()}
 
-        {(enabledDrawingMode && drawingPoints.length > 0) && (
+        {(enabledDrawingMode && (drawingPoints.length > 0 || (enabledDrawingMode === "ONE_CLICK" && newAnnotation?.type === "OBJECT_3D"))) && (
           <g transform={`translate(${targetPose.x}, ${targetPose.y}) scale(${targetPose.k})`}>
             <DrawingLayer
               ref={drawingLayerRef}

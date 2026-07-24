@@ -109,6 +109,23 @@ export default function VerticalMenu({
               <LabelTypography variant="caption">
                 {item.label}
               </LabelTypography>
+              {item.hotkey && (
+                <Typography
+                  variant="caption"
+                  sx={{
+                    mt: "2px",
+                    fontSize: "0.6rem",
+                    lineHeight: 1,
+                    px: 0.5,
+                    py: 0.25,
+                    color: "text.secondary",
+                    border: (theme) => `1px solid ${theme.palette.divider}`,
+                    borderRadius: 0.5,
+                  }}
+                >
+                  {item.hotkey}
+                </Typography>
+              )}
               {item.badge && (
                 <Chip
                   label={item.badge}

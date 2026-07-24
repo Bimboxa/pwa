@@ -100,6 +100,7 @@ const DrawingLayer = forwardRef(
     const previewRectRef = useRef(null); // <--- NOUVELLE REF
     const previewCircleRef = useRef(null);
     const previewStripRef = useRef(null);
+    const previewObject3DRef = useRef(null); // OBJECT_3D top-view ghost under the cursor
     const previewRampRef = useRef(null); // ramp band preview (centered on the median line)
     // Cote preview refs (offset dimension line + dashed extensions + value text)
     const previewCoteGroupRef = useRef(null);
@@ -240,6 +241,12 @@ const DrawingLayer = forwardRef(
       "POLYGON_CIRCLE_RADIUS",
     ].includes(enabledDrawingMode);
     const drawCote = enabledDrawingMode === "COTE_TWO_CLICK";
+    // OBJECT_3D placement (2D editor): the model's top-view projection follows
+    // the cursor, sized to the model footprint (bbox X×Z in meters / meterByPx),
+    // and is dropped in a single click.
+    const drawObject3D =
+      enabledDrawingMode === "ONE_CLICK" && type === "OBJECT_3D";
+    const object3DTopViewUrl = newAnnotation?.object3D?.topViewDataUrl;
 
     const firstPoint = points?.[0];
 
@@ -249,6 +256,27 @@ const DrawingLayer = forwardRef(
         pointsRef.current = newPoints;
       },
       updatePreview: (cursorPos) => {
+        // OBJECT_3D: render the top-view projection at the cursor, sized to the
+        // model footprint (bbox X×Z meters / meterByPx). Runs before the
+        // "no points" guard (nothing is placed until the click).
+        if (drawObject3D && previewObject3DRef.current) {
+          const na = newAnnotationRef.current || {};
+          const bbox = na.object3D?.bbox;
+          const mbp = meterByPxRef.current;
+          if (bbox && Number.isFinite(mbp) && mbp > 0) {
+            const w = (bbox.width ?? 0.5) / mbp;
+            const h = (bbox.depth ?? 0.5) / mbp;
+            previewObject3DRef.current.setAttribute("x", cursorPos.x - w / 2);
+            previewObject3DRef.current.setAttribute("y", cursorPos.y - h / 2);
+            previewObject3DRef.current.setAttribute("width", w);
+            previewObject3DRef.current.setAttribute("height", h);
+            previewObject3DRef.current.style.display = "block";
+          } else {
+            previewObject3DRef.current.style.display = "none";
+          }
+          return;
+        }
+
         // Use ref to always get the latest points
         const currentPoints = pointsRef.current;
         // S'il n'y a pas encore de point posé, on ne dessine rien
@@ -280,10 +308,8 @@ const DrawingLayer = forwardRef(
 
           if (angle === 0) {
             // Axis-aligned rectangle (original behavior)
-            const cx =
-              forcedDx != null ? lastPoint.x + forcedDx : cursorPos.x;
-            const cy =
-              forcedDy != null ? lastPoint.y + forcedDy : cursorPos.y;
+            const cx = forcedDx != null ? lastPoint.x + forcedDx : cursorPos.x;
+            const cy = forcedDy != null ? lastPoint.y + forcedDy : cursorPos.y;
             const x = Math.min(lastPoint.x, cx);
             const y = Math.min(lastPoint.y, cy);
             const width = Math.abs(cx - lastPoint.x);
@@ -540,7 +566,8 @@ const DrawingLayer = forwardRef(
             previewFillRef.current.style.display = "none";
 
           const mbp = meterByPxRef.current;
-          const widthPx = mbp > 0 ? (Number(rampWidthMRef.current) || 0) / mbp : 0;
+          const widthPx =
+            mbp > 0 ? (Number(rampWidthMRef.current) || 0) / mbp : 0;
           // Centered band from the median CONTROL points (arcs kept as arcs),
           // mirroring useHandleCommitRamp; expand only for the SVG path so the
           // preview matches the committed geometry.
@@ -645,6 +672,8 @@ const DrawingLayer = forwardRef(
           previewCircleRef.current.style.display = "none";
         if (previewStripRef.current)
           previewStripRef.current.style.display = "none";
+        if (previewObject3DRef.current)
+          previewObject3DRef.current.style.display = "none";
         if (previewRampRef.current)
           previewRampRef.current.style.display = "none";
         if (previewCoteGroupRef.current)
@@ -677,6 +706,18 @@ const DrawingLayer = forwardRef(
 
     return (
       <g className="drawing-layer">
+        {/* A000. OBJECT_3D ghost — the model top-view projection under the
+            cursor (object library), sized to the model footprint. */}
+        {drawObject3D && object3DTopViewUrl && (
+          <image
+            ref={previewObject3DRef}
+            href={object3DTopViewUrl}
+            preserveAspectRatio="none"
+            opacity={0.6}
+            style={{ display: "none", pointerEvents: "none" }}
+          />
+        )}
+
         {/* A0. Strip band — dynamic preview (all points + cursor) */}
         {isStrip && (
           <path
@@ -719,9 +760,13 @@ const DrawingLayer = forwardRef(
             {...(!isLocalizedRepair &&
               isPolygon && { fill: fillColor || "rgba(92, 92, 236, 0.1)" })}
             fillOpacity={newAnnotation?.fillOpacity ?? 0.8}
-            stroke={isLocalizedRepair ? "#00ff00" : effectiveStrokeColor || "#2196f3"}
+            stroke={
+              isLocalizedRepair ? "#00ff00" : effectiveStrokeColor || "#2196f3"
+            }
             strokeWidth={isLocalizedRepair ? 2 : previewStrokeWidth}
-            vectorEffect={isLocalizedRepair ? "non-scaling-stroke" : previewVectorEffect}
+            vectorEffect={
+              isLocalizedRepair ? "non-scaling-stroke" : previewVectorEffect
+            }
             style={{ display: "none", pointerEvents: "none" }}
           />
         )}

@@ -18,6 +18,7 @@ import VerticalMenuViewers from "Features/viewers/components/VerticalMenuViewers
 
 import useViewerSwitchHotkeys from "Features/viewers/hooks/useViewerSwitchHotkeys";
 import useToggleThreedViewerHotkey from "Features/viewers/hooks/useToggleThreedViewerHotkey";
+import useRightPanelToolHotkeys from "Features/rightPanel/hooks/useRightPanelToolHotkeys";
 
 export default function LayoutDesktop() {
   const dispatch = useDispatch();
@@ -29,6 +30,9 @@ export default function LayoutDesktop() {
   // "T" — toggle the 2D/3D editor inside the current module. Mounted here
   // (not in ButtonToggleThreedViewer) since the button is conditional.
   useToggleThreedViewerHotkey();
+  // Right-panel tool shortcuts (N = Élévation, B = Banque d'objets). Mounted at
+  // layout level too, so they work in every module the tool is available in.
+  useRightPanelToolHotkeys();
 
   // data
 
