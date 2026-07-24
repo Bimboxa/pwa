@@ -31,6 +31,7 @@ import {
   setSmartDetectMode,
   setGlobalDetectionRunning,
   setAutoOffsetsOnCommit,
+  setDefaultOffsetOnCommit,
   setRepairMode,
   setSegmentSnapDirection,
   clearConstraintBuffer,
@@ -522,6 +523,7 @@ const InteractionLayer = forwardRef(({
   const globalDetectionRunning = useSelector((s) => s.mapEditor.globalDetectionRunning);
   const repairMode = useSelector((s) => s.mapEditor.repairMode);
   const autoOffsetsOnCommit = useSelector((s) => s.mapEditor.autoOffsetsOnCommit);
+  const defaultOffsetOnCommit = useSelector((s) => s.mapEditor.defaultOffsetOnCommit);
   const loupeAspectRedux = useSelector((s) => s.mapEditor.loupeAspect);
   // Strip detection orientation is now derived from the loupe aspect (set via F):
   // LANDSCAPE → "H", PORTRAIT → "V", SQUARE → "H" (fallback). The standalone
@@ -2695,6 +2697,11 @@ const InteractionLayer = forwardRef(({
     autoOffsetsOnCommitRef.current = autoOffsetsOnCommit;
   }, [autoOffsetsOnCommit]);
 
+  const defaultOffsetOnCommitRef = useRef(defaultOffsetOnCommit);
+  useEffect(() => {
+    defaultOffsetOnCommitRef.current = defaultOffsetOnCommit;
+  }, [defaultOffsetOnCommit]);
+
   const onCommitDrawingRef = useRef(onCommitDrawing);
   useEffect(() => {
     onCommitDrawingRef.current = onCommitDrawing;
@@ -3671,6 +3678,17 @@ const InteractionLayer = forwardRef(({
           if (enabledDrawingModeRef.current === "POLYGON_CLICK") {
             e.preventDefault();
             dispatch(setAutoOffsetsOnCommit(!autoOffsetsOnCommitRef.current));
+          }
+          break;
+
+        case 'z':
+        case 'Z':
+          // "Offset par défaut" toggle — any active drawing mode. Ctrl/Cmd+Z
+          // (undo / pop last point) is handled earlier, before this switch.
+          if (e.ctrlKey || e.metaKey || e.altKey) break;
+          if (enabledDrawingModeRef.current) {
+            e.preventDefault();
+            dispatch(setDefaultOffsetOnCommit(!defaultOffsetOnCommitRef.current));
           }
           break;
 

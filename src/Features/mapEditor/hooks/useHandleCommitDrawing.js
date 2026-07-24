@@ -28,6 +28,7 @@ import findCutHostAnnotationId from "Features/annotations/utils/findCutHostAnnot
 import addAnnotationOpening from "Features/annotations/services/addAnnotationOpening";
 import deriveOpeningContourAnchor from "Features/mapEditor/utils/deriveOpeningContourAnchor";
 import getAnnotationAsPolygons from "Features/geometry/utils/getAnnotationAsPolygons";
+import getDefaultStackOffsetZ from "Features/annotations/utils/getDefaultStackOffsetZ";
 import createRevolutionProxiesOnPlan from "Features/elevation/services/createRevolutionProxiesOnPlan";
 
 // Module-level cache of the per-listing annotationTemplates query (ÉTAPE 2.5
@@ -74,6 +75,7 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
     const autoMergeOnCommit = useSelector(s => s.mapEditor.autoMergeOnCommit);
     const autoOffsetsOnCommit = useSelector(s => s.mapEditor.autoOffsetsOnCommit);
     const avoidVisibleAnnotationsOnCommit = useSelector(s => s.mapEditor.avoidVisibleAnnotationsOnCommit);
+    const defaultOffsetOnCommit = useSelector(s => s.mapEditor.defaultOffsetOnCommit);
     const enabledDrawingMode = useSelector(s => s.mapEditor.enabledDrawingMode);
 
     // Visible annotations come from useAnnotationsV2 in the caller — that's
@@ -739,9 +741,34 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
                 _newAnnotation.label = `Axe ${existingAxesCount + 1}`;
             }
 
+            // "Offset par défaut" auto-stacking: lift the new annotation so it sits
+            // just above every existing extruded annotation it was drawn over
+            // (footprint overlap). Measured on the FULL drawn footprint, before any
+            // avoid-visible carve below — stacking (Z) and avoid-visible (XY carve)
+            // are orthogonal.
+            let _stackOffsetZ = null;
+            if (defaultOffsetOnCommit) {
+                _stackOffsetZ = getDefaultStackOffsetZ({
+                    drawn: {
+                        id: _newAnnotation.id,
+                        type: newAnnotation.type,
+                        points: rawPoints,
+                        cuts: (detectedCuts ?? []).map((ring) => ({ points: ring })),
+                        strokeWidth: newAnnotation.strokeWidth,
+                        strokeWidthUnit: newAnnotation.strokeWidthUnit,
+                        closeLine,
+                        point: rawPoints[0],
+                    },
+                    candidates: annotationsRef.current ?? [],
+                    meterByPx: baseMap?.getMeterByPx?.(),
+                });
+            }
+
             if (_autoOffsets) {
                 _newAnnotation.offsetZ = _autoOffsets.offsetZ;
                 _newAnnotation.height = _autoOffsets.height;
+            } else if (_stackOffsetZ != null) {
+                _newAnnotation.offsetZ = _stackOffsetZ;
             } else if (drawingOffset !== 0) {
                 _newAnnotation.offsetZ = drawingOffset;
             }
