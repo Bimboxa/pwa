@@ -5,18 +5,16 @@ import { Delete, ViewInAr } from "@mui/icons-material";
 
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 
-import Object3DObject from "Features/object3D/js/Object3DObject";
-import testIsGlb from "Features/object3D/utils/testIsGlb";
+import createObject3DEntityField from "Features/object3D/utils/createObject3DEntityField";
 import stringifyFileSize from "Features/files/utils/stringifyFileSize";
 
 async function processFile(file) {
-  if (!file) return null;
-  if (!testIsGlb(file)) {
-    console.warn("[FieldObject3D] file is not a .glb", file?.name);
+  const entityField = await createObject3DEntityField(file);
+  if (!entityField) {
+    console.warn("[FieldObject3D] file is not a valid .glb", file?.name);
     return null;
   }
-  const object3D = await Object3DObject.create({ file });
-  return { entityField: object3D.toEntityField(), size: file.size };
+  return { entityField, size: file.size };
 }
 
 function formatMeters(value) {
@@ -76,7 +74,10 @@ export default function FieldObject3D({ label, value, onChange }) {
   return (
     <WhiteSectionGeneric>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-        <Typography variant="body2" sx={{ fontWeight: "bold", color: "text.primary" }}>
+        <Typography
+          variant="body2"
+          sx={{ fontWeight: "bold", color: "text.primary" }}
+        >
           {label ?? "Objet 3D"}
         </Typography>
 
@@ -132,7 +133,10 @@ export default function FieldObject3D({ label, value, onChange }) {
               sx={{
                 bgcolor: "background.paper",
                 boxShadow: 1,
-                "&:hover": { bgcolor: "error.light", color: "error.contrastText" },
+                "&:hover": {
+                  bgcolor: "error.light",
+                  color: "error.contrastText",
+                },
               }}
             >
               <Delete sx={{ fontSize: 16 }} />
@@ -180,7 +184,9 @@ export default function FieldObject3D({ label, value, onChange }) {
               </Typography>
             </Box>
 
-            <Box sx={{ display: "flex", justifyContent: "space-between", px: 0.5 }}>
+            <Box
+              sx={{ display: "flex", justifyContent: "space-between", px: 0.5 }}
+            >
               <Typography
                 variant="body2"
                 onClick={handleBrowseClick}

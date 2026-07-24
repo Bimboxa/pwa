@@ -33,6 +33,7 @@ import PanelAnnotationsAuto from "Features/annotationsAuto/components/PanelAnnot
 import PanelPrint from "Features/print/components/PanelPrint";
 import PanelElevation from "Features/elevation/components/PanelElevation";
 import PanelImportAnnotations from "Features/importAnnotations/components/PanelImportAnnotations";
+import PanelObjectsLibrary from "Features/objectsLibrary/components/PanelObjectsLibrary";
 import PanelLocalLlm from "Features/localLlm/components/PanelLocalLlm";
 import PanelEditorSettings from "Features/settings/components/PanelEditorSettings";
 import PanelBaseMapTransforms from "Features/baseMapTransforms/components/PanelBaseMapTransforms";
@@ -182,6 +183,7 @@ export default function RightPanelContainer() {
           {selectedKey === "PRINT" && <PanelPrint />}
           {selectedKey === "ELEVATION" && <PanelElevation />}
           {selectedKey === "IMPORT_ANNOTATIONS" && <PanelImportAnnotations />}
+          {selectedKey === "OBJECTS_LIBRARY" && <PanelObjectsLibrary />}
           {selectedKey === "LOCAL_LLM" && <PanelLocalLlm />}
           {selectedKey === "SETTINGS" && <PanelEditorSettings />}
           {selectedKey === "BASE_MAP_TRANSFORMS" && <PanelBaseMapTransforms />}

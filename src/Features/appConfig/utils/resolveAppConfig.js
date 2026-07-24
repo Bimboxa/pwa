@@ -13,34 +13,52 @@ const APP_IMAGE_ASSET_LOADERS = import.meta.glob("../../../App/assets/*.png", {
 });
 
 // Dynamic loaders for annotation template libraries
-const LIBRARIES_LOADERS = import.meta.glob("../../../Data/*/annotationTemplatesLibraries.js", {
-  eager: false,
-});
+const LIBRARIES_LOADERS = import.meta.glob(
+  "../../../Data/*/annotationTemplatesLibraries.js",
+  {
+    eager: false,
+  }
+);
 
 // Dynamic loaders for articles nomenclatures libraries
-const ARTICLES_NOMENCLATURES_LOADERS = import.meta.glob("../../../Data/*/articlesNomenclaturesLibraries.js", {
-  eager: false,
-});
+const ARTICLES_NOMENCLATURES_LOADERS = import.meta.glob(
+  "../../../Data/*/articlesNomenclaturesLibraries.js",
+  {
+    eager: false,
+  }
+);
 
 // Dynamic loaders for mapping categories
-const MAPPING_CATEGORIES_LOADERS = import.meta.glob("../../../Data/*/mappingCategories.js", {
-  eager: false,
-});
+const MAPPING_CATEGORIES_LOADERS = import.meta.glob(
+  "../../../Data/*/mappingCategories.js",
+  {
+    eager: false,
+  }
+);
 
 // Dynamic loaders for automated annotation procedures
-const AUTOMATED_PROCEDURES_LOADERS = import.meta.glob("../../../Data/*/automatedAnnotationsProcedures/index.js", {
-  eager: false,
-});
+const AUTOMATED_PROCEDURES_LOADERS = import.meta.glob(
+  "../../../Data/*/automatedAnnotationsProcedures/index.js",
+  {
+    eager: false,
+  }
+);
 
 // Dynamic loaders for image transformation prompts
-const IMAGE_TRANSFORMATION_PROMPTS_LOADERS = import.meta.glob("../../../Data/*/imageTransformationPrompts.js", {
-  eager: false,
-});
+const IMAGE_TRANSFORMATION_PROMPTS_LOADERS = import.meta.glob(
+  "../../../Data/*/imageTransformationPrompts.js",
+  {
+    eager: false,
+  }
+);
 
 // Dynamic loaders for the app event logging registry (appLog / Scribe)
-const APP_LOG_EVENTS_LOADERS = import.meta.glob("../../../Data/*/appLogEvents.js", {
-  eager: false,
-});
+const APP_LOG_EVENTS_LOADERS = import.meta.glob(
+  "../../../Data/*/appLogEvents.js",
+  {
+    eager: false,
+  }
+);
 
 // Dynamic loader for Data files (JS modules referenced via `importFromData`).
 // Keep this narrow: a `Data/**/*` glob would also match .md/.css/.json files
@@ -81,6 +99,13 @@ const DOCUMENTATION_IMAGE_LOADERS = import.meta.glob(
   { query: "?url", import: "default", eager: false }
 );
 
+// Object library (Banque d'objets) — 3D object files (.glb) stored under each
+// org's objectsLibrary folder, returned as URLs and resolved lazily.
+const OBJECTS_LIBRARY_FILE3D_LOADERS = import.meta.glob(
+  "../../../Data/*/objectsLibrary/**/*.glb",
+  { query: "?url", import: "default", eager: false }
+);
+
 export default async function resolveAppConfig(appConfig) {
   // edge case
 
@@ -94,7 +119,7 @@ export default async function resolveAppConfig(appConfig) {
   // orgaData
 
   const newOrgaData = {};
-  const orgaDataArray = Object.entries(appConfig.orgaData ?? {})
+  const orgaDataArray = Object.entries(appConfig.orgaData ?? {});
   for (let [key, orgaData] of orgaDataArray) {
     if (orgaData.importFromData) {
       const dataKey = `../../../Data/${orgaData.importFromData}`;
@@ -110,10 +135,16 @@ export default async function resolveAppConfig(appConfig) {
   newAppConfig.orgaData = newOrgaData;
   console.log("debug_3001_appConfig", newAppConfig.orgaData);
 
-
   // annotation template libraries
-  console.log("debug_3012_appConfig", orgaCode && appConfig.features.presetScopes?.fromAnnotationTemplatesLibraries);
-  if (orgaCode && appConfig.features.presetScopes?.fromAnnotationTemplatesLibraries) {
+  console.log(
+    "debug_3012_appConfig",
+    orgaCode &&
+      appConfig.features.presetScopes?.fromAnnotationTemplatesLibraries
+  );
+  if (
+    orgaCode &&
+    appConfig.features.presetScopes?.fromAnnotationTemplatesLibraries
+  ) {
     const libraryKey = `../../../Data/${orgaCode}/annotationTemplatesLibraries.js`;
     const loader = LIBRARIES_LOADERS[libraryKey];
 
@@ -124,35 +155,49 @@ export default async function resolveAppConfig(appConfig) {
 
         const presetScopeItems = appConfig.features.presetScopes.items;
 
-        const { presetListingsObject,
+        const {
+          presetListingsObject,
           presetScopesObject,
-          presetScopesSortedKeys } = resolvePresetListingsAndScopesObjectFromAnnotationTemplatesLibraries(libraries, presetScopeItems);
+          presetScopesSortedKeys,
+        } =
+          resolvePresetListingsAndScopesObjectFromAnnotationTemplatesLibraries(
+            libraries,
+            presetScopeItems
+          );
 
         newAppConfig.presetListingsObject = {
           ...newAppConfig.presetListingsObject,
           ...(presetListingsObject ?? {}),
-        }
+        };
 
         newAppConfig.presetScopesObject = {
           ...newAppConfig.presetScopesObject,
           ...(presetScopesObject ?? {}),
-        }
+        };
 
         newAppConfig.presetScopesSortedKeys = [
           ...(newAppConfig.presetScopesSortedKeys ?? []),
           ...(presetScopesSortedKeys ?? []),
         ];
-
       } catch (error) {
-        console.error(`[resolveAppConfig] Error loading libraries for "${orgaCode}":`, error);
+        console.error(
+          `[resolveAppConfig] Error loading libraries for "${orgaCode}":`,
+          error
+        );
       }
     } else {
-      console.warn(`[resolveAppConfig] No libraries found for orgaCode "${orgaCode}" at ${libraryKey}`);
+      console.warn(
+        `[resolveAppConfig] No libraries found for orgaCode "${orgaCode}" at ${libraryKey}`
+      );
     }
   }
 
   // articles nomenclatures libraries
-  if (orgaCode && appConfig.features?.articlesNomenclatures?.fromArticlesNomenclaturesLibraries) {
+  if (
+    orgaCode &&
+    appConfig.features?.articlesNomenclatures
+      ?.fromArticlesNomenclaturesLibraries
+  ) {
     const libraryKey = `../../../Data/${orgaCode}/articlesNomenclaturesLibraries.js`;
     const loader = ARTICLES_NOMENCLATURES_LOADERS[libraryKey];
 
@@ -164,15 +209,24 @@ export default async function resolveAppConfig(appConfig) {
           libraries.map((nom) => [nom.key, nom])
         );
       } catch (error) {
-        console.error(`[resolveAppConfig] Error loading articlesNomenclaturesLibraries for "${orgaCode}":`, error);
+        console.error(
+          `[resolveAppConfig] Error loading articlesNomenclaturesLibraries for "${orgaCode}":`,
+          error
+        );
       }
     } else {
-      console.warn(`[resolveAppConfig] No articlesNomenclaturesLibraries found for orgaCode "${orgaCode}" at ${libraryKey}`);
+      console.warn(
+        `[resolveAppConfig] No articlesNomenclaturesLibraries found for orgaCode "${orgaCode}" at ${libraryKey}`
+      );
     }
   }
 
   // mapping categories
-  if (orgaCode && appConfig.features?.articlesNomenclatures?.fromArticlesNomenclaturesLibraries) {
+  if (
+    orgaCode &&
+    appConfig.features?.articlesNomenclatures
+      ?.fromArticlesNomenclaturesLibraries
+  ) {
     const categoryKey = `../../../Data/${orgaCode}/mappingCategories.js`;
     const loader = MAPPING_CATEGORIES_LOADERS[categoryKey];
 
@@ -181,10 +235,15 @@ export default async function resolveAppConfig(appConfig) {
         const module = await loader();
         newAppConfig.mappingCategories = module.default;
       } catch (error) {
-        console.error(`[resolveAppConfig] Error loading mappingCategories for "${orgaCode}":`, error);
+        console.error(
+          `[resolveAppConfig] Error loading mappingCategories for "${orgaCode}":`,
+          error
+        );
       }
     } else {
-      console.warn(`[resolveAppConfig] No mappingCategories found for orgaCode "${orgaCode}" at ${categoryKey}`);
+      console.warn(
+        `[resolveAppConfig] No mappingCategories found for orgaCode "${orgaCode}" at ${categoryKey}`
+      );
     }
   }
 
@@ -198,7 +257,10 @@ export default async function resolveAppConfig(appConfig) {
         const module = await loader();
         newAppConfig.automatedAnnotationsProcedures = module.default;
       } catch (error) {
-        console.error(`[resolveAppConfig] Error loading automatedAnnotationsProcedures for "${orgaCode}":`, error);
+        console.error(
+          `[resolveAppConfig] Error loading automatedAnnotationsProcedures for "${orgaCode}":`,
+          error
+        );
       }
     }
   }
@@ -213,7 +275,10 @@ export default async function resolveAppConfig(appConfig) {
         const module = await loader();
         newAppConfig.imageTransformationPrompts = module.default;
       } catch (error) {
-        console.error(`[resolveAppConfig] Error loading imageTransformationPrompts for "${orgaCode}":`, error);
+        console.error(
+          `[resolveAppConfig] Error loading imageTransformationPrompts for "${orgaCode}":`,
+          error
+        );
       }
     }
   }
@@ -228,7 +293,10 @@ export default async function resolveAppConfig(appConfig) {
         const module = await loader();
         newAppConfig.appLogEvents = module.default;
       } catch (error) {
-        console.error(`[resolveAppConfig] Error loading appLogEvents for "${orgaCode}":`, error);
+        console.error(
+          `[resolveAppConfig] Error loading appLogEvents for "${orgaCode}":`,
+          error
+        );
       }
     }
   }
@@ -260,7 +328,9 @@ export default async function resolveAppConfig(appConfig) {
         }
 
         const imageLoaders = {};
-        for (const [path, loader] of Object.entries(DOCUMENTATION_IMAGE_LOADERS)) {
+        for (const [path, loader] of Object.entries(
+          DOCUMENTATION_IMAGE_LOADERS
+        )) {
           if (!path.startsWith(docPrefix)) continue;
           // Per-page scheme: `pages/<slug>/images/x.gif` -> key `<slug>/images/x.gif`,
           // so it resolves against the page id `<slug>` (see resolveDocImageSrc).
@@ -300,6 +370,28 @@ export default async function resolveAppConfig(appConfig) {
     }
   }
 
+  // object library (Banque d'objets) — expose the 3D-file (.glb) loaders so the
+  // lazily-loaded panel resolves an object's `file3d` to a bundled URL. The org
+  // config declares the assets folder (features.objectsLibrary.assets3dPath).
+  if (orgaCode && newAppConfig.features?.objectsLibrary) {
+    const config = newAppConfig.features.objectsLibrary;
+    const assets3dPath = config.assets3dPath ?? "assets";
+    const dirPrefix = `../../../Data/${orgaCode}/objectsLibrary/${assets3dPath}/`;
+    const file3dLoaders = {};
+    for (const [path, loader] of Object.entries(
+      OBJECTS_LIBRARY_FILE3D_LOADERS
+    )) {
+      if (!path.startsWith(dirPrefix)) continue;
+      const fileName = path.slice(dirPrefix.length); // e.g. "pelleteuse.glb"
+      file3dLoaders[fileName] = loader;
+    }
+    newAppConfig.features.objectsLibrary = {
+      ...config,
+      assets3dPath,
+      file3dLoaders,
+    };
+  }
+
   // hardcoded fields for debug mode
 
   // if (options?.debug) {
@@ -319,7 +411,10 @@ export default async function resolveAppConfig(appConfig) {
       try {
         config.logoDefault.url = await loader();
       } catch (error) {
-        console.error(`[resolveAppConfig] Error loading portfolio logo:`, error);
+        console.error(
+          `[resolveAppConfig] Error loading portfolio logo:`,
+          error
+        );
       }
     } else {
       console.warn(
@@ -380,10 +475,7 @@ export default async function resolveAppConfig(appConfig) {
   // watermark - resolve per-org SVG paths to URLs (one per aspect ratio).
   // Source: features.watermark.pathsByAspectRatio (relative to Data/<orga>/).
   // Output:  features.watermark.urlsByAspectRatio (same keys, full URLs).
-  if (
-    orgaCode &&
-    newAppConfig.features?.watermark?.pathsByAspectRatio
-  ) {
+  if (orgaCode && newAppConfig.features?.watermark?.pathsByAspectRatio) {
     const pathsByAspect = newAppConfig.features.watermark.pathsByAspectRatio;
     const urlsByAspect = {};
     for (const [aspectKey, relPath] of Object.entries(pathsByAspect)) {
@@ -414,8 +506,7 @@ export default async function resolveAppConfig(appConfig) {
     const relPath = newAppConfig.features.watermark.logoPath;
     const fullPath = `../../../Data/${orgaCode}/${relPath}`;
     const loader =
-      DATA_SVG_URL_LOADERS[fullPath] ||
-      DATA_IMAGE_URL_LOADERS[fullPath];
+      DATA_SVG_URL_LOADERS[fullPath] || DATA_IMAGE_URL_LOADERS[fullPath];
     if (loader) {
       try {
         newAppConfig.features.watermark.logoUrl = await loader();
