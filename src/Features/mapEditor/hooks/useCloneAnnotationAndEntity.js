@@ -1,9 +1,15 @@
 import { nanoid } from "@reduxjs/toolkit";
-import { useSelector } from "react-redux";
-import useMainBaseMap from "./useMainBaseMap";
+import { useDispatch, useSelector } from "react-redux";
 
-import useCreateAnnotation from "Features/annotations/hooks/useCreateAnnotation";
-import useCreateEntity from "Features/entities/hooks/useCreateEntity";
+import {
+  triggerAnnotationsUpdate,
+  triggerAnnotationTemplatesUpdate,
+} from "Features/annotations/annotationsSlice";
+import { triggerEntitiesTableUpdate } from "Features/entities/entitiesSlice";
+
+import useMainBaseMap from "./useMainBaseMap";
+import useUserEmail from "Features/auth/hooks/useUserEmail";
+import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 
 import getPolygonsPointsFromStripAnnotation from "Features/annotations/utils/getPolygonsPointsFromStripAnnotation";
 import applyStripElevation, {
@@ -27,9 +33,11 @@ function getSignedArea(points) {
 
 export default function useCloneAnnotationAndEntity() {
 
-    const createAnnotation = useCreateAnnotation();
-    const createEntity = useCreateEntity();
+    const dispatch = useDispatch();
     const baseMap = useMainBaseMap()
+    const { value: userEmail } = useUserEmail();
+    const { value: selectedListing } = useSelectedListing();
+    const projectId = useSelector((s) => s.projects.selectedProjectId);
 
     const _newAnnotation = useSelector((state) => state.annotations.newAnnotation);
     const activeLayerId = useSelector((s) => s.layers?.activeLayerId);
@@ -141,23 +149,38 @@ export default function useCloneAnnotationAndEntity() {
             });
         }
 
-        // 3. Execution Loop
-        const createdAnnotations = [];
+        // 3. Build all records in memory (one item = one chain / geometry set),
+        // then flush them in a SINGLE Dexie transaction + a SINGLE set of Redux
+        // dispatches — instead of one transaction + ~4 dispatches per item.
+        // Mirrors the batched sibling useCloneAnnotationsAndEntities.
+        const entityTable =
+            selectedListing?.table ?? selectedListing?.entityModel?.defaultTable;
+
+        const allEntities = [];
+        const allAnnotations = [];
+        const allPoints = [];
 
         for (const item of itemsToCreate) {
-            // A. Create a NEW unique entity for THIS specific geometry
-            const entity = await createEntity({
-                label: entityLabel,
+            const entityId = nanoid();
+            const annotationId = nanoid();
+
+            // A. Domain entity for THIS specific geometry
+            allEntities.push({
+                id: entityId,
+                createdBy: userEmail,
                 listingId: newAnnotation.listingId || annotation.listingId,
                 projectId: annotation.projectId,
+                ...(entityLabel ? { label: entityLabel } : {}),
             });
 
-            // B. Create the Annotation
+            // B. Annotation record
             const clonedAnnotation = {
                 ...annotation,
                 ...newAnnotation, // Apply new type/styles from store
-                id: nanoid(),
-                entityId: entity?.id, // Link to the newly created entity
+                id: annotationId,
+                entityId, // Link to the newly created entity
+                projectId,
+                listingId: newAnnotation.listingId || annotation.listingId,
                 points: item.points,
                 cuts: item.cuts,
                 ...(activeLayerId ? { layerId: activeLayerId } : {}),
@@ -224,8 +247,8 @@ export default function useCloneAnnotationAndEntity() {
             }
 
             // Create independent points unless the caller opted to keep
-            // originals. Write points BEFORE the annotation so they resolve on
-            // the next read; point writes don't add annotationsUpdate triggers.
+            // originals. Points are bulk-added BEFORE annotations in the shared
+            // transaction below so refs resolve on the next read.
             let annotationToCreate = clonedAnnotation;
             if (!keepOriginalPoints) {
                 const { annotation: remapped, pointRecords } =
@@ -236,18 +259,67 @@ export default function useCloneAnnotationAndEntity() {
                         listingId: annotation.listingId,
                     });
                 annotationToCreate = remapped;
-                if (pointRecords.length > 0) {
-                    await db.points.bulkAdd(pointRecords);
-                }
+                if (pointRecords.length > 0) allPoints.push(...pointRecords);
             }
 
-            const _annotation = await createAnnotation(annotationToCreate);
-            createdAnnotations.push(_annotation);
+            allAnnotations.push(annotationToCreate);
         }
 
-        // Return single object if only one created (backward compatibility), else return array
-        return createdAnnotations.length === 1
-            ? createdAnnotations[0]
-            : createdAnnotations;
+        // 4. Mapping-category rels — fetch each template once, not per item.
+        const uniqueTemplateIds = [
+            ...new Set(
+                allAnnotations.map((a) => a.annotationTemplateId).filter(Boolean)
+            ),
+        ];
+        const templates =
+            uniqueTemplateIds.length > 0
+                ? await db.annotationTemplates.bulkGet(uniqueTemplateIds)
+                : [];
+        const templateById = new Map();
+        for (const t of templates) if (t) templateById.set(t.id, t);
+
+        const allMappingRels = [];
+        for (const a of allAnnotations) {
+            if (!a.annotationTemplateId || !projectId) continue;
+            const template = templateById.get(a.annotationTemplateId);
+            const rawCategories = template?.mappingCategories ?? [];
+            for (const entry of rawCategories) {
+                if (typeof entry !== "string") continue;
+                const parts = entry.split(":");
+                if (parts.length !== 2) continue;
+                allMappingRels.push({
+                    id: nanoid(),
+                    annotationId: a.id,
+                    projectId,
+                    nomenclatureKey: parts[0].trim(),
+                    categoryKey: parts[1].trim(),
+                    source: "annotationTemplate",
+                });
+            }
+        }
+
+        // 5. One transaction for every write.
+        const tables = [db.annotations, db.relAnnotationMappingCategory];
+        if (allPoints.length > 0) tables.push(db.points);
+        if (entityTable && db[entityTable]) tables.push(db[entityTable]);
+
+        await db.transaction("rw", tables, async () => {
+            if (allPoints.length > 0) await db.points.bulkAdd(allPoints);
+            if (entityTable && allEntities.length > 0)
+                await db[entityTable].bulkAdd(allEntities);
+            if (allAnnotations.length > 0)
+                await db.annotations.bulkAdd(allAnnotations);
+            if (allMappingRels.length > 0)
+                await db.relAnnotationMappingCategory.bulkAdd(allMappingRels);
+        });
+
+        // 6. Single set of Redux dispatches for the whole batch.
+        dispatch(triggerAnnotationsUpdate());
+        dispatch(triggerAnnotationTemplatesUpdate());
+        if (entityTable) dispatch(triggerEntitiesTableUpdate(entityTable));
+
+        // Return single object if only one created (backward compatibility),
+        // else return array.
+        return allAnnotations.length === 1 ? allAnnotations[0] : allAnnotations;
     };
 }
