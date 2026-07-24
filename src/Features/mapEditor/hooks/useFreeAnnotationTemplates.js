@@ -77,6 +77,11 @@ export default function useFreeAnnotationTemplates() {
           label: "Ligne",
           drawingShape: "POLYLINE",
           type: "POLYLINE",
+          // Express the system line width in centimeters so it scales with a
+          // calibrated baseMap. When the baseMap has no meterByPx the renderer
+          // (NodePolylineStatic / DrawingLayer) falls back to treating the value
+          // as plain pixels, so strokeWidth stays 2 (from getDefaultsForShape).
+          strokeWidthUnit: "CM",
         },
         {
           id: surfaceTemplateId,

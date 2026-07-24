@@ -60,6 +60,12 @@ export const annotationsSlice = createSlice({
     setNewAnnotation: (state, action) => {
       state.newAnnotation = action.payload;
     },
+    // Shallow-merge a partial into the draft. Used by the E/H typed-entry
+    // machine to live-patch a single field (strokeWidth / height) without
+    // needing a fresh spread of the whole newAnnotation from the caller.
+    patchNewAnnotation: (state, action) => {
+      state.newAnnotation = { ...state.newAnnotation, ...action.payload };
+    },
     setEditedAnnotation: (state, action) => {
       state.editedAnnotation = action.payload;
     },
@@ -108,6 +114,7 @@ export const {
   createAnnotation,
   //
   setNewAnnotation,
+  patchNewAnnotation,
   setEditedAnnotation,
   setIsEditingAnnotation,
   //

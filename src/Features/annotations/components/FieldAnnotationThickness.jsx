@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Typography, InputBase, Box, Menu, MenuItem } from "@mui/material";
 
+import FieldShortcutBadge from "./FieldShortcutBadge";
+
 const FIELD = "strokeWidth";
 const UNIT_FIELD = "strokeWidthUnit";
 const UNIT_OPTIONS = ["PX", "CM"];
@@ -9,6 +11,8 @@ export default function FieldAnnotationThickness({
   annotation,
   onChange,
   disabled = false,
+  active = false,
+  shortcut,
 }) {
   const [localValue, setLocalValue] = useState(annotation?.[FIELD] ?? "");
   const [unitAnchorEl, setUnitAnchorEl] = useState(null);
@@ -82,11 +86,19 @@ export default function FieldAnnotationThickness({
     >
       <Typography
         variant="body2"
-        color={disabled ? "text.disabled" : "text.secondary"}
+        color={
+          disabled
+            ? "text.disabled"
+            : active
+              ? "primary.main"
+              : "text.secondary"
+        }
         noWrap
       >
         Ep.
       </Typography>
+
+      {shortcut && <FieldShortcutBadge active={active}>{shortcut}</FieldShortcutBadge>}
 
       <Box sx={{ display: "grid", alignItems: "center", position: "relative" }}>
         <Box
@@ -129,6 +141,10 @@ export default function FieldAnnotationThickness({
               height: "100%",
               paddingTop: 0,
               paddingBottom: 0,
+              borderRadius: 0.5,
+              boxShadow: active
+                ? (theme) => `inset 0 0 0 1.5px ${theme.palette.primary.main}`
+                : "none",
             },
           }}
         />
