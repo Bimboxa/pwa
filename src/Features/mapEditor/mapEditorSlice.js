@@ -42,6 +42,7 @@ const mapEditorInitialState = {
   autoMergeOnCommit: true, // when true, a POLYGON drawn via RECTANGLE tool is auto-merged with overlapping same-template polygons on commit
   autoOffsetsOnCommit: false, // when true, a POLYGON drawn via CLICK tool inherits offsetZ/height + per-point offsetBottom/offsetTop from snapped neighbors so the 3D surface stays continuous
   avoidVisibleAnnotationsOnCommit: false, // when true, on commit of a POLYGON, visible annotations of a different annotationTemplateId are subtracted from the drawn polygon (outer carving + cuts)
+  defaultOffsetOnCommit: false, // when true, a newly drawn annotation is auto-lifted so its offsetZ sits just above every extruded annotation its footprint overlaps (offsetZ = max(offsetZ + height) over overlapped)
   // RAMP tool — transient params shown in the bottom drawing toolbar while the
   // "Rampe" tool is active. Not persisted on the annotation/template.
   rampWidthM: 1, // band width in meters, centered on the drawn median line
@@ -287,6 +288,9 @@ export const mapEditorSlice = createSlice({
     },
     setAvoidVisibleAnnotationsOnCommit: (state, action) => {
       state.avoidVisibleAnnotationsOnCommit = action.payload;
+    },
+    setDefaultOffsetOnCommit: (state, action) => {
+      state.defaultOffsetOnCommit = action.payload;
     },
     setRampWidthM: (state, action) => {
       state.rampWidthM = action.payload;
@@ -754,6 +758,7 @@ export const {
   setAutoMergeOnCommit,
   setAutoOffsetsOnCommit,
   setAvoidVisibleAnnotationsOnCommit,
+  setDefaultOffsetOnCommit,
   setRampWidthM,
   setRampDeltaHM,
   setOpeningStrokeWidth,
