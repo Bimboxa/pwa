@@ -10,9 +10,7 @@ import useAnnotationsV2 from "./useAnnotationsV2";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useCreateEntity from "Features/entities/hooks/useCreateEntity";
 
-import buildAnnotationEdgeRings from "../utils/buildAnnotationEdgeRings";
-import findSharedEdgeChains from "../utils/findSharedEdgeChains";
-import computeAutoWallChains from "../utils/computeAutoWallChains";
+import getSelectedAnnotationWallChains from "../utils/getSelectedAnnotationWallChains";
 import getAnnotationTemplateProps from "../utils/getAnnotationTemplateProps";
 
 import db from "App/db/db";
@@ -27,8 +25,9 @@ import db from "App/db/db";
 // Walls are tagged with autoGenKind + autoWallPair (sorted [selectedId,
 // neighborId]) so re-running — from either side of a pair — replaces the
 // existing walls instead of duplicating them.
-
-const THRESHOLD_M = 0.01; // 1 cm adjacency tolerance
+//
+// The adjacency + wall-height computation is shared with "Convertir en paroie"
+// via getSelectedAnnotationWallChains (identical geometry, different write).
 
 // same dual format as useCreateAnnotation: "OUVRAGE:VI" or
 // { nomenclatureKey, categoryKey }
@@ -66,71 +65,28 @@ export default function useApplyAutoWalls() {
     const toast = (message, isError) =>
       dispatch(setToaster({ message, ...(isError ? { isError: true } : {}) }));
 
-    const imageSize = baseMap?.image?.imageSize;
-    if (!imageSize?.width || !imageSize?.height) {
-      toast("Parois auto : taille de l'image indisponible", true);
-      return;
-    }
-
-    const meterByPx = baseMap?.getMeterByPx?.();
-    if (!meterByPx || meterByPx <= 0) {
-      toast("Parois auto : échelle du plan non définie", true);
-      return;
-    }
-
     if (!template?.id) {
       toast("Parois auto : choisir un style de paroi", true);
       return;
     }
 
-    const thresholdPx = THRESHOLD_M / meterByPx;
-
-    // Candidates: other surfaces on the same baseMap. Wall-like polylines
-    // (previous auto walls, slope walls with per-vertex offsetBottom) are
-    // excluded — their top is not a surface top, chaining walls to walls
-    // creates noise. Plain-height polylines (e.g. acrotères) stay valid.
-    const candidates = (annotations ?? []).filter(
-      (a) =>
-        ["POLYGON", "POLYLINE"].includes(a.type) &&
-        a.baseMapId === selected.baseMapId &&
-        a.id !== selected.id &&
-        a.autoGenKind !== "AUTO_WALLS" &&
-        !(
-          a.type === "POLYLINE" &&
-          a.points?.some(
-            (p) => (p.offsetBottom ?? 0) !== 0 || (p.offsetTop ?? 0) !== 0
-          )
-        )
-    );
-
-    const sourceRings = buildAnnotationEdgeRings(selected);
-    const neighbors = candidates
-      .map((a) => ({ annotation: a, rings: buildAnnotationEdgeRings(a) }))
-      .filter((n) => n.rings.length);
-
-    const sharedChains = findSharedEdgeChains({
-      sourceRings,
-      neighbors,
-      thresholdPx,
-    });
-    if (!sharedChains.length) {
-      toast(
-        "Parois auto : aucune arête adjacente trouvée (tolérance 1 cm)",
-        true
-      );
-      return;
-    }
-
-    const wallChains = computeAutoWallChains({
+    const result = getSelectedAnnotationWallChains({
       selectedAnnotation: selected,
-      sharedChains,
-      thresholdPx,
-      meterByPx,
+      annotations,
+      baseMap,
     });
-    if (!wallChains.length) {
-      toast("Parois auto : surfaces affleurantes, aucune paroi à créer", true);
+    if (!result.ok) {
+      const message = {
+        NO_IMAGE_SIZE: "Parois auto : taille de l'image indisponible",
+        NO_SCALE: "Parois auto : échelle du plan non définie",
+        NO_ADJACENT_EDGE:
+          "Parois auto : aucune arête adjacente trouvée (tolérance 1 cm)",
+        NO_WALLS: "Parois auto : surfaces affleurantes, aucune paroi à créer",
+      }[result.errorKey];
+      if (message) toast(message, true); // INVALID_SELECTION → silent
       return;
     }
+    const { wallChains, imageSize } = result;
 
     // Stale walls of any pair involving the selected annotation: re-running
     // (from either side) replaces them instead of duplicating.

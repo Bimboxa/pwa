@@ -16,6 +16,8 @@ import {
 import useAnnotationTemplates from "../hooks/useAnnotationTemplates";
 import useListings from "Features/listings/hooks/useListings";
 import useApplyAutoWalls from "../hooks/useApplyAutoWalls";
+import useConvertAnnotationToWall from "../hooks/useConvertAnnotationToWall";
+import useSelectedAnnotation from "../hooks/useSelectedAnnotation";
 
 import { resolveShapeCategory } from "../constants/drawingShapes.jsx";
 import { resolveDrawingShape } from "../constants/drawingShapeConfig";
@@ -37,12 +39,21 @@ export default function DialogAutoWalls({
   accentColor = "#1976d2",
 }) {
   const applyAutoWalls = useApplyAutoWalls();
+  const convertAnnotationToWall = useConvertAnnotationToWall();
+
+  // data
+
+  // "Convertir en paroie" only applies to a selected POLYLINE (it becomes the
+  // wall in place); a POLYGON stays a surface and uses "Générer".
+  const selectedAnnotation = useSelectedAnnotation();
+  const canConvert = selectedAnnotation?.type === "POLYLINE";
 
   // state
 
   const [annotationTemplateId, setAnnotationTemplateId] = useState(null);
   const [templateAnchorEl, setTemplateAnchorEl] = useState(null);
   const [generating, setGenerating] = useState(false);
+  const [converting, setConverting] = useState(false);
 
   // data — polyline templates + their listings (for grouping)
 
@@ -89,6 +100,17 @@ export default function DialogAutoWalls({
     }
   }
 
+  async function handleConvert() {
+    if (converting) return;
+    setConverting(true);
+    try {
+      await convertAnnotationToWall();
+      onClose?.();
+    } finally {
+      setConverting(false);
+    }
+  }
+
   // render
 
   return (
@@ -124,14 +146,31 @@ export default function DialogAutoWalls({
               }}
             />
           </Menu>
+          {canConvert && (
+            <Typography variant="caption" color="text.secondary">
+              « Convertir en paroie » transforme la polyligne sélectionnée en
+              paroi sur place (garde son style actuel, ignore le choix de style
+              ci-dessus) ; elle peut être découpée en plusieurs tronçons.
+            </Typography>
+          )}
         </Box>
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>Annuler</Button>
+        {canConvert && (
+          <Button
+            variant="outlined"
+            onClick={handleConvert}
+            disabled={converting || generating}
+            sx={{ color: accentColor, borderColor: accentColor }}
+          >
+            Convertir en paroie
+          </Button>
+        )}
         <Button
           variant="contained"
           onClick={handleGenerate}
-          disabled={!selectedTemplate || generating}
+          disabled={!selectedTemplate || generating || converting}
           sx={{ bgcolor: accentColor }}
         >
           Générer
