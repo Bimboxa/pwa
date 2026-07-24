@@ -1,15 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 import { useSelector, useDispatch } from "react-redux";
-import {
-  setOrthoSnapEnabled,
-  setOrthoSnapAngleOffset,
-} from "Features/mapEditor/mapEditorSlice";
+import { setOrthoSnapAngleOffset } from "Features/mapEditor/mapEditorSlice";
 
 import {
   Paper,
   Box,
-  ToggleButtonGroup,
-  ToggleButton,
   Tooltip,
   Typography,
   IconButton,
@@ -36,7 +31,6 @@ import {
 
 export default function SelectorOrthoSnap() {
   const dispatch = useDispatch();
-  const orthoSnapEnabled = useSelector((s) => s.mapEditor.orthoSnapEnabled);
   const orthoSnapAngleOffset = useSelector(
     (s) => s.mapEditor.orthoSnapAngleOffset
   );
@@ -56,10 +50,6 @@ export default function SelectorOrthoSnap() {
   }, [menuOpen, orthoSnapAngleOffset]);
 
   // handlers
-
-  function handleToggle() {
-    dispatch(setOrthoSnapEnabled(!orthoSnapEnabled));
-  }
 
   function handleIncrement(delta) {
     const next = Math.round((orthoSnapAngleOffset + delta) * 10) / 10;
@@ -139,12 +129,10 @@ export default function SelectorOrthoSnap() {
           border: "none",
           display: "inline-flex",
           overflow: "hidden",
-          ...(!orthoSnapEnabled && {
-            "&:hover": {
-              elevation: 6,
-              transform: "translateY(-2px)",
-            },
-          }),
+          "&:hover": {
+            elevation: 6,
+            transform: "translateY(-2px)",
+          },
         }}
       >
         <Box
@@ -154,25 +142,17 @@ export default function SelectorOrthoSnap() {
             p: 0.5,
             gap: 0.5,
             "& .MuiSvgIcon-root": {
-              color: orthoSnapEnabled ? "primary.main" : "text.secondary",
+              color: "text.secondary",
             },
           }}
         >
-          <Tooltip title="Ortho snap 0/45/90° (Shift+O)">
-            <ToggleButtonGroup
-              value={orthoSnapEnabled ? "ORTHO" : null}
-              exclusive
-              onChange={handleToggle}
-            >
-              <ToggleButton value="ORTHO" size="small">
-                <IconOrthoSnap
-                  sx={{
-                    transition: "transform 0.2s ease",
-                    transform: `rotate(${-orthoSnapAngleOffset}deg)`,
-                  }}
-                />
-              </ToggleButton>
-            </ToggleButtonGroup>
+          <Tooltip title="Ortho reference angle">
+            <IconOrthoSnap
+              sx={{
+                transition: "transform 0.2s ease",
+                transform: `rotate(${-orthoSnapAngleOffset}deg)`,
+              }}
+            />
           </Tooltip>
 
           <Box

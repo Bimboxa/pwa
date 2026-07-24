@@ -191,7 +191,6 @@ const mapEditorInitialState = {
   subtractSourceAnnotationId: null, // POLYGON ID being carved; next clicked annotation becomes a subtraction
 
   // ortho snap
-  orthoSnapEnabled: false,
   orthoSnapAngleOffset: 0, // degrees
 
   // 2D editor settings (transient UI preferences).
@@ -660,9 +659,6 @@ export const mapEditorSlice = createSlice({
     },
 
     // ortho snap
-    setOrthoSnapEnabled: (state, action) => {
-      state.orthoSnapEnabled = action.payload;
-    },
     setOrthoSnapAngleOffset: (state, action) => {
       state.orthoSnapAngleOffset = action.payload;
     },
@@ -906,7 +902,6 @@ export const {
   setSubtractSourceAnnotationId,
 
   // ortho snap
-  setOrthoSnapEnabled,
   setOrthoSnapAngleOffset,
   setVertexSizeMultiplier,
 
