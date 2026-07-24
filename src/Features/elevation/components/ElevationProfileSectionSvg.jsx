@@ -1,11 +1,12 @@
 import { useMemo, useRef } from "react";
 
-import { useTheme } from "@mui/material";
-
 import projectPointOnPolyline from "Features/annotations/utils/projectPointOnPolyline";
 import { circleFromThreePoints } from "Features/geometry/utils/arcSampling";
+import getZAxisAnchoredLayout from "Features/elevation/utils/getZAxisAnchoredLayout";
 
 import FieldElevationOffset from "./FieldElevationOffset";
+import ElevationZeroLine from "./ElevationZeroLine";
+import ElevationOffsetField from "./ElevationOffsetField";
 
 const DEFAULT_PROFILE_COLOR = "#00897b";
 
@@ -84,10 +85,11 @@ export default function ElevationProfileSectionSvg({
   // anchorExtremityIndex }). Its extremities are the registration/snap
   // targets of the 3D sweep.
   guideTrait = null,
+  // closed cross-section (circle / closed source polyline): the curve is drawn
+  // back to the first vertex, so the closing segment / arc (S-C-S control =
+  // last "circle" vertex, wrapping to the first) shows up.
+  closeLine = false,
 }) {
-  const theme = useTheme();
-  const secondary = theme.palette.secondary.main;
-
   // Click-vs-drag discrimination for the toggle gesture: re-clicking an
   // ALREADY selected vertex (without dragging) toggles square ↔ circle.
   const downRef = useRef(null); // { vertexIndex, x, y, wasSelected }
@@ -184,27 +186,26 @@ export default function ElevationProfileSectionSvg({
   // live height (meters) from a preview-applied screen Y (TOP semantics)
   const liveHeightOf = (v) => -v.topY * meterByPx - height - offsetZ;
 
-  // Z = 0 line + Offset field anchor to the screen-fixed Z axis (zAxisWorldX)
-  // when known, so the dashed line always reaches it and the field stays a
-  // fixed screen distance from it, on the axis side. Fallback (no camera yet)
-  // = the profile extent / legacy left placement.
-  const hasAxis = Number.isFinite(zAxisWorldX);
-  const z0x1 = hasAxis ? Math.min(xMin - xPad, zAxisWorldX) : xMin - xPad;
-  const z0x2 = hasAxis ? Math.max(xMax + xPad, zAxisWorldX) : xMax + xPad;
-  const OFFSET_GAP_PX = 8; // screen gap between the axis and the field
-  const OFFSET_W = 124; // field width (screen px)
-  const offsetAnchorX = hasAxis ? zAxisWorldX : xMin - xPad;
-  const offsetFieldX = !hasAxis
-    ? -(OFFSET_GAP_PX + OFFSET_W) // legacy: left of the profile
-    : zAxisSide === "right"
-      ? -(OFFSET_GAP_PX + OFFSET_W) // inside, left of the right axis
-      : OFFSET_GAP_PX; // inside, right of the left axis
+  // Z = 0 line + Offset field anchor to the screen-fixed Z axis (shared layout
+  // with the surface renderer).
+  const layout = getZAxisAnchoredLayout({
+    xMin,
+    xMax,
+    xPad,
+    zAxisWorldX,
+    zAxisSide,
+  });
+
+  // Closed section: append the first vertex so sectionPathD draws the closing
+  // segment / arc (its last "circle" control then wraps to the first vertex).
+  const pathVerts =
+    closeLine && verts.length >= 2 ? [...verts, verts[0]] : verts;
 
   return (
     <g>
       {/* section curve (arcs around "circle" control vertices) */}
       <path
-        d={sectionPathD(verts)}
+        d={sectionPathD(pathVerts)}
         fill="none"
         stroke={color}
         strokeWidth={2.5}
@@ -213,17 +214,8 @@ export default function ElevationProfileSectionSvg({
         vectorEffect="non-scaling-stroke"
       />
 
-      {/* baseMap reference plane (Z = 0) — extended to reach the Z axis */}
-      <line
-        x1={z0x1}
-        y1={0}
-        x2={z0x2}
-        y2={0}
-        stroke={secondary}
-        strokeWidth={1.25}
-        strokeDasharray="6 4"
-        vectorEffect="non-scaling-stroke"
-      />
+      {/* Z = 0 reference plane (background); the Offset field is drawn LAST */}
+      <ElevationZeroLine layout={layout} />
 
       {/* POLYLINE extrusion reference trait: the FULL polyline footprint
           projected on the section plane — a single grey horizontal line. Its
@@ -259,39 +251,6 @@ export default function ElevationProfileSectionSvg({
           style={{ pointerEvents: "none" }}
         />
       )}
-
-      {/* offset field — fixed screen distance from the Z axis, on its side */}
-      <g transform={`translate(${offsetAnchorX}, 0)`}>
-        <g style={COUNTER_ZOOM}>
-          <foreignObject
-            x={offsetFieldX}
-            y={-11}
-            width={OFFSET_W}
-            height={24}
-            style={{ overflow: "visible" }}
-          >
-            {/* hug the axis-facing edge so the field stays at a fixed screen
-                distance from the axis whatever its content width */}
-            <div
-              style={{
-                display: "flex",
-                width: "100%",
-                justifyContent:
-                  zAxisSide === "right" || !hasAxis ? "flex-end" : "flex-start",
-              }}
-            >
-              <FieldElevationOffset
-                label="Offset"
-                value={offsetZ}
-                width={46}
-                accentColor={secondary}
-                noShadow
-                onCommit={(v) => onCommitOffsetZ?.(v)}
-              />
-            </div>
-          </foreignObject>
-        </g>
-      </g>
 
       {/* vertices: interior = draggable squares + field; endpoints = locked
           grey circles + read-only label (continuity with the contour) */}
@@ -426,6 +385,13 @@ export default function ElevationProfileSectionSvg({
           </g>
         </g>
       )}
+
+      {/* Offset field LAST → on top of the section / handles / labels */}
+      <ElevationOffsetField
+        layout={layout}
+        offsetZ={offsetZ}
+        onCommitOffsetZ={onCommitOffsetZ}
+      />
     </g>
   );
 }

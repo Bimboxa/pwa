@@ -1,12 +1,13 @@
 import { useMemo } from "react";
 
-import { useTheme } from "@mui/material";
-
 import { GAP_PX, RECAP_PAD_PX } from "../elevationLayout";
 
 import projectPointOnPolyline from "Features/annotations/utils/projectPointOnPolyline";
+import getZAxisAnchoredLayout from "Features/elevation/utils/getZAxisAnchoredLayout";
 
 import FieldElevationOffset from "./FieldElevationOffset";
+import ElevationZeroLine from "./ElevationZeroLine";
+import ElevationOffsetField from "./ElevationOffsetField";
 
 // Renders, inside the viewport's camera group (world = map pixels):
 //   - the "vue de dessus" recap (top): the whole chain projected, edited
@@ -54,10 +55,14 @@ export default function ElevationProfileSvg({
   // plane — no per-segment quads/bottom line, no "vue de dessus" recap, no
   // grid, no Ht field, TOP handles only.
   surfaceMode = false,
+  // hide the iso / extremity height labels (POLYGON surface only; the selected
+  // iso keeps its field). The screen-fixed Z axis (world x + side) lets the
+  // Z = 0 line reach it and the Offset field sit beside it — used only in
+  // surfaceMode (wall mode keeps the legacy far-left placement).
+  showLabels = true,
+  zAxisWorldX = null,
+  zAxisSide = "right",
 }) {
-  const theme = useTheme();
-  const secondary = theme.palette.secondary.main;
-
   // preview-applied vertices: the dragged handle's vertex, an extremity
   // group, or — for an iso drag — every vertex pinned on the dragged iso line
   // (height AND x), so the connected segments follow in real time.
@@ -344,6 +349,19 @@ export default function ElevationProfileSvg({
   const offsetTopOf = (v) => -v.topY * meterByPx - height - offsetZ;
   const offsetBottomOf = (v) => -v.bottomY * meterByPx - offsetZ;
 
+  // Z = 0 line reaches the screen-fixed Z axis in surfaceMode (POLYGON iso;
+  // wall mode has no axis). The Offset field stays FAR-LEFT of the profile
+  // (`offsetPlacement: "left"`): the axis-side endpoint + its Δ field would
+  // otherwise collide with an axis-anchored offset on a full-width silhouette.
+  const layout = getZAxisAnchoredLayout({
+    xMin,
+    xMax,
+    xPad,
+    zAxisWorldX: surfaceMode ? zAxisWorldX : null,
+    zAxisSide,
+    offsetPlacement: "left",
+  });
+
   return (
     <g>
       {/* white background band behind the "vue de dessus" recap */}
@@ -381,44 +399,44 @@ export default function ElevationProfileSvg({
           points would otherwise draw a separation at every curve sample. */}
       {!surfaceMode &&
         verts.map((v) => {
-        if (v.pointIndex == null) return null;
-        const top = Math.min(v.topY, v.bottomY);
-        const bottom = Math.max(v.topY, v.bottomY);
-        return (
-          <g key={`grid-${v.pointIndex}`}>
-            <line
-              x1={v.x}
-              y1={gridTop}
-              x2={v.x}
-              y2={top}
-              stroke={GREY}
-              strokeWidth={1}
-              strokeDasharray="3 3"
-              vectorEffect="non-scaling-stroke"
-            />
-            <line
-              x1={v.x}
-              y1={top}
-              x2={v.x}
-              y2={bottom}
-              stroke={color}
-              strokeWidth={1}
-              strokeDasharray="3 3"
-              vectorEffect="non-scaling-stroke"
-            />
-            <line
-              x1={v.x}
-              y1={bottom}
-              x2={v.x}
-              y2={gridBottom}
-              stroke={GREY}
-              strokeWidth={1}
-              strokeDasharray="3 3"
-              vectorEffect="non-scaling-stroke"
-            />
-          </g>
-        );
-      })}
+          if (v.pointIndex == null) return null;
+          const top = Math.min(v.topY, v.bottomY);
+          const bottom = Math.max(v.topY, v.bottomY);
+          return (
+            <g key={`grid-${v.pointIndex}`}>
+              <line
+                x1={v.x}
+                y1={gridTop}
+                x2={v.x}
+                y2={top}
+                stroke={GREY}
+                strokeWidth={1}
+                strokeDasharray="3 3"
+                vectorEffect="non-scaling-stroke"
+              />
+              <line
+                x1={v.x}
+                y1={top}
+                x2={v.x}
+                y2={bottom}
+                stroke={color}
+                strokeWidth={1}
+                strokeDasharray="3 3"
+                vectorEffect="non-scaling-stroke"
+              />
+              <line
+                x1={v.x}
+                y1={bottom}
+                x2={v.x}
+                y2={gridBottom}
+                stroke={GREY}
+                strokeWidth={1}
+                strokeDasharray="3 3"
+                vectorEffect="non-scaling-stroke"
+              />
+            </g>
+          );
+        })}
 
       {/* vue de dessus recap (edited segment = primary color, rest = grey) */}
       {!surfaceMode &&
@@ -508,65 +526,32 @@ export default function ElevationProfileSvg({
           );
         })}
 
-      {/* baseMap reference plane (Z = 0): full-width grey dashed line — the
-          annotation offset (offsetZ) is measured from it */}
-      <line
-        x1={xMin - xPad}
-        y1={0}
-        x2={xMax + xPad}
-        y2={0}
-        stroke={secondary}
-        strokeWidth={1.25}
-        strokeDasharray="6 4"
-        vectorEffect="non-scaling-stroke"
-      />
+      {/* Z = 0 reference plane (background); the Offset field is drawn LAST */}
+      <ElevationZeroLine layout={layout} />
 
       {/* height field, on the far left at mid-wall level (primary color) —
           hidden in surface mode (a surface has no wall height) */}
       {!surfaceMode && (
-      <g transform={`translate(${xMin - xPad}, ${(eMinY + eMaxY) / 2})`}>
-        <g style={COUNTER_ZOOM}>
-          <foreignObject
-            x={-128}
-            y={-11}
-            width={124}
-            height={24}
-            style={{ overflow: "visible" }}
-          >
-            <FieldElevationOffset
-              label="Ht"
-              value={height}
-              width={46}
-              accentColor={color}
-              onCommit={(v) => onCommitHeight?.(v)}
-            />
-          </foreignObject>
+        <g transform={`translate(${xMin - xPad}, ${(eMinY + eMaxY) / 2})`}>
+          <g style={COUNTER_ZOOM}>
+            <foreignObject
+              x={-128}
+              y={-11}
+              width={124}
+              height={24}
+              style={{ overflow: "visible" }}
+            >
+              <FieldElevationOffset
+                label="Ht"
+                value={height}
+                width={46}
+                accentColor={color}
+                onCommit={(v) => onCommitHeight?.(v)}
+              />
+            </foreignObject>
+          </g>
         </g>
-      </g>
       )}
-
-      {/* offset field, at the baseMap line level but shifted to the left of it
-          so it never overlaps the first vertex's offsetBottom field */}
-      <g transform={`translate(${xMin - xPad}, 0)`}>
-        <g style={COUNTER_ZOOM}>
-          <foreignObject
-            x={-128}
-            y={-11}
-            width={124}
-            height={24}
-            style={{ overflow: "visible" }}
-          >
-            <FieldElevationOffset
-              label="Offset"
-              value={offsetZ}
-              width={46}
-              accentColor={secondary}
-              noShadow
-              onCommit={(v) => onCommitOffsetZ?.(v)}
-            />
-          </foreignObject>
-        </g>
-      </g>
 
       {/* isoHeightLines: one dashed purple segment + ONE diamond handle at the
           midpoint + height field per line — dragging moves the whole line */}
@@ -610,27 +595,30 @@ export default function ElevationProfileSvg({
                 />
               </g>
             </g>
-            {/* value label, above the strokes around the handle */}
-            <g
-              transform={`translate(${midX}, ${labelAnchorY(midX, m.topY)})`}
-            >
-              <g style={COUNTER_ZOOM}>
-                <foreignObject
-                  x={-FW / 2}
-                  y={-FH - 10}
-                  width={FW}
-                  height={FH}
-                  style={{ overflow: "visible" }}
-                >
-                  <FieldElevationOffset
-                    label="Iso"
-                    value={liveHeight}
-                    accentColor={ISO_COLOR}
-                    onCommit={(val) => onCommitIsoHeight?.(m.index, val)}
-                  />
-                </foreignObject>
+            {/* value label above the handle — hidden by the labels switch,
+                but the SELECTED iso keeps its field so it stays editable */}
+            {(showLabels || selectedIsoIndex === m.index) && (
+              <g
+                transform={`translate(${midX}, ${labelAnchorY(midX, m.topY)})`}
+              >
+                <g style={COUNTER_ZOOM}>
+                  <foreignObject
+                    x={-FW / 2}
+                    y={-FH - 10}
+                    width={FW}
+                    height={FH}
+                    style={{ overflow: "visible" }}
+                  >
+                    <FieldElevationOffset
+                      label="Iso"
+                      value={liveHeight}
+                      accentColor={ISO_COLOR}
+                      onCommit={(val) => onCommitIsoHeight?.(m.index, val)}
+                    />
+                  </foreignObject>
+                </g>
               </g>
-            </g>
+            )}
           </g>
         );
       })}
@@ -661,29 +649,29 @@ export default function ElevationProfileSvg({
                 />
               </g>
             </g>
-            {/* value label, above the strokes around the handle */}
-            <g
-              transform={`translate(${ext.x}, ${labelAnchorY(ext.x, y)})`}
-            >
-              <g style={COUNTER_ZOOM}>
-                <foreignObject
-                  x={-FW / 2}
-                  y={-FH - 10}
-                  width={FW}
-                  height={FH}
-                  style={{ overflow: "visible" }}
-                >
-                  <FieldElevationOffset
-                    label="Δ"
-                    value={liveHeight}
-                    accentColor={color}
-                    onCommit={(val) =>
-                      onCommitExtremityOffset?.(ext.pointIndexes, val)
-                    }
-                  />
-                </foreignObject>
+            {/* value label above the handle — hidden by the labels switch */}
+            {showLabels && (
+              <g transform={`translate(${ext.x}, ${labelAnchorY(ext.x, y)})`}>
+                <g style={COUNTER_ZOOM}>
+                  <foreignObject
+                    x={-FW / 2}
+                    y={-FH - 10}
+                    width={FW}
+                    height={FH}
+                    style={{ overflow: "visible" }}
+                  >
+                    <FieldElevationOffset
+                      label="Δ"
+                      value={liveHeight}
+                      accentColor={color}
+                      onCommit={(val) =>
+                        onCommitExtremityOffset?.(ext.pointIndexes, val)
+                      }
+                    />
+                  </foreignObject>
+                </g>
               </g>
-            </g>
+            )}
           </g>
         );
       })}
@@ -783,6 +771,13 @@ export default function ElevationProfileSvg({
             );
           })
         )}
+
+      {/* Offset field LAST → on top of the silhouette / handles / labels */}
+      <ElevationOffsetField
+        layout={layout}
+        offsetZ={offsetZ}
+        onCommitOffsetZ={onCommitOffsetZ}
+      />
     </g>
   );
 }

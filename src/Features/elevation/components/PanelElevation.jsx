@@ -24,6 +24,7 @@ import PanelElevationLocateBaseMap from "./PanelElevationLocateBaseMap";
 import useElevationAnnotation from "Features/elevation/hooks/useElevationAnnotation";
 import useSelectedAnnotation from "Features/annotations/hooks/useSelectedAnnotation";
 import getProjectableSegmentChain from "Features/elevation/utils/getProjectableSegmentChain";
+import getSeedSegmentPerpendicularToIso from "Features/elevation/utils/getSeedSegmentPerpendicularToIso";
 import setElevationGuideService from "Features/elevation/services/setElevationGuideService";
 
 export default function PanelElevation() {
@@ -89,14 +90,21 @@ export default function PanelElevation() {
   useEffect(() => {
     if (!isProfileTarget || !annotationId || points.length < 2) return;
     if (selectionAnnotationId === annotationId) return;
+    // POLYGON with isoHeightLines: view ACROSS the contour lines by default —
+    // seed on the ring edge most perpendicular to the iso lines. Otherwise the
+    // first segment.
+    const isoSeed =
+      isPolygon && (isoHeightLines?.length ?? 0) > 0
+        ? getSeedSegmentPerpendicularToIso(points, isoHeightLines)
+        : 0;
     dispatch(
       setSelectedSegmentIndices({
-        // POLYGON = a surface: project the FULL ring (closed silhouette), not
-        // a projectable sub-chain.
+        // POLYGON = a surface: project the FULL ring (closed silhouette),
+        // rotated to start at the seed edge; not a projectable sub-chain.
         segmentIndices: isPolygon
-          ? points.map((_, k) => k)
+          ? points.map((_, k) => (isoSeed + k) % points.length)
           : getProjectableSegmentChain(points, 0, { closeLine }),
-        seedSegmentIndex: 0,
+        seedSegmentIndex: isoSeed,
         annotationId,
       })
     );
@@ -117,6 +125,7 @@ export default function PanelElevation() {
     points,
     closeLine,
     profileLines,
+    isoHeightLines,
     selectionAnnotationId,
     dispatch,
   ]);

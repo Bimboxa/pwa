@@ -115,6 +115,9 @@ export default async function applyProfileFromAnnotationService({
       (i) => Number.isInteger(i)
     )
   );
+  // A closed source (circle / closed polyline) stays closed only when nothing
+  // was hidden — hiding a segment cuts the loop into an open run.
+  const srcClosed = !!src.closeLine;
   let visiblePts = srcPts;
   if (hiddenSet.size) {
     const runs = [];
@@ -198,6 +201,10 @@ export default async function applyProfileFromAnnotationService({
       type: smp.type,
       height: smp.height,
     })),
+    // Closed cross-section (circle…): the section renderer draws the closing
+    // segment / arc back to the first vertex. Only when the whole loop survives
+    // (no hidden slicing).
+    ...(srcClosed && visiblePts === srcPts ? { closeLine: true } : {}),
     sourceAnnotationId,
     sourceInvert: Boolean(invert),
   };

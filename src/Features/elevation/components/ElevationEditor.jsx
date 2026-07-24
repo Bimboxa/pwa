@@ -20,10 +20,12 @@ import CenterFocusStrongIcon from "@mui/icons-material/CenterFocusStrong";
 import MapEditorViewport from "Features/mapEditorGeneric/components/MapEditorViewport";
 import ElevationProfileSvg from "./ElevationProfileSvg";
 import ElevationProfileSectionSvg from "./ElevationProfileSectionSvg";
+import ElevationZAxisOverlay from "./ElevationZAxisOverlay";
 import ButtonChooseProfileSource from "./ButtonChooseProfileSource";
 
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import useElevationProfile from "Features/elevation/hooks/useElevationProfile";
+import useElevationZAxis from "Features/elevation/hooks/useElevationZAxis";
 import useElevationPointDrag from "Features/elevation/hooks/useElevationPointDrag";
 import useDeleteIsoHeightLine from "Features/annotations/hooks/useDeleteIsoHeightLine";
 import { triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice";
@@ -114,21 +116,8 @@ export default function ElevationEditor({
   const showHeightLabels = useSelector((s) => s.elevation.showHeightLabels);
 
   const [hoveredSegmentIndex, setHoveredSegmentIndex] = useState(null);
-  // live map zoom (read from the camera) → keeps the recap gap/margins constant
-  // in screen pixels at any zoom level (see ElevationProfileSvg)
-  const [zoom, setZoom] = useState(1);
-  // live camera pan-x + viewport width → lets us pin the Z axis (and the
-  // things that anchor to it: the Z = 0 dashed line's far end, the Offset
-  // field) to a fixed SCREEN edge while everything else pans/zooms. Small
-  // editor → re-rendering on pan is cheap.
-  const [camX, setCamX] = useState(0);
-  const [viewportWidth, setViewportWidth] = useState(0);
-  const handleCameraChange = useCallback((m) => {
-    setZoom((z) => (z === m.k ? z : m.k));
-    setCamX((x) => (x === m.x ? x : m.x));
-    const vw = viewportRef.current?.getViewportSize?.().width ?? 0;
-    if (vw) setViewportWidth((w) => (w === vw ? w : vw));
-  }, []);
+  // Screen-fixed Z axis (zoom + side + world x from the live camera) is set up
+  // by useElevationZAxis below, once bbox / guideTrait are known.
 
   const handleCommitOffset = useCallback(
     (pointIndex, edge, value) => {
@@ -274,6 +263,15 @@ export default function ElevationEditor({
     closeLine,
     offsetZ,
   ]);
+
+  // Screen-fixed Z axis: side (profile vs annotation median axis) + world x
+  // from the live camera. Shared by the section and surface renderers so the
+  // Z = 0 line reaches the axis and the Offset field sits beside it.
+  const { zoom, zAxisSide, zAxisWorldX, onCameraChange, rootRef } =
+    useElevationZAxis({ viewportRef, bbox, medianS: guideTrait?.medianS });
+
+  // Z axis / hide-labels UI: section profiles AND POLYGON iso surfaces.
+  const showZAxisUi = profileSectionMode || surfaceMode;
 
   // --- guide image (background elevation drawing) ---
 
@@ -827,39 +825,6 @@ export default function ElevationEditor({
     fitToContentRef.current();
   }, [fitKey]);
 
-  // --- Z axis: screen edge, chosen by the profile's side of the annotation
-  // central axis (medianS). Its WORLD x (derived from the camera) lets the
-  // Z = 0 line reach it and the Offset field sit at a fixed screen distance
-  // from it — both re-computed on pan/zoom so they track the fixed edge. ---
-  const Z_AXIS_INSET_PX = 24;
-  const rootRef = useRef(null);
-  useEffect(() => {
-    const el = rootRef.current;
-    if (!el) return;
-    const update = () => setViewportWidth(el.clientWidth);
-    update();
-    const ro = new ResizeObserver(update);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-
-  // profile side: center of the section vs the central (median) axis. Left of
-  // center → axis on the RIGHT (out of the profile's way), and vice-versa.
-  const zAxisSide = useMemo(() => {
-    const median = guideTrait?.medianS;
-    if (!bbox || !Number.isFinite(median)) return "right";
-    const center = (bbox.minX + bbox.maxX) / 2;
-    return center <= median ? "right" : "left";
-  }, [bbox, guideTrait]);
-
-  // world x mapped from the fixed screen edge: viewportX = worldX * k + camX.
-  const zAxisWorldX = useMemo(() => {
-    if (!viewportWidth || !zoom) return null;
-    const screenX =
-      zAxisSide === "right" ? viewportWidth - Z_AXIS_INSET_PX : Z_AXIS_INSET_PX;
-    return (screenX - camX) / zoom;
-  }, [viewportWidth, zoom, camX, zAxisSide]);
-
   // --- profile from a source annotation ("Choisir un profil" / Actualiser) ---
 
   // Refit once the freshly applied profile is resolved (fitKey may not change
@@ -938,7 +903,7 @@ export default function ElevationEditor({
         shouldDisablePan={shouldDisablePan}
         onWorldMouseMove={handleWorldMouseMove}
         onWorldClick={handleWorldClick}
-        onCameraChange={handleCameraChange}
+        onCameraChange={onCameraChange}
       >
         {/* Guide image (elevation drawing) under the profile. Click toggles
             selection; when selected it can be dragged to reposition. */}
@@ -986,6 +951,7 @@ export default function ElevationEditor({
             showLabels={showHeightLabels}
             zAxisWorldX={zAxisWorldX}
             zAxisSide={zAxisSide}
+            closeLine={Boolean(sectionProfile?.closeLine)}
             selectedVertexIndex={selectedProfileVertexIndex}
             onVertexMouseDown={handleProfileVertexMouseDown}
             onSelectVertex={setSelectedProfileVertexIndex}
@@ -1021,6 +987,9 @@ export default function ElevationEditor({
             hoverWorldPos={hoverWorldPos}
             onAddIsoPoint={handleAddIsoPoint}
             surfaceMode={surfaceMode}
+            showLabels={showHeightLabels}
+            zAxisWorldX={zAxisWorldX}
+            zAxisSide={zAxisSide}
           />
         )}
       </MapEditorViewport>
@@ -1081,7 +1050,7 @@ export default function ElevationEditor({
           </>
         )}
         <Box sx={{ flexGrow: 1 }} />
-        {profileSectionMode && (
+        {showZAxisUi && (
           <FormControlLabel
             sx={{
               m: 0,
@@ -1115,61 +1084,9 @@ export default function ElevationEditor({
       </Box>
 
       {/* Z axis — SCREEN-fixed vertical reference (outside the camera group),
-          pinned to the LEFT or RIGHT edge (zAxisSide) so it never pans /
-          zooms away. Its line center sits Z_AXIS_INSET_PX from that edge,
-          matching zAxisWorldX (which the Z = 0 line + Offset field anchor
-          to). */}
-      {profileSectionMode && (
-        <Box
-          sx={{
-            position: "absolute",
-            top: 12,
-            bottom: 52,
-            [zAxisSide]: Z_AXIS_INSET_PX,
-            width: 0,
-            pointerEvents: "none",
-          }}
-        >
-          <Typography
-            variant="caption"
-            sx={{
-              position: "absolute",
-              top: -4,
-              [zAxisSide === "right" ? "left" : "right"]: 6,
-              color: "grey.600",
-            }}
-          >
-            z
-          </Typography>
-          {/* arrow head */}
-          <Box
-            sx={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              transform: "translateX(-50%)",
-              width: 0,
-              height: 0,
-              borderLeft: "5px solid transparent",
-              borderRight: "5px solid transparent",
-              borderBottom: "8px solid",
-              borderBottomColor: "grey.500",
-            }}
-          />
-          {/* vertical line */}
-          <Box
-            sx={{
-              position: "absolute",
-              top: 7,
-              bottom: 0,
-              left: 0,
-              transform: "translateX(-50%)",
-              width: "2px",
-              bgcolor: "grey.500",
-            }}
-          />
-        </Box>
-      )}
+          on the side chosen by useElevationZAxis. Shown for section profiles
+          AND POLYGON iso surfaces. */}
+      {showZAxisUi && <ElevationZAxisOverlay side={zAxisSide} />}
     </Box>
   );
 }
