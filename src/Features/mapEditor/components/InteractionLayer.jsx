@@ -8,7 +8,7 @@ import { nanoid } from '@reduxjs/toolkit';
 import { useInteraction } from '../context/InteractionContext';
 
 import { setSelectedEntityId } from 'Features/entities/entitiesSlice';
-import { setEnabledDrawingMode, setSelectedNodes, setMapEditorMode } from 'Features/mapEditor/mapEditorSlice';
+import { setEnabledDrawingMode, setSelectedNodes, setMapEditorMode, setDraftPropsForTemplate } from 'Features/mapEditor/mapEditorSlice';
 import { setSelectedNode, toggleSelectedNode } from 'Features/mapEditor/mapEditorSlice';
 import { setAnnotationToolbarPosition, setAnnotationsToolbarPosition } from 'Features/mapEditor/mapEditorSlice';
 import { setImageModeLegendSelected } from 'Features/mapEditor/mapEditorSlice';
@@ -38,7 +38,8 @@ import {
 } from 'Features/mapEditor/mapEditorSlice';
 import { setColorToReplace } from 'Features/opencv/opencvSlice';
 import { setSelectedVersionId } from 'Features/baseMapEditor/baseMapEditorSlice';
-import { setOpenDialogDeleteSelectedAnnotation, setTempAnnotations, setNewAnnotation, triggerAnnotationsUpdate } from 'Features/annotations/annotationsSlice';
+import { setOpenDialogDeleteSelectedAnnotation, setTempAnnotations, setNewAnnotation, patchNewAnnotation, triggerAnnotationsUpdate } from 'Features/annotations/annotationsSlice';
+import getDraftFieldVisibility from 'Features/mapEditor/utils/getDraftFieldVisibility';
 import {
   setAnchorPosition,
   setClickedNode,
@@ -555,6 +556,11 @@ const InteractionLayer = forwardRef(({
     toggleRectBufferSign,
     deleteFromRectBuffer,
     clearRectBuffers,
+    metricInputFieldRef,
+    setMetricField,
+    appendToMetricBuffer,
+    deleteFromMetricBuffer,
+    clearMetricInput,
   } = useDrawingMetrics();
 
   const fixedLength = useSelector((s) => s.mapEditor.fixedLength);
@@ -586,6 +592,11 @@ const InteractionLayer = forwardRef(({
   useEffect(() => {
     clearRectBuffers();
   }, [enabledDrawingMode, clearRectBuffers]);
+
+  // Clear the E / H typed-metric capture when drawing mode changes
+  useEffect(() => {
+    clearMetricInput();
+  }, [enabledDrawingMode, clearMetricInput]);
 
   // Re-trigger preview when typed X/Y dimensions change so the rectangle
   // adopts the typed value without requiring a mouse move.
@@ -3427,6 +3438,77 @@ const InteractionLayer = forwardRef(({
         segmentAdjustPreferredAxisRef.current = next;
         dispatch(setSegmentSnapDirection(next));
         return;
+      }
+
+      // --- Typed thickness / height entry: E → épaisseur (strokeWidth),
+      // H → hauteur (height). Same keyboard mechanism as the rectangle X/Y dims
+      // below, but the parsed value live-patches the draft (newAnnotation) instead
+      // of moving geometry — so the existing Ep. / ht. toolbar fields double as the
+      // live display. Only the active viewer reacts (window-scoped listener), and
+      // the letters only capture when their field is actually shown, so this never
+      // shadows the "Évider" E shortcut (which is gated on NOT drawing). ---
+      if (
+        isActiveViewerRef.current &&
+        enabledDrawingMode &&
+        !e.ctrlKey &&
+        !e.metaKey &&
+        !e.altKey
+      ) {
+        const naDraft = newAnnotationRef.current;
+        const { showThickness, showHeight } = getDraftFieldVisibility(
+          naDraft,
+          enabledDrawingMode,
+        );
+        // Enter capture on the field letter (only when that field is shown).
+        if ((e.key === "e" || e.key === "E") && showThickness) {
+          e.preventDefault();
+          setMetricField("strokeWidth");
+          return;
+        }
+        if ((e.key === "h" || e.key === "H") && showHeight) {
+          e.preventDefault();
+          setMetricField("height");
+          return;
+        }
+        // Accumulate / commit while a metric field is being typed.
+        const metricField = metricInputFieldRef.current;
+        if (metricField) {
+          const applyMetric = (val) => {
+            dispatch(patchNewAnnotation({ [metricField]: val }));
+            // Persist for the next draw of this template (mirrors the toolbar's
+            // rememberDraftProps) so a typed width / height sticks across draws.
+            const templateId = naDraft?.annotationTemplateId;
+            if (templateId && val != null) {
+              dispatch(
+                setDraftPropsForTemplate({
+                  templateId,
+                  props: { [metricField]: val },
+                }),
+              );
+            }
+          };
+          if (/^[0-9.,]$/.test(e.key)) {
+            e.preventDefault();
+            applyMetric(appendToMetricBuffer(e.key === "," ? "." : e.key));
+            return;
+          }
+          if (e.key === "Backspace") {
+            e.preventDefault();
+            applyMetric(deleteFromMetricBuffer());
+            return;
+          }
+          if (e.key === " ") {
+            e.preventDefault();
+            return;
+          }
+          // Enter / Escape leave capture (the value is already applied live)
+          // WITHOUT committing / dropping the in-progress drawing.
+          if (e.key === "Enter" || e.key === "Escape") {
+            e.preventDefault();
+            clearMetricInput();
+            return;
+          }
+        }
       }
 
       // --- Rectangle typed X/Y dimensions (after first corner placed) ---

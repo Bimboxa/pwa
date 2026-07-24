@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Typography, InputBase, Box } from "@mui/material";
 
+import FieldShortcutBadge from "./FieldShortcutBadge";
+
 export default function FieldAnnotationHeight({
   annotation,
   onChange,
@@ -8,6 +10,8 @@ export default function FieldAnnotationHeight({
   field: fieldProp,
   unit: unitProp,
   disabled = false,
+  active = false,
+  shortcut,
 }) {
   const field = fieldProp ?? "height";
   // For POLYGON shapes, "height" is semantically a thickness ("épaisseur")
@@ -103,11 +107,19 @@ export default function FieldAnnotationHeight({
     >
       <Typography
         variant="body2"
-        color={disabled ? "text.disabled" : "text.secondary"}
+        color={
+          disabled
+            ? "text.disabled"
+            : active
+              ? "primary.main"
+              : "text.secondary"
+        }
         noWrap
       >
         {label}
       </Typography>
+
+      {shortcut && <FieldShortcutBadge active={active}>{shortcut}</FieldShortcutBadge>}
 
       <Box sx={{ display: "grid", alignItems: "center", position: "relative" }}>
         {/* 1. Le FANTÔME (Maître des dimensions) - Uses localValue now */}
@@ -152,6 +164,10 @@ export default function FieldAnnotationHeight({
               height: "100%",
               paddingTop: 0,
               paddingBottom: 0,
+              borderRadius: 0.5,
+              boxShadow: active
+                ? (theme) => `inset 0 0 0 1.5px ${theme.palette.primary.main}`
+                : "none",
             },
           }}
         />

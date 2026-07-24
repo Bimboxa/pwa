@@ -165,6 +165,14 @@ const mapEditorInitialState = {
   rectCurrentAxis: null, // 'x' | 'y' | null
   rectHasFirstPoint: false,
 
+  // Typed thickness / height entry while drawing (E = épaisseur → strokeWidth,
+  // H = hauteur → height). Same keyboard mechanism as the rectangle X/Y dims,
+  // but the value live-patches newAnnotation instead of moving geometry. Kept in
+  // Redux so the bottom-bar fields (outside the per-viewer provider) can read the
+  // active field to highlight it.
+  metricInputField: null, // 'strokeWidth' | 'height' | null
+  metricInputBuffer: "",
+
   // Segment-length constraint buffer (digits typed while drawing CLICK /
   // POLYLINE_CLICK / etc.). Mirrors the previous DrawingMetricsContext
   // state — moved to Redux so the bottom bar can read it.
@@ -590,6 +598,22 @@ export const mapEditorSlice = createSlice({
       state.rectCurrentAxis = null;
     },
 
+    // typed thickness / height entry (E / H)
+    setMetricInputField: (state, action) => {
+      state.metricInputField = action.payload; // 'strokeWidth' | 'height' | null
+      state.metricInputBuffer = "";
+    },
+    appendToMetricInputBuffer: (state, action) => {
+      state.metricInputBuffer = state.metricInputBuffer + action.payload;
+    },
+    deleteLastMetricInputBuffer: (state) => {
+      state.metricInputBuffer = state.metricInputBuffer.slice(0, -1);
+    },
+    clearMetricInput: (state) => {
+      state.metricInputField = null;
+      state.metricInputBuffer = "";
+    },
+
     // segment-length constraint buffer
     setConstraintBuffer: (state, action) => {
       state.constraintBuffer = action.payload;
@@ -839,6 +863,12 @@ export const {
   setRectCurrentAxis,
   setRectHasFirstPoint,
   clearRectDims,
+
+  // typed thickness / height entry (E / H)
+  setMetricInputField,
+  appendToMetricInputBuffer,
+  deleteLastMetricInputBuffer,
+  clearMetricInput,
 
   // segment-length constraint buffer
   setConstraintBuffer,

@@ -20,8 +20,8 @@ import {
   getDrawingToolByKey,
   getDrawingToolsByShape,
   getDrawingToolsByType,
-  getDrawingToolTypeByKey,
 } from "../constants/drawingTools.jsx";
+import getDraftFieldVisibility from "../utils/getDraftFieldVisibility";
 import {
   getHotkeyForToolInGroup,
   getOpeningHotkeyForTool,
@@ -57,6 +57,9 @@ export default function ToolbarDrawingDraft() {
   const openingStrokeWidthUnit = useSelector(
     (s) => s.mapEditor.openingStrokeWidthUnit
   );
+  // Which field the E / H typed-entry machine is currently editing (highlights
+  // the matching toolbar field).
+  const metricInputField = useSelector((s) => s.mapEditor.metricInputField);
 
   // helpers
 
@@ -66,52 +69,22 @@ export default function ToolbarDrawingDraft() {
   const isStrokeColor = shapeCategory === "polyline";
   const colorField = isStrokeColor ? "strokeColor" : "fillColor";
 
-  // A cutting tool (CUT / SPLIT_LINE / …) is active when the enabled drawing
-  // mode maps back to one of the DRAWING_TOOLS_BY_TYPE groups. In that case the
-  // toolbar shows the available modes for the tool instead of the
-  // new-annotation color / height fields, which are not relevant.
-  const toolType = getDrawingToolTypeByKey(enabledDrawingMode);
-  const isCuttingTool = Boolean(toolType);
-
-  // Opening (ouverture) tools drawn from a centerline reuse the POLYLINE / STRIP
-  // interaction modes, so `enabledDrawingMode` is not a CUT_* key — they're
-  // recognized via the draft's `isOpening` flag instead. We still surface the
-  // "Ouverture" variant toggle (group "CUT") and show the line-width field for
-  // them, while hiding the per-annotation colour (openings are forced red).
-  // Template-driven OPENING drafts (OPENING_SEGMENT tool) also carry
-  // isOpening + type POLYLINE but are NOT centerline CUT bands — they keep
-  // their own template style and width/height fields.
-  const isOpeningBand =
-    Boolean(newAnnotation?.isOpening) &&
-    newAnnotation?.drawingShape !== "OPENING" &&
-    (newAnnotation?.type === "POLYLINE" || newAnnotation?.type === "STRIP");
-  const isToolGroup = isCuttingTool || isOpeningBand;
-  const toolGroupType = isCuttingTool ? toolType : isOpeningBand ? "CUT" : null;
-
-  const overrideFields = newAnnotation?.overrideFields;
-  const isFieldOverridden = (field) =>
-    Array.isArray(overrideFields) && overrideFields.includes(field);
-
-  // The Rampe tool drives its own geometry from two transient meter fields
-  // (largeur / delta H) stored in mapEditorSlice — it hides the generic
-  // height / offset / thickness fields, which don't apply to a ramp.
-  const isRampTool = enabledDrawingMode === "RAMP";
+  // Field visibility + tool-group flags for the current draft. Shared with the
+  // E / H keyboard shortcuts (InteractionLayer) via getDraftFieldVisibility so
+  // the shortcuts stay in lockstep with the fields actually shown here.
+  const {
+    isToolGroup,
+    toolGroupType,
+    isRampTool,
+    isOpeningBand,
+    isFieldOverridden,
+    showThickness,
+    showOffset,
+    showHeight,
+    showWidth,
+  } = getDraftFieldVisibility(newAnnotation, enabledDrawingMode);
 
   const showColor = !isToolGroup && !isFieldOverridden(colorField);
-  const showThickness =
-    !isRampTool &&
-    !isFieldOverridden("strokeWidth") &&
-    ((!isToolGroup &&
-      (drawingShape === "POLYLINE" || drawingShape === "OPENING")) ||
-      isOpeningBand);
-  const showOffset =
-    !isToolGroup && !isRampTool && !isFieldOverridden("offsetZ");
-  const showHeight =
-    !isToolGroup && !isRampTool && !isFieldOverridden("height");
-  // OPENING drafts: width (m) along the wall — edits the draft only, the
-  // preview reads newAnnotation.width live on each mouse move.
-  const showWidth =
-    drawingShape === "OPENING" && !isFieldOverridden("width");
   const showAnyField =
     showThickness || showOffset || showHeight || showWidth || isRampTool;
 
@@ -329,6 +302,8 @@ export default function ToolbarDrawingDraft() {
         <FieldAnnotationThickness
           annotation={newAnnotation}
           onChange={handleFieldChange}
+          active={metricInputField === "strokeWidth"}
+          shortcut="E"
         />
       )}
       {showOffset && (
@@ -343,6 +318,8 @@ export default function ToolbarDrawingDraft() {
         <FieldAnnotationHeight
           annotation={newAnnotation}
           onChange={handleFieldChange}
+          active={metricInputField === "height"}
+          shortcut="H"
         />
       )}
       {isRampTool && (

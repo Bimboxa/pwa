@@ -1,10 +1,4 @@
-import {
-  createContext,
-  useRef,
-  useCallback,
-  useContext,
-  useMemo,
-} from "react";
+import { createContext, useRef, useCallback, useContext, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import {
@@ -22,6 +16,10 @@ import {
   appendToConstraintBuffer,
   deleteLastConstraintBuffer,
   clearConstraintBuffer,
+  setMetricInputField as setMetricInputFieldAction,
+  appendToMetricInputBuffer as appendToMetricInputBufferAction,
+  deleteLastMetricInputBuffer as deleteLastMetricInputBufferAction,
+  clearMetricInput as clearMetricInputAction,
 } from "Features/mapEditor/mapEditorSlice";
 import segmentLengthPxRef from "Features/mapEditor/state/segmentLengthPxRef";
 
@@ -67,10 +65,19 @@ export function DrawingMetricsProvider({ children }) {
   const rectCurrentAxis = useSelector((s) => s.mapEditor.rectCurrentAxis);
   const rectHasFirstPoint = useSelector((s) => s.mapEditor.rectHasFirstPoint);
 
+  // Typed thickness / height entry (E / H) — also Redux-backed.
+  const metricInputField = useSelector((s) => s.mapEditor.metricInputField);
+  const metricInputBuffer = useSelector((s) => s.mapEditor.metricInputBuffer);
+
   // Refs mirror Redux state so the keydown handler (registered once with
   // empty deps in InteractionLayer) can read the latest values synchronously.
   const rectCurrentAxisRef = useRef(rectCurrentAxis);
   rectCurrentAxisRef.current = rectCurrentAxis;
+
+  const metricInputFieldRef = useRef(metricInputField);
+  metricInputFieldRef.current = metricInputField;
+  const metricInputBufferRef = useRef(metricInputBuffer);
+  metricInputBufferRef.current = metricInputBuffer;
 
   const setRectAxis = useCallback(
     (axis) => {
@@ -78,6 +85,13 @@ export function DrawingMetricsProvider({ children }) {
       dispatch(setRectCurrentAxisAction(axis));
       if (axis === "x") dispatch(setRectXBufferAction(""));
       else if (axis === "y") dispatch(setRectYBufferAction(""));
+      // Mutual exclusivity: entering an axis cancels any active E/H capture so
+      // digit keys only ever feed one buffer.
+      if (metricInputFieldRef.current) {
+        metricInputFieldRef.current = null;
+        metricInputBufferRef.current = "";
+        dispatch(clearMetricInputAction());
+      }
     },
     [dispatch]
   );
@@ -121,6 +135,49 @@ export function DrawingMetricsProvider({ children }) {
   const rectMetricsRef = useRef({ rectX, rectY });
   rectMetricsRef.current = { rectX, rectY };
 
+  // Typed thickness / height entry (E / H) API. Mirrors the rect helpers but the
+  // append/delete helpers RETURN the freshly parsed value so the keydown handler
+  // can live-patch newAnnotation synchronously (Redux/ref updates only on the
+  // next render).
+  const setMetricField = useCallback(
+    (field) => {
+      metricInputFieldRef.current = field;
+      metricInputBufferRef.current = "";
+      dispatch(setMetricInputFieldAction(field));
+      // Mutual exclusivity: leaving any rect axis so digits feed the metric.
+      if (rectCurrentAxisRef.current) {
+        rectCurrentAxisRef.current = null;
+        dispatch(setRectCurrentAxisAction(null));
+      }
+    },
+    [dispatch]
+  );
+
+  const appendToMetricBuffer = useCallback(
+    (char) => {
+      if (!metricInputFieldRef.current) return null;
+      const next = metricInputBufferRef.current + char;
+      metricInputBufferRef.current = next;
+      dispatch(appendToMetricInputBufferAction(char));
+      return parseBuffer(next);
+    },
+    [dispatch]
+  );
+
+  const deleteFromMetricBuffer = useCallback(() => {
+    if (!metricInputFieldRef.current) return null;
+    const next = metricInputBufferRef.current.slice(0, -1);
+    metricInputBufferRef.current = next;
+    dispatch(deleteLastMetricInputBufferAction());
+    return parseBuffer(next);
+  }, [dispatch]);
+
+  const clearMetricInput = useCallback(() => {
+    metricInputFieldRef.current = null;
+    metricInputBufferRef.current = "";
+    dispatch(clearMetricInputAction());
+  }, [dispatch]);
+
   return (
     <DrawingMetricsContext.Provider
       value={{
@@ -145,6 +202,14 @@ export function DrawingMetricsProvider({ children }) {
         toggleRectBufferSign,
         deleteFromRectBuffer,
         clearRectBuffers,
+        // Typed thickness / height entry (E / H)
+        metricInputField,
+        metricInputBuffer,
+        metricInputFieldRef,
+        setMetricField,
+        appendToMetricBuffer,
+        deleteFromMetricBuffer,
+        clearMetricInput,
       }}
     >
       {children}
