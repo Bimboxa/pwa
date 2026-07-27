@@ -83,6 +83,9 @@ export default async function snapshotPovViewService() {
     hideMainBaseMapImageIn3d: state.threedEditor.hideMainBaseMapImageIn3d,
     hideMainBaseMapAnnotationsIn3d:
       state.threedEditor.hideMainBaseMapAnnotationsIn3d,
+    // Generic base map display opacity (2D base map + 3D main base map).
+    // Session-only redux value, never persisted on the baseMap record.
+    mainBaseMapOpacity: state.mapEditor.baseMapOpacity ?? 1,
   };
 
   // camera vs frame

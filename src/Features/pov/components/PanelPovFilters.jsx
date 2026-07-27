@@ -5,6 +5,7 @@ import { Box, IconButton, Typography } from "@mui/material";
 import { Visibility, VisibilityOff } from "@mui/icons-material";
 
 import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTemplateIcon";
+import SectionPovBaseMapFilter from "./SectionPovBaseMapFilter";
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
 import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
@@ -279,6 +280,9 @@ export default function PanelPovFilters() {
 
   return (
     <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto", py: 1 }}>
+      <Box sx={{ px: 1, mb: 1.5 }}>
+        <SectionPovBaseMapFilter />
+      </Box>
       {displayedListings.length === 0 && (
         <Typography variant="body2" color="text.secondary" sx={{ px: 2 }}>
           {emptyS}

@@ -10,11 +10,13 @@ import {
   setImageModeTitle,
   setImageModeShowLogo,
   setSelectedMainBaseMapId,
+  setBaseMapOpacity,
 } from "Features/mapEditor/mapEditorSlice";
 import {
   setVisibleBaseMapIdsIn3d,
   setHideMainBaseMapImageIn3d,
   setHideMainBaseMapAnnotationsIn3d,
+  setBaseMapOpacityByIdIn3d,
 } from "Features/threedEditor/threedEditorSlice";
 import {
   triggerAnnotationsUpdate,
@@ -125,6 +127,20 @@ export default async function applyPovSceneStateService({
       dispatch(setSelectedMainBaseMapId(mainBaseMapId));
     }
   }
+
+  // Generic base map opacity (2D + 3D main), dispatched for both editors so a
+  // restored MAP pov doesn't leave a stale 3D main-map opacity (and vice
+  // versa). Old povs lack the field: default to 1 so a previous POV's opacity
+  // doesn't leak into them.
+  const mainBaseMapOpacity = povBaseMaps.mainBaseMapOpacity ?? 1;
+  dispatch(setBaseMapOpacity(mainBaseMapOpacity));
+  if (mainBaseMapId)
+    dispatch(
+      setBaseMapOpacityByIdIn3d({
+        baseMapId: mainBaseMapId,
+        opacity: mainBaseMapOpacity,
+      })
+    );
 
   for (const [baseMapId, versionId] of Object.entries(
     activeVersionIdByBaseMapId ?? {}
