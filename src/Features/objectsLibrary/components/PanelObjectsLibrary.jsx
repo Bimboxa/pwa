@@ -35,14 +35,23 @@ import {
 } from "../constants/objectsLibraryTabs";
 import useObjectsLibrary from "../hooks/useObjectsLibrary";
 import usePlaceObjectFromLibrary from "../hooks/usePlaceObjectFromLibrary";
+import usePlaceSystemFromLibrary from "../hooks/usePlaceSystemFromLibrary";
 import useObjectsTargetListings from "../hooks/useObjectsTargetListings";
 import GridObjects from "./GridObjects";
 import ListObjects from "./ListObjects";
 import SectionUnderConstruction from "./SectionUnderConstruction";
 import SelectorListingForObjects from "./SelectorListingForObjects";
 import DialogObjectConfig from "./DialogObjectConfig";
+import DialogSystemConfig from "./DialogSystemConfig";
 import DialogObjectAlreadyExists from "./DialogObjectAlreadyExists";
 import findObjectTemplateInListing from "../services/findObjectTemplateInListing";
+
+// "Systèmes" library entries are procedures (a source annotation that generates
+// several others), configured through DialogSystemConfig rather than the plain
+// object dialog.
+function isSystemObject(object) {
+  return object?.tab === "SYSTEMS";
+}
 
 export default function PanelObjectsLibrary() {
   const dispatch = useDispatch();
@@ -51,6 +60,7 @@ export default function PanelObjectsLibrary() {
 
   const { objects, loading } = useObjectsLibrary();
   const place = usePlaceObjectFromLibrary();
+  const placeSystem = usePlaceSystemFromLibrary();
   const candidateListings = useObjectsTargetListings();
   const selectedListingId = useSelector((s) => s.listings.selectedListingId);
 
@@ -111,11 +121,30 @@ export default function PanelObjectsLibrary() {
     dispatch(setSelectedMenuItemKey(null));
   }
 
+  // "Dessiner" from the système dialog: create the source + generated templates
+  // (with the dialog edits) in the target listing, then arm drawing of the source.
+  async function handlePlaceSystem({ object, mainDraft, generatedDrafts }) {
+    await placeSystem({
+      object,
+      mainTemplate: mainDraft,
+      generatedTemplates: generatedDrafts,
+      listingId: targetListingId,
+    });
+    setDialogObject(null);
+    dispatch(setSelectedMenuItemKey(null));
+  }
+
   // "Localiser" straight from a card/row: same placement as the dialog, with the
   // object's default config. Requires a target listing first. Unlike the dialog
   // "Positionner", this keeps the panel open. If the listing already holds a
   // template for this model (modelIdMaster match), ask create-new vs reuse-existing.
   async function handleLocate(object) {
+    // Systèmes are always configured through their dialog (they have no single
+    // template to quick-place), so route the card action to open it.
+    if (isSystemObject(object)) {
+      setDialogObject(object);
+      return;
+    }
     if (!hasValidTarget) {
       dispatch(
         setToaster({
@@ -368,11 +397,21 @@ export default function PanelObjectsLibrary() {
       </Box>
 
       <DialogObjectConfig
-        open={Boolean(dialogObject)}
-        object={dialogObject}
+        open={Boolean(dialogObject) && !isSystemObject(dialogObject)}
+        object={isSystemObject(dialogObject) ? null : dialogObject}
         canPlace={hasValidTarget}
         onClose={() => setDialogObject(null)}
         onPlace={handlePlace}
+      />
+
+      <DialogSystemConfig
+        open={Boolean(dialogObject) && isSystemObject(dialogObject)}
+        object={isSystemObject(dialogObject) ? dialogObject : null}
+        targetListingId={targetListingId}
+        onTargetListingChange={setTargetListingId}
+        canPlace={hasValidTarget}
+        onClose={() => setDialogObject(null)}
+        onPlace={handlePlaceSystem}
       />
 
       <DialogObjectAlreadyExists
