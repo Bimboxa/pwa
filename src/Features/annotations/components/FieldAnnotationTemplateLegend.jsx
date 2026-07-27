@@ -1,6 +1,7 @@
-import { Box, Typography, Switch, Divider } from "@mui/material";
+import { Box, Typography, Switch } from "@mui/material";
 
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
+import WhiteSectionTitle from "Features/form/components/WhiteSectionTitle";
 import FieldTextV2 from "Features/form/components/FieldTextV2";
 
 import SelectorAnnotationTemplateGroup from "./SelectorAnnotationTemplateGroup";
@@ -32,12 +33,19 @@ export default function FieldAnnotationTemplateLegend({
   return (
     <WhiteSectionGeneric>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-        {/* header: title + "afficher dans la légende" toggle */}
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          <Typography variant="body2" sx={{ fontWeight: "bold", flex: 1 }}>
-            Légende
-          </Typography>
-          <Typography variant="caption" sx={{ color: "text.secondary" }} noWrap>
+        {/* section title */}
+        <WhiteSectionTitle>Légende</WhiteSectionTitle>
+
+        {/* visibility toggle */}
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 1,
+          }}
+        >
+          <Typography variant="body2" sx={{ fontWeight: "bold" }} noWrap>
             Afficher dans la légende
           </Typography>
           <Switch
@@ -48,31 +56,30 @@ export default function FieldAnnotationTemplateLegend({
         </Box>
 
         {/* legend label */}
-        <FieldTextV2
-          value={labelLegend}
-          onChange={onLabelLegendChange}
-          options={{ fullWidth: true, placeholder: "Libellé légende" }}
-        />
-
-        <Divider />
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <Typography variant="body2" sx={{ fontWeight: "bold" }} noWrap>
+            Libellé
+          </Typography>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <FieldTextV2
+              value={labelLegend}
+              onChange={onLabelLegendChange}
+              options={{ fullWidth: true, placeholder: "Libellé légende" }}
+            />
+          </Box>
+        </Box>
 
         {/* group */}
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
-          <Typography
-            variant="caption"
-            sx={{
-              fontSize: 10,
-              letterSpacing: "0.06em",
-              textTransform: "uppercase",
-              color: "text.secondary",
-            }}
-          >
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <Typography variant="body2" sx={{ fontWeight: "bold" }} noWrap>
             Groupe
           </Typography>
-          <SelectorAnnotationTemplateGroup
-            value={groupLabel}
-            onChange={onGroupLabelChange}
-          />
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <SelectorAnnotationTemplateGroup
+              value={groupLabel}
+              onChange={onGroupLabelChange}
+            />
+          </Box>
         </Box>
       </Box>
     </WhiteSectionGeneric>

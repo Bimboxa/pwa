@@ -12,6 +12,7 @@ export default function FieldIcon({
   label,
   spriteImage,
   options,
+  endAction,
 }) {
 
   // options
@@ -30,28 +31,32 @@ export default function FieldIcon({
             {label}
           </Typography>
 
-          <Box
-            onClick={(e) => setAnchorEl(e.currentTarget)}
-            sx={{
-              width: 24,
-              height: 24,
-              border: theme => `2px solid ${theme.palette.divider}`,
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              bgcolor: value ? iconColor : 'action.hover',
-              cursor: 'pointer',
-              '&:hover': { transform: 'scale(1.1)' },
-              transition: 'transform 0.2s'
-            }}
-          >
-            <MarkerIcon
-              iconKey={value}
-              spriteImage={spriteImage}
-              size={28}
-              fillColor={iconColor}
-            />
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+            <Box
+              onClick={(e) => setAnchorEl(e.currentTarget)}
+              sx={{
+                width: 24,
+                height: 24,
+                border: theme => `2px solid ${theme.palette.divider}`,
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                bgcolor: value ? iconColor : 'action.hover',
+                cursor: 'pointer',
+                '&:hover': { transform: 'scale(1.1)' },
+                transition: 'transform 0.2s'
+              }}
+            >
+              <MarkerIcon
+                iconKey={value}
+                spriteImage={spriteImage}
+                size={28}
+                fillColor={iconColor}
+              />
+            </Box>
+
+            {endAction}
           </Box>
         </Box>
       </WhiteSectionGeneric>

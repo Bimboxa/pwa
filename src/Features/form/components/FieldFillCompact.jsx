@@ -95,21 +95,6 @@ export default function FieldFillCompact({
   return (
     <WhiteSectionGeneric>
       <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-        {showOverrides && (
-          <IconButton
-            size="small"
-            onClick={handleToggleGlobalOverride}
-            title="Verrouiller couleur, motif et opacité pour le modèle"
-            sx={{ color: allLocked ? "primary.main" : "text.disabled" }}
-          >
-            {allLocked ? (
-              <LockIcon fontSize="small" />
-            ) : (
-              <LockOpenIcon fontSize="small" />
-            )}
-          </IconButton>
-        )}
-
         <Typography variant="body2" sx={{ fontWeight: "bold", flex: 1 }}>
           {label}
         </Typography>
@@ -183,6 +168,21 @@ export default function FieldFillCompact({
             {opacityPct}%
           </Typography>
         </ButtonBase>
+
+        {showOverrides && (
+          <IconButton
+            size="small"
+            onClick={handleToggleGlobalOverride}
+            title="Verrouiller couleur, motif et opacité pour le modèle"
+            sx={{ color: allLocked ? "primary.main" : "text.disabled" }}
+          >
+            {allLocked ? (
+              <LockIcon fontSize="small" />
+            ) : (
+              <LockOpenIcon fontSize="small" />
+            )}
+          </IconButton>
+        )}
       </Box>
 
       {/* colour + opacity popover */}

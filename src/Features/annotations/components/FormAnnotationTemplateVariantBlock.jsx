@@ -3,6 +3,7 @@ import useAnnotationSpriteImage from "../hooks/useAnnotationSpriteImage";
 import { Box, Typography, Switch } from "@mui/material";
 
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
+import WhiteSectionTitle from "Features/form/components/WhiteSectionTitle";
 import FieldAnnotationHeight from "./FieldAnnotationHeight";
 
 import FieldTextV2 from "Features/form/components/FieldTextV2";
@@ -74,7 +75,6 @@ export default function FormAnnotationTemplateVariantBlock({
     labelLegend,
     hiddenInLegend,
     groupLabel,
-    height,
     image,
     object3D,
     material3d,
@@ -350,7 +350,7 @@ export default function FormAnnotationTemplateVariantBlock({
             options={{
               fullWidth: true,
               placeholder: "Libellé",
-              showAsSection: "true",
+              showAsField: true,
             }}
           />
 
@@ -364,21 +364,19 @@ export default function FormAnnotationTemplateVariantBlock({
 
           {/* Simple fill color (MARKER, LABEL, TEXT) */}
           {useSimpleFillColor && drawingShape !== "POINT" && (
-            <Box sx={{ display: "flex", alignItems: "flex-start" }}>
-              <OverrideToggle
-                field="fillColor"
-                overrideFields={overrideFields}
-                onToggle={handleToggleOverride}
-              />
-              <Box sx={{ flex: 1 }}>
-                <FieldColorV2
-                  label="Couleur"
-                  value={fillColor}
-                  onChange={handleFillColorChange}
-                  options={{ showAsSection: true }}
+            <FieldColorV2
+              label="Couleur"
+              value={fillColor}
+              onChange={handleFillColorChange}
+              options={{ showAsSection: true }}
+              endAction={
+                <OverrideToggle
+                  field="fillColor"
+                  overrideFields={overrideFields}
+                  onToggle={handleToggleOverride}
                 />
-              </Box>
-            </Box>
+              }
+            />
           )}
 
           {/* Full fill controls (POLYGON) */}
@@ -403,22 +401,20 @@ export default function FormAnnotationTemplateVariantBlock({
 
           {/* Icon selector (MARKER) */}
           {hasIcon && (
-            <Box sx={{ display: "flex", alignItems: "flex-start" }}>
-              <OverrideToggle
-                field="iconKey"
-                overrideFields={overrideFields}
-                onToggle={handleToggleOverride}
-              />
-              <Box sx={{ flex: 1 }}>
-                <FieldIcon
-                  label="Icône"
-                  value={iconKey}
-                  onChange={handleIconKeyChange}
-                  spriteImage={spriteImage}
-                  options={{ iconColor: fillColor, showAsSection: true }}
+            <FieldIcon
+              label="Icône"
+              value={iconKey}
+              onChange={handleIconKeyChange}
+              spriteImage={spriteImage}
+              options={{ iconColor: fillColor, showAsSection: true }}
+              endAction={
+                <OverrideToggle
+                  field="iconKey"
+                  overrideFields={overrideFields}
+                  onToggle={handleToggleOverride}
                 />
-              </Box>
-            </Box>
+              }
+            />
           )}
 
           {/* Point properties — color, variant, size grouped in one section (POINT) */}
@@ -480,29 +476,20 @@ export default function FormAnnotationTemplateVariantBlock({
               annotations, which can act as exterior-side guides. */}
           {["POLYLINE", "STRIP", "POLYGON"].includes(drawingShape) && (
             <WhiteSectionGeneric>
-              <Box sx={{ display: "flex", alignItems: "center" }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <Typography variant="body2" sx={{ fontWeight: "bold", flex: 1 }}>
+                  Extérieur
+                </Typography>
+                <Switch
+                  size="small"
+                  checked={Boolean(annotationTemplate?.isExt)}
+                  onChange={(e) => handleIsExtChange(e.target.checked)}
+                />
                 <OverrideToggle
                   field="isExt"
                   overrideFields={overrideFields}
                   onToggle={handleToggleOverride}
                 />
-                <Box
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    flex: 1,
-                  }}
-                >
-                  <Typography variant="body2" color="text.secondary">
-                    Extérieur
-                  </Typography>
-                  <Switch
-                    size="small"
-                    checked={Boolean(annotationTemplate?.isExt)}
-                    onChange={(e) => handleIsExtChange(e.target.checked)}
-                  />
-                </Box>
               </Box>
             </WhiteSectionGeneric>
           )}
@@ -510,17 +497,20 @@ export default function FormAnnotationTemplateVariantBlock({
           {/* Width (OPENING) — opening width along the wall */}
           {hasWidth && (
             <WhiteSectionGeneric>
-              <Box sx={{ display: "flex", alignItems: "center" }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <Typography variant="body2" sx={{ fontWeight: "bold", flex: 1 }}>
+                  Largeur
+                </Typography>
+                <FieldAnnotationHeight
+                  annotation={annotationTemplate}
+                  field="width"
+                  label=""
+                  onChange={(updated) => handleWidthChange(updated.width)}
+                />
                 <OverrideToggle
                   field="width"
                   overrideFields={overrideFields}
                   onToggle={handleToggleOverride}
-                />
-                <FieldAnnotationHeight
-                  annotation={annotationTemplate}
-                  field="width"
-                  label="Largeur"
-                  onChange={(updated) => handleWidthChange(updated.width)}
                 />
               </Box>
             </WhiteSectionGeneric>
@@ -529,16 +519,19 @@ export default function FormAnnotationTemplateVariantBlock({
           {/* Height / thickness (POLYLINE, POINT, POLYGON) */}
           {hasHeight && (
             <WhiteSectionGeneric>
-              <Box sx={{ display: "flex", alignItems: "center" }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <Typography variant="body2" sx={{ fontWeight: "bold", flex: 1 }}>
+                  {drawingShape === "POLYGON" ? "Epaisseur" : "Hauteur"}
+                </Typography>
+                <FieldAnnotationHeight
+                  annotation={annotationTemplate}
+                  label=""
+                  onChange={(updated) => handleHeightChange(updated.height)}
+                />
                 <OverrideToggle
                   field="height"
                   overrideFields={overrideFields}
                   onToggle={handleToggleOverride}
-                />
-                <FieldAnnotationHeight
-                  annotation={annotationTemplate}
-                  onChange={(updated) => handleHeightChange(updated.height)}
-                  label={drawingShape === "POLYGON" ? "Epaisseur" : "Hauteur"}
                 />
               </Box>
             </WhiteSectionGeneric>
@@ -581,7 +574,7 @@ export default function FormAnnotationTemplateVariantBlock({
               label="Masquer la pente"
               value={Boolean(annotationTemplate?.hideSlope)}
               onChange={handleHideSlopeChange}
-              options={{ type: "switch", showAsSection: true }}
+              options={{ type: "switch", showAsField: true }}
             />
           )}
 
@@ -603,9 +596,7 @@ export default function FormAnnotationTemplateVariantBlock({
           {/* COTE-specific controls */}
           {hasCoteProps && (
             <WhiteSectionGeneric>
-              <Typography variant="body2" sx={{ fontWeight: "bold", mb: 1 }}>
-                Cote
-              </Typography>
+              <WhiteSectionTitle sx={{ mb: 1 }}>Cote</WhiteSectionTitle>
               <FieldOptionKey
                 label="Unité"
                 value={unit}
@@ -677,7 +668,7 @@ export default function FormAnnotationTemplateVariantBlock({
               label="Profil"
               value={Boolean(annotationTemplate?.isProfile)}
               onChange={handleIsProfileChange}
-              options={{ type: "switch", showAsSection: true }}
+              options={{ type: "switch", showAsField: true }}
             />
           )}
         </>

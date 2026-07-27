@@ -2,10 +2,11 @@ import { useState } from "react";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
-import { Box, Typography, IconButton, Chip } from "@mui/material";
+import { Box, IconButton, Chip } from "@mui/material";
 import { Add } from "@mui/icons-material";
 
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
+import WhiteSectionTitle from "Features/form/components/WhiteSectionTitle";
 import DialogAddMappingCategories from "./DialogAddMappingCategories";
 
 export default function FieldMappingCategories({ annotationTemplate, onChange }) {
@@ -64,9 +65,7 @@ export default function FieldMappingCategories({ annotationTemplate, onChange })
           mb: currentCategories.length > 0 ? 1 : 0,
         }}
       >
-        <Typography variant="body2" sx={{ fontWeight: "bold" }}>
-          Tags
-        </Typography>
+        <WhiteSectionTitle>Tags</WhiteSectionTitle>
         <IconButton size="small" onClick={() => setDialogOpen(true)}>
           <Add fontSize="small" />
         </IconButton>

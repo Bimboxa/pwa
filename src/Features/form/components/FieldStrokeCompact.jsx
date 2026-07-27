@@ -129,21 +129,6 @@ export default function FieldStrokeCompact({
   return (
     <WhiteSectionGeneric>
       <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-        {showOverrides && (
-          <IconButton
-            size="small"
-            onClick={handleToggleGlobalOverride}
-            title="Verrouiller le contour pour le modèle"
-            sx={{ color: allLocked ? "primary.main" : "text.disabled" }}
-          >
-            {allLocked ? (
-              <LockIcon fontSize="small" />
-            ) : (
-              <LockOpenIcon fontSize="small" />
-            )}
-          </IconButton>
-        )}
-
         <Typography variant="body2" sx={{ fontWeight: "bold", flex: 1 }}>
           {label}
         </Typography>
@@ -249,6 +234,21 @@ export default function FieldStrokeCompact({
             {opacityPct}%
           </Typography>
         </ButtonBase>
+
+        {showOverrides && (
+          <IconButton
+            size="small"
+            onClick={handleToggleGlobalOverride}
+            title="Verrouiller le contour pour le modèle"
+            sx={{ color: allLocked ? "primary.main" : "text.disabled" }}
+          >
+            {allLocked ? (
+              <LockIcon fontSize="small" />
+            ) : (
+              <LockOpenIcon fontSize="small" />
+            )}
+          </IconButton>
+        )}
       </Box>
 
       {/* width popover — presets + numeric + unit */}

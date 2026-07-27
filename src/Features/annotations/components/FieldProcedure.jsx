@@ -2,7 +2,6 @@ import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 import {
   Box,
-  Typography,
   FormControl,
   Select,
   MenuItem,
@@ -12,6 +11,7 @@ import {
 } from "@mui/material";
 
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
+import WhiteSectionTitle from "Features/form/components/WhiteSectionTitle";
 
 export default function FieldProcedure({ annotationTemplate, onChange }) {
   // data
@@ -39,9 +39,7 @@ export default function FieldProcedure({ annotationTemplate, onChange }) {
   return (
     <WhiteSectionGeneric>
       <Box sx={{ mb: 1 }}>
-        <Typography variant="body2" sx={{ fontWeight: "bold" }}>
-          Procédure
-        </Typography>
+        <WhiteSectionTitle>Procédure</WhiteSectionTitle>
       </Box>
 
       <FormControl fullWidth size="small">

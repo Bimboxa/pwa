@@ -11,6 +11,7 @@ export default function FieldColorV2({
   label,
   options,
   action,
+  endAction,
 }) {
   const [anchorEl, setAnchorEl] = useState(null);
   const showAsSection = options?.showAsSection;
@@ -66,6 +67,8 @@ export default function FieldColorV2({
                   transition: "transform 0.2s",
                 }}
               />
+
+              {endAction}
             </Box>
           </Box>
         </WhiteSectionGeneric>
