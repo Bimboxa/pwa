@@ -11,7 +11,6 @@ import FieldAnnotationTemplateStroke from "Features/annotations/components/Field
 // "Configurer l'annotation" — renders ONLY the parameters the object declares in
 // its `editableParams`. The 2D shape is fixed per object (defined in the JSON),
 // so there is no shape selector here. Driven by a plain draft + onChange.
-const noop = () => {};
 
 export default function FormObjectAnnotationConfig({
   object,
@@ -86,8 +85,6 @@ export default function FormObjectAnnotationConfig({
         <FieldAnnotationTemplateFill
           value={draft}
           onChange={(v) => onChange(v)}
-          overrideFields={[]}
-          onOverrideFieldsChange={noop}
         />
       )}
 
@@ -95,8 +92,6 @@ export default function FormObjectAnnotationConfig({
         <FieldAnnotationTemplateStroke
           value={draft}
           onChange={(v) => onChange(v)}
-          overrideFields={[]}
-          onOverrideFieldsChange={noop}
         />
       )}
 
