@@ -1,20 +1,63 @@
-import { Box } from "@mui/material";
+import {
+  Box,
+  Typography,
+  ToggleButtonGroup,
+  ToggleButton,
+  Tooltip,
+} from "@mui/material";
 
-import FieldOptionKey from "./FieldOptionKey";
+import WhiteSectionGeneric from "./WhiteSectionGeneric";
 
-export default function FieldQty({ value, onChange, label, options, drawingShape }) {
+export default function FieldQty({ value, onChange, label, drawingShape }) {
+  // helper — order: U, L, S ; face shows the short key, tooltip the full label
 
-    // helper
+  const allOptions = [
+    { key: "U", short: "U", tooltip: "Unité" },
+    { key: "L", short: "L", tooltip: "Longueur" },
+    { key: "S", short: "S", tooltip: "Surface" },
+  ];
 
-    const allOptions = [
-        { key: "L", label: "Longueur (L)" },
-        { key: "S", label: "Surface (S)" },
-        { key: "U", label: "Unité (U)" },
-    ];
+  const valueOptions =
+    drawingShape === "POINT"
+      ? allOptions.filter((o) => o.key !== "S")
+      : allOptions;
 
-    const valueOptions = drawingShape === "POINT"
-        ? allOptions.filter((o) => o.key !== "S")
-        : allOptions;
-    return <FieldOptionKey value={value} onChange={onChange} valueOptions={valueOptions} options={options} label={label} />
+  // handlers
 
+  function handleChange(e, newKey) {
+    if (!newKey) return; // ignore deselection — keep current value
+    onChange(newKey);
+  }
+
+  // render
+
+  return (
+    <WhiteSectionGeneric>
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          width: 1,
+          gap: 1,
+        }}
+      >
+        <Typography variant="body2" sx={{ fontWeight: "bold" }}>
+          {label}
+        </Typography>
+        <ToggleButtonGroup
+          value={value ?? null}
+          exclusive
+          size="small"
+          onChange={handleChange}
+        >
+          {valueOptions.map((option) => (
+            <Tooltip key={option.key} title={option.tooltip} placement="top">
+              <ToggleButton value={option.key}>{option.short}</ToggleButton>
+            </Tooltip>
+          ))}
+        </ToggleButtonGroup>
+      </Box>
+    </WhiteSectionGeneric>
+  );
 }

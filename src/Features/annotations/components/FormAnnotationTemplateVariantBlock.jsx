@@ -38,6 +38,7 @@ import { getDrawingToolsByShape } from "Features/mapEditor/constants/drawingTool
 export default function FormAnnotationTemplateVariantBlock({
   annotationTemplate,
   onChange,
+  tab,
 }) {
   // strings
 
@@ -52,6 +53,11 @@ export default function FormAnnotationTemplateVariantBlock({
   const isCreating = !annotationTemplate?.id;
   const drawingShape = resolveDrawingShape(annotationTemplate);
   const configurableProps = getConfigurableProps(drawingShape);
+
+  // Which tab group to render. When `tab` is undefined (form used outside the
+  // properties panel), both groups render together as a single column.
+  const showMain = !tab || tab === "MAIN";
+  const showAdvanced = !tab || tab === "ADVANCED";
 
   const {
     fillColor,
@@ -243,10 +249,6 @@ export default function FormAnnotationTemplateVariantBlock({
     onChange({ ...annotationTemplate, mainQtyKey });
   }
 
-  function handleHiddenChange(hidden) {
-    onChange({ ...annotationTemplate, hidden });
-  }
-
   function handleIsProfileChange(isProfile) {
     onChange({ ...annotationTemplate, isProfile });
   }
@@ -338,341 +340,347 @@ export default function FormAnnotationTemplateVariantBlock({
         p: 1,
       }}
     >
-      <FieldTextV2
-        label="Libellé"
-        value={label}
-        onChange={handleLabelChange}
-        options={{
-          fullWidth: true,
-          placeholder: "Libellé",
-          showAsSection: "true",
-        }}
-      />
-
-      {!isCreating && (
-        <FieldAnnotationTemplateLegend
-          labelLegend={labelLegend}
-          hiddenInLegend={hiddenInLegend}
-          groupLabel={groupLabel}
-          onLabelLegendChange={handleLabelLegendChange}
-          onHiddenInLegendChange={handleHiddenInLegendChange}
-          onGroupLabelChange={handleGroupLabelChange}
-        />
-      )}
-
-      <FieldAnnotationTemplateDrawingShape
-        value={drawingShape}
-        onChange={handleDrawingShapeChange}
-      />
-
-      {/* Width (OPENING) — opening width along the wall */}
-      {hasWidth && (
-        <WhiteSectionGeneric>
-          <Box sx={{ display: "flex", alignItems: "center" }}>
-            <OverrideToggle
-              field="width"
-              overrideFields={overrideFields}
-              onToggle={handleToggleOverride}
-            />
-            <FieldAnnotationHeight
-              annotation={annotationTemplate}
-              field="width"
-              label="Largeur"
-              onChange={(updated) => handleWidthChange(updated.width)}
-            />
-          </Box>
-        </WhiteSectionGeneric>
-      )}
-
-      {/* Height (POLYLINE, POINT) */}
-      {hasHeight && (
-        <WhiteSectionGeneric>
-          <Box sx={{ display: "flex", alignItems: "center" }}>
-            <OverrideToggle
-              field="height"
-              overrideFields={overrideFields}
-              onToggle={handleToggleOverride}
-            />
-            <FieldAnnotationHeight
-              annotation={annotationTemplate}
-              onChange={(updated) => handleHeightChange(updated.height)}
-              label={drawingShape === "POLYGON" ? "Epaisseur" : "Hauteur"}
-            />
-          </Box>
-        </WhiteSectionGeneric>
-      )}
-
-      {/* Simple fill color (MARKER, LABEL, TEXT) */}
-      {useSimpleFillColor && drawingShape !== "POINT" && (
-        <Box sx={{ display: "flex", alignItems: "flex-start" }}>
-          <OverrideToggle
-            field="fillColor"
-            overrideFields={overrideFields}
-            onToggle={handleToggleOverride}
-          />
-          <Box sx={{ flex: 1 }}>
-            <FieldColorV2
-              label="Couleur"
-              value={fillColor}
-              onChange={handleFillColorChange}
-              options={{ showAsSection: true }}
-            />
-          </Box>
-        </Box>
-      )}
-
-      {/* Full fill controls (POLYGON) */}
-      {hasFill && !useSimpleFillColor && (
-        <FieldAnnotationTemplateFill
-          value={fill}
-          onChange={handleFillChange}
-          overrideFields={overrideFields}
-          onOverrideFieldsChange={handleOverrideFieldsChange}
-        />
-      )}
-
-      {/* Slope indicator toggle (POLYGON) */}
-      {hasHideSlope && drawingShape === "POLYGON" && (
-        <FieldCheck
-          label="Masquer la pente"
-          value={Boolean(annotationTemplate?.hideSlope)}
-          onChange={handleHideSlopeChange}
-          options={{ type: "switch", showAsSection: true }}
-        />
-      )}
-
-      {/* Stroke controls (POLYLINE) */}
-      {hasStroke && (
-        <FieldAnnotationTemplateStroke
-          value={stroke}
-          onChange={handleStrokeChange}
-          overrideFields={overrideFields}
-          onOverrideFieldsChange={handleOverrideFieldsChange}
-        />
-      )}
-
-      {/* 3D-only color / opacity overrides + material preset */}
-      {hasRender3d && (
-        <FieldAnnotationTemplateRender3d
-          color3D={color3D}
-          opacity3D={opacity3D}
-          material3d={material3d}
-          fallbackColor={render3dFallbackColor}
-          fallbackOpacity={render3dFallbackOpacity}
-          hasMaterial3d={hasMaterial3d}
-          onColor3DChange={handleColor3DChange}
-          onOpacity3DChange={handleOpacity3DChange}
-          onMaterial3dChange={handleMaterial3dChange}
-        />
-      )}
-
-      {/* COTE-specific controls */}
-      {hasCoteProps && (
-        <WhiteSectionGeneric>
-          <Typography variant="body2" sx={{ fontWeight: "bold", mb: 1 }}>
-            Cote
-          </Typography>
-          <FieldOptionKey
-            label="Unité"
-            value={unit}
-            onChange={handleUnitChange}
-            valueOptions={coteUnitOptions}
-          />
-          <Box sx={{ display: "flex", gap: 1, alignItems: "center", mt: 1 }}>
-            <Box sx={{ flex: 1 }}>
-              <FieldTextV2
-                label="Décalage extrémités"
-                value={extensionOffset}
-                onChange={handleExtensionOffsetChange}
-                options={{ fullWidth: true, isNumber: true }}
-              />
-            </Box>
-            <Box sx={{ width: 120 }}>
-              <FieldOptionKey
-                value={extensionOffsetUnit}
-                onChange={handleExtensionOffsetUnitChange}
-                valueOptions={offsetUnitOptions}
-              />
-            </Box>
-          </Box>
-          <Box sx={{ display: "flex", gap: 1, mt: 1 }}>
-            <Box sx={{ flex: 1 }}>
-              <FieldTextV2
-                label="Décimales"
-                value={decimals}
-                onChange={handleDecimalsChange}
-                options={{ fullWidth: true, isNumber: true }}
-              />
-            </Box>
-            <Box sx={{ flex: 1 }}>
-              <FieldTextV2
-                label="Taille texte (px)"
-                value={fontSize}
-                onChange={handleFontSizeChange}
-                options={{ fullWidth: true, isNumber: true }}
-              />
-            </Box>
-          </Box>
-          <FieldCheck
-            label="Afficher l'unité après la valeur"
-            value={Boolean(showUnitLabel)}
-            onChange={handleShowUnitLabelChange}
-            options={{ type: "check" }}
-          />
-        </WhiteSectionGeneric>
-      )}
-
-      {/* Icon selector (MARKER) */}
-      {hasIcon && (
-        <Box sx={{ display: "flex", alignItems: "flex-start" }}>
-          <OverrideToggle
-            field="iconKey"
-            overrideFields={overrideFields}
-            onToggle={handleToggleOverride}
-          />
-          <Box sx={{ flex: 1 }}>
-            <FieldIcon
-              label="Icône"
-              value={iconKey}
-              onChange={handleIconKeyChange}
-              spriteImage={spriteImage}
-              options={{ iconColor: fillColor, showAsSection: true }}
-            />
-          </Box>
-        </Box>
-      )}
-
-      {/* Point properties — color, variant, size grouped in one section (POINT) */}
-      {drawingShape === "POINT" && (
-        <FieldAnnotationTemplatePoint
-          value={point}
-          onChange={handlePointChange}
-          overrideFields={overrideFields}
-          onOverrideFieldsChange={handleOverrideFieldsChange}
-          variantOptions={pointVariants}
-        />
-      )}
-
-      {/* Image fields (IMAGE) */}
-      {hasImage && (
-        <Box sx={{ width: 1 }}>
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              width: 1,
+      {/* ---- Tab 1 : Principal ---- */}
+      {showMain && (
+        <>
+          <FieldTextV2
+            label="Libellé"
+            value={label}
+            onChange={handleLabelChange}
+            options={{
+              fullWidth: true,
+              placeholder: "Libellé",
+              showAsSection: "true",
             }}
-          >
-            <Box sx={{ flex: 1, minWidth: 0, p: 1 }}>
-              <FieldTextV2
-                value={label}
-                onChange={handleLabelChange}
-                options={{
-                  fullWidth: true,
-                  placeholder: "Libellé",
-                }}
+          />
+
+          <FieldAnnotationTemplateDrawingShape
+            value={drawingShape}
+            onChange={handleDrawingShapeChange}
+          />
+
+          {/* Appearance — fill / stroke / simple color / icon / point / image /
+              3D object (mutually exclusive per shape) */}
+
+          {/* Simple fill color (MARKER, LABEL, TEXT) */}
+          {useSimpleFillColor && drawingShape !== "POINT" && (
+            <Box sx={{ display: "flex", alignItems: "flex-start" }}>
+              <OverrideToggle
+                field="fillColor"
+                overrideFields={overrideFields}
+                onToggle={handleToggleOverride}
               />
-            </Box>
-            {hasMeterByPx && (
-              <Box sx={{ width: "130px", minWidth: 0, p: 1 }}>
-                <FieldTextV2
-                  value={meterByPx}
-                  onChange={handleMeterByPxChange}
-                  options={{
-                    fullWidth: true,
-                    placeholder: "Echelle m/px",
-                    isNumber: true,
-                  }}
+              <Box sx={{ flex: 1 }}>
+                <FieldColorV2
+                  label="Couleur"
+                  value={fillColor}
+                  onChange={handleFillColorChange}
+                  options={{ showAsSection: true }}
                 />
               </Box>
-            )}
-          </Box>
-          <FieldImageV2 value={image} onChange={handleImageChange} />
-        </Box>
-      )}
-
-      {/* Object 3D field (OBJECT_3D) */}
-      {hasObject3D && (
-        <FieldObject3D value={object3D} onChange={handleObject3DChange} />
-      )}
-
-      {hasTools && (
-        <FieldAnnotationTemplateDefaultTool
-          value={defaultTool}
-          onChange={handleDefaultToolChange}
-          options={toolOptions}
-        />
-      )}
-
-      <FieldQty
-        value={mainQtyKey}
-        onChange={handleMainQtyKeyChange}
-        label={qtyS}
-        options={{ showAsSection: true }}
-        drawingShape={drawingShape}
-      />
-
-      {!isCreating && (
-        <FieldMappingCategories
-          annotationTemplate={annotationTemplate}
-          onChange={onChange}
-        />
-      )}
-
-      {!isCreating && (
-        <FieldProcedure
-          annotationTemplate={annotationTemplate}
-          onChange={onChange}
-        />
-      )}
-
-      {!isCreating && (
-        <FieldCheck
-          label="Masquer les annotations"
-          value={annotationTemplate?.hidden}
-          onChange={handleHiddenChange}
-          options={{ showAsSection: true }}
-        />
-      )}
-
-      {drawingShape === "POLYLINE" && (
-        <FieldCheck
-          label="Profil"
-          value={Boolean(annotationTemplate?.isProfile)}
-          onChange={handleIsProfileChange}
-          options={{ type: "switch", showAsSection: true }}
-        />
-      )}
-
-      {/* POLYGON is included because its STRIP tools also produce strip
-          annotations, which can act as exterior-side guides. */}
-      {["POLYLINE", "STRIP", "POLYGON"].includes(drawingShape) && (
-        <WhiteSectionGeneric>
-          <Box sx={{ display: "flex", alignItems: "center" }}>
-            <OverrideToggle
-              field="isExt"
-              overrideFields={overrideFields}
-              onToggle={handleToggleOverride}
-            />
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                flex: 1,
-              }}
-            >
-              <Typography variant="body2" color="text.secondary">
-                Extérieur
-              </Typography>
-              <Switch
-                size="small"
-                checked={Boolean(annotationTemplate?.isExt)}
-                onChange={(e) => handleIsExtChange(e.target.checked)}
-              />
             </Box>
-          </Box>
-        </WhiteSectionGeneric>
+          )}
+
+          {/* Full fill controls (POLYGON) */}
+          {hasFill && !useSimpleFillColor && (
+            <FieldAnnotationTemplateFill
+              value={fill}
+              onChange={handleFillChange}
+              overrideFields={overrideFields}
+              onOverrideFieldsChange={handleOverrideFieldsChange}
+            />
+          )}
+
+          {/* Stroke controls (POLYLINE) */}
+          {hasStroke && (
+            <FieldAnnotationTemplateStroke
+              value={stroke}
+              onChange={handleStrokeChange}
+              overrideFields={overrideFields}
+              onOverrideFieldsChange={handleOverrideFieldsChange}
+            />
+          )}
+
+          {/* Icon selector (MARKER) */}
+          {hasIcon && (
+            <Box sx={{ display: "flex", alignItems: "flex-start" }}>
+              <OverrideToggle
+                field="iconKey"
+                overrideFields={overrideFields}
+                onToggle={handleToggleOverride}
+              />
+              <Box sx={{ flex: 1 }}>
+                <FieldIcon
+                  label="Icône"
+                  value={iconKey}
+                  onChange={handleIconKeyChange}
+                  spriteImage={spriteImage}
+                  options={{ iconColor: fillColor, showAsSection: true }}
+                />
+              </Box>
+            </Box>
+          )}
+
+          {/* Point properties — color, variant, size grouped in one section (POINT) */}
+          {drawingShape === "POINT" && (
+            <FieldAnnotationTemplatePoint
+              value={point}
+              onChange={handlePointChange}
+              overrideFields={overrideFields}
+              onOverrideFieldsChange={handleOverrideFieldsChange}
+              variantOptions={pointVariants}
+            />
+          )}
+
+          {/* Image fields (IMAGE) */}
+          {hasImage && (
+            <Box sx={{ width: 1 }}>
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  width: 1,
+                }}
+              >
+                <Box sx={{ flex: 1, minWidth: 0, p: 1 }}>
+                  <FieldTextV2
+                    value={label}
+                    onChange={handleLabelChange}
+                    options={{
+                      fullWidth: true,
+                      placeholder: "Libellé",
+                    }}
+                  />
+                </Box>
+                {hasMeterByPx && (
+                  <Box sx={{ width: "130px", minWidth: 0, p: 1 }}>
+                    <FieldTextV2
+                      value={meterByPx}
+                      onChange={handleMeterByPxChange}
+                      options={{
+                        fullWidth: true,
+                        placeholder: "Echelle m/px",
+                        isNumber: true,
+                      }}
+                    />
+                  </Box>
+                )}
+              </Box>
+              <FieldImageV2 value={image} onChange={handleImageChange} />
+            </Box>
+          )}
+
+          {/* Object 3D field (OBJECT_3D) */}
+          {hasObject3D && (
+            <FieldObject3D value={object3D} onChange={handleObject3DChange} />
+          )}
+
+          {/* Extérieur.
+              POLYGON is included because its STRIP tools also produce strip
+              annotations, which can act as exterior-side guides. */}
+          {["POLYLINE", "STRIP", "POLYGON"].includes(drawingShape) && (
+            <WhiteSectionGeneric>
+              <Box sx={{ display: "flex", alignItems: "center" }}>
+                <OverrideToggle
+                  field="isExt"
+                  overrideFields={overrideFields}
+                  onToggle={handleToggleOverride}
+                />
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    flex: 1,
+                  }}
+                >
+                  <Typography variant="body2" color="text.secondary">
+                    Extérieur
+                  </Typography>
+                  <Switch
+                    size="small"
+                    checked={Boolean(annotationTemplate?.isExt)}
+                    onChange={(e) => handleIsExtChange(e.target.checked)}
+                  />
+                </Box>
+              </Box>
+            </WhiteSectionGeneric>
+          )}
+
+          {/* Width (OPENING) — opening width along the wall */}
+          {hasWidth && (
+            <WhiteSectionGeneric>
+              <Box sx={{ display: "flex", alignItems: "center" }}>
+                <OverrideToggle
+                  field="width"
+                  overrideFields={overrideFields}
+                  onToggle={handleToggleOverride}
+                />
+                <FieldAnnotationHeight
+                  annotation={annotationTemplate}
+                  field="width"
+                  label="Largeur"
+                  onChange={(updated) => handleWidthChange(updated.width)}
+                />
+              </Box>
+            </WhiteSectionGeneric>
+          )}
+
+          {/* Height / thickness (POLYLINE, POINT, POLYGON) */}
+          {hasHeight && (
+            <WhiteSectionGeneric>
+              <Box sx={{ display: "flex", alignItems: "center" }}>
+                <OverrideToggle
+                  field="height"
+                  overrideFields={overrideFields}
+                  onToggle={handleToggleOverride}
+                />
+                <FieldAnnotationHeight
+                  annotation={annotationTemplate}
+                  onChange={(updated) => handleHeightChange(updated.height)}
+                  label={drawingShape === "POLYGON" ? "Epaisseur" : "Hauteur"}
+                />
+              </Box>
+            </WhiteSectionGeneric>
+          )}
+
+          {hasTools && (
+            <FieldAnnotationTemplateDefaultTool
+              value={defaultTool}
+              onChange={handleDefaultToolChange}
+              options={toolOptions}
+            />
+          )}
+
+          <FieldQty
+            value={mainQtyKey}
+            onChange={handleMainQtyKeyChange}
+            label={qtyS}
+            drawingShape={drawingShape}
+          />
+        </>
+      )}
+
+      {/* ---- Tab 2 : Avancé ---- */}
+      {showAdvanced && (
+        <>
+          {!isCreating && (
+            <FieldAnnotationTemplateLegend
+              labelLegend={labelLegend}
+              hiddenInLegend={hiddenInLegend}
+              groupLabel={groupLabel}
+              onLabelLegendChange={handleLabelLegendChange}
+              onHiddenInLegendChange={handleHiddenInLegendChange}
+              onGroupLabelChange={handleGroupLabelChange}
+            />
+          )}
+
+          {/* Slope indicator toggle (POLYGON) */}
+          {hasHideSlope && drawingShape === "POLYGON" && (
+            <FieldCheck
+              label="Masquer la pente"
+              value={Boolean(annotationTemplate?.hideSlope)}
+              onChange={handleHideSlopeChange}
+              options={{ type: "switch", showAsSection: true }}
+            />
+          )}
+
+          {/* 3D-only color / opacity overrides + material preset */}
+          {hasRender3d && (
+            <FieldAnnotationTemplateRender3d
+              color3D={color3D}
+              opacity3D={opacity3D}
+              material3d={material3d}
+              fallbackColor={render3dFallbackColor}
+              fallbackOpacity={render3dFallbackOpacity}
+              hasMaterial3d={hasMaterial3d}
+              onColor3DChange={handleColor3DChange}
+              onOpacity3DChange={handleOpacity3DChange}
+              onMaterial3dChange={handleMaterial3dChange}
+            />
+          )}
+
+          {/* COTE-specific controls */}
+          {hasCoteProps && (
+            <WhiteSectionGeneric>
+              <Typography variant="body2" sx={{ fontWeight: "bold", mb: 1 }}>
+                Cote
+              </Typography>
+              <FieldOptionKey
+                label="Unité"
+                value={unit}
+                onChange={handleUnitChange}
+                valueOptions={coteUnitOptions}
+              />
+              <Box
+                sx={{ display: "flex", gap: 1, alignItems: "center", mt: 1 }}
+              >
+                <Box sx={{ flex: 1 }}>
+                  <FieldTextV2
+                    label="Décalage extrémités"
+                    value={extensionOffset}
+                    onChange={handleExtensionOffsetChange}
+                    options={{ fullWidth: true, isNumber: true }}
+                  />
+                </Box>
+                <Box sx={{ width: 120 }}>
+                  <FieldOptionKey
+                    value={extensionOffsetUnit}
+                    onChange={handleExtensionOffsetUnitChange}
+                    valueOptions={offsetUnitOptions}
+                  />
+                </Box>
+              </Box>
+              <Box sx={{ display: "flex", gap: 1, mt: 1 }}>
+                <Box sx={{ flex: 1 }}>
+                  <FieldTextV2
+                    label="Décimales"
+                    value={decimals}
+                    onChange={handleDecimalsChange}
+                    options={{ fullWidth: true, isNumber: true }}
+                  />
+                </Box>
+                <Box sx={{ flex: 1 }}>
+                  <FieldTextV2
+                    label="Taille texte (px)"
+                    value={fontSize}
+                    onChange={handleFontSizeChange}
+                    options={{ fullWidth: true, isNumber: true }}
+                  />
+                </Box>
+              </Box>
+              <FieldCheck
+                label="Afficher l'unité après la valeur"
+                value={Boolean(showUnitLabel)}
+                onChange={handleShowUnitLabelChange}
+                options={{ type: "check" }}
+              />
+            </WhiteSectionGeneric>
+          )}
+
+          {!isCreating && (
+            <FieldMappingCategories
+              annotationTemplate={annotationTemplate}
+              onChange={onChange}
+            />
+          )}
+
+          {!isCreating && (
+            <FieldProcedure
+              annotationTemplate={annotationTemplate}
+              onChange={onChange}
+            />
+          )}
+
+          {drawingShape === "POLYLINE" && (
+            <FieldCheck
+              label="Profil"
+              value={Boolean(annotationTemplate?.isProfile)}
+              onChange={handleIsProfileChange}
+              options={{ type: "switch", showAsSection: true }}
+            />
+          )}
+        </>
       )}
     </Box>
   );
