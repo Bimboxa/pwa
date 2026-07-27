@@ -16,7 +16,6 @@ import FieldAnnotationTemplateStroke from "./FieldAnnotationTemplateStroke";
 import FieldAnnotationTemplateRender3d from "./FieldAnnotationTemplateRender3d";
 import FieldAnnotationTemplateLegend from "./FieldAnnotationTemplateLegend";
 import FieldAnnotationTemplateDrawingShape from "./FieldAnnotationTemplateDrawingShape";
-import DRAWING_SHAPES from "Features/annotations/constants/drawingShapes.jsx";
 import FieldOptionKeyFromIconsVariantToolbar from "Features/form/components/FieldOptionKeyFromIconsVariantToolbar";
 import FieldOptionKey from "Features/form/components/FieldOptionKey";
 import FieldQty from "Features/form/components/FieldQty";
@@ -361,16 +360,10 @@ export default function FormAnnotationTemplateVariantBlock({
         />
       )}
 
-      <WhiteSectionGeneric>
-        <Typography variant="body2" sx={{ fontWeight: "bold", mb: 2 }}>
-          Forme 2D
-        </Typography>
-        <FieldOptionKeyFromIconsVariantToolbar
-          value={drawingShape}
-          onChange={handleDrawingShapeChange}
-          valueOptions={DRAWING_SHAPES}
-        />
-      </WhiteSectionGeneric>
+      <FieldAnnotationTemplateDrawingShape
+        value={drawingShape}
+        onChange={handleDrawingShapeChange}
+      />
 
       {/* Width (OPENING) — opening width along the wall */}
       {hasWidth && (
