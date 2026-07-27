@@ -57,9 +57,9 @@ export default function useFreeAnnotationTemplates() {
           id: listingId,
           projectId,
           scopeId,
-          name: "Annotations libres",
+          name: "Générique",
           isFreeAnnotationsListing: true,
-          canCreateItem: false,
+          canCreateItem: true,
           table: defaultEntityModel?.defaultTable ?? "entities",
           ...(defaultEntityModel ? { entityModel: defaultEntityModel } : {}),
           ...(defaultEntityModel?.key
@@ -67,6 +67,14 @@ export default function useFreeAnnotationTemplates() {
             : {}),
           sortedAnnotationIds: [],
           createdBy,
+        });
+      } else if (existingListing.name === "Annotations libres") {
+        // Migration: relabel the legacy system listing "Annotations libres" →
+        // "Générique" and open it up as a normal, item-addable list. Gate on the
+        // exact old default so we never clobber a user rename.
+        await db.listings.update(listingId, {
+          name: "Générique",
+          canCreateItem: true,
         });
       }
 
@@ -112,7 +120,8 @@ export default function useFreeAnnotationTemplates() {
       // Migration: rename the legacy "Surface" free template to "Polygone" for
       // scopes provisioned before the rename. Only reconcile when the label is
       // still the exact old default, so we never clobber a user rename.
-      const existingSurface = await db.annotationTemplates.get(surfaceTemplateId);
+      const existingSurface =
+        await db.annotationTemplates.get(surfaceTemplateId);
       if (existingSurface && existingSurface.label === "Surface") {
         await db.annotationTemplates.update(surfaceTemplateId, {
           label: "Polygone",
