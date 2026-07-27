@@ -115,6 +115,16 @@ export default async function captureMapAsPng({
     el.style.visibility = "hidden";
   });
 
+  // Neutralize the host's own opaque background (the editor host carries
+  // `background.default`) so a non-white capture is genuinely transparent —
+  // e.g. annotations only, with the baseMap opacity at 0. html-to-image bakes
+  // the root node's computed background-color into the output, so without this
+  // an unchecked "white background" still yields the editor's grey rather than
+  // transparency. Restored in the finally block. When whiteBackground is on we
+  // deliberately keep an opaque fill (handled via the html-to-image call).
+  const prevHostBg = host.style.backgroundColor;
+  if (!whiteBackground) host.style.backgroundColor = "transparent";
+
   // decorOnly narrows the whitelist to the decor elements themselves;
   // excludeDecor re-hides them after the regular keep pass.
   const keepSelector = decorOnly
@@ -223,6 +233,7 @@ export default async function captureMapAsPng({
     restoreList.forEach(([el, v]) => {
       el.style.visibility = v;
     });
+    host.style.backgroundColor = prevHostBg;
     cleanupPrepare?.();
   }
 }
