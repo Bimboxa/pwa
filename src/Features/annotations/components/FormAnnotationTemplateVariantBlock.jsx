@@ -16,7 +16,7 @@ import FieldAnnotationTemplateStroke from "./FieldAnnotationTemplateStroke";
 import FieldAnnotationTemplateRender3d from "./FieldAnnotationTemplateRender3d";
 import FieldAnnotationTemplateLegend from "./FieldAnnotationTemplateLegend";
 import FieldAnnotationTemplateDrawingShape from "./FieldAnnotationTemplateDrawingShape";
-import FieldOptionKeyFromIconsVariantToolbar from "Features/form/components/FieldOptionKeyFromIconsVariantToolbar";
+import FieldAnnotationTemplateDefaultTool from "./FieldAnnotationTemplateDefaultTool";
 import FieldOptionKey from "Features/form/components/FieldOptionKey";
 import FieldQty from "Features/form/components/FieldQty";
 import FieldCheck from "Features/form/components/FieldCheck";
@@ -597,12 +597,10 @@ export default function FormAnnotationTemplateVariantBlock({
       )}
 
       {hasTools && (
-        <FieldOptionKeyFromIconsVariantToolbar
+        <FieldAnnotationTemplateDefaultTool
           value={defaultTool}
           onChange={handleDefaultToolChange}
-          valueOptions={toolOptions}
-          label="Outil par défaut"
-          options={{ showAsSection: true }}
+          options={toolOptions}
         />
       )}
 
