@@ -1,0 +1,80 @@
+import { Box, Typography, Switch, Divider } from "@mui/material";
+
+import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
+import FieldTextV2 from "Features/form/components/FieldTextV2";
+
+import SelectorAnnotationTemplateGroup from "./SelectorAnnotationTemplateGroup";
+
+// Unified "Légende" card (design 1a): legend visibility toggle + legend label +
+// a searchable group picker, grouped into a single compact section — replacing
+// the former separate "Libellé légende" (with a "Masquer le titre" checkbox)
+// and free-text "Groupe" sections.
+//
+// The toggle is shown positively as "Afficher dans la légende" (checked =
+// visible); it drives the existing `hiddenInLegend` flag inverted, which
+// shows/hides the whole template row in the legend. No behaviour change.
+export default function FieldAnnotationTemplateLegend({
+  labelLegend,
+  hiddenInLegend,
+  groupLabel,
+  onLabelLegendChange,
+  onHiddenInLegendChange,
+  onGroupLabelChange,
+}) {
+  // handlers
+
+  function handleVisibleChange(e) {
+    onHiddenInLegendChange(!e.target.checked);
+  }
+
+  // render
+
+  return (
+    <WhiteSectionGeneric>
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+        {/* header: title + "afficher dans la légende" toggle */}
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <Typography variant="body2" sx={{ fontWeight: "bold", flex: 1 }}>
+            Légende
+          </Typography>
+          <Typography variant="caption" sx={{ color: "text.secondary" }} noWrap>
+            Afficher dans la légende
+          </Typography>
+          <Switch
+            size="small"
+            checked={!hiddenInLegend}
+            onChange={handleVisibleChange}
+          />
+        </Box>
+
+        {/* legend label */}
+        <FieldTextV2
+          value={labelLegend}
+          onChange={onLabelLegendChange}
+          options={{ fullWidth: true, placeholder: "Libellé légende" }}
+        />
+
+        <Divider />
+
+        {/* group */}
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
+          <Typography
+            variant="caption"
+            sx={{
+              fontSize: 10,
+              letterSpacing: "0.06em",
+              textTransform: "uppercase",
+              color: "text.secondary",
+            }}
+          >
+            Groupe
+          </Typography>
+          <SelectorAnnotationTemplateGroup
+            value={groupLabel}
+            onChange={onGroupLabelChange}
+          />
+        </Box>
+      </Box>
+    </WhiteSectionGeneric>
+  );
+}

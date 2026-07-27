@@ -14,6 +14,7 @@ import FieldAnnotationTemplateFill from "./FieldAnnotationTemplateFill";
 import FieldAnnotationTemplatePoint from "./FieldAnnotationTemplatePoint";
 import FieldAnnotationTemplateStroke from "./FieldAnnotationTemplateStroke";
 import FieldAnnotationTemplateRender3d from "./FieldAnnotationTemplateRender3d";
+import FieldAnnotationTemplateLegend from "./FieldAnnotationTemplateLegend";
 import FieldAnnotationTemplateDrawingShape from "./FieldAnnotationTemplateDrawingShape";
 import DRAWING_SHAPES from "Features/annotations/constants/drawingShapes.jsx";
 import FieldOptionKeyFromIconsVariantToolbar from "Features/form/components/FieldOptionKeyFromIconsVariantToolbar";
@@ -350,37 +351,13 @@ export default function FormAnnotationTemplateVariantBlock({
       />
 
       {!isCreating && (
-        <WhiteSectionGeneric>
-          <Typography variant="body2" sx={{ fontWeight: "bold", mb: 2 }} noWrap>
-            Libellé légende
-          </Typography>
-          <FieldTextV2
-            value={labelLegend}
-            onChange={handleLabelLegendChange}
-            options={{
-              fullWidth: true,
-              placeholder: "Libellé légende",
-            }}
-          />
-          <FieldCheck
-            value={hiddenInLegend}
-            onChange={handleHiddenInLegendChange}
-            label="Masquer le titre dans le bloc légende"
-            options={{ type: "check" }}
-          />
-        </WhiteSectionGeneric>
-      )}
-
-      {!isCreating && (
-        <FieldTextV2
-          label="Groupe"
-          value={groupLabel}
-          onChange={handleGroupLabelChange}
-          options={{
-            fullWidth: true,
-            placeholder: "Groupe",
-            showAsSection: true,
-          }}
+        <FieldAnnotationTemplateLegend
+          labelLegend={labelLegend}
+          hiddenInLegend={hiddenInLegend}
+          groupLabel={groupLabel}
+          onLabelLegendChange={handleLabelLegendChange}
+          onHiddenInLegendChange={handleHiddenInLegendChange}
+          onGroupLabelChange={handleGroupLabelChange}
         />
       )}
 
