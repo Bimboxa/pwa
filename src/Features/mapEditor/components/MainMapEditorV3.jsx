@@ -1856,7 +1856,13 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
 
                 </InteractionLayer>
 
-                <UILayer mapController={interactionLayerRef.current} onResetCamera={handleResetCamera} viewport={viewport} />
+                {/* Editor chrome (ortho snap, clipping plane, edit scale…) is
+                    hidden while a capture frame is active (POV framing or the
+                    CAPTURE export) so it never lands in the generated image and
+                    the framed view stays clean. */}
+                {!imageModeActive && (
+                    <UILayer mapController={interactionLayerRef.current} onResetCamera={handleResetCamera} viewport={viewport} />
+                )}
 
             </InteractionProvider>
 
