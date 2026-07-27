@@ -80,7 +80,7 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
 
     // Visible annotations come from useAnnotationsV2 in the caller — that's
     // the single source of truth for what "visible" means (soft-delete,
-    // layer/template/listing visibility, solo mode, baseMap filter).
+    // layer/template/listing visibility, zone solo, baseMap filter).
     // The avoid-visible-annotations feature only adds an annotationTemplateId
     // filter on top.
     const annotationsRef = useRef(annotations);

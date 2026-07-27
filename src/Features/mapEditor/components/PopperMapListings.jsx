@@ -52,7 +52,6 @@ import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
 import SettingsOutlined from "@mui/icons-material/SettingsOutlined";
 import Tune from "@mui/icons-material/Tune";
-import FilterAlt from "@mui/icons-material/FilterAlt";
 import FormatColorFill from "@mui/icons-material/FormatColorFill";
 import UnfoldLess from "@mui/icons-material/UnfoldLess";
 import UnfoldMore from "@mui/icons-material/UnfoldMore";
@@ -61,7 +60,13 @@ import { Check, Close } from "@mui/icons-material";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
-import { StopCircle, Create, AddLocationAlt, AutoFixHigh, RotateRight } from "@mui/icons-material";
+import {
+  StopCircle,
+  Create,
+  AddLocationAlt,
+  AutoFixHigh,
+  RotateRight,
+} from "@mui/icons-material";
 import IconTechnicalReturn from "Features/icons/IconTechnicalReturn";
 import IconCutLine from "Features/icons/IconCutLine";
 import IconSplitPolylineClick from "Features/icons/IconSplitPolylineClick";
@@ -80,9 +85,6 @@ import { isPasteAdjustEligible } from "Features/smartDetect/utils/adjustPasteCan
 import SectionLayers from "Features/layers/components/SectionLayers";
 import {
   setShowLayers,
-  setSoloVisibleTemplateIds,
-  setSoloListingId,
-  setSoloMode,
   setCollapsed,
 } from "Features/popperMapListings/popperMapListingsSlice";
 import DrawIcon from "@mui/icons-material/Draw";
@@ -186,8 +188,18 @@ function ModeShortcutBadge({ children }) {
 // SectionRepairModes wiring.
 const TOOL_ITEMS = [
   { type: "CUT", label: "Ouverture", Icon: StopCircle, shortcut: "O" },
-  { type: "SPLIT_LINE", label: "Retirer un segment", Icon: IconCutLine, shortcut: "X" },
-  { type: "SPLIT_POLYLINE_CLICK", label: "Couper un segment", Icon: IconSplitPolylineClick, shortcut: "C" },
+  {
+    type: "SPLIT_LINE",
+    label: "Retirer un segment",
+    Icon: IconCutLine,
+    shortcut: "X",
+  },
+  {
+    type: "SPLIT_POLYLINE_CLICK",
+    label: "Couper un segment",
+    Icon: IconSplitPolylineClick,
+    shortcut: "C",
+  },
   { type: "COMPLETE_ANNOTATION", label: "Prolonger", Icon: Create },
   { type: "REVOLUTION", label: "Axe de révolution", Icon: RotateRight },
 ];
@@ -220,7 +232,7 @@ function ToolRow({ type, label, Icon, shortcut }) {
 
   const tools = getDrawingToolsByType(type);
   const activeTool = selectedToolKey
-    ? tools.find((t) => t.key === selectedToolKey) ?? tools[0]
+    ? (tools.find((t) => t.key === selectedToolKey) ?? tools[0])
     : tools[0];
   const ActiveToolIcon = activeTool?.Icon;
 
@@ -230,7 +242,9 @@ function ToolRow({ type, label, Icon, shortcut }) {
     if (!activeTool) return;
     dispatch(setEnabledDrawingMode(activeTool.drawingMode ?? activeTool.key));
     dispatch(
-      setNewAnnotation(buildToolDraft(newAnnotation, activeTool, openingDefaults))
+      setNewAnnotation(
+        buildToolDraft(newAnnotation, activeTool, openingDefaults)
+      )
     );
   };
 
@@ -244,7 +258,9 @@ function ToolRow({ type, label, Icon, shortcut }) {
       setSelectedToolKeyForTemplate({ templateId: type, toolKey: tool.key })
     );
     dispatch(setEnabledDrawingMode(tool.drawingMode ?? tool.key));
-    dispatch(setNewAnnotation(buildToolDraft(newAnnotation, tool, openingDefaults)));
+    dispatch(
+      setNewAnnotation(buildToolDraft(newAnnotation, tool, openingDefaults))
+    );
   };
 
   const handleMenuClose = () => {
@@ -259,7 +275,9 @@ function ToolRow({ type, label, Icon, shortcut }) {
       <ListItemButton
         onClick={handleRowClick}
         onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => { if (!toolMenuAnchor) setIsHovered(false); }}
+        onMouseLeave={() => {
+          if (!toolMenuAnchor) setIsHovered(false);
+        }}
         sx={{
           position: "relative",
           bgcolor: "white",
@@ -289,14 +307,22 @@ function ToolRow({ type, label, Icon, shortcut }) {
               mr: 1,
             }}
           >
-            <Icon sx={{ fontSize: 18, color: isHovered ? "panel.textSecondary" : "panel.textMuted" }} />
+            <Icon
+              sx={{
+                fontSize: 18,
+                color: isHovered ? "panel.textSecondary" : "panel.textMuted",
+              }}
+            />
           </Box>
           {shortcut && (
             <Box sx={{ mr: 1, flexShrink: 0 }}>
               <ShortcutBadge>{shortcut}</ShortcutBadge>
             </Box>
           )}
-          <Typography variant="body2" sx={{ color: "panel.textSecondary", userSelect: "none" }}>
+          <Typography
+            variant="body2"
+            sx={{ color: "panel.textSecondary", userSelect: "none" }}
+          >
             {label}
           </Typography>
         </Box>
@@ -309,7 +335,9 @@ function ToolRow({ type, label, Icon, shortcut }) {
               onClick={handleToolBtnClick}
               sx={{
                 p: 0.5,
-                bgcolor: Boolean(toolMenuAnchor) ? "panel.textMuted" : "action.hover",
+                bgcolor: Boolean(toolMenuAnchor)
+                  ? "panel.textMuted"
+                  : "action.hover",
                 color: Boolean(toolMenuAnchor) ? "white" : "panel.textMuted",
                 borderRadius: 1,
                 "&:hover": {
@@ -343,15 +371,28 @@ function ToolRow({ type, label, Icon, shortcut }) {
           },
         }}
       >
-        <Box sx={{ px: 2, py: 1, borderBottom: "1px solid", borderColor: "panel.border" }}>
-          <Typography variant="body2" sx={{ fontWeight: 600, color: "panel.textPrimary" }}>
+        <Box
+          sx={{
+            px: 2,
+            py: 1,
+            borderBottom: "1px solid",
+            borderColor: "panel.border",
+          }}
+        >
+          <Typography
+            variant="body2"
+            sx={{ fontWeight: 600, color: "panel.textPrimary" }}
+          >
             {label}
           </Typography>
         </Box>
         {tools.map((tool) => (
           <MenuItem
             key={tool.key}
-            onClick={() => { handleSelectTool(tool); handleMenuClose(); }}
+            onClick={() => {
+              handleSelectTool(tool);
+              handleMenuClose();
+            }}
             sx={{ gap: 1, py: 0.75, fontSize: "0.8125rem" }}
           >
             <ListItemIcon sx={{ minWidth: 28 }}>
@@ -406,7 +447,14 @@ function ToolPickerMenu({
       }}
     >
       {/* Template name header */}
-      <Box sx={{ px: 2, py: 1, borderBottom: "1px solid", borderColor: "panel.border" }}>
+      <Box
+        sx={{
+          px: 2,
+          py: 1,
+          borderBottom: "1px solid",
+          borderColor: "panel.border",
+        }}
+      >
         <Typography
           variant="body2"
           sx={{
@@ -475,7 +523,12 @@ function ToolPickerMenu({
         <ListItemIcon sx={{ minWidth: 28 }}>
           <SettingsOutlined sx={{ fontSize: 18, color: "panel.textMuted" }} />
         </ListItemIcon>
-        <ListItemText primaryTypographyProps={{ variant: "body2", color: "panel.textMuted" }}>
+        <ListItemText
+          primaryTypographyProps={{
+            variant: "body2",
+            color: "panel.textMuted",
+          }}
+        >
           Éditer le modèle
         </ListItemText>
       </MenuItem>
@@ -528,7 +581,6 @@ function AnnotationTemplateRow({
   sortableStyle,
   sortableAttributes,
   dragListeners,
-  onSoloToggle,
   // "Nouvelle zone" section (ZONES module) and COTE templates in the Maillage
   // module: the row stays a DRAW entry even though the module forces the
   // listings into SELECT.
@@ -582,11 +634,6 @@ function AnnotationTemplateRow({
   const rememberedDraftProps = useSelector(
     (s) => s.mapEditor.draftPropsByTemplateId?.[annotationTemplate?.id]
   );
-  const soloMode = useSelector((s) => s.popperMapListings.soloMode);
-  const soloVisibleTemplateIds = useSelector(
-    (s) => s.popperMapListings.soloVisibleTemplateIds
-  );
-  const soloListingId = useSelector((s) => s.popperMapListings.soloListingId);
   // "Maillage" toggle and the shared ?mode=viewer lock force SELECT-like
   // interaction → use the effective mode for all behavior gating in this row.
   const rawInteractionMode = useSelector(
@@ -632,21 +679,16 @@ function AnnotationTemplateRow({
 
   // helpers
 
-  const isHiddenByBase = annotationTemplate?.hidden;
-  const isHiddenBySolo =
-    soloMode &&
-    soloVisibleTemplateIds != null &&
-    !soloVisibleTemplateIds.includes(annotationTemplate?.id);
-  const isHidden = isHiddenBySolo || isHiddenByBase;
+  const isHidden = annotationTemplate?.hidden;
   // Free annotations show their keyboard shortcut (L / P) next to the icon.
   const freeShortcut = getFreeAnnotationShortcut(annotationTemplate);
   const drawingShape = resolveDrawingShape(annotationTemplate);
   const tools = getDrawingToolsByShape(drawingShape);
   const fallbackTool = annotationTemplate?.defaultTool
-    ? getDrawingToolByKey(annotationTemplate.defaultTool) ?? tools[0]
+    ? (getDrawingToolByKey(annotationTemplate.defaultTool) ?? tools[0])
     : tools[0];
   const activeTool = selectedToolKey
-    ? getDrawingToolByKey(selectedToolKey) ?? fallbackTool
+    ? (getDrawingToolByKey(selectedToolKey) ?? fallbackTool)
     : fallbackTool;
   const ActiveToolIcon = activeTool?.Icon;
 
@@ -665,7 +707,9 @@ function AnnotationTemplateRow({
       rememberedDraftProps
     );
     if (activeTool.annotationType) {
-      dispatch(setNewAnnotation({ ...baseProps, type: activeTool.annotationType }));
+      dispatch(
+        setNewAnnotation({ ...baseProps, type: activeTool.annotationType })
+      );
     } else {
       dispatch(setNewAnnotation(baseProps));
     }
@@ -691,14 +735,6 @@ function AnnotationTemplateRow({
     if (isArmedCoteRow) {
       dispatch(setEnabledDrawingMode(null));
       dispatch(setNewAnnotation({}));
-      return;
-    }
-    // 3D viewer: read-only panel — clicking a row toggles solo mode for this
-    // template (isolate it; the others render translucent). Visibility stays
-    // available via the eye button. DRAW-forced rows (COTE templates in the
-    // Maillage module) keep their drawing action.
-    if (isThreedViewer && !forceDrawMode) {
-      onSoloToggle?.(annotationTemplate?.id, listingId);
       return;
     }
     switch (interactionMode) {
@@ -732,7 +768,12 @@ function AnnotationTemplateRow({
   };
 
   const handleSelectTool = (tool) => {
-    dispatch(setSelectedToolKeyForTemplate({ templateId: annotationTemplate?.id, toolKey: tool.key }));
+    dispatch(
+      setSelectedToolKeyForTemplate({
+        templateId: annotationTemplate?.id,
+        toolKey: tool.key,
+      })
+    );
     // Activate drawing with this tool
     if (
       isThreedToggledEditor &&
@@ -775,17 +816,6 @@ function AnnotationTemplateRow({
     await toggleHidden();
   };
 
-  const handleSoloClick = (e) => {
-    e.stopPropagation();
-    onSoloToggle?.(annotationTemplate?.id, listingId);
-  };
-
-  const isSoloActive =
-    soloMode &&
-    soloListingId === listingId &&
-    soloVisibleTemplateIds?.length === 1 &&
-    soloVisibleTemplateIds[0] === annotationTemplate?.id;
-
   const handleStartEdit = (e) => {
     e.stopPropagation();
     setTempLabel(annotationTemplate.label ?? "");
@@ -807,15 +837,26 @@ function AnnotationTemplateRow({
   // render
 
   return (
-    <Box ref={sortableRef} style={sortableStyle} {...(sortableAttributes ?? {})}>
+    <Box
+      ref={sortableRef}
+      style={sortableStyle}
+      {...(sortableAttributes ?? {})}
+    >
       <ListItemButton
         onClick={handleRowClick}
         onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => { if (!toolMenuAnchor) setIsHovered(false); }}
+        onMouseLeave={() => {
+          if (!toolMenuAnchor) setIsHovered(false);
+        }}
         sx={{
           position: "relative",
           bgcolor: isHighlighted
-            ? alpha(annotationTemplate?.fillColor ?? annotationTemplate?.strokeColor ?? "#1976d2", 0.18)
+            ? alpha(
+                annotationTemplate?.fillColor ??
+                  annotationTemplate?.strokeColor ??
+                  "#1976d2",
+                0.18
+              )
             : "white",
           alignItems: "center",
           justifyContent: "space-between",
@@ -824,12 +865,21 @@ function AnnotationTemplateRow({
           py: 0.5,
           borderLeft: "3px solid",
           borderColor: isHighlighted
-            ? annotationTemplate?.fillColor ?? annotationTemplate?.strokeColor ?? "primary.main"
+            ? (annotationTemplate?.fillColor ??
+              annotationTemplate?.strokeColor ??
+              "primary.main")
             : isHovered
-            ? annotationTemplate?.fillColor ?? annotationTemplate?.strokeColor ?? "transparent"
-            : "transparent",
+              ? (annotationTemplate?.fillColor ??
+                annotationTemplate?.strokeColor ??
+                "transparent")
+              : "transparent",
           "&:hover": {
-            bgcolor: alpha(annotationTemplate?.fillColor ?? annotationTemplate?.strokeColor ?? "#999", 0.1),
+            bgcolor: alpha(
+              annotationTemplate?.fillColor ??
+                annotationTemplate?.strokeColor ??
+                "#999",
+              0.1
+            ),
           },
         }}
       >
@@ -1002,7 +1052,11 @@ function AnnotationTemplateRow({
             interactionMode === "EDIT" ? (
               /* EDIT mode — reassign-template (paint bucket) + visibility */
               <>
-                <Tooltip title="Modifier le modèle d'une annotation" arrow placement="bottom">
+                <Tooltip
+                  title="Modifier le modèle d'une annotation"
+                  arrow
+                  placement="bottom"
+                >
                   <IconButton
                     size="small"
                     onClick={handleStartReassign}
@@ -1017,11 +1071,18 @@ function AnnotationTemplateRow({
                     <FormatColorFill fontSize="inherit" sx={{ fontSize: 16 }} />
                   </IconButton>
                 </Tooltip>
-                <Tooltip title={isHidden ? "Afficher" : "Masquer"} arrow placement="right">
+                <Tooltip
+                  title={isHidden ? "Afficher" : "Masquer"}
+                  arrow
+                  placement="right"
+                >
                   <IconButton
                     size="small"
                     onClick={handleToggleHidden}
-                    sx={{ p: 0.5, color: isHidden ? "secondary.main" : "panel.iconMuted" }}
+                    sx={{
+                      p: 0.5,
+                      color: isHidden ? "secondary.main" : "panel.iconMuted",
+                    }}
                   >
                     {isHidden ? (
                       <VisibilityOff fontSize="inherit" sx={{ fontSize: 16 }} />
@@ -1064,12 +1125,26 @@ function AnnotationTemplateRow({
                           sx={{
                             p: 0.5,
                             bgcolor: Boolean(toolMenuAnchor)
-                              ? annotationTemplate?.fillColor ?? annotationTemplate?.strokeColor ?? "grey.500"
-                              : alpha(annotationTemplate?.fillColor ?? annotationTemplate?.strokeColor ?? "#999", 0.15),
-                            color: Boolean(toolMenuAnchor) ? "white" : annotationTemplate?.fillColor ?? annotationTemplate?.strokeColor ?? "grey.500",
+                              ? (annotationTemplate?.fillColor ??
+                                annotationTemplate?.strokeColor ??
+                                "grey.500")
+                              : alpha(
+                                  annotationTemplate?.fillColor ??
+                                    annotationTemplate?.strokeColor ??
+                                    "#999",
+                                  0.15
+                                ),
+                            color: Boolean(toolMenuAnchor)
+                              ? "white"
+                              : (annotationTemplate?.fillColor ??
+                                annotationTemplate?.strokeColor ??
+                                "grey.500"),
                             borderRadius: 1,
                             "&:hover": {
-                              bgcolor: annotationTemplate?.fillColor ?? annotationTemplate?.strokeColor ?? "grey.500",
+                              bgcolor:
+                                annotationTemplate?.fillColor ??
+                                annotationTemplate?.strokeColor ??
+                                "grey.500",
                               color: "white",
                             },
                           }}
@@ -1081,11 +1156,18 @@ function AnnotationTemplateRow({
                   </>
                 )}
                 {/* Visibility button */}
-                <Tooltip title={isHidden ? "Afficher" : "Masquer"} arrow placement="right">
+                <Tooltip
+                  title={isHidden ? "Afficher" : "Masquer"}
+                  arrow
+                  placement="right"
+                >
                   <IconButton
                     size="small"
                     onClick={handleToggleHidden}
-                    sx={{ p: 0.5, color: isHidden ? "secondary.main" : "panel.iconMuted" }}
+                    sx={{
+                      p: 0.5,
+                      color: isHidden ? "secondary.main" : "panel.iconMuted",
+                    }}
                   >
                     {isHidden ? (
                       <VisibilityOff fontSize="inherit" sx={{ fontSize: 16 }} />
@@ -1094,28 +1176,18 @@ function AnnotationTemplateRow({
                     )}
                   </IconButton>
                 </Tooltip>
-                {/* Solo button — SELECT mode (incl. 3D read-only viewer) */}
-                {interactionMode === "SELECT" && (
-                  <Tooltip title="Solo" arrow placement="right">
-                    <IconButton
-                      size="small"
-                      onClick={handleSoloClick}
-                      sx={{
-                        p: 0.5,
-                        color: isSoloActive ? "primary.main" : "panel.iconMuted",
-                      }}
-                    >
-                      <FilterAlt fontSize="inherit" sx={{ fontSize: 16 }} />
-                    </IconButton>
-                  </Tooltip>
-                )}
               </>
             )
           ) : (
             <Typography
               align="right"
               noWrap
-              sx={{ fontSize: "10px", minWidth: "40px", fontFamily: "monospace", fontWeight: 500 }}
+              sx={{
+                fontSize: "10px",
+                minWidth: "40px",
+                fontFamily: "monospace",
+                fontWeight: 500,
+              }}
               color={
                 isHidden
                   ? "text.disabled"
@@ -1134,7 +1206,10 @@ function AnnotationTemplateRow({
       <ToolPickerMenu
         anchorEl={toolMenuAnchor}
         open={Boolean(toolMenuAnchor)}
-        onClose={() => { setToolMenuAnchor(null); setIsHovered(false); }}
+        onClose={() => {
+          setToolMenuAnchor(null);
+          setIsHovered(false);
+        }}
         annotationTemplate={annotationTemplate}
         onSelectTool={handleSelectTool}
         onEdit={handleEditTemplate}
@@ -1153,8 +1228,6 @@ function AnnotationTemplatesForListing({
   annotationTemplateById,
   visibleTemplateIds,
 }) {
-  const dispatch = useDispatch();
-
   // data
 
   const allTemplates = useAnnotationTemplates({
@@ -1180,10 +1253,6 @@ function AnnotationTemplatesForListing({
   const isMeshesModule = useSelector(
     (s) => s.viewers.selectedViewerKey === "MESHES"
   );
-  const soloVisibleTemplateIds = useSelector(
-    (s) => s.popperMapListings.soloVisibleTemplateIds
-  );
-
   const qtiesById = useMemo(
     () => computeAnnotationTemplateQties(annotations, annotationTemplateById),
     [annotations, annotationTemplateById]
@@ -1203,25 +1272,6 @@ function AnnotationTemplatesForListing({
     [annotationTemplates]
   );
 
-  // handlers - solo mode
-
-  const handleSoloToggle = useCallback(
-    (templateId, templateListingId) => {
-      const isOnlyVisible =
-        soloVisibleTemplateIds != null &&
-        soloVisibleTemplateIds.length === 1 &&
-        soloVisibleTemplateIds[0] === templateId;
-      if (isOnlyVisible) {
-        dispatch(setSoloVisibleTemplateIds(null));
-        dispatch(setSoloListingId(null));
-      } else {
-        dispatch(setSoloVisibleTemplateIds([templateId]));
-        dispatch(setSoloListingId(templateListingId));
-      }
-    },
-    [dispatch, soloVisibleTemplateIds]
-  );
-
   // state
 
   const [openCreateDialog, setOpenCreateDialog] = useState(false);
@@ -1237,7 +1287,8 @@ function AnnotationTemplatesForListing({
   const handleDragEnd = useCallback(
     async (event) => {
       const { active, over } = event;
-      if (!over || active.id === over.id || !annotationTemplates?.length) return;
+      if (!over || active.id === over.id || !annotationTemplates?.length)
+        return;
 
       const oldIndex = sortableIds.indexOf(active.id);
       const newIndex = sortableIds.indexOf(over.id);
@@ -1353,7 +1404,6 @@ function AnnotationTemplatesForListing({
                   qtyLabel={qtyLabel}
                   listingId={listingId}
                   spriteImage={spriteImage}
-                  onSoloToggle={handleSoloToggle}
                   forceDrawMode={
                     isMeshesModule && resolveDrawingShape(item) === "COTE"
                   }
@@ -1366,45 +1416,45 @@ function AnnotationTemplatesForListing({
 
       {/* + Nouveau modele — hidden in 3D (read-only) and while SELECT-filtering */}
       {!isThreedViewer && !visibleTemplateIds && (
-      <ListItemButton
-        onClick={() => setOpenCreateDialog(true)}
-        sx={{
-          pl: 3,
-          pr: 1,
-          py: 0.5,
-          alignItems: "center",
-          "&:hover": { bgcolor: "action.hover" },
-        }}
-      >
-        <Box
+        <ListItemButton
+          onClick={() => setOpenCreateDialog(true)}
           sx={{
-            display: "flex",
+            pl: 3,
+            pr: 1,
+            py: 0.5,
             alignItems: "center",
-            justifyContent: "center",
-            width: 24,
-            height: 24,
-            mr: 1,
+            "&:hover": { bgcolor: "action.hover" },
           }}
         >
           <Box
             sx={{
-              width: 18,
-              height: 18,
-              border: "1.5px dashed",
-              borderColor: "panel.textLight",
-              borderRadius: 0.5,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
+              width: 24,
+              height: 24,
+              mr: 1,
             }}
           >
-            <Add sx={{ fontSize: 12, color: "panel.textLight" }} />
+            <Box
+              sx={{
+                width: 18,
+                height: 18,
+                border: "1.5px dashed",
+                borderColor: "panel.textLight",
+                borderRadius: 0.5,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Add sx={{ fontSize: 12, color: "panel.textLight" }} />
+            </Box>
           </Box>
-        </Box>
-        <Typography variant="body2" color="panel.textLight">
-          Nouveau modèle
-        </Typography>
-      </ListItemButton>
+          <Typography variant="body2" color="panel.textLight">
+            Nouveau modèle
+          </Typography>
+        </ListItemButton>
       )}
 
       {openCreateDialog && (
@@ -1431,6 +1481,10 @@ function ListingRow({
   annotationTemplateById,
   visibleTemplateIds,
   extraAction,
+  // "band" mode: the single selected listing shown below the chips bar — always
+  // expanded, no chevron, clicking the header opens its properties.
+  alwaysExpanded = false,
+  hideCaret = false,
 }) {
   const dispatch = useDispatch();
 
@@ -1471,7 +1525,7 @@ function ListingRow({
   }
 
   function handleListingClick() {
-    onToggleExpand(listing.id);
+    onToggleExpand?.(listing.id);
     dispatch(setSelectedListingId(listing.id));
     dispatch(setSelectedItem({ id: listing.id, type: "LISTING" }));
     dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
@@ -1489,7 +1543,7 @@ function ListingRow({
   return (
     <Box>
       <Box
-        onClick={handleListingClick}
+        onClick={alwaysExpanded ? handleOpenProperties : handleListingClick}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         sx={{
@@ -1506,21 +1560,31 @@ function ListingRow({
           opacity: isHidden ? 0.5 : 1,
         }}
       >
-        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, flex: 1, minWidth: 0 }}>
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              flexShrink: 0,
-              color: "panel.textLight",
-            }}
-          >
-            {isExpanded ? (
-              <ExpandMore sx={{ fontSize: 18 }} />
-            ) : (
-              <ChevronRight sx={{ fontSize: 18 }} />
-            )}
-          </Box>
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 0.5,
+            flex: 1,
+            minWidth: 0,
+          }}
+        >
+          {!hideCaret && (
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                flexShrink: 0,
+                color: "panel.textLight",
+              }}
+            >
+              {isExpanded ? (
+                <ExpandMore sx={{ fontSize: 18 }} />
+              ) : (
+                <ChevronRight sx={{ fontSize: 18 }} />
+              )}
+            </Box>
+          )}
           <Typography
             variant="body2"
             sx={{
@@ -1538,7 +1602,9 @@ function ListingRow({
         {extraAction}
 
         {/* Right side: properties + visibility (hover) / count (default) */}
-        <Box sx={{ display: "flex", alignItems: "center", gap: 0, flexShrink: 0 }}>
+        <Box
+          sx={{ display: "flex", alignItems: "center", gap: 0, flexShrink: 0 }}
+        >
           <IconButton
             size="small"
             onClick={handleOpenProperties}
@@ -1549,51 +1615,188 @@ function ListingRow({
           >
             <Tune sx={{ fontSize: 18 }} />
           </IconButton>
-        <Box sx={{ position: "relative", minWidth: 24, height: 24, flexShrink: 0 }}>
-          <Typography
-            variant="caption"
+          <Box
             sx={{
-              position: "absolute",
-              inset: 0,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "flex-end",
-              fontSize: "11px",
-              fontWeight: 600,
-              fontFamily: "monospace",
-              color: annotationCount > 0 ? "secondary.main" : "panel.countEmpty",
-              visibility: isHovered ? "hidden" : "visible",
+              position: "relative",
+              minWidth: 24,
+              height: 24,
+              flexShrink: 0,
             }}
           >
-            {annotationCount}
-          </Typography>
-          <IconButton
-            size="small"
-            onClick={handleToggleVisibility}
-            sx={{
-              position: "absolute",
-              inset: 0,
-              p: 0,
-              visibility: isHovered ? "visible" : "hidden",
-            }}
-          >
-            {isHidden ? (
-              <VisibilityOff sx={{ fontSize: 18 }} />
-            ) : (
-              <Visibility sx={{ fontSize: 18 }} />
-            )}
-          </IconButton>
-        </Box>
+            <Typography
+              variant="caption"
+              sx={{
+                position: "absolute",
+                inset: 0,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "flex-end",
+                fontSize: "11px",
+                fontWeight: 600,
+                fontFamily: "monospace",
+                color:
+                  annotationCount > 0 ? "secondary.main" : "panel.countEmpty",
+                visibility: isHovered ? "hidden" : "visible",
+              }}
+            >
+              {annotationCount}
+            </Typography>
+            <IconButton
+              size="small"
+              onClick={handleToggleVisibility}
+              sx={{
+                position: "absolute",
+                inset: 0,
+                p: 0,
+                visibility: isHovered ? "visible" : "hidden",
+              }}
+            >
+              {isHidden ? (
+                <VisibilityOff sx={{ fontSize: 18 }} />
+              ) : (
+                <Visibility sx={{ fontSize: 18 }} />
+              )}
+            </IconButton>
+          </Box>
         </Box>
       </Box>
 
-      {isExpanded && (
+      {(alwaysExpanded || isExpanded) && (
         <AnnotationTemplatesForListing
           listingId={listing.id}
           annotations={annotations}
           annotationTemplateById={annotationTemplateById}
           visibleTemplateIds={visibleTemplateIds}
         />
+      )}
+    </Box>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// ListingChipsBar — horizontal band of listing "chips". Selecting a chip sets
+// the current listing (selectedListingId); a trailing "+ Liste" chip creates a
+// new listing. Replaces the former vertical accordion of listing rows.
+// ---------------------------------------------------------------------------
+
+function ListingChipsBar({
+  listings,
+  activeListingId,
+  annotationCountByListingId,
+  onSelectListing,
+  showAddButton,
+  hasNoListing,
+  onAddListing,
+  addLabel,
+}) {
+  // render
+
+  return (
+    <Box
+      sx={{
+        display: "flex",
+        flexWrap: "wrap",
+        gap: 0.5,
+        px: 1,
+        py: 0.75,
+        borderBottom: "1px solid",
+        borderColor: "panel.border",
+      }}
+    >
+      {listings?.map((listing) => {
+        const selected = listing.id === activeListingId;
+        const count = annotationCountByListingId?.[listing.id] || 0;
+        return (
+          <Box
+            key={listing.id}
+            component="button"
+            onClick={() => onSelectListing(listing.id)}
+            sx={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 0.5,
+              maxWidth: "100%",
+              px: 1,
+              py: 0.375,
+              borderRadius: 4,
+              border: "1px solid",
+              cursor: "pointer",
+              fontFamily: "inherit",
+              bgcolor: selected ? "primary.main" : "panel.sectionBg",
+              borderColor: selected ? "primary.main" : "panel.border",
+              "&:hover": {
+                bgcolor: selected ? "primary.dark" : "panel.border",
+              },
+            }}
+          >
+            <Typography
+              variant="caption"
+              noWrap
+              sx={{
+                fontWeight: 600,
+                color: selected ? "primary.contrastText" : "panel.textPrimary",
+              }}
+            >
+              {listing.name ?? listing.label ?? "Liste"}
+            </Typography>
+            <Typography
+              variant="caption"
+              sx={{
+                fontFamily: "monospace",
+                fontSize: "10px",
+                color: selected
+                  ? "primary.contrastText"
+                  : count > 0
+                    ? "secondary.main"
+                    : "panel.countEmpty",
+                opacity: selected ? 0.85 : 1,
+              }}
+            >
+              {count}
+            </Typography>
+          </Box>
+        );
+      })}
+
+      {showAddButton && (
+        <Box
+          component="button"
+          onClick={onAddListing}
+          sx={{
+            display: "inline-flex",
+            alignItems: "center",
+            px: 1,
+            py: 0.375,
+            borderRadius: 4,
+            cursor: "pointer",
+            fontFamily: "inherit",
+            fontSize: "11px",
+            ...(hasNoListing
+              ? {
+                  color: "white",
+                  bgcolor: "secondary.main",
+                  border: "1px solid",
+                  borderColor: "secondary.main",
+                  fontWeight: 600,
+                  "&:hover": {
+                    bgcolor: "secondary.dark",
+                    borderColor: "secondary.dark",
+                  },
+                }
+              : {
+                  color: "panel.textLight",
+                  bgcolor: "transparent",
+                  border: "1px dashed",
+                  borderColor: "panel.border",
+                  "&:hover": {
+                    borderColor: "panel.textMuted",
+                    color: "panel.textMuted",
+                  },
+                }),
+          }}
+        >
+          {addLabel}
+        </Box>
       )}
     </Box>
   );
@@ -1623,10 +1826,17 @@ const THREED_PLACEMENT_SHORTCUTS = [
 // Modes where the "Détection auto" card makes sense — the base drawing
 // tool has a backing detection algorithm (see getEffectiveDetectionMode).
 const SMART_DETECT_CAPABLE_MODES = [
-  "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", "RECTANGLE",
-  "STRIP", "POLYLINE_CLICK", "POLYGON_CLICK",
+  "POLYLINE_RECTANGLE",
+  "POLYGON_RECTANGLE",
+  "CUT_RECTANGLE",
+  "RECTANGLE",
+  "STRIP",
+  "POLYLINE_CLICK",
+  "POLYGON_CLICK",
   // SEGMENT tool → dark-band snapping (SEGMENT_SNAP, hover-only)
-  "SEGMENT", "POLYLINE_SEGMENT", "STRIP_SEGMENT",
+  "SEGMENT",
+  "POLYLINE_SEGMENT",
+  "STRIP_SEGMENT",
 ];
 
 // ---------------------------------------------------------------------------
@@ -1662,10 +1872,15 @@ function SectionRepairModes() {
               borderColor: selected ? "primary.main" : "transparent",
               bgcolor: selected ? "primary.main" : "background.default",
               color: selected ? "primary.contrastText" : "text.secondary",
-              "&:hover": { bgcolor: selected ? "primary.main" : "action.hover" },
+              "&:hover": {
+                bgcolor: selected ? "primary.main" : "action.hover",
+              },
             }}
           >
-            <Typography variant="caption" sx={{ fontWeight: selected ? 600 : 400 }}>
+            <Typography
+              variant="caption"
+              sx={{ fontWeight: selected ? 600 : 400 }}
+            >
               {label}
             </Typography>
             <Box
@@ -1698,21 +1913,15 @@ function PopperDrawingHelper() {
 
   // data
 
-  const enabledDrawingMode = useSelector(
-    (s) => s.mapEditor.enabledDrawingMode
-  );
-  const smartDetectEnabled = useSelector(
-    (s) => s.mapEditor.smartDetectEnabled
-  );
+  const enabledDrawingMode = useSelector((s) => s.mapEditor.enabledDrawingMode);
+  const smartDetectEnabled = useSelector((s) => s.mapEditor.smartDetectEnabled);
   // Dessin module toggled to its 3D editor: the drawing state drives the 3D
   // OBJECT_3D placement mode. The 2D-only helpers (loupe, 2D shortcuts) must
   // not mount — CardLoupe's SmartZoomContext only exists in the 2D editor.
   const isThreedToggledEditor = useSelector((s) =>
     isThreedFamilyViewerKey(selectEffectiveViewerKey(s))
   );
-  const autoMergeOnCommit = useSelector(
-    (s) => s.mapEditor.autoMergeOnCommit
-  );
+  const autoMergeOnCommit = useSelector((s) => s.mapEditor.autoMergeOnCommit);
   const autoOffsetsOnCommit = useSelector(
     (s) => s.mapEditor.autoOffsetsOnCommit
   );
@@ -1723,7 +1932,8 @@ function PopperDrawingHelper() {
     (s) => s.mapEditor.defaultOffsetOnCommit
   );
   const isSegmentSelectMode = SEGMENT_SELECT_MODES.includes(enabledDrawingMode);
-  const showSmartDetectCard = SMART_DETECT_CAPABLE_MODES.includes(enabledDrawingMode);
+  const showSmartDetectCard =
+    SMART_DETECT_CAPABLE_MODES.includes(enabledDrawingMode);
   const showAutoMerge =
     enabledDrawingMode === "POLYGON_RECTANGLE" ||
     enabledDrawingMode === "POLYGON_CLICK";
@@ -1868,9 +2078,7 @@ function PopperDrawingHelper() {
             {"Cliquez sur un point le long d'une polyligne pour la couper en 2"}
           </Box>
         )}
-        {showSmartDetectCard && (
-          <CardSmartDetect />
-        )}
+        {showSmartDetectCard && <CardSmartDetect />}
         {enabledDrawingMode === "SURFACE_DROP" && <SectionSurfaceDropOptions />}
         {showAutoMerge && (
           <Paper
@@ -2054,9 +2262,7 @@ function PopperPasteHelper() {
 
   // data
 
-  const pasteDetectionMode = useSelector(
-    (s) => s.mapEditor.pasteDetectionMode
-  );
+  const pasteDetectionMode = useSelector((s) => s.mapEditor.pasteDetectionMode);
   const smartDetectionPresent = useSelector(
     (s) => s.mapEditor.smartDetectionPresent
   );
@@ -2118,109 +2324,111 @@ function PopperPasteHelper() {
         <Box sx={{ flex: 1 }} />
         <Typography
           variant="caption"
-          sx={{ color: "panel.textLight", fontWeight: 600, whiteSpace: "nowrap" }}
+          sx={{
+            color: "panel.textLight",
+            fontWeight: 600,
+            whiteSpace: "nowrap",
+          }}
         >
-          {copiedCount > 1
-            ? `${copiedCount} annotations`
-            : "1 annotation"}
+          {copiedCount > 1 ? `${copiedCount} annotations` : "1 annotation"}
         </Typography>
       </Box>
 
       <Box sx={{ p: 1, display: "flex", flexDirection: "column", gap: 1 }}>
         {/* Detection card — single-template only; hidden in multi-selection. */}
         {isSingle && (
-        <Paper
-          variant="outlined"
-          sx={{ p: 1, borderRadius: 1, bgcolor: "background.paper" }}
-        >
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <Typography variant="body2" sx={{ flex: 1 }}>
-              Détection automatique
-            </Typography>
-            <Switch
-              size="small"
-              checked={pasteDetectionMode === "GLOBAL"}
-              onChange={(_e, checked) =>
-                dispatch(setPasteDetectionMode(checked ? "GLOBAL" : null))
-              }
-            />
-            <ShortcutBadge>A</ShortcutBadge>
-          </Box>
-
-          <Box
-            sx={{ mt: 0.5, display: "flex", alignItems: "center", gap: 1 }}
+          <Paper
+            variant="outlined"
+            sx={{ p: 1, borderRadius: 1, bgcolor: "background.paper" }}
           >
-            <Typography variant="body2" sx={{ flex: 1 }}>
-              Détection au survol
-            </Typography>
-            <Switch
-              size="small"
-              checked={pasteDetectionMode === "HOVER"}
-              onChange={(_e, checked) =>
-                dispatch(setPasteDetectionMode(checked ? "HOVER" : null))
-              }
-            />
-            <ShortcutBadge>S</ShortcutBadge>
-          </Box>
-
-          {isAdjustEligible && (
-            <Box
-              sx={{ mt: 0.5, display: "flex", alignItems: "center", gap: 1 }}
-            >
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
               <Typography variant="body2" sx={{ flex: 1 }}>
-                Ajuster
+                Détection automatique
               </Typography>
               <Switch
                 size="small"
-                checked={pasteDetectionMode === "ADJUST"}
+                checked={pasteDetectionMode === "GLOBAL"}
                 onChange={(_e, checked) =>
-                  dispatch(setPasteDetectionMode(checked ? "ADJUST" : null))
+                  dispatch(setPasteDetectionMode(checked ? "GLOBAL" : null))
                 }
               />
-              <ShortcutBadge>J</ShortcutBadge>
+              <ShortcutBadge>A</ShortcutBadge>
             </Box>
-          )}
 
-          {pasteDetectionMode && (
             <Box
               sx={{ mt: 0.5, display: "flex", alignItems: "center", gap: 1 }}
             >
               <Typography variant="body2" sx={{ flex: 1 }}>
-                Valider la détection
+                Détection au survol
               </Typography>
-              <Box
-                component="span"
-                sx={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  minWidth: 56,
-                  height: 22,
-                  px: 0.5,
-                  borderRadius: "6px",
-                  border: "1px solid",
-                  borderColor: smartDetectionPresent
-                    ? "#00aa00"
-                    : "text.disabled",
-                  backgroundColor: smartDetectionPresent
-                    ? undefined
-                    : (theme) => theme.palette.action.hover,
-                  borderBottomWidth: "3px",
-                  color: smartDetectionPresent ? "#000" : "text.primary",
-                  fontFamily: "monospace",
-                  fontWeight: "bold",
-                  fontSize: "0.7rem",
-                  lineHeight: 1,
-                  animation: smartDetectionPresent
-                    ? `${detectionPulse} 0.8s ease-in-out infinite`
-                    : "none",
-                }}
-              >
-                Espace
-              </Box>
+              <Switch
+                size="small"
+                checked={pasteDetectionMode === "HOVER"}
+                onChange={(_e, checked) =>
+                  dispatch(setPasteDetectionMode(checked ? "HOVER" : null))
+                }
+              />
+              <ShortcutBadge>S</ShortcutBadge>
             </Box>
-          )}
-        </Paper>
+
+            {isAdjustEligible && (
+              <Box
+                sx={{ mt: 0.5, display: "flex", alignItems: "center", gap: 1 }}
+              >
+                <Typography variant="body2" sx={{ flex: 1 }}>
+                  Ajuster
+                </Typography>
+                <Switch
+                  size="small"
+                  checked={pasteDetectionMode === "ADJUST"}
+                  onChange={(_e, checked) =>
+                    dispatch(setPasteDetectionMode(checked ? "ADJUST" : null))
+                  }
+                />
+                <ShortcutBadge>J</ShortcutBadge>
+              </Box>
+            )}
+
+            {pasteDetectionMode && (
+              <Box
+                sx={{ mt: 0.5, display: "flex", alignItems: "center", gap: 1 }}
+              >
+                <Typography variant="body2" sx={{ flex: 1 }}>
+                  Valider la détection
+                </Typography>
+                <Box
+                  component="span"
+                  sx={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    minWidth: 56,
+                    height: 22,
+                    px: 0.5,
+                    borderRadius: "6px",
+                    border: "1px solid",
+                    borderColor: smartDetectionPresent
+                      ? "#00aa00"
+                      : "text.disabled",
+                    backgroundColor: smartDetectionPresent
+                      ? undefined
+                      : (theme) => theme.palette.action.hover,
+                    borderBottomWidth: "3px",
+                    color: smartDetectionPresent ? "#000" : "text.primary",
+                    fontFamily: "monospace",
+                    fontWeight: "bold",
+                    fontSize: "0.7rem",
+                    lineHeight: 1,
+                    animation: smartDetectionPresent
+                      ? `${detectionPulse} 0.8s ease-in-out infinite`
+                      : "none",
+                  }}
+                >
+                  Espace
+                </Box>
+              </Box>
+            )}
+          </Paper>
         )}
 
         {/* Keyboard shortcuts card — same style as SectionShortcutHelpers */}
@@ -2270,48 +2478,6 @@ function PopperPasteHelper() {
 }
 
 // ---------------------------------------------------------------------------
-// FreeAnnotationRows — standalone "Ligne" / "Surface" rows (no entity, backed
-// by hidden per-scope system templates). Rendered as a small untitled section.
-// ---------------------------------------------------------------------------
-
-function FreeAnnotationRows({ annotationsByListingId, annotationTemplateById }) {
-  const { listingId, lineTemplate, surfaceTemplate } =
-    useFreeAnnotationTemplates();
-  const spriteImage = useAnnotationSpriteImage();
-
-  const templates = [lineTemplate, surfaceTemplate].filter(Boolean);
-
-  // quantities — same computation as a normal listing's rows
-  const annotations = annotationsByListingId?.[listingId];
-  const qtiesById = useMemo(
-    () => computeAnnotationTemplateQties(annotations, annotationTemplateById),
-    [annotations, annotationTemplateById]
-  );
-
-  if (!templates.length) return null;
-
-  return (
-    <List dense disablePadding>
-      {templates.map((template) => {
-        const templateQties = qtiesById?.[template.id];
-        const count = templateQties?.count || 0;
-        const qtyLabel = templateQties?.mainQtyLabel;
-        return (
-          <AnnotationTemplateRow
-            key={template.id}
-            annotationTemplate={template}
-            count={count}
-            qtyLabel={qtyLabel}
-            listingId={listingId}
-            spriteImage={spriteImage}
-          />
-        );
-      })}
-    </List>
-  );
-}
-
-// ---------------------------------------------------------------------------
 // PopperMapListings — main floating panel (or drawing helper when drawing)
 // ---------------------------------------------------------------------------
 
@@ -2324,9 +2490,7 @@ export default function PopperMapListings() {
 
   const dispatch = useDispatch();
   const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
-  const enabledDrawingMode = useSelector(
-    (s) => s.mapEditor.enabledDrawingMode
-  );
+  const enabledDrawingMode = useSelector((s) => s.mapEditor.enabledDrawingMode);
   const pasteClipboard = useSelector((s) => s.mapEditor.pasteClipboard);
   const subtractSourceAnnotationId = useSelector(
     (s) => s.mapEditor.subtractSourceAnnotationId
@@ -2380,24 +2544,13 @@ export default function PopperMapListings() {
     }
   }, [layers?.length, viewerKey]);
 
-  // Solo filtering is available in the 3D viewer (read-only) and in 2D SELECT mode.
-  // Entering 3D enables it; leaving 3D restores the 2D mode's solo state and prevents
-  // the solo filter from leaking into the 2D MAP viewer (where the button is hidden in DRAW).
-  useEffect(() => {
-    dispatch(
-      setSoloMode(
-        isThreedViewer || isZonesViewer || interactionMode === "SELECT"
-      )
-    );
-  }, [isThreedViewer, isZonesViewer]);
-
   // 3D can show annotations from several base maps at once; mirror those extra
   // base maps here so the panel's visible set matches the 3D scene.
   const extraBaseMapIds = useExtraBaseMapIdsIn3d();
 
   // single annotation source for all counts and for the SELECT-mode visibility
-  // filter. `ignoreSolo` keeps this set stable while the user solos a template
-  // (solo must not remove rows from the tree), `keepHiddenTemplates` keeps
+  // filter. `ignoreSolo` keeps this set stable while a zone is soloed (zonings
+  // module — soloing must not remove rows from the tree), `keepHiddenTemplates` keeps
   // eye-hidden templates' annotations so their rows stay in the tree (greyed)
   // and can be re-enabled. In 3D, the 3D-specific filters are mirrored so the
   // set matches what the scene actually shows.
@@ -2469,9 +2622,7 @@ export default function PopperMapListings() {
     }, {});
   }, [allAnnotations]);
 
-  const titleS = isBaseMapsViewer
-    ? "Dessins sur fond de plan"
-    : "Annotations";
+  const titleS = isBaseMapsViewer ? "Dessins sur fond de plan" : "Annotations";
 
   const { value: listings } = useListings({
     filterByScopeId: selectedScopeId,
@@ -2484,12 +2635,17 @@ export default function PopperMapListings() {
   const createVersion = useCreateBaseMapVersion();
   const replaceVersionImage = useReplaceVersionImage();
 
+  // Ensure the system listing ("Générique") + its Ligne/Polygone templates exist
+  // for this scope (idempotent). Provisioning used to live in <FreeAnnotationRows>;
+  // now that the system listing is a normal chip, keep it mounted here so the
+  // panel always has it (incl. the 3D editor mount).
+  useFreeAnnotationTemplates();
+
   // state
 
   const selectedListingId = useSelector((s) => s.listings.selectedListingId);
   const viewerReturnContext = useSelector((s) => s.viewers.viewerReturnContext);
   const comesFromListing = viewerReturnContext?.fromViewer === "LISTING";
-  const [expandedListingIds, setExpandedListingIds] = useState([]);
   const [openCreateListing, setOpenCreateListing] = useState(false);
   const [headerHovered, setHeaderHovered] = useState(false);
 
@@ -2501,11 +2657,16 @@ export default function PopperMapListings() {
   // helpers - filter listings when coming from LISTING viewer
 
   const returnListingId = viewerReturnContext?.listingId;
-  // The "Annotations libres" system listing is rendered as standalone rows
-  // (FreeAnnotationRows), never in the normal listing tree.
-  const visibleListings = listings?.filter(
-    (l) => !l.isFreeAnnotationsListing
-  );
+  // The system listing (isFreeAnnotationsListing, "Générique") is shown as the
+  // first chip like any other listing, except in the base-maps / zones viewers
+  // where free annotations don't apply.
+  const systemListings =
+    isBaseMapsViewer || isZonesViewer
+      ? []
+      : (listings?.filter((l) => l.isFreeAnnotationsListing) ?? []);
+  const userListings =
+    listings?.filter((l) => !l.isFreeAnnotationsListing) ?? [];
+  const visibleListings = [...systemListings, ...userListings];
 
   // In effective SELECT contexts (2D Selection, 3D, Maillage, ?mode=viewer) the
   // panel acts as a legend: hide listings/templates that have no annotation on
@@ -2521,7 +2682,12 @@ export default function PopperMapListings() {
     if (mirrors3dFilters && hideMainAnnotationsIn3d)
       arr = arr.filter((a) => a.baseMapId !== baseMap?.id);
     return arr;
-  }, [allAnnotationsInclHidden, mirrors3dFilters, hideMainAnnotationsIn3d, baseMap?.id]);
+  }, [
+    allAnnotationsInclHidden,
+    mirrors3dFilters,
+    hideMainAnnotationsIn3d,
+    baseMap?.id,
+  ]);
   const isSelectFilter = effectiveInteractionMode === "SELECT";
   // Maillage module: COTE templates are drawing entries there (see the
   // forceDrawMode rows), so they escape the legend filter — their row must be
@@ -2566,20 +2732,18 @@ export default function PopperMapListings() {
     comesFromListing && returnListingId
       ? scopedListings?.filter((l) => l.id === returnListingId)
       : scopedListings;
-  // No listing yet → the header "+ Liste" button becomes the main CTA (contained, orange).
+  // No listing yet → the "+ Liste" chip becomes the main CTA (contained, orange).
   const hasNoListing = !displayedListings?.length;
+  const canAddListing =
+    !comesFromListing && !isBaseMapsViewer && !isThreedViewer;
 
-  // effects - auto-expand selected listing (or first listing by default)
-
-  useEffect(() => {
-    if (selectedListingId && listings?.some((l) => l.id === selectedListingId)) {
-      setExpandedListingIds((prev) =>
-        prev.includes(selectedListingId) ? prev : [...prev, selectedListingId]
-      );
-    } else if (listings?.length && expandedListingIds.length === 0) {
-      setExpandedListingIds([listings[0].id]);
-    }
-  }, [selectedListingId, listings]);
+  // The single "current" listing shown (band + templates) below the chips bar.
+  // Falls back to the first chip when nothing is selected or the selection is
+  // filtered out (e.g. SELECT / legend mode).
+  const activeListing =
+    displayedListings?.find((l) => l.id === selectedListingId) ??
+    displayedListings?.[0] ??
+    null;
 
   // handlers - interaction mode
 
@@ -2608,17 +2772,20 @@ export default function PopperMapListings() {
 
   // handlers
 
-  function handleToggleExpand(listingId) {
-    setExpandedListingIds((prev) =>
-      prev.includes(listingId)
-        ? prev.filter((id) => id !== listingId)
-        : [...prev, listingId]
-    );
+  // A chip click just sets the current listing (persisted via setInitListingId
+  // in the slice). Opening the listing properties stays an explicit action (the
+  // Tune button on the selected-listing band below).
+  function handleSelectListing(listingId) {
+    dispatch(setSelectedListingId(listingId));
   }
 
   function handleMergeResult(file, listingName) {
     const objectUrl = URL.createObjectURL(file);
-    setMergeResult({ file, label: `Fusion ${listingName || "annotations"}`, objectUrl });
+    setMergeResult({
+      file,
+      label: `Fusion ${listingName || "annotations"}`,
+      objectUrl,
+    });
     setOpenMergeCompare(true);
     setMergeCreateNewVersion(true);
   }
@@ -2658,9 +2825,14 @@ export default function PopperMapListings() {
         transform,
       });
     } else {
-      await replaceVersionImage(baseMap.id, activeVersion.id, mergeResult.file, {
-        transform,
-      });
+      await replaceVersionImage(
+        baseMap.id,
+        activeVersion.id,
+        mergeResult.file,
+        {
+          transform,
+        }
+      );
     }
     handleCloseMergeCompare();
   }
@@ -2759,51 +2931,6 @@ export default function PopperMapListings() {
           </Tooltip>
         )}
 
-        {/* + Liste button in header */}
-        {!comesFromListing && !isBaseMapsViewer && !isThreedViewer && (
-          <Box
-            component="button"
-            onMouseDown={(e) => e.stopPropagation()}
-            onClick={(e) => {
-              e.stopPropagation();
-              setOpenCreateListing(true);
-            }}
-            sx={{
-              fontSize: "10.5px",
-              borderRadius: 1,
-              px: 0.75,
-              py: 0.25,
-              cursor: "pointer",
-              fontFamily: "inherit",
-              ...(hasNoListing
-                ? {
-                    // contained CTA when no listing exists yet
-                    color: "white",
-                    bgcolor: "secondary.main",
-                    border: "1px solid",
-                    borderColor: "secondary.main",
-                    fontWeight: 600,
-                    "&:hover": {
-                      bgcolor: "secondary.dark",
-                      borderColor: "secondary.dark",
-                    },
-                  }
-                : {
-                    color: "panel.textLight",
-                    bgcolor: "transparent",
-                    border: "1px dashed",
-                    borderColor: "panel.border",
-                    "&:hover": {
-                      borderColor: "panel.textMuted",
-                      color: "panel.textMuted",
-                    },
-                  }),
-            }}
-          >
-            {addListS}
-          </Box>
-        )}
-
         {/* Collapse / expand body */}
         <Tooltip title={collapsed ? "Déplier" : "Replier"}>
           <IconButton
@@ -2824,230 +2951,257 @@ export default function PopperMapListings() {
         </Tooltip>
       </Box>
 
-      {!collapsed && (<>
-      {/* Interaction mode toggle (DRAW / EDIT / SELECT) — hidden in 3D and viewer mode (read-only) */}
-      {!isThreedViewer && !viewerMode && !isZonesViewer && (
-        <Box
-          sx={{
-            px: 1,
-            py: 0.75,
-            borderBottom: "1px solid",
-            borderColor: "panel.border",
-          }}
-        >
-          <ToggleButtonGroup
-            value={interactionMode}
-            exclusive
-            size="small"
-            fullWidth
-            disabled={showMeshCells}
-            onChange={handleInteractionModeChange}
-          >
-            <ToggleButton
-              value="DRAW"
-              sx={{ flex: 1, py: 0.5, flexDirection: "column", gap: 0.25, position: "relative" }}
-            >
-              <DrawIcon sx={{ fontSize: 18 }} />
-              <Typography variant="caption" sx={{ fontSize: "10px", lineHeight: 1, textTransform: "none" }}>
-                Dessin
-              </Typography>
-              <ModeShortcutBadge>D</ModeShortcutBadge>
-            </ToggleButton>
-            <ToggleButton
-              value="EDIT"
-              sx={{ flex: 1, py: 0.5, flexDirection: "column", gap: 0.25, position: "relative" }}
-            >
-              <EditIcon sx={{ fontSize: 18 }} />
-              <Typography variant="caption" sx={{ fontSize: "10px", lineHeight: 1, textTransform: "none" }}>
-                Modification
-              </Typography>
-              <ModeShortcutBadge>M</ModeShortcutBadge>
-            </ToggleButton>
-            <ToggleButton
-              value="SELECT"
-              sx={{ flex: 1, py: 0.5, flexDirection: "column", gap: 0.25, position: "relative" }}
-            >
-              <IconPointer sx={{ fontSize: 18 }} />
-              <Typography variant="caption" sx={{ fontSize: "10px", lineHeight: 1, textTransform: "none" }}>
-                Sélection
-              </Typography>
-              <ModeShortcutBadge>S</ModeShortcutBadge>
-            </ToggleButton>
-          </ToggleButtonGroup>
-
-        </Box>
-      )}
-
-      {/* Standard body (layers / listings / cut tools) */}
-      {/* Warning: base map has no scale */}
-      {baseMap && !baseMap.meterByPx && (
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            gap: 1,
-            mx: 1,
-            mt: 1,
-            px: 1.5,
-            py: 1,
-            borderRadius: 1,
-            bgcolor: (theme) => alpha(theme.palette.error.main, 0.08),
-            border: "1px solid",
-            borderColor: (theme) => alpha(theme.palette.error.main, 0.3),
-          }}
-        >
-          <WarningAmber sx={{ fontSize: 18, color: "error.main", flexShrink: 0 }} />
-          <Typography
-            variant="caption"
-            sx={{ color: "error.main", fontWeight: 500, lineHeight: 1.3 }}
-          >
-            Ce plan n'est pas à l'échelle. Les mesures ne seront pas fiables.
-          </Typography>
-        </Box>
-      )}
-
-      {/* Scrollable listings */}
-      <Box sx={{ overflow: "auto", flex: 1 }}>
-        {viewerKey === "MAP" && showLayers && (
-          <SectionLayers baseMapId={baseMap?.id} />
-        )}
-
-        {/* Nouvelle zone (ZONES module) — dedicated section showing the zone
-            selected in the drawer as a DRAW-armed template row: this is the
-            only drawing entry of the module (the listings below are a
-            read-only legend). */}
-        {isZonesViewer && selectedZoneTemplate && (
-          <Box
-            sx={{
-              borderBottom: "1px solid",
-              borderColor: "panel.border",
-            }}
-          >
-            {/* Same typography as the listing section headers below. */}
-            <Box sx={{ px: 1, py: 0.75, bgcolor: "secondary.main" }}>
-              <Typography
-                variant="body2"
-                sx={{ fontWeight: 600, color: "secondary.contrastText" }}
-              >
-                Nouvelle zone
-              </Typography>
-            </Box>
-            <List dense disablePadding>
-              <AnnotationTemplateRow
-                annotationTemplate={selectedZoneTemplate}
-                listingId={selectedZoneTemplate.listingId}
-                count={selectedZoneAnnotationsCount}
-                spriteImage={spriteImage}
-                forceDrawMode
-              />
-            </List>
-          </Box>
-        )}
-
-        {/* Free annotations — untitled section at the very top: just
-            "Ligne" + "Surface" (no entity, hidden per-scope templates).
-            Always shown, even when no listing exists, since these are
-            system templates. Hidden in ZONES (display-only legend). */}
-        {!isBaseMapsViewer && !isZonesViewer && (
-          <Box
-            sx={{
-              borderBottom: "1px solid",
-              borderColor: "panel.border",
-            }}
-          >
-            <Divider sx={{ borderColor: "panel.border" }} />
-            <FreeAnnotationRows
-              annotationsByListingId={annotationsByListingId}
-              annotationTemplateById={annotationTemplateById}
-            />
-          </Box>
-        )}
-
+      {!collapsed && (
         <>
-            {isBaseMapsViewer
-              ? displayedListings?.map((listing) => (
-                  <ListingRow
-                    key={listing.id}
-                    listing={listing}
-                    isExpanded={expandedListingIds.includes(listing.id)}
-                    onToggleExpand={handleToggleExpand}
-                    annotationCount={
-                      annotationsByListingId?.[listing.id]?.length || 0
-                    }
-                    annotations={annotationsByListingId?.[listing.id]}
-                    annotationTemplateById={annotationTemplateById}
-                    visibleTemplateIds={visibleTemplateIds}
-                    extraAction={
-                      <ButtonMergeListingAnnotations
-                        listingId={listing.id}
-                        baseMap={baseMap}
-                        onResult={(file) =>
-                          handleMergeResult(file, listing.name)
-                        }
-                      />
-                    }
-                  />
-                ))
-              : <>
-                  {displayedListings?.map((listing) => (
-                    <ListingRow
-                      key={listing.id}
-                      listing={listing}
-                      isExpanded={expandedListingIds.includes(listing.id)}
-                      onToggleExpand={handleToggleExpand}
-                      annotationCount={
-                        annotationCountByListingId?.[listing.id] || 0
-                      }
-                      annotations={annotationsByListingId?.[listing.id]}
-                      annotationTemplateById={annotationTemplateById}
-                      visibleTemplateIds={visibleTemplateIds}
-                    />
-                  ))}
-                </>}
-
-            {/* Outils section — DRAW mode, and always in the ZONES module
-                (openings / splits on the zone delimitation polygons) */}
-            {(effectiveInteractionMode === "DRAW" || isZonesViewer) && (
-              <>
-                <Box
+          {/* Interaction mode toggle (DRAW / EDIT / SELECT) — hidden in 3D and viewer mode (read-only) */}
+          {!isThreedViewer && !viewerMode && !isZonesViewer && (
+            <Box
+              sx={{
+                px: 1,
+                py: 0.75,
+                borderBottom: "1px solid",
+                borderColor: "panel.border",
+              }}
+            >
+              <ToggleButtonGroup
+                value={interactionMode}
+                exclusive
+                size="small"
+                fullWidth
+                disabled={showMeshCells}
+                onChange={handleInteractionModeChange}
+              >
+                <ToggleButton
+                  value="DRAW"
                   sx={{
-                    px: 1,
+                    flex: 1,
                     py: 0.5,
-                    bgcolor: "panel.sectionBg",
-                    borderTop: "1px solid",
-                    borderColor: "panel.border",
+                    flexDirection: "column",
+                    gap: 0.25,
+                    position: "relative",
                   }}
                 >
+                  <DrawIcon sx={{ fontSize: 18 }} />
                   <Typography
                     variant="caption"
                     sx={{
-                      color: "panel.textMuted",
-                      fontWeight: 700,
-                      letterSpacing: "0.06em",
-                      textTransform: "uppercase",
-                      fontSize: "11px",
+                      fontSize: "10px",
+                      lineHeight: 1,
+                      textTransform: "none",
                     }}
                   >
-                    Outils de dessin
+                    Dessin
+                  </Typography>
+                  <ModeShortcutBadge>D</ModeShortcutBadge>
+                </ToggleButton>
+                <ToggleButton
+                  value="EDIT"
+                  sx={{
+                    flex: 1,
+                    py: 0.5,
+                    flexDirection: "column",
+                    gap: 0.25,
+                    position: "relative",
+                  }}
+                >
+                  <EditIcon sx={{ fontSize: 18 }} />
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      fontSize: "10px",
+                      lineHeight: 1,
+                      textTransform: "none",
+                    }}
+                  >
+                    Modification
+                  </Typography>
+                  <ModeShortcutBadge>M</ModeShortcutBadge>
+                </ToggleButton>
+                <ToggleButton
+                  value="SELECT"
+                  sx={{
+                    flex: 1,
+                    py: 0.5,
+                    flexDirection: "column",
+                    gap: 0.25,
+                    position: "relative",
+                  }}
+                >
+                  <IconPointer sx={{ fontSize: 18 }} />
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      fontSize: "10px",
+                      lineHeight: 1,
+                      textTransform: "none",
+                    }}
+                  >
+                    Sélection
+                  </Typography>
+                  <ModeShortcutBadge>S</ModeShortcutBadge>
+                </ToggleButton>
+              </ToggleButtonGroup>
+            </Box>
+          )}
+
+          {/* Standard body (layers / listings / cut tools) */}
+          {/* Warning: base map has no scale */}
+          {baseMap && !baseMap.meterByPx && (
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 1,
+                mx: 1,
+                mt: 1,
+                px: 1.5,
+                py: 1,
+                borderRadius: 1,
+                bgcolor: (theme) => alpha(theme.palette.error.main, 0.08),
+                border: "1px solid",
+                borderColor: (theme) => alpha(theme.palette.error.main, 0.3),
+              }}
+            >
+              <WarningAmber
+                sx={{ fontSize: 18, color: "error.main", flexShrink: 0 }}
+              />
+              <Typography
+                variant="caption"
+                sx={{ color: "error.main", fontWeight: 500, lineHeight: 1.3 }}
+              >
+                Ce plan n'est pas à l'échelle. Les mesures ne seront pas
+                fiables.
+              </Typography>
+            </Box>
+          )}
+
+          {/* Scrollable listings */}
+          <Box sx={{ overflow: "auto", flex: 1 }}>
+            {viewerKey === "MAP" && showLayers && (
+              <SectionLayers baseMapId={baseMap?.id} />
+            )}
+
+            {/* Nouvelle zone (ZONES module) — dedicated section showing the zone
+            selected in the drawer as a DRAW-armed template row: this is the
+            only drawing entry of the module (the listings below are a
+            read-only legend). */}
+            {isZonesViewer && selectedZoneTemplate && (
+              <Box
+                sx={{
+                  borderBottom: "1px solid",
+                  borderColor: "panel.border",
+                }}
+              >
+                {/* Same typography as the listing section headers below. */}
+                <Box sx={{ px: 1, py: 0.75, bgcolor: "secondary.main" }}>
+                  <Typography
+                    variant="body2"
+                    sx={{ fontWeight: 600, color: "secondary.contrastText" }}
+                  >
+                    Nouvelle zone
                   </Typography>
                 </Box>
                 <List dense disablePadding>
-                  {TOOL_ITEMS.map((tool) => (
-                    <ToolRow
-                      key={tool.type}
-                      type={tool.type}
-                      label={tool.label}
-                      Icon={tool.Icon}
-                      shortcut={tool.shortcut}
-                    />
-                  ))}
+                  <AnnotationTemplateRow
+                    annotationTemplate={selectedZoneTemplate}
+                    listingId={selectedZoneTemplate.listingId}
+                    count={selectedZoneAnnotationsCount}
+                    spriteImage={spriteImage}
+                    forceDrawMode
+                  />
                 </List>
-              </>
+              </Box>
             )}
 
+            {/* Listing chips — pick the current listing (selectedListingId). The
+            system listing ("Générique") is the first chip. Shown whenever there
+            are listings, or when a new one can be created (empty-state CTA). */}
+            {(displayedListings?.length > 0 || canAddListing) && (
+              <ListingChipsBar
+                listings={displayedListings}
+                activeListingId={activeListing?.id}
+                annotationCountByListingId={annotationCountByListingId}
+                onSelectListing={handleSelectListing}
+                showAddButton={canAddListing}
+                hasNoListing={hasNoListing}
+                onAddListing={() => setOpenCreateListing(true)}
+                addLabel={addListS}
+              />
+            )}
+
+            <>
+              {activeListing && (
+                <ListingRow
+                  key={activeListing.id}
+                  listing={activeListing}
+                  isExpanded
+                  alwaysExpanded
+                  hideCaret
+                  annotationCount={
+                    isBaseMapsViewer
+                      ? annotationsByListingId?.[activeListing.id]?.length || 0
+                      : annotationCountByListingId?.[activeListing.id] || 0
+                  }
+                  annotations={annotationsByListingId?.[activeListing.id]}
+                  annotationTemplateById={annotationTemplateById}
+                  visibleTemplateIds={visibleTemplateIds}
+                  extraAction={
+                    isBaseMapsViewer ? (
+                      <ButtonMergeListingAnnotations
+                        listingId={activeListing.id}
+                        baseMap={baseMap}
+                        onResult={(file) =>
+                          handleMergeResult(file, activeListing.name)
+                        }
+                      />
+                    ) : undefined
+                  }
+                />
+              )}
+
+              {/* Outils section — DRAW mode, and always in the ZONES module
+                (openings / splits on the zone delimitation polygons) */}
+              {(effectiveInteractionMode === "DRAW" || isZonesViewer) && (
+                <>
+                  <Box
+                    sx={{
+                      px: 1,
+                      py: 0.5,
+                      bgcolor: "panel.sectionBg",
+                      borderTop: "1px solid",
+                      borderColor: "panel.border",
+                    }}
+                  >
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        color: "panel.textMuted",
+                        fontWeight: 700,
+                        letterSpacing: "0.06em",
+                        textTransform: "uppercase",
+                        fontSize: "11px",
+                      }}
+                    >
+                      Outils de dessin
+                    </Typography>
+                  </Box>
+                  <List dense disablePadding>
+                    {TOOL_ITEMS.map((tool) => (
+                      <ToolRow
+                        key={tool.type}
+                        type={tool.type}
+                        label={tool.label}
+                        Icon={tool.Icon}
+                        shortcut={tool.shortcut}
+                      />
+                    ))}
+                  </List>
+                </>
+              )}
+            </>
+          </Box>
         </>
-      </Box>
-      </>)}
+      )}
 
       {/* Create listing dialog */}
       {openCreateListing && (
@@ -3057,7 +3211,6 @@ export default function PopperMapListings() {
           isForBaseMaps={isBaseMapsViewer}
         />
       )}
-
 
       {/* Merge compare dialog */}
       {openMergeCompare && mergeResult && (

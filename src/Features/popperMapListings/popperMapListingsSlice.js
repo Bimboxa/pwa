@@ -4,9 +4,6 @@ const popperMapListingsSlice = createSlice({
   name: "popperMapListings",
   initialState: {
     showLayers: false,
-    soloMode: false,
-    soloVisibleTemplateIds: null,
-    soloListingId: null,
     interactionMode: "DRAW", // "DRAW" | "EDIT" | "SELECT"
     collapsed: false,
     showInBaseMapsViewer: false,
@@ -17,19 +14,6 @@ const popperMapListingsSlice = createSlice({
     },
     setCollapsed(state, action) {
       state.collapsed = action.payload;
-    },
-    setSoloMode(state, action) {
-      state.soloMode = action.payload;
-      if (!action.payload) {
-        state.soloVisibleTemplateIds = null;
-        state.soloListingId = null;
-      }
-    },
-    setSoloVisibleTemplateIds(state, action) {
-      state.soloVisibleTemplateIds = action.payload;
-    },
-    setSoloListingId(state, action) {
-      state.soloListingId = action.payload;
     },
     setInteractionMode(state, action) {
       state.interactionMode = action.payload;
@@ -42,9 +26,6 @@ const popperMapListingsSlice = createSlice({
 
 export const {
   setShowLayers,
-  setSoloMode,
-  setSoloVisibleTemplateIds,
-  setSoloListingId,
   setInteractionMode,
   setCollapsed,
   setShowInBaseMapsViewer,

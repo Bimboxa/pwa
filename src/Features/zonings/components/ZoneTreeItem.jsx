@@ -2,10 +2,6 @@ import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import { setSoloZone, setSelectedZoneId } from "../zoningsSlice";
-import {
-  setSoloVisibleTemplateIds,
-  setSoloListingId,
-} from "Features/popperMapListings/popperMapListingsSlice";
 import { setSelectedItem } from "Features/selection/selectionSlice";
 import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 
@@ -71,11 +67,6 @@ export default function ZoneTreeItem({ zone, depth, listing, onAddChildZone }) {
     if (isSolo) {
       dispatch(setSoloZone(null));
     } else {
-      // zone solo and template solo are mutually exclusive — clear the
-      // template solo selection without touching soloMode (owned by the
-      // popper's SELECT/3D/ZONES effect).
-      dispatch(setSoloVisibleTemplateIds(null));
-      dispatch(setSoloListingId(null));
       dispatch(
         setSoloZone({
           zoneId: zone.id,

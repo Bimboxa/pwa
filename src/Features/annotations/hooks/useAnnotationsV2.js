@@ -441,11 +441,11 @@ export default function useAnnotationsV2(options) {
     const onlyIsForBaseMapsListings = options?.onlyIsForBaseMapsListings;
     // In the 3D viewer, keep non-soloed annotations in the result (instead of
     // removing them) so ThreedSelectionDimmer can render them translucent
-    // rather than hiding them outright.
+    // rather than hiding them outright (zone solo — zonings module).
     const keepSoloDimmed = options?.keepSoloDimmed;
-    // Skip the solo filter entirely. Used by the listings panel, which needs a
-    // solo-independent set of visible annotations (soloing must not remove rows
-    // from the panel tree or shrink its counts).
+    // Skip the zone-solo filter entirely. Used by the listings panel, which
+    // needs a solo-independent set of visible annotations (soloing a zone must
+    // not remove rows from the panel tree or shrink its counts).
     const ignoreSolo = options?.ignoreSolo;
     // Keep annotations whose template is hidden (they carry `hidden: true` so
     // callers can re-filter locally). Used by the listings panel to keep
@@ -497,14 +497,8 @@ export default function useAnnotationsV2(options) {
 
     const listingsUpdatedAt = useSelector((s) => s.listings.listingsUpdatedAt);
 
-    const soloMode = useSelector((s) => s.popperMapListings.soloMode);
-    const soloVisibleTemplateIds = useSelector(
-      (s) => s.popperMapListings.soloVisibleTemplateIds
-    );
-    const soloListingId = useSelector((s) => s.popperMapListings.soloListingId);
-
     // zone SOLO (zonings module): {zoneId, listingId, templateId} | null.
-    // Independent of popperMapListings.soloMode so it also applies in DRAW mode.
+    // Applies in every interaction mode, DRAW included.
     const soloZone = useSelector((s) => s.zonings?.soloZone ?? null);
     const zoneSoloAnnotationIdSet = useZoneSoloAnnotationIdSet(
       soloZone?.zoneId
@@ -2063,32 +2057,6 @@ export default function useAnnotationsV2(options) {
         );
       }
 
-      // solo mode: keep only annotations whose template is in the visible
-      // set. The 3D viewer passes `keepSoloDimmed` to instead keep them all
-      // and tag the non-soloed ones with `_soloDimmed`, so
-      // ThreedSelectionDimmer renders them translucent while the soloed
-      // template keeps its original material.
-      if (
-        !ignoreSolo &&
-        soloMode &&
-        soloVisibleTemplateIds != null &&
-        soloListingId
-      ) {
-        const soloSet = new Set(soloVisibleTemplateIds);
-        // Solo isolates the soloed template(s) across the WHOLE view:
-        // every other annotation is affected, not just those in the same
-        // listing. Base-map (background) annotations are always kept.
-        const isInSolo = (a) =>
-          a.isBaseMapAnnotation || soloSet.has(a.annotationTemplateId);
-        if (keepSoloDimmed) {
-          result = result.map((a) =>
-            isInSolo(a) ? a : { ...a, _soloDimmed: true }
-          );
-        } else {
-          result = result.filter(isInSolo);
-        }
-      }
-
       // zone solo (zonings module): keep the zone's delimitation polygons
       // (its template) and the annotations linked to the zone via
       // relsZoneAnnotation. Base-map (background) annotations are always kept.
@@ -2244,9 +2212,6 @@ export default function useAnnotationsV2(options) {
       annotationTemplatesMap,
       baseMapById,
       withQties,
-      soloMode,
-      soloVisibleTemplateIds,
-      soloListingId,
       soloZone,
       zoneSoloAnnotationIdSet,
       keepSoloDimmed,

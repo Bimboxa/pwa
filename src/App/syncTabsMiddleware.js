@@ -18,9 +18,6 @@ const SYNCED_ACTION_TYPES = new Set([
   "layers/toggleLayerVisibility",
   "layers/toggleShowAnnotationsWithoutLayer",
   "layers/triggerLayersUpdate",
-  "popperMapListings/setSoloMode",
-  "popperMapListings/setSoloVisibleTemplateIds",
-  "popperMapListings/setSoloListingId",
 ]);
 
 // Actions that must sync in BOTH directions, regardless of which tab is the

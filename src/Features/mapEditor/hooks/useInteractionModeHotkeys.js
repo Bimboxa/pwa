@@ -25,7 +25,7 @@ const MODE_BY_KEY = {
 
 // Global shortcuts to switch the editor interaction mode (D/M/S). They mirror
 // the panel ToggleButtonGroup and reuse applyInteractionModeChange so the side
-// effects (solo mode, EDIT target clearing) stay identical.
+// effects (EDIT target clearing) stay identical.
 //
 // Like useFreeAnnotationHotkeys, they fire UPSTREAM — only when no draw is
 // active (!enabledDrawingMode) — so they never contend with in-draw letters.
