@@ -1,8 +1,14 @@
+import coerceFieldType from "./coerceFieldType";
+
 /**
  * Résout les variables dynamiques dans un objet body en utilisant un contexte donné.
  * * @param {any} body - L'objet ou la valeur à résoudre (peut contenir des {{key}}).
  * @param {object} context - L'objet contenant les données pour le remplacement.
  * @returns {any} - Une copie du body avec les valeurs résolues.
+ *
+ * Forme descripteur : { value: "{{project.idMaster}}", fieldType: "int" }
+ * → la valeur résolue est coercée vers le type déclaré côté backend
+ * (un backend .NET rejette "12345" dans un champ int du body JSON).
  */
 const resolveRequestBody = (body, context) => {
     // 1. Si c'est une chaîne de caractères, on vérifie si elle correspond au pattern {{...}}
@@ -31,6 +37,12 @@ const resolveRequestBody = (body, context) => {
 
     // 3. Si c'est un Objet (et pas null), on résout chaque propriété récursivement
     if (body !== null && typeof body === 'object') {
+        // Cas descripteur { value, fieldType } : on résout puis on coerce
+        if (body.fieldType !== undefined) {
+            const resolvedValue = resolveRequestBody(body.value, context);
+            return coerceFieldType(resolvedValue, body.fieldType);
+        }
+
         const resolvedObject = {};
         for (const key in body) {
             if (Object.prototype.hasOwnProperty.call(body, key)) {

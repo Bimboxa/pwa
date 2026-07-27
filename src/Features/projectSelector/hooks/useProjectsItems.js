@@ -36,7 +36,10 @@ export default function useProjectsItems() {
 
     projectItems = projectItems.map((p) => {
         const shouldCreateProject = !Boolean(p.id);
-        return { ...p, primaryText: p.name, secondaryText: p.clientRef, id: p.id ?? p.idMaster, shouldCreateProject }
+        // no local id for master-only projects: useCreateProject generates a
+        // nanoid and stores idMaster separately; key is for the React list only
+        const key = p.id ?? (p.idMaster != null ? `master-${p.idMaster}` : p.clientRef);
+        return { ...p, primaryText: p.name, secondaryText: p.clientRef, key, shouldCreateProject }
     });
 
     // return

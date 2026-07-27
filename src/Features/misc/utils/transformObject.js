@@ -1,3 +1,5 @@
+import coerceFieldType from "Features/appConfig/utils/coerceFieldType";
+
 /**
  * Récupère une valeur dans un objet via un chemin (ex: "adresse.ville")
  */
@@ -55,6 +57,9 @@ const transformObject = (source, mappingConfig) => {
                     transformObject(item, rule.itemsMapping)
                 );
             }
+
+            // Cas 2c : type déclaré côté backend (ex: idMaster int)
+            finalValue = coerceFieldType(finalValue, rule.fieldType);
         }
 
         // On écrit le résultat dans l'objet de destination

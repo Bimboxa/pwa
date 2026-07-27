@@ -14,7 +14,9 @@ import useSearchScopeConfigurations from "Features/remoteScopeConfigurations/hoo
 //
 // Uses the ByProject endpoint when the project has an idMaster (chantier
 // IdObject); falls back to SearchAndFilters with the clientRef (projectNum)
-// otherwise — the backend matches configurations on projectNum.
+// when there is no idMaster, or when ByProject fails or returns nothing —
+// configurations pushed from a project without idMaster have no
+// projectObjectId on the server and are only reachable via projectNum.
 
 export default function useFetchProjectScopeConfigurations(item) {
   const dispatch = useDispatch();
@@ -51,9 +53,16 @@ export default function useFetchProjectScopeConfigurations(item) {
 
       let configurations;
       if (idMaster && getByProjectConfig) {
-        configurations = await getByProject({ project: { idMaster } });
-      } else {
-        // no idMaster — search by clientRef (backend matches projectNum)
+        try {
+          configurations = await getByProject({ project: { idMaster } });
+        } catch (error) {
+          console.error("[dashboard] getByProject error", error);
+        }
+      }
+
+      if (!configurations?.length && clientRef && searchConfig) {
+        // no idMaster, or ByProject failed / returned nothing —
+        // search by clientRef (backend matches projectNum)
         const results = await searchConfigurations({
           searchValue: clientRef,
         });

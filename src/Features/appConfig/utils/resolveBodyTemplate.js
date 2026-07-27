@@ -1,9 +1,14 @@
+import coerceFieldType from "./coerceFieldType";
+
 /**
  * Résout un template de body issu de la config (ex: fetchParams.body) contre
  * un contexte. Chaque valeur "{{chemin.dans.contexte}}" est remplacée par la
  * valeur du contexte (y compris des objets non-string comme un File) ; les
  * valeurs non-template sont conservées telles quelles ; les entrées résolues
  * à undefined/null sont omises du résultat.
+ *
+ * Forme descripteur : { value: "{{project.idMaster}}", fieldType: "int" }
+ * → la valeur résolue est coercée vers le type déclaré côté backend.
  *
  * Ex: resolveBodyTemplate({ scopeId: "{{scope.id}}", file: "{{file}}" },
  *     { scope, file }) → { scopeId: "abc", file: File }
@@ -23,6 +28,11 @@ export default function resolveBodyTemplate(bodyTemplate, context) {
 }
 
 function resolveValue(template, context) {
+  // Cas descripteur { value, fieldType } : on résout puis on coerce
+  if (template !== null && typeof template === "object" && template.fieldType !== undefined) {
+    return coerceFieldType(resolveValue(template.value, context), template.fieldType);
+  }
+
   if (typeof template !== "string") return template;
 
   const match = template.match(/^\{\{\s*([a-zA-Z0-9_.]+)\s*\}\}$/);
