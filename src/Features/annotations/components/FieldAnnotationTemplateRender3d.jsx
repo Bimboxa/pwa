@@ -1,79 +1,33 @@
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import {
   Box,
   Typography,
   Popover,
   IconButton,
   Slider,
-  InputBase,
-  Tooltip,
+  ButtonBase,
   Button,
   Menu,
   MenuItem,
 } from "@mui/material";
 import {
-  Close as CloseIcon,
-  RestartAlt as ResetIcon,
   ArrowDropDown as DownIcon,
+  RestartAlt as ResetIcon,
 } from "@mui/icons-material";
-import { CompactPicker } from "react-color";
+
+import ColorPickerContent from "Features/colors/components/ColorPickerContent";
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 import {
   MATERIAL3D_NONE_KEY,
   MATERIAL3D_OPTIONS,
 } from "Features/photorealRender/utils/material3dPresets";
 
-// Mirrors the small auto-sizing % input used in FieldAnnotationTemplateFill.
-function OpacityInput({ value, onChange }) {
-  const [width, setWidth] = useState(30);
-  const spanRef = useRef(null);
-
-  useEffect(() => {
-    if (spanRef.current) {
-      setWidth(Math.max(25, spanRef.current.offsetWidth + 4));
-    }
-  }, [value]);
-
-  return (
-    <Box
-      sx={{
-        display: "inline-flex",
-        alignItems: "center",
-        position: "relative",
-      }}
-    >
-      <span
-        ref={spanRef}
-        style={{
-          position: "absolute",
-          visibility: "hidden",
-          whiteSpace: "pre",
-          fontSize: "0.875rem",
-          fontWeight: "bold",
-        }}
-      >
-        {value || "0"}
-      </span>
-      <InputBase
-        value={value ?? ""}
-        onChange={(e) => onChange(e.target.value.replace(/[^0-9.]/g, ""))}
-        sx={{
-          width,
-          fontSize: "0.875rem",
-          fontWeight: "bold",
-          "& input": { textAlign: "right", p: 0 },
-        }}
-      />
-    </Box>
-  );
-}
-
 /**
- * "Rendu 3D" section of an annotation template: 3D-only color / opacity that
- * override the 2D color/opacity when rendering in 3D, plus the 3D material
- * preset. When color3D / opacity3D are null, the 3D render falls back to the
- * 2D color/opacity (fallbackColor / fallbackOpacity are shown as the inherited
- * placeholder value).
+ * "Rendu 3D" section of an annotation template, compact one-liner (same design as
+ * the fill/stroke fields): the material preset stays visible and a colour·opacité
+ * swatch opens the shared colour popover (branded palette + hex + opacity). The
+ * 3D colour / opacity override the 2D ones when rendering in 3D; when null they
+ * inherit the 2D values (dashed swatch + "Hériter du rendu 2D" reset).
  */
 export default function FieldAnnotationTemplateRender3d({
   color3D,
@@ -95,6 +49,7 @@ export default function FieldAnnotationTemplateRender3d({
   const swatchColor = color3D || fallbackColor;
   const effectiveOpacity = opacity3D ?? fallbackOpacity;
   const hasOpacity3D = opacity3D !== null && opacity3D !== undefined;
+  const opacityPct = Math.round(effectiveOpacity * 100);
 
   const materialKey = material3d ?? MATERIAL3D_NONE_KEY;
   const materialLabel =
@@ -103,135 +58,93 @@ export default function FieldAnnotationTemplateRender3d({
 
   // handlers
 
-  const handleColorChange = (color) => onColor3DChange(color.hex);
-  const handleResetColor = () => onColor3DChange(null);
-
-  const handleOpacitySlider = (e, val) => onOpacity3DChange(val / 100);
-  const handleResetOpacity = () => onOpacity3DChange(null);
-
-  const open = Boolean(anchorEl);
+  function handleOpacityChange(pct) {
+    const clamped = Math.max(0, Math.min(100, Number(pct) || 0));
+    onOpacity3DChange(clamped / 100);
+  }
 
   // render
 
   return (
     <WhiteSectionGeneric>
-      <Typography variant="body2" sx={{ fontWeight: "bold", mb: 2 }}>
-        Rendu 3D
-      </Typography>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+        <Typography variant="body2" sx={{ fontWeight: "bold", flex: 1 }}>
+          Rendu 3D
+        </Typography>
 
-      <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-        {/* COLOR */}
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-          }}
-        >
-          <Typography variant="body2" color="text.secondary">
-            Couleur
-          </Typography>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-            {hasColor3D && (
-              <Tooltip title="Utiliser la couleur 2D">
-                <IconButton size="small" onClick={handleResetColor}>
-                  <ResetIcon fontSize="inherit" />
-                </IconButton>
-              </Tooltip>
-            )}
-            <Box
-              onClick={(e) => setAnchorEl(e.currentTarget)}
-              sx={{
-                width: 24,
-                height: 24,
-                borderRadius: "50%",
-                bgcolor: swatchColor,
-                cursor: "pointer",
-                border: hasColor3D ? "2px solid" : "2px dashed",
-                borderColor: "divider",
-                transition: "transform 0.2s",
-                "&:hover": { transform: "scale(1.1)" },
-              }}
-            />
-          </Box>
-        </Box>
-
-        {/* OPACITY */}
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          <Typography
-            variant="body2"
-            color="text.secondary"
-            sx={{ minWidth: 60 }}
-          >
-            Opacité
-          </Typography>
-          <Slider
-            size="small"
-            value={Math.round(effectiveOpacity * 100)}
-            onChange={handleOpacitySlider}
-            sx={{
-              flex: 1,
-              color: hasOpacity3D ? "primary.main" : "action.disabled",
-            }}
-          />
-          <Box
+        {/* material preset — always visible */}
+        {hasMaterial3d && (
+          <ButtonBase
+            onClick={(e) => setMaterialAnchorEl(e.currentTarget)}
+            title="Matériau 3D"
             sx={{
               display: "flex",
               alignItems: "center",
-              bgcolor: "action.hover",
-              px: 1,
-              py: 0.5,
+              gap: 0.5,
+              height: 30,
+              pl: 1,
+              pr: 0.5,
+              maxWidth: 150,
+              minWidth: 0,
+              border: "1px solid",
+              borderColor: "divider",
               borderRadius: 1.5,
-              minWidth: 50,
-              justifyContent: "flex-end",
             }}
           >
-            <OpacityInput
-              value={Math.round(effectiveOpacity * 100)}
-              onChange={(val) => onOpacity3DChange(Number(val) / 100)}
-            />
             <Typography
               variant="caption"
-              sx={{ ml: 0.5, fontWeight: "bold", color: "text.secondary" }}
+              noWrap
+              sx={{ color: "text.secondary", minWidth: 0 }}
             >
-              %
+              {materialLabel}
             </Typography>
-          </Box>
-          {hasOpacity3D && (
-            <Tooltip title="Utiliser l'opacité 2D">
-              <IconButton size="small" onClick={handleResetOpacity}>
-                <ResetIcon fontSize="inherit" />
-              </IconButton>
-            </Tooltip>
-          )}
-        </Box>
+            <DownIcon fontSize="small" sx={{ color: "text.secondary" }} />
+          </ButtonBase>
+        )}
 
-        {/* MATERIAL (PHOTOREAL) */}
-        {hasMaterial3d && (
+        {/* colour + opacity swatch → popover */}
+        <ButtonBase
+          onClick={(e) => setAnchorEl(e.currentTarget)}
+          title="Couleur et opacité 3D"
+          sx={{
+            flexShrink: 0,
+            display: "flex",
+            alignItems: "center",
+            gap: 0.75,
+            height: 30,
+            pl: 0.5,
+            pr: 1,
+            border: "1px solid",
+            borderColor: "divider",
+            borderRadius: 1.5,
+          }}
+        >
           <Box
             sx={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
+              width: 20,
+              height: 20,
+              borderRadius: 1,
+              bgcolor: swatchColor,
+              opacity: effectiveOpacity,
+              boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.12)",
+              border: "1px dashed",
+              borderColor: hasColor3D ? "transparent" : "text.disabled",
+            }}
+          />
+          <Typography
+            variant="caption"
+            sx={{
+              fontWeight: "bold",
+              color: "text.secondary",
+              whiteSpace: "nowrap",
             }}
           >
-            <Typography variant="body2" color="text.secondary">
-              Matériau
-            </Typography>
-            <Button
-              size="small"
-              endIcon={<DownIcon />}
-              onClick={(e) => setMaterialAnchorEl(e.currentTarget)}
-            >
-              <Typography variant="button" noWrap>
-                {materialLabel}
-              </Typography>
-            </Button>
-          </Box>
-        )}
+            {opacityPct}%
+          </Typography>
+        </ButtonBase>
       </Box>
 
-      {/* MATERIAL MENU */}
+      {/* material menu */}
       <Menu
         anchorEl={materialAnchorEl}
         open={Boolean(materialAnchorEl)}
@@ -253,48 +166,69 @@ export default function FieldAnnotationTemplateRender3d({
         ))}
       </Menu>
 
-      {/* COLOR POPOVER */}
+      {/* colour + opacity popover */}
       <Popover
-        open={open}
+        open={Boolean(anchorEl)}
         anchorEl={anchorEl}
         onClose={() => setAnchorEl(null)}
         anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
         transformOrigin={{ vertical: "top", horizontal: "right" }}
-        slotProps={{
-          paper: {
-            sx: {
-              mt: 1,
-              p: 0,
-              overflow: "hidden",
-              borderRadius: 2,
-              boxShadow: 6,
-            },
-          },
-        }}
+        slotProps={{ paper: { sx: { mt: 1, borderRadius: 2, boxShadow: 6 } } }}
       >
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            pl: 2,
-            pr: 1,
-            py: 0.5,
-            borderBottom: "1px solid",
-            borderColor: "divider",
-            bgcolor: "action.hover",
-          }}
+        <ColorPickerContent
+          color={swatchColor}
+          onColorChange={onColor3DChange}
+          onClose={() => setAnchorEl(null)}
         >
-          <Typography variant="caption" sx={{ fontWeight: "bold" }}>
-            Couleur du rendu 3D
-          </Typography>
-          <IconButton size="small" onClick={() => setAnchorEl(null)}>
-            <CloseIcon fontSize="inherit" />
-          </IconButton>
-        </Box>
-        <Box sx={{ p: 1 }}>
-          <CompactPicker color={swatchColor} onChange={handleColorChange} />
-        </Box>
+          {/* opacity */}
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ minWidth: 52 }}
+            >
+              Opacité
+            </Typography>
+            <Slider
+              size="small"
+              value={opacityPct}
+              min={0}
+              max={100}
+              onChange={(e, v) => handleOpacityChange(v)}
+              sx={{
+                flex: 1,
+                color: hasOpacity3D ? "primary.main" : "action.disabled",
+              }}
+            />
+            <Typography
+              variant="caption"
+              sx={{ fontWeight: "bold", minWidth: 34, textAlign: "right" }}
+            >
+              {opacityPct}%
+            </Typography>
+            {hasOpacity3D && (
+              <IconButton
+                size="small"
+                onClick={() => onOpacity3DChange(null)}
+                title="Hériter l'opacité 2D"
+              >
+                <ResetIcon fontSize="inherit" />
+              </IconButton>
+            )}
+          </Box>
+
+          {/* inherit the 2D colour */}
+          {hasColor3D && (
+            <Button
+              size="small"
+              startIcon={<ResetIcon />}
+              onClick={() => onColor3DChange(null)}
+              sx={{ alignSelf: "flex-start", textTransform: "none" }}
+            >
+              Hériter la couleur 2D
+            </Button>
+          )}
+        </ColorPickerContent>
       </Popover>
     </WhiteSectionGeneric>
   );

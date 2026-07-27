@@ -1,8 +1,7 @@
-import { bottomNavigationActionClasses } from "@mui/material";
 import { createSlice } from "@reduxjs/toolkit";
 
 const rightPanelInitialState = {
-  width: 300, // fixed width for all tools except resizable ones
+  width: 340, // fixed width for all tools except resizable ones
   elevationWidth: 300, // resizable width, MESH tool
   // Resizable width for the ELEVATION baseMap-viewer panel. Null = not yet
   // customized → defaults to 50% of the viewer (computed at render).
