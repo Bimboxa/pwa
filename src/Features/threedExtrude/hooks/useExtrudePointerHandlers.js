@@ -527,10 +527,12 @@ export default function useExtrudePointerHandlers() {
     // hidden (loadAnnotations re-fires on any useAnnotationsV2 recompute) —
     // the fresh object is visible by default and would overlay the ghost.
     const unsubReady =
-      sceneManager.annotationsManager?.subscribeAnnotationReady?.((id) => {
-        if (!armed || id !== armed.annotationId) return;
+      sceneManager.annotationsManager?.subscribeAnnotationReady?.((ids) => {
+        if (!armed || !ids.includes(armed.annotationId)) return;
         const live =
-          sceneManager.annotationsManager?.annotationsObjectsMap?.[id];
+          sceneManager.annotationsManager?.annotationsObjectsMap?.[
+            armed.annotationId
+          ];
         if (!live) return;
         armed.object = live;
         armed.parent = live.parent || armed.parent;

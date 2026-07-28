@@ -116,6 +116,18 @@ export default class SceneManager {
     else this.renderer.render(this.scene, this.camera);
   };
 
+  // rAF-coalesced renderScene: N requests landing in the same frame cost one
+  // draw. For bursty callers (async GLB loads, CSG carve completions, batch
+  // annotation-ready subscribers) — synchronous call sites keep renderScene.
+  requestRender = () => {
+    if (this._renderRequested) return;
+    this._renderRequested = true;
+    requestAnimationFrame(() => {
+      this._renderRequested = false;
+      this.renderScene();
+    });
+  };
+
   ensureSketchPostFx = () => {
     if (!this.sketchPostFx) {
       this.sketchPostFx = new SketchPostFxManager({ sceneManager: this });

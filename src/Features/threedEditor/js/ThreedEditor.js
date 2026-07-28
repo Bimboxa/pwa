@@ -30,6 +30,13 @@ export default class ThreedEditor {
     }
   };
 
+  // rAF-coalesced variant, see SceneManager.requestRender.
+  requestRender = () => {
+    if (this.sceneIsInitialized) {
+      this.sceneManager.requestRender();
+    }
+  };
+
   dispose = () => {
     // Stop the camera-controls render loop and release its DOM listeners.
     this.sceneManager?.controlsManager?.dispose?.();

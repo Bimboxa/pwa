@@ -20,20 +20,30 @@ export default class AnnotationsManager {
     this._annotationReadyCallbacks = new Set();
   }
 
-  // Subscribe to "annotation ready" notifications. Fires once after the sync
-  // creation of the 3D object, and again after the async GLB load completes
-  // for OBJECT_3D annotations. Returns an unsubscribe function. Used by
-  // ThreedSelectionDimmer to re-apply the selection-dim state to GLBs that
-  // finish loading after a selection change.
+  // Subscribe to "annotation ready" notifications. The callback receives the
+  // ready ids as an ARRAY: the whole batch for a bulk createAnnotationsObjects
+  // pass, a single id for async completions (GLB load, CSG carve) — so
+  // full-scene subscribers (clipping reapply, full renders) pay once per load
+  // instead of once per annotation. Returns an unsubscribe function.
   subscribeAnnotationReady(callback) {
     this._annotationReadyCallbacks.add(callback);
     return () => this._annotationReadyCallbacks.delete(callback);
   }
 
   _notifyAnnotationReady(id) {
+    // Inside a bulk create, buffer: createAnnotationsObjects flushes once
+    // with every created id after the loop.
+    if (this._bulkReadyIds) {
+      this._bulkReadyIds.add(id);
+      return;
+    }
+    this._notifyAnnotationsReady([id]);
+  }
+
+  _notifyAnnotationsReady(ids) {
     this._annotationReadyCallbacks.forEach((cb) => {
       try {
-        cb(id);
+        cb(ids);
       } catch (e) {
         console.error(
           "[AnnotationsManager] annotation-ready listener threw",
@@ -45,6 +55,25 @@ export default class AnnotationsManager {
 
   createAnnotationsObjects(annotations, options) {
     if (!annotations) return;
+    // Buffer the per-annotation ready notifications for the whole pass —
+    // subscribers doing full-scene work must run once per load, not once per
+    // annotation (O(N²) wall clock at hundreds of shapes). Async completions
+    // (GLB, carve) land after this returns and flow through the single-id
+    // path. finally: a throw mid-loop must not leave the buffer armed.
+    const isOuterBulk = !this._bulkReadyIds;
+    if (isOuterBulk) this._bulkReadyIds = new Set();
+    try {
+      this._createAnnotationsObjectsCore(annotations, options);
+    } finally {
+      if (isOuterBulk) {
+        const ids = [...this._bulkReadyIds];
+        this._bulkReadyIds = null;
+        if (ids.length) this._notifyAnnotationsReady(ids);
+      }
+    }
+  }
+
+  _createAnnotationsObjectsCore(annotations, options) {
 
     // Canvas pixel size, needed by screen-space fat lines (LineMaterial) such as
     // the POINT vertical "trait". Captured at build time, mirroring
@@ -119,8 +148,9 @@ export default class AnnotationsManager {
         onAsyncLoaded: () => {
           // Late-arriving children (GLB scene, async profile sweep) — the map
           // holds the current root (it may have been swapped by a carve).
+          // Coalesced render: many GLBs resolving in one frame = one draw.
           finishRoot(this.annotationsObjectsMap[annotation.id]);
-          this.sceneManager.renderScene();
+          this.sceneManager.requestRender();
           this._notifyAnnotationReady(annotation.id);
         },
       });
@@ -256,7 +286,7 @@ export default class AnnotationsManager {
 
             // The carve may have swapped in a freshly-built source object.
             finishRoot(this.annotationsObjectsMap[annotation.id]);
-            this.sceneManager.renderScene();
+            this.sceneManager.requestRender();
             this._notifyAnnotationReady(annotation.id);
           } catch (e) {
             console.error("[AnnotationsManager] subtraction carve failed", e);

@@ -57,15 +57,16 @@ export default function ThreedAnnotationsVisibility({ threedEditorRef }) {
     threedEditorRef,
   ]);
 
-  // Re-apply when an annotation object is (re)created or finishes its async
+  // Re-apply when annotation objects are (re)created or finish their async
   // GLB load — without this, objects rebuilt while hidden would pop back in.
+  // Batch contract: one render per ready batch, not per annotation.
   useEffect(() => {
     const editor = threedEditorRef.current;
     const manager = editor?.sceneManager?.annotationsManager;
     if (!manager?.subscribeAnnotationReady) return;
-    return manager.subscribeAnnotationReady((id) => {
-      applyToId(id);
-      editor.renderScene?.();
+    return manager.subscribeAnnotationReady((ids) => {
+      ids.forEach(applyToId);
+      editor.requestRender?.();
     });
   }, [applyToId, threedEditorRef]);
 
