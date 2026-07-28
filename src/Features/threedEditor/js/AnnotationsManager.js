@@ -1,6 +1,9 @@
 import { Vector2 } from "three";
 
 import createAnnotationObject3D from "./utilsAnnotationsManager/createAnnotationObject3D";
+import diffAnnotationsForBuild, {
+  getBuildEpochKey,
+} from "./utilsAnnotationsManager/diffAnnotationsForBuild";
 import createMeshCellLabelSprite from "./utilsAnnotationsManager/createMeshCellLabelSprite";
 import subtractAnnotationGeometries from "./utilsAnnotationsManager/subtractAnnotationGeometries";
 import buildAnnotationSolidObjectsAsync from "./utilsAnnotationsManager/buildAnnotationSolidObjectsAsync";
@@ -18,6 +21,39 @@ export default class AnnotationsManager {
     this.scene = sceneManager.scene;
     this.annotationsObjectsMap = {};
     this._annotationReadyCallbacks = new Set();
+    // Build provenance for the incremental diff: id -> { sourceRef (the
+    // resolved annotation the object was built from — reference-stable across
+    // runs thanks to stabilizeAnnotationsIdentity), epochKey (build options),
+    // baseMapKey (registry metrics the geometry was projected with) }.
+    this._buildStateById = new Map();
+  }
+
+  // Key of the basemap metrics an annotation was built against. The resolved
+  // annotation identity does not cover the registry entry (orientation, a
+  // late-set meterByPx), so it is tracked separately. Mirrors the
+  // baseMapForRender fields computed in _createAnnotationsObjectsCore.
+  _getAnnotationBaseMapKey(annotation) {
+    const baseMap =
+      this.sceneManager.imagesManager.baseMapsMap[annotation.baseMapId];
+    if (!baseMap) return null;
+    const refSize = baseMap.getImageSize?.() || baseMap.image?.imageSize;
+    return [
+      refSize?.width || 1,
+      refSize?.height || 1,
+      baseMap.meterByPx || 0.01,
+      baseMap.orientation || "",
+    ].join(":");
+  }
+
+  // Split an incoming emission into { toCreate, toRemove } against the built
+  // scene — unchanged annotations keep their existing Object3D untouched.
+  diffAnnotations(annotations, options) {
+    return diffAnnotationsForBuild({
+      annotations,
+      buildStateById: this._buildStateById,
+      epochKey: getBuildEpochKey(options),
+      getBaseMapKey: (a) => this._getAnnotationBaseMapKey(a),
+    });
   }
 
   // Subscribe to "annotation ready" notifications. The callback receives the
@@ -74,6 +110,7 @@ export default class AnnotationsManager {
   }
 
   _createAnnotationsObjectsCore(annotations, options) {
+    const epochKey = getBuildEpochKey(options);
 
     // Canvas pixel size, needed by screen-space fat lines (LineMaterial) such as
     // the POINT vertical "trait". Captured at build time, mirroring
@@ -295,6 +332,14 @@ export default class AnnotationsManager {
       }
 
       this.annotationsObjectsMap[annotation.id] = object;
+      // Build provenance consumed by diffAnnotations — the async carve may
+      // later swap the object in the map, but it derives from the same
+      // resolved annotation, so the provenance stays valid.
+      this._buildStateById.set(annotation.id, {
+        sourceRef: annotation,
+        epochKey,
+        baseMapKey: this._getAnnotationBaseMapKey(annotation),
+      });
       // Remember the owning basemap so the display controller can tell main vs
       // other-basemap annotations apart (per-basemap NORMAL/DIMMED rendering).
       if (object) {
@@ -315,26 +360,36 @@ export default class AnnotationsManager {
     });
   }
 
-  deleteAllAnnotationsObjects() {
-    Object.values(this.annotationsObjectsMap).forEach((object) => {
-      if (!object) return;
-      // Custom cleanup hook (e.g. EXTRUSION_PROFILE Dexie liveQuery
-      // subscriptions). Run BEFORE GPU-resource disposal so the callback can
-      // still touch the object if needed.
-      object.traverse?.((child) => {
-        try {
-          child.userData?.dispose?.();
-        } catch (e) {
-          console.error("[AnnotationsManager] dispose hook threw", e);
-        }
-      });
-      // The parent is the basemap group when it exists, the scene otherwise.
-      object.parent?.remove(object);
-      object.traverse?.((child) => {
-        if (child.geometry) child.geometry.dispose();
-        if (child.material) child.material.dispose();
-      });
+  _disposeAnnotationObject(object) {
+    if (!object) return;
+    // Custom cleanup hook (e.g. EXTRUSION_PROFILE Dexie liveQuery
+    // subscriptions). Run BEFORE GPU-resource disposal so the callback can
+    // still touch the object if needed.
+    object.traverse?.((child) => {
+      try {
+        child.userData?.dispose?.();
+      } catch (e) {
+        console.error("[AnnotationsManager] dispose hook threw", e);
+      }
     });
-    this.annotationsObjectsMap = {};
+    // The parent is the basemap group when it exists, the scene otherwise.
+    object.parent?.remove(object);
+    object.traverse?.((child) => {
+      if (child.geometry) child.geometry.dispose();
+      if (child.material) child.material.dispose();
+    });
+  }
+
+  deleteAnnotationsObjects(ids) {
+    ids.forEach((id) => {
+      this._disposeAnnotationObject(this.annotationsObjectsMap[id]);
+      delete this.annotationsObjectsMap[id];
+      this._buildStateById.delete(id);
+    });
+  }
+
+  deleteAllAnnotationsObjects() {
+    this.deleteAnnotationsObjects(Object.keys(this.annotationsObjectsMap));
+    this._buildStateById.clear();
   }
 }
