@@ -40,6 +40,7 @@ export default function FormAnnotationTemplateVariantBlock({
   annotationTemplate,
   onChange,
   tab,
+  compact = false,
 }) {
   // strings
 
@@ -57,8 +58,10 @@ export default function FormAnnotationTemplateVariantBlock({
 
   // Which tab group to render. When `tab` is undefined (form used outside the
   // properties panel), both groups render together as a single column.
+  // `compact` (creation dialog) keeps only the essential fields: label, shape,
+  // appearance, height (non-POLYGON shapes) and main quantity.
   const showMain = !tab || tab === "MAIN";
-  const showAdvanced = !tab || tab === "ADVANCED";
+  const showAdvanced = !compact && (!tab || tab === "ADVANCED");
 
   const {
     fillColor,
@@ -474,7 +477,8 @@ export default function FormAnnotationTemplateVariantBlock({
           {/* Extérieur.
               POLYGON is included because its STRIP tools also produce strip
               annotations, which can act as exterior-side guides. */}
-          {["POLYLINE", "STRIP", "POLYGON"].includes(drawingShape) && (
+          {!compact &&
+            ["POLYLINE", "STRIP", "POLYGON"].includes(drawingShape) && (
             <WhiteSectionGeneric>
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                 <Typography variant="body2" sx={{ fontWeight: "bold", flex: 1 }}>
@@ -495,7 +499,7 @@ export default function FormAnnotationTemplateVariantBlock({
           )}
 
           {/* Width (OPENING) — opening width along the wall */}
-          {hasWidth && (
+          {!compact && hasWidth && (
             <WhiteSectionGeneric>
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                 <Typography variant="body2" sx={{ fontWeight: "bold", flex: 1 }}>
@@ -516,8 +520,10 @@ export default function FormAnnotationTemplateVariantBlock({
             </WhiteSectionGeneric>
           )}
 
-          {/* Height / thickness (POLYLINE, POINT, POLYGON) */}
-          {hasHeight && (
+          {/* Height / thickness (POLYLINE, POINT, POLYGON).
+              In compact mode, only the "Hauteur" variant is kept — the POLYGON
+              "Epaisseur" is an advanced setting. */}
+          {hasHeight && !(compact && drawingShape === "POLYGON") && (
             <WhiteSectionGeneric>
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
                 <Typography variant="body2" sx={{ fontWeight: "bold", flex: 1 }}>
@@ -537,7 +543,7 @@ export default function FormAnnotationTemplateVariantBlock({
             </WhiteSectionGeneric>
           )}
 
-          {hasTools && (
+          {!compact && hasTools && (
             <FieldAnnotationTemplateDefaultTool
               value={defaultTool}
               onChange={handleDefaultToolChange}

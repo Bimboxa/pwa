@@ -24,10 +24,10 @@ export default function DialogCreateAnnotationTemplate({ open, onClose, listingI
   // state
 
   const initialAnnotationTemplate = {
-    drawingShape: "MARKER",
+    drawingShape: "POLYGON",
     label: "",
     isFromAnnotation: true,
-    ...getDefaultsForShape("MARKER"),
+    ...getDefaultsForShape("POLYGON"),
   };
 
   const [tempAnnotationTemplate, setTempAnnotationTemplate] = useState(
@@ -60,6 +60,7 @@ export default function DialogCreateAnnotationTemplate({ open, onClose, listingI
         <FormAnnotationTemplateVariantBlock
           annotationTemplate={tempAnnotationTemplate}
           onChange={handleChange}
+          compact
         />
       </Box>
 
@@ -67,6 +68,7 @@ export default function DialogCreateAnnotationTemplate({ open, onClose, listingI
         onClick={handleCreate}
         label={createS}
         variant="contained"
+        disabled={!tempAnnotationTemplate?.label?.trim()}
       />
     </DialogGeneric>
   );
