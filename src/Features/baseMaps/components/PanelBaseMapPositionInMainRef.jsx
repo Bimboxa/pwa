@@ -11,7 +11,9 @@ import { triggerBaseMapsUpdate } from "Features/baseMaps/baseMapsSlice";
 
 import db from "App/db/db";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
-import getBaseMapTransform from "Features/baseMaps/js/getBaseMapTransform";
+import getBaseMapTransform, {
+  DEFAULT_ORIENTATION,
+} from "Features/baseMaps/js/getBaseMapTransform";
 import computeRecalageTransform from "Features/baseMaps/js/computeRecalageTransform";
 import {
   DEFAULT_RED,
@@ -26,6 +28,8 @@ import {
   ListItem,
   ListItemButton,
   ListItemText,
+  ToggleButton,
+  ToggleButtonGroup,
 } from "@mui/material";
 import { ArrowBack as Back } from "@mui/icons-material";
 
@@ -55,6 +59,7 @@ export default function PanelBaseMapPositionInMainRef({ baseMap, onBack }) {
   const otherBaseMaps = projectBaseMaps.filter((b) => b.id !== baseMap?.id);
   const transform = baseMap ? getBaseMapTransform(baseMap) : null;
   const heightValue = transform ? String(transform.position.y ?? 0) : "0";
+  const orientation = transform?.orientation ?? DEFAULT_ORIENTATION;
 
   // effects — show the draggable calibration targets on the current baseMap
   // while this panel is open (reuses CalibrationLayer in the 2D editor).
@@ -68,6 +73,16 @@ export default function PanelBaseMapPositionInMainRef({ baseMap, onBack }) {
 
   function handleToggleTarget(color, checked) {
     dispatch(setCalibrationTargetVisible({ color, visible: checked }));
+  }
+
+  // Orientation of the plane in the 3D scene: HORIZONTAL = laid flat as a
+  // floor, VERTICAL = stood up as a wall. Same field as the 3D viewer's
+  // "Rotation" section (SectionsBaseMapTransform3D), edited here from the 2D
+  // editors where the scene is not mounted.
+  async function handleOrientationChange(value) {
+    if (!baseMap?.id || !value || value === orientation) return;
+    await db.baseMaps.update(baseMap.id, { orientation: value });
+    dispatch(triggerBaseMapsUpdate());
   }
 
   async function handleHeightChange(raw) {
@@ -163,6 +178,37 @@ export default function PanelBaseMapPositionInMainRef({ baseMap, onBack }) {
       </Box>
 
       <BoxFlexVStretch sx={{ overflow: "auto", gap: 1, p: 1.5 }}>
+        {/* Orientation */}
+        <WhiteSectionGeneric>
+          <Box sx={{ p: 1 }}>
+            <Typography variant="caption" color="text.secondary">
+              Orientation du plan
+            </Typography>
+            <Box sx={{ mt: 0.5 }}>
+              <ToggleButtonGroup
+                exclusive
+                fullWidth
+                size="small"
+                value={orientation}
+                onChange={(_e, v) => handleOrientationChange(v)}
+              >
+                <ToggleButton
+                  value="HORIZONTAL"
+                  sx={{ textTransform: "none", py: 0.25 }}
+                >
+                  Horizontal
+                </ToggleButton>
+                <ToggleButton
+                  value="VERTICAL"
+                  sx={{ textTransform: "none", py: 0.25 }}
+                >
+                  Vertical
+                </ToggleButton>
+              </ToggleButtonGroup>
+            </Box>
+          </Box>
+        </WhiteSectionGeneric>
+
         {/* Targets */}
         <WhiteSectionGeneric>
           <Box sx={{ p: 0.5 }}>
