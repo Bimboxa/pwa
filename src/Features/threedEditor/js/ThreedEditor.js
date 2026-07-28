@@ -30,6 +30,13 @@ export default class ThreedEditor {
     }
   };
 
+  // rAF-coalesced variant, see SceneManager.requestRender.
+  requestRender = () => {
+    if (this.sceneIsInitialized) {
+      this.sceneManager.requestRender();
+    }
+  };
+
   dispose = () => {
     // Stop the camera-controls render loop and release its DOM listeners.
     this.sceneManager?.controlsManager?.dispose?.();
@@ -40,6 +47,12 @@ export default class ThreedEditor {
 
   loadMaps = (maps, options = {}) => {
     try {
+      // Annotation objects are children of the basemap groups deleted below.
+      // They used to be disposed by the annotations hook right after, but the
+      // hook now keeps them alive across viewer toggles — a project/main-map
+      // switch is the one path that must drop them explicitly (also fixes the
+      // latent orphan leak of objects left attached to removed groups).
+      this.sceneManager.annotationsManager?.deleteAllAnnotationsObjects();
       const images = maps.map(getEditorImageFromBaseMap);
       if (typeof options.opacity === "number" || options.opacityByBaseMapId) {
         images.forEach((img) => {
@@ -148,11 +161,19 @@ export default class ThreedEditor {
 
   loadAnnotations = (annotations, options) => {
     try {
-      this.sceneManager.annotationsManager.deleteAllAnnotationsObjects();
-      this.sceneManager.annotationsManager.createAnnotationsObjects(
+      const annotationsManager = this.sceneManager.annotationsManager;
+      // Incremental load: reuse built objects whose resolved annotation
+      // reference (stabilized across runs by useAnnotationsV2), build options
+      // and basemap metrics are unchanged; dispose removed/changed ones and
+      // build only the rest. A no-change emission — e.g. re-entering the 3D
+      // viewer without edits — is a full no-op.
+      const { toCreate, toRemove } = annotationsManager.diffAnnotations(
         annotations,
         options
       );
+      if (toCreate.length === 0 && toRemove.length === 0) return;
+      annotationsManager.deleteAnnotationsObjects(toRemove);
+      annotationsManager.createAnnotationsObjects(toCreate, options);
       this.sceneManager.clippingManager?.reapply();
       this.sceneManager.renderModeManager?.onSceneStructureChanged();
       this.renderScene();

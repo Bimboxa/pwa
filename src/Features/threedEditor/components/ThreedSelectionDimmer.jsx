@@ -110,17 +110,19 @@ export default function ThreedSelectionDimmer({
     threedEditorRef,
   ]);
 
-  // Re-apply state to a single annotation when its 3D object is (re)created
-  // or finishes its async GLB load. Without this, GLBs that load after a
-  // selection change would render with their original material instead of dim.
+  // Re-apply state to annotations whose 3D object is (re)created or finishes
+  // its async GLB load. Without this, GLBs that load after a selection change
+  // would render with their original material instead of dim. The callback
+  // receives the ready ids as a batch (one full render per batch, not per
+  // annotation) — coalesced so async completions in one frame draw once.
   useEffect(() => {
     const editor = threedEditorRef.current;
     if (!editor) return;
     const manager = editor.sceneManager?.annotationsManager;
     if (!manager?.subscribeAnnotationReady) return;
-    return manager.subscribeAnnotationReady((id) => {
-      computeAndApply(id);
-      editor.renderScene?.();
+    return manager.subscribeAnnotationReady((ids) => {
+      ids.forEach(computeAndApply);
+      editor.requestRender?.();
     });
   }, [computeAndApply, threedEditorRef]);
 

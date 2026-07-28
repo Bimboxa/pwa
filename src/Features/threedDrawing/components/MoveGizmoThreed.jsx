@@ -1023,8 +1023,8 @@ export default function MoveGizmoThreed() {
     // default — overlaying our transient. Subscribe so we re-hide the moved
     // annotation as soon as it reappears, and bump the transient regen so
     // the deformation is reapplied to the new geometry.
-    const unsubReady = annotationsManager.subscribeAnnotationReady?.((id) => {
-      if (id !== selectedAnnotationIdRef.current) return;
+    const unsubReady = annotationsManager.subscribeAnnotationReady?.((ids) => {
+      if (!ids.includes(selectedAnnotationIdRef.current)) return;
       const liveAnno =
         annotationsManager.annotationsObjectsMap?.[
           selectedAnnotationIdRef.current

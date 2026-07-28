@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import { bumpSnapIndexEpoch } from "Features/threedEditor/threedEditorSlice";
@@ -69,6 +69,23 @@ export default function useAutoLoadAnnotationsInThreedEditor({
     keepSoloDimmed: true,
   });
 
+  // Leaving the 3D viewer must NOT unload the scene (meshes stay alive while
+  // the panel is CSS-hidden, so re-entering is instant) — but the disabled
+  // useAnnotationsV2 run freezes one `[]` reference that dexie-react-hooks
+  // re-emits on re-enable BEFORE the fresh liveQuery resolves. Capture that
+  // raw hook output at the false→true flip so the effect can skip it: the
+  // fresh run always produces a NEW reference, even when legitimately empty,
+  // so "delete everything in 2D then toggle" still clears the scene. Guard on
+  // `annotations` (raw output), not `annotationsForThreed` — the filter memo
+  // re-allocates on showMeshCells/parentIdSet changes and would defeat the
+  // reference comparison.
+  const prevActiveRef = useRef(isActiveViewer);
+  const staleResultRef = useRef(null);
+  if (isActiveViewer && !prevActiveRef.current) {
+    staleResultRef.current = annotations;
+  }
+  prevActiveRef.current = isActiveViewer;
+
   // "Afficher les mailles": ON → replace parents that have mesh cells by their
   // cells (hide the parent, keep the cells); OFF → hide mesh cells, show parents.
   const annotationsForThreed = useMemo(() => {
@@ -80,7 +97,14 @@ export default function useAutoLoadAnnotationsInThreedEditor({
   }, [annotations, showMeshCells, parentIdSet]);
 
   useEffect(() => {
+    // While hidden, keep the scene as-is: no unload on 3D→2D, no reload on
+    // background emissions (the pipeline is disabled anyway). Project /
+    // main-map switches dispose the annotation objects via loadMaps.
+    if (!isActiveViewer) return;
     if (!threedEditor?.loadAnnotations || !rendererIsReady) return;
+    // Stale `[]` re-emitted by the enabled flip — the fresh emission follows.
+    if (annotations === staleResultRef.current) return;
+    staleResultRef.current = null;
     // Ensure the base maps' groups exist AND their registry entries are fresh
     // before (re)creating annotation objects — `createAnnotationsObjects`
     // silently skips annotations whose base map is not in `baseMapsMap`, and
@@ -122,6 +146,8 @@ export default function useAutoLoadAnnotationsInThreedEditor({
     dispatch(bumpSnapIndexEpoch());
   }, [
     rendererIsReady,
+    isActiveViewer,
+    annotations,
     annotationsForThreed,
     threedEditor,
     disableOpacity,
