@@ -15,6 +15,18 @@ import getContiguousSegmentChain, {
 } from "../utils/getContiguousSegmentChain";
 import getAnnotationQties from "../utils/getAnnotationQties";
 
+// A segment is hidden when its index is in its ring's effective
+// hiddenSegmentsIdx (recomputed by useAnnotationsV2 on the resolved ring —
+// same index space as the partIds).
+function isSegmentHidden(annotation, ringKey, segIdx) {
+  const list =
+    ringKey === "MAIN"
+      ? annotation?.hiddenSegmentsIdx
+      : annotation?.cuts?.[Number(String(ringKey).split("::")[1])]
+          ?.hiddenSegmentsIdx;
+  return Array.isArray(list) && list.includes(segIdx);
+}
+
 // Partition selected partIds by their kind (segments vs cut segments vs
 // whole cuts) so the multi-selection UI can branch by category.
 function partitionPartIds(partIds) {
@@ -226,7 +238,15 @@ export default function useSelectedAnnotationPart() {
 
       // Multi-segment — always compute the full set of contiguous chains so
       // the toolbar / clone hook can batch-create one polyline per chain.
-      const chains = getContiguousSegmentChains(annotation, effectivePartIds);
+      // Hidden segments are excluded from the chains: a select-all
+      // (double-click / lasso) grabs every segment partId, but hidden
+      // segments must not spawn annotations on duplicate / wall generation —
+      // chains break at each hidden segment instead.
+      const visiblePartIds = effectivePartIds.filter((id) => {
+        const d = decodePartId(id);
+        return d && !isSegmentHidden(annotation, d.ringKey, d.segIdx);
+      });
+      const chains = getContiguousSegmentChains(annotation, visiblePartIds);
       const contiguous = chains.length === 1;
 
       return {
