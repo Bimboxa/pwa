@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 
 import {
   setHideBaseMapImageInViewer,
+  setLandOnDrawScopeId,
   setPinnedBaseMapIdsInViewer,
 } from "../viewersSlice";
 import {
@@ -33,6 +34,7 @@ export default function useInitViewerModuleOnScopeOpen() {
   const initialFitDoneForScopeId = useSelector(
     (s) => s.viewers.initialFitDoneForScopeId
   );
+  const landOnDrawScopeId = useSelector((s) => s.viewers.landOnDrawScopeId);
   const hideMainImage = useSelector(
     (s) => s.threedEditor.hideMainBaseMapImageIn3d
   );
@@ -66,6 +68,14 @@ export default function useInitViewerModuleOnScopeOpen() {
     }
   }, [scopeId]);
 
+  // The "land on Dessin" flag of a freshly created scope only lives while
+  // that scope stays selected — reopening it later lands on the Viewer.
+  useEffect(() => {
+    if (landOnDrawScopeId && scopeId !== landOnDrawScopeId) {
+      dispatch(setLandOnDrawScopeId(null));
+    }
+  }, [scopeId, landOnDrawScopeId, dispatch]);
+
   // Landing guard — active from the very first mount until the initial
   // top-down fit closes the landing window (viewers.initialFitDoneForScopeId).
   // The persisted-main restore (setSelectedMainBaseMapId) fires at an
@@ -88,7 +98,11 @@ export default function useInitViewerModuleOnScopeOpen() {
   // one (the visibility pass + ImagesManager then keep every group hidden in
   // batch, including the ones created later).
   useEffect(() => {
-    if (disable3D || !scopeId || doneImagesScopeRef.current === scopeId) return;
+    // Viewer module only: a freshly created scope lands on Dessin and must
+    // NOT get its 3D image hidden — the seeding then runs at the first
+    // Viewer visit (isViewerModule is a dependency).
+    if (disable3D || !isViewerModule) return;
+    if (!scopeId || doneImagesScopeRef.current === scopeId) return;
     // Wait for the main baseMap selection to settle: setSelectedMainBaseMapId
     // resets hideMainBaseMapImageIn3d (threedEditorSlice extraReducer) and
     // must not clobber the flag set below.
@@ -98,12 +112,12 @@ export default function useInitViewerModuleOnScopeOpen() {
     dispatch(setPinnedBaseMapIdsInViewer([]));
     dispatch(setHideBaseMapImageInViewer(false));
     dispatch(setHideMainBaseMapImageIn3d(true));
-  }, [scopeId, disable3D, mainBaseMap?.id, dispatch]);
+  }, [scopeId, disable3D, isViewerModule, mainBaseMap?.id, dispatch]);
 
   // Annotations of every annotated baseMap displayed — once the annotations
   // are loaded.
   useEffect(() => {
-    if (disable3D || !scopeId) return;
+    if (disable3D || !isViewerModule || !scopeId) return;
     if (doneAnnotationsScopeRef.current === scopeId) return;
     if (!mainBaseMap?.id) return;
     // useAnnotationsV2 returns [] while loading as well as when the scope is
@@ -120,5 +134,12 @@ export default function useInitViewerModuleOnScopeOpen() {
     // Main included on purpose: useExtraBaseMapIdsIn3d filters it out, and
     // the entry keeps its annotations displayed if the main changes later.
     dispatch(setAnnotationsModeByBaseMapIdIn3d(modeByBaseMapId));
-  }, [scopeId, disable3D, mainBaseMap?.id, annotations, dispatch]);
+  }, [
+    scopeId,
+    disable3D,
+    isViewerModule,
+    mainBaseMap?.id,
+    annotations,
+    dispatch,
+  ]);
 }

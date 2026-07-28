@@ -4,6 +4,7 @@ import { useDispatch, useSelector } from "react-redux";
 
 import { setScopeName } from "Features/onboarding/onboardingSlice";
 import { setSelectedScopeId } from "../scopesSlice";
+import { setLandOnDrawScopeId } from "Features/viewers/viewersSlice";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useCreateScope from "../hooks/useCreateScope";
@@ -64,6 +65,8 @@ export default function DialogOnboardingScopeName({ open, onClose }) {
 
   async function handleSave() {
     const scope = await createScope({ name, presetScopeKey });
+    // Freshly created scope: land on the Dessin module (2D), not the Viewer.
+    dispatch(setLandOnDrawScopeId(scope?.id));
     dispatch(setSelectedScopeId(scope?.id));
     onClose();
   }

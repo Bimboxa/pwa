@@ -23,6 +23,10 @@ const viewersInitialState = {
   // unmount the component — don't re-arm the fit; reset when the scope
   // closes so reopening fits again.
   initialFitDoneForScopeId: null,
+  // Freshly created scope: land on the Dessin module (2D editor) instead of
+  // the Viewer — set by the scope creation flows, cleared when the scope
+  // selection moves away.
+  landOnDrawScopeId: null,
 };
 
 export const viewersSlice = createSlice({
@@ -54,6 +58,9 @@ export const viewersSlice = createSlice({
     setInitialFitDoneForScopeId: (state, action) => {
       state.initialFitDoneForScopeId = action.payload ?? null;
     },
+    setLandOnDrawScopeId: (state, action) => {
+      state.landOnDrawScopeId = action.payload ?? null;
+    },
   },
 });
 
@@ -65,6 +72,7 @@ export const {
   setPinnedBaseMapIdsInViewer,
   setHideBaseMapImageInViewer,
   setInitialFitDoneForScopeId,
+  setLandOnDrawScopeId,
   //
 } = viewersSlice.actions;
 

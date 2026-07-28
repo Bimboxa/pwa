@@ -6,6 +6,7 @@ import { generateKeyBetween } from "fractional-indexing";
 
 import { setOpenScopeCreator } from "../scopeCreatorSlice";
 import { setSelectedScopeId } from "Features/scopes/scopesSlice";
+import { setLandOnDrawScopeId } from "Features/viewers/viewersSlice";
 import { setSelectedProjectId } from "Features/projects/projectsSlice";
 import { setSelectedListingId } from "Features/listings/listingsSlice";
 import { setSelectedBaseMapsListingId } from "Features/mapEditor/mapEditorSlice";
@@ -118,7 +119,9 @@ export default function useCreateScopeFromPreset({ projectId }) {
     });
     dispatch(setDisplayedPortfolioId(portfolio.id));
 
-    // selector
+    // selector — a freshly created scope lands on the Dessin module (2D),
+    // not the Viewer (flag consumed by the LayoutDesktop landing effect).
+    dispatch(setLandOnDrawScopeId(scope.id));
     dispatch(setSelectedScopeId(scope.id));
     dispatch(setSelectedProjectId(projectId));
     dispatch(setSelectedListingId(newListings?.[0]?.id));
