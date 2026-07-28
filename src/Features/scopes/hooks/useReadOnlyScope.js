@@ -1,7 +1,9 @@
 import { useSelector } from "react-redux";
+import { useLiveQuery } from "dexie-react-hooks";
 
 import useSelectedScope from "./useSelectedScope";
 
+import db from "App/db/db";
 import { getEffectiveOwner, normalizeOwnerId } from "App/db/ownership";
 import getUserIdMaster from "Features/auth/utils/getUserIdMaster";
 
@@ -15,7 +17,7 @@ import getUserIdMaster from "Features/auth/utils/getUserIdMaster";
  * @returns {{
  *   isReadOnly: boolean,
  *   scope: object|undefined,
- *   creatorLabel: string // creator trigram, fallback email
+ *   creatorLabel: string // creator trigram (scope field, then usersDirectory), fallback email
  * }}
  */
 export default function useReadOnlyScope() {
@@ -32,7 +34,16 @@ export default function useReadOnlyScope() {
       owner !== normalizeOwnerId(currentUserId)
   );
 
-  const creatorLabel = scope?.createdByTrigram ?? scope?.createdBy ?? "";
+  // Owner identity fallback: old scopes miss createdByTrigram/createdBy, but
+  // the Krto zip ships a usersDirectory table (idMaster ⇔ trigram, populated
+  // on every save) keyed on the same id the ownership guard uses.
+  const ownerEntry = useLiveQuery(
+    async () => (owner ? db.usersDirectory.get(String(owner)) : undefined),
+    [owner]
+  );
+
+  const creatorLabel =
+    scope?.createdByTrigram ?? ownerEntry?.trigram ?? scope?.createdBy ?? "";
 
   return { isReadOnly, scope, creatorLabel };
 }

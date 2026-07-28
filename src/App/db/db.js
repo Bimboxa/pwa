@@ -194,6 +194,19 @@ db.version(27).stores({
   relsZoneAnnotation: "id,projectId,annotationId,zoneId,listingId",
 });
 
+db.version(28).stores({
+  // {userIdMaster (string), trigram, firstName, lastName, updatedAt}
+  // idMaster ⇔ trigram directory. The current user is upserted before every
+  // Krto zip export (createKrtoZip) and the whole table ships in the zip, so
+  // readers can resolve the private-scope owner label (bottom-bar banner)
+  // offline from scope.createdByUserIdMaster.
+  // NOT audited / soft-deleted / undoable on purpose: plain reference rows,
+  // writable even while a foreign private scope is selected, and the PK is
+  // `userIdMaster` (not `id`) so remapDexieExportIds leaves rows untouched
+  // on the duplicate-import path.
+  usersDirectory: "userIdMaster",
+});
+
 // --- AUDIT HOOKS ---
 
 const AUDIT_TABLES = [

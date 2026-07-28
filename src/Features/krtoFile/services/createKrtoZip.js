@@ -1,7 +1,9 @@
-import db from "App/db/db";
+import db, { withSystemWrite } from "App/db/db";
+import { getEffectiveOwner, normalizeOwnerId } from "App/db/ownership";
 import sanitizeName from "Features/misc/utils/sanitizeName";
 import parseDexieExportBlob from "Features/krtoFile/utils/parseDexieExportBlob";
 import collectReferencedPointIds from "Features/annotations/utils/collectReferencedPointIds";
+import upsertCurrentUserInDirectory from "Features/usersDirectory/services/upsertCurrentUserInDirectory";
 import JSZip from "jszip";
 
 export default async function createKrtoZip(scopeId, options) {
@@ -10,6 +12,25 @@ export default async function createKrtoZip(scopeId, options) {
     // 1. Récupération du scope et du projet
     const scope = await db.scopes.get(scopeId);
     if (!scope) throw new Error(`Scope ${scopeId} not found`);
+
+    // 1b. Users directory: record the saver's idMaster ⇔ trigram before the
+    // export so the zip lets readers resolve the private-scope owner label.
+    const currentUser = await upsertCurrentUserInDirectory();
+
+    // Self-heal scope.createdByTrigram (the field the "Krto privé" banner
+    // displays first): old scopes miss it, so when the saver IS the owner,
+    // backfill it from their profile. System write: a metadata backfill must
+    // not trip the local-change tracker mid-save.
+    if (
+        currentUser?.trigram &&
+        !scope.createdByTrigram &&
+        getEffectiveOwner(scope) === normalizeOwnerId(currentUser.userIdMaster)
+    ) {
+        await withSystemWrite(() =>
+            db.scopes.update(scopeId, { createdByTrigram: currentUser.trigram })
+        );
+        scope.createdByTrigram = currentUser.trigram; // keep local copy in sync
+    }
 
     const projectId = scope.projectId;
     const project = await db.projects.get(projectId);
@@ -163,6 +184,10 @@ export default async function createKrtoZip(scopeId, options) {
             if (tablesWithListingKey.has(table)) {
                 return listingKeys.has(value.listingKey);
             }
+
+            // Users directory: idMaster ⇔ trigram, shipped whole (tiny) so
+            // readers can resolve the private-scope owner label offline.
+            if (table === "usersDirectory") return true;
 
             // Tables ignorées (orgaData, projectFiles, baseMapTransforms, portfolios [deleted v14])
             return false;
