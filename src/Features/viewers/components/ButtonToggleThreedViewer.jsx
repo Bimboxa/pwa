@@ -11,7 +11,7 @@ import ShortcutBadge from "Features/smartDetect/components/ShortcutBadge";
 
 // Toggles the 2D/3D editor displayed inside the current module — the
 // left-band (module) selection does not move. Rendered only in multi-editor
-// modules (Dessin, POV); single-editor modules (THREED recap, MESHES, ...)
+// modules (Dessin, POV, Zones, Viewer); single-editor modules (MESHES, ...)
 // have no toggle.
 export default function ButtonToggleThreedViewer() {
   const toggleModuleEditor = useToggleModuleEditor();

@@ -207,13 +207,10 @@ export default class ControlsManager {
     );
   };
 
-  // Frame all annotation meshes (the useAnnotationsV2 set already loaded into
-  // the scene). Preserves the current orbit orientation and only dollies/pans
-  // to fit. When the scene has no annotations, frame a 10 m cube resting on the
-  // ground (y=0) and centered on the world origin.
-  fitToAnnotations = () => {
-    if (!this.cameraControls) return;
-
+  // Union box of all annotation meshes (the useAnnotationsV2 set already
+  // loaded into the scene). When the scene has no annotations, a 10 m cube
+  // resting on the ground (y=0) and centered on the world origin.
+  _computeAnnotationsBox = () => {
     const box = new Box3();
     box.makeEmpty();
     let hasAny = false;
@@ -233,9 +230,36 @@ export default class ControlsManager {
       // No annotation: 10 m × 10 m × 10 m cube, bottom on the ground plane.
       box.set(new Vector3(-5, 0, -5), new Vector3(5, 10, 5));
     }
+    return box;
+  };
 
+  // Frame all annotation meshes. Preserves the current orbit orientation and
+  // only dollies/pans to fit.
+  fitToAnnotations = () => {
+    if (!this.cameraControls) return;
+
+    const box = this._computeAnnotationsBox();
     const padding = 0.5; // metres of breathing room around the geometry
     this.cameraControls.fitToBox(box, true, {
+      paddingLeft: padding,
+      paddingRight: padding,
+      paddingTop: padding,
+      paddingBottom: padding,
+    });
+  };
+
+  // Top-down framing of every annotation in the scene: pivot to a vertical
+  // look-down view around the annotations' center, then fit the box with the
+  // settled orientation (fitToBox frames along the current view direction).
+  // Used by the Viewer module's initial framing on scope open.
+  fitToAnnotationsTopDown = async () => {
+    if (!this.cameraControls) return;
+
+    const box = this._computeAnnotationsBox();
+    const center = box.getCenter(new Vector3());
+    await this.animateToTopDown({ target: center });
+    const padding = 0.5;
+    await this.cameraControls.fitToBox(box, true, {
       paddingLeft: padding,
       paddingRight: padding,
       paddingTop: padding,

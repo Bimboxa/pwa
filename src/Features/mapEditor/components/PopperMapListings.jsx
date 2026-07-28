@@ -2529,7 +2529,12 @@ export default function PopperMapListings() {
   const isPovThreed = useSelector(
     (s) => isPovViewer && isThreedFamilyViewerKey(selectEffectiveViewerKey(s))
   );
-  const mirrors3dFilters = isThreedViewer || isPovThreed;
+  // Viewer module displaying its 2D editor: the panel scopes to the CURRENT
+  // baseMap only (the extra-basemap mirroring is a 3D-scene concern).
+  const isViewer2d = useSelector(
+    (s) => viewerKey === "THREED" && selectEffectiveViewerKey(s) === "MAP"
+  );
+  const mirrors3dFilters = (isThreedViewer && !isViewer2d) || isPovThreed;
   const showLayers = useSelector((s) => s.popperMapListings.showLayers);
   const interactionMode = useSelector(
     (s) => s.popperMapListings.interactionMode
@@ -3143,6 +3148,19 @@ export default function PopperMapListings() {
                 onAddListing={() => setOpenCreateListing(true)}
                 addLabel={addListS}
               />
+            )}
+
+            {/* Viewer 2D: the legend is scoped to the current baseMap — make
+                the empty case explicit instead of a blank panel. */}
+            {isViewer2d && hasNoListing && (
+              <Box sx={{ px: 1.5, py: 1.5 }}>
+                <Typography
+                  variant="body2"
+                  sx={{ color: "panel.textMuted", fontStyle: "italic" }}
+                >
+                  Aucune annotation pour ce fond de plan
+                </Typography>
+              </Box>
             )}
 
             <>

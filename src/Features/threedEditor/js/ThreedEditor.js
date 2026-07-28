@@ -157,6 +157,11 @@ export default class ThreedEditor {
     this.sceneManager.controlsManager.fitToAnnotations();
   };
 
+  fitToAnnotationsTopDown = () => {
+    if (!this.sceneIsInitialized) return;
+    return this.sceneManager.controlsManager.fitToAnnotationsTopDown();
+  };
+
   // annotations
 
   loadAnnotations = (annotations, options) => {

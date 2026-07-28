@@ -3,16 +3,19 @@ import { useDispatch, useSelector } from "react-redux";
 import { setModuleEditorKey } from "../viewersSlice";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
+import useViewers from "./useViewers";
 import {
   switchMapToThreed,
   switchThreedToMap,
 } from "../services/syncCamerasOnViewerSwitch";
 import { selectEffectiveViewerKey } from "../utils/effectiveViewerKey";
+import { isThreedFamilyViewerKey } from "../utils/threedViewerKeys";
 
 // Toggles the 2D/3D editor displayed inside the current multi-editor module
-// (Dessin, Zones), reusing the MAP <-> THREED camera sync but committing the
-// module's editor key instead of the selected module: the left-band
-// selection stays put. Generalizes the POV useTogglePovViewerMode pattern.
+// (Dessin, Zones, Viewer), reusing the MAP <-> THREED camera sync but
+// committing the module's editor key instead of the selected module: the
+// left-band selection stays put. Generalizes the POV useTogglePovViewerMode
+// pattern.
 export default function useToggleModuleEditor() {
   const dispatch = useDispatch();
 
@@ -21,17 +24,21 @@ export default function useToggleModuleEditor() {
   const disable3D = useSelector((s) => s.appConfig.disable3D);
   const basePose = useSelector((s) => s.mapEditor.baseMapPoseInBg);
   const baseMap = useMainBaseMap();
+  const viewers = useViewers();
 
   return function toggleModuleEditor() {
     if (effectiveViewerKey === "THREED") {
-      // The module's own 2D editor key is the module key itself (MAP → MAP,
-      // ZONES → ZONES — MainMapEditorV3 forViewerKey="ZONES").
+      // The module's 2D editor key (MAP → MAP, ZONES → ZONES, Viewer/THREED
+      // module → MAP — MainMapEditorV3 forViewerKey="ZONES" for Zones).
+      const module = viewers.find((v) => v.key === moduleKey);
+      const editor2dKey =
+        module?.editors?.find((e) => !isThreedFamilyViewerKey(e)) ?? moduleKey;
       switchThreedToMap({
         dispatch,
         baseMap,
         basePose,
         commit: (d) =>
-          d(setModuleEditorKey({ moduleKey, editorKey: moduleKey })),
+          d(setModuleEditorKey({ moduleKey, editorKey: editor2dKey })),
       });
     } else {
       if (disable3D) return;

@@ -16,8 +16,8 @@ const isEditableTarget = (el) => {
 };
 
 // "T" toggles the 2D/3D editor displayed inside the current multi-editor
-// module (Dessin, POV) — the left-band selection does not move. Inert in
-// single-editor modules (THREED recap, MESHES, ...). Fires upstream only
+// module (Dessin, POV, Zones, Viewer) — the left-band selection does not
+// move. Inert in single-editor modules (MESHES, ...). Fires upstream only
 // (!enabledDrawingMode) so it never contends with the in-draw "T" (arc
 // toggle) or LOCALIZED_REPAIR "T" (T-junction).
 export default function useToggleThreedViewerHotkey() {
@@ -41,7 +41,7 @@ export default function useToggleThreedViewerHotkey() {
         // POV keeps its own editor mode until it migrates to
         // editorKeyByModule (see issue #296).
         togglePovViewerMode();
-      } else if (selectedViewerKey === "MAP" || selectedViewerKey === "ZONES") {
+      } else if (["MAP", "ZONES", "THREED"].includes(selectedViewerKey)) {
         toggleModuleEditor();
       } else {
         // Single-editor modules: no 2D<->3D toggle.

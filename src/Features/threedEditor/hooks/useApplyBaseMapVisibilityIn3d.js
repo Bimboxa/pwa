@@ -21,7 +21,15 @@ import getBaseMapOpacityIn3d from "Features/threedEditor/utils/getBaseMapOpacity
 // participates (its group stays loaded) but its image can be hidden through
 // `hideMainBaseMapImageIn3d`. Mounted once from MainThreedEditor, same pattern
 // as useApplyBaseMapOpacityIn3d.
-export default function useApplyBaseMapVisibilityIn3d() {
+//
+// `rendererIsReady` MUST be a dependency: when the baseMaps resolve BEFORE the
+// editor exists, every pass here is a no-op (no imagesManager) — without it,
+// the pass that follows the editor creation never runs, useAutoLoadMaps
+// creates the groups with their images visible by default and nothing hides
+// them until an unrelated dep changes (startup flash of the baseMap images).
+export default function useApplyBaseMapVisibilityIn3d({
+  rendererIsReady,
+} = {}) {
   const visibleIds = useSelector((s) => s.threedEditor.visibleBaseMapIdsIn3d);
   const annotationsModeByBaseMapId = useSelector(
     (s) => s.threedEditor.annotationsModeByBaseMapIdIn3d
@@ -53,6 +61,11 @@ export default function useApplyBaseMapVisibilityIn3d() {
     const visible = new Set(visibleIds || []);
     const annoModes = annotationsModeByBaseMapId || {};
 
+    // Single batch: the desired states are recorded in one pass (even for
+    // groups not created yet — ImagesManager applies them at creation, so a
+    // basemap loaded later never flashes its image before being hidden).
+    const groupVisibleById = {};
+    const imageVisibleById = {};
     baseMaps.forEach((bm) => {
       const eyeOn = bm.id === mainId ? !hideMainImage : visible.has(bm.id);
       const annoOn =
@@ -65,14 +78,19 @@ export default function useApplyBaseMapVisibilityIn3d() {
             opacity: getBaseMapOpacityIn3d(threedEditorState, bm.id),
           });
         }
-        imagesManager.setBaseMapVisible(bm.id, true);
-        imagesManager.setBaseMapImageVisible(bm.id, eyeOn && !hideBaseMaps);
-      } else if (imagesManager.hasImageObject(bm.id)) {
-        imagesManager.setBaseMapVisible(bm.id, false);
+        groupVisibleById[bm.id] = true;
+        imageVisibleById[bm.id] = eyeOn && !hideBaseMaps;
+      } else {
+        groupVisibleById[bm.id] = false;
       }
+    });
+    imagesManager.setBaseMapVisibilities({
+      groupVisibleById,
+      imageVisibleById,
     });
     editor.renderScene?.();
   }, [
+    rendererIsReady,
     visibleKey,
     annotationsModeKey,
     mainBaseMap?.id,

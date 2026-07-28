@@ -70,12 +70,15 @@ export default function useViewers() {
     },
     {
       key: "THREED",
-      label: "3D",
-      shortLabel: "3D",
+      label: "Viewer",
+      shortLabel: "Viewer",
       bgcolor: theme.palette.viewers.threed,
       icon: <ViewInAr />,
       // No hotkey: "T" toggles the editor inside multi-editor modules
       // (useToggleThreedViewerHotkey), it no longer selects this module.
+      // Read-only overview of the created annotations: lands on the 3D
+      // editor, "T" / topBar button toggles to the 2D editor on the main map.
+      editors: ["THREED", "MAP"],
     },
     {
       key: "MESHES",

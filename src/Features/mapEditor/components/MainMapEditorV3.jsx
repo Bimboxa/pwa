@@ -234,6 +234,13 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     const grayLevelThreshold = useSelector((s) => s.baseMapEditor.grayLevelThreshold);
     const viewerKey = useSelector(selectEffectiveViewerKey);
     const isActiveViewer = viewerKey === forViewerKey;
+    // Viewer module 2D: the selected chip's eye hides the baseMap image
+    // entirely (annotations only). Module-key gated so Dessin is untouched.
+    const hideBaseMapImage = useSelector(
+        (s) =>
+            s.viewers.selectedViewerKey === "THREED" &&
+            s.viewers.hideBaseMapImageInViewer
+    );
     const hiddenVersionIds = useSelector((s) => s.baseMapEditor.hiddenVersionIds);
     const selectedVersionId = useSelector((s) => s.baseMapEditor.selectedVersionId);
     const versionTransformOverride = useSelector((s) => s.baseMapEditor.versionTransformOverride);
@@ -1762,6 +1769,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                             legendFormat={legendFormat}
                             sizeVariant={sizeVariant}
                             isEditingBaseMap={isBaseMapSelected}
+                            hideBaseMapImage={hideBaseMapImage}
                             baseMapMeterByPx={baseMap?.meterByPx}
                             baseMapImageScale={baseMap?.getImageScale?.() ?? 1}
                             opacity={baseMapOpacity}

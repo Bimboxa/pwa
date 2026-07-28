@@ -62,6 +62,10 @@ const threedEditorInitialState = {
   // to false whenever the main base map changes (see extraReducers).
   hideMainBaseMapImageIn3d: false,
   hideMainBaseMapAnnotationsIn3d: false,
+  // Viewer landing window: while true, selecting a main baseMap does NOT
+  // reset the hideMain* flags (see extraReducers) — the startup restore of
+  // the persisted main would flash the image mid-load otherwise.
+  revealOnMainSelectSuspended: false,
   // Fire-and-forget cross-tab event: pan the 3D camera to a world-space
   // point. `triggeredAt` makes repeated clicks at the same spot still fire.
   // `baseMapId` is a guard: the consumer ignores the event when its current
@@ -267,6 +271,19 @@ export const threedEditorSlice = createSlice({
       } else {
         state.annotationsModeByBaseMapIdIn3d[baseMapId] = mode;
       }
+    },
+    // Bulk replacement — scope-open seeding of the Viewer module (every
+    // annotated baseMap gets its annotations displayed at once).
+    setAnnotationsModeByBaseMapIdIn3d: (state, action) => {
+      state.annotationsModeByBaseMapIdIn3d = action.payload ?? {};
+    },
+    // Viewer landing window: suspends the "reveal fully" reset of the
+    // hideMain* flags on setSelectedMainBaseMapId (see extraReducers) — the
+    // persisted-main restore fires it at an arbitrary point of the startup
+    // and would flash the image mid-load. Driven by
+    // useInitViewerModuleOnScopeOpen.
+    setRevealOnMainSelectSuspended: (state, action) => {
+      state.revealOnMainSelectSuspended = Boolean(action.payload);
     },
     toggleMainBaseMapImageIn3d: (state) => {
       state.hideMainBaseMapImageIn3d = !state.hideMainBaseMapImageIn3d;
@@ -561,9 +578,12 @@ export const threedEditorSlice = createSlice({
   extraReducers: (builder) => {
     // Selecting a base map as main must reveal it fully — reset its hide
     // flags. Matched by type string to avoid importing mapEditorSlice.
+    // Suspended during the Viewer landing window (revealOnMainSelectSuspended)
+    // so the startup restore of the persisted main doesn't flash the image.
     builder.addMatcher(
       (action) => action.type === "mapEditors/setSelectedMainBaseMapId",
       (state) => {
+        if (state.revealOnMainSelectSuspended) return;
         state.hideMainBaseMapImageIn3d = false;
         state.hideMainBaseMapAnnotationsIn3d = false;
       }
@@ -588,6 +608,8 @@ export const {
   setHideMainBaseMapImageIn3d,
   setHideMainBaseMapAnnotationsIn3d,
   setBaseMapAnnotationsModeIn3d,
+  setAnnotationsModeByBaseMapIdIn3d,
+  setRevealOnMainSelectSuspended,
   toggleMainBaseMapImageIn3d,
   toggleMainBaseMapAnnotationsIn3d,
   setNavigateToWorldPoint,

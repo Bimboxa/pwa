@@ -29,6 +29,12 @@ export default class ImagesManager {
     // Annotations look up their parent group here at attach time.
     this.imagesMap = {};
     this.baseMapsMap = {}; // Store original baseMaps for annotations
+    // Desired visibilities, mirrored from redux by useApplyBaseMapVisibilityIn3d
+    // (setBaseMapVisibilities batch). Stored so groups created LATER (initial
+    // loadMaps, lazy ensureBaseMapLoaded) start with the right visibility
+    // instead of flashing visible until the next visibility pass.
+    this.groupVisibleByBaseMapId = {};
+    this.imageVisibleByBaseMapId = {};
   }
 
   createImagesObjects(images, baseMaps) {
@@ -57,6 +63,15 @@ export default class ImagesManager {
     group.userData.textureStatus = "pending";
     group.userData.planeSignature = getPlaneSignature(image);
     this.imagesMap[image.id] = group;
+    // Start from the desired visibilities recorded BEFORE creation, so a
+    // basemap whose image must be hidden (Viewer landing) never renders it,
+    // even though the texture attaches asynchronously.
+    const groupVisible = this.groupVisibleByBaseMapId[image.id];
+    if (groupVisible !== undefined) group.visible = groupVisible;
+    const imageVisible = this.imageVisibleByBaseMapId[image.id];
+    if (imageVisible !== undefined && group.userData.meshWrap) {
+      group.userData.meshWrap.visible = imageVisible;
+    }
     this.scene.add(group);
     // Re-render once the texture is in. The group is already in the scene
     // graph so any annotations attached in the meantime are rendered too.
@@ -138,7 +153,10 @@ export default class ImagesManager {
   // Note: the group hosts both the image (meshWrap) AND the annotations, so
   // this gates everything for the basemap. Use `setBaseMapImageVisible` to
   // toggle only the image while keeping annotations rendered.
+  // The desired state is recorded even when the group doesn't exist yet —
+  // addImageObject applies it at creation.
   setBaseMapVisible(baseMapId, visible) {
+    this.groupVisibleByBaseMapId[baseMapId] = visible;
     const group = this.imagesMap[baseMapId];
     if (group) group.visible = visible;
   }
@@ -146,9 +164,23 @@ export default class ImagesManager {
   // Toggle only the basemap image (the meshWrap child) while leaving the
   // group — and therefore its attached annotation objects — visible. Lets a
   // basemap's annotations show in 3D even when its image is hidden.
+  // Same record-before-creation contract as setBaseMapVisible.
   setBaseMapImageVisible(baseMapId, visible) {
+    this.imageVisibleByBaseMapId[baseMapId] = visible;
     const meshWrap = this.imagesMap[baseMapId]?.userData?.meshWrap;
     if (meshWrap) meshWrap.visible = visible;
+  }
+
+  // Batch apply — one call per visibility pass. Records every desired state
+  // (including for basemaps not created yet) and applies them to the groups
+  // already in the scene.
+  setBaseMapVisibilities({ groupVisibleById = {}, imageVisibleById = {} }) {
+    Object.entries(groupVisibleById).forEach(([id, visible]) =>
+      this.setBaseMapVisible(id, visible)
+    );
+    Object.entries(imageVisibleById).forEach(([id, visible]) =>
+      this.setBaseMapImageVisible(id, visible)
+    );
   }
 
   // Look up a basemap's group (parent for annotations attached to that map).

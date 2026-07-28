@@ -110,6 +110,7 @@ import {
 } from "Features/threedMesh/services/mesh3dObjectsStore";
 import { filterIntersectionsByVisibility } from "Features/threedEditor/js/utilsAnnotationsManager/visibilityPick";
 import ThreedAnnotationsVisibility from "./ThreedAnnotationsVisibility";
+import ThreedInitialFitOnLanding from "./ThreedInitialFitOnLanding";
 import TopBaseMapChipsThreed from "./TopBaseMapChipsThreed";
 
 // Maille groups currently in the scene (mesh3dId → parent group). Empty
@@ -477,7 +478,7 @@ export default function MainThreedEditor() {
 
   useApplyBaseMapOpacityIn3d();
 
-  useApplyBaseMapVisibilityIn3d();
+  useApplyBaseMapVisibilityIn3d({ rendererIsReady });
 
   useApplyBaseMapTransformsIn3d();
 
@@ -1779,6 +1780,12 @@ export default function MainThreedEditor() {
       )}
       {isThreedViewer && (
         <ThreedAnnotationsVisibility threedEditorRef={threedEditorRef} />
+      )}
+      {isThreedViewer && (
+        <ThreedInitialFitOnLanding
+          threedEditorRef={threedEditorRef}
+          rendererIsReady={rendererIsReady}
+        />
       )}
       {isThreedViewer && !captureFramingActive && <TopBaseMapChipsThreed />}
       {/* No 3D toolbars in the POV viewer — its own save button sits there. */}

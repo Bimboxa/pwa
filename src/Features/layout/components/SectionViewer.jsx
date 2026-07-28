@@ -19,8 +19,10 @@ import PanelMeshesViewer from "Features/threedMesh/components/PanelMeshesViewer"
 import PanelPovList from "Features/pov/components/PanelPovList";
 import ButtonSavePov from "Features/pov/components/ButtonSavePov";
 import ButtonCreatePovView from "Features/pov/components/ButtonCreatePovView";
+import TopBaseMapChipsThreed from "Features/threedEditor/components/TopBaseMapChipsThreed";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 import {
+  selectCaptureFramingActive,
   selectEffectiveViewerKey,
   selectPovFramingActive,
 } from "Features/viewers/utils/effectiveViewerKey";
@@ -61,6 +63,11 @@ export default function SectionViewer() {
     viewerKey === "ZONES" && isThreedFamilyViewerKey(effectiveKey);
   const showListing = viewerKey === "LISTING";
   const showAdmin = viewerKey === "ADMIN";
+  // Viewer module, 2D editor: the chips band replaces the topbar baseMap
+  // selector (the 3D editor mounts its own instance in MainThreedEditor).
+  const captureFramingActive = useSelector(selectCaptureFramingActive);
+  const showViewerChipsIn2d =
+    viewerKey === "THREED" && effectiveKey === "MAP" && !captureFramingActive;
 
   return (
     // overflow hidden clips the sliding POV drawer at the viewer's left edge
@@ -141,6 +148,8 @@ export default function SectionViewer() {
       {showAdmin && <PanelShowable show={showAdmin} sx={{ position: "absolute", zIndex: 0 }}>
         <ViewerAdmin />
       </PanelShowable>}
+
+      {showViewerChipsIn2d && <TopBaseMapChipsThreed />}
 
       {/* POV: floating button at the bottom of the displayed editor (replaces
           the 3D bottom toolbar, hidden under POV) — "Créer une vue" while

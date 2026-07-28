@@ -19,12 +19,11 @@ export const selectEffectiveViewerKey = (s) => {
       : "MAP";
   const editorKey = s.viewers.editorKeyByModule?.[moduleKey] ?? moduleKey;
   // disable3D: a module whose active editor is 3D falls back to its 2D editor.
-  if (
-    editorKey === "THREED" &&
-    ["MAP", "ZONES"].includes(moduleKey) &&
-    s.appConfig.disable3D
-  )
-    return moduleKey;
+  if (editorKey === "THREED" && s.appConfig.disable3D) {
+    if (["MAP", "ZONES"].includes(moduleKey)) return moduleKey;
+    // Viewer module: its 2D editor is the map editor, not its own key.
+    if (moduleKey === "THREED") return "MAP";
+  }
   return editorKey;
 };
 

@@ -26,6 +26,8 @@ import ButtonZoomOutThreed from "Features/threedEditor/components/ButtonZoomOutT
 //     one (MESHES viewer only). Face drawing has no button here: it is armed
 //     by picking a template row in PopperMapListings (see
 //     useTemplateFaceDrawBridge).
+// Viewer module (read-only): the creation/modification actions ("Extruder",
+// "Déplacer") are hidden — only "Coupe" and the zoom out remain.
 export default function BottomToolbarThreed() {
   const dispatch = useDispatch();
 
@@ -34,6 +36,9 @@ export default function BottomToolbarThreed() {
   // there), so the "Mailler" entry point hides in the plain THREED viewer.
   const isMeshesViewer = useSelector(
     (s) => s.viewers.selectedViewerKey === "MESHES"
+  );
+  const isViewerModule = useSelector(
+    (s) => s.viewers.selectedViewerKey === "THREED"
   );
   const clippingEditing = useSelector(
     (s) => s.threedEditor.clippingPlane.editing
@@ -109,23 +114,31 @@ export default function BottomToolbarThreed() {
         {hasSelection ? (
           <>
             <Box sx={{ fontSize: 13, fontWeight: 500, px: 0.5 }}>{label}</Box>
-            <Button
-              size="small"
-              variant="contained"
-              startIcon={<OpenWithIcon sx={{ fontSize: 18 }} />}
-              onClick={handleMove}
-              sx={{ textTransform: "none", borderRadius: "8px" }}
-            >
-              Déplacer
-            </Button>
+            {!isViewerModule && (
+              <Button
+                size="small"
+                variant="contained"
+                startIcon={<OpenWithIcon sx={{ fontSize: 18 }} />}
+                onClick={handleMove}
+                sx={{ textTransform: "none", borderRadius: "8px" }}
+              >
+                Déplacer
+              </Button>
+            )}
           </>
         ) : (
-          <>
-            <ButtonExtrudeThreed />
-            {isMeshesViewer && <ButtonMeshThreed />}
-          </>
+          !isViewerModule && (
+            <>
+              <ButtonExtrudeThreed />
+              {isMeshesViewer && <ButtonMeshThreed />}
+            </>
+          )
         )}
-        <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+        {/* No leading divider when nothing precedes "Coupe" (Viewer module,
+            nothing selected). */}
+        {(hasSelection || !isViewerModule) && (
+          <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+        )}
         <Tooltip title="Plan de coupe">
           <Button
             size="small"

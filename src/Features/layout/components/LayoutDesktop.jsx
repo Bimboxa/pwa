@@ -2,7 +2,10 @@ import { useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { useSearchParams } from "react-router-dom";
 
-import { setSelectedViewerKey } from "Features/viewers/viewersSlice";
+import {
+  setModuleEditorKey,
+  setSelectedViewerKey,
+} from "Features/viewers/viewersSlice";
 
 import { Box } from "@mui/material";
 
@@ -19,6 +22,7 @@ import VerticalMenuViewers from "Features/viewers/components/VerticalMenuViewers
 import useViewerSwitchHotkeys from "Features/viewers/hooks/useViewerSwitchHotkeys";
 import useToggleThreedViewerHotkey from "Features/viewers/hooks/useToggleThreedViewerHotkey";
 import useRightPanelToolHotkeys from "Features/rightPanel/hooks/useRightPanelToolHotkeys";
+import useInitViewerModuleOnScopeOpen from "Features/viewers/hooks/useInitViewerModuleOnScopeOpen";
 
 export default function LayoutDesktop() {
   const dispatch = useDispatch();
@@ -33,6 +37,9 @@ export default function LayoutDesktop() {
   // Right-panel tool shortcuts (N = Élévation, B = Banque d'objets). Mounted at
   // layout level too, so they work in every module the tool is available in.
   useRightPanelToolHotkeys();
+  // Scope-open seeding of the Viewer module's 3D visibility (images off,
+  // annotations of every annotated baseMap on).
+  useInitViewerModuleOnScopeOpen();
 
   // data
 
@@ -47,8 +54,16 @@ export default function LayoutDesktop() {
   // effects
 
   useEffect(() => {
-    if ((!advancedLayout && !wants3dViewer) || disable3D) {
+    if (disable3D) {
       dispatch(setSelectedViewerKey("MAP"));
+    } else if (!advancedLayout && !wants3dViewer) {
+      // Default landing module: the Viewer (read-only overview), always on
+      // its 3D editor even if the module was left on 2D earlier in the
+      // session.
+      dispatch(setSelectedViewerKey("THREED"));
+      dispatch(
+        setModuleEditorKey({ moduleKey: "THREED", editorKey: "THREED" })
+      );
     }
   }, [advancedLayout, wants3dViewer, disable3D, dispatch]);
 
