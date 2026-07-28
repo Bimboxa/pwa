@@ -5,17 +5,20 @@ import db from "App/db/db";
 
 import useAnnotationTemplatesByProject from "Features/annotations/hooks/useAnnotationTemplatesByProject";
 
+import hasProcedureParams from "../utils/hasProcedureParams";
+
 import { Paper, Box, Typography, Divider } from "@mui/material";
 
 import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTemplateIcon";
 import RowProcedureLauncher from "./RowProcedureLauncher";
+import SectionProcedureParams from "./SectionProcedureParams";
 
 /**
  * Content of the "Auto" popper shown on a listing template linked to one or
  * several ANNOTATIONS_CREATOR procedures. One section per procedure: lists the
- * annotation templates it creates (resolved from createdMappingCategories) and
- * exposes play / reset / refresh applied to all annotations of the source
- * template.
+ * annotation templates it creates (resolved from createdMappingCategories),
+ * exposes the procedure parameters (same section as the "Dessin auto" panel)
+ * and play / reset / refresh applied to all annotations of the source template.
  */
 export default function ProcedurePopperContent({
   procedures,
@@ -111,6 +114,17 @@ export default function ProcedurePopperContent({
                 </Box>
               ))}
             </Box>
+
+            {hasProcedureParams(procedure) && (
+              <>
+                <Divider sx={{ mt: 1, mx: -1 }} />
+                <SectionProcedureParams
+                  procedure={procedure}
+                  dense
+                  sx={{ mt: 1 }}
+                />
+              </>
+            )}
 
             <RowProcedureLauncher
               procedure={procedure}

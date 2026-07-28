@@ -50,7 +50,16 @@ export default function FieldNumberWithUnit({
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 0.25 }}>
-      <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, p: 0.5 }}>
+      {/* label on the left, value + unit pushed to the right */}
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 0.5,
+          p: 0.5,
+        }}
+      >
         {label && (
           <Typography variant="body2" color="text.secondary" noWrap>
             {label}
@@ -58,56 +67,65 @@ export default function FieldNumberWithUnit({
         )}
 
         <Box
-          sx={{ display: "grid", alignItems: "center", position: "relative" }}
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 0.5,
+            flexShrink: 0,
+          }}
         >
           <Box
-            component="span"
-            sx={{
-              gridArea: "1 / 1 / 2 / 2",
-              visibility: "hidden",
-              whiteSpace: "pre",
-              minWidth: "30px",
-              boxSizing: "border-box",
-              px: 1,
-              ...commonFontStyles,
-            }}
+            sx={{ display: "grid", alignItems: "center", position: "relative" }}
           >
-            {localValue || " "}
+            <Box
+              component="span"
+              sx={{
+                gridArea: "1 / 1 / 2 / 2",
+                visibility: "hidden",
+                whiteSpace: "pre",
+                minWidth: "30px",
+                boxSizing: "border-box",
+                px: 1,
+                ...commonFontStyles,
+              }}
+            >
+              {localValue || " "}
+            </Box>
+
+            <InputBase
+              value={localValue}
+              onChange={handleChange}
+              onKeyDown={handleKeyDown}
+              fullWidth
+              sx={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                height: "100%",
+                gridArea: "1 / 1 / 2 / 2",
+                margin: 0,
+
+                "& .MuiInputBase-input": {
+                  ...commonFontStyles,
+                  bgcolor: "background.default",
+                  px: 1,
+                  boxSizing: "border-box",
+                  textAlign: "left",
+                  height: "100%",
+                  paddingTop: 0,
+                  paddingBottom: 0,
+                },
+              }}
+            />
           </Box>
 
-          <InputBase
-            value={localValue}
-            onChange={handleChange}
-            onKeyDown={handleKeyDown}
-            fullWidth
-            sx={{
-              position: "absolute",
-              top: 0,
-              left: 0,
-              width: "100%",
-              height: "100%",
-              gridArea: "1 / 1 / 2 / 2",
-              margin: 0,
-
-              "& .MuiInputBase-input": {
-                ...commonFontStyles,
-                bgcolor: "background.default",
-                px: 1,
-                boxSizing: "border-box",
-                textAlign: "left",
-                height: "100%",
-                paddingTop: 0,
-                paddingBottom: 0,
-              },
-            }}
-          />
+          {unit && (
+            <Typography variant="body2" color="text.secondary" noWrap>
+              {unit}
+            </Typography>
+          )}
         </Box>
-
-        {unit && (
-          <Typography variant="body2" color="text.secondary" noWrap>
-            {unit}
-          </Typography>
-        )}
       </Box>
 
       {helperText && (

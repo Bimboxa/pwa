@@ -607,26 +607,34 @@ function AnnotationTemplateRow({
   const [toolMenuAnchor, setToolMenuAnchor] = useState(null);
   const [nameAnchorEl, setNameAnchorEl] = useState(null);
   const procedurePopperCloseTimer = useRef(null);
+  const procedurePopperRef = useRef(null);
+  const procedurePopperHoveredRef = useRef(false);
 
   // Keep the procedure popper open while hovering the chip OR the popper itself
   // (so its action buttons stay clickable), with a small close delay to bridge
-  // the gap between them.
+  // the gap between them. It also stays open while one of its parameter fields
+  // is focused, so typing survives the pointer drifting off the popper.
   const openProcedurePopper = (e) => {
     if (procedurePopperCloseTimer.current)
       clearTimeout(procedurePopperCloseTimer.current);
     setNameAnchorEl(e.currentTarget);
   };
   const cancelCloseProcedurePopper = () => {
+    procedurePopperHoveredRef.current = true;
     if (procedurePopperCloseTimer.current)
       clearTimeout(procedurePopperCloseTimer.current);
   };
   const scheduleCloseProcedurePopper = () => {
+    procedurePopperHoveredRef.current = false;
     if (procedurePopperCloseTimer.current)
       clearTimeout(procedurePopperCloseTimer.current);
-    procedurePopperCloseTimer.current = setTimeout(
-      () => setNameAnchorEl(null),
-      150
-    );
+    procedurePopperCloseTimer.current = setTimeout(() => {
+      if (procedurePopperRef.current?.contains(document.activeElement)) return;
+      setNameAnchorEl(null);
+    }, 150);
+  };
+  const handleProcedurePopperBlur = () => {
+    if (!procedurePopperHoveredRef.current) scheduleCloseProcedurePopper();
   };
   const selectedToolKey = useSelector(
     (s) => s.mapEditor.selectedToolKeyByTemplateId[annotationTemplate?.id]
@@ -1000,9 +1008,17 @@ function AnnotationTemplateRow({
             style={{ zIndex: 2000 }}
             modifiers={[{ name: "offset", options: { offset: [0, 4] } }]}
           >
+            {/* The popper is portaled but stays a React child of the row's
+                ListItemButton: without stopping propagation, clicking a
+                parameter field would bubble to handleRowClick and start the
+                drawing mode. */}
             <Box
+              ref={procedurePopperRef}
               onMouseEnter={cancelCloseProcedurePopper}
               onMouseLeave={scheduleCloseProcedurePopper}
+              onBlurCapture={handleProcedurePopperBlur}
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={(e) => e.stopPropagation()}
             >
               <ProcedurePopperContent
                 procedures={linkedProcedures}
