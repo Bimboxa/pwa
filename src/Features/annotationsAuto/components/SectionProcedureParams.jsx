@@ -17,14 +17,20 @@ import FieldNumberWithUnit from "Features/form/components/FieldNumberWithUnit";
 /**
  * Parameters of an automated procedure (height, water level, options), driven
  * by the procedure's show* flags in appConfig. Shared by the "Dessin auto"
- * panel and the "Auto" popper: both edit the same annotationsAuto slice state,
- * which useAnnotationsAutoRun reads at launch time.
+ * panel, the "Auto" popper and the annotation toolbar: they all edit the same
+ * annotationsAuto slice state, which useAnnotationsAutoRun reads at launch
+ * time.
+ *
+ * `row` lays the fields out inline (annotation toolbar), `hideHelperText`
+ * drops the per-field description where vertical space is scarce.
  *
  * Renders nothing when the procedure exposes no parameter.
  */
 export default function SectionProcedureParams({
   procedure,
   dense = false,
+  row = false,
+  hideHelperText = false,
   sx,
 }) {
   const dispatch = useDispatch();
@@ -59,8 +65,10 @@ export default function SectionProcedureParams({
     <Box
       sx={{
         display: "flex",
-        flexDirection: "column",
-        gap: dense ? 1 : 2,
+        flexDirection: row ? "row" : "column",
+        flexWrap: row ? "wrap" : "nowrap",
+        alignItems: row ? "center" : "stretch",
+        gap: row ? 0.5 : dense ? 1 : 2,
         ...sx,
       }}
     >
@@ -83,7 +91,11 @@ export default function SectionProcedureParams({
           onChange={handleHeightChange}
           label="Hauteur cuvelage"
           unit="m"
-          helperText="Hauteur exprimée par rapport au fond de plan"
+          helperText={
+            hideHelperText
+              ? null
+              : "Hauteur exprimée par rapport au fond de plan"
+          }
         />
       )}
 
@@ -93,7 +105,11 @@ export default function SectionProcedureParams({
           onChange={(v) => dispatch(setWaterHeight(v))}
           label="Hauteur d'eau"
           unit="m"
-          helperText="Altitude absolue (scène 3D). Vide = ignorée"
+          helperText={
+            hideHelperText
+              ? null
+              : "Altitude absolue (scène 3D). Vide = ignorée"
+          }
         />
       )}
 

@@ -1,11 +1,20 @@
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
+
+import hasProcedureParams from "../utils/hasProcedureParams";
+
+import { Box } from "@mui/material";
+import { lighten } from "@mui/material/styles";
+
 import RowProcedureLauncher from "./RowProcedureLauncher";
+import SectionProcedureParams from "./SectionProcedureParams";
 
 /**
  * Toolbar rows (between quantities and actions) for an annotation whose template
  * is linked to one or several ANNOTATIONS_CREATOR procedures. One band per
- * procedure: left = procedure name, right = play / reset / refresh applied to
- * this single annotation as source.
+ * procedure: an optional parameters row (lighter tint of the launch band, so it
+ * reads as attached to it) on top of the launch band itself — left = procedure
+ * name, right = play / reset / refresh applied to this single annotation as
+ * source.
  */
 export default function RowProcedureActionAuto({ annotation }) {
   // data
@@ -24,13 +33,27 @@ export default function RowProcedureActionAuto({ annotation }) {
   return (
     <>
       {linkedProcedures.map((procedure) => (
-        <RowProcedureLauncher
-          key={procedure.key}
-          procedure={procedure}
-          baseMapId={annotation?.baseMapId}
-          sourceAnnotationIds={[annotation?.id]}
-          sx={{ borderBottom: "1px solid", borderColor: "divider" }}
-        />
+        <Box key={procedure.key}>
+          {hasProcedureParams(procedure) && (
+            <SectionProcedureParams
+              procedure={procedure}
+              row
+              hideHelperText
+              sx={{
+                px: 1.25,
+                py: 0.25,
+                bgcolor: (theme) => lighten(theme.palette.secondary.main, 0.93),
+              }}
+            />
+          )}
+
+          <RowProcedureLauncher
+            procedure={procedure}
+            baseMapId={annotation?.baseMapId}
+            sourceAnnotationIds={[annotation?.id]}
+            sx={{ borderBottom: "1px solid", borderColor: "divider" }}
+          />
+        </Box>
       ))}
     </>
   );
