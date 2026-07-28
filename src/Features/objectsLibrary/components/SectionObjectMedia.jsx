@@ -1,35 +1,54 @@
 import { Box, Typography } from "@mui/material";
-import { PlayArrow } from "@mui/icons-material";
+import { PlayArrow, Category } from "@mui/icons-material";
 
-import { getTabLabel } from "../constants/objectsLibraryTabs";
+import getVideoEmbed from "../utils/getVideoEmbed";
 
-function MetaChip({ label, value }) {
-  return (
-    <Box
-      sx={{
-        flex: 1,
-        minWidth: 120,
-        bgcolor: "action.hover",
-        borderRadius: 1.5,
-        px: 1.5,
-        py: 1,
-      }}
-    >
-      <Typography variant="caption" color="text.secondary" display="block">
-        {label}
-      </Typography>
-      <Typography variant="body2" sx={{ fontWeight: "bold" }}>
-        {value}
-      </Typography>
-    </Box>
-  );
-}
-
-// Left column of the object dialog: tutorial video (or a placeholder player)
-// + description + Type / Dimensions / Catégorie chips.
+// Left column of the object dialog: thumbnail + description on top, tutorial
+// video (or a placeholder player) below.
 export default function SectionObjectMedia({ object }) {
+  // data
+
+  const video = getVideoEmbed(object.videoUrl);
+
+  // render
+
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+    <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+      <Box sx={{ display: "flex", alignItems: "flex-start", gap: 2 }}>
+        <Box
+          sx={{
+            width: 160,
+            height: 160,
+            flex: "none",
+            borderRadius: 2,
+            bgcolor: "action.hover",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            overflow: "hidden",
+          }}
+        >
+          {object.thumbnailUrl ? (
+            <Box
+              component="img"
+              src={object.thumbnailUrl}
+              alt={object.label}
+              sx={{ width: "80%", height: "80%", objectFit: "contain" }}
+            />
+          ) : (
+            <Category sx={{ fontSize: 56, color: "text.disabled" }} />
+          )}
+        </Box>
+
+        {/* pre-line: manifest descriptions may carry line breaks + bullets. */}
+        <Typography
+          variant="body1"
+          sx={{ flex: 1, minWidth: 0, whiteSpace: "pre-line" }}
+        >
+          {object.description}
+        </Typography>
+      </Box>
+
       <Box
         sx={{
           position: "relative",
@@ -43,9 +62,17 @@ export default function SectionObjectMedia({ object }) {
           justifyContent: "center",
         }}
       >
-        {object.videoUrl ? (
+        {video?.kind === "IFRAME" ? (
+          <iframe
+            src={video.src}
+            title={`Tutoriel — ${object.label}`}
+            allow="autoplay; fullscreen"
+            allowFullScreen
+            style={{ width: "100%", height: "100%", border: "none" }}
+          />
+        ) : video?.kind === "FILE" ? (
           <video
-            src={object.videoUrl}
+            src={video.src}
             controls
             style={{ width: "100%", height: "100%", objectFit: "contain" }}
           />
@@ -77,23 +104,6 @@ export default function SectionObjectMedia({ object }) {
               <PlayArrow sx={{ color: "#fff", fontSize: 40 }} />
             </Box>
           </>
-        )}
-      </Box>
-
-      <Box>
-        <Typography variant="overline" color="text.secondary">
-          Description
-        </Typography>
-        <Typography variant="body1">{object.description}</Typography>
-      </Box>
-
-      <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
-        <MetaChip label="Type" value={getTabLabel(object.tab)} />
-        {object.dimensionsLabel && (
-          <MetaChip label="Dimensions" value={object.dimensionsLabel} />
-        )}
-        {object.category && (
-          <MetaChip label="Catégorie" value={object.category} />
         )}
       </Box>
     </Box>

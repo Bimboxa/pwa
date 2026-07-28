@@ -19,10 +19,7 @@ import startDrawFromTemplate, {
 import createObject3DEntityField from "Features/object3D/utils/createObject3DEntityField";
 
 import buildAnnotationTemplateFromObject from "../utils/buildAnnotationTemplateFromObject";
-
-function isObject3DEntry(object) {
-  return object?.drawingShape === "OBJECT_3D" || Boolean(object?.file3d);
-}
+import isObject3DEntry from "../utils/isObject3DEntry";
 
 // Fetch the bundled glb URL and build the object3D entity field (reusing the
 // same util as the "Nouveau modèle" form), keeping the raw File so createEntity
@@ -51,7 +48,7 @@ export default function usePlaceObjectFromLibrary() {
   const createEntity = useCreateEntity();
   const selectedProjectId = useSelector((s) => s.projects.selectedProjectId);
 
-  return async ({ object, userEdits, listingId, existingTemplate }) => {
+  return async ({ object, userEdits = {}, listingId, existingTemplate }) => {
     if (!object || !listingId) return;
 
     const projectId = selectedProjectId;
@@ -82,7 +79,9 @@ export default function usePlaceObjectFromLibrary() {
           modelIdMaster: object.modelIdMaster ?? null,
           drawingShape: "OBJECT_3D",
           object3D: object3DField,
-          label: object.label ?? "",
+          // Label edited in the dialog; falls back to the object name (quick
+          // "Localiser" from a card sends no edits).
+          label: userEdits.label?.trim() || object.label || "",
         };
         // createEntity stores the glb into db.files AND rewrites
         // object3D.fileName to the db.files key; the returned entity carries the

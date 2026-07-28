@@ -1,14 +1,27 @@
-import { Box, Typography, IconButton, Tooltip } from "@mui/material";
+import { useState } from "react";
+
+import { Box, Typography, ButtonBase } from "@mui/material";
 import { alpha } from "@mui/material/styles";
-import { Category, DragIndicator } from "@mui/icons-material";
+import { Category } from "@mui/icons-material";
 
 import getObjectActionButton from "../utils/getObjectActionButton";
 
 // Grid card for one library object. Clicking the card opens the configuration
-// dialog; the action button launches the figure's drawing tool (or 3D placement).
+// dialog; the action button — pinned at the bottom-right of the thumbnail —
+// launches the figure's drawing tool (or 3D placement) and reveals the action
+// name while the thumbnail is hovered.
 export default function CardObject({ object, onOpen, onLocate }) {
+  // data
+
   const action = getObjectActionButton(object);
   const ActionIcon = action.Icon;
+
+  // state
+
+  const [thumbnailHovered, setThumbnailHovered] = useState(false);
+
+  // render
+
   return (
     <Box
       onClick={() => onOpen(object)}
@@ -22,6 +35,8 @@ export default function CardObject({ object, onOpen, onLocate }) {
       }}
     >
       <Box
+        onMouseEnter={() => setThumbnailHovered(true)}
+        onMouseLeave={() => setThumbnailHovered(false)}
         sx={{
           position: "relative",
           aspectRatio: "1 / 1",
@@ -41,36 +56,59 @@ export default function CardObject({ object, onOpen, onLocate }) {
         ) : (
           <Category sx={{ fontSize: 48, color: "text.disabled" }} />
         )}
+
+        {action.placeable && (
+          <ButtonBase
+            onClick={(e) => {
+              e.stopPropagation();
+              onLocate(object);
+            }}
+            sx={{
+              position: "absolute",
+              bottom: 4,
+              right: 4,
+              maxWidth: "calc(100% - 8px)",
+              display: "flex",
+              alignItems: "center",
+              gap: 0.5,
+              py: 0.5,
+              px: 0.75,
+              borderRadius: 4,
+              bgcolor: "background.paper",
+              border: (theme) => `1px solid ${theme.palette.divider}`,
+              boxShadow: 1,
+              color: "primary.main",
+              "&:hover": {
+                color: "secondary.main",
+                bgcolor: (theme) => alpha(theme.palette.secondary.main, 0.12),
+              },
+            }}
+          >
+            <ActionIcon fontSize="small" />
+            {thumbnailHovered && (
+              <Typography variant="caption" noWrap sx={{ lineHeight: 1 }}>
+                {action.label}
+              </Typography>
+            )}
+          </ButtonBase>
+        )}
       </Box>
-      <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, p: 1 }}>
-        <DragIndicator fontSize="small" sx={{ color: "text.disabled" }} />
+
+      <Box sx={{ p: 1 }}>
         <Typography
           variant="body2"
-          sx={{ fontWeight: "bold", flexGrow: 1, minWidth: 0 }}
-          noWrap
+          sx={{
+            fontWeight: "bold",
+            display: "-webkit-box",
+            WebkitBoxOrient: "vertical",
+            WebkitLineClamp: 2,
+            overflow: "hidden",
+            lineHeight: 1.25,
+            minHeight: "2.5em",
+          }}
         >
           {object.label}
         </Typography>
-        {action.placeable && (
-          <Tooltip title={action.tooltip}>
-            <IconButton
-              size="small"
-              color="primary"
-              onClick={(e) => {
-                e.stopPropagation();
-                onLocate(object);
-              }}
-              sx={{
-                "&:hover": {
-                  color: "secondary.main",
-                  bgcolor: (theme) => alpha(theme.palette.secondary.main, 0.12),
-                },
-              }}
-            >
-              <ActionIcon fontSize="small" />
-            </IconButton>
-          </Tooltip>
-        )}
       </Box>
     </Box>
   );

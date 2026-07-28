@@ -21,9 +21,11 @@ const VIDEO_LOADERS = import.meta.glob(
 );
 
 // Resolve an asset path relative to the org's objectsLibrary folder to a bundled
-// URL (or undefined when the asset is missing).
+// URL (or undefined when the asset is missing). An absolute URL (external video
+// host such as Google Drive or YouTube) is passed through untouched.
 async function resolveAssetUrl(loaders, configCode, relPath) {
   if (!relPath) return undefined;
+  if (/^https?:\/\//.test(relPath)) return relPath;
   const key = `../../../Data/${configCode}/objectsLibrary/${relPath}`;
   const loader = loaders[key];
   if (!loader) return undefined;

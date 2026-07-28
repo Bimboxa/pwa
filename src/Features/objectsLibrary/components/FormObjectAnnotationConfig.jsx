@@ -1,5 +1,4 @@
 import { Box, Typography } from "@mui/material";
-import { Settings } from "@mui/icons-material";
 
 import FieldTextV2 from "Features/form/components/FieldTextV2";
 import FieldCheck from "Features/form/components/FieldCheck";
@@ -7,6 +6,8 @@ import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 import FieldAnnotationHeight from "Features/annotations/components/FieldAnnotationHeight";
 import FieldAnnotationTemplateFill from "Features/annotations/components/FieldAnnotationTemplateFill";
 import FieldAnnotationTemplateStroke from "Features/annotations/components/FieldAnnotationTemplateStroke";
+
+import isObject3DEntry from "../utils/isObject3DEntry";
 
 // "Configurer l'annotation" — renders ONLY the parameters the object declares in
 // its `editableParams`. The 2D shape is fixed per object (defined in the JSON),
@@ -22,7 +23,10 @@ export default function FormObjectAnnotationConfig({
   const editable = Array.isArray(object?.editableParams)
     ? object.editableParams
     : [];
-  const has = (key) => editable.includes(key);
+  // 3D objects have no 2D style params: the only thing to configure is the
+  // annotationTemplate label (defaulted to the object name by the dialog).
+  const has = (key) =>
+    editable.includes(key) || (key === "label" && isObject3DEntry(object));
   const hasFill = has("fillColor") || has("fillType") || has("fillOpacity");
   const hasStroke =
     has("strokeColor") ||
@@ -38,12 +42,9 @@ export default function FormObjectAnnotationConfig({
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 0.5 }}>
-        <Settings color="primary" fontSize="small" />
-        <Typography variant="subtitle1" sx={{ fontWeight: "bold" }}>
-          Configurer l&apos;annotation
-        </Typography>
-      </Box>
+      <Typography variant="subtitle1" color="text.secondary" sx={{ mb: 0.5 }}>
+        Configurer l&apos;annotation
+      </Typography>
 
       {has("label") && (
         <FieldTextV2

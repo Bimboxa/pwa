@@ -11,6 +11,7 @@ export default function getObjectActionButton(object) {
   return {
     placeable: Boolean(object?.tool || object?.file3d),
     Icon: tool?.Icon ?? MyLocation,
+    label: tool?.label ?? "Localiser",
     tooltip: tool ? `Dessiner - ${tool.label}` : "Localiser",
   };
 }

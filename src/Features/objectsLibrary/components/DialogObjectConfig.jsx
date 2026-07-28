@@ -6,13 +6,12 @@ import {
   Typography,
   IconButton,
   Button,
-  Chip,
   Divider,
 } from "@mui/material";
 import { Close, Category } from "@mui/icons-material";
 
-import { getTabLabel } from "../constants/objectsLibraryTabs";
 import getObjectActionButton from "../utils/getObjectActionButton";
+import isObject3DEntry from "../utils/isObject3DEntry";
 import SectionObjectMedia from "./SectionObjectMedia";
 import FormObjectAnnotationConfig from "./FormObjectAnnotationConfig";
 
@@ -28,16 +27,21 @@ export default function DialogObjectConfig({
 }) {
   const [draft, setDraft] = useState({});
 
-  // Reset the draft whenever a different object is opened.
+  // Reset the draft whenever a different object is opened. The label defaults to
+  // the object name ("Cercle"), so a figure drawn without editing anything is
+  // named after the library object.
   useEffect(() => {
-    if (object) setDraft({ label: "", ...(object.template ?? {}) });
+    if (object)
+      setDraft({ label: object.label ?? "", ...(object.template ?? {}) });
   }, [object?.id]);
 
   if (!object) return null;
 
-  // 2D drawing figures (they declare a `tool`) get the full media + config +
-  // "Positionner" flow. Other objects (3D) just show a large image.
-  const isPlaceable = Boolean(object.tool);
+  // 2D drawing figures (they declare a `tool`) show the tutorial media; 3D
+  // objects show a large preview image instead. Both get the config panel and
+  // the placement button.
+  const isObject3D = isObject3DEntry(object);
+  const isPlaceable = Boolean(object.tool) || isObject3D;
   const action = getObjectActionButton(object);
   const ActionIcon = action.Icon;
 
@@ -53,137 +57,100 @@ export default function DialogObjectConfig({
           display: "flex",
           alignItems: "center",
           gap: 1.5,
-          p: 2,
+          px: 3,
+          py: 2.5,
           borderBottom: (theme) => `1px solid ${theme.palette.divider}`,
         }}
       >
-        <Box
-          sx={{
-            width: 44,
-            height: 44,
-            borderRadius: 2,
-            bgcolor: "primary.light",
-            color: "primary.main",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
+        <Typography
+          variant="h5"
+          sx={{ flexGrow: 1, fontWeight: "bold", lineHeight: 1.2 }}
         >
-          <Category />
-        </Box>
-        <Box sx={{ flexGrow: 1 }}>
-          <Typography variant="h6" sx={{ fontWeight: "bold", lineHeight: 1.2 }}>
-            {object.label}
-          </Typography>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mt: 0.5 }}>
-            <Chip
-              size="small"
-              color="primary"
-              variant="outlined"
-              label={getTabLabel(object.tab)}
-            />
-            {object.dimensionsLabel && (
-              <Typography variant="body2" color="text.secondary">
-                {object.dimensionsLabel}
-              </Typography>
-            )}
-          </Box>
-        </Box>
+          {object.label}
+        </Typography>
         <IconButton onClick={onClose}>
           <Close />
         </IconButton>
       </Box>
 
       {/* body */}
-      {isPlaceable ? (
-        <Box
-          sx={{
-            display: "flex",
-            flexDirection: { xs: "column", md: "row" },
-            gap: 3,
-            p: 3,
-          }}
-        >
-          <Box sx={{ flex: 1.4, minWidth: 0 }}>
-            <SectionObjectMedia object={object} />
-          </Box>
-          <Divider
-            orientation="vertical"
-            flexItem
-            sx={{ display: { xs: "none", md: "block" } }}
-          />
-          <Box sx={{ flex: 1, minWidth: 0 }}>
-            <FormObjectAnnotationConfig
-              object={object}
-              draft={draft}
-              onChange={setDraft}
-            />
-          </Box>
-        </Box>
-      ) : (
-        <Box
-          sx={{
-            p: 3,
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-          }}
-        >
-          {object.thumbnailUrl ? (
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: { xs: "column", md: "row" },
+          gap: 3,
+          p: 3,
+        }}
+      >
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          {isObject3D ? (
             <Box
-              component="img"
-              src={object.thumbnailUrl}
-              alt={object.label}
               sx={{
-                maxWidth: "100%",
-                maxHeight: "70vh",
-                objectFit: "contain",
-                borderRadius: 2,
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
               }}
-            />
+            >
+              {object.thumbnailUrl ? (
+                <Box
+                  component="img"
+                  src={object.thumbnailUrl}
+                  alt={object.label}
+                  sx={{
+                    maxWidth: "100%",
+                    maxHeight: "60vh",
+                    objectFit: "contain",
+                    borderRadius: 2,
+                  }}
+                />
+              ) : (
+                <Category sx={{ fontSize: 120, color: "text.disabled" }} />
+              )}
+            </Box>
           ) : (
-            <Category sx={{ fontSize: 120, color: "text.disabled" }} />
+            <SectionObjectMedia object={object} />
           )}
         </Box>
-      )}
+        <Divider
+          orientation="vertical"
+          flexItem
+          sx={{ display: { xs: "none", md: "block" } }}
+        />
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <FormObjectAnnotationConfig
+            object={object}
+            draft={draft}
+            onChange={setDraft}
+          />
+        </Box>
+      </Box>
 
       {/* footer */}
       <Box
         sx={{
           display: "flex",
-          justifyContent: "space-between",
+          justifyContent: "flex-end",
           alignItems: "center",
           gap: 2,
-          p: 2,
+          px: 3,
+          py: 2,
           borderTop: (theme) => `1px solid ${theme.palette.divider}`,
+          bgcolor: "background.default",
         }}
       >
         {isPlaceable ? (
-          <>
-            <Typography variant="caption" color="text.secondary">
-              {canPlace
-                ? "Cliquez sur le plan pour dessiner la figure."
-                : "Sélectionnez une liste pour pouvoir dessiner."}
-            </Typography>
-            <Box sx={{ display: "flex", gap: 1 }}>
-              <Button onClick={onClose}>Annuler</Button>
-              <Button
-                variant="contained"
-                startIcon={<ActionIcon />}
-                disabled={!canPlace}
-                onClick={handlePlace}
-              >
-                Dessiner
-              </Button>
-            </Box>
-          </>
+          <Button
+            variant="contained"
+            startIcon={<ActionIcon />}
+            disabled={!canPlace}
+            onClick={handlePlace}
+          >
+            {isObject3D ? "Positionner" : "Dessiner"}
+          </Button>
         ) : (
-          <>
-            <span />
-            <Button variant="contained" onClick={onClose}>
-              Fermer
-            </Button>
-          </>
+          <Button variant="contained" onClick={onClose}>
+            Fermer
+          </Button>
         )}
       </Box>
     </Dialog>
