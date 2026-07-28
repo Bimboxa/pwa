@@ -40,6 +40,12 @@ export default class ThreedEditor {
 
   loadMaps = (maps, options = {}) => {
     try {
+      // Annotation objects are children of the basemap groups deleted below.
+      // They used to be disposed by the annotations hook right after, but the
+      // hook now keeps them alive across viewer toggles — a project/main-map
+      // switch is the one path that must drop them explicitly (also fixes the
+      // latent orphan leak of objects left attached to removed groups).
+      this.sceneManager.annotationsManager?.deleteAllAnnotationsObjects();
       const images = maps.map(getEditorImageFromBaseMap);
       if (typeof options.opacity === "number" || options.opacityByBaseMapId) {
         images.forEach((img) => {
