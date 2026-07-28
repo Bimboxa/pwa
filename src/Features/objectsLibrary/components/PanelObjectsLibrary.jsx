@@ -212,8 +212,8 @@ export default function PanelObjectsLibrary() {
             width: 36,
             height: 36,
             borderRadius: 1.5,
-            bgcolor: "primary.light",
-            color: "primary.main",
+            bgcolor: "secondary.main",
+            color: "common.white",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -226,10 +226,10 @@ export default function PanelObjectsLibrary() {
             variant="subtitle1"
             sx={{ fontWeight: "bold", lineHeight: 1.2 }}
           >
-            Bibliothèque de modèles
+            Bibliothèque
           </Typography>
           <Typography variant="caption" color="text.secondary">
-            Rechercher &amp; positionner une figure
+            Modèles d&apos;annotations configurés
           </Typography>
         </Box>
         <IconButton size="small" onClick={handleClose}>

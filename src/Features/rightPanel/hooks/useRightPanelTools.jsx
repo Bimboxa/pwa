@@ -164,6 +164,17 @@ export default function useRightPanelTools() {
     });
   }
 
+  // "Bibliothèque" sits at the very top of the band, above "Propriétés",
+  // whatever order appConfig.features.tools declares. It is a MAP-only tool,
+  // so this hoist only ever affects the dessin module.
+  const objectsLibraryIndex = menuItems.findIndex(
+    (t) => t.key === "OBJECTS_LIBRARY"
+  );
+  if (objectsLibraryIndex > 0) {
+    const [objectsLibraryTool] = menuItems.splice(objectsLibraryIndex, 1);
+    menuItems.unshift(objectsLibraryTool);
+  }
+
   const activeContextualTools = contextualTools.filter(
     (t) => !t.viewers || t.viewers.includes(selectedViewerKey)
   );
