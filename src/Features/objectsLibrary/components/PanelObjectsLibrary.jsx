@@ -101,6 +101,7 @@ export default function PanelObjectsLibrary() {
         if (!q) return true;
         return (
           o.label?.toLowerCase().includes(q) ||
+          o.labelVariant?.toLowerCase().includes(q) ||
           o.description?.toLowerCase().includes(q) ||
           o.category?.toLowerCase().includes(q)
         );
@@ -407,8 +408,6 @@ export default function PanelObjectsLibrary() {
       <DialogSystemConfig
         open={Boolean(dialogObject) && isSystemObject(dialogObject)}
         object={isSystemObject(dialogObject) ? dialogObject : null}
-        targetListingId={targetListingId}
-        onTargetListingChange={setTargetListingId}
         canPlace={hasValidTarget}
         onClose={() => setDialogObject(null)}
         onPlace={handlePlaceSystem}

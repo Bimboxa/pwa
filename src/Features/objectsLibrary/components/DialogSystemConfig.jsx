@@ -10,14 +10,15 @@ import {
   Divider,
   CircularProgress,
 } from "@mui/material";
-import { Close, AccountTreeOutlined, SouthOutlined } from "@mui/icons-material";
+import { Close, SouthOutlined } from "@mui/icons-material";
 
 import { getDrawingToolByKey } from "Features/mapEditor/constants/drawingTools.jsx";
+import SectionProcedureParams from "Features/annotationsAuto/components/SectionProcedureParams";
+import hasProcedureParams from "Features/annotationsAuto/utils/hasProcedureParams";
 
 import useSystemDefinition from "../hooks/useSystemDefinition";
 import SectionObjectMedia from "./SectionObjectMedia";
 import SystemTemplateCard from "./SystemTemplateCard";
-import SelectorListingForObjects from "./SelectorListingForObjects";
 
 // A numbered step marker ("① Vous dessinez", "② Le système génère…").
 function StepLabel({ index, color, label, count }) {
@@ -52,14 +53,14 @@ function StepLabel({ index, color, label, count }) {
 
 // Système dialog: shown when clicking a "Systèmes" library vignette. Mirrors
 // DialogObjectConfig's shell (header / 2-col body / footer) but the body presents
-// the procedure flow: the source annotation you draw + the annotations it
-// generates, each editable via the shared template properties editor. "Dessiner"
-// pre-creates all templates in the target listing and arms drawing of the source.
+// the procedure flow: the source annotation you draw, the procedure parameters
+// (e.g. water height for cuvelage) and the annotations it generates, each
+// editable via the restricted template card (label / fill / stroke only).
+// "Dessiner" pre-creates all templates in the target listing (selected from the
+// panel footer) and arms drawing of the source.
 export default function DialogSystemConfig({
   open,
   object,
-  targetListingId,
-  onTargetListingChange,
   canPlace,
   onClose,
   onPlace,
@@ -111,54 +112,22 @@ export default function DialogSystemConfig({
       <Box
         sx={{
           display: "flex",
-          alignItems: "flex-start",
+          alignItems: "center",
           gap: 1.5,
-          p: 2,
+          px: 3,
+          py: 2.5,
           borderBottom: (theme) => `1px solid ${theme.palette.divider}`,
         }}
       >
-        <Box
-          sx={{
-            width: 44,
-            height: 44,
-            flex: "none",
-            borderRadius: 2,
-            bgcolor: "secondary.light",
-            color: "secondary.main",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <AccountTreeOutlined />
-        </Box>
         <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              gap: 1,
-              flexWrap: "wrap",
-            }}
-          >
-            <Typography
-              variant="h6"
-              sx={{ fontWeight: "bold", lineHeight: 1.2 }}
-            >
-              {object.label}
-            </Typography>
-            <Chip size="small" color="secondary" label="Système" />
-            <Chip
-              size="small"
-              color="secondary"
-              variant="outlined"
-              label="Procédure automatisée"
-            />
-          </Box>
-          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
-            Vous dessinez 1 annotation de départ — le système en génère {count}{" "}
-            autre{count > 1 ? "s" : ""} automatiquement.
+          <Typography variant="h5" sx={{ fontWeight: "bold", lineHeight: 1.2 }}>
+            {object.label}
           </Typography>
+          {object.labelVariant && (
+            <Typography variant="body2" color="text.secondary">
+              {object.labelVariant}
+            </Typography>
+          )}
         </Box>
         <IconButton onClick={onClose}>
           <Close />
@@ -196,7 +165,6 @@ export default function DialogSystemConfig({
                   template={mainDraft}
                   onChange={setMainDraft}
                   variant="source"
-                  defaultExpanded
                 />
               ) : (
                 <Typography variant="body2" color="error">
@@ -219,6 +187,27 @@ export default function DialogSystemConfig({
                   {"La procédure s'exécute"}
                 </Typography>
               </Box>
+
+              {/* procedure parameters (e.g. water height for cuvelage), edited
+                  in the shared annotationsAuto slice read at launch time */}
+              {hasProcedureParams(procedure) && (
+                <Box
+                  sx={{
+                    border: (theme) => `1px solid ${theme.palette.divider}`,
+                    borderRadius: 2,
+                    bgcolor: "background.paper",
+                    p: 1.5,
+                  }}
+                >
+                  <Typography
+                    variant="body2"
+                    sx={{ fontWeight: "bold", mb: 1.5 }}
+                  >
+                    Paramètres de la procédure
+                  </Typography>
+                  <SectionProcedureParams procedure={procedure} dense />
+                </Box>
+              )}
 
               {/* step 2 — the annotations the procedure generates */}
               <StepLabel
@@ -243,40 +232,23 @@ export default function DialogSystemConfig({
       <Box
         sx={{
           display: "flex",
+          justifyContent: "flex-end",
           alignItems: "center",
           gap: 2,
-          flexWrap: "wrap",
-          p: 2,
+          px: 3,
+          py: 2,
           borderTop: (theme) => `1px solid ${theme.palette.divider}`,
           bgcolor: "background.default",
         }}
       >
-        <Box sx={{ minWidth: 240 }}>
-          <SelectorListingForObjects
-            value={targetListingId}
-            onChange={onTargetListingChange}
-          />
-        </Box>
-        <Typography
-          variant="caption"
-          color="text.secondary"
-          sx={{ flex: 1, minWidth: 180 }}
+        <Button
+          variant="contained"
+          startIcon={ActionIcon ? <ActionIcon /> : undefined}
+          disabled={!canPlace || !mainDraft}
+          onClick={handlePlace}
         >
-          {canPlace
-            ? "Dessinez le polygone de départ : les annotations seront créées puis ajoutées à la liste cible."
-            : "Sélectionnez une liste pour pouvoir dessiner."}
-        </Typography>
-        <Box sx={{ display: "flex", gap: 1, flex: "none" }}>
-          <Button onClick={onClose}>Annuler</Button>
-          <Button
-            variant="contained"
-            startIcon={ActionIcon ? <ActionIcon /> : undefined}
-            disabled={!canPlace || !mainDraft}
-            onClick={handlePlace}
-          >
-            Dessiner
-          </Button>
-        </Box>
+          Dessiner
+        </Button>
       </Box>
     </Dialog>
   );

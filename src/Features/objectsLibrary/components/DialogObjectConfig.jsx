@@ -28,11 +28,14 @@ export default function DialogObjectConfig({
   const [draft, setDraft] = useState({});
 
   // Reset the draft whenever a different object is opened. The label defaults to
-  // the object name ("Cercle"), so a figure drawn without editing anything is
-  // named after the library object.
+  // the object's main name only ("Murs", not "Murs — Dessiner des bandes"): the
+  // variant describes how the figure is drawn, not what the annotation is.
   useEffect(() => {
     if (object)
-      setDraft({ label: object.label ?? "", ...(object.template ?? {}) });
+      setDraft({
+        label: object.label ?? "",
+        ...(object.template ?? {}),
+      });
   }, [object?.id]);
 
   if (!object) return null;
@@ -62,12 +65,16 @@ export default function DialogObjectConfig({
           borderBottom: (theme) => `1px solid ${theme.palette.divider}`,
         }}
       >
-        <Typography
-          variant="h5"
-          sx={{ flexGrow: 1, fontWeight: "bold", lineHeight: 1.2 }}
-        >
-          {object.label}
-        </Typography>
+        <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+          <Typography variant="h5" sx={{ fontWeight: "bold", lineHeight: 1.2 }}>
+            {object.label}
+          </Typography>
+          {object.labelVariant && (
+            <Typography variant="body2" color="text.secondary">
+              {object.labelVariant}
+            </Typography>
+          )}
+        </Box>
         <IconButton onClick={onClose}>
           <Close />
         </IconButton>

@@ -25,12 +25,15 @@ export default function buildAnnotationTemplateFromObject(
   const shapeDefaults = getDefaultsForShape(drawingShape);
 
   // Keep only whitelisted edits (defensive: the form is already filtered).
+  // `null` IS a meaningful edit for the 3D-render overrides ("Hériter du rendu
+  // 2D" resets color3D / opacity3D to null), so only untouched (undefined)
+  // fields are dropped.
   const allowed = Array.isArray(object.editableParams)
     ? object.editableParams
     : [];
   const filteredEdits = {};
   for (const key of allowed) {
-    if (userEdits[key] !== undefined && userEdits[key] !== null) {
+    if (userEdits[key] !== undefined) {
       filteredEdits[key] = userEdits[key];
     }
   }
@@ -47,6 +50,8 @@ export default function buildAnnotationTemplateFromObject(
     ...shapeDefaults,
     ...(object.template ?? {}),
     ...filteredEdits,
+    // Main name only ("Murs"), never the variant: it says how the figure is
+    // drawn, not what the annotation is.
     label: filteredEdits.label ?? object.template?.label ?? object.label ?? "",
   };
 }

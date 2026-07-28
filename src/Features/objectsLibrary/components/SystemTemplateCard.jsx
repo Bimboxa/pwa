@@ -4,16 +4,21 @@ import { Box, Typography, Chip, Collapse } from "@mui/material";
 import { ExpandMore } from "@mui/icons-material";
 
 import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTemplateIcon";
-import FormAnnotationTemplateVariantBlock from "Features/annotations/components/FormAnnotationTemplateVariantBlock";
+import FieldTextV2 from "Features/form/components/FieldTextV2";
+import FieldColorV2 from "Features/form/components/FieldColorV2";
+import FieldAnnotationTemplateFill from "Features/annotations/components/FieldAnnotationTemplateFill";
+import FieldAnnotationTemplateStroke from "Features/annotations/components/FieldAnnotationTemplateStroke";
 import {
   resolveDrawingShape,
   getShapeConfig,
+  getConfigurableProps,
 } from "Features/annotations/constants/drawingShapeConfig";
 
-// One template in the système flow: a compact header (swatch + label + category +
-// shape) that expands to the shared annotationTemplate properties editor. The
-// template is passed WITHOUT an `id` (isCreating), so the editor hides the
-// structural mapping/procedure sections and only exposes the visual props.
+// One template in the système flow: a compact header (swatch + label + shape)
+// that expands to a restricted editor. Système templates only expose their
+// visual props (label / fill / stroke): the structural fields the procedure
+// relies on (mapping categories, shape, tools, procedure keys…) stay hidden
+// and untouched.
 export default function SystemTemplateCard({
   template,
   onChange,
@@ -31,7 +36,36 @@ export default function SystemTemplateCard({
   const isSource = variant === "source";
   const drawingShape = resolveDrawingShape(template);
   const shapeLabel = getShapeConfig(drawingShape)?.label ?? drawingShape;
-  const category = template.mappingCategories?.[0];
+
+  // Editable visual props, gated by what the shape actually supports (same
+  // rule as the full template editor).
+  const configurableProps = getConfigurableProps(drawingShape);
+  const hasFill = ["fillColor", "fillType", "fillOpacity"].some((key) =>
+    configurableProps.includes(key)
+  );
+  const hasStroke = ["strokeColor", "strokeWidth"].some((key) =>
+    configurableProps.includes(key)
+  );
+  // Simple shapes (MARKER, LABEL, TEXT, POINT) get a single color field.
+  const useSimpleFillColor =
+    hasFill && !configurableProps.includes("fillOpacity");
+
+  const {
+    fillColor,
+    fillType = "SOLID",
+    fillOpacity = 1,
+    strokeColor,
+    strokeType = "SOLID",
+    strokeOpacity = 1,
+    strokeWidth = 2,
+    strokeWidthUnit = "PX",
+  } = template;
+
+  // handlers
+
+  function patch(partial) {
+    onChange({ ...template, ...partial });
+  }
 
   // render
 
@@ -75,34 +109,13 @@ export default function SystemTemplateCard({
               <Chip size="small" color="primary" label="Annotation de départ" />
             )}
           </Box>
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              gap: 1,
-              mt: 0.5,
-              flexWrap: "wrap",
-            }}
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ display: "block", mt: 0.5 }}
           >
-            {category && (
-              <Chip
-                size="small"
-                variant="outlined"
-                label={category}
-                sx={{
-                  height: 20,
-                  "& .MuiChip-label": {
-                    fontFamily: "monospace",
-                    fontSize: 11,
-                    px: 1,
-                  },
-                }}
-              />
-            )}
-            <Typography variant="caption" color="text.secondary">
-              {shapeLabel}
-            </Typography>
-          </Box>
+            {shapeLabel}
+          </Typography>
         </Box>
         <ExpandMore
           sx={{
@@ -116,14 +129,53 @@ export default function SystemTemplateCard({
       <Collapse in={expanded} unmountOnExit>
         <Box
           sx={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 1,
+            p: 1,
             borderTop: (theme) => `1px solid ${theme.palette.divider}`,
             bgcolor: "background.default",
           }}
         >
-          <FormAnnotationTemplateVariantBlock
-            annotationTemplate={template}
-            onChange={onChange}
+          <FieldTextV2
+            label="Libellé"
+            value={template.label ?? ""}
+            onChange={(label) => patch({ label })}
+            options={{
+              fullWidth: true,
+              placeholder: "Libellé",
+              showAsField: true,
+            }}
           />
+
+          {useSimpleFillColor && (
+            <FieldColorV2
+              label="Couleur"
+              value={fillColor}
+              onChange={(color) => patch({ fillColor: color })}
+              options={{ showAsSection: true }}
+            />
+          )}
+
+          {hasFill && !useSimpleFillColor && (
+            <FieldAnnotationTemplateFill
+              value={{ fillColor, fillType, fillOpacity }}
+              onChange={(fill) => patch(fill)}
+            />
+          )}
+
+          {hasStroke && (
+            <FieldAnnotationTemplateStroke
+              value={{
+                strokeColor,
+                strokeType,
+                strokeOpacity,
+                strokeWidth,
+                strokeWidthUnit,
+              }}
+              onChange={(stroke) => patch(stroke)}
+            />
+          )}
         </Box>
       </Collapse>
     </Box>

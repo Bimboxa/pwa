@@ -52,8 +52,10 @@ export default function ListItemObject({ object, onOpen, onLocate }) {
         <Typography variant="body2" sx={{ fontWeight: "bold" }} noWrap>
           {object.label}
         </Typography>
+        {/* the label variant, when the object declares one, replaces the tab
+            name as subtitle — it is the more specific information. */}
         <Typography variant="caption" color="text.secondary" noWrap>
-          {getTabLabel(object.tab)}
+          {object.labelVariant ?? getTabLabel(object.tab)}
         </Typography>
       </Box>
       {action.placeable && (

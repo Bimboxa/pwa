@@ -7,6 +7,8 @@ import {
   Typography,
 } from "@mui/material";
 
+import getObjectFullLabel from "../utils/getObjectFullLabel";
+
 // Shown on "Localiser" when the target listing already holds a template created
 // from the same library model (matching modelIdMaster). The user either creates a
 // new model or reuses the existing template.
@@ -28,8 +30,8 @@ export default function DialogObjectAlreadyExists({
       <DialogTitle>Modèle déjà présent</DialogTitle>
       <DialogContent>
         <Typography variant="body2">
-          Un modèle <b>{object.label}</b> existe déjà dans <b>{listingName}</b>{" "}
-          : <b>{existingLabel}</b>.
+          Un modèle <b>{getObjectFullLabel(object)}</b> existe déjà dans{" "}
+          <b>{listingName}</b> : <b>{existingLabel}</b>.
         </Typography>
       </DialogContent>
       <DialogActions sx={{ px: 3, pb: 2, gap: 1, flexWrap: "wrap" }}>

@@ -79,8 +79,8 @@ export default function usePlaceObjectFromLibrary() {
           modelIdMaster: object.modelIdMaster ?? null,
           drawingShape: "OBJECT_3D",
           object3D: object3DField,
-          // Label edited in the dialog; falls back to the object name (quick
-          // "Localiser" from a card sends no edits).
+          // Label edited in the dialog; falls back to the object's main name —
+          // not the variant (quick "Localiser" from a card sends no edits).
           label: userEdits.label?.trim() || object.label || "",
         };
         // createEntity stores the glb into db.files AND rewrites

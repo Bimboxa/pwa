@@ -6,6 +6,9 @@ import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 import FieldAnnotationHeight from "Features/annotations/components/FieldAnnotationHeight";
 import FieldAnnotationTemplateFill from "Features/annotations/components/FieldAnnotationTemplateFill";
 import FieldAnnotationTemplateStroke from "Features/annotations/components/FieldAnnotationTemplateStroke";
+import FieldAnnotationTemplateRender3d from "Features/annotations/components/FieldAnnotationTemplateRender3d";
+
+import { MATERIAL3D_NONE_KEY } from "Features/photorealRender/utils/material3dPresets";
 
 import isObject3DEntry from "../utils/isObject3DEntry";
 
@@ -33,6 +36,22 @@ export default function FormObjectAnnotationConfig({
     has("strokeWidth") ||
     has("strokeOpacity") ||
     has("strokeType");
+  const hasMaterial3d = has("material3d");
+  const hasRender3d = has("color3D") || has("opacity3D") || hasMaterial3d;
+
+  // `height` is the slab thickness on a surface, the wall height on a line —
+  // same wording as the annotation template form.
+  const heightLabel =
+    object?.drawingShape === "POLYGON" ? "Épaisseur" : "Hauteur";
+
+  // 2D colour / opacity shown as the inherited placeholder of the "Rendu 3D"
+  // section (fill-driven for a surface, stroke-driven for a line).
+  const render3dFallbackColor = hasFill
+    ? draft.fillColor || draft.strokeColor || "#cccccc"
+    : draft.strokeColor || draft.fillColor || "#cccccc";
+  const render3dFallbackOpacity = hasFill
+    ? draft.fillOpacity
+    : draft.strokeOpacity;
 
   function patch(partial) {
     onChange({ ...draft, ...partial });
@@ -54,7 +73,7 @@ export default function FormObjectAnnotationConfig({
           options={{
             showAsField: true,
             showLabel: false,
-            placeholder: `Ex : ${object.label}`,
+            placeholder: `Ex : ${object.label ?? ""}`,
           }}
         />
       )}
@@ -69,7 +88,7 @@ export default function FormObjectAnnotationConfig({
             }}
           >
             <Typography variant="body2" sx={{ fontWeight: "bold" }}>
-              Épaisseur
+              {heightLabel}
             </Typography>
             <FieldAnnotationHeight
               annotation={draft}
@@ -93,6 +112,22 @@ export default function FormObjectAnnotationConfig({
         <FieldAnnotationTemplateStroke
           value={draft}
           onChange={(v) => onChange(v)}
+        />
+      )}
+
+      {hasRender3d && (
+        <FieldAnnotationTemplateRender3d
+          color3D={draft.color3D}
+          opacity3D={draft.opacity3D}
+          material3d={draft.material3d}
+          fallbackColor={render3dFallbackColor}
+          fallbackOpacity={render3dFallbackOpacity}
+          hasMaterial3d={hasMaterial3d}
+          onColor3DChange={(color3D) => patch({ color3D })}
+          onOpacity3DChange={(opacity3D) => patch({ opacity3D })}
+          onMaterial3dChange={(key) =>
+            patch({ material3d: key === MATERIAL3D_NONE_KEY ? null : key })
+          }
         />
       )}
 

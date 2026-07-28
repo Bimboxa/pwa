@@ -94,20 +94,24 @@ export default function CardObject({ object, onOpen, onLocate }) {
         )}
       </Box>
 
-      <Box sx={{ p: 1 }}>
+      {/* label + variant, one line each: the variant carries the detail, so the
+          main label stays short. The variant line is always rendered (empty when
+          the object declares none) to keep card heights uniform. */}
+      <Box sx={{ p: 1, minWidth: 0 }}>
         <Typography
           variant="body2"
-          sx={{
-            fontWeight: "bold",
-            display: "-webkit-box",
-            WebkitBoxOrient: "vertical",
-            WebkitLineClamp: 2,
-            overflow: "hidden",
-            lineHeight: 1.25,
-            minHeight: "2.5em",
-          }}
+          noWrap
+          sx={{ fontWeight: "bold", lineHeight: 1.25 }}
         >
           {object.label}
+        </Typography>
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          noWrap
+          sx={{ display: "block", lineHeight: 1.25, minHeight: "1.25em" }}
+        >
+          {object.labelVariant ?? ""}
         </Typography>
       </Box>
     </Box>
