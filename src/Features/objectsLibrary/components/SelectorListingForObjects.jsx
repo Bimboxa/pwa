@@ -20,8 +20,9 @@ const DEFAULT_SELECT_LISTING_TEXT =
   "Choisissez une liste où sera enregistré la figure";
 
 // Bottom "Sélectionnez une liste…" picker: a searchable, creatable MUI
-// Autocomplete over the MAP listing set (scoped LOCATED_ENTITY listings,
-// excluding baseMap ones). Typing a name that doesn't exist offers
+// Autocomplete over the listings of the current scope that can hold annotations
+// (see useObjectsTargetListings — same set as the map panel, system "Générique"
+// listing included and listed first). Typing a name that doesn't exist offers
 // "Créer la liste « … »"; the created list is selected as the target.
 export default function SelectorListingForObjects({ value, onChange }) {
   const appConfig = useAppConfig();

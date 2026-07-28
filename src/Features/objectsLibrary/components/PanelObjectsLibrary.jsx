@@ -87,8 +87,8 @@ export default function PanelObjectsLibrary() {
   // empty categories show an "En cours de construction" placeholder.
   const categoryHasObjects = objects.some((o) => o.tab === effectiveCategory);
 
-  // A valid target must be one of the candidate listings (the system
-  // "Annotations libres" listing is excluded and can't be a target).
+  // A valid target must be one of the candidate listings (the scope's listings
+  // that can hold annotations, incl. the system "Générique" one).
   const hasValidTarget = candidateListings.some(
     (l) => l.id === targetListingId
   );
