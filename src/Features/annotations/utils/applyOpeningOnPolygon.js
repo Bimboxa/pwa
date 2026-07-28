@@ -13,6 +13,12 @@ import {
     extractArcCircles,
     arcUnitsToTypedPoints,
 } from "Features/geometry/utils/arcSampling";
+import {
+    SEGMENT_FLAG_FIELDS,
+    getRingSegmentFlagPointIds,
+    segmentPointIdsToIdx,
+    segmentIdxToPointIds,
+} from "Features/annotations/utils/segmentFlags";
 
 const BOUNDARY_EPSILON = 1.5; // pixels — distance under which a point is "on the boundary"
 const ARC_SAMPLES = 12; // chords per arc half when polygonizing before the cut
@@ -165,7 +171,22 @@ export default async function applyOpeningOnPolygon({
         return { handled: true };
     }
 
-    const reconciledCuts = reconcileCuts(subjectCutsPx, result.cuts ?? []);
+    // Normalize each cut's segment flags to effective indices before the
+    // reconcile carry (id-keyed field wins — the raw row may already be
+    // migrated off the legacy index arrays, see segmentFlags.js).
+    const subjectCutsPxNorm = subjectCutsPx.map((c) => {
+        const next = { ...c };
+        for (const { idxField, idField } of SEGMENT_FLAG_FIELDS) {
+            const ids = getRingSegmentFlagPointIds(c, idxField, idField, c.points, {
+                closed: true,
+            });
+            if (ids != null)
+                next[idxField] = segmentPointIdsToIdx(ids, c.points, { closed: true });
+            delete next[idField];
+        }
+        return next;
+    });
+    const reconciledCuts = reconcileCuts(subjectCutsPxNorm, result.cuts ?? []);
 
     // Recover S-C-S arcs from the dense straight rings the boolean op produced,
     // then build the new db.points entries (normalized). Each ring is a closed
@@ -208,9 +229,14 @@ export default async function applyOpeningOnPolygon({
         const entry = { id: c.id, points: buildRingRefs(c.points) };
         if (c.label != null) entry.label = c.label;
         if (c.type != null) entry.type = c.type;
-        if (c.hiddenSegmentsIdx != null) entry.hiddenSegmentsIdx = c.hiddenSegmentsIdx;
-        if (c.isoHeightSegmentsIdx != null) entry.isoHeightSegmentsIdx = c.isoHeightSegmentsIdx;
-        if (c.isExtEdgeSegmentsIdx != null) entry.isExtEdgeSegmentsIdx = c.isExtEdgeSegmentsIdx;
+        // Positional carry converted to start-point ids on the rebuilt ring
+        // (1:1 when no arcs were recovered; best-effort otherwise, as before).
+        for (const { idxField, idField } of SEGMENT_FLAG_FIELDS) {
+            if (c[idxField] != null)
+                entry[idField] = segmentIdxToPointIds(c[idxField], entry.points, {
+                    closed: true,
+                });
+        }
         return entry;
     });
 
@@ -225,6 +251,14 @@ export default async function applyOpeningOnPolygon({
             ...host,
             points: newOuterPointRefs,
             cuts: newCutEntries,
+            // The outer ring is fully re-minted (fresh point ids): the host's
+            // segment flags cannot follow it — reset both representations.
+            ...Object.fromEntries(
+                SEGMENT_FLAG_FIELDS.flatMap(({ idxField, idField }) => [
+                    [idxField, undefined],
+                    [idField, undefined],
+                ])
+            ),
         },
     };
 }

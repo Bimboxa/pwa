@@ -3,6 +3,11 @@ import { nanoid } from "@reduxjs/toolkit";
 import db from "App/db/db";
 import { triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice";
 import { expandArcsInPath } from "Features/geometry/utils/arcSampling";
+import {
+  getRingSegmentFlagPointIds,
+  segmentPointIdsToIdx,
+  getAnnotationRingClosed,
+} from "Features/annotations/utils/segmentFlags";
 
 // Draws a profileLine on the target POLYLINE from a SOURCE annotation flagged
 // `isProfile` (a COMPLETELY FREE polyline drawn on an elevation drawing — Z /
@@ -109,11 +114,25 @@ export default async function applyProfileFromAnnotationService({
   const yRef = refPt ? refPt.y : Math.max(...srcPts.map((p) => p.y));
 
   // Drop hidden segments: keep the LONGEST visible run of consecutive
-  // segments (the drawn shape must stay one polyline).
+  // segments (the drawn shape must stay one polyline). Read id-aware (the raw
+  // row may be migrated — segmentFlags.js) and re-key against the FILTERED
+  // refs so srcPts indices line up even when orphaned refs were dropped.
+  const srcRingClosed = getAnnotationRingClosed(src);
+  const keptSrcRefs = srcRefs.filter((ref, i) => {
+    const p = srcRows[i];
+    return Number.isFinite(p?.x) && Number.isFinite(p?.y);
+  });
+  const srcHiddenIds = getRingSegmentFlagPointIds(
+    src,
+    "hiddenSegmentsIdx",
+    "hiddenSegmentsPointIds",
+    srcRefs,
+    { closed: srcRingClosed }
+  );
   const hiddenSet = new Set(
-    (Array.isArray(src.hiddenSegmentsIdx) ? src.hiddenSegmentsIdx : []).filter(
-      (i) => Number.isInteger(i)
-    )
+    srcHiddenIds == null
+      ? []
+      : segmentPointIdsToIdx(srcHiddenIds, keptSrcRefs, { closed: srcRingClosed })
   );
   // A closed source (circle / closed polyline) stays closed only when nothing
   // was hidden — hiding a segment cuts the loop into an open run.

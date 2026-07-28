@@ -9,6 +9,12 @@ import useVisibleAnnotations from "Features/mapEditor/hooks/useVisibleAnnotation
 
 import avoidVisibleAnnotationsService from "../services/avoidVisibleAnnotationsService";
 import getAnnotationBBox from "../utils/getAnnotationBbox";
+import {
+  SEGMENT_FLAG_FIELDS,
+  getRingSegmentFlagPointIds,
+  segmentIdxToPointIds,
+  filterSegmentPointIds,
+} from "../utils/segmentFlags";
 
 import db from "App/db/db";
 
@@ -148,14 +154,29 @@ export default function useHollowOutAnnotation() {
       const ref = { id: c.id, points: (c.points ?? []).map(findOrMint) };
       if (c.label != null) ref.label = c.label;
       if (c.type != null) ref.type = c.type;
-      if (c.hiddenSegmentsIdx != null)
-        ref.hiddenSegmentsIdx = c.hiddenSegmentsIdx;
-      if (c.isoHeightSegmentsIdx != null)
-        ref.isoHeightSegmentsIdx = c.isoHeightSegmentsIdx;
-      if (c.isExtEdgeSegmentsIdx != null)
-        ref.isExtEdgeSegmentsIdx = c.isExtEdgeSegmentsIdx;
+      // Positional carry (reconcileCuts on the resolved cuts' effective
+      // indices) converted to start-point ids on the rebuilt ring.
+      for (const { idxField, idField } of SEGMENT_FLAG_FIELDS) {
+        if (c[idxField] != null)
+          ref[idField] = segmentIdxToPointIds(c[idxField], ref.points, {
+            closed: true,
+          });
+      }
       return ref;
     });
+
+    // Root-ring flags: keyed by start point id, they follow the surviving
+    // refs through the carve (findOrMint reuses ids on unchanged vertices);
+    // the write below migrates the row off the legacy index fields.
+    const rootFlagChanges = {};
+    for (const { idxField, idField } of SEGMENT_FLAG_FIELDS) {
+      const ids = getRingSegmentFlagPointIds(raw, idxField, idField, raw.points, {
+        closed: true,
+      });
+      if (ids != null)
+        rootFlagChanges[idField] = filterSegmentPointIds(ids, newPointsRefs);
+      if (raw[idxField] !== undefined) rootFlagChanges[idxField] = undefined;
+    }
 
     // Extra disjoint pieces → one new annotation per piece, cloned from the
     // original record. All their points get fresh ids so no vertex is shared
@@ -165,6 +186,11 @@ export default function useHollowOutAnnotation() {
     delete clonedProps.points;
     delete clonedProps.cuts;
     delete clonedProps.entityId;
+    // Segment flags never carry over to a piece whose points are re-minted.
+    for (const { idxField, idField } of SEGMENT_FLAG_FIELDS) {
+      delete clonedProps[idxField];
+      delete clonedProps[idField];
+    }
     delete clonedProps.createdAt;
     delete clonedProps.updatedAt;
     delete clonedProps.createdByUserIdMaster;
@@ -226,6 +252,7 @@ export default function useHollowOutAnnotation() {
         await db.annotations.update(annotation.id, {
           points: newPointsRefs,
           cuts: newCutsRefs,
+          ...rootFlagChanges,
         });
         if (newAnnotationRows.length > 0) {
           await db.annotations.bulkAdd(newAnnotationRows);

@@ -196,6 +196,11 @@ export default function useCloneAnnotationAndEntity() {
                 delete clonedAnnotation.hiddenSegmentsIdx;
                 delete clonedAnnotation.isoHeightSegmentsIdx;
                 delete clonedAnnotation.isExtEdgeSegmentsIdx;
+                delete clonedAnnotation.isIntEdgeSegmentsIdx;
+                delete clonedAnnotation.hiddenSegmentsPointIds;
+                delete clonedAnnotation.isoHeightSegmentsPointIds;
+                delete clonedAnnotation.isExtEdgeSegmentsPointIds;
+                delete clonedAnnotation.isIntEdgeSegmentsPointIds;
                 // Open vs closed line:
                 //   CUT → closed polygon (or polyline-with-closeLine)
                 //   SEGMENTS chain with closesRing → closed polyline

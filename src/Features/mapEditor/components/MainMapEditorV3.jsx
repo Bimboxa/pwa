@@ -123,6 +123,7 @@ import useHandleSplitPolyline from "../hooks/useHandleSplitPolyline";
 import useHandleSplitPolylineClick from "../hooks/useHandleSplitPolylineClick";
 import useNewEntity from "Features/entities/hooks/useNewEntity";
 import getSegmentAngle from "Features/geometry/utils/getSegmentAngle";
+import { buildSegmentFlagChanges } from "Features/annotations/utils/segmentFlags";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import fitBoundsToViewport from "../utils/fitBoundsToViewport";
 import getAnnotationBounds from "../utils/getAnnotationBounds";
@@ -1554,92 +1555,60 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     };
 
     // handlers - hide segments
-    // Toggles a segment's hidden state. When `cutIndex` is provided, the
-    // toggle applies to `annotation.cuts[cutIndex].hiddenSegmentsIdx`; otherwise
-    // it applies to the main contour's `annotation.hiddenSegmentsIdx`.
-    const toggleIdx = (list, idx) =>
-        list.includes(idx) ? list.filter(i => i !== idx) : [...list, idx];
-
-    const handleHideSegment = async ({ annotationId, segmentIndex, cutIndex }) => {
+    // Hidden segments are persisted as start-point-id arrays (segmentFlags.js).
+    // The segment indices decoded from partIds are transient (valid against the
+    // RESOLVED rings), so buildSegmentFlagChanges maps them to point ids via the
+    // resolved annotation and writes on the RAW db row (never write resolved
+    // pixel points back). The first write also migrates the whole row off the
+    // legacy index fields.
+    const applyHideSegmentOps = async (annotationId, ops) => {
         const annotation = annotations.find(a => a.id === annotationId);
         if (!annotation) return;
-
-        if (cutIndex == null) {
-            const currentHidden = annotation.hiddenSegmentsIdx || [];
-            const newHidden = toggleIdx(currentHidden, segmentIndex);
-            await db.annotations.update(annotationId, { hiddenSegmentsIdx: newHidden });
-            return;
-        }
-
-        const cuts = annotation.cuts || [];
-        if (!cuts[cutIndex]) return;
-        const newCuts = cuts.map((cut, i) => {
-            if (i !== cutIndex) return cut;
-            const currentHidden = cut.hiddenSegmentsIdx || [];
-            return { ...cut, hiddenSegmentsIdx: toggleIdx(currentHidden, segmentIndex) };
+        const record = await db.annotations.get(annotationId);
+        if (!record) return;
+        const changes = buildSegmentFlagChanges({
+            record,
+            resolvedAnnotation: annotation,
+            ops,
         });
-        await db.annotations.update(annotationId, { cuts: newCuts });
+        if (changes) await db.annotations.update(annotationId, changes);
+    };
+
+    const handleHideSegment = async ({ annotationId, segmentIndex, cutIndex }) => {
+        const ringKey = cutIndex == null ? "MAIN" : `CUT::${cutIndex}`;
+        await applyHideSegmentOps(annotationId, [
+            { idxField: "hiddenSegmentsIdx", ringKey, segIdxs: [segmentIndex], mode: "toggle" },
+        ]);
     };
 
     // Toggles the hidden state of many segments at once (multi-segment Delete).
-    // A naive loop over handleHideSegment would clobber writes (each reads the
-    // same stale annotation.hiddenSegmentsIdx). Instead group part IDs by
-    // annotation and apply a single db update per annotation, toggling every
-    // requested index together.
-    const toggleAll = (list, indices) => {
-        const set = new Set(list);
-        for (const idx of indices) {
-            if (set.has(idx)) set.delete(idx);
-            else set.add(idx);
-        }
-        return [...set];
-    };
-
+    // Part IDs are grouped per annotation and ring so each annotation gets a
+    // single db update (a naive loop would clobber writes, each reading the
+    // same stale row).
     const handleHideSegments = async ({ partIds }) => {
-        // Group requested indices per annotation: main contour + per cut.
-        const byAnnotation = new Map(); // annotationId -> { main:Set, cuts:Map<cutIdx,Set> }
+        const byAnnotation = new Map(); // annotationId -> Map<ringKey, Set<segIdx>>
         for (const partId of partIds || []) {
             const parts = partId.split('::'); // annotationId::TYPE::index[::subIndex]
             const annotationId = parts[0];
             const type = parts[1];
             if (type !== 'SEG' && type !== 'CUT_SEG') continue;
-            if (!byAnnotation.has(annotationId)) {
-                byAnnotation.set(annotationId, { main: new Set(), cuts: new Map() });
-            }
-            const entry = byAnnotation.get(annotationId);
-            if (type === 'SEG') {
-                entry.main.add(parseInt(parts[2], 10));
-            } else {
-                const cutIndex = parseInt(parts[2], 10);
-                const segmentIndex = parseInt(parts[3], 10);
-                if (!entry.cuts.has(cutIndex)) entry.cuts.set(cutIndex, new Set());
-                entry.cuts.get(cutIndex).add(segmentIndex);
-            }
+            const ringKey = type === 'SEG' ? 'MAIN' : `CUT::${parseInt(parts[2], 10)}`;
+            const segIdx = parseInt(type === 'SEG' ? parts[2] : parts[3], 10);
+            if (!Number.isInteger(segIdx)) continue;
+            if (!byAnnotation.has(annotationId)) byAnnotation.set(annotationId, new Map());
+            const rings = byAnnotation.get(annotationId);
+            if (!rings.has(ringKey)) rings.set(ringKey, new Set());
+            rings.get(ringKey).add(segIdx);
         }
 
-        for (const [annotationId, entry] of byAnnotation) {
-            const annotation = annotations.find(a => a.id === annotationId);
-            if (!annotation) continue;
-            const changes = {};
-
-            if (entry.main.size > 0) {
-                const currentHidden = annotation.hiddenSegmentsIdx || [];
-                changes.hiddenSegmentsIdx = toggleAll(currentHidden, [...entry.main]);
-            }
-
-            if (entry.cuts.size > 0) {
-                const cuts = annotation.cuts || [];
-                changes.cuts = cuts.map((cut, i) => {
-                    const indices = entry.cuts.get(i);
-                    if (!indices) return cut;
-                    const currentHidden = cut.hiddenSegmentsIdx || [];
-                    return { ...cut, hiddenSegmentsIdx: toggleAll(currentHidden, [...indices]) };
-                });
-            }
-
-            if (Object.keys(changes).length > 0) {
-                await db.annotations.update(annotationId, changes);
-            }
+        for (const [annotationId, rings] of byAnnotation) {
+            const ops = [...rings].map(([ringKey, segIdxs]) => ({
+                idxField: "hiddenSegmentsIdx",
+                ringKey,
+                segIdxs: [...segIdxs],
+                mode: "toggle",
+            }));
+            await applyHideSegmentOps(annotationId, ops);
         }
     };
 

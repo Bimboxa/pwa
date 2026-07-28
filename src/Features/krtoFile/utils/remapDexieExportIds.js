@@ -1,6 +1,7 @@
 import { nanoid } from "@reduxjs/toolkit";
 
 import resolveTypesonCyclicRefs from "Features/krtoFile/utils/resolveTypesonCyclicRefs";
+import { SEGMENT_FLAG_FIELDS } from "Features/annotations/utils/segmentFlags";
 
 /**
  * Rewrites every primary key and foreign-key reference in a parsed
@@ -244,18 +245,33 @@ export default function remapDexieExportIds(jsonData, opts) {
         }
       }
 
-      // Annotation point refs (points[] and cuts[*].points[]).
+      // Annotation point refs (points[] and cuts[*].points[]), plus the
+      // segment-flag start-point-id arrays which reference the same point
+      // ids (root + per cut — see segmentFlags.js).
       if (tableName === "annotations") {
+        const remapFlagPointIds = (holder) => {
+          for (const { idField } of SEGMENT_FLAG_FIELDS) {
+            if (Array.isArray(holder?.[idField]))
+              holder[idField] = holder[idField].map((id) =>
+                remapId("points", id)
+              );
+          }
+        };
         if (Array.isArray(row.points)) {
           row.points = row.points.map(remapPointRef);
         }
+        remapFlagPointIds(row);
         if (Array.isArray(row.cuts)) {
-          row.cuts = row.cuts.map((cut) => ({
-            ...cut,
-            points: Array.isArray(cut?.points)
-              ? cut.points.map(remapPointRef)
-              : cut?.points,
-          }));
+          row.cuts = row.cuts.map((cut) => {
+            const next = {
+              ...cut,
+              points: Array.isArray(cut?.points)
+                ? cut.points.map(remapPointRef)
+                : cut?.points,
+            };
+            remapFlagPointIds(next);
+            return next;
+          });
         }
       }
 

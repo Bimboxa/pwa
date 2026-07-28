@@ -18,6 +18,11 @@ import {
 } from "Features/geometry/utils/arcSampling";
 import { pointInPolygon } from "Features/smartDetect/utils/detectPolygonFromAnnotations";
 import splitPolylineByClosedContour from "Features/geometry/utils/splitPolylineByClosedContour";
+import {
+  SEGMENT_FLAG_FIELDS,
+  SEGMENT_FLAG_ID_FIELD_BY_IDX_FIELD,
+  segmentIdxToPointIds,
+} from "Features/annotations/utils/segmentFlags";
 
 // Tessellation count for S-C-S arcs before boolean/crossing ops — matches
 // avoidVisibleAnnotationsService / getStripePolygons.
@@ -217,6 +222,12 @@ export default function useAssignZoneToAnnotations() {
         delete row.entityId;
         delete row.points;
         delete row.cuts;
+        // Segment flags never carry over to a piece with a rebuilt ring —
+        // the caller re-supplies them (id-keyed) when a mapping exists.
+        for (const { idxField, idField } of SEGMENT_FLAG_FIELDS) {
+          delete row[idxField];
+          delete row[idField];
+        }
         delete row.createdAt;
         delete row.updatedAt;
         delete row.createdByUserIdMaster;
@@ -305,11 +316,14 @@ export default function useAssignZoneToAnnotations() {
         // --- centerline chain split ---
         const closed = annotation.closeLine === true;
         let centerline = annotation.points;
-        let segFields = {
-          hiddenSegmentsIdx: annotation.hiddenSegmentsIdx,
-          isoHeightSegmentsIdx: annotation.isoHeightSegmentsIdx,
-          isExtEdgeSegmentsIdx: annotation.isExtEdgeSegmentsIdx,
-        };
+        // Effective segment indices from the resolved annotation (id-derived
+        // by useAnnotationsV2); written back as start-point ids per chain.
+        let segFields = Object.fromEntries(
+          SEGMENT_FLAG_FIELDS.map(({ idxField }) => [
+            idxField,
+            annotation[idxField],
+          ])
+        );
         if (hasArcs(centerline)) {
           // tessellate arcs; segment-indexed fields translated through the
           // expansion (crossed arcs lose their arc fidelity, like in the
@@ -353,21 +367,29 @@ export default function useAssignZoneToAnnotations() {
         );
 
         chains.forEach((chain, idx) => {
-          const chainSegFields = {};
+          // findOrMint is idempotent per px coordinate, so these refs match
+          // the ones buildPieceRow mints for the same chain.
+          const chainRefs = chain.points.map((p) => findOrMint(p));
+          // Chain flags → start-point ids on the chain refs (chains are open:
+          // the last point starts no segment). Legacy idx fields are cleared.
+          const chainFlagIds = {};
           for (const [k, v] of Object.entries(segFields)) {
             const remapped = remapSegField(v, chain.srcSegIdx);
-            chainSegFields[k] = remapped ?? null;
+            chainFlagIds[SEGMENT_FLAG_ID_FIELD_BY_IDX_FIELD[k]] = remapped
+              ? segmentIdxToPointIds(remapped, chainRefs, { closed: false })
+              : undefined;
           }
           if (idx === firstKeptIdx) {
             annotationUpdates.push({
               id: annotation.id,
               changes: {
-                points: chain.points.map((p) => findOrMint(p)),
+                points: chainRefs,
                 closeLine: false,
+                ...chainFlagIds,
                 ...Object.fromEntries(
-                  Object.entries(chainSegFields).map(([k, v]) => [
-                    k,
-                    v ?? undefined,
+                  SEGMENT_FLAG_FIELDS.map(({ idxField }) => [
+                    idxField,
+                    undefined,
                   ])
                 ),
               },
@@ -377,9 +399,8 @@ export default function useAssignZoneToAnnotations() {
             const row = buildPieceRow(raw, chain.points, {
               closeLine: false,
             });
-            for (const [k, v] of Object.entries(chainSegFields)) {
-              if (v) row[k] = v;
-              else delete row[k];
+            for (const [idField, ids] of Object.entries(chainFlagIds)) {
+              if (ids?.length) row[idField] = ids;
             }
             newAnnotationRows.push(row);
             if (chain.inside) linkedAnnotationIds.push(row.id);

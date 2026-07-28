@@ -8,9 +8,13 @@
 // matches the duplicate at i+1 within the minimum index gap), which produced
 // giant VCT/RTP annotations in the fromPolygonsToBim procedure.
 
-// Explicit .js extension so the plain-node test harness
+// Explicit .js extensions (and relative paths) so the plain-node test harness
 // (__test__fromPolygonsToBim.mjs) can import this module without a bundler.
 import { typeOf } from "./arcSampling.js";
+import {
+  SEGMENT_FLAG_FIELDS,
+  filterSegmentPointIds,
+} from "../../annotations/utils/segmentFlags.js";
 
 export const DUPLICATE_POINT_EPS_PX = 0.01; // consecutive ring points closer than this are duplicates
 
@@ -91,10 +95,25 @@ export function remapSegmentsIdx(segIdx, repr, oldN) {
 }
 
 /**
+ * Drop the id-keyed flag arrays' entries whose start point was removed by the
+ * dedup, so the id fields stay consistent with the deduped ring (dedup keeps
+ * the surviving point objects — and their ids — untouched).
+ */
+function filterRingFlagIds(target, ringHolder, keptPoints) {
+  for (const { idField } of SEGMENT_FLAG_FIELDS) {
+    if (Array.isArray(ringHolder[idField])) {
+      target[idField] = filterSegmentPointIds(ringHolder[idField], keptPoints);
+    }
+  }
+  return target;
+}
+
+/**
  * Return a non-mutating copy of a POLYGON annotation with consecutive
  * duplicate points removed from its outer ring and each cut ring, and the
- * positional segment tags remapped accordingly. Returns the SAME object when
- * nothing changes (common case), so clean inputs produce identical output.
+ * segment flags (positional index tags + id-keyed arrays) remapped
+ * accordingly. Returns the SAME object when nothing changes (common case),
+ * so clean inputs produce identical output.
  */
 export default function sanitizePolygonRings(polygon) {
   const outer = dedupeRingPoints(polygon.points ?? []);
@@ -104,38 +123,46 @@ export default function sanitizePolygonRings(polygon) {
     if (!r.changed) return cut;
     cutsChanged = true;
     const oldN = cut.points.length;
-    return {
-      ...cut,
-      points: r.points,
-      hiddenSegmentsIdx: remapSegmentsIdx(cut.hiddenSegmentsIdx, r.repr, oldN),
-      isExtEdgeSegmentsIdx: remapSegmentsIdx(
-        cut.isExtEdgeSegmentsIdx,
-        r.repr,
-        oldN
-      ),
-      isIntEdgeSegmentsIdx: remapSegmentsIdx(
-        cut.isIntEdgeSegmentsIdx,
-        r.repr,
-        oldN
-      ),
-    };
+    return filterRingFlagIds(
+      {
+        ...cut,
+        points: r.points,
+        hiddenSegmentsIdx: remapSegmentsIdx(cut.hiddenSegmentsIdx, r.repr, oldN),
+        isExtEdgeSegmentsIdx: remapSegmentsIdx(
+          cut.isExtEdgeSegmentsIdx,
+          r.repr,
+          oldN
+        ),
+        isIntEdgeSegmentsIdx: remapSegmentsIdx(
+          cut.isIntEdgeSegmentsIdx,
+          r.repr,
+          oldN
+        ),
+      },
+      cut,
+      r.points
+    );
   });
 
   if (!outer.changed && !cutsChanged) return polygon;
 
   const oldN = polygon.points.length;
-  return {
-    ...polygon,
-    points: outer.points,
-    hiddenSegmentsIdx: outer.changed
-      ? remapSegmentsIdx(polygon.hiddenSegmentsIdx, outer.repr, oldN)
-      : polygon.hiddenSegmentsIdx,
-    isExtEdgeSegmentsIdx: outer.changed
-      ? remapSegmentsIdx(polygon.isExtEdgeSegmentsIdx, outer.repr, oldN)
-      : polygon.isExtEdgeSegmentsIdx,
-    isIntEdgeSegmentsIdx: outer.changed
-      ? remapSegmentsIdx(polygon.isIntEdgeSegmentsIdx, outer.repr, oldN)
-      : polygon.isIntEdgeSegmentsIdx,
-    ...(polygon.cuts ? { cuts } : {}),
-  };
+  return filterRingFlagIds(
+    {
+      ...polygon,
+      points: outer.points,
+      hiddenSegmentsIdx: outer.changed
+        ? remapSegmentsIdx(polygon.hiddenSegmentsIdx, outer.repr, oldN)
+        : polygon.hiddenSegmentsIdx,
+      isExtEdgeSegmentsIdx: outer.changed
+        ? remapSegmentsIdx(polygon.isExtEdgeSegmentsIdx, outer.repr, oldN)
+        : polygon.isExtEdgeSegmentsIdx,
+      isIntEdgeSegmentsIdx: outer.changed
+        ? remapSegmentsIdx(polygon.isIntEdgeSegmentsIdx, outer.repr, oldN)
+        : polygon.isIntEdgeSegmentsIdx,
+      ...(polygon.cuts ? { cuts } : {}),
+    },
+    polygon,
+    outer.changed ? outer.points : polygon.points
+  );
 }

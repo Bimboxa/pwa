@@ -1,5 +1,10 @@
 import db from "App/db/db";
 import { triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice";
+import {
+  getRingSegmentFlagPointIds,
+  segmentPointIdsToIdx,
+  getAnnotationRingClosed,
+} from "Features/annotations/utils/segmentFlags";
 
 // Writes a per-vertex elevation offset back to the annotation. `offsetBottom` /
 // `offsetTop` live on the annotation.points[] references (meters), NOT in
@@ -22,9 +27,24 @@ export default async function commitElevationOffsetService({
   // dragging one endpoint's TOP mirrors the value to the other endpoint so the
   // segment stays level.
   const targetIdxs = new Set([pointIndex]);
-  if (edge === "TOP" && Array.isArray(annotation.isoHeightSegmentsIdx)) {
+  // Iso segments read id-aware (the raw row may be migrated off the legacy
+  // index field — see segmentFlags.js), converted back to indices on the raw
+  // ring for the mirroring below.
+  const ringClosed = getAnnotationRingClosed(annotation);
+  const isoIds = getRingSegmentFlagPointIds(
+    annotation,
+    "isoHeightSegmentsIdx",
+    "isoHeightSegmentsPointIds",
+    annotation.points,
+    { closed: ringClosed }
+  );
+  const isoSegIdxs =
+    isoIds == null
+      ? null
+      : segmentPointIdsToIdx(isoIds, annotation.points, { closed: ringClosed });
+  if (edge === "TOP" && Array.isArray(isoSegIdxs)) {
     const nRing = annotation.points.length;
-    for (const segIdx of annotation.isoHeightSegmentsIdx) {
+    for (const segIdx of isoSegIdxs) {
       if (!Number.isInteger(segIdx)) continue;
       if (segIdx === pointIndex) targetIdxs.add((segIdx + 1) % nRing);
       else if ((segIdx + 1) % nRing === pointIndex) targetIdxs.add(segIdx);

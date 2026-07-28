@@ -7,6 +7,7 @@ import {
 
 import useSelectedAnnotation from "Features/annotations/hooks/useSelectedAnnotation";
 import { decodePartId } from "Features/annotations/utils/getContiguousSegmentChain";
+import { buildSegmentFlagChanges } from "Features/annotations/utils/segmentFlags";
 
 import db from "App/db/db";
 
@@ -16,9 +17,11 @@ const ringIdxList = (annotation, ringKey, field) => {
   return annotation?.cuts?.[cutIdx]?.[field] || [];
 };
 
-// Unified state + bulk toggle for a per-segment edge flag stored as an array of
-// segment indices on the annotation main contour (`annotation[field]`) and on
-// each `annotation.cuts[cutIdx][field]`. Handles both single-segment selection
+// Unified state + bulk toggle for a per-segment edge flag on the annotation
+// main contour and on each `annotation.cuts[cutIdx]`. `field` is the legacy
+// index-based name ("xxxSegmentsIdx"); reads go through the effective indices
+// recomputed by useAnnotationsV2, writes persist the start-point-id arrays
+// (see segmentFlags.js). Handles both single-segment selection
 // (selectedItem.partId) and multi-segment selection (selectedPartIds).
 //
 // `field` is the flag being toggled (e.g. "isExtEdgeSegmentsIdx"); `clearField`
@@ -56,7 +59,7 @@ export default function useSegmentsEdgeFlag(field, clearField) {
 
   const toggle = async () => {
     const annotationId = selectedItem?.nodeId || selectedItem?.id;
-    if (!annotationId || decoded.length === 0) return;
+    if (!annotationId || decoded.length === 0 || !annotation) return;
 
     // Read the raw record so we never write resolved pixel-space points back.
     const record = await db.annotations.get(annotationId);
@@ -70,56 +73,25 @@ export default function useSegmentsEdgeFlag(field, clearField) {
     }
 
     // If every selected segment is already flagged → remove all, else add all.
+    // buildSegmentFlagChanges persists the flag as start-point ids (mapped from
+    // the resolved rings), clears the mutually-exclusive opposite flag on the
+    // same segments when adding, and migrates the row off the legacy idx
+    // fields on first write.
     const setFlag = !checked;
+    const ops = [...byRing].map(([ringKey, segIdxs]) => ({
+      idxField: field,
+      ringKey,
+      segIdxs: [...segIdxs],
+      mode: setFlag ? "set" : "remove",
+      clearIdxField: clearField,
+    }));
 
-    const applyToList = (current, segIdxs) => {
-      const next = new Set(current || []);
-      for (const idx of segIdxs) {
-        if (setFlag) next.add(idx);
-        else next.delete(idx);
-      }
-      return [...next].sort((a, b) => a - b);
-    };
-
-    // When the flag is added, drop those segments from the opposite flag so the
-    // two stay mutually exclusive. When the flag is removed, leave it alone.
-    const clearList = (current, segIdxs) => {
-      if (!setFlag || !clearField) return current;
-      const next = new Set(current || []);
-      let changed = false;
-      for (const idx of segIdxs) {
-        if (next.delete(idx)) changed = true;
-      }
-      return changed ? [...next].sort((a, b) => a - b) : current;
-    };
-
-    const update = {};
-
-    const mainSegs = byRing.get("MAIN");
-    if (mainSegs) {
-      update[field] = applyToList(record[field], mainSegs);
-      if (clearField) {
-        const cleared = clearList(record[clearField], mainSegs);
-        if (cleared !== record[clearField]) update[clearField] = cleared;
-      }
-    }
-
-    const cutRings = [...byRing.keys()].filter((k) => k !== "MAIN");
-    if (cutRings.length > 0) {
-      const cuts = record.cuts || [];
-      update.cuts = cuts.map((cut, i) => {
-        const segs = byRing.get(`CUT::${i}`);
-        if (!segs) return cut;
-        const nextCut = { ...cut, [field]: applyToList(cut[field], segs) };
-        if (clearField) {
-          nextCut[clearField] = clearList(cut[clearField], segs);
-        }
-        return nextCut;
-      });
-    }
-
-    if (Object.keys(update).length === 0) return;
-    await db.annotations.update(annotationId, update);
+    const changes = buildSegmentFlagChanges({
+      record,
+      resolvedAnnotation: annotation,
+      ops,
+    });
+    if (changes) await db.annotations.update(annotationId, changes);
   };
 
   return { checked, indeterminate, count, toggle };

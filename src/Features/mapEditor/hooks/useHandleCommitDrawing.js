@@ -24,6 +24,10 @@ import getAnnotationBBox from "Features/annotations/utils/getAnnotationBbox";
 import mergePolygonAnnotationsService from "Features/annotations/services/mergePolygonAnnotationsService";
 import avoidVisibleAnnotationsService from "Features/annotations/services/avoidVisibleAnnotationsService";
 import applyOpeningOnPolygon from "Features/annotations/utils/applyOpeningOnPolygon";
+import {
+  SEGMENT_FLAG_FIELDS,
+  segmentIdxToPointIds,
+} from "Features/annotations/utils/segmentFlags";
 import findCutHostAnnotationId from "Features/annotations/utils/findCutHostAnnotationId";
 import addAnnotationOpening from "Features/annotations/services/addAnnotationOpening";
 import deriveOpeningContourAnchor from "Features/mapEditor/utils/deriveOpeningContourAnchor";
@@ -930,9 +934,13 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
                             const ref = { id: c.id, points: (c.points ?? []).map(findOrMint) };
                             if (c.label != null) ref.label = c.label;
                             if (c.type != null) ref.type = c.type;
-                            if (c.hiddenSegmentsIdx != null) ref.hiddenSegmentsIdx = c.hiddenSegmentsIdx;
-                            if (c.isoHeightSegmentsIdx != null) ref.isoHeightSegmentsIdx = c.isoHeightSegmentsIdx;
-                            if (c.isExtEdgeSegmentsIdx != null) ref.isExtEdgeSegmentsIdx = c.isExtEdgeSegmentsIdx;
+                            // Positional carry (reconcileCuts on effective
+                            // indices) converted to start-point ids on the
+                            // rebuilt ring (segmentFlags.js).
+                            for (const { idxField, idField } of SEGMENT_FLAG_FIELDS) {
+                                if (c[idxField] != null)
+                                    ref[idField] = segmentIdxToPointIds(c[idxField], ref.points, { closed: true });
+                            }
                             return ref;
                         });
 

@@ -2,17 +2,20 @@ import { useSelector } from "react-redux";
 
 import { selectSelectedItem } from "Features/selection/selectionSlice";
 
+import useSelectedAnnotation from "Features/annotations/hooks/useSelectedAnnotation";
+import { buildSegmentFlagChanges } from "Features/annotations/utils/segmentFlags";
+
 import db from "App/db/db";
 
-const toggleIdx = (list, idx) =>
-  list.includes(idx) ? list.filter((i) => i !== idx) : [...list, idx];
-
-// Toggles the sub-selected segment's isoHeight (contour line) flag. Stored as
-// `isoHeightSegmentsIdx` on the annotation main contour, or on the matching
-// `annotation.cuts[cutIdx]`. Reads the raw db record so we never write resolved
-// pixel-space points back. Dexie liveQuery refreshes the UI automatically.
+// Toggles the sub-selected segment's isoHeight (contour line) flag, on the
+// annotation main contour or on the matching `annotation.cuts[cutIdx]`.
+// Persisted as start-point ids (segmentFlags.js): the transient segIdx from
+// the partId is mapped to a point id via the resolved annotation, and the raw
+// db record is read back so we never write resolved pixel-space points.
+// Dexie liveQuery refreshes the UI automatically.
 export default function useToggleSegmentIsoHeight() {
   const selectedItem = useSelector(selectSelectedItem);
+  const annotation = useSelectedAnnotation();
 
   return async () => {
     const annotationId = selectedItem?.nodeId || selectedItem?.id;
@@ -22,6 +25,7 @@ export default function useToggleSegmentIsoHeight() {
     if (
       !annotationId ||
       !partId ||
+      !annotation ||
       (partType !== "SEG" && partType !== "CUT_SEG")
     )
       return;
@@ -36,24 +40,22 @@ export default function useToggleSegmentIsoHeight() {
     }
     if (!Number.isInteger(segIdx)) return;
 
-    const annotation = await db.annotations.get(annotationId);
-    if (!annotation) return;
+    const record = await db.annotations.get(annotationId);
+    if (!record) return;
 
-    if (cutIdx == null) {
-      const current = annotation.isoHeightSegmentsIdx || [];
-      await db.annotations.update(annotationId, {
-        isoHeightSegmentsIdx: toggleIdx(current, segIdx),
-      });
-      return;
-    }
-
-    const cuts = annotation.cuts || [];
-    if (!cuts[cutIdx]) return;
-    const newCuts = cuts.map((cut, i) => {
-      if (i !== cutIdx) return cut;
-      const current = cut.isoHeightSegmentsIdx || [];
-      return { ...cut, isoHeightSegmentsIdx: toggleIdx(current, segIdx) };
+    const ringKey = cutIdx == null ? "MAIN" : `CUT::${cutIdx}`;
+    const changes = buildSegmentFlagChanges({
+      record,
+      resolvedAnnotation: annotation,
+      ops: [
+        {
+          idxField: "isoHeightSegmentsIdx",
+          ringKey,
+          segIdxs: [segIdx],
+          mode: "toggle",
+        },
+      ],
     });
-    await db.annotations.update(annotationId, { cuts: newCuts });
+    if (changes) await db.annotations.update(annotationId, changes);
   };
 }

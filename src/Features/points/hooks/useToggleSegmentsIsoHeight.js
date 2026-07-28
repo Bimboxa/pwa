@@ -7,6 +7,7 @@ import {
 
 import useSelectedAnnotation from "Features/annotations/hooks/useSelectedAnnotation";
 import { decodePartId } from "Features/annotations/utils/getContiguousSegmentChain";
+import { buildSegmentFlagChanges } from "Features/annotations/utils/segmentFlags";
 
 import db from "App/db/db";
 
@@ -47,7 +48,7 @@ export default function useToggleSegmentsIsoHeight() {
 
   const toggle = async () => {
     const annotationId = selectedItem?.nodeId || selectedItem?.id;
-    if (!annotationId || decoded.length === 0) return;
+    if (!annotationId || decoded.length === 0 || !annotation) return;
 
     const record = await db.annotations.get(annotationId);
     if (!record) return;
@@ -58,42 +59,23 @@ export default function useToggleSegmentsIsoHeight() {
       byRing.get(ringKey).add(segIdx);
     }
 
+    // If every selected segment is already flagged → remove all, else add all.
+    // Persisted as start-point ids (segmentFlags.js), row migrated off the
+    // legacy idx fields on first write.
     const setIso = !checked;
+    const ops = [...byRing].map(([ringKey, segIdxs]) => ({
+      idxField: "isoHeightSegmentsIdx",
+      ringKey,
+      segIdxs: [...segIdxs],
+      mode: setIso ? "set" : "remove",
+    }));
 
-    const applyToList = (current, segIdxs) => {
-      const next = new Set(current || []);
-      for (const idx of segIdxs) {
-        if (setIso) next.add(idx);
-        else next.delete(idx);
-      }
-      return [...next].sort((a, b) => a - b);
-    };
-
-    const update = {};
-
-    const mainSegs = byRing.get("MAIN");
-    if (mainSegs) {
-      update.isoHeightSegmentsIdx = applyToList(
-        record.isoHeightSegmentsIdx,
-        mainSegs
-      );
-    }
-
-    const cutRings = [...byRing.keys()].filter((k) => k !== "MAIN");
-    if (cutRings.length > 0) {
-      const cuts = record.cuts || [];
-      update.cuts = cuts.map((cut, i) => {
-        const segs = byRing.get(`CUT::${i}`);
-        if (!segs) return cut;
-        return {
-          ...cut,
-          isoHeightSegmentsIdx: applyToList(cut.isoHeightSegmentsIdx, segs),
-        };
-      });
-    }
-
-    if (Object.keys(update).length === 0) return;
-    await db.annotations.update(annotationId, update);
+    const changes = buildSegmentFlagChanges({
+      record,
+      resolvedAnnotation: annotation,
+      ops,
+    });
+    if (changes) await db.annotations.update(annotationId, changes);
   };
 
   return { checked, indeterminate, count, toggle };

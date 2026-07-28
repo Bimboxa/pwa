@@ -1,5 +1,6 @@
 import { useCallback } from "react";
 import db from "App/db/db";
+import { applySegmentFlagsAfterPointRemoval } from "Features/annotations/utils/segmentFlags";
 
 /**
  * Bulk delete multiple points from an annotation.
@@ -30,9 +31,20 @@ export default function useDeletePoints() {
         points: (cut.points || []).filter((pt) => !pointIdSet.has(pt.id)),
       }));
 
+      // Per-segment flags follow the removal: drop the flags whose start
+      // point is gone, and migrate the row off the legacy index fields
+      // (indices would shift — the historical hidden-segment bug).
+      const { rootChanges, cuts: cutsWithFlags } =
+        applySegmentFlagsAfterPointRemoval({
+          record: dbAnnotation,
+          newPoints,
+          newCuts,
+        });
+
       await db.annotations.update(annotationId, {
         points: newPoints,
-        cuts: newCuts,
+        cuts: cutsWithFlags,
+        ...rootChanges,
       });
 
       console.log(

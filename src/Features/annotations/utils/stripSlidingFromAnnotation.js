@@ -13,14 +13,38 @@
 //
 // Returns:
 //   { points, hiddenSegmentsIdx, strippedIds }
-// where `strippedIds` is the list of point-ids that were removed. The
+// where `strippedIds` is the list of point-ids that were removed, and
+// `hiddenSegmentsIdx` is indexed against the returned (stripped) points. The
 // caller is responsible for any downstream cleanup (e.g. `db.points.delete`).
+//
+// The hidden input is read id-aware (id-keyed field wins over the legacy
+// index field — see segmentFlags.js), so both raw db rows and resolved
+// annotations are valid inputs.
+import {
+  getRingSegmentFlagPointIds,
+  segmentPointIdsToIdx,
+  getAnnotationRingClosed,
+} from "./segmentFlags";
+
 export default function stripSlidingFromAnnotation(annotation) {
   const points = annotation?.points || [];
   const N = points.length;
   if (N === 0) {
     return { points: [], hiddenSegmentsIdx: [], strippedIds: [] };
   }
+  const closeLine = getAnnotationRingClosed(annotation);
+  const hiddenIds = getRingSegmentFlagPointIds(
+    annotation,
+    "hiddenSegmentsIdx",
+    "hiddenSegmentsPointIds",
+    points,
+    { closed: closeLine }
+  );
+  const hiddenIdxInput =
+    hiddenIds == null
+      ? []
+      : segmentPointIdsToIdx(hiddenIds, points, { closed: closeLine });
+
   const slidingIdx = new Set();
   const strippedIds = [];
   for (let i = 0; i < N; i++) {
@@ -32,7 +56,7 @@ export default function stripSlidingFromAnnotation(annotation) {
   if (slidingIdx.size === 0) {
     return {
       points,
-      hiddenSegmentsIdx: annotation.hiddenSegmentsIdx || [],
+      hiddenSegmentsIdx: hiddenIdxInput,
       strippedIds: [],
     };
   }
@@ -43,9 +67,8 @@ export default function stripSlidingFromAnnotation(annotation) {
     oldToNew[i] = newPoints.length;
     newPoints.push(points[i]);
   }
-  const closeLine = !!annotation.closeLine || annotation.type === "POLYGON";
   const segmentCount = closeLine ? N : Math.max(0, N - 1);
-  const oldHidden = new Set(annotation.hiddenSegmentsIdx || []);
+  const oldHidden = new Set(hiddenIdxInput);
   const newHidden = [];
   for (let i = 0; i < segmentCount; i++) {
     if (!oldHidden.has(i)) continue;

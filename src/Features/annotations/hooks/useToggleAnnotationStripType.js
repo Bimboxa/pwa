@@ -7,6 +7,10 @@ import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useUpdateAnnotation from "./useUpdateAnnotation";
 
 import { offsetPolyline } from "Features/geometry/utils/offsetPolylineAsPolygon";
+import {
+  SEGMENT_FLAG_FIELDS,
+  segmentIdxToPointIds,
+} from "Features/annotations/utils/segmentFlags";
 
 /**
  * Cycles an annotation through POLYLINE -> STRIP(side A) -> STRIP(side B) -> POLYLINE
@@ -52,6 +56,7 @@ export default function useToggleAnnotationStripType() {
 
     let newPixelPoints;
     let fields;
+    let resetHidden = false;
 
     if (type === "POLYLINE") {
       // -> STRIP side A
@@ -62,14 +67,15 @@ export default function useToggleAnnotationStripType() {
       newPixelPoints = offsetPolyline(pts, Wpx);
       fields = { type: "STRIP", stripOrientation: -1 };
     } else {
-      // STRIP side B -> POLYLINE
+      // STRIP side B -> POLYLINE: the band openings (hidden segments) don't
+      // apply to a plain stroke — reset them.
       newPixelPoints = offsetPolyline(pts, -Wpx / 2);
       fields = {
         type: "POLYLINE",
         stripOrientation: undefined,
         cuts: undefined,
-        hiddenSegmentsIdx: undefined,
       };
+      resetHidden = true;
     }
 
     if (!newPixelPoints || newPixelPoints.length < 2) return;
@@ -85,9 +91,28 @@ export default function useToggleAnnotationStripType() {
     }));
     const refs = newRecords.map((r) => ({ id: r.id }));
 
+    // The offset maps points 1:1 but mints fresh ids: re-key the id-based
+    // flag arrays positionally from the resolved effective indices, and clear
+    // the legacy index fields (segmentFlags.js).
+    const flagFields = {};
+    for (const { idxField, idField } of SEGMENT_FLAG_FIELDS) {
+      const skip = resetHidden && idxField === "hiddenSegmentsIdx";
+      const idx = annotation[idxField];
+      flagFields[idxField] = undefined;
+      flagFields[idField] =
+        !skip && Array.isArray(idx) && idx.length > 0
+          ? segmentIdxToPointIds(idx, refs, { closed: false })
+          : undefined;
+    }
+
     await db.transaction("rw", db.annotations, db.points, async () => {
       await db.points.bulkAdd(newRecords);
-      await updateAnnotation({ id: annotation.id, ...fields, points: refs });
+      await updateAnnotation({
+        id: annotation.id,
+        ...fields,
+        ...flagFields,
+        points: refs,
+      });
     });
   };
 }

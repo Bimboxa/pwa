@@ -8,18 +8,14 @@ import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation"
 import splitArcOnInsert from "Features/geometry/utils/splitArcOnInsert";
 import splitArcAtControlPoint from "Features/geometry/utils/splitArcAtControlPoint";
 import cutClosedPolylineAtVertex from "Features/mapEditor/utils/cutClosedPolylineAtVertex";
-import remapSegmentIdxAfterInsert from "Features/mapEditor/utils/remapSegmentIdxAfterInsert";
+import {
+  SEGMENT_FLAG_FIELDS,
+  getRingSegmentFlagPointIds,
+  remapSegmentPointIdsAfterInsert,
+} from "Features/annotations/utils/segmentFlags";
 import { setToaster } from "Features/layout/layoutSlice";
 
 import db from "App/db/db";
-
-// Segment-indexed annotation fields that must follow the points when they are
-// permuted (closed cut) or partitioned between the two pieces (open cut).
-const SEGMENT_IDX_FIELDS = [
-  "hiddenSegmentsIdx",
-  "isoHeightSegmentsIdx",
-  "isExtEdgeSegmentsIdx",
-];
 
 /**
  * Normalize a snap result into a consistent format with annotationId.
@@ -181,15 +177,25 @@ export default function useHandleSplitPolylineClick({ newEntity } = {}) {
       splitPointId = newPointId;
     }
 
-    // Follow the insertions on the segment-indexed fields.
-    const idxFields = {};
-    SEGMENT_IDX_FIELDS.forEach((field) => {
-      const arr = annotation[field];
-      if (!Array.isArray(arr) || arr.length === 0) return;
-      idxFields[field] =
+    // Follow the insertions on the per-segment flags (persisted as start
+    // point ids — see segmentFlags.js; legacy index arrays are migrated
+    // here). Insertions inside a flagged segment flag both halves.
+    const flagFields = {};
+    const legacyClear = {};
+    SEGMENT_FLAG_FIELDS.forEach(({ idxField, idField }) => {
+      const ids = getRingSegmentFlagPointIds(
+        annotation,
+        idxField,
+        idField,
+        basePoints,
+        { closed }
+      );
+      if (annotation[idxField] !== undefined) legacyClear[idxField] = undefined;
+      if (ids == null || ids.length === 0) return;
+      flagFields[idField] =
         workingPoints === basePoints
-          ? arr
-          : remapSegmentIdxAfterInsert(basePoints, workingPoints, arr, {
+          ? ids
+          : remapSegmentPointIdsAfterInsert(basePoints, workingPoints, ids, {
               closed,
             });
     });
@@ -201,14 +207,10 @@ export default function useHandleSplitPolylineClick({ newEntity } = {}) {
     // ------------------------------------------------------------------
 
     if (closed) {
-      // R2: rotate so the cut vertex becomes the first point, permuting the
-      // segment-indexed fields. R1: reopen with a fresh point duplicating the
-      // first point's coordinates.
-      const { points: rotated, remappedFields } = cutClosedPolylineAtVertex(
-        workingPoints,
-        v,
-        idxFields
-      );
+      // R2: rotate so the cut vertex becomes the first point (id-keyed flags
+      // survive the rotation untouched). R1: reopen with a fresh point
+      // duplicating the first point's coordinates.
+      const { points: rotated } = cutClosedPolylineAtVertex(workingPoints, v);
 
       const firstNorm = normById[splitPointId];
       if (!firstNorm) {
@@ -228,7 +230,8 @@ export default function useHandleSplitPolylineClick({ newEntity } = {}) {
       if (newPointRows.length > 0) await db.points.bulkAdd(newPointRows);
       await updateAnnotation({
         ...annotation,
-        ...remappedFields,
+        ...flagFields,
+        ...legacyClear,
         points: [...rotated, { id: duplicateId }],
         closeLine: false,
       });
@@ -243,17 +246,27 @@ export default function useHandleSplitPolylineClick({ newEntity } = {}) {
       const piece1 = workingPoints.slice(0, v + 1);
       const piece2 = workingPoints.slice(v);
 
+      // Partition the flag ids between the two pieces: a segment belongs to
+      // piece1 when its start point sits before the cut vertex.
+      const posById = new Map(workingPoints.map((p, i) => [p.id, i]));
       const piece1Fields = {};
       const piece2Fields = {};
-      Object.entries(idxFields).forEach(([field, arr]) => {
-        piece1Fields[field] = arr.filter((i) => i < v);
-        piece2Fields[field] = arr.filter((i) => i >= v).map((i) => i - v);
+      Object.entries(flagFields).forEach(([idField, ids]) => {
+        piece1Fields[idField] = ids.filter((id) => {
+          const pos = posById.get(id);
+          return pos != null && pos < v;
+        });
+        piece2Fields[idField] = ids.filter((id) => {
+          const pos = posById.get(id);
+          return pos != null && pos >= v;
+        });
       });
 
       if (newPointRows.length > 0) await db.points.bulkAdd(newPointRows);
       await updateAnnotation({
         ...annotation,
         ...piece1Fields,
+        ...legacyClear,
         points: piece1,
         closeLine: false,
       });
@@ -263,6 +276,7 @@ export default function useHandleSplitPolylineClick({ newEntity } = {}) {
       await createAnnotation({
         ...hostProps,
         ...piece2Fields,
+        ...legacyClear,
         id: nanoid(),
         entityId: entity.id,
         points: piece2,

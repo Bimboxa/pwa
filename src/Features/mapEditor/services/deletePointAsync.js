@@ -1,4 +1,5 @@
 import db from "App/db/db";
+import { applySegmentFlagsAfterPointRemoval } from "Features/annotations/utils/segmentFlags";
 
 /**
  * Supprime un point d'une ou plusieurs annotations et nettoie la base de données
@@ -49,10 +50,21 @@ export default async function deletePointAsync({ pointId, annotationId, annotati
             // C. Retirer des inner points (Steiner)
             const newInnerPoints = (dbAnnotation.innerPoints || []).filter(pt => pt.id !== pointId);
 
-            // D. Update DB
+            // D. Per-segment flags follow the removal: drop the flags whose
+            // start point is gone, and migrate the row off the legacy index
+            // fields (indices would shift — the historical hidden-segment bug).
+            const { rootChanges, cuts: cutsWithFlags } =
+                applySegmentFlagsAfterPointRemoval({
+                    record: dbAnnotation,
+                    newPoints,
+                    newCuts,
+                });
+
+            // E. Update DB
             const updates = {
                 points: newPoints,
-                cuts: newCuts,
+                cuts: cutsWithFlags,
+                ...rootChanges,
             };
             if (dbAnnotation.innerPoints) {
                 updates.innerPoints = newInnerPoints;

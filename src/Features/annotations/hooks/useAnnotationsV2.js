@@ -362,6 +362,13 @@ import resolveCuts from "Features/annotations/utils/resolveCuts";
 import resolveGuideLine from "Features/annotations/utils/resolveGuideLine";
 import resolveProfileLine from "Features/annotations/utils/resolveProfileLine";
 import applyGuideLineRampToRings from "Features/annotations/utils/applyGuideLineRampToRings";
+import {
+  SEGMENT_FLAG_FIELDS,
+  getAnnotationRingClosed,
+  getRingSegmentFlagPointIds,
+  segmentPointIdsToIdx,
+  hasAnySegmentFlagField,
+} from "Features/annotations/utils/segmentFlags";
 import applyIsoHeightLinesToRings from "Features/annotations/utils/applyIsoHeightLinesToRings";
 import applyProfileEndpointContinuity from "Features/annotations/utils/applyProfileEndpointContinuity";
 
@@ -1107,16 +1114,64 @@ export default function useAnnotationsV2(options) {
               }),
               corruptedIds
             );
+            // Per-segment flags (hidden / iso / ext / int): the persisted
+            // source of truth is start-point-ID arrays; legacy index arrays
+            // are converted in memory here (against the RAW refs array they
+            // were written for), then the EFFECTIVE indices are recomputed on
+            // the resolved ring so index-based readers stay valid even after
+            // orphaned refs were dropped. Persisted on next write only
+            // (migrate-on-write) — see segmentFlags.js.
+            if (hasAnySegmentFlagField(annotation)) {
+              const _ringClosed = getAnnotationRingClosed(annotation);
+              for (const { idxField, idField } of SEGMENT_FLAG_FIELDS) {
+                const ids = getRingSegmentFlagPointIds(
+                  annotation,
+                  idxField,
+                  idField,
+                  annotation.points,
+                  { closed: _ringClosed }
+                );
+                if (ids == null) continue;
+                _annotation[idField] = ids;
+                _annotation[idxField] = segmentPointIdsToIdx(
+                  ids,
+                  _annotation.points,
+                  { closed: _ringClosed }
+                );
+              }
+            }
             if (_annotation.cuts)
               _annotation.cuts = resolveCuts({
                 cuts: annotation.cuts,
                 pointsIndex,
                 imageSize,
               })
-                ?.map((cut) => ({
-                  ...cut,
-                  points: _splitResolved(cut?.points, corruptedIds),
-                }))
+                // resolveCuts maps 1:1, so cutIdx addresses the raw cut (the
+                // degenerate filter below must stay AFTER this step).
+                ?.map((cut, cutIdx) => {
+                  const _cut = {
+                    ...cut,
+                    points: _splitResolved(cut?.points, corruptedIds),
+                  };
+                  const rawCut = annotation.cuts[cutIdx];
+                  if (hasAnySegmentFlagField(rawCut)) {
+                    for (const { idxField, idField } of SEGMENT_FLAG_FIELDS) {
+                      const ids = getRingSegmentFlagPointIds(
+                        rawCut,
+                        idxField,
+                        idField,
+                        rawCut?.points,
+                        { closed: true }
+                      );
+                      if (ids == null) continue;
+                      _cut[idField] = ids;
+                      _cut[idxField] = segmentPointIdsToIdx(ids, _cut.points, {
+                        closed: true,
+                      });
+                    }
+                  }
+                  return _cut;
+                })
                 // a hole with < 3 points is degenerate (breaks triangulation)
                 .filter((cut) => (cut?.points?.length ?? 0) >= 3);
             // Inner Steiner points (POLYGON only) — resolve to pixel space so

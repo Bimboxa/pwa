@@ -47,11 +47,17 @@ export default function reconcileCuts(oldCuts, newCuts, options = {}) {
                 ...newCut,
                 id: oldCut.id ?? newCut.id,
             };
-            if (oldCut.label != null) reconciled.label = oldCut.label;
-            if (oldCut.type != null) reconciled.type = oldCut.type;
+            // Positional carry of the segment flags onto the rebuilt ring
+            // (best-effort — the new ring has fresh point ids, so the id-keyed
+            // arrays cannot follow; the copied index arrays are re-keyed to
+            // ids at load time by useAnnotationsV2). Old cuts come from the
+            // resolved annotation, whose idx fields are the effective ones.
             if (oldCut.hiddenSegmentsIdx != null) reconciled.hiddenSegmentsIdx = oldCut.hiddenSegmentsIdx;
             if (oldCut.isoHeightSegmentsIdx != null) reconciled.isoHeightSegmentsIdx = oldCut.isoHeightSegmentsIdx;
             if (oldCut.isExtEdgeSegmentsIdx != null) reconciled.isExtEdgeSegmentsIdx = oldCut.isExtEdgeSegmentsIdx;
+            if (oldCut.isIntEdgeSegmentsIdx != null) reconciled.isIntEdgeSegmentsIdx = oldCut.isIntEdgeSegmentsIdx;
+            if (oldCut.label != null) reconciled.label = oldCut.label;
+            if (oldCut.type != null) reconciled.type = oldCut.type;
             return reconciled;
         }
         return newCut;

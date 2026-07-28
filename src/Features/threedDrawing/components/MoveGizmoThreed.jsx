@@ -39,6 +39,14 @@ import {
 import classifyPolylineCornerVsPolygonZ from "Features/annotations/utils/classifyPolylineCornerVsPolygonZ";
 import splitPolylineAtSpanInversions from "Features/annotations/utils/splitPolylineAtSpanInversions";
 import stripSlidingFromAnnotation from "Features/annotations/utils/stripSlidingFromAnnotation";
+import {
+  SEGMENT_FLAG_FIELDS,
+  getAnnotationRingClosed,
+  getRingSegmentFlagPointIds,
+  segmentIdxToPointIds,
+  filterSegmentPointIds,
+  materializeSegmentFlagIds,
+} from "Features/annotations/utils/segmentFlags";
 import getPolygonZPlane, {
   getZAtXY,
 } from "Features/annotations/utils/getPolygonZPlane";
@@ -609,11 +617,20 @@ export default function MoveGizmoThreed() {
       rampSnapshotRef.current = null;
       try {
         const snap = movedSnapshotRef.current;
-        const isoIdxList = ann.isoHeightSegmentsIdx || [];
+        // Iso segments read id-aware (raw row may be migrated off the legacy
+        // index field — see segmentFlags.js).
+        const isoStartIds =
+          getRingSegmentFlagPointIds(
+            ann,
+            "isoHeightSegmentsIdx",
+            "isoHeightSegmentsPointIds",
+            ann.points,
+            { closed: getAnnotationRingClosed(ann) }
+          ) || [];
         if (
           ann.type === "POLYGON" &&
           subSelectionTarget?.kind === "EDGE" &&
-          isoIdxList.length > 0 &&
+          isoStartIds.length > 0 &&
           slopeSetup &&
           Array.isArray(slopeSetup.resolved) &&
           slopeSetup.resolved.length >= 4
@@ -638,10 +655,9 @@ export default function MoveGizmoThreed() {
               }
             }
           }
-          // Map the first raw iso segment into stripped-ring space via its
-          // start point id (robust to sliding-ref stripping).
-          const rawIsoIdx = isoIdxList[0];
-          const rawIsoStartId = ann.points?.[rawIsoIdx]?.id;
+          // Map the first iso segment into stripped-ring space via its start
+          // point id (robust to sliding-ref stripping).
+          const rawIsoStartId = isoStartIds[0];
           const isoSegIdx =
             rawIsoStartId != null && idToRingIdx.has(rawIsoStartId)
               ? idToRingIdx.get(rawIsoStartId)
@@ -1450,26 +1466,29 @@ export default function MoveGizmoThreed() {
             ),
           })
         );
-        const augIdxById = new Map(newRefs.map((r, i) => [r.id, i]));
-        const snapPoints = movedSnapshotRef.current?.annotation?.points || [];
-        const newHidden = (
-          movedSnapshotRef.current?.annotation?.hiddenSegmentsIdx || []
-        )
-          .map((s) => augIdxById.get(snapPoints[s]?.id))
-          .filter((v) => Number.isInteger(v));
-        const rawPoints = ann.points || [];
-        const newIso = (ann.isoHeightSegmentsIdx || [])
-          .map((s) => augIdxById.get(rawPoints[s]?.id))
-          .filter((v) => Number.isInteger(v));
-        const newExtEdge = (ann.isExtEdgeSegmentsIdx || [])
-          .map((s) => augIdxById.get(rawPoints[s]?.id))
-          .filter((v) => Number.isInteger(v));
-        await db.annotations.update(selectedAnnotationId, {
-          points: newRefs,
-          hiddenSegmentsIdx: newHidden,
-          isoHeightSegmentsIdx: newIso,
-          isExtEdgeSegmentsIdx: newExtEdge,
-        });
+        // Per-segment flags are keyed by start point id (segmentFlags.js):
+        // they survive the ramp insertion as-is — only drop the ids whose
+        // point is not part of the augmented ring, and migrate the row off
+        // the legacy index fields. Hidden comes from the drag snapshot,
+        // the other flags from the raw row (historical sources).
+        const closedRing = getAnnotationRingClosed(ann);
+        const snapAnn = movedSnapshotRef.current?.annotation;
+        const rampUpdates = { points: newRefs };
+        for (const { idxField, idField } of SEGMENT_FLAG_FIELDS) {
+          const source =
+            idxField === "hiddenSegmentsIdx" && snapAnn ? snapAnn : ann;
+          const ids =
+            getRingSegmentFlagPointIds(
+              source,
+              idxField,
+              idField,
+              source.points,
+              { closed: closedRing }
+            ) || [];
+          rampUpdates[idField] = filterSegmentPointIds(ids, newRefs);
+          rampUpdates[idxField] = undefined;
+        }
+        await db.annotations.update(selectedAnnotationId, rampUpdates);
         return;
       }
 
@@ -1594,13 +1613,27 @@ export default function MoveGizmoThreed() {
             offsetTop: roundForDisplay((ref.offsetTop ?? 0) + dz),
           };
         });
+        // Hidden is persisted as start point ids (segmentFlags.js): the
+        // stripped index array is converted against the stripped ring, and
+        // the write also migrates the whole row (iso/ext/int ids are stable
+        // across the strip — they reference surviving points).
+        const otherClosed = getAnnotationRingClosed(otherRaw);
+        const otherMigration = materializeSegmentFlagIds(otherRaw) || {};
+        const strippedHiddenWrite = (hiddenIdx, ringPoints) => ({
+          ...otherMigration,
+          hiddenSegmentsPointIds: segmentIdxToPointIds(hiddenIdx, ringPoints, {
+            closed: otherClosed,
+          }),
+          hiddenSegmentsIdx: undefined,
+        });
+
         if (!touched) {
           // Even when no shift was applied this turn, persist the stripped
           // state so any previously-auto-added sliding refs are gone.
           if (otherStripped.strippedIds.length > 0) {
             await db.annotations.update(otherId, {
+              ...strippedHiddenWrite(other.hiddenSegmentsIdx, other.points),
               points: other.points,
-              hiddenSegmentsIdx: other.hiddenSegmentsIdx,
             });
           }
           continue;
@@ -1642,13 +1675,13 @@ export default function MoveGizmoThreed() {
             pointsById.set(pt.id, { x: pt.x, y: pt.y });
           }
           await db.annotations.update(otherId, {
+            ...strippedHiddenWrite(split.hiddenSegmentsIdx, split.refs),
             points: split.refs,
-            hiddenSegmentsIdx: split.hiddenSegmentsIdx,
           });
         } else {
           await db.annotations.update(otherId, {
+            ...strippedHiddenWrite(other.hiddenSegmentsIdx, newPoints),
             points: newPoints,
-            hiddenSegmentsIdx: other.hiddenSegmentsIdx,
           });
         }
       }

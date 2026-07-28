@@ -9,15 +9,11 @@ import db from "App/db/db";
 
 import getContiguousPointRun from "../utils/getContiguousPointRun";
 import fitCircleArcThroughPoints from "Features/geometry/utils/fitCircleArcThroughPoints";
-import remapSegmentIdxAfterInsert from "Features/mapEditor/utils/remapSegmentIdxAfterInsert";
-
-// Segment-indexed annotation fields that must be remapped when the ring's
-// point refs change (same list as useHandleSplitPolylineClick).
-const SEGMENT_IDX_FIELDS = [
-  "hiddenSegmentsIdx",
-  "isoHeightSegmentsIdx",
-  "isExtEdgeSegmentsIdx",
-];
+import {
+  SEGMENT_FLAG_FIELDS,
+  getRingSegmentFlagPointIds,
+  remapSegmentPointIdsAfterInsert,
+} from "Features/annotations/utils/segmentFlags";
 
 const dist2 = (a, b) => (a.x - b.x) ** 2 + (a.y - b.y) ** 2;
 
@@ -164,34 +160,47 @@ export default function useArcifySelectedPoints() {
       ];
     }
 
-    // Remap segment-indexed fields (ref-identity based, so the ring rotation
-    // above is transparent; segments inside the replaced run are dropped).
+    // Remap the per-segment flags (persisted as start point ids — legacy
+    // index arrays migrated here; segments whose start or end ref was
+    // replaced are dropped, matching the historical behavior).
     const updates = {};
     if (cutIdx === null) {
       updates.points = newRing;
-      SEGMENT_IDX_FIELDS.forEach((field) => {
-        if (rawAnnotation[field]?.length) {
-          updates[field] = remapSegmentIdxAfterInsert(
+      SEGMENT_FLAG_FIELDS.forEach(({ idxField, idField }) => {
+        const ids = getRingSegmentFlagPointIds(
+          rawAnnotation,
+          idxField,
+          idField,
+          oldRing,
+          { closed: rawRun.isClosed }
+        );
+        if (ids?.length) {
+          updates[idField] = remapSegmentPointIdsAfterInsert(
             oldRing,
             newRing,
-            rawAnnotation[field],
+            ids,
             { closed: rawRun.isClosed }
           );
         }
+        if (rawAnnotation[idxField] !== undefined) updates[idxField] = undefined;
       });
     } else {
       updates.cuts = rawAnnotation.cuts.map((cut, i) => {
         if (i !== cutIdx) return cut;
         const newCut = { ...cut, points: newRing };
-        SEGMENT_IDX_FIELDS.forEach((field) => {
-          if (cut[field]?.length) {
-            newCut[field] = remapSegmentIdxAfterInsert(
+        SEGMENT_FLAG_FIELDS.forEach(({ idxField, idField }) => {
+          const ids = getRingSegmentFlagPointIds(cut, idxField, idField, oldRing, {
+            closed: true,
+          });
+          if (ids?.length) {
+            newCut[idField] = remapSegmentPointIdsAfterInsert(
               oldRing,
               newRing,
-              cut[field],
+              ids,
               { closed: true }
             );
           }
+          delete newCut[idxField];
         });
         return newCut;
       });
