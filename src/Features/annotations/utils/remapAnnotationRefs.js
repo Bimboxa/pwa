@@ -4,6 +4,24 @@
 // (useCreateLayer) and scope duplication (duplicateScopeService) so both flows
 // cover the exact same reference fields.
 
+import { SEGMENT_FLAG_FIELDS } from "Features/annotations/utils/segmentFlags";
+
+// Segment flags (hidden / iso / ext / int) are persisted as start-point-id
+// arrays on the annotation root and on each cut ring — they must follow the
+// point remap or the copy silently loses its flags (id arrays win over the
+// legacy idx fields at read time).
+function remapSegmentFlagIds(ringHolder, pointIdMap) {
+  const remapped = {};
+  for (const { idField } of SEGMENT_FLAG_FIELDS) {
+    if (Array.isArray(ringHolder[idField])) {
+      remapped[idField] = ringHolder[idField].map(
+        (pid) => pointIdMap[pid] ?? pid
+      );
+    }
+  }
+  return remapped;
+}
+
 export function remapPointIds(annotation, pointIdMap) {
   if (Array.isArray(annotation.points)) {
     annotation.points = annotation.points.map((pt) =>
@@ -18,6 +36,7 @@ export function remapPointIds(annotation, pointIdMap) {
   if (Array.isArray(annotation.cuts)) {
     annotation.cuts = annotation.cuts.map((cut) => ({
       ...cut,
+      ...remapSegmentFlagIds(cut, pointIdMap),
       points: Array.isArray(cut.points)
         ? cut.points.map((pt) =>
             pt?.id && pointIdMap[pt.id] ? { ...pt, id: pointIdMap[pt.id] } : pt
@@ -25,6 +44,7 @@ export function remapPointIds(annotation, pointIdMap) {
         : cut.points,
     }));
   }
+  Object.assign(annotation, remapSegmentFlagIds(annotation, pointIdMap));
   if (Array.isArray(annotation.guideLines)) {
     annotation.guideLines = annotation.guideLines.map((g) => ({
       ...g,
