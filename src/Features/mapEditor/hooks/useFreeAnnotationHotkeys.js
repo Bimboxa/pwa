@@ -1,6 +1,8 @@
 import { useEffect } from "react";
 import { useDispatch, useSelector, useStore } from "react-redux";
 
+import { selectSelectedModuleKey } from "Features/viewers/utils/effectiveViewerKey";
+
 import useFreeAnnotationTemplates from "./useFreeAnnotationTemplates";
 import startDrawFromTemplate, {
   resolveActiveToolForTemplate,
@@ -47,6 +49,16 @@ export default function useFreeAnnotationHotkeys() {
       const s = store.getState();
       if (s.mapEditor.pasteClipboard || s.mapEditor.subtractSourceAnnotationId)
         return;
+
+      // Walk mode owns the keyboard (P/M tune the spray nozzle there) — and
+      // being registered later on the same capture phase, its
+      // stopImmediatePropagation cannot pre-empt this earlier listener.
+      if (s.threedEditor.walkMode.active) return;
+
+      // Free-draw letters belong to the Dessin module only ("MAP" in the
+      // left band, whichever of its 2D/3D editors is displayed) — in the
+      // Viewer / Maillage / Zones / POV modules P and L stay inert.
+      if (selectSelectedModuleKey(s) !== "MAP") return;
 
       // Free-draw letters only start a draw while in the "Dessin" (DRAW)
       // interaction mode. In Modification / Sélection, L/P are inert (D/M/S

@@ -47,6 +47,11 @@ export default function useInteractionModeHotkeys() {
 
       const s = store.getState();
 
+      // Walk mode owns the keyboard (M narrows the spray nozzle there) —
+      // registered later on the same capture phase, its
+      // stopImmediatePropagation cannot pre-empt this earlier listener.
+      if (s.threedEditor.walkMode.active) return;
+
       // "D" doubles as the global "go to Dessin module" shortcut
       // (useViewerSwitchHotkeys). The DRAW-mode meaning only applies while
       // the Dessin module displays the 2D editor; anywhere else (BASE_MAPS,
