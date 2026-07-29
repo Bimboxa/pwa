@@ -178,7 +178,8 @@ export default function FieldStrokeCompact({
           <Box
             sx={{
               width: 14,
-              height: previewThickness(strokeWidth),
+              // string with unit: a bare 1 would be read as 100% by MUI sizing
+              height: `${previewThickness(strokeWidth)}px`,
               borderRadius: 1,
               bgcolor: "text.primary",
             }}
@@ -299,7 +300,8 @@ export default function FieldStrokeCompact({
                   <Box
                     sx={{
                       width: 18,
-                      height: previewThickness(w),
+                      // string with unit: a bare 1 would be read as 100% by MUI sizing
+                      height: `${previewThickness(w)}px`,
                       borderRadius: 1,
                       bgcolor: "text.primary",
                     }}
