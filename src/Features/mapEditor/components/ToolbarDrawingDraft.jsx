@@ -29,6 +29,7 @@ import {
 import { resolveShapeCategory } from "Features/annotations/constants/drawingShapes.jsx";
 import getAnnotationColor from "Features/annotations/utils/getAnnotationColor";
 import buildToolDraft from "Features/mapEditor/utils/buildToolDraft";
+import { selectIsTemplateCoteDrawActive } from "Features/threedDrawing/utils/templateCoteDrawSelectors";
 
 import ToggleSingleSelectorGeneric from "Features/layout/components/ToggleSingleSelectorGeneric";
 import FieldAnnotationHeight from "Features/annotations/components/FieldAnnotationHeight";
@@ -60,6 +61,9 @@ export default function ToolbarDrawingDraft() {
   // Which field the E / H typed-entry machine is currently editing (highlights
   // the matching toolbar field).
   const metricInputField = useSelector((s) => s.mapEditor.metricInputField);
+  // Template-driven 3D cote keeps the 2D drawing state armed while the 3D
+  // dimension mode runs — CoteToolbarThreed owns the bottom UI there.
+  const isTemplateCoteDraw3d = useSelector(selectIsTemplateCoteDrawActive);
 
   // helpers
 
@@ -236,6 +240,7 @@ export default function ToolbarDrawingDraft() {
   // MEASURE (mise à l'échelle) always draws a fixed orange 2px polyline —
   // its draft properties must not be editable.
   if (!enabledDrawingMode || enabledDrawingMode === "MEASURE") return null;
+  if (isTemplateCoteDraw3d) return null;
 
   return (
     <Paper
