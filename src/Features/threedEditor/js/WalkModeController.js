@@ -5,7 +5,9 @@ import { MathUtils, Vector3 } from "three";
 // (update() rewrites the camera pose every call, even when disabled — see
 // ControlsManager.setSuspended). Pointer-locked mouse looks around, arrow
 // keys move, holding Space sprays (onFireStart on press, onFireStop on
-// release / blur / exit), R clears the paint splats (onClearSplats).
+// release / blur / exit), R clears the paint splats (onClearSplats),
+// B cycles the nozzle shape (onCycleJetMode), P/M widen/narrow the nozzle
+// aperture (onSprayWiden/onSprayNarrow, key-repeat sweeps the angle).
 //
 // Movement model (user-validated):
 // - eye at groundY + EYE_HEIGHT above the selected baseMap plane;
@@ -16,7 +18,7 @@ import { MathUtils, Vector3 } from "three";
 //   eye back to its walking height.
 
 const EYE_HEIGHT = 1.7; // m above the baseMap plane
-const SPEED = 3; // m/s
+const SPEED = 4; // m/s
 const SENSITIVITY = 0.0025; // rad per px of pointer-locked mouse move
 const PITCH_LIMIT = MathUtils.degToRad(89);
 const CLIMB_PITCH = MathUtils.degToRad(45);
@@ -46,6 +48,9 @@ export default class WalkModeController {
     onFireStart,
     onFireStop,
     onClearSplats,
+    onCycleJetMode,
+    onSprayWiden,
+    onSprayNarrow,
   }) {
     this.sceneManager = sceneManager;
     this.groundY = groundY;
@@ -53,6 +58,9 @@ export default class WalkModeController {
     this.onFireStart = onFireStart;
     this.onFireStop = onFireStop;
     this.onClearSplats = onClearSplats;
+    this.onCycleJetMode = onCycleJetMode;
+    this.onSprayWiden = onSprayWiden;
+    this.onSprayNarrow = onSprayNarrow;
 
     this._yaw = 0;
     this._pitch = 0;
@@ -263,6 +271,25 @@ export default class WalkModeController {
       e.preventDefault();
       e.stopImmediatePropagation();
       return;
+    }
+    // Nozzle tuning: B cycles the jet shape, P/M widen/narrow the aperture
+    // (repeat allowed: holding the key sweeps the angle). e.key (not e.code)
+    // so the printed key matches on AZERTY layouts; modifier chords
+    // (Cmd+P print...) stay untouched.
+    if (!e.ctrlKey && !e.metaKey && !e.altKey) {
+      const key = e.key.toLowerCase();
+      if (key === "b") {
+        if (!e.repeat) this.onCycleJetMode?.();
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        return;
+      }
+      if (key === "p" || key === "m") {
+        (key === "p" ? this.onSprayWiden : this.onSprayNarrow)?.();
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        return;
+      }
     }
     if (this._setKeyFromEvent(e, true)) {
       // Arrows must not scroll the page nor reach other shortcuts.

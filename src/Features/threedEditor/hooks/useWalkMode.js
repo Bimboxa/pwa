@@ -20,6 +20,14 @@ import { getSplatLayer } from "Features/threedMesh/services/shootSplatsLayer";
 import WalkModeController from "../js/WalkModeController";
 import { getActiveThreedEditor } from "../services/threedEditorRegistry";
 
+// P/M nozzle-aperture step, per keydown (incl. OS key-repeat while held).
+// Multiplicative: the clamp range spans two orders of magnitude, a single
+// tap gives a visible ±20% and holding ~1.3 s sweeps the whole range.
+const SPREAD_STEP_FACTOR = 1.2;
+// HUD crosshair-to-target distance refresh (same center raycast as the
+// spray aim; 10 Hz is plenty for a readout).
+const TARGET_DIST_POLL_MS = 100;
+
 const isEditableTarget = (el) => {
   if (!el) return false;
   const tag = el.tagName;
@@ -128,6 +136,9 @@ export default function useWalkMode() {
         splatSize: 0.06,
       },
     });
+    // Seed the HUD nozzle readout (ShootLanceOverlayThreed) before any
+    // B/P/M press.
+    emitShoot(spray.getJetState());
     // Live aim of the stream, re-read every frame while Space is held.
     // Origin: with the RPG image displayed, the jet exits its nozzle —
     // measure the on-screen image rect (robust to resize and to the CSS
@@ -184,15 +195,36 @@ export default function useWalkMode() {
         getSplatLayer(sceneManager)?.clear();
         editor.renderScene?.();
       },
+      // B / P / M nozzle tuning — mutators return the fresh {jetMode,
+      // spreadDeg} which feeds the HUD readout.
+      onCycleJetMode: () => emitShoot(spray.cycleJetMode()),
+      onSprayWiden: () => emitShoot(spray.scaleSpread(SPREAD_STEP_FACTOR)),
+      onSprayNarrow: () => emitShoot(spray.scaleSpread(1 / SPREAD_STEP_FACTOR)),
     });
     controller.enter();
     controllerRef.current = controller;
 
+    // Live crosshair-to-target distance for the HUD (null = the void).
+    const distIntervalId = setInterval(() => {
+      const { point, isHit } = pickWorldHitAtNdc({
+        sceneManager,
+        ndcX: 0,
+        ndcY: 0,
+      });
+      emitShoot({
+        targetDistM:
+          isHit && point
+            ? sceneManager.camera.position.distanceTo(point)
+            : null,
+      });
+    }, TARGET_DIST_POLL_MS);
+
     return () => {
       controllerRef.current = null;
+      clearInterval(distIntervalId);
       controller.exit();
       spray.dispose();
-      emitShoot({ firingUntil: 0 });
+      emitShoot({ firingUntil: 0, targetDistM: null });
     };
   }, [walkActive, dispatch, store]);
 
