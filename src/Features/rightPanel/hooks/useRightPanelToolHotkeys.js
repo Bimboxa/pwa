@@ -17,9 +17,10 @@ const isEditableTarget = (el) => {
   );
 };
 
-// Global shortcuts to OPEN/CLOSE a right-panel tool by its letter (N = Élévation,
-// B = Banque d'objets — the letters shown under the tool labels in the right band)
-// or by Alt+<letter> (Alt+C = Capture, declared via the tool's `altHotkey`).
+// Global shortcuts to OPEN/CLOSE a right-panel tool by its letter (B = Banque
+// d'objets — the letters shown under the tool labels in the right band) or by
+// Alt+<letter> (Alt+C = Capture, Alt+E = Élévation, declared via the tool's
+// `altHotkey`).
 //
 // Mirror of useViewerSwitchHotkeys, kept state-disjoint from the module/editor hotkeys
 // so listener order never decides a race:

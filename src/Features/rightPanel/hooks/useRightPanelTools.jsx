@@ -74,9 +74,10 @@ export default function useRightPanelTools() {
     ELEVATION: {
       label: "Élévation",
       icon: <Height />,
-      // Global shortcut: "V" is already the POV module (useViewers), and "E" hollows a
-      // selected polygon — "N" is free in every global handler.
-      hotkey: "N",
+      // Global shortcut: plain "E" hollows a selected polygon, so the tool binds
+      // Alt+E instead (`altHotkey`, matched on e.code in useRightPanelToolHotkeys).
+      altHotkey: "E",
+      hotkeyLabel: navigator.userAgent.includes("Mac") ? "⌥E" : "Alt+E",
       // In BASE_MAPS the panel has a dedicated role: browse the vertical
       // baseMaps and locate them against a plan view.
       viewers: ["MAP", "THREED", "MESHES", "BASE_MAPS"],
