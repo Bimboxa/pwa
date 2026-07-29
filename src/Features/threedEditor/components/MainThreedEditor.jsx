@@ -72,6 +72,7 @@ import {
 import PopperEditAnnotation from "Features/mapEditor/components/PopperEditAnnotation";
 import PopperMapListings from "Features/mapEditor/components/PopperMapListings";
 import ClippingToolbarThreed from "./ClippingToolbarThreed";
+import ButtonZoomOutThreed from "./ButtonZoomOutThreed";
 import BottomToolbarThreed from "Features/threedDrawing/components/BottomToolbarThreed";
 import DrawingOverlayThreed from "Features/threedDrawing/components/DrawingOverlayThreed";
 import MoveGizmoThreed from "Features/threedDrawing/components/MoveGizmoThreed";
@@ -1807,6 +1808,10 @@ export default function MainThreedEditor() {
         ) : (
           <BottomToolbarThreed />
         ))}
+      {/* Zoom out sits outside the swap of bottom toolbars so it stays
+          available in every module (Maillage included). Hidden while a
+          capture/POV framing owns the screen. */}
+      {isThreedViewer && !captureFramingActive && <ButtonZoomOutThreed />}
       {isThreedViewer && <DrawingOverlayThreed />}
       {isThreedViewer && <MoveGizmoThreed />}
       {isThreedViewer && rendererIsReady && (

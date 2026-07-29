@@ -15,7 +15,6 @@ import ContentCutIcon from "@mui/icons-material/ContentCut";
 
 import ButtonExtrudeThreed from "Features/threedExtrude/components/ButtonExtrudeThreed";
 import ButtonMeshThreed from "Features/threedMesh/components/ButtonMeshThreed";
-import ButtonZoomOutThreed from "Features/threedEditor/components/ButtonZoomOutThreed";
 
 // Floating bottom toolbar for the main 3D viewer. Three states:
 //   - Move mode active → hidden (MoveGizmoThreed owns the bottom UI).
@@ -27,7 +26,8 @@ import ButtonZoomOutThreed from "Features/threedEditor/components/ButtonZoomOutT
 //     by picking a template row in PopperMapListings (see
 //     useTemplateFaceDrawBridge).
 // Viewer module (read-only): the creation/modification actions ("Extruder",
-// "Déplacer") are hidden — only "Coupe" and the zoom out remain.
+// "Déplacer") are hidden — only "Coupe" remains. The zoom out lives outside
+// the toolbar (ButtonZoomOutThreed, bottom-right of the editor).
 export default function BottomToolbarThreed() {
   const dispatch = useDispatch();
 
@@ -151,8 +151,6 @@ export default function BottomToolbarThreed() {
             Coupe
           </Button>
         </Tooltip>
-        <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
-        <ButtonZoomOutThreed />
       </Stack>
     </Paper>
   );

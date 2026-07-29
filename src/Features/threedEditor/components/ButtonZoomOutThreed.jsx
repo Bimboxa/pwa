@@ -1,11 +1,13 @@
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 
-import { Button, Tooltip } from "@mui/material";
+import { IconButton, Paper, Tooltip } from "@mui/material";
 import ZoomOutMapIcon from "@mui/icons-material/ZoomOutMap";
 
 // Fire-and-forget button: re-frame the camera so it encompasses all annotations
 // currently shown in the scene (the useAnnotationsV2 set). With no annotation it
 // frames a 10 m cube at the world center (see ControlsManager.fitToAnnotations).
+// Self-positioned at the bottom-right corner of the 3D editor so it stays
+// available whatever bottom toolbar is active (drawing, meshing, extrude, …).
 export default function ButtonZoomOutThreed() {
   // handlers
 
@@ -16,17 +18,21 @@ export default function ButtonZoomOutThreed() {
   // render
 
   return (
-    <Tooltip title="Vue d'ensemble — englober toutes les annotations">
-      <Button
-        variant="outlined"
-        color="inherit"
-        onClick={handleClick}
-        startIcon={<ZoomOutMapIcon sx={{ fontSize: 18 }} />}
-        size="small"
-        sx={{ textTransform: "none", borderRadius: "8px" }}
-      >
-        Zoom out
-      </Button>
-    </Tooltip>
+    <Paper
+      elevation={3}
+      sx={{
+        position: "absolute",
+        bottom: 16,
+        right: 16,
+        borderRadius: "10px",
+        zIndex: 10,
+      }}
+    >
+      <Tooltip title="Zoom out">
+        <IconButton size="small" color="inherit" onClick={handleClick}>
+          <ZoomOutMapIcon fontSize="small" />
+        </IconButton>
+      </Tooltip>
+    </Paper>
   );
 }
