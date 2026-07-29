@@ -17,7 +17,9 @@ import projectPointOnPolyline from "Features/annotations/utils/projectPointOnPol
 //      local normal as it rides along the contour.
 //
 // Inputs are pixel-space: guidePoints [{x, y, type?}] (RAW vertices — arcs
-// are expanded here), profilePoints [{x, y}], deltaPos {x, y}.
+// are expanded here), profilePoints [{x, y}], deltaPos {x, y}. targetPos
+// {x, y} is an ABSOLUTE anchor target: when provided it is projected onto
+// the guide instead of C0 + deltaPos (deltaPos is then ignored).
 // Returns the new profile plan positions [{x, y}] (same order/count as
 // profilePoints), or null when degenerate.
 const GUIDE_ARC_SAMPLES = 16;
@@ -27,6 +29,7 @@ export default function slideProfileLineAlongGuide({
   closeLine = false,
   profilePoints,
   deltaPos,
+  targetPos,
 }) {
   const rawGuide = (guidePoints || []).filter(
     (p) => Number.isFinite(p?.x) && Number.isFinite(p?.y)
@@ -34,7 +37,8 @@ export default function slideProfileLineAlongGuide({
   const profile = (profilePoints || []).filter(
     (p) => Number.isFinite(p?.x) && Number.isFinite(p?.y)
   );
-  if (rawGuide.length < 2 || profile.length < 2 || !deltaPos) return null;
+  if (rawGuide.length < 2 || profile.length < 2 || (!deltaPos && !targetPos))
+    return null;
 
   let guide = expandArcsInPath(rawGuide, GUIDE_ARC_SAMPLES, !!closeLine);
   // Close the ring so the wrap segment is projectable / crossable too.
@@ -90,7 +94,7 @@ export default function slideProfileLineAlongGuide({
   const offsets = profile.map((p) => (p.x - C0.x) * n0.x + (p.y - C0.y) * n0.y);
 
   // --- 3. slide the anchor along the guide ---------------------------------
-  const target = { x: C0.x + deltaPos.x, y: C0.y + deltaPos.y };
+  const target = targetPos ?? { x: C0.x + deltaPos.x, y: C0.y + deltaPos.y };
   const proj = projectPointOnPolyline(target, guide);
   if (!proj) return null;
   const F = proj.projected;

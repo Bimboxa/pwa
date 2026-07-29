@@ -13,6 +13,7 @@ import {
   getRingSegmentFlagPointIds,
   remapSegmentPointIdsAfterInsert,
 } from "Features/annotations/utils/segmentFlags";
+import partitionProfileLinesOnSplit from "Features/elevation/utils/partitionProfileLinesOnSplit";
 import { setToaster } from "Features/layout/layoutSlice";
 
 import db from "App/db/db";
@@ -262,11 +263,59 @@ export default function useHandleSplitPolylineClick({ newEntity } = {}) {
         });
       });
 
+      // Partition the profile cross-sections: the piece that geometrically
+      // contains a profile keeps its original refs; the other piece receives
+      // a duplicate (fresh point ids) slid to the middle of its chain.
+      // Without this, the hostProps spread below would share the profile
+      // point ids between the two annotations.
+      const profileFields1 = {};
+      const profileFields2 = {};
+      if (annotation.profileLines?.length) {
+        const profileIds = [
+          ...new Set(
+            annotation.profileLines
+              .flatMap((l) => (l?.points ?? []).map((r) => r?.pointId))
+              .filter(Boolean)
+          ),
+        ];
+        const profileRows = await db.points.bulkGet(profileIds);
+        const profilePxById = {};
+        profileRows.forEach((r, i) => {
+          if (r && Number.isFinite(r.x) && Number.isFinite(r.y))
+            profilePxById[profileIds[i]] = {
+              x: r.x * imageSize.width,
+              y: r.y * imageSize.height,
+            };
+        });
+        const toPiecePx = (ref) => {
+          const n = normById[ref.id];
+          return n
+            ? {
+                x: n.x * imageSize.width,
+                y: n.y * imageSize.height,
+                ...(ref.type ? { type: ref.type } : {}),
+              }
+            : null;
+        };
+        const { piece1ProfileLines, piece2ProfileLines, newPoints } =
+          partitionProfileLinesOnSplit({
+            profileLines: annotation.profileLines,
+            piece1Px: piece1.map(toPiecePx).filter(Boolean),
+            piece2Px: piece2.map(toPiecePx).filter(Boolean),
+            profilePxById,
+            makeId: () => nanoid(),
+          });
+        newPoints.forEach((p) => pushRowFromPx(p.id, p));
+        profileFields1.profileLines = piece1ProfileLines;
+        profileFields2.profileLines = piece2ProfileLines;
+      }
+
       if (newPointRows.length > 0) await db.points.bulkAdd(newPointRows);
       await updateAnnotation({
         ...annotation,
         ...piece1Fields,
         ...legacyClear,
+        ...profileFields1,
         points: piece1,
         closeLine: false,
       });
@@ -277,6 +326,7 @@ export default function useHandleSplitPolylineClick({ newEntity } = {}) {
         ...hostProps,
         ...piece2Fields,
         ...legacyClear,
+        ...profileFields2,
         id: nanoid(),
         entityId: entity.id,
         points: piece2,
