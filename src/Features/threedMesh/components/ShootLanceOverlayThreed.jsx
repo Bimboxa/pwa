@@ -2,9 +2,10 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 
 import { useSelector } from "react-redux";
 
-import { Box } from "@mui/material";
+import { Box, alpha } from "@mui/material";
 
 import { getShootState, subscribeShoot } from "../services/shootAimStore";
+import { JET_MODES } from "../services/shootSprayController";
 
 // Base placement of the RPG image: centered, pushed right by 3/4 of its
 // width, and tilted back (top away from the viewer) so the gun reads as
@@ -13,19 +14,35 @@ import { getShootState, subscribeShoot } from "../services/shootAimStore";
 const rpgTransform = (dxPx, dyPx) =>
   `translate(calc(25% + ${dxPx}px), ${dyPx}px) perspective(800px) rotateX(14deg)`;
 
+// FPS-style HUD under the crosshair: everything sits on this translucent
+// white band (the secondary-orange indicators need a light background to
+// stay readable), indicators in theme secondary.main.
+const HUD_BG = "rgba(255,255,255,0.85)";
+
+const JET_MODE_LABELS = {
+  CONE: "Conique",
+  FLAT_H: "Plat horizontal",
+  FLAT_V: "Plat vertical",
+};
+
 // Walk-mode weapon overlay shown at the bottom of the 3D view: the
 // org-configured RPG image (features.walkMode.rpgImageUrl, resolved from
 // Data/<orga>/ by resolveAppConfig) bottom-center, plus a crosshair marking
-// the screen-center fire target. Without a resolved image, only the
-// crosshair is displayed. Idle-sways, recoils while spraying (firingUntil
-// from the shootAimStore). Pure DOM, pointer-transparent.
+// the screen-center fire target with a game-style HUD under it (distance to
+// the aimed surface + nozzle shape/aperture, tuned with B/P/M). Without a
+// resolved image, only the crosshair and HUD are displayed. Idle-sways,
+// recoils while spraying (firingUntil from the shootAimStore). Pure DOM,
+// pointer-transparent.
 export default function ShootLanceOverlayThreed() {
   const walkActive = useSelector((s) => s.threedEditor.walkMode.active);
   const rpgImageUrl = useSelector(
     (s) => s.appConfig.value?.features?.walkMode?.rpgImageUrl
   );
 
-  const { firingUntil } = useSyncExternalStore(subscribeShoot, getShootState);
+  const { firingUntil, jetMode, spreadDeg, targetDistM } = useSyncExternalStore(
+    subscribeShoot,
+    getShootState
+  );
 
   // Firing flag re-derived when the spray ends (recoil animation stops).
   const [firing, setFiring] = useState(false);
@@ -67,6 +84,152 @@ export default function ShootLanceOverlayThreed() {
     >
       {rpgImageUrl && <RpgWeapon url={rpgImageUrl} firing={firing} />}
       <Crosshair />
+      {/* jetMode is seeded by useWalkMode right after the spray controller
+          is built — the guard covers the first render before that. */}
+      {jetMode && (
+        <JetHud
+          jetMode={jetMode}
+          spreadDeg={spreadDeg}
+          targetDistM={targetDistM}
+        />
+      )}
+    </Box>
+  );
+}
+
+// Game-style readout under the crosshair: live distance to the aimed
+// surface, the three nozzle shapes with the active one highlighted (footprint
+// glyphs: round patch / horizontal stripe / vertical stripe), the full
+// nozzle aperture (2 x the physics half-angle) and the tuning keys.
+function JetHud({ jetMode, spreadDeg, targetDistM }) {
+  return (
+    <Box
+      sx={{
+        position: "absolute",
+        left: "50%",
+        top: "50%",
+        transform: "translateX(-50%)",
+        // Clear of the aiming zone: the panel sits well below the crosshair.
+        mt: "96px",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 0.5,
+        px: 1.25,
+        py: 0.75,
+        borderRadius: 1,
+        bgcolor: HUD_BG,
+        border: (theme) =>
+          `1px solid ${alpha(theme.palette.secondary.main, 0.35)}`,
+        boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+        fontFamily: "'Roboto Mono', 'Courier New', monospace",
+        "@keyframes hudPop": {
+          from: { transform: "scale(1.4)" },
+          to: { transform: "scale(1)" },
+        },
+      }}
+    >
+      <Box
+        sx={{
+          fontSize: 14,
+          letterSpacing: 1,
+          color: "secondary.main",
+          opacity: targetDistM == null ? 0.4 : 1,
+        }}
+      >
+        {targetDistM == null ? "--- m" : `${targetDistM.toFixed(1)} m`}
+      </Box>
+      <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+        {JET_MODES.map((mode) => (
+          <JetModeChip
+            // Remount the chip that just became active so its pop
+            // animation replays on every mode change.
+            key={mode === jetMode ? `${mode}-active` : mode}
+            mode={mode}
+            active={mode === jetMode}
+          />
+        ))}
+        <Box
+          sx={{
+            fontSize: 12,
+            minWidth: 42,
+            textAlign: "right",
+            color: "secondary.main",
+          }}
+        >
+          {(2 * spreadDeg).toFixed(1)}°
+        </Box>
+      </Box>
+      <Box sx={{ fontSize: 10, color: "secondary.main", opacity: 0.75 }}>
+        [B] buse · [P]/[M] ouverture
+      </Box>
+    </Box>
+  );
+}
+
+function JetModeChip({ mode, active }) {
+  return (
+    <Box
+      aria-label={JET_MODE_LABELS[mode]}
+      sx={{
+        width: 26,
+        height: 22,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        borderRadius: 0.75,
+        border: (theme) =>
+          `1px solid ${active ? theme.palette.secondary.main : "transparent"}`,
+        bgcolor: (theme) =>
+          active ? alpha(theme.palette.secondary.main, 0.15) : "transparent",
+        animation: active ? "hudPop 160ms ease-out" : "none",
+      }}
+    >
+      <JetModeGlyph mode={mode} active={active} />
+    </Box>
+  );
+}
+
+// Footprint of the jet on the aimed surface: disc for the cone, stripes for
+// the flat fans. Shapes are fill="currentColor" — the sx color carries the
+// active/dimmed secondary tint.
+function JetModeGlyph({ mode, active }) {
+  return (
+    <Box
+      component="svg"
+      viewBox="0 0 20 20"
+      sx={{
+        width: 16,
+        height: 16,
+        color: (theme) =>
+          active
+            ? theme.palette.secondary.main
+            : alpha(theme.palette.secondary.main, 0.4),
+      }}
+    >
+      {mode === "CONE" && (
+        <circle cx="10" cy="10" r="5.5" fill="currentColor" />
+      )}
+      {mode === "FLAT_H" && (
+        <rect
+          x="3"
+          y="8.5"
+          width="14"
+          height="3"
+          rx="1.5"
+          fill="currentColor"
+        />
+      )}
+      {mode === "FLAT_V" && (
+        <rect
+          x="8.5"
+          y="3"
+          width="3"
+          height="14"
+          rx="1.5"
+          fill="currentColor"
+        />
+      )}
     </Box>
   );
 }
@@ -100,6 +263,8 @@ function RpgWeapon({ url, firing }) {
   );
 }
 
+// Same secondary tint as the HUD: the white cross was invisible on white
+// plans.
 function Crosshair() {
   return (
     <Box
@@ -112,6 +277,7 @@ function Crosshair() {
         transform: "translate(-50%, -50%)",
         width: 16,
         height: 16,
+        color: "secondary.main",
         filter: "drop-shadow(0 0 1px rgba(0,0,0,0.8))",
       }}
     >
@@ -120,7 +286,7 @@ function Crosshair() {
         y1="1"
         x2="8"
         y2="15"
-        stroke="rgba(255,255,255,0.9)"
+        stroke="currentColor"
         strokeWidth="1.5"
       />
       <line
@@ -128,7 +294,7 @@ function Crosshair() {
         y1="8"
         x2="15"
         y2="8"
-        stroke="rgba(255,255,255,0.9)"
+        stroke="currentColor"
         strokeWidth="1.5"
       />
     </Box>

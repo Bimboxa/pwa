@@ -26,13 +26,25 @@ import {
 // loop); everything is disposed when the stream ends.
 //
 // `options` tunes the jet; `particleCount` is the stream rate (droplets/s).
+// The nozzle is live-tunable while streaming: cycleJetMode() switches the
+// shape (JET_MODES) and scaleSpread() the aperture — see getJetState().
 
 const MAX_FLIGHT_S = 0.6;
+
+// Nozzle shapes, in the order the B key cycles through them: isotropic cone,
+// flat fan spread along the camera-right axis, flat fan in the vertical
+// plane of the aim.
+export const JET_MODES = ["CONE", "FLAT_H", "FLAT_V"];
+const SPREAD_MIN_DEG = 0.3; // half-angle clamp (P/M tuning)
+const SPREAD_MAX_DEG = 25; // half-angle clamp -> 50 deg full aperture
+const FLAT_THICKNESS = 0.1; // flat-jet ribbon thickness, fraction of fan half-width
+const SPLAT_SCALE_MAX = 3; // coverage-compensation cap for landed splats
 
 const DEFAULT_OPTIONS = {
   particleCount: 350,
   gravityY: -6, // softened gravity, stylized arc
-  spreadDeg: 6, // spray cone half-angle
+  spreadDeg: 6, // initial nozzle half-angle, runtime-mutable via scaleSpread
+  jetMode: "CONE", // initial nozzle shape, runtime-mutable via cycleJetMode
   particleSize: 0.07,
   // Droplet size along the flight: needle-thin at the nozzle, blooming
   // toward the impact. Both default to particleSize (constant size).
@@ -53,7 +65,31 @@ const DEFAULT_OPTIONS = {
 
 export function createShootSprayController({ editor, sceneManager, options }) {
   const opts = { ...DEFAULT_OPTIONS, ...options };
-  const spreadTan = Math.tan(MathUtils.degToRad(opts.spreadDeg));
+
+  // Live nozzle state (B / P / M in walk mode): shape + half-angle, mutable
+  // while a stream runs — read at emission time, so in-flight droplets keep
+  // their velocities and the jet morphs from the nozzle out.
+  const baseSpreadDeg = opts.spreadDeg; // splat-scale reference
+  let jetMode = opts.jetMode;
+  let spreadDeg = opts.spreadDeg;
+  let spreadTan = Math.tan(MathUtils.degToRad(spreadDeg));
+  let splatSizeScale = 1;
+
+  function recomputeDerived() {
+    spreadTan = Math.tan(MathUtils.degToRad(spreadDeg));
+    // Constant droplet rate over a growing footprint thins the paint: grow
+    // the landed dots to keep coverage readable (footprint area ~ angle^2
+    // for the cone, ~ angle for a fan), capped so they stay dot-like. The
+    // rate itself must NOT change: the ring capacity is frozen at
+    // startStream.
+    const ratio = spreadDeg / baseSpreadDeg;
+    splatSizeScale = MathUtils.clamp(
+      jetMode === "CONE" ? ratio : Math.sqrt(ratio),
+      1,
+      SPLAT_SCALE_MAX
+    );
+  }
+
   const sizeStart = opts.particleSizeStart ?? opts.particleSize;
   const sizeEnd = opts.particleSizeEnd ?? opts.particleSize;
   const sizeGrows = sizeStart !== sizeEnd;
@@ -80,32 +116,53 @@ export function createShootSprayController({ editor, sceneManager, options }) {
     const dist = Math.max(dir.length(), 0.1);
     dir.normalize();
     const baseSpeed = MathUtils.clamp(dist / opts.crossingTimeS, 8, 40);
-    const up =
-      Math.abs(dir.y) > 0.9 ? new Vector3(1, 0, 0) : new Vector3(0, 1, 0);
-    const perpA = new Vector3().crossVectors(dir, up).normalize();
+    // Basis anchored on the camera, not on world up: perpA is the
+    // camera-right axis projected off dir (exactly horizontal in walk mode,
+    // which has zero roll and a ±89° pitch clamp), so the flat-horizontal
+    // fan stays screen-left/right even when spraying the floor at the
+    // player's feet, with no discontinuity when the aim sweeps down a wall.
+    // dir deviates from camera-forward only by the muzzle offset, so the
+    // projection never collapses.
+    const perpA = new Vector3().setFromMatrixColumn(
+      sceneManager.camera.matrixWorld,
+      0
+    );
+    perpA.addScaledVector(dir, -perpA.dot(dir)).normalize();
     const perpB = new Vector3().crossVectors(dir, perpA).normalize();
     return { dir, dist, baseSpeed, perpA, perpB };
   }
 
-  // Random velocity inside the spread cone + matching flight time.
+  // Random velocity inside the nozzle aperture + matching flight time: disc
+  // scatter for the cone, a thin ribbon along one basis axis for the flat
+  // fans. Max deviation from the aim axis is spreadDeg in every mode.
   function fillVelocity(velocities, flightTimes, i, frame) {
     const i3 = i * 3;
     const speed = frame.baseSpeed * (0.85 + 0.3 * Math.random());
     const spread = spreadTan * speed;
-    const angle = Math.random() * Math.PI * 2;
-    const radius = Math.random() * spread;
+    let a; // offset along perpA (camera-right)
+    let b; // offset along perpB (vertical plane of the aim)
+    if (jetMode === "CONE") {
+      const angle = Math.random() * Math.PI * 2;
+      const radius = Math.random() * spread;
+      a = Math.cos(angle) * radius;
+      b = Math.sin(angle) * radius;
+    } else {
+      const main = (2 * Math.random() - 1) * spread;
+      const thick = (2 * Math.random() - 1) * spread * FLAT_THICKNESS;
+      if (jetMode === "FLAT_H") {
+        a = main;
+        b = thick;
+      } else {
+        a = thick;
+        b = main;
+      }
+    }
     velocities[i3] =
-      frame.dir.x * speed +
-      frame.perpA.x * Math.cos(angle) * radius +
-      frame.perpB.x * Math.sin(angle) * radius;
+      frame.dir.x * speed + frame.perpA.x * a + frame.perpB.x * b;
     velocities[i3 + 1] =
-      frame.dir.y * speed +
-      frame.perpA.y * Math.cos(angle) * radius +
-      frame.perpB.y * Math.sin(angle) * radius;
+      frame.dir.y * speed + frame.perpA.y * a + frame.perpB.y * b;
     velocities[i3 + 2] =
-      frame.dir.z * speed +
-      frame.perpA.z * Math.cos(angle) * radius +
-      frame.perpB.z * Math.sin(angle) * radius;
+      frame.dir.z * speed + frame.perpA.z * a + frame.perpB.z * b;
     flightTimes[i] = Math.min(frame.dist / speed, MAX_FLIGHT_S);
   }
 
@@ -207,7 +264,7 @@ export function createShootSprayController({ editor, sceneManager, options }) {
                   0.5 * opts.gravityY * T * T -
                   vy * back,
                 s.origins[i3 + 2] + vz * T - vz * back,
-                splatSize * (0.75 + 0.5 * Math.random())
+                splatSize * splatSizeScale * (0.75 + 0.5 * Math.random())
               );
             }
           }
@@ -305,5 +362,34 @@ export function createShootSprayController({ editor, sceneManager, options }) {
     editor.renderScene?.();
   }
 
-  return { startStream, stopStream, dispose };
+  // ----- nozzle tuning (B / P / M) -----------------------------------------
+
+  function getJetState() {
+    return { jetMode, spreadDeg };
+  }
+
+  function cycleJetMode() {
+    jetMode = JET_MODES[(JET_MODES.indexOf(jetMode) + 1) % JET_MODES.length];
+    recomputeDerived();
+    return getJetState();
+  }
+
+  function scaleSpread(factor) {
+    spreadDeg = MathUtils.clamp(
+      spreadDeg * factor,
+      SPREAD_MIN_DEG,
+      SPREAD_MAX_DEG
+    );
+    recomputeDerived();
+    return getJetState();
+  }
+
+  return {
+    startStream,
+    stopStream,
+    dispose,
+    getJetState,
+    cycleJetMode,
+    scaleSpread,
+  };
 }
