@@ -21,12 +21,11 @@ import createSheetMeshes3d from "Features/excel/utils/createSheetMeshes3d";
 import downloadBlob from "Features/files/utils/downloadBlob";
 
 import DataExportItem from "./DataExportItem";
-import formatSurfaceM2 from "../utils/formatSurfaceM2";
 
 // Export section of the mailles drawer: hover-reveal row opening the recap
 // datagrid dialog or downloading the Excel export. `rows` are the mailles
-// already decorated with `displayLabel`.
-export default function SectionMeshes3dExport({ rows }) {
+// already decorated with `displayLabel` / `surfaceLabel`.
+export default function SectionMeshes3dExport({ rows, surfaceDecimals }) {
   // state
 
   const [openDatagrid, setOpenDatagrid] = useState(false);
@@ -35,7 +34,7 @@ export default function SectionMeshes3dExport({ rows }) {
 
   async function handleDownloadExcel() {
     const workbook = new Excel.Workbook();
-    createSheetMeshes3d(workbook, rows);
+    createSheetMeshes3d(workbook, rows, surfaceDecimals);
     const buffer = await workbook.xlsx.writeBuffer();
     const blob = new Blob([buffer], {
       type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -45,9 +44,10 @@ export default function SectionMeshes3dExport({ rows }) {
 
   // Same columns as the Excel export, TSV so it pastes as cells in Excel.
   function handleCopyToClipboard() {
+    const factor = 10 ** surfaceDecimals;
     const header = "Maille\tSurface (m²)";
     const lines = rows.map((row) => {
-      const surface = Math.round((row.surface ?? 0) * 100) / 100;
+      const surface = Math.round((row.surface ?? 0) * factor) / factor;
       return `${row.displayLabel}\t${String(surface).replace(".", ",")}`;
     });
     navigator.clipboard.writeText([header, ...lines].join("\n"));
@@ -100,9 +100,7 @@ export default function SectionMeshes3dExport({ rows }) {
               {rows.map((row) => (
                 <TableRow key={row.id}>
                   <TableCell>{row.displayLabel}</TableCell>
-                  <TableCell align="right">
-                    {formatSurfaceM2(row.surface)}
-                  </TableCell>
+                  <TableCell align="right">{row.surfaceLabel}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

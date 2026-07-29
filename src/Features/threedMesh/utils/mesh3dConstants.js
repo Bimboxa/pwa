@@ -12,6 +12,10 @@ export const DEFAULT_MESH3D_LABEL_PREFIX = "M-";
 
 export const DEFAULT_MESH3D_COLOR = "#7B1FA2";
 
+// Decimals used to display maille surfaces ("4,9 m²"). Configurable per scope
+// (scope.mesh3dSettings.surfaceDecimals, 1 | 2 | 3).
+export const DEFAULT_MESH3D_SURFACE_DECIMALS = 1;
+
 // Selection slice item type for mailles.
 export const MESH3D_SELECTION_TYPE = "MESH3D";
 

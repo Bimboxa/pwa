@@ -8,6 +8,7 @@ import { selectSelectedItems } from "Features/selection/selectionSlice";
 
 import useMeshes3d from "../hooks/useMeshes3d";
 import useMesh3dLabelPrefix from "../hooks/useMesh3dLabelPrefix";
+import useMesh3dSurfaceDecimals from "../hooks/useMesh3dSurfaceDecimals";
 import createMesh3dLabelLeader from "../services/createMesh3dLabelLeader";
 import createMesh3dLabelSprite from "../services/createMesh3dLabelSprite";
 import createMesh3dLabelTargetHandle from "../services/createMesh3dLabelTargetHandle";
@@ -46,6 +47,7 @@ export default function ThreedMeshes() {
 
   const meshes3d = useMeshes3d({ projectId, scopeId });
   const { prefix } = useMesh3dLabelPrefix();
+  const { surfaceDecimals } = useMesh3dSurfaceDecimals();
   // Mailles are confined to the MESHES viewer: never displayed (nor raycast
   // targetable) in the plain THREED viewer.
   const hideMeshes3d = useSelector(
@@ -189,7 +191,7 @@ export default function ThreedMeshes() {
       const targetPosition = getMesh3dPlanePoint(anchor, targetOffset);
       if (labelPosition) {
         const displayLabel = getMesh3dDisplayLabel(mesh3d, prefix);
-        const surfaceLabel = formatSurfaceM2(mesh3d.surface);
+        const surfaceLabel = formatSurfaceM2(mesh3d.surface, surfaceDecimals);
         // The label card's border + text use the maille's visible 3D color
         // (same lightened/varied shade as the fill) so the card reads as
         // belonging to its maille.
@@ -259,6 +261,7 @@ export default function ThreedMeshes() {
     meshes3d,
     selectedIds,
     prefix,
+    surfaceDecimals,
     hideMeshes3d,
     hasSelection,
     labelsOptions,

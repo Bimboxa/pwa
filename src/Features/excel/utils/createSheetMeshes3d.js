@@ -1,9 +1,10 @@
 // Recap sheet of the 3D mesh cells ("mailles"): label + surface.
-export default function createSheetMeshes3d(workbook, meshes3d) {
+export default function createSheetMeshes3d(workbook, meshes3d, decimals = 1) {
   // 1. Data preparation
+  const factor = 10 ** decimals;
   const items = (meshes3d || []).map((mesh3d) => ({
     label: mesh3d.displayLabel ?? mesh3d.label ?? `M${mesh3d.number ?? ""}`,
-    surface: Math.round((mesh3d.surface ?? 0) * 100) / 100,
+    surface: Math.round((mesh3d.surface ?? 0) * factor) / factor,
   }));
 
   // 2. Column definitions

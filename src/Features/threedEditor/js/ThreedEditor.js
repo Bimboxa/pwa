@@ -162,6 +162,11 @@ export default class ThreedEditor {
     return this.sceneManager.controlsManager.fitToAnnotationsTopDown();
   };
 
+  fitToBox3Facing = (box, normal, side) => {
+    if (!this.sceneIsInitialized) return Promise.resolve(null);
+    return this.sceneManager.controlsManager.fitToBox3Facing(box, normal, side);
+  };
+
   // annotations
 
   loadAnnotations = (annotations, options) => {

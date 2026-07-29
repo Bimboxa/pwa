@@ -8,6 +8,7 @@ import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 
 import useMeshes3d from "../hooks/useMeshes3d";
 import useMesh3dLabelPrefix from "../hooks/useMesh3dLabelPrefix";
+import useMesh3dSurfaceDecimals from "../hooks/useMesh3dSurfaceDecimals";
 import useResetMeshes3dLabelPositions from "../hooks/useResetMeshes3dLabelPositions";
 import formatSurfaceM2 from "../utils/formatSurfaceM2";
 import getMesh3dDisplayLabel from "../utils/getMesh3dDisplayLabel";
@@ -27,6 +28,7 @@ export default function PanelMeshesViewer() {
 
   const meshes3d = useMeshes3d({ projectId, scopeId });
   const { prefix, setPrefix } = useMesh3dLabelPrefix();
+  const { surfaceDecimals, setSurfaceDecimals } = useMesh3dSurfaceDecimals();
   const resetLabelPositions = useResetMeshes3dLabelPositions();
 
   const sorted = [...(meshes3d || [])].sort(
@@ -35,7 +37,7 @@ export default function PanelMeshesViewer() {
   const rows = sorted.map((mesh3d) => ({
     ...mesh3d,
     displayLabel: getMesh3dDisplayLabel(mesh3d, prefix),
-    surfaceLabel: formatSurfaceM2(mesh3d.surface),
+    surfaceLabel: formatSurfaceM2(mesh3d.surface, surfaceDecimals),
   }));
 
   // state
@@ -99,7 +101,10 @@ export default function PanelMeshesViewer() {
           <BoxFlexVStretch sx={{ overflow: "auto" }}>
             <SectionMeshes3dList rows={rows} />
           </BoxFlexVStretch>
-          <SectionMeshes3dExport rows={rows} />
+          <SectionMeshes3dExport
+            rows={rows}
+            surfaceDecimals={surfaceDecimals}
+          />
         </BoxFlexVStretch>
       )}
       {tab === "SETTINGS" && (
@@ -107,6 +112,8 @@ export default function PanelMeshesViewer() {
           <SectionMeshes3dSettings
             prefix={prefix}
             onPrefixChange={setPrefix}
+            surfaceDecimals={surfaceDecimals}
+            onSurfaceDecimalsChange={setSurfaceDecimals}
             meshes3d={sorted}
             onResetLabelPositions={() => resetLabelPositions(sorted)}
           />

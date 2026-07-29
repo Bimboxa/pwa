@@ -25,6 +25,7 @@ import useMeshes3d from "../hooks/useMeshes3d";
 import useUpdateMesh3d from "../hooks/useUpdateMesh3d";
 import useDeleteMeshes3d from "../hooks/useDeleteMeshes3d";
 import useMesh3dLabelPrefix from "../hooks/useMesh3dLabelPrefix";
+import useMesh3dSurfaceDecimals from "../hooks/useMesh3dSurfaceDecimals";
 import findAdjacentMeshes3d from "../utils/findAdjacentMeshes3d";
 import formatSurfaceM2 from "../utils/formatSurfaceM2";
 import getMesh3dDisplayLabel from "../utils/getMesh3dDisplayLabel";
@@ -45,6 +46,7 @@ export default function ToolbarEditMesh3d({ onDragStart }) {
   const updateMesh3d = useUpdateMesh3d();
   const deleteMeshes3d = useDeleteMeshes3d();
   const { prefix } = useMesh3dLabelPrefix();
+  const { surfaceDecimals } = useMesh3dSurfaceDecimals();
 
   const mesh3d = meshes3d.length === 1 ? meshes3d[0] : null;
   if (!mesh3d) return null;
@@ -113,7 +115,7 @@ export default function ToolbarEditMesh3d({ onDragStart }) {
           {displayLabel}
         </Typography>
         <Typography variant="body2" color="text.secondary">
-          — {formatSurfaceM2(mesh3d.surface)}
+          — {formatSurfaceM2(mesh3d.surface, surfaceDecimals)}
         </Typography>
       </Stack>
 

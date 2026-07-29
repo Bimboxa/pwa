@@ -22,6 +22,7 @@ import useSelectedMeshes3d from "../hooks/useSelectedMeshes3d";
 import useUpdateMesh3d from "../hooks/useUpdateMesh3d";
 import useDeleteMeshes3d from "../hooks/useDeleteMeshes3d";
 import useMesh3dLabelPrefix from "../hooks/useMesh3dLabelPrefix";
+import useMesh3dSurfaceDecimals from "../hooks/useMesh3dSurfaceDecimals";
 import mergeMeshes3dService from "../services/mergeMeshes3dService";
 import formatSurfaceM2 from "../utils/formatSurfaceM2";
 import getMesh3dDisplayLabel from "../utils/getMesh3dDisplayLabel";
@@ -45,6 +46,7 @@ export default function PanelMesh3dProperties() {
   const updateMesh3d = useUpdateMesh3d();
   const deleteMeshes3d = useDeleteMeshes3d();
   const { prefix } = useMesh3dLabelPrefix();
+  const { surfaceDecimals } = useMesh3dSurfaceDecimals();
 
   // helpers
 
@@ -120,7 +122,7 @@ export default function PanelMesh3dProperties() {
             {captionS}
           </Typography>
           <Typography variant="body2" sx={{ fontWeight: "bold" }}>
-            {title} — {formatSurfaceM2(totalSurface)}
+            {title} — {formatSurfaceM2(totalSurface, surfaceDecimals)}
           </Typography>
         </Box>
       </Box>

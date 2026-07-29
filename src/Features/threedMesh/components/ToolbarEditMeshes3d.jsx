@@ -25,6 +25,7 @@ import FieldColorV2 from "Features/form/components/FieldColorV2";
 import useSelectedMeshes3d from "../hooks/useSelectedMeshes3d";
 import useUpdateMesh3d from "../hooks/useUpdateMesh3d";
 import useDeleteMeshes3d from "../hooks/useDeleteMeshes3d";
+import useMesh3dSurfaceDecimals from "../hooks/useMesh3dSurfaceDecimals";
 import mergeMeshes3dService from "../services/mergeMeshes3dService";
 import formatSurfaceM2 from "../utils/formatSurfaceM2";
 
@@ -36,6 +37,7 @@ export default function ToolbarEditMeshes3d({ onDragStart }) {
   const meshes3d = useSelectedMeshes3d();
   const updateMesh3d = useUpdateMesh3d();
   const deleteMeshes3d = useDeleteMeshes3d();
+  const { surfaceDecimals } = useMesh3dSurfaceDecimals();
 
   if (meshes3d.length < 2) return null;
 
@@ -94,7 +96,7 @@ export default function ToolbarEditMeshes3d({ onDragStart }) {
           {meshes3d.length} mailles
         </Typography>
         <Typography variant="body2" color="text.secondary">
-          — {formatSurfaceM2(totalSurface)}
+          — {formatSurfaceM2(totalSurface, surfaceDecimals)}
         </Typography>
       </Stack>
 

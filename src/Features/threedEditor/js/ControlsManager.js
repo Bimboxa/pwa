@@ -248,6 +248,58 @@ export default class ControlsManager {
     });
   };
 
+  // Frame an arbitrary world-space Box3 (e.g. one maille). Preserves the
+  // current orbit orientation and only dollies/pans to fit.
+  fitToBox3 = (box) => {
+    if (!this.cameraControls || !box || box.isEmpty()) return;
+
+    const padding = 0.5; // metres of breathing room around the geometry
+    this.cameraControls.fitToBox(box, true, {
+      paddingLeft: padding,
+      paddingRight: padding,
+      paddingTop: padding,
+      paddingBottom: padding,
+    });
+  };
+
+  // Face-on framing of a world-space Box3: pivot the camera onto the plane
+  // normal (side = 1 / -1 picks which of the two faces), then fit the box
+  // head-on. Without an explicit side, the face the camera is already on is
+  // used. Returns the side actually applied, so callers can flip to the
+  // other face on their next call.
+  fitToBox3Facing = async (box, normal, side = null) => {
+    if (!this.cameraControls || !box || box.isEmpty()) return null;
+    if (!normal) {
+      this.fitToBox3(box);
+      return null;
+    }
+
+    const center = box.getCenter(new Vector3());
+    const n = new Vector3(normal.x, normal.y, normal.z).normalize();
+
+    let appliedSide = side === 1 || side === -1 ? side : null;
+    if (!appliedSide) {
+      const toCamera = this.cameraControls
+        .getPosition(new Vector3())
+        .sub(center);
+      appliedSide = toCamera.dot(n) >= 0 ? 1 : -1;
+    }
+
+    // Spherical angles of the camera direction (center → camera) along the
+    // picked normal side, in camera-controls' Y-up convention. Polar is kept
+    // off the exact poles (same degeneracy guard as animateToTopDown).
+    const dir = n.multiplyScalar(appliedSide);
+    const azimuthRad = Math.atan2(dir.x, dir.z);
+    const polarRad = Math.min(
+      Math.PI - 0.001,
+      Math.max(0.001, Math.acos(Math.min(1, Math.max(-1, dir.y))))
+    );
+
+    await this.animateToTopDown({ target: center, azimuthRad, polarRad });
+    this.fitToBox3(box);
+    return appliedSide;
+  };
+
   // Top-down framing of every annotation in the scene: pivot to a vertical
   // look-down view around the annotations' center, then fit the box with the
   // settled orientation (fitToBox frames along the current view direction).

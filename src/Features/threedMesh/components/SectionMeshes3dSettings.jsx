@@ -11,6 +11,8 @@ import {
   FormControlLabel,
   Switch,
   TextField,
+  ToggleButton,
+  ToggleButtonGroup,
   Typography,
 } from "@mui/material";
 import { FilterCenterFocus, GridOn } from "@mui/icons-material";
@@ -25,6 +27,8 @@ import { hasMesh3dLabelOffset } from "../hooks/useResetMeshes3dLabelPositions";
 export default function SectionMeshes3dSettings({
   prefix,
   onPrefixChange,
+  surfaceDecimals,
+  onSurfaceDecimalsChange,
   meshes3d,
   onResetLabelPositions,
 }) {
@@ -68,6 +72,34 @@ export default function SectionMeshes3dSettings({
             <Typography variant="body2">Masquer les annotations</Typography>
           }
         />
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            mt: 1,
+          }}
+        >
+          <Typography variant="body2">Décimales des surfaces</Typography>
+          <ToggleButtonGroup
+            size="small"
+            exclusive
+            value={surfaceDecimals}
+            onChange={(_, v) => {
+              if (v !== null) onSurfaceDecimalsChange(v);
+            }}
+          >
+            {[1, 2, 3].map((decimals) => (
+              <ToggleButton
+                key={decimals}
+                value={decimals}
+                sx={{ px: 1.5, py: 0.25 }}
+              >
+                {decimals}
+              </ToggleButton>
+            ))}
+          </ToggleButtonGroup>
+        </Box>
       </WhiteSectionGeneric>
 
       {/* Card — Étiquette */}
