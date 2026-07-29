@@ -11,15 +11,17 @@ import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewer
 
 import {
   Box,
+  Checkbox,
   Divider,
+  FormControlLabel,
   IconButton,
   Paper,
   Stack,
   ToggleButton,
   ToggleButtonGroup,
   Tooltip,
-  Typography,
 } from "@mui/material";
+import AddIcon from "@mui/icons-material/Add";
 import CloseIcon from "@mui/icons-material/Close";
 import NearMeIcon from "@mui/icons-material/NearMe";
 import TimelineIcon from "@mui/icons-material/Timeline";
@@ -30,8 +32,14 @@ import FieldNumberCompact from "./FieldNumberCompact";
 const TOOLS = [
   {
     value: "SELECT",
-    label: "Sélection — clic sur une face pour créer une maille",
+    label: "Sélection — clic sur une maille pour la sélectionner",
     render: () => <NearMeIcon sx={{ fontSize: 18 }} />,
+  },
+  {
+    value: "CREATE",
+    label:
+      "Nouvelle maille — clic sur une face pour créer une maille (Échap : retour à la sélection)",
+    render: () => <AddIcon sx={{ fontSize: 18 }} />,
   },
   {
     value: "CUT_VERTICAL",
@@ -132,68 +140,75 @@ export default function MeshingToolbarThreed() {
         zIndex: 10,
       }}
     >
-      <Stack direction="row" spacing={0.5} alignItems="center">
-        <Typography sx={{ fontSize: 13, fontWeight: 500, px: 0.5 }}>
-          Mailler
-        </Typography>
+      <Stack direction="row" spacing={0.5} alignItems="stretch">
+        {/* Meshing block: cut tools + their options */}
+        <Stack spacing={0.5}>
+          <ToggleButtonGroup exclusive value={tool} onChange={handleTool}>
+            {TOOLS.map(({ value, label, render }) => (
+              <Tooltip key={value} title={label}>
+                <ToggleButton value={value} size="small">
+                  {render()}
+                </ToggleButton>
+              </Tooltip>
+            ))}
+          </ToggleButtonGroup>
 
-        <ToggleButtonGroup exclusive value={tool} onChange={handleTool}>
-          {TOOLS.map(({ value, label, render }) => (
-            <Tooltip key={value} title={label}>
-              <ToggleButton value={value} size="small">
-                {render()}
-              </ToggleButton>
+          <Stack direction="row" spacing={0.5} alignItems="center">
+            <Tooltip title="Découpe multi-mailles — le trait traverse aussi les mailles voisines qu'il rencontre (un trait horizontal sur 2 bandes verticales donne 4 mailles)">
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    size="small"
+                    checked={multiCut}
+                    onChange={handleMultiCutToggle}
+                  />
+                }
+                label="Multi-mailles"
+                sx={{
+                  ml: 0,
+                  "& .MuiFormControlLabel-label": { fontSize: 13 },
+                }}
+              />
             </Tooltip>
-          ))}
-        </ToggleButtonGroup>
 
-        <Tooltip title="Découpe multi-mailles — le trait traverse aussi les mailles voisines qu'il rencontre (un trait horizontal sur 2 bandes verticales donne 4 mailles)">
-          <ToggleButton
-            value="MULTI_CUT"
-            selected={multiCut}
-            onChange={handleMultiCutToggle}
-            size="small"
-            sx={{ textTransform: "none", px: 1 }}
-          >
-            Multi-mailles
-          </ToggleButton>
-        </Tooltip>
+            <FieldNumberCompact
+              label="Décalage"
+              value={offset}
+              onChange={handleOffsetChange}
+              unit="m"
+            />
+          </Stack>
+        </Stack>
 
         <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
 
-        <FieldNumberCompact
-          label="Décalage"
-          value={offset}
-          onChange={handleOffsetChange}
-          unit="m"
-        />
+        {/* Numbering block: number tool + its options */}
+        <Stack spacing={0.5}>
+          <Tooltip title="Numéroter — cliquez sur une maille pour lui affecter le numéro, puis +1">
+            <ToggleButton
+              value="NUMBER"
+              selected={tool === "NUMBER"}
+              onChange={handleNumberingToggle}
+              size="small"
+              sx={{ textTransform: "none", px: 1 }}
+            >
+              Numéroter
+            </ToggleButton>
+          </Tooltip>
 
-        <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
-
-        <FieldNumberCompact
-          label="N°"
-          value={numberingNext}
-          onChange={handleNumberingNextChange}
-        />
-
-        <Tooltip title="Numéroter — cliquez sur une maille pour lui affecter le numéro, puis +1">
-          <ToggleButton
-            value="NUMBER"
-            selected={tool === "NUMBER"}
-            onChange={handleNumberingToggle}
-            size="small"
-            sx={{ textTransform: "none", px: 1 }}
-          >
-            Numéroter
-          </ToggleButton>
-        </Tooltip>
+          <FieldNumberCompact
+            label="Démarrage"
+            value={numberingNext}
+            onChange={handleNumberingNextChange}
+          />
+        </Stack>
 
         {!isMeshesViewer && (
           <>
             <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
 
             <Tooltip title="Quitter le mode maillage">
-              <IconButton onClick={handleClose}>
+              <IconButton onClick={handleClose} sx={{ alignSelf: "center" }}>
                 <CloseIcon />
               </IconButton>
             </Tooltip>

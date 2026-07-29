@@ -49,10 +49,12 @@ const DRAG_THRESHOLD_PX = 4;
 // Pointer interactions of the 3D meshing mode. Owns the pointer while
 // meshingMode.active (MainThreedEditor's hover/click paths short-circuit):
 //
-// - SELECT tool: hovering an annotation face shows the coplanar stipple (same
+// - SELECT tool: clicking an existing maille selects it (shift+click
+//   toggles); empty click deselects. Never creates.
+// - CREATE tool: hovering an annotation face shows the coplanar stipple (same
 //   overlay as the selection-mode hover) + a "+ nouvelle maille" cursor
-//   helper; a click creates a maille from the hovered face. Clicking an
-//   existing maille selects it (shift+click toggles).
+//   helper; a click creates a maille from the hovered face. Escape returns
+//   to SELECT.
 // - CUT_VERTICAL / CUT_HORIZONTAL / CUT_FREE / CUT_POLYLINE / CUT_ANGULAR:
 //   delegated to meshingCutController (red cut line, reference/guide vertices,
 //   area chips, split on click). CUT_ANGULAR also captures typed digits into
@@ -158,7 +160,8 @@ export default function useMeshingPointerHandlers() {
       getAllMeshes3d: () => Object.values(mesh3dByIdRef.current),
     });
 
-    dom.style.cursor = tool === "NUMBER" ? "default" : "crosshair";
+    dom.style.cursor =
+      tool === "NUMBER" || tool === "SELECT" ? "default" : "crosshair";
 
     function clearStipple() {
       if (hover.overlay) {
@@ -258,7 +261,7 @@ export default function useMeshingPointerHandlers() {
       }
     }
 
-    function updateSelectHover(e, pick) {
+    function updateCreateHover(e, pick) {
       if (pick?.kind === "ANNOTATION") {
         setMeshingOverlay({
           cursor: {
@@ -280,18 +283,18 @@ export default function useMeshingPointerHandlers() {
       if (!e) return;
       const pick = pickScene(e);
 
-      // Face highlight: mailles in every tool, annotations in SELECT only.
+      // Face highlight: mailles in every tool, annotations in CREATE only.
       if (pick?.kind === "MESH3D") {
         applyStipple(pick.intersect.object, pick.intersect.faceIndex);
-      } else if (tool === "SELECT" && pick?.kind === "ANNOTATION") {
+      } else if (tool === "CREATE" && pick?.kind === "ANNOTATION") {
         applyStipple(pick.hitObject, pick.intersect.faceIndex);
       } else {
         clearStipple();
       }
 
-      if (tool === "SELECT") {
-        updateSelectHover(e, pick);
-      } else if (tool === "NUMBER") {
+      if (tool === "CREATE") {
+        updateCreateHover(e, pick);
+      } else if (tool === "SELECT" || tool === "NUMBER") {
         setMeshingOverlay({ cursor: null });
         dom.style.cursor = pick?.kind === "MESH3D" ? "pointer" : "default";
       } else {
@@ -314,7 +317,7 @@ export default function useMeshingPointerHandlers() {
       }
     }
 
-    async function handleSelectClick(e, pick) {
+    function handleSelectClick(e, pick) {
       if (pick?.kind === "MESH3D") {
         const item = {
           id: pick.mesh3dId,
@@ -327,6 +330,11 @@ export default function useMeshingPointerHandlers() {
         return;
       }
 
+      // Annotation or empty click: plain deselects, shift preserves.
+      if (!e.shiftKey) dispatch(setSelectedItem(null));
+    }
+
+    async function handleCreateClick(e, pick) {
       if (pick?.kind === "ANNOTATION") {
         // Same mode as applyStipple: the created maille covers exactly the
         // highlighted region.
@@ -364,11 +372,7 @@ export default function useMeshingPointerHandlers() {
           }
           clearStipple();
         }
-        return;
       }
-
-      // Empty click: plain deselects, shift preserves.
-      if (!e.shiftKey) dispatch(setSelectedItem(null));
     }
 
     function onPointerDown(e) {
@@ -401,6 +405,8 @@ export default function useMeshingPointerHandlers() {
       const pick = pickScene(e);
       if (tool === "SELECT") {
         handleSelectClick(e, pick);
+      } else if (tool === "CREATE") {
+        handleCreateClick(e, pick);
       } else if (tool === "NUMBER") {
         handleNumberClick(pick);
       } else {
@@ -429,14 +435,22 @@ export default function useMeshingPointerHandlers() {
         if (tool === "SELECT") {
           // In the Maillage module meshing mode is permanent — nothing to exit.
           if (!isMeshesViewerRef.current) dispatch(setMeshingModeActive(false));
-        } else if (tool === "NUMBER") {
+        } else if (tool === "CREATE" || tool === "NUMBER") {
           dispatch(setMeshingTool("SELECT"));
         } else {
-          cutController.onEscape();
+          // First Escape cancels an in-progress cut draft; with nothing to
+          // cancel, fall back to the selection tool.
+          const hadDraft = cutController.onEscape();
+          if (!hadDraft) dispatch(setMeshingTool("SELECT"));
         }
       }
       if ((e.key === "s" || e.key === "S") && !e.repeat) {
-        if (tool !== "SELECT" && tool !== "NUMBER" && tool !== "CUT_ANGULAR") {
+        if (
+          tool !== "SELECT" &&
+          tool !== "CREATE" &&
+          tool !== "NUMBER" &&
+          tool !== "CUT_ANGULAR"
+        ) {
           dispatch(toggleMeshingCutSide());
           // Redraw the cut line with the flipped side on the next frame.
           if (lastEvent && rafId == null) {

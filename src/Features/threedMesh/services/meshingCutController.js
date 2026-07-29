@@ -1359,10 +1359,14 @@ export function createMeshingCutController({
       resetHover();
     },
     onEscape() {
+      // True when a multi-click draft was in progress (Escape consumed as
+      // "cancel"); false lets the caller fall back to tool switching.
+      const hadDraft = !!(firstPoint || polyPoints.length || angA || angO);
       firstPoint = null;
       resetPolyline();
       resetAngular();
       resetHover();
+      return hadDraft;
     },
     // A change of the typed angle must redraw the V without a mouse move.
     isAngularArmed() {
