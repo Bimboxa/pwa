@@ -3,7 +3,10 @@ import { useDispatch, useSelector } from "react-redux";
 import { useSearchParams } from "react-router-dom";
 
 import { setViewerMode } from "../urlParamsSlice";
-import { setSelectedViewerKey } from "Features/viewers/viewersSlice";
+import {
+  setModuleEditorKey,
+  setSelectedViewerKey,
+} from "Features/viewers/viewersSlice";
 import { setInteractionMode } from "Features/popperMapListings/popperMapListingsSlice";
 import {
   setSelectedMainBaseMapId,
@@ -55,6 +58,9 @@ export default function useApplyUrlParams() {
 
     if (viewer === "3d") {
       dispatch(setSelectedViewerKey("THREED"));
+      // Force the 3D editor too: a persisted editorKeyByModule may have left
+      // the Viewer module on its 2D editor.
+      dispatch(setModuleEditorKey({ moduleKey: "THREED", editorKey: "THREED" }));
     }
     if (mode === "viewer") {
       dispatch(setViewerMode(true));

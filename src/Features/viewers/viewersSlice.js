@@ -1,16 +1,24 @@
 import { createSlice } from "@reduxjs/toolkit";
 
+import getInitSelectedModuleKey from "Features/init/services/getInitSelectedModuleKey";
+import setInitSelectedModuleKey from "Features/init/services/setInitSelectedModuleKey";
+import getInitEditorKeyByModule from "Features/init/services/getInitEditorKeyByModule";
+import setInitEditorKeyByModule from "Features/init/services/setInitEditorKeyByModule";
+
 const viewersInitialState = {
   // The left-band selection is a MODULE key ("MAP" = Dessin, "THREED",
   // "BASE_MAPS", "PORTFOLIO", ...). Kept named selectedViewerKey to avoid a
-  // big-bang rename of its many consumers.
-  selectedViewerKey: "MAP",
+  // big-bang rename of its many consumers. Restored from localStorage so a
+  // page refresh reopens the last visited module (the scope-change landing
+  // lives in useLandingViewerModuleOnScopeOpen).
+  selectedViewerKey: getInitSelectedModuleKey() ?? "MAP",
   // Active editor inside multi-editor modules (generalizes pov.viewerMode):
   // the Dessin and Viewer modules can display the 2D map editor or the 3D
   // editor. THREED is seeded so selectEffectiveViewerKey never falls back to
   // the module key ("THREED" module without an entry would be fine, but the
-  // Viewer module's 2D editor is "MAP", not its own key).
-  editorKeyByModule: { MAP: "MAP", THREED: "THREED" },
+  // Viewer module's 2D editor is "MAP", not its own key). Restored from
+  // localStorage (the getter always merges over the seeded defaults).
+  editorKeyByModule: getInitEditorKeyByModule(),
   viewerReturnContext: null, // { fromViewer, portfolioId, listingId, ... }
   // Annotation-less baseMaps pinned into the Viewer module's chips band
   // (session-only, reset on scope open by useInitViewerModuleOnScopeOpen).
@@ -35,10 +43,12 @@ export const viewersSlice = createSlice({
   reducers: {
     setSelectedViewerKey: (state, action) => {
       state.selectedViewerKey = action.payload;
+      setInitSelectedModuleKey(action.payload);
     },
     setModuleEditorKey: (state, action) => {
       const { moduleKey, editorKey } = action.payload;
       state.editorKeyByModule[moduleKey] = editorKey;
+      setInitEditorKeyByModule({ ...state.editorKeyByModule });
     },
     setViewerReturnContext: (state, action) => {
       state.viewerReturnContext = action.payload;

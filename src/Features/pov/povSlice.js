@@ -4,9 +4,13 @@ import {
   loadPovEnhancePromptsFromLocalStorage,
   storePovEnhancePromptsInLocalStorage,
 } from "./services/povEnhancePromptLocalStorage";
+import getInitPovViewerMode from "Features/init/services/getInitPovViewerMode";
+import setInitPovViewerMode from "Features/init/services/setInitPovViewerMode";
 
 const povInitialState = {
-  viewerMode: "MAP", // "MAP" | "THREED" — editor shown inside the POINT_OF_VIEW viewer
+  // "MAP" | "THREED" — editor shown inside the POINT_OF_VIEW viewer. Restored
+  // from localStorage so a page refresh reopens the POV module's last editor.
+  viewerMode: getInitPovViewerMode(),
   // The capture frame is only armed while a view is being created / updated:
   // otherwise the POV module behaves like the regular editor (PopperMapListings
   // visible, editing free) so the user can filter before framing.
@@ -40,6 +44,7 @@ export const povSlice = createSlice({
   reducers: {
     setPovViewerMode: (state, action) => {
       state.viewerMode = action.payload;
+      setInitPovViewerMode(action.payload);
     },
     setPovFramingActive: (state, action) => {
       state.framingActive = Boolean(action.payload);

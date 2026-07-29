@@ -11,5 +11,5 @@ export default function useInitSelectScope() {
 
   useEffect(() => {
     dispatch(setSelectedScopeId(initScopeId));
-  });
+  }, [initScopeId, dispatch]);
 }

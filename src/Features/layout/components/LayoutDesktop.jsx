@@ -1,11 +1,4 @@
-import { useEffect } from "react";
-import { useSelector, useDispatch } from "react-redux";
-import { useSearchParams } from "react-router-dom";
-
-import {
-  setModuleEditorKey,
-  setSelectedViewerKey,
-} from "Features/viewers/viewersSlice";
+import { useSelector } from "react-redux";
 
 import { Box } from "@mui/material";
 
@@ -23,10 +16,9 @@ import useViewerSwitchHotkeys from "Features/viewers/hooks/useViewerSwitchHotkey
 import useToggleThreedViewerHotkey from "Features/viewers/hooks/useToggleThreedViewerHotkey";
 import useRightPanelToolHotkeys from "Features/rightPanel/hooks/useRightPanelToolHotkeys";
 import useInitViewerModuleOnScopeOpen from "Features/viewers/hooks/useInitViewerModuleOnScopeOpen";
+import useLandingViewerModuleOnScopeOpen from "Features/viewers/hooks/useLandingViewerModuleOnScopeOpen";
 
 export default function LayoutDesktop() {
-  const dispatch = useDispatch();
-
   // hotkeys — switch module (D = Dessin, F = Fonds de plan, V = Points de vue).
   // Mounted here (not in VerticalMenuViewers) so they survive full screen,
   // where the viewers band is unmounted.
@@ -40,50 +32,14 @@ export default function LayoutDesktop() {
   // Scope-open seeding of the Viewer module's 3D visibility (images off,
   // annotations of every annotated baseMap on).
   useInitViewerModuleOnScopeOpen();
+  // Scope-change landing on a module (Viewer, or Dessin for a freshly created
+  // scope). Skipped on refresh / same-scope reopen, where the persisted
+  // module/editor context is restored.
+  useLandingViewerModuleOnScopeOpen();
 
   // data
 
   const isFullScreen = useSelector((s) => s.layout.isFullScreen);
-  const advancedLayout = useSelector((s) => s.appConfig.advancedLayout);
-  const disable3D = useSelector((s) => s.appConfig.disable3D);
-  // A freshly created scope lands on the Dessin module (2D editor) — the
-  // Viewer landing is for reopening scopes that already have content.
-  const landOnDrawScopeId = useSelector((s) => s.viewers.landOnDrawScopeId);
-  const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
-  const isNewScopeDrawLanding =
-    Boolean(landOnDrawScopeId) && landOnDrawScopeId === selectedScopeId;
-
-  // honor ?viewer=3d deep link: don't reset the viewer to MAP when 3D is requested
-  const [searchParams] = useSearchParams();
-  const wants3dViewer = searchParams.get("viewer") === "3d";
-
-  // effects
-
-  useEffect(() => {
-    if (disable3D) {
-      dispatch(setSelectedViewerKey("MAP"));
-    } else if (!advancedLayout && !wants3dViewer) {
-      if (isNewScopeDrawLanding) {
-        // Freshly created scope: straight to drawing.
-        dispatch(setSelectedViewerKey("MAP"));
-        dispatch(setModuleEditorKey({ moduleKey: "MAP", editorKey: "MAP" }));
-      } else {
-        // Default landing module: the Viewer (read-only overview), always on
-        // its 3D editor even if the module was left on 2D earlier in the
-        // session.
-        dispatch(setSelectedViewerKey("THREED"));
-        dispatch(
-          setModuleEditorKey({ moduleKey: "THREED", editorKey: "THREED" })
-        );
-      }
-    }
-  }, [
-    advancedLayout,
-    wants3dViewer,
-    disable3D,
-    isNewScopeDrawLanding,
-    dispatch,
-  ]);
 
   return (
     <BoxFlexV sx={{ position: "relative" }}>
