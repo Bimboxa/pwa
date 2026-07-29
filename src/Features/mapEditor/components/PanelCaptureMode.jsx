@@ -4,52 +4,35 @@
 // (SectionCaptureFormat / SectionCaptureLegend / SectionCaptureExport).
 // No own white card / scroll container — it lives inside the parent section.
 
-import { useSelector, useDispatch } from "react-redux";
-
-import {
-  setImageModeLabelsAutoLayout,
-  setImageModeLabelsInMargin,
-} from "../mapEditorSlice";
+import { useSelector } from "react-redux";
 
 import captureMapAsPng from "../utils/captureMapAsPng";
 import snapshotThreedCanvasForCapture from "Features/threedEditor/utils/snapshotThreedCanvasForCapture";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 
-import { Box, Typography, Divider } from "@mui/material";
+import { Box, Divider } from "@mui/material";
 
-import FieldCheck from "Features/form/components/FieldCheck";
 import SectionCaptureFormat from "./SectionCaptureFormat";
 import SectionCaptureLegend from "./SectionCaptureLegend";
+import SectionCaptureLabels from "./SectionCaptureLabels";
 import SectionCaptureExport from "./SectionCaptureExport";
 
-const LABEL_SX = {
-  fontWeight: 600,
-  color: "text.secondary",
-  lineHeight: 1.2,
-};
-
 export default function PanelCaptureMode({ viewerKey = "MAP" }) {
-  const dispatch = useDispatch();
-
   // data
 
   const aspectRatio = useSelector((s) => s.mapEditor.imageModeAspectRatio);
-  const labelsAutoLayout = useSelector(
-    (s) => s.mapEditor.imageModeLabelsAutoLayout
-  );
-  const labelsInMargin = useSelector(
-    (s) => s.mapEditor.imageModeLabelsInMargin
-  );
   // Label auto-layout only applies to the 2D map (in 3D the labels are baked
   // into the WebGL snapshot).
   const isThreed = isThreedFamilyViewerKey(viewerKey);
   // Right panel occludes the viewport's right side; mirror the overlay so the
-  // exported crop matches the displayed capture rect.
+  // exported crop matches the displayed capture rect. Only Export rapide
+  // insets the rect — the global Capture tool ignores the panel (like POV).
+  const imageModeEnabled = useSelector((s) => s.mapEditor.imageModeEnabled);
   const panelOpen = useSelector((s) =>
     Boolean(s.rightPanel.selectedMenuItemKey)
   );
   const panelWidth = useSelector((s) => s.rightPanel.width);
-  const rightInset = panelOpen ? panelWidth : 0;
+  const rightInset = imageModeEnabled && panelOpen ? panelWidth : 0;
   const roundedBorderMask = useSelector((s) => s.mapEditor.imageModeBorder);
 
   // handlers
@@ -85,14 +68,6 @@ export default function PanelCaptureMode({ viewerKey = "MAP" }) {
     }
   }
 
-  function handleToggleLabelsAutoLayout(checked) {
-    dispatch(setImageModeLabelsAutoLayout(Boolean(checked)));
-  }
-
-  function handleToggleLabelsInMargin(checked) {
-    dispatch(setImageModeLabelsInMargin(Boolean(checked)));
-  }
-
   // render
 
   return (
@@ -104,27 +79,7 @@ export default function PanelCaptureMode({ viewerKey = "MAP" }) {
       <SectionCaptureLegend />
 
       {/* ÉTIQUETTES — display-only auto-layout (2D map only) */}
-      {!isThreed && (
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-          <Typography variant="overline" sx={LABEL_SX}>
-            Étiquettes
-          </Typography>
-          <FieldCheck
-            value={labelsAutoLayout}
-            onChange={handleToggleLabelsAutoLayout}
-            label="Organiser les étiquettes"
-            options={{ type: "switch", showAsInline: true }}
-          />
-          {labelsAutoLayout && (
-            <FieldCheck
-              value={labelsInMargin}
-              onChange={handleToggleLabelsInMargin}
-              label="Ranger en marge du cadre"
-              options={{ type: "switch", showAsInline: true }}
-            />
-          )}
-        </Box>
-      )}
+      {!isThreed && <SectionCaptureLabels />}
 
       <SectionCaptureExport onExport={handleExport} />
     </Box>

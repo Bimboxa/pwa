@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 
-import { setImageModeHighRes } from "../mapEditorSlice";
+import { setImageModeHighRes, setImageModeExportMode } from "../mapEditorSlice";
 
 import {
   Box,
@@ -51,10 +51,16 @@ const SEG_SX = {
 // (showOptions={false} — the POV panel puts them in its Cadrage tab). The
 // actual capture is delegated to `onExport`. Used by PanelCaptureMode
 // ("Export rapide") and by the POV properties panel.
+// The capture tool renders it as pure settings (showButton={false} — its
+// save bar triggers the capture) with the filename lifted to redux via the
+// controlled `filename` / `onFilenameChange` props.
 export default function SectionCaptureExport({
   onExport,
   defaultFilename = "capture",
   showOptions = true,
+  showButton = true,
+  filename: filenameProp,
+  onFilenameChange,
 }) {
   const dispatch = useDispatch();
 
@@ -64,11 +70,15 @@ export default function SectionCaptureExport({
   const whiteBackground = useSelector(
     (s) => s.mapEditor.imageModeWhiteBackground
   );
+  // Shared with the capture tool's save bar ("Créer la capture" delivers in
+  // the format picked here).
+  const mode = useSelector((s) => s.mapEditor.imageModeExportMode);
 
   // state
 
-  const [filename, setFilename] = useState(defaultFilename);
-  const [mode, setMode] = useState("pdf"); // "pdf" | "png" | "clipboard"
+  const [localFilename, setLocalFilename] = useState(defaultFilename);
+  const controlled = filenameProp !== undefined;
+  const filename = controlled ? filenameProp : localFilename;
 
   // helpers
 
@@ -81,7 +91,12 @@ export default function SectionCaptureExport({
 
   function handleModeChange(_, value) {
     if (!value) return;
-    setMode(value);
+    dispatch(setImageModeExportMode(value));
+  }
+
+  function handleFilenameChange(value) {
+    if (controlled) onFilenameChange?.(value);
+    else setLocalFilename(value);
   }
 
   function handleToggleHighRes(checked) {
@@ -123,7 +138,7 @@ export default function SectionCaptureExport({
           size="small"
           fullWidth
           value={filename}
-          onChange={(e) => setFilename(e.target.value)}
+          onChange={(e) => handleFilenameChange(e.target.value)}
           placeholder={defaultFilename}
           InputProps={{
             endAdornment: modeCfg.ext ? (
@@ -170,17 +185,20 @@ export default function SectionCaptureExport({
       {/* Options de cadrage (fond blanc) */}
       {showOptions && <SectionCaptureOptions />}
 
-      {/* Action principale */}
-      <Button
-        variant="contained"
-        size="small"
-        fullWidth
-        startIcon={mode === "clipboard" ? <ContentCopy /> : <Download />}
-        onClick={handlePrimaryExport}
-        sx={{ textTransform: "none", mt: 0.5 }}
-      >
-        {modeCfg.label}
-      </Button>
+      {/* Action principale (hidden when the host provides its own trigger,
+          e.g. the capture tool's save bar) */}
+      {showButton && (
+        <Button
+          variant="contained"
+          size="small"
+          fullWidth
+          startIcon={mode === "clipboard" ? <ContentCopy /> : <Download />}
+          onClick={handlePrimaryExport}
+          sx={{ textTransform: "none", mt: 0.5 }}
+        >
+          {modeCfg.label}
+        </Button>
+      )}
     </Box>
   );
 }

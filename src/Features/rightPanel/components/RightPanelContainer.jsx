@@ -31,6 +31,7 @@ import PanelAdminListing from "Features/adminEditor/components/PanelAdminListing
 import PanelAdminEntity from "Features/adminEditor/components/PanelAdminEntity";
 import PanelAnnotationsAuto from "Features/annotationsAuto/components/PanelAnnotationsAuto";
 import PanelPrint from "Features/print/components/PanelPrint";
+import PanelCaptureTool from "Features/mapEditor/components/PanelCaptureTool";
 import PanelElevation from "Features/elevation/components/PanelElevation";
 import PanelImportAnnotations from "Features/importAnnotations/components/PanelImportAnnotations";
 import PanelObjectsLibrary from "Features/objectsLibrary/components/PanelObjectsLibrary";
@@ -181,6 +182,7 @@ export default function RightPanelContainer() {
           {selectedKey === "ADMIN_ENTITY" && <PanelAdminEntity />}
           {selectedKey === "ANNOTATIONS_AUTO" && <PanelAnnotationsAuto />}
           {selectedKey === "PRINT" && <PanelPrint />}
+          {selectedKey === "CAPTURE" && <PanelCaptureTool />}
           {selectedKey === "ELEVATION" && <PanelElevation />}
           {selectedKey === "IMPORT_ANNOTATIONS" && <PanelImportAnnotations />}
           {selectedKey === "OBJECTS_LIBRARY" && <PanelObjectsLibrary />}

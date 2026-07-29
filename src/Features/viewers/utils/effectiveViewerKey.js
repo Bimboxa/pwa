@@ -4,6 +4,8 @@
 // hotkeys, camera sync) must use the effective key; module-driven UI (right
 // panel, top bar, side panels) keeps reading selectedViewerKey.
 
+import { isThreedFamilyViewerKey } from "./threedViewerKeys";
+
 export const selectSelectedModuleKey = (s) => s.viewers.selectedViewerKey;
 
 export const selectIsPovViewer = (s) =>
@@ -33,12 +35,23 @@ export const selectEffectiveViewerKey = (s) => {
 export const selectPovFramingActive = (s) =>
   selectIsPovViewer(s) && s.pov.framingActive;
 
+// Key of the [data-image-capture-host] element to snapshot / measure for the
+// displayed editor: every 3D-family editor shares the single "THREED" host
+// (MainThreedEditor), the 2D editors each stamp their own key.
+export const selectCaptureHostViewerKey = (s) => {
+  const effectiveKey = selectEffectiveViewerKey(s);
+  return isThreedFamilyViewerKey(effectiveKey) ? "THREED" : effectiveKey;
+};
+
 // The capture framing ("Export rapide" mask + rect + legend) is active when
-// the Export tool enabled it OR when the POV viewer armed its frame. Editing
-// interactions gated on image mode must use this derived flag so the POV
-// viewer freezes them exactly like the Export tool does.
+// the Export tool enabled it, when the global Capture tool (Alt+C) armed it,
+// OR when the POV viewer armed its frame. Editing interactions gated on image
+// mode must use this derived flag so every framing freezes them exactly like
+// the Export tool does.
 export const selectCaptureFramingActive = (s) =>
-  s.mapEditor.imageModeEnabled || selectPovFramingActive(s);
+  s.mapEditor.imageModeEnabled ||
+  s.mapEditor.captureToolActive ||
+  selectPovFramingActive(s);
 
 // Generation date of the restored POV, or null when nothing is frozen.
 // Annotations created after it are filtered out by useAnnotationsV2, so the

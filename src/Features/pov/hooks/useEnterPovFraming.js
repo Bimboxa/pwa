@@ -2,6 +2,7 @@ import { useDispatch, useSelector } from "react-redux";
 
 import { setSelectedItem } from "Features/selection/selectionSlice";
 import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
+import { setCaptureToolActive } from "Features/mapEditor/mapEditorSlice";
 import { setPovFramingActive, setPovViewFreeze } from "../povSlice";
 
 // Arms the POV capture frame (mask + rect + legend + save bar), either on an
@@ -23,6 +24,9 @@ export default function useEnterPovFraming() {
     // frame ignores the panel, but opening it uninvited would be intrusive.
     if (rightPanelIsOpen)
       dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
+    // The POV frame supersedes the global Capture tool — its save bar and the
+    // capture quit button must never coexist.
+    dispatch(setCaptureToolActive(false));
     dispatch(setPovFramingActive(true));
   };
 }

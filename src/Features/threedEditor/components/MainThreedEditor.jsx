@@ -202,12 +202,15 @@ export default function MainThreedEditor() {
   // Capture mode ("Export rapide", shared with the 2D viewer). Toggles are
   // rare, so the re-render cost is acceptable here.
   const imageModeEnabled = useSelector((s) => s.mapEditor.imageModeEnabled);
-  // The POV viewer arms the capture framing on demand (mask + rect + legend) —
-  // only when this 3D editor is the one POV displays (isThreedViewer).
+  // The POV viewer and the global Capture tool (Alt+C) arm the capture framing
+  // on demand (mask + rect + legend) — only when this 3D editor is the one
+  // displayed (isThreedViewer).
   const isPovViewer = useSelector(selectIsPovViewer);
   const povFramingActive = useSelector(selectPovFramingActive);
+  const captureToolActive = useSelector((s) => s.mapEditor.captureToolActive);
   const captureFramingActive =
-    imageModeEnabled || (povFramingActive && isThreedViewer);
+    imageModeEnabled ||
+    ((povFramingActive || captureToolActive) && isThreedViewer);
   // Render mode (Standard / Réaliste / Photoréaliste).
   const renderMode = useSelector((s) => s.threedEditor.renderMode);
   // PHOTOREAL environment (Standard / Extérieur / Intérieur).
@@ -1788,9 +1791,11 @@ export default function MainThreedEditor() {
         />
       )}
       {isThreedViewer && !captureFramingActive && <TopBaseMapChipsThreed />}
-      {/* No 3D toolbars in the POV viewer — its own save button sits there. */}
+      {/* No 3D toolbars in the POV viewer nor under the capture tool — their
+          save bars sit there. */}
       {isThreedViewer &&
         !isPovViewer &&
+        !captureToolActive &&
         (clippingEditing ? (
           <ClippingToolbarThreed />
         ) : extrudeActive ? (

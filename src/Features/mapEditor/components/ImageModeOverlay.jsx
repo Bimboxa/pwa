@@ -64,15 +64,18 @@ export default function ImageModeOverlay({
         s.mapEditor.imageModeAspectRatio
       ] ?? null
   );
-  // Logo: the POV frame stamps the org / portfolio logo (usePovLogoUrl), the
-  // "Export rapide" one keeps the watermark asset.
+  // Logo: the POV frame and the capture tool stamp the org / portfolio logo
+  // (usePovLogoUrl — their Cadrage tab shows its preview), the "Export
+  // rapide" one keeps the watermark asset.
   const showLogo = useSelector((s) => s.mapEditor.imageModeShowLogo);
   const povFramingActive = useSelector(selectPovFramingActive);
+  const captureToolActive = useSelector((s) => s.mapEditor.captureToolActive);
   const povLogoUrl = usePovLogoUrl();
   const watermarkLogoUrl = useSelector(
     (s) => s.appConfig.value?.features?.watermark?.logoUrl ?? null
   );
-  const logoUrl = povFramingActive ? povLogoUrl : watermarkLogoUrl;
+  const logoUrl =
+    povFramingActive || captureToolActive ? povLogoUrl : watermarkLogoUrl;
   const showBorder = useSelector((s) => s.mapEditor.imageModeBorder);
   const title = useSelector((s) => s.mapEditor.imageModeTitle);
   const titleText = usePovTitleText();

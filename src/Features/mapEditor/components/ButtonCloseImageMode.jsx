@@ -1,14 +1,20 @@
 import { useDispatch } from "react-redux";
 
-import { setImageModeEnabled } from "../mapEditorSlice";
+import { setImageModeEnabled, setCaptureToolActive } from "../mapEditorSlice";
 
 import { Button } from "@mui/material";
 import { Close } from "@mui/icons-material";
 
 // Floating "exit capture mode" button shown while image mode is active.
-// Shared by the 2D (MAP) and 3D (THREED) viewers.
+// Shared by the 2D (MAP) and 3D (THREED) viewers, and by both framing owners
+// (Export rapide + global Capture tool) — exiting clears whichever is on.
 export default function ButtonCloseImageMode() {
   const dispatch = useDispatch();
+
+  function handleClose() {
+    dispatch(setImageModeEnabled(false));
+    dispatch(setCaptureToolActive(false));
+  }
 
   return (
     <Button
@@ -17,7 +23,7 @@ export default function ButtonCloseImageMode() {
       color="secondary"
       size="small"
       startIcon={<Close />}
-      onClick={() => dispatch(setImageModeEnabled(false))}
+      onClick={handleClose}
       sx={{
         position: "absolute",
         top: 12,

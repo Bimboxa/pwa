@@ -11,17 +11,21 @@ import SectionCompareTwoImages from "Features/baseMapTransforms/components/Secti
 
 import useCaptureFrameBounds from "../hooks/useCaptureFrameBounds";
 
-// In-frame overlay of the POV "Amélioration IA" flow: laid exactly over the
-// capture frame (no dialog). While the transformation endpoint works, the
-// captured view shows under a sweeping shine; a fixed backdrop blocks every
-// click in the app except the top-right "Quitter" (X) button. Once done, the
-// original/enhanced comparison slider replaces it, with "Enregistrer
-// l'image d'origine" (left, original side) and "Enregistrer l'image
-// améliorée" (right, enhanced side).
+// In-frame overlay of the "Amélioration IA" flow (POV save bar + global
+// Capture tool): laid exactly over the capture frame (no dialog). While the
+// transformation endpoint works, the captured view shows under a sweeping
+// shine; a fixed backdrop blocks every click in the app except the top-right
+// "Quitter" (X) button. Once done, the original/enhanced comparison slider
+// replaces it, with "Enregistrer l'image d'origine" (left, original side)
+// and "Enregistrer l'image améliorée" (right, enhanced side).
+// `viewerKey` targets a non-POV capture host; `onSaveOriginal` overrides the
+// original-side button (defaults to a plain close, the POV behavior).
 export default function PovAiEnhanceFrameOverlay({
   state,
   onClose,
   onSaveEnhanced,
+  onSaveOriginal,
+  viewerKey,
 }) {
   // strings
 
@@ -33,7 +37,7 @@ export default function PovAiEnhanceFrameOverlay({
 
   // data
 
-  const bounds = useCaptureFrameBounds();
+  const bounds = useCaptureFrameBounds(viewerKey);
 
   // helpers
 
@@ -206,7 +210,7 @@ export default function PovAiEnhanceFrameOverlay({
               <Button
                 variant="contained"
                 onMouseDown={(e) => e.stopPropagation()}
-                onClick={onClose}
+                onClick={onSaveOriginal ?? onClose}
                 sx={{
                   position: "absolute",
                   bottom: 12,

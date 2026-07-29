@@ -14,10 +14,12 @@ const LABEL_SX = {
 };
 
 // "Cadrage" tab content of the POV properties panels (selected POV and
-// "Nouveau point de vue"): white sections driving the shared imageMode
-// state — Image (format + white background + border), Titre (description
-// banner), Légende (visibility, size, quantities) and Logo.
-export default function SectionPovCadrage() {
+// "Nouveau point de vue") and of the capture tool (PanelCaptureTool): white
+// sections driving the shared imageMode state — Image (format + white
+// background + border), Titre (description banner), Légende (visibility,
+// size, quantities) and Logo. `children` are appended at the end of the
+// scroll column (the capture tool adds its Étiquettes section there).
+export default function SectionPovCadrage({ children }) {
   return (
     <Box
       sx={{
@@ -51,6 +53,8 @@ export default function SectionPovCadrage() {
       {/* brings its own white section: the whole block disappears when the
           org has no logo configured */}
       <SectionPovLogo />
+
+      {children}
     </Box>
   );
 }

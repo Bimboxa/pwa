@@ -86,6 +86,20 @@ const mapEditorInitialState = {
   },
   //
   imageModeEnabled: false,
+  // Global "Capture" tool (right band, Alt+C). Same capture frame + options as
+  // imageMode, but the rect ignores the right panel (no rightInset), like the
+  // POV framing. Never true together with imageModeEnabled.
+  captureToolActive: false,
+  // Title typed in the capture tool's save bar — feeds the frame title banner
+  // (usePovTitleText) while captureToolActive is on, and the export filename.
+  captureTitleText: "",
+  // Output format of the capture exports ("pdf" | "png" | "clipboard") —
+  // shared by SectionCaptureExport (all panels) and the capture tool's save
+  // bar, so "Créer la capture" delivers in the format picked in the panel.
+  imageModeExportMode: "pdf",
+  // File name typed in the capture tool's Capture tab — used by the save
+  // bar's "Créer la capture" to name the delivered file.
+  captureFileName: "capture",
   imageModeLegendSelected: false,
   // image mode capture rectangle (screen space)
   imageModeAspectRatio: "LANDSCAPE", // "LANDSCAPE" | "SQUARE" | "PORTRAIT"
@@ -372,11 +386,28 @@ export const mapEditorSlice = createSlice({
     // Image mode
     setImageModeEnabled: (state, action) => {
       state.imageModeEnabled = action.payload;
+      if (action.payload) state.captureToolActive = false;
       if (!action.payload) state.imageModeLegendSelected = false;
     },
     toggleImageModeEnabled: (state) => {
       state.imageModeEnabled = !state.imageModeEnabled;
+      if (state.imageModeEnabled) state.captureToolActive = false;
       if (!state.imageModeEnabled) state.imageModeLegendSelected = false;
+    },
+    setCaptureToolActive: (state, action) => {
+      state.captureToolActive = Boolean(action.payload);
+      // The two frames disagree on rightInset — only one can drive the overlay.
+      if (state.captureToolActive) state.imageModeEnabled = false;
+      else state.imageModeLegendSelected = false;
+    },
+    setCaptureTitleText: (state, action) => {
+      state.captureTitleText = action.payload ?? "";
+    },
+    setImageModeExportMode: (state, action) => {
+      state.imageModeExportMode = action.payload;
+    },
+    setCaptureFileName: (state, action) => {
+      state.captureFileName = action.payload ?? "";
     },
     setImageModeLegendSelected: (state, action) => {
       state.imageModeLegendSelected = action.payload;
@@ -821,6 +852,10 @@ export const {
   //
   setImageModeEnabled,
   toggleImageModeEnabled,
+  setCaptureToolActive,
+  setCaptureTitleText,
+  setCaptureFileName,
+  setImageModeExportMode,
   setImageModeLegendSelected,
   setImageModeAspectRatio,
   setImageModeLegendOverlay,

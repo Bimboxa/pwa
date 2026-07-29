@@ -19,6 +19,7 @@ import PanelMeshesViewer from "Features/threedMesh/components/PanelMeshesViewer"
 import PanelPovList from "Features/pov/components/PanelPovList";
 import ButtonSavePov from "Features/pov/components/ButtonSavePov";
 import ButtonCreatePovView from "Features/pov/components/ButtonCreatePovView";
+import ButtonSaveCapture from "Features/mapEditor/components/ButtonSaveCapture";
 import TopBaseMapChipsThreed from "Features/threedEditor/components/TopBaseMapChipsThreed";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 import {
@@ -45,6 +46,9 @@ export default function SectionViewer() {
   // The POV capture frame is armed on demand: without it, the module shows the
   // "Créer une vue" button instead of the save bar.
   const povFramingActive = useSelector(selectPovFramingActive);
+  // Global Capture tool (Alt+C): its own save bar replaces the POV buttons
+  // (mutually exclusive with the POV framing).
+  const captureToolActive = useSelector((s) => s.mapEditor.captureToolActive);
 
   const showMap = effectiveKey === "MAP";
   // THREED and MESHES share the single MainThreedEditor instance (WebGL
@@ -154,7 +158,16 @@ export default function SectionViewer() {
       {/* POV: floating button at the bottom of the displayed editor (replaces
           the 3D bottom toolbar, hidden under POV) — "Créer une vue" while
           browsing, the save bar once the frame is armed. */}
-      {isPov && (povFramingActive ? <ButtonSavePov /> : <ButtonCreatePovView />)}
+      {isPov &&
+        (povFramingActive ? (
+          <ButtonSavePov />
+        ) : (
+          !captureToolActive && <ButtonCreatePovView />
+        ))}
+
+      {/* Capture tool: save bar under the frame, in every module (fixed
+          positioning — it measures the capture host itself) */}
+      {captureToolActive && <ButtonSaveCapture />}
       </Box>
     </BoxCenter>
   );

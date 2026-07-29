@@ -3,20 +3,24 @@ import { useSelector } from "react-redux";
 
 import getCaptureRectBounds from "Features/mapEditor/utils/getCaptureRectBounds";
 
-// Live bounds of the POV capture frame (the dashed rectangle drawn by
+// Live bounds of the capture frame (the dashed rectangle drawn by
 // ImageModeOverlay): host-local `rect` + viewport-space `screenRect`.
 // Measures the displayed editor's capture host (the same
 // [data-image-capture-host] element captureMapAsPng snapshots) so UI can be
 // anchored to the frame in both the 2D and 3D editors.
 // The right panel is ignored (like everywhere in the POV flow): the frame —
 // and the save bar centered on it — must not move when the panel opens.
-export default function useCaptureFrameBounds() {
+//
+// Host key defaults to the POV viewer mode; the global Capture tool passes
+// its own key (selectCaptureHostViewerKey) to target ZONES/BASE_MAPS/THREED.
+export default function useCaptureFrameBounds(viewerKeyOverride = null) {
   // data
 
   const viewerMode = useSelector((s) => s.pov.viewerMode);
   const aspectRatio = useSelector((s) => s.mapEditor.imageModeAspectRatio);
 
-  const viewerKey = viewerMode === "THREED" ? "THREED" : "MAP";
+  const viewerKey =
+    viewerKeyOverride ?? (viewerMode === "THREED" ? "THREED" : "MAP");
 
   // state
 

@@ -14,6 +14,8 @@ import useExtraBaseMapIdsIn3d from "Features/threedEditor/hooks/useExtraBaseMapI
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useListings from "Features/listings/hooks/useListings";
 import groupAnnotationTemplatesByGroupLabel from "Features/annotations/utils/groupAnnotationTemplatesByGroupLabel";
+import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
+import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 
 // One template row: icon + label + visibility eye (no SOLO, no tools —
 // lean read-only variant of PopperMapListings' AnnotationTemplateRow).
@@ -206,7 +208,10 @@ export default function PanelPovFilters() {
   // data
 
   const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
-  const povViewerMode = useSelector((s) => s.pov.viewerMode);
+  // Effective editor key, not s.pov.viewerMode: this panel is also the
+  // capture tool's Filtres tab, mounted outside the POV module (in POV the
+  // effective key resolves to the same viewerMode-derived editor).
+  const effectiveViewerKey = useSelector(selectEffectiveViewerKey);
   const hiddenListingsIds = useSelector(
     (s) => s.listings.hiddenListingsIds || []
   );
@@ -214,7 +219,7 @@ export default function PanelPovFilters() {
     (s) => s.threedEditor.hideMainBaseMapAnnotationsIn3d
   );
 
-  const isThreed = povViewerMode === "THREED";
+  const isThreed = isThreedFamilyViewerKey(effectiveViewerKey);
   const baseMap = useMainBaseMap();
   const extraBaseMapIds = useExtraBaseMapIdsIn3d();
   const spriteImage = useAnnotationSpriteImage();
@@ -252,7 +257,12 @@ export default function PanelPovFilters() {
     if (isThreed && hideMainAnnotationsIn3d)
       arr = arr.filter((a) => a.baseMapId !== baseMap?.id);
     return arr;
-  }, [allAnnotationsInclHidden, isThreed, hideMainAnnotationsIn3d, baseMap?.id]);
+  }, [
+    allAnnotationsInclHidden,
+    isThreed,
+    hideMainAnnotationsIn3d,
+    baseMap?.id,
+  ]);
 
   const visibleTemplateIds = useMemo(
     () =>

@@ -7,6 +7,8 @@ import {
   setImageModeEnabled,
   setEnabledDrawingMode,
 } from "Features/mapEditor/mapEditorSlice";
+import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
+import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 
 import {
   Box,
@@ -57,7 +59,13 @@ export default function PanelPrint() {
   const projectId = useSelector((s) => s.projects.selectedProjectId);
 
   const imageModeEnabled = useSelector((s) => s.mapEditor.imageModeEnabled);
-  const viewerKey = useSelector((s) => s.viewers.selectedViewerKey);
+  // The capture host + WebGL snapshot follow the editor actually displayed
+  // (the module key would target the hidden 2D editor when Dessin shows 3D,
+  // and MESHES has no host of its own — every 3D editor shares "THREED").
+  const effectiveViewerKey = useSelector(selectEffectiveViewerKey);
+  const captureViewerKey = isThreedFamilyViewerKey(effectiveViewerKey)
+    ? "THREED"
+    : effectiveViewerKey;
 
   const annotations = useAnnotationsV2({
     caller: "PanelPrint",
@@ -207,7 +215,9 @@ export default function PanelPrint() {
           </Box>
 
           {/* Capture controls (Format / Légende / Export) — shown when capture mode is on */}
-          {imageModeEnabled && <PanelCaptureMode viewerKey={viewerKey} />}
+          {imageModeEnabled && (
+            <PanelCaptureMode viewerKey={captureViewerKey} />
+          )}
         </WhiteSectionGeneric>
 
         {/* Card 1 — Annotations count */}

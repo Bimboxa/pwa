@@ -4,6 +4,7 @@ import {
   Edit,
   Room,
   CameraAlt,
+  CenterFocusStrong,
   Tune,
   AutoFixHigh,
   Print,
@@ -115,6 +116,25 @@ export default function useRightPanelTools() {
       key: "SETTINGS",
       label: "Réglages",
       icon: <Settings />,
+    },
+    // Global capture: same frame as the POV framing (panel-independent), same
+    // options as Export rapide. Every module with a 2D/3D editor — PORTFOLIO
+    // and LISTING have no capture host. `altHotkey` binds Alt+<letter> (by
+    // e.code) in useRightPanelToolHotkeys; `hotkeyLabel` is display-only.
+    {
+      key: "CAPTURE",
+      label: "Capture",
+      icon: <CenterFocusStrong />,
+      altHotkey: "C",
+      hotkeyLabel: navigator.userAgent.includes("Mac") ? "⌥C" : "Alt+C",
+      viewers: [
+        "MAP",
+        "BASE_MAPS",
+        "ZONES",
+        "POINT_OF_VIEW",
+        "THREED",
+        "MESHES",
+      ],
     },
     {
       key: "BASE_MAP_TRANSFORMS",

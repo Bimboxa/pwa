@@ -109,7 +109,7 @@ export default function VerticalMenu({
               <LabelTypography variant="caption">
                 {item.label}
               </LabelTypography>
-              {item.hotkey && (
+              {(item.hotkeyLabel || item.hotkey) && (
                 <Typography
                   variant="caption"
                   sx={{
@@ -123,7 +123,7 @@ export default function VerticalMenu({
                     borderRadius: 0.5,
                   }}
                 >
-                  {item.hotkey}
+                  {item.hotkeyLabel ?? item.hotkey}
                 </Typography>
               )}
               {item.badge && (

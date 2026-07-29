@@ -54,7 +54,6 @@ import useLegendItems from "Features/legend/hooks/useLegendItems";
 import useLegendItemsByBaseMapId from "Features/legend/hooks/useLegendItemsByBaseMapId";
 import {
   selectEffectiveViewerKey,
-  selectIsPovViewer,
   selectPovFramingActive,
 } from "Features/viewers/utils/effectiveViewerKey";
 import useAnnotationTemplateQtiesByIdForBaseMap from "Features/annotations/hooks/useAnnotationTemplateQtiesByIdForBaseMap";
@@ -390,15 +389,17 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
 
     const isLegendSelected = showBgImage && selectedNode?.nodeType === "LEGEND";
 
-    // image mode (MAP viewer only) — the POV viewer arms the framing on demand
+    // image mode — Export rapide is MAP-only; the POV viewer and the global
+    // Capture tool (Alt+C) arm the framing on demand, on any 2D instance
     const isMapViewer = forViewerKey === "MAP";
     const imageModeEnabled = useSelector((s) => s.mapEditor.imageModeEnabled);
-    const isPovViewer = useSelector(selectIsPovViewer);
+    const captureToolActive = useSelector((s) => s.mapEditor.captureToolActive);
     const povFramingActive = useSelector(selectPovFramingActive);
-    // isActiveViewer scoping: when POV displays the 3D editor, this (hidden)
-    // 2D instance must not run the framing overlay / label layout.
+    // isActiveViewer scoping: a hidden 2D instance (module displaying another
+    // editor) must not run the framing overlay / label layout.
     const imageModeActive =
-        isMapViewer && (imageModeEnabled || (povFramingActive && isActiveViewer));
+        (isMapViewer && imageModeEnabled) ||
+        ((povFramingActive || captureToolActive) && isActiveViewer);
     // Same hook as Portfolio's LegendBlockSvg so the capture legend items
     // (shape, ordering, groupings) match exactly.
     const imageModeLegendItems = useLegendItemsByBaseMapId(baseMap?.id);
@@ -1901,7 +1902,11 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                 />
             )}
 
-            {imageModeActive && !isPovViewer && <ButtonCloseImageMode />}
+            {/* Export rapide only — the POV and capture-tool save bars carry
+                their own X */}
+            {isMapViewer && imageModeEnabled && !povFramingActive && (
+                <ButtonCloseImageMode />
+            )}
         </Box>
         </DrawingMetricsProvider>
         </SmartZoomProvider>
