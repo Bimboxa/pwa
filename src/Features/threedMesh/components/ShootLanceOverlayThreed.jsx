@@ -17,6 +17,9 @@ const rpgTransform = (dxPx, dyPx) =>
 // FPS-style HUD accent (distance + nozzle readout under the crosshair).
 const HUD_ACCENT = "#7BE8FF";
 const HUD_DIM = "rgba(255,255,255,0.35)";
+// Neon green for the key hints: readable on white surfaces too (plus a dark
+// halo for safety on any background).
+const HUD_KEYS = "#39FF14";
 
 const JET_MODE_LABELS = {
   CONE: "Conique",
@@ -165,8 +168,8 @@ function JetHud({ jetMode, spreadDeg, targetDistM }) {
       <Box
         sx={{
           fontSize: 10,
-          color: "rgba(255,255,255,0.45)",
-          textShadow: "none",
+          color: HUD_KEYS,
+          textShadow: "0 0 3px rgba(0,0,0,0.9), 0 0 6px rgba(0,0,0,0.6)",
         }}
       >
         [B] buse · [P]/[M] ouverture
