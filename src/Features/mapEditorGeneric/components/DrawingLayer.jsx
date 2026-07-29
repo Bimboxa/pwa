@@ -418,7 +418,7 @@ const DrawingLayer = forwardRef(
               meterByPx: mbp,
               unit: na.unit ?? "CM",
               decimals: na.decimals ?? 0,
-              showUnitLabel: na.showUnitLabel ?? false,
+              showUnitLabel: na.showUnitLabel ?? true,
             });
             if (
               previewCoteTextRef.current &&

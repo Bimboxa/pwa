@@ -227,7 +227,7 @@ export default function ThreedCoteAnnotations({ annotations }) {
           meterByPx,
           unit: cote.unit ?? "CM",
           decimals: cote.decimals ?? 0,
-          showUnitLabel: cote.showUnitLabel ?? false,
+          showUnitLabel: cote.showUnitLabel ?? true,
           deltaZMeters: geom.deltaZMeters,
         }),
         coteId: cote.id,

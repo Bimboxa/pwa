@@ -33,7 +33,7 @@ export default function NodeCoteStatic({
     extensionOffsetUnit = "PX",
     decimals = 0,
     fontSize = 18,
-    showUnitLabel = false,
+    showUnitLabel = true,
   } = merged ?? {};
 
   const updateAnnotation = useUpdateAnnotation();

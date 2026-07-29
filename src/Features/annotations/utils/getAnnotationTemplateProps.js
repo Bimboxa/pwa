@@ -50,6 +50,15 @@ export default function getAnnotationTemplateProps(annotationTemplate) {
     height: annotationTemplate?.height,
     offsetZ: annotationTemplate?.offsetZ,
 
+    // COTE display settings — only applied to annotations when listed in
+    // overrideFields (the lock on the "Cote" line of the template form).
+    unit: annotationTemplate?.unit,
+    extensionOffset: annotationTemplate?.extensionOffset,
+    extensionOffsetUnit: annotationTemplate?.extensionOffsetUnit,
+    decimals: annotationTemplate?.decimals,
+    fontSize: annotationTemplate?.fontSize,
+    showUnitLabel: annotationTemplate?.showUnitLabel,
+
     overrideFields: annotationTemplate?.overrideFields,
   };
 

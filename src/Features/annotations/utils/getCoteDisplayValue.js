@@ -16,7 +16,7 @@ export default function getCoteDisplayValue({
   meterByPx,
   unit = "CM",
   decimals = 0,
-  showUnitLabel = false,
+  showUnitLabel = true,
   deltaZMeters = 0,
 }) {
   if (!p1 || !p2) return "";

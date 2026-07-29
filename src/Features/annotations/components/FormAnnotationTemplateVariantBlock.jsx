@@ -3,7 +3,6 @@ import useAnnotationSpriteImage from "../hooks/useAnnotationSpriteImage";
 import { Box, Typography, Switch } from "@mui/material";
 
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
-import WhiteSectionTitle from "Features/form/components/WhiteSectionTitle";
 import FieldAnnotationHeight from "./FieldAnnotationHeight";
 
 import FieldTextV2 from "Features/form/components/FieldTextV2";
@@ -18,7 +17,7 @@ import FieldAnnotationTemplateRender3d from "./FieldAnnotationTemplateRender3d";
 import FieldAnnotationTemplateLegend from "./FieldAnnotationTemplateLegend";
 import FieldAnnotationTemplateDrawingShape from "./FieldAnnotationTemplateDrawingShape";
 import FieldAnnotationTemplateDefaultTool from "./FieldAnnotationTemplateDefaultTool";
-import FieldOptionKey from "Features/form/components/FieldOptionKey";
+import FieldAnnotationTemplateCote from "./FieldAnnotationTemplateCote";
 import FieldQty from "Features/form/components/FieldQty";
 import FieldCheck from "Features/form/components/FieldCheck";
 import FieldMappingCategories from "./FieldMappingCategories";
@@ -90,12 +89,6 @@ export default function FormAnnotationTemplateVariantBlock({
     mainQtyKey,
     defaultTool,
     overrideFields,
-    unit = "CM",
-    extensionOffset = 0,
-    extensionOffsetUnit = "PX",
-    decimals = 0,
-    fontSize = 18,
-    showUnitLabel = false,
   } = annotationTemplate ?? {};
 
   // derived values for field components
@@ -153,16 +146,6 @@ export default function FormAnnotationTemplateVariantBlock({
     ? fillColor || strokeColor || "#cccccc"
     : strokeColor || fillColor || "#cccccc";
   const render3dFallbackOpacity = hasFill ? fillOpacity : strokeOpacity;
-
-  const coteUnitOptions = [
-    { key: "MM", label: "Millimètres (mm)" },
-    { key: "CM", label: "Centimètres (cm)" },
-    { key: "M", label: "Mètres (m)" },
-  ];
-  const offsetUnitOptions = [
-    { key: "PX", label: "Pixels (px)" },
-    { key: "CM", label: "Centimètres (cm)" },
-  ];
 
   // For simple shapes (MARKER, LABEL, TEXT, POINT), show a simple color field
   // For complex shapes (POLYLINE, POLYGON), show full fill/stroke fields
@@ -262,43 +245,6 @@ export default function FormAnnotationTemplateVariantBlock({
 
   function handleOverrideFieldsChange(newOverrideFields) {
     onChange({ ...annotationTemplate, overrideFields: newOverrideFields });
-  }
-
-  function handleUnitChange(unit) {
-    onChange({ ...annotationTemplate, unit });
-  }
-
-  function handleExtensionOffsetChange(value) {
-    const parsed = value === "" || value === null ? 0 : Number(value);
-    onChange({
-      ...annotationTemplate,
-      extensionOffset: Number.isFinite(parsed) ? parsed : 0,
-    });
-  }
-
-  function handleExtensionOffsetUnitChange(extensionOffsetUnit) {
-    onChange({ ...annotationTemplate, extensionOffsetUnit });
-  }
-
-  function handleDecimalsChange(value) {
-    const parsed = value === "" || value === null ? 0 : Number(value);
-    const clamped = Math.max(0, Math.min(6, Math.floor(parsed)));
-    onChange({
-      ...annotationTemplate,
-      decimals: Number.isFinite(clamped) ? clamped : 0,
-    });
-  }
-
-  function handleFontSizeChange(value) {
-    const parsed = value === "" || value === null ? 18 : Number(value);
-    onChange({
-      ...annotationTemplate,
-      fontSize: Number.isFinite(parsed) && parsed > 0 ? parsed : 18,
-    });
-  }
-
-  function handleShowUnitLabelChange(showUnitLabel) {
-    onChange({ ...annotationTemplate, showUnitLabel });
   }
 
   function handleHideSlopeChange(hideSlope) {
@@ -551,6 +497,16 @@ export default function FormAnnotationTemplateVariantBlock({
             />
           )}
 
+          {/* COTE-specific controls — one line + "..." popover */}
+          {hasCoteProps && (
+            <FieldAnnotationTemplateCote
+              annotationTemplate={annotationTemplate}
+              onChange={onChange}
+              overrideFields={overrideFields}
+              onOverrideFieldsChange={handleOverrideFieldsChange}
+            />
+          )}
+
           <FieldQty
             value={mainQtyKey}
             onChange={handleMainQtyKeyChange}
@@ -597,62 +553,6 @@ export default function FormAnnotationTemplateVariantBlock({
               onOpacity3DChange={handleOpacity3DChange}
               onMaterial3dChange={handleMaterial3dChange}
             />
-          )}
-
-          {/* COTE-specific controls */}
-          {hasCoteProps && (
-            <WhiteSectionGeneric>
-              <WhiteSectionTitle sx={{ mb: 1 }}>Cote</WhiteSectionTitle>
-              <FieldOptionKey
-                label="Unité"
-                value={unit}
-                onChange={handleUnitChange}
-                valueOptions={coteUnitOptions}
-              />
-              <Box
-                sx={{ display: "flex", gap: 1, alignItems: "center", mt: 1 }}
-              >
-                <Box sx={{ flex: 1 }}>
-                  <FieldTextV2
-                    label="Décalage extrémités"
-                    value={extensionOffset}
-                    onChange={handleExtensionOffsetChange}
-                    options={{ fullWidth: true, isNumber: true }}
-                  />
-                </Box>
-                <Box sx={{ width: 120 }}>
-                  <FieldOptionKey
-                    value={extensionOffsetUnit}
-                    onChange={handleExtensionOffsetUnitChange}
-                    valueOptions={offsetUnitOptions}
-                  />
-                </Box>
-              </Box>
-              <Box sx={{ display: "flex", gap: 1, mt: 1 }}>
-                <Box sx={{ flex: 1 }}>
-                  <FieldTextV2
-                    label="Décimales"
-                    value={decimals}
-                    onChange={handleDecimalsChange}
-                    options={{ fullWidth: true, isNumber: true }}
-                  />
-                </Box>
-                <Box sx={{ flex: 1 }}>
-                  <FieldTextV2
-                    label="Taille texte (px)"
-                    value={fontSize}
-                    onChange={handleFontSizeChange}
-                    options={{ fullWidth: true, isNumber: true }}
-                  />
-                </Box>
-              </Box>
-              <FieldCheck
-                label="Afficher l'unité après la valeur"
-                value={Boolean(showUnitLabel)}
-                onChange={handleShowUnitLabelChange}
-                options={{ type: "check" }}
-              />
-            </WhiteSectionGeneric>
           )}
 
           {!isCreating && (
