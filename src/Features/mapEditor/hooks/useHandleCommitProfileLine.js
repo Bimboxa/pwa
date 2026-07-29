@@ -13,6 +13,7 @@ import {
   projectPointOnContourRings,
 } from "Features/annotations/utils/getAnnotationContourRingsPx";
 import { getContourHeightAt } from "Features/annotations/utils/applyProfileEndpointContinuity";
+import slideProfileLineAlongGuide from "Features/elevation/utils/slideProfileLineAlongGuide";
 
 // Endpoints further than this (image px) from every contour ring keep their
 // drawn position — the shell build then treats the drawn spot as the anchor.
@@ -55,6 +56,32 @@ export default function useHandleCommitProfileLine() {
     const isPolygon = ann.type === "POLYGON";
     if (!isPolygon && pixelPts.length > 2) {
       pixelPts = [pixelPts[0], pixelPts[pixelPts.length - 1]];
+    }
+    if (!isPolygon) {
+      // Extrusion profiles: store the plan trace PERPENDICULAR to the guide —
+      // anchor kept at the drawn crossing, transverse offsets preserved
+      // (zero-delta slide). Idempotent when the draw already corrected it.
+      const guideRefs = (ann.points ?? []).filter((r) => r?.id);
+      const guideRows = await db.points.bulkGet(guideRefs.map((r) => r.id));
+      const guidePts = guideRefs
+        .map((ref, i) => {
+          const row = guideRows[i];
+          return Number.isFinite(row?.x) && Number.isFinite(row?.y)
+            ? {
+                x: row.x * imageSize.width,
+                y: row.y * imageSize.height,
+                ...(ref.type ? { type: ref.type } : {}),
+              }
+            : null;
+        })
+        .filter(Boolean);
+      const corrected = slideProfileLineAlongGuide({
+        guidePoints: guidePts,
+        closeLine: !!ann.closeLine,
+        profilePoints: pixelPts,
+        deltaPos: { x: 0, y: 0 },
+      });
+      if (corrected?.length === pixelPts.length) pixelPts = corrected;
     }
 
     let snappedPts = pixelPts;

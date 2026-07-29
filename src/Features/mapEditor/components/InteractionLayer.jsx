@@ -118,6 +118,7 @@ import buildRepairProposal from 'Features/localizedRepair/utils/buildRepairPropo
 import { REPAIR_KEY_TO_MODE } from 'Features/localizedRepair/constants/repairShortcuts';
 import extractAnnotationImagePatch from 'Features/annotations/utils/extractAnnotationImagePatch';
 import transformImageData from 'Features/annotations/utils/transformImageData';
+import slideProfileLineAlongGuide from 'Features/elevation/utils/slideProfileLineAlongGuide';
 import runPatternDetection from 'Features/smartDetect/utils/runPatternDetection';
 import adjustPasteCandidate, { isPasteAdjustEligible, snapSegmentToDarkBand } from 'Features/smartDetect/utils/adjustPasteCandidate';
 import repairOrthoJunctions, { buildJunctionNeighbors } from 'Features/smartDetect/utils/repairOrthoJunctions';
@@ -4707,7 +4708,22 @@ const InteractionLayer = forwardRef(({
       enabledDrawingMode === "ADD_PROFILE_LINE"
     ) {
       const local = toLocalCoords(worldPos);
-      const next = [...(drawingPointsRef.current || []), local];
+      let next = [...(drawingPointsRef.current || []), local];
+      // ADD_PROFILE_LINE on a POLYLINE/STRIP host: on the 2nd click, snap the
+      // drawn segment perpendicular to the guide — anchor kept at the drawn
+      // crossing, transverse offsets preserved (zero-delta slide).
+      if (enabledDrawingMode === "ADD_PROFILE_LINE" && next.length === 2) {
+        const host = selectedAnnotationRef.current;
+        if (host && host.type !== "POLYGON" && host.points?.length >= 2) {
+          const corrected = slideProfileLineAlongGuide({
+            guidePoints: host.points,
+            closeLine: !!host.closeLine,
+            profilePoints: next,
+            deltaPos: { x: 0, y: 0 },
+          });
+          if (corrected?.length === 2) next = corrected;
+        }
+      }
       setDrawingPoints(next);
       drawingPointsRef.current = next;
       drawingLayerRef.current?.setPoints?.(next);
