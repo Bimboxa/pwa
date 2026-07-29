@@ -15,8 +15,9 @@ const rpgTransform = (dxPx, dyPx) =>
   `translate(calc(25% + ${dxPx}px), ${dyPx}px) perspective(800px) rotateX(14deg)`;
 
 // FPS-style HUD under the crosshair: everything sits on this translucent
-// grey band (readable on white plans), indicators in theme secondary.main.
-const HUD_BG = "rgba(8,14,20,0.55)";
+// white band (the secondary-orange indicators need a light background to
+// stay readable), indicators in theme secondary.main.
+const HUD_BG = "rgba(255,255,255,0.85)";
 
 const JET_MODE_LABELS = {
   CONE: "Conique",
@@ -108,7 +109,8 @@ function JetHud({ jetMode, spreadDeg, targetDistM }) {
         left: "50%",
         top: "50%",
         transform: "translateX(-50%)",
-        mt: "22px",
+        // Clear of the aiming zone: the panel sits well below the crosshair.
+        mt: "96px",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
@@ -118,7 +120,8 @@ function JetHud({ jetMode, spreadDeg, targetDistM }) {
         borderRadius: 1,
         bgcolor: HUD_BG,
         border: (theme) =>
-          `1px solid ${alpha(theme.palette.secondary.main, 0.25)}`,
+          `1px solid ${alpha(theme.palette.secondary.main, 0.35)}`,
+        boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
         fontFamily: "'Roboto Mono', 'Courier New', monospace",
         "@keyframes hudPop": {
           from: { transform: "scale(1.4)" },
