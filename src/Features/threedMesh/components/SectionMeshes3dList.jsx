@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { Fragment, useEffect, useRef } from "react";
 
 import { useDispatch, useSelector } from "react-redux";
 
@@ -7,6 +7,7 @@ import {
   toggleItemSelection,
   selectSelectedItems,
 } from "Features/selection/selectionSlice";
+import { toggleMesh3dHiddenOrientation } from "Features/threedEditor/threedEditorSlice";
 
 import {
   IconButton,
@@ -17,7 +18,11 @@ import {
   Typography,
   Box,
 } from "@mui/material";
-import { CenterFocusStrong } from "@mui/icons-material";
+import {
+  CenterFocusStrong,
+  Visibility,
+  VisibilityOff,
+} from "@mui/icons-material";
 
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 
@@ -28,10 +33,19 @@ import getMesh3dLabelAnchor from "../utils/getMesh3dLabelAnchor";
 // Clicking a row writes the same MESH3D selection item as a click on the
 // maille in the 3D scene (MainThreedEditor.handleClick), so highlight and
 // poppers stay in sync in both directions.
+// Optionally grouped by orientation (mesh3dGroupByOrientation): one band per
+// orientation with an eye toggling that orientation's mailles in the 3D scene.
 export default function SectionMeshes3dList({ rows }) {
   const dispatch = useDispatch();
 
   // data
+
+  const groupByOrientation = useSelector(
+    (s) => s.threedEditor.mesh3dGroupByOrientation
+  );
+  const hiddenOrientations = useSelector(
+    (s) => s.threedEditor.mesh3dHiddenOrientations
+  );
 
   const selectedIdsKey = useSelector((s) => {
     const items = selectSelectedItems(s);
@@ -93,6 +107,76 @@ export default function SectionMeshes3dList({ rows }) {
 
   // render
 
+  function renderRow(mesh3d) {
+    const selected = selectedIds.has(mesh3d.id);
+    // Dimmed when its orientation is hidden in the 3D scene (group eye) —
+    // also in flat mode, as the cue the eye state is still active.
+    const orientationHidden = hiddenOrientations.includes(mesh3d.orientation);
+    return (
+      <ListItemButton
+        key={mesh3d.id}
+        ref={(el) => {
+          itemRefs.current[mesh3d.id] = el;
+        }}
+        selected={selected}
+        onClick={(e) => handleClick(e, mesh3d)}
+        sx={{
+          py: 0.5,
+          opacity: orientationHidden ? 0.45 : 1,
+          "&:hover .mesh3d-focus-btn": { opacity: 1 },
+        }}
+      >
+        <Box
+          sx={{
+            width: 12,
+            height: 12,
+            minWidth: 12,
+            borderRadius: "3px",
+            bgcolor: mesh3d.color,
+            border: "1px solid",
+            borderColor: "divider",
+            mr: 1,
+          }}
+        />
+        <ListItemText
+          primary={
+            <Typography
+              variant="body2"
+              sx={{ fontWeight: selected ? "bold" : "normal" }}
+            >
+              {mesh3d.displayLabel}
+            </Typography>
+          }
+        />
+        {/* Same qty style as the PopperMapListings annotation rows */}
+        <Typography
+          align="right"
+          noWrap
+          sx={{
+            fontSize: "10px",
+            minWidth: "40px",
+            fontFamily: "monospace",
+            fontWeight: 500,
+          }}
+          color={mesh3d.surface > 0 ? "secondary.main" : "panel.countEmpty"}
+        >
+          {mesh3d.surfaceLabel}
+        </Typography>
+        {/* Always in the layout (opacity-only reveal → no content jump) */}
+        <Tooltip title="Zoomer sur la maille" placement="right">
+          <IconButton
+            className="mesh3d-focus-btn"
+            size="small"
+            onClick={(e) => handleFocusClick(e, mesh3d)}
+            sx={{ ml: 0.5, opacity: 0, transition: "opacity 0.15s" }}
+          >
+            <CenterFocusStrong fontSize="small" />
+          </IconButton>
+        </Tooltip>
+      </ListItemButton>
+    );
+  }
+
   if (!rows.length) {
     return (
       <Box sx={{ p: 2 }}>
@@ -103,68 +187,80 @@ export default function SectionMeshes3dList({ rows }) {
     );
   }
 
+  if (!groupByOrientation) {
+    return (
+      <List dense disablePadding sx={{ bgcolor: "white" }}>
+        {rows.map(renderRow)}
+      </List>
+    );
+  }
+
+  const groups = [
+    { orientation: "HORIZONTAL", title: "Mailles horizontales" },
+    { orientation: "VERTICAL", title: "Mailles verticales" },
+  ]
+    .map((g) => ({
+      ...g,
+      rows: rows.filter((r) => r.orientation === g.orientation),
+    }))
+    .filter((g) => g.rows.length > 0);
+
   return (
     <List dense disablePadding>
-      {rows.map((mesh3d) => {
-        const selected = selectedIds.has(mesh3d.id);
+      {groups.map((group) => {
+        const hidden = hiddenOrientations.includes(group.orientation);
         return (
-          <ListItemButton
-            key={mesh3d.id}
-            ref={(el) => {
-              itemRefs.current[mesh3d.id] = el;
-            }}
-            selected={selected}
-            onClick={(e) => handleClick(e, mesh3d)}
-            sx={{ py: 0.5, "&:hover .mesh3d-focus-btn": { opacity: 1 } }}
-          >
+          <Fragment key={group.orientation}>
             <Box
               sx={{
-                width: 12,
-                height: 12,
-                minWidth: 12,
-                borderRadius: "3px",
-                bgcolor: mesh3d.color,
-                border: "1px solid",
+                display: "flex",
+                alignItems: "center",
+                pl: 2,
+                pr: 1,
+                py: 0.25,
+                bgcolor: "background.default",
+                borderBottom: "1px solid",
                 borderColor: "divider",
-                mr: 1,
               }}
-            />
-            <ListItemText
-              primary={
-                <Typography
-                  variant="body2"
-                  sx={{ fontWeight: selected ? "bold" : "normal" }}
-                >
-                  {mesh3d.displayLabel}
-                </Typography>
-              }
-            />
-            {/* Same qty style as the PopperMapListings annotation rows */}
-            <Typography
-              align="right"
-              noWrap
-              sx={{
-                fontSize: "10px",
-                minWidth: "40px",
-                fontFamily: "monospace",
-                fontWeight: 500,
-              }}
-              color={mesh3d.surface > 0 ? "secondary.main" : "panel.countEmpty"}
             >
-              {mesh3d.surfaceLabel}
-            </Typography>
-            {/* Always in the layout (opacity-only reveal → no content jump) */}
-            <Tooltip title="Zoomer sur la maille" placement="right">
-              <IconButton
-                className="mesh3d-focus-btn"
-                size="small"
-                onClick={(e) => handleFocusClick(e, mesh3d)}
-                sx={{ ml: 0.5, opacity: 0, transition: "opacity 0.15s" }}
+              <Typography
+                variant="caption"
+                sx={{
+                  color: "text.secondary",
+                  textTransform: "uppercase",
+                  fontWeight: 600,
+                  fontSize: "0.7rem",
+                  letterSpacing: 0.5,
+                  flexGrow: 1,
+                }}
               >
-                <CenterFocusStrong fontSize="small" />
-              </IconButton>
-            </Tooltip>
-          </ListItemButton>
+                {`${group.title} (${group.rows.length})`}
+              </Typography>
+              <Tooltip
+                title={
+                  hidden
+                    ? "Afficher ces mailles en 3D"
+                    : "Masquer ces mailles en 3D"
+                }
+                placement="right"
+              >
+                <IconButton
+                  size="small"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    dispatch(toggleMesh3dHiddenOrientation(group.orientation));
+                  }}
+                >
+                  {hidden ? (
+                    <VisibilityOff fontSize="small" />
+                  ) : (
+                    <Visibility fontSize="small" />
+                  )}
+                </IconButton>
+              </Tooltip>
+            </Box>
+            <Box sx={{ bgcolor: "white" }}>{group.rows.map(renderRow)}</Box>
+          </Fragment>
         );
       })}
     </List>

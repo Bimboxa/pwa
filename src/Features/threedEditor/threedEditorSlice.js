@@ -141,6 +141,13 @@ const threedEditorInitialState = {
     showNumber: true,
     showQties: false,
   },
+  // "Liste" tab of the Maillage drawer: group the mailles list by orientation
+  // (Mailles horizontales / Mailles verticales). Session-only.
+  mesh3dGroupByOrientation: false,
+  // Orientations ("HORIZONTAL" | "VERTICAL") whose mailles are hidden in the
+  // 3D scene (group-header eye of the Liste tab). Applies to the scene even
+  // when the grouped display is off. Session-only.
+  mesh3dHiddenOrientations: [],
   meshingMode: {
     active: false,
     // "SELECT" | "CUT_VERTICAL" | "CUT_HORIZONTAL" | "CUT_FREE"
@@ -574,6 +581,14 @@ export const threedEditorSlice = createSlice({
       // Partial update: {visible?, showNumber?, showQties?}.
       state.mesh3dLabels = { ...state.mesh3dLabels, ...action.payload };
     },
+    setMesh3dGroupByOrientation: (state, action) => {
+      state.mesh3dGroupByOrientation = Boolean(action.payload);
+    },
+    toggleMesh3dHiddenOrientation: (state, action) => {
+      const i = state.mesh3dHiddenOrientations.indexOf(action.payload);
+      if (i === -1) state.mesh3dHiddenOrientations.push(action.payload);
+      else state.mesh3dHiddenOrientations.splice(i, 1);
+    },
   },
   extraReducers: (builder) => {
     // Selecting a base map as main must reveal it fully — reset its hide
@@ -652,6 +667,8 @@ export const {
   setWalkModeActive,
   setHideAnnotationsIn3d,
   setMesh3dLabels,
+  setMesh3dGroupByOrientation,
+  toggleMesh3dHiddenOrientation,
 } = threedEditorSlice.actions;
 
 export default threedEditorSlice.reducer;

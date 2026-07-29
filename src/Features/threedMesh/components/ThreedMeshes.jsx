@@ -21,6 +21,7 @@ import getMesh3dLabelAnchor, {
   getMesh3dPlanePoint,
   readMesh3dOffset,
 } from "../utils/getMesh3dLabelAnchor";
+import getMesh3dOrientation from "../utils/getMesh3dOrientation";
 import { DEFAULT_MESH3D_COLOR } from "../utils/mesh3dConstants";
 
 function disposeObject(obj) {
@@ -54,6 +55,13 @@ export default function ThreedMeshes() {
     (s) => s.viewers.selectedViewerKey !== "MESHES"
   );
   const labelsOptions = useSelector((s) => s.threedEditor.mesh3dLabels);
+  // Mailles of these orientations are skipped entirely by the rebuild (no
+  // group, no sprite, absent from mesh3dObjectsStore) — mirrors the
+  // hideMeshes3d gate so every raycast path (faces, label sprites, handles)
+  // stays consistent without per-path visibility filters.
+  const hiddenOrientations = useSelector(
+    (s) => s.threedEditor.mesh3dHiddenOrientations
+  );
   // Outline threshold of curved mailles: the angle that grew the region, so
   // the smooth facet seams inside a shell stay invisible.
   const faceSelectionAngleDeg = useSelector(
@@ -131,6 +139,11 @@ export default function ThreedMeshes() {
 
     (meshes3d || []).forEach((mesh3d) => {
       if (!mesh3d?.faces?.length && !mesh3d?.shell?.positions?.length) return;
+      if (
+        hiddenOrientations.length &&
+        hiddenOrientations.includes(getMesh3dOrientation(mesh3d))
+      )
+        return;
       const selected = selectedIds.has(mesh3d.id);
       const dimmed = hasSelection && !selected;
       const color = mesh3d.color || DEFAULT_MESH3D_COLOR;
@@ -264,6 +277,7 @@ export default function ThreedMeshes() {
     hasSelection,
     labelsOptions,
     faceSelectionAngleDeg,
+    hiddenOrientations,
   ]);
 
   return null;
