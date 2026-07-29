@@ -2,7 +2,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 
 import { useSelector } from "react-redux";
 
-import { Box } from "@mui/material";
+import { Box, alpha } from "@mui/material";
 
 import { getShootState, subscribeShoot } from "../services/shootAimStore";
 import { JET_MODES } from "../services/shootSprayController";
@@ -14,12 +14,9 @@ import { JET_MODES } from "../services/shootSprayController";
 const rpgTransform = (dxPx, dyPx) =>
   `translate(calc(25% + ${dxPx}px), ${dyPx}px) perspective(800px) rotateX(14deg)`;
 
-// FPS-style HUD accent (distance + nozzle readout under the crosshair).
-const HUD_ACCENT = "#7BE8FF";
-const HUD_DIM = "rgba(255,255,255,0.35)";
-// Neon green for the key hints: readable on white surfaces too (plus a dark
-// halo for safety on any background).
-const HUD_KEYS = "#39FF14";
+// FPS-style HUD under the crosshair: everything sits on this translucent
+// grey band (readable on white plans), indicators in theme secondary.main.
+const HUD_BG = "rgba(8,14,20,0.55)";
 
 const JET_MODE_LABELS = {
   CONE: "Conique",
@@ -116,8 +113,13 @@ function JetHud({ jetMode, spreadDeg, targetDistM }) {
         flexDirection: "column",
         alignItems: "center",
         gap: 0.5,
+        px: 1.25,
+        py: 0.75,
+        borderRadius: 1,
+        bgcolor: HUD_BG,
+        border: (theme) =>
+          `1px solid ${alpha(theme.palette.secondary.main, 0.25)}`,
         fontFamily: "'Roboto Mono', 'Courier New', monospace",
-        textShadow: "0 0 6px rgba(123,232,255,0.35)",
         "@keyframes hudPop": {
           from: { transform: "scale(1.4)" },
           to: { transform: "scale(1)" },
@@ -128,23 +130,13 @@ function JetHud({ jetMode, spreadDeg, targetDistM }) {
         sx={{
           fontSize: 14,
           letterSpacing: 1,
-          color: targetDistM == null ? HUD_DIM : HUD_ACCENT,
+          color: "secondary.main",
+          opacity: targetDistM == null ? 0.4 : 1,
         }}
       >
         {targetDistM == null ? "--- m" : `${targetDistM.toFixed(1)} m`}
       </Box>
-      <Box
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          gap: 0.75,
-          px: 1,
-          py: 0.5,
-          borderRadius: 1,
-          bgcolor: "rgba(8,14,20,0.55)",
-          border: "1px solid rgba(123,232,255,0.25)",
-        }}
-      >
+      <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
         {JET_MODES.map((mode) => (
           <JetModeChip
             // Remount the chip that just became active so its pop
@@ -159,19 +151,13 @@ function JetHud({ jetMode, spreadDeg, targetDistM }) {
             fontSize: 12,
             minWidth: 42,
             textAlign: "right",
-            color: HUD_ACCENT,
+            color: "secondary.main",
           }}
         >
           {(2 * spreadDeg).toFixed(1)}°
         </Box>
       </Box>
-      <Box
-        sx={{
-          fontSize: 10,
-          color: HUD_KEYS,
-          textShadow: "0 0 3px rgba(0,0,0,0.9), 0 0 6px rgba(0,0,0,0.6)",
-        }}
-      >
+      <Box sx={{ fontSize: 10, color: "secondary.main", opacity: 0.75 }}>
         [B] buse · [P]/[M] ouverture
       </Box>
     </Box>
@@ -189,8 +175,10 @@ function JetModeChip({ mode, active }) {
         alignItems: "center",
         justifyContent: "center",
         borderRadius: 0.75,
-        border: active ? `1px solid ${HUD_ACCENT}` : "1px solid transparent",
-        bgcolor: active ? "rgba(123,232,255,0.12)" : "transparent",
+        border: (theme) =>
+          `1px solid ${active ? theme.palette.secondary.main : "transparent"}`,
+        bgcolor: (theme) =>
+          active ? alpha(theme.palette.secondary.main, 0.15) : "transparent",
         animation: active ? "hudPop 160ms ease-out" : "none",
       }}
     >
@@ -200,17 +188,44 @@ function JetModeChip({ mode, active }) {
 }
 
 // Footprint of the jet on the aimed surface: disc for the cone, stripes for
-// the flat fans.
+// the flat fans. Shapes are fill="currentColor" — the sx color carries the
+// active/dimmed secondary tint.
 function JetModeGlyph({ mode, active }) {
-  const fill = active ? HUD_ACCENT : HUD_DIM;
   return (
-    <Box component="svg" viewBox="0 0 20 20" sx={{ width: 16, height: 16 }}>
-      {mode === "CONE" && <circle cx="10" cy="10" r="5.5" fill={fill} />}
+    <Box
+      component="svg"
+      viewBox="0 0 20 20"
+      sx={{
+        width: 16,
+        height: 16,
+        color: (theme) =>
+          active
+            ? theme.palette.secondary.main
+            : alpha(theme.palette.secondary.main, 0.4),
+      }}
+    >
+      {mode === "CONE" && (
+        <circle cx="10" cy="10" r="5.5" fill="currentColor" />
+      )}
       {mode === "FLAT_H" && (
-        <rect x="3" y="8.5" width="14" height="3" rx="1.5" fill={fill} />
+        <rect
+          x="3"
+          y="8.5"
+          width="14"
+          height="3"
+          rx="1.5"
+          fill="currentColor"
+        />
       )}
       {mode === "FLAT_V" && (
-        <rect x="8.5" y="3" width="3" height="14" rx="1.5" fill={fill} />
+        <rect
+          x="8.5"
+          y="3"
+          width="3"
+          height="14"
+          rx="1.5"
+          fill="currentColor"
+        />
       )}
     </Box>
   );
@@ -245,6 +260,8 @@ function RpgWeapon({ url, firing }) {
   );
 }
 
+// Same secondary tint as the HUD: the white cross was invisible on white
+// plans.
 function Crosshair() {
   return (
     <Box
@@ -257,6 +274,7 @@ function Crosshair() {
         transform: "translate(-50%, -50%)",
         width: 16,
         height: 16,
+        color: "secondary.main",
         filter: "drop-shadow(0 0 1px rgba(0,0,0,0.8))",
       }}
     >
@@ -265,7 +283,7 @@ function Crosshair() {
         y1="1"
         x2="8"
         y2="15"
-        stroke="rgba(255,255,255,0.9)"
+        stroke="currentColor"
         strokeWidth="1.5"
       />
       <line
@@ -273,7 +291,7 @@ function Crosshair() {
         y1="8"
         x2="15"
         y2="8"
-        stroke="rgba(255,255,255,0.9)"
+        stroke="currentColor"
         strokeWidth="1.5"
       />
     </Box>
