@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 
 import useScopes from "Features/scopes/hooks/useScopes";
@@ -22,8 +22,12 @@ import {
 // Icons
 import EditIcon from "@mui/icons-material/Edit";
 import CheckIcon from "@mui/icons-material/Check";
+import CloseIcon from "@mui/icons-material/Close";
 
-export default function SectionScopeSelectorVariantList({ onSelect }) {
+export default function SectionScopeSelectorVariantList({
+    onSelect,
+    onEditingChange
+}) {
     const dispatch = useDispatch();
 
     // --- Data ---
@@ -37,10 +41,17 @@ export default function SectionScopeSelectorVariantList({ onSelect }) {
     const [editingScopeId, setEditingScopeId] = useState(null);
     const [tempName, setTempName] = useState("");
 
+    // Le parent verrouille la fermeture du menu tant qu'un renommage est en cours.
+    // Le cleanup est nécessaire car le Menu MUI démonte ses enfants à la fermeture.
+    useEffect(() => {
+        onEditingChange?.(Boolean(editingScopeId));
+        return () => onEditingChange?.(false);
+    }, [editingScopeId, onEditingChange]);
+
     // --- Handlers ---
 
     async function handleSelect(id) {
-        if (editingScopeId === id) return;
+        if (editingScopeId) return;
 
         dispatch(setSelectedScopeId(id));
         const scopeListings = await db.listings
@@ -71,11 +82,21 @@ export default function SectionScopeSelectorVariantList({ onSelect }) {
         }
     }
 
+    function handleRenameCancel(e) {
+        if (e) e.stopPropagation();
+
+        setEditingScopeId(null);
+        setTempName("");
+    }
+
     const handleKeyDown = (e) => {
+        // Empêche la frappe de remonter au Menu (navigation clavier par lettre, Echap)
+        e.stopPropagation();
+
         if (e.key === 'Enter') {
             handleRenameSave(e);
         } else if (e.key === 'Escape') {
-            setEditingScopeId(null);
+            handleRenameCancel(e);
         }
     };
 
@@ -130,16 +151,25 @@ export default function SectionScopeSelectorVariantList({ onSelect }) {
                             )}
                         </Box>
 
-                        {/* Zone d'action (Bouton Edit ou Save) */}
+                        {/* Zone d'action (Bouton Edit ou Save / Cancel) */}
                         {isEditing ? (
-                            <IconButton
-                                edge="end"
-                                size="small"
-                                onClick={handleRenameSave}
-                                sx={{ color: "success.main" }}
-                            >
-                                <CheckIcon fontSize="small" />
-                            </IconButton>
+                            <Box sx={{ display: "flex" }}>
+                                <IconButton
+                                    size="small"
+                                    onClick={handleRenameSave}
+                                    sx={{ color: "success.main" }}
+                                >
+                                    <CheckIcon fontSize="small" />
+                                </IconButton>
+                                <IconButton
+                                    edge="end"
+                                    size="small"
+                                    onClick={handleRenameCancel}
+                                    sx={{ color: "error.main" }}
+                                >
+                                    <CloseIcon fontSize="small" />
+                                </IconButton>
+                            </Box>
                         ) : (
                             <IconButton
                                 className="edit-btn"
