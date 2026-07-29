@@ -74,15 +74,62 @@ export default function VerticalMenu({
   tooltipPlacement = "right",
 }) {
   const handleChange = (e, newKey) => {
-
     onSelectionChange(newKey);
+  };
 
+  // Items tagged `group: "bottom"` render in a second group anchored at the
+  // bottom of the band; the others keep their order at the top. The selected
+  // key highlights its button whichever group it belongs to.
+  const topItems = menuItems.filter((item) => item.group !== "bottom");
+  const bottomItems = menuItems.filter((item) => item.group === "bottom");
+
+  const renderItem = (item, index) => {
+    if (item.type === "divider") {
+      return <Divider key={`div-${index}`} sx={{ width: "60%", my: 1 }} />;
+    }
+
+    return (
+      <StyledToggleButton key={item.key} value={item.key}>
+        {item.icon}
+        <LabelTypography variant="caption">{item.label}</LabelTypography>
+        {(item.hotkeyLabel || item.hotkey) && (
+          <Typography
+            variant="caption"
+            sx={{
+              mt: "2px",
+              fontSize: "0.6rem",
+              lineHeight: 1,
+              px: 0.5,
+              py: 0.25,
+              color: "text.secondary",
+              border: (theme) => `1px solid ${theme.palette.divider}`,
+              borderRadius: 0.5,
+            }}
+          >
+            {item.hotkeyLabel ?? item.hotkey}
+          </Typography>
+        )}
+        {item.badge && (
+          <Chip
+            label={item.badge}
+            color="primary"
+            size="small"
+            sx={{
+              mt: "2px",
+              height: 14,
+              "& .MuiChip-label": { px: "5px", fontSize: 9 },
+            }}
+          />
+        )}
+      </StyledToggleButton>
+    );
   };
 
   return (
     <Box
       sx={{
         p: 1,
+        height: 1,
         width: "fit-content",
         display: "flex",
         flexDirection: "column",
@@ -97,52 +144,19 @@ export default function VerticalMenu({
         onChange={handleChange}
         orientation="vertical"
       >
-        {menuItems.map((item, index) => {
-          if (item.type === 'divider') {
-            return <Divider key={`div-${index}`} sx={{ width: '60%', my: 1 }} />;
-          }
-
-          return (
-
-            <StyledToggleButton key={item.key} value={item.key}>
-              {item.icon}
-              <LabelTypography variant="caption">
-                {item.label}
-              </LabelTypography>
-              {(item.hotkeyLabel || item.hotkey) && (
-                <Typography
-                  variant="caption"
-                  sx={{
-                    mt: "2px",
-                    fontSize: "0.6rem",
-                    lineHeight: 1,
-                    px: 0.5,
-                    py: 0.25,
-                    color: "text.secondary",
-                    border: (theme) => `1px solid ${theme.palette.divider}`,
-                    borderRadius: 0.5,
-                  }}
-                >
-                  {item.hotkeyLabel ?? item.hotkey}
-                </Typography>
-              )}
-              {item.badge && (
-                <Chip
-                  label={item.badge}
-                  color="primary"
-                  size="small"
-                  sx={{
-                    mt: "2px",
-                    height: 14,
-                    "& .MuiChip-label": { px: "5px", fontSize: 9 },
-                  }}
-                />
-              )}
-            </StyledToggleButton>
-
-          );
-        })}
+        {topItems.map(renderItem)}
       </StyledToggleButtonGroup>
+      {bottomItems.length > 0 && (
+        <StyledToggleButtonGroup
+          value={selection}
+          exclusive
+          onChange={handleChange}
+          orientation="vertical"
+          sx={{ mt: "auto" }}
+        >
+          {bottomItems.map(renderItem)}
+        </StyledToggleButtonGroup>
+      )}
     </Box>
   );
 }

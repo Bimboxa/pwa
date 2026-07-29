@@ -3,7 +3,6 @@ import { useSelector } from "react-redux";
 import {
   Edit,
   Room,
-  CameraAlt,
   CenterFocusStrong,
   Tune,
   AutoFixHigh,
@@ -61,11 +60,6 @@ export default function useRightPanelTools() {
       icon: <Room />,
     },
 
-    MASTER_PROJECT_PICTURES: {
-      label: appConfig?.features?.masterProjectPictures?.title,
-      icon: <CameraAlt />,
-      viewers: ["MAP", "THREED", "MESHES"],
-    },
     PRINT: {
       label: "Export",
       icon: <Print />,
@@ -90,6 +84,9 @@ export default function useRightPanelTools() {
       label: "Importer annotations",
       icon: <Upload />,
       viewers: ["MAP"],
+      // `group: "bottom"` anchors the tool in the bottom-aligned section of
+      // the band (rendered by VerticalMenuV2).
+      group: "bottom",
     },
     OBJECTS_LIBRARY: {
       label: "Bibliothèque",
@@ -106,8 +103,8 @@ export default function useRightPanelTools() {
     },
   };
 
-  // const - contextual items, not driven by appConfig.features.tools; inserted
-  // right below "Propriétés" while their viewer is active.
+  // const - contextual items, not driven by appConfig.features.tools; each one
+  // is inserted at its own slot while its viewer is active (see below).
 
   const contextualTools = [
     // Settings of the editor actually displayed (3D view settings — the
@@ -117,6 +114,7 @@ export default function useRightPanelTools() {
       key: "SETTINGS",
       label: "Réglages",
       icon: <Settings />,
+      group: "bottom",
     },
     // Global capture: same frame as the POV framing (panel-independent), same
     // options as Export rapide. Every module with a 2D/3D editor — PORTFOLIO
@@ -199,12 +197,36 @@ export default function useRightPanelTools() {
   const activeContextualTools = contextualTools.filter(
     (t) => !t.viewers || t.viewers.includes(selectedViewerKey)
   );
-  if (activeContextualTools.length > 0) {
+
+  // Each contextual tool has its own slot:
+  // - bottom-group tools ("Réglages") are appended last so they close the
+  //   bottom section, below the appConfig-driven bottom tools;
+  // - "Capture" sits right above "Export" (they share the same framing and
+  //   options); modules without PRINT fall back to the "Propriétés" slot;
+  // - the others land right below "Propriétés" (historical position).
+  const bottomTools = [];
+  const belowPropertiesTools = [];
+  activeContextualTools.forEach((tool) => {
+    if (tool.group === "bottom") {
+      bottomTools.push(tool);
+      return;
+    }
+    if (tool.key === "CAPTURE") {
+      const printIndex = menuItems.findIndex((t) => t.key === "PRINT");
+      if (printIndex !== -1) {
+        menuItems.splice(printIndex, 0, tool);
+        return;
+      }
+    }
+    belowPropertiesTools.push(tool);
+  });
+  if (belowPropertiesTools.length > 0) {
     const propertiesIndex = menuItems.findIndex(
       (t) => t.key === "SELECTION_PROPERTIES"
     );
-    menuItems.splice(propertiesIndex + 1, 0, ...activeContextualTools);
+    menuItems.splice(propertiesIndex + 1, 0, ...belowPropertiesTools);
   }
+  menuItems.push(...bottomTools);
 
   return { menuItems, toolsByKey };
 }
