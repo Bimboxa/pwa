@@ -29,7 +29,16 @@ import splitFacePolygon from "../utils/splitFacePolygon";
 import pointInPolygon2d from "../utils/pointInPolygon2d";
 import getAngularWedge, { getReferencePlane } from "../utils/getAngularWedge";
 import cutMesh3dByPlaneNear from "../utils/cutMesh3dByPlaneNear";
+import cutShellByPlaneNear from "../utils/cutShellByPlaneNear";
 import getAxisCutPlane from "../utils/getAxisCutPlane";
+import {
+  buildChainMeasure,
+  chainAbscissaDelta,
+  pointAtChainAbscissa,
+  projectPointToChain,
+} from "../utils/chainAbscissa";
+import getShellBaseChain from "../utils/getShellBaseChain";
+import getShellCutRefs from "../utils/getShellCutRefs";
 import splitMeshes3dByNearPlaneService from "./splitMeshes3dByNearPlaneService";
 import getMesh3dLoops from "../utils/getMesh3dLoops";
 import findAdjacentMeshes3d from "../utils/findAdjacentMeshes3d";
@@ -45,6 +54,11 @@ const LINEWIDTH_SNAPPED = 4.5;
 // Offset guide on a shell: a hairline dotted contour, dash length in meters.
 const GUIDE_LINEWIDTH = 1;
 const GUIDE_DASH_M = 0.03;
+// Committed seams (previous cuts that opened a maille without splitting it):
+// thin solid blue-gray, distinct from both the red hover cut and the red
+// dotted guide — they are the references the "Décalage" measures from.
+const SEAM_COLOR = 0x455a64;
+const SEAM_LINEWIDTH = 1.5;
 // Draft geometry is drawn slightly off the face plane so the red line never
 // z-fights with the maille surface (which sits 1 mm off the source face).
 const DRAFT_LIFT_M = 0.012;
@@ -196,19 +210,25 @@ export function createMeshingCutController({
   // `dashed`: thin dotted variant used for the offset guide — on a faceted
   // shell the guide is a whole contour around the mesh, where a single marker
   // point would be unreadable.
-  function drawSegments(segments, { snapped = false, dashed = false } = {}) {
+  function drawSegments(
+    segments,
+    {
+      snapped = false,
+      dashed = false,
+      color = CUT_COLOR,
+      linewidth = null,
+    } = {}
+  ) {
     if (!segments?.length) return;
     const positions = [];
     for (const [p, q] of segments) {
       positions.push(p.x, p.y, p.z, q.x, q.y, q.z);
     }
     const material = new LineMaterial({
-      color: CUT_COLOR,
-      linewidth: dashed
-        ? GUIDE_LINEWIDTH
-        : snapped
-          ? LINEWIDTH_SNAPPED
-          : LINEWIDTH,
+      color,
+      linewidth:
+        linewidth ??
+        (dashed ? GUIDE_LINEWIDTH : snapped ? LINEWIDTH_SNAPPED : LINEWIDTH),
       resolution: getResolution(),
       worldUnits: false,
       transparent: true,
@@ -336,6 +356,36 @@ export function createMeshingCutController({
   // so it is cached across hover frames.
   let cutTargetsCache = null;
 
+  // Base chain (développé support) of the hovered shell maille: chain
+  // measure + guide references, recomputed only when the record's geometry
+  // changes — reference equality is enough, a commit reloads fresh objects
+  // from Dexie.
+  let baseChainCache = null;
+
+  function getShellBaseData(mesh3d) {
+    if (
+      baseChainCache &&
+      baseChainCache.mesh3dId === mesh3d.id &&
+      baseChainCache.shell === mesh3d.shell &&
+      baseChainCache.seams === mesh3d.seams
+    ) {
+      return baseChainCache;
+    }
+    const chain = getShellBaseChain({ boundaries: mesh3d.shell?.boundaries });
+    const measure = chain ? buildChainMeasure(chain) : null;
+    const refs = measure
+      ? getShellCutRefs({ measure, seams: mesh3d.seams })
+      : [];
+    baseChainCache = {
+      mesh3dId: mesh3d.id,
+      shell: mesh3d.shell,
+      seams: mesh3d.seams,
+      measure,
+      refs,
+    };
+    return baseChainCache;
+  }
+
   function getCutTargets(mesh3d) {
     if (!mesh3d) return [];
     const all = getAllMeshes3d().filter(Boolean);
@@ -424,6 +474,24 @@ export function createMeshingCutController({
     return { x: p.x + d.x, y: p.y + d.y, z: p.z + d.z };
   }
 
+  // Committed seams of the given mailles, drawn during every cut tool: a
+  // previous cut that only OPENED a maille leaves no boundary, so without
+  // this the first cut of a closed ring would be invisible — while being the
+  // very reference the vertical guide measures its développé from.
+  function drawCommittedSeams(targets) {
+    for (const mesh3d of targets || []) {
+      if (!mesh3d?.seams?.length) continue;
+      drawSegments(
+        mesh3d.seams.map(([p, q]) => [liftToCamera(p), liftToCamera(q)]),
+        { color: SEAM_COLOR, linewidth: SEAM_LINEWIDTH }
+      );
+    }
+  }
+
+  // HORIZONTAL shell cut. The "Décalage" here is a plane offset from the
+  // extremal boundary vertex — a legitimate metric for a horizontal plane
+  // (it reads as a height). The vertical tool uses onHoverShellVerticalCut
+  // and its développé metric instead.
   function onHoverShellCut(e, pick, mesh3d, axis) {
     const hit = pick.intersect.point;
     const normal = getShellCutNormal(hit, axis);
@@ -521,6 +589,7 @@ export function createMeshingCutController({
       : null;
 
     clearDraft();
+    drawCommittedSeams(getCutTargets(mesh3d));
     drawSegments(
       segments.map(([p, q]) => [liftToCamera(p), liftToCamera(q)]),
       { snapped }
@@ -547,6 +616,148 @@ export function createMeshingCutController({
     hoverCut = { cuts };
   }
 
+  // VERTICAL shell cut. Unlike the horizontal tool, the "Décalage" here is a
+  // DEVELOPED distance: `offset` meters of summed chord lengths along the
+  // maille's base contour, measured from the reference nearest to the cursor
+  // — a previous cut (seam) or, on an open base, a base endpoint. A virgin
+  // closed ring has no reference: the first click freely places the opening
+  // cut, and the guide appears from it on the next hover. S (cutSide) is
+  // meaningless here — the guide direction follows the cursor.
+  function onHoverShellVerticalCut(e, pick, mesh3d) {
+    const hit = pick.intersect.point;
+    const normal = getShellCutNormal(hit, "x");
+    if (!normal) {
+      resetHover();
+      return;
+    }
+    const rect = pick.rect;
+    const offset = getOffset();
+    const { measure, refs } = getShellBaseData(mesh3d);
+
+    // Resolve the guide: reference nearest to the cursor along the base
+    // chain, guide point at `offset` of curvilinear abscissa toward the
+    // cursor's side. Any guard failing (no base chain, no reference, offset
+    // longer than the ring / past an open end, vertical tangent) hides the
+    // guide entirely — the cut stays free, never a wrong metric.
+    let ref = null;
+    let guide = null;
+    if (measure && refs.length && offset > 0) {
+      const sCursor = projectPointToChain(measure, hit)?.s;
+      if (sCursor != null) {
+        let refDelta = 0;
+        for (const candidate of refs) {
+          const delta = chainAbscissaDelta(measure, candidate.s, sCursor);
+          if (!ref || Math.abs(delta) < Math.abs(refDelta)) {
+            ref = candidate;
+            refDelta = delta;
+          }
+        }
+        const dir = Math.sign(refDelta) || 1;
+        const fitsRing = !measure.closed || offset < measure.total;
+        const at = fitsRing
+          ? pointAtChainAbscissa(measure, ref.s + dir * offset)
+          : null;
+        const tLen = at ? Math.hypot(at.tangent.x, at.tangent.z) : 0;
+        if (tLen > 1e-6) {
+          const guideNormal = {
+            x: at.tangent.x / tLen,
+            y: 0,
+            z: at.tangent.z / tLen,
+          };
+          guide = {
+            point: at.point,
+            plane: {
+              normal: guideNormal,
+              constant: planeDist(guideNormal, at.point),
+            },
+            sMid: ref.s + (dir * offset) / 2,
+          };
+        }
+      }
+    }
+
+    // Screen-space snap onto the guide: the committed plane is then the
+    // guide's own tangent-perpendicular plane — the cut lands at exactly
+    // `offset` meters of développé — instead of the camera-facing free plane.
+    let plane = { normal, constant: planeDist(normal, hit) };
+    let hitPoint = hit;
+    let snapped = false;
+    if (guide) {
+      const d = planeDist(guide.plane.normal, hit) - guide.plane.constant;
+      const onGuide = {
+        x: hit.x - guide.plane.normal.x * d,
+        y: hit.y - guide.plane.normal.y * d,
+        z: hit.z - guide.plane.normal.z * d,
+      };
+      if (screenDist(hit, onGuide, rect) < MESH3D_SNAP_PX) {
+        plane = guide.plane;
+        hitPoint = onGuide;
+        snapped = true;
+      }
+    }
+
+    const { cuts, segments } = collectCuts(mesh3d, (target) =>
+      cutMesh3dByPlaneNear({ mesh3d: target, plane, hitPoint })
+    );
+    if (!segments.length) {
+      resetHover();
+      return;
+    }
+    const areaChips = buildPieceAreaChips(
+      cuts.flatMap((entry) => entry.cut.pieces),
+      rect
+    );
+
+    // Guide preview: ONE dotted vertical line — the crossing chain nearest
+    // to the guide point, never the far side of a closed ring — dropped once
+    // the cut has snapped onto it (the solid red line then sits there).
+    const guideSegments =
+      guide && !snapped
+        ? cutShellByPlaneNear({
+            positions: mesh3d.shell.positions,
+            plane: guide.plane,
+            hitPoint: guide.point,
+            seams: mesh3d.seams || [],
+          })?.segments || []
+        : [];
+
+    // Chip on the base arc between the reference and the guide (its
+    // abscissa midpoint), labelling the développé the guide sits at.
+    const offsetChip = guide
+      ? (() => {
+          const midAt = pointAtChainAbscissa(measure, guide.sMid);
+          if (!midAt) return null;
+          const mid = worldToScreen(midAt.point, rect);
+          return {
+            x: mid.x,
+            y: mid.y + 18,
+            text: `${offset.toLocaleString("fr-FR")}m`,
+          };
+        })()
+      : null;
+
+    clearDraft();
+    drawCommittedSeams(getCutTargets(mesh3d));
+    drawSegments(
+      segments.map(([p, q]) => [liftToCamera(p), liftToCamera(q)]),
+      { snapped }
+    );
+    if (guideSegments.length) {
+      drawSegments(
+        guideSegments.map(([p, q]) => [liftToCamera(p), liftToCamera(q)]),
+        { dashed: true }
+      );
+    }
+    if (guide) {
+      drawRing(liftToCamera(ref.point));
+      drawRing(liftToCamera(guide.point));
+    }
+    setMeshingOverlay({ areaChips, offsetChip, cursor: null });
+    renderScene();
+
+    hoverCut = { cuts };
+  }
+
   // --- axis cuts (CUT_VERTICAL / CUT_HORIZONTAL) ---------------------------
 
   // axis = "x": vertical tool (cut line at constant u, running along v).
@@ -558,7 +769,8 @@ export function createMeshingCutController({
     }
     const picked = getMesh3dById(pick.mesh3dId);
     if (picked?.shell?.positions?.length) {
-      onHoverShellCut(e, pick, picked, axis);
+      if (axis === "x") onHoverShellVerticalCut(e, pick, picked);
+      else onHoverShellCut(e, pick, picked, axis);
       return;
     }
     const ctx = getFaceContext(pick.mesh3dId, pick.faceIndex);
@@ -671,6 +883,7 @@ export function createMeshingCutController({
       : null;
 
     clearDraft();
+    drawCommittedSeams(getCutTargets(ctx.mesh3d));
     drawSegments(
       segments.map(([p, q]) => [liftToCamera(p), liftToCamera(q)]),
       { snapped }
@@ -689,6 +902,7 @@ export function createMeshingCutController({
     const committed = hoverCut.cuts;
     hoverCut = null;
     cutTargetsCache = null;
+    baseChainCache = null;
     try {
       await splitMeshes3dByNearPlaneService(
         committed.map((entry) => ({
@@ -832,6 +1046,7 @@ export function createMeshingCutController({
     freeCrossed = null;
 
     clearDraft();
+    drawCommittedSeams(getAllMeshes3d());
     const areaChips = [];
 
     if (freeSnap) drawRing(freeSnap.world);
@@ -932,6 +1147,7 @@ export function createMeshingCutController({
     polyEndWorld = null;
 
     clearDraft();
+    drawCommittedSeams(getAllMeshes3d());
     const areaChips = [];
 
     if (freeSnap) drawRing(freeSnap.world);
@@ -1195,6 +1411,7 @@ export function createMeshingCutController({
     if (!angA) {
       angHoverA = getAngularPointA(e, pick);
       clearDraft();
+      drawCommittedSeams(getAllMeshes3d());
       if (angHoverA?.snap) drawSnapMarker(angHoverA.snap);
       else if (angHoverA) drawRing(angHoverA.world);
       setMeshingOverlay({
@@ -1220,6 +1437,7 @@ export function createMeshingCutController({
       const plane = getReferencePlane({ o: point, a: angA.world });
       const cut = plane ? cutMesh3dByPlanes({ mesh3d, planes: [plane] }) : null;
       clearDraft();
+      drawCommittedSeams(getAllMeshes3d());
       drawRing(angA.world);
       drawRing(point);
       drawSnapMarker(snap);
@@ -1250,6 +1468,7 @@ export function createMeshingCutController({
       : { cuts: [], segments: [] };
 
     clearDraft();
+    drawCommittedSeams(getAllMeshes3d());
     drawRing(angA.world);
     drawRing(angO.world);
     // A typed angle drives the second half-plane: the snap no longer applies.
