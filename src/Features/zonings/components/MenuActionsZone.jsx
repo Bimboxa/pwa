@@ -6,6 +6,7 @@ import { CirclePicker } from "react-color";
 import defaultColors from "Features/colors/data/defaultColors";
 
 import useUpdateZone from "../hooks/useUpdateZone";
+import useAssignZoneToAnnotations from "../hooks/useAssignZoneToAnnotations";
 
 import DialogRenameZone from "./DialogRenameZone";
 import DialogDeleteZone from "./DialogDeleteZone";
@@ -18,6 +19,7 @@ export default function MenuActionsZone({
   onClose,
 }) {
   const updateZone = useUpdateZone();
+  const { assignZoneForZone } = useAssignZoneToAnnotations();
 
   // state
 
@@ -30,6 +32,11 @@ export default function MenuActionsZone({
   function handleAddChild() {
     onClose();
     onAddChildZone?.();
+  }
+
+  async function handleAssignAnnotations() {
+    onClose();
+    await assignZoneForZone(zone);
   }
 
   async function handleColorChange(color) {
@@ -47,6 +54,9 @@ export default function MenuActionsZone({
         onClose={onClose}
       >
         <MenuItem onClick={handleAddChild}>Ajouter une sous-zone</MenuItem>
+        <MenuItem onClick={handleAssignAnnotations}>
+          Affecter les annotations à l&apos;intérieur
+        </MenuItem>
         <MenuItem onClick={() => setOpenRename(true)}>Renommer</MenuItem>
         <MenuItem onClick={() => setShowColorPicker((v) => !v)}>
           Changer la couleur

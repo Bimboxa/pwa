@@ -5,6 +5,7 @@ import polygonClipping from "polygon-clipping";
 
 import { triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice";
 import { triggerRelsZoneAnnotationUpdate } from "../zoningsSlice";
+import { setToaster } from "Features/layout/layoutSlice";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
@@ -95,17 +96,76 @@ export default function useAssignZoneToAnnotations() {
 
   const runningRef = useRef(false);
 
+  function toastResult(result) {
+    if (!result) return;
+    if (result.noPolygon) {
+      dispatch(
+        setToaster({
+          message: "Dessinez d'abord le polygone de délimitation de la zone",
+          severity: "warning",
+        })
+      );
+      return;
+    }
+    dispatch(
+      setToaster({
+        message: `${result.linked} annotation(s) liée(s) à la zone, ${result.split} découpée(s)`,
+        severity: "success",
+      })
+    );
+  }
+
   async function assignZone(zoneAnnotation) {
     if (runningRef.current) return null;
     runningRef.current = true;
     try {
-      return await run(zoneAnnotation);
+      const result = await run(zoneAnnotation);
+      toastResult(result);
+      return result;
     } finally {
       runningRef.current = false;
     }
   }
 
-  async function run(zoneAnnotation) {
+  // "Affecter la zone" from the zone itself (tree menu, zone properties
+  // panel): runs the pipeline on every delimitation polygon drawn for the
+  // zone. Later polygons skip annotations already rewritten by an earlier
+  // one — `annotations` is a single resolved snapshot, so re-cutting them
+  // would resurrect their pre-cut geometry.
+  async function assignZoneForZone(zone) {
+    if (runningRef.current || !zone?.templateId) return null;
+    const zonePolygons = (annotations ?? []).filter(
+      (a) =>
+        a?.isZoneAnnotation &&
+        a.type === "POLYGON" &&
+        a.annotationTemplateId === zone.templateId
+    );
+    if (zonePolygons.length === 0) {
+      const result = { noPolygon: true };
+      toastResult(result);
+      return result;
+    }
+    runningRef.current = true;
+    try {
+      let linked = 0;
+      let split = 0;
+      const touchedIds = new Set();
+      for (const zoneAnnotation of zonePolygons) {
+        const result = await run(zoneAnnotation, touchedIds);
+        if (!result) continue;
+        linked += result.linked;
+        split += result.split;
+        (result.touchedIds ?? []).forEach((id) => touchedIds.add(id));
+      }
+      const result = { linked, split, polygons: zonePolygons.length };
+      toastResult(result);
+      return result;
+    } finally {
+      runningRef.current = false;
+    }
+  }
+
+  async function run(zoneAnnotation, excludeIds) {
     if (
       !zoneAnnotation?.isZoneAnnotation ||
       zoneAnnotation.type !== "POLYGON" ||
@@ -125,7 +185,11 @@ export default function useAssignZoneToAnnotations() {
     if (!zone || zone.deletedAt) return null;
 
     // zone geometry (pixel space, arcs tessellated)
-    const zoneOuter = expandArcsInPath(zoneAnnotation.points, ARC_SAMPLES, true);
+    const zoneOuter = expandArcsInPath(
+      zoneAnnotation.points,
+      ARC_SAMPLES,
+      true
+    );
     const zoneHoles = (zoneAnnotation.cuts ?? [])
       .map((c) => expandArcsInPath(c.points ?? [], ARC_SAMPLES, true))
       .filter((h) => h.length >= 3);
@@ -144,6 +208,7 @@ export default function useAssignZoneToAnnotations() {
     const TOL = 2;
     const candidates = (annotations ?? []).filter((a) => {
       if (!a || a.id === zoneAnnotation.id) return false;
+      if (excludeIds?.has(a.id)) return false;
       if (a.isZoneAnnotation || a.isBaseMapAnnotation || a.isMeshCell)
         return false;
       if (a.baseMapId !== zoneAnnotation.baseMapId) return false;
@@ -157,7 +222,7 @@ export default function useAssignZoneToAnnotations() {
         bb.y <= zoneBbox.y + zoneBbox.height + TOL
       );
     });
-    if (candidates.length === 0) return { linked: 0, split: 0 };
+    if (candidates.length === 0) return { linked: 0, split: 0, touchedIds: [] };
 
     // write batches
     const pointsToSave = [];
@@ -463,7 +528,9 @@ export default function useAssignZoneToAnnotations() {
       .filter((r) => r.zoneId !== zone.id)
       .map((r) => r.id);
     const alreadyLinked = new Set(
-      existingRels.filter((r) => r.zoneId === zone.id).map((r) => r.annotationId)
+      existingRels
+        .filter((r) => r.zoneId === zone.id)
+        .map((r) => r.annotationId)
     );
     const relsToAdd = uniqueLinkIds
       .filter((id) => !alreadyLinked.has(id))
@@ -483,7 +550,11 @@ export default function useAssignZoneToAnnotations() {
       relIdsToDelete.length === 0 &&
       relsToAdd.length === 0
     ) {
-      return { linked: alreadyLinked.size, split: 0 };
+      return {
+        linked: alreadyLinked.size,
+        split: 0,
+        touchedIds: uniqueLinkIds,
+      };
     }
 
     // single transaction + single dispatch wave (batch-write pattern)
@@ -515,8 +586,14 @@ export default function useAssignZoneToAnnotations() {
       dispatch(triggerAnnotationsUpdate());
     dispatch(triggerRelsZoneAnnotationUpdate());
 
-    return { linked: uniqueLinkIds.length, split: splitCount };
+    return {
+      linked: uniqueLinkIds.length,
+      split: splitCount,
+      touchedIds: [
+        ...new Set([...annotationUpdates.map((u) => u.id), ...uniqueLinkIds]),
+      ],
+    };
   }
 
-  return assignZone;
+  return { assignZone, assignZoneForZone };
 }

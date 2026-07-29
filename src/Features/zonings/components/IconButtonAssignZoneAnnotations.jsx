@@ -12,7 +12,7 @@ export default function IconButtonAssignZoneAnnotations({
   annotation,
   accentColor,
 }) {
-  const assignZone = useAssignZoneToAnnotations();
+  const { assignZone } = useAssignZoneToAnnotations();
 
   // state
 
@@ -24,11 +24,7 @@ export default function IconButtonAssignZoneAnnotations({
     if (running) return;
     setRunning(true);
     try {
-      const result = await assignZone(annotation);
-      if (result)
-        console.log(
-          `[assignZone] ${result.linked} annotation(s) liée(s), ${result.split} découpée(s)`
-        );
+      await assignZone(annotation);
     } finally {
       setRunning(false);
     }

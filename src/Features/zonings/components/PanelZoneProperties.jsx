@@ -4,8 +4,16 @@ import { useLiveQuery } from "dexie-react-hooks";
 
 import { selectSelectedItems } from "Features/selection/selectionSlice";
 
-import { Box, List, ListItem, ListItemText, Typography } from "@mui/material";
-import { ExpandMore, ChevronRight } from "@mui/icons-material";
+import {
+  Box,
+  Button,
+  CircularProgress,
+  List,
+  ListItem,
+  ListItemText,
+  Typography,
+} from "@mui/material";
+import { ExpandMore, ChevronRight, SelectAll } from "@mui/icons-material";
 
 import db from "App/db/db";
 
@@ -14,6 +22,7 @@ import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemp
 import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
 import useListings from "Features/listings/hooks/useListings";
 import useRelsZoneAnnotation from "../hooks/useRelsZoneAnnotation";
+import useAssignZoneToAnnotations from "../hooks/useAssignZoneToAnnotations";
 
 import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTemplateIcon";
 import computeAnnotationTemplateQties from "Features/annotations/utils/computeAnnotationTemplateQties";
@@ -54,9 +63,12 @@ export default function PanelZoneProperties() {
   const spriteImage = useAnnotationSpriteImage();
   const { value: scopeListings } = useListings({ filterByScopeId: scopeId });
 
+  const { assignZoneForZone } = useAssignZoneToAnnotations();
+
   // state
 
   const [collapsedListingIds, setCollapsedListingIds] = useState([]);
+  const [assigning, setAssigning] = useState(false);
 
   // helpers — linked annotations grouped by listing (popper-like legend)
 
@@ -78,40 +90,42 @@ export default function PanelZoneProperties() {
       if (!byListingId[a.listingId]) byListingId[a.listingId] = [];
       byListingId[a.listingId].push(a);
     });
-    return Object.entries(byListingId)
-      .map(([listingId, listingAnnotations]) => {
-        const qtiesById = computeAnnotationTemplateQties(
-          listingAnnotations,
-          annotationTemplateById
-        );
-        const rows = Object.entries(qtiesById)
-          .map(([templateId, qties]) => ({
-            template: annotationTemplateById[templateId],
-            qties,
-          }))
-          .filter((r) => Boolean(r.template))
-          // same ordering as the popper: template orderIndex (fractional),
-          // label as fallback
-          .sort(
-            (a, b) =>
-              String(a.template.orderIndex ?? "").localeCompare(
-                String(b.template.orderIndex ?? "")
-              ) ||
-              (a.template.label ?? "").localeCompare(b.template.label ?? "")
+    return (
+      Object.entries(byListingId)
+        .map(([listingId, listingAnnotations]) => {
+          const qtiesById = computeAnnotationTemplateQties(
+            listingAnnotations,
+            annotationTemplateById
           );
-        return {
-          listingId,
-          listing: listingById[listingId],
-          count: listingAnnotations.length,
-          rows,
-        };
-      })
-      // same ordering as the popper: listing rank (fractional)
-      .sort((a, b) =>
-        String(a.listing?.rank ?? "").localeCompare(
-          String(b.listing?.rank ?? "")
+          const rows = Object.entries(qtiesById)
+            .map(([templateId, qties]) => ({
+              template: annotationTemplateById[templateId],
+              qties,
+            }))
+            .filter((r) => Boolean(r.template))
+            // same ordering as the popper: template orderIndex (fractional),
+            // label as fallback
+            .sort(
+              (a, b) =>
+                String(a.template.orderIndex ?? "").localeCompare(
+                  String(b.template.orderIndex ?? "")
+                ) ||
+                (a.template.label ?? "").localeCompare(b.template.label ?? "")
+            );
+          return {
+            listingId,
+            listing: listingById[listingId],
+            count: listingAnnotations.length,
+            rows,
+          };
+        })
+        // same ordering as the popper: listing rank (fractional)
+        .sort((a, b) =>
+          String(a.listing?.rank ?? "").localeCompare(
+            String(b.listing?.rank ?? "")
+          )
         )
-      );
+    );
   }, [linkedAnnotations, annotationTemplateById, scopeListings]);
 
   // handlers
@@ -122,6 +136,16 @@ export default function PanelZoneProperties() {
         ? prev.filter((id) => id !== listingId)
         : [...prev, listingId]
     );
+  }
+
+  async function handleAssignAnnotations() {
+    if (assigning) return;
+    setAssigning(true);
+    try {
+      await assignZoneForZone(zone);
+    } finally {
+      setAssigning(false);
+    }
   }
 
   // render
@@ -159,6 +183,26 @@ export default function PanelZoneProperties() {
             {zone.label}
           </Typography>
         </Box>
+      </Box>
+
+      {/* action: cut + link the annotations inside the zone's polygon(s) */}
+      <Box sx={{ p: 1, borderBottom: "1px solid", borderColor: "divider" }}>
+        <Button
+          size="small"
+          variant="outlined"
+          fullWidth
+          disabled={assigning}
+          onClick={handleAssignAnnotations}
+          startIcon={
+            assigning ? (
+              <CircularProgress size={14} color="inherit" />
+            ) : (
+              <SelectAll fontSize="small" />
+            )
+          }
+        >
+          Affecter les annotations
+        </Button>
       </Box>
 
       {/* legend: listings → templates + quantities of the linked annotations */}
