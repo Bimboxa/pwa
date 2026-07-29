@@ -5,27 +5,20 @@ import {
   LineBasicMaterial,
 } from "three";
 
-import { DEFAULT_MESH3D_COLOR } from "../utils/mesh3dConstants";
-
 /**
  * Leader line from the maille's label anchor to a label card the user has
  * dragged away, so a moved card still reads as belonging to its maille.
  * Built by ThreedMeshes on rebuild and by useMesh3dLabelDragHandlers while
  * the card is being dragged (`setMesh3dLabelLeaderEnds` updates it live).
  */
-export default function createMesh3dLabelLeader({
-  from,
-  to,
-  color = DEFAULT_MESH3D_COLOR,
-  dimmed = false,
-}) {
+export default function createMesh3dLabelLeader({ from, to, dimmed = false }) {
   const geometry = new BufferGeometry();
   geometry.setAttribute(
     "position",
     new Float32BufferAttribute([from.x, from.y, from.z, to.x, to.y, to.z], 3)
   );
   const material = new LineBasicMaterial({
-    color,
+    color: "#000000",
     transparent: true,
     opacity: dimmed ? 0.2 : 0.7,
     depthTest: false,

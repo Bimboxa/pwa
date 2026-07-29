@@ -21,7 +21,6 @@ import {
 } from "../services/mesh3dObjectsStore";
 import { setMesh3dLabelGestureActive } from "../services/mesh3dLabelGestureStore";
 import { getMesh3dPlanePoint } from "../utils/getMesh3dLabelAnchor";
-import { DEFAULT_MESH3D_COLOR } from "../utils/mesh3dConstants";
 
 // Pointer movement (CSS px) below which the gesture stays a plain click
 // (selection only) — mirrors useCoteLabelDragHandlers.
@@ -239,7 +238,6 @@ export default function useMesh3dLabelDragHandlers({ rendererIsReady }) {
         drag.tempLeader = createMesh3dLabelLeader({
           from: drag.fixedEnd,
           to: position,
-          color: drag.sprite.userData.color || DEFAULT_MESH3D_COLOR,
         });
         drag.dragged.parent.add(drag.tempLeader);
       }

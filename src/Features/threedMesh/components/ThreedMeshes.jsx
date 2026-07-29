@@ -209,7 +209,6 @@ export default function ThreedMeshes() {
         // target handle moves the leader's pointed end
         // (mesh3d.labelTargetOffset).
         sprite.userData.labelAnchor = anchor;
-        sprite.userData.color = color;
         sprite.userData.labelOffset = labelOffset;
         sprite.userData.labelTargetOffset = targetOffset;
         group.add(sprite);
@@ -225,7 +224,6 @@ export default function ThreedMeshes() {
           const leader = createMesh3dLabelLeader({
             from: targetPosition,
             to: labelPosition,
-            color,
             dimmed,
           });
           group.add(leader);
