@@ -24,6 +24,8 @@ import {
   setFaceSelectionAngleDeg,
   setRenderMode,
   setEnvironment3d,
+  setForceRevolutionSectionIn3d,
+  setRevolutionSectionFillIn3d,
 } from "Features/threedEditor/threedEditorSlice";
 import exportSceneAsUsdzService from "Features/threedEditor/services/exportSceneAsUsdzService";
 import exportSceneAsObjService from "Features/threedEditor/services/exportSceneAsObjService";
@@ -48,6 +50,12 @@ export default function PanelThreedProperties() {
   );
   const faceSelectionAngleDeg = useSelector(
     (s) => s.threedEditor.faceSelectionAngleDeg
+  );
+  const forceRevolutionSection = useSelector(
+    (s) => s.threedEditor.forceRevolutionSectionIn3d
+  );
+  const revolutionSectionFill = useSelector(
+    (s) => s.threedEditor.revolutionSectionFillIn3d
   );
   const renderMode = useSelector((s) => s.threedEditor.renderMode);
   const environment3d = useSelector((s) => s.threedEditor.environment3d);
@@ -100,6 +108,39 @@ export default function PanelThreedProperties() {
             label={
               <Typography variant="body2">Masquer les fonds de plan</Typography>
             }
+          />
+          {/* Display-only 180° half-view of profile revolutions, kept even
+              when the vertical base map image is hidden (quantities stay
+              full-rotation). OFF = automatic: half-view only while the base
+              map image is displayed. */}
+          <FormControlLabel
+            control={
+              <Switch
+                size="small"
+                checked={forceRevolutionSection}
+                onChange={(e) =>
+                  dispatch(setForceRevolutionSectionIn3d(e.target.checked))
+                }
+              />
+            }
+            label={
+              <Typography variant="body2">Révolution partielle</Typography>
+            }
+          />
+          {/* Fill the cut section of partial revolutions with a flat dark
+              face (only when the profile is a closed contour). The ink
+              boundary lines are always shown; only the fill is optional. */}
+          <FormControlLabel
+            control={
+              <Switch
+                size="small"
+                checked={revolutionSectionFill}
+                onChange={(e) =>
+                  dispatch(setRevolutionSectionFillIn3d(e.target.checked))
+                }
+              />
+            }
+            label={<Typography variant="body2">Pochage des coupes</Typography>}
           />
           <FormControlLabel
             control={

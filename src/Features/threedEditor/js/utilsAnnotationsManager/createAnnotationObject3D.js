@@ -678,6 +678,8 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
           ...(r.phiLength != null
             ? { phiStart: r.phiStart ?? 0, phiLength: r.phiLength }
             : {}),
+          resolution: options?.resolution,
+          sectionFill: options?.revolutionSectionFill,
         });
         break;
       }
@@ -809,12 +811,32 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
           const arcPts = pointsToLocal(annotation.points || [], baseMap);
           const axisPts = pointsToLocal(axisPx, baseMap);
           // Partial revolution range, stored on the arc's own shape3D.
-          const partialPhi = annotation.shape3D?.partialRevolution
-            ? getRevolutionPhi(
-                annotation.shape3D.revolutionAngleStart ?? 0,
-                annotation.shape3D.revolutionAngleEnd ?? Math.PI * 2
-              )
-            : {};
+          // Explicit user-set partial angles win over the auto half-view.
+          let partialPhi = {};
+          if (annotation.shape3D?.partialRevolution) {
+            partialPhi = getRevolutionPhi(
+              annotation.shape3D.revolutionAngleStart ?? 0,
+              annotation.shape3D.revolutionAngleEnd ?? Math.PI * 2
+            );
+          } else {
+            // Display-only 180° half-view: the vertical base map image is
+            // shown, so keep only the half opposite the camera and let the
+            // image read as a section plane. In the VERTICAL base-map local
+            // frame the lathe is unrotated and LatheGeometry places φ ∈
+            // (−π/2, π/2) on local +Z (the image-facing side): side 1
+            // (camera in front) keeps the back half, side -1 the front one.
+            // Quantities are untouched — the headless carve/qty path builds
+            // without this option (full lathe), and the analytic surface is
+            // always full-turn.
+            const sectionSide =
+              options?.revolutionSection?.[annotation.baseMapId];
+            if (sectionSide && baseMap.orientation === "VERTICAL") {
+              partialPhi = {
+                phiStart: sectionSide === 1 ? Math.PI / 2 : -Math.PI / 2,
+                phiLength: Math.PI,
+              };
+            }
+          }
           object = buildRevolutionMesh({
             arcPoints: arcPts,
             axisPoints: axisPts,
@@ -823,6 +845,8 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
             material,
             hiddenSegmentsIdx: annotation.hiddenSegmentsIdx || [],
             ...partialPhi,
+            resolution: options?.resolution,
+            sectionFill: options?.revolutionSectionFill,
           });
           if (object) break;
         }

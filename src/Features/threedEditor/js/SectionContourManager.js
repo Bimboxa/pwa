@@ -159,6 +159,11 @@ export default class SectionContourManager {
       this.sceneManager.annotationsManager?.annotationsObjectsMap || {};
     Object.values(map).forEach((object) => {
       object?.traverse?.((child) => {
+        // Fat lines (LineSegments2) ARE isMesh but hold instanced segment
+        // geometry, not solid triangles — sectioning them yields garbage
+        // (aquarelle ink edges, revolution section markers).
+        if (child.isLine2 || child.isLineSegments2) return;
+        if (child.userData?.isSectionMarker) return;
         if (child.isMesh && child.geometry) meshes.push(child);
       });
     });
@@ -176,7 +181,10 @@ function buildContourAdjacency(segments) {
   const ensureNode = (key, position) => {
     let entry = adjacency.get(key);
     if (!entry) {
-      entry = { position: new Vector3(position.x, position.y, position.z), neighbors: new Set() };
+      entry = {
+        position: new Vector3(position.x, position.y, position.z),
+        neighbors: new Set(),
+      };
       adjacency.set(key, entry);
     }
     return entry;

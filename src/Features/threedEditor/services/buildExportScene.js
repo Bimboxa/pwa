@@ -49,7 +49,10 @@ export default function buildExportScene(
     if (
       obj.userData?.isShadowCatcher ||
       obj.userData?.isHoverOverlay ||
-      obj.userData?.isSketchEdge
+      obj.userData?.isSketchEdge ||
+      // Partial-revolution section markers (fat boundary lines + poché fill)
+      // are display-only decorations, same story as the sketch edges.
+      obj.userData?.isSectionMarker
     ) {
       return;
     }

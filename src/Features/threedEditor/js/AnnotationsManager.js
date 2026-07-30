@@ -9,6 +9,7 @@ import subtractAnnotationGeometries from "./utilsAnnotationsManager/subtractAnno
 import buildAnnotationSolidObjectsAsync from "./utilsAnnotationsManager/buildAnnotationSolidObjectsAsync";
 import buildResolvedSourceObjectAsync from "./utilsAnnotationsManager/buildResolvedSourceObjectAsync";
 import getSolidMeshFromObject3D from "./utilsAnnotationsManager/getSolidMeshFromObject3D";
+import refreshRevolutionSectionMarkers from "./utilsAnnotationsManager/refreshRevolutionSectionMarkers";
 
 import { getShape3DKey } from "Features/annotations/constants/shape3DConfig";
 import applyWorldBoxUVs from "Features/photorealRender/utils/applyWorldBoxUVs";
@@ -322,6 +323,13 @@ export default class AnnotationsManager {
                 if (child.material) child.material.dispose();
               });
             });
+
+            // Partial-revolution boundary lines were built from the analytic
+            // profile; re-derive them from the carved geometry so openings
+            // intercepted by the section plane interrupt the ink trace.
+            refreshRevolutionSectionMarkers(
+              this.annotationsObjectsMap[annotation.id]
+            );
 
             // The carve may have swapped in a freshly-built source object.
             finishRoot(this.annotationsObjectsMap[annotation.id]);

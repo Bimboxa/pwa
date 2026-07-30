@@ -12,6 +12,12 @@ export function getBuildEpochKey(options) {
     options?.realisticShading,
     options?.photorealShading,
     options?.aquarelleShading,
+    // REVOLUTION half-view (serialized {baseMapId: side} map): toggling a
+    // vertical base map image or a camera side flip changes the displayed
+    // sweep, so the lathe geometries must rebuild.
+    options?.revolutionSectionKey,
+    // "Pochage des coupes" toggle rebuilds the lathe section markers.
+    options?.revolutionSectionFill,
   ]
     .map((v) => String(v ?? ""))
     .join("|");

@@ -9,6 +9,7 @@ import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useMeshCellRelations from "Features/annotations/hooks/useMeshCellRelations";
 import useExtraBaseMapIdsIn3d from "./useExtraBaseMapIdsIn3d";
 import getBaseMapOpacityIn3d from "Features/threedEditor/utils/getBaseMapOpacityIn3d";
+import getBaseMapTransform from "Features/baseMaps/js/getBaseMapTransform";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 
@@ -44,6 +45,32 @@ export default function useAutoLoadAnnotationsInThreedEditor({
     (s) => s.threedEditor.opacityByBaseMapIdIn3d
   );
   const hiddenListingsIds = useSelector((s) => s.listings.hiddenListingsIds);
+  // REVOLUTION half-view: when a VERTICAL base map image is displayed, the
+  // revolutions built from a profile on it render only the 180° half on the
+  // side opposite the camera (the image reads as a section plane). Display
+  // only — quantities stay full-rotation because this travels as a build
+  // option, never written on the annotation, and the headless carve path
+  // (computeSubtractedSurfaceM2Async) builds without loader options.
+  const visibleBaseMapIdsIn3d = useSelector(
+    (s) => s.threedEditor.visibleBaseMapIdsIn3d
+  );
+  const hideBaseMaps = useSelector((s) => s.threedEditor.hideBaseMaps);
+  const hideMainBaseMapImageIn3d = useSelector(
+    (s) => s.threedEditor.hideMainBaseMapImageIn3d
+  );
+  const revolutionSectionSideByBaseMapId = useSelector(
+    (s) => s.threedEditor.revolutionSectionSideByBaseMapId
+  );
+  // "Révolution partielle" switch: keep the half-view even when the vertical
+  // base map image is hidden.
+  const forceRevolutionSection = useSelector(
+    (s) => s.threedEditor.forceRevolutionSectionIn3d
+  );
+  // "Pochage des coupes" switch: fill closed-profile sections of partial
+  // revolutions with a flat dark face (ink boundary lines are always on).
+  const revolutionSectionFill = useSelector(
+    (s) => s.threedEditor.revolutionSectionFillIn3d
+  );
 
   // Other base maps whose annotations are requested (mode !== NONE), excluding
   // the main one (always loaded by `filterByMainBaseMap`).
@@ -96,6 +123,53 @@ export default function useAutoLoadAnnotationsInThreedEditor({
     return annotations.filter((a) => !a.isMeshCell);
   }, [annotations, showMeshCells, parentIdSet]);
 
+  // { baseMapId: 1 | -1 } restricted to the vertical base maps whose image is
+  // visible AND that host a REVOLUTION arc without explicit partialRevolution
+  // (user-set partial angles win over the auto half-view). Restricting the
+  // map keeps the build epoch stable — a camera side flip on an unrelated
+  // base map must not rebuild the scene.
+  const revolutionSection = useMemo(() => {
+    const revBaseMapIds = new Set(
+      (annotationsForThreed || [])
+        .filter(
+          (a) =>
+            a.type === "POLYLINE" &&
+            a.shape3D?.key === "REVOLUTION" &&
+            !a.shape3D?.partialRevolution
+        )
+        .map((a) => a.baseMapId)
+    );
+    if (revBaseMapIds.size === 0) return null;
+    const mainId = mainBaseMap?.id ?? null;
+    const visible = new Set(visibleBaseMapIdsIn3d || []);
+    const out = {};
+    baseMaps.forEach((bm) => {
+      if (!revBaseMapIds.has(bm.id)) return;
+      if (getBaseMapTransform(bm).orientation !== "VERTICAL") return;
+      const eyeOn =
+        bm.id === mainId ? !hideMainBaseMapImageIn3d : visible.has(bm.id);
+      const imageDisplayed = eyeOn && !hideBaseMaps;
+      if (!imageDisplayed && !forceRevolutionSection) return;
+      out[bm.id] = revolutionSectionSideByBaseMapId?.[bm.id] ?? 1;
+    });
+    return Object.keys(out).length > 0 ? out : null;
+  }, [
+    annotationsForThreed,
+    baseMaps,
+    mainBaseMap?.id,
+    visibleBaseMapIdsIn3d,
+    hideBaseMaps,
+    hideMainBaseMapImageIn3d,
+    revolutionSectionSideByBaseMapId,
+    forceRevolutionSection,
+  ]);
+  // Serialized form for the build epoch (see getBuildEpochKey).
+  const revolutionSectionKey = revolutionSection
+    ? Object.entries(revolutionSection)
+        .map(([id, side]) => `${id}:${side}`)
+        .join("|")
+    : "";
+
   useEffect(() => {
     // While hidden, keep the scene as-is: no unload on 3D→2D, no reload on
     // background emissions (the pipeline is disabled anyway). Project /
@@ -136,6 +210,9 @@ export default function useAutoLoadAnnotationsInThreedEditor({
       realisticShading,
       photorealShading,
       aquarelleShading,
+      revolutionSection,
+      revolutionSectionKey,
+      revolutionSectionFill,
     });
     // The scene's annotation objects just changed: resync the drawing snap /
     // face-detection index. Deterministic counterpart of the 350 ms
@@ -155,6 +232,8 @@ export default function useAutoLoadAnnotationsInThreedEditor({
     realisticShading,
     photorealShading,
     aquarelleShading,
+    revolutionSectionKey,
+    revolutionSectionFill,
     extraBaseMapIds,
     baseMaps,
     mainBaseMap,

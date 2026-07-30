@@ -119,6 +119,23 @@ const threedEditorInitialState = {
     enabled: false,
     editing: false,
   },
+  // Camera side vs each VERTICAL base map plane, keyed by baseMapId.
+  // 1 = camera on the +normal (image-facing) side, -1 = behind. Maintained by
+  // useRevolutionSectionIn3d; consumed by the REVOLUTION half-view (when the
+  // base map image is displayed, revolutions render only the 180° half on the
+  // side opposite the camera so the image reads as a section plane).
+  // Session-only, display-only — quantities stay full-rotation.
+  revolutionSectionSideByBaseMapId: {},
+  // "Révolution partielle" switch (3D view settings): keep the 180° half-view
+  // of revolutions even when their vertical base map image is hidden. OFF =
+  // automatic behavior (half-view only while the image is displayed).
+  // Display-only, session-only.
+  forceRevolutionSectionIn3d: false,
+  // "Pochage des coupes" switch (3D view settings): fill the section of
+  // partial revolutions with a flat dark face when the profile is a closed
+  // contour. The ink boundary lines are always shown on partial revolutions;
+  // only the fill is optional. Display-only, session-only.
+  revolutionSectionFillIn3d: false,
   // Dimension ("cote") mode: click two mesh-snapped points to create a COTE
   // annotation (template-driven via useTemplateCoteDrawBridge, committed by
   // commitDrawnCoteService). Mutually exclusive with `drawingMode.active`
@@ -419,6 +436,24 @@ export const threedEditorSlice = createSlice({
     setDrawingAxisLock: (state, action) => {
       state.drawingMode.axisLock = action.payload;
     },
+    // Dispatched only when the camera crosses a vertical base map plane
+    // (rare) — the value feeds the annotations build epoch, so each change
+    // rebuilds the 3D objects.
+    setRevolutionSectionSide: (state, action) => {
+      const { baseMapId, side } = action.payload || {};
+      if (!baseMapId) return;
+      if (side !== 1 && side !== -1) {
+        delete state.revolutionSectionSideByBaseMapId[baseMapId];
+      } else {
+        state.revolutionSectionSideByBaseMapId[baseMapId] = side;
+      }
+    },
+    setForceRevolutionSectionIn3d: (state, action) => {
+      state.forceRevolutionSectionIn3d = Boolean(action.payload);
+    },
+    setRevolutionSectionFillIn3d: (state, action) => {
+      state.revolutionSectionFillIn3d = Boolean(action.payload);
+    },
     setClippingPlaneEnabled: (state, action) => {
       state.clippingPlane.enabled = action.payload;
       if (!action.payload) state.clippingPlane.editing = false;
@@ -642,6 +677,9 @@ export const {
   setMoveSubSelectionTarget,
   setSubSelection,
   clearSubSelection,
+  setRevolutionSectionSide,
+  setForceRevolutionSectionIn3d,
+  setRevolutionSectionFillIn3d,
   setClippingPlaneEnabled,
   setClippingPlaneEditing,
   toggleClippingPlaneEditing,

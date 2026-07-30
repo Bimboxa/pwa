@@ -8,6 +8,7 @@ import useDeleteAnnotationOnKeyboardInThreedEditor from "../hooks/useDeleteAnnot
 import useApplyBaseMapOpacityIn3d from "../hooks/useApplyBaseMapOpacityIn3d";
 import useApplyBaseMapVisibilityIn3d from "../hooks/useApplyBaseMapVisibilityIn3d";
 import useApplyBaseMapTransformsIn3d from "../hooks/useApplyBaseMapTransformsIn3d";
+import useRevolutionSectionIn3d from "../hooks/useRevolutionSectionIn3d";
 import useSyncClippingPlanTo3D from "../hooks/useSyncClippingPlanTo3D";
 import useNavigateCameraOnEvent from "../hooks/useNavigateCameraOnEvent";
 import useSelectAnnotationOnEvent from "../hooks/useSelectAnnotationOnEvent";
@@ -485,6 +486,8 @@ export default function MainThreedEditor() {
   useApplyBaseMapVisibilityIn3d({ rendererIsReady });
 
   useApplyBaseMapTransformsIn3d();
+
+  useRevolutionSectionIn3d({ rendererIsReady });
 
   useNavigateCameraOnEvent({
     threedEditor: threedEditorRef.current,
