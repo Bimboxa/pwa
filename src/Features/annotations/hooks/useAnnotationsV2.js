@@ -1572,61 +1572,6 @@ export default function useAnnotationsV2(options) {
         }
       }
 
-      // -- EXTRUSION_PROFILE SUBTRACTION SOURCES (developed surface) --
-      // For EXTRUSION_PROFILE hosts that subtract other annotations, the
-      // carved quantity is a developed surface (not a footprint). Resolve
-      // the profile length (so the base surface is computed) and run the
-      // same headless 3D carve to get the removed m². Both are stored and
-      // applied to qties in the post-processing pass. Gated to withQties.
-      if (
-        withQties &&
-        subtractionTargetIdsBySource?.size > 0 &&
-        _annotations?.length
-      ) {
-        const profileLenCache = new Map();
-        for (const a of _annotations) {
-          const targetIds = subtractionTargetIdsBySource.get(a?.id);
-          if (!targetIds || targetIds.length === 0) continue;
-          if (getShape3DKey(a.shape3D) !== "EXTRUSION_PROFILE") continue;
-          const targets = targetIds
-            .map((id) => _annotations.find((x) => x?.id === id))
-            .filter(Boolean);
-          if (targets.length === 0) continue;
-          const bm = baseMapById[a.baseMapId];
-          const imageSize = bm?.getImageSize?.() || bm?.image?.imageSize;
-          const meterByPx = bm?.getMeterByPx?.();
-          if (!imageSize?.width || !meterByPx) continue;
-          const baseMapForRender = {
-            imageWidth: imageSize.width,
-            imageHeight: imageSize.height,
-            meterByPx,
-          };
-          const tplId = a.shape3D?.profileTemplateId;
-          if (tplId) {
-            let plm = profileLenCache.get(tplId);
-            if (plm === undefined) {
-              const res = await resolveProfileFromDb(tplId);
-              plm = res?.profileLengthMeters ?? null;
-              profileLenCache.set(tplId, plm);
-            }
-            if (plm != null) a._profileLengthMeters = plm;
-          }
-          try {
-            const removed = await computeSubtractedSurfaceM2Async(
-              a,
-              baseMapForRender,
-              targets
-            );
-            if (removed != null) a._subtractedSurfaceM2 = removed;
-          } catch (e) {
-            console.error(
-              "[useAnnotationsV2] profile subtraction qty failed",
-              e
-            );
-          }
-        }
-      }
-
       // -- REVOLUTION (axis-based) resolution --
       // For arcs whose shape3D references a REVOLUTION_AXIS, attach:
       //   - revolutionAxisPoints: the axis line resolved to pixels (same
@@ -1696,6 +1641,80 @@ export default function useAnnotationsV2(options) {
                 z: local.z,
               };
             }
+          }
+        }
+      }
+
+      // -- OPEN-SURFACE SUBTRACTION SOURCES (developed surface) --
+      // For EXTRUSION_PROFILE / REVOLUTION hosts that subtract other
+      // annotations, the carved quantity is a developed surface (not a
+      // footprint), so run the same headless 3D carve as the display.
+      // Profiles additionally resolve the profile length (base surface) and
+      // store the REMOVED m² (deducted from the analytic surface in the
+      // post-processing pass); revolutions store the CARVED mesh
+      // triangle-sum, used directly as the surface. Gated to withQties.
+      // Must run AFTER the revolution axis resolution above — the lathe
+      // builder needs `revolutionAxisPoints`.
+      if (
+        withQties &&
+        subtractionTargetIdsBySource?.size > 0 &&
+        _annotations?.length
+      ) {
+        const profileLenCache = new Map();
+        for (const a of _annotations) {
+          const targetIds = subtractionTargetIdsBySource.get(a?.id);
+          if (!targetIds || targetIds.length === 0) continue;
+          const shapeKey = getShape3DKey(a.shape3D);
+          if (!["EXTRUSION_PROFILE", "REVOLUTION"].includes(shapeKey))
+            continue;
+          const targets = targetIds
+            .map((id) => _annotations.find((x) => x?.id === id))
+            .filter(Boolean);
+          if (targets.length === 0) continue;
+          const bm = baseMapById[a.baseMapId];
+          const imageSize = bm?.getImageSize?.() || bm?.image?.imageSize;
+          const meterByPx = bm?.getMeterByPx?.();
+          if (!imageSize?.width || !meterByPx) continue;
+          const baseMapForRender = {
+            imageWidth: imageSize.width,
+            imageHeight: imageSize.height,
+            meterByPx,
+            // Needed by REVOLUTION: the lathe axis follows the base map
+            // normal (HORIZONTAL) or local +Y (VERTICAL) — must match the
+            // scene build so the headless carve cuts the same hole.
+            orientation: bm?.orientation,
+          };
+          const tplId =
+            shapeKey === "EXTRUSION_PROFILE"
+              ? a.shape3D?.profileTemplateId
+              : null;
+          if (tplId) {
+            let plm = profileLenCache.get(tplId);
+            if (plm === undefined) {
+              const res = await resolveProfileFromDb(tplId);
+              plm = res?.profileLengthMeters ?? null;
+              profileLenCache.set(tplId, plm);
+            }
+            if (plm != null) a._profileLengthMeters = plm;
+          }
+          try {
+            const res = await computeSubtractedSurfaceM2Async(
+              a,
+              baseMapForRender,
+              targets
+            );
+            if (res) {
+              if (shapeKey === "EXTRUSION_PROFILE") {
+                a._subtractedSurfaceM2 = res.removedM2;
+              } else {
+                a._carvedSurfaceM2 = res.carvedM2;
+              }
+            }
+          } catch (e) {
+            console.error(
+              "[useAnnotationsV2] profile subtraction qty failed",
+              e
+            );
           }
         }
       }
@@ -2047,6 +2066,25 @@ export default function useAnnotationsV2(options) {
             }
             if (Number.isFinite(q.surfaceDeveloped)) {
               q.surfaceDeveloped = Math.max(0, q.surfaceDeveloped - removed);
+            }
+            withSub.qties = q;
+          }
+
+          // REVOLUTION hosts: the carved surface IS the triangle-sum of the
+          // carved lathe mesh (precomputed as `_carvedSurfaceM2`) — replaces
+          // the analytic Pappus value so the qty matches the 3D mesh exactly.
+          if (
+            withQties &&
+            subtractionTargets.length > 0 &&
+            getShape3DKey(a?.shape3D) === "REVOLUTION" &&
+            a?._carvedSurfaceM2 > 0 &&
+            withSub.qties
+          ) {
+            const carved = a._carvedSurfaceM2;
+            const q = { ...withSub.qties };
+            if (Number.isFinite(q.surface)) q.surface = carved;
+            if (Number.isFinite(q.surfaceDeveloped)) {
+              q.surfaceDeveloped = carved;
             }
             withSub.qties = q;
           }

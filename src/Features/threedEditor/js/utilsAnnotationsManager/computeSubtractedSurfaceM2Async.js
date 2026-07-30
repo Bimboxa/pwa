@@ -2,7 +2,7 @@ import { Vector3 } from "three";
 
 import { getShape3DKey } from "Features/annotations/constants/shape3DConfig";
 
-import getSolidMeshFromObject3D from "./getSolidMeshFromObject3D";
+import { getSolidMeshesFromObject3D } from "./getSolidMeshFromObject3D";
 import buildResolvedSourceObjectAsync from "./buildResolvedSourceObjectAsync";
 import buildAnnotationSolidObjectsAsync from "./buildAnnotationSolidObjectsAsync";
 import subtractAnnotationGeometries from "./subtractAnnotationGeometries";
@@ -49,17 +49,19 @@ function disposeObject(object) {
 
 /**
  * Headless: build the source's swept surface + the target solids, run the same
- * 3D boolean carve, and return the developed-surface area REMOVED by the
- * subtraction (m²) = uncarved mesh area − carved mesh area.
+ * 3D boolean carve, and return the developed-surface areas (m²): the area
+ * REMOVED by the subtraction plus the carved / uncarved mesh triangle-sums it
+ * derives from.
  *
- * Only meaningful for open-surface (EXTRUSION_PROFILE) sources, whose quantity
- * is a developed/lateral surface (not a planar footprint). Returns null
- * otherwise.
+ * Only meaningful for open-surface (EXTRUSION_PROFILE swept surface,
+ * REVOLUTION lathe shell) sources, whose quantity is a developed/lateral
+ * surface (not a planar footprint). Returns null otherwise. REVOLUTION
+ * sources need `revolutionAxisPoints` already resolved on the annotation.
  *
  * @param {Object} sourceAnnotation     pixel-resolved source annotation
  * @param {{imageWidth,imageHeight,meterByPx}} baseMapForRender
  * @param {Array<Object>} targetAnnotations pixel-resolved subtraction targets
- * @returns {Promise<number|null>} removed surface in m², or null
+ * @returns {Promise<{removedM2:number, carvedM2:number, uncarvedM2:number}|null>}
  */
 // Module-level memo: the same (host + targets) carve is requested by several
 // withQties useAnnotationsV2 instances and across re-renders. Key on the fields
@@ -70,9 +72,13 @@ const MAX_CACHE = 200;
 function cacheKey(source, baseMapForRender, targets) {
   return JSON.stringify({
     s: [source.id, source.updatedAt, source.extrusionOrientation],
+    // REVOLUTION radius depends on the axis line, whose edits don't touch the
+    // arc's own updatedAt — key on the resolved axis coordinates.
+    a: (source.revolutionAxisPoints || []).map((p) => [p.x, p.y]),
     m: baseMapForRender.meterByPx,
     w: baseMapForRender.imageWidth,
     h: baseMapForRender.imageHeight,
+    o: baseMapForRender.orientation,
     t: targets.map((t) => [t.id, t.updatedAt, t.height]),
   });
 }
@@ -82,7 +88,8 @@ export default async function computeSubtractedSurfaceM2Async(
   baseMapForRender,
   targetAnnotations
 ) {
-  if (getShape3DKey(sourceAnnotation?.shape3D) !== "EXTRUSION_PROFILE") {
+  const shapeKey = getShape3DKey(sourceAnnotation?.shape3D);
+  if (!["EXTRUSION_PROFILE", "REVOLUTION"].includes(shapeKey)) {
     return null;
   }
   if (!targetAnnotations?.length || !baseMapForRender?.meterByPx) return null;
@@ -99,9 +106,11 @@ export default async function computeSubtractedSurfaceM2Async(
       baseMapForRender,
       { disableOpacity: true }
     );
-    const mesh = sourceObj && getSolidMeshFromObject3D(sourceObj);
-    if (!mesh) return null;
-    const uncarvedArea = geometryArea(mesh.geometry);
+    const meshes = sourceObj ? getSolidMeshesFromObject3D(sourceObj) : [];
+    if (meshes.length === 0) return null;
+    const sumArea = (list) =>
+      list.reduce((s, m) => s + geometryArea(m.geometry), 0);
+    const uncarvedArea = sumArea(meshes);
     if (uncarvedArea <= 0) return null;
 
     targetObjs = (
@@ -122,10 +131,15 @@ export default async function computeSubtractedSurfaceM2Async(
     // no-op and the carved geometry stays in meters.
     subtractAnnotationGeometries(sourceObj, targetObjs, { hollow: true });
 
-    const carvedMesh = getSolidMeshFromObject3D(sourceObj);
-    const carvedArea = carvedMesh ? geometryArea(carvedMesh.geometry) : uncarvedArea;
+    const carvedMeshes = getSolidMeshesFromObject3D(sourceObj);
+    const carvedArea =
+      carvedMeshes.length > 0 ? sumArea(carvedMeshes) : uncarvedArea;
 
-    result = Math.max(0, uncarvedArea - carvedArea);
+    result = {
+      removedM2: Math.max(0, uncarvedArea - carvedArea),
+      carvedM2: carvedArea,
+      uncarvedM2: uncarvedArea,
+    };
     // Memoize successful results (skip caching on error so it can retry).
     if (_cache.size >= MAX_CACHE) _cache.clear();
     _cache.set(key, result);

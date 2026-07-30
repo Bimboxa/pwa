@@ -6,7 +6,7 @@ import {
   HOLLOW_SUBTRACTION,
 } from "three-bvh-csg";
 
-import getSolidMeshFromObject3D from "./getSolidMeshFromObject3D";
+import { getSolidMeshesFromObject3D } from "./getSolidMeshFromObject3D";
 
 // Strip everything but position/normal and clear draw groups so Brush gets a
 // clean triangle soup. Mutates+returns the passed geometry.
@@ -40,12 +40,14 @@ function collectMeshes(object) {
 }
 
 /**
- * Carve `targetObjects` out of `sourceObject`'s solid mesh with a 3D boolean
- * SUBTRACTION. Both source and targets are read in WORLD space (each mesh's
- * own matrixWorld), so the operands share a frame no matter how the objects are
- * parented; the world-space result is then mapped back into the source mesh's
- * LOCAL frame and assigned without touching the mesh transform — so the carved
- * mesh renders in exactly the same place as before (no dislocation).
+ * Carve `targetObjects` out of `sourceObject`'s solid mesh(es) with a 3D
+ * boolean SUBTRACTION. Every `role === "SOLID"` mesh in the source is carved
+ * (a REVOLUTION with hidden segments emits one lathe mesh per run). Both
+ * source and targets are read in WORLD space (each mesh's own matrixWorld), so
+ * the operands share a frame no matter how the objects are parented; the
+ * world-space result is then mapped back into each source mesh's LOCAL frame
+ * and assigned without touching the mesh transform — so the carved mesh
+ * renders in exactly the same place as before (no dislocation).
  *
  * IMPORTANT: callers must have attached source + target objects to their final
  * parents (and the parents' matrices updated) BEFORE calling, so matrixWorld is
@@ -65,64 +67,86 @@ export default function subtractAnnotationGeometries(
   const targets = (targetObjects || []).filter(Boolean);
   if (targets.length === 0) return sourceObject;
 
-  const sourceMesh = getSolidMeshFromObject3D(sourceObject);
-  if (!sourceMesh) return sourceObject;
+  const sourceMeshes = getSolidMeshesFromObject3D(sourceObject);
+  if (sourceMeshes.length === 0) return sourceObject;
 
-  // For an OPEN surface source (e.g. an EXTRUSION_PROFILE swept surface), use
-  // HOLLOW_SUBTRACTION: it only clips the source triangles and does NOT add the
-  // target's cap faces (which a regular SUBTRACTION inserts to close a volume —
-  // showing up as stray triangles rendered in the source's material). Closed
-  // solids (POLYGON / RECTANGLE) use a normal SUBTRACTION.
+  // For an OPEN surface source (e.g. an EXTRUSION_PROFILE swept surface or a
+  // REVOLUTION lathe shell), use HOLLOW_SUBTRACTION: it only clips the source
+  // triangles and does NOT add the target's cap faces (which a regular
+  // SUBTRACTION inserts to close a volume — showing up as stray triangles
+  // rendered in the source's material). Closed solids (POLYGON / RECTANGLE)
+  // use a normal SUBTRACTION.
   const operation = options.hollow ? HOLLOW_SUBTRACTION : SUBTRACTION;
 
   try {
-    sourceMesh.updateMatrixWorld(true);
-    const worldToLocal = new Matrix4().copy(sourceMesh.matrixWorld).invert();
-
     const evaluator = new Evaluator();
     evaluator.attributes = ["position", "normal"];
     evaluator.useGroups = false;
 
-    // Source brush in WORLD space (identity brush matrix → operates in world).
-    let resultBrush = new Brush(worldGeometry(sourceMesh));
-    resultBrush.updateMatrixWorld();
-
-    let didSubtract = false;
+    // Target brushes in WORLD space, built once and reused across source
+    // meshes (evaluate does not mutate the target brush).
+    const targetBrushes = [];
     for (const targetObject of targets) {
       for (const targetMesh of collectMeshes(targetObject)) {
         const targetBrush = new Brush(worldGeometry(targetMesh));
         targetBrush.updateMatrixWorld();
-        resultBrush = evaluator.evaluate(resultBrush, targetBrush, operation);
-        didSubtract = true;
+        targetBrushes.push(targetBrush);
       }
     }
-    if (!didSubtract || !resultBrush.geometry) return sourceObject;
+    if (targetBrushes.length === 0) return sourceObject;
 
-    // World-space result → source mesh LOCAL frame, so the (untouched) source
-    // mesh transform places it back exactly where the original geometry was.
-    const resultGeom = resultBrush.geometry;
-    resultGeom.applyMatrix4(worldToLocal);
+    let didSubtract = false;
+    for (const sourceMesh of sourceMeshes) {
+      sourceMesh.updateMatrixWorld(true);
+      const worldToLocal = new Matrix4().copy(sourceMesh.matrixWorld).invert();
 
-    const oldGeom = sourceMesh.geometry;
-    sourceMesh.geometry = resultGeom;
-    oldGeom?.dispose?.();
+      // Source brush in WORLD space (identity brush matrix → operates in world).
+      let resultBrush = new Brush(worldGeometry(sourceMesh));
+      resultBrush.updateMatrixWorld();
+
+      for (const targetBrush of targetBrushes) {
+        resultBrush = evaluator.evaluate(resultBrush, targetBrush, operation);
+      }
+      if (!resultBrush.geometry) continue;
+
+      // World-space result → source mesh LOCAL frame, so the (untouched)
+      // source mesh transform places it back exactly where the original
+      // geometry was.
+      const resultGeom = resultBrush.geometry;
+      resultGeom.applyMatrix4(worldToLocal);
+
+      const oldGeom = sourceMesh.geometry;
+      sourceMesh.geometry = resultGeom;
+      oldGeom?.dispose?.();
+
+      sourceMesh.userData = {
+        ...(sourceMesh.userData ?? {}),
+        role: "SOLID",
+        hasSubtraction: true,
+      };
+      didSubtract = true;
+    }
+    if (!didSubtract) return sourceObject;
 
     // Remove stale decoration children (edges / iso lines drawn from the
-    // original, un-carved outline).
+    // original, un-carved outline), keeping every carved mesh (or any child
+    // whose subtree holds one).
     if (sourceObject.children) {
-      const toRemove = sourceObject.children.filter((c) => c !== sourceMesh);
+      const keep = new Set(sourceMeshes);
+      const holdsCarvedMesh = (obj) => {
+        let found = false;
+        obj.traverse?.((c) => {
+          if (keep.has(c)) found = true;
+        });
+        return found;
+      };
+      const toRemove = sourceObject.children.filter((c) => !holdsCarvedMesh(c));
       for (const child of toRemove) {
         child.geometry?.dispose?.();
         child.material?.dispose?.();
         sourceObject.remove(child);
       }
     }
-
-    sourceMesh.userData = {
-      ...(sourceMesh.userData ?? {}),
-      role: "SOLID",
-      hasSubtraction: true,
-    };
 
     return sourceObject;
   } catch (e) {

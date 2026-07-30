@@ -135,7 +135,11 @@ export default function buildRevolutionMesh({
     if (axisAlongNormal) geom.rotateX(Math.PI / 2);
     geom.translate(center.x, center.y, center.z ?? 0);
     geom.computeVertexNormals();
-    group.add(new Mesh(geom, surfMat));
+    const mesh = new Mesh(geom, surfMat);
+    // Tag every run so the carve pipeline finds ALL lathe surfaces (not just
+    // the first mesh) — see getSolidMeshesFromObject3D.
+    mesh.userData.role = "SOLID";
+    group.add(mesh);
     group.add(new LineSegments(new EdgesGeometry(geom), EDGE_MATERIAL));
   }
   return group;

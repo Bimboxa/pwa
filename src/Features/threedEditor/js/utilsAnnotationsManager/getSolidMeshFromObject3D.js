@@ -24,3 +24,23 @@ export default function getSolidMeshFromObject3D(object) {
   if (object.isMesh && !firstMesh) firstMesh = object;
   return tagged || firstMesh || null;
 }
+
+/**
+ * All the "solid" fill Meshes inside an annotation Object3D — a builder may
+ * emit several (e.g. one lathe Mesh per non-hidden run of a REVOLUTION).
+ * Every `role === "SOLID"` mesh is returned; when none is tagged, falls back
+ * to the single getSolidMeshFromObject3D result.
+ *
+ * @param {import("three").Object3D} object
+ * @returns {Array<import("three").Mesh>}
+ */
+export function getSolidMeshesFromObject3D(object) {
+  if (!object) return [];
+  const tagged = [];
+  object.traverse?.((child) => {
+    if (child.isMesh && child.userData?.role === "SOLID") tagged.push(child);
+  });
+  if (tagged.length > 0) return tagged;
+  const single = getSolidMeshFromObject3D(object);
+  return single ? [single] : [];
+}

@@ -304,11 +304,13 @@ export default class AnnotationsManager {
             targetObjects.forEach((o) => parent.add(o));
             parent.updateMatrixWorld(true);
 
-            // Open-surface sources (swept EXTRUSION_PROFILE) must use a hollow
-            // subtraction so the boolean only clips the surface and doesn't add
-            // the target's cap faces (stray triangles in the source material).
-            const hollow =
-              getShape3DKey(annotation.shape3D) === "EXTRUSION_PROFILE";
+            // Open-surface sources (swept EXTRUSION_PROFILE, lathe REVOLUTION
+            // shells) must use a hollow subtraction so the boolean only clips
+            // the surface and doesn't add the target's cap faces (stray
+            // triangles in the source material).
+            const hollow = ["EXTRUSION_PROFILE", "REVOLUTION"].includes(
+              getShape3DKey(annotation.shape3D)
+            );
             subtractAnnotationGeometries(carveTarget, targetObjects, {
               hollow,
             });

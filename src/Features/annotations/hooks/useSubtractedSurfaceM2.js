@@ -53,7 +53,7 @@ export default function useSubtractedSurfaceM2(annotation) {
     };
     computeSubtractedSurfaceM2Async(annotation, baseMapForRender, targets).then(
       (v) => {
-        if (!cancelled) setRemovedM2(v || 0);
+        if (!cancelled) setRemovedM2(v?.removedM2 || 0);
       }
     );
     return () => {
