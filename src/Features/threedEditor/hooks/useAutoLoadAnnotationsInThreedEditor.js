@@ -52,6 +52,19 @@ export default function useAutoLoadAnnotationsInThreedEditor({
 
   const extraBaseMapIds = useExtraBaseMapIdsIn3d();
 
+  // Photo baseMaps: their annotations reach the 3D emission unconditionally —
+  // calibrated ones are reconstructed on their photoPlan's world pose, the
+  // rest silently bail in AnnotationsManager (no baseMap group). Photos have
+  // no display-mode entry of their own in annotationsModeByBaseMapIdIn3d.
+  const photoBaseMapIdsKey = baseMaps
+    .filter((b) => b?.isPhoto && b.id !== mainBaseMap?.id)
+    .map((b) => b.id)
+    .join(",");
+  const extraBaseMapIdsWithPhotos = useMemo(() => {
+    const photoIds = photoBaseMapIdsKey ? photoBaseMapIdsKey.split(",") : [];
+    return [...new Set([...extraBaseMapIds, ...photoIds])];
+  }, [extraBaseMapIds, photoBaseMapIdsKey]);
+
   const annotations = useAnnotationsV2({
     caller: "MainThreedEditor",
     enabled: isActiveViewer,
@@ -59,7 +72,7 @@ export default function useAutoLoadAnnotationsInThreedEditor({
     excludeListingsIds: hiddenListingsIds,
     hideBaseMapAnnotations: true,
     filterByMainBaseMap: true,
-    extraBaseMapIds,
+    extraBaseMapIds: extraBaseMapIdsWithPhotos,
     filterBySelectedScope: true,
     sortByOrderIndex: true,
     excludeIsForBaseMapsListings: true,

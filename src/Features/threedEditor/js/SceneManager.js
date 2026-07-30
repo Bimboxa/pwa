@@ -11,6 +11,7 @@ import {
 import ControlsManager from "./ControlsManager";
 import ImagesManager from "./ImagesManager";
 import AnnotationsManager from "./AnnotationsManager";
+import PhotoPlansManager from "./PhotoPlansManager";
 import TransformControlsManager from "./TransformControlsManager";
 import ClippingManager from "./ClippingManager";
 import SectionContourManager from "./SectionContourManager";
@@ -37,6 +38,9 @@ export default class SceneManager {
 
     this.imagesManager = new ImagesManager({ sceneManager: this });
     this.annotationsManager = new AnnotationsManager({ sceneManager: this });
+    // Textured planes of calibrated photoPlans (photo baseMaps have no flat
+    // plane in the scene — these are their 3D presence).
+    this.photoPlansManager = new PhotoPlansManager({ sceneManager: this });
     this.controlsManager = new ControlsManager({ sceneManager: this });
     this.transformControlsManager = new TransformControlsManager({
       sceneManager: this,

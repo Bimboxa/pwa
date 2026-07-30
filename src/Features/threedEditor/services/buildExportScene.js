@@ -9,9 +9,12 @@ import { getActiveThreedEditor } from "./threedEditorRegistry";
 function collectRoots(sceneManager, { excludeBaseMaps = false } = {}) {
   const annots = sceneManager.annotationsManager?.annotationsObjectsMap || {};
   const roots = [...Object.values(annots)];
+  // Textured photoPlan planes count as basemap-like content.
   if (!excludeBaseMaps) {
     const images = sceneManager.imagesManager?.imagesMap || {};
     roots.unshift(...Object.values(images));
+    const photoPlans = sceneManager.photoPlansManager?.objectsMap || {};
+    roots.push(...Object.values(photoPlans));
   }
   return roots.filter(Boolean);
 }

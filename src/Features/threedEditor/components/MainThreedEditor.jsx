@@ -3,6 +3,7 @@ import { useDispatch, useSelector, useStore } from "react-redux";
 import { Box3, Raycaster, Vector2, Vector3 } from "three";
 
 import useAutoLoadMapsInThreedEditor from "../hooks/useAutoLoadMapsInThreedEditor";
+import useAutoLoadPhotoPlansInThreedEditor from "../hooks/useAutoLoadPhotoPlansInThreedEditor";
 import useAutoLoadAnnotationsInThreedEditor from "../hooks/useAutoLoadAnnotationsInThreedEditor";
 import useDeleteAnnotationOnKeyboardInThreedEditor from "../hooks/useDeleteAnnotationOnKeyboardInThreedEditor";
 import useApplyBaseMapOpacityIn3d from "../hooks/useApplyBaseMapOpacityIn3d";
@@ -476,6 +477,11 @@ export default function MainThreedEditor() {
   }, [containerElExists]);
 
   useAutoLoadMapsInThreedEditor({
+    threedEditor: threedEditorRef.current,
+    rendererIsReady,
+  });
+
+  useAutoLoadPhotoPlansInThreedEditor({
     threedEditor: threedEditorRef.current,
     rendererIsReady,
   });

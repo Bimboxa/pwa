@@ -1,6 +1,7 @@
 import { Vector2 } from "three";
 
 import createAnnotationObject3D from "./utilsAnnotationsManager/createAnnotationObject3D";
+import createPhotoPlanObject3D from "./utilsAnnotationsManager/createPhotoPlanObject3D";
 import diffAnnotationsForBuild, {
   getBuildEpochKey,
 } from "./utilsAnnotationsManager/diffAnnotationsForBuild";
@@ -33,6 +34,20 @@ export default class AnnotationsManager {
   // late-set meterByPx), so it is tracked separately. Mirrors the
   // baseMapForRender fields computed in _createAnnotationsObjectsCore.
   _getAnnotationBaseMapKey(annotation) {
+    // Photo-plan reconstructions have no baseMap group: the build frame is
+    // the photoPlan's world pose (a recalibration also changes _photoPlan3D,
+    // hence the annotation identity — this key is belt and braces).
+    if (annotation._photoPlan3D?.pose) {
+      const { origin, uDir } = annotation._photoPlan3D.pose;
+      return [
+        "photoPlan",
+        origin.x,
+        origin.y,
+        origin.z,
+        uDir.x,
+        uDir.z,
+      ].join(":");
+    }
     const baseMap =
       this.sceneManager.imagesManager.baseMapsMap[annotation.baseMapId];
     if (!baseMap) return null;
@@ -158,6 +173,30 @@ export default class AnnotationsManager {
     };
 
     annotations.forEach((annotation) => {
+      // Photo-baseMap annotations attached to a calibrated photoPlan: built
+      // in the plane's own world frame (posed wrapper Group) and added to
+      // the scene root — photo baseMaps have no group in the scene, so the
+      // generic path below would (rightly) bail on them.
+      if (annotation._photoPlan3D) {
+        const object = createPhotoPlanObject3D(annotation, {
+          ...options,
+          resolution,
+        });
+        if (!object) return;
+        finishRoot(object);
+        this.annotationsObjectsMap[annotation.id] = object;
+        this._buildStateById.set(annotation.id, {
+          sourceRef: annotation,
+          epochKey,
+          baseMapKey: this._getAnnotationBaseMapKey(annotation),
+        });
+        object.userData.baseMapId = annotation.baseMapId;
+        object.userData.soloDimmed = Boolean(annotation._soloDimmed);
+        this.scene.add(object);
+        this._notifyAnnotationReady(annotation.id);
+        return;
+      }
+
       const baseMap =
         this.sceneManager.imagesManager.baseMapsMap[annotation.baseMapId];
       if (!baseMap) return;
