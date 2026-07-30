@@ -37,10 +37,11 @@ export default function useSwitchViewer() {
 
     const targetModule = viewers.find((v) => v.key === viewerKey);
     const editors = targetModule?.editors ?? [viewerKey];
-    // The target module's 2D editor key (MAP for Dessin/POV, ZONES for Zones).
+    // The target module's 2D editor key — "MAP" for every multi-editor module
+    // (Dessin, POV, Viewer, Zones): they all display the single shared
+    // MainMapEditorV3 instance, hence one camera frame across modules.
     const target2dEditorKey = editors.find((e) => !isThreedFamilyViewerKey(e));
-    // 2D map-family editors share the same camera frame (MainMapEditorV3).
-    const from2dMapEditor = ["MAP", "ZONES"].includes(effectiveFromKey);
+    const from2dMapEditor = effectiveFromKey === "MAP";
 
     // Resolve the editor the target module will display.
     let targetEditorKey;
@@ -87,7 +88,7 @@ export default function useSwitchViewer() {
 
     if (from2dMapEditor && toThreed) {
       switchMapToThreed({ dispatch, baseMap, basePose, commit });
-    } else if (fromThreed && ["MAP", "ZONES"].includes(targetEditorKey)) {
+    } else if (fromThreed && targetEditorKey === "MAP") {
       switchThreedToMap({ dispatch, baseMap, basePose, commit });
     } else {
       commit(dispatch);

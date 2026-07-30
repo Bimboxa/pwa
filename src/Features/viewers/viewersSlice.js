@@ -13,11 +13,11 @@ const viewersInitialState = {
   // lives in useLandingViewerModuleOnScopeOpen).
   selectedViewerKey: getInitSelectedModuleKey() ?? "MAP",
   // Active editor inside multi-editor modules (generalizes pov.viewerMode):
-  // the Dessin and Viewer modules can display the 2D map editor or the 3D
-  // editor. THREED is seeded so selectEffectiveViewerKey never falls back to
-  // the module key ("THREED" module without an entry would be fine, but the
-  // Viewer module's 2D editor is "MAP", not its own key). Restored from
-  // localStorage (the getter always merges over the seeded defaults).
+  // the Dessin, Viewer and Zones modules can display the 2D map editor or the
+  // 3D editor. THREED and ZONES are seeded so selectEffectiveViewerKey never
+  // falls back to the module key (the Viewer and Zones modules' 2D editor is
+  // the shared "MAP" instance, not their own key). Restored from localStorage
+  // (the getter always merges over the seeded defaults).
   editorKeyByModule: getInitEditorKeyByModule(),
   viewerReturnContext: null, // { fromViewer, portfolioId, listingId, ... }
   // Annotation-less baseMaps pinned into the Viewer module's chips band

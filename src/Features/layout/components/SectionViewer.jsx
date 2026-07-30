@@ -1,6 +1,7 @@
 import { useSelector } from "react-redux";
 
 import BoxCenter from "./BoxCenter";
+import BoxFlexVStretch from "./BoxFlexVStretch";
 import PanelShowable from "./PanelShowable";
 import MainMapEditorV2 from "Features/mapEditor/components/MainMapEditorV2";
 import MainMapEditorV3 from "Features/mapEditor/components/MainMapEditorV3";
@@ -10,7 +11,6 @@ import MainGoogleMapEditor from "Features/gmap/components/MainGoogleMapEditor";
 import TableViewer from "Features/tables/components/ViewerTable";
 import MainPortfolioEditor from "Features/portfolioEditor/components/MainPortfolioEditor";
 import MainBaseMapViewer from "Features/baseMapEditor/components/MainBaseMapViewer";
-import MainZonesViewer from "Features/zonings/components/MainZonesViewer";
 import ZoningsTree from "Features/zonings/components/ZoningsTree";
 import ViewerAdmin from "Features/adminEditor/components/ViewerAdmin";
 import MainListingViewer from "Features/listingViewer/components/MainListingViewer";
@@ -39,9 +39,9 @@ export default function SectionViewer() {
 
   // helpers
 
-  // viewerKey is the selected MODULE; multi-editor modules (Dessin, POV)
-  // resolve to the editor they display (the disable3D fallback to MAP is
-  // centralized in the selector).
+  // viewerKey is the selected MODULE; multi-editor modules (Dessin, POV,
+  // Viewer, Zones) resolve to the editor they display (the disable3D fallback
+  // to MAP is centralized in the selector).
   const isPov = viewerKey === "POINT_OF_VIEW";
   const effectiveKey = useSelector(selectEffectiveViewerKey);
   // The POV capture frame is armed on demand: without it, the module shows the
@@ -60,12 +60,10 @@ export default function SectionViewer() {
   const showTable = viewerKey === "TABLE";
   const showPortfolio = viewerKey === "PORTFOLIO";
   const showBaseMaps = viewerKey === "BASE_MAPS";
-  // ZONES is multi-editor (T toggle): its 2D viewer hides when the module
-  // displays the 3D editor; the zones drawer then moves to the 3D branch.
-  const showZones =
-    viewerKey === "ZONES" && !isThreedFamilyViewerKey(effectiveKey);
-  const showZonesIn3d =
-    viewerKey === "ZONES" && isThreedFamilyViewerKey(effectiveKey);
+  // ZONES is multi-editor (T toggle) and owns no editor of its own: its 2D
+  // editor IS the shared map editor above (so `Z` keeps the camera framing),
+  // its 3D editor the shared 3D one. Only the zonings drawer is module-specific.
+  const isZonesModule = viewerKey === "ZONES";
   const showListing = viewerKey === "LISTING";
   const showAdmin = viewerKey === "ADMIN";
   // Viewer module, 2D editor: the chips band replaces the topbar baseMap
@@ -98,6 +96,20 @@ export default function SectionViewer() {
         </LeftDrawerPanel>
       )}
 
+      {/* Zonings tree: same in-flow sibling pattern as the POV drawer, so it
+          serves both the 2D and the 3D editor of the module. The isZonesModule
+          guard is load-bearing — in docked mode LeftDrawerPanel renders its
+          fixed-width box without checking viewerKey. */}
+      {isZonesModule && (
+        <LeftDrawerPanel width={300} viewerKey="ZONES">
+          <BoxFlexVStretch sx={{ height: 1 }}>
+            <BoxFlexVStretch sx={{ overflow: "auto" }}>
+              <ZoningsTree />
+            </BoxFlexVStretch>
+          </BoxFlexVStretch>
+        </LeftDrawerPanel>
+      )}
+
       <Box sx={{ flex: 1, minWidth: 0, height: 1, position: "relative" }}>
       <PanelShowable show={showMap} sx={{ position: "absolute", zIndex: 0 }}>
         {legacy ? <MainMapEditorV2 /> : <MainMapEditorV3 />}
@@ -118,11 +130,6 @@ export default function SectionViewer() {
           {showMeshes && (
             <LeftDrawerPanel width={280} viewerKey="MESHES">
               <PanelMeshesViewer />
-            </LeftDrawerPanel>
-          )}
-          {showZonesIn3d && (
-            <LeftDrawerPanel width={300} viewerKey="ZONES">
-              <ZoningsTree />
             </LeftDrawerPanel>
           )}
           <Box sx={{ flex: 1, minWidth: 0, position: "relative" }}>
@@ -149,10 +156,6 @@ export default function SectionViewer() {
 
       {showBaseMaps && <PanelShowable show={showBaseMaps} sx={{ position: "absolute", zIndex: 0 }}>
         <MainBaseMapViewer />
-      </PanelShowable>}
-
-      {showZones && <PanelShowable show={showZones} sx={{ position: "absolute", zIndex: 0 }}>
-        <MainZonesViewer />
       </PanelShowable>}
 
       {showListing && <PanelShowable show={showListing} sx={{ position: "absolute", zIndex: 0 }}>

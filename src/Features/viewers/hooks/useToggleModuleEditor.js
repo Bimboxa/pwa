@@ -28,8 +28,9 @@ export default function useToggleModuleEditor() {
 
   return function toggleModuleEditor() {
     if (effectiveViewerKey === "THREED") {
-      // The module's 2D editor key (MAP → MAP, ZONES → ZONES, Viewer/THREED
-      // module → MAP — MainMapEditorV3 forViewerKey="ZONES" for Zones).
+      // The module's 2D editor key: "MAP" for every multi-editor module — they
+      // all display the single shared MainMapEditorV3 instance, which is the
+      // one registered in mapEditorRegistry and synced by switchThreedToMap.
       const module = viewers.find((v) => v.key === moduleKey);
       const editor2dKey =
         module?.editors?.find((e) => !isThreedFamilyViewerKey(e)) ?? moduleKey;

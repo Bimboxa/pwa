@@ -98,7 +98,12 @@ export default function useViewers() {
       icon: <AccountTree />,
       bgcolor: theme.palette.viewers.zones,
       hotkey: "Z",
-      editors: ["ZONES", "THREED"],
+      // 2D editor = "MAP": the module displays the shared MainMapEditorV3
+      // instance (like Dessin / POV / Viewer) so entering the module keeps the
+      // camera framing. The zonings tree is mounted beside it in SectionViewer.
+      editors: ["MAP", "THREED"],
+      // Relies on the V3 map editor (the legacy branch renders V2).
+      disabled: legacy,
     },
     {
       key: "LISTING",
