@@ -1,5 +1,7 @@
 import { createSlice } from "@reduxjs/toolkit";
 
+import { setSelectedViewerKey } from "Features/viewers/viewersSlice";
+
 //import demoAnnotation from "./data/demoAnnotation";
 
 const annotationsInitialState = {
@@ -31,6 +33,12 @@ const annotationsInitialState = {
   //
   openDialogDeleteSelectedAnnotation: false,
   openDialogSaveTempAnnotations: false,
+  //
+  // Template FOCUS (Dessin module's recap panel): only the annotations of
+  // this template stay visible (2D) / undimmed (3D). Applied in
+  // useAnnotationsV2 next to the zone solo, same ignoreSolo/keepSoloDimmed
+  // semantics.
+  soloAnnotationTemplateId: null,
 };
 
 export const annotationsSlice = createSlice({
@@ -102,6 +110,20 @@ export const annotationsSlice = createSlice({
     setOpenDialogSaveTempAnnotations: (state, action) => {
       state.openDialogSaveTempAnnotations = action.payload;
     },
+    setSoloAnnotationTemplateId: (state, action) => {
+      state.soloAnnotationTemplateId = action.payload ?? null;
+    },
+  },
+  extraReducers: (builder) => {
+    // Leaving the Dessin module clears the template focus. Keyed on the MODULE
+    // switch (not on a viewer unmount): the 2D↔3D editor toggle (T) swaps the
+    // displayed editor while the module stays selected, and the focus must
+    // survive it — same pattern as zoningsSlice's zone solo.
+    builder.addCase(setSelectedViewerKey, (state, action) => {
+      if (action.payload !== "MAP") {
+        state.soloAnnotationTemplateId = null;
+      }
+    });
   },
 });
 
@@ -126,6 +148,8 @@ export const {
   //
   setOpenDialogDeleteSelectedAnnotation,
   setOpenDialogSaveTempAnnotations,
+  //
+  setSoloAnnotationTemplateId,
 } = annotationsSlice.actions;
 
 export default annotationsSlice.reducer;

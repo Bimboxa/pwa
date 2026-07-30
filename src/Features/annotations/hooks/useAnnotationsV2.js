@@ -511,6 +511,12 @@ export default function useAnnotationsV2(options) {
       soloZone?.zoneId
     );
 
+    // template FOCUS (Dessin module's recap panel): templateId | null. Same
+    // ignoreSolo / keepSoloDimmed semantics as the zone solo.
+    const soloTemplateId = useSelector(
+      (s) => s.annotations?.soloAnnotationTemplateId ?? null
+    );
+
     const { targetIdsBySource: subtractionTargetIdsBySource } =
       useAnnotationSubtractions();
 
@@ -2129,6 +2135,21 @@ export default function useAnnotationsV2(options) {
         }
       }
 
+      // template focus (Dessin module's recap panel): keep only the focused
+      // template's annotations. Base-map (background) annotations are always
+      // kept, like the zone solo above.
+      if (!ignoreSolo && soloTemplateId) {
+        const isInTemplateSolo = (a) =>
+          a.isBaseMapAnnotation || a.annotationTemplateId === soloTemplateId;
+        if (keepSoloDimmed) {
+          result = result.map((a) =>
+            isInTemplateSolo(a) ? a : { ...a, _soloDimmed: true }
+          );
+        } else {
+          result = result.filter(isInTemplateSolo);
+        }
+      }
+
       // override with temp annotations
       result = [...result, ...(tempAnnotations ?? [])];
 
@@ -2269,6 +2290,7 @@ export default function useAnnotationsV2(options) {
       withQties,
       soloZone,
       zoneSoloAnnotationIdSet,
+      soloTemplateId,
       keepSoloDimmed,
       ignoreSolo,
       keepHiddenTemplates,

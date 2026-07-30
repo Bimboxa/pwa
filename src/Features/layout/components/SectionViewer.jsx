@@ -16,6 +16,7 @@ import ViewerAdmin from "Features/adminEditor/components/ViewerAdmin";
 import MainListingViewer from "Features/listingViewer/components/MainListingViewer";
 import LeftDrawerPanel from "Features/leftPanel/components/LeftDrawerPanel";
 import PanelMeshesViewer from "Features/threedMesh/components/PanelMeshesViewer";
+import PanelAnnotationsRecap from "Features/annotations/components/PanelAnnotationsRecap";
 import PanelPovList from "Features/pov/components/PanelPovList";
 import ButtonSavePov from "Features/pov/components/ButtonSavePov";
 import ButtonCreatePovView from "Features/pov/components/ButtonCreatePovView";
@@ -85,6 +86,15 @@ export default function SectionViewer() {
       {isPov && (
         <LeftDrawerPanel width={300} viewerKey="POINT_OF_VIEW">
           <PanelPovList />
+        </LeftDrawerPanel>
+      )}
+
+      {/* Dessin drawer: annotations recap by listing / template. Mounted for
+          both editors of the module (the module key stays "MAP" when the 2D/3D
+          toggle displays the 3D editor). */}
+      {viewerKey === "MAP" && (
+        <LeftDrawerPanel width={320} viewerKey="MAP">
+          <PanelAnnotationsRecap />
         </LeftDrawerPanel>
       )}
 
