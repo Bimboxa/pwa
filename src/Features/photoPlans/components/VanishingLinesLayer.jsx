@@ -51,18 +51,55 @@ export default function VanishingLinesLayer({
       {/* Optional known-dimension segment ("cote connue") — drives the
           metric scale instead of the pastille spacing. Same endpoint-drag
           mechanism, pseudo-family "cote". */}
+      {knownCote?.p1 &&
+        knownCote?.p2 &&
+        (() => {
+          const cx1 = knownCote.p1.x * width;
+          const cy1 = knownCote.p1.y * height;
+          const cx2 = knownCote.p2.x * width;
+          const cy2 = knownCote.p2.y * height;
+          // Perpendicular end ticks (NodeCoteStatic convention): rotate the
+          // local frame onto the segment, draw a vertical tick, counter-scale
+          // so it stays a fixed screen size.
+          const angleDeg = (Math.atan2(cy2 - cy1, cx2 - cx1) * 180) / Math.PI;
+          const tick = (x, y) => (
+            <g transform={`translate(${x}, ${y}) rotate(${angleDeg})`}>
+              <g
+                style={{
+                  transform: `scale(calc(1 / (var(--map-zoom, 1) * ${containerK})))`,
+                  transformOrigin: "0 0",
+                }}
+              >
+                <line
+                  x1={0}
+                  y1={-10}
+                  x2={0}
+                  y2={10}
+                  stroke={COTE_COLOR}
+                  strokeWidth={2.5}
+                />
+              </g>
+            </g>
+          );
+          return (
+            <g>
+              <line
+                x1={cx1}
+                y1={cy1}
+                x2={cx2}
+                y2={cy2}
+                stroke={COTE_COLOR}
+                strokeWidth={3}
+                vectorEffect="non-scaling-stroke"
+                opacity={0.95}
+              />
+              {tick(cx1, cy1)}
+              {tick(cx2, cy2)}
+            </g>
+          );
+        })()}
       {knownCote?.p1 && knownCote?.p2 && (
         <g>
-          <line
-            x1={knownCote.p1.x * width}
-            y1={knownCote.p1.y * height}
-            x2={knownCote.p2.x * width}
-            y2={knownCote.p2.y * height}
-            stroke={COTE_COLOR}
-            strokeWidth={3}
-            vectorEffect="non-scaling-stroke"
-            opacity={0.95}
-          />
           <EndpointHandle
             x={knownCote.p1.x * width}
             y={knownCote.p1.y * height}

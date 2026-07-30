@@ -64,6 +64,9 @@ import InteractionLayer from "./InteractionLayer";
 import PrintableMap from "./PrintableMap";
 
 import UILayer from "./UILayer";
+import PhotoPlanMaskLayer from "Features/photoPlans/components/PhotoPlanMaskLayer";
+import TopPhotoPlanChips from "Features/photoPlans/components/TopPhotoPlanChips";
+import PhotoPlanFlattenedOverlay from "Features/photoPlans/components/PhotoPlanFlattenedOverlay";
 import LayerTools from "./LayerTools";
 import StaticMapContent from "./StaticMapContent";
 import EditedObjectLayer from "./EditedObjectLayer";
@@ -1835,6 +1838,12 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                         onTextValueChange={handleTextValueChange}
                     />}
 
+                    {/* PhotoPlan focus mask (photo baseMaps): blurs everything
+                        outside the selected plan's zone. Display-only. */}
+                    {baseMap?.isPhoto && (
+                        <PhotoPlanMaskLayer baseMap={baseMap} basePose={basePose} />
+                    )}
+
                 </InteractionLayer>
 
                 {/* Editor chrome (ortho snap, clipping plane, edit scale…) is
@@ -1846,6 +1855,14 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                 )}
 
             </InteractionProvider>
+
+            {/* PhotoPlan chips + read-only rectified preview (photo baseMaps) */}
+            {baseMap?.isPhoto && !imageModeActive && (
+                <>
+                    <PhotoPlanFlattenedOverlay baseMap={baseMap} />
+                    <TopPhotoPlanChips baseMap={baseMap} />
+                </>
+            )}
 
             {/* Version compare slider overlay */}
             {versionCompareEnabled && versionCompareId && (
