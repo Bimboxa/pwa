@@ -20,6 +20,7 @@ import SectionMultiPartProperties from "./SectionMultiPartProperties";
 import FormEntity from "Features/entities/components/FormEntity";
 import SectionEntityAnnotations from "Features/entities/components/SectionEntityAnnotations";
 import SectionAnnotationZones from "Features/zonings/components/SectionAnnotationZones";
+import SectionAnnotationPhotoPlan from "Features/photoPlans/components/SectionAnnotationPhotoPlan";
 
 const tabs = [
   { id: "PROPERTIES", label: "Propriété" },
@@ -117,6 +118,9 @@ export default function PanelAnnotationProperties() {
             {!annotation?.isZoneAnnotation && (
               <SectionAnnotationZones annotation={annotation} />
             )}
+            {/* Plan photo (photoPlans) — POLYGON on a photo baseMap only,
+                self-hiding otherwise. */}
+            <SectionAnnotationPhotoPlan annotation={annotation} />
           </>
         )}
 
