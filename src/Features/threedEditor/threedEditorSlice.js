@@ -8,7 +8,7 @@ const threedEditorInitialState = {
   // When true, annotation materials ignore `annotation.opacity` and render
   // fully opaque. Exposed as the "Transparence des annotations" switch.
   disableOpacity: false,
-  // When true, CM-width POLYLINE footprints are contracted by 5 mm before
+  // When true, CM-width POLYLINE footprints are contracted by 10 mm before
   // extrusion to avoid coplanar-face aliasing when a parement abuts a wall.
   antiAliasingShrink: true,
   // Max dihedral angle (degrees) joining two adjacent facets into the same

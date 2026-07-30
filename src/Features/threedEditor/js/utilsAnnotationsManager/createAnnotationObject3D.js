@@ -120,8 +120,10 @@ const INTERIOR_DARKEN_FACTOR = 0.5;
 // flush against a wall no longer shares a coplanar face (kills the aliasing
 // shimmer). Uniform on lateral faces AND end caps, symmetric about the
 // element axis; the geometry stays at true drawn dimensions when the setting
-// is off.
-const ANTI_ALIASING_SHRINK_MM = 5;
+// is off. 10 mm (not 5) because procedure-generated parement polylines can
+// deviate up to ~8 mm from the true arc inside curved walls — the shrink must
+// exceed that sampling error or the parement pokes through the wall face.
+const ANTI_ALIASING_SHRINK_MM = 10;
 
 // Never remove more than 85% of a band's half-width so a thin element still
 // shrinks partially instead of collapsing / inverting.
