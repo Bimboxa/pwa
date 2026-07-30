@@ -7,6 +7,7 @@ import { Box, IconButton, Typography } from "@mui/material";
 import { FilterAlt, FilterAltOutlined } from "@mui/icons-material";
 
 import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTemplateIcon";
+import LeftDrawerPanelHeader from "Features/leftPanel/components/LeftDrawerPanelHeader";
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
 import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
@@ -244,7 +245,6 @@ function ListingRecapSection({
 export default function PanelAnnotationsRecap() {
   // strings
 
-  const titleS = "Annotations";
   const emptyS = "Aucune annotation sur les fonds de plan affichés.";
 
   // data
@@ -344,9 +344,7 @@ export default function PanelAnnotationsRecap() {
         bgcolor: "background.default",
       }}
     >
-      <Typography variant="subtitle2" sx={{ px: 2, pt: 1.5, pb: 0.5 }}>
-        {titleS}
-      </Typography>
+      <LeftDrawerPanelHeader title="Annotations" />
       <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto", pb: 1 }}>
         {displayedListings.length === 0 && (
           <Typography variant="body2" color="text.secondary" sx={{ px: 2 }}>

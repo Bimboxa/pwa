@@ -13,6 +13,7 @@ import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import MainMapEditorV3 from "Features/mapEditor/components/MainMapEditorV3";
 import SectionCreateBaseMapFullscreen from "Features/mapEditor/components/SectionCreateBaseMapFullscreen";
 import LeftDrawerPanel from "Features/leftPanel/components/LeftDrawerPanel";
+import LeftDrawerPanelHeader from "Features/leftPanel/components/LeftDrawerPanelHeader";
 
 import useListingById from "Features/listings/hooks/useListingById";
 
@@ -59,6 +60,7 @@ export default function MainBaseMapViewer() {
       {/* Left column: tree */}
       <LeftDrawerPanel width={treeWidth} viewerKey="BASE_MAPS">
         <BoxFlexVStretch sx={{ height: 1 }}>
+          <LeftDrawerPanelHeader title="Fonds de plan" />
           <BoxFlexVStretch sx={{ overflow: "auto" }}>
             <BaseMapTree />
           </BoxFlexVStretch>

@@ -6,7 +6,6 @@ import { setMesh3dGroupByOrientation } from "Features/threedEditor/threedEditorS
 
 import {
   Box,
-  Chip,
   FormControlLabel,
   Switch,
   Tab,
@@ -15,6 +14,7 @@ import {
 } from "@mui/material";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
+import LeftDrawerPanelHeader from "Features/leftPanel/components/LeftDrawerPanelHeader";
 
 import useMeshes3d from "../hooks/useMeshes3d";
 import useMesh3dLabelPrefix from "../hooks/useMesh3dLabelPrefix";
@@ -66,32 +66,7 @@ export default function PanelMeshesViewer() {
   return (
     <BoxFlexVStretch sx={{ height: 1 }}>
       {/* Header */}
-      <Box
-        sx={{
-          p: 0.5,
-          pl: 2,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
-        <Box>
-          <Typography
-            variant="subtitle2"
-            color="text.secondary"
-            sx={{
-              fontStyle: "italic",
-              fontSize: (theme) => theme.typography.caption.fontSize,
-            }}
-          >
-            Module
-          </Typography>
-          <Typography variant="body2" sx={{ fontWeight: "bold" }}>
-            Maillage
-          </Typography>
-        </Box>
-        <Chip label={rows.length} size="small" sx={{ mr: 1 }} />
-      </Box>
+      <LeftDrawerPanelHeader title="Mailles" />
 
       {/* Tabs */}
       <Tabs

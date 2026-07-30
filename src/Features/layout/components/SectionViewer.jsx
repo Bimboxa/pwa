@@ -15,6 +15,7 @@ import ZoningsTree from "Features/zonings/components/ZoningsTree";
 import ViewerAdmin from "Features/adminEditor/components/ViewerAdmin";
 import MainListingViewer from "Features/listingViewer/components/MainListingViewer";
 import LeftDrawerPanel from "Features/leftPanel/components/LeftDrawerPanel";
+import LeftDrawerPanelHeader from "Features/leftPanel/components/LeftDrawerPanelHeader";
 import PanelMeshesViewer from "Features/threedMesh/components/PanelMeshesViewer";
 import PanelAnnotationsRecap from "Features/annotations/components/PanelAnnotationsRecap";
 import PanelPovList from "Features/pov/components/PanelPovList";
@@ -105,6 +106,7 @@ export default function SectionViewer() {
       {isZonesModule && (
         <LeftDrawerPanel width={300} viewerKey="ZONES">
           <BoxFlexVStretch sx={{ height: 1 }}>
+            <LeftDrawerPanelHeader title="Zones" />
             <BoxFlexVStretch sx={{ overflow: "auto" }}>
               <ZoningsTree />
             </BoxFlexVStretch>
