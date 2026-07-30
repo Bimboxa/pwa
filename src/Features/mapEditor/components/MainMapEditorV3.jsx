@@ -439,9 +439,12 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
 
     useEffect(() => {
 
+        // Before the container is measured getDefaultCameraMatrix returns its
+        // {x:0,y:0,k:1} guard value: applying it would show the baseMap at 1:1
+        // image pixels for one frame, then refit once the width lands.
+        if (!viewport?.w || !viewport?.h) return;
 
         if (defaultCameraMatrixRef.current && !showBgImage) {
-            console.log("[EFFECT_RESET_CAMERA]")
             interactionLayerRef.current?.setCameraMatrix(defaultCameraMatrixRef.current);
             resetForBaseMapIdRef.current = baseMap?.id;
         }
