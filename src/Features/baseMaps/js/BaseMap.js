@@ -40,6 +40,9 @@ export default class BaseMap {
     orientation,
     angleDeg,
     position,
+    // Photo baseMap: a perspective photo (not an orthographic plan). Photo
+    // baseMaps carry photoPlans (db.photoPlans) instead of a flat 3D plane.
+    isPhoto,
     // version system
     versions,
     refWidth,
@@ -64,6 +67,7 @@ export default class BaseMap {
     this.orientation = orientation;
     this.angleDeg = angleDeg;
     this.position = position;
+    this.isPhoto = isPhoto;
     // version system
     this.versions = versions || [];
     this.refWidth = refWidth || null;

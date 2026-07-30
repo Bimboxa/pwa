@@ -209,6 +209,21 @@ db.version(28).stores({
   usersDirectory: "userIdMaster",
 });
 
+db.version(29).stores({
+  // {id, projectId, scopeId, listingId (source polygon's isForBaseMaps listing),
+  //  baseMapId (the PHOTO baseMap), annotationId (source POLYGON on the photo),
+  //  name, orientation ("HORIZONTAL"|"VERTICAL" — real-world plane orientation),
+  //  calibrationInputs: null | { uSegments, vSegments, photoTargets, planTargets,
+  //    planBaseMapId, refColor, refHeight, focalPxOverride } (all coords
+  //    normalized 0..1 — source of truth, re-editable),
+  //  calibration: null | { ok, errorCode?, H:[9], Hinv:[9] (normalized-photo in,
+  //    meters out), imageSize (bake-time aspect guard), pose {origin,uDir,vDir,
+  //    normal}, horizonLine, diagnostics, computedAt } (cached output of
+  //    computePhotoPlanCalibration — cheap to recompute from inputs)}
+  // One row per planar region ("plan photo") of a photo baseMap.
+  photoPlans: "id,projectId,baseMapId,annotationId,listingId",
+});
+
 // --- AUDIT HOOKS ---
 
 const AUDIT_TABLES = [
@@ -246,6 +261,7 @@ const AUDIT_TABLES = [
   "povs",
   "zones",
   "relsZoneAnnotation",
+  "photoPlans",
 ];
 
 // Shared/collaborative tables exempt from the ownership guard: records here can
@@ -264,6 +280,9 @@ const OWNERSHIP_EXEMPT_TABLES = new Set([
   // created by other users.
   "zones",
   "relsZoneAnnotation",
+  // PhotoPlans are shared calibration resources: anyone can rename, re-orient
+  // or recalibrate a plan photo, not only its creator.
+  "photoPlans",
 ]);
 
 // --- READ-ONLY SCOPE GUARD ---
@@ -482,6 +501,7 @@ const SOFT_DELETE_TABLES = new Set([
   "povs",
   "zones",
   "relsZoneAnnotation",
+  "photoPlans",
 ]);
 
 let _skipSoftDelete = false;

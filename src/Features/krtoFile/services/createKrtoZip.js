@@ -83,6 +83,7 @@ export default async function createKrtoZip(scopeId, options) {
         "annotations", "annotationTemplates",
         "portfolioPages",
         "zones", "relsZoneAnnotation",
+        "photoPlans",
     ]);
 
     // Points: annotation geometry lives in db.points, but a point row's

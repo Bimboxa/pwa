@@ -204,6 +204,15 @@ export default function remapDexieExportIds(jsonData, opts) {
           );
       }
 
+      // PhotoPlan calibration inputs (nested plan-baseMap ref; baseMapId /
+      // annotationId / listingId are covered by SIMPLE_FK above).
+      if (tableName === "photoPlans" && row.calibrationInputs?.planBaseMapId) {
+        row.calibrationInputs.planBaseMapId = remapId(
+          "baseMaps",
+          row.calibrationInputs.planBaseMapId
+        );
+      }
+
       // POV view metadata (nested baseMap / version / template refs used to
       // restore the saved view).
       if (tableName === "povs") {
