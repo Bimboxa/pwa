@@ -400,7 +400,10 @@ export default function SectionsBaseMapTransform3D({ baseMap }) {
             >
               Vertical
             </ToggleButton>
-            <ToggleButton value="PHOTO" sx={{ textTransform: "none", py: 0.25 }}>
+            <ToggleButton
+              value="PHOTO"
+              sx={{ textTransform: "none", py: 0.25 }}
+            >
               Photo
             </ToggleButton>
           </ToggleButtonGroup>

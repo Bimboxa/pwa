@@ -87,9 +87,13 @@ export function mat3SmallestEigenvector(m) {
   };
 
   for (let sweep = 0; sweep < 32; sweep++) {
-    let off =
-      Math.abs(at(0, 1)) + Math.abs(at(0, 2)) + Math.abs(at(1, 2));
-    if (off < 1e-15 * (Math.abs(at(0, 0)) + Math.abs(at(1, 1)) + Math.abs(at(2, 2)) + 1e-30)) break;
+    let off = Math.abs(at(0, 1)) + Math.abs(at(0, 2)) + Math.abs(at(1, 2));
+    if (
+      off <
+      1e-15 *
+        (Math.abs(at(0, 0)) + Math.abs(at(1, 1)) + Math.abs(at(2, 2)) + 1e-30)
+    )
+      break;
     for (const [p, q] of [
       [0, 1],
       [0, 2],

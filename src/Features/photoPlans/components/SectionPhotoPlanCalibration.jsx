@@ -125,10 +125,16 @@ export default function SectionPhotoPlanCalibration({
   const photoKey = getTargetsKey(baseMap);
   const planKey = getTargetsKey(planBaseMap);
   const photoTargets = photoKey
-    ? (targetsByVersionId[photoKey] ?? { red: DEFAULT_RED, green: DEFAULT_GREEN })
+    ? (targetsByVersionId[photoKey] ?? {
+        red: DEFAULT_RED,
+        green: DEFAULT_GREEN,
+      })
     : null;
   const planTargets = planKey
-    ? (targetsByVersionId[planKey] ?? { red: DEFAULT_RED, green: DEFAULT_GREEN })
+    ? (targetsByVersionId[planKey] ?? {
+        red: DEFAULT_RED,
+        green: DEFAULT_GREEN,
+      })
     : null;
 
   const planIsUsable =
@@ -296,8 +302,7 @@ export default function SectionPhotoPlanCalibration({
 
   const diag = result?.ok ? result.diagnostics : null;
   const showFocalField =
-    locating &&
-    (result?.errorCode === "NEEDS_FOCAL" || Boolean(focal35Str));
+    locating && (result?.errorCode === "NEEDS_FOCAL" || Boolean(focal35Str));
 
   const qualityChip = (label, valueDeg, warnAt, badAt) => {
     if (!Number.isFinite(valueDeg)) return null;

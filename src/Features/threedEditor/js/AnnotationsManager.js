@@ -39,14 +39,9 @@ export default class AnnotationsManager {
     // hence the annotation identity — this key is belt and braces).
     if (annotation._photoPlan3D?.pose) {
       const { origin, uDir } = annotation._photoPlan3D.pose;
-      return [
-        "photoPlan",
-        origin.x,
-        origin.y,
-        origin.z,
-        uDir.x,
-        uDir.z,
-      ].join(":");
+      return ["photoPlan", origin.x, origin.y, origin.z, uDir.x, uDir.z].join(
+        ":"
+      );
     }
     const baseMap =
       this.sceneManager.imagesManager.baseMapsMap[annotation.baseMapId];

@@ -14,12 +14,22 @@ import computePhotoPlanCalibration from "Features/photoPlans/utils/computePhotoP
 import applyPhotoPlanHomography from "Features/photoPlans/utils/applyPhotoPlanHomography";
 import photoPlanPointToWorld from "Features/photoPlans/utils/photoPlanPointToWorld";
 import mapPhotoPointsToPlane from "Features/photoPlans/utils/mapPhotoPointsToPlane";
+import getPhotoPlanAttachment from "Features/photoPlans/utils/getPhotoPlanAttachment";
 
 // --- tiny synthetic pinhole camera ------------------------------------------
 // World: y up. Camera: position + lookAt; projects to PIXEL coords (y down)
 // like the app's photo space. Principal point at (W/2 + ppdx, H/2 + ppdy).
 
-function makeCamera({ position, lookAt, up = { x: 0, y: 1, z: 0 }, focalPx, W, H, ppdx = 0, ppdy = 0 }) {
+function makeCamera({
+  position,
+  lookAt,
+  up = { x: 0, y: 1, z: 0 },
+  focalPx,
+  W,
+  H,
+  ppdx = 0,
+  ppdy = 0,
+}) {
   const sub = (a, b) => ({ x: a.x - b.x, y: a.y - b.y, z: a.z - b.z });
   const cross = (a, b) => ({
     x: a.y * b.z - a.z * b.y,
@@ -91,8 +101,7 @@ function segN(cam, w1, w2, rng = null, sigmaPx = 0) {
   const jitter = (p) => {
     if (!rng || !sigmaPx) return p;
     // Box-Muller-ish: two uniforms -> approx gaussian
-    const g = () =>
-      (rng() + rng() + rng() + rng() - 2) * Math.SQRT2 * sigmaPx;
+    const g = () => (rng() + rng() + rng() + rng() - 2) * Math.SQRT2 * sigmaPx;
     return { x: p.x + g() / cam.W, y: p.y + g() / cam.H };
   };
   return { p1: jitter(cam.projectN(w1)), p2: jitter(cam.projectN(w2)) };
@@ -277,19 +286,10 @@ console.log("\n[2] HORIZONTAL exact");
       `got ${calib.diagnostics.focalPx}`
     );
     // asymmetric L-shape (world) — reconstruction must NOT be mirrored
-    const L = [
-      G(1, 1),
-      G(4, 1),
-      G(4, 2),
-      G(2, 2),
-      G(2, 4),
-      G(1, 4),
-    ];
+    const L = [G(1, 1), G(4, 1), G(4, 2), G(2, 2), G(2, 4), G(1, 4)];
     const wr = L.map((c) => photoPlanPointToWorld(calib, cam.projectN(c)));
     const maxErr = Math.max(
-      ...wr.map((p, i) =>
-        Math.hypot(p.x - L[i].x, p.y - L[i].y, p.z - L[i].z)
-      )
+      ...wr.map((p, i) => Math.hypot(p.x - L[i].x, p.y - L[i].y, p.z - L[i].z))
     );
     check("L-shape world", maxErr < 1e-6, `maxErr ${maxErr}`);
     const uv = L.map((c) => applyPhotoPlanHomography(calib.H, cam.projectN(c)));
@@ -317,10 +317,7 @@ console.log("\n[3] fronto-parallel");
     segN(cam, P(0, 0.5), P(6, 0.5)),
     segN(cam, P(0, 3.5), P(6, 3.5)),
   ];
-  const vSegments = [
-    segN(cam, P(1, 0), P(1, 4)),
-    segN(cam, P(5, 0), P(5, 4)),
-  ];
+  const vSegments = [segN(cam, P(1, 0), P(1, 4)), segN(cam, P(5, 0), P(5, 4))];
   const refWorld = P(1.2, 0.8);
   const otherWorld = P(4.8, 2.9);
   const calib = computePhotoPlanCalibration({
@@ -415,7 +412,8 @@ console.log("\n[4] noise 0.5px");
   });
   check("ok", calib?.ok === true, JSON.stringify(calib?.errorCode));
   if (calib?.ok) {
-    const fErr = Math.abs(calib.diagnostics.focalPx - cam.focalPx) / cam.focalPx;
+    const fErr =
+      Math.abs(calib.diagnostics.focalPx - cam.focalPx) / cam.focalPx;
     check("focal <= 5%", fErr <= 0.05, `err ${(fErr * 100).toFixed(2)}%`);
     const corners = [P(0.5, 0.9), P(6.5, 0.9), P(6.5, 3.9), P(0.5, 3.9)];
     const uv = corners.map((c) =>
@@ -492,7 +490,11 @@ console.log("\n[5] principal-point offset 3%W");
     console.log(
       `  info az=${azDeg}deg -> area error ${(aErr * 100).toFixed(2)}%`
     );
-    check(`az ${azDeg} area <= ~6%`, aErr <= 0.06, `${(aErr * 100).toFixed(2)}%`);
+    check(
+      `az ${azDeg} area <= ~6%`,
+      aErr <= 0.06,
+      `${(aErr * 100).toFixed(2)}%`
+    );
   }
 }
 
@@ -512,7 +514,10 @@ console.log("\n[6] degenerates");
   const base = {
     photoImageSize: { width: cam.W, height: cam.H },
     planeType: "VERTICAL",
-    uSegments: [segN(cam, P(0, 0.5), P(6, 0.5)), segN(cam, P(0, 3.5), P(6, 3.5))],
+    uSegments: [
+      segN(cam, P(0, 0.5), P(6, 0.5)),
+      segN(cam, P(0, 3.5), P(6, 3.5)),
+    ],
     vSegments: [segN(cam, P(1, 0), P(1, 4)), segN(cam, P(5, 0), P(5, 4))],
     photoTargets: {
       green: cam.projectN(P(1.2, 0.8)),
@@ -524,10 +529,18 @@ console.log("\n[6] degenerates");
   };
   const expectCode = (label, patch, code) => {
     const r = computePhotoPlanCalibration({ ...base, ...patch });
-    check(label, r && r.ok === false && r.errorCode === code, `got ${r?.errorCode ?? r}`);
+    check(
+      label,
+      r && r.ok === false && r.errorCode === code,
+      `got ${r?.errorCode ?? r}`
+    );
   };
 
-  expectCode("1 segment", { uSegments: [base.uSegments[0]] }, "VP_U_DEGENERATE");
+  expectCode(
+    "1 segment",
+    { uSegments: [base.uSegments[0]] },
+    "VP_U_DEGENERATE"
+  );
   expectCode(
     "collinear family",
     {
@@ -538,11 +551,7 @@ console.log("\n[6] degenerates");
     },
     "VP_V_DEGENERATE"
   );
-  expectCode(
-    "coincident VPs",
-    { vSegments: base.uSegments },
-    "VPS_TOO_CLOSE"
-  );
+  expectCode("coincident VPs", { vSegments: base.uSegments }, "VPS_TOO_CLOSE");
   expectCode(
     "superimposed plan targets",
     { worldTargets: { green: { x: 2, z: 1 }, red: { x: 2, z: 1 } } },
@@ -591,10 +600,7 @@ console.log("\n[6] degenerates");
         segN(camL, F(0, 0.5), F(5, 0.5)),
         segN(camL, F(0, 3.5), F(5, 3.5)),
       ],
-      vSegments: [
-        segN(camL, F(1, 0), F(1, 4)),
-        segN(camL, F(4, 0), F(4, 4)),
-      ],
+      vSegments: [segN(camL, F(1, 0), F(1, 4)), segN(camL, F(4, 0), F(4, 4))],
       photoTargets: {
         green: camL.projectN(F(0.8, 1.0)),
         red: camL.projectN(F(4.2, 2.5)),
@@ -660,6 +666,37 @@ console.log("\n[7] mapPhotoPointsToPlane");
     approx(mapped[0].x, 0, 1e-12) &&
       approx(mapped[mapped.length - 1].x, 1, 1e-12)
   );
+}
+
+// =============================================================================
+// Scenario 8 — getPhotoPlanAttachment: inside / outside / hole / nested rings.
+// =============================================================================
+console.log("\n[8] getPhotoPlanAttachment");
+{
+  const square = (x0, y0, size) => [
+    { x: x0, y: y0 },
+    { x: x0 + size, y: y0 },
+    { x: x0 + size, y: y0 + size },
+    { x: x0, y: y0 + size },
+  ];
+  const candidates = [
+    { plan: { id: "big" }, ringPx: square(0, 0, 100), holesPx: [] },
+    { plan: { id: "small" }, ringPx: square(20, 20, 30), holesPx: [] },
+    {
+      plan: { id: "withHole" },
+      ringPx: square(200, 0, 100),
+      holesPx: [square(240, 40, 20)],
+    },
+  ];
+  const at = (x, y) =>
+    getPhotoPlanAttachment({ points: [{ x, y }], candidates })?.plan?.id ??
+    null;
+
+  check("nested -> smallest wins", at(30, 30) === "small", at(30, 30));
+  check("big only", at(80, 80) === "big", at(80, 80));
+  check("outside -> null", at(500, 500) === null, at(500, 500));
+  check("in hole -> null", at(250, 50) === null, at(250, 50));
+  check("in ring, out of hole", at(210, 10) === "withHole", at(210, 10));
 }
 
 // -----------------------------------------------------------------------------

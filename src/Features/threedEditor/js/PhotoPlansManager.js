@@ -88,9 +88,7 @@ export default class PhotoPlansManager {
       return;
     }
 
-    const shape = new Shape(
-      ringLocal.map((p) => ({ x: p.x, y: p.y }))
-    );
+    const shape = new Shape(ringLocal.map((p) => ({ x: p.x, y: p.y })));
     for (const hole of holesLocal ?? []) {
       if (hole?.length >= 3) {
         const holePath = new Shape(hole.map((p) => ({ x: p.x, y: p.y })));

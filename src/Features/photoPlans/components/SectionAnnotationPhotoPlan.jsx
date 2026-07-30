@@ -102,9 +102,7 @@ export default function SectionAnnotationPhotoPlan({ annotation }) {
         )}
       </Box>
 
-      <Box
-        sx={{ display: "flex", flexDirection: "column", gap: 1, mt: 0.5 }}
-      >
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 1, mt: 0.5 }}>
         <TextField
           size="small"
           placeholder="Nom du plan (ex. Façade sud)"

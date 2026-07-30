@@ -32,10 +32,7 @@ export default function useAutoLoadPhotoPlansInThreedEditor({
     for (const bm of photoBaseMaps) byId[bm.id] = bm;
 
     const plans = (
-      await db.photoPlans
-        .where("baseMapId")
-        .anyOf(Object.keys(byId))
-        .toArray()
+      await db.photoPlans.where("baseMapId").anyOf(Object.keys(byId)).toArray()
     ).filter((p) => !p.deletedAt && p.calibration?.ok);
 
     const out = [];
@@ -90,9 +87,7 @@ export default function useAutoLoadPhotoPlansInThreedEditor({
       // Signature: pose + geometry extent + recalibration stamp. Point moves
       // bypass annotation.updatedAt (db.points writes), hence the coarse
       // coordinate hash.
-      const coordHash = ringLocal
-        .reduce((s, p) => s + p.x + p.y, 0)
-        .toFixed(4);
+      const coordHash = ringLocal.reduce((s, p) => s + p.x + p.y, 0).toFixed(4);
       const { origin, uDir } = plan.calibration.pose;
       const signature = [
         plan.id,

@@ -159,7 +159,8 @@ export default function computePhotoPlanCalibration({
   if (!eV) return fail("VPS_TOO_CLOSE");
   if (focal.source === "override" || focal.source === "frontoParallel") {
     // Only meaningful when f was NOT solved from orthogonality.
-    diagnostics.vpOrthoAngleDeg = (Math.asin(Math.min(1, sinUV)) * 180) / Math.PI;
+    diagnostics.vpOrthoAngleDeg =
+      (Math.asin(Math.min(1, sinUV)) * 180) / Math.PI;
   }
 
   // --- world anchors ---
@@ -171,8 +172,7 @@ export default function computePhotoPlanCalibration({
   const d = Math.hypot(dX, dZ);
   if (d < EPS) return fail("TARGETS_SUPERIMPOSED");
 
-  const refH =
-    planeType === "VERTICAL" ? refHeight : (refHeight ?? 0);
+  const refH = planeType === "VERTICAL" ? refHeight : (refHeight ?? 0);
   if (!Number.isFinite(refH)) return fail("REF_HEIGHT_REQUIRED");
 
   // --- sign fixes on the plane frame ---
@@ -205,7 +205,17 @@ export default function computePhotoPlanCalibration({
 
   const planeRaw = (c) => {
     const q = mat3ApplyToPoint(
-      [Minv[0], Minv[1], Minv[2], Minv[3], Minv[4], Minv[5], Minv[6], Minv[7], Minv[8]],
+      [
+        Minv[0],
+        Minv[1],
+        Minv[2],
+        Minv[3],
+        Minv[4],
+        Minv[5],
+        Minv[6],
+        Minv[7],
+        Minv[8],
+      ],
       { x: c.x / f, y: c.y / f }
     );
     // mat3ApplyToPoint assumes homogeneous w = 1 — exactly a finite point ray.

@@ -78,15 +78,11 @@ export default function estimateVanishingPoint(segments) {
     }
     const vn = Math.hypot(vDir.x, vDir.y);
     if (vn < 1e-12) continue;
-    const cos = Math.min(
-      1,
-      Math.abs(dir.x * vDir.x + dir.y * vDir.y) / vn
-    );
+    const cos = Math.min(1, Math.abs(dir.x * vDir.x + dir.y * vDir.y) / vn);
     const angle = Math.acos(cos);
     sumSq += angle * angle;
   }
-  const residualDeg =
-    (Math.sqrt(sumSq / usable.length) * 180) / Math.PI;
+  const residualDeg = (Math.sqrt(sumSq / usable.length) * 180) / Math.PI;
 
   let spreadDeg = 0;
   for (let i = 0; i < dirs.length; i++) {
