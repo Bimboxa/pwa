@@ -15,16 +15,29 @@ import { ArrowBack as Back } from "@mui/icons-material";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import SectionAnnotationPropertiesContent from "./SectionAnnotationPropertiesContent";
+import SectionAnnotationLabelContent from "./SectionAnnotationLabelContent";
 import SectionAnnotationPartPropertiesContent from "./SectionAnnotationPartPropertiesContent";
 import SectionMultiPartProperties from "./SectionMultiPartProperties";
 import FormEntity from "Features/entities/components/FormEntity";
 import SectionEntityAnnotations from "Features/entities/components/SectionEntityAnnotations";
 import SectionAnnotationZones from "Features/zonings/components/SectionAnnotationZones";
 
-const tabs = [
-  { id: "PROPERTIES", label: "Propriété" },
-  { id: "ENTITY", label: "Objet" },
-];
+// Types without a draggable sub-label (no labelDelta model) — no Etiquette tab.
+const TYPES_WITHOUT_LABEL = ["COTE", "TEXT", "LABEL"];
+
+function getTabs(annotation) {
+  const showLabelTab =
+    annotation &&
+    !TYPES_WITHOUT_LABEL.includes(annotation.type) &&
+    !annotation.isMeshCell &&
+    !annotation.isBaseMapAnnotation;
+
+  return [
+    { id: "PROPERTIES", label: "Propriété" },
+    ...(showLabelTab ? [{ id: "LABEL", label: "Etiquette" }] : []),
+    { id: "ENTITY", label: "Objet" },
+  ];
+}
 
 export default function PanelAnnotationProperties() {
   const dispatch = useDispatch();
@@ -43,7 +56,12 @@ export default function PanelAnnotationProperties() {
   // helpers
 
   const label = annotation?.label || "Annotation";
-  const idx = tabs.map(({ id }) => id).indexOf(tab);
+  const tabs = getTabs(annotation);
+  const tabIds = tabs.map(({ id }) => id);
+  // Selected tab may not exist for this annotation (e.g. "LABEL" then a COTE
+  // gets selected) — fall back to the first tab.
+  const effectiveTab = tabIds.includes(tab) ? tab : "PROPERTIES";
+  const idx = tabIds.indexOf(effectiveTab);
 
   // handlers
 
@@ -109,7 +127,7 @@ export default function PanelAnnotationProperties() {
           <SectionAnnotationPartPropertiesContent annotation={annotation} part={part} />
         )}
 
-        {!hasPart && tab === "PROPERTIES" && (
+        {!hasPart && effectiveTab === "PROPERTIES" && (
           <>
             <SectionAnnotationPropertiesContent annotation={annotation} />
             {/* Zone links (zonings module) — not for the zone delimitation
@@ -120,7 +138,11 @@ export default function PanelAnnotationProperties() {
           </>
         )}
 
-        {!hasPart && tab === "ENTITY" && (
+        {!hasPart && effectiveTab === "LABEL" && (
+          <SectionAnnotationLabelContent annotation={annotation} />
+        )}
+
+        {!hasPart && effectiveTab === "ENTITY" && (
           entity ? (
             <>
               <FormEntity

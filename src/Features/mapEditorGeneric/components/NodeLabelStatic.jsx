@@ -3,15 +3,17 @@ import { darken } from "@mui/material/styles";
 import { IconButton } from "@mui/material";
 import { Refresh, Visibility, VisibilityOff } from "@mui/icons-material";
 
-import useUpdateEntity from "Features/entities/hooks/useUpdateEntity";
 import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
-import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 import db from "App/db/db";
 
 // --- CONSTANTES ---
-const DOT_RADIUS = 4;
+const DOT_RADIUS = 2;
 const LINE_WIDTH = 1.5;
+// Leader + target dot are black (mirrors the 3D card's leader/anchor); the
+// annotation colour stays on the chip border.
+const LEADER_COLOR = "#000000";
+const LEADER_OPACITY = 0.7;
 const PADDING_X = 8;
 const PADDING_Y = 4;
 const DEFAULT_FONT_SIZE = 14;
@@ -25,13 +27,12 @@ export default function NodeLabelStatic({
     dragged,
     onSizeChange,
     containerK = 1,
+    forceHideLabel = false,
 }) {
 
     // data
 
-    const updateEntity = useUpdateEntity();
     const updateAnnotation = useUpdateAnnotation();
-    const appConfig = useAppConfig();
 
 
     // helpers
@@ -43,24 +44,42 @@ export default function NodeLabelStatic({
         labelPoint = { x: 0, y: 0 },
         width: fixedWidth,
         label,
+        lines,
         placeholder = "Étiquette",
         fillColor = "#2196f3",
         textColor = "#000000",
         bgColor = "#ffffff",
         fontSize = DEFAULT_FONT_SIZE,
+        shadow = false,
         hidden,
     } = data;
 
     // -- 0. id --
     const annotationId = id.replace("label::", "");
 
+    // --- 0b. CONTENU MULTI-LIGNES ---
+    // `lines` comes from getAnnotationLabelTextLines (Etiquette tab options).
+    // Undefined for standalone LABEL annotations → legacy single-label render.
+    const hasLines = Array.isArray(lines);
+    const templateLine = hasLines ? lines.find((l) => l.kind === "TEMPLATE") : null;
+    const labelLine = hasLines ? lines.find((l) => l.kind === "LABEL") : null;
+    const descriptionLine = hasLines ? lines.find((l) => l.kind === "DESCRIPTION") : null;
+    // Empty-label fallback: keep an editable line when nothing else is shown.
+    const showLabelLine = Boolean(labelLine) || (selected && hasLines && lines.length === 0);
+    const linesKey = hasLines
+        ? lines.map((l) => `${l.kind}:${l.text}`).join("\n")
+        : null;
+
     // --- 1. MODE DE TAILLE ---
     const sizeVariant = "FIXED_IN_CONTAINER_PARENT";
 
     // --- 2. SCALE ---
+    // Constant screen size: counter-scale by container k AND map zoom (same
+    // formula as NodeCoteStatic — --map-zoom is written by MapEditorViewport,
+    // missing var falls back to 1 outside the map editor, e.g. portfolio).
     const scaleTransform = useMemo(() => {
         const k = containerK || 1;
-        return `scale(${1 / k})`;
+        return `scale(calc(1 / (var(--map-zoom, 1) * ${k})))`;
     }, [containerK]);
 
     // --- 3. COORDONNÉES ---
@@ -86,24 +105,12 @@ export default function NodeLabelStatic({
     labelRef.current = label;
 
     const saveLabel = async (value) => {
-        console.log("💾 Update Label:", annotationId, value);
         try {
             const _annotationId = id.startsWith("label::") ? id.replace("label::", "") : id;
-            const _annotation = await db.annotations.get(_annotationId);
-
-            if (_annotation?.entityId) {
-                // Entity-linked label: update the entity field and annotation label
-                const _listing = await db.listings.get(_annotation.listingId);
-                const em = appConfig?.entityModelsObject?.[_listing.entityModelKey];
-                const labelKey = em?.labelKey || "label";
-                await updateEntity(_annotation.entityId, { [labelKey]: value }, { listing: _listing });
-                if (!id.startsWith("label::")) {
-                    await db.annotations.update(_annotationId, { label: value });
-                }
-            } else {
-                // Standalone label without entity: update annotation directly
-                await db.annotations.update(_annotationId, { label: value });
-            }
+            // The chip always shows and edits the annotation's OWN label —
+            // labels are decoupled from entities (an entity-linked annotation
+            // no longer renames its entity from here).
+            await db.annotations.update(_annotationId, { label: value });
         } catch (err) { console.error(err); }
     };
 
@@ -111,6 +118,86 @@ export default function NodeLabelStatic({
         if (localValue !== label) {
             saveLabel(localValue);
         }
+    };
+
+    // --- 4b. LARGEUR RÉGLABLE (drag de la poignée droite, 2D uniquement) ---
+    // The chip is constant screen size, so 1 dragged CSS px = 1 width px.
+    // Live width during the drag, then persisted: `labelWidth` on the
+    // annotation for sub-labels, `width` for standalone LABEL annotations.
+    const [liveWidth, setLiveWidth] = useState(null);
+    const effectiveFixedWidth = liveWidth ?? fixedWidth;
+
+    const MIN_WIDTH = 60;
+    const MAX_WIDTH = 600;
+
+    const saveWidth = async (value) => {
+        try {
+            if (id.startsWith("label::")) {
+                await updateAnnotation({ id: annotationId, labelWidth: value });
+            } else {
+                await updateAnnotation({ id, width: value });
+            }
+        } catch (err) {
+            console.error(err);
+            // Persist failed: drop the live override so the chip falls back
+            // to the stored width instead of staying stuck.
+            setLiveWidth(null);
+        }
+    };
+
+    // The live override is kept AFTER pointerup and only released once the
+    // persisted width has caught up (DB write → liveQuery → new prop):
+    // clearing it on pointerup would flash the old width for one roundtrip.
+    useEffect(() => {
+        if (liveWidth != null && fixedWidth === liveWidth) {
+            setLiveWidth(null);
+        }
+    }, [fixedWidth, liveWidth]);
+
+    const handleResizePointerDown = (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        const startX = e.clientX;
+        const startW = boxRef.current?.offsetWidth || fixedWidth || MIN_WIDTH;
+        let lastW = null;
+
+        const computeWidth = (clientX) =>
+            Math.round(
+                Math.min(
+                    MAX_WIDTH,
+                    // The chip is centered on labelPoint: the edge follows the
+                    // cursor when the width grows by twice the pointer delta.
+                    Math.max(MIN_WIDTH, startW + 2 * (clientX - startX))
+                )
+            );
+
+        const onMove = (ev) => {
+            lastW = computeWidth(ev.clientX);
+            setLiveWidth(lastW);
+        };
+        const onUp = (ev) => {
+            window.removeEventListener("pointermove", onMove);
+            window.removeEventListener("pointerup", onUp);
+            window.removeEventListener("pointercancel", onUp);
+            const finalW = lastW ?? computeWidth(ev.clientX);
+            if (finalW !== fixedWidth) {
+                // Keep the live width as override until the persisted value
+                // lands (see the catch-up effect) — no old-width flash.
+                setLiveWidth(finalW);
+                saveWidth(finalW);
+            } else {
+                setLiveWidth(null);
+            }
+        };
+        window.addEventListener("pointermove", onMove);
+        window.addEventListener("pointerup", onUp);
+        window.addEventListener("pointercancel", onUp);
+    };
+
+    const handleResizeReset = (e) => {
+        e.stopPropagation();
+        // Back to auto width (content-driven).
+        saveWidth(null);
     };
 
     // Save pending changes when deselected (textarea unmount skips onBlur)
@@ -174,18 +261,23 @@ export default function NodeLabelStatic({
         }
     }
 
-    const boxShadow = selected
-        ? "0px 2px 4px -1px rgba(0,0,0,0.2), 0px 4px 5px 0px rgba(0,0,0,0.14), 0px 1px 10px 0px rgba(0,0,0,0.12)"
-        : "0px 2px 1px -1px rgba(0,0,0,0.2), 0px 1px 1px 0px rgba(0,0,0,0.14), 0px 1px 3px 0px rgba(0,0,0,0.12)";
+    // "Ombre" option of the Etiquette tab (off by default).
+    const boxShadow = !shadow
+        ? "none"
+        : selected
+            ? "0px 2px 4px -1px rgba(0,0,0,0.2), 0px 4px 5px 0px rgba(0,0,0,0.14), 0px 1px 10px 0px rgba(0,0,0,0.12)"
+            : "0px 2px 1px -1px rgba(0,0,0,0.2), 0px 1px 1px 0px rgba(0,0,0,0.14), 0px 1px 3px 0px rgba(0,0,0,0.12)";
 
     // --- 6. MESURE DOM ---
+    // The chip box div is measured (not just the text span): with multi-line
+    // content the box is the only element whose size covers every line.
     const [labelSize, setLabelSize] = useState({ w: 60, h: 30 });
-    const textRef = useRef(null);
+    const boxRef = useRef(null);
     const lastNotifiedSize = useRef({ width: 0, height: 0 });
 
     useLayoutEffect(() => {
-        if (!textRef.current) return;
-        const el = textRef.current;
+        if (!boxRef.current) return;
+        const el = boxRef.current;
         const updateSize = () => {
             const realWidth = el.offsetWidth + (selected ? 4 : 0); // Petit buffer si sélectionné
             const realHeight = el.offsetHeight;
@@ -202,7 +294,7 @@ export default function NodeLabelStatic({
         const ro = new ResizeObserver(updateSize);
         ro.observe(el);
         return () => ro.disconnect();
-    }, [localValue, fixedWidth, onSizeChange, selected, fontSize, sizeVariant]);
+    }, [localValue, fixedWidth, onSizeChange, selected, fontSize, sizeVariant, linesKey]);
 
     // --- 7. RENDU ---
     const dataProps = {
@@ -225,50 +317,41 @@ export default function NodeLabelStatic({
         // IMPORTANT POUR MULTILIGNE :
         // Si fixedWidth -> 'pre-wrap' permet les retours à la ligne auto ET manuels
         // Si auto -> 'pre' force la ligne unique sauf si retour manuel (\n)
-        whiteSpace: fixedWidth ? 'pre-wrap' : 'pre',
+        whiteSpace: effectiveFixedWidth ? 'pre-wrap' : 'pre',
         wordBreak: 'break-word',
+        maxWidth: '100%',
     };
 
     if (hidden && !selected && !hovered) {
         // Optionnel : ne rien rendre du tout
     }
 
-    // --- 6b. LIAISON : déport horizontal ---
-    // Short horizontal stub between the chip edge and the oblique leader, on
-    // the side of the chip facing the target, so the oblique line attaches to
-    // the chip edge instead of crossing it toward its center.
-    // The chip is counter-scaled (1/containerK): its CSS-px geometry is
-    // converted to image px with /k. The div is anchored on the foreignObject
-    // left edge (x = -labelSize.w/2) and is wider than the measured span by
-    // the horizontal paddings + borders (border-box, width: max-content).
-    const STUB_LENGTH = 14; // screen px (zoom-invariant, like the chip)
-    const k = containerK || 1;
-    const chipBorderW = selected ? 2 : 1;
-    const side = targetPx.x >= labelPx.x ? 1 : -1;
-    const attachCssX =
-        side >= 0
-            ? labelSize.w / 2 + 2 * PADDING_X + 2 * chipBorderW
-            : -labelSize.w / 2;
-    const attachPx = {
-        x: labelPx.x + attachCssX / k,
-        y: labelPx.y + (PADDING_Y + chipBorderW) / k, // chip visual center
-    };
-    const elbowPx = {
-        x: attachPx.x + (side * STUB_LENGTH) / k,
-        y: attachPx.y,
-    };
-    const leaderPoints = `${targetPx.x},${targetPx.y} ${elbowPx.x},${elbowPx.y} ${attachPx.x},${attachPx.y}`;
+    // --- 6b. LIAISON ---
+    // Single segment target → chip center: the chip scale now depends on the
+    // CSS var --map-zoom (unavailable to JS, frozen during wheel gestures), so
+    // a chip-edge attach point cannot be computed reliably. The opaque chip is
+    // rendered after the line and visually clips it at its edge at every zoom.
+    const leaderPoints = `${targetPx.x},${targetPx.y} ${labelPx.x},${labelPx.y}`;
+
+    // Hide everything when the Etiquette content is fully toggled off (unless
+    // selected: the placeholder chip stays editable).
+    if (hasLines && lines.length === 0 && !selected) return null;
+
+    // Standalone LABEL annotations render through NodeAnnotationStatic: honor
+    // the global hide (3D → 2D switch) here — sub-labels are gated upstream.
+    if (forceHideLabel) return null;
 
     return (
         <g {...dataProps} style={{
             cursor: dragged ? "grabbing" : "pointer",
         }}>
 
-            {/* A. LIAISON : cible → coude → bord du label (déport horizontal) */}
+            {/* A. LIAISON : cible → étiquette (noire, comme en 3D) */}
             <polyline
                 points={leaderPoints}
                 fill="none"
-                stroke={activeColor}
+                stroke={LEADER_COLOR}
+                strokeOpacity={LEADER_OPACITY}
                 strokeWidth={LINE_WIDTH}
                 vectorEffect="non-scaling-stroke"
                 pointerEvents="none"
@@ -288,7 +371,7 @@ export default function NodeLabelStatic({
             {/* B. CIBLE */}
             <g transform={`translate(${targetPx.x}, ${targetPx.y})`}>
                 <g data-label-scale style={{ transform: scaleTransform, transformBox: "fill-box", transformOrigin: "center" }}>
-                    <circle r={DOT_RADIUS} fill={activeColor} stroke="white" strokeWidth={1} pointerEvents="visible" data-part-type="TARGET" />
+                    <circle r={DOT_RADIUS} fill={LEADER_COLOR} stroke="white" strokeWidth={1} pointerEvents="visible" data-part-type="TARGET" />
                     <circle r={10} fill="transparent" stroke="transparent" data-part-type="TARGET" />
                 </g>
             </g>
@@ -305,8 +388,9 @@ export default function NodeLabelStatic({
                     >
                         <div
                             data-part-type="LABEL_BOX"
+                            ref={boxRef}
                             style={{
-                                width: fixedWidth ? `${fixedWidth}px` : 'max-content',
+                                width: effectiveFixedWidth ? `${effectiveFixedWidth}px` : 'max-content',
                                 minWidth: '40px',
                                 height: 'auto',
                                 backgroundColor: bgColor,
@@ -325,69 +409,174 @@ export default function NodeLabelStatic({
                             }}
                             onMouseDown={(e) => selected && e.stopPropagation()}
                         >
-                            {/* --- ÉLÉMENT FANTÔME (Dimensionnement) --- */}
-                            {/* C'est cet élément qui détermine la taille de la boite.
-                                On ajoute un espace si le texte finit par \n pour forcer la hauteur de la nouvelle ligne.
-                            */}
-                            <span
-                                ref={textRef}
-                                style={{
-                                    ...fontStyles,
-                                    color: 'transparent',
-                                    visibility: 'hidden', // On garde visibility:hidden pour qu'il prenne de la place
-                                    height: 'auto',
-                                    display: 'block',
-                                    minHeight: '1.2em',
-                                    minWidth: "60px"
-                                }}
-                            >
-                                {localValue + (localValue?.endsWith('\n') ? " " : "") || " "}
-                            </span>
+                            {hasLines ? (
+                                <>
+                                    {/* --- LIGNE MODÈLE --- */}
+                                    {templateLine && (
+                                        <div style={{ ...fontStyles, color: textColor }}>
+                                            {templateLine.text}
+                                        </div>
+                                    )}
 
-                            {/* --- INPUT EDITABLE (Textarea) --- */}
-                            {selected ? (
-                                <textarea
-                                    value={localValue}
-                                    onChange={(e) => setLocalValue(e.target.value)}
-                                    onBlur={handleBlur}
-                                    onFocus={handleFocus}
-                                    onKeyDown={handleKeyDown}
-                                    placeholder={placeholder}
+                                    {/* --- LIGNE LIBELLÉ (éditable inline) --- */}
+                                    {showLabelLine && (
+                                        <div style={{ position: 'relative', maxWidth: '100%', width: effectiveFixedWidth ? '100%' : undefined }}>
+                                            {/* Élément fantôme : dimensionne la ligne */}
+                                            <span
+                                                style={{
+                                                    ...fontStyles,
+                                                    color: selected ? 'transparent' : textColor,
+                                                    height: 'auto',
+                                                    display: 'block',
+                                                    minHeight: '1.2em',
+                                                    minWidth: "60px"
+                                                }}
+                                            >
+                                                {(selected
+                                                    ? localValue + (localValue?.endsWith('\n') ? " " : "")
+                                                    : label) || placeholder}
+                                            </span>
+                                            {selected && (
+                                                <textarea
+                                                    value={localValue}
+                                                    onChange={(e) => setLocalValue(e.target.value)}
+                                                    onBlur={handleBlur}
+                                                    onFocus={handleFocus}
+                                                    onKeyDown={handleKeyDown}
+                                                    placeholder={placeholder}
+                                                    style={{
+                                                        ...fontStyles,
+                                                        position: 'absolute',
+                                                        top: 0,
+                                                        left: 0,
+                                                        width: '100%',
+                                                        height: '100%',
+                                                        color: textColor,
+                                                        background: 'transparent',
+                                                        border: 'none',
+                                                        outline: 'none',
+                                                        resize: 'none',
+                                                        padding: 0,
+                                                        margin: 0,
+                                                        overflow: 'hidden',
+                                                        cursor: 'text',
+                                                        minWidth: "60px"
+                                                    }}
+                                                />
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {/* --- LIGNE DESCRIPTION --- */}
+                                    {descriptionLine && (
+                                        <div
+                                            style={{
+                                                ...fontStyles,
+                                                fontSize: `${Math.round(fontSize * 0.85)}px`,
+                                                fontWeight: 'normal',
+                                                color: textColor,
+                                                whiteSpace: 'pre-wrap',
+                                                maxWidth: effectiveFixedWidth ? '100%' : '180px',
+                                                // Breathing room after the label / template lines.
+                                                marginTop: templateLine || showLabelLine ? 6 : 0,
+                                            }}
+                                        >
+                                            {descriptionLine.text}
+                                        </div>
+                                    )}
+                                </>
+                            ) : (
+                                <>
+                                    {/* --- ÉLÉMENT FANTÔME (Dimensionnement) --- */}
+                                    {/* C'est cet élément qui détermine la taille de la boite.
+                                        On ajoute un espace si le texte finit par \n pour forcer la hauteur de la nouvelle ligne.
+                                    */}
+                                    <span
+                                        style={{
+                                            ...fontStyles,
+                                            color: 'transparent',
+                                            visibility: 'hidden', // On garde visibility:hidden pour qu'il prenne de la place
+                                            height: 'auto',
+                                            display: 'block',
+                                            minHeight: '1.2em',
+                                            minWidth: "60px"
+                                        }}
+                                    >
+                                        {localValue + (localValue?.endsWith('\n') ? " " : "") || " "}
+                                    </span>
+
+                                    {/* --- INPUT EDITABLE (Textarea) --- */}
+                                    {selected ? (
+                                        <textarea
+                                            value={localValue}
+                                            onChange={(e) => setLocalValue(e.target.value)}
+                                            onBlur={handleBlur}
+                                            onFocus={handleFocus}
+                                            onKeyDown={handleKeyDown}
+                                            placeholder={placeholder}
+                                            style={{
+                                                ...fontStyles,
+                                                position: 'absolute',
+                                                top: `${PADDING_Y}px`,
+                                                left: `${PADDING_X}px`,
+                                                width: `calc(100% - ${PADDING_X * 2}px)`,
+                                                height: `calc(100% - ${PADDING_Y * 2}px)`,
+                                                color: textColor,
+                                                background: 'transparent',
+                                                border: 'none',
+                                                outline: 'none',
+                                                resize: 'none',
+                                                padding: 0,
+                                                margin: 0,
+                                                overflow: 'hidden',
+                                                cursor: 'text',
+                                                minWidth: "60px"
+                                            }}
+                                        />
+                                    ) : (
+                                        <span style={{
+                                            ...fontStyles,
+                                            position: 'absolute',
+                                            top: `${PADDING_Y}px`,
+                                            left: `${PADDING_X}px`,
+                                            width: `calc(100% - ${PADDING_X * 2}px)`,
+                                            height: `calc(100% - ${PADDING_Y * 2}px)`,
+                                            color: textColor,
+                                            pointerEvents: 'none',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center'
+                                        }}>
+                                            {label || placeholder}
+                                        </span>
+                                    )}
+                                </>
+                            )}
+
+                            {/* --- POIGNÉE DE LARGEUR (2D, sélection uniquement) --- */}
+                            {/* Drag = règle la largeur (persistée), double-clic =
+                                retour à la largeur auto. */}
+                            {selected && (
+                                <div
+                                    onPointerDown={handleResizePointerDown}
+                                    onDoubleClick={handleResizeReset}
+                                    title="Largeur de l'étiquette (double-clic : auto)"
                                     style={{
-                                        ...fontStyles,
                                         position: 'absolute',
-                                        top: `${PADDING_Y}px`,
-                                        left: `${PADDING_X}px`,
-                                        width: `calc(100% - ${PADDING_X * 2}px)`,
-                                        height: `calc(100% - ${PADDING_Y * 2}px)`,
-                                        color: textColor,
-                                        background: 'transparent',
-                                        border: 'none',
-                                        outline: 'none',
-                                        resize: 'none',
-                                        padding: 0,
-                                        margin: 0,
-                                        overflow: 'hidden',
-                                        cursor: 'text',
-                                        minWidth: "60px"
+                                        right: -6,
+                                        top: '50%',
+                                        transform: 'translateY(-50%)',
+                                        width: 8,
+                                        height: 22,
+                                        borderRadius: 4,
+                                        backgroundColor: '#ffffff',
+                                        border: `1px solid ${activeColor}`,
+                                        cursor: 'ew-resize',
+                                        pointerEvents: 'auto',
+                                        touchAction: 'none',
+                                        boxSizing: 'border-box',
                                     }}
                                 />
-                            ) : (
-                                <span style={{
-                                    ...fontStyles,
-                                    position: 'absolute',
-                                    top: `${PADDING_Y}px`,
-                                    left: `${PADDING_X}px`,
-                                    width: `calc(100% - ${PADDING_X * 2}px)`,
-                                    height: `calc(100% - ${PADDING_Y * 2}px)`,
-                                    color: textColor,
-                                    pointerEvents: 'none',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center'
-                                }}>
-                                    {label || placeholder}
-                                </span>
                             )}
                         </div>
                     </foreignObject>

@@ -128,7 +128,7 @@ export default function useAnnotationDrag({
    * @returns {boolean} true si le drag a été initié
    */
   const initAnnotationDrag = useCallback(
-    ({ nodeId, startMouseInLocal, partType, startMouseScreen, nodeContext, wrapperAnnotationIds, wrapperBbox, rotationContext }) => {
+    ({ nodeId, startMouseInLocal, partType, startMouseScreen, nodeContext, wrapperAnnotationIds, wrapperBbox, rotationContext, clickOnly }) => {
       const isWrapper = nodeId === WRAPPER_NODE_ID;
 
       // GUARD : bloquer si pas propriétaire
@@ -155,6 +155,9 @@ export default function useAnnotationDrag({
         wrapperBbox: isWrapper ? wrapperBbox : null,
         // Angular rotation (partType ROTATE): pivot + rotation at drag start
         rotationContext: rotationContext ?? null,
+        // Click-only gesture: never activates a drag, mouseUp still selects
+        // (labels are not draggable until selected).
+        clickOnly: Boolean(clickOnly),
       };
 
       setDragAnnotationState(newState);
@@ -176,6 +179,9 @@ export default function useAnnotationDrag({
     (event) => {
       const _state = dragAnnotationStateRef.current;
       if (!_state) return false;
+
+      // Click-only gesture: absorb the movement, never start a drag.
+      if (_state.pending && _state.clickOnly) return true;
 
       // Threshold check
       if (_state.pending) {

@@ -112,6 +112,13 @@ export default function ThreedCoteAnnotations({ annotations }) {
     return coteIdsKey.split(",").includes(it.nodeId) ? it.nodeId : null;
   });
 
+  // Re-run once loadAnnotations has ensured the basemap groups exist — on a
+  // fresh page load landing directly on 3D, the first run below happens
+  // before the parent loader hooks create them, and nothing else re-runs it.
+  const annotationsLoadTick = useSelector(
+    (s) => s.threedEditor.annotationsLoadTick
+  );
+
   const groupsRef = useRef([]);
 
   useEffect(() => {
@@ -253,7 +260,7 @@ export default function ThreedCoteAnnotations({ annotations }) {
     editor.sceneManager.renderScene?.();
 
     return clear;
-  }, [cotes, selectedCoteId]);
+  }, [cotes, selectedCoteId, annotationsLoadTick]);
 
   return null;
 }

@@ -6734,12 +6734,29 @@ const InteractionLayer = forwardRef(({
       const { nodeId, nodeContext } = draggableGroup.dataset;
       const worldPos = viewportRef.current?.screenToWorld(e.clientX, e.clientY);
       const startMouseInLocal = toLocalCoords(worldPos);
+
+      // Label chip / target / leader: draggable only once the label (or its
+      // annotation) is selected — an unselected label click only selects.
+      const isLabelPart =
+        nodeId?.startsWith("label::") ||
+        ["LABEL_BOX", "TARGET", "LINK"].includes(partType);
+      const labelBaseId = nodeId?.replace("label::", "");
+      const labelNodeSelected =
+        selectedNode?.nodeId === nodeId ||
+        selectedNode?.nodeId === labelBaseId ||
+        selectedNode?.nodeId === "label::" + labelBaseId ||
+        selectedItems?.some(
+          (it) => it.nodeId === nodeId || it.nodeId === labelBaseId
+        );
+      const clickOnly = isLabelPart && !labelNodeSelected;
+
       initAnnotationDrag({
         nodeId,
         startMouseInLocal,
         partType,
         startMouseScreen: { x: e.clientX, y: e.clientY },
         nodeContext,
+        clickOnly,
         ...resolveWrapperInfo(nodeId, partType),
       });
     }

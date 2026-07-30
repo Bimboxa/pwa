@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
-import { bumpSnapIndexEpoch } from "Features/threedEditor/threedEditorSlice";
+import {
+  bumpSnapIndexEpoch,
+  bumpAnnotationsLoadTick,
+} from "Features/threedEditor/threedEditorSlice";
 
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
@@ -221,6 +224,10 @@ export default function useAutoLoadAnnotationsInThreedEditor({
     // committed face's edges then silently never became snappable). The
     // rebuild itself only runs while the 3D drawing mode is active.
     dispatch(bumpSnapIndexEpoch());
+    // Basemap groups are guaranteed to exist here (ensureBaseMapLoaded above):
+    // re-run the child effects that attach objects to them (labels, cotes) —
+    // on a fresh load landing directly on 3D their first run came too early.
+    dispatch(bumpAnnotationsLoadTick());
   }, [
     rendererIsReady,
     isActiveViewer,

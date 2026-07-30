@@ -11,7 +11,15 @@ import {
  * Built by ThreedMeshes on rebuild and by useMesh3dLabelDragHandlers while
  * the card is being dragged (`setMesh3dLabelLeaderEnds` updates it live).
  */
-export default function createMesh3dLabelLeader({ from, to, dimmed = false }) {
+export default function createMesh3dLabelLeader({
+  from,
+  to,
+  dimmed = false,
+  // Annotation labels (threedAnnotationLabels) pass true so the leader is
+  // truncated by 3D objects in front of it; maille leaders keep the
+  // always-on-top behavior.
+  depthTest = false,
+}) {
   const geometry = new BufferGeometry();
   geometry.setAttribute(
     "position",
@@ -21,7 +29,7 @@ export default function createMesh3dLabelLeader({ from, to, dimmed = false }) {
     color: "#000000",
     transparent: true,
     opacity: dimmed ? 0.2 : 0.7,
-    depthTest: false,
+    depthTest,
     depthWrite: false,
   });
   const line = new Line(geometry, material);

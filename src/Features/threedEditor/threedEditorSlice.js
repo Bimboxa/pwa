@@ -8,6 +8,12 @@ const threedEditorInitialState = {
   // When true, annotation materials ignore `annotation.opacity` and render
   // fully opaque. Exposed as the "Transparence des annotations" switch.
   disableOpacity: false,
+  // Bumped after each loadAnnotations pass (basemap groups guaranteed to
+  // exist at that point). Consumed by the effects that attach objects to the
+  // basemap groups (ThreedAnnotationLabels, ThreedCoteAnnotations): on a
+  // fresh page load landing directly on 3D, their first run happens BEFORE
+  // the parent loader hooks create the groups, and nothing else re-runs them.
+  annotationsLoadTick: 0,
   // When true, CM-width POLYLINE footprints are contracted by 10 mm before
   // extrusion to avoid coplanar-face aliasing when a parement abuts a wall.
   antiAliasingShrink: true,
@@ -346,6 +352,9 @@ export const threedEditorSlice = createSlice({
     bumpSnapIndexEpoch: (state) => {
       state.drawingMode.snapIndexEpoch += 1;
     },
+    bumpAnnotationsLoadTick: (state) => {
+      state.annotationsLoadTick += 1;
+    },
     setMoveModeActive: (state, action) => {
       state.moveMode.active = action.payload;
       if (!action.payload) {
@@ -671,6 +680,7 @@ export const {
   consumeFaceSegments,
   setDrawingAxisLock,
   bumpSnapIndexEpoch,
+  bumpAnnotationsLoadTick,
   setMoveModeActive,
   setMoveSelectedAnnotationId,
   setMoveDeltaZ,

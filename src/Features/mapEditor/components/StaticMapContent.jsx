@@ -16,6 +16,9 @@ import useSelectedNodes from "Features/mapEditor/hooks/useSelectedNodes";
 
 import NodeSvgImage from "Features/mapEditorGeneric/components/NodeSvgImage";
 import NodeAnnotationStatic from "Features/mapEditorGeneric/components/NodeAnnotationStatic";
+import NodeLabelStatic from "Features/mapEditorGeneric/components/NodeLabelStatic";
+import getAnnotationLabelPropsFromAnnotation from "Features/annotations/utils/getAnnotationLabelPropsFromAnnotation";
+import resolveAnnotationDefaults from "Features/annotations/utils/resolveAnnotationDefaults";
 import NodeLegendStatic from "Features/mapEditorGeneric/components/NodeLegendStatic";
 import NodeClippingPlanStatic from "Features/mapEditorGeneric/components/NodeClippingPlanStatic";
 import NodeProxyRevolutionStatic from "Features/mapEditorGeneric/components/NodeProxyRevolutionStatic";
@@ -202,9 +205,16 @@ function StaticMapContent({
                 containerK={bgPose.k}
                 baseMapMeterByPx={baseMapMeterByPx}
                 context="BG_IMAGE"
-                forceHideLabel={hiddenAnnotationIds?.includes(
-                  "label::" + annotation.id
-                )}
+                forceHideLabel={
+                  // Selected label: EditedObjectLayer renders the live copy
+                  // (resize, inline edit) — hide this static one underneath.
+                  selectedNode?.nodeId === "label::" + annotation.id ||
+                  selectedNodes?.some?.(
+                    (n) => n?.nodeId === "label::" + annotation.id
+                  ) ||
+                  hiddenAnnotationIds?.includes("label::" + annotation.id) ||
+                  !!getPendingMove("label::" + annotation.id)
+                }
               />
             </g>
           );
@@ -487,10 +497,76 @@ function StaticMapContent({
                 baseMapMeterByPx={baseMapMeterByPx}
                 baseMapImageScale={baseMapImageScale}
                 showBgImage={showBgImage}
-                forceHideLabel={hiddenAnnotationIds?.includes(
-                  "label::" + annotation.id
-                )}
+                // Labels are decoupled from their annotation: never rendered
+                // inline here — the hoisted labels pass below draws them
+                // ABOVE every annotation (draw order preserved among labels).
+                forceHideLabel={true}
                 selectMode={selectMode}
+              />
+            </g>
+          );
+        })}
+
+        {/* --- ANNOTATION LABELS (hoisted) ---
+            Labels are decoupled from their annotation node so they always sit
+            ABOVE every annotation shape; among themselves they keep the
+            annotations' draw order. The per-label hide rules (selected label
+            → EditedObjectLayer live copy, pending move → transient layer)
+            live here now. */}
+        {visibleBaseMapAnnotations?.map((annotation) => {
+          const labelNodeId = "label::" + annotation.id;
+
+          // Same hide rules as the annotation pass: the selected annotation
+          // (label included) is rendered by EditedObjectLayer.
+          if (hiddenAnnotationIds?.includes(annotation.id)) return null;
+          const isAnchorSource = anchorSourceAnnotationId === annotation.id;
+          const isSelectedGlobal =
+            !isAnchorSource &&
+            (selectedNode?.nodeId === annotation.id ||
+              selectedNodes?.map((n) => n.nodeId)?.includes(annotation.id));
+          const hideDueToTopology =
+            !selectedNode && idsAffectedBySelectedPoint.has(annotation.id);
+          if (isSelectedGlobal || hideDueToTopology) return null;
+
+          // Label-specific hide rules.
+          const labelSelected =
+            selectedNode?.nodeId === labelNodeId ||
+            selectedNodes?.some?.((n) => n?.nodeId === labelNodeId);
+          if (labelSelected) return null;
+          if (hiddenAnnotationIds?.includes(labelNodeId)) return null;
+          if (getPendingMove(annotation.id) || getPendingMove(labelNodeId))
+            return null;
+
+          const merged = {
+            ...annotation,
+            ...(labelOverridesById?.[annotation.id] ?? {}),
+          };
+
+          // Standalone LABEL annotations render directly.
+          let labelProps = null;
+          if (annotation.type === "LABEL") {
+            labelProps = merged;
+          } else {
+            if (!merged.showLabel) return null;
+            labelProps = getAnnotationLabelPropsFromAnnotation(
+              resolveAnnotationDefaults(merged)
+            );
+          }
+          if (!labelProps) return null;
+
+          return (
+            <g
+              key={labelNodeId}
+              style={
+                isAnchorSource
+                  ? { opacity: 0.3, filter: "grayscale(1)" }
+                  : undefined
+              }
+            >
+              <NodeLabelStatic
+                annotation={labelProps}
+                containerK={basePose.k}
+                hidden={labelProps.hidden}
               />
             </g>
           );

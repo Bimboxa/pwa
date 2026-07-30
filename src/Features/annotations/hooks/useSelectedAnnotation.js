@@ -37,6 +37,13 @@ export default function useSelectedAnnotation() {
     selectedAnnotationId = selectedItem.nodeId;
   }
 
+  // A selected label ("label::<id>") resolves to its annotation, so the
+  // properties panel shows the annotation (Etiquette tab opened by the
+  // selection reducer).
+  if (selectedAnnotationId?.startsWith?.("label::")) {
+    selectedAnnotationId = selectedAnnotationId.replace("label::", "");
+  }
+
   // existing fallback or logic
 
 

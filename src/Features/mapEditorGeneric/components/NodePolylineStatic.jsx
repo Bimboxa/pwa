@@ -196,7 +196,7 @@ function NodePolylineStatic({
 
   const labelAnnotation =
     getAnnotationLabelPropsFromAnnotation(mergedAnnotation);
-  const showLabel = mergedAnnotation.showLabel;
+  const showLabel = mergedAnnotation.showLabel && !forceHideLabel;
   //const showLabel = false;
 
   strokeColor = type === "POLYGON" ? fillColor : strokeColor;

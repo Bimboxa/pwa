@@ -1512,6 +1512,11 @@ export default function useAnnotationsV2(options) {
                 ...annotation,
                 entity: entityWithImages,
                 hasImages,
+                // `label` below is the ENTITY label. Keep the annotation row's
+                // own label around: the "Etiquette" feature renders that one,
+                // deliberately decoupled from entities (and from appConfig,
+                // which resolves the entity labelKey asynchronously).
+                annotationLabel: annotation.label,
                 label,
               };
             } else {
@@ -2342,6 +2347,18 @@ export default function useAnnotationsV2(options) {
       subtractionTargetIdsBySource,
       openingRowsByHostId,
       excludeProfileTemplates,
+      // TODO — stale entity labels on first load. `appConfig` is read inside
+      // this query (entity `labelKey` + prefix/zeroPad, and the scope filter's
+      // entityModel lookup) but is NOT a dependency: it loads asynchronously,
+      // so the first run resolves entity-linked `label` to undefined and
+      // nothing re-runs the query until an unrelated write happens. Affects
+      // every consumer of `annotation.label` (panel header, listings…); the
+      // "Etiquette" labels are immune since they read the row's own
+      // `annotationLabel`.
+      // Careful with the fix: adding `appConfig` itself makes this heavy query
+      // depend on an OBJECT REFERENCE, so any re-set of the config (even with
+      // identical content) triggers a full re-resolve of every annotation.
+      // Prefer a derived, stable value — e.g. a loaded flag or a version key.
     ]);
 
     return processed;

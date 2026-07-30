@@ -88,6 +88,8 @@ import {
 import CoteToolbarThreed from "Features/threedDimensions/components/CoteToolbarThreed";
 import DimensionDraftOverlayThreed from "Features/threedDimensions/components/DimensionDraftOverlayThreed";
 import ThreedCoteAnnotations from "Features/threedDimensions/components/ThreedCoteAnnotations";
+import ThreedAnnotationLabels from "Features/threedAnnotationLabels/components/ThreedAnnotationLabels";
+import useAnnotationLabelDragHandlers from "Features/threedAnnotationLabels/hooks/useAnnotationLabelDragHandlers";
 import useDimensionPointerHandlers from "Features/threedDimensions/hooks/useDimensionPointerHandlers";
 import useCoteLabelDragHandlers from "Features/threedDimensions/hooks/useCoteLabelDragHandlers";
 import { getDimensionObjects } from "Features/threedDimensions/services/dimensionObjectsStore";
@@ -325,6 +327,7 @@ export default function MainThreedEditor() {
   useTemplateCoteDrawBridge();
   useCoteLabelDragHandlers({ rendererIsReady });
   useMesh3dLabelDragHandlers({ rendererIsReady });
+  useAnnotationLabelDragHandlers({ rendererIsReady });
 
   // Drive the 3D clipping plane from the 2D-defined segment (top view).
   useSyncClippingPlanTo3D({ threedEditorRef, rendererIsReady });
@@ -1819,6 +1822,9 @@ export default function MainThreedEditor() {
       {isThreedViewer && <MoveGizmoThreed />}
       {isThreedViewer && rendererIsReady && (
         <ThreedCoteAnnotations annotations={annotations} />
+      )}
+      {isThreedViewer && rendererIsReady && (
+        <ThreedAnnotationLabels annotations={annotations} />
       )}
       {isThreedViewer && <DimensionDraftOverlayThreed />}
       {isThreedViewer && rendererIsReady && <ThreedMeshes />}

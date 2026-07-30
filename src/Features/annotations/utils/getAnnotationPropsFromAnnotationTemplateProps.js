@@ -3,6 +3,15 @@ export default function getAnnotationPropsFromAnnotationTemplateProps(annotation
     // pour ne pas muter l'objet original.
     const result = { ...annotation };
 
+    // Libellé propre de l'annotation (champ de la ligne), avant le repli sur
+    // le libellé du modèle plus bas : c'est ce que rend l'étiquette
+    // ("Etiquette"), volontairement découplée des entités. Déjà posé en amont
+    // pour les annotations liées à une entité (useAnnotationsV2), où `label`
+    // porte alors le libellé de l'entité.
+    if (result.annotationLabel === undefined) {
+        result.annotationLabel = annotation?.label;
+    }
+
     // Sécurité : si le template est vide ou null, on retourne l'annotation telle quelle
     if (!annotationTemplateProps) {
         return result;

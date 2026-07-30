@@ -275,6 +275,10 @@ export default function EditedObjectLayer({
               // Proxy donuts are not editable: keep the selection
               // highlight/fill but never show vertex handles.
               disableVertexEditing={annotation.isProxy}
+              // The label chip is being dragged (pendingMove keyed on the
+              // label:: node): hide this copy's chip, the transient layer
+              // renders the moving one.
+              forceHideLabel={!!getPendingMove("label::" + annotation.id)}
             />
           </g>
         );
