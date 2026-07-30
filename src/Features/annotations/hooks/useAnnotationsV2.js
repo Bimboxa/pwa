@@ -1915,6 +1915,12 @@ export default function useAnnotationsV2(options) {
           const plans = (
             await db.photoPlans.where("baseMapId").anyOf(photoIds).toArray()
           ).filter((p) => !p.deletedAt);
+          // A plan's own source polygon must never be RECONSTRUCTED in 3D —
+          // its 3D representation is the textured plane (PhotoPlansManager).
+          // It still gets attached + real quantities (= the plan's surface).
+          const planSourceAnnotationIds = new Set(
+            plans.map((p) => p.annotationId)
+          );
 
           // Resolve each plan's source polygon once per run (direct db read:
           // the source lives in an isForBaseMaps listing, invisible here).
@@ -2003,6 +2009,10 @@ export default function useAnnotationsV2(options) {
               annotation: { ...a, points: ptsM, cuts: cutsM },
               meterByPx: 1,
             });
+
+            // No 3D reconstruction for a plan's own source polygon: the
+            // textured plane already IS its 3D representation.
+            if (planSourceAnnotationIds.has(a.id)) continue;
 
             // Plane-local geometry for the 3D reconstruction — image-like
             // y-down meters, so createPhotoPlanObject3D's fakeBaseMap
