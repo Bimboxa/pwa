@@ -1699,7 +1699,9 @@ function ListingChipsBar({
   listings,
   activeListingId,
   annotationCountByListingId,
+  hiddenByListingId,
   onSelectListing,
+  onToggleListingVisibility,
   showAddButton,
   hasNoListing,
   onAddListing,
@@ -1722,6 +1724,8 @@ function ListingChipsBar({
       {listings?.map((listing) => {
         const selected = listing.id === activeListingId;
         const count = annotationCountByListingId?.[listing.id] || 0;
+        const isHidden = Boolean(hiddenByListingId?.[listing.id]);
+        const EyeIcon = isHidden ? VisibilityOff : Visibility;
         return (
           <Box
             key={listing.id}
@@ -1750,7 +1754,12 @@ function ListingChipsBar({
               noWrap
               sx={{
                 fontWeight: 600,
-                color: selected ? "primary.contrastText" : "panel.textPrimary",
+                color: selected
+                  ? "primary.contrastText"
+                  : isHidden
+                    ? "text.disabled"
+                    : "panel.textPrimary",
+                opacity: selected && isHidden ? 0.5 : 1,
               }}
             >
               {listing.name ?? listing.label ?? "Liste"}
@@ -1762,14 +1771,36 @@ function ListingChipsBar({
                 fontSize: "10px",
                 color: selected
                   ? "primary.contrastText"
-                  : count > 0
-                    ? "secondary.main"
-                    : "panel.countEmpty",
-                opacity: selected ? 0.85 : 1,
+                  : isHidden
+                    ? "text.disabled"
+                    : count > 0
+                      ? "secondary.main"
+                      : "panel.countEmpty",
+                opacity: selected ? (isHidden ? 0.5 : 0.85) : 1,
               }}
             >
               {count}
             </Typography>
+            {/* Not an IconButton: the chip itself is a <button>, nesting one
+                would be invalid HTML. */}
+            <Box
+              component="span"
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleListingVisibility?.(listing.id);
+              }}
+              sx={{
+                display: "inline-flex",
+                alignItems: "center",
+                color: selected
+                  ? "primary.contrastText"
+                  : isHidden
+                    ? "secondary.main"
+                    : "panel.iconMuted",
+              }}
+            >
+              <EyeIcon sx={{ fontSize: 14 }} />
+            </Box>
           </Box>
         );
       })}
@@ -2613,6 +2644,25 @@ export default function PopperMapListings() {
     [annotationTemplates]
   );
 
+  const updateAnnotationTemplates = useUpdateAnnotationTemplates();
+
+  // Chip eyes mirror the listing-row eye: a listing is hidden when every one
+  // of its templates is hidden.
+  const templatesByListingId = useMemo(() => {
+    return (annotationTemplates ?? []).reduce((acc, t) => {
+      if (t.listingId) (acc[t.listingId] ??= []).push(t);
+      return acc;
+    }, {});
+  }, [annotationTemplates]);
+
+  const hiddenByListingId = useMemo(() => {
+    const acc = {};
+    Object.entries(templatesByListingId).forEach(([listingId, templates]) => {
+      acc[listingId] = templates.length > 0 && templates.every((t) => t.hidden);
+    });
+    return acc;
+  }, [templatesByListingId]);
+
   // ZONES module: the zone selected in the drawer drives the "Nouvelle zone"
   // section (its template row is the module's only drawing entry).
   const { template: selectedZoneTemplate } = useSelectedZone();
@@ -2798,6 +2848,18 @@ export default function PopperMapListings() {
   // Tune button on the selected-listing band below).
   function handleSelectListing(listingId) {
     dispatch(setSelectedListingId(listingId));
+  }
+
+  // Chip eye: toggle every template eye of the listing in one batch write,
+  // only touching templates whose `hidden` actually changes (same rule as the
+  // listing-row eye).
+  async function handleToggleListingVisibility(listingId) {
+    const templates = templatesByListingId[listingId] ?? [];
+    const targetHidden = !hiddenByListingId[listingId];
+    const updates = templates
+      .filter((t) => Boolean(t.hidden) !== targetHidden)
+      .map((t) => ({ id: t.id, hidden: targetHidden }));
+    await updateAnnotationTemplates(updates);
   }
 
   function handleMergeResult(file, listingName) {
@@ -3142,7 +3204,9 @@ export default function PopperMapListings() {
                 listings={displayedListings}
                 activeListingId={activeListing?.id}
                 annotationCountByListingId={annotationCountByListingId}
+                hiddenByListingId={hiddenByListingId}
                 onSelectListing={handleSelectListing}
+                onToggleListingVisibility={handleToggleListingVisibility}
                 showAddButton={canAddListing}
                 hasNoListing={hasNoListing}
                 onAddListing={() => setOpenCreateListing(true)}
