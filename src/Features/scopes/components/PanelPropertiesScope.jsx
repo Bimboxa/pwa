@@ -37,8 +37,8 @@ import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useMainBaseMapListing from "Features/baseMaps/hooks/useMainBaseMapListing";
 import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
 import useUpdateScope from "Features/scopes/hooks/useUpdateScope";
-import useReadOnlyScope from "Features/scopes/hooks/useReadOnlyScope";
 import useCanEditRecord from "App/hooks/useCanEditRecord";
+import { canEditRecord } from "App/db/ownership";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 import useLayers from "Features/layers/hooks/useLayers";
@@ -47,6 +47,7 @@ import DialogGeneric from "Features/layout/components/DialogGeneric";
 import DatagridAnnotations from "Features/annotations/components/DatagridAnnotations";
 import CardBaseMapShare from "Features/baseMapShare/components/CardBaseMapShare";
 import IconButtonMoreActionsScope from "./IconButtonMoreActionsScope";
+import SectionScopeEditableBy from "./SectionScopeEditableBy";
 
 export default function PanelPropertiesScope() {
   // data
@@ -60,9 +61,13 @@ export default function PanelPropertiesScope() {
 
   const baseMapId = useSelector((s) => s.mapEditor.selectedBaseMapId);
 
-  const { isReadOnly } = useReadOnlyScope();
-  const { canEditRecord: canEdit } = useCanEditRecord();
-  const isCreator = selectedScope ? canEdit(selectedScope) : false;
+  // Scope RECORD rights stay creator-only: pure ownership check — the shared
+  // useCanEditRecord hook now includes the editors-trigram bypass, which is
+  // meant for scope CONTENT only (name / isPublic / editorsTrigrams excluded).
+  const { currentUserId } = useCanEditRecord();
+  const isCreator = selectedScope
+    ? canEditRecord(selectedScope, currentUserId)
+    : false;
 
   // Single source: the deprecated useAnnotations hook dropped annotations
   // without an entityId (e.g. procedure-created ones), so the layer counts
@@ -185,8 +190,9 @@ export default function PanelPropertiesScope() {
       </Box>
 
       <BoxFlexVStretch sx={{ overflow: "auto", gap: 1, p: 1 }}>
-        {/* Scope name */}
-        {selectedScope && !isReadOnly && (
+        {/* Scope name — editable by the creator only (the db guard on the
+            scopes table would reject anyone else anyway) */}
+        {selectedScope && isCreator && (
           <FieldTextV2
             label="Nom"
             value={selectedScope.name}
@@ -194,7 +200,7 @@ export default function PanelPropertiesScope() {
             options={{ showAsField: true, fullWidth: true, changeOnBlur: true }}
           />
         )}
-        {selectedScope && isReadOnly && (
+        {selectedScope && !isCreator && (
           <WhiteSectionGeneric>
             <Typography variant="caption" color="text.secondary">
               Nom
@@ -227,6 +233,11 @@ export default function PanelPropertiesScope() {
               />
             </Box>
           </WhiteSectionGeneric>
+        )}
+
+        {/* Editable-by trigrams */}
+        {selectedScope && (
+          <SectionScopeEditableBy scope={selectedScope} isCreator={isCreator} />
         )}
 
         {/* Card 1: BaseMap preview + opacity */}

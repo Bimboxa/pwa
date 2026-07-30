@@ -4,6 +4,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { setToaster } from "Features/layout/layoutSlice";
 import { canEditRecord } from "App/db/ownership";
 import getUserIdMaster from "Features/auth/utils/getUserIdMaster";
+import useIsSelectedScopeEditor from "Features/scopes/hooks/useIsSelectedScopeEditor";
 
 /**
  * Hook central de vérification des permissions d'annotation.
@@ -29,6 +30,12 @@ export default function useAnnotationPermissions({ annotations }) {
   const annotationsRef = useRef(annotations);
   annotationsRef.current = annotations; // sync à chaque render (O(1))
 
+  // Editor bypass (scope.editorsTrigrams) — ref pour garder les callbacks
+  // stables (même contrat que annotationsRef).
+  const isEditor = useIsSelectedScopeEditor();
+  const isEditorRef = useRef(isEditor);
+  isEditorRef.current = isEditor;
+
   /**
    * Vérifie si l'utilisateur courant peut modifier une annotation.
    * Coût : O(n) lookup — appelé uniquement sur événement utilisateur.
@@ -38,6 +45,7 @@ export default function useAnnotationPermissions({ annotations }) {
    */
   const canEditAnnotation = useCallback(
     (annotationId) => {
+      if (isEditorRef.current) return true;
       const ann = annotationsRef.current?.find((a) => a.id === annotationId);
       if (canEditRecord(ann, currentUserId)) return true;
       dispatch(setToaster({ message: PERMISSION_MESSAGE, isError: true }));
@@ -81,7 +89,7 @@ export default function useAnnotationPermissions({ annotations }) {
           l?.points?.some((g) => g.pointId === pointId || g.id === pointId)
         );
         if (inMain || inCuts || inInner || inGuide || inIso || inProfile) {
-          if (canEditRecord(ann, currentUserId)) {
+          if (isEditorRef.current || canEditRecord(ann, currentUserId)) {
             myIds.push(ann.id);
           } else {
             foreignIds.push(ann.id);

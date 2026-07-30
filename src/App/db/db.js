@@ -7,11 +7,13 @@ import { UNDO_TABLES, _skipUndo, pushUndo } from "./undoManager";
 import {
   canEditRecord,
   getEffectiveOwner,
+  isScopeEditor,
   normalizeOwnerId,
   OwnershipError,
   ReadOnlyScopeError,
 } from "./ownership";
 import getUserIdMaster from "Features/auth/utils/getUserIdMaster";
+import getUserTrigram from "Features/auth/utils/getUserTrigram";
 import { notifyLocalChange } from "Features/remoteScopeConfigurations/services/localChangeTracker";
 
 function getCurrentUserIdMaster() {
@@ -293,7 +295,27 @@ function getActiveReadOnlyScopeId() {
   const owner = getEffectiveOwner(scope);
   if (owner === null) return null; // legacy ownerless scope: free for all
   const currentUser = normalizeOwnerId(getUserIdMaster(state.auth.userProfile));
-  return owner === currentUser ? null : scopeId;
+  if (owner === currentUser) return null;
+  // Granted editors (scope.editorsTrigrams) write like the creator does.
+  if (isScopeEditor(scope, getUserTrigram(state.auth.userProfile))) return null;
+  return scopeId;
+}
+
+// Editor bypass: the current user was granted edit rights on the selected
+// scope (scope.editorsTrigrams). Applies ONLY to scope-content tables
+// (READ_ONLY_BLOCKED_TABLES): the scopes/projects records themselves stay
+// per-record guarded — editors cannot rename the scope, toggle isPublic or
+// edit editorsTrigrams. Mirrors assertNotReadOnlyScope's cross-scope
+// exception: a record explicitly targeting ANOTHER scope is not covered.
+// Fail-closed: before dexieSyncService fills scopesById, this returns false.
+function isEditorBypassAllowed(tableName, record) {
+  if (!READ_ONLY_BLOCKED_TABLES.has(tableName)) return false;
+  const state = store.getState();
+  const scopeId = state?.scopes?.selectedScopeId;
+  if (!scopeId) return false;
+  if (record?.scopeId && record.scopeId !== scopeId) return false;
+  const scope = state?.scopes?.scopesById?.[scopeId];
+  return isScopeEditor(scope, getUserTrigram(state?.auth?.userProfile));
 }
 
 function assertNotReadOnlyScope(tableName, obj) {
@@ -337,7 +359,8 @@ AUDIT_TABLES.forEach((tableName) => {
     const currentUser = getCurrentUserIdMaster();
     if (
       !OWNERSHIP_EXEMPT_TABLES.has(tableName) &&
-      !canEditRecord(obj, currentUser)
+      !canEditRecord(obj, currentUser) &&
+      !isEditorBypassAllowed(tableName, obj)
     ) {
       throw new OwnershipError();
     }
@@ -489,7 +512,8 @@ async function softDeleteByKeys(downlevelTable, req, tableName) {
       if (
         !_skipOwnershipGuard &&
         !OWNERSHIP_EXEMPT_TABLES.has(tableName) &&
-        !canEditRecord(record, deletedByUserIdMaster)
+        !canEditRecord(record, deletedByUserIdMaster) &&
+        !isEditorBypassAllowed(tableName, record)
       ) {
         throw new OwnershipError();
       }
@@ -548,7 +572,10 @@ async function softDeleteByRange(downlevelTable, req, tableName) {
 
   if (!_skipOwnershipGuard && !OWNERSHIP_EXEMPT_TABLES.has(tableName)) {
     for (const record of recordsToDelete) {
-      if (!canEditRecord(record, deletedByUserIdMaster)) {
+      if (
+        !canEditRecord(record, deletedByUserIdMaster) &&
+        !isEditorBypassAllowed(tableName, record)
+      ) {
         throw new OwnershipError();
       }
     }

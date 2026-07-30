@@ -53,6 +53,40 @@ export function canEditRecord(record, currentUserId) {
 }
 
 /**
+ * Normalize a user trigram to a comparable form, or null when empty. Trigrams
+ * are user-entered (scope sharing) and machine-provided (auth profile) — both
+ * sides are compared trimmed and uppercased.
+ *
+ * @param {string|null|undefined} value
+ * @returns {string|null}
+ */
+export function normalizeTrigram(value) {
+  if (value === undefined || value === null) return null;
+  const t = String(value).trim().toUpperCase();
+  return t.length > 0 ? t : null;
+}
+
+/**
+ * Scope-level edit grant: the scope creator lists the trigrams of the users
+ * allowed to edit the scope CONTENT (`scope.editorsTrigrams`, an array of
+ * normalized trigrams; absent/empty/non-array = no extra editors). A granted
+ * editor bypasses both the private-scope read-only guard and the per-record
+ * ownership rule for scope-content tables — the scope record itself stays
+ * creator-only.
+ *
+ * @param {object} scope
+ * @param {string|null|undefined} trigram - the current user's trigram
+ * @returns {boolean}
+ */
+export function isScopeEditor(scope, trigram) {
+  const t = normalizeTrigram(trigram);
+  if (!t) return false;
+  const list = scope?.editorsTrigrams;
+  if (!Array.isArray(list)) return false;
+  return list.some((x) => normalizeTrigram(x) === t);
+}
+
+/**
  * Thrown by the DB layer when a user tries to modify/delete a record owned by
  * someone else. Caught by UI handlers to surface a toast instead of crashing.
  */
