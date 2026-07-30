@@ -27,7 +27,13 @@ import estimateFocalFromVanishingPoints from "./estimateFocalFromVanishingPoints
 //     (required for VERTICAL planes; plane altitude, default 0, for
 //     HORIZONTAL ones),
 //   - focalPxOverride: optional focal length in pixels (EXIF f35 * W / 36),
-//     required only when one vanishing point is at infinity (NEEDS_FOCAL).
+//     required only when one vanishing point is at infinity (NEEDS_FOCAL),
+//   - knownCote: optional { p1, p2, lengthM } — a segment of KNOWN real
+//     length drawn on the photo (normalized coords). When present it drives
+//     the metric scale INSTEAD of the plan-side pastille distance (usually
+//     far more accurate: a door / storey height is known to the cm); the
+//     pastilles then only anchor + orient the plane, and the recomputed
+//     pastille spacing becomes a coherence diagnostic.
 //
 // Math (single-view metric: square pixels, principal point at image center):
 // centered coords xc = (px - W/2)/s, yc = -(py - H/2)/s with s = max(W, H);
@@ -58,6 +64,7 @@ export default function computePhotoPlanCalibration({
   refColor,
   refHeight,
   focalPxOverride,
+  knownCote,
 }) {
   // --- malformed args -> null (nothing to diagnose) ---
   const W = photoImageSize?.width;
@@ -226,7 +233,24 @@ export default function computePhotoPlanCalibration({
   let qOther = planeRaw(cOther);
   if (!qOther) return fail("TARGET_ON_HORIZON");
 
-  // --- similarity from the pastille pair ---
+  // Optional known-dimension scale. Computed on the CURRENT frame: raw
+  // distances are invariant under the later e_u sign flip (u -> -u for every
+  // point), so the order does not matter.
+  let coteScale = null;
+  if (knownCote?.p1 && knownCote?.p2) {
+    if (!(Number.isFinite(knownCote.lengthM) && knownCote.lengthM > 0)) {
+      return fail("COTE_LENGTH_REQUIRED");
+    }
+    const qc1 = planeRaw(toCentered(knownCote.p1));
+    const qc2 = planeRaw(toCentered(knownCote.p2));
+    if (!qc1 || !qc2) return fail("COTE_ON_HORIZON");
+    const rawLen = Math.hypot(qc2.u - qc1.u, qc2.v - qc1.v);
+    if (rawLen < EPS) return fail("COTE_DEGENERATE");
+    coteScale = knownCote.lengthM / rawLen;
+  }
+  diagnostics.scaleSource = coteScale != null ? "cote" : "targets";
+
+  // --- similarity from the pastille pair (scale overridden by the cote) ---
 
   let sc;
   let tV = 0;
@@ -235,6 +259,8 @@ export default function computePhotoPlanCalibration({
   if (planeType === "VERTICAL") {
     const r2 = Math.hypot(qOther.u, qOther.v);
     if (r2 < EPS) return fail("PHOTO_TARGETS_SUPERIMPOSED");
+    // Even with a cote-driven scale, the pastilles' horizontal spacing sets
+    // the +u sign (which world side the facade runs to) — still required.
     if (Math.abs(qOther.u) < 1e-6 * r2) return fail("TARGETS_SAME_U");
     if (qOther.u < 0) {
       // e_u must point toward the other pastille (u > 0).
@@ -244,7 +270,7 @@ export default function computePhotoPlanCalibration({
       qOther = planeRaw(cOther);
       if (!qOther) return fail("TARGET_ON_HORIZON");
     }
-    sc = d / qOther.u;
+    sc = coteScale ?? d / qOther.u;
     tV = refH;
     const uDir = { x: dX / d, y: 0, z: dZ / d };
     pose = {
@@ -254,22 +280,39 @@ export default function computePhotoPlanCalibration({
       normal: { x: -uDir.z, y: 0, z: uDir.x },
     };
     diagnostics.otherTargetV = qOther.v * sc + refH;
+    // Coherence cross-check when the cote drives the scale: the pastilles'
+    // horizontal spacing recomputed from the photo vs measured on the plan.
+    diagnostics.targetsSpacingM = Math.abs(qOther.u) * sc;
+    diagnostics.planTargetsDistanceM = d;
   } else {
     const r2 = Math.hypot(qOther.u, qOther.v);
     if (r2 < EPS) return fail("PHOTO_TARGETS_SUPERIMPOSED");
-    sc = d / r2;
+    sc = coteScale ?? d / r2;
     const a = qOther.u * sc;
     const b = qOther.v * sc;
-    // In-plane rotation photo-frame -> world (Cramer, det = d^2):
+    // In-plane rotation photo-frame -> world, from the single pastille pair:
     //   dX = a cos + b sin ; dZ = a sin - b cos
-    const cosPhi = (a * dX - b * dZ) / (d * d);
-    const sinPhi = (a * dZ + b * dX) / (d * d);
+    // Normalized by (|ab| * d) so (cos, sin) is exactly unit even when the
+    // cote-driven scale makes |ab| differ from d (reduces to the exact
+    // Cramer solve, det = d^2, when the scale comes from the targets).
+    const rn = Math.hypot(a, b);
+    const cosPhi = (a * dX - b * dZ) / (rn * d);
+    const sinPhi = (a * dZ + b * dX) / (rn * d);
     pose = {
       origin: { x: P.x, y: refH, z: P.z },
       uDir: { x: cosPhi, y: 0, z: sinPhi },
       vDir: { x: sinPhi, y: 0, z: -cosPhi },
       normal: { x: 0, y: 1, z: 0 },
     };
+    diagnostics.targetsSpacingM = rn;
+    diagnostics.planTargetsDistanceM = d;
+  }
+
+  if (
+    coteScale != null &&
+    Math.abs(diagnostics.targetsSpacingM - d) / d > 0.15
+  ) {
+    diagnostics.warnings.push("SCALE_MISMATCH");
   }
 
   // --- assemble H = S_T . M^-1 . K^-1 . C (normalized photo -> meters) ---

@@ -699,6 +699,207 @@ console.log("\n[8] getPhotoPlanAttachment");
   check("in ring, out of hole", at(210, 10) === "withHole", at(210, 10));
 }
 
+// =============================================================================
+// Scenario 9 — knownCote drives the scale: plan-target distance errors no
+// longer affect the metric (the pastilles only anchor + orient).
+// =============================================================================
+console.log("\n[9] knownCote scale");
+{
+  // --- VERTICAL: other plan target pushed 20% too far ALONG the facade
+  // direction (azimuth unchanged, distance d wrong by +20%).
+  const az = (35 * Math.PI) / 180;
+  const uDir = { x: Math.cos(az), y: 0, z: Math.sin(az) };
+  const origin = { x: 4, y: 0, z: 7 };
+  const normal = { x: -uDir.z, y: 0, z: uDir.x };
+  const P = (u, v) => ({
+    x: origin.x + u * uDir.x,
+    y: v,
+    z: origin.z + u * uDir.z,
+  });
+  const cam = makeCamera({
+    position: {
+      x: origin.x - 2 * uDir.x - 9 * normal.x,
+      y: 1.0,
+      z: origin.z - 2 * uDir.z - 9 * normal.z,
+    },
+    lookAt: P(3, 2.8),
+    focalPx: 1300,
+    W: 1600,
+    H: 1200,
+  });
+  const uSegments = [
+    segN(cam, P(0.5, 0.4), P(5.5, 0.4)),
+    segN(cam, P(1.0, 4.8), P(6.0, 4.8)),
+  ];
+  const vSegments = [
+    segN(cam, P(0.8, 0.2), P(0.8, 4.6)),
+    segN(cam, P(5.4, 0.1), P(5.4, 4.2)),
+  ];
+  const refWorld = P(0.6, 1.1);
+  const otherWorld = P(4.9, 2.3);
+  const otherPerturbed = P(0.6 + (4.9 - 0.6) * 1.2, 0); // +20% along u
+  const base = {
+    photoImageSize: { width: cam.W, height: cam.H },
+    planeType: "VERTICAL",
+    uSegments,
+    vSegments,
+    photoTargets: {
+      green: cam.projectN(refWorld),
+      red: cam.projectN(otherWorld),
+    },
+    worldTargets: {
+      green: { x: refWorld.x, z: refWorld.z },
+      red: { x: otherPerturbed.x, z: otherPerturbed.z },
+    },
+    refColor: "green",
+    refHeight: refWorld.y,
+  };
+  // a VERTICAL known dimension (storey-height style): 3 m
+  const cote = {
+    p1: cam.projectN(P(2, 0.5)),
+    p2: cam.projectN(P(2, 3.5)),
+    lengthM: 3,
+  };
+
+  const corners = [P(0.5, 0.9), P(6.5, 0.9), P(6.5, 3.9), P(0.5, 3.9)];
+
+  const noCote = computePhotoPlanCalibration(base);
+  check("V perturbed ok (no cote)", noCote?.ok === true, noCote?.errorCode);
+  if (noCote?.ok) {
+    const uv = corners.map((c) =>
+      applyPhotoPlanHomography(noCote.H, cam.projectN(c))
+    );
+    const aErr = Math.abs(polyArea(uv) - 18) / 18;
+    check(
+      "no cote -> area off by ~44%",
+      aErr > 0.3,
+      `${(aErr * 100).toFixed(1)}%`
+    );
+  }
+
+  const withCote = computePhotoPlanCalibration({ ...base, knownCote: cote });
+  check("V with cote ok", withCote?.ok === true, withCote?.errorCode);
+  if (withCote?.ok) {
+    check(
+      "scaleSource cote",
+      withCote.diagnostics.scaleSource === "cote",
+      withCote.diagnostics.scaleSource
+    );
+    const wr = corners.map((c) =>
+      photoPlanPointToWorld(withCote, cam.projectN(c))
+    );
+    const maxErr = Math.max(
+      ...wr.map((p, i) =>
+        Math.hypot(p.x - corners[i].x, p.y - corners[i].y, p.z - corners[i].z)
+      )
+    );
+    check("world corners exact", maxErr < 1e-6, `maxErr ${maxErr}`);
+    check(
+      "otherTargetV exact",
+      approx(withCote.diagnostics.otherTargetV, otherWorld.y, 1e-6),
+      `got ${withCote.diagnostics.otherTargetV}`
+    );
+    check(
+      "SCALE_MISMATCH flagged (20% off)",
+      withCote.diagnostics.warnings.includes("SCALE_MISMATCH")
+    );
+    check(
+      "coherence numbers",
+      approx(
+        withCote.diagnostics.targetsSpacingM,
+        4.3,
+        1e-6 // true horizontal spacing |4.9 - 0.6|
+      ) && approx(withCote.diagnostics.planTargetsDistanceM, 4.3 * 1.2, 1e-9),
+      `spacing ${withCote.diagnostics.targetsSpacingM} vs plan ${withCote.diagnostics.planTargetsDistanceM}`
+    );
+  }
+
+  // --- HORIZONTAL: other plan target pushed +15% radially (direction kept).
+  {
+    const h = 0.3;
+    const azH = (20 * Math.PI) / 180;
+    const u = { x: Math.cos(azH), y: 0, z: Math.sin(azH) };
+    const v = { x: -Math.sin(azH), y: 0, z: Math.cos(azH) };
+    const G = (a, b) => ({
+      x: 2 + a * u.x + b * v.x,
+      y: h,
+      z: 3 + a * u.z + b * v.z,
+    });
+    const camH = makeCamera({
+      position: { x: -4, y: 6, z: -3 },
+      lookAt: G(3, 3),
+      focalPx: 1500,
+      W: 2000,
+      H: 1500,
+    });
+    const refW = G(0.9, 0.8);
+    const otherW = G(4.7, 3.9);
+    const otherP = {
+      x: refW.x + (otherW.x - refW.x) * 1.15,
+      z: refW.z + (otherW.z - refW.z) * 1.15,
+    };
+    const calib = computePhotoPlanCalibration({
+      photoImageSize: { width: camH.W, height: camH.H },
+      planeType: "HORIZONTAL",
+      uSegments: [
+        segN(camH, G(0, 0.5), G(6, 0.5)),
+        segN(camH, G(0.3, 4.5), G(6.3, 4.5)),
+      ],
+      vSegments: [
+        segN(camH, G(0.7, 0), G(0.7, 5.5)),
+        segN(camH, G(5.6, 0.2), G(5.6, 5.8)),
+      ],
+      photoTargets: {
+        green: camH.projectN(refW),
+        red: camH.projectN(otherW),
+      },
+      worldTargets: {
+        green: { x: refW.x, z: refW.z },
+        red: otherP,
+      },
+      refColor: "green",
+      refHeight: h,
+      knownCote: {
+        p1: camH.projectN(G(0, 0.5)),
+        p2: camH.projectN(G(6, 0.5)),
+        lengthM: 6,
+      },
+    });
+    check("H with cote ok", calib?.ok === true, calib?.errorCode);
+    if (calib?.ok) {
+      const L = [G(1, 1), G(4, 1), G(4, 2), G(2, 2), G(2, 4), G(1, 4)];
+      const wr = L.map((c) => photoPlanPointToWorld(calib, camH.projectN(c)));
+      const maxErr = Math.max(
+        ...wr.map((p, i) =>
+          Math.hypot(p.x - L[i].x, p.y - L[i].y, p.z - L[i].z)
+        )
+      );
+      check("H L-shape exact", maxErr < 1e-6, `maxErr ${maxErr}`);
+    }
+  }
+
+  // --- degenerates
+  const same = cam.projectN(P(2, 2));
+  const dCote = computePhotoPlanCalibration({
+    ...base,
+    knownCote: { p1: same, p2: same, lengthM: 3 },
+  });
+  check(
+    "COTE_DEGENERATE",
+    dCote?.ok === false && dCote?.errorCode === "COTE_DEGENERATE",
+    dCote?.errorCode
+  );
+  const noLen = computePhotoPlanCalibration({
+    ...base,
+    knownCote: { p1: cote.p1, p2: cote.p2, lengthM: null },
+  });
+  check(
+    "COTE_LENGTH_REQUIRED",
+    noLen?.ok === false && noLen?.errorCode === "COTE_LENGTH_REQUIRED",
+    noLen?.errorCode
+  );
+}
+
 // -----------------------------------------------------------------------------
 console.log(failures === 0 ? "\nALL OK" : `\n${failures} FAILURE(S)`);
 process.exit(failures === 0 ? 0 : 1);

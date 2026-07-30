@@ -20,6 +20,7 @@ export default function computePhotoPlanCalibrationFromBaseMaps({
   refColor,
   refHeight,
   focalPxOverride,
+  knownCote,
 }) {
   if (!photoBaseMap || !planBaseMap || !photoPlan) return null;
   if (!planTargets?.red || !planTargets?.green) return null;
@@ -47,5 +48,6 @@ export default function computePhotoPlanCalibrationFromBaseMaps({
     refColor,
     refHeight,
     focalPxOverride,
+    knownCote,
   });
 }

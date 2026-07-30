@@ -10,17 +10,25 @@ import {
   Box,
   Button,
   Chip,
+  IconButton,
   TextField,
   ToggleButton,
   ToggleButtonGroup,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
+import AddIcon from "@mui/icons-material/Add";
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 
 import db from "App/db/db";
 
 import ElevationBaseMapViewer from "Features/elevation/components/ElevationBaseMapViewer";
-import { FUITE_U_COLOR, FUITE_V_COLOR } from "./VanishingLinesLayer";
+import {
+  FUITE_U_COLOR,
+  FUITE_V_COLOR,
+  COTE_COLOR,
+} from "./VanishingLinesLayer";
 
 import usePhotoPlans from "../hooks/usePhotoPlans";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
@@ -87,7 +95,18 @@ const ERROR_MESSAGES = {
     "Les deux pastilles sont à la même abscisse sur le plan — écartez-les horizontalement.",
   TARGET_ON_HORIZON: "Une pastille est sur la ligne d'horizon — déplacez-la.",
   REF_HEIGHT_REQUIRED: "Saisissez la hauteur du point de référence.",
+  COTE_LENGTH_REQUIRED: "Saisissez la longueur réelle de la cote connue.",
+  COTE_DEGENERATE:
+    "Les extrémités de la cote connue sont confondues — écartez-les.",
+  COTE_ON_HORIZON:
+    "Une extrémité de la cote connue est sur la ligne d'horizon — déplacez-la.",
 };
+
+// Default known-dimension segment (normalized) when the user arms the cote.
+const DEFAULT_COTE_SEGMENT = () => ({
+  p1: { x: 0.4, y: 0.5 },
+  p2: { x: 0.6, y: 0.5 },
+});
 
 // Photo branch of the Élévation tool (BASE_MAPS module): select a photoPlan
 // (chips band), place the 2 pastilles (photo below + plan view in the 2D
@@ -116,6 +135,9 @@ export default function SectionPhotoPlanCalibration({
   const [refColor, setRefColor] = useState("green");
   const [refHeightStr, setRefHeightStr] = useState("");
   const [focal35Str, setFocal35Str] = useState("");
+  // Optional known dimension on the photo: {p1, p2} | null + its real length.
+  const [coteSegment, setCoteSegment] = useState(null);
+  const [coteLengthStr, setCoteLengthStr] = useState("");
 
   // helpers
 
@@ -162,6 +184,13 @@ export default function SectionPhotoPlanCalibration({
     [vanishingLines]
   );
 
+  const coteLengthM = coteLengthStr
+    ? parseFloat(String(coteLengthStr).replace(",", "."))
+    : NaN;
+  const knownCote = coteSegment
+    ? { p1: coteSegment.p1, p2: coteSegment.p2, lengthM: coteLengthM }
+    : null;
+
   // Live compute (closed-form, < 1ms): drives the disabled reason, the
   // diagnostics display and the Positionner button.
   const result =
@@ -177,6 +206,7 @@ export default function SectionPhotoPlanCalibration({
           refColor,
           refHeight,
           focalPxOverride,
+          knownCote,
         })
       : null;
 
@@ -201,6 +231,8 @@ export default function SectionPhotoPlanCalibration({
       setRefColor("green");
       setRefHeightStr("");
       setFocal35Str("");
+      setCoteSegment(null);
+      setCoteLengthStr("");
       return;
     }
     setVanishingLines({
@@ -233,6 +265,17 @@ export default function SectionPhotoPlanCalibration({
         setCalibrationTargets({ versionId: planKey, ...inputs.planTargets })
       );
     }
+    if (inputs.knownCote?.p1 && inputs.knownCote?.p2) {
+      setCoteSegment({ p1: inputs.knownCote.p1, p2: inputs.knownCote.p2 });
+      setCoteLengthStr(
+        Number.isFinite(inputs.knownCote.lengthM)
+          ? String(inputs.knownCote.lengthM)
+          : ""
+      );
+    } else {
+      setCoteSegment(null);
+      setCoteLengthStr("");
+    }
   }, [photoPlan?.id]);
 
   // handlers
@@ -243,6 +286,10 @@ export default function SectionPhotoPlanCalibration({
   }
 
   function handleMoveFuiteEndpoint({ family, segmentId, end, point }) {
+    if (family === "cote") {
+      setCoteSegment((prev) => (prev ? { ...prev, [end]: point } : prev));
+      return;
+    }
     setVanishingLines((prev) => ({
       ...prev,
       [family]: prev[family].map((seg) =>
@@ -262,6 +309,10 @@ export default function SectionPhotoPlanCalibration({
       refColor,
       refHeight: Number.isFinite(refHeight) ? refHeight : null,
       ...(focalPxOverride && { focalPxOverride }),
+      knownCote:
+        coteSegment && Number.isFinite(coteLengthM) && coteLengthM > 0
+          ? { p1: coteSegment.p1, p2: coteSegment.p2, lengthM: coteLengthM }
+          : null,
     };
     const calibration = {
       ok: true,
@@ -366,6 +417,7 @@ export default function SectionPhotoPlanCalibration({
         baseMapId={baseMap?.id}
         targets={locating ? photoTargets : null}
         vanishingLines={locating && photoPlan ? vanishingLines : null}
+        knownCote={locating && photoPlan ? coteSegment : null}
         onTargetsChange={handlePhotoTargetsChange}
         onMoveFuiteEndpoint={handleMoveFuiteEndpoint}
       />
@@ -501,6 +553,72 @@ export default function SectionPhotoPlanCalibration({
             )}
           </Box>
 
+          {/* Known dimension ("cote connue") — drives the metric scale
+              instead of the pastille spacing when set. */}
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+              px: 1.5,
+              pb: 1,
+              flexWrap: "wrap",
+            }}
+          >
+            {!coteSegment ? (
+              <Chip
+                size="small"
+                variant="outlined"
+                icon={<AddIcon sx={{ fontSize: 14 }} />}
+                label="Cote connue"
+                sx={{ "& .MuiChip-icon": { color: COTE_COLOR } }}
+                onClick={() => {
+                  setCoteSegment(DEFAULT_COTE_SEGMENT());
+                }}
+              />
+            ) : (
+              <>
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 0.75,
+                  }}
+                >
+                  <Box
+                    sx={{
+                      width: 18,
+                      height: 3,
+                      borderRadius: 1,
+                      bgcolor: COTE_COLOR,
+                    }}
+                  />
+                  <Typography variant="caption" color="text.secondary" noWrap>
+                    Cote connue sur la photo
+                  </Typography>
+                </Box>
+                <TextField
+                  size="small"
+                  label="Longueur (m)"
+                  value={coteLengthStr}
+                  onChange={(e) => setCoteLengthStr(e.target.value)}
+                  sx={{ width: 120 }}
+                />
+                <Tooltip title="Retirer la cote (l'échelle reviendra à la distance entre pastilles)">
+                  <IconButton
+                    size="small"
+                    onClick={() => {
+                      setCoteSegment(null);
+                      setCoteLengthStr("");
+                    }}
+                  >
+                    <DeleteOutlineIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              </>
+            )}
+          </Box>
+
           {/* Quality diagnostics */}
           {diag && (
             <Box
@@ -525,6 +643,26 @@ export default function SectionPhotoPlanCalibration({
                       : "default"
                   }
                   label={`Focale ~${Math.round(diag.focal35)} mm`}
+                />
+              )}
+              {diag.scaleSource === "cote" && (
+                <Chip
+                  size="small"
+                  variant="outlined"
+                  color={
+                    diag.warnings?.includes("SCALE_MISMATCH")
+                      ? "warning"
+                      : "success"
+                  }
+                  label={`Échelle : cote — pastilles ${
+                    Number.isFinite(diag.targetsSpacingM)
+                      ? diag.targetsSpacingM.toFixed(2)
+                      : "?"
+                  } m (plan ${
+                    Number.isFinite(diag.planTargetsDistanceM)
+                      ? diag.planTargetsDistanceM.toFixed(2)
+                      : "?"
+                  } m)`}
                 />
               )}
               {Number.isFinite(diag.otherTargetV) && (

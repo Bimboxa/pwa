@@ -8,6 +8,7 @@
 
 export const FUITE_U_COLOR = "#2196f3";
 export const FUITE_V_COLOR = "#fb8c00";
+export const COTE_COLOR = "#9c27b0";
 
 const FAMILY_COLORS = { u: FUITE_U_COLOR, v: FUITE_V_COLOR };
 
@@ -38,6 +39,7 @@ function EndpointHandle({ x, y, color, containerK, family, segId, end }) {
 
 export default function VanishingLinesLayer({
   vanishingLines,
+  knownCote,
   width,
   height,
   containerK = 1,
@@ -46,6 +48,41 @@ export default function VanishingLinesLayer({
 
   return (
     <g data-layer="vanishing-lines">
+      {/* Optional known-dimension segment ("cote connue") — drives the
+          metric scale instead of the pastille spacing. Same endpoint-drag
+          mechanism, pseudo-family "cote". */}
+      {knownCote?.p1 && knownCote?.p2 && (
+        <g>
+          <line
+            x1={knownCote.p1.x * width}
+            y1={knownCote.p1.y * height}
+            x2={knownCote.p2.x * width}
+            y2={knownCote.p2.y * height}
+            stroke={COTE_COLOR}
+            strokeWidth={3}
+            vectorEffect="non-scaling-stroke"
+            opacity={0.95}
+          />
+          <EndpointHandle
+            x={knownCote.p1.x * width}
+            y={knownCote.p1.y * height}
+            color={COTE_COLOR}
+            containerK={containerK}
+            family="cote"
+            segId="cote"
+            end="p1"
+          />
+          <EndpointHandle
+            x={knownCote.p2.x * width}
+            y={knownCote.p2.y * height}
+            color={COTE_COLOR}
+            containerK={containerK}
+            family="cote"
+            segId="cote"
+            end="p2"
+          />
+        </g>
+      )}
       {["u", "v"].flatMap((family) => {
         const color = FAMILY_COLORS[family];
         return (vanishingLines[family] ?? []).map((seg) => {

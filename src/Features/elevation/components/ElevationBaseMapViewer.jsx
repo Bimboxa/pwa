@@ -37,6 +37,7 @@ export default function ElevationBaseMapViewer({
   highlightAnnotationId,
   targets,
   vanishingLines,
+  knownCote,
   onSelectAxis,
   onSelectAnnotation,
   onTargetsChange,
@@ -274,6 +275,7 @@ export default function ElevationBaseMapViewer({
           {vanishingLines && imageSize && (
             <VanishingLinesLayer
               vanishingLines={vanishingLines}
+              knownCote={knownCote}
               width={imageSize.width}
               height={imageSize.height}
               containerK={1}
