@@ -33,8 +33,19 @@ import SectionLayerVisibility from "./SectionLayerVisibility";
 
 import db from "App/db/db";
 import computeDefaultViewBox from "../utils/computeDefaultViewBox";
+import PanelPovContainerProperties from "./PanelPovContainerProperties";
 
+// Dispatcher: POV containers get their own lightweight panel; running the
+// baseMap panel's hooks (useAnnotationsV2, legend, layers) for them would be
+// wasted work, and branching inside one component would break hooks order.
 export default function PanelBaseMapContainerProperties() {
+  const { value: container } = useSelectedBaseMapContainer();
+  if (!container) return null;
+  if (container.povId) return <PanelPovContainerProperties />;
+  return <PanelBaseMapContainerPropertiesInner />;
+}
+
+function PanelBaseMapContainerPropertiesInner() {
   const dispatch = useDispatch();
 
   // strings

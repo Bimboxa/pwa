@@ -32,6 +32,7 @@ export default function remapDexieExportIds(jsonData, opts) {
   // Simple FK field -> target id-map table (references a known fixed table).
   const SIMPLE_FK = {
     baseMapId: "baseMaps",
+    povId: "povs",
     listingId: "listings",
     annotationTemplateId: "annotationTemplates",
     layerId: "layers",

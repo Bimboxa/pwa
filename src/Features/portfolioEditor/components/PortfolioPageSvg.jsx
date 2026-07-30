@@ -23,6 +23,7 @@ import useDisplayedPortfolio from "Features/portfolios/hooks/useDisplayedPortfol
 import useCreatePortfolioBaseMapContainer from "Features/portfolioBaseMapContainers/hooks/useCreatePortfolioBaseMapContainer";
 
 import BaseMapContainerSvg from "./BaseMapContainerSvg";
+import PovContainerSvg from "./PovContainerSvg";
 import EmptyContainerPlaceholder from "./EmptyContainerPlaceholder";
 import LegendBlockSvg from "./LegendBlockSvg";
 import BaseMapSelectorPopover from "./BaseMapSelectorPopover";
@@ -35,6 +36,7 @@ import getPageDimensions from "../utils/getPageDimensions";
 import getPageLayout from "../utils/getPageLayout";
 import fitContainerToBaseMap from "../utils/fitContainerToBaseMap";
 import computeDefaultViewBox from "../utils/computeDefaultViewBox";
+import getPovImageInfo from "Features/pov/utils/getPovImageInfo";
 
 import db from "App/db/db";
 
@@ -78,7 +80,7 @@ export default function PortfolioPageSvg({ page, pageIndex, totalPages, zoom }) 
   // override empty container positions to align below header
   const displayContainers = useMemo(() => {
     return containers?.map((c) => {
-      if (!c.baseMapId) {
+      if (!c.baseMapId && !c.povId) {
         return {
           ...c,
           x: contentArea.x,
@@ -192,6 +194,61 @@ export default function PortfolioPageSvg({ page, pageIndex, totalPages, zoom }) 
       page.title.startsWith("Page ")
     ) {
       await updateEntity(page.id, { title: baseMap.name }, { listing: portfolio });
+    }
+
+    handlePopoverClose();
+  }
+
+  async function handleSelectPov(pov) {
+    let containerId = popoverContainerId;
+
+    // create a container if the page is empty
+    if (!containerId) {
+      const created = await createContainer({
+        portfolioPageId: page.id,
+        scopeId: page.scopeId,
+        projectId: page.projectId,
+        x: contentArea.x,
+        y: contentArea.y,
+        width: contentArea.width,
+        height: contentArea.height,
+      });
+      containerId = created.id;
+    }
+
+    const imageInfo = await getPovImageInfo(pov);
+
+    if (imageInfo) {
+      const imageSize = { width: imageInfo.width, height: imageInfo.height };
+      const fitted = fitContainerToBaseMap(imageSize, contentArea);
+      await db.portfolioBaseMapContainers.update(containerId, {
+        povId: pov.id,
+        baseMapId: null,
+        x: fitted.x,
+        y: fitted.y,
+        width: fitted.width,
+        height: fitted.height,
+        viewBox: {
+          x: 0,
+          y: 0,
+          width: imageSize.width,
+          height: imageSize.height,
+        },
+      });
+    } else {
+      await db.portfolioBaseMapContainers.update(containerId, {
+        povId: pov.id,
+        baseMapId: null,
+      });
+    }
+
+    // rename page title on first pov assignment
+    if (
+      page.title === "Nouvelle page" ||
+      page.title.startsWith("Page ")
+    ) {
+      const title = pov.description || "Point de vue";
+      await updateEntity(page.id, { title }, { listing: portfolio });
     }
 
     handlePopoverClose();
@@ -319,14 +376,22 @@ export default function PortfolioPageSvg({ page, pageIndex, totalPages, zoom }) 
             />
           </svg>
         )}
-        {displayContainers?.map((container) => (
-          <BaseMapContainerSvg
-            key={container.id}
-            container={container}
-            zoom={zoom}
-            onPlaceholderClick={handlePlaceholderClick}
-          />
-        ))}
+        {displayContainers?.map((container) =>
+          container.povId ? (
+            <PovContainerSvg
+              key={container.id}
+              container={container}
+              zoom={zoom}
+            />
+          ) : (
+            <BaseMapContainerSvg
+              key={container.id}
+              container={container}
+              zoom={zoom}
+              onPlaceholderClick={handlePlaceholderClick}
+            />
+          )
+        )}
         {displayContainers
           ?.filter((c) => c.baseMapId)
           .map((container) => (
@@ -355,6 +420,7 @@ export default function PortfolioPageSvg({ page, pageIndex, totalPages, zoom }) 
         onClose={handlePopoverClose}
         onSelectBaseMap={handleSelectBaseMap}
         onCreateBaseMap={handleCreateBaseMap}
+        onSelectPov={handleSelectPov}
       />
 
       {showEditButton && !isFraming && (

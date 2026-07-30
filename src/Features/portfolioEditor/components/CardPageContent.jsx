@@ -13,6 +13,7 @@ import {
   Map as MapIcon,
   Image as ImageIcon,
   Article as ArticleIcon,
+  PhotoCamera as PhotoCameraIcon,
   DragIndicator,
   Add as AddIcon,
 } from "@mui/icons-material";
@@ -35,14 +36,17 @@ import BaseMapSelectorPopover from "./BaseMapSelectorPopover";
 
 import getPageLayout from "../utils/getPageLayout";
 import fitContainerToBaseMap from "../utils/fitContainerToBaseMap";
+import getPovImageInfo from "Features/pov/utils/getPovImageInfo";
 
 const ICON_BY_TYPE = {
   BASE_MAP_CONTAINER: MapIcon,
+  POV_CONTAINER: PhotoCameraIcon,
   IMAGE: ImageIcon,
 };
 
 const TABLE_BY_TYPE = {
   BASE_MAP_CONTAINER: "portfolioBaseMapContainers",
+  POV_CONTAINER: "portfolioBaseMapContainers",
 };
 
 function SortableContentRow({ item }) {
@@ -151,6 +155,57 @@ export default function CardPageContent({ content, page }) {
           y: 0,
           width: imageSize.width,
           height: imageSize.height,
+        },
+      });
+    }
+
+    handlePopoverClose();
+  }
+
+  async function handleSelectPov(pov) {
+    if (!page || !portfolio) return;
+
+    const lastSortIndex = content?.length
+      ? content[content.length - 1].sortIndex
+      : null;
+
+    const footerHeight = portfolio?.metadata?.footerHeight || 0;
+    const layout = getPageLayout(page.format, page.orientation, footerHeight);
+    const contentArea = layout.contentArea;
+
+    const imageInfo = await getPovImageInfo(pov);
+    let x = contentArea.x;
+    let y = contentArea.y;
+    let width = contentArea.width;
+    let height = contentArea.height;
+
+    if (imageInfo) {
+      const fitted = fitContainerToBaseMap(imageInfo, contentArea);
+      x = fitted.x;
+      y = fitted.y;
+      width = fitted.width;
+      height = fitted.height;
+    }
+
+    const container = await createContainer({
+      portfolioPageId: page.id,
+      scopeId: portfolio.scopeId,
+      projectId: portfolio.projectId,
+      povId: pov.id,
+      x,
+      y,
+      width,
+      height,
+      afterSortIndex: lastSortIndex,
+    });
+
+    if (imageInfo) {
+      await db.portfolioBaseMapContainers.update(container.id, {
+        viewBox: {
+          x: 0,
+          y: 0,
+          width: imageInfo.width,
+          height: imageInfo.height,
         },
       });
     }
@@ -276,6 +331,7 @@ export default function CardPageContent({ content, page }) {
         onClose={handlePopoverClose}
         onSelectBaseMap={handleSelectBaseMap}
         onCreateBaseMap={handleCreateBaseMap}
+        onSelectPov={handleSelectPov}
       />
     </Box>
   );

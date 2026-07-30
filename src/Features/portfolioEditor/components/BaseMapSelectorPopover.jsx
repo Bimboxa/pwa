@@ -10,13 +10,61 @@ import {
   Box,
   Typography,
   Divider,
+  ToggleButtonGroup,
+  ToggleButton,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import MapIcon from "@mui/icons-material/Map";
+import PhotoCameraIcon from "@mui/icons-material/PhotoCamera";
 
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import useProjectBaseMapListings from "Features/baseMaps/hooks/useProjectBaseMapListings";
+import usePovs from "Features/pov/hooks/usePovs";
+import usePovImageUrl from "Features/pov/hooks/usePovImageUrl";
+import getPovCaption from "Features/pov/utils/getPovCaption";
 import SelectorVariantChips from "Features/layout/components/SelectorVariantChips";
+
+function PovListRow({ pov, onClick }) {
+  const fileName = pov.transformedImage?.fileName ?? pov.image?.fileName;
+  const imageUrl = usePovImageUrl(fileName);
+
+  return (
+    <ListItem disablePadding>
+      <ListItemButton onClick={onClick}>
+        <ListItemIcon sx={{ minWidth: 36 }}>
+          {imageUrl ? (
+            <Box
+              component="img"
+              src={imageUrl}
+              alt=""
+              sx={{
+                width: 28,
+                height: 28,
+                objectFit: "cover",
+                borderRadius: 1,
+                border: 1,
+                borderColor: "divider",
+              }}
+            />
+          ) : (
+            <PhotoCameraIcon
+              fontSize="small"
+              sx={{ color: "text.disabled" }}
+            />
+          )}
+        </ListItemIcon>
+        <ListItemText
+          primary={pov.description || "Point de vue"}
+          secondary={getPovCaption(pov)}
+          slotProps={{
+            primary: { variant: "body2", noWrap: true },
+            secondary: { variant: "caption", noWrap: true },
+          }}
+        />
+      </ListItemButton>
+    </ListItem>
+  );
+}
 
 export default function BaseMapSelectorPopover({
   anchorEl,
@@ -24,16 +72,22 @@ export default function BaseMapSelectorPopover({
   onClose,
   onSelectBaseMap,
   onCreateBaseMap,
+  onSelectPov,
 }) {
   // data
 
   const baseMapsListings = useProjectBaseMapListings();
+  const povs = usePovs();
 
   // state
 
   const [selectedListingId, setSelectedListingId] = useState(null);
+  const [mode, setMode] = useState("BASE_MAPS");
 
   // helpers
+
+  const withPovs = Boolean(onSelectPov) && povs?.length > 0;
+  const povMode = withPovs && mode === "POVS";
 
   const listingOptions = baseMapsListings?.map((listing) => ({
     key: listing.id,
@@ -61,6 +115,10 @@ export default function BaseMapSelectorPopover({
     setSelectedListingId(id);
   }
 
+  function handleModeChange(_, value) {
+    if (value) setMode(value);
+  }
+
   // render
 
   return (
@@ -78,8 +136,33 @@ export default function BaseMapSelectorPopover({
       disableRestoreFocus
     >
       <Box sx={{ px: 1.5, pt: 1.5, pb: 0.5 }}>
-        <Typography variant="subtitle2">Fond de plan</Typography>
-        {baseMapsListings?.length > 1 && (
+        <Typography variant="subtitle2">
+          {povMode ? "Point de vue" : "Fond de plan"}
+        </Typography>
+        {withPovs && (
+          <ToggleButtonGroup
+            value={mode}
+            exclusive
+            onChange={handleModeChange}
+            size="small"
+            fullWidth
+            sx={{ mt: 1 }}
+          >
+            <ToggleButton value="BASE_MAPS">
+              <MapIcon fontSize="small" sx={{ mr: 0.5 }} />
+              <Typography variant="body2" noWrap>
+                Fonds de plan
+              </Typography>
+            </ToggleButton>
+            <ToggleButton value="POVS">
+              <PhotoCameraIcon fontSize="small" sx={{ mr: 0.5 }} />
+              <Typography variant="body2" noWrap>
+                Points de vue
+              </Typography>
+            </ToggleButton>
+          </ToggleButtonGroup>
+        )}
+        {!povMode && baseMapsListings?.length > 1 && (
           <SelectorVariantChips
             options={listingOptions}
             selection={listingSelection}
@@ -88,70 +171,91 @@ export default function BaseMapSelectorPopover({
         )}
       </Box>
       <Divider />
-      <List dense sx={{ maxHeight: 240, overflowY: "auto" }}>
-        {baseMaps.map((map) => {
-          const thumbnail = map.getThumbnail();
-          return (
-            <ListItem key={map.id} disablePadding>
-              <ListItemButton onClick={() => onSelectBaseMap(map)}>
-                <ListItemIcon sx={{ minWidth: 36 }}>
-                  {thumbnail ? (
-                    <Box
-                      component="img"
-                      src={thumbnail}
-                      alt=""
-                      sx={{
-                        width: 28,
-                        height: 28,
-                        objectFit: "cover",
-                        borderRadius: 1,
-                        border: 1,
-                        borderColor: "divider",
+      {povMode ? (
+        <List dense sx={{ maxHeight: 240, overflowY: "auto" }}>
+          {povs.map((pov) => (
+            <PovListRow
+              key={pov.id}
+              pov={pov}
+              onClick={() => onSelectPov(pov)}
+            />
+          ))}
+        </List>
+      ) : (
+        <>
+          <List dense sx={{ maxHeight: 240, overflowY: "auto" }}>
+            {baseMaps.map((map) => {
+              const thumbnail = map.getThumbnail();
+              return (
+                <ListItem key={map.id} disablePadding>
+                  <ListItemButton onClick={() => onSelectBaseMap(map)}>
+                    <ListItemIcon sx={{ minWidth: 36 }}>
+                      {thumbnail ? (
+                        <Box
+                          component="img"
+                          src={thumbnail}
+                          alt=""
+                          sx={{
+                            width: 28,
+                            height: 28,
+                            objectFit: "cover",
+                            borderRadius: 1,
+                            border: 1,
+                            borderColor: "divider",
+                          }}
+                        />
+                      ) : (
+                        <MapIcon
+                          fontSize="small"
+                          sx={{ color: "text.disabled" }}
+                        />
+                      )}
+                    </ListItemIcon>
+                    <ListItemText
+                      primary={map.name}
+                      slotProps={{
+                        primary: { variant: "body2", noWrap: true },
                       }}
                     />
-                  ) : (
-                    <MapIcon fontSize="small" sx={{ color: "text.disabled" }} />
-                  )}
-                </ListItemIcon>
+                  </ListItemButton>
+                </ListItem>
+              );
+            })}
+            {baseMaps.length === 0 && (
+              <ListItem>
                 <ListItemText
-                  primary={map.name}
+                  primary="Aucun fond de plan"
                   slotProps={{
-                    primary: { variant: "body2", noWrap: true },
+                    primary: {
+                      variant: "body2",
+                      color: "text.secondary",
+                      sx: { fontStyle: "italic" },
+                    },
                   }}
                 />
-              </ListItemButton>
-            </ListItem>
-          );
-        })}
-        {baseMaps.length === 0 && (
-          <ListItem>
-            <ListItemText
-              primary="Aucun fond de plan"
-              slotProps={{
-                primary: {
-                  variant: "body2",
-                  color: "text.secondary",
-                  sx: { fontStyle: "italic" },
-                },
-              }}
-            />
+              </ListItem>
+            )}
+          </List>
+          <Divider />
+          <ListItem disablePadding>
+            <ListItemButton onClick={onCreateBaseMap}>
+              <ListItemIcon sx={{ minWidth: 36 }}>
+                <AddIcon fontSize="small" color="primary" />
+              </ListItemIcon>
+              <ListItemText
+                primary="Nouveau fond de plan..."
+                slotProps={{
+                  primary: {
+                    variant: "body2",
+                    color: "primary",
+                    fontWeight: 500,
+                  },
+                }}
+              />
+            </ListItemButton>
           </ListItem>
-        )}
-      </List>
-      <Divider />
-      <ListItem disablePadding>
-        <ListItemButton onClick={onCreateBaseMap}>
-          <ListItemIcon sx={{ minWidth: 36 }}>
-            <AddIcon fontSize="small" color="primary" />
-          </ListItemIcon>
-          <ListItemText
-            primary="Nouveau fond de plan..."
-            slotProps={{
-              primary: { variant: "body2", color: "primary", fontWeight: 500 },
-            }}
-          />
-        </ListItemButton>
-      </ListItem>
+        </>
+      )}
     </Popover>
   );
 }
