@@ -99,11 +99,12 @@ export default function PanelElevationLocateBaseMap() {
       })
     : null;
 
-  // The plan view must be another baseMap, laid flat.
+  // The plan view must be another baseMap, laid flat (not a photo).
   const planIsUsable =
     Boolean(planBaseMap) &&
     planBaseMap.id !== selectedBaseMapId &&
-    planBaseMap.orientation !== "VERTICAL";
+    planBaseMap.orientation !== "VERTICAL" &&
+    !planBaseMap.isPhoto;
 
   // Current height of the reference target, used as the field's initial value.
   const currentRefHeight = useMemo(() => {
@@ -209,6 +210,7 @@ export default function PanelElevationLocateBaseMap() {
         <ElevationBaseMapSelector
           value={selectedBaseMapId}
           onChange={handleSelectBaseMap}
+          includePhotos
         />
 
         <Button

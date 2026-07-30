@@ -58,9 +58,14 @@ export default function useWalkMode() {
   // Ground = the selected baseMap plane. Prefer the live group's world Y
   // (reflects an in-flight gizmo move); fall back to the persisted transform.
   // VERTICAL baseMaps are walls, not floors — walk on the world ground then.
+  // Photo baseMaps have no plane in the scene at all — world ground too.
   let groundY = 0;
   const transform = getBaseMapTransform(mainBaseMap);
-  if (mainBaseMap && transform.orientation === "HORIZONTAL") {
+  if (
+    mainBaseMap &&
+    !mainBaseMap.isPhoto &&
+    transform.orientation === "HORIZONTAL"
+  ) {
     const group =
       getActiveThreedEditor()?.sceneManager?.imagesManager?.getGroup?.(
         mainBaseMap.id

@@ -76,12 +76,21 @@ export default function PanelBaseMapPositionInMainRef({ baseMap, onBack }) {
   }
 
   // Orientation of the plane in the 3D scene: HORIZONTAL = laid flat as a
-  // floor, VERTICAL = stood up as a wall. Same field as the 3D viewer's
-  // "Rotation" section (SectionsBaseMapTransform3D), edited here from the 2D
-  // editors where the scene is not mounted.
+  // floor, VERTICAL = stood up as a wall, PHOTO = perspective photo (not a
+  // plane: its 3D presence is its calibrated photoPlans). Same fields as the
+  // 3D viewer's "Rotation" section (SectionsBaseMapTransform3D), edited here
+  // from the 2D editors where the scene is not mounted.
   async function handleOrientationChange(value) {
-    if (!baseMap?.id || !value || value === orientation) return;
-    await db.baseMaps.update(baseMap.id, { orientation: value });
+    const displayed = baseMap?.isPhoto ? "PHOTO" : orientation;
+    if (!baseMap?.id || !value || value === displayed) return;
+    if (value === "PHOTO") {
+      await db.baseMaps.update(baseMap.id, { isPhoto: true });
+    } else {
+      await db.baseMaps.update(baseMap.id, {
+        orientation: value,
+        isPhoto: false,
+      });
+    }
     dispatch(triggerBaseMapsUpdate());
   }
 
@@ -189,7 +198,7 @@ export default function PanelBaseMapPositionInMainRef({ baseMap, onBack }) {
                 exclusive
                 fullWidth
                 size="small"
-                value={orientation}
+                value={baseMap?.isPhoto ? "PHOTO" : orientation}
                 onChange={(_e, v) => handleOrientationChange(v)}
               >
                 <ToggleButton
@@ -203,6 +212,12 @@ export default function PanelBaseMapPositionInMainRef({ baseMap, onBack }) {
                   sx={{ textTransform: "none", py: 0.25 }}
                 >
                   Vertical
+                </ToggleButton>
+                <ToggleButton
+                  value="PHOTO"
+                  sx={{ textTransform: "none", py: 0.25 }}
+                >
+                  Photo
                 </ToggleButton>
               </ToggleButtonGroup>
             </Box>
