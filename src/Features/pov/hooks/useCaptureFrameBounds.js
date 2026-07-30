@@ -12,7 +12,7 @@ import getCaptureRectBounds from "Features/mapEditor/utils/getCaptureRectBounds"
 // and the save bar centered on it — must not move when the panel opens.
 //
 // Host key defaults to the POV viewer mode; the global Capture tool passes
-// its own key (selectCaptureHostViewerKey) to target ZONES/BASE_MAPS/THREED.
+// its own key (selectCaptureHostViewerKey) to target BASE_MAPS/THREED.
 export default function useCaptureFrameBounds(viewerKeyOverride = null) {
   // data
 

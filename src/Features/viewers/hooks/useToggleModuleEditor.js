@@ -27,13 +27,18 @@ export default function useToggleModuleEditor() {
   const viewers = useViewers();
 
   return function toggleModuleEditor() {
+    // Disabled modules are filtered out of `viewers` (e.g. Zones in legacy
+    // mode): without an entry there is no valid editor key to commit, so the
+    // toggle is a no-op instead of writing the module key as an editor key.
+    const module = viewers.find((v) => v.key === moduleKey);
+    if (!module) return;
+
     if (effectiveViewerKey === "THREED") {
       // The module's 2D editor key: "MAP" for every multi-editor module — they
       // all display the single shared MainMapEditorV3 instance, which is the
       // one registered in mapEditorRegistry and synced by switchThreedToMap.
-      const module = viewers.find((v) => v.key === moduleKey);
       const editor2dKey =
-        module?.editors?.find((e) => !isThreedFamilyViewerKey(e)) ?? moduleKey;
+        module.editors?.find((e) => !isThreedFamilyViewerKey(e)) ?? moduleKey;
       switchThreedToMap({
         dispatch,
         baseMap,

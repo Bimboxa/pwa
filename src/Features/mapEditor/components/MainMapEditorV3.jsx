@@ -435,7 +435,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     });
 
 
-    const resetForBaseMapIdRef = useRef(null);
+    const lastAutoFitKeyRef = useRef(null);
 
     useEffect(() => {
 
@@ -444,18 +444,26 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
         // image pixels for one frame, then refit once the width lands.
         if (!viewport?.w || !viewport?.h) return;
 
+        // One auto-fit per displayed content: viewport growth/shrink (docked
+        // drawer, window resize, module switch) must not clobber the user's
+        // camera. Manual re-fit stays available via "Recentrer le fond de plan".
+        // basePose.k only depends on the bg pose, never on the viewport size
+        // (useBaseMapPose uses the viewport as a measured-yet guard only), so
+        // a resize cannot re-arm the key.
+        const fitKey = `${baseMap?.id}|${basePose?.k}|${bgImage?.imageSize?.width}`;
+        if (lastAutoFitKeyRef.current === fitKey) return;
+
         if (defaultCameraMatrixRef.current && !showBgImage) {
             interactionLayerRef.current?.setCameraMatrix(defaultCameraMatrixRef.current);
-            resetForBaseMapIdRef.current = baseMap?.id;
+            lastAutoFitKeyRef.current = fitKey;
         }
 
     }, [
-        //showBgImage
         basePose?.k,
         baseMap?.id,
         bgImage?.imageSize?.width,
         viewport?.w,
-        baseMap?.id,
+        viewport?.h,
     ]);
 
     // effect - fit to selectedNode

@@ -37,7 +37,7 @@ import imageToPdfAsync from "Features/pdf/utils/imageToPdfAsync";
 // the frame's title banner), the "Amélioration IA" checkbox (same prompt +
 // endpoint as the POV flow) and the capture button. Positioned `fixed` from
 // screenRect: unlike the POV module, the host's origin does not always
-// coincide with SectionViewer's box (MESHES / ZONES-in-3D nest the editor).
+// coincide with SectionViewer's box (MESHES nests the editor).
 export default function ButtonSaveCapture() {
   const dispatch = useDispatch();
 

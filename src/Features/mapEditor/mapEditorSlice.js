@@ -789,7 +789,17 @@ export const mapEditorSlice = createSlice({
     // that mounts the new editor, and covers every setSelectedViewerKey
     // dispatcher. Keyed on the MODULE switch only — the 2D↔3D editor toggle
     // (T) goes through setModuleEditorKey and keeps the armed tool.
-    builder.addCase(setSelectedViewerKey, resetDrawingSessionState);
+    builder.addCase(setSelectedViewerKey, (state, action) => {
+      resetDrawingSessionState(state);
+      // "Export rapide" (imageMode) only exists in the modules hosting the
+      // PRINT tool (see useRightPanelTools): leaving them disarms the framing
+      // so it cannot leak into POV / Zones / BaseMaps, which display the same
+      // shared 2D editor instance.
+      if (!["MAP", "THREED", "MESHES"].includes(action.payload)) {
+        state.imageModeEnabled = false;
+        state.imageModeLegendSelected = false;
+      }
+    });
   },
 });
 
