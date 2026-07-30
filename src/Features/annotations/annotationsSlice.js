@@ -1,6 +1,11 @@
 import { createSlice } from "@reduxjs/toolkit";
 
 import { setSelectedViewerKey } from "Features/viewers/viewersSlice";
+import { setSelectedScopeId } from "Features/scopes/scopesSlice";
+
+// Modules displaying the annotations recap drawer (PanelAnnotationsRecap in
+// SectionViewer): the template focus survives switches between them.
+const RECAP_PANEL_MODULE_KEYS = ["MAP", "THREED"];
 
 //import demoAnnotation from "./data/demoAnnotation";
 
@@ -115,14 +120,22 @@ export const annotationsSlice = createSlice({
     },
   },
   extraReducers: (builder) => {
-    // Leaving the Dessin module clears the template focus. Keyed on the MODULE
-    // switch (not on a viewer unmount): the 2D↔3D editor toggle (T) swaps the
-    // displayed editor while the module stays selected, and the focus must
-    // survive it — same pattern as zoningsSlice's zone solo.
+    // Leaving the recap-panel modules (Dessin, Viewer) clears the template
+    // focus. Keyed on the MODULE switch (not on a viewer unmount): the 2D↔3D
+    // editor toggle (T) swaps the displayed editor while the module stays
+    // selected, and the focus must survive it — same pattern as zoningsSlice's
+    // zone solo.
     builder.addCase(setSelectedViewerKey, (state, action) => {
-      if (action.payload !== "MAP") {
+      if (!RECAP_PANEL_MODULE_KEYS.includes(action.payload)) {
         state.soloAnnotationTemplateId = null;
       }
+    });
+    // Scope switch: the focused template belongs to the previous scope — a
+    // stale id would hide every annotation of the new scope (nothing matches).
+    // Needed because the Viewer-landing dispatch no longer clears the focus
+    // (THREED is a recap-panel module).
+    builder.addCase(setSelectedScopeId, (state) => {
+      state.soloAnnotationTemplateId = null;
     });
   },
 });

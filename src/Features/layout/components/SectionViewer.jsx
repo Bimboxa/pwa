@@ -87,11 +87,13 @@ export default function SectionViewer() {
         </LeftDrawerPanel>
       )}
 
-      {/* Dessin drawer: annotations recap by listing / template. Mounted for
-          both editors of the module (the module key stays "MAP" when the 2D/3D
-          toggle displays the 3D editor). */}
-      {viewerKey === "MAP" && (
-        <LeftDrawerPanel width={320} viewerKey="MAP">
+      {/* Annotations recap drawer (Dessin + Viewer modules), by listing /
+          template. Mounted for both editors of the module (the module key is
+          unchanged when the 2D/3D toggle swaps the displayed editor). The
+          outer guard is load-bearing — in docked mode LeftDrawerPanel renders
+          its fixed-width box without checking viewerKey. */}
+      {(viewerKey === "MAP" || viewerKey === "THREED") && (
+        <LeftDrawerPanel width={320} viewerKey={viewerKey}>
           <PanelAnnotationsRecap />
         </LeftDrawerPanel>
       )}
