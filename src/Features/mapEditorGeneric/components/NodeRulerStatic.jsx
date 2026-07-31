@@ -26,9 +26,10 @@ const TICK_HALF_INNER_PX = 5;
 
 const VERTEX_HALF_SIZE_PX = 4;
 
-// Inline length editor footprint, screen px.
-const FIELD_W_PX = 100;
-const FIELD_H_PX = 26;
+// Inline length editor footprint, screen px. A <foreignObject> hit-tests only
+// within its own box, so it must comfortably contain input + padlock.
+const FIELD_W_PX = 116;
+const FIELD_H_PX = 30;
 
 // The alignment guide and the selection affordances share one blue.
 const GUIDE_COLOR = "#2196f3";
@@ -538,7 +539,14 @@ export default function NodeRulerStatic({
                   height={FIELD_H_PX}
                   style={{ overflow: "visible" }}
                 >
+                  {/* The editor must not read as a click on the annotation:
+                      InteractionLayer's capture-phase mousedown skips anything
+                      inside a `ui-overlay`, and the bubbling mouseup / click
+                      are stopped here — otherwise the mouseup would run
+                      handleWorldClick and drop the point selection, closing the
+                      editor as soon as it is touched. */}
                   <div
+                    data-interaction="ui-overlay"
                     style={{
                       display: "flex",
                       alignItems: "center",
@@ -546,6 +554,10 @@ export default function NodeRulerStatic({
                       gap: 2,
                     }}
                     onPointerDown={(e) => e.stopPropagation()}
+                    onPointerUp={(e) => e.stopPropagation()}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onMouseUp={(e) => e.stopPropagation()}
+                    onClick={(e) => e.stopPropagation()}
                   >
                     <input
                       type="text"
@@ -584,6 +596,14 @@ export default function NodeRulerStatic({
                           ? "Cote verrouillée : l'édition de l'autre cote translatera la suite"
                           : "Cote libre : elle absorbera l'édition de l'autre cote"
                       }
+                      // Keep the focus in the field: letting the button take it
+                      // would blur the input and commit the length with the
+                      // PREVIOUS lock state — i.e. the opposite of what the
+                      // user just asked for.
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                      }}
                       onClick={() =>
                         setLockedSegments((prev) => ({
                           ...prev,

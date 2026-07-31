@@ -6660,8 +6660,17 @@ const InteractionLayer = forwardRef(({
 
 
     // --- permet la modif de l'input/textarea d'un label
+    //
+    // `data-interaction="ui-overlay"` généralise le cas: tout widget HTML posé
+    // dans un <foreignObject> au-dessus d'une annotation (champ + bouton de
+    // verrouillage des cotes d'un RULER, p. ex.). Sans ça, un clic sur un
+    // BUTTON retombe sur le `closest('[data-node-type]')` plus bas, ce qui
+    // re-sélectionne l'annotation et referme l'éditeur.
 
-    if (['INPUT', 'TEXTAREA'].includes(target.tagName)) {
+    if (
+      ['INPUT', 'TEXTAREA'].includes(target.tagName) ||
+      target.closest?.('[data-interaction="ui-overlay"]')
+    ) {
       return;
     }
 
