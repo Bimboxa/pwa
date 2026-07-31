@@ -1544,6 +1544,32 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                 console.log("save_object3d (bbox)", annotation.id, updates);
                 await db.annotations.update(annotation.id, updates);
             }
+
+            // RULER — dragged as a whole from any of its segments (a dimension
+            // chain has no per-segment semantics to preserve), so a plain MOVE
+            // translates every point. Reuses the wrapper commit for its
+            // shared-point handling: a point also referenced by another
+            // annotation is forked instead of dragging that annotation along.
+            else if (annotation.type === "RULER") {
+                const pointUpdates = new Map();
+                for (const pt of annotation.points ?? []) {
+                    if (!pt?.id) continue;
+                    pointUpdates.set(pt.id, {
+                        x: pt.x + deltaPos.x,
+                        y: pt.y + deltaPos.y,
+                    });
+                }
+                if (pointUpdates.size > 0) {
+                    await commitWrapperTransform({
+                        selectedAnnotationIds: [annotation.id],
+                        allAnnotations: annotations,
+                        pointUpdates,
+                        imageSize,
+                        rotationDelta: null,
+                        moveDelta: null, // rulers carry no rotationCenter
+                    });
+                }
+            }
         }
 
         // Notifier useLiveQuery du changement pour que la convergence optimistic overlay fonctionne

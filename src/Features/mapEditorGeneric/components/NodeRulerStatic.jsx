@@ -433,16 +433,31 @@ export default function NodeRulerStatic({
     <g {...dataProps} ref={rootGRef}>
       {/* Invisible pointer band along the line — a ruler stroke is 1px, so
           without it selecting one means landing exactly on the trait. Width is
-          resolved in screen px, hence zoom-invariant. */}
+          resolved in screen px, hence zoom-invariant.
+
+          Once selected the band also becomes the whole-ruler drag handle: a
+          measurement chain has no per-segment semantics to preserve, so
+          grabbing any segment moves every point (hence the "move" cursor).
+          `data-interaction="draggable"` + `data-node-id` on THIS element is
+          what InteractionLayer reads — it takes the id off the draggable node
+          itself, not off the annotation group. Left off while unselected so
+          the first click still just selects. */}
       <path
         d={polylineD}
         fill="none"
         stroke="transparent"
         strokeLinejoin="round"
         vectorEffect="non-scaling-stroke"
+        {...(selected && isEditable
+          ? {
+              "data-interaction": "draggable",
+              "data-node-id": annotationId,
+              "data-node-type": "ANNOTATION",
+            }
+          : {})}
         style={{
           strokeWidth: hitStrokeWidthCss,
-          cursor: "pointer",
+          cursor: selected && isEditable ? "move" : "pointer",
           pointerEvents: "stroke",
         }}
       />
