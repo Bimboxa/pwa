@@ -75,6 +75,7 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
     const baseMapId = useSelector(s => s.mapEditor.selectedBaseMapId);
     const projectId = useSelector(s => s.projects.selectedProjectId);
     const listingId = useSelector(s => s.listings.selectedListingId);
+    const selectedScopeId = useSelector(s => s.scopes.selectedScopeId);
     const newAnnotationInState = useSelector(s => s.annotations.newAnnotation);
     const openedPanel = useSelector(s => s.listings.openedPanel);
     const autoMergeOnCommit = useSelector(s => s.mapEditor.autoMergeOnCommit);
@@ -662,8 +663,19 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
                 //points: finalPointIds.map(id => ({ id })), // Référence uniquement les IDs !
                 baseMapId,
                 projectId,
-                listingId,
-                ...(activeLayerId && !isBaseMapAnnotation ? { layerId: activeLayerId } : {}),
+                // Revolution helpers belong to a SCOPE and a base map, never to
+                // a listing: a listingId would make them count towards that
+                // listing's annotation total, and they are drawing helpers, not
+                // annotations of the survey. useAnnotationsV2 keeps them
+                // visible through the scope filter on `scopeId`.
+                ...(isRevolutionHelper
+                    ? { scopeId: selectedScopeId ?? null }
+                    : { listingId }),
+                // Same reason for the layer: an axis is attached to its scope
+                // and its base map, nothing else.
+                ...(activeLayerId && !isBaseMapAnnotation && !isRevolutionHelper
+                    ? { layerId: activeLayerId }
+                    : {}),
 
                 // ... props de style
             };

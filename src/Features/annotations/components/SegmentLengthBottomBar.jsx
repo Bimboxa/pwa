@@ -7,6 +7,7 @@ import LockOpenOutlined from "@mui/icons-material/LockOpenOutlined";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import segmentLengthPxRef from "Features/mapEditor/state/segmentLengthPxRef";
+import parseConstraintLengths from "Features/mapEditor/utils/parseConstraintLengths";
 import ShortcutBadge from "Features/smartDetect/components/ShortcutBadge";
 
 export default function SegmentLengthBottomBar() {
@@ -63,7 +64,14 @@ export default function SegmentLengthBottomBar() {
 
   // render
 
-  const displayValue = locked ? constraintBuffer : liveDisplay;
+  // A ";"-separated series places one segment per value in a single click, so
+  // show the series spaced out plus its total — the total is what the rubber
+  // band spans while aiming.
+  const series = locked ? parseConstraintLengths(constraintBuffer) : null;
+  const isSeries = (series?.lengths.length ?? 0) > 1;
+  const displayValue = locked
+    ? constraintBuffer.split(";").join(" ; ")
+    : liveDisplay;
 
   return (
     <Box
@@ -102,8 +110,11 @@ export default function SegmentLengthBottomBar() {
             fontWeight: 600,
             fontVariantNumeric: "tabular-nums",
             fontSize: "0.8rem",
-            minWidth: 48,
-            textAlign: "right",
+            // A series is much wider than a single value, so the fixed width
+            // only applies when there is a single number to right-align.
+            ...(isSeries
+              ? { whiteSpace: "nowrap" }
+              : { minWidth: 48, textAlign: "right" }),
           }}
         >
           {displayValue}
@@ -114,6 +125,18 @@ export default function SegmentLengthBottomBar() {
         >
           {unit}
         </Typography>
+        {isSeries && (
+          <Typography
+            variant="caption"
+            sx={{
+              color: "primary.main",
+              fontSize: "0.75rem",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {`= ${series.total.toFixed(hasScale ? 2 : 0)} ${unit} · ${series.lengths.length} segments`}
+          </Typography>
+        )}
         {locked ? (
           <LockOutlined sx={{ fontSize: 14, color: "primary.main" }} />
         ) : (
@@ -129,6 +152,16 @@ export default function SegmentLengthBottomBar() {
           Contraindre
         </Typography>
         <ShortcutBadge>0-9</ShortcutBadge>
+      </Box>
+
+      <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+        <Typography
+          variant="caption"
+          sx={{ color: "text.secondary", fontSize: "0.75rem", whiteSpace: "nowrap" }}
+        >
+          Enchaîner
+        </Typography>
+        <ShortcutBadge>;</ShortcutBadge>
       </Box>
 
       <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>

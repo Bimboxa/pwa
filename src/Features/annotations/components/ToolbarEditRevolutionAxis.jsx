@@ -92,6 +92,15 @@ export default function ToolbarEditRevolutionAxis({ onDragStart }) {
     });
   }
 
+  // The radius is graphical only (circle + diameter size): it never moves the
+  // elevations this axis places, so no pose resync here.
+  async function handleRadiusChange(next) {
+    await updateAnnotation({
+      id: selectedAnnotation.id,
+      radiusM: next?.radiusM ?? null,
+    });
+  }
+
   async function handleOffsetZChange(next) {
     await updateAnnotation({
       id: selectedAnnotation.id,
@@ -203,6 +212,12 @@ export default function ToolbarEditRevolutionAxis({ onDragStart }) {
             borderColor: "divider",
           }}
         >
+          <FieldAnnotationHeight
+            annotation={selectedAnnotation}
+            field="radiusM"
+            label="rayon"
+            onChange={handleRadiusChange}
+          />
           <FieldAnnotationHeight
             annotation={selectedAnnotation}
             field="height"

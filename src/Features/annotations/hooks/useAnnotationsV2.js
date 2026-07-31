@@ -400,6 +400,7 @@ import {
 import { resolveProfileFromDb } from "Features/annotations/hooks/useProfileResolution";
 import computeSubtractedSurfaceM2Async from "Features/threedEditor/js/utilsAnnotationsManager/computeSubtractedSurfaceM2Async";
 import getRevolutionPhi from "Features/threedEditor/js/utilsAnnotationsManager/getRevolutionPhi";
+import getRevolutionAxisPlanFrame from "Features/annotations/utils/getRevolutionAxisPlanFrame";
 
 // Length of the synthesized lathe-axis segment, in reference-frame pixels. The
 // value is arbitrary: both ends share the same x (all buildRevolutionMesh reads
@@ -762,6 +763,15 @@ export default function useAnnotationsV2(options) {
       // component calls this hook.
       _annotations = _annotations.filter((a) => !isLegacyRevolutionRecord(a));
 
+      // Eye toggle of the axis banner (tools panel). Revolution helpers bypass
+      // every visibility filter below, so the `hidden` flag has to be applied
+      // explicitly here. Display-only: the revolution resolution reads the axis
+      // and its placement straight from Dexie, so a hidden axis still drives
+      // its lathes and still poses its base map.
+      _annotations = _annotations.filter(
+        (a) => !(isRevolutionHelperType(a.type) && a.hidden)
+      );
+
       // Revolution helpers are project-level geometry (see
       // REVOLUTION_HELPER_TYPES): not bound to a listing / layer / scope, so
       // they bypass the visibility filters below and stay on their base map.
@@ -838,14 +848,16 @@ export default function useAnnotationsV2(options) {
             })
             .map((l) => l.id)
         );
-        _annotations = _annotations.filter(
-          (a) =>
-            a.isBaseMapAnnotation ||
-            // Revolution helpers are project-level geometry (drawn from
-            // the découpe tools, no listing scope) — always keep them.
-            isRevolutionHelper(a) ||
-            scopeListingIds.has(a.listingId)
-        );
+        _annotations = _annotations.filter((a) => {
+          if (a.isBaseMapAnnotation) return true;
+          // Revolution helpers carry no listing (it would pollute the listing
+          // counters) — they are scoped by their own `scopeId` instead. Rows
+          // written before that field existed have none: keep them rather than
+          // making them vanish.
+          if (isRevolutionHelper(a))
+            return !a.scopeId || a.scopeId === scope.id;
+          return scopeListingIds.has(a.listingId);
+        });
       }
 
       // -- LISTING EXCLUSIONS --
@@ -1714,12 +1726,34 @@ export default function useAnnotationsV2(options) {
       }
 
       // Plan axes and their placements need a few resolved extras for the 2D
-      // renderers and the pure drag math (which get no base map of their own).
+      // renderers, the pure drag math and the snap candidates (none of which
+      // get a base map of their own).
+      //
+      // `_snapPoints` = the anchors a drawing may snap onto: the centre and the
+      // two diameter ends. They are DERIVED from the radius/direction scalars
+      // (not db.points rows), so they only exist once the scale is known — i.e.
+      // here. See getBestSnap.
       if (_annotations?.length) {
         const axisRefCache = new Map();
         for (const a of _annotations) {
           if (a?.type === "REVOLUTION_AXIS") {
-            a._planMeterByPx = baseMapById[a.baseMapId]?.getMeterByPx?.();
+            const meterByPx = baseMapById[a.baseMapId]?.getMeterByPx?.();
+            a._planMeterByPx = meterByPx;
+            const frame =
+              a.point &&
+              getRevolutionAxisPlanFrame({
+                centerPx: a.point,
+                radiusM: a.radiusM,
+                directionDeg: a.directionDeg,
+                invertHalf: a.invertHalf,
+                meterByPx,
+              });
+            if (frame) {
+              a._snapPoints = [
+                { x: frame.centerPx.x, y: frame.centerPx.y },
+                ...frame.rimPx.map((p) => ({ x: p.x, y: p.y })),
+              ];
+            }
           } else if (a?.type === "REVOLUTION_AXIS_PLACEMENT") {
             const axisId = a.revolutionAxisId;
             if (!axisId) continue;
@@ -1733,6 +1767,24 @@ export default function useAnnotationsV2(options) {
             a.revolutionAxisRadiusM = axis.radiusM;
             a.revolutionAxisHeightM = axis.height;
             a.revolutionAxisLabel = axis.label;
+
+            // Same three anchors seen edge-on: the centre and both ends of the
+            // orange bar (the plan diameter laid flat on the elevation). The
+            // centre is always published — an axis whose radius cannot be
+            // converted to pixels still has a meaningful centre to snap onto.
+            const meterByPx = baseMapById[a.baseMapId]?.getMeterByPx?.();
+            const r = Number(axis.radiusM);
+            if (a.point) {
+              const anchors = [{ x: a.point.x, y: a.point.y }];
+              if (Number.isFinite(meterByPx) && meterByPx > 0 && r > 0) {
+                const halfPx = r / meterByPx;
+                anchors.push(
+                  { x: a.point.x - halfPx, y: a.point.y },
+                  { x: a.point.x + halfPx, y: a.point.y }
+                );
+              }
+              a._snapPoints = anchors;
+            }
           }
         }
       }

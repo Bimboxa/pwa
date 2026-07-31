@@ -201,6 +201,15 @@ const getBestSnap = (mousePos, annotations, threshold, { vertex = true, midpoint
                 });
             }
 
+            // G. Revolution axis anchors — the centre and the two diameter
+            // ends, resolved by useAnnotationsV2 (they are derived from
+            // radius/direction scalars, not stored as db.points). Deliberately
+            // id-less: snapping onto them must create an INDEPENDENT point, or
+            // the drawing would drag the axis around with it.
+            if (Array.isArray(ann._snapPoints)) {
+                pointArraysToCheck.push({ list: ann._snapPoints, cutIndex: undefined, source: "REVOLUTION_AXIS" });
+            }
+
             for (const { list, cutIndex, source } of pointArraysToCheck) {
                 for (const pt of list) {
                     const d2 = dist2(pt, mousePos);

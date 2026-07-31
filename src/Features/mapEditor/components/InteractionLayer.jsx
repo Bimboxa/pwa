@@ -172,6 +172,8 @@ import convexHull from 'Features/geometry/utils/convexHull';
 import { useSmartZoom } from "App/contexts/SmartZoomContext";
 import { useDrawingMetrics } from "App/contexts/DrawingMetricsContext";
 import applyFixedLengthConstraint from "Features/mapEditorGeneric/utils/applyFixedLengthConstraint";
+import parseConstraintLengths, { CONSTRAINT_BUFFER_CHAR_RE } from "Features/mapEditor/utils/parseConstraintLengths";
+import expandConstraintLengths from "Features/mapEditor/utils/expandConstraintLengths";
 import useUndo from "App/db/useUndo";
 
 // constants
@@ -592,20 +594,31 @@ const InteractionLayer = forwardRef(({
   const fixedLength = useSelector((s) => s.mapEditor.fixedLength);
   const fixedLengthRef = useRef(fixedLength);
   useEffect(() => { fixedLengthRef.current = fixedLength; }, [fixedLength]);
+  // Full ";"-separated series when the user typed more than one length; null
+  // otherwise. Kept as a ref (not redux): only event handlers read it, and the
+  // bottom bar re-parses the buffer itself.
+  const fixedLengthsRef = useRef(null);
 
   const meterByPxRef = useRef(baseMapMeterByPx);
   useEffect(() => { meterByPxRef.current = baseMapMeterByPx; }, [baseMapMeterByPx]);
 
-  // Sync constraint buffer → Redux fixedLength
+  // Sync constraint buffer → Redux fixedLength (+ the multi-length list).
+  //
+  // `fixedLength` keeps its historical meaning — the FIRST value — so every
+  // single-length consumer (circle radius, rectangle, 2-click segment,
+  // ONE_CLICK…) behaves exactly as before. `fixedLengthsRef` carries the whole
+  // series and is read only by the multi-click branch, which places one segment
+  // per value.
+  //
+  // NB: this used to be `parseFloat(constraintBuffer)`, which stops at the first
+  // invalid char — it would have read "6;0.2" as a plain 6 with no error.
   useEffect(() => {
-    const num = parseFloat(constraintBuffer);
-    if (Number.isFinite(num) && num > 0) {
-      dispatch(setFixedLength(num));
-      fixedLengthRef.current = num;
-    } else {
-      dispatch(setFixedLength(null));
-      fixedLengthRef.current = null;
-    }
+    const parsed = parseConstraintLengths(constraintBuffer);
+    const first = parsed?.lengths[0] ?? null;
+    dispatch(setFixedLength(first));
+    fixedLengthRef.current = first;
+    fixedLengthsRef.current =
+      parsed && parsed.lengths.length > 1 ? parsed.lengths : null;
   }, [constraintBuffer, dispatch]);
 
   // Clear constraint buffer when drawing mode changes (start/stop drawing)
@@ -1785,6 +1798,14 @@ const InteractionLayer = forwardRef(({
           if (excludePointId && (p?.id === excludePointId || p?.pointId === excludePointId)) continue;
           if (Number.isFinite(p?.x) && Number.isFinite(p?.y)) candidates.push(p);
         }
+      }
+      // Revolution axis anchors (centre + both diameter ends). They are derived
+      // from scalars rather than stored as points, so they live in
+      // `_snapPoints` (resolved by useAnnotationsV2) and would otherwise be
+      // invisible to the ortho lock — even though aligning a drawing on the
+      // axis centre is one of the main reasons to draw one.
+      for (const p of ann?._snapPoints || []) {
+        if (Number.isFinite(p?.x) && Number.isFinite(p?.y)) candidates.push(p);
       }
     }
     for (const p of (drawingPointsRef.current || [])) {
@@ -4522,8 +4543,10 @@ const InteractionLayer = forwardRef(({
           break;
 
         default:
-          // Digit / dot / comma → append to constraint buffer while drawing
-          if (enabledDrawingMode && /^[0-9.,]$/.test(e.key)) {
+          // Digit / dot / comma / semicolon → append to constraint buffer while
+          // drawing. ";" chains several lengths ("6;0.2;2"): one click then
+          // places that many collinear segments (see parseConstraintLengths).
+          if (enabledDrawingMode && CONSTRAINT_BUFFER_CHAR_RE.test(e.key)) {
             const char = e.key === "," ? "." : e.key;
             appendToBuffer(char);
           }
@@ -4985,27 +5008,59 @@ const InteractionLayer = forwardRef(({
         return; // Don't add a regular drawing point
       }
 
+      // Read the placed points from the REF, not the state: the multi-length
+      // branch below syncs the ref synchronously, so a later click landing in
+      // the same React batch would otherwise anchor on a stale last point.
+      const placedPoints = drawingPointsRef.current;
+
       // Apply snapping if Shift is pressed or ortho snap is enabled
       let finalPos = toLocalCoords(worldPos);
-      if ((event.shiftKey || event.evt?.shiftKey) && drawingPoints.length > 0) {
-        const lastPoint = drawingPoints[drawingPoints.length - 1];
+      if ((event.shiftKey || event.evt?.shiftKey) && placedPoints.length > 0) {
+        const lastPoint = placedPoints[placedPoints.length - 1];
         const offset = orthoSnapAngleOffsetRef.current;
         finalPos = snapToAngle(finalPos, lastPoint, offset);
       }
       // Apply fixed length constraint
-      if (fixedLengthRef.current && drawingPoints.length > 0) {
+      if (fixedLengthRef.current && placedPoints.length > 0) {
         const mbp = meterByPxRef.current;
         const hasScale = Number.isFinite(mbp) && mbp > 0;
         finalPos = applyFixedLengthConstraint({
-          lastPointPx: drawingPoints[drawingPoints.length - 1],
+          lastPointPx: placedPoints[placedPoints.length - 1],
           candidatePointPx: finalPos,
           fixedLengthMeters: fixedLengthRef.current,
           meterPerPixel: hasScale ? mbp : 1,
         });
       }
 
+      // Multi-length series ("6;0.2;2;0.2"): the cursor gives the direction, the
+      // typed values give the distances → one click places N collinear segments.
+      // The series is consumed (buffer cleared) so the next click is free again.
+      const lengthsSeries = fixedLengthsRef.current;
+      if (lengthsSeries && placedPoints.length > 0) {
+        const mbp = meterByPxRef.current;
+        const hasScale = Number.isFinite(mbp) && mbp > 0;
+        const expanded = expandConstraintLengths({
+          lastPointPx: placedPoints[placedPoints.length - 1],
+          directionPointPx: finalPos,
+          lengths: lengthsSeries,
+          meterPerPixel: hasScale ? mbp : 1,
+        });
+        if (expanded.length > 0) {
+          const seriesPoints = [...placedPoints, ...expanded];
+          setDrawingPoints(seriesPoints);
+          drawingPointsRef.current = seriesPoints;
+          // Force DrawingLayer to use the new points immediately (bypasses the
+          // render cycle — the mousemove preview reads the ref).
+          drawingLayerRef.current?.setPoints?.(seriesPoints);
+          clearBuffer();
+          return;
+        }
+      }
+
       // 1. Ajouter le point (Déclenche un re-render de DrawingLayer pour la partie statique)
-      setDrawingPoints(prev => [...prev, finalPos]);
+      const nextPoints = [...placedPoints, finalPos];
+      setDrawingPoints(nextPoints);
+      drawingPointsRef.current = nextPoints;
 
       // 2. Si on a fini (ex: double clic ou fermeture), on commit
       // if (isClosing) { saveToDb(drawingPoints); setDrawingPoints([]); }
@@ -6167,13 +6222,19 @@ const InteractionLayer = forwardRef(({
 
       // G. FIXED LENGTH CONSTRAINT + SEGMENT LENGTH METRICS
       const lastPt = currentDrawingPts[currentDrawingPts.length - 1];
-      if (lastPt && fixedLengthRef.current) {
+      // With a ";"-separated series the click places several segments at once,
+      // so the rubber band spans their TOTAL — it shows the full extent the
+      // click is about to create, not just the first segment.
+      const previewLengthMeters = fixedLengthsRef.current
+        ? fixedLengthsRef.current.reduce((sum, v) => sum + v, 0)
+        : fixedLengthRef.current;
+      if (lastPt && previewLengthMeters) {
         const mbp = meterByPxRef.current;
         const hasScale = Number.isFinite(mbp) && mbp > 0;
         previewPos = applyFixedLengthConstraint({
           lastPointPx: lastPt,
           candidatePointPx: previewPos,
-          fixedLengthMeters: fixedLengthRef.current,
+          fixedLengthMeters: previewLengthMeters,
           meterPerPixel: hasScale ? mbp : 1, // no scale => value is in px
         });
       }
@@ -6759,7 +6820,19 @@ const InteractionLayer = forwardRef(({
       return;
     }
 
-    const draggableGroup = target.closest('[data-interaction="draggable"]');
+    let draggableGroup = target.closest('[data-interaction="draggable"]');
+    // While a drawing tool is armed the click belongs to the DRAWING, not to a
+    // drag. Revolution axes carry deliberately wide hit areas (the whole circle
+    // ring on the plan, both bars of the T on an elevation), so without this
+    // they would swallow the point instead of letting it through — and they are
+    // exactly the thing one wants to draw onto.
+    if (
+      draggableGroup &&
+      enabledDrawingModeRef.current &&
+      isMarkerLikeSnapDragType(draggableGroup.dataset?.annotationType)
+    ) {
+      draggableGroup = null;
+    }
     const partNode = target.closest('[data-part-type]');
     const partType = partNode?.dataset?.partType;
 
