@@ -3,7 +3,7 @@ import { Box } from "@mui/material";
 import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
 
 import {
-  resolveDrawingShapeFromType,
+  resolveDrawingShape,
   getConfigurableProps,
 } from "Features/annotations/constants/drawingShapeConfig";
 
@@ -33,7 +33,10 @@ export default function SectionAnnotationPropertiesContent({ annotation }) {
   const type = annotation?.type;
   const overrideFields = annotation?.annotationTemplate?.overrideFields;
 
-  const drawingShape = resolveDrawingShapeFromType(type);
+  // Resolve from the annotation itself, not from its type alone: shapes that
+  // share a type with another shape (or carry their own, like RULER) would
+  // otherwise fall back to the wrong section set.
+  const drawingShape = resolveDrawingShape(annotation);
   const configurableProps = getConfigurableProps(drawingShape);
   const showFill =
     configurableProps.includes("fillColor") ||

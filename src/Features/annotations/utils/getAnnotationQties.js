@@ -363,6 +363,10 @@ export default function getAnnotationQties({
     if (!meterByPx || !Number.isFinite(meterByPx) || meterByPx <= 0)
       return { enabled: false };
 
+    // RULER is a measurement object (a dimension chain), like COTE: it
+    // describes the drawing, it is not part of the work. No quantities.
+    if (annotation.type === "RULER") return { enabled: false };
+
     if (annotation.type === "POINT") {
       // REVOLUTION: the point sweeps a circle around the referenced axis
       // (radius = its horizontal distance to it, resolved by useAnnotationsV2).

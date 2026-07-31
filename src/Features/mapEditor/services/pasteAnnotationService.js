@@ -110,7 +110,8 @@ export default async function pasteAnnotationService({
       type === "POLYGON" ||
       type === "POLYLINE" ||
       type === "STRIP" ||
-      type === "COTE"
+      type === "COTE" ||
+      type === "RULER"
     ) {
       if (!item.basePoints?.length) continue;
       const transformed = applyPasteTransformToPoints(

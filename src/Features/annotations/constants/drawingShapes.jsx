@@ -155,6 +155,44 @@ const DRAWING_SHAPES = [
     ),
   },
   {
+    key: "RULER",
+    label: "Règle",
+    icon: (
+      <SvgIcon fontSize="small" viewBox="0 0 20 20">
+        {/* measured polyline */}
+        <line
+          x1="5"
+          y1="2"
+          x2="5"
+          y2="18"
+          stroke="currentColor"
+          strokeWidth="1"
+          strokeDasharray="2 2"
+        />
+        {/* alignment line + graduation ticks */}
+        <line
+          x1="13"
+          y1="2"
+          x2="13"
+          y2="18"
+          stroke="currentColor"
+          strokeWidth="1.5"
+        />
+        {[2, 8, 12, 18].map((y) => (
+          <line
+            key={y}
+            x1={y === 2 || y === 18 ? 10 : 11}
+            y1={y}
+            x2={y === 2 || y === 18 ? 16 : 15}
+            y2={y}
+            stroke="currentColor"
+            strokeWidth="1.5"
+          />
+        ))}
+      </SvgIcon>
+    ),
+  },
+  {
     key: "OBJECT_3D",
     label: "Objet 3D",
     icon: (

@@ -88,6 +88,7 @@ import {
 import CoteToolbarThreed from "Features/threedDimensions/components/CoteToolbarThreed";
 import DimensionDraftOverlayThreed from "Features/threedDimensions/components/DimensionDraftOverlayThreed";
 import ThreedCoteAnnotations from "Features/threedDimensions/components/ThreedCoteAnnotations";
+import ThreedRulerAnnotations from "Features/threedDimensions/components/ThreedRulerAnnotations";
 import ThreedAnnotationLabels from "Features/threedAnnotationLabels/components/ThreedAnnotationLabels";
 import useAnnotationLabelDragHandlers from "Features/threedAnnotationLabels/hooks/useAnnotationLabelDragHandlers";
 import useDimensionPointerHandlers from "Features/threedDimensions/hooks/useDimensionPointerHandlers";
@@ -1822,6 +1823,9 @@ export default function MainThreedEditor() {
       {isThreedViewer && <MoveGizmoThreed />}
       {isThreedViewer && rendererIsReady && (
         <ThreedCoteAnnotations annotations={annotations} />
+      )}
+      {isThreedViewer && rendererIsReady && (
+        <ThreedRulerAnnotations annotations={annotations} />
       )}
       {isThreedViewer && rendererIsReady && (
         <ThreedAnnotationLabels annotations={annotations} />

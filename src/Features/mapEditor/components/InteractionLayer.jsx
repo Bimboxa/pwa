@@ -197,7 +197,7 @@ import mergeDetectedPolyIntoDrawing from 'Features/smartDetect/utils/mergeDetect
 
 const PAN_STEP = 30;
 
-const PASTE_SUPPORTED_TYPES = ["POLYGON", "POLYLINE", "STRIP", "POINT", "MARKER"];
+const PASTE_SUPPORTED_TYPES = ["POLYGON", "POLYLINE", "STRIP", "POINT", "MARKER", "RULER"];
 
 // Node-merge tolerance for the annotation-geometry polygon detection
 // (POLYGON_CLICK hover + SURFACE_DROP "utiliser les contours"). Endpoints of
@@ -247,7 +247,12 @@ function pickSegmentAdjustAxis(candidates, preferred) {
 function buildClipboardItem(ann) {
   const type = ann?.type;
   const item = { annotation: ann };
-  if (type === "POLYGON" || type === "POLYLINE" || type === "STRIP") {
+  if (
+    type === "POLYGON" ||
+    type === "POLYLINE" ||
+    type === "STRIP" ||
+    type === "RULER"
+  ) {
     item.basePoints = (ann.points || []).map((p) => ({
       x: p.x,
       y: p.y,

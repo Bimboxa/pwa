@@ -707,7 +707,7 @@ function AnnotationTemplateRow({
     if (isEditing || !activeTool) return;
     if (
       isThreedToggledEditor &&
-      !["OBJECT_3D", "POLYGON", "POLYLINE", "COTE"].includes(drawingShape)
+      !["OBJECT_3D", "POLYGON", "POLYLINE", "COTE", "RULER"].includes(drawingShape)
     )
       return;
     dispatch(setSelectedListingId(listingId));
@@ -722,7 +722,7 @@ function AnnotationTemplateRow({
     } else {
       dispatch(setNewAnnotation(baseProps));
     }
-    dispatch(setEnabledDrawingMode(activeTool.key));
+    dispatch(setEnabledDrawingMode(activeTool.drawingMode ?? activeTool.key));
   };
 
   const handleSelectAsEditTarget = () => {
@@ -786,7 +786,7 @@ function AnnotationTemplateRow({
     // Activate drawing with this tool
     if (
       isThreedToggledEditor &&
-      !["OBJECT_3D", "POLYGON", "POLYLINE", "COTE"].includes(drawingShape)
+      !["OBJECT_3D", "POLYGON", "POLYLINE", "COTE", "RULER"].includes(drawingShape)
     )
       return;
     dispatch(setSelectedListingId(listingId));
@@ -799,7 +799,7 @@ function AnnotationTemplateRow({
     } else {
       dispatch(setNewAnnotation(baseProps));
     }
-    dispatch(setEnabledDrawingMode(tool.key));
+    dispatch(setEnabledDrawingMode(tool.drawingMode ?? tool.key));
   };
 
   const handleEditTemplate = () => {

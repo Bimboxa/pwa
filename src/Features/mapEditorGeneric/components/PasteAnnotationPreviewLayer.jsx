@@ -113,7 +113,9 @@ function renderItem(item, key, meterByPx) {
     );
   }
 
-  if (type === "COTE" && item.basePoints?.length) {
+  // COTE and RULER preview as their bare measured polyline — the cotes
+  // themselves are re-derived once the paste lands.
+  if ((type === "COTE" || type === "RULER") && item.basePoints?.length) {
     return (
       <polyline
         key={key}

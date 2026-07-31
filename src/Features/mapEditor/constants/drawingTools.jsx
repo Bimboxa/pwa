@@ -317,6 +317,26 @@ const DRAWING_TOOLS = [
     annotationType: "COTE",
     behavior: "TWO_CLICK",
   },
+  // RULER tools — a dimension chain draws exactly like a POLYLINE, so they
+  // delegate the interaction to the POLYLINE modes via `drawingMode` while
+  // keeping their own annotation type through the commit (same pattern as
+  // REVOLUTION_AXIS_LINE below).
+  {
+    key: "RULER_CLICK",
+    label: "Règle (clics)",
+    Icon: IconPolylineClick,
+    annotationType: "RULER",
+    behavior: "CLICK",
+    drawingMode: "POLYLINE_CLICK",
+  },
+  {
+    key: "RULER_SEGMENT",
+    label: "Règle (2 clics)",
+    Icon: IconPolylineSegment,
+    annotationType: "RULER",
+    behavior: "SEGMENT",
+    drawingMode: "POLYLINE_SEGMENT",
+  },
   // ADD_GUIDE_LINE tool — draw a guideLine polyline on the selected
   // annotation (the ramp gradient axis + slope arrow). Multi-click, finish
   // with Enter, cancel with Escape.

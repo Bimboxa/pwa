@@ -21,7 +21,10 @@ import {
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 
 import getCoteDisplayValue from "Features/annotations/utils/getCoteDisplayValue";
-import { getDefaultsForShape } from "Features/annotations/constants/drawingShapeConfig";
+import {
+  getDefaultsForShape,
+  resolveDrawingShape,
+} from "Features/annotations/constants/drawingShapeConfig";
 
 const UNIT_OPTIONS = [
   { value: "CM", label: "cm" },
@@ -38,6 +41,9 @@ const COTE_FIELDS = [
   "decimals",
   "fontSize",
   "showUnitLabel",
+  // RULER only (see showTotalOption), but kept in the lock/reset group so the
+  // padlock and "Réinit." stay consistent with what the popover shows.
+  "showTotalCote",
 ];
 
 // Preview sample: a 1.63 m long cote (163 px at 1 cm/px).
@@ -79,6 +85,9 @@ export default function FieldAnnotationTemplateCote({
   overrideFields,
   onOverrideFieldsChange,
   label = "Cote",
+  // RULER: a dimension chain can additionally show a cumulative "total" cote
+  // on a second alignment line. Meaningless for a 2-point COTE.
+  showTotalOption = false,
 }) {
   const {
     unit = "CM",
@@ -86,6 +95,7 @@ export default function FieldAnnotationTemplateCote({
     decimals = 0,
     fontSize = 18,
     showUnitLabel = true,
+    showTotalCote = false,
     strokeColor = "#000000",
   } = annotationTemplate ?? {};
 
@@ -148,6 +158,10 @@ export default function FieldAnnotationTemplateCote({
     onChange({ ...annotationTemplate, showUnitLabel: e.target.checked });
   }
 
+  function handleShowTotalCoteChange(e) {
+    onChange({ ...annotationTemplate, showTotalCote: e.target.checked });
+  }
+
   function handleToggleGlobalOverride() {
     const current = Array.isArray(overrideFields) ? [...overrideFields] : [];
     const next = allLocked
@@ -157,7 +171,11 @@ export default function FieldAnnotationTemplateCote({
   }
 
   function handleReset() {
-    const defaults = getDefaultsForShape("COTE");
+    // Shape-aware: a RULER has its own cote defaults (metres / 2 decimals /
+    // wider offset), restoring COTE's would silently change the display.
+    const defaults = getDefaultsForShape(
+      resolveDrawingShape(annotationTemplate) ?? "COTE"
+    );
     const patch = {};
     COTE_FIELDS.forEach((field) => {
       if (field in defaults) patch[field] = defaults[field];
@@ -434,6 +452,26 @@ export default function FieldAnnotationTemplateCote({
                 onChange={handleShowUnitLabelChange}
               />
             </Box>
+
+            {showTotalOption && (
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 1,
+                  py: 0.5,
+                }}
+              >
+                <Typography variant="body2" sx={{ flex: 1 }}>
+                  Cote totale
+                </Typography>
+                <Switch
+                  size="small"
+                  checked={Boolean(showTotalCote)}
+                  onChange={handleShowTotalCoteChange}
+                />
+              </Box>
+            )}
           </Box>
         </Box>
       </Popover>

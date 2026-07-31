@@ -40,7 +40,7 @@
 // human-readable French message for the panel. Mesh results carry
 // data.kind === "MESH" so the panel can branch.
 
-const SUPPORTED_TYPES = ["POLYLINE", "POLYGON", "COTE", "STRIP"];
+const SUPPORTED_TYPES = ["POLYLINE", "POLYGON", "COTE", "RULER", "STRIP"];
 const MESH_ORIENTATIONS = ["VERTICAL", "HORIZONTAL", "FREE"];
 const MESH_MODES = ["POLYGON", "POLYLINE"];
 
