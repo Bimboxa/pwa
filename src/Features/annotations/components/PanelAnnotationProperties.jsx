@@ -23,7 +23,7 @@ import SectionEntityAnnotations from "Features/entities/components/SectionEntity
 import SectionAnnotationZones from "Features/zonings/components/SectionAnnotationZones";
 
 // Types without a draggable sub-label (no labelDelta model) — no Etiquette tab.
-const TYPES_WITHOUT_LABEL = ["COTE", "TEXT", "LABEL"];
+const TYPES_WITHOUT_LABEL = ["COTE", "RULER", "TEXT", "LABEL"];
 
 function getTabs(annotation) {
   const showLabelTab =

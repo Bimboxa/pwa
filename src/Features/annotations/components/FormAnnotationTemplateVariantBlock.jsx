@@ -497,22 +497,27 @@ export default function FormAnnotationTemplateVariantBlock({
             />
           )}
 
-          {/* COTE-specific controls — one line + "..." popover */}
+          {/* COTE / RULER controls — one line + "..." popover */}
           {hasCoteProps && (
             <FieldAnnotationTemplateCote
               annotationTemplate={annotationTemplate}
               onChange={onChange}
               overrideFields={overrideFields}
               onOverrideFieldsChange={handleOverrideFieldsChange}
+              showTotalOption={drawingShape === "RULER"}
             />
           )}
 
-          <FieldQty
-            value={mainQtyKey}
-            onChange={handleMainQtyKeyChange}
-            label={qtyS}
-            drawingShape={drawingShape}
-          />
+          {/* RULER is a measurement object: it produces no quantities, so the
+              main-quantity selector would be misleading. */}
+          {drawingShape !== "RULER" && (
+            <FieldQty
+              value={mainQtyKey}
+              onChange={handleMainQtyKeyChange}
+              label={qtyS}
+              drawingShape={drawingShape}
+            />
+          )}
         </>
       )}
 

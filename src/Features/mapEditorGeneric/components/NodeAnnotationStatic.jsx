@@ -11,6 +11,7 @@ import NodePointStatic from "./NodePointStatic";
 import NodeOpeningStatic from "./NodeOpeningStatic";
 import NodeRectangleStatic from "./NodeRectangleStatic";
 import NodeCoteStatic from "./NodeCoteStatic";
+import NodeRulerStatic from "./NodeRulerStatic";
 import NodeRevolutionPointStatic from "./NodeRevolutionPointStatic";
 
 import resolveAnnotationDefaults from "Features/annotations/utils/resolveAnnotationDefaults";
@@ -141,6 +142,11 @@ function NodeAnnotationStatic({
 
     case "COTE":
       return <NodeCoteStatic {...props} annotation={resolvedAnnotation} />;
+
+    // RULER: dimension CHAIN — the drawn polyline plus one cote per segment,
+    // aligned on a single draggable offset line.
+    case "RULER":
+      return <NodeRulerStatic {...props} annotation={resolvedAnnotation} />;
 
     // Revolution helpers: the elevation-view axis is a plain 2-point line
     // (reuses the canonical polyline renderer); the plan-view axis is a

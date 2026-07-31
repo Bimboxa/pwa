@@ -198,6 +198,45 @@ const DRAWING_SHAPE_CONFIG = {
     },
     shapeCategory: "circle",
   },
+  // RULER — a dimension CHAIN: a polyline whose every segment carries its own
+  // cote, all of them aligned on a single offset "alignment line" (a miter
+  // offset of the polyline, so non-collinear segments stay joined). Reuses the
+  // COTE display fields (unit / decimals / fontSize / …) and the signed
+  // `extensionOffset` (its sign picks the side the cotes sit on).
+  RULER: {
+    label: "Règle",
+    annotationType: "RULER",
+    tools: ["RULER_CLICK", "RULER_SEGMENT"],
+    configurableProps: [
+      "strokeColor",
+      "strokeWidth",
+      "strokeWidthUnit",
+      "strokeOpacity",
+      "strokeType",
+      "unit",
+      "extensionOffset",
+      "extensionOffsetUnit",
+      "decimals",
+      "fontSize",
+      "showUnitLabel",
+      "showTotalCote",
+    ],
+    defaults: {
+      strokeColor: "#000000",
+      strokeWidth: 1,
+      strokeWidthUnit: "PX",
+      strokeOpacity: 1,
+      strokeType: "SOLID",
+      unit: "M",
+      extensionOffset: 40,
+      extensionOffsetUnit: "PX",
+      decimals: 2,
+      fontSize: 14,
+      showUnitLabel: true,
+      showTotalCote: false,
+    },
+    shapeCategory: "polyline",
+  },
   COTE: {
     label: "Cote",
     annotationType: "COTE",
@@ -271,6 +310,7 @@ const TYPE_TO_SHAPE = {
   RECTANGLE: "POLYGON",
   OBJECT_3D: "OBJECT_3D",
   COTE: "COTE",
+  RULER: "RULER",
   REVOLUTION_AXIS: "REVOLUTION_AXIS",
   REVOLUTION_POINT: "REVOLUTION_POINT",
 };

@@ -3,6 +3,8 @@ import { useSelector } from "react-redux";
 import { darken } from "@mui/material/styles";
 import theme from "Styles/theme";
 
+import offsetPointsAlongNormals from "../utils/offsetPointsAlongNormals";
+
 // Tracks whether Shift is currently held — used to swap segment/cut hit-area
 // cursors to "+"/"−" so the user sees ahead of clicking whether shift+click
 // will add or remove from a multi-part selection.
@@ -68,35 +70,6 @@ import getInnerOffsetSegmentPath from "Features/mapEditorGeneric/utils/getInnerO
 // Extra padding on each side of the visible stroke for hit detection, in
 // screen pixels (20 = ~10 px tolerance each side of the visible edge).
 const HIT_STROKE_PADDING_SCREEN_PX = 20;
-
-// Offset each point of a (possibly arc-carrying) path along its local
-// right-of-tangent normal by `distance`. The per-vertex normal uses the
-// neighbour-to-neighbour tangent, which at an arc's circle-midpoint is the
-// radial direction — so offsetting an S-C-S triplet yields a concentric arc
-// and the curve stays smooth. `type` is preserved so the arc-aware path
-// builder still recognises the S-C-S pattern (real arcs, not segments).
-function offsetPointsAlongNormals(pts, distance, closed) {
-  const n = pts.length;
-  if (n < 2) return pts.map((p) => ({ ...p }));
-  return pts.map((p, i) => {
-    let prev;
-    let next;
-    if (closed) {
-      prev = pts[(i - 1 + n) % n];
-      next = pts[(i + 1) % n];
-    } else {
-      prev = i > 0 ? pts[i - 1] : p;
-      next = i < n - 1 ? pts[i + 1] : p;
-    }
-    const dx = next.x - prev.x;
-    const dy = next.y - prev.y;
-    const len = Math.hypot(dx, dy) || 1;
-    const tx = dx / len;
-    const ty = dy / len;
-    // Right-of-tangent normal (matches the 3D sweep side).
-    return { ...p, x: p.x + ty * distance, y: p.y + -tx * distance };
-  });
-}
 
 // For POLYGON segment hit areas we skip the zoom-aware calc and use a fixed
 // screen-space width — polygons have no visible stroke to "grow", so a zoom-

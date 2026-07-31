@@ -17,13 +17,14 @@ const STYLE_FIELDS = [
   "strokeType",
   // STRIP (band width is carried by strokeWidth/strokeWidthUnit)
   "stripOrientation",
-  // COTE
+  // COTE / RULER
   "unit",
   "decimals",
   "fontSize",
   "showUnitLabel",
   "extensionOffset",
   "extensionOffsetUnit",
+  "showTotalCote",
 ];
 
 function pickStyle(obj) {

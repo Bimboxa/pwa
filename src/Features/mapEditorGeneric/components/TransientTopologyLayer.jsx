@@ -5,6 +5,7 @@ import { lighten } from '@mui/material/styles';
 import NodePolylineStatic from './NodePolylineStatic';
 import NodeStripStatic from './NodeStripStatic';
 import NodeCoteStatic from './NodeCoteStatic';
+import NodeRulerStatic from './NodeRulerStatic';
 import NodeOpeningStatic from './NodeOpeningStatic';
 
 import computeOpeningEndpointsFromHost, { buildHostCurve } from 'Features/mapEditor/utils/computeOpeningEndpointsFromHost';
@@ -426,6 +427,18 @@ export default function TransientTopologyLayer({
                             selected: true
                         }}
                         baseMapMeterByPx={baseMapMeterByPx}
+                        selected={true}
+                        isTransient={true}
+                    />}
+
+                    {ann.type === "RULER" && <NodeRulerStatic
+                        annotation={ann}
+                        annotationOverride={{
+                            strokeColor: "#2196f3",
+                            strokeOpacity: 0.5,
+                        }}
+                        baseMapMeterByPx={baseMapMeterByPx}
+                        containerK={containerK}
                         selected={true}
                         isTransient={true}
                     />}

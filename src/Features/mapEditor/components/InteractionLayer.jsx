@@ -197,7 +197,7 @@ import mergeDetectedPolyIntoDrawing from 'Features/smartDetect/utils/mergeDetect
 
 const PAN_STEP = 30;
 
-const PASTE_SUPPORTED_TYPES = ["POLYGON", "POLYLINE", "STRIP", "POINT", "MARKER"];
+const PASTE_SUPPORTED_TYPES = ["POLYGON", "POLYLINE", "STRIP", "POINT", "MARKER", "RULER"];
 
 // Node-merge tolerance for the annotation-geometry polygon detection
 // (POLYGON_CLICK hover + SURFACE_DROP "utiliser les contours"). Endpoints of
@@ -247,7 +247,12 @@ function pickSegmentAdjustAxis(candidates, preferred) {
 function buildClipboardItem(ann) {
   const type = ann?.type;
   const item = { annotation: ann };
-  if (type === "POLYGON" || type === "POLYLINE" || type === "STRIP") {
+  if (
+    type === "POLYGON" ||
+    type === "POLYLINE" ||
+    type === "STRIP" ||
+    type === "RULER"
+  ) {
     item.basePoints = (ann.points || []).map((p) => ({
       x: p.x,
       y: p.y,
@@ -6655,8 +6660,17 @@ const InteractionLayer = forwardRef(({
 
 
     // --- permet la modif de l'input/textarea d'un label
+    //
+    // `data-interaction="ui-overlay"` généralise le cas: tout widget HTML posé
+    // dans un <foreignObject> au-dessus d'une annotation (champ + bouton de
+    // verrouillage des cotes d'un RULER, p. ex.). Sans ça, un clic sur un
+    // BUTTON retombe sur le `closest('[data-node-type]')` plus bas, ce qui
+    // re-sélectionne l'annotation et referme l'éditeur.
 
-    if (['INPUT', 'TEXTAREA'].includes(target.tagName)) {
+    if (
+      ['INPUT', 'TEXTAREA'].includes(target.tagName) ||
+      target.closest?.('[data-interaction="ui-overlay"]')
+    ) {
       return;
     }
 

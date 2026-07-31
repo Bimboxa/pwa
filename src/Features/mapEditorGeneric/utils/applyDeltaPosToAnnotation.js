@@ -201,12 +201,13 @@ export default function applyDeltaPosToAnnotation(annotation, deltaPos, partType
         }
     }
 
-    // POLYLINE / POLYGON / STRIP / COTE
+    // POLYLINE / POLYGON / STRIP / COTE / RULER
     if (
         _annotation.type === "POLYLINE" ||
         _annotation.type === "POLYGON" ||
         _annotation.type === "STRIP" ||
-        _annotation.type === "COTE"
+        _annotation.type === "COTE" ||
+        _annotation.type === "RULER"
     ) {
 
         // PROFILE_LINE_MOVE::<index> — slide ONE profileLine ALONG the guide
