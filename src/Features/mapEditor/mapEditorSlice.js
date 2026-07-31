@@ -90,12 +90,18 @@ const mapEditorInitialState = {
   // imageMode, but the rect ignores the right panel (no rightInset), like the
   // POV framing. Never true together with imageModeEnabled.
   captureToolActive: false,
+  // Format of the capture tool's right panel: true = the condensed black band
+  // of icon buttons (ToolbarCaptureCondensed), false = the full tabbed panel
+  // (PanelCaptureTool). Session-only, the capture tool is the only panel with
+  // two formats.
+  capturePanelCondensed: true,
   // Title typed in the capture tool's save bar — feeds the frame title banner
   // (usePovTitleText) while captureToolActive is on, and the export filename.
   captureTitleText: "",
-  // Output format of the capture exports ("pdf" | "png" | "clipboard") —
-  // shared by SectionCaptureExport (all panels) and the capture tool's save
+  // Output format of the capture exports ("pdf" | "png" | "clipboard" | "pov")
+  // — shared by SectionCaptureExport (all panels) and the capture tool's save
   // bar, so "Créer la capture" delivers in the format picked in the panel.
+  // "pov" saves the framed view as a new point of view instead of a file.
   imageModeExportMode: "pdf",
   // File name typed in the capture tool's Capture tab — used by the save
   // bar's "Créer la capture" to name the delivered file.
@@ -399,6 +405,9 @@ export const mapEditorSlice = createSlice({
       // The two frames disagree on rightInset — only one can drive the overlay.
       if (state.captureToolActive) state.imageModeEnabled = false;
       else state.imageModeLegendSelected = false;
+    },
+    setCapturePanelCondensed: (state, action) => {
+      state.capturePanelCondensed = Boolean(action.payload);
     },
     setCaptureTitleText: (state, action) => {
       state.captureTitleText = action.payload ?? "";
@@ -863,6 +872,7 @@ export const {
   setImageModeEnabled,
   toggleImageModeEnabled,
   setCaptureToolActive,
+  setCapturePanelCondensed,
   setCaptureTitleText,
   setCaptureFileName,
   setImageModeExportMode,

@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 
 import { setCaptureToolActive, setCaptureTitleText } from "../mapEditorSlice";
 import { setPovAiEnhanceEnabled } from "Features/pov/povSlice";
+import { setToaster } from "Features/layout/layoutSlice";
 
 import { selectCaptureHostViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 
@@ -23,6 +24,9 @@ import PovAiEnhanceFrameOverlay from "Features/pov/components/PovAiEnhanceFrameO
 import DialogPovEnhancePrompt from "Features/pov/components/DialogPovEnhancePrompt";
 import usePovEnhancePrompt from "Features/pov/hooks/usePovEnhancePrompt";
 import useCaptureFrameBounds from "Features/pov/hooks/useCaptureFrameBounds";
+import usePovs from "Features/pov/hooks/usePovs";
+import useCreatePov from "Features/pov/hooks/useCreatePov";
+import useSavePovTransformedImage from "Features/pov/hooks/useSavePovTransformedImage";
 
 import captureMapAsPng, { getPdfPageSize } from "../utils/captureMapAsPng";
 import snapshotThreedCanvasForCapture from "Features/threedEditor/utils/snapshotThreedCanvasForCapture";
@@ -49,6 +53,8 @@ export default function ButtonSaveCapture() {
   const editPromptS = "Modifier le prompt d'amélioration IA";
   const titlePlaceholderS = "Titre de la capture";
   const closeS = "Quitter le mode capture";
+  const povSavedS = "Point de vue enregistré";
+  const povFailedS = "Échec de l'enregistrement du point de vue";
 
   // data
 
@@ -74,9 +80,15 @@ export default function ButtonSaveCapture() {
   const roundedBorderMask = useSelector((s) => s.mapEditor.imageModeBorder);
   const highRes = useSelector((s) => s.mapEditor.imageModeHighRes);
   // Output format picked in the panel's Capture tab (SectionCaptureExport).
-  const exportMode = useSelector((s) => s.mapEditor.imageModeExportMode);
+  const storedExportMode = useSelector((s) => s.mapEditor.imageModeExportMode);
 
   const frameBounds = useCaptureFrameBounds(hostViewerKey);
+
+  // "pov" export mode: the capture is saved as a new point of view instead of
+  // a file (list order comes from the existing POVs).
+  const povs = usePovs();
+  const createPov = useCreatePov();
+  const savePovTransformedImage = useSavePovTransformedImage();
 
   // state
 
@@ -90,6 +102,14 @@ export default function ButtonSaveCapture() {
   const isThreed = hostViewerKey === "THREED";
   const pixelRatio = highRes ? 4 : 2;
   const baseName = captureFileName?.trim() || "capture";
+
+  // useCapturePovView only knows the MAP and THREED hosts, and the mode is
+  // shared state that survives a viewer switch: fall back to a PDF elsewhere
+  // rather than snapshotting a host that is not on screen.
+  const povModeAvailable =
+    hostViewerKey === "MAP" || hostViewerKey === "THREED";
+  const exportMode =
+    storedExportMode === "pov" && !povModeAvailable ? "pdf" : storedExportMode;
 
   // No measurable capture host (e.g. the PORTFOLIO module, where the tool is
   // hidden but its state may linger, or the first pre-measure render): no
@@ -110,9 +130,34 @@ export default function ButtonSaveCapture() {
 
   // handlers
 
+  // "pov" mode: a new point of view holding the usual thumbnail plus the
+  // full-resolution rawImage. The capture tool stays armed (no exit) and the
+  // selection is left alone, so the panel keeps showing the capture band.
+  async function createPovFromCapture() {
+    return await createPov({
+      lastSortIndex: povs?.at(-1)?.sortIndex ?? null,
+      description: captureTitleText,
+      viewerMode: isThreed ? "THREED" : "MAP",
+      withRawImage: true,
+      selectCreated: false,
+    });
+  }
+
   // The full deliverable: decor included, rounded-border mask, high-res,
-  // delivered in the format picked in the panel (pdf / png / clipboard).
+  // delivered in the format picked in the panel (pdf / png / clipboard / pov).
   async function deliverCapture() {
+    if (exportMode === "pov") {
+      const pov = await createPovFromCapture();
+      dispatch(
+        setToaster(
+          pov
+            ? { message: povSavedS }
+            : { message: povFailedS, severity: "warning" }
+        )
+      );
+      return;
+    }
+
     const common = {
       viewerKey: hostViewerKey,
       aspectRatio,
@@ -140,6 +185,19 @@ export default function ButtonSaveCapture() {
 
   // Same format rule for an already-built blob (the AI-enhanced result).
   async function deliverBlob(blob) {
+    if (exportMode === "pov") {
+      // The POV holds the raw capture (thumbnail + rawImage); the enhanced
+      // composite goes in the existing `transformedImage` slot, which is what
+      // the POV panel and the portfolio already prefer for display.
+      const pov = await createPovFromCapture();
+      if (!pov) {
+        dispatch(setToaster({ message: povFailedS, severity: "warning" }));
+        return;
+      }
+      await savePovTransformedImage(pov.id, blob);
+      dispatch(setToaster({ message: povSavedS }));
+      return;
+    }
     if (exportMode === "clipboard") {
       if (navigator.clipboard && typeof ClipboardItem !== "undefined") {
         await navigator.clipboard.write([

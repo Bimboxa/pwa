@@ -32,6 +32,7 @@ import PanelAdminEntity from "Features/adminEditor/components/PanelAdminEntity";
 import PanelAnnotationsAuto from "Features/annotationsAuto/components/PanelAnnotationsAuto";
 import PanelPrint from "Features/print/components/PanelPrint";
 import PanelCaptureTool from "Features/mapEditor/components/PanelCaptureTool";
+import { CAPTURE_TOOLBAR_WIDTH } from "Features/mapEditor/components/ToolbarCaptureCondensed";
 import PanelElevation from "Features/elevation/components/PanelElevation";
 import PanelImportAnnotations from "Features/importAnnotations/components/PanelImportAnnotations";
 import PanelObjectsLibrary from "Features/objectsLibrary/components/PanelObjectsLibrary";
@@ -71,11 +72,22 @@ export default function RightPanelContainer() {
   const effectiveViewerKey = useSelector(selectEffectiveViewerKey);
   const isThreedSettings =
     selectedKey === "SETTINGS" && isThreedFamilyViewerKey(effectiveViewerKey);
-  const width = isElevation
-    ? (elevationViewerWidth ?? elevationDefaultWidth)
-    : isThreedSettings
-      ? 380
-      : fixedWidth;
+
+  // The CAPTURE tool has two panel formats: the condensed black band of icon
+  // buttons shrinks the drawer to a narrow strip (PanelCaptureTool renders
+  // ToolbarCaptureCondensed, which paints its own background).
+  const capturePanelCondensed = useSelector(
+    (s) => s.mapEditor.capturePanelCondensed
+  );
+  const isCaptureCondensed = selectedKey === "CAPTURE" && capturePanelCondensed;
+
+  const width = isCaptureCondensed
+    ? CAPTURE_TOOLBAR_WIDTH
+    : isElevation
+      ? (elevationViewerWidth ?? elevationDefaultWidth)
+      : isThreedSettings
+        ? 380
+        : fixedWidth;
 
   // handlers - resize: each resizable tool updates its own width; the fixed
   // tools keep theirs.
@@ -137,6 +149,8 @@ export default function RightPanelContainer() {
             flexDirection: "column",
             borderLeft: (theme) => `1px solid ${theme.palette.divider}`,
             boxShadow: 3,
+            // the capture tool switches between its two formats in place
+            transition: "width 0.15s ease",
           }}
         >
           {/* resize handle on the left frontier — shown for the resizable

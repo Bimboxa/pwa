@@ -120,6 +120,9 @@ export default async function createKrtoZip(scopeId, options) {
     // to no listing), so the standard files filter would drop them. Whitelist
     // them explicitly (live POVs only — deleted POVs keep their tombstone row
     // in the export but their image is excluded, like deleted versions).
+    // `rawImage` (the full-resolution capture) is DELIBERATELY not whitelisted:
+    // it would blow up the zip and it is regenerable from the POV module. Its
+    // reference is stripped from the exported pov rows below (step 4).
     const scopePovs = (
         await db.povs.where("scopeId").equals(scopeId).toArray()
     ).filter((p) => !p.deletedAt);
@@ -212,6 +215,17 @@ export default async function createKrtoZip(scopeId, options) {
                 delete row.deletedAt;
                 delete row.deletedByUserIdMaster;
             }
+        }
+    }
+
+    // POV full-resolution images are not shipped (see step 2ter): drop the
+    // dangling reference too. remapDexieExportIds builds its fileNameMap from
+    // the exported `files` rows, so a surviving rawImage.fileName would get no
+    // mapping and a duplicated scope would point at the source machine's file.
+    const povsTableData = jsonData.data.data.find((t) => t.tableName === "povs");
+    if (povsTableData?.rows) {
+        for (const row of povsTableData.rows) {
+            if (row?.rawImage) delete row.rawImage;
         }
     }
 

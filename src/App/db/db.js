@@ -151,13 +151,18 @@ db.version(24).stores({
 
 db.version(25).stores({
   // {id, projectId, scopeId, sortIndex, description, createdBy:{idMaster,trigram},
-  //  image:{fileName}, transformedImage:{fileName}|null, viewerMode,
+  //  image:{fileName}, rawImage:{fileName}|null,
+  //  transformedImage:{fileName}|null, viewerMode,
   //  aspectRatio, legendOverlay, whiteBackground, border,
   //  title:{visible,fontSize}, showLogo, viewCreatedAt,
   //  hiddenAnnotationTemplateIds, visibleAnnotationTemplateIds, baseMaps,
   //  camera2d, camera3d}
   // Point of view ("POV"): a saved framed view of the 2D map or 3D scene.
-  // `image` references a db.files row (PNG <= 200 KB). The metadata fields
+  // `image` references a db.files row (PNG <= 200 KB). `rawImage` is the
+  // optional full-resolution capture (written by the capture tool's "Point de
+  // vue" export mode, used for HD downloads); it is deliberately EXCLUDED from
+  // the Krto/scope export — see createKrtoZip — and regenerated on demand from
+  // the POV module. The metadata fields
   // (viewerMode, aspectRatio, baseMaps + active versions + visibleBaseMapIds,
   // visible/hidden templates, camera2d footprint in baseMap image px /
   // camera3d pose + frameFraction) allow reproducing the same framed view on

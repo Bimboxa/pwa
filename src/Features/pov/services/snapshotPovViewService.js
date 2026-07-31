@@ -20,10 +20,17 @@ import getEffective3dCameraPose from "../utils/getEffective3dCameraPose";
 // The right panel is ignored on purpose (no rightInset anywhere in the POV
 // flow): the capture frame does not move with the panel, so snapshot and
 // restore always agree on the same rect.
-export default async function snapshotPovViewService() {
+// `viewerMode` overrides the POV module's mode — the capture tool snapshots
+// the editor it is displayed over, whatever the POV module last showed.
+export default async function snapshotPovViewService({
+  viewerMode: viewerModeOverride,
+} = {}) {
   const state = store.getState();
 
-  const viewerMode = state.pov.viewerMode === "THREED" ? "THREED" : "MAP";
+  const viewerMode =
+    (viewerModeOverride ?? state.pov.viewerMode) === "THREED"
+      ? "THREED"
+      : "MAP";
   const aspectRatio = state.mapEditor.imageModeAspectRatio;
   // Manual qty overrides (hardCodedQtiesById) are session-only by design —
   // they must not be persisted on the pov record.
