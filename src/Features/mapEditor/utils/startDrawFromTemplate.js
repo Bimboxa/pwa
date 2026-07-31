@@ -43,7 +43,7 @@ export default function startDrawFromTemplate(
   } else {
     dispatch(setNewAnnotation(baseProps));
   }
-  // Tools that reuse another tool's interaction (RULER_*, REVOLUTION_AXIS_LINE…)
+  // Tools that reuse another tool's interaction (RULER_*, REVOLUTION_AXIS_PLAN…)
   // declare it via `drawingMode`; their own key is not a valid drawing mode.
   dispatch(setEnabledDrawingMode(activeTool.drawingMode ?? activeTool.key));
 }

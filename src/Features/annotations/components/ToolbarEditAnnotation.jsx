@@ -55,8 +55,8 @@ import {
 
 import AnnotationTemplateIcon from "./AnnotationTemplateIcon";
 import AnnotationMeasurements from "./AnnotationMeasurements";
-import ToolbarEditRevolutionHelper from "./ToolbarEditRevolutionHelper";
-import ToolbarEditProxyRevolution from "./ToolbarEditProxyRevolution";
+import ToolbarEditRevolutionAxis from "./ToolbarEditRevolutionAxis";
+import ToolbarEditRevolutionAxisPlacement from "./ToolbarEditRevolutionAxisPlacement";
 import ToolbarAnnotationActions from "./ToolbarAnnotationActions";
 import RowProcedureActionAuto from "Features/annotationsAuto/components/RowProcedureActionAuto";
 import ToolbarPartGroupRow from "./ToolbarPartGroupRow";
@@ -423,21 +423,14 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
     await updateAnnotation(updates);
   }
 
-  // Revolution helpers (REVOLUTION_AXIS / REVOLUTION_POINT) are standalone,
-  // template-less annotations — render a dedicated compact toolbar instead of
-  // the full template-centric UI below. (All hooks above have already run.)
-  if (
-    selectedAnnotation?.type === "REVOLUTION_AXIS" ||
-    selectedAnnotation?.type === "REVOLUTION_POINT"
-  ) {
-    return <ToolbarEditRevolutionHelper onDragStart={onDragStart} />;
+  // Revolution helpers are standalone, template-less annotations — render a
+  // dedicated compact toolbar instead of the full template-centric UI below.
+  // (All hooks above have already run.)
+  if (selectedAnnotation?.type === "REVOLUTION_AXIS") {
+    return <ToolbarEditRevolutionAxis onDragStart={onDragStart} />;
   }
-
-  // Revolution proxy ("donut"): a plan-view representation of a source arc. The
-  // template-centric UI (height/offset/actions) is off-topic — show a compact
-  // toolbar (template + revolved surface + partial/total toggle) instead.
-  if (selectedAnnotation?.isProxy) {
-    return <ToolbarEditProxyRevolution onDragStart={onDragStart} />;
+  if (selectedAnnotation?.type === "REVOLUTION_AXIS_PLACEMENT") {
+    return <ToolbarEditRevolutionAxisPlacement onDragStart={onDragStart} />;
   }
 
   return (

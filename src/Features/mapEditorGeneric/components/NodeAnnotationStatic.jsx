@@ -12,7 +12,8 @@ import NodeOpeningStatic from "./NodeOpeningStatic";
 import NodeRectangleStatic from "./NodeRectangleStatic";
 import NodeCoteStatic from "./NodeCoteStatic";
 import NodeRulerStatic from "./NodeRulerStatic";
-import NodeRevolutionPointStatic from "./NodeRevolutionPointStatic";
+import NodeRevolutionAxisStatic from "./NodeRevolutionAxisStatic";
+import NodeRevolutionAxisPlacementStatic from "./NodeRevolutionAxisPlacementStatic";
 
 import resolveAnnotationDefaults from "Features/annotations/utils/resolveAnnotationDefaults";
 
@@ -148,15 +149,20 @@ function NodeAnnotationStatic({
     case "RULER":
       return <NodeRulerStatic {...props} annotation={resolvedAnnotation} />;
 
-    // Revolution helpers: the elevation-view axis is a plain 2-point line
-    // (reuses the canonical polyline renderer); the plan-view axis is a
-    // cross-in-circle marker with a fixed 24px screen radius.
+    // Revolution helpers: the axis is authored on the plan as a circle split
+    // into two half-discs; its placement on a vertical base map is an
+    // inverted T (diameter + axis height).
     case "REVOLUTION_AXIS":
-      return <NodePolylineStatic {...props} annotation={resolvedAnnotation} />;
-
-    case "REVOLUTION_POINT":
       return (
-        <NodeRevolutionPointStatic {...props} annotation={resolvedAnnotation} />
+        <NodeRevolutionAxisStatic {...props} annotation={resolvedAnnotation} />
+      );
+
+    case "REVOLUTION_AXIS_PLACEMENT":
+      return (
+        <NodeRevolutionAxisPlacementStatic
+          {...props}
+          annotation={resolvedAnnotation}
+        />
       );
 
     default:

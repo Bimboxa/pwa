@@ -22,9 +22,9 @@ import attachFatLineRaycast from "./attachFatLineRaycast";
 //   - the revolution axis is the base map NORMAL; boundaryVertex applies the
 //     matching frame ops, then the translation to `center`.
 //
-// `centerLocal` is the in-plane position of the axis, taken from the linked
-// REVOLUTION_POINT (resolved by useAnnotationsV2). When null (no point), the
-// circle sits at the drawn axis's own location.
+// `centerLocal` overrides the in-plane position of the axis. Callers pass null:
+// the base map was posed so its plane contains the axis, which is the default
+// here (see buildRevolutionMesh for the full note).
 //
 // Caller must pass point/axis points already in basemap-local metres.
 

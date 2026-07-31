@@ -97,14 +97,4 @@ export function remapAnnotationIds(annotation, annotationIdMap) {
         : cut
     );
   }
-  if (
-    annotation.proxy?.proxySourceAnnotationId &&
-    annotationIdMap[annotation.proxy.proxySourceAnnotationId]
-  ) {
-    annotation.proxy = {
-      ...annotation.proxy,
-      proxySourceAnnotationId:
-        annotationIdMap[annotation.proxy.proxySourceAnnotationId],
-    };
-  }
 }

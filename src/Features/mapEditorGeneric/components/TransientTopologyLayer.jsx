@@ -405,7 +405,7 @@ export default function TransientTopologyLayer({
                         isTransient={true}
                     />}
 
-                    {!isOpeningNode && ["POLYGON", "POLYLINE", "REVOLUTION_AXIS"].includes(ann.type) && <NodePolylineStatic
+                    {!isOpeningNode && ["POLYGON", "POLYLINE"].includes(ann.type) && <NodePolylineStatic
                         annotation={ann}
                         annotationOverride={{
                             strokeColor: "#2196f3",

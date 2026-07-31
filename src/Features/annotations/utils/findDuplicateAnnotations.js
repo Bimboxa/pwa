@@ -6,7 +6,12 @@
 // Within a duplicate group, the oldest annotation (createdAt) is kept in place;
 // the others are returned in `duplicateIds`.
 
-const POINT_TYPES = ["MARKER", "POINT", "REVOLUTION_POINT"];
+const POINT_TYPES = [
+  "MARKER",
+  "POINT",
+  "REVOLUTION_AXIS",
+  "REVOLUTION_AXIS_PLACEMENT",
+];
 const BBOX_TYPES = ["RECTANGLE", "IMAGE", "OBJECT_3D"];
 
 function quantize(value, tolerance) {

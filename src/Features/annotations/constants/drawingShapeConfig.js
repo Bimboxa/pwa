@@ -170,31 +170,53 @@ const DRAWING_SHAPE_CONFIG = {
     shapeCategory: "rectangle",
   },
   // Revolution helpers — geometry that defines a surface-of-revolution shape3D
-  // (REVOLUTION). They are drawn from the "Outils de découpe" section, not from
+  // (REVOLUTION). They are drawn from the "Outils de dessin" section, not from
   // a template, so they have no template tools of their own.
+  //
+  // REVOLUTION_AXIS is authored on a HORIZONTAL base map (vue en plan) with two
+  // clicks: the centre, then a point giving the radius AND the diameter
+  // direction. See getRevolutionAxisPlanFrame for the storage contract.
   REVOLUTION_AXIS: {
     label: "Axe de révolution",
     annotationType: "REVOLUTION_AXIS",
     tools: [],
     configurableProps: ["strokeColor", "strokeWidth", "strokeWidthUnit"],
     defaults: {
-      strokeColor: "#9c27b0",
-      // Always 2 px on screen regardless of zoom: PX unit makes
-      // NodePolylineStatic render the stroke with vectorEffect="non-scaling-stroke".
+      strokeColor: secondary,
+      // Always 2 px on screen regardless of zoom.
       strokeWidth: 2,
       strokeWidthUnit: "PX",
       strokeOpacity: 1,
-      strokeType: "DASHED",
+      strokeType: "SOLID",
+      // Geometry (radiusM / directionDeg are written at commit from the two
+      // clicks; the values here only matter for a keyboard-less fallback).
+      radiusM: 1,
+      directionDeg: 0,
+      // Swaps the orange / black half-discs, i.e. re-places the linked vertical
+      // base maps at angleDeg + 180°.
+      invertHalf: false,
+      // Partial revolution (sector) shared by every arc bound to this axis.
+      partialRevolution: false,
+      // Absolute world Z of the axis centre, and the axis height as drawn on
+      // the elevation view.
+      offsetZ: 0,
+      height: 5,
     },
-    shapeCategory: "polyline",
+    shapeCategory: "circle",
   },
-  REVOLUTION_POINT: {
-    label: "Axe (vue en plan)",
-    annotationType: "REVOLUTION_POINT",
+  // Instance of a plan axis dropped on a VERTICAL base map. Its single point is
+  // where the axis centre sits in that elevation image — placing it re-poses
+  // the base map in 3D (see computeVerticalBaseMapPlacementFromAxis).
+  REVOLUTION_AXIS_PLACEMENT: {
+    label: "Position de l'axe",
+    annotationType: "REVOLUTION_AXIS_PLACEMENT",
     tools: [],
-    configurableProps: ["fillColor"],
+    configurableProps: ["strokeColor"],
     defaults: {
-      fillColor: "#9c27b0",
+      strokeColor: secondary,
+      strokeWidth: 2,
+      strokeWidthUnit: "PX",
+      strokeOpacity: 1,
     },
     shapeCategory: "circle",
   },
@@ -273,6 +295,34 @@ const DRAWING_SHAPE_CONFIG = {
 // Helpers
 // ---------------------------------------------------------------------------
 
+// Revolution helpers are project-level geometry drawn from the "Outils de
+// dessin" section: no entity, no template, and NOT bound to a listing / layer /
+// scope — so they bypass the visibility filters and stay on their base map.
+// Kept here (rather than re-listed in each consumer) because the same predicate
+// is needed by useAnnotationsV2, SectionLayers and buildToolDraft.
+export const REVOLUTION_HELPER_TYPES = [
+  "REVOLUTION_AXIS",
+  "REVOLUTION_AXIS_PLACEMENT",
+];
+
+export function isRevolutionHelperType(type) {
+  return REVOLUTION_HELPER_TYPES.includes(type);
+}
+
+// Rows written by the PREVIOUS revolution-axis model are ignored everywhere.
+// Their geometry contract is incompatible with the current one:
+//   - the old REVOLUTION_AXIS was an elevation 2-point line (`points`), whereas
+//     the current one is a plan CENTRE (`point`) + radiusM / directionDeg,
+//   - REVOLUTION_POINT (the old plan marker) no longer exists at all.
+// Ignoring them is deliberate (no migration): a legacy axis carries neither a
+// radius nor an orientation, so it cannot be reconstructed. They stay in the
+// database, simply unread.
+export function isLegacyRevolutionRecord(annotation) {
+  if (!annotation) return false;
+  if (annotation.type === "REVOLUTION_POINT") return true;
+  return annotation.type === "REVOLUTION_AXIS" && !annotation.point?.id;
+}
+
 export function getShapeConfig(drawingShape) {
   return DRAWING_SHAPE_CONFIG[drawingShape] ?? null;
 }
@@ -312,7 +362,7 @@ const TYPE_TO_SHAPE = {
   COTE: "COTE",
   RULER: "RULER",
   REVOLUTION_AXIS: "REVOLUTION_AXIS",
-  REVOLUTION_POINT: "REVOLUTION_POINT",
+  REVOLUTION_AXIS_PLACEMENT: "REVOLUTION_AXIS_PLACEMENT",
 };
 
 export function resolveDrawingShapeFromType(annotationType) {

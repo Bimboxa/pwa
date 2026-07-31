@@ -1,12 +1,21 @@
 import slideProfileLineAlongGuide from "Features/elevation/utils/slideProfileLineAlongGuide";
 
+// Fold an angle into (-180, 180].
+const normalizeDeg = (deg) => {
+    let d = ((deg % 360) + 360) % 360;
+    if (d > 180) d -= 360;
+    return d;
+};
+
 /**
  * Apply a delta position to an annotation, returning a new annotation object
  * with transformed geometry. Pure function, no React dependencies.
  *
  * Handles all annotation types: MARKER, POINT, LABEL, POLYLINE, POLYGON, STRIP, IMAGE, RECTANGLE
  * Handles partTypes: MOVE (default), TARGET, LABEL_BOX, ROTATE, RESIZE_*,
- * PROFILE_LINE_MOVE::<index> (slide ONE profileLine along its cut axis)
+ * PROFILE_LINE_MOVE::<index> (slide ONE profileLine along its cut axis),
+ * REVOLUTION_RIM::<0|1> (axis radius + orientation, centre fixed),
+ * REVOLUTION_ANGLE::<START|END> (axis partial-revolution sector bounds)
  *
  * @param {Object} annotation - The annotation to transform
  * @param {Object} deltaPos - { x, y } delta to apply
@@ -163,11 +172,65 @@ export default function applyDeltaPosToAnnotation(annotation, deltaPos, partType
         }
     }
 
-    // MARKER / POINT / REVOLUTION_POINT (single-point annotations)
+    // REVOLUTION_AXIS handles — the centre stays put; only the derived scalars
+    // move, so the whole node (both half-discs, the diameter, the handles)
+    // re-renders as a block from a single source of truth.
+    //
+    // Pixel space is y-DOWN while `directionDeg` and the sector angles live in
+    // the plan LOCAL metre frame (y up) — hence the atan2(-dy, dx).
+    if (
+        _annotation.type === "REVOLUTION_AXIS" &&
+        (partType?.startsWith("REVOLUTION_RIM::") ||
+            partType?.startsWith("REVOLUTION_ANGLE::"))
+    ) {
+        const cx = _annotation.point?.x ?? 0;
+        const cy = _annotation.point?.y ?? 0;
+        const meterByPx = _annotation._planMeterByPx;
+        const radiusM = Number(_annotation.radiusM) || 0;
+        const radiusPx =
+            Number.isFinite(meterByPx) && meterByPx > 0 ? radiusM / meterByPx : 0;
+        const theta = ((Number(_annotation.directionDeg) || 0) * Math.PI) / 180;
+
+        if (partType.startsWith("REVOLUTION_RIM::")) {
+            // Handle 1 is the antipode: dragging it is dragging handle 0 mirrored.
+            const sign = partType.split("::")[1] === "1" ? -1 : 1;
+            const grabbedX = cx + sign * radiusPx * Math.cos(theta);
+            const grabbedY = cy - sign * radiusPx * Math.sin(theta);
+            const vx = grabbedX + deltaPos.x - cx;
+            const vy = grabbedY + deltaPos.y - cy;
+            const nextRadiusPx = Math.hypot(vx, vy);
+            if (nextRadiusPx > 0) {
+                // Normalized to (-180, 180] so repeated drags can't drift the
+                // stored value out of range.
+                _annotation.directionDeg = normalizeDeg(
+                    (Math.atan2(-vy, vx) * 180) / Math.PI - (sign < 0 ? 180 : 0)
+                );
+                if (Number.isFinite(meterByPx) && meterByPx > 0) {
+                    _annotation.radiusM = nextRadiusPx * meterByPx;
+                }
+            }
+        } else {
+            const which = partType.split("::")[1];
+            const key =
+                which === "START"
+                    ? "revolutionAngleStartDeg"
+                    : "revolutionAngleEndDeg";
+            const cur = ((Number(_annotation[key]) || 0) * Math.PI) / 180;
+            const hx = cx + radiusPx * Math.cos(cur) + deltaPos.x;
+            const hy = cy - radiusPx * Math.sin(cur) + deltaPos.y;
+            _annotation[key] = normalizeDeg(
+                (Math.atan2(-(hy - cy), hx - cx) * 180) / Math.PI
+            );
+        }
+        return _annotation;
+    }
+
+    // MARKER / POINT / revolution axis + placement (single-point annotations)
     if (
         _annotation.type === "MARKER" ||
         _annotation.type === "POINT" ||
-        _annotation.type === "REVOLUTION_POINT"
+        _annotation.type === "REVOLUTION_AXIS" ||
+        _annotation.type === "REVOLUTION_AXIS_PLACEMENT"
     ) {
         _annotation.point = {
             x: _annotation.point.x + deltaPos.x,

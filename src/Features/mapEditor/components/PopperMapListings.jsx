@@ -58,6 +58,7 @@ import UnfoldMore from "@mui/icons-material/UnfoldMore";
 import { Check, Close } from "@mui/icons-material";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
+import ToolRowRevolutionAxis from "./ToolRowRevolutionAxis";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 import {
@@ -65,7 +66,6 @@ import {
   Create,
   AddLocationAlt,
   AutoFixHigh,
-  RotateRight,
 } from "@mui/icons-material";
 import IconTechnicalReturn from "Features/icons/IconTechnicalReturn";
 import IconCutLine from "Features/icons/IconCutLine";
@@ -202,7 +202,8 @@ const TOOL_ITEMS = [
     shortcut: "C",
   },
   { type: "COMPLETE_ANNOTATION", label: "Prolonger", Icon: Create },
-  { type: "REVOLUTION", label: "Axe de révolution", Icon: RotateRight },
+  // "Axes de révolution" is orientation-aware → its own component, appended
+  // after this list (see ToolRowRevolutionAxis).
 ];
 
 // ---------------------------------------------------------------------------
@@ -3293,6 +3294,7 @@ export default function PopperMapListings() {
                         shortcut={tool.shortcut}
                       />
                     ))}
+                    <ToolRowRevolutionAxis />
                   </List>
                 </>
               )}

@@ -131,21 +131,6 @@ export default async function duplicateScopeService({
     return true;
   });
 
-  // proxy closure: a proxy must not reference an annotation left in the
-  // source scope — drop proxies whose source got filtered out, repeatedly
-  // (a dropped proxy can itself be the source of another proxy).
-  let dropped = true;
-  while (dropped) {
-    const keptIds = new Set(keptAnnotations.map((a) => a.id));
-    const next = keptAnnotations.filter(
-      (a) =>
-        !a.proxy?.proxySourceAnnotationId ||
-        keptIds.has(a.proxy.proxySourceAnnotationId)
-    );
-    dropped = next.length !== keptAnnotations.length;
-    keptAnnotations = next;
-  }
-
   // filtered structure: a listing is recreated iff at least one of its
   // annotation-bearing template keys is checked; its templates are recreated
   // unless explicitly unchecked (annotation-less templates are kept to
