@@ -103,6 +103,7 @@ import computeWrapperBbox from '../utils/computeWrapperBbox';
 import anchorAnnotationToTarget from 'Features/annotations/services/anchorAnnotationToTarget';
 import addAnnotationSubtraction from 'Features/annotations/services/addAnnotationSubtraction';
 import addAnnotationSubtractions from 'Features/annotations/services/addAnnotationSubtractions';
+import { isForeignFootprintId } from 'Features/annotations/constants/foreignFootprint';
 import updateAnnotationService from 'Features/annotations/services/updateAnnotationService';
 import AnnotationEditingWrapper from './AnnotationEditingWrapper';
 import applyDeltaPosToAnnotation from 'Features/mapEditorGeneric/utils/applyDeltaPosToAnnotation';
@@ -4648,7 +4649,9 @@ const InteractionLayer = forwardRef(({
     if (subtractSourceAnnotationId && !enabledDrawingMode) {
       const nativeTarget = event.nativeEvent?.target || event.target;
       const hit = nativeTarget.closest?.('[data-node-type="ANNOTATION"]');
-      if (hit) {
+      // A footprint is a projection, not an annotation: it can neither be
+      // subtracted nor be subtracted from.
+      if (hit && !isForeignFootprintId(hit.dataset.nodeId)) {
         const targetId = hit.dataset.nodeId;
         if (targetId === subtractSourceAnnotationId) {
           dispatch(
@@ -4694,7 +4697,13 @@ const InteractionLayer = forwardRef(({
       for (const el of els) {
         const node = el.closest?.('[data-node-type="ANNOTATION"]');
         const id = node?.dataset?.nodeId;
-        if (id && id !== subtractTargetAnnotationId && !sourceIds.includes(id)) {
+        if (
+          id &&
+          id !== subtractTargetAnnotationId &&
+          !sourceIds.includes(id) &&
+          // A footprint is a projection, not a carvable annotation.
+          !isForeignFootprintId(id)
+        ) {
           sourceIds.push(id);
         }
       }

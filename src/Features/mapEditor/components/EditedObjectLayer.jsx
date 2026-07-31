@@ -110,8 +110,18 @@ export default function EditedObjectLayer({
     POINT_BASED_TYPES.includes(a.type)
   );
   const isMultiSelection = selectedNodes?.length > 1;
+  // A footprint is the projection of an annotation hosted by another base map:
+  // it has no editable geometry of its own, so it gets neither the transform
+  // handles nor the vertex dots — only a dashed outline (see below), which is
+  // what tells the user it is a reference and not something to edit.
+  const isForeignFootprintSelection =
+    annotationsToRender.length > 0 &&
+    annotationsToRender.every((a) => a?.isForeignFootprint);
   const showWrapper =
-    pointBasedAnnotations.length > 0 && wrapperMode && !selectedPointId;
+    pointBasedAnnotations.length > 0 &&
+    wrapperMode &&
+    !selectedPointId &&
+    !isForeignFootprintSelection;
 
   // Extract cumulative rotation and rotation center (all annotations in the wrapper share the same values)
   const wrapperRotation = (() => {
@@ -215,6 +225,7 @@ export default function EditedObjectLayer({
               // (the wrapper handles replace them)
               selected={
                 isNodeSelected &&
+                !annotation?.isForeignFootprint &&
                 !(showWrapper && POINT_BASED_TYPES.includes(annotation.type))
               }
               sizeVariant="FIXED_IN_SCREEN"
@@ -235,6 +246,30 @@ export default function EditedObjectLayer({
           </g>
         );
       })}
+
+      {/* Selected footprint: a plain dashed black outline instead of the
+          transform handles — it marks the selection without suggesting the
+          shape can be edited here. */}
+      {isForeignFootprintSelection &&
+        annotationsToRender.map((annotation) => {
+          const pts = annotation?.points;
+          if (!pts?.length) return null;
+          const d =
+            pts.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ") +
+            " Z";
+          const k = finalPose.k || 1;
+          return (
+            <path
+              key={`foreign-outline-${annotation.id}`}
+              d={d}
+              fill="none"
+              stroke="#000"
+              strokeWidth={1.5 / k}
+              strokeDasharray={`${6 / k} ${4 / k}`}
+              style={{ pointerEvents: "none" }}
+            />
+          );
+        })}
 
       {/* Annotation Editing Wrapper — rendered on top of annotations */}
       {/* Hidden during drag (transient wrapper is rendered by InteractionLayer) */}

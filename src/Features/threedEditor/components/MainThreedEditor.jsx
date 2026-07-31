@@ -20,6 +20,8 @@ import {
   setAnnotationsToolbarPosition,
 } from "Features/mapEditor/mapEditorSlice";
 import { setSelectedBaseMapId } from "Features/baseMaps/baseMapsSlice";
+import { setToaster } from "Features/layout/layoutSlice";
+import addAnnotationSubtraction from "Features/annotations/services/addAnnotationSubtraction";
 import {
   setSelectedItem,
   setSelectedItems,
@@ -74,6 +76,8 @@ import {
 } from "Features/threedEditor/services/threedEditorRegistry";
 import PopperEditAnnotation from "Features/mapEditor/components/PopperEditAnnotation";
 import PopperMapListings from "Features/mapEditor/components/PopperMapListings";
+import PopperSubtractHelper from "Features/mapEditor/components/PopperSubtractHelper";
+import useSubtractPickHotkeysInThreedEditor from "../hooks/useSubtractPickHotkeysInThreedEditor";
 import ClippingToolbarThreed from "./ClippingToolbarThreed";
 import ButtonZoomOutThreed from "./ButtonZoomOutThreed";
 import BottomToolbarThreed from "Features/threedDrawing/components/BottomToolbarThreed";
@@ -310,6 +314,34 @@ export default function MainThreedEditor() {
   useEffect(() => {
     placementActiveRef.current = placementActive;
   }, [placementActive]);
+
+  // Subtraction pick mode (both directions). Mirrored into refs for the same
+  // reason as above: handleClick must not re-create on these, or every
+  // annotation object in the scene would be rebuilt (see the comment on
+  // annotations identity at the top of this component).
+  const subtractSourceAnnotationId = useSelector(
+    (s) => s.mapEditor.subtractSourceAnnotationId
+  );
+  const subtractSourceAnnotationIdRef = useRef(subtractSourceAnnotationId);
+  useEffect(() => {
+    subtractSourceAnnotationIdRef.current = subtractSourceAnnotationId;
+  }, [subtractSourceAnnotationId]);
+
+  const subtractTargetAnnotationId = useSelector(
+    (s) => s.mapEditor.subtractTargetAnnotationId
+  );
+  const subtractTargetAnnotationIdRef = useRef(subtractTargetAnnotationId);
+  useEffect(() => {
+    subtractTargetAnnotationIdRef.current = subtractTargetAnnotationId;
+  }, [subtractTargetAnnotationId]);
+
+  const subtractPickActive = Boolean(
+    subtractSourceAnnotationId || subtractTargetAnnotationId
+  );
+
+  // Escape exits the mode: InteractionLayer owns that in 2D but is not mounted
+  // here.
+  useSubtractPickHotkeysInThreedEditor();
 
   // Sub-selection (vertex / edge inside the selected annotation). Sourced
   // from threedEditorSlice. We subscribe via useSelector with a primitive
@@ -773,6 +805,52 @@ export default function MainThreedEditor() {
               listingId,
               annotationTemplateId,
             } = object.userData;
+
+            // Subtraction pick mode: the click creates a relation instead of
+            // selecting. One annotation per click — the nearest along the ray,
+            // since in 3D the ray would otherwise cross the whole building.
+            // Cross-basemap is allowed: the carve and the mesh-area quantity
+            // both resolve in world space.
+            const pickSourceId = subtractSourceAnnotationIdRef.current;
+            const pickTargetId = subtractTargetAnnotationIdRef.current;
+            if ((pickSourceId || pickTargetId) && nodeType === "ANNOTATION") {
+              const pivotId = pickSourceId || pickTargetId;
+              if (nodeId === pivotId) {
+                dispatch(
+                  setToaster({
+                    message:
+                      "Une annotation ne peut pas se soustraire elle-même",
+                    severity: "warning",
+                  })
+                );
+                return;
+              }
+              const projectId = store.getState().projects.selectedProjectId;
+              addAnnotationSubtraction({
+                projectId,
+                sourceAnnotationId: pickSourceId ? pickSourceId : nodeId,
+                targetAnnotationId: pickSourceId ? nodeId : pickTargetId,
+              }).then((relId) => {
+                dispatch(
+                  setToaster(
+                    relId
+                      ? {
+                          message: pickSourceId
+                            ? "Annotation ajoutée à la soustraction"
+                            : "Annotation creusée par cette annotation",
+                          severity: "success",
+                        }
+                      : {
+                          message: "Annotation déjà soustraite",
+                          severity: "info",
+                        }
+                  )
+                );
+              });
+              // Stay in the mode; only Escape exits it.
+              return;
+            }
+
             const item = {
               id: nodeId,
               nodeId,
@@ -1859,7 +1937,12 @@ export default function MainThreedEditor() {
       }}
     >
       <Box sx={{ width: 1, height: 1 }} ref={containerRef} />
-      {isThreedViewer && !captureFramingActive && <PopperMapListings />}
+      {/* The helper REPLACES the listings panel while the mode is armed, same
+          as the 2D chain in PopperMapListings (which is 2D-only). */}
+      {isThreedViewer && !captureFramingActive && !subtractPickActive && (
+        <PopperMapListings />
+      )}
+      {isThreedViewer && subtractPickActive && <PopperSubtractHelper />}
       {isThreedViewer && <PopperEditAnnotation viewerKey="THREED" />}
       {isThreedViewer && <ThreedPopperEditAnnotations />}
       {isThreedViewer && <ThreedImageModeOverlay annotations={annotations} />}

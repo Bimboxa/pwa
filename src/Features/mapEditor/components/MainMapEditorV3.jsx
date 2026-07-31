@@ -359,6 +359,9 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
         sortByOrderIndex: true,
         excludeIsForBaseMapsListings: viewerKey !== "BASE_MAPS",
         onlyIsForBaseMapsListings: viewerKey === "BASE_MAPS",
+        // Read-only outlines of subtraction targets hosted by another base map
+        // (clickable, so the toolbar can offer "Voir l'annotation d'origine").
+        withForeignFootprints: true,
     });
 
     // "Maillage" toggle: ON → replace meshed parents by their mesh cells (keep

@@ -14,7 +14,13 @@ export default function useSelectedAnnotation() {
 
   // data
 
-  const annotations = useAnnotationsV2({ caller: "useSelectedAnnotation" })
+  // withForeignFootprints: a footprint (subtraction target hosted by another
+  // base map) is selectable on the plan, so the toolbar must be able to
+  // resolve it — otherwise selecting one shows no toolbar at all.
+  const annotations = useAnnotationsV2({
+    caller: "useSelectedAnnotation",
+    withForeignFootprints: true,
+  })
 
   // const selectedNode = useSelector((s) => s.mapEditor.selectedNode); // Removed
   const selectedItems = useSelector(selectSelectedItems);

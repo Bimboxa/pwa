@@ -9,6 +9,8 @@ import subtractAnnotationGeometries from "./utilsAnnotationsManager/subtractAnno
 import buildAnnotationSolidObjectsAsync from "./utilsAnnotationsManager/buildAnnotationSolidObjectsAsync";
 import buildResolvedSourceObjectAsync from "./utilsAnnotationsManager/buildResolvedSourceObjectAsync";
 import getSolidMeshFromObject3D from "./utilsAnnotationsManager/getSolidMeshFromObject3D";
+import getBaseMapForRender from "./utilsAnnotationsManager/getBaseMapForRender";
+import createBaseMapFrameGroup from "./utilsAnnotationsManager/createBaseMapFrameGroup";
 import refreshRevolutionSectionMarkers from "./utilsAnnotationsManager/refreshRevolutionSectionMarkers";
 
 import { getShape3DKey } from "Features/annotations/constants/shape3DConfig";
@@ -163,22 +165,10 @@ export default class AnnotationsManager {
         this.sceneManager.imagesManager.baseMapsMap[annotation.baseMapId];
       if (!baseMap) return;
 
-      // Position/rotation are now carried by the parent basemap Group, so we
-      // only need the metrics required to project pixel coords into the
-      // basemap-local meter frame. Annotation pixel coords are resolved in
-      // the REFERENCE frame (BaseMap.getImageSize = refWidth/refHeight for
-      // versioned maps), NOT the active version's image size — using the
-      // version size here would shift every annotation when the active
-      // version's pixel size differs from the original image.
-      const refSize = baseMap.getImageSize?.() || baseMap.image?.imageSize;
-      const baseMapForRender = {
-        imageWidth: refSize?.width || 1,
-        imageHeight: refSize?.height || 1,
-        meterByPx: baseMap.meterByPx || 0.01,
-        // Needed by REVOLUTION: the revolution axis is the base map normal,
-        // which is local +Z for HORIZONTAL and +Y for VERTICAL base maps.
-        orientation: baseMap.orientation,
-      };
+      // Position/rotation are carried by the parent basemap Group; this only
+      // holds the metrics needed to project pixel coords into the
+      // basemap-local meter frame (see getBaseMapForRender).
+      const baseMapForRender = getBaseMapForRender(baseMap);
 
       const object = createAnnotationObject3D(annotation, baseMapForRender, {
         ...options,
@@ -209,10 +199,13 @@ export default class AnnotationsManager {
       // 3D subtraction: carve the source mesh with each target's derived solid.
       // Targets come from `subtractionTargets` (resolved annotations attached by
       // useAnnotationsV2 BEFORE the hidden-filter), so a subtraction is kept even
-      // when the target's template is hidden. Target objects are attached to the
-      // SAME basemap group as the source so both share a world frame, then
-      // removed after the carve (they keep rendering as their own annotations
-      // only when visible). EXTRUSION_PROFILE solids resolve asynchronously.
+      // when the target's template is hidden. Each target is built with ITS OWN
+      // basemap metrics and attached to ITS OWN basemap group, so a target
+      // living on another base map lands at its true world place and scale —
+      // subtractAnnotationGeometries reads every operand through matrixWorld, so
+      // the operands share a frame whatever their parents. They are removed
+      // after the carve (they keep rendering as their own annotations only when
+      // visible). EXTRUSION_PROFILE solids resolve asynchronously.
       // Glued openings (relAnnotationOpenings, resolved by useAnnotationsV2 as
       // `annotation.openings` BEFORE the hidden filter) pierce the host mesh
       // too: each opening becomes a band solid — width along the wall ×
@@ -242,19 +235,48 @@ export default class AnnotationsManager {
       if (subtractionTargets.length > 0) {
         (async () => {
           try {
+            // Each target keeps its own basemap metrics: reusing the source's
+            // would build a cross-basemap target at the wrong scale and offset.
+            // `_baseMapForRender` / `_baseMapTransform` are attached upstream by
+            // useAnnotationsV2 — imagesManager only knows the base maps LOADED
+            // in the scene, and a cross-base-map target usually lives on a map
+            // that is not displayed in 3D.
+            const targetsWithBaseMap = subtractionTargets.map(
+              (targetAnnotation) => {
+                const targetBaseMap =
+                  this.sceneManager.imagesManager.baseMapsMap[
+                    targetAnnotation.baseMapId
+                  ];
+                return {
+                  annotation: targetAnnotation,
+                  baseMapId: targetAnnotation.baseMapId,
+                  transform: targetAnnotation._baseMapTransform ?? null,
+                  forRender:
+                    targetAnnotation._baseMapForRender ??
+                    getBaseMapForRender(targetBaseMap) ??
+                    baseMapForRender,
+                };
+              }
+            );
+
             const targetObjects = (
               await Promise.all(
-                subtractionTargets.map((targetAnnotation) =>
-                  buildAnnotationSolidObjectsAsync(
-                    targetAnnotation,
-                    baseMapForRender,
+                targetsWithBaseMap.map(async (t) => {
+                  const objects = await buildAnnotationSolidObjectsAsync(
+                    t.annotation,
+                    t.forRender,
                     options
-                  )
-                )
+                  );
+                  // Carry the owning basemap so each solid can be attached to
+                  // its own group below.
+                  return (objects ?? []).filter(Boolean).map((o) => ({
+                    object: o,
+                    baseMapId: t.baseMapId,
+                    transform: t.transform,
+                  }));
+                })
               )
-            )
-              .flat()
-              .filter(Boolean);
+            ).flat();
             if (targetObjects.length === 0) return;
             // Skip if the source object was meanwhile replaced/removed.
             if (this.annotationsObjectsMap[annotation.id] !== object) return;
@@ -299,11 +321,43 @@ export default class AnnotationsManager {
               carveTarget = resolved;
             }
 
-            // Attach the target solids to the same parent as the source so their
-            // matrixWorld matches the source's frame, then carve, then remove.
-            const parent = carveTarget.parent ?? this.scene;
-            targetObjects.forEach((o) => parent.add(o));
-            parent.updateMatrixWorld(true);
+            // Attach each target solid to ITS OWN basemap frame, so a target
+            // from another base map carries that map's pose. The CSG reads
+            // matrixWorld on both sides, so the operands share a frame; the
+            // scene-wide updateMatrixWorld makes every branch current.
+            //
+            // The real basemap group is used when that map is displayed in 3D;
+            // otherwise a throwaway posed Group stands in for it, so the carve
+            // never depends on what the user happens to be displaying.
+            const sourceParent = carveTarget.parent ?? this.scene;
+            const tempFrames = [];
+            const targetObjects3D = targetObjects.map(
+              ({ object: o, baseMapId, transform }) => {
+                const isForeign = baseMapId && baseMapId !== annotation.baseMapId;
+                if (!isForeign) {
+                  sourceParent.add(o);
+                  return o;
+                }
+                const group =
+                  this.sceneManager.imagesManager.getGroup(baseMapId);
+                if (group) {
+                  group.add(o);
+                  return o;
+                }
+                if (transform) {
+                  const frame = createBaseMapFrameGroup(transform);
+                  frame.add(o);
+                  this.scene.add(frame);
+                  tempFrames.push(frame);
+                  return o;
+                }
+                // No pose available at all: better to skip than to carve at the
+                // wrong place.
+                return null;
+              }
+            );
+            const carveOperands = targetObjects3D.filter(Boolean);
+            this.scene.updateMatrixWorld(true);
 
             // Open-surface sources (swept EXTRUSION_PROFILE, lathe REVOLUTION
             // shells) must use a hollow subtraction so the boolean only clips
@@ -312,17 +366,19 @@ export default class AnnotationsManager {
             const hollow = ["EXTRUSION_PROFILE", "REVOLUTION"].includes(
               getShape3DKey(annotation.shape3D)
             );
-            subtractAnnotationGeometries(carveTarget, targetObjects, {
+            subtractAnnotationGeometries(carveTarget, carveOperands, {
               hollow,
             });
 
-            targetObjects.forEach((o) => {
+            carveOperands.forEach((o) => {
               o.parent?.remove(o);
               o.traverse?.((child) => {
                 if (child.geometry) child.geometry.dispose();
                 if (child.material) child.material.dispose();
               });
             });
+            // Stand-in frames for base maps absent from the scene.
+            tempFrames.forEach((f) => this.scene.remove(f));
 
             // Partial-revolution boundary lines were built from the analytic
             // profile; re-derive them from the carved geometry so openings

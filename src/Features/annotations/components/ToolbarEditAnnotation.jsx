@@ -74,6 +74,7 @@ import IconButtonDetectSimilarStrips from "./IconButtonDetectSimilarStrips";
 import IconButtonAnchorAnnotation from "./IconButtonAnchorAnnotation";
 import IconButtonSubtractAnnotation from "./IconButtonSubtractAnnotation";
 import IconButtonSubtractFromAnnotation from "./IconButtonSubtractFromAnnotation";
+import ToolbarEditForeignFootprint from "./ToolbarEditForeignFootprint";
 import IconButtonHollowOutAnnotation from "./IconButtonHollowOutAnnotation";
 import IconButtonAssignZoneAnnotations from "Features/zonings/components/IconButtonAssignZoneAnnotations";
 import SectionZonesBandInToolbar from "Features/zonings/components/SectionZonesBandInToolbar";
@@ -431,6 +432,11 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
   }
   if (selectedAnnotation?.type === "REVOLUTION_AXIS_PLACEMENT") {
     return <ToolbarEditRevolutionAxisPlacement onDragStart={onDragStart} />;
+  }
+  // Read-only projection of an annotation hosted by another base map: the only
+  // meaningful action is to go and open the real one.
+  if (selectedAnnotation?.isForeignFootprint) {
+    return <ToolbarEditForeignFootprint onDragStart={onDragStart} />;
   }
 
   return (

@@ -358,6 +358,10 @@ import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
 
 import collectReferencedPointIds from "Features/annotations/utils/collectReferencedPointIds";
 import resolvePoints from "Features/annotations/utils/resolvePoints";
+import getBaseMapTransform from "Features/baseMaps/js/getBaseMapTransform";
+import getBaseMapForRender from "Features/threedEditor/js/utilsAnnotationsManager/getBaseMapForRender";
+import getAnnotationFootprintOnBaseMap from "Features/threedEditor/js/utilsAnnotationsManager/getAnnotationFootprintOnBaseMap";
+import { FOREIGN_FOOTPRINT_ID_PREFIX } from "Features/annotations/constants/foreignFootprint";
 import resolveCuts from "Features/annotations/utils/resolveCuts";
 import resolveGuideLine from "Features/annotations/utils/resolveGuideLine";
 import resolveProfileLine from "Features/annotations/utils/resolveProfileLine";
@@ -443,6 +447,12 @@ export default function useAnnotationsV2(options) {
     // (via `baseMapById`) further down, so geometry stays correct.
     const extraBaseMapIds = options?.extraBaseMapIds || [];
     const extraBaseMapIdsKey = extraBaseMapIds.join("-");
+
+    // Opt-in: append read-only "footprint" annotations for the subtraction
+    // targets hosted by ANOTHER base map (see FOREIGN_FOOTPRINT_ID_PREFIX).
+    // Only the 2D renderer and useSelectedAnnotation ask for them — every
+    // quantity / listing / export caller must keep ignoring them.
+    const withForeignFootprints = options?.withForeignFootprints;
 
     const filterBySelectedScope = options?.filterBySelectedScope;
     const filterByMainBaseMap = options?.filterByMainBaseMap;
@@ -1737,6 +1747,115 @@ export default function useAnnotationsV2(options) {
       // triangle-sum, used directly as the surface. Gated to withQties.
       // Must run AFTER the revolution axis resolution above — the lathe
       // builder needs `revolutionAxisPoints`.
+      // -- CROSS-BASE-MAP SUBTRACTION TARGETS --
+      // The query is scoped to one base map (plus the 3D extras), so a
+      // subtraction target living on ANOTHER base map is absent from
+      // `_annotations` and would be silently dropped by the `.filter(Boolean)`
+      // that resolves targets. Fetch and resolve those rows here — the same
+      // supplementary read the revolution placements do above — and stash them
+      // on the source annotation. They are deliberately NOT pushed into
+      // `_annotations`: they must never show up in this base map's listings,
+      // quantities, selection or exports. Their points are resolved against
+      // THEIR OWN base map, so they stay in their own pixel frame; only the 3D
+      // world (or an explicit projection) can relate the two.
+      let _foreignTargetsById = null;
+      if (subtractionTargetIdsBySource?.size > 0 && _annotations?.length) {
+        const presentIds = new Set(_annotations.map((a) => a?.id));
+        const missingTargetIds = new Set();
+        for (const a of _annotations) {
+          const ids = subtractionTargetIdsBySource.get(a?.id);
+          if (!ids) continue;
+          for (const id of ids) if (!presentIds.has(id)) missingTargetIds.add(id);
+        }
+        if (missingTargetIds.size > 0) {
+          const rows = (
+            await db.annotations.bulkGet([...missingTargetIds])
+          ).filter((r) => r && !r.deletedAt && r.baseMapId);
+          const refIds = [];
+          for (const r of rows) {
+            for (const p of r.points ?? []) if (p?.id) refIds.push(p.id);
+            if (r.point?.id) refIds.push(r.point.id);
+          }
+          const ptRows = refIds.length ? await db.points.bulkGet(refIds) : [];
+          const ptIndex = {};
+          for (const p of ptRows) if (p?.id && !p.deletedAt) ptIndex[p.id] = p;
+
+          _foreignTargetsById = new Map();
+          for (const r of rows) {
+            const bm = baseMapById[r.baseMapId];
+            const imageSize = bm?.getImageSize?.() || bm?.image?.imageSize;
+            if (!imageSize) continue;
+            _foreignTargetsById.set(r.id, {
+              ...r,
+              points: r.points
+                ? resolvePoints({
+                    points: r.points,
+                    pointsIndex: ptIndex,
+                    imageSize,
+                  })
+                : r.points,
+              point: r.point
+                ? resolvePoints({
+                    points: [r.point],
+                    pointsIndex: ptIndex,
+                    imageSize,
+                  })?.[0]
+                : r.point,
+            });
+          }
+        }
+      }
+
+      // A target is "foreign" when it sits on ANOTHER base map than its host —
+      // whether it came from the query or from the supplementary fetch above.
+      // Deriving this from the base map ids (and not from "was it missing from
+      // the scope?") is what makes it independent of the caller's options: a
+      // project-wide instance has every target in scope, yet the footprints
+      // must still exist there or the toolbar cannot resolve a selected one.
+      if (subtractionTargetIdsBySource?.size > 0 && _annotations?.length) {
+        const byId = new Map(_annotations.map((a) => [a?.id, a]));
+        for (const a of _annotations) {
+          const ids = subtractionTargetIdsBySource.get(a?.id);
+          if (!ids?.length) continue;
+          const foreign = ids
+            .map((id) => byId.get(id) ?? _foreignTargetsById?.get(id))
+            .filter((t) => t?.baseMapId && t.baseMapId !== a?.baseMapId);
+          if (foreign.length > 0) a._foreignSubtractionTargets = foreign;
+        }
+      }
+
+      // -- 2D FOOTPRINT OF FOREIGN TARGETS --
+      // Read-only outline drawn on THIS base map for each subtraction target
+      // hosted by another one. It is the silhouette of the target's real 3D
+      // SOLID projected onto this plane — not its flat contour, which would
+      // ignore the height/thickness the solid actually spans and would not
+      // match the hole seen in 3D.
+      if (_annotations?.length) {
+        const hosts = _annotations.filter(
+          (a) => a?._foreignSubtractionTargets?.length
+        );
+        for (const a of hosts) {
+          const hostBaseMap = baseMapById[a.baseMapId];
+          const hostForRender = getBaseMapForRender(hostBaseMap);
+          if (!hostForRender?.meterByPx) continue;
+          const hostTransform = getBaseMapTransform(hostBaseMap);
+          const footprints = [];
+          for (const target of a._foreignSubtractionTargets) {
+            const tbm = baseMapById[target.baseMapId];
+            if (!tbm) continue;
+            const rings = await getAnnotationFootprintOnBaseMap({
+              annotation: target,
+              forRender: getBaseMapForRender(tbm),
+              transform: getBaseMapTransform(tbm),
+              hostForRender,
+              hostTransform,
+            });
+            if (rings?.length) footprints.push({ targetId: target.id, rings });
+          }
+          if (footprints.length > 0) a._foreignSubtractionFootprints = footprints;
+        }
+      }
+
       if (
         withQties &&
         subtractionTargetIdsBySource?.size > 0 &&
@@ -1747,12 +1866,25 @@ export default function useAnnotationsV2(options) {
           const targetIds = subtractionTargetIdsBySource.get(a?.id);
           if (!targetIds || targetIds.length === 0) continue;
           const shapeKey = getShape3DKey(a.shape3D);
-          if (!["EXTRUSION_PROFILE", "REVOLUTION"].includes(shapeKey))
-            continue;
           const targets = targetIds
-            .map((id) => _annotations.find((x) => x?.id === id))
+            .map(
+              (id) =>
+                _annotations.find((x) => x?.id === id) ??
+                _foreignTargetsById?.get(id)
+            )
             .filter(Boolean);
           if (targets.length === 0) continue;
+          // A target on another base map makes the planar (pixel) path
+          // meaningless — the two pixel frames are unrelated — so the mesh
+          // area becomes the only valid quantity, whatever the source shape.
+          const isCrossBaseMap = targets.some(
+            (t) => t?.baseMapId && t.baseMapId !== a.baseMapId
+          );
+          if (
+            !isCrossBaseMap &&
+            !["EXTRUSION_PROFILE", "REVOLUTION"].includes(shapeKey)
+          )
+            continue;
           const bm = baseMapById[a.baseMapId];
           const imageSize = bm?.getImageSize?.() || bm?.image?.imageSize;
           const meterByPx = bm?.getMeterByPx?.();
@@ -1783,13 +1915,26 @@ export default function useAnnotationsV2(options) {
             const res = await computeSubtractedSurfaceM2Async(
               a,
               baseMapForRender,
-              targets
+              targets,
+              // Only needed cross-base-map: lets the util pose each operand
+              // with its own base map's world placement.
+              isCrossBaseMap
+                ? { sourceBaseMapId: a.baseMapId, baseMapsById: baseMapById }
+                : undefined
             );
             if (res) {
               if (shapeKey === "EXTRUSION_PROFILE") {
                 a._subtractedSurfaceM2 = res.removedM2;
               } else {
                 a._carvedSurfaceM2 = res.carvedM2;
+              }
+              // Flag consumed below so the planar path leaves qties.surface
+              // alone: a footprint across two unrelated pixel frames is
+              // meaningless, the developed mesh area is what holds.
+              if (isCrossBaseMap) {
+                a._hasCrossBaseMapSubtraction = true;
+                a._crossBaseMapCarvedSurfaceM2 = res.carvedM2;
+                a._crossBaseMapRemovedSurfaceM2 = res.removedM2;
               }
             }
           } catch (e) {
@@ -1805,6 +1950,53 @@ export default function useAnnotationsV2(options) {
       // them before returning so tracking is guaranteed registered and a
       // real read failure still surfaces.
       await _obsPromise;
+
+      // -- READ-ONLY FOOTPRINT ANNOTATIONS --
+      // Appended LAST, after every filter and resolve: they are synthesized,
+      // not queried, and must not be reshaped by the pipeline. The id is
+      // prefixed so no accidental write can ever reach the real row — a drag
+      // or a delete on a footprint targets an id that exists in no table
+      // (same guard idea as the "label::" selection prefix).
+      if (withForeignFootprints) {
+        const footprintAnnotations = [];
+        for (const a of _annotations) {
+          if (!a?._foreignSubtractionFootprints?.length) continue;
+          const targetsById = new Map(
+            (a._foreignSubtractionTargets ?? []).map((t) => [t.id, t])
+          );
+          for (const { targetId, rings } of a._foreignSubtractionFootprints) {
+            const target = targetsById.get(targetId);
+            if (!target || !rings?.length) continue;
+            // Outer ring only: the silhouette of a solid seen flat.
+            const ring = rings[0];
+            footprintAnnotations.push({
+              // Style fields (colour, template) come from the original, which
+              // is what makes the footprint read as "that annotation".
+              ...target,
+              id: FOREIGN_FOOTPRINT_ID_PREFIX + targetId,
+              type: "POLYGON",
+              baseMapId: a.baseMapId,
+              points: ring.map(([x, y]) => ({ x, y })),
+              point: null,
+              isForeignFootprint: true,
+              foreignAnnotationId: targetId,
+              foreignBaseMapId: target.baseMapId,
+              foreignHostAnnotationId: a.id,
+              // Never draw a footprint as a 3D solid, and never let it carry
+              // quantities: it is a projection of something counted elsewhere.
+              shape3D: null,
+              height: 0,
+              subtractionTargetIds: undefined,
+              subtractionTargets: undefined,
+              _foreignSubtractionTargets: undefined,
+              _foreignSubtractionFootprints: undefined,
+            });
+          }
+        }
+        if (footprintAnnotations.length > 0) {
+          _annotations = [..._annotations, ...footprintAnnotations];
+        }
+      }
 
       return _annotations;
     }, [
@@ -1829,6 +2021,7 @@ export default function useAnnotationsV2(options) {
       subtractionTargetIdsBySource,
       povFreezeCreatedBefore,
       dbWriteTick,
+      withForeignFootprints,
     ]);
 
     // memoize post-processing to avoid recomputing on unrelated re-renders
@@ -1889,9 +2082,31 @@ export default function useAnnotationsV2(options) {
         result = result.map((a) => {
           const targetIds = subtractionTargetIdsBySource.get(a?.id);
           if (!targetIds || targetIds.length === 0) return a;
+          // Targets on another base map are not in `result` (out of scope);
+          // they were fetched + resolved in the liveQuery and stashed here.
+          const foreignById = new Map(
+            (a?._foreignSubtractionTargets ?? []).map((t) => [t.id, t])
+          );
           const subtractionTargets = targetIds
-            .map((id) => resultById[id])
-            .filter(Boolean);
+            .map((id) => resultById[id] ?? foreignById.get(id))
+            .filter(Boolean)
+            // Carry each target's OWN base map metrics + pose. The 3D manager
+            // can only look those up for base maps loaded in the scene
+            // (imagesManager.baseMapsMap), and a cross-base-map target very
+            // often lives on a map that is NOT displayed in 3D — it would then
+            // silently fall back to the source's frame and land nowhere.
+            // Copies, never mutations: these objects are also in `result`, and
+            // the identity-stabilization cache must not see them change.
+            .map((t) => {
+              if (!t?.baseMapId || t.baseMapId === a?.baseMapId) return t;
+              const tbm = baseMapById[t.baseMapId];
+              if (!tbm) return t;
+              return {
+                ...t,
+                _baseMapForRender: getBaseMapForRender(tbm),
+                _baseMapTransform: getBaseMapTransform(tbm),
+              };
+            });
           const withSub = {
             ...a,
             subtractionTargetIds: targetIds,
@@ -1906,10 +2121,19 @@ export default function useAnnotationsV2(options) {
             "RECTANGLE",
             "STRIP",
           ].includes(a?.type);
+          // A target on another base map is resolved in ITS OWN pixel frame,
+          // which has no relation to this one — clipping the two together
+          // would carve an arbitrary area. The mesh-area path above already
+          // produced the correct developed surface, so leave qties.surface
+          // untouched here.
+          const hasForeignTarget = subtractionTargets.some(
+            (t) => t?.baseMapId && t.baseMapId !== a?.baseMapId
+          );
           if (
             withQties &&
             subtractionTargets.length > 0 &&
-            isFootprintSurfaceType
+            isFootprintSurfaceType &&
+            !hasForeignTarget
           ) {
             const baseMap = baseMapById[a?.baseMapId];
             const meterByPx = baseMap?.getMeterByPx?.();

@@ -1,5 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 
+import { isForeignFootprintId } from "Features/annotations/constants/foreignFootprint";
+
 const DRAG_THRESHOLD_PX = 3;
 const WRAPPER_NODE_ID = "wrapper";
 
@@ -144,6 +146,10 @@ export default function useAnnotationDrag({
   const initAnnotationDrag = useCallback(
     ({ nodeId, startMouseInLocal, partType, startMouseScreen, nodeContext, wrapperAnnotationIds, wrapperBbox, rotationContext, clickOnly, anchorLocal }) => {
       const isWrapper = nodeId === WRAPPER_NODE_ID;
+
+      // GUARD : une empreinte est la projection d'une annotation hébergée par
+      // un AUTRE fond de plan — elle n'a pas de géométrie propre à déplacer.
+      if (isForeignFootprintId(nodeId)) return false;
 
       // GUARD : bloquer si pas propriétaire
       if (!isWrapper && !permissions.canEditAnnotation(nodeId)) return false;

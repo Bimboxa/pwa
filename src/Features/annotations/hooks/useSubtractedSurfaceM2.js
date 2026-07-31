@@ -1,7 +1,9 @@
 import { useMemo, useState, useEffect } from "react";
 
-import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
+import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
+import getItemsByKey from "Features/misc/utils/getItemsByKey";
 import computeSubtractedSurfaceM2Async from "Features/threedEditor/js/utilsAnnotationsManager/computeSubtractedSurfaceM2Async";
+import getBaseMapForRender from "Features/threedEditor/js/utilsAnnotationsManager/getBaseMapForRender";
 
 /**
  * Developed surface (m²) removed by a subtraction on an OPEN-surface
@@ -9,10 +11,20 @@ import computeSubtractedSurfaceM2Async from "Features/threedEditor/js/utilsAnnot
  * headlessly for the given annotation only (cheap — one annotation at a time)
  * and returns the area difference, so callers can subtract it from the host's
  * displayed surface. Returns 0 when not applicable.
+ *
+ * Reads the ANNOTATION's own base map, not the selected one: the properties
+ * panel can be open on an annotation belonging to another map, and using the
+ * selected map's metrics silently produced a wrong area.
  */
 export default function useSubtractedSurfaceM2(annotation) {
-  const baseMap = useMainBaseMap();
+  const { value: baseMaps, baseMapsUpdatedAt } = useBaseMaps();
   const [removedM2, setRemovedM2] = useState(0);
+
+  const baseMapById = useMemo(
+    () => getItemsByKey(baseMaps ?? [], "id"),
+    [baseMaps]
+  );
+  const baseMap = baseMapById[annotation?.baseMapId];
 
   const isProfile = annotation?.shape3D?.key === "EXTRUSION_PROFILE";
   const targets = annotation?.subtractionTargets;
@@ -29,10 +41,13 @@ export default function useSubtractedSurfaceM2(annotation) {
         t.id,
         t.updatedAt,
         t.height,
+        t.baseMapId,
         (t.points || []).map((p) => [p.x, p.y, p.offsetTop, p.offsetBottom]),
       ]),
+      // A base map moved in 3D changes the cross-base-map result.
+      bm: baseMapsUpdatedAt,
     });
-  }, [isProfile, targets, annotation]);
+  }, [isProfile, targets, annotation, baseMapsUpdatedAt]);
 
   useEffect(() => {
     let cancelled = false;
@@ -40,26 +55,29 @@ export default function useSubtractedSurfaceM2(annotation) {
       setRemovedM2(0);
       return;
     }
-    const imageSize = baseMap.getImageSize?.() || baseMap.image?.imageSize;
-    const meterByPx = baseMap.getMeterByPx?.() ?? baseMap.meterByPx;
-    if (!imageSize?.width || !meterByPx) {
+    const baseMapForRender = getBaseMapForRender(baseMap);
+    if (!baseMapForRender?.imageWidth || !baseMapForRender?.meterByPx) {
       setRemovedM2(0);
       return;
     }
-    const baseMapForRender = {
-      imageWidth: imageSize.width,
-      imageHeight: imageSize.height,
-      meterByPx,
-    };
-    computeSubtractedSurfaceM2Async(annotation, baseMapForRender, targets).then(
-      (v) => {
-        if (!cancelled) setRemovedM2(v?.removedM2 || 0);
-      }
+    const isCrossBaseMap = targets.some(
+      (t) => t?.baseMapId && t.baseMapId !== annotation?.baseMapId
     );
+    computeSubtractedSurfaceM2Async(
+      annotation,
+      baseMapForRender,
+      targets,
+      isCrossBaseMap
+        ? { sourceBaseMapId: annotation?.baseMapId, baseMapsById: baseMapById }
+        : undefined
+    ).then((v) => {
+      if (!cancelled) setRemovedM2(v?.removedM2 || 0);
+    });
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // `signature` is the geometry digest (it folds in the annotation, the
+    // targets and baseMapsUpdatedAt), so it is the real trigger here.
   }, [signature, baseMap]);
 
   return removedM2;
