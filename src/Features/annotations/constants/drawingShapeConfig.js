@@ -231,7 +231,7 @@ const DRAWING_SHAPE_CONFIG = {
       extensionOffset: 40,
       extensionOffsetUnit: "PX",
       decimals: 2,
-      fontSize: 18,
+      fontSize: 14,
       showUnitLabel: true,
       showTotalCote: false,
     },

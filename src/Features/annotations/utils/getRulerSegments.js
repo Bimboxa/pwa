@@ -1,4 +1,4 @@
-import offsetPointsAlongNormals from "Features/mapEditorGeneric/utils/offsetPointsAlongNormals";
+import offsetPolylineParallel from "Features/geometry/utils/offsetPolylineParallel";
 import getCoteDisplayValue from "./getCoteDisplayValue";
 
 // Pure geometry + formatting for a RULER (dimension chain). Dependency free
@@ -6,9 +6,10 @@ import getCoteDisplayValue from "./getCoteDisplayValue";
 // node.
 //
 // `points` are the RESOLVED pixel points of the annotation. The alignment line
-// is the MITER offset of the polyline (offsetPointsAlongNormals), not a
-// per-segment offset — that is what keeps it continuous across non-collinear
-// segments. `offsetPx` is signed: its sign picks the side the cotes sit on.
+// is the true PARALLEL offset of the polyline (offsetPolylineParallel): each of
+// its segments is parallel to its source segment and the joints are mitered, so
+// the chain stays continuous across non-collinear segments without skewing.
+// `offsetPx` is signed: its sign picks the side the cotes sit on.
 //
 // Each segment's value is measured between the ORIGINAL points, never on the
 // offset line (same rule as NodeCoteStatic).
@@ -25,7 +26,7 @@ export default function getRulerSegments({
   );
   if (pts.length < 2) return { segments: [], offsetPoints: [], totalMeters: 0 };
 
-  const offsetPoints = offsetPointsAlongNormals(pts, offsetPx, false);
+  const offsetPoints = offsetPolylineParallel(pts, offsetPx);
 
   const hasScale = Number.isFinite(meterByPx) && meterByPx > 0;
   const segments = [];

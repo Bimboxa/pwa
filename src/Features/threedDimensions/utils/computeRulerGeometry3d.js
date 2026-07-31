@@ -1,4 +1,4 @@
-import offsetPointsAlongNormals from "Features/mapEditorGeneric/utils/offsetPointsAlongNormals";
+import offsetPolylineParallel from "Features/geometry/utils/offsetPolylineParallel";
 
 // Pure math for rendering a RULER (dimension chain) in the 3D editor —
 // dependency free ({x,y,z} plain objects) so it can be replayed in node.
@@ -12,7 +12,7 @@ import offsetPointsAlongNormals from "Features/mapEditorGeneric/utils/offsetPoin
 //   lz = (offsetZ || 0) + (offsetBottom || 0)
 //
 // The alignment chain is computed in PIXEL space with the very same
-// offsetPointsAlongNormals the 2D renderer uses, then projected. That is what
+// offsetPolylineParallel the 2D renderer uses, then projected. That is what
 // guarantees 2D and 3D put the cotes on the SAME side — the pixel-space normal
 // (-uy, ux) maps through the y-flip to the local normal (u.y, -u.x), exactly the
 // convention computeCoteGeometry3d documents.
@@ -40,7 +40,7 @@ export default function computeRulerGeometry3d({
       ? (extensionOffset || 0) * 0.01 / meterByPx
       : extensionOffset || 0;
 
-  const offsetPts = offsetPointsAlongNormals(pts, offsetPx, false);
+  const offsetPts = offsetPolylineParallel(pts, offsetPx);
 
   const toLocal = (p) => ({
     x: (p.x - imageWidth / 2) * meterByPx,
@@ -50,7 +50,7 @@ export default function computeRulerGeometry3d({
 
   const P = pts.map(toLocal);
   // The offset points inherit their source point's offsetBottom through the
-  // {...p} spread in offsetPointsAlongNormals, so they lift with the chain.
+  // {...p} spread in offsetPolylineParallel, so they lift with the chain.
   const D = offsetPts.map(toLocal);
 
   const segments = [];

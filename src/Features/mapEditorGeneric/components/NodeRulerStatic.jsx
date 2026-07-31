@@ -11,7 +11,7 @@ import getRulerSegments from "Features/annotations/utils/getRulerSegments";
 import getRulerLabelPlacement, {
   getRulerFieldPlacement,
 } from "Features/annotations/utils/getRulerLabelPlacement";
-import offsetPointsAlongNormals from "../utils/offsetPointsAlongNormals";
+import offsetPolylineParallel from "Features/geometry/utils/offsetPolylineParallel";
 import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
 import applyRulerSegmentLengthService from "Features/annotations/services/applyRulerSegmentLengthService";
 
@@ -42,9 +42,10 @@ const HIT_STROKE_PADDING_SCREEN_PX = 20;
 // polyline, with small orthogonal ticks separating its segments — plus one
 // value per segment.
 //
-// The values are laid out against an "alignment line": the MITER offset of the
-// polyline (see offsetPointsAlongNormals), so it stays continuous even when the
-// segments are not collinear. That line is a placement GUIDE, not part of the
+// The values are laid out against an "alignment line": the true PARALLEL offset
+// of the polyline (see offsetPolylineParallel), so each of its segments stays
+// parallel to its source segment and the joints miter. That line is a GUIDE,
+// not part of the
 // drawing: it only appears while the ruler is selected, in blue, and is the
 // handle that moves the values. Values themselves stay HORIZONTAL whatever the
 // segment direction, anchored against the guide — a vertical ruler therefore
@@ -205,7 +206,7 @@ export default function NodeRulerStatic({
     effectiveOffsetPx + Math.sign(effectiveOffsetPx || 1) * TOTAL_LINE_GAP_PX;
   const totalPoints = useMemo(() => {
     if (!showTotalCote) return null;
-    return offsetPointsAlongNormals(points, totalOffsetPx, false);
+    return offsetPolylineParallel(points, totalOffsetPx);
   }, [showTotalCote, points, totalOffsetPx]);
 
   // Which segments the selected vertex touches: [before, after], either can be
@@ -410,12 +411,22 @@ export default function NodeRulerStatic({
   const grabCursor = isEditable ? "grab" : "default";
   const canDragValues = Boolean(selected) && isEditable;
 
-  // Tick direction at a joint: perpendicular to the neighbour-to-neighbour
-  // tangent, i.e. the same frame offsetPointsAlongNormals uses.
-  const tickAngleDegAt = (i) => {
+  // Tick direction at a vertex: the direction of the alignment line's own
+  // joint, i.e. P → Q. The tick then reads as a miniature extension line, and
+  // at a corner it follows the miter rather than cutting across it. Falls back
+  // to the segment normal when the offset is zero (Q === P).
+  const tickDirAt = (i) => {
+    const q = offsetPoints[i];
+    const dx = q.x - points[i].x;
+    const dy = q.y - points[i].y;
+    const l = Math.hypot(dx, dy);
+    if (l > 1e-6) return { x: dx / l, y: dy / l };
     const prev = i > 0 ? points[i - 1] : points[i];
     const next = i < points.length - 1 ? points[i + 1] : points[i];
-    return (Math.atan2(next.y - prev.y, next.x - prev.x) * 180) / Math.PI;
+    const tx = next.x - prev.x;
+    const ty = next.y - prev.y;
+    const tl = Math.hypot(tx, ty) || 1;
+    return { x: ty / tl, y: -tx / tl };
   };
 
   return (
@@ -449,24 +460,22 @@ export default function NodeRulerStatic({
       />
 
       {/* Graduation ticks ON the drawn line — they are what separates one
-          segment from the next. Constant screen size, orthogonal to the local
-          direction; chain extremities get the long tick. */}
+          segment from the next. Constant screen size, pointing towards the
+          alignment line; chain extremities get the long tick. */}
       {points.map((p, i) => {
         const half =
           i === 0 || i === points.length - 1
             ? TICK_HALF_END_PX
             : TICK_HALF_INNER_PX;
+        const dir = tickDirAt(i);
         return (
-          <g
-            key={`tick-${p.id ?? i}`}
-            transform={`translate(${p.x}, ${p.y}) rotate(${tickAngleDegAt(i)})`}
-          >
+          <g key={`tick-${p.id ?? i}`} transform={`translate(${p.x}, ${p.y})`}>
             <g style={{ transform: counterScaleTransform }}>
               <line
-                x1={0}
-                y1={-half}
-                x2={0}
-                y2={half}
+                x1={-dir.x * half}
+                y1={-dir.y * half}
+                x2={dir.x * half}
+                y2={dir.y * half}
                 stroke={displayStrokeColor}
                 strokeOpacity={strokeOpacity}
                 strokeWidth={1.5}
