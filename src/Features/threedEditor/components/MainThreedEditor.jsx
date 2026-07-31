@@ -12,6 +12,8 @@ import useRevolutionSectionIn3d from "../hooks/useRevolutionSectionIn3d";
 import useSyncClippingPlanTo3D from "../hooks/useSyncClippingPlanTo3D";
 import useNavigateCameraOnEvent from "../hooks/useNavigateCameraOnEvent";
 import useSelectAnnotationOnEvent from "../hooks/useSelectAnnotationOnEvent";
+import useSelectMainBaseMap from "../hooks/useSelectMainBaseMap";
+import getBaseMapPlaneFrame from "../js/utilsImagesManager/getBaseMapPlaneFrame";
 import {
   setSelectedNode,
   setAnnotationToolbarPosition,
@@ -191,6 +193,8 @@ export default function MainThreedEditor() {
   // useAutoLoadAnnotationsInThreedEditor and destroy + recreate every
   // annotation 3D object.
   const store = useStore();
+  // Promote a basemap to "main" — shared with the top chips band.
+  const selectMainBaseMap = useSelectMainBaseMap();
   const selectedViewerKey = useSelector(selectEffectiveViewerKey);
   const isThreedViewer = isThreedFamilyViewerKey(selectedViewerKey);
   // The Maillage module (MESHES viewer) is meshing-only: meshing mode is
@@ -485,7 +489,7 @@ export default function MainThreedEditor() {
     rendererIsReady,
   });
 
-  useApplyBaseMapOpacityIn3d();
+  useApplyBaseMapOpacityIn3d({ rendererIsReady });
 
   useApplyBaseMapVisibilityIn3d({ rendererIsReady });
 
@@ -852,6 +856,81 @@ export default function MainThreedEditor() {
       getSoloSelectedAnnotationId,
       store,
     ]
+  );
+
+  // Double-click on a plan: promote it as the MAIN basemap (what the top chips
+  // band does) and fly the camera face-on to frame the whole image. Unlike the
+  // single click, a hit on an annotation lying on the plan counts — a SOL
+  // polygon covering the floor must not block the gesture. The two preceding
+  // `pointerup -> handleClick` passes still run (they select the annotation /
+  // basemap in the properties panel); both paths are idempotent.
+  const handleDoubleClick = useCallback(
+    (event) => {
+      if (!threedEditorRef.current || !rendererIsReady || !isThreedViewer)
+        return;
+      // Same modes as handleClick: they own the pointer.
+      if (editorModeRef.current === "BASEMAP_POSITION") return;
+      if (drawingActiveRef.current) return;
+      if (dimensionActiveRef.current) return;
+      if (meshingActiveRef.current) return;
+      if (extrudeActiveRef.current) return;
+      if (walkActiveRef.current) return;
+      if (placementActiveRef.current) return;
+      // Shift stays reserved for the multi-selection / lasso.
+      if (event.shiftKey) return;
+
+      const threedEditor = threedEditorRef.current;
+      const sceneManager = threedEditor.sceneManager;
+      const renderer = sceneManager.renderer;
+      const camera = sceneManager.camera;
+      const scene = sceneManager.scene;
+      if (!renderer || !camera || !scene) return;
+
+      const rendererElement = renderer.domElement;
+      if (!rendererElement.contains(event.target)) return;
+      const rect = rendererElement.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) return;
+
+      mouseRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      mouseRef.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      raycasterRef.current.setFromCamera(mouseRef.current, camera);
+
+      const intersects = filterIntersectionsByVisibility(
+        filterIntersectionsByClipping(
+          raycasterRef.current
+            .intersectObjects(scene.children, true)
+            .filter((i) => i.object?.isMesh),
+          getActiveClippingPlane(sceneManager)
+        )
+      );
+
+      // The owning basemap of the closest hit, image mesh or annotation alike:
+      // both hang under the basemap group, which carries the id. A hit
+      // belonging to no basemap (maille, scene-root object3D) resolves to null
+      // and the double-click does nothing.
+      let baseMapId = null;
+      for (const intersect of intersects) {
+        let ancestor = intersect.object;
+        while (ancestor && !ancestor.userData?.baseMapId)
+          ancestor = ancestor.parent;
+        if (ancestor?.userData?.baseMapId) {
+          baseMapId = ancestor.userData.baseMapId;
+          break;
+        }
+      }
+      if (!baseMapId) return;
+
+      // Frame BEFORE the dispatch: changing the main basemap makes
+      // useAutoLoadMapsInThreedEditor rebuild the scene (the groups are
+      // recreated). The world-space box stays valid across that rebuild —
+      // the placement doesn't change.
+      const group = sceneManager.imagesManager?.getGroup(baseMapId);
+      const frame = getBaseMapPlaneFrame(group);
+
+      selectMainBaseMap(baseMapId);
+      if (frame) threedEditor.fitToBox3Facing(frame.box, frame.normal);
+    },
+    [rendererIsReady, isThreedViewer, selectMainBaseMap]
   );
 
   // Helper to check if an event target is within a MUI Popper or portal
@@ -1673,6 +1752,7 @@ export default function MainThreedEditor() {
     domElement.addEventListener("pointermove", handleHoverPointerMove);
     domElement.addEventListener("pointerleave", handlePointerLeave);
     domElement.addEventListener("pointerup", handlePointerUp);
+    domElement.addEventListener("dblclick", handleDoubleClick);
 
     return () => {
       domElement.removeEventListener("pointerdown", handlePointerDown);
@@ -1680,6 +1760,7 @@ export default function MainThreedEditor() {
       domElement.removeEventListener("pointermove", handleHoverPointerMove);
       domElement.removeEventListener("pointerleave", handlePointerLeave);
       domElement.removeEventListener("pointerup", handlePointerUp);
+      domElement.removeEventListener("dblclick", handleDoubleClick);
       if (hoverRafRef.current != null) {
         cancelAnimationFrame(hoverRafRef.current);
         hoverRafRef.current = null;
@@ -1693,6 +1774,7 @@ export default function MainThreedEditor() {
     handleHoverPointerMove,
     handlePointerLeave,
     handlePointerUp,
+    handleDoubleClick,
     isThreedViewer,
     clearFaceHoverOverlay,
   ]);
