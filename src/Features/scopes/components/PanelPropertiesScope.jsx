@@ -30,6 +30,7 @@ import {
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 import FieldBaseMapOpacity from "Features/baseMaps/components/FieldBaseMapOpacity";
+import FieldBaseMapOpacityIn3d from "Features/threedEditor/components/FieldBaseMapOpacityIn3d";
 import FieldTextV2 from "Features/form/components/FieldTextV2";
 import FieldSortableListings from "Features/popperMapListings/components/FieldSortableListings";
 import stringifyFileSize from "Features/files/utils/stringifyFileSize";
@@ -42,6 +43,8 @@ import { canEditRecord } from "App/db/ownership";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 import useLayers from "Features/layers/hooks/useLayers";
+import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
+import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 
 import DialogGeneric from "Features/layout/components/DialogGeneric";
 import DatagridAnnotations from "Features/annotations/components/DatagridAnnotations";
@@ -60,6 +63,13 @@ export default function PanelPropertiesScope() {
   const { value: selectedScope } = useSelectedScope();
 
   const baseMapId = useSelector((s) => s.mapEditor.selectedBaseMapId);
+
+  // The opacity slider below drives whichever viewer is on screen, exactly
+  // like PanelBaseMapProperties: `baseMap.opacity` (DB, 2D display) in 2D, the
+  // session-only 3D state in the 3D family — the two are decoupled and
+  // `baseMap.opacity` never reaches the 3D scene.
+  const selectedViewerKey = useSelector(selectEffectiveViewerKey);
+  const isThreedViewer = isThreedFamilyViewerKey(selectedViewerKey);
 
   // Scope RECORD rights stay creator-only: pure ownership check — the shared
   // useCanEditRecord hook now includes the editors-trigram bypass, which is
@@ -282,7 +292,12 @@ export default function PanelPropertiesScope() {
             );
           })()}
 
-          {baseMap && <FieldBaseMapOpacity baseMap={baseMap} />}
+          {baseMap &&
+            (isThreedViewer ? (
+              <FieldBaseMapOpacityIn3d baseMap={baseMap} />
+            ) : (
+              <FieldBaseMapOpacity baseMap={baseMap} />
+            ))}
 
           <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 1 }}>
             <Button

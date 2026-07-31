@@ -11,7 +11,6 @@ import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useMeshCellRelations from "Features/annotations/hooks/useMeshCellRelations";
 import useExtraBaseMapIdsIn3d from "./useExtraBaseMapIdsIn3d";
-import getBaseMapOpacityIn3d from "Features/threedEditor/utils/getBaseMapOpacityIn3d";
 import getBaseMapTransform from "Features/baseMaps/js/getBaseMapTransform";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
@@ -41,12 +40,6 @@ export default function useAutoLoadAnnotationsInThreedEditor({
   const aquarelleShading = renderMode === "AQUARELLE";
   const showMeshCells = useSelector((s) => s.annotations.showMeshCells);
   const { parentIdSet } = useMeshCellRelations();
-  const baseMapOpacityIn3d = useSelector(
-    (s) => s.threedEditor.baseMapOpacityIn3d
-  );
-  const opacityByBaseMapIdIn3d = useSelector(
-    (s) => s.threedEditor.opacityByBaseMapIdIn3d
-  );
   const hiddenListingsIds = useSelector((s) => s.listings.hiddenListingsIds);
   // REVOLUTION half-view: when a VERTICAL base map image is displayed, the
   // revolutions built from a profile on it render only the 180° half on the
@@ -193,21 +186,13 @@ export default function useAutoLoadAnnotationsInThreedEditor({
     // stored before the scale was set). Includes the MAIN base map for that
     // reason. Idempotent (no-op if already loaded).
     if (threedEditor.ensureBaseMapLoaded) {
-      const opacityState = {
-        baseMapOpacityIn3d,
-        opacityByBaseMapIdIn3d,
-      };
       if (mainBaseMap?.id) {
-        threedEditor.ensureBaseMapLoaded(mainBaseMap, {
-          opacity: getBaseMapOpacityIn3d(opacityState, mainBaseMap.id),
-        });
+        threedEditor.ensureBaseMapLoaded(mainBaseMap);
       }
       extraBaseMapIds.forEach((id) => {
         const bm = baseMaps.find((b) => b.id === id);
         if (bm?.image?.imageUrlClient) {
-          threedEditor.ensureBaseMapLoaded(bm, {
-            opacity: getBaseMapOpacityIn3d(opacityState, id),
-          });
+          threedEditor.ensureBaseMapLoaded(bm);
         }
       });
     }
@@ -248,8 +233,6 @@ export default function useAutoLoadAnnotationsInThreedEditor({
     extraBaseMapIds,
     baseMaps,
     mainBaseMap,
-    baseMapOpacityIn3d,
-    opacityByBaseMapIdIn3d,
   ]);
 
   return annotationsForThreed;

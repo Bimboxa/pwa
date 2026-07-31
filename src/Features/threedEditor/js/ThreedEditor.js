@@ -45,7 +45,7 @@ export default class ThreedEditor {
 
   // images
 
-  loadMaps = (maps, options = {}) => {
+  loadMaps = (maps) => {
     try {
       // Annotation objects are children of the basemap groups deleted below.
       // They used to be disposed by the annotations hook right after, but the
@@ -54,13 +54,9 @@ export default class ThreedEditor {
       // latent orphan leak of objects left attached to removed groups).
       this.sceneManager.annotationsManager?.deleteAllAnnotationsObjects();
       const images = maps.map(getEditorImageFromBaseMap);
-      if (typeof options.opacity === "number" || options.opacityByBaseMapId) {
-        images.forEach((img) => {
-          // Per-baseMap override (properties panel) wins over the global one.
-          const o = options.opacityByBaseMapId?.[img.id] ?? options.opacity;
-          if (typeof o === "number") img.opacity = o;
-        });
-      }
+      // Opacity is NOT carried here: ImagesManager records the desired 3D
+      // opacity (mirrored from redux by useApplyBaseMapOpacityIn3d) and
+      // applies it once each mesh is attached — see applyBaseMapOpacity.
       this.sceneManager.imagesManager.deleteAllImagesObjects();
       this.sceneManager.imagesManager.createImagesObjects(images, maps);
       this.sceneManager.clippingManager?.reapply();
@@ -74,7 +70,7 @@ export default class ThreedEditor {
   // Lazily create a single basemap group if it isn't already in the scene.
   // Used by the live visibility hook so showing an extra basemap doesn't
   // rebuild the whole scene like loadMaps does.
-  ensureBaseMapLoaded = (baseMap, options = {}) => {
+  ensureBaseMapLoaded = (baseMap) => {
     try {
       if (!baseMap?.id) return;
       const imagesManager = this.sceneManager.imagesManager;
@@ -89,7 +85,6 @@ export default class ThreedEditor {
       // texture load, an active-version switch or a version-transform edit
       // all fall through so addImageObject can rebuild the mesh in place.
       if (imagesManager.hasCurrentImageObject(baseMap.id, image)) return;
-      if (typeof options.opacity === "number") image.opacity = options.opacity;
       imagesManager.addImageObject(image, baseMap);
       this.sceneManager.clippingManager?.reapply();
       this.sceneManager.renderModeManager?.onSceneStructureChanged();
