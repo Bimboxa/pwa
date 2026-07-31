@@ -16,13 +16,21 @@ export default function getSolidMeshFromObject3D(object) {
   let tagged = null;
   let firstMesh = null;
   object.traverse?.((child) => {
-    if (!child.isMesh) return;
+    if (!child.isMesh || isFatLine(child)) return;
     if (!firstMesh) firstMesh = child;
     if (!tagged && child.userData?.role === "SOLID") tagged = child;
   });
 
-  if (object.isMesh && !firstMesh) firstMesh = object;
+  if (object.isMesh && !isFatLine(object) && !firstMesh) firstMesh = object;
   return tagged || firstMesh || null;
+}
+
+// Fat lines (Line2 / LineSegments2: POINT traits and revolution circles, ink
+// edges, section markers) extend Mesh but hold INSTANCED geometry — they are
+// never a solid. Without this the untagged fallback below would hand one to the
+// CSG evaluator on an annotation whose 3D object IS a line.
+function isFatLine(object) {
+  return !!(object.isLine2 || object.isLineSegments2);
 }
 
 /**

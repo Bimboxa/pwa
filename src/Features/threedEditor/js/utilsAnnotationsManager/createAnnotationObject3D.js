@@ -57,6 +57,8 @@ import extrudeClosedShape from "./extrudeClosedShape";
 import buildStairsFromGuideLine from "./buildStairsFromGuideLine";
 import extrudePolylineWall from "./extrudePolylineWall";
 import buildRevolutionMesh from "./buildRevolutionMesh";
+import buildRevolutionCircleLine from "./buildRevolutionCircleLine";
+import attachFatLineRaycast from "./attachFatLineRaycast";
 import getRevolutionPhi from "./getRevolutionPhi";
 import buildExtrudedProfileMesh from "./buildExtrudedProfileMesh";
 import buildInlineExtrusionMesh from "./buildInlineExtrusionMesh";
@@ -68,45 +70,33 @@ import createObject3DAnnotation from "./createObject3DAnnotation";
 // annotation with a height — matches DrawingOverlayThreed's LINEWIDTH_TRAIT.
 const POINT_TRAIT_LINEWIDTH_PX = 3;
 
-// Picking tolerance for the POINT trait, as a fraction of the camera→hit
-// distance (≈0.008 rad ≈ a handful of screen px at the editor's FOV), with a
-// 2 cm floor so very near traits stay pickable.
-const POINT_TRAIT_PICK_ANGULAR = 0.008;
-const POINT_TRAIT_PICK_MIN_M = 0.02;
-
-// Reused temporaries for the POINT trait raycast (avoid per-call allocation).
-const _ptA = new Vector3();
-const _ptB = new Vector3();
-const _ptOnRay = new Vector3();
-const _ptOnSeg = new Vector3();
-
-// Give a POINT trait Line2 a custom raycast that does NOT rely on three's
-// screen-space LineSegments2.raycast: that path needs material.resolution +
-// raycaster.params.Line2.threshold to be usable (and historically threw when a
-// stale prebundle left resolution undefined, which broke ALL scene picking
-// since intersectObjects iterates every object). Here we measure the ray's
-// distance to the trait segment in world space and accept the hit within a
-// distance-scaled tolerance, pushing a Mesh-shaped intersection so the existing
-// `i.object.isMesh` hover/click filter keeps it (Line2 extends Mesh).
-function attachPointTraitRaycast(line, localStart, localEnd) {
-  line.raycast = function (raycaster, intersects) {
-    const ray = raycaster.ray;
-    _ptA.copy(localStart).applyMatrix4(this.matrixWorld);
-    _ptB.copy(localEnd).applyMatrix4(this.matrixWorld);
-    const distSq = ray.distanceSqToSegment(_ptA, _ptB, _ptOnRay, _ptOnSeg);
-    const dist = ray.origin.distanceTo(_ptOnSeg);
-    const threshold = Math.max(
-      POINT_TRAIT_PICK_MIN_M,
-      POINT_TRAIT_PICK_ANGULAR * dist
+// Partial sweep of an axis-based REVOLUTION, shared by the POLYLINE (lathe
+// surface) and POINT (circle line) branches. Returns a `{ phiStart, phiLength }`
+// spread, or `{}` for the default full turn.
+//
+// Explicit user-set angles (edited through the plan-view donut proxy) win over
+// the display-only 180° half-view: the vertical base map image is shown, so we
+// keep only the half opposite the camera and let the image read as a section
+// plane. In the VERTICAL base-map local frame the lathe is unrotated and
+// LatheGeometry places φ ∈ (−π/2, π/2) on local +Z (the image-facing side):
+// side 1 (camera in front) keeps the back half, side -1 the front one.
+// Quantities are untouched — the headless carve/qty path builds without this
+// option (full lathe), and the analytic surface is always full-turn.
+function getRevolutionPartialPhi(annotation, baseMap, options) {
+  if (annotation.shape3D?.partialRevolution) {
+    return getRevolutionPhi(
+      annotation.shape3D.revolutionAngleStart ?? 0,
+      annotation.shape3D.revolutionAngleEnd ?? Math.PI * 2
     );
-    if (distSq <= threshold * threshold) {
-      intersects.push({
-        distance: dist,
-        point: _ptOnSeg.clone(),
-        object: this,
-      });
-    }
-  };
+  }
+  const sectionSide = options?.revolutionSection?.[annotation.baseMapId];
+  if (sectionSide && baseMap.orientation === "VERTICAL") {
+    return {
+      phiStart: sectionSide === 1 ? Math.PI / 2 : -Math.PI / 2,
+      phiLength: Math.PI,
+    };
+  }
+  return {};
 }
 
 // Factor applied to back-faces (the interior of a cavity / CSG-carved dome) so
@@ -635,7 +625,14 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
   };
 
   const shape3DKey = getShape3DKey(annotation.shape3D);
-  if (shape3DKey !== null && shape3DKey !== "EXTRUSION_PROFILE") {
+  // EXTRUSION_PROFILE and REVOLUTION are dynamic shapes (they reference a
+  // profile template / a REVOLUTION_AXIS annotation), so they never appear in
+  // the static SHAPE_3D_CONFIG registry — exempt them from the check.
+  if (
+    shape3DKey !== null &&
+    shape3DKey !== "EXTRUSION_PROFILE" &&
+    shape3DKey !== "REVOLUTION"
+  ) {
     const known = getShape3DOptionsForType(annotation.type).some(
       (o) => o.key === shape3DKey
     );
@@ -811,32 +808,11 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
           const arcPts = pointsToLocal(annotation.points || [], baseMap);
           const axisPts = pointsToLocal(axisPx, baseMap);
           // Partial revolution range, stored on the arc's own shape3D.
-          // Explicit user-set partial angles win over the auto half-view.
-          let partialPhi = {};
-          if (annotation.shape3D?.partialRevolution) {
-            partialPhi = getRevolutionPhi(
-              annotation.shape3D.revolutionAngleStart ?? 0,
-              annotation.shape3D.revolutionAngleEnd ?? Math.PI * 2
-            );
-          } else {
-            // Display-only 180° half-view: the vertical base map image is
-            // shown, so keep only the half opposite the camera and let the
-            // image read as a section plane. In the VERTICAL base-map local
-            // frame the lathe is unrotated and LatheGeometry places φ ∈
-            // (−π/2, π/2) on local +Z (the image-facing side): side 1
-            // (camera in front) keeps the back half, side -1 the front one.
-            // Quantities are untouched — the headless carve/qty path builds
-            // without this option (full lathe), and the analytic surface is
-            // always full-turn.
-            const sectionSide =
-              options?.revolutionSection?.[annotation.baseMapId];
-            if (sectionSide && baseMap.orientation === "VERTICAL") {
-              partialPhi = {
-                phiStart: sectionSide === 1 ? Math.PI / 2 : -Math.PI / 2,
-                phiLength: Math.PI,
-              };
-            }
-          }
+          const partialPhi = getRevolutionPartialPhi(
+            annotation,
+            baseMap,
+            options
+          );
           object = buildRevolutionMesh({
             arcPoints: arcPts,
             axisPoints: axisPts,
@@ -1000,11 +976,32 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
       break;
     }
     case "POINT": {
-      // Render a POINT that carries a height as a thick vertical line standing
-      // up from the basemap plane (base at offsetZ, top at offsetZ + height),
-      // using the same screen-space fat-line technique as the 3D drawing trait.
+      // Two fat-line renderings, both using the same screen-space technique as
+      // the 3D drawing trait: a REVOLUTION circle around a referenced axis
+      // (below), else the vertical trait standing up from the basemap plane
+      // (base at offsetZ, top at offsetZ + height) when the POINT has a height.
       const p = annotation.point;
       if (!p) break;
+      // Axis-based revolution: the point sweeps a CIRCLE (a line, not a
+      // surface) of radius = its distance to the referenced REVOLUTION_AXIS.
+      // The circle replaces the vertical trait — the height field is hidden in
+      // the toolbar for a REVOLUTION shape3D. Falls through to the trait when
+      // the axis isn't resolved (missing/deleted) or the radius degenerates.
+      if (
+        shape3DKey === "REVOLUTION" &&
+        (annotation.revolutionAxisPoints?.length ?? 0) >= 2
+      ) {
+        object = buildRevolutionCircleLine({
+          pointLocal: pixelToWorld(p, baseMap),
+          axisPoints: pointsToLocal(annotation.revolutionAxisPoints, baseMap),
+          centerLocal: annotation.revolutionCenterLocal || null,
+          orientation: baseMap.orientation,
+          material,
+          ...getRevolutionPartialPhi(annotation, baseMap, options),
+          resolution: options?.resolution,
+        });
+        if (object) break;
+      }
       if (height <= 0) break; // no height → nothing in 3D (unchanged behavior)
       const local = pixelToWorld(p, baseMap); // { x, y } in basemap-local meters
       const z0 = verticalLift; // base at offsetZ
@@ -1024,12 +1021,17 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
       const line = new Line2(geom, lineMat);
       line.computeLineDistances();
       // Make the trait hover/click-pickable in 3D (select the POINT) without
-      // three's fragile screen-space Line2 raycast — see attachPointTraitRaycast.
-      attachPointTraitRaycast(
-        line,
+      // three's fragile screen-space Line2 raycast — see attachFatLineRaycast.
+      attachFatLineRaycast(line, [
         new Vector3(local.x, local.y, z0),
-        new Vector3(local.x, local.y, z1)
-      );
+        new Vector3(local.x, local.y, z1),
+      ]);
+      // Line2 is an `isMesh` holding INSTANCED geometry: without this tag it
+      // exports as broken triangles. buildExportScene emits a plain THREE.Line
+      // rebuilt from these positions instead.
+      line.userData.exportLine = {
+        positions: [local.x, local.y, z0, local.x, local.y, z1],
+      };
       object = line;
       break;
     }

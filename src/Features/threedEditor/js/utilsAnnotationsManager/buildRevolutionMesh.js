@@ -67,7 +67,18 @@ const FULL_TURN_EPS = 1e-6;
 // revolution axis is the base map normal ((x, y, z) → (x, −z, y)), then the
 // translation to `center`. Returns [x, y, z] plus a lift along the outward
 // sweep tangent ±(cosφ, 0, −sinφ) so the marker never z-fights the surface.
-function boundaryVertex(r, y, phi, outwardSign, axisAlongNormal, center) {
+//
+// Exported so buildRevolutionCircleLine (POINT revolution) shares the EXACT
+// same frame: a circle traced from a point lands right on the lathe surface of
+// any arc revolved around the same axis. Pass outwardSign = 0 for no lift.
+export function boundaryVertex(
+  r,
+  y,
+  phi,
+  outwardSign,
+  axisAlongNormal,
+  center
+) {
   const lift = SECTION_MARKER_LIFT * outwardSign;
   let x = r * Math.sin(phi) + lift * Math.cos(phi);
   let yy = y;

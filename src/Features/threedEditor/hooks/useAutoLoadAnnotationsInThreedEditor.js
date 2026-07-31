@@ -127,8 +127,9 @@ export default function useAutoLoadAnnotationsInThreedEditor({
   }, [annotations, showMeshCells, parentIdSet]);
 
   // { baseMapId: 1 | -1 } restricted to the vertical base maps whose image is
-  // visible AND that host a REVOLUTION arc without explicit partialRevolution
-  // (user-set partial angles win over the auto half-view). Restricting the
+  // visible AND that host a REVOLUTION element without explicit
+  // partialRevolution (user-set partial angles win over the auto half-view) —
+  // a POLYLINE arc (lathe surface) or a POINT (circle line). Restricting the
   // map keeps the build epoch stable — a camera side flip on an unrelated
   // base map must not rebuild the scene.
   const revolutionSection = useMemo(() => {
@@ -136,7 +137,7 @@ export default function useAutoLoadAnnotationsInThreedEditor({
       (annotationsForThreed || [])
         .filter(
           (a) =>
-            a.type === "POLYLINE" &&
+            (a.type === "POLYLINE" || a.type === "POINT") &&
             a.shape3D?.key === "REVOLUTION" &&
             !a.shape3D?.partialRevolution
         )

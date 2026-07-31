@@ -18,7 +18,10 @@ import {
 import getGuideLineStairsLayout, {
   findStairsGuideLine,
 } from "Features/annotations/utils/getGuideLineStairsLayout";
-import { getEffectiveShellMode } from "Features/annotations/constants/shape3DConfig";
+import {
+  getEffectiveShellMode,
+  getShape3DKey,
+} from "Features/annotations/constants/shape3DConfig";
 
 // Match the sampling used by the 3D mesh builders so quantities are computed
 // on the SAME arc-expanded rings as the rendered geometry:
@@ -247,6 +250,21 @@ function computeRevolutionSurface(
   return surfacePx2 * meterByPx * meterByPx;
 }
 
+// Perimeter of the circle swept by a POINT revolved around a REVOLUTION_AXIS.
+// Mirrors buildRevolutionCircleLine's radius rule (|point.x − axisX|, axisX =
+// mean x of the axis line) so the quantity and the 3D circle always agree.
+// Returns null when the shape / axis / point isn't a resolved revolution, so
+// the caller falls back to the default POINT behavior (length = height).
+export function getRevolutionCirclePerimeter(annotation, meterByPx) {
+  if (getShape3DKey(annotation?.shape3D) !== "REVOLUTION") return null;
+  const axisPoints = annotation?.revolutionAxisPoints;
+  const point = annotation?.point;
+  if (!point || !axisPoints || axisPoints.length < 2) return null;
+  const axisX = axisPoints.reduce((sum, p) => sum + p.x, 0) / axisPoints.length;
+  const radiusM = Math.abs(point.x - axisX) * meterByPx;
+  return 2 * Math.PI * radiusM;
+}
+
 // Surface of the inline "Extrusion" sweep (POLYLINE carrying profileLines):
 // rebuild the exact 3D mesh triangles — same arc expansion, registration
 // (getInlineExtrusionSetup) and mitered sweep as buildInlineExtrusionMesh —
@@ -346,6 +364,19 @@ export default function getAnnotationQties({
       return { enabled: false };
 
     if (annotation.type === "POINT") {
+      // REVOLUTION: the point sweeps a circle around the referenced axis
+      // (radius = its horizontal distance to it, resolved by useAnnotationsV2).
+      // Length = FULL-TURN perimeter 2πr and no surface — a circle is a line,
+      // it encloses no material. The 180° half-view is display-only, same rule
+      // as the POLYLINE revolution surface, so the figure stays stable whatever
+      // the camera side or the "Révolution partielle" switch.
+      const revolutionLength = getRevolutionCirclePerimeter(
+        annotation,
+        meterByPx
+      );
+      if (revolutionLength != null) {
+        return { enabled: true, length: revolutionLength, surface: 0 };
+      }
       const h = parseFloat(annotation.height);
       return {
         enabled: true,
