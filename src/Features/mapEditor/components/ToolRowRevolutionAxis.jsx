@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import { setEnabledDrawingMode } from "../mapEditorSlice";
@@ -16,8 +16,10 @@ import { RotateRight } from "@mui/icons-material";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useRevolutionAxes from "Features/annotations/hooks/useRevolutionAxes";
+import useRevolutionAxisPlacements from "Features/annotations/hooks/useRevolutionAxisPlacements";
 import buildToolDraft from "../utils/buildToolDraft";
 import { getDrawingToolByKey } from "../constants/drawingTools";
+import RowRevolutionAxisBanner from "./RowRevolutionAxisBanner";
 
 // "Axes de révolution" row of the "Outils de dessin" section.
 //
@@ -41,6 +43,7 @@ export default function ToolRowRevolutionAxis() {
   const baseMap = useMainBaseMap();
   const isVertical = baseMap?.orientation === "VERTICAL";
   const revolutionAxes = useRevolutionAxes();
+  const placements = useRevolutionAxisPlacements(baseMap?.id);
   const newAnnotation = useSelector((s) => s.annotations.newAnnotation);
   const enabledDrawingMode = useSelector((s) => s.mapEditor.enabledDrawingMode);
 
@@ -57,6 +60,17 @@ export default function ToolRowRevolutionAxis() {
   ].includes(enabledDrawingMode);
 
   const label = isVertical ? "Axes de révolution" : "Axe de révolution";
+
+  // Axes posed on the elevation currently shown, paired with the plan axis they
+  // instantiate (the label comes from there).
+  const posedAxes = useMemo(
+    () =>
+      placements.map((placement) => ({
+        placement,
+        axis: revolutionAxes.find((a) => a.id === placement.revolutionAxisId),
+      })),
+    [placements, revolutionAxes]
+  );
 
   // handlers
 
@@ -90,6 +104,22 @@ export default function ToolRowRevolutionAxis() {
   }
 
   // render
+
+  // This elevation already carries its axis / axes: manage them here instead of
+  // offering to pose yet another one.
+  if (isVertical && posedAxes.length > 0) {
+    return (
+      <Box>
+        {posedAxes.map(({ placement, axis }) => (
+          <RowRevolutionAxisBanner
+            key={placement.id}
+            placement={placement}
+            axis={axis}
+          />
+        ))}
+      </Box>
+    );
+  }
 
   return (
     <Box>

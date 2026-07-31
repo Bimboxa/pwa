@@ -1799,6 +1799,14 @@ const InteractionLayer = forwardRef(({
       bounds: vp.getViewportSize?.(),
       angleDeg: orthoSnapAngleOffsetRef.current || 0,
       snapPx: AXIS_SNAP_PX,
+      // Revolution axis anchors (centre + both diameter ends). They are derived
+      // from scalars rather than stored as points, so they live in
+      // `_snapPoints` (resolved by useAnnotationsV2) and would otherwise be
+      // invisible to the ortho lock — even though aligning a drawing on the
+      // axis centre is one of the main reasons to draw one.
+      for (const p of ann?._snapPoints || []) {
+        if (Number.isFinite(p?.x) && Number.isFinite(p?.y)) candidates.push(p);
+      }
       approachPx: AXIS_SNAP_APPROACH_PX,
     });
     if (!result) return null;
@@ -6759,7 +6767,19 @@ const InteractionLayer = forwardRef(({
       return;
     }
 
-    const draggableGroup = target.closest('[data-interaction="draggable"]');
+    let draggableGroup = target.closest('[data-interaction="draggable"]');
+    // While a drawing tool is armed the click belongs to the DRAWING, not to a
+    // drag. Revolution axes carry deliberately wide hit areas (the whole circle
+    // ring on the plan, both bars of the T on an elevation), so without this
+    // they would swallow the point instead of letting it through — and they are
+    // exactly the thing one wants to draw onto.
+    if (
+      draggableGroup &&
+      enabledDrawingModeRef.current &&
+      isMarkerLikeSnapDragType(draggableGroup.dataset?.annotationType)
+    ) {
+      draggableGroup = null;
+    }
     const partNode = target.closest('[data-part-type]');
     const partType = partNode?.dataset?.partType;
 

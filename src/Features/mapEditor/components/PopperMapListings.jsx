@@ -59,6 +59,8 @@ import { Check, Close } from "@mui/icons-material";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import ToolRowRevolutionAxis from "./ToolRowRevolutionAxis";
+import RowRevolutionAxesSummary from "./RowRevolutionAxesSummary";
+import { isRevolutionHelperType } from "Features/annotations/constants/drawingShapeConfig";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 import {
@@ -2675,10 +2677,14 @@ export default function PopperMapListings() {
     ).length;
   }, [isZonesViewer, selectedZoneTemplate, allAnnotationsInclHidden]);
 
+  // Revolution helpers are excluded explicitly, not just by the absence of a
+  // listingId: rows written before they became listing-less still carry one,
+  // and they must never inflate a listing's total either way.
   const annotationCountByListingId = useMemo(() => {
     if (!allAnnotations) return {};
     return allAnnotations.reduce((acc, a) => {
-      if (a.listingId) acc[a.listingId] = (acc[a.listingId] || 0) + 1;
+      if (a.listingId && !isRevolutionHelperType(a.type))
+        acc[a.listingId] = (acc[a.listingId] || 0) + 1;
       return acc;
     }, {});
   }, [allAnnotations]);
@@ -2686,7 +2692,7 @@ export default function PopperMapListings() {
   const annotationsByListingId = useMemo(() => {
     if (!allAnnotations) return {};
     return allAnnotations.reduce((acc, a) => {
-      if (a.listingId) {
+      if (a.listingId && !isRevolutionHelperType(a.type)) {
         if (!acc[a.listingId]) acc[a.listingId] = [];
         acc[a.listingId].push(a);
       }
@@ -3227,6 +3233,10 @@ export default function PopperMapListings() {
                 </Typography>
               </Box>
             )}
+
+            {/* Revolution axes of this base map — above the listings, since
+                they belong to no listing of their own. */}
+            <RowRevolutionAxesSummary />
 
             <>
               {activeListing && (
