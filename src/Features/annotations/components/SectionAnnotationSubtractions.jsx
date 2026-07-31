@@ -14,8 +14,12 @@ export default function SectionAnnotationSubtractions({ annotation }) {
   // data
 
   const dispatch = useDispatch();
-  const { relsBySource } = useAnnotationSubtractions();
+  const { relsBySource, relsByTarget } = useAnnotationSubtractions();
   const rels = relsBySource.get(annotation?.id) ?? [];
+  // reverse side: the annotations this one is carved out of, so a relation
+  // created via the "À soustraire de" mode is readable and removable from both
+  // ends.
+  const reverseRels = relsByTarget.get(annotation?.id) ?? [];
 
   // handlers
 
@@ -38,33 +42,67 @@ export default function SectionAnnotationSubtractions({ annotation }) {
 
   // render
 
-  if (rels.length === 0) return null;
+  if (rels.length === 0 && reverseRels.length === 0) return null;
 
   return (
-    <Box
-      sx={{ width: 1, p: 1, display: "flex", flexDirection: "column", gap: 0.5 }}
-    >
-      <Box
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-        }}
-      >
-        <Typography
-          variant="caption"
-          color="text.secondary"
-          sx={{ fontWeight: 600 }}
+    <>
+      {rels.length > 0 && (
+        <Box
+          sx={{
+            width: 1,
+            p: 1,
+            display: "flex",
+            flexDirection: "column",
+            gap: 0.5,
+          }}
         >
-          Soustractions
-        </Typography>
-        <Tooltip title="Relancer la soustraction">
-          <IconButton size="small" onClick={handleRefresh}>
-            <RefreshIcon fontSize="small" />
-          </IconButton>
-        </Tooltip>
-      </Box>
-      <ListAnnotationSubtractions annotationId={annotation?.id} />
-    </Box>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ fontWeight: 600 }}
+            >
+              Soustractions
+            </Typography>
+            <Tooltip title="Relancer la soustraction">
+              <IconButton size="small" onClick={handleRefresh}>
+                <RefreshIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          </Box>
+          <ListAnnotationSubtractions annotationId={annotation?.id} />
+        </Box>
+      )}
+
+      {reverseRels.length > 0 && (
+        <Box
+          sx={{
+            width: 1,
+            p: 1,
+            display: "flex",
+            flexDirection: "column",
+            gap: 0.5,
+          }}
+        >
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ fontWeight: 600 }}
+          >
+            Soustraite de
+          </Typography>
+          <ListAnnotationSubtractions
+            annotationId={annotation?.id}
+            direction="SOURCES"
+          />
+        </Box>
+      )}
+    </>
   );
 }

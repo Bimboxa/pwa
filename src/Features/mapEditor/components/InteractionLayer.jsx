@@ -23,6 +23,7 @@ import {
 import {
   setAnchorSourceAnnotationId,
   setSubtractSourceAnnotationId,
+  setSubtractTargetAnnotationId,
   setFixedLength,
   toggleSmartDetectEnabled,
   cycleLoupeAspect,
@@ -101,6 +102,7 @@ import TransientOpeningSegmentLayer from 'Features/mapEditorGeneric/components/T
 import computeWrapperBbox from '../utils/computeWrapperBbox';
 import anchorAnnotationToTarget from 'Features/annotations/services/anchorAnnotationToTarget';
 import addAnnotationSubtraction from 'Features/annotations/services/addAnnotationSubtraction';
+import addAnnotationSubtractions from 'Features/annotations/services/addAnnotationSubtractions';
 import updateAnnotationService from 'Features/annotations/services/updateAnnotationService';
 import AnnotationEditingWrapper from './AnnotationEditingWrapper';
 import applyDeltaPosToAnnotation from 'Features/mapEditorGeneric/utils/applyDeltaPosToAnnotation';
@@ -511,8 +513,10 @@ const InteractionLayer = forwardRef(({
 
   // Anchor snap mode
   const anchorSourceAnnotationId = useSelector((s) => s.mapEditor.anchorSourceAnnotationId);
-  // Subtraction pick mode
+  // Subtraction pick mode (forward: this annotation is carved by the clicks)
   const subtractSourceAnnotationId = useSelector((s) => s.mapEditor.subtractSourceAnnotationId);
+  // Reverse subtraction pick mode (this annotation carves the clicked ones)
+  const subtractTargetAnnotationId = useSelector((s) => s.mapEditor.subtractTargetAnnotationId);
   const selectedProjectId = useSelector((s) => s.projects.selectedProjectId);
   const mapEditorMode = useSelector((s) => s.mapEditor.mapEditorMode);
   const orthoSnapAngleOffset = useSelector((s) => s.mapEditor.orthoSnapAngleOffset);
@@ -2669,6 +2673,11 @@ const InteractionLayer = forwardRef(({
     subtractSourceAnnotationIdRef.current = subtractSourceAnnotationId;
   }, [subtractSourceAnnotationId]);
 
+  const subtractTargetAnnotationIdRef = useRef(subtractTargetAnnotationId);
+  useEffect(() => {
+    subtractTargetAnnotationIdRef.current = subtractTargetAnnotationId;
+  }, [subtractTargetAnnotationId]);
+
   const stripDetectionOrientationRef = useRef(stripDetectionOrientation);
   useEffect(() => {
     stripDetectionOrientationRef.current = stripDetectionOrientation;
@@ -3637,6 +3646,13 @@ const InteractionLayer = forwardRef(({
             return;
           }
 
+          // Cancel reverse subtraction pick mode if active
+          if (subtractTargetAnnotationIdRef.current) {
+            dispatch(setSubtractTargetAnnotationId(null));
+            e.stopPropagation();
+            return;
+          }
+
           // Abort an in-flight GLOBAL smart-detect run (spinner phase) without
           // clearing the rest of the drawing state.
           if (globalDetectionAbortRef.current) {
@@ -4561,7 +4577,7 @@ const InteractionLayer = forwardRef(({
     // Cross-tab navigation: in pure SELECT mode (no drawing tool, no anchor
     // pick), forward the click world position to the parent so it can
     // broadcast a 3D-camera pan event to other tabs.
-    if (!enabledDrawingMode && !anchorSourceAnnotationId && !subtractSourceAnnotationId) {
+    if (!enabledDrawingMode && !anchorSourceAnnotationId && !subtractSourceAnnotationId && !subtractTargetAnnotationId) {
       onMapClickInSelectMode?.({ worldPos, event });
     }
 
@@ -4636,6 +4652,49 @@ const InteractionLayer = forwardRef(({
         }
       }
       // Stay in subtraction mode; only Escape exits it.
+      return;
+    }
+
+    // Reverse subtraction pick mode: the armed annotation is the one being
+    // SUBTRACTED, so each click carves the annotations under the cursor with
+    // it. Uses elementsFromPoint (not closest) so every stacked annotation is
+    // reachable — that is what lets one click carve all the layers of a wall
+    // with the same opening. Multi-pick: only Escape exits.
+    if (subtractTargetAnnotationId && !enabledDrawingMode) {
+      const els = document.elementsFromPoint(event.clientX, event.clientY);
+      // Several leaf shapes can belong to the same annotation -> dedupe by id.
+      const sourceIds = [];
+      for (const el of els) {
+        const node = el.closest?.('[data-node-type="ANNOTATION"]');
+        const id = node?.dataset?.nodeId;
+        if (id && id !== subtractTargetAnnotationId && !sourceIds.includes(id)) {
+          sourceIds.push(id);
+        }
+      }
+      // Empty-space clicks do nothing, like the forward mode.
+      if (sourceIds.length > 0) {
+        const { addedIds } = await addAnnotationSubtractions({
+          projectId: selectedProjectId,
+          pairs: sourceIds.map((sourceAnnotationId) => ({
+            sourceAnnotationId,
+            targetAnnotationId: subtractTargetAnnotationId,
+          })),
+        });
+        dispatch(
+          setToaster(
+            addedIds.length > 0
+              ? {
+                message: `${addedIds.length} annotation(s) creusée(s) par cette annotation`,
+                severity: "success",
+              }
+              : {
+                message: "Annotation(s) déjà soustraite(s)",
+                severity: "info",
+              }
+          )
+        );
+      }
+      // Stay in reverse subtraction mode; only Escape exits it.
       return;
     }
 

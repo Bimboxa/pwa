@@ -209,6 +209,7 @@ const mapEditorInitialState = {
   // anchor snap mode
   anchorSourceAnnotationId: null, // annotation ID whose extremities will be anchored
   subtractSourceAnnotationId: null, // POLYGON ID being carved; next clicked annotation becomes a subtraction
+  subtractTargetAnnotationId: null, // annotation being SUBTRACTED; clicked annotations become the carved sources
 
   // ortho snap
   orthoSnapAngleOffset: 0, // degrees
@@ -692,9 +693,19 @@ export const mapEditorSlice = createSlice({
       state.showLayerScreenCursor = Boolean(action.payload);
     },
 
-    // subtraction pick mode
+    // subtraction pick mode — the pivot annotation is the one being CARVED,
+    // each clicked annotation is subtracted from it.
     setSubtractSourceAnnotationId: (state, action) => {
       state.subtractSourceAnnotationId = action.payload;
+      state.subtractTargetAnnotationId = null; // the two directions are exclusive
+      state.showLayerScreenCursor = Boolean(action.payload);
+    },
+
+    // reverse subtraction pick mode — the pivot annotation is the one being
+    // SUBTRACTED, each clicked annotation becomes a carved source.
+    setSubtractTargetAnnotationId: (state, action) => {
+      state.subtractTargetAnnotationId = action.payload;
+      state.subtractSourceAnnotationId = null; // the two directions are exclusive
       state.showLayerScreenCursor = Boolean(action.payload);
     },
 
@@ -955,6 +966,7 @@ export const {
   // anchor snap
   setAnchorSourceAnnotationId,
   setSubtractSourceAnnotationId,
+  setSubtractTargetAnnotationId,
 
   // ortho snap
   setOrthoSnapAngleOffset,

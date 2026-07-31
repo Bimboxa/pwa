@@ -73,6 +73,7 @@ import IconButtonToggleAnnotationCloseLine from "./IconButtonToggleAnnotationClo
 import IconButtonDetectSimilarStrips from "./IconButtonDetectSimilarStrips";
 import IconButtonAnchorAnnotation from "./IconButtonAnchorAnnotation";
 import IconButtonSubtractAnnotation from "./IconButtonSubtractAnnotation";
+import IconButtonSubtractFromAnnotation from "./IconButtonSubtractFromAnnotation";
 import IconButtonHollowOutAnnotation from "./IconButtonHollowOutAnnotation";
 import IconButtonAssignZoneAnnotations from "Features/zonings/components/IconButtonAssignZoneAnnotations";
 import SectionZonesBandInToolbar from "Features/zonings/components/SectionZonesBandInToolbar";
@@ -898,10 +899,16 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
                 {["POLYGON", "RECTANGLE", "POLYLINE", "STRIP"].includes(
                   selectedAnnotation?.type
                 ) && (
-                  <IconButtonSubtractAnnotation
-                    annotation={selectedAnnotation}
-                    accentColor={accentColor}
-                  />
+                  <>
+                    <IconButtonSubtractAnnotation
+                      annotation={selectedAnnotation}
+                      accentColor={accentColor}
+                    />
+                    <IconButtonSubtractFromAnnotation
+                      annotation={selectedAnnotation}
+                      accentColor={accentColor}
+                    />
+                  </>
                 )}
                 {selectedAnnotation?.type === "POLYGON" && (
                   <IconButtonHollowOutAnnotation

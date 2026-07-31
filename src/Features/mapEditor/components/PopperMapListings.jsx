@@ -81,6 +81,7 @@ import SectionSurfaceDropOptions from "Features/smartDetect/components/SectionSu
 import SectionShortcutHelpers from "Features/annotations/components/SectionShortcutHelpers";
 import PopperSubtractHelper from "Features/mapEditor/components/PopperSubtractHelper";
 import getEffectiveDetectionMode from "Features/mapEditor/utils/getEffectiveDetectionMode";
+import { selectSubtractPickAnnotationId } from "Features/mapEditor/utils/subtractPickMode";
 import { isPasteAdjustEligible } from "Features/smartDetect/utils/adjustPasteCandidate";
 import SectionLayers from "Features/layers/components/SectionLayers";
 import {
@@ -2539,9 +2540,8 @@ export default function PopperMapListings() {
   const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
   const enabledDrawingMode = useSelector((s) => s.mapEditor.enabledDrawingMode);
   const pasteClipboard = useSelector((s) => s.mapEditor.pasteClipboard);
-  const subtractSourceAnnotationId = useSelector(
-    (s) => s.mapEditor.subtractSourceAnnotationId
-  );
+  // truthy in either subtraction pick direction (see utils/subtractPickMode)
+  const subtractPickAnnotationId = useSelector(selectSubtractPickAnnotationId);
   const hiddenListingsIds = useSelector(
     (s) => s.listings.hiddenListingsIds || []
   );
@@ -2926,7 +2926,7 @@ export default function PopperMapListings() {
     return <PopperPasteHelper />;
   }
 
-  if (!isThreedViewer && subtractSourceAnnotationId) {
+  if (!isThreedViewer && subtractPickAnnotationId) {
     return <PopperSubtractHelper />;
   }
 

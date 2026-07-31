@@ -3,6 +3,7 @@ import { useDispatch, useSelector, useStore } from "react-redux";
 
 import applyInteractionModeChange from "../utils/applyInteractionModeChange";
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
+import { selectSubtractPickAnnotationId } from "../utils/subtractPickMode";
 
 const isEditableTarget = (el) => {
   if (!el) return false;
@@ -66,7 +67,7 @@ export default function useInteractionModeHotkeys() {
         return;
 
       // Don't fight modes that own these letters (paste / subtract).
-      if (s.mapEditor.pasteClipboard || s.mapEditor.subtractSourceAnnotationId)
+      if (s.mapEditor.pasteClipboard || selectSubtractPickAnnotationId(s))
         return;
 
       // The mode is forced read-only (SELECT) by the "Maillage" toggle or the

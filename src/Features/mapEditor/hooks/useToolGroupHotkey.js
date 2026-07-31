@@ -10,6 +10,7 @@ import { setNewAnnotation } from "Features/annotations/annotationsSlice";
 import { getDrawingToolsByType } from "../constants/drawingTools.jsx";
 import buildToolDraft from "../utils/buildToolDraft";
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
+import { selectSubtractPickAnnotationId } from "../utils/subtractPickMode";
 
 const isEditableTarget = (el) => {
   if (!el) return false;
@@ -49,7 +50,7 @@ export default function useToolGroupHotkey(hotkey, templateId) {
       // Stay out of the other editor modes that may own this letter
       // (paste mode, subtract mode).
       const s = store.getState();
-      if (s.mapEditor.pasteClipboard || s.mapEditor.subtractSourceAnnotationId)
+      if (s.mapEditor.pasteClipboard || selectSubtractPickAnnotationId(s))
         return;
 
       // Only start a draw while the Dessin module displays the 2D editor.

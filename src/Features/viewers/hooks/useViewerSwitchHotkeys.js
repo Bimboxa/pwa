@@ -4,6 +4,7 @@ import { useStore } from "react-redux";
 import useSwitchViewer from "./useSwitchViewer";
 import useViewers from "./useViewers";
 import { selectEffectiveViewerKey } from "../utils/effectiveViewerKey";
+import { selectSubtractPickAnnotationId } from "Features/mapEditor/utils/subtractPickMode";
 
 // Letters that keep their map-editor meaning while the Dessin module
 // displays the 2D editor (see the guard in the handler below).
@@ -69,7 +70,7 @@ export default function useViewerSwitchHotkeys() {
       // Walk mode owns the keyboard (arrows, Space, W to exit).
       if (s.threedEditor.walkMode.active) return;
       if (s.mapEditor.enabledDrawingMode) return;
-      if (s.mapEditor.pasteClipboard || s.mapEditor.subtractSourceAnnotationId)
+      if (s.mapEditor.pasteClipboard || selectSubtractPickAnnotationId(s))
         return;
       // Already there — leave the letter to the editor shortcuts (D → DRAW).
       if (targetViewerKey === s.viewers.selectedViewerKey) return;

@@ -5,15 +5,43 @@ import { RemoveCircleOutline as SubtractIcon } from "@mui/icons-material";
 
 import ListAnnotationSubtractions from "Features/annotations/components/ListAnnotationSubtractions";
 
-// Floating helper shown while the subtraction pick mode is active. Mirrors the
-// look of PopperDrawingHelper: an instruction, the live list of already-added
-// subtractions (each removable), and the Escape shortcut to exit the mode.
+// Floating helper shown while a subtraction pick mode is active. Mirrors the
+// look of PopperDrawingHelper: an instruction, the live list of already-created
+// relations (each removable), and the Escape shortcut to exit the mode.
+//
+// Serves both directions of the mode — the pivot annotation is either the one
+// being carved ("Soustraire une annotation") or the one being subtracted
+// ("À soustraire de"). See Features/mapEditor/utils/subtractPickMode.
 export default function PopperSubtractHelper() {
-  const sourceAnnotationId = useSelector(
+  // data
+
+  const subtractSourceAnnotationId = useSelector(
     (s) => s.mapEditor.subtractSourceAnnotationId
   );
+  const subtractTargetAnnotationId = useSelector(
+    (s) => s.mapEditor.subtractTargetAnnotationId
+  );
 
-  if (!sourceAnnotationId) return null;
+  const isReverse = Boolean(subtractTargetAnnotationId);
+  const pivotAnnotationId =
+    subtractSourceAnnotationId || subtractTargetAnnotationId;
+
+  // strings
+
+  const title = isReverse ? "Mode « à soustraire de »" : "Mode soustraction";
+  const instruction = isReverse
+    ? "Cliquez sur les annotations à creuser avec cette annotation. Toutes les annotations sous le curseur sont prises."
+    : "Cliquez sur une annotation pour l'ajouter à la soustraction.";
+  const listTitle = isReverse
+    ? "Creusées par cette annotation"
+    : "Annotations soustraites";
+  const emptyLabel = isReverse
+    ? "Aucune annotation creusée pour le moment."
+    : "Aucune annotation soustraite pour le moment.";
+
+  // render
+
+  if (!pivotAnnotationId) return null;
 
   return (
     <Paper
@@ -43,12 +71,12 @@ export default function PopperSubtractHelper() {
         }}
       >
         <SubtractIcon fontSize="small" />
-        <Typography variant="subtitle2">Mode soustraction</Typography>
+        <Typography variant="subtitle2">{title}</Typography>
       </Box>
 
       <Box sx={{ p: 1.5, display: "flex", flexDirection: "column", gap: 1.5 }}>
         <Typography variant="body2" color="text.secondary">
-          Cliquez sur une annotation pour l'ajouter à la soustraction.
+          {instruction}
         </Typography>
 
         <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
@@ -57,11 +85,12 @@ export default function PopperSubtractHelper() {
             color="text.secondary"
             sx={{ fontWeight: 600 }}
           >
-            Annotations soustraites
+            {listTitle}
           </Typography>
           <ListAnnotationSubtractions
-            annotationId={sourceAnnotationId}
-            emptyLabel="Aucune annotation soustraite pour le moment."
+            annotationId={pivotAnnotationId}
+            direction={isReverse ? "SOURCES" : "TARGETS"}
+            emptyLabel={emptyLabel}
           />
         </Box>
 
