@@ -3,31 +3,51 @@ import { useDispatch } from "react-redux";
 import { darken } from "@mui/material/styles";
 
 import getRulerSegments from "Features/annotations/utils/getRulerSegments";
+import getRulerLabelPlacement, {
+  getRulerFieldPlacement,
+} from "Features/annotations/utils/getRulerLabelPlacement";
 import offsetPointsAlongNormals from "../utils/offsetPointsAlongNormals";
 import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
 import applyRulerSegmentLengthService from "Features/annotations/services/applyRulerSegmentLengthService";
 
-// Screen-px gap between the segment alignment line and the (optional) total
-// line, so the two never overlap — including at extensionOffset = 0.
+// Screen-px gap pushing the (optional) total value beyond the segment values.
 const TOTAL_LINE_GAP_PX = 28;
 
-// Half-length of the graduation ticks drawn on the alignment line, in screen
-// px. Chain extremities get the long tick, interior joints the short one (the
-// classic dimension-chain look).
+// Half-length of the graduation ticks drawn ON the polyline, in screen px.
+// Chain extremities get the long tick, interior joints the short one — those
+// ticks are what separates one segment from the next.
 const TICK_HALF_END_PX = 9;
 const TICK_HALF_INNER_PX = 5;
 
 const VERTEX_HALF_SIZE_PX = 4;
 
-// A RULER is a dimension CHAIN: the drawn polyline plus one cote per segment,
-// all aligned on a single offset "alignment line". The alignment line is the
-// MITER offset of the polyline (see offsetPointsAlongNormals), so it stays
-// continuous even when the segments are not collinear.
+// Inline length editor footprint, screen px.
+const FIELD_W_PX = 100;
+const FIELD_H_PX = 26;
+
+// The alignment guide and the selection affordances share one blue.
+const GUIDE_COLOR = "#2196f3";
+
+// Screen-px padding of the invisible pointer band around the drawn line, so
+// hover / click do not require landing exactly on a 1px stroke.
+const HIT_STROKE_PADDING_SCREEN_PX = 20;
+
+// A RULER is a dimension CHAIN. On the page it is a SINGLE line — the drawn
+// polyline, with small orthogonal ticks separating its segments — plus one
+// value per segment.
+//
+// The values are laid out against an "alignment line": the MITER offset of the
+// polyline (see offsetPointsAlongNormals), so it stays continuous even when the
+// segments are not collinear. That line is a placement GUIDE, not part of the
+// drawing: it only appears while the ruler is selected, in blue, and is the
+// handle that moves the values. Values themselves stay HORIZONTAL whatever the
+// segment direction, anchored against the guide — a vertical ruler therefore
+// reads as a clean right- (or left-) aligned column.
 //
 // Two interactions live here (like NodeCoteStatic, this node owns its own
 // pointer handling rather than routing through InteractionLayer):
-//   - dragging the alignment line changes `extensionOffset` — signed, so the
-//     drag also chooses which side the cotes sit on;
+//   - dragging the alignment line (or a value) changes `extensionOffset` —
+//     signed, so the drag also chooses which side the values sit on;
 //   - selecting a vertex opens a number field on each adjacent segment, with a
 //     padlock deciding whether the OTHER segment absorbs the change or the
 //     rest of the chain is translated.
@@ -118,6 +138,20 @@ export default function NodeRulerStatic({
     baseMapImageScale,
     hasScale,
   ]);
+
+  // Hit-area stroke width for pointer detection — always resolved in SCREEN
+  // pixels so the trigger distance is zoom-independent (same model as
+  // NodePolylineStatic). A CM stroke grows with zoom, so the band is the
+  // visible width plus the padding; a PX stroke is already fixed on screen via
+  // vectorEffect, so the padding alone is enough.
+  const scalesWithZoom = strokeWidthUnit === "CM" && hasScale;
+  const hitStrokeWidthCss = useMemo(() => {
+    if (scalesWithZoom) {
+      const k = containerK || 1;
+      return `calc((${computedStrokeWidth} * var(--map-zoom, 1) * ${k} + ${HIT_STROKE_PADDING_SCREEN_PX}) * 1px)`;
+    }
+    return `${HIT_STROKE_PADDING_SCREEN_PX}px`;
+  }, [computedStrokeWidth, scalesWithZoom, containerK]);
 
   // Signed offset in image-pixel space: where the alignment line sits relative
   // to the drawn polyline.
@@ -254,17 +288,22 @@ export default function NodeRulerStatic({
     async (e) => {
       const drag = dragRef.current;
       if (!drag) return;
-      const newOffsetPx = dragOffsetPx ?? drag.initialOffsetPx;
       dragRef.current = null;
       try {
         e.target.releasePointerCapture?.(e.pointerId);
       } catch {
         /* noop */
       }
+      // Pointer went down but never moved: a plain click, not a drag. Writing
+      // the unchanged offset back would be a pointless DB round-trip.
+      if (dragOffsetPx === null) {
+        e.stopPropagation();
+        return;
+      }
       const nextOffset =
         extensionOffsetUnit === "CM" && hasScale
-          ? newOffsetPx * baseMapMeterByPx * 100
-          : newOffsetPx;
+          ? dragOffsetPx * baseMapMeterByPx * 100
+          : dragOffsetPx;
       try {
         await updateAnnotation({
           id: annotationId,
@@ -359,17 +398,14 @@ export default function NodeRulerStatic({
   const polylineD = points
     .map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`)
     .join(" ");
-  const alignmentD = offsetPoints
-    .map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`)
-    .join(" ");
 
-  const showExtensions = Math.abs(effectiveOffsetPx) > 0.001;
   const nonScaling =
     strokeWidthUnit === "PX" ? "non-scaling-stroke" : undefined;
   const grabCursor = isEditable ? "grab" : "default";
+  const canDragValues = Boolean(selected) && isEditable;
 
   // Tick direction at a joint: perpendicular to the neighbour-to-neighbour
-  // tangent, i.e. the same frame offsetPointsAlongNormals used.
+  // tangent, i.e. the same frame offsetPointsAlongNormals uses.
   const tickAngleDegAt = (i) => {
     const prev = i > 0 ? points[i - 1] : points[i];
     const next = i < points.length - 1 ? points[i + 1] : points[i];
@@ -378,40 +414,25 @@ export default function NodeRulerStatic({
 
   return (
     <g {...dataProps} ref={rootGRef}>
-      {/* the measured polyline itself */}
+      {/* Invisible pointer band along the line — a ruler stroke is 1px, so
+          without it selecting one means landing exactly on the trait. Width is
+          resolved in screen px, hence zoom-invariant. */}
       <path
         d={polylineD}
         fill="none"
-        stroke={displayStrokeColor}
-        strokeWidth={computedStrokeWidth}
-        strokeOpacity={strokeOpacity}
+        stroke="transparent"
         strokeLinejoin="round"
-        vectorEffect={nonScaling}
-        pointerEvents="stroke"
-        style={{ cursor: "pointer" }}
+        vectorEffect="non-scaling-stroke"
+        style={{
+          strokeWidth: hitStrokeWidthCss,
+          cursor: "pointer",
+          pointerEvents: "stroke",
+        }}
       />
 
-      {/* dashed extension lines: measured point → alignment line */}
-      {showExtensions &&
-        points.map((p, i) => (
-          <line
-            key={`ext-${p.id ?? i}`}
-            x1={p.x}
-            y1={p.y}
-            x2={offsetPoints[i].x}
-            y2={offsetPoints[i].y}
-            stroke={displayStrokeColor}
-            strokeWidth={computedStrokeWidth}
-            strokeOpacity={strokeOpacity}
-            strokeDasharray="3 3"
-            vectorEffect={nonScaling}
-            pointerEvents="none"
-          />
-        ))}
-
-      {/* alignment line */}
+      {/* The ONE line that stays visible: the drawn polyline. */}
       <path
-        d={alignmentD}
+        d={polylineD}
         fill="none"
         stroke={displayStrokeColor}
         strokeWidth={computedStrokeWidth}
@@ -421,16 +442,18 @@ export default function NodeRulerStatic({
         pointerEvents="none"
       />
 
-      {/* graduation ticks — constant screen size, perpendicular to the chain */}
-      {offsetPoints.map((q, i) => {
+      {/* Graduation ticks ON the drawn line — they are what separates one
+          segment from the next. Constant screen size, orthogonal to the local
+          direction; chain extremities get the long tick. */}
+      {points.map((p, i) => {
         const half =
-          i === 0 || i === offsetPoints.length - 1
+          i === 0 || i === points.length - 1
             ? TICK_HALF_END_PX
             : TICK_HALF_INNER_PX;
         return (
           <g
-            key={`tick-${points[i]?.id ?? i}`}
-            transform={`translate(${q.x}, ${q.y}) rotate(${tickAngleDegAt(i)})`}
+            key={`tick-${p.id ?? i}`}
+            transform={`translate(${p.x}, ${p.y}) rotate(${tickAngleDegAt(i)})`}
           >
             <g style={{ transform: counterScaleTransform }}>
               <line
@@ -448,59 +471,66 @@ export default function NodeRulerStatic({
         );
       })}
 
-      {/* drag handle: the alignment line, per segment so the drag can use the
-          normal of the segment actually grabbed */}
-      {isEditable &&
-        segments.map((seg) => (
-          <line
-            key={`grab-${seg.startPointId ?? seg.index}`}
-            x1={seg.D1.x}
-            y1={seg.D1.y}
-            x2={seg.D2.x}
-            y2={seg.D2.y}
-            stroke="transparent"
-            strokeWidth={16}
-            onPointerDown={(e) => handleOffsetPointerDown(e, seg.index)}
-            onPointerMove={handleOffsetPointerMove}
-            onPointerUp={handleOffsetPointerUp}
-            onPointerCancel={handleOffsetPointerUp}
-            style={{
-              cursor: grabCursor,
-              pointerEvents: "stroke",
-              vectorEffect: "non-scaling-stroke",
-              touchAction: "none",
-            }}
+      {/* Alignment line — a placement guide, not part of the drawing: it only
+          shows while the ruler is selected, and it is the drag handle that
+          moves the values (extensionOffset, signed → also picks the side). */}
+      {selected && (
+        <>
+          <path
+            d={offsetPoints
+              .map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`)
+              .join(" ")}
+            fill="none"
+            stroke={GUIDE_COLOR}
+            strokeWidth={1}
+            strokeOpacity={0.9}
+            strokeLinejoin="round"
+            vectorEffect="non-scaling-stroke"
+            pointerEvents="none"
           />
-        ))}
+          {isEditable &&
+            segments.map((seg) => (
+              <line
+                key={`grab-${seg.startPointId ?? seg.index}`}
+                x1={seg.D1.x}
+                y1={seg.D1.y}
+                x2={seg.D2.x}
+                y2={seg.D2.y}
+                stroke="transparent"
+                strokeWidth={16}
+                onPointerDown={(e) => handleOffsetPointerDown(e, seg.index)}
+                onPointerMove={handleOffsetPointerMove}
+                onPointerUp={handleOffsetPointerUp}
+                onPointerCancel={handleOffsetPointerUp}
+                style={{
+                  cursor: grabCursor,
+                  pointerEvents: "stroke",
+                  vectorEffect: "non-scaling-stroke",
+                  touchAction: "none",
+                }}
+              />
+            ))}
+        </>
+      )}
 
-      {/* per-segment value labels */}
+      {/* per-segment values — horizontal, aligned against the alignment line */}
       {segments.map((seg) => {
-        let angleDeg = seg.angleDeg;
-        let textFlip = false;
-        if (angleDeg > 90) {
-          angleDeg -= 180;
-          textFlip = true;
-        } else if (angleDeg < -90) {
-          angleDeg += 180;
-          textFlip = true;
-        }
-        // Place the text on the side AWAY from the measured polyline.
-        const textNormalSign =
-          (textFlip ? -1 : 1) * (effectiveOffsetPx >= 0 ? 1 : -1);
+        const place = getRulerLabelPlacement(seg);
         const isEditing = editableSegmentIndexes.includes(seg.index);
+        const field = getRulerFieldPlacement(place, FIELD_W_PX, FIELD_H_PX);
 
         return (
           <g
             key={`label-${seg.startPointId ?? seg.index}`}
-            transform={`translate(${seg.mid.x}, ${seg.mid.y}) rotate(${angleDeg})`}
+            transform={`translate(${seg.mid.x}, ${seg.mid.y})`}
           >
             <g style={{ transform: counterScaleTransform }}>
               {isEditing && isEditable ? (
                 <foreignObject
-                  x={-70}
-                  y={textNormalSign < 0 ? -34 : 4}
-                  width={140}
-                  height={32}
+                  x={field.x}
+                  y={field.y}
+                  width={FIELD_W_PX}
+                  height={FIELD_H_PX}
                   style={{ overflow: "visible" }}
                 >
                   <div
@@ -533,7 +563,7 @@ export default function NodeRulerStatic({
                         fontSize: 13,
                         fontFamily:
                           '"Roboto", "Helvetica", "Arial", sans-serif',
-                        border: "1px solid #2196f3",
+                        border: `1px solid ${GUIDE_COLOR}`,
                         borderRadius: 4,
                         background: "#fff",
                         color: "#000",
@@ -559,13 +589,15 @@ export default function NodeRulerStatic({
                         cursor: "pointer",
                         border: "1px solid",
                         borderColor: lockedSegments[seg.index]
-                          ? "#2196f3"
+                          ? GUIDE_COLOR
                           : "#bdbdbd",
                         borderRadius: 4,
                         background: lockedSegments[seg.index]
                           ? "#e3f2fd"
                           : "#fff",
-                        color: lockedSegments[seg.index] ? "#1565c0" : "#757575",
+                        color: lockedSegments[seg.index]
+                          ? "#1565c0"
+                          : "#757575",
                         fontSize: 12,
                         lineHeight: 1,
                       }}
@@ -576,22 +608,30 @@ export default function NodeRulerStatic({
                 </foreignObject>
               ) : (
                 <text
-                  x={0}
-                  y={textNormalSign * 4}
-                  textAnchor="middle"
-                  dominantBaseline={textNormalSign < 0 ? "alphabetic" : "hanging"}
+                  x={place.x}
+                  y={place.y}
+                  textAnchor={place.textAnchor}
+                  dominantBaseline={place.dominantBaseline}
                   fontSize={fontSize}
                   fontFamily='"Roboto", "Helvetica", "Arial", sans-serif'
                   fill={displayStrokeColor}
                   data-ruler-label="1"
-                  onPointerDown={(e) => handleOffsetPointerDown(e, seg.index)}
-                  onPointerMove={handleOffsetPointerMove}
-                  onPointerUp={handleOffsetPointerUp}
-                  onPointerCancel={handleOffsetPointerUp}
+                  {...(canDragValues
+                    ? {
+                        onPointerDown: (e) =>
+                          handleOffsetPointerDown(e, seg.index),
+                        onPointerMove: handleOffsetPointerMove,
+                        onPointerUp: handleOffsetPointerUp,
+                        onPointerCancel: handleOffsetPointerUp,
+                      }
+                    : {})}
                   style={{
                     userSelect: "none",
-                    cursor: grabCursor,
-                    pointerEvents: "auto",
+                    cursor: canDragValues ? grabCursor : "pointer",
+                    // Only a selected ruler grabs its values: otherwise the
+                    // handlers' stopPropagation would swallow the click that
+                    // selects the annotation in the first place.
+                    pointerEvents: canDragValues ? "auto" : "none",
                     paintOrder: "stroke",
                     stroke: "white",
                     strokeWidth: 3,
@@ -607,85 +647,49 @@ export default function NodeRulerStatic({
         );
       })}
 
-      {/* optional total: a second alignment line further out */}
-      {showTotalCote && totalPoints && (
-        <>
-          <path
-            d={totalPoints
-              .map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`)
-              .join(" ")}
-            fill="none"
-            stroke={displayStrokeColor}
-            strokeWidth={computedStrokeWidth}
-            strokeOpacity={strokeOpacity}
-            strokeLinejoin="round"
-            vectorEffect={nonScaling}
-            pointerEvents="none"
-          />
-          {[0, totalPoints.length - 1].map((i) => (
+      {/* optional total — same horizontal alignment, pushed further out. No
+          extra line: the chain must stay a single visible line. */}
+      {showTotalCote &&
+        totalPoints &&
+        (() => {
+          const a = totalPoints[0];
+          const b = totalPoints[totalPoints.length - 1];
+          const pA = points[0];
+          const pB = points[points.length - 1];
+          const place = getRulerLabelPlacement({
+            P1: pA,
+            P2: pB,
+            D1: a,
+            D2: b,
+          });
+          return (
             <g
-              key={`total-tick-${i}`}
-              transform={`translate(${totalPoints[i].x}, ${totalPoints[i].y}) rotate(${tickAngleDegAt(i)})`}
+              transform={`translate(${(a.x + b.x) / 2}, ${(a.y + b.y) / 2})`}
             >
               <g style={{ transform: counterScaleTransform }}>
-                <line
-                  x1={0}
-                  y1={-TICK_HALF_END_PX}
-                  x2={0}
-                  y2={TICK_HALF_END_PX}
-                  stroke={displayStrokeColor}
-                  strokeOpacity={strokeOpacity}
-                  strokeWidth={1.5}
-                  pointerEvents="none"
-                />
+                <text
+                  x={place.x}
+                  y={place.y}
+                  textAnchor={place.textAnchor}
+                  dominantBaseline={place.dominantBaseline}
+                  fontSize={fontSize}
+                  fontFamily='"Roboto", "Helvetica", "Arial", sans-serif'
+                  fill={displayStrokeColor}
+                  style={{
+                    userSelect: "none",
+                    pointerEvents: "none",
+                    paintOrder: "stroke",
+                    stroke: "white",
+                    strokeWidth: 3,
+                    strokeLinejoin: "round",
+                  }}
+                >
+                  {totalText}
+                </text>
               </g>
             </g>
-          ))}
-          {(() => {
-            const a = totalPoints[0];
-            const b = totalPoints[totalPoints.length - 1];
-            const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
-            let angleDeg = (Math.atan2(b.y - a.y, b.x - a.x) * 180) / Math.PI;
-            let textFlip = false;
-            if (angleDeg > 90) {
-              angleDeg -= 180;
-              textFlip = true;
-            } else if (angleDeg < -90) {
-              angleDeg += 180;
-              textFlip = true;
-            }
-            const textNormalSign =
-              (textFlip ? -1 : 1) * (totalOffsetPx >= 0 ? 1 : -1);
-            return (
-              <g transform={`translate(${mid.x}, ${mid.y}) rotate(${angleDeg})`}>
-                <g style={{ transform: counterScaleTransform }}>
-                  <text
-                    x={0}
-                    y={textNormalSign * 4}
-                    textAnchor="middle"
-                    dominantBaseline={
-                      textNormalSign < 0 ? "alphabetic" : "hanging"
-                    }
-                    fontSize={fontSize}
-                    fontFamily='"Roboto", "Helvetica", "Arial", sans-serif'
-                    fill={displayStrokeColor}
-                    style={{
-                      userSelect: "none",
-                      pointerEvents: "none",
-                      paintOrder: "stroke",
-                      stroke: "white",
-                      strokeWidth: 3,
-                      strokeLinejoin: "round",
-                    }}
-                  >
-                    {totalText}
-                  </text>
-                </g>
-              </g>
-            );
-          })()}
-        </>
-      )}
+          );
+        })()}
 
       {/* vertices — the data attributes below are what InteractionLayer and
           usePointDrag hit-test; without them the ruler is not editable */}
@@ -710,7 +714,7 @@ export default function NodeRulerStatic({
                 width={VERTEX_HALF_SIZE_PX * 2}
                 height={VERTEX_HALF_SIZE_PX * 2}
                 fill={pt.id === selectedPointId ? "#FF0000" : "#FFFFFF"}
-                stroke="#2196f3"
+                stroke={GUIDE_COLOR}
                 strokeWidth={1.5}
               />
             </g>
