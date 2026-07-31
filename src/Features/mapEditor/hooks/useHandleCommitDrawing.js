@@ -33,7 +33,8 @@ import addAnnotationOpening from "Features/annotations/services/addAnnotationOpe
 import deriveOpeningContourAnchor from "Features/mapEditor/utils/deriveOpeningContourAnchor";
 import getAnnotationAsPolygons from "Features/geometry/utils/getAnnotationAsPolygons";
 import getDefaultStackOffsetZ from "Features/annotations/utils/getDefaultStackOffsetZ";
-import createRevolutionProxiesOnPlan from "Features/elevation/services/createRevolutionProxiesOnPlan";
+import { isRevolutionHelperType } from "Features/annotations/constants/drawingShapeConfig";
+import resyncRevolutionAxisPlacementsService from "Features/elevation/services/resyncRevolutionAxisPlacementsService";
 
 // Module-level cache of the per-listing annotationTemplates query (ÉTAPE 2.5
 // below): the query ran on EVERY drawing commit (~30ms of IDB on slow
@@ -129,12 +130,10 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
 
         const newAnnotation = options?.newAnnotation ?? newAnnotationInState
 
-        // Revolution helpers (REVOLUTION_AXIS / REVOLUTION_POINT) are standalone
+        // Revolution helpers (see REVOLUTION_HELPER_TYPES) are standalone
         // annotations: no entity, no per-instance template. They are kept in the
         // selected listing so they pass the scope filter in useAnnotationsV2.
-        const isRevolutionHelper =
-            newAnnotation?.type === "REVOLUTION_AXIS" ||
-            newAnnotation?.type === "REVOLUTION_POINT";
+        const isRevolutionHelper = isRevolutionHelperType(newAnnotation?.type);
 
         // update rawPoints for rectangle
         if (drawRectangle) {
@@ -674,7 +673,7 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
 
             if (closeLine) _newAnnotation.closeLine = true;
 
-            if (["POLYGON", "POLYLINE", "STRIP", "COTE", "RULER", "REVOLUTION_AXIS"].includes(newAnnotation?.type)) {
+            if (["POLYGON", "POLYLINE", "STRIP", "COTE", "RULER"].includes(newAnnotation?.type)) {
                 _newAnnotation.points = finalPointIds.map((id, i) => {
                     const entry = { id };
                     if (rawPoints[i]?.type) entry.type = rawPoints[i].type;
@@ -729,9 +728,16 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
             if (
                 newAnnotation?.type === "MARKER" ||
                 newAnnotation?.type === "POINT" ||
-                newAnnotation?.type === "REVOLUTION_POINT"
+                isRevolutionHelper
             ) {
                 _newAnnotation.point = { id: finalPointIds[0] };
+            }
+
+            // Revolution axis: the 2nd click is stored as scalars, not a point
+            // (see handleCommitDrawingFromRevolutionAxis / the storage contract
+            // in getRevolutionAxisPlanFrame).
+            if (options?.revolutionAxisProps) {
+                Object.assign(_newAnnotation, options.revolutionAxisProps);
             }
 
             // Auto-numbered default label for revolution axes ("Axe 1", "Axe 2"…)
@@ -987,29 +993,38 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
             });
         }
 
-        // REVOLUTION_POINT placed from the elevation panel ("Positionner l'axe
-        // sur la vue en plan"): the point carries the revolution axis id, so we
-        // project every arc linked to that axis onto the plan as a "donut" proxy
-        // polygon centred on the click. See createRevolutionProxiesOnPlan.
+        // Dropping a plan axis on a VERTICAL base map is what POSES that base
+        // map in 3D: rotate + translate it so its plane contains the axis, with
+        // the orange half-disc behind it. One placement per base map — replace
+        // any earlier one so two axes can't fight over the same pose.
         if (
-            _newAnnotation?.type === "REVOLUTION_POINT" &&
+            _newAnnotation?.type === "REVOLUTION_AXIS_PLACEMENT" &&
             _newAnnotation?.revolutionAxisId &&
-            baseMap &&
-            rawPoints?.[0]
+            _newAnnotation?.id
         ) {
             try {
-                await createRevolutionProxiesOnPlan({
-                    axisId: _newAnnotation.revolutionAxisId,
-                    centerPx: { x: rawPoints[0].x, y: rawPoints[0].y },
-                    planBaseMap: baseMap,
-                    projectId,
-                    listingId,
-                    createAnnotation,
+                const previous = (
+                    await db.annotations
+                        .where("baseMapId")
+                        .equals(_newAnnotation.baseMapId)
+                        .toArray()
+                ).filter(
+                    (a) =>
+                        !a.deletedAt &&
+                        a.type === "REVOLUTION_AXIS_PLACEMENT" &&
+                        a.id !== _newAnnotation.id
+                );
+                // Soft delete (db.js middleware) — keeps undo working.
+                for (const p of previous) await db.annotations.delete(p.id);
+
+                await resyncRevolutionAxisPlacementsService({
+                    placementId: _newAnnotation.id,
+                    dispatch,
                 });
                 dispatch(triggerAnnotationsUpdate());
             } catch (e) {
                 console.error(
-                    "[useHandleCommitDrawing] revolution proxy creation failed",
+                    "[useHandleCommitDrawing] revolution axis placement failed",
                     e
                 );
             }

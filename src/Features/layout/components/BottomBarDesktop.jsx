@@ -28,6 +28,7 @@ const RECTANGLE_DRAWING_MODES = [
 const CIRCLE_RADIUS_DRAWING_MODES = [
   "POLYLINE_CIRCLE_RADIUS",
   "POLYGON_CIRCLE_RADIUS",
+  "REVOLUTION_AXIS_PLAN",
 ];
 
 // Modes that produce segments and support length display / constraint.

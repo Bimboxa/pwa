@@ -389,15 +389,35 @@ import useAnnotationSubtractions from "Features/annotations/hooks/useAnnotationS
 import useZoneSoloAnnotationIdSet from "Features/zonings/hooks/useZoneSoloAnnotationIdSet";
 import { selectPovFreezeCreatedBefore } from "Features/viewers/utils/effectiveViewerKey";
 import { getShape3DKey } from "Features/annotations/constants/shape3DConfig";
+import {
+  isRevolutionHelperType,
+  isLegacyRevolutionRecord,
+} from "Features/annotations/constants/drawingShapeConfig";
 import { resolveProfileFromDb } from "Features/annotations/hooks/useProfileResolution";
 import computeSubtractedSurfaceM2Async from "Features/threedEditor/js/utilsAnnotationsManager/computeSubtractedSurfaceM2Async";
-import pixelToWorld from "Features/threedEditor/js/utilsAnnotationsManager/pixelToWorld";
-import getRevolutionPhi, {
-  normalizeSpan as normalizeRevolutionSpan,
-} from "Features/threedEditor/js/utilsAnnotationsManager/getRevolutionPhi";
-import baseMapLocalToWorld from "Features/baseMaps/js/baseMapLocalToWorld";
-import baseMapWorldToLocal from "Features/baseMaps/js/baseMapWorldToLocal";
-import getBaseMapTransform from "Features/baseMaps/js/getBaseMapTransform";
+import getRevolutionPhi from "Features/threedEditor/js/utilsAnnotationsManager/getRevolutionPhi";
+
+// Length of the synthesized lathe-axis segment, in reference-frame pixels. The
+// value is arbitrary: both ends share the same x (all buildRevolutionMesh reads
+// is mean(x)) and `baseY` cancels out for a VERTICAL base map.
+const AXIS_SYNTH_SPAN_PX = 100;
+
+const DEG_TO_RAD = Math.PI / 180;
+
+// Sector kept by a partial revolution, resolved from the AXIS (shared by every
+// arc bound to it). Returns null for a full turn, so the camera-driven 180°
+// half-view stays in charge when the user hasn't set explicit angles.
+function getRevolutionPhiForAxis(axis) {
+  if (!axis?.partialRevolution) return null;
+  const theta =
+    (Number(axis.directionDeg) || 0) * DEG_TO_RAD +
+    (axis.invertHalf ? Math.PI : 0);
+  return getRevolutionPhi(
+    (Number(axis.revolutionAngleStartDeg) || 0) * DEG_TO_RAD,
+    (Number(axis.revolutionAngleEndDeg) || 0) * DEG_TO_RAD,
+    theta
+  );
+}
 
 export default function useAnnotationsV2(options) {
   try {
@@ -724,13 +744,18 @@ export default function useAnnotationsV2(options) {
         _annotations = _annotations.filter((a) => !a.isBaseMapAnnotation);
       }
 
-      // Revolution helpers (REVOLUTION_AXIS / REVOLUTION_POINT) are
-      // project-level geometry drawn from the découpe tools. They are not
-      // bound to a listing / layer / scope, so they bypass the
-      // listing/layer/scope visibility filters below and stay visible on
-      // their base map.
-      const isRevolutionHelper = (a) =>
-        a?.type === "REVOLUTION_AXIS" || a?.type === "REVOLUTION_POINT";
+      // Drop the rows of the previous revolution-axis model before anything
+      // tries to resolve them: a legacy axis has `points` but no centre
+      // `point`, which the single-point branch below cannot resolve. Note that
+      // a throw there is NOT visible as itself — the whole hook body sits in a
+      // try/catch, so it would surface as a React hook-order crash in whatever
+      // component calls this hook.
+      _annotations = _annotations.filter((a) => !isLegacyRevolutionRecord(a));
+
+      // Revolution helpers are project-level geometry (see
+      // REVOLUTION_HELPER_TYPES): not bound to a listing / layer / scope, so
+      // they bypass the visibility filters below and stay on their base map.
+      const isRevolutionHelper = (a) => isRevolutionHelperType(a?.type);
 
       // layer visibility filter
       if (hiddenLayerIds.length > 0 || !showAnnotationsWithoutLayer) {
@@ -1070,18 +1095,24 @@ export default function useAnnotationsV2(options) {
               corruptedIds.push(_annotation.point.id);
           }
 
-          // --- POINT (and plan-view revolution axis marker)
+          // --- POINT (and the revolution axis / its elevation placement, both
+          // single-point annotations whose geometry is carried by scalars)
           else if (
             _annotation.type === "POINT" ||
-            _annotation.type === "REVOLUTION_POINT"
+            isRevolutionHelperType(_annotation.type)
           ) {
-            _annotation.point = resolvePoints({
-              points: [annotation.point],
-              pointsIndex,
-              imageSize,
-            })[0];
-            if (!_isResolved(_annotation.point) && _annotation.point?.id)
-              corruptedIds.push(_annotation.point.id);
+            // A row without a point ref must not reach resolvePoints: throwing
+            // here aborts the hook mid-way and shows up as a hook-order crash
+            // in the CALLER, not as an error here (see the try/catch wrapper).
+            if (annotation.point?.id) {
+              _annotation.point = resolvePoints({
+                points: [annotation.point],
+                pointsIndex,
+                imageSize,
+              })[0];
+              if (!_isResolved(_annotation.point) && _annotation.point?.id)
+                corruptedIds.push(_annotation.point.id);
+            }
           }
 
           // --- LABELS
@@ -1578,74 +1609,120 @@ export default function useAnnotationsV2(options) {
       }
 
       // -- REVOLUTION (axis-based) resolution --
-      // For arcs whose shape3D references a REVOLUTION_AXIS, attach:
-      //   - revolutionAxisPoints: the axis line resolved to pixels (same
-      //     base map as the arc) so the 3D builder can derive the radius.
-      //   - revolutionCenterLocal: the arc-base-map-local metre position
-      //     of the revolution axis, taken from the linked REVOLUTION_POINT
-      //     (plan view). Null when no point references the axis → the 3D
-      //     builder falls back to the elevation drawing's own location.
+      // The axis lives on the PLAN; each VERTICAL base map that uses it carries
+      // a REVOLUTION_AXIS_PLACEMENT whose point is where the axis centre sits in
+      // that elevation image. Placing it also POSED the base map so its plane
+      // contains the axis (see computeVerticalBaseMapPlacementFromAxis), which
+      // is what lets us synthesize the lathe axis purely from the placement:
+      //
+      //   - revolutionAxisPoints: a vertical 2-point segment through the
+      //     placement point, in the ARC's reference-frame PIXELS (what
+      //     createAnnotationObject3D feeds to pointsToLocal → buildRevolutionMesh).
+      //     Only `mean(x)` is load-bearing — buildRevolutionMesh's `baseY`
+      //     cancels out on a VERTICAL base map (center.y = baseY, height =
+      //     y − baseY), so the world height comes from the solved pose alone.
+      //     The 2nd point goes UP in pixels so that after pixelToWorld's y-flip
+      //     the metre-space minimum still lands exactly on the placement point.
+      //   - revolutionPhi: the partial-revolution sector, resolved ONCE per axis
+      //     and shared by every arc bound to it.
+      //
+      // `revolutionCenterLocal` is deliberately NOT set any more: the base map
+      // pose now guarantees the axis lies in the plane (so the builder's
+      // z = 0 default is correct), and dropping it removes the cross-base-map
+      // pose read that made this query depend on base map transforms.
       if (_annotations?.length) {
-        for (const arc of _annotations) {
-          if (!arc || getShape3DKey(arc.shape3D) !== "REVOLUTION") continue;
-          const axisId = arc.shape3D?.axisAnnotationId;
-          if (!axisId) continue;
+        const revolutionArcs = _annotations.filter(
+          (a) =>
+            a &&
+            getShape3DKey(a.shape3D) === "REVOLUTION" &&
+            a.shape3D?.axisAnnotationId
+        );
 
-          const axis = await db.annotations.get(axisId);
-          if (!axis || axis.deletedAt) continue;
+        if (revolutionArcs.length > 0) {
+          const arcBaseMapIds = [
+            ...new Set(revolutionArcs.map((a) => a.baseMapId).filter(Boolean)),
+          ];
+          const placements = (
+            await db.annotations
+              .where("baseMapId")
+              .anyOf(arcBaseMapIds)
+              .toArray()
+          ).filter(
+            (a) => !a.deletedAt && a.type === "REVOLUTION_AXIS_PLACEMENT"
+          );
+          const placementByBaseMapId = {};
+          for (const p of placements) placementByBaseMapId[p.baseMapId] = p;
 
-          const arcBaseMap = baseMapById[arc.baseMapId];
-          const arcImageSize =
-            arcBaseMap?.getImageSize?.() || arcBaseMap?.image?.imageSize;
-          if (!arcImageSize) continue;
+          // Placement points live on ANOTHER base map than the arc, so they are
+          // not in `pointsIndex` — fetch them explicitly.
+          const placementPointRows = await db.points.bulkGet(
+            placements.map((p) => p.point?.id).filter(Boolean)
+          );
+          const placementPointById = {};
+          for (const row of placementPointRows) {
+            if (row) placementPointById[row.id] = row;
+          }
 
-          arc.revolutionAxisPoints = resolvePoints({
-            points: axis.points,
-            pointsIndex,
-            imageSize: arcImageSize,
-          });
-
-          // Linked plan-view point (first match wins).
-          const pointAnn = await db.annotations
-            .where("projectId")
-            .equals(projectId)
-            .filter(
-              (a) =>
-                !a.deletedAt &&
-                a.type === "REVOLUTION_POINT" &&
-                a.revolutionAxisId === axisId
-            )
-            .first();
-
-          if (pointAnn?.point?.id) {
-            const ptBaseMap = baseMapById[pointAnn.baseMapId];
-            const ptImageSize =
-              ptBaseMap?.getImageSize?.() || ptBaseMap?.image?.imageSize;
-            const ptDb = await db.points.get(pointAnn.point.id);
-            if (ptBaseMap && ptImageSize && ptDb) {
-              const ptPx = {
-                x: ptDb.x * ptImageSize.width,
-                y: ptDb.y * ptImageSize.height,
-              };
-              const ptLocalMeters = pixelToWorld(ptPx, {
-                imageWidth: ptImageSize.width,
-                imageHeight: ptImageSize.height,
-                meterByPx: ptBaseMap.getMeterByPx(),
-              });
-              const world = baseMapLocalToWorld(
-                ptLocalMeters,
-                getBaseMapTransform(ptBaseMap)
-              );
-              const local = baseMapWorldToLocal(
-                world,
-                getBaseMapTransform(arcBaseMap)
-              );
-              arc.revolutionCenterLocal = {
-                x: local.x,
-                y: local.y,
-                z: local.z,
-              };
+          const axisCache = new Map();
+          for (const arc of revolutionArcs) {
+            const axisId = arc.shape3D.axisAnnotationId;
+            if (!axisCache.has(axisId)) {
+              axisCache.set(axisId, await db.annotations.get(axisId));
             }
+            const axis = axisCache.get(axisId);
+            if (!axis || axis.deletedAt) {
+              arc.revolutionMissingPlacement = true;
+              continue;
+            }
+
+            const placement = placementByBaseMapId[arc.baseMapId];
+            // A placement of a DIFFERENT axis is not "close enough": flag it
+            // rather than silently revolving around the wrong centre.
+            if (!placement || placement.revolutionAxisId !== axisId) {
+              arc.revolutionMissingPlacement = true;
+              continue;
+            }
+
+            const arcBaseMap = baseMapById[arc.baseMapId];
+            const arcImageSize =
+              arcBaseMap?.getImageSize?.() || arcBaseMap?.image?.imageSize;
+            const row = placementPointById[placement.point?.id];
+            if (!arcImageSize?.width || !row) {
+              arc.revolutionMissingPlacement = true;
+              continue;
+            }
+
+            const cx = row.x * arcImageSize.width;
+            const cy = row.y * arcImageSize.height;
+            arc.revolutionAxisPoints = [
+              { x: cx, y: cy },
+              { x: cx, y: cy - AXIS_SYNTH_SPAN_PX },
+            ];
+            arc.revolutionPhi = getRevolutionPhiForAxis(axis);
+          }
+        }
+      }
+
+      // Plan axes and their placements need a few resolved extras for the 2D
+      // renderers and the pure drag math (which get no base map of their own).
+      if (_annotations?.length) {
+        const axisRefCache = new Map();
+        for (const a of _annotations) {
+          if (a?.type === "REVOLUTION_AXIS") {
+            a._planMeterByPx = baseMapById[a.baseMapId]?.getMeterByPx?.();
+          } else if (a?.type === "REVOLUTION_AXIS_PLACEMENT") {
+            const axisId = a.revolutionAxisId;
+            if (!axisId) continue;
+            if (!axisRefCache.has(axisId)) {
+              axisRefCache.set(axisId, await db.annotations.get(axisId));
+            }
+            const axis = axisRefCache.get(axisId);
+            if (!axis || axis.deletedAt) continue;
+            // The inverted-T bar is the plan diameter, and the stem is the axis
+            // height — both live on the axis, on another base map.
+            a.revolutionAxisRadiusM = axis.radiusM;
+            a.revolutionAxisHeightM = axis.height;
+            a.revolutionAxisLabel = axis.label;
           }
         }
       }
@@ -1724,195 +1801,6 @@ export default function useAnnotationsV2(options) {
         }
       }
 
-      // -- PROXY (plan "donut") resolution --
-      // A proxy is a plan-view representation of a source arc revolved
-      // around its axis. Everything is derived LIVE from the source arc +
-      // the current REVOLUTION_POINT position, so moving the plan point
-      // recomputes the donut (and the 3D mesh):
-      //   - _inheritedQties: the source arc's revolution surface (shown
-      //     instead of the donut's planar area),
-      //   - points/cuts: the 2D annulus, recentred on the live point,
-      //   - revolutionProxy3D: arc + axis in metres + the plan-local centre
-      //     so the 3D builder lathes the REAL revolution (not the donut).
-      // See createRevolutionProxiesOnPlan + createAnnotationObject3D.
-      if (_annotations?.length) {
-        for (const proxy of _annotations) {
-          if (!proxy?.isProxy || !proxy.proxySourceAnnotationId) continue;
-
-          const src = await db.annotations.get(proxy.proxySourceAnnotationId);
-          if (!src || src.deletedAt) continue;
-
-          const srcBaseMap = baseMapById[src.baseMapId];
-          const srcImageSize =
-            srcBaseMap?.getImageSize?.() || srcBaseMap?.image?.imageSize;
-          const srcMeterByPx = srcBaseMap?.getMeterByPx?.();
-          if (!srcImageSize || !srcMeterByPx) continue;
-
-          const axisId = src.shape3D?.axisAnnotationId;
-          const axis = axisId ? await db.annotations.get(axisId) : null;
-
-          const ids = new Set();
-          (src.points ?? []).forEach((p) => p?.id && ids.add(p.id));
-          (axis?.points ?? []).forEach((p) => p?.id && ids.add(p.id));
-          const arr = await db.points.bulkGet([...ids]);
-          const idx = {};
-          for (const p of arr) if (p) idx[p.id] = p;
-
-          const srcPointsPx = resolvePoints({
-            points: src.points,
-            pointsIndex: idx,
-            imageSize: srcImageSize,
-          });
-          const axisPx = axis
-            ? resolvePoints({
-                points: axis.points,
-                pointsIndex: idx,
-                imageSize: srcImageSize,
-              })
-            : null;
-
-          // Partial-revolution range (stored on the SOURCE arc's shape3D).
-          // Absent → full 360°.
-          const partialRevolution = !!src.shape3D?.partialRevolution;
-          const angleStart = src.shape3D?.revolutionAngleStart ?? 0;
-          const angleEnd = src.shape3D?.revolutionAngleEnd ?? Math.PI * 2;
-          const angleFraction = partialRevolution
-            ? normalizeRevolutionSpan(angleEnd - angleStart) / (Math.PI * 2)
-            : 1;
-
-          // Inherited quantities = the source arc's revolution surface.
-          proxy._inheritedQties = getAnnotationQties({
-            annotation: {
-              ...src,
-              points: srcPointsPx,
-              revolutionAxisPoints: axisPx,
-            },
-            meterByPx: srcMeterByPx,
-          });
-          // A partial revolution sweeps only a fraction of the full turn.
-          if (partialRevolution && proxy._inheritedQties) {
-            for (const key of ["surface", "surfaceDeveloped"]) {
-              if (typeof proxy._inheritedQties[key] === "number") {
-                proxy._inheritedQties[key] *= angleFraction;
-              }
-            }
-          }
-
-          // Fill colour = the linked polyline's (resolved) stroke colour, so the
-          // donut reads as the same element. Applied after template override in
-          // the post-processing memo (see _proxyFillColor).
-          const srcTpl = src.annotationTemplateId
-            ? await db.annotationTemplates.get(src.annotationTemplateId)
-            : null;
-          const srcResolved = getAnnotationPropsFromAnnotationTemplateProps(
-            src,
-            getAnnotationTemplateProps(srcTpl),
-            srcBaseMap
-          );
-          proxy._proxyFillColor =
-            srcResolved?.strokeColor || src.strokeColor || null;
-
-          // Need the axis to project onto the plan.
-          if (!axisPx || axisPx.length < 2 || !srcPointsPx?.length) continue;
-
-          // Radii from the source arc (horizontal distance to the axis).
-          const axisXpx = axisPx.reduce((s, p) => s + p.x, 0) / axisPx.length;
-          const radiiPx = srcPointsPx.map((p) => Math.abs(p.x - axisXpx));
-          const rMinM = Math.min(...radiiPx) * srcMeterByPx;
-          const rMaxM = Math.max(...radiiPx) * srcMeterByPx;
-          if (!(rMaxM > 0)) continue;
-
-          // Plan baseMap + the LIVE REVOLUTION_POINT centre.
-          const planBaseMap = baseMapById[proxy.baseMapId];
-          const planImageSize =
-            planBaseMap?.getImageSize?.() || planBaseMap?.image?.imageSize;
-          const planMeterByPx = planBaseMap?.getMeterByPx?.();
-          if (!planImageSize || !planMeterByPx) continue;
-
-          const pointAnn = await db.annotations
-            .where("projectId")
-            .equals(projectId)
-            .filter(
-              (a) =>
-                !a.deletedAt &&
-                a.type === "REVOLUTION_POINT" &&
-                a.revolutionAxisId === proxy.revolutionAxisId &&
-                a.baseMapId === proxy.baseMapId
-            )
-            .first();
-          const ptDb = pointAnn?.point?.id
-            ? await db.points.get(pointAnn.point.id)
-            : null;
-          if (!ptDb) continue;
-
-          const centerPx = {
-            x: ptDb.x * planImageSize.width,
-            y: ptDb.y * planImageSize.height,
-          };
-
-          // 2D donut, recomputed from the live centre + radii (so it
-          // follows the plan point). S–C–S ring → smooth circle.
-          const rOuterPx = rMaxM / planMeterByPx;
-          const rInnerPx = rMinM / planMeterByPx;
-          const ringPx = (r) => [
-            { x: centerPx.x + r, y: centerPx.y, type: "square" },
-            { x: centerPx.x, y: centerPx.y + r, type: "circle" },
-            { x: centerPx.x - r, y: centerPx.y, type: "square" },
-            { x: centerPx.x, y: centerPx.y - r, type: "circle" },
-          ];
-          proxy.points = ringPx(rOuterPx);
-          proxy.cuts =
-            rInnerPx > Math.max(1, rOuterPx * 0.02)
-              ? [{ points: ringPx(rInnerPx) }]
-              : [];
-
-          // Sector descriptor consumed directly by NodeProxyRevolutionStatic
-          // when partial. Full-ring points/cuts above stay as the total-mode
-          // renderer + hit-test fallback.
-          proxy.revolutionProxy2D = {
-            center: centerPx,
-            rOuter: rOuterPx,
-            rInner: rInnerPx > Math.max(1, rOuterPx * 0.02) ? rInnerPx : 0,
-            angleStart,
-            angleEnd,
-            partial: partialRevolution,
-          };
-
-          // 3D: lathe the SOURCE arc (not the donut). Convert arc + axis
-          // to metres with the SOURCE scale (so radius/height match the
-          // elevation), and place the lathe at the plan-local centre.
-          const srcDims = {
-            imageWidth: srcImageSize.width,
-            imageHeight: srcImageSize.height,
-            meterByPx: srcMeterByPx,
-          };
-          const planDims = {
-            imageWidth: planImageSize.width,
-            imageHeight: planImageSize.height,
-            meterByPx: planMeterByPx,
-          };
-          const centerLocal2D = pixelToWorld(centerPx, planDims);
-          proxy.revolutionProxy3D = {
-            // Keep `type` so buildRevolutionMesh can sample S–C–S arcs.
-            arcPointsLocal: srcPointsPx.map((p) => ({
-              ...pixelToWorld(p, srcDims),
-              type: p.type,
-            })),
-            axisPointsLocal: axisPx.map((p) => pixelToWorld(p, srcDims)),
-            centerLocal: {
-              x: centerLocal2D.x,
-              y: centerLocal2D.y,
-              z: 0,
-            },
-            hiddenSegmentsIdx: src.hiddenSegmentsIdx || [],
-            // Partial revolution → cut the lathe to the same angular range.
-            ...(partialRevolution
-              ? getRevolutionPhi(angleStart, angleEnd)
-              : {}),
-          };
-        }
-      }
-
       // Observation reads were fired at the top of the callback — settle
       // them before returning so tracking is guaranteed registered and a
       // real read failure still surfaces.
@@ -1966,21 +1854,6 @@ export default function useAnnotationsV2(options) {
         }
       });
 
-      // Proxy "donut": fill (and stroke) take the linked polyline's stroke
-      // colour. Applied AFTER the template override so it isn't clobbered, and
-      // before qties/3D so the revolution mesh (makeMaterial reads fillColor)
-      // gets the right colour too.
-      result = result.map((a) => {
-        if (a?.isProxy && a._proxyFillColor) {
-          return {
-            ...a,
-            fillColor: a._proxyFillColor,
-            strokeColor: a._proxyFillColor,
-          };
-        }
-        return a;
-      });
-
       // recompute qties after template overrides so overridden height is reflected
       if (withQties) {
         // NOTE: no in-place `annotation.qties = ...` here — the identity
@@ -1989,12 +1862,6 @@ export default function useAnnotationsV2(options) {
         // objects it may have returned before.
         result = result.map((annotation) => {
           if (annotation?.isBaseMapAnnotation) return annotation;
-          // Proxy donuts inherit the source arc's revolution surface
-          // (precomputed in the async query). The donut's own planar
-          // area is intentionally NOT used.
-          if (annotation?.isProxy && annotation._inheritedQties) {
-            return { ...annotation, qties: annotation._inheritedQties };
-          }
           const baseMap = baseMapById[annotation?.baseMapId];
           const meterByPx = baseMap?.getMeterByPx?.();
           if (meterByPx) {

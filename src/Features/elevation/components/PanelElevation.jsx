@@ -22,7 +22,6 @@ import PanelElevationBaseMapView from "./PanelElevationBaseMapView";
 import PanelElevationLocateBaseMap from "./PanelElevationLocateBaseMap";
 
 import useElevationAnnotation from "Features/elevation/hooks/useElevationAnnotation";
-import useSelectedAnnotation from "Features/annotations/hooks/useSelectedAnnotation";
 import getProjectableSegmentChain from "Features/elevation/utils/getProjectableSegmentChain";
 import getSeedSegmentPerpendicularToIso from "Features/elevation/utils/getSeedSegmentPerpendicularToIso";
 import setElevationGuideService from "Features/elevation/services/setElevationGuideService";
@@ -47,12 +46,9 @@ export default function PanelElevation() {
     profileLines,
   } = useElevationAnnotation();
 
-  const selectedAnnotation = useSelectedAnnotation();
-
-  // The profile editor sub-panel is for a plain (non-proxy) polyline or
-  // polygon; any other selection (empty, a plan "donut" proxy…) shows the
-  // baseMap viewer sub-panel.
-  const showProfileEditor = isProfileTarget && !selectedAnnotation?.isProxy;
+  // The profile editor sub-panel is for a polyline or polygon; any other
+  // selection (empty…) shows the baseMap viewer sub-panel.
+  const showProfileEditor = isProfileTarget;
 
   const selectedSegmentIndices = useSelector(
     (s) => s.elevation.selectedSegmentIndices

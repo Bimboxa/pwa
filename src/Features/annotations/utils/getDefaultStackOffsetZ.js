@@ -18,14 +18,9 @@ import { pointInPolygon } from "Features/smartDetect/utils/detectPolygonFromAnno
 const TOP_TYPES = new Set(["POLYGON", "POLYLINE", "STRIP"]);
 
 // Drawn shapes with a single-point footprint → point-in-polygon overlap test.
-const POINT_DRAWN = new Set([
-  "MARKER",
-  "POINT",
-  "LABEL",
-  "TEXT",
-  "IMAGE",
-  "REVOLUTION_POINT",
-]);
+// Revolution axes are excluded on purpose: their `offsetZ` is the elevation of
+// the axis itself, not something to auto-stack on whatever it was drawn over.
+const POINT_DRAWN = new Set(["MARKER", "POINT", "LABEL", "TEXT", "IMAGE"]);
 
 const TOL = 2; // bbox-prefilter tolerance in px (same as the avoid/merge blocks)
 

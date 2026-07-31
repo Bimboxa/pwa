@@ -25,6 +25,8 @@ import {
 import useBgImageInMapEditor from "Features/mapEditor/hooks/useBgImageInMapEditor";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useBaseMapPose from "Features/mapEditor/hooks/useBaseMapPose";
+import applyDeltaPosToAnnotation from "Features/mapEditorGeneric/utils/applyDeltaPosToAnnotation";
+import resyncRevolutionAxisPlacementsService from "Features/elevation/services/resyncRevolutionAxisPlacementsService";
 import useImageModeLabelsLayout from "Features/mapEditor/hooks/useImageModeLabelsLayout";
 
 import useAutoSelectMainBaseMap from "../hooks/useAutoSelectMainBaseMap";
@@ -772,6 +774,51 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
         handleCommitDrawing(circlePoints, options);
     }
 
+    // handlers - revolution axis (plan view)
+
+    // The 2 clicks are [centre, edge]. Unlike the circle tools we do NOT
+    // polygonize into a ring: the axis stores its CENTRE as its single point,
+    // and turns the edge into the two scalars `radiusM` + `directionDeg`
+    // (see getRevolutionAxisPlanFrame for the frame conventions).
+    const handleCommitDrawingFromRevolutionAxis = (points) => {
+        const [center, edge] = points ?? [];
+        if (!center || !edge) return;
+        const meterByPx = baseMap?.getMeterByPx?.();
+        const dx = edge.x - center.x;
+        const dy = edge.y - center.y;
+        const radiusPx = Math.hypot(dx, dy);
+        const radiusM =
+            Number.isFinite(meterByPx) && meterByPx > 0 ? radiusPx * meterByPx : null;
+        // px -> plan LOCAL metre frame: y flips (see pixelToWorld).
+        const directionDeg = (Math.atan2(-dy, dx) * 180) / Math.PI;
+        handleCommitDrawing([center], {
+            revolutionAxisProps: {
+                ...(radiusM != null && { radiusM }),
+                directionDeg,
+            },
+        });
+    }
+
+    // "Repositionner": move an existing placement's point instead of creating a
+    // new annotation, then re-pose the elevation from the axis.
+    const handleRepositionRevolutionPlacement = async (points) => {
+        const pt = points?.[0];
+        const imageSize = baseMap?.getImageSize?.();
+        const annotation = annotations.find((a) => a.id === selectedNode?.nodeId);
+        dispatch(setEnabledDrawingMode(null));
+        if (!pt || !annotation?.point?.id || !imageSize?.width) return;
+        if (annotation.type !== "REVOLUTION_AXIS_PLACEMENT") return;
+        await db.points.update(annotation.point.id, {
+            x: pt.x / imageSize.width,
+            y: pt.y / imageSize.height,
+        });
+        dispatch(triggerAnnotationsUpdate());
+        await resyncRevolutionAxisPlacementsService({
+            placementId: annotation.id,
+            dispatch,
+        });
+    }
+
     // handlers - arc
 
     const handleCommitDrawingFromArc = (points) => {
@@ -1264,16 +1311,55 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
 
             console.log("handleAnnotationMoveCommit", annotationId, annotation);
 
+            // Revolution axis handles: the centre never moves, only the two
+            // derived scalars. Same math as applyDeltaPosToAnnotation so the
+            // transient preview and the committed value agree.
             if (
+                annotation.type === "REVOLUTION_AXIS" &&
+                (partType?.startsWith("REVOLUTION_RIM::") ||
+                    partType?.startsWith("REVOLUTION_ANGLE::"))
+            ) {
+                const next = applyDeltaPosToAnnotation(annotation, deltaPos, partType);
+                const updates = partType.startsWith("REVOLUTION_RIM::")
+                    ? { radiusM: next.radiusM, directionDeg: next.directionDeg }
+                    : {
+                        revolutionAngleStartDeg: next.revolutionAngleStartDeg,
+                        revolutionAngleEndDeg: next.revolutionAngleEndDeg,
+                    };
+                await db.annotations.update(annotation.id, updates);
+                // Orientation drives the pose of every elevation this axis places.
+                if (partType.startsWith("REVOLUTION_RIM::")) {
+                    await resyncRevolutionAxisPlacementsService({
+                        axisId: annotation.id,
+                        dispatch,
+                    });
+                }
+            }
+
+            else if (
                 annotation.type === "MARKER" ||
                 annotation.type === "POINT" ||
-                annotation.type === "REVOLUTION_POINT"
+                annotation.type === "REVOLUTION_AXIS" ||
+                annotation.type === "REVOLUTION_AXIS_PLACEMENT"
             ) {
                 const point = await db.points.get(annotation.point.id);
                 const x = point.x + deltaPos.x / imageSize.width;
                 const y = point.y + deltaPos.y / imageSize.height;
                 console.log("save_point", point.id, { x, y });
                 await db.points.update(point.id, { x, y });
+                // Moving the axis centre (or its drop point on an elevation)
+                // moves the base maps it places.
+                if (annotation.type === "REVOLUTION_AXIS") {
+                    await resyncRevolutionAxisPlacementsService({
+                        axisId: annotation.id,
+                        dispatch,
+                    });
+                } else if (annotation.type === "REVOLUTION_AXIS_PLACEMENT") {
+                    await resyncRevolutionAxisPlacementsService({
+                        placementId: annotation.id,
+                        dispatch,
+                    });
+                }
             }
 
             else if (annotation.type === "LABEL") {
@@ -1731,8 +1817,14 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                         else if (["CIRCLE", "POLYLINE_CIRCLE", "POLYGON_CIRCLE", "CUT_CIRCLE"].includes(enabledDrawingMode)) {
                             return handleCommitDrawingFromCircle(points);
                         }
+                        else if (enabledDrawingMode === "REVOLUTION_AXIS_PLAN") {
+                            return handleCommitDrawingFromRevolutionAxis(points);
+                        }
                         else if (["POLYLINE_CIRCLE_RADIUS", "POLYGON_CIRCLE_RADIUS"].includes(enabledDrawingMode)) {
                             return handleCommitDrawingFromCircleRadius(points);
+                        }
+                        else if (enabledDrawingMode === "REPOSITION_REVOLUTION_PLACEMENT") {
+                            return handleRepositionRevolutionPlacement(points);
                         }
                         else if (["ARC", "POLYLINE_ARC"].includes(enabledDrawingMode)) {
                             return handleCommitDrawingFromArc(points);

@@ -59,7 +59,6 @@ import extrudePolylineWall from "./extrudePolylineWall";
 import buildRevolutionMesh from "./buildRevolutionMesh";
 import buildRevolutionCircleLine from "./buildRevolutionCircleLine";
 import attachFatLineRaycast from "./attachFatLineRaycast";
-import getRevolutionPhi from "./getRevolutionPhi";
 import buildExtrudedProfileMesh from "./buildExtrudedProfileMesh";
 import buildInlineExtrusionMesh from "./buildInlineExtrusionMesh";
 import expandShellProfileArcs from "Features/geometry/utils/expandShellProfileArcs";
@@ -74,21 +73,17 @@ const POINT_TRAIT_LINEWIDTH_PX = 3;
 // surface) and POINT (circle line) branches. Returns a `{ phiStart, phiLength }`
 // spread, or `{}` for the default full turn.
 //
-// Explicit user-set angles (edited through the plan-view donut proxy) win over
-// the display-only 180° half-view: the vertical base map image is shown, so we
-// keep only the half opposite the camera and let the image read as a section
-// plane. In the VERTICAL base-map local frame the lathe is unrotated and
-// LatheGeometry places φ ∈ (−π/2, π/2) on local +Z (the image-facing side):
-// side 1 (camera in front) keeps the back half, side -1 the front one.
+// Explicit user-set angles (edited on the plan-view axis node, and resolved
+// per-axis by useAnnotationsV2 into `revolutionPhi`) win over the display-only
+// 180° half-view: the vertical base map image is shown, so we keep only the
+// half opposite the camera and let the image read as a section plane. In the
+// VERTICAL base-map local frame the lathe is unrotated and LatheGeometry places
+// φ ∈ (−π/2, π/2) on local +Z (the image-facing side): side 1 (camera in front)
+// keeps the back half, side -1 the front one.
 // Quantities are untouched — the headless carve/qty path builds without this
 // option (full lathe), and the analytic surface is always full-turn.
 function getRevolutionPartialPhi(annotation, baseMap, options) {
-  if (annotation.shape3D?.partialRevolution) {
-    return getRevolutionPhi(
-      annotation.shape3D.revolutionAngleStart ?? 0,
-      annotation.shape3D.revolutionAngleEnd ?? Math.PI * 2
-    );
-  }
+  if (annotation.revolutionPhi) return annotation.revolutionPhi;
   const sectionSide = options?.revolutionSection?.[annotation.baseMapId];
   if (sectionSide && baseMap.orientation === "VERTICAL") {
     return {
@@ -655,31 +650,6 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
   let object = null;
   switch (annotation.type) {
     case "POLYGON": {
-      // Revolution proxy ("donut"): the POLYGON is only a plan-view marker. In
-      // 3D, lathe the linked source arc's revolution instead of extruding the
-      // donut. revolutionProxy3D (arc + axis in metres, plan-local centre) is
-      // resolved live by useAnnotationsV2, so this also follows the plan point.
-      if (
-        annotation.isProxy &&
-        annotation.revolutionProxy3D?.axisPointsLocal?.length >= 2
-      ) {
-        const r = annotation.revolutionProxy3D;
-        object = buildRevolutionMesh({
-          arcPoints: r.arcPointsLocal,
-          axisPoints: r.axisPointsLocal,
-          centerLocal: r.centerLocal || null,
-          orientation: baseMap.orientation,
-          material,
-          hiddenSegmentsIdx: r.hiddenSegmentsIdx || [],
-          // Partial revolution (resolved by useAnnotationsV2).
-          ...(r.phiLength != null
-            ? { phiStart: r.phiStart ?? 0, phiLength: r.phiLength }
-            : {}),
-          resolution: options?.resolution,
-          sectionFill: options?.revolutionSectionFill,
-        });
-        break;
-      }
       const pts = pointsToLocal(annotation.points || [], baseMap);
       const cuts = (annotation.cuts || [])
         .map((cut) => pointsToLocal(cut.points || [], baseMap))
@@ -798,16 +768,18 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
     }
     case "POLYLINE": {
       if (shape3DKey === "REVOLUTION") {
-        // Axis-based revolution: revolve the arc around a separate vertical axis
-        // (revolutionAxisPoints), placed at the linked plan-view point
-        // (revolutionCenterLocal). Both are resolved by useAnnotationsV2. When
-        // the axis isn't resolved (missing/deleted), fall through to the default
-        // polyline wall so the arc still renders.
+        // Axis-based revolution: revolve the arc around the vertical axis
+        // synthesized by useAnnotationsV2 from the base map's
+        // REVOLUTION_AXIS_PLACEMENT (`revolutionAxisPoints`). No centerLocal is
+        // needed — the base map was posed so its plane CONTAINS the axis, which
+        // is exactly the builder's z = 0 default. When no placement exists, the
+        // axis stays unresolved and we fall through to the default polyline wall
+        // so the arc still renders.
         const axisPx = annotation.revolutionAxisPoints || [];
         if (axisPx.length >= 2) {
           const arcPts = pointsToLocal(annotation.points || [], baseMap);
           const axisPts = pointsToLocal(axisPx, baseMap);
-          // Partial revolution range, stored on the arc's own shape3D.
+          // Partial revolution range, resolved from the AXIS.
           const partialPhi = getRevolutionPartialPhi(
             annotation,
             baseMap,
@@ -816,7 +788,7 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
           object = buildRevolutionMesh({
             arcPoints: arcPts,
             axisPoints: axisPts,
-            centerLocal: annotation.revolutionCenterLocal || null,
+            centerLocal: null,
             orientation: baseMap.orientation,
             material,
             hiddenSegmentsIdx: annotation.hiddenSegmentsIdx || [],
@@ -994,7 +966,7 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
         object = buildRevolutionCircleLine({
           pointLocal: pixelToWorld(p, baseMap),
           axisPoints: pointsToLocal(annotation.revolutionAxisPoints, baseMap),
-          centerLocal: annotation.revolutionCenterLocal || null,
+          centerLocal: null,
           orientation: baseMap.orientation,
           material,
           ...getRevolutionPartialPhi(annotation, baseMap, options),

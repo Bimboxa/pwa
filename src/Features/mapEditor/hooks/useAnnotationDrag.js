@@ -90,9 +90,23 @@ export default function useAnnotationDrag({
         ann.bbox?.height !== snap.bboxH ||
         ann.rotation !== snap.rotation;
     } else if (
+      ann.type === "REVOLUTION_AXIS" &&
+      snap.partType?.startsWith("REVOLUTION_RIM::")
+    ) {
+      hasChanged =
+        ann.radiusM !== snap.radiusM || ann.directionDeg !== snap.directionDeg;
+    } else if (
+      ann.type === "REVOLUTION_AXIS" &&
+      snap.partType?.startsWith("REVOLUTION_ANGLE::")
+    ) {
+      hasChanged =
+        ann.revolutionAngleStartDeg !== snap.angleStartDeg ||
+        ann.revolutionAngleEndDeg !== snap.angleEndDeg;
+    } else if (
       ann.type === "MARKER" ||
       ann.type === "POINT" ||
-      ann.type === "REVOLUTION_POINT"
+      ann.type === "REVOLUTION_AXIS" ||
+      ann.type === "REVOLUTION_AXIS_PLACEMENT"
     ) {
       hasChanged =
         ann.point?.x !== snap.pointX || ann.point?.y !== snap.pointY;
@@ -124,11 +138,11 @@ export default function useAnnotationDrag({
    * Démarre un drag d'annotation (move, resize, ou rotate).
    * Retourne false si l'utilisateur n'a pas la permission.
    *
-   * @param {{ nodeId: string, startMouseInLocal: {x,y}, partType: string|null, startMouseScreen: {x,y}, nodeContext?: string, wrapperAnnotationIds?: string[], wrapperBbox?: Object, rotationContext?: {center: {x,y}, startRotation: number} }} params
+   * @param {{ nodeId: string, startMouseInLocal: {x,y}, partType: string|null, startMouseScreen: {x,y}, nodeContext?: string, wrapperAnnotationIds?: string[], wrapperBbox?: Object, rotationContext?: {center: {x,y}, startRotation: number}, anchorLocal?: {x,y} }} params
    * @returns {boolean} true si le drag a été initié
    */
   const initAnnotationDrag = useCallback(
-    ({ nodeId, startMouseInLocal, partType, startMouseScreen, nodeContext, wrapperAnnotationIds, wrapperBbox, rotationContext, clickOnly }) => {
+    ({ nodeId, startMouseInLocal, partType, startMouseScreen, nodeContext, wrapperAnnotationIds, wrapperBbox, rotationContext, clickOnly, anchorLocal }) => {
       const isWrapper = nodeId === WRAPPER_NODE_ID;
 
       // GUARD : bloquer si pas propriétaire
@@ -158,6 +172,9 @@ export default function useAnnotationDrag({
         // Click-only gesture: never activates a drag, mouseUp still selects
         // (labels are not draggable until selected).
         clickOnly: Boolean(clickOnly),
+        // Reference point of the annotation at drag start (marker-like types
+        // only). Snapping a whole-annotation move lands THIS on the target.
+        anchorLocal: anchorLocal ?? null,
       };
 
       setDragAnnotationState(newState);
@@ -176,7 +193,7 @@ export default function useAnnotationDrag({
    * @returns {boolean} true si l'événement a été consommé
    */
   const handleAnnotationDragMove = useCallback(
-    (event) => {
+    (event, snapAnchorTarget = null) => {
       const _state = dragAnnotationStateRef.current;
       if (!_state) return false;
 
@@ -275,6 +292,15 @@ export default function useAnnotationDrag({
 
           deltaPos = { x: deltaDeg, y: 0 };
           rotationTracking = { lastPointerAngle: pointerAngle, rotationAccum };
+        } else if (snapAnchorTarget && _cur.anchorLocal) {
+          // Marker-like whole-move landing on a snap: the delta is measured from
+          // the annotation's ANCHOR, not the cursor — otherwise the grab offset
+          // would be baked in and the anchor would miss the target by however
+          // far from it the user happened to click.
+          deltaPos = {
+            x: snapAnchorTarget.x - _cur.anchorLocal.x,
+            y: snapAnchorTarget.y - _cur.anchorLocal.y,
+          };
         } else {
           deltaPos = {
             x: currentMouseInLocal.x - _cur.startMouseInLocal.x,
@@ -382,6 +408,14 @@ export default function useAnnotationDrag({
             labelY: ann.labelPoint?.y,
             firstPointX: ann.points?.[0]?.x,
             firstPointY: ann.points?.[0]?.y,
+            // Revolution axis handle drags leave `point` untouched and commit
+            // scalars instead — without these the snapshot never converges and
+            // the transient overlay lingers for the full fallback timeout.
+            partType: _state.partType,
+            radiusM: ann.radiusM,
+            directionDeg: ann.directionDeg,
+            angleStartDeg: ann.revolutionAngleStartDeg,
+            angleEndDeg: ann.revolutionAngleEndDeg,
           };
         }
         commitPendingRef.current = annId;

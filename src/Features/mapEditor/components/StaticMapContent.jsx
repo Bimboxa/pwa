@@ -21,7 +21,6 @@ import getAnnotationLabelPropsFromAnnotation from "Features/annotations/utils/ge
 import resolveAnnotationDefaults from "Features/annotations/utils/resolveAnnotationDefaults";
 import NodeLegendStatic from "Features/mapEditorGeneric/components/NodeLegendStatic";
 import NodeClippingPlanStatic from "Features/mapEditorGeneric/components/NodeClippingPlanStatic";
-import NodeProxyRevolutionStatic from "Features/mapEditorGeneric/components/NodeProxyRevolutionStatic";
 import MeshSelectionHighlight from "Features/mapEditor/components/MeshSelectionHighlight";
 
 import { useInteraction } from "Features/mapEditor/context/InteractionContext";
@@ -450,31 +449,6 @@ function StaticMapContent({
 
           // Optimistic overlay : rendre invisible (opacity:0) au lieu de démonter
           const hasPendingMove = !!getPendingMove(annotation.id);
-
-          // Partial-revolution proxy: draw the sector (no handles when
-          // not selected) instead of the full-ring polygon.
-          const proxy2D = annotation.revolutionProxy2D;
-          if (annotation.isProxy && proxy2D?.partial) {
-            return (
-              <g
-                key={annotation.id}
-                style={hasPendingMove ? { opacity: 0 } : undefined}
-              >
-                <NodeProxyRevolutionStatic
-                  annotation={annotation}
-                  center={proxy2D.center}
-                  rOuter={proxy2D.rOuter}
-                  rInner={proxy2D.rInner}
-                  angleStart={proxy2D.angleStart}
-                  angleEnd={proxy2D.angleEnd}
-                  fillColor={annotation.fillColor}
-                  selected={false}
-                  containerK={basePose.k}
-                  imageSize={baseMapImageSize}
-                />
-              </g>
-            );
-          }
 
           return (
             <g

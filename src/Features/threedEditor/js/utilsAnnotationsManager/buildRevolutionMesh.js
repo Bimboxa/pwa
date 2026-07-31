@@ -33,9 +33,12 @@ import { expandArcsInPathWithHiddenMap } from "Features/geometry/utils/arcSampli
 //     then re-oriented so the revolution axis matches the base map normal, then
 //     translated to `centerLocal`.
 //
-// `centerLocal` is the in-plane position of the axis, taken from the linked
-// REVOLUTION_POINT (resolved by useAnnotationsV2). When null (no point), the
-// solid sits at the drawn axis's own location.
+// `centerLocal` overrides the in-plane position of the axis. Callers pass null:
+// the base map hosting the arc was POSED so its plane contains the axis (see
+// computeVerticalBaseMapPlacementFromAxis), which is exactly the default here
+// (z = 0 in the plane). Note that on a VERTICAL base map `baseY` cancels out
+// (center.y = baseY, height = y − baseY), so the only load-bearing part of
+// `axisPoints` is mean(x).
 //
 // Hidden segments (indices in `hiddenSegmentsIdx`) split the arc into runs of
 // contiguous non-hidden segments, one LatheGeometry per run.

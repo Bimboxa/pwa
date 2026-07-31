@@ -240,6 +240,9 @@ const DrawingLayer = forwardRef(
       "POLYLINE_CIRCLE_RADIUS",
       "POLYGON_CIRCLE_RADIUS",
     ].includes(enabledDrawingMode);
+    // Revolution axis (plan view): same gesture, but the cursor also fixes the
+    // diameter orientation, so the preview shows the circle AND its diameter.
+    const drawRevolutionAxis = enabledDrawingMode === "REVOLUTION_AXIS_PLAN";
     const drawCote = enabledDrawingMode === "COTE_TWO_CLICK";
     // OBJECT_3D placement (2D editor): the model's top-view projection follows
     // the cursor, sized to the model footprint (bbox X×Z in meters / meterByPx),
@@ -493,6 +496,41 @@ const DrawingLayer = forwardRef(
             previewCircleRef.current.style.display = "block";
           } else {
             previewCircleRef.current.style.display = "none";
+          }
+          return;
+        }
+
+        // ------------------------------------------------
+        // CAS 1b'' : REVOLUTION_AXIS_PLAN (center placed -> cursor sets both
+        // the radius and the diameter orientation)
+        // ------------------------------------------------
+        if (drawRevolutionAxis && previewCircleRef.current) {
+          if (previewFillRef.current)
+            previewFillRef.current.style.display = "none";
+          if (previewRectRef.current)
+            previewRectRef.current.style.display = "none";
+
+          const center = currentPoints[0];
+          const dx = cursorPos.x - center.x;
+          const dy = cursorPos.y - center.y;
+          const r = Math.hypot(dx, dy);
+          if (r > 0) {
+            previewCircleRef.current.setAttribute("cx", center.x);
+            previewCircleRef.current.setAttribute("cy", center.y);
+            previewCircleRef.current.setAttribute("r", r);
+            previewCircleRef.current.style.display = "block";
+            // Diameter: the cursor end and its antipode.
+            if (previewLineRef.current) {
+              previewLineRef.current.setAttribute("x1", center.x + dx);
+              previewLineRef.current.setAttribute("y1", center.y + dy);
+              previewLineRef.current.setAttribute("x2", center.x - dx);
+              previewLineRef.current.setAttribute("y2", center.y - dy);
+              previewLineRef.current.style.display = "block";
+            }
+          } else {
+            previewCircleRef.current.style.display = "none";
+            if (previewLineRef.current)
+              previewLineRef.current.style.display = "none";
           }
           return;
         }

@@ -229,11 +229,7 @@ function NodePolylineStatic({
 
   // --- CALCUL ÉPAISSEUR TRAIT ---
   const isCmUnit = strokeWidthUnit === "CM" && baseMapMeterByPx > 0;
-  // REVOLUTION_AXIS is a screen-space guide: keep a constant 2px stroke at any
-  // zoom (vectorEffect="non-scaling-stroke"), even though its listing is a
-  // base-map listing (isForBaseMaps) which would otherwise scale the stroke.
-  const isForBaseMaps =
-    mergedAnnotation.isForBaseMaps && type !== "REVOLUTION_AXIS";
+  const isForBaseMaps = mergedAnnotation.isForBaseMaps;
   const scalesWithZoom = isCmUnit || isForBaseMaps;
 
   const computedStrokeWidth = useMemo(() => {

@@ -127,11 +127,14 @@ export default function useAutoLoadAnnotationsInThreedEditor({
   }, [annotations, showMeshCells, parentIdSet]);
 
   // { baseMapId: 1 | -1 } restricted to the vertical base maps whose image is
-  // visible AND that host a REVOLUTION element without explicit
-  // partialRevolution (user-set partial angles win over the auto half-view) —
-  // a POLYLINE arc (lathe surface) or a POINT (circle line). Restricting the
-  // map keeps the build epoch stable — a camera side flip on an unrelated
-  // base map must not rebuild the scene.
+  // visible AND that host a REVOLUTION element without an explicit partial
+  // sector — a POLYLINE arc (lathe surface) or a POINT (circle line).
+  // The sector now lives on the plan AXIS and is resolved per-arc by
+  // useAnnotationsV2 into `revolutionPhi`; when it is set, those explicit
+  // angles win over the auto half-view (same precedence as
+  // getRevolutionPartialPhi in createAnnotationObject3D). Restricting the map
+  // keeps the build epoch stable — a camera side flip on an unrelated base map
+  // must not rebuild the scene.
   const revolutionSection = useMemo(() => {
     const revBaseMapIds = new Set(
       (annotationsForThreed || [])
@@ -139,7 +142,7 @@ export default function useAutoLoadAnnotationsInThreedEditor({
           (a) =>
             (a.type === "POLYLINE" || a.type === "POINT") &&
             a.shape3D?.key === "REVOLUTION" &&
-            !a.shape3D?.partialRevolution
+            !a.revolutionPhi
         )
         .map((a) => a.baseMapId)
     );

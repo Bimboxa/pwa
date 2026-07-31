@@ -7,7 +7,7 @@
 // purge delete a point the renderer still needs.
 //
 // Fields carrying point ids:
-//   - annotation.point.id                    (POINT / MARKER / REVOLUTION_POINT)
+//   - annotation.point.id                    (POINT / MARKER / revolution axis)
 //   - annotation.points[].id                 (POLYLINE / POLYGON / STRIP / ...)
 //   - annotation.innerPoints[].id            (POLYGON Steiner points)
 //   - annotation.cuts[].points[].id          (holes)
