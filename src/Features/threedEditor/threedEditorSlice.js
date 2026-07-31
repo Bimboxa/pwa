@@ -135,8 +135,8 @@ const threedEditorInitialState = {
   // "Révolution partielle" switch (3D view settings): keep the 180° half-view
   // of revolutions even when their vertical base map image is hidden. OFF =
   // automatic behavior (half-view only while the image is displayed).
-  // Display-only, session-only.
-  forceRevolutionSectionIn3d: false,
+  // Display-only, session-only. ON by default.
+  forceRevolutionSectionIn3d: true,
   // "Pochage des coupes" switch (3D view settings): fill the section of
   // partial revolutions with a flat dark face when the profile is a closed
   // contour. The ink boundary lines are always shown on partial revolutions;
