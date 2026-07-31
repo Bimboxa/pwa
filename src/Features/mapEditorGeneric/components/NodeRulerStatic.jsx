@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDispatch } from "react-redux";
+import { IconButton } from "@mui/material";
 import { darken } from "@mui/material/styles";
+import {
+  Lock as LockIcon,
+  LockOpen as LockOpenIcon,
+} from "@mui/icons-material";
 
 import getRulerSegments from "Features/annotations/utils/getRulerSegments";
 import getRulerLabelPlacement, {
@@ -569,8 +574,11 @@ export default function NodeRulerStatic({
                         color: "#000",
                       }}
                     />
-                    <button
-                      type="button"
+                    {/* Same lock affordance as the template property panel
+                        (OverrideToggle): closed = this cote is preserved and
+                        the rest of the chain translates instead. */}
+                    <IconButton
+                      size="small"
                       title={
                         lockedSegments[seg.index]
                           ? "Cote verrouillée : l'édition de l'autre cote translatera la suite"
@@ -582,28 +590,19 @@ export default function NodeRulerStatic({
                           [seg.index]: !prev[seg.index],
                         }))
                       }
-                      style={{
-                        width: 22,
-                        height: 24,
-                        padding: 0,
-                        cursor: "pointer",
-                        border: "1px solid",
-                        borderColor: lockedSegments[seg.index]
-                          ? GUIDE_COLOR
-                          : "#bdbdbd",
-                        borderRadius: 4,
-                        background: lockedSegments[seg.index]
-                          ? "#e3f2fd"
-                          : "#fff",
+                      sx={{
+                        p: 0.25,
                         color: lockedSegments[seg.index]
-                          ? "#1565c0"
-                          : "#757575",
-                        fontSize: 12,
-                        lineHeight: 1,
+                          ? "action.active"
+                          : "text.disabled",
                       }}
                     >
-                      {lockedSegments[seg.index] ? "🔒" : "🔓"}
-                    </button>
+                      {lockedSegments[seg.index] ? (
+                        <LockIcon sx={{ fontSize: 16 }} />
+                      ) : (
+                        <LockOpenIcon sx={{ fontSize: 16 }} />
+                      )}
+                    </IconButton>
                   </div>
                 </foreignObject>
               ) : (
