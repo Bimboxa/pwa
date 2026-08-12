@@ -1,37 +1,24 @@
 import { useDispatch, useSelector } from "react-redux";
-import { useLiveQuery } from "dexie-react-hooks";
 
-import db from "App/db/db";
-import {
-  setMoveModeActive,
-  setMoveSelectedAnnotationId,
-  setMoveSubSelectionTarget,
-  toggleClippingPlaneEditing,
-} from "Features/threedEditor/threedEditorSlice";
+import { toggleClippingPlaneEditing } from "Features/threedEditor/threedEditorSlice";
 
-import { Box, Button, Divider, Paper, Stack, Tooltip } from "@mui/material";
-import OpenWithIcon from "@mui/icons-material/OpenWith";
+import { Button, Divider, Paper, Stack, Tooltip } from "@mui/material";
 import ContentCutIcon from "@mui/icons-material/ContentCut";
 
 import ButtonExtrudeThreed from "Features/threedExtrude/components/ButtonExtrudeThreed";
 import ButtonMeshThreed from "Features/threedMesh/components/ButtonMeshThreed";
 
-// Floating bottom toolbar for the main 3D viewer. Three states:
-//   - Move mode active → hidden (MoveGizmoThreed owns the bottom UI).
-//   - Selection present (annotation, vertex or edge) → label of the
-//     selected entity + a "Déplacer" button that switches to move mode
-//     pre-targeted on that entity.
-//   - Nothing selected → the extrude ("push/pull") entry point + the meshing
-//     one (MESHES viewer only). Face drawing has no button here: it is armed
-//     by picking a template row in PopperMapListings (see
-//     useTemplateFaceDrawBridge).
+// Floating bottom toolbar for the main 3D viewer. Its content does not depend
+// on the current selection: the extrude ("push/pull") entry point + the meshing
+// one (MESHES viewer only), then the clipping plane. Face drawing has no button
+// here: it is armed by picking a template row in PopperMapListings (see
+// useTemplateFaceDrawBridge).
 // Viewer module (read-only): the creation/modification actions ("Extruder",
-// "Déplacer") are hidden — only "Coupe" remains. The zoom out lives outside
+// "Mailler") are hidden — only "Coupe" remains. The zoom out lives outside
 // the toolbar (ButtonZoomOutThreed, bottom-right of the editor).
 export default function BottomToolbarThreed() {
   const dispatch = useDispatch();
 
-  const moveActive = useSelector((s) => s.threedEditor.moveMode.active);
   // Meshing is confined to the MESHES viewer (mailles are only displayed
   // there), so the "Mailler" entry point hides in the plain THREED viewer.
   const isMeshesViewer = useSelector(
@@ -43,58 +30,6 @@ export default function BottomToolbarThreed() {
   const clippingEditing = useSelector(
     (s) => s.threedEditor.clippingPlane.editing
   );
-  const subSelection = useSelector((s) => s.threedEditor.subSelection);
-  const annotationSelectionId = useSelector((s) => {
-    const items = s.selection.selectedItems || [];
-    const ann = items.find(
-      (i) => i.type === "NODE" && i.nodeType === "ANNOTATION"
-    );
-    return ann?.nodeId || ann?.id || null;
-  });
-
-  // useLiveQuery must be called unconditionally — pass a query that returns
-  // null when there is no annotation to look up.
-  const annotation = useLiveQuery(
-    () =>
-      annotationSelectionId ? db.annotations.get(annotationSelectionId) : null,
-    [annotationSelectionId]
-  );
-
-  if (moveActive) return null;
-
-  const hasSubSelection = !!subSelection?.annotationId;
-  const hasAnnotationSelection = !!annotationSelectionId;
-  const hasSelection = hasSubSelection || hasAnnotationSelection;
-
-  const annotationName =
-    annotation?.name || annotation?.title || annotation?.type || "Annotation";
-
-  const label = hasSubSelection
-    ? subSelection.kind === "VERTEX"
-      ? `Vertex N°${(subSelection.vertexIndex ?? 0) + 1}`
-      : `Arête N°${(subSelection.vertexIndex ?? 0) + 1}-${
-          (subSelection.vertexIndexB ?? 0) + 1
-        }`
-    : annotationName;
-
-  const handleMove = () => {
-    if (hasSubSelection) {
-      dispatch(
-        setMoveSubSelectionTarget({
-          annotationId: subSelection.annotationId,
-          kind: subSelection.kind,
-          pointIds: subSelection.pointIds || [],
-          vertexIndex: subSelection.vertexIndex,
-          vertexIndexB: subSelection.vertexIndexB,
-        })
-      );
-    } else if (hasAnnotationSelection) {
-      dispatch(setMoveSelectedAnnotationId(annotationSelectionId));
-    } else {
-      return;
-    }
-    dispatch(setMoveModeActive(true));
-  };
 
   return (
     <Paper
@@ -111,33 +46,14 @@ export default function BottomToolbarThreed() {
       }}
     >
       <Stack direction="row" spacing={1} alignItems="center">
-        {hasSelection ? (
+        {!isViewerModule && (
           <>
-            <Box sx={{ fontSize: 13, fontWeight: 500, px: 0.5 }}>{label}</Box>
-            {!isViewerModule && (
-              <Button
-                size="small"
-                variant="contained"
-                startIcon={<OpenWithIcon sx={{ fontSize: 18 }} />}
-                onClick={handleMove}
-                sx={{ textTransform: "none", borderRadius: "8px" }}
-              >
-                Déplacer
-              </Button>
-            )}
+            <ButtonExtrudeThreed />
+            {isMeshesViewer && <ButtonMeshThreed />}
+            {/* No leading divider when nothing precedes "Coupe" (Viewer
+                module). */}
+            <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
           </>
-        ) : (
-          !isViewerModule && (
-            <>
-              <ButtonExtrudeThreed />
-              {isMeshesViewer && <ButtonMeshThreed />}
-            </>
-          )
-        )}
-        {/* No leading divider when nothing precedes "Coupe" (Viewer module,
-            nothing selected). */}
-        {(hasSelection || !isViewerModule) && (
-          <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
         )}
         <Tooltip title="Plan de coupe">
           <Button

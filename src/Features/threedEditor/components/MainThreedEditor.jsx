@@ -82,7 +82,6 @@ import ClippingToolbarThreed from "./ClippingToolbarThreed";
 import ButtonZoomOutThreed from "./ButtonZoomOutThreed";
 import BottomToolbarThreed from "Features/threedDrawing/components/BottomToolbarThreed";
 import DrawingOverlayThreed from "Features/threedDrawing/components/DrawingOverlayThreed";
-import MoveGizmoThreed from "Features/threedDrawing/components/MoveGizmoThreed";
 import useDrawingPointerHandlers from "Features/threedDrawing/hooks/useDrawingPointerHandlers";
 import useTemplateFaceDrawBridge from "Features/threedDrawing/hooks/useTemplateFaceDrawBridge";
 import useTemplateCoteDrawBridge from "Features/threedDrawing/hooks/useTemplateCoteDrawBridge";
@@ -251,13 +250,6 @@ export default function MainThreedEditor() {
   useEffect(() => {
     drawingActiveRef.current = drawingActive;
   }, [drawingActive]);
-
-  // Same pattern for move mode.
-  const moveActive = useSelector((s) => s.threedEditor.moveMode.active);
-  const moveActiveRef = useRef(moveActive);
-  useEffect(() => {
-    moveActiveRef.current = moveActive;
-  }, [moveActive]);
 
   // Same pattern for the dimension ("cote") tool — useDimensionPointerHandlers
   // owns the pointer while active, so the selection click path short-circuits.
@@ -679,10 +671,9 @@ export default function MainThreedEditor() {
       }
 
       // Sub-element click on the currently-selected annotation: vertex/edge
-      // sub-selection takes precedence over the regular face click. Skip when
-      // moveMode is active (the gizmo owns the cursor).
+      // sub-selection takes precedence over the regular face click.
       const soloId = getSoloSelectedAnnotationId();
-      if (soloId && !moveActiveRef.current) {
+      if (soloId) {
         const annoObject =
           sceneManager?.annotationsManager?.annotationsObjectsMap?.[soloId];
         if (annoObject?.userData?.vertexRefs?.length) {
@@ -1985,7 +1976,6 @@ export default function MainThreedEditor() {
           capture/POV framing owns the screen. */}
       {isThreedViewer && !captureFramingActive && <ButtonZoomOutThreed />}
       {isThreedViewer && <DrawingOverlayThreed />}
-      {isThreedViewer && <MoveGizmoThreed />}
       {isThreedViewer && rendererIsReady && (
         <ThreedCoteAnnotations annotations={annotations} />
       )}

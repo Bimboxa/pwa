@@ -101,23 +101,6 @@ const threedEditorInitialState = {
     // mesh to the scene.
     snapIndexEpoch: 0,
   },
-  // Move mode: select an annotation and translate it along the baseMap
-  // normal via a gizmo + numeric field. Mutually exclusive with
-  // `drawingMode.active`.
-  moveMode: {
-    active: false,
-    // Annotation currently being moved (id from db.annotations).
-    selectedAnnotationId: null,
-    // Live delta in meters along the baseMap-local Z axis, mirrored from
-    // the gizmo and from the numeric field.
-    deltaZ: 0,
-    // Snapshot of the active sub-selection at "Move" click time. When set,
-    // the gizmo targets the centroid of the listed pointIds (single vertex
-    // or edge midpoint) and writes the delta to per-point offsetTop instead
-    // of the annotation-wide offsetZ.
-    // Shape: { annotationId, kind: 'VERTEX'|'EDGE', pointIds, vertexIndex }
-    subSelectionTarget: null,
-  },
   // Single clipping plane (session-only). `enabled` = plane applied to the
   // annotation/basemap materials; `editing` = panel + draggable gizmo shown.
   // The plane geometry itself lives in ClippingManager (three.js side).
@@ -144,8 +127,7 @@ const threedEditorInitialState = {
   revolutionSectionFillIn3d: false,
   // Dimension ("cote") mode: click two mesh-snapped points to create a COTE
   // annotation (template-driven via useTemplateCoteDrawBridge, committed by
-  // commitDrawnCoteService). Mutually exclusive with `drawingMode.active`
-  // and `moveMode.active`.
+  // commitDrawnCoteService). Mutually exclusive with `drawingMode.active`.
   dimensionMode: {
     active: false,
     // First clicked endpoint, world space, while the second is pending.
@@ -153,7 +135,7 @@ const threedEditorInitialState = {
   },
   // Meshing ("maillage") mode: create mailles from hovered faces and cut
   // them with vertical / horizontal / free lines. Mutually exclusive with
-  // `drawingMode.active`, `moveMode.active` and `dimensionMode.active`.
+  // `drawingMode.active` and `dimensionMode.active`.
   // Hide the annotations from the 3D scene (Panel Maillage toggle) — leaves
   // only basemaps + mailles visible (and lasso-selectable).
   hideAnnotationsIn3d: false,
@@ -336,10 +318,7 @@ export const threedEditorSlice = createSlice({
         state.drawingMode.axisLock = null;
         state.drawingMode.snapIndexEpoch = 0;
       } else {
-        // Mutually exclusive with move mode and dimension mode.
-        state.moveMode.active = false;
-        state.moveMode.selectedAnnotationId = null;
-        state.moveMode.deltaZ = 0;
+        // Mutually exclusive with dimension mode.
         state.dimensionMode.active = false;
         state.dimensionMode.startPoint = null;
         state.meshingMode.active = false;
@@ -354,42 +333,6 @@ export const threedEditorSlice = createSlice({
     },
     bumpAnnotationsLoadTick: (state) => {
       state.annotationsLoadTick += 1;
-    },
-    setMoveModeActive: (state, action) => {
-      state.moveMode.active = action.payload;
-      if (!action.payload) {
-        state.moveMode.selectedAnnotationId = null;
-        state.moveMode.deltaZ = 0;
-        state.moveMode.subSelectionTarget = null;
-      } else {
-        // Mutually exclusive with drawing, dimension and meshing modes.
-        state.drawingMode.active = false;
-        state.drawingMode.inProgressPolyline = [];
-        state.drawingMode.trait3DSegments = [];
-        state.drawingMode.axisLock = null;
-        state.dimensionMode.active = false;
-        state.dimensionMode.startPoint = null;
-        state.meshingMode.active = false;
-        state.meshingMode.tool = "SELECT";
-        state.walkMode.active = false;
-        state.extrudeMode.active = false;
-        state.extrudeMode.targetAnnotationId = null;
-      }
-    },
-    setMoveSelectedAnnotationId: (state, action) => {
-      state.moveMode.selectedAnnotationId = action.payload;
-      state.moveMode.deltaZ = 0;
-    },
-    setMoveDeltaZ: (state, action) => {
-      state.moveMode.deltaZ = action.payload;
-    },
-    setMoveSubSelectionTarget: (state, action) => {
-      state.moveMode.subSelectionTarget = action.payload;
-      if (action.payload) {
-        // Auto-set the moved annotation id so MoveGizmoThreed picks it up.
-        state.moveMode.selectedAnnotationId = action.payload.annotationId;
-        state.moveMode.deltaZ = 0;
-      }
     },
     setSubSelection: (state, action) => {
       const p = action.payload || {};
@@ -482,14 +425,11 @@ export const threedEditorSlice = createSlice({
       if (!action.payload) {
         state.dimensionMode.startPoint = null;
       } else {
-        // Mutually exclusive with drawing, move and meshing modes.
+        // Mutually exclusive with drawing and meshing modes.
         state.drawingMode.active = false;
         state.drawingMode.inProgressPolyline = [];
         state.drawingMode.trait3DSegments = [];
         state.drawingMode.axisLock = null;
-        state.moveMode.active = false;
-        state.moveMode.selectedAnnotationId = null;
-        state.moveMode.deltaZ = 0;
         state.meshingMode.active = false;
         state.meshingMode.tool = "SELECT";
         state.walkMode.active = false;
@@ -509,14 +449,11 @@ export const threedEditorSlice = createSlice({
         state.meshingMode.tool = "SELECT";
         state.meshingMode.cutSide = "LEFT";
       } else {
-        // Mutually exclusive with drawing, move and dimension modes.
+        // Mutually exclusive with drawing and dimension modes.
         state.drawingMode.active = false;
         state.drawingMode.inProgressPolyline = [];
         state.drawingMode.trait3DSegments = [];
         state.drawingMode.axisLock = null;
-        state.moveMode.active = false;
-        state.moveMode.selectedAnnotationId = null;
-        state.moveMode.deltaZ = 0;
         state.dimensionMode.active = false;
         state.dimensionMode.startPoint = null;
         state.walkMode.active = false;
@@ -565,9 +502,6 @@ export const threedEditorSlice = createSlice({
         state.drawingMode.inProgressPolyline = [];
         state.drawingMode.trait3DSegments = [];
         state.drawingMode.axisLock = null;
-        state.moveMode.active = false;
-        state.moveMode.selectedAnnotationId = null;
-        state.moveMode.deltaZ = 0;
         state.dimensionMode.active = false;
         state.dimensionMode.startPoint = null;
         state.meshingMode.active = false;
@@ -607,9 +541,6 @@ export const threedEditorSlice = createSlice({
         state.drawingMode.inProgressPolyline = [];
         state.drawingMode.trait3DSegments = [];
         state.drawingMode.axisLock = null;
-        state.moveMode.active = false;
-        state.moveMode.selectedAnnotationId = null;
-        state.moveMode.deltaZ = 0;
         state.dimensionMode.active = false;
         state.dimensionMode.startPoint = null;
         state.meshingMode.active = false;
@@ -681,10 +612,6 @@ export const {
   setDrawingAxisLock,
   bumpSnapIndexEpoch,
   bumpAnnotationsLoadTick,
-  setMoveModeActive,
-  setMoveSelectedAnnotationId,
-  setMoveDeltaZ,
-  setMoveSubSelectionTarget,
   setSubSelection,
   clearSubSelection,
   setRevolutionSectionSide,
