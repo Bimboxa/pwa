@@ -12,10 +12,7 @@ export default function useDeleteProject() {
 
     let mapIds = [];
     if (listingIds.length > 0) {
-      const maps = await db.maps
-        .where("listingId")
-        .anyOf(listingIds)
-        .toArray();
+      const maps = await db.maps.where("listingId").anyOf(listingIds).toArray();
       mapIds = maps.map((m) => m.id);
     }
 
@@ -31,6 +28,14 @@ export default function useDeleteProject() {
       .toArray();
     const scopeIds = scopes.map((s) => s.id);
 
+    // Resource main files carry no listingId (excluded from the Krto export by
+    // construction), so the listingId-based files delete below misses them.
+    const resources = await db.resources
+      .where("projectId")
+      .equals(projectId)
+      .toArray();
+    const resourceFileNames = resources.map((r) => r.fileName).filter(Boolean);
+
     // 2. Hard delete everything in cascade
     await withHardDelete(async () => {
       await db.projects.delete(projectId);
@@ -44,6 +49,10 @@ export default function useDeleteProject() {
         .equals(projectId)
         .delete();
       await db.annotations.where("projectId").equals(projectId).delete();
+      await db.resources.where("projectId").equals(projectId).delete();
+      if (resourceFileNames.length > 0) {
+        await db.files.bulkDelete(resourceFileNames);
+      }
 
       if (listingIds.length > 0) {
         await db.entities.where("listingId").anyOf(listingIds).delete();

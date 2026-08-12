@@ -154,6 +154,14 @@ export default async function createKrtoZip(scopeId, options) {
                 return value.projectId === projectId;
             }
 
+            // Ressources du projet : la ligne de métadonnées (thumbnail inline
+            // compris) part dans le zip, mais PAS le fichier principal — sa
+            // ligne db.files n'a volontairement pas de listingId, donc le
+            // filtre files ci-dessous l'exclut par construction (même
+            // mécanisme que pov.rawImage). L'utilisateur ré-attache le fichier
+            // en local depuis le panneau Ressources après import.
+            if (table === "resources") return value.projectId === projectId;
+
             // Tables indexées par scopeId
             if (tablesWithScopeId.has(table)) return value.scopeId === scopeId;
 

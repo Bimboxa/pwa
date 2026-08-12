@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   setSelectedMenuItemKey,
   setElevationViewerWidth,
+  setResourcesWidth,
 } from "../rightPanelSlice";
 
 import VerticalMenu from "Features/layout/components/VerticalMenu";
@@ -38,6 +39,7 @@ import PanelImportAnnotations from "Features/importAnnotations/components/PanelI
 import PanelObjectsLibrary from "Features/objectsLibrary/components/PanelObjectsLibrary";
 import PanelLocalLlm from "Features/localLlm/components/PanelLocalLlm";
 import PanelEditorSettings from "Features/settings/components/PanelEditorSettings";
+import PanelResources from "Features/resources/components/PanelResources";
 import PanelBaseMapTransforms from "Features/baseMapTransforms/components/PanelBaseMapTransforms";
 
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
@@ -56,15 +58,18 @@ export default function RightPanelContainer() {
   const elevationViewerWidth = useSelector(
     (s) => s.rightPanel.elevationViewerWidth
   );
+  const resourcesWidth = useSelector((s) => s.rightPanel.resourcesWidth);
 
-  // The Élévation viewer is resizable (the 3D Maillage panel is a normal
-  // fixed-width panel).
+  // The Élévation viewer and the Ressources panel are resizable (the 3D
+  // Maillage panel is a normal fixed-width panel).
   const isElevation = selectedKey === "ELEVATION";
-  const isResizable = isElevation;
+  const isResources = selectedKey === "RESOURCES";
+  const isResizable = isElevation || isResources;
 
   const viewportWidth =
     typeof window !== "undefined" ? window.innerWidth : 1200;
   const elevationDefaultWidth = Math.round(viewportWidth * 0.5);
+  const resourcesDefaultWidth = Math.round(viewportWidth * 0.4);
 
   // The SETTINGS tool shows the 3D view settings while a 3D editor is
   // displayed — that panel hosts the basemap rotation/translation rows, which
@@ -85,9 +90,11 @@ export default function RightPanelContainer() {
     ? CAPTURE_TOOLBAR_WIDTH
     : isElevation
       ? (elevationViewerWidth ?? elevationDefaultWidth)
-      : isThreedSettings
-        ? 380
-        : fixedWidth;
+      : isResources
+        ? (resourcesWidth ?? resourcesDefaultWidth)
+        : isThreedSettings
+          ? 380
+          : fixedWidth;
 
   // handlers - resize: each resizable tool updates its own width; the fixed
   // tools keep theirs.
@@ -102,7 +109,9 @@ export default function RightPanelContainer() {
         Math.max(startWidth + (startX - ev.clientX), 260),
         maxWidth
       );
-      dispatch(setElevationViewerWidth(next));
+      dispatch(
+        isResources ? setResourcesWidth(next) : setElevationViewerWidth(next)
+      );
     }
     function onUp() {
       window.removeEventListener("mousemove", onMove);
@@ -154,7 +163,7 @@ export default function RightPanelContainer() {
           }}
         >
           {/* resize handle on the left frontier — shown for the resizable
-              tools (Élévation, Maillage); each keeps its own width */}
+              tools (Élévation, Ressources); each keeps its own width */}
           {isResizable && (
             <Box
               onMouseDown={handleResizeMouseDown}
@@ -199,6 +208,7 @@ export default function RightPanelContainer() {
           {selectedKey === "CAPTURE" && <PanelCaptureTool />}
           {selectedKey === "ELEVATION" && <PanelElevation />}
           {selectedKey === "IMPORT_ANNOTATIONS" && <PanelImportAnnotations />}
+          {selectedKey === "RESOURCES" && <PanelResources />}
           {selectedKey === "OBJECTS_LIBRARY" && <PanelObjectsLibrary />}
           {selectedKey === "LOCAL_LLM" && <PanelLocalLlm />}
           {selectedKey === "SETTINGS" && <PanelEditorSettings />}

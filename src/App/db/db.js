@@ -214,6 +214,19 @@ db.version(28).stores({
   usersDirectory: "userIdMaster",
 });
 
+db.version(29).stores({
+  // {id, projectId, name (file name with extension), fileName (db.files key of
+  //  the main file), fileSize, fileMime, fileType ("PDF"|"IMAGE"|"DWG"|...),
+  //  thumbnail (base64 dataURL | null), createdBy: {idMaster, trigram}}
+  // Project resource: a file (PDF, DWG, image…) attached to the PROJECT and
+  // managed from the right-panel "Ressources" tool. The main file lives in
+  // db.files WITHOUT listingId, so the Krto files filter excludes it from the
+  // scope export by construction (like POV rawImage) — only the metadata row
+  // (inline thumbnail included) ships in the zip; after an import the user
+  // re-attaches the file locally from the resource detail panel.
+  resources: "id,projectId",
+});
+
 // --- AUDIT HOOKS ---
 
 const AUDIT_TABLES = [
@@ -251,6 +264,7 @@ const AUDIT_TABLES = [
   "povs",
   "zones",
   "relsZoneAnnotation",
+  "resources",
 ];
 
 // Shared/collaborative tables exempt from the ownership guard: records here can
@@ -487,6 +501,7 @@ const SOFT_DELETE_TABLES = new Set([
   "povs",
   "zones",
   "relsZoneAnnotation",
+  "resources",
 ]);
 
 let _skipSoftDelete = false;

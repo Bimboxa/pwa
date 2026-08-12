@@ -14,6 +14,7 @@ import {
   Category,
   Chat,
   Image,
+  FolderOpen,
 } from "@mui/icons-material";
 
 import { Box } from "@mui/material";
@@ -86,6 +87,14 @@ export default function useRightPanelTools() {
       viewers: ["MAP"],
       // `group: "bottom"` anchors the tool in the bottom-aligned section of
       // the band (rendered by VerticalMenuV2).
+      group: "bottom",
+    },
+    RESOURCES: {
+      label: "Ressources",
+      icon: <FolderOpen />,
+      // Project-level resource files (PDF, DWG, images…): available in every
+      // module. Bottom section, above the contextual "Réglages" (contextual
+      // bottom tools are always appended last).
       group: "bottom",
     },
     OBJECTS_LIBRARY: {
