@@ -740,6 +740,7 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
             if (
                 newAnnotation?.type === "MARKER" ||
                 newAnnotation?.type === "POINT" ||
+                newAnnotation?.type === "DETAIL" ||
                 isRevolutionHelper
             ) {
                 _newAnnotation.point = { id: finalPointIds[0] };
@@ -761,6 +762,13 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
                     .filter((a) => a.type === "REVOLUTION_AXIS" && !a.deletedAt)
                     .count();
                 _newAnnotation.label = `Axe ${existingAxesCount + 1}`;
+            }
+
+            // DETAIL: the bubble text defaults to "X". Overwrite is deliberate —
+            // ALWAYS_COPY_KEYS copies template.label (the template NAME) onto
+            // the draft, which must not leak into the bubble.
+            if (newAnnotation?.type === "DETAIL") {
+                _newAnnotation.label = "X";
             }
 
             // "Offset par défaut" auto-stacking: lift the new annotation so it sits

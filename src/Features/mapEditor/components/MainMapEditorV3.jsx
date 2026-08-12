@@ -1339,9 +1339,18 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                 }
             }
 
+            // DETAIL rotation: the tip (the stored point) is the pivot and
+            // never moves — only arrowAngle changes. Same math as
+            // applyDeltaPosToAnnotation so preview and commit agree.
+            else if (annotation.type === "DETAIL" && partType === "ROTATE") {
+                const next = applyDeltaPosToAnnotation(annotation, deltaPos, partType);
+                await db.annotations.update(annotation.id, { arrowAngle: next.arrowAngle });
+            }
+
             else if (
                 annotation.type === "MARKER" ||
                 annotation.type === "POINT" ||
+                annotation.type === "DETAIL" ||
                 annotation.type === "REVOLUTION_AXIS" ||
                 annotation.type === "REVOLUTION_AXIS_PLACEMENT"
             ) {

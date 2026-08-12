@@ -21,6 +21,8 @@ export default function getAnnotationMainQtyLabel(annotation, qties) {
 
   if (["POLYGON", "RECTANGLE"].includes(type)) {
     variant = "SURFACE";
+  } else if (type === "DETAIL") {
+    variant = "COUNT";
   } else if (["POINT"].includes(type)) {
     // A POINT revolved around an axis carries a real linear quantity (the
     // circle perimeter) even without a height — see getAnnotationQties.

@@ -6937,7 +6937,13 @@ const InteractionLayer = forwardRef(({
         }
       } else {
         const ann = annotations?.find(a => a.id === nodeId);
-        if (ann?.bbox) {
+        if (ann?.type === "DETAIL" && ann?.point) {
+          // DETAIL: the bubble orbits the arrow TIP — pivot on the tip.
+          rotationContext = {
+            center: { x: ann.point.x, y: ann.point.y },
+            startRotation: ann.arrowAngle ?? 0,
+          };
+        } else if (ann?.bbox) {
           rotationContext = {
             center: {
               x: ann.bbox.x + ann.bbox.width / 2,

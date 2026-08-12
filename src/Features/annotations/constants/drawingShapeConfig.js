@@ -61,6 +61,22 @@ const DRAWING_SHAPE_CONFIG = {
     },
     shapeCategory: "circle",
   },
+  // DETAIL — a "detail bubble": white circle with a thick ring containing a
+  // short label, plus a filled triangular arrow whose TIP is the annotation's
+  // stored point. arrowAngle (degrees, SVG screen convention: 0 = right,
+  // clockwise-positive) orients the arrow; the bubble sits opposite it at a
+  // fixed SCREEN-px distance, so the tip never moves on rotation or zoom.
+  DETAIL: {
+    label: "Détail",
+    annotationType: "DETAIL",
+    tools: ["ONE_CLICK"],
+    configurableProps: ["fillColor"],
+    defaults: {
+      fillColor: secondary,
+      arrowAngle: 0,
+    },
+    shapeCategory: "circle",
+  },
   IMAGE: {
     label: "Image",
     annotationType: "IMAGE",
@@ -353,6 +369,7 @@ const TYPE_TO_SHAPE = {
   POINT: "POINT",
   TEXT: "TEXT",
   LABEL: "LABEL",
+  DETAIL: "DETAIL",
   IMAGE: "IMAGE",
   POLYLINE: "POLYLINE",
   STRIP: "POLYLINE",
