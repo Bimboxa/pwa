@@ -9,7 +9,10 @@ import useToolbarDrag from "../hooks/useToolbarDrag";
 
 import { Box } from "@mui/material";
 import ToolbarEditAnnotation from "Features/annotations/components/ToolbarEditAnnotation";
-import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
+import {
+  selectCaptureFramingActive,
+  selectEffectiveViewerKey,
+} from "Features/viewers/utils/effectiveViewerKey";
 import { matchesActiveViewerKey } from "Features/viewers/utils/threedViewerKeys";
 
 
@@ -29,6 +32,11 @@ export default function PopperEditAnnotation({ viewerKey = null }) {
   const selectedItems = useSelector(selectSelectedItems);
   const isWidest = useIsWidestCoupledTab();
 
+  // No edit toolbar while a capture frame owns the screen (Capture tool,
+  // Export rapide, POV framing) — same rule as UILayer / PopperMapListings.
+  // The selection itself is kept, so the toolbar comes back on exit.
+  const captureFramingActive = useSelector(selectCaptureFramingActive);
+
   // Note: used annotationType if available in item (it wasn't in InteractionLayer), falling back to selectedAnnotation logic
   const type = selectedNode?.annotationType || selectedAnnotation?.type;
 
@@ -46,6 +54,7 @@ export default function PopperEditAnnotation({ viewerKey = null }) {
     shouldShow &&
     isSingleSelection &&
     isWidest &&
+    !captureFramingActive &&
     ["MARKER", "POINT", "POLYLINE", "POLYGON", "IMAGE", "RECTANGLE", "STRIP", "OBJECT_3D", "RULER", "REVOLUTION_AXIS", "REVOLUTION_AXIS_PLACEMENT"].includes(type) &&
     selectedNode?.nodeType === "ANNOTATION";
 

@@ -7,6 +7,7 @@ import useResetNewAnnotation from "Features/annotations/hooks/useResetNewAnnotat
 
 import PopperBox from "Features/layout/components/PopperBox";
 import SectionEditScale from "./SectionEditScale";
+import { selectCaptureFramingActive } from "Features/viewers/utils/effectiveViewerKey";
 
 export default function PopperEditScale({ viewerKey = null }) {
   const dispatch = useDispatch();
@@ -17,6 +18,10 @@ export default function PopperEditScale({ viewerKey = null }) {
   const scaleAnnotationId = useSelector((s) => s.mapEditor.scaleAnnotationId);
   const activeViewerKey = useSelector((s) => s.viewers.selectedViewerKey);
 
+  // No edit popper while a capture frame owns the screen (Capture tool,
+  // Export rapide, POV framing) — same rule as UILayer / PopperMapListings.
+  const captureFramingActive = useSelector(selectCaptureFramingActive);
+
   const resetNewAnnotation = useResetNewAnnotation();
 
   // helper
@@ -24,7 +29,7 @@ export default function PopperEditScale({ viewerKey = null }) {
   const shouldShow = viewerKey
     ? activeViewerKey === viewerKey
     : activeViewerKey === "MAP";
-  const open = shouldShow && Boolean(anchorPosition);
+  const open = shouldShow && !captureFramingActive && Boolean(anchorPosition);
 
   // handlers
 

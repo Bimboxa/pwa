@@ -6,7 +6,10 @@ import useToolbarDrag from "../hooks/useToolbarDrag";
 
 import { Box } from "@mui/material";
 import ToolbarEditAnnotations from "Features/annotations/components/ToolbarEditAnnotations";
-import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
+import {
+  selectCaptureFramingActive,
+  selectEffectiveViewerKey,
+} from "Features/viewers/utils/effectiveViewerKey";
 import { matchesActiveViewerKey } from "Features/viewers/utils/threedViewerKeys";
 
 export default function PopperEditAnnotations({ viewerKey = null, allAnnotations }) {
@@ -24,12 +27,18 @@ export default function PopperEditAnnotations({ viewerKey = null, allAnnotations
   const activeViewerKey = useSelector(selectEffectiveViewerKey);
   const isWidest = useIsWidestCoupledTab();
 
+  // No edit toolbar while a capture frame owns the screen (Capture tool,
+  // Export rapide, POV framing) — same rule as UILayer / PopperMapListings.
+  // The selection itself is kept, so the toolbar comes back on exit.
+  const captureFramingActive = useSelector(selectCaptureFramingActive);
+
   // Only show if viewerKey matches active viewer (or if viewerKey is not specified, show for MAP)
   const shouldShow = viewerKey
     ? matchesActiveViewerKey(viewerKey, activeViewerKey)
     : activeViewerKey === "MAP";
 
-  const open = shouldShow && isWidest && selectedNodes?.length > 1;
+  const open =
+    shouldShow && isWidest && !captureFramingActive && selectedNodes?.length > 1;
 
   // drag
 

@@ -12,6 +12,7 @@ import ContextMenuAnnotationTemplates from "Features/annotations/components/Cont
 import ContextMenuCreateEntity from "Features/entities/components/ContextMenuCreateEntity";
 import ContextMenuPolylinePoint from "Features/annotations/components/ContextMenuPolylinePoint";
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
+import { selectCaptureFramingActive } from "Features/viewers/utils/effectiveViewerKey";
 
 export default function PopupContextMenu() {
   // data
@@ -21,9 +22,14 @@ export default function PopupContextMenu() {
   const node = useSelector((s) => s.contextMenu.clickedNode);
   const { value: listing } = useSelectedListing();
 
+  // No context menu while a capture frame owns the screen (Capture tool,
+  // Export rapide, POV framing) — same rule as UILayer / PopperMapListings.
+  // Also swallows a stale anchor left over from a right-click before capture.
+  const captureFramingActive = useSelector(selectCaptureFramingActive);
+
   // helpers
 
-  const open = Boolean(anchorPosition);
+  const open = Boolean(anchorPosition) && !captureFramingActive;
 
   // helpers - mode
 
