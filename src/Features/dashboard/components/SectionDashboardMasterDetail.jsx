@@ -122,7 +122,7 @@ export default function SectionDashboardMasterDetail() {
   }
 
   // opens the krto directly from the favorite vignette (mirrors the
-  // project-detail scope row "Ouvrir" action)
+  // project-detail scope row click)
   function handleOpenKrto(favorite) {
     if (favorite.isLocal) {
       dispatch(setSelectedScopeId(favorite.scopeId));
