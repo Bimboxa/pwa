@@ -133,6 +133,9 @@ import getRectangleRawPointsFromOnePoint from "Features/rectangles/utils/getRect
 import getImageAnnotationRectanglePointsFromOnePoint from "Features/imageAnnotations/utils/getImageAnnotationRectanglePointsFromOnePoint";
 import getObject3DAnnotationRectanglePointsFromOnePoint from "Features/object3D/utils/getObject3DAnnotationRectanglePointsFromOnePoint";
 import imageUrlToPng from "Features/images/utils/imageUrlToPng";
+import buildFolioFromResourcePageAsync from "Features/detailFolio/utils/buildFolioFromResourcePageAsync";
+import getNewAnnotationPropsFromAnnotationTemplate from "Features/annotations/utils/getNewAnnotationPropsFromAnnotationTemplate";
+import { resolveDrawingShape } from "Features/annotations/constants/drawingShapeConfig";
 import useSelectedNodes from "../hooks/useSelectedNodes";
 import useDrawingToolHotkeys from "../hooks/useDrawingToolHotkeys";
 import useFreeAnnotationHotkeys from "../hooks/useFreeAnnotationHotkeys";
@@ -746,6 +749,26 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
         }
         const images = [{ file: imageFile, imageUrlRemote: droppedImage.imageUrl }]
         _handleCommitDrawing([{ x: droppedImage.x, y: droppedImage.y }], { newAnnotation: { type: "MARKER", images }, skipTemplateCreation: true })
+    }
+
+    // handlers - PDF page drop (resources panel → DETAIL annotation with folio)
+
+    const selectedDetailTemplateId = useSelector((s) => s.resources.selectedDetailTemplateId);
+
+    const handleCommitPdfPageDrop = async ({ resourceId, pageNumber, rotation, x, y }) => {
+        const template = selectedDetailTemplateId
+            ? await db.annotationTemplates.get(selectedDetailTemplateId)
+            : null;
+        if (!template || template.deletedAt || resolveDrawingShape(template) !== "DETAIL") {
+            console.log("[resources] no DETAIL template selected, PDF page drop ignored");
+            return;
+        }
+        const folio = await buildFolioFromResourcePageAsync({ resourceId, pageNumber, rotation });
+        // Same base props as the interactive DETAIL draw (the commit flow then
+        // resolves the template link, creates the point row and forces the
+        // bubble label to "X").
+        const baseProps = getNewAnnotationPropsFromAnnotationTemplate(template);
+        await _handleCommitDrawing([{ x, y }], { newAnnotation: { ...baseProps, folio } });
     }
 
     // handlers - rectangle
@@ -1848,6 +1871,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                     }}
                     onCommitSplitAtVertex={handlePolylineSplitAtVertex}
                     onCommitImageDrop={handleCommitImageDrop}
+                    onCommitPdfPageDrop={handleCommitPdfPageDrop}
                     onCommitPointsFromSurfaceDrop={handleCommitPointsFromSurfaceDrop}
                     onCommitSimilarStrips={handleCommitSimilarStrips}
                     onCommitDetectedFeatures={handleCommitDetectedFeatures}

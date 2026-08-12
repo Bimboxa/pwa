@@ -39,6 +39,7 @@ import threedEditorReducer from "Features/threedEditor/threedEditorSlice";
 import mapEditorReducer from "Features/mapEditor/mapEditorSlice";
 import smartDetectReducer from "Features/smartDetect/smartDetectSlice";
 import reportsReducer from "Features/reports/reportsSlice";
+import resourcesReducer from "Features/resources/resourcesSlice";
 import blueprintsReducer from "Features/blueprints/blueprintsSlice";
 import selectionReducer from "Features/selection/selectionSlice";
 import baseMapCreatorReducer from "Features/baseMapCreator/baseMapCreatorSlice";
@@ -116,6 +117,7 @@ const store = configureStore({
     mapEditor: mapEditorReducer,
     smartDetect: smartDetectReducer,
     reports: reportsReducer,
+    resources: resourcesReducer,
     blueprints: blueprintsReducer,
     selection: selectionReducer,
     opencv: opencvReducer,

@@ -96,6 +96,7 @@ import AxisSnapLayer from 'Features/mapEditorGeneric/components/AxisSnapLayer';
 import TransientTopologyLayer from 'Features/mapEditorGeneric/components/TransientTopologyLayer';
 import TransientAnnotationLayer from 'Features/mapEditorGeneric/components/TransientAnnotationLayer';
 import DropZoneLayer from 'Features/mapEditorGeneric/components/DropZoneLayer';
+import { PDF_PAGE_DRAG_MIME } from 'Features/resources/utils/pdfPageDrag';
 
 import TransientDetectedShapeLayer from 'Features/mapEditorGeneric/components/TransientDetectedShapeLayer';
 import TransientOpeningSegmentLayer from 'Features/mapEditorGeneric/components/TransientOpeningSegmentLayer';
@@ -381,6 +382,7 @@ const InteractionLayer = forwardRef(({
   onCommitDetectedFeatures,
   onCommitLocalizedRepair,
   onCommitImageDrop,
+  onCommitPdfPageDrop,
   onMapClickInSelectMode,
   basePose,
   onBaseMapPoseChange,
@@ -7100,6 +7102,41 @@ const InteractionLayer = forwardRef(({
     if (onCommitImageDrop) onCommitImageDrop({ imageUrl, x, y, idMaster });
   };
 
+  // Native HTML5 drop of a PDF page dragged from the resources panel (native
+  // DnD, not dnd-kit: the app-wide PointerSensor needs a 250 ms press-and-hold,
+  // too much friction for page thumbnails). Creates a DETAIL annotation with
+  // folio = the dropped page (see MainMapEditorV3.handleCommitPdfPageDrop).
+
+  const handlePdfPageDragOver = (e) => {
+    if (e.dataTransfer?.types?.includes(PDF_PAGE_DRAG_MIME)) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "copy";
+    }
+  };
+
+  const handlePdfPageDrop = (e) => {
+    if (!e.dataTransfer?.types?.includes(PDF_PAGE_DRAG_MIME)) return;
+    e.preventDefault();
+    let payload = null;
+    try {
+      payload = JSON.parse(e.dataTransfer.getData(PDF_PAGE_DRAG_MIME));
+    } catch {
+      return;
+    }
+    if (!payload?.resourceId || !payload?.pageNumber) return;
+    const worldPos = viewportRef.current?.screenToWorld(e.clientX, e.clientY);
+    if (!worldPos) return;
+    const localPos = toLocalCoords(worldPos);
+    if (onCommitPdfPageDrop)
+      onCommitPdfPageDrop({
+        resourceId: payload.resourceId,
+        pageNumber: payload.pageNumber,
+        rotation: payload.rotation ?? 0,
+        x: localPos.x,
+        y: localPos.y,
+      });
+  };
+
   // render
 
   const targetPose = getTargetPose();
@@ -7152,6 +7189,8 @@ const InteractionLayer = forwardRef(({
       onDoubleClick={handleDoubleClick}
       onMouseLeave={handleMouseLeave}
       onContextMenu={handleContextMenu}
+      onDragOver={handlePdfPageDragOver}
+      onDrop={handlePdfPageDrop}
       sx={{
         width: 1, height: 1, // A. Le curseur de base du conteneur
         cursor: getCursorStyle(),

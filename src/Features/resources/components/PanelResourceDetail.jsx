@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSelector } from "react-redux";
 
 import {
   Box,
@@ -15,12 +16,13 @@ import { ArrowBack, Delete, Download, MoreHoriz } from "@mui/icons-material";
 import BoxCenter from "Features/layout/components/BoxCenter";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import ContainerFilesSelectorV2 from "Features/files/components/ContainerFilesSelectorV2";
-import ViewerPdf from "Features/pdf/components/ViewerPdf";
 import stringifyFileSize from "Features/files/utils/stringifyFileSize";
 
 import useResourceFile from "../hooks/useResourceFile";
 import useDeleteResource from "../hooks/useDeleteResource";
 import useReattachResourceFile from "../hooks/useReattachResourceFile";
+import ViewerPdfPages from "./ViewerPdfPages";
+import SectionSelectDetailTemplate from "./SectionSelectDetailTemplate";
 
 export default function PanelResourceDetail({ resource, onBack }) {
   // strings
@@ -37,6 +39,9 @@ export default function PanelResourceDetail({ resource, onBack }) {
   const { file, loading, fileIsMissing } = useResourceFile(resource);
   const deleteResource = useDeleteResource();
   const reattachResourceFile = useReattachResourceFile();
+  // MAP = drawing module: PDF pages can be drag-n-dropped on the 2D editor
+  // to create a DETAIL annotation — the bottom section picks its template.
+  const isMapModule = useSelector((s) => s.viewers.selectedViewerKey) === "MAP";
 
   // state
 
@@ -174,7 +179,10 @@ export default function PanelResourceDetail({ resource, onBack }) {
           </Box>
         </Box>
       ) : isPdf ? (
-        <ViewerPdf pdfFile={file} />
+        <>
+          <ViewerPdfPages resource={resource} file={file} />
+          {isMapModule && <SectionSelectDetailTemplate />}
+        </>
       ) : isImage ? (
         <Box
           sx={{
