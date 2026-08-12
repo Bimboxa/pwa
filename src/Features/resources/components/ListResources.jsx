@@ -9,7 +9,11 @@ import { InsertDriveFileOutlined } from "@mui/icons-material";
 
 import stringifyFileSize from "Features/files/utils/stringifyFileSize";
 
-export default function ListResources({ resources, onResourceClick }) {
+export default function ListResources({
+  resources,
+  onResourceClick,
+  isResourceDisabled,
+}) {
   // render
 
   return (
@@ -25,6 +29,7 @@ export default function ListResources({ resources, onResourceClick }) {
           <ListItemButton
             key={resource.id}
             divider
+            disabled={isResourceDisabled?.(resource)}
             onClick={() => onResourceClick(resource)}
           >
             <ListItemAvatar>

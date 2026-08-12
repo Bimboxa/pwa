@@ -21,6 +21,7 @@ import SectionMultiPartProperties from "./SectionMultiPartProperties";
 import FormEntity from "Features/entities/components/FormEntity";
 import SectionEntityAnnotations from "Features/entities/components/SectionEntityAnnotations";
 import SectionAnnotationZones from "Features/zonings/components/SectionAnnotationZones";
+import SectionAnnotationFolioContent from "Features/detailFolio/components/SectionAnnotationFolioContent";
 
 // Types without a draggable sub-label (no labelDelta model) — no Etiquette tab.
 const TYPES_WITHOUT_LABEL = ["COTE", "RULER", "TEXT", "LABEL", "DETAIL"];
@@ -35,6 +36,7 @@ function getTabs(annotation) {
   return [
     { id: "PROPERTIES", label: "Propriété" },
     ...(showLabelTab ? [{ id: "LABEL", label: "Etiquette" }] : []),
+    ...(annotation?.type === "DETAIL" ? [{ id: "FOLIO", label: "Folio" }] : []),
     { id: "ENTITY", label: "Objet" },
   ];
 }
@@ -140,6 +142,10 @@ export default function PanelAnnotationProperties() {
 
         {!hasPart && effectiveTab === "LABEL" && (
           <SectionAnnotationLabelContent annotation={annotation} />
+        )}
+
+        {!hasPart && effectiveTab === "FOLIO" && (
+          <SectionAnnotationFolioContent annotation={annotation} />
         )}
 
         {!hasPart && effectiveTab === "ENTITY" && (
