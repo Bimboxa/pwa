@@ -1,5 +1,8 @@
 import { useState } from "react";
 import { useDispatch } from "react-redux";
+import { useLiveQuery } from "dexie-react-hooks";
+
+import db from "App/db/db";
 
 import useSelectedPortfolioPage from "Features/portfolioPages/hooks/useSelectedPortfolioPage";
 
@@ -32,6 +35,11 @@ export default function PanelPortfolioPageProperties() {
   const { value: page } = useSelectedPortfolioPage();
   const content = usePortfolioPageContent(page?.id);
 
+  const folioResource = useLiveQuery(async () => {
+    if (!page?.folio?.resourceId) return null;
+    return (await db.resources.get(page.folio.resourceId)) ?? null;
+  }, [page?.folio?.resourceId]);
+
   // state
 
   const [includeCartouche, setIncludeCartouche] = useState(false);
@@ -40,6 +48,7 @@ export default function PanelPortfolioPageProperties() {
   // helpers
 
   const label = page?.title ?? "-?-";
+  const isFolioPage = page?.type === "FOLIO_PAGE";
 
   // handlers
 
@@ -88,9 +97,38 @@ export default function PanelPortfolioPageProperties() {
       </Box>
 
       <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5, p: 1.5 }}>
-        <CardPageContent content={content} page={page} />
-        <CardPortfolioPageSize page={page} />
-        <CardPortfolioPageOrientation page={page} />
+        {isFolioPage ? (
+          <WhiteSectionGeneric>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1, p: 1 }}>
+              {page.folio?.thumbnail && (
+                <Box
+                  component="img"
+                  src={page.folio.thumbnail}
+                  alt=""
+                  sx={{
+                    width: 48,
+                    borderRadius: 0.5,
+                    border: (theme) => `1px solid ${theme.palette.divider}`,
+                  }}
+                />
+              )}
+              <Box>
+                <Typography variant="body2" sx={{ fontWeight: "bold" }}>
+                  {folioResource?.name ?? "Ressource introuvable"}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {`Page ${page.folio?.pageNumber ?? "-"}`}
+                </Typography>
+              </Box>
+            </Box>
+          </WhiteSectionGeneric>
+        ) : (
+          <>
+            <CardPageContent content={content} page={page} />
+            <CardPortfolioPageSize page={page} />
+            <CardPortfolioPageOrientation page={page} />
+          </>
+        )}
 
         <WhiteSectionGeneric>
           <ButtonInPanelV2

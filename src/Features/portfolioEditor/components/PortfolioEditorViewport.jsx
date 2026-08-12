@@ -15,6 +15,7 @@ import useDisplayedPortfolio from "Features/portfolios/hooks/useDisplayedPortfol
 import getPageDimensions from "../utils/getPageDimensions";
 
 import PortfolioPageSvg from "./PortfolioPageSvg";
+import PortfolioFolioPageSvg from "./PortfolioFolioPageSvg";
 import SectionPageEntityImages from "./SectionPageEntityImages";
 import ButtonAddPage from "./ButtonAddPage";
 
@@ -139,13 +140,19 @@ export default function PortfolioEditorViewport() {
           {pages?.map((page, index) => {
             return (
               <Box key={page.id} sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
-                <PortfolioPageSvg
-                  page={page}
-                  pageIndex={index}
-                  totalPages={pages.length}
-                  zoom={zoom}
-                />
-                <SectionPageEntityImages page={page} />
+                {page.type === "FOLIO_PAGE" ? (
+                  <PortfolioFolioPageSvg page={page} />
+                ) : (
+                  <>
+                    <PortfolioPageSvg
+                      page={page}
+                      pageIndex={index}
+                      totalPages={pages.length}
+                      zoom={zoom}
+                    />
+                    <SectionPageEntityImages page={page} />
+                  </>
+                )}
               </Box>
             );
           })}

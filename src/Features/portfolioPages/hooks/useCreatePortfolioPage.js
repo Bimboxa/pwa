@@ -17,20 +17,29 @@ export default function useCreatePortfolioPage() {
     format,
     orientation,
     afterSortIndex,
+    type,
+    folio,
+    sourceAnnotationId,
   }) => {
     const sortIndex = generateKeyBetween(afterSortIndex ?? null, null);
     const _format = format || "A3";
     const _orientation = orientation || "landscape";
+    const _type = type || "BASE_MAPS_PAGE";
 
     const pageData = {
       title: title || "Nouvelle page",
       sortIndex,
       format: _format,
       orientation: _orientation,
-      type: "BASE_MAPS_PAGE",
+      type: _type,
+      ...(folio && { folio }),
+      ...(sourceAnnotationId && { sourceAnnotationId }),
     };
 
     const page = await createEntity(pageData, { listing });
+
+    // folio pages render a PDF page directly, they have no containers
+    if (_type === "FOLIO_PAGE") return page;
 
     // auto-create one empty container filling the content area
     const layout = getPageLayout(_format, _orientation);

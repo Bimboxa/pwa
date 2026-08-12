@@ -1,6 +1,8 @@
 import { useState } from "react";
 
-import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
+import { PDFDocument, StandardFonts, rgb, degrees } from "pdf-lib";
+
+import db from "App/db/db";
 
 import getImageFromSvg from "Features/mapEditorGeneric/utils/getImageFromSvg";
 import imageToPdfAsync from "Features/pdf/utils/imageToPdfAsync";
@@ -48,7 +50,56 @@ export default function useDownloadPortfolioPdf() {
       const pagePdfs = [];
       const pageLayouts = []; // layout per PDF page (for page number positioning)
 
+      // source PDFs of folio pages, parsed once per resource
+      const sourceDocsCache = new Map(); // resourceId -> PDFDocument | null
+      async function loadSourceDoc(resourceId) {
+        if (!resourceId) return null;
+        if (sourceDocsCache.has(resourceId))
+          return sourceDocsCache.get(resourceId);
+        let doc = null;
+        try {
+          const resource = await db.resources.get(resourceId);
+          const fileRecord = resource?.fileName
+            ? await db.files.get(resource.fileName)
+            : null;
+          if (fileRecord?.fileArrayBuffer) {
+            doc = await PDFDocument.load(fileRecord.fileArrayBuffer);
+          }
+        } catch (err) {
+          console.error("[portfolio pdf] failed to load source PDF", err);
+        }
+        sourceDocsCache.set(resourceId, doc);
+        return doc;
+      }
+
       for (const page of pages) {
+        // folio pages embed the original PDF page (vector copy), no DOM capture
+        if (page.type === "FOLIO_PAGE") {
+          const srcDoc = await loadSourceDoc(page.folio?.resourceId);
+          if (!srcDoc) {
+            console.warn(
+              `[portfolio pdf] folio page "${page.title}": source PDF missing, page skipped`
+            );
+            continue;
+          }
+          const pageIndex = Math.min(
+            Math.max((page.folio?.pageNumber ?? 1) - 1, 0),
+            srcDoc.getPageCount() - 1
+          );
+          const folioDoc = await PDFDocument.create();
+          const [copiedPage] = await folioDoc.copyPages(srcDoc, [pageIndex]);
+          // folio.rotation is ABSOLUTE (it replaces the page's intrinsic
+          // /Rotate, same convention as renderPageToPngBlob in the app)
+          const rotation = ((page.folio?.rotation ?? 0) % 360 + 360) % 360;
+          if (rotation % 90 === 0) copiedPage.setRotation(degrees(rotation));
+          folioDoc.addPage(copiedPage);
+          const folioBytes = await folioDoc.save();
+          pagePdfs.push(new Blob([folioBytes], { type: "application/pdf" }));
+          // null layout -> no "p. N" stamped on folio pages (for now)
+          pageLayouts.push(null);
+          continue;
+        }
+
         const svgEl = document.querySelector(
           `svg[data-portfolio-page-id="${page.id}"]`
         );

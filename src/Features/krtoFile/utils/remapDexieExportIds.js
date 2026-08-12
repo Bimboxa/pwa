@@ -286,6 +286,11 @@ export default function remapDexieExportIds(jsonData, opts) {
         }
       }
 
+      // FOLIO_PAGE portfolio pages carry the same nested folio resource ref.
+      if (tableName === "portfolioPages" && row.folio?.resourceId) {
+        row.folio.resourceId = remapId("resources", row.folio.resourceId);
+      }
+
       // Embedded fileName refs (baseMap.image.fileName, version.image.fileName,
       // entity file blobs) + the files-row own fileName.
       rewriteFileNamesInObject(row, fileNameMap);
