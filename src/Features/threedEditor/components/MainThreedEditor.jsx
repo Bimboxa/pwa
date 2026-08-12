@@ -1923,7 +1923,6 @@ export default function MainThreedEditor() {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        border: "1px solid grey",
         position: "relative",
       }}
     >
