@@ -367,6 +367,10 @@ export default function getAnnotationQties({
     // describes the drawing, it is not part of the work. No quantities.
     if (annotation.type === "RULER") return { enabled: false };
 
+    // DETAIL is a callout bubble: counted (1 u), no length/surface.
+    if (annotation.type === "DETAIL")
+      return { enabled: true, length: 0, surface: 0 };
+
     if (annotation.type === "POINT") {
       // REVOLUTION: the point sweeps a circle around the referenced axis
       // (radius = its horizontal distance to it, resolved by useAnnotationsV2).

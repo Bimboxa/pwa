@@ -51,6 +51,33 @@ const DRAWING_SHAPES = [
     ),
   },
   {
+    key: "DETAIL",
+    label: "Détail",
+    icon: (
+      <SvgIcon fontSize="small" viewBox="0 0 20 20">
+        <circle
+          cx="8"
+          cy="10"
+          r="6"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+        />
+        <text
+          x="8"
+          y="13"
+          textAnchor="middle"
+          fontSize="8"
+          fontWeight="bold"
+          fill="currentColor"
+        >
+          A
+        </text>
+        <path d="M19 10 L14.2 7.8 L14.2 12.2 Z" fill="currentColor" />
+      </SvgIcon>
+    ),
+  },
+  {
     key: "POLYLINE",
     label: "Ligne",
     icon: (

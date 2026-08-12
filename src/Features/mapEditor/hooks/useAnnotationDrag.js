@@ -104,9 +104,12 @@ export default function useAnnotationDrag({
       hasChanged =
         ann.revolutionAngleStartDeg !== snap.angleStartDeg ||
         ann.revolutionAngleEndDeg !== snap.angleEndDeg;
+    } else if (ann.type === "DETAIL" && snap.partType === "ROTATE") {
+      hasChanged = ann.arrowAngle !== snap.arrowAngle;
     } else if (
       ann.type === "MARKER" ||
       ann.type === "POINT" ||
+      ann.type === "DETAIL" ||
       ann.type === "REVOLUTION_AXIS" ||
       ann.type === "REVOLUTION_AXIS_PLACEMENT"
     ) {
@@ -422,6 +425,8 @@ export default function useAnnotationDrag({
             directionDeg: ann.directionDeg,
             angleStartDeg: ann.revolutionAngleStartDeg,
             angleEndDeg: ann.revolutionAngleEndDeg,
+            // DETAIL rotation commits arrowAngle only (the point is the pivot).
+            arrowAngle: ann.arrowAngle,
           };
         }
         commitPendingRef.current = annId;

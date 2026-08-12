@@ -210,6 +210,50 @@ export default function AnnotationTemplateIcon({
     );
   }
 
+  // render — DETAIL template: bubble with a letter + small arrow
+  if (shape === "DETAIL") {
+    return (
+      <Box
+        sx={{
+          width: size,
+          height: size,
+          flexShrink: 0,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <svg width={size} height={size} viewBox="0 0 20 20">
+          <circle
+            cx="8"
+            cy="10"
+            r="6"
+            fill="#ffffff"
+            stroke={isLightColor ? "#bbb" : color}
+            strokeWidth="2"
+            opacity={opacity}
+          />
+          <text
+            x="8"
+            y="13"
+            textAnchor="middle"
+            fontSize="8"
+            fontWeight="bold"
+            fill="#000000"
+            fontFamily="sans-serif"
+          >
+            A
+          </text>
+          <path
+            d="M19 10 L14.2 7.8 L14.2 12.2 Z"
+            fill={isLightColor ? "#bbb" : color}
+            opacity={opacity}
+          />
+        </svg>
+      </Box>
+    );
+  }
+
   if (hasSprite && spriteOffset) {
     const { url, columns, rows, tile } = spriteImage;
     const scale = (size - 8) / tile;

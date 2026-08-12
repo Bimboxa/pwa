@@ -1117,10 +1117,12 @@ export default function useAnnotationsV2(options) {
               corruptedIds.push(_annotation.point.id);
           }
 
-          // --- POINT (and the revolution axis / its elevation placement, both
-          // single-point annotations whose geometry is carried by scalars)
+          // --- POINT (and DETAIL / the revolution axis / its elevation
+          // placement, all single-point annotations whose extra geometry is
+          // carried by scalars — arrowAngle for DETAIL)
           else if (
             _annotation.type === "POINT" ||
+            _annotation.type === "DETAIL" ||
             isRevolutionHelperType(_annotation.type)
           ) {
             // A row without a point ref must not reach resolvePoints: throwing

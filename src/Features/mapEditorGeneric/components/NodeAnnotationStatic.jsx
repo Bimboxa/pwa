@@ -5,6 +5,7 @@ import NodePolylineStatic from "./NodePolylineStatic";
 import NodeStripStatic from "./NodeStripStatic";
 import NodeTextStatic from "./NodeTextStatic";
 import NodeLabelStatic from "./NodeLabelStatic";
+import NodeDetailStatic from "./NodeDetailStatic";
 import NodeImageStatic from "./NodeImageStatic";
 import NodeObject3DStatic from "./NodeObject3DStatic";
 import NodePointStatic from "./NodePointStatic";
@@ -126,6 +127,10 @@ function NodeAnnotationStatic({
           sizeVariant="FIXED_IN_BG_IMAGE"
         />
       );
+
+    // DETAIL: bubble + label + orientable arrow whose tip is the stored point.
+    case "DETAIL":
+      return <NodeDetailStatic {...props} annotation={resolvedAnnotation} />;
 
     case "RECTANGLE":
       return <NodeRectangleStatic {...props} annotation={resolvedAnnotation} />;

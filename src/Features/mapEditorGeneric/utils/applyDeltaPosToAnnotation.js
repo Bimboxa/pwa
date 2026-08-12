@@ -225,6 +225,24 @@ export default function applyDeltaPosToAnnotation(annotation, deltaPos, partType
         return _annotation;
     }
 
+    // DETAIL — single point (the arrow tip) + arrowAngle scalar.
+    // ROTATE: deltaPos.x carries the rotation delta in degrees around the tip
+    // (see the DETAIL rotationContext in InteractionLayer); the point never
+    // moves — the bubble orbits it.
+    if (_annotation.type === "DETAIL") {
+        if (partType === "ROTATE") {
+            _annotation.arrowAngle = normalizeDeg(
+                (_annotation.arrowAngle ?? 0) + deltaPos.x
+            );
+        } else {
+            _annotation.point = {
+                x: _annotation.point.x + deltaPos.x,
+                y: _annotation.point.y + deltaPos.y,
+            };
+        }
+        return _annotation;
+    }
+
     // MARKER / POINT / revolution axis + placement (single-point annotations)
     if (
         _annotation.type === "MARKER" ||
