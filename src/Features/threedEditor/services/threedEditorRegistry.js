@@ -4,12 +4,21 @@
 
 let activeThreedEditor = null;
 
+// Debug handle: this registry is module-scoped, so a console session has no
+// way to reach the live scene (materials, imagesMap, opacityState). Same
+// opt-in diagnostic spirit as window.__DEBUG_SECTION__.
+function setDebugHandle(threedEditor) {
+  if (typeof window !== "undefined") window.__threedEditor = threedEditor;
+}
+
 export function setActiveThreedEditor(threedEditor) {
   activeThreedEditor = threedEditor;
+  setDebugHandle(threedEditor);
 }
 
 export function clearActiveThreedEditor() {
   activeThreedEditor = null;
+  setDebugHandle(null);
 }
 
 export function getActiveThreedEditor() {
