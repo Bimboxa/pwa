@@ -31,8 +31,7 @@ Un enregistrement par POV partagé.
 |---|---|---|
 | `id` | string/uuid | Identifiant maître généré par le backend. Renvoyé au frontend comme `povId`, stocké côté client dans `pov.idMaster`. |
 | `povId` | string | Identifiant client du POV (nanoid, unique globalement). **Clé d'upsert** : un second Push avec le même `povId` remplace l'enregistrement. |
-| `scopeId` | string | Identifiant du scope (Krto) auquel le POV appartient — même valeur que le `scopeId` des ScopesConfigurations. |
-| `projectObjectId` | string | Identifiant maître du projet (`project.idMaster`), même convention que le champ `projectObjectId` de `ScopesConfigurations/Push`. |
+| `scopeId` | string | Identifiant du scope (Krto) auquel le POV appartient — même valeur que le `scopeId` des ScopesConfigurations. **Seul lien de rattachement** : un povPreview n'a aucun champ projet ; le projet se retrouve via la scopeConfiguration correspondante (`scopeId`, qui porte `projectObjectId` / `projectIdClient`). |
 | `povIndex` | string | **Index fractionnaire** (fractional index, ex. `"a0"`, `"a0V"`, `"a1"`). Chaîne opaque à stocker **telle quelle** : l'ordre d'affichage des POV est l'ordre lexicographique de ce champ. Ne pas parser, ne pas convertir en nombre. |
 | `description` | string | Description libre du POV, saisie par l'utilisateur. Optionnelle — peut être absente ou vide (`""`). |
 | image | binaire | Le fichier PNG reçu, stocké par le backend, servi via `povImageUrl`. |
@@ -57,7 +56,6 @@ Un enregistrement par POV partagé.
 |---|---|---|
 | `povId` | `pov.id` (nanoid client) | oui |
 | `scopeId` | `scope.id` | oui |
-| `projectObjectId` | `project.idMaster` | oui |
 | `povIndex` | `pov.sortIndex` (chaîne, index fractionnaire) | oui |
 | `description` | `pov.description` | non (absente ou vide si le POV n'a pas de description) |
 | `createdById` | `userProfile.idMaster` | oui |
@@ -70,7 +68,6 @@ curl -X POST https://<host>/api/PovPreviews/Push \
   -H "Authorization: Bearer <jwt>" \
   -F "povId=Vq8kM2xPz4LhN0aB1cD5e" \
   -F "scopeId=kRt0aB1cD5eVq8kM2xPz4" \
-  -F "projectObjectId=8f14e45f-ceea-467f-9b17-b6c1c1e4a7d2" \
   -F "povIndex=a0" \
   -F "description=Vue d'ensemble toiture terrasse" \
   -F "createdById=3c9909af-9d1a-4f8c-9c1e-2b7e6a1f0d44" \
@@ -184,7 +181,7 @@ Règles :
 |---|---|
 | Requête sans token / token invalide | `401 Unauthorized` |
 | `Remove` d'un `povId` inconnu | `200`/`204` (idempotent) |
-| `Push` sans champ obligatoire (`povId`, `scopeId`, `projectObjectId`, `povIndex`, `createdById` — et `file` si création) | `400 Bad Request` avec message explicite |
+| `Push` sans champ obligatoire (`povId`, `scopeId`, `povIndex`, `createdById` — et `file` si création) | `400 Bad Request` avec message explicite |
 | Fichier trop volumineux | Accepter jusqu'à **1 Mo** (marge de sécurité ; ≤ 200 Ko en pratique) ; `413` au-delà |
 | Fichier non-PNG | Accepter au minimum `image/png` ; `415` sinon (ou accepter `image/jpeg`/`image/webp` si simple à faire) |
 | Re-Push avec image identique | Mettre quand même à jour `povIndex` et `description` (l'utilisateur peut avoir réordonné ou renommé le POV) |
