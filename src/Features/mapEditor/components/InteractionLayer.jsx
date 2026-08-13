@@ -6643,22 +6643,34 @@ const InteractionLayer = forwardRef(({
       // Id-less VERTEX = a revolution-axis anchor (centre / diameter end, see
       // getBestSnap): there is no db point to drag, so the vertex handler
       // declines. The snap marker sits on top of the node and swallowed the
-      // mousedown (stopPropagation above), so start the whole-annotation drag
-      // here — the dedicated commit path that also re-poses the linked
-      // elevations.
+      // mousedown (stopPropagation above), so start the annotation drag here.
+      // A diameter end drags like its square handle (centre fixed, gesture
+      // rewrites radiusM + directionDeg); the centre (or a placement anchor)
+      // moves the whole annotation — both are the dedicated commit paths that
+      // also re-pose the linked elevations.
       if (!consumed && snap.type === "VERTEX" && !snap.id && snap.annotationId) {
         const draggedAnn = annotations?.find((a) => a.id === snap.annotationId);
         if (draggedAnn) {
           const worldPos = viewportRef.current?.screenToWorld(e.clientX, e.clientY);
           const startMouseInLocal = toLocalCoords(worldPos);
+          // _snapPoints = [centre, rimPx[0], rimPx[1]] — same ordering as the
+          // REVOLUTION_RIM::<0|1> handles of NodeRevolutionAxisStatic.
+          let partType = null;
+          if (draggedAnn.type === "REVOLUTION_AXIS") {
+            const rimIndex = (draggedAnn._snapPoints ?? []).findIndex(
+              (p) => p.x === snap.x && p.y === snap.y
+            );
+            if (rimIndex > 0) partType = `REVOLUTION_RIM::${rimIndex - 1}`;
+          }
           initAnnotationDrag({
             nodeId: draggedAnn.id,
             startMouseInLocal,
-            partType: null,
+            partType,
             startMouseScreen: { x: e.clientX, y: e.clientY },
-            anchorLocal: isMarkerLikeSnapDragType(draggedAnn.type)
-              ? draggedAnn.point
-              : null,
+            anchorLocal:
+              !partType && isMarkerLikeSnapDragType(draggedAnn.type)
+                ? draggedAnn.point
+                : null,
           });
         }
       }
