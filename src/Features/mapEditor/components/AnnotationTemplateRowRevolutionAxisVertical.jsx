@@ -4,11 +4,10 @@ import { useDispatch } from "react-redux";
 import { setEnabledDrawingMode } from "Features/mapEditor/mapEditorSlice";
 import { setNewAnnotation } from "Features/annotations/annotationsSlice";
 import { setSelectedListingId } from "Features/listings/listingsSlice";
-import { setSelectedItem } from "Features/selection/selectionSlice";
-import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 
 import {
   Box,
+  Button,
   IconButton,
   ListItemButton,
   ListItemText,
@@ -18,12 +17,8 @@ import {
   Typography,
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
-import {
-  RotateRight,
-  Tune,
-  Visibility,
-  VisibilityOff,
-} from "@mui/icons-material";
+import { Visibility, VisibilityOff } from "@mui/icons-material";
+import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 
 import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTemplateIcon";
 import useRevolutionAxes from "Features/annotations/hooks/useRevolutionAxes";
@@ -37,8 +32,9 @@ import { getDrawingToolByKey } from "Features/mapEditor/constants/drawingTools.j
 // An axis has one authoring place and many instantiation places: it is drawn
 // on a HORIZONTAL plan from the standard template row, whereas on an elevation
 // the same template row can only DROP an already-drawn axis. So instead of the
-// tool picker, this row arms the one-click placement tool: clicking the row
-// picks the first axis, the side button opens the full axis list. Dropping the
+// tool picker, the side button shows the ACTIVE axis (the one a row click will
+// drop, first axis by default) and opens the full axis list; with no axis yet
+// it reads "Aucun axe" and the menu explains how to create one. Dropping the
 // placement also poses the vertical base map in 3D (see
 // computeVerticalBaseMapPlacementFromAxis).
 export default function AnnotationTemplateRowRevolutionAxisVertical({
@@ -50,6 +46,7 @@ export default function AnnotationTemplateRowRevolutionAxisVertical({
   sortableRef,
   sortableStyle,
   sortableAttributes,
+  dragListeners,
 }) {
   const dispatch = useDispatch();
   const updateAnnotationTemplate = useUpdateAnnotationTemplate();
@@ -63,6 +60,7 @@ export default function AnnotationTemplateRowRevolutionAxisVertical({
 
   const [isHovered, setIsHovered] = useState(false);
   const [axesMenuAnchor, setAxesMenuAnchor] = useState(null);
+  const [activeAxisId, setActiveAxisId] = useState(null);
 
   // helpers
 
@@ -71,6 +69,9 @@ export default function AnnotationTemplateRowRevolutionAxisVertical({
     annotationTemplate?.fillColor ??
     annotationTemplate?.strokeColor ??
     "#1976d2";
+  const activeAxis =
+    revolutionAxes.find((a) => a.id === activeAxisId) ?? revolutionAxes[0];
+  const axisBtnLabel = hasAxes ? (activeAxis?.label ?? "Axe") : "Aucun axe";
 
   // handlers
 
@@ -110,7 +111,7 @@ export default function AnnotationTemplateRowRevolutionAxisVertical({
 
   const handleRowClick = () => {
     if (!hasAxes) return;
-    armAxis(revolutionAxes[0]);
+    armAxis(activeAxis);
   };
 
   const handleAxesBtnClick = (e) => {
@@ -118,15 +119,9 @@ export default function AnnotationTemplateRowRevolutionAxisVertical({
     setAxesMenuAnchor(e.currentTarget);
   };
 
-  const handleEditTemplate = () => {
-    dispatch(setSelectedListingId(listingId));
-    dispatch(
-      setSelectedItem({
-        id: annotationTemplate?.id,
-        type: "ANNOTATION_TEMPLATE",
-      })
-    );
-    dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
+  const handleSelectAxis = (axis) => {
+    setActiveAxisId(axis.id);
+    armAxis(axis);
   };
 
   const handleToggleHidden = async (e) => {
@@ -145,174 +140,172 @@ export default function AnnotationTemplateRowRevolutionAxisVertical({
       style={sortableStyle}
       {...(sortableAttributes ?? {})}
     >
-      <Tooltip
-        title={
-          hasAxes ? "" : "Commencez par créer un axe sur un plan horizontal"
-        }
-        arrow
-        placement="bottom"
+      <ListItemButton
+        onClick={handleRowClick}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => {
+          if (!axesMenuAnchor) setIsHovered(false);
+        }}
+        sx={{
+          position: "relative",
+          bgcolor: "white",
+          alignItems: "center",
+          justifyContent: "space-between",
+          pl: 1,
+          pr: 1,
+          py: 0.5,
+          borderLeft: "3px solid",
+          borderColor: isHovered && hasAxes ? templateColor : "transparent",
+          cursor: hasAxes ? "pointer" : "default",
+          "&:hover": {
+            bgcolor: hasAxes ? alpha(templateColor, 0.1) : "white",
+          },
+        }}
       >
-        <ListItemButton
-          onClick={handleRowClick}
-          onMouseEnter={() => setIsHovered(true)}
-          onMouseLeave={() => {
-            if (!axesMenuAnchor) setIsHovered(false);
-          }}
+        {/* Drag handle */}
+        <Box
+          {...(dragListeners ?? {})}
+          onClick={(e) => e.stopPropagation()}
           sx={{
-            position: "relative",
-            bgcolor: "white",
+            display: "flex",
             alignItems: "center",
-            justifyContent: "space-between",
-            pl: 1,
-            pr: 1,
-            py: 0.5,
-            borderLeft: "3px solid",
-            borderColor: isHovered && hasAxes ? templateColor : "transparent",
-            cursor: hasAxes ? "pointer" : "default",
-            "&:hover": {
-              bgcolor: hasAxes ? alpha(templateColor, 0.1) : "white",
-            },
+            cursor: "grab",
+            opacity: isHovered ? 1 : 0,
+            transition: "opacity 0.15s",
+            mr: 0.5,
+            flexShrink: 0,
+          }}
+        >
+          <DragIndicatorIcon sx={{ fontSize: 16, color: "panel.textLight" }} />
+        </Box>
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            flex: 1,
+            minWidth: 0,
           }}
         >
           <Box
             sx={{
               display: "flex",
               alignItems: "center",
-              flex: 1,
-              minWidth: 0,
-            }}
-          >
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                width: 24,
-                height: 24,
-                mr: 1,
-                flexShrink: 0,
-                opacity: isHidden || !hasAxes ? 0.4 : 1,
-                filter: isHidden ? "grayscale(100%)" : "none",
-              }}
-            >
-              <AnnotationTemplateIcon
-                template={annotationTemplate}
-                size={18}
-                spriteImage={spriteImage}
-              />
-            </Box>
-            <Typography
-              variant="body2"
-              color={
-                isHidden || !hasAxes ? "text.disabled" : "panel.textPrimary"
-              }
-              sx={{
-                lineHeight: 1.3,
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                userSelect: "none",
-              }}
-            >
-              {annotationTemplate.label}
-            </Typography>
-          </Box>
-
-          {/* Right side: properties + axis picker + visibility (hover) OR qty */}
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "flex-end",
-              gap: 0.5,
-              ml: 1,
-              minWidth: 56,
+              justifyContent: "center",
+              width: 24,
+              height: 24,
+              mr: 1,
               flexShrink: 0,
+              opacity: isHidden || !hasAxes ? 0.4 : 1,
+              filter: isHidden ? "grayscale(100%)" : "none",
             }}
           >
-            {isHovered ? (
-              <>
-                <Tooltip title="Propriétés" arrow placement="bottom">
-                  <IconButton
-                    size="small"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleEditTemplate();
-                    }}
-                    sx={{ p: 0.25, color: templateColor }}
-                  >
-                    <Tune sx={{ fontSize: 16 }} />
-                  </IconButton>
-                </Tooltip>
-                {/* Axis picker button — replaces the tool picker of the
-                    standard row */}
-                {hasAxes && (
-                  <Tooltip title="Choisir l'axe" arrow>
-                    <IconButton
-                      size="small"
-                      onClick={handleAxesBtnClick}
-                      sx={{
-                        p: 0.5,
-                        bgcolor: axesMenuAnchor
-                          ? templateColor
-                          : alpha(templateColor, 0.15),
-                        color: axesMenuAnchor ? "white" : templateColor,
-                        borderRadius: 1,
-                        "&:hover": {
-                          bgcolor: templateColor,
-                          color: "white",
-                        },
-                      }}
-                    >
-                      <RotateRight sx={{ fontSize: 16 }} />
-                    </IconButton>
-                  </Tooltip>
-                )}
-                <Tooltip
-                  title={isHidden ? "Afficher" : "Masquer"}
-                  arrow
-                  placement="right"
-                >
-                  <IconButton
-                    size="small"
-                    onClick={handleToggleHidden}
-                    sx={{
-                      p: 0.5,
-                      color: isHidden ? "secondary.main" : "panel.iconMuted",
-                    }}
-                  >
-                    {isHidden ? (
-                      <VisibilityOff fontSize="inherit" sx={{ fontSize: 16 }} />
-                    ) : (
-                      <Visibility fontSize="inherit" sx={{ fontSize: 16 }} />
-                    )}
-                  </IconButton>
-                </Tooltip>
-              </>
-            ) : (
-              <Typography
-                align="right"
-                noWrap
-                sx={{
-                  fontSize: "10px",
-                  minWidth: "40px",
-                  fontFamily: "monospace",
-                  fontWeight: 500,
-                }}
-                color={
-                  isHidden
-                    ? "text.disabled"
-                    : count > 0
-                      ? "secondary.main"
-                      : "panel.countEmpty"
-                }
-              >
-                {qtyLabel}
-              </Typography>
-            )}
+            <AnnotationTemplateIcon
+              template={annotationTemplate}
+              size={18}
+              spriteImage={spriteImage}
+            />
           </Box>
-        </ListItemButton>
-      </Tooltip>
+          <Typography
+            variant="body2"
+            color={isHidden || !hasAxes ? "text.disabled" : "panel.textPrimary"}
+            sx={{
+              lineHeight: 1.3,
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              userSelect: "none",
+            }}
+          >
+            {annotationTemplate.label}
+          </Typography>
+        </Box>
+
+        {/* Right side: active axis button + visibility (hover) OR qty */}
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "flex-end",
+            gap: 0.5,
+            ml: 1,
+            minWidth: 56,
+            flexShrink: 0,
+          }}
+        >
+          {isHovered ? (
+            <>
+              {/* Active axis button — replaces the tool picker of the
+                  standard row */}
+              <Tooltip title="Choisir l'axe" arrow>
+                <Button
+                  size="small"
+                  onClick={handleAxesBtnClick}
+                  sx={{
+                    px: 0.75,
+                    py: 0.25,
+                    minWidth: 0,
+                    fontSize: "11px",
+                    lineHeight: 1.4,
+                    textTransform: "none",
+                    whiteSpace: "nowrap",
+                    bgcolor: axesMenuAnchor
+                      ? templateColor
+                      : alpha(templateColor, 0.15),
+                    color: axesMenuAnchor ? "white" : templateColor,
+                    borderRadius: 1,
+                    "&:hover": {
+                      bgcolor: templateColor,
+                      color: "white",
+                    },
+                  }}
+                >
+                  {axisBtnLabel}
+                </Button>
+              </Tooltip>
+              <Tooltip
+                title={isHidden ? "Afficher" : "Masquer"}
+                arrow
+                placement="right"
+              >
+                <IconButton
+                  size="small"
+                  onClick={handleToggleHidden}
+                  sx={{
+                    p: 0.5,
+                    color: isHidden ? "secondary.main" : "panel.iconMuted",
+                  }}
+                >
+                  {isHidden ? (
+                    <VisibilityOff fontSize="inherit" sx={{ fontSize: 16 }} />
+                  ) : (
+                    <Visibility fontSize="inherit" sx={{ fontSize: 16 }} />
+                  )}
+                </IconButton>
+              </Tooltip>
+            </>
+          ) : (
+            <Typography
+              align="right"
+              noWrap
+              sx={{
+                fontSize: "10px",
+                minWidth: "40px",
+                fontFamily: "monospace",
+                fontWeight: 500,
+              }}
+              color={
+                isHidden
+                  ? "text.disabled"
+                  : count > 0
+                    ? "secondary.main"
+                    : "panel.countEmpty"
+              }
+            >
+              {qtyLabel}
+            </Typography>
+          )}
+        </Box>
+      </ListItemButton>
 
       {/* Axis picker menu */}
       <Menu
@@ -336,8 +329,20 @@ export default function AnnotationTemplateRowRevolutionAxisVertical({
           },
         }}
       >
+        {!hasAxes && (
+          <MenuItem disabled dense>
+            <ListItemText primaryTypographyProps={{ variant: "body2" }}>
+              Créer d&apos;abord un axe sur un fond de plan horizontal
+            </ListItemText>
+          </MenuItem>
+        )}
         {revolutionAxes.map((axis) => (
-          <MenuItem key={axis.id} dense onClick={() => armAxis(axis)}>
+          <MenuItem
+            key={axis.id}
+            dense
+            selected={axis.id === activeAxis?.id}
+            onClick={() => handleSelectAxis(axis)}
+          >
             <ListItemText primaryTypographyProps={{ variant: "body2" }}>
               {axis.label ?? "Axe"}
             </ListItemText>
