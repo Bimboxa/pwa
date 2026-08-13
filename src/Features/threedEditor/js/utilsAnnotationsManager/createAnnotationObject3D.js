@@ -69,6 +69,11 @@ import createObject3DAnnotation from "./createObject3DAnnotation";
 // annotation with a height — matches DrawingOverlayThreed's LINEWIDTH_TRAIT.
 const POINT_TRAIT_LINEWIDTH_PX = 3;
 
+// Screen-space thickness (px) of the vertical line rendered for a plan
+// REVOLUTION_AXIS — deliberately fatter than the POINT trait so the axis
+// reads as the structural reference of its lathes.
+const REVOLUTION_AXIS_LINEWIDTH_PX = 5;
+
 // Partial sweep of an axis-based REVOLUTION, shared by the POLYLINE (lathe
 // surface) and POINT (circle line) branches. Returns a `{ phiStart, phiLength }`
 // spread, or `{}` for the default full turn.
@@ -1007,6 +1012,46 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
       object = line;
       break;
     }
+    case "REVOLUTION_AXIS": {
+      // The plan axis renders as a single THICK vertical line standing on the
+      // plan at its centre: base at offsetZ, top at offsetZ + height (the
+      // drawing height, 5 m by default). Same screen-space fat-line technique
+      // as the POINT vertical trait.
+      const p = annotation.point;
+      if (!p) break;
+      const axisHeight = height > 0 ? height : 5;
+      const local = pixelToWorld(p, baseMap); // { x, y } in basemap-local meters
+      const z0 = verticalLift;
+      const z1 = verticalLift + axisHeight;
+      const geom = new LineGeometry();
+      geom.setPositions([local.x, local.y, z0, local.x, local.y, z1]);
+      const lineMat = new LineMaterial({
+        color: normalizeHex(annotation.strokeColor || "#e85426"),
+        linewidth: REVOLUTION_AXIS_LINEWIDTH_PX,
+        resolution: options?.resolution, // Vector2 from AnnotationsManager
+        worldUnits: false, // screen-space px thickness
+        transparent: true,
+        depthTest: true,
+      });
+      const line = new Line2(geom, lineMat);
+      line.computeLineDistances();
+      attachFatLineRaycast(line, [
+        new Vector3(local.x, local.y, z0),
+        new Vector3(local.x, local.y, z1),
+      ]);
+      // Line2 is an `isMesh` holding INSTANCED geometry: without this tag it
+      // exports as broken triangles. buildExportScene emits a plain THREE.Line
+      // rebuilt from these positions instead.
+      line.userData.exportLine = {
+        positions: [local.x, local.y, z0, local.x, local.y, z1],
+      };
+      object = line;
+      break;
+    }
+    case "REVOLUTION_AXIS_PLACEMENT":
+      // The placement is the axis's clone on a vertical map: the plan axis
+      // above owns the 3D representation, the clone draws NOTHING.
+      return null;
     case "OBJECT_3D": {
       // GLB loading is async — return a placeholder Group synchronously and
       // attach the parsed scene when ready. The basemap transform is applied
