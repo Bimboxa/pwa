@@ -24,10 +24,14 @@ import stringifyAnnotationData from "../utils/stringifyAnnotationData";
 import useSelectedAnnotation from "../hooks/useSelectedAnnotation";
 import useUpdateAnnotation from "../hooks/useUpdateAnnotation";
 import FieldAnnotationHeight from "./FieldAnnotationHeight";
+import RowProcedureActionAuto from "Features/annotationsAuto/components/RowProcedureActionAuto";
 import resyncRevolutionAxisPlacementsService from "Features/elevation/services/resyncRevolutionAxisPlacementsService";
 
-// Compact edit toolbar for a plan-view REVOLUTION_AXIS. Standalone annotation
-// (no template), so the template-centric ToolbarEditAnnotation does not apply.
+// Compact edit toolbar for a plan-view REVOLUTION_AXIS — the axis has its own
+// geometry model (centre + scalars), so the template-centric
+// ToolbarEditAnnotation does not apply. When the axis template carries
+// procedureKeys (CHATEAU_EAU_V1), the procedure launcher rows appear like in
+// the standard toolbar.
 //
 // `invertHalf` and `offsetZ` both change the pose of every vertical base map
 // this axis places, so they run the resync service after writing.
@@ -286,6 +290,10 @@ export default function ToolbarEditRevolutionAxis({ onDragStart }) {
             </IconButton>
           </Tooltip>
         </Box>
+
+        {/* Procedure launcher rows (template procedureKeys, e.g.
+            CHATEAU_EAU_V1) — same bands as the standard toolbar. */}
+        <RowProcedureActionAuto annotation={selectedAnnotation} />
       </Paper>
     </Box>
   );

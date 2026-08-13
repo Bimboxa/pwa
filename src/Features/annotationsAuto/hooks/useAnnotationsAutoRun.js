@@ -8,6 +8,7 @@ import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 
 import resolvePoints from "Features/annotations/utils/resolvePoints";
 import resolveCuts from "Features/annotations/utils/resolveCuts";
+import resyncRevolutionAxisPlacementsService from "Features/elevation/services/resyncRevolutionAxisPlacementsService";
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
 import getAnnotationAsPolygons from "Features/geometry/utils/getAnnotationAsPolygons";
 
@@ -109,10 +110,14 @@ export default function useAnnotationsAutoRun() {
       const idSet = new Set(sourceAnnotationIds);
       // STRIP is included so guide annotations drawn as strips (e.g. a
       // COTE:EXT template whose drawing produced a STRIP) reach the
-      // procedure exactly like guide polylines.
+      // procedure exactly like guide polylines. REVOLUTION_AXIS so a plan
+      // axis can source a procedure (CHATEAU_EAU_V1).
       const polylikes = (visibleAnnotations ?? []).filter(
         (a) =>
-          a.type === "POLYLINE" || a.type === "POLYGON" || a.type === "STRIP"
+          a.type === "POLYLINE" ||
+          a.type === "POLYGON" ||
+          a.type === "STRIP" ||
+          a.type === "REVOLUTION_AXIS"
       );
       sourceAnnotations = polylikes.filter((a) => idSet.has(a.id));
 
@@ -429,7 +434,7 @@ export default function useAnnotationsAutoRun() {
         ? parsedWaterHeight - (baseMap?.position?.y ?? 0)
         : null;
 
-    const result = procedureFn({
+    const result = await procedureFn({
       sourceAnnotations,
       sourceRels,
       pointAnnotations,
@@ -475,11 +480,15 @@ export default function useAnnotationsAutoRun() {
         // they can later be reset/refreshed (see RowProcedureActionAuto).
         // Procedures that track sources per output set autoCreatedFrom
         // themselves (one id per annotation); the run-level id only fills in
-        // annotations left untagged.
+        // annotations left untagged. Revolution-axis placements are
+        // infrastructure (the drawing base on the vertical map), not outputs:
+        // never tagged, so a procedure reset keeps them.
         await db.annotations.bulkAdd(
           annotations.map((a) => ({
             ...a,
-            ...(!a.autoCreatedFrom && autoCreatedFrom
+            ...(!a.autoCreatedFrom &&
+            autoCreatedFrom &&
+            a.type !== "REVOLUTION_AXIS_PLACEMENT"
               ? { autoCreatedFrom }
               : {}),
           }))
@@ -507,6 +516,19 @@ export default function useAnnotationsAutoRun() {
         }
       }
     );
+
+    // A procedure that materialized a REVOLUTION_AXIS_PLACEMENT (drawing base
+    // on a vertical map) must also pose that base map — same post-create step
+    // as the manual drop in useHandleCommitDrawing.
+    const createdPlacements = (annotations ?? []).filter(
+      (a) => a.type === "REVOLUTION_AXIS_PLACEMENT"
+    );
+    for (const placement of createdPlacements) {
+      await resyncRevolutionAxisPlacementsService({
+        placementId: placement.id,
+        dispatch,
+      });
+    }
 
     dispatch(triggerAnnotationsUpdate());
 

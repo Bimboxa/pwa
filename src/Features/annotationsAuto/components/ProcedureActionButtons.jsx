@@ -38,9 +38,10 @@ import { PlayArrow, Refresh, DeleteSweep } from "@mui/icons-material";
  *   (sourceListingId / source-less) instead of the selection flow; set = all
  *   annotations linked to the procedure on the base map (reset scope).
  */
+// (callers still pass a `baseMapId` prop; it became unused when the
+// reset/refresh scope moved to autoCreatedFrom over the whole project)
 export default function ProcedureActionButtons({
   procedureKey,
-  baseMapId,
   sourceAnnotationIds,
   sourceListingId = null,
   standardRun = false,
@@ -67,18 +68,22 @@ export default function ProcedureActionButtons({
   const sourceIds = sourceAnnotationIds ?? [];
   const sourceKey = sourceIds.join(",");
 
-  // annotations created from any of the source annotations (for reset/refresh)
+  // annotations created from any of the source annotations (for reset/refresh).
+  // Scoped by autoCreatedFrom over the PROJECT, not the source's base map: a
+  // procedure may output on another map (CHATEAU_EAU_V1 draws on the vertical
+  // elevation from a plan axis) and reset must still find those rows.
+  const projectId = useSelector((s) => s.projects.selectedProjectId);
   const createdAnnotations = useLiveQuery(async () => {
-    if (sourceIds.length === 0 || !baseMapId) return [];
+    if (sourceIds.length === 0 || !projectId) return [];
     const sourceIdSet = new Set(sourceIds);
     const all = await db.annotations
-      .where("baseMapId")
-      .equals(baseMapId)
+      .where("projectId")
+      .equals(projectId)
       .toArray();
     return all.filter(
       (a) => !a.deletedAt && sourceIdSet.has(a.autoCreatedFrom)
     );
-  }, [sourceKey, baseMapId, annotationsUpdatedAt]);
+  }, [sourceKey, projectId, annotationsUpdatedAt]);
 
   // state
 
