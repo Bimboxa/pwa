@@ -6638,7 +6638,30 @@ const InteractionLayer = forwardRef(({
     // Inclut la logique de permission + fork automatique pour les points partagés
     // En mode SELECT, les vertices restent visibles mais ne sont pas interactifs.
     if (interactionMode !== "SELECT") {
-      handleVertexOrProjectionMouseDown(snap, e);
+      const consumed = handleVertexOrProjectionMouseDown(snap, e);
+
+      // Id-less VERTEX = a revolution-axis anchor (centre / diameter end, see
+      // getBestSnap): there is no db point to drag, so the vertex handler
+      // declines. The snap marker sits on top of the node and swallowed the
+      // mousedown (stopPropagation above), so start the whole-annotation drag
+      // here — the dedicated commit path that also re-poses the linked
+      // elevations.
+      if (!consumed && snap.type === "VERTEX" && !snap.id && snap.annotationId) {
+        const draggedAnn = annotations?.find((a) => a.id === snap.annotationId);
+        if (draggedAnn) {
+          const worldPos = viewportRef.current?.screenToWorld(e.clientX, e.clientY);
+          const startMouseInLocal = toLocalCoords(worldPos);
+          initAnnotationDrag({
+            nodeId: draggedAnn.id,
+            startMouseInLocal,
+            partType: null,
+            startMouseScreen: { x: e.clientX, y: e.clientY },
+            anchorLocal: isMarkerLikeSnapDragType(draggedAnn.type)
+              ? draggedAnn.point
+              : null,
+          });
+        }
+      }
 
       //snappingLayerRef.current?.update(null); // hide snapping circle // on hide au move
 
