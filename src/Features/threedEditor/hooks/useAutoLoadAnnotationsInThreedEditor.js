@@ -41,24 +41,17 @@ export default function useAutoLoadAnnotationsInThreedEditor({
   const showMeshCells = useSelector((s) => s.annotations.showMeshCells);
   const { parentIdSet } = useMeshCellRelations();
   const hiddenListingsIds = useSelector((s) => s.listings.hiddenListingsIds);
-  // REVOLUTION half-view: when a VERTICAL base map image is displayed, the
-  // revolutions built from a profile on it render only the 180° half on the
-  // side opposite the camera (the image reads as a section plane). Display
-  // only — quantities stay full-rotation because this travels as a build
-  // option, never written on the annotation, and the headless carve path
-  // (computeSubtractedSurfaceM2Async) builds without loader options.
-  const visibleBaseMapIdsIn3d = useSelector(
-    (s) => s.threedEditor.visibleBaseMapIdsIn3d
-  );
-  const hideBaseMaps = useSelector((s) => s.threedEditor.hideBaseMaps);
-  const hideMainBaseMapImageIn3d = useSelector(
-    (s) => s.threedEditor.hideMainBaseMapImageIn3d
-  );
+  // REVOLUTION half-view: revolutions built from a profile on a VERTICAL base
+  // map render only the 180° half on the side opposite the camera (the image
+  // reads as a section plane). Display only — quantities stay full-rotation
+  // because this travels as a build option, never written on the annotation,
+  // and the headless carve path (computeSubtractedSurfaceM2Async) builds
+  // without loader options.
   const revolutionSectionSideByBaseMapId = useSelector(
     (s) => s.threedEditor.revolutionSectionSideByBaseMapId
   );
-  // "Révolution partielle" switch: keep the half-view even when the vertical
-  // base map image is hidden.
+  // "Révolution partielle" switch: ON = 180° half-view, OFF = full 360°
+  // revolutions (explicit per-axis sectors still apply either way).
   const forceRevolutionSection = useSelector(
     (s) => s.threedEditor.forceRevolutionSectionIn3d
   );
@@ -119,16 +112,17 @@ export default function useAutoLoadAnnotationsInThreedEditor({
     return annotations.filter((a) => !a.isMeshCell);
   }, [annotations, showMeshCells, parentIdSet]);
 
-  // { baseMapId: 1 | -1 } restricted to the vertical base maps whose image is
-  // visible AND that host a REVOLUTION element without an explicit partial
-  // sector — a POLYLINE arc (lathe surface) or a POINT (circle line).
-  // The sector now lives on the plan AXIS and is resolved per-arc by
-  // useAnnotationsV2 into `revolutionPhi`; when it is set, those explicit
-  // angles win over the auto half-view (same precedence as
+  // { baseMapId: 1 | -1 }, only while the "Révolution partielle" switch is ON,
+  // restricted to the vertical base maps that host a REVOLUTION element
+  // without an explicit partial sector — a POLYLINE arc (lathe surface) or a
+  // POINT (circle line). The sector now lives on the plan AXIS and is resolved
+  // per-arc by useAnnotationsV2 into `revolutionPhi`; when it is set, those
+  // explicit angles win over the auto half-view (same precedence as
   // getRevolutionPartialPhi in createAnnotationObject3D). Restricting the map
   // keeps the build epoch stable — a camera side flip on an unrelated base map
   // must not rebuild the scene.
   const revolutionSection = useMemo(() => {
+    if (!forceRevolutionSection) return null;
     const revBaseMapIds = new Set(
       (annotationsForThreed || [])
         .filter(
@@ -140,26 +134,16 @@ export default function useAutoLoadAnnotationsInThreedEditor({
         .map((a) => a.baseMapId)
     );
     if (revBaseMapIds.size === 0) return null;
-    const mainId = mainBaseMap?.id ?? null;
-    const visible = new Set(visibleBaseMapIdsIn3d || []);
     const out = {};
     baseMaps.forEach((bm) => {
       if (!revBaseMapIds.has(bm.id)) return;
       if (getBaseMapTransform(bm).orientation !== "VERTICAL") return;
-      const eyeOn =
-        bm.id === mainId ? !hideMainBaseMapImageIn3d : visible.has(bm.id);
-      const imageDisplayed = eyeOn && !hideBaseMaps;
-      if (!imageDisplayed && !forceRevolutionSection) return;
       out[bm.id] = revolutionSectionSideByBaseMapId?.[bm.id] ?? 1;
     });
     return Object.keys(out).length > 0 ? out : null;
   }, [
     annotationsForThreed,
     baseMaps,
-    mainBaseMap?.id,
-    visibleBaseMapIdsIn3d,
-    hideBaseMaps,
-    hideMainBaseMapImageIn3d,
     revolutionSectionSideByBaseMapId,
     forceRevolutionSection,
   ]);

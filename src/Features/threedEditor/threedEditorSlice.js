@@ -110,14 +110,14 @@ const threedEditorInitialState = {
   },
   // Camera side vs each VERTICAL base map plane, keyed by baseMapId.
   // 1 = camera on the +normal (image-facing) side, -1 = behind. Maintained by
-  // useRevolutionSectionIn3d; consumed by the REVOLUTION half-view (when the
-  // base map image is displayed, revolutions render only the 180° half on the
-  // side opposite the camera so the image reads as a section plane).
+  // useRevolutionSectionIn3d; consumed by the REVOLUTION half-view
+  // (revolutions render only the 180° half on the side opposite the camera so
+  // the image reads as a section plane).
   // Session-only, display-only — quantities stay full-rotation.
   revolutionSectionSideByBaseMapId: {},
-  // "Révolution partielle" switch (3D view settings): keep the 180° half-view
-  // of revolutions even when their vertical base map image is hidden. OFF =
-  // automatic behavior (half-view only while the image is displayed).
+  // "Révolution partielle" switch (3D view settings): ON = 180° half-view of
+  // revolutions (camera-side driven); OFF = full 360° revolutions. Explicit
+  // per-axis sectors (`revolutionPhi`) apply either way.
   // Display-only, session-only. ON by default.
   forceRevolutionSectionIn3d: true,
   // "Pochage des coupes" switch (3D view settings): fill the section of

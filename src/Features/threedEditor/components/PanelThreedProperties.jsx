@@ -109,10 +109,9 @@ export default function PanelThreedProperties() {
               <Typography variant="body2">Masquer les fonds de plan</Typography>
             }
           />
-          {/* Display-only 180° half-view of profile revolutions, kept even
-              when the vertical base map image is hidden (quantities stay
-              full-rotation). OFF = automatic: half-view only while the base
-              map image is displayed. */}
+          {/* Display-only 180° half-view of profile revolutions (quantities
+              stay full-rotation). OFF = full 360° revolutions; explicit
+              per-axis sectors apply either way. */}
           <FormControlLabel
             control={
               <Switch

@@ -4,7 +4,6 @@ import { useDispatch, useSelector, useStore } from "react-redux";
 import { setRevolutionSectionSide } from "Features/threedEditor/threedEditorSlice";
 
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
-import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import getBaseMapTransform from "Features/baseMaps/js/getBaseMapTransform";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 
@@ -13,36 +12,27 @@ import { getActiveThreedEditor } from "Features/threedEditor/services/threedEdit
 // 3D annotation objects).
 const SIDE_HYSTERESIS_M = 0.05;
 
-// Tracks which side of each displayed VERTICAL base map plane the camera is
-// on, and mirrors it to `state.threedEditor.revolutionSectionSideByBaseMapId`
+// Tracks which side of each VERTICAL base map plane the camera is on, and
+// mirrors it to `state.threedEditor.revolutionSectionSideByBaseMapId`
 // (1 = +normal / image-facing side, -1 = behind). Consumed by the REVOLUTION
-// half-view: when the vertical base map image is shown in 3D, revolutions
-// built from a profile on that base map render only the 180° half opposite
-// the camera, so the image reads as a section plane.
+// half-view ("Révolution partielle" switch ON): revolutions built from a
+// profile on that base map render only the 180° half opposite the camera, so
+// the image reads as a section plane. Switch OFF disables the half-view
+// (full 360° revolutions), so no tracking is needed; stale sides are ignored
+// downstream.
 //
-// Dispatches ONLY on a side flip (rare — the camera crossing the plane), and
-// only for base maps whose image is currently displayed; hidden base maps
-// keep their last side, which is harmless since the half-view is gated on
-// image visibility downstream. Mounted once from MainThreedEditor, same
-// pattern as useApplyBaseMapVisibilityIn3d.
+// Dispatches ONLY on a side flip (rare — the camera crossing the plane).
+// Mounted once from MainThreedEditor, same pattern as
+// useApplyBaseMapVisibilityIn3d.
 export default function useRevolutionSectionIn3d({ rendererIsReady } = {}) {
   const dispatch = useDispatch();
   const store = useStore();
 
-  const visibleIds = useSelector((s) => s.threedEditor.visibleBaseMapIdsIn3d);
-  const hideBaseMaps = useSelector((s) => s.threedEditor.hideBaseMaps);
-  const hideMainImage = useSelector(
-    (s) => s.threedEditor.hideMainBaseMapImageIn3d
-  );
-  // "Révolution partielle" switch: the half-view stays active while the base
-  // map image is hidden, so its camera side must keep being tracked too.
   const forceRevolutionSection = useSelector(
     (s) => s.threedEditor.forceRevolutionSectionIn3d
   );
-  const mainBaseMap = useMainBaseMap();
   const { value: baseMaps = [] } = useBaseMaps();
 
-  const visibleKey = (visibleIds || []).join(",");
   // Placement key: a moved/rotated vertical base map must recompute sides.
   const placementKey = baseMaps
     .filter((bm) => getBaseMapTransform(bm).orientation === "VERTICAL")
@@ -53,19 +43,14 @@ export default function useRevolutionSectionIn3d({ rendererIsReady } = {}) {
     .join("|");
 
   useEffect(() => {
+    if (!forceRevolutionSection) return;
     const editor = getActiveThreedEditor();
     const camera = editor?.sceneManager?.camera;
     if (!camera) return;
 
-    const mainId = mainBaseMap?.id ?? null;
-    const visible = new Set(visibleIds || []);
-    const trackedBaseMaps = baseMaps.filter((bm) => {
-      const t = getBaseMapTransform(bm);
-      if (t.orientation !== "VERTICAL") return false;
-      if (forceRevolutionSection) return true;
-      const eyeOn = bm.id === mainId ? !hideMainImage : visible.has(bm.id);
-      return eyeOn && !hideBaseMaps;
-    });
+    const trackedBaseMaps = baseMaps.filter(
+      (bm) => getBaseMapTransform(bm).orientation === "VERTICAL"
+    );
     if (trackedBaseMaps.length === 0) return;
 
     const computeSides = () => {
@@ -98,14 +83,5 @@ export default function useRevolutionSectionIn3d({ rendererIsReady } = {}) {
     return () => {
       cameraControls?.removeEventListener("update", computeSides);
     };
-  }, [
-    rendererIsReady,
-    visibleKey,
-    placementKey,
-    hideBaseMaps,
-    hideMainImage,
-    forceRevolutionSection,
-    mainBaseMap?.id,
-    baseMaps,
-  ]);
+  }, [rendererIsReady, placementKey, forceRevolutionSection, baseMaps]);
 }
