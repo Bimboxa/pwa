@@ -43,6 +43,9 @@ export default function PanelDashboardProjectDetail({ item }) {
   const userConfigurations = useSelector(
     (s) => s.remoteScopeConfigurations.userConfigurations
   );
+  const projectConfigurations = useSelector(
+    (s) => s.remoteScopeConfigurations.projectConfigurations
+  );
 
   // state
 
@@ -61,8 +64,14 @@ export default function PanelDashboardProjectDetail({ item }) {
 
   // latest scopeConfiguration pushed for this scope, when we know it —
   // authoritative for the "author, last update" sub text and POV previews.
+  // The project fetch (same key rule as useFetchProjectScopeConfigurations)
+  // also covers installed scopes, absent from the ByUser list.
+  const projectConfigs =
+    projectConfigurations?.[String(item?.idMaster ?? item?.clientRef ?? "")] ??
+    [];
+
   function findScopeConfig(scopeId) {
-    return (userConfigurations ?? []).find(
+    return [...projectConfigs, ...(userConfigurations ?? [])].find(
       (c) => String(c.scopeId) === String(scopeId)
     );
   }
