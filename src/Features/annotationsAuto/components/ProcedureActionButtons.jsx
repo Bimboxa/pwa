@@ -1,4 +1,4 @@
-import { lazy, Suspense, useMemo, useState } from "react";
+import { lazy, Suspense, useMemo, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useLiveQuery } from "dexie-react-hooks";
 
@@ -111,9 +111,6 @@ export default function ProcedureActionButtons({
     return db.annotations.get(sourceIds[0]);
   }, [usesParamsDialog, sourceKey, annotationsUpdatedAt]);
 
-  const storedProcedureParams =
-    sourceAnnotation?.procedureParams?.[procedureKey];
-
   // handlers
 
   async function applyProcedure(procedureParams) {
@@ -181,11 +178,18 @@ export default function ProcedureActionButtons({
     }
   }
 
+  // Refresh goes through the dialog too: the reset must only happen once the
+  // user confirms (closing the dialog must leave the outputs untouched).
+  const refreshViaDialogRef = useRef(false);
+
   async function handleParamsDialogConfirm(procedureParams) {
     setParamsDialogOpen(false);
     if (running) return;
+    const isRefresh = refreshViaDialogRef.current;
+    refreshViaDialogRef.current = false;
     setRunning(true);
     try {
+      if (isRefresh) await resetProcedure();
       await applyProcedure(procedureParams);
     } finally {
       setRunning(false);
@@ -204,9 +208,11 @@ export default function ProcedureActionButtons({
 
   async function handleRefresh() {
     if (running) return;
-    // Params-dialog procedures re-run from the values stored on the source
-    // annotation; when none were stored yet, ask for them first.
-    if (usesParamsDialog && !storedProcedureParams) {
+    // Params-dialog procedures: always re-open the dialog (pre-filled with
+    // the stored values) so the distances can be adjusted before the re-run;
+    // the reset happens on confirm.
+    if (usesParamsDialog) {
+      refreshViaDialogRef.current = true;
       setParamsDialogOpen(true);
       return;
     }
@@ -271,7 +277,10 @@ export default function ProcedureActionButtons({
           <ParamsDialog
             open
             annotation={sourceAnnotation}
-            onClose={() => setParamsDialogOpen(false)}
+            onClose={() => {
+              refreshViaDialogRef.current = false;
+              setParamsDialogOpen(false);
+            }}
             onConfirm={handleParamsDialogConfirm}
           />
         </Suspense>
