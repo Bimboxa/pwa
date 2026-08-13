@@ -2,7 +2,7 @@ import { useState } from "react";
 
 import { Box, Popover, Typography } from "@mui/material";
 
-import useRemoteImageUrl from "Features/misc/hooks/useRemoteImageUrl";
+import usePovPreviewImageUrl from "Features/pov/hooks/usePovPreviewImageUrl";
 
 import { CARD_BORDER } from "../utils/dashboardStyles";
 
@@ -26,7 +26,7 @@ export default function AvatarPovPreview({ povPreviews, size = 34 }) {
 
   // data
 
-  const imageUrl = useRemoteImageUrl(first?.imageUrlMaster);
+  const imageUrl = usePovPreviewImageUrl(first);
 
   // render
 
