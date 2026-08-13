@@ -78,6 +78,10 @@ export default function useAnnotationsAutoRun() {
     procedureKey,
     sourceAnnotationIds,
     autoCreatedFrom,
+    // per-run values from a procedure-specific params dialog (see
+    // ProcedureActionButtons / registry entry paramsDialog); procedures fall
+    // back to the values stored on their source annotation when absent.
+    procedureParams,
   }) => {
     // data
 
@@ -446,6 +450,7 @@ export default function useAnnotationsAutoRun() {
         ignoreInteriorWalls,
         targetAnnotationTemplate,
         targetListingId,
+        procedureParams: procedureParams ?? null,
       },
     });
 

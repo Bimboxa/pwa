@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { lazy, Suspense, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useLiveQuery } from "dexie-react-hooks";
 
@@ -6,6 +6,7 @@ import db from "App/db/db";
 
 import { setToaster } from "Features/layout/layoutSlice";
 
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useAnnotationsAutoRun from "../hooks/useAnnotationsAutoRun";
 import useDeleteAnnotations from "Features/annotations/hooks/useDeleteAnnotations";
 import fireFlash from "../utils/fireFlash";
@@ -52,6 +53,11 @@ export default function ProcedureActionButtons({
   const run = useAnnotationsAutoRun();
   const deleteAnnotations = useDeleteAnnotations();
 
+  const appConfig = useAppConfig();
+  const procedure = (appConfig?.automatedAnnotationsProcedures ?? []).find(
+    (p) => p.key === procedureKey
+  );
+
   const annotationsUpdatedAt = useSelector(
     (s) => s.annotations.annotationsUpdatedAt
   );
@@ -77,14 +83,35 @@ export default function ProcedureActionButtons({
   // state
 
   const [running, setRunning] = useState(false);
+  const [paramsDialogOpen, setParamsDialogOpen] = useState(false);
 
   // helpers
 
   const createdCount = createdAnnotations?.length ?? 0;
 
+  // helpers - procedure-specific params dialog (registry entry paramsDialog),
+  // lazy-loaded like the procedure module itself. Only the single-source
+  // selection flow opens it (the dialog reads/writes the source annotation).
+
+  const paramsDialogLoader = procedure?.paramsDialog;
+  const ParamsDialog = useMemo(
+    () => (paramsDialogLoader ? lazy(paramsDialogLoader) : null),
+    [paramsDialogLoader]
+  );
+  const usesParamsDialog =
+    Boolean(ParamsDialog) && !standardRun && sourceIds.length === 1;
+
+  const sourceAnnotation = useLiveQuery(async () => {
+    if (!usesParamsDialog) return null;
+    return db.annotations.get(sourceIds[0]);
+  }, [usesParamsDialog, sourceKey, annotationsUpdatedAt]);
+
+  const storedProcedureParams =
+    sourceAnnotation?.procedureParams?.[procedureKey];
+
   // handlers
 
-  async function applyProcedure() {
+  async function applyProcedure(procedureParams) {
     const result = await run(
       standardRun
         ? {
@@ -100,6 +127,7 @@ export default function ProcedureActionButtons({
             // fallback source tag for annotations the procedure leaves
             // untagged; reset matches by source-id set membership.
             autoCreatedFrom: sourceIds[0],
+            procedureParams,
           }
     );
     const created = result?.annotations?.length ?? 0;
@@ -136,9 +164,24 @@ export default function ProcedureActionButtons({
 
   async function handlePlay() {
     if (running) return;
+    if (usesParamsDialog) {
+      setParamsDialogOpen(true);
+      return;
+    }
     setRunning(true);
     try {
       await applyProcedure();
+    } finally {
+      setRunning(false);
+    }
+  }
+
+  async function handleParamsDialogConfirm(procedureParams) {
+    setParamsDialogOpen(false);
+    if (running) return;
+    setRunning(true);
+    try {
+      await applyProcedure(procedureParams);
     } finally {
       setRunning(false);
     }
@@ -156,6 +199,12 @@ export default function ProcedureActionButtons({
 
   async function handleRefresh() {
     if (running) return;
+    // Params-dialog procedures re-run from the values stored on the source
+    // annotation; when none were stored yet, ask for them first.
+    if (usesParamsDialog && !storedProcedureParams) {
+      setParamsDialogOpen(true);
+      return;
+    }
     setRunning(true);
     try {
       await resetProcedure();
@@ -212,6 +261,16 @@ export default function ProcedureActionButtons({
           </IconButton>
         </span>
       </Tooltip>
+      {ParamsDialog && paramsDialogOpen && (
+        <Suspense fallback={null}>
+          <ParamsDialog
+            open
+            annotation={sourceAnnotation}
+            onClose={() => setParamsDialogOpen(false)}
+            onConfirm={handleParamsDialogConfirm}
+          />
+        </Suspense>
+      )}
     </Box>
   );
 }
