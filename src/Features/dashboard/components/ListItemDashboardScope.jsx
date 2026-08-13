@@ -6,9 +6,11 @@ import {
   CloudQueue,
 } from "@mui/icons-material";
 
+import AvatarPovPreview from "./AvatarPovPreview";
+
 // Renders one krto row — either a local scope or a remote (not installed)
 // scope configuration. Clicking the row opens the krto.
-// `row` = { scopeId, name, subText, isLocal, isFavorite }
+// `row` = { scopeId, name, subText, isLocal, isFavorite, povPreviews }
 // `subText` = "author trigram, last configuration date".
 
 export default function ListItemDashboardScope({
@@ -56,6 +58,8 @@ export default function ListItemDashboardScope({
           )}
         </IconButton>
       </Tooltip>
+
+      <AvatarPovPreview povPreviews={row.povPreviews} />
 
       <Box sx={{ flex: 1, minWidth: 0 }}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>

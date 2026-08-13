@@ -59,12 +59,15 @@ export default function PanelDashboardProjectDetail({ item }) {
     return parseBackendDate(value)?.toLocaleDateString() ?? null;
   }
 
-  // "author trigram, last update" — the last update is the latest
-  // scopeConfiguration pushed for this scope, when we know it.
-  function getScopeSubText({ scopeId, fallbackAuthor, fallbackDate }) {
-    const config = (userConfigurations ?? []).find(
+  // latest scopeConfiguration pushed for this scope, when we know it —
+  // authoritative for the "author, last update" sub text and POV previews.
+  function findScopeConfig(scopeId) {
+    return (userConfigurations ?? []).find(
       (c) => String(c.scopeId) === String(scopeId)
     );
+  }
+
+  function getScopeSubText({ config, fallbackAuthor, fallbackDate }) {
     const author = config?.createdBy?.trigram ?? fallbackAuthor;
     const date = formatDate(config?.createdAt ?? fallbackDate);
     return [author, date].filter(Boolean).join(", ");
@@ -72,17 +75,21 @@ export default function PanelDashboardProjectDetail({ item }) {
 
   const rows = item
     ? [
-        ...item.scopes.map((scope) => ({
-          scopeId: scope.id,
-          name: scope.name,
-          subText: getScopeSubText({
+        ...item.scopes.map((scope) => {
+          const config = findScopeConfig(scope.id);
+          return {
             scopeId: scope.id,
-            fallbackAuthor: scope.createdBy,
-            fallbackDate: scope.updatedAt ?? scope.createdAt,
-          }),
-          isLocal: true,
-          isFavorite: isFavorite(scope.id),
-        })),
+            name: scope.name,
+            subText: getScopeSubText({
+              config,
+              fallbackAuthor: scope.createdBy,
+              fallbackDate: scope.updatedAt ?? scope.createdAt,
+            }),
+            isLocal: true,
+            isFavorite: isFavorite(scope.id),
+            povPreviews: config?.povPreviews,
+          };
+        }),
         ...item.remoteConfigs.map((config) => ({
           scopeId: config.scopeId,
           name: config.scopeName,
@@ -91,6 +98,7 @@ export default function PanelDashboardProjectDetail({ item }) {
             .join(", "),
           isLocal: false,
           isFavorite: isFavorite(config.scopeId),
+          povPreviews: config.povPreviews,
         })),
       ]
     : [];
