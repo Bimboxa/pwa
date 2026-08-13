@@ -59,7 +59,6 @@ import { Check, Close } from "@mui/icons-material";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import AnnotationTemplateRowRevolutionAxisVertical from "./AnnotationTemplateRowRevolutionAxisVertical";
-import RowsRevolutionAxisPlacementBanners from "./RowsRevolutionAxisPlacementBanners";
 import { isLegacyStyleRevolutionHelper } from "Features/annotations/constants/drawingShapeConfig";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
@@ -3277,10 +3276,6 @@ export default function PopperMapListings() {
                 </Typography>
               </Box>
             )}
-
-            {/* Axes posed on this elevation (VERTICAL base map): one banner
-                per placement (eye + delete), whatever its template. */}
-            <RowsRevolutionAxisPlacementBanners />
 
             <>
               {activeListing && (
