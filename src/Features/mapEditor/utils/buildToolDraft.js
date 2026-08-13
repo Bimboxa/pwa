@@ -1,8 +1,3 @@
-import {
-  getDefaultsForShape,
-  isRevolutionHelperType,
-} from "Features/annotations/constants/drawingShapeConfig";
-
 // Opening (ouverture) draft colour — openings are drawn in red @ 0.8 opacity.
 export const OPENING_COLOR = "#ff0000";
 
@@ -14,24 +9,7 @@ export const OPENING_COLOR = "#ff0000";
 // width (`openingDefaults`, defaulting to 20cm). For the direct opening tools
 // (CUT_CLICK / CUT_RECTANGLE / CUT_CIRCLE) and any other tool, `isOpening` is
 // cleared.
-export default function buildToolDraft(
-  newAnnotation,
-  tool,
-  openingDefaults,
-  extraProps
-) {
-  // Standalone revolution helpers: start from a clean draft so no stale
-  // template/entity association or inherited style leaks in. `extraProps` is
-  // the escape hatch for payload the clean draft would otherwise wipe — the
-  // placement tool needs its `revolutionAxisId` to survive here.
-  if (isRevolutionHelperType(tool.annotationType)) {
-    return {
-      type: tool.annotationType,
-      ...getDefaultsForShape(tool.annotationType),
-      ...extraProps,
-    };
-  }
-
+export default function buildToolDraft(newAnnotation, tool, openingDefaults) {
   const base = { ...newAnnotation, type: tool.annotationType };
   if (tool.isOpening) {
     base.isOpening = true;

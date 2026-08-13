@@ -24,9 +24,8 @@ import useDeleteAnnotation from "Features/annotations/hooks/useDeleteAnnotation"
 import getRevolutionAxisDependents from "Features/annotations/services/getRevolutionAxisDependents";
 
 // One revolution axis POSED on the elevation currently shown in the 2D editor
-// (a REVOLUTION_AXIS_PLACEMENT), displayed as a coloured band in the "Outils de
-// dessin" section — in place of the axis picker, which has done its job once an
-// axis sits on this base map.
+// (a REVOLUTION_AXIS_PLACEMENT), displayed as a coloured band above the
+// listings (see RowsRevolutionAxisPlacementBanners).
 //
 // Both actions target the PLACEMENT, not the axis itself: the axis lives on the
 // plan and may be posed on several elevations, each with its own visibility.

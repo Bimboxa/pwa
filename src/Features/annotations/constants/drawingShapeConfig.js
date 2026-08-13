@@ -186,8 +186,8 @@ const DRAWING_SHAPE_CONFIG = {
     shapeCategory: "rectangle",
   },
   // Revolution helpers — geometry that defines a surface-of-revolution shape3D
-  // (REVOLUTION). They are drawn from the "Outils de dessin" section, not from
-  // a template, so they have no template tools of their own.
+  // (REVOLUTION). REVOLUTION_AXIS is a template-drivable shape: axes are drawn
+  // from an annotationTemplate row of the listings panel.
   //
   // REVOLUTION_AXIS is authored on a HORIZONTAL base map (vue en plan) with two
   // clicks: the centre, then a point giving the radius AND the diameter
@@ -195,7 +195,7 @@ const DRAWING_SHAPE_CONFIG = {
   REVOLUTION_AXIS: {
     label: "Axe de révolution",
     annotationType: "REVOLUTION_AXIS",
-    tools: [],
+    tools: ["REVOLUTION_AXIS_PLAN"],
     configurableProps: ["strokeColor", "strokeWidth", "strokeWidthUnit"],
     defaults: {
       strokeColor: secondary,
@@ -222,7 +222,9 @@ const DRAWING_SHAPE_CONFIG = {
   },
   // Instance of a plan axis dropped on a VERTICAL base map. Its single point is
   // where the axis centre sits in that elevation image — placing it re-poses
-  // the base map in 3D (see computeVerticalBaseMapPlacementFromAxis).
+  // the base map in 3D (see computeVerticalBaseMapPlacementFromAxis). Never a
+  // user-creatable template shape (empty tools, absent from DRAWING_SHAPES):
+  // placements are armed from the axis template row on a vertical base map.
   REVOLUTION_AXIS_PLACEMENT: {
     label: "Position de l'axe",
     annotationType: "REVOLUTION_AXIS_PLACEMENT",
@@ -313,11 +315,14 @@ const DRAWING_SHAPE_CONFIG = {
 // Helpers
 // ---------------------------------------------------------------------------
 
-// Revolution helpers are project-level geometry drawn from the "Outils de
-// dessin" section: no entity, no template, and NOT bound to a listing / layer /
-// scope — so they bypass the visibility filters and stay on their base map.
-// Kept here (rather than re-listed in each consumer) because the same predicate
-// is needed by useAnnotationsV2, SectionLayers and buildToolDraft.
+// Revolution helpers, template-linked since the REVOLUTION_AXIS shape became
+// template-drivable, are normal listing annotations (listingId +
+// annotationTemplateId + layerId) — with residual special cases: single-point
+// storage, no entity, record-level `hidden`. Rows created by the pre-template
+// model (no annotationTemplateId) keep the historical exemptions: scopeId
+// instead of listingId, and a bypass of the listing / layer / scope visibility
+// filters. Kept here (rather than re-listed in each consumer) because the same
+// predicates are needed by useAnnotationsV2, SectionLayers and the commit path.
 export const REVOLUTION_HELPER_TYPES = [
   "REVOLUTION_AXIS",
   "REVOLUTION_AXIS_PLACEMENT",
@@ -325,6 +330,15 @@ export const REVOLUTION_HELPER_TYPES = [
 
 export function isRevolutionHelperType(type) {
   return REVOLUTION_HELPER_TYPES.includes(type);
+}
+
+// Pre-template axis / placement rows: they carry no annotationTemplateId, so
+// they cannot flow through the template-driven listing / layer / scope filters
+// and keep the historical global-visibility bypass (soft compat, no migration).
+export function isLegacyStyleRevolutionHelper(annotation) {
+  return (
+    isRevolutionHelperType(annotation?.type) && !annotation.annotationTemplateId
+  );
 }
 
 // Rows written by the PREVIOUS revolution-axis model are ignored everywhere.

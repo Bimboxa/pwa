@@ -220,6 +220,30 @@ const DRAWING_SHAPES = [
     ),
   },
   {
+    key: "REVOLUTION_AXIS",
+    label: "Axe de révolution",
+    icon: (
+      <SvgIcon fontSize="small" viewBox="0 0 20 20">
+        {/* plan view of the axis: one filled half-disc + the diameter line */}
+        <path d="M3 10 A7 7 0 0 1 17 10 Z" fill="currentColor" />
+        <path
+          d="M3 10 A7 7 0 0 0 17 10"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+        />
+        <line
+          x1="3"
+          y1="10"
+          x2="17"
+          y2="10"
+          stroke="currentColor"
+          strokeWidth="1.5"
+        />
+      </SvgIcon>
+    ),
+  },
+  {
     key: "OBJECT_3D",
     label: "Objet 3D",
     icon: (

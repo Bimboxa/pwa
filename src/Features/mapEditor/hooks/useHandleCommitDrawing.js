@@ -131,9 +131,12 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
 
         const newAnnotation = options?.newAnnotation ?? newAnnotationInState
 
-        // Revolution helpers (see REVOLUTION_HELPER_TYPES) are standalone
-        // annotations: no entity, no per-instance template. They are kept in the
-        // selected listing so they pass the scope filter in useAnnotationsV2.
+        // Revolution helpers (see REVOLUTION_HELPER_TYPES): single-point
+        // annotations with no entity. Template-driven since REVOLUTION_AXIS
+        // became a template-drivable shape — drafts armed from a template row
+        // carry an annotationTemplateId and land in the listing like any other
+        // annotation. Template-less drafts (pre-template model) keep the
+        // historical scope binding instead of a listingId.
         const isRevolutionHelper = isRevolutionHelperType(newAnnotation?.type);
 
         // update rawPoints for rectangle
@@ -613,7 +616,10 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
 
             let annotationTemplateId;
             // ÉTAPE 2.5 : Enregistrement de l'annotation template
-            if (newAnnotation && !_updatedAnnotation && !isBaseMapAnnotation && !skipTemplateCreation && !isRevolutionHelper) {
+            // Revolution helpers only resolve an EXISTING template (the row that
+            // armed the tool): a template-less helper draft must not create a
+            // garbage template out of its scalar fields.
+            if (newAnnotation && !_updatedAnnotation && !isBaseMapAnnotation && !skipTemplateCreation && !(isRevolutionHelper && !newAnnotation.annotationTemplateId)) {
                 const existingAnnotationTemplates = await getTemplatesForListing(listingId);
                 // const existingAnnotationTemplate = getAnnotationTemplateFromNewAnnotation({
                 //     newAnnotation,
@@ -622,6 +628,10 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
                 const existingAnnotationTemplate = existingAnnotationTemplates.find(t => t.id === newAnnotation.annotationTemplateId);
                 if (existingAnnotationTemplate) {
                     annotationTemplateId = existingAnnotationTemplate.id;
+                } else if (isRevolutionHelper) {
+                    // Template not found in the armed listing: keep the draft's
+                    // id rather than snapshotting axis scalars into a new one.
+                    annotationTemplateId = newAnnotation.annotationTemplateId;
                 } else {
                     annotationTemplateId = nanoid();
                     const _annotationTemplate = {
@@ -658,22 +668,24 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
             _newAnnotation = {
                 ...newAnnotation,
                 id: nanoid(),
-                annotationTemplateId,
+                // Defensive for revolution helpers: when ÉTAPE 2.5 is skipped
+                // (skipTemplateCreation), the block-local variable is undefined
+                // and would overwrite the template id carried by the draft.
+                annotationTemplateId: annotationTemplateId ??
+                    (isRevolutionHelper ? newAnnotation.annotationTemplateId : undefined),
                 entityId,
                 //points: finalPointIds.map(id => ({ id })), // Référence uniquement les IDs !
                 baseMapId,
                 projectId,
-                // Revolution helpers belong to a SCOPE and a base map, never to
-                // a listing: a listingId would make them count towards that
-                // listing's annotation total, and they are drawing helpers, not
-                // annotations of the survey. useAnnotationsV2 keeps them
-                // visible through the scope filter on `scopeId`.
-                ...(isRevolutionHelper
+                // Template-driven revolution helpers are normal listing
+                // annotations. Only pre-template drafts (no annotationTemplateId)
+                // keep the historical scope binding: without a template they
+                // cannot flow through the listing visibility filters, so
+                // useAnnotationsV2 keeps them visible through `scopeId`.
+                ...(isRevolutionHelper && !newAnnotation.annotationTemplateId
                     ? { scopeId: selectedScopeId ?? null }
                     : { listingId }),
-                // Same reason for the layer: an axis is attached to its scope
-                // and its base map, nothing else.
-                ...(activeLayerId && !isBaseMapAnnotation && !isRevolutionHelper
+                ...(activeLayerId && !isBaseMapAnnotation
                     ? { layerId: activeLayerId }
                     : {}),
 
@@ -755,7 +767,11 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
 
             // Auto-numbered default label for revolution axes ("Axe 1", "Axe 2"…)
             // so they are immediately identifiable in the edit toolbar / selectors.
-            if (newAnnotation?.type === "REVOLUTION_AXIS" && !_newAnnotation.label) {
+            // Overwrite is deliberate (same trap as DETAIL below): ALWAYS_COPY_KEYS
+            // copies template.label (the template NAME) onto template-driven
+            // drafts, and it must not become the axis name. Placements are not
+            // concerned: their draft label is the linked axis's label.
+            if (newAnnotation?.type === "REVOLUTION_AXIS") {
                 const existingAxesCount = await db.annotations
                     .where("projectId")
                     .equals(projectId)

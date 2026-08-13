@@ -396,6 +396,7 @@ import { getShape3DKey } from "Features/annotations/constants/shape3DConfig";
 import {
   isRevolutionHelperType,
   isLegacyRevolutionRecord,
+  isLegacyStyleRevolutionHelper,
 } from "Features/annotations/constants/drawingShapeConfig";
 import { resolveProfileFromDb } from "Features/annotations/hooks/useProfileResolution";
 import computeSubtractedSurfaceM2Async from "Features/threedEditor/js/utilsAnnotationsManager/computeSubtractedSurfaceM2Async";
@@ -763,19 +764,22 @@ export default function useAnnotationsV2(options) {
       // component calls this hook.
       _annotations = _annotations.filter((a) => !isLegacyRevolutionRecord(a));
 
-      // Eye toggle of the axis banner (tools panel). Revolution helpers bypass
-      // every visibility filter below, so the `hidden` flag has to be applied
-      // explicitly here. Display-only: the revolution resolution reads the axis
-      // and its placement straight from Dexie, so a hidden axis still drives
-      // its lathes and still poses its base map.
+      // Eye toggle of the placement banner (tools panel): the record-level
+      // `hidden` flag must be applied BEFORE the template merge — for
+      // template-linked helpers the merge would clobber it with the template's
+      // own (possibly false) `hidden`, and legacy helpers bypass every
+      // visibility filter below anyway. Display-only: the revolution
+      // resolution reads the axis and its placement straight from Dexie, so a
+      // hidden axis still drives its lathes and still poses its base map.
       _annotations = _annotations.filter(
         (a) => !(isRevolutionHelperType(a.type) && a.hidden)
       );
 
-      // Revolution helpers are project-level geometry (see
-      // REVOLUTION_HELPER_TYPES): not bound to a listing / layer / scope, so
-      // they bypass the visibility filters below and stay on their base map.
-      const isRevolutionHelper = (a) => isRevolutionHelperType(a?.type);
+      // Template-linked revolution helpers are normal listing annotations and
+      // flow through the visibility filters below. Only rows written by the
+      // pre-template model (no annotationTemplateId, scopeId instead of a
+      // listingId) keep the historical global-visibility bypass.
+      const isRevolutionHelper = (a) => isLegacyStyleRevolutionHelper(a);
 
       // layer visibility filter
       if (hiddenLayerIds.length > 0 || !showAnnotationsWithoutLayer) {
@@ -850,10 +854,10 @@ export default function useAnnotationsV2(options) {
         );
         _annotations = _annotations.filter((a) => {
           if (a.isBaseMapAnnotation) return true;
-          // Revolution helpers carry no listing (it would pollute the listing
-          // counters) — they are scoped by their own `scopeId` instead. Rows
-          // written before that field existed have none: keep them rather than
-          // making them vanish.
+          // Pre-template revolution helpers carry no listing (it would pollute
+          // the listing counters) — they are scoped by their own `scopeId`
+          // instead. Rows written before that field existed have none: keep
+          // them rather than making them vanish.
           if (isRevolutionHelper(a))
             return !a.scopeId || a.scopeId === scope.id;
           return scopeListingIds.has(a.listingId);
