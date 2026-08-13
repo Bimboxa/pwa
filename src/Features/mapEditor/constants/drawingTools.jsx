@@ -14,7 +14,6 @@ import {
   ShowChart as ProfileLineIcon,
   NorthEast as RampIcon,
   AutoFixHigh as LocalizedRepairIcon,
-  RotateRight as RevolutionAxisIcon,
   Adjust as RevolutionPlacementIcon,
 } from "@mui/icons-material";
 
@@ -389,16 +388,18 @@ const DRAWING_TOOLS = [
     behavior: "LOCALIZED_REPAIR",
   },
   // REVOLUTION axis helpers — the geometry that defines a REVOLUTION shape3D.
-  // The axis is authored on the PLAN with 2 clicks (centre → radius +
+  // Both tools are armed from a REVOLUTION_AXIS template row of the listings
+  // panel: the axis is authored on the PLAN with 2 clicks (centre → radius +
   // orientation, reusing the CIRCLE_RADIUS interaction but NOT its commit,
-  // which polygonizes into a ring); it is then instantiated on a VERTICAL base
-  // map with a single click, which re-poses that base map in 3D. Both keep
-  // their own annotation `type` through the commit (see useHandleCommitDrawing)
-  // and are NOT openings.
+  // which polygonizes into a ring); on a VERTICAL base map the template row
+  // instead drops an existing axis with a single click
+  // (AnnotationTemplateRowRevolutionAxisVertical), which re-poses that base
+  // map in 3D. Both keep their own annotation `type` through the commit (see
+  // useHandleCommitDrawing) and are NOT openings.
   {
     key: "REVOLUTION_AXIS_PLAN",
-    label: "Axe (vue en plan)",
-    Icon: RevolutionAxisIcon,
+    label: "Cercle centre/rayon",
+    Icon: IconPolylineCircleRadius,
     annotationType: "REVOLUTION_AXIS",
     behavior: "CIRCLE_RADIUS",
     drawingMode: "REVOLUTION_AXIS_PLAN",
@@ -433,7 +434,6 @@ export const DRAWING_TOOLS_BY_TYPE = {
   ISO_HEIGHT_LINE: ["ADD_ISO_HEIGHT_LINE"],
   PROFILE_LINE: ["ADD_PROFILE_LINE"],
   LOCALIZED_REPAIR: ["LOCALIZED_REPAIR"],
-  REVOLUTION: ["REVOLUTION_AXIS_PLAN"],
 };
 
 export function getDrawingToolsByShape(drawingShape) {

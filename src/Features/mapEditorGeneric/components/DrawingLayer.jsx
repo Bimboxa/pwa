@@ -810,7 +810,7 @@ const DrawingLayer = forwardRef(
         )}
 
         {/* B2. Dynamic Circle preview */}
-        {(drawCircle || drawCircleRadius) && (
+        {(drawCircle || drawCircleRadius || drawRevolutionAxis) && (
           <circle
             ref={previewCircleRef}
             fill="none"

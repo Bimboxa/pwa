@@ -58,9 +58,9 @@ import UnfoldMore from "@mui/icons-material/UnfoldMore";
 import { Check, Close } from "@mui/icons-material";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
-import ToolRowRevolutionAxis from "./ToolRowRevolutionAxis";
-import RowRevolutionAxesSummary from "./RowRevolutionAxesSummary";
-import { isRevolutionHelperType } from "Features/annotations/constants/drawingShapeConfig";
+import AnnotationTemplateRowRevolutionAxisVertical from "./AnnotationTemplateRowRevolutionAxisVertical";
+import RowsRevolutionAxisPlacementBanners from "./RowsRevolutionAxisPlacementBanners";
+import { isLegacyStyleRevolutionHelper } from "Features/annotations/constants/drawingShapeConfig";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 import {
@@ -204,8 +204,6 @@ const TOOL_ITEMS = [
     shortcut: "C",
   },
   { type: "COMPLETE_ANNOTATION", label: "Prolonger", Icon: Create },
-  // "Axes de révolution" is orientation-aware → its own component, appended
-  // after this list (see ToolRowRevolutionAxis).
 ];
 
 // ---------------------------------------------------------------------------
@@ -544,7 +542,10 @@ function ToolPickerMenu({
 // SortableAnnotationTemplateRow — wrapper for DnD
 // ---------------------------------------------------------------------------
 
-function SortableAnnotationTemplateRow(props) {
+function SortableAnnotationTemplateRow({
+  RowComponent = AnnotationTemplateRow,
+  ...props
+}) {
   const {
     attributes,
     listeners,
@@ -561,7 +562,7 @@ function SortableAnnotationTemplateRow(props) {
   };
 
   return (
-    <AnnotationTemplateRow
+    <RowComponent
       {...props}
       sortableRef={setNodeRef}
       sortableStyle={sortableStyle}
@@ -703,6 +704,9 @@ function AnnotationTemplateRow({
     ? (getDrawingToolByKey(selectedToolKey) ?? fallbackTool)
     : fallbackTool;
   const ActiveToolIcon = activeTool?.Icon;
+  // REVOLUTION_AXIS: single fixed tool (circle by centre + radius) — the tool
+  // button stays as a visual cue but never opens the picker.
+  const hasFixedTool = drawingShape === "REVOLUTION_AXIS";
 
   // handlers
 
@@ -776,6 +780,8 @@ function AnnotationTemplateRow({
 
   const handleToolBtnClick = (e) => {
     e.stopPropagation();
+    // REVOLUTION_AXIS: no tool picker — the click is a no-op.
+    if (hasFixedTool) return;
     setToolMenuAnchor(e.currentTarget);
   };
 
@@ -1138,7 +1144,14 @@ function AnnotationTemplateRow({
                     </Tooltip>
                     {/* Active tool button */}
                     {ActiveToolIcon && (
-                      <Tooltip title="Changer d'outil" arrow>
+                      <Tooltip
+                        title={
+                          hasFixedTool
+                            ? (activeTool?.label ?? "")
+                            : "Changer d'outil"
+                        }
+                        arrow
+                      >
                         <IconButton
                           size="small"
                           onClick={handleToolBtnClick}
@@ -1273,6 +1286,26 @@ function AnnotationTemplatesForListing({
   const isMeshesModule = useSelector(
     (s) => s.viewers.selectedViewerKey === "MESHES"
   );
+  // REVOLUTION_AXIS templates on a VERTICAL base map swap to a dedicated row
+  // that DROPS an existing plan axis instead of drawing a new one — only while
+  // the panel effectively is a DRAW panel (same overrides as the row's own
+  // effective interaction mode).
+  const baseMap = useMainBaseMap();
+  const isVerticalBaseMap = baseMap?.orientation === "VERTICAL";
+  const rawInteractionMode = useSelector(
+    (s) => s.popperMapListings.interactionMode
+  );
+  const showMeshCells = useSelector((s) => s.annotations.showMeshCells);
+  const viewerMode = useSelector((s) => s.urlParams.viewerMode);
+  const isZonesViewer = useSelector(
+    (s) => s.viewers.selectedViewerKey === "ZONES"
+  );
+  const isDrawInteraction =
+    rawInteractionMode === "DRAW" &&
+    !showMeshCells &&
+    !isThreedViewer &&
+    !viewerMode &&
+    !isZonesViewer;
   const qtiesById = useMemo(
     () => computeAnnotationTemplateQties(annotations, annotationTemplateById),
     [annotations, annotationTemplateById]
@@ -1416,9 +1449,18 @@ function AnnotationTemplatesForListing({
               const templateQties = qtiesById?.[item.id];
               const count = templateQties?.count || 0;
               const qtyLabel = templateQties?.mainQtyLabel;
+              const isVerticalAxisRow =
+                isDrawInteraction &&
+                isVerticalBaseMap &&
+                resolveDrawingShape(item) === "REVOLUTION_AXIS";
               return (
                 <SortableAnnotationTemplateRow
                   key={item.id}
+                  RowComponent={
+                    isVerticalAxisRow
+                      ? AnnotationTemplateRowRevolutionAxisVertical
+                      : undefined
+                  }
                   annotationTemplate={item}
                   count={count}
                   qtyLabel={qtyLabel}
@@ -2677,13 +2719,15 @@ export default function PopperMapListings() {
     ).length;
   }, [isZonesViewer, selectedZoneTemplate, allAnnotationsInclHidden]);
 
-  // Revolution helpers are excluded explicitly, not just by the absence of a
-  // listingId: rows written before they became listing-less still carry one,
-  // and they must never inflate a listing's total either way.
+  // Template-linked revolution helpers count like any other annotation of
+  // their listing. Only pre-template helper rows are excluded explicitly, not
+  // just by the absence of a listingId: rows written before helpers became
+  // listing-less may still carry one, and those must never inflate a
+  // listing's total.
   const annotationCountByListingId = useMemo(() => {
     if (!allAnnotations) return {};
     return allAnnotations.reduce((acc, a) => {
-      if (a.listingId && !isRevolutionHelperType(a.type))
+      if (a.listingId && !isLegacyStyleRevolutionHelper(a))
         acc[a.listingId] = (acc[a.listingId] || 0) + 1;
       return acc;
     }, {});
@@ -2692,7 +2736,7 @@ export default function PopperMapListings() {
   const annotationsByListingId = useMemo(() => {
     if (!allAnnotations) return {};
     return allAnnotations.reduce((acc, a) => {
-      if (a.listingId && !isRevolutionHelperType(a.type)) {
+      if (a.listingId && !isLegacyStyleRevolutionHelper(a)) {
         if (!acc[a.listingId]) acc[a.listingId] = [];
         acc[a.listingId].push(a);
       }
@@ -3234,9 +3278,9 @@ export default function PopperMapListings() {
               </Box>
             )}
 
-            {/* Revolution axes of this base map — above the listings, since
-                they belong to no listing of their own. */}
-            <RowRevolutionAxesSummary />
+            {/* Axes posed on this elevation (VERTICAL base map): one banner
+                per placement (eye + delete), whatever its template. */}
+            <RowsRevolutionAxisPlacementBanners />
 
             <>
               {activeListing && (
@@ -3304,7 +3348,6 @@ export default function PopperMapListings() {
                         shortcut={tool.shortcut}
                       />
                     ))}
-                    <ToolRowRevolutionAxis />
                   </List>
                 </>
               )}
