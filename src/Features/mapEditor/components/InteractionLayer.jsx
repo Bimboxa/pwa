@@ -6667,6 +6667,12 @@ const InteractionLayer = forwardRef(({
             startMouseInLocal,
             partType,
             startMouseScreen: { x: e.clientX, y: e.clientY },
+            // Same rule as the node grab below: an unselected placement is
+            // click-only (select first, drag second).
+            clickOnly:
+              draggedAnn.type === "REVOLUTION_AXIS_PLACEMENT" &&
+              selectedNode?.nodeId !== draggedAnn.id &&
+              !selectedItems?.some((it) => it.nodeId === draggedAnn.id),
             anchorLocal:
               !partType && isMarkerLikeSnapDragType(draggedAnn.type)
                 ? draggedAnn.point
@@ -7073,7 +7079,17 @@ const InteractionLayer = forwardRef(({
         selectedItems?.some(
           (it) => it.nodeId === nodeId || it.nodeId === labelBaseId
         );
-      const clickOnly = isLabelPart && !labelNodeSelected;
+      // Elevation axis placement (inverted T): draggable only once selected —
+      // an unselected grab only selects. The whole-move drag preview rides the
+      // SELECTED annotation, so an unselected drag would move it invisibly.
+      const isUnselectedPlacement =
+        draggableGroup.dataset?.annotationType ===
+          "REVOLUTION_AXIS_PLACEMENT" &&
+        !partType &&
+        selectedNode?.nodeId !== nodeId &&
+        !selectedItems?.some((it) => it.nodeId === nodeId);
+      const clickOnly =
+        (isLabelPart && !labelNodeSelected) || isUnselectedPlacement;
 
       // Marker-like whole-moves can snap; the snap lands the annotation's own
       // reference point (not the cursor) on the target, so capture it now.
