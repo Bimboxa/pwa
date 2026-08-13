@@ -14,7 +14,6 @@ import {
   ShowChart as ProfileLineIcon,
   NorthEast as RampIcon,
   AutoFixHigh as LocalizedRepairIcon,
-  RotateRight as RevolutionAxisIcon,
   Adjust as RevolutionPlacementIcon,
 } from "@mui/icons-material";
 
@@ -399,8 +398,8 @@ const DRAWING_TOOLS = [
   // useHandleCommitDrawing) and are NOT openings.
   {
     key: "REVOLUTION_AXIS_PLAN",
-    label: "Axe (vue en plan)",
-    Icon: RevolutionAxisIcon,
+    label: "Cercle centre/rayon",
+    Icon: IconPolylineCircleRadius,
     annotationType: "REVOLUTION_AXIS",
     behavior: "CIRCLE_RADIUS",
     drawingMode: "REVOLUTION_AXIS_PLAN",

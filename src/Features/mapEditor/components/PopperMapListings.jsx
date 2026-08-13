@@ -704,6 +704,9 @@ function AnnotationTemplateRow({
     ? (getDrawingToolByKey(selectedToolKey) ?? fallbackTool)
     : fallbackTool;
   const ActiveToolIcon = activeTool?.Icon;
+  // REVOLUTION_AXIS: single fixed tool (circle by centre + radius) — the tool
+  // button stays as a visual cue but never opens the picker.
+  const hasFixedTool = drawingShape === "REVOLUTION_AXIS";
 
   // handlers
 
@@ -777,6 +780,8 @@ function AnnotationTemplateRow({
 
   const handleToolBtnClick = (e) => {
     e.stopPropagation();
+    // REVOLUTION_AXIS: no tool picker — the click is a no-op.
+    if (hasFixedTool) return;
     setToolMenuAnchor(e.currentTarget);
   };
 
@@ -1139,7 +1144,14 @@ function AnnotationTemplateRow({
                     </Tooltip>
                     {/* Active tool button */}
                     {ActiveToolIcon && (
-                      <Tooltip title="Changer d'outil" arrow>
+                      <Tooltip
+                        title={
+                          hasFixedTool
+                            ? (activeTool?.label ?? "")
+                            : "Changer d'outil"
+                        }
+                        arrow
+                      >
                         <IconButton
                           size="small"
                           onClick={handleToolBtnClick}
