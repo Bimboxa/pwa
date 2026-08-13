@@ -258,6 +258,7 @@ const DRAWING_SHAPE_CONFIG = {
       "fontSize",
       "showUnitLabel",
       "showTotalCote",
+      "showRulerLabel",
     ],
     defaults: {
       strokeColor: "#000000",
@@ -272,6 +273,7 @@ const DRAWING_SHAPE_CONFIG = {
       fontSize: 14,
       showUnitLabel: true,
       showTotalCote: false,
+      showRulerLabel: false,
     },
     shapeCategory: "polyline",
   },

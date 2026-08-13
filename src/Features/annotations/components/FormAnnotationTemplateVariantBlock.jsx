@@ -505,6 +505,7 @@ export default function FormAnnotationTemplateVariantBlock({
               overrideFields={overrideFields}
               onOverrideFieldsChange={handleOverrideFieldsChange}
               showTotalOption={drawingShape === "RULER"}
+              showLabelOption={drawingShape === "RULER"}
             />
           )}
 

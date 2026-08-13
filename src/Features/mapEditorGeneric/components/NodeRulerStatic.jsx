@@ -8,6 +8,7 @@ import {
 } from "@mui/icons-material";
 
 import getRulerSegments from "Features/annotations/utils/getRulerSegments";
+import { getAnnotationOwnLabel } from "Features/annotations/utils/getAnnotationLabelDisplay";
 import getRulerLabelPlacement, {
   getRulerFieldPlacement,
 } from "Features/annotations/utils/getRulerLabelPlacement";
@@ -93,7 +94,20 @@ export default function NodeRulerStatic({
     fontSize = 18,
     showUnitLabel = true,
     showTotalCote = false,
+    showRulerLabel = false,
   } = merged ?? {};
+
+  // Per-segment label prefixes ("H1 = 0.20 m"): the annotation's OWN label
+  // ("libellé" — NOT the enriched `label`, overwritten upstream by the entity /
+  // template fallback) split on ";" and assigned to segments in order. An
+  // empty or missing part leaves that segment's value bare.
+  const segmentLabels = useMemo(() => {
+    if (!showRulerLabel) return [];
+    const raw = getAnnotationOwnLabel(merged);
+    if (!raw || typeof raw !== "string") return [];
+    return raw.split(";").map((s) => s.trim());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showRulerLabel, merged.annotationLabel, merged.label]);
 
   const dispatch = useDispatch();
   const updateAnnotation = useUpdateAnnotation();
@@ -548,6 +562,7 @@ export default function NodeRulerStatic({
         const place = getRulerLabelPlacement(seg);
         const isEditing = editableSegmentIndexes.includes(seg.index);
         const field = getRulerFieldPlacement(place, FIELD_W_PX, FIELD_H_PX);
+        const segLabel = segmentLabels[seg.index];
 
         return (
           <g
@@ -682,7 +697,14 @@ export default function NodeRulerStatic({
                     touchAction: "none",
                   }}
                 >
-                  {seg.text}
+                  {segLabel ? (
+                    <>
+                      <tspan fontStyle="italic">{`${segLabel} = `}</tspan>
+                      {seg.text}
+                    </>
+                  ) : (
+                    seg.text
+                  )}
                 </text>
               )}
             </g>

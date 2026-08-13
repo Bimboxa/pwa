@@ -59,6 +59,7 @@ export default function getAnnotationTemplateProps(annotationTemplate) {
     fontSize: annotationTemplate?.fontSize,
     showUnitLabel: annotationTemplate?.showUnitLabel,
     showTotalCote: annotationTemplate?.showTotalCote,
+    showRulerLabel: annotationTemplate?.showRulerLabel,
 
     overrideFields: annotationTemplate?.overrideFields,
   };

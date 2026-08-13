@@ -25,6 +25,7 @@ const STYLE_FIELDS = [
   "extensionOffset",
   "extensionOffsetUnit",
   "showTotalCote",
+  "showRulerLabel",
 ];
 
 function pickStyle(obj) {
