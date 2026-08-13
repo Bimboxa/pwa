@@ -813,8 +813,12 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
         const dx = edge.x - center.x;
         const dy = edge.y - center.y;
         const radiusPx = Math.hypot(dx, dy);
+        // Stored radius is rounded to 6 decimals (µm precision) — raw px→m
+        // products carry meaningless float tails into the toolbar field.
         const radiusM =
-            Number.isFinite(meterByPx) && meterByPx > 0 ? radiusPx * meterByPx : null;
+            Number.isFinite(meterByPx) && meterByPx > 0
+                ? Math.round(radiusPx * meterByPx * 1e6) / 1e6
+                : null;
         // px -> plan LOCAL metre frame: y flips (see pixelToWorld).
         const directionDeg = (Math.atan2(-dy, dx) * 180) / Math.PI;
         handleCommitDrawing([center], {
@@ -1347,7 +1351,11 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
             ) {
                 const next = applyDeltaPosToAnnotation(annotation, deltaPos, partType);
                 const updates = partType.startsWith("REVOLUTION_RIM::")
-                    ? { radiusM: next.radiusM, directionDeg: next.directionDeg }
+                    // Same 6-decimal rounding as the drawing commit.
+                    ? {
+                        radiusM: Math.round(next.radiusM * 1e6) / 1e6,
+                        directionDeg: next.directionDeg,
+                    }
                     : {
                         revolutionAngleStartDeg: next.revolutionAngleStartDeg,
                         revolutionAngleEndDeg: next.revolutionAngleEndDeg,

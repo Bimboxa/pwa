@@ -93,11 +93,13 @@ export default function ToolbarEditRevolutionAxis({ onDragStart }) {
   }
 
   // The radius is graphical only (circle + diameter size): it never moves the
-  // elevations this axis places, so no pose resync here.
+  // elevations this axis places, so no pose resync here. Stored value is
+  // rounded to 6 decimals like the drawing / rim-drag commits.
   async function handleRadiusChange(next) {
+    const raw = next?.radiusM ?? null;
     await updateAnnotation({
       id: selectedAnnotation.id,
-      radiusM: next?.radiusM ?? null,
+      radiusM: raw == null ? null : Math.round(raw * 1e6) / 1e6,
     });
   }
 
@@ -216,6 +218,7 @@ export default function ToolbarEditRevolutionAxis({ onDragStart }) {
             annotation={selectedAnnotation}
             field="radiusM"
             label="rayon"
+            displayDecimals={3}
             onChange={handleRadiusChange}
           />
           <FieldAnnotationHeight

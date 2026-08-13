@@ -12,6 +12,10 @@ export default function FieldAnnotationHeight({
   disabled = false,
   active = false,
   shortcut,
+  // Display-only rounding of the incoming value (e.g. 3 for the axis radius):
+  // what the user TYPES is committed untouched, only the echo of the stored
+  // value is shortened.
+  displayDecimals,
 }) {
   const field = fieldProp ?? "height";
   // For POLYGON shapes, "height" is semantically a thickness ("épaisseur")
@@ -20,15 +24,23 @@ export default function FieldAnnotationHeight({
   const label = labelProp ?? (isPolygon ? "ep." : "ht.");
   const unit = unitProp ?? "m";
 
+  // Number() strips the trailing zeros toFixed leaves behind (2.500 → 2.5).
+  const toDisplay = (value) =>
+    displayDecimals != null &&
+    typeof value === "number" &&
+    Number.isFinite(value)
+      ? Number(value.toFixed(displayDecimals))
+      : (value ?? "");
+
   // 1. We need local state to manage the input value immediately while typing
-  const [localValue, setLocalValue] = useState(annotation?.[field] ?? "");
+  const [localValue, setLocalValue] = useState(toDisplay(annotation?.[field]));
 
   // 2. We use a ref to store the timer ID so it persists across renders
   const debounceTimer = useRef(null);
 
   // 3. Sync local state if the prop changes externally (e.g. selecting a different node)
   useEffect(() => {
-    setLocalValue(annotation?.[field] ?? "");
+    setLocalValue(toDisplay(annotation?.[field]));
   }, [annotation?.[field], annotation?.id]);
 
   const commonFontStyles = {
