@@ -121,6 +121,20 @@ export default function useAnnotationsAutoRun() {
       );
       sourceAnnotations = polylikes.filter((a) => idSet.has(a.id));
 
+      // A REVOLUTION_AXIS source may live on ANOTHER base map than the
+      // current one (plan axis launched from its placement's vertical map):
+      // visibleAnnotations is main-base-map-scoped, so fetch the missing ids
+      // raw — procedures read row fields off the axis (id, procedureParams,
+      // listing…), never its resolved geometry.
+      const foundIds = new Set(sourceAnnotations.map((a) => a.id));
+      const missingIds = sourceAnnotationIds.filter((id) => !foundIds.has(id));
+      if (missingIds.length > 0) {
+        const missingRows = (await db.annotations.bulkGet(missingIds)).filter(
+          (r) => r && !r.deletedAt && r.type === "REVOLUTION_AXIS"
+        );
+        sourceAnnotations = [...sourceAnnotations, ...missingRows];
+      }
+
       // Adjacency context: a procedure can declare mappingCategories whose
       // visible POLYGON / POLYLINE / STRIP annotations must be part of the
       // run as context (e.g. frontier detection between adjacent floors, JD

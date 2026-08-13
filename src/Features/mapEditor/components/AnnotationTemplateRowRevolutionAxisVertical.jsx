@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useDispatch } from "react-redux";
+import { useRef, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
 
 import { setEnabledDrawingMode } from "Features/mapEditor/mapEditorSlice";
 import { setNewAnnotation } from "Features/annotations/annotationsSlice";
@@ -8,11 +8,13 @@ import { setSelectedListingId } from "Features/listings/listingsSlice";
 import {
   Box,
   Button,
+  Chip,
   IconButton,
   ListItemButton,
   ListItemText,
   Menu,
   MenuItem,
+  Popper,
   Tooltip,
   Typography,
 } from "@mui/material";
@@ -21,6 +23,8 @@ import { Visibility, VisibilityOff } from "@mui/icons-material";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
 
 import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTemplateIcon";
+import ProcedurePopperContent from "Features/annotationsAuto/components/ProcedurePopperContent";
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useRevolutionAxes from "Features/annotations/hooks/useRevolutionAxes";
 import useUpdateAnnotationTemplate from "Features/annotations/hooks/useUpdateAnnotationTemplate";
 import getNewAnnotationPropsFromAnnotationTemplate from "Features/annotations/utils/getNewAnnotationPropsFromAnnotationTemplate";
@@ -56,11 +60,52 @@ export default function AnnotationTemplateRowRevolutionAxisVertical({
   const revolutionAxes = useRevolutionAxes();
   const hasAxes = revolutionAxes.length > 0;
 
+  // Linked ANNOTATIONS_CREATOR procedures (template procedureKeys) — the
+  // "Auto" chip + popper, same as the standard row: launching from the
+  // vertical map sources the placement's AXIS (see ProcedurePopperContent).
+  const appConfig = useAppConfig();
+  const procedures = appConfig?.automatedAnnotationsProcedures ?? [];
+  const linkedProcedures = (annotationTemplate?.procedureKeys ?? [])
+    .map((key) => procedures.find((p) => p.key === key))
+    .filter(Boolean);
+  const hasProcedure = linkedProcedures.length > 0;
+  const selectedBaseMapId = useSelector((s) => s.mapEditor.selectedBaseMapId);
+
   // state
 
   const [isHovered, setIsHovered] = useState(false);
   const [axesMenuAnchor, setAxesMenuAnchor] = useState(null);
   const [activeAxisId, setActiveAxisId] = useState(null);
+  const [procedureAnchorEl, setProcedureAnchorEl] = useState(null);
+  const procedurePopperCloseTimer = useRef(null);
+  const procedurePopperRef = useRef(null);
+  const procedurePopperHoveredRef = useRef(false);
+
+  // Keep the procedure popper open while hovering the chip OR the popper
+  // itself, with a small close delay to bridge the gap (same contract as the
+  // standard row). It also survives a focused parameter field.
+  const openProcedurePopper = (e) => {
+    if (procedurePopperCloseTimer.current)
+      clearTimeout(procedurePopperCloseTimer.current);
+    setProcedureAnchorEl(e.currentTarget);
+  };
+  const cancelCloseProcedurePopper = () => {
+    procedurePopperHoveredRef.current = true;
+    if (procedurePopperCloseTimer.current)
+      clearTimeout(procedurePopperCloseTimer.current);
+  };
+  const scheduleCloseProcedurePopper = () => {
+    procedurePopperHoveredRef.current = false;
+    if (procedurePopperCloseTimer.current)
+      clearTimeout(procedurePopperCloseTimer.current);
+    procedurePopperCloseTimer.current = setTimeout(() => {
+      if (procedurePopperRef.current?.contains(document.activeElement)) return;
+      setProcedureAnchorEl(null);
+    }, 150);
+  };
+  const handleProcedurePopperBlur = () => {
+    if (!procedurePopperHoveredRef.current) scheduleCloseProcedurePopper();
+  };
 
   // helpers
 
@@ -218,7 +263,54 @@ export default function AnnotationTemplateRowRevolutionAxisVertical({
           >
             {annotationTemplate.label}
           </Typography>
+
+          {hasProcedure && (
+            <Chip
+              label="Auto"
+              size="small"
+              onMouseEnter={openProcedurePopper}
+              onMouseLeave={scheduleCloseProcedurePopper}
+              sx={{
+                ml: 0.5,
+                flexShrink: 0,
+                height: 16,
+                "& .MuiChip-label": {
+                  px: 0.5,
+                  fontSize: "9px",
+                  fontWeight: "bold",
+                },
+              }}
+            />
+          )}
         </Box>
+
+        {hasProcedure && (
+          <Popper
+            open={Boolean(procedureAnchorEl)}
+            anchorEl={procedureAnchorEl}
+            placement="bottom-start"
+            style={{ zIndex: 2000 }}
+            modifiers={[{ name: "offset", options: { offset: [0, 4] } }]}
+          >
+            {/* Portaled but a React child of the row's ListItemButton:
+                without stopping propagation, clicking a launcher button would
+                bubble to handleRowClick and arm the placement tool. */}
+            <Box
+              ref={procedurePopperRef}
+              onMouseEnter={cancelCloseProcedurePopper}
+              onMouseLeave={scheduleCloseProcedurePopper}
+              onBlurCapture={handleProcedurePopperBlur}
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <ProcedurePopperContent
+                procedures={linkedProcedures}
+                sourceTemplate={annotationTemplate}
+                baseMapId={selectedBaseMapId}
+              />
+            </Box>
+          </Popper>
+        )}
 
         {/* Right side: active axis button + visibility (hover) OR qty */}
         <Box
