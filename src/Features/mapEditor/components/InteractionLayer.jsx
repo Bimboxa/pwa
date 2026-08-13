@@ -6479,7 +6479,58 @@ const InteractionLayer = forwardRef(({
         }
       }
 
-      // ATTENTION : setDrawingPoints est asynchrone. 
+      // Reconcile the point-snap with an active length constraint (typed
+      // buffer): the constraint wins — the snap only gives the direction,
+      // the typed value gives the distance, matching the rubber-band
+      // preview. As with ortho above, the committed point no longer
+      // coincides with the snap target, so it becomes an independent point
+      // (no shared id / segment link). COMPLETE_ANNOTATION is excluded for
+      // the same reason as ortho: it must land exactly on existing vertices.
+      const lengthConstraintActive =
+        (fixedLengthRef.current || fixedLengthsRef.current) &&
+        drawingPointsRef.current.length > 0 &&
+        enabledDrawingMode !== "COMPLETE_ANNOTATION";
+
+      if (lengthConstraintActive) {
+        const lastPoint =
+          drawingPointsRef.current[drawingPointsRef.current.length - 1];
+        const mbp = meterByPxRef.current;
+        const hasScale = Number.isFinite(mbp) && mbp > 0;
+
+        // Multi-length series ("6;0.2;2"): the snap gives the direction, the
+        // typed values give the distances → one click places N collinear
+        // segments and consumes the buffer (mirrors the free-click branch).
+        const lengthsSeries = fixedLengthsRef.current;
+        if (lengthsSeries) {
+          const expanded = expandConstraintLengths({
+            lastPointPx: lastPoint,
+            directionPointPx: pointToAdd,
+            lengths: lengthsSeries,
+            meterPerPixel: hasScale ? mbp : 1,
+          });
+          if (expanded.length > 0) {
+            const seriesPoints = [...drawingPointsRef.current, ...expanded];
+            setDrawingPoints(seriesPoints);
+            drawingPointsRef.current = seriesPoints;
+            drawingLayerRef.current?.setPoints?.(seriesPoints);
+            clearBuffer();
+            screenCursorRef.current?.triggerFlash();
+            return;
+          }
+        }
+
+        if (fixedLengthRef.current) {
+          const constrained = applyFixedLengthConstraint({
+            lastPointPx: lastPoint,
+            candidatePointPx: pointToAdd,
+            fixedLengthMeters: fixedLengthRef.current,
+            meterPerPixel: hasScale ? mbp : 1,
+          });
+          pointToAdd = { x: constrained.x, y: constrained.y, type: "square" };
+        }
+      }
+
+      // ATTENTION : setDrawingPoints est asynchrone.
       // Pour le commit immédiat, on doit construire le tableau manuellement.
 
       const newPointsList = [...drawingPointsRef.current, pointToAdd];
