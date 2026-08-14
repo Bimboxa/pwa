@@ -368,6 +368,7 @@ export default class AnnotationsManager {
             );
             subtractAnnotationGeometries(carveTarget, carveOperands, {
               hollow,
+              rebuildEdges: true,
             });
 
             carveOperands.forEach((o) => {

@@ -1,4 +1,4 @@
-import { Matrix4 } from "three";
+import { EdgesGeometry, LineSegments, Matrix4 } from "three";
 import {
   Brush,
   Evaluator,
@@ -7,6 +7,7 @@ import {
 } from "three-bvh-csg";
 
 import { getSolidMeshesFromObject3D } from "./getSolidMeshFromObject3D";
+import { buildWallEdges } from "./extrudePolylineWall";
 
 // Strip everything but position/normal and clear draw groups so Brush gets a
 // clean triangle soup. Mutates+returns the passed geometry.
@@ -55,6 +56,11 @@ function collectMeshes(object) {
  *
  * @param {import("three").Object3D} sourceObject
  * @param {Array<import("three").Object3D>} targetObjects
+ * @param {Object} [options]
+ * @param {boolean} [options.hollow] clip-only subtraction for open surfaces.
+ * @param {boolean} [options.rebuildEdges] rebuild the black grid/outline
+ *   lines from the carved geometry (scene callers); headless quantity
+ *   callers leave it off and pay nothing.
  * @returns {import("three").Object3D} the same sourceObject (carved), or
  *   unchanged if the boolean could not be evaluated.
  */
@@ -130,7 +136,18 @@ export default function subtractAnnotationGeometries(
 
     // Remove stale decoration children (edges / iso lines drawn from the
     // original, un-carved outline), keeping every carved mesh (or any child
-    // whose subtree holds one).
+    // whose subtree holds one). Grid-edge lines (userData.isGridEdge, tagged
+    // by the builders) are remembered so they can be rebuilt from the carved
+    // geometry below; the first one's material is reused for the rebuild.
+    let removedEdgeInfo = null;
+    const captureEdge = (child) => {
+      if (removedEdgeInfo) return false;
+      removedEdgeInfo = {
+        material: child.material,
+        kind: child.userData.gridEdgeKind,
+      };
+      return true;
+    };
     if (sourceObject.children) {
       const keep = new Set(sourceMeshes);
       const holdsCarvedMesh = (obj) => {
@@ -143,8 +160,50 @@ export default function subtractAnnotationGeometries(
       const toRemove = sourceObject.children.filter((c) => !holdsCarvedMesh(c));
       for (const child of toRemove) {
         child.geometry?.dispose?.();
-        child.material?.dispose?.();
+        if (!(child.userData?.isGridEdge && captureEdge(child))) {
+          child.material?.dispose?.();
+        }
         sourceObject.remove(child);
+      }
+    }
+    // Also purge grid edges rebuilt by a previous carve of this same object
+    // (those hang under the carved meshes, so the strip above keeps them).
+    for (const sourceMesh of sourceMeshes) {
+      const stale = (sourceMesh.children || []).filter(
+        (c) => c.userData?.isGridEdge
+      );
+      for (const child of stale) {
+        child.geometry?.dispose?.();
+        if (!captureEdge(child)) child.material?.dispose?.();
+        sourceMesh.remove(child);
+      }
+    }
+
+    // Rebuild the black grid/outline from the carved geometry (only when the
+    // un-carved object had one — e.g. per-vertex-Z surfaces stay edge-free).
+    // Skipped by headless callers (quantities) via options.rebuildEdges.
+    // Attached as a CHILD of the carved mesh: the carved geometry is in the
+    // mesh's local frame, so an identity-transform child lands exactly on the
+    // surface — and it survives the strip on a later re-carve.
+    if (options.rebuildEdges && removedEdgeInfo) {
+      for (const sourceMesh of sourceMeshes) {
+        let edges;
+        if (removedEdgeInfo.kind === "WALL_PLANAR") {
+          edges = buildWallEdges(sourceMesh.geometry);
+          edges.material.dispose();
+          edges.material = removedEdgeInfo.material;
+        } else {
+          edges = new LineSegments(
+            new EdgesGeometry(sourceMesh.geometry),
+            removedEdgeInfo.material
+          );
+          edges.userData = {
+            isGridEdge: true,
+            gridEdgeKind: removedEdgeInfo.kind,
+          };
+          edges.raycast = () => {};
+        }
+        sourceMesh.add(edges);
       }
     }
 

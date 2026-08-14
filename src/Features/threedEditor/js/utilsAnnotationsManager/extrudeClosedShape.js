@@ -381,6 +381,10 @@ export default function extrudeClosedShape(
         opacity: 0.5,
       })
     );
+    // Tagged so the carve pipeline can strip and rebuild the outline from the
+    // carved geometry — see subtractAnnotationGeometries.
+    edges.userData = { isGridEdge: true, gridEdgeKind: "EDGES" };
+    edges.raycast = () => {};
     group.add(edges);
   }
 
