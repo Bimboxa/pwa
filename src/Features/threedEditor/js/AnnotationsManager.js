@@ -12,6 +12,7 @@ import getSolidMeshFromObject3D from "./utilsAnnotationsManager/getSolidMeshFrom
 import getBaseMapForRender from "./utilsAnnotationsManager/getBaseMapForRender";
 import createBaseMapFrameGroup from "./utilsAnnotationsManager/createBaseMapFrameGroup";
 import refreshRevolutionSectionMarkers from "./utilsAnnotationsManager/refreshRevolutionSectionMarkers";
+import applyWireframeSettings from "./utilsAnnotationsManager/applyWireframeSettings";
 
 import { getShape3DKey } from "Features/annotations/constants/shape3DConfig";
 import applyWorldBoxUVs from "Features/photorealRender/utils/applyWorldBoxUVs";
@@ -24,11 +25,27 @@ export default class AnnotationsManager {
     this.scene = sceneManager.scene;
     this.annotationsObjectsMap = {};
     this._annotationReadyCallbacks = new Set();
+    // "Wireframe" 3D view settings (black grid-edge lines): visibility +
+    // EdgesGeometry dihedral threshold. Builders emit edges at the 1° default;
+    // finishRoot re-applies the current settings on every (re)build, async
+    // load and post-carve, and setWireframeSettings syncs live changes.
+    this.wireframeSettings = { visible: true, thresholdDeg: 1 };
     // Build provenance for the incremental diff: id -> { sourceRef (the
     // resolved annotation the object was built from — reference-stable across
     // runs thanks to stabilizeAnnotationsIdentity), epochKey (build options),
     // baseMapKey (registry metrics the geometry was projected with) }.
     this._buildStateById = new Map();
+  }
+
+  // Live sync of the "Wireframe" 3D view settings (see PanelThreedProperties):
+  // applies to every built annotation object; newly built / carved objects get
+  // the stored settings through finishRoot.
+  setWireframeSettings(settings) {
+    this.wireframeSettings = { ...this.wireframeSettings, ...settings };
+    Object.values(this.annotationsObjectsMap).forEach((root) =>
+      applyWireframeSettings(root, this.wireframeSettings)
+    );
+    this.sceneManager.requestRender();
   }
 
   // Key of the basemap metrics an annotation was built against. The resolved
@@ -158,6 +175,7 @@ export default class AnnotationsManager {
     const finishRoot = (root) => {
       applyShadowFlags(root);
       if (options?.aquarelleShading) applySketchEdges(root, { resolution });
+      applyWireframeSettings(root, this.wireframeSettings);
     };
 
     annotations.forEach((annotation) => {
@@ -368,6 +386,7 @@ export default class AnnotationsManager {
             );
             subtractAnnotationGeometries(carveTarget, carveOperands, {
               hollow,
+              rebuildEdges: true,
             });
 
             carveOperands.forEach((o) => {

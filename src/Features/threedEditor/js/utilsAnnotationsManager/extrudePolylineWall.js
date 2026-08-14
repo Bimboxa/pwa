@@ -32,12 +32,18 @@ const WALL_SEAM_DIHEDRAL_DEG = 15;
 // keep the original stroke opacity. Near-coplanar cluster boundaries (below
 // WALL_SEAM_DIHEDRAL_DEG) are suppressed entirely. Falls back to EdgesGeometry
 // when the extraction is unusable.
-function buildWallEdges(geom) {
+// Exported for the carve pipeline (subtractAnnotationGeometries), which
+// rebuilds wall edges from the carved geometry with this same extraction.
+// The returned LineSegments is tagged and carries a per-call material clone
+// (safe to dispose — never the module singleton).
+export function buildWallEdges(geom) {
   const positions = extractPlanarSketchEdges(geom, {
     seamDihedralDeg: WALL_SEAM_DIHEDRAL_DEG,
   });
   if (!positions?.length) {
-    return new LineSegments(new EdgesGeometry(geom), EDGE_MATERIAL);
+    return tagWallEdges(
+      new LineSegments(new EdgesGeometry(geom), EDGE_MATERIAL.clone())
+    );
   }
   const deduped = [];
   const seen = new Set();
@@ -52,7 +58,13 @@ function buildWallEdges(geom) {
   }
   const edgeGeom = new BufferGeometry();
   edgeGeom.setAttribute("position", new Float32BufferAttribute(deduped, 3));
-  return new LineSegments(edgeGeom, EDGE_MATERIAL);
+  return tagWallEdges(new LineSegments(edgeGeom, EDGE_MATERIAL.clone()));
+}
+
+function tagWallEdges(lines) {
+  lines.userData = { isGridEdge: true, gridEdgeKind: "WALL_PLANAR" };
+  lines.raycast = () => {};
+  return lines;
 }
 
 // Span (top_z - bottom_z) at a single corner. With the new convention the

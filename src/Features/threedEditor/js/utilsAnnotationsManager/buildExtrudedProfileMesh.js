@@ -153,8 +153,23 @@ export function sweepProfileAlongGuide({
 
     const surfMat = material.clone();
     surfMat.side = DoubleSide;
-    group.add(new Mesh(subGeom, surfMat));
-    group.add(new LineSegments(new EdgesGeometry(subGeom), EDGE_MATERIAL));
+    const subMesh = new Mesh(subGeom, surfMat);
+    group.add(subMesh);
+    // Tagged + per-call material so the carve pipeline can strip and rebuild
+    // the grid from the carved geometry — see subtractAnnotationGeometries.
+    const gridEdges = new LineSegments(
+      new EdgesGeometry(subGeom),
+      EDGE_MATERIAL.clone()
+    );
+    gridEdges.userData = {
+      isGridEdge: true,
+      gridEdgeKind: "EDGES",
+      // Runtime ref for the "Wireframe" threshold rebuild — see
+      // applyWireframeSettings.
+      sourceMesh: subMesh,
+    };
+    gridEdges.raycast = () => {};
+    group.add(gridEdges);
   }
 
   return group.children.length > 0 ? group : null;

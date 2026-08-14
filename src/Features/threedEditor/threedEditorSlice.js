@@ -22,6 +22,14 @@ const threedEditorInitialState = {
   // 0 = strictly coplanar facets only; 25 follows a revolution or swept
   // surface across its facets without crossing a real crease.
   faceSelectionAngleDeg: 25,
+  // "Wireframe" section: black grid-edge lines drawn on annotation meshes
+  // (EdgesGeometry overlays). showWireframe toggles them; wireframeAngleDeg is
+  // the EdgesGeometry dihedral threshold (degrees) — 1 (three's default) draws
+  // every lathe/sweep facet seam, higher values keep only silhouettes and
+  // real creases. Synced live by MainThreedEditor →
+  // AnnotationsManager.setWireframeSettings.
+  showWireframe: true,
+  wireframeAngleDeg: 1,
   // Viewport render mode (session-only). "STANDARD" = the historical unlit /
   // Lambert look. "REALISTIC" = real-time PBR: physical materials, white
   // environment lighting, ACES tone mapping. "PHOTOREAL" = the full raster
@@ -232,6 +240,12 @@ export const threedEditorSlice = createSlice({
     },
     setFaceSelectionAngleDeg: (state, action) => {
       state.faceSelectionAngleDeg = action.payload;
+    },
+    setShowWireframe: (state, action) => {
+      state.showWireframe = action.payload;
+    },
+    setWireframeAngleDeg: (state, action) => {
+      state.wireframeAngleDeg = action.payload;
     },
     setRenderMode: (state, action) => {
       state.renderMode = action.payload;
@@ -587,6 +601,8 @@ export const {
   setDisableOpacity,
   setAntiAliasingShrink,
   setFaceSelectionAngleDeg,
+  setShowWireframe,
+  setWireframeAngleDeg,
   setRenderMode,
   setEnvironment3d,
   setEditorMode,

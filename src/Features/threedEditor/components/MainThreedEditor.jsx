@@ -211,6 +211,12 @@ export default function MainThreedEditor() {
   // settings) with the displayed editor, so nothing needs closing.
 
   const showGrid = useSelector((s) => s.threedEditor.showGrid);
+  // "Wireframe" section of the 3D view settings: grid-edge lines visibility +
+  // EdgesGeometry dihedral threshold, synced live to the AnnotationsManager.
+  const showWireframe = useSelector((s) => s.threedEditor.showWireframe);
+  const wireframeAngleDeg = useSelector(
+    (s) => s.threedEditor.wireframeAngleDeg
+  );
   // Capture mode ("Export rapide", shared with the 2D viewer). Toggles are
   // rare, so the re-render cost is acceptable here.
   const imageModeEnabled = useSelector((s) => s.mapEditor.imageModeEnabled);
@@ -426,6 +432,18 @@ export default function MainThreedEditor() {
     grid.visible = showGrid;
     editor.renderScene();
   }, [showGrid, rendererIsReady]);
+
+  // Sync the Wireframe settings → AnnotationsManager (visibility toggle +
+  // EdgesGeometry threshold rebuild on the built annotation objects; newly
+  // built / carved objects pick the stored settings up through finishRoot).
+  useEffect(() => {
+    const editor = threedEditorRef.current;
+    if (!editor || !rendererIsReady) return;
+    editor.sceneManager?.annotationsManager?.setWireframeSettings({
+      visible: showWireframe,
+      thresholdDeg: wireframeAngleDeg,
+    });
+  }, [showWireframe, wireframeAngleDeg, rendererIsReady]);
 
   // Sync renderMode → RenderModeManager (tone mapping / shadows /
   // environment). The annotation materials rebuild independently through

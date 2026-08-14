@@ -74,6 +74,20 @@ export default function buildInlineExtrusionMesh({
   const mesh = new Mesh(geom, surfMat);
   mesh.userData = { ...(mesh.userData ?? {}), role: "SOLID" };
   group.add(mesh);
-  group.add(new LineSegments(new EdgesGeometry(geom), EDGE_MATERIAL));
+  // Tagged + per-call material so the carve pipeline can strip and rebuild the
+  // grid from the carved geometry — see subtractAnnotationGeometries.
+  const gridEdges = new LineSegments(
+    new EdgesGeometry(geom),
+    EDGE_MATERIAL.clone()
+  );
+  gridEdges.userData = {
+    isGridEdge: true,
+    gridEdgeKind: "EDGES",
+    // Runtime ref for the "Wireframe" threshold rebuild — see
+    // applyWireframeSettings.
+    sourceMesh: mesh,
+  };
+  gridEdges.raycast = () => {};
+  group.add(gridEdges);
   return group;
 }

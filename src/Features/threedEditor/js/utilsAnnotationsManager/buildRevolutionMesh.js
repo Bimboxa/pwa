@@ -270,7 +270,22 @@ export default function buildRevolutionMesh({
     // the first mesh) — see getSolidMeshesFromObject3D.
     mesh.userData.role = "SOLID";
     group.add(mesh);
-    group.add(new LineSegments(new EdgesGeometry(geom), EDGE_MATERIAL));
+    // Tagged (and per-call material, per the dispose rule above) so the carve
+    // pipeline can strip + rebuild the grid from the carved geometry — see
+    // subtractAnnotationGeometries.
+    const gridEdges = new LineSegments(
+      new EdgesGeometry(geom),
+      EDGE_MATERIAL.clone()
+    );
+    gridEdges.userData = {
+      isGridEdge: true,
+      gridEdgeKind: "EDGES",
+      // Runtime ref for the "Wireframe" threshold rebuild — see
+      // applyWireframeSettings (never serialized: lines are not exported).
+      sourceMesh: mesh,
+    };
+    gridEdges.raycast = () => {};
+    group.add(gridEdges);
 
     if (!isPartial) continue;
     // Markers are children of the SOLID run mesh (not group siblings): the
