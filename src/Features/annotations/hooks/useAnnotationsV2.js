@@ -1678,8 +1678,15 @@ export default function useAnnotationsV2(options) {
           ).filter(
             (a) => !a.deletedAt && a.type === "REVOLUTION_AXIS_PLACEMENT"
           );
-          const placementByBaseMapId = {};
-          for (const p of placements) placementByBaseMapId[p.baseMapId] = p;
+          // Keyed by (baseMapId, axisId): several scopes may each pose their
+          // OWN axis on the same vertical base map, so a lone per-base-map
+          // entry could resolve an arc to another scope's placement and wrongly
+          // flag it revolutionMissingPlacement (profile rendered un-revolved).
+          const placementByBaseMapAndAxisId = {};
+          for (const p of placements) {
+            placementByBaseMapAndAxisId[`${p.baseMapId}:${p.revolutionAxisId}`] =
+              p;
+          }
 
           // Placement points live on ANOTHER base map than the arc, so they are
           // not in `pointsIndex` — fetch them explicitly.
@@ -1703,10 +1710,12 @@ export default function useAnnotationsV2(options) {
               continue;
             }
 
-            const placement = placementByBaseMapId[arc.baseMapId];
-            // A placement of a DIFFERENT axis is not "close enough": flag it
-            // rather than silently revolving around the wrong centre.
-            if (!placement || placement.revolutionAxisId !== axisId) {
+            // A placement of a DIFFERENT axis is not "close enough" (the key
+            // carries the axis id): flag it rather than silently revolving
+            // around the wrong centre.
+            const placement =
+              placementByBaseMapAndAxisId[`${arc.baseMapId}:${axisId}`];
+            if (!placement) {
               arc.revolutionMissingPlacement = true;
               continue;
             }
