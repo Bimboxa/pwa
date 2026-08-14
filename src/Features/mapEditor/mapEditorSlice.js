@@ -218,6 +218,11 @@ const mapEditorInitialState = {
   // Multiplier applied to the vertex handle size in NodePolylineStatic.
   vertexSizeMultiplier: 1,
 
+  // EDIT mode: preserve joint angles (rectangles stay rectangles) during
+  // vertex / segment drags. Toggled by the global padlock shown with the
+  // segment-length cotes. Transient (not persisted).
+  anglesLocked: true,
+
   // clipping plane (2D-defined cut plane, mirrored to the 3D viewer).
   // Coords are normalized [0..1] vs baseMap imageSize. Transient (not persisted).
   clippingPlanEnabled: false,
@@ -718,6 +723,9 @@ export const mapEditorSlice = createSlice({
     setVertexSizeMultiplier: (state, action) => {
       state.vertexSizeMultiplier = action.payload;
     },
+    setAnglesLocked: (state, action) => {
+      state.anglesLocked = Boolean(action.payload);
+    },
 
     // clipping plane (2D-defined cut plane)
     setClippingPlanEnabled: (state, action) => {
@@ -971,6 +979,7 @@ export const {
   // ortho snap
   setOrthoSnapAngleOffset,
   setVertexSizeMultiplier,
+  setAnglesLocked,
 
   // clipping plane
   setClippingPlanEnabled,

@@ -6,6 +6,8 @@ import {
   LockOpen as LockOpenIcon,
 } from "@mui/icons-material";
 
+import { setAnglesLocked } from "Features/mapEditor/mapEditorSlice";
+
 import getSegmentLengthItems from "Features/annotations/utils/getSegmentLengthItems";
 import applySegmentLengthEditService from "Features/annotations/services/applySegmentLengthEditService";
 import { typeOf } from "Features/geometry/utils/arcSampling";
@@ -64,6 +66,11 @@ export default function NodeSegmentLengthsStatic({
   const interactionMode = useSelector(
     (s) => s.popperMapListings?.interactionMode
   );
+
+  // Global angle lock (mapEditorSlice, default true): vertex / segment drags
+  // preserve the joint angles. The padlock rendered above the annotation
+  // toggles it for the whole session.
+  const anglesLocked = useSelector((s) => s.mapEditor.anglesLocked);
 
   const annotationId = annotation?.id;
   const unit = annotation?.unit ?? "M";
@@ -185,6 +192,24 @@ export default function NodeSegmentLengthsStatic({
         it.startPointId === selectedPointId || it.endPointId === selectedPointId
     );
   }, [items, selectedPointId]);
+
+  // Anchor of the global angle padlock: top-center of the contour bbox,
+  // pushed up by a screen-px offset so it never covers a vertex.
+  const angleLockAnchor = useMemo(() => {
+    const pts = (points || []).filter(
+      (p) => p && Number.isFinite(p.x) && Number.isFinite(p.y)
+    );
+    if (!pts.length) return null;
+    let minX = Infinity;
+    let maxX = -Infinity;
+    let minY = Infinity;
+    for (const p of pts) {
+      if (p.x < minX) minX = p.x;
+      if (p.x > maxX) maxX = p.x;
+      if (p.y < minY) minY = p.y;
+    }
+    return { x: (minX + maxX) / 2, y: minY };
+  }, [points]);
 
   const flashConflict = useCallback((segmentId, reason) => {
     clearTimeout(conflictTimerRef.current);
@@ -490,6 +515,49 @@ export default function NodeSegmentLengthsStatic({
           </g>
         );
       })}
+
+      {/* ANGLE padlock (session-wide) — preserves the joint angles during
+          vertex / segment drags (default: locked). Lives in mapEditorSlice. */}
+      {angleLockAnchor && (
+        <g
+          transform={`translate(${angleLockAnchor.x}, ${angleLockAnchor.y})`}
+        >
+          <g style={{ transform: counterScaleTransform }}>
+            <g
+              data-interaction="ui-overlay"
+              {...overlayGuards}
+              onClick={(e) => {
+                e.stopPropagation();
+                dispatch(setAnglesLocked(!anglesLocked));
+              }}
+              transform="translate(0, -30)"
+              style={{ cursor: "pointer" }}
+              opacity={anglesLocked ? 1 : 0.45}
+            >
+              <title>
+                {anglesLocked
+                  ? "Angles verrouillés : les déplacements de points et de segments conservent les angles"
+                  : "Angles libres : les déplacements déforment les angles"}
+              </title>
+              <circle
+                r={11}
+                fill="white"
+                fillOpacity={0.85}
+                stroke={ACCENT_COLOR}
+                strokeWidth={1}
+              />
+              <g transform="scale(1.4)">
+                <LockGlyph
+                  x={0}
+                  y={0.5}
+                  locked={anglesLocked}
+                  color={ACCENT_COLOR}
+                />
+              </g>
+            </g>
+          </g>
+        </g>
+      )}
 
       {/* per-point padlocks (arc control points excluded: locking a control
           point is meaningless in v1) */}

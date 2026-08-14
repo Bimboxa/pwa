@@ -50,6 +50,7 @@ import useResetNewAnnotation from "Features/annotations/hooks/useResetNewAnnotat
 import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
 import applyOpeningOnPolygon from "Features/annotations/utils/applyOpeningOnPolygon";
 import reflowOpeningsForHost from "Features/mapEditor/services/reflowOpeningsForHostService";
+import applyPointsMovesService from "Features/annotations/services/applyPointsMovesService";
 import shadeMeshCellColor from "Features/mesh/utils/meshCellColor";
 import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
 import useLegendItems from "Features/legend/hooks/useLegendItems";
@@ -988,6 +989,18 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
         await reflowOpenings({ movedPointIds: [pointId] });
     };
 
+    // Multi-point commit (EDIT-mode segment drag / angle-locked vertex drag):
+    // normalized db.points bulkUpdate + rotation clearing + openings reflow,
+    // all shared with the segment-length editor via applyPointsMovesService.
+    const handlePointsMoveCommit = async (annotation, moves) => {
+        await applyPointsMovesService({
+            annotation,
+            moves,
+            meterByPx: baseMap?.getMeterByPx?.(),
+            dispatch,
+        });
+    };
+
     const handleDuplicateAndMovePoint = async ({ originalPointId, annotationId, newPos }) => {
         const imageSize = baseMap?.getImageSize?.();
         await duplicateAndMovePoint({ originalPointId, annotationId, newPos, imageSize, annotations });
@@ -1894,6 +1907,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                     activeContext={activeContext}
                     annotations={annotations}
                     onPointMoveCommit={handlePointMoveCommit}
+                    onPointsMoveCommit={handlePointsMoveCommit}
                     onPointSnapReplace={handlePointSnapReplace}
                     onToggleAnnotationPointType={handleToggleAnnotationPointType}
                     onPointDuplicateAndMoveCommit={handleDuplicateAndMovePoint}

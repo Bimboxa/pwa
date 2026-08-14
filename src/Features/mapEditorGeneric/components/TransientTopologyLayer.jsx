@@ -10,6 +10,7 @@ import NodeOpeningStatic from './NodeOpeningStatic';
 
 import computeOpeningEndpointsFromHost, { buildHostCurve } from 'Features/mapEditor/utils/computeOpeningEndpointsFromHost';
 import computeOpeningSegmentPlacement from 'Features/mapEditor/utils/computeOpeningSegmentPlacement';
+import getSegmentLengthItems from 'Features/annotations/utils/getSegmentLengthItems';
 
 export default function TransientTopologyLayer({
     annotations,
@@ -17,6 +18,9 @@ export default function TransientTopologyLayer({
     originalPointIdForDuplication, // Présent si mode "Duplication"
     selectedAnnotationId,          // Présent si mode "Duplication" (ID de l'élue)
     currentPos,
+    movedPointsById,               // { [pointId]: {x, y} } — multi-point drags
+                                   // (angle lock, segment drag); supersedes
+                                   // movingPointId/currentPos in CASE 3
     virtualInsertion,
     viewportScale,
     containerK,
@@ -24,8 +28,21 @@ export default function TransientTopologyLayer({
     openingRels, // relAnnotationOpenings rows — live reflow of glued openings
 }) {
 
+    // CASE 3 works on a pointId → pos map: multi-point drags pass it directly,
+    // the single-point drag is a one-entry map.
+    const movedMap = useMemo(() => {
+        if (movedPointsById && Object.keys(movedPointsById).length)
+            return movedPointsById;
+        if (movingPointId && currentPos)
+            return { [movingPointId]: currentPos };
+        return null;
+    }, [movedPointsById, movingPointId, currentPos]);
+
+    const moved = (id) => (movedMap && id != null ? movedMap[id] : undefined);
+    const movedRef = (g) => moved(g.pointId) ?? moved(g.id);
+
     const modifiedAnnotations = useMemo(() => {
-        if (!currentPos) return [];
+        if (!currentPos && !movedMap) return [];
 
         // =========================================================
         // CAS 1 : INSERTION VIRTUELLE (Split Segment)
@@ -160,18 +177,18 @@ export default function TransientTopologyLayer({
         // =========================================================
         // CAS 3 : DÉPLACEMENT STANDARD (Mode Topologique / Point Partagé)
         // =========================================================
-        if (!movingPointId) return [];
+        if (!movedMap) return [];
 
-        // On cherche TOUTES les annotations qui contiennent ce point
+        // On cherche TOUTES les annotations qui contiennent un point déplacé
         // (contour, trous, ou points intérieurs Steiner)
         const affected = annotations.filter(ann => {
-            const inMain = ann.points?.some(pt => pt.id === movingPointId);
+            const inMain = ann.points?.some(pt => moved(pt.id));
             if (inMain) return true;
-            if (ann.cuts?.some(cut => cut.points?.some(pt => pt.id === movingPointId))) return true;
-            if (ann.innerPoints?.some(pt => pt.id === movingPointId)) return true;
-            if (ann.guideLines?.some(gl => gl?.points?.some(g => g.pointId === movingPointId || g.id === movingPointId))) return true;
-            if (ann.isoHeightLines?.some(l => l?.points?.some(g => g.pointId === movingPointId || g.id === movingPointId))) return true;
-            if (ann.profileLines?.some(l => l?.points?.some(g => g.pointId === movingPointId || g.id === movingPointId))) return true;
+            if (ann.cuts?.some(cut => cut.points?.some(pt => moved(pt.id)))) return true;
+            if (ann.innerPoints?.some(pt => moved(pt.id))) return true;
+            if (ann.guideLines?.some(gl => gl?.points?.some(g => movedRef(g)))) return true;
+            if (ann.isoHeightLines?.some(l => l?.points?.some(g => movedRef(g)))) return true;
+            if (ann.profileLines?.some(l => l?.points?.some(g => movedRef(g)))) return true;
             return false;
         });
 
@@ -184,15 +201,15 @@ export default function TransientTopologyLayer({
         if (Array.isArray(openingRels) && baseMapMeterByPx > 0) {
             for (const rel of openingRels) {
                 const anchoredOnMovingPoint =
-                    rel.hostSegmentStartPointId === movingPointId ||
-                    rel.hostSegmentEndPointId === movingPointId ||
-                    rel.hostArcControlPointId === movingPointId;
+                    Boolean(moved(rel.hostSegmentStartPointId)) ||
+                    Boolean(moved(rel.hostSegmentEndPointId)) ||
+                    Boolean(moved(rel.hostArcControlPointId));
 
                 const hostAnn = annotations.find(
                     (a) => a.id === rel.hostAnnotationId
                 );
                 const hostContainsMovingPoint = hostAnn?.points?.some(
-                    (p) => p.id === movingPointId
+                    (p) => moved(p.id)
                 );
                 // Reflow when the dragged vertex belongs to the host wall:
                 // via the stored anchor when the anchor itself moves, else via
@@ -213,7 +230,8 @@ export default function TransientTopologyLayer({
                 if (anchoredOnMovingPoint) {
                     const findPt = (id) => {
                         if (!id) return null;
-                        if (id === movingPointId) return currentPos;
+                        const movedPos = moved(id);
+                        if (movedPos) return movedPos;
                         const inMain = hostAnn?.points?.find((p) => p.id === id);
                         return inMain ?? null;
                     };
@@ -246,11 +264,10 @@ export default function TransientTopologyLayer({
                     );
                     const movedHostPoints = (hostAnn?.points ?? [])
                         .filter((p) => !notchSet.has(p.id))
-                        .map((p) =>
-                            p.id === movingPointId
-                                ? { ...p, x: currentPos.x, y: currentPos.y }
-                                : p
-                        );
+                        .map((p) => {
+                            const movedPos = moved(p.id);
+                            return movedPos ? { ...p, ...movedPos } : p;
+                        });
                     if (movedHostPoints.length < 2) continue;
                     const center = {
                         x: (openingAnn.points[0].x + openingAnn.points[1].x) / 2,
@@ -299,74 +316,56 @@ export default function TransientTopologyLayer({
         const mapped = affected.map(ann => {
             const _ann = { ...ann };
 
+            const movePt = (pt) => {
+                const movedPos = moved(pt.id);
+                return movedPos ? { ...pt, x: movedPos.x, y: movedPos.y } : pt;
+            };
+            const moveRef = (g) => {
+                const movedPos = movedRef(g);
+                return movedPos ? { ...g, x: movedPos.x, y: movedPos.y } : g;
+            };
+
             // A. Main Points
-            if (_ann.points?.some(pt => pt.id === movingPointId)) {
-                _ann.points = _ann.points.map(pt =>
-                    pt.id === movingPointId
-                        ? { ...pt, x: currentPos.x, y: currentPos.y }
-                        : pt
-                );
+            if (_ann.points?.some(pt => moved(pt.id))) {
+                _ann.points = _ann.points.map(movePt);
             }
 
             // B. Cuts
             if (_ann.cuts) {
                 _ann.cuts = _ann.cuts.map(cut => {
-                    if (cut.points?.some(pt => pt.id === movingPointId)) {
-                        return {
-                            ...cut,
-                            points: cut.points.map(pt =>
-                                pt.id === movingPointId
-                                    ? { ...pt, x: currentPos.x, y: currentPos.y }
-                                    : pt
-                            )
-                        };
+                    if (cut.points?.some(pt => moved(pt.id))) {
+                        return { ...cut, points: cut.points.map(movePt) };
                     }
                     return cut;
                 });
             }
 
             // C. Inner Steiner Points
-            if (_ann.innerPoints?.some(pt => pt.id === movingPointId)) {
-                _ann.innerPoints = _ann.innerPoints.map(pt =>
-                    pt.id === movingPointId
-                        ? { ...pt, x: currentPos.x, y: currentPos.y }
-                        : pt
-                );
+            if (_ann.innerPoints?.some(pt => moved(pt.id))) {
+                _ann.innerPoints = _ann.innerPoints.map(movePt);
             }
 
             // D. guideLines (resolved refs key on `pointId` AND mirror `id`)
-            if (_ann.guideLines?.some(gl => gl?.points?.some(g => g.pointId === movingPointId || g.id === movingPointId))) {
+            if (_ann.guideLines?.some(gl => gl?.points?.some(g => movedRef(g)))) {
                 _ann.guideLines = _ann.guideLines.map(gl => ({
                     ...gl,
-                    points: (gl?.points || []).map(g =>
-                        (g.pointId === movingPointId || g.id === movingPointId)
-                            ? { ...g, x: currentPos.x, y: currentPos.y }
-                            : g
-                    ),
+                    points: (gl?.points || []).map(moveRef),
                 }));
             }
 
             // E. isoHeightLines (same resolved ref shape as guideLines)
-            if (_ann.isoHeightLines?.some(l => l?.points?.some(g => g.pointId === movingPointId || g.id === movingPointId))) {
+            if (_ann.isoHeightLines?.some(l => l?.points?.some(g => movedRef(g)))) {
                 _ann.isoHeightLines = _ann.isoHeightLines.map(l => ({
                     ...l,
-                    points: (l?.points || []).map(g =>
-                        (g.pointId === movingPointId || g.id === movingPointId)
-                            ? { ...g, x: currentPos.x, y: currentPos.y }
-                            : g
-                    ),
+                    points: (l?.points || []).map(moveRef),
                 }));
             }
 
             // F. profileLines (same resolved ref shape as guideLines)
-            if (_ann.profileLines?.some(l => l?.points?.some(g => g.pointId === movingPointId || g.id === movingPointId))) {
+            if (_ann.profileLines?.some(l => l?.points?.some(g => movedRef(g)))) {
                 _ann.profileLines = _ann.profileLines.map(l => ({
                     ...l,
-                    points: (l?.points || []).map(g =>
-                        (g.pointId === movingPointId || g.id === movingPointId)
-                            ? { ...g, x: currentPos.x, y: currentPos.y }
-                            : g
-                    ),
+                    points: (l?.points || []).map(moveRef),
                 }));
             }
 
@@ -375,7 +374,34 @@ export default function TransientTopologyLayer({
 
         return [...mapped, ...openingReflows];
 
-    }, [annotations, movingPointId, currentPos, virtualInsertion, originalPointIdForDuplication, selectedAnnotationId, openingRels, baseMapMeterByPx]);
+    }, [annotations, movingPointId, currentPos, movedMap, virtualInsertion, originalPointIdForDuplication, selectedAnnotationId, openingRels, baseMapMeterByPx]);
+
+    // Transient cotes: length labels on the segments that are moving, so the
+    // user reads the dimensions live during a vertex / segment drag. Main
+    // contour only, straight segments only (arc halves have no meaningful
+    // straight-line length).
+    const transientCotes = useMemo(() => {
+        if (!movedMap || !(baseMapMeterByPx > 0)) return [];
+        const labels = [];
+        for (const ann of modifiedAnnotations) {
+            if (!["POLYGON", "POLYLINE", "STRIP"].includes(ann.type)) continue;
+            if (!ann.points?.length) continue;
+            const closed = ann.closeLine || ann.type === "POLYGON";
+            const items = getSegmentLengthItems({
+                points: ann.points,
+                closed,
+                meterByPx: baseMapMeterByPx,
+                unit: ann.unit ?? "M",
+                decimals: ann.decimals ?? 2,
+            });
+            for (const it of items) {
+                if (!it.isStraight) continue;
+                if (!moved(it.startPointId) && !moved(it.endPointId)) continue;
+                labels.push({ key: `${ann.id}-${it.index}`, ...it });
+            }
+        }
+        return labels;
+    }, [modifiedAnnotations, movedMap, baseMapMeterByPx]);
 
     if (modifiedAnnotations.length === 0) return null;
 
@@ -457,17 +483,58 @@ export default function TransientTopologyLayer({
                 </React.Fragment>
             })}
 
+            {/* Cotes transientes: longueurs des segments en mouvement */}
+            {transientCotes.map((it) => {
+                const textW = it.text.length * 7.2;
+                return (
+                    <g
+                        key={`transient-cote-${it.key}`}
+                        transform={`translate(${it.mid.x}, ${it.mid.y})`}
+                        pointerEvents="none"
+                    >
+                        <g
+                            style={{
+                                transform: `scale(calc(1 / (var(--map-zoom, 1) * ${containerK || 1})))`,
+                            }}
+                        >
+                            <rect
+                                x={-textW / 2 - 4}
+                                y={-10}
+                                width={textW + 8}
+                                height={20}
+                                rx={4}
+                                fill="white"
+                                fillOpacity={0.8}
+                            />
+                            <text
+                                x={0}
+                                y={0}
+                                textAnchor="middle"
+                                dominantBaseline="central"
+                                fontSize={13}
+                                fontFamily='"Roboto", "Helvetica", "Arial", sans-serif'
+                                fill="#2196f3"
+                            >
+                                {it.text}
+                            </text>
+                        </g>
+                    </g>
+                );
+            })}
+
             {/* Le Point sous la souris (Feedback visuel) */}
-            <circle
-                cx={currentPos.x}
-                cy={currentPos.y}
-                r={6 / viewportScale}
-                fill="transparent"
-                stroke="#2196f3"
-                strokeWidth={2 / viewportScale}
-                strokeOpacity={0.5}
-                style={{ cursor: 'crosshair', pointerEvents: 'none' }}
-            />
+            {currentPos && (
+                <circle
+                    cx={currentPos.x}
+                    cy={currentPos.y}
+                    r={6 / viewportScale}
+                    fill="transparent"
+                    stroke="#2196f3"
+                    strokeWidth={2 / viewportScale}
+                    strokeOpacity={0.5}
+                    style={{ cursor: 'crosshair', pointerEvents: 'none' }}
+                />
+            )}
         </g>
     );
 }
