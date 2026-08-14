@@ -29,6 +29,9 @@ import {
   segmentIdxToPointIds,
 } from "Features/annotations/utils/segmentFlags";
 import findCutHostAnnotationId from "Features/annotations/utils/findCutHostAnnotationId";
+import isRevolutionHelperInScope, {
+    getScopeIdByListingId,
+} from "Features/annotations/utils/isRevolutionHelperInScope";
 import addAnnotationOpening from "Features/annotations/services/addAnnotationOpening";
 import deriveOpeningContourAnchor from "Features/mapEditor/utils/deriveOpeningContourAnchor";
 import getAnnotationAsPolygons from "Features/geometry/utils/getAnnotationAsPolygons";
@@ -772,11 +775,22 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
             // drafts, and it must not become the axis name. Placements are not
             // concerned: their draft label is the linked axis's label.
             if (newAnnotation?.type === "REVOLUTION_AXIS") {
-                const existingAxesCount = await db.annotations
-                    .where("projectId")
-                    .equals(projectId)
-                    .filter((a) => a.type === "REVOLUTION_AXIS" && !a.deletedAt)
-                    .count();
+                // Numbered within the current SCOPE only: each scope has its
+                // own axes, so its first axis must be "Axe 1" even when other
+                // scopes already carry axes on the project.
+                const axisRows = (
+                    await db.annotations
+                        .where("projectId")
+                        .equals(projectId)
+                        .toArray()
+                ).filter((a) => a.type === "REVOLUTION_AXIS" && !a.deletedAt);
+                const scopeIdByListingId = await getScopeIdByListingId(axisRows);
+                const existingAxesCount = axisRows.filter((a) =>
+                    isRevolutionHelperInScope(a, {
+                        scopeId: selectedScopeId,
+                        scopeIdByListingId,
+                    })
+                ).length;
                 _newAnnotation.label = `Axe ${existingAxesCount + 1}`;
             }
 
@@ -1031,15 +1045,17 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
 
         // Dropping a plan axis on a VERTICAL base map is what POSES that base
         // map in 3D: rotate + translate it so its plane contains the axis, with
-        // the orange half-disc behind it. One placement per base map — replace
-        // any earlier one so two axes can't fight over the same pose.
+        // the orange half-disc behind it. One placement per base map PER SCOPE
+        // — replace any earlier one of the current scope so two axes can't
+        // fight over the same pose, but leave other scopes' placements alone
+        // (each scope poses its own axis on the shared base map).
         if (
             _newAnnotation?.type === "REVOLUTION_AXIS_PLACEMENT" &&
             _newAnnotation?.revolutionAxisId &&
             _newAnnotation?.id
         ) {
             try {
-                const previous = (
+                const others = (
                     await db.annotations
                         .where("baseMapId")
                         .equals(_newAnnotation.baseMapId)
@@ -1049,6 +1065,13 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
                         !a.deletedAt &&
                         a.type === "REVOLUTION_AXIS_PLACEMENT" &&
                         a.id !== _newAnnotation.id
+                );
+                const scopeIdByListingId = await getScopeIdByListingId(others);
+                const previous = others.filter((a) =>
+                    isRevolutionHelperInScope(a, {
+                        scopeId: selectedScopeId,
+                        scopeIdByListingId,
+                    })
                 );
                 // Soft delete (db.js middleware) — keeps undo working.
                 for (const p of previous) await db.annotations.delete(p.id);
