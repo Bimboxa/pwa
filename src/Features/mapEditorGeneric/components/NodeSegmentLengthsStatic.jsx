@@ -90,6 +90,62 @@ export default function NodeSegmentLengthsStatic({
 
   useEffect(() => () => clearTimeout(conflictTimerRef.current), []);
 
+  // While an editor is open, the first click OUTSIDE it must only commit the
+  // value (the native focus transfer blurs the input) — NOT reach the map,
+  // where it would clear the selection and hide every cote. Window-capture
+  // listeners run before the React handlers attached at the app root, so
+  // stopping propagation here hides the whole click sequence (down / up /
+  // click) from InteractionLayer. The default action is never prevented: the
+  // focus change IS what triggers the commit.
+  useEffect(() => {
+    if (!editingSegmentId) return undefined;
+
+    const stop = (e) => e.stopPropagation();
+    let sequenceActive = false;
+
+    const releaseSequence = () => {
+      sequenceActive = false;
+      window.removeEventListener("pointerup", stop, true);
+      window.removeEventListener("mouseup", onUpCapture, true);
+      window.removeEventListener("click", onClickCapture, true);
+    };
+    const onClickCapture = (e) => {
+      e.stopPropagation();
+      releaseSequence();
+    };
+    const onUpCapture = (e) => {
+      e.stopPropagation();
+      // `click` fires right after mouseup and does the release; the timeout
+      // only covers gestures where the browser skips the click event
+      // (release over another element after a drag).
+      setTimeout(releaseSequence, 0);
+    };
+    const onDownCapture = (e) => {
+      // Clicks on any ui-overlay (this editor, another cote label, a
+      // padlock) already protect the selection themselves — let them through
+      // so e.g. clicking another cote commits this one AND opens the next.
+      if (e.target?.closest?.('[data-interaction="ui-overlay"]')) return;
+      e.stopPropagation();
+      if (!sequenceActive) {
+        sequenceActive = true;
+        window.addEventListener("pointerup", stop, true);
+        window.addEventListener("mouseup", onUpCapture, true);
+        window.addEventListener("click", onClickCapture, true);
+      }
+    };
+
+    window.addEventListener("pointerdown", onDownCapture, true);
+    window.addEventListener("mousedown", onDownCapture, true);
+    return () => {
+      window.removeEventListener("pointerdown", onDownCapture, true);
+      window.removeEventListener("mousedown", onDownCapture, true);
+      // The up/click swallow listeners deliberately survive this cleanup:
+      // the commit closes the editor (re-running this effect) between the
+      // dismissing mousedown and its mouseup/click — removing them here
+      // would let the tail of the gesture reach the map and deselect anyway.
+    };
+  }, [editingSegmentId]);
+
   // helpers
 
   const hasScale = Number.isFinite(baseMapMeterByPx) && baseMapMeterByPx > 0;
