@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { IconButton } from "@mui/material";
+import { IconButton, Tooltip } from "@mui/material";
 import {
   Lock as LockIcon,
   LockOpen as LockOpenIcon,
@@ -519,44 +519,59 @@ export default function NodeSegmentLengthsStatic({
       })}
 
       {/* ANGLE padlock (session-wide) — preserves the joint angles during
-          vertex / segment drags (default: locked). Lives in mapEditorSlice. */}
+          vertex / segment drags and typed length edits (default: locked).
+          Lives in mapEditorSlice. Rendered as an HTML button in a
+          foreignObject so it gets a real MUI Tooltip. */}
       {angleLockAnchor && (
         <g
           transform={`translate(${angleLockAnchor.x}, ${angleLockAnchor.y})`}
         >
           <g style={{ transform: counterScaleTransform }}>
-            <g
-              data-interaction="ui-overlay"
-              {...overlayGuards}
-              onClick={(e) => {
-                e.stopPropagation();
-                dispatch(setAnglesLocked(!anglesLocked));
-              }}
-              transform="translate(0, -30)"
-              style={{ cursor: "pointer" }}
-              opacity={anglesLocked ? 1 : 0.45}
+            <foreignObject
+              x={-20}
+              y={-50}
+              width={40}
+              height={40}
+              style={{ overflow: "visible" }}
             >
-              <title>
-                {anglesLocked
-                  ? "Angles verrouillés : les déplacements de points et de segments conservent les angles"
-                  : "Angles libres : les déplacements déforment les angles"}
-              </title>
-              <circle
-                r={11}
-                fill="white"
-                fillOpacity={0.85}
-                stroke={ACCENT_COLOR}
-                strokeWidth={1}
-              />
-              <g transform="scale(1.4)">
-                <LockGlyph
-                  x={0}
-                  y={0.5}
-                  locked={anglesLocked}
-                  color={ACCENT_COLOR}
-                />
-              </g>
-            </g>
+              <div
+                data-interaction="ui-overlay"
+                {...overlayGuards}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Tooltip
+                  placement="top"
+                  arrow
+                  title={
+                    anglesLocked
+                      ? "Angles verrouillés : déplacer un point ou un segment, ou modifier une cote, conserve tous les angles (un rectangle reste un rectangle). Cliquer pour libérer les angles."
+                      : "Angles libres : déplacer un point ou un segment, ou modifier une cote, peut déformer les angles. Cliquer pour verrouiller les angles."
+                  }
+                >
+                  <IconButton
+                    size="small"
+                    onClick={() => dispatch(setAnglesLocked(!anglesLocked))}
+                    sx={{
+                      bgcolor: "rgba(255,255,255,0.9)",
+                      border: `1px solid ${ACCENT_COLOR}`,
+                      color: anglesLocked ? ACCENT_COLOR : "text.disabled",
+                      "&:hover": { bgcolor: "white" },
+                      p: 0.5,
+                    }}
+                  >
+                    {anglesLocked ? (
+                      <LockIcon sx={{ fontSize: 18 }} />
+                    ) : (
+                      <LockOpenIcon sx={{ fontSize: 18 }} />
+                    )}
+                  </IconButton>
+                </Tooltip>
+              </div>
+            </foreignObject>
           </g>
         </g>
       )}
