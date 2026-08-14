@@ -42,6 +42,7 @@ export default function FieldBaseMapZInTopBar() {
       field="z"
       label="Z"
       unit="m"
+      displayDecimals={3}
       onChange={handleChange}
     />
   );
