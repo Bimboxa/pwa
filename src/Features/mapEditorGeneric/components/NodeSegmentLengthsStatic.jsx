@@ -356,37 +356,79 @@ export default function NodeSegmentLengthsStatic({
                   </div>
                 </foreignObject>
               ) : (
-                <g
-                  data-interaction="ui-overlay"
-                  {...overlayGuards}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    openEditor(seg);
-                  }}
-                  style={{ cursor: "pointer" }}
-                >
-                  <text
-                    x={0}
-                    y={0}
-                    textAnchor="middle"
-                    dominantBaseline="central"
-                    fontSize={13}
-                    fontFamily='"Roboto", "Helvetica", "Arial", sans-serif'
-                    fill={ACCENT_COLOR}
-                    style={{
-                      paintOrder: "stroke",
-                      stroke: "white",
-                      strokeWidth: 3,
-                    }}
-                  >
-                    {seg.text}
-                  </text>
-                  {/* Closed-lock glyph above the value keeps the constraint
-                      visible while the editor is closed. */}
-                  {isLocked && (
-                    <LockGlyph x={0} y={-14} locked color={ACCENT_COLOR} />
-                  )}
-                </g>
+                (() => {
+                  // Estimated label footprint (13px font ≈ 7.2px/char) — good
+                  // enough to size the readability background and place the
+                  // inline padlock; SVG has no cheap text measurement.
+                  const textW = seg.text.length * 7.2;
+                  const lockW = 14;
+                  const totalW = lockW + 2 + textW;
+                  const left = -totalW / 2;
+                  return (
+                    <g data-interaction="ui-overlay" {...overlayGuards}>
+                      {/* Semi-transparent white backing so the value stays
+                          readable on top of the segment stroke. */}
+                      <rect
+                        x={left - 4}
+                        y={-10}
+                        width={totalW + 8}
+                        height={20}
+                        rx={4}
+                        fill="white"
+                        fillOpacity={0.75}
+                        pointerEvents="none"
+                      />
+                      {/* Inline padlock: locks the cote directly, without
+                          opening the editor first. */}
+                      <g
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setLockedSegmentsByStartId((prev) => ({
+                            ...prev,
+                            [seg.startPointId]: !prev[seg.startPointId],
+                          }));
+                        }}
+                        style={{ cursor: "pointer" }}
+                        opacity={isLocked ? 1 : 0.4}
+                      >
+                        <title>
+                          {isLocked
+                            ? "Cote verrouillée : sa longueur est conservée lors des autres éditions"
+                            : "Cote libre : cliquer pour verrouiller sa longueur"}
+                        </title>
+                        <rect
+                          x={left - 2}
+                          y={-9}
+                          width={lockW + 4}
+                          height={18}
+                          fill="transparent"
+                        />
+                        <LockGlyph
+                          x={left + lockW / 2}
+                          y={0}
+                          locked={isLocked}
+                          color={ACCENT_COLOR}
+                        />
+                      </g>
+                      <text
+                        x={left + lockW + 2}
+                        y={0}
+                        textAnchor="start"
+                        dominantBaseline="central"
+                        fontSize={13}
+                        fontFamily='"Roboto", "Helvetica", "Arial", sans-serif'
+                        fill={ACCENT_COLOR}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openEditor(seg);
+                        }}
+                        style={{ cursor: "pointer" }}
+                      >
+                        {seg.text}
+                      </text>
+                    </g>
+                  );
+                })()
               )}
             </g>
           </g>
