@@ -148,6 +148,11 @@ import LassoOverlay from 'Features/mapEditorGeneric/components/LassoOverlay';
 import mergeBboxes from 'Features/misc/utils/mergeBboxes';
 import snapToAngle from 'Features/mapEditor/utils/snapToAngle';
 import getBestSnap from 'Features/mapEditor/utils/getBestSnap';
+import {
+  computeSegmentDragMoves,
+  computeVertexDragMoves,
+} from 'Features/geometry/utils/computeConstrainedDragMoves';
+import { setDragCursor, clearDragCursor } from 'Features/mapEditor/utils/dragCursor';
 import computeOpeningSegmentPlacement from 'Features/mapEditor/utils/computeOpeningSegmentPlacement';
 import getAxisSnap from 'Features/mapEditor/utils/getAxisSnap';
 import getSnapModes from 'Features/mapEditor/utils/getSnapModes';
@@ -396,6 +401,7 @@ const InteractionLayer = forwardRef(({
   activeContext = "BASE_MAP",
   annotations, // <= snapping source.
   onPointMoveCommit,
+  onPointsMoveCommit, // multi-point commit (angle lock, segment drag)
   onPointSnapReplace,
   onToggleAnnotationPointType,
   onPointDuplicateAndMoveCommit,
@@ -524,6 +530,10 @@ const InteractionLayer = forwardRef(({
   const viewerMode = useSelector((s) => s.urlParams.viewerMode);
   const interactionMode =
     showMeshCells || viewerMode ? "SELECT" : rawInteractionMode;
+
+  // EDIT mode: preserve joint angles during vertex / segment drags (global
+  // padlock shown with the segment-length cotes).
+  const anglesLocked = useSelector((s) => s.mapEditor.anglesLocked);
 
   // Computed selectedNode equivalent (first item)
   const { node: selectedNode, nodes: selectedNodes } = useSelectedNodes();
@@ -2120,6 +2130,75 @@ const InteractionLayer = forwardRef(({
   // to hide their static render during the drag.
   const { rows: openingRelRows } = useAnnotationOpenings();
 
+  // drag state — segment drag (EDIT mode: grab a segment of the selected
+  // annotation; angle lock slides the endpoints along the adjacent edges)
+
+  const segmentDragStateRef = useRef(null);
+  const [segmentDragState, setSegmentDragState] = useState(null);
+
+  // Angle-locked vertex drag: the two neighbours of the dragged vertex slide
+  // along their other edge so every joint angle is preserved. Returns null
+  // when the context does not apply (lock off, not EDIT, vertex not on the
+  // selected annotation's main contour) — callers fall back to the regular
+  // single-point behaviour.
+  const getAngleLockedVertexMoves = (pointId, targetPos) => {
+    if (!anglesLocked || interactionMode !== "EDIT") return null;
+    if (!pointId || !targetPos) return null;
+    const ann = annotations?.find((a) => a.id === selectedNode?.nodeId);
+    if (!ann || !["POLYLINE", "POLYGON", "STRIP"].includes(ann.type))
+      return null;
+    const idx = ann.points?.findIndex((p) => p?.id === pointId);
+    if (idx == null || idx < 0) return null;
+    const closed = ann.closeLine || ann.type === "POLYGON";
+    const moves = computeVertexDragMoves({
+      points: ann.points,
+      closed,
+      pointIndex: idx,
+      targetPos,
+      anglesLocked: true,
+    });
+    if (moves.length <= 1) return null;
+    const byId = {};
+    const list = [];
+    for (const m of moves) {
+      const id = ann.points[m.index]?.id;
+      if (!id) continue;
+      byId[id] = { x: m.x, y: m.y };
+      list.push({ pointId: id, x: m.x, y: m.y });
+    }
+    if (list.length <= 1) return null;
+    return { annotation: ann, movesById: byId, moves: list };
+  };
+
+  // Route the vertex-drag commit: with the angle lock active the neighbours
+  // move too, so the commit becomes a multi-point write; otherwise keep the
+  // regular single-point path (which also owns the cut→contour reflow).
+  const handlePointMoveCommitRouted = (pointId, newPos) => {
+    const locked = getAngleLockedVertexMoves(pointId, newPos);
+    if (locked && onPointsMoveCommit) {
+      onPointsMoveCommit(locked.annotation, locked.moves);
+      return;
+    }
+    onPointMoveCommit?.(pointId, newPos);
+  };
+
+  // Dragging a vertex of the SELECTED annotation goes through the fork path
+  // (duplicateAndMovePoint mints a fresh id so shared neighbours keep the
+  // original point). The angle lock composes with it: the dragged point keeps
+  // the fork semantics, and the two contour neighbours slide IN PLACE (they
+  // keep their ids — same junction semantics as the segment-length editor).
+  const handleDuplicateAndMoveRouted = ({ originalPointId, annotationId, newPos }) => {
+    onPointDuplicateAndMoveCommit?.({ originalPointId, annotationId, newPos });
+    const locked = getAngleLockedVertexMoves(originalPointId, newPos);
+    if (locked && onPointsMoveCommit) {
+      const neighbourMoves = locked.moves.filter(
+        (m) => m.pointId !== originalPointId
+      );
+      if (neighbourMoves.length)
+        onPointsMoveCommit(locked.annotation, neighbourMoves);
+    }
+  };
+
   // drag state — point drag (extracted to usePointDrag)
 
   const {
@@ -2138,9 +2217,9 @@ const InteractionLayer = forwardRef(({
     permissions,
     setHiddenAnnotationIds,
     openingRels: openingRelRows,
-    onPointMoveCommit,
+    onPointMoveCommit: handlePointMoveCommitRouted,
     onPointSnapReplace,
-    onPointDuplicateAndMoveCommit,
+    onPointDuplicateAndMoveCommit: handleDuplicateAndMoveRouted,
     onSegmentSplit,
     onToggleAnnotationPointType,
     onProjectionSnapInsert,
@@ -5885,6 +5964,65 @@ const InteractionLayer = forwardRef(({
       axisSnapLayerRef.current?.update(null);
     }
 
+    // A0. SEGMENT DRAG (EDIT mode) — the whole edge follows the cursor;
+    // with the angle lock the endpoints slide along the adjacent edges.
+    const segDrag = segmentDragStateRef.current;
+    if (segDrag) {
+      if (segDrag.pending && !segDrag.active) {
+        const dx = event.clientX - segDrag.startMouseScreen.x;
+        const dy = event.clientY - segDrag.startMouseScreen.y;
+        if (Math.hypot(dx, dy) < 3) return;
+        segDrag.active = true;
+        setDragCursor("move");
+        // Hide the static render of every annotation sharing a moved point;
+        // the transient layer draws the moved version.
+        const ann = annotations?.find((a) => a.id === segDrag.annotationId);
+        if (ann?.points?.length) {
+          const n = ann.points.length;
+          const movedIds = [
+            ann.points[segDrag.segmentIndex]?.id,
+            ann.points[(segDrag.segmentIndex + 1) % n]?.id,
+          ].filter(Boolean);
+          const affectedIds = (annotations ?? [])
+            .filter((a) =>
+              movedIds.some(
+                (id) =>
+                  a.points?.some((p) => p.id === id) ||
+                  a.cuts?.some((c) => c.points?.some((p) => p.id === id))
+              )
+            )
+            .map((a) => a.id);
+          setHiddenAnnotationIds(affectedIds);
+        }
+      }
+      if (segDrag.active) {
+        const ann = annotations?.find((a) => a.id === segDrag.annotationId);
+        if (ann?.points?.length >= 2) {
+          const localPos = toLocalCoords(worldPos);
+          const closed = ann.closeLine || ann.type === "POLYGON";
+          const delta = {
+            x: localPos.x - segDrag.startLocal.x,
+            y: localPos.y - segDrag.startLocal.y,
+          };
+          const moves = computeSegmentDragMoves({
+            points: ann.points,
+            closed,
+            segmentIndex: segDrag.segmentIndex,
+            delta,
+            anglesLocked,
+          });
+          const movesById = {};
+          for (const m of moves) {
+            const id = ann.points[m.index]?.id;
+            if (id) movesById[id] = { x: m.x, y: m.y };
+          }
+          segDrag.movesById = movesById;
+          setSegmentDragState({ ...segDrag });
+        }
+      }
+      return; // the gesture belongs to the segment drag — no snap, no pan
+    }
+
     // A. DRAG POINT (Vertex) — délégué à usePointDrag
     if (dragState?.pending || dragState?.active) {
 
@@ -6137,6 +6275,7 @@ const InteractionLayer = forwardRef(({
           mapEditorMode === "QUICK_POINTS_CHANGE" ||
           interactionMode === "DRAW",
         hasSelection: Boolean(selectedAnnotation?.id),
+        isEditMode: interactionMode === "EDIT",
       });
       snapResult = getBestSnap(localPos, annotationsForSnap, snapThreshold, snapModes);
 
@@ -6695,6 +6834,44 @@ const InteractionLayer = forwardRef(({
     // CAPTURE / image mode: no annotation drag to finalize.
     if (imageModeEnabledRef.current) return;
 
+    // SEGMENT DRAG end. A real drag commits the moved points; a click-without-
+    // move falls back to the regular single-part toggle (the mousedown was
+    // stopPropagation'd, so handleWorldClick never fires for this gesture).
+    const segDrag = segmentDragStateRef.current;
+    if (segDrag) {
+      segmentDragStateRef.current = null;
+      clearDragCursor();
+      if (segDrag.active) {
+        const ann = annotations?.find((a) => a.id === segDrag.annotationId);
+        const movesById = segDrag.movesById;
+        if (ann && movesById && Object.keys(movesById).length) {
+          const moves = Object.entries(movesById).map(([pointId, pos]) => ({
+            pointId,
+            ...pos,
+          }));
+          onPointsMoveCommit?.(ann, moves);
+        }
+        // Keep the transient ghost briefly so the static render has time to
+        // catch up with the DB write (same trick as the vertex-drag freeze).
+        setSegmentDragState((prev) =>
+          prev ? { ...prev, active: false, frozen: true } : prev
+        );
+        setTimeout(() => {
+          setSegmentDragState(null);
+          setHiddenAnnotationIds([]);
+        }, 200);
+      } else {
+        setSegmentDragState(null);
+        // Plain click on the segment → single part toggle (mirror of
+        // handleWorldClick's part selection).
+        if (selectedPartIds.length > 0) dispatch(clearSelectedPartIds());
+        const nextPartId = selectedPartId === segDrag.partId ? null : segDrag.partId;
+        const nextPartType = selectedPartId === segDrag.partId ? null : "SEG";
+        dispatch(setSubSelection({ partId: nextPartId, partType: nextPartType }));
+      }
+      return;
+    }
+
     // Lasso end. When the gesture was a click (committed: false), fall back to
     // the shift+click toggle logic so toggling a single point / segment /
     // annotation still works (the viewport never saw this mouseDown — we
@@ -6969,7 +7146,45 @@ const InteractionLayer = forwardRef(({
 
     if (!selectedNode && !showBgImage && !draggableGroup && !resizeHandle && !rotateHandle && !versionHandle && !calibrationHandle && !legendHandle) return;
 
-
+    // --- SEGMENT DRAG (EDIT mode) ---
+    // Grab a main-contour segment of the SELECTED polyline / polygon / strip:
+    // the edge follows the cursor (angle lock slides the endpoints along the
+    // adjacent edges). stopPropagation so the viewport doesn't pan; a click
+    // without movement falls back to the part toggle in handleMouseUp.
+    if (
+      partNode &&
+      partType === "SEG" &&
+      interactionMode === "EDIT" &&
+      !enabledDrawingModeRef.current &&
+      !e.shiftKey
+    ) {
+      const partId = partNode.dataset?.partId || "";
+      const [segAnnId, , segIdxRaw] = partId.split("::");
+      const segIdx = Number(segIdxRaw);
+      const segAnn = annotations?.find((a) => a.id === segAnnId);
+      if (
+        segAnn &&
+        segAnnId === selectedNode?.nodeId &&
+        Number.isFinite(segIdx) &&
+        ["POLYLINE", "POLYGON", "STRIP"].includes(segAnn.type) &&
+        permissions.canEditAnnotation(segAnnId)
+      ) {
+        e.stopPropagation();
+        const worldPos = viewportRef.current?.screenToWorld(e.clientX, e.clientY);
+        const startLocal = toLocalCoords(worldPos);
+        segmentDragStateRef.current = {
+          pending: true,
+          active: false,
+          annotationId: segAnnId,
+          segmentIndex: segIdx,
+          partId,
+          startLocal,
+          startMouseScreen: { x: e.clientX, y: e.clientY },
+          movesById: null,
+        };
+        return;
+      }
+    }
 
     // --- Resize, Rotate, Draggable — délégué à useAnnotationDrag avec permission guard ---
 
@@ -7474,22 +7689,58 @@ const InteractionLayer = forwardRef(({
           />
         </g>
 
-        {(dragState?.active || dragState?.frozen) && (
-          <g transform={`translate(${targetPose.x}, ${targetPose.y}) scale(${targetPose.k})`}>
-            <TransientTopologyLayer
-              annotations={annotations}
-              baseMapMeterByPx={baseMapMeterByPx}
-              openingRels={openingRelRows}
-              movingPointId={dragState.pointId}
-              originalPointIdForDuplication={dragState.isDuplicateMode ? dragState.originalPointId : null}
-              currentPos={dragState.currentPos}
-              viewportScale={targetPose.k * cameraZoom}
-              containerK={targetPose.k}
-              virtualInsertion={virtualInsertion}
-              selectedAnnotationId={selectedNode?.nodeId?.replace("label::", "")}
-            />
-          </g>
-        )}
+        {(dragState?.active || dragState?.frozen) && (() => {
+          // Angle-locked vertex drag: the neighbours slide too. The map is
+          // keyed by the ORIGINAL point ids (fork mode included — visually the
+          // original vertex follows the cursor; the id mint happens at
+          // commit). Virtual insertions keep their legacy preview.
+          const lockedPreview = !virtualInsertion
+            ? getAngleLockedVertexMoves(
+                dragState.isDuplicateMode
+                  ? dragState.originalPointId
+                  : dragState.pointId,
+                dragState.currentPos
+              )?.movesById ?? null
+            : null;
+          return (
+            <g transform={`translate(${targetPose.x}, ${targetPose.y}) scale(${targetPose.k})`}>
+              <TransientTopologyLayer
+                annotations={annotations}
+                baseMapMeterByPx={baseMapMeterByPx}
+                openingRels={openingRelRows}
+                movingPointId={dragState.pointId}
+                originalPointIdForDuplication={
+                  !lockedPreview && dragState.isDuplicateMode
+                    ? dragState.originalPointId
+                    : null
+                }
+                currentPos={dragState.currentPos}
+                movedPointsById={lockedPreview}
+                viewportScale={targetPose.k * cameraZoom}
+                containerK={targetPose.k}
+                virtualInsertion={virtualInsertion}
+                selectedAnnotationId={selectedNode?.nodeId?.replace("label::", "")}
+              />
+            </g>
+          );
+        })()}
+
+        {/* SEGMENT DRAG preview (EDIT mode) — same transient layer, driven by
+            the movedPointsById map (both endpoints, angle-locked slides). */}
+        {(segmentDragState?.active || segmentDragState?.frozen) &&
+          segmentDragState?.movesById && (
+            <g transform={`translate(${targetPose.x}, ${targetPose.y}) scale(${targetPose.k})`}>
+              <TransientTopologyLayer
+                annotations={annotations}
+                baseMapMeterByPx={baseMapMeterByPx}
+                openingRels={openingRelRows}
+                movedPointsById={segmentDragState.movesById}
+                viewportScale={targetPose.k * cameraZoom}
+                containerK={targetPose.k}
+                selectedAnnotationId={selectedNode?.nodeId?.replace("label::", "")}
+              />
+            </g>
+          )}
 
 
         {/* --- Overlay optimiste : visible pendant le drag ET en attente de convergence DB --- */}

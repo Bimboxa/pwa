@@ -65,6 +65,7 @@ import useProfileResolution from "Features/annotations/hooks/useProfileResolutio
 import getInlineExtrusionBandMetrics from "Features/annotations/utils/getInlineExtrusionBandShapes";
 import { getProfileAxis } from "Features/elevation/utils/buildProfileSectionGeometry";
 import NodeLabelStatic from "./NodeLabelStatic";
+import NodeSegmentLengthsStatic from "./NodeSegmentLengthsStatic";
 import getInnerOffsetSegmentPath from "Features/mapEditorGeneric/utils/getInnerOffsetSegmentPath";
 
 // Extra padding on each side of the visible stroke for hit detection, in
@@ -132,6 +133,11 @@ function NodePolylineStatic({
   // getPartCursor) — unselected/transient nodes skip the subscription so a
   // Shift press never re-renders them.
   const isShiftDown = useIsShiftDown(Boolean(selected) && !isTransient);
+
+  // EDIT (Modification) mode drives the segment "move" cursor (getPartCursor).
+  const interactionMode = useSelector(
+    (s) => s.popperMapListings?.interactionMode
+  );
 
   // En aperçu transient (drag de vertex), on ignore complètement le hover :
   // sinon les segments clignotent quand le curseur les survole pendant le drag.
@@ -283,11 +289,19 @@ function NodePolylineStatic({
   // annotation is already selected*, signal whether a click will add ("+")
   // or remove ("-") that part from the segment multi-selection. On an
   // unselected annotation, Shift means annotation-level multi-select, so
-  // keep the plain pointer.
+  // keep the plain pointer. In EDIT mode a main-contour segment of the
+  // selected annotation is draggable → 4-way move cursor.
   const getPartCursor = (currentPartId) => {
     if (isTransient) return "crosshair";
-    if (!isShiftDown || !selected) return "pointer";
-    return isPartSelected(currentPartId) ? CURSOR_REMOVE : CURSOR_ADD;
+    if (isShiftDown && selected)
+      return isPartSelected(currentPartId) ? CURSOR_REMOVE : CURSOR_ADD;
+    if (
+      selected &&
+      interactionMode === "EDIT" &&
+      currentPartId?.includes("::SEG::")
+    )
+      return "move";
+    return "pointer";
   };
 
   const getPartStyle = (currentPartId) => {
@@ -1807,6 +1821,24 @@ function NodePolylineStatic({
         pointEntriesToRender.map(({ point, cutIndex, source }) =>
           renderVertex(point, cutIndex, source)
         )}
+
+      {/* SEGMENT LENGTHS — editable per-segment cotes with lock constraints,
+          EDIT (Modification) mode only. Main contour only in v1 (no cuts /
+          innerPoints / guideLines). */}
+      {selected && !disableVertexEditing && (
+        <NodeSegmentLengthsStatic
+          annotation={mergedAnnotation}
+          points={points}
+          closed={closeLine}
+          selected={selected}
+          selectedPointId={selectedPointId}
+          baseMapMeterByPx={baseMapMeterByPx}
+          containerK={containerK}
+          printMode={printMode}
+          isTransient={isTransient}
+          disableVertexEditing={disableVertexEditing}
+        />
+      )}
 
       {/* INNER POINT CURSORS — visible even when the annotation is not selected.
                 Small fixed-size cross (zoom-invariant via vertexScaleTransform),
