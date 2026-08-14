@@ -89,6 +89,16 @@ export default function SectionScopeSelectorVariantList({
         setTempName("");
     }
 
+    // --- Helpers ---
+
+    // Alphabetical order; scope.name may be null → treated as empty string.
+    const sortedScopes = [...(scopes ?? [])].sort((a, b) =>
+        (a.name ?? "").localeCompare(b.name ?? "", undefined, {
+            numeric: true,
+            sensitivity: "base"
+        })
+    );
+
     const handleKeyDown = (e) => {
         // Empêche la frappe de remonter au Menu (navigation clavier par lettre, Echap)
         e.stopPropagation();
@@ -102,7 +112,7 @@ export default function SectionScopeSelectorVariantList({
 
     return (
         <List dense>
-            {scopes?.map(scope => {
+            {sortedScopes.map(scope => {
                 const selected = scope.id === selectedScopeId;
                 const isEditing = editingScopeId === scope.id;
 
