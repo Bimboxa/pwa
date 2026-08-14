@@ -1,7 +1,14 @@
 import { useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 
-import { Paper, Box, Divider, Popover, Typography, IconButton } from "@mui/material";
+import {
+  Paper,
+  Box,
+  Divider,
+  Popover,
+  Typography,
+  IconButton,
+} from "@mui/material";
 import { Close as CloseIcon } from "@mui/icons-material";
 import { CompactPicker } from "react-color";
 
@@ -69,8 +76,12 @@ export default function ToolbarDrawingDraft() {
 
   const color =
     getAnnotationColor(newAnnotation) ?? theme.palette.secondary.main;
-  const shapeCategory = drawingShape ? resolveShapeCategory(drawingShape) : null;
-  const isStrokeColor = shapeCategory === "polyline";
+  const shapeCategory = drawingShape
+    ? resolveShapeCategory(drawingShape)
+    : null;
+  // REVOLUTION_AXIS is a "circle" shape but only exposes a stroke colour.
+  const isStrokeColor =
+    shapeCategory === "polyline" || drawingShape === "REVOLUTION_AXIS";
   const colorField = isStrokeColor ? "strokeColor" : "fillColor";
 
   // Field visibility + tool-group flags for the current draft. Shared with the
@@ -203,9 +214,7 @@ export default function ToolbarDrawingDraft() {
   }
 
   function handleColorChange(picked) {
-    dispatch(
-      setNewAnnotation({ ...newAnnotation, [colorField]: picked.hex })
-    );
+    dispatch(setNewAnnotation({ ...newAnnotation, [colorField]: picked.hex }));
     rememberDraftProps({ [colorField]: picked.hex });
   }
 

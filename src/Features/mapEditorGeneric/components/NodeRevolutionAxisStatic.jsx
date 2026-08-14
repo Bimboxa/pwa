@@ -2,6 +2,11 @@ import { useMemo } from "react";
 
 import theme from "Styles/theme";
 import getRevolutionAxisPlanFrame from "Features/annotations/utils/getRevolutionAxisPlanFrame";
+import {
+  halfArcPath,
+  SWEEP_ORANGE,
+  SWEEP_BLACK,
+} from "Features/annotations/utils/revolutionAxisGlyph";
 
 // Plan-view revolution axis: a circle split by its diameter into two halves —
 // the ORANGE one is what lies BEHIND the vertical base map this axis places
@@ -16,20 +21,6 @@ const HANDLE_PX = 5;
 const CENTER_DOT_PX = 3.5;
 const ANGLE_HANDLE_PX = 5.5;
 const HIT_STROKE_PX = 12;
-
-// Half-disc arc between the two (antipodal) diameter ends: the sweep flag alone
-// picks which half is drawn.
-//
-// Which flag is the ORANGE side is a CONSTANT, not data-dependent. Writing
-// d = dirPx and o = orangePx = (d.y, −d.x), their 2D cross product in SVG's
-// y-down frame is d.x·o.y − d.y·o.x = −(d.x² + d.y²) = −1 < 0, i.e. the orange
-// side is always the negative (sweep = 0) side, whatever the direction — and
-// `invertHalf` is already folded into dirPx, so it swaps the halves for free.
-const SWEEP_ORANGE = 0;
-const SWEEP_BLACK = 1;
-
-const halfArcPath = (from, to, r, sweep) =>
-  `M ${from.x} ${from.y} A ${r} ${r} 0 0 ${sweep} ${to.x} ${to.y}`;
 
 export default function NodeRevolutionAxisStatic({
   annotation,
