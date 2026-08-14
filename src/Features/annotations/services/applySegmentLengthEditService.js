@@ -15,6 +15,7 @@ export default async function applySegmentLengthEditService({
   meterByPx,
   lockedSegmentIndexes = new Set(),
   lockedPointIndexes = new Set(),
+  anglesLocked = false,
   dispatch,
 }) {
   const points = annotation?.points;
@@ -31,6 +32,7 @@ export default async function applySegmentLengthEditService({
     targetPx: targetMeters / meterByPx,
     lockedSegmentIndexes,
     lockedPointIndexes,
+    anglesLocked,
   });
   if (!result.ok) return result;
 

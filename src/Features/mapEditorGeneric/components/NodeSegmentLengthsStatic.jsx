@@ -267,6 +267,7 @@ export default function NodeSegmentLengthsStatic({
         meterByPx: baseMapMeterByPx,
         lockedSegmentIndexes,
         lockedPointIndexes,
+        anglesLocked,
         dispatch,
       });
 
@@ -283,6 +284,7 @@ export default function NodeSegmentLengthsStatic({
       items,
       lockedSegmentsByStartId,
       lockedPointIds,
+      anglesLocked,
       annotation,
       closed,
       baseMapMeterByPx,
