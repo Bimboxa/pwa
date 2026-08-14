@@ -3,19 +3,21 @@
 //
 // Truth table (non-drawing):
 //   Selected + QuickEdit ON  -> V + M + P
+//   Selected + EDIT mode     -> V only (midpoint markers would fight the
+//                               segment-length labels sitting at midpoints)
 //   Selected + QuickEdit OFF -> V + M
 //   No sel   + QuickEdit ON  -> V + M + P
 //   No sel   + QuickEdit OFF -> V only
 //
 // Drawing mode: always V + M + P.
 
-const getSnapModes = ({isDrawing, isQuickEdit, hasSelection}) => {
+const getSnapModes = ({isDrawing, isQuickEdit, hasSelection, isEditMode}) => {
   if (isDrawing || isQuickEdit) {
     return {vertex: true, midpoint: true, projection: true};
   }
 
   if (hasSelection) {
-    return {vertex: true, midpoint: true, projection: false};
+    return {vertex: true, midpoint: !isEditMode, projection: false};
   }
 
   return {vertex: true, midpoint: false, projection: false};

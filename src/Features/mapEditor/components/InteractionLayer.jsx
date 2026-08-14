@@ -6137,6 +6137,7 @@ const InteractionLayer = forwardRef(({
           mapEditorMode === "QUICK_POINTS_CHANGE" ||
           interactionMode === "DRAW",
         hasSelection: Boolean(selectedAnnotation?.id),
+        isEditMode: interactionMode === "EDIT",
       });
       snapResult = getBestSnap(localPos, annotationsForSnap, snapThreshold, snapModes);
 
