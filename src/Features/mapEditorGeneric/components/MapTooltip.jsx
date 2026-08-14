@@ -2,7 +2,7 @@
 import { forwardRef } from 'react';
 import { Paper, Typography, Box } from "@mui/material";
 
-const MapTooltip = forwardRef(({ hoveredNode, annotations, x, y }, ref) => {
+const MapTooltip = forwardRef(({ hoveredNode, annotations, x, y, isSelected }, ref) => {
 
     // helper - annotations
 
@@ -21,6 +21,10 @@ const MapTooltip = forwardRef(({ hoveredNode, annotations, x, y }, ref) => {
     const imageUrl_0 = annotation?.images?.[0]?.imageUrlClient || annotation?.images?.[0]?.imageUrlRemote;
     const imageUrl = imageUrl_entity || imageUrl_0;
     const hasImage = Boolean(imageUrl);
+
+    // helper - folio (DETAIL annotations linked to a PDF page)
+    const folioThumbnail =
+        annotation?.type === "DETAIL" && !isSelected ? annotation?.folio?.thumbnail : null;
 
     // helper - position (controlled mode when x/y are passed)
     const isControlled = typeof x === "number" && typeof y === "number";
@@ -53,6 +57,21 @@ const MapTooltip = forwardRef(({ hoveredNode, annotations, x, y }, ref) => {
                 willChange: "transform"
             }}
         >
+            {/* Folio page preview (DETAIL annotations, hidden when selected) */}
+            {folioThumbnail && (
+                <Box
+                    component="img"
+                    src={folioThumbnail}
+                    alt="Folio page"
+                    sx={{
+                        width: "100%",
+                        objectFit: "contain",
+                        bgcolor: "white",
+                        borderRadius: 0.5,
+                        mb: 0.5,
+                    }}
+                />
+            )}
             {/* Image (only if exists) */}
             {hasImage && (
                 <Box

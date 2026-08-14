@@ -7657,6 +7657,10 @@ const InteractionLayer = forwardRef(({
                 ref={tooltipRef} // Pass the Ref
                 hoveredNode={tooltipData}
                 annotations={annotations}
+                isSelected={
+                  tooltipData?.nodeId === selectedNode?.nodeId ||
+                  selectedNodes?.some((n) => n.nodeId === tooltipData?.nodeId)
+                }
               />
             )}
           </>
