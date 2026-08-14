@@ -70,9 +70,11 @@ import createObject3DAnnotation from "./createObject3DAnnotation";
 const POINT_TRAIT_LINEWIDTH_PX = 3;
 
 // Screen-space thickness (px) of the vertical line rendered for a plan
-// REVOLUTION_AXIS — deliberately fatter than the POINT trait so the axis
-// reads as the structural reference of its lathes.
-const REVOLUTION_AXIS_LINEWIDTH_PX = 5;
+// REVOLUTION_AXIS — a thin dashed line, matching the 2D dashed axis style.
+const REVOLUTION_AXIS_LINEWIDTH_PX = 1.5;
+// Dash pattern in world meters (computeLineDistances feeds world distances).
+const REVOLUTION_AXIS_DASH_M = 0.3;
+const REVOLUTION_AXIS_GAP_M = 0.2;
 
 // Partial sweep of an axis-based REVOLUTION, shared by the POLYLINE (lathe
 // surface) and POINT (circle line) branches. Returns a `{ phiStart, phiLength }`
@@ -1030,6 +1032,11 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
         linewidth: REVOLUTION_AXIS_LINEWIDTH_PX,
         resolution: options?.resolution, // Vector2 from AnnotationsManager
         worldUnits: false, // screen-space px thickness
+        // Dashed like the 2D axis. dashSize/gapSize are world meters — the
+        // Line2's computeLineDistances below feeds world distances.
+        dashed: true,
+        dashSize: REVOLUTION_AXIS_DASH_M,
+        gapSize: REVOLUTION_AXIS_GAP_M,
         transparent: true,
         depthTest: true,
       });
