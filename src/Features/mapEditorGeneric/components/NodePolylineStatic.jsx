@@ -65,6 +65,7 @@ import useProfileResolution from "Features/annotations/hooks/useProfileResolutio
 import getInlineExtrusionBandMetrics from "Features/annotations/utils/getInlineExtrusionBandShapes";
 import { getProfileAxis } from "Features/elevation/utils/buildProfileSectionGeometry";
 import NodeLabelStatic from "./NodeLabelStatic";
+import NodeSegmentLengthsStatic from "./NodeSegmentLengthsStatic";
 import getInnerOffsetSegmentPath from "Features/mapEditorGeneric/utils/getInnerOffsetSegmentPath";
 
 // Extra padding on each side of the visible stroke for hit detection, in
@@ -1807,6 +1808,24 @@ function NodePolylineStatic({
         pointEntriesToRender.map(({ point, cutIndex, source }) =>
           renderVertex(point, cutIndex, source)
         )}
+
+      {/* SEGMENT LENGTHS — editable per-segment cotes with lock constraints,
+          EDIT (Modification) mode only. Main contour only in v1 (no cuts /
+          innerPoints / guideLines). */}
+      {selected && !disableVertexEditing && (
+        <NodeSegmentLengthsStatic
+          annotation={mergedAnnotation}
+          points={points}
+          closed={closeLine}
+          selected={selected}
+          selectedPointId={selectedPointId}
+          baseMapMeterByPx={baseMapMeterByPx}
+          containerK={containerK}
+          printMode={printMode}
+          isTransient={isTransient}
+          disableVertexEditing={disableVertexEditing}
+        />
+      )}
 
       {/* INNER POINT CURSORS — visible even when the annotation is not selected.
                 Small fixed-size cross (zoom-invariant via vertexScaleTransform),
