@@ -10,6 +10,7 @@ import {
   FormControlLabel,
   Slider,
   Switch,
+  TextField,
   ToggleButton,
   ToggleButtonGroup,
   Typography,
@@ -22,6 +23,8 @@ import {
   setDisableOpacity,
   setAntiAliasingShrink,
   setFaceSelectionAngleDeg,
+  setShowWireframe,
+  setWireframeAngleDeg,
   setRenderMode,
   setEnvironment3d,
   setForceRevolutionSectionIn3d,
@@ -50,6 +53,10 @@ export default function PanelThreedProperties() {
   );
   const faceSelectionAngleDeg = useSelector(
     (s) => s.threedEditor.faceSelectionAngleDeg
+  );
+  const showWireframe = useSelector((s) => s.threedEditor.showWireframe);
+  const wireframeAngleDeg = useSelector(
+    (s) => s.threedEditor.wireframeAngleDeg
   );
   const forceRevolutionSection = useSelector(
     (s) => s.threedEditor.forceRevolutionSectionIn3d
@@ -174,6 +181,51 @@ export default function PanelThreedProperties() {
         </Box>
 
         <Divider sx={{ my: 1.5 }} />
+
+        <Card variant="outlined" sx={{ p: 1.5, mb: 1.5 }}>
+          <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
+            Wireframe
+          </Typography>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ display: "block", mb: 1 }}
+          >
+            Arêtes noires dessinées sur les objets 3D. L&apos;angle de tolérance
+            masque les arêtes entre facettes quasi-coplanaires : 1° dessine tout
+            le maillage d&apos;une révolution, une valeur plus élevée ne garde
+            que les silhouettes et les vrais plis.
+          </Typography>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <FormControlLabel
+              sx={{ flexGrow: 1 }}
+              control={
+                <Switch
+                  size="small"
+                  checked={showWireframe}
+                  onChange={(e) => dispatch(setShowWireframe(e.target.checked))}
+                />
+              }
+              label={
+                <Typography variant="body2">Afficher les arêtes</Typography>
+              }
+            />
+            <TextField
+              size="small"
+              type="number"
+              label="Angle (°)"
+              value={wireframeAngleDeg}
+              disabled={!showWireframe}
+              onChange={(e) => {
+                const v = parseFloat(e.target.value);
+                if (Number.isNaN(v)) return;
+                dispatch(setWireframeAngleDeg(Math.min(90, Math.max(0, v))));
+              }}
+              slotProps={{ htmlInput: { min: 0, max: 90, step: 1 } }}
+              sx={{ width: 90 }}
+            />
+          </Box>
+        </Card>
 
         <Card variant="outlined" sx={{ p: 1.5, mb: 1.5 }}>
           <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>

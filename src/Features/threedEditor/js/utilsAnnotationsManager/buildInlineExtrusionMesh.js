@@ -80,7 +80,13 @@ export default function buildInlineExtrusionMesh({
     new EdgesGeometry(geom),
     EDGE_MATERIAL.clone()
   );
-  gridEdges.userData = { isGridEdge: true, gridEdgeKind: "EDGES" };
+  gridEdges.userData = {
+    isGridEdge: true,
+    gridEdgeKind: "EDGES",
+    // Runtime ref for the "Wireframe" threshold rebuild — see
+    // applyWireframeSettings.
+    sourceMesh: mesh,
+  };
   gridEdges.raycast = () => {};
   group.add(gridEdges);
   return group;
