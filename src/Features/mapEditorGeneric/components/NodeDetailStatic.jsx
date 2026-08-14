@@ -1,4 +1,9 @@
 import { memo, useMemo, useState, useEffect, useRef } from "react";
+import { useDispatch } from "react-redux";
+
+import { openResourceAtPage } from "Features/resources/resourcesSlice";
+import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
+
 import { darken } from "@mui/material/styles";
 
 import db from "App/db/db";
@@ -29,11 +34,18 @@ function NodeDetailStatic({
   draggedPartType,
   containerK = 1,
 }) {
+  const dispatch = useDispatch();
+
+  // strings
+
+  const viewDetailS = "Voir le détail";
+
   // data
 
   const merged = { ...annotation, ...annotationOverride };
   const { id, listingId, entityId, fillColor = "#2196f3" } = merged;
   const arrowAngle = merged.arrowAngle ?? 0;
+  const folio = merged.folio;
 
   // The tip position (resolved px). Drag overrides may put x/y at the root.
   const tipX = merged.x ?? merged.point?.x ?? 0;
@@ -132,6 +144,19 @@ function NodeDetailStatic({
       e.preventDefault();
       e.target.blur();
     }
+  };
+
+  // Open the RESOURCES right panel on the folio's resource, at its page.
+  const handleViewDetail = (e) => {
+    e.stopPropagation();
+    dispatch(
+      openResourceAtPage({
+        resourceId: folio.resourceId,
+        pageNumber: folio.pageNumber ?? 1,
+        rotation: folio.rotation ?? 0,
+      })
+    );
+    dispatch(setSelectedMenuItemKey("RESOURCES"));
   };
 
   // data attributes for the InteractionLayer hit detection
@@ -272,6 +297,47 @@ function NodeDetailStatic({
               stroke="#555555"
               style={{ pointerEvents: "none" }}
             />
+
+            {/* "Voir le détail" — folio-linked only: opens the RESOURCES
+                right panel on the folio's resource at its page */}
+            {folio?.resourceId && (
+              <foreignObject
+                x={-70}
+                y={ROT_RING_R + 10}
+                width={140}
+                height={40}
+                style={{ overflow: "visible" }}
+              >
+                <div
+                  style={{
+                    width: "100%",
+                    display: "flex",
+                    justifyContent: "center",
+                  }}
+                >
+                  <button
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onClick={handleViewDetail}
+                    style={{
+                      ...fontStyles,
+                      fontSize: "12px",
+                      fontWeight: 500,
+                      whiteSpace: "nowrap",
+                      padding: "4px 10px",
+                      background: "#ffffff",
+                      color: "#000000",
+                      border: "1px solid #555555",
+                      borderRadius: "16px",
+                      boxShadow: "0px 2px 3px rgba(0,0,0,0.3)",
+                      cursor: "pointer",
+                      pointerEvents: "auto",
+                    }}
+                  >
+                    {viewDetailS}
+                  </button>
+                </div>
+              </foreignObject>
+            )}
           </>
         )}
 

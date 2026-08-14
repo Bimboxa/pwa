@@ -1,7 +1,8 @@
 import { useRef, useState } from "react";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 
 import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
+import { setSelectedResourceId } from "../resourcesSlice";
 
 import { Box, Typography } from "@mui/material";
 
@@ -29,7 +30,7 @@ export default function PanelResources() {
 
   // state
 
-  const [selectedResourceId, setSelectedResourceId] = useState(null);
+  const selectedResourceId = useSelector((s) => s.resources.selectedResourceId);
   const [creating, setCreating] = useState(false);
   const [dragging, setDragging] = useState(false);
   // dragenter/dragleave fire on every child: keep a depth counter so the
@@ -89,7 +90,7 @@ export default function PanelResources() {
     return (
       <PanelResourceDetail
         resource={selectedResource}
-        onBack={() => setSelectedResourceId(null)}
+        onBack={() => dispatch(setSelectedResourceId(null))}
       />
     );
   }
@@ -120,7 +121,9 @@ export default function PanelResources() {
           <Box sx={{ flexGrow: 1, minHeight: 0, overflow: "auto" }}>
             <ListResources
               resources={resources}
-              onResourceClick={(resource) => setSelectedResourceId(resource.id)}
+              onResourceClick={(resource) =>
+                dispatch(setSelectedResourceId(resource.id))
+              }
             />
           </Box>
           <Box sx={{ height: 150, flexShrink: 0, p: 1 }}>

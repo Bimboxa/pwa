@@ -1,4 +1,7 @@
 import { useState, useEffect, useRef } from "react";
+import { useDispatch, useSelector } from "react-redux";
+
+import { setTargetPdfPage } from "../resourcesSlice";
 
 import {
   Alert,
@@ -27,6 +30,8 @@ import ListDraggablePdfPages from "./ListDraggablePdfPages";
 // the selected page with a ±90° rotation control (the rotation is carried
 // into the folio of a dropped page, like the manual folio dialog).
 export default function ViewerPdfPages({ resource, file }) {
+  const dispatch = useDispatch();
+
   // strings
 
   const loadingPdfS = "Chargement du PDF...";
@@ -43,6 +48,19 @@ export default function ViewerPdfPages({ resource, file }) {
 
   const [pageNumber, setPageNumber] = useState(1);
   const [rotation, setRotation] = useState(0);
+
+  // One-shot navigation target (e.g. "Voir le détail" on a DETAIL
+  // annotation): apply then clear, so a later click on the same page
+  // re-triggers navigation even if the viewer stayed mounted.
+  const targetPdfPage = useSelector((s) => s.resources.targetPdfPage);
+  useEffect(() => {
+    if (!targetPdfPage) return;
+    setPageNumber(Math.max(1, targetPdfPage.pageNumber ?? 1));
+    if (typeof targetPdfPage.rotation === "number") {
+      setRotation(((targetPdfPage.rotation % 360) + 360) % 360);
+    }
+    dispatch(setTargetPdfPage(null));
+  }, [targetPdfPage, dispatch]);
 
   const { thumbnails } = usePdfThumbnails(pdfDocument, pageNumber);
   const { imageUrl } = usePdfPageImageUrl(pdfDocument, pageNumber, rotation);
