@@ -589,6 +589,9 @@ function AnnotationTemplateRow({
   // module: the row stays a DRAW entry even though the module forces the
   // listings into SELECT.
   forceDrawMode,
+  // REVOLUTION_AXIS icon: inverted T on a vertical base map, circle + centre
+  // point on the plan.
+  isVerticalBaseMap,
 }) {
   const dispatch = useDispatch();
   const updateAnnotationTemplate = useUpdateAnnotationTemplate();
@@ -941,6 +944,7 @@ function AnnotationTemplateRow({
               template={annotationTemplate}
               size={18}
               spriteImage={spriteImage}
+              revolutionAxisVertical={isVerticalBaseMap}
             />
           </Box>
           {freeShortcut && interactionMode === "DRAW" && (
@@ -1465,6 +1469,7 @@ function AnnotationTemplatesForListing({
                   qtyLabel={qtyLabel}
                   listingId={listingId}
                   spriteImage={spriteImage}
+                  isVerticalBaseMap={isVerticalBaseMap}
                   forceDrawMode={
                     isMeshesModule && resolveDrawingShape(item) === "COTE"
                   }

@@ -12,11 +12,14 @@ import useObject3DTopView from "Features/object3D/hooks/useObject3DTopView";
 // `use3D` lets a caller force the 2D/3D swatch color; when omitted the icon
 // follows the active editor (3D editor => color3D/opacity3D). Same precedence
 // as makeMaterial: color3D ?? 2Dcolor, opacity3D ?? 2Dopacity.
+// `revolutionAxisVertical` swaps the REVOLUTION_AXIS glyph from the plan view
+// (circle + centre point) to the elevation one (inverted T placement).
 export default function AnnotationTemplateIcon({
   template,
   size = 20,
   spriteImage,
   use3D,
+  revolutionAxisVertical,
 }) {
   // helpers
 
@@ -205,6 +208,62 @@ export default function AnnotationTemplateIcon({
           >
             Ab
           </text>
+        </svg>
+      </Box>
+    );
+  }
+
+  // render — REVOLUTION_AXIS template: circle + centre point on the plan
+  // (same glyph as the "Cercle centre/rayon" drawing tool), inverted T on a
+  // vertical base map (the axis placement mark).
+  if (shape === "REVOLUTION_AXIS") {
+    const strokeC = isLightColor ? "#bbb" : color;
+    return (
+      <Box
+        sx={{
+          width: size,
+          height: size,
+          flexShrink: 0,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <svg width={size} height={size} viewBox="0 0 20 20">
+          {revolutionAxisVertical ? (
+            <g opacity={opacity}>
+              <line
+                x1="10"
+                y1="3"
+                x2="10"
+                y2="16"
+                stroke={strokeC}
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
+              <line
+                x1="4"
+                y1="16"
+                x2="16"
+                y2="16"
+                stroke={strokeC}
+                strokeWidth="2"
+                strokeLinecap="round"
+              />
+            </g>
+          ) : (
+            <g opacity={opacity}>
+              <circle
+                cx="10"
+                cy="10"
+                r="7"
+                fill="none"
+                stroke={strokeC}
+                strokeWidth="2"
+              />
+              <circle cx="10" cy="10" r="2.2" fill={strokeC} />
+            </g>
+          )}
         </svg>
       </Box>
     );

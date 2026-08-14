@@ -248,6 +248,7 @@ export default function AnnotationTemplateRowRevolutionAxisVertical({
               template={annotationTemplate}
               size={18}
               spriteImage={spriteImage}
+              revolutionAxisVertical
             />
           </Box>
           <Typography
