@@ -17,7 +17,7 @@ import useSelectedNodes from "../hooks/useSelectedNodes";
 
 const selectWrapperMode = (state) => state.mapEditor.wrapperMode;
 
-const POINT_BASED_TYPES = ["POLYLINE", "POLYGON", "STRIP"];
+const POINT_BASED_TYPES = ["POLYLINE", "POLYGON", "STRIP", "LINEAR_LAYOUT"];
 
 export default function EditedObjectLayer({
   basePose,

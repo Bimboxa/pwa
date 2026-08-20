@@ -1284,7 +1284,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
 
         // WRAPPER (group transform for point-based annotations)
         if (annotationId === "wrapper") {
-            const POINT_BASED_TYPES = ["POLYLINE", "POLYGON", "STRIP"];
+            const POINT_BASED_TYPES = ["POLYLINE", "POLYGON", "STRIP", "LINEAR_LAYOUT"];
             const wrapperAnnotationIds = selectedItems
                 .filter(item => item.type === "NODE" && POINT_BASED_TYPES.includes(item.annotationType))
                 .map(item => item.nodeId);

@@ -28,6 +28,9 @@ export default function AnnotationIcon({ spriteImage, annotation, size }) {
     case "STRIP":
       return <StripAnnotationIcon {...annotation} size={size} />;
 
+    case "LINEAR_LAYOUT":
+      return <PolylineIcon {...annotation} size={size} />;
+
     case "POLYGON":
       return <PolygonIcon {...annotation} size={size} />;
 

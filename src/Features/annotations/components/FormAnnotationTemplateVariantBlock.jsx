@@ -18,6 +18,7 @@ import FieldAnnotationTemplateLegend from "./FieldAnnotationTemplateLegend";
 import FieldAnnotationTemplateDrawingShape from "./FieldAnnotationTemplateDrawingShape";
 import FieldAnnotationTemplateDefaultTool from "./FieldAnnotationTemplateDefaultTool";
 import FieldAnnotationTemplateCote from "./FieldAnnotationTemplateCote";
+import FieldAnnotationTemplateLinearLayout from "./FieldAnnotationTemplateLinearLayout";
 import FieldQty from "Features/form/components/FieldQty";
 import FieldCheck from "Features/form/components/FieldCheck";
 import FieldMappingCategories from "./FieldMappingCategories";
@@ -133,6 +134,7 @@ export default function FormAnnotationTemplateVariantBlock({
   const hasObject3D = configurableProps.includes("object3D");
   const hasMeterByPx = configurableProps.includes("meterByPx");
   const hasCoteProps = configurableProps.includes("unit");
+  const hasLinearLayout = configurableProps.includes("densityMode");
   const hasHideSlope = configurableProps.includes("hideSlope");
   const hasMaterial3d = configurableProps.includes("material3d");
   const hasRender3d =
@@ -506,6 +508,17 @@ export default function FormAnnotationTemplateVariantBlock({
               onOverrideFieldsChange={handleOverrideFieldsChange}
               showTotalOption={drawingShape === "RULER"}
               showLabelOption={drawingShape === "RULER"}
+            />
+          )}
+
+          {/* LINEAR_LAYOUT controls — density + alignment, one line + "..."
+              popover */}
+          {hasLinearLayout && (
+            <FieldAnnotationTemplateLinearLayout
+              annotationTemplate={annotationTemplate}
+              onChange={onChange}
+              overrideFields={overrideFields}
+              onOverrideFieldsChange={handleOverrideFieldsChange}
             />
           )}
 

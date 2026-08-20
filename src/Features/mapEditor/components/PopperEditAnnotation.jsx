@@ -55,7 +55,7 @@ export default function PopperEditAnnotation({ viewerKey = null }) {
     isSingleSelection &&
     isWidest &&
     !captureFramingActive &&
-    ["MARKER", "POINT", "DETAIL", "POLYLINE", "POLYGON", "IMAGE", "RECTANGLE", "STRIP", "OBJECT_3D", "RULER", "REVOLUTION_AXIS", "REVOLUTION_AXIS_PLACEMENT"].includes(type) &&
+    ["MARKER", "POINT", "DETAIL", "POLYLINE", "POLYGON", "IMAGE", "RECTANGLE", "STRIP", "LINEAR_LAYOUT", "OBJECT_3D", "RULER", "REVOLUTION_AXIS", "REVOLUTION_AXIS_PLACEMENT"].includes(type) &&
     selectedNode?.nodeType === "ANNOTATION";
 
   // drag

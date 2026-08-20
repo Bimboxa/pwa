@@ -185,6 +185,55 @@ const DRAWING_SHAPE_CONFIG = {
     defaults: {},
     shapeCategory: "rectangle",
   },
+  // LINEAR_LAYOUT — "calepinage linéaire": a distribution of parallel bars
+  // along an axis with a density. Drawn as a 2-point segment (the bottom edge
+  // of the band); the band of `width` meters extends perpendicular on one side
+  // (stripOrientation flips the side, STRIP-style). Bar thickness rides on
+  // strokeWidth/strokeWidthUnit (CM). Density is defined either as a spacing
+  // in cm (densityMode "SPACING") or a count per meter ("PER_METER"), with a
+  // free-text densityUnitLabel (e.g. "jonc/m") shown in the rendered label.
+  // layoutAlign (LEFT / CENTER / RIGHT) anchors the bar grid on the segment
+  // and drives the bar count (see getLinearLayoutBars.js).
+  LINEAR_LAYOUT: {
+    label: "Calepinage linéaire",
+    annotationType: "LINEAR_LAYOUT",
+    tools: ["LINEAR_LAYOUT_SEGMENT"],
+    configurableProps: [
+      "strokeColor",
+      "strokeWidth",
+      "strokeWidthUnit",
+      "strokeOpacity",
+      "width",
+      "densityMode",
+      "densityValue",
+      "densityUnitLabel",
+      "layoutAlign",
+      // Where the ticked ruler sits across the band: MIDDLE, or BOTTOM / TOP
+      // (at 25% from the corresponding edge).
+      "axisPosition",
+      // Where the two-line text sits along the ruler: LEFT / CENTER / RIGHT.
+      "textAlign",
+      // Hide the pale band rectangle (keep only text + sample bar + ruler).
+      "hideBandFill",
+    ],
+    defaults: {
+      strokeColor: secondary,
+      strokeWidth: 15,
+      strokeWidthUnit: "CM",
+      strokeOpacity: 1,
+      fillOpacity: 0.15,
+      width: 5,
+      densityMode: "SPACING",
+      densityValue: 33,
+      densityUnitLabel: "jonc/m",
+      layoutAlign: "CENTER",
+      axisPosition: "MIDDLE",
+      textAlign: "CENTER",
+      hideBandFill: false,
+      stripOrientation: 1,
+    },
+    shapeCategory: "polyline",
+  },
   // Revolution helpers — geometry that defines a surface-of-revolution shape3D
   // (REVOLUTION). REVOLUTION_AXIS is a template-drivable shape: axes are drawn
   // from an annotationTemplate row of the listings panel.
@@ -392,6 +441,7 @@ const TYPE_TO_SHAPE = {
   POLYGON: "POLYGON",
   RECTANGLE: "POLYGON",
   OBJECT_3D: "OBJECT_3D",
+  LINEAR_LAYOUT: "LINEAR_LAYOUT",
   COTE: "COTE",
   RULER: "RULER",
   REVOLUTION_AXIS: "REVOLUTION_AXIS",

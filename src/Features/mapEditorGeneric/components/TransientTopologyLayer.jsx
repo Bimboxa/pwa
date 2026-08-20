@@ -7,6 +7,7 @@ import NodeStripStatic from './NodeStripStatic';
 import NodeCoteStatic from './NodeCoteStatic';
 import NodeRulerStatic from './NodeRulerStatic';
 import NodeOpeningStatic from './NodeOpeningStatic';
+import NodeLinearLayoutStatic from './NodeLinearLayoutStatic';
 
 import computeOpeningEndpointsFromHost, { buildHostCurve } from 'Features/mapEditor/utils/computeOpeningEndpointsFromHost';
 import computeOpeningSegmentPlacement from 'Features/mapEditor/utils/computeOpeningSegmentPlacement';
@@ -384,7 +385,7 @@ export default function TransientTopologyLayer({
         if (!movedMap || !(baseMapMeterByPx > 0)) return [];
         const labels = [];
         for (const ann of modifiedAnnotations) {
-            if (!["POLYGON", "POLYLINE", "STRIP"].includes(ann.type)) continue;
+            if (!["POLYGON", "POLYLINE", "STRIP", "LINEAR_LAYOUT"].includes(ann.type)) continue;
             if (!ann.points?.length) continue;
             const closed = ann.closeLine || ann.type === "POLYGON";
             const items = getSegmentLengthItems({
@@ -453,6 +454,18 @@ export default function TransientTopologyLayer({
                             selected: true
                         }}
                         baseMapMeterByPx={baseMapMeterByPx}
+                        selected={true}
+                        isTransient={true}
+                    />}
+
+                    {ann.type === "LINEAR_LAYOUT" && <NodeLinearLayoutStatic
+                        annotation={ann}
+                        annotationOverride={{
+                            strokeColor: "#2196f3",
+                            strokeOpacity: 0.5,
+                        }}
+                        baseMapMeterByPx={baseMapMeterByPx}
+                        containerK={containerK}
                         selected={true}
                         isTransient={true}
                     />}

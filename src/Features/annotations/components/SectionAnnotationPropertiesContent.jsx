@@ -1,4 +1,6 @@
-import { Box } from "@mui/material";
+import { Box, Typography } from "@mui/material";
+
+import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 
 import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
 
@@ -22,6 +24,7 @@ import FieldAnnotationIsEraser from "./FieldAnnotationIsEraser";
 import FieldAnnotationIsExt from "./FieldAnnotationIsExt";
 import FieldAnnotationIsProfile from "./FieldAnnotationIsProfile";
 import FieldAnnotationLabel from "./FieldAnnotationLabel";
+import FieldAnnotationLinearLayout from "./FieldAnnotationLinearLayout";
 
 export default function SectionAnnotationPropertiesContent({ annotation }) {
   // data
@@ -55,6 +58,16 @@ export default function SectionAnnotationPropertiesContent({ annotation }) {
     });
   }
 
+  // LINEAR_LAYOUT: band width L (bar length, meters) — replaces the height
+  // field (same rule as the edit toolbar).
+  async function handleWidthChange(updatedAnnotation) {
+    if (!updatedAnnotation?.id) return;
+    await updateAnnotation({
+      id: updatedAnnotation.id,
+      width: updatedAnnotation.width,
+    });
+  }
+
   // render
 
   return (
@@ -78,10 +91,12 @@ export default function SectionAnnotationPropertiesContent({ annotation }) {
             justifyContent: "center",
           }}
         >
-          <FieldAnnotationHeight
-            annotation={annotation}
-            onChange={handleHeightChange}
-          />
+          {type !== "LINEAR_LAYOUT" && (
+            <FieldAnnotationHeight
+              annotation={annotation}
+              onChange={handleHeightChange}
+            />
+          )}
           <SectionAnnotationQties annotation={annotation} />
         </Box>
       </Box>
@@ -107,6 +122,26 @@ export default function SectionAnnotationPropertiesContent({ annotation }) {
       >
         <FieldWrapperDimensions annotation={annotation} />
         <FieldAnnotationRotation annotation={annotation} />
+        {/* LINEAR_LAYOUT: band width L (bar length) — same section as the
+            template form, without the override padlock. */}
+        {type === "LINEAR_LAYOUT" && (
+          <WhiteSectionGeneric>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <Typography variant="body2" sx={{ fontWeight: "bold", flex: 1 }}>
+                Largeur
+              </Typography>
+              <FieldAnnotationHeight
+                annotation={annotation}
+                field="width"
+                label=""
+                onChange={handleWidthChange}
+              />
+            </Box>
+          </WhiteSectionGeneric>
+        )}
+        {type === "LINEAR_LAYOUT" && (
+          <FieldAnnotationLinearLayout annotation={annotation} />
+        )}
         {showFill && (
           <FieldAnnotationFill
             annotation={annotation}

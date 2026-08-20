@@ -336,6 +336,18 @@ const DRAWING_TOOLS = [
     behavior: "SEGMENT",
     drawingMode: "POLYLINE_SEGMENT",
   },
+  // LINEAR_LAYOUT tool — a calepinage band draws as a plain 2-point segment
+  // (the bottom edge of the band), so it delegates the interaction to the
+  // POLYLINE_SEGMENT mode while keeping its own annotation type through the
+  // commit (same pattern as RULER_SEGMENT above).
+  {
+    key: "LINEAR_LAYOUT_SEGMENT",
+    label: "Calepinage (2 clics)",
+    Icon: IconPolylineSegment,
+    annotationType: "LINEAR_LAYOUT",
+    behavior: "SEGMENT",
+    drawingMode: "POLYLINE_SEGMENT",
+  },
   // ADD_GUIDE_LINE tool — draw a guideLine polyline on the selected
   // annotation (the ramp gradient axis + slope arrow). Multi-click, finish
   // with Enter, cancel with Escape.

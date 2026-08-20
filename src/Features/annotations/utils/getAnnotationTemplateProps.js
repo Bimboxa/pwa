@@ -50,6 +50,17 @@ export default function getAnnotationTemplateProps(annotationTemplate) {
     height: annotationTemplate?.height,
     offsetZ: annotationTemplate?.offsetZ,
 
+    // LINEAR_LAYOUT (calepinage linéaire) — band width + bar distribution.
+    // Only applied to annotations when listed in overrideFields (padlock).
+    width: annotationTemplate?.width,
+    densityMode: annotationTemplate?.densityMode,
+    densityValue: annotationTemplate?.densityValue,
+    densityUnitLabel: annotationTemplate?.densityUnitLabel,
+    layoutAlign: annotationTemplate?.layoutAlign,
+    axisPosition: annotationTemplate?.axisPosition,
+    textAlign: annotationTemplate?.textAlign,
+    hideBandFill: annotationTemplate?.hideBandFill,
+
     // COTE / RULER display settings — only applied to annotations when listed
     // in overrideFields (the lock on the "Cote" line of the template form).
     unit: annotationTemplate?.unit,

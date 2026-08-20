@@ -32,7 +32,6 @@ export default function computeAnnotationTemplateQties(
 
     const stats = acc[templateId];
     stats.count += 1;
-    stats.unit = stats.count;
 
     // Use pre-computed qties when available (withQties was used),
     // otherwise compute on the fly.
@@ -42,6 +41,10 @@ export default function computeAnnotationTemplateQties(
       const meterByPx = baseMap?.getMeterByPx();
       qty = getAnnotationQties({ annotation, meterByPx });
     }
+
+    // Unit count: 1 per annotation, except when the annotation carries its own
+    // unit count (LINEAR_LAYOUT: qties.count = number of bars).
+    stats.unit += Number.isFinite(qty?.count) ? qty.count : 1;
 
     if (qty && qty.enabled) {
       // Prefer the developed (sloped) values when a guideLine ramp is present,
