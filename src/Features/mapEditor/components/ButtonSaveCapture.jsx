@@ -18,7 +18,13 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import { AutoAwesome, Close, Edit, PhotoCamera } from "@mui/icons-material";
+import {
+  AutoAwesome,
+  CenterFocusStrong,
+  Close,
+  Edit,
+  PhotoCamera,
+} from "@mui/icons-material";
 
 import PovAiEnhanceFrameOverlay from "Features/pov/components/PovAiEnhanceFrameOverlay";
 import DialogPovEnhancePrompt from "Features/pov/components/DialogPovEnhancePrompt";
@@ -28,8 +34,11 @@ import usePovs from "Features/pov/hooks/usePovs";
 import useCreatePov from "Features/pov/hooks/useCreatePov";
 import useSavePovTransformedImage from "Features/pov/hooks/useSavePovTransformedImage";
 
+import useMainBaseMap from "../hooks/useMainBaseMap";
+import { getActiveMapEditor } from "../services/mapEditorRegistry";
 import captureMapAsPng, { getPdfPageSize } from "../utils/captureMapAsPng";
 import snapshotThreedCanvasForCapture from "Features/threedEditor/utils/snapshotThreedCanvasForCapture";
+import fitThreedContentInCaptureRect from "Features/threedEditor/utils/fitThreedContentInCaptureRect";
 import enhanceBaseMapService from "Features/baseMaps/services/enhanceBaseMapService";
 import composeEnhancedPovImage from "Features/pov/utils/composeEnhancedPovImage";
 import downloadBlob from "Features/files/utils/downloadBlob";
@@ -52,6 +61,8 @@ export default function ButtonSaveCapture() {
   const aiEnhanceTooltipS = "Amélioration IA";
   const editPromptS = "Modifier le prompt d'amélioration IA";
   const titlePlaceholderS = "Titre de la capture";
+  const centerBaseMapS = "Centrer le fond de plan dans la capture";
+  const centerThreedS = "Centrer les objets 3D dans la capture";
   const closeS = "Quitter le mode capture";
   const povSavedS = "Point de vue enregistré";
   const povFailedS = "Échec de l'enregistrement du point de vue";
@@ -83,6 +94,10 @@ export default function ButtonSaveCapture() {
   const storedExportMode = useSelector((s) => s.mapEditor.imageModeExportMode);
 
   const frameBounds = useCaptureFrameBounds(hostViewerKey);
+
+  // "Center the baseMap in the frame" button (2D MAP host only).
+  const baseMap = useMainBaseMap();
+  const basePose = useSelector((s) => s.mapEditor.baseMapPoseInBg);
 
   // "pov" export mode: the capture is saved as a new point of view instead of
   // a file (list order comes from the existing POVs).
@@ -307,6 +322,45 @@ export default function ButtonSaveCapture() {
     }
   }
 
+  // Fit the content inside the capture rect, centered. 2D: whole baseMap
+  // image, same camera math as restorePovViewService.getCamera2dTarget but
+  // fitting both dimensions (the image aspect ratio is arbitrary);
+  // `frameBounds.rect` and the camera matrix share the same host-local
+  // coordinate space. 3D: position-only camera move (orientation kept) that
+  // maximizes the scene objects in the frame.
+  function handleCenterContent() {
+    if (isThreed) {
+      fitThreedContentInCaptureRect(frameBounds);
+      return;
+    }
+    const mapEditor = getActiveMapEditor();
+    const imageSize = baseMap?.getImageSize?.();
+    const { rect } = frameBounds;
+    if (
+      !mapEditor ||
+      !imageSize?.width ||
+      !imageSize?.height ||
+      !basePose?.k ||
+      !rect?.width
+    )
+      return;
+
+    const k =
+      Math.min(
+        rect.width / (imageSize.width * basePose.k),
+        rect.height / (imageSize.height * basePose.k)
+      ) * 0.95; // small breathing margin inside the frame
+    const x =
+      rect.left +
+      rect.width / 2 -
+      (basePose.x + (basePose.k * imageSize.width) / 2) * k;
+    const y =
+      rect.top +
+      rect.height / 2 -
+      (basePose.y + (basePose.k * imageSize.height) / 2) * k;
+    mapEditor.setCameraMatrix?.({ x, y, k });
+  }
+
   function handleQuit() {
     // PanelCaptureTool's transition effect closes the panel if it is open
     // on the CAPTURE tool.
@@ -332,6 +386,21 @@ export default function ButtonSaveCapture() {
             ...barPositionSx,
           }}
         >
+          {/* center the content in the capture frame (2D baseMap / 3D scene) */}
+          {(hostViewerKey === "MAP" || isThreed) && (
+            <>
+              <Tooltip title={isThreed ? centerThreedS : centerBaseMapS}>
+                <Box sx={{ display: "flex", alignItems: "center", px: 0.5 }}>
+                  <IconButton size="small" onClick={handleCenterContent}>
+                    <CenterFocusStrong fontSize="small" />
+                  </IconButton>
+                </Box>
+              </Tooltip>
+
+              <Divider orientation="vertical" flexItem />
+            </>
+          )}
+
           {/* capture title: feeds the frame's title banner (usePovTitleText) */}
           <TextField
             variant="standard"
