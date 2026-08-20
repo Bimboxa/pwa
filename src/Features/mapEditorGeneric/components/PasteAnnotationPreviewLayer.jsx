@@ -223,9 +223,17 @@ const PasteAnnotationPreviewLayer = forwardRef(({ meterByPx = 0 }, ref) => {
   const items = pasteClipboard?.items;
   const sourceCenter = pasteClipboard?.sourceCenter;
 
-  // The whole group shares one rigid transform: flip → rotate around the group
-  // source center → translate that center onto the cursor. SVG applies right to
-  // left, so this matches applyPasteTransformToPoints exactly.
+  // Cross-map paste: shapes are drawn in SOURCE-map pixel space, so the group
+  // is rescaled by sourceMeterByPx / targetMeterByPx — the same factor
+  // pasteAnnotationService applies at commit (real-world size preserved).
+  const sourceMeterByPx = pasteClipboard?.sourceMeterByPx;
+  const crossMapScale =
+    sourceMeterByPx > 0 && meterByPx > 0 ? sourceMeterByPx / meterByPx : 1;
+
+  // The whole group shares one rigid transform: scale → flip → rotate around
+  // the group source center → translate that center onto the cursor. SVG
+  // applies right to left, so this matches applyPasteTransformToPoints exactly
+  // (uniform scale commutes with the rotation).
   function applyTransform(cursorPos) {
     if (!groupRef.current || !cursorPos || !sourceCenter) return;
     const { rotationDeg = 0, flipX = false } = pasteTransform ?? {};
@@ -233,17 +241,17 @@ const PasteAnnotationPreviewLayer = forwardRef(({ meterByPx = 0 }, ref) => {
     const t =
       `translate(${cursorPos.x} ${cursorPos.y}) ` +
       `rotate(${rotationDeg}) ` +
-      `scale(${sx} 1) ` +
+      `scale(${sx * crossMapScale} ${crossMapScale}) ` +
       `translate(${-sourceCenter.x} ${-sourceCenter.y})`;
     groupRef.current.setAttribute("transform", t);
     groupRef.current.style.display = "block";
   }
 
-  // Reapply with the last known cursor whenever clipboard/transform change
-  // (e.g. user presses R or I).
+  // Reapply with the last known cursor whenever clipboard/transform/target
+  // scale change (e.g. user presses R or I, or switches base map).
   useEffect(() => {
     if (lastCursorRef.current) applyTransform(lastCursorRef.current);
-  }, [pasteClipboard, pasteTransform]);
+  }, [pasteClipboard, pasteTransform, meterByPx]);
 
   useImperativeHandle(ref, () => ({
     updatePreview: (cursorPos) => {
@@ -265,7 +273,11 @@ const PasteAnnotationPreviewLayer = forwardRef(({ meterByPx = 0 }, ref) => {
       className="paste-preview-layer"
       style={{ display: "none", pointerEvents: "none" }}
     >
-      {items.map((item, idx) => renderItem(item, idx, meterByPx))}
+      {/* Shapes live in source-px space: CM→px widths must use the SOURCE
+          scale, the group crossMapScale converts them to target px. */}
+      {items.map((item, idx) =>
+        renderItem(item, idx, sourceMeterByPx > 0 ? sourceMeterByPx : meterByPx)
+      )}
     </g>
   );
 });

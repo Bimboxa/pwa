@@ -76,7 +76,9 @@ export default function useCreateAnnotationsFromDetectedMatches() {
         x: p.x / width,
         y: p.y / height,
         projectId: sourceAnnotation.projectId,
-        baseMapId: sourceAnnotation.baseMapId,
+        // ACTIVE map, not the source's — the clipboard may come from another
+        // base map, and x/y above are normalized against THIS map's imageSize.
+        baseMapId: baseMap.id,
       });
       return id;
     };
@@ -96,6 +98,9 @@ export default function useCreateAnnotationsFromDetectedMatches() {
       const clonedAnnotation = {
         ...sourceAnnotationCleaned,
         id: newAnnotationId,
+        // Matches land on the ACTIVE map — the spread carries the SOURCE
+        // baseMapId, which put cross-map pastes back on the original map.
+        baseMapId: baseMap.id,
         entityId: undefined,
         ...(activeLayerId ? { layerId: activeLayerId } : {}),
       };

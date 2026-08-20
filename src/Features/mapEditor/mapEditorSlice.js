@@ -251,10 +251,14 @@ const mapEditorInitialState = {
   showPrintableMap: false,
 
   // copy/paste of annotations
-  // pasteClipboard: { sourceCenter, items: [ item, ... ] }
+  // pasteClipboard: { sourceCenter, sourceMeterByPx, items: [ item, ... ] }
   //   sourceCenter — { x, y } GROUP bbox center across ALL copied annotations,
   //                  shared transform origin + ghost anchor (preserves relative
   //                  positions and rotates/flips the whole group rigidly).
+  //   sourceMeterByPx — scale of the base map at Ctrl+C time; pasting on a map
+  //                  with a different scale rescales the group by
+  //                  sourceMeterByPx / targetMeterByPx so real-world
+  //                  dimensions are preserved.
   //   items[]      — one entry per copied annotation, each:
   //     annotation       — source annotation object (hydrated, with template)
   //     basePoints       — pixel-image points snapshot at Ctrl+C (POLYGON/POLYLINE/STRIP)

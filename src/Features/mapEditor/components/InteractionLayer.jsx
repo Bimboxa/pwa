@@ -3441,7 +3441,15 @@ const InteractionLayer = forwardRef(({
           ? { x: (minX + maxX) / 2, y: (minY + maxY) / 2 }
           : { x: 0, y: 0 };
 
-        dispatch(setPasteClipboard({ sourceCenter, items }));
+        dispatch(
+          setPasteClipboard({
+            sourceCenter,
+            items,
+            // Scale of the map the copy was taken on — lets a paste on a map
+            // with a different meterByPx preserve real-world dimensions.
+            sourceMeterByPx: meterByPxRef.current || null,
+          }),
+        );
         // The clipboard now holds a full snapshot — drop the live selection
         // so the copied annotations are no longer selected (mirrors Escape).
         dispatch(clearSelection());
@@ -4689,6 +4697,7 @@ const InteractionLayer = forwardRef(({
         pasteTransform: pasteTransformRef.current,
         targetCenter,
         baseMap: calibrationBaseMap,
+        targetMeterByPx: meterByPxRef.current,
         activeLayerId,
         dispatch,
         triggerAnnotationsUpdate,
