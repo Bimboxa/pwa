@@ -700,7 +700,7 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
 
             if (closeLine) _newAnnotation.closeLine = true;
 
-            if (["POLYGON", "POLYLINE", "STRIP", "COTE", "RULER"].includes(newAnnotation?.type)) {
+            if (["POLYGON", "POLYLINE", "STRIP", "COTE", "RULER", "LINEAR_LAYOUT"].includes(newAnnotation?.type)) {
                 _newAnnotation.points = finalPointIds.map((id, i) => {
                     const entry = { id };
                     if (rawPoints[i]?.type) entry.type = rawPoints[i].type;

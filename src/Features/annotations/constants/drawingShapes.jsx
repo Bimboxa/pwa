@@ -220,6 +220,37 @@ const DRAWING_SHAPES = [
     ),
   },
   {
+    key: "LINEAR_LAYOUT",
+    label: "Calepinage linéaire",
+    icon: (
+      <SvgIcon fontSize="small" viewBox="0 0 20 20">
+        {/* axis with arrowheads */}
+        <line
+          x1="2"
+          y1="10"
+          x2="18"
+          y2="10"
+          stroke="currentColor"
+          strokeWidth="1.5"
+        />
+        <path d="M2 10 L5 8.5 L5 11.5 Z" fill="currentColor" />
+        <path d="M18 10 L15 8.5 L15 11.5 Z" fill="currentColor" />
+        {/* bar ticks */}
+        {[7, 10, 13].map((x) => (
+          <line
+            key={x}
+            x1={x}
+            y1="6.5"
+            x2={x}
+            y2="13.5"
+            stroke="currentColor"
+            strokeWidth="1.5"
+          />
+        ))}
+      </SvgIcon>
+    ),
+  },
+  {
     key: "REVOLUTION_AXIS",
     label: "Axe de révolution",
     icon: (

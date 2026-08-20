@@ -12,6 +12,10 @@ import {
 import expandShellProfileArcs from "Features/geometry/utils/expandShellProfileArcs";
 import getInlineExtrusionSetup from "Features/annotations/utils/getInlineExtrusionSetup";
 import {
+  getLinearLayoutSpacing,
+  getLinearLayoutTickOffsets,
+} from "Features/annotations/utils/getLinearLayoutBars";
+import {
   computeVertexFrames,
   buildSweepArraysForProfile,
 } from "Features/threedEditor/js/utilsAnnotationsManager/sweepGeometry";
@@ -455,6 +459,32 @@ export default function getAnnotationQties({
         enabled: true,
         length,
         surface,
+      };
+    }
+
+    // LINEAR_LAYOUT (calepinage linéaire): the main quantity is the cumulated
+    // length of all the bars = barCount × band width (meters). The bar count
+    // comes from the shared distribution util so it always matches the ticks
+    // rendered by NodeLinearLayoutStatic. Surface = band footprint (bonus).
+    if (annotation.type === "LINEAR_LAYOUT") {
+      const guideQty = getAnnotationQties({
+        annotation: { ...annotation, type: "POLYLINE" },
+        meterByPx,
+      });
+      const guideLengthM = guideQty?.length || 0;
+      const widthM = parseFloat(annotation.width);
+      const hasWidth = Number.isFinite(widthM) && widthM > 0;
+      const spacingM = getLinearLayoutSpacing(annotation);
+      const barCount = getLinearLayoutTickOffsets({
+        length: guideLengthM,
+        spacing: spacingM,
+        align: annotation.layoutAlign,
+      }).length;
+      return {
+        enabled: true,
+        length: hasWidth ? barCount * widthM : 0,
+        surface: hasWidth ? guideLengthM * widthM : 0,
+        count: barCount,
       };
     }
 

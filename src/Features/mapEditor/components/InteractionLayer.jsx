@@ -2145,7 +2145,7 @@ const InteractionLayer = forwardRef(({
     if (!anglesLocked || interactionMode !== "EDIT") return null;
     if (!pointId || !targetPos) return null;
     const ann = annotations?.find((a) => a.id === selectedNode?.nodeId);
-    if (!ann || !["POLYLINE", "POLYGON", "STRIP"].includes(ann.type))
+    if (!ann || !["POLYLINE", "POLYGON", "STRIP", "LINEAR_LAYOUT"].includes(ann.type))
       return null;
     const idx = ann.points?.findIndex((p) => p?.id === pointId);
     if (idx == null || idx < 0) return null;
@@ -7055,7 +7055,7 @@ const InteractionLayer = forwardRef(({
     commitPolyline(null, needsCloseLine ? { closeLine: true } : undefined);
   };
 
-  const POINT_BASED_TYPES = ["POLYLINE", "POLYGON", "STRIP"];
+  const POINT_BASED_TYPES = ["POLYLINE", "POLYGON", "STRIP", "LINEAR_LAYOUT"];
   const WRAPPER_NODE_ID = "wrapper";
 
   // Helper: get wrapper context (annotation IDs + bbox) for wrapper interactions
@@ -7175,7 +7175,7 @@ const InteractionLayer = forwardRef(({
         segAnn &&
         segAnnId === selectedNode?.nodeId &&
         Number.isFinite(segIdx) &&
-        ["POLYLINE", "POLYGON", "STRIP"].includes(segAnn.type) &&
+        ["POLYLINE", "POLYGON", "STRIP", "LINEAR_LAYOUT"].includes(segAnn.type) &&
         permissions.canEditAnnotation(segAnnId)
       ) {
         e.stopPropagation();
@@ -7198,7 +7198,7 @@ const InteractionLayer = forwardRef(({
     // --- Resize, Rotate, Draggable — délégué à useAnnotationDrag avec permission guard ---
 
     // Helper: resolve wrapper info when nodeId is "wrapper"
-    const POINT_BASED_TYPES = ["POLYLINE", "POLYGON", "STRIP"];
+    const POINT_BASED_TYPES = ["POLYLINE", "POLYGON", "STRIP", "LINEAR_LAYOUT"];
     const resolveWrapperInfo = (nodeId, partType) => {
       if (nodeId !== "wrapper") return {};
       const wrapperAnnotationIds = selectedItems
@@ -7759,7 +7759,7 @@ const InteractionLayer = forwardRef(({
         {/* --- Overlay optimiste : visible pendant le drag ET en attente de convergence DB --- */}
         {(() => {
           // Wrapper mode: active drag OR convergence (pending moves remain after mouseUp)
-          const POINT_BASED_TYPES_T = ["POLYLINE", "POLYGON", "STRIP", "COTE"];
+          const POINT_BASED_TYPES_T = ["POLYLINE", "POLYGON", "STRIP", "COTE", "LINEAR_LAYOUT"];
 
           // Resolve wrapper annotation IDs from drag state or from pending moves
           let wrapperAnnIds = null;

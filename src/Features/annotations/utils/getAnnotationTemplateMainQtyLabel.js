@@ -15,7 +15,8 @@ export default function getAnnotationTemplateMainQtyLabel(
   let unit = unitMap.UNIT;
 
   let defaultMainQtyKey = "U";
-  if (["POLYLINE", "STRIP"]?.includes(type)) defaultMainQtyKey = "L";
+  if (["POLYLINE", "STRIP", "LINEAR_LAYOUT"]?.includes(type))
+    defaultMainQtyKey = "L";
   if (["POLYGON"]?.includes(type)) defaultMainQtyKey = "S";
 
   const qtyKey = mainQtyKey ?? defaultMainQtyKey;

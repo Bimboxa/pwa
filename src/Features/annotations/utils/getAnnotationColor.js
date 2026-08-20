@@ -21,9 +21,12 @@ export default function getAnnotationColor(annotation) {
   if (["MARKER", "POLYGON"].includes(annotation.type)) {
     return annotation.fillColor;
   } else if (
-    ["POLYLINE", "REVOLUTION_AXIS", "REVOLUTION_AXIS_PLACEMENT"].includes(
-      annotation.type
-    )
+    [
+      "POLYLINE",
+      "LINEAR_LAYOUT",
+      "REVOLUTION_AXIS",
+      "REVOLUTION_AXIS_PLACEMENT",
+    ].includes(annotation.type)
   ) {
     return annotation.strokeColor;
   } else {

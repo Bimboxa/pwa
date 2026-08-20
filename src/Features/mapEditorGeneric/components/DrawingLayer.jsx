@@ -13,6 +13,10 @@ import { useDrawingMetrics } from "App/contexts/DrawingMetricsContext";
 import { expandArcsInPath, typeOf } from "Features/geometry/utils/arcSampling";
 import getCenteredBandFromGuideLine from "Features/geometry/utils/getCenteredBandFromGuideLine";
 import {
+  getLinearLayoutSpacing,
+  getLinearLayoutTickOffsets,
+} from "Features/annotations/utils/getLinearLayoutBars";
+import {
   halfArcPath,
   SWEEP_ORANGE,
   SWEEP_BLACK,
@@ -107,6 +111,9 @@ const DrawingLayer = forwardRef(
     const previewRectRef = useRef(null); // <--- NOUVELLE REF
     const previewCircleRef = useRef(null);
     const previewStripRef = useRef(null);
+    // Linear layout (calepinage) preview — band polygon + axis/ticks path.
+    const previewLinearLayoutFillRef = useRef(null);
+    const previewLinearLayoutTicksRef = useRef(null);
     const previewObject3DRef = useRef(null); // OBJECT_3D top-view ghost under the cursor
     // Revolution axis preview — mirrors the NodeRevolutionAxisStatic glyph
     // (orange half-arc + black half-arc + diameter + centre dot).
@@ -181,7 +188,12 @@ const DrawingLayer = forwardRef(
     // STRIP/RAMP `strokeWidth` is the band width (already drawn by the dedicated
     // band preview), so the rubber-band line must stay a thin fixed helper.
     const previewUsesAnnotationStyle =
-      type !== "POLYGON" && type !== "STRIP" && enabledDrawingMode !== "RAMP";
+      type !== "POLYGON" &&
+      type !== "STRIP" &&
+      // LINEAR_LAYOUT: strokeWidth is the bar thickness (cm), not a line
+      // style — the rubber band must stay a thin fixed helper (like STRIP).
+      type !== "LINEAR_LAYOUT" &&
+      enabledDrawingMode !== "RAMP";
     const previewIsCmUnit =
       previewUsesAnnotationStyle && strokeWidthUnit === "CM" && meterByPx > 0;
     const previewScalesWithZoom =
@@ -232,6 +244,7 @@ const DrawingLayer = forwardRef(
     // contour color jumps the moment the user finalizes the shape.
     const effectiveStrokeColor = isPolygon ? fillColor : strokeColor;
     const isStrip = type === "STRIP";
+    const isLinearLayout = type === "LINEAR_LAYOUT";
     // RAMP draws a POLYGON (type === "POLYGON") but previews a band centered on
     // the drawn median line instead of the closed polygon-of-the-clicks.
     const isRamp = enabledDrawingMode === "RAMP";
@@ -627,6 +640,98 @@ const DrawingLayer = forwardRef(
         }
 
         // ------------------------------------------------
+        // CAS 2b'' : LINEAR_LAYOUT (band + axis + ticks from 1st point)
+        // ------------------------------------------------
+        if (isLinearLayout && previewLinearLayoutFillRef.current) {
+          if (previewRectRef.current)
+            previewRectRef.current.style.display = "none";
+
+          const na = newAnnotationRef.current || {};
+          const p1 = currentPoints[0];
+          const p2 = cursorPos;
+          const dx = p2.x - p1.x;
+          const dy = p2.y - p1.y;
+          const len = Math.hypot(dx, dy);
+          const mbp = meterByPxRef.current;
+          const widthM = parseFloat(na.width);
+          const widthPx =
+            mbp > 0 && Number.isFinite(widthM) && widthM > 0 ? widthM / mbp : 0;
+
+          if (len > 0.5 && widthPx > 0) {
+            const ux = dx / len;
+            const uy = dy / len;
+            // Same convention as NodeLinearLayoutStatic: band at -y in the
+            // segment local frame, world offset (-uy, ux) * yBand.
+            const yBand = -(na.stripOrientation ?? 1) * widthPx;
+            const offX = -uy * yBand;
+            const offY = ux * yBand;
+
+            if (na.hideBandFill) {
+              previewLinearLayoutFillRef.current.style.display = "none";
+            } else {
+              previewLinearLayoutFillRef.current.setAttribute(
+                "d",
+                `M ${p1.x} ${p1.y} L ${p2.x} ${p2.y} L ${p2.x + offX} ${p2.y + offY} L ${p1.x + offX} ${p1.y + offY} Z`
+              );
+              previewLinearLayoutFillRef.current.style.display = "block";
+            }
+
+            // Axis at the configured position across the band (same rule as
+            // NodeLinearLayoutStatic) + one tick per bar position. Tick
+            // half-length in world px (screen zoom is unknown here): capped by
+            // the band width and the spacing so the preview stays readable.
+            if (previewLinearLayoutTicksRef.current) {
+              const axisFraction =
+                na.axisPosition === "BOTTOM"
+                  ? 0.25
+                  : na.axisPosition === "TOP"
+                    ? 0.75
+                    : 0.5;
+              const ax1 = {
+                x: p1.x + offX * axisFraction,
+                y: p1.y + offY * axisFraction,
+              };
+              const ax2 = {
+                x: p2.x + offX * axisFraction,
+                y: p2.y + offY * axisFraction,
+              };
+              let d = `M ${ax1.x} ${ax1.y} L ${ax2.x} ${ax2.y}`;
+              const spacingM = getLinearLayoutSpacing(na);
+              if (mbp > 0 && spacingM > 0) {
+                const spacingPx = spacingM / mbp;
+                const offsets = getLinearLayoutTickOffsets({
+                  length: len,
+                  spacing: spacingPx,
+                  align: na.layoutAlign ?? "CENTER",
+                });
+                const tickHalf = Math.min(widthPx * 0.06, spacingPx * 0.4);
+                for (const t of offsets) {
+                  const cx = ax1.x + ux * t;
+                  const cy = ax1.y + uy * t;
+                  d += ` M ${cx - uy * tickHalf} ${cy + ux * tickHalf} L ${cx + uy * tickHalf} ${cy - ux * tickHalf}`;
+                }
+              }
+              previewLinearLayoutTicksRef.current.setAttribute("d", d);
+              previewLinearLayoutTicksRef.current.style.display = "block";
+            }
+          } else {
+            previewLinearLayoutFillRef.current.style.display = "none";
+            if (previewLinearLayoutTicksRef.current)
+              previewLinearLayoutTicksRef.current.style.display = "none";
+          }
+
+          // Also show the elastic line (the drawn bottom edge)
+          if (previewLineRef.current) {
+            previewLineRef.current.setAttribute("x1", lastPoint.x);
+            previewLineRef.current.setAttribute("y1", lastPoint.y);
+            previewLineRef.current.setAttribute("x2", cursorPos.x);
+            previewLineRef.current.setAttribute("y2", cursorPos.y);
+            previewLineRef.current.style.display = "block";
+          }
+          return;
+        }
+
+        // ------------------------------------------------
         // CAS 2c : RAMP (band centered on the median line)
         // ------------------------------------------------
         if (isRamp && previewRampRef.current) {
@@ -742,6 +847,10 @@ const DrawingLayer = forwardRef(
           previewCircleRef.current.style.display = "none";
         if (previewStripRef.current)
           previewStripRef.current.style.display = "none";
+        if (previewLinearLayoutFillRef.current)
+          previewLinearLayoutFillRef.current.style.display = "none";
+        if (previewLinearLayoutTicksRef.current)
+          previewLinearLayoutTicksRef.current.style.display = "none";
         if (previewObject3DRef.current)
           previewObject3DRef.current.style.display = "none";
         if (previewRampRef.current)
@@ -799,6 +908,28 @@ const DrawingLayer = forwardRef(
             stroke="none"
             style={{ display: "none", pointerEvents: "none" }}
           />
+        )}
+
+        {/* A0'. Linear layout band — dynamic preview (1st point + cursor) */}
+        {isLinearLayout && (
+          <>
+            <path
+              ref={previewLinearLayoutFillRef}
+              fill={strokeColor || "rgba(92, 92, 236, 0.3)"}
+              opacity={0.2}
+              stroke="none"
+              style={{ display: "none", pointerEvents: "none" }}
+            />
+            <path
+              ref={previewLinearLayoutTicksRef}
+              fill="none"
+              stroke={strokeColor || "#2196f3"}
+              strokeWidth={1.5}
+              opacity={0.8}
+              vectorEffect="non-scaling-stroke"
+              style={{ display: "none", pointerEvents: "none" }}
+            />
+          </>
         )}
 
         {/* A0b. Ramp band — dynamic preview centered on the median line */}

@@ -12,6 +12,7 @@ import NodePointStatic from "./NodePointStatic";
 import NodeOpeningStatic from "./NodeOpeningStatic";
 import NodeRectangleStatic from "./NodeRectangleStatic";
 import NodeCoteStatic from "./NodeCoteStatic";
+import NodeLinearLayoutStatic from "./NodeLinearLayoutStatic";
 import NodeRulerStatic from "./NodeRulerStatic";
 import NodeRevolutionAxisStatic from "./NodeRevolutionAxisStatic";
 import NodeRevolutionAxisPlacementStatic from "./NodeRevolutionAxisPlacementStatic";
@@ -115,6 +116,13 @@ function NodeAnnotationStatic({
 
     case "STRIP":
       return <NodeStripStatic {...props} annotation={resolvedAnnotation} />;
+
+    // LINEAR_LAYOUT: calepinage linéaire — band + axis + bar ticks from a
+    // 2-point segment (the bottom edge of the band).
+    case "LINEAR_LAYOUT":
+      return (
+        <NodeLinearLayoutStatic {...props} annotation={resolvedAnnotation} />
+      );
 
     case "TEXT":
       return <NodeTextStatic {...props} text={resolvedAnnotation} />;

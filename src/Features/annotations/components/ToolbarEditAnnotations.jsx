@@ -226,12 +226,18 @@ export default function ToolbarEditAnnotations({
 
       const qties = getAnnotationQties({ annotation, meterByPx });
 
+      // Intrinsic unit count (LINEAR_LAYOUT: number of bars) — other types
+      // don't carry one, their ×N suffix already shows the annotation count.
+      const unitCount =
+        qties?.enabled && Number.isFinite(qties.count) ? qties.count : 0;
+
       if (existing) {
         existing.annotationIds.push(annotation.id);
         existing.count += 1;
         if (qties?.enabled) {
           existing.totalSurface += qties.surface || 0;
           existing.totalLength += qties.length || 0;
+          existing.totalUnits += unitCount;
         }
       } else {
         groups.set(key, {
@@ -241,6 +247,7 @@ export default function ToolbarEditAnnotations({
           count: 1,
           totalSurface: qties?.enabled ? qties.surface || 0 : 0,
           totalLength: qties?.enabled ? qties.length || 0 : 0,
+          totalUnits: unitCount,
           hasSurface: ["RECTANGLE", "POLYGON", "STRIP"].includes(
             annotation.type
           ),
@@ -780,7 +787,8 @@ export default function ToolbarEditAnnotations({
 function TemplateGroupRow({ group, onRemove }) {
   // helpers
 
-  const { annotation, count, totalSurface, totalLength, hasSurface } = group;
+  const { annotation, count, totalSurface, totalLength, totalUnits, hasSurface } =
+    group;
   const label =
     annotation?.annotationTemplateProps?.label || annotation?.label || "-";
   const countSuffix = count > 1 ? ` (×${count})` : "";
@@ -828,6 +836,7 @@ function TemplateGroupRow({ group, onRemove }) {
         <AnnotationMeasurements
           surface={hasSurface && totalSurface > 0 ? totalSurface : null}
           length={totalLength > 0 ? totalLength : null}
+          units={totalUnits > 0 ? totalUnits : null}
         />
       </Box>
 

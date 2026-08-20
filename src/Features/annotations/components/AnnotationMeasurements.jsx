@@ -9,7 +9,13 @@ import getAnnotationPartQties from "../utils/getAnnotationPartQties";
 import useProfileResolution from "../hooks/useProfileResolution";
 import useSubtractedSurfaceM2 from "../hooks/useSubtractedSurfaceM2";
 
-export default function AnnotationMeasurements({ annotation, surface, length, part }) {
+export default function AnnotationMeasurements({
+  annotation,
+  surface,
+  length,
+  units,
+  part,
+}) {
   // data
 
   const baseMap = useMainBaseMap();
@@ -31,6 +37,9 @@ export default function AnnotationMeasurements({ annotation, surface, length, pa
 
   let computedSurface = surface;
   let computedLength = length;
+  // Unit count — only set for types whose qties carry one (LINEAR_LAYOUT:
+  // number of bars).
+  let computedUnits = units;
   let enabled = true;
   const hasPart = part && part.kind && part.kind !== "NONE";
 
@@ -50,6 +59,7 @@ export default function AnnotationMeasurements({ annotation, surface, length, pa
     // Prefer the developed (sloped) values when a guideLine ramp is present.
     computedSurface = qties?.surfaceDeveloped != null ? qties.surfaceDeveloped : qties?.surface;
     computedLength = qties?.lengthDeveloped != null ? qties.lengthDeveloped : qties?.length;
+    if (!hasPart && Number.isFinite(qties?.count)) computedUnits = qties.count;
 
     // Subtract the developed surface removed by a 3D boolean subtraction.
     if (!hasPart && subtractedSurfaceM2 > 0 && computedSurface != null) {
@@ -74,11 +84,20 @@ export default function AnnotationMeasurements({ annotation, surface, length, pa
             hasPerVertexZOffsets(annotation))));
 
   const showLength = computedLength != null && computedLength > 0;
+  const showUnits = computedUnits != null && computedUnits > 0;
 
-  if (!enabled || (!showSurface && !showLength)) return null;
+  if (!enabled || (!showSurface && !showLength && !showUnits)) return null;
 
   return (
     <Box sx={{ display: "flex", gap: 1 }}>
+      {showUnits && (
+        <Typography
+          variant="caption"
+          sx={{ fontFamily: "monospace", color: "warning.main", fontWeight: 500 }}
+        >
+          {computedUnits} u
+        </Typography>
+      )}
       {showSurface && (
         <Typography
           variant="caption"

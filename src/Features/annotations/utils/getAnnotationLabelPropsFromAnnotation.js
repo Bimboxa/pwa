@@ -21,7 +21,7 @@ export default function getAnnotationLabelPropsFromAnnotation(annotation) {
     // Label color = the annotation's VISIBLE color: line types are drawn with
     // strokeColor (same rule as NodePolylineStatic), surface types with
     // fillColor.
-    const isLineType = ["POLYLINE", "STRIP"].includes(annotation.type);
+    const isLineType = ["POLYLINE", "STRIP", "LINEAR_LAYOUT"].includes(annotation.type);
     const visibleColor = isLineType
         ? annotation.strokeColor || annotation.fillColor
         : annotation.fillColor || annotation.strokeColor;
