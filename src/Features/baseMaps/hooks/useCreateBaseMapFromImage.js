@@ -14,7 +14,8 @@ import db from "App/db/db";
  * Creates a baseMap entity from an image File and sets up its version system.
  * Used by the file-drop creator.
  *
- * @returns async ({ file, name, listing?, meterByPx?, latLng?, source? }) => entity
+ * @returns async ({ file, name, listing?, meterByPx?, latLng?, geo?, source? }) => entity
+ *   geo: optional capture provenance ({ mode, crs, bbox, scaleFactor, layer })
  */
 export default function useCreateBaseMapFromImage() {
   const dispatch = useDispatch();
@@ -30,6 +31,7 @@ export default function useCreateBaseMapFromImage() {
     listing: listingArg,
     meterByPx,
     latLng,
+    geo,
     source = "image",
   }) {
     const listing = listingArg ?? projectBaseMapListings?.[0];
@@ -40,6 +42,7 @@ export default function useCreateBaseMapFromImage() {
       image: { file },
       meterByPx,
       ...(latLng && { latLng }),
+      ...(geo && { geo }),
     };
 
     const _entity = await createEntity(entity, { listing });

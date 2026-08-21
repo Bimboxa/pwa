@@ -13,6 +13,7 @@ const appConfigSlice = createSlice({
     useDefault: false, // use default config
     advancedLayout: false,
     disable3D: false, // disable 3D rendering (perf testing)
+    satelliteCaptureMode: "MERCATOR", // "MERCATOR" | "LAMBERT_CC" (see satelliteMap/utils/satelliteCaptureModes)
   },
   reducers: {
     setConfigCode: (state, action) => {
@@ -46,6 +47,9 @@ const appConfigSlice = createSlice({
     setDisable3D: (state, action) => {
       state.disable3D = action.payload;
     },
+    setSatelliteCaptureMode: (state, action) => {
+      state.satelliteCaptureMode = action.payload;
+    },
   },
 });
 
@@ -60,5 +64,6 @@ export const {
   setEnableMapEditorLegacy,
   setAdvancedLayout,
   setDisable3D,
+  setSatelliteCaptureMode,
 } = appConfigSlice.actions;
 export default appConfigSlice.reducer;
