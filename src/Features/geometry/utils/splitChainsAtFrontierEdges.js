@@ -38,11 +38,14 @@ function distPointToSegment(px, py, ax, ay, bx, by) {
  */
 function isOnExemptLine(a, b, exemptLines) {
   if (!exemptLines?.length) return false;
-  return exemptLines.some(
-    (l) =>
-      distPointToSegment(a.x, a.y, l.ax, l.ay, l.bx, l.by) <= EXEMPT_TOL_PX &&
-      distPointToSegment(b.x, b.y, l.ax, l.ay, l.bx, l.by) <= EXEMPT_TOL_PX
-  );
+  return exemptLines.some((l) => {
+    // Per-line tolerance (e.g. a wall guide band), else the tight default.
+    const tol = l.tolPx ?? EXEMPT_TOL_PX;
+    return (
+      distPointToSegment(a.x, a.y, l.ax, l.ay, l.bx, l.by) <= tol &&
+      distPointToSegment(b.x, b.y, l.ax, l.ay, l.bx, l.by) <= tol
+    );
+  });
 }
 
 /**
@@ -93,8 +96,9 @@ function isFrontierSubEdge(a, b, frontierEdges, frontierPx) {
  * @param {Array<{ax,ay,bx,by}>} frontierEdges - edges of the neighbor
  *   SOL / SOL_PROXY polygons
  * @param {number} frontierPx - FRONTIER_DETECTION_M converted to pixels
- * @param {Array<{ax,ay,bx,by}>|null} [exemptLines] - user-tagged segment
- *   lines that must never be dropped (manual tags win)
+ * @param {Array<{ax,ay,bx,by,tolPx?}>|null} [exemptLines] - segment lines
+ *   that must never be dropped (manual int/ext tags, emerging ext-wall
+ *   guides); optional per-line tolerance in px
  * @param {{collectRemoved?: boolean}} [options] - collectRemoved: also return
  *   the dropped sub-edges, grouped into consecutive chains (`removedChains`).
  *   The point objects are the chain's own (shared endpoints stay the same JS
