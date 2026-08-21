@@ -8,6 +8,17 @@ import { isThreedFamilyViewerKey } from "./threedViewerKeys";
 
 export const selectSelectedModuleKey = (s) => s.viewers.selectedViewerKey;
 
+// 2D editor displayed by a multi-editor module: the BaseMap module owns its
+// own MainMapEditorV3 instance ("BASE_MAPS"), every other module displays the
+// shared "MAP" instance.
+export const get2dEditorKeyForModule = (moduleKey) =>
+  moduleKey === "BASE_MAPS" ? "BASE_MAPS" : "MAP";
+
+// Key of the MainMapEditorV3 instance that must own the camera registry for
+// the selected module (see MainMapEditorV3 registration effect).
+export const selectActive2dEditorKey = (s) =>
+  get2dEditorKeyForModule(s.viewers.selectedViewerKey);
+
 export const selectIsPovViewer = (s) =>
   s.viewers.selectedViewerKey === "POINT_OF_VIEW";
 
@@ -20,11 +31,11 @@ export const selectEffectiveViewerKey = (s) => {
       ? "THREED"
       : "MAP";
   const editorKey = s.viewers.editorKeyByModule?.[moduleKey] ?? moduleKey;
-  // disable3D: a module whose active editor is 3D falls back to its 2D editor.
-  // Every multi-editor module's 2D editor is the shared map editor ("MAP"),
-  // never its own key (the Zones module included).
+  // disable3D: a module whose active editor is 3D falls back to its 2D editor
+  // (the shared "MAP" instance, or the BaseMap module's own instance).
   if (editorKey === "THREED" && s.appConfig.disable3D) {
-    if (["MAP", "ZONES", "THREED"].includes(moduleKey)) return "MAP";
+    if (["MAP", "ZONES", "THREED", "BASE_MAPS"].includes(moduleKey))
+      return get2dEditorKeyForModule(moduleKey);
   }
   return editorKey;
 };

@@ -2,6 +2,7 @@
 // modules' 2D editor is "MAP", not their own key) — kept in sync with
 // viewersSlice.
 const DEFAULT_EDITOR_KEY_BY_MODULE = {
+  BASE_MAPS: "BASE_MAPS",
   MAP: "MAP",
   THREED: "THREED",
   ZONES: "MAP",
@@ -11,8 +12,9 @@ const DEFAULT_EDITOR_KEY_BY_MODULE = {
 // "ZONES" is a MODULE key only: the module's 2D editor is the shared "MAP"
 // instance. A legacy persisted { ZONES: "ZONES" } is therefore dropped here
 // and falls back to the seeded "MAP" above.
-const KNOWN_MODULE_KEYS = ["MAP", "THREED", "POINT_OF_VIEW", "ZONES"];
-const KNOWN_EDITOR_KEYS = ["MAP", "THREED"];
+const KNOWN_MODULE_KEYS = ["BASE_MAPS", "MAP", "THREED", "POINT_OF_VIEW", "ZONES"];
+// "BASE_MAPS" is both a module key and the key of that module's own 2D editor.
+const KNOWN_EDITOR_KEYS = ["BASE_MAPS", "MAP", "THREED"];
 
 export default function getInitEditorKeyByModule() {
   try {

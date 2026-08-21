@@ -34,9 +34,10 @@ export default function useToggleModuleEditor() {
     if (!module) return;
 
     if (effectiveViewerKey === "THREED") {
-      // The module's 2D editor key: "MAP" for every multi-editor module — they
-      // all display the single shared MainMapEditorV3 instance, which is the
-      // one registered in mapEditorRegistry and synced by switchThreedToMap.
+      // The module's 2D editor key: the shared "MAP" MainMapEditorV3 instance
+      // for every multi-editor module except BASE_MAPS, which displays its own
+      // instance. Whichever it is, it is the one registered in
+      // mapEditorRegistry (see MainMapEditorV3) and synced by switchThreedToMap.
       const editor2dKey =
         module.editors?.find((e) => !isThreedFamilyViewerKey(e)) ?? moduleKey;
       switchThreedToMap({
