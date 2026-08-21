@@ -39,7 +39,8 @@ export default function useSwitchViewer() {
     const editors = targetModule?.editors ?? [viewerKey];
     // The target module's 2D editor key — "MAP" for every multi-editor module
     // (Dessin, POV, Viewer, Zones): they all display the single shared
-    // MainMapEditorV3 instance, hence one camera frame across modules.
+    // MainMapEditorV3 instance, hence one camera frame across modules. The
+    // BaseMap module is the exception ("BASE_MAPS" = its own instance).
     const target2dEditorKey = editors.find((e) => !isThreedFamilyViewerKey(e));
     const from2dMapEditor = effectiveFromKey === "MAP";
 
@@ -89,6 +90,9 @@ export default function useSwitchViewer() {
     if (from2dMapEditor && toThreed) {
       switchMapToThreed({ dispatch, baseMap, basePose, commit });
     } else if (fromThreed && targetEditorKey === "MAP") {
+      // MAP only: the BASE_MAPS 2D editor is mounted with its module, so it
+      // has no live camera to pose when ENTERING the module from a 3D editor
+      // (the in-module toggle, useToggleModuleEditor, does sync it).
       switchThreedToMap({ dispatch, baseMap, basePose, commit });
     } else {
       commit(dispatch);

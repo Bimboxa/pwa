@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useSelector } from "react-redux";
 
 import useToggleModuleEditor from "./useToggleModuleEditor";
+import useViewers from "./useViewers";
 import useTogglePovViewerMode from "Features/pov/hooks/useTogglePovViewerMode";
 
 const isEditableTarget = (el) => {
@@ -16,14 +17,18 @@ const isEditableTarget = (el) => {
 };
 
 // "T" toggles the 2D/3D editor displayed inside the current multi-editor
-// module (Dessin, POV, Zones, Viewer) — the left-band selection does not
-// move. Inert in single-editor modules (MESHES, ...). Fires upstream only
+// module (BaseMaps, Dessin, POV, Zones, Viewer) — the left-band selection
+// does not move. Inert in single-editor modules (MESHES, ...), same
+// `editors.length > 1` gate as ButtonToggleThreedViewer. Fires upstream only
 // (!enabledDrawingMode) so it never contends with the in-draw "T" (arc
 // toggle) or LOCALIZED_REPAIR "T" (T-junction).
 export default function useToggleThreedViewerHotkey() {
   const toggleModuleEditor = useToggleModuleEditor();
   const togglePovViewerMode = useTogglePovViewerMode();
   const selectedViewerKey = useSelector((s) => s.viewers.selectedViewerKey);
+  const viewers = useViewers();
+  const hasEditorToggle =
+    viewers.find((v) => v.key === selectedViewerKey)?.editors?.length > 1;
   const enabledDrawingMode = useSelector((s) => s.mapEditor.enabledDrawingMode);
   const walkModeActive = useSelector((s) => s.threedEditor.walkMode.active);
 
@@ -41,7 +46,7 @@ export default function useToggleThreedViewerHotkey() {
         // POV keeps its own editor mode until it migrates to
         // editorKeyByModule (see issue #296).
         togglePovViewerMode();
-      } else if (["MAP", "ZONES", "THREED"].includes(selectedViewerKey)) {
+      } else if (hasEditorToggle) {
         toggleModuleEditor();
       } else {
         // Single-editor modules: no 2D<->3D toggle.
@@ -57,6 +62,7 @@ export default function useToggleThreedViewerHotkey() {
     enabledDrawingMode,
     walkModeActive,
     selectedViewerKey,
+    hasEditorToggle,
     toggleModuleEditor,
     togglePovViewerMode,
   ]);

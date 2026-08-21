@@ -12,6 +12,7 @@ import TableViewer from "Features/tables/components/ViewerTable";
 import MainPortfolioEditor from "Features/portfolioEditor/components/MainPortfolioEditor";
 import MainBaseMapViewer from "Features/baseMapEditor/components/MainBaseMapViewer";
 import ZoningsTree from "Features/zonings/components/ZoningsTree";
+import BaseMapTree from "Features/baseMapEditor/components/BaseMapTree";
 import ViewerAdmin from "Features/adminEditor/components/ViewerAdmin";
 import MainListingViewer from "Features/listingViewer/components/MainListingViewer";
 import LeftDrawerPanel from "Features/leftPanel/components/LeftDrawerPanel";
@@ -60,7 +61,12 @@ export default function SectionViewer() {
   const showLeaflet = viewerKey === "LEAFLET";
   const showTable = viewerKey === "TABLE";
   const showPortfolio = viewerKey === "PORTFOLIO";
-  const showBaseMaps = viewerKey === "BASE_MAPS";
+  // BASE_MAPS is multi-editor (T toggle): its 2D editor is its own
+  // MainMapEditorV3 instance, its 3D editor the shared one. The module's
+  // viewer stays MOUNTED (slid off-screen) while the 3D editor is displayed,
+  // so the 3D->2D camera sync has a live 2D camera to pose.
+  const isBaseMapsModule = viewerKey === "BASE_MAPS";
+  const showBaseMaps = effectiveKey === "BASE_MAPS";
   // ZONES is multi-editor (T toggle) and owns no editor of its own: its 2D
   // editor IS the shared map editor above (so `Z` keeps the camera framing),
   // its 3D editor the shared 3D one. Only the zonings drawer is module-specific.
@@ -114,6 +120,20 @@ export default function SectionViewer() {
         </LeftDrawerPanel>
       )}
 
+      {/* Base maps tree: in-flow sibling of the editors area so it serves
+          both the 2D and the 3D editor of the module (same pattern as the
+          Zones drawer; the guard is load-bearing for the same reason). */}
+      {isBaseMapsModule && (
+        <LeftDrawerPanel width={260} viewerKey="BASE_MAPS">
+          <BoxFlexVStretch sx={{ height: 1 }}>
+            <LeftDrawerPanelHeader title="Fonds de plan" />
+            <BoxFlexVStretch sx={{ overflow: "auto" }}>
+              <BaseMapTree />
+            </BoxFlexVStretch>
+          </BoxFlexVStretch>
+        </LeftDrawerPanel>
+      )}
+
       <Box sx={{ flex: 1, minWidth: 0, height: 1, position: "relative" }}>
       <PanelShowable show={showMap} sx={{ position: "absolute", zIndex: 0 }}>
         {legacy ? <MainMapEditorV2 /> : <MainMapEditorV3 />}
@@ -158,7 +178,7 @@ export default function SectionViewer() {
         <MainPortfolioEditor />
       </PanelShowable>}
 
-      {showBaseMaps && <PanelShowable show={showBaseMaps} sx={{ position: "absolute", zIndex: 0 }}>
+      {isBaseMapsModule && <PanelShowable show={showBaseMaps} sx={{ position: "absolute", zIndex: 0 }}>
         <MainBaseMapViewer />
       </PanelShowable>}
 

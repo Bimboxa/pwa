@@ -22,6 +22,12 @@ export default function useAutoLoadAnnotationsInThreedEditor({
   const dispatch = useDispatch();
   const selectedViewerKey = useSelector(selectEffectiveViewerKey);
   const isActiveViewer = isThreedFamilyViewerKey(selectedViewerKey);
+  // BaseMap module in 3D: show the isForBaseMaps annotations (the content the
+  // module edits) instead of the drawing ones — same partition as the 2D
+  // MainMapEditorV3 instances.
+  const isBaseMapsModule = useSelector(
+    (s) => s.viewers.selectedViewerKey === "BASE_MAPS"
+  );
   const disableOpacity = useSelector((s) => s.threedEditor.disableOpacity);
   const antiAliasingShrink = useSelector(
     (s) => s.threedEditor.antiAliasingShrink
@@ -78,7 +84,8 @@ export default function useAutoLoadAnnotationsInThreedEditor({
     extraBaseMapIds,
     filterBySelectedScope: true,
     sortByOrderIndex: true,
-    excludeIsForBaseMapsListings: true,
+    excludeIsForBaseMapsListings: !isBaseMapsModule,
+    onlyIsForBaseMapsListings: isBaseMapsModule,
     excludeProfileTemplates: true,
     // Solo mode dims (instead of hides) non-soloed annotations in 3D —
     // ThreedSelectionDimmer renders them translucent.

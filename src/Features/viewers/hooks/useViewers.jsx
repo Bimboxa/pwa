@@ -20,8 +20,9 @@ import theme from "Styles/theme";
 
 // Each entry is a MODULE of the left band. `editors` lists the editors the
 // module can display (default: the module's own key). Multi-editor modules
-// (MAP, POINT_OF_VIEW) expose the 2D/3D toggle ("T" + topBar button), which
-// changes the displayed editor without moving the left-band selection.
+// (BASE_MAPS, MAP, POINT_OF_VIEW, ZONES, THREED) expose the 2D/3D toggle
+// ("T" + topBar button), which changes the displayed editor without moving
+// the left-band selection.
 export default function useViewers() {
   const advancedLayout = useSelector((s) => s.appConfig.advancedLayout);
   const legacy = useSelector((s) => s.appConfig.enableMapEditorLegacy);
@@ -39,6 +40,9 @@ export default function useViewers() {
       icon: <Layers />,
       bgcolor: theme.palette.viewers.map,
       hotkey: "F",
+      // The 2D editor is the module's own MainMapEditorV3 instance (not the
+      // shared "MAP" one); the 3D editor is the shared MainThreedEditor.
+      editors: ["BASE_MAPS", "THREED"],
     },
     {
       key: "MAP",

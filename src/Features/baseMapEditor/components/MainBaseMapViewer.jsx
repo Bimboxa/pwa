@@ -9,15 +9,10 @@ import { setSelectedItem } from "Features/selection/selectionSlice";
 
 import { Box } from "@mui/material";
 
-import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import MainMapEditorV3 from "Features/mapEditor/components/MainMapEditorV3";
 import SectionCreateBaseMapFullscreen from "Features/mapEditor/components/SectionCreateBaseMapFullscreen";
-import LeftDrawerPanel from "Features/leftPanel/components/LeftDrawerPanel";
-import LeftDrawerPanelHeader from "Features/leftPanel/components/LeftDrawerPanelHeader";
 
 import useListingById from "Features/listings/hooks/useListingById";
-
-import BaseMapTree from "./BaseMapTree";
 
 export default function MainBaseMapViewer() {
   const dispatch = useDispatch();
@@ -31,7 +26,6 @@ export default function MainBaseMapViewer() {
 
   // helpers
 
-  const treeWidth = 260;
   const isCreating = Boolean(creatingInListingId);
 
   // handlers
@@ -56,17 +50,9 @@ export default function MainBaseMapViewer() {
   // render
 
   return (
+    // The base maps tree is mounted by SectionViewer as an in-flow sibling of
+    // the editors area (it serves both the 2D and the 3D editor of the module).
     <Box sx={{ width: 1, height: 1, display: "flex", position: "relative", overflow: "hidden" }}>
-      {/* Left column: tree */}
-      <LeftDrawerPanel width={treeWidth} viewerKey="BASE_MAPS">
-        <BoxFlexVStretch sx={{ height: 1 }}>
-          <LeftDrawerPanelHeader title="Fonds de plan" />
-          <BoxFlexVStretch sx={{ overflow: "auto" }}>
-            <BaseMapTree />
-          </BoxFlexVStretch>
-        </BoxFlexVStretch>
-      </LeftDrawerPanel>
-
       {/* Center: map editor or create form */}
       <Box sx={{ flex: 1, minWidth: 0, position: "relative" }}>
         {isCreating ? (

@@ -56,6 +56,7 @@ import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSp
 import useLegendItems from "Features/legend/hooks/useLegendItems";
 import useLegendItemsByBaseMapId from "Features/legend/hooks/useLegendItemsByBaseMapId";
 import {
+  selectActive2dEditorKey,
   selectEffectiveViewerKey,
   selectPovFramingActive,
 } from "Features/viewers/utils/effectiveViewerKey";
@@ -204,18 +205,21 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
         }
     }, [printableMapRef?.current]);
 
-    // Register the camera handle of the MAP instance (this component is also
-    // mounted for BASE_MAPS) so the 2D/3D viewer switch can sync cameras.
+    // Register the camera handle of the instance that is the selected module's
+    // 2D editor (the BASE_MAPS instance in the BaseMap module, the MAP instance
+    // everywhere else) so the 2D/3D viewer switch syncs the right camera.
+    const registersCamera = useSelector(selectActive2dEditorKey) === forViewerKey;
     useEffect(() => {
-        if (forViewerKey !== "MAP") return;
-        setActiveMapEditor({
+        if (!registersCamera) return;
+        const handle = {
             getCameraMatrix: () => interactionLayerRef.current?.getCameraMatrix?.(),
             setCameraMatrix: (m) => interactionLayerRef.current?.setCameraMatrix?.(m),
             getViewportSize: () => interactionLayerRef.current?.getViewportSize?.(),
             getViewportRect: () => interactionLayerRef.current?.getViewportRect?.(),
-        });
-        return clearActiveMapEditor;
-    }, [forViewerKey]);
+        };
+        setActiveMapEditor(handle);
+        return () => clearActiveMapEditor(handle);
+    }, [forViewerKey, registersCamera]);
 
     // data
 
