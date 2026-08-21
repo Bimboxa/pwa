@@ -2,12 +2,18 @@ import { useEffect } from "react";
 
 import { useDispatch, useSelector } from "react-redux";
 
-import { setAppConfig, setConfigCode, setDisable3D } from "../appConfigSlice";
+import {
+  setAppConfig,
+  setConfigCode,
+  setDisable3D,
+  setSatelliteCaptureMode,
+} from "../appConfigSlice";
 
 import resolveAppConfig from "../utils/resolveAppConfig";
 
 import getAppConfigDefault from "../services/getAppConfigDefault";
 import getDisable3DFromLocalStorage from "../services/getDisable3DFromLocalStorage";
+import getSatelliteCaptureModeFromLocalStorage from "../services/getSatelliteCaptureModeFromLocalStorage";
 
 export default function useInitAppConfig() {
   const dispatch = useDispatch();
@@ -30,6 +36,9 @@ export default function useInitAppConfig() {
 
   useEffect(() => {
     dispatch(setDisable3D(getDisable3DFromLocalStorage()));
+    dispatch(
+      setSatelliteCaptureMode(getSatelliteCaptureModeFromLocalStorage())
+    );
   }, []);
 
   useEffect(() => {
