@@ -10,8 +10,10 @@ function roundHeight(h) {
 
 /**
  * Classify one sub-edge against the water level and return its emission
- * class, or null when the segment must be dropped (wall bottom at or above
- * the water level).
+ * class, or null when the segment must be dropped (polygon floor at or above
+ * the water level, or wall top at or below the floor). Heights are measured
+ * from the polygon floor (fallback.bottomZ); a matching guide provides the
+ * absolute wall top (bottomZ + wallHeight).
  *
  * The wall reference comes from the adjacent guide edge when one matches
  * (enriched with bottomZ / wallHeight), else from the polygon fallback.
@@ -22,14 +24,24 @@ function classifySegment(a, b, waterRel, guideEdges, tolPx, fallback) {
   const edge = guideEdges.length
     ? findGuideEdgeForSubEdge(a, b, guideEdges, tolPx)
     : null;
-  const bottom = edge ? (edge.bottomZ ?? 0) : fallback.bottomZ;
+  // The VCT foot is the polygon floor (the emitted annotation sits at
+  // polygon.offsetZ): a guide wall whose base lies below that floor is
+  // buried there and must not lengthen the VCT. The guide only provides the
+  // wall TOP (absolute); heights are measured from the floor.
+  const floor = fallback.bottomZ;
+  const wallBottom = edge ? (edge.bottomZ ?? 0) : floor;
   const wallHeight = (edge ? edge.wallHeight : null) ?? fallback.wallHeight;
+  const wallTop =
+    wallHeight != null
+      ? (edge && edge.wallHeight != null ? wallBottom : floor) + wallHeight
+      : null;
 
-  if (bottom >= waterRel) return null;
-  if (wallHeight != null && bottom + wallHeight <= waterRel) {
-    return { height: roundHeight(wallHeight), rtpEligible: true };
+  if (floor >= waterRel) return null;
+  if (wallTop != null && wallTop <= floor) return null;
+  if (wallTop != null && wallTop <= waterRel) {
+    return { height: roundHeight(wallTop - floor), rtpEligible: true };
   }
-  return { height: roundHeight(waterRel - bottom), rtpEligible: false };
+  return { height: roundHeight(waterRel - floor), rtpEligible: false };
 }
 
 function sameClass(c1, c2) {
