@@ -42,6 +42,7 @@ export default function getDraftFieldVisibility(
     !isFieldOverridden("strokeWidth") &&
     ((!isToolGroup &&
       (drawingShape === "POLYLINE" ||
+        drawingShape === "CIRCULATION" ||
         drawingShape === "OPENING" ||
         drawingShape === "LINEAR_LAYOUT")) ||
       isOpeningBand);

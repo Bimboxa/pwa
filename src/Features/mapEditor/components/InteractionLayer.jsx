@@ -7573,6 +7573,7 @@ const InteractionLayer = forwardRef(({
               (
                 !smartDetectEnabled ||
                 newAnnotation?.drawingShape === "POLYLINE" ||
+                newAnnotation?.drawingShape === "CIRCULATION" ||
                 enabledDrawingMode === "SURFACE_DROP"
               )
             }

@@ -61,6 +61,11 @@ export default function getAnnotationTemplateProps(annotationTemplate) {
     textAlign: annotationTemplate?.textAlign,
     hideBandFill: annotationTemplate?.hideBandFill,
 
+    // CIRCULATION — arrows distributed along the line.
+    arrowStep: annotationTemplate?.arrowStep,
+    arrowRight: annotationTemplate?.arrowRight,
+    arrowLeft: annotationTemplate?.arrowLeft,
+
     // COTE / RULER display settings — only applied to annotations when listed
     // in overrideFields (the lock on the "Cote" line of the template form).
     unit: annotationTemplate?.unit,

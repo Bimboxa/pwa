@@ -23,6 +23,10 @@ const STYLE_FIELDS = [
   "extensionOffsetUnit",
   "showTotalCote",
   "showRulerLabel",
+  // CIRCULATION
+  "arrowStep",
+  "arrowRight",
+  "arrowLeft",
 ];
 
 function pickStyle(obj) {

@@ -1,6 +1,6 @@
 import { memo, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useSelector } from "react-redux";
-import { darken } from "@mui/material/styles";
+import { darken, lighten } from "@mui/material/styles";
 import theme from "Styles/theme";
 
 import offsetPointsAlongNormals from "../utils/offsetPointsAlongNormals";
@@ -67,10 +67,20 @@ import { getProfileAxis } from "Features/elevation/utils/buildProfileSectionGeom
 import NodeLabelStatic from "./NodeLabelStatic";
 import NodeSegmentLengthsStatic from "./NodeSegmentLengthsStatic";
 import getInnerOffsetSegmentPath from "Features/mapEditorGeneric/utils/getInnerOffsetSegmentPath";
+import getArrowsAlongPolyline from "Features/annotations/utils/getArrowsAlongPolyline";
 
 // Extra padding on each side of the visible stroke for hit detection, in
 // screen pixels (20 = ~10 px tolerance each side of the visible edge).
 const HIT_STROKE_PADDING_SCREEN_PX = 20;
+
+// CIRCULATION arrow glyph (screen px). Each direction is a full arrow
+// (shaft + head); with both directions the two arrows sit back to back,
+// separated by a small gap.
+const CIRCULATION_ARROW_HEAD_PX = 14;
+const CIRCULATION_ARROW_HALF_HEIGHT_PX = 9;
+const CIRCULATION_ARROW_SHAFT_PX = 9;
+const CIRCULATION_ARROW_SHAFT_HALF_PX = 3;
+const CIRCULATION_ARROW_GAP_PX = 4;
 
 // For POLYGON segment hit areas we skip the zoom-aware calc and use a fixed
 // screen-space width — polygons have no visible stroke to "grow", so a zoom-
@@ -179,6 +189,20 @@ function NodePolylineStatic({
   //const showLabel = false;
 
   strokeColor = type === "POLYGON" ? fillColor : strokeColor;
+
+  // --- CIRCULATION (access path) ---
+  // Same annotation as a POLYLINE; only the look differs: the line is drawn
+  // in a lighter tint, the arrows distributed along it keep the full colour.
+  const isCirculation =
+    type === "POLYLINE" && mergedAnnotation.drawingShape === "CIRCULATION";
+  const circulationArrowColor = strokeColor;
+  if (isCirculation) {
+    try {
+      strokeColor = lighten(strokeColor, 0.35);
+    } catch {
+      // keep strokeColor as is
+    }
+  }
 
   // --- EXTRUSION PROFILE (offset preview) ---
   // A POLYLINE whose 3D shape is a profile swept along the contour
@@ -1175,6 +1199,74 @@ function NodePolylineStatic({
     return `scale(calc(1 / (var(--map-zoom, 1) * ${k})))`;
   }, [containerK]);
 
+  // --- CIRCULATION ARROWS ---
+  // Anchors every `arrowStep` meters along the path (centred distribution).
+  // Glyph size is constant on screen (vertexScaleTransform), like vertices.
+  const circulationArrows = useMemo(() => {
+    if (!isCirculation) return [];
+    const { arrowStep, arrowRight = true, arrowLeft = true } = mergedAnnotation;
+    if (!arrowRight && !arrowLeft) return [];
+    if (!(baseMapMeterByPx > 0)) return [];
+    const stepM = Number(arrowStep);
+    const stepPx = (stepM > 0 ? stepM : 3) / baseMapMeterByPx;
+    return getArrowsAlongPolyline({ points, stepPx, closeLine });
+  }, [
+    isCirculation,
+    mergedAnnotation.arrowStep,
+    mergedAnnotation.arrowRight,
+    mergedAnnotation.arrowLeft,
+    baseMapMeterByPx,
+    points,
+    closeLine,
+  ]);
+
+  function renderCirculationArrows() {
+    if (!isCirculation || circulationArrows.length === 0) return null;
+    const { arrowRight = true, arrowLeft = true } = mergedAnnotation;
+    // Glyph in screen px, centred on the anchor, pointing +x.
+    const HEAD = CIRCULATION_ARROW_HEAD_PX;
+    const HALF_H = CIRCULATION_ARROW_HALF_HEIGHT_PX;
+    const SHAFT = CIRCULATION_ARROW_SHAFT_PX;
+    const SH = CIRCULATION_ARROW_SHAFT_HALF_PX;
+    const both = arrowRight && arrowLeft;
+    const arrowLen = SHAFT + HEAD;
+    // Single arrow: centred on the anchor. Double: each arrow starts half a
+    // gap away from the anchor.
+    const baseX = both ? CIRCULATION_ARROW_GAP_PX / 2 : -arrowLen / 2;
+    // One arrow pointing +x, shaft from baseX to baseX + SHAFT, then head.
+    const arrowPath = (sign) => {
+      const x0 = sign * baseX;
+      const x1 = sign * (baseX + SHAFT);
+      const x2 = sign * (baseX + arrowLen);
+      return (
+        `M ${x0} ${-SH} L ${x1} ${-SH} L ${x1} ${-HALF_H} L ${x2} 0 ` +
+        `L ${x1} ${HALF_H} L ${x1} ${SH} L ${x0} ${SH} Z`
+      );
+    };
+    const parts = [];
+    if (arrowRight) parts.push(arrowPath(1));
+    if (arrowLeft) parts.push(arrowPath(-1));
+    const d = parts.join(" ");
+    return (
+      <g data-part-type="CIRCULATION_ARROWS" style={{ pointerEvents: "none" }}>
+        {circulationArrows.map((a, i) => (
+          <g
+            key={`circ-arrow-${i}`}
+            transform={`translate(${a.x}, ${a.y}) rotate(${a.angleDeg})`}
+          >
+            <g style={{ transform: vertexScaleTransform }}>
+              <path
+                d={d}
+                fill={circulationArrowColor}
+                fillOpacity={strokeOpacity ?? 1}
+              />
+            </g>
+          </g>
+        ))}
+      </g>
+    );
+  }
+
   // --- SLOPE INDICATOR (POLYGON with per-vertex offsetTop) ---
   // Computes the best-fit plane direction over the polygon vertices; null
   // when the surface is flat, has too few points, or the toggle is off.
@@ -1800,6 +1892,9 @@ function NodePolylineStatic({
             {renderSegments(hole.segmentMap, "CUT", i)}
           </g>
         ))}
+
+      {/* CIRCULATION ARROWS — on top of the strokes, non-interactive */}
+      {renderCirculationArrows()}
 
       {/* GHOST OFFSET INDICATORS (Image D — polygon only, when unselected) */}
       {renderGhostOffsetIndicators()}

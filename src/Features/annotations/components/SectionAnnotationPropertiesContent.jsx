@@ -25,6 +25,7 @@ import FieldAnnotationIsExt from "./FieldAnnotationIsExt";
 import FieldAnnotationIsProfile from "./FieldAnnotationIsProfile";
 import FieldAnnotationLabel from "./FieldAnnotationLabel";
 import FieldAnnotationLinearLayout from "./FieldAnnotationLinearLayout";
+import FieldAnnotationArrows from "./FieldAnnotationArrows";
 
 export default function SectionAnnotationPropertiesContent({ annotation }) {
   // data
@@ -141,6 +142,9 @@ export default function SectionAnnotationPropertiesContent({ annotation }) {
         )}
         {type === "LINEAR_LAYOUT" && (
           <FieldAnnotationLinearLayout annotation={annotation} />
+        )}
+        {drawingShape === "CIRCULATION" && (
+          <FieldAnnotationArrows annotation={annotation} />
         )}
         {showFill && (
           <FieldAnnotationFill

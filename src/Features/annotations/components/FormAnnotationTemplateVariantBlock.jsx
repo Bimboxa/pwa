@@ -19,6 +19,7 @@ import FieldAnnotationTemplateDrawingShape from "./FieldAnnotationTemplateDrawin
 import FieldAnnotationTemplateDefaultTool from "./FieldAnnotationTemplateDefaultTool";
 import FieldAnnotationTemplateCote from "./FieldAnnotationTemplateCote";
 import FieldAnnotationTemplateLinearLayout from "./FieldAnnotationTemplateLinearLayout";
+import FieldAnnotationTemplateArrows from "./FieldAnnotationTemplateArrows";
 import FieldQty from "Features/form/components/FieldQty";
 import FieldCheck from "Features/form/components/FieldCheck";
 import FieldMappingCategories from "./FieldMappingCategories";
@@ -135,6 +136,7 @@ export default function FormAnnotationTemplateVariantBlock({
   const hasMeterByPx = configurableProps.includes("meterByPx");
   const hasCoteProps = configurableProps.includes("unit");
   const hasLinearLayout = configurableProps.includes("densityMode");
+  const hasArrows = configurableProps.includes("arrowStep");
   const hasHideSlope = configurableProps.includes("hideSlope");
   const hasMaterial3d = configurableProps.includes("material3d");
   const hasRender3d =
@@ -515,6 +517,16 @@ export default function FormAnnotationTemplateVariantBlock({
               popover */}
           {hasLinearLayout && (
             <FieldAnnotationTemplateLinearLayout
+              annotationTemplate={annotationTemplate}
+              onChange={onChange}
+              overrideFields={overrideFields}
+              onOverrideFieldsChange={handleOverrideFieldsChange}
+            />
+          )}
+
+          {/* CIRCULATION controls — arrow step + directions */}
+          {hasArrows && (
+            <FieldAnnotationTemplateArrows
               annotationTemplate={annotationTemplate}
               onChange={onChange}
               overrideFields={overrideFields}

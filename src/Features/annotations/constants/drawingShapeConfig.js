@@ -177,6 +177,42 @@ const DRAWING_SHAPE_CONFIG = {
     },
     shapeCategory: "polyline",
   },
+  // CIRCULATION — an access path. Same behaviour as a POLYLINE (same type,
+  // same renderer), only the 2D look differs: the stroke is drawn in a
+  // lighter tint of strokeColor and arrows in the full strokeColor are
+  // distributed along the line every `arrowStep` meters. arrowRight /
+  // arrowLeft pick the direction(s): right = towards the next vertex.
+  CIRCULATION: {
+    label: "Circulation",
+    annotationType: "POLYLINE",
+    tools: ["POLYLINE_CLICK", "POLYLINE_SEGMENT", "POLYLINE_ARC"],
+    configurableProps: [
+      "strokeColor",
+      "strokeWidth",
+      "strokeWidthUnit",
+      "strokeOpacity",
+      "strokeType",
+      "strokeOffset",
+      "height",
+      "color3D",
+      "opacity3D",
+      "material3d",
+      "arrowStep",
+      "arrowRight",
+      "arrowLeft",
+    ],
+    defaults: {
+      strokeColor: secondary,
+      strokeWidth: 2,
+      strokeWidthUnit: "PX",
+      strokeOpacity: 1,
+      strokeType: "SOLID",
+      arrowStep: 3,
+      arrowRight: true,
+      arrowLeft: true,
+    },
+    shapeCategory: "polyline",
+  },
   OBJECT_3D: {
     label: "Objet 3D",
     annotationType: "OBJECT_3D",

@@ -144,6 +144,27 @@ const DRAWING_SHAPES = [
     ),
   },
   {
+    key: "CIRCULATION",
+    label: "Circulation",
+    icon: (
+      <SvgIcon fontSize="small" viewBox="0 0 20 20">
+        {/* path with a double-headed arrow */}
+        <line
+          x1="2"
+          y1="10"
+          x2="18"
+          y2="10"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeOpacity="0.5"
+        />
+        <path d="M3 10 L8 6.5 L8 13.5 Z" fill="currentColor" />
+        <path d="M17 10 L12 6.5 L12 13.5 Z" fill="currentColor" />
+        <rect x="7" y="8.5" width="6" height="3" fill="currentColor" />
+      </SvgIcon>
+    ),
+  },
+  {
     key: "COTE",
     label: "Cote",
     icon: (
