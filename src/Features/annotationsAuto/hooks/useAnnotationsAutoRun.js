@@ -160,13 +160,24 @@ export default function useAnnotationsAutoRun() {
         // only for procedures that understand guides. `a` is resolved by
         // useAnnotationsV2, so a.isExt already reflects the template lock.
         const guidesEnabled = adjacencyCategories.includes("COTE:EXT");
-        const neighbors = candidates.filter((a) => {
+        let neighbors = candidates.filter((a) => {
           const template = templateById.get(a.annotationTemplateId);
           const categories = template?.mappingCategories ?? [];
           if (adjacencyCategories.some((c) => categories.includes(c)))
             return true;
           return guidesEnabled && a.isExt === true;
         });
+        // "Actualiser" resets (soft-deletes the previous outputs) and re-runs
+        // in the same handler: visibleAnnotations is React state and may
+        // still list rows just deleted. A procedure reading its own previous
+        // outputs as context (REPAIR_SOL_WALL_TOPOLOGY: "chain already
+        // walled") would then skip re-creating them. Check the db.
+        if (neighbors.length > 0) {
+          const rows = await db.annotations.bulkGet(neighbors.map((a) => a.id));
+          neighbors = neighbors.filter(
+            (_a, i) => rows[i] && !rows[i].deletedAt
+          );
+        }
         sourceAnnotations = [
           ...sourceAnnotations,
           ...neighbors.map((a) => ({ ...a, isAdjacencyOnly: true })),
