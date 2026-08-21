@@ -17,7 +17,10 @@
  * @param {number} [params.epsilon=2] - tolerance in pixels for point-on-segment detection
  * @param {number} [params.minSegmentLengthPx=0] - skip the angle when either of
  *   its two segments is shorter than this (0 disables the check)
- * @returns {Array<{ x, y, pointId, polylineIds: string[], height: number }>}
+ * @returns {Array<{ x, y, pointId, polylineIds: string[], height: number, offsetZ?: number }>}
+ *   offsetZ/height = common vertical of the forming pair when the polylines
+ *   carry heights (and optional offsetZ); pairs with no common vertical are
+ *   not angles.
  */
 export default function findReentrantAngles({
   polylines,
@@ -32,6 +35,16 @@ export default function findReentrantAngles({
   // exact segments that form it (its polylineIds) rather than the arbitrary
   // first wall passing through the vertex.
   const heightByPolylineId = new Map(polylines.map((pl) => [pl.id, pl.height]));
+  const offsetZByPolylineId = new Map(
+    polylines.map((pl) => [pl.id, pl.offsetZ ?? 0])
+  );
+  // Vertical [bottom, top] of a wall, null when its height is unknown.
+  const verticalOf = (id) => {
+    const h = heightByPolylineId.get(id);
+    if (h == null) return null;
+    const z = offsetZByPolylineId.get(id) ?? 0;
+    return { bottom: z, top: z + h };
+  };
 
   // 1. Build polygon edge lists (outer ring + cuts)
   const polygonEdges = polygons.map((polygon) => {
@@ -138,6 +151,10 @@ export default function findReentrantAngles({
     const polylineIds = new Set();
 
     let isReentrant = false;
+    // Best reentrant pair by common vertical: walls at different elevations
+    // (floor step) meeting at one vertex — the angle spans their overlap
+    // [max(bottoms), min(tops)], and a pair with no overlap is no angle.
+    let bestPair = null;
 
     for (let i = 0; i < segs.length; i++) {
       for (let j = i + 1; j < segs.length; j++) {
@@ -169,11 +186,38 @@ export default function findReentrantAngles({
             isPointInsidePolygonWithCuts(testPoint, pg)
           )
         ) {
+          const vi = verticalOf(segs[i].polylineId);
+          const vj = verticalOf(segs[j].polylineId);
+          if (vi && vj) {
+            const bottom = Math.max(vi.bottom, vj.bottom);
+            const top = Math.min(vi.top, vj.top);
+            const overlap = top - bottom;
+            if (overlap <= 1e-6) continue; // no common vertical: no angle
+            if (!bestPair || overlap > bestPair.overlap) {
+              bestPair = {
+                overlap,
+                bottom,
+                ids: [segs[i].polylineId, segs[j].polylineId],
+              };
+            }
+          }
           isReentrant = true;
           polylineIds.add(segs[i].polylineId);
           polylineIds.add(segs[j].polylineId);
         }
       }
+    }
+
+    if (isReentrant && bestPair) {
+      results.push({
+        x: vertex.x,
+        y: vertex.y,
+        pointId: vertex.pointId,
+        polylineIds: bestPair.ids,
+        height: round3(bestPair.overlap),
+        offsetZ: round3(bestPair.bottom),
+      });
+      continue;
     }
 
     if (isReentrant) {
@@ -316,4 +360,8 @@ function isPointInPolygon(point, polygon) {
   }
 
   return inside;
+}
+
+function round3(v) {
+  return Math.round(v * 1000) / 1000;
 }
