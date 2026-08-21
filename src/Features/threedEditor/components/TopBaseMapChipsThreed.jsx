@@ -81,6 +81,11 @@ export default function TopBaseMapChipsThreed({ inTopBar = false }) {
   const isViewerModule = useSelector(
     (s) => s.viewers.selectedViewerKey === "THREED"
   );
+  // BaseMap module in 3D: the drawing annotations are not loaded (the scene
+  // shows the isForBaseMaps ones), so the annotations badge/toggle is moot.
+  const isBaseMapsModule = useSelector(
+    (s) => s.viewers.selectedViewerKey === "BASE_MAPS"
+  );
   const pinnedIds = useSelector((s) => s.viewers.pinnedBaseMapIdsInViewer);
   const effectiveViewerKey = useSelector(selectEffectiveViewerKey);
   const hideBaseMapImageInViewer = useSelector(
@@ -334,7 +339,7 @@ export default function TopBaseMapChipsThreed({ inTopBar = false }) {
                 </Box>
               </Tooltip>
             )}
-            {isViewer2d ? (
+            {isBaseMapsModule ? null : isViewer2d ? (
               // 2D: plain count display — the annotations toggles are 3D-only.
               <Box
                 sx={{

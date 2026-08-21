@@ -205,6 +205,11 @@ export default function MainThreedEditor() {
   // pointer handlers work right away (see the effect below, which also re-arms
   // meshing after a cote session).
   const isMeshesViewer = selectedViewerKey === "MESHES";
+  // BaseMap module in 3D: no drawing listings panel (the module edits the
+  // isForBaseMaps annotations from its 2D editor only).
+  const isBaseMapsModule = useSelector(
+    (s) => s.viewers.selectedViewerKey === "BASE_MAPS"
+  );
 
   // Entering/leaving the 3D viewer keeps whatever right panel is open: the
   // SETTINGS panel switches its content (3D view settings <-> 2D editor
@@ -1947,9 +1952,10 @@ export default function MainThreedEditor() {
       <Box sx={{ width: 1, height: 1 }} ref={containerRef} />
       {/* The helper REPLACES the listings panel while the mode is armed, same
           as the 2D chain in PopperMapListings (which is 2D-only). */}
-      {isThreedViewer && !captureFramingActive && !subtractPickActive && (
-        <PopperMapListings />
-      )}
+      {isThreedViewer &&
+        !isBaseMapsModule &&
+        !captureFramingActive &&
+        !subtractPickActive && <PopperMapListings />}
       {isThreedViewer && subtractPickActive && <PopperSubtractHelper />}
       {isThreedViewer && <PopperEditAnnotation viewerKey="THREED" />}
       {isThreedViewer && <ThreedPopperEditAnnotations />}
