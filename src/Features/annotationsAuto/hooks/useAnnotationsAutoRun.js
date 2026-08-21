@@ -494,18 +494,24 @@ export default function useAnnotationsAutoRun() {
         // they can later be reset/refreshed (see RowProcedureActionAuto).
         // Procedures that track sources per output set autoCreatedFrom
         // themselves (one id per annotation); the run-level id only fills in
-        // annotations left untagged. Revolution-axis placements are
-        // infrastructure (the drawing base on the vertical map), not outputs:
-        // never tagged, so a procedure reset keeps them.
+        // annotations left untagged. Every output is also tagged with the
+        // procedure key so reset / refresh of procedure A never sweeps the
+        // outputs of procedure B run from the same source. Revolution-axis
+        // placements are infrastructure (the drawing base on the vertical
+        // map), not outputs: never tagged, so a procedure reset keeps them.
         await db.annotations.bulkAdd(
-          annotations.map((a) => ({
-            ...a,
-            ...(!a.autoCreatedFrom &&
-            autoCreatedFrom &&
-            a.type !== "REVOLUTION_AXIS_PLACEMENT"
-              ? { autoCreatedFrom }
-              : {}),
-          }))
+          annotations.map((a) => {
+            if (a.type === "REVOLUTION_AXIS_PLACEMENT") return { ...a };
+            return {
+              ...a,
+              ...(!a.autoCreatedFrom && autoCreatedFrom
+                ? { autoCreatedFrom }
+                : {}),
+              ...(procedureKey
+                ? { autoCreatedByProcedureKey: procedureKey }
+                : {}),
+            };
+          })
         );
         if (rels.length > 0) {
           await db.relAnnotationMappingCategory.bulkAdd(

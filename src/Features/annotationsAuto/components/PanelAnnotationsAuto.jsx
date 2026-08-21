@@ -84,7 +84,8 @@ export default function PanelAnnotationsAuto() {
   // Source annotations of the selected procedure on the base map: annotations
   // whose template is linked to it (template.procedureKeys). They scope the
   // launcher band's reset / refresh (deletion matches autoCreatedFrom against
-  // this set) and provide the untagged-output fallback tag.
+  // this set, restricted to rows tagged with this procedure key) and provide
+  // the untagged-output fallback tag.
   const linkedTemplateIds = (allAnnotationTemplates ?? [])
     .filter((t) => (t.procedureKeys ?? []).includes(selectedProcedureKey))
     .map((t) => t.id);

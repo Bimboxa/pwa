@@ -27,8 +27,12 @@ import { PlayArrow, Refresh, DeleteSweep } from "@mui/icons-material";
  * `autoCreatedFrom` is ALWAYS a source annotation id: procedures that track
  * sources per output (fromPolygonsToBim) tag each created annotation with its
  * own source polygon id; the run-level id passed to play (first of the set) is
- * only a fallback for untagged annotations. Reset/refresh act on every
- * annotation whose `autoCreatedFrom` belongs to `sourceAnnotationIds`.
+ * only a fallback for untagged annotations. The run also stamps
+ * `autoCreatedByProcedureKey` on every output. Reset/refresh act on every
+ * annotation whose `autoCreatedFrom` belongs to `sourceAnnotationIds` AND
+ * whose procedure key is this one — so procedure A never deletes what
+ * procedure B created from the same source. Legacy rows (no procedure key)
+ * match any procedure.
  *
  * - Toolbar: a single source annotation → set = [annotation.id].
  * - Listing popper: all annotations of the source template → set = their ids,
@@ -81,9 +85,13 @@ export default function ProcedureActionButtons({
       .equals(projectId)
       .toArray();
     return all.filter(
-      (a) => !a.deletedAt && sourceIdSet.has(a.autoCreatedFrom)
+      (a) =>
+        !a.deletedAt &&
+        sourceIdSet.has(a.autoCreatedFrom) &&
+        (!a.autoCreatedByProcedureKey ||
+          a.autoCreatedByProcedureKey === procedureKey)
     );
-  }, [sourceKey, projectId, annotationsUpdatedAt]);
+  }, [sourceKey, projectId, procedureKey, annotationsUpdatedAt]);
 
   // state
 
