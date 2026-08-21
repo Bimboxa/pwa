@@ -128,6 +128,21 @@ function getAntiAliasingShrinkPx(options, meterByPx) {
     : 0;
 }
 
+// Vertical counterpart of the footprint shrink: the extruded top face is
+// lowered by this amount (real-world mm) so a wall whose top is flush with a
+// slab / ceiling no longer shares a coplanar face either. Only the top moves —
+// the bottom stays on its drawn level so the element keeps sitting on its
+// support. Same setting gate as the lateral shrink.
+const ANTI_ALIASING_SHRINK_TOP_MM = 5;
+
+// Height (m) to extrude after removing the top shrink (0 change when off).
+// Clamped like the lateral shrink so a very low element never collapses.
+function getShrunkHeight(height, options) {
+  if (!options?.antiAliasingShrink || !(height > 0)) return height;
+  const shrinkM = ANTI_ALIASING_SHRINK_TOP_MM / 1000;
+  return Math.max(height - shrinkM, height * SHRINK_MIN_HALF_WIDTH_RATIO);
+}
+
 // Strip the alpha suffix from #RRGGBBAA hex strings so THREE.Color accepts them.
 function normalizeHex(hex) {
   if (typeof hex !== "string") return hex;
@@ -488,6 +503,7 @@ function extrudeStripPolygons(
       : shrinkPx;
   const shaped =
     effShrink > 0 ? polys.map((p) => insetStripPolygon(p, effShrink)) : polys;
+  const effHeight = getShrunkHeight(height, options);
 
   const group = new Group();
   shaped.forEach((poly) => {
@@ -495,7 +511,13 @@ function extrudeStripPolygons(
     const cuts = (poly.cuts || [])
       .map((cut) => pointsToLocal(cut.points || [], baseMap))
       .filter((c) => c.length >= 3);
-    const sub = extrudeClosedShape(pts, height, material, cuts, verticalLift);
+    const sub = extrudeClosedShape(
+      pts,
+      effHeight,
+      material,
+      cuts,
+      verticalLift
+    );
     if (sub) group.add(sub);
   });
   if (group.children.length === 0) return null;
@@ -554,6 +576,8 @@ function extrudeWallPolygon(
     halfWidth * SHRINK_MIN_HALF_WIDTH_RATIO
   );
   const applyShrink = shrinkPx > 0;
+  // Same idea vertically: lower the top face by a few mm (bottom unchanged).
+  const effHeight = getShrunkHeight(height, options);
 
   // Closed centerline → hollow ring (outer contour + inner contour as a hole),
   // so the wall renders as a closed loop instead of a U. Per-vertex offsets are
@@ -566,7 +590,7 @@ function extrudeWallPolygon(
     const innerLocal = pointsToLocal(rings.inner, baseMap);
     return extrudeClosedShape(
       outerLocal,
-      height,
+      effHeight,
       material,
       [innerLocal],
       verticalLift
@@ -601,7 +625,13 @@ function extrudeWallPolygon(
     };
   });
   const local = pointsToLocal(ringPoints, baseMap);
-  return extrudeClosedShape(local, height, material, undefined, verticalLift);
+  return extrudeClosedShape(
+    local,
+    effHeight,
+    material,
+    undefined,
+    verticalLift
+  );
 }
 
 export default function createAnnotationObject3D(annotation, baseMap, options) {
