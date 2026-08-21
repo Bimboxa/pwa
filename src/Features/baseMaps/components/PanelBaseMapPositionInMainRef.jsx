@@ -30,6 +30,7 @@ import {
   ListItemText,
   ToggleButton,
   ToggleButtonGroup,
+  alpha,
 } from "@mui/material";
 import { ArrowBack as Back } from "@mui/icons-material";
 
@@ -38,6 +39,13 @@ import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 import SwitchGeneric from "Features/layout/components/SwitchGeneric";
 import ButtonInPanelV2 from "Features/layout/components/ButtonInPanelV2";
 import FieldText from "Features/form/components/FieldText";
+
+const RED = "#e53935";
+const GREEN = "#43a047";
+const REF_COLOR_OPTIONS = [
+  { value: "red", label: "Rouge", color: RED },
+  { value: "green", label: "Vert", color: GREEN },
+];
 
 export default function PanelBaseMapPositionInMainRef({ baseMap, onBack }) {
   const dispatch = useDispatch();
@@ -53,6 +61,9 @@ export default function PanelBaseMapPositionInMainRef({ baseMap, onBack }) {
   // state
 
   const [selectedRefId, setSelectedRefId] = useState(null);
+  // With 2 targets, the reference target anchors the translation and the
+  // other one only drives the rotation (see computeRecalageTransform).
+  const [refColor, setRefColor] = useState("red");
 
   // helpers
 
@@ -60,6 +71,7 @@ export default function PanelBaseMapPositionInMainRef({ baseMap, onBack }) {
   const transform = baseMap ? getBaseMapTransform(baseMap) : null;
   const heightValue = transform ? String(transform.position.y ?? 0) : "0";
   const orientation = transform?.orientation ?? DEFAULT_ORIENTATION;
+  const twoTargets = Boolean(visible.red && visible.green);
 
   // effects — show the draggable calibration targets on the current baseMap
   // while this panel is open (reuses CalibrationLayer in the 2D editor).
@@ -120,6 +132,7 @@ export default function PanelBaseMapPositionInMainRef({ baseMap, onBack }) {
       refTargets,
       useRed: visible.red,
       useGreen: visible.green,
+      refColor,
     });
 
     if (!result) {
@@ -132,19 +145,16 @@ export default function PanelBaseMapPositionInMainRef({ baseMap, onBack }) {
       return;
     }
 
-    const currentMeterByPx = baseMap.getMeterByPx?.() ?? baseMap.meterByPx;
-    const scaleChanged = result.meterByPx !== currentMeterByPx;
-
     const update = { position: result.position };
-    if (scaleChanged) update.meterByPx = result.meterByPx;
+    if (twoTargets) update.angleDeg = result.angleDeg;
 
     await db.baseMaps.update(baseMap.id, update);
     dispatch(triggerBaseMapsUpdate());
 
     dispatch(
       setToaster({
-        message: scaleChanged
-          ? "Fond de plan recalé (position + échelle)"
+        message: twoTargets
+          ? "Fond de plan recalé (position + rotation)"
           : "Fond de plan recalé (position)",
       })
     );
@@ -222,6 +232,55 @@ export default function PanelBaseMapPositionInMainRef({ baseMap, onBack }) {
               checked={visible.red}
               onChange={(c) => handleToggleTarget("red", c)}
             />
+            {twoTargets && (
+              <Box sx={{ px: 1, pt: 0.5, pb: 1 }}>
+                <Typography variant="caption" color="text.secondary" noWrap>
+                  Point de référence
+                </Typography>
+                <ToggleButtonGroup
+                  size="small"
+                  exclusive
+                  value={refColor}
+                  onChange={(_e, v) => v && setRefColor(v)}
+                  sx={{ display: "flex", mt: 0.5 }}
+                >
+                  {REF_COLOR_OPTIONS.map((option) => (
+                    <ToggleButton
+                      key={option.value}
+                      value={option.value}
+                      sx={{
+                        gap: 0.75,
+                        px: 1.5,
+                        py: 0.5,
+                        textTransform: "none",
+                        "&.Mui-selected": {
+                          bgcolor: alpha(option.color, 0.12),
+                          borderColor: option.color,
+                          "&:hover": { bgcolor: alpha(option.color, 0.2) },
+                        },
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          width: 12,
+                          height: 12,
+                          borderRadius: "50%",
+                          bgcolor: option.color,
+                        }}
+                      />
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          fontWeight: refColor === option.value ? 700 : 400,
+                        }}
+                      >
+                        {option.label}
+                      </Typography>
+                    </ToggleButton>
+                  ))}
+                </ToggleButtonGroup>
+              </Box>
+            )}
           </Box>
         </WhiteSectionGeneric>
 
