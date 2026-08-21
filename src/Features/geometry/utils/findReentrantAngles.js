@@ -119,15 +119,15 @@ export default function findReentrantAngles({
   for (const [, vertex] of vertexMap) {
     if (vertex.segments.length < 2) continue;
 
-    // Find which polygon this vertex touches
-    let touchedPolygon = null;
+    // Find which polygons this vertex touches. ALL of them are kept: on a
+    // shared frontier (two SOLs within epsilon) the angle may bite into the
+    // second polygon only (e.g. a floor-step VCT meeting the lower SOL's
+    // outer wall), so testing the first touched polygon alone misses it.
+    const touchedPolygons = [];
     for (const { polygon, edges } of polygonEdges) {
-      if (isPointOnEdges(vertex, edges, epsilon)) {
-        touchedPolygon = polygon;
-        break;
-      }
+      if (isPointOnEdges(vertex, edges, epsilon)) touchedPolygons.push(polygon);
     }
-    if (!touchedPolygon) continue;
+    if (touchedPolygons.length === 0) continue;
 
     // A vertex that is itself an arc control point sits on a curve: the
     // "angle" there is the arc's chord bend, not a real reentrant corner.
@@ -164,7 +164,11 @@ export default function findReentrantAngles({
           y: vertex.y + bisector.dy * epsilon * 2,
         };
 
-        if (isPointInsidePolygonWithCuts(testPoint, touchedPolygon)) {
+        if (
+          touchedPolygons.some((pg) =>
+            isPointInsidePolygonWithCuts(testPoint, pg)
+          )
+        ) {
           isReentrant = true;
           polylineIds.add(segs[i].polylineId);
           polylineIds.add(segs[j].polylineId);
