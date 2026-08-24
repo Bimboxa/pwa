@@ -99,7 +99,9 @@ function SortableVersionRow({
       onDoubleClick={onDoubleClick}
       style={style}
       sx={{
-        pl: 7,
+        // One indent step deeper than the base map rows (avatar under the
+        // would-be chevron column of the next level).
+        pl: 12,
         py: 0.25,
         "&:hover .version-eye": { opacity: 1 },
         "&:hover .version-more": { opacity: 1 },
@@ -217,7 +219,9 @@ function SortableBaseMapRow({
       component="div"
       onClick={onClick}
       sx={{
-        pl: 2,
+        // One indent step (24px = chevron column) deeper than the group
+        // row, so the base map chevron sits under the folder icon.
+        pl: 5,
         ...style,
         // Selection = thick vertical bar on the left (secondary color);
         // transparent when unselected so rows don't shift.
@@ -780,7 +784,8 @@ export default function BaseMapTreeItem({ listing, baseMaps, isDropTarget }) {
           <ListItemButton
             onClick={handleAddBaseMap}
             sx={{
-              pl: 4,
+              // Dashed box aligned with the base map avatars column
+              pl: 9,
               gap: 1,
               color: "text.disabled",
             }}
