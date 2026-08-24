@@ -14,6 +14,8 @@ import DialogDeleteRessource from "Features/layout/components/DialogDeleteRessou
 import useDeleteBaseMap, {
   countBaseMapAnnotations,
 } from "Features/baseMaps/hooks/useDeleteBaseMap";
+import { triggerBaseMapsUpdate } from "Features/baseMaps/baseMapsSlice";
+import db from "App/db/db";
 
 export default function IconButtonMoreActionsBaseMap({
   baseMap,
@@ -30,6 +32,13 @@ export default function IconButtonMoreActionsBaseMap({
   const renameS = "Renommer";
   const addVersionS = "Nouvelle version";
   const deleteS = "Supprimer le fond de plan";
+
+  // helpers - orientation
+
+  const isVertical = baseMap?.orientation === "VERTICAL";
+  const toggleOrientationS = isVertical
+    ? "Passer en horizontal"
+    : "Passer en vertical";
 
   // data
 
@@ -75,6 +84,17 @@ export default function IconButtonMoreActionsBaseMap({
     onAddVersion?.();
   }
 
+  // Same field / update as the Position 3D panels (orientation of the plane
+  // in the 3D scene: HORIZONTAL = floor, VERTICAL = wall).
+  async function handleToggleOrientation() {
+    setAnchorEl(null);
+    if (!baseMap?.id) return;
+    await db.baseMaps.update(baseMap.id, {
+      orientation: isVertical ? "HORIZONTAL" : "VERTICAL",
+    });
+    dispatch(triggerBaseMapsUpdate());
+  }
+
   async function handleDelete() {
     setAnchorEl(null);
     setAnnotationCount(await countBaseMapAnnotations(baseMap.id));
@@ -105,6 +125,9 @@ export default function IconButtonMoreActionsBaseMap({
         )}
         {onRename && <MenuItem onClick={handleRename}>{renameS}</MenuItem>}
         <MenuItem onClick={handleAddVersion}>{addVersionS}</MenuItem>
+        <MenuItem onClick={handleToggleOrientation}>
+          {toggleOrientationS}
+        </MenuItem>
         <MenuItem onClick={handleDelete} sx={{ color: "error.main" }}>
           {deleteS}
         </MenuItem>
