@@ -21,6 +21,7 @@ import FieldBaseMapOpacityIn3d from "Features/threedEditor/components/FieldBaseM
 import useUpdateEntity from "Features/entities/hooks/useUpdateEntity";
 import db from "App/db/db";
 import stringifyFileSize from "Features/files/utils/stringifyFileSize";
+import getBaseMapDisplayName from "Features/baseMaps/utils/getBaseMapDisplayName";
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 
@@ -76,6 +77,9 @@ export default function PanelBaseMapDetailProperties({ baseMap, listing }) {
   const displayVersionLabel = isEditingVersionLabel
     ? versionLabelValue
     : activeVersion?.label || "";
+
+  const { label: displayNameS, isPlaceholder: isUnnamed } =
+    getBaseMapDisplayName(baseMap);
 
   const versionsCount = baseMap.versions?.length || 1;
   const versionsCountS = `${versionsCount} version${
@@ -190,9 +194,10 @@ export default function PanelBaseMapDetailProperties({ baseMap, listing }) {
             overflow: "hidden",
             textOverflow: "ellipsis",
             whiteSpace: "nowrap",
+            ...(isUnnamed && { fontStyle: "italic" }),
           }}
         >
-          {baseMap.name}
+          {displayNameS}
         </Link>
         <Typography variant="body2" sx={{ color: "text.secondary" }}>
           /
@@ -236,8 +241,18 @@ export default function PanelBaseMapDetailProperties({ baseMap, listing }) {
           >
             {subtitleS}
           </Typography>
-          <Typography variant="h6" noWrap sx={{ fontWeight: 700 }}>
-            {baseMap.name}
+          <Typography
+            variant="h6"
+            noWrap
+            sx={{
+              fontWeight: 700,
+              ...(isUnnamed && {
+                fontStyle: "italic",
+                color: "text.secondary",
+              }),
+            }}
+          >
+            {displayNameS}
           </Typography>
         </Box>
       </Box>

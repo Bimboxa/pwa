@@ -37,6 +37,7 @@ import IconButtonMoreActionsBaseMapVersion from "./IconButtonMoreActionsBaseMapV
 import activateBaseMapVersion from "Features/baseMaps/utils/activateBaseMapVersion";
 import createBaseMapVersionFromSource from "Features/baseMaps/services/createBaseMapVersionFromSource";
 import formatVersionDate from "Features/baseMaps/utils/formatVersionDate";
+import getBaseMapDisplayName from "Features/baseMaps/utils/getBaseMapDisplayName";
 
 // ---------------------------------------------------------------------------
 // PanelBaseMapVersions — detail view of the Fond de plan panel (#312): the
@@ -79,6 +80,9 @@ export default function PanelBaseMapVersions({ baseMap, listing }) {
   const versionsCount = sortedVersions.length || 1;
   const countS = `${versionsCount} version${versionsCount > 1 ? "s" : ""}`;
   const subtitleS = listing?.name ? `${countS} · ${listing.name}` : countS;
+
+  const { label: nameS, isPlaceholder: isUnnamed } =
+    getBaseMapDisplayName(baseMap);
 
   // handlers
 
@@ -152,8 +156,12 @@ export default function PanelBaseMapVersions({ baseMap, listing }) {
         <Typography variant="body2" sx={{ color: "text.secondary" }}>
           /
         </Typography>
-        <Typography variant="body2" noWrap sx={{ fontWeight: 600 }}>
-          {baseMap.name}
+        <Typography
+          variant="body2"
+          noWrap
+          sx={{ fontWeight: 600, ...(isUnnamed && { fontStyle: "italic" }) }}
+        >
+          {nameS}
         </Typography>
       </Box>
 
@@ -180,8 +188,18 @@ export default function PanelBaseMapVersions({ baseMap, listing }) {
           sx={{ width: 36, height: 36, flexShrink: 0 }}
         />
         <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Typography variant="h6" noWrap sx={{ fontWeight: 700 }}>
-            {baseMap.name}
+          <Typography
+            variant="h6"
+            noWrap
+            sx={{
+              fontWeight: 700,
+              ...(isUnnamed && {
+                fontStyle: "italic",
+                color: "text.secondary",
+              }),
+            }}
+          >
+            {nameS}
           </Typography>
           <Typography variant="body2" noWrap sx={{ color: "text.secondary" }}>
             {subtitleS}

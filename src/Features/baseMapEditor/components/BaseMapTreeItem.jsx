@@ -67,6 +67,7 @@ import db from "App/db/db";
 import activateBaseMapVersion from "Features/baseMaps/utils/activateBaseMapVersion";
 import createBaseMapVersionFromSource from "Features/baseMaps/services/createBaseMapVersionFromSource";
 import formatVersionDate from "Features/baseMaps/utils/formatVersionDate";
+import getBaseMapDisplayName from "Features/baseMaps/utils/getBaseMapDisplayName";
 import DialogCreateBaseMapVersion from "./DialogCreateBaseMapVersion";
 import IconButtonMoreActionsBaseMap from "./IconButtonMoreActionsBaseMap";
 import IconButtonMoreActionsBaseMapListing from "./IconButtonMoreActionsBaseMapListing";
@@ -206,6 +207,9 @@ function SortableBaseMapRow({
   const versionsCount = baseMap?.versions?.length || 1;
   const subtitleS = `${activeVersion?.label ?? "Image d'origine"} · ${versionsCount} version${versionsCount > 1 ? "s" : ""}`;
 
+  const { label: nameS, isPlaceholder: isUnnamed } =
+    getBaseMapDisplayName(baseMap);
+
   return (
     <ListItemButton
       ref={setNodeRef}
@@ -271,13 +275,17 @@ function SortableBaseMapRow({
         />
       ) : (
         <ListItemText
-          primary={baseMap.name}
+          primary={nameS}
           secondary={subtitleS}
           slotProps={{
             primary: {
               variant: "body2",
               fontWeight: isSelected ? "bold" : "normal",
               noWrap: true,
+              ...(isUnnamed && {
+                fontStyle: "italic",
+                color: "text.secondary",
+              }),
             },
             secondary: { variant: "caption", noWrap: true },
           }}
