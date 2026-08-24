@@ -7,7 +7,6 @@ import {
   Box,
   Button,
   Typography,
-  InputBase,
   Menu,
   MenuItem,
   Divider,
@@ -21,7 +20,6 @@ import Add from "@mui/icons-material/Add";
 
 import DialogCreateListing from "Features/listings/components/DialogCreateListing";
 import MenuMoreActionsActiveListing from "./MenuMoreActionsActiveListing";
-import useUpdateListing from "Features/listings/hooks/useUpdateListing";
 
 // ---------------------------------------------------------------------------
 // FieldActiveListing — "LISTE ACTIVE" select-style field of the Dessin panel.
@@ -38,17 +36,11 @@ export default function FieldActiveListing({ listings, activeListing }) {
   const addListingS = "Nouvelle liste";
   const createListingS = "Créer une liste";
 
-  // data
-
-  const updateListing = useUpdateListing();
-
   // state
 
   const [menuAnchor, setMenuAnchor] = useState(null);
   const [moreMenuAnchor, setMoreMenuAnchor] = useState(null);
   const [openCreateListing, setOpenCreateListing] = useState(false);
-  const [isRenaming, setIsRenaming] = useState(false);
-  const [tempName, setTempName] = useState("");
 
   // helpers
 
@@ -67,25 +59,12 @@ export default function FieldActiveListing({ listings, activeListing }) {
   };
 
   const handleFieldClick = (e) => {
-    if (isRenaming) return;
     setMenuAnchor(e.currentTarget);
   };
 
   const handleMoreClick = (e) => {
     e.stopPropagation();
     setMoreMenuAnchor(e.currentTarget);
-  };
-
-  const handleStartRename = () => {
-    setTempName(activeListing?.name ?? "");
-    setIsRenaming(true);
-  };
-
-  const handleConfirmRename = async () => {
-    setIsRenaming(false);
-    const name = tempName.trim();
-    if (!name || name === activeListing?.name) return;
-    await updateListing({ ...activeListing, name }, { updateSyncFile: true });
   };
 
   // render
@@ -113,7 +92,7 @@ export default function FieldActiveListing({ listings, activeListing }) {
             textAlign: "left",
             px: 2,
             py: 1,
-            cursor: isRenaming ? "default" : "pointer",
+            cursor: "pointer",
             fontFamily: "inherit",
             bgcolor: "background.paper",
             border: "1px solid",
@@ -135,59 +114,34 @@ export default function FieldActiveListing({ listings, activeListing }) {
             >
               {labelS}
             </Typography>
-            {isRenaming ? (
-              <InputBase
-                value={tempName}
-                onChange={(e) => setTempName(e.target.value)}
-                onClick={(e) => e.stopPropagation()}
-                onKeyDown={(e) => {
-                  e.stopPropagation();
-                  if (e.key === "Enter") handleConfirmRename();
-                  else if (e.key === "Escape") setIsRenaming(false);
-                }}
-                onBlur={handleConfirmRename}
-                autoFocus
-                fullWidth
-                sx={{
-                  fontSize: "1rem",
-                  fontWeight: 700,
-                  lineHeight: 1.3,
-                  p: 0,
-                  "& input": { p: 0 },
-                }}
-              />
-            ) : (
-              <Typography
-                variant="subtitle1"
-                noWrap
-                sx={{ fontWeight: 700, lineHeight: 1.3 }}
-              >
-                {activeListing?.name ?? activeListing?.label ?? "Liste"}
-              </Typography>
-            )}
+            <Typography
+              variant="subtitle1"
+              noWrap
+              sx={{ fontWeight: 700, lineHeight: 1.3 }}
+            >
+              {activeListing?.name ?? activeListing?.label ?? "Liste"}
+            </Typography>
           </Box>
           {/* Not an IconButton: the field itself is a <button>, nesting one
               would be invalid HTML. */}
-          {!isRenaming && (
-            <Box
-              component="span"
-              onClick={handleMoreClick}
-              sx={{
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                width: 28,
-                height: 28,
-                borderRadius: 2,
-                flexShrink: 0,
-                color: "text.secondary",
-                bgcolor: moreMenuAnchor ? "action.selected" : "action.hover",
-                "&:hover": { bgcolor: "action.selected" },
-              }}
-            >
-              <MoreHoriz sx={{ fontSize: 18 }} />
-            </Box>
-          )}
+          <Box
+            component="span"
+            onClick={handleMoreClick}
+            sx={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "center",
+              width: 28,
+              height: 28,
+              borderRadius: 2,
+              flexShrink: 0,
+              color: "text.secondary",
+              bgcolor: moreMenuAnchor ? "action.selected" : "action.hover",
+              "&:hover": { bgcolor: "action.selected" },
+            }}
+          >
+            <MoreHoriz sx={{ fontSize: 18 }} />
+          </Box>
           <ExpandMore sx={{ color: "text.secondary", flexShrink: 0 }} />
         </Box>
       )}
@@ -196,7 +150,6 @@ export default function FieldActiveListing({ listings, activeListing }) {
         anchorEl={moreMenuAnchor}
         onClose={() => setMoreMenuAnchor(null)}
         listing={activeListing}
-        onRename={handleStartRename}
       />
 
       <Menu

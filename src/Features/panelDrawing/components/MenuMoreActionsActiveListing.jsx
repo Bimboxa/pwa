@@ -19,6 +19,7 @@ import ContentCopy from "@mui/icons-material/ContentCopy";
 import DeleteOutline from "@mui/icons-material/DeleteOutline";
 
 import DialogDeleteRessource from "Features/layout/components/DialogDeleteRessource";
+import DialogRenameListing from "Features/listings/components/DialogRenameListing";
 import useDeleteListing from "Features/listings/hooks/useDeleteListing";
 import useCreateListings from "Features/listings/hooks/useCreateListings";
 import useFavoriteListings from "Features/listings/hooks/useFavoriteListings";
@@ -28,15 +29,14 @@ import { OwnershipError } from "App/db/ownership";
 
 // ---------------------------------------------------------------------------
 // MenuMoreActionsActiveListing — "..." menu of the active-listing field:
-// rename (inline, via onRename), favorites toggle, duplicate, delete.
-// Duplicate / delete mirror IconButtonMoreActionsListing.
+// rename (dialog), favorites toggle, duplicate, delete. Duplicate / delete
+// mirror IconButtonMoreActionsListing.
 // ---------------------------------------------------------------------------
 
 export default function MenuMoreActionsActiveListing({
   anchorEl,
   onClose,
   listing,
-  onRename,
 }) {
   const dispatch = useDispatch();
 
@@ -62,6 +62,7 @@ export default function MenuMoreActionsActiveListing({
 
   // state
 
+  const [openRename, setOpenRename] = useState(false);
   const [openDelete, setOpenDelete] = useState(false);
 
   // helpers
@@ -72,7 +73,7 @@ export default function MenuMoreActionsActiveListing({
 
   const handleRename = () => {
     onClose();
-    onRename?.();
+    setOpenRename(true);
   };
 
   const handleToggleFavorite = () => {
@@ -189,6 +190,14 @@ export default function MenuMoreActionsActiveListing({
           </ListItemText>
         </MenuItem>
       </Menu>
+
+      {openRename && (
+        <DialogRenameListing
+          open={openRename}
+          onClose={() => setOpenRename(false)}
+          listing={listing}
+        />
+      )}
 
       <DialogDeleteRessource
         open={openDelete}
