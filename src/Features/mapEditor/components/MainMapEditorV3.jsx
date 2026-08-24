@@ -255,13 +255,16 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     const isViewerModule = useSelector((s) => s.viewers.selectedViewerKey === "THREED");
     // Dessin module (key MAP): the left panel (PanelDrawing) takes over the
     // listings popper (#310) whenever it is VISIBLE — docked, or drawer mode
-    // while the left area is hovered (the drawer slides over the map). With
-    // the panel off-screen the popper shows as before.
+    // while the left area is hovered (the drawer slides over the map). Docked
+    // → the popper UNMOUNTS (stable state, avoids a permanent duplicate
+    // annotations subscription); drawer hover → the popper is only CSS-hidden
+    // so its local state (drag position, ...) survives the transient overlay.
     const isDessinModule = useSelector((s) => s.viewers.selectedViewerKey === "MAP");
     const leftPanelDocked = useSelector((s) => s.leftPanel.leftPanelDocked);
     const leftDrawerHovered = useSelector((s) => s.leftPanel.leftDrawerHovered);
-    const dessinPanelVisible =
-        isDessinModule && (leftPanelDocked || leftDrawerHovered);
+    const dessinPanelDocked = isDessinModule && leftPanelDocked;
+    const dessinPanelSlidedIn =
+        isDessinModule && !leftPanelDocked && leftDrawerHovered;
     const hiddenVersionIds = useSelector((s) => s.baseMapEditor.hiddenVersionIds);
     const selectedVersionId = useSelector((s) => s.baseMapEditor.selectedVersionId);
     const versionTransformOverride = useSelector((s) => s.baseMapEditor.versionTransformOverride);
@@ -2092,15 +2095,24 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
             {!versionCompareEnabled &&
                 !imageModeActive &&
                 !isViewerModule &&
-                !dessinPanelVisible &&
+                !dessinPanelDocked &&
                 (forViewerKey !== "BASE_MAPS" || showDrawingToolsInBaseMaps) && (
-                    <PopperMapListings />
+                    /* display:none (not unmount) while the drawer slides over
+                       the map, so the popper keeps its state; "contents" keeps
+                       the wrapper out of the absolute positioning. */
+                    <Box
+                        sx={{
+                            display: dessinPanelSlidedIn ? "none" : "contents",
+                        }}
+                    >
+                        <PopperMapListings />
+                    </Box>
                 )}
 
             {/* Dessin module with the docked panel: floating paste / subtract
                 helpers only — listings and the drawing helper live in the
                 panel. */}
-            {dessinPanelVisible && !versionCompareEnabled && !imageModeActive && (
+            {dessinPanelDocked && !versionCompareEnabled && !imageModeActive && (
                 <FloatingHelpersDessin />
             )}
 
