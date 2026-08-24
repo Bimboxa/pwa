@@ -1,19 +1,30 @@
 import { useState, useMemo } from "react";
 import { useSelector } from "react-redux";
 
-import { Box, List, Typography, Divider } from "@mui/material";
+import {
+  Box,
+  List,
+  Typography,
+  Divider,
+  IconButton,
+  Tooltip,
+} from "@mui/material";
 import ExpandMore from "@mui/icons-material/ExpandMore";
 import ChevronRight from "@mui/icons-material/ChevronRight";
+import Visibility from "@mui/icons-material/Visibility";
+import VisibilityOff from "@mui/icons-material/VisibilityOff";
 
 import RowPanelDrawingTemplate from "./RowPanelDrawingTemplate";
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
+import useUpdateAnnotationTemplates from "Features/annotations/hooks/useUpdateAnnotationTemplates";
 import groupAnnotationTemplatesByGroupLabel from "Features/annotations/utils/groupAnnotationTemplatesByGroupLabel";
 
 // ---------------------------------------------------------------------------
 // SectionViewerListing — one listing section of the Viewer panel: collapsible
-// header (listing name + "N types · M u") over the read-only template rows.
-// Scope: templates with an annotation on the displayed base maps
-// (visibleTemplateIds), then the Tous / Visibles / Masqués filter.
+// header (listing name + a listing-level eye toggling every template of the
+// listing, like the PopperMapListings listing eye) over the read-only
+// template rows. Scope: templates with an annotation on the displayed base
+// maps (visibleTemplateIds), then the Tous / Visibles / Masqués filter.
 // ---------------------------------------------------------------------------
 
 export default function SectionViewerListing({
@@ -28,6 +39,7 @@ export default function SectionViewerListing({
     filterByListingId: listing.id,
     sortByOrder: true,
   });
+  const updateAnnotationTemplates = useUpdateAnnotationTemplates();
   const templateFilter = useSelector((s) => s.panelDrawing.templateFilter);
 
   // state
@@ -49,11 +61,24 @@ export default function SectionViewerListing({
   );
 
   const typesCount = filteredTemplates.length;
-  const unitsCount = filteredTemplates.reduce(
-    (acc, t) => acc + (qtiesById?.[t.id]?.unit ?? 0),
-    0
-  );
-  const summaryS = `${typesCount} type${typesCount > 1 ? "s" : ""} · ${unitsCount} u`;
+
+  // The listing eye mirrors the template eyes: off when every template of
+  // the listing is hidden (same rule as the popper).
+  const isHidden =
+    (allTemplates ?? []).length > 0 && allTemplates.every((t) => t.hidden);
+
+  // handlers
+
+  // Batch-toggle every template eye of the listing in one write, only
+  // touching templates whose `hidden` actually changes.
+  async function handleToggleVisibility(e) {
+    e.stopPropagation();
+    const targetHidden = !isHidden;
+    const updates = (allTemplates ?? [])
+      .filter((t) => Boolean(t.hidden) !== targetHidden)
+      .map((t) => ({ id: t.id, hidden: targetHidden }));
+    await updateAnnotationTemplates(updates);
+  }
 
   // render
 
@@ -91,17 +116,23 @@ export default function SectionViewerListing({
         >
           {listing.name ?? listing.label ?? "Liste"}
         </Typography>
-        <Typography
-          variant="caption"
-          noWrap
-          sx={{
-            fontFamily: "monospace",
-            color: "text.secondary",
-            flexShrink: 0,
-          }}
-        >
-          {summaryS}
-        </Typography>
+        <Tooltip title={isHidden ? "Afficher" : "Masquer"} arrow>
+          <IconButton
+            size="small"
+            onClick={handleToggleVisibility}
+            sx={{
+              p: 0.5,
+              flexShrink: 0,
+              color: isHidden ? "secondary.main" : "panel.iconMuted",
+            }}
+          >
+            {isHidden ? (
+              <VisibilityOff sx={{ fontSize: 18 }} />
+            ) : (
+              <Visibility sx={{ fontSize: 18 }} />
+            )}
+          </IconButton>
+        </Tooltip>
       </Box>
 
       {/* Template rows */}
