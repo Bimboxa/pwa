@@ -607,7 +607,14 @@ export default function BaseMapTreeItem({ listing, baseMaps, isDropTarget }) {
       </ListItemButton>
 
       {isExpanded && (
-        <Box>
+        // White background isolating the group's content from the panel
+        <Box
+          sx={{
+            bgcolor: "background.paper",
+            borderBottom: "1px solid",
+            borderColor: "divider",
+          }}
+        >
           <Divider />
           <SortableContext
             items={baseMapIds}
