@@ -44,7 +44,6 @@ export default function PanelTemplateAnnotations({
   const propertiesS = "Propriétés du modèle";
   const soloS = "Isoler";
   const selectAllS = "Tout sél.";
-  const sortHintS = "trié par ordre de tracé";
 
   // data
 
@@ -247,29 +246,13 @@ export default function PanelTemplateAnnotations({
       </Box>
 
       {/* Summary line */}
-      <Box
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 1,
-          px: 2,
-          pb: 1,
-        }}
-      >
+      <Box sx={{ px: 2, pb: 1 }}>
         <Typography
           variant="caption"
           noWrap
           sx={{ fontFamily: "monospace", fontWeight: 500 }}
         >
           {qtyLine}
-        </Typography>
-        <Typography
-          variant="caption"
-          noWrap
-          sx={{ fontFamily: "monospace", color: "text.secondary" }}
-        >
-          {sortHintS}
         </Typography>
       </Box>
 
