@@ -45,6 +45,9 @@ export default function RowPanelDrawingTemplate({
   sortableAttributes,
   dragListeners,
   dndEnabled,
+  // Viewer module: no draw entry points (split button, L/P badges, Auto
+  // procedure chip) — the row keeps the eye and the detail navigation.
+  readOnly,
 }) {
   const dispatch = useDispatch();
 
@@ -59,7 +62,7 @@ export default function RowPanelDrawingTemplate({
   const linkedProcedures = (annotationTemplate?.procedureKeys ?? [])
     .map((key) => procedures.find((p) => p.key === key))
     .filter(Boolean);
-  const hasProcedure = linkedProcedures.length > 0;
+  const hasProcedure = linkedProcedures.length > 0 && !readOnly;
   const selectedBaseMapId = useSelector((s) => s.mapEditor.selectedBaseMapId);
 
   // state
@@ -203,7 +206,7 @@ export default function RowPanelDrawingTemplate({
                 </Typography>
               )}
             </Typography>
-            {freeShortcut && (
+            {freeShortcut && !readOnly && (
               <Box sx={{ flexShrink: 0 }}>
                 <ShortcutBadge>{freeShortcut}</ShortcutBadge>
               </Box>
@@ -266,10 +269,12 @@ export default function RowPanelDrawingTemplate({
         )}
 
         {/* Split draw button */}
-        <SplitButtonStartDraw
-          annotationTemplate={annotationTemplate}
-          listingId={listingId}
-        />
+        {!readOnly && (
+          <SplitButtonStartDraw
+            annotationTemplate={annotationTemplate}
+            listingId={listingId}
+          />
+        )}
 
         {/* Visibility toggle */}
         <Tooltip title={isHidden ? "Afficher" : "Masquer"} arrow>

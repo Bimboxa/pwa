@@ -18,8 +18,8 @@ import MainListingViewer from "Features/listingViewer/components/MainListingView
 import LeftDrawerPanel from "Features/leftPanel/components/LeftDrawerPanel";
 import LeftDrawerPanelHeader from "Features/leftPanel/components/LeftDrawerPanelHeader";
 import PanelMeshesViewer from "Features/threedMesh/components/PanelMeshesViewer";
-import PanelAnnotationsRecap from "Features/annotations/components/PanelAnnotationsRecap";
 import PanelDrawing from "Features/panelDrawing/components/PanelDrawing";
+import PanelViewerAnnotations from "Features/panelDrawing/components/PanelViewerAnnotations";
 import PanelPovList from "Features/pov/components/PanelPovList";
 import ButtonSavePov from "Features/pov/components/ButtonSavePov";
 import ButtonCreatePovView from "Features/pov/components/ButtonCreatePovView";
@@ -108,11 +108,12 @@ export default function SectionViewer() {
         </LeftDrawerPanel>
       )}
 
-      {/* Viewer module: read-only annotations recap drawer, by listing /
-          template. */}
+      {/* Viewer module: read-only annotations drawer — every listing of the
+          repérage as a collapsible section over its template rows (shares
+          the detail subviews with the Dessin panel). */}
       {viewerKey === "THREED" && (
-        <LeftDrawerPanel width={320} viewerKey="THREED">
-          <PanelAnnotationsRecap />
+        <LeftDrawerPanel width={360} viewerKey="THREED">
+          <PanelViewerAnnotations />
         </LeftDrawerPanel>
       )}
 
