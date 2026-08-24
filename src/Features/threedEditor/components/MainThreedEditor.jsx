@@ -114,6 +114,9 @@ import useExtrudePointerHandlers from "Features/threedExtrude/hooks/useExtrudePo
 import useMoveBaseMapPointerHandlers from "Features/threedBaseMapMove/hooks/useMoveBaseMapPointerHandlers";
 import MoveBaseMapOverlayThreed from "Features/threedBaseMapMove/components/MoveBaseMapOverlayThreed";
 import MoveBaseMapToolbarThreed from "Features/threedBaseMapMove/components/MoveBaseMapToolbarThreed";
+import useRotateBaseMapPointerHandlers from "Features/threedBaseMapMove/hooks/useRotateBaseMapPointerHandlers";
+import RotateBaseMapOverlayThreed from "Features/threedBaseMapMove/components/RotateBaseMapOverlayThreed";
+import RotateBaseMapToolbarThreed from "Features/threedBaseMapMove/components/RotateBaseMapToolbarThreed";
 import useWalkMode from "Features/threedEditor/hooks/useWalkMode";
 import useObject3DPlacementHandlers from "Features/threedEditor/hooks/useObject3DPlacementHandlers";
 import { selectIsObject3DPlacementActive } from "Features/threedEditor/utils/object3DPlacementSelectors";
@@ -340,6 +343,16 @@ export default function MainThreedEditor() {
     moveBaseMapActiveRef.current = moveBaseMapActive;
   }, [moveBaseMapActive]);
 
+  // Same pattern for the "Tourner" (rotate base map) mode —
+  // useRotateBaseMapPointerHandlers owns the pointer while active.
+  const rotateBaseMapActive = useSelector(
+    (s) => s.threedEditor.rotateBaseMapMode.active
+  );
+  const rotateBaseMapActiveRef = useRef(rotateBaseMapActive);
+  useEffect(() => {
+    rotateBaseMapActiveRef.current = rotateBaseMapActive;
+  }, [rotateBaseMapActive]);
+
   // Same pattern for OBJECT_3D placement mode (derived state) —
   // useObject3DPlacementHandlers owns the pointer while active.
   const placementActive = useSelector(selectIsObject3DPlacementActive);
@@ -392,6 +405,7 @@ export default function MainThreedEditor() {
   useMeshingPointerHandlers();
   useExtrudePointerHandlers();
   useMoveBaseMapPointerHandlers();
+  useRotateBaseMapPointerHandlers();
   useWalkMode();
   useObject3DPlacementHandlers();
   useTemplateFaceDrawBridge();
@@ -610,9 +624,10 @@ export default function MainThreedEditor() {
       // OBJECT_3D placement owns the pointer; useObject3DPlacementHandlers
       // handles it.
       if (placementActiveRef.current) return;
-      // Move-base-map mode owns the pointer; useMoveBaseMapPointerHandlers
-      // handles it.
+      // Move / rotate base-map modes own the pointer; their handler hooks
+      // handle it.
       if (moveBaseMapActiveRef.current) return;
+      if (rotateBaseMapActiveRef.current) return;
 
       const threedEditor = threedEditorRef.current;
       const sceneManager = threedEditor.sceneManager;
@@ -1003,6 +1018,7 @@ export default function MainThreedEditor() {
       if (walkActiveRef.current) return;
       if (placementActiveRef.current) return;
       if (moveBaseMapActiveRef.current) return;
+      if (rotateBaseMapActiveRef.current) return;
       // Shift stays reserved for the multi-selection / lasso.
       if (event.shiftKey) return;
 
@@ -1369,8 +1385,9 @@ export default function MainThreedEditor() {
       if (drawingActiveRef.current) {
         return;
       }
-      // Move-base-map mode owns the pointer (its own drag tracking).
-      if (moveBaseMapActiveRef.current) {
+      // Move / rotate base-map modes own the pointer (their own drag
+      // tracking).
+      if (moveBaseMapActiveRef.current || rotateBaseMapActiveRef.current) {
         return;
       }
       isDraggingRef.current = false;
@@ -1491,7 +1508,8 @@ export default function MainThreedEditor() {
       extrudeActiveRef.current ||
       walkActiveRef.current ||
       placementActiveRef.current ||
-      moveBaseMapActiveRef.current
+      moveBaseMapActiveRef.current ||
+      rotateBaseMapActiveRef.current
     ) {
       if (prevHoveredObjectRef.current) {
         const prevId = prevHoveredObjectRef.current.userData?.nodeId;
@@ -2040,6 +2058,8 @@ export default function MainThreedEditor() {
           <CoteToolbarThreed />
         ) : moveBaseMapActive ? (
           <MoveBaseMapToolbarThreed />
+        ) : rotateBaseMapActive ? (
+          <RotateBaseMapToolbarThreed />
         ) : meshingActive || isMeshesViewer ? (
           <MeshingToolbarThreed />
         ) : (
@@ -2061,6 +2081,7 @@ export default function MainThreedEditor() {
       )}
       {isThreedViewer && <DimensionDraftOverlayThreed />}
       {isThreedViewer && <MoveBaseMapOverlayThreed />}
+      {isThreedViewer && <RotateBaseMapOverlayThreed />}
       {isThreedViewer && rendererIsReady && <ThreedMeshes />}
       {isThreedViewer && <MeshingOverlayThreed />}
       {isThreedViewer && <ExtrudeOverlayThreed />}

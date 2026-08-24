@@ -213,6 +213,17 @@ const threedEditorInitialState = {
     // Base map currently carried (null = waiting for the grab click).
     carriedBaseMapId: null,
   },
+  // "Tourner" mode: 1st snapped click sets the rotation pivot (and picks the
+  // base map), the mouse then rotates the whole base map group (image +
+  // annotations) around the WORLD-VERTICAL axis through the pivot — whatever
+  // the plane orientation (the group euler is YXZ, so adding to rotation.y
+  // IS a world-Y rotation) — and the 2nd click commits `angleDeg` + the
+  // recomputed `position`. Mutually exclusive with the other 3D tool modes.
+  rotateBaseMapMode: {
+    active: false,
+    // Base map currently rotating (null = waiting for the pivot click).
+    carriedBaseMapId: null,
+  },
   // First-person walk mode (W in the 3D viewer). Camera-controls suspended:
   // pointer-locked mouse looks, arrow keys move on the selected baseMap,
   // Space fires the concrete lance at the screen center.
@@ -353,6 +364,8 @@ export const threedEditorSlice = createSlice({
         state.extrudeMode.targetAnnotationId = null;
         state.moveBaseMapMode.active = false;
         state.moveBaseMapMode.carriedBaseMapId = null;
+        state.rotateBaseMapMode.active = false;
+        state.rotateBaseMapMode.carriedBaseMapId = null;
       }
     },
     bumpSnapIndexEpoch: (state) => {
@@ -464,6 +477,8 @@ export const threedEditorSlice = createSlice({
         state.extrudeMode.targetAnnotationId = null;
         state.moveBaseMapMode.active = false;
         state.moveBaseMapMode.carriedBaseMapId = null;
+        state.rotateBaseMapMode.active = false;
+        state.rotateBaseMapMode.carriedBaseMapId = null;
       }
     },
     setDimensionStartPoint: (state, action) => {
@@ -490,6 +505,8 @@ export const threedEditorSlice = createSlice({
         state.extrudeMode.targetAnnotationId = null;
         state.moveBaseMapMode.active = false;
         state.moveBaseMapMode.carriedBaseMapId = null;
+        state.rotateBaseMapMode.active = false;
+        state.rotateBaseMapMode.carriedBaseMapId = null;
       }
     },
     setMeshingTool: (state, action) => {
@@ -540,6 +557,8 @@ export const threedEditorSlice = createSlice({
         state.walkMode.active = false;
         state.moveBaseMapMode.active = false;
         state.moveBaseMapMode.carriedBaseMapId = null;
+        state.rotateBaseMapMode.active = false;
+        state.rotateBaseMapMode.carriedBaseMapId = null;
       }
     },
     // Mouse-driven update. A no-op while the typed buffer is non-empty — the
@@ -582,6 +601,8 @@ export const threedEditorSlice = createSlice({
         state.extrudeMode.targetAnnotationId = null;
         state.moveBaseMapMode.active = false;
         state.moveBaseMapMode.carriedBaseMapId = null;
+        state.rotateBaseMapMode.active = false;
+        state.rotateBaseMapMode.carriedBaseMapId = null;
       }
     },
     setMoveBaseMapModeActive: (state, action) => {
@@ -600,10 +621,35 @@ export const threedEditorSlice = createSlice({
         state.walkMode.active = false;
         state.extrudeMode.active = false;
         state.extrudeMode.targetAnnotationId = null;
+        state.rotateBaseMapMode.active = false;
+        state.rotateBaseMapMode.carriedBaseMapId = null;
       }
     },
     setMoveBaseMapCarriedId: (state, action) => {
       state.moveBaseMapMode.carriedBaseMapId = action.payload ?? null;
+    },
+    setRotateBaseMapModeActive: (state, action) => {
+      state.rotateBaseMapMode.active = !!action.payload;
+      state.rotateBaseMapMode.carriedBaseMapId = null;
+      if (action.payload) {
+        // Mutually exclusive with every other 3D tool mode.
+        state.drawingMode.active = false;
+        state.drawingMode.inProgressPolyline = [];
+        state.drawingMode.trait3DSegments = [];
+        state.drawingMode.axisLock = null;
+        state.dimensionMode.active = false;
+        state.dimensionMode.startPoint = null;
+        state.meshingMode.active = false;
+        state.meshingMode.tool = "SELECT";
+        state.walkMode.active = false;
+        state.extrudeMode.active = false;
+        state.extrudeMode.targetAnnotationId = null;
+        state.moveBaseMapMode.active = false;
+        state.moveBaseMapMode.carriedBaseMapId = null;
+      }
+    },
+    setRotateBaseMapCarriedId: (state, action) => {
+      state.rotateBaseMapMode.carriedBaseMapId = action.payload ?? null;
     },
     setHideAnnotationsIn3d: (state, action) => {
       state.hideAnnotationsIn3d = action.payload;
@@ -700,6 +746,8 @@ export const {
   setWalkModeActive,
   setMoveBaseMapModeActive,
   setMoveBaseMapCarriedId,
+  setRotateBaseMapModeActive,
+  setRotateBaseMapCarriedId,
   setHideAnnotationsIn3d,
   setMesh3dLabels,
   setMesh3dGroupByOrientation,

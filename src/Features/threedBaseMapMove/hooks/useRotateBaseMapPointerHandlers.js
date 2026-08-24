@@ -3,8 +3,8 @@ import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import {
-  setMoveBaseMapModeActive,
-  setMoveBaseMapCarriedId,
+  setRotateBaseMapModeActive,
+  setRotateBaseMapCarriedId,
   bumpSnapIndexEpoch,
 } from "Features/threedEditor/threedEditorSlice";
 import { triggerBaseMapsUpdate } from "Features/baseMaps/baseMapsSlice";
@@ -16,41 +16,40 @@ import resolveBaseMapGroupFromSnap from "../utils/resolveBaseMapGroupFromSnap";
 import db from "App/db/db";
 
 import {
-  getLastMoveSnap,
-  getMoveGrab,
-  setMoveGrab,
-  clearMoveGrab,
-} from "../services/moveBaseMapSessionStore";
+  getLastRotateSnap,
+  getRotateGrab,
+  setRotateGrab,
+  clearRotateGrab,
+} from "../services/rotateBaseMapSessionStore";
 
-// Mirrors useDimensionPointerHandlers.
+// Mirrors useMoveBaseMapPointerHandlers.
 const DRAG_THRESHOLD_PX = 4;
 
-// Restores the carried group to its grab-time position (Escape / mode exit).
-function restoreCarriedGroup() {
-  const grab = getMoveGrab();
+// Restores the rotating group to its pivot-click pose (Escape / mode exit).
+function restoreRotatedGroup() {
+  const grab = getRotateGrab();
   if (!grab) return;
   const editor = getActiveThreedEditor();
   const group = editor?.sceneManager?.imagesManager?.getGroup(grab.baseMapId);
   if (group) {
+    group.rotation.y = grab.groupStartRotY;
     group.position.copy(grab.groupStartPosition);
     editor.renderScene?.();
   }
-  clearMoveGrab();
+  clearRotateGrab();
 }
 
-// Wires click + key handlers for the "Déplacer" (move base map) mode:
-// 1st snapped click grabs — resolves the base map owning the snapped mesh,
-// records the grabbed point and the group's start position (the overlay then
-// moves the whole group, image + annotations, with the cursor); 2nd click
-// drops — persists the base map `position` so the grabbed point lands
-// exactly on the drop point (translation only, rotation kept). Esc cancels
-// the in-progress move, or exits the mode when nothing is grabbed. A
-// press-release pair that moved past DRAG_THRESHOLD_PX is a camera drag,
-// not a click.
-export default function useMoveBaseMapPointerHandlers() {
+// Wires click + key handlers for the "Tourner" (rotate base map) mode: the
+// 1st snapped click sets the rotation pivot and resolves the base map owning
+// the snapped mesh (the overlay then rotates the whole group, image +
+// annotations, around the world-vertical axis through the pivot, following
+// the cursor bearing); the 2nd click commits — `angleDeg` and the recomputed
+// `position` are persisted. Esc cancels the in-progress rotation, or exits
+// the mode when nothing is grabbed.
+export default function useRotateBaseMapPointerHandlers() {
   const dispatch = useDispatch();
 
-  const active = useSelector((s) => s.threedEditor.moveBaseMapMode.active);
+  const active = useSelector((s) => s.threedEditor.rotateBaseMapMode.active);
 
   useEffect(() => {
     if (!active) return;
@@ -74,7 +73,7 @@ export default function useMoveBaseMapPointerHandlers() {
       if (dx > DRAG_THRESHOLD_PX || dy > DRAG_THRESHOLD_PX) isDragging = true;
     }
 
-    function grabAtSnap(snap) {
+    function grabPivotAtSnap(snap) {
       const scene = editor?.sceneManager?.scene;
       const { group, baseMapId } = resolveBaseMapGroupFromSnap(editor, snap);
       if (!group || !baseMapId) {
@@ -87,58 +86,49 @@ export default function useMoveBaseMapPointerHandlers() {
         return;
       }
 
-      // Fresh target-only snap index, excluding the whole carried subtree:
-      // the carried geometry must never screen the drop targets, and a
-      // grab-time rebuild guarantees up-to-date world positions whatever
-      // happened since the mode was armed.
+      // Fresh target-only snap index, excluding the whole rotated subtree
+      // (same rationale as the "Déplacer" tool).
       const { verts: targetVerts, adjacency: targetAdjacency } = buildIndex(
         scene,
         { excludeSubtree: group }
       );
 
-      setMoveGrab({
+      setRotateGrab({
         baseMapId,
-        startWorld: snap.position.clone(),
+        pivot: snap.position.clone(),
         groupStartPosition: group.position.clone(),
+        groupStartRotY: group.rotation.y,
+        refBearing: null,
+        currentPhi: 0,
         targetVerts,
         targetAdjacency,
       });
-      dispatch(setMoveBaseMapCarriedId(baseMapId));
+      dispatch(setRotateBaseMapCarriedId(baseMapId));
     }
 
-    async function dropAtSnap(grab, snap) {
+    async function commitRotation(grab) {
       const group = editor?.sceneManager?.imagesManager?.getGroup(
         grab.baseMapId
       );
-      if (!group) {
-        clearMoveGrab();
-        dispatch(setMoveBaseMapCarriedId(null));
-        return;
-      }
-      // The overlay already placed the group so the grabbed point lands on
-      // the target; re-apply from the drop snap to be exact.
-      group.position.set(
-        grab.groupStartPosition.x + (snap.position.x - grab.startWorld.x),
-        grab.groupStartPosition.y + (snap.position.y - grab.startWorld.y),
-        grab.groupStartPosition.z + (snap.position.z - grab.startWorld.z)
-      );
-      editor.renderScene?.();
+      clearRotateGrab();
+      dispatch(setRotateBaseMapCarriedId(null));
+      if (!group) return;
 
+      // The overlay already posed the group — persist its live pose (same
+      // contract as the transform gizmo's drag-end callback).
+      const angleDeg = (group.rotation.y * 180) / Math.PI;
       const position = {
         x: group.position.x,
         y: group.position.y,
         z: group.position.z,
       };
-      clearMoveGrab();
-      dispatch(setMoveBaseMapCarriedId(null));
       try {
-        await db.baseMaps.update(grab.baseMapId, { position });
+        await db.baseMaps.update(grab.baseMapId, { angleDeg, position });
         dispatch(triggerBaseMapsUpdate());
       } catch (err) {
-        console.error("[threedBaseMapMove] persist failed", err);
+        console.error("[threedBaseMapMove] rotate persist failed", err);
       }
-      // Refresh the snap index with the moved geometry so the next grab
-      // snaps at the new location.
+      // Refresh the snap index with the rotated geometry.
       dispatch(bumpSnapIndexEpoch());
     }
 
@@ -149,16 +139,14 @@ export default function useMoveBaseMapPointerHandlers() {
       isDragging = false;
       if (wasDrag) return;
 
-      const snap = getLastMoveSnap();
-      if (!snap?.position) return;
-
-      const grab = getMoveGrab();
+      const grab = getRotateGrab();
       if (!grab) {
-        // Grab click: snapped points only — a free click grabs nothing.
-        if (snap.kind !== "VERTEX") return;
-        grabAtSnap(snap);
+        // Pivot click: snapped points only.
+        const snap = getLastRotateSnap();
+        if (snap?.kind !== "VERTEX" || !snap?.position) return;
+        grabPivotAtSnap(snap);
       } else {
-        await dropAtSnap(grab, snap);
+        await commitRotation(grab);
       }
     }
 
@@ -169,12 +157,12 @@ export default function useMoveBaseMapPointerHandlers() {
 
     function onKeyDown(e) {
       if (e.key !== "Escape") return;
-      if (getMoveGrab()) {
-        // Cancel the in-progress move: put the group back.
-        restoreCarriedGroup();
-        dispatch(setMoveBaseMapCarriedId(null));
+      if (getRotateGrab()) {
+        // Cancel the in-progress rotation: put the group back.
+        restoreRotatedGroup();
+        dispatch(setRotateBaseMapCarriedId(null));
       } else {
-        dispatch(setMoveBaseMapModeActive(false));
+        dispatch(setRotateBaseMapModeActive(false));
       }
     }
 
@@ -189,8 +177,8 @@ export default function useMoveBaseMapPointerHandlers() {
       dom.removeEventListener("pointerup", onPointerUp);
       dom.removeEventListener("pointercancel", onPointerCancel);
       window.removeEventListener("keydown", onKeyDown);
-      // Leaving the mode with a base map in hand: put it back.
-      restoreCarriedGroup();
+      // Leaving the mode mid-rotation: put the group back.
+      restoreRotatedGroup();
     };
   }, [active, dispatch]);
 }
