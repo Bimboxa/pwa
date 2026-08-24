@@ -17,13 +17,17 @@ import { OwnershipError } from "App/db/ownership";
 
 export default function IconButtonMoreActionsBaseMapListing({
   listing,
+  onRename,
+  onAddBaseMap,
   ...iconButtonProps
 }) {
   const dispatch = useDispatch();
 
   // strings
 
-  const deleteS = "Supprimer";
+  const renameS = "Renommer le dossier";
+  const addBaseMapS = "Ajouter un fond de plan";
+  const deleteS = "Supprimer le dossier";
 
   // data
 
@@ -57,6 +61,16 @@ export default function IconButtonMoreActionsBaseMapListing({
     setAnchorEl(null);
   }
 
+  function handleRename() {
+    setAnchorEl(null);
+    onRename?.();
+  }
+
+  function handleAddBaseMap() {
+    setAnchorEl(null);
+    onAddBaseMap?.();
+  }
+
   async function handleDelete() {
     setAnchorEl(null);
     if (!guardEditRecord(listing)) return;
@@ -87,7 +101,15 @@ export default function IconButtonMoreActionsBaseMapListing({
       </IconButton>
 
       <Menu open={Boolean(anchorEl)} anchorEl={anchorEl} onClose={handleClose}>
-        <MenuItem onClick={handleDelete} disabled={!canEditRecord(listing)}>
+        {onRename && <MenuItem onClick={handleRename}>{renameS}</MenuItem>}
+        {onAddBaseMap && (
+          <MenuItem onClick={handleAddBaseMap}>{addBaseMapS}</MenuItem>
+        )}
+        <MenuItem
+          onClick={handleDelete}
+          disabled={!canEditRecord(listing)}
+          sx={{ color: "error.main" }}
+        >
           {deleteS}
         </MenuItem>
       </Menu>

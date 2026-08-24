@@ -12,6 +12,11 @@ const baseMapEditorInitialState = {
   collapsedListingIds: [],
   creatingInListingId: null,
   expandedBaseMapVersionIds: [], // baseMap IDs whose version lists are expanded
+  // detail view (#312): baseMap whose detail is open in the left panel +
+  // subview (versions list or baseMap properties). A stale id (deleted
+  // baseMap) resolves to nothing and the tree renders.
+  detailBaseMapId: null,
+  detailView: "VERSIONS", // VERSIONS, PROPERTIES
   // versions
   selectedVersionId: null,
   hiddenVersionIds: [],
@@ -65,6 +70,14 @@ export const baseMapEditorSlice = createSlice({
       } else {
         state.expandedBaseMapVersionIds.splice(idx, 1);
       }
+    },
+    // detail view
+    setDetailBaseMapId: (state, action) => {
+      state.detailBaseMapId = action.payload;
+      state.detailView = "VERSIONS";
+    },
+    setDetailView: (state, action) => {
+      state.detailView = action.payload;
     },
     // versions
     setSelectedVersionId: (state, action) => {
@@ -124,6 +137,8 @@ export const {
   setCreatingInListingId,
   toggleListingCollapsed,
   toggleBaseMapVersionsExpanded,
+  setDetailBaseMapId,
+  setDetailView,
   setSelectedVersionId,
   setVersionTransformOverride,
   toggleVersionHidden,

@@ -411,7 +411,7 @@ export default function BaseMapTree() {
             color="disabled"
           />
           <ListItemText
-            primary="Nouveau groupe"
+            primary="Nouveau dossier"
             slotProps={{
               primary: { variant: "body2", color: "text.disabled" },
             }}

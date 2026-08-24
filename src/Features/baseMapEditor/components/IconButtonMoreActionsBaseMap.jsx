@@ -17,6 +17,8 @@ import useDeleteBaseMap, {
 
 export default function IconButtonMoreActionsBaseMap({
   baseMap,
+  onOpenProperties,
+  onRename,
   onAddVersion,
   ...iconButtonProps
 }) {
@@ -24,8 +26,10 @@ export default function IconButtonMoreActionsBaseMap({
 
   // strings
 
-  const addVersionS = "Ajouter une version";
-  const deleteS = "Supprimer";
+  const propertiesS = "Propriétés du fond de plan";
+  const renameS = "Renommer";
+  const addVersionS = "Nouvelle version";
+  const deleteS = "Supprimer le fond de plan";
 
   // data
 
@@ -54,6 +58,16 @@ export default function IconButtonMoreActionsBaseMap({
 
   function handleClose() {
     setAnchorEl(null);
+  }
+
+  function handleOpenProperties() {
+    setAnchorEl(null);
+    onOpenProperties?.();
+  }
+
+  function handleRename() {
+    setAnchorEl(null);
+    onRename?.();
   }
 
   function handleAddVersion() {
@@ -86,8 +100,14 @@ export default function IconButtonMoreActionsBaseMap({
       </IconButton>
 
       <Menu open={Boolean(anchorEl)} anchorEl={anchorEl} onClose={handleClose}>
+        {onOpenProperties && (
+          <MenuItem onClick={handleOpenProperties}>{propertiesS}</MenuItem>
+        )}
+        {onRename && <MenuItem onClick={handleRename}>{renameS}</MenuItem>}
         <MenuItem onClick={handleAddVersion}>{addVersionS}</MenuItem>
-        <MenuItem onClick={handleDelete}>{deleteS}</MenuItem>
+        <MenuItem onClick={handleDelete} sx={{ color: "error.main" }}>
+          {deleteS}
+        </MenuItem>
       </Menu>
 
       <DialogDeleteRessource

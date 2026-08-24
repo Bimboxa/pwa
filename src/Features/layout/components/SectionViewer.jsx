@@ -12,7 +12,7 @@ import TableViewer from "Features/tables/components/ViewerTable";
 import MainPortfolioEditor from "Features/portfolioEditor/components/MainPortfolioEditor";
 import MainBaseMapViewer from "Features/baseMapEditor/components/MainBaseMapViewer";
 import ZoningsTree from "Features/zonings/components/ZoningsTree";
-import BaseMapTree from "Features/baseMapEditor/components/BaseMapTree";
+import PanelBaseMaps from "Features/baseMapEditor/components/PanelBaseMaps";
 import ViewerAdmin from "Features/adminEditor/components/ViewerAdmin";
 import MainListingViewer from "Features/listingViewer/components/MainListingViewer";
 import LeftDrawerPanel from "Features/leftPanel/components/LeftDrawerPanel";
@@ -132,17 +132,13 @@ export default function SectionViewer() {
         </LeftDrawerPanel>
       )}
 
-      {/* Base maps tree: in-flow sibling of the editors area so it serves
+      {/* Base maps panel: in-flow sibling of the editors area so it serves
           both the 2D and the 3D editor of the module (same pattern as the
-          Zones drawer; the guard is load-bearing for the same reason). */}
+          Zones drawer; the guard is load-bearing for the same reason). The
+          panel owns the tree / base map detail subview switching (#312). */}
       {isBaseMapsModule && (
-        <LeftDrawerPanel width={260} viewerKey="BASE_MAPS">
-          <BoxFlexVStretch sx={{ height: 1 }}>
-            <LeftDrawerPanelHeader title="Fonds de plan" />
-            <BoxFlexVStretch sx={{ overflow: "auto" }}>
-              <BaseMapTree />
-            </BoxFlexVStretch>
-          </BoxFlexVStretch>
+        <LeftDrawerPanel width={300} viewerKey="BASE_MAPS">
+          <PanelBaseMaps />
         </LeftDrawerPanel>
       )}
 
