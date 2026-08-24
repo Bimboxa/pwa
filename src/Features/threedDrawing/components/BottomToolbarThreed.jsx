@@ -16,8 +16,11 @@ import ButtonRotateBaseMapThreed from "Features/threedBaseMapMove/components/But
 // here: it is armed by picking a template row in PopperMapListings (see
 // useTemplateFaceDrawBridge).
 // Viewer module (read-only): the creation/modification actions ("Extruder",
-// "Mailler") are hidden — only "Coupe" remains. The zoom out lives outside
-// the toolbar (ButtonZoomOutThreed, bottom-right of the editor).
+// "Mailler") are hidden — only "Coupe" remains.
+// Fond de plan module (BASE_MAPS): base-map placement only — "Déplacer" /
+// "Tourner", no "Extruder" nor "Coupe".
+// The zoom out lives outside the toolbar (ButtonZoomOutThreed, bottom-right
+// of the editor).
 export default function BottomToolbarThreed() {
   const dispatch = useDispatch();
 
@@ -28,6 +31,9 @@ export default function BottomToolbarThreed() {
   );
   const isViewerModule = useSelector(
     (s) => s.viewers.selectedViewerKey === "THREED"
+  );
+  const isBaseMapsModule = useSelector(
+    (s) => s.viewers.selectedViewerKey === "BASE_MAPS"
   );
   const clippingEditing = useSelector(
     (s) => s.threedEditor.clippingPlane.editing
@@ -50,27 +56,31 @@ export default function BottomToolbarThreed() {
       <Stack direction="row" spacing={1} alignItems="center">
         {!isViewerModule && (
           <>
-            <ButtonExtrudeThreed />
+            {!isBaseMapsModule && <ButtonExtrudeThreed />}
             {isMeshesViewer && <ButtonMeshThreed />}
             <ButtonMoveBaseMapThreed />
             <ButtonRotateBaseMapThreed />
             {/* No leading divider when nothing precedes "Coupe" (Viewer
                 module). */}
-            <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+            {!isBaseMapsModule && (
+              <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+            )}
           </>
         )}
-        <Tooltip title="Plan de coupe">
-          <Button
-            size="small"
-            variant={clippingEditing ? "contained" : "outlined"}
-            color={clippingEditing ? "secondary" : "inherit"}
-            startIcon={<ContentCutIcon sx={{ fontSize: 18 }} />}
-            onClick={() => dispatch(toggleClippingPlaneEditing())}
-            sx={{ textTransform: "none", borderRadius: "8px" }}
-          >
-            Coupe
-          </Button>
-        </Tooltip>
+        {!isBaseMapsModule && (
+          <Tooltip title="Plan de coupe">
+            <Button
+              size="small"
+              variant={clippingEditing ? "contained" : "outlined"}
+              color={clippingEditing ? "secondary" : "inherit"}
+              startIcon={<ContentCutIcon sx={{ fontSize: 18 }} />}
+              onClick={() => dispatch(toggleClippingPlaneEditing())}
+              sx={{ textTransform: "none", borderRadius: "8px" }}
+            >
+              Coupe
+            </Button>
+          </Tooltip>
+        )}
       </Stack>
     </Paper>
   );
