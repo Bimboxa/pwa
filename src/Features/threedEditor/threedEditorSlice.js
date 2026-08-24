@@ -213,16 +213,19 @@ const threedEditorInitialState = {
     // Base map currently carried (null = waiting for the grab click).
     carriedBaseMapId: null,
   },
-  // "Tourner" mode: 1st snapped click sets the rotation pivot (and picks the
-  // base map), the mouse then rotates the whole base map group (image +
+  // "Tourner" mode, CAD-style 3 clicks: 1st snapped click sets the rotation
+  // pivot (and picks the base map), 2nd click fixes the reference axis from
+  // the pivot, the mouse then rotates the whole base map group (image +
   // annotations) around the WORLD-VERTICAL axis through the pivot — whatever
   // the plane orientation (the group euler is YXZ, so adding to rotation.y
-  // IS a world-Y rotation) — and the 2nd click commits `angleDeg` + the
+  // IS a world-Y rotation) — and the 3rd click commits `angleDeg` + the
   // recomputed `position`. Mutually exclusive with the other 3D tool modes.
   rotateBaseMapMode: {
     active: false,
     // Base map currently rotating (null = waiting for the pivot click).
     carriedBaseMapId: null,
+    // Reference axis fixed (2nd click done) — drives the toolbar hint.
+    referenceSet: false,
   },
   // First-person walk mode (W in the 3D viewer). Camera-controls suspended:
   // pointer-locked mouse looks, arrow keys move on the selected baseMap,
@@ -631,6 +634,7 @@ export const threedEditorSlice = createSlice({
     setRotateBaseMapModeActive: (state, action) => {
       state.rotateBaseMapMode.active = !!action.payload;
       state.rotateBaseMapMode.carriedBaseMapId = null;
+      state.rotateBaseMapMode.referenceSet = false;
       if (action.payload) {
         // Mutually exclusive with every other 3D tool mode.
         state.drawingMode.active = false;
@@ -650,6 +654,10 @@ export const threedEditorSlice = createSlice({
     },
     setRotateBaseMapCarriedId: (state, action) => {
       state.rotateBaseMapMode.carriedBaseMapId = action.payload ?? null;
+      if (!action.payload) state.rotateBaseMapMode.referenceSet = false;
+    },
+    setRotateBaseMapReferenceSet: (state, action) => {
+      state.rotateBaseMapMode.referenceSet = !!action.payload;
     },
     setHideAnnotationsIn3d: (state, action) => {
       state.hideAnnotationsIn3d = action.payload;
@@ -748,6 +756,7 @@ export const {
   setMoveBaseMapCarriedId,
   setRotateBaseMapModeActive,
   setRotateBaseMapCarriedId,
+  setRotateBaseMapReferenceSet,
   setHideAnnotationsIn3d,
   setMesh3dLabels,
   setMesh3dGroupByOrientation,

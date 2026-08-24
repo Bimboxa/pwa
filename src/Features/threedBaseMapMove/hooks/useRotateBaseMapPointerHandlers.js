@@ -5,6 +5,7 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   setRotateBaseMapModeActive,
   setRotateBaseMapCarriedId,
+  setRotateBaseMapReferenceSet,
   bumpSnapIndexEpoch,
 } from "Features/threedEditor/threedEditorSlice";
 import { triggerBaseMapsUpdate } from "Features/baseMaps/baseMapsSlice";
@@ -39,13 +40,15 @@ function restoreRotatedGroup() {
   clearRotateGrab();
 }
 
-// Wires click + key handlers for the "Tourner" (rotate base map) mode: the
-// 1st snapped click sets the rotation pivot and resolves the base map owning
-// the snapped mesh (the overlay then rotates the whole group, image +
-// annotations, around the world-vertical axis through the pivot, following
-// the cursor bearing); the 2nd click commits — `angleDeg` and the recomputed
-// `position` are persisted. Esc cancels the in-progress rotation, or exits
-// the mode when nothing is grabbed.
+// Wires click + key handlers for the "Tourner" (rotate base map) mode —
+// CAD-style 3 clicks: the 1st snapped click sets the rotation pivot and
+// resolves the base map owning the snapped mesh; the 2nd click fixes the
+// reference axis from the pivot (the overlay then rotates the whole group,
+// image + annotations, around the world-vertical axis through the pivot, by
+// the angle between the reference axis and the cursor); the 3rd click
+// commits — `angleDeg` and the recomputed `position` are persisted. Esc
+// cancels the in-progress rotation, or exits the mode when nothing is
+// grabbed.
 export default function useRotateBaseMapPointerHandlers() {
   const dispatch = useDispatch();
 
@@ -98,12 +101,25 @@ export default function useRotateBaseMapPointerHandlers() {
         pivot: snap.position.clone(),
         groupStartPosition: group.position.clone(),
         groupStartRotY: group.rotation.y,
+        refPoint: null,
         refBearing: null,
         currentPhi: 0,
         targetVerts,
         targetAdjacency,
       });
       dispatch(setRotateBaseMapCarriedId(baseMapId));
+    }
+
+    // 2nd click: fix the reference axis (pivot → clicked point). A click on
+    // the pivot itself is degenerate — ignored.
+    function fixReferenceAxis(grab, target) {
+      const dx = target.position.x - grab.pivot.x;
+      const dz = target.position.z - grab.pivot.z;
+      if (Math.hypot(dx, dz) < 0.005) return;
+      grab.refPoint = target.position.clone();
+      grab.refBearing = Math.atan2(-dz, dx);
+      grab.currentPhi = 0;
+      dispatch(setRotateBaseMapReferenceSet(true));
     }
 
     async function commitRotation(grab) {
@@ -145,6 +161,11 @@ export default function useRotateBaseMapPointerHandlers() {
         const snap = getLastRotateSnap();
         if (snap?.kind !== "VERTEX" || !snap?.position) return;
         grabPivotAtSnap(snap);
+      } else if (grab.refBearing == null) {
+        // Reference-axis click: snapped or free point.
+        const target = getLastRotateSnap();
+        if (!target?.position) return;
+        fixReferenceAxis(grab, target);
       } else {
         await commitRotation(grab);
       }

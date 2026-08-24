@@ -7,6 +7,7 @@ import { getActiveThreedEditor } from "Features/threedEditor/services/threedEdit
 import useVertexSnap from "Features/threedDrawing/hooks/useVertexSnap";
 
 import findNearestEdgeSnap from "Features/threedDimensions/utils/findNearestEdgeSnap";
+import { getMeshAdjacency } from "Features/threedDrawing/services/meshGraphStore";
 import findNearestVertexInVerts from "../utils/findNearestVertexInVerts";
 import {
   setLastRotateSnap,
@@ -17,13 +18,12 @@ const COLOR_VERTEX = "#ff2d8d";
 const COLOR_EDGE = "#2e7d32";
 const COLOR_FREE = "#000000";
 const COLOR_PIVOT = "#e65100";
+const COLOR_REF_LINE = "#9e9e9e";
+const COLOR_CURRENT_LINE = "#e65100";
 
 const SNAP_CIRCLE_RADIUS_PX = 6;
 const SNAP_CIRCLE_STROKE_PX = 2;
 const PIVOT_CIRCLE_RADIUS_PX = 4;
-// Cursor closer to the pivot than this (screen px) does not drive the angle
-// (the bearing would be numerically unstable).
-const MIN_BEARING_DIST_PX = 15;
 
 // Cursor bearing around the world-vertical axis: rotating a direction by phi
 // around +Y maps bearing -> bearing + phi with bearing = atan2(-dz, dx).
@@ -31,12 +31,17 @@ function bearingOf(dx, dz) {
   return Math.atan2(-dz, dx);
 }
 
-// Live overlay of the "Tourner" (rotate base map) tool: vertex snap marker
-// for the pivot click, then — while rotating — the live rotation of the base
-// map group (image + annotations) around the world-vertical axis through the
-// pivot, driven by the cursor bearing; the target point snaps on the other
-// objects (vertex / edge, target-only index) with a horizontal-plane free
-// fallback. An SVG angle readout follows the cursor. Mirrors
+// Live overlay of the "Tourner" (rotate base map) tool — CAD-style 3 clicks:
+// 1. pivot phase: vertex snap marker for the pivot click;
+// 2. reference phase: dashed helper line from the pivot to the cursor,
+//    waiting for the click fixing the reference axis;
+// 3. rotation phase: the base map group (image + annotations) rotates live
+//    around the world-vertical axis through the pivot, by the angle between
+//    the reference axis and the pivot→cursor direction; the fixed reference
+//    ray stays displayed (grey) with the current ray (orange) and an angle
+//    readout following the cursor.
+// The target point snaps on the other objects (vertex / edge, target-only
+// index) with a horizontal-plane free fallback. Mirrors
 // MoveBaseMapOverlayThreed.
 export default function RotateBaseMapOverlayThreed() {
   const active = useSelector((s) => s.threedEditor.rotateBaseMapMode.active);
@@ -45,9 +50,11 @@ export default function RotateBaseMapOverlayThreed() {
 
   const snapCircleRef = useRef(null);
   const pivotCircleRef = useRef(null);
+  const refLineRef = useRef(null);
+  const currentLineRef = useRef(null);
   const angleLabelRef = useRef(null);
 
-  // pointer-move: snap detection + live rotation + markers
+  // pointer-move: snap detection + helper lines + live rotation
   useEffect(() => {
     if (!active) return;
     const editor = getActiveThreedEditor();
@@ -85,6 +92,20 @@ export default function RotateBaseMapOverlayThreed() {
       return screen;
     }
 
+    function updateLine(lineRef, fromScreen, toScreen_) {
+      const line = lineRef.current;
+      if (!line) return;
+      if (!fromScreen || !toScreen_) {
+        line.style.display = "none";
+        return;
+      }
+      line.setAttribute("x1", fromScreen.sx);
+      line.setAttribute("y1", fromScreen.sy);
+      line.setAttribute("x2", toScreen_.sx);
+      line.setAttribute("y2", toScreen_.sy);
+      line.style.display = "block";
+    }
+
     function updateAngleLabel(phi, screen) {
       const labelEl = angleLabelRef.current;
       if (!labelEl) return;
@@ -98,6 +119,70 @@ export default function RotateBaseMapOverlayThreed() {
       labelEl.style.display = "block";
     }
 
+    function hideAll() {
+      [snapCircleRef, pivotCircleRef, refLineRef, currentLineRef].forEach(
+        (r) => {
+          if (r.current) r.current.style.display = "none";
+        }
+      );
+      updateAngleLabel(null, null);
+    }
+
+    // Target point driving the reference / rotation phases. The reference
+    // phase snaps on EVERYTHING (global index — the reference axis usually
+    // anchors on a point of the base map being rotated, which hasn't moved
+    // yet); the rotation phase snaps on the target-only index (the carried
+    // geometry moves, its index entries are stale, and it would screen the
+    // targets). Fallback: the horizontal plane through the pivot.
+    function computeTarget(grab, canvasSize) {
+      const rotating = grab.refBearing != null;
+      let target;
+      if (rotating) {
+        target =
+          findNearestVertexInVerts(
+            grab.targetVerts,
+            ndc,
+            camera,
+            canvasSize,
+            12
+          ) ??
+          findNearestEdgeSnap(
+            grab.targetAdjacency,
+            ndc,
+            camera,
+            canvasSize,
+            12
+          );
+      } else {
+        const vertexSnap = findNearestSnap(ndc, camera, canvasSize, 12);
+        target = vertexSnap
+          ? { position: vertexSnap.position, kind: "VERTEX" }
+          : findNearestEdgeSnap(
+              getMeshAdjacency(),
+              ndc,
+              camera,
+              canvasSize,
+              12
+            );
+      }
+      if (!target) {
+        raycaster.setFromCamera(ndc, camera);
+        horizontalPlane.setFromNormalAndCoplanarPoint(UP, grab.pivot);
+        if (raycaster.ray.intersectPlane(horizontalPlane, planeHit)) {
+          target = { position: planeHit.clone(), kind: "FREE" };
+        }
+      }
+      return target;
+    }
+
+    function colorForKind(kind) {
+      return kind === "VERTEX"
+        ? COLOR_VERTEX
+        : kind === "EDGE"
+          ? COLOR_EDGE
+          : COLOR_FREE;
+    }
+
     function onPointerMove(e) {
       const rect = dom.getBoundingClientRect();
       ndc.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
@@ -106,8 +191,8 @@ export default function RotateBaseMapOverlayThreed() {
 
       const grab = getRotateGrab();
 
+      // Phase 1 — pivot pick: vertex snap on every snappable object.
       if (!grab) {
-        // Pivot phase: vertex snap on every snappable object.
         const vertexSnap = findNearestSnap(ndc, camera, canvasSize, 12);
         const snap = vertexSnap
           ? {
@@ -117,65 +202,53 @@ export default function RotateBaseMapOverlayThreed() {
             }
           : null;
         setLastRotateSnap(snap);
+        hideAll();
         updateCircle(snapCircleRef, snap?.position ?? null, rect, COLOR_VERTEX);
-        if (pivotCircleRef.current)
-          pivotCircleRef.current.style.display = "none";
-        updateAngleLabel(null, null);
         editor.renderScene?.();
         return;
       }
 
-      // Rotation phase — pivot marker.
-      updateCircle(pivotCircleRef, grab.pivot, rect, COLOR_PIVOT);
+      const pivotScreen = updateCircle(
+        pivotCircleRef,
+        grab.pivot,
+        rect,
+        COLOR_PIVOT
+      );
 
-      // Target point driving the bearing: snapped vertex / edge on the
-      // target-only index, else the horizontal plane through the pivot.
-      let target =
-        findNearestVertexInVerts(
-          grab.targetVerts,
-          ndc,
-          camera,
-          canvasSize,
-          12
-        ) ??
-        findNearestEdgeSnap(grab.targetAdjacency, ndc, camera, canvasSize, 12);
-      if (!target) {
-        raycaster.setFromCamera(ndc, camera);
-        horizontalPlane.setFromNormalAndCoplanarPoint(UP, grab.pivot);
-        if (raycaster.ray.intersectPlane(horizontalPlane, planeHit)) {
-          target = { position: planeHit.clone(), kind: "FREE" };
-        }
-      }
-
+      const target = computeTarget(grab, canvasSize);
+      setLastRotateSnap(target);
       const targetScreen = target
         ? updateCircle(
             snapCircleRef,
             target.position,
             rect,
-            target.kind === "VERTEX"
-              ? COLOR_VERTEX
-              : target.kind === "EDGE"
-                ? COLOR_EDGE
-                : COLOR_FREE
+            colorForKind(target.kind)
           )
         : null;
 
-      // Bearing → live rotation. Ignore cursors too close to the pivot
-      // (unstable bearing): the current angle is kept.
+      // Phase 2 — reference axis pick: dashed helper from the pivot to the
+      // cursor, no rotation yet.
+      if (grab.refBearing == null) {
+        updateLine(refLineRef, pivotScreen, targetScreen);
+        if (currentLineRef.current)
+          currentLineRef.current.style.display = "none";
+        updateAngleLabel(null, null);
+        editor.renderScene?.();
+        return;
+      }
+
+      // Phase 3 — rotation: the angle opens between the fixed reference ray
+      // and the pivot→cursor ray.
+      const refScreen = grab.refPoint ? toScreen(grab.refPoint, rect) : null;
+      updateLine(refLineRef, pivotScreen, refScreen);
+      updateLine(currentLineRef, pivotScreen, targetScreen);
+
       if (target) {
-        const pivotScreen = toScreen(grab.pivot, rect);
-        const farEnough =
-          !pivotScreen ||
-          Math.hypot(
-            (targetScreen?.sx ?? 0) - pivotScreen.sx,
-            (targetScreen?.sy ?? 0) - pivotScreen.sy
-          ) > MIN_BEARING_DIST_PX;
-        if (farEnough) {
-          const dx = target.position.x - grab.pivot.x;
-          const dz = target.position.z - grab.pivot.z;
-          const bearing = bearingOf(dx, dz);
-          if (grab.refBearing == null) grab.refBearing = bearing;
-          const phi = bearing - grab.refBearing;
+        const dx = target.position.x - grab.pivot.x;
+        const dz = target.position.z - grab.pivot.z;
+        // Degenerate cursor on the pivot: keep the current angle.
+        if (Math.hypot(dx, dz) > 1e-6) {
+          const phi = bearingOf(dx, dz) - grab.refBearing;
           grab.currentPhi = phi;
 
           const group = editor?.sceneManager?.imagesManager?.getGroup(
@@ -206,8 +279,7 @@ export default function RotateBaseMapOverlayThreed() {
 
     function onPointerLeave() {
       setLastRotateSnap(null);
-      if (snapCircleRef.current) snapCircleRef.current.style.display = "none";
-      if (angleLabelRef.current) angleLabelRef.current.style.display = "none";
+      hideAll();
       editor.renderScene?.();
     }
 
@@ -232,6 +304,20 @@ export default function RotateBaseMapOverlayThreed() {
         zIndex: 5,
       }}
     >
+      <line
+        ref={refLineRef}
+        stroke={COLOR_REF_LINE}
+        strokeWidth="2"
+        strokeDasharray="6 4"
+        style={{ display: "none" }}
+      />
+      <line
+        ref={currentLineRef}
+        stroke={COLOR_CURRENT_LINE}
+        strokeWidth="2"
+        strokeDasharray="6 4"
+        style={{ display: "none" }}
+      />
       <circle
         ref={pivotCircleRef}
         r={PIVOT_CIRCLE_RADIUS_PX}

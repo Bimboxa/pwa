@@ -13,6 +13,9 @@ export default function RotateBaseMapToolbarThreed() {
   const carriedBaseMapId = useSelector(
     (s) => s.threedEditor.rotateBaseMapMode.carriedBaseMapId
   );
+  const referenceSet = useSelector(
+    (s) => s.threedEditor.rotateBaseMapMode.referenceSet
+  );
 
   // handlers
 
@@ -41,9 +44,11 @@ export default function RotateBaseMapToolbarThreed() {
           Tourner
         </Typography>
         <Typography sx={{ fontSize: 12, color: "text.secondary" }}>
-          {carriedBaseMapId
-            ? "Tournez avec la souris, cliquez pour valider l'angle (Échap : annuler)"
-            : "Cliquez le point de rotation sur le fond de plan à tourner"}
+          {!carriedBaseMapId
+            ? "1/3 — Cliquez le centre de rotation sur le fond de plan à tourner"
+            : !referenceSet
+              ? "2/3 — Cliquez un point pour fixer l'axe de référence"
+              : "3/3 — Tournez avec la souris, cliquez pour valider l'angle (Échap : annuler)"}
         </Typography>
         <Tooltip title="Quitter le mode rotation">
           <IconButton size="small" onClick={handleClose}>
