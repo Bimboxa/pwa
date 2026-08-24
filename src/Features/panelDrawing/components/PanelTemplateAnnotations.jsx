@@ -1,11 +1,12 @@
 import { useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
-import { setDetailTemplateId } from "Features/panelDrawing/panelDrawingSlice";
-import { setSoloAnnotationTemplateId } from "Features/annotations/annotationsSlice";
-import { setSelectedListingId } from "Features/listings/listingsSlice";
 import {
-  setSelectedItem,
+  setDetailTemplateId,
+  setDetailView,
+} from "Features/panelDrawing/panelDrawingSlice";
+import { setSoloAnnotationTemplateId } from "Features/annotations/annotationsSlice";
+import {
   setSelectedItems,
   setShowAnnotationsProperties,
 } from "Features/selection/selectionSlice";
@@ -81,10 +82,10 @@ export default function PanelTemplateAnnotations({
     dispatch(setDetailTemplateId(null));
   };
 
+  // The template properties open IN the panel (PanelTemplateProperties
+  // subview), not in the right panel.
   const handleOpenTemplateProperties = () => {
-    dispatch(setSelectedListingId(template.listingId));
-    dispatch(setSelectedItem({ id: template.id, type: "ANNOTATION_TEMPLATE" }));
-    dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
+    dispatch(setDetailView("PROPERTIES"));
   };
 
   const handleToggleSolo = () => {

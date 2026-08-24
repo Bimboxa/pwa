@@ -11,6 +11,7 @@ import ListPanelDrawingTemplates from "./ListPanelDrawingTemplates";
 import SectionPanelDrawingTools from "./SectionPanelDrawingTools";
 import SectionPanelDrawingHelper from "./SectionPanelDrawingHelper";
 import PanelTemplateAnnotations from "./PanelTemplateAnnotations";
+import PanelTemplateProperties from "./PanelTemplateProperties";
 
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
@@ -58,8 +59,10 @@ export default function PanelDrawing() {
   // (same rule as PopperMapListings).
   const viewerReturnContext = useSelector((s) => s.viewers.viewerReturnContext);
 
-  // Detail view (#311): template whose annotations list is open.
+  // Detail view (#311): template whose detail is open + subview
+  // (annotations list or template properties).
   const detailTemplateId = useSelector((s) => s.panelDrawing.detailTemplateId);
+  const detailView = useSelector((s) => s.panelDrawing.detailView);
 
   const isThreedEditor = isThreedFamilyViewerKey(effectiveViewerKey);
   const baseMap = useMainBaseMap();
@@ -178,6 +181,11 @@ export default function PanelDrawing() {
           <LeftDrawerPanelHeader title="Annotations" />
           <SectionPanelDrawingHelper />
         </>
+      ) : detailTemplate && detailView === "PROPERTIES" ? (
+        <PanelTemplateProperties
+          template={detailTemplate}
+          annotationsCount={detailAnnotations.length}
+        />
       ) : detailTemplate ? (
         <PanelTemplateAnnotations
           template={detailTemplate}
