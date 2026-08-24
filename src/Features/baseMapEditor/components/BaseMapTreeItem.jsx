@@ -26,6 +26,7 @@ import {
   ListItemButton,
   ListItemText,
   Tooltip,
+  Typography,
   IconButton,
   Avatar,
 } from "@mui/material";
@@ -216,6 +217,8 @@ function SortableBaseMapRow({
   const { label: nameS, isPlaceholder: isUnnamed } =
     getBaseMapDisplayName(baseMap);
 
+  const isVertical = baseMap?.orientation === "VERTICAL";
+
   return (
     <ListItemButton
       ref={setNodeRef}
@@ -292,19 +295,48 @@ function SortableBaseMapRow({
         />
       ) : (
         <ListItemText
-          primary={nameS}
-          secondary={subtitleS}
-          slotProps={{
-            primary: {
-              variant: "body2",
-              noWrap: true,
-              ...(isUnnamed && {
-                fontStyle: "italic",
-                color: "text.secondary",
-              }),
-            },
-            secondary: { variant: "caption", noWrap: true },
-          }}
+          disableTypography
+          primary={
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 0.75,
+                minWidth: 0,
+              }}
+            >
+              <Typography
+                variant="body2"
+                noWrap
+                sx={{
+                  ...(isUnnamed && {
+                    fontStyle: "italic",
+                    color: "text.secondary",
+                  }),
+                }}
+              >
+                {nameS}
+              </Typography>
+              {isVertical && (
+                <Chip
+                  label="Vert."
+                  size="small"
+                  variant="outlined"
+                  sx={{ height: 16, fontSize: "0.625rem", flexShrink: 0 }}
+                />
+              )}
+            </Box>
+          }
+          secondary={
+            <Typography
+              variant="caption"
+              noWrap
+              sx={{ display: "block" }}
+              color="text.secondary"
+            >
+              {subtitleS}
+            </Typography>
+          }
         />
       )}
       {isEditing ? (
