@@ -402,6 +402,7 @@ export default function ToolbarStartDrawTemplate() {
     isThreedFamilyViewerKey(selectEffectiveViewerKey(s))
   );
   const enabledDrawingMode = useSelector((s) => s.mapEditor.enabledDrawingMode);
+  const pasteClipboard = useSelector((s) => s.mapEditor.pasteClipboard);
   const leftPanelDocked = useSelector((s) => s.leftPanel.leftPanelDocked);
   const detailTemplateId = useSelector((s) => s.panelDrawing.detailTemplateId);
   const detailView = useSelector((s) => s.panelDrawing.detailView);
@@ -415,6 +416,7 @@ export default function ToolbarStartDrawTemplate() {
     !isThreedEditor &&
     leftPanelDocked &&
     !enabledDrawingMode &&
+    !pasteClipboard &&
     detailView === "ANNOTATIONS" &&
     Boolean(detailTemplateId);
 

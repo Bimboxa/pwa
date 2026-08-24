@@ -10,6 +10,7 @@ import ChipsViewerScope from "./ChipsViewerScope";
 import ListPanelDrawingTemplates from "./ListPanelDrawingTemplates";
 import SectionPanelDrawingTools from "./SectionPanelDrawingTools";
 import SectionPanelDrawingHelper from "./SectionPanelDrawingHelper";
+import SectionPanelPasteHelper from "./SectionPanelPasteHelper";
 import PanelTemplateAnnotations from "./PanelTemplateAnnotations";
 import PanelTemplateProperties from "./PanelTemplateProperties";
 import PanelAnnotationDetail from "./PanelAnnotationDetail";
@@ -44,9 +45,11 @@ export default function PanelDrawing() {
 
   const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
   const enabledDrawingMode = useSelector((s) => s.mapEditor.enabledDrawingMode);
-  // Drawing-helper swap only in DOCKED mode: in drawer mode the popper is the
-  // visible surface and shows its own floating helper (mounting a second
-  // helper here would duplicate the loupe container).
+  const pasteClipboard = useSelector((s) => s.mapEditor.pasteClipboard);
+  // Helper swaps (paste / drawing) only in DOCKED mode: in drawer mode the
+  // popper is the visible surface and shows its own floating helpers
+  // (mounting a second drawing helper here would duplicate the loupe
+  // container).
   const leftPanelDocked = useSelector((s) => s.leftPanel.leftPanelDocked);
   const effectiveViewerKey = useSelector(selectEffectiveViewerKey);
   const hiddenListingsIds = useSelector(
@@ -199,7 +202,12 @@ export default function PanelDrawing() {
         borderColor: "divider",
       }}
     >
-      {enabledDrawingMode && leftPanelDocked ? (
+      {pasteClipboard && leftPanelDocked ? (
+        <>
+          <LeftDrawerPanelHeader title="Dessin d'annotations" />
+          <SectionPanelPasteHelper />
+        </>
+      ) : enabledDrawingMode && leftPanelDocked ? (
         <>
           <LeftDrawerPanelHeader title="Dessin d'annotations" />
           <SectionPanelDrawingHelper />
