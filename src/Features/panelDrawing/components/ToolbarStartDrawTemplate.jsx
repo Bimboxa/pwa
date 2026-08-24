@@ -259,6 +259,7 @@ function ToolbarContent({ template }) {
               strokeWidthUnit: next.strokeWidthUnit,
             })
           }
+          shortcut="E"
         />
       )}
       {showOffset && (
@@ -273,6 +274,7 @@ function ToolbarContent({ template }) {
         <FieldAnnotationHeight
           annotation={draft}
           onChange={(next) => rememberProps({ height: next.height })}
+          shortcut="H"
         />
       )}
 
