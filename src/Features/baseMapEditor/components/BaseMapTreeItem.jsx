@@ -529,6 +529,9 @@ export default function BaseMapTreeItem({ listing, baseMaps, isDropTarget }) {
           // slot + drag handle + chevron) so the folder icon aligns with
           // the base map avatars.
           pl: 2,
+          // No secondary line: extra vertical padding keeps the row at
+          // roughly the same height as the base map rows.
+          py: 1.5,
           borderLeft: "3px solid transparent",
           "&:hover .row-drag-handle": { opacity: 1 },
           ...(isDropTarget && {
@@ -594,15 +597,11 @@ export default function BaseMapTreeItem({ listing, baseMaps, isDropTarget }) {
         ) : (
           <ListItemText
             primary={listing.name}
-            secondary={`${baseMaps?.length || 0} fond${
-              (baseMaps?.length || 0) > 1 ? "s" : ""
-            } de plan`}
             slotProps={{
               primary: {
                 variant: "body2",
                 fontWeight: isDisplayed ? "bold" : "normal",
               },
-              secondary: { variant: "caption", noWrap: true },
             }}
           />
         )}
