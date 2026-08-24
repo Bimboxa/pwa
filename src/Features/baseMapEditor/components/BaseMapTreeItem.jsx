@@ -260,7 +260,13 @@ function SortableBaseMapRow({
       <Avatar
         src={baseMap?.getThumbnail?.() || baseMap?.image?.thumbnail}
         variant="rounded"
-        sx={{ width: 28, height: 28, mr: 1 }}
+        sx={{
+          width: 28,
+          height: 28,
+          mr: 1,
+          border: "1px solid",
+          borderColor: isSelected ? "secondary.main" : "grey.300",
+        }}
       />
       {isEditing ? (
         <InputBase
