@@ -6,7 +6,6 @@ import {
   Avatar,
   Tooltip,
   IconButton,
-  Button,
   Menu,
   MenuItem,
   ListItemIcon,
@@ -17,7 +16,7 @@ import {
   CloudQueue,
   Close,
   AddLink,
-  MoreVert,
+  MoreHoriz,
   SwapHoriz,
   LinkOff,
 } from "@mui/icons-material";
@@ -48,7 +47,7 @@ export default function HeaderDashboardProject({
     .filter(Boolean)
     .join(" · ");
 
-  // link/detach controls only make sense on installed (local) projects,
+  // link/detach actions only make sense on installed (local) projects,
   // and only when the dashboard wires the handlers (référentiel configured)
   const canManageLink = Boolean(item.isLocal && item.projectId && onLink);
   const isLinked = Boolean(item.idMaster);
@@ -98,50 +97,50 @@ export default function HeaderDashboardProject({
                 {metaText}
               </Typography>
             )}
-            {canManageLink && !isLinked && (
-              <Button
-                size="small"
-                startIcon={<AddLink />}
-                onClick={onLink}
-                sx={{ textTransform: "none", ml: 0.5 }}
-              >
-                {linkS}
-              </Button>
-            )}
-            {canManageLink && isLinked && (
-              <>
-                <Tooltip title="Gérer le lien avec le référentiel">
-                  <IconButton
-                    size="small"
-                    onClick={(e) => setMenuAnchor(e.currentTarget)}
-                  >
-                    <MoreVert sx={{ fontSize: "1.1rem" }} />
-                  </IconButton>
-                </Tooltip>
-                <Menu
-                  anchorEl={menuAnchor}
-                  open={Boolean(menuAnchor)}
-                  onClose={() => setMenuAnchor(null)}
-                >
-                  <MenuItem onClick={() => handleMenuItemClick(onLink)}>
-                    <ListItemIcon>
-                      <SwapHoriz fontSize="small" />
-                    </ListItemIcon>
-                    <ListItemText>{changeS}</ListItemText>
-                  </MenuItem>
-                  {onDetach && (
-                    <MenuItem onClick={() => handleMenuItemClick(onDetach)}>
-                      <ListItemIcon>
-                        <LinkOff fontSize="small" />
-                      </ListItemIcon>
-                      <ListItemText>{detachS}</ListItemText>
-                    </MenuItem>
-                  )}
-                </Menu>
-              </>
-            )}
           </Box>
         </Box>
+        {canManageLink && (
+          <>
+            <Tooltip title="Plus d'actions">
+              <IconButton
+                onClick={(e) => setMenuAnchor(e.currentTarget)}
+                sx={{ alignSelf: "flex-start", color: "text.secondary" }}
+              >
+                <MoreHoriz />
+              </IconButton>
+            </Tooltip>
+            <Menu
+              anchorEl={menuAnchor}
+              open={Boolean(menuAnchor)}
+              onClose={() => setMenuAnchor(null)}
+            >
+              {!isLinked && (
+                <MenuItem onClick={() => handleMenuItemClick(onLink)}>
+                  <ListItemIcon>
+                    <AddLink fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText>{linkS}</ListItemText>
+                </MenuItem>
+              )}
+              {isLinked && (
+                <MenuItem onClick={() => handleMenuItemClick(onLink)}>
+                  <ListItemIcon>
+                    <SwapHoriz fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText>{changeS}</ListItemText>
+                </MenuItem>
+              )}
+              {isLinked && onDetach && (
+                <MenuItem onClick={() => handleMenuItemClick(onDetach)}>
+                  <ListItemIcon>
+                    <LinkOff fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText>{detachS}</ListItemText>
+                </MenuItem>
+              )}
+            </Menu>
+          </>
+        )}
         {onClose && (
           <Tooltip title="Quitter la sélection">
             <IconButton
