@@ -93,7 +93,9 @@ export default function SectionViewerListing({
           display: "flex",
           alignItems: "center",
           gap: 0.5,
-          px: 1,
+          pl: 1,
+          // Same right padding as the template rows so the eye column lines up.
+          pr: 0.5,
           py: 1,
           cursor: "pointer",
           bgcolor: "panel.sectionBg",
@@ -127,12 +129,14 @@ export default function SectionViewerListing({
             }}
           >
             {isHidden ? (
-              <VisibilityOff sx={{ fontSize: 18 }} />
+              <VisibilityOff sx={{ fontSize: 16 }} />
             ) : (
-              <Visibility sx={{ fontSize: 18 }} />
+              <Visibility sx={{ fontSize: 16 }} />
             )}
           </IconButton>
         </Tooltip>
+        {/* Spacer matching the rows' chevron width, so the eyes align. */}
+        <Box sx={{ width: 18, flexShrink: 0 }} />
       </Box>
 
       {/* Template rows */}
