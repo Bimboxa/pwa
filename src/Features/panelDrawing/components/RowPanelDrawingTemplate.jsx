@@ -74,6 +74,8 @@ export default function RowPanelDrawingTemplate({
 
   const isHidden = Boolean(annotationTemplate?.hidden);
   const freeShortcut = getFreeAnnotationShortcut(annotationTemplate);
+  // No annotation yet: the all-zero quantities line dims to light grey.
+  const hasQties = Boolean(qties?.unit || qties?.length || qties?.surface);
   const qtyLine = `${formatQty(qties?.unit ?? 0, 0)} u · ${formatQty(
     qties?.length ?? 0
   )} ml · ${formatQty(qties?.surface ?? 0)} m²`;
@@ -231,7 +233,7 @@ export default function RowPanelDrawingTemplate({
               display: "block",
               fontFamily: "monospace",
               fontWeight: 500,
-              color: isHidden ? "text.disabled" : "text.secondary",
+              color: isHidden || !hasQties ? "text.disabled" : "text.secondary",
             }}
           >
             {qtyLine}

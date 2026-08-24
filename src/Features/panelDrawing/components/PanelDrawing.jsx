@@ -191,7 +191,7 @@ export default function PanelDrawing() {
     >
       {enabledDrawingMode && leftPanelDocked ? (
         <>
-          <LeftDrawerPanelHeader title="Annotations" />
+          <LeftDrawerPanelHeader title="Dessin d'annotations" />
           <SectionPanelDrawingHelper />
         </>
       ) : detailTemplate &&
@@ -217,7 +217,7 @@ export default function PanelDrawing() {
         />
       ) : (
         <>
-          <LeftDrawerPanelHeader title="Annotations" />
+          <LeftDrawerPanelHeader title="Dessin d'annotations" />
           <Typography
             variant="caption"
             sx={{ px: 2, pb: 1, color: "text.secondary" }}
