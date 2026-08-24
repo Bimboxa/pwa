@@ -276,23 +276,48 @@ export default function RowPanelDrawingTemplate({
           />
         )}
 
-        {/* Visibility toggle */}
-        <Tooltip title={isHidden ? "Afficher" : "Masquer"} arrow>
-          <IconButton
-            size="small"
-            onClick={handleToggleHidden}
+        {/* Visibility toggle — in readOnly (Viewer) mode the slot shows the
+            main quantity and swaps to the eye on hover, like the popper. */}
+        {readOnly && !isHovered ? (
+          <Typography
+            align="right"
+            noWrap
             sx={{
-              p: 0.5,
-              color: isHidden ? "secondary.main" : "panel.iconMuted",
+              minWidth: 40,
+              px: 0.5,
+              fontSize: "10px",
+              fontFamily: "monospace",
+              fontWeight: 500,
+              flexShrink: 0,
             }}
+            color={
+              isHidden
+                ? "text.disabled"
+                : (qties?.count ?? 0) > 0
+                  ? "secondary.main"
+                  : "panel.countEmpty"
+            }
           >
-            {isHidden ? (
-              <VisibilityOff sx={{ fontSize: 16 }} />
-            ) : (
-              <Visibility sx={{ fontSize: 16 }} />
-            )}
-          </IconButton>
-        </Tooltip>
+            {qties?.mainQtyLabel ?? ""}
+          </Typography>
+        ) : (
+          <Tooltip title={isHidden ? "Afficher" : "Masquer"} arrow>
+            <IconButton
+              size="small"
+              onClick={handleToggleHidden}
+              sx={{
+                p: 0.5,
+                color: isHidden ? "secondary.main" : "panel.iconMuted",
+              }}
+            >
+              {isHidden ? (
+                <VisibilityOff sx={{ fontSize: 16 }} />
+              ) : (
+                <Visibility sx={{ fontSize: 16 }} />
+              )}
+            </IconButton>
+          </Tooltip>
+        )}
 
         {/* Chevron — opens the template detail view (row click) */}
         <ChevronRight

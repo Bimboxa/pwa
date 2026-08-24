@@ -12,6 +12,10 @@ const panelDrawingSlice = createSlice({
     detailTemplateId: null,
     detailView: "ANNOTATIONS", // "ANNOTATIONS" | "PROPERTIES" | "ANNOTATION"
     detailAnnotationId: null,
+    // Viewer module: annotations scope of the panel — the active base map
+    // only, or the whole repérage (all base maps). Drives useAnnotationsV2
+    // and thus every displayed quantity.
+    viewerAnnotationsScope: "BASE_MAP", // "BASE_MAP" | "ALL"
   },
   reducers: {
     setTemplateFilter(state, action) {
@@ -35,6 +39,9 @@ const panelDrawingSlice = createSlice({
         ? "ANNOTATION"
         : "ANNOTATIONS";
     },
+    setViewerAnnotationsScope(state, action) {
+      state.viewerAnnotationsScope = action.payload ?? "BASE_MAP";
+    },
   },
 });
 
@@ -44,6 +51,7 @@ export const {
   setDetailTemplateId,
   setDetailView,
   setDetailAnnotationId,
+  setViewerAnnotationsScope,
 } = panelDrawingSlice.actions;
 
 export default panelDrawingSlice.reducer;

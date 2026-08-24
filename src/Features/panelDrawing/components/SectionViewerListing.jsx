@@ -1,5 +1,4 @@
 import { useState, useMemo } from "react";
-import { useSelector } from "react-redux";
 
 import {
   Box,
@@ -24,7 +23,7 @@ import groupAnnotationTemplatesByGroupLabel from "Features/annotations/utils/gro
 // header (listing name + a listing-level eye toggling every template of the
 // listing, like the PopperMapListings listing eye) over the read-only
 // template rows. Scope: templates with an annotation on the displayed base
-// maps (visibleTemplateIds), then the Tous / Visibles / Masqués filter.
+// maps (visibleTemplateIds); eye-hidden templates stay listed greyed.
 // ---------------------------------------------------------------------------
 
 export default function SectionViewerListing({
@@ -40,7 +39,6 @@ export default function SectionViewerListing({
     sortByOrder: true,
   });
   const updateAnnotationTemplates = useUpdateAnnotationTemplates();
-  const templateFilter = useSelector((s) => s.panelDrawing.templateFilter);
 
   // state
 
@@ -48,12 +46,10 @@ export default function SectionViewerListing({
 
   // helpers
 
-  const filteredTemplates = useMemo(() => {
-    let arr = (allTemplates ?? []).filter((t) => visibleTemplateIds.has(t.id));
-    if (templateFilter === "VISIBLE") arr = arr.filter((t) => !t.hidden);
-    if (templateFilter === "HIDDEN") arr = arr.filter((t) => t.hidden);
-    return arr;
-  }, [allTemplates, visibleTemplateIds, templateFilter]);
+  const filteredTemplates = useMemo(
+    () => (allTemplates ?? []).filter((t) => visibleTemplateIds.has(t.id)),
+    [allTemplates, visibleTemplateIds]
+  );
 
   const groupedItems = useMemo(
     () => groupAnnotationTemplatesByGroupLabel(filteredTemplates),

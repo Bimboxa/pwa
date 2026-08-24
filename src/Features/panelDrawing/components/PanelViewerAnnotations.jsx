@@ -4,7 +4,7 @@ import { useSelector } from "react-redux";
 import { Box, Typography } from "@mui/material";
 
 import LeftDrawerPanelHeader from "Features/leftPanel/components/LeftDrawerPanelHeader";
-import ChipsTemplateVisibilityFilter from "./ChipsTemplateVisibilityFilter";
+import ChipsViewerScope from "./ChipsViewerScope";
 import SectionViewerListing from "./SectionViewerListing";
 import PanelTemplateAnnotations from "./PanelTemplateAnnotations";
 import PanelTemplateProperties from "./PanelTemplateProperties";
@@ -48,6 +48,10 @@ export default function PanelViewerAnnotations() {
     (s) => s.threedEditor.hideMainBaseMapAnnotationsIn3d
   );
 
+  // Scope chip: the active base map only, or the whole repérage.
+  const viewerScope = useSelector((s) => s.panelDrawing.viewerAnnotationsScope);
+  const isAllScope = viewerScope === "ALL";
+
   // Detail view: template whose detail is open + subview.
   const detailTemplateId = useSelector((s) => s.panelDrawing.detailTemplateId);
   const detailView = useSelector((s) => s.panelDrawing.detailView);
@@ -65,9 +69,11 @@ export default function PanelViewerAnnotations() {
   // stable while a template is focused, `keepHiddenTemplates` keeps
   // eye-hidden rows listed (greyed), `withQties` computes each annotation's
   // qties with its own base map's meterByPx.
+  // "Tous" scope: every annotation of the repérage (all base maps — withQties
+  // computes each one with its own base map's meterByPx), no 3D mirroring.
   const annotations = useAnnotationsV2({
     caller: "PanelViewerAnnotations",
-    filterByMainBaseMap: true,
+    filterByMainBaseMap: !isAllScope,
     filterBySelectedScope: true,
     hideBaseMapAnnotations: true,
     excludeBgAnnotations: true,
@@ -75,7 +81,7 @@ export default function PanelViewerAnnotations() {
     ignoreSolo: true,
     keepHiddenTemplates: true,
     withQties: true,
-    ...(isThreedEditor
+    ...(isThreedEditor && !isAllScope
       ? {
           extraBaseMapIds,
           excludeProfileTemplates: true,
@@ -94,10 +100,16 @@ export default function PanelViewerAnnotations() {
 
   const scopedAnnotations = useMemo(() => {
     let arr = annotations ?? [];
-    if (isThreedEditor && hideMainAnnotationsIn3d)
+    if (isThreedEditor && !isAllScope && hideMainAnnotationsIn3d)
       arr = arr.filter((a) => a.baseMapId !== baseMap?.id);
     return arr;
-  }, [annotations, isThreedEditor, hideMainAnnotationsIn3d, baseMap?.id]);
+  }, [
+    annotations,
+    isThreedEditor,
+    isAllScope,
+    hideMainAnnotationsIn3d,
+    baseMap?.id,
+  ]);
 
   const annotationTemplateById = useMemo(
     () => getItemsByKey(annotationTemplates ?? [], "id"),
@@ -200,7 +212,9 @@ export default function PanelViewerAnnotations() {
             {descriptionS}
           </Typography>
 
-          <ChipsTemplateVisibilityFilter />
+          <ChipsViewerScope
+            baseMapName={baseMap?.name ?? baseMap?.label ?? "Fond de plan"}
+          />
 
           <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto", pb: 1 }}>
             {displayedListings.length === 0 && (
