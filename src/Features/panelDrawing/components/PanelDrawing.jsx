@@ -10,9 +10,11 @@ import ChipsTemplateVisibilityFilter from "./ChipsTemplateVisibilityFilter";
 import ListPanelDrawingTemplates from "./ListPanelDrawingTemplates";
 import SectionPanelDrawingTools from "./SectionPanelDrawingTools";
 import SectionPanelDrawingHelper from "./SectionPanelDrawingHelper";
+import PanelTemplateAnnotations from "./PanelTemplateAnnotations";
 
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
+import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
 import useExtraBaseMapIdsIn3d from "Features/threedEditor/hooks/useExtraBaseMapIdsIn3d";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useListings from "Features/listings/hooks/useListings";
@@ -56,10 +58,14 @@ export default function PanelDrawing() {
   // (same rule as PopperMapListings).
   const viewerReturnContext = useSelector((s) => s.viewers.viewerReturnContext);
 
+  // Detail view (#311): template whose annotations list is open.
+  const detailTemplateId = useSelector((s) => s.panelDrawing.detailTemplateId);
+
   const isThreedEditor = isThreedFamilyViewerKey(effectiveViewerKey);
   const baseMap = useMainBaseMap();
   const extraBaseMapIds = useExtraBaseMapIdsIn3d();
   const annotationTemplates = useAnnotationTemplates();
+  const spriteImage = useAnnotationSpriteImage();
 
   // Same scope as PanelAnnotationsRecap: `ignoreSolo` keeps quantities stable
   // while a template is focused, `keepHiddenTemplates` keeps eye-hidden rows
@@ -136,6 +142,25 @@ export default function PanelDrawing() {
     [scopedAnnotations, annotationTemplateById]
   );
 
+  // helpers - detail view (#311). A stale id (deleted template, scope
+  // change) simply resolves to nothing and the main list renders.
+
+  const detailTemplate = detailTemplateId
+    ? annotationTemplateById?.[detailTemplateId]
+    : null;
+  const detailListing = detailTemplate
+    ? (listings ?? []).find((l) => l.id === detailTemplate.listingId)
+    : null;
+  const detailAnnotations = useMemo(
+    () =>
+      detailTemplate
+        ? scopedAnnotations.filter(
+            (a) => a.annotationTemplateId === detailTemplate.id
+          )
+        : [],
+    [scopedAnnotations, detailTemplate]
+  );
+
   // render
 
   return (
@@ -148,12 +173,22 @@ export default function PanelDrawing() {
         bgcolor: "background.default",
       }}
     >
-      <LeftDrawerPanelHeader title="Annotations" />
-
       {enabledDrawingMode && leftPanelDocked ? (
-        <SectionPanelDrawingHelper />
+        <>
+          <LeftDrawerPanelHeader title="Annotations" />
+          <SectionPanelDrawingHelper />
+        </>
+      ) : detailTemplate ? (
+        <PanelTemplateAnnotations
+          template={detailTemplate}
+          listing={detailListing}
+          annotations={detailAnnotations}
+          templateQties={qtiesById?.[detailTemplate.id]}
+          spriteImage={spriteImage}
+        />
       ) : (
         <>
+          <LeftDrawerPanelHeader title="Annotations" />
           <Typography
             variant="caption"
             sx={{ px: 2, pb: 1, color: "text.secondary" }}

@@ -1,5 +1,7 @@
 import { useState, useRef } from "react";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
+
+import { setDetailTemplateId } from "Features/panelDrawing/panelDrawingSlice";
 
 import {
   Box,
@@ -24,8 +26,9 @@ import { getFreeAnnotationShortcut } from "Features/mapEditor/constants/freeAnno
 
 // ---------------------------------------------------------------------------
 // RowPanelDrawingTemplate — one template row of the Dessin panel: hover drag
-// handle, icon + label, quantities line, split draw button, eye toggle and an
-// inert chevron (future template detail view, see #311).
+// handle, icon + label, quantities line, split draw button, eye toggle and a
+// chevron. Clicking the row opens the template detail view (its annotations
+// list, #311).
 // ---------------------------------------------------------------------------
 
 function formatQty(value, decimals = 2) {
@@ -43,6 +46,8 @@ export default function RowPanelDrawingTemplate({
   dragListeners,
   dndEnabled,
 }) {
+  const dispatch = useDispatch();
+
   // data
 
   const updateAnnotationTemplate = useUpdateAnnotationTemplate();
@@ -109,6 +114,10 @@ export default function RowPanelDrawingTemplate({
     });
   };
 
+  const handleOpenDetail = () => {
+    dispatch(setDetailTemplateId(annotationTemplate.id));
+  };
+
   // render
 
   return (
@@ -118,6 +127,7 @@ export default function RowPanelDrawingTemplate({
       {...(sortableAttributes ?? {})}
     >
       <Box
+        onClick={handleOpenDetail}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         sx={{
@@ -127,6 +137,7 @@ export default function RowPanelDrawingTemplate({
           pl: 0.25,
           pr: 0.5,
           py: 1,
+          cursor: "pointer",
           bgcolor: "background.paper",
           "&:hover": { bgcolor: "action.hover" },
           "&:not(:last-child)": {
@@ -138,6 +149,7 @@ export default function RowPanelDrawingTemplate({
         {/* Drag handle (hover, "Tous" filter only) */}
         <Box
           {...(dndEnabled ? (dragListeners ?? {}) : {})}
+          onClick={(e) => e.stopPropagation()}
           sx={{
             display: "flex",
             alignItems: "center",
@@ -275,7 +287,7 @@ export default function RowPanelDrawingTemplate({
           </IconButton>
         </Tooltip>
 
-        {/* Inert chevron — future template detail view (#311) */}
+        {/* Chevron — opens the template detail view (row click) */}
         <ChevronRight
           sx={{ fontSize: 18, color: "panel.textLight", flexShrink: 0 }}
         />
