@@ -252,9 +252,9 @@ function SortableBaseMapRow({
         }}
       >
         {isVersionsExpanded ? (
-          <ExpandMore sx={{ fontSize: 16 }} />
+          <ExpandMore sx={{ fontSize: 20 }} />
         ) : (
-          <ChevronRight sx={{ fontSize: 16 }} />
+          <ChevronRight sx={{ fontSize: 20 }} />
         )}
       </IconButton>
       <Avatar
@@ -516,7 +516,11 @@ export default function BaseMapTreeItem({ listing, baseMaps, isDropTarget }) {
         onClick={handleListingClick}
         style={groupStyle}
         sx={{
-          pl: 1,
+          // Same left structure as the base map rows (3px selection-bar
+          // slot + drag handle + chevron) so the folder icon aligns with
+          // the base map avatars.
+          pl: 2,
+          borderLeft: "3px solid transparent",
           "&:hover .row-drag-handle": { opacity: 1 },
           ...(isDropTarget && {
             bgcolor: "action.focus",
@@ -533,21 +537,38 @@ export default function BaseMapTreeItem({ listing, baseMaps, isDropTarget }) {
             cursor: "grab",
             opacity: 0,
             transition: "0.2s",
-            ml: -0.5,
+            ml: -1.5,
             mr: 0.5,
           }}
         />
         <IconButton
           size="small"
           onClick={handleToggleCollapsed}
-          sx={{ mr: 1, p: 0 }}
+          sx={{ p: 0, mr: 0.5 }}
         >
           {isExpanded ? (
-            <FolderOpen fontSize="small" color="action" />
+            <ExpandMore sx={{ fontSize: 20 }} />
           ) : (
-            <Folder fontSize="small" color="action" />
+            <ChevronRight sx={{ fontSize: 20 }} />
           )}
         </IconButton>
+        <Box
+          sx={{
+            width: 28,
+            height: 28,
+            mr: 1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+          }}
+        >
+          {isExpanded ? (
+            <FolderOpen color="action" />
+          ) : (
+            <Folder color="action" />
+          )}
+        </Box>
         {isEditingListing ? (
           <InputBase
             value={tempTitle}
