@@ -502,7 +502,7 @@ export default function BaseMapTreeItem({ listing, baseMaps, isDropTarget }) {
         style={groupStyle}
         sx={{
           pl: 1,
-          "&:hover .edit-icon": { opacity: 1 },
+          "&:hover .row-drag-handle": { opacity: 1 },
           ...(isDropTarget && {
             bgcolor: "action.focus",
             outline: "1px dashed",
@@ -510,6 +510,18 @@ export default function BaseMapTreeItem({ listing, baseMaps, isDropTarget }) {
           }),
         }}
       >
+        <DragIndicator
+          className="row-drag-handle"
+          sx={{
+            fontSize: 14,
+            color: "text.disabled",
+            cursor: "grab",
+            opacity: 0,
+            transition: "0.2s",
+            ml: -0.5,
+            mr: 0.5,
+          }}
+        />
         <IconButton
           size="small"
           onClick={handleToggleCollapsed}
@@ -574,16 +586,6 @@ export default function BaseMapTreeItem({ listing, baseMaps, isDropTarget }) {
           </Box>
         ) : (
           <Box sx={{ display: "flex", alignItems: "center" }}>
-            <DragIndicator
-              className="edit-icon"
-              sx={{
-                fontSize: 16,
-                color: "text.disabled",
-                cursor: "grab",
-                opacity: 0,
-                transition: "0.2s",
-              }}
-            />
             <IconButton
               size="small"
               onClick={(e) => {
