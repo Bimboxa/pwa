@@ -25,7 +25,7 @@ import {
   List,
   ListItemButton,
   ListItemText,
-  Typography,
+  Tooltip,
   IconButton,
   Avatar,
 } from "@mui/material";
@@ -631,16 +631,18 @@ export default function BaseMapTreeItem({ listing, baseMaps, isDropTarget }) {
           </Box>
         ) : (
           <Box sx={{ display: "flex", alignItems: "center" }}>
-            <IconButton
-              size="small"
-              onClick={(e) => {
-                e.stopPropagation();
-                handleAddBaseMap();
-              }}
-              sx={{ color: "text.disabled" }}
-            >
-              <AddIcon fontSize="inherit" />
-            </IconButton>
+            <Tooltip title="Nouveau fond de plan">
+              <IconButton
+                size="small"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleAddBaseMap();
+                }}
+                sx={{ color: "text.disabled" }}
+              >
+                <AddIcon fontSize="inherit" />
+              </IconButton>
+            </Tooltip>
             <IconButtonMoreActionsBaseMapListing
               listing={listing}
               onRename={handleStartEditListing}
@@ -652,167 +654,132 @@ export default function BaseMapTreeItem({ listing, baseMaps, isDropTarget }) {
       </ListItemButton>
 
       {isExpanded && (
-        <Box>
-          {/* White background isolating the group's base maps from the
-              panel; the "Nouveau fond de plan" row stays on the panel bg. */}
-          <Box
-            sx={{
-              bgcolor: "background.paper",
-              borderBottom: "1px solid",
-              borderColor: "divider",
-            }}
+        // White background isolating the group's base maps from the panel
+        <Box
+          sx={{
+            bgcolor: "background.paper",
+            borderBottom: "1px solid",
+            borderColor: "divider",
+          }}
+        >
+          <Divider />
+          <SortableContext
+            items={baseMapIds}
+            strategy={verticalListSortingStrategy}
           >
-            <Divider />
-            <SortableContext
-              items={baseMapIds}
-              strategy={verticalListSortingStrategy}
-            >
-              <List dense disablePadding>
-                {baseMaps?.map((baseMap) => {
-                  const isBaseMapSelected = selectedBaseMapId === baseMap.id;
-                  const hasVersions =
-                    baseMap.versions && baseMap.versions.length > 1;
-                  const isVersionsExpanded =
-                    expandedBaseMapVersionIds?.includes(baseMap.id);
-                  const sortedVersions = hasVersions
-                    ? [...baseMap.versions].sort((a, b) =>
-                        (a.fractionalIndex || "").localeCompare(
-                          b.fractionalIndex || ""
-                        )
+            <List dense disablePadding>
+              {baseMaps?.map((baseMap) => {
+                const isBaseMapSelected = selectedBaseMapId === baseMap.id;
+                const hasVersions =
+                  baseMap.versions && baseMap.versions.length > 1;
+                const isVersionsExpanded = expandedBaseMapVersionIds?.includes(
+                  baseMap.id
+                );
+                const sortedVersions = hasVersions
+                  ? [...baseMap.versions].sort((a, b) =>
+                      (a.fractionalIndex || "").localeCompare(
+                        b.fractionalIndex || ""
                       )
-                    : [];
-                  const sortedVersionIds = sortedVersions.map((v) => v.id);
+                    )
+                  : [];
+                const sortedVersionIds = sortedVersions.map((v) => v.id);
 
-                  return (
-                    <Box key={baseMap.id}>
-                      <SortableBaseMapRow
-                        baseMap={baseMap}
-                        listingId={listing.id}
-                        isSelected={isBaseMapSelected}
-                        onClick={() => handleBaseMapClick(baseMap)}
-                        isEditing={editingItemId === baseMap.id}
-                        tempTitle={tempTitle}
-                        onStartEdit={() => handleStartEditBaseMap(baseMap)}
-                        onConfirmEdit={() =>
-                          handleConfirmEditBaseMap(baseMap.id)
-                        }
-                        onCancelEdit={handleCancelEdit}
-                        onTempTitleChange={setTempTitle}
-                        hasVersions={hasVersions}
-                        isVersionsExpanded={isVersionsExpanded}
-                        onToggleVersions={() =>
-                          dispatch(toggleBaseMapVersionsExpanded(baseMap.id))
-                        }
-                        onAddVersion={() => setCreateVersionForBaseMap(baseMap)}
-                        onOpenProperties={() =>
-                          handleOpenBaseMapProperties(baseMap)
-                        }
-                      />
-                      {hasVersions && isVersionsExpanded && (
-                        <DndContext
-                          id={`version-dnd-${baseMap.id}`}
-                          sensors={sensors}
-                          collisionDetection={closestCenter}
-                          onDragEnd={async (event) => {
-                            const { active, over } = event;
-                            if (!active || !over || active.id === over.id)
-                              return;
+                return (
+                  <Box key={baseMap.id}>
+                    <SortableBaseMapRow
+                      baseMap={baseMap}
+                      listingId={listing.id}
+                      isSelected={isBaseMapSelected}
+                      onClick={() => handleBaseMapClick(baseMap)}
+                      isEditing={editingItemId === baseMap.id}
+                      tempTitle={tempTitle}
+                      onStartEdit={() => handleStartEditBaseMap(baseMap)}
+                      onConfirmEdit={() => handleConfirmEditBaseMap(baseMap.id)}
+                      onCancelEdit={handleCancelEdit}
+                      onTempTitleChange={setTempTitle}
+                      hasVersions={hasVersions}
+                      isVersionsExpanded={isVersionsExpanded}
+                      onToggleVersions={() =>
+                        dispatch(toggleBaseMapVersionsExpanded(baseMap.id))
+                      }
+                      onAddVersion={() => setCreateVersionForBaseMap(baseMap)}
+                      onOpenProperties={() =>
+                        handleOpenBaseMapProperties(baseMap)
+                      }
+                    />
+                    {hasVersions && isVersionsExpanded && (
+                      <DndContext
+                        id={`version-dnd-${baseMap.id}`}
+                        sensors={sensors}
+                        collisionDetection={closestCenter}
+                        onDragEnd={async (event) => {
+                          const { active, over } = event;
+                          if (!active || !over || active.id === over.id) return;
 
-                            try {
-                              const oldIdx = sortedVersions.findIndex(
-                                (v) => v.id === active.id
-                              );
-                              const newIdx = sortedVersions.findIndex(
-                                (v) => v.id === over.id
-                              );
-                              if (oldIdx === -1 || newIdx === -1) return;
+                          try {
+                            const oldIdx = sortedVersions.findIndex(
+                              (v) => v.id === active.id
+                            );
+                            const newIdx = sortedVersions.findIndex(
+                              (v) => v.id === over.id
+                            );
+                            if (oldIdx === -1 || newIdx === -1) return;
 
-                              const reordered = arrayMove(
-                                [...sortedVersions],
-                                oldIdx,
-                                newIdx
+                            const reordered = arrayMove(
+                              [...sortedVersions],
+                              oldIdx,
+                              newIdx
+                            );
+                            let prev = null;
+                            const updates = [];
+                            for (const v of reordered) {
+                              const fi = generateKeyBetween(prev, null);
+                              updates.push(
+                                db.baseMapVersions.update(v.id, {
+                                  fractionalIndex: fi,
+                                })
                               );
-                              let prev = null;
-                              const updates = [];
-                              for (const v of reordered) {
-                                const fi = generateKeyBetween(prev, null);
-                                updates.push(
-                                  db.baseMapVersions.update(v.id, {
-                                    fractionalIndex: fi,
-                                  })
-                                );
-                                prev = fi;
-                              }
-                              await Promise.all(updates);
-                            } catch (e) {
-                              console.error(
-                                "[BaseMapTreeItem] DnD reorder error:",
-                                e
-                              );
+                              prev = fi;
                             }
-                          }}
+                            await Promise.all(updates);
+                          } catch (e) {
+                            console.error(
+                              "[BaseMapTreeItem] DnD reorder error:",
+                              e
+                            );
+                          }
+                        }}
+                      >
+                        <SortableContext
+                          items={sortedVersionIds}
+                          strategy={verticalListSortingStrategy}
                         >
-                          <SortableContext
-                            items={sortedVersionIds}
-                            strategy={verticalListSortingStrategy}
-                          >
-                            {sortedVersions.map((version) => (
-                              <SortableVersionRow
-                                key={version.id}
-                                baseMap={baseMap}
-                                version={version}
-                                isSelected={selectedVersionId === version.id}
-                                isHidden={hiddenVersionIds?.includes(
-                                  version.id
-                                )}
-                                onClick={() =>
-                                  handleVersionClick(baseMap, version)
-                                }
-                                onDoubleClick={() =>
-                                  handleActivateVersion(baseMap, version)
-                                }
-                                onToggleHidden={() =>
-                                  dispatch(toggleVersionHidden(version.id))
-                                }
-                              />
-                            ))}
-                          </SortableContext>
-                        </DndContext>
-                      )}
-                    </Box>
-                  );
-                })}
-              </List>
-            </SortableContext>
-          </Box>
-
-          <ListItemButton
-            onClick={handleAddBaseMap}
-            sx={{
-              // Dashed box aligned with the base map avatars column
-              pl: 9,
-              gap: 1,
-              color: "text.disabled",
-            }}
-          >
-            <Box
-              sx={{
-                width: 28,
-                height: 28,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                borderRadius: 1,
-                border: "1.5px dashed",
-                borderColor: "divider",
-              }}
-            >
-              <AddIcon sx={{ fontSize: 16, color: "text.disabled" }} />
-            </Box>
-            <Typography variant="body2" color="text.disabled">
-              Nouveau fond de plan
-            </Typography>
-          </ListItemButton>
+                          {sortedVersions.map((version) => (
+                            <SortableVersionRow
+                              key={version.id}
+                              baseMap={baseMap}
+                              version={version}
+                              isSelected={selectedVersionId === version.id}
+                              isHidden={hiddenVersionIds?.includes(version.id)}
+                              onClick={() =>
+                                handleVersionClick(baseMap, version)
+                              }
+                              onDoubleClick={() =>
+                                handleActivateVersion(baseMap, version)
+                              }
+                              onToggleHidden={() =>
+                                dispatch(toggleVersionHidden(version.id))
+                              }
+                            />
+                          ))}
+                        </SortableContext>
+                      </DndContext>
+                    )}
+                  </Box>
+                );
+              })}
+            </List>
+          </SortableContext>
         </Box>
       )}
 
