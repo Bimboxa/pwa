@@ -47,7 +47,9 @@ export default function useDrawToolOfType(type) {
     if (!activeTool) return;
     dispatch(setEnabledDrawingMode(activeTool.drawingMode ?? activeTool.key));
     dispatch(
-      setNewAnnotation(buildToolDraft(newAnnotation, activeTool, openingDefaults))
+      setNewAnnotation(
+        buildToolDraft(newAnnotation, activeTool, openingDefaults)
+      )
     );
   };
 

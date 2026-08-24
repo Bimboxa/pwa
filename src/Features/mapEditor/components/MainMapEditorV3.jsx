@@ -90,6 +90,7 @@ import useCreateAnnotationsFromDetectedFeatures from "Features/smartDetect/hooks
 import useCommitLocalizedRepair from "Features/localizedRepair/hooks/useCommitLocalizedRepair";
 import useCreateAnnotationFromSurfaceDrop from "Features/smartDetect/hooks/useCreateAnnotationFromSurfaceDrop";
 import PopperMapListings from "./PopperMapListings";
+import FloatingHelpersDessin from "Features/panelDrawing/components/FloatingHelpersDessin";
 import ImageModeOverlay from "./ImageModeOverlay";
 import ButtonCloseImageMode from "./ButtonCloseImageMode";
 
@@ -252,6 +253,10 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     );
     // Viewer module (key THREED): read-only consultation, no listings panel.
     const isViewerModule = useSelector((s) => s.viewers.selectedViewerKey === "THREED");
+    // Dessin module (key MAP): the left panel (PanelDrawing) took over the
+    // listings popper (#310) — only the floating paste/subtract/drawing
+    // helpers remain over the map.
+    const isDessinModule = useSelector((s) => s.viewers.selectedViewerKey === "MAP");
     const hiddenVersionIds = useSelector((s) => s.baseMapEditor.hiddenVersionIds);
     const selectedVersionId = useSelector((s) => s.baseMapEditor.selectedVersionId);
     const versionTransformOverride = useSelector((s) => s.baseMapEditor.versionTransformOverride);
@@ -2082,9 +2087,16 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
             {!versionCompareEnabled &&
                 !imageModeActive &&
                 !isViewerModule &&
+                !isDessinModule &&
                 (forViewerKey !== "BASE_MAPS" || showDrawingToolsInBaseMaps) && (
                     <PopperMapListings />
                 )}
+
+            {/* Dessin module: floating helpers only (paste / subtract /
+                drawing-in-drawer-mode) — the listings live in the left panel. */}
+            {isDessinModule && !versionCompareEnabled && !imageModeActive && (
+                <FloatingHelpersDessin />
+            )}
 
             {imageModeActive && (
                 <ImageModeOverlay

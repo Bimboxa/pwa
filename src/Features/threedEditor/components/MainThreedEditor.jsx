@@ -77,6 +77,7 @@ import {
 import PopperEditAnnotation from "Features/mapEditor/components/PopperEditAnnotation";
 import PopperMapListings from "Features/mapEditor/components/PopperMapListings";
 import PopperSubtractHelper from "Features/mapEditor/components/PopperSubtractHelper";
+import PopperDrawingHelper from "Features/mapEditor/components/PopperDrawingHelper";
 import useSubtractPickHotkeysInThreedEditor from "../hooks/useSubtractPickHotkeysInThreedEditor";
 import ClippingToolbarThreed from "./ClippingToolbarThreed";
 import ButtonZoomOutThreed from "./ButtonZoomOutThreed";
@@ -214,6 +215,16 @@ export default function MainThreedEditor() {
   const isViewerModule = useSelector(
     (s) => s.viewers.selectedViewerKey === "THREED"
   );
+  // Dessin module (key MAP) toggled to 3D: the left panel (PanelDrawing) took
+  // over the listings popper (#310). The drawing helper still floats when the
+  // panel is in drawer (non-docked) mode — off-screen while drawing.
+  const isDessinModule = useSelector(
+    (s) => s.viewers.selectedViewerKey === "MAP"
+  );
+  const enabledDrawingModeForHelper = useSelector(
+    (s) => s.mapEditor.enabledDrawingMode
+  );
+  const leftPanelDocked = useSelector((s) => s.leftPanel.leftPanelDocked);
 
   // Entering/leaving the 3D viewer keeps whatever right panel is open: the
   // SETTINGS panel switches its content (3D view settings <-> 2D editor
@@ -1959,8 +1970,17 @@ export default function MainThreedEditor() {
       {isThreedViewer &&
         !isBaseMapsModule &&
         !isViewerModule &&
+        !isDessinModule &&
         !captureFramingActive &&
         !subtractPickActive && <PopperMapListings />}
+      {/* Dessin module in 3D: drawer-mode fallback of the panel's drawing
+          helper (the docked panel renders it itself). */}
+      {isThreedViewer &&
+        isDessinModule &&
+        !captureFramingActive &&
+        !subtractPickActive &&
+        Boolean(enabledDrawingModeForHelper) &&
+        !leftPanelDocked && <PopperDrawingHelper />}
       {isThreedViewer && subtractPickActive && <PopperSubtractHelper />}
       {isThreedViewer && <PopperEditAnnotation viewerKey="THREED" />}
       {isThreedViewer && <ThreedPopperEditAnnotations />}
