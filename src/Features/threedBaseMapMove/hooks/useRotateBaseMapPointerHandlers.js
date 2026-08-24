@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 import { useDispatch, useSelector } from "react-redux";
 
@@ -6,6 +6,7 @@ import {
   setRotateBaseMapModeActive,
   setRotateBaseMapCarriedId,
   setRotateBaseMapReferenceSet,
+  setRotateAngleBuffer,
   bumpSnapIndexEpoch,
 } from "Features/threedEditor/threedEditorSlice";
 import { triggerBaseMapsUpdate } from "Features/baseMaps/baseMapsSlice";
@@ -14,6 +15,10 @@ import { setToaster } from "Features/layout/layoutSlice";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 import { buildIndex } from "Features/threedDrawing/hooks/useVertexSnap";
 import resolveBaseMapGroupFromSnap from "../utils/resolveBaseMapGroupFromSnap";
+import findBaseMapGroupsAtVertex from "../utils/findBaseMapGroupsAtVertex";
+import applyRotateBaseMapPose, {
+  parseRotateAngleBuffer,
+} from "../utils/applyRotateBaseMapPose";
 import db from "App/db/db";
 
 import {
@@ -25,6 +30,21 @@ import {
 
 // Mirrors useMoveBaseMapPointerHandlers.
 const DRAG_THRESHOLD_PX = 4;
+
+// Characters accepted by the typed angle buffer (degrees).
+const ANGLE_BUFFER_CHAR_RE = /^[0-9.,-]$/;
+
+// Same guard as the 2D hotkeys: never steal keystrokes from a real field.
+const isEditableTarget = (el) => {
+  if (!el) return false;
+  const tag = el.tagName;
+  return (
+    tag === "INPUT" ||
+    tag === "TEXTAREA" ||
+    tag === "SELECT" ||
+    el.isContentEditable
+  );
+};
 
 // Restores the rotating group to its pivot-click pose (Escape / mode exit).
 function restoreRotatedGroup() {
@@ -54,6 +74,14 @@ export default function useRotateBaseMapPointerHandlers() {
 
   const active = useSelector((s) => s.threedEditor.rotateBaseMapMode.active);
 
+  // Selected base map — tie-break of an ambiguous pivot vertex (shared by
+  // annotations of several base maps). Ref so the handlers don't re-attach.
+  const selectedBaseMapId = useSelector((s) => s.mapEditor.selectedBaseMapId);
+  const selectedBaseMapIdRef = useRef(selectedBaseMapId);
+  useEffect(() => {
+    selectedBaseMapIdRef.current = selectedBaseMapId;
+  }, [selectedBaseMapId]);
+
   useEffect(() => {
     if (!active) return;
     const editor = getActiveThreedEditor();
@@ -78,7 +106,16 @@ export default function useRotateBaseMapPointerHandlers() {
 
     function grabPivotAtSnap(snap) {
       const scene = editor?.sceneManager?.scene;
-      const { group, baseMapId } = resolveBaseMapGroupFromSnap(editor, snap);
+      let { group, baseMapId } = resolveBaseMapGroupFromSnap(editor, snap);
+      // Vertex shared by annotations of several base maps: prefer the
+      // SELECTED base map.
+      const candidates = findBaseMapGroupsAtVertex(editor, snap.position);
+      if (candidates.length > 1) {
+        const preferred = candidates.find(
+          (c) => c.baseMapId === selectedBaseMapIdRef.current
+        );
+        if (preferred) ({ group, baseMapId } = preferred);
+      }
       if (!group || !baseMapId) {
         dispatch(
           setToaster({
@@ -104,6 +141,7 @@ export default function useRotateBaseMapPointerHandlers() {
         refPoint: null,
         refBearing: null,
         currentPhi: 0,
+        angleBuffer: "",
         targetVerts,
         targetAdjacency,
       });
@@ -176,14 +214,58 @@ export default function useRotateBaseMapPointerHandlers() {
       isDragging = false;
     }
 
+    function setAngleBuffer(grab, buffer) {
+      grab.angleBuffer = buffer;
+      dispatch(setRotateAngleBuffer(buffer));
+      // Immediate visual feedback: pose the group for the typed angle (the
+      // overlay redraws its helpers on the next pointer move).
+      const phi = parseRotateAngleBuffer(buffer);
+      if (phi != null) applyRotateBaseMapPose(editor, grab, phi);
+    }
+
     function onKeyDown(e) {
-      if (e.key !== "Escape") return;
-      if (getRotateGrab()) {
-        // Cancel the in-progress rotation: put the group back.
-        restoreRotatedGroup();
-        dispatch(setRotateBaseMapCarriedId(null));
-      } else {
-        dispatch(setRotateBaseMapModeActive(false));
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const grab = getRotateGrab();
+
+      if (e.key === "Escape") {
+        if (grab?.angleBuffer) {
+          // Drop the typed angle first (back to the mouse-driven angle).
+          setAngleBuffer(grab, "");
+        } else if (grab) {
+          // Cancel the in-progress rotation: put the group back.
+          restoreRotatedGroup();
+          dispatch(setRotateBaseMapCarriedId(null));
+        } else {
+          dispatch(setRotateBaseMapModeActive(false));
+        }
+        return;
+      }
+
+      // Typed angle buffer — rotation phase only, and never steal
+      // keystrokes from a real field (the toolbar field feeds the same
+      // buffer through onChangeText).
+      if (!grab || grab.refBearing == null) return;
+
+      if (e.key === "Enter") {
+        commitRotation(grab);
+        return;
+      }
+
+      if (isEditableTarget(e.target)) return;
+
+      if (e.key === "Backspace" || e.key === "Delete") {
+        if (!grab.angleBuffer) return;
+        e.preventDefault();
+        e.stopPropagation();
+        setAngleBuffer(grab, grab.angleBuffer.slice(0, -1));
+        return;
+      }
+      if (ANGLE_BUFFER_CHAR_RE.test(e.key)) {
+        // A minus only makes sense as the first character.
+        if (e.key === "-" && grab.angleBuffer !== "") return;
+        e.preventDefault();
+        e.stopPropagation();
+        setAngleBuffer(grab, grab.angleBuffer + (e.key === "," ? "." : e.key));
       }
     }
 
@@ -191,13 +273,16 @@ export default function useRotateBaseMapPointerHandlers() {
     dom.addEventListener("pointermove", onPointerMove);
     dom.addEventListener("pointerup", onPointerUp);
     dom.addEventListener("pointercancel", onPointerCancel);
-    window.addEventListener("keydown", onKeyDown);
+    // Capture phase: the typed digits / Backspace must reach the buffer
+    // before the window-scoped shortcuts of the other features (same as the
+    // extrude value buffer).
+    window.addEventListener("keydown", onKeyDown, true);
     return () => {
       dom.removeEventListener("pointerdown", onPointerDown);
       dom.removeEventListener("pointermove", onPointerMove);
       dom.removeEventListener("pointerup", onPointerUp);
       dom.removeEventListener("pointercancel", onPointerCancel);
-      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("keydown", onKeyDown, true);
       // Leaving the mode mid-rotation: put the group back.
       restoreRotatedGroup();
     };

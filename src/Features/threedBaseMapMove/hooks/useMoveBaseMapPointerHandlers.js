@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 import { useDispatch, useSelector } from "react-redux";
 
@@ -13,6 +13,7 @@ import { setToaster } from "Features/layout/layoutSlice";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 import { buildIndex } from "Features/threedDrawing/hooks/useVertexSnap";
 import resolveBaseMapGroupFromSnap from "../utils/resolveBaseMapGroupFromSnap";
+import findBaseMapGroupsAtVertex from "../utils/findBaseMapGroupsAtVertex";
 import db from "App/db/db";
 
 import {
@@ -52,6 +53,14 @@ export default function useMoveBaseMapPointerHandlers() {
 
   const active = useSelector((s) => s.threedEditor.moveBaseMapMode.active);
 
+  // Selected base map — tie-break of an ambiguous grab vertex (shared by
+  // annotations of several base maps). Ref so the handlers don't re-attach.
+  const selectedBaseMapId = useSelector((s) => s.mapEditor.selectedBaseMapId);
+  const selectedBaseMapIdRef = useRef(selectedBaseMapId);
+  useEffect(() => {
+    selectedBaseMapIdRef.current = selectedBaseMapId;
+  }, [selectedBaseMapId]);
+
   useEffect(() => {
     if (!active) return;
     const editor = getActiveThreedEditor();
@@ -76,7 +85,16 @@ export default function useMoveBaseMapPointerHandlers() {
 
     function grabAtSnap(snap) {
       const scene = editor?.sceneManager?.scene;
-      const { group, baseMapId } = resolveBaseMapGroupFromSnap(editor, snap);
+      let { group, baseMapId } = resolveBaseMapGroupFromSnap(editor, snap);
+      // Vertex shared by annotations of several base maps: prefer the
+      // SELECTED base map.
+      const candidates = findBaseMapGroupsAtVertex(editor, snap.position);
+      if (candidates.length > 1) {
+        const preferred = candidates.find(
+          (c) => c.baseMapId === selectedBaseMapIdRef.current
+        );
+        if (preferred) ({ group, baseMapId } = preferred);
+      }
       if (!group || !baseMapId) {
         dispatch(
           setToaster({

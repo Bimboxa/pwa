@@ -226,6 +226,10 @@ const threedEditorInitialState = {
     carriedBaseMapId: null,
     // Reference axis fixed (2nd click done) — drives the toolbar hint.
     referenceSet: false,
+    // Angle typed on the keyboard during the rotation phase (degrees), no
+    // focused field — same model as extrudeMode.valueBuffer / the 2D
+    // drawing constraint buffer. A parsable buffer wins over the mouse.
+    angleBuffer: "",
   },
   // First-person walk mode (W in the 3D viewer). Camera-controls suspended:
   // pointer-locked mouse looks, arrow keys move on the selected baseMap,
@@ -635,6 +639,7 @@ export const threedEditorSlice = createSlice({
       state.rotateBaseMapMode.active = !!action.payload;
       state.rotateBaseMapMode.carriedBaseMapId = null;
       state.rotateBaseMapMode.referenceSet = false;
+      state.rotateBaseMapMode.angleBuffer = "";
       if (action.payload) {
         // Mutually exclusive with every other 3D tool mode.
         state.drawingMode.active = false;
@@ -654,10 +659,17 @@ export const threedEditorSlice = createSlice({
     },
     setRotateBaseMapCarriedId: (state, action) => {
       state.rotateBaseMapMode.carriedBaseMapId = action.payload ?? null;
-      if (!action.payload) state.rotateBaseMapMode.referenceSet = false;
+      if (!action.payload) {
+        state.rotateBaseMapMode.referenceSet = false;
+        state.rotateBaseMapMode.angleBuffer = "";
+      }
     },
     setRotateBaseMapReferenceSet: (state, action) => {
       state.rotateBaseMapMode.referenceSet = !!action.payload;
+      state.rotateBaseMapMode.angleBuffer = "";
+    },
+    setRotateAngleBuffer: (state, action) => {
+      state.rotateBaseMapMode.angleBuffer = action.payload ?? "";
     },
     setHideAnnotationsIn3d: (state, action) => {
       state.hideAnnotationsIn3d = action.payload;
@@ -757,6 +769,7 @@ export const {
   setRotateBaseMapModeActive,
   setRotateBaseMapCarriedId,
   setRotateBaseMapReferenceSet,
+  setRotateAngleBuffer,
   setHideAnnotationsIn3d,
   setMesh3dLabels,
   setMesh3dGroupByOrientation,

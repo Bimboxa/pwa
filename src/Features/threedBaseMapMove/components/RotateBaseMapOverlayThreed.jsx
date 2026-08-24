@@ -9,6 +9,9 @@ import useVertexSnap from "Features/threedDrawing/hooks/useVertexSnap";
 import findNearestEdgeSnap from "Features/threedDimensions/utils/findNearestEdgeSnap";
 import { getMeshAdjacency } from "Features/threedDrawing/services/meshGraphStore";
 import findNearestVertexInVerts from "../utils/findNearestVertexInVerts";
+import applyRotateBaseMapPose, {
+  parseRotateAngleBuffer,
+} from "../utils/applyRotateBaseMapPose";
 import {
   setLastRotateSnap,
   getRotateGrab,
@@ -52,6 +55,8 @@ export default function RotateBaseMapOverlayThreed() {
   const pivotCircleRef = useRef(null);
   const refLineRef = useRef(null);
   const currentLineRef = useRef(null);
+  const axisLineRef = useRef(null);
+  const arcRef = useRef(null);
   const angleLabelRef = useRef(null);
 
   // pointer-move: snap detection + helper lines + live rotation
@@ -120,12 +125,73 @@ export default function RotateBaseMapOverlayThreed() {
     }
 
     function hideAll() {
-      [snapCircleRef, pivotCircleRef, refLineRef, currentLineRef].forEach(
-        (r) => {
-          if (r.current) r.current.style.display = "none";
-        }
-      );
+      [
+        snapCircleRef,
+        pivotCircleRef,
+        refLineRef,
+        currentLineRef,
+        axisLineRef,
+        arcRef,
+      ].forEach((r) => {
+        if (r.current) r.current.style.display = "none";
+      });
       updateAngleLabel(null, null);
+    }
+
+    // World point at `bearing` and `radius` from the pivot, in the
+    // horizontal plane (bearing = atan2(-dz, dx) convention).
+    function pointAtBearing(pivot, bearing, radius) {
+      return new Vector3(
+        pivot.x + radius * Math.cos(bearing),
+        pivot.y,
+        pivot.z - radius * Math.sin(bearing)
+      );
+    }
+
+    // Small vertical dashed line through the pivot = the rotation axis.
+    function updateAxisLine(grab, rect, radius) {
+      const h = Math.min(Math.max(radius * 0.6, 0.3), 4);
+      const top = toScreen(
+        new Vector3(grab.pivot.x, grab.pivot.y + h, grab.pivot.z),
+        rect
+      );
+      const bottom = toScreen(
+        new Vector3(grab.pivot.x, grab.pivot.y - h * 0.25, grab.pivot.z),
+        rect
+      );
+      updateLine(axisLineRef, bottom, top);
+    }
+
+    // Protractor sector between the reference ray and the current angle.
+    function updateArc(grab, rect, radius, phi) {
+      const arc = arcRef.current;
+      if (!arc) return;
+      const pivotScreen = toScreen(grab.pivot, rect);
+      if (!pivotScreen || phi == null || Math.abs(phi) < 1e-4) {
+        arc.style.display = "none";
+        return;
+      }
+      const r = radius * 0.55;
+      const steps = Math.max(
+        2,
+        Math.ceil(Math.abs(phi) / ((5 * Math.PI) / 180))
+      );
+      const pts = [];
+      for (let i = 0; i <= steps; i++) {
+        const beta = grab.refBearing + (phi * i) / steps;
+        const screen = toScreen(pointAtBearing(grab.pivot, beta, r), rect);
+        if (!screen) {
+          arc.style.display = "none";
+          return;
+        }
+        pts.push(screen);
+      }
+      const d =
+        `M ${pivotScreen.sx} ${pivotScreen.sy} ` +
+        pts.map((p) => `L ${p.sx} ${p.sy}`).join(" ") +
+        " Z";
+      arc.setAttribute("d", d);
+      arc.style.display = "block";
     }
 
     // Target point driving the reference / rotation phases. The reference
@@ -229,50 +295,68 @@ export default function RotateBaseMapOverlayThreed() {
       // Phase 2 — reference axis pick: dashed helper from the pivot to the
       // cursor, no rotation yet.
       if (grab.refBearing == null) {
+        const refRadius = target
+          ? Math.hypot(
+              target.position.x - grab.pivot.x,
+              target.position.z - grab.pivot.z
+            )
+          : 1;
+        updateAxisLine(grab, rect, Math.max(refRadius, 0.5));
         updateLine(refLineRef, pivotScreen, targetScreen);
         if (currentLineRef.current)
           currentLineRef.current.style.display = "none";
+        if (arcRef.current) arcRef.current.style.display = "none";
         updateAngleLabel(null, null);
         editor.renderScene?.();
         return;
       }
 
       // Phase 3 — rotation: the angle opens between the fixed reference ray
-      // and the pivot→cursor ray.
+      // and the pivot→cursor ray. A parsable typed buffer (degrees) wins
+      // over the mouse.
+      const refRadius = grab.refPoint
+        ? Math.max(
+            Math.hypot(
+              grab.refPoint.x - grab.pivot.x,
+              grab.refPoint.z - grab.pivot.z
+            ),
+            0.2
+          )
+        : 1;
       const refScreen = grab.refPoint ? toScreen(grab.refPoint, rect) : null;
+      updateAxisLine(grab, rect, refRadius);
       updateLine(refLineRef, pivotScreen, refScreen);
-      updateLine(currentLineRef, pivotScreen, targetScreen);
+
+      const typedPhi = parseRotateAngleBuffer(grab.angleBuffer);
+      if (typedPhi != null) {
+        applyRotateBaseMapPose(editor, grab, typedPhi);
+        const endScreen = toScreen(
+          pointAtBearing(grab.pivot, grab.refBearing + typedPhi, refRadius),
+          rect
+        );
+        updateLine(currentLineRef, pivotScreen, endScreen);
+        if (snapCircleRef.current) snapCircleRef.current.style.display = "none";
+        updateArc(grab, rect, refRadius, typedPhi);
+        updateAngleLabel(typedPhi, endScreen);
+        editor.renderScene?.();
+        return;
+      }
 
       if (target) {
         const dx = target.position.x - grab.pivot.x;
         const dz = target.position.z - grab.pivot.z;
         // Degenerate cursor on the pivot: keep the current angle.
         if (Math.hypot(dx, dz) > 1e-6) {
-          const phi = bearingOf(dx, dz) - grab.refBearing;
-          grab.currentPhi = phi;
-
-          const group = editor?.sceneManager?.imagesManager?.getGroup(
-            grab.baseMapId
+          applyRotateBaseMapPose(
+            editor,
+            grab,
+            bearingOf(dx, dz) - grab.refBearing
           );
-          if (group) {
-            // World-Y rotation: with the group's YXZ euler, adding to
-            // rotation.y IS a rotation around the world-vertical axis —
-            // whatever the plane orientation.
-            group.rotation.y = grab.groupStartRotY + phi;
-            // Position orbits the pivot in the horizontal plane.
-            const px = grab.groupStartPosition.x - grab.pivot.x;
-            const pz = grab.groupStartPosition.z - grab.pivot.z;
-            const cos = Math.cos(phi);
-            const sin = Math.sin(phi);
-            group.position.set(
-              grab.pivot.x + px * cos + pz * sin,
-              grab.groupStartPosition.y,
-              grab.pivot.z - px * sin + pz * cos
-            );
-          }
         }
       }
 
+      updateLine(currentLineRef, pivotScreen, targetScreen);
+      updateArc(grab, rect, refRadius, grab.currentPhi);
       updateAngleLabel(grab.currentPhi, targetScreen);
       editor.renderScene?.();
     }
@@ -304,6 +388,20 @@ export default function RotateBaseMapOverlayThreed() {
         zIndex: 5,
       }}
     >
+      <path
+        ref={arcRef}
+        fill="rgba(230, 81, 0, 0.15)"
+        stroke={COLOR_CURRENT_LINE}
+        strokeWidth="1"
+        style={{ display: "none" }}
+      />
+      <line
+        ref={axisLineRef}
+        stroke={COLOR_PIVOT}
+        strokeWidth="1.5"
+        strokeDasharray="4 3"
+        style={{ display: "none" }}
+      />
       <line
         ref={refLineRef}
         stroke={COLOR_REF_LINE}
