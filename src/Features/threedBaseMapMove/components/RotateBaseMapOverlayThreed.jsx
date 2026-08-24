@@ -34,6 +34,15 @@ function bearingOf(dx, dz) {
   return Math.atan2(-dz, dx);
 }
 
+// A bearing difference lands in (-2π, 2π): bring the angle back to
+// (-π, π] so the readout stays between -180° and +180°.
+function normalizeAngle(phi) {
+  let a = phi;
+  while (a > Math.PI) a -= 2 * Math.PI;
+  while (a <= -Math.PI) a += 2 * Math.PI;
+  return a;
+}
+
 // Live overlay of the "Tourner" (rotate base map) tool — CAD-style 3 clicks:
 // 1. pivot phase: vertex snap marker for the pivot click;
 // 2. reference phase: dashed helper line from the pivot to the cursor,
@@ -350,7 +359,7 @@ export default function RotateBaseMapOverlayThreed() {
           applyRotateBaseMapPose(
             editor,
             grab,
-            bearingOf(dx, dz) - grab.refBearing
+            normalizeAngle(bearingOf(dx, dz) - grab.refBearing)
           );
         }
       }
