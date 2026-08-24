@@ -3,7 +3,6 @@ import { useDispatch, useSelector } from "react-redux";
 
 import {
   setDetailBaseMapId,
-  setDetailView,
   setDisplayedBaseMapListingId,
   setCreatingInListingId,
   toggleVersionHidden,
@@ -13,46 +12,60 @@ import {
   setSelectedBaseMapsListingId,
 } from "Features/mapEditor/mapEditorSlice";
 import { setSelectedItem } from "Features/selection/selectionSlice";
+import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
+import {
+  triggerBaseMapsUpdate,
+  setPropertiesRequestedView,
+} from "Features/baseMaps/baseMapsSlice";
 
 import {
   Avatar,
   Box,
-  Button,
   Chip,
   IconButton,
   List,
   ListItemButton,
   ListItemText,
   Link,
+  ToggleButton,
+  ToggleButtonGroup,
+  Tooltip,
   Typography,
 } from "@mui/material";
-import ChevronLeft from "@mui/icons-material/ChevronLeft";
 import AddIcon from "@mui/icons-material/Add";
+import MoreHoriz from "@mui/icons-material/MoreHoriz";
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
 
 import DialogCreateBaseMapVersion from "./DialogCreateBaseMapVersion";
 import IconButtonMoreActionsBaseMapVersion from "./IconButtonMoreActionsBaseMapVersion";
 
+import db from "App/db/db";
 import activateBaseMapVersion from "Features/baseMaps/utils/activateBaseMapVersion";
 import createBaseMapVersionFromSource from "Features/baseMaps/services/createBaseMapVersionFromSource";
 import formatVersionDate from "Features/baseMaps/utils/formatVersionDate";
 import getBaseMapDisplayName from "Features/baseMaps/utils/getBaseMapDisplayName";
+import getBaseMapTransform, {
+  DEFAULT_ORIENTATION,
+} from "Features/baseMaps/js/getBaseMapTransform";
 
 // ---------------------------------------------------------------------------
-// PanelBaseMapVersions — detail view of the Fond de plan panel (#312): the
-// versions of one base map, with a breadcrumb header navigating back to the
-// tree and a "Propriétés" button opening the properties subview — same
-// pattern as PanelTemplateAnnotations in the Dessin panel (#311).
+// PanelBaseMapVersions — detail view of the Fond de plan panel (#312): one
+// base map, with a breadcrumb header navigating back to the tree, a full
+// width image preview, the versions list and a "Position 3D" section
+// (Horizontal / Vertical toggle + a "..." button opening the 3D
+// localization panel in the right panel).
 // ---------------------------------------------------------------------------
 
-export default function PanelBaseMapVersions({ baseMap, listing }) {
+export default function PanelBaseMapVersions({ baseMap }) {
   const dispatch = useDispatch();
 
   // strings
 
   const breadcrumbRootS = "Fonds de plan";
-  const propertiesS = "Propriétés";
+  const versionsS = "Versions";
+  const position3dS = "Position 3D";
+  const openPosition3dS = "Localisation 3D";
   const newVersionS = "Nouvelle version";
   const legacyImageS = "Image d'origine";
 
@@ -77,23 +90,18 @@ export default function PanelBaseMapVersions({ baseMap, listing }) {
     [baseMap.versions]
   );
 
-  const versionsCount = sortedVersions.length || 1;
-  const countS = `${versionsCount} version${versionsCount > 1 ? "s" : ""}`;
-  const subtitleS = listing?.name ? `${countS} · ${listing.name}` : countS;
-
   const { label: nameS, isPlaceholder: isUnnamed } =
     getBaseMapDisplayName(baseMap);
+
+  const previewUrl = baseMap?.getUrl?.() || baseMap?.image?.imageUrlClient;
+
+  const orientation =
+    getBaseMapTransform(baseMap)?.orientation ?? DEFAULT_ORIENTATION;
 
   // handlers
 
   const handleBack = () => {
     dispatch(setDetailBaseMapId(null));
-  };
-
-  // The base map properties open IN the panel (PanelBaseMapDetailProperties
-  // subview), not in the right panel.
-  const handleOpenProperties = () => {
-    dispatch(setDetailView("PROPERTIES"));
   };
 
   // Same behavior as the tree's inline version rows (BaseMapTreeItem
@@ -121,6 +129,28 @@ export default function PanelBaseMapVersions({ baseMap, listing }) {
       sourceVersion,
     });
     setOpenCreateVersion(false);
+  }
+
+  // Orientation of the plane in the 3D scene — same field / update as
+  // PanelBaseMapPositionInMainRef.
+  async function handleOrientationChange(value) {
+    if (!baseMap?.id || !value || value === orientation) return;
+    await db.baseMaps.update(baseMap.id, { orientation: value });
+    dispatch(triggerBaseMapsUpdate());
+  }
+
+  // Open the 3D localization panel (PanelBaseMapProperties "position3d"
+  // subview) in the RIGHT panel, targeting this base map.
+  function handleOpenPosition3d() {
+    dispatch(
+      setSelectedItem({
+        id: baseMap.id,
+        type: "BASE_MAP",
+        listingId: baseMap.listingId,
+      })
+    );
+    dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
+    dispatch(setPropertiesRequestedView("position3d"));
   }
 
   // render
@@ -165,70 +195,57 @@ export default function PanelBaseMapVersions({ baseMap, listing }) {
         </Typography>
       </Box>
 
-      {/* Header: back + thumbnail + title */}
-      <Box
-        sx={{ display: "flex", alignItems: "center", gap: 1.5, px: 1.5, pb: 1 }}
+      {/* Title */}
+      <Typography
+        variant="h6"
+        noWrap
+        sx={{
+          px: 2,
+          pb: 1,
+          fontWeight: 700,
+          ...(isUnnamed && {
+            fontStyle: "italic",
+            color: "text.secondary",
+          }),
+        }}
       >
-        <IconButton
-          onClick={handleBack}
-          sx={{
-            bgcolor: "background.paper",
-            border: "1px solid",
-            borderColor: "divider",
-            borderRadius: 2,
-            flexShrink: 0,
-            "&:hover": { bgcolor: "action.hover" },
-          }}
-        >
-          <ChevronLeft sx={{ fontSize: 20 }} />
-        </IconButton>
-        <Avatar
-          src={baseMap?.getThumbnail?.() || baseMap?.image?.thumbnail}
-          variant="rounded"
-          sx={{ width: 36, height: 36, flexShrink: 0 }}
-        />
-        <Box sx={{ flex: 1, minWidth: 0 }}>
-          <Typography
-            variant="h6"
-            noWrap
-            sx={{
-              fontWeight: 700,
-              ...(isUnnamed && {
-                fontStyle: "italic",
-                color: "text.secondary",
-              }),
-            }}
-          >
-            {nameS}
-          </Typography>
-          <Typography variant="body2" noWrap sx={{ color: "text.secondary" }}>
-            {subtitleS}
-          </Typography>
-        </Box>
-      </Box>
+        {nameS}
+      </Typography>
 
-      {/* Actions */}
-      <Box sx={{ display: "flex", gap: 1, px: 1.5, pb: 1.5 }}>
-        <Button
-          onClick={handleOpenProperties}
-          sx={{
-            flex: 1,
-            bgcolor: "background.paper",
-            border: "1px solid",
-            borderColor: "divider",
-            borderRadius: 3,
-            color: "text.primary",
-            fontWeight: 600,
-            textTransform: "none",
-            "&:hover": { bgcolor: "action.hover" },
-          }}
-        >
-          {propertiesS}
-        </Button>
-      </Box>
-
-      {/* Versions list */}
       <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
+        {/* Full width image preview */}
+        {previewUrl && (
+          <Box sx={{ px: 1.5, pb: 1.5 }}>
+            <Box
+              component="img"
+              src={previewUrl}
+              sx={{
+                width: 1,
+                maxHeight: 220,
+                objectFit: "contain",
+                display: "block",
+                bgcolor: "background.paper",
+                border: "1px solid",
+                borderColor: "divider",
+                borderRadius: 2,
+              }}
+            />
+          </Box>
+        )}
+
+        {/* Versions */}
+        <Typography
+          variant="caption"
+          sx={{
+            display: "block",
+            px: 2,
+            pb: 0.5,
+            fontWeight: 700,
+            color: "text.secondary",
+          }}
+        >
+          {versionsS}
+        </Typography>
         <Box
           sx={{
             bgcolor: "background.paper",
@@ -355,6 +372,66 @@ export default function PanelBaseMapVersions({ baseMap, listing }) {
             {newVersionS}
           </Typography>
         </ListItemButton>
+
+        {/* Position 3D */}
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            px: 2,
+            pt: 1.5,
+            pb: 0.5,
+          }}
+        >
+          <Typography
+            variant="caption"
+            sx={{ flex: 1, fontWeight: 700, color: "text.secondary" }}
+          >
+            {position3dS}
+          </Typography>
+          <Tooltip title={openPosition3dS}>
+            <IconButton size="small" onClick={handleOpenPosition3d}>
+              <MoreHoriz fontSize="inherit" />
+            </IconButton>
+          </Tooltip>
+        </Box>
+        <Box
+          sx={{
+            px: 1.5,
+            pb: 1.5,
+          }}
+        >
+          <Box
+            sx={{
+              p: 1,
+              bgcolor: "background.paper",
+              border: "1px solid",
+              borderColor: "divider",
+              borderRadius: 2,
+            }}
+          >
+            <ToggleButtonGroup
+              exclusive
+              fullWidth
+              size="small"
+              value={orientation}
+              onChange={(_e, v) => handleOrientationChange(v)}
+            >
+              <ToggleButton
+                value="HORIZONTAL"
+                sx={{ textTransform: "none", py: 0.25 }}
+              >
+                Horizontal
+              </ToggleButton>
+              <ToggleButton
+                value="VERTICAL"
+                sx={{ textTransform: "none", py: 0.25 }}
+              >
+                Vertical
+              </ToggleButton>
+            </ToggleButtonGroup>
+          </Box>
+        </Box>
       </Box>
 
       {openCreateVersion && (

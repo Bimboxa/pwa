@@ -5,10 +5,8 @@ import { Box, Typography } from "@mui/material";
 import LeftDrawerPanelHeader from "Features/leftPanel/components/LeftDrawerPanelHeader";
 import BaseMapTree from "./BaseMapTree";
 import PanelBaseMapVersions from "./PanelBaseMapVersions";
-import PanelBaseMapDetailProperties from "./PanelBaseMapDetailProperties";
 
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
-import useProjectBaseMapListings from "Features/baseMaps/hooks/useProjectBaseMapListings";
 
 // ---------------------------------------------------------------------------
 // PanelBaseMaps — left panel of the Fond de plan module (#312): the folders /
@@ -28,18 +26,13 @@ export default function PanelBaseMaps() {
   // data
 
   const detailBaseMapId = useSelector((s) => s.baseMapEditor.detailBaseMapId);
-  const detailView = useSelector((s) => s.baseMapEditor.detailView);
   const { value: baseMaps } = useBaseMaps();
-  const listings = useProjectBaseMapListings();
 
   // helpers - detail view (#312). A stale id (deleted base map, project
   // change) simply resolves to nothing and the tree renders.
 
   const detailBaseMap = detailBaseMapId
     ? (baseMaps ?? []).find((bm) => bm.id === detailBaseMapId)
-    : null;
-  const detailListing = detailBaseMap
-    ? (listings ?? []).find((l) => l.id === detailBaseMap.listingId)
     : null;
 
   // render
@@ -56,13 +49,8 @@ export default function PanelBaseMaps() {
         borderColor: "divider",
       }}
     >
-      {detailBaseMap && detailView === "PROPERTIES" ? (
-        <PanelBaseMapDetailProperties
-          baseMap={detailBaseMap}
-          listing={detailListing}
-        />
-      ) : detailBaseMap ? (
-        <PanelBaseMapVersions baseMap={detailBaseMap} listing={detailListing} />
+      {detailBaseMap ? (
+        <PanelBaseMapVersions baseMap={detailBaseMap} />
       ) : (
         <>
           <LeftDrawerPanelHeader title={titleS} />
