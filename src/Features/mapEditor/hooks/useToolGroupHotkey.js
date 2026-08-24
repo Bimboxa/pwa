@@ -62,6 +62,14 @@ export default function useToolGroupHotkey(hotkey, templateId) {
       if (s.viewers.selectedViewerKey !== "MAP") return;
       if (selectEffectiveViewerKey(s) !== "MAP") return;
 
+      // The O / X / C rows live in the panel's ROOT view (and in the popper).
+      // While the docked panel shows a template detail view they are not on
+      // screen, and the letters belong to the pre-draw template shortcuts
+      // (ToolbarStartDrawTemplate) — "c" must draw a circle there, not arm
+      // "Couper un segment".
+      if (s.leftPanel.leftPanelDocked && s.panelDrawing.detailTemplateId)
+        return;
+
       const tools = getDrawingToolsByType(templateId);
       if (tools.length === 0) return;
       const selectedKey = s.mapEditor.selectedToolKeyByTemplateId?.[templateId];
