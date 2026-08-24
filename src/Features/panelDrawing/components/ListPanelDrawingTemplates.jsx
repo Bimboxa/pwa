@@ -15,7 +15,14 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
-import { Box, List, ListItemButton, Typography, Divider } from "@mui/material";
+import {
+  Box,
+  Button,
+  List,
+  ListItemButton,
+  Typography,
+  Divider,
+} from "@mui/material";
 import Add from "@mui/icons-material/Add";
 
 import RowPanelDrawingTemplate from "./RowPanelDrawingTemplate";
@@ -123,7 +130,50 @@ export default function ListPanelDrawingTemplates({ listingId, qtiesById }) {
     [reorderAnnotationTemplates, templates]
   );
 
-  // render
+  // render - empty listing: explicit create-first-template section instead
+  // of rows + the dashed add row (`templates` is undefined while loading).
+
+  if (templates && templates.length === 0) {
+    return (
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: 1.5,
+          mx: 1.5,
+          px: 2,
+          py: 3,
+          textAlign: "center",
+          bgcolor: "background.paper",
+          border: "1px dashed",
+          borderColor: "divider",
+          borderRadius: 3,
+        }}
+      >
+        <Typography variant="body2" sx={{ color: "text.secondary" }}>
+          Aucun modèle dans cette liste. Créez votre premier modèle pour
+          commencer à dessiner.
+        </Typography>
+        <Button
+          variant="contained"
+          color="secondary"
+          startIcon={<Add />}
+          onClick={() => setOpenCreateDialog(true)}
+        >
+          Nouveau modèle
+        </Button>
+
+        {openCreateDialog && (
+          <DialogCreateAnnotationTemplate
+            open={openCreateDialog}
+            onClose={() => setOpenCreateDialog(false)}
+            listingId={listingId}
+          />
+        )}
+      </Box>
+    );
+  }
 
   const rows = (
     <List dense disablePadding>

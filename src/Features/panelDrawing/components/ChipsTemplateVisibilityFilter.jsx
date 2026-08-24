@@ -6,7 +6,8 @@ import { Box } from "@mui/material";
 
 // ---------------------------------------------------------------------------
 // ChipsTemplateVisibilityFilter — Tous / Visibles / Masqués chips filtering
-// the template rows on their `hidden` flag.
+// the template rows on their `hidden` flag. `disabled` greys them out when
+// the filter is meaningless (no template in the listing).
 // ---------------------------------------------------------------------------
 
 const FILTERS = [
@@ -15,7 +16,7 @@ const FILTERS = [
   { key: "HIDDEN", label: "Masqués" },
 ];
 
-export default function ChipsTemplateVisibilityFilter() {
+export default function ChipsTemplateVisibilityFilter({ disabled }) {
   const dispatch = useDispatch();
 
   // data
@@ -27,27 +28,32 @@ export default function ChipsTemplateVisibilityFilter() {
   return (
     <Box sx={{ display: "flex", gap: 0.75, px: 1.5, pb: 1 }}>
       {FILTERS.map(({ key, label }) => {
-        const selected = key === templateFilter;
+        const selected = !disabled && key === templateFilter;
         return (
           <Box
             key={key}
             component="button"
+            disabled={disabled}
             onClick={() => dispatch(setTemplateFilter(key))}
             sx={{
               px: 1.5,
               py: 0.5,
               borderRadius: 4,
               border: "1px solid",
-              cursor: "pointer",
+              cursor: disabled ? "default" : "pointer",
               fontFamily: "inherit",
               fontSize: "0.8125rem",
               fontWeight: 500,
               bgcolor: selected ? "grey.900" : "background.paper",
-              color: selected ? "common.white" : "text.secondary",
+              color: disabled
+                ? "text.disabled"
+                : selected
+                  ? "common.white"
+                  : "text.secondary",
               borderColor: selected ? "grey.900" : "divider",
-              "&:hover": {
-                bgcolor: selected ? "grey.900" : "action.hover",
-              },
+              "&:hover": disabled
+                ? {}
+                : { bgcolor: selected ? "grey.900" : "action.hover" },
             }}
           >
             {label}

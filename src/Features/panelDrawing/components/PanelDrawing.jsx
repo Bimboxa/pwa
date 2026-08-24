@@ -129,6 +129,11 @@ export default function PanelDrawing() {
     displayedListings[0] ??
     null;
 
+  // Empty listing: the visibility chips are meaningless.
+  const activeListingHasTemplates = (annotationTemplates ?? []).some(
+    (t) => t.listingId === activeListing?.id
+  );
+
   // helpers - quantities
 
   const scopedAnnotations = useMemo(() => {
@@ -234,7 +239,11 @@ export default function PanelDrawing() {
             activeListing={activeListing}
           />
 
-          {activeListing && <ChipsTemplateVisibilityFilter />}
+          {activeListing && (
+            <ChipsTemplateVisibilityFilter
+              disabled={!activeListingHasTemplates}
+            />
+          )}
 
           <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto", pb: 1 }}>
             {activeListing && (
