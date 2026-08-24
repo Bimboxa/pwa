@@ -67,6 +67,7 @@ import activateBaseMapVersion from "Features/baseMaps/utils/activateBaseMapVersi
 import createBaseMapVersionFromSource from "Features/baseMaps/services/createBaseMapVersionFromSource";
 import formatVersionDate from "Features/baseMaps/utils/formatVersionDate";
 import getBaseMapDisplayName from "Features/baseMaps/utils/getBaseMapDisplayName";
+import stringifyFileSize from "Features/files/utils/stringifyFileSize";
 import DialogCreateBaseMapVersion from "./DialogCreateBaseMapVersion";
 import IconButtonMoreActionsBaseMap from "./IconButtonMoreActionsBaseMap";
 import IconButtonMoreActionsBaseMapListing from "./IconButtonMoreActionsBaseMapListing";
@@ -203,10 +204,14 @@ function SortableBaseMapRow({
     transition,
   };
 
-  // subtitle "<active version> · N version(s)" (mockup)
+  // subtitle "<active version> · <image size>"
   const activeVersion = baseMap?.getActiveVersion?.();
-  const versionsCount = baseMap?.versions?.length || 1;
-  const subtitleS = `${activeVersion?.label ?? "Image d'origine"} · ${versionsCount} version${versionsCount > 1 ? "s" : ""}`;
+  const fileSizeS = stringifyFileSize(
+    activeVersion?.image?.file?.size ?? baseMap?.image?.file?.size
+  );
+  const subtitleS = [activeVersion?.label ?? "Image d'origine", fileSizeS]
+    .filter(Boolean)
+    .join(" · ");
 
   const { label: nameS, isPlaceholder: isUnnamed } =
     getBaseMapDisplayName(baseMap);
