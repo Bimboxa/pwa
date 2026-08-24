@@ -41,6 +41,8 @@ import { selectIsTemplateCoteDrawActive } from "Features/threedDrawing/utils/tem
 import ToggleSingleSelectorGeneric from "Features/layout/components/ToggleSingleSelectorGeneric";
 import FieldAnnotationHeight from "Features/annotations/components/FieldAnnotationHeight";
 import FieldAnnotationThickness from "Features/annotations/components/FieldAnnotationThickness";
+import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTemplateIcon";
+import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
 
 import theme from "Styles/theme";
 
@@ -71,6 +73,13 @@ export default function ToolbarDrawingDraft() {
   // Template-driven 3D cote keeps the 2D drawing state armed while the 3D
   // dimension mode runs — CoteToolbarThreed owns the bottom UI there.
   const isTemplateCoteDraw3d = useSelector(selectIsTemplateCoteDrawActive);
+  // Drawn template ("Dessiner …" block) — mirrors ToolbarStartDrawTemplate so
+  // arming a draw from it doesn't shift the toolbar. Absent for tool groups
+  // (openings / splits), which carry no template.
+  const annotationTemplates = useAnnotationTemplates();
+  const drawnTemplate = annotationTemplates?.find(
+    (t) => t.id === newAnnotation?.annotationTemplateId
+  );
 
   // helpers
 
@@ -270,6 +279,43 @@ export default function ToolbarDrawingDraft() {
         zIndex: 110,
       }}
     >
+      {drawnTemplate && (
+        <>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 0.75,
+              flexShrink: 0,
+              mr: 0.5,
+            }}
+          >
+            <AnnotationTemplateIcon template={drawnTemplate} size={18} />
+            <Box>
+              <Typography
+                variant="caption"
+                sx={{
+                  display: "block",
+                  color: "text.secondary",
+                  lineHeight: 1.2,
+                  fontSize: "0.65rem",
+                }}
+              >
+                Dessiner
+              </Typography>
+              <Typography
+                variant="body2"
+                noWrap
+                sx={{ fontWeight: 600, lineHeight: 1.2, maxWidth: 160 }}
+              >
+                {drawnTemplate.label}
+              </Typography>
+            </Box>
+          </Box>
+          <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+        </>
+      )}
+
       {showColor && (
         <Box
           onClick={handleOpenColor}
@@ -277,6 +323,7 @@ export default function ToolbarDrawingDraft() {
             width: 24,
             height: 24,
             borderRadius: "50%",
+            flexShrink: 0,
             bgcolor: color,
             cursor: "pointer",
             border: "2px solid",
