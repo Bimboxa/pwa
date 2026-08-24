@@ -210,6 +210,10 @@ export default function MainThreedEditor() {
   const isBaseMapsModule = useSelector(
     (s) => s.viewers.selectedViewerKey === "BASE_MAPS"
   );
+  // Viewer module (key THREED): read-only consultation, no listings panel.
+  const isViewerModule = useSelector(
+    (s) => s.viewers.selectedViewerKey === "THREED"
+  );
 
   // Entering/leaving the 3D viewer keeps whatever right panel is open: the
   // SETTINGS panel switches its content (3D view settings <-> 2D editor
@@ -1954,6 +1958,7 @@ export default function MainThreedEditor() {
           as the 2D chain in PopperMapListings (which is 2D-only). */}
       {isThreedViewer &&
         !isBaseMapsModule &&
+        !isViewerModule &&
         !captureFramingActive &&
         !subtractPickActive && <PopperMapListings />}
       {isThreedViewer && subtractPickActive && <PopperSubtractHelper />}

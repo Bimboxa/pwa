@@ -250,6 +250,8 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
             s.viewers.selectedViewerKey === "THREED" &&
             s.viewers.hideBaseMapImageInViewer
     );
+    // Viewer module (key THREED): read-only consultation, no listings panel.
+    const isViewerModule = useSelector((s) => s.viewers.selectedViewerKey === "THREED");
     const hiddenVersionIds = useSelector((s) => s.baseMapEditor.hiddenVersionIds);
     const selectedVersionId = useSelector((s) => s.baseMapEditor.selectedVersionId);
     const versionTransformOverride = useSelector((s) => s.baseMapEditor.versionTransformOverride);
@@ -2079,6 +2081,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
 
             {!versionCompareEnabled &&
                 !imageModeActive &&
+                !isViewerModule &&
                 (forViewerKey !== "BASE_MAPS" || showDrawingToolsInBaseMaps) && (
                     <PopperMapListings />
                 )}
