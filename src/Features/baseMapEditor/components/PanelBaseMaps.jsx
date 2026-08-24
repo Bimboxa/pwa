@@ -1,12 +1,16 @@
 import { useDispatch, useSelector } from "react-redux";
 
-import { setDisplayedBaseMapListingId } from "../baseMapEditorSlice";
+import {
+  setDisplayedBaseMapListingId,
+  setShowAnnotations,
+} from "../baseMapEditorSlice";
 import { setSelectedMainBaseMapId } from "Features/mapEditor/mapEditorSlice";
 
 import { Box, IconButton, Tooltip, Typography } from "@mui/material";
 import { Add as AddIcon } from "@mui/icons-material";
 
 import LeftDrawerPanelHeader from "Features/leftPanel/components/LeftDrawerPanelHeader";
+import SwitchGeneric from "Features/layout/components/SwitchGeneric";
 import BaseMapTree from "./BaseMapTree";
 import PanelBaseMapVersions from "./PanelBaseMapVersions";
 
@@ -28,6 +32,7 @@ export default function PanelBaseMaps() {
 
   const titleS = "Fonds de plan";
   const newListingS = "Nouveau dossier de fond de plan";
+  const showAnnotationsS = "Afficher les annotations";
   const descriptionS =
     "Organisez vos plans par dossier. Glissez une ligne pour la déplacer, " +
     "chaque fond conserve l'historique de ses versions.";
@@ -35,6 +40,7 @@ export default function PanelBaseMaps() {
   // data
 
   const detailBaseMapId = useSelector((s) => s.baseMapEditor.detailBaseMapId);
+  const showAnnotations = useSelector((s) => s.baseMapEditor.showAnnotations);
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const { value: baseMaps } = useBaseMaps();
   const listings = useProjectBaseMapListings();
@@ -101,6 +107,13 @@ export default function PanelBaseMaps() {
           >
             {descriptionS}
           </Typography>
+          <Box sx={{ px: 1, pb: 0.5 }}>
+            <SwitchGeneric
+              label={showAnnotationsS}
+              checked={showAnnotations}
+              onChange={(checked) => dispatch(setShowAnnotations(checked))}
+            />
+          </Box>
           <Box sx={{ flex: 1, minHeight: 0, overflow: "auto" }}>
             <BaseMapTree />
           </Box>

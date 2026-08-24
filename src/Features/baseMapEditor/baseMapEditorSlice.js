@@ -16,6 +16,10 @@ const baseMapEditorInitialState = {
   // open in the left panel. A stale id (deleted baseMap) resolves to
   // nothing and the tree renders.
   detailBaseMapId: null,
+  // "Afficher les annotations" switch of the left panel: when ON, the
+  // drawing annotations also show in the module's 2D / 3D editors (on top
+  // of the isForBaseMaps working annotations).
+  showAnnotations: false,
   // versions
   selectedVersionId: null,
   hiddenVersionIds: [],
@@ -73,6 +77,9 @@ export const baseMapEditorSlice = createSlice({
     // detail view
     setDetailBaseMapId: (state, action) => {
       state.detailBaseMapId = action.payload;
+    },
+    setShowAnnotations: (state, action) => {
+      state.showAnnotations = action.payload;
     },
     // versions
     setSelectedVersionId: (state, action) => {
@@ -133,6 +140,7 @@ export const {
   toggleListingCollapsed,
   toggleBaseMapVersionsExpanded,
   setDetailBaseMapId,
+  setShowAnnotations,
   setSelectedVersionId,
   setVersionTransformOverride,
   toggleVersionHidden,
