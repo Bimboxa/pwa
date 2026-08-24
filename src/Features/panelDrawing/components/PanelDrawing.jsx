@@ -174,6 +174,8 @@ export default function PanelDrawing() {
         height: 1,
         minHeight: 0,
         bgcolor: "background.default",
+        borderRight: "1px solid",
+        borderColor: "divider",
       }}
     >
       {enabledDrawingMode && leftPanelDocked ? (

@@ -103,7 +103,7 @@ export default function SectionViewer() {
           mode LeftDrawerPanel renders its fixed-width box without checking
           viewerKey. */}
       {viewerKey === "MAP" && (
-        <LeftDrawerPanel width={320} viewerKey="MAP">
+        <LeftDrawerPanel width={360} viewerKey="MAP">
           <PanelDrawing />
         </LeftDrawerPanel>
       )}
