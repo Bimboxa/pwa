@@ -202,6 +202,17 @@ const threedEditorInitialState = {
     // Annotation armed by the first click (null = waiting for a face).
     targetAnnotationId: null,
   },
+  // "Déplacer" mode: grab a snapped point (vertex / feature edge) of a base
+  // map's content (image corner, annotation vertex), the whole base map
+  // group (image + annotations) then follows the mouse; the drop click
+  // recomputes the base map `position` so the grabbed point lands exactly
+  // on the drop point (translation only — rotation is kept). Mutually
+  // exclusive with the other 3D tool modes.
+  moveBaseMapMode: {
+    active: false,
+    // Base map currently carried (null = waiting for the grab click).
+    carriedBaseMapId: null,
+  },
   // First-person walk mode (W in the 3D viewer). Camera-controls suspended:
   // pointer-locked mouse looks, arrow keys move on the selected baseMap,
   // Space fires the concrete lance at the screen center.
@@ -340,6 +351,8 @@ export const threedEditorSlice = createSlice({
         state.walkMode.active = false;
         state.extrudeMode.active = false;
         state.extrudeMode.targetAnnotationId = null;
+        state.moveBaseMapMode.active = false;
+        state.moveBaseMapMode.carriedBaseMapId = null;
       }
     },
     bumpSnapIndexEpoch: (state) => {
@@ -449,6 +462,8 @@ export const threedEditorSlice = createSlice({
         state.walkMode.active = false;
         state.extrudeMode.active = false;
         state.extrudeMode.targetAnnotationId = null;
+        state.moveBaseMapMode.active = false;
+        state.moveBaseMapMode.carriedBaseMapId = null;
       }
     },
     setDimensionStartPoint: (state, action) => {
@@ -473,6 +488,8 @@ export const threedEditorSlice = createSlice({
         state.walkMode.active = false;
         state.extrudeMode.active = false;
         state.extrudeMode.targetAnnotationId = null;
+        state.moveBaseMapMode.active = false;
+        state.moveBaseMapMode.carriedBaseMapId = null;
       }
     },
     setMeshingTool: (state, action) => {
@@ -521,6 +538,8 @@ export const threedEditorSlice = createSlice({
         state.meshingMode.active = false;
         state.meshingMode.tool = "SELECT";
         state.walkMode.active = false;
+        state.moveBaseMapMode.active = false;
+        state.moveBaseMapMode.carriedBaseMapId = null;
       }
     },
     // Mouse-driven update. A no-op while the typed buffer is non-empty — the
@@ -561,7 +580,30 @@ export const threedEditorSlice = createSlice({
         state.meshingMode.tool = "SELECT";
         state.extrudeMode.active = false;
         state.extrudeMode.targetAnnotationId = null;
+        state.moveBaseMapMode.active = false;
+        state.moveBaseMapMode.carriedBaseMapId = null;
       }
+    },
+    setMoveBaseMapModeActive: (state, action) => {
+      state.moveBaseMapMode.active = !!action.payload;
+      state.moveBaseMapMode.carriedBaseMapId = null;
+      if (action.payload) {
+        // Mutually exclusive with every other 3D tool mode.
+        state.drawingMode.active = false;
+        state.drawingMode.inProgressPolyline = [];
+        state.drawingMode.trait3DSegments = [];
+        state.drawingMode.axisLock = null;
+        state.dimensionMode.active = false;
+        state.dimensionMode.startPoint = null;
+        state.meshingMode.active = false;
+        state.meshingMode.tool = "SELECT";
+        state.walkMode.active = false;
+        state.extrudeMode.active = false;
+        state.extrudeMode.targetAnnotationId = null;
+      }
+    },
+    setMoveBaseMapCarriedId: (state, action) => {
+      state.moveBaseMapMode.carriedBaseMapId = action.payload ?? null;
     },
     setHideAnnotationsIn3d: (state, action) => {
       state.hideAnnotationsIn3d = action.payload;
@@ -656,6 +698,8 @@ export const {
   clearExtrudeValueBuffer,
   setExtrudeTargetAnnotationId,
   setWalkModeActive,
+  setMoveBaseMapModeActive,
+  setMoveBaseMapCarriedId,
   setHideAnnotationsIn3d,
   setMesh3dLabels,
   setMesh3dGroupByOrientation,

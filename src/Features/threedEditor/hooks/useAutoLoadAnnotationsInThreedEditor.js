@@ -28,6 +28,11 @@ export default function useAutoLoadAnnotationsInThreedEditor({
   const isBaseMapsModule = useSelector(
     (s) => s.viewers.selectedViewerKey === "BASE_MAPS"
   );
+  // "Afficher les annotations" switch of the Fond de plan panel: ON lifts
+  // the isForBaseMaps-only restriction so the drawing annotations load too.
+  const showAnnotationsInBaseMaps = useSelector(
+    (s) => s.baseMapEditor.showAnnotations
+  );
   const disableOpacity = useSelector((s) => s.threedEditor.disableOpacity);
   const antiAliasingShrink = useSelector(
     (s) => s.threedEditor.antiAliasingShrink
@@ -85,7 +90,7 @@ export default function useAutoLoadAnnotationsInThreedEditor({
     filterBySelectedScope: true,
     sortByOrderIndex: true,
     excludeIsForBaseMapsListings: !isBaseMapsModule,
-    onlyIsForBaseMapsListings: isBaseMapsModule,
+    onlyIsForBaseMapsListings: isBaseMapsModule && !showAnnotationsInBaseMaps,
     excludeProfileTemplates: true,
     // Solo mode dims (instead of hides) non-soloed annotations in 3D —
     // ThreedSelectionDimmer renders them translucent.

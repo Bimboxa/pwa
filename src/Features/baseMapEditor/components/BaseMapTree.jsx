@@ -7,22 +7,11 @@ import {
   setDisplayedBaseMapListingId,
   toggleListingCollapsed,
 } from "../baseMapEditorSlice";
-import {
-  setSelectedMainBaseMapId,
-  setSelectedBaseMapsListingId,
-} from "Features/mapEditor/mapEditorSlice";
+import { setSelectedBaseMapsListingId } from "Features/mapEditor/mapEditorSlice";
 import { setSelectedItem } from "Features/selection/selectionSlice";
 
-import {
-  Avatar,
-  Box,
-  List,
-  ListItemButton,
-  ListItemText,
-  Paper,
-  Typography,
-} from "@mui/material";
-import { CreateNewFolderOutlined, Folder } from "@mui/icons-material";
+import { Avatar, Box, List, Paper, Typography } from "@mui/material";
+import { Folder } from "@mui/icons-material";
 
 import {
   DndContext,
@@ -45,7 +34,6 @@ import { generateKeyBetween } from "fractional-indexing";
 
 import useProjectBaseMapListings from "Features/baseMaps/hooks/useProjectBaseMapListings";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
-import useCreateBaseMapListing from "../hooks/useCreateBaseMapListing";
 import useUpdateEntity from "Features/entities/hooks/useUpdateEntity";
 import useMoveBaseMapToListing from "Features/baseMaps/hooks/useMoveBaseMapToListing";
 
@@ -76,7 +64,6 @@ export default function BaseMapTree() {
 
   // data
 
-  const projectId = useSelector((s) => s.projects.selectedProjectId);
   const displayedListingId = useSelector(
     (s) => s.baseMapEditor.displayedBaseMapListingId
   );
@@ -86,7 +73,6 @@ export default function BaseMapTree() {
   );
   const listings = useProjectBaseMapListings();
   const { value: allBaseMaps } = useBaseMaps();
-  const createListing = useCreateBaseMapListing();
   const updateEntity = useUpdateEntity();
   const moveBaseMapToListing = useMoveBaseMapToListing();
 
@@ -111,11 +97,6 @@ export default function BaseMapTree() {
     [listings]
   );
 
-  const hasEmptyListing = useMemo(() => {
-    if (!listings?.length || !allBaseMaps) return false;
-    return listings.some((l) => !baseMapsByListingId[l.id]?.length);
-  }, [listings, allBaseMaps, baseMapsByListingId]);
-
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, {
@@ -131,17 +112,6 @@ export default function BaseMapTree() {
     const first = listings[0];
     dispatch(setDisplayedBaseMapListingId(first.id));
   }, [displayedListingId, listings, dispatch]);
-
-  // handlers
-
-  async function handleCreateListing() {
-    const listing = await createListing({
-      projectId,
-      title: `Fonds de plan ${(listings?.length || 0) + 1}`,
-    });
-    dispatch(setDisplayedBaseMapListingId(listing.id));
-    dispatch(setSelectedMainBaseMapId(null));
-  }
 
   // handlers - dnd
 
@@ -341,7 +311,9 @@ export default function BaseMapTree() {
   // render
 
   return (
-    <Box sx={{ p: 1 }}>
+    // No horizontal padding: the groups' white blocks span the full panel
+    // width (edge to edge).
+    <Box sx={{ py: 1 }}>
       <DndContext
         id="basemap-tree-dnd"
         sensors={sensors}
@@ -400,24 +372,6 @@ export default function BaseMapTree() {
           document.body
         )}
       </DndContext>
-
-      {!hasEmptyListing && (
-        <ListItemButton
-          onClick={handleCreateListing}
-          sx={{ pl: 1, color: "text.disabled" }}
-        >
-          <CreateNewFolderOutlined
-            sx={{ fontSize: 20, mr: 1 }}
-            color="disabled"
-          />
-          <ListItemText
-            primary="Nouveau groupe"
-            slotProps={{
-              primary: { variant: "body2", color: "text.disabled" },
-            }}
-          />
-        </ListItemButton>
-      )}
     </Box>
   );
 }

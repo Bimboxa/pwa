@@ -30,10 +30,15 @@ const COPLANAR_NORMAL_DOT = 0.9962;
 // mid-edge points) that exist nowhere else. Objects hidden via an
 // ancestor's `visible = false` (e.g. "Masquer les annotations") are
 // skipped.
-export function buildIndex(scene) {
+// options.excludeSubtree: an Object3D whose whole subtree is skipped — used
+// by the "Déplacer" tool to build a target-only index that never contains
+// the carried base map (its own geometry would otherwise screen the drop
+// targets, with stale world positions on top).
+export function buildIndex(scene, options = {}) {
   const verts = [];
   const adjacency = new Map(); // key -> { position, neighbors: Set<key> }
   if (!scene) return { verts, adjacency };
+  const excludeSubtree = options.excludeSubtree ?? null;
 
   function ensureNode(key, position) {
     let entry = adjacency.get(key);
@@ -51,6 +56,7 @@ export function buildIndex(scene) {
     let parent = obj;
     while (parent) {
       if (parent.visible === false) return; // hidden by an ancestor
+      if (excludeSubtree && parent === excludeSubtree) return;
       if (
         parent.userData?.nodeType === "ANNOTATION" ||
         parent.userData?.isBasemap ||
@@ -142,7 +148,11 @@ export function buildIndex(scene) {
     const indexAttr = geom.index;
     if (indexAttr) {
       for (let i = 0; i < indexAttr.count; i += 3) {
-        addTriangle(indexAttr.getX(i), indexAttr.getX(i + 1), indexAttr.getX(i + 2));
+        addTriangle(
+          indexAttr.getX(i),
+          indexAttr.getX(i + 1),
+          indexAttr.getX(i + 2)
+        );
       }
     } else {
       for (let i = 0; i < pos.count; i += 3) {

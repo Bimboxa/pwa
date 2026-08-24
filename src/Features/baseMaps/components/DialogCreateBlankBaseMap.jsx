@@ -45,6 +45,7 @@ export default function DialogCreateBlankBaseMap({
   const formatLabel = "Format";
   const sizeLabel = "Taille";
   const scaleLabel = "Échelle";
+  const orientationLabel = "Orientation du plan";
   const createS = "Créer le fond de plan";
 
   // data
@@ -54,9 +55,11 @@ export default function DialogCreateBlankBaseMap({
   // state
 
   const [name, setName] = useState("");
-  const [format, setFormat] = useState("portrait");
-  const [size, setSize] = useState("A4");
+  const [format, setFormat] = useState("paysage");
+  const [size, setSize] = useState("A3");
   const [scale, setScale] = useState(50);
+  // 3D plane orientation (floor / wall)
+  const [orientation, setOrientation] = useState("HORIZONTAL");
 
   // handlers
 
@@ -68,6 +71,9 @@ export default function DialogCreateBlankBaseMap({
   }
   function handleScaleChange(_, value) {
     if (value) setScale(value);
+  }
+  function handleOrientationChange(_, value) {
+    if (value) setOrientation(value);
   }
 
   async function handleCreate() {
@@ -90,6 +96,7 @@ export default function DialogCreateBlankBaseMap({
       name,
       listing,
       meterByPx,
+      orientation,
     });
 
     handleClose();
@@ -98,9 +105,10 @@ export default function DialogCreateBlankBaseMap({
 
   function handleClose() {
     setName("");
-    setFormat("portrait");
-    setSize("A4");
+    setFormat("paysage");
+    setSize("A3");
     setScale(50);
+    setOrientation("HORIZONTAL");
     if (onClose) onClose();
   }
 
@@ -180,6 +188,26 @@ export default function DialogCreateBlankBaseMap({
                 <Typography variant="body2">{`1:${s}`}</Typography>
               </ToggleButton>
             ))}
+          </ToggleButtonGroup>
+        </Box>
+
+        <Box>
+          <Typography variant="body2" sx={{ fontWeight: "bold", mb: 1 }}>
+            {orientationLabel}
+          </Typography>
+          <ToggleButtonGroup
+            value={orientation}
+            exclusive
+            onChange={handleOrientationChange}
+            size="small"
+            fullWidth
+          >
+            <ToggleButton value="HORIZONTAL">
+              <Typography variant="body2">Horizontal</Typography>
+            </ToggleButton>
+            <ToggleButton value="VERTICAL">
+              <Typography variant="body2">Vertical</Typography>
+            </ToggleButton>
           </ToggleButtonGroup>
         </Box>
       </BoxFlexVStretch>

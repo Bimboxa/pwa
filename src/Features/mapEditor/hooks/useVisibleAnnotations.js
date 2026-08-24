@@ -12,6 +12,9 @@ export default function useVisibleAnnotations() {
   const viewerKey = useSelector((s) => s.viewers.selectedViewerKey);
   const openedPanel = useSelector((s) => s.listings.openedPanel);
   const hideBaseMapAnnotations = openedPanel !== "BASE_MAP_DETAIL";
+  const showAnnotationsInBaseMaps = useSelector(
+    (s) => s.baseMapEditor.showAnnotations
+  );
 
   const rawAnnotations = useAnnotationsV2({
     caller: "useVisibleAnnotations",
@@ -20,7 +23,10 @@ export default function useVisibleAnnotations() {
     filterByMainBaseMap: true,
     filterBySelectedScope: true,
     excludeIsForBaseMapsListings: viewerKey !== "BASE_MAPS",
-    onlyIsForBaseMapsListings: viewerKey === "BASE_MAPS",
+    // Mirrors MainMapEditorV3: the panel's "Afficher les annotations"
+    // switch lifts the isForBaseMaps-only restriction.
+    onlyIsForBaseMapsListings:
+      viewerKey === "BASE_MAPS" && !showAnnotationsInBaseMaps,
   });
 
   const showMeshCells = useSelector((s) => s.annotations.showMeshCells);

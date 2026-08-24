@@ -370,6 +370,9 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
 
     const openedPanel = useSelector(s => s.listings.openedPanel);
     const hideBaseMapAnnotations = openedPanel !== "BASE_MAP_DETAIL";
+    const showAnnotationsInBaseMaps = useSelector(
+        (s) => s.baseMapEditor.showAnnotations
+    );
 
     _track("newAnnotation", newAnnotation?.id);
     const rawAnnotations = useAnnotationsV2({
@@ -382,7 +385,11 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
         filterBySelectedScope: true,
         sortByOrderIndex: true,
         excludeIsForBaseMapsListings: viewerKey !== "BASE_MAPS",
-        onlyIsForBaseMapsListings: viewerKey === "BASE_MAPS",
+        // "Afficher les annotations" switch of the Fond de plan panel: ON
+        // lifts the isForBaseMaps-only restriction so the drawing
+        // annotations show too.
+        onlyIsForBaseMapsListings:
+            viewerKey === "BASE_MAPS" && !showAnnotationsInBaseMaps,
         // Read-only outlines of subtraction targets hosted by another base map
         // (clickable, so the toolbar can offer "Voir l'annotation d'origine").
         withForeignFootprints: true,
