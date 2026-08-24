@@ -68,6 +68,7 @@ import annotationsAutoReducer from "Features/annotationsAuto/annotationsAutoSlic
 import listingViewerReducer from "Features/listingViewer/listingViewerSlice";
 import layersReducer from "Features/layers/layersSlice";
 import popperMapListingsReducer from "Features/popperMapListings/popperMapListingsSlice";
+import panelDrawingReducer from "Features/panelDrawing/panelDrawingSlice";
 import elevationReducer from "Features/elevation/elevationSlice";
 import meshReducer from "Features/mesh/meshSlice";
 import povReducer from "Features/pov/povSlice";
@@ -146,6 +147,7 @@ const store = configureStore({
     listingViewer: listingViewerReducer,
     layers: layersReducer,
     popperMapListings: popperMapListingsReducer,
+    panelDrawing: panelDrawingReducer,
     elevation: elevationReducer,
     mesh: meshReducer,
     pov: povReducer,

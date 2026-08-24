@@ -19,6 +19,7 @@ import LeftDrawerPanel from "Features/leftPanel/components/LeftDrawerPanel";
 import LeftDrawerPanelHeader from "Features/leftPanel/components/LeftDrawerPanelHeader";
 import PanelMeshesViewer from "Features/threedMesh/components/PanelMeshesViewer";
 import PanelAnnotationsRecap from "Features/annotations/components/PanelAnnotationsRecap";
+import PanelDrawing from "Features/panelDrawing/components/PanelDrawing";
 import PanelPovList from "Features/pov/components/PanelPovList";
 import ButtonSavePov from "Features/pov/components/ButtonSavePov";
 import ButtonCreatePovView from "Features/pov/components/ButtonCreatePovView";
@@ -94,13 +95,23 @@ export default function SectionViewer() {
         </LeftDrawerPanel>
       )}
 
-      {/* Annotations recap drawer (Dessin + Viewer modules), by listing /
-          template. Mounted for both editors of the module (the module key is
-          unchanged when the 2D/3D toggle swaps the displayed editor). The
-          outer guard is load-bearing — in docked mode LeftDrawerPanel renders
-          its fixed-width box without checking viewerKey. */}
-      {(viewerKey === "MAP" || viewerKey === "THREED") && (
-        <LeftDrawerPanel width={320} viewerKey={viewerKey}>
+      {/* Dessin module: interactive annotations drawer (listing selector,
+          template rows with the split draw button, drawing tools) — took over
+          the floating PopperMapListings (#310). Mounted for both editors of
+          the module (the module key is unchanged when the 2D/3D toggle swaps
+          the displayed editor). The outer guard is load-bearing — in docked
+          mode LeftDrawerPanel renders its fixed-width box without checking
+          viewerKey. */}
+      {viewerKey === "MAP" && (
+        <LeftDrawerPanel width={320} viewerKey="MAP">
+          <PanelDrawing />
+        </LeftDrawerPanel>
+      )}
+
+      {/* Viewer module: read-only annotations recap drawer, by listing /
+          template. */}
+      {viewerKey === "THREED" && (
+        <LeftDrawerPanel width={320} viewerKey="THREED">
           <PanelAnnotationsRecap />
         </LeftDrawerPanel>
       )}

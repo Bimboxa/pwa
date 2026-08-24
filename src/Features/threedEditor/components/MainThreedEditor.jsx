@@ -214,6 +214,19 @@ export default function MainThreedEditor() {
   const isViewerModule = useSelector(
     (s) => s.viewers.selectedViewerKey === "THREED"
   );
+  // Dessin module (key MAP) toggled to 3D: the left panel (PanelDrawing)
+  // takes over the listings popper (#310) whenever it is VISIBLE — docked, or
+  // drawer mode while the left area is hovered. Docked → the popper UNMOUNTS;
+  // drawer hover → it is only CSS-hidden so its local state (drag position,
+  // ...) survives the transient overlay.
+  const isDessinModule = useSelector(
+    (s) => s.viewers.selectedViewerKey === "MAP"
+  );
+  const leftPanelDocked = useSelector((s) => s.leftPanel.leftPanelDocked);
+  const leftDrawerHovered = useSelector((s) => s.leftPanel.leftDrawerHovered);
+  const dessinPanelDocked = isDessinModule && leftPanelDocked;
+  const dessinPanelSlidedIn =
+    isDessinModule && !leftPanelDocked && leftDrawerHovered;
 
   // Entering/leaving the 3D viewer keeps whatever right panel is open: the
   // SETTINGS panel switches its content (3D view settings <-> 2D editor
@@ -1959,8 +1972,16 @@ export default function MainThreedEditor() {
       {isThreedViewer &&
         !isBaseMapsModule &&
         !isViewerModule &&
+        !dessinPanelDocked &&
         !captureFramingActive &&
-        !subtractPickActive && <PopperMapListings />}
+        !subtractPickActive && (
+          /* display:none (not unmount) while the drawer slides over the
+             editor, so the popper keeps its state; "contents" keeps the
+             wrapper out of the absolute positioning. */
+          <Box sx={{ display: dessinPanelSlidedIn ? "none" : "contents" }}>
+            <PopperMapListings />
+          </Box>
+        )}
       {isThreedViewer && subtractPickActive && <PopperSubtractHelper />}
       {isThreedViewer && <PopperEditAnnotation viewerKey="THREED" />}
       {isThreedViewer && <ThreedPopperEditAnnotations />}
