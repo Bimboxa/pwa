@@ -56,12 +56,6 @@ export default function useLinkProjectToReferentiel() {
   // entity. masterProject = { idMaster, name, clientRef, type } (from the
   // masterProjects search / itemsMap).
   const link = async ({ projectId, masterProject }) => {
-    const before = await db.projects.get(projectId);
-    const current = {
-      idMaster: before?.idMaster ?? "",
-      clientRef: before?.clientRef ?? "",
-    };
-
     await assertNoConflict({
       projectId,
       idMaster: masterProject.idMaster,
@@ -80,7 +74,6 @@ export default function useLinkProjectToReferentiel() {
     // 2) remote scopeConfigurations: propagate the new fields in one call
     await relink({
       project: { id: projectId },
-      current,
       next: {
         idMaster: masterProject.idMaster,
         clientRef: masterProject.clientRef,
@@ -95,10 +88,6 @@ export default function useLinkProjectToReferentiel() {
   // type. name / clientRef are kept.
   const detach = async ({ projectId }) => {
     const before = await db.projects.get(projectId);
-    const current = {
-      idMaster: before?.idMaster ?? "",
-      clientRef: before?.clientRef ?? "",
-    };
 
     await updateProject({
       id: projectId,
@@ -110,7 +99,6 @@ export default function useLinkProjectToReferentiel() {
     // projectNum / projectName are kept as-is
     await relink({
       project: { id: projectId },
-      current,
       next: {
         idMaster: "", // empty string → backend clears projectObjectId
         clientRef: before?.clientRef ?? "",

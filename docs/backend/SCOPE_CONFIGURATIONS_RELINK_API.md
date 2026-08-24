@@ -12,7 +12,7 @@ Chaque `ScopesConfiguration` porte des champs projet **dénormalisés, figés au
 
 Objectif : **un seul appel** qui met à jour ces métadonnées sur toutes les configs concernées — sans ré-upload de zip, y compris pour les Krtos non installés sur l'appareil.
 
-Depuis l'introduction de `projectIdClient` (id client nanoid du projet, envoyé sur `ScopesConfigurations/Push`), les configs d'un projet sont identifiables **sans ambiguïté** et de façon **immuable** : `projectIdClient` survit à un changement de nom / numéro / référence backend, et existe même pour les projets libres (sans `projectObjectId`).
+Les configs d'un projet sont identifiées par **`projectIdClient`** (id client nanoid du projet, envoyé sur `ScopesConfigurations/Push`) : identifiant **immuable** — il survit à un changement de nom / numéro / référence backend — et présent même pour les projets libres (sans `projectObjectId`).
 
 ## 2. `POST /api/ScopesConfigurations/Relink`
 
@@ -26,9 +26,6 @@ Depuis l'introduction de `projectIdClient` (id client nanoid du projet, envoyé 
 {
   "projectIdClient": "nanoid_abc123",
 
-  "currentProjectObjectId": 45899,
-  "currentProjectNum": "2.45899",
-
   "newProjectObjectId": 777,
   "newProjectNum": "OPP-777",
   "newProjectType": "OPPORTUNITE",
@@ -38,9 +35,7 @@ Depuis l'introduction de `projectIdClient` (id client nanoid du projet, envoyé 
 
 | Champ | Type | Rôle | Obligatoire |
 |---|---|---|---|
-| `projectIdClient` | string | **Sélecteur primaire** : id client (nanoid) du projet dont les configs doivent être mises à jour. | oui |
-| `currentProjectObjectId` | int | **Sélecteur fallback** : `projectObjectId` AVANT le changement, pour rattraper les configs poussées sans `projectIdClient`. `0` = le projet n'avait pas de référence (projet libre). | oui (peut valoir `0`) |
-| `currentProjectNum` | string | **Sélecteur fallback** : `projectNum` AVANT le changement. | oui |
+| `projectIdClient` | string | **Sélecteur** : id client (nanoid) du projet dont les configs doivent être mises à jour. | oui |
 | `newProjectObjectId` | int | Nouvelle valeur de `projectObjectId`. `0` = effacer (détach). | non → inchangé si absent |
 | `newProjectNum` | string | Nouvelle valeur de `projectNum`. | non → inchangé si absent |
 | `newProjectType` | string | Nouvelle valeur de `projectType` : `CHANTIER` \| `OPPORTUNITE` \| `PROJECT`. | non → inchangé si absent |
@@ -50,19 +45,16 @@ Depuis l'introduction de `projectIdClient` (id client nanoid du projet, envoyé 
 
 ### Comportement attendu
 
-1. **Sélection** des configs à mettre à jour, **toutes versions confondues** (pas seulement la dernière version de chaque scope — sinon un pull d'une version antérieure resterait rattaché à l'ancien projet) :
-   - toutes les lignes où `projectIdClient == body.projectIdClient` ;
-   - **UNION (fallback)** : les lignes **sans** `projectIdClient` où `projectObjectId == currentProjectObjectId` (uniquement si `currentProjectObjectId != 0`) **ou** `projectNum == currentProjectNum`.
-2. **Estampillage** : les lignes matchées par le fallback reçoivent `projectIdClient = body.projectIdClient` (rattrapage progressif — les appels suivants n'auront plus besoin du fallback).
-3. **Mise à jour** : chaque champ `new*` présent dans le corps est écrit sur toutes les lignes sélectionnées. `newProjectObjectId = 0` → vider la référence (NULL ou 0 selon le schéma).
-4. L'appel est **idempotent** : le rejouer avec le même corps ne change rien de plus.
+1. **Sélection** : toutes les lignes `ScopesConfigurations` où `projectIdClient == body.projectIdClient`, **toutes versions confondues** (pas seulement la dernière version de chaque scope — sinon un pull d'une version antérieure resterait rattaché à l'ancien projet). Les configs sans `projectIdClient` (antérieures à son introduction) ne sont **pas** concernées.
+2. **Mise à jour** : chaque champ `new*` présent dans le corps est écrit sur toutes les lignes sélectionnées. `newProjectObjectId = 0` → vider la référence (NULL ou 0 selon le schéma).
+3. L'appel est **idempotent** : le rejouer avec le même corps ne change rien de plus.
 
 ### Réponse
 
 `200 OK` avec, idéalement :
 
 ```json
-{ "updatedCount": 12, "stampedCount": 3 }
+{ "updatedCount": 12 }
 ```
 
 Le frontend ne dépend pas du shape (il logge la réponse) — tout JSON convient. `4xx/5xx` → le frontend affiche une erreur générique et laisse la mise à jour **locale** du projet en place (l'appel pourra être rejoué).
@@ -72,7 +64,6 @@ Le frontend ne dépend pas du shape (il logge la réponse) — tout JSON convien
 **Relier un projet libre à un chantier :**
 ```json
 { "projectIdClient": "nanoid_abc123",
-  "currentProjectObjectId": 0, "currentProjectNum": "TEMP-01",
   "newProjectObjectId": 45899, "newProjectNum": "2.45899",
   "newProjectType": "CHANTIER", "newProjectName": "GLV - TT ATELIER" }
 ```
@@ -80,7 +71,6 @@ Le frontend ne dépend pas du shape (il logge la réponse) — tout JSON convien
 **Changer de référentiel (chantier → opportunité) :**
 ```json
 { "projectIdClient": "nanoid_abc123",
-  "currentProjectObjectId": 45899, "currentProjectNum": "2.45899",
   "newProjectObjectId": 777, "newProjectNum": "OPP-777",
   "newProjectType": "OPPORTUNITE", "newProjectName": "Nouvelle oppo" }
 ```
@@ -88,7 +78,6 @@ Le frontend ne dépend pas du shape (il logge la réponse) — tout JSON convien
 **Détacher (retour projet libre — nom et numéro conservés) :**
 ```json
 { "projectIdClient": "nanoid_abc123",
-  "currentProjectObjectId": 45899, "currentProjectNum": "2.45899",
   "newProjectObjectId": 0, "newProjectNum": "2.45899",
   "newProjectType": "PROJECT", "newProjectName": "GLV - TT ATELIER" }
 ```
@@ -97,5 +86,5 @@ Le frontend ne dépend pas du shape (il logge la réponse) — tout JSON convien
 
 - Hook d'appel : `src/Features/remoteScopeConfigurations/hooks/useRelinkProjectScopeConfigurations.js` (config-driven, no-op si la route `relink` est absente de l'appConfig).
 - Orchestrateur : `src/Features/projects/hooks/useLinkProjectToReferentiel.js` (met à jour le projet Dexie local puis appelle Relink).
-- Route et corps configurés dans `appConfig_edx.yaml` → `features.remoteScopeConfigurations.relink` (les ObjectId y sont typés `fieldType: int`).
+- Route et corps configurés dans `appConfig_edx.yaml` → `features.remoteScopeConfigurations.relink` (l'ObjectId y est typé `fieldType: int`).
 - Côté lecture, le frontend rattache déjà les configs aux projets locaux par `projectIdClient` en priorité (`projectNum` en fallback) : exposer `projectIdClient` dans les réponses des endpoints de récupération (`ByProject`, `ByUser`, `SearchAndFilters`, `AllVersions`) si ce n'est pas déjà le cas.

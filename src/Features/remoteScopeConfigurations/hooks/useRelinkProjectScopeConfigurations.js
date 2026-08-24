@@ -8,10 +8,9 @@ import resolveBodyTemplate from "Features/appConfig/utils/resolveBodyTemplate";
 // Bulk-updates the denormalized project fields (projectObjectId, projectNum,
 // projectType, projectName) on every remote scopeConfiguration of a project,
 // in ONE call. Configs are matched by projectIdClient (immutable client
-// project id) with the current idMaster/clientRef as fallback for older rows
-// pushed before projectIdClient existed. Metadata only — no zip re-upload.
-// The backend endpoint is pending: no-ops gracefully when the `relink` route
-// is not configured (remoteScopeConfigurations.relink).
+// project id). Metadata only — no zip re-upload. The backend endpoint is
+// pending: no-ops gracefully when the `relink` route is not configured
+// (remoteScopeConfigurations.relink).
 
 export default function useRelinkProjectScopeConfigurations() {
   // data
@@ -25,19 +24,14 @@ export default function useRelinkProjectScopeConfigurations() {
 
   // relink
 
-  // project = { id }                              — immutable client id (primary key)
-  // current = { idMaster, clientRef }             — BEFORE the change (fallback match)
+  // project = { id }                              — immutable client id (selector)
   // next    = { idMaster, clientRef, type, name } — values to write
-  const relink = async ({ project, current, next }) => {
+  const relink = async ({ project, next }) => {
     const fetchParams = relinkConfig?.fetchParams;
     if (!fetchParams) return null; // endpoint not live yet — degrade silently
 
     const resolvedUrl = resolveUrl(fetchParams.url);
-    const body = resolveBodyTemplate(fetchParams.body, {
-      project,
-      current,
-      next,
-    });
+    const body = resolveBodyTemplate(fetchParams.body, { project, next });
 
     console.log("[useRelinkProjectScopeConfigurations] body", body);
 
