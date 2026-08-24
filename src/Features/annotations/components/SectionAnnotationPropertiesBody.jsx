@@ -50,6 +50,9 @@ function getTabs(annotation) {
 
 export default function SectionAnnotationPropertiesBody({
   annotation: annotationProp,
+  // Forwarded to the Propriété tab: the hosting panel renders the overview
+  // card and the label field above the tabs itself.
+  hideOverview,
 }) {
   const dispatch = useDispatch();
   const containerRef = useRef();
@@ -137,7 +140,10 @@ export default function SectionAnnotationPropertiesBody({
 
         {!hasPart && effectiveTab === "PROPERTIES" && (
           <>
-            <SectionAnnotationPropertiesContent annotation={annotation} />
+            <SectionAnnotationPropertiesContent
+              annotation={annotation}
+              hideOverview={hideOverview}
+            />
             {/* Zone links (zonings module) — not for the zone delimitation
                 polygons themselves. */}
             {!annotation?.isZoneAnnotation && (

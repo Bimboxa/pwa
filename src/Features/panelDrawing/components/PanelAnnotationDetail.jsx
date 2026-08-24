@@ -12,6 +12,8 @@ import ChevronLeft from "@mui/icons-material/ChevronLeft";
 import ChevronRight from "@mui/icons-material/ChevronRight";
 
 import SectionAnnotationPropertiesBody from "Features/annotations/components/SectionAnnotationPropertiesBody";
+import SectionAnnotationOverview from "Features/annotations/components/SectionAnnotationOverview";
+import FieldAnnotationLabel from "Features/annotations/components/FieldAnnotationLabel";
 import useSelectAnnotationFromPanel from "Features/panelDrawing/hooks/useSelectAnnotationFromPanel";
 import getZeroPaddingNumber from "Features/misc/utils/getZeroPaddingNumber";
 import { getAnnotationOwnLabel } from "Features/annotations/utils/getAnnotationLabelDisplay";
@@ -235,10 +237,25 @@ export default function PanelAnnotationDetail({
         </Button>
       </Box>
 
+      {/* Label field + shape overview / quantities card — above the tabs
+          (pulled out of the Propriété tab via hideOverview). */}
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          gap: 1,
+          px: 1.5,
+          pb: 1.5,
+        }}
+      >
+        <FieldAnnotationLabel annotation={annotation} />
+        <SectionAnnotationOverview annotation={annotation} />
+      </Box>
+
       {/* Shared properties body (tabs + content), fed by prop — no selection
           side effect from displaying the annotation here. */}
       <Box sx={{ flex: 1, minHeight: 0, display: "flex" }}>
-        <SectionAnnotationPropertiesBody annotation={annotation} />
+        <SectionAnnotationPropertiesBody annotation={annotation} hideOverview />
       </Box>
     </Box>
   );
