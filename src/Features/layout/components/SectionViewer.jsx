@@ -137,7 +137,7 @@ export default function SectionViewer() {
           Zones drawer; the guard is load-bearing for the same reason). The
           panel owns the tree / base map detail subview switching (#312). */}
       {isBaseMapsModule && (
-        <LeftDrawerPanel width={300} viewerKey="BASE_MAPS">
+        <LeftDrawerPanel width={360} viewerKey="BASE_MAPS">
           <PanelBaseMaps />
         </LeftDrawerPanel>
       )}
