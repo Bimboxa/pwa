@@ -253,10 +253,15 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     );
     // Viewer module (key THREED): read-only consultation, no listings panel.
     const isViewerModule = useSelector((s) => s.viewers.selectedViewerKey === "THREED");
-    // Dessin module (key MAP): the left panel (PanelDrawing) took over the
-    // listings popper (#310) — only the floating paste/subtract/drawing
-    // helpers remain over the map.
+    // Dessin module (key MAP): the left panel (PanelDrawing) takes over the
+    // listings popper (#310) whenever it is VISIBLE — docked, or drawer mode
+    // while the left area is hovered (the drawer slides over the map). With
+    // the panel off-screen the popper shows as before.
     const isDessinModule = useSelector((s) => s.viewers.selectedViewerKey === "MAP");
+    const leftPanelDocked = useSelector((s) => s.leftPanel.leftPanelDocked);
+    const leftDrawerHovered = useSelector((s) => s.leftPanel.leftDrawerHovered);
+    const dessinPanelVisible =
+        isDessinModule && (leftPanelDocked || leftDrawerHovered);
     const hiddenVersionIds = useSelector((s) => s.baseMapEditor.hiddenVersionIds);
     const selectedVersionId = useSelector((s) => s.baseMapEditor.selectedVersionId);
     const versionTransformOverride = useSelector((s) => s.baseMapEditor.versionTransformOverride);
@@ -2087,14 +2092,15 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
             {!versionCompareEnabled &&
                 !imageModeActive &&
                 !isViewerModule &&
-                !isDessinModule &&
+                !dessinPanelVisible &&
                 (forViewerKey !== "BASE_MAPS" || showDrawingToolsInBaseMaps) && (
                     <PopperMapListings />
                 )}
 
-            {/* Dessin module: floating helpers only (paste / subtract /
-                drawing-in-drawer-mode) — the listings live in the left panel. */}
-            {isDessinModule && !versionCompareEnabled && !imageModeActive && (
+            {/* Dessin module with the docked panel: floating paste / subtract
+                helpers only — listings and the drawing helper live in the
+                panel. */}
+            {dessinPanelVisible && !versionCompareEnabled && !imageModeActive && (
                 <FloatingHelpersDessin />
             )}
 
