@@ -11,6 +11,7 @@ import { triggerBaseMapsUpdate } from "Features/baseMaps/baseMapsSlice";
 import { setToaster } from "Features/layout/layoutSlice";
 
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
+import { buildIndex } from "Features/threedDrawing/hooks/useVertexSnap";
 import db from "App/db/db";
 
 import {
@@ -99,17 +100,21 @@ export default function useMoveBaseMapPointerHandlers() {
         return;
       }
 
-      // The carried base map must not snap onto itself.
-      const excludeMeshKeys = new Set();
-      group.traverse((o) => {
-        if (o.isMesh) excludeMeshKeys.add(o.uuid);
-      });
+      // Fresh target-only snap index, excluding the whole carried subtree:
+      // the carried geometry must never screen the drop targets, and a
+      // grab-time rebuild guarantees up-to-date world positions whatever
+      // happened since the mode was armed.
+      const { verts: targetVerts, adjacency: targetAdjacency } = buildIndex(
+        scene,
+        { excludeSubtree: group }
+      );
 
       setMoveGrab({
         baseMapId,
         startWorld: snap.position.clone(),
         groupStartPosition: group.position.clone(),
-        excludeMeshKeys,
+        targetVerts,
+        targetAdjacency,
       });
       dispatch(setMoveBaseMapCarriedId(baseMapId));
     }

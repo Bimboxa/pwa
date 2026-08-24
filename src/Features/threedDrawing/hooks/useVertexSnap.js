@@ -30,10 +30,15 @@ const COPLANAR_NORMAL_DOT = 0.9962;
 // mid-edge points) that exist nowhere else. Objects hidden via an
 // ancestor's `visible = false` (e.g. "Masquer les annotations") are
 // skipped.
-export function buildIndex(scene) {
+// options.excludeSubtree: an Object3D whose whole subtree is skipped — used
+// by the "Déplacer" tool to build a target-only index that never contains
+// the carried base map (its own geometry would otherwise screen the drop
+// targets, with stale world positions on top).
+export function buildIndex(scene, options = {}) {
   const verts = [];
   const adjacency = new Map(); // key -> { position, neighbors: Set<key> }
   if (!scene) return { verts, adjacency };
+  const excludeSubtree = options.excludeSubtree ?? null;
 
   function ensureNode(key, position) {
     let entry = adjacency.get(key);
@@ -51,6 +56,7 @@ export function buildIndex(scene) {
     let parent = obj;
     while (parent) {
       if (parent.visible === false) return; // hidden by an ancestor
+      if (excludeSubtree && parent === excludeSubtree) return;
       if (
         parent.userData?.nodeType === "ANNOTATION" ||
         parent.userData?.isBasemap ||
@@ -194,12 +200,9 @@ export default function useVertexSnap({ active }) {
   }, [active, snapIndexEpoch]);
 
   const findNearestSnap = useCallback(
-    // options.excludeMeshKeys: Set of mesh uuids to skip — used by the
-    // "Déplacer" tool so the carried base map never snaps onto itself.
-    (mouseNdc, camera, canvasSize, pixelThreshold = 12, options = {}) => {
+    (mouseNdc, camera, canvasSize, pixelThreshold = 12) => {
       const verts = indexRef.current;
       if (!verts.length || !camera || !canvasSize) return null;
-      const excludeMeshKeys = options.excludeMeshKeys;
 
       const halfW = canvasSize.width / 2;
       const halfH = canvasSize.height / 2;
@@ -210,7 +213,6 @@ export default function useVertexSnap({ active }) {
       let bestSq = pixelThreshold * pixelThreshold;
       const tmp = new Vector3();
       for (const v of verts) {
-        if (excludeMeshKeys?.has(v.meshKey)) continue;
         tmp.copy(v.position).project(camera);
         if (tmp.z < -1 || tmp.z > 1) continue; // behind camera or beyond far plane
         const sx = tmp.x * halfW;

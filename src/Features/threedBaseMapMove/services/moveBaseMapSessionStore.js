@@ -3,15 +3,16 @@
 // pointer handlers (read it on click) — same pattern as lastSnapStore /
 // lastDimensionSnapStore.
 
-// { position: Vector3, kind: "VERTEX" | "FREE", meshKey? } | null
+// { position: Vector3, kind: "VERTEX" | "EDGE" | "FREE", meshKey? } | null
 let lastSnap = null;
 
 // The in-progress grab:
 // {
 //   baseMapId,
-//   startWorld: Vector3,          // grabbed point, world space
-//   groupStartPosition: Vector3,  // base map group position at grab time
-//   excludeMeshKeys: Set<string>, // uuids of the carried group's meshes
+//   startWorld: Vector3,         // grabbed point, world space
+//   groupStartPosition: Vector3, // base map group position at grab time
+//   targetVerts,                 // target-only snap index (carried subtree
+//   targetAdjacency,             // excluded), built fresh at grab time
 // } | null
 let grab = null;
 

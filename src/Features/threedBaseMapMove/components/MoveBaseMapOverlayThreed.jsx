@@ -6,12 +6,15 @@ import { Plane, Raycaster, Vector2, Vector3 } from "three";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 import useVertexSnap from "Features/threedDrawing/hooks/useVertexSnap";
 
+import findNearestEdgeSnap from "Features/threedDimensions/utils/findNearestEdgeSnap";
+import findNearestVertexInVerts from "../utils/findNearestVertexInVerts";
 import {
   setLastMoveSnap,
   getMoveGrab,
 } from "../services/moveBaseMapSessionStore";
 
 const COLOR_VERTEX = "#ff2d8d";
+const COLOR_EDGE = "#2e7d32";
 const COLOR_FREE = "#000000";
 
 const SNAP_CIRCLE_RADIUS_PX = 6;
@@ -59,7 +62,12 @@ export default function MoveBaseMapOverlayThreed() {
       const sy = ((1 - projected.y) / 2) * rect.height;
       circle.setAttribute("cx", sx);
       circle.setAttribute("cy", sy);
-      circle.style.stroke = snap.kind === "VERTEX" ? COLOR_VERTEX : COLOR_FREE;
+      circle.style.stroke =
+        snap.kind === "VERTEX"
+          ? COLOR_VERTEX
+          : snap.kind === "EDGE"
+            ? COLOR_EDGE
+            : COLOR_FREE;
       circle.style.display = "block";
     }
 
@@ -71,28 +79,46 @@ export default function MoveBaseMapOverlayThreed() {
 
       const grab = getMoveGrab();
 
-      const vertexSnap = findNearestSnap(ndc, camera, canvasSize, 12, {
-        excludeMeshKeys: grab?.excludeMeshKeys,
-      });
-
-      let snap = vertexSnap
-        ? {
-            position: vertexSnap.position,
-            kind: "VERTEX",
-            meshKey: vertexSnap.meshKey,
+      let snap = null;
+      if (grab) {
+        // Carrying: search the target-only index built at grab time (the
+        // carried subtree is excluded, so its geometry never screens the
+        // drop targets) — vertex first, then edge, like the cote tool.
+        snap =
+          findNearestVertexInVerts(
+            grab.targetVerts,
+            ndc,
+            camera,
+            canvasSize,
+            12
+          ) ??
+          findNearestEdgeSnap(
+            grab.targetAdjacency,
+            ndc,
+            camera,
+            canvasSize,
+            12
+          );
+        // A free (unsnapped) cursor still moves the base map: the drop point
+        // slides on the camera-facing plane through the grabbed point.
+        if (!snap) {
+          raycaster.setFromCamera(ndc, camera);
+          camera.getWorldDirection(camDir);
+          freePlane.setFromNormalAndCoplanarPoint(camDir, grab.startWorld);
+          if (raycaster.ray.intersectPlane(freePlane, freeHit)) {
+            snap = { position: freeHit.clone(), kind: "FREE" };
           }
-        : null;
-
-      // While carrying, a free (unsnapped) cursor still moves the base map:
-      // the drop point slides on the camera-facing plane through the grabbed
-      // point, like the face-drawing free point.
-      if (!snap && grab) {
-        raycaster.setFromCamera(ndc, camera);
-        camera.getWorldDirection(camDir);
-        freePlane.setFromNormalAndCoplanarPoint(camDir, grab.startWorld);
-        if (raycaster.ray.intersectPlane(freePlane, freeHit)) {
-          snap = { position: freeHit.clone(), kind: "FREE" };
         }
+      } else {
+        // Grab phase: vertex snap on every snappable object.
+        const vertexSnap = findNearestSnap(ndc, camera, canvasSize, 12);
+        snap = vertexSnap
+          ? {
+              position: vertexSnap.position,
+              kind: "VERTEX",
+              meshKey: vertexSnap.meshKey,
+            }
+          : null;
       }
 
       setLastMoveSnap(snap);
