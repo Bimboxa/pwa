@@ -111,6 +111,9 @@ import { isMesh3dLabelGestureActive } from "Features/threedMesh/services/mesh3dL
 import ExtrudeToolbarThreed from "Features/threedExtrude/components/ExtrudeToolbarThreed";
 import ExtrudeOverlayThreed from "Features/threedExtrude/components/ExtrudeOverlayThreed";
 import useExtrudePointerHandlers from "Features/threedExtrude/hooks/useExtrudePointerHandlers";
+import useMoveBaseMapPointerHandlers from "Features/threedBaseMapMove/hooks/useMoveBaseMapPointerHandlers";
+import MoveBaseMapOverlayThreed from "Features/threedBaseMapMove/components/MoveBaseMapOverlayThreed";
+import MoveBaseMapToolbarThreed from "Features/threedBaseMapMove/components/MoveBaseMapToolbarThreed";
 import useWalkMode from "Features/threedEditor/hooks/useWalkMode";
 import useObject3DPlacementHandlers from "Features/threedEditor/hooks/useObject3DPlacementHandlers";
 import { selectIsObject3DPlacementActive } from "Features/threedEditor/utils/object3DPlacementSelectors";
@@ -327,6 +330,16 @@ export default function MainThreedEditor() {
     walkActiveRef.current = walkActive;
   }, [walkActive]);
 
+  // Same pattern for the "Déplacer" (move base map) mode —
+  // useMoveBaseMapPointerHandlers owns the pointer while active.
+  const moveBaseMapActive = useSelector(
+    (s) => s.threedEditor.moveBaseMapMode.active
+  );
+  const moveBaseMapActiveRef = useRef(moveBaseMapActive);
+  useEffect(() => {
+    moveBaseMapActiveRef.current = moveBaseMapActive;
+  }, [moveBaseMapActive]);
+
   // Same pattern for OBJECT_3D placement mode (derived state) —
   // useObject3DPlacementHandlers owns the pointer while active.
   const placementActive = useSelector(selectIsObject3DPlacementActive);
@@ -378,6 +391,7 @@ export default function MainThreedEditor() {
   useDimensionPointerHandlers();
   useMeshingPointerHandlers();
   useExtrudePointerHandlers();
+  useMoveBaseMapPointerHandlers();
   useWalkMode();
   useObject3DPlacementHandlers();
   useTemplateFaceDrawBridge();
@@ -596,6 +610,9 @@ export default function MainThreedEditor() {
       // OBJECT_3D placement owns the pointer; useObject3DPlacementHandlers
       // handles it.
       if (placementActiveRef.current) return;
+      // Move-base-map mode owns the pointer; useMoveBaseMapPointerHandlers
+      // handles it.
+      if (moveBaseMapActiveRef.current) return;
 
       const threedEditor = threedEditorRef.current;
       const sceneManager = threedEditor.sceneManager;
@@ -985,6 +1002,7 @@ export default function MainThreedEditor() {
       if (extrudeActiveRef.current) return;
       if (walkActiveRef.current) return;
       if (placementActiveRef.current) return;
+      if (moveBaseMapActiveRef.current) return;
       // Shift stays reserved for the multi-selection / lasso.
       if (event.shiftKey) return;
 
@@ -1351,6 +1369,10 @@ export default function MainThreedEditor() {
       if (drawingActiveRef.current) {
         return;
       }
+      // Move-base-map mode owns the pointer (its own drag tracking).
+      if (moveBaseMapActiveRef.current) {
+        return;
+      }
       isDraggingRef.current = false;
       dragStartRef.current = { x: event.clientX, y: event.clientY };
 
@@ -1468,7 +1490,8 @@ export default function MainThreedEditor() {
       meshingActiveRef.current ||
       extrudeActiveRef.current ||
       walkActiveRef.current ||
-      placementActiveRef.current
+      placementActiveRef.current ||
+      moveBaseMapActiveRef.current
     ) {
       if (prevHoveredObjectRef.current) {
         const prevId = prevHoveredObjectRef.current.userData?.nodeId;
@@ -2015,6 +2038,8 @@ export default function MainThreedEditor() {
           <ExtrudeToolbarThreed />
         ) : dimensionActive ? (
           <CoteToolbarThreed />
+        ) : moveBaseMapActive ? (
+          <MoveBaseMapToolbarThreed />
         ) : meshingActive || isMeshesViewer ? (
           <MeshingToolbarThreed />
         ) : (
@@ -2035,6 +2060,7 @@ export default function MainThreedEditor() {
         <ThreedAnnotationLabels annotations={annotations} />
       )}
       {isThreedViewer && <DimensionDraftOverlayThreed />}
+      {isThreedViewer && <MoveBaseMapOverlayThreed />}
       {isThreedViewer && rendererIsReady && <ThreedMeshes />}
       {isThreedViewer && <MeshingOverlayThreed />}
       {isThreedViewer && <ExtrudeOverlayThreed />}

@@ -142,7 +142,11 @@ export function buildIndex(scene) {
     const indexAttr = geom.index;
     if (indexAttr) {
       for (let i = 0; i < indexAttr.count; i += 3) {
-        addTriangle(indexAttr.getX(i), indexAttr.getX(i + 1), indexAttr.getX(i + 2));
+        addTriangle(
+          indexAttr.getX(i),
+          indexAttr.getX(i + 1),
+          indexAttr.getX(i + 2)
+        );
       }
     } else {
       for (let i = 0; i < pos.count; i += 3) {
@@ -190,9 +194,12 @@ export default function useVertexSnap({ active }) {
   }, [active, snapIndexEpoch]);
 
   const findNearestSnap = useCallback(
-    (mouseNdc, camera, canvasSize, pixelThreshold = 12) => {
+    // options.excludeMeshKeys: Set of mesh uuids to skip — used by the
+    // "Déplacer" tool so the carried base map never snaps onto itself.
+    (mouseNdc, camera, canvasSize, pixelThreshold = 12, options = {}) => {
       const verts = indexRef.current;
       if (!verts.length || !camera || !canvasSize) return null;
+      const excludeMeshKeys = options.excludeMeshKeys;
 
       const halfW = canvasSize.width / 2;
       const halfH = canvasSize.height / 2;
@@ -203,6 +210,7 @@ export default function useVertexSnap({ active }) {
       let bestSq = pixelThreshold * pixelThreshold;
       const tmp = new Vector3();
       for (const v of verts) {
+        if (excludeMeshKeys?.has(v.meshKey)) continue;
         tmp.copy(v.position).project(camera);
         if (tmp.z < -1 || tmp.z > 1) continue; // behind camera or beyond far plane
         const sx = tmp.x * halfW;

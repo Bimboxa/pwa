@@ -7,6 +7,7 @@ import ContentCutIcon from "@mui/icons-material/ContentCut";
 
 import ButtonExtrudeThreed from "Features/threedExtrude/components/ButtonExtrudeThreed";
 import ButtonMeshThreed from "Features/threedMesh/components/ButtonMeshThreed";
+import ButtonMoveBaseMapThreed from "Features/threedBaseMapMove/components/ButtonMoveBaseMapThreed";
 
 // Floating bottom toolbar for the main 3D viewer. Its content does not depend
 // on the current selection: the extrude ("push/pull") entry point + the meshing
@@ -50,6 +51,7 @@ export default function BottomToolbarThreed() {
           <>
             <ButtonExtrudeThreed />
             {isMeshesViewer && <ButtonMeshThreed />}
+            <ButtonMoveBaseMapThreed />
             {/* No leading divider when nothing precedes "Coupe" (Viewer
                 module). */}
             <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
