@@ -41,25 +41,41 @@ function getTabs(annotation) {
 }
 
 // ---------------------------------------------------------------------------
-// SectionAnnotationPropertiesBody — tabs + content of the SELECTED
-// annotation's properties (selection-driven, like the hosting panels).
-// Shared by the right panel (PanelAnnotationProperties) and the Dessin left
-// panel (PanelAnnotationDetail) — only the headers differ.
+// SectionAnnotationPropertiesBody — tabs + content of one annotation's
+// properties. Selection-driven by default (right panel,
+// PanelAnnotationProperties); the Dessin left panel (PanelAnnotationDetail)
+// passes the annotation as a prop instead — the panel must not touch the
+// selection just to display the content.
 // ---------------------------------------------------------------------------
 
-export default function SectionAnnotationPropertiesBody() {
+export default function SectionAnnotationPropertiesBody({
+  annotation: annotationProp,
+}) {
   const dispatch = useDispatch();
   const containerRef = useRef();
 
   // data
 
-  const annotation = useSelectedAnnotation();
+  const selectedAnnotation = useSelectedAnnotation();
+  const annotation = annotationProp ?? selectedAnnotation;
   const part = useSelectedAnnotationPart();
-  const hasPart = part && part.kind && part.kind !== "NONE";
+  // Parts come from the map selection — in prop mode they only apply when
+  // the selection targets the displayed annotation.
+  const partApplies =
+    !annotationProp || selectedAnnotation?.id === annotationProp.id;
+  const hasPart = partApplies && part && part.kind && part.kind !== "NONE";
   const tab = useSelector((s) => s.selection.annotationPropertiesTab);
   const { value: entity } = useSelectedEntity({
     withImages: true,
     withAnnotations: true,
+    // Prop mode: resolve the entity from the annotation itself (the
+    // selection may point elsewhere or be empty).
+    ...(annotationProp
+      ? {
+          entityId: annotationProp.entityId,
+          fromListingId: annotationProp.listingId,
+        }
+      : {}),
   });
   const template = useEntityFormTemplate();
   const updateEntity = useUpdateEntity();

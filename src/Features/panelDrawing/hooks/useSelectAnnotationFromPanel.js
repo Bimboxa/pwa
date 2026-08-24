@@ -1,6 +1,5 @@
 import { useDispatch } from "react-redux";
 
-import { setDetailAnnotationId } from "Features/panelDrawing/panelDrawingSlice";
 import {
   setSelectedMainBaseMapId,
   setSelectedNode,
@@ -12,11 +11,11 @@ import {
 } from "Features/selection/selectionSlice";
 
 // ---------------------------------------------------------------------------
-// useSelectAnnotationFromPanel — selects one annotation from the Dessin panel
-// (annotations list row, prev/next arrows): selects it on the map, zooms to
-// it (DatagridAnnotations handleViewOnMap pattern) and opens the panel's
-// annotation subview. The right panel stays untouched — the properties are
-// displayed in the left panel (PanelAnnotationDetail).
+// useSelectAnnotationFromPanel — "Sélectionner" action of the panel's
+// annotation subview: selects the annotation on the map and zooms to it
+// (DatagridAnnotations handleViewOnMap pattern). Deliberately NOT dispatched
+// on row clicks / prev-next arrows — those only navigate the panel
+// (setDetailAnnotationId); the selection is an explicit user action.
 // ---------------------------------------------------------------------------
 
 export default function useSelectAnnotationFromPanel() {
@@ -53,6 +52,5 @@ export default function useSelectAnnotationFromPanel() {
     } else if (annotation.x != null) {
       dispatch(setZoomTo({ x: annotation.x, y: annotation.y }));
     }
-    dispatch(setDetailAnnotationId(annotation.id));
   };
 }

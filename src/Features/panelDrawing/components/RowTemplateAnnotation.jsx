@@ -1,14 +1,16 @@
+import { useDispatch } from "react-redux";
+
+import { setDetailAnnotationId } from "Features/panelDrawing/panelDrawingSlice";
+
 import { Box, Typography } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import ChevronRight from "@mui/icons-material/ChevronRight";
 
-import useSelectAnnotationFromPanel from "Features/panelDrawing/hooks/useSelectAnnotationFromPanel";
-
 // ---------------------------------------------------------------------------
 // RowTemplateAnnotation — one annotation of the detail view (#311): color
 // swatch, derived label ("Mur béton ext 01"), quantities line and a chevron.
-// Clicking selects the annotation on the map, zooms to it and opens its
-// properties in the panel (PanelAnnotationDetail subview).
+// Clicking only opens the annotation subview in the panel — selecting it on
+// the map is an explicit action there ("Sélectionner").
 // ---------------------------------------------------------------------------
 
 function formatQty(value) {
@@ -16,9 +18,7 @@ function formatQty(value) {
 }
 
 export default function RowTemplateAnnotation({ annotation, label, color }) {
-  // data
-
-  const selectAnnotation = useSelectAnnotationFromPanel();
+  const dispatch = useDispatch();
 
   // helpers
 
@@ -32,7 +32,7 @@ export default function RowTemplateAnnotation({ annotation, label, color }) {
   // handlers
 
   const handleClick = () => {
-    selectAnnotation(annotation);
+    dispatch(setDetailAnnotationId(annotation.id));
   };
 
   // render

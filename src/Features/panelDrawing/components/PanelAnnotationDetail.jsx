@@ -1,11 +1,13 @@
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 
 import {
   setDetailTemplateId,
   setDetailView,
+  setDetailAnnotationId,
 } from "Features/panelDrawing/panelDrawingSlice";
+import { setSoloAnnotationId } from "Features/annotations/annotationsSlice";
 
-import { Box, IconButton, Typography, Link } from "@mui/material";
+import { Box, Button, IconButton, Typography, Link } from "@mui/material";
 import ChevronLeft from "@mui/icons-material/ChevronLeft";
 import ChevronRight from "@mui/icons-material/ChevronRight";
 
@@ -18,9 +20,10 @@ import { getAnnotationOwnLabel } from "Features/annotations/utils/getAnnotationL
 // PanelAnnotationDetail — one annotation's properties in the Dessin panel
 // (#311): breadcrumb (Annotations / <template> / <annotation>), header with
 // prev / next arrows cycling through the template's annotations (draw
-// order), and the shared properties body (Propriété / Etiquette / Objet
-// tabs, selection-driven — the arrows and rows keep the map selection in
-// sync).
+// order, panel navigation only), the Sélectionner / Isoler actions, and the
+// shared properties body fed by prop — displaying an annotation here never
+// touches the selection; selecting it on the map is the explicit
+// "Sélectionner" action.
 // ---------------------------------------------------------------------------
 
 export default function PanelAnnotationDetail({
@@ -34,10 +37,13 @@ export default function PanelAnnotationDetail({
 
   const breadcrumbRootS = "Annotations";
   const subtitleS = "Annotation";
+  const selectS = "Sélectionner";
+  const soloS = "Isoler";
 
   // data
 
   const selectAnnotation = useSelectAnnotationFromPanel();
+  const soloAnnotationId = useSelector((s) => s.annotations.soloAnnotationId);
 
   // helpers
 
@@ -49,6 +55,7 @@ export default function PanelAnnotationDetail({
     `${template.label} ${getZeroPaddingNumber(annotationIndex + 1, 2)}`;
   const prevAnnotation = annotations[annotationIndex - 1];
   const nextAnnotation = annotations[annotationIndex + 1];
+  const isSolo = soloAnnotationId === annotation?.id;
 
   // handlers
 
@@ -58,6 +65,19 @@ export default function PanelAnnotationDetail({
 
   const handleBackToAnnotations = () => {
     dispatch(setDetailView("ANNOTATIONS"));
+  };
+
+  // Prev / next only navigate the panel — no selection side effect.
+  const handleGoTo = (target) => {
+    if (target) dispatch(setDetailAnnotationId(target.id));
+  };
+
+  const handleSelect = () => {
+    selectAnnotation(annotation);
+  };
+
+  const handleToggleSolo = () => {
+    dispatch(setSoloAnnotationId(isSolo ? null : annotation?.id));
   };
 
   // render
@@ -150,7 +170,7 @@ export default function PanelAnnotationDetail({
           <IconButton
             size="small"
             disabled={!prevAnnotation}
-            onClick={() => selectAnnotation(prevAnnotation)}
+            onClick={() => handleGoTo(prevAnnotation)}
             sx={{
               bgcolor: "background.paper",
               border: "1px solid",
@@ -164,7 +184,7 @@ export default function PanelAnnotationDetail({
           <IconButton
             size="small"
             disabled={!nextAnnotation}
-            onClick={() => selectAnnotation(nextAnnotation)}
+            onClick={() => handleGoTo(nextAnnotation)}
             sx={{
               bgcolor: "background.paper",
               border: "1px solid",
@@ -178,9 +198,47 @@ export default function PanelAnnotationDetail({
         </Box>
       </Box>
 
-      {/* Shared properties body (tabs + content, selection-driven) */}
+      {/* Actions — same design as the template subview's Isoler / Tout sél. */}
+      <Box sx={{ display: "flex", gap: 1, px: 1.5, pb: 1.5 }}>
+        <Button
+          onClick={handleSelect}
+          sx={{
+            flex: 1,
+            bgcolor: "background.paper",
+            border: "1px solid",
+            borderColor: "divider",
+            borderRadius: 3,
+            color: "text.primary",
+            fontWeight: 600,
+            textTransform: "none",
+            "&:hover": { bgcolor: "action.hover" },
+          }}
+        >
+          {selectS}
+        </Button>
+        <Button
+          onClick={handleToggleSolo}
+          sx={{
+            bgcolor: isSolo ? "grey.900" : "background.paper",
+            border: "1px solid",
+            borderColor: isSolo ? "grey.900" : "divider",
+            borderRadius: 3,
+            color: isSolo ? "common.white" : "text.primary",
+            fontWeight: 600,
+            textTransform: "none",
+            "&:hover": {
+              bgcolor: isSolo ? "grey.800" : "action.hover",
+            },
+          }}
+        >
+          {soloS}
+        </Button>
+      </Box>
+
+      {/* Shared properties body (tabs + content), fed by prop — no selection
+          side effect from displaying the annotation here. */}
       <Box sx={{ flex: 1, minHeight: 0, display: "flex" }}>
-        <SectionAnnotationPropertiesBody />
+        <SectionAnnotationPropertiesBody annotation={annotation} />
       </Box>
     </Box>
   );
