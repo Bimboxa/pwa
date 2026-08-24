@@ -215,11 +215,14 @@ function SortableBaseMapRow({
       {...attributes}
       {...listeners}
       component="div"
-      selected={isSelected}
       onClick={onClick}
       sx={{
         pl: 2,
         ...style,
+        // Selection = thick vertical bar on the left (secondary color);
+        // transparent when unselected so rows don't shift.
+        borderLeft: "3px solid",
+        borderLeftColor: isSelected ? "secondary.main" : "transparent",
         "&:hover .hover-action": { opacity: 1 },
         "&:hover .row-drag-handle": { opacity: 1 },
       }}
@@ -279,7 +282,6 @@ function SortableBaseMapRow({
           slotProps={{
             primary: {
               variant: "body2",
-              fontWeight: isSelected ? "bold" : "normal",
               noWrap: true,
               ...(isUnnamed && {
                 fontStyle: "italic",
@@ -407,6 +409,8 @@ export default function BaseMapTreeItem({ listing, baseMaps, isDropTarget }) {
     );
   }
 
+  // Row click: selection only — the detail view (versions + Position 3D)
+  // opens from the "Propriétés du fond de plan" menu item.
   function handleBaseMapClick(baseMap) {
     if (editingItemId === baseMap.id) return;
     dispatch(setDisplayedBaseMapListingId(listing.id));
@@ -421,14 +425,11 @@ export default function BaseMapTreeItem({ listing, baseMaps, isDropTarget }) {
         listingId: listing.id,
       })
     );
-    // Open the base map detail view in the left panel (#312)
-    dispatch(setDetailBaseMapId(baseMap.id));
   }
 
-  // The "Propriétés du fond de plan" menu item opens the same detail view
-  // as the row click (versions + Position 3D).
   function handleOpenBaseMapProperties(baseMap) {
     handleBaseMapClick(baseMap);
+    dispatch(setDetailBaseMapId(baseMap.id));
   }
 
   async function handleVersionClick(baseMap, version) {
