@@ -6,7 +6,7 @@ import { Box, Typography } from "@mui/material";
 import LeftDrawerPanelHeader from "Features/leftPanel/components/LeftDrawerPanelHeader";
 import WarningBaseMapNotToScale from "Features/mapEditor/components/WarningBaseMapNotToScale";
 import FieldActiveListing from "./FieldActiveListing";
-import ChipsTemplateVisibilityFilter from "./ChipsTemplateVisibilityFilter";
+import ChipsViewerScope from "./ChipsViewerScope";
 import ListPanelDrawingTemplates from "./ListPanelDrawingTemplates";
 import SectionPanelDrawingTools from "./SectionPanelDrawingTools";
 import SectionPanelDrawingHelper from "./SectionPanelDrawingHelper";
@@ -69,10 +69,10 @@ export default function PanelDrawing() {
   );
 
   const isThreedEditor = isThreedFamilyViewerKey(effectiveViewerKey);
-  // Scope chips (shown in the detail subviews while the 3D editor is
-  // active): "Tous" widens the annotations set to the whole repérage.
+  // Scope chips (active base map / "Tous", shared with the Viewer panel):
+  // "Tous" widens the annotations set to the whole repérage.
   const viewerScope = useSelector((s) => s.panelDrawing.viewerAnnotationsScope);
-  const isAllScope = isThreedEditor && viewerScope === "ALL";
+  const isAllScope = viewerScope === "ALL";
   const baseMap = useMainBaseMap();
   const extraBaseMapIds = useExtraBaseMapIdsIn3d();
   const annotationTemplates = useAnnotationTemplates();
@@ -132,11 +132,6 @@ export default function PanelDrawing() {
     displayedListings.find((l) => l.id === selectedListingId) ??
     displayedListings[0] ??
     null;
-
-  // Empty listing: the visibility chips are meaningless.
-  const activeListingHasTemplates = (annotationTemplates ?? []).some(
-    (t) => t.listingId === activeListing?.id
-  );
 
   // helpers - quantities
 
@@ -250,8 +245,8 @@ export default function PanelDrawing() {
           />
 
           {activeListing && (
-            <ChipsTemplateVisibilityFilter
-              disabled={!activeListingHasTemplates}
+            <ChipsViewerScope
+              baseMapName={baseMap?.name ?? baseMap?.label ?? "Fond de plan"}
             />
           )}
 

@@ -3,7 +3,6 @@ import { createSlice } from "@reduxjs/toolkit";
 const panelDrawingSlice = createSlice({
   name: "panelDrawing",
   initialState: {
-    templateFilter: "ALL", // "ALL" | "VISIBLE" | "HIDDEN"
     toolsSectionCollapsed: false,
     // Template whose detail is open in the panel (#311). null = the main
     // templates list. detailView picks the open subview: the annotations
@@ -18,9 +17,6 @@ const panelDrawingSlice = createSlice({
     viewerAnnotationsScope: "BASE_MAP", // "BASE_MAP" | "ALL"
   },
   reducers: {
-    setTemplateFilter(state, action) {
-      state.templateFilter = action.payload;
-    },
     setToolsSectionCollapsed(state, action) {
       state.toolsSectionCollapsed = action.payload;
     },
@@ -46,7 +42,6 @@ const panelDrawingSlice = createSlice({
 });
 
 export const {
-  setTemplateFilter,
   setToolsSectionCollapsed,
   setDetailTemplateId,
   setDetailView,

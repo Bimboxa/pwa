@@ -23,8 +23,6 @@ import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
 import getZeroPaddingNumber from "Features/misc/utils/getZeroPaddingNumber";
 import { getAnnotationOwnLabel } from "Features/annotations/utils/getAnnotationLabelDisplay";
-import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
-import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 
 // ---------------------------------------------------------------------------
 // PanelTemplateAnnotations — detail view of the Dessin panel (#311): the
@@ -57,16 +55,10 @@ export default function PanelTemplateAnnotations({
   const soloTemplateId = useSelector(
     (s) => s.annotations.soloAnnotationTemplateId
   );
-  // Scope chips (Viewer module, or Dessin toggled to its 3D editor): the
-  // active base map or the whole repérage; in "Tous" the list is grouped by
-  // base map.
-  const viewerKey = useSelector((s) => s.viewers.selectedViewerKey);
-  const isThreedEffective = useSelector((s) =>
-    isThreedFamilyViewerKey(selectEffectiveViewerKey(s))
-  );
+  // Scope chips (shared with the panels' root views): the active base map or
+  // the whole repérage; in "Tous" the list is grouped by base map.
   const viewerScope = useSelector((s) => s.panelDrawing.viewerAnnotationsScope);
-  const showScopeChips = viewerKey === "THREED" || isThreedEffective;
-  const isAllScope = showScopeChips && viewerScope === "ALL";
+  const isAllScope = viewerScope === "ALL";
 
   const mainBaseMap = useMainBaseMap();
   const { value: baseMaps } = useBaseMaps();
@@ -284,14 +276,10 @@ export default function PanelTemplateAnnotations({
         </Button>
       </Box>
 
-      {/* Scope chips (Viewer / Dessin-3D): active base map or "Tous" */}
-      {showScopeChips && (
-        <ChipsViewerScope
-          baseMapName={
-            mainBaseMap?.name ?? mainBaseMap?.label ?? "Fond de plan"
-          }
-        />
-      )}
+      {/* Scope chips: active base map or "Tous" */}
+      <ChipsViewerScope
+        baseMapName={mainBaseMap?.name ?? mainBaseMap?.label ?? "Fond de plan"}
+      />
 
       {/* Summary line */}
       <Box sx={{ px: 2, pb: 1 }}>

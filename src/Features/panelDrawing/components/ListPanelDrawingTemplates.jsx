@@ -39,8 +39,8 @@ import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewer
 
 // ---------------------------------------------------------------------------
 // ListPanelDrawingTemplates — template rows of the active listing (grouped by
-// groupLabel), with DnD reorder (only under the "Tous" filter — reordering a
-// filtered subset is ambiguous) and the "Nouveau modèle" add row.
+// groupLabel), with DnD reorder and the "Nouveau modèle" add row. Eye-hidden
+// templates stay listed greyed.
 // ---------------------------------------------------------------------------
 
 function SortableRow({ ...props }) {
@@ -81,7 +81,6 @@ export default function ListPanelDrawingTemplates({ listingId, qtiesById }) {
   });
   const spriteImage = useAnnotationSpriteImage();
   const reorderAnnotationTemplates = useReorderAnnotationTemplates();
-  const templateFilter = useSelector((s) => s.panelDrawing.templateFilter);
   // REVOLUTION_AXIS templates on a VERTICAL base map swap to the dedicated row
   // that DROPS an existing plan axis instead of drawing a new one (2D only).
   const baseMap = useMainBaseMap();
@@ -96,25 +95,16 @@ export default function ListPanelDrawingTemplates({ listingId, qtiesById }) {
 
   // helpers
 
-  const filteredTemplates = useMemo(() => {
-    const arr = templates ?? [];
-    if (templateFilter === "VISIBLE") return arr.filter((t) => !t.hidden);
-    if (templateFilter === "HIDDEN") return arr.filter((t) => t.hidden);
-    return arr;
-  }, [templates, templateFilter]);
+  const dndEnabled = true;
 
-  // Group headers computed on the filtered set: emptied groups drop their
-  // header.
   const groupedItems = useMemo(
-    () => groupAnnotationTemplatesByGroupLabel(filteredTemplates),
-    [filteredTemplates]
+    () => groupAnnotationTemplatesByGroupLabel(templates ?? []),
+    [templates]
   );
 
-  const dndEnabled = templateFilter === "ALL";
-
   const sortableIds = useMemo(
-    () => filteredTemplates.map((t) => t.id),
-    [filteredTemplates]
+    () => (templates ?? []).map((t) => t.id),
+    [templates]
   );
 
   // dnd sensors
