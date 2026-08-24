@@ -23,6 +23,8 @@ import SearchBar from "Features/search/components/SearchBar";
 import ToggleProjectType from "Features/projectSelector/components/ToggleProjectType";
 import ChipProjectType from "./ChipProjectType";
 
+import { PILL_SEARCH_SX, SEGMENT_TOGGLE_SX } from "../utils/dashboardStyles";
+
 // Two-step dialog to link a local project to a référentiel entity
 // (chantier / opportunité): pick the entity (remote search, référentiel
 // only), then confirm — the project's name and clientRef become those of
@@ -194,17 +196,21 @@ export default function DialogLinkProjectToReferentiel({
         }}
       >
         {typeOptions && (
-          <ToggleProjectType
-            value={typeFilter}
-            valueOptions={typeOptions}
-            onChange={setTypeFilter}
-          />
+          <Box sx={SEGMENT_TOGGLE_SX}>
+            <ToggleProjectType
+              value={typeFilter}
+              valueOptions={typeOptions}
+              onChange={setTypeFilter}
+            />
+          </Box>
         )}
-        <SearchBar
-          value={searchText}
-          onChange={setSearchText}
-          placeholder={searchS}
-        />
+        <Box sx={{ width: 1, ...PILL_SEARCH_SX }}>
+          <SearchBar
+            value={searchText}
+            onChange={setSearchText}
+            placeholder={searchS}
+          />
+        </Box>
         {error && <Alert severity="error">{error}</Alert>}
         <Box sx={{ flex: 1, overflowY: "auto" }}>
           {loading ? (

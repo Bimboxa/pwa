@@ -15,9 +15,10 @@ import SectionCloudSearchResults from "./SectionCloudSearchResults";
 import DialogCreateProject from "./DialogCreateProject";
 
 import {
-  SEGMENT_BG,
   ICON_FADED,
   PILL_BUTTON_SX,
+  PILL_SEARCH_SX,
+  SEGMENT_TOGGLE_SX,
   fadeUp,
 } from "../utils/dashboardStyles";
 
@@ -94,29 +95,7 @@ export default function PanelDashboardProjects({
           ...fadeUp(0.05),
         }}
       >
-        <Box
-          sx={{
-            flex: 1,
-            minWidth: 0,
-            // full width even when not focused, so the placeholder is not truncated
-            "& .MuiFormControl-root": { width: 1 },
-            "& .MuiOutlinedInput-root": {
-              bgcolor: "white",
-              borderRadius: 999,
-              height: 48,
-              px: 1,
-              boxShadow: (theme) =>
-                `0 4px 20px ${alpha(
-                  theme.palette.secondary.main,
-                  0.1
-                )}, 0 1px 3px rgba(0,0,0,.06)`,
-              "& fieldset": { border: "none" },
-            },
-            "& .MuiInputAdornment-root .MuiSvgIcon-root": {
-              color: "secondary.main",
-            },
-          }}
-        >
+        <Box sx={{ flex: 1, minWidth: 0, ...PILL_SEARCH_SX }}>
           <SearchBar
             value={searchText}
             onChange={onSearchTextChange}
@@ -161,33 +140,7 @@ export default function PanelDashboardProjects({
           ...fadeUp(0.15),
         }}
       >
-        <Box
-          sx={{
-            flexShrink: 0,
-            // segmented pill control (model 2a)
-            "& .MuiToggleButtonGroup-root": {
-              bgcolor: SEGMENT_BG,
-              borderRadius: 999,
-              p: "4px",
-            },
-            "& .MuiToggleButton-root": {
-              width: 110,
-              height: 30,
-              py: 0,
-              border: "none",
-              borderRadius: "999px !important",
-              color: "text.secondary",
-              "&:hover": { bgcolor: "transparent", color: "text.primary" },
-            },
-            "& .MuiToggleButton-root.Mui-selected": {
-              bgcolor: "white",
-              color: "secondary.main",
-              fontWeight: 600,
-              boxShadow: "0 1px 4px rgba(0,0,0,.08)",
-              "&:hover": { bgcolor: "white" },
-            },
-          }}
-        >
+        <Box sx={{ flexShrink: 0, ...SEGMENT_TOGGLE_SX }}>
           <ToggleProjectType
             value={typeFilter}
             valueOptions={typeOptions}
@@ -205,14 +158,19 @@ export default function PanelDashboardProjects({
               flexShrink: 0,
             }}
           />
-          <ButtonFetchMyKrtos onClick={onFetchMyKrtos} loading={myKrtosLoading} />
+          <ButtonFetchMyKrtos
+            onClick={onFetchMyKrtos}
+            loading={myKrtosLoading}
+          />
         </Box>
       </Box>
 
       {/* projects list */}
       <Box sx={{ flex: 1, overflowY: "auto", px: 3.5, py: 1 }}>
         {empty && hasSearch && (
-          <Box sx={{ textAlign: "center", color: "text.secondary", mt: 6, px: 3 }}>
+          <Box
+            sx={{ textAlign: "center", color: "text.secondary", mt: 6, px: 3 }}
+          >
             <CloudOff sx={{ fontSize: "2.4rem", color: ICON_FADED }} />
             <Typography variant="body2" sx={{ mt: 1 }}>
               {noProjectFoundS}
@@ -221,9 +179,13 @@ export default function PanelDashboardProjects({
         )}
 
         {empty && !hasSearch && (
-          <Box sx={{ textAlign: "center", color: "text.secondary", mt: 5, px: 3 }}>
+          <Box
+            sx={{ textAlign: "center", color: "text.secondary", mt: 5, px: 3 }}
+          >
             <TravelExplore sx={{ fontSize: "2.6rem", color: ICON_FADED }} />
-            <Typography sx={{ mt: 1.5, fontWeight: 600, color: "text.primary" }}>
+            <Typography
+              sx={{ mt: 1.5, fontWeight: 600, color: "text.primary" }}
+            >
               {noProjectS}
             </Typography>
             <Typography variant="body2" sx={{ mt: 0.5 }}>
