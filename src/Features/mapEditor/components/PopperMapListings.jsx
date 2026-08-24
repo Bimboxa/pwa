@@ -14,7 +14,6 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { generateKeyBetween } from "fractional-indexing";
 
 import { setSelectedListingId } from "Features/listings/listingsSlice";
 import { setSelectedItem } from "Features/selection/selectionSlice";
@@ -80,10 +79,7 @@ import EditIcon from "@mui/icons-material/Edit";
 import IconPointer from "Features/icons/IconPointer";
 import useLayers from "Features/layers/hooks/useLayers";
 import { alpha } from "@mui/material/styles";
-import {
-  setEnabledDrawingMode,
-  setSelectedToolKeyForTemplate,
-} from "Features/mapEditor/mapEditorSlice";
+import { setEnabledDrawingMode } from "Features/mapEditor/mapEditorSlice";
 
 import ShortcutBadge from "Features/smartDetect/components/ShortcutBadge";
 
@@ -95,15 +91,8 @@ import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import ButtonGeneric from "Features/layout/components/ButtonGeneric";
 import ButtonMergeListingAnnotations from "Features/baseMapEditor/components/ButtonMergeListingAnnotations";
 import { setNewAnnotation } from "Features/annotations/annotationsSlice";
-import {
-  getDrawingToolsByType,
-  getDrawingToolsByShape,
-  getDrawingToolByKey,
-} from "Features/mapEditor/constants/drawingTools.jsx";
 import TOOL_ITEMS from "Features/mapEditor/constants/toolItems";
 import { getFreeAnnotationShortcut } from "Features/mapEditor/constants/freeAnnotationShortcuts";
-import getNewAnnotationPropsFromAnnotationTemplate from "Features/annotations/utils/getNewAnnotationPropsFromAnnotationTemplate";
-import buildToolDraft from "Features/mapEditor/utils/buildToolDraft";
 import applyInteractionModeChange from "Features/mapEditor/utils/applyInteractionModeChange";
 import { resolveDrawingShape } from "Features/annotations/constants/drawingShapeConfig";
 
@@ -116,6 +105,9 @@ import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 import useExtraBaseMapIdsIn3d from "Features/threedEditor/hooks/useExtraBaseMapIdsIn3d";
 import useUpdateAnnotationTemplate from "Features/annotations/hooks/useUpdateAnnotationTemplate";
 import useUpdateAnnotationTemplates from "Features/annotations/hooks/useUpdateAnnotationTemplates";
+import useReorderAnnotationTemplates from "Features/annotations/hooks/useReorderAnnotationTemplates";
+import useDrawFromTemplate from "Features/mapEditor/hooks/useDrawFromTemplate";
+import useDrawToolOfType from "Features/mapEditor/hooks/useDrawToolOfType";
 import usePanelDrag from "Features/layout/hooks/usePanelDrag";
 
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
@@ -159,19 +151,8 @@ function ModeShortcutBadge({ children }) {
 // ---------------------------------------------------------------------------
 
 function ToolRow({ type, label, Icon, shortcut }) {
-  const dispatch = useDispatch();
-  const newAnnotation = useSelector((s) => s.annotations.newAnnotation);
-  const selectedToolKey = useSelector(
-    (s) => s.mapEditor.selectedToolKeyByTemplateId[type]
-  );
-  const openingStrokeWidth = useSelector((s) => s.mapEditor.openingStrokeWidth);
-  const openingStrokeWidthUnit = useSelector(
-    (s) => s.mapEditor.openingStrokeWidthUnit
-  );
-  const openingDefaults = {
-    strokeWidth: openingStrokeWidth,
-    strokeWidthUnit: openingStrokeWidthUnit,
-  };
+  const { tools, activeTool, startDraw, selectToolAndDraw } =
+    useDrawToolOfType(type);
 
   // state
 
@@ -180,22 +161,12 @@ function ToolRow({ type, label, Icon, shortcut }) {
 
   // helpers
 
-  const tools = getDrawingToolsByType(type);
-  const activeTool = selectedToolKey
-    ? (tools.find((t) => t.key === selectedToolKey) ?? tools[0])
-    : tools[0];
   const ActiveToolIcon = activeTool?.Icon;
 
   // handlers
 
   const handleRowClick = () => {
-    if (!activeTool) return;
-    dispatch(setEnabledDrawingMode(activeTool.drawingMode ?? activeTool.key));
-    dispatch(
-      setNewAnnotation(
-        buildToolDraft(newAnnotation, activeTool, openingDefaults)
-      )
-    );
+    startDraw();
   };
 
   const handleToolBtnClick = (e) => {
@@ -204,13 +175,7 @@ function ToolRow({ type, label, Icon, shortcut }) {
   };
 
   const handleSelectTool = (tool) => {
-    dispatch(
-      setSelectedToolKeyForTemplate({ templateId: type, toolKey: tool.key })
-    );
-    dispatch(setEnabledDrawingMode(tool.drawingMode ?? tool.key));
-    dispatch(
-      setNewAnnotation(buildToolDraft(newAnnotation, tool, openingDefaults))
-    );
+    selectToolAndDraw(tool);
   };
 
   const handleMenuClose = () => {
@@ -464,12 +429,9 @@ function AnnotationTemplateRow({
   const handleProcedurePopperBlur = () => {
     if (!procedurePopperHoveredRef.current) scheduleCloseProcedurePopper();
   };
-  const selectedToolKey = useSelector(
-    (s) => s.mapEditor.selectedToolKeyByTemplateId[annotationTemplate?.id]
-  );
-  const rememberedDraftProps = useSelector(
-    (s) => s.mapEditor.draftPropsByTemplateId?.[annotationTemplate?.id]
-  );
+  // Tool resolution + start-draw dispatches (shared with the Dessin panel).
+  const { activeTool, hasFixedTool, startDraw, selectToolAndDraw } =
+    useDrawFromTemplate(annotationTemplate, listingId);
   // "Maillage" toggle and the shared ?mode=viewer lock force SELECT-like
   // interaction → use the effective mode for all behavior gating in this row.
   const rawInteractionMode = useSelector(
@@ -479,14 +441,6 @@ function AnnotationTemplateRow({
   const viewerMode = useSelector((s) => s.urlParams.viewerMode);
   const isThreedViewer = useSelector((s) =>
     isThreedFamilyViewerKey(s.viewers.selectedViewerKey)
-  );
-  // Dessin module toggled to its 3D editor (raw module key stays "MAP"):
-  // only OBJECT_3D (3D placement mode), POLYGON / POLYLINE templates
-  // (template-driven 3D face drawing) and COTE templates (template-driven
-  // 2-click cote) can start a draw there — other shapes would set a
-  // dead-end 2D drawing state.
-  const isThreedToggledEditor = useSelector((s) =>
-    isThreedFamilyViewerKey(selectEffectiveViewerKey(s))
   );
   const isZonesViewerRow = useSelector(
     (s) => s.viewers.selectedViewerKey === "ZONES"
@@ -518,41 +472,13 @@ function AnnotationTemplateRow({
   const isHidden = annotationTemplate?.hidden;
   // Free annotations show their keyboard shortcut (L / P) next to the icon.
   const freeShortcut = getFreeAnnotationShortcut(annotationTemplate);
-  const drawingShape = resolveDrawingShape(annotationTemplate);
-  const tools = getDrawingToolsByShape(drawingShape);
-  const fallbackTool = annotationTemplate?.defaultTool
-    ? (getDrawingToolByKey(annotationTemplate.defaultTool) ?? tools[0])
-    : tools[0];
-  const activeTool = selectedToolKey
-    ? (getDrawingToolByKey(selectedToolKey) ?? fallbackTool)
-    : fallbackTool;
   const ActiveToolIcon = activeTool?.Icon;
-  // REVOLUTION_AXIS: single fixed tool (circle by centre + radius) — the tool
-  // button stays as a visual cue but never opens the picker.
-  const hasFixedTool = drawingShape === "REVOLUTION_AXIS";
 
   // handlers
 
   const handleStartDraw = () => {
-    if (isEditing || !activeTool) return;
-    if (
-      isThreedToggledEditor &&
-      !["OBJECT_3D", "POLYGON", "POLYLINE", "COTE", "RULER"].includes(drawingShape)
-    )
-      return;
-    dispatch(setSelectedListingId(listingId));
-    const baseProps = getNewAnnotationPropsFromAnnotationTemplate(
-      annotationTemplate,
-      rememberedDraftProps
-    );
-    if (activeTool.annotationType) {
-      dispatch(
-        setNewAnnotation({ ...baseProps, type: activeTool.annotationType })
-      );
-    } else {
-      dispatch(setNewAnnotation(baseProps));
-    }
-    dispatch(setEnabledDrawingMode(activeTool.drawingMode ?? activeTool.key));
+    if (isEditing) return;
+    startDraw();
   };
 
   const handleSelectAsEditTarget = () => {
@@ -609,29 +535,7 @@ function AnnotationTemplateRow({
   };
 
   const handleSelectTool = (tool) => {
-    dispatch(
-      setSelectedToolKeyForTemplate({
-        templateId: annotationTemplate?.id,
-        toolKey: tool.key,
-      })
-    );
-    // Activate drawing with this tool
-    if (
-      isThreedToggledEditor &&
-      !["OBJECT_3D", "POLYGON", "POLYLINE", "COTE", "RULER"].includes(drawingShape)
-    )
-      return;
-    dispatch(setSelectedListingId(listingId));
-    const baseProps = getNewAnnotationPropsFromAnnotationTemplate(
-      annotationTemplate,
-      rememberedDraftProps
-    );
-    if (tool.annotationType) {
-      dispatch(setNewAnnotation({ ...baseProps, type: tool.annotationType }));
-    } else {
-      dispatch(setNewAnnotation(baseProps));
-    }
-    dispatch(setEnabledDrawingMode(tool.drawingMode ?? tool.key));
+    selectToolAndDraw(tool);
   };
 
   const handleEditTemplate = () => {
@@ -1101,7 +1005,7 @@ function AnnotationTemplatesForListing({
     [allTemplates, visibleTemplateIds]
   );
   const spriteImage = useAnnotationSpriteImage();
-  const updateAnnotationTemplate = useUpdateAnnotationTemplate();
+  const reorderAnnotationTemplates = useReorderAnnotationTemplates();
   const isThreedViewer = useSelector((s) =>
     isThreedFamilyViewerKey(s.viewers.selectedViewerKey)
   );
@@ -1162,67 +1066,8 @@ function AnnotationTemplatesForListing({
   // dnd handlers
 
   const handleDragEnd = useCallback(
-    async (event) => {
-      const { active, over } = event;
-      if (!over || active.id === over.id || !annotationTemplates?.length)
-        return;
-
-      const oldIndex = sortableIds.indexOf(active.id);
-      const newIndex = sortableIds.indexOf(over.id);
-      if (oldIndex === -1 || newIndex === -1) return;
-
-      const normalizeGroup = (g) =>
-        (g ?? "").trim().toUpperCase().replace(/\s+/g, "");
-
-      const draggedTemplate = annotationTemplates[oldIndex];
-      const overTemplate = annotationTemplates[newIndex];
-      const draggedGroup = normalizeGroup(draggedTemplate?.groupLabel);
-      const overGroup = normalizeGroup(overTemplate?.groupLabel);
-
-      // Determine if this is a within-group reorder or a cross-group move
-      const isWithinGroup = draggedGroup && draggedGroup === overGroup;
-
-      let newOrder;
-      if (isWithinGroup) {
-        // Within-group: move just the dragged item within the list
-        newOrder = [...annotationTemplates];
-        newOrder.splice(oldIndex, 1);
-        const adjustedNewIndex = newOrder.findIndex((t) => t.id === over.id);
-        newOrder.splice(adjustedNewIndex, 0, draggedTemplate);
-      } else {
-        // Cross-group: move all group members together
-        const groupMembers = draggedGroup
-          ? annotationTemplates.filter(
-              (t) => normalizeGroup(t.groupLabel) === draggedGroup
-            )
-          : [draggedTemplate];
-
-        const remaining = annotationTemplates.filter(
-          (t) => !groupMembers.some((m) => m.id === t.id)
-        );
-
-        const overInRemaining = remaining.findIndex((t) => t.id === over.id);
-        const insertAt =
-          overInRemaining === -1 ? remaining.length : overInRemaining;
-
-        newOrder = [...remaining];
-        newOrder.splice(insertAt, 0, ...groupMembers);
-      }
-
-      // Assign new orderIndex values using fractional indexing
-      let lastIndex = null;
-      for (const template of newOrder) {
-        const newOrderIndex = generateKeyBetween(lastIndex, null);
-        lastIndex = newOrderIndex;
-        if (template.orderIndex !== newOrderIndex) {
-          await updateAnnotationTemplate({
-            ...template,
-            orderIndex: newOrderIndex,
-          });
-        }
-      }
-    },
-    [annotationTemplates, sortableIds, updateAnnotationTemplate]
+    (event) => reorderAnnotationTemplates(event, annotationTemplates),
+    [reorderAnnotationTemplates, annotationTemplates]
   );
 
   // render
