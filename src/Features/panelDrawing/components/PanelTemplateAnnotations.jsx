@@ -17,8 +17,14 @@ import ChevronLeft from "@mui/icons-material/ChevronLeft";
 
 import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTemplateIcon";
 import RowTemplateAnnotation from "./RowTemplateAnnotation";
+import ChipsViewerScope from "./ChipsViewerScope";
+import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
+import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
+import getItemsByKey from "Features/misc/utils/getItemsByKey";
 import getZeroPaddingNumber from "Features/misc/utils/getZeroPaddingNumber";
 import { getAnnotationOwnLabel } from "Features/annotations/utils/getAnnotationLabelDisplay";
+import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
+import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 
 // ---------------------------------------------------------------------------
 // PanelTemplateAnnotations — detail view of the Dessin panel (#311): the
@@ -51,6 +57,19 @@ export default function PanelTemplateAnnotations({
   const soloTemplateId = useSelector(
     (s) => s.annotations.soloAnnotationTemplateId
   );
+  // Scope chips (Viewer module, or Dessin toggled to its 3D editor): the
+  // active base map or the whole repérage; in "Tous" the list is grouped by
+  // base map.
+  const viewerKey = useSelector((s) => s.viewers.selectedViewerKey);
+  const isThreedEffective = useSelector((s) =>
+    isThreedFamilyViewerKey(selectEffectiveViewerKey(s))
+  );
+  const viewerScope = useSelector((s) => s.panelDrawing.viewerAnnotationsScope);
+  const showScopeChips = viewerKey === "THREED" || isThreedEffective;
+  const isAllScope = showScopeChips && viewerScope === "ALL";
+
+  const mainBaseMap = useMainBaseMap();
+  const { value: baseMaps } = useBaseMaps();
 
   // helpers
 
@@ -75,6 +94,25 @@ export default function PanelTemplateAnnotations({
   const qtyLine = `${formatQty(templateQties?.unit ?? 0, 0)} u · ${formatQty(
     templateQties?.length ?? 0
   )} ml · ${formatQty(templateQties?.surface ?? 0)} m²`;
+
+  // "Tous" scope: one group per base map (first-appearance order in the
+  // draw-ordered list; global indices keep the derived labels and the
+  // prev/next arrows consistent).
+  const baseMapGroups = useMemo(() => {
+    if (!isAllScope) return null;
+    const baseMapById = getItemsByKey(baseMaps ?? [], "id");
+    const byKey = new Map();
+    sortedAnnotations.forEach((annotation, idx) => {
+      const key = annotation.baseMapId ?? "NONE";
+      if (!byKey.has(key)) byKey.set(key, []);
+      byKey.get(key).push({ annotation, idx });
+    });
+    return Array.from(byKey.entries()).map(([key, items]) => ({
+      key,
+      baseMap: baseMapById[key],
+      items,
+    }));
+  }, [isAllScope, sortedAnnotations, baseMaps]);
 
   // handlers
 
@@ -246,6 +284,15 @@ export default function PanelTemplateAnnotations({
         </Button>
       </Box>
 
+      {/* Scope chips (Viewer / Dessin-3D): active base map or "Tous" */}
+      {showScopeChips && (
+        <ChipsViewerScope
+          baseMapName={
+            mainBaseMap?.name ?? mainBaseMap?.label ?? "Fond de plan"
+          }
+        />
+      )}
+
       {/* Summary line */}
       <Box sx={{ px: 2, pb: 1 }}>
         <Typography
@@ -257,30 +304,82 @@ export default function PanelTemplateAnnotations({
         </Typography>
       </Box>
 
-      {/* Annotations list */}
+      {/* Annotations list — grouped by base map in "Tous" scope */}
       <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
-        <Box
-          sx={{
-            bgcolor: "background.paper",
-            borderTop: "1px solid",
-            borderBottom: "1px solid",
-            borderColor: "divider",
-          }}
-        >
-          {sortedAnnotations.map((annotation, idx) => (
-            <RowTemplateAnnotation
-              key={annotation.id}
-              annotation={annotation}
-              // The annotation's OWN label (not the entity-enriched one);
-              // derived "<template> NN" only when the row has none.
-              label={
-                getAnnotationOwnLabel(annotation) ||
-                `${template.label} ${getZeroPaddingNumber(idx + 1, 2)}`
-              }
-              color={templateColor}
-            />
-          ))}
-        </Box>
+        {isAllScope ? (
+          baseMapGroups?.map(({ key, baseMap, items }) => (
+            <Box key={key}>
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 0.5,
+                  px: 1.5,
+                  py: 0.75,
+                  bgcolor: "panel.sectionBg",
+                  borderTop: "1px solid",
+                  borderBottom: "1px solid",
+                  borderColor: "panel.border",
+                }}
+              >
+                <Typography
+                  variant="body2"
+                  noWrap
+                  sx={{ flex: 1, fontWeight: 700, minWidth: 0 }}
+                >
+                  {baseMap?.name ?? baseMap?.label ?? "Sans fond de plan"}
+                </Typography>
+                <Typography
+                  variant="caption"
+                  noWrap
+                  sx={{
+                    fontFamily: "monospace",
+                    color: "text.secondary",
+                    flexShrink: 0,
+                  }}
+                >
+                  {`${items.length} u`}
+                </Typography>
+              </Box>
+              <Box sx={{ bgcolor: "background.paper" }}>
+                {items.map(({ annotation, idx }) => (
+                  <RowTemplateAnnotation
+                    key={annotation.id}
+                    annotation={annotation}
+                    label={
+                      getAnnotationOwnLabel(annotation) ||
+                      `${template.label} ${getZeroPaddingNumber(idx + 1, 2)}`
+                    }
+                    color={templateColor}
+                  />
+                ))}
+              </Box>
+            </Box>
+          ))
+        ) : (
+          <Box
+            sx={{
+              bgcolor: "background.paper",
+              borderTop: "1px solid",
+              borderBottom: "1px solid",
+              borderColor: "divider",
+            }}
+          >
+            {sortedAnnotations.map((annotation, idx) => (
+              <RowTemplateAnnotation
+                key={annotation.id}
+                annotation={annotation}
+                // The annotation's OWN label (not the entity-enriched one);
+                // derived "<template> NN" only when the row has none.
+                label={
+                  getAnnotationOwnLabel(annotation) ||
+                  `${template.label} ${getZeroPaddingNumber(idx + 1, 2)}`
+                }
+                color={templateColor}
+              />
+            ))}
+          </Box>
+        )}
       </Box>
     </Box>
   );

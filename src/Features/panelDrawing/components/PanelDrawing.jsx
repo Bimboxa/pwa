@@ -69,6 +69,10 @@ export default function PanelDrawing() {
   );
 
   const isThreedEditor = isThreedFamilyViewerKey(effectiveViewerKey);
+  // Scope chips (shown in the detail subviews while the 3D editor is
+  // active): "Tous" widens the annotations set to the whole repérage.
+  const viewerScope = useSelector((s) => s.panelDrawing.viewerAnnotationsScope);
+  const isAllScope = isThreedEditor && viewerScope === "ALL";
   const baseMap = useMainBaseMap();
   const extraBaseMapIds = useExtraBaseMapIdsIn3d();
   const annotationTemplates = useAnnotationTemplates();
@@ -80,7 +84,7 @@ export default function PanelDrawing() {
   // map's meterByPx.
   const annotations = useAnnotationsV2({
     caller: "PanelDrawing",
-    filterByMainBaseMap: true,
+    filterByMainBaseMap: !isAllScope,
     filterBySelectedScope: true,
     hideBaseMapAnnotations: true,
     excludeBgAnnotations: true,
@@ -88,7 +92,7 @@ export default function PanelDrawing() {
     ignoreSolo: true,
     keepHiddenTemplates: true,
     withQties: true,
-    ...(isThreedEditor
+    ...(isThreedEditor && !isAllScope
       ? {
           extraBaseMapIds,
           excludeProfileTemplates: true,
@@ -138,10 +142,16 @@ export default function PanelDrawing() {
 
   const scopedAnnotations = useMemo(() => {
     let arr = annotations ?? [];
-    if (isThreedEditor && hideMainAnnotationsIn3d)
+    if (isThreedEditor && !isAllScope && hideMainAnnotationsIn3d)
       arr = arr.filter((a) => a.baseMapId !== baseMap?.id);
     return arr;
-  }, [annotations, isThreedEditor, hideMainAnnotationsIn3d, baseMap?.id]);
+  }, [
+    annotations,
+    isThreedEditor,
+    isAllScope,
+    hideMainAnnotationsIn3d,
+    baseMap?.id,
+  ]);
 
   const annotationTemplateById = useMemo(
     () => getItemsByKey(annotationTemplates ?? [], "id"),
