@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import {
@@ -23,7 +23,10 @@ import useDrawFromTemplate from "Features/mapEditor/hooks/useDrawFromTemplate";
 import getNewAnnotationPropsFromAnnotationTemplate from "Features/annotations/utils/getNewAnnotationPropsFromAnnotationTemplate";
 import getDraftFieldVisibility from "Features/mapEditor/utils/getDraftFieldVisibility";
 import getAnnotationColor from "Features/annotations/utils/getAnnotationColor";
-import { getHotkeyForToolInGroup } from "Features/mapEditor/constants/drawingToolHotkeys";
+import {
+  DRAWING_TOOL_HOTKEYS,
+  getHotkeyForToolInGroup,
+} from "Features/mapEditor/constants/drawingToolHotkeys";
 import { resolveShapeCategory } from "Features/annotations/constants/drawingShapes.jsx";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
@@ -51,6 +54,8 @@ function ToolbarContent({ template }) {
   // state
 
   const [colorAnchorEl, setColorAnchorEl] = useState(null);
+  const thicknessRef = useRef(null);
+  const heightRef = useRef(null);
 
   // data
 
@@ -155,6 +160,65 @@ function ToolbarContent({ template }) {
     rememberProps({ [colorField]: picked.hex });
   }
 
+  // effect - pre-draw keyboard shortcuts, mirroring the in-draw ones: the
+  // tool letters (R / L / C / K / …) arm the draw with that tool, E / H focus
+  // the thickness / height fields. Capture phase + stopPropagation so these
+  // letters win over the global namespace (module switch, O/X/C, L/P) while
+  // this toolbar is displayed; unhandled keys pass through untouched.
+
+  useEffect(() => {
+    const isEditableTarget = (el) => {
+      if (!el) return false;
+      const tag = el.tagName;
+      return (
+        tag === "INPUT" ||
+        tag === "TEXTAREA" ||
+        tag === "SELECT" ||
+        el.isContentEditable
+      );
+    };
+
+    const focusField = (ref) => {
+      const input = ref.current?.querySelector("input");
+      if (!input) return false;
+      input.focus();
+      input.select?.();
+      return true;
+    };
+
+    const onKeyDown = (e) => {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (isEditableTarget(e.target)) return;
+      const letter = e.key?.toLowerCase();
+
+      // Tool letters: same resolution as the badges (first tool of the
+      // behavior within the group).
+      const behavior = DRAWING_TOOL_HOTKEYS[letter];
+      if (behavior) {
+        const tool = tools.find((t) => t.behavior === behavior);
+        if (tool) {
+          e.preventDefault();
+          e.stopPropagation();
+          selectToolAndDraw(tool);
+          return;
+        }
+      }
+
+      if (letter === "e" && showThickness && focusField(thicknessRef)) {
+        e.preventDefault();
+        e.stopPropagation();
+        return;
+      }
+      if (letter === "h" && showHeight && focusField(heightRef)) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => window.removeEventListener("keydown", onKeyDown, true);
+  }, [tools, selectToolAndDraw, showThickness, showHeight]);
+
   // render
 
   if (options.length === 0) return null;
@@ -251,16 +315,18 @@ function ToolbarContent({ template }) {
         />
       )}
       {showThickness && (
-        <FieldAnnotationThickness
-          annotation={draft}
-          onChange={(next) =>
-            rememberProps({
-              strokeWidth: next.strokeWidth,
-              strokeWidthUnit: next.strokeWidthUnit,
-            })
-          }
-          shortcut="E"
-        />
+        <Box ref={thicknessRef} sx={{ display: "contents" }}>
+          <FieldAnnotationThickness
+            annotation={draft}
+            onChange={(next) =>
+              rememberProps({
+                strokeWidth: next.strokeWidth,
+                strokeWidthUnit: next.strokeWidthUnit,
+              })
+            }
+            shortcut="E"
+          />
+        </Box>
       )}
       {showOffset && (
         <FieldAnnotationHeight
@@ -271,11 +337,13 @@ function ToolbarContent({ template }) {
         />
       )}
       {showHeight && (
-        <FieldAnnotationHeight
-          annotation={draft}
-          onChange={(next) => rememberProps({ height: next.height })}
-          shortcut="H"
-        />
+        <Box ref={heightRef} sx={{ display: "contents" }}>
+          <FieldAnnotationHeight
+            annotation={draft}
+            onChange={(next) => rememberProps({ height: next.height })}
+            shortcut="H"
+          />
+        </Box>
       )}
 
       <Popover
