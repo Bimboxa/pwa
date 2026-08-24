@@ -11,6 +11,7 @@ import { setSelectedProjectKeyInDashboard } from "../dashboardSlice";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useScopeFavorites from "Features/scopeFavorites/hooks/useScopeFavorites";
 import useFetchProjectScopeConfigurations from "../hooks/useFetchProjectScopeConfigurations";
+import useLinkProjectToReferentiel from "Features/projects/hooks/useLinkProjectToReferentiel";
 import parseBackendDate from "Features/date/utils/parseBackendDate";
 
 import {
@@ -26,6 +27,7 @@ import { Add, TouchApp, GridOn, Refresh, CloudQueue } from "@mui/icons-material"
 import HeaderDashboardProject from "./HeaderDashboardProject";
 import ListItemDashboardScope from "./ListItemDashboardScope";
 import DialogDeleteScope from "Features/scopes/components/DialogDeleteScope";
+import DialogLinkProjectToReferentiel from "./DialogLinkProjectToReferentiel";
 
 export default function PanelDashboardProjectDetail({ item }) {
   const dispatch = useDispatch();
@@ -47,9 +49,15 @@ export default function PanelDashboardProjectDetail({ item }) {
     (s) => s.remoteScopeConfigurations.projectConfigurations
   );
 
+  const { detach } = useLinkProjectToReferentiel();
+
+  // link/detach only make sense when a référentiel is configured (edx)
+  const hasReferentiel = Boolean(appConfig?.features?.masterProjects);
+
   // state
 
   const [deleteScopeId, setDeleteScopeId] = useState(null);
+  const [linkOpen, setLinkOpen] = useState(false);
 
   // strings
 
@@ -143,6 +151,21 @@ export default function PanelDashboardProjectDetail({ item }) {
     dispatch(setOpenScopeCreator(true));
   }
 
+  async function handleDetach() {
+    if (!item?.projectId) return;
+    try {
+      await detach({ projectId: item.projectId });
+      refreshRemoteScopes();
+    } catch (error) {
+      console.error("[dashboard] detach project error", error);
+    }
+  }
+
+  function handleLinked() {
+    setLinkOpen(false);
+    refreshRemoteScopes();
+  }
+
   // render — no selection
 
   if (!item) {
@@ -193,6 +216,8 @@ export default function PanelDashboardProjectDetail({ item }) {
       <HeaderDashboardProject
         item={item}
         onClose={() => dispatch(setSelectedProjectKeyInDashboard(null))}
+        onLink={hasReferentiel ? () => setLinkOpen(true) : null}
+        onDetach={hasReferentiel ? handleDetach : null}
       />
 
       {/* krtos bar */}
@@ -330,6 +355,14 @@ export default function PanelDashboardProjectDetail({ item }) {
         open={Boolean(deleteScopeId)}
         onClose={() => setDeleteScopeId(null)}
         scopeId={deleteScopeId}
+      />
+
+      <DialogLinkProjectToReferentiel
+        open={linkOpen}
+        onClose={() => setLinkOpen(false)}
+        projectId={item.projectId}
+        projectName={item.name}
+        onLinked={handleLinked}
       />
     </Box>
   );

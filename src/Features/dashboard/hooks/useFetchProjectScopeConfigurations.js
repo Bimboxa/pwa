@@ -35,6 +35,7 @@ export default function useFetchProjectScopeConfigurations(item) {
 
   const idMaster = item?.idMaster ? String(item.idMaster) : null;
   const clientRef = item?.clientRef ? String(item.clientRef) : null;
+  const projectId = item?.projectId ? String(item.projectId) : null;
   const canFetch = Boolean(
     jwt &&
       ((idMaster && getByProjectConfig) || (clientRef && searchConfig))
@@ -66,8 +67,13 @@ export default function useFetchProjectScopeConfigurations(item) {
         const results = await searchConfigurations({
           searchValue: clientRef,
         });
+        // projectIdClient (immutable client project id) is the unambiguous
+        // match; clientRef only covers older configs pushed without it
         configurations = (results ?? []).filter(
-          (config) => String(config.projectClientRef) === clientRef
+          (config) =>
+            (config.projectIdClient &&
+              String(config.projectIdClient) === projectId) ||
+            String(config.projectClientRef) === clientRef
         );
       }
 
@@ -86,7 +92,7 @@ export default function useFetchProjectScopeConfigurations(item) {
     } finally {
       setLoading(false);
     }
-  }, [canFetch, idMaster, clientRef, jwt]);
+  }, [canFetch, idMaster, clientRef, projectId, jwt]);
 
   useEffect(() => {
     fetchConfigs();

@@ -7,6 +7,7 @@ import { generateKeyBetween } from "fractional-indexing";
 import useCreateProject from "./useCreateProject";
 import useCreateListings from "Features/listings/hooks/useCreateListings";
 import useDefaultBaseMapsListingProps from "Features/baseMaps/hooks/useDefaultBaseMapsListingProps";
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 // Creates a project (Dexie) with its default baseMaps listings
 // ("Vues en plan" + "Coupes & élévations") and selects the plan listing.
@@ -16,14 +17,22 @@ export default function useCreateProjectWithDefaultListings() {
 
   // data
 
+  const appConfig = useAppConfig();
   const createProject = useCreateProject();
   const createListings = useCreateListings();
   const defaultProps = useDefaultBaseMapsListingProps();
 
+  // free projects (created without a référentiel entity) still get a default
+  // type from the config (e.g. "PROJECT" for edx); undefined → stays typeless
+  const defaultProjectType = appConfig?.creation?.defaultProjectType;
+
   // main
 
   const create = async (projectProps) => {
-    const project = await createProject(projectProps);
+    const project = await createProject({
+      ...projectProps,
+      type: projectProps?.type ?? defaultProjectType,
+    });
     if (!project) return null;
 
     // rank (fractional indexing) keeps "Vues en plan" before "Coupes & élévations"
