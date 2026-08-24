@@ -8,7 +8,9 @@ import { Box } from "@mui/material";
 const LOUPE_SIZE = 200;
 
 export default function SmartDetectContainer() {
-  const { setZoomContainer } = useSmartZoom();
+  // Null-safe: outside a SmartZoomProvider (e.g. a stray mount out of the 2D
+  // editor tree) the loupe box renders empty instead of crashing.
+  const { setZoomContainer } = useSmartZoom() ?? {};
 
   return (
     <Box

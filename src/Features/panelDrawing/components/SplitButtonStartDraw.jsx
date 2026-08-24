@@ -6,15 +6,18 @@ import { setSelectedItem } from "Features/selection/selectionSlice";
 import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 
 import { Box, Tooltip } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 import ArrowDropDown from "@mui/icons-material/ArrowDropDown";
 
 import ToolPickerMenu from "Features/mapEditor/components/ToolPickerMenu";
 import useDrawFromTemplate from "Features/mapEditor/hooks/useDrawFromTemplate";
 
 // ---------------------------------------------------------------------------
-// SplitButtonStartDraw — dark split button of a template row: the left segment
-// shows the active tool and starts drawing, the right arrow opens the tool
-// picker (other tools of the template's drawing shape + "Éditer le modèle").
+// SplitButtonStartDraw — split button of a template row, tinted with the
+// template color (same scheme as the popper's tool button: alpha background +
+// colored icon, solid color + white icon on hover): the left segment shows
+// the active tool and starts drawing, the right arrow opens the tool picker
+// (other tools of the template's drawing shape + "Éditer le modèle").
 // ---------------------------------------------------------------------------
 
 const segmentSx = {
@@ -23,7 +26,6 @@ const segmentSx = {
   justifyContent: "center",
   border: "none",
   bgcolor: "transparent",
-  color: "common.white",
   cursor: "pointer",
   p: 0,
   "&:disabled": { cursor: "default", color: "grey.500" },
@@ -53,6 +55,9 @@ export default function SplitButtonStartDraw({
 
   const ActiveToolIcon = activeTool?.Icon;
   const disabled = !canDrawInCurrentEditor;
+  const templateColor =
+    annotationTemplate?.fillColor ?? annotationTemplate?.strokeColor ?? "#999";
+  const menuOpen = Boolean(toolMenuAnchor);
 
   // handlers
 
@@ -90,7 +95,9 @@ export default function SplitButtonStartDraw({
           height: 32,
           borderRadius: 2,
           overflow: "hidden",
-          bgcolor: disabled ? "action.disabledBackground" : "grey.900",
+          bgcolor: disabled
+            ? "action.disabledBackground"
+            : alpha(templateColor, 0.15),
           flexShrink: 0,
         }}
       >
@@ -111,7 +118,10 @@ export default function SplitButtonStartDraw({
               sx={{
                 ...segmentSx,
                 width: 36,
-                "&:hover": { bgcolor: disabled ? "transparent" : "grey.700" },
+                color: templateColor,
+                "&:hover": disabled
+                  ? {}
+                  : { bgcolor: templateColor, color: "common.white" },
               }}
             >
               <ActiveToolIcon sx={{ fontSize: 18 }} />
@@ -128,8 +138,10 @@ export default function SplitButtonStartDraw({
                 ...segmentSx,
                 width: 20,
                 borderLeft: "1px solid",
-                borderColor: "rgba(255,255,255,0.25)",
-                "&:hover": { bgcolor: "grey.700" },
+                borderColor: alpha(templateColor, 0.4),
+                bgcolor: menuOpen ? templateColor : "transparent",
+                color: menuOpen ? "common.white" : templateColor,
+                "&:hover": { bgcolor: templateColor, color: "common.white" },
               }}
             >
               <ArrowDropDown sx={{ fontSize: 16 }} />
@@ -140,7 +152,7 @@ export default function SplitButtonStartDraw({
 
       <ToolPickerMenu
         anchorEl={toolMenuAnchor}
-        open={Boolean(toolMenuAnchor)}
+        open={menuOpen}
         onClose={() => setToolMenuAnchor(null)}
         annotationTemplate={annotationTemplate}
         onSelectTool={selectToolAndDraw}

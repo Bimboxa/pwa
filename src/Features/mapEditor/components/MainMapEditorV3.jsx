@@ -91,6 +91,7 @@ import useCommitLocalizedRepair from "Features/localizedRepair/hooks/useCommitLo
 import useCreateAnnotationFromSurfaceDrop from "Features/smartDetect/hooks/useCreateAnnotationFromSurfaceDrop";
 import PopperMapListings from "./PopperMapListings";
 import FloatingHelpersDessin from "Features/panelDrawing/components/FloatingHelpersDessin";
+import PanelDrawingHelperPortal from "Features/panelDrawing/components/PanelDrawingHelperPortal";
 import ImageModeOverlay from "./ImageModeOverlay";
 import ButtonCloseImageMode from "./ButtonCloseImageMode";
 
@@ -2111,9 +2112,13 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
 
             {/* Dessin module with the docked panel: floating paste / subtract
                 helpers only — listings and the drawing helper live in the
-                panel. */}
+                panel. The helper content is portaled INTO the panel from here
+                so it keeps this editor's SmartZoomProvider (loupe). */}
             {dessinPanelDocked && !versionCompareEnabled && !imageModeActive && (
-                <FloatingHelpersDessin />
+                <>
+                    <FloatingHelpersDessin />
+                    <PanelDrawingHelperPortal />
+                </>
             )}
 
             {imageModeActive && (

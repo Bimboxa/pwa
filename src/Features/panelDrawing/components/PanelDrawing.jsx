@@ -40,6 +40,10 @@ export default function PanelDrawing() {
 
   const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
   const enabledDrawingMode = useSelector((s) => s.mapEditor.enabledDrawingMode);
+  // Drawing-helper swap only in DOCKED mode: in drawer mode the popper is the
+  // visible surface and shows its own floating helper (mounting a second
+  // helper here would duplicate the loupe container).
+  const leftPanelDocked = useSelector((s) => s.leftPanel.leftPanelDocked);
   const effectiveViewerKey = useSelector(selectEffectiveViewerKey);
   const hiddenListingsIds = useSelector(
     (s) => s.listings.hiddenListingsIds || []
@@ -146,7 +150,7 @@ export default function PanelDrawing() {
     >
       <LeftDrawerPanelHeader title="Annotations" />
 
-      {enabledDrawingMode ? (
+      {enabledDrawingMode && leftPanelDocked ? (
         <SectionPanelDrawingHelper />
       ) : (
         <>
