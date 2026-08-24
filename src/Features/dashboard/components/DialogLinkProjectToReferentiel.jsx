@@ -16,7 +16,6 @@ import {
   CircularProgress,
   Alert,
 } from "@mui/material";
-import { ArrowBackIos } from "@mui/icons-material";
 
 import DialogGeneric from "Features/layout/components/DialogGeneric";
 import SearchBar from "Features/search/components/SearchBar";
@@ -25,10 +24,10 @@ import ChipProjectType from "./ChipProjectType";
 
 import { PILL_SEARCH_SX, SEGMENT_TOGGLE_SX } from "../utils/dashboardStyles";
 
-// Two-step dialog to link a local project to a référentiel entity
-// (chantier / opportunité): pick the entity (remote search, référentiel
-// only), then confirm — the project's name and clientRef become those of
-// the entity, and its Krtos are re-associated.
+// Dialog to link a local project to a référentiel entity (chantier /
+// opportunité), single view: search by num / name, click the reference
+// to select it (highlighted), then confirm with the "Relier" button —
+// which spins while the backend processes the link.
 
 export default function DialogLinkProjectToReferentiel({
   open,
@@ -46,7 +45,7 @@ export default function DialogLinkProjectToReferentiel({
 
   const [searchText, setSearchText] = useState("");
   const [typeFilter, setTypeFilter] = useState(null); // CHANTIER | OPPORTUNITE | null
-  const [selectedEntity, setSelectedEntity] = useState(null); // step 2 when set
+  const [selectedEntity, setSelectedEntity] = useState(null);
   const [linking, setLinking] = useState(false);
   const [error, setError] = useState(null);
 
@@ -60,7 +59,6 @@ export default function DialogLinkProjectToReferentiel({
   const titleS = "Relier à un chantier / opportunité";
   const searchS = "Rechercher un chantier / opportunité";
   const confirmS = "Relier";
-  const backS = "Retour";
 
   // helpers
 
@@ -70,6 +68,12 @@ export default function DialogLinkProjectToReferentiel({
   const items = (remoteProjects ?? []).filter(
     (mp) => !typeFilter || !mp.type || mp.type === typeFilter
   );
+
+  function getEntityKey(entity) {
+    return entity?.idMaster ?? entity?.clientRef;
+  }
+
+  const selectedKey = getEntityKey(selectedEntity);
 
   function getErrorMessage(e) {
     if (
@@ -87,6 +91,7 @@ export default function DialogLinkProjectToReferentiel({
   // handlers
 
   function handleClose() {
+    if (linking) return;
     setSearchText("");
     setTypeFilter(null);
     setSelectedEntity(null);
@@ -94,9 +99,18 @@ export default function DialogLinkProjectToReferentiel({
     onClose();
   }
 
-  function handleSelectEntity(entity) {
+  function handleSearchTextChange(text) {
+    // a new search invalidates the current selection
+    setSelectedEntity(null);
     setError(null);
-    setSelectedEntity(entity);
+    setSearchText(text);
+  }
+
+  function handleSelectEntity(entity) {
+    if (linking) return;
+    setError(null);
+    // clicking the selected row again deselects it
+    setSelectedEntity(getEntityKey(entity) === selectedKey ? null : entity);
   }
 
   async function handleConfirm() {
@@ -113,75 +127,17 @@ export default function DialogLinkProjectToReferentiel({
           type: selectedEntity.type,
         },
       });
+      setLinking(false);
       handleClose();
       if (onLinked) onLinked();
     } catch (e) {
       console.error("[DialogLinkProjectToReferentiel] link error", e);
       setError(getErrorMessage(e));
-    } finally {
       setLinking(false);
     }
   }
 
-  // render — step 2: confirmation
-
-  if (selectedEntity) {
-    return (
-      <DialogGeneric
-        open={open}
-        onClose={handleClose}
-        title={titleS}
-        width={440}
-      >
-        <Box
-          sx={{
-            px: 3,
-            py: 2,
-            display: "flex",
-            flexDirection: "column",
-            gap: 2,
-          }}
-        >
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <ChipProjectType type={selectedEntity.type} />
-            <Typography sx={{ fontWeight: 600 }} noWrap>
-              {selectedEntity.name}
-            </Typography>
-          </Box>
-          {selectedEntity.clientRef && (
-            <Typography variant="body2" sx={{ color: "text.secondary" }}>
-              N° {selectedEntity.clientRef}
-            </Typography>
-          )}
-          <Alert severity="info">
-            {`Le projet « ${projectName} » sera relié à cette entité. Son nom et
-            son numéro deviendront ceux de l'entité, et tous ses Krtos seront
-            ré-associés.`}
-          </Alert>
-          {error && <Alert severity="error">{error}</Alert>}
-          <Box sx={{ display: "flex", justifyContent: "space-between", mt: 1 }}>
-            <Button
-              startIcon={<ArrowBackIos />}
-              onClick={() => setSelectedEntity(null)}
-              disabled={linking}
-            >
-              {backS}
-            </Button>
-            <Button
-              variant="contained"
-              color="secondary"
-              onClick={handleConfirm}
-              disabled={linking}
-            >
-              {linking ? <CircularProgress size={18} /> : confirmS}
-            </Button>
-          </Box>
-        </Box>
-      </DialogGeneric>
-    );
-  }
-
-  // render — step 1: picker
+  // render
 
   return (
     <DialogGeneric open={open} onClose={handleClose} title={titleS} width={440}>
@@ -192,7 +148,7 @@ export default function DialogLinkProjectToReferentiel({
           display: "flex",
           flexDirection: "column",
           gap: 1.5,
-          minHeight: 380,
+          minHeight: 420,
         }}
       >
         {typeOptions && (
@@ -207,11 +163,13 @@ export default function DialogLinkProjectToReferentiel({
         <Box sx={{ width: 1, ...PILL_SEARCH_SX }}>
           <SearchBar
             value={searchText}
-            onChange={setSearchText}
+            onChange={handleSearchTextChange}
             placeholder={searchS}
           />
         </Box>
         {error && <Alert severity="error">{error}</Alert>}
+
+        {/* results list */}
         <Box sx={{ flex: 1, overflowY: "auto" }}>
           {loading ? (
             <Box sx={{ display: "flex", justifyContent: "center", py: 4 }}>
@@ -230,9 +188,18 @@ export default function DialogLinkProjectToReferentiel({
             <List dense disablePadding>
               {items.map((mp) => (
                 <ListItemButton
-                  key={mp.idMaster ?? mp.clientRef}
+                  key={getEntityKey(mp)}
+                  selected={getEntityKey(mp) === selectedKey}
                   onClick={() => handleSelectEntity(mp)}
-                  sx={{ borderRadius: 1 }}
+                  sx={{
+                    borderRadius: 1,
+                    "&.Mui-selected": {
+                      bgcolor: (theme) => theme.palette.secondary.main + "14",
+                      "&:hover": {
+                        bgcolor: (theme) => theme.palette.secondary.main + "1f",
+                      },
+                    },
+                  }}
                 >
                   <ListItemText
                     primary={
@@ -256,6 +223,40 @@ export default function DialogLinkProjectToReferentiel({
               ))}
             </List>
           )}
+        </Box>
+
+        {/* footer: confirm */}
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 1,
+            pb: 1,
+          }}
+        >
+          {selectedEntity && (
+            <Typography
+              variant="caption"
+              sx={{ color: "text.secondary", textAlign: "center" }}
+            >
+              {`« ${projectName} » prendra le nom et le numéro de
+              « ${selectedEntity.name} », et ses Krtos seront ré-associés.`}
+            </Typography>
+          )}
+          <Button
+            variant="contained"
+            color="secondary"
+            onClick={handleConfirm}
+            disabled={!selectedEntity || linking}
+            fullWidth
+            sx={{ height: 42 }}
+          >
+            {linking ? (
+              <CircularProgress size={20} color="inherit" />
+            ) : (
+              confirmS
+            )}
+          </Button>
         </Box>
       </Box>
     </DialogGeneric>
