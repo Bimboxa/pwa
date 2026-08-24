@@ -53,10 +53,6 @@ export default function FieldActiveListing({ listings, activeListing }) {
   // helpers
 
   const hasNoListing = !listings?.length;
-  // The system listing ("Générique") is auto-provisioned — no rename /
-  // delete / duplicate on it.
-  const showMoreButton =
-    activeListing && !activeListing.isFreeAnnotationsListing;
 
   // handlers
 
@@ -124,7 +120,6 @@ export default function FieldActiveListing({ listings, activeListing }) {
             borderColor: "divider",
             borderRadius: 3,
             "&:hover": { borderColor: "text.secondary" },
-            "&:hover .field-more-btn": { opacity: 1 },
           }}
         >
           <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -173,10 +168,9 @@ export default function FieldActiveListing({ listings, activeListing }) {
           </Box>
           {/* Not an IconButton: the field itself is a <button>, nesting one
               would be invalid HTML. */}
-          {showMoreButton && !isRenaming && (
+          {!isRenaming && (
             <Box
               component="span"
-              className="field-more-btn"
               onClick={handleMoreClick}
               sx={{
                 display: "inline-flex",
@@ -188,8 +182,6 @@ export default function FieldActiveListing({ listings, activeListing }) {
                 flexShrink: 0,
                 color: "text.secondary",
                 bgcolor: moreMenuAnchor ? "action.selected" : "action.hover",
-                opacity: moreMenuAnchor ? 1 : 0,
-                transition: "opacity 0.15s",
                 "&:hover": { bgcolor: "action.selected" },
               }}
             >
