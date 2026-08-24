@@ -92,9 +92,11 @@ export default function useDashboardProjectItems({
       };
     });
 
+    const localByProjectId = {};
     const localByIdMaster = {};
     const localByClientRef = {};
     localItems.forEach((item) => {
+      if (item.projectId) localByProjectId[String(item.projectId)] = item;
       if (item.idMaster) localByIdMaster[item.idMaster] = item;
       if (item.clientRef) localByClientRef[item.clientRef] = item;
     });
@@ -111,7 +113,12 @@ export default function useDashboardProjectItems({
     ];
 
     remoteConfigurations.forEach((config) => {
+      // projectIdClient (immutable client project id) is the unambiguous match
+      // key — it survives re-linking the project to another référentiel entity.
+      // idMaster / clientRef only remain as fallbacks for older configs.
       const localItem =
+        (config.projectIdClient &&
+          localByProjectId[String(config.projectIdClient)]) ||
         (config.projectIdMaster &&
           localByIdMaster[String(config.projectIdMaster)]) ||
         (config.idMaster && localByIdMaster[String(config.idMaster)]) ||
