@@ -15,7 +15,14 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
-import { Box, List, ListItemButton, Typography, Divider } from "@mui/material";
+import {
+  Box,
+  Button,
+  List,
+  ListItemButton,
+  Typography,
+  Divider,
+} from "@mui/material";
 import Add from "@mui/icons-material/Add";
 
 import RowPanelDrawingTemplate from "./RowPanelDrawingTemplate";
@@ -32,8 +39,8 @@ import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewer
 
 // ---------------------------------------------------------------------------
 // ListPanelDrawingTemplates — template rows of the active listing (grouped by
-// groupLabel), with DnD reorder (only under the "Tous" filter — reordering a
-// filtered subset is ambiguous) and the "Nouveau modèle" add row.
+// groupLabel), with DnD reorder and the "Nouveau modèle" add row. Eye-hidden
+// templates stay listed greyed.
 // ---------------------------------------------------------------------------
 
 function SortableRow({ ...props }) {
@@ -74,7 +81,6 @@ export default function ListPanelDrawingTemplates({ listingId, qtiesById }) {
   });
   const spriteImage = useAnnotationSpriteImage();
   const reorderAnnotationTemplates = useReorderAnnotationTemplates();
-  const templateFilter = useSelector((s) => s.panelDrawing.templateFilter);
   // REVOLUTION_AXIS templates on a VERTICAL base map swap to the dedicated row
   // that DROPS an existing plan axis instead of drawing a new one (2D only).
   const baseMap = useMainBaseMap();
@@ -89,25 +95,16 @@ export default function ListPanelDrawingTemplates({ listingId, qtiesById }) {
 
   // helpers
 
-  const filteredTemplates = useMemo(() => {
-    const arr = templates ?? [];
-    if (templateFilter === "VISIBLE") return arr.filter((t) => !t.hidden);
-    if (templateFilter === "HIDDEN") return arr.filter((t) => t.hidden);
-    return arr;
-  }, [templates, templateFilter]);
+  const dndEnabled = true;
 
-  // Group headers computed on the filtered set: emptied groups drop their
-  // header.
   const groupedItems = useMemo(
-    () => groupAnnotationTemplatesByGroupLabel(filteredTemplates),
-    [filteredTemplates]
+    () => groupAnnotationTemplatesByGroupLabel(templates ?? []),
+    [templates]
   );
 
-  const dndEnabled = templateFilter === "ALL";
-
   const sortableIds = useMemo(
-    () => filteredTemplates.map((t) => t.id),
-    [filteredTemplates]
+    () => (templates ?? []).map((t) => t.id),
+    [templates]
   );
 
   // dnd sensors
@@ -123,7 +120,50 @@ export default function ListPanelDrawingTemplates({ listingId, qtiesById }) {
     [reorderAnnotationTemplates, templates]
   );
 
-  // render
+  // render - empty listing: explicit create-first-template section instead
+  // of rows + the dashed add row (`templates` is undefined while loading).
+
+  if (templates && templates.length === 0) {
+    return (
+      <Box
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          gap: 1.5,
+          mx: 1.5,
+          px: 2,
+          py: 3,
+          textAlign: "center",
+          bgcolor: "background.paper",
+          border: "1px dashed",
+          borderColor: "divider",
+          borderRadius: 3,
+        }}
+      >
+        <Typography variant="body2" sx={{ color: "text.secondary" }}>
+          Aucun modèle dans cette liste. Créez votre premier modèle pour
+          commencer à dessiner.
+        </Typography>
+        <Button
+          variant="contained"
+          color="secondary"
+          startIcon={<Add />}
+          onClick={() => setOpenCreateDialog(true)}
+        >
+          Nouveau modèle
+        </Button>
+
+        {openCreateDialog && (
+          <DialogCreateAnnotationTemplate
+            open={openCreateDialog}
+            onClose={() => setOpenCreateDialog(false)}
+            listingId={listingId}
+          />
+        )}
+      </Box>
+    );
+  }
 
   const rows = (
     <List dense disablePadding>

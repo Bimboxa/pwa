@@ -548,6 +548,11 @@ export default function useAnnotationsV2(options) {
     const soloTemplateId = useSelector(
       (s) => s.annotations?.soloAnnotationTemplateId ?? null
     );
+    // single-annotation FOCUS (panel annotation detail "Isoler"): same
+    // semantics, keyed on the annotation id.
+    const soloAnnotationId = useSelector(
+      (s) => s.annotations?.soloAnnotationId ?? null
+    );
 
     const { targetIdsBySource: subtractionTargetIdsBySource } =
       useAnnotationSubtractions();
@@ -2351,6 +2356,20 @@ export default function useAnnotationsV2(options) {
         }
       }
 
+      // single-annotation focus (panel annotation detail "Isoler"): keep only
+      // that annotation. Base-map (background) annotations are always kept.
+      if (!ignoreSolo && soloAnnotationId) {
+        const isInAnnotationSolo = (a) =>
+          a.isBaseMapAnnotation || a.id === soloAnnotationId;
+        if (keepSoloDimmed) {
+          result = result.map((a) =>
+            isInAnnotationSolo(a) ? a : { ...a, _soloDimmed: true }
+          );
+        } else {
+          result = result.filter(isInAnnotationSolo);
+        }
+      }
+
       // override with temp annotations
       result = [...result, ...(tempAnnotations ?? [])];
 
@@ -2492,6 +2511,7 @@ export default function useAnnotationsV2(options) {
       soloZone,
       zoneSoloAnnotationIdSet,
       soloTemplateId,
+      soloAnnotationId,
       keepSoloDimmed,
       ignoreSolo,
       keepHiddenTemplates,

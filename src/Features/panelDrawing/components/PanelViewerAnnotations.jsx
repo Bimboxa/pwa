@@ -4,13 +4,8 @@ import { useSelector } from "react-redux";
 import { Box, Typography } from "@mui/material";
 
 import LeftDrawerPanelHeader from "Features/leftPanel/components/LeftDrawerPanelHeader";
-import WarningBaseMapNotToScale from "Features/mapEditor/components/WarningBaseMapNotToScale";
-import FieldActiveListing from "./FieldActiveListing";
 import ChipsViewerScope from "./ChipsViewerScope";
-import ListPanelDrawingTemplates from "./ListPanelDrawingTemplates";
-import SectionPanelDrawingTools from "./SectionPanelDrawingTools";
-import SectionPanelDrawingHelper from "./SectionPanelDrawingHelper";
-import SectionPanelPasteHelper from "./SectionPanelPasteHelper";
+import SectionViewerListing from "./SectionViewerListing";
 import PanelTemplateAnnotations from "./PanelTemplateAnnotations";
 import PanelTemplateProperties from "./PanelTemplateProperties";
 import PanelAnnotationDetail from "./PanelAnnotationDetail";
@@ -21,36 +16,30 @@ import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSp
 import useExtraBaseMapIdsIn3d from "Features/threedEditor/hooks/useExtraBaseMapIdsIn3d";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useListings from "Features/listings/hooks/useListings";
-import useFreeAnnotationTemplates from "Features/mapEditor/hooks/useFreeAnnotationTemplates";
 import computeAnnotationTemplateQties from "Features/annotations/utils/computeAnnotationTemplateQties";
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 
 // ---------------------------------------------------------------------------
-// PanelDrawing — interactive left panel of the Dessin module (#310): listing
-// selector, template rows with the split draw button, and the drawing tools.
-// Replaces the floating PopperMapListings in this module; while a drawing
-// mode is armed the panel content swaps to the drawing helper.
+// PanelViewerAnnotations — left panel of the Viewer module: every listing of
+// the repérage as a collapsible section over its read-only template rows
+// (eye + quantities + detail navigation — no drawing). Shares the detail
+// subviews (template annotations / properties / one annotation) with the
+// Dessin panel.
 // ---------------------------------------------------------------------------
 
-export default function PanelDrawing() {
+export default function PanelViewerAnnotations() {
   // strings
 
   const descriptionS =
-    "Repérez les ouvrages du plan avec les modèles de la liste active : " +
-    "chaque tracé alimente ses quantités.";
+    "Toutes les listes du repérage, en lecture seule : contrôlez les " +
+    "quantités et l'affichage de chaque modèle.";
+  const emptyS = "Aucune annotation sur les fonds de plan affichés.";
 
   // data
 
   const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
-  const enabledDrawingMode = useSelector((s) => s.mapEditor.enabledDrawingMode);
-  const pasteClipboard = useSelector((s) => s.mapEditor.pasteClipboard);
-  // Helper swaps (paste / drawing) only in DOCKED mode: in drawer mode the
-  // popper is the visible surface and shows its own floating helpers
-  // (mounting a second drawing helper here would duplicate the loupe
-  // container).
-  const leftPanelDocked = useSelector((s) => s.leftPanel.leftPanelDocked);
   const effectiveViewerKey = useSelector(selectEffectiveViewerKey);
   const hiddenListingsIds = useSelector(
     (s) => s.listings.hiddenListingsIds || []
@@ -58,13 +47,12 @@ export default function PanelDrawing() {
   const hideMainAnnotationsIn3d = useSelector(
     (s) => s.threedEditor.hideMainBaseMapAnnotationsIn3d
   );
-  const selectedListingId = useSelector((s) => s.listings.selectedListingId);
-  // Coming from the LISTING module: the panel scopes to that listing only
-  // (same rule as PopperMapListings).
-  const viewerReturnContext = useSelector((s) => s.viewers.viewerReturnContext);
 
-  // Detail view (#311): template whose detail is open + subview
-  // (annotations list, template properties or one annotation).
+  // Scope chip: the active base map only, or the whole repérage.
+  const viewerScope = useSelector((s) => s.panelDrawing.viewerAnnotationsScope);
+  const isAllScope = viewerScope === "ALL";
+
+  // Detail view: template whose detail is open + subview.
   const detailTemplateId = useSelector((s) => s.panelDrawing.detailTemplateId);
   const detailView = useSelector((s) => s.panelDrawing.detailView);
   const detailAnnotationId = useSelector(
@@ -72,21 +60,19 @@ export default function PanelDrawing() {
   );
 
   const isThreedEditor = isThreedFamilyViewerKey(effectiveViewerKey);
-  // Scope chips (active base map / "Tous", shared with the Viewer panel):
-  // "Tous" widens the annotations set to the whole repérage.
-  const viewerScope = useSelector((s) => s.panelDrawing.viewerAnnotationsScope);
-  const isAllScope = viewerScope === "ALL";
   const baseMap = useMainBaseMap();
   const extraBaseMapIds = useExtraBaseMapIdsIn3d();
   const annotationTemplates = useAnnotationTemplates();
   const spriteImage = useAnnotationSpriteImage();
 
-  // Same scope as PanelAnnotationsRecap: `ignoreSolo` keeps quantities stable
-  // while a template is focused, `keepHiddenTemplates` keeps eye-hidden rows
-  // countable, `withQties` computes each annotation's qties with its own base
-  // map's meterByPx.
+  // Same scope as the Dessin panel / recap: `ignoreSolo` keeps quantities
+  // stable while a template is focused, `keepHiddenTemplates` keeps
+  // eye-hidden rows listed (greyed), `withQties` computes each annotation's
+  // qties with its own base map's meterByPx.
+  // "Tous" scope: every annotation of the repérage (all base maps — withQties
+  // computes each one with its own base map's meterByPx), no 3D mirroring.
   const annotations = useAnnotationsV2({
-    caller: "PanelDrawing",
+    caller: "PanelViewerAnnotations",
     filterByMainBaseMap: !isAllScope,
     filterBySelectedScope: true,
     hideBaseMapAnnotations: true,
@@ -110,33 +96,7 @@ export default function PanelDrawing() {
     excludeIsForBaseMaps: true,
   });
 
-  // Ensure the system listing ("Générique") + its Ligne/Polygone templates
-  // exist for this scope (idempotent) — the popper used to mount this and is
-  // hidden in the Dessin module.
-  useFreeAnnotationTemplates();
-
-  // helpers - listings (system "Générique" first, same order as the popper)
-
-  const comesFromListing = viewerReturnContext?.fromViewer === "LISTING";
-  const returnListingId = viewerReturnContext?.listingId;
-
-  const displayedListings = useMemo(() => {
-    const systemListings =
-      listings?.filter((l) => l.isFreeAnnotationsListing) ?? [];
-    const userListings =
-      listings?.filter((l) => !l.isFreeAnnotationsListing) ?? [];
-    const ordered = [...systemListings, ...userListings];
-    if (comesFromListing && returnListingId)
-      return ordered.filter((l) => l.id === returnListingId);
-    return ordered;
-  }, [listings, comesFromListing, returnListingId]);
-
-  const activeListing =
-    displayedListings.find((l) => l.id === selectedListingId) ??
-    displayedListings[0] ??
-    null;
-
-  // helpers - quantities
+  // helpers - quantities + legend scope
 
   const scopedAnnotations = useMemo(() => {
     let arr = annotations ?? [];
@@ -162,8 +122,29 @@ export default function PanelDrawing() {
     [scopedAnnotations, annotationTemplateById]
   );
 
-  // helpers - detail view (#311). A stale id (deleted template, scope
-  // change) simply resolves to nothing and the main list renders.
+  // Legend scope: only templates with an annotation on the displayed base
+  // maps (same rule as PanelAnnotationsRecap).
+  const visibleTemplateIds = useMemo(
+    () =>
+      new Set(
+        scopedAnnotations
+          .filter((a) => a.annotationTemplateId)
+          .map((a) => a.annotationTemplateId)
+      ),
+    [scopedAnnotations]
+  );
+  const visibleListingIds = useMemo(
+    () => new Set(scopedAnnotations.map((a) => a.listingId).filter(Boolean)),
+    [scopedAnnotations]
+  );
+
+  const displayedListings = useMemo(
+    () => (listings ?? []).filter((l) => visibleListingIds.has(l.id)),
+    [listings, visibleListingIds]
+  );
+
+  // helpers - detail view (shared with the Dessin panel; stale ids fall back
+  // to the sections list)
 
   const detailTemplate = detailTemplateId
     ? annotationTemplateById?.[detailTemplateId]
@@ -171,8 +152,6 @@ export default function PanelDrawing() {
   const detailListing = detailTemplate
     ? (listings ?? []).find((l) => l.id === detailTemplate.listingId)
     : null;
-  // Draw order — shared by the annotations subview (row numbering) and the
-  // annotation subview (prev / next arrows).
   const detailAnnotations = useMemo(
     () =>
       detailTemplate
@@ -202,19 +181,9 @@ export default function PanelDrawing() {
         borderColor: "divider",
       }}
     >
-      {pasteClipboard && leftPanelDocked ? (
-        <>
-          <LeftDrawerPanelHeader title="Dessin d'annotations" />
-          <SectionPanelPasteHelper />
-        </>
-      ) : enabledDrawingMode && leftPanelDocked ? (
-        <>
-          <LeftDrawerPanelHeader title="Dessin d'annotations" />
-          <SectionPanelDrawingHelper />
-        </>
-      ) : detailTemplate &&
-        detailView === "ANNOTATION" &&
-        detailAnnotationIndex !== -1 ? (
+      {detailTemplate &&
+      detailView === "ANNOTATION" &&
+      detailAnnotationIndex !== -1 ? (
         <PanelAnnotationDetail
           template={detailTemplate}
           annotations={detailAnnotations}
@@ -235,7 +204,7 @@ export default function PanelDrawing() {
         />
       ) : (
         <>
-          <LeftDrawerPanelHeader title="Dessin d'annotations" />
+          <LeftDrawerPanelHeader title="Annotations" />
           <Typography
             variant="caption"
             sx={{ px: 2, pb: 1, color: "text.secondary" }}
@@ -243,32 +212,26 @@ export default function PanelDrawing() {
             {descriptionS}
           </Typography>
 
-          {baseMap && !baseMap.meterByPx && (
-            <WarningBaseMapNotToScale sx={{ mx: 1.5, mt: 0 }} />
-          )}
-
-          <FieldActiveListing
-            listings={displayedListings}
-            activeListing={activeListing}
+          <ChipsViewerScope
+            baseMapName={baseMap?.name ?? baseMap?.label ?? "Fond de plan"}
           />
 
-          {activeListing && (
-            <ChipsViewerScope
-              baseMapName={baseMap?.name ?? baseMap?.label ?? "Fond de plan"}
-            />
-          )}
-
           <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto", pb: 1 }}>
-            {activeListing && (
-              <ListPanelDrawingTemplates
-                listingId={activeListing.id}
-                qtiesById={qtiesById}
-              />
+            {displayedListings.length === 0 && (
+              <Typography variant="body2" color="text.secondary" sx={{ px: 2 }}>
+                {emptyS}
+              </Typography>
             )}
+            {displayedListings.map((listing) => (
+              <SectionViewerListing
+                key={listing.id}
+                listing={listing}
+                visibleTemplateIds={visibleTemplateIds}
+                qtiesById={qtiesById}
+                spriteImage={spriteImage}
+              />
+            ))}
           </Box>
-
-          {/* Cut / split tools — 2D drawing modes only */}
-          {!isThreedEditor && <SectionPanelDrawingTools />}
         </>
       )}
     </Box>

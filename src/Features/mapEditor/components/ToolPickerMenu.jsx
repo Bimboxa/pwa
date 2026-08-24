@@ -37,6 +37,11 @@ export default function ToolPickerMenu({
       anchorEl={anchorEl}
       open={open}
       onClose={onClose}
+      // The menu is portaled to the body but stays a React child of the row /
+      // split button that opened it: without stopping propagation, clicking an
+      // item (or the backdrop) would bubble up the REACT tree to the row's
+      // onClick — e.g. navigating the Dessin panel to the template detail view.
+      onClick={(e) => e.stopPropagation()}
       anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
       transformOrigin={{ vertical: "top", horizontal: "left" }}
       slotProps={{

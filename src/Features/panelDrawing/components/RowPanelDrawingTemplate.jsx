@@ -1,5 +1,7 @@
 import { useState, useRef } from "react";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
+
+import { setDetailTemplateId } from "Features/panelDrawing/panelDrawingSlice";
 
 import {
   Box,
@@ -24,8 +26,9 @@ import { getFreeAnnotationShortcut } from "Features/mapEditor/constants/freeAnno
 
 // ---------------------------------------------------------------------------
 // RowPanelDrawingTemplate — one template row of the Dessin panel: hover drag
-// handle, icon + label, quantities line, split draw button, eye toggle and an
-// inert chevron (future template detail view, see #311).
+// handle, icon + label, quantities line, split draw button, eye toggle and a
+// chevron. Clicking the row opens the template detail view (its annotations
+// list, #311).
 // ---------------------------------------------------------------------------
 
 function formatQty(value, decimals = 2) {
@@ -42,7 +45,12 @@ export default function RowPanelDrawingTemplate({
   sortableAttributes,
   dragListeners,
   dndEnabled,
+  // Viewer module: no draw entry points (split button, L/P badges, Auto
+  // procedure chip) — the row keeps the eye and the detail navigation.
+  readOnly,
 }) {
+  const dispatch = useDispatch();
+
   // data
 
   const updateAnnotationTemplate = useUpdateAnnotationTemplate();
@@ -54,7 +62,7 @@ export default function RowPanelDrawingTemplate({
   const linkedProcedures = (annotationTemplate?.procedureKeys ?? [])
     .map((key) => procedures.find((p) => p.key === key))
     .filter(Boolean);
-  const hasProcedure = linkedProcedures.length > 0;
+  const hasProcedure = linkedProcedures.length > 0 && !readOnly;
   const selectedBaseMapId = useSelector((s) => s.mapEditor.selectedBaseMapId);
 
   // state
@@ -69,6 +77,8 @@ export default function RowPanelDrawingTemplate({
 
   const isHidden = Boolean(annotationTemplate?.hidden);
   const freeShortcut = getFreeAnnotationShortcut(annotationTemplate);
+  // No annotation yet: the all-zero quantities line dims to light grey.
+  const hasQties = Boolean(qties?.unit || qties?.length || qties?.surface);
   const qtyLine = `${formatQty(qties?.unit ?? 0, 0)} u · ${formatQty(
     qties?.length ?? 0
   )} ml · ${formatQty(qties?.surface ?? 0)} m²`;
@@ -109,6 +119,10 @@ export default function RowPanelDrawingTemplate({
     });
   };
 
+  const handleOpenDetail = () => {
+    dispatch(setDetailTemplateId(annotationTemplate.id));
+  };
+
   // render
 
   return (
@@ -118,6 +132,7 @@ export default function RowPanelDrawingTemplate({
       {...(sortableAttributes ?? {})}
     >
       <Box
+        onClick={handleOpenDetail}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         sx={{
@@ -127,6 +142,7 @@ export default function RowPanelDrawingTemplate({
           pl: 0.25,
           pr: 0.5,
           py: 1,
+          cursor: "pointer",
           bgcolor: "background.paper",
           "&:hover": { bgcolor: "action.hover" },
           "&:not(:last-child)": {
@@ -138,6 +154,7 @@ export default function RowPanelDrawingTemplate({
         {/* Drag handle (hover, "Tous" filter only) */}
         <Box
           {...(dndEnabled ? (dragListeners ?? {}) : {})}
+          onClick={(e) => e.stopPropagation()}
           sx={{
             display: "flex",
             alignItems: "center",
@@ -189,7 +206,7 @@ export default function RowPanelDrawingTemplate({
                 </Typography>
               )}
             </Typography>
-            {freeShortcut && (
+            {freeShortcut && !readOnly && (
               <Box sx={{ flexShrink: 0 }}>
                 <ShortcutBadge>{freeShortcut}</ShortcutBadge>
               </Box>
@@ -219,7 +236,7 @@ export default function RowPanelDrawingTemplate({
               display: "block",
               fontFamily: "monospace",
               fontWeight: 500,
-              color: isHidden ? "text.disabled" : "text.secondary",
+              color: isHidden || !hasQties ? "text.disabled" : "text.secondary",
             }}
           >
             {qtyLine}
@@ -252,30 +269,57 @@ export default function RowPanelDrawingTemplate({
         )}
 
         {/* Split draw button */}
-        <SplitButtonStartDraw
-          annotationTemplate={annotationTemplate}
-          listingId={listingId}
-        />
+        {!readOnly && (
+          <SplitButtonStartDraw
+            annotationTemplate={annotationTemplate}
+            listingId={listingId}
+          />
+        )}
 
-        {/* Visibility toggle */}
-        <Tooltip title={isHidden ? "Afficher" : "Masquer"} arrow>
-          <IconButton
-            size="small"
-            onClick={handleToggleHidden}
+        {/* Visibility toggle — in readOnly (Viewer) mode the slot shows the
+            main quantity and swaps to the eye on hover, like the popper. */}
+        {readOnly && !isHovered ? (
+          <Typography
+            align="right"
+            noWrap
             sx={{
-              p: 0.5,
-              color: isHidden ? "secondary.main" : "panel.iconMuted",
+              minWidth: 40,
+              px: 0.5,
+              fontSize: "10px",
+              fontFamily: "monospace",
+              fontWeight: 500,
+              flexShrink: 0,
             }}
+            color={
+              isHidden
+                ? "text.disabled"
+                : (qties?.count ?? 0) > 0
+                  ? "secondary.main"
+                  : "panel.countEmpty"
+            }
           >
-            {isHidden ? (
-              <VisibilityOff sx={{ fontSize: 16 }} />
-            ) : (
-              <Visibility sx={{ fontSize: 16 }} />
-            )}
-          </IconButton>
-        </Tooltip>
+            {qties?.mainQtyLabel ?? ""}
+          </Typography>
+        ) : (
+          <Tooltip title={isHidden ? "Afficher" : "Masquer"} arrow>
+            <IconButton
+              size="small"
+              onClick={handleToggleHidden}
+              sx={{
+                p: 0.5,
+                color: isHidden ? "secondary.main" : "panel.iconMuted",
+              }}
+            >
+              {isHidden ? (
+                <VisibilityOff sx={{ fontSize: 16 }} />
+              ) : (
+                <Visibility sx={{ fontSize: 16 }} />
+              )}
+            </IconButton>
+          </Tooltip>
+        )}
 
-        {/* Inert chevron — future template detail view (#311) */}
+        {/* Chevron — opens the template detail view (row click) */}
         <ChevronRight
           sx={{ fontSize: 18, color: "panel.textLight", flexShrink: 0 }}
         />

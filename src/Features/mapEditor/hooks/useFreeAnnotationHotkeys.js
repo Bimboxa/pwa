@@ -70,6 +70,13 @@ export default function useFreeAnnotationHotkeys() {
       // even if some future path resets interactionMode to DRAW.
       if (s.urlParams.viewerMode) return;
 
+      // While the docked Dessin panel shows a template detail view, the
+      // letters belong to the pre-draw template shortcuts
+      // (ToolbarStartDrawTemplate) — "L" arms that template's Ligne tool,
+      // not a free annotation.
+      if (s.leftPanel.leftPanelDocked && s.panelDrawing.detailTemplateId)
+        return;
+
       const key = e.key.toLowerCase();
       let template = null;
       if (key === getFreeAnnotationShortcut(lineTemplate)?.toLowerCase())

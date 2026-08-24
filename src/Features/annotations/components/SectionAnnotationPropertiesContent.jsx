@@ -27,7 +27,13 @@ import FieldAnnotationLabel from "./FieldAnnotationLabel";
 import FieldAnnotationLinearLayout from "./FieldAnnotationLinearLayout";
 import FieldAnnotationArrows from "./FieldAnnotationArrows";
 
-export default function SectionAnnotationPropertiesContent({ annotation }) {
+// hideOverview: the hosting panel renders the preview / height / quantities
+// card and the label field itself, above the tabs (panel annotation subview)
+// — skip them here to avoid the duplicate.
+export default function SectionAnnotationPropertiesContent({
+  annotation,
+  hideOverview,
+}) {
   // data
 
   const updateAnnotation = useUpdateAnnotation();
@@ -73,34 +79,36 @@ export default function SectionAnnotationPropertiesContent({ annotation }) {
 
   return (
     <>
-      <Box sx={{ display: "flex", gap: 1, p: 1, width: 1 }}>
-        <Box
-          sx={{
-            flex: 1,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <FieldAnnotationPreview annotation={annotation} imageHeight={80} />
+      {!hideOverview && (
+        <Box sx={{ display: "flex", gap: 1, p: 1, width: 1 }}>
+          <Box
+            sx={{
+              flex: 1,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <FieldAnnotationPreview annotation={annotation} imageHeight={80} />
+          </Box>
+          <Box
+            sx={{
+              flex: 1,
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+            }}
+          >
+            {type !== "LINEAR_LAYOUT" && (
+              <FieldAnnotationHeight
+                annotation={annotation}
+                onChange={handleHeightChange}
+              />
+            )}
+            <SectionAnnotationQties annotation={annotation} />
+          </Box>
         </Box>
-        <Box
-          sx={{
-            flex: 1,
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "center",
-          }}
-        >
-          {type !== "LINEAR_LAYOUT" && (
-            <FieldAnnotationHeight
-              annotation={annotation}
-              onChange={handleHeightChange}
-            />
-          )}
-          <SectionAnnotationQties annotation={annotation} />
-        </Box>
-      </Box>
+      )}
 
       <SectionAnnotationPentes annotation={annotation} />
 
@@ -158,7 +166,7 @@ export default function SectionAnnotationPropertiesContent({ annotation }) {
             overrideFields={overrideFields}
           />
         )}
-        <FieldAnnotationLabel annotation={annotation} />
+        {!hideOverview && <FieldAnnotationLabel annotation={annotation} />}
         <FieldAnnotationIsProfile annotation={annotation} />
         <FieldAnnotationIsEraser annotation={annotation} />
         {["POLYLINE", "STRIP", "POLYGON"].includes(type) && (

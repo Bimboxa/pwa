@@ -44,6 +44,9 @@ const annotationsInitialState = {
   // useAnnotationsV2 next to the zone solo, same ignoreSolo/keepSoloDimmed
   // semantics.
   soloAnnotationTemplateId: null,
+  // Single-annotation FOCUS (panel annotation detail "Isoler"): same
+  // semantics, keyed on the annotation id.
+  soloAnnotationId: null,
 };
 
 export const annotationsSlice = createSlice({
@@ -118,6 +121,9 @@ export const annotationsSlice = createSlice({
     setSoloAnnotationTemplateId: (state, action) => {
       state.soloAnnotationTemplateId = action.payload ?? null;
     },
+    setSoloAnnotationId: (state, action) => {
+      state.soloAnnotationId = action.payload ?? null;
+    },
   },
   extraReducers: (builder) => {
     // Leaving the recap-panel modules (Dessin, Viewer) clears the template
@@ -128,6 +134,7 @@ export const annotationsSlice = createSlice({
     builder.addCase(setSelectedViewerKey, (state, action) => {
       if (!RECAP_PANEL_MODULE_KEYS.includes(action.payload)) {
         state.soloAnnotationTemplateId = null;
+        state.soloAnnotationId = null;
       }
     });
     // Scope switch: the focused template belongs to the previous scope — a
@@ -136,6 +143,7 @@ export const annotationsSlice = createSlice({
     // (THREED is a recap-panel module).
     builder.addCase(setSelectedScopeId, (state) => {
       state.soloAnnotationTemplateId = null;
+      state.soloAnnotationId = null;
     });
   },
 });
@@ -163,6 +171,7 @@ export const {
   setOpenDialogSaveTempAnnotations,
   //
   setSoloAnnotationTemplateId,
+  setSoloAnnotationId,
 } = annotationsSlice.actions;
 
 export default annotationsSlice.reducer;

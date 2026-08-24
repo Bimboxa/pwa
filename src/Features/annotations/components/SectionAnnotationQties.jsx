@@ -8,7 +8,10 @@ import getAnnotationQties from "../utils/getAnnotationQties";
 import getAnnotationSubtractionQties from "../utils/getAnnotationSubtractionQties";
 import getAnnotationOpeningQties from "../utils/getAnnotationOpeningQties";
 
-export default function SectionAnnotationQties({ annotation }) {
+// layout "rows": one flex row per quantity — label left, value right-aligned
+// (monospace), even vertical gap. Used by the overview card of the panel's
+// annotation subview; the default layout keeps the historical inline text.
+export default function SectionAnnotationQties({ annotation, layout }) {
   const { type } = annotation ?? {};
 
   const baseMap = useMainBaseMap();
@@ -87,6 +90,52 @@ export default function SectionAnnotationQties({ annotation }) {
     showSurface && qties?.surfaceDeveloped != null && projectedSurface != null;
 
   if (!qties) return null;
+
+  if (layout === "rows") {
+    const rows = [
+      ...(showLength
+        ? [{ label: lengthLabel, value: `${length?.toFixed?.(2) ?? 0} m` }]
+        : []),
+      ...(showSurface
+        ? [{ label: "Surface", value: `${surface?.toFixed?.(2) ?? 0} m²` }]
+        : []),
+      ...(showProjectedSurface
+        ? [
+            {
+              label: "Surface projetée",
+              value: `${projectedSurface?.toFixed?.(2) ?? 0} m²`,
+            },
+          ]
+        : []),
+    ];
+    if (rows.length === 0) return null;
+    return (
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+        {rows.map(({ label, value }) => (
+          <Box
+            key={label}
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 1,
+            }}
+          >
+            <Typography variant="body2" color="text.secondary" noWrap>
+              {label}
+            </Typography>
+            <Typography
+              variant="body2"
+              noWrap
+              sx={{ fontFamily: "monospace", textAlign: "right" }}
+            >
+              {value}
+            </Typography>
+          </Box>
+        ))}
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5, p: 1 }}>
