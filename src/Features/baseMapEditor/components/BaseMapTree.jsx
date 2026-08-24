@@ -341,7 +341,9 @@ export default function BaseMapTree() {
   // render
 
   return (
-    <Box sx={{ p: 1 }}>
+    // No horizontal padding: the groups' white blocks span the full panel
+    // width (edge to edge).
+    <Box sx={{ py: 1 }}>
       <DndContext
         id="basemap-tree-dnd"
         sensors={sensors}
