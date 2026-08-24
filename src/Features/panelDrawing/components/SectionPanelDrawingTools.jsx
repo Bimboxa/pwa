@@ -67,12 +67,6 @@ export default function SectionPanelDrawingTools() {
         >
           {titleS}
         </Typography>
-        <Typography
-          variant="caption"
-          sx={{ color: "panel.textLight", fontFamily: "monospace" }}
-        >
-          {`${SHORTCUT_TOOLS.length} outils`}
-        </Typography>
       </Box>
 
       {!collapsed && (
