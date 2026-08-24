@@ -1,25 +1,14 @@
-import { useDispatch } from "react-redux";
-
-import {
-  setSelectedMainBaseMapId,
-  setSelectedNode,
-  setZoomTo,
-} from "Features/mapEditor/mapEditorSlice";
-import {
-  setSelectedItem,
-  setShowAnnotationsProperties,
-} from "Features/selection/selectionSlice";
-import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
-
 import { Box, Typography } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import ChevronRight from "@mui/icons-material/ChevronRight";
 
+import useSelectAnnotationFromPanel from "Features/panelDrawing/hooks/useSelectAnnotationFromPanel";
+
 // ---------------------------------------------------------------------------
 // RowTemplateAnnotation — one annotation of the detail view (#311): color
 // swatch, derived label ("Mur béton ext 01"), quantities line and a chevron.
-// Clicking selects the annotation on the map (DatagridAnnotations
-// handleViewOnMap pattern), zooms to it and opens its properties panel.
+// Clicking selects the annotation on the map, zooms to it and opens its
+// properties in the panel (PanelAnnotationDetail subview).
 // ---------------------------------------------------------------------------
 
 function formatQty(value) {
@@ -27,7 +16,9 @@ function formatQty(value) {
 }
 
 export default function RowTemplateAnnotation({ annotation, label, color }) {
-  const dispatch = useDispatch();
+  // data
+
+  const selectAnnotation = useSelectAnnotationFromPanel();
 
   // helpers
 
@@ -41,36 +32,7 @@ export default function RowTemplateAnnotation({ annotation, label, color }) {
   // handlers
 
   const handleClick = () => {
-    if (annotation.baseMapId)
-      dispatch(setSelectedMainBaseMapId(annotation.baseMapId));
-    dispatch(
-      setSelectedNode({
-        nodeId: annotation.id,
-        nodeType: "ANNOTATION",
-        nodeListingId: annotation.listingId,
-        annotationType: annotation.type,
-        origin: "LISTING",
-      })
-    );
-    dispatch(
-      setSelectedItem({
-        id: annotation.id,
-        type: "NODE",
-        nodeType: "ANNOTATION",
-        nodeId: annotation.id,
-        annotationType: annotation.type,
-        listingId: annotation.listingId,
-        entityId: annotation.entityId,
-        annotationTemplateId: annotation.annotationTemplateId,
-      })
-    );
-    dispatch(setShowAnnotationsProperties(true));
-    dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
-    if (annotation.points?.length > 0) {
-      dispatch(setZoomTo(annotation.points[0]));
-    } else if (annotation.x != null) {
-      dispatch(setZoomTo({ x: annotation.x, y: annotation.y }));
-    }
+    selectAnnotation(annotation);
   };
 
   // render

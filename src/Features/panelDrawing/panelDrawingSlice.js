@@ -7,9 +7,11 @@ const panelDrawingSlice = createSlice({
     toolsSectionCollapsed: false,
     // Template whose detail is open in the panel (#311). null = the main
     // templates list. detailView picks the open subview: the annotations
-    // list or the template properties.
+    // list, the template properties, or one annotation's properties
+    // (detailAnnotationId).
     detailTemplateId: null,
-    detailView: "ANNOTATIONS", // "ANNOTATIONS" | "PROPERTIES"
+    detailView: "ANNOTATIONS", // "ANNOTATIONS" | "PROPERTIES" | "ANNOTATION"
+    detailAnnotationId: null,
   },
   reducers: {
     setTemplateFilter(state, action) {
@@ -21,9 +23,17 @@ const panelDrawingSlice = createSlice({
     setDetailTemplateId(state, action) {
       state.detailTemplateId = action.payload ?? null;
       state.detailView = "ANNOTATIONS";
+      state.detailAnnotationId = null;
     },
     setDetailView(state, action) {
       state.detailView = action.payload ?? "ANNOTATIONS";
+      if (state.detailView !== "ANNOTATION") state.detailAnnotationId = null;
+    },
+    setDetailAnnotationId(state, action) {
+      state.detailAnnotationId = action.payload ?? null;
+      state.detailView = state.detailAnnotationId
+        ? "ANNOTATION"
+        : "ANNOTATIONS";
     },
   },
 });
@@ -33,6 +43,7 @@ export const {
   setToolsSectionCollapsed,
   setDetailTemplateId,
   setDetailView,
+  setDetailAnnotationId,
 } = panelDrawingSlice.actions;
 
 export default panelDrawingSlice.reducer;

@@ -12,6 +12,7 @@ import SectionPanelDrawingTools from "./SectionPanelDrawingTools";
 import SectionPanelDrawingHelper from "./SectionPanelDrawingHelper";
 import PanelTemplateAnnotations from "./PanelTemplateAnnotations";
 import PanelTemplateProperties from "./PanelTemplateProperties";
+import PanelAnnotationDetail from "./PanelAnnotationDetail";
 
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
@@ -60,9 +61,12 @@ export default function PanelDrawing() {
   const viewerReturnContext = useSelector((s) => s.viewers.viewerReturnContext);
 
   // Detail view (#311): template whose detail is open + subview
-  // (annotations list or template properties).
+  // (annotations list, template properties or one annotation).
   const detailTemplateId = useSelector((s) => s.panelDrawing.detailTemplateId);
   const detailView = useSelector((s) => s.panelDrawing.detailView);
+  const detailAnnotationId = useSelector(
+    (s) => s.panelDrawing.detailAnnotationId
+  );
 
   const isThreedEditor = isThreedFamilyViewerKey(effectiveViewerKey);
   const baseMap = useMainBaseMap();
@@ -154,15 +158,22 @@ export default function PanelDrawing() {
   const detailListing = detailTemplate
     ? (listings ?? []).find((l) => l.id === detailTemplate.listingId)
     : null;
+  // Draw order — shared by the annotations subview (row numbering) and the
+  // annotation subview (prev / next arrows).
   const detailAnnotations = useMemo(
     () =>
       detailTemplate
-        ? scopedAnnotations.filter(
-            (a) => a.annotationTemplateId === detailTemplate.id
-          )
+        ? scopedAnnotations
+            .filter((a) => a.annotationTemplateId === detailTemplate.id)
+            .sort((a, b) =>
+              (a.createdAt ?? "").localeCompare(b.createdAt ?? "")
+            )
         : [],
     [scopedAnnotations, detailTemplate]
   );
+  const detailAnnotationIndex = detailAnnotationId
+    ? detailAnnotations.findIndex((a) => a.id === detailAnnotationId)
+    : -1;
 
   // render
 
@@ -183,6 +194,14 @@ export default function PanelDrawing() {
           <LeftDrawerPanelHeader title="Annotations" />
           <SectionPanelDrawingHelper />
         </>
+      ) : detailTemplate &&
+        detailView === "ANNOTATION" &&
+        detailAnnotationIndex !== -1 ? (
+        <PanelAnnotationDetail
+          template={detailTemplate}
+          annotations={detailAnnotations}
+          annotationIndex={detailAnnotationIndex}
+        />
       ) : detailTemplate && detailView === "PROPERTIES" ? (
         <PanelTemplateProperties
           template={detailTemplate}
