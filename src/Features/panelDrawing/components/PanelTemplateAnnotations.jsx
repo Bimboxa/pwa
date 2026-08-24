@@ -18,6 +18,7 @@ import ChevronLeft from "@mui/icons-material/ChevronLeft";
 import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTemplateIcon";
 import RowTemplateAnnotation from "./RowTemplateAnnotation";
 import getZeroPaddingNumber from "Features/misc/utils/getZeroPaddingNumber";
+import { getAnnotationOwnLabel } from "Features/annotations/utils/getAnnotationLabelDisplay";
 
 // ---------------------------------------------------------------------------
 // PanelTemplateAnnotations — detail view of the Dessin panel (#311): the
@@ -270,7 +271,12 @@ export default function PanelTemplateAnnotations({
             <RowTemplateAnnotation
               key={annotation.id}
               annotation={annotation}
-              label={`${template.label} ${getZeroPaddingNumber(idx + 1, 2)}`}
+              // The annotation's OWN label (not the entity-enriched one);
+              // derived "<template> NN" only when the row has none.
+              label={
+                getAnnotationOwnLabel(annotation) ||
+                `${template.label} ${getZeroPaddingNumber(idx + 1, 2)}`
+              }
               color={templateColor}
             />
           ))}

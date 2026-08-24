@@ -12,6 +12,7 @@ import ChevronRight from "@mui/icons-material/ChevronRight";
 import SectionAnnotationPropertiesBody from "Features/annotations/components/SectionAnnotationPropertiesBody";
 import useSelectAnnotationFromPanel from "Features/panelDrawing/hooks/useSelectAnnotationFromPanel";
 import getZeroPaddingNumber from "Features/misc/utils/getZeroPaddingNumber";
+import { getAnnotationOwnLabel } from "Features/annotations/utils/getAnnotationLabelDisplay";
 
 // ---------------------------------------------------------------------------
 // PanelAnnotationDetail — one annotation's properties in the Dessin panel
@@ -40,10 +41,12 @@ export default function PanelAnnotationDetail({
 
   // helpers
 
-  const label = `${template.label} ${getZeroPaddingNumber(
-    annotationIndex + 1,
-    2
-  )}`;
+  // The annotation's OWN label (not the entity-enriched one); derived
+  // "<template> NN" only when the row has none — same rule as the list.
+  const annotation = annotations[annotationIndex];
+  const label =
+    getAnnotationOwnLabel(annotation) ||
+    `${template.label} ${getZeroPaddingNumber(annotationIndex + 1, 2)}`;
   const prevAnnotation = annotations[annotationIndex - 1];
   const nextAnnotation = annotations[annotationIndex + 1];
 
