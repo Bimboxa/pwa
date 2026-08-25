@@ -1,4 +1,10 @@
-import { Mesh, Scene } from "three";
+import {
+  BufferGeometry,
+  Float32BufferAttribute,
+  Line,
+  Mesh,
+  Scene,
+} from "three";
 
 import { getActiveThreedEditor } from "./threedEditorRegistry";
 
@@ -52,11 +58,35 @@ export default function buildExportScene(
     if (
       obj.userData?.isShadowCatcher ||
       obj.userData?.isHoverOverlay ||
-      obj.userData?.isSketchEdge
+      obj.userData?.isSketchEdge ||
+      // Partial-revolution section markers (fat boundary lines + poché fill)
+      // are display-only decorations, same story as the sketch edges.
+      obj.userData?.isSectionMarker
     ) {
       return;
     }
-    if (obj.isMesh) {
+    // Fat lines (Line2 / LineSegments2: the POINT vertical trait, the POINT
+    // revolution circle) are `isMesh` over INSTANCED geometry — cloned as-is
+    // they export as broken triangles. Emit a plain THREE.Line rebuilt from
+    // the source positions instead: OBJExporter writes it as `l` elements,
+    // which SketchUp reads as a polyline.
+    //
+    // Opt-in by design (a tag, not a blanket `obj.isLine` branch): every
+    // extrusion / lathe carries a black EdgesGeometry LineSegments overlay,
+    // and a generic branch would dump all of them into the OBJ.
+    const exportLine = obj.userData?.exportLine;
+    if (exportLine?.positions?.length >= 6) {
+      const geometry = new BufferGeometry();
+      geometry.setAttribute(
+        "position",
+        new Float32BufferAttribute(exportLine.positions, 3)
+      );
+      const cloned = new Line(geometry, makeMaterial(obj.material));
+      cloned.matrix.copy(obj.matrixWorld);
+      cloned.matrix.decompose(cloned.position, cloned.quaternion, cloned.scale);
+      cloned.matrixAutoUpdate = true;
+      exportScene.add(cloned);
+    } else if (obj.isMesh) {
       const cloned = new Mesh(obj.geometry, makeMaterial(obj.material));
       cloned.matrix.copy(obj.matrixWorld);
       cloned.matrix.decompose(cloned.position, cloned.quaternion, cloned.scale);

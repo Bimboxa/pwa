@@ -40,7 +40,9 @@ const SHAPE_3D_CONFIG = {
 };
 
 // Annotation types that support the dynamic "Révolution" section (axis-based).
-export const TYPES_SUPPORTING_REVOLUTION = ["POLYLINE"];
+// A POLYLINE revolves its arc into a lathe surface; a POINT revolves into a
+// single circle (a line, not a surface) of radius = its distance to the axis.
+export const TYPES_SUPPORTING_REVOLUTION = ["POLYLINE", "POINT"];
 
 export const SHAPE_3D_KEYS = {
   REVOLUTION: "REVOLUTION",
@@ -58,7 +60,9 @@ export function getShape3DOptionsForType(annotationType) {
 }
 
 export function getShape3DEntry(annotationType, key) {
-  return getShape3DOptionsForType(annotationType).find((o) => o.key === key) ?? null;
+  return (
+    getShape3DOptionsForType(annotationType).find((o) => o.key === key) ?? null
+  );
 }
 
 // Read the discriminator key of a shape3D value. Accepts the object form

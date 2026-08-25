@@ -63,6 +63,11 @@ export const selectionSlice = createSlice({
       if (!item || item.type !== "NODE") {
         state.showAnnotationsProperties = false;
       }
+      // A selected label ("label::<id>") opens its annotation's properties
+      // panel directly on the Etiquette tab.
+      if (item?.type === "NODE" && item?.nodeId?.startsWith?.("label::")) {
+        state.annotationPropertiesTab = "LABEL";
+      }
     },
     setSelectedItems: (state, action) => {
       // Handles setting items directly

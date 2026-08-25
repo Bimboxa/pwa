@@ -6,11 +6,14 @@ import ImageAnnotationIcon from "Features/imageAnnotations/components/ImageAnnot
 import PointAnnotationIcon from "Features/pointAnnotations/components/PointAnnotationIcon";
 import StripAnnotationIcon from "Features/stripAnnotations/components/StripAnnotationIcon";
 import LabelAnnotationIcon from "Features/labels/components/LabelAnnotationIcon";
+import DetailAnnotationIcon from "Features/annotations/components/DetailAnnotationIcon";
 
 export default function AnnotationIcon({ spriteImage, annotation, size }) {
   switch (annotation?.type) {
     case "LABEL":
       return <LabelAnnotationIcon {...annotation} size={size} />;
+    case "DETAIL":
+      return <DetailAnnotationIcon {...annotation} size={size} />;
     case "MARKER":
       return (
         <MarkerIcon {...annotation} spriteImage={spriteImage} size={size} />
@@ -24,6 +27,9 @@ export default function AnnotationIcon({ spriteImage, annotation, size }) {
 
     case "STRIP":
       return <StripAnnotationIcon {...annotation} size={size} />;
+
+    case "LINEAR_LAYOUT":
+      return <PolylineIcon {...annotation} size={size} />;
 
     case "POLYGON":
       return <PolygonIcon {...annotation} size={size} />;

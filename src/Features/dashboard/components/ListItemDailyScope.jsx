@@ -7,12 +7,14 @@ import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import { getEffectiveOwner, normalizeOwnerId } from "App/db/ownership";
 import getUserIdMaster from "Features/auth/utils/getUserIdMaster";
 
+import AvatarPovPreview from "./AvatarPovPreview";
+
 import { TEXT_FAINT } from "../utils/dashboardStyles";
 
-// One row of the "daily scopes" list: project name over scope name on the
-// left, author trigram + creation time on one line over an "open" button on
-// the right. Private scopes created by another user get a "lecture seule"
-// chip left of the trigram.
+// One row of the "daily scopes" list: POV preview thumbnail (when shared)
+// then project name over scope name on the left, author trigram + creation
+// time on one line over an "open" button on the right. Private scopes
+// created by another user get a "lecture seule" chip left of the trigram.
 
 export default function ListItemDailyScope({ item, onOpen }) {
   // data
@@ -68,13 +70,18 @@ export default function ListItemDailyScope({ item, onOpen }) {
         bgcolor: "white",
       }}
     >
-      <Box sx={{ minWidth: 0 }}>
-        <Typography sx={{ fontWeight: 600, fontSize: 14 }} noWrap>
-          {item.projectName}
-        </Typography>
-        <Typography variant="caption" sx={{ color: "text.secondary" }} noWrap>
-          {item.scopeName}
-        </Typography>
+      <Box
+        sx={{ display: "flex", alignItems: "center", gap: 1.25, minWidth: 0 }}
+      >
+        <AvatarPovPreview povPreviews={item.povPreviews} />
+        <Box sx={{ minWidth: 0 }}>
+          <Typography sx={{ fontWeight: 600, fontSize: 14 }} noWrap>
+            {item.projectName}
+          </Typography>
+          <Typography variant="caption" sx={{ color: "text.secondary" }} noWrap>
+            {item.scopeName}
+          </Typography>
+        </Box>
       </Box>
       <Box
         sx={{

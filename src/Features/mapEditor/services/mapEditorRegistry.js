@@ -8,7 +8,11 @@ export function setActiveMapEditor(mapEditor) {
   activeMapEditor = mapEditor;
 }
 
-export function clearActiveMapEditor() {
+// Handle-aware: two MainMapEditorV3 instances (MAP, BASE_MAPS) register and
+// unregister independently — a stale cleanup from one instance must not wipe
+// the registration of the other. Without a handle, clears unconditionally.
+export function clearActiveMapEditor(mapEditor) {
+  if (mapEditor && activeMapEditor !== mapEditor) return;
   activeMapEditor = null;
 }
 

@@ -61,6 +61,22 @@ const DRAWING_SHAPE_CONFIG = {
     },
     shapeCategory: "circle",
   },
+  // DETAIL — a "detail bubble": white circle with a thick ring containing a
+  // short label, plus a filled triangular arrow whose TIP is the annotation's
+  // stored point. arrowAngle (degrees, SVG screen convention: 0 = right,
+  // clockwise-positive) orients the arrow; the bubble sits opposite it at a
+  // fixed SCREEN-px distance, so the tip never moves on rotation or zoom.
+  DETAIL: {
+    label: "Détail",
+    annotationType: "DETAIL",
+    tools: ["ONE_CLICK"],
+    configurableProps: ["fillColor"],
+    defaults: {
+      fillColor: secondary,
+      arrowAngle: 0,
+    },
+    shapeCategory: "circle",
+  },
   IMAGE: {
     label: "Image",
     annotationType: "IMAGE",
@@ -161,6 +177,42 @@ const DRAWING_SHAPE_CONFIG = {
     },
     shapeCategory: "polyline",
   },
+  // CIRCULATION — an access path. Same behaviour as a POLYLINE (same type,
+  // same renderer), only the 2D look differs: the stroke is drawn in a
+  // lighter tint of strokeColor and arrows in the full strokeColor are
+  // distributed along the line every `arrowStep` meters. arrowRight /
+  // arrowLeft pick the direction(s): right = towards the next vertex.
+  CIRCULATION: {
+    label: "Circulation",
+    annotationType: "POLYLINE",
+    tools: ["POLYLINE_CLICK", "POLYLINE_SEGMENT", "POLYLINE_ARC"],
+    configurableProps: [
+      "strokeColor",
+      "strokeWidth",
+      "strokeWidthUnit",
+      "strokeOpacity",
+      "strokeType",
+      "strokeOffset",
+      "height",
+      "color3D",
+      "opacity3D",
+      "material3d",
+      "arrowStep",
+      "arrowRight",
+      "arrowLeft",
+    ],
+    defaults: {
+      strokeColor: secondary,
+      strokeWidth: 2,
+      strokeWidthUnit: "PX",
+      strokeOpacity: 1,
+      strokeType: "SOLID",
+      arrowStep: 3,
+      arrowRight: true,
+      arrowLeft: true,
+    },
+    shapeCategory: "polyline",
+  },
   OBJECT_3D: {
     label: "Objet 3D",
     annotationType: "OBJECT_3D",
@@ -169,34 +221,148 @@ const DRAWING_SHAPE_CONFIG = {
     defaults: {},
     shapeCategory: "rectangle",
   },
-  // Revolution helpers — geometry that defines a surface-of-revolution shape3D
-  // (REVOLUTION). They are drawn from the "Outils de découpe" section, not from
-  // a template, so they have no template tools of their own.
-  REVOLUTION_AXIS: {
-    label: "Axe de révolution",
-    annotationType: "REVOLUTION_AXIS",
-    tools: [],
-    configurableProps: ["strokeColor", "strokeWidth", "strokeWidthUnit"],
+  // LINEAR_LAYOUT — "calepinage linéaire": a distribution of parallel bars
+  // along an axis with a density. Drawn as a 2-point segment (the bottom edge
+  // of the band); the band of `width` meters extends perpendicular on one side
+  // (stripOrientation flips the side, STRIP-style). Bar thickness rides on
+  // strokeWidth/strokeWidthUnit (CM). Density is defined either as a spacing
+  // in cm (densityMode "SPACING") or a count per meter ("PER_METER"), with a
+  // free-text densityUnitLabel (e.g. "jonc/m") shown in the rendered label.
+  // layoutAlign (LEFT / CENTER / RIGHT) anchors the bar grid on the segment
+  // and drives the bar count (see getLinearLayoutBars.js).
+  LINEAR_LAYOUT: {
+    label: "Calepinage linéaire",
+    annotationType: "LINEAR_LAYOUT",
+    tools: ["LINEAR_LAYOUT_SEGMENT"],
+    configurableProps: [
+      "strokeColor",
+      "strokeWidth",
+      "strokeWidthUnit",
+      "strokeOpacity",
+      "width",
+      "densityMode",
+      "densityValue",
+      "densityUnitLabel",
+      "layoutAlign",
+      // Where the ticked ruler sits across the band: MIDDLE, or BOTTOM / TOP
+      // (at 25% from the corresponding edge).
+      "axisPosition",
+      // Where the two-line text sits along the ruler: LEFT / CENTER / RIGHT.
+      "textAlign",
+      // Hide the pale band rectangle (keep only text + sample bar + ruler).
+      "hideBandFill",
+    ],
     defaults: {
-      strokeColor: "#9c27b0",
-      // Always 2 px on screen regardless of zoom: PX unit makes
-      // NodePolylineStatic render the stroke with vectorEffect="non-scaling-stroke".
-      strokeWidth: 2,
-      strokeWidthUnit: "PX",
+      strokeColor: secondary,
+      strokeWidth: 15,
+      strokeWidthUnit: "CM",
       strokeOpacity: 1,
-      strokeType: "DASHED",
+      fillOpacity: 0.15,
+      width: 5,
+      densityMode: "SPACING",
+      densityValue: 33,
+      densityUnitLabel: "jonc/m",
+      layoutAlign: "CENTER",
+      axisPosition: "MIDDLE",
+      textAlign: "CENTER",
+      hideBandFill: false,
+      stripOrientation: 1,
     },
     shapeCategory: "polyline",
   },
-  REVOLUTION_POINT: {
-    label: "Axe (vue en plan)",
-    annotationType: "REVOLUTION_POINT",
-    tools: [],
-    configurableProps: ["fillColor"],
+  // Revolution helpers — geometry that defines a surface-of-revolution shape3D
+  // (REVOLUTION). REVOLUTION_AXIS is a template-drivable shape: axes are drawn
+  // from an annotationTemplate row of the listings panel.
+  //
+  // REVOLUTION_AXIS is authored on a HORIZONTAL base map (vue en plan) with two
+  // clicks: the centre, then a point giving the radius AND the diameter
+  // direction. See getRevolutionAxisPlanFrame for the storage contract.
+  REVOLUTION_AXIS: {
+    label: "Axe de révolution",
+    annotationType: "REVOLUTION_AXIS",
+    tools: ["REVOLUTION_AXIS_PLAN"],
+    configurableProps: ["strokeColor", "strokeWidth", "strokeWidthUnit"],
     defaults: {
-      fillColor: "#9c27b0",
+      strokeColor: secondary,
+      // Always 2 px on screen regardless of zoom.
+      strokeWidth: 2,
+      strokeWidthUnit: "PX",
+      strokeOpacity: 1,
+      strokeType: "SOLID",
+      // Geometry (radiusM / directionDeg are written at commit from the two
+      // clicks; the values here only matter for a keyboard-less fallback).
+      radiusM: 1,
+      directionDeg: 0,
+      // Swaps the orange / black half-discs, i.e. re-places the linked vertical
+      // base maps at angleDeg + 180°.
+      invertHalf: false,
+      // Partial revolution (sector) shared by every arc bound to this axis.
+      partialRevolution: false,
+      // Absolute world Z of the axis centre, and the axis height as drawn on
+      // the elevation view.
+      offsetZ: 0,
+      height: 5,
     },
     shapeCategory: "circle",
+  },
+  // Instance of a plan axis dropped on a VERTICAL base map. Its single point is
+  // where the axis centre sits in that elevation image — placing it re-poses
+  // the base map in 3D (see computeVerticalBaseMapPlacementFromAxis). Never a
+  // user-creatable template shape (empty tools, absent from DRAWING_SHAPES):
+  // placements are armed from the axis template row on a vertical base map.
+  REVOLUTION_AXIS_PLACEMENT: {
+    label: "Position de l'axe",
+    annotationType: "REVOLUTION_AXIS_PLACEMENT",
+    tools: [],
+    configurableProps: ["strokeColor"],
+    defaults: {
+      strokeColor: secondary,
+      strokeWidth: 2,
+      strokeWidthUnit: "PX",
+      strokeOpacity: 1,
+    },
+    shapeCategory: "circle",
+  },
+  // RULER — a dimension CHAIN: a polyline whose every segment carries its own
+  // cote, all of them aligned on a single offset "alignment line" (a miter
+  // offset of the polyline, so non-collinear segments stay joined). Reuses the
+  // COTE display fields (unit / decimals / fontSize / …) and the signed
+  // `extensionOffset` (its sign picks the side the cotes sit on).
+  RULER: {
+    label: "Règle",
+    annotationType: "RULER",
+    tools: ["RULER_CLICK", "RULER_SEGMENT"],
+    configurableProps: [
+      "strokeColor",
+      "strokeWidth",
+      "strokeWidthUnit",
+      "strokeOpacity",
+      "strokeType",
+      "unit",
+      "extensionOffset",
+      "extensionOffsetUnit",
+      "decimals",
+      "fontSize",
+      "showUnitLabel",
+      "showTotalCote",
+      "showRulerLabel",
+    ],
+    defaults: {
+      strokeColor: "#000000",
+      strokeWidth: 1,
+      strokeWidthUnit: "PX",
+      strokeOpacity: 1,
+      strokeType: "SOLID",
+      unit: "M",
+      extensionOffset: 40,
+      extensionOffsetUnit: "PX",
+      decimals: 2,
+      fontSize: 14,
+      showUnitLabel: true,
+      showTotalCote: false,
+      showRulerLabel: false,
+    },
+    shapeCategory: "polyline",
   },
   COTE: {
     label: "Cote",
@@ -234,6 +400,46 @@ const DRAWING_SHAPE_CONFIG = {
 // Helpers
 // ---------------------------------------------------------------------------
 
+// Revolution helpers, template-linked since the REVOLUTION_AXIS shape became
+// template-drivable, are normal listing annotations (listingId +
+// annotationTemplateId + layerId) — with residual special cases: single-point
+// storage, no entity, record-level `hidden`. Rows created by the pre-template
+// model (no annotationTemplateId) keep the historical exemptions: scopeId
+// instead of listingId, and a bypass of the listing / layer / scope visibility
+// filters. Kept here (rather than re-listed in each consumer) because the same
+// predicates are needed by useAnnotationsV2, SectionLayers and the commit path.
+export const REVOLUTION_HELPER_TYPES = [
+  "REVOLUTION_AXIS",
+  "REVOLUTION_AXIS_PLACEMENT",
+];
+
+export function isRevolutionHelperType(type) {
+  return REVOLUTION_HELPER_TYPES.includes(type);
+}
+
+// Pre-template axis / placement rows: they carry no annotationTemplateId, so
+// they cannot flow through the template-driven listing / layer / scope filters
+// and keep the historical global-visibility bypass (soft compat, no migration).
+export function isLegacyStyleRevolutionHelper(annotation) {
+  return (
+    isRevolutionHelperType(annotation?.type) && !annotation.annotationTemplateId
+  );
+}
+
+// Rows written by the PREVIOUS revolution-axis model are ignored everywhere.
+// Their geometry contract is incompatible with the current one:
+//   - the old REVOLUTION_AXIS was an elevation 2-point line (`points`), whereas
+//     the current one is a plan CENTRE (`point`) + radiusM / directionDeg,
+//   - REVOLUTION_POINT (the old plan marker) no longer exists at all.
+// Ignoring them is deliberate (no migration): a legacy axis carries neither a
+// radius nor an orientation, so it cannot be reconstructed. They stay in the
+// database, simply unread.
+export function isLegacyRevolutionRecord(annotation) {
+  if (!annotation) return false;
+  if (annotation.type === "REVOLUTION_POINT") return true;
+  return annotation.type === "REVOLUTION_AXIS" && !annotation.point?.id;
+}
+
 export function getShapeConfig(drawingShape) {
   return DRAWING_SHAPE_CONFIG[drawingShape] ?? null;
 }
@@ -264,15 +470,18 @@ const TYPE_TO_SHAPE = {
   POINT: "POINT",
   TEXT: "TEXT",
   LABEL: "LABEL",
+  DETAIL: "DETAIL",
   IMAGE: "IMAGE",
   POLYLINE: "POLYLINE",
   STRIP: "POLYLINE",
   POLYGON: "POLYGON",
   RECTANGLE: "POLYGON",
   OBJECT_3D: "OBJECT_3D",
+  LINEAR_LAYOUT: "LINEAR_LAYOUT",
   COTE: "COTE",
+  RULER: "RULER",
   REVOLUTION_AXIS: "REVOLUTION_AXIS",
-  REVOLUTION_POINT: "REVOLUTION_POINT",
+  REVOLUTION_AXIS_PLACEMENT: "REVOLUTION_AXIS_PLACEMENT",
 };
 
 export function resolveDrawingShapeFromType(annotationType) {

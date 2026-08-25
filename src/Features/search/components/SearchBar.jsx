@@ -13,6 +13,7 @@ export default function SearchBar({
   onCreateClick,
   color,
   placeholder = "Recherche...",
+  fullWidth = false,
 }) {
   const [focused, setFocused] = useState(false);
   const blurTimeout = useRef(null);
@@ -52,7 +53,7 @@ export default function SearchBar({
         onChange={(e) => onChange(e.target.value)}
         onFocus={handleFocus}
         onBlur={handleBlur}
-        fullWidth={focused}
+        fullWidth={focused || fullWidth}
         size="small"
         InputProps={{
           startAdornment: !focused && (
@@ -70,7 +71,7 @@ export default function SearchBar({
         }}
         sx={{
           transition: "width 0.3s ease",
-          minWidth: focused ? "100%" : "200px",
+          minWidth: focused || fullWidth ? "100%" : "200px",
         }}
       />
       {onCreateClick && (

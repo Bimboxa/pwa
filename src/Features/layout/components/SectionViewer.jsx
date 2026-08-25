@@ -12,11 +12,15 @@ import TableViewer from "Features/tables/components/ViewerTable";
 import MainPortfolioEditor from "Features/portfolioEditor/components/MainPortfolioEditor";
 import MainBaseMapViewer from "Features/baseMapEditor/components/MainBaseMapViewer";
 import ZoningsTree from "Features/zonings/components/ZoningsTree";
+import PanelBaseMaps from "Features/baseMapEditor/components/PanelBaseMaps";
 import ViewerAdmin from "Features/adminEditor/components/ViewerAdmin";
 import MainListingViewer from "Features/listingViewer/components/MainListingViewer";
 import LeftDrawerPanel from "Features/leftPanel/components/LeftDrawerPanel";
+import LeftDrawerPanelHeader from "Features/leftPanel/components/LeftDrawerPanelHeader";
 import PanelMeshesViewer from "Features/threedMesh/components/PanelMeshesViewer";
-import PanelAnnotationsRecap from "Features/annotations/components/PanelAnnotationsRecap";
+import PanelDrawing from "Features/panelDrawing/components/PanelDrawing";
+import PanelPhotos from "Features/photos/components/PanelPhotos";
+import PanelViewerAnnotations from "Features/panelDrawing/components/PanelViewerAnnotations";
 import PanelPovList from "Features/pov/components/PanelPovList";
 import ButtonSavePov from "Features/pov/components/ButtonSavePov";
 import ButtonCreatePovView from "Features/pov/components/ButtonCreatePovView";
@@ -59,7 +63,12 @@ export default function SectionViewer() {
   const showLeaflet = viewerKey === "LEAFLET";
   const showTable = viewerKey === "TABLE";
   const showPortfolio = viewerKey === "PORTFOLIO";
-  const showBaseMaps = viewerKey === "BASE_MAPS";
+  // BASE_MAPS is multi-editor (T toggle): its 2D editor is its own
+  // MainMapEditorV3 instance, its 3D editor the shared one. The module's
+  // viewer stays MOUNTED (slid off-screen) while the 3D editor is displayed,
+  // so the 3D->2D camera sync has a live 2D camera to pose.
+  const isBaseMapsModule = viewerKey === "BASE_MAPS";
+  const showBaseMaps = effectiveKey === "BASE_MAPS";
   // ZONES is multi-editor (T toggle) and owns no editor of its own: its 2D
   // editor IS the shared map editor above (so `Z` keeps the camera framing),
   // its 3D editor the shared 3D one. Only the zonings drawer is module-specific.
@@ -87,12 +96,35 @@ export default function SectionViewer() {
         </LeftDrawerPanel>
       )}
 
-      {/* Dessin drawer: annotations recap by listing / template. Mounted for
-          both editors of the module (the module key stays "MAP" when the 2D/3D
-          toggle displays the 3D editor). */}
+      {/* Dessin module: interactive annotations drawer (listing selector,
+          template rows with the split draw button, drawing tools) — took over
+          the floating PopperMapListings (#310). Mounted for both editors of
+          the module (the module key is unchanged when the 2D/3D toggle swaps
+          the displayed editor). The outer guard is load-bearing — in docked
+          mode LeftDrawerPanel renders its fixed-width box without checking
+          viewerKey. */}
       {viewerKey === "MAP" && (
-        <LeftDrawerPanel width={320} viewerKey="MAP">
-          <PanelAnnotationsRecap />
+        <LeftDrawerPanel width={360} viewerKey="MAP">
+          <PanelDrawing />
+        </LeftDrawerPanel>
+      )}
+
+      {/* Photos module: albums drawer (album selector, upload drop zone,
+          3-column thumbnail grid, photo detail subview). 2D-only module —
+          its single editor is the shared "MAP" instance. The guard is
+          load-bearing for the same reason as the Dessin panel. */}
+      {viewerKey === "PHOTOS" && (
+        <LeftDrawerPanel width={360} viewerKey="PHOTOS">
+          <PanelPhotos />
+        </LeftDrawerPanel>
+      )}
+
+      {/* Viewer module: read-only annotations drawer — every listing of the
+          repérage as a collapsible section over its template rows (shares
+          the detail subviews with the Dessin panel). */}
+      {viewerKey === "THREED" && (
+        <LeftDrawerPanel width={360} viewerKey="THREED">
+          <PanelViewerAnnotations />
         </LeftDrawerPanel>
       )}
 
@@ -103,10 +135,21 @@ export default function SectionViewer() {
       {isZonesModule && (
         <LeftDrawerPanel width={300} viewerKey="ZONES">
           <BoxFlexVStretch sx={{ height: 1 }}>
+            <LeftDrawerPanelHeader title="Zones" />
             <BoxFlexVStretch sx={{ overflow: "auto" }}>
               <ZoningsTree />
             </BoxFlexVStretch>
           </BoxFlexVStretch>
+        </LeftDrawerPanel>
+      )}
+
+      {/* Base maps panel: in-flow sibling of the editors area so it serves
+          both the 2D and the 3D editor of the module (same pattern as the
+          Zones drawer; the guard is load-bearing for the same reason). The
+          panel owns the tree / base map detail subview switching (#312). */}
+      {isBaseMapsModule && (
+        <LeftDrawerPanel width={360} viewerKey="BASE_MAPS">
+          <PanelBaseMaps />
         </LeftDrawerPanel>
       )}
 
@@ -154,7 +197,7 @@ export default function SectionViewer() {
         <MainPortfolioEditor />
       </PanelShowable>}
 
-      {showBaseMaps && <PanelShowable show={showBaseMaps} sx={{ position: "absolute", zIndex: 0 }}>
+      {isBaseMapsModule && <PanelShowable show={showBaseMaps} sx={{ position: "absolute", zIndex: 0 }}>
         <MainBaseMapViewer />
       </PanelShowable>}
 

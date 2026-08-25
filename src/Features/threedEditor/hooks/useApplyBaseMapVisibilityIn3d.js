@@ -1,10 +1,9 @@
 import { useEffect } from "react";
-import { useSelector, useStore } from "react-redux";
+import { useSelector } from "react-redux";
 
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
-import getBaseMapOpacityIn3d from "Features/threedEditor/utils/getBaseMapOpacityIn3d";
 
 // Mirrors `state.threedEditor.visibleBaseMapIdsIn3d` (image-eye toggle) and
 // `state.threedEditor.annotationsModeByBaseMapIdIn3d` (per-basemap annotation
@@ -43,7 +42,6 @@ export default function useApplyBaseMapVisibilityIn3d({
   );
   const mainBaseMap = useMainBaseMap();
   const { value: baseMaps = [] } = useBaseMaps();
-  const store = useStore();
 
   const visibleKey = (visibleIds || []).join(",");
   const annotationsModeKey = Object.entries(annotationsModeByBaseMapId || {})
@@ -56,7 +54,6 @@ export default function useApplyBaseMapVisibilityIn3d({
     const imagesManager = editor?.sceneManager?.imagesManager;
     if (!imagesManager) return;
 
-    const threedEditorState = store.getState().threedEditor;
     const mainId = mainBaseMap?.id ?? null;
     const visible = new Set(visibleIds || []);
     const annoModes = annotationsModeByBaseMapId || {};
@@ -74,9 +71,7 @@ export default function useApplyBaseMapVisibilityIn3d({
 
       if (shouldParticipate) {
         if (!imagesManager.hasTexturedImageObject(bm.id)) {
-          editor.ensureBaseMapLoaded(bm, {
-            opacity: getBaseMapOpacityIn3d(threedEditorState, bm.id),
-          });
+          editor.ensureBaseMapLoaded(bm);
         }
         groupVisibleById[bm.id] = true;
         imageVisibleById[bm.id] = eyeOn && !hideBaseMaps;

@@ -64,7 +64,7 @@ async function duplicateAnnotations(annotationIds, newLayerId) {
   const sourceIds = sourceAnnotations.map((a) => a.id);
 
   // old ID -> new ID map for annotations, built upfront so intra-batch
-  // references (cuts[].cutHostId, proxy.proxySourceAnnotationId, rels)
+  // references (cuts[].cutHostId, rels)
   // can be remapped to the copies
   const annotationIdMap = {};
   for (const id of sourceIds) {

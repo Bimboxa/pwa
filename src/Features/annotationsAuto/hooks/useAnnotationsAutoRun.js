@@ -8,6 +8,7 @@ import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 
 import resolvePoints from "Features/annotations/utils/resolvePoints";
 import resolveCuts from "Features/annotations/utils/resolveCuts";
+import resyncRevolutionAxisPlacementsService from "Features/elevation/services/resyncRevolutionAxisPlacementsService";
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
 import getAnnotationAsPolygons from "Features/geometry/utils/getAnnotationAsPolygons";
 
@@ -78,6 +79,10 @@ export default function useAnnotationsAutoRun() {
     procedureKey,
     sourceAnnotationIds,
     autoCreatedFrom,
+    // per-run values from a procedure-specific params dialog (see
+    // ProcedureActionButtons / registry entry paramsDialog); procedures fall
+    // back to the values stored on their source annotation when absent.
+    procedureParams,
   }) => {
     // data
 
@@ -105,12 +110,30 @@ export default function useAnnotationsAutoRun() {
       const idSet = new Set(sourceAnnotationIds);
       // STRIP is included so guide annotations drawn as strips (e.g. a
       // COTE:EXT template whose drawing produced a STRIP) reach the
-      // procedure exactly like guide polylines.
+      // procedure exactly like guide polylines. REVOLUTION_AXIS so a plan
+      // axis can source a procedure (CHATEAU_EAU_V1).
       const polylikes = (visibleAnnotations ?? []).filter(
         (a) =>
-          a.type === "POLYLINE" || a.type === "POLYGON" || a.type === "STRIP"
+          a.type === "POLYLINE" ||
+          a.type === "POLYGON" ||
+          a.type === "STRIP" ||
+          a.type === "REVOLUTION_AXIS"
       );
       sourceAnnotations = polylikes.filter((a) => idSet.has(a.id));
+
+      // A REVOLUTION_AXIS source may live on ANOTHER base map than the
+      // current one (plan axis launched from its placement's vertical map):
+      // visibleAnnotations is main-base-map-scoped, so fetch the missing ids
+      // raw — procedures read row fields off the axis (id, procedureParams,
+      // listing…), never its resolved geometry.
+      const foundIds = new Set(sourceAnnotations.map((a) => a.id));
+      const missingIds = sourceAnnotationIds.filter((id) => !foundIds.has(id));
+      if (missingIds.length > 0) {
+        const missingRows = (await db.annotations.bulkGet(missingIds)).filter(
+          (r) => r && !r.deletedAt && r.type === "REVOLUTION_AXIS"
+        );
+        sourceAnnotations = [...sourceAnnotations, ...missingRows];
+      }
 
       // Adjacency context: a procedure can declare mappingCategories whose
       // visible POLYGON / POLYLINE / STRIP annotations must be part of the
@@ -137,13 +160,24 @@ export default function useAnnotationsAutoRun() {
         // only for procedures that understand guides. `a` is resolved by
         // useAnnotationsV2, so a.isExt already reflects the template lock.
         const guidesEnabled = adjacencyCategories.includes("COTE:EXT");
-        const neighbors = candidates.filter((a) => {
+        let neighbors = candidates.filter((a) => {
           const template = templateById.get(a.annotationTemplateId);
           const categories = template?.mappingCategories ?? [];
           if (adjacencyCategories.some((c) => categories.includes(c)))
             return true;
           return guidesEnabled && a.isExt === true;
         });
+        // "Actualiser" resets (soft-deletes the previous outputs) and re-runs
+        // in the same handler: visibleAnnotations is React state and may
+        // still list rows just deleted. A procedure reading its own previous
+        // outputs as context (REPAIR_SOL_WALL_TOPOLOGY: "chain already
+        // walled") would then skip re-creating them. Check the db.
+        if (neighbors.length > 0) {
+          const rows = await db.annotations.bulkGet(neighbors.map((a) => a.id));
+          neighbors = neighbors.filter(
+            (_a, i) => rows[i] && !rows[i].deletedAt
+          );
+        }
         sourceAnnotations = [
           ...sourceAnnotations,
           ...neighbors.map((a) => ({ ...a, isAdjacencyOnly: true })),
@@ -425,7 +459,7 @@ export default function useAnnotationsAutoRun() {
         ? parsedWaterHeight - (baseMap?.position?.y ?? 0)
         : null;
 
-    const result = procedureFn({
+    const result = await procedureFn({
       sourceAnnotations,
       sourceRels,
       pointAnnotations,
@@ -446,6 +480,7 @@ export default function useAnnotationsAutoRun() {
         ignoreInteriorWalls,
         targetAnnotationTemplate,
         targetListingId,
+        procedureParams: procedureParams ?? null,
       },
     });
 
@@ -470,14 +505,24 @@ export default function useAnnotationsAutoRun() {
         // they can later be reset/refreshed (see RowProcedureActionAuto).
         // Procedures that track sources per output set autoCreatedFrom
         // themselves (one id per annotation); the run-level id only fills in
-        // annotations left untagged.
+        // annotations left untagged. Every output is also tagged with the
+        // procedure key so reset / refresh of procedure A never sweeps the
+        // outputs of procedure B run from the same source. Revolution-axis
+        // placements are infrastructure (the drawing base on the vertical
+        // map), not outputs: never tagged, so a procedure reset keeps them.
         await db.annotations.bulkAdd(
-          annotations.map((a) => ({
-            ...a,
-            ...(!a.autoCreatedFrom && autoCreatedFrom
-              ? { autoCreatedFrom }
-              : {}),
-          }))
+          annotations.map((a) => {
+            if (a.type === "REVOLUTION_AXIS_PLACEMENT") return { ...a };
+            return {
+              ...a,
+              ...(!a.autoCreatedFrom && autoCreatedFrom
+                ? { autoCreatedFrom }
+                : {}),
+              ...(procedureKey
+                ? { autoCreatedByProcedureKey: procedureKey }
+                : {}),
+            };
+          })
         );
         if (rels.length > 0) {
           await db.relAnnotationMappingCategory.bulkAdd(
@@ -502,6 +547,19 @@ export default function useAnnotationsAutoRun() {
         }
       }
     );
+
+    // A procedure that materialized a REVOLUTION_AXIS_PLACEMENT (drawing base
+    // on a vertical map) must also pose that base map — same post-create step
+    // as the manual drop in useHandleCommitDrawing.
+    const createdPlacements = (annotations ?? []).filter(
+      (a) => a.type === "REVOLUTION_AXIS_PLACEMENT"
+    );
+    for (const placement of createdPlacements) {
+      await resyncRevolutionAxisPlacementsService({
+        placementId: placement.id,
+        dispatch,
+      });
+    }
 
     dispatch(triggerAnnotationsUpdate());
 

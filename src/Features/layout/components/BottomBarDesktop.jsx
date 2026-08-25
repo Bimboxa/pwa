@@ -13,6 +13,7 @@ import RectangleDimsBottomBar from "Features/annotations/components/RectangleDim
 import SegmentLengthBottomBar from "Features/annotations/components/SegmentLengthBottomBar";
 import CircleRadiusBottomBar from "Features/annotations/components/CircleRadiusBottomBar";
 import ToolbarDrawingDraft from "Features/mapEditor/components/ToolbarDrawingDraft";
+import ToolbarStartDrawTemplate from "Features/panelDrawing/components/ToolbarStartDrawTemplate";
 import SectionReadOnlyScopeInBottomBar from "Features/scopes/components/SectionReadOnlyScopeInBottomBar";
 
 // Drawing modes that surface a dedicated bottom-bar UI (and hide the regular
@@ -28,6 +29,7 @@ const RECTANGLE_DRAWING_MODES = [
 const CIRCLE_RADIUS_DRAWING_MODES = [
   "POLYLINE_CIRCLE_RADIUS",
   "POLYGON_CIRCLE_RADIUS",
+  "REVOLUTION_AXIS_PLAN",
 ];
 
 // Modes that produce segments and support length display / constraint.
@@ -107,6 +109,9 @@ export default function BottomBarDesktop() {
       }}
     >
       <ToolbarDrawingDraft />
+      {/* Dessin panel on a template's annotations list: pick a tool to start
+          drawing an annotation of that template (null once a draw is armed). */}
+      <ToolbarStartDrawTemplate />
       <Box sx={{ display: "flex", gap: 1, alignItems: "center", pl: 1 }}>
         <ButtonSigninV2 />
         <ButtonAppVersion />

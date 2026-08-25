@@ -8,7 +8,13 @@ const threedEditorInitialState = {
   // When true, annotation materials ignore `annotation.opacity` and render
   // fully opaque. Exposed as the "Transparence des annotations" switch.
   disableOpacity: false,
-  // When true, CM-width POLYLINE footprints are contracted by 5 mm before
+  // Bumped after each loadAnnotations pass (basemap groups guaranteed to
+  // exist at that point). Consumed by the effects that attach objects to the
+  // basemap groups (ThreedAnnotationLabels, ThreedCoteAnnotations): on a
+  // fresh page load landing directly on 3D, their first run happens BEFORE
+  // the parent loader hooks create the groups, and nothing else re-runs them.
+  annotationsLoadTick: 0,
+  // When true, CM-width POLYLINE footprints are contracted by 10 mm before
   // extrusion to avoid coplanar-face aliasing when a parement abuts a wall.
   antiAliasingShrink: true,
   // Max dihedral angle (degrees) joining two adjacent facets into the same
@@ -16,6 +22,14 @@ const threedEditorInitialState = {
   // 0 = strictly coplanar facets only; 25 follows a revolution or swept
   // surface across its facets without crossing a real crease.
   faceSelectionAngleDeg: 25,
+  // "Wireframe" section: black grid-edge lines drawn on annotation meshes
+  // (EdgesGeometry overlays). showWireframe toggles them; wireframeAngleDeg is
+  // the EdgesGeometry dihedral threshold (degrees) — 1 (three's default) draws
+  // every lathe/sweep facet seam, higher values keep only silhouettes and
+  // real creases. Synced live by MainThreedEditor →
+  // AnnotationsManager.setWireframeSettings.
+  showWireframe: true,
+  wireframeAngleDeg: 1,
   // Viewport render mode (session-only). "STANDARD" = the historical unlit /
   // Lambert look. "REALISTIC" = real-time PBR: physical materials, white
   // environment lighting, ACES tone mapping. "PHOTOREAL" = the full raster
@@ -95,23 +109,6 @@ const threedEditorInitialState = {
     // mesh to the scene.
     snapIndexEpoch: 0,
   },
-  // Move mode: select an annotation and translate it along the baseMap
-  // normal via a gizmo + numeric field. Mutually exclusive with
-  // `drawingMode.active`.
-  moveMode: {
-    active: false,
-    // Annotation currently being moved (id from db.annotations).
-    selectedAnnotationId: null,
-    // Live delta in meters along the baseMap-local Z axis, mirrored from
-    // the gizmo and from the numeric field.
-    deltaZ: 0,
-    // Snapshot of the active sub-selection at "Move" click time. When set,
-    // the gizmo targets the centroid of the listed pointIds (single vertex
-    // or edge midpoint) and writes the delta to per-point offsetTop instead
-    // of the annotation-wide offsetZ.
-    // Shape: { annotationId, kind: 'VERTEX'|'EDGE', pointIds, vertexIndex }
-    subSelectionTarget: null,
-  },
   // Single clipping plane (session-only). `enabled` = plane applied to the
   // annotation/basemap materials; `editing` = panel + draggable gizmo shown.
   // The plane geometry itself lives in ClippingManager (three.js side).
@@ -119,10 +116,26 @@ const threedEditorInitialState = {
     enabled: false,
     editing: false,
   },
+  // Camera side vs each VERTICAL base map plane, keyed by baseMapId.
+  // 1 = camera on the +normal (image-facing) side, -1 = behind. Maintained by
+  // useRevolutionSectionIn3d; consumed by the REVOLUTION half-view
+  // (revolutions render only the 180° half on the side opposite the camera so
+  // the image reads as a section plane).
+  // Session-only, display-only — quantities stay full-rotation.
+  revolutionSectionSideByBaseMapId: {},
+  // "Révolution partielle" switch (3D view settings): ON = 180° half-view of
+  // revolutions (camera-side driven); OFF = full 360° revolutions. Explicit
+  // per-axis sectors (`revolutionPhi`) apply either way.
+  // Display-only, session-only. ON by default.
+  forceRevolutionSectionIn3d: true,
+  // "Pochage des coupes" switch (3D view settings): fill the section of
+  // partial revolutions with a flat dark face when the profile is a closed
+  // contour. The ink boundary lines are always shown on partial revolutions;
+  // only the fill is optional. Display-only, session-only.
+  revolutionSectionFillIn3d: false,
   // Dimension ("cote") mode: click two mesh-snapped points to create a COTE
   // annotation (template-driven via useTemplateCoteDrawBridge, committed by
-  // commitDrawnCoteService). Mutually exclusive with `drawingMode.active`
-  // and `moveMode.active`.
+  // commitDrawnCoteService). Mutually exclusive with `drawingMode.active`.
   dimensionMode: {
     active: false,
     // First clicked endpoint, world space, while the second is pending.
@@ -130,7 +143,7 @@ const threedEditorInitialState = {
   },
   // Meshing ("maillage") mode: create mailles from hovered faces and cut
   // them with vertical / horizontal / free lines. Mutually exclusive with
-  // `drawingMode.active`, `moveMode.active` and `dimensionMode.active`.
+  // `drawingMode.active` and `dimensionMode.active`.
   // Hide the annotations from the 3D scene (Panel Maillage toggle) — leaves
   // only basemaps + mailles visible (and lasso-selectable).
   hideAnnotationsIn3d: false,
@@ -189,6 +202,61 @@ const threedEditorInitialState = {
     // Annotation armed by the first click (null = waiting for a face).
     targetAnnotationId: null,
   },
+  // "Déplacer" mode: grab a snapped point (vertex / feature edge) of a base
+  // map's content (image corner, annotation vertex), the whole base map
+  // group (image + annotations) then follows the mouse; the drop click
+  // recomputes the base map `position` so the grabbed point lands exactly
+  // on the drop point (translation only — rotation is kept). Mutually
+  // exclusive with the other 3D tool modes.
+  moveBaseMapMode: {
+    active: false,
+    // Base map currently carried (null = waiting for the grab click).
+    carriedBaseMapId: null,
+  },
+  // "Tourner" mode, CAD-style 3 clicks: 1st snapped click sets the rotation
+  // pivot (and picks the base map), 2nd click fixes the reference axis from
+  // the pivot, the mouse then rotates the whole base map group (image +
+  // annotations) around the WORLD-VERTICAL axis through the pivot — whatever
+  // the plane orientation (the group euler is YXZ, so adding to rotation.y
+  // IS a world-Y rotation) — and the 3rd click commits `angleDeg` + the
+  // recomputed `position`. Mutually exclusive with the other 3D tool modes.
+  rotateBaseMapMode: {
+    active: false,
+    // Base map currently rotating (null = waiting for the pivot click).
+    carriedBaseMapId: null,
+    // Reference axis fixed (2nd click done) — drives the toolbar hint.
+    referenceSet: false,
+    // Angle typed on the keyboard during the rotation phase (degrees), no
+    // focused field — same model as extrudeMode.valueBuffer / the 2D
+    // drawing constraint buffer. A parsable buffer wins over the mouse.
+    angleBuffer: "",
+  },
+  // "Déplacer" mode for ANNOTATIONS (Dessin/MAP module): grab a snapped
+  // vertex of an annotation, the selected annotations then follow the mouse
+  // as one group (in their base map's plane); the drop click writes the new
+  // 2D point coordinates back to db.points. Mutually exclusive with the
+  // other 3D tool modes.
+  moveAnnotationMode: {
+    active: false,
+    // Annotations currently carried (empty = waiting for the grab click).
+    carriedAnnotationIds: [],
+  },
+  // "Tourner" mode for ANNOTATIONS (Dessin/MAP module), CAD-style 3 clicks:
+  // 1st snapped click sets the pivot on an annotation (and picks the carried
+  // set from the selection), 2nd click fixes the reference axis, the mouse
+  // then rotates the carried annotations around the base map plane's normal
+  // through the pivot, and the 3rd click commits the new 2D point
+  // coordinates. Mutually exclusive with the other 3D tool modes.
+  rotateAnnotationMode: {
+    active: false,
+    // Annotations currently rotating (empty = waiting for the pivot click).
+    carriedAnnotationIds: [],
+    // Reference axis fixed (2nd click done) — drives the toolbar hint.
+    referenceSet: false,
+    // Angle typed on the keyboard during the rotation phase (degrees) — same
+    // model as rotateBaseMapMode.angleBuffer.
+    angleBuffer: "",
+  },
   // First-person walk mode (W in the 3D viewer). Camera-controls suspended:
   // pointer-locked mouse looks, arrow keys move on the selected baseMap,
   // Space fires the concrete lance at the screen center.
@@ -227,6 +295,12 @@ export const threedEditorSlice = createSlice({
     },
     setFaceSelectionAngleDeg: (state, action) => {
       state.faceSelectionAngleDeg = action.payload;
+    },
+    setShowWireframe: (state, action) => {
+      state.showWireframe = action.payload;
+    },
+    setWireframeAngleDeg: (state, action) => {
+      state.wireframeAngleDeg = action.payload;
     },
     setRenderMode: (state, action) => {
       state.renderMode = action.payload;
@@ -313,10 +387,7 @@ export const threedEditorSlice = createSlice({
         state.drawingMode.axisLock = null;
         state.drawingMode.snapIndexEpoch = 0;
       } else {
-        // Mutually exclusive with move mode and dimension mode.
-        state.moveMode.active = false;
-        state.moveMode.selectedAnnotationId = null;
-        state.moveMode.deltaZ = 0;
+        // Mutually exclusive with dimension mode.
         state.dimensionMode.active = false;
         state.dimensionMode.startPoint = null;
         state.meshingMode.active = false;
@@ -324,46 +395,23 @@ export const threedEditorSlice = createSlice({
         state.walkMode.active = false;
         state.extrudeMode.active = false;
         state.extrudeMode.targetAnnotationId = null;
+        state.moveBaseMapMode.active = false;
+        state.moveBaseMapMode.carriedBaseMapId = null;
+        state.rotateBaseMapMode.active = false;
+        state.rotateBaseMapMode.carriedBaseMapId = null;
+        state.moveAnnotationMode.active = false;
+        state.moveAnnotationMode.carriedAnnotationIds = [];
+        state.rotateAnnotationMode.active = false;
+        state.rotateAnnotationMode.carriedAnnotationIds = [];
+        state.rotateAnnotationMode.referenceSet = false;
+        state.rotateAnnotationMode.angleBuffer = "";
       }
     },
     bumpSnapIndexEpoch: (state) => {
       state.drawingMode.snapIndexEpoch += 1;
     },
-    setMoveModeActive: (state, action) => {
-      state.moveMode.active = action.payload;
-      if (!action.payload) {
-        state.moveMode.selectedAnnotationId = null;
-        state.moveMode.deltaZ = 0;
-        state.moveMode.subSelectionTarget = null;
-      } else {
-        // Mutually exclusive with drawing, dimension and meshing modes.
-        state.drawingMode.active = false;
-        state.drawingMode.inProgressPolyline = [];
-        state.drawingMode.trait3DSegments = [];
-        state.drawingMode.axisLock = null;
-        state.dimensionMode.active = false;
-        state.dimensionMode.startPoint = null;
-        state.meshingMode.active = false;
-        state.meshingMode.tool = "SELECT";
-        state.walkMode.active = false;
-        state.extrudeMode.active = false;
-        state.extrudeMode.targetAnnotationId = null;
-      }
-    },
-    setMoveSelectedAnnotationId: (state, action) => {
-      state.moveMode.selectedAnnotationId = action.payload;
-      state.moveMode.deltaZ = 0;
-    },
-    setMoveDeltaZ: (state, action) => {
-      state.moveMode.deltaZ = action.payload;
-    },
-    setMoveSubSelectionTarget: (state, action) => {
-      state.moveMode.subSelectionTarget = action.payload;
-      if (action.payload) {
-        // Auto-set the moved annotation id so MoveGizmoThreed picks it up.
-        state.moveMode.selectedAnnotationId = action.payload.annotationId;
-        state.moveMode.deltaZ = 0;
-      }
+    bumpAnnotationsLoadTick: (state) => {
+      state.annotationsLoadTick += 1;
     },
     setSubSelection: (state, action) => {
       const p = action.payload || {};
@@ -419,6 +467,24 @@ export const threedEditorSlice = createSlice({
     setDrawingAxisLock: (state, action) => {
       state.drawingMode.axisLock = action.payload;
     },
+    // Dispatched only when the camera crosses a vertical base map plane
+    // (rare) — the value feeds the annotations build epoch, so each change
+    // rebuilds the 3D objects.
+    setRevolutionSectionSide: (state, action) => {
+      const { baseMapId, side } = action.payload || {};
+      if (!baseMapId) return;
+      if (side !== 1 && side !== -1) {
+        delete state.revolutionSectionSideByBaseMapId[baseMapId];
+      } else {
+        state.revolutionSectionSideByBaseMapId[baseMapId] = side;
+      }
+    },
+    setForceRevolutionSectionIn3d: (state, action) => {
+      state.forceRevolutionSectionIn3d = Boolean(action.payload);
+    },
+    setRevolutionSectionFillIn3d: (state, action) => {
+      state.revolutionSectionFillIn3d = Boolean(action.payload);
+    },
     setClippingPlaneEnabled: (state, action) => {
       state.clippingPlane.enabled = action.payload;
       if (!action.payload) state.clippingPlane.editing = false;
@@ -438,19 +504,26 @@ export const threedEditorSlice = createSlice({
       if (!action.payload) {
         state.dimensionMode.startPoint = null;
       } else {
-        // Mutually exclusive with drawing, move and meshing modes.
+        // Mutually exclusive with drawing and meshing modes.
         state.drawingMode.active = false;
         state.drawingMode.inProgressPolyline = [];
         state.drawingMode.trait3DSegments = [];
         state.drawingMode.axisLock = null;
-        state.moveMode.active = false;
-        state.moveMode.selectedAnnotationId = null;
-        state.moveMode.deltaZ = 0;
         state.meshingMode.active = false;
         state.meshingMode.tool = "SELECT";
         state.walkMode.active = false;
         state.extrudeMode.active = false;
         state.extrudeMode.targetAnnotationId = null;
+        state.moveBaseMapMode.active = false;
+        state.moveBaseMapMode.carriedBaseMapId = null;
+        state.rotateBaseMapMode.active = false;
+        state.rotateBaseMapMode.carriedBaseMapId = null;
+        state.moveAnnotationMode.active = false;
+        state.moveAnnotationMode.carriedAnnotationIds = [];
+        state.rotateAnnotationMode.active = false;
+        state.rotateAnnotationMode.carriedAnnotationIds = [];
+        state.rotateAnnotationMode.referenceSet = false;
+        state.rotateAnnotationMode.angleBuffer = "";
       }
     },
     setDimensionStartPoint: (state, action) => {
@@ -465,19 +538,26 @@ export const threedEditorSlice = createSlice({
         state.meshingMode.tool = "SELECT";
         state.meshingMode.cutSide = "LEFT";
       } else {
-        // Mutually exclusive with drawing, move and dimension modes.
+        // Mutually exclusive with drawing and dimension modes.
         state.drawingMode.active = false;
         state.drawingMode.inProgressPolyline = [];
         state.drawingMode.trait3DSegments = [];
         state.drawingMode.axisLock = null;
-        state.moveMode.active = false;
-        state.moveMode.selectedAnnotationId = null;
-        state.moveMode.deltaZ = 0;
         state.dimensionMode.active = false;
         state.dimensionMode.startPoint = null;
         state.walkMode.active = false;
         state.extrudeMode.active = false;
         state.extrudeMode.targetAnnotationId = null;
+        state.moveBaseMapMode.active = false;
+        state.moveBaseMapMode.carriedBaseMapId = null;
+        state.rotateBaseMapMode.active = false;
+        state.rotateBaseMapMode.carriedBaseMapId = null;
+        state.moveAnnotationMode.active = false;
+        state.moveAnnotationMode.carriedAnnotationIds = [];
+        state.rotateAnnotationMode.active = false;
+        state.rotateAnnotationMode.carriedAnnotationIds = [];
+        state.rotateAnnotationMode.referenceSet = false;
+        state.rotateAnnotationMode.angleBuffer = "";
       }
     },
     setMeshingTool: (state, action) => {
@@ -521,14 +601,21 @@ export const threedEditorSlice = createSlice({
         state.drawingMode.inProgressPolyline = [];
         state.drawingMode.trait3DSegments = [];
         state.drawingMode.axisLock = null;
-        state.moveMode.active = false;
-        state.moveMode.selectedAnnotationId = null;
-        state.moveMode.deltaZ = 0;
         state.dimensionMode.active = false;
         state.dimensionMode.startPoint = null;
         state.meshingMode.active = false;
         state.meshingMode.tool = "SELECT";
         state.walkMode.active = false;
+        state.moveBaseMapMode.active = false;
+        state.moveBaseMapMode.carriedBaseMapId = null;
+        state.rotateBaseMapMode.active = false;
+        state.rotateBaseMapMode.carriedBaseMapId = null;
+        state.moveAnnotationMode.active = false;
+        state.moveAnnotationMode.carriedAnnotationIds = [];
+        state.rotateAnnotationMode.active = false;
+        state.rotateAnnotationMode.carriedAnnotationIds = [];
+        state.rotateAnnotationMode.referenceSet = false;
+        state.rotateAnnotationMode.angleBuffer = "";
       }
     },
     // Mouse-driven update. A no-op while the typed buffer is non-empty — the
@@ -563,16 +650,164 @@ export const threedEditorSlice = createSlice({
         state.drawingMode.inProgressPolyline = [];
         state.drawingMode.trait3DSegments = [];
         state.drawingMode.axisLock = null;
-        state.moveMode.active = false;
-        state.moveMode.selectedAnnotationId = null;
-        state.moveMode.deltaZ = 0;
         state.dimensionMode.active = false;
         state.dimensionMode.startPoint = null;
         state.meshingMode.active = false;
         state.meshingMode.tool = "SELECT";
         state.extrudeMode.active = false;
         state.extrudeMode.targetAnnotationId = null;
+        state.moveBaseMapMode.active = false;
+        state.moveBaseMapMode.carriedBaseMapId = null;
+        state.rotateBaseMapMode.active = false;
+        state.rotateBaseMapMode.carriedBaseMapId = null;
+        state.moveAnnotationMode.active = false;
+        state.moveAnnotationMode.carriedAnnotationIds = [];
+        state.rotateAnnotationMode.active = false;
+        state.rotateAnnotationMode.carriedAnnotationIds = [];
+        state.rotateAnnotationMode.referenceSet = false;
+        state.rotateAnnotationMode.angleBuffer = "";
       }
+    },
+    setMoveBaseMapModeActive: (state, action) => {
+      state.moveBaseMapMode.active = !!action.payload;
+      state.moveBaseMapMode.carriedBaseMapId = null;
+      if (action.payload) {
+        // Mutually exclusive with every other 3D tool mode.
+        state.drawingMode.active = false;
+        state.drawingMode.inProgressPolyline = [];
+        state.drawingMode.trait3DSegments = [];
+        state.drawingMode.axisLock = null;
+        state.dimensionMode.active = false;
+        state.dimensionMode.startPoint = null;
+        state.meshingMode.active = false;
+        state.meshingMode.tool = "SELECT";
+        state.walkMode.active = false;
+        state.extrudeMode.active = false;
+        state.extrudeMode.targetAnnotationId = null;
+        state.rotateBaseMapMode.active = false;
+        state.rotateBaseMapMode.carriedBaseMapId = null;
+        state.moveAnnotationMode.active = false;
+        state.moveAnnotationMode.carriedAnnotationIds = [];
+        state.rotateAnnotationMode.active = false;
+        state.rotateAnnotationMode.carriedAnnotationIds = [];
+        state.rotateAnnotationMode.referenceSet = false;
+        state.rotateAnnotationMode.angleBuffer = "";
+      }
+    },
+    setMoveBaseMapCarriedId: (state, action) => {
+      state.moveBaseMapMode.carriedBaseMapId = action.payload ?? null;
+    },
+    setRotateBaseMapModeActive: (state, action) => {
+      state.rotateBaseMapMode.active = !!action.payload;
+      state.rotateBaseMapMode.carriedBaseMapId = null;
+      state.rotateBaseMapMode.referenceSet = false;
+      state.rotateBaseMapMode.angleBuffer = "";
+      if (action.payload) {
+        // Mutually exclusive with every other 3D tool mode.
+        state.drawingMode.active = false;
+        state.drawingMode.inProgressPolyline = [];
+        state.drawingMode.trait3DSegments = [];
+        state.drawingMode.axisLock = null;
+        state.dimensionMode.active = false;
+        state.dimensionMode.startPoint = null;
+        state.meshingMode.active = false;
+        state.meshingMode.tool = "SELECT";
+        state.walkMode.active = false;
+        state.extrudeMode.active = false;
+        state.extrudeMode.targetAnnotationId = null;
+        state.moveBaseMapMode.active = false;
+        state.moveBaseMapMode.carriedBaseMapId = null;
+        state.moveAnnotationMode.active = false;
+        state.moveAnnotationMode.carriedAnnotationIds = [];
+        state.rotateAnnotationMode.active = false;
+        state.rotateAnnotationMode.carriedAnnotationIds = [];
+        state.rotateAnnotationMode.referenceSet = false;
+        state.rotateAnnotationMode.angleBuffer = "";
+      }
+    },
+    setRotateBaseMapCarriedId: (state, action) => {
+      state.rotateBaseMapMode.carriedBaseMapId = action.payload ?? null;
+      if (!action.payload) {
+        state.rotateBaseMapMode.referenceSet = false;
+        state.rotateBaseMapMode.angleBuffer = "";
+      }
+    },
+    setRotateBaseMapReferenceSet: (state, action) => {
+      state.rotateBaseMapMode.referenceSet = !!action.payload;
+      state.rotateBaseMapMode.angleBuffer = "";
+    },
+    setRotateAngleBuffer: (state, action) => {
+      state.rotateBaseMapMode.angleBuffer = action.payload ?? "";
+    },
+    setMoveAnnotationModeActive: (state, action) => {
+      state.moveAnnotationMode.active = !!action.payload;
+      state.moveAnnotationMode.carriedAnnotationIds = [];
+      if (action.payload) {
+        // Mutually exclusive with every other 3D tool mode.
+        state.drawingMode.active = false;
+        state.drawingMode.inProgressPolyline = [];
+        state.drawingMode.trait3DSegments = [];
+        state.drawingMode.axisLock = null;
+        state.dimensionMode.active = false;
+        state.dimensionMode.startPoint = null;
+        state.meshingMode.active = false;
+        state.meshingMode.tool = "SELECT";
+        state.walkMode.active = false;
+        state.extrudeMode.active = false;
+        state.extrudeMode.targetAnnotationId = null;
+        state.moveBaseMapMode.active = false;
+        state.moveBaseMapMode.carriedBaseMapId = null;
+        state.rotateBaseMapMode.active = false;
+        state.rotateBaseMapMode.carriedBaseMapId = null;
+        state.rotateAnnotationMode.active = false;
+        state.rotateAnnotationMode.carriedAnnotationIds = [];
+        state.rotateAnnotationMode.referenceSet = false;
+        state.rotateAnnotationMode.angleBuffer = "";
+      }
+    },
+    setMoveAnnotationCarriedIds: (state, action) => {
+      state.moveAnnotationMode.carriedAnnotationIds = action.payload ?? [];
+    },
+    setRotateAnnotationModeActive: (state, action) => {
+      state.rotateAnnotationMode.active = !!action.payload;
+      state.rotateAnnotationMode.carriedAnnotationIds = [];
+      state.rotateAnnotationMode.referenceSet = false;
+      state.rotateAnnotationMode.angleBuffer = "";
+      if (action.payload) {
+        // Mutually exclusive with every other 3D tool mode.
+        state.drawingMode.active = false;
+        state.drawingMode.inProgressPolyline = [];
+        state.drawingMode.trait3DSegments = [];
+        state.drawingMode.axisLock = null;
+        state.dimensionMode.active = false;
+        state.dimensionMode.startPoint = null;
+        state.meshingMode.active = false;
+        state.meshingMode.tool = "SELECT";
+        state.walkMode.active = false;
+        state.extrudeMode.active = false;
+        state.extrudeMode.targetAnnotationId = null;
+        state.moveBaseMapMode.active = false;
+        state.moveBaseMapMode.carriedBaseMapId = null;
+        state.rotateBaseMapMode.active = false;
+        state.rotateBaseMapMode.carriedBaseMapId = null;
+        state.moveAnnotationMode.active = false;
+        state.moveAnnotationMode.carriedAnnotationIds = [];
+      }
+    },
+    setRotateAnnotationCarriedIds: (state, action) => {
+      const ids = action.payload ?? [];
+      state.rotateAnnotationMode.carriedAnnotationIds = ids;
+      if (!ids.length) {
+        state.rotateAnnotationMode.referenceSet = false;
+        state.rotateAnnotationMode.angleBuffer = "";
+      }
+    },
+    setRotateAnnotationReferenceSet: (state, action) => {
+      state.rotateAnnotationMode.referenceSet = !!action.payload;
+      state.rotateAnnotationMode.angleBuffer = "";
+    },
+    setRotateAnnotationAngleBuffer: (state, action) => {
+      state.rotateAnnotationMode.angleBuffer = action.payload ?? "";
     },
     setHideAnnotationsIn3d: (state, action) => {
       state.hideAnnotationsIn3d = action.payload;
@@ -612,6 +847,8 @@ export const {
   setDisableOpacity,
   setAntiAliasingShrink,
   setFaceSelectionAngleDeg,
+  setShowWireframe,
+  setWireframeAngleDeg,
   setRenderMode,
   setEnvironment3d,
   setEditorMode,
@@ -636,12 +873,12 @@ export const {
   consumeFaceSegments,
   setDrawingAxisLock,
   bumpSnapIndexEpoch,
-  setMoveModeActive,
-  setMoveSelectedAnnotationId,
-  setMoveDeltaZ,
-  setMoveSubSelectionTarget,
+  bumpAnnotationsLoadTick,
   setSubSelection,
   clearSubSelection,
+  setRevolutionSectionSide,
+  setForceRevolutionSectionIn3d,
+  setRevolutionSectionFillIn3d,
   setClippingPlaneEnabled,
   setClippingPlaneEditing,
   toggleClippingPlaneEditing,
@@ -665,6 +902,18 @@ export const {
   clearExtrudeValueBuffer,
   setExtrudeTargetAnnotationId,
   setWalkModeActive,
+  setMoveBaseMapModeActive,
+  setMoveBaseMapCarriedId,
+  setRotateBaseMapModeActive,
+  setRotateBaseMapCarriedId,
+  setRotateBaseMapReferenceSet,
+  setRotateAngleBuffer,
+  setMoveAnnotationModeActive,
+  setMoveAnnotationCarriedIds,
+  setRotateAnnotationModeActive,
+  setRotateAnnotationCarriedIds,
+  setRotateAnnotationReferenceSet,
+  setRotateAnnotationAngleBuffer,
   setHideAnnotationsIn3d,
   setMesh3dLabels,
   setMesh3dGroupByOrientation,

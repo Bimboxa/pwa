@@ -13,6 +13,7 @@ import {
   ViewInAr,
   GridOn,
   PhotoCamera,
+  PhotoLibrary,
   AccountTree,
 } from "@mui/icons-material";
 
@@ -20,8 +21,9 @@ import theme from "Styles/theme";
 
 // Each entry is a MODULE of the left band. `editors` lists the editors the
 // module can display (default: the module's own key). Multi-editor modules
-// (MAP, POINT_OF_VIEW) expose the 2D/3D toggle ("T" + topBar button), which
-// changes the displayed editor without moving the left-band selection.
+// (BASE_MAPS, MAP, POINT_OF_VIEW, ZONES, THREED) expose the 2D/3D toggle
+// ("T" + topBar button), which changes the displayed editor without moving
+// the left-band selection.
 export default function useViewers() {
   const advancedLayout = useSelector((s) => s.appConfig.advancedLayout);
   const legacy = useSelector((s) => s.appConfig.enableMapEditorLegacy);
@@ -39,6 +41,9 @@ export default function useViewers() {
       icon: <Layers />,
       bgcolor: theme.palette.viewers.map,
       hotkey: "F",
+      // The 2D editor is the module's own MainMapEditorV3 instance (not the
+      // shared "MAP" one); the 3D editor is the shared MainThreedEditor.
+      editors: ["BASE_MAPS", "THREED"],
     },
     {
       key: "MAP",
@@ -50,10 +55,22 @@ export default function useViewers() {
       editors: ["MAP", "THREED"],
     },
     {
+      key: "PHOTOS",
+      label: "Photos",
+      shortLabel: "Photos",
+      icon: <PhotoCamera />,
+      bgcolor: theme.palette.viewers.photos,
+      // Relies on the V3 map editor (the legacy branch renders V2).
+      disabled: legacy,
+      // 2D-only module: displays the shared MainMapEditorV3 instance (like
+      // Zones), no 3D editor and therefore no "T" toggle.
+      editors: ["MAP"],
+    },
+    {
       key: "POINT_OF_VIEW",
       label: "Points de vue",
       shortLabel: "Points de vue",
-      icon: <PhotoCamera />,
+      icon: <PhotoLibrary />,
       bgcolor: theme.palette.viewers.pov,
       // The POV viewer relies on the V3 map editor capture host.
       disabled: legacy,

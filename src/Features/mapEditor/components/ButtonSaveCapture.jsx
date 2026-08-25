@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 
 import { setCaptureToolActive, setCaptureTitleText } from "../mapEditorSlice";
 import { setPovAiEnhanceEnabled } from "Features/pov/povSlice";
+import { setToaster } from "Features/layout/layoutSlice";
 
 import { selectCaptureHostViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 
@@ -17,15 +18,27 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import { AutoAwesome, Close, Edit, PhotoCamera } from "@mui/icons-material";
+import {
+  AutoAwesome,
+  CenterFocusStrong,
+  Close,
+  Edit,
+  PhotoCamera,
+} from "@mui/icons-material";
 
 import PovAiEnhanceFrameOverlay from "Features/pov/components/PovAiEnhanceFrameOverlay";
 import DialogPovEnhancePrompt from "Features/pov/components/DialogPovEnhancePrompt";
 import usePovEnhancePrompt from "Features/pov/hooks/usePovEnhancePrompt";
 import useCaptureFrameBounds from "Features/pov/hooks/useCaptureFrameBounds";
+import usePovs from "Features/pov/hooks/usePovs";
+import useCreatePov from "Features/pov/hooks/useCreatePov";
+import useSavePovTransformedImage from "Features/pov/hooks/useSavePovTransformedImage";
 
+import useMainBaseMap from "../hooks/useMainBaseMap";
+import { getActiveMapEditor } from "../services/mapEditorRegistry";
 import captureMapAsPng, { getPdfPageSize } from "../utils/captureMapAsPng";
 import snapshotThreedCanvasForCapture from "Features/threedEditor/utils/snapshotThreedCanvasForCapture";
+import fitThreedContentInCaptureRect from "Features/threedEditor/utils/fitThreedContentInCaptureRect";
 import enhanceBaseMapService from "Features/baseMaps/services/enhanceBaseMapService";
 import composeEnhancedPovImage from "Features/pov/utils/composeEnhancedPovImage";
 import downloadBlob from "Features/files/utils/downloadBlob";
@@ -37,7 +50,7 @@ import imageToPdfAsync from "Features/pdf/utils/imageToPdfAsync";
 // the frame's title banner), the "Amélioration IA" checkbox (same prompt +
 // endpoint as the POV flow) and the capture button. Positioned `fixed` from
 // screenRect: unlike the POV module, the host's origin does not always
-// coincide with SectionViewer's box (MESHES / ZONES-in-3D nest the editor).
+// coincide with SectionViewer's box (MESHES nests the editor).
 export default function ButtonSaveCapture() {
   const dispatch = useDispatch();
 
@@ -48,7 +61,11 @@ export default function ButtonSaveCapture() {
   const aiEnhanceTooltipS = "Amélioration IA";
   const editPromptS = "Modifier le prompt d'amélioration IA";
   const titlePlaceholderS = "Titre de la capture";
+  const centerBaseMapS = "Centrer le fond de plan dans la capture";
+  const centerThreedS = "Centrer les objets 3D dans la capture";
   const closeS = "Quitter le mode capture";
+  const povSavedS = "Point de vue enregistré";
+  const povFailedS = "Échec de l'enregistrement du point de vue";
 
   // data
 
@@ -74,9 +91,19 @@ export default function ButtonSaveCapture() {
   const roundedBorderMask = useSelector((s) => s.mapEditor.imageModeBorder);
   const highRes = useSelector((s) => s.mapEditor.imageModeHighRes);
   // Output format picked in the panel's Capture tab (SectionCaptureExport).
-  const exportMode = useSelector((s) => s.mapEditor.imageModeExportMode);
+  const storedExportMode = useSelector((s) => s.mapEditor.imageModeExportMode);
 
   const frameBounds = useCaptureFrameBounds(hostViewerKey);
+
+  // "Center the baseMap in the frame" button (2D MAP host only).
+  const baseMap = useMainBaseMap();
+  const basePose = useSelector((s) => s.mapEditor.baseMapPoseInBg);
+
+  // "pov" export mode: the capture is saved as a new point of view instead of
+  // a file (list order comes from the existing POVs).
+  const povs = usePovs();
+  const createPov = useCreatePov();
+  const savePovTransformedImage = useSavePovTransformedImage();
 
   // state
 
@@ -90,6 +117,14 @@ export default function ButtonSaveCapture() {
   const isThreed = hostViewerKey === "THREED";
   const pixelRatio = highRes ? 4 : 2;
   const baseName = captureFileName?.trim() || "capture";
+
+  // useCapturePovView only knows the MAP and THREED hosts, and the mode is
+  // shared state that survives a viewer switch: fall back to a PDF elsewhere
+  // rather than snapshotting a host that is not on screen.
+  const povModeAvailable =
+    hostViewerKey === "MAP" || hostViewerKey === "THREED";
+  const exportMode =
+    storedExportMode === "pov" && !povModeAvailable ? "pdf" : storedExportMode;
 
   // No measurable capture host (e.g. the PORTFOLIO module, where the tool is
   // hidden but its state may linger, or the first pre-measure render): no
@@ -110,9 +145,34 @@ export default function ButtonSaveCapture() {
 
   // handlers
 
+  // "pov" mode: a new point of view holding the usual thumbnail plus the
+  // full-resolution rawImage. The capture tool stays armed (no exit) and the
+  // selection is left alone, so the panel keeps showing the capture band.
+  async function createPovFromCapture() {
+    return await createPov({
+      lastSortIndex: povs?.at(-1)?.sortIndex ?? null,
+      description: captureTitleText,
+      viewerMode: isThreed ? "THREED" : "MAP",
+      withRawImage: true,
+      selectCreated: false,
+    });
+  }
+
   // The full deliverable: decor included, rounded-border mask, high-res,
-  // delivered in the format picked in the panel (pdf / png / clipboard).
+  // delivered in the format picked in the panel (pdf / png / clipboard / pov).
   async function deliverCapture() {
+    if (exportMode === "pov") {
+      const pov = await createPovFromCapture();
+      dispatch(
+        setToaster(
+          pov
+            ? { message: povSavedS }
+            : { message: povFailedS, severity: "warning" }
+        )
+      );
+      return;
+    }
+
     const common = {
       viewerKey: hostViewerKey,
       aspectRatio,
@@ -140,6 +200,19 @@ export default function ButtonSaveCapture() {
 
   // Same format rule for an already-built blob (the AI-enhanced result).
   async function deliverBlob(blob) {
+    if (exportMode === "pov") {
+      // The POV holds the raw capture (thumbnail + rawImage); the enhanced
+      // composite goes in the existing `transformedImage` slot, which is what
+      // the POV panel and the portfolio already prefer for display.
+      const pov = await createPovFromCapture();
+      if (!pov) {
+        dispatch(setToaster({ message: povFailedS, severity: "warning" }));
+        return;
+      }
+      await savePovTransformedImage(pov.id, blob);
+      dispatch(setToaster({ message: povSavedS }));
+      return;
+    }
     if (exportMode === "clipboard") {
       if (navigator.clipboard && typeof ClipboardItem !== "undefined") {
         await navigator.clipboard.write([
@@ -249,6 +322,45 @@ export default function ButtonSaveCapture() {
     }
   }
 
+  // Fit the content inside the capture rect, centered. 2D: whole baseMap
+  // image, same camera math as restorePovViewService.getCamera2dTarget but
+  // fitting both dimensions (the image aspect ratio is arbitrary);
+  // `frameBounds.rect` and the camera matrix share the same host-local
+  // coordinate space. 3D: position-only camera move (orientation kept) that
+  // maximizes the scene objects in the frame.
+  function handleCenterContent() {
+    if (isThreed) {
+      fitThreedContentInCaptureRect(frameBounds);
+      return;
+    }
+    const mapEditor = getActiveMapEditor();
+    const imageSize = baseMap?.getImageSize?.();
+    const { rect } = frameBounds;
+    if (
+      !mapEditor ||
+      !imageSize?.width ||
+      !imageSize?.height ||
+      !basePose?.k ||
+      !rect?.width
+    )
+      return;
+
+    const k =
+      Math.min(
+        rect.width / (imageSize.width * basePose.k),
+        rect.height / (imageSize.height * basePose.k)
+      ) * 0.95; // small breathing margin inside the frame
+    const x =
+      rect.left +
+      rect.width / 2 -
+      (basePose.x + (basePose.k * imageSize.width) / 2) * k;
+    const y =
+      rect.top +
+      rect.height / 2 -
+      (basePose.y + (basePose.k * imageSize.height) / 2) * k;
+    mapEditor.setCameraMatrix?.({ x, y, k });
+  }
+
   function handleQuit() {
     // PanelCaptureTool's transition effect closes the panel if it is open
     // on the CAPTURE tool.
@@ -274,6 +386,21 @@ export default function ButtonSaveCapture() {
             ...barPositionSx,
           }}
         >
+          {/* center the content in the capture frame (2D baseMap / 3D scene) */}
+          {(hostViewerKey === "MAP" || isThreed) && (
+            <>
+              <Tooltip title={isThreed ? centerThreedS : centerBaseMapS}>
+                <Box sx={{ display: "flex", alignItems: "center", px: 0.5 }}>
+                  <IconButton size="small" onClick={handleCenterContent}>
+                    <CenterFocusStrong fontSize="small" />
+                  </IconButton>
+                </Box>
+              </Tooltip>
+
+              <Divider orientation="vertical" flexItem />
+            </>
+          )}
+
           {/* capture title: feeds the frame's title banner (usePovTitleText) */}
           <TextField
             variant="standard"

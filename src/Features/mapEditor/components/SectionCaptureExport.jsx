@@ -17,17 +17,22 @@ import {
   Image as ImageIcon,
   ContentCopy,
   Download,
+  PhotoCamera,
 } from "@mui/icons-material";
+
+import { selectCaptureHostViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 
 import FieldCheck from "Features/form/components/FieldCheck";
 import SectionCaptureOptions from "./SectionCaptureOptions";
 
 // Export modes (output format selector). Label + extension are driven by the
-// selected mode.
+// selected mode. "pov" delivers no file: it saves the framed view as a new
+// point of view (thumbnail + full-resolution rawImage).
 const EXPORT_MODES = {
   pdf: { label: "Télécharger en PDF", ext: ".pdf" },
   png: { label: "Télécharger en PNG", ext: ".png" },
   clipboard: { label: "Copier dans le presse-papier", ext: "" },
+  pov: { label: "Enregistrer dans un point de vue", ext: "" },
 };
 
 const LABEL_SX = {
@@ -53,12 +58,17 @@ const SEG_SX = {
 // ("Export rapide") and by the POV properties panel.
 // The capture tool renders it as pure settings (showButton={false} — its
 // save bar triggers the capture) with the filename lifted to redux via the
-// controlled `filename` / `onFilenameChange` props.
+// controlled `filename` / `onFilenameChange` props, and is the only host
+// offering the "pov" mode (allowPovMode) — the other hosts deliver a file
+// through `onExport` and would not know what to do with it. Since
+// imageModeExportMode is shared state, they also fall back to "pdf" when the
+// capture tool left it on "pov".
 export default function SectionCaptureExport({
   onExport,
   defaultFilename = "capture",
   showOptions = true,
   showButton = true,
+  allowPovMode = false,
   filename: filenameProp,
   onFilenameChange,
 }) {
@@ -72,7 +82,8 @@ export default function SectionCaptureExport({
   );
   // Shared with the capture tool's save bar ("Créer la capture" delivers in
   // the format picked here).
-  const mode = useSelector((s) => s.mapEditor.imageModeExportMode);
+  const storedMode = useSelector((s) => s.mapEditor.imageModeExportMode);
+  const hostViewerKey = useSelector(selectCaptureHostViewerKey);
 
   // state
 
@@ -82,7 +93,13 @@ export default function SectionCaptureExport({
 
   // helpers
 
-  const modeCfg = EXPORT_MODES[mode];
+  const mode = !allowPovMode && storedMode === "pov" ? "pdf" : storedMode;
+  const modeCfg = EXPORT_MODES[mode] ?? EXPORT_MODES.pdf;
+
+  // The "Point de vue" mode captures through useCapturePovView, which only
+  // knows the MAP and THREED hosts.
+  const povModeAvailable =
+    hostViewerKey === "MAP" || hostViewerKey === "THREED";
 
   // High def doubles the html-to-image pixelRatio (default 2 → 4).
   const pixelRatio = highRes ? 4 : 2;
@@ -125,32 +142,34 @@ export default function SectionCaptureExport({
         Export
       </Typography>
 
-      {/* Nom du fichier */}
-      <Box>
-        <Typography
-          variant="caption"
-          color="text.secondary"
-          sx={{ display: "block", px: 1, mb: 0.5 }}
-        >
-          Nom du fichier
-        </Typography>
-        <TextField
-          size="small"
-          fullWidth
-          value={filename}
-          onChange={(e) => handleFilenameChange(e.target.value)}
-          placeholder={defaultFilename}
-          InputProps={{
-            endAdornment: modeCfg.ext ? (
-              <InputAdornment position="end">
-                <Typography variant="body2" color="text.secondary">
-                  {modeCfg.ext}
-                </Typography>
-              </InputAdornment>
-            ) : null,
-          }}
-        />
-      </Box>
+      {/* Nom du fichier (le mode "point de vue" ne produit pas de fichier) */}
+      {mode !== "pov" && (
+        <Box>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ display: "block", px: 1, mb: 0.5 }}
+          >
+            Nom du fichier
+          </Typography>
+          <TextField
+            size="small"
+            fullWidth
+            value={filename}
+            onChange={(e) => handleFilenameChange(e.target.value)}
+            placeholder={defaultFilename}
+            InputProps={{
+              endAdornment: modeCfg.ext ? (
+                <InputAdornment position="end">
+                  <Typography variant="body2" color="text.secondary">
+                    {modeCfg.ext}
+                  </Typography>
+                </InputAdornment>
+              ) : null,
+            }}
+          />
+        </Box>
+      )}
 
       {/* Sélecteur de format */}
       <ToggleButtonGroup
@@ -172,6 +191,12 @@ export default function SectionCaptureExport({
           <ContentCopy sx={{ fontSize: 18 }} />
           Copier
         </ToggleButton>
+        {allowPovMode && (
+          <ToggleButton value="pov" sx={SEG_SX} disabled={!povModeAvailable}>
+            <PhotoCamera sx={{ fontSize: 18 }} />
+            Vue
+          </ToggleButton>
+        )}
       </ToggleButtonGroup>
 
       {/* Résolution (export-time option) */}

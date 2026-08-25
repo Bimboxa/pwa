@@ -88,13 +88,17 @@ export default function PanelPovProperties() {
     updatePov(pov.id, { description });
   }
 
-  // Export: the saved AI-transformed image when the toggle shows it, else a
-  // fresh capture of the currently displayed framed view (the click on the
+  // Export: the saved AI-transformed image when the toggle shows it, else the
+  // stored full-resolution capture (POVs created from the capture tool), else
+  // a fresh capture of the currently displayed framed view (the click on the
   // POV item restored it), at full resolution.
+  // The rawImage is excluded from the Krto export on purpose, so an imported
+  // POV falls through to the fresh capture — that IS the regeneration path.
   async function handleExport({ mode, fileName, pixelRatio, whiteBackground }) {
-    if (transformedFileName) {
+    const storedFileName = transformedFileName ?? pov?.rawImage?.fileName;
+    if (storedFileName) {
       const exported = await exportPovImageService({
-        storedFileName: transformedFileName,
+        storedFileName,
         mode,
         fileName,
         aspectRatio: pov.aspectRatio ?? aspectRatio,

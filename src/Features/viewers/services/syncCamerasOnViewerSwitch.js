@@ -123,6 +123,42 @@ function probe2d(label, { cameraMatrix, basePose, s }) {
 
 let isSwitching = false;
 
+// Sprites rendered with sizeAttenuation:false are NOT fov-invariant: their
+// on-screen size is ∝ 1/tan(fov/2) (three's sprite shader only cancels the
+// perspective divide, not the projection scale). During the dolly-zoom of the
+// switch (reference fov <-> ~8° near-ortho) every label card / handle would
+// balloon by ~6-7x. Hide them for the duration of the fov animation.
+// Module-level so an interrupted restore can be taken over by the next switch
+// (hide() always starts by restoring any pending set).
+let _fovHiddenSprites = null;
+
+function restoreFovSensitiveSprites() {
+  if (!_fovHiddenSprites) return;
+  _fovHiddenSprites.forEach((obj) => {
+    obj.visible = true;
+  });
+  _fovHiddenSprites = null;
+  getActiveThreedEditor()?.sceneManager?.renderScene?.();
+}
+
+function hideFovSensitiveSprites() {
+  restoreFovSensitiveSprites();
+  const sceneManager = getActiveThreedEditor()?.sceneManager;
+  if (!sceneManager?.scene) return;
+  const hidden = [];
+  sceneManager.scene.traverse((obj) => {
+    if (
+      obj.isSprite &&
+      obj.material?.sizeAttenuation === false &&
+      obj.visible
+    ) {
+      obj.visible = false;
+      hidden.push(obj);
+    }
+  });
+  _fovHiddenSprites = hidden;
+}
+
 function getViewersState({ baseMap, basePose }) {
   const threedEditor = getActiveThreedEditor();
   const mapEditor = getActiveMapEditor();
@@ -202,6 +238,9 @@ export async function switchMapToThreed({
       });
       if (pose) {
         probe2d("2D->3D | source 2D view", { cameraMatrix, basePose, s });
+        // Hidden while the fov is away from its reference value (see
+        // hideFovSensitiveSprites) — restored once the ease completes.
+        hideFovSensitiveSprites();
         // The near-ortho start pose is applied synchronously (before the
         // dispatch below reveals the 3D panel); the fov ease then plays
         // while the viewer is visible.
@@ -229,6 +268,7 @@ export async function switchMapToThreed({
       }
     }
   } finally {
+    restoreFovSensitiveSprites();
     isSwitching = false;
   }
 }
@@ -273,6 +313,9 @@ export async function switchThreedToMap({
       viewportHeight: s.viewport3d.height,
       maxDistanceM: ORTHO_MAX_DISTANCE_M,
     });
+    // Hidden while the fov is away from its reference value (see
+    // hideFovSensitiveSprites) — restored after the post-switch fov restore.
+    hideFovSensitiveSprites();
     await s.controlsManager.animateFovTo({
       fovTo: orthoFov,
       durationMs: FOV_ANIMATION_MS,
@@ -313,10 +356,15 @@ export async function switchThreedToMap({
       const controlsManager = s.controlsManager;
       requestAnimationFrame(() =>
         requestAnimationFrame(() => {
-          if (isSwitching) return; // a new switch owns the camera again
+          // A new switch owns the camera (and the hidden-sprites set — its
+          // own hide() restored ours first) again.
+          if (isSwitching) return;
           controlsManager.restorePerspectiveFov({ fovDeg: fovRef });
+          restoreFovSensitiveSprites();
         })
       );
+    } else {
+      restoreFovSensitiveSprites();
     }
   }
 }

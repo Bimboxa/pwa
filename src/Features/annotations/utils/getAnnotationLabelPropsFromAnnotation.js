@@ -1,14 +1,30 @@
 import getBarycenter from "Features/geometry/utils/getBarycenter";
+import {
+    ANNOTATION_LABEL_FONT_SIZES_PX,
+    getAnnotationLabelTextLines,
+    getAnnotationOwnLabel,
+} from "./getAnnotationLabelDisplay";
 
 export default function getAnnotationLabelPropsFromAnnotation(annotation) {
     if (!annotation) return null;
 
-    let { label, points, point } = annotation;
+    // The chip shows (and edits) the annotation's OWN label — never the entity
+    // or template one.
+    const label = getAnnotationOwnLabel(annotation);
+    let { points, point } = annotation;
     if (["POINT", "MARKER"].includes(annotation.type)) points = [point];
 
     if (!points) return null;
 
     const barycenter = getBarycenter(points);
+
+    // Label color = the annotation's VISIBLE color: line types are drawn with
+    // strokeColor (same rule as NodePolylineStatic), surface types with
+    // fillColor.
+    const isLineType = ["POLYLINE", "STRIP", "LINEAR_LAYOUT"].includes(annotation.type);
+    const visibleColor = isLineType
+        ? annotation.strokeColor || annotation.fillColor
+        : annotation.fillColor || annotation.strokeColor;
 
     const labelDelta = annotation.labelDelta || { target: { x: 0, y: 0 }, label: { x: 0, y: 0 } };
 
@@ -27,9 +43,18 @@ export default function getAnnotationLabelPropsFromAnnotation(annotation) {
         id: "label::" + annotation.id,
         type: "LABEL",
         label,
+        lines: getAnnotationLabelTextLines(annotation),
+        fontSize:
+            ANNOTATION_LABEL_FONT_SIZES_PX[annotation.labelFontSize] ??
+            ANNOTATION_LABEL_FONT_SIZES_PX.M,
         labelPoint,
         targetPoint,
-        fillColor: annotation.fillColor,
+        // Chip width in screen px (resize handle in NodeLabelStatic);
+        // undefined = auto (content-driven).
+        width: annotation.labelWidth,
+        // Drop shadow on the 2D chip ("Ombre" switch, default off).
+        shadow: annotation.labelShadow === true,
+        fillColor: visibleColor,
         strokeColor: annotation.strokeColor,
         hidden: !annotation.showLabel,
     };

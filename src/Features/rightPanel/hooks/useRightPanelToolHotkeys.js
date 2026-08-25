@@ -3,6 +3,7 @@ import { useStore } from "react-redux";
 
 import { setSelectedMenuItemKey } from "../rightPanelSlice";
 import { setCaptureToolActive } from "Features/mapEditor/mapEditorSlice";
+import { selectSubtractPickAnnotationId } from "Features/mapEditor/utils/subtractPickMode";
 
 import useRightPanelTools from "./useRightPanelTools";
 
@@ -71,7 +72,7 @@ export default function useRightPanelToolHotkeys() {
       if (s.threedEditor.walkMode.active) return;
       // A draw / paste / subtract owns its own letters (e.g. "B" = STRIP).
       if (s.mapEditor.enabledDrawingMode) return;
-      if (s.mapEditor.pasteClipboard || s.mapEditor.subtractSourceAnnotationId)
+      if (s.mapEditor.pasteClipboard || selectSubtractPickAnnotationId(s))
         return;
 
       const current = s.rightPanel.selectedMenuItemKey;

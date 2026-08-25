@@ -51,6 +51,33 @@ const DRAWING_SHAPES = [
     ),
   },
   {
+    key: "DETAIL",
+    label: "Détail",
+    icon: (
+      <SvgIcon fontSize="small" viewBox="0 0 20 20">
+        <circle
+          cx="8"
+          cy="10"
+          r="6"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+        />
+        <text
+          x="8"
+          y="13"
+          textAnchor="middle"
+          fontSize="8"
+          fontWeight="bold"
+          fill="currentColor"
+        >
+          A
+        </text>
+        <path d="M19 10 L14.2 7.8 L14.2 12.2 Z" fill="currentColor" />
+      </SvgIcon>
+    ),
+  },
+  {
     key: "POLYLINE",
     label: "Ligne",
     icon: (
@@ -117,6 +144,27 @@ const DRAWING_SHAPES = [
     ),
   },
   {
+    key: "CIRCULATION",
+    label: "Circulation",
+    icon: (
+      <SvgIcon fontSize="small" viewBox="0 0 20 20">
+        {/* path with a double-headed arrow */}
+        <line
+          x1="2"
+          y1="10"
+          x2="18"
+          y2="10"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeOpacity="0.5"
+        />
+        <path d="M3 10 L8 6.5 L8 13.5 Z" fill="currentColor" />
+        <path d="M17 10 L12 6.5 L12 13.5 Z" fill="currentColor" />
+        <rect x="7" y="8.5" width="6" height="3" fill="currentColor" />
+      </SvgIcon>
+    ),
+  },
+  {
     key: "COTE",
     label: "Cote",
     icon: (
@@ -151,6 +199,99 @@ const DRAWING_SHAPES = [
         <text x="10" y="7" textAnchor="middle" fontSize="6" fill="currentColor">
           12
         </text>
+      </SvgIcon>
+    ),
+  },
+  {
+    key: "RULER",
+    label: "Règle",
+    icon: (
+      <SvgIcon fontSize="small" viewBox="0 0 20 20">
+        {/* measured polyline */}
+        <line
+          x1="5"
+          y1="2"
+          x2="5"
+          y2="18"
+          stroke="currentColor"
+          strokeWidth="1"
+          strokeDasharray="2 2"
+        />
+        {/* alignment line + graduation ticks */}
+        <line
+          x1="13"
+          y1="2"
+          x2="13"
+          y2="18"
+          stroke="currentColor"
+          strokeWidth="1.5"
+        />
+        {[2, 8, 12, 18].map((y) => (
+          <line
+            key={y}
+            x1={y === 2 || y === 18 ? 10 : 11}
+            y1={y}
+            x2={y === 2 || y === 18 ? 16 : 15}
+            y2={y}
+            stroke="currentColor"
+            strokeWidth="1.5"
+          />
+        ))}
+      </SvgIcon>
+    ),
+  },
+  {
+    key: "LINEAR_LAYOUT",
+    label: "Calepinage linéaire",
+    icon: (
+      <SvgIcon fontSize="small" viewBox="0 0 20 20">
+        {/* axis with arrowheads */}
+        <line
+          x1="2"
+          y1="10"
+          x2="18"
+          y2="10"
+          stroke="currentColor"
+          strokeWidth="1.5"
+        />
+        <path d="M2 10 L5 8.5 L5 11.5 Z" fill="currentColor" />
+        <path d="M18 10 L15 8.5 L15 11.5 Z" fill="currentColor" />
+        {/* bar ticks */}
+        {[7, 10, 13].map((x) => (
+          <line
+            key={x}
+            x1={x}
+            y1="6.5"
+            x2={x}
+            y2="13.5"
+            stroke="currentColor"
+            strokeWidth="1.5"
+          />
+        ))}
+      </SvgIcon>
+    ),
+  },
+  {
+    key: "REVOLUTION_AXIS",
+    label: "Axe de révolution",
+    icon: (
+      <SvgIcon fontSize="small" viewBox="0 0 20 20">
+        {/* plan view of the axis: one filled half-disc + the diameter line */}
+        <path d="M3 10 A7 7 0 0 1 17 10 Z" fill="currentColor" />
+        <path
+          d="M3 10 A7 7 0 0 0 17 10"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+        />
+        <line
+          x1="3"
+          y1="10"
+          x2="17"
+          y2="10"
+          stroke="currentColor"
+          strokeWidth="1.5"
+        />
       </SvgIcon>
     ),
   },

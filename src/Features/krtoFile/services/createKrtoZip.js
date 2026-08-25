@@ -53,6 +53,8 @@ export default async function createKrtoZip(scopeId, options) {
         // scope it was created in, or the source of a duplicated scope. Without
         // this, exporting a duplicated scope would drop all base-map images.
         if (listing.entityModel?.type === "BASE_MAP") return true;
+        // PHOTO albums are project-level shared listings too (same rule).
+        if (listing.entityModel?.type === "PHOTO") return true;
         return false;
     });
 
@@ -83,6 +85,11 @@ export default async function createKrtoZip(scopeId, options) {
         "annotations", "annotationTemplates",
         "portfolioPages",
         "zones", "relsZoneAnnotation",
+        // Photos: rows carry projectId + listingId (PHOTO album listing, kept
+        // by relevantListings above); their image files carry the same
+        // listingId so the files filter ships them too. The photo point is
+        // inline on the row (no db.points involvement).
+        "photos",
         "photoPlans",
     ]);
 
@@ -121,6 +128,9 @@ export default async function createKrtoZip(scopeId, options) {
     // to no listing), so the standard files filter would drop them. Whitelist
     // them explicitly (live POVs only — deleted POVs keep their tombstone row
     // in the export but their image is excluded, like deleted versions).
+    // `rawImage` (the full-resolution capture) is DELIBERATELY not whitelisted:
+    // it would blow up the zip and it is regenerable from the POV module. Its
+    // reference is stripped from the exported pov rows below (step 4).
     const scopePovs = (
         await db.povs.where("scopeId").equals(scopeId).toArray()
     ).filter((p) => !p.deletedAt);
@@ -151,6 +161,14 @@ export default async function createKrtoZip(scopeId, options) {
             if (table === "entityModels" || table === "relAnnotationMappingCategory") {
                 return value.projectId === projectId;
             }
+
+            // Ressources du projet : la ligne de métadonnées (thumbnail inline
+            // compris) part dans le zip, mais PAS le fichier principal — sa
+            // ligne db.files n'a volontairement pas de listingId, donc le
+            // filtre files ci-dessous l'exclut par construction (même
+            // mécanisme que pov.rawImage). L'utilisateur ré-attache le fichier
+            // en local depuis le panneau Ressources après import.
+            if (table === "resources") return value.projectId === projectId;
 
             // Tables indexées par scopeId
             if (tablesWithScopeId.has(table)) return value.scopeId === scopeId;
@@ -213,6 +231,17 @@ export default async function createKrtoZip(scopeId, options) {
                 delete row.deletedAt;
                 delete row.deletedByUserIdMaster;
             }
+        }
+    }
+
+    // POV full-resolution images are not shipped (see step 2ter): drop the
+    // dangling reference too. remapDexieExportIds builds its fileNameMap from
+    // the exported `files` rows, so a surviving rawImage.fileName would get no
+    // mapping and a duplicated scope would point at the source machine's file.
+    const povsTableData = jsonData.data.data.find((t) => t.tableName === "povs");
+    if (povsTableData?.rows) {
+        for (const row of povsTableData.rows) {
+            if (row?.rawImage) delete row.rawImage;
         }
     }
 

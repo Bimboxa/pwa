@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { lazy, Suspense, useMemo, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useLiveQuery } from "dexie-react-hooks";
 
@@ -6,6 +6,7 @@ import db from "App/db/db";
 
 import { setToaster } from "Features/layout/layoutSlice";
 
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useAnnotationsAutoRun from "../hooks/useAnnotationsAutoRun";
 import useDeleteAnnotations from "Features/annotations/hooks/useDeleteAnnotations";
 import fireFlash from "../utils/fireFlash";
@@ -26,8 +27,12 @@ import { PlayArrow, Refresh, DeleteSweep } from "@mui/icons-material";
  * `autoCreatedFrom` is ALWAYS a source annotation id: procedures that track
  * sources per output (fromPolygonsToBim) tag each created annotation with its
  * own source polygon id; the run-level id passed to play (first of the set) is
- * only a fallback for untagged annotations. Reset/refresh act on every
- * annotation whose `autoCreatedFrom` belongs to `sourceAnnotationIds`.
+ * only a fallback for untagged annotations. The run also stamps
+ * `autoCreatedByProcedureKey` on every output. Reset/refresh act on every
+ * annotation whose `autoCreatedFrom` belongs to `sourceAnnotationIds` AND
+ * whose procedure key is this one — so procedure A never deletes what
+ * procedure B created from the same source. Legacy rows (no procedure key)
+ * match any procedure.
  *
  * - Toolbar: a single source annotation → set = [annotation.id].
  * - Listing popper: all annotations of the source template → set = their ids,
@@ -37,9 +42,10 @@ import { PlayArrow, Refresh, DeleteSweep } from "@mui/icons-material";
  *   (sourceListingId / source-less) instead of the selection flow; set = all
  *   annotations linked to the procedure on the base map (reset scope).
  */
+// (callers still pass a `baseMapId` prop; it became unused when the
+// reset/refresh scope moved to autoCreatedFrom over the whole project)
 export default function ProcedureActionButtons({
   procedureKey,
-  baseMapId,
   sourceAnnotationIds,
   sourceListingId = null,
   standardRun = false,
@@ -52,6 +58,11 @@ export default function ProcedureActionButtons({
   const run = useAnnotationsAutoRun();
   const deleteAnnotations = useDeleteAnnotations();
 
+  const appConfig = useAppConfig();
+  const procedure = (appConfig?.automatedAnnotationsProcedures ?? []).find(
+    (p) => p.key === procedureKey
+  );
+
   const annotationsUpdatedAt = useSelector(
     (s) => s.annotations.annotationsUpdatedAt
   );
@@ -61,30 +72,56 @@ export default function ProcedureActionButtons({
   const sourceIds = sourceAnnotationIds ?? [];
   const sourceKey = sourceIds.join(",");
 
-  // annotations created from any of the source annotations (for reset/refresh)
+  // annotations created from any of the source annotations (for reset/refresh).
+  // Scoped by autoCreatedFrom over the PROJECT, not the source's base map: a
+  // procedure may output on another map (CHATEAU_EAU_V1 draws on the vertical
+  // elevation from a plan axis) and reset must still find those rows.
+  const projectId = useSelector((s) => s.projects.selectedProjectId);
   const createdAnnotations = useLiveQuery(async () => {
-    if (sourceIds.length === 0 || !baseMapId) return [];
+    if (sourceIds.length === 0 || !projectId) return [];
     const sourceIdSet = new Set(sourceIds);
     const all = await db.annotations
-      .where("baseMapId")
-      .equals(baseMapId)
+      .where("projectId")
+      .equals(projectId)
       .toArray();
     return all.filter(
-      (a) => !a.deletedAt && sourceIdSet.has(a.autoCreatedFrom)
+      (a) =>
+        !a.deletedAt &&
+        sourceIdSet.has(a.autoCreatedFrom) &&
+        (!a.autoCreatedByProcedureKey ||
+          a.autoCreatedByProcedureKey === procedureKey)
     );
-  }, [sourceKey, baseMapId, annotationsUpdatedAt]);
+  }, [sourceKey, projectId, procedureKey, annotationsUpdatedAt]);
 
   // state
 
   const [running, setRunning] = useState(false);
+  const [paramsDialogOpen, setParamsDialogOpen] = useState(false);
 
   // helpers
 
   const createdCount = createdAnnotations?.length ?? 0;
 
+  // helpers - procedure-specific params dialog (registry entry paramsDialog),
+  // lazy-loaded like the procedure module itself. Only the single-source
+  // selection flow opens it (the dialog reads/writes the source annotation).
+
+  const paramsDialogLoader = procedure?.paramsDialog;
+  const ParamsDialog = useMemo(
+    () => (paramsDialogLoader ? lazy(paramsDialogLoader) : null),
+    [paramsDialogLoader]
+  );
+  const usesParamsDialog =
+    Boolean(ParamsDialog) && !standardRun && sourceIds.length === 1;
+
+  const sourceAnnotation = useLiveQuery(async () => {
+    if (!usesParamsDialog) return null;
+    return db.annotations.get(sourceIds[0]);
+  }, [usesParamsDialog, sourceKey, annotationsUpdatedAt]);
+
   // handlers
 
-  async function applyProcedure() {
+  async function applyProcedure(procedureParams) {
     const result = await run(
       standardRun
         ? {
@@ -100,6 +137,7 @@ export default function ProcedureActionButtons({
             // fallback source tag for annotations the procedure leaves
             // untagged; reset matches by source-id set membership.
             autoCreatedFrom: sourceIds[0],
+            procedureParams,
           }
     );
     const created = result?.annotations?.length ?? 0;
@@ -136,9 +174,31 @@ export default function ProcedureActionButtons({
 
   async function handlePlay() {
     if (running) return;
+    if (usesParamsDialog) {
+      setParamsDialogOpen(true);
+      return;
+    }
     setRunning(true);
     try {
       await applyProcedure();
+    } finally {
+      setRunning(false);
+    }
+  }
+
+  // Refresh goes through the dialog too: the reset must only happen once the
+  // user confirms (closing the dialog must leave the outputs untouched).
+  const refreshViaDialogRef = useRef(false);
+
+  async function handleParamsDialogConfirm(procedureParams) {
+    setParamsDialogOpen(false);
+    if (running) return;
+    const isRefresh = refreshViaDialogRef.current;
+    refreshViaDialogRef.current = false;
+    setRunning(true);
+    try {
+      if (isRefresh) await resetProcedure();
+      await applyProcedure(procedureParams);
     } finally {
       setRunning(false);
     }
@@ -156,6 +216,14 @@ export default function ProcedureActionButtons({
 
   async function handleRefresh() {
     if (running) return;
+    // Params-dialog procedures: always re-open the dialog (pre-filled with
+    // the stored values) so the distances can be adjusted before the re-run;
+    // the reset happens on confirm.
+    if (usesParamsDialog) {
+      refreshViaDialogRef.current = true;
+      setParamsDialogOpen(true);
+      return;
+    }
     setRunning(true);
     try {
       await resetProcedure();
@@ -212,6 +280,19 @@ export default function ProcedureActionButtons({
           </IconButton>
         </span>
       </Tooltip>
+      {ParamsDialog && paramsDialogOpen && (
+        <Suspense fallback={null}>
+          <ParamsDialog
+            open
+            annotation={sourceAnnotation}
+            onClose={() => {
+              refreshViaDialogRef.current = false;
+              setParamsDialogOpen(false);
+            }}
+            onConfirm={handleParamsDialogConfirm}
+          />
+        </Suspense>
+      )}
     </Box>
   );
 }

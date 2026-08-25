@@ -98,6 +98,14 @@ export default function usePointDrag({
         const _selectedNode = selectedNodeRef.current;
         const _annotations = annotationsRef.current;
 
+        // Id-less vertex = a revolution-axis anchor (see getBestSnap: the
+        // centre / diameter ends are deliberately published without a point
+        // id). The move gesture belongs to the annotation drag — which owns
+        // the elevation-pose resync — so fall through WITHOUT the permission
+        // check: checkPointPermission(undefined) matches no annotation and
+        // would wrongly toast "not the creator" at the axis's own author.
+        if (!pointId) return false;
+
         // Permission check avec fork
         const { allowed, mustFork } = permissions.checkPointPermission(pointId);
         if (!allowed) return false; // Aucune de mes annotations n'utilise ce point → bloquer

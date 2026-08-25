@@ -6,6 +6,7 @@ import useToolbarDrag from "Features/mapEditor/hooks/useToolbarDrag";
 import { Box } from "@mui/material";
 
 import ToolbarEditMesh3d from "./ToolbarEditMesh3d";
+import { selectCaptureFramingActive } from "Features/viewers/utils/effectiveViewerKey";
 import { matchesActiveViewerKey } from "Features/viewers/utils/threedViewerKeys";
 
 // Floating edit toolbar for a single selected maille. Mirrors
@@ -14,6 +15,11 @@ import { matchesActiveViewerKey } from "Features/viewers/utils/threedViewerKeys"
 export default function PopperEditMesh3d({ viewerKey = null }) {
   const activeViewerKey = useSelector((s) => s.viewers.selectedViewerKey);
   const selectedItems = useSelector(selectSelectedItems);
+
+  // No edit toolbar while a capture frame owns the screen (Capture tool,
+  // Export rapide, POV framing) — same rule as UILayer / PopperMapListings.
+  // The selection itself is kept, so the toolbar comes back on exit.
+  const captureFramingActive = useSelector(selectCaptureFramingActive);
 
   const shouldShow = viewerKey
     ? matchesActiveViewerKey(viewerKey, activeViewerKey)
@@ -25,7 +31,8 @@ export default function PopperEditMesh3d({ viewerKey = null }) {
 
   const { dragOffset, isDragging, handleDragStart } = useToolbarDrag();
 
-  const open = shouldShow && isSingleSelection && isMesh3d;
+  const open =
+    shouldShow && isSingleSelection && isMesh3d && !captureFramingActive;
   if (!open) return null;
 
   return (

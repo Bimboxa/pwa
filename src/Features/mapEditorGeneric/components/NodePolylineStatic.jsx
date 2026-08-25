@@ -1,7 +1,9 @@
 import { memo, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useSelector } from "react-redux";
-import { darken } from "@mui/material/styles";
+import { darken, lighten } from "@mui/material/styles";
 import theme from "Styles/theme";
+
+import offsetPointsAlongNormals from "../utils/offsetPointsAlongNormals";
 
 // Tracks whether Shift is currently held — used to swap segment/cut hit-area
 // cursors to "+"/"−" so the user sees ahead of clicking whether shift+click
@@ -63,40 +65,22 @@ import useProfileResolution from "Features/annotations/hooks/useProfileResolutio
 import getInlineExtrusionBandMetrics from "Features/annotations/utils/getInlineExtrusionBandShapes";
 import { getProfileAxis } from "Features/elevation/utils/buildProfileSectionGeometry";
 import NodeLabelStatic from "./NodeLabelStatic";
+import NodeSegmentLengthsStatic from "./NodeSegmentLengthsStatic";
 import getInnerOffsetSegmentPath from "Features/mapEditorGeneric/utils/getInnerOffsetSegmentPath";
+import getArrowsAlongPolyline from "Features/annotations/utils/getArrowsAlongPolyline";
 
 // Extra padding on each side of the visible stroke for hit detection, in
 // screen pixels (20 = ~10 px tolerance each side of the visible edge).
 const HIT_STROKE_PADDING_SCREEN_PX = 20;
 
-// Offset each point of a (possibly arc-carrying) path along its local
-// right-of-tangent normal by `distance`. The per-vertex normal uses the
-// neighbour-to-neighbour tangent, which at an arc's circle-midpoint is the
-// radial direction — so offsetting an S-C-S triplet yields a concentric arc
-// and the curve stays smooth. `type` is preserved so the arc-aware path
-// builder still recognises the S-C-S pattern (real arcs, not segments).
-function offsetPointsAlongNormals(pts, distance, closed) {
-  const n = pts.length;
-  if (n < 2) return pts.map((p) => ({ ...p }));
-  return pts.map((p, i) => {
-    let prev;
-    let next;
-    if (closed) {
-      prev = pts[(i - 1 + n) % n];
-      next = pts[(i + 1) % n];
-    } else {
-      prev = i > 0 ? pts[i - 1] : p;
-      next = i < n - 1 ? pts[i + 1] : p;
-    }
-    const dx = next.x - prev.x;
-    const dy = next.y - prev.y;
-    const len = Math.hypot(dx, dy) || 1;
-    const tx = dx / len;
-    const ty = dy / len;
-    // Right-of-tangent normal (matches the 3D sweep side).
-    return { ...p, x: p.x + ty * distance, y: p.y + -tx * distance };
-  });
-}
+// CIRCULATION arrow glyph (screen px). Each direction is a full arrow
+// (shaft + head); with both directions the two arrows sit back to back,
+// separated by a small gap.
+const CIRCULATION_ARROW_HEAD_PX = 14;
+const CIRCULATION_ARROW_HALF_HEIGHT_PX = 9;
+const CIRCULATION_ARROW_SHAFT_PX = 9;
+const CIRCULATION_ARROW_SHAFT_HALF_PX = 3;
+const CIRCULATION_ARROW_GAP_PX = 4;
 
 // For POLYGON segment hit areas we skip the zoom-aware calc and use a fixed
 // screen-space width — polygons have no visible stroke to "grow", so a zoom-
@@ -160,6 +144,11 @@ function NodePolylineStatic({
   // Shift press never re-renders them.
   const isShiftDown = useIsShiftDown(Boolean(selected) && !isTransient);
 
+  // EDIT (Modification) mode drives the segment "move" cursor (getPartCursor).
+  const interactionMode = useSelector(
+    (s) => s.popperMapListings?.interactionMode
+  );
+
   // En aperçu transient (drag de vertex), on ignore complètement le hover :
   // sinon les segments clignotent quand le curseur les survole pendant le drag.
   const effectiveHoveredPartId = isTransient ? null : hoveredPartId;
@@ -196,10 +185,24 @@ function NodePolylineStatic({
 
   const labelAnnotation =
     getAnnotationLabelPropsFromAnnotation(mergedAnnotation);
-  const showLabel = mergedAnnotation.showLabel;
+  const showLabel = mergedAnnotation.showLabel && !forceHideLabel;
   //const showLabel = false;
 
   strokeColor = type === "POLYGON" ? fillColor : strokeColor;
+
+  // --- CIRCULATION (access path) ---
+  // Same annotation as a POLYLINE; only the look differs: the line is drawn
+  // in a lighter tint, the arrows distributed along it keep the full colour.
+  const isCirculation =
+    type === "POLYLINE" && mergedAnnotation.drawingShape === "CIRCULATION";
+  const circulationArrowColor = strokeColor;
+  if (isCirculation) {
+    try {
+      strokeColor = lighten(strokeColor, 0.35);
+    } catch {
+      // keep strokeColor as is
+    }
+  }
 
   // --- EXTRUSION PROFILE (offset preview) ---
   // A POLYLINE whose 3D shape is a profile swept along the contour
@@ -256,11 +259,7 @@ function NodePolylineStatic({
 
   // --- CALCUL ÉPAISSEUR TRAIT ---
   const isCmUnit = strokeWidthUnit === "CM" && baseMapMeterByPx > 0;
-  // REVOLUTION_AXIS is a screen-space guide: keep a constant 2px stroke at any
-  // zoom (vectorEffect="non-scaling-stroke"), even though its listing is a
-  // base-map listing (isForBaseMaps) which would otherwise scale the stroke.
-  const isForBaseMaps =
-    mergedAnnotation.isForBaseMaps && type !== "REVOLUTION_AXIS";
+  const isForBaseMaps = mergedAnnotation.isForBaseMaps;
   const scalesWithZoom = isCmUnit || isForBaseMaps;
 
   const computedStrokeWidth = useMemo(() => {
@@ -314,11 +313,19 @@ function NodePolylineStatic({
   // annotation is already selected*, signal whether a click will add ("+")
   // or remove ("-") that part from the segment multi-selection. On an
   // unselected annotation, Shift means annotation-level multi-select, so
-  // keep the plain pointer.
+  // keep the plain pointer. In EDIT mode a main-contour segment of the
+  // selected annotation is draggable → 4-way move cursor.
   const getPartCursor = (currentPartId) => {
     if (isTransient) return "crosshair";
-    if (!isShiftDown || !selected) return "pointer";
-    return isPartSelected(currentPartId) ? CURSOR_REMOVE : CURSOR_ADD;
+    if (isShiftDown && selected)
+      return isPartSelected(currentPartId) ? CURSOR_REMOVE : CURSOR_ADD;
+    if (
+      selected &&
+      interactionMode === "EDIT" &&
+      currentPartId?.includes("::SEG::")
+    )
+      return "move";
+    return "pointer";
   };
 
   const getPartStyle = (currentPartId) => {
@@ -1192,6 +1199,74 @@ function NodePolylineStatic({
     return `scale(calc(1 / (var(--map-zoom, 1) * ${k})))`;
   }, [containerK]);
 
+  // --- CIRCULATION ARROWS ---
+  // Anchors every `arrowStep` meters along the path (centred distribution).
+  // Glyph size is constant on screen (vertexScaleTransform), like vertices.
+  const circulationArrows = useMemo(() => {
+    if (!isCirculation) return [];
+    const { arrowStep, arrowRight = true, arrowLeft = true } = mergedAnnotation;
+    if (!arrowRight && !arrowLeft) return [];
+    if (!(baseMapMeterByPx > 0)) return [];
+    const stepM = Number(arrowStep);
+    const stepPx = (stepM > 0 ? stepM : 3) / baseMapMeterByPx;
+    return getArrowsAlongPolyline({ points, stepPx, closeLine });
+  }, [
+    isCirculation,
+    mergedAnnotation.arrowStep,
+    mergedAnnotation.arrowRight,
+    mergedAnnotation.arrowLeft,
+    baseMapMeterByPx,
+    points,
+    closeLine,
+  ]);
+
+  function renderCirculationArrows() {
+    if (!isCirculation || circulationArrows.length === 0) return null;
+    const { arrowRight = true, arrowLeft = true } = mergedAnnotation;
+    // Glyph in screen px, centred on the anchor, pointing +x.
+    const HEAD = CIRCULATION_ARROW_HEAD_PX;
+    const HALF_H = CIRCULATION_ARROW_HALF_HEIGHT_PX;
+    const SHAFT = CIRCULATION_ARROW_SHAFT_PX;
+    const SH = CIRCULATION_ARROW_SHAFT_HALF_PX;
+    const both = arrowRight && arrowLeft;
+    const arrowLen = SHAFT + HEAD;
+    // Single arrow: centred on the anchor. Double: each arrow starts half a
+    // gap away from the anchor.
+    const baseX = both ? CIRCULATION_ARROW_GAP_PX / 2 : -arrowLen / 2;
+    // One arrow pointing +x, shaft from baseX to baseX + SHAFT, then head.
+    const arrowPath = (sign) => {
+      const x0 = sign * baseX;
+      const x1 = sign * (baseX + SHAFT);
+      const x2 = sign * (baseX + arrowLen);
+      return (
+        `M ${x0} ${-SH} L ${x1} ${-SH} L ${x1} ${-HALF_H} L ${x2} 0 ` +
+        `L ${x1} ${HALF_H} L ${x1} ${SH} L ${x0} ${SH} Z`
+      );
+    };
+    const parts = [];
+    if (arrowRight) parts.push(arrowPath(1));
+    if (arrowLeft) parts.push(arrowPath(-1));
+    const d = parts.join(" ");
+    return (
+      <g data-part-type="CIRCULATION_ARROWS" style={{ pointerEvents: "none" }}>
+        {circulationArrows.map((a, i) => (
+          <g
+            key={`circ-arrow-${i}`}
+            transform={`translate(${a.x}, ${a.y}) rotate(${a.angleDeg})`}
+          >
+            <g style={{ transform: vertexScaleTransform }}>
+              <path
+                d={d}
+                fill={circulationArrowColor}
+                fillOpacity={strokeOpacity ?? 1}
+              />
+            </g>
+          </g>
+        ))}
+      </g>
+    );
+  }
+
   // --- SLOPE INDICATOR (POLYGON with per-vertex offsetTop) ---
   // Computes the best-fit plane direction over the polygon vertices; null
   // when the surface is flat, has too few points, or the toggle is off.
@@ -1818,6 +1893,9 @@ function NodePolylineStatic({
           </g>
         ))}
 
+      {/* CIRCULATION ARROWS — on top of the strokes, non-interactive */}
+      {renderCirculationArrows()}
+
       {/* GHOST OFFSET INDICATORS (Image D — polygon only, when unselected) */}
       {renderGhostOffsetIndicators()}
 
@@ -1838,6 +1916,24 @@ function NodePolylineStatic({
         pointEntriesToRender.map(({ point, cutIndex, source }) =>
           renderVertex(point, cutIndex, source)
         )}
+
+      {/* SEGMENT LENGTHS — editable per-segment cotes with lock constraints,
+          EDIT (Modification) mode only. Main contour only in v1 (no cuts /
+          innerPoints / guideLines). */}
+      {selected && !disableVertexEditing && (
+        <NodeSegmentLengthsStatic
+          annotation={mergedAnnotation}
+          points={points}
+          closed={closeLine}
+          selected={selected}
+          selectedPointId={selectedPointId}
+          baseMapMeterByPx={baseMapMeterByPx}
+          containerK={containerK}
+          printMode={printMode}
+          isTransient={isTransient}
+          disableVertexEditing={disableVertexEditing}
+        />
+      )}
 
       {/* INNER POINT CURSORS — visible even when the annotation is not selected.
                 Small fixed-size cross (zoom-invariant via vertexScaleTransform),

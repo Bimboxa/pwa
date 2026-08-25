@@ -1,9 +1,11 @@
-import { Box } from "@mui/material";
+import { Box, Typography } from "@mui/material";
+
+import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 
 import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
 
 import {
-  resolveDrawingShapeFromType,
+  resolveDrawingShape,
   getConfigurableProps,
 } from "Features/annotations/constants/drawingShapeConfig";
 
@@ -22,8 +24,16 @@ import FieldAnnotationIsEraser from "./FieldAnnotationIsEraser";
 import FieldAnnotationIsExt from "./FieldAnnotationIsExt";
 import FieldAnnotationIsProfile from "./FieldAnnotationIsProfile";
 import FieldAnnotationLabel from "./FieldAnnotationLabel";
+import FieldAnnotationLinearLayout from "./FieldAnnotationLinearLayout";
+import FieldAnnotationArrows from "./FieldAnnotationArrows";
 
-export default function SectionAnnotationPropertiesContent({ annotation }) {
+// hideOverview: the hosting panel renders the preview / height / quantities
+// card and the label field itself, above the tabs (panel annotation subview)
+// — skip them here to avoid the duplicate.
+export default function SectionAnnotationPropertiesContent({
+  annotation,
+  hideOverview,
+}) {
   // data
 
   const updateAnnotation = useUpdateAnnotation();
@@ -33,7 +43,10 @@ export default function SectionAnnotationPropertiesContent({ annotation }) {
   const type = annotation?.type;
   const overrideFields = annotation?.annotationTemplate?.overrideFields;
 
-  const drawingShape = resolveDrawingShapeFromType(type);
+  // Resolve from the annotation itself, not from its type alone: shapes that
+  // share a type with another shape (or carry their own, like RULER) would
+  // otherwise fall back to the wrong section set.
+  const drawingShape = resolveDrawingShape(annotation);
   const configurableProps = getConfigurableProps(drawingShape);
   const showFill =
     configurableProps.includes("fillColor") ||
@@ -52,36 +65,50 @@ export default function SectionAnnotationPropertiesContent({ annotation }) {
     });
   }
 
+  // LINEAR_LAYOUT: band width L (bar length, meters) — replaces the height
+  // field (same rule as the edit toolbar).
+  async function handleWidthChange(updatedAnnotation) {
+    if (!updatedAnnotation?.id) return;
+    await updateAnnotation({
+      id: updatedAnnotation.id,
+      width: updatedAnnotation.width,
+    });
+  }
+
   // render
 
   return (
     <>
-      <Box sx={{ display: "flex", gap: 1, p: 1, width: 1 }}>
-        <Box
-          sx={{
-            flex: 1,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <FieldAnnotationPreview annotation={annotation} imageHeight={80} />
+      {!hideOverview && (
+        <Box sx={{ display: "flex", gap: 1, p: 1, width: 1 }}>
+          <Box
+            sx={{
+              flex: 1,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <FieldAnnotationPreview annotation={annotation} imageHeight={80} />
+          </Box>
+          <Box
+            sx={{
+              flex: 1,
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+            }}
+          >
+            {type !== "LINEAR_LAYOUT" && (
+              <FieldAnnotationHeight
+                annotation={annotation}
+                onChange={handleHeightChange}
+              />
+            )}
+            <SectionAnnotationQties annotation={annotation} />
+          </Box>
         </Box>
-        <Box
-          sx={{
-            flex: 1,
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "center",
-          }}
-        >
-          <FieldAnnotationHeight
-            annotation={annotation}
-            onChange={handleHeightChange}
-          />
-          <SectionAnnotationQties annotation={annotation} />
-        </Box>
-      </Box>
+      )}
 
       <SectionAnnotationPentes annotation={annotation} />
 
@@ -104,6 +131,29 @@ export default function SectionAnnotationPropertiesContent({ annotation }) {
       >
         <FieldWrapperDimensions annotation={annotation} />
         <FieldAnnotationRotation annotation={annotation} />
+        {/* LINEAR_LAYOUT: band width L (bar length) — same section as the
+            template form, without the override padlock. */}
+        {type === "LINEAR_LAYOUT" && (
+          <WhiteSectionGeneric>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <Typography variant="body2" sx={{ fontWeight: "bold", flex: 1 }}>
+                Largeur
+              </Typography>
+              <FieldAnnotationHeight
+                annotation={annotation}
+                field="width"
+                label=""
+                onChange={handleWidthChange}
+              />
+            </Box>
+          </WhiteSectionGeneric>
+        )}
+        {type === "LINEAR_LAYOUT" && (
+          <FieldAnnotationLinearLayout annotation={annotation} />
+        )}
+        {drawingShape === "CIRCULATION" && (
+          <FieldAnnotationArrows annotation={annotation} />
+        )}
         {showFill && (
           <FieldAnnotationFill
             annotation={annotation}
@@ -116,7 +166,7 @@ export default function SectionAnnotationPropertiesContent({ annotation }) {
             overrideFields={overrideFields}
           />
         )}
-        <FieldAnnotationLabel annotation={annotation} />
+        {!hideOverview && <FieldAnnotationLabel annotation={annotation} />}
         <FieldAnnotationIsProfile annotation={annotation} />
         <FieldAnnotationIsEraser annotation={annotation} />
         {["POLYLINE", "STRIP", "POLYGON"].includes(type) && (

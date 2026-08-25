@@ -38,11 +38,14 @@ function distPointToSegment(px, py, ax, ay, bx, by) {
  */
 function isOnExemptLine(a, b, exemptLines) {
   if (!exemptLines?.length) return false;
-  return exemptLines.some(
-    (l) =>
-      distPointToSegment(a.x, a.y, l.ax, l.ay, l.bx, l.by) <= EXEMPT_TOL_PX &&
-      distPointToSegment(b.x, b.y, l.ax, l.ay, l.bx, l.by) <= EXEMPT_TOL_PX
-  );
+  return exemptLines.some((l) => {
+    // Per-line tolerance (e.g. a wall guide band), else the tight default.
+    const tol = l.tolPx ?? EXEMPT_TOL_PX;
+    return (
+      distPointToSegment(a.x, a.y, l.ax, l.ay, l.bx, l.by) <= tol &&
+      distPointToSegment(b.x, b.y, l.ax, l.ay, l.bx, l.by) <= tol
+    );
+  });
 }
 
 /**
@@ -93,21 +96,31 @@ function isFrontierSubEdge(a, b, frontierEdges, frontierPx) {
  * @param {Array<{ax,ay,bx,by}>} frontierEdges - edges of the neighbor
  *   SOL / SOL_PROXY polygons
  * @param {number} frontierPx - FRONTIER_DETECTION_M converted to pixels
- * @param {Array<{ax,ay,bx,by}>|null} [exemptLines] - user-tagged segment
- *   lines that must never be dropped (manual tags win)
- * @returns {{chains: Array<Array<{x,y}>>, removed: boolean}}
+ * @param {Array<{ax,ay,bx,by,tolPx?}>|null} [exemptLines] - segment lines
+ *   that must never be dropped (manual int/ext tags, emerging ext-wall
+ *   guides); optional per-line tolerance in px
+ * @param {{collectRemoved?: boolean}} [options] - collectRemoved: also return
+ *   the dropped sub-edges, grouped into consecutive chains (`removedChains`).
+ *   The point objects are the chain's own (shared endpoints stay the same JS
+ *   objects as the kept neighbors).
+ * @returns {{chains: Array<Array<{x,y}>>, removed: boolean, removedChains?: Array<Array<{x,y}>>}}
  */
 export default function splitChainsAtFrontierEdges(
   chains,
   frontierEdges,
   frontierPx,
-  exemptLines = null
+  exemptLines = null,
+  options = {}
 ) {
+  const collectRemoved = options.collectRemoved === true;
   if (!frontierEdges?.length || !(frontierPx > 0)) {
-    return { chains, removed: false };
+    return collectRemoved
+      ? { chains, removed: false, removedChains: [] }
+      : { chains, removed: false };
   }
 
   const result = [];
+  const removedChains = [];
   let removed = false;
 
   for (const chain of chains) {
@@ -120,6 +133,7 @@ export default function splitChainsAtFrontierEdges(
     );
 
     let current = [subdivided[0]];
+    let currentRemoved = null; // open run of consecutive dropped sub-edges
     for (let i = 1; i < subdivided.length; i++) {
       const prev = subdivided[i - 1];
       const curr = subdivided[i];
@@ -130,12 +144,23 @@ export default function splitChainsAtFrontierEdges(
         removed = true;
         if (current.length >= 2) result.push(current);
         current = [curr];
+        if (collectRemoved) {
+          if (currentRemoved) currentRemoved.push(curr);
+          else currentRemoved = [prev, curr];
+        }
       } else {
         current.push(curr);
+        if (currentRemoved) {
+          removedChains.push(currentRemoved);
+          currentRemoved = null;
+        }
       }
     }
     if (current.length >= 2) result.push(current);
+    if (currentRemoved) removedChains.push(currentRemoved);
   }
 
-  return { chains: result, removed };
+  return collectRemoved
+    ? { chains: result, removed, removedChains }
+    : { chains: result, removed };
 }

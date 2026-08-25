@@ -8,6 +8,7 @@ import {
 import { nanoid } from "@reduxjs/toolkit";
 
 import db from "App/db/db";
+import { isLegacyStyleRevolutionHelper } from "Features/annotations/constants/drawingShapeConfig";
 
 /**
  * Parses a compact mapping-category string into an object.
@@ -61,6 +62,14 @@ export default function useCreateAnnotation() {
       if (entityId) _annotation.entityId = entityId;
 
       if (annotation.isScaleSegment) {
+        _annotation.listingId = null;
+      }
+
+      // Pre-template revolution helpers belong to a scope + a base map only.
+      // Without this the `?? listing?.id` fallback above would silently
+      // re-attach them to the selected listing and inflate its annotation
+      // counter. Template-linked helpers are normal listing annotations.
+      if (isLegacyStyleRevolutionHelper(_annotation)) {
         _annotation.listingId = null;
       }
 

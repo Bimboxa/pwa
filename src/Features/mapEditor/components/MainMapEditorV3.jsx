@@ -12,6 +12,8 @@ import { setBgImageRawTextAnnotations } from "Features/bgImage/bgImageSlice";
 import { setShowCreateBaseMapSection } from "Features/mapEditor/mapEditorSlice";
 import { selectSelectedItems } from "Features/selection/selectionSlice";
 import { resetVersionCompare } from "Features/baseMapEditor/baseMapEditorSlice";
+import { setLocalizingPhotoId } from "Features/photos/photosSlice";
+import { DEFAULT_FOV_DEG } from "Features/photos/constants/photoNode";
 
 import useMeasure from "react-use-measure";
 
@@ -25,6 +27,8 @@ import {
 import useBgImageInMapEditor from "Features/mapEditor/hooks/useBgImageInMapEditor";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useBaseMapPose from "Features/mapEditor/hooks/useBaseMapPose";
+import applyDeltaPosToAnnotation from "Features/mapEditorGeneric/utils/applyDeltaPosToAnnotation";
+import resyncRevolutionAxisPlacementsService from "Features/elevation/services/resyncRevolutionAxisPlacementsService";
 import useImageModeLabelsLayout from "Features/mapEditor/hooks/useImageModeLabelsLayout";
 
 import useAutoSelectMainBaseMap from "../hooks/useAutoSelectMainBaseMap";
@@ -48,11 +52,13 @@ import useResetNewAnnotation from "Features/annotations/hooks/useResetNewAnnotat
 import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
 import applyOpeningOnPolygon from "Features/annotations/utils/applyOpeningOnPolygon";
 import reflowOpeningsForHost from "Features/mapEditor/services/reflowOpeningsForHostService";
+import applyPointsMovesService from "Features/annotations/services/applyPointsMovesService";
 import shadeMeshCellColor from "Features/mesh/utils/meshCellColor";
 import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
 import useLegendItems from "Features/legend/hooks/useLegendItems";
 import useLegendItemsByBaseMapId from "Features/legend/hooks/useLegendItemsByBaseMapId";
 import {
+  selectActive2dEditorKey,
   selectEffectiveViewerKey,
   selectPovFramingActive,
 } from "Features/viewers/utils/effectiveViewerKey";
@@ -89,6 +95,8 @@ import useCreateAnnotationsFromDetectedFeatures from "Features/smartDetect/hooks
 import useCommitLocalizedRepair from "Features/localizedRepair/hooks/useCommitLocalizedRepair";
 import useCreateAnnotationFromSurfaceDrop from "Features/smartDetect/hooks/useCreateAnnotationFromSurfaceDrop";
 import PopperMapListings from "./PopperMapListings";
+import FloatingHelpersDessin from "Features/panelDrawing/components/FloatingHelpersDessin";
+import PanelDrawingHelperPortal from "Features/panelDrawing/components/PanelDrawingHelperPortal";
 import ImageModeOverlay from "./ImageModeOverlay";
 import ButtonCloseImageMode from "./ButtonCloseImageMode";
 
@@ -134,6 +142,9 @@ import getRectangleRawPointsFromOnePoint from "Features/rectangles/utils/getRect
 import getImageAnnotationRectanglePointsFromOnePoint from "Features/imageAnnotations/utils/getImageAnnotationRectanglePointsFromOnePoint";
 import getObject3DAnnotationRectanglePointsFromOnePoint from "Features/object3D/utils/getObject3DAnnotationRectanglePointsFromOnePoint";
 import imageUrlToPng from "Features/images/utils/imageUrlToPng";
+import buildFolioFromResourcePageAsync from "Features/detailFolio/utils/buildFolioFromResourcePageAsync";
+import getNewAnnotationPropsFromAnnotationTemplate from "Features/annotations/utils/getNewAnnotationPropsFromAnnotationTemplate";
+import { resolveDrawingShape } from "Features/annotations/constants/drawingShapeConfig";
 import useSelectedNodes from "../hooks/useSelectedNodes";
 import useDrawingToolHotkeys from "../hooks/useDrawingToolHotkeys";
 import useFreeAnnotationHotkeys from "../hooks/useFreeAnnotationHotkeys";
@@ -201,18 +212,21 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
         }
     }, [printableMapRef?.current]);
 
-    // Register the camera handle of the MAP instance (this component is also
-    // mounted for BASE_MAPS) so the 2D/3D viewer switch can sync cameras.
+    // Register the camera handle of the instance that is the selected module's
+    // 2D editor (the BASE_MAPS instance in the BaseMap module, the MAP instance
+    // everywhere else) so the 2D/3D viewer switch syncs the right camera.
+    const registersCamera = useSelector(selectActive2dEditorKey) === forViewerKey;
     useEffect(() => {
-        if (forViewerKey !== "MAP") return;
-        setActiveMapEditor({
+        if (!registersCamera) return;
+        const handle = {
             getCameraMatrix: () => interactionLayerRef.current?.getCameraMatrix?.(),
             setCameraMatrix: (m) => interactionLayerRef.current?.setCameraMatrix?.(m),
             getViewportSize: () => interactionLayerRef.current?.getViewportSize?.(),
             getViewportRect: () => interactionLayerRef.current?.getViewportRect?.(),
-        });
-        return clearActiveMapEditor;
-    }, [forViewerKey]);
+        };
+        setActiveMapEditor(handle);
+        return () => clearActiveMapEditor(handle);
+    }, [forViewerKey, registersCamera]);
 
     // data
 
@@ -243,6 +257,37 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
             s.viewers.selectedViewerKey === "THREED" &&
             s.viewers.hideBaseMapImageInViewer
     );
+    // Viewer module (key THREED): read-only consultation. The left panel
+    // (PanelViewerAnnotations) owns the legend when VISIBLE; otherwise the
+    // popper shows it (SELECT-only) — same visibility pattern as Dessin below.
+    const isViewerModule = useSelector((s) => s.viewers.selectedViewerKey === "THREED");
+    // Dessin module (key MAP): the left panel (PanelDrawing) takes over the
+    // listings popper (#310) whenever it is VISIBLE — docked, or drawer mode
+    // while the left area is hovered (the drawer slides over the map). Docked
+    // → the popper UNMOUNTS (stable state, avoids a permanent duplicate
+    // annotations subscription); drawer hover → the popper is only CSS-hidden
+    // so its local state (drag position, ...) survives the transient overlay.
+    const isDessinModule = useSelector((s) => s.viewers.selectedViewerKey === "MAP");
+    // Photos module (key PHOTOS): the Photos panel owns the left side and the
+    // module has no use for the annotation listings popper — never mounted.
+    const isPhotosModule = useSelector(
+        (s) => s.viewers.selectedViewerKey === "PHOTOS"
+    );
+    // Photo being localized by the PHOTO_POSE two-click tool.
+    const localizingPhotoId = useSelector((s) => s.photos.localizingPhotoId);
+    // Viewer module popper: photos render on the map only while the header
+    // toggle sits on its "Photos" tab.
+    const viewerPhotosTabActive = useSelector(
+        (s) => s.popperMapListings.viewerContentMode === "PHOTOS"
+    );
+    const leftPanelDocked = useSelector((s) => s.leftPanel.leftPanelDocked);
+    const leftDrawerHovered = useSelector((s) => s.leftPanel.leftDrawerHovered);
+    const dessinPanelDocked = isDessinModule && leftPanelDocked;
+    const dessinPanelSlidedIn =
+        isDessinModule && !leftPanelDocked && leftDrawerHovered;
+    const viewerPanelDocked = isViewerModule && leftPanelDocked;
+    const viewerPanelSlidedIn =
+        isViewerModule && !leftPanelDocked && leftDrawerHovered;
     const hiddenVersionIds = useSelector((s) => s.baseMapEditor.hiddenVersionIds);
     const selectedVersionId = useSelector((s) => s.baseMapEditor.selectedVersionId);
     const versionTransformOverride = useSelector((s) => s.baseMapEditor.versionTransformOverride);
@@ -347,6 +392,9 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
 
     const openedPanel = useSelector(s => s.listings.openedPanel);
     const hideBaseMapAnnotations = openedPanel !== "BASE_MAP_DETAIL";
+    const showAnnotationsInBaseMaps = useSelector(
+        (s) => s.baseMapEditor.showAnnotations
+    );
 
     _track("newAnnotation", newAnnotation?.id);
     const rawAnnotations = useAnnotationsV2({
@@ -359,7 +407,18 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
         filterBySelectedScope: true,
         sortByOrderIndex: true,
         excludeIsForBaseMapsListings: viewerKey !== "BASE_MAPS",
-        onlyIsForBaseMapsListings: viewerKey === "BASE_MAPS",
+        // "Afficher les annotations" switch of the Fond de plan panel: ON
+        // lifts the isForBaseMaps-only restriction so the drawing
+        // annotations show too.
+        onlyIsForBaseMapsListings:
+            viewerKey === "BASE_MAPS" && !showAnnotationsInBaseMaps,
+        // Read-only outlines of subtraction targets hosted by another base map
+        // (clickable, so the toolbar can offer "Voir l'annotation d'origine").
+        withForeignFootprints: true,
+        // Photo camera poses (point + view cone) — Photos module, and the
+        // Viewer module's 2D editor while the popper's Photos tab is active
+        // (read-only consultation, hover preview + click-select in the grid).
+        withPhotos: isPhotosModule || (isViewerModule && viewerPhotosTabActive),
     });
 
     // "Maillage" toggle: ON → replace meshed parents by their mesh cells (keep
@@ -438,7 +497,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     });
 
 
-    const resetForBaseMapIdRef = useRef(null);
+    const lastAutoFitKeyRef = useRef(null);
 
     useEffect(() => {
 
@@ -447,18 +506,26 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
         // image pixels for one frame, then refit once the width lands.
         if (!viewport?.w || !viewport?.h) return;
 
+        // One auto-fit per displayed content: viewport growth/shrink (docked
+        // drawer, window resize, module switch) must not clobber the user's
+        // camera. Manual re-fit stays available via "Recentrer le fond de plan".
+        // basePose.k only depends on the bg pose, never on the viewport size
+        // (useBaseMapPose uses the viewport as a measured-yet guard only), so
+        // a resize cannot re-arm the key.
+        const fitKey = `${baseMap?.id}|${basePose?.k}|${bgImage?.imageSize?.width}`;
+        if (lastAutoFitKeyRef.current === fitKey) return;
+
         if (defaultCameraMatrixRef.current && !showBgImage) {
             interactionLayerRef.current?.setCameraMatrix(defaultCameraMatrixRef.current);
-            resetForBaseMapIdRef.current = baseMap?.id;
+            lastAutoFitKeyRef.current = fitKey;
         }
 
     }, [
-        //showBgImage
         basePose?.k,
         baseMap?.id,
         bgImage?.imageSize?.width,
         viewport?.w,
-        baseMap?.id,
+        viewport?.h,
     ]);
 
     // effect - fit to selectedNode
@@ -738,6 +805,26 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
         _handleCommitDrawing([{ x: droppedImage.x, y: droppedImage.y }], { newAnnotation: { type: "MARKER", images }, skipTemplateCreation: true })
     }
 
+    // handlers - PDF page drop (resources panel → DETAIL annotation with folio)
+
+    const selectedDetailTemplateId = useSelector((s) => s.resources.selectedDetailTemplateId);
+
+    const handleCommitPdfPageDrop = async ({ resourceId, pageNumber, rotation, x, y }) => {
+        const template = selectedDetailTemplateId
+            ? await db.annotationTemplates.get(selectedDetailTemplateId)
+            : null;
+        if (!template || template.deletedAt || resolveDrawingShape(template) !== "DETAIL") {
+            console.log("[resources] no DETAIL template selected, PDF page drop ignored");
+            return;
+        }
+        const folio = await buildFolioFromResourcePageAsync({ resourceId, pageNumber, rotation });
+        // Same base props as the interactive DETAIL draw (the commit flow then
+        // resolves the template link, creates the point row and forces the
+        // bubble label to "X").
+        const baseProps = getNewAnnotationPropsFromAnnotationTemplate(template);
+        await _handleCommitDrawing([{ x, y }], { newAnnotation: { ...baseProps, folio } });
+    }
+
     // handlers - rectangle
 
     const handleCommitDrawingFromRectangle = (points, event) => {
@@ -765,6 +852,91 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
         const options = {};
         if (type === "POLYLINE") options.closeLine = true;
         handleCommitDrawing(circlePoints, options);
+    }
+
+    // handlers - revolution axis (plan view)
+
+    // The 2 clicks are [centre, edge]. Unlike the circle tools we do NOT
+    // polygonize into a ring: the axis stores its CENTRE as its single point,
+    // and turns the edge into the two scalars `radiusM` + `directionDeg`
+    // (see getRevolutionAxisPlanFrame for the frame conventions).
+    const handleCommitDrawingFromRevolutionAxis = (points) => {
+        const [center, edge] = points ?? [];
+        if (!center || !edge) return;
+        const meterByPx = baseMap?.getMeterByPx?.();
+        const dx = edge.x - center.x;
+        const dy = edge.y - center.y;
+        const radiusPx = Math.hypot(dx, dy);
+        // Stored radius is rounded to 6 decimals (µm precision) — raw px→m
+        // products carry meaningless float tails into the toolbar field.
+        const radiusM =
+            Number.isFinite(meterByPx) && meterByPx > 0
+                ? Math.round(radiusPx * meterByPx * 1e6) / 1e6
+                : null;
+        // px -> plan LOCAL metre frame: y flips (see pixelToWorld).
+        const directionDeg = (Math.atan2(-dy, dx) * 180) / Math.PI;
+        handleCommitDrawing([center], {
+            revolutionAxisProps: {
+                ...(radiusM != null && { radiusM }),
+                directionDeg,
+            },
+        });
+    }
+
+    // handlers - photo pose (Photos module)
+
+    // Same [centre, edge] gesture as the revolution axis, but the commit
+    // targets db.photos (photos are NOT annotations): the centre becomes the
+    // photo's normalized inline point, the edge the camera direction + range.
+    const handleCommitPhotoPose = async (points) => {
+        const [center, edge] = points ?? [];
+        const photoId = localizingPhotoId;
+        dispatch(setEnabledDrawingMode(null));
+        dispatch(setLocalizingPhotoId(null));
+        const imageSize = baseMap?.getImageSize?.();
+        if (!center || !edge || !photoId || !imageSize?.width) return;
+        const meterByPx = baseMap?.getMeterByPx?.();
+        const dx = edge.x - center.x;
+        const dy = edge.y - center.y;
+        const radiusPx = Math.hypot(dx, dy);
+        const radiusM =
+            Number.isFinite(meterByPx) && meterByPx > 0
+                ? Math.round(radiusPx * meterByPx * 1e6) / 1e6
+                : null;
+        // px -> plan LOCAL metre frame: y flips (same as the revolution axis).
+        const directionDeg = (Math.atan2(-dy, dx) * 180) / Math.PI;
+        const photo = await db.photos.get(photoId);
+        if (!photo) return;
+        await db.photos.update(photoId, {
+            point: {
+                x: center.x / imageSize.width,
+                y: center.y / imageSize.height,
+            },
+            baseMapId: baseMap.id,
+            directionDeg,
+            radiusM,
+            fovDeg: photo.fovDeg ?? DEFAULT_FOV_DEG,
+        });
+    }
+
+    // "Repositionner": move an existing placement's point instead of creating a
+    // new annotation, then re-pose the elevation from the axis.
+    const handleRepositionRevolutionPlacement = async (points) => {
+        const pt = points?.[0];
+        const imageSize = baseMap?.getImageSize?.();
+        const annotation = annotations.find((a) => a.id === selectedNode?.nodeId);
+        dispatch(setEnabledDrawingMode(null));
+        if (!pt || !annotation?.point?.id || !imageSize?.width) return;
+        if (annotation.type !== "REVOLUTION_AXIS_PLACEMENT") return;
+        await db.points.update(annotation.point.id, {
+            x: pt.x / imageSize.width,
+            y: pt.y / imageSize.height,
+        });
+        dispatch(triggerAnnotationsUpdate());
+        await resyncRevolutionAxisPlacementsService({
+            placementId: annotation.id,
+            dispatch,
+        });
     }
 
     // handlers - arc
@@ -904,6 +1076,18 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
         // Reposition openings anchored on the moved vertex (glued openings
         // follow their host wall) + refresh their carve.
         await reflowOpenings({ movedPointIds: [pointId] });
+    };
+
+    // Multi-point commit (EDIT-mode segment drag / angle-locked vertex drag):
+    // normalized db.points bulkUpdate + rotation clearing + openings reflow,
+    // all shared with the segment-length editor via applyPointsMovesService.
+    const handlePointsMoveCommit = async (annotation, moves) => {
+        await applyPointsMovesService({
+            annotation,
+            moves,
+            meterByPx: baseMap?.getMeterByPx?.(),
+            dispatch,
+        });
     };
 
     const handleDuplicateAndMovePoint = async ({ originalPointId, annotationId, newPos }) => {
@@ -1189,7 +1373,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
 
         // WRAPPER (group transform for point-based annotations)
         if (annotationId === "wrapper") {
-            const POINT_BASED_TYPES = ["POLYLINE", "POLYGON", "STRIP"];
+            const POINT_BASED_TYPES = ["POLYLINE", "POLYGON", "STRIP", "LINEAR_LAYOUT"];
             const wrapperAnnotationIds = selectedItems
                 .filter(item => item.type === "NODE" && POINT_BASED_TYPES.includes(item.annotationType))
                 .map(item => item.nodeId);
@@ -1259,16 +1443,68 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
 
             console.log("handleAnnotationMoveCommit", annotationId, annotation);
 
+            // Revolution axis handles: the centre never moves, only the two
+            // derived scalars. Same math as applyDeltaPosToAnnotation so the
+            // transient preview and the committed value agree.
             if (
+                annotation.type === "REVOLUTION_AXIS" &&
+                (partType?.startsWith("REVOLUTION_RIM::") ||
+                    partType?.startsWith("REVOLUTION_ANGLE::"))
+            ) {
+                const next = applyDeltaPosToAnnotation(annotation, deltaPos, partType);
+                const updates = partType.startsWith("REVOLUTION_RIM::")
+                    // Same 6-decimal rounding as the drawing commit.
+                    ? {
+                        radiusM: Math.round(next.radiusM * 1e6) / 1e6,
+                        directionDeg: next.directionDeg,
+                    }
+                    : {
+                        revolutionAngleStartDeg: next.revolutionAngleStartDeg,
+                        revolutionAngleEndDeg: next.revolutionAngleEndDeg,
+                    };
+                await db.annotations.update(annotation.id, updates);
+                // Orientation drives the pose of every elevation this axis places.
+                if (partType.startsWith("REVOLUTION_RIM::")) {
+                    await resyncRevolutionAxisPlacementsService({
+                        axisId: annotation.id,
+                        dispatch,
+                    });
+                }
+            }
+
+            // DETAIL rotation: the tip (the stored point) is the pivot and
+            // never moves — only arrowAngle changes. Same math as
+            // applyDeltaPosToAnnotation so preview and commit agree.
+            else if (annotation.type === "DETAIL" && partType === "ROTATE") {
+                const next = applyDeltaPosToAnnotation(annotation, deltaPos, partType);
+                await db.annotations.update(annotation.id, { arrowAngle: next.arrowAngle });
+            }
+
+            else if (
                 annotation.type === "MARKER" ||
                 annotation.type === "POINT" ||
-                annotation.type === "REVOLUTION_POINT"
+                annotation.type === "DETAIL" ||
+                annotation.type === "REVOLUTION_AXIS" ||
+                annotation.type === "REVOLUTION_AXIS_PLACEMENT"
             ) {
                 const point = await db.points.get(annotation.point.id);
                 const x = point.x + deltaPos.x / imageSize.width;
                 const y = point.y + deltaPos.y / imageSize.height;
                 console.log("save_point", point.id, { x, y });
                 await db.points.update(point.id, { x, y });
+                // Moving the axis centre (or its drop point on an elevation)
+                // moves the base maps it places.
+                if (annotation.type === "REVOLUTION_AXIS") {
+                    await resyncRevolutionAxisPlacementsService({
+                        axisId: annotation.id,
+                        dispatch,
+                    });
+                } else if (annotation.type === "REVOLUTION_AXIS_PLACEMENT") {
+                    await resyncRevolutionAxisPlacementsService({
+                        placementId: annotation.id,
+                        dispatch,
+                    });
+                }
             }
 
             else if (annotation.type === "LABEL") {
@@ -1539,6 +1775,32 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                 console.log("save_object3d (bbox)", annotation.id, updates);
                 await db.annotations.update(annotation.id, updates);
             }
+
+            // RULER — dragged as a whole from any of its segments (a dimension
+            // chain has no per-segment semantics to preserve), so a plain MOVE
+            // translates every point. Reuses the wrapper commit for its
+            // shared-point handling: a point also referenced by another
+            // annotation is forked instead of dragging that annotation along.
+            else if (annotation.type === "RULER") {
+                const pointUpdates = new Map();
+                for (const pt of annotation.points ?? []) {
+                    if (!pt?.id) continue;
+                    pointUpdates.set(pt.id, {
+                        x: pt.x + deltaPos.x,
+                        y: pt.y + deltaPos.y,
+                    });
+                }
+                if (pointUpdates.size > 0) {
+                    await commitWrapperTransform({
+                        selectedAnnotationIds: [annotation.id],
+                        allAnnotations: annotations,
+                        pointUpdates,
+                        imageSize,
+                        rotationDelta: null,
+                        moveDelta: null, // rulers carry no rotationCenter
+                    });
+                }
+            }
         }
 
         // Notifier useLiveQuery du changement pour que la convergence optimistic overlay fonctionne
@@ -1700,8 +1962,17 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                         else if (["CIRCLE", "POLYLINE_CIRCLE", "POLYGON_CIRCLE", "CUT_CIRCLE"].includes(enabledDrawingMode)) {
                             return handleCommitDrawingFromCircle(points);
                         }
+                        else if (enabledDrawingMode === "REVOLUTION_AXIS_PLAN") {
+                            return handleCommitDrawingFromRevolutionAxis(points);
+                        }
+                        else if (enabledDrawingMode === "PHOTO_POSE") {
+                            return handleCommitPhotoPose(points);
+                        }
                         else if (["POLYLINE_CIRCLE_RADIUS", "POLYGON_CIRCLE_RADIUS"].includes(enabledDrawingMode)) {
                             return handleCommitDrawingFromCircleRadius(points);
+                        }
+                        else if (enabledDrawingMode === "REPOSITION_REVOLUTION_PLACEMENT") {
+                            return handleRepositionRevolutionPlacement(points);
                         }
                         else if (["ARC", "POLYLINE_ARC"].includes(enabledDrawingMode)) {
                             return handleCommitDrawingFromArc(points);
@@ -1713,6 +1984,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                     }}
                     onCommitSplitAtVertex={handlePolylineSplitAtVertex}
                     onCommitImageDrop={handleCommitImageDrop}
+                    onCommitPdfPageDrop={handleCommitPdfPageDrop}
                     onCommitPointsFromSurfaceDrop={handleCommitPointsFromSurfaceDrop}
                     onCommitSimilarStrips={handleCommitSimilarStrips}
                     onCommitDetectedFeatures={handleCommitDetectedFeatures}
@@ -1727,6 +1999,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                     activeContext={activeContext}
                     annotations={annotations}
                     onPointMoveCommit={handlePointMoveCommit}
+                    onPointsMoveCommit={handlePointsMoveCommit}
                     onPointSnapReplace={handlePointSnapReplace}
                     onToggleAnnotationPointType={handleToggleAnnotationPointType}
                     onPointDuplicateAndMoveCommit={handleDuplicateAndMovePoint}
@@ -1908,9 +2181,35 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
 
             {!versionCompareEnabled &&
                 !imageModeActive &&
+                !dessinPanelDocked &&
+                !viewerPanelDocked &&
+                !isPhotosModule &&
                 (forViewerKey !== "BASE_MAPS" || showDrawingToolsInBaseMaps) && (
-                    <PopperMapListings />
+                    /* display:none (not unmount) while the drawer slides over
+                       the map, so the popper keeps its state; "contents" keeps
+                       the wrapper out of the absolute positioning. */
+                    <Box
+                        sx={{
+                            display:
+                                dessinPanelSlidedIn || viewerPanelSlidedIn
+                                    ? "none"
+                                    : "contents",
+                        }}
+                    >
+                        <PopperMapListings />
+                    </Box>
                 )}
+
+            {/* Dessin module with the docked panel: floating paste / subtract
+                helpers only — listings and the drawing helper live in the
+                panel. The helper content is portaled INTO the panel from here
+                so it keeps this editor's SmartZoomProvider (loupe). */}
+            {dessinPanelDocked && !versionCompareEnabled && !imageModeActive && (
+                <>
+                    <FloatingHelpersDessin />
+                    <PanelDrawingHelperPortal />
+                </>
+            )}
 
             {imageModeActive && (
                 <ImageModeOverlay

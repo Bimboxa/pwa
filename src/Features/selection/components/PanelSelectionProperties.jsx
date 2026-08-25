@@ -15,6 +15,7 @@ import PanelLegendBlockProperties from "Features/portfolioEditor/components/Pane
 import PanelPortfolioHeaderProperties from "Features/portfolioEditor/components/PanelPortfolioHeaderProperties";
 import PanelPortfolioPageProperties from "Features/portfolioEditor/components/PanelPortfolioPageProperties";
 import PanelBaseMapProperties from "Features/baseMaps/components/PanelBaseMapProperties";
+import PanelBaseMapListingProperties from "Features/baseMapEditor/components/PanelBaseMapListingProperties";
 import PanelBaseMapVersionProperties from "Features/baseMaps/components/PanelBaseMapVersionProperties";
 import PanelLayerProperties from "Features/layers/components/PanelLayerProperties";
 import PanelMultiAnnotationProperties from "./PanelMultiAnnotationProperties";
@@ -25,6 +26,7 @@ import PanelPropertiesSegment from "Features/points/components/PanelPropertiesSe
 import PanelPropertiesGuideline from "Features/annotations/components/PanelPropertiesGuideline";
 import PanelPropertiesPointsAndSegments from "Features/points/components/PanelPropertiesPointsAndSegments";
 import PanelMesh3dProperties from "Features/threedMesh/components/PanelMesh3dProperties";
+import PanelPhotoProperties from "Features/photos/components/PanelPhotoProperties";
 import PanelPovProperties from "Features/pov/components/PanelPovProperties";
 import PanelZoneProperties from "Features/zonings/components/PanelZoneProperties";
 import PanelPovFrameProperties from "Features/pov/components/PanelPovFrameProperties";
@@ -69,6 +71,9 @@ export default function PanelSelectionProperties() {
   if (isPovViewer) {
     // POV viewer: either the selected POV, or the frame settings by default.
     type = selectedItem?.type === "POV" ? "POV" : "POV_FRAME";
+  } else if (selectedItem?.type === "PHOTO") {
+    // Photo selected from a photos grid (popper / panel) or its map node.
+    type = "PHOTO";
   } else if (
     isCanvasViewer &&
     selectedPointIds.length > 0 &&
@@ -143,6 +148,11 @@ export default function PanelSelectionProperties() {
     // 3D viewer: clicking a baseMap plane selects it as a BASE_MAP item
     // (MainThreedEditor.handleClick) — show the same panel as the 2D editor.
     type = "BASE_MAP";
+  } else if (isBaseMapsViewer && selectedItem?.type === "LISTING") {
+    // A baseMap group is selected in the left tree. Without this branch, the
+    // isBaseMapsViewer safety fallback below mapped it to BASE_MAP and showed
+    // the baseMap properties instead.
+    type = "BASE_MAP_LISTING";
   } else if (isBaseMapsViewer && selectedItem?.type === "SCOPE") {
     // Allow navigating back to the scope panel from the baseMap properties.
     type = "SCOPE";
@@ -220,6 +230,13 @@ export default function PanelSelectionProperties() {
 
       {type === "BASE_MAP" && <PanelBaseMapProperties />}
 
+      {/* listingById (not `listing`): once the group is deleted the id no
+          longer resolves and the panel renders nothing, instead of falling
+          back to the drawing module's default listing. */}
+      {type === "BASE_MAP_LISTING" && (
+        <PanelBaseMapListingProperties listing={listingById} />
+      )}
+
       {type === "BASE_MAP_VERSION" && <PanelBaseMapVersionProperties />}
 
       {type === "LAYER" && <PanelLayerProperties />}
@@ -242,6 +259,8 @@ export default function PanelSelectionProperties() {
 
 
       {type === "ZONE" && <PanelZoneProperties />}
+
+      {type === "PHOTO" && <PanelPhotoProperties />}
 
       {type === "POV" && <PanelPovProperties />}
 

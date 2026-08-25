@@ -9,7 +9,7 @@ import db, { withHardDelete } from "App/db/db";
 
 // Hard-deletes a POV (withHardDelete bypasses the soft-delete middleware —
 // no deletedAt tombstone) along with its db.files rows (capture thumbnail +
-// saved AI-transformed image).
+// full-resolution raw image + saved AI-transformed image).
 export default function useDeletePov() {
   const dispatch = useDispatch();
   const selectedItem = useSelector(selectSelectedItem);
@@ -22,6 +22,7 @@ export default function useDeletePov() {
     await withHardDelete(async () => {
       const fileNames = [
         pov?.image?.fileName,
+        pov?.rawImage?.fileName,
         pov?.transformedImage?.fileName,
       ].filter(Boolean);
       if (fileNames.length > 0) await db.files.bulkDelete(fileNames);

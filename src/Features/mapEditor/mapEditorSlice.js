@@ -90,12 +90,18 @@ const mapEditorInitialState = {
   // imageMode, but the rect ignores the right panel (no rightInset), like the
   // POV framing. Never true together with imageModeEnabled.
   captureToolActive: false,
+  // Format of the capture tool's right panel: true = the condensed black band
+  // of icon buttons (ToolbarCaptureCondensed), false = the full tabbed panel
+  // (PanelCaptureTool). Session-only, the capture tool is the only panel with
+  // two formats.
+  capturePanelCondensed: true,
   // Title typed in the capture tool's save bar — feeds the frame title banner
   // (usePovTitleText) while captureToolActive is on, and the export filename.
   captureTitleText: "",
-  // Output format of the capture exports ("pdf" | "png" | "clipboard") —
-  // shared by SectionCaptureExport (all panels) and the capture tool's save
+  // Output format of the capture exports ("pdf" | "png" | "clipboard" | "pov")
+  // — shared by SectionCaptureExport (all panels) and the capture tool's save
   // bar, so "Créer la capture" delivers in the format picked in the panel.
+  // "pov" saves the framed view as a new point of view instead of a file.
   imageModeExportMode: "pdf",
   // File name typed in the capture tool's Capture tab — used by the save
   // bar's "Créer la capture" to name the delivered file.
@@ -203,6 +209,7 @@ const mapEditorInitialState = {
   // anchor snap mode
   anchorSourceAnnotationId: null, // annotation ID whose extremities will be anchored
   subtractSourceAnnotationId: null, // POLYGON ID being carved; next clicked annotation becomes a subtraction
+  subtractTargetAnnotationId: null, // annotation being SUBTRACTED; clicked annotations become the carved sources
 
   // ortho snap
   orthoSnapAngleOffset: 0, // degrees
@@ -210,6 +217,11 @@ const mapEditorInitialState = {
   // 2D editor settings (transient UI preferences).
   // Multiplier applied to the vertex handle size in NodePolylineStatic.
   vertexSizeMultiplier: 1,
+
+  // EDIT mode: preserve joint angles (rectangles stay rectangles) during
+  // vertex / segment drags. Toggled by the global padlock shown with the
+  // segment-length cotes. Transient (not persisted).
+  anglesLocked: true,
 
   // clipping plane (2D-defined cut plane, mirrored to the 3D viewer).
   // Coords are normalized [0..1] vs baseMap imageSize. Transient (not persisted).
@@ -239,10 +251,14 @@ const mapEditorInitialState = {
   showPrintableMap: false,
 
   // copy/paste of annotations
-  // pasteClipboard: { sourceCenter, items: [ item, ... ] }
+  // pasteClipboard: { sourceCenter, sourceMeterByPx, items: [ item, ... ] }
   //   sourceCenter — { x, y } GROUP bbox center across ALL copied annotations,
   //                  shared transform origin + ghost anchor (preserves relative
   //                  positions and rotates/flips the whole group rigidly).
+  //   sourceMeterByPx — scale of the base map at Ctrl+C time; pasting on a map
+  //                  with a different scale rescales the group by
+  //                  sourceMeterByPx / targetMeterByPx so real-world
+  //                  dimensions are preserved.
   //   items[]      — one entry per copied annotation, each:
   //     annotation       — source annotation object (hydrated, with template)
   //     basePoints       — pixel-image points snapshot at Ctrl+C (POLYGON/POLYLINE/STRIP)
@@ -399,6 +415,9 @@ export const mapEditorSlice = createSlice({
       // The two frames disagree on rightInset — only one can drive the overlay.
       if (state.captureToolActive) state.imageModeEnabled = false;
       else state.imageModeLegendSelected = false;
+    },
+    setCapturePanelCondensed: (state, action) => {
+      state.capturePanelCondensed = Boolean(action.payload);
     },
     setCaptureTitleText: (state, action) => {
       state.captureTitleText = action.payload ?? "";
@@ -683,9 +702,19 @@ export const mapEditorSlice = createSlice({
       state.showLayerScreenCursor = Boolean(action.payload);
     },
 
-    // subtraction pick mode
+    // subtraction pick mode — the pivot annotation is the one being CARVED,
+    // each clicked annotation is subtracted from it.
     setSubtractSourceAnnotationId: (state, action) => {
       state.subtractSourceAnnotationId = action.payload;
+      state.subtractTargetAnnotationId = null; // the two directions are exclusive
+      state.showLayerScreenCursor = Boolean(action.payload);
+    },
+
+    // reverse subtraction pick mode — the pivot annotation is the one being
+    // SUBTRACTED, each clicked annotation becomes a carved source.
+    setSubtractTargetAnnotationId: (state, action) => {
+      state.subtractTargetAnnotationId = action.payload;
+      state.subtractSourceAnnotationId = null; // the two directions are exclusive
       state.showLayerScreenCursor = Boolean(action.payload);
     },
 
@@ -697,6 +726,9 @@ export const mapEditorSlice = createSlice({
     // 2D editor settings
     setVertexSizeMultiplier: (state, action) => {
       state.vertexSizeMultiplier = action.payload;
+    },
+    setAnglesLocked: (state, action) => {
+      state.anglesLocked = Boolean(action.payload);
     },
 
     // clipping plane (2D-defined cut plane)
@@ -789,7 +821,17 @@ export const mapEditorSlice = createSlice({
     // that mounts the new editor, and covers every setSelectedViewerKey
     // dispatcher. Keyed on the MODULE switch only — the 2D↔3D editor toggle
     // (T) goes through setModuleEditorKey and keeps the armed tool.
-    builder.addCase(setSelectedViewerKey, resetDrawingSessionState);
+    builder.addCase(setSelectedViewerKey, (state, action) => {
+      resetDrawingSessionState(state);
+      // "Export rapide" (imageMode) only exists in the modules hosting the
+      // PRINT tool (see useRightPanelTools): leaving them disarms the framing
+      // so it cannot leak into POV / Zones / BaseMaps, which display the same
+      // shared 2D editor instance.
+      if (!["MAP", "THREED", "MESHES"].includes(action.payload)) {
+        state.imageModeEnabled = false;
+        state.imageModeLegendSelected = false;
+      }
+    });
   },
 });
 
@@ -853,6 +895,7 @@ export const {
   setImageModeEnabled,
   toggleImageModeEnabled,
   setCaptureToolActive,
+  setCapturePanelCondensed,
   setCaptureTitleText,
   setCaptureFileName,
   setImageModeExportMode,
@@ -935,10 +978,12 @@ export const {
   // anchor snap
   setAnchorSourceAnnotationId,
   setSubtractSourceAnnotationId,
+  setSubtractTargetAnnotationId,
 
   // ortho snap
   setOrthoSnapAngleOffset,
   setVertexSizeMultiplier,
+  setAnglesLocked,
 
   // clipping plane
   setClippingPlanEnabled,

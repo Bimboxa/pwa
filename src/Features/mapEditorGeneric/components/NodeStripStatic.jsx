@@ -4,6 +4,7 @@ import { darken } from "@mui/material/styles";
 import theme from "Styles/theme";
 
 import NodeLabelStatic from "./NodeLabelStatic";
+import NodeSegmentLengthsStatic from "./NodeSegmentLengthsStatic";
 import getAnnotationLabelPropsFromAnnotation from "Features/annotations/utils/getAnnotationLabelPropsFromAnnotation";
 import getStripePolygons from "Features/geometry/utils/getStripePolygons";
 import { typeOf, circleFromThreePoints } from "Features/geometry/utils/arcSampling";
@@ -42,12 +43,19 @@ function NodeStripStatic({
     selectedPointIds = [],
     selectedPartId,
     selectMode,
+    printMode,
+    disableVertexEditing = false,
 }) {
     // Gestion sélection temporaire
     if (annotation.id.startsWith("temp")) selected = true;
 
     const [hoveredPartId, setHoveredPartId] = useState(null);
     const mergedAnnotation = { ...annotation, ...annotationOverride };
+
+    // EDIT (Modification) mode drives the segment "move" cursor.
+    const interactionMode = useSelector(
+        (s) => s.popperMapListings?.interactionMode
+    );
     const isForBaseMaps = mergedAnnotation.isForBaseMaps;
 
     const patternIdRef = useRef(`strip-hatching-${Math.random().toString(36).substr(2, 9)}`);
@@ -435,7 +443,15 @@ function NodeStripStatic({
                         data-part-id={partId}
                         data-part-type="SEG"
                         data-node-id={annotationId}
-                        style={{ cursor: isTransient ? "crosshair" : "pointer" }}
+                        style={{
+                            // EDIT mode: the director segment is draggable →
+                            // 4-way move cursor.
+                            cursor: isTransient
+                                ? "crosshair"
+                                : interactionMode === "EDIT"
+                                    ? "move"
+                                    : "pointer",
+                        }}
                     >
                         {selected && (
                             <path
@@ -503,6 +519,23 @@ function NodeStripStatic({
 
             {/* 5. ANCHORS */}
             {selected && points.map(pt => renderVertex(pt))}
+
+            {/* 6. SEGMENT LENGTHS — editable per-segment cotes with lock
+                constraints on the director line, EDIT (Modification) mode only. */}
+            {selected && !disableVertexEditing && (
+                <NodeSegmentLengthsStatic
+                    annotation={mergedAnnotation}
+                    points={points}
+                    closed={Boolean(mergedAnnotation.closeLine)}
+                    selected={selected}
+                    selectedPointId={selectedPointId}
+                    baseMapMeterByPx={baseMapMeterByPx}
+                    containerK={containerK}
+                    printMode={printMode}
+                    isTransient={isTransient}
+                    disableVertexEditing={disableVertexEditing}
+                />
+            )}
 
             {showLabel && <NodeLabelStatic annotation={labelAnnotation} containerK={containerK} hidden={!mergedAnnotation.showLabel} />}
         </g>

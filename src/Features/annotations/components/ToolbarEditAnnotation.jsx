@@ -55,8 +55,8 @@ import {
 
 import AnnotationTemplateIcon from "./AnnotationTemplateIcon";
 import AnnotationMeasurements from "./AnnotationMeasurements";
-import ToolbarEditRevolutionHelper from "./ToolbarEditRevolutionHelper";
-import ToolbarEditProxyRevolution from "./ToolbarEditProxyRevolution";
+import ToolbarEditRevolutionAxis from "./ToolbarEditRevolutionAxis";
+import ToolbarEditRevolutionAxisPlacement from "./ToolbarEditRevolutionAxisPlacement";
 import ToolbarAnnotationActions from "./ToolbarAnnotationActions";
 import RowProcedureActionAuto from "Features/annotationsAuto/components/RowProcedureActionAuto";
 import ToolbarPartGroupRow from "./ToolbarPartGroupRow";
@@ -73,6 +73,8 @@ import IconButtonToggleAnnotationCloseLine from "./IconButtonToggleAnnotationClo
 import IconButtonDetectSimilarStrips from "./IconButtonDetectSimilarStrips";
 import IconButtonAnchorAnnotation from "./IconButtonAnchorAnnotation";
 import IconButtonSubtractAnnotation from "./IconButtonSubtractAnnotation";
+import IconButtonSubtractFromAnnotation from "./IconButtonSubtractFromAnnotation";
+import ToolbarEditForeignFootprint from "./ToolbarEditForeignFootprint";
 import IconButtonHollowOutAnnotation from "./IconButtonHollowOutAnnotation";
 import IconButtonAssignZoneAnnotations from "Features/zonings/components/IconButtonAssignZoneAnnotations";
 import SectionZonesBandInToolbar from "Features/zonings/components/SectionZonesBandInToolbar";
@@ -359,6 +361,16 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
     });
   }
 
+  // LINEAR_LAYOUT: band width L (bar length, meters) — replaces the height
+  // field in the geometry row.
+  async function handleWidthChange(updatedAnnotation) {
+    if (!updatedAnnotation?.id) return;
+    await updateAnnotation({
+      id: updatedAnnotation.id,
+      width: updatedAnnotation.width,
+    });
+  }
+
   async function handleEdgeHeightChange(updatedAnnotation) {
     if (!updatedAnnotation?.id) return;
     await updateAnnotation({
@@ -422,21 +434,19 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
     await updateAnnotation(updates);
   }
 
-  // Revolution helpers (REVOLUTION_AXIS / REVOLUTION_POINT) are standalone,
-  // template-less annotations — render a dedicated compact toolbar instead of
-  // the full template-centric UI below. (All hooks above have already run.)
-  if (
-    selectedAnnotation?.type === "REVOLUTION_AXIS" ||
-    selectedAnnotation?.type === "REVOLUTION_POINT"
-  ) {
-    return <ToolbarEditRevolutionHelper onDragStart={onDragStart} />;
+  // Revolution helpers are standalone, template-less annotations — render a
+  // dedicated compact toolbar instead of the full template-centric UI below.
+  // (All hooks above have already run.)
+  if (selectedAnnotation?.type === "REVOLUTION_AXIS") {
+    return <ToolbarEditRevolutionAxis onDragStart={onDragStart} />;
   }
-
-  // Revolution proxy ("donut"): a plan-view representation of a source arc. The
-  // template-centric UI (height/offset/actions) is off-topic — show a compact
-  // toolbar (template + revolved surface + partial/total toggle) instead.
-  if (selectedAnnotation?.isProxy) {
-    return <ToolbarEditProxyRevolution onDragStart={onDragStart} />;
+  if (selectedAnnotation?.type === "REVOLUTION_AXIS_PLACEMENT") {
+    return <ToolbarEditRevolutionAxisPlacement onDragStart={onDragStart} />;
+  }
+  // Read-only projection of an annotation hosted by another base map: the only
+  // meaningful action is to go and open the real one.
+  if (selectedAnnotation?.isForeignFootprint) {
+    return <ToolbarEditForeignFootprint onDragStart={onDragStart} />;
   }
 
   return (
@@ -699,14 +709,26 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
               borderColor: "divider",
             }}
           >
-            {selectedAnnotation?.shape3D?.key !== "REVOLUTION" &&
+            {/* LINEAR_LAYOUT: the vertical height is meaningless — show the
+                band width L (bar length) instead. */}
+            {selectedAnnotation?.type === "LINEAR_LAYOUT" ? (
+              <FieldAnnotationHeight
+                annotation={selectedAnnotation}
+                onChange={handleWidthChange}
+                field="width"
+                label="L"
+                disabled={isLocked("width")}
+              />
+            ) : (
+              selectedAnnotation?.shape3D?.key !== "REVOLUTION" &&
               selectedAnnotation?.shape3D?.key !== "EXTRUSION_PROFILE" && (
                 <FieldAnnotationHeight
                   annotation={selectedAnnotation}
                   onChange={handleHeightChange}
                   disabled={isLocked("height")}
                 />
-              )}
+              )
+            )}
             {selectedAnnotation?.type === "POLYGON" && (
               <FieldAnnotationHeight
                 annotation={selectedAnnotation}
@@ -849,7 +871,9 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
                     accentColor={accentColor}
                   />
                 )}
-                {selectedAnnotation?.type === "STRIP" && (
+                {["STRIP", "LINEAR_LAYOUT"].includes(
+                  selectedAnnotation?.type
+                ) && (
                   <IconButtonFlipStripAnnotation
                     annotation={selectedAnnotation}
                     accentColor={accentColor}
@@ -898,10 +922,16 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
                 {["POLYGON", "RECTANGLE", "POLYLINE", "STRIP"].includes(
                   selectedAnnotation?.type
                 ) && (
-                  <IconButtonSubtractAnnotation
-                    annotation={selectedAnnotation}
-                    accentColor={accentColor}
-                  />
+                  <>
+                    <IconButtonSubtractAnnotation
+                      annotation={selectedAnnotation}
+                      accentColor={accentColor}
+                    />
+                    <IconButtonSubtractFromAnnotation
+                      annotation={selectedAnnotation}
+                      accentColor={accentColor}
+                    />
+                  </>
                 )}
                 {selectedAnnotation?.type === "POLYGON" && (
                   <IconButtonHollowOutAnnotation

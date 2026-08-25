@@ -1,6 +1,6 @@
 /**
- * Apply the paste-ghost transform (flipX → rotation → translation) to a set of
- * points in pixel space.
+ * Apply the paste-ghost transform (scale → flipX → rotation → translation) to
+ * a set of points in pixel space.
  *
  * The transform is built around `sourceCenter` (the bbox-center of the
  * annotation at the moment of Ctrl+C). After flip + rotation around that
@@ -14,7 +14,10 @@
  * @param {Array<{x:number,y:number}>} points
  * @param {{x:number,y:number}} sourceCenter
  * @param {{x:number,y:number}} targetCenter
- * @param {{ rotationDeg: number, flipX: boolean }} transform
+ * @param {{ rotationDeg: number, flipX: boolean, scale?: number }} transform
+ *   `scale` (default 1) is the uniform cross-map rescale about sourceCenter —
+ *   sourceMeterByPx / targetMeterByPx, so real-world dimensions are preserved
+ *   when pasting on a base map with a different scale.
  * @returns {Array<{x:number,y:number}>}
  */
 export default function applyPasteTransformToPoints(
@@ -25,14 +28,14 @@ export default function applyPasteTransformToPoints(
 ) {
   if (!points?.length) return [];
 
-  const { rotationDeg = 0, flipX = false } = transform ?? {};
+  const { rotationDeg = 0, flipX = false, scale = 1 } = transform ?? {};
   const angleRad = (rotationDeg * Math.PI) / 180;
   const cos = Math.cos(angleRad);
   const sin = Math.sin(angleRad);
 
   return points.map((p) => {
-    let dx = p.x - sourceCenter.x;
-    let dy = p.y - sourceCenter.y;
+    let dx = (p.x - sourceCenter.x) * scale;
+    let dy = (p.y - sourceCenter.y) * scale;
 
     if (flipX) dx = -dx;
 

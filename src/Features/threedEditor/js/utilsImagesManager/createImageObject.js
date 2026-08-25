@@ -146,14 +146,18 @@ export async function attachBaseMapMesh(group, image) {
   //   compresses pure white to a light gray. The basemap is an unlit
   //   document, not part of the lit scene — bypass tone mapping so the
   //   floorplan stays paper-white in every render mode.
-  const opacity = typeof image.opacity === "number" ? image.opacity : 1;
+  //
+  // The material is born fully opaque: this function runs AFTER an await, so
+  // it can't know the current slider value. ImagesManager owns the desired
+  // opacity and pushes it (opacity + depthWrite) in the `.then()` that
+  // follows this attach, before the first draw.
   const material = new MeshBasicMaterial({
     map: texture,
     side: DoubleSide,
-    depthWrite: opacity >= 1,
+    depthWrite: true,
     depthTest: true,
     transparent: true,
-    opacity,
+    opacity: 1,
     toneMapped: false,
     polygonOffset: true,
     polygonOffsetFactor: 1,

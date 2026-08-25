@@ -17,6 +17,10 @@ export default function useDuplicatePortfolioPage() {
       format: page.format,
       orientation: page.orientation,
       type: page.type,
+      ...(page.folio && { folio: page.folio }),
+      ...(page.sourceAnnotationId && {
+        sourceAnnotationId: page.sourceAnnotationId,
+      }),
     };
 
     const newPage = await createEntity(pageData, { listing });

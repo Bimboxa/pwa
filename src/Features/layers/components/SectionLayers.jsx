@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { useLiveQuery } from "dexie-react-hooks";
 
 import { setActiveLayerId } from "../layersSlice";
+import { isLegacyStyleRevolutionHelper } from "Features/annotations/constants/drawingShapeConfig";
 
 import { DndContext, closestCenter } from "@dnd-kit/core";
 import {
@@ -47,10 +48,10 @@ export default function SectionLayers({ baseMapId }) {
     async () => {
       if (!baseMapId) return {};
 
-      // Revolution helpers are project-level geometry that bypass the
-      // listing/scope visibility filters, exactly like in useAnnotationsV2.
-      const isRevolutionHelper = (a) =>
-        a?.type === "REVOLUTION_AXIS" || a?.type === "REVOLUTION_POINT";
+      // Pre-template revolution helpers bypass the listing/scope visibility
+      // filters, exactly like in useAnnotationsV2. Template-linked ones count
+      // like normal listing annotations.
+      const isRevolutionHelper = (a) => isLegacyStyleRevolutionHelper(a);
 
       const annotations = await db.annotations
         .where("baseMapId")

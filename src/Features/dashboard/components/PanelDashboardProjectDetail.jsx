@@ -11,6 +11,7 @@ import { setSelectedProjectKeyInDashboard } from "../dashboardSlice";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useScopeFavorites from "Features/scopeFavorites/hooks/useScopeFavorites";
 import useFetchProjectScopeConfigurations from "../hooks/useFetchProjectScopeConfigurations";
+import useLinkProjectToReferentiel from "Features/projects/hooks/useLinkProjectToReferentiel";
 import parseBackendDate from "Features/date/utils/parseBackendDate";
 
 import {
@@ -26,6 +27,7 @@ import { Add, TouchApp, GridOn, Refresh, CloudQueue } from "@mui/icons-material"
 import HeaderDashboardProject from "./HeaderDashboardProject";
 import ListItemDashboardScope from "./ListItemDashboardScope";
 import DialogDeleteScope from "Features/scopes/components/DialogDeleteScope";
+import DialogLinkProjectToReferentiel from "./DialogLinkProjectToReferentiel";
 
 export default function PanelDashboardProjectDetail({ item }) {
   const dispatch = useDispatch();
@@ -43,10 +45,19 @@ export default function PanelDashboardProjectDetail({ item }) {
   const userConfigurations = useSelector(
     (s) => s.remoteScopeConfigurations.userConfigurations
   );
+  const projectConfigurations = useSelector(
+    (s) => s.remoteScopeConfigurations.projectConfigurations
+  );
+
+  const { detach } = useLinkProjectToReferentiel();
+
+  // link/detach only make sense when a référentiel is configured (edx)
+  const hasReferentiel = Boolean(appConfig?.features?.masterProjects);
 
   // state
 
   const [deleteScopeId, setDeleteScopeId] = useState(null);
+  const [linkOpen, setLinkOpen] = useState(false);
 
   // strings
 
@@ -59,12 +70,21 @@ export default function PanelDashboardProjectDetail({ item }) {
     return parseBackendDate(value)?.toLocaleDateString() ?? null;
   }
 
-  // "author trigram, last update" — the last update is the latest
-  // scopeConfiguration pushed for this scope, when we know it.
-  function getScopeSubText({ scopeId, fallbackAuthor, fallbackDate }) {
-    const config = (userConfigurations ?? []).find(
+  // latest scopeConfiguration pushed for this scope, when we know it —
+  // authoritative for the "author, last update" sub text and POV previews.
+  // The project fetch (same key rule as useFetchProjectScopeConfigurations)
+  // also covers installed scopes, absent from the ByUser list.
+  const projectConfigs =
+    projectConfigurations?.[String(item?.idMaster ?? item?.clientRef ?? "")] ??
+    [];
+
+  function findScopeConfig(scopeId) {
+    return [...projectConfigs, ...(userConfigurations ?? [])].find(
       (c) => String(c.scopeId) === String(scopeId)
     );
+  }
+
+  function getScopeSubText({ config, fallbackAuthor, fallbackDate }) {
     const author = config?.createdBy?.trigram ?? fallbackAuthor;
     const date = formatDate(config?.createdAt ?? fallbackDate);
     return [author, date].filter(Boolean).join(", ");
@@ -72,17 +92,21 @@ export default function PanelDashboardProjectDetail({ item }) {
 
   const rows = item
     ? [
-        ...item.scopes.map((scope) => ({
-          scopeId: scope.id,
-          name: scope.name,
-          subText: getScopeSubText({
+        ...item.scopes.map((scope) => {
+          const config = findScopeConfig(scope.id);
+          return {
             scopeId: scope.id,
-            fallbackAuthor: scope.createdBy,
-            fallbackDate: scope.updatedAt ?? scope.createdAt,
-          }),
-          isLocal: true,
-          isFavorite: isFavorite(scope.id),
-        })),
+            name: scope.name,
+            subText: getScopeSubText({
+              config,
+              fallbackAuthor: scope.createdBy,
+              fallbackDate: scope.updatedAt ?? scope.createdAt,
+            }),
+            isLocal: true,
+            isFavorite: isFavorite(scope.id),
+            povPreviews: config?.povPreviews,
+          };
+        }),
         ...item.remoteConfigs.map((config) => ({
           scopeId: config.scopeId,
           name: config.scopeName,
@@ -91,6 +115,7 @@ export default function PanelDashboardProjectDetail({ item }) {
             .join(", "),
           isLocal: false,
           isFavorite: isFavorite(config.scopeId),
+          povPreviews: config.povPreviews,
         })),
       ]
     : [];
@@ -124,6 +149,21 @@ export default function PanelDashboardProjectDetail({ item }) {
     if (!item?.projectId) return;
     dispatch(setSelectedProjectId(item.projectId));
     dispatch(setOpenScopeCreator(true));
+  }
+
+  async function handleDetach() {
+    if (!item?.projectId) return;
+    try {
+      await detach({ projectId: item.projectId });
+      refreshRemoteScopes();
+    } catch (error) {
+      console.error("[dashboard] detach project error", error);
+    }
+  }
+
+  function handleLinked() {
+    setLinkOpen(false);
+    refreshRemoteScopes();
   }
 
   // render — no selection
@@ -176,6 +216,8 @@ export default function PanelDashboardProjectDetail({ item }) {
       <HeaderDashboardProject
         item={item}
         onClose={() => dispatch(setSelectedProjectKeyInDashboard(null))}
+        onLink={hasReferentiel ? () => setLinkOpen(true) : null}
+        onDetach={hasReferentiel ? handleDetach : null}
       />
 
       {/* krtos bar */}
@@ -313,6 +355,14 @@ export default function PanelDashboardProjectDetail({ item }) {
         open={Boolean(deleteScopeId)}
         onClose={() => setDeleteScopeId(null)}
         scopeId={deleteScopeId}
+      />
+
+      <DialogLinkProjectToReferentiel
+        open={linkOpen}
+        onClose={() => setLinkOpen(false)}
+        projectId={item.projectId}
+        projectName={item.name}
+        onLinked={handleLinked}
       />
     </Box>
   );

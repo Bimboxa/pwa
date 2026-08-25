@@ -6,12 +6,26 @@ import triangulateAnnotationGeometry, {
 import {
   expandRingWithOffsets,
   expandRingWithOffsetsAndHiddenMap,
+  expandArcsInPathWithHiddenMap,
   adaptiveArcSamples,
 } from "Features/geometry/utils/arcSampling";
+import expandShellProfileArcs from "Features/geometry/utils/expandShellProfileArcs";
+import getInlineExtrusionSetup from "Features/annotations/utils/getInlineExtrusionSetup";
+import {
+  getLinearLayoutSpacing,
+  getLinearLayoutTickOffsets,
+} from "Features/annotations/utils/getLinearLayoutBars";
+import {
+  computeVertexFrames,
+  buildSweepArraysForProfile,
+} from "Features/threedEditor/js/utilsAnnotationsManager/sweepGeometry";
 import getGuideLineStairsLayout, {
   findStairsGuideLine,
 } from "Features/annotations/utils/getGuideLineStairsLayout";
-import { getEffectiveShellMode } from "Features/annotations/constants/shape3DConfig";
+import {
+  getEffectiveShellMode,
+  getShape3DKey,
+} from "Features/annotations/constants/shape3DConfig";
 
 // Match the sampling used by the 3D mesh builders so quantities are computed
 // on the SAME arc-expanded rings as the rendered geometry:
@@ -240,6 +254,105 @@ function computeRevolutionSurface(
   return surfacePx2 * meterByPx * meterByPx;
 }
 
+// Perimeter of the circle swept by a POINT revolved around a REVOLUTION_AXIS.
+// Mirrors buildRevolutionCircleLine's radius rule (|point.x − axisX|, axisX =
+// mean x of the axis line) so the quantity and the 3D circle always agree.
+// Returns null when the shape / axis / point isn't a resolved revolution, so
+// the caller falls back to the default POINT behavior (length = height).
+export function getRevolutionCirclePerimeter(annotation, meterByPx) {
+  if (getShape3DKey(annotation?.shape3D) !== "REVOLUTION") return null;
+  const axisPoints = annotation?.revolutionAxisPoints;
+  const point = annotation?.point;
+  if (!point || !axisPoints || axisPoints.length < 2) return null;
+  const axisX = axisPoints.reduce((sum, p) => sum + p.x, 0) / axisPoints.length;
+  const radiusM = Math.abs(point.x - axisX) * meterByPx;
+  return 2 * Math.PI * radiusM;
+}
+
+// Surface of the inline "Extrusion" sweep (POLYLINE carrying profileLines):
+// rebuild the exact 3D mesh triangles — same arc expansion, registration
+// (getInlineExtrusionSetup) and mitered sweep as buildInlineExtrusionMesh —
+// in meters, and sum their areas. One-sided by construction (each triangle
+// emitted once). Returns null when the sweep is degenerate so the caller can
+// fall back to the flat profileLength × guideLength rule.
+const INLINE_GUIDE_ARC_SAMPLES = 6; // matches createAnnotationObject3D
+
+function computeInlineExtrusionSurface(
+  annotation,
+  guidePoints,
+  profilePoints,
+  meterByPx
+) {
+  try {
+    const closeLine = !!annotation.closeLine;
+    const { points: expandedPts, hiddenSegmentsIdx: expandedHidden } =
+      expandArcsInPathWithHiddenMap(
+        guidePoints,
+        INLINE_GUIDE_ARC_SAMPLES,
+        annotation.hiddenSegmentsIdx || [],
+        closeLine
+      );
+    const guideM = expandedPts.map((p) => ({
+      x: p.x * meterByPx,
+      y: p.y * meterByPx,
+    }));
+    if (guideM.length < 2) return null;
+    // Profile in meters (heights are already meters — expandShellProfileArcs
+    // needs consistent units), vertical S-C-S arcs expanded.
+    const profileM = expandShellProfileArcs(
+      profilePoints.map((p) => ({
+        x: p.x * meterByPx,
+        y: p.y * meterByPx,
+        height: Number(p.height) || 0,
+        ...(p.type === "circle" ? { type: "circle" } : {}),
+      }))
+    );
+    const setup = getInlineExtrusionSetup({
+      guidePoints: guideM,
+      profilePoints: profileM,
+      closeLine,
+    });
+    if (!setup) return null;
+    const section = (setup.crossSection || []).filter(
+      (c) => Number.isFinite(c?.u) && Number.isFinite(c?.h)
+    );
+    if (section.length < 2) return null;
+
+    const hidden = new Set(expandedHidden ?? []);
+    const frames = computeVertexFrames(guideM, hidden, closeLine);
+    const arrays = buildSweepArraysForProfile(
+      guideM,
+      frames,
+      hidden,
+      section.map((c) => ({ x: c.u, y: c.h })),
+      0,
+      closeLine
+    );
+    if (!arrays) return null;
+
+    const { positions, indices } = arrays;
+    let area = 0;
+    for (let i = 0; i < indices.length; i += 3) {
+      const a = indices[i] * 3;
+      const b = indices[i + 1] * 3;
+      const c = indices[i + 2] * 3;
+      const abx = positions[b] - positions[a];
+      const aby = positions[b + 1] - positions[a + 1];
+      const abz = positions[b + 2] - positions[a + 2];
+      const acx = positions[c] - positions[a];
+      const acy = positions[c + 1] - positions[a + 1];
+      const acz = positions[c + 2] - positions[a + 2];
+      const cx = aby * acz - abz * acy;
+      const cy = abz * acx - abx * acz;
+      const cz = abx * acy - aby * acx;
+      area += Math.sqrt(cx * cx + cy * cy + cz * cz) / 2;
+    }
+    return area > 0 && Number.isFinite(area) ? area : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * --- FONCTION PRINCIPALE ---
  */
@@ -254,7 +367,28 @@ export default function getAnnotationQties({
     if (!meterByPx || !Number.isFinite(meterByPx) || meterByPx <= 0)
       return { enabled: false };
 
+    // RULER is a measurement object (a dimension chain), like COTE: it
+    // describes the drawing, it is not part of the work. No quantities.
+    if (annotation.type === "RULER") return { enabled: false };
+
+    // DETAIL is a callout bubble: counted (1 u), no length/surface.
+    if (annotation.type === "DETAIL")
+      return { enabled: true, length: 0, surface: 0 };
+
     if (annotation.type === "POINT") {
+      // REVOLUTION: the point sweeps a circle around the referenced axis
+      // (radius = its horizontal distance to it, resolved by useAnnotationsV2).
+      // Length = FULL-TURN perimeter 2πr and no surface — a circle is a line,
+      // it encloses no material. The 180° half-view is display-only, same rule
+      // as the POLYLINE revolution surface, so the figure stays stable whatever
+      // the camera side or the "Révolution partielle" switch.
+      const revolutionLength = getRevolutionCirclePerimeter(
+        annotation,
+        meterByPx
+      );
+      if (revolutionLength != null) {
+        return { enabled: true, length: revolutionLength, surface: 0 };
+      }
       const h = parseFloat(annotation.height);
       return {
         enabled: true,
@@ -325,6 +459,32 @@ export default function getAnnotationQties({
         enabled: true,
         length,
         surface,
+      };
+    }
+
+    // LINEAR_LAYOUT (calepinage linéaire): the main quantity is the cumulated
+    // length of all the bars = barCount × band width (meters). The bar count
+    // comes from the shared distribution util so it always matches the ticks
+    // rendered by NodeLinearLayoutStatic. Surface = band footprint (bonus).
+    if (annotation.type === "LINEAR_LAYOUT") {
+      const guideQty = getAnnotationQties({
+        annotation: { ...annotation, type: "POLYLINE" },
+        meterByPx,
+      });
+      const guideLengthM = guideQty?.length || 0;
+      const widthM = parseFloat(annotation.width);
+      const hasWidth = Number.isFinite(widthM) && widthM > 0;
+      const spacingM = getLinearLayoutSpacing(annotation);
+      const barCount = getLinearLayoutTickOffsets({
+        length: guideLengthM,
+        spacing: spacingM,
+        align: annotation.layoutAlign,
+      }).length;
+      return {
+        enabled: true,
+        length: hasWidth ? barCount * widthM : 0,
+        surface: hasWidth ? guideLengthM * widthM : 0,
+        count: barCount,
       };
     }
 
@@ -463,10 +623,12 @@ export default function getAnnotationQties({
           surface: profileLengthMeters * guideLengthM,
         };
       }
-      // Inline "Extrusion" (profileLines drawn on the polyline): developed
-      // surface = developed cross-section length × guide length, mirroring
-      // the EXTRUSION_PROFILE rule. The profile's developed length mixes its
-      // plan extent (px × meterByPx) and its vertical rise (heights, meters).
+      // Inline "Extrusion" (profileLines drawn on the polyline): surface =
+      // ONE-SIDED area of the actual swept mesh (computeInlineExtrusionSurface
+      // rebuilds the 3D triangles). The flat cross-section × guide-length rule
+      // is wrong on curved guides — the swept path shortens/lengthens with the
+      // profile's transverse offset (a closed dome came out ~2× too big) — and
+      // is kept only as a degenerate-sweep fallback.
       {
         const inlineProfile = (annotation.profileLines || []).find(
           (l) => (l?.points?.length ?? 0) >= 2
@@ -475,17 +637,28 @@ export default function getAnnotationQties({
           const pts = inlineProfile.points.filter(
             (p) => typeof p?.x === "number" && typeof p?.y === "number"
           );
+          const guideLengthM = totalLengthPx * meterByPx;
+          const sweptM2 = computeInlineExtrusionSurface(
+            annotation,
+            points,
+            pts,
+            meterByPx
+          );
+          if (sweptM2 != null && guideLengthM > 0) {
+            return {
+              enabled: true,
+              length: guideLengthM,
+              surface: sweptM2,
+            };
+          }
           let profLenM = 0;
           for (let i = 0; i < pts.length - 1; i += 1) {
             profLenM += Math.hypot(
-              Math.hypot(
-                pts[i + 1].x - pts[i].x,
-                pts[i + 1].y - pts[i].y
-              ) * meterByPx,
+              Math.hypot(pts[i + 1].x - pts[i].x, pts[i + 1].y - pts[i].y) *
+                meterByPx,
               (Number(pts[i + 1].height) || 0) - (Number(pts[i].height) || 0)
             );
           }
-          const guideLengthM = totalLengthPx * meterByPx;
           if (profLenM > 0 && guideLengthM > 0) {
             return {
               enabled: true,

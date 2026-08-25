@@ -1,3 +1,5 @@
+import { alpha } from "@mui/material/styles";
+
 // Warm palette + animation helpers for the dashboard (design model "2a").
 // Orange accents are derived from theme.palette.secondary.main via alpha();
 // the constants below are the warm neutrals of the mock.
@@ -24,6 +26,52 @@ export const PILL_BUTTON_SX = {
   color: PILL_TEXT,
   bgcolor: "white",
   "&:hover": { bgcolor: PILL_HOVER_BG, borderColor: PILL_BORDER },
+};
+
+// wrapper Box around a SearchBar — white pill field with the warm glow
+export const PILL_SEARCH_SX = {
+  // full width even when not focused, so the placeholder is not truncated
+  "& .MuiFormControl-root": { width: 1 },
+  "& .MuiOutlinedInput-root": {
+    bgcolor: "white",
+    borderRadius: 999,
+    height: 48,
+    px: 1,
+    boxShadow: (theme) =>
+      `0 4px 20px ${alpha(
+        theme.palette.secondary.main,
+        0.1
+      )}, 0 1px 3px rgba(0,0,0,.06)`,
+    "& fieldset": { border: "none" },
+  },
+  "& .MuiInputAdornment-root .MuiSvgIcon-root": {
+    color: "secondary.main",
+  },
+};
+
+// wrapper Box around a ToggleButtonGroup — segmented pill control (model 2a)
+export const SEGMENT_TOGGLE_SX = {
+  "& .MuiToggleButtonGroup-root": {
+    bgcolor: SEGMENT_BG,
+    borderRadius: 999,
+    p: "4px",
+  },
+  "& .MuiToggleButton-root": {
+    width: 110,
+    height: 30,
+    py: 0,
+    border: "none",
+    borderRadius: "999px !important",
+    color: "text.secondary",
+    "&:hover": { bgcolor: "transparent", color: "text.primary" },
+  },
+  "& .MuiToggleButton-root.Mui-selected": {
+    bgcolor: "white",
+    color: "secondary.main",
+    fontWeight: 600,
+    boxShadow: "0 1px 4px rgba(0,0,0,.08)",
+    "&:hover": { bgcolor: "white" },
+  },
 };
 
 export function fadeUp(delay = 0) {

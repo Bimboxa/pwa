@@ -219,13 +219,17 @@ function getAngleRegions(cache, angleDeg) {
 // strictly coplanar facets together, 25 (the default setting) follows a
 // revolution / swept surface across its facets without crossing a real crease.
 //
-// `plane: true` skips the adjacency walk entirely and selects EVERY triangle
-// lying on the seed triangle's plane (signed normal within TOLERANCE_RAD, all
-// three vertices within PLANE_DIST_TOL of the plane). CSG-carved geometries
-// (userData.hasSubtraction) need this: boolean cuts leave T-junctions the
-// vertex weld cannot bridge, so edge-adjacency fragments a coplanar surface
-// into disconnected components. Callers must use the same mode for hover and
-// creation so what is highlighted is what gets created.
+// `plane: true` returns the UNION of two regions: every triangle lying on the
+// seed triangle's plane (signed normal within TOLERANCE_RAD, all three
+// vertices within PLANE_DIST_TOL of the plane) plus the seed's angle-based
+// region. CSG-carved geometries (userData.hasSubtraction) need the plane
+// sweep: boolean cuts leave T-junctions the vertex weld cannot bridge, so
+// edge-adjacency fragments a FLAT carved surface into disconnected
+// components. On a CURVED carved shell (a lathe) the plane sweep only matches
+// the seed facet, but the angle walk still spans the shell (T-junctions only
+// break edges bordering the cut) — hence the union covers both. Callers must
+// use the same mode for hover and creation so what is highlighted is what
+// gets created.
 export function getFaceRegion(
   geometry,
   faceIndex,
@@ -248,7 +252,29 @@ export function getFaceRegion(
     adjacencyCache.set(geometry, cache);
   }
 
-  if (plane) return getPlaneRegion(geometry, faceIndex, cache);
+  if (plane) {
+    const planeRegion = getPlaneRegion(geometry, faceIndex, cache);
+    const { regionOfTri, trisByRegion } = getAngleRegions(cache, angleDeg);
+    const angleId = regionOfTri[faceIndex];
+    const angleTris = trisByRegion.get(angleId) || [faceIndex];
+    const seen = new Uint8Array(cache.triCount);
+    const tris = [];
+    for (const t of planeRegion.tris) {
+      if (!seen[t]) {
+        seen[t] = 1;
+        tris.push(t);
+      }
+    }
+    for (const t of angleTris) {
+      if (!seen[t]) {
+        seen[t] = 1;
+        tris.push(t);
+      }
+    }
+    // Both component ids are min-tri-index roots (stable), so the combined
+    // string keys the overlay cache just as deterministically.
+    return { regionId: `${angleId}p${planeRegion.regionId}`, tris };
+  }
 
   const { regionOfTri, trisByRegion } = getAngleRegions(cache, angleDeg);
   const regionId = regionOfTri[faceIndex];

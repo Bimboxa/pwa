@@ -136,6 +136,16 @@ export default memo(function NodeLegendStatic({
             );
         }
 
+        if (type === "LINEAR_LAYOUT") {
+            return (
+                <div style={{
+                    ...commonStyle, background: "white",
+                }}>
+                    <Rectangle style={{ ...muiIconStyle, fill: strokeColor }} />
+                </div>
+            );
+        }
+
         if (type === "RECTANGLE") {
             return (
                 <div style={{

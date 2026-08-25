@@ -14,9 +14,13 @@ import DialogDeleteRessource from "Features/layout/components/DialogDeleteRessou
 import useDeleteBaseMap, {
   countBaseMapAnnotations,
 } from "Features/baseMaps/hooks/useDeleteBaseMap";
+import { triggerBaseMapsUpdate } from "Features/baseMaps/baseMapsSlice";
+import db from "App/db/db";
 
 export default function IconButtonMoreActionsBaseMap({
   baseMap,
+  onOpenProperties,
+  onRename,
   onAddVersion,
   ...iconButtonProps
 }) {
@@ -24,8 +28,17 @@ export default function IconButtonMoreActionsBaseMap({
 
   // strings
 
-  const addVersionS = "Ajouter une version";
-  const deleteS = "Supprimer";
+  const propertiesS = "Propriétés du fond de plan";
+  const renameS = "Renommer";
+  const addVersionS = "Nouvelle version";
+  const deleteS = "Supprimer le fond de plan";
+
+  // helpers - orientation
+
+  const isVertical = baseMap?.orientation === "VERTICAL";
+  const toggleOrientationS = isVertical
+    ? "Passer en horizontal"
+    : "Passer en vertical";
 
   // data
 
@@ -56,9 +69,30 @@ export default function IconButtonMoreActionsBaseMap({
     setAnchorEl(null);
   }
 
+  function handleOpenProperties() {
+    setAnchorEl(null);
+    onOpenProperties?.();
+  }
+
+  function handleRename() {
+    setAnchorEl(null);
+    onRename?.();
+  }
+
   function handleAddVersion() {
     setAnchorEl(null);
     onAddVersion?.();
+  }
+
+  // Same field / update as the Position 3D panels (orientation of the plane
+  // in the 3D scene: HORIZONTAL = floor, VERTICAL = wall).
+  async function handleToggleOrientation() {
+    setAnchorEl(null);
+    if (!baseMap?.id) return;
+    await db.baseMaps.update(baseMap.id, {
+      orientation: isVertical ? "HORIZONTAL" : "VERTICAL",
+    });
+    dispatch(triggerBaseMapsUpdate());
   }
 
   async function handleDelete() {
@@ -86,8 +120,17 @@ export default function IconButtonMoreActionsBaseMap({
       </IconButton>
 
       <Menu open={Boolean(anchorEl)} anchorEl={anchorEl} onClose={handleClose}>
+        {onOpenProperties && (
+          <MenuItem onClick={handleOpenProperties}>{propertiesS}</MenuItem>
+        )}
+        {onRename && <MenuItem onClick={handleRename}>{renameS}</MenuItem>}
         <MenuItem onClick={handleAddVersion}>{addVersionS}</MenuItem>
-        <MenuItem onClick={handleDelete}>{deleteS}</MenuItem>
+        <MenuItem onClick={handleToggleOrientation}>
+          {toggleOrientationS}
+        </MenuItem>
+        <MenuItem onClick={handleDelete} sx={{ color: "error.main" }}>
+          {deleteS}
+        </MenuItem>
       </Menu>
 
       <DialogDeleteRessource

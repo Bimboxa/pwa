@@ -41,11 +41,9 @@ export default function usePushPovPreview() {
   return async function pushPovPreview(pov) {
     try {
       const fetchParams = povPreviewsConfig?.push?.fetchParams;
-      if (!fetchParams)
-        throw new Error("Config manquante (povPreviews.push)");
+      if (!fetchParams) throw new Error("Config manquante (povPreviews.push)");
       if (!pov?.id) throw new Error("POV manquant");
       if (!scope?.id) throw new Error("Aucun scope sélectionné");
-      if (!project?.idMaster) throw new Error("project.idMaster manquant");
 
       // 1. Image de prévisualisation depuis db.files
       const fileName = pov.image?.fileName;

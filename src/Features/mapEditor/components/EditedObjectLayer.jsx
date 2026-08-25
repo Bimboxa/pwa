@@ -2,10 +2,7 @@ import { useMemo } from "react";
 import { useSelector } from "react-redux";
 import { useInteraction } from "Features/mapEditor/context/InteractionContext";
 import NodeAnnotationStatic from "Features/mapEditorGeneric/components/NodeAnnotationStatic";
-import NodeProxyRevolutionStatic from "Features/mapEditorGeneric/components/NodeProxyRevolutionStatic";
 import getAnnotationLabelPropsFromAnnotation from "Features/annotations/utils/getAnnotationLabelPropsFromAnnotation";
-import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
-import db from "App/db/db";
 import AnnotationEditingWrapper from "./AnnotationEditingWrapper";
 import computeWrapperBbox from "../utils/computeWrapperBbox";
 import theme from "Styles/theme";
@@ -20,7 +17,7 @@ import useSelectedNodes from "../hooks/useSelectedNodes";
 
 const selectWrapperMode = (state) => state.mapEditor.wrapperMode;
 
-const POINT_BASED_TYPES = ["POLYLINE", "POLYGON", "STRIP"];
+const POINT_BASED_TYPES = ["POLYLINE", "POLYGON", "STRIP", "LINEAR_LAYOUT"];
 
 export default function EditedObjectLayer({
   basePose,
@@ -40,27 +37,8 @@ export default function EditedObjectLayer({
   const selectedPartIds = useSelector(selectSelectedPartIds);
   const wrapperMode = useSelector(selectWrapperMode);
 
-  const updateAnnotation = useUpdateAnnotation();
-
   // Compat with existing logic
   const { node: selectedNode, nodes: selectedNodes } = useSelectedNodes();
-
-  // Commit new partial-revolution angles to the proxy's SOURCE arc shape3D.
-  async function handleProxyAnglesChange(annotation, angleStart, angleEnd) {
-    const srcId = annotation?.proxySourceAnnotationId;
-    if (!srcId) return;
-    const src = await db.annotations.get(srcId);
-    if (!src) return;
-    await updateAnnotation({
-      id: src.id,
-      shape3D: {
-        ...src.shape3D,
-        partialRevolution: true,
-        revolutionAngleStart: angleStart,
-        revolutionAngleEnd: angleEnd,
-      },
-    });
-  }
 
   const { hiddenAnnotationIds, getPendingMove, pendingMovesVersion } =
     useInteraction();
@@ -132,8 +110,18 @@ export default function EditedObjectLayer({
     POINT_BASED_TYPES.includes(a.type)
   );
   const isMultiSelection = selectedNodes?.length > 1;
+  // A footprint is the projection of an annotation hosted by another base map:
+  // it has no editable geometry of its own, so it gets neither the transform
+  // handles nor the vertex dots — only a dashed outline (see below), which is
+  // what tells the user it is a reference and not something to edit.
+  const isForeignFootprintSelection =
+    annotationsToRender.length > 0 &&
+    annotationsToRender.every((a) => a?.isForeignFootprint);
   const showWrapper =
-    pointBasedAnnotations.length > 0 && wrapperMode && !selectedPointId;
+    pointBasedAnnotations.length > 0 &&
+    wrapperMode &&
+    !selectedPointId &&
+    !isForeignFootprintSelection;
 
   // Extract cumulative rotation and rotation center (all annotations in the wrapper share the same values)
   const wrapperRotation = (() => {
@@ -220,29 +208,6 @@ export default function EditedObjectLayer({
         // Optimistic overlay : rendre invisible pendant le drag
         const hasPendingMove = !!getPendingMove(annotation.id);
 
-        // Partial-revolution proxy: sector node with angle handles when selected.
-        const proxy2D = annotation.revolutionProxy2D;
-        if (annotation.isProxy && proxy2D?.partial) {
-          return (
-            <g key={annotation.id} data-node-id={annotation.id}>
-              <NodeProxyRevolutionStatic
-                annotation={annotation}
-                center={proxy2D.center}
-                rOuter={proxy2D.rOuter}
-                rInner={proxy2D.rInner}
-                angleStart={proxy2D.angleStart}
-                angleEnd={proxy2D.angleEnd}
-                fillColor={annotation.fillColor}
-                selected={isNodeSelected}
-                containerK={finalPose.k}
-                onChangeAngles={(s, e) =>
-                  handleProxyAnglesChange(annotation, s, e)
-                }
-              />
-            </g>
-          );
-        }
-
         return (
           <g
             key={annotation.id}
@@ -260,6 +225,7 @@ export default function EditedObjectLayer({
               // (the wrapper handles replace them)
               selected={
                 isNodeSelected &&
+                !annotation?.isForeignFootprint &&
                 !(showWrapper && POINT_BASED_TYPES.includes(annotation.type))
               }
               sizeVariant="FIXED_IN_SCREEN"
@@ -272,13 +238,38 @@ export default function EditedObjectLayer({
               selectedPartId={selectedPartId}
               selectedPartIds={selectedPartIds}
               highlightConnectedSegments={isPointSelectionMode}
-              // Proxy donuts are not editable: keep the selection
-              // highlight/fill but never show vertex handles.
-              disableVertexEditing={annotation.isProxy}
+              // The label chip is being dragged (pendingMove keyed on the
+              // label:: node): hide this copy's chip, the transient layer
+              // renders the moving one.
+              forceHideLabel={!!getPendingMove("label::" + annotation.id)}
             />
           </g>
         );
       })}
+
+      {/* Selected footprint: a plain dashed black outline instead of the
+          transform handles — it marks the selection without suggesting the
+          shape can be edited here. */}
+      {isForeignFootprintSelection &&
+        annotationsToRender.map((annotation) => {
+          const pts = annotation?.points;
+          if (!pts?.length) return null;
+          const d =
+            pts.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" ") +
+            " Z";
+          const k = finalPose.k || 1;
+          return (
+            <path
+              key={`foreign-outline-${annotation.id}`}
+              d={d}
+              fill="none"
+              stroke="#000"
+              strokeWidth={1.5 / k}
+              strokeDasharray={`${6 / k} ${4 / k}`}
+              style={{ pointerEvents: "none" }}
+            />
+          );
+        })}
 
       {/* Annotation Editing Wrapper — rendered on top of annotations */}
       {/* Hidden during drag (transient wrapper is rendered by InteractionLayer) */}

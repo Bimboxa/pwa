@@ -40,6 +40,7 @@ import threedEditorReducer from "Features/threedEditor/threedEditorSlice";
 import mapEditorReducer from "Features/mapEditor/mapEditorSlice";
 import smartDetectReducer from "Features/smartDetect/smartDetectSlice";
 import reportsReducer from "Features/reports/reportsSlice";
+import resourcesReducer from "Features/resources/resourcesSlice";
 import blueprintsReducer from "Features/blueprints/blueprintsSlice";
 import selectionReducer from "Features/selection/selectionSlice";
 import baseMapCreatorReducer from "Features/baseMapCreator/baseMapCreatorSlice";
@@ -68,6 +69,8 @@ import annotationsAutoReducer from "Features/annotationsAuto/annotationsAutoSlic
 import listingViewerReducer from "Features/listingViewer/listingViewerSlice";
 import layersReducer from "Features/layers/layersSlice";
 import popperMapListingsReducer from "Features/popperMapListings/popperMapListingsSlice";
+import panelDrawingReducer from "Features/panelDrawing/panelDrawingSlice";
+import photosReducer from "Features/photos/photosSlice";
 import elevationReducer from "Features/elevation/elevationSlice";
 import meshReducer from "Features/mesh/meshSlice";
 import povReducer from "Features/pov/povSlice";
@@ -118,6 +121,7 @@ const store = configureStore({
     mapEditor: mapEditorReducer,
     smartDetect: smartDetectReducer,
     reports: reportsReducer,
+    resources: resourcesReducer,
     blueprints: blueprintsReducer,
     selection: selectionReducer,
     opencv: opencvReducer,
@@ -146,6 +150,8 @@ const store = configureStore({
     listingViewer: listingViewerReducer,
     layers: layersReducer,
     popperMapListings: popperMapListingsReducer,
+    panelDrawing: panelDrawingReducer,
+    photos: photosReducer,
     elevation: elevationReducer,
     mesh: meshReducer,
     pov: povReducer,

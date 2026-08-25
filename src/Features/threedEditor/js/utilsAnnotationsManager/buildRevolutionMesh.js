@@ -1,13 +1,20 @@
 import {
+  BufferGeometry,
   DoubleSide,
   EdgesGeometry,
+  Float32BufferAttribute,
   Group,
   LatheGeometry,
   LineBasicMaterial,
   LineSegments,
   Mesh,
+  MeshStandardMaterial,
+  ShapeUtils,
   Vector2,
 } from "three";
+import { LineSegments2 } from "three/examples/jsm/lines/LineSegments2.js";
+import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeometry.js";
+import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 
 import { expandArcsInPathWithHiddenMap } from "Features/geometry/utils/arcSampling";
 
@@ -26,9 +33,12 @@ import { expandArcsInPathWithHiddenMap } from "Features/geometry/utils/arcSampli
 //     then re-oriented so the revolution axis matches the base map normal, then
 //     translated to `centerLocal`.
 //
-// `centerLocal` is the in-plane position of the axis, taken from the linked
-// REVOLUTION_POINT (resolved by useAnnotationsV2). When null (no point), the
-// solid sits at the drawn axis's own location.
+// `centerLocal` overrides the in-plane position of the axis. Callers pass null:
+// the base map hosting the arc was POSED so its plane contains the axis (see
+// computeVerticalBaseMapPlacementFromAxis), which is exactly the default here
+// (z = 0 in the plane). Note that on a VERTICAL base map `baseY` cancels out
+// (center.y = baseY, height = y − baseY), so the only load-bearing part of
+// `axisPoints` is mean(x).
 //
 // Hidden segments (indices in `hiddenSegmentsIdx`) split the arc into runs of
 // contiguous non-hidden segments, one LatheGeometry per run.
@@ -42,6 +52,47 @@ const EDGE_MATERIAL = new LineBasicMaterial({
 });
 
 const SEGMENTS = 64;
+
+// Section markers shown at the two sweep boundaries of a PARTIAL revolution so
+// the profile reads like an architectural section drawing: ink-colored fat
+// lines along the profile (always), plus an optional flat "poché" fill when
+// the profile is a closed contour (sectionFill option). Ink color matches the
+// aquarelle ink edges; lift matches STRIP_FOLD_LINE_LIFT.
+const SECTION_INK_COLOR = 0x2a2a2a;
+const SECTION_LINEWIDTH_PX = 2.5;
+export const SECTION_MARKER_LIFT = 0.004;
+// Profile first/last points closer than this (metres) = closed contour.
+const SECTION_CLOSED_EPS = 1e-3;
+const FULL_TURN_EPS = 1e-6;
+
+// Lathe vertex formula at angle phi for a profile point (r, y), followed by
+// the same frame ops applied to the lathe geometry: rotateX(π/2) when the
+// revolution axis is the base map normal ((x, y, z) → (x, −z, y)), then the
+// translation to `center`. Returns [x, y, z] plus a lift along the outward
+// sweep tangent ±(cosφ, 0, −sinφ) so the marker never z-fights the surface.
+//
+// Exported so buildRevolutionCircleLine (POINT revolution) shares the EXACT
+// same frame: a circle traced from a point lands right on the lathe surface of
+// any arc revolved around the same axis. Pass outwardSign = 0 for no lift.
+export function boundaryVertex(
+  r,
+  y,
+  phi,
+  outwardSign,
+  axisAlongNormal,
+  center
+) {
+  const lift = SECTION_MARKER_LIFT * outwardSign;
+  let x = r * Math.sin(phi) + lift * Math.cos(phi);
+  let yy = y;
+  let z = r * Math.cos(phi) - lift * Math.sin(phi);
+  if (axisAlongNormal) {
+    const t = yy;
+    yy = -z;
+    z = t;
+  }
+  return [x + center.x, yy + center.y, z + (center.z ?? 0)];
+}
 
 // Sub-segments per S–C–S arc half when sampling a curved profile. An arc drawn
 // as 3 anchor points (square→circle→square) would otherwise revolve as 2 straight
@@ -57,6 +108,8 @@ export default function buildRevolutionMesh({
   hiddenSegmentsIdx = [],
   phiStart = 0,
   phiLength = Math.PI * 2,
+  resolution = null,
+  sectionFill = false,
 }) {
   if (!arcPoints || arcPoints.length < 2) return null;
   if (!axisPoints || axisPoints.length < 2) return null;
@@ -129,14 +182,141 @@ export default function buildRevolutionMesh({
   const turnFraction = Math.min(1, Math.max(0, phiLength / (Math.PI * 2)));
   const segments = Math.max(4, Math.round(SEGMENTS * turnFraction));
 
+  // Partial sweep → section markers at both boundaries. Per-call materials
+  // (NEVER module singletons): carve/delete dispose child materials.
+  const isPartial = phiLength < Math.PI * 2 - FULL_TURN_EPS;
+  const phiEnd = phiStart + phiLength;
+  let sectionLineMat = null;
+  let sectionFillMat = null;
+  if (isPartial) {
+    sectionLineMat = new LineMaterial({
+      color: SECTION_INK_COLOR,
+      linewidth: SECTION_LINEWIDTH_PX,
+      worldUnits: false,
+      transparent: true,
+    });
+    if (resolution) sectionLineMat.resolution.set(resolution.x, resolution.y);
+  }
+
+  // Fat line along the profile at one sweep boundary. LineSegments2 is
+  // `isMesh`: selection raycast must be disabled (aquarelle-edge pattern) and
+  // `isSectionMarker` keeps it out of exports / plane sectioning.
+  const buildBoundaryLine = (run, phi, outwardSign) => {
+    const positions = [];
+    for (let i = 0; i < run.length - 1; i++) {
+      positions.push(
+        ...boundaryVertex(
+          run[i].x,
+          run[i].y,
+          phi,
+          outwardSign,
+          axisAlongNormal,
+          center
+        ),
+        ...boundaryVertex(
+          run[i + 1].x,
+          run[i + 1].y,
+          phi,
+          outwardSign,
+          axisAlongNormal,
+          center
+        )
+      );
+    }
+    const geom = new LineSegmentsGeometry();
+    geom.setPositions(positions);
+    const line = new LineSegments2(geom, sectionLineMat);
+    line.computeLineDistances();
+    line.raycast = () => {};
+    line.userData.isSectionMarker = true;
+    // Boundary frame data consumed by refreshRevolutionSectionMarkers: after
+    // a subtraction carve, the line is recomputed by sectioning the CARVED
+    // geometry with this boundary plane, so intercepted openings interrupt
+    // the profile trace instead of being drawn over.
+    line.userData.sectionBoundary = {
+      phi,
+      outwardSign,
+      axisAlongNormal,
+      center: { x: center.x, y: center.y, z: center.z ?? 0 },
+    };
+    return line;
+  };
+
+  // Flat "poché" face filling the profile contour at one sweep boundary.
+  const buildBoundaryFill = (run, faces, phi, outwardSign) => {
+    const positions = [];
+    for (const p of run) {
+      positions.push(
+        ...boundaryVertex(p.x, p.y, phi, outwardSign, axisAlongNormal, center)
+      );
+    }
+    const geom = new BufferGeometry();
+    geom.setAttribute("position", new Float32BufferAttribute(positions, 3));
+    geom.setIndex(faces.flat());
+    geom.computeVertexNormals();
+    const mesh = new Mesh(geom, sectionFillMat);
+    mesh.userData.isSectionMarker = true;
+    return mesh;
+  };
+
   const group = new Group();
   for (const run of runs) {
     const geom = new LatheGeometry(run, segments, phiStart, phiLength);
     if (axisAlongNormal) geom.rotateX(Math.PI / 2);
     geom.translate(center.x, center.y, center.z ?? 0);
     geom.computeVertexNormals();
-    group.add(new Mesh(geom, surfMat));
-    group.add(new LineSegments(new EdgesGeometry(geom), EDGE_MATERIAL));
+    const mesh = new Mesh(geom, surfMat);
+    // Tag every run so the carve pipeline finds ALL lathe surfaces (not just
+    // the first mesh) — see getSolidMeshesFromObject3D.
+    mesh.userData.role = "SOLID";
+    group.add(mesh);
+    // Tagged (and per-call material, per the dispose rule above) so the carve
+    // pipeline can strip + rebuild the grid from the carved geometry — see
+    // subtractAnnotationGeometries.
+    const gridEdges = new LineSegments(
+      new EdgesGeometry(geom),
+      EDGE_MATERIAL.clone()
+    );
+    gridEdges.userData = {
+      isGridEdge: true,
+      gridEdgeKind: "EDGES",
+      // Runtime ref for the "Wireframe" threshold rebuild — see
+      // applyWireframeSettings (never serialized: lines are not exported).
+      sourceMesh: mesh,
+    };
+    gridEdges.raycast = () => {};
+    group.add(gridEdges);
+
+    if (!isPartial) continue;
+    // Markers are children of the SOLID run mesh (not group siblings): the
+    // carve pipeline strips root children that hold no SOLID mesh — see
+    // subtractAnnotationGeometries.
+    mesh.add(buildBoundaryLine(run, phiStart, -1));
+    mesh.add(buildBoundaryLine(run, phiEnd, 1));
+
+    const isClosed =
+      run.length >= 4 &&
+      run[0].distanceTo(run[run.length - 1]) < SECTION_CLOSED_EPS;
+    if (sectionFill && isClosed) {
+      // Drop the duplicate closing point for triangulation.
+      const contour = run.slice(0, -1);
+      let faces = null;
+      try {
+        faces = ShapeUtils.triangulateShape(contour, []);
+      } catch {
+        faces = null; // degenerate/self-intersecting contour: skip the fill
+      }
+      if (faces?.length) {
+        if (!sectionFillMat) {
+          sectionFillMat = new MeshStandardMaterial({
+            color: SECTION_INK_COLOR,
+            side: DoubleSide,
+          });
+        }
+        mesh.add(buildBoundaryFill(contour, faces, phiStart, -1));
+        mesh.add(buildBoundaryFill(contour, faces, phiEnd, 1));
+      }
+    }
   }
   return group;
 }

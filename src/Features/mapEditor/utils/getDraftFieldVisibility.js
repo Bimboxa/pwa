@@ -41,13 +41,18 @@ export default function getDraftFieldVisibility(
     !isRampTool &&
     !isFieldOverridden("strokeWidth") &&
     ((!isToolGroup &&
-      (drawingShape === "POLYLINE" || drawingShape === "OPENING")) ||
+      (drawingShape === "POLYLINE" ||
+        drawingShape === "CIRCULATION" ||
+        drawingShape === "OPENING" ||
+        drawingShape === "LINEAR_LAYOUT")) ||
       isOpeningBand);
   const showOffset =
     !isToolGroup && !isRampTool && !isFieldOverridden("offsetZ");
   const showHeight =
     !isToolGroup && !isRampTool && !isFieldOverridden("height");
-  const showWidth = drawingShape === "OPENING" && !isFieldOverridden("width");
+  const showWidth =
+    (drawingShape === "OPENING" || drawingShape === "LINEAR_LAYOUT") &&
+    !isFieldOverridden("width");
 
   return {
     isCuttingTool,

@@ -6,11 +6,11 @@ import {
   CloudQueue,
 } from "@mui/icons-material";
 
-import ButtonGeneric from "Features/layout/components/ButtonGeneric";
+import AvatarPovPreview from "./AvatarPovPreview";
 
 // Renders one krto row — either a local scope or a remote (not installed)
-// scope configuration.
-// `row` = { scopeId, name, subText, isLocal, isFavorite }
+// scope configuration. Clicking the row opens the krto.
+// `row` = { scopeId, name, subText, isLocal, isFavorite, povPreviews }
 // `subText` = "author trigram, last configuration date".
 
 export default function ListItemDashboardScope({
@@ -19,24 +19,38 @@ export default function ListItemDashboardScope({
   onOpen,
   onDelete,
 }) {
+  // handlers
+
+  function handleFavoriteClick(e) {
+    e.stopPropagation();
+    onToggleFavorite(row);
+  }
+
+  function handleDeleteClick(e) {
+    e.stopPropagation();
+    onDelete(row);
+  }
+
   // render
 
   return (
     <Box
+      onClick={() => onOpen(row)}
       sx={{
         display: "flex",
         alignItems: "center",
         gap: 1,
         px: 2,
         py: 1.25,
+        cursor: "pointer",
         borderBottom: "1px solid",
         borderColor: "divider",
-        "&:hover": { bgcolor: "rgba(0,0,0,0.02)" },
+        "&:hover": { bgcolor: "rgba(0,0,0,0.04)" },
         "&:last-child": { borderBottom: "none" },
       }}
     >
       <Tooltip title={row.isFavorite ? "Retirer des favoris" : "Ajouter aux favoris"}>
-        <IconButton size="small" onClick={() => onToggleFavorite(row)} sx={{ p: 0.5 }}>
+        <IconButton size="small" onClick={handleFavoriteClick} sx={{ p: 0.5 }}>
           {row.isFavorite ? (
             <Star sx={{ color: "#f5a623", fontSize: "1.2rem" }} />
           ) : (
@@ -44,6 +58,8 @@ export default function ListItemDashboardScope({
           )}
         </IconButton>
       </Tooltip>
+
+      <AvatarPovPreview povPreviews={row.povPreviews} />
 
       <Box sx={{ flex: 1, minWidth: 0 }}>
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
@@ -65,22 +81,16 @@ export default function ListItemDashboardScope({
         )}
       </Box>
 
-      <ButtonGeneric
-        variant="contained"
-        size="small"
-        label="Ouvrir"
-        onClick={() => onOpen(row)}
-        sx={{ px: 2 }}
-      />
-
       {row.isLocal && (
-        <IconButton
-          size="small"
-          onClick={() => onDelete(row)}
-          sx={{ color: "text.secondary" }}
-        >
-          <DeleteOutline />
-        </IconButton>
+        <Tooltip title="Supprimer">
+          <IconButton
+            size="small"
+            onClick={handleDeleteClick}
+            sx={{ color: "text.secondary" }}
+          >
+            <DeleteOutline />
+          </IconButton>
+        </Tooltip>
       )}
     </Box>
   );

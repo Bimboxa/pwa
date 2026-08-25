@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useDispatch, useSelector, useStore } from "react-redux";
 
 import { selectSelectedModuleKey } from "Features/viewers/utils/effectiveViewerKey";
+import { selectSubtractPickAnnotationId } from "../utils/subtractPickMode";
 
 import useFreeAnnotationTemplates from "./useFreeAnnotationTemplates";
 import startDrawFromTemplate, {
@@ -47,7 +48,7 @@ export default function useFreeAnnotationHotkeys() {
       // Stay out of the other editor modes that may own these letters
       // (paste mode, subtract mode).
       const s = store.getState();
-      if (s.mapEditor.pasteClipboard || s.mapEditor.subtractSourceAnnotationId)
+      if (s.mapEditor.pasteClipboard || selectSubtractPickAnnotationId(s))
         return;
 
       // Walk mode owns the keyboard (P/M tune the spray nozzle there) — and
@@ -68,6 +69,13 @@ export default function useFreeAnnotationHotkeys() {
       // The shared ?mode=viewer lock is read-only — never start a draw there,
       // even if some future path resets interactionMode to DRAW.
       if (s.urlParams.viewerMode) return;
+
+      // While the docked Dessin panel shows a template detail view, the
+      // letters belong to the pre-draw template shortcuts
+      // (ToolbarStartDrawTemplate) — "L" arms that template's Ligne tool,
+      // not a free annotation.
+      if (s.leftPanel.leftPanelDocked && s.panelDrawing.detailTemplateId)
+        return;
 
       const key = e.key.toLowerCase();
       let template = null;

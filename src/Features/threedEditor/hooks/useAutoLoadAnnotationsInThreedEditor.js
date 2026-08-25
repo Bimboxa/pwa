@@ -1,14 +1,17 @@
 import { useEffect, useMemo, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
-import { bumpSnapIndexEpoch } from "Features/threedEditor/threedEditorSlice";
+import {
+  bumpSnapIndexEpoch,
+  bumpAnnotationsLoadTick,
+} from "Features/threedEditor/threedEditorSlice";
 
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useMeshCellRelations from "Features/annotations/hooks/useMeshCellRelations";
 import useExtraBaseMapIdsIn3d from "./useExtraBaseMapIdsIn3d";
-import getBaseMapOpacityIn3d from "Features/threedEditor/utils/getBaseMapOpacityIn3d";
+import getBaseMapTransform from "Features/baseMaps/js/getBaseMapTransform";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 
@@ -19,6 +22,17 @@ export default function useAutoLoadAnnotationsInThreedEditor({
   const dispatch = useDispatch();
   const selectedViewerKey = useSelector(selectEffectiveViewerKey);
   const isActiveViewer = isThreedFamilyViewerKey(selectedViewerKey);
+  // BaseMap module in 3D: show the isForBaseMaps annotations (the content the
+  // module edits) instead of the drawing ones — same partition as the 2D
+  // MainMapEditorV3 instances.
+  const isBaseMapsModule = useSelector(
+    (s) => s.viewers.selectedViewerKey === "BASE_MAPS"
+  );
+  // "Afficher les annotations" switch of the Fond de plan panel: ON lifts
+  // the isForBaseMaps-only restriction so the drawing annotations load too.
+  const showAnnotationsInBaseMaps = useSelector(
+    (s) => s.baseMapEditor.showAnnotations
+  );
   const disableOpacity = useSelector((s) => s.threedEditor.disableOpacity);
   const antiAliasingShrink = useSelector(
     (s) => s.threedEditor.antiAliasingShrink
@@ -37,13 +51,26 @@ export default function useAutoLoadAnnotationsInThreedEditor({
   const aquarelleShading = renderMode === "AQUARELLE";
   const showMeshCells = useSelector((s) => s.annotations.showMeshCells);
   const { parentIdSet } = useMeshCellRelations();
-  const baseMapOpacityIn3d = useSelector(
-    (s) => s.threedEditor.baseMapOpacityIn3d
-  );
-  const opacityByBaseMapIdIn3d = useSelector(
-    (s) => s.threedEditor.opacityByBaseMapIdIn3d
-  );
   const hiddenListingsIds = useSelector((s) => s.listings.hiddenListingsIds);
+  // REVOLUTION half-view: revolutions built from a profile on a VERTICAL base
+  // map render only the 180° half on the side opposite the camera (the image
+  // reads as a section plane). Display only — quantities stay full-rotation
+  // because this travels as a build option, never written on the annotation,
+  // and the headless carve path (computeSubtractedSurfaceM2Async) builds
+  // without loader options.
+  const revolutionSectionSideByBaseMapId = useSelector(
+    (s) => s.threedEditor.revolutionSectionSideByBaseMapId
+  );
+  // "Révolution partielle" switch: ON = 180° half-view, OFF = full 360°
+  // revolutions (explicit per-axis sectors still apply either way).
+  const forceRevolutionSection = useSelector(
+    (s) => s.threedEditor.forceRevolutionSectionIn3d
+  );
+  // "Pochage des coupes" switch: fill closed-profile sections of partial
+  // revolutions with a flat dark face (ink boundary lines are always on).
+  const revolutionSectionFill = useSelector(
+    (s) => s.threedEditor.revolutionSectionFillIn3d
+  );
 
   // Other base maps whose annotations are requested (mode !== NONE), excluding
   // the main one (always loaded by `filterByMainBaseMap`).
@@ -67,7 +94,8 @@ export default function useAutoLoadAnnotationsInThreedEditor({
     extraBaseMapIds,
     filterBySelectedScope: true,
     sortByOrderIndex: true,
-    excludeIsForBaseMapsListings: true,
+    excludeIsForBaseMapsListings: !isBaseMapsModule,
+    onlyIsForBaseMapsListings: isBaseMapsModule && !showAnnotationsInBaseMaps,
     excludeProfileTemplates: true,
     // Solo mode dims (instead of hides) non-soloed annotations in 3D —
     // ThreedSelectionDimmer renders them translucent.
@@ -101,6 +129,48 @@ export default function useAutoLoadAnnotationsInThreedEditor({
     return annotations.filter((a) => !a.isMeshCell);
   }, [annotations, showMeshCells, parentIdSet]);
 
+  // { baseMapId: 1 | -1 }, only while the "Révolution partielle" switch is ON,
+  // restricted to the vertical base maps that host a REVOLUTION element
+  // without an explicit partial sector — a POLYLINE arc (lathe surface) or a
+  // POINT (circle line). The sector now lives on the plan AXIS and is resolved
+  // per-arc by useAnnotationsV2 into `revolutionPhi`; when it is set, those
+  // explicit angles win over the auto half-view (same precedence as
+  // getRevolutionPartialPhi in createAnnotationObject3D). Restricting the map
+  // keeps the build epoch stable — a camera side flip on an unrelated base map
+  // must not rebuild the scene.
+  const revolutionSection = useMemo(() => {
+    if (!forceRevolutionSection) return null;
+    const revBaseMapIds = new Set(
+      (annotationsForThreed || [])
+        .filter(
+          (a) =>
+            (a.type === "POLYLINE" || a.type === "POINT") &&
+            a.shape3D?.key === "REVOLUTION" &&
+            !a.revolutionPhi
+        )
+        .map((a) => a.baseMapId)
+    );
+    if (revBaseMapIds.size === 0) return null;
+    const out = {};
+    baseMaps.forEach((bm) => {
+      if (!revBaseMapIds.has(bm.id)) return;
+      if (getBaseMapTransform(bm).orientation !== "VERTICAL") return;
+      out[bm.id] = revolutionSectionSideByBaseMapId?.[bm.id] ?? 1;
+    });
+    return Object.keys(out).length > 0 ? out : null;
+  }, [
+    annotationsForThreed,
+    baseMaps,
+    revolutionSectionSideByBaseMapId,
+    forceRevolutionSection,
+  ]);
+  // Serialized form for the build epoch (see getBuildEpochKey).
+  const revolutionSectionKey = revolutionSection
+    ? Object.entries(revolutionSection)
+        .map(([id, side]) => `${id}:${side}`)
+        .join("|")
+    : "";
+
   useEffect(() => {
     // While hidden, keep the scene as-is: no unload on 3D→2D, no reload on
     // background emissions (the pipeline is disabled anyway). Project /
@@ -117,21 +187,13 @@ export default function useAutoLoadAnnotationsInThreedEditor({
     // stored before the scale was set). Includes the MAIN base map for that
     // reason. Idempotent (no-op if already loaded).
     if (threedEditor.ensureBaseMapLoaded) {
-      const opacityState = {
-        baseMapOpacityIn3d,
-        opacityByBaseMapIdIn3d,
-      };
       if (mainBaseMap?.id) {
-        threedEditor.ensureBaseMapLoaded(mainBaseMap, {
-          opacity: getBaseMapOpacityIn3d(opacityState, mainBaseMap.id),
-        });
+        threedEditor.ensureBaseMapLoaded(mainBaseMap);
       }
       extraBaseMapIds.forEach((id) => {
         const bm = baseMaps.find((b) => b.id === id);
         if (bm?.image?.imageUrlClient) {
-          threedEditor.ensureBaseMapLoaded(bm, {
-            opacity: getBaseMapOpacityIn3d(opacityState, id),
-          });
+          threedEditor.ensureBaseMapLoaded(bm);
         }
       });
     }
@@ -141,6 +203,9 @@ export default function useAutoLoadAnnotationsInThreedEditor({
       realisticShading,
       photorealShading,
       aquarelleShading,
+      revolutionSection,
+      revolutionSectionKey,
+      revolutionSectionFill,
     });
     // The scene's annotation objects just changed: resync the drawing snap /
     // face-detection index. Deterministic counterpart of the 350 ms
@@ -149,6 +214,10 @@ export default function useAutoLoadAnnotationsInThreedEditor({
     // committed face's edges then silently never became snappable). The
     // rebuild itself only runs while the 3D drawing mode is active.
     dispatch(bumpSnapIndexEpoch());
+    // Basemap groups are guaranteed to exist here (ensureBaseMapLoaded above):
+    // re-run the child effects that attach objects to them (labels, cotes) —
+    // on a fresh load landing directly on 3D their first run came too early.
+    dispatch(bumpAnnotationsLoadTick());
   }, [
     rendererIsReady,
     isActiveViewer,
@@ -160,11 +229,11 @@ export default function useAutoLoadAnnotationsInThreedEditor({
     realisticShading,
     photorealShading,
     aquarelleShading,
+    revolutionSectionKey,
+    revolutionSectionFill,
     extraBaseMapIds,
     baseMaps,
     mainBaseMap,
-    baseMapOpacityIn3d,
-    opacityByBaseMapIdIn3d,
   ]);
 
   return annotationsForThreed;

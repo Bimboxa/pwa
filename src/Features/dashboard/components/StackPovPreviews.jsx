@@ -2,7 +2,7 @@ import { useState } from "react";
 
 import { Box, Popover, Typography } from "@mui/material";
 
-import useRemoteImageUrl from "Features/misc/hooks/useRemoteImageUrl";
+import usePovPreviewImageUrl from "Features/pov/hooks/usePovPreviewImageUrl";
 
 import { CARD_BORDER } from "../utils/dashboardStyles";
 
@@ -14,7 +14,7 @@ const MAX_STACKED = 3;
 function PovPreviewImage({ povPreview, sx }) {
   // data
 
-  const imageUrl = useRemoteImageUrl(povPreview.imageUrlMaster);
+  const imageUrl = usePovPreviewImageUrl(povPreview);
 
   // render
 

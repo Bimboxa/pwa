@@ -13,29 +13,44 @@ const MAX_IMAGE_SIZE = 200 * 1024; // thumbnail budget (POV list + Krto export)
 // Captures the currently displayed framed view: stores the <=200KB thumbnail
 // in db.files (fresh fileName each time so usePovImageUrl refreshes) and
 // snapshots the view metadata. Shared by useCreatePov and useUpdatePovView.
+//
+// Options:
+// - viewerMode: overrides s.pov.viewerMode. The capture tool runs outside the
+//   POV module, so it must target its own host (selectCaptureHostViewerKey)
+//   rather than the POV module's last mode — for the capture AND for the
+//   metadata (pov.viewerMode drives the restore).
+// - withRawImage: also stores the full-resolution capture as `rawImage`. That
+//   file row carries no listingId, which is what keeps it out of the Krto zip
+//   (see createKrtoZip): it is regenerable from the POV module.
 export default function useCapturePovView() {
-  const viewerMode = useSelector((s) => s.pov.viewerMode);
+  const povViewerMode = useSelector((s) => s.pov.viewerMode);
   const aspectRatio = useSelector((s) => s.mapEditor.imageModeAspectRatio);
   const whiteBackground = useSelector(
     (s) => s.mapEditor.imageModeWhiteBackground
   );
   const roundedBorderMask = useSelector((s) => s.mapEditor.imageModeBorder);
+  const highRes = useSelector((s) => s.mapEditor.imageModeHighRes);
   const projectId = useSelector((s) => s.projects.selectedProjectId);
 
-  return async function capturePovView() {
-    const isThreed = viewerMode === "THREED";
+  return async function capturePovView({
+    viewerMode,
+    withRawImage = false,
+  } = {}) {
+    const mode = viewerMode ?? povViewerMode;
+    const isThreed = mode === "THREED";
     const hostKey = isThreed ? "THREED" : "MAP";
 
-    // thumbnail capture (low pixelRatio: it gets resized to <= 200 KB)
-    const blob = await captureMapAsPng({
+    const captureOptions = {
       viewerKey: hostKey,
       target: "blob",
       aspectRatio,
-      pixelRatio: 1,
       whiteBackground,
       roundedBorderMask,
       prepareHost: isThreed ? snapshotThreedCanvasForCapture : undefined,
-    });
+    };
+
+    // thumbnail capture (low pixelRatio: it gets resized to <= 200 KB)
+    const blob = await captureMapAsPng({ ...captureOptions, pixelRatio: 1 });
     if (!blob) {
       console.warn("[useCapturePovView] capture failed");
       return null;
@@ -55,8 +70,32 @@ export default function useCapturePovView() {
       projectId,
     });
 
-    const metadata = await snapshotPovViewService();
+    // full-resolution capture, stored unresized. A failure here must not
+    // block the POV: the thumbnail is already written.
+    let rawImage = null;
+    if (withRawImage) {
+      const rawBlob = await captureMapAsPng({
+        ...captureOptions,
+        pixelRatio: highRes ? 4 : 2,
+      });
+      if (rawBlob) {
+        const rawFileName = `pov_raw_${nanoid()}.png`;
+        await db.files.put({
+          fileName: rawFileName,
+          srcFileName: rawFileName,
+          fileMime: "image/png",
+          fileType: "IMAGE",
+          fileArrayBuffer: await rawBlob.arrayBuffer(),
+          projectId,
+        });
+        rawImage = { fileName: rawFileName };
+      } else {
+        console.warn("[useCapturePovView] raw image capture failed");
+      }
+    }
 
-    return { image: { fileName }, ...metadata };
+    const metadata = await snapshotPovViewService({ viewerMode });
+
+    return { image: { fileName }, rawImage, ...metadata };
   };
 }

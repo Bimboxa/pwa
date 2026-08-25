@@ -4,7 +4,7 @@ const leftPanelInitialState = {
   verticalBarWidth: 80, //64
   width: 320,
   openLeftPanel: true,
-  leftPanelDocked: false,
+  leftPanelDocked: true,
   leftDrawerHovered: false,
   //
 };

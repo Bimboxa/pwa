@@ -1,19 +1,63 @@
-import { Box, Typography, Avatar, Tooltip, IconButton } from "@mui/material";
-import { Folder, CloudQueue, Close } from "@mui/icons-material";
+import { useState } from "react";
+
+import {
+  Box,
+  Typography,
+  Avatar,
+  Tooltip,
+  IconButton,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
+} from "@mui/material";
+import {
+  Folder,
+  CloudQueue,
+  Close,
+  AddLink,
+  MoreHoriz,
+  SwapHoriz,
+  LinkOff,
+} from "@mui/icons-material";
 
 import ChipProjectType from "./ChipProjectType";
 import { getProjectTypeProps } from "../utils/projectTypes";
 
-export default function HeaderDashboardProject({ item, onClose }) {
+export default function HeaderDashboardProject({
+  item,
+  onClose,
+  onLink,
+  onDetach,
+}) {
+  // state
+
+  const [menuAnchor, setMenuAnchor] = useState(null);
+
+  // strings
+
+  const linkS = "Relier à un chantier / opportunité";
+  const changeS = "Changer de chantier / opportunité";
+  const detachS = "Détacher du référentiel";
+
   // helpers
 
   const { color } = getProjectTypeProps(item.type);
-  const metaText = [
-    item.clientRef ? `N° ${item.clientRef}` : null,
-    item.city,
-  ]
+  const metaText = [item.clientRef ? `N° ${item.clientRef}` : null, item.city]
     .filter(Boolean)
     .join(" · ");
+
+  // link/detach actions only make sense on installed (local) projects,
+  // and only when the dashboard wires the handlers (référentiel configured)
+  const canManageLink = Boolean(item.isLocal && item.projectId && onLink);
+  const isLinked = Boolean(item.idMaster);
+
+  // handlers
+
+  function handleMenuItemClick(action) {
+    setMenuAnchor(null);
+    action();
+  }
 
   // render
 
@@ -55,6 +99,48 @@ export default function HeaderDashboardProject({ item, onClose }) {
             )}
           </Box>
         </Box>
+        {canManageLink && (
+          <>
+            <Tooltip title="Plus d'actions">
+              <IconButton
+                onClick={(e) => setMenuAnchor(e.currentTarget)}
+                sx={{ alignSelf: "flex-start", color: "text.secondary" }}
+              >
+                <MoreHoriz />
+              </IconButton>
+            </Tooltip>
+            <Menu
+              anchorEl={menuAnchor}
+              open={Boolean(menuAnchor)}
+              onClose={() => setMenuAnchor(null)}
+            >
+              {!isLinked && (
+                <MenuItem onClick={() => handleMenuItemClick(onLink)}>
+                  <ListItemIcon>
+                    <AddLink fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText>{linkS}</ListItemText>
+                </MenuItem>
+              )}
+              {isLinked && (
+                <MenuItem onClick={() => handleMenuItemClick(onLink)}>
+                  <ListItemIcon>
+                    <SwapHoriz fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText>{changeS}</ListItemText>
+                </MenuItem>
+              )}
+              {isLinked && onDetach && (
+                <MenuItem onClick={() => handleMenuItemClick(onDetach)}>
+                  <ListItemIcon>
+                    <LinkOff fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText>{detachS}</ListItemText>
+                </MenuItem>
+              )}
+            </Menu>
+          </>
+        )}
         {onClose && (
           <Tooltip title="Quitter la sélection">
             <IconButton

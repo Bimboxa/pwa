@@ -10,6 +10,9 @@ import { useInteraction } from '../context/InteractionContext';
 import { setSelectedEntityId } from 'Features/entities/entitiesSlice';
 import { setEnabledDrawingMode, setSelectedNodes, setMapEditorMode, setDraftPropsForTemplate } from 'Features/mapEditor/mapEditorSlice';
 import { setSelectedNode, toggleSelectedNode } from 'Features/mapEditor/mapEditorSlice';
+import { setSelectedPhotoId } from 'Features/photos/photosSlice';
+import { isPhotoNodeId, getPhotoIdFromNodeId } from 'Features/photos/constants/photoNode';
+import { setSelectedMenuItemKey } from 'Features/rightPanel/rightPanelSlice';
 import { setAnnotationToolbarPosition, setAnnotationsToolbarPosition } from 'Features/mapEditor/mapEditorSlice';
 import { setImageModeLegendSelected } from 'Features/mapEditor/mapEditorSlice';
 import { selectCaptureFramingActive } from 'Features/viewers/utils/effectiveViewerKey';
@@ -23,6 +26,7 @@ import {
 import {
   setAnchorSourceAnnotationId,
   setSubtractSourceAnnotationId,
+  setSubtractTargetAnnotationId,
   setFixedLength,
   toggleSmartDetectEnabled,
   cycleLoupeAspect,
@@ -95,12 +99,15 @@ import AxisSnapLayer from 'Features/mapEditorGeneric/components/AxisSnapLayer';
 import TransientTopologyLayer from 'Features/mapEditorGeneric/components/TransientTopologyLayer';
 import TransientAnnotationLayer from 'Features/mapEditorGeneric/components/TransientAnnotationLayer';
 import DropZoneLayer from 'Features/mapEditorGeneric/components/DropZoneLayer';
+import { PDF_PAGE_DRAG_MIME } from 'Features/resources/utils/pdfPageDrag';
 
 import TransientDetectedShapeLayer from 'Features/mapEditorGeneric/components/TransientDetectedShapeLayer';
 import TransientOpeningSegmentLayer from 'Features/mapEditorGeneric/components/TransientOpeningSegmentLayer';
 import computeWrapperBbox from '../utils/computeWrapperBbox';
 import anchorAnnotationToTarget from 'Features/annotations/services/anchorAnnotationToTarget';
 import addAnnotationSubtraction from 'Features/annotations/services/addAnnotationSubtraction';
+import addAnnotationSubtractions from 'Features/annotations/services/addAnnotationSubtractions';
+import { isForeignFootprintId } from 'Features/annotations/constants/foreignFootprint';
 import updateAnnotationService from 'Features/annotations/services/updateAnnotationService';
 import AnnotationEditingWrapper from './AnnotationEditingWrapper';
 import applyDeltaPosToAnnotation from 'Features/mapEditorGeneric/utils/applyDeltaPosToAnnotation';
@@ -144,6 +151,11 @@ import LassoOverlay from 'Features/mapEditorGeneric/components/LassoOverlay';
 import mergeBboxes from 'Features/misc/utils/mergeBboxes';
 import snapToAngle from 'Features/mapEditor/utils/snapToAngle';
 import getBestSnap from 'Features/mapEditor/utils/getBestSnap';
+import {
+  computeSegmentDragMoves,
+  computeVertexDragMoves,
+} from 'Features/geometry/utils/computeConstrainedDragMoves';
+import { setDragCursor, clearDragCursor } from 'Features/mapEditor/utils/dragCursor';
 import computeOpeningSegmentPlacement from 'Features/mapEditor/utils/computeOpeningSegmentPlacement';
 import getAxisSnap from 'Features/mapEditor/utils/getAxisSnap';
 import getSnapModes from 'Features/mapEditor/utils/getSnapModes';
@@ -169,11 +181,30 @@ import convexHull from 'Features/geometry/utils/convexHull';
 import { useSmartZoom } from "App/contexts/SmartZoomContext";
 import { useDrawingMetrics } from "App/contexts/DrawingMetricsContext";
 import applyFixedLengthConstraint from "Features/mapEditorGeneric/utils/applyFixedLengthConstraint";
+import parseConstraintLengths, { CONSTRAINT_BUFFER_CHAR_RE } from "Features/mapEditor/utils/parseConstraintLengths";
+import expandConstraintLengths from "Features/mapEditor/utils/expandConstraintLengths";
 import useUndo from "App/db/useUndo";
 
 // constants
 
 const SNAP_THRESHOLD_ABSOLUTE = 12;
+
+// Whole-annotation drags that behave like a marker drop: single reference point,
+// crosshair cursor, and snapping onto already-drawn points.
+const MARKER_LIKE_SNAP_DRAG_TYPES = [
+  "REVOLUTION_AXIS",
+  "REVOLUTION_AXIS_PLACEMENT",
+];
+const isMarkerLikeSnapDragType = (type) =>
+  MARKER_LIKE_SNAP_DRAG_TYPES.includes(type);
+
+// Drawing modes of the revolution axis: authoring it on the plan, dropping it
+// on an elevation, and moving that drop. All three snap onto existing points.
+const REVOLUTION_AXIS_DRAWING_MODES = [
+  "REVOLUTION_AXIS_PLAN",
+  "REVOLUTION_AXIS_PLACEMENT",
+  "REPOSITION_REVOLUTION_PLACEMENT",
+];
 
 // OPENING_SEGMENT: max cursor↔wall distance (meters on the plan) below which
 // the opening segment glues to the host polyline; beyond it, free placement.
@@ -195,7 +226,7 @@ import mergeDetectedPolyIntoDrawing from 'Features/smartDetect/utils/mergeDetect
 
 const PAN_STEP = 30;
 
-const PASTE_SUPPORTED_TYPES = ["POLYGON", "POLYLINE", "STRIP", "POINT", "MARKER"];
+const PASTE_SUPPORTED_TYPES = ["POLYGON", "POLYLINE", "STRIP", "POINT", "MARKER", "RULER"];
 
 // Node-merge tolerance for the annotation-geometry polygon detection
 // (POLYGON_CLICK hover + SURFACE_DROP "utiliser les contours"). Endpoints of
@@ -245,7 +276,12 @@ function pickSegmentAdjustAxis(candidates, preferred) {
 function buildClipboardItem(ann) {
   const type = ann?.type;
   const item = { annotation: ann };
-  if (type === "POLYGON" || type === "POLYLINE" || type === "STRIP") {
+  if (
+    type === "POLYGON" ||
+    type === "POLYLINE" ||
+    type === "STRIP" ||
+    type === "RULER"
+  ) {
     item.basePoints = (ann.points || []).map((p) => ({
       x: p.x,
       y: p.y,
@@ -354,6 +390,7 @@ const InteractionLayer = forwardRef(({
   onCommitDetectedFeatures,
   onCommitLocalizedRepair,
   onCommitImageDrop,
+  onCommitPdfPageDrop,
   onMapClickInSelectMode,
   basePose,
   onBaseMapPoseChange,
@@ -367,6 +404,7 @@ const InteractionLayer = forwardRef(({
   activeContext = "BASE_MAP",
   annotations, // <= snapping source.
   onPointMoveCommit,
+  onPointsMoveCommit, // multi-point commit (angle lock, segment drag)
   onPointSnapReplace,
   onToggleAnnotationPointType,
   onPointDuplicateAndMoveCommit,
@@ -496,6 +534,10 @@ const InteractionLayer = forwardRef(({
   const interactionMode =
     showMeshCells || viewerMode ? "SELECT" : rawInteractionMode;
 
+  // EDIT mode: preserve joint angles during vertex / segment drags (global
+  // padlock shown with the segment-length cotes).
+  const anglesLocked = useSelector((s) => s.mapEditor.anglesLocked);
+
   // Computed selectedNode equivalent (first item)
   const { node: selectedNode, nodes: selectedNodes } = useSelectedNodes();
 
@@ -511,8 +553,10 @@ const InteractionLayer = forwardRef(({
 
   // Anchor snap mode
   const anchorSourceAnnotationId = useSelector((s) => s.mapEditor.anchorSourceAnnotationId);
-  // Subtraction pick mode
+  // Subtraction pick mode (forward: this annotation is carved by the clicks)
   const subtractSourceAnnotationId = useSelector((s) => s.mapEditor.subtractSourceAnnotationId);
+  // Reverse subtraction pick mode (this annotation carves the clicked ones)
+  const subtractTargetAnnotationId = useSelector((s) => s.mapEditor.subtractTargetAnnotationId);
   const selectedProjectId = useSelector((s) => s.projects.selectedProjectId);
   const mapEditorMode = useSelector((s) => s.mapEditor.mapEditorMode);
   const orthoSnapAngleOffset = useSelector((s) => s.mapEditor.orthoSnapAngleOffset);
@@ -565,20 +609,31 @@ const InteractionLayer = forwardRef(({
   const fixedLength = useSelector((s) => s.mapEditor.fixedLength);
   const fixedLengthRef = useRef(fixedLength);
   useEffect(() => { fixedLengthRef.current = fixedLength; }, [fixedLength]);
+  // Full ";"-separated series when the user typed more than one length; null
+  // otherwise. Kept as a ref (not redux): only event handlers read it, and the
+  // bottom bar re-parses the buffer itself.
+  const fixedLengthsRef = useRef(null);
 
   const meterByPxRef = useRef(baseMapMeterByPx);
   useEffect(() => { meterByPxRef.current = baseMapMeterByPx; }, [baseMapMeterByPx]);
 
-  // Sync constraint buffer → Redux fixedLength
+  // Sync constraint buffer → Redux fixedLength (+ the multi-length list).
+  //
+  // `fixedLength` keeps its historical meaning — the FIRST value — so every
+  // single-length consumer (circle radius, rectangle, 2-click segment,
+  // ONE_CLICK…) behaves exactly as before. `fixedLengthsRef` carries the whole
+  // series and is read only by the multi-click branch, which places one segment
+  // per value.
+  //
+  // NB: this used to be `parseFloat(constraintBuffer)`, which stops at the first
+  // invalid char — it would have read "6;0.2" as a plain 6 with no error.
   useEffect(() => {
-    const num = parseFloat(constraintBuffer);
-    if (Number.isFinite(num) && num > 0) {
-      dispatch(setFixedLength(num));
-      fixedLengthRef.current = num;
-    } else {
-      dispatch(setFixedLength(null));
-      fixedLengthRef.current = null;
-    }
+    const parsed = parseConstraintLengths(constraintBuffer);
+    const first = parsed?.lengths[0] ?? null;
+    dispatch(setFixedLength(first));
+    fixedLengthRef.current = first;
+    fixedLengthsRef.current =
+      parsed && parsed.lengths.length > 1 ? parsed.lengths : null;
   }, [constraintBuffer, dispatch]);
 
   // Clear constraint buffer when drawing mode changes (start/stop drawing)
@@ -1517,15 +1572,17 @@ const InteractionLayer = forwardRef(({
   // Only restrict to selected annotation when actively drawing or moving the whole annotation
 
   let annotationsForSnap = annotations;
-  if (selectedAnnotation?.id && !selectedPointId && !selectedPartId) {
+  if (REVOLUTION_AXIS_DRAWING_MODES.includes(enabledDrawingMode)) {
+    // Placing / repositioning an axis must snap onto the DRAWING, like any
+    // other click tool. The restriction below would otherwise reduce the
+    // candidates to the selected annotation — which, when repositioning, is the
+    // placement being moved (and it has no vertices of its own to snap to).
+    annotationsForSnap = (annotations ?? []).filter(
+      (a) => a.id !== selectedAnnotation?.id
+    );
+  } else if (selectedAnnotation?.id && !selectedPointId && !selectedPartId) {
     annotationsForSnap = [selectedAnnotation];
   }
-  // Revolution proxies ("donuts") are never vertex-editable: keep them out of
-  // the snap / point-drag candidate set so a mousedown near the donut can't
-  // start a generic topology drag of its (full-ring) polygon points. The
-  // partial-revolution angle handles (NodeProxyRevolutionStatic) own the
-  // gesture instead.
-  annotationsForSnap = (annotationsForSnap || []).filter((a) => !a?.isProxy);
 
   // cameraZoom
 
@@ -1739,7 +1796,7 @@ const InteractionLayer = forwardRef(({
     if (!vp || !cursorScreen) return null;
     const pose = getTargetPose();
 
-    const anns = (annotationsList || annotationsForSnap || []).filter((a) => !a?.isProxy);
+    const anns = annotationsList || annotationsForSnap || [];
     const candidates = [];
     for (const ann of anns) {
       const pts = ann?.points;
@@ -1756,6 +1813,14 @@ const InteractionLayer = forwardRef(({
           if (excludePointId && (p?.id === excludePointId || p?.pointId === excludePointId)) continue;
           if (Number.isFinite(p?.x) && Number.isFinite(p?.y)) candidates.push(p);
         }
+      }
+      // Revolution axis anchors (centre + both diameter ends). They are derived
+      // from scalars rather than stored as points, so they live in
+      // `_snapPoints` (resolved by useAnnotationsV2) and would otherwise be
+      // invisible to the ortho lock — even though aligning a drawing on the
+      // axis centre is one of the main reasons to draw one.
+      for (const p of ann?._snapPoints || []) {
+        if (Number.isFinite(p?.x) && Number.isFinite(p?.y)) candidates.push(p);
       }
     }
     for (const p of (drawingPointsRef.current || [])) {
@@ -2068,6 +2133,75 @@ const InteractionLayer = forwardRef(({
   // to hide their static render during the drag.
   const { rows: openingRelRows } = useAnnotationOpenings();
 
+  // drag state — segment drag (EDIT mode: grab a segment of the selected
+  // annotation; angle lock slides the endpoints along the adjacent edges)
+
+  const segmentDragStateRef = useRef(null);
+  const [segmentDragState, setSegmentDragState] = useState(null);
+
+  // Angle-locked vertex drag: the two neighbours of the dragged vertex slide
+  // along their other edge so every joint angle is preserved. Returns null
+  // when the context does not apply (lock off, not EDIT, vertex not on the
+  // selected annotation's main contour) — callers fall back to the regular
+  // single-point behaviour.
+  const getAngleLockedVertexMoves = (pointId, targetPos) => {
+    if (!anglesLocked || interactionMode !== "EDIT") return null;
+    if (!pointId || !targetPos) return null;
+    const ann = annotations?.find((a) => a.id === selectedNode?.nodeId);
+    if (!ann || !["POLYLINE", "POLYGON", "STRIP", "LINEAR_LAYOUT"].includes(ann.type))
+      return null;
+    const idx = ann.points?.findIndex((p) => p?.id === pointId);
+    if (idx == null || idx < 0) return null;
+    const closed = ann.closeLine || ann.type === "POLYGON";
+    const moves = computeVertexDragMoves({
+      points: ann.points,
+      closed,
+      pointIndex: idx,
+      targetPos,
+      anglesLocked: true,
+    });
+    if (moves.length <= 1) return null;
+    const byId = {};
+    const list = [];
+    for (const m of moves) {
+      const id = ann.points[m.index]?.id;
+      if (!id) continue;
+      byId[id] = { x: m.x, y: m.y };
+      list.push({ pointId: id, x: m.x, y: m.y });
+    }
+    if (list.length <= 1) return null;
+    return { annotation: ann, movesById: byId, moves: list };
+  };
+
+  // Route the vertex-drag commit: with the angle lock active the neighbours
+  // move too, so the commit becomes a multi-point write; otherwise keep the
+  // regular single-point path (which also owns the cut→contour reflow).
+  const handlePointMoveCommitRouted = (pointId, newPos) => {
+    const locked = getAngleLockedVertexMoves(pointId, newPos);
+    if (locked && onPointsMoveCommit) {
+      onPointsMoveCommit(locked.annotation, locked.moves);
+      return;
+    }
+    onPointMoveCommit?.(pointId, newPos);
+  };
+
+  // Dragging a vertex of the SELECTED annotation goes through the fork path
+  // (duplicateAndMovePoint mints a fresh id so shared neighbours keep the
+  // original point). The angle lock composes with it: the dragged point keeps
+  // the fork semantics, and the two contour neighbours slide IN PLACE (they
+  // keep their ids — same junction semantics as the segment-length editor).
+  const handleDuplicateAndMoveRouted = ({ originalPointId, annotationId, newPos }) => {
+    onPointDuplicateAndMoveCommit?.({ originalPointId, annotationId, newPos });
+    const locked = getAngleLockedVertexMoves(originalPointId, newPos);
+    if (locked && onPointsMoveCommit) {
+      const neighbourMoves = locked.moves.filter(
+        (m) => m.pointId !== originalPointId
+      );
+      if (neighbourMoves.length)
+        onPointsMoveCommit(locked.annotation, neighbourMoves);
+    }
+  };
+
   // drag state — point drag (extracted to usePointDrag)
 
   const {
@@ -2086,9 +2220,9 @@ const InteractionLayer = forwardRef(({
     permissions,
     setHiddenAnnotationIds,
     openingRels: openingRelRows,
-    onPointMoveCommit,
+    onPointMoveCommit: handlePointMoveCommitRouted,
     onPointSnapReplace,
-    onPointDuplicateAndMoveCommit,
+    onPointDuplicateAndMoveCommit: handleDuplicateAndMoveRouted,
     onSegmentSplit,
     onToggleAnnotationPointType,
     onProjectionSnapInsert,
@@ -2587,7 +2721,7 @@ const InteractionLayer = forwardRef(({
 
     const scale = getTargetScale() * (viewportRef.current?.getZoom() || 1);
     const openingLengthPx = widthM / mbp;
-    const anns = (annotationsRef.current || []).filter((a) => !a?.isProxy);
+    const anns = annotationsRef.current || [];
 
     const placement = computeOpeningSegmentPlacement({
       cursorPx: cursorLocal,
@@ -2668,6 +2802,11 @@ const InteractionLayer = forwardRef(({
   useEffect(() => {
     subtractSourceAnnotationIdRef.current = subtractSourceAnnotationId;
   }, [subtractSourceAnnotationId]);
+
+  const subtractTargetAnnotationIdRef = useRef(subtractTargetAnnotationId);
+  useEffect(() => {
+    subtractTargetAnnotationIdRef.current = subtractTargetAnnotationId;
+  }, [subtractTargetAnnotationId]);
 
   const stripDetectionOrientationRef = useRef(stripDetectionOrientation);
   useEffect(() => {
@@ -3000,6 +3139,9 @@ const InteractionLayer = forwardRef(({
   // 1. Calculer le style curseur du conteneur
   const getCursorStyle = () => {
     if (dragState?.active) return 'crosshair';
+    // Marker-like axis drag: crosshair while it hunts for a snap target.
+    if (dragAnnotationState?.active && dragAnnotationState?.anchorLocal)
+      return 'crosshair';
     if (POINTER_CLICK_MODES.includes(enabledDrawingMode)) return 'pointer';
     if (enabledDrawingMode) return 'crosshair'; // Priorité 1           // Priorité 2
     return 'default';                           // Défaut
@@ -3302,7 +3444,15 @@ const InteractionLayer = forwardRef(({
           ? { x: (minX + maxX) / 2, y: (minY + maxY) / 2 }
           : { x: 0, y: 0 };
 
-        dispatch(setPasteClipboard({ sourceCenter, items }));
+        dispatch(
+          setPasteClipboard({
+            sourceCenter,
+            items,
+            // Scale of the map the copy was taken on — lets a paste on a map
+            // with a different meterByPx preserve real-world dimensions.
+            sourceMeterByPx: meterByPxRef.current || null,
+          }),
+        );
         // The clipboard now holds a full snapshot — drop the live selection
         // so the copied annotations are no longer selected (mirrors Escape).
         dispatch(clearSelection());
@@ -3633,6 +3783,13 @@ const InteractionLayer = forwardRef(({
           // Cancel subtraction pick mode if active
           if (subtractSourceAnnotationIdRef.current) {
             dispatch(setSubtractSourceAnnotationId(null));
+            e.stopPropagation();
+            return;
+          }
+
+          // Cancel reverse subtraction pick mode if active
+          if (subtractTargetAnnotationIdRef.current) {
+            dispatch(setSubtractTargetAnnotationId(null));
             e.stopPropagation();
             return;
           }
@@ -4268,7 +4425,7 @@ const InteractionLayer = forwardRef(({
           // CIRCLE_RADIUS: with the center placed and a locked radius typed,
           // Enter commits a circle of that radius (direction is irrelevant).
           if (
-            ["POLYLINE_CIRCLE_RADIUS", "POLYGON_CIRCLE_RADIUS"].includes(enabledDrawingModeRef.current) &&
+            ["POLYLINE_CIRCLE_RADIUS", "POLYGON_CIRCLE_RADIUS", "REVOLUTION_AXIS_PLAN"].includes(enabledDrawingModeRef.current) &&
             drawingPointsRef.current.length === 1 &&
             fixedLengthRef.current
           ) {
@@ -4478,8 +4635,10 @@ const InteractionLayer = forwardRef(({
           break;
 
         default:
-          // Digit / dot / comma → append to constraint buffer while drawing
-          if (enabledDrawingMode && /^[0-9.,]$/.test(e.key)) {
+          // Digit / dot / comma / semicolon → append to constraint buffer while
+          // drawing. ";" chains several lengths ("6;0.2;2"): one click then
+          // places that many collinear segments (see parseConstraintLengths).
+          if (enabledDrawingMode && CONSTRAINT_BUFFER_CHAR_RE.test(e.key)) {
             const char = e.key === "," ? "." : e.key;
             appendToBuffer(char);
           }
@@ -4541,6 +4700,7 @@ const InteractionLayer = forwardRef(({
         pasteTransform: pasteTransformRef.current,
         targetCenter,
         baseMap: calibrationBaseMap,
+        targetMeterByPx: meterByPxRef.current,
         activeLayerId,
         dispatch,
         triggerAnnotationsUpdate,
@@ -4561,7 +4721,7 @@ const InteractionLayer = forwardRef(({
     // Cross-tab navigation: in pure SELECT mode (no drawing tool, no anchor
     // pick), forward the click world position to the parent so it can
     // broadcast a 3D-camera pan event to other tabs.
-    if (!enabledDrawingMode && !anchorSourceAnnotationId && !subtractSourceAnnotationId) {
+    if (!enabledDrawingMode && !anchorSourceAnnotationId && !subtractSourceAnnotationId && !subtractTargetAnnotationId) {
       onMapClickInSelectMode?.({ worldPos, event });
     }
 
@@ -4605,7 +4765,9 @@ const InteractionLayer = forwardRef(({
     if (subtractSourceAnnotationId && !enabledDrawingMode) {
       const nativeTarget = event.nativeEvent?.target || event.target;
       const hit = nativeTarget.closest?.('[data-node-type="ANNOTATION"]');
-      if (hit) {
+      // A footprint is a projection, not an annotation: it can neither be
+      // subtracted nor be subtracted from.
+      if (hit && !isForeignFootprintId(hit.dataset.nodeId)) {
         const targetId = hit.dataset.nodeId;
         if (targetId === subtractSourceAnnotationId) {
           dispatch(
@@ -4636,6 +4798,55 @@ const InteractionLayer = forwardRef(({
         }
       }
       // Stay in subtraction mode; only Escape exits it.
+      return;
+    }
+
+    // Reverse subtraction pick mode: the armed annotation is the one being
+    // SUBTRACTED, so each click carves the annotations under the cursor with
+    // it. Uses elementsFromPoint (not closest) so every stacked annotation is
+    // reachable — that is what lets one click carve all the layers of a wall
+    // with the same opening. Multi-pick: only Escape exits.
+    if (subtractTargetAnnotationId && !enabledDrawingMode) {
+      const els = document.elementsFromPoint(event.clientX, event.clientY);
+      // Several leaf shapes can belong to the same annotation -> dedupe by id.
+      const sourceIds = [];
+      for (const el of els) {
+        const node = el.closest?.('[data-node-type="ANNOTATION"]');
+        const id = node?.dataset?.nodeId;
+        if (
+          id &&
+          id !== subtractTargetAnnotationId &&
+          !sourceIds.includes(id) &&
+          // A footprint is a projection, not a carvable annotation.
+          !isForeignFootprintId(id)
+        ) {
+          sourceIds.push(id);
+        }
+      }
+      // Empty-space clicks do nothing, like the forward mode.
+      if (sourceIds.length > 0) {
+        const { addedIds } = await addAnnotationSubtractions({
+          projectId: selectedProjectId,
+          pairs: sourceIds.map((sourceAnnotationId) => ({
+            sourceAnnotationId,
+            targetAnnotationId: subtractTargetAnnotationId,
+          })),
+        });
+        dispatch(
+          setToaster(
+            addedIds.length > 0
+              ? {
+                message: `${addedIds.length} annotation(s) creusée(s) par cette annotation`,
+                severity: "success",
+              }
+              : {
+                message: "Annotation(s) déjà soustraite(s)",
+                severity: "info",
+              }
+          )
+        );
+      }
+      // Stay in reverse subtraction mode; only Escape exits it.
       return;
     }
 
@@ -4890,34 +5101,69 @@ const InteractionLayer = forwardRef(({
         return; // Don't add a regular drawing point
       }
 
+      // Read the placed points from the REF, not the state: the multi-length
+      // branch below syncs the ref synchronously, so a later click landing in
+      // the same React batch would otherwise anchor on a stale last point.
+      const placedPoints = drawingPointsRef.current;
+
       // Apply snapping if Shift is pressed or ortho snap is enabled
       let finalPos = toLocalCoords(worldPos);
-      if ((event.shiftKey || event.evt?.shiftKey) && drawingPoints.length > 0) {
-        const lastPoint = drawingPoints[drawingPoints.length - 1];
+      if ((event.shiftKey || event.evt?.shiftKey) && placedPoints.length > 0) {
+        const lastPoint = placedPoints[placedPoints.length - 1];
         const offset = orthoSnapAngleOffsetRef.current;
         finalPos = snapToAngle(finalPos, lastPoint, offset);
       }
       // Apply fixed length constraint
-      if (fixedLengthRef.current && drawingPoints.length > 0) {
+      if (fixedLengthRef.current && placedPoints.length > 0) {
         const mbp = meterByPxRef.current;
         const hasScale = Number.isFinite(mbp) && mbp > 0;
         finalPos = applyFixedLengthConstraint({
-          lastPointPx: drawingPoints[drawingPoints.length - 1],
+          lastPointPx: placedPoints[placedPoints.length - 1],
           candidatePointPx: finalPos,
           fixedLengthMeters: fixedLengthRef.current,
           meterPerPixel: hasScale ? mbp : 1,
         });
       }
 
+      // Multi-length series ("6;0.2;2;0.2"): the cursor gives the direction, the
+      // typed values give the distances → one click places N collinear segments.
+      // The series is consumed (buffer cleared) so the next click is free again.
+      const lengthsSeries = fixedLengthsRef.current;
+      if (lengthsSeries && placedPoints.length > 0) {
+        const mbp = meterByPxRef.current;
+        const hasScale = Number.isFinite(mbp) && mbp > 0;
+        const expanded = expandConstraintLengths({
+          lastPointPx: placedPoints[placedPoints.length - 1],
+          directionPointPx: finalPos,
+          lengths: lengthsSeries,
+          meterPerPixel: hasScale ? mbp : 1,
+        });
+        if (expanded.length > 0) {
+          const seriesPoints = [...placedPoints, ...expanded];
+          setDrawingPoints(seriesPoints);
+          drawingPointsRef.current = seriesPoints;
+          // Force DrawingLayer to use the new points immediately (bypasses the
+          // render cycle — the mousemove preview reads the ref).
+          drawingLayerRef.current?.setPoints?.(seriesPoints);
+          clearBuffer();
+          return;
+        }
+      }
+
       // 1. Ajouter le point (Déclenche un re-render de DrawingLayer pour la partie statique)
-      setDrawingPoints(prev => [...prev, finalPos]);
+      const nextPoints = [...placedPoints, finalPos];
+      setDrawingPoints(nextPoints);
+      drawingPointsRef.current = nextPoints;
 
       // 2. Si on a fini (ex: double clic ou fermeture), on commit
       // if (isClosing) { saveToDb(drawingPoints); setDrawingPoints([]); }
     }
 
     // --- CASE 2: ONE_CLICK (Auto-commit after 1 point) ---
-    else if (enabledDrawingMode === 'ONE_CLICK') {
+    // REVOLUTION_AXIS_PLACEMENT drops a plan axis on a vertical base map and
+    // REPOSITION_REVOLUTION_PLACEMENT moves an existing one: same single-click
+    // gesture, told apart by the commit router (MainMapEditorV3).
+    else if (["ONE_CLICK", "REVOLUTION_AXIS_PLACEMENT", "REPOSITION_REVOLUTION_PLACEMENT"].includes(enabledDrawingMode)) {
       // Apply snapping if Shift is pressed or ortho snap is enabled
       let finalPos = toLocalCoords(worldPos);
       if ((event.shiftKey || event.evt?.shiftKey) && drawingPoints.length > 0) {
@@ -5057,7 +5303,13 @@ const InteractionLayer = forwardRef(({
     }
 
     // --- CASE 3c: CIRCLE_RADIUS (center -> radius, auto-commit on 2nd click) ---
-    else if (["POLYLINE_CIRCLE_RADIUS", "POLYGON_CIRCLE_RADIUS"].includes(enabledDrawingMode)) {
+    // REVOLUTION_AXIS_PLAN shares the whole gesture (centre, then a point that
+    // fixes BOTH the radius and the diameter orientation) — only its commit
+    // differs: it keeps the raw [centre, edge] pair instead of polygonizing.
+    // PHOTO_POSE (Photos module) is the same gesture: the pair fixes the
+    // photo's position, camera direction and range; its commit writes
+    // db.photos (never db.annotations).
+    else if (["POLYLINE_CIRCLE_RADIUS", "POLYGON_CIRCLE_RADIUS", "REVOLUTION_AXIS_PLAN", "PHOTO_POSE"].includes(enabledDrawingMode)) {
       let finalPos = toLocalCoords(worldPos);
 
       // 1st click → drop the center, then wait for the radius.
@@ -5488,6 +5740,19 @@ const InteractionLayer = forwardRef(({
           dispatch(setAnnotationToolbarPosition(null));
         }
 
+        // Photo pseudo-annotation (Photos / Viewer modules): select the photo
+        // (grid highlight + dedicated right-panel properties) and stop — the
+        // "photo::" id exists in no table, so it must never enter the
+        // annotation selection / toolbar paths.
+        else if (isPhotoNodeId(hit?.dataset?.nodeId)) {
+          const photoId = getPhotoIdFromNodeId(hit.dataset.nodeId);
+          dispatch(setSelectedPhotoId(photoId));
+          dispatch(setSelectedItem({ id: photoId, type: "PHOTO" }));
+          dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
+          if (tooltipData) setTooltipData(null);
+          return;
+        }
+
         // --- 2. GESTION DES ANNOTATIONS ---
         else if (
           hit?.dataset?.nodeType === "ANNOTATION" && !showBgImage
@@ -5727,6 +5992,65 @@ const InteractionLayer = forwardRef(({
       axisSnapLayerRef.current?.update(null);
     }
 
+    // A0. SEGMENT DRAG (EDIT mode) — the whole edge follows the cursor;
+    // with the angle lock the endpoints slide along the adjacent edges.
+    const segDrag = segmentDragStateRef.current;
+    if (segDrag) {
+      if (segDrag.pending && !segDrag.active) {
+        const dx = event.clientX - segDrag.startMouseScreen.x;
+        const dy = event.clientY - segDrag.startMouseScreen.y;
+        if (Math.hypot(dx, dy) < 3) return;
+        segDrag.active = true;
+        setDragCursor("move");
+        // Hide the static render of every annotation sharing a moved point;
+        // the transient layer draws the moved version.
+        const ann = annotations?.find((a) => a.id === segDrag.annotationId);
+        if (ann?.points?.length) {
+          const n = ann.points.length;
+          const movedIds = [
+            ann.points[segDrag.segmentIndex]?.id,
+            ann.points[(segDrag.segmentIndex + 1) % n]?.id,
+          ].filter(Boolean);
+          const affectedIds = (annotations ?? [])
+            .filter((a) =>
+              movedIds.some(
+                (id) =>
+                  a.points?.some((p) => p.id === id) ||
+                  a.cuts?.some((c) => c.points?.some((p) => p.id === id))
+              )
+            )
+            .map((a) => a.id);
+          setHiddenAnnotationIds(affectedIds);
+        }
+      }
+      if (segDrag.active) {
+        const ann = annotations?.find((a) => a.id === segDrag.annotationId);
+        if (ann?.points?.length >= 2) {
+          const localPos = toLocalCoords(worldPos);
+          const closed = ann.closeLine || ann.type === "POLYGON";
+          const delta = {
+            x: localPos.x - segDrag.startLocal.x,
+            y: localPos.y - segDrag.startLocal.y,
+          };
+          const moves = computeSegmentDragMoves({
+            points: ann.points,
+            closed,
+            segmentIndex: segDrag.segmentIndex,
+            delta,
+            anglesLocked,
+          });
+          const movesById = {};
+          for (const m of moves) {
+            const id = ann.points[m.index]?.id;
+            if (id) movesById[id] = { x: m.x, y: m.y };
+          }
+          segDrag.movesById = movesById;
+          setSegmentDragState({ ...segDrag });
+        }
+      }
+      return; // the gesture belongs to the segment drag — no snap, no pan
+    }
+
     // A. DRAG POINT (Vertex) — délégué à usePointDrag
     if (dragState?.pending || dragState?.active) {
 
@@ -5902,7 +6226,50 @@ const InteractionLayer = forwardRef(({
 
     // C. DRAG ANNOTATION (Objet entier) — délégué à useAnnotationDrag
     if (dragAnnotationState?.pending || dragAnnotationState?.active) {
-      const consumed = handleAnnotationDragMove(event);
+      // Marker-like whole-move (revolution axes): snap the annotation's anchor
+      // onto an existing drawn point. Two guards would otherwise block this —
+      // `preventSnapping` below excludes every active annotation drag, and
+      // `annotationsForSnap` collapses to [selectedAnnotation] as soon as one
+      // is selected (which is exactly this case, and an axis has no vertices of
+      // its own to snap to). So this block owns the gesture end to end: its own
+      // candidate list, its own threshold, its own marker.
+      let dragSnapTarget = null;
+      if (
+        snappingEnabled &&
+        dragAnnotationState?.active &&
+        !dragAnnotationState.partType &&
+        !dragAnnotationState.isWrapper &&
+        dragAnnotationState.anchorLocal &&
+        !(event.shiftKey || event.evt?.shiftKey)
+      ) {
+        const scale = getTargetScale() * (viewportRef.current?.getZoom() || 1);
+        const cursorLocal = toLocalCoords(worldPos);
+        const rawAnchor = {
+          x: dragAnnotationState.anchorLocal.x + (cursorLocal.x - dragAnnotationState.startMouseInLocal.x),
+          y: dragAnnotationState.anchorLocal.y + (cursorLocal.y - dragAnnotationState.startMouseInLocal.y),
+        };
+        const others = (annotations ?? []).filter(
+          (a) => a.id !== dragAnnotationState.selectedAnnotationId
+        );
+        const snap = getBestSnap(rawAnchor, others, SNAP_THRESHOLD_ABSOLUTE / scale, {
+          vertex: true,
+          midpoint: true,
+          projection: false,
+        });
+        if (snap) {
+          dragSnapTarget = { x: snap.x, y: snap.y };
+          const pose = getTargetPose();
+          const screenSnap = viewportRef.current?.worldToViewport(
+            snap.x * pose.k + pose.x,
+            snap.y * pose.k + pose.y
+          );
+          if (screenSnap)
+            snappingLayerRef.current?.update({ ...screenSnap, type: snap.type });
+        } else {
+          snappingLayerRef.current?.update(null);
+        }
+      }
+      const consumed = handleAnnotationDragMove(event, dragSnapTarget);
       if (consumed) return;
     }
 
@@ -5914,7 +6281,12 @@ const InteractionLayer = forwardRef(({
     const isShiftSelection = !enabledDrawingMode && Boolean(event.shiftKey || event.evt?.shiftKey);
     // OPENING_SEGMENT drives its own glue + snap markers — the generic cursor
     // snap would fight it.
-    const preventSnapping = isPanning || dragAnnotationState?.active || dragBaseMapState?.active || POINTER_CLICK_MODES.includes(enabledDrawingMode) || enabledDrawingMode === "OPENING_SEGMENT" || interactionMode === "SELECT" || isShiftSelection;
+    // The revolution axis tools are armed from the annotation toolbar
+    // ("Repositionner") or from the tools panel while the user is still in the
+    // SELECT interaction mode — that mode must not suppress their snapping, or
+    // dropping an axis on an existing point would be impossible.
+    const isRevolutionAxisMode = REVOLUTION_AXIS_DRAWING_MODES.includes(enabledDrawingMode);
+    const preventSnapping = isPanning || dragAnnotationState?.active || dragBaseMapState?.active || POINTER_CLICK_MODES.includes(enabledDrawingMode) || enabledDrawingMode === "OPENING_SEGMENT" || (interactionMode === "SELECT" && !isRevolutionAxisMode) || isShiftSelection;
 
     let snapResult;
     if (snappingEnabled && !preventSnapping) {
@@ -5931,6 +6303,7 @@ const InteractionLayer = forwardRef(({
           mapEditorMode === "QUICK_POINTS_CHANGE" ||
           interactionMode === "DRAW",
         hasSelection: Boolean(selectedAnnotation?.id),
+        isEditMode: interactionMode === "EDIT",
       });
       snapResult = getBestSnap(localPos, annotationsForSnap, snapThreshold, snapModes);
 
@@ -5968,7 +6341,7 @@ const InteractionLayer = forwardRef(({
     }
 
     // E. DRAWING PREVIEW
-    if (['CLICK', 'POLYLINE_CLICK', 'POLYGON_CLICK', 'CUT_CLICK', 'SPLIT_CLICK', 'STRIP', 'ONE_CLICK', "MEASURE", "SEGMENT", "POLYLINE_SEGMENT", "STRIP_SEGMENT", "RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", "LOCALIZED_REPAIR", "CIRCLE", "POLYLINE_CIRCLE", "POLYGON_CIRCLE", "CUT_CIRCLE", "POLYLINE_CIRCLE_RADIUS", "POLYGON_CIRCLE_RADIUS", "ARC", "POLYLINE_ARC", "COMPLETE_ANNOTATION", "COTE_TWO_CLICK", "ADD_GUIDE_LINE", "ADD_ISO_HEIGHT_LINE", "ADD_PROFILE_LINE", "RAMP"].includes(enabledDrawingMode)) {
+    if (['CLICK', 'POLYLINE_CLICK', 'POLYGON_CLICK', 'CUT_CLICK', 'SPLIT_CLICK', 'STRIP', 'ONE_CLICK', "MEASURE", "SEGMENT", "POLYLINE_SEGMENT", "STRIP_SEGMENT", "RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", "LOCALIZED_REPAIR", "CIRCLE", "POLYLINE_CIRCLE", "POLYGON_CIRCLE", "CUT_CIRCLE", "POLYLINE_CIRCLE_RADIUS", "POLYGON_CIRCLE_RADIUS", "REVOLUTION_AXIS_PLAN", "PHOTO_POSE", "ARC", "POLYLINE_ARC", "COMPLETE_ANNOTATION", "COTE_TWO_CLICK", "ADD_GUIDE_LINE", "ADD_ISO_HEIGHT_LINE", "ADD_PROFILE_LINE", "RAMP"].includes(enabledDrawingMode)) {
       const localPos = toLocalCoords(worldPos);
       let previewPos = localPos;
 
@@ -6018,13 +6391,19 @@ const InteractionLayer = forwardRef(({
 
       // G. FIXED LENGTH CONSTRAINT + SEGMENT LENGTH METRICS
       const lastPt = currentDrawingPts[currentDrawingPts.length - 1];
-      if (lastPt && fixedLengthRef.current) {
+      // With a ";"-separated series the click places several segments at once,
+      // so the rubber band spans their TOTAL — it shows the full extent the
+      // click is about to create, not just the first segment.
+      const previewLengthMeters = fixedLengthsRef.current
+        ? fixedLengthsRef.current.reduce((sum, v) => sum + v, 0)
+        : fixedLengthRef.current;
+      if (lastPt && previewLengthMeters) {
         const mbp = meterByPxRef.current;
         const hasScale = Number.isFinite(mbp) && mbp > 0;
         previewPos = applyFixedLengthConstraint({
           lastPointPx: lastPt,
           candidatePointPx: previewPos,
-          fixedLengthMeters: fixedLengthRef.current,
+          fixedLengthMeters: previewLengthMeters,
           meterPerPixel: hasScale ? mbp : 1, // no scale => value is in px
         });
       }
@@ -6267,7 +6646,58 @@ const InteractionLayer = forwardRef(({
         }
       }
 
-      // ATTENTION : setDrawingPoints est asynchrone. 
+      // Reconcile the point-snap with an active length constraint (typed
+      // buffer): the constraint wins — the snap only gives the direction,
+      // the typed value gives the distance, matching the rubber-band
+      // preview. As with ortho above, the committed point no longer
+      // coincides with the snap target, so it becomes an independent point
+      // (no shared id / segment link). COMPLETE_ANNOTATION is excluded for
+      // the same reason as ortho: it must land exactly on existing vertices.
+      const lengthConstraintActive =
+        (fixedLengthRef.current || fixedLengthsRef.current) &&
+        drawingPointsRef.current.length > 0 &&
+        enabledDrawingMode !== "COMPLETE_ANNOTATION";
+
+      if (lengthConstraintActive) {
+        const lastPoint =
+          drawingPointsRef.current[drawingPointsRef.current.length - 1];
+        const mbp = meterByPxRef.current;
+        const hasScale = Number.isFinite(mbp) && mbp > 0;
+
+        // Multi-length series ("6;0.2;2"): the snap gives the direction, the
+        // typed values give the distances → one click places N collinear
+        // segments and consumes the buffer (mirrors the free-click branch).
+        const lengthsSeries = fixedLengthsRef.current;
+        if (lengthsSeries) {
+          const expanded = expandConstraintLengths({
+            lastPointPx: lastPoint,
+            directionPointPx: pointToAdd,
+            lengths: lengthsSeries,
+            meterPerPixel: hasScale ? mbp : 1,
+          });
+          if (expanded.length > 0) {
+            const seriesPoints = [...drawingPointsRef.current, ...expanded];
+            setDrawingPoints(seriesPoints);
+            drawingPointsRef.current = seriesPoints;
+            drawingLayerRef.current?.setPoints?.(seriesPoints);
+            clearBuffer();
+            screenCursorRef.current?.triggerFlash();
+            return;
+          }
+        }
+
+        if (fixedLengthRef.current) {
+          const constrained = applyFixedLengthConstraint({
+            lastPointPx: lastPoint,
+            candidatePointPx: pointToAdd,
+            fixedLengthMeters: fixedLengthRef.current,
+            meterPerPixel: hasScale ? mbp : 1,
+          });
+          pointToAdd = { x: constrained.x, y: constrained.y, type: "square" };
+        }
+      }
+
+      // ATTENTION : setDrawingPoints est asynchrone.
       // Pour le commit immédiat, on doit construire le tableau manuellement.
 
       const newPointsList = [...drawingPointsRef.current, pointToAdd];
@@ -6347,7 +6777,7 @@ const InteractionLayer = forwardRef(({
       }
 
       // --- CORRECTION DU BUG "ONE_CLICK" ---
-      if (enabledDrawingMode === 'ONE_CLICK') {
+      if (["ONE_CLICK", "REVOLUTION_AXIS_PLACEMENT", "REPOSITION_REVOLUTION_PLACEMENT"].includes(enabledDrawingMode)) {
         // Si on est en mode un seul clic (Marker/Point), on commit tout de suite !
         commitPoint();
       }
@@ -6361,7 +6791,7 @@ const InteractionLayer = forwardRef(({
         commitPolyline(e);
       }
 
-      else if (["POLYLINE_CIRCLE_RADIUS", "POLYGON_CIRCLE_RADIUS"].includes(enabledDrawingMode) && newPointsList?.length === 2) {
+      else if (["POLYLINE_CIRCLE_RADIUS", "POLYGON_CIRCLE_RADIUS", "REVOLUTION_AXIS_PLAN", "PHOTO_POSE"].includes(enabledDrawingMode) && newPointsList?.length === 2) {
         drawingPointsRef.current = newPointsList;
         commitPolyline(e);
       }
@@ -6375,7 +6805,48 @@ const InteractionLayer = forwardRef(({
     // Inclut la logique de permission + fork automatique pour les points partagés
     // En mode SELECT, les vertices restent visibles mais ne sont pas interactifs.
     if (interactionMode !== "SELECT") {
-      handleVertexOrProjectionMouseDown(snap, e);
+      const consumed = handleVertexOrProjectionMouseDown(snap, e);
+
+      // Id-less VERTEX = a revolution-axis anchor (centre / diameter end, see
+      // getBestSnap): there is no db point to drag, so the vertex handler
+      // declines. The snap marker sits on top of the node and swallowed the
+      // mousedown (stopPropagation above), so start the annotation drag here.
+      // A diameter end drags like its square handle (centre fixed, gesture
+      // rewrites radiusM + directionDeg); the centre (or a placement anchor)
+      // moves the whole annotation — both are the dedicated commit paths that
+      // also re-pose the linked elevations.
+      if (!consumed && snap.type === "VERTEX" && !snap.id && snap.annotationId) {
+        const draggedAnn = annotations?.find((a) => a.id === snap.annotationId);
+        if (draggedAnn) {
+          const worldPos = viewportRef.current?.screenToWorld(e.clientX, e.clientY);
+          const startMouseInLocal = toLocalCoords(worldPos);
+          // _snapPoints = [centre, rimPx[0], rimPx[1]] — same ordering as the
+          // REVOLUTION_RIM::<0|1> handles of NodeRevolutionAxisStatic.
+          let partType = null;
+          if (draggedAnn.type === "REVOLUTION_AXIS") {
+            const rimIndex = (draggedAnn._snapPoints ?? []).findIndex(
+              (p) => p.x === snap.x && p.y === snap.y
+            );
+            if (rimIndex > 0) partType = `REVOLUTION_RIM::${rimIndex - 1}`;
+          }
+          initAnnotationDrag({
+            nodeId: draggedAnn.id,
+            startMouseInLocal,
+            partType,
+            startMouseScreen: { x: e.clientX, y: e.clientY },
+            // Same rule as the node grab below: an unselected placement is
+            // click-only (select first, drag second).
+            clickOnly:
+              draggedAnn.type === "REVOLUTION_AXIS_PLACEMENT" &&
+              selectedNode?.nodeId !== draggedAnn.id &&
+              !selectedItems?.some((it) => it.nodeId === draggedAnn.id),
+            anchorLocal:
+              !partType && isMarkerLikeSnapDragType(draggedAnn.type)
+                ? draggedAnn.point
+                : null,
+          });
+        }
+      }
 
       //snappingLayerRef.current?.update(null); // hide snapping circle // on hide au move
 
@@ -6390,6 +6861,44 @@ const InteractionLayer = forwardRef(({
 
     // CAPTURE / image mode: no annotation drag to finalize.
     if (imageModeEnabledRef.current) return;
+
+    // SEGMENT DRAG end. A real drag commits the moved points; a click-without-
+    // move falls back to the regular single-part toggle (the mousedown was
+    // stopPropagation'd, so handleWorldClick never fires for this gesture).
+    const segDrag = segmentDragStateRef.current;
+    if (segDrag) {
+      segmentDragStateRef.current = null;
+      clearDragCursor();
+      if (segDrag.active) {
+        const ann = annotations?.find((a) => a.id === segDrag.annotationId);
+        const movesById = segDrag.movesById;
+        if (ann && movesById && Object.keys(movesById).length) {
+          const moves = Object.entries(movesById).map(([pointId, pos]) => ({
+            pointId,
+            ...pos,
+          }));
+          onPointsMoveCommit?.(ann, moves);
+        }
+        // Keep the transient ghost briefly so the static render has time to
+        // catch up with the DB write (same trick as the vertex-drag freeze).
+        setSegmentDragState((prev) =>
+          prev ? { ...prev, active: false, frozen: true } : prev
+        );
+        setTimeout(() => {
+          setSegmentDragState(null);
+          setHiddenAnnotationIds([]);
+        }, 200);
+      } else {
+        setSegmentDragState(null);
+        // Plain click on the segment → single part toggle (mirror of
+        // handleWorldClick's part selection).
+        if (selectedPartIds.length > 0) dispatch(clearSelectedPartIds());
+        const nextPartId = selectedPartId === segDrag.partId ? null : segDrag.partId;
+        const nextPartType = selectedPartId === segDrag.partId ? null : "SEG";
+        dispatch(setSubSelection({ partId: nextPartId, partType: nextPartType }));
+      }
+      return;
+    }
 
     // Lasso end. When the gesture was a click (committed: false), fall back to
     // the shift+click toggle logic so toggling a single point / segment /
@@ -6565,7 +7074,7 @@ const InteractionLayer = forwardRef(({
     commitPolyline(null, needsCloseLine ? { closeLine: true } : undefined);
   };
 
-  const POINT_BASED_TYPES = ["POLYLINE", "POLYGON", "STRIP"];
+  const POINT_BASED_TYPES = ["POLYLINE", "POLYGON", "STRIP", "LINEAR_LAYOUT"];
   const WRAPPER_NODE_ID = "wrapper";
 
   // Helper: get wrapper context (annotation IDs + bbox) for wrapper interactions
@@ -6596,12 +7105,33 @@ const InteractionLayer = forwardRef(({
 
 
     // --- permet la modif de l'input/textarea d'un label
+    //
+    // `data-interaction="ui-overlay"` généralise le cas: tout widget HTML posé
+    // dans un <foreignObject> au-dessus d'une annotation (champ + bouton de
+    // verrouillage des cotes d'un RULER, p. ex.). Sans ça, un clic sur un
+    // BUTTON retombe sur le `closest('[data-node-type]')` plus bas, ce qui
+    // re-sélectionne l'annotation et referme l'éditeur.
 
-    if (['INPUT', 'TEXTAREA'].includes(target.tagName)) {
+    if (
+      ['INPUT', 'TEXTAREA'].includes(target.tagName) ||
+      target.closest?.('[data-interaction="ui-overlay"]')
+    ) {
       return;
     }
 
-    const draggableGroup = target.closest('[data-interaction="draggable"]');
+    let draggableGroup = target.closest('[data-interaction="draggable"]');
+    // While a drawing tool is armed the click belongs to the DRAWING, not to a
+    // drag. Revolution axes carry deliberately wide hit areas (the whole circle
+    // ring on the plan, both bars of the T on an elevation), so without this
+    // they would swallow the point instead of letting it through — and they are
+    // exactly the thing one wants to draw onto.
+    if (
+      draggableGroup &&
+      enabledDrawingModeRef.current &&
+      isMarkerLikeSnapDragType(draggableGroup.dataset?.annotationType)
+    ) {
+      draggableGroup = null;
+    }
     const partNode = target.closest('[data-part-type]');
     const partType = partNode?.dataset?.partType;
 
@@ -6644,12 +7174,50 @@ const InteractionLayer = forwardRef(({
 
     if (!selectedNode && !showBgImage && !draggableGroup && !resizeHandle && !rotateHandle && !versionHandle && !calibrationHandle && !legendHandle) return;
 
-
+    // --- SEGMENT DRAG (EDIT mode) ---
+    // Grab a main-contour segment of the SELECTED polyline / polygon / strip:
+    // the edge follows the cursor (angle lock slides the endpoints along the
+    // adjacent edges). stopPropagation so the viewport doesn't pan; a click
+    // without movement falls back to the part toggle in handleMouseUp.
+    if (
+      partNode &&
+      partType === "SEG" &&
+      interactionMode === "EDIT" &&
+      !enabledDrawingModeRef.current &&
+      !e.shiftKey
+    ) {
+      const partId = partNode.dataset?.partId || "";
+      const [segAnnId, , segIdxRaw] = partId.split("::");
+      const segIdx = Number(segIdxRaw);
+      const segAnn = annotations?.find((a) => a.id === segAnnId);
+      if (
+        segAnn &&
+        segAnnId === selectedNode?.nodeId &&
+        Number.isFinite(segIdx) &&
+        ["POLYLINE", "POLYGON", "STRIP", "LINEAR_LAYOUT"].includes(segAnn.type) &&
+        permissions.canEditAnnotation(segAnnId)
+      ) {
+        e.stopPropagation();
+        const worldPos = viewportRef.current?.screenToWorld(e.clientX, e.clientY);
+        const startLocal = toLocalCoords(worldPos);
+        segmentDragStateRef.current = {
+          pending: true,
+          active: false,
+          annotationId: segAnnId,
+          segmentIndex: segIdx,
+          partId,
+          startLocal,
+          startMouseScreen: { x: e.clientX, y: e.clientY },
+          movesById: null,
+        };
+        return;
+      }
+    }
 
     // --- Resize, Rotate, Draggable — délégué à useAnnotationDrag avec permission guard ---
 
     // Helper: resolve wrapper info when nodeId is "wrapper"
-    const POINT_BASED_TYPES = ["POLYLINE", "POLYGON", "STRIP"];
+    const POINT_BASED_TYPES = ["POLYLINE", "POLYGON", "STRIP", "LINEAR_LAYOUT"];
     const resolveWrapperInfo = (nodeId, partType) => {
       if (nodeId !== "wrapper") return {};
       const wrapperAnnotationIds = selectedItems
@@ -6706,7 +7274,13 @@ const InteractionLayer = forwardRef(({
         }
       } else {
         const ann = annotations?.find(a => a.id === nodeId);
-        if (ann?.bbox) {
+        if (ann?.type === "DETAIL" && ann?.point) {
+          // DETAIL: the bubble orbits the arrow TIP — pivot on the tip.
+          rotationContext = {
+            center: { x: ann.point.x, y: ann.point.y },
+            startRotation: ann.arrowAngle ?? 0,
+          };
+        } else if (ann?.bbox) {
           rotationContext = {
             center: {
               x: ann.bbox.x + ann.bbox.width / 2,
@@ -6734,12 +7308,48 @@ const InteractionLayer = forwardRef(({
       const { nodeId, nodeContext } = draggableGroup.dataset;
       const worldPos = viewportRef.current?.screenToWorld(e.clientX, e.clientY);
       const startMouseInLocal = toLocalCoords(worldPos);
+
+      // Label chip / target / leader: draggable only once the label (or its
+      // annotation) is selected — an unselected label click only selects.
+      const isLabelPart =
+        nodeId?.startsWith("label::") ||
+        ["LABEL_BOX", "TARGET", "LINK"].includes(partType);
+      const labelBaseId = nodeId?.replace("label::", "");
+      const labelNodeSelected =
+        selectedNode?.nodeId === nodeId ||
+        selectedNode?.nodeId === labelBaseId ||
+        selectedNode?.nodeId === "label::" + labelBaseId ||
+        selectedItems?.some(
+          (it) => it.nodeId === nodeId || it.nodeId === labelBaseId
+        );
+      // Elevation axis placement (inverted T): draggable only once selected —
+      // an unselected grab only selects. The whole-move drag preview rides the
+      // SELECTED annotation, so an unselected drag would move it invisibly.
+      const isUnselectedPlacement =
+        draggableGroup.dataset?.annotationType ===
+          "REVOLUTION_AXIS_PLACEMENT" &&
+        !partType &&
+        selectedNode?.nodeId !== nodeId &&
+        !selectedItems?.some((it) => it.nodeId === nodeId);
+      const clickOnly =
+        (isLabelPart && !labelNodeSelected) || isUnselectedPlacement;
+
+      // Marker-like whole-moves can snap; the snap lands the annotation's own
+      // reference point (not the cursor) on the target, so capture it now.
+      const draggedAnn = annotations?.find((a) => a.id === nodeId);
+      const anchorLocal =
+        !partType && isMarkerLikeSnapDragType(draggedAnn?.type)
+          ? draggedAnn.point
+          : null;
+
       initAnnotationDrag({
         nodeId,
         startMouseInLocal,
         partType,
         startMouseScreen: { x: e.clientX, y: e.clientY },
         nodeContext,
+        clickOnly,
+        anchorLocal,
         ...resolveWrapperInfo(nodeId, partType),
       });
     }
@@ -6837,6 +7447,41 @@ const InteractionLayer = forwardRef(({
     if (onCommitImageDrop) onCommitImageDrop({ imageUrl, x, y, idMaster });
   };
 
+  // Native HTML5 drop of a PDF page dragged from the resources panel (native
+  // DnD, not dnd-kit: the app-wide PointerSensor needs a 250 ms press-and-hold,
+  // too much friction for page thumbnails). Creates a DETAIL annotation with
+  // folio = the dropped page (see MainMapEditorV3.handleCommitPdfPageDrop).
+
+  const handlePdfPageDragOver = (e) => {
+    if (e.dataTransfer?.types?.includes(PDF_PAGE_DRAG_MIME)) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "copy";
+    }
+  };
+
+  const handlePdfPageDrop = (e) => {
+    if (!e.dataTransfer?.types?.includes(PDF_PAGE_DRAG_MIME)) return;
+    e.preventDefault();
+    let payload = null;
+    try {
+      payload = JSON.parse(e.dataTransfer.getData(PDF_PAGE_DRAG_MIME));
+    } catch {
+      return;
+    }
+    if (!payload?.resourceId || !payload?.pageNumber) return;
+    const worldPos = viewportRef.current?.screenToWorld(e.clientX, e.clientY);
+    if (!worldPos) return;
+    const localPos = toLocalCoords(worldPos);
+    if (onCommitPdfPageDrop)
+      onCommitPdfPageDrop({
+        resourceId: payload.resourceId,
+        pageNumber: payload.pageNumber,
+        rotation: payload.rotation ?? 0,
+        x: localPos.x,
+        y: localPos.y,
+      });
+  };
+
   // render
 
   const targetPose = getTargetPose();
@@ -6889,6 +7534,8 @@ const InteractionLayer = forwardRef(({
       onDoubleClick={handleDoubleClick}
       onMouseLeave={handleMouseLeave}
       onContextMenu={handleContextMenu}
+      onDragOver={handlePdfPageDragOver}
+      onDrop={handlePdfPageDrop}
       sx={{
         width: 1, height: 1, // A. Le curseur de base du conteneur
         cursor: getCursorStyle(),
@@ -6945,6 +7592,7 @@ const InteractionLayer = forwardRef(({
               (
                 !smartDetectEnabled ||
                 newAnnotation?.drawingShape === "POLYLINE" ||
+                newAnnotation?.drawingShape === "CIRCULATION" ||
                 enabledDrawingMode === "SURFACE_DROP"
               )
             }
@@ -7038,6 +7686,10 @@ const InteractionLayer = forwardRef(({
                 ref={tooltipRef} // Pass the Ref
                 hoveredNode={tooltipData}
                 annotations={annotations}
+                isSelected={
+                  tooltipData?.nodeId === selectedNode?.nodeId ||
+                  selectedNodes?.some((n) => n.nodeId === tooltipData?.nodeId)
+                }
               />
             )}
           </>
@@ -7070,28 +7722,64 @@ const InteractionLayer = forwardRef(({
           />
         </g>
 
-        {(dragState?.active || dragState?.frozen) && (
-          <g transform={`translate(${targetPose.x}, ${targetPose.y}) scale(${targetPose.k})`}>
-            <TransientTopologyLayer
-              annotations={annotations}
-              baseMapMeterByPx={baseMapMeterByPx}
-              openingRels={openingRelRows}
-              movingPointId={dragState.pointId}
-              originalPointIdForDuplication={dragState.isDuplicateMode ? dragState.originalPointId : null}
-              currentPos={dragState.currentPos}
-              viewportScale={targetPose.k * cameraZoom}
-              containerK={targetPose.k}
-              virtualInsertion={virtualInsertion}
-              selectedAnnotationId={selectedNode?.nodeId?.replace("label::", "")}
-            />
-          </g>
-        )}
+        {(dragState?.active || dragState?.frozen) && (() => {
+          // Angle-locked vertex drag: the neighbours slide too. The map is
+          // keyed by the ORIGINAL point ids (fork mode included — visually the
+          // original vertex follows the cursor; the id mint happens at
+          // commit). Virtual insertions keep their legacy preview.
+          const lockedPreview = !virtualInsertion
+            ? getAngleLockedVertexMoves(
+                dragState.isDuplicateMode
+                  ? dragState.originalPointId
+                  : dragState.pointId,
+                dragState.currentPos
+              )?.movesById ?? null
+            : null;
+          return (
+            <g transform={`translate(${targetPose.x}, ${targetPose.y}) scale(${targetPose.k})`}>
+              <TransientTopologyLayer
+                annotations={annotations}
+                baseMapMeterByPx={baseMapMeterByPx}
+                openingRels={openingRelRows}
+                movingPointId={dragState.pointId}
+                originalPointIdForDuplication={
+                  !lockedPreview && dragState.isDuplicateMode
+                    ? dragState.originalPointId
+                    : null
+                }
+                currentPos={dragState.currentPos}
+                movedPointsById={lockedPreview}
+                viewportScale={targetPose.k * cameraZoom}
+                containerK={targetPose.k}
+                virtualInsertion={virtualInsertion}
+                selectedAnnotationId={selectedNode?.nodeId?.replace("label::", "")}
+              />
+            </g>
+          );
+        })()}
+
+        {/* SEGMENT DRAG preview (EDIT mode) — same transient layer, driven by
+            the movedPointsById map (both endpoints, angle-locked slides). */}
+        {(segmentDragState?.active || segmentDragState?.frozen) &&
+          segmentDragState?.movesById && (
+            <g transform={`translate(${targetPose.x}, ${targetPose.y}) scale(${targetPose.k})`}>
+              <TransientTopologyLayer
+                annotations={annotations}
+                baseMapMeterByPx={baseMapMeterByPx}
+                openingRels={openingRelRows}
+                movedPointsById={segmentDragState.movesById}
+                viewportScale={targetPose.k * cameraZoom}
+                containerK={targetPose.k}
+                selectedAnnotationId={selectedNode?.nodeId?.replace("label::", "")}
+              />
+            </g>
+          )}
 
 
         {/* --- Overlay optimiste : visible pendant le drag ET en attente de convergence DB --- */}
         {(() => {
           // Wrapper mode: active drag OR convergence (pending moves remain after mouseUp)
-          const POINT_BASED_TYPES_T = ["POLYLINE", "POLYGON", "STRIP", "COTE"];
+          const POINT_BASED_TYPES_T = ["POLYLINE", "POLYGON", "STRIP", "COTE", "LINEAR_LAYOUT"];
 
           // Resolve wrapper annotation IDs from drag state or from pending moves
           let wrapperAnnIds = null;

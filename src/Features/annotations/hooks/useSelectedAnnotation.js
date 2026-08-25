@@ -14,7 +14,13 @@ export default function useSelectedAnnotation() {
 
   // data
 
-  const annotations = useAnnotationsV2({ caller: "useSelectedAnnotation" })
+  // withForeignFootprints: a footprint (subtraction target hosted by another
+  // base map) is selectable on the plan, so the toolbar must be able to
+  // resolve it — otherwise selecting one shows no toolbar at all.
+  const annotations = useAnnotationsV2({
+    caller: "useSelectedAnnotation",
+    withForeignFootprints: true,
+  })
 
   // const selectedNode = useSelector((s) => s.mapEditor.selectedNode); // Removed
   const selectedItems = useSelector(selectSelectedItems);
@@ -35,6 +41,13 @@ export default function useSelectedAnnotation() {
   } else if (selectedItem?.context === "BG_IMAGE" || selectedItem?.nodeType === "BG_IMAGE_TEXT") {
     // Handle other types if they map to annotations
     selectedAnnotationId = selectedItem.nodeId;
+  }
+
+  // A selected label ("label::<id>") resolves to its annotation, so the
+  // properties panel shows the annotation (Etiquette tab opened by the
+  // selection reducer).
+  if (selectedAnnotationId?.startsWith?.("label::")) {
+    selectedAnnotationId = selectedAnnotationId.replace("label::", "");
   }
 
   // existing fallback or logic

@@ -21,6 +21,8 @@ import {
 } from "@dnd-kit/sortable";
 import { generateKeyBetween } from "fractional-indexing";
 
+import LeftDrawerPanelHeader from "Features/leftPanel/components/LeftDrawerPanelHeader";
+
 import PovListItem from "./PovListItem";
 import ButtonGeneratePovVideo from "./ButtonGeneratePovVideo";
 import usePovs from "../hooks/usePovs";
@@ -132,6 +134,7 @@ export default function PanelPovList() {
         bgcolor: "background.default",
       }}
     >
+      <LeftDrawerPanelHeader title="Points de vue" />
       <Box
         sx={{
           flex: 1,

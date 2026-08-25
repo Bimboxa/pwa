@@ -13,6 +13,12 @@ import getDebugAuthFromLocalStorage from "Features/auth/services/getDebugAuthFro
 
 // "Enregistrer la vue": captures the framed view (thumbnail + metadata) and
 // creates the POV record (appended at the end of the list).
+//
+// Options beyond lastSortIndex are for callers outside the POV module (the
+// capture tool's "Point de vue" export mode): `description` overrides the POV
+// draft name, `viewerMode` / `withRawImage` are forwarded to the capture, and
+// `selectCreated: false` leaves the current selection and right panel alone —
+// selecting the new POV would swap the panel away from the capture band.
 export default function useCreatePov() {
   const dispatch = useDispatch();
 
@@ -26,10 +32,16 @@ export default function useCreatePov() {
 
   const capturePovView = useCapturePovView();
 
-  return async function createPov({ lastSortIndex = null } = {}) {
+  return async function createPov({
+    lastSortIndex = null,
+    description,
+    viewerMode,
+    withRawImage = false,
+    selectCreated = true,
+  } = {}) {
     if (!projectId || !scopeId) return null;
 
-    const view = await capturePovView();
+    const view = await capturePovView({ viewerMode, withRawImage });
     if (!view) return null;
 
     // createdBy trigram follows the scopeConfiguration pattern
@@ -44,7 +56,7 @@ export default function useCreatePov() {
       projectId,
       scopeId,
       sortIndex: generateKeyBetween(lastSortIndex, null),
-      description: draftDescription ?? "",
+      description: description ?? draftDescription ?? "",
       createdBy,
       ...view,
     };
@@ -58,9 +70,11 @@ export default function useCreatePov() {
     // Select the new POV. The right panel is only switched to its properties
     // when it is ALREADY open: opening it would shift the capture frame
     // (rightInset) right after the view was snapshotted with the frame it had.
-    dispatch(setSelectedItem({ id: record.id, type: "POV" }));
-    if (rightPanelIsOpen)
-      dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
+    if (selectCreated) {
+      dispatch(setSelectedItem({ id: record.id, type: "POV" }));
+      if (rightPanelIsOpen)
+        dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
+    }
 
     return record;
   };

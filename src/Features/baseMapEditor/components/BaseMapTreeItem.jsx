@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo } from "react";
 
 import { useDispatch, useSelector } from "react-redux";
 
@@ -7,6 +7,7 @@ import {
   setCreatingInListingId,
   toggleListingCollapsed,
   toggleBaseMapVersionsExpanded,
+  setDetailBaseMapId,
   setSelectedVersionId,
   toggleVersionHidden,
 } from "../baseMapEditorSlice";
@@ -24,13 +25,13 @@ import {
   List,
   ListItemButton,
   ListItemText,
+  Tooltip,
   Typography,
   IconButton,
   Avatar,
 } from "@mui/material";
 import { Add as AddIcon } from "@mui/icons-material";
 import {
-  Edit,
   Check,
   Close,
   DragIndicator,
@@ -59,15 +60,18 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { generateKeyBetween } from "fractional-indexing";
-import { nanoid } from "@reduxjs/toolkit";
 
 import useUpdateEntity from "Features/entities/hooks/useUpdateEntity";
-import useCreateBaseMapVersion from "Features/baseMaps/hooks/useCreateBaseMapVersion";
 
 import db from "App/db/db";
 import activateBaseMapVersion from "Features/baseMaps/utils/activateBaseMapVersion";
+import createBaseMapVersionFromSource from "Features/baseMaps/services/createBaseMapVersionFromSource";
+import formatVersionDate from "Features/baseMaps/utils/formatVersionDate";
+import getBaseMapDisplayName from "Features/baseMaps/utils/getBaseMapDisplayName";
+import stringifyFileSize from "Features/files/utils/stringifyFileSize";
 import DialogCreateBaseMapVersion from "./DialogCreateBaseMapVersion";
 import IconButtonMoreActionsBaseMap from "./IconButtonMoreActionsBaseMap";
+import IconButtonMoreActionsBaseMapListing from "./IconButtonMoreActionsBaseMapListing";
 import IconButtonMoreActionsBaseMapVersion from "./IconButtonMoreActionsBaseMapVersion";
 
 function SortableVersionRow({
@@ -97,7 +101,9 @@ function SortableVersionRow({
       onDoubleClick={onDoubleClick}
       style={style}
       sx={{
-        pl: 7,
+        // One indent step deeper than the base map rows (avatar under the
+        // would-be chevron column of the next level).
+        pl: 12,
         py: 0.25,
         "&:hover .version-eye": { opacity: 1 },
         "&:hover .version-more": { opacity: 1 },
@@ -123,6 +129,7 @@ function SortableVersionRow({
       />
       <ListItemText
         primary={version.label}
+        secondary={formatVersionDate(version.createdAt)}
         slotProps={{
           primary: {
             variant: "caption",
@@ -134,6 +141,7 @@ function SortableVersionRow({
             fontWeight: version.isActive ? "bold" : "normal",
             noWrap: true,
           },
+          secondary: { variant: "caption", noWrap: true },
         }}
       />
       {version.isActive && (
@@ -184,6 +192,7 @@ function SortableBaseMapRow({
   isVersionsExpanded,
   onToggleVersions,
   onAddVersion,
+  onOpenProperties,
 }) {
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({
@@ -196,17 +205,36 @@ function SortableBaseMapRow({
     transition,
   };
 
+  // subtitle "<active version> · <image size>"
+  const activeVersion = baseMap?.getActiveVersion?.();
+  const fileSizeS = stringifyFileSize(
+    activeVersion?.image?.file?.size ?? baseMap?.image?.file?.size
+  );
+  const subtitleS = [activeVersion?.label ?? "Image d'origine", fileSizeS]
+    .filter(Boolean)
+    .join(" · ");
+
+  const { label: nameS, isPlaceholder: isUnnamed } =
+    getBaseMapDisplayName(baseMap);
+
+  const isVertical = baseMap?.orientation === "VERTICAL";
+
   return (
     <ListItemButton
       ref={setNodeRef}
       {...attributes}
       {...listeners}
       component="div"
-      selected={isSelected}
       onClick={onClick}
       sx={{
-        pl: 2,
+        // One indent step (24px = chevron column) deeper than the group
+        // row, so the base map chevron sits under the folder icon.
+        pl: 5,
         ...style,
+        // Selection = thick vertical bar on the left (secondary color);
+        // transparent when unselected so rows don't shift.
+        borderLeft: "3px solid",
+        borderLeftColor: isSelected ? "secondary.main" : "transparent",
         "&:hover .hover-action": { opacity: 1 },
         "&:hover .row-drag-handle": { opacity: 1 },
       }}
@@ -236,15 +264,21 @@ function SortableBaseMapRow({
         }}
       >
         {isVersionsExpanded ? (
-          <ExpandMore sx={{ fontSize: 16 }} />
+          <ExpandMore sx={{ fontSize: 20 }} />
         ) : (
-          <ChevronRight sx={{ fontSize: 16 }} />
+          <ChevronRight sx={{ fontSize: 20 }} />
         )}
       </IconButton>
       <Avatar
         src={baseMap?.getThumbnail?.() || baseMap?.image?.thumbnail}
         variant="rounded"
-        sx={{ width: 28, height: 28, mr: 1 }}
+        sx={{
+          width: 28,
+          height: 28,
+          mr: 1,
+          border: "1px solid",
+          borderColor: isSelected ? "secondary.main" : "grey.300",
+        }}
       />
       {isEditing ? (
         <InputBase
@@ -261,14 +295,48 @@ function SortableBaseMapRow({
         />
       ) : (
         <ListItemText
-          primary={baseMap.name}
-          slotProps={{
-            primary: {
-              variant: "body2",
-              fontWeight: isSelected ? "bold" : "normal",
-              noWrap: true,
-            },
-          }}
+          disableTypography
+          primary={
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 0.75,
+                minWidth: 0,
+              }}
+            >
+              <Typography
+                variant="body2"
+                noWrap
+                sx={{
+                  ...(isUnnamed && {
+                    fontStyle: "italic",
+                    color: "text.secondary",
+                  }),
+                }}
+              >
+                {nameS}
+              </Typography>
+              {isVertical && (
+                <Chip
+                  label="Vert."
+                  size="small"
+                  variant="outlined"
+                  sx={{ height: 16, fontSize: "0.625rem", flexShrink: 0 }}
+                />
+              )}
+            </Box>
+          }
+          secondary={
+            <Typography
+              variant="caption"
+              noWrap
+              sx={{ display: "block" }}
+              color="text.secondary"
+            >
+              {subtitleS}
+            </Typography>
+          }
         />
       )}
       {isEditing ? (
@@ -296,22 +364,11 @@ function SortableBaseMapRow({
         </Box>
       ) : (
         <Box sx={{ display: "flex" }}>
-          <IconButton
-            size="small"
-            className="hover-action"
-            onClick={(e) => {
-              e.stopPropagation();
-              onStartEdit();
-            }}
-            sx={{ opacity: 0, transition: "0.2s" }}
-          >
-            <Edit fontSize="inherit" />
-          </IconButton>
           <IconButtonMoreActionsBaseMap
             baseMap={baseMap}
+            onOpenProperties={onOpenProperties}
+            onRename={onStartEdit}
             onAddVersion={onAddVersion}
-            className="hover-action"
-            sx={{ opacity: 0, transition: "0.2s" }}
           />
         </Box>
       )}
@@ -339,14 +396,11 @@ export default function BaseMapTreeItem({ listing, baseMaps, isDropTarget }) {
   );
   const hiddenVersionIds = useSelector((s) => s.baseMapEditor.hiddenVersionIds);
   const updateEntity = useUpdateEntity();
-  const createVersion = useCreateBaseMapVersion();
 
   // state
 
   const [editingItemId, setEditingItemId] = useState(null);
   const [tempTitle, setTempTitle] = useState("");
-  const fileInputRef = useRef(null);
-  const [addVersionBaseMapId, setAddVersionBaseMapId] = useState(null);
   const [createVersionForBaseMap, setCreateVersionForBaseMap] = useState(null);
 
   // helpers
@@ -402,6 +456,8 @@ export default function BaseMapTreeItem({ listing, baseMaps, isDropTarget }) {
     );
   }
 
+  // Row click: selection only — the detail view (versions + Position 3D)
+  // opens from the "Propriétés du fond de plan" menu item.
   function handleBaseMapClick(baseMap) {
     if (editingItemId === baseMap.id) return;
     dispatch(setDisplayedBaseMapListingId(listing.id));
@@ -416,6 +472,11 @@ export default function BaseMapTreeItem({ listing, baseMaps, isDropTarget }) {
         listingId: listing.id,
       })
     );
+  }
+
+  function handleOpenBaseMapProperties(baseMap) {
+    handleBaseMapClick(baseMap);
+    dispatch(setDetailBaseMapId(baseMap.id));
   }
 
   async function handleVersionClick(baseMap, version) {
@@ -441,7 +502,8 @@ export default function BaseMapTreeItem({ listing, baseMaps, isDropTarget }) {
   // handlers - edit title
 
   function handleStartEditListing(e) {
-    e.stopPropagation();
+    // Also triggered from the more-actions menu (no event)
+    e?.stopPropagation?.();
     setEditingItemId(listing.id);
     setTempTitle(listing.name);
   }
@@ -472,139 +534,12 @@ export default function BaseMapTreeItem({ listing, baseMaps, isDropTarget }) {
 
   // handlers - versions
 
-  function handleAddVersionClick(baseMapId) {
-    setAddVersionBaseMapId(baseMapId);
-    fileInputRef.current?.click();
-  }
-
-  async function handleFileSelected(e) {
-    const file = e.target.files?.[0];
-    if (file && addVersionBaseMapId) {
-      await createVersion(addVersionBaseMapId, file, {
-        label: "Nouvelle version",
-      });
-    }
-    setAddVersionBaseMapId(null);
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  }
-
-  async function handleDuplicateActiveVersion(baseMap) {
-    if (!baseMap?.versions?.length) return;
-
-    // Read the active version record from the new table
-    const activeVersionHydrated =
-      baseMap.versions.find((v) => v.isActive) || baseMap.versions[0];
-    const activeVersionRecord = await db.baseMapVersions.get(
-      activeVersionHydrated.id
-    );
-    if (!activeVersionRecord) return;
-
-    // Copy the image file
-    const versionId = nanoid();
-    let newImage = activeVersionRecord.image;
-    if (activeVersionRecord.image?.fileName) {
-      const srcFile = await db.files.get(activeVersionRecord.image.fileName);
-      if (srcFile) {
-        const ext =
-          activeVersionRecord.image.fileName.split(".").pop() || "png";
-        const newFileName = `version_${versionId}_${baseMap.id}.${ext}`;
-        await db.files.put({
-          ...srcFile,
-          fileName: newFileName,
-        });
-        newImage = {
-          ...activeVersionRecord.image,
-          fileName: newFileName,
-          fileUpdatedAt: new Date().toISOString(),
-        };
-      }
-    }
-
-    // Compute fractionalIndex
-    const existingVersions = await db.baseMapVersions
-      .where("baseMapId")
-      .equals(baseMap.id)
-      .toArray();
-    const sorted = existingVersions
-      .filter((v) => !v.deletedAt)
-      .sort((a, b) =>
-        (a.fractionalIndex || "").localeCompare(b.fractionalIndex || "")
-      );
-    const lastIndex =
-      sorted.length > 0 ? sorted[sorted.length - 1].fractionalIndex : null;
-
-    // Deactivate all existing versions, then create the new one
-    await activateBaseMapVersion(baseMap.id, null);
-    await db.baseMapVersions.put({
-      id: versionId,
-      baseMapId: baseMap.id,
-      projectId: baseMap.projectId,
-      listingId: baseMap.listingId,
-      label: `${activeVersionRecord.label} (copie)`,
-      fractionalIndex: generateKeyBetween(lastIndex, null),
-      isActive: true,
-      image: newImage,
-      transform: activeVersionRecord.transform
-        ? { ...activeVersionRecord.transform }
-        : { x: 0, y: 0, rotation: 0, scale: 1 },
-    });
-  }
-
-  async function handleCreateVersionFromDialog({
-    label,
-    sourceBaseMap,
-    sourceVersion,
-  }) {
-    const targetBaseMap = createVersionForBaseMap;
-    if (!targetBaseMap) return;
-
-    // Copy the image file from the source version
-    const versionId = nanoid();
-    let newImage = sourceVersion.image;
-    if (sourceVersion.image?.fileName) {
-      const srcFile = await db.files.get(sourceVersion.image.fileName);
-      if (srcFile) {
-        const ext = sourceVersion.image.fileName.split(".").pop() || "png";
-        const newFileName = `version_${versionId}_${targetBaseMap.id}.${ext}`;
-        await db.files.put({
-          ...srcFile,
-          fileName: newFileName,
-        });
-        newImage = {
-          ...sourceVersion.image,
-          fileName: newFileName,
-          fileUpdatedAt: new Date().toISOString(),
-        };
-      }
-    }
-
-    // Compute fractionalIndex
-    const existingVersions = await db.baseMapVersions
-      .where("baseMapId")
-      .equals(targetBaseMap.id)
-      .toArray();
-    const sorted = existingVersions
-      .filter((v) => !v.deletedAt)
-      .sort((a, b) =>
-        (a.fractionalIndex || "").localeCompare(b.fractionalIndex || "")
-      );
-    const lastIndex =
-      sorted.length > 0 ? sorted[sorted.length - 1].fractionalIndex : null;
-
-    // Deactivate all existing versions, then create the new one
-    await activateBaseMapVersion(targetBaseMap.id, null);
-    await db.baseMapVersions.put({
-      id: versionId,
-      baseMapId: targetBaseMap.id,
-      projectId: targetBaseMap.projectId,
-      listingId: targetBaseMap.listingId,
+  async function handleCreateVersionFromDialog({ label, sourceVersion }) {
+    await createBaseMapVersionFromSource({
+      targetBaseMap: createVersionForBaseMap,
       label,
-      fractionalIndex: generateKeyBetween(lastIndex, null),
-      isActive: true,
-      image: newImage,
-      transform: { x: 0, y: 0, rotation: 0, scale: 1 },
+      sourceVersion,
     });
-
     setCreateVersionForBaseMap(null);
   }
 
@@ -614,14 +549,6 @@ export default function BaseMapTreeItem({ listing, baseMaps, isDropTarget }) {
 
   return (
     <Box sx={{ mb: 1 }}>
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        style={{ display: "none" }}
-        onChange={handleFileSelected}
-      />
-
       <ListItemButton
         ref={setGroupNodeRef}
         {...groupAttributes}
@@ -630,8 +557,15 @@ export default function BaseMapTreeItem({ listing, baseMaps, isDropTarget }) {
         onClick={handleListingClick}
         style={groupStyle}
         sx={{
-          pl: 1,
-          "&:hover .edit-icon": { opacity: 1 },
+          // Same left structure as the base map rows (3px selection-bar
+          // slot + drag handle + chevron) so the folder icon aligns with
+          // the base map avatars.
+          pl: 2,
+          // No secondary line: extra vertical padding keeps the row at
+          // roughly the same height as the base map rows.
+          py: 1.5,
+          borderLeft: "3px solid transparent",
+          "&:hover .row-drag-handle": { opacity: 1 },
           ...(isDropTarget && {
             bgcolor: "action.focus",
             outline: "1px dashed",
@@ -639,17 +573,46 @@ export default function BaseMapTreeItem({ listing, baseMaps, isDropTarget }) {
           }),
         }}
       >
+        <DragIndicator
+          className="row-drag-handle"
+          sx={{
+            fontSize: 14,
+            color: "text.disabled",
+            cursor: "grab",
+            opacity: 0,
+            transition: "0.2s",
+            ml: -1.5,
+            mr: 0.5,
+          }}
+        />
         <IconButton
           size="small"
           onClick={handleToggleCollapsed}
-          sx={{ mr: 1, p: 0 }}
+          sx={{ p: 0, mr: 0.5 }}
         >
           {isExpanded ? (
-            <FolderOpen fontSize="small" color="action" />
+            <ExpandMore sx={{ fontSize: 20 }} />
           ) : (
-            <Folder fontSize="small" color="action" />
+            <ChevronRight sx={{ fontSize: 20 }} />
           )}
         </IconButton>
+        <Box
+          sx={{
+            width: 28,
+            height: 28,
+            mr: 1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            flexShrink: 0,
+          }}
+        >
+          {isExpanded ? (
+            <FolderOpen color="action" />
+          ) : (
+            <Folder color="action" />
+          )}
+        </Box>
         {isEditingListing ? (
           <InputBase
             value={tempTitle}
@@ -699,32 +662,35 @@ export default function BaseMapTreeItem({ listing, baseMaps, isDropTarget }) {
           </Box>
         ) : (
           <Box sx={{ display: "flex", alignItems: "center" }}>
-            <DragIndicator
-              className="edit-icon"
-              sx={{
-                fontSize: 16,
-                color: "text.disabled",
-                cursor: "grab",
-                opacity: 0,
-                transition: "0.2s",
-              }}
-            />
-            <IconButton
+            <Tooltip title="Nouveau fond de plan">
+              <IconButton
+                size="small"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleAddBaseMap();
+                }}
+                sx={{ color: "text.disabled" }}
+              >
+                <AddIcon fontSize="inherit" />
+              </IconButton>
+            </Tooltip>
+            <IconButtonMoreActionsBaseMapListing
+              listing={listing}
+              onRename={handleStartEditListing}
+              onAddBaseMap={handleAddBaseMap}
               size="small"
-              className="edit-icon"
-              onClick={handleStartEditListing}
-              sx={{ opacity: 0, transition: "0.2s" }}
-            >
-              <Edit fontSize="inherit" />
-            </IconButton>
+            />
           </Box>
         )}
       </ListItemButton>
 
       {isExpanded && (
+        // White background isolating the group's base maps from the panel
         <Box
           sx={{
-            "&:hover .add-basemap-btn": { opacity: 1 },
+            bgcolor: "background.paper",
+            borderBottom: "1px solid",
+            borderColor: "divider",
           }}
         >
           <Divider />
@@ -768,6 +734,9 @@ export default function BaseMapTreeItem({ listing, baseMaps, isDropTarget }) {
                         dispatch(toggleBaseMapVersionsExpanded(baseMap.id))
                       }
                       onAddVersion={() => setCreateVersionForBaseMap(baseMap)}
+                      onOpenProperties={() =>
+                        handleOpenBaseMapProperties(baseMap)
+                      }
                     />
                     {hasVersions && isVersionsExpanded && (
                       <DndContext
@@ -842,36 +811,6 @@ export default function BaseMapTreeItem({ listing, baseMaps, isDropTarget }) {
               })}
             </List>
           </SortableContext>
-
-          <ListItemButton
-            className="add-basemap-btn"
-            onClick={handleAddBaseMap}
-            sx={{
-              opacity: 0,
-              transition: "opacity 0.2s",
-              pl: 4,
-              gap: 1,
-              color: "text.disabled",
-            }}
-          >
-            <Box
-              sx={{
-                width: 28,
-                height: 28,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                borderRadius: 1,
-                border: "1.5px dashed",
-                borderColor: "divider",
-              }}
-            >
-              <AddIcon sx={{ fontSize: 16, color: "text.disabled" }} />
-            </Box>
-            <Typography variant="body2" color="text.disabled">
-              Nouveau fond de plan
-            </Typography>
-          </ListItemButton>
         </Box>
       )}
 

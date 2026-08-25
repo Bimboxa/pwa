@@ -12,6 +12,22 @@ import getCoteDisplayValue from "Features/annotations/utils/getCoteDisplayValue"
 import { useDrawingMetrics } from "App/contexts/DrawingMetricsContext";
 import { expandArcsInPath, typeOf } from "Features/geometry/utils/arcSampling";
 import getCenteredBandFromGuideLine from "Features/geometry/utils/getCenteredBandFromGuideLine";
+import {
+  getLinearLayoutSpacing,
+  getLinearLayoutTickOffsets,
+} from "Features/annotations/utils/getLinearLayoutBars";
+import {
+  fovConePath,
+  fovDirectionLine,
+} from "Features/photos/utils/photoPoseGlyph";
+import { DEFAULT_FOV_DEG } from "Features/photos/constants/photoNode";
+import {
+  halfArcPath,
+  SWEEP_ORANGE,
+  SWEEP_BLACK,
+} from "Features/annotations/utils/revolutionAxisGlyph";
+
+import theme from "Styles/theme";
 
 // Number of samples per arc segment — mirrors NodePolylineStatic so the live
 // preview matches the committed render.
@@ -100,7 +116,22 @@ const DrawingLayer = forwardRef(
     const previewRectRef = useRef(null); // <--- NOUVELLE REF
     const previewCircleRef = useRef(null);
     const previewStripRef = useRef(null);
+    // Linear layout (calepinage) preview — band polygon + axis/ticks path.
+    const previewLinearLayoutFillRef = useRef(null);
+    const previewLinearLayoutTicksRef = useRef(null);
     const previewObject3DRef = useRef(null); // OBJECT_3D top-view ghost under the cursor
+    // Revolution axis preview — mirrors the NodeRevolutionAxisStatic glyph
+    // (orange half-arc + black half-arc + diameter + centre dot).
+    const previewRevAxisGroupRef = useRef(null);
+    const previewRevAxisOrangeRef = useRef(null);
+    const previewRevAxisBlackRef = useRef(null);
+    const previewRevAxisDiameterRef = useRef(null);
+    const previewRevAxisDotRef = useRef(null); // outer group: translate to centre
+    // Photo pose preview — view cone sector + direction ray + centre dot.
+    const previewPhotoPoseGroupRef = useRef(null);
+    const previewPhotoPoseConeRef = useRef(null);
+    const previewPhotoPoseRayRef = useRef(null);
+    const previewPhotoPoseDotRef = useRef(null); // outer group: translate to centre
     const previewRampRef = useRef(null); // ramp band preview (centered on the median line)
     // Cote preview refs (offset dimension line + dashed extensions + value text)
     const previewCoteGroupRef = useRef(null);
@@ -167,7 +198,12 @@ const DrawingLayer = forwardRef(
     // STRIP/RAMP `strokeWidth` is the band width (already drawn by the dedicated
     // band preview), so the rubber-band line must stay a thin fixed helper.
     const previewUsesAnnotationStyle =
-      type !== "POLYGON" && type !== "STRIP" && enabledDrawingMode !== "RAMP";
+      type !== "POLYGON" &&
+      type !== "STRIP" &&
+      // LINEAR_LAYOUT: strokeWidth is the bar thickness (cm), not a line
+      // style — the rubber band must stay a thin fixed helper (like STRIP).
+      type !== "LINEAR_LAYOUT" &&
+      enabledDrawingMode !== "RAMP";
     const previewIsCmUnit =
       previewUsesAnnotationStyle && strokeWidthUnit === "CM" && meterByPx > 0;
     const previewScalesWithZoom =
@@ -218,6 +254,7 @@ const DrawingLayer = forwardRef(
     // contour color jumps the moment the user finalizes the shape.
     const effectiveStrokeColor = isPolygon ? fillColor : strokeColor;
     const isStrip = type === "STRIP";
+    const isLinearLayout = type === "LINEAR_LAYOUT";
     // RAMP draws a POLYGON (type === "POLYGON") but previews a band centered on
     // the drawn median line instead of the closed polygon-of-the-clicks.
     const isRamp = enabledDrawingMode === "RAMP";
@@ -240,6 +277,12 @@ const DrawingLayer = forwardRef(
       "POLYLINE_CIRCLE_RADIUS",
       "POLYGON_CIRCLE_RADIUS",
     ].includes(enabledDrawingMode);
+    // Revolution axis (plan view): same gesture, but the cursor also fixes the
+    // diameter orientation, so the preview shows the circle AND its diameter.
+    const drawRevolutionAxis = enabledDrawingMode === "REVOLUTION_AXIS_PLAN";
+    // Photo pose (Photos module): same centre→edge gesture; the preview shows
+    // the camera view cone opened toward the cursor.
+    const drawPhotoPose = enabledDrawingMode === "PHOTO_POSE";
     const drawCote = enabledDrawingMode === "COTE_TWO_CLICK";
     // OBJECT_3D placement (2D editor): the model's top-view projection follows
     // the cursor, sized to the model footprint (bbox X×Z in meters / meterByPx),
@@ -498,6 +541,99 @@ const DrawingLayer = forwardRef(
         }
 
         // ------------------------------------------------
+        // CAS 1b'' : REVOLUTION_AXIS_PLAN (center placed -> cursor sets both
+        // the radius and the diameter orientation)
+        // ------------------------------------------------
+        if (drawRevolutionAxis && previewRevAxisGroupRef.current) {
+          if (previewFillRef.current)
+            previewFillRef.current.style.display = "none";
+          if (previewRectRef.current)
+            previewRectRef.current.style.display = "none";
+
+          const center = currentPoints[0];
+          const dx = cursorPos.x - center.x;
+          const dy = cursorPos.y - center.y;
+          const r = Math.hypot(dx, dy);
+          if (r > 0) {
+            // Mirror the commit mapping (directionDeg = atan2(-dy, dx)) folded
+            // through getRevolutionAxisPlanFrame: rimPx[0] is the cursor side,
+            // and invertHalf swaps the halves.
+            const invert = Boolean(newAnnotationRef.current?.invertHalf);
+            const rimA = {
+              x: center.x + (invert ? -dx : dx),
+              y: center.y + (invert ? -dy : dy),
+            };
+            const rimB = {
+              x: 2 * center.x - rimA.x,
+              y: 2 * center.y - rimA.y,
+            };
+            previewRevAxisOrangeRef.current?.setAttribute(
+              "d",
+              halfArcPath(rimA, rimB, r, SWEEP_ORANGE)
+            );
+            previewRevAxisBlackRef.current?.setAttribute(
+              "d",
+              halfArcPath(rimA, rimB, r, SWEEP_BLACK)
+            );
+            const diameter = previewRevAxisDiameterRef.current;
+            if (diameter) {
+              diameter.setAttribute("x1", rimA.x);
+              diameter.setAttribute("y1", rimA.y);
+              diameter.setAttribute("x2", rimB.x);
+              diameter.setAttribute("y2", rimB.y);
+            }
+            previewRevAxisDotRef.current?.setAttribute(
+              "transform",
+              `translate(${center.x} ${center.y})`
+            );
+            previewRevAxisGroupRef.current.style.display = "block";
+          } else {
+            previewRevAxisGroupRef.current.style.display = "none";
+          }
+          return;
+        }
+
+        // ------------------------------------------------
+        // CAS 1b''' : PHOTO_POSE (center placed -> cursor sets the camera
+        // direction and range; preview = view cone toward the cursor)
+        // ------------------------------------------------
+        if (drawPhotoPose && previewPhotoPoseGroupRef.current) {
+          if (previewFillRef.current)
+            previewFillRef.current.style.display = "none";
+          if (previewRectRef.current)
+            previewRectRef.current.style.display = "none";
+
+          const center = currentPoints[0];
+          const dx = cursorPos.x - center.x;
+          const dy = cursorPos.y - center.y;
+          const r = Math.hypot(dx, dy);
+          if (r > 0) {
+            // Same mapping as the commit (directionDeg = atan2(-dy, dx)).
+            const directionDeg = (Math.atan2(-dy, dx) * 180) / Math.PI;
+            previewPhotoPoseConeRef.current?.setAttribute(
+              "d",
+              fovConePath(center, directionDeg, DEFAULT_FOV_DEG, r)
+            );
+            const ray = fovDirectionLine(center, directionDeg, r);
+            const rayEl = previewPhotoPoseRayRef.current;
+            if (rayEl) {
+              rayEl.setAttribute("x1", ray.x1);
+              rayEl.setAttribute("y1", ray.y1);
+              rayEl.setAttribute("x2", ray.x2);
+              rayEl.setAttribute("y2", ray.y2);
+            }
+            previewPhotoPoseDotRef.current?.setAttribute(
+              "transform",
+              `translate(${center.x} ${center.y})`
+            );
+            previewPhotoPoseGroupRef.current.style.display = "block";
+          } else {
+            previewPhotoPoseGroupRef.current.style.display = "none";
+          }
+          return;
+        }
+
+        // ------------------------------------------------
         // CAS 1b' : CIRCLE_RADIUS (center placed -> cursor sets the radius)
         // ------------------------------------------------
         if (drawCircleRadius && previewCircleRef.current) {
@@ -546,6 +682,98 @@ const DrawingLayer = forwardRef(
           previewStripRef.current.style.display = "block";
 
           // Also show elastic line
+          if (previewLineRef.current) {
+            previewLineRef.current.setAttribute("x1", lastPoint.x);
+            previewLineRef.current.setAttribute("y1", lastPoint.y);
+            previewLineRef.current.setAttribute("x2", cursorPos.x);
+            previewLineRef.current.setAttribute("y2", cursorPos.y);
+            previewLineRef.current.style.display = "block";
+          }
+          return;
+        }
+
+        // ------------------------------------------------
+        // CAS 2b'' : LINEAR_LAYOUT (band + axis + ticks from 1st point)
+        // ------------------------------------------------
+        if (isLinearLayout && previewLinearLayoutFillRef.current) {
+          if (previewRectRef.current)
+            previewRectRef.current.style.display = "none";
+
+          const na = newAnnotationRef.current || {};
+          const p1 = currentPoints[0];
+          const p2 = cursorPos;
+          const dx = p2.x - p1.x;
+          const dy = p2.y - p1.y;
+          const len = Math.hypot(dx, dy);
+          const mbp = meterByPxRef.current;
+          const widthM = parseFloat(na.width);
+          const widthPx =
+            mbp > 0 && Number.isFinite(widthM) && widthM > 0 ? widthM / mbp : 0;
+
+          if (len > 0.5 && widthPx > 0) {
+            const ux = dx / len;
+            const uy = dy / len;
+            // Same convention as NodeLinearLayoutStatic: band at -y in the
+            // segment local frame, world offset (-uy, ux) * yBand.
+            const yBand = -(na.stripOrientation ?? 1) * widthPx;
+            const offX = -uy * yBand;
+            const offY = ux * yBand;
+
+            if (na.hideBandFill) {
+              previewLinearLayoutFillRef.current.style.display = "none";
+            } else {
+              previewLinearLayoutFillRef.current.setAttribute(
+                "d",
+                `M ${p1.x} ${p1.y} L ${p2.x} ${p2.y} L ${p2.x + offX} ${p2.y + offY} L ${p1.x + offX} ${p1.y + offY} Z`
+              );
+              previewLinearLayoutFillRef.current.style.display = "block";
+            }
+
+            // Axis at the configured position across the band (same rule as
+            // NodeLinearLayoutStatic) + one tick per bar position. Tick
+            // half-length in world px (screen zoom is unknown here): capped by
+            // the band width and the spacing so the preview stays readable.
+            if (previewLinearLayoutTicksRef.current) {
+              const axisFraction =
+                na.axisPosition === "BOTTOM"
+                  ? 0.25
+                  : na.axisPosition === "TOP"
+                    ? 0.75
+                    : 0.5;
+              const ax1 = {
+                x: p1.x + offX * axisFraction,
+                y: p1.y + offY * axisFraction,
+              };
+              const ax2 = {
+                x: p2.x + offX * axisFraction,
+                y: p2.y + offY * axisFraction,
+              };
+              let d = `M ${ax1.x} ${ax1.y} L ${ax2.x} ${ax2.y}`;
+              const spacingM = getLinearLayoutSpacing(na);
+              if (mbp > 0 && spacingM > 0) {
+                const spacingPx = spacingM / mbp;
+                const offsets = getLinearLayoutTickOffsets({
+                  length: len,
+                  spacing: spacingPx,
+                  align: na.layoutAlign ?? "CENTER",
+                });
+                const tickHalf = Math.min(widthPx * 0.06, spacingPx * 0.4);
+                for (const t of offsets) {
+                  const cx = ax1.x + ux * t;
+                  const cy = ax1.y + uy * t;
+                  d += ` M ${cx - uy * tickHalf} ${cy + ux * tickHalf} L ${cx + uy * tickHalf} ${cy - ux * tickHalf}`;
+                }
+              }
+              previewLinearLayoutTicksRef.current.setAttribute("d", d);
+              previewLinearLayoutTicksRef.current.style.display = "block";
+            }
+          } else {
+            previewLinearLayoutFillRef.current.style.display = "none";
+            if (previewLinearLayoutTicksRef.current)
+              previewLinearLayoutTicksRef.current.style.display = "none";
+          }
+
+          // Also show the elastic line (the drawn bottom edge)
           if (previewLineRef.current) {
             previewLineRef.current.setAttribute("x1", lastPoint.x);
             previewLineRef.current.setAttribute("y1", lastPoint.y);
@@ -672,12 +900,20 @@ const DrawingLayer = forwardRef(
           previewCircleRef.current.style.display = "none";
         if (previewStripRef.current)
           previewStripRef.current.style.display = "none";
+        if (previewLinearLayoutFillRef.current)
+          previewLinearLayoutFillRef.current.style.display = "none";
+        if (previewLinearLayoutTicksRef.current)
+          previewLinearLayoutTicksRef.current.style.display = "none";
         if (previewObject3DRef.current)
           previewObject3DRef.current.style.display = "none";
         if (previewRampRef.current)
           previewRampRef.current.style.display = "none";
         if (previewCoteGroupRef.current)
           previewCoteGroupRef.current.style.display = "none";
+        if (previewRevAxisGroupRef.current)
+          previewRevAxisGroupRef.current.style.display = "none";
+        if (previewPhotoPoseGroupRef.current)
+          previewPhotoPoseGroupRef.current.style.display = "none";
       },
     }));
 
@@ -727,6 +963,28 @@ const DrawingLayer = forwardRef(
             stroke="none"
             style={{ display: "none", pointerEvents: "none" }}
           />
+        )}
+
+        {/* A0'. Linear layout band — dynamic preview (1st point + cursor) */}
+        {isLinearLayout && (
+          <>
+            <path
+              ref={previewLinearLayoutFillRef}
+              fill={strokeColor || "rgba(92, 92, 236, 0.3)"}
+              opacity={0.2}
+              stroke="none"
+              style={{ display: "none", pointerEvents: "none" }}
+            />
+            <path
+              ref={previewLinearLayoutTicksRef}
+              fill="none"
+              stroke={strokeColor || "#2196f3"}
+              strokeWidth={1.5}
+              opacity={0.8}
+              vectorEffect="non-scaling-stroke"
+              style={{ display: "none", pointerEvents: "none" }}
+            />
+          </>
         )}
 
         {/* A0b. Ramp band — dynamic preview centered on the median line */}
@@ -785,6 +1043,79 @@ const DrawingLayer = forwardRef(
           />
         )}
 
+        {/* B3. Revolution axis preview — same glyph as NodeRevolutionAxisStatic
+            (orange/black half-arcs + diameter + centre dot), always solid 2px
+            like the committed node so nothing jumps at commit. */}
+        {drawRevolutionAxis && (
+          <g
+            ref={previewRevAxisGroupRef}
+            style={{ display: "none", pointerEvents: "none" }}
+          >
+            <path
+              ref={previewRevAxisOrangeRef}
+              fill="none"
+              stroke={effectiveStrokeColor || theme.palette.secondary.main}
+              strokeWidth={2}
+              vectorEffect="non-scaling-stroke"
+            />
+            <path
+              ref={previewRevAxisBlackRef}
+              fill="none"
+              stroke="#000000"
+              strokeWidth={2}
+              vectorEffect="non-scaling-stroke"
+            />
+            <line
+              ref={previewRevAxisDiameterRef}
+              stroke={effectiveStrokeColor || theme.palette.secondary.main}
+              strokeWidth={2}
+              vectorEffect="non-scaling-stroke"
+            />
+            {/* Centre dot — screen-constant, mirrors CENTER_DOT_PX = 3.5 */}
+            <g ref={previewRevAxisDotRef}>
+              <g style={{ transform: scaleTransform }}>
+                <circle cx={0} cy={0} r={3.5} fill="#000000" />
+              </g>
+            </g>
+          </g>
+        )}
+
+        {/* B4. Photo pose preview — view cone sector + direction ray + centre
+            dot, mirroring the committed NodePhotoStatic glyph. */}
+        {drawPhotoPose && (
+          <g
+            ref={previewPhotoPoseGroupRef}
+            style={{ display: "none", pointerEvents: "none" }}
+          >
+            <path
+              ref={previewPhotoPoseConeRef}
+              fill={theme.palette.secondary.main}
+              fillOpacity={0.15}
+              stroke={theme.palette.secondary.main}
+              strokeWidth={2}
+              vectorEffect="non-scaling-stroke"
+            />
+            <line
+              ref={previewPhotoPoseRayRef}
+              stroke={theme.palette.secondary.main}
+              strokeWidth={1.5}
+              strokeDasharray="4 4"
+              vectorEffect="non-scaling-stroke"
+            />
+            {/* Centre dot — screen-constant */}
+            <g ref={previewPhotoPoseDotRef}>
+              <g style={{ transform: scaleTransform }}>
+                <circle
+                  cx={0}
+                  cy={0}
+                  r={4}
+                  fill={theme.palette.secondary.main}
+                />
+              </g>
+            </g>
+          </g>
+        )}
+
         {/* C. Static Stroke (Traits déjà validés) — hidden in COTE mode
             since the dedicated preview group renders its own dimension line */}
         {!drawCote && (
@@ -802,8 +1133,10 @@ const DrawingLayer = forwardRef(
         )}
 
         {/* D. Vertices (Points déjà validés) — hidden in COTE mode (the
-            preview group renders perpendicular ticks instead) */}
+            preview group renders perpendicular ticks instead) and in
+            REVOLUTION_AXIS mode (its group draws the black centre dot) */}
         {!drawCote &&
+          !drawRevolutionAxis &&
           points.map((p, i) => (
             <circle
               key={i}
@@ -821,36 +1154,42 @@ const DrawingLayer = forwardRef(
         {/* E. Zone Closing — now handled in InteractionLayer via screen-distance check */}
 
         {/* F. Dynamic Rubber Band (Ligne élastique pour polyline/segment) */}
-        {!drawRectangle && !(drawCircle && points.length >= 2) && !drawCote && (
-          <line
-            ref={previewLineRef}
-            stroke={effectiveStrokeColor || "blue"}
-            strokeWidth={previewStrokeWidth}
-            strokeOpacity={previewStrokeOpacity}
-            vectorEffect={previewVectorEffect}
-            {...(previewTempDashArray && {
-              strokeDasharray: previewTempDashArray,
-            })}
-            style={{ display: "none", pointerEvents: "none" }}
-          />
-        )}
+        {!drawRectangle &&
+          !(drawCircle && points.length >= 2) &&
+          !drawCote &&
+          !drawRevolutionAxis && (
+            <line
+              ref={previewLineRef}
+              stroke={effectiveStrokeColor || "blue"}
+              strokeWidth={previewStrokeWidth}
+              strokeOpacity={previewStrokeOpacity}
+              vectorEffect={previewVectorEffect}
+              {...(previewTempDashArray && {
+                strokeDasharray: previewTempDashArray,
+              })}
+              style={{ display: "none", pointerEvents: "none" }}
+            />
+          )}
 
         {/* F2. Dynamic arc preview (replaces the rubber band when the last
             placed point is an "open" circle — the curve follows the cursor) */}
-        {!drawRectangle && !(drawCircle && points.length >= 2) && !drawCote && (
-          <path
-            ref={previewArcPathRef}
-            fill="none"
-            stroke={effectiveStrokeColor || "blue"}
-            strokeWidth={previewStrokeWidth}
-            strokeOpacity={previewStrokeOpacity}
-            vectorEffect={previewVectorEffect}
-            {...(previewTempDashArray && {
-              strokeDasharray: previewTempDashArray,
-            })}
-            style={{ display: "none", pointerEvents: "none" }}
-          />
-        )}
+        {!drawRectangle &&
+          !(drawCircle && points.length >= 2) &&
+          !drawCote &&
+          !drawRevolutionAxis && (
+            <path
+              ref={previewArcPathRef}
+              fill="none"
+              stroke={effectiveStrokeColor || "blue"}
+              strokeWidth={previewStrokeWidth}
+              strokeOpacity={previewStrokeOpacity}
+              vectorEffect={previewVectorEffect}
+              {...(previewTempDashArray && {
+                strokeDasharray: previewTempDashArray,
+              })}
+              style={{ display: "none", pointerEvents: "none" }}
+            />
+          )}
 
         {/* G. COTE preview (offset dim line + dashed extensions + value) */}
         {drawCote && (

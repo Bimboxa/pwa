@@ -5,11 +5,7 @@ const unitMap = {
   CUBIC_METER: "m³",
 };
 
-export default function getAnnotationMainQtyLabel(
-  annotation,
-  qties
-) {
-
+export default function getAnnotationMainQtyLabel(annotation, qties) {
   let qty;
   let unit = unitMap.UNIT;
 
@@ -19,17 +15,22 @@ export default function getAnnotationMainQtyLabel(
 
   if (!annotation?.qties?.enabled) return "-";
 
-
   // --- VARIANT ---
 
   let variant = "LENGTH"; // SURFACE, "COUNT"
 
   if (["POLYGON", "RECTANGLE"].includes(type)) {
     variant = "SURFACE";
-  }
-
-  else if (["POINT"].includes(type)) {
-    variant = (annotation?.height && qties?.length) ? "LENGTH" : "COUNT";
+  } else if (type === "DETAIL") {
+    variant = "COUNT";
+  } else if (["POINT"].includes(type)) {
+    // A POINT revolved around an axis carries a real linear quantity (the
+    // circle perimeter) even without a height — see getAnnotationQties.
+    const isRevolution = annotation?.shape3D?.key === "REVOLUTION";
+    variant =
+      (isRevolution || annotation?.height) && qties?.length
+        ? "LENGTH"
+        : "COUNT";
   }
 
   // --- LABEL ---
@@ -37,14 +38,10 @@ export default function getAnnotationMainQtyLabel(
   if (variant === "COUNT") {
     qty = 1;
     unit = unitMap.UNIT;
-  }
-
-  else if (variant === "LENGTH") {
+  } else if (variant === "LENGTH") {
     qty = qties?.length;
     unit = unitMap.METER;
-  }
-
-  else if (variant === "SURFACE") {
+  } else if (variant === "SURFACE") {
     qty = qties?.surface;
     unit = unitMap.SQUARE_METER;
   }

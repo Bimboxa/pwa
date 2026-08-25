@@ -14,8 +14,7 @@ import {
   ShowChart as ProfileLineIcon,
   NorthEast as RampIcon,
   AutoFixHigh as LocalizedRepairIcon,
-  Height as RevolutionAxisIcon,
-  Adjust as RevolutionPointIcon,
+  Adjust as RevolutionPlacementIcon,
 } from "@mui/icons-material";
 
 import IconPolylineClick from "Features/icons/IconPolylineClick";
@@ -317,6 +316,38 @@ const DRAWING_TOOLS = [
     annotationType: "COTE",
     behavior: "TWO_CLICK",
   },
+  // RULER tools — a dimension chain draws exactly like a POLYLINE, so they
+  // delegate the interaction to the POLYLINE modes via `drawingMode` while
+  // keeping their own annotation type through the commit (same pattern as
+  // REVOLUTION_AXIS_PLAN below).
+  {
+    key: "RULER_CLICK",
+    label: "Règle (clics)",
+    Icon: IconPolylineClick,
+    annotationType: "RULER",
+    behavior: "CLICK",
+    drawingMode: "POLYLINE_CLICK",
+  },
+  {
+    key: "RULER_SEGMENT",
+    label: "Règle (2 clics)",
+    Icon: IconPolylineSegment,
+    annotationType: "RULER",
+    behavior: "SEGMENT",
+    drawingMode: "POLYLINE_SEGMENT",
+  },
+  // LINEAR_LAYOUT tool — a calepinage band draws as a plain 2-point segment
+  // (the bottom edge of the band), so it delegates the interaction to the
+  // POLYLINE_SEGMENT mode while keeping its own annotation type through the
+  // commit (same pattern as RULER_SEGMENT above).
+  {
+    key: "LINEAR_LAYOUT_SEGMENT",
+    label: "Calepinage (2 clics)",
+    Icon: IconPolylineSegment,
+    annotationType: "LINEAR_LAYOUT",
+    behavior: "SEGMENT",
+    drawingMode: "POLYLINE_SEGMENT",
+  },
   // ADD_GUIDE_LINE tool — draw a guideLine polyline on the selected
   // annotation (the ramp gradient axis + slope arrow). Multi-click, finish
   // with Enter, cancel with Escape.
@@ -368,26 +399,30 @@ const DRAWING_TOOLS = [
     annotationType: "LOCALIZED_REPAIR",
     behavior: "LOCALIZED_REPAIR",
   },
-  // REVOLUTION axis helpers — draw the geometry that defines a REVOLUTION
-  // shape3D. The elevation-view axis is a straight 2-click line (reuses the
-  // POLYLINE_SEGMENT interaction); the plan-view axis is a single-click point
-  // (reuses the ONE_CLICK interaction). They keep their own annotation `type`
-  // through the commit (see useHandleCommitDrawing) and are NOT openings.
+  // REVOLUTION axis helpers — the geometry that defines a REVOLUTION shape3D.
+  // Both tools are armed from a REVOLUTION_AXIS template row of the listings
+  // panel: the axis is authored on the PLAN with 2 clicks (centre → radius +
+  // orientation, reusing the CIRCLE_RADIUS interaction but NOT its commit,
+  // which polygonizes into a ring); on a VERTICAL base map the template row
+  // instead drops an existing axis with a single click
+  // (AnnotationTemplateRowRevolutionAxisVertical), which re-poses that base
+  // map in 3D. Both keep their own annotation `type` through the commit (see
+  // useHandleCommitDrawing) and are NOT openings.
   {
-    key: "REVOLUTION_AXIS_LINE",
-    label: "Axe (vue élévation)",
-    Icon: RevolutionAxisIcon,
+    key: "REVOLUTION_AXIS_PLAN",
+    label: "Cercle centre/rayon",
+    Icon: IconPolylineCircleRadius,
     annotationType: "REVOLUTION_AXIS",
-    behavior: "SEGMENT",
-    drawingMode: "POLYLINE_SEGMENT",
+    behavior: "CIRCLE_RADIUS",
+    drawingMode: "REVOLUTION_AXIS_PLAN",
   },
   {
-    key: "REVOLUTION_POINT_MARK",
-    label: "Axe (vue en plan)",
-    Icon: RevolutionPointIcon,
-    annotationType: "REVOLUTION_POINT",
+    key: "REVOLUTION_AXIS_PLACE",
+    label: "Position de l'axe",
+    Icon: RevolutionPlacementIcon,
+    annotationType: "REVOLUTION_AXIS_PLACEMENT",
     behavior: "ONE_CLICK",
-    drawingMode: "ONE_CLICK",
+    drawingMode: "REVOLUTION_AXIS_PLACEMENT",
   },
 ];
 
@@ -411,7 +446,6 @@ export const DRAWING_TOOLS_BY_TYPE = {
   ISO_HEIGHT_LINE: ["ADD_ISO_HEIGHT_LINE"],
   PROFILE_LINE: ["ADD_PROFILE_LINE"],
   LOCALIZED_REPAIR: ["LOCALIZED_REPAIR"],
-  REVOLUTION: ["REVOLUTION_AXIS_LINE", "REVOLUTION_POINT_MARK"],
 };
 
 export function getDrawingToolsByShape(drawingShape) {

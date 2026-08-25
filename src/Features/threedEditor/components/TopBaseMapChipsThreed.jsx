@@ -4,13 +4,9 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   toggleBaseMapVisibleIn3d,
   setBaseMapAnnotationsModeIn3d,
-  setVisibleBaseMapIdsIn3d,
-  setHideMainBaseMapImageIn3d,
-  setHideMainBaseMapAnnotationsIn3d,
   toggleMainBaseMapImageIn3d,
   toggleMainBaseMapAnnotationsIn3d,
 } from "Features/threedEditor/threedEditorSlice";
-import { setSelectedMainBaseMapId } from "Features/mapEditor/mapEditorSlice";
 import {
   setHideBaseMapImageInViewer,
   togglePinnedBaseMapIdInViewer,
@@ -40,6 +36,7 @@ import PushPinOutlinedIcon from "@mui/icons-material/PushPinOutlined";
 
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
+import useSelectMainBaseMap from "Features/threedEditor/hooks/useSelectMainBaseMap";
 import useAnnotationsCountByBaseMapId from "Features/annotations/hooks/useAnnotationsCountByBaseMapId";
 import activateBaseMapVersion from "Features/baseMaps/utils/activateBaseMapVersion";
 import { ANNOTATIONS_DISPLAY_MODE } from "Features/threedEditor/constants/annotationsDisplayModeIn3d";
@@ -69,6 +66,7 @@ export default function TopBaseMapChipsThreed({ inTopBar = false }) {
 
   const { value: baseMaps = [] } = useBaseMaps();
   const mainBaseMap = useMainBaseMap();
+  const selectMainBaseMap = useSelectMainBaseMap();
   const annotationsCountByBaseMapId = useAnnotationsCountByBaseMapId();
   const visibleIds = useSelector((s) => s.threedEditor.visibleBaseMapIdsIn3d);
   const annotationsModeByBaseMapId = useSelector(
@@ -83,6 +81,16 @@ export default function TopBaseMapChipsThreed({ inTopBar = false }) {
   const isViewerModule = useSelector(
     (s) => s.viewers.selectedViewerKey === "THREED"
   );
+  // BaseMap module in 3D: the drawing annotations are not loaded (the scene
+  // shows the isForBaseMaps ones), so the annotations badge/toggle is moot —
+  // unless the panel's "Afficher les annotations" switch loads them.
+  const isBaseMapsModule = useSelector(
+    (s) => s.viewers.selectedViewerKey === "BASE_MAPS"
+  );
+  const showAnnotationsInBaseMaps = useSelector(
+    (s) => s.baseMapEditor.showAnnotations
+  );
+  const hideAnnotationsBadge = isBaseMapsModule && !showAnnotationsInBaseMaps;
   const pinnedIds = useSelector((s) => s.viewers.pinnedBaseMapIdsInViewer);
   const effectiveViewerKey = useSelector(selectEffectiveViewerKey);
   const hideBaseMapImageInViewer = useSelector(
@@ -125,42 +133,10 @@ export default function TopBaseMapChipsThreed({ inTopBar = false }) {
 
   // handlers
 
-  function handleSelect(map, isMain) {
-    if (isMain) return;
-    if (!isViewerModule) {
-      dispatch(setSelectedMainBaseMapId(map.id));
-      return;
-    }
-    // Viewer module: the slice's "reveal fully" extraReducer resets the
-    // hideMain* flags on setSelectedMainBaseMapId — selecting a chip must
-    // not re-show a hidden image, so transfer the eye states across the
-    // main swap (dispatches are synchronous, the re-force wins).
-    const prevMainId = mainBaseMap?.id;
-    const prevImageOn = !hideMainImage;
-    const prevAnnotationsOn = !hideMainAnnotations;
-    const nextImageOn = visibleIds.includes(map.id);
-    const nextAnnotationsOn =
-      (annotationsModeByBaseMapId?.[map.id] ??
-        ANNOTATIONS_DISPLAY_MODE.NONE) !== ANNOTATIONS_DISPLAY_MODE.NONE;
-
-    dispatch(setSelectedMainBaseMapId(map.id));
-    dispatch(setHideMainBaseMapImageIn3d(!nextImageOn));
-    dispatch(setHideMainBaseMapAnnotationsIn3d(!nextAnnotationsOn));
-    if (prevMainId && prevMainId !== map.id) {
-      const nextVisibleIds = new Set(visibleIds);
-      if (prevImageOn) nextVisibleIds.add(prevMainId);
-      else nextVisibleIds.delete(prevMainId);
-      nextVisibleIds.delete(map.id); // new main is driven by the hideMain flags
-      dispatch(setVisibleBaseMapIdsIn3d([...nextVisibleIds]));
-      dispatch(
-        setBaseMapAnnotationsModeIn3d({
-          baseMapId: prevMainId,
-          mode: prevAnnotationsOn
-            ? ANNOTATIONS_DISPLAY_MODE.NORMAL
-            : ANNOTATIONS_DISPLAY_MODE.NONE,
-        })
-      );
-    }
+  // Shared with the 3D scene's double-click on a plan (MainThreedEditor):
+  // the eye-state transfer across the main swap lives in the hook.
+  function handleSelect(map) {
+    selectMainBaseMap(map.id);
   }
 
   function handleToggleImage(e, map, isMain) {
@@ -260,13 +236,15 @@ export default function TopBaseMapChipsThreed({ inTopBar = false }) {
             direction="row"
             alignItems="center"
             spacing={0.75}
-            onClick={() => handleSelect(map, isMain)}
+            onClick={() => handleSelect(map)}
             sx={{
               flexShrink: 0,
-              px: 1.25,
-              py: 0.5,
+              // The main basemap's chip carries a thicker outline; the padding
+              // gives the extra pixel back so the row doesn't shift on select.
+              px: isMain ? "9px" : "10px",
+              py: isMain ? "3px" : "4px",
               borderRadius: "16px",
-              border: "1px solid",
+              border: isMain ? "2px solid" : "1px solid",
               borderColor: isBlackChip
                 ? "common.black"
                 : isMain
@@ -366,7 +344,7 @@ export default function TopBaseMapChipsThreed({ inTopBar = false }) {
                 </Box>
               </Tooltip>
             )}
-            {isViewer2d ? (
+            {hideAnnotationsBadge ? null : isViewer2d ? (
               // 2D: plain count display — the annotations toggles are 3D-only.
               <Box
                 sx={{

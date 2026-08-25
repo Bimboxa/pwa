@@ -6,7 +6,10 @@ import useToolbarDrag from "Features/mapEditor/hooks/useToolbarDrag";
 import { Box } from "@mui/material";
 
 import ToolbarEditMeshes3d from "./ToolbarEditMeshes3d";
-import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
+import {
+  selectCaptureFramingActive,
+  selectEffectiveViewerKey,
+} from "Features/viewers/utils/effectiveViewerKey";
 import { matchesActiveViewerKey } from "Features/viewers/utils/threedViewerKeys";
 
 // Floating edit toolbar shown when 2+ mailles (and nothing else) are
@@ -16,6 +19,11 @@ export default function PopperEditMeshes3d({ viewerKey = null }) {
   // actually displayed (e.g. the Dessin module toggled to its 3D editor).
   const activeViewerKey = useSelector(selectEffectiveViewerKey);
   const selectedItems = useSelector(selectSelectedItems);
+
+  // No edit toolbar while a capture frame owns the screen (Capture tool,
+  // Export rapide, POV framing) — same rule as UILayer / PopperMapListings.
+  // The selection itself is kept, so the toolbar comes back on exit.
+  const captureFramingActive = useSelector(selectCaptureFramingActive);
 
   const shouldShow = viewerKey
     ? matchesActiveViewerKey(viewerKey, activeViewerKey)
@@ -29,7 +37,7 @@ export default function PopperEditMeshes3d({ viewerKey = null }) {
 
   const { dragOffset, isDragging, handleDragStart } = useToolbarDrag();
 
-  const open = shouldShow && allMeshes3d;
+  const open = shouldShow && allMeshes3d && !captureFramingActive;
   if (!open) return null;
 
   return (

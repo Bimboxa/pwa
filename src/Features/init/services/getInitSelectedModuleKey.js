@@ -12,6 +12,7 @@ const RESTORABLE_MODULE_KEYS = [
   "PORTFOLIO",
   "MESHES",
   "ZONES",
+  "PHOTOS",
 ];
 
 export default function getInitSelectedModuleKey() {

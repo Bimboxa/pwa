@@ -12,6 +12,10 @@ const baseMapsInitialState = {
   selectedBaseMapId: null,
   isCreatingBaseMap: false,
   editedBaseMap: null,
+  // One-shot request to open PanelBaseMapProperties (right panel) on a
+  // specific subview (e.g. "position3d" from the left panel's Position 3D
+  // section) — consumed and cleared by the panel.
+  propertiesRequestedView: null,
   // Enhanced image results (background fetch results)
   enhancedImageResults: {}, // { [baseMapId]: { blob, objectUrl, completedAt } }
   enhancedImageErrors: {}, // { [baseMapId]: { error, failedAt } }
@@ -39,6 +43,9 @@ export const baseMapsSlice = createSlice({
     },
     setEditedBaseMap: (state, action) => {
       state.editedBaseMap = action.payload;
+    },
+    setPropertiesRequestedView: (state, action) => {
+      state.propertiesRequestedView = action.payload;
     },
     setEnhancedImageResult: (state, action) => {
       const { baseMapId, blob, objectUrl, completedAt } = action.payload;
@@ -68,9 +75,11 @@ export const baseMapsSlice = createSlice({
           URL.revokeObjectURL(state.enhancedImageResults[baseMapId].objectUrl);
         }
 
-        // update 
-        state.enhancingBaseMapIds[baseMapId] = { isEnhancing: true, transformId };
-
+        // update
+        state.enhancingBaseMapIds[baseMapId] = {
+          isEnhancing: true,
+          transformId,
+        };
       } else {
         delete state.enhancingBaseMapIds[baseMapId];
       }
@@ -109,6 +118,7 @@ export const {
   //
   setIsCreatingBaseMap,
   setEditedBaseMap,
+  setPropertiesRequestedView,
   //
   setEnhancedImageResult,
   setEnhancedImageError,

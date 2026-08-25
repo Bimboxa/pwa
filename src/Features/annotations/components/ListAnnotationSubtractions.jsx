@@ -13,42 +13,54 @@ import getItemsByKey from "Features/misc/utils/getItemsByKey";
 import removeAnnotationSubtraction from "Features/annotations/services/removeAnnotationSubtraction";
 
 /**
- * Reusable list of the annotations subtracted from a given source annotation.
- * Each row shows the target's label/type and an "x" to remove the relation.
- * Used both in the properties panel (SectionAnnotationSubtractions) and in the
- * subtraction pick-mode helper (PopperSubtractHelper).
+ * Reusable list of the annotations at the other end of a subtraction relation,
+ * in either direction. Each row shows the other annotation's label/type and an
+ * "x" to remove the relation.
+ *
+ * direction "TARGETS" (default): what is subtracted FROM `annotationId`.
+ * direction "SOURCES": which annotations `annotationId` is carved OUT OF.
+ *
+ * Used in the properties panel (SectionAnnotationSubtractions) and in both
+ * subtraction pick-mode helpers (PopperSubtractHelper).
  */
-export default function ListAnnotationSubtractions({ annotationId, emptyLabel }) {
+export default function ListAnnotationSubtractions({
+  annotationId,
+  emptyLabel,
+  direction = "TARGETS",
+}) {
   // data
 
-  const { relsBySource } = useAnnotationSubtractions();
-  const rels = relsBySource.get(annotationId) ?? [];
+  const { relsBySource, relsByTarget } = useAnnotationSubtractions();
+  const rels =
+    (direction === "SOURCES"
+      ? relsByTarget.get(annotationId)
+      : relsBySource.get(annotationId)) ?? [];
 
-  const targetIds = rels.map((r) => r.targetAnnotationId);
+  // id of the OTHER annotation of each relation, whichever direction we read
+  const otherIds = rels.map((r) =>
+    direction === "SOURCES" ? r.sourceAnnotationId : r.targetAnnotationId
+  );
 
-  const targets = useLiveQuery(async () => {
-    if (targetIds.length === 0) return [];
-    const found = await db.annotations.bulkGet(targetIds);
+  const others = useLiveQuery(async () => {
+    if (otherIds.length === 0) return [];
+    const found = await db.annotations.bulkGet(otherIds);
     return found.filter((a) => a && !a.deletedAt);
-  }, [targetIds.join(",")]);
+  }, [otherIds.join(",")]);
 
   const annotationTemplates = useAnnotationTemplates();
   const templatesMap = useMemo(
     () => getItemsByKey(annotationTemplates, "id"),
     [annotationTemplates]
   );
-  const targetsById = useMemo(
-    () => getItemsByKey(targets ?? [], "id"),
-    [targets]
-  );
+  const othersById = useMemo(() => getItemsByKey(others ?? [], "id"), [others]);
 
   // helpers
 
-  function getTargetLabel(targetId) {
-    const target = targetsById[targetId];
-    if (!target) return "—";
-    const templateName = templatesMap[target.annotationTemplateId]?.name;
-    return templateName || target.type || "Annotation";
+  function getAnnotationLabel(annotationId) {
+    const other = othersById[annotationId];
+    if (!other) return "—";
+    const templateName = templatesMap[other.annotationTemplateId]?.name;
+    return templateName || other.type || "Annotation";
   }
 
   // handlers
@@ -69,7 +81,7 @@ export default function ListAnnotationSubtractions({ annotationId, emptyLabel })
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
-      {rels.map((rel) => (
+      {rels.map((rel, index) => (
         <Box
           key={rel.id}
           sx={{
@@ -83,7 +95,7 @@ export default function ListAnnotationSubtractions({ annotationId, emptyLabel })
           }}
         >
           <Typography variant="caption" noWrap>
-            {getTargetLabel(rel.targetAnnotationId)}
+            {getAnnotationLabel(otherIds[index])}
           </Typography>
           <Tooltip title="Retirer la soustraction">
             <IconButton size="small" onClick={() => handleRemove(rel.id)}>

@@ -178,7 +178,7 @@ export default function useMeshingPointerHandlers() {
     // Targets are collected explicitly instead of intersectObjects(scene,
     // recursive): the recursive walk raycasts EVERY object, and fat lines
     // (Line2/LineSegments2 — which extend Mesh) have a raycast that throws on
-    // an empty/stale LineGeometry (see attachPointTraitRaycast history in
+    // an empty/stale LineGeometry (see attachFatLineRaycast history in
     // createAnnotationObject3D.js), which would break all meshing picks. Fat
     // lines are irrelevant here anyway — meshing only targets faces.
     function pickScene(e) {

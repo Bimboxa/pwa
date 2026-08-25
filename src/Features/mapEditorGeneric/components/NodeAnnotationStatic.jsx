@@ -5,13 +5,18 @@ import NodePolylineStatic from "./NodePolylineStatic";
 import NodeStripStatic from "./NodeStripStatic";
 import NodeTextStatic from "./NodeTextStatic";
 import NodeLabelStatic from "./NodeLabelStatic";
+import NodeDetailStatic from "./NodeDetailStatic";
 import NodeImageStatic from "./NodeImageStatic";
 import NodeObject3DStatic from "./NodeObject3DStatic";
 import NodePointStatic from "./NodePointStatic";
 import NodeOpeningStatic from "./NodeOpeningStatic";
 import NodeRectangleStatic from "./NodeRectangleStatic";
 import NodeCoteStatic from "./NodeCoteStatic";
-import NodeRevolutionPointStatic from "./NodeRevolutionPointStatic";
+import NodeLinearLayoutStatic from "./NodeLinearLayoutStatic";
+import NodeRulerStatic from "./NodeRulerStatic";
+import NodePhotoStatic from "./NodePhotoStatic";
+import NodeRevolutionAxisStatic from "./NodeRevolutionAxisStatic";
+import NodeRevolutionAxisPlacementStatic from "./NodeRevolutionAxisPlacementStatic";
 
 import resolveAnnotationDefaults from "Features/annotations/utils/resolveAnnotationDefaults";
 
@@ -113,6 +118,13 @@ function NodeAnnotationStatic({
     case "STRIP":
       return <NodeStripStatic {...props} annotation={resolvedAnnotation} />;
 
+    // LINEAR_LAYOUT: calepinage linéaire — band + axis + bar ticks from a
+    // 2-point segment (the bottom edge of the band).
+    case "LINEAR_LAYOUT":
+      return (
+        <NodeLinearLayoutStatic {...props} annotation={resolvedAnnotation} />
+      );
+
     case "TEXT":
       return <NodeTextStatic {...props} text={resolvedAnnotation} />;
 
@@ -124,6 +136,15 @@ function NodeAnnotationStatic({
           sizeVariant="FIXED_IN_BG_IMAGE"
         />
       );
+
+    // PHOTO: read-only camera pose (dot + view cone) synthesized from
+    // db.photos by useAnnotationsV2 (`withPhotos`, Photos module).
+    case "PHOTO":
+      return <NodePhotoStatic {...props} annotation={resolvedAnnotation} />;
+
+    // DETAIL: bubble + label + orientable arrow whose tip is the stored point.
+    case "DETAIL":
+      return <NodeDetailStatic {...props} annotation={resolvedAnnotation} />;
 
     case "RECTANGLE":
       return <NodeRectangleStatic {...props} annotation={resolvedAnnotation} />;
@@ -142,15 +163,25 @@ function NodeAnnotationStatic({
     case "COTE":
       return <NodeCoteStatic {...props} annotation={resolvedAnnotation} />;
 
-    // Revolution helpers: the elevation-view axis is a plain 2-point line
-    // (reuses the canonical polyline renderer); the plan-view axis is a
-    // cross-in-circle marker with a fixed 24px screen radius.
-    case "REVOLUTION_AXIS":
-      return <NodePolylineStatic {...props} annotation={resolvedAnnotation} />;
+    // RULER: dimension CHAIN — the drawn polyline plus one cote per segment,
+    // aligned on a single draggable offset line.
+    case "RULER":
+      return <NodeRulerStatic {...props} annotation={resolvedAnnotation} />;
 
-    case "REVOLUTION_POINT":
+    // Revolution helpers: the axis is authored on the plan as a circle split
+    // into two half-discs; its placement on a vertical base map is an
+    // inverted T (diameter + axis height).
+    case "REVOLUTION_AXIS":
       return (
-        <NodeRevolutionPointStatic {...props} annotation={resolvedAnnotation} />
+        <NodeRevolutionAxisStatic {...props} annotation={resolvedAnnotation} />
+      );
+
+    case "REVOLUTION_AXIS_PLACEMENT":
+      return (
+        <NodeRevolutionAxisPlacementStatic
+          {...props}
+          annotation={resolvedAnnotation}
+        />
       );
 
     default:

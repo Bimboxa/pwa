@@ -7,6 +7,10 @@ const popperMapListingsSlice = createSlice({
     interactionMode: "DRAW", // "DRAW" | "EDIT" | "SELECT"
     collapsed: false,
     showInBaseMapsViewer: false,
+    // Viewer module header toggle: "ANNOTATIONS" | "PHOTOS". In redux (not
+    // local state) because the map editor gates the photo pseudo-annotations
+    // on it (photos render only while the Photos tab is active).
+    viewerContentMode: "ANNOTATIONS",
   },
   reducers: {
     setShowLayers(state, action) {
@@ -21,6 +25,9 @@ const popperMapListingsSlice = createSlice({
     setShowInBaseMapsViewer(state, action) {
       state.showInBaseMapsViewer = action.payload;
     },
+    setViewerContentMode(state, action) {
+      state.viewerContentMode = action.payload ?? "ANNOTATIONS";
+    },
   },
 });
 
@@ -29,6 +36,7 @@ export const {
   setInteractionMode,
   setCollapsed,
   setShowInBaseMapsViewer,
+  setViewerContentMode,
 } = popperMapListingsSlice.actions;
 
 export default popperMapListingsSlice.reducer;

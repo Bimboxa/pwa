@@ -14,7 +14,6 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { generateKeyBetween } from "fractional-indexing";
 
 import { setSelectedListingId } from "Features/listings/listingsSlice";
 import { setSelectedItem } from "Features/selection/selectionSlice";
@@ -36,7 +35,6 @@ import {
   ListItemIcon,
   ListItemText,
   Tooltip,
-  Switch,
   FormControlLabel,
   Checkbox,
   ToggleButton,
@@ -50,7 +48,6 @@ import ExpandMore from "@mui/icons-material/ExpandMore";
 import ChevronRight from "@mui/icons-material/ChevronRight";
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
-import SettingsOutlined from "@mui/icons-material/SettingsOutlined";
 import Tune from "@mui/icons-material/Tune";
 import FormatColorFill from "@mui/icons-material/FormatColorFill";
 import UnfoldLess from "@mui/icons-material/UnfoldLess";
@@ -58,55 +55,34 @@ import UnfoldMore from "@mui/icons-material/UnfoldMore";
 import { Check, Close } from "@mui/icons-material";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
+import AnnotationTemplateRowRevolutionAxisVertical from "./AnnotationTemplateRowRevolutionAxisVertical";
+import { isLegacyStyleRevolutionHelper } from "Features/annotations/constants/drawingShapeConfig";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
-import {
-  StopCircle,
-  Create,
-  AddLocationAlt,
-  AutoFixHigh,
-  RotateRight,
-} from "@mui/icons-material";
-import IconTechnicalReturn from "Features/icons/IconTechnicalReturn";
-import IconCutLine from "Features/icons/IconCutLine";
-import IconSplitPolylineClick from "Features/icons/IconSplitPolylineClick";
-import IconCutSurface from "Features/icons/IconCutSurface";
 import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTemplateIcon";
 import ProcedurePopperContent from "Features/annotationsAuto/components/ProcedurePopperContent";
 import DialogCreateAnnotationTemplate from "Features/annotations/components/DialogCreateAnnotationTemplate";
 import DialogCreateListing from "Features/listings/components/DialogCreateListing";
-import CardLoupe from "Features/smartDetect/components/CardLoupe";
-import CardSmartDetect from "Features/smartDetect/components/CardSmartDetect";
-import SectionSurfaceDropOptions from "Features/smartDetect/components/SectionSurfaceDropOptions";
-import SectionShortcutHelpers from "Features/annotations/components/SectionShortcutHelpers";
 import PopperSubtractHelper from "Features/mapEditor/components/PopperSubtractHelper";
-import getEffectiveDetectionMode from "Features/mapEditor/utils/getEffectiveDetectionMode";
-import { isPasteAdjustEligible } from "Features/smartDetect/utils/adjustPasteCandidate";
+import PopperDrawingHelper from "Features/mapEditor/components/PopperDrawingHelper";
+import PopperPasteHelper from "Features/mapEditor/components/PopperPasteHelper";
+import ToolPickerMenu from "Features/mapEditor/components/ToolPickerMenu";
+import WarningBaseMapNotToScale from "Features/mapEditor/components/WarningBaseMapNotToScale";
+import { selectSubtractPickAnnotationId } from "Features/mapEditor/utils/subtractPickMode";
 import SectionLayers from "Features/layers/components/SectionLayers";
 import {
   setShowLayers,
   setCollapsed,
+  setViewerContentMode,
 } from "Features/popperMapListings/popperMapListingsSlice";
 import DrawIcon from "@mui/icons-material/Draw";
 import EditIcon from "@mui/icons-material/Edit";
 import IconPointer from "Features/icons/IconPointer";
 import useLayers from "Features/layers/hooks/useLayers";
 import { alpha } from "@mui/material/styles";
-import {
-  setEnabledDrawingMode,
-  setSelectedToolKeyForTemplate,
-  setAutoMergeOnCommit,
-  setAutoOffsetsOnCommit,
-  setAvoidVisibleAnnotationsOnCommit,
-  setDefaultOffsetOnCommit,
-  setPasteDetectionMode,
-  setRepairMode,
-} from "Features/mapEditor/mapEditorSlice";
+import { setEnabledDrawingMode } from "Features/mapEditor/mapEditorSlice";
 
-import { REPAIR_MODES } from "Features/localizedRepair/constants/repairShortcuts";
 import ShortcutBadge from "Features/smartDetect/components/ShortcutBadge";
-import { keyframes } from "@emotion/react";
-import WarningAmber from "@mui/icons-material/WarningAmber";
 
 import useCreateBaseMapVersion from "Features/baseMaps/hooks/useCreateBaseMapVersion";
 import useReplaceVersionImage from "Features/baseMaps/hooks/useReplaceVersionImage";
@@ -116,19 +92,14 @@ import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import ButtonGeneric from "Features/layout/components/ButtonGeneric";
 import ButtonMergeListingAnnotations from "Features/baseMapEditor/components/ButtonMergeListingAnnotations";
 import { setNewAnnotation } from "Features/annotations/annotationsSlice";
-import {
-  getDrawingToolsByType,
-  getDrawingToolsByShape,
-  getDrawingToolByKey,
-} from "Features/mapEditor/constants/drawingTools.jsx";
-import { getHotkeyForToolInGroup } from "Features/mapEditor/constants/drawingToolHotkeys";
+import TOOL_ITEMS from "Features/mapEditor/constants/toolItems";
 import { getFreeAnnotationShortcut } from "Features/mapEditor/constants/freeAnnotationShortcuts";
-import getNewAnnotationPropsFromAnnotationTemplate from "Features/annotations/utils/getNewAnnotationPropsFromAnnotationTemplate";
-import buildToolDraft from "Features/mapEditor/utils/buildToolDraft";
 import applyInteractionModeChange from "Features/mapEditor/utils/applyInteractionModeChange";
 import { resolveDrawingShape } from "Features/annotations/constants/drawingShapeConfig";
 
 import useListings from "Features/listings/hooks/useListings";
+import useProjectPhotos from "Features/photos/hooks/useProjectPhotos";
+import SectionPopperPhotos from "Features/photos/components/SectionPopperPhotos";
 import useFreeAnnotationTemplates from "Features/mapEditor/hooks/useFreeAnnotationTemplates";
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
 import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
@@ -137,15 +108,14 @@ import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 import useExtraBaseMapIdsIn3d from "Features/threedEditor/hooks/useExtraBaseMapIdsIn3d";
 import useUpdateAnnotationTemplate from "Features/annotations/hooks/useUpdateAnnotationTemplate";
 import useUpdateAnnotationTemplates from "Features/annotations/hooks/useUpdateAnnotationTemplates";
+import useReorderAnnotationTemplates from "Features/annotations/hooks/useReorderAnnotationTemplates";
+import useDrawFromTemplate from "Features/mapEditor/hooks/useDrawFromTemplate";
+import useDrawToolOfType from "Features/mapEditor/hooks/useDrawToolOfType";
 import usePanelDrag from "Features/layout/hooks/usePanelDrag";
 
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
 import computeAnnotationTemplateQties from "Features/annotations/utils/computeAnnotationTemplateQties";
 import groupAnnotationTemplatesByGroupLabel from "Features/annotations/utils/groupAnnotationTemplatesByGroupLabel";
-
-// ---------------------------------------------------------------------------
-// TOOL_ITEMS — static tool definitions for the "Outils" section
-// ---------------------------------------------------------------------------
 
 // Small shortcut letter chip pinned to the bottom-right of each interaction
 // mode ToggleButton (D / M / S). Mirrors the tool badges of the bottom drawing
@@ -179,49 +149,13 @@ function ModeShortcutBadge({ children }) {
   );
 }
 
-// TODO: clean up the code behind the drawing tools removed from this UI list
-// (SPLIT_SURFACE "Couper des surfaces", TECHNICAL_RETURN "Retour 1m",
-// ADD_INNER_POINT "Ajouter un point", LOCALIZED_REPAIR "Réparation localisée").
-// Once confirmed unused elsewhere, drop their interaction handlers / drawing
-// modes / hooks and the now-unused icon imports (IconCutSurface,
-// IconTechnicalReturn, AddLocationAlt, AutoFixHigh) and the REPAIR_MODES /
-// SectionRepairModes wiring.
-const TOOL_ITEMS = [
-  { type: "CUT", label: "Ouverture", Icon: StopCircle, shortcut: "O" },
-  {
-    type: "SPLIT_LINE",
-    label: "Retirer un segment",
-    Icon: IconCutLine,
-    shortcut: "X",
-  },
-  {
-    type: "SPLIT_POLYLINE_CLICK",
-    label: "Couper un segment",
-    Icon: IconSplitPolylineClick,
-    shortcut: "C",
-  },
-  { type: "COMPLETE_ANNOTATION", label: "Prolonger", Icon: Create },
-  { type: "REVOLUTION", label: "Axe de révolution", Icon: RotateRight },
-];
-
 // ---------------------------------------------------------------------------
 // ToolRow — one cut/split tool with click-to-draw + tool picker menu
 // ---------------------------------------------------------------------------
 
 function ToolRow({ type, label, Icon, shortcut }) {
-  const dispatch = useDispatch();
-  const newAnnotation = useSelector((s) => s.annotations.newAnnotation);
-  const selectedToolKey = useSelector(
-    (s) => s.mapEditor.selectedToolKeyByTemplateId[type]
-  );
-  const openingStrokeWidth = useSelector((s) => s.mapEditor.openingStrokeWidth);
-  const openingStrokeWidthUnit = useSelector(
-    (s) => s.mapEditor.openingStrokeWidthUnit
-  );
-  const openingDefaults = {
-    strokeWidth: openingStrokeWidth,
-    strokeWidthUnit: openingStrokeWidthUnit,
-  };
+  const { tools, activeTool, startDraw, selectToolAndDraw } =
+    useDrawToolOfType(type);
 
   // state
 
@@ -230,22 +164,12 @@ function ToolRow({ type, label, Icon, shortcut }) {
 
   // helpers
 
-  const tools = getDrawingToolsByType(type);
-  const activeTool = selectedToolKey
-    ? (tools.find((t) => t.key === selectedToolKey) ?? tools[0])
-    : tools[0];
   const ActiveToolIcon = activeTool?.Icon;
 
   // handlers
 
   const handleRowClick = () => {
-    if (!activeTool) return;
-    dispatch(setEnabledDrawingMode(activeTool.drawingMode ?? activeTool.key));
-    dispatch(
-      setNewAnnotation(
-        buildToolDraft(newAnnotation, activeTool, openingDefaults)
-      )
-    );
+    startDraw();
   };
 
   const handleToolBtnClick = (e) => {
@@ -254,13 +178,7 @@ function ToolRow({ type, label, Icon, shortcut }) {
   };
 
   const handleSelectTool = (tool) => {
-    dispatch(
-      setSelectedToolKeyForTemplate({ templateId: type, toolKey: tool.key })
-    );
-    dispatch(setEnabledDrawingMode(tool.drawingMode ?? tool.key));
-    dispatch(
-      setNewAnnotation(buildToolDraft(newAnnotation, tool, openingDefaults))
-    );
+    selectToolAndDraw(tool);
   };
 
   const handleMenuClose = () => {
@@ -409,138 +327,13 @@ function ToolRow({ type, label, Icon, shortcut }) {
 }
 
 // ---------------------------------------------------------------------------
-// ToolPickerMenu — menu to select a drawing tool for an annotation template
-// ---------------------------------------------------------------------------
-
-function ToolPickerMenu({
-  anchorEl,
-  open,
-  onClose,
-  annotationTemplate,
-  onSelectTool,
-  onEdit,
-}) {
-  // helpers
-
-  const drawingShape = resolveDrawingShape(annotationTemplate);
-  const tools = getDrawingToolsByShape(drawingShape);
-
-  // render
-
-  return (
-    <Menu
-      anchorEl={anchorEl}
-      open={open}
-      onClose={onClose}
-      anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
-      transformOrigin={{ vertical: "top", horizontal: "left" }}
-      slotProps={{
-        paper: {
-          sx: {
-            minWidth: 200,
-            borderRadius: 2,
-            border: "1px solid",
-            borderColor: "panel.border",
-            mt: 0.5,
-          },
-        },
-      }}
-    >
-      {/* Template name header */}
-      <Box
-        sx={{
-          px: 2,
-          py: 1,
-          borderBottom: "1px solid",
-          borderColor: "panel.border",
-        }}
-      >
-        <Typography
-          variant="body2"
-          sx={{
-            fontWeight: 600,
-            color: "panel.textPrimary",
-          }}
-        >
-          {annotationTemplate?.label}
-        </Typography>
-      </Box>
-
-      {/* Tool options */}
-      {tools.map((tool) => {
-        const hotkey = getHotkeyForToolInGroup(tool, tools);
-        return (
-          <MenuItem
-            key={tool.key}
-            onClick={() => {
-              onSelectTool(tool);
-              onClose();
-            }}
-            sx={{ gap: 1, py: 0.75, fontSize: "0.8125rem" }}
-          >
-            <ListItemIcon sx={{ minWidth: 28 }}>
-              <tool.Icon sx={{ fontSize: 18 }} />
-            </ListItemIcon>
-            <ListItemText primaryTypographyProps={{ variant: "body2" }}>
-              {tool.label}
-            </ListItemText>
-            {hotkey && (
-              <Box
-                sx={{
-                  ml: "auto",
-                  minWidth: 16,
-                  height: 16,
-                  px: 0.5,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  border: "1px solid",
-                  borderColor: "divider",
-                  borderRadius: 0.5,
-                  fontSize: 10,
-                  fontWeight: 700,
-                  color: "text.secondary",
-                  lineHeight: 1,
-                }}
-              >
-                {hotkey}
-              </Box>
-            )}
-          </MenuItem>
-        );
-      })}
-
-      <Divider />
-
-      {/* Edit template button */}
-      <MenuItem
-        onClick={() => {
-          onEdit();
-          onClose();
-        }}
-        sx={{ gap: 1, py: 0.75, color: "panel.textMuted" }}
-      >
-        <ListItemIcon sx={{ minWidth: 28 }}>
-          <SettingsOutlined sx={{ fontSize: 18, color: "panel.textMuted" }} />
-        </ListItemIcon>
-        <ListItemText
-          primaryTypographyProps={{
-            variant: "body2",
-            color: "panel.textMuted",
-          }}
-        >
-          Éditer le modèle
-        </ListItemText>
-      </MenuItem>
-    </Menu>
-  );
-}
-
-// ---------------------------------------------------------------------------
 // SortableAnnotationTemplateRow — wrapper for DnD
 // ---------------------------------------------------------------------------
 
-function SortableAnnotationTemplateRow(props) {
+function SortableAnnotationTemplateRow({
+  RowComponent = AnnotationTemplateRow,
+  ...props
+}) {
   const {
     attributes,
     listeners,
@@ -557,7 +350,7 @@ function SortableAnnotationTemplateRow(props) {
   };
 
   return (
-    <AnnotationTemplateRow
+    <RowComponent
       {...props}
       sortableRef={setNodeRef}
       sortableStyle={sortableStyle}
@@ -585,6 +378,9 @@ function AnnotationTemplateRow({
   // module: the row stays a DRAW entry even though the module forces the
   // listings into SELECT.
   forceDrawMode,
+  // REVOLUTION_AXIS icon: inverted T on a vertical base map, circle + centre
+  // point on the plan.
+  isVerticalBaseMap,
 }) {
   const dispatch = useDispatch();
   const updateAnnotationTemplate = useUpdateAnnotationTemplate();
@@ -636,12 +432,9 @@ function AnnotationTemplateRow({
   const handleProcedurePopperBlur = () => {
     if (!procedurePopperHoveredRef.current) scheduleCloseProcedurePopper();
   };
-  const selectedToolKey = useSelector(
-    (s) => s.mapEditor.selectedToolKeyByTemplateId[annotationTemplate?.id]
-  );
-  const rememberedDraftProps = useSelector(
-    (s) => s.mapEditor.draftPropsByTemplateId?.[annotationTemplate?.id]
-  );
+  // Tool resolution + start-draw dispatches (shared with the Dessin panel).
+  const { activeTool, hasFixedTool, startDraw, selectToolAndDraw } =
+    useDrawFromTemplate(annotationTemplate, listingId);
   // "Maillage" toggle and the shared ?mode=viewer lock force SELECT-like
   // interaction → use the effective mode for all behavior gating in this row.
   const rawInteractionMode = useSelector(
@@ -652,17 +445,15 @@ function AnnotationTemplateRow({
   const isThreedViewer = useSelector((s) =>
     isThreedFamilyViewerKey(s.viewers.selectedViewerKey)
   );
-  // Dessin module toggled to its 3D editor (raw module key stays "MAP"):
-  // only OBJECT_3D (3D placement mode), POLYGON / POLYLINE templates
-  // (template-driven 3D face drawing) and COTE templates (template-driven
-  // 2-click cote) can start a draw there — other shapes would set a
-  // dead-end 2D drawing state.
-  const isThreedToggledEditor = useSelector((s) =>
-    isThreedFamilyViewerKey(selectEffectiveViewerKey(s))
-  );
   const isZonesViewerRow = useSelector(
     (s) => s.viewers.selectedViewerKey === "ZONES"
   );
+  // Viewer module (read-only legend): procedures can't be launched there, so
+  // the "Auto" chip (and its procedure popper) is hidden.
+  const isViewerModuleRow = useSelector(
+    (s) => s.viewers.selectedViewerKey === "THREED"
+  );
+  const showProcedureChip = hasProcedure && !isViewerModuleRow;
   const interactionMode = forceDrawMode
     ? "DRAW"
     : showMeshCells || isThreedViewer || viewerMode || isZonesViewerRow
@@ -690,38 +481,13 @@ function AnnotationTemplateRow({
   const isHidden = annotationTemplate?.hidden;
   // Free annotations show their keyboard shortcut (L / P) next to the icon.
   const freeShortcut = getFreeAnnotationShortcut(annotationTemplate);
-  const drawingShape = resolveDrawingShape(annotationTemplate);
-  const tools = getDrawingToolsByShape(drawingShape);
-  const fallbackTool = annotationTemplate?.defaultTool
-    ? (getDrawingToolByKey(annotationTemplate.defaultTool) ?? tools[0])
-    : tools[0];
-  const activeTool = selectedToolKey
-    ? (getDrawingToolByKey(selectedToolKey) ?? fallbackTool)
-    : fallbackTool;
   const ActiveToolIcon = activeTool?.Icon;
 
   // handlers
 
   const handleStartDraw = () => {
-    if (isEditing || !activeTool) return;
-    if (
-      isThreedToggledEditor &&
-      !["OBJECT_3D", "POLYGON", "POLYLINE", "COTE"].includes(drawingShape)
-    )
-      return;
-    dispatch(setSelectedListingId(listingId));
-    const baseProps = getNewAnnotationPropsFromAnnotationTemplate(
-      annotationTemplate,
-      rememberedDraftProps
-    );
-    if (activeTool.annotationType) {
-      dispatch(
-        setNewAnnotation({ ...baseProps, type: activeTool.annotationType })
-      );
-    } else {
-      dispatch(setNewAnnotation(baseProps));
-    }
-    dispatch(setEnabledDrawingMode(activeTool.key));
+    if (isEditing) return;
+    startDraw();
   };
 
   const handleSelectAsEditTarget = () => {
@@ -772,33 +538,13 @@ function AnnotationTemplateRow({
 
   const handleToolBtnClick = (e) => {
     e.stopPropagation();
+    // REVOLUTION_AXIS: no tool picker — the click is a no-op.
+    if (hasFixedTool) return;
     setToolMenuAnchor(e.currentTarget);
   };
 
   const handleSelectTool = (tool) => {
-    dispatch(
-      setSelectedToolKeyForTemplate({
-        templateId: annotationTemplate?.id,
-        toolKey: tool.key,
-      })
-    );
-    // Activate drawing with this tool
-    if (
-      isThreedToggledEditor &&
-      !["OBJECT_3D", "POLYGON", "POLYLINE", "COTE"].includes(drawingShape)
-    )
-      return;
-    dispatch(setSelectedListingId(listingId));
-    const baseProps = getNewAnnotationPropsFromAnnotationTemplate(
-      annotationTemplate,
-      rememberedDraftProps
-    );
-    if (tool.annotationType) {
-      dispatch(setNewAnnotation({ ...baseProps, type: tool.annotationType }));
-    } else {
-      dispatch(setNewAnnotation(baseProps));
-    }
-    dispatch(setEnabledDrawingMode(tool.key));
+    selectToolAndDraw(tool);
   };
 
   const handleEditTemplate = () => {
@@ -932,6 +678,7 @@ function AnnotationTemplateRow({
               template={annotationTemplate}
               size={18}
               spriteImage={spriteImage}
+              revolutionAxisVertical={isVerticalBaseMap}
             />
           </Box>
           {freeShortcut && interactionMode === "DRAW" && (
@@ -980,7 +727,7 @@ function AnnotationTemplateRow({
             </Typography>
           )}
 
-          {hasProcedure && (
+          {showProcedureChip && (
             <Chip
               label="Auto"
               size="small"
@@ -1000,7 +747,7 @@ function AnnotationTemplateRow({
           )}
         </Box>
 
-        {hasProcedure && (
+        {showProcedureChip && (
           <Popper
             open={Boolean(nameAnchorEl)}
             anchorEl={nameAnchorEl}
@@ -1134,7 +881,14 @@ function AnnotationTemplateRow({
                     </Tooltip>
                     {/* Active tool button */}
                     {ActiveToolIcon && (
-                      <Tooltip title="Changer d'outil" arrow>
+                      <Tooltip
+                        title={
+                          hasFixedTool
+                            ? (activeTool?.label ?? "")
+                            : "Changer d'outil"
+                        }
+                        arrow
+                      >
                         <IconButton
                           size="small"
                           onClick={handleToolBtnClick}
@@ -1260,7 +1014,7 @@ function AnnotationTemplatesForListing({
     [allTemplates, visibleTemplateIds]
   );
   const spriteImage = useAnnotationSpriteImage();
-  const updateAnnotationTemplate = useUpdateAnnotationTemplate();
+  const reorderAnnotationTemplates = useReorderAnnotationTemplates();
   const isThreedViewer = useSelector((s) =>
     isThreedFamilyViewerKey(s.viewers.selectedViewerKey)
   );
@@ -1269,6 +1023,26 @@ function AnnotationTemplatesForListing({
   const isMeshesModule = useSelector(
     (s) => s.viewers.selectedViewerKey === "MESHES"
   );
+  // REVOLUTION_AXIS templates on a VERTICAL base map swap to a dedicated row
+  // that DROPS an existing plan axis instead of drawing a new one — only while
+  // the panel effectively is a DRAW panel (same overrides as the row's own
+  // effective interaction mode).
+  const baseMap = useMainBaseMap();
+  const isVerticalBaseMap = baseMap?.orientation === "VERTICAL";
+  const rawInteractionMode = useSelector(
+    (s) => s.popperMapListings.interactionMode
+  );
+  const showMeshCells = useSelector((s) => s.annotations.showMeshCells);
+  const viewerMode = useSelector((s) => s.urlParams.viewerMode);
+  const isZonesViewer = useSelector(
+    (s) => s.viewers.selectedViewerKey === "ZONES"
+  );
+  const isDrawInteraction =
+    rawInteractionMode === "DRAW" &&
+    !showMeshCells &&
+    !isThreedViewer &&
+    !viewerMode &&
+    !isZonesViewer;
   const qtiesById = useMemo(
     () => computeAnnotationTemplateQties(annotations, annotationTemplateById),
     [annotations, annotationTemplateById]
@@ -1301,67 +1075,8 @@ function AnnotationTemplatesForListing({
   // dnd handlers
 
   const handleDragEnd = useCallback(
-    async (event) => {
-      const { active, over } = event;
-      if (!over || active.id === over.id || !annotationTemplates?.length)
-        return;
-
-      const oldIndex = sortableIds.indexOf(active.id);
-      const newIndex = sortableIds.indexOf(over.id);
-      if (oldIndex === -1 || newIndex === -1) return;
-
-      const normalizeGroup = (g) =>
-        (g ?? "").trim().toUpperCase().replace(/\s+/g, "");
-
-      const draggedTemplate = annotationTemplates[oldIndex];
-      const overTemplate = annotationTemplates[newIndex];
-      const draggedGroup = normalizeGroup(draggedTemplate?.groupLabel);
-      const overGroup = normalizeGroup(overTemplate?.groupLabel);
-
-      // Determine if this is a within-group reorder or a cross-group move
-      const isWithinGroup = draggedGroup && draggedGroup === overGroup;
-
-      let newOrder;
-      if (isWithinGroup) {
-        // Within-group: move just the dragged item within the list
-        newOrder = [...annotationTemplates];
-        newOrder.splice(oldIndex, 1);
-        const adjustedNewIndex = newOrder.findIndex((t) => t.id === over.id);
-        newOrder.splice(adjustedNewIndex, 0, draggedTemplate);
-      } else {
-        // Cross-group: move all group members together
-        const groupMembers = draggedGroup
-          ? annotationTemplates.filter(
-              (t) => normalizeGroup(t.groupLabel) === draggedGroup
-            )
-          : [draggedTemplate];
-
-        const remaining = annotationTemplates.filter(
-          (t) => !groupMembers.some((m) => m.id === t.id)
-        );
-
-        const overInRemaining = remaining.findIndex((t) => t.id === over.id);
-        const insertAt =
-          overInRemaining === -1 ? remaining.length : overInRemaining;
-
-        newOrder = [...remaining];
-        newOrder.splice(insertAt, 0, ...groupMembers);
-      }
-
-      // Assign new orderIndex values using fractional indexing
-      let lastIndex = null;
-      for (const template of newOrder) {
-        const newOrderIndex = generateKeyBetween(lastIndex, null);
-        lastIndex = newOrderIndex;
-        if (template.orderIndex !== newOrderIndex) {
-          await updateAnnotationTemplate({
-            ...template,
-            orderIndex: newOrderIndex,
-          });
-        }
-      }
-    },
-    [annotationTemplates, sortableIds, updateAnnotationTemplate]
+    (event) => reorderAnnotationTemplates(event, annotationTemplates),
+    [reorderAnnotationTemplates, annotationTemplates]
   );
 
   // render
@@ -1412,14 +1127,24 @@ function AnnotationTemplatesForListing({
               const templateQties = qtiesById?.[item.id];
               const count = templateQties?.count || 0;
               const qtyLabel = templateQties?.mainQtyLabel;
+              const isVerticalAxisRow =
+                isDrawInteraction &&
+                isVerticalBaseMap &&
+                resolveDrawingShape(item) === "REVOLUTION_AXIS";
               return (
                 <SortableAnnotationTemplateRow
                   key={item.id}
+                  RowComponent={
+                    isVerticalAxisRow
+                      ? AnnotationTemplateRowRevolutionAxisVertical
+                      : undefined
+                  }
                   annotationTemplate={item}
                   count={count}
                   qtyLabel={qtyLabel}
                   listingId={listingId}
                   spriteImage={spriteImage}
+                  isVerticalBaseMap={isVerticalBaseMap}
                   forceDrawMode={
                     isMeshesModule && resolveDrawingShape(item) === "COTE"
                   }
@@ -1699,7 +1424,9 @@ function ListingChipsBar({
   listings,
   activeListingId,
   annotationCountByListingId,
+  hiddenByListingId,
   onSelectListing,
+  onToggleListingVisibility,
   showAddButton,
   hasNoListing,
   onAddListing,
@@ -1722,6 +1449,8 @@ function ListingChipsBar({
       {listings?.map((listing) => {
         const selected = listing.id === activeListingId;
         const count = annotationCountByListingId?.[listing.id] || 0;
+        const isHidden = Boolean(hiddenByListingId?.[listing.id]);
+        const EyeIcon = isHidden ? VisibilityOff : Visibility;
         return (
           <Box
             key={listing.id}
@@ -1750,7 +1479,12 @@ function ListingChipsBar({
               noWrap
               sx={{
                 fontWeight: 600,
-                color: selected ? "primary.contrastText" : "panel.textPrimary",
+                color: selected
+                  ? "primary.contrastText"
+                  : isHidden
+                    ? "text.disabled"
+                    : "panel.textPrimary",
+                opacity: selected && isHidden ? 0.5 : 1,
               }}
             >
               {listing.name ?? listing.label ?? "Liste"}
@@ -1762,14 +1496,36 @@ function ListingChipsBar({
                 fontSize: "10px",
                 color: selected
                   ? "primary.contrastText"
-                  : count > 0
-                    ? "secondary.main"
-                    : "panel.countEmpty",
-                opacity: selected ? 0.85 : 1,
+                  : isHidden
+                    ? "text.disabled"
+                    : count > 0
+                      ? "secondary.main"
+                      : "panel.countEmpty",
+                opacity: selected ? (isHidden ? 0.5 : 0.85) : 1,
               }}
             >
               {count}
             </Typography>
+            {/* Not an IconButton: the chip itself is a <button>, nesting one
+                would be invalid HTML. */}
+            <Box
+              component="span"
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleListingVisibility?.(listing.id);
+              }}
+              sx={{
+                display: "inline-flex",
+                alignItems: "center",
+                color: selected
+                  ? "primary.contrastText"
+                  : isHidden
+                    ? "secondary.main"
+                    : "panel.iconMuted",
+              }}
+            >
+              <EyeIcon sx={{ fontSize: 14 }} />
+            </Box>
           </Box>
         );
       })}
@@ -1819,681 +1575,6 @@ function ListingChipsBar({
 }
 
 // ---------------------------------------------------------------------------
-// PopperDrawingHelper — floating panel shown while drawing
-// ---------------------------------------------------------------------------
-
-// Modes that select existing geometry — no smart detect needed
-const SEGMENT_SELECT_MODES = [
-  "TECHNICAL_RETURN",
-  "CUT_SEGMENT",
-  "SPLIT_POLYLINE",
-  "SPLIT_POLYLINE_CLICK",
-];
-
-// Shortcuts of the 3D OBJECT_3D placement mode (Dessin module toggled to 3D)
-// — handled by object3DPlacementController.
-const THREED_PLACEMENT_SHORTCUTS = [
-  { key: "← →", label: "Tourner l'objet de 10°" },
-  { key: "⇧ ← →", label: "Tourner l'objet de 1°" },
-  { key: "R", label: "Réinitialiser la rotation" },
-  { key: "Esc", label: "Quitter le mode dessin" },
-];
-
-// Modes where the "Détection auto" card makes sense — the base drawing
-// tool has a backing detection algorithm (see getEffectiveDetectionMode).
-const SMART_DETECT_CAPABLE_MODES = [
-  "POLYLINE_RECTANGLE",
-  "POLYGON_RECTANGLE",
-  "CUT_RECTANGLE",
-  "RECTANGLE",
-  "STRIP",
-  "POLYLINE_CLICK",
-  "POLYGON_CLICK",
-  // SEGMENT tool → dark-band snapping (SEGMENT_SNAP, hover-only)
-  "SEGMENT",
-  "POLYLINE_SEGMENT",
-  "STRIP_SEGMENT",
-];
-
-// ---------------------------------------------------------------------------
-// SectionRepairModes — localized-repair type selector (Auto / L / T / Lissage),
-// one selectable line per mode with its keyboard shortcut at the end.
-// ---------------------------------------------------------------------------
-
-function SectionRepairModes() {
-  const dispatch = useDispatch();
-  const repairMode = useSelector((s) => s.mapEditor.repairMode);
-
-  return (
-    <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
-      <Typography variant="caption" color="text.secondary" sx={{ px: 0.5 }}>
-        Type de réparation
-      </Typography>
-      {REPAIR_MODES.map(({ mode, label, shortcut }) => {
-        const selected = repairMode === mode;
-        return (
-          <Paper
-            key={mode}
-            elevation={0}
-            onClick={() => dispatch(setRepairMode(mode))}
-            sx={{
-              px: 1,
-              py: 0.5,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: 1,
-              border: "1px solid",
-              borderColor: selected ? "primary.main" : "transparent",
-              bgcolor: selected ? "primary.main" : "background.default",
-              color: selected ? "primary.contrastText" : "text.secondary",
-              "&:hover": {
-                bgcolor: selected ? "primary.main" : "action.hover",
-              },
-            }}
-          >
-            <Typography
-              variant="caption"
-              sx={{ fontWeight: selected ? 600 : 400 }}
-            >
-              {label}
-            </Typography>
-            <Box
-              sx={{
-                px: 0.5,
-                py: 0,
-                borderRadius: 0.5,
-                bgcolor: selected ? "rgba(255,255,255,0.25)" : "action.hover",
-                color: selected ? "primary.contrastText" : "text.secondary",
-                fontSize: "0.65rem",
-                fontWeight: 600,
-                lineHeight: 1.4,
-              }}
-            >
-              {shortcut}
-            </Box>
-          </Paper>
-        );
-      })}
-    </Box>
-  );
-}
-
-function PopperDrawingHelper() {
-  const dispatch = useDispatch();
-
-  // strings
-
-  const titleS = "Mode dessin";
-
-  // data
-
-  const enabledDrawingMode = useSelector((s) => s.mapEditor.enabledDrawingMode);
-  const smartDetectEnabled = useSelector((s) => s.mapEditor.smartDetectEnabled);
-  // Dessin module toggled to its 3D editor: the drawing state drives the 3D
-  // OBJECT_3D placement mode. The 2D-only helpers (loupe, 2D shortcuts) must
-  // not mount — CardLoupe's SmartZoomContext only exists in the 2D editor.
-  const isThreedToggledEditor = useSelector((s) =>
-    isThreedFamilyViewerKey(selectEffectiveViewerKey(s))
-  );
-  const autoMergeOnCommit = useSelector((s) => s.mapEditor.autoMergeOnCommit);
-  const autoOffsetsOnCommit = useSelector(
-    (s) => s.mapEditor.autoOffsetsOnCommit
-  );
-  const avoidVisibleAnnotationsOnCommit = useSelector(
-    (s) => s.mapEditor.avoidVisibleAnnotationsOnCommit
-  );
-  const defaultOffsetOnCommit = useSelector(
-    (s) => s.mapEditor.defaultOffsetOnCommit
-  );
-  const isSegmentSelectMode = SEGMENT_SELECT_MODES.includes(enabledDrawingMode);
-  const showSmartDetectCard =
-    SMART_DETECT_CAPABLE_MODES.includes(enabledDrawingMode);
-  const showAutoMerge =
-    enabledDrawingMode === "POLYGON_RECTANGLE" ||
-    enabledDrawingMode === "POLYGON_CLICK";
-  const showAutoOffsets = enabledDrawingMode === "POLYGON_CLICK";
-  const showAvoidVisibleAnnotations =
-    enabledDrawingMode === "POLYGON_RECTANGLE" ||
-    enabledDrawingMode === "POLYGON_CLICK" ||
-    enabledDrawingMode === "SURFACE_DROP";
-  // "Offset par défaut" applies to every annotation-drawing mode/type — shown in
-  // the 2D drawing helper, but not in the 3D-toggled placement branch (OBJECT_3D
-  // placement uses drawingOffset) nor the non-annotation segment-select/repair modes.
-  const showDefaultOffset =
-    !isThreedToggledEditor &&
-    !isSegmentSelectMode &&
-    Boolean(enabledDrawingMode) &&
-    !["REASSIGN_TEMPLATE", "LOCALIZED_REPAIR"].includes(enabledDrawingMode);
-
-  // Kept for future use (e.g. to conditionally show helper UI per target).
-  // Referenced here so the helper stays imported by the component.
-  const effectiveDetection = getEffectiveDetectionMode({
-    enabledDrawingMode,
-    smartDetectEnabled,
-  });
-  void effectiveDetection;
-
-  // state
-
-  const { position, isDragging, handleMouseDown } = usePanelDrag();
-
-  // render
-
-  return (
-    <Paper
-      elevation={4}
-      sx={{
-        position: "absolute",
-        top: 16,
-        left: 16,
-        zIndex: 10,
-        width: "fit-content",
-        maxWidth: 400,
-        display: "flex",
-        flexDirection: "column",
-        borderRadius: 2,
-        transform: `translate(${position.x}px, ${position.y}px)`,
-        transition: isDragging.current ? "none" : "transform 0.1s ease-out",
-      }}
-    >
-      {/* Drag handle header */}
-      <Box
-        onMouseDown={handleMouseDown}
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          gap: 0.5,
-          px: 1,
-          py: 0.75,
-          bgcolor: "panel.headerBg",
-          borderBottom: "1px solid",
-          borderColor: "panel.border",
-          cursor: "grab",
-          "&:active": { cursor: "grabbing" },
-          userSelect: "none",
-        }}
-      >
-        <DragIndicatorIcon fontSize="small" sx={{ color: "panel.textLight" }} />
-        <Typography
-          variant="body2"
-          sx={{ fontWeight: 500, color: "panel.textMuted" }}
-        >
-          {titleS}
-        </Typography>
-      </Box>
-
-      <Box sx={{ p: 1, display: "flex", flexDirection: "column", gap: 1 }}>
-        {!isThreedToggledEditor &&
-          !isSegmentSelectMode &&
-          enabledDrawingMode !== "REASSIGN_TEMPLATE" &&
-          enabledDrawingMode !== "LOCALIZED_REPAIR" && <CardLoupe />}
-        {isThreedToggledEditor && (
-          <Box
-            sx={{
-              px: 1.5,
-              py: 1.5,
-              borderRadius: 1,
-              bgcolor: "primary.main",
-              color: "primary.contrastText",
-              fontSize: "0.875rem",
-              fontWeight: 600,
-              textAlign: "center",
-            }}
-          >
-            {"Cliquez sur le plan pour poser l'objet 3D"}
-          </Box>
-        )}
-        {enabledDrawingMode === "LOCALIZED_REPAIR" && <SectionRepairModes />}
-        {enabledDrawingMode === "REASSIGN_TEMPLATE" && (
-          <Box
-            sx={{
-              px: 1.5,
-              py: 1.5,
-              borderRadius: 1,
-              bgcolor: "primary.main",
-              color: "primary.contrastText",
-              fontSize: "0.875rem",
-              fontWeight: 600,
-              textAlign: "center",
-            }}
-          >
-            Cliquez sur une annotation pour modifier son modèle
-          </Box>
-        )}
-        {enabledDrawingMode === "CUT_SEGMENT" && (
-          <Box
-            sx={{
-              px: 1.5,
-              py: 1.5,
-              borderRadius: 1,
-              bgcolor: "primary.main",
-              color: "primary.contrastText",
-              fontSize: "0.875rem",
-              fontWeight: 600,
-              textAlign: "center",
-            }}
-          >
-            Cliquez sur un segment pour le supprimer
-          </Box>
-        )}
-        {enabledDrawingMode === "SPLIT_POLYLINE_CLICK" && (
-          <Box
-            sx={{
-              px: 1.5,
-              py: 1.5,
-              borderRadius: 1,
-              bgcolor: "primary.main",
-              color: "primary.contrastText",
-              fontSize: "0.875rem",
-              fontWeight: 600,
-              textAlign: "center",
-            }}
-          >
-            {"Cliquez sur un point le long d'une polyligne pour la couper en 2"}
-          </Box>
-        )}
-        {showSmartDetectCard && <CardSmartDetect />}
-        {enabledDrawingMode === "SURFACE_DROP" && <SectionSurfaceDropOptions />}
-        {showAutoMerge && (
-          <Paper
-            elevation={0}
-            sx={{
-              px: 1,
-              py: 0.5,
-              bgcolor: "background.default",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: 1,
-            }}
-          >
-            <Typography variant="caption" color="text.secondary">
-              Fusion automatique
-            </Typography>
-            <Switch
-              size="small"
-              checked={Boolean(autoMergeOnCommit)}
-              onChange={(e) => dispatch(setAutoMergeOnCommit(e.target.checked))}
-            />
-          </Paper>
-        )}
-        {showAvoidVisibleAnnotations && (
-          <Paper
-            elevation={0}
-            sx={{
-              px: 1,
-              py: 0.5,
-              bgcolor: "background.default",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: 1,
-            }}
-          >
-            <Typography variant="caption" color="text.secondary">
-              Eviter les annotations visibles
-            </Typography>
-            <Switch
-              size="small"
-              checked={Boolean(avoidVisibleAnnotationsOnCommit)}
-              onChange={(e) =>
-                dispatch(setAvoidVisibleAnnotationsOnCommit(e.target.checked))
-              }
-            />
-          </Paper>
-        )}
-        {showAutoOffsets && (
-          <Paper
-            elevation={0}
-            sx={{
-              px: 1,
-              py: 0.5,
-              bgcolor: "background.default",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: 1,
-            }}
-          >
-            <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
-              <Typography variant="caption" color="text.secondary">
-                Rampe auto
-              </Typography>
-              <Box
-                sx={{
-                  px: 0.5,
-                  py: 0,
-                  borderRadius: 0.5,
-                  bgcolor: "action.hover",
-                  color: "text.secondary",
-                  fontSize: "0.65rem",
-                  fontWeight: 600,
-                  lineHeight: 1.4,
-                }}
-              >
-                O
-              </Box>
-            </Box>
-            <Switch
-              size="small"
-              checked={Boolean(autoOffsetsOnCommit)}
-              onChange={(e) =>
-                dispatch(setAutoOffsetsOnCommit(e.target.checked))
-              }
-            />
-          </Paper>
-        )}
-        {showDefaultOffset && (
-          <Paper
-            elevation={0}
-            sx={{
-              px: 1,
-              py: 0.5,
-              bgcolor: "background.default",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: 1,
-            }}
-          >
-            <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
-              <Typography variant="caption" color="text.secondary">
-                Offset par défaut
-              </Typography>
-              <Box
-                sx={{
-                  px: 0.5,
-                  py: 0,
-                  borderRadius: 0.5,
-                  bgcolor: "action.hover",
-                  color: "text.secondary",
-                  fontSize: "0.65rem",
-                  fontWeight: 600,
-                  lineHeight: 1.4,
-                }}
-              >
-                Z
-              </Box>
-            </Box>
-            <Switch
-              size="small"
-              checked={Boolean(defaultOffsetOnCommit)}
-              onChange={(e) =>
-                dispatch(setDefaultOffsetOnCommit(e.target.checked))
-              }
-            />
-          </Paper>
-        )}
-        <SectionShortcutHelpers
-          shortcuts={
-            isThreedToggledEditor ? THREED_PLACEMENT_SHORTCUTS : undefined
-          }
-        />
-      </Box>
-    </Paper>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// PopperPasteHelper — floating panel shown while a copy/paste is active
-// ---------------------------------------------------------------------------
-
-// Flashing neon-green pulse on the "Espace" badge when a detection is
-// available — mirrors CardSmartDetect.
-const detectionPulse = keyframes`
-  0%   { background-color: #00ff00; box-shadow: 0 0 4px #00ff00; }
-  50%  { background-color: #00ff0066; box-shadow: 0 0 10px #00ff00; }
-  100% { background-color: #00ff00; box-shadow: 0 0 4px #00ff00; }
-`;
-
-function PasteShortcutRow({ label, children }) {
-  return (
-    <Box
-      sx={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        gap: 2,
-      }}
-    >
-      <Typography
-        variant="body2"
-        sx={{ color: "text.primary", fontSize: "0.85rem" }}
-      >
-        {label}
-      </Typography>
-      {children}
-    </Box>
-  );
-}
-
-function PopperPasteHelper() {
-  const dispatch = useDispatch();
-
-  // strings
-
-  const titleS = "Mode copier/coller";
-
-  // data
-
-  const pasteDetectionMode = useSelector((s) => s.mapEditor.pasteDetectionMode);
-  const smartDetectionPresent = useSelector(
-    (s) => s.mapEditor.smartDetectionPresent
-  );
-  const pasteClipboard = useSelector((s) => s.mapEditor.pasteClipboard);
-
-  const copiedCount = pasteClipboard?.items?.length ?? 0;
-  // Pattern detection is single-template only.
-  const isSingle = copiedCount === 1;
-  // "Ajuster" (J) only applies to POLYGON / 2-pt POLYLINE / 2-pt STRIP.
-  const isAdjustEligible = isPasteAdjustEligible(pasteClipboard);
-
-  // state
-
-  const { position, isDragging, handleMouseDown } = usePanelDrag();
-
-  // render
-
-  return (
-    <Paper
-      elevation={4}
-      sx={{
-        position: "absolute",
-        top: 16,
-        left: 16,
-        zIndex: 10,
-        width: "fit-content",
-        maxWidth: 400,
-        display: "flex",
-        flexDirection: "column",
-        borderRadius: 2,
-        transform: `translate(${position.x}px, ${position.y}px)`,
-        transition: isDragging.current ? "none" : "transform 0.1s ease-out",
-      }}
-    >
-      {/* Drag handle header */}
-      <Box
-        onMouseDown={handleMouseDown}
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          gap: 0.5,
-          px: 1,
-          py: 0.75,
-          bgcolor: "panel.headerBg",
-          borderBottom: "1px solid",
-          borderColor: "panel.border",
-          cursor: "grab",
-          "&:active": { cursor: "grabbing" },
-          userSelect: "none",
-        }}
-      >
-        <DragIndicatorIcon fontSize="small" sx={{ color: "panel.textLight" }} />
-        <Typography
-          variant="body2"
-          sx={{ fontWeight: 500, color: "panel.textMuted" }}
-        >
-          {titleS}
-        </Typography>
-        <Box sx={{ flex: 1 }} />
-        <Typography
-          variant="caption"
-          sx={{
-            color: "panel.textLight",
-            fontWeight: 600,
-            whiteSpace: "nowrap",
-          }}
-        >
-          {copiedCount > 1 ? `${copiedCount} annotations` : "1 annotation"}
-        </Typography>
-      </Box>
-
-      <Box sx={{ p: 1, display: "flex", flexDirection: "column", gap: 1 }}>
-        {/* Detection card — single-template only; hidden in multi-selection. */}
-        {isSingle && (
-          <Paper
-            variant="outlined"
-            sx={{ p: 1, borderRadius: 1, bgcolor: "background.paper" }}
-          >
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-              <Typography variant="body2" sx={{ flex: 1 }}>
-                Détection automatique
-              </Typography>
-              <Switch
-                size="small"
-                checked={pasteDetectionMode === "GLOBAL"}
-                onChange={(_e, checked) =>
-                  dispatch(setPasteDetectionMode(checked ? "GLOBAL" : null))
-                }
-              />
-              <ShortcutBadge>A</ShortcutBadge>
-            </Box>
-
-            <Box
-              sx={{ mt: 0.5, display: "flex", alignItems: "center", gap: 1 }}
-            >
-              <Typography variant="body2" sx={{ flex: 1 }}>
-                Détection au survol
-              </Typography>
-              <Switch
-                size="small"
-                checked={pasteDetectionMode === "HOVER"}
-                onChange={(_e, checked) =>
-                  dispatch(setPasteDetectionMode(checked ? "HOVER" : null))
-                }
-              />
-              <ShortcutBadge>S</ShortcutBadge>
-            </Box>
-
-            {isAdjustEligible && (
-              <Box
-                sx={{ mt: 0.5, display: "flex", alignItems: "center", gap: 1 }}
-              >
-                <Typography variant="body2" sx={{ flex: 1 }}>
-                  Ajuster
-                </Typography>
-                <Switch
-                  size="small"
-                  checked={pasteDetectionMode === "ADJUST"}
-                  onChange={(_e, checked) =>
-                    dispatch(setPasteDetectionMode(checked ? "ADJUST" : null))
-                  }
-                />
-                <ShortcutBadge>J</ShortcutBadge>
-              </Box>
-            )}
-
-            {pasteDetectionMode && (
-              <Box
-                sx={{ mt: 0.5, display: "flex", alignItems: "center", gap: 1 }}
-              >
-                <Typography variant="body2" sx={{ flex: 1 }}>
-                  Valider la détection
-                </Typography>
-                <Box
-                  component="span"
-                  sx={{
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    minWidth: 56,
-                    height: 22,
-                    px: 0.5,
-                    borderRadius: "6px",
-                    border: "1px solid",
-                    borderColor: smartDetectionPresent
-                      ? "#00aa00"
-                      : "text.disabled",
-                    backgroundColor: smartDetectionPresent
-                      ? undefined
-                      : (theme) => theme.palette.action.hover,
-                    borderBottomWidth: "3px",
-                    color: smartDetectionPresent ? "#000" : "text.primary",
-                    fontFamily: "monospace",
-                    fontWeight: "bold",
-                    fontSize: "0.7rem",
-                    lineHeight: 1,
-                    animation: smartDetectionPresent
-                      ? `${detectionPulse} 0.8s ease-in-out infinite`
-                      : "none",
-                  }}
-                >
-                  Espace
-                </Box>
-              </Box>
-            )}
-          </Paper>
-        )}
-
-        {/* Keyboard shortcuts card — same style as SectionShortcutHelpers */}
-        <Box
-          sx={{
-            backgroundColor: (theme) =>
-              alpha(theme.palette.background.paper, 0.8),
-            backdropFilter: "blur(8px)",
-            borderRadius: 2,
-            border: "1px solid",
-            borderColor: "divider",
-            p: 2,
-          }}
-        >
-          <Typography
-            variant="subtitle2"
-            sx={{
-              mb: 2,
-              fontWeight: 600,
-              color: "text.secondary",
-              textTransform: "uppercase",
-              letterSpacing: 1,
-              fontSize: "0.75rem",
-            }}
-          >
-            Raccourcis Clavier
-          </Typography>
-
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-            <PasteShortcutRow label="Coller la copie">
-              <ShortcutBadge>Clic</ShortcutBadge>
-            </PasteShortcutRow>
-            <PasteShortcutRow label="Pivoter 90°">
-              <ShortcutBadge>R</ShortcutBadge>
-            </PasteShortcutRow>
-            <PasteShortcutRow label="Miroir">
-              <ShortcutBadge>I</ShortcutBadge>
-            </PasteShortcutRow>
-            <PasteShortcutRow label="Quitter le mode copier/coller">
-              <ShortcutBadge>Esc</ShortcutBadge>
-            </PasteShortcutRow>
-          </Box>
-        </Box>
-      </Box>
-    </Paper>
-  );
-}
-
-// ---------------------------------------------------------------------------
 // PopperMapListings — main floating panel (or drawing helper when drawing)
 // ---------------------------------------------------------------------------
 
@@ -2508,9 +1589,8 @@ export default function PopperMapListings() {
   const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
   const enabledDrawingMode = useSelector((s) => s.mapEditor.enabledDrawingMode);
   const pasteClipboard = useSelector((s) => s.mapEditor.pasteClipboard);
-  const subtractSourceAnnotationId = useSelector(
-    (s) => s.mapEditor.subtractSourceAnnotationId
-  );
+  // truthy in either subtraction pick direction (see utils/subtractPickMode)
+  const subtractPickAnnotationId = useSelector(selectSubtractPickAnnotationId);
   const hiddenListingsIds = useSelector(
     (s) => s.listings.hiddenListingsIds || []
   );
@@ -2529,6 +1609,9 @@ export default function PopperMapListings() {
   const isPovThreed = useSelector(
     (s) => isPovViewer && isThreedFamilyViewerKey(selectEffectiveViewerKey(s))
   );
+  // Viewer module (read-only consultation): the popper is a bare legend —
+  // listings + templates only, no editing affordances or warnings.
+  const isViewerModule = viewerKey === "THREED";
   // Viewer module displaying its 2D editor: the panel scopes to the CURRENT
   // baseMap only (the extra-basemap mirroring is a 3D-scene concern).
   const isViewer2d = useSelector(
@@ -2613,6 +1696,25 @@ export default function PopperMapListings() {
     [annotationTemplates]
   );
 
+  const updateAnnotationTemplates = useUpdateAnnotationTemplates();
+
+  // Chip eyes mirror the listing-row eye: a listing is hidden when every one
+  // of its templates is hidden.
+  const templatesByListingId = useMemo(() => {
+    return (annotationTemplates ?? []).reduce((acc, t) => {
+      if (t.listingId) (acc[t.listingId] ??= []).push(t);
+      return acc;
+    }, {});
+  }, [annotationTemplates]);
+
+  const hiddenByListingId = useMemo(() => {
+    const acc = {};
+    Object.entries(templatesByListingId).forEach(([listingId, templates]) => {
+      acc[listingId] = templates.length > 0 && templates.every((t) => t.hidden);
+    });
+    return acc;
+  }, [templatesByListingId]);
+
   // ZONES module: the zone selected in the drawer drives the "Nouvelle zone"
   // section (its template row is the module's only drawing entry).
   const { template: selectedZoneTemplate } = useSelectedZone();
@@ -2624,10 +1726,16 @@ export default function PopperMapListings() {
     ).length;
   }, [isZonesViewer, selectedZoneTemplate, allAnnotationsInclHidden]);
 
+  // Template-linked revolution helpers count like any other annotation of
+  // their listing. Only pre-template helper rows are excluded explicitly, not
+  // just by the absence of a listingId: rows written before helpers became
+  // listing-less may still carry one, and those must never inflate a
+  // listing's total.
   const annotationCountByListingId = useMemo(() => {
     if (!allAnnotations) return {};
     return allAnnotations.reduce((acc, a) => {
-      if (a.listingId) acc[a.listingId] = (acc[a.listingId] || 0) + 1;
+      if (a.listingId && !isLegacyStyleRevolutionHelper(a))
+        acc[a.listingId] = (acc[a.listingId] || 0) + 1;
       return acc;
     }, {});
   }, [allAnnotations]);
@@ -2635,7 +1743,7 @@ export default function PopperMapListings() {
   const annotationsByListingId = useMemo(() => {
     if (!allAnnotations) return {};
     return allAnnotations.reduce((acc, a) => {
-      if (a.listingId) {
+      if (a.listingId && !isLegacyStyleRevolutionHelper(a)) {
         if (!acc[a.listingId]) acc[a.listingId] = [];
         acc[a.listingId].push(a);
       }
@@ -2644,6 +1752,19 @@ export default function PopperMapListings() {
   }, [allAnnotations]);
 
   const titleS = isBaseMapsViewer ? "Dessins sur fond de plan" : "Annotations";
+
+  // Viewer module: when the project has photos, the header title becomes an
+  // "Annotations / Photos" toggle and the Photos side swaps the body for the
+  // photo albums (2-column grids, click = select the photo).
+  const projectId = useSelector((s) => s.projects.selectedProjectId);
+  const projectPhotos = useProjectPhotos({
+    projectId: isViewerModule ? projectId : null,
+  });
+  const popperContentMode = useSelector(
+    (s) => s.popperMapListings.viewerContentMode
+  );
+  const showPhotosToggle = isViewerModule && projectPhotos.length > 0;
+  const showPhotosBody = showPhotosToggle && popperContentMode === "PHOTOS";
 
   const { value: listings } = useListings({
     filterByScopeId: selectedScopeId,
@@ -2800,6 +1921,18 @@ export default function PopperMapListings() {
     dispatch(setSelectedListingId(listingId));
   }
 
+  // Chip eye: toggle every template eye of the listing in one batch write,
+  // only touching templates whose `hidden` actually changes (same rule as the
+  // listing-row eye).
+  async function handleToggleListingVisibility(listingId) {
+    const templates = templatesByListingId[listingId] ?? [];
+    const targetHidden = !hiddenByListingId[listingId];
+    const updates = templates
+      .filter((t) => Boolean(t.hidden) !== targetHidden)
+      .map((t) => ({ id: t.id, hidden: targetHidden }));
+    await updateAnnotationTemplates(updates);
+  }
+
   function handleMergeResult(file, listingName) {
     const objectUrl = URL.createObjectURL(file);
     setMergeResult({
@@ -2864,7 +1997,7 @@ export default function PopperMapListings() {
     return <PopperPasteHelper />;
   }
 
-  if (!isThreedViewer && subtractSourceAnnotationId) {
+  if (!isThreedViewer && subtractPickAnnotationId) {
     return <PopperSubtractHelper />;
   }
 
@@ -2922,15 +2055,46 @@ export default function PopperMapListings() {
           />
         </Box>
 
-        <Typography
-          variant="body2"
-          sx={{ fontWeight: 600, color: "panel.textPrimary", flex: 1 }}
-        >
-          {titleS}
-        </Typography>
+        {showPhotosToggle ? (
+          <ToggleButtonGroup
+            value={popperContentMode}
+            exclusive
+            size="small"
+            onMouseDown={(e) => e.stopPropagation()}
+            onChange={(e, value) => {
+              if (value) dispatch(setViewerContentMode(value));
+            }}
+            sx={{ flex: 1 }}
+          >
+            <ToggleButton value="ANNOTATIONS" sx={{ flex: 1, py: 0.25 }}>
+              <Typography
+                variant="caption"
+                sx={{ fontWeight: 600, textTransform: "none" }}
+              >
+                Annotations
+              </Typography>
+            </ToggleButton>
+            <ToggleButton value="PHOTOS" sx={{ flex: 1, py: 0.25 }}>
+              <Typography
+                variant="caption"
+                sx={{ fontWeight: 600, textTransform: "none" }}
+              >
+                Photos
+              </Typography>
+            </ToggleButton>
+          </ToggleButtonGroup>
+        ) : (
+          <Typography
+            variant="body2"
+            sx={{ fontWeight: 600, color: "panel.textPrimary", flex: 1 }}
+          >
+            {titleS}
+          </Typography>
+        )}
 
-        {/* Properties button (on hover, left of +Liste) */}
-        {headerHovered && !isBaseMapsViewer && (
+        {/* Properties button (on hover, left of +Liste) — hidden in the
+            Viewer module (read-only legend, no popper properties there) */}
+        {headerHovered && !isBaseMapsViewer && !isViewerModule && (
           <Tooltip title="Propriétés">
             <IconButton
               size="small"
@@ -3067,33 +2231,8 @@ export default function PopperMapListings() {
 
           {/* Standard body (layers / listings / cut tools) */}
           {/* Warning: base map has no scale */}
-          {baseMap && !baseMap.meterByPx && (
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                gap: 1,
-                mx: 1,
-                mt: 1,
-                px: 1.5,
-                py: 1,
-                borderRadius: 1,
-                bgcolor: (theme) => alpha(theme.palette.error.main, 0.08),
-                border: "1px solid",
-                borderColor: (theme) => alpha(theme.palette.error.main, 0.3),
-              }}
-            >
-              <WarningAmber
-                sx={{ fontSize: 18, color: "error.main", flexShrink: 0 }}
-              />
-              <Typography
-                variant="caption"
-                sx={{ color: "error.main", fontWeight: 500, lineHeight: 1.3 }}
-              >
-                Ce plan n'est pas à l'échelle. Les mesures ne seront pas
-                fiables.
-              </Typography>
-            </Box>
+          {baseMap && !baseMap.meterByPx && !isViewerModule && (
+            <WarningBaseMapNotToScale />
           )}
 
           {/* Scrollable listings */}
@@ -3136,23 +2275,31 @@ export default function PopperMapListings() {
 
             {/* Listing chips — pick the current listing (selectedListingId). The
             system listing ("Générique") is the first chip. Shown whenever there
-            are listings, or when a new one can be created (empty-state CTA). */}
-            {(displayedListings?.length > 0 || canAddListing) && (
-              <ListingChipsBar
-                listings={displayedListings}
-                activeListingId={activeListing?.id}
-                annotationCountByListingId={annotationCountByListingId}
-                onSelectListing={handleSelectListing}
-                showAddButton={canAddListing}
-                hasNoListing={hasNoListing}
-                onAddListing={() => setOpenCreateListing(true)}
-                addLabel={addListS}
-              />
-            )}
+            are listings, or when a new one can be created (empty-state CTA).
+            Hidden in the Viewer module, where every listing is shown at once. */}
+            {!isViewerModule &&
+              (displayedListings?.length > 0 || canAddListing) && (
+                <ListingChipsBar
+                  listings={displayedListings}
+                  activeListingId={activeListing?.id}
+                  annotationCountByListingId={annotationCountByListingId}
+                  hiddenByListingId={hiddenByListingId}
+                  onSelectListing={handleSelectListing}
+                  onToggleListingVisibility={handleToggleListingVisibility}
+                  showAddButton={canAddListing}
+                  hasNoListing={hasNoListing}
+                  onAddListing={() => setOpenCreateListing(true)}
+                  addLabel={addListS}
+                />
+              )}
+
+            {/* Viewer module, Photos side of the header toggle: photo albums
+                (2-column grids) replace the annotations legend. */}
+            {showPhotosBody && <SectionPopperPhotos />}
 
             {/* Viewer 2D: the legend is scoped to the current baseMap — make
                 the empty case explicit instead of a blank panel. */}
-            {isViewer2d && hasNoListing && (
+            {!showPhotosBody && isViewer2d && hasNoListing && (
               <Box sx={{ px: 1.5, py: 1.5 }}>
                 <Typography
                   variant="body2"
@@ -3164,34 +2311,55 @@ export default function PopperMapListings() {
             )}
 
             <>
-              {activeListing && (
-                <ListingRow
-                  key={activeListing.id}
-                  listing={activeListing}
-                  isExpanded
-                  alwaysExpanded
-                  hideCaret
-                  annotationCount={
-                    isBaseMapsViewer
-                      ? annotationsByListingId?.[activeListing.id]?.length || 0
-                      : annotationCountByListingId?.[activeListing.id] || 0
-                  }
-                  annotations={annotationsByListingId?.[activeListing.id]}
-                  annotationTemplateById={annotationTemplateById}
-                  visibleTemplateIds={visibleTemplateIds}
-                  extraAction={
-                    isBaseMapsViewer ? (
-                      <ButtonMergeListingAnnotations
-                        listingId={activeListing.id}
-                        baseMap={baseMap}
-                        onResult={(file) =>
-                          handleMergeResult(file, activeListing.name)
-                        }
-                      />
-                    ) : undefined
-                  }
-                />
-              )}
+              {/* Viewer module: full legend — every listing at once (no chips
+                  selector), each row always expanded with its templates. The
+                  row's hover eye toggles all the listing's template eyes. */}
+              {isViewerModule
+                ? !showPhotosBody &&
+                  displayedListings?.map((listing) => (
+                    <ListingRow
+                      key={listing.id}
+                      listing={listing}
+                      isExpanded
+                      alwaysExpanded
+                      hideCaret
+                      annotationCount={
+                        annotationCountByListingId?.[listing.id] || 0
+                      }
+                      annotations={annotationsByListingId?.[listing.id]}
+                      annotationTemplateById={annotationTemplateById}
+                      visibleTemplateIds={visibleTemplateIds}
+                    />
+                  ))
+                : activeListing && (
+                    <ListingRow
+                      key={activeListing.id}
+                      listing={activeListing}
+                      isExpanded
+                      alwaysExpanded
+                      hideCaret
+                      annotationCount={
+                        isBaseMapsViewer
+                          ? annotationsByListingId?.[activeListing.id]
+                              ?.length || 0
+                          : annotationCountByListingId?.[activeListing.id] || 0
+                      }
+                      annotations={annotationsByListingId?.[activeListing.id]}
+                      annotationTemplateById={annotationTemplateById}
+                      visibleTemplateIds={visibleTemplateIds}
+                      extraAction={
+                        isBaseMapsViewer ? (
+                          <ButtonMergeListingAnnotations
+                            listingId={activeListing.id}
+                            baseMap={baseMap}
+                            onResult={(file) =>
+                              handleMergeResult(file, activeListing.name)
+                            }
+                          />
+                        ) : undefined
+                      }
+                    />
+                  )}
 
               {/* Outils section — DRAW mode, and always in the ZONES module
                 (openings / splits on the zone delimitation polygons) */}

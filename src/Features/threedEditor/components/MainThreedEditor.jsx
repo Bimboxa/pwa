@@ -9,15 +9,20 @@ import useDeleteAnnotationOnKeyboardInThreedEditor from "../hooks/useDeleteAnnot
 import useApplyBaseMapOpacityIn3d from "../hooks/useApplyBaseMapOpacityIn3d";
 import useApplyBaseMapVisibilityIn3d from "../hooks/useApplyBaseMapVisibilityIn3d";
 import useApplyBaseMapTransformsIn3d from "../hooks/useApplyBaseMapTransformsIn3d";
+import useRevolutionSectionIn3d from "../hooks/useRevolutionSectionIn3d";
 import useSyncClippingPlanTo3D from "../hooks/useSyncClippingPlanTo3D";
 import useNavigateCameraOnEvent from "../hooks/useNavigateCameraOnEvent";
 import useSelectAnnotationOnEvent from "../hooks/useSelectAnnotationOnEvent";
+import useSelectMainBaseMap from "../hooks/useSelectMainBaseMap";
+import getBaseMapPlaneFrame from "../js/utilsImagesManager/getBaseMapPlaneFrame";
 import {
   setSelectedNode,
   setAnnotationToolbarPosition,
   setAnnotationsToolbarPosition,
 } from "Features/mapEditor/mapEditorSlice";
 import { setSelectedBaseMapId } from "Features/baseMaps/baseMapsSlice";
+import { setToaster } from "Features/layout/layoutSlice";
+import addAnnotationSubtraction from "Features/annotations/services/addAnnotationSubtraction";
 import {
   setSelectedItem,
   setSelectedItems,
@@ -72,11 +77,12 @@ import {
 } from "Features/threedEditor/services/threedEditorRegistry";
 import PopperEditAnnotation from "Features/mapEditor/components/PopperEditAnnotation";
 import PopperMapListings from "Features/mapEditor/components/PopperMapListings";
+import PopperSubtractHelper from "Features/mapEditor/components/PopperSubtractHelper";
+import useSubtractPickHotkeysInThreedEditor from "../hooks/useSubtractPickHotkeysInThreedEditor";
 import ClippingToolbarThreed from "./ClippingToolbarThreed";
 import ButtonZoomOutThreed from "./ButtonZoomOutThreed";
 import BottomToolbarThreed from "Features/threedDrawing/components/BottomToolbarThreed";
 import DrawingOverlayThreed from "Features/threedDrawing/components/DrawingOverlayThreed";
-import MoveGizmoThreed from "Features/threedDrawing/components/MoveGizmoThreed";
 import useDrawingPointerHandlers from "Features/threedDrawing/hooks/useDrawingPointerHandlers";
 import useTemplateFaceDrawBridge from "Features/threedDrawing/hooks/useTemplateFaceDrawBridge";
 import useTemplateCoteDrawBridge from "Features/threedDrawing/hooks/useTemplateCoteDrawBridge";
@@ -88,6 +94,9 @@ import {
 import CoteToolbarThreed from "Features/threedDimensions/components/CoteToolbarThreed";
 import DimensionDraftOverlayThreed from "Features/threedDimensions/components/DimensionDraftOverlayThreed";
 import ThreedCoteAnnotations from "Features/threedDimensions/components/ThreedCoteAnnotations";
+import ThreedRulerAnnotations from "Features/threedDimensions/components/ThreedRulerAnnotations";
+import ThreedAnnotationLabels from "Features/threedAnnotationLabels/components/ThreedAnnotationLabels";
+import useAnnotationLabelDragHandlers from "Features/threedAnnotationLabels/hooks/useAnnotationLabelDragHandlers";
 import useDimensionPointerHandlers from "Features/threedDimensions/hooks/useDimensionPointerHandlers";
 import useCoteLabelDragHandlers from "Features/threedDimensions/hooks/useCoteLabelDragHandlers";
 import { getDimensionObjects } from "Features/threedDimensions/services/dimensionObjectsStore";
@@ -103,6 +112,18 @@ import { isMesh3dLabelGestureActive } from "Features/threedMesh/services/mesh3dL
 import ExtrudeToolbarThreed from "Features/threedExtrude/components/ExtrudeToolbarThreed";
 import ExtrudeOverlayThreed from "Features/threedExtrude/components/ExtrudeOverlayThreed";
 import useExtrudePointerHandlers from "Features/threedExtrude/hooks/useExtrudePointerHandlers";
+import useMoveBaseMapPointerHandlers from "Features/threedBaseMapMove/hooks/useMoveBaseMapPointerHandlers";
+import MoveBaseMapOverlayThreed from "Features/threedBaseMapMove/components/MoveBaseMapOverlayThreed";
+import MoveBaseMapToolbarThreed from "Features/threedBaseMapMove/components/MoveBaseMapToolbarThreed";
+import useRotateBaseMapPointerHandlers from "Features/threedBaseMapMove/hooks/useRotateBaseMapPointerHandlers";
+import RotateBaseMapOverlayThreed from "Features/threedBaseMapMove/components/RotateBaseMapOverlayThreed";
+import RotateBaseMapToolbarThreed from "Features/threedBaseMapMove/components/RotateBaseMapToolbarThreed";
+import useMoveAnnotationPointerHandlers from "Features/threedAnnotationMove/hooks/useMoveAnnotationPointerHandlers";
+import MoveAnnotationOverlayThreed from "Features/threedAnnotationMove/components/MoveAnnotationOverlayThreed";
+import MoveAnnotationToolbarThreed from "Features/threedAnnotationMove/components/MoveAnnotationToolbarThreed";
+import useRotateAnnotationPointerHandlers from "Features/threedAnnotationMove/hooks/useRotateAnnotationPointerHandlers";
+import RotateAnnotationOverlayThreed from "Features/threedAnnotationMove/components/RotateAnnotationOverlayThreed";
+import RotateAnnotationToolbarThreed from "Features/threedAnnotationMove/components/RotateAnnotationToolbarThreed";
 import useWalkMode from "Features/threedEditor/hooks/useWalkMode";
 import useObject3DPlacementHandlers from "Features/threedEditor/hooks/useObject3DPlacementHandlers";
 import { selectIsObject3DPlacementActive } from "Features/threedEditor/utils/object3DPlacementSelectors";
@@ -188,6 +209,8 @@ export default function MainThreedEditor() {
   // useAutoLoadAnnotationsInThreedEditor and destroy + recreate every
   // annotation 3D object.
   const store = useStore();
+  // Promote a basemap to "main" — shared with the top chips band.
+  const selectMainBaseMap = useSelectMainBaseMap();
   const selectedViewerKey = useSelector(selectEffectiveViewerKey);
   const isThreedViewer = isThreedFamilyViewerKey(selectedViewerKey);
   // The Maillage module (MESHES viewer) is meshing-only: meshing mode is
@@ -195,12 +218,45 @@ export default function MainThreedEditor() {
   // pointer handlers work right away (see the effect below, which also re-arms
   // meshing after a cote session).
   const isMeshesViewer = selectedViewerKey === "MESHES";
+  // BaseMap module in 3D: no drawing listings panel (the module edits the
+  // isForBaseMaps annotations from its 2D editor only).
+  const isBaseMapsModule = useSelector(
+    (s) => s.viewers.selectedViewerKey === "BASE_MAPS"
+  );
+  // Viewer module (key THREED): read-only consultation. The left panel
+  // (PanelViewerAnnotations) owns the legend when VISIBLE; otherwise the
+  // popper shows it (SELECT-only) — same visibility pattern as Dessin below.
+  const isViewerModule = useSelector(
+    (s) => s.viewers.selectedViewerKey === "THREED"
+  );
+  // Dessin module (key MAP) toggled to 3D: the left panel (PanelDrawing)
+  // takes over the listings popper (#310) whenever it is VISIBLE — docked, or
+  // drawer mode while the left area is hovered. Docked → the popper UNMOUNTS;
+  // drawer hover → it is only CSS-hidden so its local state (drag position,
+  // ...) survives the transient overlay.
+  const isDessinModule = useSelector(
+    (s) => s.viewers.selectedViewerKey === "MAP"
+  );
+  const leftPanelDocked = useSelector((s) => s.leftPanel.leftPanelDocked);
+  const leftDrawerHovered = useSelector((s) => s.leftPanel.leftDrawerHovered);
+  const dessinPanelDocked = isDessinModule && leftPanelDocked;
+  const dessinPanelSlidedIn =
+    isDessinModule && !leftPanelDocked && leftDrawerHovered;
+  const viewerPanelDocked = isViewerModule && leftPanelDocked;
+  const viewerPanelSlidedIn =
+    isViewerModule && !leftPanelDocked && leftDrawerHovered;
 
   // Entering/leaving the 3D viewer keeps whatever right panel is open: the
   // SETTINGS panel switches its content (3D view settings <-> 2D editor
   // settings) with the displayed editor, so nothing needs closing.
 
   const showGrid = useSelector((s) => s.threedEditor.showGrid);
+  // "Wireframe" section of the 3D view settings: grid-edge lines visibility +
+  // EdgesGeometry dihedral threshold, synced live to the AnnotationsManager.
+  const showWireframe = useSelector((s) => s.threedEditor.showWireframe);
+  const wireframeAngleDeg = useSelector(
+    (s) => s.threedEditor.wireframeAngleDeg
+  );
   // Capture mode ("Export rapide", shared with the 2D viewer). Toggles are
   // rare, so the re-render cost is acceptable here.
   const imageModeEnabled = useSelector((s) => s.mapEditor.imageModeEnabled);
@@ -240,13 +296,6 @@ export default function MainThreedEditor() {
   useEffect(() => {
     drawingActiveRef.current = drawingActive;
   }, [drawingActive]);
-
-  // Same pattern for move mode.
-  const moveActive = useSelector((s) => s.threedEditor.moveMode.active);
-  const moveActiveRef = useRef(moveActive);
-  useEffect(() => {
-    moveActiveRef.current = moveActive;
-  }, [moveActive]);
 
   // Same pattern for the dimension ("cote") tool — useDimensionPointerHandlers
   // owns the pointer while active, so the selection click path short-circuits.
@@ -296,6 +345,46 @@ export default function MainThreedEditor() {
     walkActiveRef.current = walkActive;
   }, [walkActive]);
 
+  // Same pattern for the "Déplacer" (move base map) mode —
+  // useMoveBaseMapPointerHandlers owns the pointer while active.
+  const moveBaseMapActive = useSelector(
+    (s) => s.threedEditor.moveBaseMapMode.active
+  );
+  const moveBaseMapActiveRef = useRef(moveBaseMapActive);
+  useEffect(() => {
+    moveBaseMapActiveRef.current = moveBaseMapActive;
+  }, [moveBaseMapActive]);
+
+  // Same pattern for the "Tourner" (rotate base map) mode —
+  // useRotateBaseMapPointerHandlers owns the pointer while active.
+  const rotateBaseMapActive = useSelector(
+    (s) => s.threedEditor.rotateBaseMapMode.active
+  );
+  const rotateBaseMapActiveRef = useRef(rotateBaseMapActive);
+  useEffect(() => {
+    rotateBaseMapActiveRef.current = rotateBaseMapActive;
+  }, [rotateBaseMapActive]);
+
+  // Same pattern for the "Déplacer" (move annotation) mode —
+  // useMoveAnnotationPointerHandlers owns the pointer while active.
+  const moveAnnotationActive = useSelector(
+    (s) => s.threedEditor.moveAnnotationMode.active
+  );
+  const moveAnnotationActiveRef = useRef(moveAnnotationActive);
+  useEffect(() => {
+    moveAnnotationActiveRef.current = moveAnnotationActive;
+  }, [moveAnnotationActive]);
+
+  // Same pattern for the "Tourner" (rotate annotation) mode —
+  // useRotateAnnotationPointerHandlers owns the pointer while active.
+  const rotateAnnotationActive = useSelector(
+    (s) => s.threedEditor.rotateAnnotationMode.active
+  );
+  const rotateAnnotationActiveRef = useRef(rotateAnnotationActive);
+  useEffect(() => {
+    rotateAnnotationActiveRef.current = rotateAnnotationActive;
+  }, [rotateAnnotationActive]);
+
   // Same pattern for OBJECT_3D placement mode (derived state) —
   // useObject3DPlacementHandlers owns the pointer while active.
   const placementActive = useSelector(selectIsObject3DPlacementActive);
@@ -303,6 +392,34 @@ export default function MainThreedEditor() {
   useEffect(() => {
     placementActiveRef.current = placementActive;
   }, [placementActive]);
+
+  // Subtraction pick mode (both directions). Mirrored into refs for the same
+  // reason as above: handleClick must not re-create on these, or every
+  // annotation object in the scene would be rebuilt (see the comment on
+  // annotations identity at the top of this component).
+  const subtractSourceAnnotationId = useSelector(
+    (s) => s.mapEditor.subtractSourceAnnotationId
+  );
+  const subtractSourceAnnotationIdRef = useRef(subtractSourceAnnotationId);
+  useEffect(() => {
+    subtractSourceAnnotationIdRef.current = subtractSourceAnnotationId;
+  }, [subtractSourceAnnotationId]);
+
+  const subtractTargetAnnotationId = useSelector(
+    (s) => s.mapEditor.subtractTargetAnnotationId
+  );
+  const subtractTargetAnnotationIdRef = useRef(subtractTargetAnnotationId);
+  useEffect(() => {
+    subtractTargetAnnotationIdRef.current = subtractTargetAnnotationId;
+  }, [subtractTargetAnnotationId]);
+
+  const subtractPickActive = Boolean(
+    subtractSourceAnnotationId || subtractTargetAnnotationId
+  );
+
+  // Escape exits the mode: InteractionLayer owns that in 2D but is not mounted
+  // here.
+  useSubtractPickHotkeysInThreedEditor();
 
   // Sub-selection (vertex / edge inside the selected annotation). Sourced
   // from threedEditorSlice. We subscribe via useSelector with a primitive
@@ -319,12 +436,15 @@ export default function MainThreedEditor() {
   useDimensionPointerHandlers();
   useMeshingPointerHandlers();
   useExtrudePointerHandlers();
+  useMoveBaseMapPointerHandlers();
+  useRotateBaseMapPointerHandlers();
   useWalkMode();
   useObject3DPlacementHandlers();
   useTemplateFaceDrawBridge();
   useTemplateCoteDrawBridge();
   useCoteLabelDragHandlers({ rendererIsReady });
   useMesh3dLabelDragHandlers({ rendererIsReady });
+  useAnnotationLabelDragHandlers({ rendererIsReady });
 
   // Drive the 3D clipping plane from the 2D-defined segment (top view).
   useSyncClippingPlanTo3D({ threedEditorRef, rendererIsReady });
@@ -394,6 +514,18 @@ export default function MainThreedEditor() {
     grid.visible = showGrid;
     editor.renderScene();
   }, [showGrid, rendererIsReady]);
+
+  // Sync the Wireframe settings → AnnotationsManager (visibility toggle +
+  // EdgesGeometry threshold rebuild on the built annotation objects; newly
+  // built / carved objects pick the stored settings up through finishRoot).
+  useEffect(() => {
+    const editor = threedEditorRef.current;
+    if (!editor || !rendererIsReady) return;
+    editor.sceneManager?.annotationsManager?.setWireframeSettings({
+      visible: showWireframe,
+      thresholdDeg: wireframeAngleDeg,
+    });
+  }, [showWireframe, wireframeAngleDeg, rendererIsReady]);
 
   // Sync renderMode → RenderModeManager (tone mapping / shadows /
   // environment). The annotation materials rebuild independently through
@@ -486,11 +618,13 @@ export default function MainThreedEditor() {
     rendererIsReady,
   });
 
-  useApplyBaseMapOpacityIn3d();
+  useApplyBaseMapOpacityIn3d({ rendererIsReady });
 
   useApplyBaseMapVisibilityIn3d({ rendererIsReady });
 
   useApplyBaseMapTransformsIn3d();
+
+  useRevolutionSectionIn3d({ rendererIsReady });
 
   useNavigateCameraOnEvent({
     threedEditor: threedEditorRef.current,
@@ -505,6 +639,11 @@ export default function MainThreedEditor() {
   });
 
   useDeleteAnnotationOnKeyboardInThreedEditor({ annotations });
+
+  // Annotation move / rotate tools (Dessin module) — need the resolved
+  // annotations for the carry-set resolution and the 2D write-back.
+  useMoveAnnotationPointerHandlers({ annotations });
+  useRotateAnnotationPointerHandlers({ annotations });
 
   // Click handler for raycasting
   const handleClick = useCallback(
@@ -527,6 +666,13 @@ export default function MainThreedEditor() {
       // OBJECT_3D placement owns the pointer; useObject3DPlacementHandlers
       // handles it.
       if (placementActiveRef.current) return;
+      // Move / rotate base-map modes own the pointer; their handler hooks
+      // handle it.
+      if (moveBaseMapActiveRef.current) return;
+      if (rotateBaseMapActiveRef.current) return;
+      // Same for the annotation move / rotate modes.
+      if (moveAnnotationActiveRef.current) return;
+      if (rotateAnnotationActiveRef.current) return;
 
       const threedEditor = threedEditorRef.current;
       const sceneManager = threedEditor.sceneManager;
@@ -642,10 +788,9 @@ export default function MainThreedEditor() {
       }
 
       // Sub-element click on the currently-selected annotation: vertex/edge
-      // sub-selection takes precedence over the regular face click. Skip when
-      // moveMode is active (the gizmo owns the cursor).
+      // sub-selection takes precedence over the regular face click.
       const soloId = getSoloSelectedAnnotationId();
-      if (soloId && !moveActiveRef.current) {
+      if (soloId) {
         const annoObject =
           sceneManager?.annotationsManager?.annotationsObjectsMap?.[soloId];
         if (annoObject?.userData?.vertexRefs?.length) {
@@ -768,6 +913,52 @@ export default function MainThreedEditor() {
               listingId,
               annotationTemplateId,
             } = object.userData;
+
+            // Subtraction pick mode: the click creates a relation instead of
+            // selecting. One annotation per click — the nearest along the ray,
+            // since in 3D the ray would otherwise cross the whole building.
+            // Cross-basemap is allowed: the carve and the mesh-area quantity
+            // both resolve in world space.
+            const pickSourceId = subtractSourceAnnotationIdRef.current;
+            const pickTargetId = subtractTargetAnnotationIdRef.current;
+            if ((pickSourceId || pickTargetId) && nodeType === "ANNOTATION") {
+              const pivotId = pickSourceId || pickTargetId;
+              if (nodeId === pivotId) {
+                dispatch(
+                  setToaster({
+                    message:
+                      "Une annotation ne peut pas se soustraire elle-même",
+                    severity: "warning",
+                  })
+                );
+                return;
+              }
+              const projectId = store.getState().projects.selectedProjectId;
+              addAnnotationSubtraction({
+                projectId,
+                sourceAnnotationId: pickSourceId ? pickSourceId : nodeId,
+                targetAnnotationId: pickSourceId ? nodeId : pickTargetId,
+              }).then((relId) => {
+                dispatch(
+                  setToaster(
+                    relId
+                      ? {
+                          message: pickSourceId
+                            ? "Annotation ajoutée à la soustraction"
+                            : "Annotation creusée par cette annotation",
+                          severity: "success",
+                        }
+                      : {
+                          message: "Annotation déjà soustraite",
+                          severity: "info",
+                        }
+                  )
+                );
+              });
+              // Stay in the mode; only Escape exits it.
+              return;
+            }
+
             const item = {
               id: nodeId,
               nodeId,
@@ -851,6 +1042,85 @@ export default function MainThreedEditor() {
       getSoloSelectedAnnotationId,
       store,
     ]
+  );
+
+  // Double-click on a plan: promote it as the MAIN basemap (what the top chips
+  // band does) and fly the camera face-on to frame the whole image. Unlike the
+  // single click, a hit on an annotation lying on the plan counts — a SOL
+  // polygon covering the floor must not block the gesture. The two preceding
+  // `pointerup -> handleClick` passes still run (they select the annotation /
+  // basemap in the properties panel); both paths are idempotent.
+  const handleDoubleClick = useCallback(
+    (event) => {
+      if (!threedEditorRef.current || !rendererIsReady || !isThreedViewer)
+        return;
+      // Same modes as handleClick: they own the pointer.
+      if (editorModeRef.current === "BASEMAP_POSITION") return;
+      if (drawingActiveRef.current) return;
+      if (dimensionActiveRef.current) return;
+      if (meshingActiveRef.current) return;
+      if (extrudeActiveRef.current) return;
+      if (walkActiveRef.current) return;
+      if (placementActiveRef.current) return;
+      if (moveBaseMapActiveRef.current) return;
+      if (rotateBaseMapActiveRef.current) return;
+      if (moveAnnotationActiveRef.current) return;
+      if (rotateAnnotationActiveRef.current) return;
+      // Shift stays reserved for the multi-selection / lasso.
+      if (event.shiftKey) return;
+
+      const threedEditor = threedEditorRef.current;
+      const sceneManager = threedEditor.sceneManager;
+      const renderer = sceneManager.renderer;
+      const camera = sceneManager.camera;
+      const scene = sceneManager.scene;
+      if (!renderer || !camera || !scene) return;
+
+      const rendererElement = renderer.domElement;
+      if (!rendererElement.contains(event.target)) return;
+      const rect = rendererElement.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) return;
+
+      mouseRef.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      mouseRef.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      raycasterRef.current.setFromCamera(mouseRef.current, camera);
+
+      const intersects = filterIntersectionsByVisibility(
+        filterIntersectionsByClipping(
+          raycasterRef.current
+            .intersectObjects(scene.children, true)
+            .filter((i) => i.object?.isMesh),
+          getActiveClippingPlane(sceneManager)
+        )
+      );
+
+      // The owning basemap of the closest hit, image mesh or annotation alike:
+      // both hang under the basemap group, which carries the id. A hit
+      // belonging to no basemap (maille, scene-root object3D) resolves to null
+      // and the double-click does nothing.
+      let baseMapId = null;
+      for (const intersect of intersects) {
+        let ancestor = intersect.object;
+        while (ancestor && !ancestor.userData?.baseMapId)
+          ancestor = ancestor.parent;
+        if (ancestor?.userData?.baseMapId) {
+          baseMapId = ancestor.userData.baseMapId;
+          break;
+        }
+      }
+      if (!baseMapId) return;
+
+      // Frame BEFORE the dispatch: changing the main basemap makes
+      // useAutoLoadMapsInThreedEditor rebuild the scene (the groups are
+      // recreated). The world-space box stays valid across that rebuild —
+      // the placement doesn't change.
+      const group = sceneManager.imagesManager?.getGroup(baseMapId);
+      const frame = getBaseMapPlaneFrame(group);
+
+      selectMainBaseMap(baseMapId);
+      if (frame) threedEditor.fitToBox3Facing(frame.box, frame.normal);
+    },
+    [rendererIsReady, isThreedViewer, selectMainBaseMap]
   );
 
   // Helper to check if an event target is within a MUI Popper or portal
@@ -1162,6 +1432,17 @@ export default function MainThreedEditor() {
       if (drawingActiveRef.current) {
         return;
       }
+      // Move / rotate base-map modes own the pointer (their own drag
+      // tracking). Same for the annotation move / rotate modes.
+      if (moveBaseMapActiveRef.current || rotateBaseMapActiveRef.current) {
+        return;
+      }
+      if (
+        moveAnnotationActiveRef.current ||
+        rotateAnnotationActiveRef.current
+      ) {
+        return;
+      }
       isDraggingRef.current = false;
       dragStartRef.current = { x: event.clientX, y: event.clientY };
 
@@ -1279,7 +1560,11 @@ export default function MainThreedEditor() {
       meshingActiveRef.current ||
       extrudeActiveRef.current ||
       walkActiveRef.current ||
-      placementActiveRef.current
+      placementActiveRef.current ||
+      moveBaseMapActiveRef.current ||
+      rotateBaseMapActiveRef.current ||
+      moveAnnotationActiveRef.current ||
+      rotateAnnotationActiveRef.current
     ) {
       if (prevHoveredObjectRef.current) {
         const prevId = prevHoveredObjectRef.current.userData?.nodeId;
@@ -1672,6 +1957,7 @@ export default function MainThreedEditor() {
     domElement.addEventListener("pointermove", handleHoverPointerMove);
     domElement.addEventListener("pointerleave", handlePointerLeave);
     domElement.addEventListener("pointerup", handlePointerUp);
+    domElement.addEventListener("dblclick", handleDoubleClick);
 
     return () => {
       domElement.removeEventListener("pointerdown", handlePointerDown);
@@ -1679,6 +1965,7 @@ export default function MainThreedEditor() {
       domElement.removeEventListener("pointermove", handleHoverPointerMove);
       domElement.removeEventListener("pointerleave", handlePointerLeave);
       domElement.removeEventListener("pointerup", handlePointerUp);
+      domElement.removeEventListener("dblclick", handleDoubleClick);
       if (hoverRafRef.current != null) {
         cancelAnimationFrame(hoverRafRef.current);
         hoverRafRef.current = null;
@@ -1692,6 +1979,7 @@ export default function MainThreedEditor() {
     handleHoverPointerMove,
     handlePointerLeave,
     handlePointerUp,
+    handleDoubleClick,
     isThreedViewer,
     clearFaceHoverOverlay,
   ]);
@@ -1771,12 +2059,33 @@ export default function MainThreedEditor() {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        border: "1px solid grey",
         position: "relative",
       }}
     >
       <Box sx={{ width: 1, height: 1 }} ref={containerRef} />
-      {isThreedViewer && !captureFramingActive && <PopperMapListings />}
+      {/* The helper REPLACES the listings panel while the mode is armed, same
+          as the 2D chain in PopperMapListings (which is 2D-only). */}
+      {isThreedViewer &&
+        !isBaseMapsModule &&
+        !dessinPanelDocked &&
+        !viewerPanelDocked &&
+        !captureFramingActive &&
+        !subtractPickActive && (
+          /* display:none (not unmount) while the drawer slides over the
+             editor, so the popper keeps its state; "contents" keeps the
+             wrapper out of the absolute positioning. */
+          <Box
+            sx={{
+              display:
+                dessinPanelSlidedIn || viewerPanelSlidedIn
+                  ? "none"
+                  : "contents",
+            }}
+          >
+            <PopperMapListings />
+          </Box>
+        )}
+      {isThreedViewer && subtractPickActive && <PopperSubtractHelper />}
       {isThreedViewer && <PopperEditAnnotation viewerKey="THREED" />}
       {isThreedViewer && <ThreedPopperEditAnnotations />}
       {isThreedViewer && <ThreedImageModeOverlay annotations={annotations} />}
@@ -1809,6 +2118,14 @@ export default function MainThreedEditor() {
           <ExtrudeToolbarThreed />
         ) : dimensionActive ? (
           <CoteToolbarThreed />
+        ) : moveBaseMapActive ? (
+          <MoveBaseMapToolbarThreed />
+        ) : rotateBaseMapActive ? (
+          <RotateBaseMapToolbarThreed />
+        ) : moveAnnotationActive ? (
+          <MoveAnnotationToolbarThreed />
+        ) : rotateAnnotationActive ? (
+          <RotateAnnotationToolbarThreed />
         ) : meshingActive || isMeshesViewer ? (
           <MeshingToolbarThreed />
         ) : (
@@ -1819,11 +2136,20 @@ export default function MainThreedEditor() {
           capture/POV framing owns the screen. */}
       {isThreedViewer && !captureFramingActive && <ButtonZoomOutThreed />}
       {isThreedViewer && <DrawingOverlayThreed />}
-      {isThreedViewer && <MoveGizmoThreed />}
       {isThreedViewer && rendererIsReady && (
         <ThreedCoteAnnotations annotations={annotations} />
       )}
+      {isThreedViewer && rendererIsReady && (
+        <ThreedRulerAnnotations annotations={annotations} />
+      )}
+      {isThreedViewer && rendererIsReady && (
+        <ThreedAnnotationLabels annotations={annotations} />
+      )}
       {isThreedViewer && <DimensionDraftOverlayThreed />}
+      {isThreedViewer && <MoveBaseMapOverlayThreed />}
+      {isThreedViewer && <RotateBaseMapOverlayThreed />}
+      {isThreedViewer && <MoveAnnotationOverlayThreed />}
+      {isThreedViewer && <RotateAnnotationOverlayThreed />}
       {isThreedViewer && rendererIsReady && <ThreedMeshes />}
       {isThreedViewer && <MeshingOverlayThreed />}
       {isThreedViewer && <ExtrudeOverlayThreed />}

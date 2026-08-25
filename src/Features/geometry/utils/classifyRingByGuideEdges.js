@@ -43,6 +43,12 @@ export function findGuideEdgeForSubEdge(a, b, guideEdges, tolPx) {
   const mx = (a.x + b.x) / 2;
   const my = (a.y + b.y) / 2;
 
+  // Several guides may overlap on the same span (e.g. a floor-step wall drawn
+  // to the outer face of the perimeter wall it meets): the guide with the
+  // HIGHEST wall top wins — the taller retaining wall is the one physically
+  // present there. Guides without height data keep first-match order.
+  let best = null;
+  let bestTop = -Infinity;
   for (const e of guideEdges) {
     const tol = tolPx + (e.padPx || 0);
     if (distPointToSegment(a.x, a.y, e.ax, e.ay, e.bx, e.by) > tol) continue;
@@ -56,9 +62,14 @@ export function findGuideEdgeForSubEdge(a, b, guideEdges, tolPx) {
     const cos = Math.abs(ux * vx + uy * vy) / (uLen * vLen);
     if (cos < PARALLEL_MIN_COS) continue;
 
-    return e;
+    const top =
+      e.wallHeight != null ? (e.bottomZ ?? 0) + e.wallHeight : -Infinity;
+    if (best === null || top > bestTop) {
+      best = e;
+      bestTop = top;
+    }
   }
-  return null;
+  return best;
 }
 
 /**

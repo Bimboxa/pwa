@@ -5,16 +5,26 @@ import baseMapNormalizedToWorld from "./baseMapNormalizedToWorld";
 // calibration targets coincide with the corresponding targets on a reference
 // baseMap.
 //
-// Behaviour (no rotation — `angleDeg` is read but never changed; `position.y`
-// height is kept):
-//   - 1 cible  -> translation only (position.x/z); meterByPx unchanged.
-//   - 2 cibles -> translation + scale (no rotation). Scale = ratio of the
-//     world distances between the two target pairs, applied to `meterByPx`.
+// Behaviour (`meterByPx` is NEVER changed; `position.y` height is kept):
+//   - 1 cible  -> translation only (position.x/z); angleDeg unchanged.
+//   - 2 cibles -> translation + rotation around the vertical axis (angleDeg).
+//     The REFERENCE target (`refColor`) anchors the translation; the OTHER
+//     target only drives the rotation so that the ref -> other direction
+//     matches the one observed on the reference baseMap (world XZ plane).
 //
 // Targets are relative {x, y} in [0..1] (same space as `db.points`).
 //
-// Returns `{ position: {x, y, z}, meterByPx }` or `null` when the inputs are
-// insufficient (no usable target, missing sizes/meterByPx, degenerate scale).
+// Returns `{ position: {x, y, z}, angleDeg }` or `null` when the inputs are
+// insufficient (no usable target, missing sizes/meterByPx, superimposed
+// targets => undetermined angle).
+const EPS = 1e-9;
+
+function normalizeAngleDeg(deg) {
+  let a = ((deg + 180) % 360) - 180;
+  if (a <= -180) a += 360;
+  return a;
+}
+
 export default function computeRecalageTransform({
   currentBaseMap,
   refBaseMap,
@@ -22,6 +32,7 @@ export default function computeRecalageTransform({
   refTargets,
   useRed,
   useGreen,
+  refColor = "red",
 }) {
   if (!currentBaseMap || !refBaseMap) return null;
   if (!currentTargets || !refTargets) return null;
@@ -36,57 +47,67 @@ export default function computeRecalageTransform({
   if (!meterByPx) return null;
 
   // Probe helper: world point of one of the *current* baseMap's targets, with
-  // a chosen meterByPx and the placement pinned at {x:0, z:0} (height kept).
-  const transformAtOrigin = { ...transform, position: { x: 0, y: h, z: 0 } };
-  const currentWorldAtOrigin = (rel, mbp) =>
+  // a chosen angleDeg and the placement pinned at {x:0, z:0} (height kept).
+  const currentWorldAtOrigin = (rel, angleDeg) =>
     baseMapNormalizedToWorld(rel, currentBaseMap, {
-      meterByPx: mbp,
-      transform: transformAtOrigin,
+      meterByPx,
+      transform: { ...transform, angleDeg, position: { x: 0, y: h, z: 0 } },
     });
 
-  // Reference world points (full reference placement).
-  const Qred = useRed
-    ? baseMapNormalizedToWorld(refTargets.red, refBaseMap)
-    : null;
-  const Qgreen = useGreen
-    ? baseMapNormalizedToWorld(refTargets.green, refBaseMap)
-    : null;
-
-  // --- 2 cibles: translation + scale (no rotation) ---
+  // --- 2 cibles: translation + rotation ---
   if (useRed && useGreen) {
-    if (!Qred || !Qgreen) return null;
+    const anchor = refColor === "green" ? "green" : "red";
+    const other = anchor === "red" ? "green" : "red";
 
-    // Current target world points at the *current* meterByPx (XZ plane).
-    const Cred = currentWorldAtOrigin(currentTargets.red, meterByPx);
-    const Cgreen = currentWorldAtOrigin(currentTargets.green, meterByPx);
-    if (!Cred || !Cgreen) return null;
+    // Reference world points (full reference placement).
+    const Pref = baseMapNormalizedToWorld(refTargets[anchor], refBaseMap);
+    const Pother = baseMapNormalizedToWorld(refTargets[other], refBaseMap);
+    if (!Pref || !Pother) return null;
 
-    const dRef = Math.hypot(Qgreen.x - Qred.x, Qgreen.z - Qred.z);
-    const dCur = Math.hypot(Cgreen.x - Cred.x, Cgreen.z - Cred.z);
-    if (dRef === 0 || dCur === 0) return null;
+    // Current world points at the current angle.
+    const Cref = currentWorldAtOrigin(
+      currentTargets[anchor],
+      transform.angleDeg
+    );
+    const Cother = currentWorldAtOrigin(
+      currentTargets[other],
+      transform.angleDeg
+    );
+    if (!Cref || !Cother) return null;
 
-    const scale = dRef / dCur;
-    const newMeterByPx = meterByPx * scale;
+    const dxR = Pother.x - Pref.x;
+    const dzR = Pother.z - Pref.z;
+    const dxC = Cother.x - Cref.x;
+    const dzC = Cother.z - Cref.z;
+    if (Math.hypot(dxR, dzR) < EPS || Math.hypot(dxC, dzC) < EPS) return null;
 
-    // Re-anchor red after scaling.
-    const Wr = currentWorldAtOrigin(currentTargets.red, newMeterByPx);
+    // A rotation of phi around world +Y maps (x, z) to
+    // (x cos phi + z sin phi, -x sin phi + z cos phi), i.e. it decreases
+    // atan2(z, x) by phi. We need thetaCur - phi = thetaRef.
+    const thetaRef = Math.atan2(dzR, dxR);
+    const thetaCur = Math.atan2(dzC, dxC);
+    const phiDeg = ((thetaCur - thetaRef) * 180) / Math.PI;
+    const angleDeg = normalizeAngleDeg(transform.angleDeg + phiDeg);
+
+    // Re-anchor the reference target with the new angle.
+    const Wr = currentWorldAtOrigin(currentTargets[anchor], angleDeg);
     if (!Wr) return null;
 
     return {
-      position: { x: Qred.x - Wr.x, y: h, z: Qred.z - Wr.z },
-      meterByPx: newMeterByPx,
+      position: { x: Pref.x - Wr.x, y: h, z: Pref.z - Wr.z },
+      angleDeg,
     };
   }
 
   // --- 1 cible: translation only ---
   const color = useRed ? "red" : "green";
-  const Q = useRed ? Qred : Qgreen;
+  const Q = baseMapNormalizedToWorld(refTargets[color], refBaseMap);
   if (!Q) return null;
-  const W = currentWorldAtOrigin(currentTargets[color], meterByPx);
+  const W = currentWorldAtOrigin(currentTargets[color], transform.angleDeg);
   if (!W) return null;
 
   return {
     position: { x: Q.x - W.x, y: h, z: Q.z - W.z },
-    meterByPx,
+    angleDeg: transform.angleDeg,
   };
 }

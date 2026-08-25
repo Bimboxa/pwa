@@ -33,12 +33,10 @@ import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 // reported through `onMoveFuiteEndpoint({family, segmentId, end, point})`.
 export default function ElevationBaseMapViewer({
   baseMapId,
-  selectedAxisId,
   highlightAnnotationId,
   targets,
   vanishingLines,
   knownCote,
-  onSelectAxis,
   onSelectAnnotation,
   onTargetsChange,
   onMoveFuiteEndpoint,
@@ -91,17 +89,10 @@ export default function ElevationBaseMapViewer({
       const hit = event?.target?.closest?.("[data-node-id]");
       const nodeId = hit?.getAttribute?.("data-node-id");
       const annotation = nodeId ? annotationsById[nodeId] : null;
-      if (!annotation) {
-        onSelectAxis?.(null);
-        return;
-      }
-      if (annotation.type === "REVOLUTION_AXIS") {
-        onSelectAxis?.(annotation.id);
-      } else {
-        onSelectAnnotation?.(annotation);
-      }
+      if (!annotation) return;
+      onSelectAnnotation?.(annotation);
     },
-    [annotationsById, onSelectAxis, onSelectAnnotation]
+    [annotationsById, onSelectAnnotation]
   );
 
   // handlers - calibration target drag (world = image pixels, so the relative
@@ -254,9 +245,7 @@ export default function ElevationBaseMapViewer({
             />
           )}
           {(annotations ?? []).map((annotation) => {
-            const isSelected =
-              annotation.id === selectedAxisId ||
-              annotation.id === highlightAnnotationId;
+            const isSelected = annotation.id === highlightAnnotationId;
             return (
               <NodeAnnotationStatic
                 key={annotation.id}

@@ -32,6 +32,7 @@ export default function remapDexieExportIds(jsonData, opts) {
   // Simple FK field -> target id-map table (references a known fixed table).
   const SIMPLE_FK = {
     baseMapId: "baseMaps",
+    povId: "povs",
     listingId: "listings",
     annotationTemplateId: "annotationTemplates",
     layerId: "layers",
@@ -269,6 +270,11 @@ export default function remapDexieExportIds(jsonData, opts) {
         if (Array.isArray(row.points)) {
           row.points = row.points.map(remapPointRef);
         }
+        // Single-point types (MARKER / POINT / DETAIL) store their point as a
+        // singular `point` ref, not in points[].
+        if (row.point?.id) {
+          row.point = remapPointRef(row.point);
+        }
         remapFlagPointIds(row);
         if (Array.isArray(row.cuts)) {
           row.cuts = row.cuts.map((cut) => {
@@ -282,6 +288,16 @@ export default function remapDexieExportIds(jsonData, opts) {
             return next;
           });
         }
+        // DETAIL folio: nested resource ref (folio.thumbnail is a dataURL,
+        // nothing else to remap).
+        if (row.folio?.resourceId) {
+          row.folio.resourceId = remapId("resources", row.folio.resourceId);
+        }
+      }
+
+      // FOLIO_PAGE portfolio pages carry the same nested folio resource ref.
+      if (tableName === "portfolioPages" && row.folio?.resourceId) {
+        row.folio.resourceId = remapId("resources", row.folio.resourceId);
       }
 
       // Embedded fileName refs (baseMap.image.fileName, version.image.fileName,

@@ -25,6 +25,7 @@ function NodeMarkerStatic({
   // NOUVELLES PROPS
   sizeVariant = "FIXED_IN_SCREEN", // "FIXED_IN_SCREEN" | "FIXED_IN_CONTAINER_PARENT" | "SCALED"
   containerK = 1, // Nécessaire pour le calcul inverse
+  forceHideLabel,
 }) {
 
   // on force FIXED_IN_SCREEN pour les marqueurs statiques
@@ -123,7 +124,7 @@ function NodeMarkerStatic({
   // --- LABEL ---
 
   const labelAnnotation = getAnnotationLabelPropsFromAnnotation(marker);
-  const showNodeLabel = Boolean(marker.showLabel);
+  const showNodeLabel = Boolean(marker.showLabel) && !forceHideLabel;
 
 
 

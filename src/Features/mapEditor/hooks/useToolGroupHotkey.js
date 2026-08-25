@@ -10,6 +10,7 @@ import { setNewAnnotation } from "Features/annotations/annotationsSlice";
 import { getDrawingToolsByType } from "../constants/drawingTools.jsx";
 import buildToolDraft from "../utils/buildToolDraft";
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
+import { selectSubtractPickAnnotationId } from "../utils/subtractPickMode";
 
 const isEditableTarget = (el) => {
   if (!el) return false;
@@ -49,7 +50,7 @@ export default function useToolGroupHotkey(hotkey, templateId) {
       // Stay out of the other editor modes that may own this letter
       // (paste mode, subtract mode).
       const s = store.getState();
-      if (s.mapEditor.pasteClipboard || s.mapEditor.subtractSourceAnnotationId)
+      if (s.mapEditor.pasteClipboard || selectSubtractPickAnnotationId(s))
         return;
 
       // Only start a draw while the Dessin module displays the 2D editor.
@@ -60,6 +61,14 @@ export default function useToolGroupHotkey(hotkey, templateId) {
       // outside the MAP module.
       if (s.viewers.selectedViewerKey !== "MAP") return;
       if (selectEffectiveViewerKey(s) !== "MAP") return;
+
+      // The O / X / C rows live in the panel's ROOT view (and in the popper).
+      // While the docked panel shows a template detail view they are not on
+      // screen, and the letters belong to the pre-draw template shortcuts
+      // (ToolbarStartDrawTemplate) — "c" must draw a circle there, not arm
+      // "Couper un segment".
+      if (s.leftPanel.leftPanelDocked && s.panelDrawing.detailTemplateId)
+        return;
 
       const tools = getDrawingToolsByType(templateId);
       if (tools.length === 0) return;

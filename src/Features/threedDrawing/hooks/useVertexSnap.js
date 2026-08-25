@@ -30,10 +30,23 @@ const COPLANAR_NORMAL_DOT = 0.9962;
 // mid-edge points) that exist nowhere else. Objects hidden via an
 // ancestor's `visible = false` (e.g. "Masquer les annotations") are
 // skipped.
-export function buildIndex(scene) {
+// options.excludeSubtree: an Object3D whose whole subtree is skipped — used
+// by the "Déplacer" tool to build a target-only index that never contains
+// the carried base map (its own geometry would otherwise screen the drop
+// targets, with stale world positions on top).
+// options.excludeSubtrees: same, plural (array or Set of Object3D) — used by
+// the annotation move/rotate tools which carry several annotation roots.
+// options.annotationsOnly: only annotation meshes (an ancestor with
+// userData.nodeType === "ANNOTATION") are snappable — base map planes and
+// mailles are skipped. Used by the annotation move/rotate tools whose grab
+// click must land on an annotation.
+export function buildIndex(scene, options = {}) {
   const verts = [];
   const adjacency = new Map(); // key -> { position, neighbors: Set<key> }
   if (!scene) return { verts, adjacency };
+  const excludeSet = new Set(options.excludeSubtrees ?? []);
+  if (options.excludeSubtree) excludeSet.add(options.excludeSubtree);
+  const annotationsOnly = !!options.annotationsOnly;
 
   function ensureNode(key, position) {
     let entry = adjacency.get(key);
@@ -51,10 +64,11 @@ export function buildIndex(scene) {
     let parent = obj;
     while (parent) {
       if (parent.visible === false) return; // hidden by an ancestor
+      if (excludeSet.has(parent)) return;
       if (
         parent.userData?.nodeType === "ANNOTATION" ||
-        parent.userData?.isBasemap ||
-        parent.userData?.isMesh3d
+        (!annotationsOnly &&
+          (parent.userData?.isBasemap || parent.userData?.isMesh3d))
       ) {
         isSnappable = true;
       }
@@ -142,7 +156,11 @@ export function buildIndex(scene) {
     const indexAttr = geom.index;
     if (indexAttr) {
       for (let i = 0; i < indexAttr.count; i += 3) {
-        addTriangle(indexAttr.getX(i), indexAttr.getX(i + 1), indexAttr.getX(i + 2));
+        addTriangle(
+          indexAttr.getX(i),
+          indexAttr.getX(i + 1),
+          indexAttr.getX(i + 2)
+        );
       }
     } else {
       for (let i = 0; i < pos.count; i += 3) {

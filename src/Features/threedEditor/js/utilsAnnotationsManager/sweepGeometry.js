@@ -69,10 +69,11 @@ export function computeVertexFrames(points, hidden, closeLine = false) {
   return frames;
 }
 
-// Build a quad strip mesh: each visible guide segment connects the rings
+// Build the quad-strip arrays: each visible guide segment connects the rings
 // computed at its two endpoint vertices. Adjacent visible segments share
-// their mid-vertex ring → continuous surface.
-export function buildSweepGeometryForProfile(
+// their mid-vertex ring → continuous surface. Pure (no three import) so
+// quantity code can reuse the exact mesh triangles.
+export function buildSweepArraysForProfile(
   guidePoints,
   vertexFrames,
   hidden,
@@ -153,9 +154,35 @@ export function buildSweepGeometryForProfile(
 
   if (positions.length === 0) return null;
 
+  return { positions, indices };
+}
+
+// Three.js wrapper over buildSweepArraysForProfile (same arguments) — the
+// mesh builders' entry point.
+export function buildSweepGeometryForProfile(
+  guidePoints,
+  vertexFrames,
+  hidden,
+  profileLocal,
+  verticalLift,
+  closeLine = false
+) {
+  const arrays = buildSweepArraysForProfile(
+    guidePoints,
+    vertexFrames,
+    hidden,
+    profileLocal,
+    verticalLift,
+    closeLine
+  );
+  if (!arrays) return null;
+
   const geom = new BufferGeometry();
-  geom.setAttribute("position", new Float32BufferAttribute(positions, 3));
-  geom.setIndex(indices);
+  geom.setAttribute(
+    "position",
+    new Float32BufferAttribute(arrays.positions, 3)
+  );
+  geom.setIndex(arrays.indices);
   geom.computeVertexNormals();
   return geom;
 }

@@ -50,14 +50,32 @@ export default function getAnnotationTemplateProps(annotationTemplate) {
     height: annotationTemplate?.height,
     offsetZ: annotationTemplate?.offsetZ,
 
-    // COTE display settings — only applied to annotations when listed in
-    // overrideFields (the lock on the "Cote" line of the template form).
+    // LINEAR_LAYOUT (calepinage linéaire) — band width + bar distribution.
+    // Only applied to annotations when listed in overrideFields (padlock).
+    width: annotationTemplate?.width,
+    densityMode: annotationTemplate?.densityMode,
+    densityValue: annotationTemplate?.densityValue,
+    densityUnitLabel: annotationTemplate?.densityUnitLabel,
+    layoutAlign: annotationTemplate?.layoutAlign,
+    axisPosition: annotationTemplate?.axisPosition,
+    textAlign: annotationTemplate?.textAlign,
+    hideBandFill: annotationTemplate?.hideBandFill,
+
+    // CIRCULATION — arrows distributed along the line.
+    arrowStep: annotationTemplate?.arrowStep,
+    arrowRight: annotationTemplate?.arrowRight,
+    arrowLeft: annotationTemplate?.arrowLeft,
+
+    // COTE / RULER display settings — only applied to annotations when listed
+    // in overrideFields (the lock on the "Cote" line of the template form).
     unit: annotationTemplate?.unit,
     extensionOffset: annotationTemplate?.extensionOffset,
     extensionOffsetUnit: annotationTemplate?.extensionOffsetUnit,
     decimals: annotationTemplate?.decimals,
     fontSize: annotationTemplate?.fontSize,
     showUnitLabel: annotationTemplate?.showUnitLabel,
+    showTotalCote: annotationTemplate?.showTotalCote,
+    showRulerLabel: annotationTemplate?.showRulerLabel,
 
     overrideFields: annotationTemplate?.overrideFields,
   };

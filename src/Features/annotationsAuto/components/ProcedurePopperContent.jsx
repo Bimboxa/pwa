@@ -34,16 +34,25 @@ export default function ProcedurePopperContent({
   );
 
   // all annotations of the source template on this base map (procedure source),
-  // shared by every section
+  // shared by every section. A REVOLUTION_AXIS_PLACEMENT stands for its plan
+  // axis: launching from the vertical map must source the AXIS row (params,
+  // autoCreatedFrom tag and the dialog all live on it).
   const sourceAnnotationIds = useLiveQuery(async () => {
     if (!sourceTemplate?.id || !baseMapId) return [];
     const arr = await db.annotations
       .where("annotationTemplateId")
       .equals(sourceTemplate.id)
       .toArray();
-    return arr
-      .filter((a) => !a.deletedAt && a.baseMapId === baseMapId)
-      .map((a) => a.id);
+    return [
+      ...new Set(
+        arr
+          .filter((a) => !a.deletedAt && a.baseMapId === baseMapId)
+          .map((a) =>
+            a.type === "REVOLUTION_AXIS_PLACEMENT" ? a.revolutionAxisId : a.id
+          )
+          .filter(Boolean)
+      ),
+    ];
   }, [sourceTemplate?.id, baseMapId, annotationsUpdatedAt]);
 
   // helpers

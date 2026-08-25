@@ -19,10 +19,15 @@ import applyPasteTransformToPoints from "Features/mapEditor/utils/applyPasteTran
  * MARKER.
  *
  * @param {Object} params
- * @param {Object} params.pasteClipboard  - { sourceCenter, items[] } from mapEditorSlice
+ * @param {Object} params.pasteClipboard  - { sourceCenter, sourceMeterByPx, items[] } from mapEditorSlice
  * @param {Object} params.pasteTransform  - { rotationDeg, flipX }
  * @param {{x:number,y:number}} params.targetCenter - group anchor (pixel image space)
- * @param {Object} params.baseMap         - active basemap (provides imageSize)
+ * @param {Object} params.baseMap         - active basemap: clones are written on
+ *   THIS map (baseMapId retag) and normalized against its imageSize — the source
+ *   map may differ when the user switched maps between copy and paste.
+ * @param {number} params.targetMeterByPx - optional scale of the active basemap;
+ *   combined with pasteClipboard.sourceMeterByPx it rescales the group so
+ *   real-world dimensions are preserved across maps of different scales.
  * @param {string} params.activeLayerId   - optional, applied to new annotations
  * @param {Function} params.dispatch      - Redux dispatch
  * @param {Function} params.triggerAnnotationsUpdate - the slice action
@@ -33,6 +38,7 @@ export default async function pasteAnnotationService({
   pasteTransform,
   targetCenter,
   baseMap,
+  targetMeterByPx,
   activeLayerId,
   dispatch,
   triggerAnnotationsUpdate,
@@ -46,6 +52,15 @@ export default async function pasteAnnotationService({
 
   const sourceCenter = pasteClipboard.sourceCenter;
 
+  // Cross-map paste: rescale the group so real-world dimensions are preserved
+  // when the target map's scale differs from the map the copy was taken on.
+  const sourceMeterByPx = pasteClipboard.sourceMeterByPx;
+  const scale =
+    sourceMeterByPx > 0 && targetMeterByPx > 0
+      ? sourceMeterByPx / targetMeterByPx
+      : 1;
+  const transform = { ...pasteTransform, scale };
+
   const allPoints = [];
   const allAnnotations = [];
   const allSourceIds = []; // parallel to allAnnotations: each clone's source id
@@ -57,7 +72,10 @@ export default async function pasteAnnotationService({
       x: p.x / width,
       y: p.y / height,
       projectId: sourceAnnotation.projectId,
-      baseMapId: sourceAnnotation.baseMapId,
+      // ACTIVE map, not the source's — the user may have switched maps between
+      // copy and paste, and useAnnotationsV2 denormalizes against the point's
+      // baseMapId imageSize (which is also the one used for x/y above).
+      baseMapId: baseMap.id,
       // Informative only — nothing must rely on a point's listingId (the
       // export/purge paths key on referenced ids / baseMapId).
       listingId: sourceAnnotation.listingId,
@@ -102,22 +120,46 @@ export default async function pasteAnnotationService({
     const clonedAnnotation = {
       ...sourceAnnotationCleaned,
       id: newAnnotationId,
+      // Paste lands on the ACTIVE map — the spread above carries the SOURCE
+      // baseMapId, which put cross-map pastes back on the original map.
+      baseMapId: baseMap.id,
       entityId: undefined, // logical entity link not carried over — would require its own row
       ...(activeLayerId ? { layerId: activeLayerId } : {}),
     };
+
+    // Pixel-unit size fields must follow the group rescale, otherwise a strip
+    // keeps its source px width and changes real-world thickness. Only
+    // POLYLINE/STRIP use strokeWidth as a physical band width (getStripePolygons)
+    // — POLYGON's stroke is a cosmetic outline. CM-based widths are already
+    // real-world and stay untouched.
+    if (scale !== 1 && (type === "STRIP" || type === "POLYLINE")) {
+      if (
+        typeof clonedAnnotation.strokeWidth === "number" &&
+        clonedAnnotation.strokeWidthUnit !== "CM"
+      ) {
+        clonedAnnotation.strokeWidth *= scale;
+      }
+      if (typeof clonedAnnotation.stripWidthPx === "number") {
+        clonedAnnotation.stripWidthPx *= scale;
+      }
+      if (type === "STRIP" && typeof clonedAnnotation.width === "number") {
+        clonedAnnotation.width *= scale;
+      }
+    }
 
     if (
       type === "POLYGON" ||
       type === "POLYLINE" ||
       type === "STRIP" ||
-      type === "COTE"
+      type === "COTE" ||
+      type === "RULER"
     ) {
       if (!item.basePoints?.length) continue;
       const transformed = applyPasteTransformToPoints(
         item.basePoints,
         sourceCenter,
         targetCenter,
-        pasteTransform,
+        transform,
       );
       clonedAnnotation.points = refsFrom(
         transformed,
@@ -131,7 +173,7 @@ export default async function pasteAnnotationService({
             cut.points,
             sourceCenter,
             targetCenter,
-            pasteTransform,
+            transform,
           );
           return {
             id: nanoid(),
@@ -156,7 +198,7 @@ export default async function pasteAnnotationService({
             glPoints,
             sourceCenter,
             targetCenter,
-            pasteTransform,
+            transform,
           );
           return {
             ...meta,
@@ -177,7 +219,7 @@ export default async function pasteAnnotationService({
             lPoints,
             sourceCenter,
             targetCenter,
-            pasteTransform,
+            transform,
           );
           return {
             ...meta,
@@ -199,7 +241,7 @@ export default async function pasteAnnotationService({
             lPoints,
             sourceCenter,
             targetCenter,
-            pasteTransform,
+            transform,
           );
           return {
             ...meta,
@@ -219,7 +261,7 @@ export default async function pasteAnnotationService({
         [item.basePoint],
         sourceCenter,
         targetCenter,
-        pasteTransform,
+        transform,
       );
       clonedAnnotation.point = { id: normalize(transformed, sourceAnnotation) };
     } else {

@@ -5,14 +5,15 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   setCaptureToolActive,
   setCaptureFileName,
+  setCapturePanelCondensed,
   setEnabledDrawingMode,
 } from "../mapEditorSlice";
 import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 
 import { selectCaptureHostViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 
-import { Box, IconButton, Tab, Tabs, Typography } from "@mui/material";
-import { Close } from "@mui/icons-material";
+import { Box, Button, IconButton, Tab, Tabs, Typography } from "@mui/material";
+import { Close, KeyboardDoubleArrowRight } from "@mui/icons-material";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
@@ -20,6 +21,9 @@ import PanelPovFilters from "Features/pov/components/PanelPovFilters";
 import SectionPovCadrage from "Features/pov/components/SectionPovCadrage";
 import SectionCaptureLabels from "./SectionCaptureLabels";
 import SectionCaptureExport from "./SectionCaptureExport";
+import ToolbarCaptureCondensed from "./ToolbarCaptureCondensed";
+
+import useExitCaptureTool from "../hooks/useExitCaptureTool";
 
 // Right-panel body of the global "Capture" tool (Alt+C), mirroring the POV
 // properties panel: Image (export), Cadrage (frame + legend + logo) and
@@ -27,6 +31,10 @@ import SectionCaptureExport from "./SectionCaptureExport";
 // captureToolActive: the frame ignores the right panel (no inset) and
 // survives closing it — exits are Alt+C, the save bar's X under the frame,
 // or the header X.
+// This component stays the single mount point of the CAPTURE tool whatever
+// the panel format, so the lifecycle effects below run in both: the condensed
+// black band (ToolbarCaptureCondensed) is rendered instead of the tabs when
+// capturePanelCondensed is on.
 export default function PanelCaptureTool() {
   const dispatch = useDispatch();
 
@@ -34,10 +42,14 @@ export default function PanelCaptureTool() {
 
   const captionS = "Outil";
   const titleS = "Capture";
+  const collapseS = "Réduire le panneau";
 
   // data
 
   const captureToolActive = useSelector((s) => s.mapEditor.captureToolActive);
+  const capturePanelCondensed = useSelector(
+    (s) => s.mapEditor.capturePanelCondensed
+  );
   const hostViewerKey = useSelector(selectCaptureHostViewerKey);
   // File name delivered by the save bar's "Créer la capture" — the panel's
   // field edits it, the bar consumes it.
@@ -72,12 +84,13 @@ export default function PanelCaptureTool() {
 
   // handlers
 
-  function handleClose() {
-    dispatch(setCaptureToolActive(false));
-    dispatch(setSelectedMenuItemKey(null));
-  }
+  const handleClose = useExitCaptureTool();
 
-  // render
+  // render - condensed format (all hooks above run in both formats)
+
+  if (capturePanelCondensed) return <ToolbarCaptureCondensed />;
+
+  // render - full panel
 
   return (
     <BoxFlexVStretch sx={{ height: "100%" }}>
@@ -160,12 +173,31 @@ export default function PanelCaptureTool() {
               defaultFilename="capture"
               showOptions={false}
               showButton={false}
+              allowPovMode
               filename={captureFileName}
               onFilenameChange={(v) => dispatch(setCaptureFileName(v))}
             />
           </WhiteSectionGeneric>
         </Box>
       )}
+
+      {/* back to the condensed band — anchored below the tab content */}
+      <Box sx={{ bgcolor: "common.black", flexShrink: 0 }}>
+        <Button
+          fullWidth
+          startIcon={<KeyboardDoubleArrowRight />}
+          onClick={() => dispatch(setCapturePanelCondensed(true))}
+          sx={{
+            color: "common.white",
+            textTransform: "none",
+            justifyContent: "center",
+            py: 1,
+            "&:hover": { bgcolor: "rgba(255,255,255,0.08)" },
+          }}
+        >
+          {collapseS}
+        </Button>
+      </Box>
     </BoxFlexVStretch>
   );
 }

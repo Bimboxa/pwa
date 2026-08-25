@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { useSelector, useDispatch } from "react-redux";
 
@@ -12,7 +12,10 @@ import {
   setViewerReturnContext,
 } from "Features/viewers/viewersSlice";
 import { setSelectedMainBaseMapId } from "Features/mapEditor/mapEditorSlice";
-import { setSelectedBaseMapId } from "Features/baseMaps/baseMapsSlice";
+import {
+  setSelectedBaseMapId,
+  setPropertiesRequestedView,
+} from "Features/baseMaps/baseMapsSlice";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useBaseMap from "../hooks/useBaseMap";
@@ -25,6 +28,7 @@ import stringifyFileSize from "Features/files/utils/stringifyFileSize";
 import db from "App/db/db";
 import activateBaseMapVersion from "Features/baseMaps/utils/activateBaseMapVersion";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
+import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 
 import {
   Box,
@@ -76,7 +80,12 @@ export default function PanelBaseMapProperties() {
   }, [baseMapListingRaw]);
   const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
   const viewerReturnContext = useSelector((s) => s.viewers.viewerReturnContext);
-  const selectedViewerKey = useSelector((s) => s.viewers.selectedViewerKey);
+  // The effective EDITOR key, NOT the module key: both consumers below gate on
+  // what is actually DISPLAYED — the opacity slider (3D scene state vs
+  // `baseMap.opacity`) and the position editor (live gizmos vs 2D recalage).
+  // In the Dessin module with the 3D editor toggled on (T), the module key is
+  // still "MAP", which made this panel fall back to its 2D branch in 3D.
+  const selectedViewerKey = useSelector(selectEffectiveViewerKey);
   const deleteEntity = useDeleteEntity();
   const updateEntity = useUpdateEntity();
 
@@ -92,6 +101,15 @@ export default function PanelBaseMapProperties() {
   const [nameValue, setNameValue] = useState(null);
   const [versionLabelValue, setVersionLabelValue] = useState(null);
   const [view, setView] = useState("main"); // "main" | "position3d"
+
+  // One-shot view request from the left panel (Position 3D section of the
+  // base map detail view, #312): consume it and clear it.
+  const requestedView = useSelector((s) => s.baseMaps.propertiesRequestedView);
+  useEffect(() => {
+    if (!requestedView) return;
+    setView(requestedView);
+    dispatch(setPropertiesRequestedView(null));
+  }, [requestedView, dispatch]);
 
   // helpers
 

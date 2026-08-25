@@ -151,13 +151,18 @@ db.version(24).stores({
 
 db.version(25).stores({
   // {id, projectId, scopeId, sortIndex, description, createdBy:{idMaster,trigram},
-  //  image:{fileName}, transformedImage:{fileName}|null, viewerMode,
+  //  image:{fileName}, rawImage:{fileName}|null,
+  //  transformedImage:{fileName}|null, viewerMode,
   //  aspectRatio, legendOverlay, whiteBackground, border,
   //  title:{visible,fontSize}, showLogo, viewCreatedAt,
   //  hiddenAnnotationTemplateIds, visibleAnnotationTemplateIds, baseMaps,
   //  camera2d, camera3d}
   // Point of view ("POV"): a saved framed view of the 2D map or 3D scene.
-  // `image` references a db.files row (PNG <= 200 KB). The metadata fields
+  // `image` references a db.files row (PNG <= 200 KB). `rawImage` is the
+  // optional full-resolution capture (written by the capture tool's "Point de
+  // vue" export mode, used for HD downloads); it is deliberately EXCLUDED from
+  // the Krto/scope export — see createKrtoZip — and regenerated on demand from
+  // the POV module. The metadata fields
   // (viewerMode, aspectRatio, baseMaps + active versions + visibleBaseMapIds,
   // visible/hidden templates, camera2d footprint in baseMap image px /
   // camera3d pose + frameFraction) allow reproducing the same framed view on
@@ -210,18 +215,56 @@ db.version(28).stores({
 });
 
 db.version(29).stores({
+  // {id, projectId, name (file name with extension), fileName (db.files key of
+  //  the main file), fileSize, fileMime, fileType ("PDF"|"IMAGE"|"DWG"|...),
+  //  thumbnail (base64 dataURL | null), createdBy: {idMaster, trigram}}
+  // Project resource: a file (PDF, DWG, image…) attached to the PROJECT and
+  // managed from the right-panel "Ressources" tool. The main file lives in
+  // db.files WITHOUT listingId, so the Krto files filter excludes it from the
+  // scope export by construction (like POV rawImage) — only the metadata row
+  // (inline thumbnail included) ships in the zip; after an import the user
+  // re-attaches the file locally from the resource detail panel.
+  resources: "id,projectId",
+});
+
+db.version(30).stores({
+  // {id, projectId, listingId (PHOTO album listing, project-level, NO
+  //  scopeId — shared across scopes like baseMaps listings), baseMapId,
+  //  name, point: {x,y}|null (normalized [0..1] vs baseMap.image.imageSize,
+  //  INLINE on purpose: a db.points row would be dropped by the Krto points
+  //  filter — collectReferencedPointIds only scans annotations — and purged
+  //  as an orphan), directionDeg (camera heading, atan2(-dy,dx) in the
+  //  y-down px frame, same convention as REVOLUTION_AXIS), fovDeg, radiusM,
+  //  image: {fileName, imageSize, thumbnail (base64 dataURL), fileUpdatedAt},
+  //  createdBy: {idMaster, trigram}}
+  // Photo localized on a base map as a camera pose (point + view cone).
+  // The full-size image lives in db.files WITH the album listingId so it
+  // ships in the Krto zip; the inline thumbnail feeds the grid and the map
+  // hover tooltip. point == null → uploaded but not localized yet.
+  // Rendered in the 2D editor via useAnnotationsV2 as read-only
+  // pseudo-annotations of type "PHOTO" (id prefixed "photo::").
+  photos: "id,projectId,listingId,baseMapId",
+});
+
+db.version(31).stores({
   // {id, projectId, scopeId, listingId (source polygon's isForBaseMaps listing),
   //  baseMapId (the PHOTO baseMap), annotationId (source POLYGON on the photo),
   //  name, orientation ("HORIZONTAL"|"VERTICAL" — real-world plane orientation),
   //  calibrationInputs: null | { uSegments, vSegments, photoTargets, planTargets,
-  //    planBaseMapId, refColor, refHeight, focalPxOverride } (all coords
-  //    normalized 0..1 — source of truth, re-editable),
+  //    planBaseMapId, refColor, refHeight, focalPxOverride, knownCote } (all
+  //    coords normalized 0..1 — source of truth, re-editable),
   //  calibration: null | { ok, errorCode?, H:[9], Hinv:[9] (normalized-photo in,
   //    meters out), imageSize (bake-time aspect guard), pose {origin,uDir,vDir,
   //    normal}, horizonLine, diagnostics, computedAt } (cached output of
   //    computePhotoPlanCalibration — cheap to recompute from inputs)}
   // One row per planar region ("plan photo") of a photo baseMap.
   photoPlans: "id,projectId,baseMapId,annotationId,listingId",
+  // Version-collision healing: the photoPlans branch temporarily claimed
+  // version 29 for this table while main used 29/30 for resources/photos.
+  // A local db that upgraded through THAT v29 skipped main's `resources`
+  // declaration — redeclaring it here (same schema, no-op when present)
+  // converges every upgrade path.
+  resources: "id,projectId",
 });
 
 // --- AUDIT HOOKS ---
@@ -261,6 +304,8 @@ const AUDIT_TABLES = [
   "povs",
   "zones",
   "relsZoneAnnotation",
+  "resources",
+  "photos",
   "photoPlans",
 ];
 
@@ -280,6 +325,9 @@ const OWNERSHIP_EXEMPT_TABLES = new Set([
   // created by other users.
   "zones",
   "relsZoneAnnotation",
+  // Photos are scope-shared collaborative rows (project-level albums),
+  // editable by anyone like baseMaps and povs.
+  "photos",
   // PhotoPlans are shared calibration resources: anyone can rename, re-orient
   // or recalibrate a plan photo, not only its creator.
   "photoPlans",
@@ -501,6 +549,8 @@ const SOFT_DELETE_TABLES = new Set([
   "povs",
   "zones",
   "relsZoneAnnotation",
+  "resources",
+  "photos",
   "photoPlans",
 ]);
 

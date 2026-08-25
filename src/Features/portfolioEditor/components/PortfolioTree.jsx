@@ -9,6 +9,7 @@ import { Box, List, ListItemButton, Typography } from "@mui/material";
 
 import usePortfolios from "Features/portfolios/hooks/usePortfolios";
 import useCreatePortfolio from "Features/portfolios/hooks/useCreatePortfolio";
+import useCreateDetailsPortfolio from "Features/portfolios/hooks/useCreateDetailsPortfolio";
 
 import PortfolioTreeItem from "./PortfolioTreeItem";
 import DialogCreatePortfolio from "./DialogCreatePortfolio";
@@ -25,6 +26,7 @@ export default function PortfolioTree() {
   );
   const { value: portfolios } = usePortfolios({ filterByScopeId: scopeId });
   const createPortfolio = useCreatePortfolio();
+  const createDetailsPortfolio = useCreateDetailsPortfolio();
 
   // state
 
@@ -42,12 +44,22 @@ export default function PortfolioTree() {
 
   // handlers
 
-  async function handleCreate(title) {
-    const portfolio = await createPortfolio({
-      scopeId,
-      projectId,
-      title,
-    });
+  async function handleCreate({ title, isDetailsPortfolio, selectedDetails }) {
+    let portfolio;
+    if (isDetailsPortfolio) {
+      portfolio = await createDetailsPortfolio({
+        scopeId,
+        projectId,
+        title,
+        details: selectedDetails,
+      });
+    } else {
+      portfolio = await createPortfolio({
+        scopeId,
+        projectId,
+        title,
+      });
+    }
     dispatch(setDisplayedPortfolioId(portfolio.id));
   }
 

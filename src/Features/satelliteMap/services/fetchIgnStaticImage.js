@@ -16,14 +16,14 @@ const DEFAULT_LAYER_CASCADE = [
 const PROBE_SIZE = 64;
 const PROBE_MIN_VARIANCE = 4;
 
-function buildUrl({ layer, bbox, width, height, format }) {
+function buildUrl({ layer, crs, bbox, width, height, format }) {
   const params = new URLSearchParams({
     SERVICE: "WMS",
     VERSION: "1.3.0",
     REQUEST: "GetMap",
     LAYERS: layer,
     STYLES: "",
-    CRS: "EPSG:3857",
+    CRS: crs,
     BBOX: bbox,
     WIDTH: String(width),
     HEIGHT: String(height),
@@ -32,16 +32,17 @@ function buildUrl({ layer, bbox, width, height, format }) {
   return `${IGN_WMS_URL}?${params.toString()}`;
 }
 
-async function hasCoverage({ layer, bbox, format }) {
+async function hasCoverage({ layer, crs, bbox, format }) {
   const url = buildUrl({
     layer,
+    crs,
     bbox,
     width: PROBE_SIZE,
     height: PROBE_SIZE,
     format,
   });
   const r = await fetch(url);
-  if (!r.ok) return false;
+  if (!r.ok || !isImageResponse(r)) return false;
   const blob = await r.blob();
   const bitmap = await createImageBitmap(blob);
 
@@ -78,28 +79,61 @@ async function hasCoverage({ layer, bbox, format }) {
   return variance >= PROBE_MIN_VARIANCE;
 }
 
+function isImageResponse(response) {
+  const ct = response.headers.get("content-type") ?? "";
+  return ct.startsWith("image/");
+}
+
+/**
+ * Fetch one WMS GetMap from the IGN Géoplateforme.
+ *
+ * Geometry can be given either as:
+ *  - `bounds` (Leaflet LatLngBounds) → legacy EPSG:3857 request, or
+ *  - `crs` + `bbox` ({ minx, miny, maxx, maxy } in CRS units) for an explicit
+ *    projection (LAMBERT_CC mode).
+ *
+ * Guards: a WMS error is an XML body served with HTTP 200 — we reject any
+ * non-image content-type, and we decode the blob to assert the server
+ * honoured WIDTH×HEIGHT exactly (the scale is derived from those sizes).
+ *
+ * Returns { file, width, height, layer, crs, bbox }.
+ */
 export default async function fetchIgnStaticImage({
   bounds,
+  crs,
+  bbox: bboxObj,
   width = 2048,
   height,
   layers = DEFAULT_LAYER_CASCADE,
   format = "image/png",
   name = "image-satellite.png",
 }) {
-  if (!bounds) throw new Error("bounds is required");
+  let finalCrs = crs;
+  let box = bboxObj;
+  if (!box) {
+    if (!bounds) throw new Error("bounds or bbox is required");
+    const sw = L.CRS.EPSG3857.project(bounds.getSouthWest());
+    const ne = L.CRS.EPSG3857.project(bounds.getNorthEast());
+    finalCrs = "EPSG:3857";
+    box = { minx: sw.x, miny: sw.y, maxx: ne.x, maxy: ne.y };
+  }
+  if (!finalCrs) throw new Error("crs is required with bbox");
 
-  const sw = L.CRS.EPSG3857.project(bounds.getSouthWest());
-  const ne = L.CRS.EPSG3857.project(bounds.getNorthEast());
-  const aspect = (ne.x - sw.x) / (ne.y - sw.y);
+  const aspect = (box.maxx - box.minx) / (box.maxy - box.miny);
   const finalHeight = height ?? Math.max(1, Math.round(width / aspect));
-  const bbox = `${sw.x},${sw.y},${ne.x},${ne.y}`;
+  const bbox = `${box.minx},${box.miny},${box.maxx},${box.maxy}`;
 
   // Pick the first layer in the cascade that has coverage on this bbox.
   // The last layer is the universal fallback — no probe needed.
   let selectedLayer = layers[layers.length - 1];
   for (let i = 0; i < layers.length - 1; i += 1) {
     // eslint-disable-next-line no-await-in-loop
-    const ok = await hasCoverage({ layer: layers[i], bbox, format });
+    const ok = await hasCoverage({
+      layer: layers[i],
+      crs: finalCrs,
+      bbox,
+      format,
+    });
     if (ok) {
       selectedLayer = layers[i];
       break;
@@ -108,6 +142,7 @@ export default async function fetchIgnStaticImage({
 
   const url = buildUrl({
     layer: selectedLayer,
+    crs: finalCrs,
     bbox,
     width,
     height: finalHeight,
@@ -123,6 +158,30 @@ export default async function fetchIgnStaticImage({
   // eslint-disable-next-line no-console
   console.log("[satellite] capture layer:", selectedLayer);
 
+  if (!isImageResponse(response)) {
+    const text = await response.text();
+    throw new Error(
+      `IGN WMS returned a non-image response: ${text.slice(0, 300)}`
+    );
+  }
+
   const blob = await response.blob();
-  return new File([blob], name, { type: format });
+  const bitmap = await createImageBitmap(blob);
+  const decoded = { width: bitmap.width, height: bitmap.height };
+  bitmap.close?.();
+  if (decoded.width !== width || decoded.height !== finalHeight) {
+    throw new Error(
+      `IGN WMS image size mismatch: requested ${width}x${finalHeight}, ` +
+        `got ${decoded.width}x${decoded.height}`
+    );
+  }
+
+  return {
+    file: new File([blob], name, { type: format }),
+    width: decoded.width,
+    height: decoded.height,
+    layer: selectedLayer,
+    crs: finalCrs,
+    bbox: box,
+  };
 }

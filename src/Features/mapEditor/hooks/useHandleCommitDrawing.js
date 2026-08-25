@@ -29,11 +29,15 @@ import {
   segmentIdxToPointIds,
 } from "Features/annotations/utils/segmentFlags";
 import findCutHostAnnotationId from "Features/annotations/utils/findCutHostAnnotationId";
+import isRevolutionHelperInScope, {
+    getScopeIdByListingId,
+} from "Features/annotations/utils/isRevolutionHelperInScope";
 import addAnnotationOpening from "Features/annotations/services/addAnnotationOpening";
 import deriveOpeningContourAnchor from "Features/mapEditor/utils/deriveOpeningContourAnchor";
 import getAnnotationAsPolygons from "Features/geometry/utils/getAnnotationAsPolygons";
 import getDefaultStackOffsetZ from "Features/annotations/utils/getDefaultStackOffsetZ";
-import createRevolutionProxiesOnPlan from "Features/elevation/services/createRevolutionProxiesOnPlan";
+import { isRevolutionHelperType } from "Features/annotations/constants/drawingShapeConfig";
+import resyncRevolutionAxisPlacementsService from "Features/elevation/services/resyncRevolutionAxisPlacementsService";
 
 // Module-level cache of the per-listing annotationTemplates query (ÉTAPE 2.5
 // below): the query ran on EVERY drawing commit (~30ms of IDB on slow
@@ -74,6 +78,7 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
     const baseMapId = useSelector(s => s.mapEditor.selectedBaseMapId);
     const projectId = useSelector(s => s.projects.selectedProjectId);
     const listingId = useSelector(s => s.listings.selectedListingId);
+    const selectedScopeId = useSelector(s => s.scopes.selectedScopeId);
     const newAnnotationInState = useSelector(s => s.annotations.newAnnotation);
     const openedPanel = useSelector(s => s.listings.openedPanel);
     const autoMergeOnCommit = useSelector(s => s.mapEditor.autoMergeOnCommit);
@@ -129,12 +134,13 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
 
         const newAnnotation = options?.newAnnotation ?? newAnnotationInState
 
-        // Revolution helpers (REVOLUTION_AXIS / REVOLUTION_POINT) are standalone
-        // annotations: no entity, no per-instance template. They are kept in the
-        // selected listing so they pass the scope filter in useAnnotationsV2.
-        const isRevolutionHelper =
-            newAnnotation?.type === "REVOLUTION_AXIS" ||
-            newAnnotation?.type === "REVOLUTION_POINT";
+        // Revolution helpers (see REVOLUTION_HELPER_TYPES): single-point
+        // annotations with no entity. Template-driven since REVOLUTION_AXIS
+        // became a template-drivable shape — drafts armed from a template row
+        // carry an annotationTemplateId and land in the listing like any other
+        // annotation. Template-less drafts (pre-template model) keep the
+        // historical scope binding instead of a listingId.
+        const isRevolutionHelper = isRevolutionHelperType(newAnnotation?.type);
 
         // update rawPoints for rectangle
         if (drawRectangle) {
@@ -613,7 +619,10 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
 
             let annotationTemplateId;
             // ÉTAPE 2.5 : Enregistrement de l'annotation template
-            if (newAnnotation && !_updatedAnnotation && !isBaseMapAnnotation && !skipTemplateCreation && !isRevolutionHelper) {
+            // Revolution helpers only resolve an EXISTING template (the row that
+            // armed the tool): a template-less helper draft must not create a
+            // garbage template out of its scalar fields.
+            if (newAnnotation && !_updatedAnnotation && !isBaseMapAnnotation && !skipTemplateCreation && !(isRevolutionHelper && !newAnnotation.annotationTemplateId)) {
                 const existingAnnotationTemplates = await getTemplatesForListing(listingId);
                 // const existingAnnotationTemplate = getAnnotationTemplateFromNewAnnotation({
                 //     newAnnotation,
@@ -622,6 +631,10 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
                 const existingAnnotationTemplate = existingAnnotationTemplates.find(t => t.id === newAnnotation.annotationTemplateId);
                 if (existingAnnotationTemplate) {
                     annotationTemplateId = existingAnnotationTemplate.id;
+                } else if (isRevolutionHelper) {
+                    // Template not found in the armed listing: keep the draft's
+                    // id rather than snapshotting axis scalars into a new one.
+                    annotationTemplateId = newAnnotation.annotationTemplateId;
                 } else {
                     annotationTemplateId = nanoid();
                     const _annotationTemplate = {
@@ -658,13 +671,26 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
             _newAnnotation = {
                 ...newAnnotation,
                 id: nanoid(),
-                annotationTemplateId,
+                // Defensive for revolution helpers: when ÉTAPE 2.5 is skipped
+                // (skipTemplateCreation), the block-local variable is undefined
+                // and would overwrite the template id carried by the draft.
+                annotationTemplateId: annotationTemplateId ??
+                    (isRevolutionHelper ? newAnnotation.annotationTemplateId : undefined),
                 entityId,
                 //points: finalPointIds.map(id => ({ id })), // Référence uniquement les IDs !
                 baseMapId,
                 projectId,
-                listingId,
-                ...(activeLayerId && !isBaseMapAnnotation ? { layerId: activeLayerId } : {}),
+                // Template-driven revolution helpers are normal listing
+                // annotations. Only pre-template drafts (no annotationTemplateId)
+                // keep the historical scope binding: without a template they
+                // cannot flow through the listing visibility filters, so
+                // useAnnotationsV2 keeps them visible through `scopeId`.
+                ...(isRevolutionHelper && !newAnnotation.annotationTemplateId
+                    ? { scopeId: selectedScopeId ?? null }
+                    : { listingId }),
+                ...(activeLayerId && !isBaseMapAnnotation
+                    ? { layerId: activeLayerId }
+                    : {}),
 
                 // ... props de style
             };
@@ -674,7 +700,7 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
 
             if (closeLine) _newAnnotation.closeLine = true;
 
-            if (["POLYGON", "POLYLINE", "STRIP", "COTE", "REVOLUTION_AXIS"].includes(newAnnotation?.type)) {
+            if (["POLYGON", "POLYLINE", "STRIP", "COTE", "RULER", "LINEAR_LAYOUT"].includes(newAnnotation?.type)) {
                 _newAnnotation.points = finalPointIds.map((id, i) => {
                     const entry = { id };
                     if (rawPoints[i]?.type) entry.type = rawPoints[i].type;
@@ -729,20 +755,50 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
             if (
                 newAnnotation?.type === "MARKER" ||
                 newAnnotation?.type === "POINT" ||
-                newAnnotation?.type === "REVOLUTION_POINT"
+                newAnnotation?.type === "DETAIL" ||
+                isRevolutionHelper
             ) {
                 _newAnnotation.point = { id: finalPointIds[0] };
             }
 
+            // Revolution axis: the 2nd click is stored as scalars, not a point
+            // (see handleCommitDrawingFromRevolutionAxis / the storage contract
+            // in getRevolutionAxisPlanFrame).
+            if (options?.revolutionAxisProps) {
+                Object.assign(_newAnnotation, options.revolutionAxisProps);
+            }
+
             // Auto-numbered default label for revolution axes ("Axe 1", "Axe 2"…)
             // so they are immediately identifiable in the edit toolbar / selectors.
-            if (newAnnotation?.type === "REVOLUTION_AXIS" && !_newAnnotation.label) {
-                const existingAxesCount = await db.annotations
-                    .where("projectId")
-                    .equals(projectId)
-                    .filter((a) => a.type === "REVOLUTION_AXIS" && !a.deletedAt)
-                    .count();
+            // Overwrite is deliberate (same trap as DETAIL below): ALWAYS_COPY_KEYS
+            // copies template.label (the template NAME) onto template-driven
+            // drafts, and it must not become the axis name. Placements are not
+            // concerned: their draft label is the linked axis's label.
+            if (newAnnotation?.type === "REVOLUTION_AXIS") {
+                // Numbered within the current SCOPE only: each scope has its
+                // own axes, so its first axis must be "Axe 1" even when other
+                // scopes already carry axes on the project.
+                const axisRows = (
+                    await db.annotations
+                        .where("projectId")
+                        .equals(projectId)
+                        .toArray()
+                ).filter((a) => a.type === "REVOLUTION_AXIS" && !a.deletedAt);
+                const scopeIdByListingId = await getScopeIdByListingId(axisRows);
+                const existingAxesCount = axisRows.filter((a) =>
+                    isRevolutionHelperInScope(a, {
+                        scopeId: selectedScopeId,
+                        scopeIdByListingId,
+                    })
+                ).length;
                 _newAnnotation.label = `Axe ${existingAxesCount + 1}`;
+            }
+
+            // DETAIL: the bubble text defaults to "X". Overwrite is deliberate —
+            // ALWAYS_COPY_KEYS copies template.label (the template NAME) onto
+            // the draft, which must not leak into the bubble.
+            if (newAnnotation?.type === "DETAIL") {
+                _newAnnotation.label = "X";
             }
 
             // "Offset par défaut" auto-stacking: lift the new annotation so it sits
@@ -987,29 +1043,47 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
             });
         }
 
-        // REVOLUTION_POINT placed from the elevation panel ("Positionner l'axe
-        // sur la vue en plan"): the point carries the revolution axis id, so we
-        // project every arc linked to that axis onto the plan as a "donut" proxy
-        // polygon centred on the click. See createRevolutionProxiesOnPlan.
+        // Dropping a plan axis on a VERTICAL base map is what POSES that base
+        // map in 3D: rotate + translate it so its plane contains the axis, with
+        // the orange half-disc behind it. One placement per base map PER SCOPE
+        // — replace any earlier one of the current scope so two axes can't
+        // fight over the same pose, but leave other scopes' placements alone
+        // (each scope poses its own axis on the shared base map).
         if (
-            _newAnnotation?.type === "REVOLUTION_POINT" &&
+            _newAnnotation?.type === "REVOLUTION_AXIS_PLACEMENT" &&
             _newAnnotation?.revolutionAxisId &&
-            baseMap &&
-            rawPoints?.[0]
+            _newAnnotation?.id
         ) {
             try {
-                await createRevolutionProxiesOnPlan({
-                    axisId: _newAnnotation.revolutionAxisId,
-                    centerPx: { x: rawPoints[0].x, y: rawPoints[0].y },
-                    planBaseMap: baseMap,
-                    projectId,
-                    listingId,
-                    createAnnotation,
+                const others = (
+                    await db.annotations
+                        .where("baseMapId")
+                        .equals(_newAnnotation.baseMapId)
+                        .toArray()
+                ).filter(
+                    (a) =>
+                        !a.deletedAt &&
+                        a.type === "REVOLUTION_AXIS_PLACEMENT" &&
+                        a.id !== _newAnnotation.id
+                );
+                const scopeIdByListingId = await getScopeIdByListingId(others);
+                const previous = others.filter((a) =>
+                    isRevolutionHelperInScope(a, {
+                        scopeId: selectedScopeId,
+                        scopeIdByListingId,
+                    })
+                );
+                // Soft delete (db.js middleware) — keeps undo working.
+                for (const p of previous) await db.annotations.delete(p.id);
+
+                await resyncRevolutionAxisPlacementsService({
+                    placementId: _newAnnotation.id,
+                    dispatch,
                 });
                 dispatch(triggerAnnotationsUpdate());
             } catch (e) {
                 console.error(
-                    "[useHandleCommitDrawing] revolution proxy creation failed",
+                    "[useHandleCommitDrawing] revolution axis placement failed",
                     e
                 );
             }

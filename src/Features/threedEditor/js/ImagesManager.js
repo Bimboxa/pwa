@@ -3,6 +3,8 @@ import createImageObject, {
   buildBaseMapPlaneGeometry,
 } from "./utilsImagesManager/createImageObject";
 
+import getBaseMapOpacityIn3d from "Features/threedEditor/utils/getBaseMapOpacityIn3d";
+
 // Identity of a basemap mesh: texture url + version image size + version
 // transform + reference frame. When any of these change (active version
 // switch, version transform edit, new file), the mesh must be rebuilt.
@@ -35,6 +37,44 @@ export default class ImagesManager {
     // instead of flashing visible until the next visibility pass.
     this.groupVisibleByBaseMapId = {};
     this.imageVisibleByBaseMapId = {};
+    // Desired 3D opacity, mirrored from redux by useApplyBaseMapOpacityIn3d.
+    // Same "record the desired state" contract as the visibility maps above,
+    // and for the same reason: the basemap mesh is attached ASYNCHRONOUSLY
+    // (texture load), so the value must be stored until the mesh exists
+    // instead of being pushed once. Shape mirrors `state.threedEditor` so
+    // getBaseMapOpacityIn3d resolves override ?? global for any basemap,
+    // including those not created yet.
+    this.opacityState = { baseMapOpacityIn3d: 1, opacityByBaseMapIdIn3d: {} };
+  }
+
+  // Resolve + apply one basemap's desired opacity to its mesh material.
+  // Called after EVERY async mesh attach, so a mesh born after the last
+  // opacity change (texture still in flight, active version switch, late blob
+  // url repair) never keeps a stale value.
+  applyBaseMapOpacity(baseMapId) {
+    const group = this.imagesMap[baseMapId];
+    if (!group) return;
+    const opacity = getBaseMapOpacityIn3d(this.opacityState, baseMapId);
+    group.traverse?.((child) => {
+      if (child.userData?.isBasemap && child.material) {
+        // Never touch `transparent` — the mesh is created with
+        // `transparent: true` once and stays in that queue, so dragging
+        // through 1.0 doesn't trigger a render-queue swap. `depthWrite`
+        // toggles with opacity===1 so that a translucent basemap doesn't
+        // occlude what sits behind it (see createImageObject for the full
+        // rationale).
+        child.material.opacity = opacity;
+        child.material.depthWrite = opacity >= 1;
+      }
+    });
+  }
+
+  // Batch mirror from redux — one call per opacity pass. Records the desired
+  // state (used by basemaps created later) and applies it to the groups
+  // already in the scene.
+  setBaseMapOpacities(opacityState) {
+    if (opacityState) this.opacityState = opacityState;
+    Object.keys(this.imagesMap).forEach((id) => this.applyBaseMapOpacity(id));
   }
 
   createImagesObjects(images, baseMaps) {
@@ -78,6 +118,9 @@ export default class ImagesManager {
     ready
       .then(() => {
         group.userData.textureStatus = "loaded";
+        // The material only exists now — push the desired opacity before the
+        // first draw so the mesh never flashes at full opacity.
+        this.applyBaseMapOpacity(image.id);
         this.sceneManager.renderScene();
       })
       .catch((e) => {
@@ -114,6 +157,10 @@ export default class ImagesManager {
     attachBaseMapMesh(group, image)
       .then(() => {
         group.userData.textureStatus = "loaded";
+        // Fresh material (the old one was disposed above) — re-push the
+        // desired opacity, otherwise a version switch silently resets the
+        // basemap to fully opaque.
+        this.applyBaseMapOpacity(image.id);
         this.sceneManager.renderScene();
       })
       .catch((e) => {
