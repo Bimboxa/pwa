@@ -11,10 +11,6 @@ export default function PhotoPlanMaskLayer({ baseMap, basePose }) {
   const selectedPhotoPlanId = useSelector(
     (s) => s.photoPlans.selectedPhotoPlanIdInMap
   );
-  const flattenedPhotoPlanId = useSelector(
-    (s) => s.photoPlans.flattenedPhotoPlanId
-  );
-
   const imageSize = baseMap?.getImageSize?.();
   const imageUrl = baseMap?.getUrl?.();
 
@@ -31,7 +27,6 @@ export default function PhotoPlanMaskLayer({ baseMap, basePose }) {
   if (
     !baseMap?.isPhoto ||
     !selectedPhotoPlanId ||
-    flattenedPhotoPlanId || // the flattened overlay replaces the mask
     !zone ||
     !imageUrl ||
     !imageSize?.width ||

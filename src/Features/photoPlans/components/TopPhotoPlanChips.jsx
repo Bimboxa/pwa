@@ -1,28 +1,27 @@
 import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
-import {
-  setSelectedPhotoPlanIdInMap,
-  setFlattenedPhotoPlanId,
-} from "../photoPlansSlice";
-import { setSelectedMainBaseMapId } from "Features/mapEditor/mapEditorSlice";
+import { setSelectedPhotoPlanIdInMap } from "../photoPlansSlice";
 
 import { Box, Button, Chip, Tooltip, Typography } from "@mui/material";
 import FlipToFrontIcon from "@mui/icons-material/FlipToFront";
 
 import usePhotoPlans from "../hooks/usePhotoPlans";
+import useQuickFlattenAction from "../hooks/useQuickFlattenAction";
 
 // Chips band over the map editor when the displayed baseMap is a PHOTO:
 // select a photoPlan to highlight its zone (mask layer blurs the rest), and
-// "Mettre à plat" toggles the read-only rectified preview overlay.
+// "Mettre à plat" runs the SAME quick-flatten action as the Transfo. tool —
+// bake the plan's crop zone into a real baseMap (self-calibrating from the
+// guide lines when needed) or switch to it when it already exists.
 export default function TopPhotoPlanChips({ baseMap }) {
   const dispatch = useDispatch();
 
   const selectedId = useSelector((s) => s.photoPlans.selectedPhotoPlanIdInMap);
-  const flattenedId = useSelector((s) => s.photoPlans.flattenedPhotoPlanId);
   const { value: photoPlans = [] } = usePhotoPlans({
     baseMapId: baseMap?.isPhoto ? baseMap.id : null,
   });
+  const { hasFlattened, flatten } = useQuickFlattenAction({ baseMap });
 
   const selectedPlan = photoPlans.find((p) => p.id === selectedId) ?? null;
 
@@ -41,23 +40,9 @@ export default function TopPhotoPlanChips({ baseMap }) {
     );
   }
 
-  function handleToggleFlatten() {
-    // A baked flattened baseMap exists: switch the editor to it (real
-    // drawing surface) instead of the read-only overlay.
-    if (selectedPlan?.flattenedBaseMapId) {
-      dispatch(setSelectedMainBaseMapId(selectedPlan.flattenedBaseMapId));
-      return;
-    }
-    dispatch(
-      setFlattenedPhotoPlanId(flattenedId === selectedId ? null : selectedId)
-    );
-  }
-
   // render
 
   if (!baseMap?.isPhoto || photoPlans.length === 0) return null;
-
-  const calibrated = Boolean(selectedPlan?.calibration?.ok);
 
   return (
     <Box
@@ -101,25 +86,20 @@ export default function TopPhotoPlanChips({ baseMap }) {
       {selectedPlan && (
         <Tooltip
           title={
-            calibrated
-              ? flattenedId === selectedId
-                ? "Revenir à la photo"
-                : "Aperçu redressé à l'échelle (lecture seule)"
-              : "Calibrez d'abord ce plan (outil Élévation du module Fonds de plan)"
+            hasFlattened
+              ? "Ouvrir le fond de plan redressé"
+              : "Crée le fond de plan redressé de la zone (calibration rapide via les lignes guides si besoin)"
           }
         >
-          <span>
-            <Button
-              size="small"
-              variant={flattenedId === selectedId ? "contained" : "outlined"}
-              startIcon={<FlipToFrontIcon />}
-              disabled={!calibrated}
-              onClick={handleToggleFlatten}
-              sx={{ textTransform: "none", ml: 0.5, borderRadius: 4 }}
-            >
-              {flattenedId === selectedId ? "Photo" : "Mettre à plat"}
-            </Button>
-          </span>
+          <Button
+            size="small"
+            variant={hasFlattened ? "contained" : "outlined"}
+            startIcon={<FlipToFrontIcon />}
+            onClick={flatten}
+            sx={{ textTransform: "none", ml: 0.5, borderRadius: 4 }}
+          >
+            {hasFlattened ? "Ouvrir la mise à plat" : "Mettre à plat"}
+          </Button>
         </Tooltip>
       )}
     </Box>

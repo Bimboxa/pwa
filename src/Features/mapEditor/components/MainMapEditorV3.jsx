@@ -74,7 +74,6 @@ import PhotoPlanMaskLayer from "Features/photoPlans/components/PhotoPlanMaskLaye
 import PhotoPlanGuideLinesLayer from "Features/photoPlans/components/PhotoPlanGuideLinesLayer";
 import PhotoPlanReprojectedAnnotationsLayer from "Features/photoPlans/components/PhotoPlanReprojectedAnnotationsLayer";
 import TopPhotoPlanChips from "Features/photoPlans/components/TopPhotoPlanChips";
-import PhotoPlanFlattenedOverlay from "Features/photoPlans/components/PhotoPlanFlattenedOverlay";
 import LayerTools from "./LayerTools";
 import StaticMapContent from "./StaticMapContent";
 import EditedObjectLayer from "./EditedObjectLayer";
@@ -2144,12 +2143,9 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
 
             </InteractionProvider>
 
-            {/* PhotoPlan chips + read-only rectified preview (photo baseMaps) */}
+            {/* PhotoPlan chips band (photo baseMaps) */}
             {baseMap?.isPhoto && !imageModeActive && (
-                <>
-                    <PhotoPlanFlattenedOverlay baseMap={baseMap} />
-                    <TopPhotoPlanChips baseMap={baseMap} />
-                </>
+                <TopPhotoPlanChips baseMap={baseMap} />
             )}
 
             {/* Version compare slider overlay */}
