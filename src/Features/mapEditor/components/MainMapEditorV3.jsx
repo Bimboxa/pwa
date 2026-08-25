@@ -252,7 +252,9 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
             s.viewers.selectedViewerKey === "THREED" &&
             s.viewers.hideBaseMapImageInViewer
     );
-    // Viewer module (key THREED): read-only consultation, no listings panel.
+    // Viewer module (key THREED): read-only consultation. The left panel
+    // (PanelViewerAnnotations) owns the legend when VISIBLE; otherwise the
+    // popper shows it (SELECT-only) — same visibility pattern as Dessin below.
     const isViewerModule = useSelector((s) => s.viewers.selectedViewerKey === "THREED");
     // Dessin module (key MAP): the left panel (PanelDrawing) takes over the
     // listings popper (#310) whenever it is VISIBLE — docked, or drawer mode
@@ -266,6 +268,9 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     const dessinPanelDocked = isDessinModule && leftPanelDocked;
     const dessinPanelSlidedIn =
         isDessinModule && !leftPanelDocked && leftDrawerHovered;
+    const viewerPanelDocked = isViewerModule && leftPanelDocked;
+    const viewerPanelSlidedIn =
+        isViewerModule && !leftPanelDocked && leftDrawerHovered;
     const hiddenVersionIds = useSelector((s) => s.baseMapEditor.hiddenVersionIds);
     const selectedVersionId = useSelector((s) => s.baseMapEditor.selectedVersionId);
     const versionTransformOverride = useSelector((s) => s.baseMapEditor.versionTransformOverride);
@@ -2102,15 +2107,18 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
 
             {!versionCompareEnabled &&
                 !imageModeActive &&
-                !isViewerModule &&
                 !dessinPanelDocked &&
+                !viewerPanelDocked &&
                 (forViewerKey !== "BASE_MAPS" || showDrawingToolsInBaseMaps) && (
                     /* display:none (not unmount) while the drawer slides over
                        the map, so the popper keeps its state; "contents" keeps
                        the wrapper out of the absolute positioning. */
                     <Box
                         sx={{
-                            display: dessinPanelSlidedIn ? "none" : "contents",
+                            display:
+                                dessinPanelSlidedIn || viewerPanelSlidedIn
+                                    ? "none"
+                                    : "contents",
                         }}
                     >
                         <PopperMapListings />
