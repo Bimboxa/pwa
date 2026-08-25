@@ -257,22 +257,28 @@ export default function computePhotoPlanCalibration({
   let pose;
 
   if (planeType === "VERTICAL") {
-    const r2 = Math.hypot(qOther.u, qOther.v);
-    if (r2 < EPS) return fail("PHOTO_TARGETS_SUPERIMPOSED");
-    // Even with a cote-driven scale, the pastilles' horizontal spacing sets
-    // the +u sign (which world side the facade runs to) — still required.
-    if (Math.abs(qOther.u) < 1e-6 * r2) return fail("TARGETS_SAME_U");
-    if (qOther.u < 0) {
-      // e_u must point toward the other pastille (u > 0).
+    // +u must appear RIGHTWARD in the photo at the ref pastille (canonical
+    // camera-side frame). The flattened views render u to the right, so any
+    // other sign choice — e.g. deriving it from which side the second
+    // pastille sits — would display the plane MIRRORED whenever the ref
+    // pastille is photo-right of the other one. d(x_img)/du at the ref is
+    // proportional to e_u.x * r0.z - r0.x * e_u.z (r0.z > 0).
+    if (eU.x * r0.z - r0.x * eU.z < 0) {
       eU = v3Scale(eU, -1);
       Minv = buildMinv();
       if (!Minv) return fail("TARGET_ON_HORIZON");
       qOther = planeRaw(cOther);
       if (!qOther) return fail("TARGET_ON_HORIZON");
     }
-    sc = coteScale ?? d / qOther.u;
+    const r2 = Math.hypot(qOther.u, qOther.v);
+    if (r2 < EPS) return fail("PHOTO_TARGETS_SUPERIMPOSED");
+    // The pastilles' horizontal spacing still orients the facade in the
+    // WORLD (uDir sign below) and, without a cote, sets the scale.
+    if (Math.abs(qOther.u) < 1e-6 * r2) return fail("TARGETS_SAME_U");
+    const uSign = qOther.u >= 0 ? 1 : -1;
+    sc = coteScale ?? d / Math.abs(qOther.u);
     tV = refH;
-    const uDir = { x: dX / d, y: 0, z: dZ / d };
+    const uDir = { x: (uSign * dX) / d, y: 0, z: (uSign * dZ) / d };
     pose = {
       origin: { x: P.x, y: 0, z: P.z },
       uDir,

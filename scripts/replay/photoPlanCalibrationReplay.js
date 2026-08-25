@@ -900,6 +900,85 @@ console.log("\n[9] knownCote scale");
   );
 }
 
+// =============================================================================
+// Scenario 10 — no mirror: +u must appear photo-RIGHTWARD whatever pastille
+// is the reference (regression: ref photo-right of the other one used to
+// flip the flattened view into an anti-symmetric image).
+// =============================================================================
+console.log("\n[10] no mirror (swapped ref)");
+{
+  const az = (35 * Math.PI) / 180;
+  const uDir = { x: Math.cos(az), y: 0, z: Math.sin(az) };
+  const origin = { x: 4, y: 0, z: 7 };
+  const normal = { x: -uDir.z, y: 0, z: uDir.x };
+  const P = (u, v) => ({
+    x: origin.x + u * uDir.x,
+    y: v,
+    z: origin.z + u * uDir.z,
+  });
+  const cam = makeCamera({
+    position: {
+      x: origin.x - 2 * uDir.x - 9 * normal.x,
+      y: 1.0,
+      z: origin.z - 2 * uDir.z - 9 * normal.z,
+    },
+    lookAt: P(3, 2.8),
+    focalPx: 1300,
+    W: 1600,
+    H: 1200,
+  });
+  const uSegments = [
+    segN(cam, P(0.5, 0.4), P(5.5, 0.4)),
+    segN(cam, P(1.0, 4.8), P(6.0, 4.8)),
+  ];
+  const vSegments = [
+    segN(cam, P(0.8, 0.2), P(0.8, 4.6)),
+    segN(cam, P(5.4, 0.1), P(5.4, 4.2)),
+  ];
+  const leftWorld = P(0.6, 1.1); // photo-left pastille
+  const rightWorld = P(4.9, 2.3); // photo-right pastille
+
+  for (const refColor of ["green", "red"]) {
+    // green = left, red = right → refColor "red" is the swapped-ref case.
+    const calib = computePhotoPlanCalibration({
+      photoImageSize: { width: cam.W, height: cam.H },
+      planeType: "VERTICAL",
+      uSegments,
+      vSegments,
+      photoTargets: {
+        green: cam.projectN(leftWorld),
+        red: cam.projectN(rightWorld),
+      },
+      worldTargets: {
+        green: { x: leftWorld.x, z: leftWorld.z },
+        red: { x: rightWorld.x, z: rightWorld.z },
+      },
+      refColor,
+      refHeight: refColor === "green" ? leftWorld.y : rightWorld.y,
+    });
+    check(`ref=${refColor} ok`, calib?.ok === true, calib?.errorCode);
+    if (!calib?.ok) continue;
+    // A photo-left facade point must get a SMALLER u than a photo-right one.
+    const uOf = (w) => applyPhotoPlanHomography(calib.H, cam.projectN(w)).x;
+    check(
+      `ref=${refColor} u grows photo-rightward`,
+      uOf(P(1, 1.5)) < uOf(P(5, 1.5)),
+      `${uOf(P(1, 1.5))} vs ${uOf(P(5, 1.5))}`
+    );
+    // World reconstruction stays exact in both configurations.
+    const corners = [P(0.5, 0.9), P(6.5, 0.9), P(6.5, 3.9), P(0.5, 3.9)];
+    const wr = corners.map((c) =>
+      photoPlanPointToWorld(calib, cam.projectN(c))
+    );
+    const maxErr = Math.max(
+      ...wr.map((p, i) =>
+        Math.hypot(p.x - corners[i].x, p.y - corners[i].y, p.z - corners[i].z)
+      )
+    );
+    check(`ref=${refColor} world exact`, maxErr < 1e-6, `maxErr ${maxErr}`);
+  }
+}
+
 // -----------------------------------------------------------------------------
 console.log(failures === 0 ? "\nALL OK" : `\n${failures} FAILURE(S)`);
 process.exit(failures === 0 ? 0 : 1);
