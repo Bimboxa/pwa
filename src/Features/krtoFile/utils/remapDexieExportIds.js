@@ -32,6 +32,9 @@ export default function remapDexieExportIds(jsonData, opts) {
   // Simple FK field -> target id-map table (references a known fixed table).
   const SIMPLE_FK = {
     baseMapId: "baseMaps",
+    // Photo <-> flattened baseMap pairing (photoPlans feature).
+    flattenedBaseMapId: "baseMaps",
+    sourcePhotoBaseMapId: "baseMaps",
     povId: "povs",
     listingId: "listings",
     annotationTemplateId: "annotationTemplates",
@@ -203,6 +206,15 @@ export default function remapDexieExportIds(jsonData, opts) {
             "baseMaps",
             row.sourceInfo.baseMapId
           );
+      }
+
+      // PhotoPlan calibration inputs (nested plan-baseMap ref; baseMapId /
+      // annotationId / listingId are covered by SIMPLE_FK above).
+      if (tableName === "photoPlans" && row.calibrationInputs?.planBaseMapId) {
+        row.calibrationInputs.planBaseMapId = remapId(
+          "baseMaps",
+          row.calibrationInputs.planBaseMapId
+        );
       }
 
       // POV view metadata (nested baseMap / version / template refs used to

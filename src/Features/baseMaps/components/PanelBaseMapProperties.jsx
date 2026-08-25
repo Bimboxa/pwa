@@ -47,6 +47,7 @@ import {
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
+import TogglePhotoOrFlattened from "Features/photoPlans/components/TogglePhotoOrFlattened";
 import DialogDeleteRessource from "Features/layout/components/DialogDeleteRessource";
 import ButtonInPanelV2 from "Features/layout/components/ButtonInPanelV2";
 import FieldBaseMapOpacity from "./FieldBaseMapOpacity";
@@ -276,6 +277,8 @@ export default function PanelBaseMapProperties() {
       </Box>
 
       <BoxFlexVStretch sx={{ overflow: "auto", gap: 1, p: 1.5 }}>
+        {/* Photo <-> mise à plat quick switch (photoPlans) — self-hiding. */}
+        <TogglePhotoOrFlattened baseMap={baseMap} />
         <WhiteSectionGeneric>
           <Box sx={{ p: 1, display: "flex", flexDirection: "column", gap: 1 }}>
             <Box>

@@ -40,6 +40,14 @@ export default class BaseMap {
     orientation,
     angleDeg,
     position,
+    // Photo baseMap: a perspective photo (not an orthographic plan). Photo
+    // baseMaps carry photoPlans (db.photoPlans) instead of a flat 3D plane.
+    isPhoto,
+    // Photo <-> flattened ("mise à plat") pairing: the photo points to its
+    // rectified counterpart (which hides the photo in the baseMaps lists),
+    // the flattened one points back to its source photo.
+    flattenedBaseMapId,
+    sourcePhotoBaseMapId,
     // version system
     versions,
     refWidth,
@@ -64,6 +72,9 @@ export default class BaseMap {
     this.orientation = orientation;
     this.angleDeg = angleDeg;
     this.position = position;
+    this.isPhoto = isPhoto;
+    this.flattenedBaseMapId = flattenedBaseMapId;
+    this.sourcePhotoBaseMapId = sourcePhotoBaseMapId;
     // version system
     this.versions = versions || [];
     this.refWidth = refWidth || null;

@@ -77,6 +77,11 @@ export default function useAutoLoadAnnotationsInThreedEditor({
   const { value: baseMaps = [] } = useBaseMaps();
   const mainBaseMap = useMainBaseMap();
 
+  // Photo baseMaps follow the standard chips mechanism: their annotations
+  // join the 3D emission when the chip's annotation mode is set (an entry in
+  // annotationsModeByBaseMapIdIn3d) — calibrated ones are then reconstructed
+  // on their photoPlan's world pose, the rest silently bail in
+  // AnnotationsManager (no baseMap group in the scene).
   const extraBaseMapIds = useExtraBaseMapIdsIn3d();
 
   const annotations = useAnnotationsV2({

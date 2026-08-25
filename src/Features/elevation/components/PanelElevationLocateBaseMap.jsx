@@ -26,6 +26,7 @@ import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import FieldAnnotationHeight from "Features/annotations/components/FieldAnnotationHeight";
 import ElevationBaseMapSelector from "./ElevationBaseMapSelector";
 import ElevationBaseMapViewer from "./ElevationBaseMapViewer";
+import SectionPhotoPlanCalibration from "Features/photoPlans/components/SectionPhotoPlanCalibration";
 
 import useBaseMap from "Features/baseMaps/hooks/useBaseMap";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
@@ -71,7 +72,7 @@ export default function PanelElevationLocateBaseMap() {
 
   const { value: baseMaps = [] } = useBaseMaps({});
   const firstVerticalBaseMapId = (baseMaps ?? []).find(
-    (bm) => bm?.orientation === "VERTICAL"
+    (bm) => bm?.orientation === "VERTICAL" || bm?.isPhoto
   )?.id;
 
   const elevationBaseMap = useBaseMap({ id: selectedBaseMapId });
@@ -99,11 +100,12 @@ export default function PanelElevationLocateBaseMap() {
       })
     : null;
 
-  // The plan view must be another baseMap, laid flat.
+  // The plan view must be another baseMap, laid flat (not a photo).
   const planIsUsable =
     Boolean(planBaseMap) &&
     planBaseMap.id !== selectedBaseMapId &&
-    planBaseMap.orientation !== "VERTICAL";
+    planBaseMap.orientation !== "VERTICAL" &&
+    !planBaseMap.isPhoto;
 
   // Current height of the reference target, used as the field's initial value.
   const currentRefHeight = useMemo(() => {
@@ -209,6 +211,7 @@ export default function PanelElevationLocateBaseMap() {
         <ElevationBaseMapSelector
           value={selectedBaseMapId}
           onChange={handleSelectBaseMap}
+          includePhotos
         />
 
         <Button
@@ -224,17 +227,27 @@ export default function PanelElevationLocateBaseMap() {
             bgcolor: locating ? "action.selected" : "background.paper",
           }}
         >
-          Localiser le fond de plan
+          {elevationBaseMap?.isPhoto
+            ? "Calibrer un plan photo"
+            : "Localiser le fond de plan"}
         </Button>
       </Box>
 
-      <ElevationBaseMapViewer
-        baseMapId={selectedBaseMapId}
-        targets={locating ? elevationTargets : null}
-        onTargetsChange={handleElevationTargetsChange}
-      />
+      {elevationBaseMap?.isPhoto ? (
+        <SectionPhotoPlanCalibration
+          baseMap={elevationBaseMap}
+          locating={locating}
+          onQuit={() => setLocating(false)}
+        />
+      ) : (
+        <ElevationBaseMapViewer
+          baseMapId={selectedBaseMapId}
+          targets={locating ? elevationTargets : null}
+          onTargetsChange={handleElevationTargetsChange}
+        />
+      )}
 
-      {locating && (
+      {locating && !elevationBaseMap?.isPhoto && (
         <Box sx={{ borderTop: "1px solid", borderColor: "divider" }}>
           {/* How-to */}
           <Box

@@ -53,6 +53,11 @@ export default class ThreedEditor {
       // switch is the one path that must drop them explicitly (also fixes the
       // latent orphan leak of objects left attached to removed groups).
       this.sceneManager.annotationsManager?.deleteAllAnnotationsObjects();
+      // Photo baseMaps (perspective images) are never posed as flat planes:
+      // their 3D presence is their calibrated photoPlans (PhotoPlansManager).
+      // Keeping them out of baseMapsMap also makes AnnotationsManager skip
+      // their non-reconstructed annotations.
+      maps = (maps || []).filter((m) => !m?.isPhoto);
       const images = maps.map(getEditorImageFromBaseMap);
       // Opacity is NOT carried here: ImagesManager records the desired 3D
       // opacity (mirrored from redux by useApplyBaseMapOpacityIn3d) and
@@ -73,6 +78,8 @@ export default class ThreedEditor {
   ensureBaseMapLoaded = (baseMap) => {
     try {
       if (!baseMap?.id) return;
+      // Photo baseMaps have no flat-plane representation (see loadMaps).
+      if (baseMap.isPhoto) return;
       const imagesManager = this.sceneManager.imagesManager;
       // Always refresh the annotations' baseMap registry, even when the group
       // is already loaded: annotation objects are positioned with

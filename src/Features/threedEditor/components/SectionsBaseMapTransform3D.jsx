@@ -289,12 +289,21 @@ export default function SectionsBaseMapTransform3D({ baseMap }) {
   }
 
   function commitOrientation(value) {
-    if (!value || value === orientation) return;
+    const displayed = baseMap?.isPhoto ? "PHOTO" : orientation;
+    if (!value || value === displayed) return;
     editingRef.current = false;
+    if (value === "PHOTO") {
+      // A photo is a perspective image: it keeps its stored orientation
+      // untouched and is not posed as a flat plane in the 3D scene.
+      db.baseMaps
+        .update(baseMapId, { isPhoto: true })
+        .then(() => dispatch(triggerBaseMapsUpdate()));
+      return;
+    }
     setOrientation(value);
     applyTransformToGroup({ orientationOverride: value });
     db.baseMaps
-      .update(baseMapId, { orientation: value })
+      .update(baseMapId, { orientation: value, isPhoto: false })
       .then(() => dispatch(triggerBaseMapsUpdate()));
   }
 
@@ -338,6 +347,7 @@ export default function SectionsBaseMapTransform3D({ baseMap }) {
       .update(baseMapId, {
         orientation: DEFAULT_ORIENTATION,
         angleDeg: DEFAULT_ANGLE_DEG,
+        isPhoto: false,
       })
       .then(() => dispatch(triggerBaseMapsUpdate()));
   }
@@ -375,7 +385,7 @@ export default function SectionsBaseMapTransform3D({ baseMap }) {
           <ToggleButtonGroup
             exclusive
             size="small"
-            value={orientation}
+            value={baseMap?.isPhoto ? "PHOTO" : orientation}
             onChange={(_e, v) => commitOrientation(v)}
           >
             <ToggleButton
@@ -389,6 +399,12 @@ export default function SectionsBaseMapTransform3D({ baseMap }) {
               sx={{ textTransform: "none", py: 0.25 }}
             >
               Vertical
+            </ToggleButton>
+            <ToggleButton
+              value="PHOTO"
+              sx={{ textTransform: "none", py: 0.25 }}
+            >
+              Photo
             </ToggleButton>
           </ToggleButtonGroup>
           <FieldMeasure

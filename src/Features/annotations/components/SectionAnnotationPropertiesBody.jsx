@@ -20,6 +20,7 @@ import SectionMultiPartProperties from "./SectionMultiPartProperties";
 import FormEntity from "Features/entities/components/FormEntity";
 import SectionEntityAnnotations from "Features/entities/components/SectionEntityAnnotations";
 import SectionAnnotationZones from "Features/zonings/components/SectionAnnotationZones";
+import SectionAnnotationPhotoPlan from "Features/photoPlans/components/SectionAnnotationPhotoPlan";
 import SectionAnnotationFolioContent from "Features/detailFolio/components/SectionAnnotationFolioContent";
 
 // Types without a draggable sub-label (no labelDelta model) — no Etiquette tab.
@@ -149,6 +150,9 @@ export default function SectionAnnotationPropertiesBody({
             {!annotation?.isZoneAnnotation && (
               <SectionAnnotationZones annotation={annotation} />
             )}
+            {/* Plan photo (photoPlans) — POLYGON on a photo baseMap only,
+                self-hiding otherwise. */}
+            <SectionAnnotationPhotoPlan annotation={annotation} />
           </>
         )}
 

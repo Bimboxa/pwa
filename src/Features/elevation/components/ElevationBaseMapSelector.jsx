@@ -26,11 +26,17 @@ import useProjectBaseMapListings from "Features/baseMaps/hooks/useProjectBaseMap
 
 // Vertical-baseMap (élévation / coupe) selector for the elevation panel.
 // Forks the dark style of BaseMapSelectorInMapEditorV2 (topBar) but:
-//   - shows ONLY baseMaps with orientation === "VERTICAL",
+//   - shows ONLY baseMaps with orientation === "VERTICAL" (+ photos when
+//     `includePhotos` — the locate panel calibrates photoPlans from the same
+//     spot; the elevation-guide picker keeps them out),
 //   - groups them by listing,
 //   - has NO "create baseMap" action.
 // Controlled: `value` is the selected baseMap id, `onChange(id)` on select.
-export default function ElevationBaseMapSelector({ value, onChange }) {
+export default function ElevationBaseMapSelector({
+  value,
+  onChange,
+  includePhotos = false,
+}) {
   // data
 
   const { value: baseMaps = [] } = useBaseMaps({});
@@ -56,8 +62,11 @@ export default function ElevationBaseMapSelector({ value, onChange }) {
   // helpers - vertical baseMaps grouped by listing
 
   const verticalBaseMaps = useMemo(
-    () => (baseMaps ?? []).filter((bm) => bm?.orientation === "VERTICAL"),
-    [baseMaps]
+    () =>
+      (baseMaps ?? []).filter((bm) =>
+        bm?.isPhoto ? includePhotos : bm?.orientation === "VERTICAL"
+      ),
+    [baseMaps, includePhotos]
   );
 
   const groups = useMemo(() => {
@@ -232,10 +241,15 @@ export default function ElevationBaseMapSelector({ value, onChange }) {
                           </ListItemIcon>
                           <ListItemText
                             primary={bm.name}
+                            secondary={bm.isPhoto ? "Photo" : null}
                             primaryTypographyProps={{
                               variant: "body2",
                               color: isSelected ? "grey.100" : "grey.400",
                               fontWeight: isSelected ? 600 : 400,
+                            }}
+                            secondaryTypographyProps={{
+                              variant: "caption",
+                              color: "grey.600",
                             }}
                           />
                         </ListItemButton>

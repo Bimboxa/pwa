@@ -401,6 +401,8 @@ import {
 } from "Features/annotations/constants/drawingShapeConfig";
 import { resolveProfileFromDb } from "Features/annotations/hooks/useProfileResolution";
 import computeSubtractedSurfaceM2Async from "Features/threedEditor/js/utilsAnnotationsManager/computeSubtractedSurfaceM2Async";
+import getPhotoPlanAttachment from "Features/photoPlans/utils/getPhotoPlanAttachment";
+import mapPhotoPointsToPlane from "Features/photoPlans/utils/mapPhotoPointsToPlane";
 import getRevolutionPhi from "Features/threedEditor/js/utilsAnnotationsManager/getRevolutionPhi";
 import getRevolutionAxisPlanFrame from "Features/annotations/utils/getRevolutionAxisPlanFrame";
 
@@ -2028,6 +2030,170 @@ export default function useAnnotationsV2(options) {
         }
       }
 
+      // -- PHOTO PLANS (perspective calibration) --
+      // Annotations drawn on a PHOTO baseMap are auto-attached to one of its
+      // photoPlans (centroid inside the plan's source polygon). When the
+      // plan is calibrated, the pixel points are mapped through the
+      // homography into the plane's metric frame:
+      //   - _photoPlanQties: real quantities computed on the meter points
+      //     (meterByPx = 1 — stage B short-circuits like isProxy),
+      //   - _photoPlan3D: pose + plane-local geometry (image-like y-down
+      //     meters, the exact input of createPhotoPlanObject3D).
+      // Reading db.photoPlans here makes the liveQuery re-emit on
+      // recalibration. Zero cost when no photo baseMap is displayed.
+      if (_annotations?.length) {
+        const photoAnns = _annotations.filter(
+          (a) =>
+            a &&
+            !a.isForBaseMaps &&
+            !a.isBaseMapAnnotation &&
+            baseMapById[a.baseMapId]?.isPhoto
+        );
+        if (photoAnns.length > 0) {
+          const photoIds = [...new Set(photoAnns.map((a) => a.baseMapId))];
+          const plans = (
+            await db.photoPlans.where("baseMapId").anyOf(photoIds).toArray()
+          ).filter((p) => !p.deletedAt);
+          // A plan's own source polygon must never be RECONSTRUCTED in 3D —
+          // its 3D representation is the textured plane (PhotoPlansManager).
+          // It still gets attached + real quantities (= the plan's surface).
+          const planSourceAnnotationIds = new Set(
+            plans.map((p) => p.annotationId)
+          );
+
+          // Resolve each plan's source polygon once per run (direct db read:
+          // the source lives in an isForBaseMaps listing, invisible here).
+          const plansByBaseMap = {};
+          for (const plan of plans) {
+            // Whole-photo plan (no source polygon): zone = full image.
+            if (!plan.annotationId) {
+              const bm0 = baseMapById[plan.baseMapId];
+              const size0 = bm0?.getImageSize?.() || bm0?.image?.imageSize;
+              if (!size0?.width || !size0?.height) continue;
+              (plansByBaseMap[plan.baseMapId] ??= []).push({
+                plan,
+                ringPx: [
+                  { x: 0, y: 0 },
+                  { x: size0.width, y: 0 },
+                  { x: size0.width, y: size0.height },
+                  { x: 0, y: size0.height },
+                ],
+                holesPx: [],
+              });
+              continue;
+            }
+            const srcAnn = await db.annotations.get(plan.annotationId);
+            if (!srcAnn || srcAnn.deletedAt) continue;
+            const bm = baseMapById[plan.baseMapId];
+            const imageSize = bm?.getImageSize?.() || bm?.image?.imageSize;
+            if (!imageSize?.width || !imageSize?.height) continue;
+            const ids = new Set();
+            (srcAnn.points ?? []).forEach((p) => p?.id && ids.add(p.id));
+            (srcAnn.cuts ?? []).forEach((c) =>
+              (c?.points ?? []).forEach((p) => p?.id && ids.add(p.id))
+            );
+            const arr = await db.points.bulkGet([...ids]);
+            const idx = {};
+            for (const p of arr) if (p) idx[p.id] = p;
+            const ringPx = resolvePoints({
+              points: srcAnn.points,
+              pointsIndex: idx,
+              imageSize,
+            });
+            if (!ringPx || ringPx.length < 3) continue;
+            const holesPx = (srcAnn.cuts ?? [])
+              .map((c) =>
+                resolvePoints({
+                  points: c.points ?? [],
+                  pointsIndex: idx,
+                  imageSize,
+                })
+              )
+              .filter((h) => h?.length >= 3);
+            (plansByBaseMap[plan.baseMapId] ??= []).push({
+              plan,
+              ringPx,
+              holesPx,
+            });
+          }
+
+          for (const a of photoAnns) {
+            const candidates = plansByBaseMap[a.baseMapId];
+            if (!candidates?.length || !a.points?.length) continue;
+            const att = getPhotoPlanAttachment({
+              points: a.points,
+              candidates,
+            });
+            if (!att) continue;
+            const { plan } = att;
+            a._photoPlanId = plan.id;
+            a._photoPlanName = plan.name;
+            a._photoPlanOrientation = plan.orientation;
+
+            const calib = plan.calibration;
+            // Quick-flatten calibrations are display-only (arbitrary
+            // scale/pose) — never feed quantities or 3D from them.
+            if (!calib?.ok || calib.isUnscaled || !calib.H || !calib.pose)
+              continue;
+            const bm = baseMapById[a.baseMapId];
+            const imageSize = bm?.getImageSize?.() || bm?.image?.imageSize;
+            const isClosed = ["POLYGON", "RECTANGLE"].includes(a.type);
+
+            const ptsM = mapPhotoPointsToPlane({
+              H: calib.H,
+              points: a.points,
+              imageSize,
+              closeLine: isClosed,
+            });
+            if (!ptsM) continue; // beyond the horizon — stay uncalibrated
+            const cutsM = [];
+            let cutFailed = false;
+            for (const cut of a.cuts ?? []) {
+              const cutPts = mapPhotoPointsToPlane({
+                H: calib.H,
+                points: cut?.points ?? [],
+                imageSize,
+                closeLine: true,
+              });
+              if (!cutPts) {
+                cutFailed = true;
+                break;
+              }
+              cutsM.push({ ...cut, points: cutPts });
+            }
+            if (cutFailed) continue;
+
+            // Real quantities on the meter geometry (meters-as-pixels).
+            a._photoPlanQties = getAnnotationQties({
+              annotation: { ...a, points: ptsM, cuts: cutsM },
+              meterByPx: 1,
+            });
+
+            // No 3D reconstruction for a plan's own source polygon: the
+            // textured plane already IS its 3D representation.
+            if (planSourceAnnotationIds.has(a.id)) continue;
+
+            // Plane-local geometry for the 3D reconstruction — image-like
+            // y-down meters, so createPhotoPlanObject3D's fakeBaseMap
+            // (imageWidth/Height 0, meterByPx 1) converts back to the
+            // y-up (u, v) frame via pixelToWorld.
+            const toLocal = (p) => ({
+              x: p.x,
+              y: -p.y,
+              ...(p.id != null && { id: p.id }),
+            });
+            a._photoPlan3D = {
+              pose: calib.pose,
+              orientation: plan.orientation,
+              pointsLocal: ptsM.map(toLocal),
+              cutsLocal: cutsM.map((cut) => ({
+                points: cut.points.map(toLocal),
+              })),
+            };
+          }
+        }
+      }
+
       // Observation reads were fired at the top of the callback — settle
       // them before returning so tracking is guaranteed registered and a
       // real read failure still surfaces.
@@ -2179,6 +2345,12 @@ export default function useAnnotationsV2(options) {
         // objects it may have returned before.
         result = result.map((annotation) => {
           if (annotation?.isBaseMapAnnotation) return annotation;
+          // Photo annotations attached to a calibrated photoPlan: real
+          // quantities come from the homography-mapped meter geometry
+          // (precomputed in the async query) — the photo has no meterByPx.
+          if (annotation?._photoPlanQties) {
+            return { ...annotation, qties: annotation._photoPlanQties };
+          }
           const baseMap = baseMapById[annotation?.baseMapId];
           const meterByPx = baseMap?.getMeterByPx?.();
           if (meterByPx) {

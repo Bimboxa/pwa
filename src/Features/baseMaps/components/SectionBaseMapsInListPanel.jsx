@@ -53,7 +53,16 @@ export default function SectionBaseMapsInListPanel() {
     <BoxFlexVStretch>
       <ItemsInListPanelGeneric
         title="Fonds de plan"
-        items={baseMaps}
+        items={(baseMaps ?? []).filter(
+          // Photos replaced by their "mise à plat" counterpart are hidden
+          // (props toggle "Photo d'origine / Mise à plat" reaches them).
+          (bm) =>
+            !(
+              bm.isPhoto &&
+              bm.flattenedBaseMapId &&
+              baseMaps.some((o) => o.id === bm.flattenedBaseMapId)
+            )
+        )}
         searchKeys={["name"]}
         onItemClick={handleBaseMapClick}
         onCreateClick={handleCreateClick}

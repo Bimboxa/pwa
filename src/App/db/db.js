@@ -246,6 +246,27 @@ db.version(30).stores({
   photos: "id,projectId,listingId,baseMapId",
 });
 
+db.version(31).stores({
+  // {id, projectId, scopeId, listingId (source polygon's isForBaseMaps listing),
+  //  baseMapId (the PHOTO baseMap), annotationId (source POLYGON on the photo),
+  //  name, orientation ("HORIZONTAL"|"VERTICAL" — real-world plane orientation),
+  //  calibrationInputs: null | { uSegments, vSegments, photoTargets, planTargets,
+  //    planBaseMapId, refColor, refHeight, focalPxOverride, knownCote } (all
+  //    coords normalized 0..1 — source of truth, re-editable),
+  //  calibration: null | { ok, errorCode?, H:[9], Hinv:[9] (normalized-photo in,
+  //    meters out), imageSize (bake-time aspect guard), pose {origin,uDir,vDir,
+  //    normal}, horizonLine, diagnostics, computedAt } (cached output of
+  //    computePhotoPlanCalibration — cheap to recompute from inputs)}
+  // One row per planar region ("plan photo") of a photo baseMap.
+  photoPlans: "id,projectId,baseMapId,annotationId,listingId",
+  // Version-collision healing: the photoPlans branch temporarily claimed
+  // version 29 for this table while main used 29/30 for resources/photos.
+  // A local db that upgraded through THAT v29 skipped main's `resources`
+  // declaration — redeclaring it here (same schema, no-op when present)
+  // converges every upgrade path.
+  resources: "id,projectId",
+});
+
 // --- AUDIT HOOKS ---
 
 const AUDIT_TABLES = [
@@ -285,6 +306,7 @@ const AUDIT_TABLES = [
   "relsZoneAnnotation",
   "resources",
   "photos",
+  "photoPlans",
 ];
 
 // Shared/collaborative tables exempt from the ownership guard: records here can
@@ -306,6 +328,9 @@ const OWNERSHIP_EXEMPT_TABLES = new Set([
   // Photos are scope-shared collaborative rows (project-level albums),
   // editable by anyone like baseMaps and povs.
   "photos",
+  // PhotoPlans are shared calibration resources: anyone can rename, re-orient
+  // or recalibrate a plan photo, not only its creator.
+  "photoPlans",
 ]);
 
 // --- READ-ONLY SCOPE GUARD ---
@@ -526,6 +551,7 @@ const SOFT_DELETE_TABLES = new Set([
   "relsZoneAnnotation",
   "resources",
   "photos",
+  "photoPlans",
 ]);
 
 let _skipSoftDelete = false;

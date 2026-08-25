@@ -90,6 +90,7 @@ export default async function createKrtoZip(scopeId, options) {
         // listingId so the files filter ships them too. The photo point is
         // inline on the row (no db.points involvement).
         "photos",
+        "photoPlans",
     ]);
 
     // Points: annotation geometry lives in db.points, but a point row's

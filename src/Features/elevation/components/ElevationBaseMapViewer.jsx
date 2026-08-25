@@ -6,6 +6,7 @@ import MapEditorViewport from "Features/mapEditorGeneric/components/MapEditorVie
 import NodeSvgImage from "Features/mapEditorGeneric/components/NodeSvgImage";
 import NodeAnnotationStatic from "Features/mapEditorGeneric/components/NodeAnnotationStatic";
 import { TargetPair } from "Features/mapEditor/components/CalibrationLayer";
+import VanishingLinesLayer from "Features/photoPlans/components/VanishingLinesLayer";
 import {
   setDragCursor,
   clearDragCursor,
@@ -26,12 +27,19 @@ import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 // Optional `targets` ({red, green} relative [0..1] positions) draws the very
 // same calibration targets as the main 2D editor, draggable, and reports every
 // move through `onTargetsChange`.
+//
+// Optional `vanishingLines` ({u: [{id, p1, p2}], v: [...]} normalized) draws
+// the photoPlan calibration's two vanishing-line families; endpoint drags are
+// reported through `onMoveFuiteEndpoint({family, segmentId, end, point})`.
 export default function ElevationBaseMapViewer({
   baseMapId,
   highlightAnnotationId,
   targets,
+  vanishingLines,
+  knownCote,
   onSelectAnnotation,
   onTargetsChange,
+  onMoveFuiteEndpoint,
 }) {
   const viewportRef = useRef(null);
 
@@ -98,7 +106,45 @@ export default function ElevationBaseMapViewer({
   const imageSizeRef = useRef(imageSize);
   imageSizeRef.current = imageSize;
 
+  const onMoveFuiteEndpointRef = useRef(onMoveFuiteEndpoint);
+  onMoveFuiteEndpointRef.current = onMoveFuiteEndpoint;
+
   const handleTargetMouseDown = useCallback((e) => {
+    // Vanishing-line endpoint drag (photoPlan calibration).
+    const fuiteHandle = e.target?.closest?.(
+      '[data-interaction="fuite-endpoint"]'
+    );
+    if (fuiteHandle) {
+      const family = fuiteHandle.getAttribute("data-family");
+      const segmentId = fuiteHandle.getAttribute("data-seg-id");
+      const end = fuiteHandle.getAttribute("data-end");
+      if (!family || !segmentId || !end) return;
+      e.stopPropagation();
+      const move = (ev) => {
+        const world = viewportRef.current?.screenToWorld(
+          ev.clientX,
+          ev.clientY
+        );
+        const size = imageSizeRef.current;
+        if (!world || !size?.width || !size?.height) return;
+        onMoveFuiteEndpointRef.current?.({
+          family,
+          segmentId,
+          end,
+          point: { x: world.x / size.width, y: world.y / size.height },
+        });
+      };
+      const up = () => {
+        window.removeEventListener("mousemove", move);
+        window.removeEventListener("mouseup", up);
+        clearDragCursor();
+      };
+      window.addEventListener("mousemove", move);
+      window.addEventListener("mouseup", up);
+      setDragCursor("grabbing");
+      return;
+    }
+
     const handle = e.target?.closest?.(
       '[data-interaction="calibration-target"]'
     );
@@ -128,7 +174,11 @@ export default function ElevationBaseMapViewer({
 
   const shouldDisablePan = useCallback(
     (e) =>
-      Boolean(e.target?.closest?.('[data-interaction="calibration-target"]')),
+      Boolean(
+        e.target?.closest?.(
+          '[data-interaction="calibration-target"], [data-interaction="fuite-endpoint"]'
+        )
+      ),
     []
   );
 
@@ -210,6 +260,16 @@ export default function ElevationBaseMapViewer({
               />
             );
           })}
+
+          {vanishingLines && imageSize && (
+            <VanishingLinesLayer
+              vanishingLines={vanishingLines}
+              knownCote={knownCote}
+              width={imageSize.width}
+              height={imageSize.height}
+              containerK={1}
+            />
+          )}
 
           {targets && imageSize && (
             <TargetPair

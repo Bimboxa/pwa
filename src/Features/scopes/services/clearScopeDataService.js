@@ -39,6 +39,7 @@ export default async function clearScopeDataService(scopeId) {
             await db.baseMapVersions.where("listingId").anyOf(listingIds).delete();
             await db.annotations.where("listingId").anyOf(listingIds).delete();
             await db.annotationTemplates.where("listingId").anyOf(listingIds).delete();
+            await db.photoPlans.where("listingId").anyOf(listingIds).delete();
         }
 
         // Points : filtrés d'abord par leur propre scopeId (stampé à la

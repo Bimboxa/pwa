@@ -84,8 +84,17 @@ export default function BaseMapTree() {
   // helpers
 
   const baseMapsByListingId = useMemo(() => {
+    const byId = new Set((allBaseMaps || []).map((bm) => bm.id));
     const byListing = {};
     (allBaseMaps || []).forEach((bm) => {
+      // A photo replaced by its "mise à plat" counterpart is hidden from the
+      // lists (the props toggle "Photo d'origine / Mise à plat" reaches it).
+      if (
+        bm.isPhoto &&
+        bm.flattenedBaseMapId &&
+        byId.has(bm.flattenedBaseMapId)
+      )
+        return;
       if (!byListing[bm.listingId]) byListing[bm.listingId] = [];
       byListing[bm.listingId].push(bm);
     });

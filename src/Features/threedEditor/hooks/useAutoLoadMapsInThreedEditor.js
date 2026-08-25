@@ -27,6 +27,7 @@ export default function useAutoLoadMapsInThreedEditor({
     const extras = baseMaps.filter(
       (b) =>
         b.id !== mainBaseMap.id &&
+        !b.isPhoto &&
         visibleIds.includes(b.id) &&
         b?.image?.imageUrlClient
     );
@@ -68,6 +69,7 @@ export default function useAutoLoadMapsInThreedEditor({
     const extras = baseMaps.filter(
       (b) =>
         b.id !== mainBaseMap.id &&
+        !b.isPhoto &&
         visibleIds.includes(b.id) &&
         b?.image?.imageUrlClient
     );
