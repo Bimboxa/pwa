@@ -58,11 +58,10 @@ export default function useViewers() {
       key: "PHOTOS",
       label: "Photos",
       shortLabel: "Photos",
-      icon: <PhotoLibrary />,
+      icon: <PhotoCamera />,
       bgcolor: theme.palette.viewers.photos,
       // Relies on the V3 map editor (the legacy branch renders V2).
       disabled: legacy,
-      hotkey: "P",
       // 2D-only module: displays the shared MainMapEditorV3 instance (like
       // Zones), no 3D editor and therefore no "T" toggle.
       editors: ["MAP"],
@@ -71,7 +70,7 @@ export default function useViewers() {
       key: "POINT_OF_VIEW",
       label: "Points de vue",
       shortLabel: "Points de vue",
-      icon: <PhotoCamera />,
+      icon: <PhotoLibrary />,
       bgcolor: theme.palette.viewers.pov,
       // The POV viewer relies on the V3 map editor capture host.
       disabled: legacy,
