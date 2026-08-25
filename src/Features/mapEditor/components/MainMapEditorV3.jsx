@@ -407,8 +407,10 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
         // Read-only outlines of subtraction targets hosted by another base map
         // (clickable, so the toolbar can offer "Voir l'annotation d'origine").
         withForeignFootprints: true,
-        // Photo camera poses (point + view cone) — Photos module only.
-        withPhotos: isPhotosModule,
+        // Photo camera poses (point + view cone) — Photos module, and the
+        // Viewer module's 2D editor (read-only consultation, hover preview
+        // + click-select in the popper's Photos grid).
+        withPhotos: isPhotosModule || isViewerModule,
     });
 
     // "Maillage" toggle: ON → replace meshed parents by their mesh cells (keep

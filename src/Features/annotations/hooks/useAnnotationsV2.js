@@ -2081,7 +2081,8 @@ export default function useAnnotationsV2(options) {
       }
 
       // -- PHOTO PSEUDO-ANNOTATIONS --
-      // Opt-in (`withPhotos`, Photos module only). Appended LAST like the
+      // Opt-in (`withPhotos` — Photos module, Viewer module 2D). Appended
+      // LAST like the
       // footprints above: photos live in db.photos, not db.annotations, and
       // must not be reshaped by the pipeline. The "photo::" id prefix
       // guarantees no annotation write path can ever reach a real row. The
