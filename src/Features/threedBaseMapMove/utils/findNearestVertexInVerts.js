@@ -32,5 +32,9 @@ export default function findNearestVertexInVerts(
     }
   }
   if (!best) return null;
-  return { position: best.position.clone(), kind: "VERTEX" };
+  return {
+    position: best.position.clone(),
+    kind: "VERTEX",
+    meshKey: best.meshKey,
+  };
 }
