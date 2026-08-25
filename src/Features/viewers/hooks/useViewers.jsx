@@ -13,6 +13,7 @@ import {
   ViewInAr,
   GridOn,
   PhotoCamera,
+  PhotoLibrary,
   AccountTree,
 } from "@mui/icons-material";
 
@@ -52,6 +53,19 @@ export default function useViewers() {
       bgcolor: theme.palette.viewers.map,
       hotkey: "D",
       editors: ["MAP", "THREED"],
+    },
+    {
+      key: "PHOTOS",
+      label: "Photos",
+      shortLabel: "Photos",
+      icon: <PhotoLibrary />,
+      bgcolor: theme.palette.viewers.photos,
+      // Relies on the V3 map editor (the legacy branch renders V2).
+      disabled: legacy,
+      hotkey: "P",
+      // 2D-only module: displays the shared MainMapEditorV3 instance (like
+      // Zones), no 3D editor and therefore no "T" toggle.
+      editors: ["MAP"],
     },
     {
       key: "POINT_OF_VIEW",

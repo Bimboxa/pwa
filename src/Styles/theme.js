@@ -8,6 +8,7 @@ import {
   red,
   orange,
   purple,
+  deepPurple,
   teal,
   indigo,
   cyan,
@@ -123,6 +124,7 @@ let theme = createTheme(
       },
       viewers: {
         map: blue[600],
+        photos: deepPurple[500],
         threed: pink[600],
         meshes: orange[700],
         pov: indigo[600],

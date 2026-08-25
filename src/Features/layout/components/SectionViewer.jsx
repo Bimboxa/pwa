@@ -19,6 +19,7 @@ import LeftDrawerPanel from "Features/leftPanel/components/LeftDrawerPanel";
 import LeftDrawerPanelHeader from "Features/leftPanel/components/LeftDrawerPanelHeader";
 import PanelMeshesViewer from "Features/threedMesh/components/PanelMeshesViewer";
 import PanelDrawing from "Features/panelDrawing/components/PanelDrawing";
+import PanelPhotos from "Features/photos/components/PanelPhotos";
 import PanelViewerAnnotations from "Features/panelDrawing/components/PanelViewerAnnotations";
 import PanelPovList from "Features/pov/components/PanelPovList";
 import ButtonSavePov from "Features/pov/components/ButtonSavePov";
@@ -105,6 +106,16 @@ export default function SectionViewer() {
       {viewerKey === "MAP" && (
         <LeftDrawerPanel width={360} viewerKey="MAP">
           <PanelDrawing />
+        </LeftDrawerPanel>
+      )}
+
+      {/* Photos module: albums drawer (album selector, upload drop zone,
+          3-column thumbnail grid, photo detail subview). 2D-only module —
+          its single editor is the shared "MAP" instance. The guard is
+          load-bearing for the same reason as the Dessin panel. */}
+      {viewerKey === "PHOTOS" && (
+        <LeftDrawerPanel width={360} viewerKey="PHOTOS">
+          <PanelPhotos />
         </LeftDrawerPanel>
       )}
 

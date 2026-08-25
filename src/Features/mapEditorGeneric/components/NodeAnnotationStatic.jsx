@@ -14,6 +14,7 @@ import NodeRectangleStatic from "./NodeRectangleStatic";
 import NodeCoteStatic from "./NodeCoteStatic";
 import NodeLinearLayoutStatic from "./NodeLinearLayoutStatic";
 import NodeRulerStatic from "./NodeRulerStatic";
+import NodePhotoStatic from "./NodePhotoStatic";
 import NodeRevolutionAxisStatic from "./NodeRevolutionAxisStatic";
 import NodeRevolutionAxisPlacementStatic from "./NodeRevolutionAxisPlacementStatic";
 
@@ -135,6 +136,11 @@ function NodeAnnotationStatic({
           sizeVariant="FIXED_IN_BG_IMAGE"
         />
       );
+
+    // PHOTO: read-only camera pose (dot + view cone) synthesized from
+    // db.photos by useAnnotationsV2 (`withPhotos`, Photos module).
+    case "PHOTO":
+      return <NodePhotoStatic {...props} annotation={resolvedAnnotation} />;
 
     // DETAIL: bubble + label + orientable arrow whose tip is the stored point.
     case "DETAIL":

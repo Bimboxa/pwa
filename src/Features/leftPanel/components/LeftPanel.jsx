@@ -24,6 +24,7 @@ export default function LeftPanel() {
   let width = openLeftPanel ? panelWidth : 0;
   if (isFullScreen) width = 0;
   if (selectedViewerKey === "MAP") width = 0;
+  if (selectedViewerKey === "PHOTOS") width = 0;
   if (selectedViewerKey === "THREED") width = 0;
   if (selectedViewerKey === "MESHES") width = 0;
   if (selectedViewerKey === "POINT_OF_VIEW") width = 0;
@@ -45,7 +46,7 @@ export default function LeftPanel() {
 
   return (
     <Box sx={{ display: "flex", zIndex: 2 }}>
-      {!isFullScreen && selectedViewerKey !== "MAP" && selectedViewerKey !== "THREED" && selectedViewerKey !== "MESHES" && selectedViewerKey !== "POINT_OF_VIEW" && selectedViewerKey !== "PORTFOLIO" && selectedViewerKey !== "BASE_MAPS" && selectedViewerKey !== "ZONES" && selectedViewerKey !== "LISTING" && selectedViewerKey !== "ADMIN" && (
+      {!isFullScreen && selectedViewerKey !== "MAP" && selectedViewerKey !== "PHOTOS" && selectedViewerKey !== "THREED" && selectedViewerKey !== "MESHES" && selectedViewerKey !== "POINT_OF_VIEW" && selectedViewerKey !== "PORTFOLIO" && selectedViewerKey !== "BASE_MAPS" && selectedViewerKey !== "ZONES" && selectedViewerKey !== "LISTING" && selectedViewerKey !== "ADMIN" && (
         <VerticalBarInLeftPanel>
           <VerticalSelectorListing onSeeAllClick={handleSeeAllClick} />
         </VerticalBarInLeftPanel>

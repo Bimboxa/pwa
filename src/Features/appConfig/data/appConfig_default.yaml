@@ -301,9 +301,9 @@ entityModelsObject:
 
   photo:
     key: photo
-    type: LOCATED_ENTITY
+    type: PHOTO
     name: Photo
-    defaultTable: entities
+    defaultTable: photos
     strings:
       labelNew: Nouvelle photo
     fieldsObject:
@@ -419,7 +419,7 @@ presetListingsObject:
     name: Photos
     description: "Localisez des photos sur le plan"
     entityModelKey: photo
-    table: entities
+    table: photos
     color: *purple700
     iconKey: photo
     comingSoon: true

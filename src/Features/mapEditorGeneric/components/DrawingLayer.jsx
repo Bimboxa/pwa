@@ -17,6 +17,11 @@ import {
   getLinearLayoutTickOffsets,
 } from "Features/annotations/utils/getLinearLayoutBars";
 import {
+  fovConePath,
+  fovDirectionLine,
+} from "Features/photos/utils/photoPoseGlyph";
+import { DEFAULT_FOV_DEG } from "Features/photos/constants/photoNode";
+import {
   halfArcPath,
   SWEEP_ORANGE,
   SWEEP_BLACK,
@@ -122,6 +127,11 @@ const DrawingLayer = forwardRef(
     const previewRevAxisBlackRef = useRef(null);
     const previewRevAxisDiameterRef = useRef(null);
     const previewRevAxisDotRef = useRef(null); // outer group: translate to centre
+    // Photo pose preview — view cone sector + direction ray + centre dot.
+    const previewPhotoPoseGroupRef = useRef(null);
+    const previewPhotoPoseConeRef = useRef(null);
+    const previewPhotoPoseRayRef = useRef(null);
+    const previewPhotoPoseDotRef = useRef(null); // outer group: translate to centre
     const previewRampRef = useRef(null); // ramp band preview (centered on the median line)
     // Cote preview refs (offset dimension line + dashed extensions + value text)
     const previewCoteGroupRef = useRef(null);
@@ -270,6 +280,9 @@ const DrawingLayer = forwardRef(
     // Revolution axis (plan view): same gesture, but the cursor also fixes the
     // diameter orientation, so the preview shows the circle AND its diameter.
     const drawRevolutionAxis = enabledDrawingMode === "REVOLUTION_AXIS_PLAN";
+    // Photo pose (Photos module): same centre→edge gesture; the preview shows
+    // the camera view cone opened toward the cursor.
+    const drawPhotoPose = enabledDrawingMode === "PHOTO_POSE";
     const drawCote = enabledDrawingMode === "COTE_TWO_CLICK";
     // OBJECT_3D placement (2D editor): the model's top-view projection follows
     // the cursor, sized to the model footprint (bbox X×Z in meters / meterByPx),
@@ -581,6 +594,46 @@ const DrawingLayer = forwardRef(
         }
 
         // ------------------------------------------------
+        // CAS 1b''' : PHOTO_POSE (center placed -> cursor sets the camera
+        // direction and range; preview = view cone toward the cursor)
+        // ------------------------------------------------
+        if (drawPhotoPose && previewPhotoPoseGroupRef.current) {
+          if (previewFillRef.current)
+            previewFillRef.current.style.display = "none";
+          if (previewRectRef.current)
+            previewRectRef.current.style.display = "none";
+
+          const center = currentPoints[0];
+          const dx = cursorPos.x - center.x;
+          const dy = cursorPos.y - center.y;
+          const r = Math.hypot(dx, dy);
+          if (r > 0) {
+            // Same mapping as the commit (directionDeg = atan2(-dy, dx)).
+            const directionDeg = (Math.atan2(-dy, dx) * 180) / Math.PI;
+            previewPhotoPoseConeRef.current?.setAttribute(
+              "d",
+              fovConePath(center, directionDeg, DEFAULT_FOV_DEG, r)
+            );
+            const ray = fovDirectionLine(center, directionDeg, r);
+            const rayEl = previewPhotoPoseRayRef.current;
+            if (rayEl) {
+              rayEl.setAttribute("x1", ray.x1);
+              rayEl.setAttribute("y1", ray.y1);
+              rayEl.setAttribute("x2", ray.x2);
+              rayEl.setAttribute("y2", ray.y2);
+            }
+            previewPhotoPoseDotRef.current?.setAttribute(
+              "transform",
+              `translate(${center.x} ${center.y})`
+            );
+            previewPhotoPoseGroupRef.current.style.display = "block";
+          } else {
+            previewPhotoPoseGroupRef.current.style.display = "none";
+          }
+          return;
+        }
+
+        // ------------------------------------------------
         // CAS 1b' : CIRCLE_RADIUS (center placed -> cursor sets the radius)
         // ------------------------------------------------
         if (drawCircleRadius && previewCircleRef.current) {
@@ -859,6 +912,8 @@ const DrawingLayer = forwardRef(
           previewCoteGroupRef.current.style.display = "none";
         if (previewRevAxisGroupRef.current)
           previewRevAxisGroupRef.current.style.display = "none";
+        if (previewPhotoPoseGroupRef.current)
+          previewPhotoPoseGroupRef.current.style.display = "none";
       },
     }));
 
@@ -1020,6 +1075,42 @@ const DrawingLayer = forwardRef(
             <g ref={previewRevAxisDotRef}>
               <g style={{ transform: scaleTransform }}>
                 <circle cx={0} cy={0} r={3.5} fill="#000000" />
+              </g>
+            </g>
+          </g>
+        )}
+
+        {/* B4. Photo pose preview — view cone sector + direction ray + centre
+            dot, mirroring the committed NodePhotoStatic glyph. */}
+        {drawPhotoPose && (
+          <g
+            ref={previewPhotoPoseGroupRef}
+            style={{ display: "none", pointerEvents: "none" }}
+          >
+            <path
+              ref={previewPhotoPoseConeRef}
+              fill={theme.palette.secondary.main}
+              fillOpacity={0.15}
+              stroke={theme.palette.secondary.main}
+              strokeWidth={2}
+              vectorEffect="non-scaling-stroke"
+            />
+            <line
+              ref={previewPhotoPoseRayRef}
+              stroke={theme.palette.secondary.main}
+              strokeWidth={1.5}
+              strokeDasharray="4 4"
+              vectorEffect="non-scaling-stroke"
+            />
+            {/* Centre dot — screen-constant */}
+            <g ref={previewPhotoPoseDotRef}>
+              <g style={{ transform: scaleTransform }}>
+                <circle
+                  cx={0}
+                  cy={0}
+                  r={4}
+                  fill={theme.palette.secondary.main}
+                />
               </g>
             </g>
           </g>

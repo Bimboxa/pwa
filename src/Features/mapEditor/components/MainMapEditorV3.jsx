@@ -12,6 +12,8 @@ import { setBgImageRawTextAnnotations } from "Features/bgImage/bgImageSlice";
 import { setShowCreateBaseMapSection } from "Features/mapEditor/mapEditorSlice";
 import { selectSelectedItems } from "Features/selection/selectionSlice";
 import { resetVersionCompare } from "Features/baseMapEditor/baseMapEditorSlice";
+import { setLocalizingPhotoId } from "Features/photos/photosSlice";
+import { DEFAULT_FOV_DEG } from "Features/photos/constants/photoNode";
 
 import useMeasure from "react-use-measure";
 
@@ -263,6 +265,13 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     // annotations subscription); drawer hover → the popper is only CSS-hidden
     // so its local state (drag position, ...) survives the transient overlay.
     const isDessinModule = useSelector((s) => s.viewers.selectedViewerKey === "MAP");
+    // Photos module (key PHOTOS): the Photos panel owns the left side and the
+    // module has no use for the annotation listings popper — never mounted.
+    const isPhotosModule = useSelector(
+        (s) => s.viewers.selectedViewerKey === "PHOTOS"
+    );
+    // Photo being localized by the PHOTO_POSE two-click tool.
+    const localizingPhotoId = useSelector((s) => s.photos.localizingPhotoId);
     const leftPanelDocked = useSelector((s) => s.leftPanel.leftPanelDocked);
     const leftDrawerHovered = useSelector((s) => s.leftPanel.leftDrawerHovered);
     const dessinPanelDocked = isDessinModule && leftPanelDocked;
@@ -398,6 +407,8 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
         // Read-only outlines of subtraction targets hosted by another base map
         // (clickable, so the toolbar can offer "Voir l'annotation d'origine").
         withForeignFootprints: true,
+        // Photo camera poses (point + view cone) — Photos module only.
+        withPhotos: isPhotosModule,
     });
 
     // "Maillage" toggle: ON → replace meshed parents by their mesh cells (keep
@@ -859,6 +870,42 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                 ...(radiusM != null && { radiusM }),
                 directionDeg,
             },
+        });
+    }
+
+    // handlers - photo pose (Photos module)
+
+    // Same [centre, edge] gesture as the revolution axis, but the commit
+    // targets db.photos (photos are NOT annotations): the centre becomes the
+    // photo's normalized inline point, the edge the camera direction + range.
+    const handleCommitPhotoPose = async (points) => {
+        const [center, edge] = points ?? [];
+        const photoId = localizingPhotoId;
+        dispatch(setEnabledDrawingMode(null));
+        dispatch(setLocalizingPhotoId(null));
+        const imageSize = baseMap?.getImageSize?.();
+        if (!center || !edge || !photoId || !imageSize?.width) return;
+        const meterByPx = baseMap?.getMeterByPx?.();
+        const dx = edge.x - center.x;
+        const dy = edge.y - center.y;
+        const radiusPx = Math.hypot(dx, dy);
+        const radiusM =
+            Number.isFinite(meterByPx) && meterByPx > 0
+                ? Math.round(radiusPx * meterByPx * 1e6) / 1e6
+                : null;
+        // px -> plan LOCAL metre frame: y flips (same as the revolution axis).
+        const directionDeg = (Math.atan2(-dy, dx) * 180) / Math.PI;
+        const photo = await db.photos.get(photoId);
+        if (!photo) return;
+        await db.photos.update(photoId, {
+            point: {
+                x: center.x / imageSize.width,
+                y: center.y / imageSize.height,
+            },
+            baseMapId: baseMap.id,
+            directionDeg,
+            radiusM,
+            fovDeg: photo.fovDeg ?? DEFAULT_FOV_DEG,
         });
     }
 
@@ -1908,6 +1955,9 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                         else if (enabledDrawingMode === "REVOLUTION_AXIS_PLAN") {
                             return handleCommitDrawingFromRevolutionAxis(points);
                         }
+                        else if (enabledDrawingMode === "PHOTO_POSE") {
+                            return handleCommitPhotoPose(points);
+                        }
                         else if (["POLYLINE_CIRCLE_RADIUS", "POLYGON_CIRCLE_RADIUS"].includes(enabledDrawingMode)) {
                             return handleCommitDrawingFromCircleRadius(points);
                         }
@@ -2109,6 +2159,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                 !imageModeActive &&
                 !dessinPanelDocked &&
                 !viewerPanelDocked &&
+                !isPhotosModule &&
                 (forViewerKey !== "BASE_MAPS" || showDrawingToolsInBaseMaps) && (
                     /* display:none (not unmount) while the drawer slides over
                        the map, so the popper keeps its state; "contents" keeps

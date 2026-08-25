@@ -69,11 +69,12 @@ export const makeGetListingsByOptions = (options) =>
         return entityModel ? { ...listing, entityModel } : listing;
       });
 
-      // scope filter: shared (BASE_MAP) + scoped listings
+      // scope filter: shared (BASE_MAP, PHOTO) + scoped listings
       if (filterByScopeId) {
         listings = listings.filter(
           (l) =>
             l?.entityModel?.type === "BASE_MAP" ||
+            l?.entityModel?.type === "PHOTO" ||
             l.scopeId === filterByScopeId
         );
       }
