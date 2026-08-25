@@ -5,6 +5,7 @@ import {
   setSelectedPhotoPlanIdInMap,
   setFlattenedPhotoPlanId,
 } from "../photoPlansSlice";
+import { setSelectedMainBaseMapId } from "Features/mapEditor/mapEditorSlice";
 
 import { Box, Button, Chip, Tooltip, Typography } from "@mui/material";
 import FlipToFrontIcon from "@mui/icons-material/FlipToFront";
@@ -41,6 +42,12 @@ export default function TopPhotoPlanChips({ baseMap }) {
   }
 
   function handleToggleFlatten() {
+    // A baked flattened baseMap exists: switch the editor to it (real
+    // drawing surface) instead of the read-only overlay.
+    if (selectedPlan?.flattenedBaseMapId) {
+      dispatch(setSelectedMainBaseMapId(selectedPlan.flattenedBaseMapId));
+      return;
+    }
     dispatch(
       setFlattenedPhotoPlanId(flattenedId === selectedId ? null : selectedId)
     );

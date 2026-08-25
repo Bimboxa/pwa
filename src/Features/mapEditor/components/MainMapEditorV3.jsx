@@ -72,6 +72,7 @@ import PrintableMap from "./PrintableMap";
 import UILayer from "./UILayer";
 import PhotoPlanMaskLayer from "Features/photoPlans/components/PhotoPlanMaskLayer";
 import PhotoPlanGuideLinesLayer from "Features/photoPlans/components/PhotoPlanGuideLinesLayer";
+import PhotoPlanReprojectedAnnotationsLayer from "Features/photoPlans/components/PhotoPlanReprojectedAnnotationsLayer";
 import TopPhotoPlanChips from "Features/photoPlans/components/TopPhotoPlanChips";
 import PhotoPlanFlattenedOverlay from "Features/photoPlans/components/PhotoPlanFlattenedOverlay";
 import LayerTools from "./LayerTools";
@@ -2122,6 +2123,12 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                         draggable vanishing lines over the photo. */}
                     {baseMap?.isPhoto && (
                         <PhotoPlanGuideLinesLayer baseMap={baseMap} basePose={basePose} />
+                    )}
+
+                    {/* Read-only reprojection of the annotations drawn on the
+                        flattened counterpart ("mise à plat"). */}
+                    {baseMap?.isPhoto && baseMap?.flattenedBaseMapId && (
+                        <PhotoPlanReprojectedAnnotationsLayer baseMap={baseMap} basePose={basePose} />
                     )}
 
                 </InteractionLayer>

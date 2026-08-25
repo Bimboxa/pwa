@@ -186,5 +186,9 @@ export default async function bakePhotoPlanOrtho({
     widthM,
     heightM,
     pxPerM,
+    // Output frame: flattened px (col, row) <-> plane meters
+    //   u = uMin + (col + 0.5) / pxPerM ; v = vMax - (row + 0.5) / pxPerM
+    uMin,
+    vMax,
   };
 }
