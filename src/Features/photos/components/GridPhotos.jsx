@@ -7,7 +7,12 @@ import LocationOff from "@mui/icons-material/LocationOff";
 // dataURL stored on the photo row.
 // ---------------------------------------------------------------------------
 
-export default function GridPhotos({ photos, selectedPhotoId, onPhotoClick }) {
+export default function GridPhotos({
+  photos,
+  selectedPhotoId,
+  onPhotoClick,
+  columns = 3,
+}) {
   // strings
 
   const notLocalizedS = "Photo non localisée sur le plan";
@@ -18,7 +23,7 @@ export default function GridPhotos({ photos, selectedPhotoId, onPhotoClick }) {
     <Box
       sx={{
         display: "grid",
-        gridTemplateColumns: "repeat(3, 1fr)",
+        gridTemplateColumns: `repeat(${columns}, 1fr)`,
         gap: 1,
         px: 1.5,
         py: 1,

@@ -97,6 +97,8 @@ import applyInteractionModeChange from "Features/mapEditor/utils/applyInteractio
 import { resolveDrawingShape } from "Features/annotations/constants/drawingShapeConfig";
 
 import useListings from "Features/listings/hooks/useListings";
+import useProjectPhotos from "Features/photos/hooks/useProjectPhotos";
+import SectionPopperPhotos from "Features/photos/components/SectionPopperPhotos";
 import useFreeAnnotationTemplates from "Features/mapEditor/hooks/useFreeAnnotationTemplates";
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
 import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
@@ -1750,6 +1752,17 @@ export default function PopperMapListings() {
 
   const titleS = isBaseMapsViewer ? "Dessins sur fond de plan" : "Annotations";
 
+  // Viewer module: when the project has photos, the header title becomes an
+  // "Annotations / Photos" toggle and the Photos side swaps the body for the
+  // photo albums (2-column grids, click = select the photo).
+  const projectId = useSelector((s) => s.projects.selectedProjectId);
+  const projectPhotos = useProjectPhotos({
+    projectId: isViewerModule ? projectId : null,
+  });
+  const [popperContentMode, setPopperContentMode] = useState("ANNOTATIONS");
+  const showPhotosToggle = isViewerModule && projectPhotos.length > 0;
+  const showPhotosBody = showPhotosToggle && popperContentMode === "PHOTOS";
+
   const { value: listings } = useListings({
     filterByScopeId: selectedScopeId,
     filterByEntityModelType: "LOCATED_ENTITY",
@@ -2039,12 +2052,42 @@ export default function PopperMapListings() {
           />
         </Box>
 
-        <Typography
-          variant="body2"
-          sx={{ fontWeight: 600, color: "panel.textPrimary", flex: 1 }}
-        >
-          {titleS}
-        </Typography>
+        {showPhotosToggle ? (
+          <ToggleButtonGroup
+            value={popperContentMode}
+            exclusive
+            size="small"
+            onMouseDown={(e) => e.stopPropagation()}
+            onChange={(e, value) => {
+              if (value) setPopperContentMode(value);
+            }}
+            sx={{ flex: 1 }}
+          >
+            <ToggleButton value="ANNOTATIONS" sx={{ flex: 1, py: 0.25 }}>
+              <Typography
+                variant="caption"
+                sx={{ fontWeight: 600, textTransform: "none" }}
+              >
+                Annotations
+              </Typography>
+            </ToggleButton>
+            <ToggleButton value="PHOTOS" sx={{ flex: 1, py: 0.25 }}>
+              <Typography
+                variant="caption"
+                sx={{ fontWeight: 600, textTransform: "none" }}
+              >
+                Photos
+              </Typography>
+            </ToggleButton>
+          </ToggleButtonGroup>
+        ) : (
+          <Typography
+            variant="body2"
+            sx={{ fontWeight: 600, color: "panel.textPrimary", flex: 1 }}
+          >
+            {titleS}
+          </Typography>
+        )}
 
         {/* Properties button (on hover, left of +Liste) */}
         {headerHovered && !isBaseMapsViewer && (
@@ -2246,9 +2289,13 @@ export default function PopperMapListings() {
                 />
               )}
 
+            {/* Viewer module, Photos side of the header toggle: photo albums
+                (2-column grids) replace the annotations legend. */}
+            {showPhotosBody && <SectionPopperPhotos />}
+
             {/* Viewer 2D: the legend is scoped to the current baseMap — make
                 the empty case explicit instead of a blank panel. */}
-            {isViewer2d && hasNoListing && (
+            {!showPhotosBody && isViewer2d && hasNoListing && (
               <Box sx={{ px: 1.5, py: 1.5 }}>
                 <Typography
                   variant="body2"
@@ -2264,7 +2311,8 @@ export default function PopperMapListings() {
                   selector), each row always expanded with its templates. The
                   row's hover eye toggles all the listing's template eyes. */}
               {isViewerModule
-                ? displayedListings?.map((listing) => (
+                ? !showPhotosBody &&
+                  displayedListings?.map((listing) => (
                     <ListingRow
                       key={listing.id}
                       listing={listing}
