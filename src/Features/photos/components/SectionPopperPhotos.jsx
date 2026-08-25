@@ -2,6 +2,8 @@ import { useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import { setSelectedPhotoId } from "../photosSlice";
+import { setSelectedItem } from "Features/selection/selectionSlice";
+import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 
 import { Box, Typography } from "@mui/material";
 
@@ -49,6 +51,10 @@ export default function SectionPopperPhotos() {
 
   function handlePhotoClick(photo) {
     dispatch(setSelectedPhotoId(photo.id));
+    // Selection slice + right panel: the photo gets its dedicated
+    // properties panel (PanelPhotoProperties).
+    dispatch(setSelectedItem({ id: photo.id, type: "PHOTO" }));
+    dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
   }
 
   // render

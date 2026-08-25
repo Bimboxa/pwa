@@ -26,6 +26,7 @@ import PanelPropertiesSegment from "Features/points/components/PanelPropertiesSe
 import PanelPropertiesGuideline from "Features/annotations/components/PanelPropertiesGuideline";
 import PanelPropertiesPointsAndSegments from "Features/points/components/PanelPropertiesPointsAndSegments";
 import PanelMesh3dProperties from "Features/threedMesh/components/PanelMesh3dProperties";
+import PanelPhotoProperties from "Features/photos/components/PanelPhotoProperties";
 import PanelPovProperties from "Features/pov/components/PanelPovProperties";
 import PanelZoneProperties from "Features/zonings/components/PanelZoneProperties";
 import PanelPovFrameProperties from "Features/pov/components/PanelPovFrameProperties";
@@ -70,6 +71,9 @@ export default function PanelSelectionProperties() {
   if (isPovViewer) {
     // POV viewer: either the selected POV, or the frame settings by default.
     type = selectedItem?.type === "POV" ? "POV" : "POV_FRAME";
+  } else if (selectedItem?.type === "PHOTO") {
+    // Photo selected from a photos grid (popper / panel) or its map node.
+    type = "PHOTO";
   } else if (
     isCanvasViewer &&
     selectedPointIds.length > 0 &&
@@ -255,6 +259,8 @@ export default function PanelSelectionProperties() {
 
 
       {type === "ZONE" && <PanelZoneProperties />}
+
+      {type === "PHOTO" && <PanelPhotoProperties />}
 
       {type === "POV" && <PanelPovProperties />}
 

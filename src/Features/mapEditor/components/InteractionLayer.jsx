@@ -12,6 +12,7 @@ import { setEnabledDrawingMode, setSelectedNodes, setMapEditorMode, setDraftProp
 import { setSelectedNode, toggleSelectedNode } from 'Features/mapEditor/mapEditorSlice';
 import { setSelectedPhotoId } from 'Features/photos/photosSlice';
 import { isPhotoNodeId, getPhotoIdFromNodeId } from 'Features/photos/constants/photoNode';
+import { setSelectedMenuItemKey } from 'Features/rightPanel/rightPanelSlice';
 import { setAnnotationToolbarPosition, setAnnotationsToolbarPosition } from 'Features/mapEditor/mapEditorSlice';
 import { setImageModeLegendSelected } from 'Features/mapEditor/mapEditorSlice';
 import { selectCaptureFramingActive } from 'Features/viewers/utils/effectiveViewerKey';
@@ -5739,11 +5740,15 @@ const InteractionLayer = forwardRef(({
           dispatch(setAnnotationToolbarPosition(null));
         }
 
-        // Photo pseudo-annotation (Photos module): highlight the photo in the
-        // left panel and stop — the "photo::" id exists in no table, so it
-        // must never enter the annotation selection / toolbar paths.
+        // Photo pseudo-annotation (Photos / Viewer modules): select the photo
+        // (grid highlight + dedicated right-panel properties) and stop — the
+        // "photo::" id exists in no table, so it must never enter the
+        // annotation selection / toolbar paths.
         else if (isPhotoNodeId(hit?.dataset?.nodeId)) {
-          dispatch(setSelectedPhotoId(getPhotoIdFromNodeId(hit.dataset.nodeId)));
+          const photoId = getPhotoIdFromNodeId(hit.dataset.nodeId);
+          dispatch(setSelectedPhotoId(photoId));
+          dispatch(setSelectedItem({ id: photoId, type: "PHOTO" }));
+          dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
           if (tooltipData) setTooltipData(null);
           return;
         }
