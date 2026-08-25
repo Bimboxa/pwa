@@ -1,3 +1,5 @@
+import db from "App/db/db";
+
 import { triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice";
 import { bumpSnapIndexEpoch } from "Features/threedEditor/threedEditorSlice";
 
@@ -21,7 +23,9 @@ import getBaseMapForRender from "Features/threedEditor/js/utilsAnnotationsManage
 // rotation of phi about +Z is a pixel-space rotation of −phi.
 //
 // transform:
-//   { kind: "MOVE", deltaLocal: {x, y} }              (local metres)
+//   { kind: "MOVE", deltaLocal: {x, y, z} }           (local metres; z = the
+//     vertical component of a snapped drop, persisted as an offsetZ delta —
+//     the 3D altitude above the plane is annotation.offsetZ / verticalLift)
 //   { kind: "ROTATE", pivotLocal: {x, y}, phi }       (rad, about local +Z)
 //
 // Known 2D-move parity: POLYGON meshLines (stored in absolute normalized
@@ -98,6 +102,20 @@ export default async function commitAnnotationsTransformFrom3d({
     moveDelta,
     clearRotation,
   });
+
+  // Vertical component of a snapped MOVE: the whole carried group climbs or
+  // sinks as one block so the grabbed point lands exactly on the drop point,
+  // altitude included.
+  const deltaZ = transform.kind === "MOVE" ? transform.deltaLocal.z || 0 : 0;
+  if (Math.abs(deltaZ) > 1e-9) {
+    await Promise.all(
+      carried.map((ann) =>
+        db.annotations.update(ann.id, {
+          offsetZ: (Number(ann.offsetZ) || 0) + deltaZ,
+        })
+      )
+    );
+  }
 
   // Openings glued on the moved walls follow their host — same as the 2D
   // wrapper commit.

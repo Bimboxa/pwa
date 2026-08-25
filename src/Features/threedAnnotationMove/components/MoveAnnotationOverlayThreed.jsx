@@ -170,9 +170,12 @@ export default function MoveAnnotationOverlayThreed() {
       updateCross(grab ? snap : null, rect);
 
       // Live move: the carried annotation roots follow so the grabbed point
-      // lands on the current target (in-plane, local Z dropped).
+      // lands on the current target — altitude included on a real snap, in
+      // the plane only on a free cursor.
       if (grab && snap?.position) {
-        applyMoveAnnotationsPose(editor, grab, snap.position);
+        applyMoveAnnotationsPose(editor, grab, snap.position, {
+          includeZ: snap.kind !== "FREE",
+        });
       }
       editor.renderScene?.();
     }

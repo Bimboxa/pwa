@@ -13,6 +13,8 @@ let lastSnap = null;
 //   annotationIds,               // carried annotation ids (same base map)
 //   startWorld: Vector3,         // grabbed point, world space
 //   startLocal: {x, y, z},       // grabbed point, base map LOCAL metres
+//                                // (z drives the offsetZ delta of a snapped
+//                                // drop at another altitude)
 //   rootStartPoses: Map<id, {position: Vector3, rotZ}>, // at grab time
 //   targetVerts,                 // target-only snap index (carried roots
 //   targetAdjacency,             // excluded), built fresh at grab time

@@ -188,7 +188,11 @@ export default function useMoveAnnotationPointerHandlers({ annotations }) {
       // The overlay already posed the roots; re-apply from the drop snap to
       // be exact. The poses stay applied — the post-commit rebuild swaps the
       // carried objects with fresh geometry at identity, no visual jump.
-      const delta = applyMoveAnnotationsPose(editor, grab, snap.position);
+      // On a real snap the vertical component follows too (persisted as an
+      // offsetZ delta); a free drop stays in the plane.
+      const delta = applyMoveAnnotationsPose(editor, grab, snap.position, {
+        includeZ: snap.kind !== "FREE",
+      });
       clearMoveAnnotationGrab();
       dispatch(setMoveAnnotationCarriedIds([]));
       if (!delta) return;
