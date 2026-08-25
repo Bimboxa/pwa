@@ -30,6 +30,7 @@ export default function VerticalMenuViewers() {
 
   function handleClick(viewerKey) {
     switchViewer(viewerKey);
+    if (!leftPanelDocked) onMouseEnter();
   }
 
   // render - shared content
@@ -41,6 +42,8 @@ export default function VerticalMenuViewers() {
       <ButtonBase
         key={viewer.key}
         onClick={() => handleClick(viewer.key)}
+        onMouseEnter={!leftPanelDocked && isSelected ? onMouseEnter : undefined}
+        onMouseLeave={!leftPanelDocked && isSelected ? onMouseLeave : undefined}
         sx={{
           display: "flex",
           flexDirection: "column",
@@ -96,12 +99,11 @@ export default function VerticalMenuViewers() {
     );
   });
 
-  // render - always-visible bar; hovering it reveals the drawer when undocked
+  // render - always-visible bar; when undocked, only the selected module
+  // button reveals the drawer (see hover handlers on ButtonBase above)
 
   return (
     <Box
-      onMouseEnter={leftPanelDocked ? undefined : onMouseEnter}
-      onMouseLeave={leftPanelDocked ? undefined : onMouseLeave}
       sx={{
         display: "flex",
         flexDirection: "column",
