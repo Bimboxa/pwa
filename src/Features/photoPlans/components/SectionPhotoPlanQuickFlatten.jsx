@@ -23,7 +23,8 @@ import db from "App/db/db";
 
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 
-import usePhotoPlans from "../hooks/usePhotoPlans";
+import usePhotoPlanZones from "../hooks/usePhotoPlanZones";
+import useQuickFlattenTargetPlan from "../hooks/useQuickFlattenTargetPlan";
 import useCreatePhotoPlan from "../hooks/useCreatePhotoPlan";
 import useFlattenPhotoPlanToBaseMap from "../hooks/useFlattenPhotoPlanToBaseMap";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
@@ -44,7 +45,6 @@ export default function SectionPhotoPlanQuickFlatten({ baseMap }) {
 
   // data
 
-  const { value: photoPlans = [] } = usePhotoPlans({ baseMapId: baseMap?.id });
   const { value: allBaseMaps = [] } = useBaseMaps();
   const createPhotoPlan = useCreatePhotoPlan();
   const flattenPhotoPlanToBaseMap = useFlattenPhotoPlanToBaseMap();
@@ -52,18 +52,27 @@ export default function SectionPhotoPlanQuickFlatten({ baseMap }) {
 
   // helpers
 
-  const fullPlan = photoPlans.find((p) => !p.annotationId) ?? null;
-  const orientation = fullPlan?.orientation ?? "VERTICAL";
+  // Target = the plan selected in the chips band (a "découpe" zone plan,
+  // typically) else the whole-photo plan — the baked image is cropped to
+  // the target's zone.
+  const targetPlan = useQuickFlattenTargetPlan({ baseMap });
+  const imageSize = baseMap?.getImageSize?.();
+  // Source-polygon rings, needed when the target is a zone plan.
+  const { value: zones = [] } = usePhotoPlanZones({
+    baseMapId: targetPlan?.annotationId ? baseMap?.id : null,
+    imageSize,
+  });
+  const orientation = targetPlan?.orientation ?? "VERTICAL";
   const isMetric = Boolean(
-    fullPlan?.calibration?.ok && !fullPlan.calibration.isUnscaled
+    targetPlan?.calibration?.ok && !targetPlan.calibration.isUnscaled
   );
   const hasFlattened = Boolean(
-    fullPlan?.flattenedBaseMapId &&
-    allBaseMaps.some((b) => b.id === fullPlan.flattenedBaseMapId)
+    targetPlan?.flattenedBaseMapId &&
+    allBaseMaps.some((b) => b.id === targetPlan.flattenedBaseMapId)
   );
 
-  async function ensureFullPlan() {
-    if (fullPlan) return fullPlan;
+  async function ensureTargetPlan() {
+    if (targetPlan) return targetPlan;
     return await createPhotoPlan({
       baseMap,
       name: "Photo entière",
@@ -74,19 +83,19 @@ export default function SectionPhotoPlanQuickFlatten({ baseMap }) {
   // handlers
 
   async function handleToggleGuides(checked) {
-    if (checked) await ensureFullPlan();
+    if (checked) await ensureTargetPlan();
     dispatch(setShowGuideLinesInMap(checked));
   }
 
   async function handleOrientationChange(value) {
     if (!value) return;
-    const plan = await ensureFullPlan();
+    const plan = await ensureTargetPlan();
     await db.photoPlans.update(plan.id, { orientation: value });
     dispatch(triggerPhotoPlansUpdate());
   }
 
   async function handleFlatten() {
-    let plan = await ensureFullPlan();
+    let plan = await ensureTargetPlan();
     dispatch(setSelectedPhotoPlanIdInMap(plan.id));
 
     // Already baked into a real baseMap: just switch to it. (Re-bake path:
@@ -108,16 +117,36 @@ export default function SectionPhotoPlanQuickFlatten({ baseMap }) {
       plan = computed;
     }
 
-    const imageSize0 = baseMap?.getImageSize?.();
+    // Bake ring = the plan's "découpe" zone (source polygon) — or the
+    // whole image for the whole-photo plan.
+    let ringPx;
+    let holesPx = [];
+    if (plan.annotationId) {
+      const zone = zones.find((z) => z.plan.id === plan.id);
+      if (!zone) {
+        dispatch(
+          setToaster({
+            message: "Zone du plan photo introuvable — réessayez.",
+            isError: true,
+          })
+        );
+        return;
+      }
+      ringPx = zone.ringPx;
+      holesPx = zone.holesPx;
+    } else {
+      ringPx = [
+        { x: 0, y: 0 },
+        { x: imageSize.width, y: 0 },
+        { x: imageSize.width, y: imageSize.height },
+        { x: 0, y: imageSize.height },
+      ];
+    }
     const newId = await flattenPhotoPlanToBaseMap({
       photoBaseMap: baseMap,
       plan,
-      ringPx: [
-        { x: 0, y: 0 },
-        { x: imageSize0.width, y: 0 },
-        { x: imageSize0.width, y: imageSize0.height },
-        { x: 0, y: imageSize0.height },
-      ],
+      ringPx,
+      holesPx,
     });
     if (!newId) {
       dispatch(
@@ -155,7 +184,6 @@ export default function SectionPhotoPlanQuickFlatten({ baseMap }) {
       return null;
     }
 
-    const imageSize = baseMap?.getImageSize?.();
     const result = computePhotoPlanQuickCalibration({
       photoImageSize: imageSize,
       planeType: plan.orientation,
@@ -205,6 +233,11 @@ export default function SectionPhotoPlanQuickFlatten({ baseMap }) {
     <WhiteSectionGeneric>
       <Typography variant="body2" sx={{ fontWeight: "bold" }}>
         Mettre à plat
+      </Typography>
+      <Typography variant="caption" sx={{ display: "block", fontWeight: 600 }}>
+        {targetPlan?.annotationId
+          ? `Zone : ${targetPlan.name}`
+          : "Photo entière"}
       </Typography>
       <Typography
         variant="caption"

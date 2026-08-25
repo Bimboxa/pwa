@@ -2126,8 +2126,9 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                     )}
 
                     {/* Read-only reprojection of the annotations drawn on the
-                        flattened counterpart ("mise à plat"). */}
-                    {baseMap?.isPhoto && baseMap?.flattenedBaseMapId && (
+                        flattened counterparts ("mise à plat", whole-photo and
+                        zone plans). Self-hiding. */}
+                    {baseMap?.isPhoto && (
                         <PhotoPlanReprojectedAnnotationsLayer baseMap={baseMap} basePose={basePose} />
                     )}
 

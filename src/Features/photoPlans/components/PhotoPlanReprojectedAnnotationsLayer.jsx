@@ -8,36 +8,26 @@ import applyPhotoPlanHomography from "../utils/applyPhotoPlanHomography";
 import { expandArcsInPath } from "Features/geometry/utils/arcSampling";
 
 // Read-only reprojection, over the ORIGINAL photo, of the annotations drawn
-// on its flattened ("mise à plat") counterpart: flattened px -> plane meters
-// (bake-time frame) -> photo via the bake-time Hinv SNAPSHOT (never the live
-// calibration — a re-Positionner must not shift annotations bound to the
-// baked image). Straight segments stay straight under a homography; arcs are
-// tessellated first. Display-only (pointerEvents none).
+// on its flattened ("mise à plat") counterparts — whole-photo AND zone
+// plans: flattened px -> plane meters (bake-time frame) -> photo via the
+// bake-time Hinv SNAPSHOT (never the live calibration — a re-Positionner
+// must not shift annotations bound to the baked image). Straight segments
+// stay straight under a homography; arcs are tessellated first.
+// Display-only (pointerEvents none).
 
 const ARC_SAMPLES = 12;
 
-export default function PhotoPlanReprojectedAnnotationsLayer({
-  baseMap,
-  basePose,
-}) {
-  const flattenedId = baseMap?.isPhoto ? baseMap.flattenedBaseMapId : null;
-
-  const { value: photoPlans = [] } = usePhotoPlans({
-    baseMapId: flattenedId ? baseMap.id : null,
-  });
-  const plan =
-    photoPlans.find((p) => p.flattenedBaseMapId === flattenedId) ?? null;
-  const frame = plan?.flattenedFrame;
+// One flattened baseMap = one annotations feed (hooks can't run in a loop).
+function ReprojectedPlanAnnotations({ plan, photoSize, containerK }) {
+  const frame = plan.flattenedFrame;
 
   const rawAnnotations = useAnnotationsV2({
-    enabled: Boolean(flattenedId && frame),
-    filterByBaseMapId: flattenedId,
+    enabled: Boolean(frame),
+    filterByBaseMapId: plan.flattenedBaseMapId,
     sortByOrderIndex: true,
     hideBaseMapAnnotations: true,
     excludeIsForBaseMapsListings: true,
   });
-
-  const photoSize = baseMap?.getImageSize?.();
 
   const mapped = useMemo(() => {
     if (!frame?.Hinv || !photoSize?.width || !photoSize?.height) return [];
@@ -78,7 +68,36 @@ export default function PhotoPlanReprojectedAnnotationsLayer({
     return result;
   }, [rawAnnotations, frame, photoSize?.width, photoSize?.height]);
 
-  if (!flattenedId || !frame || mapped.length === 0) return null;
+  return mapped.map((annotation) => (
+    <NodeAnnotationStatic
+      key={annotation.id}
+      annotation={annotation}
+      containerK={containerK}
+    />
+  ));
+}
+
+export default function PhotoPlanReprojectedAnnotationsLayer({
+  baseMap,
+  basePose,
+}) {
+  const { value: photoPlans = [] } = usePhotoPlans({
+    baseMapId: baseMap?.isPhoto ? baseMap.id : null,
+  });
+  const plansWithFrame = photoPlans.filter(
+    (p) => p.flattenedBaseMapId && p.flattenedFrame
+  );
+
+  const photoSize = baseMap?.getImageSize?.();
+
+  if (
+    !baseMap?.isPhoto ||
+    plansWithFrame.length === 0 ||
+    !photoSize?.width ||
+    !photoSize?.height
+  ) {
+    return null;
+  }
 
   return (
     <g
@@ -86,10 +105,11 @@ export default function PhotoPlanReprojectedAnnotationsLayer({
       opacity={0.65}
       transform={`translate(${basePose.x}, ${basePose.y}) scale(${basePose.k})`}
     >
-      {mapped.map((annotation) => (
-        <NodeAnnotationStatic
-          key={annotation.id}
-          annotation={annotation}
+      {plansWithFrame.map((plan) => (
+        <ReprojectedPlanAnnotations
+          key={plan.id}
+          plan={plan}
+          photoSize={photoSize}
           containerK={basePose.k}
         />
       ))}

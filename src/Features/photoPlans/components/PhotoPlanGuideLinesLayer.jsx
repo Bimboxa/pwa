@@ -7,7 +7,7 @@ import db from "App/db/db";
 
 import VanishingLinesLayer from "./VanishingLinesLayer";
 
-import usePhotoPlans from "../hooks/usePhotoPlans";
+import useQuickFlattenTargetPlan from "../hooks/useQuickFlattenTargetPlan";
 import { defaultVanishingLines } from "../utils/calibrationUiConstants";
 
 // World-space layer of the MAIN 2D editor (quick-flatten flow): draggable
@@ -20,10 +20,9 @@ export default function PhotoPlanGuideLinesLayer({ baseMap, basePose }) {
   const dispatch = useDispatch();
 
   const showGuides = useSelector((s) => s.photoPlans.showGuideLinesInMap);
-  const { value: photoPlans = [] } = usePhotoPlans({
-    baseMapId: baseMap?.isPhoto && showGuides ? baseMap.id : null,
-  });
-  const fullPlan = photoPlans.find((p) => !p.annotationId) ?? null;
+  // Same targeting as the Transfo. section: the chips-selected plan (zone)
+  // else the whole-photo plan — their calibrationInputs own the lines.
+  const fullPlan = useQuickFlattenTargetPlan({ baseMap });
 
   // Draft lines during a drag; null = mirror the persisted record.
   const [draft, setDraft] = useState(null);

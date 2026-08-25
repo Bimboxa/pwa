@@ -60,7 +60,11 @@ export default function useFlattenPhotoPlanToBaseMap() {
 
     const created = await createBaseMapFromImage({
       file,
-      name: `${photoBaseMap.name || "Photo"} — à plat`,
+      // Zone plans keep their own name; the whole-photo plan inherits the
+      // photo's.
+      name: plan.annotationId
+        ? `${plan.name || "Plan photo"} — à plat`
+        : `${photoBaseMap.name || "Photo"} — à plat`,
       listing,
       ...(isMetric && { meterByPx: 1 / baked.pxPerM }),
       orientation: plan.orientation,
