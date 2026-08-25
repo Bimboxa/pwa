@@ -73,6 +73,7 @@ import SectionLayers from "Features/layers/components/SectionLayers";
 import {
   setShowLayers,
   setCollapsed,
+  setViewerContentMode,
 } from "Features/popperMapListings/popperMapListingsSlice";
 import DrawIcon from "@mui/icons-material/Draw";
 import EditIcon from "@mui/icons-material/Edit";
@@ -1759,7 +1760,9 @@ export default function PopperMapListings() {
   const projectPhotos = useProjectPhotos({
     projectId: isViewerModule ? projectId : null,
   });
-  const [popperContentMode, setPopperContentMode] = useState("ANNOTATIONS");
+  const popperContentMode = useSelector(
+    (s) => s.popperMapListings.viewerContentMode
+  );
   const showPhotosToggle = isViewerModule && projectPhotos.length > 0;
   const showPhotosBody = showPhotosToggle && popperContentMode === "PHOTOS";
 
@@ -2059,7 +2062,7 @@ export default function PopperMapListings() {
             size="small"
             onMouseDown={(e) => e.stopPropagation()}
             onChange={(e, value) => {
-              if (value) setPopperContentMode(value);
+              if (value) dispatch(setViewerContentMode(value));
             }}
             sx={{ flex: 1 }}
           >
@@ -2089,8 +2092,9 @@ export default function PopperMapListings() {
           </Typography>
         )}
 
-        {/* Properties button (on hover, left of +Liste) */}
-        {headerHovered && !isBaseMapsViewer && (
+        {/* Properties button (on hover, left of +Liste) — hidden in the
+            Viewer module (read-only legend, no popper properties there) */}
+        {headerHovered && !isBaseMapsViewer && !isViewerModule && (
           <Tooltip title="Propriétés">
             <IconButton
               size="small"

@@ -272,6 +272,11 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     );
     // Photo being localized by the PHOTO_POSE two-click tool.
     const localizingPhotoId = useSelector((s) => s.photos.localizingPhotoId);
+    // Viewer module popper: photos render on the map only while the header
+    // toggle sits on its "Photos" tab.
+    const viewerPhotosTabActive = useSelector(
+        (s) => s.popperMapListings.viewerContentMode === "PHOTOS"
+    );
     const leftPanelDocked = useSelector((s) => s.leftPanel.leftPanelDocked);
     const leftDrawerHovered = useSelector((s) => s.leftPanel.leftDrawerHovered);
     const dessinPanelDocked = isDessinModule && leftPanelDocked;
@@ -408,9 +413,9 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
         // (clickable, so the toolbar can offer "Voir l'annotation d'origine").
         withForeignFootprints: true,
         // Photo camera poses (point + view cone) — Photos module, and the
-        // Viewer module's 2D editor (read-only consultation, hover preview
-        // + click-select in the popper's Photos grid).
-        withPhotos: isPhotosModule || isViewerModule,
+        // Viewer module's 2D editor while the popper's Photos tab is active
+        // (read-only consultation, hover preview + click-select in the grid).
+        withPhotos: isPhotosModule || (isViewerModule && viewerPhotosTabActive),
     });
 
     // "Maillage" toggle: ON → replace meshed parents by their mesh cells (keep
