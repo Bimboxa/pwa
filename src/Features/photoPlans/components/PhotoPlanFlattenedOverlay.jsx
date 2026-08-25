@@ -95,12 +95,19 @@ export default function PhotoPlanFlattenedOverlay({ baseMap }) {
         <Typography variant="body2" sx={{ fontWeight: 600 }}>
           {zone?.plan?.name ?? "Plan photo"} — mise à plat
         </Typography>
-        {result && (
-          <Typography variant="caption" color="text.secondary">
-            {result.widthM.toFixed(2)} × {result.heightM.toFixed(2)}
-            {" m — aperçu à l'échelle, lecture seule"}
-          </Typography>
-        )}
+        {result &&
+          (zone?.plan?.calibration?.isUnscaled ? (
+            <Typography variant="caption" color="text.secondary">
+              {
+                "Proportions exactes — échelle non définie (calibrez depuis l'outil Élévation pour mesurer). Lecture seule."
+              }
+            </Typography>
+          ) : (
+            <Typography variant="caption" color="text.secondary">
+              {result.widthM.toFixed(2)} × {result.heightM.toFixed(2)}
+              {" m — aperçu à l'échelle, lecture seule"}
+            </Typography>
+          ))}
         <Box sx={{ flexGrow: 1 }} />
         <IconButton
           size="small"

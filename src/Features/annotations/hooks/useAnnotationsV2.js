@@ -2131,7 +2131,10 @@ export default function useAnnotationsV2(options) {
             a._photoPlanOrientation = plan.orientation;
 
             const calib = plan.calibration;
-            if (!calib?.ok || !calib.H || !calib.pose) continue;
+            // Quick-flatten calibrations are display-only (arbitrary
+            // scale/pose) — never feed quantities or 3D from them.
+            if (!calib?.ok || calib.isUnscaled || !calib.H || !calib.pose)
+              continue;
             const bm = baseMapById[a.baseMapId];
             const imageSize = bm?.getImageSize?.() || bm?.image?.imageSize;
             const isClosed = ["POLYGON", "RECTANGLE"].includes(a.type);

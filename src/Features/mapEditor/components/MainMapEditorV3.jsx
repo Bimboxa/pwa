@@ -71,6 +71,7 @@ import PrintableMap from "./PrintableMap";
 
 import UILayer from "./UILayer";
 import PhotoPlanMaskLayer from "Features/photoPlans/components/PhotoPlanMaskLayer";
+import PhotoPlanGuideLinesLayer from "Features/photoPlans/components/PhotoPlanGuideLinesLayer";
 import TopPhotoPlanChips from "Features/photoPlans/components/TopPhotoPlanChips";
 import PhotoPlanFlattenedOverlay from "Features/photoPlans/components/PhotoPlanFlattenedOverlay";
 import LayerTools from "./LayerTools";
@@ -2115,6 +2116,12 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                         outside the selected plan's zone. Display-only. */}
                     {baseMap?.isPhoto && (
                         <PhotoPlanMaskLayer baseMap={baseMap} basePose={basePose} />
+                    )}
+
+                    {/* PhotoPlan quick-flatten guide lines (Transfo. tool):
+                        draggable vanishing lines over the photo. */}
+                    {baseMap?.isPhoto && (
+                        <PhotoPlanGuideLinesLayer baseMap={baseMap} basePose={basePose} />
                     )}
 
                 </InteractionLayer>

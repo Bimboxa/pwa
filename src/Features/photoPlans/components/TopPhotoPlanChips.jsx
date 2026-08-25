@@ -82,7 +82,9 @@ export default function TopPhotoPlanChips({ baseMap }) {
           <Chip
             key={p.id}
             size="small"
-            label={`${p.name}${p.calibration?.ok ? " ✓" : ""}`}
+            label={`${p.name}${
+              p.calibration?.ok ? (p.calibration.isUnscaled ? " ≈" : " ✓") : ""
+            }`}
             color={sel ? "primary" : "default"}
             variant={sel ? "filled" : "outlined"}
             onClick={() => handleChipClick(p.id)}

@@ -35,7 +35,10 @@ export default function useAutoLoadPhotoPlansInThreedEditor({
 
     const plans = (
       await db.photoPlans.where("baseMapId").anyOf(Object.keys(byId)).toArray()
-    ).filter((p) => !p.deletedAt && p.calibration?.ok);
+    ).filter(
+      // Unscaled (quick-flatten) calibrations have an arbitrary pose.
+      (p) => !p.deletedAt && p.calibration?.ok && !p.calibration.isUnscaled
+    );
 
     const out = [];
     for (const plan of plans) {
