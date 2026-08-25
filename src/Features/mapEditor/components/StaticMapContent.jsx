@@ -75,6 +75,9 @@ function StaticMapContent({
   const anchorSourceAnnotationId = useSelector(
     (s) => s.mapEditor.anchorSourceAnnotationId
   );
+  // Photo selection lives in photosSlice (never in the selection slice): the
+  // selected photo's node stays in this static pass and is highlighted here.
+  const selectedPhotoId = useSelector((s) => s.photos.selectedPhotoId);
 
   // clipping plane (2D-defined cut plane)
   const dispatch = useDispatch();
@@ -465,7 +468,9 @@ function StaticMapContent({
                 hovered={
                   !isAnchorSource && annotation.id === hoveredNode?.nodeId
                 }
-                selected={false}
+                selected={Boolean(
+                  annotation.isPhoto && annotation.photoId === selectedPhotoId
+                )}
                 sizeVariant={sizeVariant}
                 containerK={basePose.k}
                 baseMapMeterByPx={baseMapMeterByPx}

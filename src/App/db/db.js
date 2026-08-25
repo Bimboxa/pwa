@@ -227,6 +227,25 @@ db.version(29).stores({
   resources: "id,projectId",
 });
 
+db.version(30).stores({
+  // {id, projectId, listingId (PHOTO album listing, project-level, NO
+  //  scopeId — shared across scopes like baseMaps listings), baseMapId,
+  //  name, point: {x,y}|null (normalized [0..1] vs baseMap.image.imageSize,
+  //  INLINE on purpose: a db.points row would be dropped by the Krto points
+  //  filter — collectReferencedPointIds only scans annotations — and purged
+  //  as an orphan), directionDeg (camera heading, atan2(-dy,dx) in the
+  //  y-down px frame, same convention as REVOLUTION_AXIS), fovDeg, radiusM,
+  //  image: {fileName, imageSize, thumbnail (base64 dataURL), fileUpdatedAt},
+  //  createdBy: {idMaster, trigram}}
+  // Photo localized on a base map as a camera pose (point + view cone).
+  // The full-size image lives in db.files WITH the album listingId so it
+  // ships in the Krto zip; the inline thumbnail feeds the grid and the map
+  // hover tooltip. point == null → uploaded but not localized yet.
+  // Rendered in the 2D editor via useAnnotationsV2 as read-only
+  // pseudo-annotations of type "PHOTO" (id prefixed "photo::").
+  photos: "id,projectId,listingId,baseMapId",
+});
+
 // --- AUDIT HOOKS ---
 
 const AUDIT_TABLES = [
@@ -265,6 +284,7 @@ const AUDIT_TABLES = [
   "zones",
   "relsZoneAnnotation",
   "resources",
+  "photos",
 ];
 
 // Shared/collaborative tables exempt from the ownership guard: records here can
@@ -283,6 +303,9 @@ const OWNERSHIP_EXEMPT_TABLES = new Set([
   // created by other users.
   "zones",
   "relsZoneAnnotation",
+  // Photos are scope-shared collaborative rows (project-level albums),
+  // editable by anyone like baseMaps and povs.
+  "photos",
 ]);
 
 // --- READ-ONLY SCOPE GUARD ---
@@ -502,6 +525,7 @@ const SOFT_DELETE_TABLES = new Set([
   "zones",
   "relsZoneAnnotation",
   "resources",
+  "photos",
 ]);
 
 let _skipSoftDelete = false;

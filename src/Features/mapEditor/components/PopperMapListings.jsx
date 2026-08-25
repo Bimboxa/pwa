@@ -73,6 +73,7 @@ import SectionLayers from "Features/layers/components/SectionLayers";
 import {
   setShowLayers,
   setCollapsed,
+  setViewerContentMode,
 } from "Features/popperMapListings/popperMapListingsSlice";
 import DrawIcon from "@mui/icons-material/Draw";
 import EditIcon from "@mui/icons-material/Edit";
@@ -97,6 +98,8 @@ import applyInteractionModeChange from "Features/mapEditor/utils/applyInteractio
 import { resolveDrawingShape } from "Features/annotations/constants/drawingShapeConfig";
 
 import useListings from "Features/listings/hooks/useListings";
+import useProjectPhotos from "Features/photos/hooks/useProjectPhotos";
+import SectionPopperPhotos from "Features/photos/components/SectionPopperPhotos";
 import useFreeAnnotationTemplates from "Features/mapEditor/hooks/useFreeAnnotationTemplates";
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
 import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
@@ -445,6 +448,12 @@ function AnnotationTemplateRow({
   const isZonesViewerRow = useSelector(
     (s) => s.viewers.selectedViewerKey === "ZONES"
   );
+  // Viewer module (read-only legend): procedures can't be launched there, so
+  // the "Auto" chip (and its procedure popper) is hidden.
+  const isViewerModuleRow = useSelector(
+    (s) => s.viewers.selectedViewerKey === "THREED"
+  );
+  const showProcedureChip = hasProcedure && !isViewerModuleRow;
   const interactionMode = forceDrawMode
     ? "DRAW"
     : showMeshCells || isThreedViewer || viewerMode || isZonesViewerRow
@@ -718,7 +727,7 @@ function AnnotationTemplateRow({
             </Typography>
           )}
 
-          {hasProcedure && (
+          {showProcedureChip && (
             <Chip
               label="Auto"
               size="small"
@@ -738,7 +747,7 @@ function AnnotationTemplateRow({
           )}
         </Box>
 
-        {hasProcedure && (
+        {showProcedureChip && (
           <Popper
             open={Boolean(nameAnchorEl)}
             anchorEl={nameAnchorEl}
@@ -1600,6 +1609,9 @@ export default function PopperMapListings() {
   const isPovThreed = useSelector(
     (s) => isPovViewer && isThreedFamilyViewerKey(selectEffectiveViewerKey(s))
   );
+  // Viewer module (read-only consultation): the popper is a bare legend —
+  // listings + templates only, no editing affordances or warnings.
+  const isViewerModule = viewerKey === "THREED";
   // Viewer module displaying its 2D editor: the panel scopes to the CURRENT
   // baseMap only (the extra-basemap mirroring is a 3D-scene concern).
   const isViewer2d = useSelector(
@@ -1740,6 +1752,19 @@ export default function PopperMapListings() {
   }, [allAnnotations]);
 
   const titleS = isBaseMapsViewer ? "Dessins sur fond de plan" : "Annotations";
+
+  // Viewer module: when the project has photos, the header title becomes an
+  // "Annotations / Photos" toggle and the Photos side swaps the body for the
+  // photo albums (2-column grids, click = select the photo).
+  const projectId = useSelector((s) => s.projects.selectedProjectId);
+  const projectPhotos = useProjectPhotos({
+    projectId: isViewerModule ? projectId : null,
+  });
+  const popperContentMode = useSelector(
+    (s) => s.popperMapListings.viewerContentMode
+  );
+  const showPhotosToggle = isViewerModule && projectPhotos.length > 0;
+  const showPhotosBody = showPhotosToggle && popperContentMode === "PHOTOS";
 
   const { value: listings } = useListings({
     filterByScopeId: selectedScopeId,
@@ -2030,15 +2055,46 @@ export default function PopperMapListings() {
           />
         </Box>
 
-        <Typography
-          variant="body2"
-          sx={{ fontWeight: 600, color: "panel.textPrimary", flex: 1 }}
-        >
-          {titleS}
-        </Typography>
+        {showPhotosToggle ? (
+          <ToggleButtonGroup
+            value={popperContentMode}
+            exclusive
+            size="small"
+            onMouseDown={(e) => e.stopPropagation()}
+            onChange={(e, value) => {
+              if (value) dispatch(setViewerContentMode(value));
+            }}
+            sx={{ flex: 1 }}
+          >
+            <ToggleButton value="ANNOTATIONS" sx={{ flex: 1, py: 0.25 }}>
+              <Typography
+                variant="caption"
+                sx={{ fontWeight: 600, textTransform: "none" }}
+              >
+                Annotations
+              </Typography>
+            </ToggleButton>
+            <ToggleButton value="PHOTOS" sx={{ flex: 1, py: 0.25 }}>
+              <Typography
+                variant="caption"
+                sx={{ fontWeight: 600, textTransform: "none" }}
+              >
+                Photos
+              </Typography>
+            </ToggleButton>
+          </ToggleButtonGroup>
+        ) : (
+          <Typography
+            variant="body2"
+            sx={{ fontWeight: 600, color: "panel.textPrimary", flex: 1 }}
+          >
+            {titleS}
+          </Typography>
+        )}
 
-        {/* Properties button (on hover, left of +Liste) */}
-        {headerHovered && !isBaseMapsViewer && (
+        {/* Properties button (on hover, left of +Liste) — hidden in the
+            Viewer module (read-only legend, no popper properties there) */}
+        {headerHovered && !isBaseMapsViewer && !isViewerModule && (
           <Tooltip title="Propriétés">
             <IconButton
               size="small"
@@ -2175,7 +2231,9 @@ export default function PopperMapListings() {
 
           {/* Standard body (layers / listings / cut tools) */}
           {/* Warning: base map has no scale */}
-          {baseMap && !baseMap.meterByPx && <WarningBaseMapNotToScale />}
+          {baseMap && !baseMap.meterByPx && !isViewerModule && (
+            <WarningBaseMapNotToScale />
+          )}
 
           {/* Scrollable listings */}
           <Box sx={{ overflow: "auto", flex: 1 }}>
@@ -2217,25 +2275,31 @@ export default function PopperMapListings() {
 
             {/* Listing chips — pick the current listing (selectedListingId). The
             system listing ("Générique") is the first chip. Shown whenever there
-            are listings, or when a new one can be created (empty-state CTA). */}
-            {(displayedListings?.length > 0 || canAddListing) && (
-              <ListingChipsBar
-                listings={displayedListings}
-                activeListingId={activeListing?.id}
-                annotationCountByListingId={annotationCountByListingId}
-                hiddenByListingId={hiddenByListingId}
-                onSelectListing={handleSelectListing}
-                onToggleListingVisibility={handleToggleListingVisibility}
-                showAddButton={canAddListing}
-                hasNoListing={hasNoListing}
-                onAddListing={() => setOpenCreateListing(true)}
-                addLabel={addListS}
-              />
-            )}
+            are listings, or when a new one can be created (empty-state CTA).
+            Hidden in the Viewer module, where every listing is shown at once. */}
+            {!isViewerModule &&
+              (displayedListings?.length > 0 || canAddListing) && (
+                <ListingChipsBar
+                  listings={displayedListings}
+                  activeListingId={activeListing?.id}
+                  annotationCountByListingId={annotationCountByListingId}
+                  hiddenByListingId={hiddenByListingId}
+                  onSelectListing={handleSelectListing}
+                  onToggleListingVisibility={handleToggleListingVisibility}
+                  showAddButton={canAddListing}
+                  hasNoListing={hasNoListing}
+                  onAddListing={() => setOpenCreateListing(true)}
+                  addLabel={addListS}
+                />
+              )}
+
+            {/* Viewer module, Photos side of the header toggle: photo albums
+                (2-column grids) replace the annotations legend. */}
+            {showPhotosBody && <SectionPopperPhotos />}
 
             {/* Viewer 2D: the legend is scoped to the current baseMap — make
                 the empty case explicit instead of a blank panel. */}
-            {isViewer2d && hasNoListing && (
+            {!showPhotosBody && isViewer2d && hasNoListing && (
               <Box sx={{ px: 1.5, py: 1.5 }}>
                 <Typography
                   variant="body2"
@@ -2247,34 +2311,55 @@ export default function PopperMapListings() {
             )}
 
             <>
-              {activeListing && (
-                <ListingRow
-                  key={activeListing.id}
-                  listing={activeListing}
-                  isExpanded
-                  alwaysExpanded
-                  hideCaret
-                  annotationCount={
-                    isBaseMapsViewer
-                      ? annotationsByListingId?.[activeListing.id]?.length || 0
-                      : annotationCountByListingId?.[activeListing.id] || 0
-                  }
-                  annotations={annotationsByListingId?.[activeListing.id]}
-                  annotationTemplateById={annotationTemplateById}
-                  visibleTemplateIds={visibleTemplateIds}
-                  extraAction={
-                    isBaseMapsViewer ? (
-                      <ButtonMergeListingAnnotations
-                        listingId={activeListing.id}
-                        baseMap={baseMap}
-                        onResult={(file) =>
-                          handleMergeResult(file, activeListing.name)
-                        }
-                      />
-                    ) : undefined
-                  }
-                />
-              )}
+              {/* Viewer module: full legend — every listing at once (no chips
+                  selector), each row always expanded with its templates. The
+                  row's hover eye toggles all the listing's template eyes. */}
+              {isViewerModule
+                ? !showPhotosBody &&
+                  displayedListings?.map((listing) => (
+                    <ListingRow
+                      key={listing.id}
+                      listing={listing}
+                      isExpanded
+                      alwaysExpanded
+                      hideCaret
+                      annotationCount={
+                        annotationCountByListingId?.[listing.id] || 0
+                      }
+                      annotations={annotationsByListingId?.[listing.id]}
+                      annotationTemplateById={annotationTemplateById}
+                      visibleTemplateIds={visibleTemplateIds}
+                    />
+                  ))
+                : activeListing && (
+                    <ListingRow
+                      key={activeListing.id}
+                      listing={activeListing}
+                      isExpanded
+                      alwaysExpanded
+                      hideCaret
+                      annotationCount={
+                        isBaseMapsViewer
+                          ? annotationsByListingId?.[activeListing.id]
+                              ?.length || 0
+                          : annotationCountByListingId?.[activeListing.id] || 0
+                      }
+                      annotations={annotationsByListingId?.[activeListing.id]}
+                      annotationTemplateById={annotationTemplateById}
+                      visibleTemplateIds={visibleTemplateIds}
+                      extraAction={
+                        isBaseMapsViewer ? (
+                          <ButtonMergeListingAnnotations
+                            listingId={activeListing.id}
+                            baseMap={baseMap}
+                            onResult={(file) =>
+                              handleMergeResult(file, activeListing.name)
+                            }
+                          />
+                        ) : undefined
+                      }
+                    />
+                  )}
 
               {/* Outils section — DRAW mode, and always in the ZONES module
                 (openings / splits on the zone delimitation polygons) */}

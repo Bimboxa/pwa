@@ -222,7 +222,9 @@ export default function MainThreedEditor() {
   const isBaseMapsModule = useSelector(
     (s) => s.viewers.selectedViewerKey === "BASE_MAPS"
   );
-  // Viewer module (key THREED): read-only consultation, no listings panel.
+  // Viewer module (key THREED): read-only consultation. The left panel
+  // (PanelViewerAnnotations) owns the legend when VISIBLE; otherwise the
+  // popper shows it (SELECT-only) — same visibility pattern as Dessin below.
   const isViewerModule = useSelector(
     (s) => s.viewers.selectedViewerKey === "THREED"
   );
@@ -239,6 +241,9 @@ export default function MainThreedEditor() {
   const dessinPanelDocked = isDessinModule && leftPanelDocked;
   const dessinPanelSlidedIn =
     isDessinModule && !leftPanelDocked && leftDrawerHovered;
+  const viewerPanelDocked = isViewerModule && leftPanelDocked;
+  const viewerPanelSlidedIn =
+    isViewerModule && !leftPanelDocked && leftDrawerHovered;
 
   // Entering/leaving the 3D viewer keeps whatever right panel is open: the
   // SETTINGS panel switches its content (3D view settings <-> 2D editor
@@ -2056,14 +2061,21 @@ export default function MainThreedEditor() {
           as the 2D chain in PopperMapListings (which is 2D-only). */}
       {isThreedViewer &&
         !isBaseMapsModule &&
-        !isViewerModule &&
         !dessinPanelDocked &&
+        !viewerPanelDocked &&
         !captureFramingActive &&
         !subtractPickActive && (
           /* display:none (not unmount) while the drawer slides over the
              editor, so the popper keeps its state; "contents" keeps the
              wrapper out of the absolute positioning. */
-          <Box sx={{ display: dessinPanelSlidedIn ? "none" : "contents" }}>
+          <Box
+            sx={{
+              display:
+                dessinPanelSlidedIn || viewerPanelSlidedIn
+                  ? "none"
+                  : "contents",
+            }}
+          >
             <PopperMapListings />
           </Box>
         )}

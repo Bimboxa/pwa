@@ -1,7 +1,7 @@
 import db from "App/db/db";
 
 export default async function deleteListingDataInDb(listingId) {
-  const tables = ["entities", "files"];
+  const tables = ["entities", "files", "photos"];
 
   for (let tableName of tables) {
     const table = db[tableName];

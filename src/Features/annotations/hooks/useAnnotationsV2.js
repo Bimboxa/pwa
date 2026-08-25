@@ -362,6 +362,7 @@ import getBaseMapTransform from "Features/baseMaps/js/getBaseMapTransform";
 import getBaseMapForRender from "Features/threedEditor/js/utilsAnnotationsManager/getBaseMapForRender";
 import getAnnotationFootprintOnBaseMap from "Features/threedEditor/js/utilsAnnotationsManager/getAnnotationFootprintOnBaseMap";
 import { FOREIGN_FOOTPRINT_ID_PREFIX } from "Features/annotations/constants/foreignFootprint";
+import { PHOTO_ID_PREFIX } from "Features/photos/constants/photoNode";
 import resolveCuts from "Features/annotations/utils/resolveCuts";
 import resolveGuideLine from "Features/annotations/utils/resolveGuideLine";
 import resolveProfileLine from "Features/annotations/utils/resolveProfileLine";
@@ -455,6 +456,11 @@ export default function useAnnotationsV2(options) {
     // Only the 2D renderer and useSelectedAnnotation ask for them — every
     // quantity / listing / export caller must keep ignoring them.
     const withForeignFootprints = options?.withForeignFootprints;
+
+    // Opt-in: append read-only PHOTO pseudo-annotations from db.photos
+    // (Photos module map rendering — see PHOTO_ID_PREFIX). Every quantity /
+    // listing / export caller must keep ignoring them.
+    const withPhotos = options?.withPhotos;
 
     const filterBySelectedScope = options?.filterBySelectedScope;
     const filterByMainBaseMap = options?.filterByMainBaseMap;
@@ -853,7 +859,11 @@ export default function useAnnotationsV2(options) {
           listings
             .filter((l) => {
               const em = appConfig?.entityModelsObject?.[l.entityModelKey];
-              return em?.type === "BASE_MAP" || l.scopeId === scope?.id;
+              return (
+                em?.type === "BASE_MAP" ||
+                em?.type === "PHOTO" ||
+                l.scopeId === scope?.id
+              );
             })
             .map((l) => l.id)
         );
@@ -2070,6 +2080,47 @@ export default function useAnnotationsV2(options) {
         }
       }
 
+      // -- PHOTO PSEUDO-ANNOTATIONS --
+      // Opt-in (`withPhotos` — Photos module, Viewer module 2D). Appended
+      // LAST like the
+      // footprints above: photos live in db.photos, not db.annotations, and
+      // must not be reshaped by the pipeline. The "photo::" id prefix
+      // guarantees no annotation write path can ever reach a real row. The
+      // db.photos read is inside the liveQuery on purpose — localization
+      // commits re-render for free.
+      if (withPhotos && baseMap?.id) {
+        const imageSize =
+          baseMap?.getImageSize?.() || baseMap?.image?.imageSize;
+        if (imageSize?.width) {
+          const photoRows = await db.photos
+            .where("baseMapId")
+            .equals(baseMap.id)
+            .toArray();
+          const photoAnnotations = photoRows
+            .filter((p) => !p.deletedAt && p.point)
+            .map((p) => ({
+              id: PHOTO_ID_PREFIX + p.id,
+              type: "PHOTO",
+              isPhoto: true,
+              photoId: p.id,
+              baseMapId: p.baseMapId,
+              listingId: p.listingId,
+              point: {
+                x: p.point.x * imageSize.width,
+                y: p.point.y * imageSize.height,
+              },
+              directionDeg: p.directionDeg,
+              fovDeg: p.fovDeg,
+              radiusM: p.radiusM,
+              thumbnail: p.image?.thumbnail ?? null,
+              name: p.name,
+            }));
+          if (photoAnnotations.length > 0) {
+            _annotations = [..._annotations, ...photoAnnotations];
+          }
+        }
+      }
+
       return _annotations;
     }, [
       enabled,
@@ -2094,6 +2145,7 @@ export default function useAnnotationsV2(options) {
       povFreezeCreatedBefore,
       dbWriteTick,
       withForeignFootprints,
+      withPhotos,
     ]);
 
     // memoize post-processing to avoid recomputing on unrelated re-renders

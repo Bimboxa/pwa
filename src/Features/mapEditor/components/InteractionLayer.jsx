@@ -10,6 +10,9 @@ import { useInteraction } from '../context/InteractionContext';
 import { setSelectedEntityId } from 'Features/entities/entitiesSlice';
 import { setEnabledDrawingMode, setSelectedNodes, setMapEditorMode, setDraftPropsForTemplate } from 'Features/mapEditor/mapEditorSlice';
 import { setSelectedNode, toggleSelectedNode } from 'Features/mapEditor/mapEditorSlice';
+import { setSelectedPhotoId } from 'Features/photos/photosSlice';
+import { isPhotoNodeId, getPhotoIdFromNodeId } from 'Features/photos/constants/photoNode';
+import { setSelectedMenuItemKey } from 'Features/rightPanel/rightPanelSlice';
 import { setAnnotationToolbarPosition, setAnnotationsToolbarPosition } from 'Features/mapEditor/mapEditorSlice';
 import { setImageModeLegendSelected } from 'Features/mapEditor/mapEditorSlice';
 import { selectCaptureFramingActive } from 'Features/viewers/utils/effectiveViewerKey';
@@ -5303,7 +5306,10 @@ const InteractionLayer = forwardRef(({
     // REVOLUTION_AXIS_PLAN shares the whole gesture (centre, then a point that
     // fixes BOTH the radius and the diameter orientation) — only its commit
     // differs: it keeps the raw [centre, edge] pair instead of polygonizing.
-    else if (["POLYLINE_CIRCLE_RADIUS", "POLYGON_CIRCLE_RADIUS", "REVOLUTION_AXIS_PLAN"].includes(enabledDrawingMode)) {
+    // PHOTO_POSE (Photos module) is the same gesture: the pair fixes the
+    // photo's position, camera direction and range; its commit writes
+    // db.photos (never db.annotations).
+    else if (["POLYLINE_CIRCLE_RADIUS", "POLYGON_CIRCLE_RADIUS", "REVOLUTION_AXIS_PLAN", "PHOTO_POSE"].includes(enabledDrawingMode)) {
       let finalPos = toLocalCoords(worldPos);
 
       // 1st click → drop the center, then wait for the radius.
@@ -5732,6 +5738,19 @@ const InteractionLayer = forwardRef(({
           // dispatch(setSelectedNodes([])); // Legacy
           setHiddenAnnotationIds([]);
           dispatch(setAnnotationToolbarPosition(null));
+        }
+
+        // Photo pseudo-annotation (Photos / Viewer modules): select the photo
+        // (grid highlight + dedicated right-panel properties) and stop — the
+        // "photo::" id exists in no table, so it must never enter the
+        // annotation selection / toolbar paths.
+        else if (isPhotoNodeId(hit?.dataset?.nodeId)) {
+          const photoId = getPhotoIdFromNodeId(hit.dataset.nodeId);
+          dispatch(setSelectedPhotoId(photoId));
+          dispatch(setSelectedItem({ id: photoId, type: "PHOTO" }));
+          dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
+          if (tooltipData) setTooltipData(null);
+          return;
         }
 
         // --- 2. GESTION DES ANNOTATIONS ---
@@ -6322,7 +6341,7 @@ const InteractionLayer = forwardRef(({
     }
 
     // E. DRAWING PREVIEW
-    if (['CLICK', 'POLYLINE_CLICK', 'POLYGON_CLICK', 'CUT_CLICK', 'SPLIT_CLICK', 'STRIP', 'ONE_CLICK', "MEASURE", "SEGMENT", "POLYLINE_SEGMENT", "STRIP_SEGMENT", "RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", "LOCALIZED_REPAIR", "CIRCLE", "POLYLINE_CIRCLE", "POLYGON_CIRCLE", "CUT_CIRCLE", "POLYLINE_CIRCLE_RADIUS", "POLYGON_CIRCLE_RADIUS", "REVOLUTION_AXIS_PLAN", "ARC", "POLYLINE_ARC", "COMPLETE_ANNOTATION", "COTE_TWO_CLICK", "ADD_GUIDE_LINE", "ADD_ISO_HEIGHT_LINE", "ADD_PROFILE_LINE", "RAMP"].includes(enabledDrawingMode)) {
+    if (['CLICK', 'POLYLINE_CLICK', 'POLYGON_CLICK', 'CUT_CLICK', 'SPLIT_CLICK', 'STRIP', 'ONE_CLICK', "MEASURE", "SEGMENT", "POLYLINE_SEGMENT", "STRIP_SEGMENT", "RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", "LOCALIZED_REPAIR", "CIRCLE", "POLYLINE_CIRCLE", "POLYGON_CIRCLE", "CUT_CIRCLE", "POLYLINE_CIRCLE_RADIUS", "POLYGON_CIRCLE_RADIUS", "REVOLUTION_AXIS_PLAN", "PHOTO_POSE", "ARC", "POLYLINE_ARC", "COMPLETE_ANNOTATION", "COTE_TWO_CLICK", "ADD_GUIDE_LINE", "ADD_ISO_HEIGHT_LINE", "ADD_PROFILE_LINE", "RAMP"].includes(enabledDrawingMode)) {
       const localPos = toLocalCoords(worldPos);
       let previewPos = localPos;
 
@@ -6772,7 +6791,7 @@ const InteractionLayer = forwardRef(({
         commitPolyline(e);
       }
 
-      else if (["POLYLINE_CIRCLE_RADIUS", "POLYGON_CIRCLE_RADIUS", "REVOLUTION_AXIS_PLAN"].includes(enabledDrawingMode) && newPointsList?.length === 2) {
+      else if (["POLYLINE_CIRCLE_RADIUS", "POLYGON_CIRCLE_RADIUS", "REVOLUTION_AXIS_PLAN", "PHOTO_POSE"].includes(enabledDrawingMode) && newPointsList?.length === 2) {
         drawingPointsRef.current = newPointsList;
         commitPolyline(e);
       }

@@ -26,6 +26,10 @@ const MapTooltip = forwardRef(({ hoveredNode, annotations, x, y, isSelected }, r
     const folioThumbnail =
         annotation?.type === "DETAIL" && !isSelected ? annotation?.folio?.thumbnail : null;
 
+    // helper - photo (PHOTO pseudo-annotations carry an inline thumbnail)
+    const photoThumbnail =
+        annotation?.type === "PHOTO" ? annotation?.thumbnail : null;
+
     // helper - position (controlled mode when x/y are passed)
     const isControlled = typeof x === "number" && typeof y === "number";
 
@@ -57,6 +61,20 @@ const MapTooltip = forwardRef(({ hoveredNode, annotations, x, y, isSelected }, r
                 willChange: "transform"
             }}
         >
+            {/* Photo preview (PHOTO pseudo-annotations, Photos module) */}
+            {photoThumbnail && (
+                <Box
+                    component="img"
+                    src={photoThumbnail}
+                    alt={annotation.name ?? "Photo"}
+                    sx={{
+                        width: "100%",
+                        objectFit: "cover",
+                        borderRadius: 0.5,
+                        mb: 0.5,
+                    }}
+                />
+            )}
             {/* Folio page preview (DETAIL annotations, hidden when selected) */}
             {folioThumbnail && (
                 <Box

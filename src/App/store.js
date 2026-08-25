@@ -69,6 +69,7 @@ import listingViewerReducer from "Features/listingViewer/listingViewerSlice";
 import layersReducer from "Features/layers/layersSlice";
 import popperMapListingsReducer from "Features/popperMapListings/popperMapListingsSlice";
 import panelDrawingReducer from "Features/panelDrawing/panelDrawingSlice";
+import photosReducer from "Features/photos/photosSlice";
 import elevationReducer from "Features/elevation/elevationSlice";
 import meshReducer from "Features/mesh/meshSlice";
 import povReducer from "Features/pov/povSlice";
@@ -148,6 +149,7 @@ const store = configureStore({
     layers: layersReducer,
     popperMapListings: popperMapListingsReducer,
     panelDrawing: panelDrawingReducer,
+    photos: photosReducer,
     elevation: elevationReducer,
     mesh: meshReducer,
     pov: povReducer,

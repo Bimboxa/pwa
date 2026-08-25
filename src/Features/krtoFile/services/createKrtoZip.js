@@ -53,6 +53,8 @@ export default async function createKrtoZip(scopeId, options) {
         // scope it was created in, or the source of a duplicated scope. Without
         // this, exporting a duplicated scope would drop all base-map images.
         if (listing.entityModel?.type === "BASE_MAP") return true;
+        // PHOTO albums are project-level shared listings too (same rule).
+        if (listing.entityModel?.type === "PHOTO") return true;
         return false;
     });
 
@@ -83,6 +85,11 @@ export default async function createKrtoZip(scopeId, options) {
         "annotations", "annotationTemplates",
         "portfolioPages",
         "zones", "relsZoneAnnotation",
+        // Photos: rows carry projectId + listingId (PHOTO album listing, kept
+        // by relevantListings above); their image files carry the same
+        // listingId so the files filter ships them too. The photo point is
+        // inline on the row (no db.points involvement).
+        "photos",
     ]);
 
     // Points: annotation geometry lives in db.points, but a point row's
