@@ -15,6 +15,9 @@ const panelDrawingSlice = createSlice({
     // only, or the whole repérage (all base maps). Drives useAnnotationsV2
     // and thus every displayed quantity.
     viewerAnnotationsScope: "BASE_MAP", // "BASE_MAP" | "ALL"
+    // "Visibilité auto" option of the active-listing selector: selecting a
+    // listing hides every other listing and unhides all its templates.
+    autoListingVisibility: true,
   },
   reducers: {
     setToolsSectionCollapsed(state, action) {
@@ -38,6 +41,9 @@ const panelDrawingSlice = createSlice({
     setViewerAnnotationsScope(state, action) {
       state.viewerAnnotationsScope = action.payload ?? "BASE_MAP";
     },
+    setAutoListingVisibility(state, action) {
+      state.autoListingVisibility = Boolean(action.payload);
+    },
   },
 });
 
@@ -47,6 +53,7 @@ export const {
   setDetailView,
   setDetailAnnotationId,
   setViewerAnnotationsScope,
+  setAutoListingVisibility,
 } = panelDrawingSlice.actions;
 
 export default panelDrawingSlice.reducer;

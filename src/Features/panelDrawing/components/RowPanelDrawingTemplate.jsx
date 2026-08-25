@@ -77,11 +77,15 @@ export default function RowPanelDrawingTemplate({
 
   const isHidden = Boolean(annotationTemplate?.hidden);
   const freeShortcut = getFreeAnnotationShortcut(annotationTemplate);
-  // No annotation yet: the all-zero quantities line dims to light grey.
+  // No annotation yet: a plain "0 annot" line, dimmed to light grey.
   const hasQties = Boolean(qties?.unit || qties?.length || qties?.surface);
-  const qtyLine = `${formatQty(qties?.unit ?? 0, 0)} u · ${formatQty(
-    qties?.length ?? 0
-  )} ml · ${formatQty(qties?.surface ?? 0)} m²`;
+  const annotationsCount = qties?.count ?? 0;
+  const qtyLine =
+    annotationsCount > 0
+      ? `${formatQty(qties?.unit ?? 0, 0)} u · ${formatQty(
+          qties?.length ?? 0
+        )} ml · ${formatQty(qties?.surface ?? 0)} m²`
+      : "0 annot.";
 
   // handlers
 

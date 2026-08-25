@@ -49,6 +49,8 @@ export default function PanelTemplateAnnotations({
   const propertiesS = "Propriétés du modèle";
   const soloS = "Isoler";
   const selectAllS = "Tout sél.";
+  const emptyListS =
+    "Utilisez la barre d'outil dans l'éditeur pour dessiner une annotation";
 
   // data
 
@@ -79,13 +81,15 @@ export default function PanelTemplateAnnotations({
   );
 
   const count = sortedAnnotations.length;
-  const countS = `${count} annotation${count > 1 ? "s" : ""} · ${
-    listing?.name ?? listing?.label ?? "Liste"
-  }`;
+  const listingNameS = listing?.name ?? listing?.label ?? "Liste";
 
-  const qtyLine = `${formatQty(templateQties?.unit ?? 0, 0)} u · ${formatQty(
-    templateQties?.length ?? 0
-  )} ml · ${formatQty(templateQties?.surface ?? 0)} m²`;
+  // No annotation yet: a plain "0 annot." line instead of the zero units.
+  const qtyLine =
+    count > 0
+      ? `${formatQty(templateQties?.unit ?? 0, 0)} u · ${formatQty(
+          templateQties?.length ?? 0
+        )} ml · ${formatQty(templateQties?.surface ?? 0)} m²`
+      : "0 annot.";
 
   // "Tous" scope: one group per base map (first-appearance order in the
   // draw-ordered list; global indices keep the derived labels and the
@@ -215,11 +219,11 @@ export default function PanelTemplateAnnotations({
           />
         </Box>
         <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Typography variant="body2" noWrap sx={{ color: "text.secondary" }}>
+            {listingNameS}
+          </Typography>
           <Typography variant="h6" noWrap sx={{ fontWeight: 700 }}>
             {template.label}
-          </Typography>
-          <Typography variant="body2" noWrap sx={{ color: "text.secondary" }}>
-            {countS}
           </Typography>
         </Box>
       </Box>
@@ -294,7 +298,25 @@ export default function PanelTemplateAnnotations({
 
       {/* Annotations list — grouped by base map in "Tous" scope */}
       <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
-        {isAllScope ? (
+        {count === 0 ? (
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              height: 1,
+              px: 4,
+            }}
+          >
+            <Typography
+              variant="body2"
+              align="center"
+              sx={{ color: "text.secondary" }}
+            >
+              {emptyListS}
+            </Typography>
+          </Box>
+        ) : isAllScope ? (
           baseMapGroups?.map(({ key, baseMap, items }) => (
             <Box key={key}>
               <Box

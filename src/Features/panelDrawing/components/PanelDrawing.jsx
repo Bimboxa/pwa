@@ -162,6 +162,17 @@ export default function PanelDrawing() {
     [scopedAnnotations, annotationTemplateById]
   );
 
+  // Annotations count per listing for the selector chips — same scope as the
+  // panel quantities (mesh cells excluded, like computeAnnotationTemplateQties).
+  const countsByListingId = useMemo(() => {
+    const counts = {};
+    for (const a of scopedAnnotations) {
+      if (a.isMeshCell || !a.listingId) continue;
+      counts[a.listingId] = (counts[a.listingId] ?? 0) + 1;
+    }
+    return counts;
+  }, [scopedAnnotations]);
+
   // helpers - detail view (#311). A stale id (deleted template, scope
   // change) simply resolves to nothing and the main list renders.
 
@@ -250,6 +261,7 @@ export default function PanelDrawing() {
           <FieldActiveListing
             listings={displayedListings}
             activeListing={activeListing}
+            countsByListingId={countsByListingId}
           />
 
           {activeListing && (

@@ -98,6 +98,7 @@ import applyInteractionModeChange from "Features/mapEditor/utils/applyInteractio
 import { resolveDrawingShape } from "Features/annotations/constants/drawingShapeConfig";
 
 import useListings from "Features/listings/hooks/useListings";
+import FieldActiveListing from "Features/panelDrawing/components/FieldActiveListing";
 import useProjectPhotos from "Features/photos/hooks/useProjectPhotos";
 import SectionPopperPhotos from "Features/photos/components/SectionPopperPhotos";
 import useFreeAnnotationTemplates from "Features/mapEditor/hooks/useFreeAnnotationTemplates";
@@ -1226,6 +1227,9 @@ function ListingRow({
   // expanded, no chevron, clicking the header opens its properties.
   alwaysExpanded = false,
   hideCaret = false,
+  // The FieldActiveListing selector already names the active listing: skip
+  // the redundant header band and render the templates only.
+  hideHeader = false,
 }) {
   const dispatch = useDispatch();
 
@@ -1280,6 +1284,17 @@ function ListingRow({
   }
 
   // render
+
+  if (hideHeader) {
+    return (
+      <AnnotationTemplatesForListing
+        listingId={listing.id}
+        annotations={annotations}
+        annotationTemplateById={annotationTemplateById}
+        visibleTemplateIds={visibleTemplateIds}
+      />
+    );
+  }
 
   return (
     <Box>
@@ -1418,8 +1433,12 @@ function ListingRow({
 // ListingChipsBar — horizontal band of listing "chips". Selecting a chip sets
 // the current listing (selectedListingId); a trailing "+ Liste" chip creates a
 // new listing. Replaces the former vertical accordion of listing rows.
+// CURRENTLY UNUSED: replaced by FieldActiveListing (the Dessin left panel
+// selector) — kept, with its commented call site below, in case the chip
+// version needs to be reactivated.
 // ---------------------------------------------------------------------------
 
+// eslint-disable-next-line no-unused-vars
 function ListingChipsBar({
   listings,
   activeListingId,
@@ -1581,6 +1600,8 @@ function ListingChipsBar({
 export default function PopperMapListings() {
   // strings
 
+  // Only used by the commented ListingChipsBar call site (chip selector).
+  // eslint-disable-next-line no-unused-vars
   const addListS = "+ Liste";
 
   // data
@@ -1917,6 +1938,8 @@ export default function PopperMapListings() {
   // A chip click just sets the current listing (persisted via setInitListingId
   // in the slice). Opening the listing properties stays an explicit action (the
   // Tune button on the selected-listing band below).
+  // Only used by the commented ListingChipsBar call site (chip selector).
+  // eslint-disable-next-line no-unused-vars
   function handleSelectListing(listingId) {
     dispatch(setSelectedListingId(listingId));
   }
@@ -1924,6 +1947,8 @@ export default function PopperMapListings() {
   // Chip eye: toggle every template eye of the listing in one batch write,
   // only touching templates whose `hidden` actually changes (same rule as the
   // listing-row eye).
+  // Only used by the commented ListingChipsBar call site (chip selector).
+  // eslint-disable-next-line no-unused-vars
   async function handleToggleListingVisibility(listingId) {
     const templates = templatesByListingId[listingId] ?? [];
     const targetHidden = !hiddenByListingId[listingId];
@@ -2273,10 +2298,30 @@ export default function PopperMapListings() {
               </Box>
             )}
 
-            {/* Listing chips — pick the current listing (selectedListingId). The
-            system listing ("Générique") is the first chip. Shown whenever there
+            {/* Listing selector — pick the current listing (selectedListingId).
+            Same "LISTE ACTIVE" field as the Dessin left panel (counts chips,
+            visibility eyes, "Visibilité auto" option). Shown whenever there
             are listings, or when a new one can be created (empty-state CTA).
             Hidden in the Viewer module, where every listing is shown at once. */}
+            {!isViewerModule &&
+              (displayedListings?.length > 0 || canAddListing) && (
+                <Box
+                  sx={{
+                    borderBottom: "1px solid",
+                    borderColor: "panel.border",
+                  }}
+                >
+                  <FieldActiveListing
+                    listings={displayedListings}
+                    activeListing={activeListing}
+                    countsByListingId={annotationCountByListingId}
+                    showAddListing={canAddListing}
+                  />
+                </Box>
+              )}
+
+            {/* Former chips-based selector (ListingChipsBar) — kept below,
+            commented, in case the chip version needs to be reactivated:
             {!isViewerModule &&
               (displayedListings?.length > 0 || canAddListing) && (
                 <ListingChipsBar
@@ -2292,6 +2337,7 @@ export default function PopperMapListings() {
                   addLabel={addListS}
                 />
               )}
+            */}
 
             {/* Viewer module, Photos side of the header toggle: photo albums
                 (2-column grids) replace the annotations legend. */}
@@ -2338,6 +2384,9 @@ export default function PopperMapListings() {
                       isExpanded
                       alwaysExpanded
                       hideCaret
+                      // The selector above already names the listing — keep
+                      // the band only in BASE_MAPS (it hosts the merge action).
+                      hideHeader={!isBaseMapsViewer}
                       annotationCount={
                         isBaseMapsViewer
                           ? annotationsByListingId?.[activeListing.id]
