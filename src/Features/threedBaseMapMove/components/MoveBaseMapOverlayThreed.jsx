@@ -8,6 +8,7 @@ import useVertexSnap from "Features/threedDrawing/hooks/useVertexSnap";
 
 import findNearestEdgeSnap from "Features/threedDimensions/utils/findNearestEdgeSnap";
 import findNearestVertexInVerts from "../utils/findNearestVertexInVerts";
+import intersectBaseMapPlane from "../utils/intersectBaseMapPlane";
 import {
   setLastMoveSnap,
   getMoveGrab,
@@ -15,6 +16,8 @@ import {
 
 const COLOR_VERTEX = "#ff2d8d";
 const COLOR_EDGE = "#2e7d32";
+const COLOR_PLANE = "#1565c0";
+const COLOR_CROSS = "#90a4ae";
 const COLOR_FREE = "#000000";
 
 const SNAP_CIRCLE_RADIUS_PX = 6;
@@ -31,6 +34,8 @@ export default function MoveBaseMapOverlayThreed() {
   const { findNearestSnap } = useVertexSnap({ active });
 
   const snapCircleRef = useRef(null);
+  const crossARef = useRef(null);
+  const crossBRef = useRef(null);
 
   // pointer-move: snap detection + hover marker + live group move
   useEffect(() => {
@@ -46,29 +51,58 @@ export default function MoveBaseMapOverlayThreed() {
     const camDir = new Vector3();
     const freeHit = new Vector3();
 
+    function toScreen(worldPos, rect) {
+      const projected = worldPos.clone().project(camera);
+      if (projected.z < -1 || projected.z > 1) return null;
+      return {
+        sx: ((projected.x + 1) / 2) * rect.width,
+        sy: ((1 - projected.y) / 2) * rect.height,
+      };
+    }
+
     function updateSnapCircle(snap, rect) {
       const circle = snapCircleRef.current;
       if (!circle) return;
-      if (!snap?.position) {
+      const screen = snap?.position ? toScreen(snap.position, rect) : null;
+      if (!screen) {
         circle.style.display = "none";
         return;
       }
-      const projected = snap.position.clone().project(camera);
-      if (projected.z < -1 || projected.z > 1) {
-        circle.style.display = "none";
-        return;
-      }
-      const sx = ((projected.x + 1) / 2) * rect.width;
-      const sy = ((1 - projected.y) / 2) * rect.height;
-      circle.setAttribute("cx", sx);
-      circle.setAttribute("cy", sy);
+      circle.setAttribute("cx", screen.sx);
+      circle.setAttribute("cy", screen.sy);
       circle.style.stroke =
         snap.kind === "VERTEX"
           ? COLOR_VERTEX
           : snap.kind === "EDGE"
             ? COLOR_EDGE
-            : COLOR_FREE;
+            : snap.kind === "PLANE"
+              ? COLOR_PLANE
+              : COLOR_FREE;
       circle.style.display = "block";
+    }
+
+    // Cross helper of a PLANE hit: the two dashed lines through the point,
+    // parallel to the plane's edges, ending on its borders.
+    function updateCross(snap, rect) {
+      const show = snap?.kind === "PLANE" && snap.axisA && snap.axisB;
+      [
+        [crossARef, snap?.axisA],
+        [crossBRef, snap?.axisB],
+      ].forEach(([ref, axis]) => {
+        const el = ref.current;
+        if (!el) return;
+        const a = show ? toScreen(axis[0], rect) : null;
+        const b = show ? toScreen(axis[1], rect) : null;
+        if (!a || !b) {
+          el.style.display = "none";
+          return;
+        }
+        el.setAttribute("x1", a.sx);
+        el.setAttribute("y1", a.sy);
+        el.setAttribute("x2", b.sx);
+        el.setAttribute("y2", b.sy);
+        el.style.display = "block";
+      });
     }
 
     function onPointerMove(e) {
@@ -110,7 +144,9 @@ export default function MoveBaseMapOverlayThreed() {
           }
         }
       } else {
-        // Grab phase: vertex snap on every snappable object.
+        // Grab phase: vertex snap on every snappable object, else a direct
+        // hit on a base map image plane (point + edge-parallel cross) so a
+        // base map can be grabbed from its image too.
         const vertexSnap = findNearestSnap(ndc, camera, canvasSize, 12);
         snap = vertexSnap
           ? {
@@ -119,10 +155,23 @@ export default function MoveBaseMapOverlayThreed() {
               meshKey: vertexSnap.meshKey,
             }
           : null;
+        if (!snap) {
+          const planeHit = intersectBaseMapPlane(editor, ndc, camera);
+          if (planeHit) {
+            snap = {
+              position: planeHit.position,
+              kind: "PLANE",
+              baseMapId: planeHit.baseMapId,
+              axisA: planeHit.axisA,
+              axisB: planeHit.axisB,
+            };
+          }
+        }
       }
 
       setLastMoveSnap(snap);
       updateSnapCircle(snap, rect);
+      updateCross(grab ? null : snap, rect);
 
       // Live move: the base map group (image + annotations) follows so the
       // grabbed point lands on the current target.
@@ -144,6 +193,8 @@ export default function MoveBaseMapOverlayThreed() {
     function onPointerLeave() {
       setLastMoveSnap(null);
       if (snapCircleRef.current) snapCircleRef.current.style.display = "none";
+      if (crossARef.current) crossARef.current.style.display = "none";
+      if (crossBRef.current) crossBRef.current.style.display = "none";
       editor.renderScene?.();
     }
 
@@ -168,6 +219,20 @@ export default function MoveBaseMapOverlayThreed() {
         zIndex: 5,
       }}
     >
+      <line
+        ref={crossARef}
+        stroke={COLOR_CROSS}
+        strokeWidth="1.5"
+        strokeDasharray="5 4"
+        style={{ display: "none" }}
+      />
+      <line
+        ref={crossBRef}
+        stroke={COLOR_CROSS}
+        strokeWidth="1.5"
+        strokeDasharray="5 4"
+        style={{ display: "none" }}
+      />
       <circle
         ref={snapCircleRef}
         r={SNAP_CIRCLE_RADIUS_PX}

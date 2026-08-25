@@ -9,6 +9,7 @@ import useVertexSnap from "Features/threedDrawing/hooks/useVertexSnap";
 import findNearestEdgeSnap from "Features/threedDimensions/utils/findNearestEdgeSnap";
 import { getMeshAdjacency } from "Features/threedDrawing/services/meshGraphStore";
 import findNearestVertexInVerts from "../utils/findNearestVertexInVerts";
+import intersectBaseMapPlane from "../utils/intersectBaseMapPlane";
 import applyRotateBaseMapPose, {
   parseRotateAngleBuffer,
 } from "../utils/applyRotateBaseMapPose";
@@ -19,6 +20,8 @@ import {
 
 const COLOR_VERTEX = "#ff2d8d";
 const COLOR_EDGE = "#2e7d32";
+const COLOR_PLANE = "#1565c0";
+const COLOR_CROSS = "#90a4ae";
 const COLOR_FREE = "#000000";
 const COLOR_PIVOT = "#e65100";
 const COLOR_REF_LINE = "#9e9e9e";
@@ -66,6 +69,8 @@ export default function RotateBaseMapOverlayThreed() {
   const currentLineRef = useRef(null);
   const axisLineRef = useRef(null);
   const arcRef = useRef(null);
+  const crossARef = useRef(null);
+  const crossBRef = useRef(null);
   const angleLabelRef = useRef(null);
 
   // pointer-move: snap detection + helper lines + live rotation
@@ -141,6 +146,8 @@ export default function RotateBaseMapOverlayThreed() {
         currentLineRef,
         axisLineRef,
         arcRef,
+        crossARef,
+        crossBRef,
       ].forEach((r) => {
         if (r.current) r.current.style.display = "none";
       });
@@ -208,7 +215,8 @@ export default function RotateBaseMapOverlayThreed() {
     // anchors on a point of the base map being rotated, which hasn't moved
     // yet); the rotation phase snaps on the target-only index (the carried
     // geometry moves, its index entries are stale, and it would screen the
-    // targets). Fallback: the horizontal plane through the pivot.
+    // targets). Between the mesh snap and the horizontal-plane fallback, a
+    // direct hit on a base map image plane (point + edge-parallel cross).
     function computeTarget(grab, canvasSize) {
       const rotating = grab.refBearing != null;
       let target;
@@ -241,6 +249,24 @@ export default function RotateBaseMapOverlayThreed() {
             );
       }
       if (!target) {
+        // While rotating, the carried base map's own plane is not a target.
+        const group = rotating
+          ? editor?.sceneManager?.imagesManager?.getGroup(grab.baseMapId)
+          : null;
+        const planeHitTarget = intersectBaseMapPlane(editor, ndc, camera, {
+          excludeSubtree: group ?? undefined,
+        });
+        if (planeHitTarget) {
+          target = {
+            position: planeHitTarget.position,
+            kind: "PLANE",
+            baseMapId: planeHitTarget.baseMapId,
+            axisA: planeHitTarget.axisA,
+            axisB: planeHitTarget.axisB,
+          };
+        }
+      }
+      if (!target) {
         raycaster.setFromCamera(ndc, camera);
         horizontalPlane.setFromNormalAndCoplanarPoint(UP, grab.pivot);
         if (raycaster.ray.intersectPlane(horizontalPlane, planeHit)) {
@@ -255,7 +281,33 @@ export default function RotateBaseMapOverlayThreed() {
         ? COLOR_VERTEX
         : kind === "EDGE"
           ? COLOR_EDGE
-          : COLOR_FREE;
+          : kind === "PLANE"
+            ? COLOR_PLANE
+            : COLOR_FREE;
+    }
+
+    // Cross helper of a PLANE hit: the two dashed lines through the point,
+    // parallel to the plane's edges, ending on its borders.
+    function updateCross(target, rect) {
+      const show = target?.kind === "PLANE" && target.axisA && target.axisB;
+      [
+        [crossARef, target?.axisA],
+        [crossBRef, target?.axisB],
+      ].forEach(([ref, axis]) => {
+        const el = ref.current;
+        if (!el) return;
+        const a = show ? toScreen(axis[0], rect) : null;
+        const b = show ? toScreen(axis[1], rect) : null;
+        if (!a || !b) {
+          el.style.display = "none";
+          return;
+        }
+        el.setAttribute("x1", a.sx);
+        el.setAttribute("y1", a.sy);
+        el.setAttribute("x2", b.sx);
+        el.setAttribute("y2", b.sy);
+        el.style.display = "block";
+      });
     }
 
     function onPointerMove(e) {
@@ -266,19 +318,39 @@ export default function RotateBaseMapOverlayThreed() {
 
       const grab = getRotateGrab();
 
-      // Phase 1 — pivot pick: vertex snap on every snappable object.
+      // Phase 1 — pivot pick: vertex snap on every snappable object, else a
+      // direct hit on a base map image plane so the pivot can be picked on
+      // the image too.
       if (!grab) {
         const vertexSnap = findNearestSnap(ndc, camera, canvasSize, 12);
-        const snap = vertexSnap
+        let snap = vertexSnap
           ? {
               position: vertexSnap.position,
               kind: "VERTEX",
               meshKey: vertexSnap.meshKey,
             }
           : null;
+        if (!snap) {
+          const planeHitSnap = intersectBaseMapPlane(editor, ndc, camera);
+          if (planeHitSnap) {
+            snap = {
+              position: planeHitSnap.position,
+              kind: "PLANE",
+              baseMapId: planeHitSnap.baseMapId,
+              axisA: planeHitSnap.axisA,
+              axisB: planeHitSnap.axisB,
+            };
+          }
+        }
         setLastRotateSnap(snap);
         hideAll();
-        updateCircle(snapCircleRef, snap?.position ?? null, rect, COLOR_VERTEX);
+        updateCircle(
+          snapCircleRef,
+          snap?.position ?? null,
+          rect,
+          colorForKind(snap?.kind)
+        );
+        updateCross(snap, rect);
         editor.renderScene?.();
         return;
       }
@@ -300,6 +372,7 @@ export default function RotateBaseMapOverlayThreed() {
             colorForKind(target.kind)
           )
         : null;
+      updateCross(target, rect);
 
       // Phase 2 — reference axis pick: dashed helper from the pivot to the
       // cursor, no rotation yet.
@@ -345,6 +418,8 @@ export default function RotateBaseMapOverlayThreed() {
         );
         updateLine(currentLineRef, pivotScreen, endScreen);
         if (snapCircleRef.current) snapCircleRef.current.style.display = "none";
+        if (crossARef.current) crossARef.current.style.display = "none";
+        if (crossBRef.current) crossBRef.current.style.display = "none";
         updateArc(grab, rect, refRadius, typedPhi);
         updateAngleLabel(typedPhi, endScreen);
         editor.renderScene?.();
@@ -402,6 +477,20 @@ export default function RotateBaseMapOverlayThreed() {
         fill="rgba(230, 81, 0, 0.15)"
         stroke={COLOR_CURRENT_LINE}
         strokeWidth="1"
+        style={{ display: "none" }}
+      />
+      <line
+        ref={crossARef}
+        stroke={COLOR_CROSS}
+        strokeWidth="1.5"
+        strokeDasharray="5 4"
+        style={{ display: "none" }}
+      />
+      <line
+        ref={crossBRef}
+        stroke={COLOR_CROSS}
+        strokeWidth="1.5"
+        strokeDasharray="5 4"
         style={{ display: "none" }}
       />
       <line

@@ -85,15 +85,23 @@ export default function useMoveBaseMapPointerHandlers() {
 
     function grabAtSnap(snap) {
       const scene = editor?.sceneManager?.scene;
-      let { group, baseMapId } = resolveBaseMapGroupFromSnap(editor, snap);
-      // Vertex shared by annotations of several base maps: prefer the
-      // SELECTED base map.
-      const candidates = findBaseMapGroupsAtVertex(editor, snap.position);
-      if (candidates.length > 1) {
-        const preferred = candidates.find(
-          (c) => c.baseMapId === selectedBaseMapIdRef.current
-        );
-        if (preferred) ({ group, baseMapId } = preferred);
+      let group = null;
+      let baseMapId = null;
+      if (snap.kind === "PLANE" && snap.baseMapId) {
+        // Direct hit on a base map image plane — unambiguous.
+        baseMapId = snap.baseMapId;
+        group = editor?.sceneManager?.imagesManager?.getGroup(baseMapId);
+      } else {
+        ({ group, baseMapId } = resolveBaseMapGroupFromSnap(editor, snap));
+        // Vertex shared by annotations of several base maps: prefer the
+        // SELECTED base map.
+        const candidates = findBaseMapGroupsAtVertex(editor, snap.position);
+        if (candidates.length > 1) {
+          const preferred = candidates.find(
+            (c) => c.baseMapId === selectedBaseMapIdRef.current
+          );
+          if (preferred) ({ group, baseMapId } = preferred);
+        }
       }
       if (!group || !baseMapId) {
         dispatch(
@@ -172,8 +180,9 @@ export default function useMoveBaseMapPointerHandlers() {
 
       const grab = getMoveGrab();
       if (!grab) {
-        // Grab click: snapped points only — a free click grabs nothing.
-        if (snap.kind !== "VERTEX") return;
+        // Grab click: a snapped vertex or a direct hit on a base map image
+        // plane — a free click grabs nothing.
+        if (snap.kind !== "VERTEX" && snap.kind !== "PLANE") return;
         grabAtSnap(snap);
       } else {
         await dropAtSnap(grab, snap);
