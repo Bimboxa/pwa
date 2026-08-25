@@ -117,6 +117,12 @@ import MoveBaseMapToolbarThreed from "Features/threedBaseMapMove/components/Move
 import useRotateBaseMapPointerHandlers from "Features/threedBaseMapMove/hooks/useRotateBaseMapPointerHandlers";
 import RotateBaseMapOverlayThreed from "Features/threedBaseMapMove/components/RotateBaseMapOverlayThreed";
 import RotateBaseMapToolbarThreed from "Features/threedBaseMapMove/components/RotateBaseMapToolbarThreed";
+import useMoveAnnotationPointerHandlers from "Features/threedAnnotationMove/hooks/useMoveAnnotationPointerHandlers";
+import MoveAnnotationOverlayThreed from "Features/threedAnnotationMove/components/MoveAnnotationOverlayThreed";
+import MoveAnnotationToolbarThreed from "Features/threedAnnotationMove/components/MoveAnnotationToolbarThreed";
+import useRotateAnnotationPointerHandlers from "Features/threedAnnotationMove/hooks/useRotateAnnotationPointerHandlers";
+import RotateAnnotationOverlayThreed from "Features/threedAnnotationMove/components/RotateAnnotationOverlayThreed";
+import RotateAnnotationToolbarThreed from "Features/threedAnnotationMove/components/RotateAnnotationToolbarThreed";
 import useWalkMode from "Features/threedEditor/hooks/useWalkMode";
 import useObject3DPlacementHandlers from "Features/threedEditor/hooks/useObject3DPlacementHandlers";
 import { selectIsObject3DPlacementActive } from "Features/threedEditor/utils/object3DPlacementSelectors";
@@ -352,6 +358,26 @@ export default function MainThreedEditor() {
   useEffect(() => {
     rotateBaseMapActiveRef.current = rotateBaseMapActive;
   }, [rotateBaseMapActive]);
+
+  // Same pattern for the "Déplacer" (move annotation) mode —
+  // useMoveAnnotationPointerHandlers owns the pointer while active.
+  const moveAnnotationActive = useSelector(
+    (s) => s.threedEditor.moveAnnotationMode.active
+  );
+  const moveAnnotationActiveRef = useRef(moveAnnotationActive);
+  useEffect(() => {
+    moveAnnotationActiveRef.current = moveAnnotationActive;
+  }, [moveAnnotationActive]);
+
+  // Same pattern for the "Tourner" (rotate annotation) mode —
+  // useRotateAnnotationPointerHandlers owns the pointer while active.
+  const rotateAnnotationActive = useSelector(
+    (s) => s.threedEditor.rotateAnnotationMode.active
+  );
+  const rotateAnnotationActiveRef = useRef(rotateAnnotationActive);
+  useEffect(() => {
+    rotateAnnotationActiveRef.current = rotateAnnotationActive;
+  }, [rotateAnnotationActive]);
 
   // Same pattern for OBJECT_3D placement mode (derived state) —
   // useObject3DPlacementHandlers owns the pointer while active.
@@ -603,6 +629,11 @@ export default function MainThreedEditor() {
 
   useDeleteAnnotationOnKeyboardInThreedEditor({ annotations });
 
+  // Annotation move / rotate tools (Dessin module) — need the resolved
+  // annotations for the carry-set resolution and the 2D write-back.
+  useMoveAnnotationPointerHandlers({ annotations });
+  useRotateAnnotationPointerHandlers({ annotations });
+
   // Click handler for raycasting
   const handleClick = useCallback(
     (event) => {
@@ -628,6 +659,9 @@ export default function MainThreedEditor() {
       // handle it.
       if (moveBaseMapActiveRef.current) return;
       if (rotateBaseMapActiveRef.current) return;
+      // Same for the annotation move / rotate modes.
+      if (moveAnnotationActiveRef.current) return;
+      if (rotateAnnotationActiveRef.current) return;
 
       const threedEditor = threedEditorRef.current;
       const sceneManager = threedEditor.sceneManager;
@@ -1019,6 +1053,8 @@ export default function MainThreedEditor() {
       if (placementActiveRef.current) return;
       if (moveBaseMapActiveRef.current) return;
       if (rotateBaseMapActiveRef.current) return;
+      if (moveAnnotationActiveRef.current) return;
+      if (rotateAnnotationActiveRef.current) return;
       // Shift stays reserved for the multi-selection / lasso.
       if (event.shiftKey) return;
 
@@ -1386,8 +1422,14 @@ export default function MainThreedEditor() {
         return;
       }
       // Move / rotate base-map modes own the pointer (their own drag
-      // tracking).
+      // tracking). Same for the annotation move / rotate modes.
       if (moveBaseMapActiveRef.current || rotateBaseMapActiveRef.current) {
+        return;
+      }
+      if (
+        moveAnnotationActiveRef.current ||
+        rotateAnnotationActiveRef.current
+      ) {
         return;
       }
       isDraggingRef.current = false;
@@ -1509,7 +1551,9 @@ export default function MainThreedEditor() {
       walkActiveRef.current ||
       placementActiveRef.current ||
       moveBaseMapActiveRef.current ||
-      rotateBaseMapActiveRef.current
+      rotateBaseMapActiveRef.current ||
+      moveAnnotationActiveRef.current ||
+      rotateAnnotationActiveRef.current
     ) {
       if (prevHoveredObjectRef.current) {
         const prevId = prevHoveredObjectRef.current.userData?.nodeId;
@@ -2060,6 +2104,10 @@ export default function MainThreedEditor() {
           <MoveBaseMapToolbarThreed />
         ) : rotateBaseMapActive ? (
           <RotateBaseMapToolbarThreed />
+        ) : moveAnnotationActive ? (
+          <MoveAnnotationToolbarThreed />
+        ) : rotateAnnotationActive ? (
+          <RotateAnnotationToolbarThreed />
         ) : meshingActive || isMeshesViewer ? (
           <MeshingToolbarThreed />
         ) : (
@@ -2082,6 +2130,8 @@ export default function MainThreedEditor() {
       {isThreedViewer && <DimensionDraftOverlayThreed />}
       {isThreedViewer && <MoveBaseMapOverlayThreed />}
       {isThreedViewer && <RotateBaseMapOverlayThreed />}
+      {isThreedViewer && <MoveAnnotationOverlayThreed />}
+      {isThreedViewer && <RotateAnnotationOverlayThreed />}
       {isThreedViewer && rendererIsReady && <ThreedMeshes />}
       {isThreedViewer && <MeshingOverlayThreed />}
       {isThreedViewer && <ExtrudeOverlayThreed />}

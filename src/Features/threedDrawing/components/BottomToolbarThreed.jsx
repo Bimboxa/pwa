@@ -9,6 +9,8 @@ import ButtonExtrudeThreed from "Features/threedExtrude/components/ButtonExtrude
 import ButtonMeshThreed from "Features/threedMesh/components/ButtonMeshThreed";
 import ButtonMoveBaseMapThreed from "Features/threedBaseMapMove/components/ButtonMoveBaseMapThreed";
 import ButtonRotateBaseMapThreed from "Features/threedBaseMapMove/components/ButtonRotateBaseMapThreed";
+import ButtonMoveAnnotationThreed from "Features/threedAnnotationMove/components/ButtonMoveAnnotationThreed";
+import ButtonRotateAnnotationThreed from "Features/threedAnnotationMove/components/ButtonRotateAnnotationThreed";
 
 // Floating bottom toolbar for the main 3D viewer. Its content does not depend
 // on the current selection: the extrude ("push/pull") entry point + the meshing
@@ -18,7 +20,10 @@ import ButtonRotateBaseMapThreed from "Features/threedBaseMapMove/components/But
 // Viewer module (read-only): the creation/modification actions ("Extruder",
 // "Mailler") are hidden — only "Coupe" remains.
 // Fond de plan module (BASE_MAPS): base-map placement only — "Déplacer" /
-// "Tourner", no "Extruder" nor "Coupe".
+// "Tourner" (base map), no "Extruder" nor "Coupe".
+// Dessin module (MAP): "Déplacer" / "Tourner" act on the selected
+// ANNOTATIONS (threedAnnotationMove) — the base-map versions stay in the
+// other modules.
 // The zoom out lives outside the toolbar (ButtonZoomOutThreed, bottom-right
 // of the editor).
 export default function BottomToolbarThreed() {
@@ -35,6 +40,7 @@ export default function BottomToolbarThreed() {
   const isBaseMapsModule = useSelector(
     (s) => s.viewers.selectedViewerKey === "BASE_MAPS"
   );
+  const isMapModule = useSelector((s) => s.viewers.selectedViewerKey === "MAP");
   const clippingEditing = useSelector(
     (s) => s.threedEditor.clippingPlane.editing
   );
@@ -58,8 +64,10 @@ export default function BottomToolbarThreed() {
           <>
             {!isBaseMapsModule && <ButtonExtrudeThreed />}
             {isMeshesViewer && <ButtonMeshThreed />}
-            <ButtonMoveBaseMapThreed />
-            <ButtonRotateBaseMapThreed />
+            {!isMapModule && <ButtonMoveBaseMapThreed />}
+            {!isMapModule && <ButtonRotateBaseMapThreed />}
+            {isMapModule && <ButtonMoveAnnotationThreed />}
+            {isMapModule && <ButtonRotateAnnotationThreed />}
             {/* No leading divider when nothing precedes "Coupe" (Viewer
                 module). */}
             {!isBaseMapsModule && (
