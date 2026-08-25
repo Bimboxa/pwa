@@ -7,6 +7,8 @@ import db from "App/db/db";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import resolvePoints from "Features/annotations/utils/resolvePoints";
 import mapPhotoPointsToPlane from "Features/photoPlans/utils/mapPhotoPointsToPlane";
+import clipRingToHorizon from "Features/photoPlans/utils/clipRingToHorizon";
+import { expandArcsInPath } from "Features/geometry/utils/arcSampling";
 
 // Feeds PhotoPlansManager with the CALIBRATED photoPlans of the project's
 // photo baseMaps: each item carries the source polygon mapped into the
@@ -42,33 +44,54 @@ export default function useAutoLoadPhotoPlansInThreedEditor({
       const imageUrl = bm?.getUrl?.();
       if (!imageSize?.width || !imageSize?.height || !imageUrl) continue;
 
-      const srcAnn = await db.annotations.get(plan.annotationId);
-      if (!srcAnn || srcAnn.deletedAt) continue;
-      const ids = new Set();
-      (srcAnn.points ?? []).forEach((p) => p?.id && ids.add(p.id));
-      (srcAnn.cuts ?? []).forEach((c) =>
-        (c?.points ?? []).forEach((p) => p?.id && ids.add(p.id))
-      );
-      const arr = await db.points.bulkGet([...ids]);
-      const idx = {};
-      for (const p of arr) if (p) idx[p.id] = p;
+      // Whole-photo plan (no source polygon): zone = full image.
+      let srcAnn = null;
+      let idx = {};
+      let ringPx;
+      if (!plan.annotationId) {
+        ringPx = [
+          { x: 0, y: 0 },
+          { x: imageSize.width, y: 0 },
+          { x: imageSize.width, y: imageSize.height },
+          { x: 0, y: imageSize.height },
+        ];
+      } else {
+        srcAnn = await db.annotations.get(plan.annotationId);
+        if (!srcAnn || srcAnn.deletedAt) continue;
+        const ids = new Set();
+        (srcAnn.points ?? []).forEach((p) => p?.id && ids.add(p.id));
+        (srcAnn.cuts ?? []).forEach((c) =>
+          (c?.points ?? []).forEach((p) => p?.id && ids.add(p.id))
+        );
+        const arr = await db.points.bulkGet([...ids]);
+        for (const p of arr) if (p) idx[p.id] = p;
 
-      const ringPx = resolvePoints({
-        points: srcAnn.points,
-        pointsIndex: idx,
+        ringPx = resolvePoints({
+          points: srcAnn.points,
+          pointsIndex: idx,
+          imageSize,
+        });
+        if (!ringPx || ringPx.length < 3) continue;
+      }
+      // Tessellate arcs first, then clip against the plane's horizon (a
+      // whole-photo plan almost always has sky corners beyond it) instead of
+      // skipping the plane entirely.
+      const ringClipped = clipRingToHorizon({
+        points: expandArcsInPath(ringPx, 12, true),
         imageSize,
+        H: plan.calibration.H,
       });
-      if (!ringPx || ringPx.length < 3) continue;
+      if (!ringClipped) continue; // fully on/beyond the horizon
       const ringLocal = mapPhotoPointsToPlane({
         H: plan.calibration.H,
-        points: ringPx,
+        points: ringClipped,
         imageSize,
         closeLine: true,
       });
-      if (!ringLocal) continue; // source crosses the horizon — skip
+      if (!ringLocal) continue;
 
       const holesLocal = [];
-      for (const cut of srcAnn.cuts ?? []) {
+      for (const cut of srcAnn?.cuts ?? []) {
         const holePx = resolvePoints({
           points: cut?.points ?? [],
           pointsIndex: idx,

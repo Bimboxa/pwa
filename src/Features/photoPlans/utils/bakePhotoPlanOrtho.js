@@ -1,4 +1,5 @@
 import applyPhotoPlanHomography from "./applyPhotoPlanHomography";
+import clipRingToHorizon from "./clipRingToHorizon";
 
 // Bake the rectified ("mise à plat") orthophoto of a calibrated photoPlan:
 // warp the photo through the inverse homography into the plane's metric
@@ -34,28 +35,46 @@ export default async function bakePhotoPlanOrtho({
   const H0 = imageSize?.height;
   if (!W0 || !H0 || !ringPx || ringPx.length < 3) return null;
 
-  // Zone ring in the plane's metric frame (u right, v up).
+  // Zone ring in the plane's metric frame (u right, v up) — clipped against
+  // the plane's horizon first (a whole-photo zone almost always has sky
+  // corners beyond it).
+  const ringClipped = clipRingToHorizon({
+    points: ringPx,
+    imageSize,
+    H: calibration.H,
+  });
+  if (!ringClipped) return null; // fully on/beyond the horizon
   const ringUV = [];
-  for (const p of ringPx) {
+  for (const p of ringClipped) {
     const uv = applyPhotoPlanHomography(calibration.H, {
       x: p.x / W0,
       y: p.y / H0,
     });
-    if (!uv) return null; // zone crosses the horizon
+    if (!uv) return null;
     ringUV.push(uv);
   }
   const holesUV = [];
   for (const hole of holesPx) {
+    const holeClipped = clipRingToHorizon({
+      points: hole,
+      imageSize,
+      H: calibration.H,
+    });
+    if (!holeClipped) continue; // hole fully beyond the horizon
     const h = [];
-    for (const p of hole) {
+    let ok = true;
+    for (const p of holeClipped) {
       const uv = applyPhotoPlanHomography(calibration.H, {
         x: p.x / W0,
         y: p.y / H0,
       });
-      if (!uv) return null;
+      if (!uv) {
+        ok = false;
+        break;
+      }
       h.push(uv);
     }
-    holesUV.push(h);
+    if (ok) holesUV.push(h);
   }
 
   const uMin = Math.min(...ringUV.map((p) => p.x));

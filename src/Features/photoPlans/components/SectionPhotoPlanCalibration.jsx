@@ -31,6 +31,7 @@ import {
 } from "./VanishingLinesLayer";
 
 import usePhotoPlans from "../hooks/usePhotoPlans";
+import useCreatePhotoPlan from "../hooks/useCreatePhotoPlan";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import computePhotoPlanCalibrationFromBaseMaps from "../utils/computePhotoPlanCalibrationFromBaseMaps";
 import {
@@ -123,6 +124,7 @@ export default function SectionPhotoPlanCalibration({
   // data
 
   const { value: photoPlans = [] } = usePhotoPlans({ baseMapId: baseMap?.id });
+  const createPhotoPlan = useCreatePhotoPlan();
   const planBaseMap = useMainBaseMap();
   const targetsByVersionId = useSelector(
     (s) => s.baseMapEditor.calibrationTargetsByVersionId
@@ -285,6 +287,22 @@ export default function SectionPhotoPlanCalibration({
     dispatch(setCalibrationTargets({ versionId: photoKey, ...nextTargets }));
   }
 
+  async function handleCreateFullPhotoPlan() {
+    const plan = await createPhotoPlan({
+      baseMap,
+      name: "Photo entière",
+      orientation: "VERTICAL",
+    });
+    setSelectedPhotoPlanId(plan.id);
+  }
+
+  async function handleDeleteSelectedPlan() {
+    if (!photoPlan) return;
+    await db.photoPlans.delete(photoPlan.id); // soft-delete middleware
+    dispatch(triggerPhotoPlansUpdate());
+    setSelectedPhotoPlanId(null);
+  }
+
   function handleMoveFuiteEndpoint({ family, segmentId, end, point }) {
     if (family === "cote") {
       setCoteSegment((prev) => (prev ? { ...prev, [end]: point } : prev));
@@ -337,7 +355,7 @@ export default function SectionPhotoPlanCalibration({
   const disabledReason = !locating
     ? null
     : !photoPlan
-      ? "Sélectionnez un plan photo (ou créez-en un depuis les propriétés d'un polygone dessiné sur la photo)."
+      ? "Sélectionnez un plan photo — créez-en un avec « Photo entière » ci-dessus, ou depuis les propriétés d'un polygone dessiné sur la photo."
       : !planIsUsable
         ? "Affichez la vue en plan dans l'éditeur 2D (sélectionnez un fond de plan horizontal, non photo, dans l'arborescence)."
         : linesAreDefault
@@ -391,25 +409,43 @@ export default function SectionPhotoPlanCalibration({
         <Typography variant="caption" color="text.secondary" sx={{ mr: 0.5 }}>
           Plans photo
         </Typography>
-        {photoPlans.length === 0 ? (
+        {photoPlans.map((p) => {
+          const sel = p.id === selectedPhotoPlanId;
+          return (
+            <Chip
+              key={p.id}
+              size="small"
+              label={`${p.name}${p.calibration?.ok ? " ✓" : ""}`}
+              color={sel ? "primary" : "default"}
+              variant={sel ? "filled" : "outlined"}
+              onClick={() => setSelectedPhotoPlanId(p.id)}
+            />
+          );
+        })}
+        {/* Quick-create: a plan covering the whole photo (no source polygon
+            needed) — one per photo. Zone-specific plans still come from a
+            POLYGON drawn on the photo (its properties panel). */}
+        {!photoPlans.some((p) => !p.annotationId) && (
+          <Chip
+            size="small"
+            variant="outlined"
+            icon={<AddIcon sx={{ fontSize: 14 }} />}
+            label="Photo entière"
+            onClick={handleCreateFullPhotoPlan}
+          />
+        )}
+        {photoPlans.length === 0 && (
           <Typography variant="caption" color="text.secondary">
-            Aucun — dessinez un polygone sur la photo puis créez le plan depuis
-            ses propriétés.
+            — ou dessinez un polygone sur la photo puis créez le plan depuis ses
+            propriétés.
           </Typography>
-        ) : (
-          photoPlans.map((p) => {
-            const sel = p.id === selectedPhotoPlanId;
-            return (
-              <Chip
-                key={p.id}
-                size="small"
-                label={`${p.name}${p.calibration?.ok ? " ✓" : ""}`}
-                color={sel ? "primary" : "default"}
-                variant={sel ? "filled" : "outlined"}
-                onClick={() => setSelectedPhotoPlanId(p.id)}
-              />
-            );
-          })
+        )}
+        {photoPlan && !photoPlan.annotationId && (
+          <Tooltip title="Supprimer ce plan photo">
+            <IconButton size="small" onClick={handleDeleteSelectedPlan}>
+              <DeleteOutlineIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
         )}
       </Box>
 

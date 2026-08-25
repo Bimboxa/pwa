@@ -27,6 +27,21 @@ export default function usePhotoPlanZones({ baseMapId, imageSize } = {}) {
 
     const out = [];
     for (const plan of plans) {
+      // Whole-photo plan (no source polygon): the zone is the full image.
+      if (!plan.annotationId) {
+        const { width: W, height: H } = imageSize;
+        out.push({
+          plan,
+          ringPx: [
+            { x: 0, y: 0 },
+            { x: W, y: 0 },
+            { x: W, y: H },
+            { x: 0, y: H },
+          ],
+          holesPx: [],
+        });
+        continue;
+      }
       const srcAnn = await db.annotations.get(plan.annotationId);
       if (!srcAnn || srcAnn.deletedAt) continue;
       const ids = new Set();

@@ -2065,6 +2065,23 @@ export default function useAnnotationsV2(options) {
           // the source lives in an isForBaseMaps listing, invisible here).
           const plansByBaseMap = {};
           for (const plan of plans) {
+            // Whole-photo plan (no source polygon): zone = full image.
+            if (!plan.annotationId) {
+              const bm0 = baseMapById[plan.baseMapId];
+              const size0 = bm0?.getImageSize?.() || bm0?.image?.imageSize;
+              if (!size0?.width || !size0?.height) continue;
+              (plansByBaseMap[plan.baseMapId] ??= []).push({
+                plan,
+                ringPx: [
+                  { x: 0, y: 0 },
+                  { x: size0.width, y: 0 },
+                  { x: size0.width, y: size0.height },
+                  { x: 0, y: size0.height },
+                ],
+                holesPx: [],
+              });
+              continue;
+            }
             const srcAnn = await db.annotations.get(plan.annotationId);
             if (!srcAnn || srcAnn.deletedAt) continue;
             const bm = baseMapById[plan.baseMapId];
