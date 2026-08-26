@@ -22,12 +22,19 @@ import {
   Tooltip,
   CircularProgress,
 } from "@mui/material";
-import { Add, TouchApp, GridOn, Refresh, CloudQueue } from "@mui/icons-material";
+import {
+  Add,
+  TouchApp,
+  GridOn,
+  Refresh,
+  CloudQueue,
+} from "@mui/icons-material";
 
 import HeaderDashboardProject from "./HeaderDashboardProject";
 import ListItemDashboardScope from "./ListItemDashboardScope";
 import DialogDeleteScope from "Features/scopes/components/DialogDeleteScope";
 import DialogLinkProjectToReferentiel from "./DialogLinkProjectToReferentiel";
+import DialogRenameProject from "./DialogRenameProject";
 
 export default function PanelDashboardProjectDetail({ item }) {
   const dispatch = useDispatch();
@@ -58,6 +65,7 @@ export default function PanelDashboardProjectDetail({ item }) {
 
   const [deleteScopeId, setDeleteScopeId] = useState(null);
   const [linkOpen, setLinkOpen] = useState(false);
+  const [renameOpen, setRenameOpen] = useState(false);
 
   // strings
 
@@ -166,6 +174,11 @@ export default function PanelDashboardProjectDetail({ item }) {
     refreshRemoteScopes();
   }
 
+  function handleRenamed() {
+    setRenameOpen(false);
+    refreshRemoteScopes();
+  }
+
   // render — no selection
 
   if (!item) {
@@ -218,6 +231,7 @@ export default function PanelDashboardProjectDetail({ item }) {
         onClose={() => dispatch(setSelectedProjectKeyInDashboard(null))}
         onLink={hasReferentiel ? () => setLinkOpen(true) : null}
         onDetach={hasReferentiel ? handleDetach : null}
+        onRename={() => setRenameOpen(true)}
       />
 
       {/* krtos bar */}
@@ -294,7 +308,9 @@ export default function PanelDashboardProjectDetail({ item }) {
             }}
           >
             <CloudQueue sx={{ fontSize: "2.4rem", color: "#d0d0dd" }} />
-            <Typography sx={{ mt: 1.5, fontWeight: 600, color: "text.primary" }}>
+            <Typography
+              sx={{ mt: 1.5, fontWeight: 600, color: "text.primary" }}
+            >
               Recherche des {krtoS}s sur le serveur…
             </Typography>
             <CircularProgress size={20} sx={{ mt: 2 }} color="inherit" />
@@ -311,7 +327,9 @@ export default function PanelDashboardProjectDetail({ item }) {
             }}
           >
             <GridOn sx={{ fontSize: "2.4rem", color: "#d0d0dd" }} />
-            <Typography sx={{ mt: 1.5, fontWeight: 600, color: "text.primary" }}>
+            <Typography
+              sx={{ mt: 1.5, fontWeight: 600, color: "text.primary" }}
+            >
               Aucun {krtoS} dans ce projet
             </Typography>
             <Typography variant="body2" sx={{ mt: 0.5 }}>
@@ -363,6 +381,17 @@ export default function PanelDashboardProjectDetail({ item }) {
         projectId={item.projectId}
         projectName={item.name}
         onLinked={handleLinked}
+      />
+
+      <DialogRenameProject
+        open={renameOpen}
+        onClose={() => setRenameOpen(false)}
+        project={{
+          id: item.projectId,
+          name: item.name,
+          clientRef: item.clientRef,
+        }}
+        onSaved={handleRenamed}
       />
     </Box>
   );

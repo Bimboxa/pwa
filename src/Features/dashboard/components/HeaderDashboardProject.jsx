@@ -19,6 +19,7 @@ import {
   MoreHoriz,
   SwapHoriz,
   LinkOff,
+  Edit,
 } from "@mui/icons-material";
 
 import ChipProjectType from "./ChipProjectType";
@@ -29,6 +30,7 @@ export default function HeaderDashboardProject({
   onClose,
   onLink,
   onDetach,
+  onRename,
 }) {
   // state
 
@@ -39,6 +41,7 @@ export default function HeaderDashboardProject({
   const linkS = "Relier à un chantier / opportunité";
   const changeS = "Changer de chantier / opportunité";
   const detachS = "Détacher du référentiel";
+  const renameS = "Renommer / changer le numéro";
 
   // helpers
 
@@ -51,6 +54,11 @@ export default function HeaderDashboardProject({
   // and only when the dashboard wires the handlers (référentiel configured)
   const canManageLink = Boolean(item.isLocal && item.projectId && onLink);
   const isLinked = Boolean(item.idMaster);
+  // rename only makes sense on free (unlinked) local projects — a linked
+  // project takes its name / num from the référentiel
+  const canRename = Boolean(
+    item.isLocal && item.projectId && !isLinked && onRename
+  );
 
   // handlers
 
@@ -99,7 +107,7 @@ export default function HeaderDashboardProject({
             )}
           </Box>
         </Box>
-        {canManageLink && (
+        {(canManageLink || canRename) && (
           <>
             <Tooltip title="Plus d'actions">
               <IconButton
@@ -114,12 +122,20 @@ export default function HeaderDashboardProject({
               open={Boolean(menuAnchor)}
               onClose={() => setMenuAnchor(null)}
             >
-              {!isLinked && (
+              {!isLinked && canManageLink && (
                 <MenuItem onClick={() => handleMenuItemClick(onLink)}>
                   <ListItemIcon>
                     <AddLink fontSize="small" />
                   </ListItemIcon>
                   <ListItemText>{linkS}</ListItemText>
+                </MenuItem>
+              )}
+              {canRename && (
+                <MenuItem onClick={() => handleMenuItemClick(onRename)}>
+                  <ListItemIcon>
+                    <Edit fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText>{renameS}</ListItemText>
                 </MenuItem>
               )}
               {isLinked && (
