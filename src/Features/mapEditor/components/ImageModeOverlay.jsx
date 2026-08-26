@@ -28,6 +28,7 @@ import useCaptureAspectRatio from "../hooks/useCaptureAspectRatio";
 import applyHardCodedQties from "Features/legend/utils/applyHardCodedQties";
 import parseMainQtyLabel from "Features/legend/utils/parseMainQtyLabel";
 import getCaptureRectBounds from "../utils/getCaptureRectBounds";
+import { selectCaptureRightInset } from "../utils/captureRightInset";
 import {
   CAPTURE_BORDER_INSET,
   CAPTURE_BORDER_RADIUS,
@@ -84,15 +85,11 @@ export default function ImageModeOverlay({
   const titleText = usePovTitleText();
 
   // When the right panel is open it floats over the viewport without
-  // shrinking it; in "Export rapide" the capture rect is centered within the
-  // visible zone. The POV viewer ignores the panel on purpose: its frame must
-  // not move with the panel, so capture and camera restore stay consistent.
-  const exportModeEnabled = useSelector((s) => s.mapEditor.imageModeEnabled);
-  const panelOpen = useSelector((s) =>
-    Boolean(s.rightPanel.selectedMenuItemKey)
-  );
-  const panelWidth = useSelector((s) => s.rightPanel.width);
-  const rightInset = exportModeEnabled && panelOpen ? panelWidth : 0;
+  // shrinking it; the capture rect is centered within the visible zone
+  // ("Export rapide" panel, capture tool drawer). The POV viewer ignores the
+  // panel on purpose: its frame must not move with the panel, so capture and
+  // camera restore stay consistent. (selectCaptureRightInset owns the rule.)
+  const rightInset = useSelector(selectCaptureRightInset);
 
   const rect = getCaptureRectBounds(
     viewportWidth,

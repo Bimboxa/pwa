@@ -36,6 +36,7 @@ import useSavePovTransformedImage from "Features/pov/hooks/useSavePovTransformed
 
 import useMainBaseMap from "../hooks/useMainBaseMap";
 import useCaptureAspectRatio from "../hooks/useCaptureAspectRatio";
+import { selectCaptureRightInset } from "../utils/captureRightInset";
 import { getActiveMapEditor } from "../services/mapEditorRegistry";
 import captureMapAsPng, { getPdfPageSize } from "../utils/captureMapAsPng";
 import snapshotThreedCanvasForCapture from "Features/threedEditor/utils/snapshotThreedCanvasForCapture";
@@ -97,6 +98,9 @@ export default function ButtonSaveCapture() {
   const storedExportMode = useSelector((s) => s.mapEditor.imageModeExportMode);
   // PDF page size (A4 / A3) — same on-screen frame, bigger pdf-lib page.
   const pageFormat = useSelector((s) => s.mapEditor.imageModePageFormat);
+  // The capture drawer floats over the host's right side; every capture must
+  // crop the same inset rect as the displayed frame (selectCaptureRightInset).
+  const rightInset = useSelector(selectCaptureRightInset);
 
   const frameBounds = useCaptureFrameBounds(hostViewerKey);
 
@@ -189,6 +193,7 @@ export default function ButtonSaveCapture() {
       pixelRatio,
       whiteBackground,
       roundedBorderMask,
+      rightInset,
       prepareHost: isThreed ? snapshotThreedCanvasForCapture : undefined,
     };
     if (exportMode === "clipboard") {
@@ -258,6 +263,7 @@ export default function ButtonSaveCapture() {
       aspectRatio,
       pixelRatio: 2,
       whiteBackground,
+      rightInset,
       excludeDecor: true,
       prepareHost: isThreed ? snapshotThreedCanvasForCapture : undefined,
     });
@@ -309,6 +315,7 @@ export default function ButtonSaveCapture() {
       target: "blob",
       aspectRatio,
       pixelRatio: 2,
+      rightInset,
       decorOnly: true,
     });
 

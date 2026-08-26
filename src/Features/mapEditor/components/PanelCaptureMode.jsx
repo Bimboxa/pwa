@@ -7,6 +7,8 @@
 import { useSelector } from "react-redux";
 
 import captureMapAsPng from "../utils/captureMapAsPng";
+import { selectCaptureRightInset } from "../utils/captureRightInset";
+import useCaptureAspectRatio from "../hooks/useCaptureAspectRatio";
 import snapshotThreedCanvasForCapture from "Features/threedEditor/utils/snapshotThreedCanvasForCapture";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 
@@ -20,19 +22,16 @@ import SectionCaptureExport from "./SectionCaptureExport";
 export default function PanelCaptureMode({ viewerKey = "MAP" }) {
   // data
 
-  const aspectRatio = useSelector((s) => s.mapEditor.imageModeAspectRatio);
+  // Resolved value (preset key or the base map's numeric ratio) — must match
+  // the frame drawn by ImageModeOverlay.
+  const aspectRatio = useCaptureAspectRatio();
   // Label auto-layout only applies to the 2D map (in 3D the labels are baked
   // into the WebGL snapshot).
   const isThreed = isThreedFamilyViewerKey(viewerKey);
   // Right panel occludes the viewport's right side; mirror the overlay so the
-  // exported crop matches the displayed capture rect. Only Export rapide
-  // insets the rect — the global Capture tool ignores the panel (like POV).
-  const imageModeEnabled = useSelector((s) => s.mapEditor.imageModeEnabled);
-  const panelOpen = useSelector((s) =>
-    Boolean(s.rightPanel.selectedMenuItemKey)
-  );
-  const panelWidth = useSelector((s) => s.rightPanel.width);
-  const rightInset = imageModeEnabled && panelOpen ? panelWidth : 0;
+  // exported crop matches the displayed capture rect
+  // (selectCaptureRightInset owns the rule).
+  const rightInset = useSelector(selectCaptureRightInset);
   const roundedBorderMask = useSelector((s) => s.mapEditor.imageModeBorder);
 
   // handlers

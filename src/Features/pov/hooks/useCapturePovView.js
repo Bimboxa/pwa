@@ -8,6 +8,7 @@ import snapshotThreedCanvasForCapture from "Features/threedEditor/utils/snapshot
 import resizeImageToLowResolution from "Features/images/utils/resizeImageToLowResolution";
 import snapshotPovViewService from "../services/snapshotPovViewService";
 import useCaptureAspectRatio from "Features/mapEditor/hooks/useCaptureAspectRatio";
+import { selectCaptureRightInset } from "Features/mapEditor/utils/captureRightInset";
 
 const MAX_IMAGE_SIZE = 200 * 1024; // thumbnail budget (POV list + Krto export)
 
@@ -29,6 +30,10 @@ export default function useCapturePovView() {
   // persisted on the pov record, so the restore does not depend on whichever
   // base map is active later.
   const aspectRatio = useCaptureAspectRatio();
+  // 0 in the POV module; the capture drawer's width when the capture tool
+  // owns the frame ("pov" export mode) — the crop must match the displayed
+  // frame, and the snapshot below must store the same rect.
+  const rightInset = useSelector(selectCaptureRightInset);
   const whiteBackground = useSelector(
     (s) => s.mapEditor.imageModeWhiteBackground
   );
@@ -50,6 +55,7 @@ export default function useCapturePovView() {
       aspectRatio,
       whiteBackground,
       roundedBorderMask,
+      rightInset,
       prepareHost: isThreed ? snapshotThreedCanvasForCapture : undefined,
     };
 
@@ -98,7 +104,11 @@ export default function useCapturePovView() {
       }
     }
 
-    const metadata = await snapshotPovViewService({ viewerMode, aspectRatio });
+    const metadata = await snapshotPovViewService({
+      viewerMode,
+      aspectRatio,
+      rightInset,
+    });
 
     return { image: { fileName }, rawImage, ...metadata };
   };

@@ -5,6 +5,7 @@ import { useSelector } from "react-redux";
 import getAnnotationLabelPropsFromAnnotation from "Features/annotations/utils/getAnnotationLabelPropsFromAnnotation";
 import getImageModeLabelsLayout from "Features/annotations/utils/getImageModeLabelsLayout";
 import getCaptureRectBounds from "Features/mapEditor/utils/getCaptureRectBounds";
+import { selectCaptureRightInset } from "Features/mapEditor/utils/captureRightInset";
 import useCaptureAspectRatio from "./useCaptureAspectRatio";
 
 // Screen-px layout constants (converted to image px at compute time).
@@ -37,15 +38,10 @@ export default function useImageModeLabelsLayout({
   const inMargin = useSelector((s) => s.mapEditor.imageModeLabelsInMargin);
   const aspectRatio = useCaptureAspectRatio();
 
-  // Same inset logic as ImageModeOverlay: "Export rapide" centers the capture
-  // rect within the zone left visible by the right panel; the POV viewer
-  // ignores the panel (its frame must not move with it).
-  const exportModeEnabled = useSelector((s) => s.mapEditor.imageModeEnabled);
-  const panelOpen = useSelector((s) =>
-    Boolean(s.rightPanel.selectedMenuItemKey)
-  );
-  const panelWidth = useSelector((s) => s.rightPanel.width);
-  const rightInset = exportModeEnabled && panelOpen ? panelWidth : 0;
+  // Same inset as ImageModeOverlay (selectCaptureRightInset owns the rule):
+  // the capture rect is centered within the zone left visible by the open
+  // panel / capture drawer; the POV viewer ignores the panel.
+  const rightInset = useSelector(selectCaptureRightInset);
 
   const [labelOverridesById, setLabelOverridesById] = useState(null);
 

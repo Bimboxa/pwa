@@ -26,9 +26,13 @@ import getEffective3dCameraPose from "../utils/getEffective3dCameraPose";
 // (useCaptureAspectRatio): the "BASE_MAP" option must be persisted as its
 // numeric ratio, not as the key (the restore would otherwise depend on
 // whichever base map is active at that time).
+// `rightInset` (default 0) is the width occluded by the capture tool's
+// drawer: its frame IS inset, so the stored footprint / frameFraction must
+// be measured on the same rect. The POV flow keeps 0.
 export default async function snapshotPovViewService({
   viewerMode: viewerModeOverride,
   aspectRatio: aspectRatioOverride,
+  rightInset = 0,
 } = {}) {
   const state = store.getState();
 
@@ -114,7 +118,8 @@ export default async function snapshotPovViewService({
       const rect = getCaptureRectBounds(
         viewport.width,
         viewport.height,
-        aspectRatio
+        aspectRatio,
+        { rightInset }
       );
       const toImage = (screenX, screenY) => ({
         x: ((screenX - m.x) / m.k - basePose.x) / basePose.k,
@@ -145,7 +150,8 @@ export default async function snapshotPovViewService({
       const rect = getCaptureRectBounds(
         hostBounds.width,
         hostBounds.height,
-        aspectRatio
+        aspectRatio,
+        { rightInset }
       );
       // The stored pose is the EFFECTIVE one (target on the look axis), not
       // controls.getTarget() — see getEffective3dCameraPose.

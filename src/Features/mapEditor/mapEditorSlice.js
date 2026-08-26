@@ -87,8 +87,9 @@ const mapEditorInitialState = {
   //
   imageModeEnabled: false,
   // Global "Capture" tool (right band, Alt+C). Same capture frame + options as
-  // imageMode, but the rect ignores the right panel (no rightInset), like the
-  // POV framing. Never true together with imageModeEnabled.
+  // imageMode; the rect is inset by the capture drawer's own width so its
+  // right edge stays visible (selectCaptureRightInset — the POV framing keeps
+  // ignoring the panel). Never true together with imageModeEnabled.
   captureToolActive: false,
   // Format of the capture tool's right panel: true = the condensed black band
   // of icon buttons (ToolbarCaptureCondensed), false = the full tabbed panel
