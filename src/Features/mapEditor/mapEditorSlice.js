@@ -109,6 +109,9 @@ const mapEditorInitialState = {
   imageModeLegendSelected: false,
   // image mode capture rectangle (screen space)
   imageModeAspectRatio: "LANDSCAPE", // "LANDSCAPE" | "SQUARE" | "PORTRAIT"
+  // Page size of the PDF export ("A4" | "A3"). Same √2 aspect ratio on screen,
+  // only the pdf-lib page dimensions differ.
+  imageModePageFormat: "A4",
   imageModeHighRes: true, // when true, captureMapAsPng doubles the output pixel ratio
   imageModeShowWatermark: false, // when true, render the org's watermark SVG inside the capture rect
   imageModeShowLogo: false, // when true, render the org's logo SVG anchored bottom-right of the capture rect
@@ -433,6 +436,9 @@ export const mapEditorSlice = createSlice({
     },
     setImageModeAspectRatio: (state, action) => {
       state.imageModeAspectRatio = action.payload;
+    },
+    setImageModePageFormat: (state, action) => {
+      state.imageModePageFormat = action.payload;
     },
     setImageModeLegendOverlay: (state, action) => {
       state.imageModeLegendOverlay = action.payload;
@@ -901,6 +907,7 @@ export const {
   setImageModeExportMode,
   setImageModeLegendSelected,
   setImageModeAspectRatio,
+  setImageModePageFormat,
   setImageModeLegendOverlay,
   setImageModeLegendQtyRows,
   setImageModeHighRes,

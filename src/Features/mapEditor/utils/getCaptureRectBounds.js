@@ -9,6 +9,15 @@ const ASPECT_RATIOS = {
   PORTRAIT: 210 / 297, // ≈ 0.7071
 };
 
+// `aspectRatio` is either one of the preset keys above or a numeric
+// width/height ratio (the "BASE_MAP" option resolves to the active base map's
+// image ratio via useCaptureAspectRatio, and POV records may persist that
+// number). Numbers pass through, unknown strings fall back to LANDSCAPE.
+export function resolveCaptureRatioValue(aspectRatio) {
+  if (typeof aspectRatio === "number" && aspectRatio > 0) return aspectRatio;
+  return ASPECT_RATIOS[aspectRatio] ?? ASPECT_RATIOS.LANDSCAPE;
+}
+
 export default function getCaptureRectBounds(
   viewportWidth,
   viewportHeight,
@@ -25,7 +34,7 @@ export default function getCaptureRectBounds(
   // so it never sits under the panel.
   const availWidth = Math.max(0, viewportWidth - rightInset);
 
-  const ratio = ASPECT_RATIOS[aspectRatio] ?? ASPECT_RATIOS.LANDSCAPE;
+  const ratio = resolveCaptureRatioValue(aspectRatio);
   const maxW = Math.max(0, availWidth - margin * 2);
   const maxH = Math.max(0, viewportHeight - margin * 2);
 

@@ -22,8 +22,13 @@ import getEffective3dCameraPose from "../utils/getEffective3dCameraPose";
 // restore always agree on the same rect.
 // `viewerMode` overrides the POV module's mode — the capture tool snapshots
 // the editor it is displayed over, whatever the POV module last showed.
+// `aspectRatio` overrides the raw redux value with the RESOLVED one
+// (useCaptureAspectRatio): the "BASE_MAP" option must be persisted as its
+// numeric ratio, not as the key (the restore would otherwise depend on
+// whichever base map is active at that time).
 export default async function snapshotPovViewService({
   viewerMode: viewerModeOverride,
+  aspectRatio: aspectRatioOverride,
 } = {}) {
   const state = store.getState();
 
@@ -31,7 +36,8 @@ export default async function snapshotPovViewService({
     (viewerModeOverride ?? state.pov.viewerMode) === "THREED"
       ? "THREED"
       : "MAP";
-  const aspectRatio = state.mapEditor.imageModeAspectRatio;
+  const aspectRatio =
+    aspectRatioOverride ?? state.mapEditor.imageModeAspectRatio;
   // Manual qty overrides (hardCodedQtiesById) are session-only by design —
   // they must not be persisted on the pov record.
   const legendOverlay = { ...state.mapEditor.imageModeLegendOverlay };

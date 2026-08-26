@@ -7,6 +7,7 @@ import captureMapAsPng from "Features/mapEditor/utils/captureMapAsPng";
 import snapshotThreedCanvasForCapture from "Features/threedEditor/utils/snapshotThreedCanvasForCapture";
 import resizeImageToLowResolution from "Features/images/utils/resizeImageToLowResolution";
 import snapshotPovViewService from "../services/snapshotPovViewService";
+import useCaptureAspectRatio from "Features/mapEditor/hooks/useCaptureAspectRatio";
 
 const MAX_IMAGE_SIZE = 200 * 1024; // thumbnail budget (POV list + Krto export)
 
@@ -24,7 +25,10 @@ const MAX_IMAGE_SIZE = 200 * 1024; // thumbnail budget (POV list + Krto export)
 //   (see createKrtoZip): it is regenerable from the POV module.
 export default function useCapturePovView() {
   const povViewerMode = useSelector((s) => s.pov.viewerMode);
-  const aspectRatio = useSelector((s) => s.mapEditor.imageModeAspectRatio);
+  // Resolved value (preset key or numeric base map ratio): also what gets
+  // persisted on the pov record, so the restore does not depend on whichever
+  // base map is active later.
+  const aspectRatio = useCaptureAspectRatio();
   const whiteBackground = useSelector(
     (s) => s.mapEditor.imageModeWhiteBackground
   );
@@ -94,7 +98,7 @@ export default function useCapturePovView() {
       }
     }
 
-    const metadata = await snapshotPovViewService({ viewerMode });
+    const metadata = await snapshotPovViewService({ viewerMode, aspectRatio });
 
     return { image: { fileName }, rawImage, ...metadata };
   };

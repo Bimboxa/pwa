@@ -13,6 +13,7 @@ export default async function exportPovImageService({
   mode, // "png" | "pdf" | "clipboard"
   fileName = "point_de_vue.png",
   aspectRatio = "LANDSCAPE",
+  pageFormat = "A4",
 }) {
   const fileRecord = await db.files.get(storedFileName);
   if (!fileRecord?.fileArrayBuffer) return false;
@@ -33,7 +34,7 @@ export default async function exportPovImageService({
   if (mode === "pdf") {
     const url = URL.createObjectURL(blob);
     try {
-      const { pageWidth, pageHeight } = getPdfPageSize(aspectRatio);
+      const { pageWidth, pageHeight } = getPdfPageSize(aspectRatio, pageFormat);
       const pdfFile = await imageToPdfAsync({ url, pageWidth, pageHeight });
       downloadBlob(pdfFile, fileName);
     } finally {

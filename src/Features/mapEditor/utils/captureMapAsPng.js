@@ -9,18 +9,28 @@ import {
   CAPTURE_BORDER_RADIUS,
 } from "./captureBorderConstants";
 
-// A4 page sizes (pdf-lib points) matched to the capture aspect ratio so the
-// cropped image fills the PDF page with minimal margins. Exported for flows
-// exporting an already-stored capture (POV transformed image).
-export function getPdfPageSize(aspectRatio) {
+// Page sizes (pdf-lib points) matched to the capture aspect ratio so the
+// cropped image fills the PDF page with minimal margins. A4 and A3 share the
+// same √2 aspect ratio — only the page dimensions differ (A4: 595×842,
+// A3: 842×1191). Exported for flows exporting an already-stored capture
+// (POV transformed image).
+export function getPdfPageSize(aspectRatio, pageFormat = "A4") {
+  const [shortSide, longSide] = pageFormat === "A3" ? [842, 1191] : [595, 842];
+  // Numeric ratio (the "BASE_MAP" frame option): pick the page orientation
+  // matching the image — imageToPdfAsync then fits it inside with margins.
+  if (typeof aspectRatio === "number") {
+    return aspectRatio >= 1
+      ? { pageWidth: longSide, pageHeight: shortSide }
+      : { pageWidth: shortSide, pageHeight: longSide };
+  }
   switch (aspectRatio) {
     case "PORTRAIT":
-      return { pageWidth: 595, pageHeight: 842 };
+      return { pageWidth: shortSide, pageHeight: longSide };
     case "SQUARE":
-      return { pageWidth: 595, pageHeight: 595 };
+      return { pageWidth: shortSide, pageHeight: shortSide };
     case "LANDSCAPE":
     default:
-      return { pageWidth: 842, pageHeight: 595 };
+      return { pageWidth: longSide, pageHeight: shortSide };
   }
 }
 
@@ -46,6 +56,7 @@ export function getPdfPageSize(aspectRatio) {
  * @param {number} [opts.rightInset] width occluded by an open right panel; the
  *   capture rect is centered within the visible zone (must match the overlay).
  * @param {"png"|"pdf"} [opts.format] download format ("pdf" only for download)
+ * @param {"A4"|"A3"} [opts.pageFormat] PDF page size (same aspect ratio)
  * @param {boolean} [opts.roundedBorderMask] make every pixel outside the
  *   rounded border (imageModeBorder overlay) transparent in the output.
  * @param {boolean} [opts.excludeDecor] hide the `data-capture-decor` elements
@@ -70,6 +81,7 @@ export default async function captureMapAsPng({
   whiteBackground = false,
   rightInset = 0,
   format = "png",
+  pageFormat = "A4",
   roundedBorderMask = false,
   excludeDecor = false,
   decorOnly = false,
@@ -219,7 +231,10 @@ export default async function captureMapAsPng({
     } else if (format === "pdf") {
       const url = URL.createObjectURL(blob);
       try {
-        const { pageWidth, pageHeight } = getPdfPageSize(aspectRatio);
+        const { pageWidth, pageHeight } = getPdfPageSize(
+          aspectRatio,
+          pageFormat
+        );
         const pdfFile = await imageToPdfAsync({ url, pageWidth, pageHeight });
         downloadBlob(pdfFile, fileName);
       } finally {

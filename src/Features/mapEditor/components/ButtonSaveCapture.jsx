@@ -35,6 +35,7 @@ import useCreatePov from "Features/pov/hooks/useCreatePov";
 import useSavePovTransformedImage from "Features/pov/hooks/useSavePovTransformedImage";
 
 import useMainBaseMap from "../hooks/useMainBaseMap";
+import useCaptureAspectRatio from "../hooks/useCaptureAspectRatio";
 import { getActiveMapEditor } from "../services/mapEditorRegistry";
 import captureMapAsPng, { getPdfPageSize } from "../utils/captureMapAsPng";
 import snapshotThreedCanvasForCapture from "Features/threedEditor/utils/snapshotThreedCanvasForCapture";
@@ -84,7 +85,9 @@ export default function ButtonSaveCapture() {
   } = usePovEnhancePrompt();
 
   const hostViewerKey = useSelector(selectCaptureHostViewerKey);
-  const aspectRatio = useSelector((s) => s.mapEditor.imageModeAspectRatio);
+  // Resolved value (preset key or the base map's numeric ratio) — must match
+  // the frame drawn by ImageModeOverlay.
+  const aspectRatio = useCaptureAspectRatio();
   const whiteBackground = useSelector(
     (s) => s.mapEditor.imageModeWhiteBackground
   );
@@ -92,6 +95,8 @@ export default function ButtonSaveCapture() {
   const highRes = useSelector((s) => s.mapEditor.imageModeHighRes);
   // Output format picked in the panel's Capture tab (SectionCaptureExport).
   const storedExportMode = useSelector((s) => s.mapEditor.imageModeExportMode);
+  // PDF page size (A4 / A3) — same on-screen frame, bigger pdf-lib page.
+  const pageFormat = useSelector((s) => s.mapEditor.imageModePageFormat);
 
   const frameBounds = useCaptureFrameBounds(hostViewerKey);
 
@@ -115,6 +120,11 @@ export default function ButtonSaveCapture() {
   // helpers
 
   const isThreed = hostViewerKey === "THREED";
+  // 2D hosts backed by a MainMapEditorV3 instance: the "MAP" one (Dessin &
+  // co) and the "BASE_MAPS" one (Fond de plan module). Both register their
+  // camera handle as the active map editor, so the "center the base map"
+  // button works the same on either.
+  const is2dMapHost = hostViewerKey === "MAP" || hostViewerKey === "BASE_MAPS";
   const pixelRatio = highRes ? 4 : 2;
   const baseName = captureFileName?.trim() || "capture";
 
@@ -193,6 +203,7 @@ export default function ButtonSaveCapture() {
         ...common,
         target: "download",
         format: exportMode, // "pdf" | "png"
+        pageFormat,
         fileName: `${baseName}.${exportMode}`,
       });
     }
@@ -224,7 +235,10 @@ export default function ButtonSaveCapture() {
     } else if (exportMode === "pdf") {
       const url = URL.createObjectURL(blob);
       try {
-        const { pageWidth, pageHeight } = getPdfPageSize(aspectRatio);
+        const { pageWidth, pageHeight } = getPdfPageSize(
+          aspectRatio,
+          pageFormat
+        );
         const pdfFile = await imageToPdfAsync({ url, pageWidth, pageHeight });
         downloadBlob(pdfFile, `${baseName}.pdf`);
       } finally {
@@ -386,7 +400,7 @@ export default function ButtonSaveCapture() {
           }}
         >
           {/* center the content in the capture frame (2D baseMap / 3D scene) */}
-          {(hostViewerKey === "MAP" || isThreed) && (
+          {(is2dMapHost || isThreed) && (
             <>
               <Tooltip title={isThreed ? centerThreedS : centerBaseMapS}>
                 <Box sx={{ display: "flex", alignItems: "center", px: 0.5 }}>

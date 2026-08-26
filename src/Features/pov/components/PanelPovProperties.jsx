@@ -25,6 +25,7 @@ import PanelPovFrameProperties from "./PanelPovFrameProperties";
 import SectionPovCadrage from "./SectionPovCadrage";
 
 import captureMapAsPng from "Features/mapEditor/utils/captureMapAsPng";
+import useCaptureAspectRatio from "Features/mapEditor/hooks/useCaptureAspectRatio";
 import snapshotThreedCanvasForCapture from "Features/threedEditor/utils/snapshotThreedCanvasForCapture";
 import exportPovImageService from "../services/exportPovImageService";
 
@@ -60,7 +61,8 @@ export default function PanelPovProperties() {
   const updatePov = useUpdatePov();
 
   const viewerMode = useSelector((s) => s.pov.viewerMode);
-  const aspectRatio = useSelector((s) => s.mapEditor.imageModeAspectRatio);
+  const aspectRatio = useCaptureAspectRatio();
+  const pageFormat = useSelector((s) => s.mapEditor.imageModePageFormat);
   const roundedBorderMask = useSelector((s) => s.mapEditor.imageModeBorder);
 
   // state
@@ -102,6 +104,7 @@ export default function PanelPovProperties() {
         mode,
         fileName,
         aspectRatio: pov.aspectRatio ?? aspectRatio,
+        pageFormat,
       });
       if (exported) return;
       // stored file missing → fall through to a fresh capture
@@ -111,6 +114,7 @@ export default function PanelPovProperties() {
       viewerKey: isThreed ? "THREED" : "MAP",
       target: mode === "clipboard" ? "clipboard" : "download",
       format: mode === "clipboard" ? undefined : mode,
+      pageFormat,
       fileName,
       aspectRatio,
       pixelRatio,

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 
 import getCaptureRectBounds from "Features/mapEditor/utils/getCaptureRectBounds";
+import useCaptureAspectRatio from "Features/mapEditor/hooks/useCaptureAspectRatio";
 
 // Live bounds of the capture frame (the dashed rectangle drawn by
 // ImageModeOverlay): host-local `rect` + viewport-space `screenRect`.
@@ -17,7 +18,7 @@ export default function useCaptureFrameBounds(viewerKeyOverride = null) {
   // data
 
   const viewerMode = useSelector((s) => s.pov.viewerMode);
-  const aspectRatio = useSelector((s) => s.mapEditor.imageModeAspectRatio);
+  const aspectRatio = useCaptureAspectRatio();
 
   const viewerKey =
     viewerKeyOverride ?? (viewerMode === "THREED" ? "THREED" : "MAP");

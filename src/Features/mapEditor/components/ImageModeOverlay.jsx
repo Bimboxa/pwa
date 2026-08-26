@@ -24,6 +24,7 @@ import {
 } from "../mapEditorSlice";
 
 import NodeLegendStatic from "Features/mapEditorGeneric/components/NodeLegendStatic";
+import useCaptureAspectRatio from "../hooks/useCaptureAspectRatio";
 import applyHardCodedQties from "Features/legend/utils/applyHardCodedQties";
 import parseMainQtyLabel from "Features/legend/utils/parseMainQtyLabel";
 import getCaptureRectBounds from "../utils/getCaptureRectBounds";
@@ -55,7 +56,9 @@ export default function ImageModeOverlay({
 
   // data
 
-  const aspectRatio = useSelector((s) => s.mapEditor.imageModeAspectRatio);
+  // Resolved ratio (preset key or the base map's numeric ratio for the
+  // "BASE_MAP" option) — the watermark below keys on the raw preset string.
+  const aspectRatio = useCaptureAspectRatio();
   const overlay = useSelector((s) => s.mapEditor.imageModeLegendOverlay);
   const showWatermark = useSelector((s) => s.mapEditor.imageModeShowWatermark);
   const watermarkUrl = useSelector(

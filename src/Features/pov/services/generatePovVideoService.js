@@ -9,7 +9,7 @@ import createMp4Encoder from "../utils/encodeFramesToMp4";
 
 import captureMapAsPng from "Features/mapEditor/utils/captureMapAsPng";
 import getCaptureRectBounds, {
-  ASPECT_RATIOS,
+  resolveCaptureRatioValue,
 } from "Features/mapEditor/utils/getCaptureRectBounds";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 import downloadBlob from "Features/files/utils/downloadBlob";
@@ -67,7 +67,7 @@ async function waitForThreedEditor(timeoutMs = 5000) {
 // Video dimensions from the frame ratio and the requested long side, both
 // even (H.264 encodes in 2×2 chroma blocks).
 function getVideoSize({ aspectRatio, longSide }) {
-  const ratio = ASPECT_RATIOS[aspectRatio] ?? ASPECT_RATIOS.LANDSCAPE;
+  const ratio = resolveCaptureRatioValue(aspectRatio);
   const width = ratio >= 1 ? longSide : Math.round(longSide * ratio);
   const height = ratio >= 1 ? Math.round(longSide / ratio) : longSide;
   const even = (v) => Math.max(2, v % 2 === 0 ? v : v + 1);

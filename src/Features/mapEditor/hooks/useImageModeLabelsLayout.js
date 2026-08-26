@@ -5,6 +5,7 @@ import { useSelector } from "react-redux";
 import getAnnotationLabelPropsFromAnnotation from "Features/annotations/utils/getAnnotationLabelPropsFromAnnotation";
 import getImageModeLabelsLayout from "Features/annotations/utils/getImageModeLabelsLayout";
 import getCaptureRectBounds from "Features/mapEditor/utils/getCaptureRectBounds";
+import useCaptureAspectRatio from "./useCaptureAspectRatio";
 
 // Screen-px layout constants (converted to image px at compute time).
 const BAND_MARGIN = 60; // chip outer edge inset from the capture rect border
@@ -34,7 +35,7 @@ export default function useImageModeLabelsLayout({
 }) {
   const autoLayout = useSelector((s) => s.mapEditor.imageModeLabelsAutoLayout);
   const inMargin = useSelector((s) => s.mapEditor.imageModeLabelsInMargin);
-  const aspectRatio = useSelector((s) => s.mapEditor.imageModeAspectRatio);
+  const aspectRatio = useCaptureAspectRatio();
 
   // Same inset logic as ImageModeOverlay: "Export rapide" centers the capture
   // rect within the zone left visible by the right panel; the POV viewer

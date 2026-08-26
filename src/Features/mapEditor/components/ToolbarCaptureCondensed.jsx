@@ -8,6 +8,7 @@ import {
   setImageModeBorder,
   setImageModeExportMode,
   setImageModeLegendOverlay,
+  setImageModePageFormat,
   setImageModeTitle,
 } from "../mapEditorSlice";
 
@@ -39,6 +40,7 @@ import {
   PictureAsPdf,
   Title,
   Tune,
+  Wallpaper,
 } from "@mui/icons-material";
 
 import useExitCaptureTool from "../hooks/useExitCaptureTool";
@@ -51,6 +53,26 @@ const ASPECT_RATIO_OPTIONS = [
   { value: "LANDSCAPE", label: "Paysage", icon: <CropLandscape /> },
   { value: "SQUARE", label: "Carré", icon: <CropSquare /> },
   { value: "PORTRAIT", label: "Portrait", icon: <CropPortrait /> },
+  // Frame ratio locked on the active base map's image ratio
+  // (useCaptureAspectRatio resolves it to a number).
+  { value: "BASE_MAP", label: "Fond de plan", icon: <Wallpaper /> },
+];
+
+// A4 and A3 share the same √2 aspect ratio: the frame on screen is identical,
+// only the PDF export page size changes. Text-based "icons" (no crop icon
+// carries the page size).
+const pageFormatIconSx = { fontSize: 14, fontWeight: 600, lineHeight: 1 };
+const PAGE_FORMAT_OPTIONS = [
+  {
+    value: "A4",
+    label: "A4",
+    icon: <Typography sx={pageFormatIconSx}>A4</Typography>,
+  },
+  {
+    value: "A3",
+    label: "A3",
+    icon: <Typography sx={pageFormatIconSx}>A3</Typography>,
+  },
 ];
 
 const EXPORT_MODE_OPTIONS = [
@@ -182,6 +204,7 @@ export default function ToolbarCaptureCondensed() {
 
   const closeS = "Fermer";
   const frameS = "Cadre";
+  const pageFormatS = "Format";
   const borderS = "Bordure";
   const titleS = "Titre";
   const legendS = "Légende";
@@ -192,6 +215,7 @@ export default function ToolbarCaptureCondensed() {
   // data
 
   const aspectRatio = useSelector((s) => s.mapEditor.imageModeAspectRatio);
+  const pageFormat = useSelector((s) => s.mapEditor.imageModePageFormat);
   const border = useSelector((s) => s.mapEditor.imageModeBorder);
   const title = useSelector((s) => s.mapEditor.imageModeTitle);
   const legendOverlay = useSelector((s) => s.mapEditor.imageModeLegendOverlay);
@@ -270,6 +294,13 @@ export default function ToolbarCaptureCondensed() {
         options={ASPECT_RATIO_OPTIONS}
         value={aspectRatio}
         onChange={(value) => dispatch(setImageModeAspectRatio(value))}
+      />
+      <ToolbarSelect
+        label={pageFormatS}
+        tooltip="Format de la page PDF"
+        options={PAGE_FORMAT_OPTIONS}
+        value={pageFormat}
+        onChange={(value) => dispatch(setImageModePageFormat(value))}
       />
       <ToolbarButton
         icon={<BorderOuter />}

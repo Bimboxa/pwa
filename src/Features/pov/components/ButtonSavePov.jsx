@@ -34,6 +34,7 @@ import useCaptureFrameBounds from "../hooks/useCaptureFrameBounds";
 import useExitPovFraming from "../hooks/useExitPovFraming";
 
 import captureMapAsPng from "Features/mapEditor/utils/captureMapAsPng";
+import useCaptureAspectRatio from "Features/mapEditor/hooks/useCaptureAspectRatio";
 import snapshotThreedCanvasForCapture from "Features/threedEditor/utils/snapshotThreedCanvasForCapture";
 import enhanceBaseMapService from "Features/baseMaps/services/enhanceBaseMapService";
 import composeEnhancedPovImage from "../utils/composeEnhancedPovImage";
@@ -84,7 +85,7 @@ export default function ButtonSavePov() {
   } = usePovEnhancePrompt();
 
   const viewerMode = useSelector((s) => s.pov.viewerMode);
-  const aspectRatio = useSelector((s) => s.mapEditor.imageModeAspectRatio);
+  const aspectRatio = useCaptureAspectRatio();
   const whiteBackground = useSelector(
     (s) => s.mapEditor.imageModeWhiteBackground
   );
