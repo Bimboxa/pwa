@@ -345,11 +345,10 @@ export default function ButtonSaveCapture() {
     )
       return;
 
-    const k =
-      Math.min(
-        rect.width / (imageSize.width * basePose.k),
-        rect.height / (imageSize.height * basePose.k)
-      ) * 0.95; // small breathing margin inside the frame
+    const k = Math.min(
+      rect.width / (imageSize.width * basePose.k),
+      rect.height / (imageSize.height * basePose.k)
+    );
     const x =
       rect.left +
       rect.width / 2 -
