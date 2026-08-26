@@ -22,6 +22,15 @@ export default async function loadKrtoZip(file, options) {
   const importTag = nanoid();
   const loadDataToProjectId = options?.loadDataToProjectId;
   const loadDataToScopeId = options?.loadDataToScopeId;
+  // Authoritative project fields (name, clientRef, type…) applied over the
+  // zip's project row. The zip snapshot goes stale when the project is
+  // renamed / re-numbered server-side after the push: the scopeConfiguration
+  // metadata (projectName / projectNum) is the reference, not the zip.
+  const projectOverrides = Object.fromEntries(
+    Object.entries(options?.projectOverrides ?? {}).filter(
+      ([, v]) => v !== undefined && v !== null
+    )
+  );
   // Duplicate: regenerate every id and re-own to the importer so the copy is
   // fully independent and editable (see remapDexieExportIds).
   const duplicate = options?.duplicate;
@@ -170,9 +179,10 @@ export default async function loadKrtoZip(file, options) {
               }
             }
 
-            // 4. Tag le projet pour le retrouver après import
+            // 4. Tag le projet pour le retrouver après import + champs projet
+            // de référence (métadonnées scopeConfiguration) sur la ligne du zip
             if (table === "projects") {
-              value = { ...value, __importTag: importTag };
+              value = { ...value, ...projectOverrides, __importTag: importTag };
             }
 
             return { value };

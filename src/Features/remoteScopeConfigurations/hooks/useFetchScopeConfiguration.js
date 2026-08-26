@@ -57,7 +57,19 @@ export default function useFetchScopeConfiguration() {
             // 2. Importer le ZIP dans Dexie
             console.log("[useFetchScopeConfiguration] importing ZIP, size:", file.size);
 
-            await loadKrtoZip(file, { loadDataToScopeId: scope.id });
+            await loadKrtoZip(file, {
+                loadDataToScopeId: scope.id,
+                // Remapper la ligne projet du zip sur le projet local du scope
+                // (le zip peut porter un autre id projet), et garder les
+                // métadonnées projet de la scopeConfiguration comme référence
+                // (le zip peut embarquer un nom / numéro périmés).
+                loadDataToProjectId: scope.projectId,
+                projectOverrides: {
+                    name: lastRemoteConfiguration?.projectName,
+                    clientRef: lastRemoteConfiguration?.projectClientRef,
+                    type: lastRemoteConfiguration?.projectType,
+                },
+            });
 
             // 3. Marquer la version comme synchronisée
             dispatch(setLastSyncedRemoteConfigurationVersion(lastRemoteConfiguration.version));

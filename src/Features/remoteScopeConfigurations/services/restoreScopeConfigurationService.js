@@ -1,3 +1,5 @@
+import db from "App/db/db";
+
 import clearScopeDataService from "Features/scopes/services/clearScopeDataService";
 import loadKrtoZip from "Features/krtoFile/services/loadKrtoZip";
 
@@ -58,6 +60,14 @@ export default async function restoreScopeConfigurationService({
     // cannot leave the scope half-cleared / partially restored. Currently they
     // run as separate steps. Out of scope for the batch/hook fix.
 
+    // Le projet local avant restauration : restaurer une ancienne version du
+    // scope ne doit pas rétrograder les métadonnées du projet (nom / numéro),
+    // que le zip de la version embarque telles qu'au moment du push.
+    const localScope = await db.scopes.get(scopeId);
+    const localProject = localScope?.projectId
+        ? await db.projects.get(localScope.projectId)
+        : null;
+
     // 2. Supprimer toutes les données du scope courant
     await clearScopeDataService(scopeId);
 
@@ -82,7 +92,17 @@ export default async function restoreScopeConfigurationService({
     console.log("[restoreScopeConfigurationService] downloaded ZIP, size:", file.size);
 
     // 4. Charger le ZIP dans Dexie sur le scope courant
-    await loadKrtoZip(file, { loadDataToScopeId: scopeId });
+    await loadKrtoZip(file, {
+        loadDataToScopeId: scopeId,
+        ...(localProject && {
+            loadDataToProjectId: localProject.id,
+            projectOverrides: {
+                name: localProject.name,
+                clientRef: localProject.clientRef,
+                type: localProject.type,
+            },
+        }),
+    });
 
     console.log("[restoreScopeConfigurationService] done");
 }

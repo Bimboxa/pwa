@@ -173,16 +173,31 @@ export default function PageScopeLoader() {
             // Rattacher l'import à un projet local existant (créé par ex. depuis
             // le dashboard) pour éviter un projet dupliqué : le ZIP embarque le
             // projet avec son propre id, on le remappe via loadDataToProjectId.
-            const existingProject = configuration.projectClientRef
-                ? await db.projects
-                    .where("clientRef")
-                    .equals(configuration.projectClientRef)
-                    .first()
-                : null;
+            // Matching par projectIdClient (id projet immuable) d'abord — le
+            // clientRef change quand le projet est renuméroté — puis fallback
+            // clientRef pour les projets créés localement depuis le dashboard.
+            const existingProject =
+                (configuration.projectIdClient
+                    ? await db.projects.get(configuration.projectIdClient)
+                    : null) ??
+                (configuration.projectClientRef
+                    ? await db.projects
+                        .where("clientRef")
+                        .equals(configuration.projectClientRef)
+                        .first()
+                    : null);
 
             await loadKrtoZip(file, {
                 loadDataToScopeId: scopeId,
                 ...(existingProject && { loadDataToProjectId: existingProject.id }),
+                // Le zip peut embarquer un nom / numéro périmés (projet renommé
+                // après le push) : les métadonnées de la scopeConfiguration
+                // (projectName / projectNum) font référence.
+                projectOverrides: {
+                    name: configuration.projectName,
+                    clientRef: configuration.projectClientRef,
+                    type: configuration.projectType,
+                },
             });
 
             setProgress(95);
