@@ -13,6 +13,8 @@ import getFoundItems from "Features/search/getFoundItems";
 //   key,           // `local_<projectId>` | `remote_<idMaster|clientRef>`
 //   isLocal,
 //   projectId,     // Dexie id (local items only)
+//   projectIdClient, // original local project id carried by the remote
+//                  // configurations — reused as the Dexie id at install
 //   idMaster,      // remote master id (string) when known
 //   name, clientRef, type, city,
 //   scopes,        // local Dexie scopes
@@ -124,7 +126,8 @@ export default function useDashboardProjectItems({
         (config.idMaster && localByIdMaster[String(config.idMaster)]) ||
         (config.projectClientRef && localByClientRef[config.projectClientRef]);
 
-      const isInstalled = config.scopeId && localScopeIds.has(String(config.scopeId));
+      const isInstalled =
+        config.scopeId && localScopeIds.has(String(config.scopeId));
 
       let targetItem = localItem;
 
@@ -138,6 +141,7 @@ export default function useDashboardProjectItems({
           key,
           isLocal: false,
           projectId: null,
+          projectIdClient: null,
           idMaster: null,
           name: config.projectName,
           clientRef: config.projectClientRef,
@@ -147,6 +151,10 @@ export default function useDashboardProjectItems({
           remoteConfigs: [],
           povPreviews: [],
         };
+      }
+
+      if (!targetItem.isLocal && !targetItem.projectIdClient) {
+        targetItem.projectIdClient = config.projectIdClient ?? null;
       }
 
       // POV previews come from the backend even for installed scopes
@@ -212,6 +220,7 @@ export default function useDashboardProjectItems({
           key: getRemoteKey({ idMaster, clientRef: mp.clientRef }),
           isLocal: false,
           projectId: null,
+          projectIdClient: null,
           idMaster,
           name: mp.name,
           clientRef: mp.clientRef,
@@ -231,7 +240,11 @@ export default function useDashboardProjectItems({
       cloudItems.forEach((i) => (cloudByKey[i.key] = i));
 
       (remoteScopeConfigs ?? []).forEach((config) => {
-        if (typeFilter && config.projectType && config.projectType !== typeFilter)
+        if (
+          typeFilter &&
+          config.projectType &&
+          config.projectType !== typeFilter
+        )
           return;
         if (
           config.projectClientRef &&
@@ -247,6 +260,7 @@ export default function useDashboardProjectItems({
           key,
           isLocal: false,
           projectId: null,
+          projectIdClient: null,
           idMaster: null,
           name: config.projectName,
           clientRef: config.projectClientRef,
@@ -258,6 +272,9 @@ export default function useDashboardProjectItems({
           povPreviews: [],
         });
         if (!cloudItems.includes(item)) cloudItems.push(item);
+        if (!item.projectIdClient) {
+          item.projectIdClient = config.projectIdClient ?? null;
+        }
         const alreadyThere = item.remoteConfigs.some(
           (c) => String(c.scopeId) === String(config.scopeId)
         );

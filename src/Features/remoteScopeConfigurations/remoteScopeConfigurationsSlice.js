@@ -39,6 +39,15 @@ function setLastLocalChangeToStorage(scopeId, ts) {
   setNumberToStorage(LAST_LOCAL_CHANGE_PREFIX + scopeId, ts);
 }
 
+// Removes a scope's sync state keys — used when the scope's local data is
+// deleted, so a later re-install starts from a clean sync state.
+export function clearScopeSyncStorage(scopeId) {
+  if (!scopeId) return;
+  localStorage.removeItem(SYNCED_VERSION_PREFIX + scopeId);
+  localStorage.removeItem(LAST_LOCAL_CHANGE_PREFIX + scopeId);
+  localStorage.removeItem(LAST_SYNC_PREFIX + scopeId);
+}
+
 function getLastSyncFromStorage(scopeId) {
   if (!scopeId) return null;
   return getNumberFromStorage(LAST_SYNC_PREFIX + scopeId);

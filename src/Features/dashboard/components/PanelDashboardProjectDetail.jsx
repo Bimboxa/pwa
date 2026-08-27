@@ -12,6 +12,7 @@ import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useScopeFavorites from "Features/scopeFavorites/hooks/useScopeFavorites";
 import useFetchProjectScopeConfigurations from "../hooks/useFetchProjectScopeConfigurations";
 import useLinkProjectToReferentiel from "Features/projects/hooks/useLinkProjectToReferentiel";
+import useDeleteProject from "Features/projects/hooks/useDeleteProject";
 import parseBackendDate from "Features/date/utils/parseBackendDate";
 
 import {
@@ -33,6 +34,7 @@ import {
 import HeaderDashboardProject from "./HeaderDashboardProject";
 import ListItemDashboardScope from "./ListItemDashboardScope";
 import DialogDeleteScope from "Features/scopes/components/DialogDeleteScope";
+import DialogDeleteRessource from "Features/layout/components/DialogDeleteRessource";
 import DialogLinkProjectToReferentiel from "./DialogLinkProjectToReferentiel";
 import DialogRenameProject from "./DialogRenameProject";
 
@@ -57,6 +59,10 @@ export default function PanelDashboardProjectDetail({ item }) {
   );
 
   const { detach } = useLinkProjectToReferentiel();
+  const deleteProjectLocalData = useDeleteProject();
+
+  const selectedProjectId = useSelector((s) => s.projects.selectedProjectId);
+  const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
 
   // link/detach only make sense when a référentiel is configured (edx)
   const hasReferentiel = Boolean(appConfig?.features?.masterProjects);
@@ -66,6 +72,7 @@ export default function PanelDashboardProjectDetail({ item }) {
   const [deleteScopeId, setDeleteScopeId] = useState(null);
   const [linkOpen, setLinkOpen] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
+  const [deleteLocalDataOpen, setDeleteLocalDataOpen] = useState(false);
 
   // strings
 
@@ -179,6 +186,23 @@ export default function PanelDashboardProjectDetail({ item }) {
     refreshRemoteScopes();
   }
 
+  async function handleDeleteLocalData() {
+    if (!item?.projectId) return;
+    // reset the app selection BEFORE deleting, so live components stop
+    // reading rows that are about to vanish
+    const localScopeIds = item.scopes.map((s) => String(s.id));
+    if (String(selectedProjectId) === String(item.projectId)) {
+      dispatch(setSelectedProjectId(null));
+    }
+    if (localScopeIds.includes(String(selectedScopeId))) {
+      dispatch(setSelectedScopeId(null));
+    }
+    await deleteProjectLocalData(item.projectId);
+    setDeleteLocalDataOpen(false);
+    // the local_<projectId> key no longer matches any item
+    dispatch(setSelectedProjectKeyInDashboard(null));
+  }
+
   // render — no selection
 
   if (!item) {
@@ -232,6 +256,7 @@ export default function PanelDashboardProjectDetail({ item }) {
         onLink={hasReferentiel ? () => setLinkOpen(true) : null}
         onDetach={hasReferentiel ? handleDetach : null}
         onRename={() => setRenameOpen(true)}
+        onDeleteLocalData={() => setDeleteLocalDataOpen(true)}
       />
 
       {/* krtos bar */}
@@ -373,6 +398,13 @@ export default function PanelDashboardProjectDetail({ item }) {
         open={Boolean(deleteScopeId)}
         onClose={() => setDeleteScopeId(null)}
         scopeId={deleteScopeId}
+      />
+
+      <DialogDeleteRessource
+        open={deleteLocalDataOpen}
+        onClose={() => setDeleteLocalDataOpen(false)}
+        onConfirmAsync={handleDeleteLocalData}
+        message={`Toutes les données locales du projet "${item.name}" seront supprimées de cet appareil, y compris les modifications non synchronisées. Les ${krtoS}s publiés sur le serveur resteront réinstallables.`}
       />
 
       <DialogLinkProjectToReferentiel

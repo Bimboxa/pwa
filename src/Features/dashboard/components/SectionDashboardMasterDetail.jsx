@@ -56,8 +56,11 @@ export default function SectionDashboardMasterDetail() {
 
   // items
 
-  const { remoteProjects, remoteScopeConfigs, loading: remoteSearchLoading } =
-    useDashboardRemoteSearch(searchText, typeFilter);
+  const {
+    remoteProjects,
+    remoteScopeConfigs,
+    loading: remoteSearchLoading,
+  } = useDashboardRemoteSearch(searchText, typeFilter);
 
   const { items, cloudItems, selectedItem } = useDashboardProjectItems({
     searchText,
@@ -85,12 +88,27 @@ export default function SectionDashboardMasterDetail() {
     try {
       setInstallingKey(item.key);
 
-      let project = item.clientRef
-        ? await db.projects.where("clientRef").equals(item.clientRef).first()
+      // the configurations' projectIdClient is the original (immutable) local
+      // project id — the reinstalled project MUST reuse it, so later imports
+      // and remote configs keep matching the same project row
+      const projectIdClient =
+        item.projectIdClient ??
+        item.remoteConfigs?.find((c) => c.projectIdClient)?.projectIdClient ??
+        null;
+
+      let project = projectIdClient
+        ? await db.projects.get(String(projectIdClient))
         : null;
+      if (!project && item.clientRef) {
+        project = await db.projects
+          .where("clientRef")
+          .equals(item.clientRef)
+          .first();
+      }
 
       if (!project) {
         project = await createProject({
+          id: projectIdClient ? String(projectIdClient) : undefined,
           name: item.name,
           clientRef: item.clientRef,
           type: item.type,

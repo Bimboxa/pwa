@@ -20,6 +20,7 @@ import {
   SwapHoriz,
   LinkOff,
   Edit,
+  DeleteOutline,
 } from "@mui/icons-material";
 
 import ChipProjectType from "./ChipProjectType";
@@ -31,6 +32,7 @@ export default function HeaderDashboardProject({
   onLink,
   onDetach,
   onRename,
+  onDeleteLocalData,
 }) {
   // state
 
@@ -42,6 +44,7 @@ export default function HeaderDashboardProject({
   const changeS = "Changer de chantier / opportunité";
   const detachS = "Détacher du référentiel";
   const renameS = "Renommer / changer le numéro";
+  const deleteLocalDataS = "Supprimer les données locales";
 
   // helpers
 
@@ -58,6 +61,11 @@ export default function HeaderDashboardProject({
   // project takes its name / num from the référentiel
   const canRename = Boolean(
     item.isLocal && item.projectId && !isLinked && onRename
+  );
+  // local-data wipe makes sense on any installed project — a linked one
+  // remains re-installable from the référentiel afterwards
+  const canDeleteLocalData = Boolean(
+    item.isLocal && item.projectId && onDeleteLocalData
   );
 
   // handlers
@@ -107,7 +115,7 @@ export default function HeaderDashboardProject({
             )}
           </Box>
         </Box>
-        {(canManageLink || canRename) && (
+        {(canManageLink || canRename || canDeleteLocalData) && (
           <>
             <Tooltip title="Plus d'actions">
               <IconButton
@@ -152,6 +160,17 @@ export default function HeaderDashboardProject({
                     <LinkOff fontSize="small" />
                   </ListItemIcon>
                   <ListItemText>{detachS}</ListItemText>
+                </MenuItem>
+              )}
+              {canDeleteLocalData && (
+                <MenuItem
+                  onClick={() => handleMenuItemClick(onDeleteLocalData)}
+                  sx={{ color: "error.main" }}
+                >
+                  <ListItemIcon sx={{ color: "inherit" }}>
+                    <DeleteOutline fontSize="small" />
+                  </ListItemIcon>
+                  <ListItemText>{deleteLocalDataS}</ListItemText>
                 </MenuItem>
               )}
             </Menu>
