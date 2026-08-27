@@ -7,19 +7,27 @@ import useDeletePortfolioPage from "Features/portfolioPages/hooks/useDeletePortf
 import useDisplayedPortfolio from "Features/portfolios/hooks/useDisplayedPortfolio";
 
 import { setSelectedItem } from "Features/selection/selectionSlice";
+import { setDisplayedPortfolioId } from "Features/portfolios/portfoliosSlice";
 
 import { IconButton, Menu, MenuItem, Divider } from "@mui/material";
 import { MoreVert as MoreActionsIcon } from "@mui/icons-material";
 import DialogDeleteRessource from "Features/layout/components/DialogDeleteRessource";
 
-export default function IconButtonMoreActionsPortfolioPage({ page }) {
+export default function IconButtonMoreActionsPortfolioPage({
+  page,
+  portfolio: portfolioProp,
+  onRename,
+  ...iconButtonProps
+}) {
   const dispatch = useDispatch();
 
   // data
 
   const duplicatePortfolioPage = useDuplicatePortfolioPage();
   const deletePortfolioPage = useDeletePortfolioPage();
-  const { value: portfolio } = useDisplayedPortfolio();
+  const { value: displayedPortfolio } = useDisplayedPortfolio();
+
+  const portfolio = portfolioProp ?? displayedPortfolio;
 
   // state
 
@@ -38,9 +46,15 @@ export default function IconButtonMoreActionsPortfolioPage({ page }) {
     setAnchorEl(null);
   };
 
+  const handleRename = () => {
+    setAnchorEl(null);
+    onRename?.();
+  };
+
   const handleDuplicate = async () => {
     if (!portfolio) return;
     const newPage = await duplicatePortfolioPage(page, portfolio);
+    dispatch(setDisplayedPortfolioId(portfolio.id));
     dispatch(
       setSelectedItem({
         id: newPage.id,
@@ -60,14 +74,17 @@ export default function IconButtonMoreActionsPortfolioPage({ page }) {
 
   return (
     <>
-      <IconButton onClick={handleClick}>
-        <MoreActionsIcon />
+      <IconButton onClick={handleClick} {...iconButtonProps}>
+        <MoreActionsIcon fontSize="inherit" />
       </IconButton>
 
       <Menu open={open} anchorEl={anchorEl} onClose={handleClose}>
+        {onRename && <MenuItem onClick={handleRename}>Renommer</MenuItem>}
         <MenuItem onClick={handleDuplicate}>Dupliquer</MenuItem>
         <Divider />
-        <MenuItem onClick={handleDelete}>Supprimer</MenuItem>
+        <MenuItem onClick={handleDelete} sx={{ color: "error.main" }}>
+          Supprimer
+        </MenuItem>
       </Menu>
 
       <DialogDeleteRessource

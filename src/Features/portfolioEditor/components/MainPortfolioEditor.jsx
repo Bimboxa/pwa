@@ -1,10 +1,8 @@
 import { Box } from "@mui/material";
 
-import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import LeftDrawerPanel from "Features/leftPanel/components/LeftDrawerPanel";
-import LeftDrawerPanelHeader from "Features/leftPanel/components/LeftDrawerPanelHeader";
 
-import PortfolioTree from "./PortfolioTree";
+import PanelPortfolios from "./PanelPortfolios";
 import PortfolioEditorViewport from "./PortfolioEditorViewport";
 import usePortfolioEditorShortcuts from "../hooks/usePortfolioEditorShortcuts";
 
@@ -20,15 +18,18 @@ export default function MainPortfolioEditor() {
   // render
 
   return (
-    <Box sx={{ width: 1, height: 1, display: "flex", position: "relative", overflow: "hidden" }}>
+    <Box
+      sx={{
+        width: 1,
+        height: 1,
+        display: "flex",
+        position: "relative",
+        overflow: "hidden",
+      }}
+    >
       {/* Left column: tree + export */}
       <LeftDrawerPanel width={treeWidth} viewerKey="PORTFOLIO">
-        <BoxFlexVStretch sx={{ height: 1 }}>
-          <LeftDrawerPanelHeader title="Carnets" />
-          <BoxFlexVStretch sx={{ overflow: "auto" }}>
-            <PortfolioTree />
-          </BoxFlexVStretch>
-        </BoxFlexVStretch>
+        <PanelPortfolios />
       </LeftDrawerPanel>
 
       {/* Center: viewport */}

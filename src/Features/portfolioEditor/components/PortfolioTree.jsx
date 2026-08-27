@@ -1,18 +1,15 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 
 import { useDispatch, useSelector } from "react-redux";
 
 import { setDisplayedPortfolioId } from "Features/portfolios/portfoliosSlice";
 import { setSelectedItem } from "Features/selection/selectionSlice";
 
-import { Box, List, ListItemButton, Typography } from "@mui/material";
+import { Box, List } from "@mui/material";
 
 import usePortfolios from "Features/portfolios/hooks/usePortfolios";
-import useCreatePortfolio from "Features/portfolios/hooks/useCreatePortfolio";
-import useCreateDetailsPortfolio from "Features/portfolios/hooks/useCreateDetailsPortfolio";
 
 import PortfolioTreeItem from "./PortfolioTreeItem";
-import DialogCreatePortfolio from "./DialogCreatePortfolio";
 
 export default function PortfolioTree() {
   const dispatch = useDispatch();
@@ -20,17 +17,10 @@ export default function PortfolioTree() {
   // data
 
   const scopeId = useSelector((s) => s.scopes.selectedScopeId);
-  const projectId = useSelector((s) => s.projects.selectedProjectId);
   const displayedPortfolioId = useSelector(
     (s) => s.portfolios.displayedPortfolioId
   );
   const { value: portfolios } = usePortfolios({ filterByScopeId: scopeId });
-  const createPortfolio = useCreatePortfolio();
-  const createDetailsPortfolio = useCreateDetailsPortfolio();
-
-  // state
-
-  const [openDialog, setOpenDialog] = useState(false);
 
   // effects
 
@@ -42,56 +32,15 @@ export default function PortfolioTree() {
     dispatch(setSelectedItem({ id: first.id, type: "PORTFOLIO" }));
   }, [displayedPortfolioId, portfolios, dispatch]);
 
-  // handlers
-
-  async function handleCreate({
-    title,
-    isDetailsPortfolio,
-    selectedDetails,
-    titleBlock,
-  }) {
-    const metadata = titleBlock ? { titleBlock } : undefined;
-    let portfolio;
-    if (isDetailsPortfolio) {
-      portfolio = await createDetailsPortfolio({
-        scopeId,
-        projectId,
-        title,
-        details: selectedDetails,
-        metadata,
-      });
-    } else {
-      portfolio = await createPortfolio({
-        scopeId,
-        projectId,
-        title,
-        metadata,
-      });
-    }
-    dispatch(setDisplayedPortfolioId(portfolio.id));
-  }
-
   // render
 
   return (
-    <Box sx={{ p: 1 }}>
+    <Box sx={{ py: 1 }}>
       <List dense disablePadding>
         {portfolios?.map((portfolio) => (
           <PortfolioTreeItem key={portfolio.id} portfolio={portfolio} />
         ))}
       </List>
-
-      <ListItemButton onClick={() => setOpenDialog(true)} sx={{ py: 1 }}>
-        <Typography variant="body2" color="text.secondary">
-          + Nouveau carnet de plans
-        </Typography>
-      </ListItemButton>
-
-      <DialogCreatePortfolio
-        open={openDialog}
-        onClose={() => setOpenDialog(false)}
-        onCreate={handleCreate}
-      />
     </Box>
   );
 }

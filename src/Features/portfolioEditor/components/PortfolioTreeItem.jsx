@@ -14,10 +14,17 @@ import {
   List,
   ListItemButton,
   ListItemText,
-  Typography,
   IconButton,
+  Tooltip,
 } from "@mui/material";
-import { Add, Remove, Edit, Check, Close } from "@mui/icons-material";
+import {
+  Add as AddIcon,
+  Check,
+  Close,
+  ExpandMore,
+  ChevronRight,
+  DragIndicator,
+} from "@mui/icons-material";
 
 import {
   DndContext,
@@ -36,6 +43,9 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { generateKeyBetween } from "fractional-indexing";
 
+import IconButtonMoreActionsPortfolio from "./IconButtonMoreActionsPortfolio";
+import IconButtonMoreActionsPortfolioPage from "./IconButtonMoreActionsPortfolioPage";
+
 import usePortfolioPages from "Features/portfolioPages/hooks/usePortfolioPages";
 import useCreatePortfolioPage from "Features/portfolioPages/hooks/useCreatePortfolioPage";
 import useUpdateEntity from "Features/entities/hooks/useUpdateEntity";
@@ -44,6 +54,7 @@ import db from "App/db/db";
 
 function SortablePageRow({
   page,
+  portfolio,
   isSelected,
   onClick,
   isEditing,
@@ -67,14 +78,24 @@ function SortablePageRow({
       {...attributes}
       {...listeners}
       component="div"
-      selected={isSelected}
       onClick={onClick}
       sx={{
-        pl: 4,
+        pl: 5,
         ...style,
-        "&:hover .edit-icon": { opacity: 1 },
+        borderLeft: "3px solid",
+        borderLeftColor: isSelected ? "secondary.main" : "transparent",
       }}
     >
+      <DragIndicator
+        className="row-drag-handle"
+        sx={{
+          fontSize: 14,
+          color: "text.disabled",
+          cursor: "grab",
+          ml: -1.5,
+          mr: 0.5,
+        }}
+      />
       {isEditing ? (
         <InputBase
           value={tempTitle}
@@ -94,6 +115,7 @@ function SortablePageRow({
           slotProps={{
             primary: {
               variant: "body2",
+              noWrap: true,
               fontWeight: isSelected ? "bold" : "normal",
             },
           }}
@@ -123,17 +145,13 @@ function SortablePageRow({
           </IconButton>
         </Box>
       ) : (
-        <IconButton
+        <IconButtonMoreActionsPortfolioPage
+          page={page}
+          portfolio={portfolio}
+          onRename={onStartEdit}
           size="small"
-          className="edit-icon"
-          onClick={(e) => {
-            e.stopPropagation();
-            onStartEdit();
-          }}
-          sx={{ opacity: 0, transition: "0.2s" }}
-        >
-          <Edit fontSize="inherit" />
-        </IconButton>
+          sx={{ p: 0.25, color: "text.disabled" }}
+        />
       )}
     </ListItemButton>
   );
@@ -141,6 +159,10 @@ function SortablePageRow({
 
 export default function PortfolioTreeItem({ portfolio }) {
   const dispatch = useDispatch();
+
+  // strings
+
+  const newPageS = "Nouvelle page";
 
   // data
 
@@ -151,7 +173,6 @@ export default function PortfolioTreeItem({ portfolio }) {
   const collapsedPortfolioIds = useSelector(
     (s) => s.portfolios.collapsedPortfolioIds
   );
-  const scopeId = useSelector((s) => s.scopes.selectedScopeId);
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const { value: pages } = usePortfolioPages({
     filterByPortfolioId: portfolio.id,
@@ -223,11 +244,6 @@ export default function PortfolioTreeItem({ portfolio }) {
     );
   }
 
-  async function handleDeletePage(e, pageId) {
-    e.stopPropagation();
-    await db.portfolioPages.delete(pageId); // TODO: container cascade handled elsewhere
-  }
-
   async function handleDragEnd(event) {
     const { active, over } = event;
     if (!over || active.id === over.id || !pages) return;
@@ -248,13 +264,17 @@ export default function PortfolioTreeItem({ portfolio }) {
       newSortIndex = generateKeyBetween(b, a);
     }
 
-    await updateEntity(active.id, { sortIndex: newSortIndex }, { listing: portfolio });
+    await updateEntity(
+      active.id,
+      { sortIndex: newSortIndex },
+      { listing: portfolio }
+    );
   }
 
   // handlers - edit title
 
   function handleStartEditPortfolio(e) {
-    e.stopPropagation();
+    e?.stopPropagation?.();
     setEditingItemId(portfolio.id);
     setTempTitle(portfolio.name);
   }
@@ -285,23 +305,25 @@ export default function PortfolioTreeItem({ portfolio }) {
   return (
     <Box sx={{ mb: 1 }}>
       <ListItemButton
-        selected={isPortfolioSelected}
         onClick={handlePortfolioClick}
         sx={{
-          pl: 1,
-          "&:hover .edit-icon": { opacity: 1 },
+          pl: 2,
+          py: 1.5,
+          borderLeft: "3px solid",
+          borderLeftColor: isPortfolioSelected
+            ? "secondary.main"
+            : "transparent",
         }}
       >
         <IconButton
           size="small"
-          color="secondary"
           onClick={handleToggleCollapsed}
-          sx={{ mr: 1, p: 0 }}
+          sx={{ p: 0, mr: 0.5 }}
         >
           {isExpanded ? (
-            <Remove fontSize="small" />
+            <ExpandMore sx={{ fontSize: 20 }} />
           ) : (
-            <Add fontSize="small" />
+            <ChevronRight sx={{ fontSize: 20 }} />
           )}
         </IconButton>
         {isEditingPortfolio ? (
@@ -323,6 +345,7 @@ export default function PortfolioTreeItem({ portfolio }) {
             slotProps={{
               primary: {
                 variant: "body2",
+                noWrap: true,
                 fontWeight: isDisplayed ? "bold" : "normal",
               },
             }}
@@ -352,21 +375,40 @@ export default function PortfolioTreeItem({ portfolio }) {
             </IconButton>
           </Box>
         ) : (
-          <IconButton
-            size="small"
-            className="edit-icon"
-            onClick={handleStartEditPortfolio}
-            sx={{ opacity: 0, transition: "0.2s" }}
-          >
-            <Edit fontSize="inherit" />
-          </IconButton>
+          <Box sx={{ display: "flex", alignItems: "center", ml: 1 }}>
+            <Tooltip title={newPageS}>
+              <IconButton
+                size="small"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleAddPage();
+                }}
+                sx={{ color: "text.disabled" }}
+              >
+                <AddIcon fontSize="inherit" />
+              </IconButton>
+            </Tooltip>
+            <IconButtonMoreActionsPortfolio
+              portfolio={portfolio}
+              onRename={handleStartEditPortfolio}
+              size="small"
+              sx={{ p: 0.25, color: "text.disabled" }}
+            />
+          </Box>
         )}
       </ListItemButton>
 
       {isExpanded && (
-        <>
+        <Box
+          sx={{
+            bgcolor: "background.paper",
+            borderBottom: "1px solid",
+            borderColor: "divider",
+          }}
+        >
           <Divider />
           <DndContext
+            id={`portfolio-pages-dnd-${portfolio.id}`}
             sensors={sensors}
             collisionDetection={closestCenter}
             onDragEnd={handleDragEnd}
@@ -384,6 +426,7 @@ export default function PortfolioTreeItem({ portfolio }) {
                     <SortablePageRow
                       key={page.id}
                       page={page}
+                      portfolio={portfolio}
                       isSelected={isPageSelected}
                       onClick={() => handlePageClick(page)}
                       isEditing={editingItemId === page.id}
@@ -398,13 +441,7 @@ export default function PortfolioTreeItem({ portfolio }) {
               </List>
             </SortableContext>
           </DndContext>
-
-          <ListItemButton sx={{ pl: 4 }} onClick={handleAddPage}>
-            <Typography variant="body2" color="text.secondary">
-              + Nouvelle page
-            </Typography>
-          </ListItemButton>
-        </>
+        </Box>
       )}
     </Box>
   );

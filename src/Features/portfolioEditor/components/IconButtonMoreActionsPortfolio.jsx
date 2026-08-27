@@ -11,7 +11,11 @@ import { IconButton, Menu, MenuItem } from "@mui/material";
 import { MoreVert as MoreActionsIcon } from "@mui/icons-material";
 import DialogDeleteRessource from "Features/layout/components/DialogDeleteRessource";
 
-export default function IconButtonMoreActionsPortfolio({ portfolio }) {
+export default function IconButtonMoreActionsPortfolio({
+  portfolio,
+  onRename,
+  ...iconButtonProps
+}) {
   const dispatch = useDispatch();
 
   // data
@@ -35,6 +39,11 @@ export default function IconButtonMoreActionsPortfolio({ portfolio }) {
     setAnchorEl(null);
   };
 
+  const handleRename = () => {
+    setAnchorEl(null);
+    onRename?.();
+  };
+
   const handleDelete = () => {
     setAnchorEl(null);
     setOpenDelete(true);
@@ -44,12 +53,15 @@ export default function IconButtonMoreActionsPortfolio({ portfolio }) {
 
   return (
     <>
-      <IconButton onClick={handleClick}>
-        <MoreActionsIcon />
+      <IconButton onClick={handleClick} {...iconButtonProps}>
+        <MoreActionsIcon fontSize="inherit" />
       </IconButton>
 
       <Menu open={open} anchorEl={anchorEl} onClose={handleClose}>
-        <MenuItem onClick={handleDelete}>Supprimer</MenuItem>
+        {onRename && <MenuItem onClick={handleRename}>Renommer</MenuItem>}
+        <MenuItem onClick={handleDelete} sx={{ color: "error.main" }}>
+          Supprimer
+        </MenuItem>
       </Menu>
 
       <DialogDeleteRessource
