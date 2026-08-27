@@ -6,6 +6,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import db from "App/db/db";
 import useScopes from "Features/scopes/hooks/useScopes";
 import getFoundItems from "Features/search/getFoundItems";
+import parseBackendDate from "Features/date/utils/parseBackendDate";
 
 // Unified project items for the dashboard master list.
 // One item per project, local (Dexie) or remote-only (cloud):
@@ -20,8 +21,12 @@ import getFoundItems from "Features/search/getFoundItems";
 //   scopes,        // local Dexie scopes
 //   remoteConfigs, // remote scope configurations not installed locally
 //   scopeCount,
+//   lastConfigAt,  // most recent scopeConfiguration createdAt (epoch ms)
 //   povPreviews,   // shared POV previews from the remote configurations
 // }
+//
+// Items are sorted: projects with Krtos first, most recent configuration
+// first, then by name.
 
 function getRemoteKey({ idMaster, clientRef, name }) {
   return `remote_${idMaster ?? clientRef ?? name}`;
@@ -160,6 +165,16 @@ export default function useDashboardProjectItems({
       // POV previews come from the backend even for installed scopes
       if (config.povPreviews?.length) {
         targetItem.povPreviews.push(...config.povPreviews);
+      }
+
+      // most recent configuration date — accumulated before the isInstalled
+      // filter so fully-installed projects keep their sort date
+      const configAt = parseBackendDate(config.createdAt)?.getTime();
+      if (
+        configAt &&
+        (!targetItem.lastConfigAt || configAt > targetItem.lastConfigAt)
+      ) {
+        targetItem.lastConfigAt = configAt;
       }
 
       if (!isInstalled) targetItem.remoteConfigs.push(config);
@@ -302,7 +317,19 @@ export default function useDashboardProjectItems({
       cloudItems.forEach(finalizePovPreviews);
     }
 
-    return { items: visibleItems ?? [], cloudItems };
+    // 5. Sort: projects with Krtos first, most recent configuration first,
+    // then by name for a deterministic order
+
+    const sortedItems = [...(visibleItems ?? [])].sort((a, b) => {
+      const aHasKrtos = a.scopeCount > 0;
+      const bHasKrtos = b.scopeCount > 0;
+      if (aHasKrtos !== bHasKrtos) return aHasKrtos ? -1 : 1;
+      const dateDelta = (b.lastConfigAt ?? 0) - (a.lastConfigAt ?? 0);
+      if (dateDelta !== 0) return dateDelta;
+      return (a.name ?? "").localeCompare(b.name ?? "");
+    });
+
+    return { items: sortedItems, cloudItems };
   }, [
     scopes,
     projects,
