@@ -53,14 +53,12 @@ export default function useLandingViewerModuleOnScopeOpen() {
         dispatch(setSelectedViewerKey("MAP"));
         dispatch(setModuleEditorKey({ moduleKey: "MAP", editorKey: "MAP" }));
       } else if (isNewScope) {
-        // Default landing module on scope change: the Viewer (read-only
-        // overview), always on its 3D editor even if the module was left on
-        // 2D earlier in the session. Skipped on refresh / same-scope reopen,
+        // Default landing module on scope change: the Dessin module, always
+        // on its 2D editor even if the module was left on another editor
+        // earlier in the session. Skipped on refresh / same-scope reopen,
         // where the previous context is kept.
-        dispatch(setSelectedViewerKey("THREED"));
-        dispatch(
-          setModuleEditorKey({ moduleKey: "THREED", editorKey: "THREED" })
-        );
+        dispatch(setSelectedViewerKey("MAP"));
+        dispatch(setModuleEditorKey({ moduleKey: "MAP", editorKey: "MAP" }));
       }
     }
     // selectedViewerKey is read via store.getState() and stays out of the
