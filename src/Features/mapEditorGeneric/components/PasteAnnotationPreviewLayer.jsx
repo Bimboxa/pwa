@@ -191,7 +191,12 @@ function renderItem(item, key, meterByPx) {
     );
   }
 
-  if ((type === "POINT" || type === "MARKER") && item.basePoint) {
+  // DETAIL previews as a simple circle at its arrow tip — the bubble itself
+  // is screen-sized and re-rendered once the paste lands.
+  if (
+    (type === "POINT" || type === "MARKER" || type === "DETAIL") &&
+    item.basePoint
+  ) {
     return (
       <circle
         key={key}

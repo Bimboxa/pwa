@@ -16,7 +16,7 @@ import applyPasteTransformToPoints from "Features/mapEditor/utils/applyPasteTran
  * preserved) and rotates/flips it rigidly around the group center.
  *
  * Supported types per item: POLYGON (with cuts), POLYLINE, STRIP, COTE, POINT,
- * MARKER.
+ * MARKER, DETAIL (keeps its detailBaseMapId link and bubble label).
  *
  * @param {Object} params
  * @param {Object} params.pasteClipboard  - { sourceCenter, sourceMeterByPx, items[] } from mapEditorSlice
@@ -110,6 +110,7 @@ export default async function pasteAnnotationService({
       baseMapName: _srcBaseMapName,
       templateLabel: _srcTemplateLabel,
       annotationTemplate: _srcAnnotationTemplate,
+      annotationLabel: _srcAnnotationLabel,
       guideLines: _srcGuideLines,
       isoHeightLines: _srcIsoHeightLines,
       profileLines: _srcProfileLines,
@@ -126,6 +127,14 @@ export default async function pasteAnnotationService({
       entityId: undefined, // logical entity link not carried over — would require its own row
       ...(activeLayerId ? { layerId: activeLayerId } : {}),
     };
+
+    // DETAIL: the hydrated `label` is the ENTITY label (useAnnotationsV2 moves
+    // the row's own bubble text to `annotationLabel`). The clone has no entity,
+    // so persist the bubble text as the row label to keep it displayed.
+    if (type === "DETAIL") {
+      clonedAnnotation.label =
+        sourceAnnotation.annotationLabel ?? sourceAnnotation.label;
+    }
 
     // Pixel-unit size fields must follow the group rescale, otherwise a strip
     // keeps its source px width and changes real-world thickness. Only
@@ -255,7 +264,7 @@ export default async function pasteAnnotationService({
           };
         });
       }
-    } else if (type === "POINT" || type === "MARKER") {
+    } else if (type === "POINT" || type === "MARKER" || type === "DETAIL") {
       if (!item.basePoint) continue;
       const [transformed] = applyPasteTransformToPoints(
         [item.basePoint],
