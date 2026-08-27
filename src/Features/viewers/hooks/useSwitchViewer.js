@@ -42,7 +42,11 @@ export default function useSwitchViewer() {
     // MainMapEditorV3 instance, hence one camera frame across modules. The
     // BaseMap module is the exception ("BASE_MAPS" = its own instance).
     const target2dEditorKey = editors.find((e) => !isThreedFamilyViewerKey(e));
-    const from2dMapEditor = effectiveFromKey === "MAP";
+    // 2D map editors: the shared "MAP" instance AND the BaseMap module's own
+    // instance — leaving either one keeps the target module in the 2D family
+    // (e.g. Fond de plan 2D -> Dessin lands on 2D even when Dessin's memory
+    // was 3D).
+    const from2dMapEditor = ["MAP", "BASE_MAPS"].includes(effectiveFromKey);
 
     // Resolve the editor the target module will display.
     let targetEditorKey;
