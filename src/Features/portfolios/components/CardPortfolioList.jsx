@@ -28,6 +28,7 @@ import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
 import useTitleBlockManifest from "Features/titleBlocks/hooks/useTitleBlockManifest";
 import useDataMapping from "Features/appConfig/hooks/useDataMapping";
 import getTitleBlockPrefillValues from "Features/titleBlocks/utils/getTitleBlockPrefillValues";
+import getTitleBlockPlaceholders from "Features/titleBlocks/utils/getTitleBlockPlaceholders";
 
 export default function CardPortfolioList() {
   const dispatch = useDispatch();
@@ -156,6 +157,10 @@ export default function CardPortfolioList() {
             manifest={titleBlockManifest}
             values={titleBlockValues}
             onChange={handleTitleBlockFieldChange}
+            placeholders={getTitleBlockPlaceholders(
+              titleBlockManifest,
+              dataMapping
+            )}
           />
         </DialogContent>
         <DialogActions>

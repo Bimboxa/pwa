@@ -12,9 +12,13 @@
 //   { ratio, max } = proportional to the FULL rect width.
 // - fields: editable values -> creation form + properties panel.
 //   `mappedTo` = auto-fill token from useDataMapping (form prefill only).
+//   `placeholderMappedTo` = same token vocabulary, but only shown as the
+//   form input placeholder (live default, nothing persisted).
 //   `legacyKey` = portfolio.metadata key used by pre-titleBlock portfolios.
 // - cells: grid content. `bind` tokens resolved at render time:
 //   project.name | portfolio.name | page.title | pageNum | field:<fieldKey>.
+//   `fallbackBind` = binding rendered while a field: bind has no stored
+//   value (live default, e.g. chantier -> project.name).
 //   `legacyLabelKey` = metadata key holding the user label override.
 //   `trailing` carves a sub-cell at the right end of the cell.
 // - decorations: vector art as svgPath primitives (path `d` data, drawn with
@@ -32,13 +36,14 @@ const defaultTitleBlockManifest = {
     { key: "metaValue", ratio: 0.15, min: 80, narrowWidth: 80 },
   ],
   fields: [
+    { key: "chantier", label: "Chantier", placeholderMappedTo: "projectName" },
     { key: "refInterne", label: "Numéro", legacyKey: "refInterne" },
     { key: "author", label: "Auteur", mappedTo: "authorName", legacyKey: "author" },
     { key: "date", label: "Date", mappedTo: "todayS", legacyKey: "date" },
   ],
   cells: [
     { row: 0, col: "label", kind: "label", text: "Chantier", legacyLabelKey: "labelChantier" },
-    { row: 0, col: "main", kind: "value", bind: "project.name", bold: true },
+    { row: 0, col: "main", kind: "value", bind: "field:chantier", fallbackBind: "project.name", bold: true },
     { row: 0, col: "metaLabel", kind: "label", text: "Numéro", legacyLabelKey: "labelRefInterne" },
     { row: 0, col: "metaValue", kind: "value", bind: "field:refInterne" },
     { row: 1, col: "label", kind: "label", text: "Carnet", legacyLabelKey: "labelPortfolio" },

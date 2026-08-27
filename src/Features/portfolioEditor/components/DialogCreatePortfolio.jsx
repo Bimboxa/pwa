@@ -25,6 +25,7 @@ import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 import useTitleBlockManifest from "Features/titleBlocks/hooks/useTitleBlockManifest";
 import useDataMapping from "Features/appConfig/hooks/useDataMapping";
 import getTitleBlockPrefillValues from "Features/titleBlocks/utils/getTitleBlockPrefillValues";
+import getTitleBlockPlaceholders from "Features/titleBlocks/utils/getTitleBlockPlaceholders";
 
 export default function DialogCreatePortfolio({ open, onClose, onCreate }) {
   // strings
@@ -179,6 +180,10 @@ export default function DialogCreatePortfolio({ open, onClose, onCreate }) {
             manifest={titleBlockManifest}
             values={titleBlockValues}
             onChange={handleTitleBlockFieldChange}
+            placeholders={getTitleBlockPlaceholders(
+              titleBlockManifest,
+              dataMapping
+            )}
           />
         </Box>
 

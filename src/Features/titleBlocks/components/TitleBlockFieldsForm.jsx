@@ -5,7 +5,14 @@ import DebouncedTextField from "Features/form/components/DebouncedTextField";
 // Form generated from manifest.fields. Two usages:
 // - creation dialogs: controlled local state, values prefilled from mappedTo
 // - properties panel: direct-persist onChange
-export default function TitleBlockFieldsForm({ manifest, values, onChange }) {
+// `placeholders` (getTitleBlockPlaceholders) shows the live default of a
+// field left empty (e.g. chantier -> project name).
+export default function TitleBlockFieldsForm({
+  manifest,
+  values,
+  onChange,
+  placeholders,
+}) {
   const fields = manifest?.fields || [];
   if (fields.length === 0) return null;
 
@@ -18,6 +25,7 @@ export default function TitleBlockFieldsForm({ manifest, values, onChange }) {
           size="small"
           value={values?.[field.key] || ""}
           onChange={(val) => onChange(field.key, val)}
+          placeholder={placeholders?.[field.key]}
           fullWidth
         />
       ))}

@@ -58,7 +58,15 @@ function resolveCellText(cell, { values, bindings, labelOverrides }) {
   }
   const bind = cell.bind;
   if (!bind) return cell.text || "";
-  if (bind.startsWith("field:")) return values?.[bind.slice(6)] || "";
+  if (bind.startsWith("field:")) {
+    // fallbackBind: live default when the field has no stored value
+    // (e.g. chantier falling back to project.name until overridden).
+    return (
+      values?.[bind.slice(6)] ||
+      (cell.fallbackBind ? bindings?.[cell.fallbackBind] : "") ||
+      ""
+    );
+  }
   return bindings?.[bind] || "";
 }
 

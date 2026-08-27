@@ -1,12 +1,12 @@
 import { useRef, useState } from "react";
 
-import { Box, Typography, TextField, Button, IconButton, FormControlLabel, Checkbox } from "@mui/material";
+import { Box, Typography, Button, IconButton, FormControlLabel, Checkbox } from "@mui/material";
 import { Image as ImageIcon, Delete } from "@mui/icons-material";
 
 import useDisplayedPortfolio from "Features/portfolios/hooks/useDisplayedPortfolio";
-import useSelectedProject from "Features/projects/hooks/useSelectedProject";
 import usePortfolioLogoUrl from "Features/portfolios/hooks/usePortfolioLogoUrl";
 import useTitleBlockManifest from "Features/titleBlocks/hooks/useTitleBlockManifest";
+import useDataMapping from "Features/appConfig/hooks/useDataMapping";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
@@ -16,6 +16,7 @@ import IconButtonMoreActionsPortfolio from "./IconButtonMoreActionsPortfolio";
 import ButtonDownloadPortfolioPdf from "./ButtonDownloadPortfolioPdf";
 
 import resolveTitleBlockFields from "Features/titleBlocks/utils/resolveTitleBlockFields";
+import getTitleBlockPlaceholders from "Features/titleBlocks/utils/getTitleBlockPlaceholders";
 
 import db from "App/db/db";
 
@@ -23,7 +24,6 @@ export default function PanelPortfolioHeaderProperties() {
   // data
 
   const { value: portfolio } = useDisplayedPortfolio();
-  const { value: project } = useSelectedProject();
   const fileInputRef = useRef(null);
   const [hdExport, setHdExport] = useState(false);
 
@@ -31,10 +31,10 @@ export default function PanelPortfolioHeaderProperties() {
 
   const config = portfolio?.metadata || {};
   const manifest = useTitleBlockManifest(portfolio);
+  const { object: dataMapping } = useDataMapping();
   const logoUrl = usePortfolioLogoUrl(config.logo);
   const resolvedLogoSrc =
     logoUrl || (typeof config.logo === "string" ? config.logo : null);
-  const chantierValue = project?.name || "";
 
   const titleBlockValues = resolveTitleBlockFields(manifest, config);
   const labelCells = (manifest.cells || []).filter(
@@ -171,14 +171,6 @@ export default function PanelPortfolioHeaderProperties() {
             <Typography variant="body2" sx={{ fontWeight: "bold" }}>
               Champs principaux
             </Typography>
-            <TextField
-              label={config.labelChantier || "Chantier"}
-              size="small"
-              value={chantierValue}
-              disabled
-              fullWidth
-              helperText="Valeur automatique (projet)"
-            />
             <DebouncedTextField
               label={config.labelPortfolio || "Carnet"}
               size="small"
@@ -201,6 +193,7 @@ export default function PanelPortfolioHeaderProperties() {
               manifest={manifest}
               values={titleBlockValues}
               onChange={handleTitleBlockFieldChange}
+              placeholders={getTitleBlockPlaceholders(manifest, dataMapping)}
             />
           </Box>
         </WhiteSectionGeneric>
