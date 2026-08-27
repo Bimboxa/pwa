@@ -31,6 +31,7 @@ import useDndSensors from "App/hooks/useDndSensors";
 import db from "App/db/db";
 
 import useDisplayedPortfolio from "Features/portfolios/hooks/useDisplayedPortfolio";
+import useTitleBlockManifest from "Features/titleBlocks/hooks/useTitleBlockManifest";
 import useCreatePortfolioBaseMapContainer from "Features/portfolioBaseMapContainers/hooks/useCreatePortfolioBaseMapContainer";
 import BaseMapSelectorPopover from "./BaseMapSelectorPopover";
 
@@ -95,6 +96,7 @@ export default function CardPageContent({ content, page }) {
     [content]
   );
   const { value: portfolio } = useDisplayedPortfolio();
+  const titleBlockManifest = useTitleBlockManifest(portfolio);
   const createContainer = useCreatePortfolioBaseMapContainer();
 
   // state
@@ -119,7 +121,12 @@ export default function CardPageContent({ content, page }) {
       : null;
 
     const footerHeight = portfolio?.metadata?.footerHeight || 0;
-    const layout = getPageLayout(page.format, page.orientation, footerHeight);
+    const layout = getPageLayout(
+      page.format,
+      page.orientation,
+      footerHeight,
+      titleBlockManifest.height
+    );
     const contentArea = layout.contentArea;
 
     const imageSize = baseMap.getImageSize();
@@ -170,7 +177,12 @@ export default function CardPageContent({ content, page }) {
       : null;
 
     const footerHeight = portfolio?.metadata?.footerHeight || 0;
-    const layout = getPageLayout(page.format, page.orientation, footerHeight);
+    const layout = getPageLayout(
+      page.format,
+      page.orientation,
+      footerHeight,
+      titleBlockManifest.height
+    );
     const contentArea = layout.contentArea;
 
     const imageInfo = await getPovImageInfo(pov);
@@ -221,7 +233,12 @@ export default function CardPageContent({ content, page }) {
       : null;
 
     const footerHeight = portfolio?.metadata?.footerHeight || 0;
-    const layout = getPageLayout(page.format, page.orientation, footerHeight);
+    const layout = getPageLayout(
+      page.format,
+      page.orientation,
+      footerHeight,
+      titleBlockManifest.height
+    );
     const contentArea = layout.contentArea;
 
     await createContainer({

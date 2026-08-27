@@ -6,7 +6,12 @@ const TITLE_BAR_HEIGHT = 32;
 
 export { TITLE_BAR_HEIGHT };
 
-export default function getPageLayout(format, orientation, footerHeight = 0) {
+export default function getPageLayout(
+  format,
+  orientation,
+  footerHeight = 0,
+  titleBlockHeight = HEADER_HEIGHT // from the title block manifest
+) {
   const pageDims = getPageDimensions(format, orientation);
   const isA3Landscape = format === "A3" && orientation === "landscape";
 
@@ -17,9 +22,9 @@ export default function getPageLayout(format, orientation, footerHeight = 0) {
 
     const cartouche = {
       x: pageDims.width - HEADER_MARGIN - cartoucheWidth,
-      y: pageDims.height - HEADER_MARGIN - HEADER_HEIGHT,
+      y: pageDims.height - HEADER_MARGIN - titleBlockHeight,
       width: cartoucheWidth,
-      height: HEADER_HEIGHT,
+      height: titleBlockHeight,
     };
 
     const titleBar = {
@@ -50,17 +55,17 @@ export default function getPageLayout(format, orientation, footerHeight = 0) {
     x: HEADER_MARGIN,
     y: HEADER_MARGIN,
     width: pageDims.width - 2 * HEADER_MARGIN,
-    height: HEADER_HEIGHT,
+    height: titleBlockHeight,
   };
 
   const contentArea = {
     x: HEADER_MARGIN,
-    y: HEADER_MARGIN + HEADER_HEIGHT + CONTENT_PADDING,
+    y: HEADER_MARGIN + titleBlockHeight + CONTENT_PADDING,
     width: pageDims.width - 2 * HEADER_MARGIN,
     height:
       pageDims.height -
       HEADER_MARGIN -
-      HEADER_HEIGHT -
+      titleBlockHeight -
       CONTENT_PADDING -
       footerHeight -
       HEADER_MARGIN,

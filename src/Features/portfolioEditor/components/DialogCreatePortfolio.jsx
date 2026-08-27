@@ -19,8 +19,12 @@ import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import FieldTextV2 from "Features/form/components/FieldTextV2";
 import FieldCheck from "Features/form/components/FieldCheck";
 import ButtonInPanelV2 from "Features/layout/components/ButtonInPanelV2";
+import TitleBlockFieldsForm from "Features/titleBlocks/components/TitleBlockFieldsForm";
 
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
+import useTitleBlockManifest from "Features/titleBlocks/hooks/useTitleBlockManifest";
+import useDataMapping from "Features/appConfig/hooks/useDataMapping";
+import getTitleBlockPrefillValues from "Features/titleBlocks/utils/getTitleBlockPrefillValues";
 
 export default function DialogCreatePortfolio({ open, onClose, onCreate }) {
   // strings
@@ -33,6 +37,7 @@ export default function DialogCreatePortfolio({ open, onClose, onCreate }) {
   const noDetailsS = "Aucun détail dans le scope";
   const detailS = "Détail";
   const pageS = "Page";
+  const titleBlockS = "Cartouche";
 
   // state
 
@@ -40,8 +45,12 @@ export default function DialogCreatePortfolio({ open, onClose, onCreate }) {
   const [loading, setLoading] = useState(false);
   const [isDetailsPortfolio, setIsDetailsPortfolio] = useState(false);
   const [selectedIds, setSelectedIds] = useState(new Set());
+  const [titleBlockValues, setTitleBlockValues] = useState({});
 
   // data
+
+  const titleBlockManifest = useTitleBlockManifest(null);
+  const { object: dataMapping } = useDataMapping();
 
   const annotations = useAnnotationsV2({
     caller: "DialogCreatePortfolio",
@@ -76,6 +85,15 @@ export default function DialogCreatePortfolio({ open, onClose, onCreate }) {
     return byId;
   }, [detailBaseMapIdsSignature]);
 
+  // effects - prefill title block fields from data mapping on open
+
+  useEffect(() => {
+    if (!open) return;
+    setTitleBlockValues(
+      getTitleBlockPrefillValues(titleBlockManifest, dataMapping)
+    );
+  }, [open]);
+
   // effects - check all details by default
 
   const detailIdsSignature = details.map((d) => d.id).join(",");
@@ -102,6 +120,10 @@ export default function DialogCreatePortfolio({ open, onClose, onCreate }) {
     });
   }
 
+  function handleTitleBlockFieldChange(key, val) {
+    setTitleBlockValues((prev) => ({ ...prev, [key]: val }));
+  }
+
   async function handleCreate() {
     if (loading || disabled) return;
     setLoading(true);
@@ -110,6 +132,7 @@ export default function DialogCreatePortfolio({ open, onClose, onCreate }) {
       title: name.trim(),
       isDetailsPortfolio,
       selectedDetails,
+      titleBlock: { key: titleBlockManifest.key, values: titleBlockValues },
     });
     setName("");
     setIsDetailsPortfolio(false);
@@ -141,6 +164,21 @@ export default function DialogCreatePortfolio({ open, onClose, onCreate }) {
             value={name}
             onChange={(e) => setName(e)}
             options={{ fullWidth: true, showLabel: true, autoFocus: true }}
+          />
+        </Box>
+
+        <Box sx={{ px: 1, pt: 1 }}>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ display: "block", mb: 1 }}
+          >
+            {titleBlockS}
+          </Typography>
+          <TitleBlockFieldsForm
+            manifest={titleBlockManifest}
+            values={titleBlockValues}
+            onChange={handleTitleBlockFieldChange}
           />
         </Box>
 

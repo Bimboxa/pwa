@@ -19,6 +19,7 @@ import useUpdateEntity from "Features/entities/hooks/useUpdateEntity";
 
 import usePortfolioBaseMapContainers from "Features/portfolioBaseMapContainers/hooks/usePortfolioBaseMapContainers";
 import useDisplayedPortfolio from "Features/portfolios/hooks/useDisplayedPortfolio";
+import useTitleBlockManifest from "Features/titleBlocks/hooks/useTitleBlockManifest";
 
 import useCreatePortfolioBaseMapContainer from "Features/portfolioBaseMapContainers/hooks/useCreatePortfolioBaseMapContainer";
 
@@ -50,6 +51,7 @@ export default function PortfolioPageSvg({ page, pageIndex, totalPages, zoom }) 
     filterByPageId: page.id,
   });
   const { value: portfolio } = useDisplayedPortfolio();
+  const titleBlockManifest = useTitleBlockManifest(portfolio);
   const framingContainerId = useSelector(
     (s) => s.portfolioBaseMapContainers.framingContainerId
   );
@@ -69,7 +71,12 @@ export default function PortfolioPageSvg({ page, pageIndex, totalPages, zoom }) 
   );
   const dims = getPageDimensions(page.format, page.orientation);
   const footerHeight = portfolio?.metadata?.footerHeight || 0;
-  const layout = getPageLayout(page.format, page.orientation, footerHeight);
+  const layout = getPageLayout(
+    page.format,
+    page.orientation,
+    footerHeight,
+    titleBlockManifest.height
+  );
   const contentArea = layout.contentArea;
 
   const updateEntity = useUpdateEntity();

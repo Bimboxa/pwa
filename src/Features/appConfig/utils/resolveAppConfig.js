@@ -106,6 +106,13 @@ const OBJECTS_LIBRARY_FILE3D_LOADERS = import.meta.glob(
   { query: "?url", import: "default", eager: false }
 );
 
+// Title blocks (cartouches) — declarative manifest modules stored under each
+// org's titleBlocks folder, one folder per title block.
+const TITLE_BLOCK_MANIFEST_LOADERS = import.meta.glob(
+  "../../../Data/*/titleBlocks/*/titleBlock.js",
+  { eager: false }
+);
+
 export default async function resolveAppConfig(appConfig) {
   // edge case
 
@@ -421,6 +428,33 @@ export default async function resolveAppConfig(appConfig) {
         `[resolveAppConfig] portfolio logo not found at ${fullPath}`
       );
     }
+  }
+
+  // titleBlocks - resolve manifest modules (relative to Data/<orga>/)
+  if (orgaCode && newAppConfig.features?.titleBlocks?.items?.length > 0) {
+    const config = newAppConfig.features.titleBlocks;
+    const manifestsByKey = {};
+    for (const item of config.items) {
+      if (!item?.key || !item?.path) continue;
+      const fullPath = `../../../Data/${orgaCode}/${item.path}`;
+      const loader = TITLE_BLOCK_MANIFEST_LOADERS[fullPath];
+      if (!loader) {
+        console.warn(
+          `[resolveAppConfig] title block manifest not found at ${fullPath}`
+        );
+        continue;
+      }
+      try {
+        const module = await loader();
+        if (module?.default) manifestsByKey[item.key] = module.default;
+      } catch (error) {
+        console.error(
+          `[resolveAppConfig] Error loading title block "${item.key}":`,
+          error
+        );
+      }
+    }
+    config.manifestsByKey = manifestsByKey;
   }
 
   // bg images - dynamically load from assets based on urlFromAssetKey

@@ -44,7 +44,13 @@ export default function PortfolioTree() {
 
   // handlers
 
-  async function handleCreate({ title, isDetailsPortfolio, selectedDetails }) {
+  async function handleCreate({
+    title,
+    isDetailsPortfolio,
+    selectedDetails,
+    titleBlock,
+  }) {
+    const metadata = titleBlock ? { titleBlock } : undefined;
     let portfolio;
     if (isDetailsPortfolio) {
       portfolio = await createDetailsPortfolio({
@@ -52,12 +58,14 @@ export default function PortfolioTree() {
         projectId,
         title,
         details: selectedDetails,
+        metadata,
       });
     } else {
       portfolio = await createPortfolio({
         scopeId,
         projectId,
         title,
+        metadata,
       });
     }
     dispatch(setDisplayedPortfolioId(portfolio.id));

@@ -6,12 +6,16 @@ import { Image as ImageIcon, Delete } from "@mui/icons-material";
 import useDisplayedPortfolio from "Features/portfolios/hooks/useDisplayedPortfolio";
 import useSelectedProject from "Features/projects/hooks/useSelectedProject";
 import usePortfolioLogoUrl from "Features/portfolios/hooks/usePortfolioLogoUrl";
+import useTitleBlockManifest from "Features/titleBlocks/hooks/useTitleBlockManifest";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 import DebouncedTextField from "Features/form/components/DebouncedTextField";
+import TitleBlockFieldsForm from "Features/titleBlocks/components/TitleBlockFieldsForm";
 import IconButtonMoreActionsPortfolio from "./IconButtonMoreActionsPortfolio";
 import ButtonDownloadPortfolioPdf from "./ButtonDownloadPortfolioPdf";
+
+import resolveTitleBlockFields from "Features/titleBlocks/utils/resolveTitleBlockFields";
 
 import db from "App/db/db";
 
@@ -26,10 +30,16 @@ export default function PanelPortfolioHeaderProperties() {
   // helpers
 
   const config = portfolio?.metadata || {};
+  const manifest = useTitleBlockManifest(portfolio);
   const logoUrl = usePortfolioLogoUrl(config.logo);
   const resolvedLogoSrc =
     logoUrl || (typeof config.logo === "string" ? config.logo : null);
   const chantierValue = project?.name || "";
+
+  const titleBlockValues = resolveTitleBlockFields(manifest, config);
+  const labelCells = (manifest.cells || []).filter(
+    (cell) => cell.kind === "label" && cell.legacyLabelKey
+  );
 
   // handlers
 
@@ -37,6 +47,17 @@ export default function PanelPortfolioHeaderProperties() {
     if (!portfolio) return;
     const updated = { ...config, ...patch };
     await db.listings.update(portfolio.id, { metadata: updated });
+  }
+
+  // Writes go to metadata.titleBlock.values; the full resolved set is
+  // persisted so legacy metadata fields migrate on first edit.
+  async function handleTitleBlockFieldChange(key, val) {
+    await updateConfig({
+      titleBlock: {
+        key: config.titleBlock?.key ?? manifest.key,
+        values: { ...titleBlockValues, [key]: val },
+      },
+    });
   }
 
   function handleLogoUpload(e) {
@@ -170,86 +191,43 @@ export default function PanelPortfolioHeaderProperties() {
           </Box>
         </WhiteSectionGeneric>
 
-        {/* Meta fields */}
+        {/* Title block fields (manifest-driven) */}
         <WhiteSectionGeneric>
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
             <Typography variant="body2" sx={{ fontWeight: "bold" }}>
               Champs secondaires
             </Typography>
-            <DebouncedTextField
-              label={config.labelRefInterne || "Numéro"}
-              size="small"
-              value={config.refInterne || ""}
-              onChange={(val) => updateConfig({ refInterne: val })}
-              fullWidth
-            />
-            <DebouncedTextField
-              label={config.labelAuteur || "Auteur"}
-              size="small"
-              value={config.author || ""}
-              onChange={(val) => updateConfig({ author: val })}
-              fullWidth
-            />
-            <DebouncedTextField
-              label={config.labelDate || "Date"}
-              size="small"
-              value={config.date || ""}
-              onChange={(val) => updateConfig({ date: val })}
-              fullWidth
+            <TitleBlockFieldsForm
+              manifest={manifest}
+              values={titleBlockValues}
+              onChange={handleTitleBlockFieldChange}
             />
           </Box>
         </WhiteSectionGeneric>
 
-        {/* Label customization */}
-        <WhiteSectionGeneric>
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-            <Typography variant="body2" sx={{ fontWeight: "bold" }}>
-              Titres des champs
-            </Typography>
-            <DebouncedTextField
-              label="Titre: Chantier"
-              size="small"
-              value={config.labelChantier || "Chantier"}
-              onChange={(val) => updateConfig({ labelChantier: val })}
-              fullWidth
-            />
-            <DebouncedTextField
-              label="Titre: Carnet"
-              size="small"
-              value={config.labelPortfolio || "Carnet"}
-              onChange={(val) => updateConfig({ labelPortfolio: val })}
-              fullWidth
-            />
-            <DebouncedTextField
-              label="Titre: Page"
-              size="small"
-              value={config.labelPage || "Page"}
-              onChange={(val) => updateConfig({ labelPage: val })}
-              fullWidth
-            />
-            <DebouncedTextField
-              label="Titre: Numéro"
-              size="small"
-              value={config.labelRefInterne || "Numéro"}
-              onChange={(val) => updateConfig({ labelRefInterne: val })}
-              fullWidth
-            />
-            <DebouncedTextField
-              label="Titre: Auteur"
-              size="small"
-              value={config.labelAuteur || "Auteur"}
-              onChange={(val) => updateConfig({ labelAuteur: val })}
-              fullWidth
-            />
-            <DebouncedTextField
-              label="Titre: Date"
-              size="small"
-              value={config.labelDate || "Date"}
-              onChange={(val) => updateConfig({ labelDate: val })}
-              fullWidth
-            />
-          </Box>
-        </WhiteSectionGeneric>
+        {/* Label customization (legacy label* metadata keys, read by the
+            manifest cells via legacyLabelKey) */}
+        {labelCells.length > 0 && (
+          <WhiteSectionGeneric>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
+              <Typography variant="body2" sx={{ fontWeight: "bold" }}>
+                Titres des champs
+              </Typography>
+              {labelCells.map((cell) => (
+                <DebouncedTextField
+                  key={cell.legacyLabelKey}
+                  label={`Titre: ${cell.text}`}
+                  size="small"
+                  value={config[cell.legacyLabelKey] || cell.text}
+                  onChange={(val) =>
+                    updateConfig({ [cell.legacyLabelKey]: val })
+                  }
+                  fullWidth
+                />
+              ))}
+            </Box>
+          </WhiteSectionGeneric>
+        )}
 
       </Box>
     </BoxFlexVStretch>

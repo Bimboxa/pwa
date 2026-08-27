@@ -9,91 +9,21 @@ import {
 import useDisplayedPortfolio from "Features/portfolios/hooks/useDisplayedPortfolio";
 import useSelectedProject from "Features/projects/hooks/useSelectedProject";
 import usePortfolioLogoUrl from "Features/portfolios/hooks/usePortfolioLogoUrl";
+import useTitleBlockManifest from "Features/titleBlocks/hooks/useTitleBlockManifest";
 
-import {
-  ROW_HEIGHT,
-  LOGO_COL_WIDTH,
-} from "../utils/computeHeaderPosition";
+import TitleBlockSvg from "Features/titleBlocks/components/TitleBlockSvg";
+
+import computeTitleBlockLayout from "Features/titleBlocks/utils/computeTitleBlockLayout";
+import resolveTitleBlockFields from "Features/titleBlocks/utils/resolveTitleBlockFields";
 
 import theme from "Styles/theme";
 import db from "App/db/db";
 
-// --- Inner components ---
-
-const FONT_FAMILY = "sans-serif";
-const PAGE_NUM_WIDTH = 50;
-
-function LabelCell({ x, y, width, height, text }) {
-  return (
-    <foreignObject
-      x={x}
-      y={y}
-      width={width}
-      height={height}
-      style={{ overflow: "visible", pointerEvents: "none" }}
-    >
-      <div
-        style={{
-          fontFamily: FONT_FAMILY,
-          fontSize: "8px",
-          color: "#888",
-          fontWeight: 600,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "flex-end",
-          height: "100%",
-          paddingRight: "6px",
-          boxSizing: "border-box",
-        }}
-      >
-        {text}
-      </div>
-    </foreignObject>
-  );
-}
-
-function ValueCell({ x, y, width, height, text, bold, center, dataAttr }) {
-  return (
-    <foreignObject
-      x={x}
-      y={y}
-      width={width}
-      height={height}
-      style={{ overflow: "visible", pointerEvents: "none" }}
-      {...(dataAttr ? { "data-page-number": true } : {})}
-    >
-      <div
-        style={{
-          fontFamily: FONT_FAMILY,
-          fontSize: "10px",
-          color: "#333",
-          fontWeight: bold ? 700 : 400,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: center ? "center" : "flex-start",
-          height: "100%",
-          paddingLeft: center ? 0 : "8px",
-          paddingRight: "4px",
-          boxSizing: "border-box",
-          whiteSpace: "nowrap",
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-        }}
-      >
-        {text || "\u00A0"}
-      </div>
-    </foreignObject>
-  );
-}
-
-// --- Main component ---
-
-export default function PortfolioHeaderSvg({
-  page,
-  layout,
-  pageIndex,
-  totalPages,
-}) {
+// Interactive container of the page title block (cartouche): selection,
+// logo upload placeholder. Static drawing is delegated to TitleBlockSvg,
+// fed by the shared computeTitleBlockLayout engine (same one used by the
+// vector PDF export).
+export default function PortfolioHeaderSvg({ page, layout, pageIndex }) {
   const dispatch = useDispatch();
   const logoInputRef = useRef(null);
 
@@ -102,50 +32,34 @@ export default function PortfolioHeaderSvg({
   const { value: portfolio } = useDisplayedPortfolio();
   const { value: project } = useSelectedProject();
   const selectedItems = useSelector(selectSelectedItems);
+  const manifest = useTitleBlockManifest(portfolio);
 
   // helpers
 
   const config = portfolio?.metadata || {};
   const logoUrl = usePortfolioLogoUrl(config.logo);
+  const resolvedLogoSrc =
+    logoUrl || (typeof config.logo === "string" ? config.logo : null);
   const rect = layout.cartouche;
 
   const isSelected = selectedItems.some(
     (i) => i.id === portfolio?.id && i.type === "PORTFOLIO_HEADER"
   );
 
-  // column layout (logo always visible)
-  const isNarrow = layout.variant === "BOTTOM_RIGHT";
-  const logoW = isNarrow
-    ? Math.min(LOGO_COL_WIDTH, Math.round(rect.width * 0.2))
-    : LOGO_COL_WIDTH;
-  const contentW = rect.width - logoW;
-  const labelW = isNarrow ? 55 : Math.max(55, Math.round(contentW * 0.08));
-  const metaLabelW = isNarrow ? 65 : Math.max(65, Math.round(contentW * 0.11));
-  const metaValueW = isNarrow ? 80 : Math.max(80, Math.round(contentW * 0.15));
-  const mainW = contentW - labelW - metaLabelW - metaValueW;
-
-  // column x positions
-  const xLogo = rect.x;
-  const xLabel = xLogo + logoW;
-  const xMain = xLabel + labelW;
-  const xMetaLabel = xMain + mainW;
-  const xMetaValue = xMetaLabel + metaLabelW;
-  const xEnd = rect.x + rect.width;
-
-  // row y positions
-  const y0 = rect.y;
-  const y1 = y0 + ROW_HEIGHT;
-  const y2 = y0 + 2 * ROW_HEIGHT;
-  const y3 = y0 + rect.height;
-
-  // page number cell (row 3 only)
-  const xPageNum = xMain + mainW - PAGE_NUM_WIDTH;
-
-  // field data
-  const pageNum = `p. ${(pageIndex ?? 0) + 1}`;
-  const chantierValue = project?.name || "";
-  const portfolioValue = portfolio?.name || "";
-  const pageValue = page?.title || "";
+  const values = resolveTitleBlockFields(manifest, config);
+  const bindings = {
+    "project.name": project?.name || "",
+    "portfolio.name": portfolio?.name || "",
+    "page.title": page?.title || "",
+    pageNum: `p. ${(pageIndex ?? 0) + 1}`,
+  };
+  const layoutData = computeTitleBlockLayout(manifest, rect, {
+    variant: layout.variant,
+    values,
+    bindings,
+    labelOverrides: config,
+  });
+  const logoSlot = layoutData.imageSlots[0];
 
   // handlers
 
@@ -176,46 +90,19 @@ export default function PortfolioHeaderSvg({
 
   return (
     <g data-portfolio-header onClick={handleClick} style={{ cursor: "pointer" }}>
-      {/* Background */}
-      <rect
-        x={rect.x}
-        y={rect.y}
-        width={rect.width}
-        height={rect.height}
-        fill="white"
-        stroke="#333"
-        strokeWidth={1}
+      <TitleBlockSvg
+        layoutData={layoutData}
+        style={manifest.style}
+        logoUrl={resolvedLogoSrc}
       />
 
-      {/* Vertical separators */}
-      <line x1={xLabel} y1={y0} x2={xLabel} y2={y3} stroke="#333" strokeWidth={0.5} />
-      <line x1={xMain} y1={y0} x2={xMain} y2={y3} stroke="#333" strokeWidth={0.5} />
-      <line x1={xMetaLabel} y1={y0} x2={xMetaLabel} y2={y3} stroke="#333" strokeWidth={0.5} />
-      <line x1={xMetaValue} y1={y0} x2={xMetaValue} y2={y3} stroke="#333" strokeWidth={0.5} />
-
-      {/* Horizontal row separators */}
-      <line x1={xLabel} y1={y1} x2={xEnd} y2={y1} stroke="#333" strokeWidth={0.5} />
-      <line x1={xLabel} y1={y2} x2={xEnd} y2={y2} stroke="#333" strokeWidth={0.5} />
-
-      {/* Row 3: page number vertical separator */}
-      <line x1={xPageNum} y1={y2} x2={xPageNum} y2={y3} stroke="#333" strokeWidth={0.5} />
-
-      {/* Logo or upload placeholder */}
-      {(logoUrl || typeof config.logo === "string") ? (
-        <image
-          href={logoUrl || config.logo}
-          x={xLogo + 4}
-          y={y0 + 4}
-          width={logoW - 8}
-          height={rect.height - 8}
-          preserveAspectRatio="xMidYMid meet"
-        />
-      ) : (
+      {/* Logo upload placeholder */}
+      {!resolvedLogoSrc && logoSlot && (
         <foreignObject
-          x={xLogo + 3}
-          y={y0 + 3}
-          width={logoW - 6}
-          height={rect.height - 6}
+          x={logoSlot.x - 1}
+          y={logoSlot.y - 1}
+          width={logoSlot.width + 2}
+          height={logoSlot.height + 2}
         >
           <label
             onClick={(e) => e.stopPropagation()}
@@ -246,7 +133,7 @@ export default function PortfolioHeaderSvg({
               style={{
                 fontSize: "7px",
                 color: "#aaa",
-                fontFamily: FONT_FAMILY,
+                fontFamily: manifest.style?.fontFamily || "sans-serif",
                 marginTop: "1px",
               }}
             >
@@ -262,25 +149,6 @@ export default function PortfolioHeaderSvg({
           </label>
         </foreignObject>
       )}
-
-      {/* Row 1: Chantier / Numéro */}
-      <LabelCell x={xLabel} y={y0} width={labelW} height={ROW_HEIGHT} text={config.labelChantier || "Chantier"} />
-      <ValueCell x={xMain} y={y0} width={mainW} height={ROW_HEIGHT} text={chantierValue} bold />
-      <LabelCell x={xMetaLabel} y={y0} width={metaLabelW} height={ROW_HEIGHT} text={config.labelRefInterne || "Numéro"} />
-      <ValueCell x={xMetaValue} y={y0} width={metaValueW} height={ROW_HEIGHT} text={config.refInterne || ""} />
-
-      {/* Row 2: Portfolio / Auteur */}
-      <LabelCell x={xLabel} y={y1} width={labelW} height={ROW_HEIGHT} text={config.labelPortfolio || "Carnet"} />
-      <ValueCell x={xMain} y={y1} width={mainW} height={ROW_HEIGHT} text={portfolioValue} bold />
-      <LabelCell x={xMetaLabel} y={y1} width={metaLabelW} height={ROW_HEIGHT} text={config.labelAuteur || "Auteur"} />
-      <ValueCell x={xMetaValue} y={y1} width={metaValueW} height={ROW_HEIGHT} text={config.author || ""} />
-
-      {/* Row 3: Page + pageNum / Date */}
-      <LabelCell x={xLabel} y={y2} width={labelW} height={ROW_HEIGHT} text={config.labelPage || "Page"} />
-      <ValueCell x={xMain} y={y2} width={mainW - PAGE_NUM_WIDTH} height={ROW_HEIGHT} text={pageValue} />
-      <ValueCell x={xPageNum} y={y2} width={PAGE_NUM_WIDTH} height={ROW_HEIGHT} text={pageNum} center bold dataAttr />
-      <LabelCell x={xMetaLabel} y={y2} width={metaLabelW} height={ROW_HEIGHT} text={config.labelDate || "Date"} />
-      <ValueCell x={xMetaValue} y={y2} width={metaValueW} height={ROW_HEIGHT} text={config.date || ""} />
 
       {/* Selection border */}
       {isSelected && (

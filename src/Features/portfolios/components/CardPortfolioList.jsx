@@ -21,13 +21,13 @@ import {
 import { Add, ChevronRight, MenuBook } from "@mui/icons-material";
 
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
+import TitleBlockFieldsForm from "Features/titleBlocks/components/TitleBlockFieldsForm";
 import usePortfolios from "Features/portfolios/hooks/usePortfolios";
 import useCreatePortfolio from "Features/portfolios/hooks/useCreatePortfolio";
 import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
-
-function getTodayString() {
-  return new Date().toISOString().slice(0, 10);
-}
+import useTitleBlockManifest from "Features/titleBlocks/hooks/useTitleBlockManifest";
+import useDataMapping from "Features/appConfig/hooks/useDataMapping";
+import getTitleBlockPrefillValues from "Features/titleBlocks/utils/getTitleBlockPrefillValues";
 
 export default function CardPortfolioList() {
   const dispatch = useDispatch();
@@ -39,13 +39,14 @@ export default function CardPortfolioList() {
   const projectId = selectedScope?.projectId;
   const { value: portfolios } = usePortfolios({ filterByScopeId: scopeId });
   const createPortfolio = useCreatePortfolio();
+  const titleBlockManifest = useTitleBlockManifest(null);
+  const { object: dataMapping } = useDataMapping();
 
   // state
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [name, setName] = useState("");
-  const [date, setDate] = useState(getTodayString());
-  const [author, setAuthor] = useState("");
+  const [titleBlockValues, setTitleBlockValues] = useState({});
 
   // handlers
 
@@ -59,13 +60,18 @@ export default function CardPortfolioList() {
 
   function handleOpenDialog() {
     setName("");
-    setDate(getTodayString());
-    setAuthor("");
+    setTitleBlockValues(
+      getTitleBlockPrefillValues(titleBlockManifest, dataMapping)
+    );
     setDialogOpen(true);
   }
 
   function handleCloseDialog() {
     setDialogOpen(false);
+  }
+
+  function handleTitleBlockFieldChange(key, val) {
+    setTitleBlockValues((prev) => ({ ...prev, [key]: val }));
   }
 
   async function handleConfirmCreate() {
@@ -75,7 +81,9 @@ export default function CardPortfolioList() {
       scopeId,
       projectId,
       title,
-      metadata: { date, author: author.trim() || undefined },
+      metadata: {
+        titleBlock: { key: titleBlockManifest.key, values: titleBlockValues },
+      },
     });
     setDialogOpen(false);
     handleOpenPortfolio(listing.id);
@@ -144,21 +152,10 @@ export default function CardPortfolioList() {
             value={name}
             onChange={(e) => setName(e.target.value)}
           />
-          <TextField
-            label="Date"
-            type="date"
-            size="small"
-            fullWidth
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            slotProps={{ inputLabel: { shrink: true } }}
-          />
-          <TextField
-            label="Auteur"
-            size="small"
-            fullWidth
-            value={author}
-            onChange={(e) => setAuthor(e.target.value)}
+          <TitleBlockFieldsForm
+            manifest={titleBlockManifest}
+            values={titleBlockValues}
+            onChange={handleTitleBlockFieldChange}
           />
         </DialogContent>
         <DialogActions>

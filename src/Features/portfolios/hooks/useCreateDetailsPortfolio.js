@@ -18,8 +18,13 @@ export default function useCreateDetailsPortfolio() {
   const createPortfolio = useCreatePortfolio();
   const createPage = useCreatePortfolioPage();
 
-  const create = async ({ scopeId, projectId, title, details }) => {
-    const portfolio = await createPortfolio({ scopeId, projectId, title });
+  const create = async ({ scopeId, projectId, title, details, metadata }) => {
+    const portfolio = await createPortfolio({
+      scopeId,
+      projectId,
+      title,
+      metadata,
+    });
 
     let afterSortIndex = null;
 
