@@ -26,7 +26,8 @@ const MODE_BY_KEY = {
 
 // Global shortcuts to switch the editor interaction mode (D/M/S). They mirror
 // the panel ToggleButtonGroup and reuse applyInteractionModeChange so the side
-// effects (EDIT target clearing) stay identical.
+// effects (EDIT target clearing) stay identical. Re-pressing the active mode's
+// letter clears it back to "no mode" (null), like re-clicking its button.
 //
 // Like useFreeAnnotationHotkeys, they fire UPSTREAM — only when no draw is
 // active (!enabledDrawingMode) — so they never contend with in-draw letters.
@@ -74,12 +75,13 @@ export default function useInteractionModeHotkeys() {
       // ?mode=viewer lock — the panel toggle is disabled there too, so ignore.
       if (s.annotations.showMeshCells || s.urlParams.viewerMode) return;
 
+      // Re-pressing the active mode's letter clears it back to "no mode".
       const current = s.popperMapListings.interactionMode;
-      if (next === current) return;
+      const target = next === current ? null : next;
 
       applyInteractionModeChange(dispatch, {
         current,
-        next,
+        next: target,
         selectedItem: s.selection.selectedItems[0] || null,
       });
       e.preventDefault();

@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { useSelector } from 'react-redux';
 
 import { lighten } from '@mui/material/styles';
 
@@ -28,6 +29,15 @@ export default function TransientTopologyLayer({
     baseMapMeterByPx,
     openingRels, // relAnnotationOpenings rows — live reflow of glued openings
 }) {
+
+    // In "no mode" (interactionMode null) the live drag cotes follow the
+    // overlay's cote toggle: hidden while it is off, exactly like the static
+    // per-segment cotes. EDIT keeps its always-on behavior.
+    const interactionMode = useSelector(
+        (s) => s.popperMapListings?.interactionMode
+    );
+    const showSegmentCotes = useSelector((s) => s.mapEditor.showSegmentCotes);
+    const hideTransientCotes = interactionMode == null && !showSegmentCotes;
 
     // CASE 3 works on a pointId → pos map: multi-point drags pass it directly,
     // the single-point drag is a one-entry map.
@@ -382,6 +392,7 @@ export default function TransientTopologyLayer({
     // contour only, straight segments only (arc halves have no meaningful
     // straight-line length).
     const transientCotes = useMemo(() => {
+        if (hideTransientCotes) return [];
         if (!movedMap || !(baseMapMeterByPx > 0)) return [];
         const labels = [];
         for (const ann of modifiedAnnotations) {
@@ -402,7 +413,7 @@ export default function TransientTopologyLayer({
             }
         }
         return labels;
-    }, [modifiedAnnotations, movedMap, baseMapMeterByPx]);
+    }, [modifiedAnnotations, movedMap, baseMapMeterByPx, hideTransientCotes]);
 
     if (modifiedAnnotations.length === 0) return null;
 

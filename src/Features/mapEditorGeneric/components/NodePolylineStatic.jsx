@@ -144,10 +144,12 @@ function NodePolylineStatic({
   // Shift press never re-renders them.
   const isShiftDown = useIsShiftDown(Boolean(selected) && !isTransient);
 
-  // EDIT (Modification) mode drives the segment "move" cursor (getPartCursor).
+  // EDIT (Modification) mode — or "no mode" (null) with its segment-drag
+  // overlay toggle ON — drives the segment "move" cursor (getPartCursor).
   const interactionMode = useSelector(
     (s) => s.popperMapListings?.interactionMode
   );
+  const segmentDragEnabled = useSelector((s) => s.mapEditor.segmentDragEnabled);
 
   // En aperçu transient (drag de vertex), on ignore complètement le hover :
   // sinon les segments clignotent quand le curseur les survole pendant le drag.
@@ -313,15 +315,17 @@ function NodePolylineStatic({
   // annotation is already selected*, signal whether a click will add ("+")
   // or remove ("-") that part from the segment multi-selection. On an
   // unselected annotation, Shift means annotation-level multi-select, so
-  // keep the plain pointer. In EDIT mode a main-contour segment of the
-  // selected annotation is draggable → 4-way move cursor.
+  // keep the plain pointer. In EDIT mode (or no-mode with the segment-drag
+  // overlay toggle ON) a main-contour segment of the selected annotation is
+  // draggable → 4-way move cursor.
   const getPartCursor = (currentPartId) => {
     if (isTransient) return "crosshair";
     if (isShiftDown && selected)
       return isPartSelected(currentPartId) ? CURSOR_REMOVE : CURSOR_ADD;
     if (
       selected &&
-      interactionMode === "EDIT" &&
+      (interactionMode === "EDIT" ||
+        (interactionMode == null && segmentDragEnabled)) &&
       currentPartId?.includes("::SEG::")
     )
       return "move";

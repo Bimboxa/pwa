@@ -4,9 +4,15 @@ import { IconButton, Tooltip } from "@mui/material";
 import {
   Lock as LockIcon,
   LockOpen as LockOpenIcon,
+  OpenWith as OpenWithIcon,
+  Straighten as StraightenIcon,
 } from "@mui/icons-material";
 
-import { setAnglesLocked } from "Features/mapEditor/mapEditorSlice";
+import {
+  setAnglesLocked,
+  setSegmentDragEnabled,
+  setShowSegmentCotes,
+} from "Features/mapEditor/mapEditorSlice";
 
 import getSegmentLengthItems from "Features/annotations/utils/getSegmentLengthItems";
 import applySegmentLengthEditService from "Features/annotations/services/applySegmentLengthEditService";
@@ -37,7 +43,10 @@ const CONFLICT_MESSAGES = {
 };
 
 // Per-segment length labels + inline editor for a selected POLYLINE / POLYGON /
-// STRIP in EDIT (Modification) mode. Shared by NodePolylineStatic and
+// STRIP in EDIT (Modification) mode — cotes always on, single angle padlock —
+// and in "no mode" (interactionMode null), where the overlay above the
+// annotation grows to 3 toggles: show/hide cotes (default hidden), enable
+// segment drag, angle padlock. Shared by NodePolylineStatic and
 // NodeStripStatic; the RULER keeps its own vertex-driven editor.
 //
 // Constraint model: padlocks per SEGMENT (length stays fixed → rigid
@@ -67,10 +76,16 @@ export default function NodeSegmentLengthsStatic({
     (s) => s.popperMapListings?.interactionMode
   );
 
-  // Global angle lock (mapEditorSlice, default true): vertex / segment drags
-  // preserve the joint angles. The padlock rendered above the annotation
-  // toggles it for the whole session.
+  // Global angle lock (mapEditorSlice, default unlocked): vertex / segment
+  // drags preserve the joint angles. The padlock rendered above the
+  // annotation toggles it for the whole session.
   const anglesLocked = useSelector((s) => s.mapEditor.anglesLocked);
+
+  // "No mode" overlay toggles (mapEditorSlice, session-wide like anglesLocked).
+  const showSegmentCotes = useSelector((s) => s.mapEditor.showSegmentCotes);
+  const segmentDragEnabled = useSelector(
+    (s) => s.mapEditor.segmentDragEnabled
+  );
 
   const annotationId = annotation?.id;
   const unit = annotation?.unit ?? "M";
@@ -157,15 +172,26 @@ export default function NodeSegmentLengthsStatic({
 
   const hasScale = Number.isFinite(baseMapMeterByPx) && baseMapMeterByPx > 0;
 
-  const active =
+  const isNoMode = interactionMode == null;
+  const baseActive =
     Boolean(selected) &&
     !printMode &&
     !isTransient &&
     !disableVertexEditing &&
-    hasScale &&
-    interactionMode === "EDIT" &&
     Boolean(annotationId) &&
     !String(annotationId).startsWith("temp");
+
+  // Cote labels + per-point padlocks: EDIT always shows them; no-mode only
+  // when the overlay's cote toggle is on.
+  const labelsActive =
+    baseActive &&
+    hasScale &&
+    (interactionMode === "EDIT" || (isNoMode && showSegmentCotes));
+
+  // Top overlay: EDIT keeps its single angle padlock (scale required, as
+  // before); no-mode shows the 3-toggle toolbar on any selected annotation.
+  const overlayActive =
+    baseActive && (interactionMode === "EDIT" ? hasScale : isNoMode);
 
   const counterScaleTransform = useMemo(() => {
     const k = containerK || 1;
@@ -173,7 +199,7 @@ export default function NodeSegmentLengthsStatic({
   }, [containerK]);
 
   const items = useMemo(() => {
-    if (!active) return [];
+    if (!labelsActive) return [];
     return getSegmentLengthItems({
       points,
       closed,
@@ -181,7 +207,7 @@ export default function NodeSegmentLengthsStatic({
       unit,
       decimals,
     });
-  }, [active, points, closed, baseMapMeterByPx, unit, decimals]);
+  }, [labelsActive, points, closed, baseMapMeterByPx, unit, decimals]);
 
   const straightItems = useMemo(() => {
     const straight = items.filter((it) => it.isStraight);
@@ -326,12 +352,19 @@ export default function NodeSegmentLengthsStatic({
 
   // render
 
-  if (!active || !straightItems.length) return null;
+  // EDIT keeps its historical all-or-nothing visual (no straight segment →
+  // nothing at all); no-mode shows the overlay toolbar regardless.
+  if (
+    !overlayActive ||
+    (interactionMode === "EDIT" && !straightItems.length)
+  )
+    return null;
 
   return (
     <g data-segment-lengths="1">
       {/* per-segment length labels / inline editor */}
-      {straightItems.map((seg) => {
+      {labelsActive &&
+        straightItems.map((seg) => {
         const isEditing = editingSegmentId === seg.startPointId;
         const isLocked = Boolean(lockedSegmentsByStartId[seg.startPointId]);
         const hasConflict = conflict?.segmentId === seg.startPointId;
@@ -518,19 +551,21 @@ export default function NodeSegmentLengthsStatic({
         );
       })}
 
-      {/* ANGLE padlock (session-wide) — preserves the joint angles during
-          vertex / segment drags and typed length edits (default: locked).
-          Lives in mapEditorSlice. Rendered as an HTML button in a
-          foreignObject so it gets a real MUI Tooltip. */}
+      {/* Overlay above the annotation (session-wide toggles, mapEditorSlice).
+          EDIT: single ANGLE padlock — preserves the joint angles during
+          vertex / segment drags and typed length edits (default: unlocked).
+          No-mode: 3 toggles — show/hide cotes, enable segment drag, angle
+          padlock. Rendered as HTML buttons in a foreignObject so they get
+          real MUI Tooltips. */}
       {angleLockAnchor && (
         <g
           transform={`translate(${angleLockAnchor.x}, ${angleLockAnchor.y})`}
         >
           <g style={{ transform: counterScaleTransform }}>
             <foreignObject
-              x={-20}
+              x={isNoMode ? -58 : -20}
               y={-50}
-              width={40}
+              width={isNoMode ? 116 : 40}
               height={40}
               style={{ overflow: "visible" }}
             >
@@ -541,8 +576,63 @@ export default function NodeSegmentLengthsStatic({
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
+                  gap: 4,
                 }}
               >
+                {isNoMode && hasScale && (
+                  <Tooltip
+                    placement="top"
+                    arrow
+                    title="Afficher / Masquer les cotes"
+                  >
+                    <IconButton
+                      size="small"
+                      onClick={() =>
+                        dispatch(setShowSegmentCotes(!showSegmentCotes))
+                      }
+                      sx={{
+                        bgcolor: "rgba(255,255,255,0.9)",
+                        border: `1px solid ${ACCENT_COLOR}`,
+                        color: showSegmentCotes
+                          ? ACCENT_COLOR
+                          : "text.disabled",
+                        "&:hover": { bgcolor: "white" },
+                        p: 0.5,
+                      }}
+                    >
+                      <StraightenIcon sx={{ fontSize: 18 }} />
+                    </IconButton>
+                  </Tooltip>
+                )}
+                {isNoMode && (
+                  <Tooltip
+                    placement="top"
+                    arrow
+                    title={
+                      segmentDragEnabled
+                        ? "Déplacement de segment activé : glisser un segment le déplace. Cliquer pour désactiver."
+                        : "Déplacement de segment désactivé : survoler un segment permet d'y ajouter un point. Cliquer pour activer."
+                    }
+                  >
+                    <IconButton
+                      size="small"
+                      onClick={() =>
+                        dispatch(setSegmentDragEnabled(!segmentDragEnabled))
+                      }
+                      sx={{
+                        bgcolor: "rgba(255,255,255,0.9)",
+                        border: `1px solid ${ACCENT_COLOR}`,
+                        color: segmentDragEnabled
+                          ? ACCENT_COLOR
+                          : "text.disabled",
+                        "&:hover": { bgcolor: "white" },
+                        p: 0.5,
+                      }}
+                    >
+                      <OpenWithIcon sx={{ fontSize: 18 }} />
+                    </IconButton>
+                  </Tooltip>
+                )}
                 <Tooltip
                   placement="top"
                   arrow
@@ -578,7 +668,8 @@ export default function NodeSegmentLengthsStatic({
 
       {/* per-point padlocks (arc control points excluded: locking a control
           point is meaningless in v1) */}
-      {points.map((pt, i) => {
+      {labelsActive &&
+        points.map((pt, i) => {
         if (!pt?.id || typeOf(pt) === "circle") return null;
         const isLocked = Boolean(lockedPointIds[pt.id]);
         return (

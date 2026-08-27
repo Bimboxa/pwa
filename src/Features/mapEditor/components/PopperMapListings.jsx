@@ -517,6 +517,7 @@ function AnnotationTemplateRow({
       case "SELECT":
         handleEditTemplate();
         return;
+      case null: // "no mode" draws, like DRAW
       case "DRAW":
       default:
         handleStartDraw();
@@ -682,11 +683,12 @@ function AnnotationTemplateRow({
               revolutionAxisVertical={isVerticalBaseMap}
             />
           </Box>
-          {freeShortcut && interactionMode === "DRAW" && (
-            <Box sx={{ mr: 1, flexShrink: 0 }}>
-              <ShortcutBadge>{freeShortcut}</ShortcutBadge>
-            </Box>
-          )}
+          {freeShortcut &&
+            (interactionMode === "DRAW" || interactionMode == null) && (
+              <Box sx={{ mr: 1, flexShrink: 0 }}>
+                <ShortcutBadge>{freeShortcut}</ShortcutBadge>
+              </Box>
+            )}
           {isEditing ? (
             <InputBase
               value={tempLabel}
@@ -1039,7 +1041,7 @@ function AnnotationTemplatesForListing({
     (s) => s.viewers.selectedViewerKey === "ZONES"
   );
   const isDrawInteraction =
-    rawInteractionMode === "DRAW" &&
+    (rawInteractionMode === "DRAW" || rawInteractionMode == null) &&
     !showMeshCells &&
     !isThreedViewer &&
     !viewerMode &&
@@ -1911,10 +1913,12 @@ export default function PopperMapListings() {
   // handlers - interaction mode
 
   function handleInteractionModeChange(_event, next) {
-    if (!next || next === interactionMode) return;
+    // MUI's exclusive ToggleButtonGroup reports null when the active button
+    // is re-clicked — that clears the mode ("no mode", the app default).
+    if (next === interactionMode) return;
     applyInteractionModeChange(dispatch, {
       current: interactionMode,
-      next,
+      next: next ?? null,
       selectedItem,
     });
   }

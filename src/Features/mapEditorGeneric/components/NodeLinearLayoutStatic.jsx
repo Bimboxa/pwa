@@ -48,6 +48,7 @@ function NodeLinearLayoutStatic({
   const interactionMode = useSelector(
     (s) => s.popperMapListings?.interactionMode
   );
+  const segmentDragEnabled = useSelector((s) => s.mapEditor.segmentDragEnabled);
 
   // props
 
@@ -376,7 +377,8 @@ function NodeLinearLayoutStatic({
         style={{
           cursor: isTransient
             ? "crosshair"
-            : interactionMode === "EDIT"
+            : interactionMode === "EDIT" ||
+                (interactionMode == null && segmentDragEnabled && selected)
               ? "move"
               : "pointer",
         }}

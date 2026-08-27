@@ -4,7 +4,10 @@ const popperMapListingsSlice = createSlice({
   name: "popperMapListings",
   initialState: {
     showLayers: false,
-    interactionMode: "DRAW", // "DRAW" | "EDIT" | "SELECT"
+    // null | "DRAW" | "EDIT" | "SELECT" — null = "no mode" (default): the
+    // popper behaves like DRAW, and the selected annotation gets EDIT-like
+    // tools via the on-map overlay (cote / segment-drag / angle padlock).
+    interactionMode: null,
     collapsed: false,
     showInBaseMapsViewer: false,
     // Viewer module header toggle: "ANNOTATIONS" | "PHOTOS". In redux (not

@@ -222,10 +222,15 @@ const mapEditorInitialState = {
   // Multiplier applied to the vertex handle size in NodePolylineStatic.
   vertexSizeMultiplier: 1,
 
-  // EDIT mode: preserve joint angles (rectangles stay rectangles) during
+  // EDIT / no-mode: preserve joint angles (rectangles stay rectangles) during
   // vertex / segment drags. Toggled by the global padlock shown with the
-  // segment-length cotes. Transient (not persisted).
-  anglesLocked: true,
+  // segment-length cotes. Transient (not persisted). Default: unlocked.
+  anglesLocked: false,
+
+  // "No mode" overlay toggles on the selected annotation (transient,
+  // session-wide like anglesLocked — never reset per annotation or mode):
+  showSegmentCotes: false, // show the per-segment cotes (EDIT always shows them)
+  segmentDragEnabled: false, // hovering a segment drags it (EDIT-like) instead of offering add-vertex
 
   // clipping plane (2D-defined cut plane, mirrored to the 3D viewer).
   // Coords are normalized [0..1] vs baseMap imageSize. Transient (not persisted).
@@ -737,6 +742,12 @@ export const mapEditorSlice = createSlice({
     setAnglesLocked: (state, action) => {
       state.anglesLocked = Boolean(action.payload);
     },
+    setShowSegmentCotes: (state, action) => {
+      state.showSegmentCotes = Boolean(action.payload);
+    },
+    setSegmentDragEnabled: (state, action) => {
+      state.segmentDragEnabled = Boolean(action.payload);
+    },
 
     // clipping plane (2D-defined cut plane)
     setClippingPlanEnabled: (state, action) => {
@@ -992,6 +1003,8 @@ export const {
   setOrthoSnapAngleOffset,
   setVertexSizeMultiplier,
   setAnglesLocked,
+  setShowSegmentCotes,
+  setSegmentDragEnabled,
 
   // clipping plane
   setClippingPlanEnabled,

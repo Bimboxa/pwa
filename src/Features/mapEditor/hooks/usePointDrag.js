@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { useSelector } from "react-redux";
 import { nanoid } from "@reduxjs/toolkit";
 import { setSubSelection, setSelectedPointIds, toggleSelectedPointId, selectSelectedPointIds } from "Features/selection/selectionSlice";
@@ -61,6 +61,46 @@ export default function usePointDrag({
   const openingRelsRef = useRef(openingRels);
   openingRelsRef.current = openingRels;
 
+  // Post-commit freeze: the transient ghost (and the hidden static node) are
+  // kept until the RESOLVED annotations actually contain the committed
+  // position. A fixed delay is not enough on large scopes: when the
+  // post-write resolve takes longer, the static node reappears at the OLD
+  // position and the vertex visibly jumps back and forth.
+  // { annotationId, pos, timeoutId } — timeoutId is the safety net (DB write
+  // failed / annotation deleted meanwhile).
+  const freezeRef = useRef(null);
+
+  const releaseFreeze = useCallback(() => {
+    const f = freezeRef.current;
+    if (!f) return;
+    clearTimeout(f.timeoutId);
+    freezeRef.current = null;
+    dragStateRef.current = null;
+    setDragState(null);
+    setHiddenAnnotationIds([]);
+    setVirtualInsertion(null);
+  }, [setHiddenAnnotationIds]);
+
+  // DB convergence check: release the freeze as soon as the target annotation
+  // exposes a resolved point at the committed position (any ring — the fork
+  // path mints a fresh point id, so match by position, not by id).
+  useEffect(() => {
+    const f = freezeRef.current;
+    if (!f) return;
+    const ann = annotations?.find((a) => a.id === f.annotationId);
+    const eps = 0.75; // px — normalized round-trip error is orders below
+    const near = (p) =>
+      p && Math.abs(p.x - f.pos.x) < eps && Math.abs(p.y - f.pos.y) < eps;
+    const converged =
+      !ann ||
+      ann.points?.some(near) ||
+      ann.cuts?.some((c) => c.points?.some(near)) ||
+      ann.guideLines?.some((l) => l.points?.some(near));
+    if (converged) releaseFreeze();
+  }, [annotations, releaseFreeze]);
+
+  useEffect(() => () => clearTimeout(freezeRef.current?.timeoutId), []);
+
   const callbacksRef = useRef({
     onPointMoveCommit,
     onPointSnapReplace,
@@ -91,6 +131,14 @@ export default function usePointDrag({
   const handleVertexOrProjectionMouseDown = useCallback(
     (snap, e) => {
       if (!snap) return false;
+
+      // A new gesture supersedes a pending post-commit freeze: drop the ref
+      // WITHOUT releasing (releaseFreeze would null the drag state this
+      // mousedown is about to install).
+      if (freezeRef.current) {
+        clearTimeout(freezeRef.current.timeoutId);
+        freezeRef.current = null;
+      }
 
       // --- CAS 1 : EXISTING VERTEX ---
       if (snap.type === "VERTEX") {
@@ -392,18 +440,21 @@ export default function usePointDrag({
         _onPointMoveCommit(_dragState.pointId, _dragState.currentPos);
       }
 
-      // 2. Anti-clignotement (Freeze)
+      // 2. Anti-clignotement (Freeze) : le ghost transient reste affiché
+      // jusqu'à ce que les annotations résolues contiennent la position
+      // commitée (voir l'effet de convergence plus haut) — un délai fixe
+      // laisse le vertex re-flasher à l'ancienne position sur les gros scopes.
       const frozenState = { ..._dragState, active: false, frozen: true };
       dragStateRef.current = frozenState;
       setDragState(frozenState);
 
-      // 3. Nettoyage différé
-      setTimeout(() => {
-        dragStateRef.current = null;
-        setDragState(null);
-        setHiddenAnnotationIds([]);
-        setVirtualInsertion(null);
-      }, 200);
+      // 3. Nettoyage : convergence DB, avec timeout de sécurité
+      freezeRef.current = {
+        annotationId:
+          _virtualInsertion?.annotationId ?? _dragState.affectedIds?.[0],
+        pos: _dragState.currentPos,
+        timeoutId: setTimeout(releaseFreeze, 1500),
+      };
 
       document.body.style.cursor = "";
       return true;
@@ -443,7 +494,13 @@ export default function usePointDrag({
     }
 
     return false;
-  }, [virtualInsertion, dispatch, setHiddenAnnotationIds, selectedAnnotationRef]);
+  }, [
+    virtualInsertion,
+    dispatch,
+    setHiddenAnnotationIds,
+    selectedAnnotationRef,
+    releaseFreeze,
+  ]);
 
   return {
     dragState,

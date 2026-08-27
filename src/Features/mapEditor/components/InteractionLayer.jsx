@@ -522,10 +522,12 @@ const InteractionLayer = forwardRef(({
   const selectedPartIds = useSelector(selectSelectedPartIds);
   const selectedPointIds = useSelector(selectSelectedPointIds);
 
-  // PopperMapListings interaction mode (DRAW | EDIT | SELECT). When the
-  // "Maillage" toggle is on or the app is opened via a shared ?mode=viewer
-  // link, interactions behave exactly like SELECT (no geometry edit,
-  // snapping off), so derive the effective mode here once.
+  // PopperMapListings interaction mode (null | DRAW | EDIT | SELECT — null =
+  // "no mode", the default: draw-like, with EDIT-like editing on the selected
+  // annotation gated by the on-map overlay toggles). When the "Maillage"
+  // toggle is on or the app is opened via a shared ?mode=viewer link,
+  // interactions behave exactly like SELECT (no geometry edit, snapping off),
+  // so derive the effective mode here once.
   const rawInteractionMode = useSelector(
     (s) => s.popperMapListings.interactionMode
   );
@@ -533,10 +535,14 @@ const InteractionLayer = forwardRef(({
   const viewerMode = useSelector((s) => s.urlParams.viewerMode);
   const interactionMode =
     showMeshCells || viewerMode ? "SELECT" : rawInteractionMode;
+  const isNoMode = interactionMode == null;
 
-  // EDIT mode: preserve joint angles during vertex / segment drags (global
-  // padlock shown with the segment-length cotes).
+  // EDIT / no-mode: preserve joint angles during vertex / segment drags
+  // (global padlock shown with the segment-length cotes).
   const anglesLocked = useSelector((s) => s.mapEditor.anglesLocked);
+  // No-mode overlay toggle: hovering a segment of the selected annotation
+  // drags it (EDIT-like) instead of offering the add-vertex projection.
+  const segmentDragEnabled = useSelector((s) => s.mapEditor.segmentDragEnabled);
 
   // Computed selectedNode equivalent (first item)
   const { node: selectedNode, nodes: selectedNodes } = useSelectedNodes();
@@ -2139,13 +2145,44 @@ const InteractionLayer = forwardRef(({
   const segmentDragStateRef = useRef(null);
   const [segmentDragState, setSegmentDragState] = useState(null);
 
+  // Post-commit freeze for the segment drag: the transient ghost stays until
+  // the resolved annotations reflect the committed positions (same rule as
+  // the vertex drag in usePointDrag) — a fixed delay lets the static node
+  // flash the OLD geometry on large scopes where the post-write resolve is
+  // slower. { annotationId, movesById, timeoutId } (timeout = safety net).
+  const segmentFreezeRef = useRef(null);
+  const releaseSegmentFreeze = () => {
+    const f = segmentFreezeRef.current;
+    if (!f) return;
+    clearTimeout(f.timeoutId);
+    segmentFreezeRef.current = null;
+    setSegmentDragState(null);
+    setHiddenAnnotationIds([]);
+  };
+  useEffect(() => {
+    const f = segmentFreezeRef.current;
+    if (!f) return;
+    const ann = annotations?.find((a) => a.id === f.annotationId);
+    const eps = 0.75; // px
+    const byId = new Map((ann?.points ?? []).map((p) => [p?.id, p]));
+    const converged =
+      !ann ||
+      Object.entries(f.movesById).every(([pointId, pos]) => {
+        const p = byId.get(pointId);
+        return (
+          p && Math.abs(p.x - pos.x) < eps && Math.abs(p.y - pos.y) < eps
+        );
+      });
+    if (converged) releaseSegmentFreeze();
+  }, [annotations]);
+
   // Angle-locked vertex drag: the two neighbours of the dragged vertex slide
   // along their other edge so every joint angle is preserved. Returns null
-  // when the context does not apply (lock off, not EDIT, vertex not on the
-  // selected annotation's main contour) — callers fall back to the regular
-  // single-point behaviour.
+  // when the context does not apply (lock off, not EDIT / no-mode, vertex not
+  // on the selected annotation's main contour) — callers fall back to the
+  // regular single-point behaviour.
   const getAngleLockedVertexMoves = (pointId, targetPos) => {
-    if (!anglesLocked || interactionMode !== "EDIT") return null;
+    if (!anglesLocked || (interactionMode !== "EDIT" && !isNoMode)) return null;
     if (!pointId || !targetPos) return null;
     const ann = annotations?.find((a) => a.id === selectedNode?.nodeId);
     if (!ann || !["POLYLINE", "POLYGON", "STRIP", "LINEAR_LAYOUT"].includes(ann.type))
@@ -6286,7 +6323,10 @@ const InteractionLayer = forwardRef(({
     // SELECT interaction mode — that mode must not suppress their snapping, or
     // dropping an axis on an existing point would be impossible.
     const isRevolutionAxisMode = REVOLUTION_AXIS_DRAWING_MODES.includes(enabledDrawingMode);
-    const preventSnapping = isPanning || dragAnnotationState?.active || dragBaseMapState?.active || POINTER_CLICK_MODES.includes(enabledDrawingMode) || enabledDrawingMode === "OPENING_SEGMENT" || (interactionMode === "SELECT" && !isRevolutionAxisMode) || isShiftSelection;
+    // In no-mode with nothing selected (and no draw armed), snapping is fully
+    // off — no vertex / midpoint / projection marker over a hovered
+    // annotation, so a click simply selects it.
+    const preventSnapping = isPanning || dragAnnotationState?.active || dragBaseMapState?.active || POINTER_CLICK_MODES.includes(enabledDrawingMode) || enabledDrawingMode === "OPENING_SEGMENT" || (interactionMode === "SELECT" && !isRevolutionAxisMode) || (isNoMode && !selectedAnnotation?.id && !enabledDrawingMode) || isShiftSelection;
 
     let snapResult;
     if (snappingEnabled && !preventSnapping) {
@@ -6297,13 +6337,23 @@ const InteractionLayer = forwardRef(({
       const localPos = toLocalCoords(worldPos);
       const snapThreshold = SNAP_THRESHOLD_ABSOLUTE / scale;
 
+      // No-mode edits only the SELECTED annotation: without a selection (and
+      // outside a draw) every snap stays off, so hovering a polyline shows no
+      // vertex / middle / projection marker and a click simply selects it.
+      // With a selection, the segment-drag overlay toggle decides: OFF ≡ DRAW
+      // (the projection marker offers add-vertex on segment hover), ON ≡ EDIT
+      // (vertex-only snapping, the segment-drag mousedown takes the gesture
+      // instead).
+      const noModeSelection = isNoMode && Boolean(selectedAnnotation?.id);
+      const noModeSegmentDrag = noModeSelection && segmentDragEnabled;
       const snapModes = getSnapModes({
         isDrawing: Boolean(enabledDrawingMode),
         isQuickEdit:
           mapEditorMode === "QUICK_POINTS_CHANGE" ||
-          interactionMode === "DRAW",
+          interactionMode === "DRAW" ||
+          (noModeSelection && !noModeSegmentDrag),
         hasSelection: Boolean(selectedAnnotation?.id),
-        isEditMode: interactionMode === "EDIT",
+        isEditMode: interactionMode === "EDIT" || noModeSegmentDrag,
       });
       snapResult = getBestSnap(localPos, annotationsForSnap, snapThreshold, snapModes);
 
@@ -6872,22 +6922,30 @@ const InteractionLayer = forwardRef(({
       if (segDrag.active) {
         const ann = annotations?.find((a) => a.id === segDrag.annotationId);
         const movesById = segDrag.movesById;
-        if (ann && movesById && Object.keys(movesById).length) {
+        const committed = Boolean(
+          ann && movesById && Object.keys(movesById).length
+        );
+        if (committed) {
           const moves = Object.entries(movesById).map(([pointId, pos]) => ({
             pointId,
             ...pos,
           }));
           onPointsMoveCommit?.(ann, moves);
-        }
-        // Keep the transient ghost briefly so the static render has time to
-        // catch up with the DB write (same trick as the vertex-drag freeze).
-        setSegmentDragState((prev) =>
-          prev ? { ...prev, active: false, frozen: true } : prev
-        );
-        setTimeout(() => {
+          // Keep the transient ghost until the static render catches up with
+          // the DB write (convergence effect near segmentFreezeRef; the
+          // timeout is only the safety net).
+          setSegmentDragState((prev) =>
+            prev ? { ...prev, active: false, frozen: true } : prev
+          );
+          segmentFreezeRef.current = {
+            annotationId: segDrag.annotationId,
+            movesById,
+            timeoutId: setTimeout(releaseSegmentFreeze, 1500),
+          };
+        } else {
           setSegmentDragState(null);
           setHiddenAnnotationIds([]);
-        }, 200);
+        }
       } else {
         setSegmentDragState(null);
         // Plain click on the segment → single part toggle (mirror of
@@ -7174,7 +7232,7 @@ const InteractionLayer = forwardRef(({
 
     if (!selectedNode && !showBgImage && !draggableGroup && !resizeHandle && !rotateHandle && !versionHandle && !calibrationHandle && !legendHandle) return;
 
-    // --- SEGMENT DRAG (EDIT mode) ---
+    // --- SEGMENT DRAG (EDIT mode, or no-mode with its overlay toggle ON) ---
     // Grab a main-contour segment of the SELECTED polyline / polygon / strip:
     // the edge follows the cursor (angle lock slides the endpoints along the
     // adjacent edges). stopPropagation so the viewport doesn't pan; a click
@@ -7182,7 +7240,7 @@ const InteractionLayer = forwardRef(({
     if (
       partNode &&
       partType === "SEG" &&
-      interactionMode === "EDIT" &&
+      (interactionMode === "EDIT" || (isNoMode && segmentDragEnabled)) &&
       !enabledDrawingModeRef.current &&
       !e.shiftKey
     ) {
@@ -7198,6 +7256,13 @@ const InteractionLayer = forwardRef(({
         permissions.canEditAnnotation(segAnnId)
       ) {
         e.stopPropagation();
+        // A new gesture supersedes a pending post-commit freeze; drop the ref
+        // without releasing (the release would clear the state installed
+        // below).
+        if (segmentFreezeRef.current) {
+          clearTimeout(segmentFreezeRef.current.timeoutId);
+          segmentFreezeRef.current = null;
+        }
         const worldPos = viewportRef.current?.screenToWorld(e.clientX, e.clientY);
         const startLocal = toLocalCoords(worldPos);
         segmentDragStateRef.current = {

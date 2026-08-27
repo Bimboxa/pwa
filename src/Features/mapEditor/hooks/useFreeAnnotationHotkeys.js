@@ -62,9 +62,11 @@ export default function useFreeAnnotationHotkeys() {
       if (selectSelectedModuleKey(s) !== "MAP") return;
 
       // Free-draw letters only start a draw while in the "Dessin" (DRAW)
-      // interaction mode. In Modification / Sélection, L/P are inert (D/M/S
-      // own the mode switching instead).
-      if (s.popperMapListings.interactionMode !== "DRAW") return;
+      // interaction mode or in "no mode" (null), which draws like DRAW. In
+      // Modification / Sélection, L/P are inert (D/M/S own the mode switching
+      // instead).
+      const im = s.popperMapListings.interactionMode;
+      if (im !== "DRAW" && im != null) return;
 
       // The shared ?mode=viewer lock is read-only — never start a draw there,
       // even if some future path resets interactionMode to DRAW.

@@ -52,9 +52,13 @@ function NodeStripStatic({
     const [hoveredPartId, setHoveredPartId] = useState(null);
     const mergedAnnotation = { ...annotation, ...annotationOverride };
 
-    // EDIT (Modification) mode drives the segment "move" cursor.
+    // EDIT (Modification) mode — or "no mode" (null) with its segment-drag
+    // overlay toggle ON — drives the segment "move" cursor.
     const interactionMode = useSelector(
         (s) => s.popperMapListings?.interactionMode
+    );
+    const segmentDragEnabled = useSelector(
+        (s) => s.mapEditor.segmentDragEnabled
     );
     const isForBaseMaps = mergedAnnotation.isForBaseMaps;
 
@@ -444,11 +448,15 @@ function NodeStripStatic({
                         data-part-type="SEG"
                         data-node-id={annotationId}
                         style={{
-                            // EDIT mode: the director segment is draggable →
-                            // 4-way move cursor.
+                            // EDIT mode (or no-mode + segment-drag toggle on
+                            // the selected strip): the director segment is
+                            // draggable → 4-way move cursor.
                             cursor: isTransient
                                 ? "crosshair"
-                                : interactionMode === "EDIT"
+                                : interactionMode === "EDIT" ||
+                                    (interactionMode == null &&
+                                        segmentDragEnabled &&
+                                        selected)
                                     ? "move"
                                     : "pointer",
                         }}
