@@ -96,6 +96,12 @@ export default function SectionDashboardMasterDetail() {
         item.remoteConfigs?.find((c) => c.projectIdClient)?.projectIdClient ??
         null;
 
+      console.log("[dashboard] install project", {
+        projectIdClient,
+        clientRef: item.clientRef,
+        remoteConfigsCount: item.remoteConfigs?.length ?? 0,
+      });
+
       let project = projectIdClient
         ? await db.projects.get(String(projectIdClient))
         : null;

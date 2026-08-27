@@ -237,7 +237,11 @@ export default function useDashboardProjectItems({
 
       // 4.b projects derived from scope configurations search (SearchAndFilters)
       const cloudByKey = {};
-      cloudItems.forEach((i) => (cloudByKey[i.key] = i));
+      const cloudByClientRef = {};
+      cloudItems.forEach((i) => {
+        cloudByKey[i.key] = i;
+        if (i.clientRef) cloudByClientRef[i.clientRef] = i;
+      });
 
       (remoteScopeConfigs ?? []).forEach((config) => {
         if (
@@ -246,31 +250,39 @@ export default function useDashboardProjectItems({
           config.projectType !== typeFilter
         )
           return;
+        let item = null;
         if (
           config.projectClientRef &&
           knownClientRefs.has(config.projectClientRef)
         ) {
-          return;
+          // The clientRef is already listed. When it belongs to a référentiel
+          // cloud item (4.a), attach the config to it — it carries the
+          // projectIdClient (original local project id) that the install MUST
+          // reuse. When it belongs to a local / merged item, skip: its configs
+          // come from the ByUser / ByProject redux stores (step 2).
+          item = cloudByClientRef[config.projectClientRef];
+          if (!item) return;
+        } else {
+          const key = getRemoteKey({
+            clientRef: config.projectClientRef,
+            name: config.projectName,
+          });
+          item = cloudByKey[key] = cloudByKey[key] ?? {
+            key,
+            isLocal: false,
+            projectId: null,
+            projectIdClient: null,
+            idMaster: null,
+            name: config.projectName,
+            clientRef: config.projectClientRef,
+            type: config.projectType,
+            city: null,
+            scopes: [],
+            remoteConfigs: [],
+            scopeCount: 0,
+            povPreviews: [],
+          };
         }
-        const key = getRemoteKey({
-          clientRef: config.projectClientRef,
-          name: config.projectName,
-        });
-        const item = (cloudByKey[key] = cloudByKey[key] ?? {
-          key,
-          isLocal: false,
-          projectId: null,
-          projectIdClient: null,
-          idMaster: null,
-          name: config.projectName,
-          clientRef: config.projectClientRef,
-          type: config.projectType,
-          city: null,
-          scopes: [],
-          remoteConfigs: [],
-          scopeCount: 0,
-          povPreviews: [],
-        });
         if (!cloudItems.includes(item)) cloudItems.push(item);
         if (!item.projectIdClient) {
           item.projectIdClient = config.projectIdClient ?? null;
