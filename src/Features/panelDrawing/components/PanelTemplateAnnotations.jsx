@@ -5,7 +5,6 @@ import {
   setDetailTemplateId,
   setDetailView,
 } from "Features/panelDrawing/panelDrawingSlice";
-import { setSoloAnnotationTemplateId } from "Features/annotations/annotationsSlice";
 import {
   setSelectedItems,
   setShowAnnotationsProperties,
@@ -19,6 +18,7 @@ import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTe
 import RowTemplateAnnotation from "./RowTemplateAnnotation";
 import ChipsViewerScope from "./ChipsViewerScope";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
+import useIsolateAnnotationTemplate from "Features/panelDrawing/hooks/useIsolateAnnotationTemplate";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
 import getZeroPaddingNumber from "Features/misc/utils/getZeroPaddingNumber";
@@ -54,9 +54,10 @@ export default function PanelTemplateAnnotations({
 
   // data
 
-  const soloTemplateId = useSelector(
-    (s) => s.annotations.soloAnnotationTemplateId
-  );
+  // "Isoler" is a bulk visibility action: only this template stays visible
+  // (other listings hidden in redux, sibling templates hidden in db).
+  const { isIsolated, toggleIsolation } =
+    useIsolateAnnotationTemplate(template);
   // Scope chips (shared with the panels' root views): the active base map or
   // the whole repérage; in "Tous" the list is grouped by base map.
   const viewerScope = useSelector((s) => s.panelDrawing.viewerAnnotationsScope);
@@ -67,7 +68,6 @@ export default function PanelTemplateAnnotations({
 
   // helpers
 
-  const isSolo = soloTemplateId === template.id;
   const templateColor = template?.fillColor ?? template?.strokeColor ?? "#999";
 
   // "trié par ordre de tracé" — createdAt is an ISO string, stamped by the
@@ -122,8 +122,8 @@ export default function PanelTemplateAnnotations({
     dispatch(setDetailView("PROPERTIES"));
   };
 
-  const handleToggleSolo = () => {
-    dispatch(setSoloAnnotationTemplateId(isSolo ? null : template.id));
+  const handleToggleIsolation = () => {
+    toggleIsolation();
   };
 
   // Same item shape as the 2D lasso selection (InteractionLayer buildItem).
@@ -247,17 +247,17 @@ export default function PanelTemplateAnnotations({
           {propertiesS}
         </Button>
         <Button
-          onClick={handleToggleSolo}
+          onClick={handleToggleIsolation}
           sx={{
-            bgcolor: isSolo ? "grey.900" : "background.paper",
+            bgcolor: isIsolated ? "grey.900" : "background.paper",
             border: "1px solid",
-            borderColor: isSolo ? "grey.900" : "divider",
+            borderColor: isIsolated ? "grey.900" : "divider",
             borderRadius: 3,
-            color: isSolo ? "common.white" : "text.primary",
+            color: isIsolated ? "common.white" : "text.primary",
             fontWeight: 600,
             textTransform: "none",
             "&:hover": {
-              bgcolor: isSolo ? "grey.800" : "action.hover",
+              bgcolor: isIsolated ? "grey.800" : "action.hover",
             },
           }}
         >
