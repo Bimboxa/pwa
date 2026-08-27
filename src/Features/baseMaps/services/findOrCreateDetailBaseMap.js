@@ -10,23 +10,11 @@ import ImageObject from "Features/images/js/ImageObject";
 import getDateString from "Features/misc/utils/getDateString";
 import { PDFJS_DOC_PARAMS } from "Features/pdf/utils/pdfjsParams";
 import { renderPageToPngBlob } from "Features/pdf/utils/pdfToPngAsync";
+import findAutoDpi from "Features/pdf/utils/findAutoDpi";
 import getPdfPageThumbnailDataUrl from "Features/detailFolio/utils/getPdfPageThumbnailDataUrl";
 import { getDetailImageCacheKey } from "./detailBaseMapUtils";
 
 GlobalWorkerOptions.workerSrc = pdfjsWorker;
-
-const DETAIL_BASE_MAP_DPI = 150;
-
-// dpi is chosen ONCE at creation and persisted in createdFrom.dpi:
-// regeneration always replays the stored dpi so the rendered pixel size
-// matches refWidth/refHeight (the annotations' reference frame) forever.
-// Very large pages fall back to 72 dpi to stay within canvas limits.
-function pickDetailDpi(pdfPage, rotation) {
-  const viewport = pdfPage.getViewport({ scale: 1, rotation }); // 72 dpi points
-  const scale = DETAIL_BASE_MAP_DPI / 72;
-  const megaPixels = (viewport.width * viewport.height * scale * scale) / 1e6;
-  return megaPixels > 40 ? 72 : DETAIL_BASE_MAP_DPI;
-}
 
 // Finds the detail baseMap matching a (pdf file name, page) pair, or creates
 // it. Detail baseMaps store NO file in db.files: their image is rendered on
@@ -70,17 +58,37 @@ export default async function findOrCreateDetailBaseMap({
   });
   const pdfDocument = await loadingTask.promise;
   try {
-    const pdfPage = await pdfDocument.getPage(pageNumber);
-    const dpi = pickDetailDpi(pdfPage, rotation);
-
-    // Single full-resolution render: gives the exact pixel size (canvas
-    // truncation included) for refWidth/refHeight AND primes the session
-    // cache — no re-render at first selection.
-    const { blob, width, height } = await renderPageToPngBlob({
-      pdfPage,
-      resolution: dpi,
+    // Same size discipline as the baseMapCreator flow: findAutoDpi targets a
+    // 1-5 MB PNG and caps the short side — a fixed dpi on a dense page can
+    // produce a tab-crashing image. The dpi is chosen ONCE here and persisted
+    // in createdFrom.dpi: regeneration always replays it so the rendered
+    // pixel size matches refWidth/refHeight (the annotations' frame) forever.
+    const { dpi, probeBlob, probeWidth, probeHeight } = await findAutoDpi({
+      pdfDocument,
+      page: pageNumber,
       rotate: rotation,
     });
+
+    // Single full-resolution render (the probe is reused when already on
+    // target): gives the exact pixel size (canvas truncation included) for
+    // refWidth/refHeight AND primes the session cache — no re-render at
+    // first selection.
+    let blob, width, height;
+    if (probeBlob) {
+      blob = probeBlob;
+      width = probeWidth;
+      height = probeHeight;
+    } else {
+      const pdfPage = await pdfDocument.getPage(pageNumber);
+      const rendered = await renderPageToPngBlob({
+        pdfPage,
+        resolution: dpi,
+        rotate: rotation,
+      });
+      blob = rendered.blob;
+      width = rendered.width;
+      height = rendered.height;
+    }
     const thumbnail = await getPdfPageThumbnailDataUrl(
       pdfDocument,
       pageNumber,

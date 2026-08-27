@@ -74,7 +74,12 @@ export default async function findAutoDpi({
     });
 
     if (probeWithinTarget && Math.abs(autoDpi - PROBE_DPI) < 5) {
-      return { dpi: PROBE_DPI, probeBlob: probe.blob };
+      return {
+        dpi: PROBE_DPI,
+        probeBlob: probe.blob,
+        probeWidth: probe.width,
+        probeHeight: probe.height,
+      };
     }
     return { dpi: autoDpi, probeBlob: null };
   } finally {

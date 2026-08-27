@@ -7,15 +7,36 @@ import db from "App/db/db";
 import ImageObject from "Features/images/js/ImageObject";
 import { PDFJS_DOC_PARAMS } from "Features/pdf/utils/pdfjsParams";
 import { renderPageToPngBlob } from "Features/pdf/utils/pdfToPngAsync";
-import { resolveDetailResource } from "./detailBaseMapUtils";
+import {
+  getDetailImageCacheKey,
+  resolveDetailResource,
+} from "./detailBaseMapUtils";
 
 GlobalWorkerOptions.workerSrc = pdfjsWorker;
+
+// Single-flight guard: useBaseMap/useMainBaseMap run one liveQuery PER
+// consuming component, so a cold cache would otherwise fire one full PDF
+// render (buffer copy + worker + huge canvas) per component simultaneously —
+// enough to crash the tab. All concurrent callers share one render promise.
+const inflightByKey = new Map();
 
 // Regenerates the image of a detail baseMap from its source PDF, replaying
 // createdFrom exactly (dpi, rotation, crop) so the pixel size always matches
 // refWidth/refHeight. Returns an ImageObject, or null when the PDF is absent
 // (deleted resource, post-Krto-import before the file is re-attached).
-export default async function renderDetailBaseMapImage(record) {
+export default function renderDetailBaseMapImage(record) {
+  const key = getDetailImageCacheKey(record) ?? record?.id;
+  let promise = inflightByKey.get(key);
+  if (!promise) {
+    promise = _renderDetailBaseMapImage(record).finally(() =>
+      inflightByKey.delete(key)
+    );
+    inflightByKey.set(key, promise);
+  }
+  return promise;
+}
+
+async function _renderDetailBaseMapImage(record) {
   const { createdFrom } = record;
   if (!createdFrom) return null;
 
