@@ -45,7 +45,7 @@ export default function DatagridAnnotations({
 
     // --- DATA PREP ---
 
-    const { value: baseMaps } = useBaseMaps() ?? {};
+    const { value: baseMaps } = useBaseMaps({ includeDetails: true }) ?? {};
     const baseMapById = useMemo(() => getItemsByKey(baseMaps ?? [], "id"), [baseMaps]);
 
     // HELPERS

@@ -12,6 +12,11 @@ export default function useBaseMaps(options) {
 
   const _filterByProjectId = options?.filterByProject;
   const filterByListingId = options?.filterByListingId;
+  // Detail baseMaps (isDetail, rendered on the fly from a PDF) are excluded
+  // by default: they must not appear in pickers/trees/3D, and hydrating them
+  // in bulk would trigger one full PDF render each. Opt in only for
+  // by-id joins (an annotation drawn ON a detail resolving its baseMap).
+  const includeDetails = options?.includeDetails ?? false;
 
   // data
 
@@ -43,6 +48,10 @@ export default function useBaseMaps(options) {
         .toArray()).filter(r => !r.deletedAt);
     } else {
       records = (await db.baseMaps.toArray()).filter(r => !r.deletedAt);
+    }
+
+    if (!includeDetails) {
+      records = records.filter((r) => !r.isDetail);
     }
 
     // filter by listing
@@ -77,11 +86,23 @@ export default function useBaseMaps(options) {
 
     const _baseMaps = await Promise.all(
       records.map(async (record) =>
-        await BaseMap.createFromRecord(record, versionsByBaseMapId[record.id] || [])
+        await BaseMap.createFromRecord(
+          record,
+          versionsByBaseMapId[record.id] || [],
+          // Never render detail images from a bulk hydration (one PDF render
+          // each); the single-map selection path (useBaseMap) renders.
+          { skipDetailRender: true }
+        )
       )
     );
     return _baseMaps;
-  }, [projectId, baseMapsUpdatedAt, filterByListingId, filterByProjectId]);
+  }, [
+    projectId,
+    baseMapsUpdatedAt,
+    filterByListingId,
+    filterByProjectId,
+    includeDetails,
+  ]);
 
   // return — memoize to keep stable reference
 

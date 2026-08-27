@@ -1,4 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
+import { useLiveQuery } from "dexie-react-hooks";
+
+import db from "App/db/db";
 
 import {
   DialogTitle,
@@ -55,13 +58,33 @@ export default function DialogCreatePortfolio({ open, onClose, onCreate }) {
     );
   }, [annotations]);
 
+  // Detail baseMap records (thumbnail + page number of each linked detail).
+  const detailBaseMapIdsSignature = [
+    ...new Set(details.map((d) => d.detailBaseMapId).filter(Boolean)),
+  ].join(",");
+
+  const detailBaseMapById = useLiveQuery(async () => {
+    const ids = detailBaseMapIdsSignature
+      ? detailBaseMapIdsSignature.split(",")
+      : [];
+    if (!ids.length) return {};
+    const records = await db.baseMaps.bulkGet(ids);
+    const byId = {};
+    for (const record of records) {
+      if (record && !record.deletedAt) byId[record.id] = record;
+    }
+    return byId;
+  }, [detailBaseMapIdsSignature]);
+
   // effects - check all details by default
 
   const detailIdsSignature = details.map((d) => d.id).join(",");
 
   useEffect(() => {
     if (!isDetailsPortfolio) return;
-    setSelectedIds(new Set(details.filter((d) => d.folio).map((d) => d.id)));
+    setSelectedIds(
+      new Set(details.filter((d) => d.detailBaseMapId).map((d) => d.id))
+    );
   }, [isDetailsPortfolio, detailIdsSignature]);
 
   // helpers
@@ -141,7 +164,10 @@ export default function DialogCreatePortfolio({ open, onClose, onCreate }) {
             ) : (
               <List dense disablePadding>
                 {details.map((detail) => {
-                  const hasFolio = Boolean(detail.folio);
+                  const detailBaseMap = detail.detailBaseMapId
+                    ? detailBaseMapById?.[detail.detailBaseMapId]
+                    : null;
+                  const hasFolio = Boolean(detailBaseMap);
                   return (
                     <ListItemButton
                       key={detail.id}
@@ -158,10 +184,10 @@ export default function DialogCreatePortfolio({ open, onClose, onCreate }) {
                           disableRipple
                         />
                       </ListItemIcon>
-                      {detail.folio?.thumbnail ? (
+                      {detailBaseMap?.image?.thumbnail ? (
                         <Box
                           component="img"
-                          src={detail.folio.thumbnail}
+                          src={detailBaseMap.image.thumbnail}
                           alt=""
                           sx={{
                             width: 40,
@@ -196,7 +222,7 @@ export default function DialogCreatePortfolio({ open, onClose, onCreate }) {
                         primary={`${detailS} ${detail.label || ""}`.trim()}
                         secondary={
                           hasFolio
-                            ? `${pageS} ${detail.folio.pageNumber}`
+                            ? `${pageS} ${detailBaseMap.createdFrom?.pageNumber}`
                             : noFolioS
                         }
                         primaryTypographyProps={{ variant: "body2" }}

@@ -12,6 +12,7 @@ import { Add as AddIcon } from "@mui/icons-material";
 import LeftDrawerPanelHeader from "Features/leftPanel/components/LeftDrawerPanelHeader";
 import SwitchGeneric from "Features/layout/components/SwitchGeneric";
 import BaseMapTree from "./BaseMapTree";
+import SectionDetailBaseMaps from "./SectionDetailBaseMaps";
 import PanelBaseMapVersions from "./PanelBaseMapVersions";
 
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
@@ -116,6 +117,7 @@ export default function PanelBaseMaps() {
           </Box>
           <Box sx={{ flex: 1, minHeight: 0, overflow: "auto" }}>
             <BaseMapTree />
+            <SectionDetailBaseMaps />
           </Box>
         </>
       )}

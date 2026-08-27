@@ -73,6 +73,8 @@ export default function useCreateBaseMaps() {
                     image: { file: baseMap.imageFile },
                     meterByPx: baseMap.meterByPx,
                     sortIndex,
+                    // PDF provenance (page + crop + dpi), null for images.
+                    createdFrom: baseMap.createdFrom ?? null,
                 },
                 {
                     entityId,

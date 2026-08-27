@@ -17,7 +17,9 @@ import getBaseMapForRender from "Features/threedEditor/js/utilsAnnotationsManage
  * selected map's metrics silently produced a wrong area.
  */
 export default function useSubtractedSurfaceM2(annotation) {
-  const { value: baseMaps, baseMapsUpdatedAt } = useBaseMaps();
+  const { value: baseMaps, baseMapsUpdatedAt } = useBaseMaps({
+    includeDetails: true,
+  });
   const [removedM2, setRemovedM2] = useState(0);
 
   const baseMapById = useMemo(

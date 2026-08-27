@@ -6,9 +6,14 @@ import fitContainerToBaseMap from "Features/portfolioEditor/utils/fitContainerTo
 
 import db from "App/db/db";
 
+import { resolveDetailResource } from "Features/baseMaps/services/detailBaseMapUtils";
+
 // Creates a "carnet de détails": one plan page per baseMap holding the
-// selected DETAIL annotations, then one FOLIO_PAGE per referenced folio
-// (deduplicated by {resourceId, pageNumber}).
+// selected DETAIL annotations, then one FOLIO_PAGE per referenced detail
+// baseMap (annotation.detailBaseMapId, deduplicated). The page keeps a
+// folio-shaped object ({resourceId, pageNumber, rotation, thumbnail}) built
+// from the detail baseMap's createdFrom, so the folio page renderer and the
+// vector PDF export are unchanged.
 export default function useCreateDetailsPortfolio() {
   const createPortfolio = useCreatePortfolio();
   const createPage = useCreatePortfolioPage();
@@ -62,15 +67,32 @@ export default function useCreateDetailsPortfolio() {
       }
     }
 
-    // 2. folio pages: one per referenced folio, deduplicated
-    const foliosByKey = new Map(); // "resourceId:pageNumber" -> {folio, details}
+    // 2. folio pages: one per referenced detail baseMap, deduplicated
+    const foliosByKey = new Map(); // detailBaseMapId -> {folio, details}
     for (const detail of details) {
-      if (!detail.folio?.resourceId) continue;
-      const key = `${detail.folio.resourceId}:${detail.folio.pageNumber}`;
+      if (!detail.detailBaseMapId) continue;
+      const key = detail.detailBaseMapId;
       if (!foliosByKey.has(key)) {
-        foliosByKey.set(key, { folio: detail.folio, details: [] });
+        const record = await db.baseMaps.get(detail.detailBaseMapId);
+        const createdFrom = record?.createdFrom;
+        if (!createdFrom) continue;
+        // resourceId may be stale after a resource re-import: resolve it.
+        const resource = await resolveDetailResource({
+          createdFrom,
+          projectId: record.projectId,
+        });
+        foliosByKey.set(key, {
+          folio: {
+            type: "PDF_PAGE",
+            resourceId: resource?.id ?? createdFrom.resourceId,
+            pageNumber: createdFrom.pageNumber,
+            rotation: createdFrom.rotation ?? 0,
+            thumbnail: record.image?.thumbnail ?? null,
+          },
+          details: [],
+        });
       }
-      foliosByKey.get(key).details.push(detail);
+      foliosByKey.get(key)?.details.push(detail);
     }
 
     for (const { folio, details: folioDetails } of foliosByKey.values()) {

@@ -1,26 +1,36 @@
 import { useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import { useLiveQuery } from "dexie-react-hooks";
+
+import { triggerEntitiesTableUpdate } from "Features/entities/entitiesSlice";
+import { setSelectedMainBaseMapId } from "Features/mapEditor/mapEditorSlice";
 
 import { Alert, Box, Button, Typography } from "@mui/material";
 
 import db from "App/db/db";
 import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
+import useUserEmail from "Features/auth/hooks/useUserEmail";
 import useResourceFile from "Features/resources/hooks/useResourceFile";
 import usePdfDocument from "Features/pdf/hooks/usePdfDocument";
 import usePdfPageImageUrl from "Features/baseMapCreator/hooks/usePdfPageImageUrl";
+import findOrCreateDetailBaseMap from "Features/baseMaps/services/findOrCreateDetailBaseMap";
 import DialogSelectFolio from "./DialogSelectFolio";
 
 // "Folio" tab of the annotation properties panel (DETAIL annotations): the
-// page of a project resource associated with the detail bubble. Shows a
+// PDF page linked to the detail bubble via annotation.detailBaseMapId → a
+// detail baseMap whose createdFrom stores the page provenance. Shows a
 // rendered preview of the page when the PDF is available locally, and falls
-// back to the snapshot thumbnail stored on the folio (post-Krto-import).
+// back to the thumbnail stored on the baseMap record (post-Krto-import).
 export default function SectionAnnotationFolioContent({ annotation }) {
+  const dispatch = useDispatch();
+
   // strings
 
   const noFolioS = "Aucun folio associé";
   const chooseS = "Choisir un folio";
   const editS = "Modifier";
   const removeS = "Retirer";
+  const openDetailS = "Ouvrir le détail";
   const pageS = "Page";
   const missingResourceS = "Ressource introuvable";
   const missingFileS =
@@ -28,25 +38,50 @@ export default function SectionAnnotationFolioContent({ annotation }) {
 
   // data
 
-  const folio = annotation?.folio;
+  const projectId = useSelector((s) => s.projects.selectedProjectId);
+  const { value: userEmail } = useUserEmail();
 
+  const detailBaseMapId = annotation?.detailBaseMapId;
+
+  const detailBaseMap = useLiveQuery(async () => {
+    if (!detailBaseMapId) return null;
+    const record = await db.baseMaps.get(detailBaseMapId);
+    return record && !record.deletedAt ? record : null;
+  }, [detailBaseMapId]);
+
+  const createdFrom = detailBaseMap?.createdFrom;
+
+  // The resourceId hint may be stale (resource deleted then re-imported):
+  // fall back to matching the original PDF file name.
   const resource = useLiveQuery(async () => {
-    if (!folio?.resourceId) return null;
-    return (await db.resources.get(folio.resourceId)) ?? null;
-  }, [folio?.resourceId]);
+    if (!createdFrom) return null;
+    if (createdFrom.resourceId) {
+      const byId = await db.resources.get(createdFrom.resourceId);
+      if (byId && !byId.deletedAt) return byId;
+    }
+    if (!createdFrom.pdfFileName || !detailBaseMap?.projectId) return null;
+    const candidates = (
+      await db.resources
+        .where("projectId")
+        .equals(detailBaseMap.projectId)
+        .toArray()
+    ).filter((r) => !r.deletedAt && r.name === createdFrom.pdfFileName);
+    return candidates[0] ?? null;
+  }, [
+    createdFrom?.resourceId,
+    createdFrom?.pdfFileName,
+    detailBaseMap?.projectId,
+  ]);
 
   const resourceLoading = resource === undefined;
-  const resourceMissing =
-    Boolean(folio) && !resourceLoading && (!resource || resource.deletedAt);
+  const resourceMissing = Boolean(createdFrom) && !resourceLoading && !resource;
 
-  const { file, fileIsMissing } = useResourceFile(
-    resourceMissing ? null : resource
-  );
+  const { file, fileIsMissing } = useResourceFile(resource ?? null);
   const { pdfDocument } = usePdfDocument(file);
   const { imageUrl } = usePdfPageImageUrl(
     pdfDocument,
-    folio?.pageNumber ?? 1,
-    folio?.rotation ?? 0
+    createdFrom?.pageNumber ?? 1,
+    createdFrom?.rotation ?? 0
   );
 
   const updateAnnotation = useUpdateAnnotation();
@@ -57,22 +92,41 @@ export default function SectionAnnotationFolioContent({ annotation }) {
 
   // helpers
 
-  const previewUrl = imageUrl ?? folio?.thumbnail ?? null;
+  const previewUrl = imageUrl ?? detailBaseMap?.image?.thumbnail ?? null;
 
   // handlers
 
   async function handleConfirm(newFolio) {
-    await updateAnnotation({ id: annotation.id, folio: newFolio });
+    // The dialog still returns a folio-shaped object: find or create the
+    // matching detail baseMap and link the annotation to it.
+    const record = await findOrCreateDetailBaseMap({
+      resourceId: newFolio.resourceId,
+      pageNumber: newFolio.pageNumber,
+      rotation: newFolio.rotation ?? 0,
+      projectId,
+      createdBy: userEmail,
+    });
+    if (record) dispatch(triggerEntitiesTableUpdate("baseMaps"));
+    await updateAnnotation({
+      id: annotation.id,
+      detailBaseMapId: record?.id ?? null,
+    });
     setOpenDialog(false);
   }
 
   async function handleRemove() {
-    await updateAnnotation({ id: annotation.id, folio: null });
+    // Unlink only: the detail baseMap is kept (it may be shared by other
+    // detail annotations).
+    await updateAnnotation({ id: annotation.id, detailBaseMapId: null });
+  }
+
+  function handleOpenDetail() {
+    dispatch(setSelectedMainBaseMapId(detailBaseMapId));
   }
 
   // render - no folio
 
-  if (!folio) {
+  if (!detailBaseMap) {
     return (
       <Box
         sx={{
@@ -107,7 +161,7 @@ export default function SectionAnnotationFolioContent({ annotation }) {
         <Box
           component="img"
           src={previewUrl}
-          alt={`${pageS} ${folio.pageNumber}`}
+          alt={`${pageS} ${createdFrom?.pageNumber}`}
           sx={{
             width: 1,
             borderRadius: 1,
@@ -130,7 +184,7 @@ export default function SectionAnnotationFolioContent({ annotation }) {
           }}
         >
           <Typography variant="h6" component="span" fontWeight="bold">
-            {folio.pageNumber}
+            {createdFrom?.pageNumber}
           </Typography>
         </Box>
       )}
@@ -143,16 +197,21 @@ export default function SectionAnnotationFolioContent({ annotation }) {
             ...(resourceMissing && { color: "warning.main" }),
           }}
         >
-          {resourceMissing ? missingResourceS : resource?.name}
+          {resourceMissing
+            ? missingResourceS
+            : (resource?.name ?? createdFrom?.pdfFileName)}
         </Typography>
         <Typography variant="caption" color="text.secondary">
-          {`${pageS} ${folio.pageNumber}`}
+          {`${pageS} ${createdFrom?.pageNumber}`}
         </Typography>
       </Box>
 
       {fileIsMissing && <Alert severity="warning">{missingFileS}</Alert>}
 
       <Box sx={{ display: "flex", gap: 1 }}>
+        <Button size="small" variant="outlined" onClick={handleOpenDetail}>
+          {openDetailS}
+        </Button>
         <Button
           size="small"
           variant="outlined"
@@ -169,7 +228,15 @@ export default function SectionAnnotationFolioContent({ annotation }) {
       <DialogSelectFolio
         open={openDialog}
         onClose={() => setOpenDialog(false)}
-        initialFolio={resourceMissing ? null : folio}
+        initialFolio={
+          resourceMissing || !resource
+            ? null
+            : {
+                resourceId: resource.id,
+                pageNumber: createdFrom?.pageNumber,
+                rotation: createdFrom?.rotation ?? 0,
+              }
+        }
         onConfirm={handleConfirm}
       />
     </Box>

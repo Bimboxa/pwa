@@ -46,7 +46,7 @@ export default function ButtonAddTempImage({ pdfFile, pdfDocument, blueprintScal
 
         dispatch(addTempBaseMap({ id, name: `Page ${pageNumber}` }));
 
-        const { imageFile, meterByPx } = await renderTempBaseMapImage({
+        const { imageFile, meterByPx, dpi } = await renderTempBaseMapImage({
             pdfFile,
             pdfDocument,
             page: pageNumber,
@@ -57,7 +57,7 @@ export default function ButtonAddTempImage({ pdfFile, pdfDocument, blueprintScal
         });
         dispatch(updateTempBaseMap({
             id,
-            updates: { imageFile, name, meterByPx, bboxInRatio, rotate, page: pageNumber },
+            updates: { imageFile, name, meterByPx, bboxInRatio, rotate, page: pageNumber, dpi },
         }));
     }
     return <Box sx={{ display: "flex", alignItems: "center", width: 1 }}>
