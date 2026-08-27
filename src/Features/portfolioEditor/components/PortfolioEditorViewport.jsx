@@ -5,8 +5,8 @@ import { useDispatch, useSelector } from "react-redux";
 import { clearSelection } from "Features/selection/selectionSlice";
 import { selectSelectedItem } from "Features/selection/selectionSlice";
 
-import { Box, IconButton, Tooltip } from "@mui/material";
-import { FitScreen } from "@mui/icons-material";
+import { Box, IconButton, Paper, Tooltip } from "@mui/material";
+import { Add, FitScreen, Remove } from "@mui/icons-material";
 
 import usePortfolioPages from "Features/portfolioPages/hooks/usePortfolioPages";
 import useCreatePortfolioPage from "Features/portfolioPages/hooks/useCreatePortfolioPage";
@@ -18,6 +18,10 @@ import PortfolioPageSvg from "./PortfolioPageSvg";
 import PortfolioFolioPageSvg from "./PortfolioFolioPageSvg";
 import SectionPageEntityImages from "./SectionPageEntityImages";
 import ButtonAddPage from "./ButtonAddPage";
+
+const ZOOM_MIN = 0.2;
+const ZOOM_MAX = 3;
+const clampZoom = (z) => Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, z));
 
 export default function PortfolioEditorViewport() {
   const dispatch = useDispatch();
@@ -70,12 +74,13 @@ export default function PortfolioEditorViewport() {
       if (e.ctrlKey || e.metaKey) {
         e.preventDefault();
         const factor = e.deltaY > 0 ? 1 / 1.03 : 1.03;
-        setZoom((z) => Math.max(0.2, Math.min(3, z * factor)));
+        setZoom((z) => clampZoom(z * factor));
       }
     }
     el.addEventListener("wheel", onWheel, { passive: false });
     return () => el.removeEventListener("wheel", onWheel);
-  }, []);
+    // containerRef is null until displayedPortfolioId is set (early return below)
+  }, [displayedPortfolioId]);
 
   function handleBackgroundClick(e) {
     if (e.target === e.currentTarget || e.target === containerRef.current) {
@@ -98,16 +103,31 @@ export default function PortfolioEditorViewport() {
     if (!maxPageWidth || !containerRef.current) return;
     const padding = 18 * 2;
     const availableWidth = containerRef.current.clientWidth - padding;
-    const newZoom = Math.max(0.2, Math.min(3, availableWidth / maxPageWidth));
-    setZoom(newZoom);
+    setZoom(clampZoom(availableWidth / maxPageWidth));
+  }
+
+  function handleZoomIn() {
+    setZoom((z) => clampZoom(z * 1.1));
+  }
+
+  function handleZoomOut() {
+    setZoom((z) => clampZoom(z / 1.1));
   }
 
   // render
 
   if (!displayedPortfolioId) {
     return (
-      <Box sx={{ width: 1, height: 1, display: "flex", alignItems: "center", justifyContent: "center", bgcolor: "background.default" }}>
-      </Box>
+      <Box
+        sx={{
+          width: 1,
+          height: 1,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          bgcolor: "background.default",
+        }}
+      ></Box>
     );
   }
 
@@ -139,7 +159,15 @@ export default function PortfolioEditorViewport() {
         >
           {pages?.map((page, index) => {
             return (
-              <Box key={page.id} sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
+              <Box
+                key={page.id}
+                sx={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: 1,
+                }}
+              >
                 {page.type === "FOLIO_PAGE" ? (
                   <PortfolioFolioPageSvg page={page} pageIndex={index} />
                 ) : (
@@ -161,22 +189,33 @@ export default function PortfolioEditorViewport() {
         </Box>
       </Box>
 
-      <Tooltip title="Fit to width" placement="left">
-        <IconButton
-          onClick={handleFitToWidth}
-          size="small"
-          sx={{
-            position: "absolute",
-            bottom: 16,
-            right: 16,
-            bgcolor: "background.paper",
-            boxShadow: 2,
-            "&:hover": { bgcolor: "background.paper" },
-          }}
-        >
-          <FitScreen fontSize="small" />
-        </IconButton>
-      </Tooltip>
+      <Paper
+        elevation={2}
+        sx={{
+          position: "absolute",
+          bottom: 16,
+          right: 16,
+          display: "flex",
+          flexDirection: "column",
+          bgcolor: "background.paper",
+        }}
+      >
+        <Tooltip title="Zoomer" placement="left">
+          <IconButton onClick={handleZoomIn}>
+            <Add />
+          </IconButton>
+        </Tooltip>
+        <Tooltip title="Dézoomer" placement="left">
+          <IconButton onClick={handleZoomOut}>
+            <Remove />
+          </IconButton>
+        </Tooltip>
+        <Tooltip title="Ajuster à la largeur" placement="left">
+          <IconButton onClick={handleFitToWidth}>
+            <FitScreen />
+          </IconButton>
+        </Tooltip>
+      </Paper>
     </Box>
   );
 }
