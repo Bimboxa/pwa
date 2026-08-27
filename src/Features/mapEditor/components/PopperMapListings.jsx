@@ -1659,6 +1659,11 @@ export default function PopperMapListings() {
       : interactionMode;
   const collapsed = useSelector((s) => s.popperMapListings.collapsed);
   const selectedItem = useSelector((s) => s.selection.selectedItems[0] || null);
+  // "Mode avancé" (appConfig): the interaction mode toggle (D/M/S) is an
+  // advanced affordance — hidden otherwise (the app stays in "no mode", the
+  // default draw-like behavior). The D/M/S hotkeys are gated the same way
+  // (useInteractionModeHotkeys).
+  const advancedLayout = useSelector((s) => s.appConfig.advancedLayout);
 
   const baseMap = useMainBaseMap();
   const layers = useLayers({ filterByBaseMapId: baseMap?.id });
@@ -2167,96 +2172,100 @@ export default function PopperMapListings() {
 
       {!collapsed && (
         <>
-          {/* Interaction mode toggle (DRAW / EDIT / SELECT) — hidden in 3D and viewer mode (read-only) */}
-          {!isThreedViewer && !viewerMode && !isZonesViewer && (
-            <Box
-              sx={{
-                px: 1,
-                py: 0.75,
-                borderBottom: "1px solid",
-                borderColor: "panel.border",
-              }}
-            >
-              <ToggleButtonGroup
-                value={interactionMode}
-                exclusive
-                size="small"
-                fullWidth
-                disabled={showMeshCells}
-                onChange={handleInteractionModeChange}
+          {/* Interaction mode toggle (DRAW / EDIT / SELECT) — advanced mode
+              only; hidden in 3D and viewer mode (read-only) */}
+          {advancedLayout &&
+            !isThreedViewer &&
+            !viewerMode &&
+            !isZonesViewer && (
+              <Box
+                sx={{
+                  px: 1,
+                  py: 0.75,
+                  borderBottom: "1px solid",
+                  borderColor: "panel.border",
+                }}
               >
-                <ToggleButton
-                  value="DRAW"
-                  sx={{
-                    flex: 1,
-                    py: 0.5,
-                    flexDirection: "column",
-                    gap: 0.25,
-                    position: "relative",
-                  }}
+                <ToggleButtonGroup
+                  value={interactionMode}
+                  exclusive
+                  size="small"
+                  fullWidth
+                  disabled={showMeshCells}
+                  onChange={handleInteractionModeChange}
                 >
-                  <DrawIcon sx={{ fontSize: 18 }} />
-                  <Typography
-                    variant="caption"
+                  <ToggleButton
+                    value="DRAW"
                     sx={{
-                      fontSize: "10px",
-                      lineHeight: 1,
-                      textTransform: "none",
+                      flex: 1,
+                      py: 0.5,
+                      flexDirection: "column",
+                      gap: 0.25,
+                      position: "relative",
                     }}
                   >
-                    Dessin
-                  </Typography>
-                  <ModeShortcutBadge>D</ModeShortcutBadge>
-                </ToggleButton>
-                <ToggleButton
-                  value="EDIT"
-                  sx={{
-                    flex: 1,
-                    py: 0.5,
-                    flexDirection: "column",
-                    gap: 0.25,
-                    position: "relative",
-                  }}
-                >
-                  <EditIcon sx={{ fontSize: 18 }} />
-                  <Typography
-                    variant="caption"
+                    <DrawIcon sx={{ fontSize: 18 }} />
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        fontSize: "10px",
+                        lineHeight: 1,
+                        textTransform: "none",
+                      }}
+                    >
+                      Dessin
+                    </Typography>
+                    <ModeShortcutBadge>D</ModeShortcutBadge>
+                  </ToggleButton>
+                  <ToggleButton
+                    value="EDIT"
                     sx={{
-                      fontSize: "10px",
-                      lineHeight: 1,
-                      textTransform: "none",
+                      flex: 1,
+                      py: 0.5,
+                      flexDirection: "column",
+                      gap: 0.25,
+                      position: "relative",
                     }}
                   >
-                    Modification
-                  </Typography>
-                  <ModeShortcutBadge>M</ModeShortcutBadge>
-                </ToggleButton>
-                <ToggleButton
-                  value="SELECT"
-                  sx={{
-                    flex: 1,
-                    py: 0.5,
-                    flexDirection: "column",
-                    gap: 0.25,
-                    position: "relative",
-                  }}
-                >
-                  <IconPointer sx={{ fontSize: 18 }} />
-                  <Typography
-                    variant="caption"
+                    <EditIcon sx={{ fontSize: 18 }} />
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        fontSize: "10px",
+                        lineHeight: 1,
+                        textTransform: "none",
+                      }}
+                    >
+                      Modification
+                    </Typography>
+                    <ModeShortcutBadge>M</ModeShortcutBadge>
+                  </ToggleButton>
+                  <ToggleButton
+                    value="SELECT"
                     sx={{
-                      fontSize: "10px",
-                      lineHeight: 1,
-                      textTransform: "none",
+                      flex: 1,
+                      py: 0.5,
+                      flexDirection: "column",
+                      gap: 0.25,
+                      position: "relative",
                     }}
                   >
-                    Sélection
-                  </Typography>
-                  <ModeShortcutBadge>S</ModeShortcutBadge>
-                </ToggleButton>
-              </ToggleButtonGroup>
-            </Box>
-          )}
+                    <IconPointer sx={{ fontSize: 18 }} />
+                    <Typography
+                      variant="caption"
+                      sx={{
+                        fontSize: "10px",
+                        lineHeight: 1,
+                        textTransform: "none",
+                      }}
+                    >
+                      Sélection
+                    </Typography>
+                    <ModeShortcutBadge>S</ModeShortcutBadge>
+                  </ToggleButton>
+                </ToggleButtonGroup>
+              </Box>
+            )}
 
           {/* Standard body (layers / listings / cut tools) */}
           {/* Warning: base map has no scale */}
@@ -2423,6 +2432,7 @@ export default function PopperMapListings() {
                 <>
                   <Box
                     sx={{
+                      mt: 2,
                       px: 1,
                       py: 0.5,
                       bgcolor: "panel.sectionBg",

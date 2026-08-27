@@ -49,6 +49,11 @@ export default function useInteractionModeHotkeys() {
 
       const s = store.getState();
 
+      // The panel mode toggle is an advanced-mode affordance (appConfig
+      // "Mode avancé") — without it, D/M/S must not switch to an invisible
+      // mode (the app stays in "no mode", the default draw-like behavior).
+      if (!s.appConfig.advancedLayout) return;
+
       // Walk mode owns the keyboard (M narrows the spray nozzle there) —
       // registered later on the same capture phase, its
       // stopImmediatePropagation cannot pre-empt this earlier listener.
