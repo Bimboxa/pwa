@@ -11,16 +11,21 @@ import { Box } from "@mui/material";
 import useResourceFile from "Features/resources/hooks/useResourceFile";
 import usePdfDocument from "Features/pdf/hooks/usePdfDocument";
 import usePdfPageImageUrl from "Features/baseMapCreator/hooks/usePdfPageImageUrl";
+import useDisplayedPortfolio from "Features/portfolios/hooks/useDisplayedPortfolio";
+import useTitleBlockManifest from "Features/titleBlocks/hooks/useTitleBlockManifest";
+
+import PortfolioHeaderSvg from "./PortfolioHeaderSvg";
 
 import getPageDimensions from "../utils/getPageDimensions";
+import { getCartoucheRectBottomRight } from "../utils/getPageLayout";
 
 import db from "App/db/db";
 
 // Folio page (type "FOLIO_PAGE"): renders the PDF page referenced by
-// page.folio as a full-bleed image. Falls back to the snapshot thumbnail
-// stored on the folio when the source PDF is not available locally
-// (post-Krto-import). No containers, no cartouche (added later).
-export default function PortfolioFolioPageSvg({ page }) {
+// page.folio as a full-bleed image, with the cartouche bottom-right on top.
+// Falls back to the snapshot thumbnail stored on the folio when the source
+// PDF is not available locally (post-Krto-import). No containers.
+export default function PortfolioFolioPageSvg({ page, pageIndex }) {
   const dispatch = useDispatch();
 
   // strings
@@ -32,6 +37,9 @@ export default function PortfolioFolioPageSvg({ page }) {
   const folio = page.folio;
 
   const selectedItems = useSelector(selectSelectedItems);
+
+  const { value: portfolio } = useDisplayedPortfolio();
+  const manifest = useTitleBlockManifest(portfolio);
 
   const resource = useLiveQuery(async () => {
     if (!folio?.resourceId) return null;
@@ -87,6 +95,7 @@ export default function PortfolioFolioPageSvg({ page }) {
   );
   const dims = pdfDims ?? getPageDimensions(page.format, page.orientation);
   const src = imageUrl ?? folio?.thumbnail ?? null;
+  const cartouche = getCartoucheRectBottomRight(dims, manifest.height);
 
   // handlers
 
@@ -142,6 +151,13 @@ export default function PortfolioFolioPageSvg({ page }) {
           >
             {missingFileS}
           </text>
+        )}
+        {cartouche && (
+          <PortfolioHeaderSvg
+            page={page}
+            pageIndex={pageIndex}
+            layout={{ variant: "BOTTOM_RIGHT", cartouche, titleBar: null }}
+          />
         )}
       </svg>
     </Box>

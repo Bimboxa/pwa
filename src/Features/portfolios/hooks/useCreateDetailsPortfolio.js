@@ -101,7 +101,9 @@ export default function useCreateDetailsPortfolio() {
     }
 
     for (const { folio, details: folioDetails } of foliosByKey.values()) {
-      const labels = folioDetails.map((d) => d.label).filter(Boolean);
+      const labels = [
+        ...new Set(folioDetails.map((d) => d.label).filter(Boolean)),
+      ];
       const pageTitle =
         labels.length > 1
           ? `Détails ${labels.join(", ")}`

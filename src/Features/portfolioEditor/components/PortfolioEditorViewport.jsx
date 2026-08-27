@@ -141,7 +141,7 @@ export default function PortfolioEditorViewport() {
             return (
               <Box key={page.id} sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
                 {page.type === "FOLIO_PAGE" ? (
-                  <PortfolioFolioPageSvg page={page} />
+                  <PortfolioFolioPageSvg page={page} pageIndex={index} />
                 ) : (
                   <>
                     <PortfolioPageSvg

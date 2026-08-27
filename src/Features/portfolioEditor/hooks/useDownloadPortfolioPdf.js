@@ -21,7 +21,9 @@ import drawTitleBlockOnPdfPage, {
 import sanitizeWinAnsiText from "Features/titleBlocks/utils/sanitizeWinAnsiText";
 
 import getPageDimensions from "../utils/getPageDimensions";
-import getPageLayout from "../utils/getPageLayout";
+import getPageLayout, {
+  getCartoucheRectBottomRight,
+} from "../utils/getPageLayout";
 import getPageAnnotationsWithDetails from "../utils/getPageAnnotationsWithDetails";
 
 const TITLE_BAR_FONT_SIZE = 14;
@@ -64,8 +66,9 @@ export default function useDownloadPortfolioPdf() {
       };
 
       const pagePdfs = [];
-      // one entry per PDF page: { type: "PLAN"|"SUMMARY", layout, pageTitle }
-      // or { type: "FOLIO" } (nothing stamped on folio pages, for now)
+      // one entry per PDF page:
+      // { type: "PLAN"|"SUMMARY"|"FOLIO", layout, pageTitle } — a FOLIO meta
+      // without layout means the raw-copy fallback (nothing stamped on it)
       const pageMetas = [];
 
       // source PDFs of folio pages, parsed once per resource
@@ -104,16 +107,65 @@ export default function useDownloadPortfolioPdf() {
             Math.max((page.folio?.pageNumber ?? 1) - 1, 0),
             srcDoc.getPageCount() - 1
           );
-          const folioDoc = await PDFDocument.create();
-          const [copiedPage] = await folioDoc.copyPages(srcDoc, [pageIndex]);
           // folio.rotation is ABSOLUTE (it replaces the page's intrinsic
           // /Rotate, same convention as renderPageToPngBlob in the app)
           const rotation = ((page.folio?.rotation ?? 0) % 360 + 360) % 360;
-          if (rotation % 90 === 0) copiedPage.setRotation(degrees(rotation));
-          folioDoc.addPage(copiedPage);
+          const rot = rotation % 90 === 0 ? rotation : 0;
+          let folioDoc;
+          let folioMeta = { type: "FOLIO" }; // fallback: page kept, no cartouche
+          try {
+            // Normalize: embed the source page into a fresh /Rotate-0 page
+            // with the rotation baked in, so the cartouche can be drawn in
+            // plain page coordinates in the vector pass.
+            folioDoc = await PDFDocument.create();
+            const srcPage = srcDoc.getPage(pageIndex);
+            // explicit CropBox: pdf-lib's default boundingBox is the MediaBox
+            // with an assumed (0,0) origin, wrong on cropped/offset pages
+            const crop = srcPage.getCropBox();
+            const embedded = await folioDoc.embedPage(srcPage, {
+              left: crop.x,
+              bottom: crop.y,
+              right: crop.x + crop.width,
+              top: crop.y + crop.height,
+            });
+            const w = embedded.width;
+            const h = embedded.height;
+            const swap = rot === 90 || rot === 270;
+            const newPage = folioDoc.addPage([swap ? h : w, swap ? w : h]);
+            // pdf-lib rotate is CCW-positive, /Rotate is CW-positive
+            const draw = {
+              0: { x: 0, y: 0 },
+              90: { x: 0, y: w, rotate: degrees(-90) },
+              180: { x: w, y: h, rotate: degrees(180) },
+              270: { x: h, y: 0, rotate: degrees(90) },
+            }[rot];
+            newPage.drawPage(embedded, draw);
+            const cartouche = getCartoucheRectBottomRight(
+              { width: newPage.getWidth(), height: newPage.getHeight() },
+              manifest.height
+            );
+            if (cartouche) {
+              folioMeta = {
+                type: "FOLIO",
+                layout: { variant: "BOTTOM_RIGHT", cartouche, titleBar: null },
+                pageTitle: page.title || "",
+              };
+            }
+          } catch (err) {
+            // e.g. MissingPageContentsEmbeddingError on content-less pages
+            console.warn(
+              "[portfolio pdf] folio embed failed, raw copy fallback",
+              err
+            );
+            folioDoc = await PDFDocument.create();
+            const [copiedPage] = await folioDoc.copyPages(srcDoc, [pageIndex]);
+            if (rot) copiedPage.setRotation(degrees(rot));
+            folioDoc.addPage(copiedPage);
+            folioMeta = { type: "FOLIO" };
+          }
           const folioBytes = await folioDoc.save();
           pagePdfs.push(new Blob([folioBytes], { type: "application/pdf" }));
-          pageMetas.push({ type: "FOLIO" });
+          pageMetas.push(folioMeta);
           continue;
         }
 
@@ -222,11 +274,12 @@ export default function useDownloadPortfolioPdf() {
 
       allPages.forEach((pdfPage, index) => {
         const meta = pageMetas[index];
-        if (!meta || meta.type === "FOLIO") return;
+        if (!meta) return;
 
         const pageNum = `p. ${index + 1}`;
 
-        if (meta.type === "PLAN") {
+        if (meta.type === "PLAN" || meta.type === "FOLIO") {
+          if (!meta.layout) return; // FOLIO fallback: no cartouche
           const layoutData = computeTitleBlockLayout(
             manifest,
             meta.layout.cartouche,

@@ -6,6 +6,25 @@ const TITLE_BAR_HEIGHT = 32;
 
 export { TITLE_BAR_HEIGHT };
 
+// Bottom-right cartouche rect for a page of arbitrary dimensions (PDF points,
+// SVG top-left coords). Shared by the A3 landscape layout and folio pages
+// (screen + PDF export). Returns null when the page is too small.
+export function getCartoucheRectBottomRight(pageDims, titleBlockHeight) {
+  const fullWidth = pageDims.width - 2 * HEADER_MARGIN;
+  const cartoucheWidth = Math.round(fullWidth * 0.4);
+  if (
+    cartoucheWidth < 200 ||
+    pageDims.height < titleBlockHeight + 2 * HEADER_MARGIN
+  )
+    return null;
+  return {
+    x: pageDims.width - HEADER_MARGIN - cartoucheWidth,
+    y: pageDims.height - HEADER_MARGIN - titleBlockHeight,
+    width: cartoucheWidth,
+    height: titleBlockHeight,
+  };
+}
+
 export default function getPageLayout(
   format,
   orientation,
@@ -18,14 +37,8 @@ export default function getPageLayout(
   if (isA3Landscape) {
     // BOTTOM_RIGHT variant: cartouche bottom-right, title bar top-left
     const fullWidth = pageDims.width - 2 * HEADER_MARGIN;
-    const cartoucheWidth = Math.round(fullWidth * 0.4);
 
-    const cartouche = {
-      x: pageDims.width - HEADER_MARGIN - cartoucheWidth,
-      y: pageDims.height - HEADER_MARGIN - titleBlockHeight,
-      width: cartoucheWidth,
-      height: titleBlockHeight,
-    };
+    const cartouche = getCartoucheRectBottomRight(pageDims, titleBlockHeight);
 
     const titleBar = {
       x: HEADER_MARGIN,
