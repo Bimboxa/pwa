@@ -2414,9 +2414,12 @@ export default function PopperMapListings() {
                     />
                   )}
 
-              {/* Outils section — DRAW mode, and always in the ZONES module
-                (openings / splits on the zone delimitation polygons) */}
-              {(effectiveInteractionMode === "DRAW" || isZonesViewer) && (
+              {/* Outils section — DRAW mode and "no mode" (null, draws like
+                DRAW), and always in the ZONES module (openings / splits on
+                the zone delimitation polygons) */}
+              {(effectiveInteractionMode === "DRAW" ||
+                effectiveInteractionMode == null ||
+                isZonesViewer) && (
                 <>
                   <Box
                     sx={{
