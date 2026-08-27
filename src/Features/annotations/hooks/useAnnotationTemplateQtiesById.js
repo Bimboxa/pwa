@@ -16,7 +16,8 @@ export default function useAnnotationTemplateQtiesById({ filterByBaseMapId } = {
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const annotations = useAnnotationsV2({ caller: "useAnnotationTemplateQtiesById", filterByProjectId: projectId, withQties: true });
   const annotationTemplates = useAnnotationTemplates();
-  const { value: baseMaps } = useBaseMaps({ filterByProjectId: projectId }) ?? {};
+  const { value: baseMaps } =
+    useBaseMaps({ filterByProjectId: projectId, includeDetails: true }) ?? {};
 
   // --- HELPERS (Lookups) ---
   const baseMapById = useMemo(

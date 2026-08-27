@@ -1,6 +1,7 @@
 import { nanoid } from "@reduxjs/toolkit";
 import ImageObject from "Features/images/js/ImageObject";
 import getDateString from "Features/misc/utils/getDateString";
+import { getDetailImageCacheKey } from "Features/baseMaps/services/detailBaseMapUtils";
 import db from "App/db/db";
 import editor from "App/editor";
 
@@ -48,6 +49,14 @@ export default class BaseMap {
     // the flattened one points back to its source photo.
     flattenedBaseMapId,
     sourcePhotoBaseMapId,
+    // Detail baseMap: created from a PDF page dropped from the Resources
+    // panel. Stores NO file in db.files: the image is rendered on the fly
+    // from createdFrom = {type:"PDF_PAGE", pdfFileName, resourceId,
+    // pageNumber, rotation, bboxInRatio, dpi, blueprintScale} and cached in
+    // memory for the session. createdFrom is also written (provenance only)
+    // by the baseMapCreator PDF flow, without isDetail.
+    isDetail,
+    createdFrom,
     // version system
     versions,
     refWidth,
@@ -75,6 +84,8 @@ export default class BaseMap {
     this.isPhoto = isPhoto;
     this.flattenedBaseMapId = flattenedBaseMapId;
     this.sourcePhotoBaseMapId = sourcePhotoBaseMapId;
+    this.isDetail = isDetail;
+    this.createdFrom = createdFrom;
     // version system
     this.versions = versions || [];
     this.refWidth = refWidth || null;
@@ -117,13 +128,45 @@ export default class BaseMap {
     return baseMap;
   }
 
-  static async createFromRecord(record, versions = []) {
+  static async createFromRecord(record, versions = [], options) {
 
     try {
       if (!record) return null;
 
       editor.baseMapsCache = editor.baseMapsCache || {};
       const cacheEntry = editor.baseMapsCache[record.id];
+
+      // --- Detail baseMap: no stored file, image regenerated on the fly
+      // from the source PDF (createdFrom) and cached for the session. ---
+      if (record.isDetail && !record.image?.fileName) {
+        const imageKey = getDetailImageCacheKey(record);
+        let bmImage =
+          cacheEntry?.imageKey === imageKey ? cacheEntry.image : null;
+        // Bulk consumers (useBaseMaps joins) pass skipDetailRender: they only
+        // need record-level data (imageSize, name), so an uncached detail
+        // must not trigger a PDF render there.
+        if (!bmImage && options?.skipDetailRender) {
+          return new BaseMap({ ...record });
+        }
+        if (!bmImage) {
+          // Dynamic import keeps pdfjs out of the base hydration path.
+          const { default: renderDetailBaseMapImage } = await import(
+            "Features/baseMaps/services/renderDetailBaseMapImage"
+          );
+          bmImage = await renderDetailBaseMapImage(record);
+          if (bmImage) {
+            editor.baseMapsCache[record.id] = {
+              imageKey,
+              image: bmImage,
+              imageEnhancedKey: null,
+              imageEnhanced: null,
+            };
+          }
+        }
+        // Fallback: thumbnail-only record image (getUrl() stays null until
+        // the source PDF is available again).
+        return new BaseMap({ ...record, image: bmImage ?? record.image });
+      }
 
       // --- Version system: load ALL version images ---
       if (versions?.length > 0) {

@@ -1,7 +1,9 @@
 import pdfToPngAsync from "Features/pdf/utils/pdfToPngAsync";
 import findAutoDpi from "Features/pdf/utils/findAutoDpi";
 
-// resolution null => AUTO (findAutoDpi). Returns { imageFile, meterByPx }.
+// resolution null => AUTO (findAutoDpi). Returns { imageFile, meterByPx, dpi }
+// — dpi is the resolution actually used, persisted in the baseMap's
+// createdFrom so the render could be replayed identically later.
 export default async function renderTempBaseMapImage({
   pdfFile,
   pdfDocument,
@@ -27,9 +29,9 @@ export default async function renderTempBaseMapImage({
       const meterByPx = blueprintScale
         ? (0.0254 / dpi) * Number(blueprintScale)
         : null;
-      return { imageFile, meterByPx };
+      return { imageFile, meterByPx, dpi };
     }
-    return pdfToPngAsync({
+    const result = await pdfToPngAsync({
       pdfFile,
       pdfDocument,
       page,
@@ -38,8 +40,9 @@ export default async function renderTempBaseMapImage({
       rotate,
       blueprintScale,
     });
+    return { ...result, dpi };
   }
-  return pdfToPngAsync({
+  const result = await pdfToPngAsync({
     pdfFile,
     pdfDocument,
     page,
@@ -48,4 +51,5 @@ export default async function renderTempBaseMapImage({
     rotate,
     blueprintScale,
   });
+  return { ...result, dpi: resolution };
 }

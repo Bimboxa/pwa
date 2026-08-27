@@ -189,6 +189,14 @@ export default async function createKrtoZip(scopeId, options) {
                 );
             }
 
+            // Detail baseMaps belong to no listing (listingId null) — keep
+            // them by projectId. They ship no file (image.fileName absent),
+            // only the inline thumbnail; the image is regenerated from the
+            // source PDF once the resource file is re-attached.
+            if (table === "baseMaps" && value.isDetail) {
+                return value.projectId === projectId;
+            }
+
             // Tables avec projectId + listingId
             if (tablesWithProjectIdAndListingId.has(table)) {
                 return value.projectId === projectId && listingIds.has(value.listingId);

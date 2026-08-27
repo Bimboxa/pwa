@@ -60,7 +60,7 @@ export default function ButtonCreateBaseMaps({ pdfDocument, pdfFile }) {
             const name = buildBaseMapNameForPage(baseMapName, page);
             dispatch(addTempBaseMap({ id, name }));
 
-            const { imageFile, meterByPx } = await renderTempBaseMapImage({
+            const { imageFile, meterByPx, dpi } = await renderTempBaseMapImage({
                 pdfFile,
                 pdfDocument,
                 page,
@@ -71,7 +71,7 @@ export default function ButtonCreateBaseMaps({ pdfDocument, pdfFile }) {
             });
 
             dispatch(updateTempBaseMap({ id, updates: { imageFile, name, meterByPx } }));
-            temps.push({ id, name, imageFile, meterByPx, page, bboxInRatio: null, rotate: 0 });
+            temps.push({ id, name, imageFile, meterByPx, page, bboxInRatio: null, rotate: 0, dpi });
             setProgress({ done: page, total });
         }
         return temps;
@@ -96,7 +96,23 @@ export default function ButtonCreateBaseMaps({ pdfDocument, pdfFile }) {
             });
             const baseMapsWithPlacement = baseMapsToCreate.map((bm) => {
                 const placement = placements.get(bm.id);
-                return placement ? { ...bm, ...placement } : bm;
+                const next = placement ? { ...bm, ...placement } : { ...bm };
+                // PDF provenance (page + crop + dpi), persisted on the record
+                // so the render could be replayed from the source PDF later.
+                // Skipped for non-PDF temp images (no page).
+                if (bm.page != null) {
+                    next.createdFrom = {
+                        type: "PDF_PAGE",
+                        pdfFileName: pdfFile?.name ?? null,
+                        resourceId: null,
+                        pageNumber: bm.page,
+                        rotation: bm.rotate ?? 0,
+                        bboxInRatio: bm.bboxInRatio ?? null,
+                        dpi: bm.dpi ?? null,
+                        blueprintScale: blueprintScale || null,
+                    };
+                }
+                return next;
             });
 
             const baseMaps = await createBaseMaps(baseMapsWithPlacement);

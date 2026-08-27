@@ -35,6 +35,8 @@ export default function remapDexieExportIds(jsonData, opts) {
     // Photo <-> flattened baseMap pairing (photoPlans feature).
     flattenedBaseMapId: "baseMaps",
     sourcePhotoBaseMapId: "baseMaps",
+    // DETAIL annotation -> detail baseMap link.
+    detailBaseMapId: "baseMaps",
     povId: "povs",
     listingId: "listings",
     annotationTemplateId: "annotationTemplates",
@@ -301,6 +303,16 @@ export default function remapDexieExportIds(jsonData, opts) {
       // FOLIO_PAGE portfolio pages carry the same nested folio resource ref.
       if (tableName === "portfolioPages" && row.folio?.resourceId) {
         row.folio.resourceId = remapId("resources", row.folio.resourceId);
+      }
+
+      // Detail baseMaps: nested resource ref in createdFrom. pdfFileName is
+      // deliberately left untouched — it is the stable cross-import dedup
+      // key used to re-resolve the resource after re-import.
+      if (tableName === "baseMaps" && row.createdFrom?.resourceId) {
+        row.createdFrom.resourceId = remapId(
+          "resources",
+          row.createdFrom.resourceId
+        );
       }
 
       // Embedded fileName refs (baseMap.image.fileName, version.image.fileName,

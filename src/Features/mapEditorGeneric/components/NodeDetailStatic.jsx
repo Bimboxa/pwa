@@ -1,8 +1,11 @@
 import { memo, useMemo, useState, useEffect, useRef } from "react";
 import { useDispatch } from "react-redux";
 
+import { setSelectedMainBaseMapId } from "Features/mapEditor/mapEditorSlice";
 import { openResourceAtPage } from "Features/resources/resourcesSlice";
 import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
+
+import { resolveDetailResource } from "Features/baseMaps/services/detailBaseMapUtils";
 
 import { darken } from "@mui/material/styles";
 
@@ -38,14 +41,15 @@ function NodeDetailStatic({
 
   // strings
 
-  const viewDetailS = "Voir le détail";
+  const viewBaseMapS = "Voir le fond de plan";
+  const viewSourceS = "Voir la source";
 
   // data
 
   const merged = { ...annotation, ...annotationOverride };
   const { id, listingId, entityId, fillColor = "#2196f3" } = merged;
   const arrowAngle = merged.arrowAngle ?? 0;
-  const folio = merged.folio;
+  const detailBaseMapId = merged.detailBaseMapId;
 
   // The tip position (resolved px). Drag overrides may put x/y at the root.
   const tipX = merged.x ?? merged.point?.x ?? 0;
@@ -146,14 +150,31 @@ function NodeDetailStatic({
     }
   };
 
-  // Open the RESOURCES right panel on the folio's resource, at its page.
-  const handleViewDetail = (e) => {
+  // Open the linked detail baseMap in the map editor (same selection as the
+  // "Détails" section of the left panel).
+  const handleViewBaseMap = (e) => {
     e.stopPropagation();
+    dispatch(setSelectedMainBaseMapId(detailBaseMapId));
+  };
+
+  // Open the RESOURCES right panel on the source PDF, at the detail's page.
+  const handleViewSource = async (e) => {
+    e.stopPropagation();
+    const record = await db.baseMaps.get(detailBaseMapId);
+    const createdFrom = record?.createdFrom;
+    if (!createdFrom) return;
+    // The resourceId hint may be stale after a resource re-import.
+    const resource = await resolveDetailResource({
+      createdFrom,
+      projectId: record.projectId,
+    });
+    const resourceId = resource?.id ?? createdFrom.resourceId;
+    if (!resourceId) return;
     dispatch(
       openResourceAtPage({
-        resourceId: folio.resourceId,
-        pageNumber: folio.pageNumber ?? 1,
-        rotation: folio.rotation ?? 0,
+        resourceId,
+        pageNumber: createdFrom.pageNumber ?? 1,
+        rotation: createdFrom.rotation ?? 0,
       })
     );
     dispatch(setSelectedMenuItemKey("RESOURCES"));
@@ -298,13 +319,14 @@ function NodeDetailStatic({
               style={{ pointerEvents: "none" }}
             />
 
-            {/* "Voir le détail" — folio-linked only: opens the RESOURCES
-                right panel on the folio's resource at its page */}
-            {folio?.resourceId && (
+            {/* Action buttons — linked only: "Voir le fond de plan" selects
+                the detail baseMap in the map editor, "Voir la source" opens
+                the RESOURCES panel on the source PDF at the detail's page */}
+            {detailBaseMapId && (
               <foreignObject
-                x={-70}
+                x={-140}
                 y={ROT_RING_R + 10}
-                width={140}
+                width={280}
                 height={40}
                 style={{ overflow: "visible" }}
               >
@@ -313,28 +335,35 @@ function NodeDetailStatic({
                     width: "100%",
                     display: "flex",
                     justifyContent: "center",
+                    gap: "8px",
                   }}
                 >
-                  <button
-                    onMouseDown={(e) => e.stopPropagation()}
-                    onClick={handleViewDetail}
-                    style={{
-                      ...fontStyles,
-                      fontSize: "12px",
-                      fontWeight: 500,
-                      whiteSpace: "nowrap",
-                      padding: "4px 10px",
-                      background: "#ffffff",
-                      color: "#000000",
-                      border: "1px solid #555555",
-                      borderRadius: "16px",
-                      boxShadow: "0px 2px 3px rgba(0,0,0,0.3)",
-                      cursor: "pointer",
-                      pointerEvents: "auto",
-                    }}
-                  >
-                    {viewDetailS}
-                  </button>
+                  {[
+                    { label: viewBaseMapS, onClick: handleViewBaseMap },
+                    { label: viewSourceS, onClick: handleViewSource },
+                  ].map(({ label, onClick }) => (
+                    <button
+                      key={label}
+                      onMouseDown={(e) => e.stopPropagation()}
+                      onClick={onClick}
+                      style={{
+                        ...fontStyles,
+                        fontSize: "12px",
+                        fontWeight: 500,
+                        whiteSpace: "nowrap",
+                        padding: "4px 10px",
+                        background: "#ffffff",
+                        color: "#000000",
+                        border: "1px solid #555555",
+                        borderRadius: "16px",
+                        boxShadow: "0px 2px 3px rgba(0,0,0,0.3)",
+                        cursor: "pointer",
+                        pointerEvents: "auto",
+                      }}
+                    >
+                      {label}
+                    </button>
+                  ))}
                 </div>
               </foreignObject>
             )}

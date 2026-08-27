@@ -567,7 +567,10 @@ export default function useAnnotationsV2(options) {
 
     const { rowsByHostId: openingRowsByHostId } = useAnnotationOpenings();
 
-    const { value: baseMaps, baseMapsUpdatedAt } = useBaseMaps();
+    const { value: baseMaps, baseMapsUpdatedAt } = useBaseMaps({
+      // by-id join: annotations drawn ON a detail baseMap must resolve it
+      includeDetails: true,
+    });
     const baseMapById = useMemo(
       () => getItemsByKey(baseMaps, "id"),
       [baseMaps]

@@ -143,7 +143,9 @@ import getRectangleRawPointsFromOnePoint from "Features/rectangles/utils/getRect
 import getImageAnnotationRectanglePointsFromOnePoint from "Features/imageAnnotations/utils/getImageAnnotationRectanglePointsFromOnePoint";
 import getObject3DAnnotationRectanglePointsFromOnePoint from "Features/object3D/utils/getObject3DAnnotationRectanglePointsFromOnePoint";
 import imageUrlToPng from "Features/images/utils/imageUrlToPng";
-import buildFolioFromResourcePageAsync from "Features/detailFolio/utils/buildFolioFromResourcePageAsync";
+import findOrCreateDetailBaseMap from "Features/baseMaps/services/findOrCreateDetailBaseMap";
+import { triggerEntitiesTableUpdate } from "Features/entities/entitiesSlice";
+import useUserEmail from "Features/auth/hooks/useUserEmail";
 import getNewAnnotationPropsFromAnnotationTemplate from "Features/annotations/utils/getNewAnnotationPropsFromAnnotationTemplate";
 import { resolveDrawingShape } from "Features/annotations/constants/drawingShapeConfig";
 import useSelectedNodes from "../hooks/useSelectedNodes";
@@ -806,9 +808,11 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
         _handleCommitDrawing([{ x: droppedImage.x, y: droppedImage.y }], { newAnnotation: { type: "MARKER", images }, skipTemplateCreation: true })
     }
 
-    // handlers - PDF page drop (resources panel → DETAIL annotation with folio)
+    // handlers - PDF page drop (resources panel → DETAIL annotation linked to
+    // a detail baseMap)
 
     const selectedDetailTemplateId = useSelector((s) => s.resources.selectedDetailTemplateId);
+    const { value: userEmail } = useUserEmail();
 
     const handleCommitPdfPageDrop = async ({ resourceId, pageNumber, rotation, x, y }) => {
         const template = selectedDetailTemplateId
@@ -818,12 +822,26 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
             console.log("[resources] no DETAIL template selected, PDF page drop ignored");
             return;
         }
-        const folio = await buildFolioFromResourcePageAsync({ resourceId, pageNumber, rotation });
+        // Find or create the detail baseMap for this (pdf, page) pair — the
+        // annotation stores its id, not a folio. A missing PDF file leaves
+        // the annotation unlinked (same degradation as the folio without
+        // thumbnail before).
+        const record = await findOrCreateDetailBaseMap({
+            resourceId,
+            pageNumber,
+            rotation,
+            projectId,
+            createdBy: userEmail,
+        });
+        if (record) dispatch(triggerEntitiesTableUpdate("baseMaps"));
+        else console.warn("[resources] detail baseMap not created (PDF file missing?)");
         // Same base props as the interactive DETAIL draw (the commit flow then
         // resolves the template link, creates the point row and forces the
         // bubble label to "X").
         const baseProps = getNewAnnotationPropsFromAnnotationTemplate(template);
-        await _handleCommitDrawing([{ x, y }], { newAnnotation: { ...baseProps, folio } });
+        await _handleCommitDrawing([{ x, y }], {
+            newAnnotation: { ...baseProps, detailBaseMapId: record?.id ?? null },
+        });
     }
 
     // handlers - rectangle

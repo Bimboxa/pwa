@@ -1,12 +1,25 @@
 // components/MapTooltip.jsx
 import { forwardRef } from 'react';
+import { useLiveQuery } from "dexie-react-hooks";
 import { Paper, Typography, Box } from "@mui/material";
+
+import db from "App/db/db";
 
 const MapTooltip = forwardRef(({ hoveredNode, annotations, x, y, isSelected }, ref) => {
 
     // helper - annotations
 
     const annotation = annotations.find(a => a.id === hoveredNode?.nodeId);
+
+    // data - detail baseMap (DETAIL annotations link a detail baseMap whose
+    // record carries the inline page thumbnail)
+
+    const detailBaseMapId =
+        annotation?.type === "DETAIL" ? annotation?.detailBaseMapId : null;
+    const detailBaseMap = useLiveQuery(
+        async () => (detailBaseMapId ? db.baseMaps.get(detailBaseMapId) : null),
+        [detailBaseMapId]
+    );
 
     // helper - template label
     const templateLabel = annotation?.annotationTemplateProps?.label || annotation?.templateLabel;
@@ -24,7 +37,9 @@ const MapTooltip = forwardRef(({ hoveredNode, annotations, x, y, isSelected }, r
 
     // helper - folio (DETAIL annotations linked to a PDF page)
     const folioThumbnail =
-        annotation?.type === "DETAIL" && !isSelected ? annotation?.folio?.thumbnail : null;
+        annotation?.type === "DETAIL" && !isSelected
+            ? detailBaseMap?.image?.thumbnail
+            : null;
 
     // helper - photo (PHOTO pseudo-annotations carry an inline thumbnail)
     const photoThumbnail =
