@@ -48,7 +48,8 @@ function ReprojectedPlanAnnotations({ plan, photoSize, containerK }) {
 
     const result = [];
     for (const a of rawAnnotations ?? []) {
-      if (a.type === "TEXT" || a.type === "LABEL") continue;
+      if (a.type === "TEXT" || a.type === "LABEL" || a.type === "FREE_TEXT")
+        continue;
       const isClosed = ["POLYGON", "RECTANGLE"].includes(a.type);
       const points = mapPoints(a.points, isClosed);
       if (!points) continue;

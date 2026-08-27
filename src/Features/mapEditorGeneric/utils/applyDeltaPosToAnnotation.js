@@ -256,9 +256,24 @@ export default function applyDeltaPosToAnnotation(annotation, deltaPos, partType
         };
     }
 
-    // LABEL
-    if (_annotation.type === "LABEL") {
-        if (partType === 'TARGET') {
+    // LABEL / FREE_TEXT (same targetPoint + labelPoint storage). FREE_TEXT
+    // without connector: the box drag also carries the (hidden, coincident)
+    // targetPoint so enabling the connector later anchors at the box, not at
+    // the original placement click.
+    if (_annotation.type === "LABEL" || _annotation.type === "FREE_TEXT") {
+        const moveBothOnBox =
+            _annotation.type === "FREE_TEXT" && !_annotation.hasConnector;
+        if (partType === 'LABEL_BOX' && moveBothOnBox) {
+            _annotation.targetPoint = {
+                x: _annotation.targetPoint.x + deltaPos.x,
+                y: _annotation.targetPoint.y + deltaPos.y
+            };
+            _annotation.labelPoint = {
+                x: _annotation.labelPoint.x + deltaPos.x,
+                y: _annotation.labelPoint.y + deltaPos.y
+            };
+        }
+        else if (partType === 'TARGET') {
             _annotation.targetPoint = {
                 x: _annotation.targetPoint.x + deltaPos.x,
                 y: _annotation.targetPoint.y + deltaPos.y

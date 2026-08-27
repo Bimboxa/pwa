@@ -61,6 +61,21 @@ export default function getAnnotationTemplateProps(annotationTemplate) {
     textAlign: annotationTemplate?.textAlign,
     hideBandFill: annotationTemplate?.hideBandFill,
 
+    // FREE_TEXT — text box styling (fillColor / fontSize / textAlign above
+    // are shared with other shapes). Only applied to annotations when listed
+    // in overrideFields (padlock).
+    hasBackground: annotationTemplate?.hasBackground,
+    pageFormat: annotationTemplate?.pageFormat,
+    textColor: annotationTemplate?.textColor,
+    borderColor: annotationTemplate?.borderColor,
+    fontFamily: annotationTemplate?.fontFamily,
+    fontWeight: annotationTemplate?.fontWeight,
+    fontItalic: annotationTemplate?.fontItalic,
+    fontUnderline: annotationTemplate?.fontUnderline,
+    hasBorder: annotationTemplate?.hasBorder,
+    hasPadding: annotationTemplate?.hasPadding,
+    hasConnector: annotationTemplate?.hasConnector,
+
     // CIRCULATION — arrows distributed along the line.
     arrowStep: annotationTemplate?.arrowStep,
     arrowRight: annotationTemplate?.arrowRight,

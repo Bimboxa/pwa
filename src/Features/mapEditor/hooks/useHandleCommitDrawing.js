@@ -12,6 +12,8 @@ import useResetNewAnnotation from "Features/annotations/hooks/useResetNewAnnotat
 
 import { setOpenDialogCreateEntity, triggerEntitiesTableUpdate } from "Features/entities/entitiesSlice";
 import { setNewAnnotation, triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice";
+import { setSelectedItem } from "Features/selection/selectionSlice";
+import { setEnabledDrawingMode } from "Features/mapEditor/mapEditorSlice";
 
 import db from "App/db/db";
 import getAnnotationTemplateFromNewAnnotation from "Features/annotations/utils/getAnnotationTemplateFromNewAnnotation";
@@ -345,7 +347,10 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
         }
 
         // edge case
-        if (newAnnotation.type === "LABEL" && rawPoints.length === 1) {
+        if (
+            (newAnnotation.type === "LABEL" || newAnnotation.type === "FREE_TEXT") &&
+            rawPoints.length === 1
+        ) {
             // dispatch(setOpenDialogCreateEntity(true))
             // dispatch(setNewAnnotation({
             //     ...newAnnotation,
@@ -358,13 +363,18 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
             // }))
             // return;
             const { x: _x, y: _y } = rawPoints[0];
-            // on calcule le point central
+            // FREE_TEXT: the box is centered ON the click (targetPoint stays
+            // coincident — it only matters once the connector is enabled).
+            // LABEL keeps its historical 50px-left chip offset.
+            const isFreeText = newAnnotation.type === "FREE_TEXT";
             _newAnnotation = {
                 ...newAnnotation,
                 id: nanoid(),
                 entityId,
                 targetPoint: { x: _x / width, y: _y / height },
-                labelPoint: { x: (_x - 50) / width, y: (_y + 0) / height },
+                labelPoint: isFreeText
+                    ? { x: _x / width, y: _y / height }
+                    : { x: (_x - 50) / width, y: (_y + 0) / height },
                 baseMapId,
                 projectId,
                 listingId,
@@ -372,6 +382,10 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
 
                 // ... props de style
             };
+            // FREE_TEXT: the text lives in its own `textContent` prop (NOT in
+            // `label`, which stays the annotation/entity label like any other
+            // type). Start empty — the node shows the "Texte" placeholder.
+            if (isFreeText) _newAnnotation.textContent = "";
         }
 
         else {
@@ -1028,6 +1042,29 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
                 pointRowsToSave: pendingPointRows,
                 annotationUpdatesInTx: pendingAnnotationUpdates,
             });
+        }
+
+        // FREE_TEXT: disarm the tool and select the fresh annotation so its
+        // textarea shows up focused right after the click (edit mode =
+        // selection, like LABEL). Item built from _newAnnotation — waiting for
+        // the DB roundtrip would delay the field by one liveQuery cycle.
+        if (_newAnnotation?.type === "FREE_TEXT" && !_updatedAnnotation) {
+            dispatch(setEnabledDrawingMode(null));
+            dispatch(
+                setSelectedItem({
+                    id: _newAnnotation.id,
+                    nodeId: _newAnnotation.id,
+                    type: "NODE",
+                    nodeType: "ANNOTATION",
+                    annotationType: "FREE_TEXT",
+                    entityId: _newAnnotation.entityId,
+                    listingId: _newAnnotation.listingId,
+                    annotationTemplateId: _newAnnotation.annotationTemplateId,
+                    pointId: null,
+                    partId: null,
+                    partType: null,
+                })
+            );
         }
 
         // OPENING_SEGMENT: link the persisted opening annotation to its host

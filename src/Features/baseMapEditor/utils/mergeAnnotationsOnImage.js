@@ -1,6 +1,8 @@
 // Merges visible annotations onto a baseMap image, producing a new image file
 // and the version transform needed to align the result in the reference frame.
 
+import { getFreeTextPageScale } from "Features/annotations/constants/freeTextConstants";
+
 function loadImage(url) {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -53,6 +55,17 @@ function getAnnotationsBounds(annotations) {
         if (a.targetPoint) expandPoint(a.targetPoint.x, a.targetPoint.y);
         if (a.labelPoint) expandPoint(a.labelPoint.x, a.labelPoint.y);
         break;
+      case "FREE_TEXT": {
+        if (a.targetPoint) expandPoint(a.targetPoint.x, a.targetPoint.y);
+        if (a.labelPoint) {
+          // width / margins are page pt — scale them to image px.
+          const k = getFreeTextPageScale(a.pageFormat, a.imageLongSidePx);
+          const halfW = (k * (a.width || 200)) / 2;
+          expandPoint(a.labelPoint.x - halfW, a.labelPoint.y - 30 * k);
+          expandPoint(a.labelPoint.x + halfW, a.labelPoint.y + 30 * k);
+        }
+        break;
+      }
       case "IMAGE":
       case "RECTANGLE":
         if (a.bbox) {
@@ -256,6 +269,100 @@ function drawAnnotation(ctx, annotation, meterByPx) {
         ctx.textBaseline = "middle";
         ctx.fillText(label, labelPoint.x + 4, labelPoint.y);
       }
+      break;
+    }
+
+    case "FREE_TEXT": {
+      // The box is MAP-FIXED: sizes are PDF points "as if the base map
+      // filled an A4/A3 page" (pageFormat). Drawn in page-pt space around
+      // the box centre, scaled by k = imageLongSide / pageLongSide
+      // (imageLongSidePx stamped by useAnnotationsV2) — same rule as
+      // NodeFreeTextStatic, so the flatten is exact.
+      const {
+        targetPoint,
+        labelPoint,
+        textContent,
+        width,
+        hasBackground = true,
+        textColor = "#000000",
+        borderColor = "#000000",
+        fontFamily = "Roboto",
+        fontSize = 14,
+        fontWeight = "normal",
+        fontItalic = false,
+        fontUnderline = false,
+        textAlign = "LEFT",
+        hasBorder = false,
+        hasPadding = true,
+        hasConnector = false,
+        pageFormat = "A4",
+        imageLongSidePx,
+      } = annotation;
+      if (!labelPoint) return;
+
+      const k = getFreeTextPageScale(pageFormat, imageLongSidePx);
+
+      // Connector line (drawn first, under the box) — image px space.
+      if (hasConnector && targetPoint) {
+        ctx.beginPath();
+        ctx.moveTo(targetPoint.x, targetPoint.y);
+        ctx.lineTo(labelPoint.x, labelPoint.y);
+        ctx.strokeStyle = hexToRgba("#000000", 0.7);
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
+
+      ctx.save();
+      ctx.translate(labelPoint.x, labelPoint.y);
+      ctx.scale(k, k);
+
+      const lines = String(textContent ?? "").split("\n");
+      const padX = hasPadding ? 8 : 0;
+      const padY = hasPadding ? 4 : 0;
+      const lineHeight = fontSize * 1.2;
+      ctx.font = `${fontItalic ? "italic " : ""}${fontWeight} ${fontSize}px "${fontFamily}", system-ui, sans-serif`;
+      const maxLineWidth = Math.max(
+        1,
+        ...lines.map((l) => ctx.measureText(l).width)
+      );
+      const boxW = width || maxLineWidth + 2 * padX;
+      const boxH = lines.length * lineHeight + 2 * padY;
+      const boxX = -boxW / 2;
+      const boxY = -boxH / 2;
+
+      if (hasBackground) {
+        ctx.fillStyle = fillColor || "#ffffff";
+        ctx.fillRect(boxX, boxY, boxW, boxH);
+      }
+      if (hasBorder) {
+        ctx.strokeStyle = borderColor;
+        ctx.lineWidth = 1;
+        ctx.strokeRect(boxX, boxY, boxW, boxH);
+      }
+
+      ctx.fillStyle = textColor;
+      ctx.textBaseline = "middle";
+      lines.forEach((line, i) => {
+        const lineW = ctx.measureText(line).width;
+        const tx =
+          textAlign === "CENTER"
+            ? -lineW / 2
+            : textAlign === "RIGHT"
+              ? boxX + boxW - padX - lineW
+              : boxX + padX;
+        const ty = boxY + padY + (i + 0.5) * lineHeight;
+        ctx.fillText(line, tx, ty);
+        if (fontUnderline && line) {
+          ctx.beginPath();
+          ctx.moveTo(tx, ty + fontSize * 0.5);
+          ctx.lineTo(tx + lineW, ty + fontSize * 0.5);
+          ctx.strokeStyle = textColor;
+          ctx.lineWidth = Math.max(1, fontSize / 14);
+          ctx.stroke();
+        }
+      });
+
+      ctx.restore();
       break;
     }
 

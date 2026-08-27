@@ -24,7 +24,14 @@ import SectionAnnotationPhotoPlan from "Features/photoPlans/components/SectionAn
 import SectionAnnotationFolioContent from "Features/detailFolio/components/SectionAnnotationFolioContent";
 
 // Types without a draggable sub-label (no labelDelta model) — no Etiquette tab.
-const TYPES_WITHOUT_LABEL = ["COTE", "RULER", "TEXT", "LABEL", "DETAIL"];
+const TYPES_WITHOUT_LABEL = [
+  "COTE",
+  "RULER",
+  "TEXT",
+  "LABEL",
+  "FREE_TEXT",
+  "DETAIL",
+];
 
 function getTabs(annotation) {
   const showLabelTab =

@@ -34,7 +34,7 @@ function getGeometryKey(annotation, tolerance) {
     return pointKey(annotation.point, tolerance);
   }
 
-  if (annotation.type === "LABEL") {
+  if (annotation.type === "LABEL" || annotation.type === "FREE_TEXT") {
     if (!annotation.targetPoint) return null;
     const parts = [pointKey(annotation.targetPoint, tolerance)];
     if (annotation.labelPoint)

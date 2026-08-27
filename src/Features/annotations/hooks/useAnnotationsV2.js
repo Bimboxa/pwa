@@ -1163,8 +1163,11 @@ export default function useAnnotationsV2(options) {
             }
           }
 
-          // --- LABELS
-          else if (_annotation.type === "LABEL") {
+          // --- LABELS / FREE_TEXT (same inline normalized 2-point storage)
+          else if (
+            _annotation.type === "LABEL" ||
+            _annotation.type === "FREE_TEXT"
+          ) {
             _annotation.targetPoint = {
               x: annotation.targetPoint.x * width,
               y: annotation.targetPoint.y * height,
@@ -1173,6 +1176,13 @@ export default function useAnnotationsV2(options) {
               x: annotation.labelPoint.x * width,
               y: annotation.labelPoint.y * height,
             };
+            // FREE_TEXT sizes are PDF points "as if the base map filled an
+            // A4/A3 page": the renderers need the image long side to derive
+            // the pt→image-px scale (getFreeTextPageScale), and imageSize is
+            // only known here.
+            if (_annotation.type === "FREE_TEXT") {
+              _annotation.imageLongSidePx = Math.max(width, height);
+            }
           }
 
           // --- IMAGE

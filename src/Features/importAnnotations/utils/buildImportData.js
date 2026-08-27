@@ -30,6 +30,19 @@ const STYLE_FIELDS = [
   "arrowStep",
   "arrowRight",
   "arrowLeft",
+  // FREE_TEXT
+  "hasBackground",
+  "textColor",
+  "borderColor",
+  "fontFamily",
+  "pageFormat",
+  "fontWeight",
+  "fontItalic",
+  "fontUnderline",
+  "textAlign",
+  "hasBorder",
+  "hasPadding",
+  "hasConnector",
 ];
 
 function pickStyle(obj) {

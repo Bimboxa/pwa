@@ -43,7 +43,14 @@ function getAnnotationLabelZ(annotation) {
 
 // Types without the labelDelta sub-label model (mirrors the Etiquette tab
 // filter in PanelAnnotationProperties).
-const TYPES_WITHOUT_LABEL = ["COTE", "RULER", "TEXT", "LABEL", "DETAIL"];
+const TYPES_WITHOUT_LABEL = [
+  "COTE",
+  "RULER",
+  "TEXT",
+  "LABEL",
+  "FREE_TEXT",
+  "DETAIL",
+];
 
 function disposeObject(obj) {
   if (!obj) return;

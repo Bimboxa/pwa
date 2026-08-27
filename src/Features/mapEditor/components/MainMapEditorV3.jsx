@@ -1546,10 +1546,16 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                 }
             }
 
-            else if (annotation.type === "LABEL") {
+            else if (annotation.type === "LABEL" || annotation.type === "FREE_TEXT") {
                 const { targetPoint, labelPoint } = annotation;
 
                 const updates = {};
+
+                // FREE_TEXT sans connecteur : la boîte emporte aussi le
+                // targetPoint (coïncident, invisible) — même règle que la
+                // preview dans applyDeltaPosToAnnotation.
+                const moveBothOnBox =
+                    annotation.type === "FREE_TEXT" && !annotation.hasConnector;
 
                 // 1. Déplacement de la cible (Target) uniquement
                 if (partType === 'TARGET') {
@@ -1564,6 +1570,12 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                         x: (labelPoint.x + deltaPos.x) / imageSize.width,
                         y: (labelPoint.y + deltaPos.y) / imageSize.height
                     };
+                    if (moveBothOnBox) {
+                        updates.targetPoint = {
+                            x: (targetPoint.x + deltaPos.x) / imageSize.width,
+                            y: (targetPoint.y + deltaPos.y) / imageSize.height
+                        };
+                    }
                 }
                 // 3. Cas général (Déplacement global)
                 else {

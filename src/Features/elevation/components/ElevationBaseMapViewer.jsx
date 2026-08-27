@@ -66,7 +66,8 @@ export default function ElevationBaseMapViewer({
   const annotations = useMemo(
     () =>
       (rawAnnotations ?? []).filter(
-        (a) => a.type !== "TEXT" && a.type !== "LABEL"
+        (a) =>
+          a.type !== "TEXT" && a.type !== "LABEL" && a.type !== "FREE_TEXT"
       ),
     [rawAnnotations]
   );

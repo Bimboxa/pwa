@@ -5,6 +5,7 @@ import NodePolylineStatic from "./NodePolylineStatic";
 import NodeStripStatic from "./NodeStripStatic";
 import NodeTextStatic from "./NodeTextStatic";
 import NodeLabelStatic from "./NodeLabelStatic";
+import NodeFreeTextStatic from "./NodeFreeTextStatic";
 import NodeDetailStatic from "./NodeDetailStatic";
 import NodeImageStatic from "./NodeImageStatic";
 import NodeObject3DStatic from "./NodeObject3DStatic";
@@ -136,6 +137,13 @@ function NodeAnnotationStatic({
           sizeVariant="FIXED_IN_BG_IMAGE"
         />
       );
+
+    // FREE_TEXT: free text box (constant screen size, optional connector).
+    // Deliberately ignores forceHideLabel — it renders in the main pass of
+    // StaticMapContent (which passes forceHideLabel=true to every node), not
+    // in the hoisted labels pass.
+    case "FREE_TEXT":
+      return <NodeFreeTextStatic {...props} annotation={resolvedAnnotation} />;
 
     // PHOTO: read-only camera pose (dot + view cone) synthesized from
     // db.photos by useAnnotationsV2 (`withPhotos`, Photos module).

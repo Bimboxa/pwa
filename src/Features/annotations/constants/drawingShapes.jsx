@@ -51,6 +51,24 @@ const DRAWING_SHAPES = [
     ),
   },
   {
+    key: "FREE_TEXT",
+    label: "Texte",
+    icon: (
+      <SvgIcon fontSize="small" viewBox="0 0 20 20">
+        <text
+          x="10"
+          y="14"
+          textAnchor="middle"
+          fontSize="14"
+          fontWeight="bold"
+          fill="currentColor"
+        >
+          T
+        </text>
+      </SvgIcon>
+    ),
+  },
+  {
     key: "DETAIL",
     label: "Détail",
     icon: (

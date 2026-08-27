@@ -115,7 +115,7 @@ export default function useAnnotationDrag({
     ) {
       hasChanged =
         ann.point?.x !== snap.pointX || ann.point?.y !== snap.pointY;
-    } else if (ann.type === "LABEL") {
+    } else if (ann.type === "LABEL" || ann.type === "FREE_TEXT") {
       hasChanged =
         ann.targetPoint?.x !== snap.targetX ||
         ann.targetPoint?.y !== snap.targetY ||

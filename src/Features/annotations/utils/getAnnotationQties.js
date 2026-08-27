@@ -375,6 +375,9 @@ export default function getAnnotationQties({
     if (annotation.type === "DETAIL")
       return { enabled: true, length: 0, surface: 0 };
 
+    // FREE_TEXT is a pure text box: it describes the drawing, no quantities.
+    if (annotation.type === "FREE_TEXT") return { enabled: false };
+
     if (annotation.type === "POINT") {
       // REVOLUTION: the point sweeps a circle around the referenced axis
       // (radius = its horizontal distance to it, resolved by useAnnotationsV2).

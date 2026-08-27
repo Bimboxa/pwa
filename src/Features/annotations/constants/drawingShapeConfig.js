@@ -61,6 +61,52 @@ const DRAWING_SHAPE_CONFIG = {
     },
     shapeCategory: "circle",
   },
+  // FREE_TEXT — a free text box placed with a single click. MAP-FIXED: it
+  // zooms with the plan (fontSize / width are base-map image px). Text lives
+  // in the annotation's own `textContent` prop (NOT `label`). Geometry =
+  // inline normalized labelPoint (box center) + targetPoint (connector
+  // anchor, coincident at commit); the optional leader line only renders
+  // when hasConnector is on.
+  FREE_TEXT: {
+    label: "Texte",
+    annotationType: "FREE_TEXT",
+    tools: ["ONE_CLICK"],
+    configurableProps: [
+      "fillColor",
+      "hasBackground",
+      "textColor",
+      "borderColor",
+      "fontFamily",
+      "fontSize",
+      // Page format A4 / A3: fontSize is in PDF points as if the base map
+      // filled that page (see freeTextConstants.getFreeTextPageScale).
+      "pageFormat",
+      "fontWeight",
+      "fontItalic",
+      "fontUnderline",
+      "textAlign",
+      "hasBorder",
+      "hasPadding",
+      "hasConnector",
+    ],
+    defaults: {
+      fillColor: "#ffffff",
+      hasBackground: true,
+      textColor: "#000000",
+      borderColor: "#000000",
+      fontFamily: "Roboto",
+      fontSize: 14,
+      pageFormat: "A4",
+      fontWeight: "normal",
+      fontItalic: false,
+      fontUnderline: false,
+      textAlign: "LEFT",
+      hasBorder: false,
+      hasPadding: true,
+      hasConnector: false,
+    },
+    shapeCategory: "circle",
+  },
   // DETAIL — a "detail bubble": white circle with a thick ring containing a
   // short label, plus a filled triangular arrow whose TIP is the annotation's
   // stored point. arrowAngle (degrees, SVG screen convention: 0 = right,
@@ -470,6 +516,7 @@ const TYPE_TO_SHAPE = {
   POINT: "POINT",
   TEXT: "TEXT",
   LABEL: "LABEL",
+  FREE_TEXT: "FREE_TEXT",
   DETAIL: "DETAIL",
   IMAGE: "IMAGE",
   POLYLINE: "POLYLINE",

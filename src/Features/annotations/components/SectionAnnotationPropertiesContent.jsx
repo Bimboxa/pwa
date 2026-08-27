@@ -26,6 +26,8 @@ import FieldAnnotationIsProfile from "./FieldAnnotationIsProfile";
 import FieldAnnotationLabel from "./FieldAnnotationLabel";
 import FieldAnnotationLinearLayout from "./FieldAnnotationLinearLayout";
 import FieldAnnotationArrows from "./FieldAnnotationArrows";
+import FieldAnnotationFreeText from "./FieldAnnotationFreeText";
+import FieldAnnotationTextContent from "./FieldAnnotationTextContent";
 
 // hideOverview: the hosting panel renders the preview / height / quantities
 // card and the label field itself, above the tabs (panel annotation subview)
@@ -48,9 +50,12 @@ export default function SectionAnnotationPropertiesContent({
   // otherwise fall back to the wrong section set.
   const drawingShape = resolveDrawingShape(annotation);
   const configurableProps = getConfigurableProps(drawingShape);
+  // FREE_TEXT: all colors live in its grouped field — skip the fill section.
+  const isFreeText = configurableProps.includes("fontFamily");
   const showFill =
-    configurableProps.includes("fillColor") ||
-    configurableProps.includes("fillOpacity");
+    !isFreeText &&
+    (configurableProps.includes("fillColor") ||
+      configurableProps.includes("fillOpacity"));
   const showStroke =
     configurableProps.includes("strokeColor") ||
     configurableProps.includes("strokeWidth");
@@ -154,6 +159,8 @@ export default function SectionAnnotationPropertiesContent({
         {drawingShape === "CIRCULATION" && (
           <FieldAnnotationArrows annotation={annotation} />
         )}
+        {isFreeText && <FieldAnnotationTextContent annotation={annotation} />}
+        {isFreeText && <FieldAnnotationFreeText annotation={annotation} />}
         {showFill && (
           <FieldAnnotationFill
             annotation={annotation}

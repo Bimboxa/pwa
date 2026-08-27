@@ -213,6 +213,52 @@ export default function AnnotationTemplateIcon({
     );
   }
 
+  // render — FREE_TEXT template: text box glyph. fillColor is the box
+  // BACKGROUND here (often white / disabled), so the glyph reads through
+  // textColor instead of the generic colored-circle fallback.
+  if (shape === "FREE_TEXT") {
+    const boxFill =
+      template.hasBackground === false ? "none" : (template.fillColor ?? "#ffffff");
+    const textC = template.textColor ?? "#000000";
+    return (
+      <Box
+        sx={{
+          width: size,
+          height: size,
+          flexShrink: 0,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <svg width={size} height={size} viewBox="0 0 20 20">
+          <rect
+            x="1"
+            y="4"
+            width="18"
+            height="12"
+            rx="2"
+            fill={boxFill}
+            stroke={template.hasBorder ? (template.borderColor ?? "#000000") : "#bbb"}
+            strokeWidth={1}
+            strokeDasharray={template.hasBorder ? "none" : "2 2"}
+          />
+          <text
+            x="10"
+            y="13.5"
+            textAnchor="middle"
+            fontSize="10"
+            fontWeight="bold"
+            fill={textC}
+            fontFamily="sans-serif"
+          >
+            T
+          </text>
+        </svg>
+      </Box>
+    );
+  }
+
   // render — REVOLUTION_AXIS template: circle + centre point on the plan
   // (same glyph as the "Cercle centre/rayon" drawing tool), inverted T on a
   // vertical base map (the axis placement mark).

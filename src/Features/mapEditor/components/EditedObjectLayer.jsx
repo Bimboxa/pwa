@@ -174,7 +174,9 @@ export default function EditedObjectLayer({
       {annotationsToRender.map((annotation) => {
         // Style spécifique pour chaque annotation
         const isDraggable =
-          (annotation.type === "MARKER" || annotation.type === "LABEL") &&
+          (annotation.type === "MARKER" ||
+            annotation.type === "LABEL" ||
+            annotation.type === "FREE_TEXT") &&
           selectedNode?.nodeId === annotation.id;
 
         // Est-ce que l'annotation entière est sélectionnée ?

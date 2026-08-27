@@ -18,6 +18,7 @@ import FieldAnnotationTemplateLegend from "./FieldAnnotationTemplateLegend";
 import FieldAnnotationTemplateDrawingShape from "./FieldAnnotationTemplateDrawingShape";
 import FieldAnnotationTemplateDefaultTool from "./FieldAnnotationTemplateDefaultTool";
 import FieldAnnotationTemplateCote from "./FieldAnnotationTemplateCote";
+import FieldAnnotationTemplateFreeText from "./FieldAnnotationTemplateFreeText";
 import FieldAnnotationTemplateLinearLayout from "./FieldAnnotationTemplateLinearLayout";
 import FieldAnnotationTemplateArrows from "./FieldAnnotationTemplateArrows";
 import FieldQty from "Features/form/components/FieldQty";
@@ -136,6 +137,8 @@ export default function FormAnnotationTemplateVariantBlock({
   const hasMeterByPx = configurableProps.includes("meterByPx");
   const hasCoteProps = configurableProps.includes("unit");
   const hasLinearLayout = configurableProps.includes("densityMode");
+  // fontFamily is unique to FREE_TEXT.
+  const hasFreeText = configurableProps.includes("fontFamily");
   const hasArrows = configurableProps.includes("arrowStep");
   const hasHideSlope = configurableProps.includes("hideSlope");
   const hasMaterial3d = configurableProps.includes("material3d");
@@ -315,8 +318,9 @@ export default function FormAnnotationTemplateVariantBlock({
           {/* Appearance — fill / stroke / simple color / icon / point / image /
               3D object (mutually exclusive per shape) */}
 
-          {/* Simple fill color (MARKER, LABEL, TEXT) */}
-          {useSimpleFillColor && drawingShape !== "POINT" && (
+          {/* Simple fill color (MARKER, LABEL, TEXT) — FREE_TEXT's colors are
+              all grouped in its own field below. */}
+          {useSimpleFillColor && drawingShape !== "POINT" && !hasFreeText && (
             <FieldColorV2
               label="Couleur"
               value={fillColor}
@@ -513,6 +517,17 @@ export default function FormAnnotationTemplateVariantBlock({
             />
           )}
 
+          {/* FREE_TEXT controls — alignment + "..." popover (font, colors,
+              background / border / padding / connector) */}
+          {hasFreeText && (
+            <FieldAnnotationTemplateFreeText
+              annotationTemplate={annotationTemplate}
+              onChange={onChange}
+              overrideFields={overrideFields}
+              onOverrideFieldsChange={handleOverrideFieldsChange}
+            />
+          )}
+
           {/* LINEAR_LAYOUT controls — density + alignment, one line + "..."
               popover */}
           {hasLinearLayout && (
@@ -534,9 +549,10 @@ export default function FormAnnotationTemplateVariantBlock({
             />
           )}
 
-          {/* RULER is a measurement object: it produces no quantities, so the
-              main-quantity selector would be misleading. */}
-          {drawingShape !== "RULER" && (
+          {/* RULER is a measurement object and FREE_TEXT a pure text box:
+              they produce no quantities, so the main-quantity selector would
+              be misleading. */}
+          {drawingShape !== "RULER" && drawingShape !== "FREE_TEXT" && (
             <FieldQty
               value={mainQtyKey}
               onChange={handleMainQtyKeyChange}
