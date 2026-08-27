@@ -4,9 +4,9 @@ import { IconButton, Tooltip } from "@mui/material";
 import {
   Lock as LockIcon,
   LockOpen as LockOpenIcon,
-  OpenWith as OpenWithIcon,
   Straighten as StraightenIcon,
 } from "@mui/icons-material";
+import IconSegmentDrag from "Features/icons/IconSegmentDrag";
 
 import {
   setAnglesLocked,
@@ -629,7 +629,7 @@ export default function NodeSegmentLengthsStatic({
                         p: 0.5,
                       }}
                     >
-                      <OpenWithIcon sx={{ fontSize: 18 }} />
+                      <IconSegmentDrag sx={{ fontSize: 18 }} />
                     </IconButton>
                   </Tooltip>
                 )}
