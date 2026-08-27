@@ -87,6 +87,13 @@ export default function NodeSegmentLengthsStatic({
     (s) => s.mapEditor.segmentDragEnabled
   );
 
+  // Multi-selection: the no-mode overlay targets ONE annotation — with
+  // several selected, each node would grow its own toolbar. Hide it (cotes
+  // included) until the selection is back to a single annotation.
+  const hasMultiSelection = useSelector(
+    (s) => (s.selection?.selectedItems?.length ?? 0) > 1
+  );
+
   const annotationId = annotation?.id;
   const unit = annotation?.unit ?? "M";
   const decimals = annotation?.decimals ?? 2;
@@ -189,9 +196,11 @@ export default function NodeSegmentLengthsStatic({
     (interactionMode === "EDIT" || (isNoMode && showSegmentCotes));
 
   // Top overlay: EDIT keeps its single angle padlock (scale required, as
-  // before); no-mode shows the 3-toggle toolbar on any selected annotation.
+  // before); no-mode shows the 3-toggle toolbar on THE selected annotation
+  // (hidden on multi-selection).
   const overlayActive =
-    baseActive && (interactionMode === "EDIT" ? hasScale : isNoMode);
+    baseActive &&
+    (interactionMode === "EDIT" ? hasScale : isNoMode && !hasMultiSelection);
 
   const counterScaleTransform = useMemo(() => {
     const k = containerK || 1;
