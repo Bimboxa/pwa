@@ -1,4 +1,4 @@
-import { Box, List, ListItemButton, Typography } from "@mui/material";
+import { alpha, Box, List, ListItemButton, Typography } from "@mui/material";
 
 import { PDF_PAGE_DRAG_MIME } from "../utils/pdfPageDrag";
 
@@ -28,7 +28,17 @@ function DraggablePdfPageItem({
       <ListItemButton
         selected={selected}
         onClick={onClick}
-        sx={{ p: 1, display: "flex", justifyContent: "center" }}
+        sx={{
+          p: 1,
+          display: "flex",
+          justifyContent: "center",
+          "&.Mui-selected": {
+            bgcolor: (theme) => alpha(theme.palette.secondary.main, 0.12),
+            "&:hover": {
+              bgcolor: (theme) => alpha(theme.palette.secondary.main, 0.2),
+            },
+          },
+        }}
       >
         {pending ? (
           <Box
@@ -40,8 +50,8 @@ function DraggablePdfPageItem({
               alignItems: "center",
               justifyContent: "center",
               bgcolor: "action.hover",
-              border: "1px dashed",
-              borderColor: "text.disabled",
+              border: selected ? "2px solid" : "1px dashed",
+              borderColor: selected ? "secondary.main" : "text.disabled",
               borderRadius: 1,
               color: "text.secondary",
             }}
@@ -51,15 +61,18 @@ function DraggablePdfPageItem({
             </Typography>
           </Box>
         ) : (
-          <img
+          <Box
+            component="img"
             width="100%"
             src={imageUrl}
             alt={`Page ${pageNumber}`}
             draggable={false}
-            style={{
+            sx={{
               display: "block",
               borderRadius: "4px",
               boxShadow: "0px 2px 4px rgba(0,0,0,0.1)",
+              border: "2px solid",
+              borderColor: selected ? "secondary.main" : "transparent",
             }}
           />
         )}

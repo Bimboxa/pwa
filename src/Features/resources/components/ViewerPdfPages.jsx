@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import { setTargetPdfPage } from "../resourcesSlice";
@@ -18,11 +18,17 @@ import {
 } from "@mui/icons-material";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
+import SearchBar from "Features/search/components/SearchBar";
 import usePdfDocument from "Features/pdf/hooks/usePdfDocument";
 import usePdfThumbnails from "Features/pdf/hooks/usePdfThumbnails";
 import usePdfPageImageUrl from "Features/baseMapCreator/hooks/usePdfPageImageUrl";
+import usePdfPagesText from "Features/detailFolio/hooks/usePdfPagesText";
+import searchPdfPages from "Features/detailFolio/utils/searchPdfPages";
+import ListPdfSearchResults from "Features/detailFolio/components/ListPdfSearchResults";
 
 import ListDraggablePdfPages from "./ListDraggablePdfPages";
+
+const MIN_SEARCH_LENGTH = 2;
 
 // Page-based PDF viewer for the resource detail panel: left column of page
 // thumbnails (each one selectable AND draggable towards the 2D editor to
@@ -38,6 +44,10 @@ export default function ViewerPdfPages({ resource, file }) {
   const pageS = "Page";
   const rotateCcwS = "Pivoter à gauche";
   const rotateCwS = "Pivoter à droite";
+  const searchS = "Rechercher dans le PDF...";
+  const indexingS = "Indexation";
+  const pagesS = "pages";
+  const noResultS = "Aucun résultat";
 
   // data
 
@@ -48,6 +58,7 @@ export default function ViewerPdfPages({ resource, file }) {
 
   const [pageNumber, setPageNumber] = useState(1);
   const [rotation, setRotation] = useState(0);
+  const [searchText, setSearchText] = useState("");
 
   // One-shot navigation target (e.g. "Voir le détail" on a DETAIL
   // annotation): apply then clear, so a later click on the same page
@@ -64,6 +75,23 @@ export default function ViewerPdfPages({ resource, file }) {
 
   const { thumbnails } = usePdfThumbnails(pdfDocument, pageNumber);
   const { imageUrl } = usePdfPageImageUrl(pdfDocument, pageNumber, rotation);
+
+  // Lazy text search: pages are indexed only once a real query is typed,
+  // with a module-level cache keyed by resource (same as the folio dialog).
+  const searchEnabled = searchText.trim().length >= MIN_SEARCH_LENGTH;
+  const {
+    pagesText,
+    progress: indexProgress,
+    isIndexing,
+  } = usePdfPagesText(pdfDocument, {
+    cacheKey: `${resource?.id}:${resource?.fileName}`,
+    enabled: searchEnabled,
+  });
+
+  const results = useMemo(
+    () => searchPdfPages(pagesText, searchText),
+    [pagesText, searchText]
+  );
 
   // Keep the selected thumbnail in view.
   const leftColumnRef = useRef(null);
@@ -108,6 +136,62 @@ export default function ViewerPdfPages({ resource, file }) {
 
   return (
     <BoxFlexVStretch>
+      <Box
+        sx={{
+          px: 1,
+          py: 0.5,
+          borderBottom: (theme) => `1px solid ${theme.palette.divider}`,
+        }}
+      >
+        <SearchBar
+          value={searchText}
+          onChange={setSearchText}
+          placeholder={searchS}
+          fullWidth
+        />
+      </Box>
+
+      {searchEnabled && (
+        <Box
+          sx={{
+            maxHeight: "40%",
+            flexShrink: 0,
+            overflowY: "auto",
+            borderBottom: (theme) => `1px solid ${theme.palette.divider}`,
+          }}
+        >
+          {isIndexing && (
+            <Box sx={{ px: 1, py: 1 }}>
+              <LinearProgress
+                variant="determinate"
+                value={
+                  indexProgress?.total
+                    ? (indexProgress.done / indexProgress.total) * 100
+                    : 0
+                }
+              />
+              <Typography variant="caption" color="text.secondary">
+                {`${indexingS} ${indexProgress?.done ?? 0}/${
+                  indexProgress?.total ?? 0
+                } ${pagesS}...`}
+              </Typography>
+            </Box>
+          )}
+
+          {results.length === 0 && !isIndexing ? (
+            <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>
+              {noResultS}
+            </Typography>
+          ) : (
+            <ListPdfSearchResults
+              results={results}
+              selectedPageNumber={pageNumber}
+              onResultClick={setPageNumber}
+            />
+          )}
+        </Box>
+      )}
+
       <Box sx={{ display: "flex", flexGrow: 1, minHeight: 0 }}>
         <Box
           ref={leftColumnRef}
