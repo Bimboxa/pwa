@@ -1091,6 +1091,26 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
         });
     };
 
+    // Multi-selection shared-vertex drag: every matched pointId lands on the
+    // same final position. commitWrapperTransform owns the topology semantics
+    // (points exclusive to the matched annotations updated in place, points
+    // shared with non-selected annotations duplicated and re-referenced on
+    // the matched annotations only). Note: the cut→contour reflow (#224) is
+    // not run here — same accepted limitation as the wrapper transform.
+    const handleMultiVertexMoveCommit = async ({ annotationIds, pointIds, newPos }) => {
+        const imageSize = baseMap?.getImageSize?.();
+        if (!imageSize) return;
+        await commitWrapperTransform({
+            selectedAnnotationIds: annotationIds, // matched subset, NOT the full selection
+            allAnnotations: annotations,
+            pointUpdates: new Map(pointIds.map((pid) => [pid, newPos])),
+            imageSize,
+            clearRotation: true, // vertex move bakes in rotation — same rule as handlePointMoveCommit
+        });
+        await reflowOpenings({ movedPointIds: pointIds, hostIds: annotationIds });
+        dispatch(triggerAnnotationsUpdate());
+    };
+
     const handleDuplicateAndMovePoint = async ({ originalPointId, annotationId, newPos }) => {
         const imageSize = baseMap?.getImageSize?.();
         await duplicateAndMovePoint({ originalPointId, annotationId, newPos, imageSize, annotations });
@@ -2004,6 +2024,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                     onPointSnapReplace={handlePointSnapReplace}
                     onToggleAnnotationPointType={handleToggleAnnotationPointType}
                     onPointDuplicateAndMoveCommit={handleDuplicateAndMovePoint}
+                    onMultiVertexMoveCommit={handleMultiVertexMoveCommit}
                     onDeletePoint={handleDeletePoint}
                     onDeletePoints={handleDeletePoints}
                     onHideSegment={handleHideSegment}

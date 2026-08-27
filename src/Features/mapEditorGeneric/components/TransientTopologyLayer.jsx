@@ -23,6 +23,10 @@ export default function TransientTopologyLayer({
     movedPointsById,               // { [pointId]: {x, y} } — multi-point drags
                                    // (angle lock, segment drag); supersedes
                                    // movingPointId/currentPos in CASE 3
+    restrictToAnnotationIds,       // CASE 3 only: limit the preview to these
+                                   // annotations (multi-selection shared-vertex
+                                   // drag — non-restricted sharers keep their
+                                   // static render at the original position)
     virtualInsertion,
     viewportScale,
     containerK,
@@ -192,7 +196,11 @@ export default function TransientTopologyLayer({
 
         // On cherche TOUTES les annotations qui contiennent un point déplacé
         // (contour, trous, ou points intérieurs Steiner)
+        const restrictSet = restrictToAnnotationIds
+            ? new Set(restrictToAnnotationIds)
+            : null;
         const affected = annotations.filter(ann => {
+            if (restrictSet && !restrictSet.has(ann.id)) return false;
             const inMain = ann.points?.some(pt => moved(pt.id));
             if (inMain) return true;
             if (ann.cuts?.some(cut => cut.points?.some(pt => moved(pt.id)))) return true;
@@ -211,6 +219,10 @@ export default function TransientTopologyLayer({
         const openingReflows = [];
         if (Array.isArray(openingRels) && baseMapMeterByPx > 0) {
             for (const rel of openingRels) {
+                // Restricted preview (multi-selection shared-vertex drag): a
+                // non-restricted host sharing a moved pointId does NOT move
+                // (its point is forked at commit) — its opening stays static.
+                if (restrictSet && !restrictSet.has(rel.hostAnnotationId)) continue;
                 const anchoredOnMovingPoint =
                     Boolean(moved(rel.hostSegmentStartPointId)) ||
                     Boolean(moved(rel.hostSegmentEndPointId)) ||
@@ -385,7 +397,7 @@ export default function TransientTopologyLayer({
 
         return [...mapped, ...openingReflows];
 
-    }, [annotations, movingPointId, currentPos, movedMap, virtualInsertion, originalPointIdForDuplication, selectedAnnotationId, openingRels, baseMapMeterByPx]);
+    }, [annotations, movingPointId, currentPos, movedMap, virtualInsertion, originalPointIdForDuplication, selectedAnnotationId, restrictToAnnotationIds, openingRels, baseMapMeterByPx]);
 
     // Transient cotes: length labels on the segments that are moving, so the
     // user reads the dimensions live during a vertex / segment drag. Main

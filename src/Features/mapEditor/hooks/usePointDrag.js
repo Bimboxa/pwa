@@ -4,6 +4,7 @@ import { nanoid } from "@reduxjs/toolkit";
 import { setSubSelection, setSelectedPointIds, toggleSelectedPointId, selectSelectedPointIds } from "Features/selection/selectionSlice";
 import { setToaster } from "Features/layout/layoutSlice";
 import snapToAngle from "Features/mapEditor/utils/snapToAngle";
+import getMatchedSelectedVertices from "Features/mapEditor/utils/getMatchedSelectedVertices";
 
 const DRAG_THRESHOLD_PX = 3;
 
@@ -19,6 +20,7 @@ export default function usePointDrag({
   annotations,
   selectedNode,
   selectedAnnotationRef,
+  selectedAnnotationIdsRef, // ref: NODE ids of the full multi-selection
   toLocalCoords,
   permissions,
   setHiddenAnnotationIds,
@@ -27,6 +29,7 @@ export default function usePointDrag({
   onPointMoveCommit,
   onPointSnapReplace,
   onPointDuplicateAndMoveCommit,
+  onMultiVertexMoveCommit,
   onSegmentSplit,
   onToggleAnnotationPointType,
   onProjectionSnapInsert,
@@ -105,6 +108,7 @@ export default function usePointDrag({
     onPointMoveCommit,
     onPointSnapReplace,
     onPointDuplicateAndMoveCommit,
+    onMultiVertexMoveCommit,
     onSegmentSplit,
     onToggleAnnotationPointType,
     onProjectionSnapInsert,
@@ -113,6 +117,7 @@ export default function usePointDrag({
     onPointMoveCommit,
     onPointSnapReplace,
     onPointDuplicateAndMoveCommit,
+    onMultiVertexMoveCommit,
     onSegmentSplit,
     onToggleAnnotationPointType,
     onProjectionSnapInsert,
@@ -197,6 +202,23 @@ export default function usePointDrag({
           })
           .map((ann) => ann.id);
 
+        // Multi-selection shared-vertex mode: with ≥2 annotations selected,
+        // the drag moves the SELECTED annotations sharing this vertex (same
+        // pointId, or coincident coords) — non-selected sharers keep the
+        // original point (commitWrapperTransform forks it at commit). Null
+        // when <2 selected annotations match → every legacy path runs as-is.
+        let multiVertex = null;
+        const _selectedIds = selectedAnnotationIdsRef?.current ?? [];
+        if (_selectedIds.length >= 2) {
+          multiVertex = getMatchedSelectedVertices({
+            annotations: _annotations,
+            selectedAnnotationIds: _selectedIds,
+            pointId,
+            pos: { x: snap.x, y: snap.y },
+            canEdit: (id) => permissions.canEditAnnotation(id, { silent: true }),
+          });
+        }
+
         const newDragState = {
           active: false,
           pending: true,
@@ -204,6 +226,7 @@ export default function usePointDrag({
           originalPointId: pointId,
           isDuplicateMode: false,
           potentialDuplicate: isPotentialDuplicate,
+          multiVertex,
           currentPos: { x: snap.x, y: snap.y },
           startPos: { x: snap.x, y: snap.y },
           startMouseScreen: { x: e.clientX, y: e.clientY },
@@ -276,7 +299,14 @@ export default function usePointDrag({
           let finalIsDuplicateMode = false;
           let idsToHide = _dragState.affectedIds;
 
-          if (_dragState.potentialDuplicate) {
+          if (_dragState.multiVertex) {
+            // Multi-selection shared-vertex mode: no fork mint here —
+            // commitWrapperTransform owns the exclusive-vs-shared point
+            // classification at commit. Hide only the matched selected
+            // annotations; non-selected sharers keep their static render
+            // at the original position.
+            idsToHide = _dragState.multiVertex.annotationIds;
+          } else if (_dragState.potentialDuplicate) {
             // Activation du mode fork/duplication
             finalIsDuplicateMode = true;
             finalPointId = `temp_dup_${nanoid()}`;
@@ -374,6 +404,7 @@ export default function usePointDrag({
       onPointMoveCommit: _onPointMoveCommit,
       onPointSnapReplace: _onPointSnapReplace,
       onPointDuplicateAndMoveCommit: _onPointDuplicateAndMoveCommit,
+      onMultiVertexMoveCommit: _onMultiVertexMoveCommit,
       onSegmentSplit: _onSegmentSplit,
       onToggleAnnotationPointType: _onToggleAnnotationPointType,
       onProjectionSnapInsert: _onProjectionSnapInsert,
@@ -382,7 +413,17 @@ export default function usePointDrag({
     // CAS A : DRAG actif → commit
     if (_dragState.active) {
       // 1. Commit des données
-      if (_virtualInsertion && _onSegmentSplit) {
+      if (_dragState.multiVertex && _onMultiVertexMoveCommit) {
+        // Multi-selection shared-vertex commit. Takes priority over every
+        // other branch: fork / snap-replace / projection semantics are
+        // subsumed by commitWrapperTransform (a snap-drop onto another
+        // vertex is position-only — ids are not merged).
+        _onMultiVertexMoveCommit({
+          annotationIds: _dragState.multiVertex.annotationIds,
+          pointIds: _dragState.multiVertex.pointIds,
+          newPos: _dragState.currentPos,
+        });
+      } else if (_virtualInsertion && _onSegmentSplit) {
         _onSegmentSplit({
           segmentStartId: _virtualInsertion.segmentStartId,
           segmentEndId: _virtualInsertion.segmentEndId,

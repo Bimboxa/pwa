@@ -41,14 +41,18 @@ export default function useAnnotationPermissions({ annotations }) {
    * Coût : O(n) lookup — appelé uniquement sur événement utilisateur.
    *
    * @param {string} annotationId
+   * @param {{ silent?: boolean }} [options] - silent: no toast on failure
+   *   (batch probes, e.g. multi-selection shared-vertex matching)
    * @returns {boolean}
    */
   const canEditAnnotation = useCallback(
-    (annotationId) => {
+    (annotationId, { silent = false } = {}) => {
       if (isEditorRef.current) return true;
       const ann = annotationsRef.current?.find((a) => a.id === annotationId);
       if (canEditRecord(ann, currentUserId)) return true;
-      dispatch(setToaster({ message: PERMISSION_MESSAGE, isError: true }));
+      if (!silent) {
+        dispatch(setToaster({ message: PERMISSION_MESSAGE, isError: true }));
+      }
       return false;
     },
     [currentUserId, dispatch]

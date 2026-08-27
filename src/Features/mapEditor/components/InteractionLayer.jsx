@@ -408,6 +408,7 @@ const InteractionLayer = forwardRef(({
   onPointSnapReplace,
   onToggleAnnotationPointType,
   onPointDuplicateAndMoveCommit,
+  onMultiVertexMoveCommit, // multi-selection shared-vertex commit
   onDeletePoint,
   onDeletePoints,
   onHideSegment,
@@ -517,6 +518,13 @@ const InteractionLayer = forwardRef(({
 
   // Selection from Redux
   const selectedItems = useSelector(selectSelectedItems);
+
+  // NODE ids of the full multi-selection, as a ref for the synchronous drag
+  // handlers (usePointDrag reads it at mousedown for the shared-vertex mode).
+  const selectedAnnotationIdsRef = useRef([]);
+  selectedAnnotationIdsRef.current = (selectedItems ?? [])
+    .filter((item) => item.type === "NODE")
+    .map((item) => item.nodeId);
   const selectedPointId = useSelector(selectSelectedPointId);
   const selectedPartId = useSelector(selectSelectedPartId);
   const selectedPartIds = useSelector(selectSelectedPartIds);
@@ -1797,18 +1805,24 @@ const InteractionLayer = forwardRef(({
   // Scans existing annotation points (+ the in-progress drawing points) and
   // returns an axis snap whose markers / X-Y locks are computed in screen space
   // (zoom-independent). `cursorScreen` is in viewport-pixel space.
-  const computeAxisSnap = (cursorScreen, { excludePointId = null, annotationsList = null } = {}) => {
+  const computeAxisSnap = (cursorScreen, { excludePointIds = null, annotationsList = null } = {}) => {
     const vp = viewportRef.current;
     if (!vp || !cursorScreen) return null;
     const pose = getTargetPose();
 
+    const excludeSet =
+      excludePointIds instanceof Set
+        ? excludePointIds
+        : excludePointIds
+          ? new Set([excludePointIds])
+          : null;
     const anns = annotationsList || annotationsForSnap || [];
     const candidates = [];
     for (const ann of anns) {
       const pts = ann?.points;
       if (pts) {
         for (const p of pts) {
-          if (excludePointId && p?.id === excludePointId) continue;
+          if (excludeSet?.has(p?.id)) continue;
           if (Number.isFinite(p?.x) && Number.isFinite(p?.y)) candidates.push(p);
         }
       }
@@ -1816,7 +1830,7 @@ const InteractionLayer = forwardRef(({
       // `pointId`) — dragging one endpoint must X/Y-align with the others.
       for (const l of [...(ann?.isoHeightLines || []), ...(ann?.profileLines || [])]) {
         for (const p of l?.points || []) {
-          if (excludePointId && (p?.id === excludePointId || p?.pointId === excludePointId)) continue;
+          if (excludeSet?.has(p?.id) || excludeSet?.has(p?.pointId)) continue;
           if (Number.isFinite(p?.x) && Number.isFinite(p?.y)) candidates.push(p);
         }
       }
@@ -2253,6 +2267,7 @@ const InteractionLayer = forwardRef(({
     annotations,
     selectedNode,
     selectedAnnotationRef,
+    selectedAnnotationIdsRef,
     toLocalCoords,
     permissions,
     setHiddenAnnotationIds,
@@ -2260,6 +2275,7 @@ const InteractionLayer = forwardRef(({
     onPointMoveCommit: handlePointMoveCommitRouted,
     onPointSnapReplace,
     onPointDuplicateAndMoveCommit: handleDuplicateAndMoveRouted,
+    onMultiVertexMoveCommit,
     onSegmentSplit,
     onToggleAnnotationPointType,
     onProjectionSnapInsert,
@@ -6106,19 +6122,25 @@ const InteractionLayer = forwardRef(({
         const localPos = toLocalCoords(worldPos);
         const snapThreshold = SNAP_THRESHOLD_ABSOLUTE / scale;
 
-        // Exclude the dragged point from snap targets
-        const dragPointId = dragStateRef.current?.originalPointId || dragStateRef.current?.pointId;
+        // Exclude the dragged point(s) from snap targets. In multi-selection
+        // shared-vertex mode every matched pointId moves with the cursor —
+        // without excluding them all, the drag would instantly snap onto a
+        // coincident sibling sitting under the cursor.
+        const _ds = dragStateRef.current;
+        const dragPointIds = new Set(
+          _ds?.multiVertex?.pointIds ?? [_ds?.originalPointId || _ds?.pointId]
+        );
         const annotationsExcludingDragPoint = annotations?.map(ann => ({
           ...ann,
-          points: ann.points?.filter(pt => pt.id !== dragPointId),
+          points: ann.points?.filter(pt => !dragPointIds.has(pt.id)),
           cuts: ann.cuts?.map(cut => ({
             ...cut,
-            points: cut.points?.filter(pt => pt.id !== dragPointId),
+            points: cut.points?.filter(pt => !dragPointIds.has(pt.id)),
           })),
           guideLines: ann.guideLines?.map((gl) => ({
             ...gl,
             points: gl?.points?.filter(
-              (g) => g.pointId !== dragPointId && g.id !== dragPointId
+              (g) => !dragPointIds.has(g.pointId) && !dragPointIds.has(g.id)
             ),
           })),
         }));
@@ -6180,7 +6202,7 @@ const InteractionLayer = forwardRef(({
         // only when no exact vertex/midpoint/projection snap already applies.
         if (!snapOverride) {
           const axisSnap = computeAxisSnap(viewportPos, {
-            excludePointId: dragPointId,
+            excludePointIds: dragPointIds,
             annotationsList: annotations,
           });
           axisSnapLayerRef.current?.update(axisSnap?.markers || null);
@@ -7788,17 +7810,28 @@ const InteractionLayer = forwardRef(({
         </g>
 
         {(dragState?.active || dragState?.frozen) && (() => {
+          // Multi-selection shared-vertex drag: every matched pointId follows
+          // the cursor, and the preview is restricted to the matched selected
+          // annotations — non-selected sharers stay in StaticMapContent at the
+          // original position (the commit forks their point). Angle lock is
+          // bypassed in this mode (single-annotation by design).
+          const multiVertex = dragState.multiVertex;
           // Angle-locked vertex drag: the neighbours slide too. The map is
           // keyed by the ORIGINAL point ids (fork mode included — visually the
           // original vertex follows the cursor; the id mint happens at
           // commit). Virtual insertions keep their legacy preview.
-          const lockedPreview = !virtualInsertion
+          const lockedPreview = !virtualInsertion && !multiVertex
             ? getAngleLockedVertexMoves(
                 dragState.isDuplicateMode
                   ? dragState.originalPointId
                   : dragState.pointId,
                 dragState.currentPos
               )?.movesById ?? null
+            : null;
+          const multiPreview = multiVertex
+            ? Object.fromEntries(
+                multiVertex.pointIds.map((id) => [id, dragState.currentPos])
+              )
             : null;
           return (
             <g transform={`translate(${targetPose.x}, ${targetPose.y}) scale(${targetPose.k})`}>
@@ -7813,7 +7846,8 @@ const InteractionLayer = forwardRef(({
                     : null
                 }
                 currentPos={dragState.currentPos}
-                movedPointsById={lockedPreview}
+                movedPointsById={multiPreview ?? lockedPreview}
+                restrictToAnnotationIds={multiVertex?.annotationIds ?? null}
                 viewportScale={targetPose.k * cameraZoom}
                 containerK={targetPose.k}
                 virtualInsertion={virtualInsertion}
