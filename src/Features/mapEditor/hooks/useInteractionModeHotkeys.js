@@ -36,6 +36,38 @@ export default function useInteractionModeHotkeys() {
   const store = useStore();
   const enabledDrawingMode = useSelector((s) => s.mapEditor.enabledDrawingMode);
 
+  // Non-advanced mode: the toggle is hidden (PopperMapListings) and the D/M/S
+  // hotkeys are disabled below, but other modules still set the mode for their
+  // own flows (ZONES arming forces DRAW, exiting the POV framing forces
+  // SELECT). Landing back in the Dessin module with that residual mode would
+  // silently change the panel behavior — reset it to "no mode" (the default).
+  // The ?mode=viewer lock keeps its forced SELECT (read-only shared link).
+  const advancedLayout = useSelector((s) => s.appConfig.advancedLayout);
+  const selectedViewerKey = useSelector((s) => s.viewers.selectedViewerKey);
+  const interactionMode = useSelector(
+    (s) => s.popperMapListings.interactionMode
+  );
+  const viewerMode = useSelector((s) => s.urlParams.viewerMode);
+
+  useEffect(() => {
+    if (advancedLayout) return;
+    if (selectedViewerKey !== "MAP") return;
+    if (viewerMode) return;
+    if (interactionMode == null) return;
+    applyInteractionModeChange(dispatch, {
+      current: interactionMode,
+      next: null,
+      selectedItem: store.getState().selection.selectedItems[0] || null,
+    });
+  }, [
+    advancedLayout,
+    selectedViewerKey,
+    viewerMode,
+    interactionMode,
+    dispatch,
+    store,
+  ]);
+
   useEffect(() => {
     // Only switch modes while not mid-draw.
     if (enabledDrawingMode) return undefined;
