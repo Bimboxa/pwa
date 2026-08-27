@@ -33,6 +33,7 @@ import { setSelectedMainBaseMapId, setShowCreateBaseMapSection } from "Features/
 import useUpdateEntity from "Features/entities/hooks/useUpdateEntity";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useBaseMaps from "../hooks/useBaseMaps";
+import useDetailBaseMaps from "../hooks/useDetailBaseMaps";
 import useListingById from "Features/listings/hooks/useListingById";
 import SelectorMapsListingVariantChips from "./SelectorMapsListingVariantChips";
 
@@ -43,6 +44,7 @@ export default function BaseMapSelectorInMapEditorV2({ onEdit }) {
     const listingId = useSelector((s) => s.mapEditor.selectedBaseMapsListingId);
     const projectId = useSelector(s => s.projects.selectedProjectId);
     const { value: baseMaps = [] } = useBaseMaps({ filterByListingId: listingId });
+    const detailBaseMaps = useDetailBaseMaps() ?? [];
     const baseMapsListing = useListingById(listingId);
     const updateEntity = useUpdateEntity();
 
@@ -51,6 +53,9 @@ export default function BaseMapSelectorInMapEditorV2({ onEdit }) {
     const [anchorEl, setAnchorEl] = useState(null);
     const [editingMapId, setEditingMapId] = useState(null);
     const [tempName, setTempName] = useState("");
+    // "Détails" chip: local view toggle — detail baseMaps belong to no
+    // listing, so they are listed from their raw records.
+    const [showDetails, setShowDetails] = useState(false);
 
     const open = Boolean(anchorEl);
 
@@ -63,7 +68,11 @@ export default function BaseMapSelectorInMapEditorV2({ onEdit }) {
     }), []);
 
     // --- Handlers ---
-    const handleOpen = (event) => setAnchorEl(event.currentTarget);
+    const handleOpen = (event) => {
+        setAnchorEl(event.currentTarget);
+        // Land on the "Détails" view when the active map is a detail.
+        setShowDetails(Boolean(activeBaseMap?.isDetail));
+    };
     const handleClose = () => { setAnchorEl(null); setEditingMapId(null); };
 
     const handleSelectMap = (map) => {
@@ -167,20 +176,28 @@ export default function BaseMapSelectorInMapEditorV2({ onEdit }) {
                 }}
             >
                 <Box sx={{ p: 1.5, borderBottom: '1px solid', borderColor: 'grey.800' }}>
-                    <SelectorMapsListingVariantChips />
+                    <SelectorMapsListingVariantChips
+                        showDetailsOption={detailBaseMaps.length > 0}
+                        detailsSelected={showDetails}
+                        onDetailsSelect={setShowDetails}
+                    />
                 </Box>
 
                 <List dense sx={{ maxHeight: 350, overflowY: 'auto', py: 0 }}>
-                    {baseMaps.map((map) => {
+                    {(showDetails ? detailBaseMaps : baseMaps).map((map) => {
                         const isSelected = activeBaseMap?.id === map.id;
-                        const thumbnail = typeof map.getThumbnail === 'function' ? map.getThumbnail() : null;
+                        const thumbnail = typeof map.getThumbnail === 'function'
+                            ? map.getThumbnail()
+                            : map.image?.thumbnail ?? null;
 
                         return (
                             <ListItem
                                 key={map.id}
                                 disablePadding
                                 secondaryAction={
-                                    editingMapId === map.id ? (
+                                    // Renaming goes through the listing entity
+                                    // machinery — not applicable to details.
+                                    showDetails ? undefined : editingMapId === map.id ? (
                                         <Box sx={{ display: 'flex' }}>
                                             <IconButton
                                                 size="small"
