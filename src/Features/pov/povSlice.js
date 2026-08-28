@@ -27,6 +27,9 @@ const povInitialState = {
   // image-transformation endpoint (usedByPov prompt) and shows the result in
   // a comparison dialog.
   aiEnhanceEnabled: false,
+  // Capture tool "share" option: when on, "Créer la capture" also creates a
+  // POV in the background and pushes its preview to the backend (PovPreviews).
+  sharePreviewEnabled: true,
   // Restored view freeze: {povId, createdBefore} | null. A restored POV shows
   // its content AS OF its generation date — annotations created later are
   // filtered out of every useAnnotationsV2 read while the POV viewer is
@@ -63,6 +66,9 @@ export const povSlice = createSlice({
     setPovAiEnhanceEnabled: (state, action) => {
       state.aiEnhanceEnabled = Boolean(action.payload);
     },
+    setPovSharePreviewEnabled: (state, action) => {
+      state.sharePreviewEnabled = Boolean(action.payload);
+    },
     // {promptId, prompt}: a null / empty prompt removes the override and
     // restores the org's default prompt.
     setPovAiEnhancePrompt: (state, action) => {
@@ -85,6 +91,7 @@ export const {
   setPovCaptureTitleOverride,
   setPovViewFreeze,
   setPovAiEnhanceEnabled,
+  setPovSharePreviewEnabled,
   setPovAiEnhancePrompt,
 } = povSlice.actions;
 

@@ -2,7 +2,10 @@ import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import { setCaptureToolActive, setCaptureTitleText } from "../mapEditorSlice";
-import { setPovAiEnhanceEnabled } from "Features/pov/povSlice";
+import {
+  setPovAiEnhanceEnabled,
+  setPovSharePreviewEnabled,
+} from "Features/pov/povSlice";
 import { setToaster } from "Features/layout/layoutSlice";
 
 import { selectCaptureHostViewerKey } from "Features/viewers/utils/effectiveViewerKey";
@@ -22,6 +25,7 @@ import {
   AutoAwesome,
   CenterFocusStrong,
   Close,
+  CloudUpload,
   Edit,
   PhotoCamera,
 } from "@mui/icons-material";
@@ -33,6 +37,8 @@ import useCaptureFrameBounds from "Features/pov/hooks/useCaptureFrameBounds";
 import usePovs from "Features/pov/hooks/usePovs";
 import useCreatePov from "Features/pov/hooks/useCreatePov";
 import useSavePovTransformedImage from "Features/pov/hooks/useSavePovTransformedImage";
+import usePushPovPreview from "Features/pov/hooks/usePushPovPreview";
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 import useMainBaseMap from "../hooks/useMainBaseMap";
 import useCaptureAspectRatio from "../hooks/useCaptureAspectRatio";
@@ -68,6 +74,8 @@ export default function ButtonSaveCapture() {
   const closeS = "Quitter le mode capture";
   const povSavedS = "Point de vue enregistré";
   const povFailedS = "Échec de l'enregistrement du point de vue";
+  const sharePreviewTooltipS = "Partager la capture (aperçu envoyé au serveur)";
+  const shareFailedS = "Échec du partage de l'aperçu";
 
   // data
 
@@ -114,6 +122,12 @@ export default function ButtonSaveCapture() {
   const createPov = useCreatePov();
   const savePovTransformedImage = useSavePovTransformedImage();
 
+  // "share" option: every capture also creates a POV in the background and
+  // pushes its preview to the backend (PovPreviews).
+  const sharePreviewEnabled = useSelector((s) => s.pov.sharePreviewEnabled);
+  const pushPovPreview = usePushPovPreview();
+  const appConfig = useAppConfig();
+
   // state
 
   const [busy, setBusy] = useState(false);
@@ -139,6 +153,12 @@ export default function ButtonSaveCapture() {
     hostViewerKey === "MAP" || hostViewerKey === "THREED";
   const exportMode =
     storedExportMode === "pov" && !povModeAvailable ? "pdf" : storedExportMode;
+
+  // The share checkbox needs both a POV-capable host and the push endpoint
+  // in the org config.
+  const shareAvailable =
+    povModeAvailable &&
+    Boolean(appConfig?.features?.povPreviews?.push?.fetchParams);
 
   // No measurable capture host (e.g. the PORTFOLIO module, where the tool is
   // hidden but its state may linger, or the first pre-measure render): no
@@ -172,6 +192,33 @@ export default function ButtonSaveCapture() {
     });
   }
 
+  // "share" option, fire-and-forget: push the POV preview to the backend. In
+  // "pov" export mode the POV already exists (existingPov); in the file modes
+  // a thumbnail-only POV is created first (no rawImage: the push only sends
+  // the thumbnail, and a 3rd html-to-image pass is not worth the flicker).
+  function sharePovInBackground(existingPov) {
+    if (!shareAvailable || !sharePreviewEnabled) return;
+    if (exportMode === "pov" && !existingPov) return;
+    (async () => {
+      try {
+        const pov =
+          existingPov ??
+          (await createPov({
+            lastSortIndex: povs?.at(-1)?.sortIndex ?? null,
+            description: captureTitleText,
+            viewerMode: isThreed ? "THREED" : "MAP",
+            withRawImage: false,
+            selectCreated: false,
+          }));
+        if (!pov) return;
+        await pushPovPreview(pov);
+      } catch (e) {
+        console.error("[ButtonSaveCapture] pov preview share failed", e);
+        dispatch(setToaster({ message: shareFailedS, isError: true }));
+      }
+    })();
+  }
+
   // The full deliverable: decor included, rounded-border mask, high-res,
   // delivered in the format picked in the panel (pdf / png / clipboard / pov).
   async function deliverCapture() {
@@ -184,6 +231,7 @@ export default function ButtonSaveCapture() {
             : { message: povFailedS, severity: "warning" }
         )
       );
+      sharePovInBackground(pov);
       return;
     }
 
@@ -212,6 +260,8 @@ export default function ButtonSaveCapture() {
         fileName: `${baseName}.${exportMode}`,
       });
     }
+    // after the deliverable capture, so the two passes never overlap
+    sharePovInBackground();
   }
 
   // Same format rule for an already-built blob (the AI-enhanced result).
@@ -227,8 +277,10 @@ export default function ButtonSaveCapture() {
       }
       await savePovTransformedImage(pov.id, blob);
       dispatch(setToaster({ message: povSavedS }));
+      sharePovInBackground(pov);
       return;
     }
+    sharePovInBackground();
     if (exportMode === "clipboard") {
       if (navigator.clipboard && typeof ClipboardItem !== "undefined") {
         await navigator.clipboard.write([
@@ -513,6 +565,31 @@ export default function ButtonSaveCapture() {
           >
             {createS}
           </Button>
+
+          {/* "share" option: the capture also becomes a shared POV preview */}
+          {shareAvailable && (
+            <Tooltip title={sharePreviewTooltipS}>
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 0.5,
+                  pl: 0.5,
+                  pr: 1,
+                }}
+              >
+                <Checkbox
+                  size="small"
+                  color="secondary"
+                  checked={sharePreviewEnabled}
+                  onChange={(e) =>
+                    dispatch(setPovSharePreviewEnabled(e.target.checked))
+                  }
+                />
+                <CloudUpload fontSize="small" color="secondary" />
+              </Box>
+            </Tooltip>
+          )}
 
           <Tooltip title={closeS}>
             <Box sx={{ display: "flex", alignItems: "center", px: 0.5 }}>
