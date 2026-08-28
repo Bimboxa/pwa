@@ -10,13 +10,15 @@ import resolveRoute from "../utils/resolveRoute";
  * Restaure une version distante d'un scope.
  *
  * Étapes:
- *  1. Supprime toutes les données locales du scope.
- *  2. Télécharge le ZIP de la *version sélectionnée* depuis l'endpoint
+ *  1. Télécharge le ZIP de la *version sélectionnée* depuis l'endpoint
  *     `downloadByConfigId`
  *     (configuré dans appConfig.features.remoteScopeConfigurations.downloadByConfigId)
  *     en y injectant l'`idMaster` de la configuration via {{idMaster}}.
  *     Si l'objet `version` expose un `url` directement utilisable, on l'utilise.
- *  3. Recharge le ZIP dans Dexie sur le scope courant via loadKrtoZip.
+ *  2. Supprime toutes les données locales du scope (après un téléchargement
+ *     réussi seulement — un download en échec ne vide plus le scope).
+ *  3. Recharge le ZIP dans Dexie sur le scope courant via loadKrtoZip,
+ *     en re-ownant les données restaurées à l'utilisateur courant.
  */
 export default async function restoreScopeConfigurationService({
     scopeId,
@@ -55,10 +57,11 @@ export default async function restoreScopeConfigurationService({
         downloadUrl,
     });
 
-    // TODO (robustness, not yet implemented): wrap the clear (step 2) + import
-    // (step 4) in a single atomic Dexie transaction so a failed download/import
-    // cannot leave the scope half-cleared / partially restored. Currently they
-    // run as separate steps. Out of scope for the batch/hook fix.
+    // TODO (robustness, not yet implemented): wrap the clear (step 3) + import
+    // (step 4) in a single atomic Dexie transaction so a failed import cannot
+    // leave the scope half-cleared / partially restored. The download now
+    // happens BEFORE the clear, so a failed download no longer empties the
+    // scope.
 
     // Le projet local avant restauration : restaurer une ancienne version du
     // scope ne doit pas rétrograder les métadonnées du projet (nom / numéro),
@@ -68,10 +71,7 @@ export default async function restoreScopeConfigurationService({
         ? await db.projects.get(localScope.projectId)
         : null;
 
-    // 2. Supprimer toutes les données du scope courant
-    await clearScopeDataService(scopeId);
-
-    // 3. Télécharger le ZIP
+    // 2. Télécharger le ZIP
     const isAbsoluteUrl = /^https?:\/\//i.test(downloadUrl);
     const fileResponse = await fetch(downloadUrl, {
         method: "GET",
@@ -91,9 +91,14 @@ export default async function restoreScopeConfigurationService({
 
     console.log("[restoreScopeConfigurationService] downloaded ZIP, size:", file.size);
 
+    // 3. Supprimer toutes les données du scope courant
+    await clearScopeDataService(scopeId);
+
     // 4. Charger le ZIP dans Dexie sur le scope courant
     await loadKrtoZip(file, {
         loadDataToScopeId: scopeId,
+        // Restored records must be editable by the restoring user.
+        reownToImportingUser: true,
         ...(localProject && {
             loadDataToProjectId: localProject.id,
             projectOverrides: {

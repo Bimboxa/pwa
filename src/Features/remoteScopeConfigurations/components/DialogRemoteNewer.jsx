@@ -5,9 +5,10 @@ import { useDispatch, useSelector } from "react-redux";
 import { setRemoteNewerDialogOpen } from "../remoteScopeConfigurationsSlice";
 
 import useFetchScopeConfiguration from "../hooks/useFetchScopeConfiguration";
+import useSaveScopeVersion from "../hooks/useSaveScopeVersion";
 
 import { Box, DialogTitle, Typography } from "@mui/material";
-import { Download, CloudUpload } from "@mui/icons-material";
+import { Download, CloudUpload, Save } from "@mui/icons-material";
 
 import DialogGeneric from "Features/layout/components/DialogGeneric";
 import ButtonGeneric from "Features/layout/components/ButtonGeneric";
@@ -26,6 +27,7 @@ export default function DialogRemoteNewer({ onRequestSave }) {
   );
 
   const fetchConfiguration = useFetchScopeConfiguration();
+  const saveScopeVersion = useSaveScopeVersion();
 
   // state
 
@@ -51,6 +53,8 @@ export default function DialogRemoteNewer({ onRequestSave }) {
     messageS = `Une version plus récente a été publiée par ${trigram}.`;
   }
 
+  const detailS = `Vous pouvez enregistrer votre version sur le serveur (la version précédente restera disponible dans l'historique), ou télécharger la nouvelle version pour la fusionner avec vos données locales (vos modifications sont conservées ; en cas de conflit sur un même élément, la modification la plus récente l'emporte). Vous pouvez aussi générer un zip de votre version actuelle pour la conserver.`;
+
   // handlers
 
   function handleClose() {
@@ -60,6 +64,8 @@ export default function DialogRemoteNewer({ onRequestSave }) {
   async function handleDownload() {
     setDownloading(true);
     try {
+      // fetchConfiguration merges the remote version into the local data and
+      // reloads the page on success.
       await fetchConfiguration();
       dispatch(setRemoteNewerDialogOpen(false));
     } catch (error) {
@@ -67,6 +73,11 @@ export default function DialogRemoteNewer({ onRequestSave }) {
     } finally {
       setDownloading(false);
     }
+  }
+
+  async function handleForceSave() {
+    dispatch(setRemoteNewerDialogOpen(false));
+    await saveScopeVersion({ force: true });
   }
 
   function handleGenerateZip() {
@@ -88,9 +99,7 @@ export default function DialogRemoteNewer({ onRequestSave }) {
         variant="body2"
         sx={{ px: 3, pb: 2, color: "text.secondary" }}
       >
-        Vous pouvez télécharger la nouvelle version (vos modifications locales
-        seront écrasées) ou générer un zip de votre version actuelle pour la
-        conserver avant de poursuivre.
+        {detailS}
       </Typography>
 
       <Box
@@ -105,9 +114,16 @@ export default function DialogRemoteNewer({ onRequestSave }) {
       >
         <ButtonGeneric
           variant="outlined"
-          startIcon={<CloudUpload />}
+          startIcon={<Save />}
           onClick={handleGenerateZip}
           label="Générer le zip de la version actuelle"
+        />
+        <ButtonGeneric
+          variant="outlined"
+          color="warning"
+          startIcon={<CloudUpload />}
+          onClick={handleForceSave}
+          label="Enregistrer ma version sur le serveur"
         />
         <ButtonGeneric
           variant="contained"

@@ -36,9 +36,9 @@ export default function DialogRemoteVersionAvailable({
   async function handleFetch() {
     setLoading(true);
     try {
+      // fetchConfiguration reloads the page itself on success.
       await fetchConfiguration();
       onClose();
-      window.location.reload();
     } catch (error) {
       console.error("[DialogRemoteVersionAvailable] fetch error", error);
     } finally {

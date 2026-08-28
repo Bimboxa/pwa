@@ -21,25 +21,29 @@ export default function useSaveScopeVersion() {
   const pullLastConfig = usePullLastRemoteScopeConfiguration();
   const push = usePushRemoteScopeConfiguration();
 
-  const saveScopeVersion = async () => {
+  // force: skip the remote-newer guard and push over the newer server
+  // version (it stays recoverable from the server's version history).
+  const saveScopeVersion = async ({ force = false } = {}) => {
     const scopeId = store.getState().scopes.selectedScopeId;
     const { saving, pushing } = store.getState().remoteScopeConfigurations;
     if (!scopeId || saving || pushing) return;
 
     dispatch(setSaving(true));
     try {
-      // remote-newer guard: never silently overwrite a newer server version
-      try {
-        await pullLastConfig();
-      } catch (error) {
-        console.error("[useSaveScopeVersion] pull error", error);
-      }
-      const state = store.getState().remoteScopeConfigurations;
-      const remoteV = state.lastRemoteConfiguration?.version;
-      const syncedV = state.lastSyncedRemoteConfigurationVersion;
-      if (remoteV != null && syncedV != null && remoteV > syncedV) {
-        dispatch(setRemoteNewerDialogOpen(true));
-        return;
+      if (!force) {
+        // remote-newer guard: never silently overwrite a newer server version
+        try {
+          await pullLastConfig();
+        } catch (error) {
+          console.error("[useSaveScopeVersion] pull error", error);
+        }
+        const state = store.getState().remoteScopeConfigurations;
+        const remoteV = state.lastRemoteConfiguration?.version;
+        const syncedV = state.lastSyncedRemoteConfigurationVersion;
+        if (remoteV != null && syncedV != null && remoteV > syncedV) {
+          dispatch(setRemoteNewerDialogOpen(true));
+          return;
+        }
       }
 
       const file = await createKrtoZip(scopeId);

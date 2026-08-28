@@ -34,6 +34,16 @@ export default async function loadKrtoZip(file, options) {
   // Duplicate: regenerate every id and re-own to the importer so the copy is
   // fully independent and editable (see remapDexieExportIds).
   const duplicate = options?.duplicate;
+  // Merge: keep local data — drop the zip's identity rows (projects/scopes)
+  // and only import rows that are new locally or more recently modified than
+  // the local row (per-row updatedAt ?? createdAt).
+  const merge = options?.merge;
+  // Re-own every imported audited row to the importing user (same rule as
+  // remapDexieExportIds), so recovered records are editable by the importer.
+  const reownToImportingUser = options?.reownToImportingUser;
+  const importingUserIdMaster = reownToImportingUser
+    ? getImportingUserIdMaster()
+    : null;
 
   // System write: import & tag-cleanup write records owned by other users.
   // withoutUndo: a whole-krto import must not be undoable record-by-record
@@ -128,6 +138,61 @@ export default async function loadKrtoZip(file, options) {
           }
         }
 
+        // --- MERGE ---
+        // Keep local data. Identity rows (projects/scopes) are always the
+        // local ones (importing another user's scope row would flip the scope
+        // to their ownership / privacy and lock it read-only). For every
+        // other table, an incoming row is imported only when it is new
+        // locally or more recently modified than the local row — rows dropped
+        // here leave the local rows untouched despite overwriteValues:true.
+        if (merge && !duplicate) {
+          const getRowTs = (row) => {
+            const raw = row?.updatedAt ?? row?.createdAt;
+            const ts = raw ? new Date(raw).getTime() : NaN;
+            return Number.isNaN(ts) ? null : ts;
+          };
+
+          for (const t of jsonData.data.data) {
+            if (!t.rows?.length) continue;
+
+            if (t.tableName === "projects" || t.tableName === "scopes") {
+              t.rows = [];
+              continue;
+            }
+
+            let table;
+            try {
+              table = db.table(t.tableName);
+            } catch {
+              continue; // unknown table — acceptMissingTables parity
+            }
+            const keyPath = table.schema.primKey.keyPath;
+            if (typeof keyPath !== "string") continue;
+
+            // Reads are NOT filtered by the soft-delete middleware (it only
+            // intercepts mutate), so local tombstones take part in the
+            // comparison — an incoming live row does not resurrect a row the
+            // local user deleted more recently.
+            const keys = t.rows.map((row) => row?.[keyPath]);
+            const validKeys = keys.filter((k) => k != null);
+            const localRows = await table.bulkGet(validKeys);
+            const localByKey = new Map(
+              validKeys.map((k, i) => [k, localRows[i]])
+            );
+
+            t.rows = t.rows.filter((row) => {
+              const key = row?.[keyPath];
+              const local = key != null ? localByKey.get(key) : undefined;
+              if (!local) return true; // novelty — import it
+              const incomingTs = getRowTs(row);
+              if (incomingTs == null) return false; // no timestamp — keep local
+              const localTs = getRowTs(local);
+              if (localTs == null) return true;
+              return incomingTs > localTs;
+            });
+          }
+        }
+
         // 4. Créer le Blob JSON pour Dexie
         const jsonBlob = new Blob([JSON.stringify(jsonData)], {
           type: "application/json",
@@ -179,6 +244,20 @@ export default async function loadKrtoZip(file, options) {
               }
             }
 
+            // 3bis. Re-own imported audited rows to the importing user (same
+            // rule as remapDexieExportIds) so recovered records are editable.
+            if (
+              reownToImportingUser &&
+              ("createdByUserIdMaster" in value ||
+                "updatedByUserIdMaster" in value)
+            ) {
+              value = {
+                ...value,
+                createdByUserIdMaster: importingUserIdMaster,
+              };
+              delete value.updatedByUserIdMaster;
+            }
+
             // 4. Tag le projet pour le retrouver après import + champs projet
             // de référence (métadonnées scopeConfiguration) sur la ligne du zip
             if (table === "projects") {
@@ -197,6 +276,27 @@ export default async function loadKrtoZip(file, options) {
       } catch (error) {
         console.error("Erreur import KRTO ZIP:", error);
         throw new Error(`Import failed: ${error.message}`);
+      }
+
+      // 6. Merge mode: the zip's projects/scopes rows were dropped — the
+      // local couple is the reference. Apply the authoritative project
+      // metadata (scopeConfiguration overrides) to the local project row.
+      if (merge && !duplicate) {
+        const localProject = loadDataToProjectId
+          ? await db.projects.get(loadDataToProjectId)
+          : null;
+        if (localProject && Object.keys(projectOverrides).length) {
+          await db.projects.update(localProject.id, projectOverrides);
+        }
+        const localScope = loadDataToScopeId
+          ? await db.scopes.get(loadDataToScopeId)
+          : null;
+        return {
+          project: localProject
+            ? { ...localProject, ...projectOverrides }
+            : null,
+          scope: localScope,
+        };
       }
 
       // 6. Nettoyage du tag et retour du projet + scope
