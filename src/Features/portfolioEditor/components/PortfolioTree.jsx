@@ -5,14 +5,18 @@ import { useDispatch, useSelector } from "react-redux";
 import { setDisplayedPortfolioId } from "Features/portfolios/portfoliosSlice";
 import { setSelectedItem } from "Features/selection/selectionSlice";
 
-import { Box, List } from "@mui/material";
+import { Box, Button, List } from "@mui/material";
 
 import usePortfolios from "Features/portfolios/hooks/usePortfolios";
 
 import PortfolioTreeItem from "./PortfolioTreeItem";
 
-export default function PortfolioTree() {
+export default function PortfolioTree({ onCreateClick }) {
   const dispatch = useDispatch();
+
+  // strings
+
+  const createS = "Créer un carnet";
 
   // data
 
@@ -33,6 +37,23 @@ export default function PortfolioTree() {
   }, [displayedPortfolioId, portfolios, dispatch]);
 
   // render
+
+  if (portfolios && portfolios.length === 0) {
+    return (
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          height: 1,
+        }}
+      >
+        <Button variant="contained" color="secondary" onClick={onCreateClick}>
+          {createS}
+        </Button>
+      </Box>
+    );
+  }
 
   return (
     <Box sx={{ py: 1 }}>

@@ -101,7 +101,7 @@ export default function PanelPortfolios() {
       </Box>
 
       <Box sx={{ flex: 1, minHeight: 0, overflow: "auto" }}>
-        <PortfolioTree />
+        <PortfolioTree onCreateClick={() => setOpenDialog(true)} />
       </Box>
 
       <DialogCreatePortfolio

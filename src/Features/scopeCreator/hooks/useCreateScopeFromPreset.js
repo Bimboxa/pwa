@@ -10,7 +10,6 @@ import { setLandOnDrawScopeId } from "Features/viewers/viewersSlice";
 import { setSelectedProjectId } from "Features/projects/projectsSlice";
 import { setSelectedListingId } from "Features/listings/listingsSlice";
 import { setSelectedBaseMapsListingId } from "Features/mapEditor/mapEditorSlice";
-import { setDisplayedPortfolioId } from "Features/portfolios/portfoliosSlice";
 import {
   setLastRemoteConfiguration,
   setLastSyncedRemoteConfigurationVersion,
@@ -20,8 +19,6 @@ import {
 
 import useCreateScope from "Features/scopes/hooks/useCreateScope";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
-import useCreatePortfolio from "Features/portfolios/hooks/useCreatePortfolio";
-import useCreatePortfolioPage from "Features/portfolioPages/hooks/useCreatePortfolioPage";
 import useProjectBaseMapListings from "Features/baseMaps/hooks/useProjectBaseMapListings";
 import useDefaultBaseMapsListingProps from "Features/baseMaps/hooks/useDefaultBaseMapsListingProps";
 import useCreateListings from "Features/listings/hooks/useCreateListings";
@@ -41,8 +38,6 @@ export default function useCreateScopeFromPreset({ projectId }) {
 
   const createScope = useCreateScope();
   const createListings = useCreateListings();
-  const createPortfolio = useCreatePortfolio();
-  const createPortfolioPage = useCreatePortfolioPage();
 
   // state
 
@@ -61,7 +56,11 @@ export default function useCreateScopeFromPreset({ projectId }) {
     });
     const newEntities = resolvePresetScopeEntities({ listings: newListings });
 
-    console.log("debug_3001 [newListings, newEntities]", newListings, newEntities);
+    console.log(
+      "debug_3001 [newListings, newEntities]",
+      newListings,
+      newEntities
+    );
 
     const scope = await createScope({
       name,
@@ -102,22 +101,13 @@ export default function useCreateScopeFromPreset({ projectId }) {
         ],
         scope,
       });
-      console.log("debug_25_09 [baseMapsListings] created baseMapsListings", planListing, verticalListing);
+      console.log(
+        "debug_25_09 [baseMapsListings] created baseMapsListings",
+        planListing,
+        verticalListing
+      );
       dispatch(setSelectedBaseMapsListingId(planListing?.id));
     }
-
-    // auto-create portfolio with first page
-    const portfolio = await createPortfolio({
-      scopeId: scope.id,
-      projectId,
-      title: name || scope.name || "Portfolio",
-    });
-    await createPortfolioPage({
-      listing: portfolio,
-      projectId,
-      title: "Page 1",
-    });
-    dispatch(setDisplayedPortfolioId(portfolio.id));
 
     // selector — a freshly created scope lands on the Dessin module (2D),
     // not the Viewer (flag consumed by the LayoutDesktop landing effect).
