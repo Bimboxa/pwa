@@ -21,7 +21,7 @@ export default function ThreedImageModeOverlay({ annotations }) {
   // data
 
   const imageModeEnabled = useSelector((s) => s.mapEditor.imageModeEnabled);
-  // Global Capture tool (Alt+C) — same frame, panel-independent (no inset).
+  // Global Capture tool (hotkey V) — same frame, panel-independent (no inset).
   const captureToolActive = useSelector((s) => s.mapEditor.captureToolActive);
   // The POV viewer arms the framing on demand (without the exit button — the
   // save bar carries its own).

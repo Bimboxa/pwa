@@ -81,6 +81,7 @@ import PopperSubtractHelper from "Features/mapEditor/components/PopperSubtractHe
 import useSubtractPickHotkeysInThreedEditor from "../hooks/useSubtractPickHotkeysInThreedEditor";
 import ClippingToolbarThreed from "./ClippingToolbarThreed";
 import ButtonZoomOutThreed from "./ButtonZoomOutThreed";
+import ButtonToggleThreedViewer from "Features/viewers/components/ButtonToggleThreedViewer";
 import BottomToolbarThreed from "Features/threedDrawing/components/BottomToolbarThreed";
 import DrawingOverlayThreed from "Features/threedDrawing/components/DrawingOverlayThreed";
 import useDrawingPointerHandlers from "Features/threedDrawing/hooks/useDrawingPointerHandlers";
@@ -260,7 +261,7 @@ export default function MainThreedEditor() {
   // Capture mode ("Export rapide", shared with the 2D viewer). Toggles are
   // rare, so the re-render cost is acceptable here.
   const imageModeEnabled = useSelector((s) => s.mapEditor.imageModeEnabled);
-  // The POV viewer and the global Capture tool (Alt+C) arm the capture framing
+  // The POV viewer and the global Capture tool (hotkey V) arm the capture framing
   // on demand (mask + rect + legend) — only when this 3D editor is the one
   // displayed (isThreedViewer).
   const isPovViewer = useSelector(selectIsPovViewer);
@@ -269,6 +270,12 @@ export default function MainThreedEditor() {
   const captureFramingActive =
     imageModeEnabled ||
     ((povFramingActive || captureToolActive) && isThreedViewer);
+  // Right panel state: the bottom-right overlay group (zoom out + 2D/3D
+  // toggle) shifts left when the panel overlay is open, mirroring the 2D
+  // bottom-right cluster in UILayerDesktop.
+  const rightPanelKey = useSelector((s) => s.rightPanel.selectedMenuItemKey);
+  const rightPanelWidth = useSelector((s) => s.rightPanel.width);
+  const rightPanelOpen = Boolean(rightPanelKey);
   // Render mode (Standard / Réaliste / Photoréaliste).
   const renderMode = useSelector((s) => s.threedEditor.renderMode);
   // PHOTOREAL environment (Standard / Extérieur / Intérieur).
@@ -2131,10 +2138,26 @@ export default function MainThreedEditor() {
         ) : (
           <BottomToolbarThreed />
         ))}
-      {/* Zoom out sits outside the swap of bottom toolbars so it stays
-          available in every module (Maillage included). Hidden while a
-          capture/POV framing owns the screen. */}
-      {isThreedViewer && !captureFramingActive && <ButtonZoomOutThreed />}
+      {/* Bottom-right group (zoom out + 2D/3D toggle) sits outside the swap
+          of bottom toolbars so it stays available in every module (Maillage
+          included). Hidden while a capture/POV framing owns the screen. */}
+      {isThreedViewer && !captureFramingActive && (
+        <Box
+          sx={{
+            position: "absolute",
+            right: rightPanelOpen ? `${rightPanelWidth + 16}px` : "16px",
+            bottom: "16px",
+            zIndex: 10,
+            display: "flex",
+            alignItems: "center",
+            gap: 1,
+            transition: "right 0.2s ease",
+          }}
+        >
+          <ButtonZoomOutThreed />
+          <ButtonToggleThreedViewer />
+        </Box>
+      )}
       {isThreedViewer && <DrawingOverlayThreed />}
       {isThreedViewer && rendererIsReady && (
         <ThreedCoteAnnotations annotations={annotations} />

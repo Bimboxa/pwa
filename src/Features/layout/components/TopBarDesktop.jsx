@@ -34,7 +34,6 @@ import ButtonSelectorScope from "Features/scopes/components/ButtonSelectorScope"
 import ButtonSaveScope from "Features/remoteScopeConfigurations/components/ButtonSaveScope";
 import ButtonHistoryScope from "Features/remoteScopeConfigurations/components/ButtonHistoryScope";
 import IconButtonShareScope from "Features/scopes/components/IconButtonShareScope";
-import ButtonToggleThreedViewer from "Features/viewers/components/ButtonToggleThreedViewer";
 //import ButtonSelectorScopeInTopBar from "Features/scopes/components/ButtonSelectorScopeInTopBar";
 import AuthButtons from "Features/auth/components/AuthButtons";
 import TopBarProjectAndScope from "./TopBarProjectAndScope";
@@ -56,7 +55,6 @@ export default function TopBarDesktop() {
   // data
 
   const height = useSelector((s) => s.layout.topBarHeight);
-  const disable3D = useSelector((s) => s.appConfig.disable3D);
   const appConfig = useAppConfig();
   const { value: listing } = useSelectedListing();
   const viewerReturnContext = useSelector((s) => s.viewers.viewerReturnContext);
@@ -314,7 +312,8 @@ export default function TopBarDesktop() {
           gap: 1,
         }}
       >
-        {!disable3D && <ButtonToggleThreedViewer />}
+        {/* 2D/3D editor toggle moved to the bottom-right overlay of both
+            editors (UILayerDesktop / MainThreedEditor). */}
         {/* Scope-level actions (save/sync, history, share): available in
             every module, whichever editor it displays. */}
         {!viewerMode && (
