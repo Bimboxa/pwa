@@ -2993,7 +2993,7 @@ const InteractionLayer = forwardRef(({
   const {
     drawingPoints, setDrawingPoints, drawingPointsRef,
     cutHostId, setCutHostId,
-    brushPath, setBrushPath,
+    brushPath, setBrushPath, brushPathRef,
     commitPoint, commitPolyline,
   } = useDrawingCommit({
     enabledDrawingModeRef,
@@ -3363,6 +3363,27 @@ const InteractionLayer = forwardRef(({
       const enabledDrawingMode = enabledDrawingModeRef.current;
 
       if (e.repeat) return;
+
+      // Commits the in-progress drawing for the standard click/strip/brush
+      // modes. Returns true when the mode was commit-capable — shared by the
+      // Enter and Escape branches so both keys finish the drawing.
+      const commitInProgressDrawing = () => {
+        if (!["CLICK", "POLYLINE_CLICK", "POLYGON_CLICK", "CUT_CLICK", "SPLIT_CLICK", "STRIP", "BRUSH", "COMPLETE_ANNOTATION"].includes(enabledDrawingModeRef.current)) {
+          return false;
+        }
+        if (enabledDrawingModeRef.current === "COMPLETE_ANNOTATION" && completeAnnotationRef.current) {
+          commitPolyline(null, {
+            completeAnnotationId: completeAnnotationRef.current.id,
+            startPointId: completeStartPointRef.current,
+            endPointId: null,
+          });
+          completeAnnotationRef.current = null;
+          completeStartPointRef.current = null;
+        } else {
+          commitPolyline();
+        }
+        return true;
+      };
 
       // --- LOCALIZED_REPAIR: A/L/T/S override the repair type. Handled before
       // the generic switch so it doesn't collide with the global 'a'/'s' detect
@@ -3884,15 +3905,24 @@ const InteractionLayer = forwardRef(({
             return;
           }
 
-          // Mid-drawing: if points have already been placed, reset just the
-          // in-progress points and stay in the current drawing mode so the
-          // user can restart the click cycle without re-picking the tool.
-          if (enabledDrawingMode && drawingPointsRef.current?.length > 0) {
-            setDrawingPoints([]);
-            drawingPointsRef.current = [];
-            clearRectBuffers();
-            e.stopPropagation();
-            return;
+          // Mid-drawing: Escape commits the in-progress annotation, same as
+          // Enter, for the standard click/strip/brush modes. Other modes
+          // (rectangle, segment, circle…) keep the old behavior: reset the
+          // in-progress points and stay in the tool.
+          {
+            const isBrushing =
+              enabledDrawingModeRef.current === "BRUSH" &&
+              brushPathRef.current?.length > 0;
+            if (enabledDrawingMode && (drawingPointsRef.current?.length > 0 || isBrushing)) {
+              const committed = commitInProgressDrawing();
+              if (!committed) {
+                setDrawingPoints([]);
+                drawingPointsRef.current = [];
+                clearRectBuffers();
+              }
+              e.stopPropagation();
+              return;
+            }
           }
 
           // Reset split polyline state if active
@@ -4491,19 +4521,7 @@ const InteractionLayer = forwardRef(({
             commitPolyline();
             break;
           }
-          if (["CLICK", "POLYLINE_CLICK", "POLYGON_CLICK", "CUT_CLICK", "SPLIT_CLICK", "STRIP", "BRUSH", "COMPLETE_ANNOTATION"].includes(enabledDrawingModeRef.current)) {
-            if (enabledDrawingModeRef.current === "COMPLETE_ANNOTATION" && completeAnnotationRef.current) {
-              commitPolyline(null, {
-                completeAnnotationId: completeAnnotationRef.current.id,
-                startPointId: completeStartPointRef.current,
-                endPointId: null,
-              });
-              completeAnnotationRef.current = null;
-              completeStartPointRef.current = null;
-            } else {
-              commitPolyline();
-            }
-          }
+          commitInProgressDrawing();
 
           if (enabledDrawingModeRef.current === "SMART_DETECT") {
             const localPoints = smartDetectRef.current?.getDetectedPoints();

@@ -29,7 +29,7 @@ export default function SectionShortcutHelpers({ shortcuts: shortcutsProp }) {
             }]),
         {
             key: "Esc",
-            label: "Quitter le mode dessin",
+            label: "Terminer / Quitter le dessin",
         },
         ...(newAnnotationType === "STRIP"
             ? [{ key: "S", label: "Inverser le sens de la bande" }]

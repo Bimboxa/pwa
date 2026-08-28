@@ -175,6 +175,7 @@ export default function useDrawingCommit({
     setCutHostId,
     brushPath,
     setBrushPath,
+    brushPathRef,
     commitPoint,
     commitPolyline,
   };

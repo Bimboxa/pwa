@@ -29,7 +29,7 @@ export default function SectionPanelDrawingHelper() {
   // strings
 
   const titleS = "Mode dessin";
-  const quitS = "Quitter";
+  const quitS = "Terminer / Quitter";
 
   // render
 
