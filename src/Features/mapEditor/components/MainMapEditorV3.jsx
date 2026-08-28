@@ -453,7 +453,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     const isLegendSelected = showBgImage && selectedNode?.nodeType === "LEGEND";
 
     // image mode — Export rapide is MAP-only; the POV viewer and the global
-    // Capture tool (Alt+C) arm the framing on demand, on any 2D instance
+    // Capture tool (hotkey V) arm the framing on demand, on any 2D instance
     const isMapViewer = forViewerKey === "MAP";
     const imageModeEnabled = useSelector((s) => s.mapEditor.imageModeEnabled);
     const captureToolActive = useSelector((s) => s.mapEditor.captureToolActive);

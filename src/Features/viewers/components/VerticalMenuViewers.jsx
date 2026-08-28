@@ -90,9 +90,10 @@ export default function VerticalMenuViewers() {
               border: "1px solid rgba(255,255,255,0.4)",
               borderRadius: 0.5,
               opacity: 0.8,
+              whiteSpace: "nowrap",
             }}
           >
-            {viewer.hotkey}
+            {`Ctrl + ${viewer.hotkey}`}
           </Typography>
         )}
       </ButtonBase>

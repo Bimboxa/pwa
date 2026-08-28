@@ -24,6 +24,9 @@ import theme from "Styles/theme";
 // (BASE_MAPS, MAP, POINT_OF_VIEW, ZONES, THREED) expose the 2D/3D toggle
 // ("T" + topBar button), which changes the displayed editor without moving
 // the left-band selection.
+//
+// `hotkey` is the module-switch letter, bound as Ctrl+<letter> in
+// useViewerSwitchHotkeys and displayed as "Ctrl+X" under the module label.
 export default function useViewers() {
   const advancedLayout = useSelector((s) => s.appConfig.advancedLayout);
   const legacy = useSelector((s) => s.appConfig.enableMapEditorLegacy);
@@ -74,7 +77,10 @@ export default function useViewers() {
       bgcolor: theme.palette.viewers.pov,
       // The POV viewer relies on the V3 map editor capture host.
       disabled: legacy,
-      hotkey: "V",
+      // Not "V": plain V is the Capture tool (useRightPanelToolHotkeys) and
+      // Ctrl+V stays with the paste handlers. Ctrl+P is free — the browser
+      // print dialog is blocked by preventDefault on match.
+      hotkey: "P",
       editors: ["MAP", "THREED"],
     },
     {
@@ -83,7 +89,8 @@ export default function useViewers() {
       shortLabel: "Carnet de plans",
       icon: <MenuBook />,
       bgcolor: theme.palette.viewers.portfolio,
-      hotkey: "C",
+      // Not "C": Ctrl+C stays Copy (annotations). "B" as in book/carnet.
+      hotkey: "B",
     },
     {
       key: "THREED",
@@ -103,9 +110,6 @@ export default function useViewers() {
       shortLabel: "Maillage",
       icon: <GridOn />,
       bgcolor: theme.palette.viewers.meshes,
-      // Not "M", which keeps its Modification meaning (D/M/S trio) in the
-      // 2D editors. "I" only clashes with the paste-mode letters, and the
-      // viewer hotkeys are inert while pasting.
       hotkey: "I",
     },
     {
@@ -114,7 +118,7 @@ export default function useViewers() {
       shortLabel: "Zones",
       icon: <AccountTree />,
       bgcolor: theme.palette.viewers.zones,
-      hotkey: "Z",
+      // No hotkey: Ctrl+Z stays Undo everywhere.
       // 2D editor = "MAP": the module displays the shared MainMapEditorV3
       // instance (like Dessin / POV / Viewer) so entering the module keeps the
       // camera framing. The zonings tree is mounted beside it in SectionViewer.

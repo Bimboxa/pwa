@@ -55,7 +55,7 @@ export const selectCaptureHostViewerKey = (s) => {
 };
 
 // The capture framing ("Export rapide" mask + rect + legend) is active when
-// the Export tool enabled it, when the global Capture tool (Alt+C) armed it,
+// the Export tool enabled it, when the global Capture tool (hotkey V) armed it,
 // OR when the POV viewer armed its frame. Editing interactions gated on image
 // mode must use this derived flag so every framing freezes them exactly like
 // the Export tool does.

@@ -23,6 +23,7 @@ import {
   Typography,
 } from "@mui/material";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
+import SaveIcon from "@mui/icons-material/Save";
 
 import usePullLastRemoteScopeConfiguration from "../hooks/usePullLastRemoteScopeConfiguration";
 import useSaveScopeVersion from "../hooks/useSaveScopeVersion";
@@ -34,8 +35,10 @@ export default function ButtonSaveScope() {
 
   // strings
 
-  const hotkeyS = navigator.userAgent.includes("Mac") ? "⌘ S" : "Ctrl + S";
-  const saveS = "Sauvegarder une nouvelle version";
+  // "Ctrl + S" on every platform (the binding also accepts Cmd+S on macOS),
+  // consistent with the "Ctrl + X" module badges of the left band.
+  const hotkeyS = "Ctrl + S";
+  const saveS = "Nouvelle version";
   const savingS = "Sauvegarde en cours…";
   const moreS = "Options de sauvegarde";
 
@@ -121,6 +124,7 @@ export default function ButtonSaveScope() {
           sx={{
             display: "flex",
             alignItems: "stretch",
+            flexShrink: 0,
             borderRadius: 1,
             overflow: "hidden",
             border: (t) =>
@@ -138,11 +142,13 @@ export default function ButtonSaveScope() {
                 size="small"
                 color="inherit"
                 disabled={isSaving}
-                sx={{ borderRadius: 0 }}
+                sx={{ borderRadius: 0, whiteSpace: "nowrap", flexShrink: 0 }}
                 startIcon={
                   isSaving ? (
                     <CircularProgress size={14} color="inherit" />
-                  ) : undefined
+                  ) : (
+                    <SaveIcon fontSize="small" />
+                  )
                 }
               >
                 {labelS}
@@ -158,6 +164,7 @@ export default function ButtonSaveScope() {
                       border: "1px solid currentColor",
                       borderRadius: 0.5,
                       opacity: 0.7,
+                      whiteSpace: "nowrap",
                     }}
                   >
                     {hotkeyS}

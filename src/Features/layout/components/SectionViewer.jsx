@@ -51,7 +51,7 @@ export default function SectionViewer() {
   // The POV capture frame is armed on demand: without it, the module shows the
   // "Créer une vue" button instead of the save bar.
   const povFramingActive = useSelector(selectPovFramingActive);
-  // Global Capture tool (Alt+C): its own save bar replaces the POV buttons
+  // Global Capture tool (hotkey V): its own save bar replaces the POV buttons
   // (mutually exclusive with the POV framing).
   const captureToolActive = useSelector((s) => s.mapEditor.captureToolActive);
 

@@ -5,7 +5,7 @@ import { CAPTURE_TOOLBAR_WIDTH } from "../components/ToolbarCaptureCondensed";
 // consumer (overlay, save bar, captures, POV snapshot) must share so the
 // exported crop always matches the displayed rect:
 // - "Export rapide" (imageMode): the open right panel.
-// - Global Capture tool (Alt+C): its own drawer — the condensed black band
+// - Global Capture tool (hotkey V): its own drawer — the condensed black band
 //   or the full tabbed panel — so the frame's right edge stays visible.
 // - POV framing: 0 on purpose — the frame must not move with the panel, so
 //   snapshot and restore always agree on the same rect.

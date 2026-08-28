@@ -6,7 +6,6 @@ import {
   CenterFocusStrong,
   Tune,
   AutoFixHigh,
-  Print,
   Height,
   Upload,
   AutoAwesome,
@@ -20,6 +19,7 @@ import {
 import { Box } from "@mui/material";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
+import IconExportPlan from "Features/icons/IconExportPlan";
 
 // Builds the right-panel tool list (the vertical band on the right). MODULE-driven:
 // filtered by appConfig.features.tools and by the current module (selectedViewerKey),
@@ -63,16 +63,15 @@ export default function useRightPanelTools() {
 
     PRINT: {
       label: "Export",
-      icon: <Print />,
+      icon: <IconExportPlan />,
       viewers: ["MAP", "THREED", "MESHES"],
     },
     ELEVATION: {
       label: "Élévation",
       icon: <Height />,
-      // Global shortcut: plain "E" hollows a selected polygon, so the tool binds
-      // Alt+E instead (`altHotkey`, matched on e.code in useRightPanelToolHotkeys).
-      altHotkey: "E",
-      hotkeyLabel: navigator.userAgent.includes("Mac") ? "⌥E" : "Alt+E",
+      // Plain "E" — the hollow-out ("Évider") shortcut keeps priority while a
+      // POLYGON is selected on the 2D map (guard in useRightPanelToolHotkeys).
+      hotkey: "E",
       // In BASE_MAPS the panel has a dedicated role: browse the vertical
       // baseMaps and locate them against a plan view.
       viewers: ["MAP", "THREED", "MESHES", "BASE_MAPS"],
@@ -125,16 +124,16 @@ export default function useRightPanelTools() {
       icon: <Settings />,
       group: "bottom",
     },
-    // Global capture: same frame as the POV framing (panel-independent), same
-    // options as Export rapide. Every module with a 2D/3D editor — PORTFOLIO
-    // and LISTING have no capture host. `altHotkey` binds Alt+<letter> (by
-    // e.code) in useRightPanelToolHotkeys; `hotkeyLabel` is display-only.
+    // Global capture: same frame as the POV framing (panel-independent). The
+    // only capture entry point since the Export tool dropped its "Export
+    // rapide" card. Every module with a 2D/3D editor — PORTFOLIO and LISTING
+    // have no capture host. Plain "V" (smart-detect's in-draw "v" is disjoint:
+    // the hotkey hook is inert while drawing).
     {
       key: "CAPTURE",
       label: "Capture",
       icon: <CenterFocusStrong />,
-      altHotkey: "C",
-      hotkeyLabel: navigator.userAgent.includes("Mac") ? "⌥C" : "Alt+C",
+      hotkey: "V",
       viewers: [
         "MAP",
         "BASE_MAPS",
@@ -210,8 +209,8 @@ export default function useRightPanelTools() {
   // Each contextual tool has its own slot:
   // - bottom-group tools ("Réglages") are appended last so they close the
   //   bottom section, below the appConfig-driven bottom tools;
-  // - "Capture" sits right above "Export" (they share the same framing and
-  //   options); modules without PRINT fall back to the "Propriétés" slot;
+  // - "Capture" sits right above "Export" (capture output is a form of
+  //   export); modules without PRINT fall back to the "Propriétés" slot;
   // - the others land right below "Propriétés" (historical position).
   const bottomTools = [];
   const belowPropertiesTools = [];

@@ -91,12 +91,11 @@ export default function useInteractionModeHotkeys() {
       // stopImmediatePropagation cannot pre-empt this earlier listener.
       if (s.threedEditor.walkMode.active) return;
 
-      // "D" doubles as the global "go to Dessin module" shortcut
-      // (useViewerSwitchHotkeys). The DRAW-mode meaning only applies while
-      // the Dessin module displays the 2D editor; anywhere else (BASE_MAPS,
-      // POV, Dessin's 3D editor, …) the module switch owns the letter —
-      // yield so the two capture-phase listeners stay state-disjoint
-      // regardless of registration order.
+      // The DRAW-mode meaning of "D" only applies while the Dessin module
+      // displays the 2D editor; anywhere else (BASE_MAPS, POV, Dessin's 3D
+      // editor, …) the letter is inert. (Module switching moved to
+      // Ctrl+<letter> — useViewerSwitchHotkeys — so plain "d" no longer
+      // needs to be yielded to it.)
       if (
         next === "DRAW" &&
         (s.viewers.selectedViewerKey !== "MAP" ||

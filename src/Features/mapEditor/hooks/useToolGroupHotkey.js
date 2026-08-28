@@ -56,9 +56,8 @@ export default function useToolGroupHotkey(hotkey, templateId) {
       // Only start a draw while the Dessin module displays the 2D editor.
       // The editor is kept mounted under every module, so without this guard
       // a keypress in another module (or in Dessin's 3D editor) would start
-      // an invisible draw — and "c" doubles as the global "go to Carnet de
-      // plans" shortcut (useViewerSwitchHotkeys), which owns the letter
-      // outside the MAP module.
+      // an invisible draw. (Module switching lives on Ctrl+<letter> —
+      // useViewerSwitchHotkeys — so plain letters stay with the editor.)
       if (s.viewers.selectedViewerKey !== "MAP") return;
       if (selectEffectiveViewerKey(s) !== "MAP") return;
 

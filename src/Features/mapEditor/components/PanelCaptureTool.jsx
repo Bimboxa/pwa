@@ -25,12 +25,12 @@ import ToolbarCaptureCondensed from "./ToolbarCaptureCondensed";
 
 import useExitCaptureTool from "../hooks/useExitCaptureTool";
 
-// Right-panel body of the global "Capture" tool (Alt+C), mirroring the POV
+// Right-panel body of the global "Capture" tool (hotkey V), mirroring the POV
 // properties panel: Image (export), Cadrage (frame + legend + logo) and
 // Filtres (annotation templates visibility) tabs. Driven by
 // captureToolActive: the frame ignores the right panel (no inset), but panel
 // and frame live together — closing the panel (band toggle, Fermer, another
-// tool) exits the capture mode, and an external exit (Alt+C, the save bar's
+// tool) exits the capture mode, and an external exit (the V hotkey, the save bar's
 // X under the frame, the header X) closes the panel.
 // This component stays the single mount point of the CAPTURE tool whatever
 // the panel format, so the lifecycle effects below run in both: the condensed

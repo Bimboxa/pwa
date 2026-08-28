@@ -3,12 +3,7 @@ import { useStore } from "react-redux";
 
 import useSwitchViewer from "./useSwitchViewer";
 import useViewers from "./useViewers";
-import { selectEffectiveViewerKey } from "../utils/effectiveViewerKey";
 import { selectSubtractPickAnnotationId } from "Features/mapEditor/utils/subtractPickMode";
-
-// Letters that keep their map-editor meaning while the Dessin module
-// displays the 2D editor (see the guard in the handler below).
-const MAP_EDITOR_OWNED_LETTERS = new Set(["c"]);
 
 const isEditableTarget = (el) => {
   if (!el) return false;
@@ -21,21 +16,24 @@ const isEditableTarget = (el) => {
   );
 };
 
-// Global module-switch shortcuts (D = Dessin, F = Fonds de plan, V = Points
-// de vue, I = Maillage, C = Carnet de plans — the letters displayed under the
-// module labels in the left band; "T" toggles the editor inside the current
-// module instead, see useToggleThreedViewerHotkey).
+// Global module-switch shortcuts, bound as Ctrl+<letter> (Ctrl+D = Dessin,
+// Ctrl+F = Fonds de plan, Ctrl+P = Points de vue, Ctrl+I = Maillage, Ctrl+B =
+// Carnet de plans — displayed under the module labels in the left band; "T"
+// toggles the editor inside the current module instead, see
+// useToggleThreedViewerHotkey). The Ctrl requirement keeps the whole
+// plain-letter namespace to the editor tools (draw letters, D/M/S, E, tool
+// letters of useRightPanelToolHotkeys…).
 //
-// They are kept state-disjoint from the editor hotkeys so listener order can
+// The pre-existing Ctrl-combo owners are protected so listener order can
 // never decide a race:
-//   - inert while a draw is active (!enabledDrawingMode) — the in-draw letters
-//     of InteractionLayer (segment "D", rectangle X/Y, paste I/R/A/S/J, …) and
-//     useDrawingToolHotkeys keep full ownership of the keyboard;
-//   - inert in paste / subtract modes, which own their own letters;
+//   - Ctrl+Z, Ctrl+C and Ctrl+V are never bound (Zones has no hotkey, Carnet
+//     de plans is on Ctrl+B, Points de vue on Ctrl+P) — Undo, Copy and the
+//     paste handlers keep them;
+//   - inert while a MUI dialog is open, so dialog-scoped shortcuts (e.g. the
+//     file selectors' document-level Ctrl+V) always win;
+//   - inert while a draw / paste / subtract is active and in walk mode;
 //   - a letter whose viewer is already selected is ignored WITHOUT consuming
-//     the event, so "D" inside the Dessin viewer still reaches the D/M/S
-//     interaction-mode shortcut (useInteractionModeHotkeys). Outside the
-//     Dessin viewer that hook yields "d" to us (see its DRAW guard).
+//     the event.
 export default function useViewerSwitchHotkeys() {
   const store = useStore();
   const switchViewer = useSwitchViewer();
@@ -59,11 +57,18 @@ export default function useViewerSwitchHotkeys() {
 
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      // Ctrl only — Cmd stays with the browser (Cmd+F/D/V on macOS), Shift
+      // stays with redo (Ctrl+Shift+Z).
+      if (!e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;
       if (e.repeat) return;
       if (isEditableTarget(e.target)) return;
+      // A MUI dialog traps the focus, so its keydowns come from inside
+      // .MuiDialog-root: yield them — the file selectors bind Ctrl+V at
+      // document level to paste a clipboard image.
+      if (e.target?.closest?.(".MuiDialog-root")) return;
 
-      const targetViewerKey = viewerKeyByLetterRef.current[e.key.toLowerCase()];
+      const letter = e.key.toLowerCase();
+      const targetViewerKey = viewerKeyByLetterRef.current[letter];
       if (!targetViewerKey) return;
 
       const s = store.getState();
@@ -72,18 +77,8 @@ export default function useViewerSwitchHotkeys() {
       if (s.mapEditor.enabledDrawingMode) return;
       if (s.mapEditor.pasteClipboard || selectSubtractPickAnnotationId(s))
         return;
-      // Already there — leave the letter to the editor shortcuts (D → DRAW).
+      // Already there — nothing to switch, don't consume.
       if (targetViewerKey === s.viewers.selectedViewerKey) return;
-      // While the Dessin module displays the 2D editor, that editor owns
-      // these letters: "c" starts "Couper un segment" (useToolGroupHotkey).
-      // Those hooks conversely yield outside Dessin+2D (other modules,
-      // Dessin's 3D editor), keeping the two systems state-disjoint.
-      if (
-        s.viewers.selectedViewerKey === "MAP" &&
-        selectEffectiveViewerKey(s) === "MAP" &&
-        MAP_EDITOR_OWNED_LETTERS.has(e.key.toLowerCase())
-      )
-        return;
 
       switchViewerRef.current(targetViewerKey);
       e.preventDefault();

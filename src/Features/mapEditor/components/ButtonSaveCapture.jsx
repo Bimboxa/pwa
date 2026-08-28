@@ -52,7 +52,7 @@ import composeEnhancedPovImage from "Features/pov/utils/composeEnhancedPovImage"
 import downloadBlob from "Features/files/utils/downloadBlob";
 import imageToPdfAsync from "Features/pdf/utils/imageToPdfAsync";
 
-// Save bar of the global Capture tool (Alt+C), anchored below the capture
+// Save bar of the global Capture tool (hotkey V), anchored below the capture
 // frame — the ButtonSavePov counterpart, but with a downloaded PNG as the
 // deliverable instead of a db.povs record: the capture title field (feeds
 // the frame's title banner), the "Amélioration IA" checkbox (same prompt +

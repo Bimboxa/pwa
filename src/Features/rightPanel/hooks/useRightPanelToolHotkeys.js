@@ -4,6 +4,7 @@ import { useStore } from "react-redux";
 import { setSelectedMenuItemKey } from "../rightPanelSlice";
 import { setCaptureToolActive } from "Features/mapEditor/mapEditorSlice";
 import { selectSubtractPickAnnotationId } from "Features/mapEditor/utils/subtractPickMode";
+import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 
 import useRightPanelTools from "./useRightPanelTools";
 
@@ -18,18 +19,21 @@ const isEditableTarget = (el) => {
   );
 };
 
-// Global shortcuts to OPEN/CLOSE a right-panel tool by its letter (B = Banque
-// d'objets — the letters shown under the tool labels in the right band) or by
-// Alt+<letter> (Alt+C = Capture, Alt+E = Élévation, declared via the tool's
-// `altHotkey`).
+// Global shortcuts to OPEN/CLOSE a right-panel tool by its plain letter (E =
+// Élévation, B = Banque d'objets, V = Capture — the letters shown under the
+// tool labels in the right band; modules switch on Ctrl+<letter>, see
+// useViewerSwitchHotkeys).
 //
 // Mirror of useViewerSwitchHotkeys, kept state-disjoint from the module/editor hotkeys
 // so listener order never decides a race:
-//   - the letter maps are rebuilt from the *filtered* menuItems, so a tool absent from
+//   - the letter map is rebuilt from the *filtered* menuItems, so a tool absent from
 //     the current module (or from appConfig.features.tools) never binds its letter — a
 //     letter with no available tool falls through without consuming the event;
 //   - inert while a draw / paste / subtract is active (those own their own letters,
-//     e.g. "B" = STRIP while drawing) and in walk mode;
+//     e.g. "B" = STRIP and "v" = smart-detect vectorize while drawing) and in
+//     walk mode;
+//   - "E" yields (without consuming) while a POLYGON is selected on the 2D
+//     map: the InteractionLayer "Évider" handler keeps it;
 //   - toggles: pressing the letter of the already-open tool closes it. CAPTURE
 //     toggles the capture MODE explicitly (frame + panel move together, but the
 //     mode flag is dispatched here too so the toggle never depends on the
@@ -39,33 +43,25 @@ export default function useRightPanelToolHotkeys() {
   const { menuItems } = useRightPanelTools();
 
   // Letter → tool key, rebuilt from the live (filtered) tool list so a tool that is
-  // not currently in the band never binds its letter. Alt hotkeys are keyed by
-  // e.code ("KeyC"): on macOS/AZERTY Alt+<letter> types another character, so
-  // e.key can't identify the physical key.
+  // not currently in the band never binds its letter.
   const toolKeyByLetter = {};
-  const toolKeyByAltCode = {};
   menuItems.forEach((t) => {
     if (t.hotkey) toolKeyByLetter[t.hotkey.toLowerCase()] = t.key;
-    if (t.altHotkey)
-      toolKeyByAltCode[`Key${t.altHotkey.toUpperCase()}`] = t.key;
   });
 
-  // Refs keep a single stable window listener while the letter maps change
+  // Ref keeps a single stable window listener while the letter map changes
   // identity on every render.
   const toolKeyByLetterRef = useRef(toolKeyByLetter);
   toolKeyByLetterRef.current = toolKeyByLetter;
-  const toolKeyByAltCodeRef = useRef(toolKeyByAltCode);
-  toolKeyByAltCodeRef.current = toolKeyByAltCode;
 
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (e.ctrlKey || e.metaKey) return;
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
       if (e.repeat) return;
       if (isEditableTarget(e.target)) return;
 
-      const targetKey = e.altKey
-        ? toolKeyByAltCodeRef.current[e.code]
-        : toolKeyByLetterRef.current[e.key.toLowerCase()];
+      const letter = e.key.toLowerCase();
+      const targetKey = toolKeyByLetterRef.current[letter];
       if (!targetKey) return;
 
       const s = store.getState();
@@ -74,6 +70,17 @@ export default function useRightPanelToolHotkeys() {
       // A draw / paste / subtract owns its own letters (e.g. "B" = STRIP).
       if (s.mapEditor.enabledDrawingMode) return;
       if (s.mapEditor.pasteClipboard || selectSubtractPickAnnotationId(s))
+        return;
+      // "E" keeps its "Évider" meaning while a POLYGON is selected on the 2D
+      // map — yield without consuming so InteractionLayer's handler fires
+      // (mirror of its own guards).
+      if (
+        letter === "e" &&
+        s.viewers.selectedViewerKey === "MAP" &&
+        selectEffectiveViewerKey(s) === "MAP" &&
+        s.mapEditor.selectedNode?.nodeType === "ANNOTATION" &&
+        s.mapEditor.selectedNode?.annotationType === "POLYGON"
+      )
         return;
 
       const current = s.rightPanel.selectedMenuItemKey;
