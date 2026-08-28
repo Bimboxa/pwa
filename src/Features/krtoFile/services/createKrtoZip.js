@@ -2,6 +2,7 @@ import db, { withSystemWrite } from "App/db/db";
 import { getEffectiveOwner, normalizeOwnerId } from "App/db/ownership";
 import sanitizeName from "Features/misc/utils/sanitizeName";
 import parseDexieExportBlob from "Features/krtoFile/utils/parseDexieExportBlob";
+import getScopeRelevantListings from "Features/krtoFile/utils/getScopeRelevantListings";
 import collectReferencedPointIds from "Features/annotations/utils/collectReferencedPointIds";
 import upsertCurrentUserInDirectory from "Features/usersDirectory/services/upsertCurrentUserInDirectory";
 import JSZip from "jszip";
@@ -44,19 +45,7 @@ export default async function createKrtoZip(scopeId, options) {
         .equals(projectId)
         .toArray();
 
-    const relevantListings = allProjectListings.filter((listing) => {
-        if (listing.scopeId === scopeId) return true;
-        if (!listing.scopeId) return true; // shared listings — scopeId absent, undefined ou null
-        // BaseMaps are shared across every scope of a project: always include
-        // their listings (and thus their baseMaps / versions / image files),
-        // even when the listing is still bound to another scope's id — e.g. the
-        // scope it was created in, or the source of a duplicated scope. Without
-        // this, exporting a duplicated scope would drop all base-map images.
-        if (listing.entityModel?.type === "BASE_MAP") return true;
-        // PHOTO albums are project-level shared listings too (same rule).
-        if (listing.entityModel?.type === "PHOTO") return true;
-        return false;
-    });
+    const relevantListings = getScopeRelevantListings(allProjectListings, scopeId);
 
     const listingIds = new Set(relevantListings.map((l) => l.id));
     const listingKeys = new Set(relevantListings.map((l) => l.key).filter(Boolean));

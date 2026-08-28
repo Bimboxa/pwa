@@ -13,6 +13,7 @@ import useSelectedProject from "Features/projects/hooks/useSelectedProject";
 import resolveUrl from "Features/appConfig/utils/resolveUrl";
 import resolveBodyTemplate from "Features/appConfig/utils/resolveBodyTemplate";
 import createKrtoZip from "Features/krtoFile/services/createKrtoZip";
+import computeScopeStats from "../services/computeScopeStats";
 import resolveRoute from "../utils/resolveRoute";
 
 import getDebugAuthFromLocalStorage from "Features/auth/services/getDebugAuthFromLocalStorage";
@@ -70,7 +71,17 @@ export default function usePushRemoteScopeConfiguration() {
       const resolvedUrl = resolveUrl(urlConfig);
 
       // 3. Construire le body en FormData
-      const context = { scope, project, userProfile, file };
+      // Content stats (dashboard badges) travel inside the backend's existing
+      // metaData field, as a JSON string. A stats failure must not block the
+      // save — an undefined metaData is simply dropped from the body.
+      let metaData;
+      try {
+        const stats = await computeScopeStats(scope.id);
+        metaData = JSON.stringify(stats);
+      } catch (error) {
+        console.error("[usePushRemoteScopeConfiguration] stats error", error);
+      }
+      const context = { scope, project, userProfile, file, metaData };
       const body = resolveBodyTemplate(fetchParams.body, context);
       const formData = new FormData();
       Object.entries(body).forEach(([key, value]) =>

@@ -7,10 +7,12 @@ import {
 } from "@mui/icons-material";
 
 import AvatarPovPreview from "./AvatarPovPreview";
+import ChipsScopeStats from "./ChipsScopeStats";
 
 // Renders one krto row — either a local scope or a remote (not installed)
 // scope configuration. Clicking the row opens the krto.
-// `row` = { scopeId, name, subText, isLocal, isFavorite, povPreviews }
+// `row` = { scopeId, name, subText, isLocal, isFavorite, povPreviews,
+//           annotationsCount, baseMapsCount }
 // `subText` = "author trigram, last configuration date".
 
 export default function ListItemDashboardScope({
@@ -80,6 +82,11 @@ export default function ListItemDashboardScope({
           </Typography>
         )}
       </Box>
+
+      <ChipsScopeStats
+        baseMapsCount={row.baseMapsCount}
+        annotationsCount={row.annotationsCount}
+      />
 
       {row.isLocal && (
         <Tooltip title="Supprimer">

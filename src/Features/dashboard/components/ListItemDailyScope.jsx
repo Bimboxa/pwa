@@ -7,7 +7,10 @@ import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import { getEffectiveOwner, normalizeOwnerId } from "App/db/ownership";
 import getUserIdMaster from "Features/auth/utils/getUserIdMaster";
 
+import getScopeConfigMetaData from "Features/remoteScopeConfigurations/utils/getScopeConfigMetaData";
+
 import AvatarPovPreview from "./AvatarPovPreview";
+import ChipsScopeStats from "./ChipsScopeStats";
 
 import { TEXT_FAINT } from "../utils/dashboardStyles";
 
@@ -46,6 +49,8 @@ export default function ListItemDailyScope({ item, onOpen }) {
     !isPublic &&
     creatorId !== null &&
     creatorId !== normalizeOwnerId(currentUserId);
+
+  const metaData = getScopeConfigMetaData(item);
 
   const timeS =
     parseBackendDate(item.lastConfigurationAt)?.toLocaleTimeString("fr-FR", {
@@ -92,7 +97,11 @@ export default function ListItemDailyScope({ item, onOpen }) {
           flexShrink: 0,
         }}
       >
-        <Box sx={{ display: "flex", alignItems: "baseline", gap: 0.75 }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+          <ChipsScopeStats
+            baseMapsCount={metaData.baseMapsCount}
+            annotationsCount={metaData.annotationsCount}
+          />
           {showReadOnlyChip && (
             <Chip
               label={readOnlyS}

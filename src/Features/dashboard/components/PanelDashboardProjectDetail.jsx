@@ -14,6 +14,7 @@ import useFetchProjectScopeConfigurations from "../hooks/useFetchProjectScopeCon
 import useLinkProjectToReferentiel from "Features/projects/hooks/useLinkProjectToReferentiel";
 import useDeleteProject from "Features/projects/hooks/useDeleteProject";
 import parseBackendDate from "Features/date/utils/parseBackendDate";
+import getScopeConfigMetaData from "Features/remoteScopeConfigurations/utils/getScopeConfigMetaData";
 
 import {
   Box,
@@ -109,6 +110,7 @@ export default function PanelDashboardProjectDetail({ item }) {
     ? [
         ...item.scopes.map((scope) => {
           const config = findScopeConfig(scope.id);
+          const metaData = getScopeConfigMetaData(config);
           return {
             scopeId: scope.id,
             name: scope.name,
@@ -120,18 +122,25 @@ export default function PanelDashboardProjectDetail({ item }) {
             isLocal: true,
             isFavorite: isFavorite(scope.id),
             povPreviews: config?.povPreviews,
+            annotationsCount: metaData.annotationsCount,
+            baseMapsCount: metaData.baseMapsCount,
           };
         }),
-        ...item.remoteConfigs.map((config) => ({
-          scopeId: config.scopeId,
-          name: config.scopeName,
-          subText: [config.createdBy?.trigram, formatDate(config.createdAt)]
-            .filter(Boolean)
-            .join(", "),
-          isLocal: false,
-          isFavorite: isFavorite(config.scopeId),
-          povPreviews: config.povPreviews,
-        })),
+        ...item.remoteConfigs.map((config) => {
+          const metaData = getScopeConfigMetaData(config);
+          return {
+            scopeId: config.scopeId,
+            name: config.scopeName,
+            subText: [config.createdBy?.trigram, formatDate(config.createdAt)]
+              .filter(Boolean)
+              .join(", "),
+            isLocal: false,
+            isFavorite: isFavorite(config.scopeId),
+            povPreviews: config.povPreviews,
+            annotationsCount: metaData.annotationsCount,
+            baseMapsCount: metaData.baseMapsCount,
+          };
+        }),
       ]
     : [];
 
