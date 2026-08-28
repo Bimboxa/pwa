@@ -1,9 +1,11 @@
 import { memo, useMemo, useState, useEffect, useRef } from "react";
 import { useDispatch } from "react-redux";
+import { useLiveQuery } from "dexie-react-hooks";
 
 import { setSelectedMainBaseMapId } from "Features/mapEditor/mapEditorSlice";
 import { openResourceAtPage } from "Features/resources/resourcesSlice";
 import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
+import { triggerEntitiesTableUpdate } from "Features/entities/entitiesSlice";
 
 import { resolveDetailResource } from "Features/baseMaps/services/detailBaseMapUtils";
 
@@ -59,6 +61,17 @@ function NodeDetailStatic({
   // `label` with the ENTITY label on entity-linked rows).
   const ownLabel = merged.annotationLabel ?? merged.label ?? "";
 
+  // Linked detail baseMap — raw record only (no hydration: rendering the
+  // detail image must stay lazy), same pattern as MapTooltip.
+  const detailBaseMap = useLiveQuery(
+    async () => (detailBaseMapId ? db.baseMaps.get(detailBaseMapId) : null),
+    [detailBaseMapId]
+  );
+
+  // The baseMap's detailRef is the single source of truth for the bubble of
+  // every annotation linked to it; ownLabel is the unlinked/legacy fallback.
+  const bubbleText = (detailBaseMapId && detailBaseMap?.detailRef) || ownLabel;
+
   // helpers
 
   const rad = (arrowAngle * Math.PI) / 180;
@@ -86,7 +99,7 @@ function NodeDetailStatic({
   }, [fillColor, hovered, selected]);
 
   const fontSize =
-    (ownLabel?.length ?? 0) > 2 ? SMALL_FONT_SIZE : DEFAULT_FONT_SIZE;
+    (bubbleText?.length ?? 0) > 2 ? SMALL_FONT_SIZE : DEFAULT_FONT_SIZE;
 
   const fontStyles = {
     fontFamily: "Roboto, Helvetica, Arial, sans-serif",
@@ -99,30 +112,42 @@ function NodeDetailStatic({
 
   // state — inline label editing (NodeLabelStatic pattern)
 
-  const [localValue, setLocalValue] = useState(ownLabel);
+  const [localValue, setLocalValue] = useState(bubbleText);
 
   useEffect(() => {
-    setLocalValue(ownLabel);
-  }, [ownLabel]);
+    setLocalValue(bubbleText);
+  }, [bubbleText]);
 
   // refs to access latest values in the deselect cleanup
   const localValueRef = useRef(localValue);
   localValueRef.current = localValue;
-  const labelRef = useRef(ownLabel);
-  labelRef.current = ownLabel;
+  const labelRef = useRef(bubbleText);
+  labelRef.current = bubbleText;
+  const detailBaseMapIdRef = useRef(detailBaseMapId);
+  detailBaseMapIdRef.current = detailBaseMapId;
 
   // handlers
 
+  // Linked: the edit targets the baseMap's detailRef (shared by every linked
+  // annotation). Unlinked: legacy per-annotation label.
   const saveLabel = async (value) => {
     try {
-      await db.annotations.update(id, { label: value });
+      const targetBaseMapId = detailBaseMapIdRef.current;
+      if (targetBaseMapId) {
+        await db.baseMaps.update(targetBaseMapId, {
+          detailRef: value.trim() || null,
+        });
+        dispatch(triggerEntitiesTableUpdate("baseMaps"));
+      } else {
+        await db.annotations.update(id, { label: value });
+      }
     } catch (err) {
       console.error(err);
     }
   };
 
   const handleBlur = () => {
-    if (localValue !== ownLabel) {
+    if (localValue !== bubbleText) {
       saveLabel(localValue);
     }
   };
@@ -281,7 +306,7 @@ function NodeDetailStatic({
                 }}
               />
             ) : (
-              <span style={fontStyles}>{ownLabel || "X"}</span>
+              <span style={fontStyles}>{bubbleText || "X"}</span>
             )}
           </div>
         </foreignObject>

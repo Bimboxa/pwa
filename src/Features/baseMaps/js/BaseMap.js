@@ -57,6 +57,9 @@ export default class BaseMap {
     // by the baseMapCreator PDF flow, without isDetail.
     isDetail,
     createdFrom,
+    // Short reference displayed in the DETAIL annotation bubbles linked to
+    // this baseMap (e.g. "1", "A"). Editable on any baseMap.
+    detailRef,
     // version system
     versions,
     refWidth,
@@ -86,6 +89,7 @@ export default class BaseMap {
     this.sourcePhotoBaseMapId = sourcePhotoBaseMapId;
     this.isDetail = isDetail;
     this.createdFrom = createdFrom;
+    this.detailRef = detailRef ?? null;
     // version system
     this.versions = versions || [];
     this.refWidth = refWidth || null;
@@ -129,7 +133,6 @@ export default class BaseMap {
   }
 
   static async createFromRecord(record, versions = [], options) {
-
     try {
       if (!record) return null;
 
@@ -150,9 +153,8 @@ export default class BaseMap {
         }
         if (!bmImage) {
           // Dynamic import keeps pdfjs out of the base hydration path.
-          const { default: renderDetailBaseMapImage } = await import(
-            "Features/baseMaps/services/renderDetailBaseMapImage"
-          );
+          const { default: renderDetailBaseMapImage } =
+            await import("Features/baseMaps/services/renderDetailBaseMapImage");
           bmImage = await renderDetailBaseMapImage(record);
           if (bmImage) {
             editor.baseMapsCache[record.id] = {
@@ -176,9 +178,7 @@ export default class BaseMap {
           versions.map(async (v) => {
             const key = getImageCacheKey(v.image);
             let loadedImage =
-              cachedImages[v.id]?.key === key
-                ? cachedImages[v.id].image
-                : null;
+              cachedImages[v.id]?.key === key ? cachedImages[v.id].image : null;
 
             if (!loadedImage && v.image?.fileName) {
               const fileRecord = await db.files.get(v.image.fileName);
@@ -236,7 +236,7 @@ export default class BaseMap {
           });
           bmImage = await ImageObject.create({
             imageFile: file,
-            thumbnail: record.image.thumbnail
+            thumbnail: record.image.thumbnail,
           });
         }
       }
@@ -252,7 +252,7 @@ export default class BaseMap {
           });
           bmImageEnhanced = await ImageObject.create({
             imageFile: fileEnhanced,
-            thumbnail: record.imageEnhanced.thumbnail
+            thumbnail: record.imageEnhanced.thumbnail,
           });
         }
       }
@@ -330,7 +330,8 @@ export default class BaseMap {
       return img?.imageUrlClient ?? img?.imageUrlRemote;
     }
     // Legacy fallback
-    const imageToUse = this.showEnhanced && this.imageEnhanced ? this.imageEnhanced : this.image;
+    const imageToUse =
+      this.showEnhanced && this.imageEnhanced ? this.imageEnhanced : this.image;
     return imageToUse?.imageUrlClient ?? imageToUse?.imageUrlRemote;
   };
 
@@ -340,7 +341,8 @@ export default class BaseMap {
       return activeVersion.image?.thumbnail;
     }
     // Legacy fallback
-    const imageToUse = this.showEnhanced && this.imageEnhanced ? this.imageEnhanced : this.image;
+    const imageToUse =
+      this.showEnhanced && this.imageEnhanced ? this.imageEnhanced : this.image;
     return imageToUse?.thumbnail;
   };
 
@@ -350,7 +352,8 @@ export default class BaseMap {
       return { width: this.refWidth, height: this.refHeight };
     }
     // Legacy fallback
-    const imageToUse = this.showEnhanced && this.imageEnhanced ? this.imageEnhanced : this.image;
+    const imageToUse =
+      this.showEnhanced && this.imageEnhanced ? this.imageEnhanced : this.image;
     return imageToUse?.imageSize;
   };
 
@@ -361,7 +364,8 @@ export default class BaseMap {
       return activeVersion.image?.imageSize;
     }
     // Legacy fallback
-    const imageToUse = this.showEnhanced && this.imageEnhanced ? this.imageEnhanced : this.image;
+    const imageToUse =
+      this.showEnhanced && this.imageEnhanced ? this.imageEnhanced : this.image;
     return imageToUse?.imageSize;
   };
 
@@ -391,12 +395,18 @@ export default class BaseMap {
     if (this.showEnhanced && this.imageEnhanced && this.image) {
       const scale = this.getImageScale();
       offset = {
-        x: (this.image.imageSize.width - this.imageEnhanced.imageSize.width / scale) / 2,
-        y: (this.image.imageSize.height - this.imageEnhanced.imageSize.height / scale) / 2,
+        x:
+          (this.image.imageSize.width -
+            this.imageEnhanced.imageSize.width / scale) /
+          2,
+        y:
+          (this.image.imageSize.height -
+            this.imageEnhanced.imageSize.height / scale) /
+          2,
       };
     }
     return offset;
-  }
+  };
 
   getActiveVersionTransform = () => {
     const activeVersion = this.getActiveVersion();
@@ -407,7 +417,6 @@ export default class BaseMap {
   };
 
   getMeterByPx = (options) => {
-
     const variant = options?.variant; // "imageEnhanced", "image"
 
     if (!this.meterByPx) return null;

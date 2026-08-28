@@ -21,6 +21,7 @@ export default function IconButtonMoreActionsBaseMap({
   baseMap,
   onOpenProperties,
   onRename,
+  onEditRef,
   onAddVersion,
   ...iconButtonProps
 }) {
@@ -30,8 +31,13 @@ export default function IconButtonMoreActionsBaseMap({
 
   const propertiesS = "Propriétés du fond de plan";
   const renameS = "Renommer";
+  const editRefS = "Modifier la référence";
   const addVersionS = "Nouvelle version";
   const deleteS = "Supprimer le fond de plan";
+
+  // helpers - detail baseMaps have no versions and no 3D placement
+
+  const isDetail = Boolean(baseMap?.isDetail);
 
   // helpers - orientation
 
@@ -79,6 +85,11 @@ export default function IconButtonMoreActionsBaseMap({
     onRename?.();
   }
 
+  function handleEditRef() {
+    setAnchorEl(null);
+    onEditRef?.();
+  }
+
   function handleAddVersion() {
     setAnchorEl(null);
     onAddVersion?.();
@@ -124,10 +135,15 @@ export default function IconButtonMoreActionsBaseMap({
           <MenuItem onClick={handleOpenProperties}>{propertiesS}</MenuItem>
         )}
         {onRename && <MenuItem onClick={handleRename}>{renameS}</MenuItem>}
-        <MenuItem onClick={handleAddVersion}>{addVersionS}</MenuItem>
-        <MenuItem onClick={handleToggleOrientation}>
-          {toggleOrientationS}
-        </MenuItem>
+        {onEditRef && <MenuItem onClick={handleEditRef}>{editRefS}</MenuItem>}
+        {!isDetail && (
+          <MenuItem onClick={handleAddVersion}>{addVersionS}</MenuItem>
+        )}
+        {!isDetail && (
+          <MenuItem onClick={handleToggleOrientation}>
+            {toggleOrientationS}
+          </MenuItem>
+        )}
         <MenuItem onClick={handleDelete} sx={{ color: "error.main" }}>
           {deleteS}
         </MenuItem>

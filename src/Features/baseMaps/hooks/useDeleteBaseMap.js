@@ -33,6 +33,11 @@ export default function useDeleteBaseMap() {
             .delete();
           await db.annotations.where("baseMapId").equals(baseMap.id).delete();
           await db.points.where("baseMapId").equals(baseMap.id).delete();
+          // DETAIL annotations living on OTHER baseMaps may link this one
+          // (detailBaseMapId): unlink them to avoid dangling references.
+          await db.annotations
+            .filter((a) => a.detailBaseMapId === baseMap.id)
+            .modify({ detailBaseMapId: null });
         });
       }
     );

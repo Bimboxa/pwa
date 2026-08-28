@@ -16,6 +16,7 @@ import {
   setSelectedBaseMapId,
   setPropertiesRequestedView,
 } from "Features/baseMaps/baseMapsSlice";
+import { triggerEntitiesTableUpdate } from "Features/entities/entitiesSlice";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useBaseMap from "../hooks/useBaseMap";
@@ -100,6 +101,7 @@ export default function PanelBaseMapProperties() {
   const [openDelete, setOpenDelete] = useState(false);
   const [openDeleteVersion, setOpenDeleteVersion] = useState(false);
   const [nameValue, setNameValue] = useState(null);
+  const [detailRefValue, setDetailRefValue] = useState(null);
   const [versionLabelValue, setVersionLabelValue] = useState(null);
   const [view, setView] = useState("main"); // "main" | "position3d"
 
@@ -118,6 +120,11 @@ export default function PanelBaseMapProperties() {
 
   const isEditingName = nameValue !== null;
   const displayName = isEditingName ? nameValue : baseMap?.name || "";
+
+  const isEditingDetailRef = detailRefValue !== null;
+  const displayDetailRef = isEditingDetailRef
+    ? detailRefValue
+    : baseMap?.detailRef || "";
 
   const isEditingVersionLabel = versionLabelValue !== null;
   const displayVersionLabel = isEditingVersionLabel
@@ -173,11 +180,18 @@ export default function PanelBaseMapProperties() {
 
   async function handleNameBlur() {
     if (nameValue !== null && baseMap?.id) {
-      await updateEntity(
-        baseMap.id,
-        { name: nameValue },
-        { listing: baseMapListing }
-      );
+      if (baseMap.isDetail) {
+        // Detail baseMaps have no listing (listingId null): useUpdateEntity
+        // would fall back to the SELECTED listing and write the wrong table.
+        await db.baseMaps.update(baseMap.id, { name: nameValue });
+        dispatch(triggerEntitiesTableUpdate("baseMaps"));
+      } else {
+        await updateEntity(
+          baseMap.id,
+          { name: nameValue },
+          { listing: baseMapListing }
+        );
+      }
     }
     setNameValue(null);
   }
@@ -187,6 +201,31 @@ export default function PanelBaseMapProperties() {
       e.target.blur();
     } else if (e.key === "Escape") {
       setNameValue(null);
+    }
+  }
+
+  // handlers - detail reference
+
+  function handleDetailRefFocus() {
+    setDetailRefValue(baseMap?.detailRef || "");
+  }
+
+  async function handleDetailRefBlur() {
+    if (detailRefValue !== null && baseMap?.id) {
+      // Direct write: works for any baseMap, listing-less details included.
+      await db.baseMaps.update(baseMap.id, {
+        detailRef: detailRefValue.trim() || null,
+      });
+      dispatch(triggerEntitiesTableUpdate("baseMaps"));
+    }
+    setDetailRefValue(null);
+  }
+
+  function handleDetailRefKeyDown(e) {
+    if (e.key === "Enter") {
+      e.target.blur();
+    } else if (e.key === "Escape") {
+      setDetailRefValue(null);
     }
   }
 
@@ -291,6 +330,21 @@ export default function PanelBaseMapProperties() {
                 onFocus={handleNameFocus}
                 onBlur={handleNameBlur}
                 onKeyDown={handleNameKeyDown}
+                fullWidth
+                sx={{ fontSize: "0.875rem" }}
+              />
+            </Box>
+            <Box>
+              <Typography variant="caption" color="text.secondary">
+                Référence
+              </Typography>
+              <InputBase
+                value={displayDetailRef}
+                onChange={(e) => setDetailRefValue(e.target.value)}
+                onFocus={handleDetailRefFocus}
+                onBlur={handleDetailRefBlur}
+                onKeyDown={handleDetailRefKeyDown}
+                placeholder="1, A, ..."
                 fullWidth
                 sx={{ fontSize: "0.875rem" }}
               />
