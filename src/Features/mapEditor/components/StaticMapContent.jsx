@@ -480,7 +480,11 @@ function StaticMapContent({
                 // inline here — the hoisted labels pass below draws them
                 // ABOVE every annotation (draw order preserved among labels).
                 forceHideLabel={true}
-                selectMode={selectMode}
+                // Stacked layer strips display DERIVED points (inserted ramp
+                // vertices): per-segment indices no longer match the stored
+                // ones, so per-segment select tools are disabled on them
+                // (select the layer first — it renders raw while selected).
+                selectMode={annotation._layerStacked ? null : selectMode}
               />
             </g>
           );

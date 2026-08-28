@@ -16,6 +16,7 @@ export const REMEMBERABLE_DRAFT_KEYS = [
   "strokeWidthUnit",
   "fillColor",
   "strokeColor",
+  "isLayer",
 ];
 
 // Keys that are always copied from template to annotation (beyond configurable props).

@@ -22,6 +22,7 @@ import FieldAnnotationFill from "./FieldAnnotationFill";
 import FieldAnnotationStroke from "./FieldAnnotationStroke";
 import FieldAnnotationIsEraser from "./FieldAnnotationIsEraser";
 import FieldAnnotationIsExt from "./FieldAnnotationIsExt";
+import FieldAnnotationIsLayer from "./FieldAnnotationIsLayer";
 import FieldAnnotationIsProfile from "./FieldAnnotationIsProfile";
 import FieldAnnotationLabel from "./FieldAnnotationLabel";
 import FieldAnnotationLinearLayout from "./FieldAnnotationLinearLayout";
@@ -179,6 +180,7 @@ export default function SectionAnnotationPropertiesContent({
         {["POLYLINE", "STRIP", "POLYGON"].includes(type) && (
           <FieldAnnotationIsExt annotation={annotation} />
         )}
+        {type === "STRIP" && <FieldAnnotationIsLayer annotation={annotation} />}
       </Box>
 
       {["POLYGON", "RECTANGLE", "POLYLINE", "STRIP"].includes(type) && (

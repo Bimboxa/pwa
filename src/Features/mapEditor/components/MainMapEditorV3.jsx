@@ -50,6 +50,7 @@ import useMeshCellRelations from "Features/annotations/hooks/useMeshCellRelation
 import useNewAnnotationType from "Features/annotations/hooks/useNewAnnotationType";
 import useResetNewAnnotation from "Features/annotations/hooks/useResetNewAnnotation";
 import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
+import applyLayerStackingToAnnotations from "Features/annotations/utils/applyLayerStackingToAnnotations";
 import applyOpeningOnPolygon from "Features/annotations/utils/applyOpeningOnPolygon";
 import reflowOpeningsForHost from "Features/mapEditor/services/reflowOpeningsForHostService";
 import applyPointsMovesService from "Features/annotations/services/applyPointsMovesService";
@@ -442,6 +443,31 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
             });
     }, [rawAnnotations, showMeshCells, parentIdSet]);
 
+    // Layer STRIPs (isLayer): DISPLAY-ONLY stacked geometry (offset by the
+    // accumulated thickness of the layers beneath, 45° ramps at their edges).
+    // Fed exclusively to the display consumers (StaticMapContent, PrintableMap,
+    // image-mode label layout); interaction, snapping, drags and commit keep
+    // the raw `annotations` (support geometry) — including EditedObjectLayer,
+    // so a selected layer drops back onto its support line for editing.
+    const displayAnnotations = useMemo(() => {
+        if (!annotations?.length) return annotations;
+        const stackedById = applyLayerStackingToAnnotations(annotations, {
+            baseMapId: baseMap?.id,
+            meterByPx: baseMap?.getMeterByPx?.(),
+        });
+        if (!stackedById.size) return annotations;
+        return annotations.map((a) =>
+            stackedById.has(a.id)
+                ? {
+                      ...a,
+                      points: stackedById.get(a.id),
+                      _layerSupportPoints: a.points,
+                      _layerStacked: true,
+                  }
+                : a
+        );
+    }, [annotations, baseMap]);
+
     _track("annotations.length", annotations?.length);
 
     // legend
@@ -473,7 +499,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     // display-only label auto-layout while imageMode is active
     const { labelOverridesById, notifyCameraChange } = useImageModeLabelsLayout({
         enabled: imageModeActive,
-        annotations,
+        annotations: displayAnnotations,
         basePose,
         getCameraMatrix: () => interactionLayerRef.current?.getCameraMatrix?.(),
         viewportBounds: bounds,
@@ -2064,7 +2090,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                             basePose={basePose}
                             baseMapImageUrl={baseMap?.getUrl()}
                             baseMapImageSize={baseMap?.getImageSize?.() || baseMap?.getImageSize?.()}
-                            annotations={annotations}
+                            annotations={displayAnnotations}
                             labelOverridesById={labelOverridesById}
                             legendItems={imageModeActive ? null : legendItems}
                             legendFormat={legendFormat}
@@ -2189,7 +2215,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                     basePose={basePose}
                     baseMapImageUrl={baseMap?.getUrl()}
                     baseMapImageSize={baseMap?.getImageSize?.() || baseMap?.getImageSize?.()}
-                    annotations={annotations}
+                    annotations={displayAnnotations}
                     spriteImage={spriteImage}
                     baseMapMeterByPx={baseMap?.getMeterByPx()}
                     legendItems={legendItems}
