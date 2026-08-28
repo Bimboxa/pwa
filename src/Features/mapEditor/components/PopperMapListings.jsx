@@ -1829,14 +1829,21 @@ export default function PopperMapListings() {
   const returnListingId = viewerReturnContext?.listingId;
   // The system listing (isFreeAnnotationsListing, "Générique") is shown as the
   // first chip like any other listing, except in the base-maps / zones viewers
-  // where free annotations don't apply.
-  const systemListings =
-    isBaseMapsViewer || isZonesViewer
-      ? []
-      : (listings?.filter((l) => l.isFreeAnnotationsListing) ?? []);
-  const userListings =
-    listings?.filter((l) => !l.isFreeAnnotationsListing) ?? [];
-  const visibleListings = [...systemListings, ...userListings];
+  // where free annotations don't apply. It stays pinned first only while it
+  // has no rank — a drag reorder (FieldActiveListing) ranks every listing,
+  // and the selector's rank order then wins.
+  const excludeSystemListings = isBaseMapsViewer || isZonesViewer;
+  const pinnedSystemListings = excludeSystemListings
+    ? []
+    : (listings?.filter((l) => l.isFreeAnnotationsListing && l.rank == null) ??
+      []);
+  const otherListings =
+    listings?.filter(
+      (l) =>
+        !(l.isFreeAnnotationsListing && l.rank == null) &&
+        !(excludeSystemListings && l.isFreeAnnotationsListing)
+    ) ?? [];
+  const visibleListings = [...pinnedSystemListings, ...otherListings];
 
   // In effective SELECT contexts (2D Selection, 3D, Maillage, ?mode=viewer) the
   // panel acts as a legend: hide listings/templates that have no annotation on

@@ -1,9 +1,12 @@
 import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
+import { generateKeyBetween } from "fractional-indexing";
+
 import {
   setSelectedListingId,
   setHiddenListingsIds,
+  triggerListingsUpdate,
 } from "Features/listings/listingsSlice";
 import { setAutoListingVisibility } from "Features/panelDrawing/panelDrawingSlice";
 
@@ -26,6 +29,24 @@ import MoreHoriz from "@mui/icons-material/MoreHoriz";
 import Add from "@mui/icons-material/Add";
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
+import DragIndicator from "@mui/icons-material/DragIndicator";
+
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  useSortable,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 
 import DialogCreateListing from "Features/listings/components/DialogCreateListing";
 import MenuMoreActionsActiveListing from "./MenuMoreActionsActiveListing";
@@ -43,6 +64,117 @@ import db from "App/db/db";
 // the selected one. The trailing item creates a new listing; with no listing
 // at all, the field becomes the create CTA.
 // ---------------------------------------------------------------------------
+
+// -- Sortable row: a listing MenuItem with a left drag handle. Dragging
+// rewrites the `rank` of every displayed listing (fractional indexing, same
+// scheme as FieldSortableListings); clicking anywhere else selects as before.
+
+function SortableMenuItemListing({
+  listing,
+  selected,
+  hidden,
+  count,
+  onSelect,
+  onToggleVisibility,
+}) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: listing.id });
+
+  return (
+    <MenuItem
+      ref={setNodeRef}
+      selected={selected}
+      onClick={() => onSelect(listing.id)}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        zIndex: isDragging ? 1200 : "auto",
+        opacity: isDragging ? 0.8 : 1,
+      }}
+      sx={{
+        gap: 1,
+        py: 0.75,
+        // Selection flag: secondary left border (replaces the tick).
+        borderLeft: "3px solid",
+        borderLeftColor: selected ? "secondary.main" : "transparent",
+      }}
+    >
+      <Box
+        component="span"
+        {...attributes}
+        {...listeners}
+        onClick={(e) => e.stopPropagation()}
+        sx={{
+          display: "inline-flex",
+          alignItems: "center",
+          flexShrink: 0,
+          ml: -0.5,
+          color: "panel.iconMuted",
+          cursor: "grab",
+          touchAction: "none",
+          "&:active": { cursor: "grabbing" },
+        }}
+      >
+        <DragIndicator sx={{ fontSize: 16 }} />
+      </Box>
+      <ListItemText
+        primaryTypographyProps={{
+          variant: "body2",
+          noWrap: true,
+          fontWeight: selected ? 600 : 400,
+          color: hidden ? "text.disabled" : "text.primary",
+        }}
+      >
+        {listing.name ?? listing.label ?? "Liste"}
+      </ListItemText>
+      {/* Annotations count, scoped like the panel (active base map or all
+          base maps). */}
+      <Chip
+        label={count}
+        size="small"
+        sx={{
+          ml: "auto",
+          height: 16,
+          flexShrink: 0,
+          "& .MuiChip-label": {
+            px: 0.75,
+            fontSize: "10px",
+            fontFamily: "monospace",
+            fontWeight: 500,
+            color: hidden
+              ? "text.disabled"
+              : count > 0
+                ? "secondary.main"
+                : "panel.countEmpty",
+          },
+        }}
+      />
+      <Tooltip title={hidden ? "Afficher" : "Masquer"} arrow>
+        <IconButton
+          size="small"
+          onClick={(e) => onToggleVisibility(e, listing.id)}
+          sx={{
+            p: 0.5,
+            flexShrink: 0,
+            color: hidden ? "secondary.main" : "panel.iconMuted",
+          }}
+        >
+          {hidden ? (
+            <VisibilityOff sx={{ fontSize: 16 }} />
+          ) : (
+            <Visibility sx={{ fontSize: 16 }} />
+          )}
+        </IconButton>
+      </Tooltip>
+    </MenuItem>
+  );
+}
 
 export default function FieldActiveListing({
   listings,
@@ -83,6 +215,18 @@ export default function FieldActiveListing({
   // helpers
 
   const hasNoListing = !listings?.length;
+
+  // helpers - drag & drop reorder
+
+  const sensors = useSensors(
+    // 5px activation distance keeps plain clicks (select / eye) working.
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const listingIds = (listings ?? []).map((l) => l.id);
 
   // handlers
 
@@ -136,6 +280,28 @@ export default function FieldActiveListing({
           : [...hiddenListingsIds, listingId]
       )
     );
+  };
+
+  const handleDragEnd = async ({ active, over }) => {
+    if (!active || !over || active.id === over.id) return;
+    try {
+      const oldIdx = listings.findIndex((l) => l.id === active.id);
+      const newIdx = listings.findIndex((l) => l.id === over.id);
+      if (oldIdx === -1 || newIdx === -1) return;
+
+      const reordered = arrayMove([...listings], oldIdx, newIdx);
+      let prev = null;
+      const updates = [];
+      for (const l of reordered) {
+        const rank = generateKeyBetween(prev, null);
+        updates.push(db.listings.update(l.id, { rank }));
+        prev = rank;
+      }
+      await Promise.all(updates);
+      dispatch(triggerListingsUpdate());
+    } catch (e) {
+      console.error("[FieldActiveListing] DnD reorder error:", e);
+    }
   };
 
   const handleAddListing = () => {
@@ -255,75 +421,29 @@ export default function FieldActiveListing({
           },
         }}
       >
-        {listings?.map((listing) => {
-          const selected = listing.id === activeListing?.id;
-          const hidden = hiddenListingsIds.includes(listing.id);
-          const count = countsByListingId?.[listing.id] ?? 0;
-          return (
-            <MenuItem
-              key={listing.id}
-              selected={selected}
-              onClick={() => handleSelectListing(listing.id)}
-              sx={{
-                gap: 1,
-                py: 0.75,
-                // Selection flag: secondary left border (replaces the tick).
-                borderLeft: "3px solid",
-                borderLeftColor: selected ? "secondary.main" : "transparent",
-              }}
-            >
-              <ListItemText
-                primaryTypographyProps={{
-                  variant: "body2",
-                  noWrap: true,
-                  fontWeight: selected ? 600 : 400,
-                  color: hidden ? "text.disabled" : "text.primary",
-                }}
-              >
-                {listing.name ?? listing.label ?? "Liste"}
-              </ListItemText>
-              {/* Annotations count, scoped like the panel (active base map
-                  or all base maps). */}
-              <Chip
-                label={count}
-                size="small"
-                sx={{
-                  ml: "auto",
-                  height: 16,
-                  flexShrink: 0,
-                  "& .MuiChip-label": {
-                    px: 0.75,
-                    fontSize: "10px",
-                    fontFamily: "monospace",
-                    fontWeight: 500,
-                    color: hidden
-                      ? "text.disabled"
-                      : count > 0
-                        ? "secondary.main"
-                        : "panel.countEmpty",
-                  },
-                }}
+        <DndContext
+          id="field-active-listing-dnd"
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext
+            items={listingIds}
+            strategy={verticalListSortingStrategy}
+          >
+            {listings?.map((listing) => (
+              <SortableMenuItemListing
+                key={listing.id}
+                listing={listing}
+                selected={listing.id === activeListing?.id}
+                hidden={hiddenListingsIds.includes(listing.id)}
+                count={countsByListingId?.[listing.id] ?? 0}
+                onSelect={handleSelectListing}
+                onToggleVisibility={handleToggleListingVisibility}
               />
-              <Tooltip title={hidden ? "Afficher" : "Masquer"} arrow>
-                <IconButton
-                  size="small"
-                  onClick={(e) => handleToggleListingVisibility(e, listing.id)}
-                  sx={{
-                    p: 0.5,
-                    flexShrink: 0,
-                    color: hidden ? "secondary.main" : "panel.iconMuted",
-                  }}
-                >
-                  {hidden ? (
-                    <VisibilityOff sx={{ fontSize: 16 }} />
-                  ) : (
-                    <Visibility sx={{ fontSize: 16 }} />
-                  )}
-                </IconButton>
-              </Tooltip>
-            </MenuItem>
-          );
-        })}
+            ))}
+          </SortableContext>
+        </DndContext>
         {showAddListing && <Divider />}
         {showAddListing && (
           <MenuItem onClick={handleAddListing} sx={{ gap: 1, py: 0.75 }}>

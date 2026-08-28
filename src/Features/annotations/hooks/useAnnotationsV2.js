@@ -543,6 +543,12 @@ export default function useAnnotationsV2(options) {
     const layersUpdatedAt = useSelector((s) => s.layers?.layersUpdatedAt);
 
     const listingsUpdatedAt = useSelector((s) => s.listings.listingsUpdatedAt);
+    // Redux mirror of db.listings (dexieSyncService liveQuery) — used by the
+    // sortByOrderIndex block for listing ranks: unlike _listingsCache (only
+    // refreshed when THIS hook's liveQuery re-runs, i.e. on annotations/points
+    // writes), it updates on any db.listings write, so a rank reorder
+    // (FieldActiveListing drag) re-sorts the z-order immediately.
+    const listingsById = useSelector((s) => s.listings.listingsById);
 
     // zone SOLO (zonings module): {zoneId, listingId, templateId} | null.
     // Applies in every interaction mode, DRAW included.
@@ -1714,8 +1720,9 @@ export default function useAnnotationsV2(options) {
           // flag it revolutionMissingPlacement (profile rendered un-revolved).
           const placementByBaseMapAndAxisId = {};
           for (const p of placements) {
-            placementByBaseMapAndAxisId[`${p.baseMapId}:${p.revolutionAxisId}`] =
-              p;
+            placementByBaseMapAndAxisId[
+              `${p.baseMapId}:${p.revolutionAxisId}`
+            ] = p;
           }
 
           // Placement points live on ANOTHER base map than the arc, so they are
@@ -1862,7 +1869,8 @@ export default function useAnnotationsV2(options) {
         for (const a of _annotations) {
           const ids = subtractionTargetIdsBySource.get(a?.id);
           if (!ids) continue;
-          for (const id of ids) if (!presentIds.has(id)) missingTargetIds.add(id);
+          for (const id of ids)
+            if (!presentIds.has(id)) missingTargetIds.add(id);
         }
         if (missingTargetIds.size > 0) {
           const rows = (
@@ -1949,7 +1957,8 @@ export default function useAnnotationsV2(options) {
             });
             if (rings?.length) footprints.push({ targetId: target.id, rings });
           }
-          if (footprints.length > 0) a._foreignSubtractionFootprints = footprints;
+          if (footprints.length > 0)
+            a._foreignSubtractionFootprints = footprints;
         }
       }
 
@@ -2616,10 +2625,15 @@ export default function useAnnotationsV2(options) {
 
       // sort by listing rank, then template order, with manual orderIndex as top priority
       if (sortByOrderIndex) {
-        // listing order map (by rank)
+        // listing order map (by rank) — ranks come from the Redux mirror
+        // (fresh on any db.listings write); _listingsCache is only a fallback
+        // for the first render, before the mirror has loaded.
+        const rankedListings = listingsById
+          ? Object.values(listingsById)
+          : (_listingsCache.listings ?? []);
         const listingOrderMap = new Map();
-        if (_listingsCache.listings?.length) {
-          [..._listingsCache.listings]
+        if (rankedListings.length) {
+          [...rankedListings]
             .sort((a, b) =>
               String(a.rank ?? "").localeCompare(String(b.rank ?? ""))
             )
@@ -2759,6 +2773,7 @@ export default function useAnnotationsV2(options) {
       sortByOrderIndex,
       groupByBaseMap,
       listingsUpdatedAt,
+      listingsById,
       subtractionTargetIdsBySource,
       openingRowsByHostId,
       excludeProfileTemplates,

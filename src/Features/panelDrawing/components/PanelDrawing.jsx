@@ -115,17 +115,22 @@ export default function PanelDrawing() {
   // hidden in the Dessin module.
   useFreeAnnotationTemplates();
 
-  // helpers - listings (system "Générique" first, same order as the popper)
+  // helpers - listings (rank order from the selector; the system "Générique"
+  // listing stays pinned first only while it has no rank — a drag reorder in
+  // FieldActiveListing gives every listing a rank, which then wins)
 
   const comesFromListing = viewerReturnContext?.fromViewer === "LISTING";
   const returnListingId = viewerReturnContext?.listingId;
 
   const displayedListings = useMemo(() => {
-    const systemListings =
-      listings?.filter((l) => l.isFreeAnnotationsListing) ?? [];
-    const userListings =
-      listings?.filter((l) => !l.isFreeAnnotationsListing) ?? [];
-    const ordered = [...systemListings, ...userListings];
+    const pinnedSystemListings =
+      listings?.filter((l) => l.isFreeAnnotationsListing && l.rank == null) ??
+      [];
+    const otherListings =
+      listings?.filter(
+        (l) => !(l.isFreeAnnotationsListing && l.rank == null)
+      ) ?? [];
+    const ordered = [...pinnedSystemListings, ...otherListings];
     if (comesFromListing && returnListingId)
       return ordered.filter((l) => l.id === returnListingId);
     return ordered;
