@@ -15,6 +15,7 @@ import PanelLegendBlockProperties from "Features/portfolioEditor/components/Pane
 import PanelPortfolioHeaderProperties from "Features/portfolioEditor/components/PanelPortfolioHeaderProperties";
 import PanelPortfolioPageProperties from "Features/portfolioEditor/components/PanelPortfolioPageProperties";
 import PanelPortfolioPageTitleProperties from "Features/portfolioEditor/components/PanelPortfolioPageTitleProperties";
+import PanelPortfolioPageDetailRefProperties from "Features/portfolioEditor/components/PanelPortfolioPageDetailRefProperties";
 import PanelBaseMapProperties from "Features/baseMaps/components/PanelBaseMapProperties";
 import PanelBaseMapListingProperties from "Features/baseMapEditor/components/PanelBaseMapListingProperties";
 import PanelBaseMapVersionProperties from "Features/baseMaps/components/PanelBaseMapVersionProperties";
@@ -172,6 +173,9 @@ export default function PanelSelectionProperties() {
     } else if (selectedItem?.type === "PORTFOLIO_TITLE") {
       // the page title element opens its dedicated properties panel
       type = "PORTFOLIO_TITLE";
+    } else if (selectedItem?.type === "PORTFOLIO_DETAIL_REF") {
+      // the folio detail reference element opens its dedicated panel
+      type = "PORTFOLIO_DETAIL_REF";
     } else {
       // PORTFOLIO_HEADER, PORTFOLIO, or no selection
       type = "PORTFOLIO_HEADER";
@@ -231,6 +235,10 @@ export default function PanelSelectionProperties() {
       {type === "PORTFOLIO_PAGE" && <PanelPortfolioPageProperties />}
 
       {type === "PORTFOLIO_TITLE" && <PanelPortfolioPageTitleProperties />}
+
+      {type === "PORTFOLIO_DETAIL_REF" && (
+        <PanelPortfolioPageDetailRefProperties />
+      )}
 
       {type === "PORTFOLIO_HEADER" && <PanelPortfolioHeaderProperties />}
 

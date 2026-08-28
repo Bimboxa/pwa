@@ -31,6 +31,10 @@ import drawPageFrameOnPdfPage from "../utils/drawPageFrameOnPdfPage";
 import getPageAnnotationsWithDetails from "../utils/getPageAnnotationsWithDetails";
 import resolveTitleFormat from "../utils/resolveTitleFormat";
 import getPortfolioPageTitleText from "../utils/getPortfolioPageTitleText";
+import resolveDetailRefFormat, {
+  getDetailRefText,
+} from "../utils/resolveDetailRefFormat";
+import getFolioDetailRef from "../utils/getFolioDetailRef";
 
 function hexToPdfRgb(hex) {
   const match = /^#?([0-9a-f]{6})$/i.exec(hex || "");
@@ -43,22 +47,25 @@ function hexToPdfRgb(hex) {
   );
 }
 
-// Vector redraw of PortfolioTitleBarSvg from the page's resolved titleFormat:
-// bold single line, left-aligned in the title rect, optional underline.
+// Vector redraw of PortfolioTitleBarSvg / PortfolioDetailRefSvg from the
+// page's resolved format: bold single line in the rect (12pt side padding,
+// align left/center/right), optional underline.
 function drawTitleBarOnPdfPage(
   page,
-  { rect, text, font, color, fontSize, underline }
+  { rect, text, font, color, fontSize, underline, align = "left" }
 ) {
   const t = sanitizeWinAnsiText(text);
   if (!t) return;
   const size = fontSize || 14;
   const pageHeight = page.getSize().height;
-  const x = rect.x + 12;
+  const textWidth = font.widthOfTextAtSize(t, size);
+  let x = rect.x + 12;
+  if (align === "right") x = rect.x + rect.width - 12 - textWidth;
+  else if (align === "center") x = rect.x + (rect.width - textWidth) / 2;
   const y = pageHeight - rect.y - (rect.height + size) / 2;
   const pdfColor = hexToPdfRgb(color);
   page.drawText(t, { x, y, size, font, color: pdfColor });
   if (underline) {
-    const textWidth = font.widthOfTextAtSize(t, size);
     page.drawLine({
       start: { x, y: y - 3 },
       end: { x: x + textWidth, y: y - 3 },
@@ -171,6 +178,14 @@ export default function useDownloadPortfolioPdf() {
               pageDims: folioDims,
               pageFrame: pageFrameConfig,
             });
+            // detail reference element ("Détail 3"), folio pages only
+            const detailRefFormat = resolveDetailRefFormat(page, {
+              pageDims: folioDims,
+              pageFrame: pageFrameConfig,
+            });
+            const detailRefText = detailRefFormat.show
+              ? getDetailRefText(detailRefFormat, await getFolioDetailRef(page))
+              : null;
             folioMeta = {
               type: "FOLIO",
               pageTitle: page.title || "",
@@ -179,6 +194,8 @@ export default function useDownloadPortfolioPdf() {
                 portfolioName: portfolio?.name,
                 pageName: page.title,
               }),
+              detailRefFormat,
+              detailRefText,
             };
             const cartouche = getCartoucheRectBottomRight(
               folioDims,
@@ -355,6 +372,17 @@ export default function useDownloadPortfolioPdf() {
               color: meta.titleFormat.color,
               fontSize: meta.titleFormat.fontSize,
               underline: meta.titleFormat.underline,
+            });
+          }
+          if (meta.detailRefFormat?.show && meta.detailRefText) {
+            drawTitleBarOnPdfPage(pdfPage, {
+              rect: meta.detailRefFormat.rect,
+              text: meta.detailRefText,
+              font: fonts.bold,
+              color: meta.detailRefFormat.color,
+              fontSize: meta.detailRefFormat.fontSize,
+              underline: false,
+              align: meta.detailRefFormat.align,
             });
           }
           if (!meta.layout) return; // FOLIO fallback: no cartouche

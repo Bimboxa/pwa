@@ -7,45 +7,32 @@ import { ChevronRight } from "@mui/icons-material";
 
 import useUpdateEntity from "Features/entities/hooks/useUpdateEntity";
 import useDisplayedPortfolio from "Features/portfolios/hooks/useDisplayedPortfolio";
-import useTitleBlockManifest from "Features/titleBlocks/hooks/useTitleBlockManifest";
 import usePortfolioPageFrame from "Features/portfolios/hooks/usePortfolioPageFrame";
 
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 
 import getPageDimensions from "../utils/getPageDimensions";
-import getPageLayout from "../utils/getPageLayout";
-import resolveTitleFormat, {
-  toPersistedTitleFormat,
-} from "../utils/resolveTitleFormat";
+import resolveDetailRefFormat, {
+  toPersistedDetailRefFormat,
+} from "../utils/resolveDetailRefFormat";
 
-// Simplified title section in the page properties panel: show toggle +
-// "Voir le détail" button. The detail button selects the title element
-// (PORTFOLIO_TITLE), which routes to PanelPortfolioPageTitleProperties.
-export default function CardPortfolioPageTitle({ page }) {
+// Simplified detail reference section in the page properties panel (folio
+// pages only): show toggle + "Voir le détail" button. The detail button
+// selects the reference element (PORTFOLIO_DETAIL_REF), which routes to
+// PanelPortfolioPageDetailRefProperties.
+export default function CardPortfolioPageDetailRef({ page }) {
   const dispatch = useDispatch();
 
   // data
 
   const updateEntity = useUpdateEntity();
   const { value: portfolio } = useDisplayedPortfolio();
-  const titleBlockManifest = useTitleBlockManifest(portfolio);
   const pageFrame = usePortfolioPageFrame();
 
   // helpers
 
-  const isFolioPage = page?.type === "FOLIO_PAGE";
   const pageDims = getPageDimensions(page?.format, page?.orientation);
-  const titleBar = isFolioPage
-    ? null
-    : getPageLayout(
-        page?.format,
-        page?.orientation,
-        0,
-        titleBlockManifest.height,
-        pageFrame
-      ).titleBar;
-
-  const resolved = resolveTitleFormat(page, { titleBar, pageDims, pageFrame });
+  const resolved = resolveDetailRefFormat(page, { pageDims, pageFrame });
 
   // handlers
 
@@ -53,7 +40,11 @@ export default function CardPortfolioPageTitle({ page }) {
     if (!page || !portfolio) return;
     await updateEntity(
       page.id,
-      { titleFormat: toPersistedTitleFormat(resolved, { show: checked }) },
+      {
+        detailRefFormat: toPersistedDetailRefFormat(resolved, {
+          show: checked,
+        }),
+      },
       { listing: portfolio }
     );
   }
@@ -62,7 +53,7 @@ export default function CardPortfolioPageTitle({ page }) {
     dispatch(
       setSelectedItem({
         id: page.id,
-        type: "PORTFOLIO_TITLE",
+        type: "PORTFOLIO_DETAIL_REF",
         portfolioId: page.listingId,
       })
     );
@@ -75,7 +66,7 @@ export default function CardPortfolioPageTitle({ page }) {
   return (
     <WhiteSectionGeneric>
       <Typography variant="body2" sx={{ fontWeight: "bold" }}>
-        Titre
+        Référence du détail
       </Typography>
 
       <Box
@@ -87,7 +78,7 @@ export default function CardPortfolioPageTitle({ page }) {
           mt: 1,
         }}
       >
-        <Typography variant="body2">Afficher le titre</Typography>
+        <Typography variant="body2">Afficher la référence</Typography>
         <Switch
           size="small"
           checked={Boolean(resolved.show)}

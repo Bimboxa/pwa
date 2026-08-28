@@ -169,8 +169,12 @@ export const selectionSlice = createSlice({
           item.type = "PORTFOLIO";
           item.id = item.portfolioId;
         }
-        else if (item.type === "PORTFOLIO_TITLE") {
-          // page title element: back to its page (item.id is the page id)
+        else if (
+          item.type === "PORTFOLIO_TITLE" ||
+          item.type === "PORTFOLIO_DETAIL_REF"
+        ) {
+          // page title / detail reference elements: back to their page
+          // (item.id is the page id)
           item.type = "PORTFOLIO_PAGE";
         }
         else if (item.type === "BASE_MAP_CONTAINER") {

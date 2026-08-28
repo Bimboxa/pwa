@@ -20,6 +20,7 @@ import CardPageContent from "./CardPageContent";
 import CardPortfolioPageSize from "./CardPortfolioPageSize";
 import CardPortfolioPageOrientation from "./CardPortfolioPageOrientation";
 import CardPortfolioPageTitle from "./CardPortfolioPageTitle";
+import CardPortfolioPageDetailRef from "./CardPortfolioPageDetailRef";
 
 import usePortfolioPageContent from "../hooks/usePortfolioPageContent";
 import copyPageAsPng from "../utils/copyPageAsPng";
@@ -137,6 +138,8 @@ export default function PanelPortfolioPageProperties() {
           )}
 
           <CardPortfolioPageTitle page={page} />
+
+          {isFolioPage && <CardPortfolioPageDetailRef page={page} />}
 
           <WhiteSectionGeneric>
             <ButtonInPanelV2

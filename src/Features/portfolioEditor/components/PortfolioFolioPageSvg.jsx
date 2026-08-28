@@ -17,6 +17,7 @@ import usePortfolioPageFrame from "Features/portfolios/hooks/usePortfolioPageFra
 
 import PortfolioHeaderSvg from "./PortfolioHeaderSvg";
 import PortfolioTitleBarSvg from "./PortfolioTitleBarSvg";
+import PortfolioDetailRefSvg from "./PortfolioDetailRefSvg";
 
 import getPageDimensions from "../utils/getPageDimensions";
 import { getCartoucheRectBottomRight } from "../utils/getPageLayout";
@@ -178,6 +179,13 @@ export default function PortfolioFolioPageSvg({
           page={page}
           portfolio={portfolio}
           titleBar={null}
+          pageDims={dims}
+          pageFrame={pageFrame}
+          zoom={zoom}
+        />
+        <PortfolioDetailRefSvg
+          page={page}
+          portfolio={portfolio}
           pageDims={dims}
           pageFrame={pageFrame}
           zoom={zoom}
