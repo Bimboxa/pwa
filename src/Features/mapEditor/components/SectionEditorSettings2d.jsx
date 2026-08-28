@@ -2,11 +2,17 @@ import { useState } from "react";
 
 import { useSelector, useDispatch } from "react-redux";
 
-import { setVertexSizeMultiplier } from "Features/mapEditor/mapEditorSlice";
+import {
+  setVertexSizeMultiplier,
+  setClippingPlanEnabled,
+  setClippingPlan,
+} from "Features/mapEditor/mapEditorSlice";
+import { setClippingPlaneEnabled as setThreedClippingPlaneEnabled } from "Features/threedEditor/threedEditorSlice";
 import { triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice";
 
 import { saveVertexSizeMultiplier } from "Features/mapEditor/services/editorSettingsLocalStorage";
 import purgeDeletedAnnotationsService from "Features/annotations/services/purgeDeletedAnnotationsService";
+import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 
 import {
   Box,
@@ -16,6 +22,7 @@ import {
   Tooltip,
   Button,
   CircularProgress,
+  Switch,
 } from "@mui/material";
 import DeleteSweepIcon from "@mui/icons-material/DeleteSweep";
 
@@ -41,6 +48,12 @@ export default function SectionEditorSettings2d() {
   );
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const scopeId = useSelector((s) => s.scopes.selectedScopeId);
+
+  const baseMap = useMainBaseMap();
+  const clippingPlanEnabled = useSelector(
+    (s) => s.mapEditor.clippingPlanEnabled
+  );
+  const clippingPlan = useSelector((s) => s.mapEditor.clippingPlan);
 
   // state
 
@@ -72,6 +85,28 @@ export default function SectionEditorSettings2d() {
   function handleSelectVertexSize(multiplier) {
     dispatch(setVertexSizeMultiplier(multiplier));
     saveVertexSizeMultiplier(multiplier);
+  }
+
+  // Toggles the vertical cut plane: a draggable segment on the baseMap
+  // (NodeClippingPlanStatic), mirrored to the 3D viewer's ClippingManager.
+  function handleToggleClippingPlan() {
+    const next = !clippingPlanEnabled;
+    if (next) {
+      // (Re)initialize a default centered horizontal segment when there is no
+      // segment yet, or when it belongs to another baseMap.
+      if (!clippingPlan?.pointA || clippingPlan?.baseMapId !== baseMap?.id) {
+        dispatch(
+          setClippingPlan({
+            pointA: { x: 0.15, y: 0.5 },
+            pointB: { x: 0.85, y: 0.5 },
+            sign: 1,
+            baseMapId: baseMap?.id ?? null,
+          })
+        );
+      }
+    }
+    dispatch(setClippingPlanEnabled(next));
+    dispatch(setThreedClippingPlaneEnabled(next));
   }
 
   // render
@@ -125,6 +160,29 @@ export default function SectionEditorSettings2d() {
               );
             })}
           </Box>
+        </Box>
+      </Card>
+
+      <Card variant="outlined" sx={{ p: 1.5, mb: 1.5 }}>
+        <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
+          Plan de coupes
+        </Typography>
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            py: 0.25,
+          }}
+        >
+          <Typography variant="body2" color="text.secondary">
+            Afficher le plan de coupe
+          </Typography>
+          <Switch
+            size="small"
+            checked={clippingPlanEnabled}
+            onChange={handleToggleClippingPlan}
+          />
         </Box>
       </Card>
 

@@ -13,15 +13,11 @@ import {
   Divider,
 } from "@mui/material";
 import {
-  Add,
-  Remove,
   ArrowDropDown,
   Save as SaveIcon,
   Close as CloseIcon,
   RestartAlt,
 } from "@mui/icons-material";
-
-import IconOrthoSnap from "Features/icons/IconOrthoSnap";
 
 import {
   loadOrthoSnapAngles,
@@ -50,11 +46,6 @@ export default function SelectorOrthoSnap() {
   }, [menuOpen, orthoSnapAngleOffset]);
 
   // handlers
-
-  function handleIncrement(delta) {
-    const next = Math.round((orthoSnapAngleOffset + delta) * 10) / 10;
-    dispatch(setOrthoSnapAngleOffset(next));
-  }
 
   function handleOpenMenu() {
     setSavedAngles(loadOrthoSnapAngles(baseMapId));
@@ -121,6 +112,9 @@ export default function SelectorOrthoSnap() {
 
   return (
     <>
+      {/* width 40 = ButtonEditScaleVariantFirst (medium IconButton with the
+          theme's 16px medium icon + p:0.5 box) so the control never exceeds
+          the scale button below it. */}
       <Paper
         sx={{
           borderRadius: "8px",
@@ -129,86 +123,55 @@ export default function SelectorOrthoSnap() {
           border: "none",
           display: "inline-flex",
           overflow: "hidden",
+          width: 40,
           "&:hover": {
             elevation: 6,
             transform: "translateY(-2px)",
           },
         }}
       >
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            p: 0.5,
-            gap: 0.5,
-            "& .MuiSvgIcon-root": {
-              color: "text.secondary",
-            },
-          }}
-        >
-          <Tooltip title="Ortho reference angle">
-            <IconOrthoSnap
-              sx={{
-                transition: "transform 0.2s ease",
-                transform: `rotate(${-orthoSnapAngleOffset}deg)`,
-              }}
-            />
-          </Tooltip>
-
+        <Tooltip title="Ortho reference angle">
           <Box
+            ref={dropdownAnchorRef}
+            onClick={handleOpenMenu}
             sx={{
               display: "flex",
-              flexDirection: "column",
+              alignItems: "center",
               justifyContent: "center",
+              width: 1,
+              p: 0.25,
+              minHeight: 32,
+              cursor: "pointer",
+              "&:hover": { bgcolor: "action.hover" },
+              "& .MuiSvgIcon-root": {
+                color: "text.secondary",
+              },
             }}
           >
-            <IconButton
-              size="small"
-              onClick={() => handleIncrement(1)}
-              sx={{ p: 0.25, borderRadius: 0.5 }}
+            <Typography
+              noWrap
+              sx={{
+                fontSize: 11,
+                lineHeight: 1,
+                minWidth: 0,
+                color: "text.primary",
+              }}
             >
-              <Add sx={{ fontSize: 14 }} />
-            </IconButton>
-            <IconButton
-              size="small"
-              onClick={() => handleIncrement(-1)}
-              sx={{ p: 0.25, borderRadius: 0.5 }}
-            >
-              <Remove sx={{ fontSize: 14 }} />
-            </IconButton>
+              {orthoSnapAngleOffset}°
+            </Typography>
+
+            <ArrowDropDown sx={{ fontSize: 14, flexShrink: 0 }} />
           </Box>
-
-          <Typography
-            sx={{
-              minWidth: 36,
-              textAlign: "right",
-              fontSize: 14,
-              lineHeight: 1,
-              px: 0.5,
-              color: "text.primary",
-            }}
-          >
-            {orthoSnapAngleOffset}°
-          </Typography>
-
-          <IconButton
-            ref={dropdownAnchorRef}
-            size="small"
-            onClick={handleOpenMenu}
-            sx={{ p: 0.25 }}
-          >
-            <ArrowDropDown sx={{ fontSize: 18 }} />
-          </IconButton>
-        </Box>
+        </Tooltip>
       </Paper>
 
       <Popover
         open={menuOpen}
         anchorEl={dropdownAnchorRef.current}
         onClose={handleCloseMenu}
-        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-        transformOrigin={{ vertical: "top", horizontal: "right" }}
-        slotProps={{ paper: { sx: { mt: 0.5, minWidth: 180 } } }}
+        anchorOrigin={{ vertical: "top", horizontal: "left" }}
+        transformOrigin={{ vertical: "bottom", horizontal: "left" }}
+        slotProps={{ paper: { sx: { mb: 0.5, minWidth: 180 } } }}
       >
         <Box
           sx={{
