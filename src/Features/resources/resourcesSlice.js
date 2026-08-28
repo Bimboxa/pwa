@@ -1,10 +1,6 @@
 import { createSlice } from "@reduxjs/toolkit";
 
 const resourcesInitialState = {
-  // DETAIL annotationTemplate used when a PDF page from the resources panel
-  // is drag-n-dropped on the 2D editor: the drop creates a DETAIL annotation
-  // linked to that template, with folio = the dropped page.
-  selectedDetailTemplateId: null,
   // Resource opened in the RESOURCES right panel (list click, or programmatic
   // open from the "Voir le détail" button of a DETAIL annotation).
   selectedResourceId: null,
@@ -17,9 +13,6 @@ export const resourcesSlice = createSlice({
   name: "resources",
   initialState: resourcesInitialState,
   reducers: {
-    setSelectedDetailTemplateId: (state, action) => {
-      state.selectedDetailTemplateId = action.payload;
-    },
     setSelectedResourceId: (state, action) => {
       state.selectedResourceId = action.payload;
     },
@@ -34,11 +27,7 @@ export const resourcesSlice = createSlice({
   },
 });
 
-export const {
-  setSelectedDetailTemplateId,
-  setSelectedResourceId,
-  setTargetPdfPage,
-  openResourceAtPage,
-} = resourcesSlice.actions;
+export const { setSelectedResourceId, setTargetPdfPage, openResourceAtPage } =
+  resourcesSlice.actions;
 
 export default resourcesSlice.reducer;

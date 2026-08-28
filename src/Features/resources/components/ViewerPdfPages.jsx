@@ -27,20 +27,20 @@ import usePdfPagesText from "Features/detailFolio/hooks/usePdfPagesText";
 import searchPdfPages from "Features/detailFolio/utils/searchPdfPages";
 import ListPdfSearchResults from "Features/detailFolio/components/ListPdfSearchResults";
 
-import ListDraggablePdfPages from "./ListDraggablePdfPages";
+import ListPdfPages from "./ListPdfPages";
+import SectionAddDetailToBaseMap from "./SectionAddDetailToBaseMap";
 
 const MIN_SEARCH_LENGTH = 2;
 
-// Page-based PDF viewer for the resource detail panel: left column of page
-// thumbnails (each one selectable AND draggable towards the 2D editor to
-// create a DETAIL annotation with folio = the page), main area previewing
-// the selected page with a ±90° rotation control (the rotation is carried
-// into the folio of a dropped page, like the manual folio dialog).
+// Page-based PDF viewer for the resource detail panel: left column of
+// selectable page thumbnails, main area previewing the selected page with a
+// floating "page + ±90° rotation" control, and (BASE_MAPS module) a bottom
+// section arming the "add DETAIL to base map" placement for the viewed page.
 //
 // Rotation model: the ±90° buttons hold a DELTA on top of each page's
-// intrinsic /Rotate; anything sent downstream (render, drag payload) is the
-// ABSOLUTE effective rotation (intrinsic + delta), matching the app-wide
-// folio.rotation convention.
+// intrinsic /Rotate; anything sent downstream (render, armed placement
+// context) is the ABSOLUTE effective rotation (intrinsic + delta), matching
+// the app-wide folio.rotation convention.
 export default function ViewerPdfPages({ resource, file }) {
   const dispatch = useDispatch();
 
@@ -228,10 +228,8 @@ export default function ViewerPdfPages({ resource, file }) {
             borderRight: (theme) => `1px solid ${theme.palette.divider}`,
           }}
         >
-          <ListDraggablePdfPages
-            resourceId={resource.id}
+          <ListPdfPages
             pageNumber={pageNumber}
-            rotationDelta={rotationDelta}
             thumbnails={thumbnails}
             onPageNumberChange={setPageNumber}
           />
@@ -239,6 +237,7 @@ export default function ViewerPdfPages({ resource, file }) {
 
         <Box
           sx={{
+            position: "relative",
             flexGrow: 1,
             minWidth: 0,
             display: "flex",
@@ -262,36 +261,49 @@ export default function ViewerPdfPages({ resource, file }) {
           ) : (
             <CircularProgress />
           )}
+
+          {/* floating page + rotation controls */}
+          <Box
+            sx={{
+              position: "absolute",
+              top: 8,
+              right: 8,
+              zIndex: 1,
+              display: "flex",
+              alignItems: "center",
+              gap: 0.5,
+              pl: 1,
+              pr: 0.5,
+              py: 0.25,
+              borderRadius: 1,
+              bgcolor: "background.paper",
+              boxShadow: 1,
+              opacity: 0.92,
+            }}
+          >
+            <Typography variant="caption" color="text.secondary">
+              {`${pageS} ${pageNumber} / ${numPages}`}
+            </Typography>
+            <Tooltip title={rotateCcwS}>
+              <IconButton size="small" onClick={() => handleRotate(-90)}>
+                <RotateLeftIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title={rotateCwS}>
+              <IconButton size="small" onClick={() => handleRotate(90)}>
+                <RotateRightIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          </Box>
         </Box>
       </Box>
 
-      <Box
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          gap: 1,
-          px: 1,
-          py: 0.5,
-          borderTop: (theme) => `1px solid ${theme.palette.divider}`,
-        }}
-      >
-        <Typography variant="caption" color="text.secondary">
-          {`${pageS} ${pageNumber} / ${numPages}`}
-        </Typography>
-
-        <Box sx={{ flexGrow: 1 }} />
-
-        <Tooltip title={rotateCcwS}>
-          <IconButton size="small" onClick={() => handleRotate(-90)}>
-            <RotateLeftIcon fontSize="small" />
-          </IconButton>
-        </Tooltip>
-        <Tooltip title={rotateCwS}>
-          <IconButton size="small" onClick={() => handleRotate(90)}>
-            <RotateRightIcon fontSize="small" />
-          </IconButton>
-        </Tooltip>
-      </Box>
+      <SectionAddDetailToBaseMap
+        resource={resource}
+        pageNumber={pageNumber}
+        effectiveRotation={effectiveRotation}
+        pdfDocument={pdfDocument}
+      />
     </BoxFlexVStretch>
   );
 }

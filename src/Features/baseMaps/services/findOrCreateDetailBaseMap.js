@@ -13,37 +13,36 @@ import { renderPageToPngBlob } from "Features/pdf/utils/pdfToPngAsync";
 import findAutoDpi from "Features/pdf/utils/findAutoDpi";
 import getPdfPageThumbnailDataUrl from "Features/detailFolio/utils/getPdfPageThumbnailDataUrl";
 import { getDetailImageCacheKey } from "./detailBaseMapUtils";
+import findDetailBaseMap from "./findDetailBaseMap";
 
 GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
 // Finds the detail baseMap matching a (pdf file name, page) pair, or creates
 // it. Detail baseMaps store NO file in db.files: their image is rendered on
 // the fly from the source PDF (see BaseMap.createFromRecord) and cached in
-// memory for the session. Dedup deliberately ignores rotation — the rotation
-// of the first drop wins, so annotations placed on the detail stay aligned.
-// Returns the db.baseMaps record, or null when the PDF is not available.
+// memory for the session. Dedup (delegated to findDetailBaseMap) deliberately
+// ignores rotation — the rotation of the first creation wins, so annotations
+// placed on the detail stay aligned. Optional name / detailRef only apply at
+// creation. Returns the db.baseMaps record, or null when the PDF is not
+// available.
 export default async function findOrCreateDetailBaseMap({
   resourceId,
   pageNumber,
   rotation = 0,
   projectId,
   createdBy,
+  name = null,
+  detailRef = null,
 }) {
   const resource = await db.resources.get(resourceId);
   if (!resource || resource.deletedAt) return null;
   const pdfFileName = resource.name;
 
-  const existing = await db.baseMaps
-    .where("projectId")
-    .equals(projectId)
-    .filter(
-      (r) =>
-        !r.deletedAt &&
-        r.isDetail &&
-        r.createdFrom?.pdfFileName === pdfFileName &&
-        r.createdFrom?.pageNumber === pageNumber
-    )
-    .first();
+  const existing = await findDetailBaseMap({
+    resourceId,
+    pageNumber,
+    projectId,
+  });
   if (existing) return existing;
 
   const fileRecord = resource.fileName
@@ -102,7 +101,10 @@ export default async function findOrCreateDetailBaseMap({
       projectId,
       listingId: null, // detail baseMaps belong to no baseMap listing
       isDetail: true,
-      name: `${pdfFileName.replace(/\.pdf$/i, "")} — p.${pageNumber}`,
+      name:
+        name?.trim() ||
+        `${pdfFileName.replace(/\.pdf$/i, "")} — p.${pageNumber}`,
+      detailRef: detailRef?.trim() || null,
       createdFrom: {
         type: "PDF_PAGE",
         pdfFileName,

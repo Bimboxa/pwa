@@ -143,11 +143,9 @@ import getRectangleRawPointsFromOnePoint from "Features/rectangles/utils/getRect
 import getImageAnnotationRectanglePointsFromOnePoint from "Features/imageAnnotations/utils/getImageAnnotationRectanglePointsFromOnePoint";
 import getObject3DAnnotationRectanglePointsFromOnePoint from "Features/object3D/utils/getObject3DAnnotationRectanglePointsFromOnePoint";
 import imageUrlToPng from "Features/images/utils/imageUrlToPng";
-import findOrCreateDetailBaseMap from "Features/baseMaps/services/findOrCreateDetailBaseMap";
-import { triggerEntitiesTableUpdate } from "Features/entities/entitiesSlice";
 import useUserEmail from "Features/auth/hooks/useUserEmail";
-import getNewAnnotationPropsFromAnnotationTemplate from "Features/annotations/utils/getNewAnnotationPropsFromAnnotationTemplate";
-import { resolveDrawingShape } from "Features/annotations/constants/drawingShapeConfig";
+import useDeferredDrawingCommit from "../hooks/useDeferredDrawingCommit";
+import DeferredCommitDialogOutlet from "./DeferredCommitDialogOutlet";
 import useSelectedNodes from "../hooks/useSelectedNodes";
 import useDrawingToolHotkeys from "../hooks/useDrawingToolHotkeys";
 import useFreeAnnotationHotkeys from "../hooks/useFreeAnnotationHotkeys";
@@ -552,6 +550,14 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     const newEntity = useNewEntity();
     _track("newEntity", newEntity);
     const { handleDrawingCommit: _handleCommitDrawing } = useHandleCommitDrawing({ newEntity, annotations });
+    // Deferred commit mechanism: interactive draws funnel through
+    // deferredCommit.commit so an armed newAnnotation.commitInterceptor can
+    // divert the commit to a dialog (see drawingCommitInterceptors).
+    const { value: userEmail } = useUserEmail();
+    const deferredCommit = useDeferredDrawingCommit({
+        commitFn: _handleCommitDrawing,
+        deps: { projectId, createdBy: userEmail, dispatch },
+    });
     const updateAnnotation = useUpdateAnnotation();
     const { handleSplitCommit, handlePolylineSplitAtVertex } = useHandleSplitCommit({ newEntity });
     const handleCutSegment = useHandleCutSegment({ newEntity });
@@ -622,7 +628,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
             rawPoints = points;
             options = { ...options ?? {}, drawRectangle: true }
         }
-        _handleCommitDrawing(rawPoints, options)
+        deferredCommit.commit(rawPoints, options)
     }
 
     // handler - commit points from drop_fill
@@ -806,42 +812,6 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
         }
         const images = [{ file: imageFile, imageUrlRemote: droppedImage.imageUrl }]
         _handleCommitDrawing([{ x: droppedImage.x, y: droppedImage.y }], { newAnnotation: { type: "MARKER", images }, skipTemplateCreation: true })
-    }
-
-    // handlers - PDF page drop (resources panel → DETAIL annotation linked to
-    // a detail baseMap)
-
-    const selectedDetailTemplateId = useSelector((s) => s.resources.selectedDetailTemplateId);
-    const { value: userEmail } = useUserEmail();
-
-    const handleCommitPdfPageDrop = async ({ resourceId, pageNumber, rotation, x, y }) => {
-        const template = selectedDetailTemplateId
-            ? await db.annotationTemplates.get(selectedDetailTemplateId)
-            : null;
-        if (!template || template.deletedAt || resolveDrawingShape(template) !== "DETAIL") {
-            console.log("[resources] no DETAIL template selected, PDF page drop ignored");
-            return;
-        }
-        // Find or create the detail baseMap for this (pdf, page) pair — the
-        // annotation stores its id, not a folio. A missing PDF file leaves
-        // the annotation unlinked (same degradation as the folio without
-        // thumbnail before).
-        const record = await findOrCreateDetailBaseMap({
-            resourceId,
-            pageNumber,
-            rotation,
-            projectId,
-            createdBy: userEmail,
-        });
-        if (record) dispatch(triggerEntitiesTableUpdate("baseMaps"));
-        else console.warn("[resources] detail baseMap not created (PDF file missing?)");
-        // Same base props as the interactive DETAIL draw (the commit flow then
-        // resolves the template link, creates the point row and forces the
-        // bubble label to "X").
-        const baseProps = getNewAnnotationPropsFromAnnotationTemplate(template);
-        await _handleCommitDrawing([{ x, y }], {
-            newAnnotation: { ...baseProps, detailBaseMapId: record?.id ?? null },
-        });
     }
 
     // handlers - rectangle
@@ -2035,7 +2005,6 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                     }}
                     onCommitSplitAtVertex={handlePolylineSplitAtVertex}
                     onCommitImageDrop={handleCommitImageDrop}
-                    onCommitPdfPageDrop={handleCommitPdfPageDrop}
                     onCommitPointsFromSurfaceDrop={handleCommitPointsFromSurfaceDrop}
                     onCommitSimilarStrips={handleCommitSimilarStrips}
                     onCommitDetectedFeatures={handleCommitDetectedFeatures}
@@ -2231,6 +2200,11 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
 
             <DialogDeleteSelectedAnnotation />
             <DialogAutoCreateEntity />
+            <DeferredCommitDialogOutlet
+                pending={deferredCommit.pending}
+                onResume={deferredCommit.resumeCommit}
+                onCancel={deferredCommit.cancelCommit}
+            />
             <PopperEditAnnotation viewerKey={forViewerKey} />
             <PopperEditAnnotations viewerKey={forViewerKey} allAnnotations={annotations} />
             <PopperEditScale viewerKey={forViewerKey} />
