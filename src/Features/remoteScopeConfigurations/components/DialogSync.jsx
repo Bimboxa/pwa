@@ -30,6 +30,7 @@ export default function DialogSync({ open, onClose, isPullRequired }) {
 
   const push = usePushRemoteScopeConfiguration();
   const scopeId = useSelector((s) => s.scopes.selectedScopeId);
+  const saving = useSelector((s) => s.remoteScopeConfigurations.saving);
 
   // state
 
@@ -66,7 +67,8 @@ export default function DialogSync({ open, onClose, isPullRequired }) {
       setZipFile(file);
     } catch (error) {
       console.error("[DialogSync] zip generation error", error);
-      const message = error.message || "Erreur lors de la génération du fichier";
+      const message =
+        error.message || "Erreur lors de la génération du fichier";
       setZipError(message);
       dispatch(
         setToaster({
@@ -105,7 +107,10 @@ export default function DialogSync({ open, onClose, isPullRequired }) {
     <DialogGeneric open={open} onClose={handleClose} width={500}>
       <DialogTitle>{titleS}</DialogTitle>
 
-      <Typography variant="body2" sx={{ px: 3, pb: 2, color: "text.secondary" }}>
+      <Typography
+        variant="body2"
+        sx={{ px: 3, pb: 2, color: "text.secondary" }}
+      >
         Les données de votre projet sont enregistrées dans le cache du
         navigateur. Pour les partager ou les récupérer sur un autre poste,
         effectuez une sauvegarde serveur en cliquant sur le bouton ci-dessous.
@@ -135,7 +140,8 @@ export default function DialogSync({ open, onClose, isPullRequired }) {
         {zipFile && (
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
             <Typography variant="body2">
-              Fichier généré : <strong>{stringifyFileSize(zipFile.size)}</strong>
+              Fichier généré :{" "}
+              <strong>{stringifyFileSize(zipFile.size)}</strong>
             </Typography>
 
             <Box sx={{ display: "flex", gap: 1 }}>
@@ -153,6 +159,7 @@ export default function DialogSync({ open, onClose, isPullRequired }) {
                 color="primary"
                 startIcon={<CloudUpload />}
                 loading={pushing}
+                disabled={saving}
                 onClick={handlePush}
                 label="Envoyer sur le serveur"
                 sx={{ flex: 1 }}

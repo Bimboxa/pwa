@@ -31,7 +31,7 @@ import BoxFlexH from "Features/layout/components/BoxFlexH";
 import ButtonSelectorProject from "Features/projects/components/ButtonSelectorProject";
 import ButtonSelectorScope from "Features/scopes/components/ButtonSelectorScope";
 
-import IconButtonDialogSync from "Features/remoteScopeConfigurations/components/IconButtonDialogSync";
+import ButtonSaveScope from "Features/remoteScopeConfigurations/components/ButtonSaveScope";
 import ButtonHistoryScope from "Features/remoteScopeConfigurations/components/ButtonHistoryScope";
 import IconButtonShareScope from "Features/scopes/components/IconButtonShareScope";
 import ButtonToggleThreedViewer from "Features/viewers/components/ButtonToggleThreedViewer";
@@ -59,15 +59,11 @@ export default function TopBarDesktop() {
   const disable3D = useSelector((s) => s.appConfig.disable3D);
   const appConfig = useAppConfig();
   const { value: listing } = useSelectedListing();
-  const viewerReturnContext = useSelector(
-    (s) => s.viewers.viewerReturnContext
-  );
+  const viewerReturnContext = useSelector((s) => s.viewers.viewerReturnContext);
   const viewerKey = useSelector((s) => s.viewers.selectedViewerKey);
   const viewerMode = useSelector((s) => s.urlParams.viewerMode);
   const isCalibrating = useSelector((s) => s.baseMapEditor.isCalibrating);
-  const versionCompareId = useSelector(
-    (s) => s.baseMapEditor.versionCompareId
-  );
+  const versionCompareId = useSelector((s) => s.baseMapEditor.versionCompareId);
   const calibrationTargetsByVersionId = useSelector(
     (s) => s.baseMapEditor.calibrationTargetsByVersionId
   );
@@ -266,22 +262,24 @@ export default function TopBarDesktop() {
           Revenir au module Dessin
         </Button>
       )}
-      {viewerKey === "BASE_MAPS" && returnViewer === "MAP" && !isCalibrating && (
-        <Button
-          size="small"
-          variant="contained"
-          startIcon={<ArrowBack />}
-          onClick={handleReturnToDrawing}
-          sx={{
-            ml: 2,
-            bgcolor: "warning.main",
-            color: "warning.contrastText",
-            "&:hover": { bgcolor: "warning.dark" },
-          }}
-        >
-          Revenir au Dessin
-        </Button>
-      )}
+      {viewerKey === "BASE_MAPS" &&
+        returnViewer === "MAP" &&
+        !isCalibrating && (
+          <Button
+            size="small"
+            variant="contained"
+            startIcon={<ArrowBack />}
+            onClick={handleReturnToDrawing}
+            sx={{
+              ml: 2,
+              bgcolor: "warning.main",
+              color: "warning.contrastText",
+              "&:hover": { bgcolor: "warning.dark" },
+            }}
+          >
+            Revenir au Dessin
+          </Button>
+        )}
       {viewerKey === "BASE_MAPS" && isCalibrating && (
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, ml: 2 }}>
           <Button
@@ -327,7 +325,7 @@ export default function TopBarDesktop() {
               gap: 1,
             }}
           >
-            <IconButtonDialogSync />
+            <ButtonSaveScope />
             <ButtonHistoryScope />
             <IconButtonShareScope />
           </Box>

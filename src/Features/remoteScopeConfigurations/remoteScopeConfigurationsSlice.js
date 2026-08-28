@@ -70,7 +70,10 @@ const remoteScopeConfigurationsInitialState = {
   staleChangesDialogOpen: false,
   remoteNewerDialogOpen: false,
   dialogSyncOpen: false,
+  confirmSaveDialogOpen: false,
   pushing: false,
+  saving: false, // direct save (zip + push) in flight
+  savingFileSize: null, // zip size in bytes, known once the zip is generated
   pendingInitialSaveScopeId: null,
 };
 
@@ -119,8 +122,18 @@ export const remoteScopeConfigurationsSlice = createSlice({
     setDialogSyncOpen: (state, action) => {
       state.dialogSyncOpen = action.payload;
     },
+    setConfirmSaveDialogOpen: (state, action) => {
+      state.confirmSaveDialogOpen = action.payload;
+    },
     setPushing: (state, action) => {
       state.pushing = Boolean(action.payload);
+    },
+    setSaving: (state, action) => {
+      state.saving = Boolean(action.payload);
+      if (!state.saving) state.savingFileSize = null;
+    },
+    setSavingFileSize: (state, action) => {
+      state.savingFileSize = action.payload;
     },
     setPendingInitialSaveScopeId: (state, action) => {
       state.pendingInitialSaveScopeId = action.payload;
@@ -140,7 +153,10 @@ export const {
   setStaleChangesDialogOpen,
   setRemoteNewerDialogOpen,
   setDialogSyncOpen,
+  setConfirmSaveDialogOpen,
   setPushing,
+  setSaving,
+  setSavingFileSize,
   setPendingInitialSaveScopeId,
 } = remoteScopeConfigurationsSlice.actions;
 

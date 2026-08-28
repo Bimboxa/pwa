@@ -1,16 +1,24 @@
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
 
 import { useDispatch, useSelector } from "react-redux";
 
-import { setDialogSyncOpen } from "../remoteScopeConfigurationsSlice";
+import store from "App/store";
+
+import {
+  setDialogSyncOpen,
+  setConfirmSaveDialogOpen,
+} from "../remoteScopeConfigurationsSlice";
 
 import usePullLastRemoteScopeConfiguration from "../hooks/usePullLastRemoteScopeConfiguration";
 import useAutoTriggerInitialScopeSaveOnCreate from "../hooks/useAutoTriggerInitialScopeSaveOnCreate";
 import { setPullHandle } from "../services/pullHandle";
 
+import useSaveShortcut from "Features/layout/hooks/useSaveShortcut";
+
 import DialogSync from "./DialogSync";
 import DialogStaleChanges from "./DialogStaleChanges";
 import DialogRemoteNewer from "./DialogRemoteNewer";
+import DialogConfirmSaveVersion from "./DialogConfirmSaveVersion";
 
 export default function SyncDialogsContainer() {
   const dispatch = useDispatch();
@@ -38,6 +46,23 @@ export default function SyncDialogsContainer() {
     return () => setPullHandle(null);
   }, [pull]);
 
+  const handleSaveShortcut = useCallback(() => {
+    const state = store.getState();
+    const scopeId = state.scopes.selectedScopeId;
+    const {
+      saving,
+      pushing,
+      dialogSyncOpen: syncOpen,
+      remoteNewerDialogOpen,
+      confirmSaveDialogOpen,
+    } = state.remoteScopeConfigurations;
+    if (!scopeId || saving || pushing) return;
+    if (syncOpen || remoteNewerDialogOpen || confirmSaveDialogOpen) return;
+    dispatch(setConfirmSaveDialogOpen(true));
+  }, [dispatch]);
+
+  useSaveShortcut(handleSaveShortcut);
+
   // helpers
 
   const isPullRequired =
@@ -64,6 +89,7 @@ export default function SyncDialogsContainer() {
       />
       <DialogStaleChanges onConfirmSave={handleOpenDialogSync} />
       <DialogRemoteNewer onRequestSave={handleOpenDialogSync} />
+      <DialogConfirmSaveVersion />
     </>
   );
 }
