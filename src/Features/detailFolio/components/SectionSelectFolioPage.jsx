@@ -24,6 +24,7 @@ import ListPdfSearchResults from "./ListPdfSearchResults";
 import useResourceFile from "Features/resources/hooks/useResourceFile";
 import usePdfDocument from "Features/pdf/hooks/usePdfDocument";
 import usePdfThumbnails from "Features/pdf/hooks/usePdfThumbnails";
+import usePdfPageIntrinsicRotation from "Features/pdf/hooks/usePdfPageIntrinsicRotation";
 import usePdfPageImageUrl from "Features/baseMapCreator/hooks/usePdfPageImageUrl";
 import usePdfPagesText from "../hooks/usePdfPagesText";
 import searchPdfPages from "../utils/searchPdfPages";
@@ -34,6 +35,10 @@ const MIN_SEARCH_LENGTH = 2;
 // Step 2 of the folio dialog: pick a page of the selected PDF resource.
 // Left: page thumbnails; center: preview of the selected page; right: keyword
 // search over the PDF text (lazily indexed) + direct page number input.
+//
+// Rotation model: the ±90° buttons hold a DELTA on top of each page's
+// intrinsic /Rotate; the confirmed folio.rotation stays ABSOLUTE
+// (intrinsic + delta), matching the app-wide convention.
 export default function SectionSelectFolioPage({
   resource,
   initialPageNumber,
@@ -69,12 +74,40 @@ export default function SectionSelectFolioPage({
   // state
 
   const [pageNumber, setPageNumber] = useState(initialPageNumber ?? 1);
-  const [rotation, setRotation] = useState(initialRotation ?? 0);
+  const [rotationDelta, setRotationDelta] = useState(0);
   const [searchText, setSearchText] = useState("");
   const [confirming, setConfirming] = useState(false);
 
+  // One-shot: initialRotation (absolute, from an existing folio) → delta vs
+  // the intrinsic /Rotate of the initial page.
+  const initialDeltaAppliedRef = useRef(false);
+  useEffect(() => {
+    if (initialDeltaAppliedRef.current) return;
+    if (!pdfDocument || typeof initialRotation !== "number") return;
+    initialDeltaAppliedRef.current = true;
+    pdfDocument
+      .getPage(initialPageNumber ?? 1)
+      .then((page) => {
+        const delta = initialRotation - (page.rotate ?? 0);
+        setRotationDelta(((delta % 360) + 360) % 360);
+      })
+      .catch(() => {});
+  }, [pdfDocument, initialRotation, initialPageNumber]);
+
   const { thumbnails } = usePdfThumbnails(pdfDocument, pageNumber);
-  const { imageUrl } = usePdfPageImageUrl(pdfDocument, pageNumber, rotation);
+  const intrinsicRotation = usePdfPageIntrinsicRotation(
+    pdfDocument,
+    pageNumber
+  );
+  const effectiveRotation =
+    intrinsicRotation == null
+      ? null
+      : (((intrinsicRotation + rotationDelta) % 360) + 360) % 360;
+  const { imageUrl } = usePdfPageImageUrl(
+    pdfDocument,
+    pageNumber,
+    effectiveRotation
+  );
 
   const searchEnabled = searchText.trim().length >= MIN_SEARCH_LENGTH;
   const {
@@ -108,11 +141,12 @@ export default function SectionSelectFolioPage({
   }
 
   function handleRotate(deltaDeg) {
-    setRotation((r) => (((r + deltaDeg) % 360) + 360) % 360);
+    setRotationDelta((r) => (((r + deltaDeg) % 360) + 360) % 360);
   }
 
   async function handleConfirm() {
     setConfirming(true);
+    const rotation = effectiveRotation ?? 0;
     let thumbnail = null;
     try {
       thumbnail = await getPdfPageThumbnailDataUrl(

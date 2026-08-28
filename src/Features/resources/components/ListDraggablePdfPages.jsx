@@ -6,16 +6,21 @@ import { PDF_PAGE_DRAG_MIME } from "../utils/pdfPageDrag";
 // 2D editor via NATIVE HTML5 DnD (instant drag, unlike the app-wide dnd-kit
 // sensors and their 250 ms press-and-hold). The drop side lives in
 // InteractionLayer, which creates a DETAIL annotation with folio = this page.
+// The payload rotation is ABSOLUTE (folio convention): the page's intrinsic
+// /Rotate + the viewer's user delta.
 function DraggablePdfPageItem({
   resourceId,
   pageNumber,
-  rotation,
+  rotationDelta,
+  intrinsicRotation,
   selected,
   pending,
   imageUrl,
   onClick,
 }) {
   function handleDragStart(e) {
+    const rotation =
+      ((((intrinsicRotation ?? 0) + rotationDelta) % 360) + 360) % 360;
     e.dataTransfer.setData(
       PDF_PAGE_DRAG_MIME,
       JSON.stringify({ resourceId, pageNumber, rotation })
@@ -84,7 +89,7 @@ function DraggablePdfPageItem({
 export default function ListDraggablePdfPages({
   resourceId,
   pageNumber,
-  rotation,
+  rotationDelta,
   thumbnails,
   onPageNumberChange,
 }) {
@@ -92,14 +97,15 @@ export default function ListDraggablePdfPages({
 
   return (
     <List sx={{ width: 1 }} disablePadding>
-      {thumbnails.map(({ imageUrl, status }, index) => {
+      {thumbnails.map(({ imageUrl, status, intrinsicRotation }, index) => {
         const currentNum = index + 1;
         return (
           <DraggablePdfPageItem
             key={currentNum}
             resourceId={resourceId}
             pageNumber={currentNum}
-            rotation={rotation}
+            rotationDelta={rotationDelta}
+            intrinsicRotation={intrinsicRotation}
             selected={pageNumber === currentNum}
             pending={status === "pending"}
             imageUrl={imageUrl}

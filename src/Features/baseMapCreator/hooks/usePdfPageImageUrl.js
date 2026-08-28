@@ -17,7 +17,9 @@ export default function usePdfPageImageUrl(pdfDocument, pageNumber, rotate) {
   const [isUpgrading, setIsUpgrading] = useState(false);
 
   useEffect(() => {
-    if (!pdfDocument) {
+    // rotate == null = "not resolved yet" (e.g. intrinsic /Rotate still
+    // loading): skip instead of flashing a wrongly oriented render.
+    if (!pdfDocument || rotate == null) {
       setImageUrl(null);
       setIsUpgrading(false);
       return;

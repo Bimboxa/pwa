@@ -21,6 +21,7 @@ import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import SearchBar from "Features/search/components/SearchBar";
 import usePdfDocument from "Features/pdf/hooks/usePdfDocument";
 import usePdfThumbnails from "Features/pdf/hooks/usePdfThumbnails";
+import usePdfPageIntrinsicRotation from "Features/pdf/hooks/usePdfPageIntrinsicRotation";
 import usePdfPageImageUrl from "Features/baseMapCreator/hooks/usePdfPageImageUrl";
 import usePdfPagesText from "Features/detailFolio/hooks/usePdfPagesText";
 import searchPdfPages from "Features/detailFolio/utils/searchPdfPages";
@@ -35,6 +36,11 @@ const MIN_SEARCH_LENGTH = 2;
 // create a DETAIL annotation with folio = the page), main area previewing
 // the selected page with a ±90° rotation control (the rotation is carried
 // into the folio of a dropped page, like the manual folio dialog).
+//
+// Rotation model: the ±90° buttons hold a DELTA on top of each page's
+// intrinsic /Rotate; anything sent downstream (render, drag payload) is the
+// ABSOLUTE effective rotation (intrinsic + delta), matching the app-wide
+// folio.rotation convention.
 export default function ViewerPdfPages({ resource, file }) {
   const dispatch = useDispatch();
 
@@ -57,24 +63,44 @@ export default function ViewerPdfPages({ resource, file }) {
   // state
 
   const [pageNumber, setPageNumber] = useState(1);
-  const [rotation, setRotation] = useState(0);
+  const [rotationDelta, setRotationDelta] = useState(0);
   const [searchText, setSearchText] = useState("");
 
   // One-shot navigation target (e.g. "Voir le détail" on a DETAIL
   // annotation): apply then clear, so a later click on the same page
-  // re-triggers navigation even if the viewer stayed mounted.
+  // re-triggers navigation even if the viewer stayed mounted. The target
+  // rotation is absolute (folio convention) → converted to a delta.
   const targetPdfPage = useSelector((s) => s.resources.targetPdfPage);
   useEffect(() => {
-    if (!targetPdfPage) return;
-    setPageNumber(Math.max(1, targetPdfPage.pageNumber ?? 1));
+    if (!targetPdfPage || !pdfDocument) return;
+    const targetPageNumber = Math.max(1, targetPdfPage.pageNumber ?? 1);
+    setPageNumber(targetPageNumber);
     if (typeof targetPdfPage.rotation === "number") {
-      setRotation(((targetPdfPage.rotation % 360) + 360) % 360);
+      pdfDocument
+        .getPage(targetPageNumber)
+        .then((page) => {
+          const delta = targetPdfPage.rotation - (page.rotate ?? 0);
+          setRotationDelta(((delta % 360) + 360) % 360);
+        })
+        .catch(() => {});
     }
     dispatch(setTargetPdfPage(null));
-  }, [targetPdfPage, dispatch]);
+  }, [targetPdfPage, pdfDocument, dispatch]);
 
   const { thumbnails } = usePdfThumbnails(pdfDocument, pageNumber);
-  const { imageUrl } = usePdfPageImageUrl(pdfDocument, pageNumber, rotation);
+  const intrinsicRotation = usePdfPageIntrinsicRotation(
+    pdfDocument,
+    pageNumber
+  );
+  const effectiveRotation =
+    intrinsicRotation == null
+      ? null
+      : (((intrinsicRotation + rotationDelta) % 360) + 360) % 360;
+  const { imageUrl } = usePdfPageImageUrl(
+    pdfDocument,
+    pageNumber,
+    effectiveRotation
+  );
 
   // Lazy text search: pages are indexed only once a real query is typed,
   // with a module-level cache keyed by resource (same as the folio dialog).
@@ -103,7 +129,7 @@ export default function ViewerPdfPages({ resource, file }) {
   // handlers
 
   function handleRotate(deltaDeg) {
-    setRotation((r) => (((r + deltaDeg) % 360) + 360) % 360);
+    setRotationDelta((r) => (((r + deltaDeg) % 360) + 360) % 360);
   }
 
   // render - loading / error
@@ -205,7 +231,7 @@ export default function ViewerPdfPages({ resource, file }) {
           <ListDraggablePdfPages
             resourceId={resource.id}
             pageNumber={pageNumber}
-            rotation={rotation}
+            rotationDelta={rotationDelta}
             thumbnails={thumbnails}
             onPageNumberChange={setPageNumber}
           />

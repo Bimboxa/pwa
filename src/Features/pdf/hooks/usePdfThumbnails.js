@@ -38,6 +38,7 @@ export default function usePdfThumbnails(pdfDocument, priorityPage = 1) {
                     pageNumber: index + 1,
                     status: "pending",
                     imageUrl: null,
+                    intrinsicRotation: null,
                 })));
 
                 // Pages still to render. We pick from this set, preferring the
@@ -92,6 +93,7 @@ export default function usePdfThumbnails(pdfDocument, priorityPage = 1) {
                                         pageNumber: pageIndex,
                                         status: "success",
                                         imageUrl: blobUrl,
+                                        intrinsicRotation: page.rotate ?? 0,
                                     };
                                 }
                                 return newArr;
