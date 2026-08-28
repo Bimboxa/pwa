@@ -28,9 +28,10 @@ import useExitCaptureTool from "../hooks/useExitCaptureTool";
 // Right-panel body of the global "Capture" tool (Alt+C), mirroring the POV
 // properties panel: Image (export), Cadrage (frame + legend + logo) and
 // Filtres (annotation templates visibility) tabs. Driven by
-// captureToolActive: the frame ignores the right panel (no inset) and
-// survives closing it — exits are Alt+C, the save bar's X under the frame,
-// or the header X.
+// captureToolActive: the frame ignores the right panel (no inset), but panel
+// and frame live together — closing the panel (band toggle, Fermer, another
+// tool) exits the capture mode, and an external exit (Alt+C, the save bar's
+// X under the frame, the header X) closes the panel.
 // This component stays the single mount point of the CAPTURE tool whatever
 // the panel format, so the lifecycle effects below run in both: the condensed
 // black band (ToolbarCaptureCondensed) is rendered instead of the tabs when
@@ -63,12 +64,14 @@ export default function PanelCaptureTool() {
 
   const isThreed = hostViewerKey === "THREED";
 
-  // effect - opening the panel arms the frame. Mount-only, and no cleanup:
-  // closing the panel must leave the frame in place (panel-independence).
+  // effect - opening the panel arms the frame, closing it (unmount: band
+  // toggle, Fermer, switch to another tool or module) disarms it: panel and
+  // frame are linked.
 
   useEffect(() => {
     dispatch(setEnabledDrawingMode(null)); // clear active drawing tool
     dispatch(setCaptureToolActive(true));
+    return () => dispatch(setCaptureToolActive(false));
   }, [dispatch]);
 
   // effect - an external exit (save bar X, floating quit button) closes the

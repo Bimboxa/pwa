@@ -31,8 +31,9 @@ const isEditableTarget = (el) => {
 //   - inert while a draw / paste / subtract is active (those own their own letters,
 //     e.g. "B" = STRIP while drawing) and in walk mode;
 //   - toggles: pressing the letter of the already-open tool closes it. CAPTURE
-//     toggles the capture MODE, not just the panel: its frame is
-//     panel-independent, so Alt+C must kill it even with the panel closed.
+//     toggles the capture MODE explicitly (frame + panel move together, but the
+//     mode flag is dispatched here too so the toggle never depends on the
+//     panel's mount/unmount effects alone).
 export default function useRightPanelToolHotkeys() {
   const store = useStore();
   const { menuItems } = useRightPanelTools();
