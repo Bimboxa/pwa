@@ -229,7 +229,9 @@ export default function PanelPortfolioPageTitleProperties() {
 
               <FieldCheck
                 value={resolved.underline}
-                onChange={(checked) => updateTitleFormat({ underline: checked })}
+                onChange={(checked) =>
+                  updateTitleFormat({ underline: checked })
+                }
                 label="Souligné"
                 options={{ type: "switch", showAsSection: true }}
               />
@@ -238,9 +240,7 @@ export default function PanelPortfolioPageTitleProperties() {
                 <ButtonInPanelV2
                   label={`Appliquer sur les pages similaires (${similarPages.length})`}
                   variant="outlined"
-                  startIcon={
-                    applying ? <CircularProgress size={20} /> : null
-                  }
+                  startIcon={applying ? <CircularProgress size={20} /> : null}
                   disabled={applying || similarPages.length === 0}
                   onClick={handleApplyToSimilarPages}
                 />
