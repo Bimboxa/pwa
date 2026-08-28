@@ -1,11 +1,8 @@
-import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import {
   Box,
-  Button,
   Card,
-  CircularProgress,
   Divider,
   FormControlLabel,
   Slider,
@@ -15,7 +12,6 @@ import {
   ToggleButtonGroup,
   Typography,
 } from "@mui/material";
-import ViewInAr from "@mui/icons-material/ViewInAr";
 
 import {
   setShowGrid,
@@ -30,20 +26,16 @@ import {
   setForceRevolutionSectionIn3d,
   setRevolutionSectionFillIn3d,
 } from "Features/threedEditor/threedEditorSlice";
-import exportSceneAsUsdzService from "Features/threedEditor/services/exportSceneAsUsdzService";
-import exportSceneAsObjService from "Features/threedEditor/services/exportSceneAsObjService";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 
 // 3D view settings, shown by the right-panel SETTINGS tool while a 3D editor
-// is displayed (see PanelEditorSettings). Holds the viewer toggles plus the
-// USDZ / OBJ export action. Screenshot capture + legend display moved to the
-// shared "Export rapide" flow (Export panel); the baseMap position tools
-// moved to the horizontal baseMap chips band of the 3D viewer.
+// is displayed (see PanelEditorSettings). Holds the viewer toggles only:
+// screenshot capture + legend display live in the "Capture" tool, the USDZ /
+// OBJ scene download moved to the Export tool (SectionDownloadThreed), and
+// the baseMap position tools moved to the horizontal baseMap chips band of
+// the 3D viewer.
 export default function PanelThreedProperties() {
   const dispatch = useDispatch();
-
-  const [exporting, setExporting] = useState(false);
-  const [exportFormat, setExportFormat] = useState("USDZ"); // "USDZ" | "OBJ"
 
   const showGrid = useSelector((s) => s.threedEditor.showGrid);
   const hideBaseMaps = useSelector((s) => s.threedEditor.hideBaseMaps);
@@ -66,27 +58,6 @@ export default function PanelThreedProperties() {
   );
   const renderMode = useSelector((s) => s.threedEditor.renderMode);
   const environment3d = useSelector((s) => s.threedEditor.environment3d);
-  // handlers
-
-  async function handleDownload3D() {
-    if (exporting) return;
-    setExporting(true);
-    // Yield to the browser so the spinner gets painted before the heavy
-    // synchronous portion of the encode (USDZ: texture bitmap reads + zip).
-    await new Promise((r) => requestAnimationFrame(r));
-    try {
-      const options = { excludeBaseMaps: hideBaseMaps };
-      if (exportFormat === "OBJ") {
-        exportSceneAsObjService("scene.obj", options);
-      } else {
-        await exportSceneAsUsdzService("scene.usdz", options);
-      }
-    } catch (e) {
-      console.error("[PanelThreedProperties] 3D export failed", e);
-    } finally {
-      setExporting(false);
-    }
-  }
 
   // render
 
@@ -325,56 +296,6 @@ export default function PanelThreedProperties() {
               </ToggleButtonGroup>
             </>
           )}
-        </Card>
-
-        <Card variant="outlined" sx={{ p: 1.5, mb: 1.5 }}>
-          <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
-            Télécharger la 3D
-          </Typography>
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            sx={{ display: "block", mb: 1.25 }}
-          >
-            Export de la scène (fond de plan + objets 3D). USDZ pour iPhone /
-            AR, OBJ pour SketchUp.
-          </Typography>
-          <ToggleButtonGroup
-            size="small"
-            exclusive
-            fullWidth
-            value={exportFormat}
-            onChange={(_e, v) => {
-              if (v) setExportFormat(v);
-            }}
-            disabled={exporting}
-            sx={{ mb: 1.25 }}
-          >
-            <ToggleButton value="USDZ" sx={{ textTransform: "none" }}>
-              USDZ (iPhone / AR)
-            </ToggleButton>
-            <ToggleButton value="OBJ" sx={{ textTransform: "none" }}>
-              OBJ (SketchUp)
-            </ToggleButton>
-          </ToggleButtonGroup>
-          <Button
-            size="small"
-            variant="outlined"
-            fullWidth
-            startIcon={
-              exporting ? (
-                <CircularProgress size={14} thickness={5} />
-              ) : (
-                <ViewInAr sx={{ fontSize: 16 }} />
-              )
-            }
-            disabled={exporting}
-            onClick={handleDownload3D}
-          >
-            {exporting
-              ? "Export en cours…"
-              : `Télécharger (.${exportFormat.toLowerCase()})`}
-          </Button>
         </Card>
       </Box>
     </BoxFlexVStretch>

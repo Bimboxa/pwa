@@ -2,12 +2,11 @@ import { useState, useMemo } from "react";
 
 import { useDispatch, useSelector } from "react-redux";
 import { setShowBgImageInMapEditor } from "Features/bgImage/bgImageSlice";
+import { setShowPrintableMap } from "Features/mapEditor/mapEditorSlice";
 import {
-  setShowPrintableMap,
-  setImageModeEnabled,
-  setEnabledDrawingMode,
-} from "Features/mapEditor/mapEditorSlice";
-import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
+  selectEffectiveViewerKey,
+  selectSelectedModuleKey,
+} from "Features/viewers/utils/effectiveViewerKey";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 
 import {
@@ -16,16 +15,9 @@ import {
   Chip,
   IconButton,
   Divider,
-  Button,
   CircularProgress,
 } from "@mui/material";
-import {
-  TableChart,
-  Download,
-  MenuBook,
-  PictureAsPdf,
-  PhotoCamera,
-} from "@mui/icons-material";
+import { TableChart, Download, PictureAsPdf } from "@mui/icons-material";
 
 import * as Excel from "exceljs";
 
@@ -33,7 +25,6 @@ import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 import DialogGeneric from "Features/layout/components/DialogGeneric";
 import ButtonGeneric from "Features/layout/components/ButtonGeneric";
-import CardPortfolioList from "Features/portfolios/components/CardPortfolioList";
 import DatagridAnnotations from "Features/annotations/components/DatagridAnnotations";
 import DatagridAnnotationsAggregated from "Features/annotations/components/DatagridAnnotationsAggregated";
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
@@ -42,7 +33,9 @@ import useDownladPdfReport from "Features/pdfReport/hooks/useDownladPdfReport";
 import usePdfReportName from "Features/pdfReport/hooks/usePdfReportName";
 import SliderBaseMapOpacity from "Features/mapEditor/components/SliderBaseMapOpacity";
 import SwitchBaseMapGrayScale from "Features/mapEditor/components/SwitchBaseMapGrayScale";
-import PanelCaptureMode from "Features/mapEditor/components/PanelCaptureMode";
+import SectionDxfExport from "Features/print/components/SectionDxfExport";
+import SectionDownloadThreed from "Features/threedEditor/components/SectionDownloadThreed";
+import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import createSheetAnnotations from "Features/excel/utils/createSheetAnnotations";
 import createSheetAnnotationsAggregated from "Features/excel/utils/createSheetAnnotationsAggregated";
 import downloadBlob from "Features/files/utils/downloadBlob";
@@ -58,14 +51,15 @@ export default function PanelPrint() {
 
   const projectId = useSelector((s) => s.projects.selectedProjectId);
 
-  const imageModeEnabled = useSelector((s) => s.mapEditor.imageModeEnabled);
-  // The capture host + WebGL snapshot follow the editor actually displayed
-  // (the module key would target the hidden 2D editor when Dessin shows 3D,
-  // and MESHES has no host of its own — every 3D editor shares "THREED").
+  // Per-module export sections follow the editor actually displayed: DXF only
+  // makes sense over the 2D map (module Dessin), the 3D scene download only
+  // while a 3D editor is shown (any module — Dessin showing 3D, THREED, MESHES).
   const effectiveViewerKey = useSelector(selectEffectiveViewerKey);
-  const captureViewerKey = isThreedFamilyViewerKey(effectiveViewerKey)
-    ? "THREED"
-    : effectiveViewerKey;
+  const selectedModuleKey = useSelector(selectSelectedModuleKey); // "MAP" = Dessin
+  const isThreed = isThreedFamilyViewerKey(effectiveViewerKey);
+  const showDxfExport = selectedModuleKey === "MAP" && !isThreed;
+
+  const baseMap = useMainBaseMap();
 
   const annotations = useAnnotationsV2({
     caller: "PanelPrint",
@@ -97,6 +91,13 @@ export default function PanelPrint() {
 
   const totalAnnotations = enrichedAnnotations.length;
 
+  // data - DXF export (annotations of the active base map only)
+
+  const dxfAnnotations = useMemo(
+    () => enrichedAnnotations.filter((a) => a?.baseMapId === baseMap?.id),
+    [enrichedAnnotations, baseMap?.id]
+  );
+
   // data - PDF export
 
   const showBgImage = useSelector((s) => s.bgImage.showBgImageInMapEditor);
@@ -108,13 +109,6 @@ export default function PanelPrint() {
   const [openDatagridAll, setOpenDatagridAll] = useState(false);
   const [openDatagridAggregated, setOpenDatagridAggregated] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
-
-  // handlers - capture mode
-
-  function handleToggleCaptureMode(_e, checked) {
-    if (checked) dispatch(setEnabledDrawingMode(null)); // clear active drawing tool
-    dispatch(setImageModeEnabled(checked));
-  }
 
   // handlers - Excel
 
@@ -187,39 +181,6 @@ export default function PanelPrint() {
       </Box>
 
       <BoxFlexVStretch sx={{ overflow: "auto", gap: 1, p: 1 }}>
-        {/* Card 0 — Export rapide (screenshot capture mode) */}
-        <WhiteSectionGeneric>
-          {/* Title line — label + activate/deactivate button */}
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: 1,
-            }}
-          >
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-              <PhotoCamera fontSize="small" color="action" />
-              <Typography variant="body2" sx={{ fontWeight: "bold" }}>
-                Export rapide
-              </Typography>
-            </Box>
-            <Button
-              size="small"
-              variant={imageModeEnabled ? "contained" : "outlined"}
-              onClick={() => handleToggleCaptureMode(null, !imageModeEnabled)}
-              sx={{ textTransform: "none", flexShrink: 0 }}
-            >
-              {imageModeEnabled ? "Désactiver" : "Activer"}
-            </Button>
-          </Box>
-
-          {/* Capture controls (Format / Légende / Export) — shown when capture mode is on */}
-          {imageModeEnabled && (
-            <PanelCaptureMode viewerKey={captureViewerKey} />
-          )}
-        </WhiteSectionGeneric>
-
         {/* Card 1 — Annotations count */}
         <WhiteSectionGeneric>
           <Box
@@ -267,8 +228,12 @@ export default function PanelPrint() {
           />
         </WhiteSectionGeneric>
 
-        {/* Card 3 — Carnet de plans */}
-        <CardPortfolioList />
+        {/* Card 3 — per-module export: DXF over the 2D map (module Dessin),
+            3D scene download while a 3D editor is displayed */}
+        {showDxfExport && (
+          <SectionDxfExport annotations={dxfAnnotations} baseMap={baseMap} />
+        )}
+        {isThreed && <SectionDownloadThreed />}
 
         {/* Card 4 — Export PDF carte (hidden for now) */}
       </BoxFlexVStretch>
