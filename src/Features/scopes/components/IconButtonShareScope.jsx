@@ -7,7 +7,6 @@ import useFetchScopeConfiguration from "Features/remoteScopeConfigurations/hooks
 import stringifyFileSize from "Features/files/utils/stringifyFileSize";
 
 import {
-    Button,
     IconButton,
     Popover,
     Box,
@@ -114,14 +113,11 @@ export default function IconButtonShareScope() {
 
     return (
         <>
-            <Button
-                onClick={handleOpen}
-                size="small"
-                variant="outlined"
-                startIcon={<ShareIcon />}
-            >
-                Partager
-            </Button>
+            <Tooltip title="Partager">
+                <IconButton onClick={handleOpen} size="small">
+                    <ShareIcon />
+                </IconButton>
+            </Tooltip>
 
             <Popover
                 open={open}
