@@ -3,6 +3,10 @@
 // primitives, in SVG coordinates (top-left origin, 1 unit == 1 PDF pt).
 // Consumed by TitleBlockSvg (screen) and drawTitleBlockOnPdfPage (export)
 // so both renderers do zero geometry and stay in sync by construction.
+//
+// Cell model: every cell is a value cell carrying its own `label`, rendered
+// as a small uppercase caption band at the top of the cell, with the value
+// vertically centered in the remaining band below.
 
 // Text paddings, shared by both renderers (px == pt).
 export const PAD_VALUE_LEFT = 8;
@@ -48,14 +52,7 @@ function resolveColumnWidths(columns, rectWidth, isNarrow) {
   return widths;
 }
 
-function resolveCellText(cell, { values, bindings, labelOverrides }) {
-  if (cell.kind === "label") {
-    return (
-      (cell.legacyLabelKey && labelOverrides?.[cell.legacyLabelKey]) ||
-      cell.text ||
-      ""
-    );
-  }
+function resolveCellValue(cell, { values, bindings }) {
   const bind = cell.bind;
   if (!bind) return cell.text || "";
   if (bind.startsWith("field:")) {
@@ -74,7 +71,8 @@ function resolveCellText(cell, { values, bindings, labelOverrides }) {
  * @returns {{
  *   frame: {x, y, width, height},
  *   lines: Array<{x1, y1, x2, y2}>,
- *   texts: Array<{x, y, width, height, text, kind, bold, align, fontSize, isPageNum}>,
+ *   texts: Array<{x, y, width, height, text, spans, kind, bold, align,
+ *     fontSize, isPageNum}>, // `spans` ([{text, bold}]) replaces `text`
  *   imageSlots: Array<{key, x, y, width, height}>,
  *   svgPaths: Array<{d, x, y, scale, fill, stroke, strokeWidth}>,
  *   pageNumCell: {x, y, width, height} | null,
@@ -89,6 +87,8 @@ export default function computeTitleBlockLayout(
   const style = manifest.style || {};
   const rowHeights = manifest.rowHeights || [];
   const columns = manifest.columns || [];
+  const cells = manifest.cells || [];
+  const labelBandH = style.labelBandHeight ?? 13;
 
   const colWidths = resolveColumnWidths(columns, rect.width, isNarrow);
 
@@ -122,9 +122,11 @@ export default function computeTitleBlockLayout(
   const svgPaths = [];
   let pageNumCell = null;
 
-  // logo slot spans all rows of its column
+  // logo slot spans all rows of its column, minus the optional footer band
   const logoColIdx =
     manifest.logoSlot != null ? colIndexByKey[manifest.logoSlot.col] : null;
+  const footer = manifest.logoSlot?.footer;
+  const footerH = footer?.height ?? 0;
   if (logoColIdx != null) {
     const padding = manifest.logoSlot.padding ?? 4;
     imageSlots.push({
@@ -132,13 +134,31 @@ export default function computeTitleBlockLayout(
       x: colX[logoColIdx] + padding,
       y: rect.y + padding,
       width: colWidths[logoColIdx] - 2 * padding,
-      height: rect.height - 2 * padding,
+      height: rect.height - 2 * padding - footerH,
     });
   }
 
-  // vertical separators at each interior column boundary, full height
+  // vertical separators: full height at the logo right edge (the logo spans
+  // all rows), per-row segments elsewhere so a colSpan cell can suppress the
+  // boundaries it crosses on its row
+  const suppressedBoundaries = new Set(); // `${row}:${boundaryIdx}`
+  for (const cell of cells) {
+    const colIdx = colIndexByKey[cell.col];
+    if (colIdx == null || cell.row == null) continue;
+    const span = cell.colSpan ?? 1;
+    for (let b = colIdx + 1; b < colIdx + span; b++) {
+      suppressedBoundaries.add(`${cell.row}:${b}`);
+    }
+  }
   for (let i = 1; i < columns.length; i++) {
-    lines.push({ x1: colX[i], y1: rect.y, x2: colX[i], y2: rectBottom });
+    if (logoColIdx != null && i === logoColIdx + 1) {
+      lines.push({ x1: colX[i], y1: rect.y, x2: colX[i], y2: rectBottom });
+      continue;
+    }
+    rowY.forEach((ry, r) => {
+      if (suppressedBoundaries.has(`${r}:${i}`)) return;
+      lines.push({ x1: colX[i], y1: ry, x2: colX[i], y2: ry + rowHeights[r] });
+    });
   }
 
   // horizontal separators at each interior row boundary, starting after the
@@ -154,77 +174,73 @@ export default function computeTitleBlockLayout(
     });
   }
 
-  // cells
-  const textCtx = { values, bindings, labelOverrides };
-  for (const cell of manifest.cells || []) {
+  // cells: uppercase label band on top + value band below
+  const textCtx = { values, bindings };
+  for (const cell of cells) {
     const colIdx = colIndexByKey[cell.col];
     if (colIdx == null || cell.row == null || rowY[cell.row] == null) continue;
 
     const cellY = rowY[cell.row];
     const cellH = rowHeights[cell.row];
     const cellX = colX[colIdx];
-    let cellW = colWidths[colIdx];
-
-    const isLabel = cell.kind === "label";
-    const base = {
-      y: cellY,
-      height: cellH,
-      kind: cell.kind,
-      fontSize: isLabel
-        ? (style.labelFontSize ?? 8)
-        : (style.valueFontSize ?? 10),
-    };
-
-    if (cell.trailing) {
-      const trailing = cell.trailing;
-      const trailingW = trailing.width ?? 50;
-      cellW -= trailingW;
-      const trailingX = cellX + cellW;
-
-      // sub-cell separator, within the row only
-      lines.push({
-        x1: trailingX,
-        y1: cellY,
-        x2: trailingX,
-        y2: cellY + cellH,
-      });
-
-      const trailingCell = {
-        ...base,
-        x: trailingX,
-        width: trailingW,
-        text: resolveCellText(
-          { kind: "value", bind: trailing.bind, text: trailing.text },
-          textCtx
-        ),
-        bold: !!trailing.bold,
-        align: trailing.center ? "center" : "left",
-        isPageNum: trailing.bind === "pageNum",
-      };
-      texts.push(trailingCell);
-      if (trailingCell.isPageNum) {
-        pageNumCell = {
-          x: trailingX,
-          y: cellY,
-          width: trailingW,
-          height: cellH,
-        };
-      }
+    const span = cell.colSpan ?? 1;
+    let cellW = 0;
+    for (let c = colIdx; c < Math.min(colIdx + span, columns.length); c++) {
+      cellW += colWidths[c];
     }
 
-    const mainCell = {
-      ...base,
+    const align = cell.align ?? (cell.center ? "center" : "left");
+    const labelText = (
+      labelOverrides?.[cell.legacyLabelKey] ||
+      cell.label ||
+      ""
+    ).toUpperCase();
+
+    if (labelText) {
+      texts.push({
+        x: cellX,
+        y: cellY,
+        width: cellW,
+        height: labelBandH,
+        kind: "label",
+        align: align === "right" ? "right" : "left",
+        fontSize: style.labelFontSize ?? 6.5,
+        text: labelText,
+      });
+    }
+
+    const valueY = labelText ? cellY + labelBandH : cellY;
+    const valueH = labelText ? cellH - labelBandH : cellH;
+    const valueCell = {
       x: cellX,
+      y: valueY,
       width: cellW,
-      text: resolveCellText(cell, textCtx),
+      height: valueH,
+      kind: "value",
+      text: resolveCellValue(cell, textCtx),
       bold: !!cell.bold,
-      align: isLabel ? "right" : cell.center ? "center" : "left",
+      align,
+      fontSize: style.valueFontSize ?? 10,
       isPageNum: cell.bind === "pageNum",
     };
-    texts.push(mainCell);
-    if (mainCell.isPageNum) {
-      pageNumCell = { x: cellX, y: cellY, width: cellW, height: cellH };
+    texts.push(valueCell);
+    if (valueCell.isPageNum) {
+      pageNumCell = { x: cellX, y: valueY, width: cellW, height: valueH };
     }
+  }
+
+  // logo column footer (e.g. "CRÉÉ AVEC Krto ®"), mixed-weight spans
+  if (logoColIdx != null && footer?.spans?.length) {
+    texts.push({
+      x: colX[logoColIdx],
+      y: rectBottom - footerH,
+      width: colWidths[logoColIdx],
+      height: footerH,
+      kind: "label",
+      align: "left",
+      fontSize: footer.fontSize ?? 6,
+      spans: footer.spans,
+    });
   }
 
   // decorations (vector art), relative to the rect top-left

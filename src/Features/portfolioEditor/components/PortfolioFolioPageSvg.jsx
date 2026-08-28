@@ -13,8 +13,10 @@ import usePdfDocument from "Features/pdf/hooks/usePdfDocument";
 import usePdfPageImageUrl from "Features/baseMapCreator/hooks/usePdfPageImageUrl";
 import useDisplayedPortfolio from "Features/portfolios/hooks/useDisplayedPortfolio";
 import useTitleBlockManifest from "Features/titleBlocks/hooks/useTitleBlockManifest";
+import usePortfolioPageFrame from "Features/portfolios/hooks/usePortfolioPageFrame";
 
 import PortfolioHeaderSvg from "./PortfolioHeaderSvg";
+import PortfolioTitleBarSvg from "./PortfolioTitleBarSvg";
 
 import getPageDimensions from "../utils/getPageDimensions";
 import { getCartoucheRectBottomRight } from "../utils/getPageLayout";
@@ -25,7 +27,12 @@ import db from "App/db/db";
 // page.folio as a full-bleed image, with the cartouche bottom-right on top.
 // Falls back to the snapshot thumbnail stored on the folio when the source
 // PDF is not available locally (post-Krto-import). No containers.
-export default function PortfolioFolioPageSvg({ page, pageIndex }) {
+export default function PortfolioFolioPageSvg({
+  page,
+  pageIndex,
+  totalPages,
+  zoom,
+}) {
   const dispatch = useDispatch();
 
   // strings
@@ -40,6 +47,7 @@ export default function PortfolioFolioPageSvg({ page, pageIndex }) {
 
   const { value: portfolio } = useDisplayedPortfolio();
   const manifest = useTitleBlockManifest(portfolio);
+  const pageFrame = usePortfolioPageFrame();
 
   const resource = useLiveQuery(async () => {
     if (!folio?.resourceId) return null;
@@ -95,7 +103,13 @@ export default function PortfolioFolioPageSvg({ page, pageIndex }) {
   );
   const dims = pdfDims ?? getPageDimensions(page.format, page.orientation);
   const src = imageUrl ?? folio?.thumbnail ?? null;
-  const cartouche = getCartoucheRectBottomRight(dims, manifest.height);
+  // margin consistent with framed pages; the frame itself is not rendered on
+  // folio pages (the source PDF already carries its own frame)
+  const cartouche = getCartoucheRectBottomRight(
+    dims,
+    manifest.height,
+    pageFrame
+  );
 
   // handlers
 
@@ -156,9 +170,18 @@ export default function PortfolioFolioPageSvg({ page, pageIndex }) {
           <PortfolioHeaderSvg
             page={page}
             pageIndex={pageIndex}
+            totalPages={totalPages}
             layout={{ variant: "BOTTOM_RIGHT", cartouche, titleBar: null }}
           />
         )}
+        <PortfolioTitleBarSvg
+          page={page}
+          portfolio={portfolio}
+          titleBar={null}
+          pageDims={dims}
+          pageFrame={pageFrame}
+          zoom={zoom}
+        />
       </svg>
     </Box>
   );

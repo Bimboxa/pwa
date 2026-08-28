@@ -16,6 +16,14 @@ export default function useDataMapping() {
 
   const today = new Date();
   const todayS = today.toLocaleDateString("fr-FR");
+  // YYMMDDHHMM timestamp (e.g. "2601020834" for 02/01/26 08:34)
+  const pad2 = (n) => String(n).padStart(2, "0");
+  const timestampRef =
+    pad2(today.getFullYear() % 100) +
+    pad2(today.getMonth() + 1) +
+    pad2(today.getDate()) +
+    pad2(today.getHours()) +
+    pad2(today.getMinutes());
 
   // return
 
@@ -27,6 +35,7 @@ export default function useDataMapping() {
     blueprintTitle:
       scope?.name && baseMap?.name ? scope?.name + " • " + baseMap?.name : null,
     todayS,
+    timestampRef,
     authorName: userProfile?.userName ?? "",
   };
 

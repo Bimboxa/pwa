@@ -1,5 +1,6 @@
 import useCreatePortfolio from "./useCreatePortfolio";
 import useCreatePortfolioPage from "Features/portfolioPages/hooks/useCreatePortfolioPage";
+import usePortfolioPageFrame from "./usePortfolioPageFrame";
 
 import getPageLayout from "Features/portfolioEditor/utils/getPageLayout";
 import fitContainerToBaseMap from "Features/portfolioEditor/utils/fitContainerToBaseMap";
@@ -17,6 +18,7 @@ import { resolveDetailResource } from "Features/baseMaps/services/detailBaseMapU
 export default function useCreateDetailsPortfolio() {
   const createPortfolio = useCreatePortfolio();
   const createPage = useCreatePortfolioPage();
+  const pageFrame = usePortfolioPageFrame();
 
   const create = async ({ scopeId, projectId, title, details, metadata }) => {
     const portfolio = await createPortfolio({
@@ -53,7 +55,13 @@ export default function useCreateDetailsPortfolio() {
 
       const imageSize = baseMap?.image?.imageSize;
       if (imageSize) {
-        const contentArea = getPageLayout("A3", "landscape").contentArea;
+        const contentArea = getPageLayout(
+          "A3",
+          "landscape",
+          0,
+          undefined,
+          pageFrame
+        ).contentArea;
         const fitted = fitContainerToBaseMap(imageSize, contentArea);
         await db.portfolioBaseMapContainers.update(container.id, {
           baseMapId,
@@ -94,18 +102,26 @@ export default function useCreateDetailsPortfolio() {
             rotation: createdFrom.rotation ?? 0,
             thumbnail: record.image?.thumbnail ?? null,
           },
+          detailRef: record.detailRef ?? null,
           details: [],
         });
       }
       foliosByKey.get(key)?.details.push(detail);
     }
 
-    for (const { folio, details: folioDetails } of foliosByKey.values()) {
+    for (const {
+      folio,
+      detailRef,
+      details: folioDetails,
+    } of foliosByKey.values()) {
+      // The baseMap's detailRef is the displayed bubble reference; fall back
+      // to the annotation labels (legacy / unset reference).
       const labels = [
         ...new Set(folioDetails.map((d) => d.label).filter(Boolean)),
       ];
-      const pageTitle =
-        labels.length > 1
+      const pageTitle = detailRef
+        ? `Détail ${detailRef}`
+        : labels.length > 1
           ? `Détails ${labels.join(", ")}`
           : `Détail ${labels[0] || ""}`.trim();
 

@@ -37,6 +37,7 @@ export default async function createAnnotationsPdfReport(
       logoImage: opts.logoImage,
       title: opts.title,
       titleBlock: opts.titleBlock,
+      headerMargin: opts.headerMargin,
       headerTitleSize: 14,
       fontSizes: {
         label: 11, // bold “#num label” in the comments box

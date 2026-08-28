@@ -19,6 +19,7 @@ import IconButtonMoreActionsPortfolioPage from "./IconButtonMoreActionsPortfolio
 import CardPageContent from "./CardPageContent";
 import CardPortfolioPageSize from "./CardPortfolioPageSize";
 import CardPortfolioPageOrientation from "./CardPortfolioPageOrientation";
+import CardPortfolioPageTitle from "./CardPortfolioPageTitle";
 
 import usePortfolioPageContent from "../hooks/usePortfolioPageContent";
 import copyPageAsPng from "../utils/copyPageAsPng";
@@ -76,6 +77,7 @@ export default function PanelPortfolioPageProperties() {
           justifyContent: "space-between",
           p: 0.5,
           pl: 1,
+          flexShrink: 0,
         }}
       >
         <Box sx={{ display: "flex", alignItems: "center" }}>
@@ -96,58 +98,65 @@ export default function PanelPortfolioPageProperties() {
         <IconButtonMoreActionsPortfolioPage page={page} />
       </Box>
 
-      <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5, p: 1.5 }}>
-        {isFolioPage ? (
-          <WhiteSectionGeneric>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1, p: 1 }}>
-              {page.folio?.thumbnail && (
-                <Box
-                  component="img"
-                  src={page.folio.thumbnail}
-                  alt=""
-                  sx={{
-                    width: 48,
-                    borderRadius: 0.5,
-                    border: (theme) => `1px solid ${theme.palette.divider}`,
-                  }}
-                />
-              )}
-              <Box>
-                <Typography variant="body2" sx={{ fontWeight: "bold" }}>
-                  {folioResource?.name ?? "Ressource introuvable"}
-                </Typography>
-                <Typography variant="caption" color="text.secondary">
-                  {`Page ${page.folio?.pageNumber ?? "-"}`}
-                </Typography>
+      {/* scrollable body under the fixed header */}
+      <BoxFlexVStretch sx={{ overflowY: "auto" }}>
+        <Box
+          sx={{ display: "flex", flexDirection: "column", gap: 1.5, p: 1.5 }}
+        >
+          {isFolioPage ? (
+            <WhiteSectionGeneric>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1, p: 1 }}>
+                {page.folio?.thumbnail && (
+                  <Box
+                    component="img"
+                    src={page.folio.thumbnail}
+                    alt=""
+                    sx={{
+                      width: 48,
+                      borderRadius: 0.5,
+                      border: (theme) => `1px solid ${theme.palette.divider}`,
+                    }}
+                  />
+                )}
+                <Box>
+                  <Typography variant="body2" sx={{ fontWeight: "bold" }}>
+                    {folioResource?.name ?? "Ressource introuvable"}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    {`Page ${page.folio?.pageNumber ?? "-"}`}
+                  </Typography>
+                </Box>
               </Box>
-            </Box>
-          </WhiteSectionGeneric>
-        ) : (
-          <>
-            <CardPageContent content={content} page={page} />
-            <CardPortfolioPageSize page={page} />
-            <CardPortfolioPageOrientation page={page} />
-          </>
-        )}
+            </WhiteSectionGeneric>
+          ) : (
+            <>
+              <CardPageContent content={content} page={page} />
+              <CardPortfolioPageSize page={page} />
+              <CardPortfolioPageOrientation page={page} />
+            </>
+          )}
 
-        <WhiteSectionGeneric>
-          <ButtonInPanelV2
-            label="Copier la page"
-            variant="outlined"
-            startIcon={
-              loading ? <CircularProgress size={20} /> : <ContentCopy />
-            }
-            disabled={loading}
-            onClick={handleCopyPage}
-          />
-          <FieldCheck
-            value={includeCartouche}
-            onChange={setIncludeCartouche}
-            label="Inclure le cartouche"
-            options={{ showAsInline: true }}
-          />
-        </WhiteSectionGeneric>
-      </Box>
+          <CardPortfolioPageTitle page={page} />
+
+          <WhiteSectionGeneric>
+            <ButtonInPanelV2
+              label="Copier la page"
+              variant="outlined"
+              startIcon={
+                loading ? <CircularProgress size={20} /> : <ContentCopy />
+              }
+              disabled={loading}
+              onClick={handleCopyPage}
+            />
+            <FieldCheck
+              value={includeCartouche}
+              onChange={setIncludeCartouche}
+              label="Inclure le cartouche"
+              options={{ showAsInline: true }}
+            />
+          </WhiteSectionGeneric>
+        </Box>
+      </BoxFlexVStretch>
     </BoxFlexVStretch>
   );
 }

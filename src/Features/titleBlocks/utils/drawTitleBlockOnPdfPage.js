@@ -13,7 +13,7 @@ import {
 // stays a raster image (pdf-lib cannot embed SVG images).
 // Coordinate flip convention: pdfY = pageHeight - svgY - height.
 
-function hexToRgb01(hex) {
+export function hexToRgb01(hex) {
   const m = /^#?([a-f\d])([a-f\d])([a-f\d])$/i.exec(hex || "");
   const m6 = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex || "");
   if (m6) {
@@ -44,6 +44,56 @@ function truncateToWidth(text, font, size, maxWidth) {
     t = t.slice(0, -1);
   }
   return t + ellipsis;
+}
+
+// Draws one text primitive (computeTitleBlockLayout `texts` entry), vertically
+// centered in its band. Shared by the main drawer and drawPageNumOnPdfPage.
+function drawTextPrimitive(
+  page,
+  pageHeight,
+  t,
+  { fonts, labelColor, valueColor }
+) {
+  const cellTopPdfY = pageHeight - t.y;
+  const y = cellTopPdfY - (t.height + t.fontSize) / 2;
+
+  // mixed-weight spans (e.g. the logo column footer), left-aligned
+  if (t.spans) {
+    let x = t.x + PAD_VALUE_LEFT;
+    for (const span of t.spans) {
+      const font = span.bold ? fonts.bold : fonts.regular;
+      const text = sanitizeWinAnsiText(span.text);
+      if (!text) continue;
+      page.drawText(text, {
+        x,
+        y,
+        size: t.fontSize,
+        font,
+        color: span.bold ? valueColor : labelColor,
+      });
+      x += font.widthOfTextAtSize(text, t.fontSize);
+    }
+    return;
+  }
+
+  if (!t.text) return;
+  const font = t.bold ? fonts.bold : fonts.regular;
+  const color = t.kind === "label" ? labelColor : valueColor;
+  const padStart = t.align === "left" ? PAD_VALUE_LEFT : 0;
+  const padEnd = t.align === "right" ? PAD_LABEL_RIGHT : PAD_VALUE_RIGHT;
+  const maxWidth = Math.max(0, t.width - padStart - padEnd);
+  const text = truncateToWidth(
+    sanitizeWinAnsiText(t.text),
+    font,
+    t.fontSize,
+    maxWidth
+  );
+  if (!text) return;
+  const textWidth = font.widthOfTextAtSize(text, t.fontSize);
+  let x = t.x + padStart;
+  if (t.align === "right") x = t.x + t.width - padEnd - textWidth;
+  else if (t.align === "center") x = t.x + (t.width - textWidth) / 2;
+  page.drawText(text, { x, y, size: t.fontSize, font, color });
 }
 
 /**
@@ -88,28 +138,8 @@ export default function drawTitleBlockOnPdfPage(
 
   // texts
   for (const t of texts) {
-    if (!t.text) continue;
     if (skipPageNum && t.isPageNum) continue;
-    const font = t.bold ? fonts.bold : fonts.regular;
-    const color = t.kind === "label" ? labelColor : valueColor;
-    const padStart = t.align === "left" ? PAD_VALUE_LEFT : 0;
-    const padEnd = t.align === "right" ? PAD_LABEL_RIGHT : PAD_VALUE_RIGHT;
-    const maxWidth = Math.max(0, t.width - padStart - padEnd);
-    const text = truncateToWidth(
-      sanitizeWinAnsiText(t.text),
-      font,
-      t.fontSize,
-      maxWidth
-    );
-    if (!text) continue;
-    const textWidth = font.widthOfTextAtSize(text, t.fontSize);
-    let x = t.x + padStart;
-    if (t.align === "right") x = t.x + t.width - padEnd - textWidth;
-    else if (t.align === "center") x = t.x + (t.width - textWidth) / 2;
-    // vertical centering, PDF origin bottom-left
-    const cellTopPdfY = pageHeight - t.y;
-    const y = cellTopPdfY - (t.height + t.fontSize) / 2;
-    page.drawText(text, { x, y, size: t.fontSize, font, color });
+    drawTextPrimitive(page, pageHeight, t, { fonts, labelColor, valueColor });
   }
 
   // decorations (drawSvgPath: path data is y-down relative to the given x/y)
@@ -141,6 +171,29 @@ export default function drawTitleBlockOnPdfPage(
       height: drawH,
     });
   }
+}
+
+// Stamps the page number into its cell after merge (the cartouche was drawn
+// with skipPageNum, the global page index is only known once pages are
+// merged). Reuses the exact primitive-drawing code so alignment/centering
+// match the rest of the cartouche.
+export function drawPageNumOnPdfPage(
+  page,
+  { layoutData, style = {}, fonts, text }
+) {
+  const t = layoutData?.texts?.find((entry) => entry.isPageNum);
+  if (!t || !text) return;
+  const pageHeight = page.getSize().height;
+  drawTextPrimitive(
+    page,
+    pageHeight,
+    { ...t, text },
+    {
+      fonts,
+      labelColor: hexToRgb01(style.labelColor ?? "#888"),
+      valueColor: hexToRgb01(style.valueColor ?? "#333"),
+    }
+  );
 }
 
 // Rasterize an image URL to PNG bytes via canvas (used for SVG logos, which

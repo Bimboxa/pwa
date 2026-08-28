@@ -20,6 +20,7 @@ import useUpdateEntity from "Features/entities/hooks/useUpdateEntity";
 import usePortfolioBaseMapContainers from "Features/portfolioBaseMapContainers/hooks/usePortfolioBaseMapContainers";
 import useDisplayedPortfolio from "Features/portfolios/hooks/useDisplayedPortfolio";
 import useTitleBlockManifest from "Features/titleBlocks/hooks/useTitleBlockManifest";
+import usePortfolioPageFrame from "Features/portfolios/hooks/usePortfolioPageFrame";
 
 import useCreatePortfolioBaseMapContainer from "Features/portfolioBaseMapContainers/hooks/useCreatePortfolioBaseMapContainer";
 
@@ -29,12 +30,14 @@ import EmptyContainerPlaceholder from "./EmptyContainerPlaceholder";
 import LegendBlockSvg from "./LegendBlockSvg";
 import BaseMapSelectorPopover from "./BaseMapSelectorPopover";
 import PortfolioHeaderSvg from "./PortfolioHeaderSvg";
+import PortfolioPageFrameSvg from "./PortfolioPageFrameSvg";
 import PortfolioTitleBarSvg from "./PortfolioTitleBarSvg";
 import SectionCreateBaseMapFullscreen from "Features/mapEditor/components/SectionCreateBaseMapFullscreen";
 import ButtonGeneric from "Features/layout/components/ButtonGeneric";
 
 import getPageDimensions from "../utils/getPageDimensions";
 import getPageLayout from "../utils/getPageLayout";
+import computePageFrame from "../utils/computePageFrame";
 import fitContainerToBaseMap from "../utils/fitContainerToBaseMap";
 import computeDefaultViewBox from "../utils/computeDefaultViewBox";
 import getPovImageInfo from "Features/pov/utils/getPovImageInfo";
@@ -52,6 +55,7 @@ export default function PortfolioPageSvg({ page, pageIndex, totalPages, zoom }) 
   });
   const { value: portfolio } = useDisplayedPortfolio();
   const titleBlockManifest = useTitleBlockManifest(portfolio);
+  const pageFrame = usePortfolioPageFrame();
   const framingContainerId = useSelector(
     (s) => s.portfolioBaseMapContainers.framingContainerId
   );
@@ -75,7 +79,8 @@ export default function PortfolioPageSvg({ page, pageIndex, totalPages, zoom }) 
     page.format,
     page.orientation,
     footerHeight,
-    titleBlockManifest.height
+    titleBlockManifest.height,
+    pageFrame
   );
   const contentArea = layout.contentArea;
 
@@ -408,6 +413,7 @@ export default function PortfolioPageSvg({ page, pageIndex, totalPages, zoom }) 
               zoom={zoom}
             />
           ))}
+        <PortfolioPageFrameSvg frame={computePageFrame(dims, pageFrame)} />
         <PortfolioHeaderSvg
           page={page}
           layout={layout}
@@ -415,9 +421,12 @@ export default function PortfolioPageSvg({ page, pageIndex, totalPages, zoom }) 
           totalPages={totalPages}
         />
         <PortfolioTitleBarSvg
+          page={page}
+          portfolio={portfolio}
           titleBar={layout.titleBar}
-          portfolioName={portfolio?.name}
-          pageName={page?.title}
+          pageDims={dims}
+          pageFrame={pageFrame}
+          zoom={zoom}
         />
       </svg>
 

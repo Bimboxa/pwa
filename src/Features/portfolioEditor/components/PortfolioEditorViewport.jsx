@@ -169,7 +169,12 @@ export default function PortfolioEditorViewport() {
                 }}
               >
                 {page.type === "FOLIO_PAGE" ? (
-                  <PortfolioFolioPageSvg page={page} pageIndex={index} />
+                  <PortfolioFolioPageSvg
+                    page={page}
+                    pageIndex={index}
+                    totalPages={pages.length}
+                    zoom={zoom}
+                  />
                 ) : (
                   <>
                     <PortfolioPageSvg

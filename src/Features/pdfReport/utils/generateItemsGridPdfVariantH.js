@@ -49,7 +49,13 @@ export default async function generateItemsGridPdfVariantH(items, opts = {}) {
   const numberSize = opts.numberSize ?? 12;
   const headerTitleSize = opts.headerTitleSize ?? 22;
   const headerHeight = opts.headerHeight ?? 60;
-  const headerMargin = 16;
+  // headerMargin: number (uniform) or per-side { top, left, right } (page
+  // frame insets forwarded by the portfolio export)
+  const hm = opts.headerMargin ?? 16;
+  const headerMargins =
+    typeof hm === "object" && hm !== null
+      ? { top: hm.top ?? 16, left: hm.left ?? 16, right: hm.right ?? 16 }
+      : { top: hm, left: hm, right: hm };
   const separatorColor = rgb(0.85, 0.85, 0.85);
   const textColor = rgb(0.1, 0.1, 0.1);
   const labelColor = rgb(0.0, 0.0, 0.0);
@@ -146,9 +152,9 @@ export default async function generateItemsGridPdfVariantH(items, opts = {}) {
     if (titleBlock?.manifest) {
       const manifest = titleBlock.manifest;
       const rect = {
-        x: headerMargin,
-        y: headerMargin,
-        width: pageW - 2 * headerMargin,
+        x: headerMargins.left,
+        y: headerMargins.top,
+        width: pageW - headerMargins.left - headerMargins.right,
         height: manifest.height,
       };
       const layoutData = computeTitleBlockLayout(manifest, rect, {
@@ -166,14 +172,14 @@ export default async function generateItemsGridPdfVariantH(items, opts = {}) {
         skipPageNum: true,
       });
 
-      const bodyTopY = pageH - headerMargin - manifest.height - 20;
+      const bodyTopY = pageH - headerMargins.top - manifest.height - 20;
       return { page, bodyTopY };
     }
 
     // Fallback: simple header (no cartouche)
-    const headerLeft = headerMargin;
-    const headerRight = pageW - headerMargin;
-    const headerTopY = pageH - headerMargin;
+    const headerLeft = headerMargins.left;
+    const headerRight = pageW - headerMargins.right;
+    const headerTopY = pageH - headerMargins.top;
     const headerBottomY = headerTopY - headerHeight;
 
     if (logoImg) {

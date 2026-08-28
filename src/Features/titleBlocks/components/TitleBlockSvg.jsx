@@ -100,7 +100,17 @@ export default function TitleBlockSvg({ layoutData, style = {}, logoUrl }) {
               fontWeight={t.kind === "label" ? 600 : t.bold ? 700 : 400}
               fill={t.kind === "label" ? labelColor : valueColor}
             >
-              {t.text}
+              {t.spans
+                ? t.spans.map((s, j) => (
+                    <tspan
+                      key={j}
+                      fontWeight={s.bold ? 700 : 400}
+                      fill={s.bold ? valueColor : labelColor}
+                    >
+                      {s.text}
+                    </tspan>
+                  ))
+                : t.text}
             </text>
           </svg>
         );

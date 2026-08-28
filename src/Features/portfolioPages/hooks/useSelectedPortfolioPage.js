@@ -8,7 +8,7 @@ import db from "App/db/db";
 export default function useSelectedPortfolioPage() {
   const selectedItems = useSelector(selectSelectedItems);
   const selectedItem = selectedItems.find(
-    (i) => i.type === "PORTFOLIO_PAGE"
+    (i) => i.type === "PORTFOLIO_PAGE" || i.type === "PORTFOLIO_TITLE"
   );
   const id = selectedItem?.id;
 

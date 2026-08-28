@@ -2,6 +2,7 @@ import { nanoid } from "nanoid";
 import { generateKeyBetween } from "fractional-indexing";
 
 import useCreateEntity from "Features/entities/hooks/useCreateEntity";
+import usePortfolioPageFrame from "Features/portfolios/hooks/usePortfolioPageFrame";
 
 import db from "App/db/db";
 
@@ -9,6 +10,7 @@ import getPageLayout from "Features/portfolioEditor/utils/getPageLayout";
 
 export default function useCreatePortfolioPage() {
   const createEntity = useCreateEntity();
+  const pageFrame = usePortfolioPageFrame();
 
   const create = async ({
     listing,
@@ -42,7 +44,13 @@ export default function useCreatePortfolioPage() {
     if (_type === "FOLIO_PAGE") return page;
 
     // auto-create one empty container filling the content area
-    const layout = getPageLayout(_format, _orientation);
+    const layout = getPageLayout(
+      _format,
+      _orientation,
+      0,
+      undefined,
+      pageFrame
+    );
     const contentArea = layout.contentArea;
     const container = {
       id: nanoid(),

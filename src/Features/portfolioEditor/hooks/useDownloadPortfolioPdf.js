@@ -17,35 +17,55 @@ import resolveTitleBlockFields from "Features/titleBlocks/utils/resolveTitleBloc
 import computeTitleBlockLayout from "Features/titleBlocks/utils/computeTitleBlockLayout";
 import drawTitleBlockOnPdfPage, {
   embedTitleBlockLogo,
+  drawPageNumOnPdfPage,
 } from "Features/titleBlocks/utils/drawTitleBlockOnPdfPage";
 import sanitizeWinAnsiText from "Features/titleBlocks/utils/sanitizeWinAnsiText";
+import getPortfolioPageFrameConfig from "Features/portfolios/utils/getPortfolioPageFrameConfig";
 
 import getPageDimensions from "../utils/getPageDimensions";
 import getPageLayout, {
   getCartoucheRectBottomRight,
 } from "../utils/getPageLayout";
+import computePageFrame from "../utils/computePageFrame";
+import drawPageFrameOnPdfPage from "../utils/drawPageFrameOnPdfPage";
 import getPageAnnotationsWithDetails from "../utils/getPageAnnotationsWithDetails";
+import resolveTitleFormat from "../utils/resolveTitleFormat";
+import getPortfolioPageTitleText from "../utils/getPortfolioPageTitleText";
 
-const TITLE_BAR_FONT_SIZE = 14;
+function hexToPdfRgb(hex) {
+  const match = /^#?([0-9a-f]{6})$/i.exec(hex || "");
+  if (!match) return rgb(0.2, 0.2, 0.2);
+  const int = parseInt(match[1], 16);
+  return rgb(
+    ((int >> 16) & 255) / 255,
+    ((int >> 8) & 255) / 255,
+    (int & 255) / 255
+  );
+}
 
-// Vector redraw of PortfolioTitleBarSvg (A3 landscape BOTTOM_RIGHT variant):
-// bold underlined "portfolio · page" line, left-aligned in the title bar.
-function drawTitleBarOnPdfPage(page, { titleBar, text, font }) {
+// Vector redraw of PortfolioTitleBarSvg from the page's resolved titleFormat:
+// bold single line, left-aligned in the title rect, optional underline.
+function drawTitleBarOnPdfPage(
+  page,
+  { rect, text, font, color, fontSize, underline }
+) {
   const t = sanitizeWinAnsiText(text);
   if (!t) return;
+  const size = fontSize || 14;
   const pageHeight = page.getSize().height;
-  const x = titleBar.x + 12;
-  const y =
-    pageHeight - titleBar.y - (titleBar.height + TITLE_BAR_FONT_SIZE) / 2;
-  const color = rgb(0.2, 0.2, 0.2);
-  page.drawText(t, { x, y, size: TITLE_BAR_FONT_SIZE, font, color });
-  const textWidth = font.widthOfTextAtSize(t, TITLE_BAR_FONT_SIZE);
-  page.drawLine({
-    start: { x, y: y - 3 },
-    end: { x: x + textWidth, y: y - 3 },
-    thickness: 1,
-    color,
-  });
+  const x = rect.x + 12;
+  const y = pageHeight - rect.y - (rect.height + size) / 2;
+  const pdfColor = hexToPdfRgb(color);
+  page.drawText(t, { x, y, size, font, color: pdfColor });
+  if (underline) {
+    const textWidth = font.widthOfTextAtSize(t, size);
+    page.drawLine({
+      start: { x, y: y - 3 },
+      end: { x: x + textWidth, y: y - 3 },
+      thickness: 1,
+      color: pdfColor,
+    });
+  }
 }
 
 export default function useDownloadPortfolioPdf() {
@@ -58,6 +78,7 @@ export default function useDownloadPortfolioPdf() {
 
     try {
       const manifest = getTitleBlockManifest(appConfig, portfolio);
+      const pageFrameConfig = getPortfolioPageFrameConfig(appConfig);
       const metadata = portfolio?.metadata || {};
       const values = resolveTitleBlockFields(manifest, metadata);
       const baseBindings = {
@@ -140,15 +161,35 @@ export default function useDownloadPortfolioPdf() {
               270: { x: h, y: 0, rotate: degrees(90) },
             }[rot];
             newPage.drawPage(embedded, draw);
+            const folioDims = {
+              width: newPage.getWidth(),
+              height: newPage.getHeight(),
+            };
+            // configurable title, in the normalized folio page's own dims
+            const titleFormat = resolveTitleFormat(page, {
+              titleBar: null,
+              pageDims: folioDims,
+              pageFrame: pageFrameConfig,
+            });
+            folioMeta = {
+              type: "FOLIO",
+              pageTitle: page.title || "",
+              titleFormat,
+              titleText: getPortfolioPageTitleText(titleFormat, {
+                portfolioName: portfolio?.name,
+                pageName: page.title,
+              }),
+            };
             const cartouche = getCartoucheRectBottomRight(
-              { width: newPage.getWidth(), height: newPage.getHeight() },
-              manifest.height
+              folioDims,
+              manifest.height,
+              pageFrameConfig
             );
             if (cartouche) {
-              folioMeta = {
-                type: "FOLIO",
-                layout: { variant: "BOTTOM_RIGHT", cartouche, titleBar: null },
-                pageTitle: page.title || "",
+              folioMeta.layout = {
+                variant: "BOTTOM_RIGHT",
+                cartouche,
+                titleBar: null,
               };
             }
           } catch (err) {
@@ -179,14 +220,16 @@ export default function useDownloadPortfolioPdf() {
           page.format,
           page.orientation,
           0,
-          manifest.height
+          manifest.height,
+          pageFrameConfig
         );
 
-        // hide the title block + title bar before SVG capture: they are
-        // redrawn as vector content on the pdf-lib page after merge
+        // hide the title block + title bar + page frame before SVG capture:
+        // they are redrawn as vector content on the pdf-lib page after merge
         const hiddenEls = [
           svgEl.querySelector("[data-portfolio-header]"),
           svgEl.querySelector("[data-portfolio-title-bar]"),
+          svgEl.querySelector("[data-portfolio-frame]"),
         ].filter(Boolean);
         hiddenEls.forEach((el) => (el.style.visibility = "hidden"));
 
@@ -208,7 +251,21 @@ export default function useDownloadPortfolioPdf() {
 
         URL.revokeObjectURL(url);
         pagePdfs.push(pdf);
-        pageMetas.push({ type: "PLAN", layout, pageTitle: page.title || "" });
+        const titleFormat = resolveTitleFormat(page, {
+          titleBar: layout.titleBar,
+          pageDims: dims,
+          pageFrame: pageFrameConfig,
+        });
+        pageMetas.push({
+          type: "PLAN",
+          layout,
+          pageTitle: page.title || "",
+          titleFormat,
+          titleText: getPortfolioPageTitleText(titleFormat, {
+            portfolioName: portfolio?.name,
+            pageName: page.title,
+          }),
+        });
 
         // generate annotation summary pages for this plan page
         const annotationsWithDetails = await getPageAnnotationsWithDetails(
@@ -223,6 +280,7 @@ export default function useDownloadPortfolioPdf() {
                 ? { url: portfolioLogoUrl }
                 : undefined,
               title: page.title || "Annotations",
+              headerMargin: pageFrameConfig?.innerInset,
               titleBlock: {
                 manifest,
                 values,
@@ -240,7 +298,8 @@ export default function useDownloadPortfolioPdf() {
             "A4",
             "portrait",
             0,
-            manifest.height
+            manifest.height,
+            pageFrameConfig
           );
           // A summary PDF may contain multiple pages
           const summaryBytes = await summaryPdf.arrayBuffer();
@@ -276,9 +335,28 @@ export default function useDownloadPortfolioPdf() {
         const meta = pageMetas[index];
         if (!meta) return;
 
-        const pageNum = `p. ${index + 1}`;
+        const pageNum = `p. ${index + 1} / ${allPages.length}`;
+
+        // double page border frame, on every page except folios (their
+        // source PDFs already carry their own frame)
+        if (meta.type !== "FOLIO") {
+          drawPageFrameOnPdfPage(
+            pdfPage,
+            computePageFrame(pdfPage.getSize(), pageFrameConfig)
+          );
+        }
 
         if (meta.type === "PLAN" || meta.type === "FOLIO") {
+          if (meta.titleFormat?.show && meta.titleText) {
+            drawTitleBarOnPdfPage(pdfPage, {
+              rect: meta.titleFormat.rect,
+              text: meta.titleText,
+              font: fonts.bold,
+              color: meta.titleFormat.color,
+              fontSize: meta.titleFormat.fontSize,
+              underline: meta.titleFormat.underline,
+            });
+          }
           if (!meta.layout) return; // FOLIO fallback: no cartouche
           const layoutData = computeTitleBlockLayout(
             manifest,
@@ -300,38 +378,21 @@ export default function useDownloadPortfolioPdf() {
             fonts,
             logoImage,
           });
-          if (meta.layout.titleBar) {
-            const text = [portfolio?.name, meta.pageTitle]
-              .filter(Boolean)
-              .join(" · ");
-            drawTitleBarOnPdfPage(pdfPage, {
-              titleBar: meta.layout.titleBar,
-              text,
-              font: fonts.bold,
-            });
-          }
           return;
         }
 
         // SUMMARY: only stamp the global page number in the title block cell
-        const { pageNumCell } = computeTitleBlockLayout(
+        // (the cartouche itself was drawn with skipPageNum at generation)
+        const layoutData = computeTitleBlockLayout(
           manifest,
           meta.layout.cartouche,
           { variant: meta.layout.variant }
         );
-        if (!pageNumCell) return;
-        const { height } = pdfPage.getSize();
-        const fontSize = manifest.style?.valueFontSize ?? 10;
-        const textWidth = fonts.bold.widthOfTextAtSize(pageNum, fontSize);
-        pdfPage.drawText(pageNum, {
-          x: pageNumCell.x + (pageNumCell.width - textWidth) / 2,
-          y:
-            height -
-            pageNumCell.y -
-            (pageNumCell.height + fontSize) / 2,
-          size: fontSize,
-          font: fonts.bold,
-          color: rgb(0.2, 0.2, 0.2),
+        drawPageNumOnPdfPage(pdfPage, {
+          layoutData,
+          style: manifest.style,
+          fonts,
+          text: pageNum,
         });
       });
 

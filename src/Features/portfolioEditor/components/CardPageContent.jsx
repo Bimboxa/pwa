@@ -32,6 +32,7 @@ import db from "App/db/db";
 
 import useDisplayedPortfolio from "Features/portfolios/hooks/useDisplayedPortfolio";
 import useTitleBlockManifest from "Features/titleBlocks/hooks/useTitleBlockManifest";
+import usePortfolioPageFrame from "Features/portfolios/hooks/usePortfolioPageFrame";
 import useCreatePortfolioBaseMapContainer from "Features/portfolioBaseMapContainers/hooks/useCreatePortfolioBaseMapContainer";
 import BaseMapSelectorPopover from "./BaseMapSelectorPopover";
 
@@ -97,6 +98,7 @@ export default function CardPageContent({ content, page }) {
   );
   const { value: portfolio } = useDisplayedPortfolio();
   const titleBlockManifest = useTitleBlockManifest(portfolio);
+  const pageFrame = usePortfolioPageFrame();
   const createContainer = useCreatePortfolioBaseMapContainer();
 
   // state
@@ -125,7 +127,8 @@ export default function CardPageContent({ content, page }) {
       page.format,
       page.orientation,
       footerHeight,
-      titleBlockManifest.height
+      titleBlockManifest.height,
+      pageFrame
     );
     const contentArea = layout.contentArea;
 
@@ -181,7 +184,8 @@ export default function CardPageContent({ content, page }) {
       page.format,
       page.orientation,
       footerHeight,
-      titleBlockManifest.height
+      titleBlockManifest.height,
+      pageFrame
     );
     const contentArea = layout.contentArea;
 
@@ -237,7 +241,8 @@ export default function CardPageContent({ content, page }) {
       page.format,
       page.orientation,
       footerHeight,
-      titleBlockManifest.height
+      titleBlockManifest.height,
+      pageFrame
     );
     const contentArea = layout.contentArea;
 

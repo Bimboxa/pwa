@@ -23,7 +23,7 @@ import db from "App/db/db";
 // logo upload placeholder. Static drawing is delegated to TitleBlockSvg,
 // fed by the shared computeTitleBlockLayout engine (same one used by the
 // vector PDF export).
-export default function PortfolioHeaderSvg({ page, layout, pageIndex }) {
+export default function PortfolioHeaderSvg({ page, layout, pageIndex, totalPages }) {
   const dispatch = useDispatch();
   const logoInputRef = useRef(null);
 
@@ -51,7 +51,9 @@ export default function PortfolioHeaderSvg({ page, layout, pageIndex }) {
     "project.name": project?.name || "",
     "portfolio.name": portfolio?.name || "",
     "page.title": page?.title || "",
-    pageNum: `p. ${(pageIndex ?? 0) + 1}`,
+    pageNum: totalPages
+      ? `p. ${(pageIndex ?? 0) + 1} / ${totalPages}`
+      : `p. ${(pageIndex ?? 0) + 1}`,
   };
   const layoutData = computeTitleBlockLayout(manifest, rect, {
     variant: layout.variant,
