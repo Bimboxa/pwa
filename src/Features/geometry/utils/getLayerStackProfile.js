@@ -19,9 +19,16 @@
 // into one continuous 45° slope, and a wedge clamped by the [0, L] domain
 // simply starts/ends at the boundary height.
 
-// Coincidence tolerance to the support's infinite line. Snapped drawing is
-// sub-pixel; 1 px is far below any realistic layer thickness.
-const TOL_LINE_PX = 1.0;
+// Coincidence tolerance to the support's infinite line. Real drawn supports
+// drift a few px even when snapped (a "vertical" leaning by half a dozen px
+// over its height is common), so the tolerance follows the underlier's
+// thickness — anything closer than half a layer is the same surface by
+// intent — clamped to sane bounds.
+const TOL_LINE_PX_MIN = 2;
+const TOL_LINE_PX_MAX = 24;
+// Reject near-perpendicular chunk segments that would pass the
+// endpoint-distance test (|cross| of unit directions = sin of the angle).
+const PARALLEL_MAX_SIN = 0.3;
 // Coverage intervals shorter than this are noise.
 const MIN_OVERLAP_PX = 0.5;
 // Union-merge gap tolerance between coverage intervals of one layer.
@@ -37,7 +44,7 @@ function distToLine(p, a, b, len) {
 
 // Coverage intervals [lo, hi] (arc-length stations on the support) of ONE
 // underlying layer, merged.
-function getCoverageIntervals(supportPts, stations, chunks) {
+function getCoverageIntervals(supportPts, stations, chunks, tolLinePx) {
   const intervals = [];
   for (let i = 0; i < supportPts.length - 1; i++) {
     const a = supportPts[i];
@@ -50,9 +57,17 @@ function getCoverageIntervals(supportPts, stations, chunks) {
       for (let j = 0; j < chunk.length - 1; j++) {
         const c = chunk[j];
         const d = chunk[j + 1];
+        const segLen = Math.hypot(d.x - c.x, d.y - c.y);
+        if (segLen < EPS_LEN) continue;
+        // Near-parallel only: a short crossing segment can pass the
+        // endpoint-distance test but is not the same support line.
+        const sinAngle = Math.abs(
+          ux * ((d.y - c.y) / segLen) - uy * ((d.x - c.x) / segLen)
+        );
+        if (sinAngle > PARALLEL_MAX_SIN) continue;
         if (
-          distToLine(c, a, b, len) > TOL_LINE_PX ||
-          distToLine(d, a, b, len) > TOL_LINE_PX
+          distToLine(c, a, b, len) > tolLinePx ||
+          distToLine(d, a, b, len) > tolLinePx
         )
           continue;
         // Scalar projections along the support segment (orientation-agnostic).
@@ -108,10 +123,15 @@ export default function getLayerStackProfile(supportPts, underlying) {
   const events = [];
   for (const u of underlying) {
     if (!(u.thicknessPx > 0)) continue;
+    const tolLinePx = Math.min(
+      Math.max(u.thicknessPx * 0.5, TOL_LINE_PX_MIN),
+      TOL_LINE_PX_MAX
+    );
     for (const [lo, hi] of getCoverageIntervals(
       supportPts,
       stations,
-      u.chunks
+      u.chunks,
+      tolLinePx
     )) {
       events.push([lo, u.thicknessPx]);
       events.push([hi, -u.thicknessPx]);

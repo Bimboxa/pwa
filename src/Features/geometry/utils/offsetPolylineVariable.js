@@ -40,12 +40,43 @@ const segmentIntersection = (a, b, c, d) => {
   return { x: a.x + r.x * t, y: a.y + r.y * t };
 };
 
+// Collapse collinear back-and-forth spikes: two consecutive segments that are
+// (near-)anti-parallel double back over themselves without a proper crossing
+// (parallel → segmentIntersection is blind to them). Dropping the reversal
+// vertex always yields the equivalent shorter path.
+const collapseSpikes = (pts) => {
+  const out = [...pts];
+  let i = 0;
+  while (i + 2 < out.length) {
+    const a = out[i];
+    const b = out[i + 1];
+    const c = out[i + 2];
+    const d1x = b.x - a.x;
+    const d1y = b.y - a.y;
+    const d2x = c.x - b.x;
+    const d2y = c.y - b.y;
+    const l1 = Math.hypot(d1x, d1y);
+    const l2 = Math.hypot(d2x, d2y);
+    if (l1 > EPS_LEN && l2 > EPS_LEN) {
+      const cross = (d1x * d2y - d1y * d2x) / (l1 * l2);
+      const dot = (d1x * d2x + d1y * d2y) / (l1 * l2);
+      if (Math.abs(cross) < 0.02 && dot < -0.98) {
+        out.splice(i + 1, 1);
+        if (i > 0) i--;
+        continue;
+      }
+    }
+    i++;
+  }
+  return out;
+};
+
 // Cut local self-intersection loops: when segment i crosses a nearby forward
 // segment j, drop the loop's points and join at the crossing. This is what
 // lets a 45° ramp stop against the offset run standing after a corner instead
 // of zigzagging through it.
 const removeLocalLoops = (pts) => {
-  let out = pts;
+  let out = collapseSpikes(pts);
   let changed = true;
   let guard = 0;
   while (changed && guard++ < 20) {
@@ -55,11 +86,11 @@ const removeLocalLoops = (pts) => {
       for (let j = i + 2; j <= jMax && !changed; j++) {
         const x = segmentIntersection(out[i], out[i + 1], out[j], out[j + 1]);
         if (!x) continue;
-        out = [
+        out = collapseSpikes([
           ...out.slice(0, i + 1),
           { id: `layerloop-${i}-${j}`, _derived: true, ...x },
           ...out.slice(j + 1),
-        ];
+        ]);
         changed = true;
       }
     }

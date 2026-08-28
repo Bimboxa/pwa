@@ -359,7 +359,9 @@ console.log("— degenerate / skip rules —");
   );
   check("sub-0.5px overlap ignored", overlapBelowThreshold === null);
 
-  const nonColinear = getLayerStackProfile(
+  // Drift tolerance follows the underlier thickness (half of it, capped at
+  // 24 px): 10 px off a 48 px layer is the same surface by intent…
+  const drifting = getLayerStackProfile(
     pts([
       [0, 0],
       [100, 0],
@@ -376,7 +378,48 @@ console.log("— degenerate / skip rules —");
       },
     ]
   );
-  check("segment 10px off the line does not cover", nonColinear === null);
+  check("10px drift with a 48px layer still covers", drifting !== null);
+
+  // …but past the cap it is a distinct line.
+  const nonColinear = getLayerStackProfile(
+    pts([
+      [0, 0],
+      [100, 0],
+    ]),
+    [
+      {
+        chunks: [
+          pts([
+            [0, 30],
+            [100, 30],
+          ]),
+        ],
+        thicknessPx: T,
+      },
+    ]
+  );
+  check("segment 30px off the line does not cover", nonColinear === null);
+
+  // A near-perpendicular segment passes the endpoint-distance test on a short
+  // support but is not the same line.
+  const perpendicular = getLayerStackProfile(
+    pts([
+      [0, 0],
+      [100, 0],
+    ]),
+    [
+      {
+        chunks: [
+          pts([
+            [50, -20],
+            [58, 20],
+          ]),
+        ],
+        thicknessPx: T,
+      },
+    ]
+  );
+  check("near-perpendicular segment does not cover", perpendicular === null);
 
   const dupPoint = offsetPolylineVariable(
     pts([
@@ -436,6 +479,136 @@ console.log("— degenerate / skip rules —");
   );
   check("closed layer renders unstacked", !map.has("closed"));
   check("arc layer renders unstacked", !map.has("arc"));
+}
+
+// ---------------------------------------------------------------------------
+console.log("— real hand-drawn data (user sample, drifting verticals) —");
+{
+  // Raw support points from the user's project: the pink vertical is 2.15px
+  // off the teal one, the blue "vertical" leans by 6.6px over its height.
+  const REAL_MBP = 0.0020848601255642873;
+  const t = 0.1 / REAL_MBP; // ≈ 47.965
+
+  const teal = pts([
+    [-144.946, 1340.626],
+    [-1515.456, 1340.626],
+    [-1515.456, 735.12],
+  ]);
+  const pink = pts([
+    [-503.17, 1340.626],
+    [-1515.456, 1340.626],
+    [-1517.61, 681.294],
+    [-1517.61, 274.526],
+  ]);
+  const orange = pts([
+    [-144.946, 1340.626],
+    [-1414.351, 1340.626],
+  ]);
+  const blue = pts([
+    [-241.701, 1340.626],
+    [-1515.456, 1340.626],
+    [-1522.087, 48.482],
+  ]);
+
+  const map = applyLayerStackingToAnnotations(
+    [
+      mkLayer("teal", teal, "2026-01-01T00:00:01Z", { layerIndex: "a0" }),
+      mkLayer("pink", pink, "2026-01-01T00:00:02Z", { layerIndex: "a1" }),
+      mkLayer("orange", orange, "2026-01-01T00:00:03Z", { layerIndex: "a2" }),
+      mkLayer("blue", blue, "2026-01-01T00:00:04Z", { layerIndex: "a3" }),
+    ],
+    { baseMapId: "bm", meterByPx: REAL_MBP }
+  );
+
+  // Interpolated x of the polyline at a given y, restricted to the wall
+  // region (x < -1300); null when no segment straddles y there.
+  const xAtWallY = (points, y) => {
+    for (let i = 0; i < points.length - 1; i++) {
+      const a = points[i];
+      const b = points[i + 1];
+      if (a.x > -1300 && b.x > -1300) continue;
+      if ((a.y - y) * (b.y - y) > 0) continue;
+      if (Math.abs(b.y - a.y) < 1e-9) continue;
+      return a.x + ((b.x - a.x) * (y - a.y)) / (b.y - a.y);
+    }
+    return null;
+  };
+  // Interpolated y at a given x on the floor region (y > 1100).
+  const yAtFloorX = (points, x) => {
+    for (let i = 0; i < points.length - 1; i++) {
+      const a = points[i];
+      const b = points[i + 1];
+      if (a.y < 1100 && b.y < 1100) continue;
+      if ((a.x - x) * (b.x - x) > 0) continue;
+      if (Math.abs(b.x - a.x) < 1e-9) continue;
+      return a.y + ((b.y - a.y) * (x - a.x)) / (b.x - a.x);
+    }
+    return null;
+  };
+  const near = (v, expected, tol) => v !== null && Math.abs(v - expected) < tol;
+
+  const hasAntiparallelSpike = (points) => {
+    for (let i = 0; i + 2 < points.length; i++) {
+      const d1x = points[i + 1].x - points[i].x;
+      const d1y = points[i + 1].y - points[i].y;
+      const d2x = points[i + 2].x - points[i + 1].x;
+      const d2y = points[i + 2].y - points[i + 1].y;
+      const l1 = Math.hypot(d1x, d1y);
+      const l2 = Math.hypot(d2x, d2y);
+      if (l1 < 1e-9 || l2 < 1e-9) continue;
+      const cross = Math.abs(d1x * d2y - d1y * d2x) / (l1 * l2);
+      const dot = (d1x * d2x + d1y * d2y) / (l1 * l2);
+      if (cross < 0.02 && dot < -0.98) return true;
+    }
+    return false;
+  };
+
+  const stackedPink = map.get("pink");
+  const stackedBlue = map.get("blue");
+
+  check(
+    "all stacked outputs are finite, no antiparallel spikes",
+    [...map.values()].every(
+      (p) =>
+        p.every((q) => Number.isFinite(q.x) && Number.isFinite(q.y)) &&
+        !hasAntiparallelSpike(p)
+    )
+  );
+  // Pink rides the teal wall (support drift 2.15px absorbed)…
+  check(
+    "pink wall covered by teal below its top (y=1000)",
+    near(xAtWallY(stackedPink, 1000), -1516.57 + t, 4),
+    `got ${xAtWallY(stackedPink, 1000)}`
+  );
+  // …and drops back onto its support above the teal top.
+  check(
+    "pink wall back on support above teal top (y=500)",
+    near(xAtWallY(stackedPink, 500), -1517.61, 3),
+    `got ${xAtWallY(stackedPink, 500)}`
+  );
+  // Blue floor at 3t over the mid-run.
+  check(
+    "blue floor at 3t (x=-1000)",
+    near(yAtFloorX(stackedBlue, -1000), 1340.626 - 3 * t, 4),
+    `got ${yAtFloorX(stackedBlue, -1000)}`
+  );
+  // Blue wall: 2t over teal+pink, 1t over pink alone, 0 above pink's top —
+  // the leaning support (6.6px drift) must still be covered.
+  check(
+    "blue wall at 2t (y=1000)",
+    near(xAtWallY(stackedBlue, 1000), -1517.2 + 2 * t, 4),
+    `got ${xAtWallY(stackedBlue, 1000)}`
+  );
+  check(
+    "blue wall at 1t (y=500)",
+    near(xAtWallY(stackedBlue, 500), -1519.77 + t, 4),
+    `got ${xAtWallY(stackedBlue, 500)}`
+  );
+  check(
+    "blue wall back on support (y=100)",
+    near(xAtWallY(stackedBlue, 100), -1521.82, 3),
+    `got ${xAtWallY(stackedBlue, 100)}`
+  );
 }
 
 // ---------------------------------------------------------------------------
