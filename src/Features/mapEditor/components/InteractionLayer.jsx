@@ -2234,11 +2234,12 @@ const InteractionLayer = forwardRef(({
     onPointMoveCommit?.(pointId, newPos);
   };
 
-  // Dragging a vertex of the SELECTED annotation goes through the fork path
-  // (duplicateAndMovePoint mints a fresh id so shared neighbours keep the
-  // original point). The angle lock composes with it: the dragged point keeps
-  // the fork semantics, and the two contour neighbours slide IN PLACE (they
-  // keep their ids — same junction semantics as the segment-length editor).
+  // Dragging a SHARED vertex of the SELECTED annotation goes through the fork
+  // path (duplicateAndMovePoint mints a fresh id so shared neighbours keep the
+  // original point); an exclusive vertex takes the plain move commit instead.
+  // The angle lock composes with the fork: the dragged point keeps the fork
+  // semantics, and the two contour neighbours slide IN PLACE (they keep their
+  // ids — same junction semantics as the segment-length editor).
   const handleDuplicateAndMoveRouted = ({ originalPointId, annotationId, newPos }) => {
     onPointDuplicateAndMoveCommit?.({ originalPointId, annotationId, newPos });
     const locked = getAngleLockedVertexMoves(originalPointId, newPos);

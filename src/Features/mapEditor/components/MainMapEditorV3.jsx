@@ -1127,11 +1127,16 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
 
     const handleDuplicateAndMovePoint = async ({ originalPointId, annotationId, newPos }) => {
         const imageSize = baseMap?.getImageSize?.();
-        await duplicateAndMovePoint({ originalPointId, annotationId, newPos, imageSize, annotations });
+        const { newPointId } = await duplicateAndMovePoint({ originalPointId, annotationId, newPos, imageSize, annotations });
+        // The fork remapped the glued-opening anchors onto the fresh id —
+        // reflow repositions them on the moved segment. hostIds also self-heals
+        // rels whose anchors were already stale (projection re-anchor).
+        await reflowOpenings({ movedPointIds: [newPointId], hostIds: [annotationId] });
     };
 
     const handlePointSnapReplace = async ({ oldPointId, snapPointId, affectedAnnotationIds }) => {
         await replacePointBySnap({ oldPointId, snapPointId, affectedAnnotationIds, annotations });
+        await reflowOpenings({ movedPointIds: [snapPointId], hostIds: affectedAnnotationIds });
     };
 
     const handleToggleAnnotationPointType = async ({ annotationId, pointId }) => {
