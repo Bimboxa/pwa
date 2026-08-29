@@ -99,55 +99,78 @@ export const offsetPolyline = (points, distance) => {
 
 // --- 2. FONCTIONS PRINCIPALES ---
 
+// Au-delà de ce ratio (longueur du miter / largeur), le coin de jonction est
+// biseauté au lieu de mitré. Les coins carrés (√2 ≈ 1.41) et les plis à 45°
+// (≈ 1.08) restent mitrés ; seules les jonctions très ouvertes (> ~106°)
+// basculent en bevel — celles dont le miter file loin et dessine des pointes.
+const MITER_RATIO_LIMIT = 2;
+
 /**
- * Comme offsetPolylineAsPolygon, mais renvoie TOUS les polygones (anneaux
- * extérieurs) issus du nettoyage. Un ruban dont le chemin retour croise la
- * ligne originale (coin concave avec segments adjacents plus courts que
- * l'offset) se scinde en plusieurs lobes disjoints : ne garder que le premier
- * fait disparaître la bande sur les autres.
+ * Comme offsetPolylineAsPolygon, mais construit la bande comme l'UNION de
+ * quads par segment + coins de jonction (miter plafonné, bevel au-delà), au
+ * lieu du ruban aller-retour. Résultat identique sur une polyligne saine,
+ * mais robuste quand un segment adjacent est plus court que la largeur
+ * (jonctions issues de l'empilement des couches) : le ruban simple s'y
+ * auto-croise et perd des lobes ou se troue.
+ * Renvoie tous les anneaux extérieurs (bande scindée = plusieurs anneaux).
  * @returns {Array<Array<{id, x, y}>>}
  */
 export function offsetPolylineAsPolygons(points, distance) {
     if (!points || points.length < 2) return [];
 
-    // 1. Calculer la ligne décalée (Offset Line)
-    // Note: Pour une ligne ouverte, le "Sens" (CW/CCW) n'existe pas vraiment.
-    // La distance positive décale à "Gauche" du tracé, négative à "Droite".
-    const offsetPoints = getRawOffsetPolyline(points, distance);
+    // 1. Quads par segment (positif = gauche du tracé, normale (-uy, ux))
+    const segs = [];
+    for (let i = 0; i < points.length - 1; i++) {
+        const a = points[i];
+        const b = points[i + 1];
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const len = Math.sqrt(dx * dx + dy * dy);
+        if (len < 1e-9) continue;
+        const vx = dx / len;
+        const vy = dy / len;
+        segs.push({ a, b, vx, vy, ox: -vy * distance, oy: vx * distance });
+    }
+    if (!segs.length) return [];
 
-    if (!offsetPoints || offsetPoints.length < 2) return [];
+    const inputs = segs.map(({ a, b, ox, oy }) => [[[
+        [a.x, a.y],
+        [b.x, b.y],
+        [b.x + ox, b.y + oy],
+        [a.x + ox, a.y + oy],
+        [a.x, a.y],
+    ]]]);
 
-    // 2. Construire la boucle fermée
-    // Ordre : [P0 -> Pn] (Original) puis [On -> O0] (Offset inversé)
-    // Cela crée un "ruban" qui fait l'aller-retour.
-
-    // On clone pour éviter de muter les entrées et on enlève les props inutiles
-    const originalPath = points.map(p => ({ x: p.x, y: p.y }));
-    const returnPath = [...offsetPoints].reverse();
-
-    const closedLoop = [...originalPath, ...returnPath];
-
-    // 3. Conversion GeoJSON pour la lib de clipping
-    const geoJsonRing = closedLoop.map(p => [p.x, p.y]);
-
-    // Fermeture explicite du GeoJSON (Premier point = Dernier point)
-    const first = geoJsonRing[0];
-    const last = geoJsonRing[geoJsonRing.length - 1];
-    if (first[0] !== last[0] || first[1] !== last[1]) {
-        geoJsonRing.push(first);
+    // 2. Coins de jonction entre segments consécutifs
+    const absDist = Math.abs(distance);
+    for (let i = 1; i < segs.length; i++) {
+        const p = segs[i - 1];
+        const c = segs[i];
+        const v = c.a; // sommet partagé (les segments nuls ont été sautés)
+        const pEnd = { x: p.b.x + p.ox, y: p.b.y + p.oy };
+        const cStart = { x: c.a.x + c.ox, y: c.a.y + c.oy };
+        if (Math.hypot(pEnd.x - cStart.x, pEnd.y - cStart.y) < 1e-9) continue;
+        const ring = [[v.x, v.y], [pEnd.x, pEnd.y]];
+        const X = computeIntersection(
+            { x: p.a.x + p.ox, y: p.a.y + p.oy },
+            { x: p.vx, y: p.vy },
+            cStart,
+            { x: c.vx, y: c.vy }
+        );
+        if (X && Math.hypot(X.x - v.x, X.y - v.y) <= MITER_RATIO_LIMIT * absDist) {
+            ring.push([X.x, X.y]);
+        }
+        ring.push([cStart.x, cStart.y]);
+        ring.push([v.x, v.y]);
+        inputs.push([[ring]]);
     }
 
-    const inputMultiPoly = [[geoJsonRing]];
-
     try {
-        // 4. Nettoyage (Union)
-        // Polygon-clipping va gérer les cas où l'offset croise la ligne originale
-        // (ex: boucle en forme de 8 ou offset très grand sur un angle aigu),
-        // en produisant un polygone distinct par lobe (les trous sont ignorés).
-        const cleaned = polygonClipping.union(inputMultiPoly);
+        // 3. Union — les trous éventuels sont ignorés (comme avant)
+        const cleaned = polygonClipping.union(...inputs);
 
         return cleaned.map((poly) => {
-            const resultRing = poly[0]; // contour extérieur du lobe
+            const resultRing = poly[0]; // contour extérieur
 
             // Retrait du point de fermeture doublon
             resultRing.pop();
@@ -160,7 +183,12 @@ export function offsetPolylineAsPolygons(points, distance) {
         });
     } catch (e) {
         console.error("Erreur offsetPolylineAsPolygons:", e);
-        // Fallback : On retourne la boucle brute sans nettoyage
+        // Fallback : ruban brut aller-retour sans nettoyage
+        const offsetPoints = getRawOffsetPolyline(points, distance);
+        const closedLoop = [
+            ...points.map(p => ({ x: p.x, y: p.y })),
+            ...[...offsetPoints].reverse(),
+        ];
         return [closedLoop.map(p => ({ ...p, id: nanoid() }))];
     }
 }

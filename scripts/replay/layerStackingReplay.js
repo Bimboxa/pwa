@@ -136,17 +136,20 @@ const fourLayers = [
     [1310, 1340 - 2 * T],
     [410, 1340 - 2 * T],
   ]);
+  // A = miter advance of one 48px band bending 45°: its top contour's ramp
+  // shifts by t(√2−1) — the layer riding it must shift the same way.
+  const A = T * (Math.SQRT2 - 1);
   checkPoints(
     "layer 4: staircase + ramp stopped by the corner run",
     map.get("l4"),
     [
       [1570, 1340 - 2 * T],
-      [1358, 1340 - 2 * T],
-      [1310, 1340 - 3 * T],
+      [1358 + A, 1340 - 2 * T],
+      [1310 + A, 1340 - 3 * T],
       [410, 1340 - 3 * T],
       [300 + 2 * T, 1210],
-      [300 + 2 * T, 735],
-      [300 + T, 735 - T],
+      [300 + 2 * T, 735 - A],
+      [300 + T, 735 - A - T],
       [300 + T, 275],
       [300, 275 - T],
       [300, 50],
@@ -221,10 +224,13 @@ console.log("— staircase: two close steps chain into one 45° slope —");
     ]),
     profile
   );
+  // u2 (above u1) continues across u1's start → the chained ramp anchors
+  // t(√2−1) before u1's edge (miter advance of u2's bend).
+  const A = T * (Math.SQRT2 - 1);
   checkPoints("single continuous ramp from 0 to 2t", out, [
     [1000, 1340],
-    [596, 1340],
-    [500, 1340 - 2 * T],
+    [596 + A, 1340],
+    [500 + A, 1340 - 2 * T],
     [0, 1340 - 2 * T],
   ]);
 }
@@ -649,6 +655,21 @@ console.log("— real hand-drawn data (user sample, drifting verticals) —");
   check(
     "blue band present on the wall (mid-band at y=1000)",
     inBand({ x: -1517.2 + 2 * t + t / 2, y: 1000 })
+  );
+  // Quad-union band construction: the degenerate floor→wall junction no
+  // longer splits the band into disjoint lobes (no seam across the band).
+  check(
+    "blue band is a single connected polygon",
+    bandShapes.length === 1,
+    `got ${bandShapes.length} shapes`
+  );
+  // Miter-advance shift: pink (continuing band) bends at the teal top, so
+  // blue's wall ramp anchors t(√2−1) further up — at y=725 (inside the old
+  // ramp zone) blue must still sit on its 2t plateau, clear of pink's band.
+  check(
+    "blue wall ramp shifted past teal top (y=725 still at 2t)",
+    near(xAtWallY(stackedBlue, 725), -1518.62 + 2 * t, 3),
+    `got ${xAtWallY(stackedBlue, 725)}`
   );
 }
 

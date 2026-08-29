@@ -120,25 +120,57 @@ export default function getLayerStackProfile(supportPts, underlying) {
   if (L < EPS_LEN) return null;
 
   // ---- base step function: sweep over coverage events ----
+  // covs keeps each underlier's merged intervals with its stack index: the
+  // wedge shift below needs to know WHICH bands continue across a boundary.
+  const covs = [];
   const events = [];
-  for (const u of underlying) {
-    if (!(u.thicknessPx > 0)) continue;
+  const bounds = [];
+  underlying.forEach((u, idx) => {
+    if (!(u.thicknessPx > 0)) return;
     const tolLinePx = Math.min(
       Math.max(u.thicknessPx * 0.5, TOL_LINE_PX_MIN),
       TOL_LINE_PX_MAX
     );
-    for (const [lo, hi] of getCoverageIntervals(
+    const intervals = getCoverageIntervals(
       supportPts,
       stations,
       u.chunks,
       tolLinePx
-    )) {
+    );
+    if (!intervals.length) return;
+    covs.push({ idx, thicknessPx: u.thicknessPx, intervals });
+    for (const [lo, hi] of intervals) {
       events.push([lo, u.thicknessPx]);
       events.push([hi, -u.thicknessPx]);
+      bounds.push({ s: lo, idx });
+      bounds.push({ s: hi, idx });
     }
-  }
+  });
   if (!events.length) return null;
   events.sort((a, b) => a[0] - b[0]);
+
+  // Miter advance: the top contour of a band whose bottom edge bends 45°
+  // advances by t·(√2−1) at the bend (square/miter joins). Each band that
+  // CONTINUES across a step and sits ABOVE the ending band therefore shifts
+  // the ramp of the layers riding it further into the low side; without this
+  // the stacked ramps all anchor at the same station and overlap.
+  const MITER_ADVANCE = Math.SQRT2 - 1;
+  const getWedgeShift = (b) => {
+    let minIdx = Infinity;
+    for (const bd of bounds) {
+      if (Math.abs(bd.s - b) <= EPS_S) minIdx = Math.min(minIdx, bd.idx);
+    }
+    if (!Number.isFinite(minIdx)) return 0;
+    let sum = 0;
+    for (const c of covs) {
+      if (c.idx <= minIdx) continue;
+      const spans = c.intervals.some(
+        ([lo, hi]) => lo < b - 0.5 && hi > b + 0.5
+      );
+      if (spans) sum += c.thicknessPx;
+    }
+    return MITER_ADVANCE * sum;
+  };
 
   // pieces: [{from, to, v}] covering [0, L]; breakpoints where v changes.
   const pieces = [];
@@ -161,9 +193,11 @@ export default function getLayerStackProfile(supportPts, underlying) {
   if (!pieces.length || pieces.every((p) => p.v < EPS_D)) return null;
 
   // ---- 45° wedges: one full triangle side per step, descending to zero ----
-  // Step at station b between vLeft and vRight → wedge anchored at
-  // (b, max(vLeft, vRight)), slope ±1 toward the low side, domain clamped to
-  // [0, L]. The max-envelope with the base then produces the effective ramp.
+  // Step at station b between vLeft and vRight → wedge whose descending line
+  // is anchored at (b ± shift, max(vLeft, vRight)) toward the low side, with a
+  // flat cap at the top value between b and the shifted anchor (the miter
+  // advance of the continuing bands below). Domain clamped to [0, L]. The
+  // max-envelope with the base then produces the effective ramp.
   const wedges = [];
   for (let i = 0; i <= pieces.length; i++) {
     const vLeft = i > 0 ? pieces[i - 1].v : 0;
@@ -172,24 +206,35 @@ export default function getLayerStackProfile(supportPts, underlying) {
     if (Math.abs(vLeft - vRight) < EPS_D) continue;
     if (i === 0 || i === pieces.length) continue; // domain boundary: no ramp
     const top = Math.max(vLeft, vRight);
+    const shift = getWedgeShift(b);
     if (vRight > vLeft) {
-      // step up at b → ramp on the left (low) side
-      wedges.push({ from: Math.max(0, b - top), to: b, atB: top, slope: 1, b });
+      // step up at b → ramp on the left (low) side, anchor shifted into it
+      const a = Math.max(0, b - shift);
+      wedges.push({
+        from: Math.max(0, a - top),
+        to: b,
+        atB: top,
+        slope: 1,
+        b: a,
+      });
     } else {
-      // step down at b → ramp on the right (low) side
+      // step down at b → ramp on the right (low) side, anchor shifted into it
+      const a = Math.min(L, b + shift);
       wedges.push({
         from: b,
-        to: Math.min(L, b + top),
+        to: Math.min(L, a + top),
         atB: top,
         slope: -1,
-        b,
+        b: a,
       });
     }
   }
 
+  // Flat cap at atB between the original breakpoint and the anchor w.b, then
+  // the 45° descent beyond the anchor.
   const wedgeValue = (w, s) => {
     if (s < w.from - EPS_S || s > w.to + EPS_S) return -Infinity;
-    return w.atB - Math.abs(s - w.b);
+    return w.atB - Math.max(0, w.slope === 1 ? w.b - s : s - w.b);
   };
 
   // Piecewise-constant base; at a breakpoint, side < 0 → left piece,
@@ -222,6 +267,7 @@ export default function getLayerStackProfile(supportPts, underlying) {
   for (const w of wedges) {
     candidates.add(w.from);
     candidates.add(w.to);
+    candidates.add(w.b); // flat-cap → slope kink
     // wedge × plateau: solve atB - |s - b| = v on the wedge's low side.
     for (const p of pieces) {
       const s1 = w.b - w.slope * (w.atB - p.v);
@@ -234,7 +280,16 @@ export default function getLayerStackProfile(supportPts, underlying) {
     }
     // wedge × wedge (opposite slopes cross at one station).
     for (const w2 of wedges) {
-      if (w2 === w || w.slope === w2.slope) continue;
+      if (w2 === w) continue;
+      // this wedge's flat cap (level atB) × the other wedge's slope
+      const s3 = w2.b - w2.slope * (w2.atB - w.atB);
+      if (
+        s3 >= Math.max(w.from, w2.from) - EPS_S &&
+        s3 <= Math.min(w.to, w2.to) + EPS_S
+      ) {
+        candidates.add(Math.min(Math.max(s3, 0), L));
+      }
+      if (w.slope === w2.slope) continue;
       const up = w.slope === 1 ? w : w2;
       const down = w.slope === 1 ? w2 : w;
       // atB_u - (b_u - s) = atB_d - (s - b_d)
