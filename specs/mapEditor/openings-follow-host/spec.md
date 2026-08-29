@@ -5,7 +5,7 @@
 | **Feature** | Les ouvertures collées (`isOpening`) suivent leur annotation hôte sur TOUS les chemins de déplacement de sommet |
 | **Domaine** | `mapEditor` (+ `annotations`) |
 | **Branche** | `fix_openings_follow_host_vertex_drag` |
-| **Statut** | Implémenté — validation utilisateur en cours (2026-08-29) |
+| **Statut** | Implémenté et validé (2026-08-29) |
 | **Replay** | [`scripts/replay/openingAnchorRemapReplay.js`](../../../scripts/replay/openingAnchorRemapReplay.js) |
 
 ---
