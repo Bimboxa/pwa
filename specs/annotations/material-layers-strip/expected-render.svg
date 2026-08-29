@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1560 720" font-family="Helvetica, Arial, sans-serif">
+<rect x="0" y="0" width="1560" height="720" fill="#ffffff"/>
+<text x="20" y="30" font-size="17" font-weight="bold" fill="#111">A — Points stockés (dessin sur le support commun)</text>
+<text x="790" y="30" font-size="17" font-weight="bold" fill="#111">B — Rendu attendu (empilement dérivé à l'affichage)</text>
+<g transform="translate(20,50) scale(0.47) translate(1535,-35)">
+<path d="M -144.9 1340.6 L -1515.5 1340.6 L -1515.5 735.1" fill="none" stroke="#007591" stroke-width="26" stroke-opacity="0.9" stroke-linejoin="round"/>
+<path d="M -503.2 1340.6 L -1515.5 1340.6 L -1517.6 681.3 L -1517.6 274.5" fill="none" stroke="#ff4fa3" stroke-width="19" stroke-opacity="0.9" stroke-linejoin="round"/>
+<path d="M -144.9 1340.6 L -1515.5 1340.6 L -1519.6 534.0" fill="none" stroke="#ff9e2c" stroke-width="12" stroke-opacity="0.9" stroke-linejoin="round"/>
+<path d="M -266.7 1340.6 L -1515.5 1340.6 L -1522.1 48.5" fill="none" stroke="#7cd4fd" stroke-width="5" stroke-opacity="0.9" stroke-linejoin="round"/>
+<rect x="-277.715" y="1329.626" width="22" height="22" fill="#fff" stroke="#2196f3" stroke-width="3"/>
+<rect x="-1526.456" y="1329.626" width="22" height="22" fill="#fff" stroke="#2196f3" stroke-width="3"/>
+<rect x="-1533.087" y="37.482" width="22" height="22" fill="#fff" stroke="#2196f3" stroke-width="3"/>
+</g>
+<g transform="translate(790,50) scale(0.47) translate(1535,-35)">
+<path d="M -1515.5 735.1 L -1467.5 735.1 L -1467.5 1292.7 L -144.9 1292.7 L -144.9 1340.6 L -1515.5 1340.6 Z" fill="#007591" fill-opacity="0.74" fill-rule="evenodd"/>
+<defs><clipPath id="band-clip-1">
+<path d="M -1517.6 274.5 L -1469.6 274.5 L -1469.6 667.2 L -1435.7 700.9 L -1421.6 714.9 L -1421.5 734.8 L -1419.8 1244.7 L -503.2 1244.7 L -503.2 1292.7 L -1467.6 1292.7 L -1469.5 735.0 L -1517.6 687.2 L -1517.6 681.3 Z" clip-rule="evenodd"/>
+</clipPath></defs>
+<path d="M -1517.6 274.5 L -1469.6 274.5 L -1469.6 667.2 L -1435.7 700.9 L -1421.6 714.9 L -1421.5 734.8 L -1419.8 1244.7 L -503.2 1244.7 L -503.2 1292.7 L -1467.6 1292.7 L -1469.5 735.0 L -1517.6 687.2 L -1517.6 681.3 Z" fill="#ffffff" fill-opacity="0.72" fill-rule="evenodd" stroke="#ff4fa3" stroke-width="2.5" stroke-opacity="0.72"/>
+<g clip-path="url(#band-clip-1)">
+<path d="M -503.2 1268.7 L -1443.7 1268.7 L -1445.5 725.0 L -1493.6 677.1 L -1493.6 681.3 L -1493.6 274.5" fill="none" stroke="#ff4fa3" stroke-opacity="0.72" stroke-width="28.778909080895982" stroke-dasharray="71.9 48.0" stroke-linecap="butt"/>
+</g>
+<defs><clipPath id="band-clip-2">
+<path d="M -1471.6 533.7 L -1423.7 533.5 L -1423.1 646.9 L -1389.0 680.7 L -1374.9 694.7 L -1374.8 714.5 L -1372.3 1196.7 L -483.3 1196.7 L -435.3 1244.7 L -144.9 1244.7 L -144.9 1292.7 L -455.2 1292.7 L -503.2 1244.7 L -1420.0 1244.7 L -1422.7 714.8 L -1470.9 667.1 Z" clip-rule="evenodd"/>
+</clipPath></defs>
+<path d="M -1471.6 533.7 L -1423.7 533.5 L -1423.1 646.9 L -1389.0 680.7 L -1374.9 694.7 L -1374.8 714.5 L -1372.3 1196.7 L -483.3 1196.7 L -435.3 1244.7 L -144.9 1244.7 L -144.9 1292.7 L -455.2 1292.7 L -503.2 1244.7 L -1420.0 1244.7 L -1422.7 714.8 L -1470.9 667.1 Z" fill="#ffffff" fill-opacity="0.72" fill-rule="evenodd" stroke="#ff9e2c" stroke-width="2.5" stroke-opacity="0.72"/>
+<g clip-path="url(#band-clip-2)">
+<path d="M -144.9 1268.7 L -445.3 1268.7 L -493.2 1220.7 L -1396.2 1220.7 L -1398.8 704.7 L -1447.0 657.0 L -1447.6 533.6" fill="none" stroke="#ff9e2c" stroke-opacity="0.72" stroke-width="28.778909080895982" stroke-dasharray="71.9 48.0" stroke-linecap="butt"/>
+</g>
+<path d="M -1522.1 48.5 L -1474.1 48.2 L -1473.3 206.5 L -1439.2 240.2 L -1425.1 254.2 L -1425.0 274.1 L -1424.0 465.6 L -1389.9 499.4 L -1375.8 513.3 L -1375.7 533.2 L -1375.2 626.8 L -1341.1 660.6 L -1327.0 674.5 L -1326.9 694.4 L -1324.6 1148.8 L -463.4 1148.8 L -415.5 1196.7 L -266.7 1196.7 L -266.7 1244.7 L -435.3 1244.7 L -483.3 1196.7 L -1372.3 1196.7 L -1374.9 694.7 L -1423.1 646.9 L -1423.7 533.5 L -1471.9 485.7 L -1473.0 274.3 L -1521.2 226.6 Z" fill="#7cd4fd" fill-opacity="0.63" fill-rule="evenodd"/>
+</g>
+<rect x="790" y="665" width="16" height="16" fill="#007591" fill-opacity="0.74"/>
+<text x="812" y="678" font-size="13" fill="#333">Rang 1 — SOLID</text>
+<rect x="980" y="665" width="16" height="16" fill="#ff4fa3" fill-opacity="0.72"/>
+<text x="1002" y="678" font-size="13" fill="#333">Rang 2 — DASHED</text>
+<rect x="1170" y="665" width="16" height="16" fill="#ff9e2c" fill-opacity="0.72"/>
+<text x="1192" y="678" font-size="13" fill="#333">Rang 3 — DASHED</text>
+<rect x="1360" y="665" width="16" height="16" fill="#7cd4fd" fill-opacity="0.63"/>
+<text x="1382" y="678" font-size="13" fill="#333">Rang 4 — SOLID</text>
+</svg>
