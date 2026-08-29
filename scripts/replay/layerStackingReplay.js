@@ -14,6 +14,7 @@
 import getLayerStackProfile from "Features/geometry/utils/getLayerStackProfile";
 import offsetPolylineVariable from "Features/geometry/utils/offsetPolylineVariable";
 import applyLayerStackingToAnnotations from "Features/annotations/utils/applyLayerStackingToAnnotations";
+import getStripePolygons from "Features/geometry/utils/getStripePolygons";
 import {
   sortLayerStrips,
   getNextLayerIndexKey,
@@ -608,6 +609,46 @@ console.log("— real hand-drawn data (user sample, drifting verticals) —");
     "blue wall back on support (y=100)",
     near(xAtWallY(stackedBlue, 100), -1521.82, 3),
     `got ${xAtWallY(stackedBlue, 100)}`
+  );
+
+  // ---- band polygon survives the concave floor→wall junction ----
+  // The stacked edge has a concave corner where the orange-end ramp is cut by
+  // the rising wall run: the ribbon loop self-crosses there and the union
+  // yields several disjoint lobes — ALL of them must be kept (a dropped lobe
+  // renders as a bare director line with no band).
+  const bandShapes = getStripePolygons(
+    {
+      type: "STRIP",
+      strokeWidth: 10,
+      strokeWidthUnit: "CM",
+      stripOrientation: 1,
+      points: stackedBlue,
+    },
+    REAL_MBP
+  );
+  const pointInRing = (pt, ring) => {
+    let inside = false;
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      const a = ring[i];
+      const b = ring[j];
+      if (
+        a.y > pt.y !== b.y > pt.y &&
+        pt.x < ((b.x - a.x) * (pt.y - a.y)) / (b.y - a.y) + a.x
+      )
+        inside = !inside;
+    }
+    return inside;
+  };
+  const inBand = (pt) =>
+    bandShapes.some((shape) => pointInRing(pt, shape.points));
+  check(
+    "blue band present on the floor (mid-band at x=-1000)",
+    inBand({ x: -1000, y: 1340.626 - 3 * t - t / 2 }),
+    `shapes: ${bandShapes.length}`
+  );
+  check(
+    "blue band present on the wall (mid-band at y=1000)",
+    inBand({ x: -1517.2 + 2 * t + t / 2, y: 1000 })
   );
 }
 

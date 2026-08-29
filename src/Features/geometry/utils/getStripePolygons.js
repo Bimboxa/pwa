@@ -1,6 +1,6 @@
 import { nanoid } from "@reduxjs/toolkit";
 import polygonClipping from "polygon-clipping";
-import offsetPolylineAsPolygon from "Features/geometry/utils/offsetPolylineAsPolygon";
+import { offsetPolylineAsPolygons } from "Features/geometry/utils/offsetPolylineAsPolygon";
 import offsetPolygon from "Features/geometry/utils/offsetPolygon";
 import cutPolygonPoints from "Features/geometry/utils/cutPolygonPoints";
 import { expandArcsInPath } from "Features/geometry/utils/arcSampling";
@@ -171,34 +171,39 @@ export default function getStripePolygons(annotation, baseMapMeterByPx, applyCut
         return result ? [result] : [];
     }
 
-    // 5. Génération des polygones pour chaque chunk
-    const polygons = chunks.map((chunkPoints) => {
+    // 5. Génération des polygones pour chaque chunk. Un chunk peut produire
+    // PLUSIEURS lobes quand le ruban s'auto-croise (coin concave dont les
+    // segments adjacents sont plus courts que la largeur — fréquent sur les
+    // strips "couche" empilées) : tous sont rendus.
+    const polygons = chunks.flatMap((chunkPoints) => {
         // A. Calcul de la forme de base (Offset). Tessellate arcs first: each
         // chunk has no internal hidden boundary, so a plain expand is safe.
-        const polyPoints = offsetPolylineAsPolygon(
+        const rings = offsetPolylineAsPolygons(
             expandArcsInPath(chunkPoints, ARC_SAMPLES, false),
             distance
         );
 
-        if (!polyPoints || polyPoints.length === 0) return null;
+        return rings.map((polyPoints) => {
+            if (!polyPoints || polyPoints.length === 0) return null;
 
-        // B. Gestion des Cuts
-        if (applyCutsMath && cuts && cuts.length > 0) {
-            // Mode "VUE" : On applique mathématiquement les découpes
-            let polygonShape = { points: polyPoints, cuts: [] };
+            // B. Gestion des Cuts
+            if (applyCutsMath && cuts && cuts.length > 0) {
+                // Mode "VUE" : On applique mathématiquement les découpes
+                let polygonShape = { points: polyPoints, cuts: [] };
 
-            cuts.forEach(cutDef => {
-                if (cutDef.points && cutDef.points.length >= 3) {
-                    polygonShape = cutPolygonPoints(polygonShape, cutDef.points);
-                }
-            });
+                cuts.forEach(cutDef => {
+                    if (cutDef.points && cutDef.points.length >= 3) {
+                        polygonShape = cutPolygonPoints(polygonShape, cutDef.points);
+                    }
+                });
 
-            return polygonShape;
-        }
-        else {
-            // Mode "ÉDITION" ou pas de cuts
-            return { points: polyPoints, cuts: cuts || [] };
-        }
+                return polygonShape;
+            }
+            else {
+                // Mode "ÉDITION" ou pas de cuts
+                return { points: polyPoints, cuts: cuts || [] };
+            }
+        });
 
     }).filter(shape => shape && shape.points && shape.points.length >= 3);
 

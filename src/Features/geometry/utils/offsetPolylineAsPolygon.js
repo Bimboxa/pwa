@@ -97,13 +97,17 @@ export const offsetPolyline = (points, distance) => {
     return offsetPoints.map((p) => ({ id: nanoid(), x: p.x, y: p.y }));
 };
 
-// --- 2. FONCTION PRINCIPALE ---
+// --- 2. FONCTIONS PRINCIPALES ---
 
 /**
- * Crée un POLYGONE fermé à partir d'une POLYLIGNE et d'un offset.
- * Le polygone représente la surface entre la ligne A et la ligne B (offsetée).
+ * Comme offsetPolylineAsPolygon, mais renvoie TOUS les polygones (anneaux
+ * extérieurs) issus du nettoyage. Un ruban dont le chemin retour croise la
+ * ligne originale (coin concave avec segments adjacents plus courts que
+ * l'offset) se scinde en plusieurs lobes disjoints : ne garder que le premier
+ * fait disparaître la bande sur les autres.
+ * @returns {Array<Array<{id, x, y}>>}
  */
-export default function offsetPolylineAsPolygon(points, distance) {
+export function offsetPolylineAsPolygons(points, distance) {
     if (!points || points.length < 2) return [];
 
     // 1. Calculer la ligne décalée (Offset Line)
@@ -138,16 +142,12 @@ export default function offsetPolylineAsPolygon(points, distance) {
     try {
         // 4. Nettoyage (Union)
         // Polygon-clipping va gérer les cas où l'offset croise la ligne originale
-        // (ex: boucle en forme de 8 ou offset très grand sur un angle aigu).
+        // (ex: boucle en forme de 8 ou offset très grand sur un angle aigu),
+        // en produisant un polygone distinct par lobe (les trous sont ignorés).
         const cleaned = polygonClipping.union(inputMultiPoly);
 
-        if (cleaned.length > 0) {
-            // Attention: Si l'offset coupe la ligne, cela peut créer PLUSIEURS polygones distincts.
-            // Ici, on retourne souvent le plus grand ou on peut retourner un tableau de polygones.
-            // Pour rester simple et cohérent avec ta demande (UN polygone), on prend le premier resultRing.
-            // Idéalement, ta signature devrait supporter de renvoyer Multipolygon (Array<Array<Point>>).
-
-            const resultRing = cleaned[0][0]; // Premier polygone, contour extérieur
+        return cleaned.map((poly) => {
+            const resultRing = poly[0]; // contour extérieur du lobe
 
             // Retrait du point de fermeture doublon
             resultRing.pop();
@@ -157,12 +157,20 @@ export default function offsetPolylineAsPolygon(points, distance) {
                 x: p[0],
                 y: p[1]
             }));
-        }
+        });
     } catch (e) {
-        console.error("Erreur offsetPolylineAsPolygon:", e);
+        console.error("Erreur offsetPolylineAsPolygons:", e);
         // Fallback : On retourne la boucle brute sans nettoyage
-        return closedLoop.map(p => ({ ...p, id: nanoid() }));
+        return [closedLoop.map(p => ({ ...p, id: nanoid() }))];
     }
+}
 
-    return [];
+/**
+ * Crée un POLYGONE fermé à partir d'une POLYLIGNE et d'un offset.
+ * Le polygone représente la surface entre la ligne A et la ligne B (offsetée).
+ * Si le ruban se scinde en plusieurs lobes, seul le premier est renvoyé —
+ * utiliser offsetPolylineAsPolygons quand tous comptent.
+ */
+export default function offsetPolylineAsPolygon(points, distance) {
+    return offsetPolylineAsPolygons(points, distance)[0] ?? [];
 }
