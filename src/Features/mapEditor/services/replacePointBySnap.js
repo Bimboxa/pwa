@@ -1,9 +1,18 @@
 import db from "App/db/db";
 
+import { remapPointIds } from "Features/annotations/utils/remapAnnotationRefs";
+import { SEGMENT_FLAG_FIELDS } from "Features/annotations/utils/segmentFlags";
+import remapOpeningAnchorsForHosts from "Features/annotations/services/remapOpeningAnchorsForHosts";
+
 /**
  * Replaces a point reference in annotations with a snap target point.
  * The old point's `type` (square/circle) is preserved on the new reference.
  * The old point is deleted from DB if it becomes orphaned.
+ *
+ * remapPointIds covers every ref kind (points, cuts, innerPoints, guideLines,
+ * isoHeightLines, profileLines, segment-flag id arrays), and glued-opening
+ * anchors follow the same id swap so the commit-time reflow keeps their
+ * exact hostDistanceM.
  *
  * @param {Object} params
  * @param {string} params.oldPointId - The point being dragged
@@ -24,54 +33,68 @@ export default async function replacePointBySnap({
 
     if (affectedAnnotations.length === 0) return;
 
-    // Helper: replace oldPointId with snapPointId in a points array, keeping the old entry's type
-    const replaceInPoints = (points) =>
-      points?.map((pt) =>
-        pt.id === oldPointId ? { ...pt, id: snapPointId } : pt
-      );
+    const pointIdMap = { [oldPointId]: snapPointId };
+    const refFields = [
+      "points",
+      "cuts",
+      "innerPoints",
+      "guideLines",
+      "isoHeightLines",
+      "profileLines",
+      "point",
+      ...SEGMENT_FLAG_FIELDS.map(({ idField }) => idField),
+    ];
 
-    await db.transaction("rw", db.points, db.annotations, async () => {
-      // 1. Update annotations: swap point reference
-      const ops = affectedAnnotations.map((ann) => {
-        const updates = {};
+    await db.transaction(
+      "rw",
+      db.points,
+      db.annotations,
+      db.relAnnotationOpenings,
+      async () => {
+        // 1. Update annotations: swap every point reference
+        const ops = affectedAnnotations.map((ann) => {
+          const remapped = { ...ann };
+          remapPointIds(remapped, pointIdMap);
 
-        if (ann.points?.some((pt) => pt.id === oldPointId)) {
-          updates.points = replaceInPoints(ann.points);
+          const updates = {};
+          for (const field of refFields) {
+            if (ann[field] !== undefined) updates[field] = remapped[field];
+          }
+
+          // Clear rotation metadata (moving a vertex bakes in the rotation)
+          if (ann.rotation || ann.rotationCenter) {
+            updates.rotation = 0;
+            updates.rotationCenter = null;
+          }
+
+          return db.annotations.update(ann.id, updates);
+        });
+
+        await Promise.all(ops);
+
+        // 2. Glued-opening anchors on the affected hosts follow the id swap
+        // (per-rel failures degrade to a stale anchor, see the service).
+        await remapOpeningAnchorsForHosts({
+          hostAnnotationIds: affectedAnnotationIds,
+          pointIdMap,
+        });
+
+        // 3. Check if old point is now orphaned
+        const modifiedIds = new Set(affectedAnnotationIds);
+        const isUsedElsewhere = annotations.some((ann) => {
+          if (modifiedIds.has(ann.id)) return false;
+          const inMain = ann.points?.some((pt) => pt.id === oldPointId);
+          const inCuts = ann.cuts?.some((cut) =>
+            cut.points?.some((pt) => pt.id === oldPointId)
+          );
+          return inMain || inCuts;
+        });
+
+        if (!isUsedElsewhere) {
+          await db.points.delete(oldPointId);
         }
-
-        if (ann.cuts?.some((cut) => cut.points?.some((pt) => pt.id === oldPointId))) {
-          updates.cuts = ann.cuts.map((cut) => ({
-            ...cut,
-            points: replaceInPoints(cut.points),
-          }));
-        }
-
-        // Clear rotation metadata (moving a vertex bakes in the rotation)
-        if (ann.rotation || ann.rotationCenter) {
-          updates.rotation = 0;
-          updates.rotationCenter = null;
-        }
-
-        return db.annotations.update(ann.id, updates);
-      });
-
-      await Promise.all(ops);
-
-      // 2. Check if old point is now orphaned
-      const modifiedIds = new Set(affectedAnnotationIds);
-      const isUsedElsewhere = annotations.some((ann) => {
-        if (modifiedIds.has(ann.id)) return false;
-        const inMain = ann.points?.some((pt) => pt.id === oldPointId);
-        const inCuts = ann.cuts?.some((cut) =>
-          cut.points?.some((pt) => pt.id === oldPointId)
-        );
-        return inMain || inCuts;
-      });
-
-      if (!isUsedElsewhere) {
-        await db.points.delete(oldPointId);
       }
-    });
+    );
   } catch (error) {
     console.error("[replacePointBySnap] Error:", error);
   }

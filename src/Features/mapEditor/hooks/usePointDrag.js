@@ -163,20 +163,6 @@ export default function usePointDrag({
         const { allowed, mustFork } = permissions.checkPointPermission(pointId);
         if (!allowed) return false; // Aucune de mes annotations n'utilise ce point → bloquer
 
-        // Détection duplication existante (annotation sélectionnée a ce point
-        // dans son contour — c'est le seul cas où le fork "préserve les
-        // annotations voisines" est nécessaire). guideLine / innerPoints / cuts
-        // ont des ids uniques par construction et passent par le simple move,
-        // évitant un duplicateAndMovePoint qui ne sait pas les recâbler.
-        const selectedAnnotationHasPoint =
-          _selectedNode &&
-          _annotations
-            ?.find((a) => a.id === _selectedNode.nodeId)
-            ?.points?.some((p) => p.id === pointId);
-
-        // Fork automatique si des annotations étrangères partagent ce point
-        const isPotentialDuplicate = mustFork || !!selectedAnnotationHasPoint;
-
         // Calcul des IDs affectés (toutes les annotations contenant ce point,
         // que ce soit dans le contour, un cut, ou les inner Steiner points).
         // Ces IDs sont passés à setHiddenAnnotationIds pour cacher le rendu
@@ -201,6 +187,23 @@ export default function usePointDrag({
             return inMain || inCuts || inInner || inGuide || inIso || inProfile;
           })
           .map((ann) => ann.id);
+
+        // Fork only when the vertex is genuinely SHARED: with another user's
+        // annotation (mustFork) or, on the selected annotation's contour, with
+        // at least one other annotation of mine — the fork's purpose is to
+        // preserve those neighbours. A point exclusive to the selected
+        // annotation takes the plain move path (stable id → glued openings,
+        // segment flags and guide refs survive; live ghost follow; no orphan
+        // point row minted). guideLine / innerPoints / cuts ids are unique by
+        // construction and go through the plain move too.
+        const selectedAnnotationHasPoint =
+          _selectedNode &&
+          _annotations
+            ?.find((a) => a.id === _selectedNode.nodeId)
+            ?.points?.some((p) => p.id === pointId);
+
+        const isPotentialDuplicate =
+          mustFork || (!!selectedAnnotationHasPoint && affectedIds.length > 1);
 
         // Multi-selection shared-vertex mode: with ≥2 annotations selected,
         // the drag moves the SELECTED annotations sharing this vertex (same
