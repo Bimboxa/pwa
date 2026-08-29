@@ -41,6 +41,7 @@ import { selectIsTemplateCoteDrawActive } from "Features/threedDrawing/utils/tem
 import ToggleSingleSelectorGeneric from "Features/layout/components/ToggleSingleSelectorGeneric";
 import FieldAnnotationHeight from "Features/annotations/components/FieldAnnotationHeight";
 import FieldAnnotationThickness from "Features/annotations/components/FieldAnnotationThickness";
+import FieldCheck from "Features/form/components/FieldCheck";
 import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTemplateIcon";
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
 
@@ -106,11 +107,17 @@ export default function ToolbarDrawingDraft() {
     showOffset,
     showHeight,
     showWidth,
+    showIsLayer,
   } = getDraftFieldVisibility(newAnnotation, enabledDrawingMode);
 
   const showColor = !isToolGroup && !isFieldOverridden(colorField);
   const showAnyField =
-    showThickness || showOffset || showHeight || showWidth || isRampTool;
+    showThickness ||
+    showOffset ||
+    showHeight ||
+    showWidth ||
+    showIsLayer ||
+    isRampTool;
 
   const tools = toolGroupType
     ? getDrawingToolsByType(toolGroupType)
@@ -381,6 +388,14 @@ export default function ToolbarDrawingDraft() {
           onChange={handleFieldChange}
           active={metricInputField === "height"}
           shortcut="H"
+        />
+      )}
+      {showIsLayer && (
+        <FieldCheck
+          value={Boolean(newAnnotation?.isLayer)}
+          onChange={(checked) => handleFieldChange({ isLayer: checked })}
+          label="Couche"
+          options={{ type: "switch", showAsInline: true }}
         />
       )}
       {isRampTool && (

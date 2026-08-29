@@ -39,5 +39,7 @@ export function getStripProps(annotation = {}) {
     fillColor: annotation.fillColor,
     fillOpacity: annotation.fillOpacity,
     strokeType: annotation.strokeType,
+    dashLength: annotation.dashLength,
+    dashGap: annotation.dashGap,
   };
 }

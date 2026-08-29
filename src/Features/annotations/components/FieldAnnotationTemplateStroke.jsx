@@ -10,6 +10,7 @@ export default function FieldAnnotationTemplateStroke({
   overrideFields,
   onOverrideFieldsChange,
   label = "Contour",
+  withDashOptions,
 }) {
   return (
     <FieldStrokeCompact
@@ -18,6 +19,7 @@ export default function FieldAnnotationTemplateStroke({
       overrideFields={overrideFields}
       onOverrideFieldsChange={onOverrideFieldsChange}
       label={label}
+      withDashOptions={withDashOptions}
     />
   );
 }

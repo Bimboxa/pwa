@@ -53,6 +53,10 @@ export default function getDraftFieldVisibility(
   const showWidth =
     (drawingShape === "OPENING" || drawingShape === "LINEAR_LAYOUT") &&
     !isFieldOverridden("width");
+  // "Couche" (material layer) toggle: plain STRIP drafts only (opening bands
+  // are part of isToolGroup and excluded with the other generic fields).
+  const showIsLayer =
+    !isToolGroup && !isRampTool && newAnnotation?.type === "STRIP";
 
   return {
     isCuttingTool,
@@ -65,5 +69,6 @@ export default function getDraftFieldVisibility(
     showOffset,
     showHeight,
     showWidth,
+    showIsLayer,
   };
 }

@@ -9,6 +9,7 @@ import {
   InputBase,
   ButtonBase,
   Button,
+  Divider,
   ToggleButtonGroup,
   ToggleButton,
 } from "@mui/material";
@@ -21,6 +22,7 @@ import {
 
 import ColorPickerContent from "Features/colors/components/ColorPickerContent";
 import WhiteSectionGeneric from "./WhiteSectionGeneric";
+import { STRIP_DASH_DEFAULTS } from "Features/geometry/utils/getStripePolygons";
 
 const STROKE_TYPES = [
   { value: "SOLID", title: "Trait plein", Icon: SolidLineIcon },
@@ -41,6 +43,8 @@ const STROKE_FIELDS = [
   "strokeOpacity",
   "strokeWidth",
   "strokeWidthUnit",
+  "dashLength",
+  "dashGap",
 ];
 
 // Visual thickness (px) of the little stroke-preview bar, clamped so a large
@@ -55,10 +59,13 @@ function previewThickness(width) {
 // the shared colour popover (palette + hex + opacity only — width lives on its
 // own button now). An optional global lock toggles all stroke props together.
 //
-//   value: { strokeColor, strokeType, strokeOpacity, strokeWidth, strokeWidthUnit }
+//   value: { strokeColor, strokeType, strokeOpacity, strokeWidth, strokeWidthUnit,
+//            dashLength, dashGap }
 //   onChange(nextValue)                            — emits the full merged object
 //   overrideFields / onOverrideFieldsChange        — optional template override lock
 //   disabledFields                                 — optional: grey out & disable fields
+//   withDashOptions                                — show the dash length/gap button
+//                                                    when strokeType is DASHED (strips)
 export default function FieldStrokeCompact({
   value,
   onChange,
@@ -66,6 +73,7 @@ export default function FieldStrokeCompact({
   overrideFields,
   onOverrideFieldsChange,
   disabledFields,
+  withDashOptions = false,
 }) {
   const {
     strokeColor = "#000000",
@@ -73,10 +81,14 @@ export default function FieldStrokeCompact({
     strokeOpacity = 1,
     strokeWidth = 1,
     strokeWidthUnit = "PX",
+    dashLength,
+    dashGap,
   } = value ?? {};
 
   const [anchorColor, setAnchorColor] = useState(null);
   const [anchorWidth, setAnchorWidth] = useState(null);
+
+  const showDashOptions = withDashOptions && strokeType === "DASHED";
 
   const opacityPct = Math.round((strokeOpacity ?? 1) * 100);
   const unitLabel = strokeWidthUnit === "CM" ? "cm" : "px";
@@ -115,6 +127,12 @@ export default function FieldStrokeCompact({
   }
   function handleUnitChange(e, unit) {
     if (unit !== null) onChange({ ...value, strokeWidthUnit: unit });
+  }
+  function handleDashFieldChange(field, raw) {
+    const cleaned = String(raw)
+      .replace(",", ".")
+      .replace(/[^0-9.]/g, "");
+    onChange({ ...value, [field]: cleaned === "" ? null : Number(cleaned) });
   }
   function handleToggleGlobalOverride() {
     const current = Array.isArray(overrideFields) ? [...overrideFields] : [];
@@ -345,7 +363,81 @@ export default function FieldStrokeCompact({
                 </ToggleButton>
               ))}
             </ToggleButtonGroup>
-            <Box sx={{ flex: 1 }} />
+          </Box>
+
+          {/* Colored dash blocks (DASHED strips) — own section */}
+          {showDashOptions && (
+            <>
+              <Divider sx={{ my: 0.5 }} />
+              <Typography
+                variant="caption"
+                sx={{ fontWeight: "bold", color: "text.secondary" }}
+              >
+                Bandes colorées
+              </Typography>
+              {[
+                {
+                  field: "dashLength",
+                  label: "Longueur",
+                  inputValue: dashLength,
+                  placeholder: STRIP_DASH_DEFAULTS.dashLength,
+                },
+                {
+                  field: "dashGap",
+                  label: "Espacement",
+                  inputValue: dashGap,
+                  placeholder: STRIP_DASH_DEFAULTS.dashGap,
+                },
+              ].map(({ field, label: rowLabel, inputValue, placeholder }) => (
+                <Box
+                  key={field}
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1,
+                    ...(isDisabled("dashLength") ? disabledSx : {}),
+                  }}
+                >
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ flex: 1 }}
+                  >
+                    {rowLabel}
+                  </Typography>
+                  <InputBase
+                    value={inputValue ?? ""}
+                    placeholder={String(placeholder)}
+                    onChange={(e) =>
+                      handleDashFieldChange(field, e.target.value)
+                    }
+                    sx={{
+                      width: 52,
+                      border: "1px solid",
+                      borderColor: "divider",
+                      borderRadius: 1,
+                      px: 1,
+                      height: 28,
+                      fontSize: "0.8rem",
+                      "& input": { textAlign: "center", p: 0 },
+                    }}
+                  />
+                  <Typography
+                    variant="caption"
+                    sx={{
+                      fontWeight: "bold",
+                      color: "text.secondary",
+                      width: 22,
+                    }}
+                  >
+                    {unitLabel}
+                  </Typography>
+                </Box>
+              ))}
+            </>
+          )}
+
+          <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
             <Button size="small" onClick={() => setAnchorWidth(null)}>
               OK
             </Button>

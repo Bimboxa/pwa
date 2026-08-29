@@ -6,10 +6,17 @@ import theme from "Styles/theme";
 import NodeLabelStatic from "./NodeLabelStatic";
 import NodeSegmentLengthsStatic from "./NodeSegmentLengthsStatic";
 import getAnnotationLabelPropsFromAnnotation from "Features/annotations/utils/getAnnotationLabelPropsFromAnnotation";
-import getStripePolygons from "Features/geometry/utils/getStripePolygons";
-import { typeOf, circleFromThreePoints } from "Features/geometry/utils/arcSampling";
+import getStripePolygons, {
+    getStripChunks,
+    getStripDistancePx,
+    ARC_SAMPLES,
+    STRIP_DASH_DEFAULTS,
+} from "Features/geometry/utils/getStripePolygons";
+import { offsetPolyline } from "Features/geometry/utils/offsetPolylineAsPolygon";
+import { typeOf, circleFromThreePoints, expandArcsInPath } from "Features/geometry/utils/arcSampling";
 
-const HATCHING_SPACING = 12;
+// Colored dash blocks occupy this fraction of the band width (centered).
+const DASH_BAND_RATIO = 0.6;
 
 // --- CONSTANTES DE STYLE ---
 const STYLE_CONSTANTS = {
@@ -62,7 +69,7 @@ function NodeStripStatic({
     );
     const isForBaseMaps = mergedAnnotation.isForBaseMaps;
 
-    const patternIdRef = useRef(`strip-hatching-${Math.random().toString(36).substr(2, 9)}`);
+    const clipIdRef = useRef(`strip-hatching-${Math.random().toString(36).substr(2, 9)}`);
 
     // --- PROPS ---
     let {
@@ -195,13 +202,30 @@ function NodeStripStatic({
     }, [points, hiddenSegmentsIdx, _closeLine]);
 
 
-    // --- HATCHING ---
+    // --- HATCHING (membrane) ---
+    // DASHED strips render as a white band outlined in the stroke color, with
+    // colored dash blocks running along the band's centerline (the classic
+    // waterproofing-membrane symbol). Dash length/gap are annotation props
+    // (dashLength / dashGap, in strokeWidthUnit).
     const useHatching = strokeType === "DASHED";
-    const patternTransformStyle = useMemo(() => {
-        if (isForBaseMaps) return undefined;
-        const k = containerK || 1;
-        return { transform: `scale(calc(1 / (var(--map-zoom, 1) * ${k})))` };
-    }, [containerK, isForBaseMaps]);
+    const dashLinesData = useMemo(() => {
+        if (!useHatching || !points || points.length < 2) return null;
+        const distancePx = getStripDistancePx(mergedAnnotation, baseMapMeterByPx);
+        if (!distancePx) return null;
+        const isCm = mergedAnnotation.strokeWidthUnit === "CM" && baseMapMeterByPx > 0;
+        const toPx = (v) => (isCm ? (v * 0.01) / baseMapMeterByPx : v);
+        const dashPx = Math.max(1, toPx(Number(mergedAnnotation.dashLength) || STRIP_DASH_DEFAULTS.dashLength));
+        const gapPx = Math.max(1, toPx(Number(mergedAnnotation.dashGap) || STRIP_DASH_DEFAULTS.dashGap));
+        const { chunks } = getStripChunks(mergedAnnotation);
+        const paths = chunks
+            .map((chunk) => offsetPolyline(expandArcsInPath(chunk, ARC_SAMPLES, false), distancePx / 2))
+            .filter((pts) => pts?.length >= 2)
+            .map((pts, i) => ({
+                id: `strip-dashes-${i}`,
+                d: pts.map((p, idx) => `${idx === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" "),
+            }));
+        return { paths, dashPx, gapPx, bandWidthPx: Math.abs(distancePx) };
+    }, [useHatching, mergedAnnotation, baseMapMeterByPx, points]);
 
     // --- HELPERS STYLE ---
     const getFillStyle = () => {
@@ -315,27 +339,19 @@ function NodeStripStatic({
     const fillStyle = getFillStyle();
     const mainPartId = `${annotationId}::MAIN`;
 
-    const stripFill = useHatching ? `url(#${patternIdRef.current})` : null;
+    const stripFill = useHatching ? "#ffffff" : null;
 
     return (
         <g {...commonDataProps}>
 
-            {/* HATCHING PATTERN DEF */}
+            {/* HATCHING CLIP DEF — keeps the dash blocks inside the band */}
             {useHatching && (
                 <defs>
-                    <pattern
-                        id={patternIdRef.current}
-                        patternUnits="userSpaceOnUse"
-                        width={HATCHING_SPACING}
-                        height={HATCHING_SPACING}
-                        style={patternTransformStyle}
-                    >
-                        <path
-                            d={`M 0,${HATCHING_SPACING} L ${HATCHING_SPACING},0`}
-                            stroke={strokeColor}
-                            strokeWidth={2}
-                        />
-                    </pattern>
+                    <clipPath id={clipIdRef.current} clipPathUnits="userSpaceOnUse">
+                        {stripPolygonsData.map((poly) => (
+                            <path key={poly.id} d={poly.d} clipRule="evenodd" />
+                        ))}
+                    </clipPath>
                 </defs>
             )}
 
@@ -357,13 +373,36 @@ function NodeStripStatic({
                         fill={stripFill ?? fillStyle.fill}
                         fillOpacity={fillStyle.opacity}
                         fillRule="evenodd"
-                        stroke="none"
+                        stroke={useHatching ? strokeColor : "none"}
+                        strokeWidth={useHatching ? 1 : 0}
+                        strokeOpacity={useHatching ? fillStyle.opacity : 0}
+                        vectorEffect={useHatching ? "non-scaling-stroke" : undefined}
                         style={{
                             cursor: isTransient ? "crosshair" : "pointer",
                             transition: "fill 0.2s"
                         }}
                     />
                 ))}
+                {/* Colored dash blocks along the band centerline */}
+                {useHatching && dashLinesData?.paths?.length > 0 && (
+                    <g
+                        clipPath={`url(#${clipIdRef.current})`}
+                        style={{ pointerEvents: "none" }}
+                    >
+                        {dashLinesData.paths.map((p) => (
+                            <path
+                                key={p.id}
+                                d={p.d}
+                                fill="none"
+                                stroke={strokeColor}
+                                strokeOpacity={fillStyle.opacity}
+                                strokeWidth={dashLinesData.bandWidthPx * DASH_BAND_RATIO}
+                                strokeDasharray={`${dashLinesData.dashPx} ${dashLinesData.gapPx}`}
+                                strokeLinecap="butt"
+                            />
+                        ))}
+                    </g>
+                )}
             </g>
 
             {/* 2. LAYER STROKE (DIRECTRICE) - NON SÉLECTIONNÉ */}

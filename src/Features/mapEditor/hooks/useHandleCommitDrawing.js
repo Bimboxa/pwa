@@ -26,6 +26,7 @@ import getAnnotationBBox from "Features/annotations/utils/getAnnotationBbox";
 import mergePolygonAnnotationsService from "Features/annotations/services/mergePolygonAnnotationsService";
 import avoidVisibleAnnotationsService from "Features/annotations/services/avoidVisibleAnnotationsService";
 import applyOpeningOnPolygon from "Features/annotations/utils/applyOpeningOnPolygon";
+import { getNextLayerIndexKey } from "Features/annotations/utils/layerStackOrder";
 import {
   SEGMENT_FLAG_FIELDS,
   segmentIdxToPointIds,
@@ -562,8 +563,14 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
             // ÉTAPE 2.1 : Insert snapped points into target annotations' segments
             // When a drawing point was snapped to a PROJECTION/MIDPOINT on an existing
             // annotation segment, we insert the new shared point into that segment.
+            // EXCEPT for layer strips ("Couche"): they are drawn all along the
+            // same support lines, so the insertion would pollute the support
+            // strip with a colinear vertex at every commit. The snapped
+            // POSITION is kept (independent point); VERTEX snaps still share.
+            const isLayerStripCommit =
+                Boolean(newAnnotation?.isLayer) && newAnnotation?.type === "STRIP";
             const snapInsertions = [];
-            for (let idx = 0; idx < rawPoints.length; idx++) {
+            for (let idx = 0; !isLayerStripCommit && idx < rawPoints.length; idx++) {
                 const pt = rawPoints[idx];
                 if (pt.snapSegment && !pt.existingPointId) {
                     snapInsertions.push({
@@ -723,6 +730,21 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
                     if (auto?.offsetTop != null) entry.offsetTop = auto.offsetTop;
                     return entry;
                 });
+            }
+
+            // Layer strip ("Couche"): place it on top of the base map's stack.
+            if (isLayerStripCommit) {
+                const rows = await db.annotations
+                    .where("baseMapId")
+                    .equals(baseMapId)
+                    .toArray();
+                _newAnnotation.layerIndex = getNextLayerIndexKey(
+                    rows.filter((r) => !r.deletedAt && r.type === "STRIP" && r.isLayer)
+                );
+            } else if (_newAnnotation?.isLayer) {
+                // The draft armed "Couche" on a STRIP, then the tool switched:
+                // the flag rode along the {...newAnnotation} spread — strip it.
+                delete _newAnnotation.isLayer;
             }
 
             // Handle detected cuts from polygon auto-detection
