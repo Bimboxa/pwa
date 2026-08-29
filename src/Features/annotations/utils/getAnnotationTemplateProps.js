@@ -22,6 +22,8 @@ export default function getAnnotationTemplateProps(annotationTemplate) {
     strokeOpacity: annotationTemplate?.strokeOpacity,
     strokeWidth: annotationTemplate?.strokeWidth,
     strokeWidthUnit: annotationTemplate?.strokeWidthUnit,
+    dashLength: annotationTemplate?.dashLength,
+    dashGap: annotationTemplate?.dashGap,
     //strokeOffset: annotationTemplate?.strokeOffset,
 
     opacity: annotationTemplate?.opacity,

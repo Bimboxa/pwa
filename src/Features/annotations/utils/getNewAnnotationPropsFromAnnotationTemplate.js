@@ -17,6 +17,8 @@ export const REMEMBERABLE_DRAFT_KEYS = [
   "fillColor",
   "strokeColor",
   "isLayer",
+  "dashLength",
+  "dashGap",
 ];
 
 // Keys that are always copied from template to annotation (beyond configurable props).

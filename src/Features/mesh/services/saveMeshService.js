@@ -18,6 +18,8 @@ const INHERITED_STYLE_FIELDS = [
   "strokeOpacity",
   "strokeType",
   "strokeOffset",
+  "dashLength",
+  "dashGap",
 ];
 
 function pickStyle(annotation) {

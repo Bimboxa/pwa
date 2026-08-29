@@ -139,6 +139,8 @@ export default async function createContourAnnotationsService({
             : 20,
         strokeWidthUnit: "CM",
         stripOrientation,
+        dashLength: boundaryAnnotationTemplate.dashLength,
+        dashGap: boundaryAnnotationTemplate.dashGap,
       };
     }
 

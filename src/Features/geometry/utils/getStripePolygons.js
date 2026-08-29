@@ -10,6 +10,11 @@ import { expandArcsInPath } from "Features/geometry/utils/arcSampling";
 // 3D mesh and the surface quantity stay in sync. No-op for arc-free strips.
 export const ARC_SAMPLES = 16;
 
+// Dashed-strip ("membrane") hatching defaults — shared by the strip renderer
+// and the stroke config UI. Values are read in the strip's strokeWidthUnit
+// (CM for étanchéité layers, PX otherwise).
+export const STRIP_DASH_DEFAULTS = { dashLength: 15, dashGap: 10 };
+
 // Build annular polygon (donut) from a closed strip.
 // Returns array of {points, cuts} like the open-strip path.
 function getClosedStripPolygon(points, distance, cuts, applyCutsMath) {

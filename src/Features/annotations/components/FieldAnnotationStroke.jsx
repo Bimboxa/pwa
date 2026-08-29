@@ -16,6 +16,8 @@ export default function FieldAnnotationStroke({ annotation, overrideFields }) {
     strokeOpacity: annotation?.strokeOpacity ?? 1,
     strokeWidth: annotation?.strokeWidth ?? 1,
     strokeWidthUnit: annotation?.strokeWidthUnit ?? "PX",
+    dashLength: annotation?.dashLength ?? null,
+    dashGap: annotation?.dashGap ?? null,
   };
 
   // handlers
@@ -28,11 +30,20 @@ export default function FieldAnnotationStroke({ annotation, overrideFields }) {
       strokeOpacity: newValue.strokeOpacity,
       strokeWidth: newValue.strokeWidth,
       strokeWidthUnit: newValue.strokeWidthUnit,
+      dashLength: newValue.dashLength,
+      dashGap: newValue.dashGap,
     });
     dispatch(triggerAnnotationsUpdate());
   }
 
   // render
 
-  return <FieldStroke value={strokeValue} onChange={handleChange} disabledFields={overrideFields} />;
+  return (
+    <FieldStroke
+      value={strokeValue}
+      onChange={handleChange}
+      disabledFields={overrideFields}
+      withDashOptions={annotation?.type === "STRIP"}
+    />
+  );
 }

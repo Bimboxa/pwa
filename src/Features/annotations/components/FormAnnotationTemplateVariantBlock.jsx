@@ -75,6 +75,8 @@ export default function FormAnnotationTemplateVariantBlock({
     strokeWidth = 2,
     strokeWidthUnit = "PX",
     strokeOffset = null,
+    dashLength = null,
+    dashGap = null,
     iconKey,
     label,
     labelLegend,
@@ -104,6 +106,8 @@ export default function FormAnnotationTemplateVariantBlock({
     strokeWidth,
     strokeWidthUnit,
     strokeOffset: strokeOffset === 0 ? true : false,
+    dashLength,
+    dashGap,
   };
   const point = { fillColor, variant, size, sizeUnit };
 
@@ -353,6 +357,7 @@ export default function FormAnnotationTemplateVariantBlock({
               onChange={handleStrokeChange}
               overrideFields={overrideFields}
               onOverrideFieldsChange={handleOverrideFieldsChange}
+              withDashOptions={drawingShape === "POLYLINE"}
             />
           )}
 

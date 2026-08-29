@@ -8,6 +8,7 @@ export default function FieldStroke({
   onChange,
   label = "Contour",
   disabledFields,
+  withDashOptions,
 }) {
   return (
     <FieldStrokeCompact
@@ -15,6 +16,7 @@ export default function FieldStroke({
       onChange={onChange}
       label={label}
       disabledFields={disabledFields}
+      withDashOptions={withDashOptions}
     />
   );
 }

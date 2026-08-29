@@ -17,6 +17,8 @@ const STYLE_FIELDS = [
   "strokeType",
   // STRIP (band width is carried by strokeWidth/strokeWidthUnit)
   "stripOrientation",
+  "dashLength",
+  "dashGap",
   // COTE / RULER
   "unit",
   "decimals",

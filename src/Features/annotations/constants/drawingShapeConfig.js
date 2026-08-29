@@ -151,6 +151,8 @@ const DRAWING_SHAPE_CONFIG = {
       "strokeOpacity",
       "strokeType",
       "strokeOffset",
+      "dashLength",
+      "dashGap",
       "height",
       "color3D",
       "opacity3D",
