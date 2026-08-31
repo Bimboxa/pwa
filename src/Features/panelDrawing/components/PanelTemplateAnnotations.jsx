@@ -25,9 +25,10 @@ import getZeroPaddingNumber from "Features/misc/utils/getZeroPaddingNumber";
 import { getAnnotationOwnLabel } from "Features/annotations/utils/getAnnotationLabelDisplay";
 
 // ---------------------------------------------------------------------------
-// PanelTemplateAnnotations — detail view of the Dessin panel (#311): the
-// annotations of one annotation template, sorted by draw order, with the
-// template header actions (Propriétés du modèle / Isoler / Tout sél.).
+// PanelTemplateAnnotations — annotations list subview of the Dessin panel
+// (#311): the annotations of one annotation template, sorted by draw order,
+// with the template header actions (Isoler / Tout sél.). Reached from the
+// "N annotations" card of PanelTemplateProperties; back goes there.
 // ---------------------------------------------------------------------------
 
 function formatQty(value, decimals = 2) {
@@ -46,7 +47,7 @@ export default function PanelTemplateAnnotations({
   // strings
 
   const breadcrumbRootS = "Annotations";
-  const propertiesS = "Propriétés du modèle";
+  const breadcrumbSelfS = "Liste";
   const soloS = "Isoler";
   const selectAllS = "Tout sél.";
   const emptyListS =
@@ -112,13 +113,12 @@ export default function PanelTemplateAnnotations({
 
   // handlers
 
-  const handleBack = () => {
+  const handleBackToList = () => {
     dispatch(setDetailTemplateId(null));
   };
 
-  // The template properties open IN the panel (PanelTemplateProperties
-  // subview), not in the right panel.
-  const handleOpenTemplateProperties = () => {
+  // Back to the template properties subview, where this list is opened from.
+  const handleBack = () => {
     dispatch(setDetailView("PROPERTIES"));
   };
 
@@ -172,7 +172,7 @@ export default function PanelTemplateAnnotations({
         <Link
           component="button"
           underline="always"
-          onClick={handleBack}
+          onClick={handleBackToList}
           sx={{ color: "text.secondary", fontSize: "0.875rem" }}
         >
           {breadcrumbRootS}
@@ -180,8 +180,26 @@ export default function PanelTemplateAnnotations({
         <Typography variant="body2" sx={{ color: "text.secondary" }}>
           /
         </Typography>
-        <Typography variant="body2" noWrap sx={{ fontWeight: 600 }}>
+        <Link
+          component="button"
+          underline="always"
+          onClick={handleBack}
+          sx={{
+            color: "text.secondary",
+            fontSize: "0.875rem",
+            maxWidth: 120,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+          }}
+        >
           {template.label}
+        </Link>
+        <Typography variant="body2" sx={{ color: "text.secondary" }}>
+          /
+        </Typography>
+        <Typography variant="body2" noWrap sx={{ fontWeight: 600 }}>
+          {breadcrumbSelfS}
         </Typography>
       </Box>
 
@@ -231,24 +249,9 @@ export default function PanelTemplateAnnotations({
       {/* Actions */}
       <Box sx={{ display: "flex", gap: 1, px: 1.5, pb: 1.5 }}>
         <Button
-          onClick={handleOpenTemplateProperties}
-          sx={{
-            flex: 1,
-            bgcolor: "background.paper",
-            border: "1px solid",
-            borderColor: "divider",
-            borderRadius: 3,
-            color: "text.primary",
-            fontWeight: 600,
-            textTransform: "none",
-            "&:hover": { bgcolor: "action.hover" },
-          }}
-        >
-          {propertiesS}
-        </Button>
-        <Button
           onClick={handleToggleIsolation}
           sx={{
+            flex: 1,
             bgcolor: isIsolated ? "grey.900" : "background.paper",
             border: "1px solid",
             borderColor: isIsolated ? "grey.900" : "divider",
@@ -266,6 +269,7 @@ export default function PanelTemplateAnnotations({
         <Button
           onClick={handleSelectAll}
           sx={{
+            flex: 1,
             bgcolor: "background.paper",
             border: "1px solid",
             borderColor: "divider",

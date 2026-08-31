@@ -16,11 +16,12 @@ import IconButtonMoreActionsAnnotationTemplate from "Features/annotations/compon
 import useUpdateAnnotationTemplate from "Features/annotations/hooks/useUpdateAnnotationTemplate";
 
 // ---------------------------------------------------------------------------
-// PanelTemplateProperties — template properties subview of the Dessin panel
-// (#311): breadcrumb (Annotations / <template> / Modèle), header with the
-// template identity + "..." actions, an "N annotations · voir la liste"
-// card navigating to the annotations subview, and the existing template
-// form (Principal / Avancé tabs, FormAnnotationTemplateVariantBlock).
+// PanelTemplateProperties — template landing subview of the Dessin panel
+// (#311): opened by clicking a template row. Breadcrumb (Annotations /
+// <template>), header with the template identity + "..." actions, an
+// "N annotations · voir la liste" card navigating to the annotations
+// subview, and the existing template form (Principal / Avancé tabs,
+// FormAnnotationTemplateVariantBlock).
 // ---------------------------------------------------------------------------
 
 export default function PanelTemplateProperties({
@@ -32,7 +33,6 @@ export default function PanelTemplateProperties({
   // strings
 
   const breadcrumbRootS = "Annotations";
-  const breadcrumbSelfS = "Modèle";
   const subtitleS = "Modèle d'annotation";
   const seeListS = "voir la liste";
   const hintS =
@@ -54,12 +54,17 @@ export default function PanelTemplateProperties({
     dispatch(setDetailTemplateId(null));
   };
 
-  const handleBackToAnnotations = () => {
+  const handleOpenAnnotations = () => {
     dispatch(setDetailView("ANNOTATIONS"));
   };
 
   const handleChange = (newAnnotationTemplate) => {
     updateAnnotationTemplate(newAnnotationTemplate);
+  };
+
+  // Duplicating from here: the panel detail moves to the duplicate.
+  const handleDuplicated = (createdTemplate) => {
+    dispatch(setDetailTemplateId(createdTemplate.id));
   };
 
   // render
@@ -95,26 +100,8 @@ export default function PanelTemplateProperties({
         <Typography variant="body2" sx={{ color: "text.secondary" }}>
           /
         </Typography>
-        <Link
-          component="button"
-          underline="always"
-          onClick={handleBackToAnnotations}
-          sx={{
-            color: "text.secondary",
-            fontSize: "0.875rem",
-            maxWidth: 120,
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {template.label}
-        </Link>
-        <Typography variant="body2" sx={{ color: "text.secondary" }}>
-          /
-        </Typography>
         <Typography variant="body2" noWrap sx={{ fontWeight: 600 }}>
-          {breadcrumbSelfS}
+          {template.label}
         </Typography>
       </Box>
 
@@ -123,7 +110,7 @@ export default function PanelTemplateProperties({
         sx={{ display: "flex", alignItems: "center", gap: 1.5, px: 1.5, pb: 1 }}
       >
         <IconButton
-          onClick={handleBackToAnnotations}
+          onClick={handleBackToList}
           sx={{
             bgcolor: "background.paper",
             border: "1px solid",
@@ -165,6 +152,7 @@ export default function PanelTemplateProperties({
         </Box>
         <IconButtonMoreActionsAnnotationTemplate
           annotationTemplate={template}
+          onDuplicated={handleDuplicated}
         />
       </Box>
 
@@ -172,7 +160,7 @@ export default function PanelTemplateProperties({
       <Box sx={{ px: 1.5, pb: 1 }}>
         <Box
           component="button"
-          onClick={handleBackToAnnotations}
+          onClick={handleOpenAnnotations}
           sx={{
             width: 1,
             display: "flex",

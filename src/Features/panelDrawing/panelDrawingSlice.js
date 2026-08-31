@@ -25,7 +25,9 @@ const panelDrawingSlice = createSlice({
     },
     setDetailTemplateId(state, action) {
       state.detailTemplateId = action.payload ?? null;
-      state.detailView = "ANNOTATIONS";
+      // Opening a template lands on its properties; the annotations list is
+      // reached from the "N annotations" card of the properties subview.
+      state.detailView = "PROPERTIES";
       state.detailAnnotationId = null;
     },
     setDetailView(state, action) {

@@ -417,7 +417,11 @@ export default function ToolbarStartDrawTemplate() {
     leftPanelDocked &&
     !enabledDrawingMode &&
     !pasteClipboard &&
-    detailView === "ANNOTATIONS" &&
+    // Both template-level subviews: properties (the landing view on row
+    // click) and the annotations list — the plain-letter draw hotkeys are
+    // suppressed whenever detailTemplateId is set, so the toolbar must own
+    // them on both.
+    (detailView === "ANNOTATIONS" || detailView === "PROPERTIES") &&
     Boolean(detailTemplateId);
 
   const template = show
