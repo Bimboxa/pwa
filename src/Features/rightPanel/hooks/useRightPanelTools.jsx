@@ -45,6 +45,10 @@ export default function useRightPanelTools() {
     SELECTION_PROPERTIES: {
       label: "Propriétés",
       icon: <Tune />,
+      // Plain "I" — free in the tool letter namespace: the paste-mode flip
+      // ("I") is disjoint (the hotkey hook is inert while a paste is active)
+      // and modules switch on Ctrl+I.
+      hotkey: "I",
     },
 
     ANNOTATIONS_AUTO: {
@@ -191,15 +195,25 @@ export default function useRightPanelTools() {
     });
   }
 
-  // "Bibliothèque" sits at the very top of the band, above "Propriétés",
-  // whatever order appConfig.features.tools declares. It is a MAP-only tool,
-  // so this hoist only ever affects the dessin module.
+  // "Bibliothèque" is hoisted near the top of the band, whatever order
+  // appConfig.features.tools declares. It is a MAP-only tool, so this hoist
+  // only ever affects the dessin module.
   const objectsLibraryIndex = menuItems.findIndex(
     (t) => t.key === "OBJECTS_LIBRARY"
   );
   if (objectsLibraryIndex > 0) {
     const [objectsLibraryTool] = menuItems.splice(objectsLibraryIndex, 1);
     menuItems.unshift(objectsLibraryTool);
+  }
+
+  // "Propriétés" sits at the very top of the band, above everything else
+  // (including the "Bibliothèque" hoist just above).
+  const propertiesHoistIndex = menuItems.findIndex(
+    (t) => t.key === "SELECTION_PROPERTIES"
+  );
+  if (propertiesHoistIndex > 0) {
+    const [propertiesTool] = menuItems.splice(propertiesHoistIndex, 1);
+    menuItems.unshift(propertiesTool);
   }
 
   const activeContextualTools = contextualTools.filter(
