@@ -5,7 +5,17 @@ import { Paper, Typography, Box } from "@mui/material";
 
 import db from "App/db/db";
 
+import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
+import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
+import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTemplateIcon";
+import getAnnotationQties from "Features/annotations/utils/getAnnotationQties";
+
 const MapTooltip = forwardRef(({ hoveredNode, annotations, x, y, isSelected }, ref) => {
+
+    // data
+
+    const baseMap = useMainBaseMap();
+    const spriteImage = useAnnotationSpriteImage();
 
     // helper - annotations
 
@@ -24,12 +34,24 @@ const MapTooltip = forwardRef(({ hoveredNode, annotations, x, y, isSelected }, r
     // helper - template label
     const templateLabel = annotation?.annotationTemplateProps?.label || annotation?.templateLabel;
 
-    // helper - entity
-    const entity = annotation?.entity;
-    const entityLabel = entity ? annotation?.label : null;
-    const entityDescription = entity?.description;
+    // helper - annotation label (entity label when entity-linked, else own label)
+    const annotationLabel =
+        annotation?.label && annotation.label !== templateLabel
+            ? annotation.label
+            : null;
+
+    // helper - qties (the annotations prop carries no .qties — parents resolve
+    // without withQties — so compute for the single hovered annotation)
+    const qties = annotation
+        ? getAnnotationQties({ annotation, meterByPx: baseMap?.meterByPx })
+        : null;
+    const length = qties?.lengthDeveloped != null ? qties.lengthDeveloped : qties?.length;
+    const surface = qties?.surfaceDeveloped != null ? qties.surfaceDeveloped : qties?.surface;
+    const showLength = Boolean(qties?.enabled) && length > 0;
+    const showSurface = Boolean(qties?.enabled) && surface > 0;
 
     // helper - image
+    const entity = annotation?.entity;
     const imageUrl_entity = entity?.image?.imageUrlClient;
     const imageUrl_0 = annotation?.images?.[0]?.imageUrlClient || annotation?.images?.[0]?.imageUrlRemote;
     const imageUrl = imageUrl_entity || imageUrl_0;
@@ -118,23 +140,44 @@ const MapTooltip = forwardRef(({ hoveredNode, annotations, x, y, isSelected }, r
                     }}
                 />
             )}
-            <Typography variant="caption" sx={{ display: 'block', color: 'grey.500', fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                {annotation.type}
-            </Typography>
-            {templateLabel && (
-                <Typography variant="caption" sx={{ fontWeight: 'bold', display: 'block', color: '#90caf9' }}>
-                    {templateLabel}
-                </Typography>
-            )}
-            {entityLabel && (
+            {/* Template (icon + label) */}
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+                <AnnotationTemplateIcon
+                    template={annotation?.annotationTemplate || annotation}
+                    size={16}
+                    spriteImage={spriteImage}
+                />
+                {templateLabel && (
+                    <Typography variant="caption" sx={{ fontWeight: 'bold', color: '#90caf9' }}>
+                        {templateLabel}
+                    </Typography>
+                )}
+            </Box>
+            {annotationLabel && (
                 <Typography variant="caption" sx={{ display: 'block' }}>
-                    {entityLabel}
+                    {annotationLabel}
                 </Typography>
             )}
-            {entityDescription && (
-                <Typography variant="caption" sx={{ display: 'block', color: 'grey.400', mt: 0.5 }}>
-                    {entityDescription}
-                </Typography>
+            {/* Qties (length & surface, zero values hidden) */}
+            {showLength && (
+                <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1 }}>
+                    <Typography variant="caption" sx={{ color: 'grey.500' }}>
+                        Longueur
+                    </Typography>
+                    <Typography variant="caption" sx={{ fontFamily: 'monospace', color: 'warning.main', fontWeight: 500 }}>
+                        {length.toFixed(2)} ml
+                    </Typography>
+                </Box>
+            )}
+            {showSurface && (
+                <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1 }}>
+                    <Typography variant="caption" sx={{ color: 'grey.500' }}>
+                        Surface
+                    </Typography>
+                    <Typography variant="caption" sx={{ fontFamily: 'monospace', color: 'warning.main', fontWeight: 500 }}>
+                        {surface.toFixed(2)} m²
+                    </Typography>
+                </Box>
             )}
         </Paper>
     );
