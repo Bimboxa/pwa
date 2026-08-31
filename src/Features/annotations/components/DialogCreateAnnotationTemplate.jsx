@@ -6,11 +6,19 @@ import useLogAppEvent from "Features/appLog/hooks/useLogAppEvent";
 import FormAnnotationTemplateVariantBlock from "./FormAnnotationTemplateVariantBlock";
 import DialogGeneric from "Features/layout/components/DialogGeneric";
 import ButtonInPanelV2 from "Features/layout/components/ButtonInPanelV2";
+import {
+  FILL_FIELDS,
+  STROKE_FIELDS,
+} from "Features/form/utils/styleFieldGroups";
 
 import { DialogTitle, Box } from "@mui/material";
 import { getDefaultsForShape } from "Features/annotations/constants/drawingShapeConfig";
 
-export default function DialogCreateAnnotationTemplate({ open, onClose, listingId }) {
+export default function DialogCreateAnnotationTemplate({
+  open,
+  onClose,
+  listingId,
+}) {
   // strings
 
   const createS = "Créer";
@@ -28,6 +36,8 @@ export default function DialogCreateAnnotationTemplate({ open, onClose, listingI
     label: "",
     isFromAnnotation: true,
     ...getDefaultsForShape("POLYGON"),
+    // color props locked by default: the template imposes them on annotations
+    overrideFields: [...FILL_FIELDS, ...STROKE_FIELDS],
   };
 
   const [tempAnnotationTemplate, setTempAnnotationTemplate] = useState(

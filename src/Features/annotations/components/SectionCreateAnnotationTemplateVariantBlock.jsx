@@ -7,6 +7,10 @@ import ButtonGeneric from "Features/layout/components/ButtonGeneric";
 import FormAnnotationTemplateVariantBlock from "./FormAnnotationTemplateVariantBlock";
 import BoxAlignToRight from "Features/layout/components/BoxAlignToRight";
 import IconButtonClose from "Features/layout/components/IconButtonClose";
+import {
+  FILL_FIELDS,
+  STROKE_FIELDS,
+} from "Features/form/utils/styleFieldGroups";
 
 import theme from "Styles/theme";
 
@@ -33,6 +37,8 @@ export default function SectionCreateAnnotationTemplateVariantBlock({
     iconKey: "circle",
     label: "",
     isFromAnnotation: true,
+    // color props locked by default: the template imposes them on annotations
+    overrideFields: [...FILL_FIELDS, ...STROKE_FIELDS],
   };
 
   const [tempAnnotationTemplate, setTempAnnotationTemplate] = useState(

@@ -23,6 +23,7 @@ import {
 import ColorPickerContent from "Features/colors/components/ColorPickerContent";
 import WhiteSectionGeneric from "./WhiteSectionGeneric";
 import { STRIP_DASH_DEFAULTS } from "Features/geometry/utils/getStripePolygons";
+import { STROKE_FIELDS } from "Features/form/utils/styleFieldGroups";
 
 const STROKE_TYPES = [
   { value: "SOLID", title: "Trait plein", Icon: SolidLineIcon },
@@ -35,17 +36,6 @@ const WIDTH_UNITS = [
 ];
 
 const WIDTH_PRESETS = [1, 2, 4, 8];
-
-// The stroke props a single global lock toggles together.
-const STROKE_FIELDS = [
-  "strokeColor",
-  "strokeType",
-  "strokeOpacity",
-  "strokeWidth",
-  "strokeWidthUnit",
-  "dashLength",
-  "dashGap",
-];
 
 // Visual thickness (px) of the little stroke-preview bar, clamped so a large
 // width stays legible in the compact button / presets.

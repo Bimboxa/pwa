@@ -19,15 +19,13 @@ import {
 
 import ColorPickerContent from "Features/colors/components/ColorPickerContent";
 import WhiteSectionGeneric from "./WhiteSectionGeneric";
+import { FILL_FIELDS } from "Features/form/utils/styleFieldGroups";
 
 const FILL_TYPES = [
   { value: "SOLID", title: "Plein" },
   { value: "HATCHING", title: "Hachures droite" },
   { value: "HATCHING_LEFT", title: "Hachures gauche" },
 ];
-
-// The fill props a single global lock toggles together.
-const FILL_FIELDS = ["fillColor", "fillType", "fillOpacity"];
 
 // Compact single-line fill editor: the fill type (motif) stays visible, and a
 // colour·opacité swatch opens the shared colour popover (branded palette + hex +
