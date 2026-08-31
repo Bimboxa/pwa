@@ -62,6 +62,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { generateKeyBetween } from "fractional-indexing";
 
 import useUpdateEntity from "Features/entities/hooks/useUpdateEntity";
+import useDisabledBaseMapListingIds from "../hooks/useDisabledBaseMapListingIds";
 
 import db from "App/db/db";
 import activateBaseMapVersion from "Features/baseMaps/utils/activateBaseMapVersion";
@@ -396,6 +397,8 @@ export default function BaseMapTreeItem({ listing, baseMaps, isDropTarget }) {
   );
   const hiddenVersionIds = useSelector((s) => s.baseMapEditor.hiddenVersionIds);
   const updateEntity = useUpdateEntity();
+  const { scopeId, disabledListingIds, toggleListingDisabled } =
+    useDisabledBaseMapListingIds();
 
   // state
 
@@ -407,6 +410,7 @@ export default function BaseMapTreeItem({ listing, baseMaps, isDropTarget }) {
 
   const isDisplayed = displayedListingId === listing.id;
   const isExpanded = !collapsedListingIds.includes(listing.id);
+  const isListingDisabled = disabledListingIds.includes(listing.id);
   const baseMapIds = useMemo(
     () => (baseMaps || []).map((bm) => bm.id),
     [baseMaps]
@@ -566,6 +570,7 @@ export default function BaseMapTreeItem({ listing, baseMaps, isDropTarget }) {
           py: 1.5,
           borderLeft: "3px solid transparent",
           "&:hover .row-drag-handle": { opacity: 1 },
+          "&:hover .listing-eye": { opacity: 1 },
           ...(isDropTarget && {
             bgcolor: "action.focus",
             outline: "1px dashed",
@@ -605,6 +610,7 @@ export default function BaseMapTreeItem({ listing, baseMaps, isDropTarget }) {
             alignItems: "center",
             justifyContent: "center",
             flexShrink: 0,
+            opacity: isListingDisabled ? 0.5 : 1,
           }}
         >
           {isExpanded ? (
@@ -633,6 +639,7 @@ export default function BaseMapTreeItem({ listing, baseMaps, isDropTarget }) {
               primary: {
                 variant: "body2",
                 fontWeight: isDisplayed ? "bold" : "normal",
+                color: isListingDisabled ? "text.disabled" : undefined,
               },
             }}
           />
@@ -674,6 +681,35 @@ export default function BaseMapTreeItem({ listing, baseMaps, isDropTarget }) {
                 <AddIcon fontSize="inherit" />
               </IconButton>
             </Tooltip>
+            {scopeId && (
+              <Tooltip
+                title={
+                  isListingDisabled
+                    ? "Afficher dans les sélecteurs"
+                    : "Masquer dans les sélecteurs"
+                }
+              >
+                <IconButton
+                  size="small"
+                  className="listing-eye"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleListingDisabled(listing.id);
+                  }}
+                  sx={{
+                    color: "text.disabled",
+                    opacity: isListingDisabled ? 1 : 0,
+                    transition: "0.2s",
+                  }}
+                >
+                  {isListingDisabled ? (
+                    <VisibilityOff fontSize="inherit" />
+                  ) : (
+                    <Visibility fontSize="inherit" />
+                  )}
+                </IconButton>
+              </Tooltip>
+            )}
             <IconButtonMoreActionsBaseMapListing
               listing={listing}
               onRename={handleStartEditListing}

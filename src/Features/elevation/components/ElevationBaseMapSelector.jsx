@@ -23,6 +23,7 @@ import CheckIcon from "@mui/icons-material/Check";
 
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import useProjectBaseMapListings from "Features/baseMaps/hooks/useProjectBaseMapListings";
+import useDisabledBaseMapListingIds from "Features/baseMapEditor/hooks/useDisabledBaseMapListingIds";
 
 // Vertical-baseMap (élévation / coupe) selector for the elevation panel.
 // Forks the dark style of BaseMapSelectorInMapEditorV2 (topBar) but:
@@ -41,6 +42,7 @@ export default function ElevationBaseMapSelector({
 
   const { value: baseMaps = [] } = useBaseMaps({});
   const listings = useProjectBaseMapListings() ?? [];
+  const { disabledListingIds } = useDisabledBaseMapListingIds();
 
   // state
 
@@ -61,12 +63,16 @@ export default function ElevationBaseMapSelector({
 
   // helpers - vertical baseMaps grouped by listing
 
+  // Filter the baseMaps (not the listings): filtering listings alone would
+  // dump the disabled listings' baseMaps into the "Autres" leftover group.
   const verticalBaseMaps = useMemo(
     () =>
-      (baseMaps ?? []).filter((bm) =>
-        bm?.isPhoto ? includePhotos : bm?.orientation === "VERTICAL"
+      (baseMaps ?? []).filter(
+        (bm) =>
+          (bm?.isPhoto ? includePhotos : bm?.orientation === "VERTICAL") &&
+          !disabledListingIds.includes(bm?.listingId)
       ),
-    [baseMaps, includePhotos]
+    [baseMaps, includePhotos, disabledListingIds]
   );
 
   const groups = useMemo(() => {

@@ -38,6 +38,7 @@ import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useSelectMainBaseMap from "Features/threedEditor/hooks/useSelectMainBaseMap";
 import useAnnotationsCountByBaseMapId from "Features/annotations/hooks/useAnnotationsCountByBaseMapId";
+import useDisabledBaseMapListingIds from "Features/baseMapEditor/hooks/useDisabledBaseMapListingIds";
 import activateBaseMapVersion from "Features/baseMaps/utils/activateBaseMapVersion";
 import { ANNOTATIONS_DISPLAY_MODE } from "Features/threedEditor/constants/annotationsDisplayModeIn3d";
 
@@ -68,6 +69,7 @@ export default function TopBaseMapChipsThreed({ inTopBar = false }) {
   const mainBaseMap = useMainBaseMap();
   const selectMainBaseMap = useSelectMainBaseMap();
   const annotationsCountByBaseMapId = useAnnotationsCountByBaseMapId();
+  const { disabledListingIds } = useDisabledBaseMapListingIds();
   const visibleIds = useSelector((s) => s.threedEditor.visibleBaseMapIdsIn3d);
   const annotationsModeByBaseMapId = useSelector(
     (s) => s.threedEditor.annotationsModeByBaseMapIdIn3d
@@ -109,17 +111,24 @@ export default function TopBaseMapChipsThreed({ inTopBar = false }) {
   // selector; the other chips lose their (3D-only) eye.
   const isViewer2d = isViewerModule && effectiveViewerKey === "MAP";
 
+  // Per-scope disabled listings leave the band and the "…" pin menu — except
+  // the current main baseMap, whose chip hosts the eye/version controls and
+  // must stay reachable while its image is on screen.
+  const enabledBaseMaps = baseMaps.filter(
+    (m) => !disabledListingIds.includes(m.listingId) || m.id === mainBaseMap?.id
+  );
+
   // Whatever the module, the band prioritizes the annotated baseMaps: the
   // annotation-less ones are relegated to the "…" pin menu — except when they
   // must stay reachable (main, pinned, or image currently shown in 3D).
-  const displayedBaseMaps = baseMaps.filter(
+  const displayedBaseMaps = enabledBaseMaps.filter(
     (m) =>
       (annotationsCountByBaseMapId[m.id] ?? 0) > 0 ||
       pinnedIds.includes(m.id) ||
       m.id === mainBaseMap?.id ||
       visibleIds.includes(m.id)
   );
-  const annotationLessBaseMaps = baseMaps.filter(
+  const annotationLessBaseMaps = enabledBaseMaps.filter(
     (m) => !(annotationsCountByBaseMapId[m.id] > 0)
   );
 

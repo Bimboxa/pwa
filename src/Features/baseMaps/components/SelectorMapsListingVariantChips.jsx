@@ -17,7 +17,7 @@ export default function SelectorMapsListingVariantChips({
 }) {
   const dispatch = useDispatch();
 
-  const baseMapsListings = useProjectBaseMapListings();
+  const baseMapsListings = useProjectBaseMapListings({ excludeDisabled: true });
   const id = useSelector((s) => s.mapEditor.selectedBaseMapsListingId);
 
   const options = [
@@ -28,7 +28,15 @@ export default function SelectorMapsListingVariantChips({
     ...(showDetailsOption ? [{ key: DETAILS_KEY, label: "Détails" }] : []),
   ];
 
-  const selection = detailsSelected ? [DETAILS_KEY] : id ? [id] : [];
+  // Stale selection (listing just disabled, or scope switch changed the
+  // disabled list): read it as empty so SelectorVariantChips auto-selects
+  // the first enabled listing.
+  const selectionIsValid = id && options.some((o) => o.key === id);
+  const selection = detailsSelected
+    ? [DETAILS_KEY]
+    : selectionIsValid
+      ? [id]
+      : [];
 
   // handlers
 

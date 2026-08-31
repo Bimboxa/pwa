@@ -196,6 +196,20 @@ export default function remapDexieExportIds(jsonData, opts) {
         }
       }
 
+      // Scope settings (nested listing-id array: per-scope disabled baseMap
+      // listings — see useDisabledBaseMapListingIds).
+      if (
+        tableName === "scopes" &&
+        Array.isArray(row.baseMapsSettings?.disabledListingIds)
+      ) {
+        row.baseMapsSettings = {
+          ...row.baseMapsSettings,
+          disabledListingIds: row.baseMapsSettings.disabledListingIds.map(
+            (id) => remapId("listings", id)
+          ),
+        };
+      }
+
       // Mesh cell provenance (nested refs, informational only).
       if (tableName === "meshes3d" && row.sourceInfo) {
         if (row.sourceInfo.annotationId)

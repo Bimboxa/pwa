@@ -76,7 +76,7 @@ export default function BaseMapSelectorPopover({
 }) {
   // data
 
-  const baseMapsListings = useProjectBaseMapListings();
+  const baseMapsListings = useProjectBaseMapListings({ excludeDisabled: true });
   const povs = usePovs();
 
   // state
@@ -103,10 +103,14 @@ export default function BaseMapSelectorPopover({
   // effects
 
   useEffect(() => {
-    if (!selectedListingId && baseMapsListings?.length > 0) {
+    // Also recover from a stale selection (listing disabled for the scope).
+    const selectionIsValid =
+      selectedListingId &&
+      baseMapsListings?.some((l) => l.id === selectedListingId);
+    if (!selectionIsValid && baseMapsListings?.length > 0) {
       setSelectedListingId(baseMapsListings[0].id);
     }
-  }, [baseMapsListings?.length]);
+  }, [baseMapsListings, selectedListingId]);
 
   // handlers
 

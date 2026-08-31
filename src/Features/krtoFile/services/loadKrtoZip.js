@@ -50,6 +50,16 @@ export default async function loadKrtoZip(file, options) {
   // (it would otherwise push one undo entry per imported annotation/point).
   return withSystemWrite(() =>
     withoutUndo(async () => {
+      // Merge-mode settings carve-out (see the MERGE block): the incoming
+      // scopes row is captured before being dropped so its baseMapsSettings
+      // can follow the newest-wins rule after the import.
+      let incomingScopeRow = null;
+      const getRowTs = (row) => {
+        const raw = row?.updatedAt ?? row?.createdAt;
+        const ts = raw ? new Date(raw).getTime() : NaN;
+        return Number.isNaN(ts) ? null : ts;
+      };
+
       try {
         // 1. Ouvrir le ZIP
         const zip = await JSZip.loadAsync(file);
@@ -141,21 +151,20 @@ export default async function loadKrtoZip(file, options) {
         // --- MERGE ---
         // Keep local data. Identity rows (projects/scopes) are always the
         // local ones (importing another user's scope row would flip the scope
-        // to their ownership / privacy and lock it read-only). For every
+        // to their ownership / privacy and lock it read-only) — except the
+        // scope's baseMapsSettings, carved out after the import. For every
         // other table, an incoming row is imported only when it is new
         // locally or more recently modified than the local row — rows dropped
         // here leave the local rows untouched despite overwriteValues:true.
         if (merge && !duplicate) {
-          const getRowTs = (row) => {
-            const raw = row?.updatedAt ?? row?.createdAt;
-            const ts = raw ? new Date(raw).getTime() : NaN;
-            return Number.isNaN(ts) ? null : ts;
-          };
-
           for (const t of jsonData.data.data) {
             if (!t.rows?.length) continue;
 
             if (t.tableName === "projects" || t.tableName === "scopes") {
+              if (t.tableName === "scopes") {
+                incomingScopeRow =
+                  t.rows.find((r) => r?.id === originalScopeId) ?? t.rows[0];
+              }
               t.rows = [];
               continue;
             }
@@ -287,6 +296,23 @@ export default async function loadKrtoZip(file, options) {
           : null;
         if (localProject && Object.keys(projectOverrides).length) {
           await db.projects.update(localProject.id, projectOverrides);
+        }
+        // Settings carve-out: the scopes row was dropped above to protect
+        // ownership/privacy fields, but baseMapsSettings is plain scope
+        // config and follows the same newest-wins rule as content tables.
+        if (loadDataToScopeId && incomingScopeRow?.baseMapsSettings) {
+          const localScopeRow = await db.scopes.get(loadDataToScopeId);
+          const incomingTs = getRowTs(incomingScopeRow);
+          const localTs = getRowTs(localScopeRow);
+          if (
+            localScopeRow &&
+            incomingTs != null &&
+            (localTs == null || incomingTs > localTs)
+          ) {
+            await db.scopes.update(loadDataToScopeId, {
+              baseMapsSettings: incomingScopeRow.baseMapsSettings,
+            });
+          }
         }
         const localScope = loadDataToScopeId
           ? await db.scopes.get(loadDataToScopeId)
