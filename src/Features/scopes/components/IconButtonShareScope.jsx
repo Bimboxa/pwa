@@ -4,6 +4,9 @@ import { useSelector } from "react-redux";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import usePullLastRemoteScopeConfiguration from "Features/remoteScopeConfigurations/hooks/usePullLastRemoteScopeConfiguration";
 import useFetchScopeConfiguration from "Features/remoteScopeConfigurations/hooks/useFetchScopeConfiguration";
+import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
+import useCanEditRecord from "App/hooks/useCanEditRecord";
+import { canEditRecord } from "App/db/ownership";
 import stringifyFileSize from "Features/files/utils/stringifyFileSize";
 
 import {
@@ -25,6 +28,8 @@ import {
     WarningAmber as WarningIcon,
 } from "@mui/icons-material";
 import ButtonGeneric from "Features/layout/components/ButtonGeneric";
+import SwitchScopeIsPublic from "./SwitchScopeIsPublic";
+import SectionScopeEditableBy from "./SectionScopeEditableBy";
 
 export default function IconButtonShareScope() {
 
@@ -32,6 +37,15 @@ export default function IconButtonShareScope() {
 
     const appConfig = useAppConfig();
     const scopeId = useSelector((s) => s.scopes.selectedScopeId);
+    const { value: selectedScope } = useSelectedScope();
+
+    // Scope RECORD rights stay creator-only: pure ownership check — the shared
+    // useCanEditRecord hook includes the editors-trigram bypass, which is
+    // meant for scope CONTENT only (isPublic / editorsTrigrams excluded).
+    const { currentUserId } = useCanEditRecord();
+    const isCreator = selectedScope
+        ? canEditRecord(selectedScope, currentUserId)
+        : false;
     const lastRemoteConfiguration = useSelector((s) => s.remoteScopeConfigurations.lastRemoteConfiguration);
     const lastSyncedVersion = useSelector((s) => s.remoteScopeConfigurations.lastSyncedRemoteConfigurationVersion);
 
@@ -131,6 +145,14 @@ export default function IconButtonShareScope() {
                     <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
                         Partager le {scopeS}
                     </Typography>
+
+                    {/* Share settings — local-only, independent of remote sync state */}
+                    {selectedScope && (
+                        <Box sx={{ display: "flex", flexDirection: "column", gap: 1, mt: 1 }}>
+                            <SwitchScopeIsPublic scope={selectedScope} isCreator={isCreator} />
+                            <SectionScopeEditableBy scope={selectedScope} isCreator={isCreator} />
+                        </Box>
+                    )}
 
                     {/* Loading state */}
                     {pulling && (

@@ -18,7 +18,6 @@ import {
   Button,
   Chip,
   Tooltip,
-  Switch,
 } from "@mui/material";
 import {
   ChevronRight,
@@ -50,7 +49,6 @@ import DialogGeneric from "Features/layout/components/DialogGeneric";
 import DatagridAnnotations from "Features/annotations/components/DatagridAnnotations";
 import CardBaseMapShare from "Features/baseMapShare/components/CardBaseMapShare";
 import IconButtonMoreActionsScope from "./IconButtonMoreActionsScope";
-import SectionScopeEditableBy from "./SectionScopeEditableBy";
 
 export default function PanelPropertiesScope() {
   // data
@@ -98,8 +96,6 @@ export default function PanelPropertiesScope() {
 
   const scopeName = selectedScope?.name ?? "-";
   const scopeLabel = appConfig?.strings?.scope?.nameSingular ?? "Repérage";
-  const isPublicLabel =
-    appConfig?.strings?.scope?.isPublicLabel ?? "Plan de repérage public";
   const baseMapUrl = baseMap?.getUrl?.();
 
   const annotationsByLayer = useMemo(() => {
@@ -218,37 +214,6 @@ export default function PanelPropertiesScope() {
             </Typography>
             <Typography variant="body2">{selectedScope.name}</Typography>
           </WhiteSectionGeneric>
-        )}
-
-        {/* isPublic switch — only the creator can toggle it */}
-        {selectedScope && (
-          <WhiteSectionGeneric>
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-              }}
-            >
-              <Typography variant="body2">{isPublicLabel}</Typography>
-              <Switch
-                size="small"
-                checked={selectedScope.isPublic === true}
-                disabled={!isCreator}
-                onChange={(e) =>
-                  updateScope({
-                    id: selectedScope.id,
-                    isPublic: e.target.checked,
-                  })
-                }
-              />
-            </Box>
-          </WhiteSectionGeneric>
-        )}
-
-        {/* Editable-by trigrams */}
-        {selectedScope && (
-          <SectionScopeEditableBy scope={selectedScope} isCreator={isCreator} />
         )}
 
         {/* Card 1: BaseMap preview + opacity */}
