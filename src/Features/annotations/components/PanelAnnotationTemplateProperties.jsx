@@ -7,6 +7,7 @@ import useAnnotationTemplatesBySelectedListing from "../hooks/useAnnotationTempl
 import {
   selectSelectedItem,
   triggerSelectionBack,
+  setSelectedItem,
   setSelectedItems,
   setShowAnnotationsProperties,
 } from "Features/selection/selectionSlice";
@@ -75,6 +76,13 @@ export default function PanelAnnotationTemplateProperties() {
     updateAnnotationTemplate(newAnnotationTemplate);
   }
 
+  // Duplicating from here: the selection moves to the duplicate.
+  function handleDuplicated(createdTemplate) {
+    dispatch(
+      setSelectedItem({ id: createdTemplate.id, type: "ANNOTATION_TEMPLATE" })
+    );
+  }
+
   function handleSelectAll() {
     const items = matchingAnnotations.map((a) => ({
       id: a.id,
@@ -133,6 +141,7 @@ export default function PanelAnnotationTemplateProperties() {
 
         <IconButtonMoreActionsAnnotationTemplate
           annotationTemplate={selectedAnnotationTemplate}
+          onDuplicated={handleDuplicated}
         />
       </Box>
 

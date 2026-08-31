@@ -19,7 +19,6 @@ export default function useCreateAnnotationTemplate() {
   const createEntity = useCreateEntity();
 
   return async (annotationTemplate, options) => {
-
     const projectId = options?.projectId ?? _projectId;
     const listingId = options?.listingId ?? _listingId;
 
@@ -39,5 +38,7 @@ export default function useCreateAnnotationTemplate() {
     });
 
     dispatch(triggerAnnotationTemplatesUpdate());
+
+    return _annotationTemplate;
   };
 }

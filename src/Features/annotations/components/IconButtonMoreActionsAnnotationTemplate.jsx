@@ -23,6 +23,7 @@ import { MoreVert as MoreActionsIcon } from "@mui/icons-material";
 
 export default function IconButtonMoreActionsAnnotationTemplate({
   annotationTemplate,
+  onDuplicated,
 }) {
   const dispatch = useDispatch();
 
@@ -55,8 +56,11 @@ export default function IconButtonMoreActionsAnnotationTemplate({
       ...annotationTemplate,
       label: annotationTemplate.label + " (copie)",
     };
-    await createAnnotationTemplate(newTemplate);
+    const createdTemplate = await createAnnotationTemplate(newTemplate);
     setAnchorEl(null);
+    // Let the host select the duplicate in its own context (Dessin panel
+    // detail vs right-panel selection).
+    if (createdTemplate) onDuplicated?.(createdTemplate);
   };
 
   const handleDelete = async () => {
