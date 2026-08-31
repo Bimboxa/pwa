@@ -16,7 +16,9 @@ const MAX_MARKERS = 12;
 const RADIUS = 6; // screen px
 
 const GREY_STROKE = "rgba(110,110,110,0.95)";
-const RED_STROKE = "#ff1744";
+// Shared with ScreenCursorV2 so the snapped branch matches the active marker.
+export const AXIS_SNAP_ACTIVE_COLOR = "#ff1744";
+const RED_STROKE = AXIS_SNAP_ACTIVE_COLOR;
 const RED_FILL = "rgba(255,23,68,0.45)";
 
 const AxisSnapLayer = forwardRef((props, ref) => {

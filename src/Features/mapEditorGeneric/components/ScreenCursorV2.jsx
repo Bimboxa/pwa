@@ -1,6 +1,8 @@
 // components/layers/ScreenCursor.jsx
 import React, { forwardRef, useImperativeHandle, useRef, useEffect, useId } from 'react';
 
+import { AXIS_SNAP_ACTIVE_COLOR } from './AxisSnapLayer';
+
 const SPINNER_STYLE = `
 @keyframes cursor-spin {
   from { transform: rotate(0deg); }
@@ -106,6 +108,26 @@ const ScreenCursorV2 = forwardRef(({ newAnnotation, visible, rotationAngle = 0, 
             if (spinnerRef.current) {
                 spinnerRef.current.style.display = 'none';
             }
+        },
+
+        // Highlight the branch(es) an axis snap is actively locked on: solid
+        // line in the active-marker color instead of the inherited dashed
+        // annotation-colored stroke. `snapped` = { v, h } booleans (or null).
+        setSnappedBranches: (snapped) => {
+            const apply = (el, isSnapped) => {
+                if (!el) return;
+                if (isSnapped) {
+                    el.setAttribute('stroke', AXIS_SNAP_ACTIVE_COLOR);
+                    el.setAttribute('stroke-dasharray', 'none');
+                    el.setAttribute('stroke-opacity', '1');
+                } else {
+                    el.removeAttribute('stroke');
+                    el.removeAttribute('stroke-dasharray');
+                    el.removeAttribute('stroke-opacity');
+                }
+            };
+            apply(vLineRef.current, Boolean(snapped?.v));
+            apply(hLineRef.current, Boolean(snapped?.h));
         },
 
         setZoomSquareSize: (size) => {

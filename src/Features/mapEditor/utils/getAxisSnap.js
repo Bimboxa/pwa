@@ -34,7 +34,8 @@
 //   {
 //     screen: { x, y },   // corrected cursor viewport pos (branches locked)
 //     hasLock: boolean,   // true when at least one axis is actively snapped
-//     markers: [{ screenX, screenY, active }]  // grey rings / red fills to draw
+//     markers: [{ screenX, screenY, active }],  // grey rings / red fills to draw
+//     snappedBranches: { v, h },  // which crosshair branch is actively snapped
 //   }
 
 const AXIS_TIE_EPS = 0.5; // px — distances-to-axis within this are "equal"
@@ -165,5 +166,9 @@ export default function getAxisSnap({
     screen: { x: screenX, y: screenY },
     hasLock,
     markers,
+    snappedBranches: {
+      v: Boolean(bestX?.active), // vertical branch passes through a locked point
+      h: Boolean(bestY?.active), // horizontal branch
+    },
   };
 }

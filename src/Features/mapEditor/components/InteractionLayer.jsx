@@ -6041,9 +6041,11 @@ const InteractionLayer = forwardRef(({
       axisSnap = computeAxisSnap(viewportPos);
       axisSnapRef.current = axisSnap?.hasLock ? axisSnap.local : null;
       axisSnapLayerRef.current?.update(axisSnap?.markers || null);
+      screenCursorRef.current?.setSnappedBranches(axisSnap?.snappedBranches || null);
     } else {
       axisSnapRef.current = null;
       axisSnapLayerRef.current?.update(null);
+      screenCursorRef.current?.setSnappedBranches(null);
     }
 
     // Mise à jour du curseur visuel (ScreenCursor).
@@ -6223,11 +6225,13 @@ const InteractionLayer = forwardRef(({
             annotationsList: annotations,
           });
           axisSnapLayerRef.current?.update(axisSnap?.markers || null);
+          screenCursorRef.current?.setSnappedBranches(axisSnap?.snappedBranches || null);
           if (axisSnap?.hasLock && axisSnap.local) {
             snapOverride = { x: axisSnap.local.x, y: axisSnap.local.y };
           }
         } else {
           axisSnapLayerRef.current?.update(null);
+          screenCursorRef.current?.setSnappedBranches(null);
         }
       }
 
