@@ -58,6 +58,7 @@ export default function DialogLinkProjectToReferentiel({
 
   const titleS = "Relier à un chantier / opportunité";
   const searchS = "Rechercher un chantier / opportunité";
+  const scopesS = appConfig?.strings?.scope?.namePlural ?? "plans de repérage";
   const confirmS = "Relier";
 
   // helpers
@@ -240,7 +241,7 @@ export default function DialogLinkProjectToReferentiel({
               sx={{ color: "text.secondary", textAlign: "center" }}
             >
               {`« ${projectName} » prendra le nom et le numéro de
-              « ${selectedEntity.name} », et ses Krtos seront ré-associés.`}
+              « ${selectedEntity.name} », et ses ${scopesS} seront ré-associés.`}
             </Typography>
           )}
           <Button

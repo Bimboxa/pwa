@@ -14,10 +14,13 @@ import db from "App/db/db";
 
 import migrateLegacyAnnotations from "../services/migrateLegacyAnnotations";
 
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
+
 export default function DialogAutoMigrateToMapEditorV3() {
 
     // data
 
+    const appConfig = useAppConfig();
     const projectId = useSelector((s) => s.projects.selectedProjectId);
     const annotations = useLiveQuery(() => projectId && db.annotations.where("projectId").equals(projectId).toArray(), [projectId]);
 
@@ -57,7 +60,7 @@ export default function DialogAutoMigrateToMapEditorV3() {
 
     return (
         <DialogGeneric
-            title={"Migration vers Krto 1.2"}
+            title={`Migration vers ${appConfig?.appName ?? "Bimboxa"} 1.2`}
             open={open}
             onClose={() => setOpen(false)}
         >

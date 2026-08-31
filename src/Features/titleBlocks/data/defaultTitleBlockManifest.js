@@ -80,7 +80,11 @@ const defaultTitleBlockManifest = {
     footer: {
       height: 12,
       fontSize: 6,
-      spans: [{ text: "CRÉÉ AVEC " }, { text: "Krto", bold: true }, { text: " ®" }],
+      spans: [
+        { text: "CRÉÉ AVEC " },
+        { text: "Bimboxa", bold: true },
+        { text: " ®" },
+      ],
     },
   },
   decorations: [],

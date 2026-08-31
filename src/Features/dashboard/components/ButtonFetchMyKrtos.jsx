@@ -12,8 +12,9 @@ export default function ButtonFetchMyKrtos({ onClick, loading, variant }) {
 
   // strings
 
-  const labelS = appConfig?.strings?.scope?.myScopes ?? "Mes Krtos";
-  const loadLabelS = appConfig?.strings?.scope?.loadMyKrtos ?? "Charger mes Krtos";
+  const labelS = appConfig?.strings?.scope?.myScopes ?? "Mes plans de repérage";
+  const loadLabelS =
+    appConfig?.strings?.scope?.loadMyKrtos ?? "Charger mes plans de repérage";
 
   // render
 

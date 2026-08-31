@@ -16,16 +16,25 @@ import ButtonGeneric from "Features/layout/components/ButtonGeneric";
 
 import createQrCodeImageData from "Features/qrcode/utils/createQrcodeImageData";
 
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
+
 export default function IconButtonShareVersion() {
+  // data
+  const appConfig = useAppConfig();
+  const version = useVersion();
+
   // strings
 
-  const title = "Partager votre Krto";
-  const description = "Ce lien permet d'accéder à votre krto";
+  const title =
+    appConfig?.strings?.scope?.shareTitle ?? "Partager votre plan de repérage";
+  const description =
+    appConfig?.strings?.scope?.shareDescription ??
+    "Ce lien permet d'accéder à votre plan de repérage";
   const mobileAccessS =
-    "Flashez ce QR pour accéder au Krto depuis votre mobile";
-
-  // data
-  const version = useVersion();
+    appConfig?.strings?.scope?.shareQrHint ??
+    "Flashez ce QR pour accéder au plan de repérage depuis votre mobile";
+  const shareTooltipS =
+    appConfig?.strings?.scope?.shareTooltip ?? "Partager le plan de repérage";
 
   // state
 
@@ -51,7 +60,7 @@ export default function IconButtonShareVersion() {
 
   return (
     <>
-      <Tooltip title="Partager le Krto">
+      <Tooltip title={shareTooltipS}>
         <IconButton
           label="Partager"
           onClick={handleClick}

@@ -98,7 +98,8 @@ export default function PanelPropertiesScope() {
 
   const scopeName = selectedScope?.name ?? "-";
   const scopeLabel = appConfig?.strings?.scope?.nameSingular ?? "Repérage";
-  const isPublicLabel = appConfig?.strings?.scope?.isPublicLabel ?? "Krto public";
+  const isPublicLabel =
+    appConfig?.strings?.scope?.isPublicLabel ?? "Plan de repérage public";
   const baseMapUrl = baseMap?.getUrl?.();
 
   const annotationsByLayer = useMemo(() => {

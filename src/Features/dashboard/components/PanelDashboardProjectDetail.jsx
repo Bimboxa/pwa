@@ -77,8 +77,10 @@ export default function PanelDashboardProjectDetail({ item }) {
 
   // strings
 
-  const krtoS = appConfig?.strings?.scope?.nameSingular ?? "Krto";
-  const newKrtoS = appConfig?.strings?.scope?.new ?? "Nouveau Krto";
+  const scopeS = appConfig?.strings?.scope?.nameSingular ?? "plan de repérage";
+  const scopesS = appConfig?.strings?.scope?.namePlural ?? "plans de repérage";
+  const newScopeS =
+    appConfig?.strings?.scope?.new ?? "Nouveau plan de repérage";
 
   // helpers
 
@@ -236,7 +238,7 @@ export default function PanelDashboardProjectDetail({ item }) {
           Sélectionnez un projet
         </Typography>
         <Typography variant="body2" sx={{ mt: 0.5 }}>
-          Ses {krtoS}s s’afficheront ici.
+          Ses {scopesS} s’afficheront ici.
         </Typography>
       </Box>
     );
@@ -279,12 +281,12 @@ export default function PanelDashboardProjectDetail({ item }) {
         }}
       >
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          <Typography variant="h6">{krtoS}s</Typography>
+          <Typography variant="h6">{scopesS}</Typography>
           <Typography variant="body2" sx={{ color: "text.secondary" }}>
             {count} élément{count > 1 ? "s" : ""}
           </Typography>
           {remoteScopesLoading ? (
-            <Tooltip title={`Récupération des ${krtoS}s distants…`}>
+            <Tooltip title={`Récupération des ${scopesS} distants…`}>
               <Box
                 sx={{
                   display: "flex",
@@ -301,7 +303,7 @@ export default function PanelDashboardProjectDetail({ item }) {
             <Tooltip
               title={
                 canFetchRemoteScopes
-                  ? `Rechercher les ${krtoS}s sur le serveur`
+                  ? `Rechercher les ${scopesS} sur le serveur`
                   : `Recherche sur le serveur indisponible pour ce projet`
               }
             >
@@ -324,7 +326,7 @@ export default function PanelDashboardProjectDetail({ item }) {
           onClick={handleNewKrto}
           disabled={!item.projectId}
         >
-          {newKrtoS}
+          {newScopeS}
         </Button>
       </Box>
 
@@ -345,7 +347,7 @@ export default function PanelDashboardProjectDetail({ item }) {
             <Typography
               sx={{ mt: 1.5, fontWeight: 600, color: "text.primary" }}
             >
-              Recherche des {krtoS}s sur le serveur…
+              Recherche des {scopesS} sur le serveur…
             </Typography>
             <CircularProgress size={20} sx={{ mt: 2 }} color="inherit" />
           </Box>
@@ -364,10 +366,10 @@ export default function PanelDashboardProjectDetail({ item }) {
             <Typography
               sx={{ mt: 1.5, fontWeight: 600, color: "text.primary" }}
             >
-              Aucun {krtoS} dans ce projet
+              Aucun {scopeS} dans ce projet
             </Typography>
             <Typography variant="body2" sx={{ mt: 0.5 }}>
-              Créez le premier {krtoS} pour commencer le repérage.
+              Créez le premier {scopeS} pour commencer le repérage.
             </Typography>
             <Button
               variant="contained"
@@ -377,7 +379,7 @@ export default function PanelDashboardProjectDetail({ item }) {
               disabled={!item.projectId}
               sx={{ mt: 2 }}
             >
-              Créer le premier {krtoS}
+              Créer le premier {scopeS}
             </Button>
           </Box>
         ) : (
@@ -413,7 +415,7 @@ export default function PanelDashboardProjectDetail({ item }) {
         open={deleteLocalDataOpen}
         onClose={() => setDeleteLocalDataOpen(false)}
         onConfirmAsync={handleDeleteLocalData}
-        message={`Toutes les données locales du projet "${item.name}" seront supprimées de cet appareil, y compris les modifications non synchronisées. Les ${krtoS}s publiés sur le serveur resteront réinstallables.`}
+        message={`Toutes les données locales du projet "${item.name}" seront supprimées de cet appareil, y compris les modifications non synchronisées. Les ${scopesS} publiés sur le serveur resteront réinstallables.`}
       />
 
       <DialogLinkProjectToReferentiel

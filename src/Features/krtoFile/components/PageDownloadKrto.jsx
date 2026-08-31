@@ -13,6 +13,8 @@ import CircularProgressGeneric from "Features/layout/components/CircularProgress
 
 import downloadAndLoadKrtoVersionService from "Features/versions/services/downloadAndLoadKrtoVersionService";
 
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
+
 export default function PageDownloadKrtro() {
   const syncingRef = useRef();
   const downloadingRef = useRef({});
@@ -21,9 +23,14 @@ export default function PageDownloadKrtro() {
   const navigate = useNavigate();
   //const API = "https://public.media.bimboxa.com";
 
+  // data
+
+  const appConfig = useAppConfig();
+
   // strings
 
-  const loadingS = "Chargement Krto";
+  const loadingS =
+    appConfig?.strings?.scope?.loading ?? "Chargement du plan de repérage";
 
   // state
 

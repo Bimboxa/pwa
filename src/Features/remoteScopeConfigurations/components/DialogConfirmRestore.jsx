@@ -12,8 +12,14 @@ import {
 
 import formatDateTime from "Features/date/utils/formatDateTime";
 
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
+
 export default function DialogConfirmRestore({ open, onClose, version, onConfirmAsync }) {
     const confirmBtnRef = useRef(null);
+
+    // data
+
+    const appConfig = useAppConfig();
 
     // state
 
@@ -24,6 +30,9 @@ export default function DialogConfirmRestore({ open, onClose, version, onConfirm
     const title = "Restaurer la version";
     const cancelS = "Annuler";
     const confirmS = "Confirmer";
+    const restoreWarningS =
+        appConfig?.strings?.scope?.restoreWarning ??
+        "Toutes les données locales du plan de repérage seront remplacées.";
 
     // helpers
 
@@ -59,7 +68,7 @@ export default function DialogConfirmRestore({ open, onClose, version, onConfirm
                     Vous allez restaurer l'enregistrement du <strong>{date}</strong> créé par <strong>{author}</strong>.
                 </DialogContentText>
                 <DialogContentText sx={{ mt: 1 }}>
-                    Toutes les données locales du Krto seront remplacées.
+                    {restoreWarningS}
                 </DialogContentText>
             </DialogContent>
 

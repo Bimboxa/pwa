@@ -22,17 +22,19 @@ import ListItemsGeneric from "Features/layout/components/ListItemsGeneric";
 export default function DialogOnboardingScopeName({ open, onClose }) {
   const dispatch = useDispatch();
 
+  // data
+
+  const appConfig = useAppConfig();
+  const projectId = useSelector((s) => s.projects.selectedProjectId);
+
   // strings
 
   const helperS = "Quel type de plan de repérage souhaitez vous réaliser ? ";
   const saveS = "Enregistrer";
   const placeholder = "Type de plan";
-  const existingScopesS = "Krtos existants sur le projet";
-
-  // data
-
-  const appConfig = useAppConfig();
-  const projectId = useSelector((s) => s.projects.selectedProjectId);
+  const existingScopesS =
+    appConfig?.strings?.scope?.existingOnProject ??
+    "Plans de repérage existants sur le projet";
   const { value: scopes } = useScopes({ filterByProjectId: projectId });
 
   // data - func

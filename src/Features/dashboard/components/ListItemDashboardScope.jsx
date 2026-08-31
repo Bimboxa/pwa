@@ -6,6 +6,8 @@ import {
   CloudQueue,
 } from "@mui/icons-material";
 
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
+
 import AvatarPovPreview from "./AvatarPovPreview";
 import ChipsScopeStats from "./ChipsScopeStats";
 
@@ -21,6 +23,16 @@ export default function ListItemDashboardScope({
   onOpen,
   onDelete,
 }) {
+  // data
+
+  const appConfig = useAppConfig();
+
+  // strings
+
+  const notInstalledS =
+    appConfig?.strings?.scope?.notInstalledTooltip ??
+    "Plan de repérage non installé sur cet appareil";
+
   // handlers
 
   function handleFavoriteClick(e) {
@@ -69,7 +81,7 @@ export default function ListItemDashboardScope({
             {row.name}
           </Typography>
           {!row.isLocal && (
-            <Tooltip title="Krto non installé sur cet appareil">
+            <Tooltip title={notInstalledS}>
               <CloudQueue
                 sx={{ color: "text.secondary", fontSize: "1.05rem", flexShrink: 0 }}
               />

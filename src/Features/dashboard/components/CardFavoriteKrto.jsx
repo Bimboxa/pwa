@@ -1,12 +1,26 @@
 import { Box, Typography, IconButton, Tooltip, Divider } from "@mui/material";
 import { Star, CloudQueue, OpenInNew } from "@mui/icons-material";
 
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
+
 export default function CardFavoriteKrto({
   favorite,
   onOpen,
   onOpenKrto,
   onUnfavorite,
 }) {
+  // data
+
+  const appConfig = useAppConfig();
+
+  // strings
+
+  const notInstalledS =
+    appConfig?.strings?.scope?.notInstalledTooltip ??
+    "Plan de repérage non installé sur cet appareil";
+  const openS =
+    appConfig?.strings?.scope?.openTooltip ?? "Ouvrir le plan de repérage";
+
   // render
 
   return (
@@ -79,7 +93,7 @@ export default function CardFavoriteKrto({
             {favorite.type ?? " "}
           </Typography>
           {!favorite.isLocal && (
-            <Tooltip title="Krto non installé sur cet appareil">
+            <Tooltip title={notInstalledS}>
               <CloudQueue
                 sx={{ color: "text.secondary", fontSize: "0.95rem", flexShrink: 0 }}
               />
@@ -87,7 +101,7 @@ export default function CardFavoriteKrto({
           )}
         </Box>
 
-        <Tooltip title="Ouvrir le Krto">
+        <Tooltip title={openS}>
           <IconButton
             className="favorite-open-btn"
             size="small"

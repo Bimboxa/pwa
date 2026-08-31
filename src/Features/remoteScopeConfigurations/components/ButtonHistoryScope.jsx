@@ -42,6 +42,12 @@ export default function ButtonHistoryScope() {
 
   const getAllVersions = useAllScopeConfigurations();
 
+  // strings
+
+  const noBackupS =
+    appConfig?.strings?.scope?.noBackup ??
+    "Aucune sauvegarde pour ce plan de repérage.";
+
   // state
 
   const [anchorEl, setAnchorEl] = useState(null);
@@ -167,7 +173,7 @@ export default function ButtonHistoryScope() {
 
         {!loading && !error && versions.length === 0 && (
           <Box sx={{ p: 2 }}>
-            <Alert severity="info">Aucune sauvegarde pour ce Krto.</Alert>
+            <Alert severity="info">{noBackupS}</Alert>
           </Box>
         )}
 

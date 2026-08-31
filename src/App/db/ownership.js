@@ -106,7 +106,7 @@ export class OwnershipError extends Error {
  */
 export class ReadOnlyScopeError extends OwnershipError {
   constructor(
-    message = "Ce Krto est privé : seul son créateur peut le modifier."
+    message = "Ce plan de repérage est privé : seul son créateur peut le modifier."
   ) {
     super(message);
     this.name = "ReadOnlyScopeError";

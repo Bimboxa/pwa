@@ -63,6 +63,16 @@ strings:
     editableByLabel: "Modifiable par"
     readOnlyChip: "lecture seule"
     readOnlyContactMessage: "Données privées. Pour modifier, contactez : "
+    notInstalledTooltip: "Dossier non installé sur cet appareil"
+    openTooltip: "Ouvrir le dossier"
+    shareTitle: "Partager votre dossier"
+    shareDescription: "Ce lien permet d'accéder à votre dossier"
+    shareQrHint: "Flashez ce QR pour accéder au dossier depuis votre mobile"
+    shareTooltip: "Partager le dossier"
+    loading: "Chargement du dossier"
+    restoreWarning: "Toutes les données locales du dossier seront remplacées."
+    noBackup: "Aucune sauvegarde pour ce dossier."
+    existingOnProject: "Dossiers existants sur le projet"
 
   listing:
     namePlural: "Listes"

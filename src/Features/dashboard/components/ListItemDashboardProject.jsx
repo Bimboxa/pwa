@@ -33,11 +33,14 @@ export default function ListItemDashboardProject({
 
   // helpers
 
-  const krtoS = appConfig?.strings?.scope?.nameSingular ?? "Krto";
+  const scopeS = appConfig?.strings?.scope?.nameSingular ?? "plan de repérage";
+  const scopesS = appConfig?.strings?.scope?.namePlural ?? "plans de repérage";
+  const noScopeS =
+    appConfig?.strings?.scope?.noScope ?? "Aucun plan de repérage";
 
   const count = item.scopeCount ?? 0;
   const countText =
-    count === 0 ? `Aucun ${krtoS}` : `${count} ${krtoS}${count > 1 ? "s" : ""}`;
+    count === 0 ? noScopeS : `${count} ${count > 1 ? scopesS : scopeS}`;
 
   const metaText = [item.clientRef, item.city].filter(Boolean).join(" · ");
 

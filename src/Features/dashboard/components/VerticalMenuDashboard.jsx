@@ -23,7 +23,7 @@ export default function VerticalMenuDashboard() {
   const menuItems = [
     {
       key: "MY_SCOPES",
-      label: appConfig?.strings?.scope.myScopes ?? "Mes dossiers",
+      label: appConfig?.strings?.scope.myScopes ?? "Mes plans de repérage",
       icon: <IconScope />,
     },
     {

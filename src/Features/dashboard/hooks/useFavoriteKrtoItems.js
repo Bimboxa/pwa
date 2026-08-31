@@ -48,7 +48,10 @@ export default function useFavoriteKrtoItems() {
 
       return {
         scopeId,
-        name: source.scopeName ?? "Krto",
+        name:
+          source.scopeName ??
+          appConfig?.strings?.scope?.nameSingular ??
+          "Plan de repérage",
         type: null,
         projectName: source.projectName,
         projectKey: `remote_${source.projectClientRef ?? source.projectName}`,

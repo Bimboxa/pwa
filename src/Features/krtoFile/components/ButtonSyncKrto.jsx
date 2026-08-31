@@ -23,20 +23,24 @@ export default function ButtonSyncKrto() {
   const API = "https://public.media.bimboxa.com";
   const dispatch = useDispatch();
 
-  // strings
-
-  const title = "Partager votre Krto";
-  const description = "Ce lien permet d'accéder à votre krto";
-  const mobileAccessS =
-    "Flashez ce QR pour accéder au Krto depuis votre mobile";
-
-  const saveS = "Sauvegarder le projet";
-  const downloadS = "Télécharger les dernières modifications";
-
   // data
 
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const appConfig = useAppConfig();
+
+  // strings
+
+  const title =
+    appConfig?.strings?.scope?.shareTitle ?? "Partager votre plan de repérage";
+  const description =
+    appConfig?.strings?.scope?.shareDescription ??
+    "Ce lien permet d'accéder à votre plan de repérage";
+  const mobileAccessS =
+    appConfig?.strings?.scope?.shareQrHint ??
+    "Flashez ce QR pour accéder au plan de repérage depuis votre mobile";
+
+  const saveS = "Sauvegarder le projet";
+  const downloadS = "Télécharger les dernières modifications";
 
   // state
 
