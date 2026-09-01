@@ -51,7 +51,6 @@ export const LOCKED_TOOL_KEYS = new Set(["SELECTION_PROPERTIES", "SETTINGS"]);
 //     annotated with `locked`.
 export default function useRightPanelTools() {
   const appConfig = useAppConfig();
-  const advancedLayout = useSelector((s) => s.appConfig.advancedLayout);
   const selectedViewerKey = useSelector((s) => s.viewers.selectedViewerKey);
   const disabledToolKeys = useSelector(selectDisabledToolKeys);
   const disabledToolKeysByModule = useSelector(selectDisabledToolKeysByModule);
@@ -128,7 +127,8 @@ export default function useRightPanelTools() {
     LOCAL_LLM: {
       label: "IA locale",
       icon: <AutoAwesome />,
-      disabled: !advancedLayout,
+      // Former advanced-mode tool — kept declared but disabled by default.
+      disabled: true,
     },
   };
 

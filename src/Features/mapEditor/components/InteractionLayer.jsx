@@ -586,7 +586,6 @@ const InteractionLayer = forwardRef(({
   // orientation control + O shortcut were removed because the underlying algo
   // is sufficiently driven by the loupe format alone.
   const stripDetectionOrientation = loupeAspectRedux === "PORTRAIT" ? "V" : "H";
-  const advancedLayout = useSelector((s) => s.appConfig.advancedLayout);
   const rawDetection = useSelector((s) => s.smartDetect.rawDetection);
   const noCuts = useSelector((s) => s.smartDetect.noCuts);
   const noSmallCuts = useSelector((s) => s.smartDetect.noSmallCuts);
@@ -5106,7 +5105,7 @@ const InteractionLayer = forwardRef(({
       // --- ORTHO_PATHS intercept: run BFS tracing instead of adding a point ---
       // (not for POLYGON_CLICK — polygon detection uses annotation geometry, not ORTHO_PATHS)
       const currentDetectMode = smartDetectRef.current?.getSelectedDetectMode?.();
-      if (currentDetectMode === "ORTHO_PATHS" && showSmartDetectRef.current && enabledDrawingMode !== "POLYGON_CLICK" && advancedLayout) {
+      if (currentDetectMode === "ORTHO_PATHS" && showSmartDetectRef.current && enabledDrawingMode !== "POLYGON_CLICK") {
         let localPos = toLocalCoords(worldPos);
 
         // Apply shift-snap (ortho/45°) before adding the point
@@ -8069,8 +8068,7 @@ const InteractionLayer = forwardRef(({
           enabled={enabledDrawingMode === 'SMART_DETECT' || showSmartDetectRef.current}
           initialDetectMode={
             getEffectiveDetectionMode({ enabledDrawingMode, smartDetectEnabled }) === "RECTANGLE" ? "RECTANGLE"
-              : (enabledDrawingMode === "POLYLINE_CLICK" && advancedLayout) ? "ORTHO_PATHS"
-                : undefined
+              : undefined
           }
           loupeOnly={
             // Only RECTANGLE / SMART_DETECT exercise the OpenCV path inside

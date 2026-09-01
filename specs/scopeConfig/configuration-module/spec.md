@@ -71,8 +71,9 @@ Promouvoir la configuration en vrai module :
    (Mercator / Lambert CC), « Éditeur 3D » est un emplacement réservé. ✅
    *Critère : valeurs persistées en localStorage, indépendantes du scope.*
 7. **Données & préférences** — Section Généralités : version de la config,
-   « Mode avancé », « Désactiver la 3D », chrono, « Supprimer les données de
-   l'appareil » (contenu de l'ancien dialog, hors bloc satellite). ✅
+   « Désactiver la 3D », « Afficher le chrono » (switch), « Supprimer les
+   données de l'appareil » (contenu de l'ancien dialog, hors bloc satellite).
+   Le « Mode avancé » a été supprimé de l'application. ✅
 
 ## 4. Exigences fonctionnelles
 
@@ -116,6 +117,20 @@ Promouvoir la configuration en vrai module :
   l'écran principal (bande modules à gauche, bande outils à droite, sans
   badges de raccourcis) ; un clic bascule l'activation du module ou
   l'activation RACINE de l'outil ; les éléments verrouillés ne réagissent pas.
+  La zone de travail centrale héberge la card « Vue 3D » (préférence appareil
+  `disable3D`).
+- **FR-11** — **Configuration par défaut d'un scope** (pas de row
+  `scopeConfigs`, ou champ absent) : modules actifs = Fonds de plan + Dessin
+  seulement (`DEFAULT_DISABLED_MODULE_KEYS`) ; outils désactivés par défaut =
+  Dessin auto, Élévation, Importer annotations, Ressources
+  (`DEFAULT_DISABLED_TOOL_KEYS`). Le premier toggle crée la row en la semant
+  depuis ces défauts.
+- **FR-12** — Le « Mode avancé » (`appConfig.advancedLayout`) est supprimé :
+  ses modules/outils (LISTING, LOCAL_LLM) passent en `disabled: true` ; le
+  toggle DRAW/EDIT/SELECT et les hotkeys D/M/S disparaissent (reste
+  `useResetInteractionMode` qui remet le mode résiduel à null) ; l'intercept
+  ORTHO_PATHS marche désormais quand le mode est explicitement choisi dans
+  l'UI SmartDetect (plus d'auto-défaut sur POLYLINE_CLICK).
 - **FR-6** — Le catalogue d'outils configurables = allowlist
   `appConfig.features.tools` (ordre préservé) + outils contextuels (Capture,
   Réglages, Transfo.), `SELECTION_PROPERTIES` toujours inclus. Un outil absent

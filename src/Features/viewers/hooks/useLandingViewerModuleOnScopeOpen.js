@@ -22,7 +22,6 @@ export default function useLandingViewerModuleOnScopeOpen() {
   // data
 
   const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
-  const advancedLayout = useSelector((s) => s.appConfig.advancedLayout);
   const disable3D = useSelector((s) => s.appConfig.disable3D);
   // A freshly created scope lands on the Dessin module (2D editor) — the
   // Viewer landing is for reopening scopes that already have content.
@@ -47,7 +46,7 @@ export default function useLandingViewerModuleOnScopeOpen() {
       if (isThreedFamilyViewerKey(store.getState().viewers.selectedViewerKey)) {
         dispatch(setSelectedViewerKey("MAP"));
       }
-    } else if (!advancedLayout && !wants3dViewer) {
+    } else if (!wants3dViewer) {
       if (isNewScopeDrawLanding) {
         // Freshly created scope: straight to drawing.
         dispatch(setSelectedViewerKey("MAP"));
@@ -65,7 +64,6 @@ export default function useLandingViewerModuleOnScopeOpen() {
     // deps on purpose: re-running on every module switch would re-land.
   }, [
     selectedScopeId,
-    advancedLayout,
     wants3dViewer,
     disable3D,
     isNewScopeDrawLanding,

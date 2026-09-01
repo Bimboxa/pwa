@@ -2,8 +2,8 @@ import getDisable3DFromLocalStorage from "Features/appConfig/services/getDisable
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 
 // Module keys restorable on page load — kept in sync with useViewers.jsx.
-// LISTING is excluded on purpose: it requires advancedLayout, which is never
-// persisted, so the module would be absent from the band after a reload.
+// LISTING is excluded on purpose: the module is hard-disabled (former
+// advanced-mode module), so it would be absent from the band after a reload.
 const RESTORABLE_MODULE_KEYS = [
   "MAP",
   "BASE_MAPS",

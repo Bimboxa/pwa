@@ -10,9 +10,8 @@ import useSwitchViewer from "./useSwitchViewer";
 // restore of a module the scope has disabled (getInitSelectedModuleKey is
 // deliberately not scope-aware — this guard corrects right after the
 // scopeConfig slice hydrates, same one-frame-correction pattern as the
-// disable3D landing). Also catches leaving LISTING when advanced mode turns
-// off. Gated on `synced` so an empty pre-hydration list never triggers a
-// spurious switch.
+// disable3D landing). Gated on `synced` so an empty pre-hydration list never
+// triggers a spurious switch.
 export default function useEnsureEnabledModule() {
   const viewers = useViewers(); // already scope-filtered
   const selectedViewerKey = useSelector((s) => s.viewers.selectedViewerKey);

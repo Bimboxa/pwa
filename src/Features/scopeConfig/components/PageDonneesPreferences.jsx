@@ -1,9 +1,6 @@
 import { useSelector, useDispatch } from "react-redux";
 
-import {
-  setAdvancedLayout,
-  setDisable3D,
-} from "Features/appConfig/appConfigSlice";
+import { setDisable3D } from "Features/appConfig/appConfigSlice";
 import { setChronoVisible } from "Features/chrono/chronoSlice";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
@@ -23,7 +20,6 @@ export default function PageDonneesPreferences({ onClose }) {
   // data
 
   const appConfig = useAppConfig();
-  const advancedLayout = useSelector((s) => s.appConfig.advancedLayout);
   const disable3D = useSelector((s) => s.appConfig.disable3D);
   const chronoVisible = useSelector((s) => s.chrono.visible);
 
@@ -32,10 +28,6 @@ export default function PageDonneesPreferences({ onClose }) {
   const version = appConfig?.version ?? "-";
 
   // handlers
-
-  function handleAdvancedLayoutChange(v) {
-    dispatch(setAdvancedLayout(v));
-  }
 
   function handleDisable3DChange(v) {
     dispatch(setDisable3D(v));
@@ -56,15 +48,6 @@ export default function PageDonneesPreferences({ onClose }) {
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
         Version : {version}
       </Typography>
-
-      <Box sx={{ py: 0.5 }}>
-        <FieldCheck
-          value={advancedLayout}
-          onChange={handleAdvancedLayoutChange}
-          label="Mode avancé"
-          options={{ type: "switch" }}
-        />
-      </Box>
 
       <Box sx={{ py: 0.5 }}>
         <FieldCheck

@@ -5,6 +5,11 @@ import { useSelector } from "react-redux";
 import db, { withSystemWrite } from "App/db/db";
 import { notifyLocalChange } from "Features/remoteScopeConfigurations/services/localChangeTracker";
 
+import {
+  DEFAULT_DISABLED_MODULE_KEYS,
+  DEFAULT_DISABLED_TOOL_KEYS,
+} from "../utils/scopeConfigSelectors";
+
 function toggleKey(list, key) {
   const current = list ?? [];
   return current.includes(key)
@@ -33,13 +38,15 @@ export default function useScopeConfigActions() {
       if (row) {
         await withSystemWrite(() => db.scopeConfigs.update(row.id, patch));
       } else {
+        // First toggle on this scope: seed the row from the app defaults so
+        // the stored lists stay consistent with what the user was seeing.
         await withSystemWrite(() =>
           db.scopeConfigs.add({
             id: scopeId, // deterministic PK — see the db.js v32 comment
             scopeId,
             projectId,
-            disabledModuleKeys: [],
-            disabledToolKeys: [],
+            disabledModuleKeys: [...DEFAULT_DISABLED_MODULE_KEYS],
+            disabledToolKeys: [...DEFAULT_DISABLED_TOOL_KEYS],
             disabledToolKeysByModule: {},
             ...patch,
           })
@@ -53,7 +60,10 @@ export default function useScopeConfigActions() {
   const toggleModule = useCallback(
     (moduleKey) =>
       upsert((row) => ({
-        disabledModuleKeys: toggleKey(row?.disabledModuleKeys, moduleKey),
+        disabledModuleKeys: toggleKey(
+          row?.disabledModuleKeys ?? DEFAULT_DISABLED_MODULE_KEYS,
+          moduleKey
+        ),
       })),
     [upsert]
   );
@@ -61,7 +71,10 @@ export default function useScopeConfigActions() {
   const toggleToolRoot = useCallback(
     (toolKey) =>
       upsert((row) => ({
-        disabledToolKeys: toggleKey(row?.disabledToolKeys, toolKey),
+        disabledToolKeys: toggleKey(
+          row?.disabledToolKeys ?? DEFAULT_DISABLED_TOOL_KEYS,
+          toolKey
+        ),
       })),
     [upsert]
   );

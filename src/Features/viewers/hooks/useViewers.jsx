@@ -40,7 +40,6 @@ export const LOCKED_MODULE_KEYS = new Set(["BASE_MAPS", "MAP"]);
 // the scope-filtered list, so the band, the module selector and the
 // Ctrl+letter hotkeys all drop a disabled module for free.
 export default function useViewers({ ignoreScopeConfig = false } = {}) {
-  const advancedLayout = useSelector((s) => s.appConfig.advancedLayout);
   const legacy = useSelector((s) => s.appConfig.enableMapEditorLegacy);
   const disabledModuleKeys = useSelector(selectDisabledModuleKeys);
 
@@ -145,7 +144,8 @@ export default function useViewers({ ignoreScopeConfig = false } = {}) {
       shortLabel: "Objets",
       icon: <FormatListBulleted />,
       bgcolor: theme.palette.viewers.listing,
-      disabled: !advancedLayout,
+      // Former advanced-mode module — kept declared but disabled by default.
+      disabled: true,
     },
     {
       key: "PRINT",
