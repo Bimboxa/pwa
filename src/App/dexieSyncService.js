@@ -12,6 +12,7 @@ import { setBaseMapsById } from "Features/baseMaps/baseMapsSlice";
 import { setListingsById } from "../Features/listings/listingsSlice";
 import { setEntitiesById } from "../Features/entities/entitiesSlice";
 import { setSyncFiles } from "../Features/sync/syncSlice";
+import { setScopeConfigs } from "../Features/scopeConfig/scopeConfigSlice";
 
 const syncConfigs = [
   {
@@ -38,6 +39,11 @@ const syncConfigs = [
     table: "syncFiles",
     query: () => db.syncFiles.toArray(),
     action: setSyncFiles,
+  },
+  {
+    table: "scopeConfigs",
+    query: () => db.scopeConfigs.toArray(),
+    action: setScopeConfigs,
   },
 ];
 

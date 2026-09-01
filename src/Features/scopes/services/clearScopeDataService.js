@@ -19,6 +19,7 @@ export default async function clearScopeDataService(scopeId) {
         await db.portfolioPages.where("scopeId").equals(scopeId).delete();
         await db.portfolioBaseMapContainers.where("scopeId").equals(scopeId).delete();
         await db.layers.where("scopeId").equals(scopeId).delete();
+        await db.scopeConfigs.where("scopeId").equals(scopeId).delete();
 
         // Tables liées par listingId (entities, maps, etc.)
         if (listingIds.length > 0) {

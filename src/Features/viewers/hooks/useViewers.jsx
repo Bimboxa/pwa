@@ -1,5 +1,7 @@
 import { useSelector } from "react-redux";
 
+import { selectDisabledModuleKeys } from "Features/scopeConfig/utils/scopeConfigSelectors";
+
 import {
   Map,
   MenuBook,
@@ -27,9 +29,15 @@ import theme from "Styles/theme";
 //
 // `hotkey` is the module-switch letter, bound as Ctrl+<letter> in
 // useViewerSwitchHotkeys and displayed as "Ctrl+X" under the module label.
-export default function useViewers() {
+//
+// `ignoreScopeConfig`: the Configuration dialog lists every module including
+// the per-scope disabled ones (db.scopeConfigs); every other consumer gets
+// the scope-filtered list, so the band, the module selector and the
+// Ctrl+letter hotkeys all drop a disabled module for free.
+export default function useViewers({ ignoreScopeConfig = false } = {}) {
   const advancedLayout = useSelector((s) => s.appConfig.advancedLayout);
   const legacy = useSelector((s) => s.appConfig.enableMapEditorLegacy);
+  const disabledModuleKeys = useSelector(selectDisabledModuleKeys);
 
   const viewers = [
     // {
@@ -177,5 +185,6 @@ export default function useViewers() {
 
   return viewers
     .filter((v) => !v.disabled)
+    .filter((v) => ignoreScopeConfig || !disabledModuleKeys.includes(v.key))
     .map((v) => ({ ...v, editors: v.editors ?? [v.key] }));
 }

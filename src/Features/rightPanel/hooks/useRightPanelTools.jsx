@@ -20,24 +20,41 @@ import { Box } from "@mui/material";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import IconExportPlan from "Features/icons/IconExportPlan";
+import {
+  selectDisabledToolKeys,
+  selectDisabledToolKeysByModule,
+} from "Features/scopeConfig/utils/scopeConfigSelectors";
+
+// Tools that can never be disabled from the Configuration dialog:
+// SELECTION_PROPERTIES keeps the "every module shows at least Propriétés"
+// injection invariant, SETTINGS is the escape hatch to the editor settings.
+export const LOCKED_TOOL_KEYS = new Set(["SELECTION_PROPERTIES", "SETTINGS"]);
 
 // Builds the right-panel tool list (the vertical band on the right). MODULE-driven:
-// filtered by appConfig.features.tools and by the current module (selectedViewerKey),
-// never by the editor (2D/3D) displayed inside the module.
+// filtered by appConfig.features.tools, by the current module (selectedViewerKey)
+// and by the per-scope activation (db.scopeConfigs: root + per-module disabled
+// tools), never by the editor (2D/3D) displayed inside the module.
 //
 // Single source of truth shared by the band renderer (VerticalMenuRightPanel) and the
 // keyboard-shortcut hook (useRightPanelToolHotkeys): both agree on which tools — and
 // therefore which `hotkey` letters — are currently available. A tool absent from the
 // current module (or from appConfig.features.tools) never binds its letter.
 //
-// Returns { menuItems, toolsByKey }:
+// Returns { menuItems, toolsByKey, catalog }:
 //   - menuItems: the filtered, ordered list rendered in the band (hotkeys included).
-//   - toolsByKey: raw metadata for EVERY known tool (unfiltered), used by the auto-close
-//     effect to look up a still-open tool's `viewers` even after it left the list.
+//   - toolsByKey: raw metadata for EVERY known tool (unfiltered, `scopeDisabled`
+//     flagged), used by the auto-close effect to look up a still-open tool's
+//     `viewers` even after it left the list.
+//   - catalog: every configurable tool for the Configuration dialog — the
+//     org-allowlist tools (order preserved, SELECTION_PROPERTIES force-included)
+//     plus the contextual ones, unfiltered by module or scopeConfig, each
+//     annotated with `locked`.
 export default function useRightPanelTools() {
   const appConfig = useAppConfig();
   const advancedLayout = useSelector((s) => s.appConfig.advancedLayout);
   const selectedViewerKey = useSelector((s) => s.viewers.selectedViewerKey);
+  const disabledToolKeys = useSelector(selectDisabledToolKeys);
+  const disabledToolKeysByModule = useSelector(selectDisabledToolKeysByModule);
 
   // const - tools without a `viewers` field are available in every viewer
 
@@ -163,11 +180,23 @@ export default function useRightPanelTools() {
     },
   ];
 
+  // Per-scope activation (db.scopeConfigs): a root-disabled tool is gone in
+  // every module; a per-module disabled tool only in that module. Locked
+  // tools ignore both lists.
+  const disabledForModule = disabledToolKeysByModule[selectedViewerKey] ?? [];
+  const isScopeDisabled = (key) =>
+    !LOCKED_TOOL_KEYS.has(key) &&
+    (disabledToolKeys.includes(key) || disabledForModule.includes(key));
+
   // Raw lookup for every known tool (unfiltered) — the auto-close effect needs a
-  // still-open tool's `viewers` even once it dropped out of `menuItems`.
-  const toolsByKey = { ...toolsMap };
+  // still-open tool's `viewers` and `scopeDisabled` even once it dropped out of
+  // `menuItems`.
+  const toolsByKey = {};
+  Object.entries(toolsMap).forEach(([key, tool]) => {
+    toolsByKey[key] = { ...tool, key, scopeDisabled: isScopeDisabled(key) };
+  });
   contextualTools.forEach((t) => {
-    toolsByKey[t.key] = t;
+    toolsByKey[t.key] = { ...t, scopeDisabled: isScopeDisabled(t.key) };
   });
 
   // helper
@@ -184,6 +213,7 @@ export default function useRightPanelTools() {
   menuItems = menuItems.filter(
     (t) => !t.viewers || t.viewers.includes(selectedViewerKey)
   );
+  menuItems = menuItems.filter((t) => !isScopeDisabled(t.key));
 
   // Every module shows at least the "Propriétés" tool, whichever editor is
   // displayed — guaranteed here so no appConfig or filter can drop it.
@@ -216,9 +246,9 @@ export default function useRightPanelTools() {
     menuItems.unshift(propertiesTool);
   }
 
-  const activeContextualTools = contextualTools.filter(
-    (t) => !t.viewers || t.viewers.includes(selectedViewerKey)
-  );
+  const activeContextualTools = contextualTools
+    .filter((t) => !t.viewers || t.viewers.includes(selectedViewerKey))
+    .filter((t) => !isScopeDisabled(t.key));
 
   // Each contextual tool has its own slot:
   // - bottom-group tools ("Réglages") are appended last so they close the
@@ -250,5 +280,24 @@ export default function useRightPanelTools() {
   }
   menuItems.push(...bottomTools);
 
-  return { menuItems, toolsByKey };
+  // catalog — see the hook doc comment. Mirrors the menu construction rules
+  // (org allowlist order, SELECTION_PROPERTIES force-included, `disabled`
+  // dropped) without the module / scopeConfig filters.
+  const catalog = toolsKeys
+    .map((key) => (toolsMap[key] ? { ...toolsMap[key], key } : null))
+    .filter(Boolean)
+    .filter((t) => !t.disabled);
+  if (!catalog.some((t) => t.key === "SELECTION_PROPERTIES")) {
+    catalog.unshift({
+      ...toolsMap.SELECTION_PROPERTIES,
+      key: "SELECTION_PROPERTIES",
+    });
+  }
+  catalog.push(...contextualTools.filter((t) => !t.disabled));
+  const catalogWithLock = catalog.map((t) => ({
+    ...t,
+    locked: LOCKED_TOOL_KEYS.has(t.key),
+  }));
+
+  return { menuItems, toolsByKey, catalog: catalogWithLock };
 }

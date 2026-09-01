@@ -25,18 +25,32 @@ export default function VerticalMenuRightPanel() {
 
   // effect - close the panel when its tool leaves the menu: LOCAL_LLM when
   // advanced mode gets turned off, viewer-restricted tools when the viewer
-  // changes. Keys without a `viewers` constraint (incl. panels opened
+  // changes, tools disabled from the Configuration dialog (scopeConfig).
+  // Keys without a `viewers` constraint (incl. panels opened
   // programmatically, e.g. NODE_FORMAT) are left untouched.
+
+  const selectedToolScopeDisabled = Boolean(
+    toolsByKey[selectedKey]?.scopeDisabled
+  );
 
   useEffect(() => {
     const selectedTool = toolsByKey[selectedKey];
     const viewerMismatch =
       selectedTool?.viewers &&
       !selectedTool.viewers.includes(selectedViewerKey);
-    if ((selectedKey === "LOCAL_LLM" && !advancedLayout) || viewerMismatch) {
+    if (
+      (selectedKey === "LOCAL_LLM" && !advancedLayout) ||
+      viewerMismatch ||
+      selectedToolScopeDisabled
+    ) {
       dispatch(setSelectedMenuItemKey(null));
     }
-  }, [selectedKey, advancedLayout, selectedViewerKey]);
+  }, [
+    selectedKey,
+    advancedLayout,
+    selectedViewerKey,
+    selectedToolScopeDisabled,
+  ]);
 
   // handlers
 

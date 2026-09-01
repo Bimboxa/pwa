@@ -54,6 +54,7 @@ export default async function createKrtoZip(scopeId, options) {
     const tablesWithScopeId = new Set([
         "baseMapViews", "syncFiles", "layers",
         "portfolioBaseMapContainers", "meshes3d", "povs",
+        "scopeConfigs",
     ]);
 
     // Tables avec listingId (sans projectId)

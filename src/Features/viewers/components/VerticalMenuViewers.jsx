@@ -1,4 +1,6 @@
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
+
+import { setOpenAppConfig } from "Features/appConfig/appConfigSlice";
 
 import useSwitchViewer from "../hooks/useSwitchViewer";
 
@@ -10,10 +12,12 @@ import {
   ButtonBase,
   Typography,
 } from "@mui/material";
+import { Tune } from "@mui/icons-material";
 
 const MENU_WIDTH = 90;
 
 export default function VerticalMenuViewers() {
+  const dispatch = useDispatch();
   const switchViewer = useSwitchViewer();
 
   // data
@@ -31,6 +35,10 @@ export default function VerticalMenuViewers() {
   function handleClick(viewerKey) {
     switchViewer(viewerKey);
     if (!leftPanelDocked) onMouseEnter();
+  }
+
+  function handleConfigurationClick() {
+    dispatch(setOpenAppConfig(true));
   }
 
   // render - shared content
@@ -116,6 +124,45 @@ export default function VerticalMenuViewers() {
       }}
     >
       {content}
+
+      {/* bottom-anchored Configuration entry (full-page dialog) */}
+      <Box sx={{ mt: "auto" }} />
+      <ButtonBase
+        onClick={handleConfigurationClick}
+        sx={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 0.5,
+          py: 1.5,
+          px: 0.5,
+          color: "common.white",
+          opacity: 0.6,
+          borderLeft: "3px solid transparent",
+          transition: "all 0.15s ease",
+          "&:hover": {
+            opacity: 1,
+            bgcolor: "rgba(255,255,255,0.08)",
+          },
+        }}
+      >
+        <Box sx={{ fontSize: 24, display: "flex", alignItems: "center" }}>
+          <Tune fontSize="inherit" />
+        </Box>
+        <Typography
+          variant="caption"
+          sx={{
+            color: "common.white",
+            fontSize: "0.65rem",
+            lineHeight: 1.2,
+            textAlign: "center",
+            maxWidth: 80,
+          }}
+        >
+          Configuration
+        </Typography>
+      </ButtonBase>
     </Box>
   );
 }

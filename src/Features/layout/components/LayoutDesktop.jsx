@@ -17,6 +17,7 @@ import useToggleThreedViewerHotkey from "Features/viewers/hooks/useToggleThreedV
 import useRightPanelToolHotkeys from "Features/rightPanel/hooks/useRightPanelToolHotkeys";
 import useInitViewerModuleOnScopeOpen from "Features/viewers/hooks/useInitViewerModuleOnScopeOpen";
 import useLandingViewerModuleOnScopeOpen from "Features/viewers/hooks/useLandingViewerModuleOnScopeOpen";
+import useEnsureEnabledModule from "Features/viewers/hooks/useEnsureEnabledModule";
 
 export default function LayoutDesktop() {
   // hotkeys — switch module (D = Dessin, F = Fonds de plan, V = Points de vue).
@@ -36,6 +37,9 @@ export default function LayoutDesktop() {
   // scope). Skipped on refresh / same-scope reopen, where the persisted
   // module/editor context is restored.
   useLandingViewerModuleOnScopeOpen();
+  // Falls back to an enabled module when the selected one gets disabled from
+  // the Configuration dialog (or was restored disabled at boot).
+  useEnsureEnabledModule();
 
   // data
 

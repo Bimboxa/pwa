@@ -1,4 +1,4 @@
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 
 import { setOpenAppConfig } from "../appConfigSlice";
 
@@ -6,31 +6,25 @@ import useAppConfig from "../hooks/useAppConfig";
 
 import { Button, Typography } from "@mui/material";
 
-import DialogAppConfig from "./DialogAppConfig";
-
+// Org-name button (bottom bar, dashboard footer) opening the full-page
+// Configuration dialog (DialogConfiguration, mounted globally in MainApp).
 export default function ButtonDialogAppConfig() {
   const dispatch = useDispatch();
+
   // data
 
   const appConfig = useAppConfig();
-
-  // state
-
-  const open = useSelector((s) => s.appConfig.openAppConfig);
 
   // helpers
 
   // Avoid rendering "undefined." while the org yaml is still loading.
   const label = appConfig?.name ? `${appConfig.name}.` : "...";
 
-  // handlers
+  // render
 
   return (
-    <>
-      <Button onClick={() => dispatch(setOpenAppConfig(true))}>
-        <Typography variant="body2">{label}</Typography>
-      </Button>
-      <DialogAppConfig />
-    </>
+    <Button onClick={() => dispatch(setOpenAppConfig(true))}>
+      <Typography variant="body2">{label}</Typography>
+    </Button>
   );
 }
