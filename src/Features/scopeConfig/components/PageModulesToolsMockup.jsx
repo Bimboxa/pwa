@@ -10,6 +10,8 @@ import {
 
 import { Box, ButtonBase, Tooltip, Typography } from "@mui/material";
 
+import CardToggle3d from "./CardToggle3d";
+
 // "Généralités > Modules & outils" page: a mockup of the main screen — the
 // left modules band and the right tools band rendered as on the real layout,
 // compacted (smaller icons/labels, no hotkey badges) so every item fits
@@ -177,18 +179,23 @@ export default function PageModulesToolsMockup({ modules, tools }) {
           {modules.map(renderModule)}
         </Box>
 
-        {/* central work area placeholder */}
+        {/* central work area — hosts the 3D activation card */}
         <Box
           sx={{
             flexGrow: 1,
             minWidth: 0,
             display: "flex",
+            flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
+            gap: 1.5,
             bgcolor: "background.default",
+            overflowY: "auto",
+            py: 2,
           }}
         >
-          <Typography variant="body2" color="text.disabled">
+          <CardToggle3d />
+          <Typography variant="caption" color="text.disabled">
             Zone de travail
           </Typography>
         </Box>
