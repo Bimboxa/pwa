@@ -21,6 +21,11 @@ import {
 
 import theme from "Styles/theme";
 
+// Modules that can never be disabled from the Configuration dialog: the app
+// always keeps its two core modules. Also shields against imported
+// scopeConfig rows that would list them as disabled.
+export const LOCKED_MODULE_KEYS = new Set(["BASE_MAPS", "MAP"]);
+
 // Each entry is a MODULE of the left band. `editors` lists the editors the
 // module can display (default: the module's own key). Multi-editor modules
 // (BASE_MAPS, MAP, POINT_OF_VIEW, ZONES, THREED) expose the 2D/3D toggle
@@ -185,6 +190,11 @@ export default function useViewers({ ignoreScopeConfig = false } = {}) {
 
   return viewers
     .filter((v) => !v.disabled)
-    .filter((v) => ignoreScopeConfig || !disabledModuleKeys.includes(v.key))
+    .filter(
+      (v) =>
+        ignoreScopeConfig ||
+        LOCKED_MODULE_KEYS.has(v.key) ||
+        !disabledModuleKeys.includes(v.key)
+    )
     .map((v) => ({ ...v, editors: v.editors ?? [v.key] }));
 }

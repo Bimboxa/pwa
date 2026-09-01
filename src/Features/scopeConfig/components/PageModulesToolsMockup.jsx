@@ -1,5 +1,7 @@
 import { useSelector } from "react-redux";
 
+import { LOCKED_MODULE_KEYS } from "Features/viewers/hooks/useViewers";
+
 import useScopeConfigActions from "../hooks/useScopeConfigActions";
 import {
   selectDisabledModuleKeys,
@@ -9,9 +11,12 @@ import {
 import { Box, ButtonBase, Tooltip, Typography } from "@mui/material";
 
 // "Généralités > Modules & outils" page: a mockup of the main screen — the
-// left modules band and the right tools band rendered as on the real layout.
-// Clicking a module toggles its per-scope activation; clicking a tool toggles
-// its ROOT activation (per-module activation stays on the module pages).
+// left modules band and the right tools band rendered as on the real layout,
+// compacted (smaller icons/labels, no hotkey badges) so every item fits
+// without scrolling. Clicking a module toggles its per-scope activation;
+// clicking a tool toggles its ROOT activation (per-module activation stays
+// on the module pages). Locked items (Fonds de plan, Dessin, Propriétés,
+// Réglages) never toggle.
 export default function PageModulesToolsMockup({ modules, tools }) {
   // data
 
@@ -22,19 +27,13 @@ export default function PageModulesToolsMockup({ modules, tools }) {
 
   // helpers
 
-  const enabledCount = modules.filter(
-    (m) => !disabledModuleKeys.includes(m.key)
-  ).length;
-
   const topTools = tools.filter((t) => t.group !== "bottom");
   const bottomTools = tools.filter((t) => t.group === "bottom");
 
   // handlers
 
   function handleModuleClick(moduleKey) {
-    const enabled = !disabledModuleKeys.includes(moduleKey);
-    // At least one module must stay enabled — UI-level guard.
-    if (enabled && enabledCount <= 1) return;
+    if (LOCKED_MODULE_KEYS.has(moduleKey)) return;
     toggleModule(moduleKey);
   }
 
@@ -46,10 +45,10 @@ export default function PageModulesToolsMockup({ modules, tools }) {
   // render - one module button of the left band mockup
 
   function renderModule(m) {
-    const enabled = !disabledModuleKeys.includes(m.key);
-    const isLastEnabled = enabled && enabledCount <= 1;
-    const tooltip = isLastEnabled
-      ? "Au moins un module doit rester actif."
+    const locked = LOCKED_MODULE_KEYS.has(m.key);
+    const enabled = locked || !disabledModuleKeys.includes(m.key);
+    const tooltip = locked
+      ? "Toujours actif"
       : enabled
         ? "Cliquer pour désactiver"
         : "Cliquer pour activer";
@@ -62,48 +61,30 @@ export default function PageModulesToolsMockup({ modules, tools }) {
             flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
-            gap: 0.5,
-            py: 1.5,
+            gap: 0.25,
+            py: 0.75,
             px: 0.5,
             color: "common.white",
             opacity: enabled ? 0.9 : 0.25,
+            cursor: locked ? "default" : "pointer",
             transition: "all 0.15s ease",
             "&:hover": { opacity: enabled ? 1 : 0.45 },
+            "& svg": { fontSize: 18 },
           }}
         >
-          <Box sx={{ fontSize: 24, display: "flex", alignItems: "center" }}>
-            {m.icon}
-          </Box>
+          <Box sx={{ display: "flex", alignItems: "center" }}>{m.icon}</Box>
           <Typography
             variant="caption"
             sx={{
               color: "common.white",
-              fontSize: "0.65rem",
+              fontSize: "0.6rem",
               lineHeight: 1.2,
               textAlign: "center",
-              maxWidth: 80,
+              maxWidth: 68,
             }}
           >
             {m.shortLabel}
           </Typography>
-          {m.hotkey && (
-            <Typography
-              variant="caption"
-              sx={{
-                color: "common.white",
-                fontSize: "0.6rem",
-                lineHeight: 1,
-                px: 0.5,
-                py: 0.25,
-                border: "1px solid rgba(255,255,255,0.4)",
-                borderRadius: 0.5,
-                opacity: 0.8,
-                whiteSpace: "nowrap",
-              }}
-            >
-              {`Ctrl + ${m.hotkey}`}
-            </Typography>
-          )}
         </ButtonBase>
       </Tooltip>
     );
@@ -112,7 +93,7 @@ export default function PageModulesToolsMockup({ modules, tools }) {
   // render - one tool button of the right band mockup
 
   function renderTool(t) {
-    const rootDisabled = disabledToolKeys.includes(t.key);
+    const rootDisabled = !t.locked && disabledToolKeys.includes(t.key);
     const tooltip = t.locked
       ? "Toujours actif"
       : rootDisabled
@@ -127,41 +108,25 @@ export default function PageModulesToolsMockup({ modules, tools }) {
             flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
-            width: 70,
-            minHeight: 65,
-            p: "8px 4px",
+            width: 62,
+            minHeight: 42,
+            p: "4px 2px",
             borderRadius: 1,
             color: "text.secondary",
             opacity: rootDisabled ? 0.3 : 1,
             cursor: t.locked ? "default" : "pointer",
             transition: "all 0.15s ease",
             "&:hover": { bgcolor: "action.hover" },
+            "& svg": { fontSize: 18 },
           }}
         >
           {t.icon}
           <Typography
             variant="caption"
-            sx={{ mt: "4px", lineHeight: 1.2, textAlign: "center" }}
+            sx={{ mt: "2px", fontSize: "0.6rem", lineHeight: 1.2, textAlign: "center" }}
           >
             {t.label}
           </Typography>
-          {t.hotkey && (
-            <Typography
-              variant="caption"
-              sx={{
-                mt: "2px",
-                fontSize: "0.6rem",
-                lineHeight: 1,
-                px: 0.5,
-                py: 0.25,
-                color: "text.secondary",
-                border: (theme) => `1px solid ${theme.palette.divider}`,
-                borderRadius: 0.5,
-              }}
-            >
-              {t.hotkey}
-            </Typography>
-          )}
         </ButtonBase>
       </Tooltip>
     );
@@ -203,9 +168,9 @@ export default function PageModulesToolsMockup({ modules, tools }) {
             display: "flex",
             flexDirection: "column",
             bgcolor: "common.black",
-            py: 1,
-            width: 90,
-            minWidth: 90,
+            py: 0.5,
+            width: 76,
+            minWidth: 76,
             overflowY: "auto",
           }}
         >
@@ -234,8 +199,8 @@ export default function PageModulesToolsMockup({ modules, tools }) {
             display: "flex",
             flexDirection: "column",
             alignItems: "center",
-            gap: 1.5,
-            p: 1,
+            gap: 0.5,
+            p: 0.5,
             borderLeft: (theme) => `1px solid ${theme.palette.divider}`,
             bgcolor: "background.default",
             overflowY: "auto",
@@ -249,7 +214,7 @@ export default function PageModulesToolsMockup({ modules, tools }) {
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
-                gap: 1.5,
+                gap: 0.5,
               }}
             >
               {bottomTools.map(renderTool)}

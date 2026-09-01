@@ -76,11 +76,7 @@ export default function PanelConfiguration({ onClose }) {
             <PageModulesToolsMockup modules={modules} tools={catalog} />
           )}
         {effectiveSelection.type === "MODULE" && selectedModule && (
-          <PageModuleConfig
-            module={selectedModule}
-            modules={modules}
-            tools={catalog}
-          />
+          <PageModuleConfig module={selectedModule} tools={catalog} />
         )}
         {effectiveSelection.type === "TOOL" && selectedTool && (
           <PageToolConfig tool={selectedTool} modules={modules} />

@@ -105,10 +105,17 @@ Promouvoir la configuration en vrai module :
   dans tous les modules ; un outil désactivé par module ne l'est que dans ce
   module. Les hotkeys d'outils dérivent de la liste filtrée (aucun code
   supplémentaire). Le panneau d'un outil qui devient désactivé se ferme.
-- **FR-5** — Outils verrouillés, jamais désactivables : `SELECTION_PROPERTIES`
-  (Propriétés — invariant d'injection forcée : chaque module garde au moins un
-  outil) et `SETTINGS` (Réglages — porte de sortie). Rendus en switch
+- **FR-5** — Éléments verrouillés, jamais désactivables : côté outils,
+  `SELECTION_PROPERTIES` (Propriétés — invariant d'injection forcée : chaque
+  module garde au moins un outil) et `SETTINGS` (Réglages — porte de sortie) ;
+  côté modules, `BASE_MAPS` (Fonds de plan) et `MAP` (Dessin) — constante
+  `LOCKED_MODULE_KEYS` exportée par `useViewers`, qui protège aussi le filtre
+  contre une row importée les listant désactivés. Rendus en switch
   désactivé-ON avec la mention « Toujours actif ».
+- **FR-10** — Page « Généralités > Modules & outils » : maquette compacte de
+  l'écran principal (bande modules à gauche, bande outils à droite, sans
+  badges de raccourcis) ; un clic bascule l'activation du module ou
+  l'activation RACINE de l'outil ; les éléments verrouillés ne réagissent pas.
 - **FR-6** — Le catalogue d'outils configurables = allowlist
   `appConfig.features.tools` (ordre préservé) + outils contextuels (Capture,
   Réglages, Transfo.), `SELECTION_PROPERTIES` toujours inclus. Un outil absent

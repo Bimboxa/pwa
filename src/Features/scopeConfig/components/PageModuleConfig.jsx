@@ -1,5 +1,7 @@
 import { useSelector } from "react-redux";
 
+import { LOCKED_MODULE_KEYS } from "Features/viewers/hooks/useViewers";
+
 import useScopeConfigActions from "../hooks/useScopeConfigActions";
 import {
   selectDisabledModuleKeys,
@@ -14,7 +16,7 @@ import RowSwitchConfig from "./RowSwitchConfig";
 // Module page of the Configuration dialog: activation of the module itself
 // (a disabled module leaves the left band, its Ctrl+letter unbinds), then
 // the per-module activation of the tools available in that module.
-export default function PageModuleConfig({ module, modules, tools }) {
+export default function PageModuleConfig({ module, tools }) {
   // data
 
   const disabledModuleKeys = useSelector(selectDisabledModuleKeys);
@@ -25,12 +27,8 @@ export default function PageModuleConfig({ module, modules, tools }) {
 
   // helpers
 
-  const enabled = !disabledModuleKeys.includes(module.key);
-  const enabledCount = modules.filter(
-    (m) => !disabledModuleKeys.includes(m.key)
-  ).length;
-  // At least one module must stay enabled — UI-level guard.
-  const isLastEnabled = enabled && enabledCount <= 1;
+  const locked = LOCKED_MODULE_KEYS.has(module.key);
+  const enabled = locked || !disabledModuleKeys.includes(module.key);
 
   const moduleTools = tools.filter(
     (t) => !t.viewers || t.viewers.includes(module.key)
@@ -51,12 +49,12 @@ export default function PageModuleConfig({ module, modules, tools }) {
       <RowSwitchConfig
         label="Module actif"
         caption={
-          isLastEnabled
-            ? "Au moins un module doit rester actif."
+          locked
+            ? "Toujours actif"
             : "Désactivé, le module disparaît du bandeau de gauche."
         }
         checked={enabled}
-        disabled={isLastEnabled}
+        disabled={locked}
         onChange={() => toggleModule(module.key)}
       />
 

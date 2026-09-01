@@ -1,5 +1,7 @@
 import { useSelector } from "react-redux";
 
+import { LOCKED_MODULE_KEYS } from "Features/viewers/hooks/useViewers";
+
 import {
   selectDisabledModuleKeys,
   selectDisabledToolKeys,
@@ -86,7 +88,9 @@ export default function NavConfigurationList({
           <>
             <ListSubheader disableSticky>Modules</ListSubheader>
             {modules.map((m) => {
-              const dimmed = disabledModuleKeys.includes(m.key);
+              const dimmed =
+                !LOCKED_MODULE_KEYS.has(m.key) &&
+                disabledModuleKeys.includes(m.key);
               return (
                 <ListItemButton
                   key={m.key}

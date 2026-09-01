@@ -1,5 +1,7 @@
 import { useSelector } from "react-redux";
 
+import { LOCKED_MODULE_KEYS } from "Features/viewers/hooks/useViewers";
+
 import useScopeConfigActions from "../hooks/useScopeConfigActions";
 import {
   selectDisabledModuleKeys,
@@ -32,7 +34,11 @@ export default function PageToolConfig({ tool, modules }) {
   );
 
   function getModuleStatus(moduleKey) {
-    if (disabledModuleKeys.includes(moduleKey)) return "Module désactivé";
+    if (
+      !LOCKED_MODULE_KEYS.has(moduleKey) &&
+      disabledModuleKeys.includes(moduleKey)
+    )
+      return "Module désactivé";
     if (rootDisabled) return "Désactivé globalement";
     if ((disabledToolKeysByModule[moduleKey] ?? []).includes(tool.key))
       return "Désactivé dans ce module";
