@@ -7,11 +7,13 @@ import ButtonGeneric from "Features/layout/components/ButtonGeneric";
 
 export default function ContainerFilesSelectorV2({
   callToActionLabel = "Glisser & déposer des fichiers",
+  subLabel,
   onFilesChange,
   accept,
   multiple,
   loading,
   BgIcon,
+  sxDropZone,
 }) {
   // strings
 
@@ -187,6 +189,7 @@ export default function ContainerFilesSelectorV2({
           borderColor: "secondary.main",
           color: "secondary.main",
         },
+        ...sxDropZone,
       }}
     >
       {/* Hidden file input */}
@@ -233,6 +236,15 @@ export default function ContainerFilesSelectorV2({
         >
           {callToActionLabel}
         </Typography>
+
+        {subLabel && (
+          <Typography
+            variant="caption"
+            sx={{ textAlign: "center", color: "text.secondary" }}
+          >
+            {subLabel}
+          </Typography>
+        )}
 
         <Box
           sx={{
