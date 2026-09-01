@@ -4,6 +4,7 @@ import {
   setAdvancedLayout,
   setDisable3D,
 } from "Features/appConfig/appConfigSlice";
+import { setChronoVisible } from "Features/chrono/chronoSlice";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import setDisable3DInLocalStorage from "Features/appConfig/services/setDisable3DInLocalStorage";
@@ -12,7 +13,6 @@ import { Box, Typography } from "@mui/material";
 import FieldCheck from "Features/form/components/FieldCheck";
 
 import ButtonDeleteProjects from "Features/appConfig/components/ButtonDeleteProjects";
-import ButtonShowChrono from "Features/chrono/components/ButtonShowChrono";
 
 // "Généralités > Données & préférences" page: device-level settings and local
 // data management (the former compact PanelAppConfig, minus the satellite
@@ -25,6 +25,7 @@ export default function PageDonneesPreferences({ onClose }) {
   const appConfig = useAppConfig();
   const advancedLayout = useSelector((s) => s.appConfig.advancedLayout);
   const disable3D = useSelector((s) => s.appConfig.disable3D);
+  const chronoVisible = useSelector((s) => s.chrono.visible);
 
   // helpers
 
@@ -39,6 +40,10 @@ export default function PageDonneesPreferences({ onClose }) {
   function handleDisable3DChange(v) {
     dispatch(setDisable3D(v));
     setDisable3DInLocalStorage(v);
+  }
+
+  function handleChronoVisibleChange(v) {
+    dispatch(setChronoVisible(v));
   }
 
   // render
@@ -70,8 +75,13 @@ export default function PageDonneesPreferences({ onClose }) {
         />
       </Box>
 
-      <Box sx={{ mt: 2 }}>
-        <ButtonShowChrono />
+      <Box sx={{ py: 0.5 }}>
+        <FieldCheck
+          value={chronoVisible}
+          onChange={handleChronoVisibleChange}
+          label="Afficher le chrono"
+          options={{ type: "switch" }}
+        />
       </Box>
 
       <Box sx={{ mt: 2 }}>

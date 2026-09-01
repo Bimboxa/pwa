@@ -15,6 +15,7 @@ import {
 } from "@mui/material";
 import {
   Storage,
+  Dashboard,
   Draw,
   ViewInAr,
   Satellite as SatelliteIcon,
@@ -69,6 +70,17 @@ export default function NavConfigurationList({
           </ListItemIcon>
           <ListItemText primary="Données & préférences" />
         </ListItemButton>
+        {showScopeSections && (
+          <ListItemButton
+            selected={isSelected("GENERAL", "MODULES_TOOLS")}
+            onClick={() => onSelect({ type: "GENERAL", key: "MODULES_TOOLS" })}
+          >
+            <ListItemIcon sx={{ minWidth: 36 }}>
+              <Dashboard fontSize="small" />
+            </ListItemIcon>
+            <ListItemText primary="Modules & outils" />
+          </ListItemButton>
+        )}
 
         {showScopeSections && (
           <>

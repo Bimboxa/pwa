@@ -9,6 +9,7 @@ import { Box, Divider } from "@mui/material";
 
 import NavConfigurationList from "./NavConfigurationList";
 import PageDonneesPreferences from "./PageDonneesPreferences";
+import PageModulesToolsMockup from "./PageModulesToolsMockup";
 import PageModuleConfig from "./PageModuleConfig";
 import PageToolConfig from "./PageToolConfig";
 import PageEditor2d from "./PageEditor2d";
@@ -45,7 +46,10 @@ export default function PanelConfiguration({ onClose }) {
   let effectiveSelection = selection;
   if (
     (selection.type === "MODULE" && (!scopeId || !selectedModule)) ||
-    (selection.type === "TOOL" && (!scopeId || !selectedTool))
+    (selection.type === "TOOL" && (!scopeId || !selectedTool)) ||
+    (selection.type === "GENERAL" &&
+      selection.key === "MODULES_TOOLS" &&
+      !scopeId)
   ) {
     effectiveSelection = DEFAULT_SELECTION;
   }
@@ -63,9 +67,14 @@ export default function PanelConfiguration({ onClose }) {
       />
       <Divider orientation="vertical" flexItem />
       <Box sx={{ flexGrow: 1, minWidth: 0, overflowY: "auto" }}>
-        {effectiveSelection.type === "GENERAL" && (
-          <PageDonneesPreferences onClose={onClose} />
-        )}
+        {effectiveSelection.type === "GENERAL" &&
+          effectiveSelection.key === "DATA_PREFS" && (
+            <PageDonneesPreferences onClose={onClose} />
+          )}
+        {effectiveSelection.type === "GENERAL" &&
+          effectiveSelection.key === "MODULES_TOOLS" && (
+            <PageModulesToolsMockup modules={modules} tools={catalog} />
+          )}
         {effectiveSelection.type === "MODULE" && selectedModule && (
           <PageModuleConfig
             module={selectedModule}
