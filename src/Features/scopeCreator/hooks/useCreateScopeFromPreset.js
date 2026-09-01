@@ -22,9 +22,13 @@ import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useProjectBaseMapListings from "Features/baseMaps/hooks/useProjectBaseMapListings";
 import useDefaultBaseMapsListingProps from "Features/baseMaps/hooks/useDefaultBaseMapsListingProps";
 import useCreateListings from "Features/listings/hooks/useCreateListings";
+import useCreateConfigurationBaseMaps from "./useCreateConfigurationBaseMaps";
 
 import resolvePresetScopeListings from "../services/resolvePresetScopeListings";
 import resolvePresetScopeEntities from "../services/resolvePresetScopeEntities";
+import resolveConfigurationScopeListings from "../services/resolveConfigurationScopeListings";
+import createScopeConfig from "Features/scopeConfig/services/createScopeConfig";
+import setDisabledBaseMapListingIds from "Features/baseMapEditor/services/setDisabledBaseMapListingIds";
 
 export default function useCreateScopeFromPreset({ projectId }) {
   const dispatch = useDispatch();
@@ -38,6 +42,7 @@ export default function useCreateScopeFromPreset({ projectId }) {
 
   const createScope = useCreateScope();
   const createListings = useCreateListings();
+  const createConfigurationBaseMaps = useCreateConfigurationBaseMaps();
 
   // state
 
@@ -45,15 +50,41 @@ export default function useCreateScopeFromPreset({ projectId }) {
 
   // main
 
-  async function createScopeFromPreset({ name, presetScopeKey }) {
+  async function createScopeFromPreset(args) {
     if (isCreating) return null;
     setIsCreating(true);
+    try {
+      return await createScopeFromPresetUnsafe(args);
+    } catch (error) {
+      // reset so the creator UI unfreezes; the caller toasts the error.
+      setIsCreating(false);
+      throw error;
+    }
+  }
 
-    const newListings = await resolvePresetScopeListings({
-      presetScopeKey,
-      appConfig,
-      projectId,
-    });
+  async function createScopeFromPresetUnsafe({
+    name,
+    presetScopeKey,
+    configurationKey,
+    metaData,
+  }) {
+    // Krto creation configuration (card selector) — when absent, the legacy
+    // preset path below runs unchanged.
+    const configuration = appConfig?.features?.krtoConfigurations?.items?.find(
+      (c) => c.key === configurationKey
+    );
+
+    const newListings = configuration
+      ? await resolveConfigurationScopeListings({
+          configuration,
+          appConfig,
+          projectId,
+        })
+      : await resolvePresetScopeListings({
+          presetScopeKey,
+          appConfig,
+          projectId,
+        });
     const newEntities = resolvePresetScopeEntities({ listings: newListings });
 
     console.log(
@@ -67,7 +98,8 @@ export default function useCreateScopeFromPreset({ projectId }) {
       projectId,
       newListings,
       newEntities,
-      presetScopeKey,
+      presetScopeKey: configuration?.key ?? presetScopeKey,
+      metaData,
     });
     console.log("debug_25_09 [scope] created scope", scope, baseMapsListings);
     if (!scope) {
@@ -75,9 +107,44 @@ export default function useCreateScopeFromPreset({ projectId }) {
       return null;
     }
 
-    // baseMaps listing
+    // snapshot of the project's pre-existing baseMap listings, taken before
+    // the configuration creates its own (used by disableExistingListings).
+    const preExistingBaseMapListingIds = (baseMapsListings ?? []).map(
+      (l) => l.id
+    );
 
-    if (!baseMapsListings || baseMapsListings?.length === 0) {
+    // baseMaps listings (and configuration baseMap items)
+
+    let configurationItemsCount = 0;
+
+    if (configuration?.baseMaps) {
+      const { firstListingId, createdItemsCount, reusedListingIds } =
+        await createConfigurationBaseMaps({
+          configuration,
+          scope,
+          projectId,
+          existingListings: baseMapsListings,
+        });
+      configurationItemsCount = createdItemsCount;
+      if (firstListingId) {
+        dispatch(setSelectedBaseMapsListingId(firstListingId));
+      }
+
+      // hide the project's pre-existing baseMap listings for this scope —
+      // except the ones the configuration just reused.
+      const listingIdsToDisable = preExistingBaseMapListingIds.filter(
+        (id) => !reusedListingIds.includes(id)
+      );
+      if (
+        configuration.baseMaps.disableExistingListings &&
+        listingIdsToDisable.length > 0
+      ) {
+        await setDisabledBaseMapListingIds({
+          scopeId: scope.id,
+          listingIds: listingIdsToDisable,
+        });
+      }
+    } else if (!baseMapsListings || baseMapsListings?.length === 0) {
       // rank (fractional indexing) keeps "Vues en plan" before "Coupes & élévations"
       const planRank = generateKeyBetween(null, null);
       const verticalRank = generateKeyBetween(planRank, null);
@@ -109,6 +176,17 @@ export default function useCreateScopeFromPreset({ projectId }) {
       dispatch(setSelectedBaseMapsListingId(planListing?.id));
     }
 
+    // scopeConfig (per-scope module/tool activation) — absent from the
+    // configuration => no row, the app defaults apply.
+
+    if (configuration?.scopeConfig) {
+      await createScopeConfig({
+        scopeId: scope.id,
+        projectId,
+        ...configuration.scopeConfig,
+      });
+    }
+
     // selector — a freshly created scope lands on the Dessin module (2D),
     // not the Viewer (flag consumed by the LayoutDesktop landing effect).
     dispatch(setLandOnDrawScopeId(scope.id));
@@ -127,9 +205,11 @@ export default function useCreateScopeFromPreset({ projectId }) {
     dispatch(setLastRemoteConfiguration(null));
     dispatch(setLastSyncedRemoteConfigurationVersion(null));
 
-    // Case 2: project already has baseMaps -> auto-save right after scope creation.
+    // Case 2: project already has baseMaps, or the configuration just created
+    // some -> auto-save right after scope creation (the initial snapshot then
+    // includes the configuration content: baseMaps, scopeConfig, disabled ids).
     // Case 1 (no baseMaps yet) keeps being handled when baseMaps are added.
-    if (baseMapsListings?.length > 0) {
+    if (baseMapsListings?.length > 0 || configurationItemsCount > 0) {
       dispatch(setPendingInitialSaveScopeId(scope.id));
     }
 

@@ -25,9 +25,13 @@ export default function useCreateBaseMaps() {
     const defaultProps = useDefaultBaseMapsListingProps();
     const { value: userEmail } = useUserEmail();
 
-    return async (baseMaps) => {
+    return async (baseMaps, options) => {
 
-        let listing = projectBaseMapListings.find((l) => l.id === listingId);
+        // options.listing lets callers target an explicit listing (e.g. one
+        // just created, not yet visible in the redux-selected listing).
+        let listing =
+            options?.listing ??
+            projectBaseMapListings.find((l) => l.id === listingId);
 
         if (!listing) {
             console.error("ERROR - No baseMap listing found => create new listing");

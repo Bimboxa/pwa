@@ -34,6 +34,7 @@ export default function useCreateScope() {
       newListings,
       newEntities,
       presetScopeKey,
+      metaData,
     },
     options
   ) => {
@@ -59,6 +60,7 @@ export default function useCreateScope() {
       clientRef,
       projectId: projectId ?? _projectId,
       isPublic: false,
+      ...(metaData ? { metaData } : {}),
     };
     await db.scopes.add(scope);
     console.log("debug_25_04 [db] added scope", scope);

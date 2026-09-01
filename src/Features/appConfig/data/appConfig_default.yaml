@@ -142,6 +142,13 @@ features:
   presetScopes:
     templatesImageUrl: https://public.media.bimboxa.com/scope_templates_etandex.gif
 
+  # Krto creation configurations — card selector shown in the scope creator.
+  # Data lives in src/Data/<orgaCode>/configurations/ (one js file per
+  # configuration + assets/ for the card SVGs); the schema is documented in
+  # src/Features/appConfig/utils/resolveAppConfig.js.
+  krtoConfigurations:
+    enabled: false
+
   annotations:
     spriteImages:
       - key: DEFAULT

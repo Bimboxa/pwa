@@ -113,6 +113,13 @@ const TITLE_BLOCK_MANIFEST_LOADERS = import.meta.glob(
   { eager: false }
 );
 
+// Krto creation configurations — registry module stored under each org's
+// configurations folder (one js file per configuration + assets/).
+const KRTO_CONFIGURATIONS_LOADERS = import.meta.glob(
+  "../../../Data/*/configurations/index.js",
+  { eager: false }
+);
+
 export default async function resolveAppConfig(appConfig) {
   // edge case
 
@@ -196,6 +203,94 @@ export default async function resolveAppConfig(appConfig) {
       console.warn(
         `[resolveAppConfig] No libraries found for orgaCode "${orgaCode}" at ${libraryKey}`
       );
+    }
+  }
+
+  // Krto creation configurations (card selector in the scope creator).
+  // Registry: src/Data/<orgaCode>/configurations/index.js — default export is
+  // an array of configuration objects (the Data files are gitignored, so the
+  // schema is documented here):
+  //   { key, name, description,
+  //     imagePath,                  // card SVG, relative to Data/<orgaCode>/
+  //     keywords: { ouvrage: [], type: [], options: [] },
+  //     baseMaps: {
+  //       disableExistingListings,  // hide the project's pre-existing
+  //                                 // BASE_MAP listings for this scope
+  //       listings: [{ name, verticalBaseMaps, items: [
+  //         { type: "BLANK_PAGE", name, pageFormat: "A4"|"A3",
+  //           pageOrientation: "LANDSCAPE"|"PORTRAIT"|"SQUARE", scale },
+  //         { type: "ASSET", name, assetPath, meterByPx },  // raster only
+  //       ]}],
+  //     },
+  //     annotations: { libraryKeys },  // annotationTemplatesLibraries keys
+  //     scopeConfig: { disabledModuleKeys, disabledToolKeys,
+  //                    disabledToolKeysByModule } }  // absent => app defaults
+  // Named export `configurationKeywordFamilies` = [{ key, label }].
+  if (orgaCode && appConfig.features?.krtoConfigurations?.enabled) {
+    const registryKey = `../../../Data/${orgaCode}/configurations/index.js`;
+    const loader = KRTO_CONFIGURATIONS_LOADERS[registryKey];
+    if (loader) {
+      try {
+        const module = await loader();
+        const configurations = module.default ?? [];
+        const keywordFamilies = module.configurationKeywordFamilies ?? [];
+
+        const items = [];
+        for (const configuration of configurations) {
+          if (!configuration?.key) continue;
+          // clone: never mutate the module singleton, and keep the Redux
+          // appConfig plain-serializable (no loaders inside items).
+          const item = structuredClone(configuration);
+
+          if (item.imagePath) {
+            const fullPath = `../../../Data/${orgaCode}/${item.imagePath}`;
+            const imageLoader =
+              DATA_SVG_URL_LOADERS[fullPath] ||
+              DATA_IMAGE_URL_LOADERS[fullPath];
+            if (imageLoader) item.imageUrl = await imageLoader();
+          }
+
+          for (const listing of item.baseMaps?.listings ?? []) {
+            for (const baseMapItem of listing.items ?? []) {
+              if (baseMapItem.type === "ASSET" && baseMapItem.assetPath) {
+                const assetKey = `../../../Data/${orgaCode}/${baseMapItem.assetPath}`;
+                const assetLoader = DATA_IMAGE_URL_LOADERS[assetKey];
+                if (assetLoader) baseMapItem.assetUrl = await assetLoader();
+              }
+            }
+          }
+
+          items.push(item);
+        }
+
+        newAppConfig.features.krtoConfigurations = {
+          ...newAppConfig.features.krtoConfigurations,
+          items,
+          keywordFamilies,
+        };
+
+        // Backward-compat: a scope created from a configuration stores its key
+        // in scope.presetScopeKey. Merge each configuration into
+        // presetScopesObject (feeds getPresetScopeLabel and the listings sort
+        // fallback) WITHOUT touching presetScopesSortedKeys, so the legacy
+        // preset pickers keep ignoring these keys.
+        const presetScopesObject = {
+          ...(newAppConfig.presetScopesObject ?? {}),
+        };
+        for (const item of items) {
+          presetScopesObject[item.key] = {
+            key: item.key,
+            name: item.name,
+            listings: item.annotations?.libraryKeys ?? [],
+          };
+        }
+        newAppConfig.presetScopesObject = presetScopesObject;
+      } catch (error) {
+        console.error(
+          `[resolveAppConfig] Error loading configurations for "${orgaCode}":`,
+          error
+        );
+      }
     }
   }
 
