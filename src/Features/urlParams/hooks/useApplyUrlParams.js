@@ -65,8 +65,8 @@ export default function useApplyUrlParams() {
     if (mode === "viewer") {
       dispatch(setViewerMode(true));
       // Lock the map editor in "Sélection" — no draw/edit entry point in a
-      // shared viewer link. The D/M/S toolbar and hotkeys are also disabled
-      // downstream (PopperMapListings, useInteractionModeHotkeys).
+      // shared viewer link. The residual-mode reset (useResetInteractionMode)
+      // leaves this forced SELECT alone.
       dispatch(setInteractionMode("SELECT"));
     }
   }, [viewer, mode]);

@@ -88,6 +88,7 @@ export default async function deleteProjectLocalDataService(projectId) {
           db.relAnnotationOpenings,
           db.portfolioPages,
           db.portfolioBaseMapContainers,
+          db.scopeConfigs,
           db.files, // catches POV raw images + resource main files (no listingId)
         ];
         for (const table of byProjectId) {

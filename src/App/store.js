@@ -17,6 +17,7 @@ import masterProjectsReducer from "Features/masterProjects/masterProjectsSlice";
 import masterProjectPicturesReducer from "Features/masterProjectPictures/masterProjectPicturesSlice";
 import projectsReducer from "Features/projects/projectsSlice";
 import scopesReducer from "Features/scopes/scopesSlice";
+import scopeConfigReducer from "Features/scopeConfig/scopeConfigSlice";
 import versionsReducer from "Features/versions/versionsSlice";
 import scopeCreatorReducer from "Features/scopeCreator/scopeCreatorSlice";
 import scopeSelectorReducer from "Features/scopeSelector/scopeSelectorSlice";
@@ -98,6 +99,7 @@ const store = configureStore({
     masterProjectPictures: masterProjectPicturesReducer,
     projects: projectsReducer,
     scopes: scopesReducer,
+    scopeConfig: scopeConfigReducer,
     versions: versionsReducer,
     scopeCreator: scopeCreatorReducer,
     scopeSelector: scopeSelectorReducer,

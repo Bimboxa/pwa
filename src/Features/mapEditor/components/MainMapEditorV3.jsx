@@ -150,7 +150,7 @@ import DeferredCommitDialogOutlet from "./DeferredCommitDialogOutlet";
 import useSelectedNodes from "../hooks/useSelectedNodes";
 import useDrawingToolHotkeys from "../hooks/useDrawingToolHotkeys";
 import useFreeAnnotationHotkeys from "../hooks/useFreeAnnotationHotkeys";
-import useInteractionModeHotkeys from "../hooks/useInteractionModeHotkeys";
+import useResetInteractionMode from "../hooks/useResetInteractionMode";
 import useOpeningHotkey from "../hooks/useOpeningHotkey";
 import useToolGroupHotkey from "../hooks/useToolGroupHotkey";
 
@@ -188,8 +188,8 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     useDrawingToolHotkeys();
     // hotkeys — start a free draw (L = line, P = polygon) when in DRAW mode
     useFreeAnnotationHotkeys();
-    // hotkeys — switch interaction mode (D = Dessin, M = Modification, S = Sélection)
-    useInteractionModeHotkeys();
+    // reset a residual interaction mode (set by ZONES / POV flows) to the default
+    useResetInteractionMode();
     // hotkeys — start an opening draw (O) when not drawing
     useOpeningHotkey();
     // hotkeys — start segment removal (X = Retirer un segment) when not drawing

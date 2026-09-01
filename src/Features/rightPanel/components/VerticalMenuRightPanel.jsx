@@ -15,7 +15,6 @@ export default function VerticalMenuRightPanel() {
   // data
 
   const selectedKey = useSelector((s) => s.rightPanel.selectedMenuItemKey);
-  const advancedLayout = useSelector((s) => s.appConfig.advancedLayout);
   const selectedViewerKey = useSelector((s) => s.viewers.selectedViewerKey);
 
   // The tool list (filtered by module + appConfig.features.tools) is built in a
@@ -23,20 +22,24 @@ export default function VerticalMenuRightPanel() {
   // the tools shown here.
   const { menuItems, toolsByKey } = useRightPanelTools();
 
-  // effect - close the panel when its tool leaves the menu: LOCAL_LLM when
-  // advanced mode gets turned off, viewer-restricted tools when the viewer
-  // changes. Keys without a `viewers` constraint (incl. panels opened
-  // programmatically, e.g. NODE_FORMAT) are left untouched.
+  // effect - close the panel when its tool leaves the menu: viewer-restricted
+  // tools when the viewer changes, tools disabled from the Configuration
+  // dialog (scopeConfig). Keys without a `viewers` constraint (incl. panels
+  // opened programmatically, e.g. NODE_FORMAT) are left untouched.
+
+  const selectedToolScopeDisabled = Boolean(
+    toolsByKey[selectedKey]?.scopeDisabled
+  );
 
   useEffect(() => {
     const selectedTool = toolsByKey[selectedKey];
     const viewerMismatch =
       selectedTool?.viewers &&
       !selectedTool.viewers.includes(selectedViewerKey);
-    if ((selectedKey === "LOCAL_LLM" && !advancedLayout) || viewerMismatch) {
+    if (viewerMismatch || selectedToolScopeDisabled) {
       dispatch(setSelectedMenuItemKey(null));
     }
-  }, [selectedKey, advancedLayout, selectedViewerKey]);
+  }, [selectedKey, selectedViewerKey, selectedToolScopeDisabled]);
 
   // handlers
 

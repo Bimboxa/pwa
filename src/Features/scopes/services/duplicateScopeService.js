@@ -83,6 +83,7 @@ export default async function duplicateScopeService({
     sourceLayers,
     sourceBaseMapViews,
     sourceDimensions3d,
+    sourceScopeConfig,
   ] = await Promise.all([
     listingIds.length > 0
       ? db.annotationTemplates
@@ -113,6 +114,7 @@ export default async function duplicateScopeService({
       .equals(scope.id)
       .toArray()
       .then((rows) => rows.filter(notDeleted)),
+    db.scopeConfigs.where("scopeId").equals(scope.id).first(),
   ]);
 
   const liveLayerIds = new Set(sourceLayers.map((l) => l.id));
@@ -400,6 +402,16 @@ export default async function duplicateScopeService({
     scopeId: newScopeId,
   }));
 
+  // Module/tool activation follows the duplicate (id = scopeId convention).
+  const newScopeConfig = sourceScopeConfig
+    ? {
+        ...prepareCopy(sourceScopeConfig, createdBy),
+        id: newScopeId,
+        scopeId: newScopeId,
+        projectId: scope.projectId,
+      }
+    : null;
+
   // write: single transaction. withSystemWrite mutes per-record
   // notifyLocalChange, withoutUndo skips undo entries; one commit = one
   // liveQuery refresh.
@@ -426,6 +438,7 @@ export default async function duplicateScopeService({
           db.relAnnotationMappingCategory,
           db.baseMapViews,
           db.dimensions3d,
+          db.scopeConfigs,
         ],
         async () => {
           await db.scopes.add(newScope);
@@ -451,6 +464,7 @@ export default async function duplicateScopeService({
             await db.baseMapViews.bulkAdd(newBaseMapViews);
           if (newDimensions3d.length > 0)
             await db.dimensions3d.bulkAdd(newDimensions3d);
+          if (newScopeConfig) await db.scopeConfigs.add(newScopeConfig);
         }
       )
     )

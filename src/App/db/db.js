@@ -267,6 +267,22 @@ db.version(31).stores({
   resources: "id,projectId",
 });
 
+db.version(32).stores({
+  // {id (== scopeId at creation — deterministic so two devices upsert the
+  //  SAME row and the Krto merge newest-wins applies per-row; a duplicated
+  //  scope gets a fresh id, reads always go through the scopeId index),
+  //  scopeId, projectId,
+  //  disabledModuleKeys: [moduleKey] (hidden from the left band),
+  //  disabledToolKeys: [toolKey] (root-disabled: gone in every module),
+  //  disabledToolKeysByModule: {moduleKey: [toolKey]}}
+  // One row per scope by convention. Collaborative configuration of the
+  // left-band modules and right-band tools: AUDITED (timestamps feed the
+  // Krto merge) and OWNERSHIP-EXEMPT; the app writes it exclusively through
+  // withSystemWrite (useScopeConfigActions) so ANY user — including a
+  // visitor on a foreign private scope — can toggle it. NOT soft-deleted.
+  scopeConfigs: "id,scopeId,projectId",
+});
+
 // --- AUDIT HOOKS ---
 
 const AUDIT_TABLES = [
@@ -307,6 +323,7 @@ const AUDIT_TABLES = [
   "resources",
   "photos",
   "photoPlans",
+  "scopeConfigs",
 ];
 
 // Shared/collaborative tables exempt from the ownership guard: records here can
@@ -331,6 +348,9 @@ const OWNERSHIP_EXEMPT_TABLES = new Set([
   // PhotoPlans are shared calibration resources: anyone can rename, re-orient
   // or recalibrate a plan photo, not only its creator.
   "photoPlans",
+  // Module/tool activation is shared configuration: anyone edits it, not
+  // only the scope creator.
+  "scopeConfigs",
 ]);
 
 // --- READ-ONLY SCOPE GUARD ---

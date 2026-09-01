@@ -10,6 +10,7 @@ export default function useDeleteProjects() {
       await db.resources.clear();
       await db.files.clear();
       await db.syncFiles.clear();
+      await db.scopeConfigs.clear();
     });
   };
 

@@ -14,7 +14,6 @@ import ListPanel from "Features/listPanel/components/ListPanel";
 import PanelListingContainerWithVerticalSelector from "Features/listings/components/PanelListingContainerWithVerticalSelector";
 import PanelChatContainer from "./PanelChatContainer";
 import PanelShowable from "./PanelShowable";
-import DialogAppConfig from "Features/appConfig/components/DialogAppConfig";
 
 export default function LayoutMobile() {
   console.log("[debug] LayoutMobile");
@@ -41,7 +40,6 @@ export default function LayoutMobile() {
 
   return (
     <>
-      <DialogAppConfig />
       <BoxFlexV>
         <TopBar />
         <BoxFlexVStretch>

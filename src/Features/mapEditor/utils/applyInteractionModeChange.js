@@ -3,8 +3,8 @@ import { setSelectedItem } from "Features/selection/selectionSlice";
 
 // Shared side effects for switching the editor interaction mode
 // (null | "DRAW" | "EDIT" | "SELECT" — null = "no mode", the default). Used by
-// both the panel ToggleButtonGroup (PopperMapListings) and the D/M/S keyboard
-// shortcuts (useInteractionModeHotkeys), so the two paths can never drift.
+// the module flows that force a mode (ZONES arming, POV framing exit) and by
+// the residual-mode reset (useResetInteractionMode).
 //
 //  - leaving EDIT      → clear the ANNOTATION_TEMPLATE edit target, if any
 //

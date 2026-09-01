@@ -1,5 +1,7 @@
 import { useSelector } from "react-redux";
 
+import { selectDisabledModuleKeys } from "Features/scopeConfig/utils/scopeConfigSelectors";
+
 import {
   Map,
   MenuBook,
@@ -19,6 +21,11 @@ import {
 
 import theme from "Styles/theme";
 
+// Modules that can never be disabled from the Configuration dialog: the app
+// always keeps its two core modules. Also shields against imported
+// scopeConfig rows that would list them as disabled.
+export const LOCKED_MODULE_KEYS = new Set(["BASE_MAPS", "MAP"]);
+
 // Each entry is a MODULE of the left band. `editors` lists the editors the
 // module can display (default: the module's own key). Multi-editor modules
 // (BASE_MAPS, MAP, POINT_OF_VIEW, ZONES, THREED) expose the 2D/3D toggle
@@ -27,9 +34,14 @@ import theme from "Styles/theme";
 //
 // `hotkey` is the module-switch letter, bound as Ctrl+<letter> in
 // useViewerSwitchHotkeys and displayed as "Ctrl+X" under the module label.
-export default function useViewers() {
-  const advancedLayout = useSelector((s) => s.appConfig.advancedLayout);
+//
+// `ignoreScopeConfig`: the Configuration dialog lists every module including
+// the per-scope disabled ones (db.scopeConfigs); every other consumer gets
+// the scope-filtered list, so the band, the module selector and the
+// Ctrl+letter hotkeys all drop a disabled module for free.
+export default function useViewers({ ignoreScopeConfig = false } = {}) {
   const legacy = useSelector((s) => s.appConfig.enableMapEditorLegacy);
+  const disabledModuleKeys = useSelector(selectDisabledModuleKeys);
 
   const viewers = [
     // {
@@ -132,7 +144,8 @@ export default function useViewers() {
       shortLabel: "Objets",
       icon: <FormatListBulleted />,
       bgcolor: theme.palette.viewers.listing,
-      disabled: !advancedLayout,
+      // Former advanced-mode module — kept declared but disabled by default.
+      disabled: true,
     },
     {
       key: "PRINT",
@@ -177,5 +190,11 @@ export default function useViewers() {
 
   return viewers
     .filter((v) => !v.disabled)
+    .filter(
+      (v) =>
+        ignoreScopeConfig ||
+        LOCKED_MODULE_KEYS.has(v.key) ||
+        !disabledModuleKeys.includes(v.key)
+    )
     .map((v) => ({ ...v, editors: v.editors ?? [v.key] }));
 }
