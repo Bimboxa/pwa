@@ -179,25 +179,26 @@ export default function PageModulesToolsMockup({ modules, tools }) {
           {modules.map(renderModule)}
         </Box>
 
-        {/* central work area — hosts the 3D activation card */}
+        {/* central work area — the 3D activation card sits bottom-right,
+            where the real 2D/3D toggle lives on the main screen */}
         <Box
           sx={{
             flexGrow: 1,
             minWidth: 0,
+            position: "relative",
             display: "flex",
-            flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
-            gap: 1.5,
             bgcolor: "background.default",
-            overflowY: "auto",
-            py: 2,
+            overflow: "hidden",
           }}
         >
-          <CardToggle3d />
           <Typography variant="caption" color="text.disabled">
             Zone de travail
           </Typography>
+          <Box sx={{ position: "absolute", right: 16, bottom: 16 }}>
+            <CardToggle3d />
+          </Box>
         </Box>
 
         {/* right band mockup — tools */}
