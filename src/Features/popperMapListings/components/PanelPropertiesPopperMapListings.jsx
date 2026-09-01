@@ -3,14 +3,11 @@ import { useDispatch, useSelector } from "react-redux";
 
 import { clearSelection } from "Features/selection/selectionSlice";
 import { setVisibleAreaOnly } from "Features/smartDetect/smartDetectSlice";
-import { setShowLayers } from "Features/popperMapListings/popperMapListingsSlice";
 
 import {
   Box,
   Typography,
   IconButton,
-  Switch,
-  FormControlLabel,
   Button,
   Dialog,
   DialogTitle,
@@ -33,7 +30,6 @@ export default function PanelPropertiesPopperMapListings() {
 
   const { value: scope } = useSelectedScope();
   const visibleAreaOnly = useSelector((s) => s.smartDetect.visibleAreaOnly);
-  const showLayers = useSelector((s) => s.popperMapListings.showLayers);
   const { computeUnused, deleteUnused } = useDeleteUnusedAnnotationTemplates();
 
   // state
@@ -118,39 +114,6 @@ export default function PanelPropertiesPopperMapListings() {
             onChange={(v) => dispatch(setVisibleAreaOnly(v))}
             label="Détection sur partie visible de l'image"
             options={{ type: "check", showAsInline: true }}
-          />
-        </WhiteSectionGeneric>
-
-        {/* Card: Layers toggle */}
-        <WhiteSectionGeneric>
-          <Typography
-            variant="caption"
-            sx={{
-              fontWeight: 700,
-              fontSize: "0.7rem",
-              textTransform: "uppercase",
-              color: "text.secondary",
-              letterSpacing: 0.5,
-              mb: 0.5,
-              display: "block",
-            }}
-          >
-            Calques
-          </Typography>
-          <FormControlLabel
-            control={
-              <Switch
-                checked={showLayers}
-                onChange={(e) => dispatch(setShowLayers(e.target.checked))}
-                size="small"
-              />
-            }
-            label={
-              <Typography variant="body2">
-                Travailler avec des calques
-              </Typography>
-            }
-            sx={{ ml: 0 }}
           />
         </WhiteSectionGeneric>
 

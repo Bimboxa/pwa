@@ -1,4 +1,6 @@
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
+
+import { setShowLayers } from "Features/popperMapListings/popperMapListingsSlice";
 
 import { LOCKED_MODULE_KEYS } from "Features/viewers/hooks/useViewers";
 
@@ -17,9 +19,14 @@ import RowSwitchConfig from "./RowSwitchConfig";
 // (a disabled module leaves the left band, its Ctrl+letter unbinds), then
 // the per-module activation of the tools available in that module.
 export default function PageModuleConfig({ module, tools }) {
+  const dispatch = useDispatch();
+
   // data
 
   const disabledModuleKeys = useSelector(selectDisabledModuleKeys);
+  // Dessin-only setting (moved from the popper's properties panel). Session
+  // state: auto-enabled when the baseMap has layers (PopperMapListings).
+  const showLayers = useSelector((s) => s.popperMapListings.showLayers);
   const disabledToolKeys = useSelector(selectDisabledToolKeys);
   const disabledToolKeysByModule = useSelector(selectDisabledToolKeysByModule);
 
@@ -100,6 +107,23 @@ export default function PageModuleConfig({ module, tools }) {
           />
         );
       })}
+
+      {module.key === "MAP" && (
+        <>
+          <Divider sx={{ my: 2 }} />
+
+          <Typography variant="subtitle2" sx={{ mb: 1 }}>
+            Calques
+          </Typography>
+
+          <RowSwitchConfig
+            label="Travailler avec des calques"
+            caption="Activé automatiquement quand le fond de plan contient des calques."
+            checked={showLayers}
+            onChange={() => dispatch(setShowLayers(!showLayers))}
+          />
+        </>
+      )}
     </Box>
   );
 }
