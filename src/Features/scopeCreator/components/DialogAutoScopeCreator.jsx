@@ -1,10 +1,7 @@
 import { useSelector, useDispatch } from "react-redux";
 
-import { setOpenScopeCreator, setStepKey } from "Features/scopeCreator/scopeCreatorSlice";
+import { setOpenScopeCreator } from "Features/scopeCreator/scopeCreatorSlice";
 
-import DialogGeneric from "Features/layout/components/DialogGeneric";
-
-import PageScopeCreator from "./PageScopeCreator";
 import DialogCreateScopeFromPreset from "./DialogCreateScopeFromPreset";
 
 export default function DialogAutoScopeCreator() {
@@ -19,27 +16,17 @@ export default function DialogAutoScopeCreator() {
 
   function handleClose() {
     dispatch(setOpenScopeCreator(false));
-    dispatch(setStepKey("SEARCH_PROJECT"));
   }
+
   // render
 
   if (!open) return null;
 
-  // simplified 2-field dialog when a project is already selected;
-  // the stepper flow remains for entry points without a selected project.
-  if (projectId) {
-    return (
-      <DialogCreateScopeFromPreset
-        open={open}
-        onClose={handleClose}
-        projectId={projectId}
-      />
-    );
-  }
-
   return (
-    <DialogGeneric open={open} width={350} onClose={handleClose} vh={80}>
-      {open && <PageScopeCreator />}
-    </DialogGeneric>
+    <DialogCreateScopeFromPreset
+      open={open}
+      onClose={handleClose}
+      projectId={projectId}
+    />
   );
 }
