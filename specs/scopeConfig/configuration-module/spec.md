@@ -5,7 +5,7 @@
 | **Feature** | Dialog de configuration plein écran + activation des modules et outils par scope |
 | **Domaine** | `scopeConfig` (nouveau) (+ `viewers`, `rightPanel`, `appConfig`, `mapEditor`, `krtoFile`, `scopes`, `projects`, `App/db`) |
 | **Issue / branche** | #315 — `issue_315_configuration_module` |
-| **Statut** | En cours d'implémentation (2026-09-01) |
+| **Statut** | Implémenté, en cours de validation (2026-09-01) |
 
 ---
 
@@ -25,10 +25,12 @@ l'appConfig d'organisation.
 Promouvoir la configuration en vrai module :
 
 1. Un bouton « Configuration » (icône Tune) **en bas de la bande de modules**
-   ouvre un **dialog plein page**.
+   ouvre un **dialog fullScreen** avec un en-tête « Configuration » et un
+   bouton « Quitter » en haut à droite.
 2. Le dialog est organisé en **sommaire à gauche** / **contenu à droite**,
-   avec quatre sections dans le sommaire (de haut en bas) : **Généralités**,
-   **Modules**, **Outils**, **Éditeurs**.
+   avec quatre sections dans le sommaire (de haut en bas) : **Généralités**
+   (« Données & préférences » + « Modules & outils »), **Modules**,
+   **Outils**, **Éditeurs**.
 3. L'activation des modules et des outils est **par scope**, partagée entre
    utilisateurs, et modifiable **par tout le monde** (y compris un visiteur
    d'un scope privé) — d'où une table Dexie dédiée hors du verrou d'ownership
@@ -74,6 +76,15 @@ Promouvoir la configuration en vrai module :
    « Désactiver la 3D », « Afficher le chrono » (switch), « Supprimer les
    données de l'appareil » (contenu de l'ancien dialog, hors bloc satellite).
    Le « Mode avancé » a été supprimé de l'application. ✅
+8. **Modules & outils (maquette)** — Page Généralités > Modules & outils :
+   une maquette compacte de l'écran principal (bandes modules/outils, sans
+   badges de raccourcis) où un clic active/désactive directement ; la card
+   « Vue 3D » est ancrée en bas à droite de la zone de travail, comme le
+   toggle 2D/3D du vrai écran. ✅
+9. **Calques du module Dessin** — La page du module Dessin porte la section
+   « Calques » avec « Travailler avec des calques » (déplacée du panneau
+   propriétés du popper) ; l'auto-activation quand le fond de plan contient
+   des calques est conservée. ✅
 
 ## 4. Exigences fonctionnelles
 
@@ -101,7 +112,8 @@ Promouvoir la configuration en vrai module :
   de module, hotkeys Ctrl+lettre dérivés). Le module sélectionné devient-il
   désactivé → bascule automatique vers `MAP` ou le premier module actif
   (garde `useEnsureEnabledModule`, active seulement après hydratation de la
-  synchro). Impossible de désactiver le **dernier** module actif (garde UI).
+  synchro). Fonds de plan et Dessin étant verrouillés (FR-5), la bande garde
+  toujours au moins deux modules.
 - **FR-4** — Un outil désactivé à la racine est filtré de la bande de droite
   dans tous les modules ; un outil désactivé par module ne l'est que dans ce
   module. Les hotkeys d'outils dérivent de la liste filtrée (aucun code
@@ -113,12 +125,30 @@ Promouvoir la configuration en vrai module :
   `LOCKED_MODULE_KEYS` exportée par `useViewers`, qui protège aussi le filtre
   contre une row importée les listant désactivés. Rendus en switch
   désactivé-ON avec la mention « Toujours actif ».
+- **FR-6** — Le catalogue d'outils configurables = allowlist
+  `appConfig.features.tools` (ordre préservé) + outils contextuels (Capture,
+  Réglages, Transfo.), `SELECTION_PROPERTIES` toujours inclus. Un outil absent
+  de l'allowlist d'organisation n'apparaît jamais dans la configuration.
+- **FR-7** — La configuration par scope voyage : export Krto (table ajoutée à
+  `tablesWithScopeId`), synchro distante push/fetch (round-trip Krto,
+  merge newest-wins par row grâce aux timestamps), duplication de scope
+  (copie explicite dans `duplicateScopeService`), nettoyages
+  (`clearScopeDataService`, `deleteProjectLocalDataService`,
+  `useDeleteProjects`).
+- **FR-8** — Sans scope sélectionné (dashboard, pages de sélection), les
+  sections Modules & outils, Modules et Outils sont masquées ; Données &
+  préférences et Éditeurs restent.
+- **FR-9** — L'ancien dialog compact (`DialogAppConfig` + `PanelAppConfig`)
+  est supprimé ; tous les points d'entrée dispatchent
+  `setOpenAppConfig(true)` vers le nouveau dialog monté une seule fois dans
+  `MainApp`.
 - **FR-10** — Page « Généralités > Modules & outils » : maquette compacte de
   l'écran principal (bande modules à gauche, bande outils à droite, sans
   badges de raccourcis) ; un clic bascule l'activation du module ou
   l'activation RACINE de l'outil ; les éléments verrouillés ne réagissent pas.
-  La zone de travail centrale héberge la card « Vue 3D » (préférence appareil
-  `disable3D`).
+  La card « Vue 3D » (préférence appareil `disable3D`, fond SVG isométrique
+  inline) est ancrée en bas à droite de la zone de travail, à l'emplacement du
+  toggle 2D/3D de l'écran réel.
 - **FR-11** — **Configuration par défaut d'un scope** (pas de row
   `scopeConfigs`, ou champ absent) : modules actifs = Fonds de plan + Dessin
   seulement (`DEFAULT_DISABLED_MODULE_KEYS`) ; outils désactivés par défaut =
@@ -131,22 +161,10 @@ Promouvoir la configuration en vrai module :
   `useResetInteractionMode` qui remet le mode résiduel à null) ; l'intercept
   ORTHO_PATHS marche désormais quand le mode est explicitement choisi dans
   l'UI SmartDetect (plus d'auto-défaut sur POLYLINE_CLICK).
-- **FR-6** — Le catalogue d'outils configurables = allowlist
-  `appConfig.features.tools` (ordre préservé) + outils contextuels (Capture,
-  Réglages, Transfo.), `SELECTION_PROPERTIES` toujours inclus. Un outil absent
-  de l'allowlist d'organisation n'apparaît jamais dans la configuration.
-- **FR-7** — La configuration par scope voyage : export Krto (table ajoutée à
-  `tablesWithScopeId`), synchro distante push/fetch (round-trip Krto,
-  merge newest-wins par row grâce aux timestamps), duplication de scope
-  (copie explicite dans `duplicateScopeService`), nettoyages
-  (`clearScopeDataService`, `deleteProjectLocalDataService`,
-  `useDeleteProjects`).
-- **FR-8** — Sans scope sélectionné (dashboard, pages de sélection), les
-  sections Modules et Outils sont masquées ; Généralités et Éditeurs restent.
-- **FR-9** — L'ancien dialog compact (`DialogAppConfig` + `PanelAppConfig`)
-  est supprimé ; tous les points d'entrée dispatchent
-  `setOpenAppConfig(true)` vers le nouveau dialog monté une seule fois dans
-  `MainApp`.
+- **FR-13** — La page du module Dessin porte la section « Calques » : switch
+  « Travailler avec des calques » branché sur l'état de session
+  `popperMapListings.showLayers` (déplacé du panneau propriétés du popper),
+  auto-activation conservée quand le fond de plan contient des calques.
 
 ## 5. Modèle de données & état
 
@@ -165,8 +183,13 @@ Promouvoir la configuration en vrai module :
   `toggleToolInModule` ; upsert `withSystemWrite` (patch sans `updatedAt`
   pour laisser le hook `updating` retamponner) + `notifyLocalChange()`.
 - **Préférences appareil** (inchangées) : `vertexSizeMultiplier`
-  (`mapEditorSettings` localStorage), `satelliteCaptureMode`, `disable3D`,
-  `advancedLayout` (non persisté, comme avant).
+  (`mapEditorSettings` localStorage), `satelliteCaptureMode`, `disable3D`.
+  États de session exposés par la page : `chrono.visible`,
+  `popperMapListings.showLayers`.
+- **Défauts** : `DEFAULT_DISABLED_MODULE_KEYS` / `DEFAULT_DISABLED_TOOL_KEYS`
+  dans `scopeConfigSelectors.js` — fallback des sélecteurs ET semence de la
+  première row (`useScopeConfigActions`). Ne jamais créer une row avec des
+  listes vides.
 
 ## 6. Mécanisme (chaîne de filtrage)
 
@@ -190,8 +213,9 @@ membre `catalog` retourné par `useRightPanelTools` pour les outils.
 
 ## 7. Cas limites
 
-- **Dernier module actif** : switch verrouillé côté UI (« Au moins un module
-  doit rester actif. ») — pas de garde DB.
+- **Modules verrouillés vs données importées** : une row `scopeConfigs`
+  importée qui listerait `BASE_MAPS`/`MAP` désactivés est neutralisée par le
+  filtre de `useViewers` (`LOCKED_MODULE_KEYS` court-circuite la liste).
 - **Restauration au boot d'un module désactivé** : `getInitSelectedModuleKey`
   reste ignorant du scope ; `useEnsureEnabledModule` corrige juste après
   l'hydratation (`synced === true`), même pattern que la correction
@@ -235,20 +259,37 @@ Modules/Outils masquées sans scope.
 `scopeConfigSlice.js`, `utils/scopeConfigSelectors.js`,
 `hooks/useScopeConfigActions.js`, `components/DialogConfiguration.jsx`,
 `components/PanelConfiguration.jsx`, `components/NavConfigurationList.jsx`,
-`components/PageDonneesPreferences.jsx`, `components/PageModuleConfig.jsx`,
-`components/PageToolConfig.jsx`, `components/PageEditor2d.jsx`,
-`components/PageEditor3d.jsx`, `components/PageSatelliteMap.jsx`.
-Plus `src/Features/viewers/hooks/useEnsureEnabledModule.js` et
-`src/Features/mapEditor/components/SectionVertexSize.jsx` (extraction).
+`components/PageDonneesPreferences.jsx`,
+`components/PageModulesToolsMockup.jsx`, `components/CardToggle3d.jsx`,
+`components/PageModuleConfig.jsx`, `components/PageToolConfig.jsx`,
+`components/PageEditor2d.jsx`, `components/PageEditor3d.jsx`,
+`components/PageSatelliteMap.jsx`, `components/RowSwitchConfig.jsx`.
+Plus `src/Features/viewers/hooks/useEnsureEnabledModule.js`,
+`src/Features/mapEditor/components/SectionVertexSize.jsx` (extraction) et
+`src/Features/mapEditor/hooks/useResetInteractionMode.js` (remplace
+`useInteractionModeHotkeys`).
 
 **Modifiés** : `src/App/db/db.js` (v32 + sets), `src/App/dexieSyncService.js`,
 `src/App/store.js`, `src/App/components/MainApp.jsx`,
-`src/Features/viewers/hooks/useViewers.jsx`,
+`src/Features/appConfig/appConfigSlice.js` (advancedLayout retiré),
+`src/Features/viewers/hooks/useViewers.jsx` (LOCKED_MODULE_KEYS,
+ignoreScopeConfig, LISTING hard-disabled),
 `src/Features/viewers/components/VerticalMenuViewers.jsx`,
+`src/Features/viewers/hooks/useLandingViewerModuleOnScopeOpen.js`,
 `src/Features/layout/components/LayoutDesktop.jsx`,
-`src/Features/rightPanel/hooks/useRightPanelTools.jsx`,
+`src/Features/rightPanel/hooks/useRightPanelTools.jsx` (filtres scopeConfig,
+catalog, LOCKED_TOOL_KEYS, LOCAL_LLM hard-disabled),
 `src/Features/rightPanel/components/VerticalMenuRightPanel.jsx`,
 `src/Features/mapEditor/components/SectionEditorSettings2d.jsx`,
+`src/Features/mapEditor/components/MainMapEditorV3.jsx`,
+`src/Features/mapEditor/components/PopperMapListings.jsx` (toggle D/M/S
+supprimé), `src/Features/mapEditor/components/InteractionLayer.jsx`
+(gardes advancedLayout d'ORTHO_PATHS),
+`src/Features/mapEditor/utils/applyInteractionModeChange.js`,
+`src/Features/popperMapListings/components/PanelPropertiesPopperMapListings.jsx`
+(card Calques déplacée),
+`src/Features/urlParams/hooks/useApplyUrlParams.js`,
+`src/Features/init/services/getInitSelectedModuleKey.js`,
 `src/Features/krtoFile/services/createKrtoZip.js`,
 `src/Features/scopes/services/duplicateScopeService.js`,
 `src/Features/scopes/services/clearScopeDataService.js`,
@@ -259,4 +300,6 @@ Plus `src/Features/viewers/hooks/useEnsureEnabledModule.js` et
 `src/Features/layout/components/LayoutMobile.jsx`.
 
 **Supprimés** : `src/Features/appConfig/components/DialogAppConfig.jsx`,
-`src/Features/appConfig/components/PanelAppConfig.jsx`.
+`src/Features/appConfig/components/PanelAppConfig.jsx`,
+`src/Features/chrono/components/ButtonShowChrono.jsx`,
+`src/Features/mapEditor/hooks/useInteractionModeHotkeys.js`.
