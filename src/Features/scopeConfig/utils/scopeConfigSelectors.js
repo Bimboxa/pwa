@@ -12,6 +12,7 @@ export const DEFAULT_DISABLED_MODULE_KEYS = [
   "THREED",
   "MESHES",
   "ZONES",
+  "BUSINESS_OBJECTS",
 ];
 
 export const DEFAULT_DISABLED_TOOL_KEYS = [
@@ -43,4 +44,10 @@ export function selectDisabledToolKeys(s) {
 
 export function selectDisabledToolKeysByModule(s) {
   return selectSelectedScopeConfig(s)?.disabledToolKeysByModule ?? EMPTY_OBJ;
+}
+
+// Per-scope module label overrides ({moduleKey: label}). Empty by default —
+// the module catalog falls back to its appConfig / hardcoded labels.
+export function selectModuleLabelsByKey(s) {
+  return selectSelectedScopeConfig(s)?.moduleLabelsByKey ?? EMPTY_OBJ;
 }

@@ -1,7 +1,9 @@
 import {
   Box,
   Button,
+  Checkbox,
   CircularProgress,
+  FormControlLabel,
   Tooltip,
   Typography,
 } from "@mui/material";
@@ -50,6 +52,8 @@ export default function SectionKrtoSummary({
   projectId,
   categories,
   onCategoriesChange,
+  options,
+  onOptionsChange,
   onCreate,
   isCreating,
   canCreate,
@@ -57,6 +61,10 @@ export default function SectionKrtoSummary({
   // strings
 
   const titleS = "Récapitulatif";
+  const optionsS = "Options";
+  const dpgfS = "DPGF";
+  const dpgfCaptionS =
+    "Active le module Ouvrages avec une première liste « DPGF ».";
   const baseMapsS = "Dossiers de plans";
   const librariesS = "Modèles d'annotations";
   const categoriesS = "Catégories";
@@ -152,6 +160,31 @@ export default function SectionKrtoSummary({
           onChange={onCategoriesChange}
           singleSelect
         />
+      </WhiteSectionGeneric>
+
+      <WhiteSectionGeneric>
+        <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
+          {optionsS}
+        </Typography>
+        <FormControlLabel
+          control={
+            <Checkbox
+              size="small"
+              checked={Boolean(options?.dpgf)}
+              onChange={(e) =>
+                onOptionsChange?.({ ...options, dpgf: e.target.checked })
+              }
+            />
+          }
+          label={<Typography variant="body2">{dpgfS}</Typography>}
+          sx={{ ml: 0 }}
+        />
+        <Typography
+          variant="caption"
+          sx={{ display: "block", color: "text.secondary" }}
+        >
+          {dpgfCaptionS}
+        </Typography>
       </WhiteSectionGeneric>
 
       <WhiteSectionGeneric>

@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 
 import { setShowLayers } from "Features/popperMapListings/popperMapListingsSlice";
@@ -9,11 +10,17 @@ import {
   selectDisabledModuleKeys,
   selectDisabledToolKeys,
   selectDisabledToolKeysByModule,
+  selectModuleLabelsByKey,
 } from "../utils/scopeConfigSelectors";
 
-import { Box, Divider, Typography } from "@mui/material";
+import { Box, Divider, TextField, Typography } from "@mui/material";
 
 import RowSwitchConfig from "./RowSwitchConfig";
+
+// Modules whose label is configurable per scope (stored in
+// scopeConfigs.moduleLabelsByKey). Generic mechanism, exposed for the
+// Ouvrages module only in v1.
+const RENAMABLE_MODULE_KEYS = new Set(["BUSINESS_OBJECTS"]);
 
 // Module page of the Configuration dialog: activation of the module itself
 // (a disabled module leaves the left band, its Ctrl+letter unbinds), then
@@ -29,13 +36,25 @@ export default function PageModuleConfig({ module, tools }) {
   const showLayers = useSelector((s) => s.popperMapListings.showLayers);
   const disabledToolKeys = useSelector(selectDisabledToolKeys);
   const disabledToolKeysByModule = useSelector(selectDisabledToolKeysByModule);
+  const moduleLabelsByKey = useSelector(selectModuleLabelsByKey);
 
-  const { toggleModule, toggleToolInModule } = useScopeConfigActions();
+  const { toggleModule, toggleToolInModule, setModuleLabel } =
+    useScopeConfigActions();
+
+  // state — module label override edited locally, committed on blur
+
+  const labelOverride = moduleLabelsByKey[module.key] ?? "";
+  const [labelDraft, setLabelDraft] = useState(labelOverride);
+
+  useEffect(() => {
+    setLabelDraft(labelOverride);
+  }, [module.key, labelOverride]);
 
   // helpers
 
   const locked = LOCKED_MODULE_KEYS.has(module.key);
   const enabled = locked || !disabledModuleKeys.includes(module.key);
+  const renamable = RENAMABLE_MODULE_KEYS.has(module.key);
 
   const moduleTools = tools.filter(
     (t) => !t.viewers || t.viewers.includes(module.key)
@@ -64,6 +83,33 @@ export default function PageModuleConfig({ module, tools }) {
         disabled={locked}
         onChange={() => toggleModule(module.key)}
       />
+
+      {renamable && (
+        <>
+          <Divider sx={{ my: 2 }} />
+
+          <Typography variant="subtitle2" sx={{ mb: 1 }}>
+            Nom du module
+          </Typography>
+
+          <TextField
+            fullWidth
+            size="small"
+            label="Nom affiché"
+            placeholder={module.label}
+            value={labelDraft}
+            onChange={(e) => setLabelDraft(e.target.value)}
+            onBlur={() => {
+              if (labelDraft.trim() !== labelOverride)
+                setModuleLabel(module.key, labelDraft);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") e.target.blur();
+            }}
+            helperText="Nom du module pour ce dossier (bandeau de gauche, panneaux). Vide : nom par défaut."
+          />
+        </>
+      )}
 
       <Divider sx={{ my: 2 }} />
 

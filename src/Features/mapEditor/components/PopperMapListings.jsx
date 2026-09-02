@@ -1652,6 +1652,7 @@ export default function PopperMapListings() {
       viewerKey === "MAP" ||
       viewerKey === "BASE_MAPS" ||
       viewerKey === "ZONES" ||
+      viewerKey === "BUSINESS_OBJECTS" ||
       isPovViewer ||
       isThreedViewer,
     filterByMainBaseMap: true,

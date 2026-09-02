@@ -77,6 +77,8 @@ export default function useViewerSwitchHotkeys() {
       if (s.mapEditor.enabledDrawingMode) return;
       if (s.mapEditor.pasteClipboard || selectSubtractPickAnnotationId(s))
         return;
+      // Business-object link mode owns the map clicks; Escape exits it first.
+      if (s.businessObjects.linkingBusinessObjectId) return;
       // Already there — nothing to switch, don't consume.
       if (targetViewerKey === s.viewers.selectedViewerKey) return;
 

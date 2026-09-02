@@ -28,6 +28,8 @@ import resolvePresetScopeListings from "../services/resolvePresetScopeListings";
 import resolvePresetScopeEntities from "../services/resolvePresetScopeEntities";
 import resolveConfigurationScopeListings from "../services/resolveConfigurationScopeListings";
 import createScopeConfig from "Features/scopeConfig/services/createScopeConfig";
+import { DEFAULT_DISABLED_MODULE_KEYS } from "Features/scopeConfig/utils/scopeConfigSelectors";
+import createBusinessObjectListingService from "Features/businessObjects/services/createBusinessObjectListingService";
 import setDisabledBaseMapListingIds from "Features/baseMapEditor/services/setDisabledBaseMapListingIds";
 
 export default function useCreateScopeFromPreset({ projectId }) {
@@ -67,6 +69,7 @@ export default function useCreateScopeFromPreset({ projectId }) {
     presetScopeKey,
     configurationKey,
     metaData,
+    options,
   }) {
     // Krto creation configuration (card selector) — when absent, the legacy
     // preset path below runs unchanged.
@@ -177,13 +180,41 @@ export default function useCreateScopeFromPreset({ projectId }) {
     }
 
     // scopeConfig (per-scope module/tool activation) — absent from the
-    // configuration => no row, the app defaults apply.
+    // configuration => no row, the app defaults apply. The DPGF option needs
+    // the BUSINESS_OBJECTS module ON for this scope, so it materializes a row
+    // (seeded from the app defaults when the configuration carries none) with
+    // the module removed from the disabled list.
 
-    if (configuration?.scopeConfig) {
+    const dpgf = Boolean(options?.dpgf);
+
+    if (configuration?.scopeConfig || dpgf) {
+      const baseScopeConfig = configuration?.scopeConfig ?? {
+        disabledModuleKeys: [...DEFAULT_DISABLED_MODULE_KEYS],
+      };
+      const scopeConfigProps = dpgf
+        ? {
+            ...baseScopeConfig,
+            disabledModuleKeys: (
+              baseScopeConfig.disabledModuleKeys ?? []
+            ).filter((k) => k !== "BUSINESS_OBJECTS"),
+          }
+        : baseScopeConfig;
       await createScopeConfig({
         scopeId: scope.id,
         projectId,
-        ...configuration.scopeConfig,
+        ...scopeConfigProps,
+      });
+    }
+
+    // DPGF option: seed the scope's first business-objects listing (the
+    // Ouvrages panel auto-selects the first listing on open).
+
+    if (dpgf) {
+      await createBusinessObjectListingService({
+        projectId,
+        scopeId: scope.id,
+        name: "DPGF",
+        appConfig,
       });
     }
 

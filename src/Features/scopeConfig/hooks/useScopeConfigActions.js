@@ -93,5 +93,26 @@ export default function useScopeConfigActions() {
     [upsert]
   );
 
-  return { scopeId, toggleModule, toggleToolRoot, toggleToolInModule };
+  // Per-scope module label override (left band + panel headers). An empty /
+  // whitespace label removes the override — the appConfig / hardcoded default
+  // applies again.
+  const setModuleLabel = useCallback(
+    (moduleKey, label) =>
+      upsert((row) => {
+        const next = { ...(row?.moduleLabelsByKey ?? {}) };
+        const trimmed = (label ?? "").trim();
+        if (trimmed) next[moduleKey] = trimmed;
+        else delete next[moduleKey];
+        return { moduleLabelsByKey: next };
+      }),
+    [upsert]
+  );
+
+  return {
+    scopeId,
+    toggleModule,
+    toggleToolRoot,
+    toggleToolInModule,
+    setModuleLabel,
+  };
 }

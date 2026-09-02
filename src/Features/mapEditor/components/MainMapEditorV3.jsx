@@ -98,6 +98,7 @@ import useCommitLocalizedRepair from "Features/localizedRepair/hooks/useCommitLo
 import useCreateAnnotationFromSurfaceDrop from "Features/smartDetect/hooks/useCreateAnnotationFromSurfaceDrop";
 import PopperMapListings from "./PopperMapListings";
 import FloatingHelpersDessin from "Features/panelDrawing/components/FloatingHelpersDessin";
+import PopperLinkBusinessObjectHelper from "Features/businessObjects/components/PopperLinkBusinessObjectHelper";
 import PanelDrawingHelperPortal from "Features/panelDrawing/components/PanelDrawingHelperPortal";
 import ImageModeOverlay from "./ImageModeOverlay";
 import ButtonCloseImageMode from "./ButtonCloseImageMode";
@@ -2276,6 +2277,13 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                     <FloatingHelpersDessin />
                     <PanelDrawingHelperPortal />
                 </>
+            )}
+
+            {/* Business-object link mode helper ("Ouvrages") — self-guards on
+                the linkingBusinessObjectId flag, armed from the
+                BUSINESS_OBJECTS module (not the Dessin panel). */}
+            {!versionCompareEnabled && !imageModeActive && (
+                <PopperLinkBusinessObjectHelper />
             )}
 
             {imageModeActive && (

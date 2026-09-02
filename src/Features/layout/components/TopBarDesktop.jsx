@@ -94,6 +94,10 @@ export default function TopBarDesktop() {
   const effectiveViewerKey = useSelector(selectEffectiveViewerKey);
   const isPovViewer = viewerKey === "POINT_OF_VIEW";
   const isPovMap = isPovViewer && effectiveViewerKey === "MAP";
+  // Ouvrages module: same rule as POV — the 2D selector shows while the
+  // module displays the map editor, the 3D editor keeps its canvas chips.
+  const isBusinessObjectsMap =
+    viewerKey === "BUSINESS_OBJECTS" && effectiveViewerKey === "MAP";
 
   // handlers
 
@@ -236,7 +240,10 @@ export default function TopBarDesktop() {
       </Box>
 
       {/* Center section - baseMap selectors or portfolio return */}
-      {(viewerKey === "MAP" || viewerKey === "BASE_MAPS" || isPovMap) && (
+      {(viewerKey === "MAP" ||
+        viewerKey === "BASE_MAPS" ||
+        isPovMap ||
+        isBusinessObjectsMap) && (
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
           <BaseMapSelectorInMapEditorV2
             onEdit={viewerKey === "MAP" ? handleGoToBaseMapsDetail : undefined}

@@ -99,6 +99,9 @@ export default function DialogCreateScopeFromPreset({
   // arrays for the chips component) — prefilled from the selected
   // configuration, saved as single values into scope.metaData.categories.
   const [categories, setCategories] = useState({ ouvrage: [], type: [] });
+  // creation options — dpgf: enable the BUSINESS_OBJECTS module with a first
+  // "DPGF" objects listing.
+  const [options, setOptions] = useState({ dpgf: false });
 
   // handlers
 
@@ -141,6 +144,7 @@ export default function DialogCreateScopeFromPreset({
         name: name.trim(),
         presetScopeKey: krtoConfigurations ? null : key,
         configurationKey: krtoConfigurations ? key : null,
+        options,
         metaData:
           krtoConfigurations &&
           (categories.ouvrage?.length || categories.type?.length)
@@ -253,6 +257,8 @@ export default function DialogCreateScopeFromPreset({
             projectId={projectId}
             categories={categories}
             onCategoriesChange={setCategories}
+            options={options}
+            onOptionsChange={setOptions}
             onCreate={handleCreate}
             isCreating={isCreating}
             canCreate={Boolean(name.trim()) && Boolean(projectId)}

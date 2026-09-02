@@ -37,6 +37,11 @@ strings:
     projectAndScope: "Périmètre des données"
     select: "Sélectionnez un dossier / lot"
 
+  # Module labels (left band). Overridable per org (this file is replaced
+  # wholesale by appConfig_<org>.yaml) and per scope (scopeConfig).
+  modules:
+    businessObjects: "Ouvrages"
+
   project:
     nameSingular: "Projet"
     namePlural: "Projets"

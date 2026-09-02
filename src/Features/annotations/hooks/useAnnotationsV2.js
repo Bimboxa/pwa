@@ -392,6 +392,7 @@ import useAnnotationOpenings from "Features/annotations/hooks/useAnnotationOpeni
 import getExtrusionProfileFootprintShapes from "Features/annotations/utils/getExtrusionProfileFootprintShapes";
 import useAnnotationSubtractions from "Features/annotations/hooks/useAnnotationSubtractions";
 import useZoneSoloAnnotationIdSet from "Features/zonings/hooks/useZoneSoloAnnotationIdSet";
+import useBusinessObjectSoloAnnotationIdSet from "Features/businessObjects/hooks/useBusinessObjectSoloAnnotationIdSet";
 import { selectPovFreezeCreatedBefore } from "Features/viewers/utils/effectiveViewerKey";
 import { getShape3DKey } from "Features/annotations/constants/shape3DConfig";
 import {
@@ -556,6 +557,15 @@ export default function useAnnotationsV2(options) {
     const zoneSoloAnnotationIdSet = useZoneSoloAnnotationIdSet(
       soloZone?.zoneId
     );
+
+    // business-object SOLO (Ouvrages module): clicking an object shows only
+    // the annotations linked to it or to its descendants. Same ignoreSolo /
+    // keepSoloDimmed semantics as the zone solo.
+    const soloBusinessObjectId = useSelector(
+      (s) => s.businessObjects?.selectedBusinessObjectId ?? null
+    );
+    const businessObjectSoloAnnotationIdSet =
+      useBusinessObjectSoloAnnotationIdSet(soloBusinessObjectId);
 
     // template FOCUS (Dessin module's recap panel): templateId | null. Same
     // ignoreSolo / keepSoloDimmed semantics as the zone solo.
@@ -2587,6 +2597,22 @@ export default function useAnnotationsV2(options) {
         }
       }
 
+      // business-object solo (Ouvrages module): keep only the annotations
+      // linked to the selected object or to its descendants
+      // (relsBusinessObjectAnnotation). Base-map (background) annotations are
+      // always kept, like the zone solo above.
+      if (!ignoreSolo && soloBusinessObjectId) {
+        const isInBusinessObjectSolo = (a) =>
+          a.isBaseMapAnnotation || businessObjectSoloAnnotationIdSet.has(a.id);
+        if (keepSoloDimmed) {
+          result = result.map((a) =>
+            isInBusinessObjectSolo(a) ? a : { ...a, _soloDimmed: true }
+          );
+        } else {
+          result = result.filter(isInBusinessObjectSolo);
+        }
+      }
+
       // template focus (Dessin module's recap panel): keep only the focused
       // template's annotations. Base-map (background) annotations are always
       // kept, like the zone solo above.
@@ -2761,6 +2787,8 @@ export default function useAnnotationsV2(options) {
       withQties,
       soloZone,
       zoneSoloAnnotationIdSet,
+      soloBusinessObjectId,
+      businessObjectSoloAnnotationIdSet,
       soloTemplateId,
       soloAnnotationId,
       keepSoloDimmed,

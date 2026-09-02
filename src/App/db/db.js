@@ -283,6 +283,22 @@ db.version(32).stores({
   scopeConfigs: "id,scopeId,projectId",
 });
 
+db.version(33).stores({
+  // {id, listingId (BUSINESS_OBJECT listing), parentId|null, label, color,
+  //  description?, sortIndex (fractional index among siblings),
+  //  unit ("U"|"L"|"S" — u / ml / m², drives the quantity rollup rule),
+  //  scopeId, projectId}
+  // Business objects ("Ouvrages") of a listing, organized as a tree.
+  businessObjects: "id,listingId,projectId,scopeId,parentId",
+  // {id, projectId, scopeId, annotationId, businessObjectId,
+  //  listingId (the business-objects listingId)}
+  // N-N: several annotations per object AND several objects per annotation.
+  // Invariant (service-enforced): at most ONE live rel per
+  // (annotationId, businessObjectId) pair.
+  relsBusinessObjectAnnotation:
+    "id,projectId,annotationId,businessObjectId,listingId",
+});
+
 // --- AUDIT HOOKS ---
 
 const AUDIT_TABLES = [
@@ -324,6 +340,8 @@ const AUDIT_TABLES = [
   "photos",
   "photoPlans",
   "scopeConfigs",
+  "businessObjects",
+  "relsBusinessObjectAnnotation",
 ];
 
 // Shared/collaborative tables exempt from the ownership guard: records here can
@@ -351,6 +369,10 @@ const OWNERSHIP_EXEMPT_TABLES = new Set([
   // Module/tool activation is shared configuration: anyone edits it, not
   // only the scope creator.
   "scopeConfigs",
+  // Business objects are shared structure (anyone renames/reorders/links),
+  // and unlinking must be able to soft-delete rels created by other users.
+  "businessObjects",
+  "relsBusinessObjectAnnotation",
 ]);
 
 // --- READ-ONLY SCOPE GUARD ---
@@ -572,6 +594,8 @@ const SOFT_DELETE_TABLES = new Set([
   "resources",
   "photos",
   "photoPlans",
+  "businessObjects",
+  "relsBusinessObjectAnnotation",
 ]);
 
 let _skipSoftDelete = false;

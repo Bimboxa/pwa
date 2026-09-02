@@ -56,6 +56,14 @@ export default function remapDexieExportIds(jsonData, opts) {
     targetAnnotationId: "annotations",
     parentAnnotationId: "annotations",
     meshCellAnnotationId: "annotations",
+    businessObjectId: "businessObjects",
+  };
+
+  // Per-table FK target overrides: a field name shared across tables but
+  // pointing at a DIFFERENT table there (businessObjects.parentId is a
+  // business-object ref, not a zone ref).
+  const TABLE_FK_OVERRIDES = {
+    businessObjects: { parentId: "businessObjects" },
   };
 
   // 1. Build id maps + file-name map ----------------------------------------
@@ -146,8 +154,10 @@ export default function remapDexieExportIds(jsonData, opts) {
       if ("scopeId" in row) row.scopeId = remapId("scopes", row.scopeId);
 
       // Simple FK columns.
-      for (const [field, targetTable] of Object.entries(SIMPLE_FK)) {
+      for (const [field, defaultTarget] of Object.entries(SIMPLE_FK)) {
         if (tableName === "zonings" && field === "listingId") continue; // handled as PK
+        const targetTable =
+          TABLE_FK_OVERRIDES[tableName]?.[field] ?? defaultTarget;
         if (field in row && row[field]) {
           row[field] = remapId(targetTable, row[field]);
         }

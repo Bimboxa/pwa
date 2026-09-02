@@ -9,6 +9,9 @@ const DEFAULT_EDITOR_KEY_BY_MODULE = {
   // PHOTOS is a MODULE key only (like ZONES): its single editor is the
   // shared "MAP" instance.
   PHOTOS: "MAP",
+  // BUSINESS_OBJECTS is a MODULE key only (like ZONES): its 2D editor is the
+  // shared "MAP" instance.
+  BUSINESS_OBJECTS: "MAP",
 };
 
 // Multi-editor modules and their possible editor keys (see useViewers.jsx).
@@ -22,6 +25,7 @@ const KNOWN_MODULE_KEYS = [
   "POINT_OF_VIEW",
   "ZONES",
   "PHOTOS",
+  "BUSINESS_OBJECTS",
 ];
 // "BASE_MAPS" is both a module key and the key of that module's own 2D editor.
 const KNOWN_EDITOR_KEYS = ["BASE_MAPS", "MAP", "THREED"];

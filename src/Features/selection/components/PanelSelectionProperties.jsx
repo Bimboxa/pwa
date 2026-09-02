@@ -31,6 +31,8 @@ import PanelMesh3dProperties from "Features/threedMesh/components/PanelMesh3dPro
 import PanelPhotoProperties from "Features/photos/components/PanelPhotoProperties";
 import PanelPovProperties from "Features/pov/components/PanelPovProperties";
 import PanelZoneProperties from "Features/zonings/components/PanelZoneProperties";
+import PanelBusinessObjectProperties from "Features/businessObjects/components/PanelBusinessObjectProperties";
+import PanelBusinessObjectListingProperties from "Features/businessObjects/components/PanelBusinessObjectListingProperties";
 import PanelPovFrameProperties from "Features/pov/components/PanelPovFrameProperties";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 
@@ -48,6 +50,15 @@ export default function PanelSelectionProperties() {
   const showAnnotationsProperties = useSelector(
     (s) => s.selection.showAnnotationsProperties
   );
+  const selectedBusinessObjectId = useSelector(
+    (s) => s.businessObjects.selectedBusinessObjectId
+  );
+  // Ouvrages module: active listing of the drawer, fallback of the default
+  // (no-selection) listing panel.
+  const businessObjectsListingId = useSelector(
+    (s) => s.businessObjects.selectedListingId
+  );
+  const businessObjectsListingById = useListingById(businessObjectsListingId);
 
   // When selectedItem is a LISTING (e.g. back from BASE_MAP), use its id directly
   const selectionListingId =
@@ -76,6 +87,24 @@ export default function PanelSelectionProperties() {
   } else if (selectedItem?.type === "PHOTO") {
     // Photo selected from a photos grid (popper / panel) or its map node.
     type = "PHOTO";
+  } else if (
+    selectedViewerKey === "BUSINESS_OBJECTS" &&
+    selectedBusinessObjectId &&
+    !selectedItem
+  ) {
+    // Soloed business object (Ouvrages drawer) with no other selection: the
+    // object's properties (linked annotations + quantities). The solo
+    // survives map selections, so a selected annotation/listing/scope wins
+    // over this branch while it lasts.
+    type = "BUSINESS_OBJECT";
+  } else if (
+    selectedViewerKey === "BUSINESS_OBJECTS" &&
+    (selectedItem?.type === "LISTING" || !selectedItem)
+  ) {
+    // Back arrow of the object properties panel (LISTING selection), and the
+    // module's default with nothing selected: the listing properties (name +
+    // "Numérotation" display option) — the BASE_MAP_LISTING pattern.
+    type = "BUSINESS_OBJECT_LISTING";
   } else if (
     isCanvasViewer &&
     selectedPointIds.length > 0 &&
@@ -273,6 +302,17 @@ export default function PanelSelectionProperties() {
 
 
       {type === "ZONE" && <PanelZoneProperties />}
+
+      {type === "BUSINESS_OBJECT" && <PanelBusinessObjectProperties />}
+
+      {/* listingById when a LISTING is selected (back arrow), the module's
+          active listing otherwise (no-selection default). Not `listing`: once
+          deleted the id no longer resolves and the panel renders nothing. */}
+      {type === "BUSINESS_OBJECT_LISTING" && (
+        <PanelBusinessObjectListingProperties
+          listing={selectionListingId ? listingById : businessObjectsListingById}
+        />
+      )}
 
       {type === "PHOTO" && <PanelPhotoProperties />}
 

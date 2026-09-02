@@ -75,6 +75,7 @@ export default async function createKrtoZip(scopeId, options) {
         "annotations", "annotationTemplates",
         "portfolioPages",
         "zones", "relsZoneAnnotation",
+        "businessObjects", "relsBusinessObjectAnnotation",
         // Photos: rows carry projectId + listingId (PHOTO album listing, kept
         // by relevantListings above); their image files carry the same
         // listingId so the files filter ships them too. The photo point is

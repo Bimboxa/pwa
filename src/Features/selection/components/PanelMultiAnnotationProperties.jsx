@@ -25,6 +25,7 @@ import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useDeleteAnnotations from "Features/annotations/hooks/useDeleteAnnotations";
 import getAnnotationQties from "Features/annotations/utils/getAnnotationQties";
+import SectionLinkAnnotationsToBusinessObject from "Features/businessObjects/components/SectionLinkAnnotationsToBusinessObject";
 
 export default function PanelMultiAnnotationProperties() {
   // strings
@@ -185,7 +186,15 @@ export default function PanelMultiAnnotationProperties() {
           ))}
         </WhiteSectionGeneric>
 
-        {/* Card 2: Delete */}
+        {/* Card 2: link to a business object ("Ouvrages") — hidden when the
+            scope has none. */}
+        <SectionLinkAnnotationsToBusinessObject
+          annotationIds={selectedItems
+            .filter((item) => item.nodeId)
+            .map((item) => item.nodeId)}
+        />
+
+        {/* Card 3: Delete */}
         <WhiteSectionGeneric>
           <Button
             color="error"

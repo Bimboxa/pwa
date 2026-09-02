@@ -2,6 +2,8 @@ import { useSelector } from "react-redux";
 
 import { selectDisabledModuleKeys } from "Features/scopeConfig/utils/scopeConfigSelectors";
 
+import useBusinessObjectsModuleLabel from "Features/businessObjects/hooks/useBusinessObjectsModuleLabel";
+
 import {
   Map,
   MenuBook,
@@ -17,6 +19,7 @@ import {
   PhotoCamera,
   PhotoLibrary,
   AccountTree,
+  Foundation,
 } from "@mui/icons-material";
 
 import theme from "Styles/theme";
@@ -42,6 +45,8 @@ export const LOCKED_MODULE_KEYS = new Set(["BASE_MAPS", "MAP"]);
 export default function useViewers({ ignoreScopeConfig = false } = {}) {
   const legacy = useSelector((s) => s.appConfig.enableMapEditorLegacy);
   const disabledModuleKeys = useSelector(selectDisabledModuleKeys);
+  // Per-scope override > appConfig strings > "Ouvrages".
+  const businessObjectsLabel = useBusinessObjectsModuleLabel();
 
   const viewers = [
     // {
@@ -134,6 +139,23 @@ export default function useViewers({ ignoreScopeConfig = false } = {}) {
       // 2D editor = "MAP": the module displays the shared MainMapEditorV3
       // instance (like Dessin / POV / Viewer) so entering the module keeps the
       // camera framing. The zonings tree is mounted beside it in SectionViewer.
+      editors: ["MAP", "THREED"],
+      // Relies on the V3 map editor (the legacy branch renders V2).
+      disabled: legacy,
+    },
+    {
+      key: "BUSINESS_OBJECTS",
+      // Configurable label: per-scope scopeConfig override, then org appConfig
+      // strings.modules.businessObjects, then "Ouvrages".
+      label: businessObjectsLabel,
+      shortLabel: businessObjectsLabel,
+      icon: <Foundation />,
+      bgcolor: theme.palette.viewers.businessObjects,
+      // Ctrl+O is free (browser open-file is blocked by preventDefault on
+      // match, same argument as Ctrl+P above).
+      hotkey: "O",
+      // 2D editor = "MAP": the module displays the shared MainMapEditorV3
+      // instance (like Zones) so entering the module keeps the camera framing.
       editors: ["MAP", "THREED"],
       // Relies on the V3 map editor (the legacy branch renders V2).
       disabled: legacy,

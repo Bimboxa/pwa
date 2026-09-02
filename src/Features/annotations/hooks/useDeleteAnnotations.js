@@ -100,6 +100,18 @@ export default function useDeleteAnnotations() {
       ),
     ];
 
+    // 1d. Cascade: collect business-object relations pointing at a deleted
+    // annotation (N-N links to "Ouvrages" tree items).
+    const businessObjectRels = await db.relsBusinessObjectAnnotation
+      .where("annotationId")
+      .anyOf(idsToDelete)
+      .toArray();
+    const businessObjectRelIds = [
+      ...new Set(
+        businessObjectRels.filter((r) => !r.deletedAt).map((r) => r.id)
+      ),
+    ];
+
     // 2. Determine which annotations are cutHosts (batch template lookup)
     const uniqueTemplateIds = [
       ...new Set(
@@ -201,6 +213,7 @@ export default function useDeleteAnnotations() {
         db.relAnnotationSubtractions,
         db.relAnnotationMeshCells,
         db.relAnnotationOpenings,
+        db.relsBusinessObjectAnnotation,
       ],
       async () => {
         // Cascade soft-delete subtraction relations
@@ -216,6 +229,13 @@ export default function useDeleteAnnotations() {
         // Cascade soft-delete opening relations
         if (openingRelIds.length > 0) {
           await db.relAnnotationOpenings.bulkDelete(openingRelIds);
+        }
+
+        // Cascade soft-delete business-object relations
+        if (businessObjectRelIds.length > 0) {
+          await db.relsBusinessObjectAnnotation.bulkDelete(
+            businessObjectRelIds
+          );
         }
 
         // Batch cuts-cleanup updates

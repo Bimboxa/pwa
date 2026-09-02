@@ -30,6 +30,8 @@ export default async function clearScopeDataService(scopeId) {
             await db.relsZoneEntity.where("listingId").anyOf(listingIds).delete();
             await db.zones.where("listingId").anyOf(listingIds).delete();
             await db.relsZoneAnnotation.where("listingId").anyOf(listingIds).delete();
+            await db.businessObjects.where("listingId").anyOf(listingIds).delete();
+            await db.relsBusinessObjectAnnotation.where("listingId").anyOf(listingIds).delete();
             if (listingKeys.length > 0) {
                 await db.entitiesProps.where("listingKey").anyOf(listingKeys).delete();
             }

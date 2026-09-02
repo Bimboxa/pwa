@@ -106,6 +106,8 @@ import computeWrapperBbox from '../utils/computeWrapperBbox';
 import anchorAnnotationToTarget from 'Features/annotations/services/anchorAnnotationToTarget';
 import addAnnotationSubtraction from 'Features/annotations/services/addAnnotationSubtraction';
 import addAnnotationSubtractions from 'Features/annotations/services/addAnnotationSubtractions';
+import toggleAnnotationBusinessObjectLinkService from 'Features/businessObjects/services/toggleAnnotationBusinessObjectLinkService';
+import { setLinkingBusinessObjectId, triggerRelsBusinessObjectAnnotationUpdate } from 'Features/businessObjects/businessObjectsSlice';
 import { isForeignFootprintId } from 'Features/annotations/constants/foreignFootprint';
 import updateAnnotationService from 'Features/annotations/services/updateAnnotationService';
 import AnnotationEditingWrapper from './AnnotationEditingWrapper';
@@ -569,6 +571,8 @@ const InteractionLayer = forwardRef(({
   const subtractSourceAnnotationId = useSelector((s) => s.mapEditor.subtractSourceAnnotationId);
   // Reverse subtraction pick mode (this annotation carves the clicked ones)
   const subtractTargetAnnotationId = useSelector((s) => s.mapEditor.subtractTargetAnnotationId);
+  // Business-object link mode (clicks toggle links to this "Ouvrages" object)
+  const linkingBusinessObjectId = useSelector((s) => s.businessObjects.linkingBusinessObjectId);
   const selectedProjectId = useSelector((s) => s.projects.selectedProjectId);
   const mapEditorMode = useSelector((s) => s.mapEditor.mapEditorMode);
   const orthoSnapAngleOffset = useSelector((s) => s.mapEditor.orthoSnapAngleOffset);
@@ -2859,6 +2863,11 @@ const InteractionLayer = forwardRef(({
     subtractTargetAnnotationIdRef.current = subtractTargetAnnotationId;
   }, [subtractTargetAnnotationId]);
 
+  const linkingBusinessObjectIdRef = useRef(linkingBusinessObjectId);
+  useEffect(() => {
+    linkingBusinessObjectIdRef.current = linkingBusinessObjectId;
+  }, [linkingBusinessObjectId]);
+
   const stripDetectionOrientationRef = useRef(stripDetectionOrientation);
   useEffect(() => {
     stripDetectionOrientationRef.current = stripDetectionOrientation;
@@ -3866,6 +3875,13 @@ const InteractionLayer = forwardRef(({
             return;
           }
 
+          // Cancel business-object link mode if active
+          if (linkingBusinessObjectIdRef.current) {
+            dispatch(setLinkingBusinessObjectId(null));
+            e.stopPropagation();
+            return;
+          }
+
           // Abort an in-flight GLOBAL smart-detect run (spinner phase) without
           // clearing the rest of the drawing state.
           if (globalDetectionAbortRef.current) {
@@ -4790,7 +4806,7 @@ const InteractionLayer = forwardRef(({
     // Cross-tab navigation: in pure SELECT mode (no drawing tool, no anchor
     // pick), forward the click world position to the parent so it can
     // broadcast a 3D-camera pan event to other tabs.
-    if (!enabledDrawingMode && !anchorSourceAnnotationId && !subtractSourceAnnotationId && !subtractTargetAnnotationId) {
+    if (!enabledDrawingMode && !anchorSourceAnnotationId && !subtractSourceAnnotationId && !subtractTargetAnnotationId && !linkingBusinessObjectId) {
       onMapClickInSelectMode?.({ worldPos, event });
     }
 
@@ -4916,6 +4932,43 @@ const InteractionLayer = forwardRef(({
         );
       }
       // Stay in reverse subtraction mode; only Escape exits it.
+      return;
+    }
+
+    // Business-object link mode ("Ouvrages"): each click on an annotation
+    // toggles its N-N link to the armed object. Multi-pick: empty-space
+    // clicks do nothing, only Escape exits.
+    if (linkingBusinessObjectId && !enabledDrawingMode) {
+      const nativeTarget = event.nativeEvent?.target || event.target;
+      const hit = nativeTarget.closest?.('[data-node-type="ANNOTATION"]');
+      // A footprint is a projection, not a linkable annotation.
+      if (hit && !isForeignFootprintId(hit.dataset.nodeId)) {
+        const annotationId = hit.dataset.nodeId;
+        const businessObject = await db.businessObjects.get(
+          linkingBusinessObjectId
+        );
+        if (businessObject && !businessObject.deletedAt) {
+          const result = await toggleAnnotationBusinessObjectLinkService({
+            businessObject,
+            annotationId,
+          });
+          dispatch(triggerRelsBusinessObjectAnnotationUpdate());
+          dispatch(
+            setToaster(
+              result === "linked"
+                ? {
+                  message: `Annotation liée à "${businessObject.label}"`,
+                  severity: "success",
+                }
+                : {
+                  message: `Annotation déliée de "${businessObject.label}"`,
+                  severity: "info",
+                }
+            )
+          );
+        }
+      }
+      // Stay in link mode; only Escape exits it.
       return;
     }
 
