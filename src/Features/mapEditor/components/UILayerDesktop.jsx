@@ -15,6 +15,7 @@ import SelectorOrthoSnap from "./SelectorOrthoSnap";
 import SelectorDrawingPanel from "./SelectorDrawingPanel";
 import DialogCalibration2D from "./DialogCalibration2D";
 import ButtonToggleThreedViewer from "Features/viewers/components/ButtonToggleThreedViewer";
+import ButtonZoomOutMap from "./ButtonZoomOutMap";
 
 
 export default function UILayerDesktop({ mapController, onResetCamera, viewport }) {
@@ -132,6 +133,7 @@ export default function UILayerDesktop({ mapController, onResetCamera, viewport 
                     "Plan de coupes" section, and SelectorOrthoSnap to the
                     bottom-left cluster — only the 2D/3D toggle stays here so
                     its position matches the 3D editor. */}
+                <ButtonZoomOutMap onResetCamera={onResetCamera} />
                 <ButtonToggleThreedViewer />
                 {/* "Modification rapide des points" (QUICK_POINTS_CHANGE) is now
                     automatically active when PopperMapListings is in DRAW mode,
