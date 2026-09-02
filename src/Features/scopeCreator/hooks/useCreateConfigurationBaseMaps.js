@@ -33,7 +33,12 @@ export default function useCreateConfigurationBaseMaps() {
   }) {
     const listingConfigs = configuration?.baseMaps?.listings ?? [];
     if (listingConfigs.length === 0) {
-      return { firstListingId: null, createdItemsCount: 0, reusedListingIds: [] };
+      return {
+        firstListingId: null,
+        firstBaseMapId: null,
+        createdItemsCount: 0,
+        reusedListingIds: [],
+      };
     }
 
     // reuse project listings matched by name + orientation flag
@@ -87,6 +92,7 @@ export default function useCreateConfigurationBaseMaps() {
     // baseMap items — per listing, in declaration order
 
     let createdItemsCount = 0;
+    let firstBaseMapId = null;
 
     for (let i = 0; i < listingConfigs.length; i++) {
       const listingConfig = listingConfigs[i];
@@ -135,11 +141,13 @@ export default function useCreateConfigurationBaseMaps() {
       if (baseMaps.length > 0) {
         const records = await createBaseMaps(baseMaps, { listing });
         createdItemsCount += records?.length ?? 0;
+        if (!firstBaseMapId) firstBaseMapId = records?.[0]?.id ?? null;
       }
     }
 
     return {
       firstListingId: listingsByConfig[0]?.id ?? null,
+      firstBaseMapId,
       createdItemsCount,
       reusedListingIds: resolved
         .filter((r) => r.existing)

@@ -1,16 +1,19 @@
-import { useState } from "react";
-
 import { Box } from "@mui/material";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useKrtoConfigurations from "../hooks/useKrtoConfigurations";
 
 import CardKrtoConfiguration from "./CardKrtoConfiguration";
-import ChipsFilterKrtoConfigurationKeywords from "./ChipsFilterKrtoConfigurationKeywords";
 
+/*
+ * Card grid of the configuration selector, filtered by the left nav
+ * (activeFilter = {family, keyword}) and the header search text.
+ */
 export default function SectionSelectKrtoConfiguration({
   selectedKey,
   onSelect,
+  searchText,
+  activeFilter,
 }) {
   // data
 
@@ -21,65 +24,75 @@ export default function SectionSelectKrtoConfiguration({
 
   const scopeS = appConfig?.strings?.scope?.nameSingular ?? "Dossier";
   const genericLabelS = `${scopeS} générique`;
-  const genericHelperS = "Structure vide, à construire librement";
+  const genericHelperS = "Structure vide, à construire librement.";
+  const genericCodeS = "VIERGE";
+  const genericChipS = "Vierge";
 
-  // state
-
-  const [selectedKeywordsByFamily, setSelectedKeywordsByFamily] = useState({});
-
-  // helpers — AND across families, OR within a family; a configuration
-  // without keywords in a filtered family matches everything.
+  // helpers
 
   const items = krtoConfigurations?.items ?? [];
-  const keywordFamilies = krtoConfigurations?.keywordFamilies ?? [];
 
-  const filteredItems = items.filter((item) =>
-    keywordFamilies.every((family) => {
-      const selectedKeywords = selectedKeywordsByFamily[family.key] ?? [];
-      if (selectedKeywords.length === 0) return true;
-      const itemKeywords = item.keywords?.[family.key] ?? [];
-      if (itemKeywords.length === 0) return true;
-      return selectedKeywords.some((keyword) =>
-        itemKeywords.includes(keyword)
-      );
-    })
-  );
+  const search = searchText?.trim().toLowerCase() ?? "";
+
+  function matchesSearch(texts) {
+    if (!search) return true;
+    return texts.some((t) => t?.toLowerCase().includes(search));
+  }
+
+  // combined filters: one keyword per family (AND across families)
+  const filteredItems = items.filter((item) => {
+    for (const familyKey of ["type", "ouvrage"]) {
+      const keyword = activeFilter?.[familyKey];
+      if (!keyword) continue;
+      const itemKeywords = item.keywords?.[familyKey] ?? [];
+      if (!itemKeywords.includes(keyword)) return false;
+    }
+    return matchesSearch([
+      item.name,
+      item.description,
+      item.code,
+      ...Object.values(item.keywords ?? {}).flat(),
+    ]);
+  });
+
+  const showGeneric =
+    !activeFilter?.type &&
+    !activeFilter?.ouvrage &&
+    matchesSearch([genericLabelS, genericHelperS]);
 
   // render
 
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-      <ChipsFilterKrtoConfigurationKeywords
-        keywordFamilies={keywordFamilies}
-        items={items}
-        selectedKeywordsByFamily={selectedKeywordsByFamily}
-        onChange={setSelectedKeywordsByFamily}
-      />
-
-      <Box
-        sx={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))",
-          gap: 1.5,
-        }}
-      >
+    <Box
+      sx={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))",
+        gap: 2.5,
+        alignContent: "start",
+      }}
+    >
+      {showGeneric && (
         <CardKrtoConfiguration
           name={genericLabelS}
           description={genericHelperS}
+          code={genericCodeS}
+          chipLabel={genericChipS}
           selected={selectedKey == null}
           onClick={() => onSelect(null)}
         />
-        {filteredItems.map((item) => (
-          <CardKrtoConfiguration
-            key={item.key}
-            name={item.name}
-            description={item.description}
-            imageUrl={item.imageUrl}
-            selected={selectedKey === item.key}
-            onClick={() => onSelect(item.key)}
-          />
-        ))}
-      </Box>
+      )}
+      {filteredItems.map((item) => (
+        <CardKrtoConfiguration
+          key={item.key}
+          name={item.name}
+          description={item.description}
+          imageUrl={item.imageUrl}
+          code={item.code}
+          chipLabel={item.chipLabel}
+          selected={selectedKey === item.key}
+          onClick={() => onSelect(item.key)}
+        />
+      ))}
     </Box>
   );
 }

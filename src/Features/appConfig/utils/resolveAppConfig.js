@@ -211,6 +211,11 @@ export default async function resolveAppConfig(appConfig) {
   // an array of configuration objects (the Data files are gitignored, so the
   // schema is documented here):
   //   { key, name, description,
+  //     code,                       // short monospace card label (e.g. "MET.TOIT")
+  //     chipLabel,                  // card category chip (e.g. "Métré")
+  //     optionalModules,            // creation options the user may toggle in
+  //                                 // the recap ("DPGF" | "CARNET_DETAIL");
+  //                                 // absent/empty => Modules section hidden
   //     imagePath,                  // card SVG, relative to Data/<orgaCode>/
   //     keywords: { ouvrage: [], type: [], options: [] },
   //     baseMaps: {

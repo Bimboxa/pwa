@@ -9,7 +9,10 @@ import { setSelectedScopeId } from "Features/scopes/scopesSlice";
 import { setLandOnDrawScopeId } from "Features/viewers/viewersSlice";
 import { setSelectedProjectId } from "Features/projects/projectsSlice";
 import { setSelectedListingId } from "Features/listings/listingsSlice";
-import { setSelectedBaseMapsListingId } from "Features/mapEditor/mapEditorSlice";
+import {
+  setSelectedBaseMapsListingId,
+  setSelectedMainBaseMapId,
+} from "Features/mapEditor/mapEditorSlice";
 import {
   setLastRemoteConfiguration,
   setLastSyncedRemoteConfigurationVersion,
@@ -70,6 +73,16 @@ export default function useCreateScopeFromPreset({ projectId }) {
     configurationKey,
     metaData,
     options,
+    extraBaseMapListings,
+    extraAnnotationListings,
+    extraBaseMapPages,
+    extraLibraryKeys,
+    excludedLibraryKeys,
+    removedBaseMapItemKeys,
+    hiddenExistingListingIds,
+    // empty: create a bare scope — no listings at all, and hide the
+    // project's existing baseMap listings ("+ Krto vide" button).
+    empty,
   }) {
     // Krto creation configuration (card selector) — when absent, the legacy
     // preset path below runs unchanged.
@@ -77,17 +90,62 @@ export default function useCreateScopeFromPreset({ projectId }) {
       (c) => c.key === configurationKey
     );
 
-    const newListings = configuration
+    const dpgf = Boolean(options?.dpgf);
+    const carnetDetail = Boolean(options?.carnetDetail);
+    // the new creator always passes options (even for the generic card); the
+    // legacy preset flow passes none — its behavior stays untouched.
+    const usesConfigurationFlow = Boolean(
+      configuration || options || extraBaseMapListings
+    );
+
+    // libraries added in the recap modal ("Nouvelle liste" dialog) + the
+    // Carnet de détail option (DIVERS), on top of the configuration's own.
+    const allExtraLibraryKeys = [
+      ...(extraLibraryKeys ?? []),
+      ...(carnetDetail ? ["DIVERS"] : []),
+    ];
+
+    const newListings = empty
+      ? []
+      : usesConfigurationFlow
       ? await resolveConfigurationScopeListings({
           configuration,
           appConfig,
           projectId,
+          extraLibraryKeys: allExtraLibraryKeys,
+          excludedLibraryKeys,
         })
       : await resolvePresetScopeListings({
           presetScopeKey,
           appConfig,
           projectId,
         });
+
+    // "+ Nouvelle liste": empty annotation listings added in the recap modal,
+    // appended after the resolved ones (rank chain continues).
+    const extraAnnotationNames = (extraAnnotationListings ?? [])
+      .map((l) => l?.name?.trim())
+      .filter(Boolean);
+    if (extraAnnotationNames.length > 0) {
+      let prevRank =
+        newListings
+          .map((l) => l.rank)
+          .filter(Boolean)
+          .sort()
+          .pop() ?? null;
+      for (const listingName of extraAnnotationNames) {
+        const rank = generateKeyBetween(prevRank, null);
+        prevRank = rank;
+        newListings.push({
+          name: listingName,
+          entityModelKey: "annotation",
+          table: "entities",
+          canCreateItem: true,
+          projectId,
+          rank,
+        });
+      }
+    }
     const newEntities = resolvePresetScopeEntities({ listings: newListings });
 
     console.log(
@@ -116,38 +174,103 @@ export default function useCreateScopeFromPreset({ projectId }) {
       (l) => l.id
     );
 
-    // baseMaps listings (and configuration baseMap items)
+    // baseMaps listings (and configuration baseMap items). The section merges
+    // the configuration's listings, the generic defaults (project without
+    // baseMaps) and the user-added "+ Ajouter" rows from the recap modal.
 
     let configurationItemsCount = 0;
+    let configReusedListingIds = [];
 
-    if (configuration?.baseMaps) {
-      const { firstListingId, createdItemsCount, reusedListingIds } =
-        await createConfigurationBaseMaps({
-          configuration,
-          scope,
-          projectId,
-          existingListings: baseMapsListings,
-        });
+    const extraListingConfigs = (extraBaseMapListings ?? [])
+      .map((l) => l?.name?.trim())
+      .filter(Boolean)
+      .map((listingName) => ({ name: listingName, items: [] }));
+
+    const genericDefaultListings =
+      usesConfigurationFlow &&
+      !configuration &&
+      (!baseMapsListings || baseMapsListings.length === 0)
+        ? [
+            { name: "Vues en plan", items: [] },
+            { name: "Coupes & élévations", verticalBaseMaps: true, items: [] },
+          ]
+        : [];
+
+    // configuration listings with their items, minus the pages removed in
+    // the recap modal (keys "listingName::itemName"), plus the
+    // "+ Fond de plan" pages added there (targeted by listingName, fallback
+    // to the first listing).
+    const removedKeys = removedBaseMapItemKeys ?? [];
+    const baseListingConfigs = (
+      configuration?.baseMaps?.listings ?? genericDefaultListings
+    ).map((listing) => ({
+      ...listing,
+      items: (listing.items ?? []).filter(
+        (item) => !removedKeys.includes(`${listing.name}::${item.name}`)
+      ),
+    }));
+
+    const baseMapsListingConfigs = [
+      ...baseListingConfigs,
+      ...extraListingConfigs,
+    ];
+
+    for (const page of extraBaseMapPages ?? []) {
+      const pageName = page?.name?.trim();
+      if (!pageName) continue;
+      let target =
+        baseMapsListingConfigs.find((l) => l.name === page.listingName) ??
+        baseMapsListingConfigs[0];
+      if (!target) {
+        // no listing config yet (e.g. generic scope on a project that already
+        // has baseMap listings): target an implicit one — reused by name when
+        // it already exists in the project.
+        target = { name: page.listingName ?? "Vues en plan", items: [] };
+        baseMapsListingConfigs.push(target);
+      }
+      target.items = [
+        ...(target.items ?? []),
+        {
+          type: "BLANK_PAGE",
+          name: pageName,
+          pageFormat: page.pageFormat ?? "A3",
+          pageOrientation: page.pageOrientation ?? "LANDSCAPE",
+          scale: page.scale ?? 50,
+        },
+      ];
+    }
+
+    if (usesConfigurationFlow && baseMapsListingConfigs.length > 0) {
+      const baseMapsSection = {
+        disableExistingListings:
+          configuration?.baseMaps?.disableExistingListings ?? false,
+        listings: baseMapsListingConfigs,
+      };
+      const {
+        firstListingId,
+        firstBaseMapId,
+        createdItemsCount,
+        reusedListingIds,
+      } = await createConfigurationBaseMaps({
+        configuration: { baseMaps: baseMapsSection },
+        scope,
+        projectId,
+        existingListings: baseMapsListings,
+      });
       configurationItemsCount = createdItemsCount;
+      configReusedListingIds = reusedListingIds ?? [];
       if (firstListingId) {
         dispatch(setSelectedBaseMapsListingId(firstListingId));
       }
-
-      // hide the project's pre-existing baseMap listings for this scope —
-      // except the ones the configuration just reused.
-      const listingIdsToDisable = preExistingBaseMapListingIds.filter(
-        (id) => !reusedListingIds.includes(id)
-      );
-      if (
-        configuration.baseMaps.disableExistingListings &&
-        listingIdsToDisable.length > 0
-      ) {
-        await setDisabledBaseMapListingIds({
-          scopeId: scope.id,
-          listingIds: listingIdsToDisable,
-        });
+      // land on the first created baseMap (main map of the 2D editor)
+      if (firstBaseMapId) {
+        dispatch(setSelectedMainBaseMapId(firstBaseMapId));
       }
-    } else if (!baseMapsListings || baseMapsListings?.length === 0) {
+    } else if (
+      !empty &&
+      !usesConfigurationFlow &&
+      (!baseMapsListings || baseMapsListings?.length === 0)
+    ) {
       // rank (fractional indexing) keeps "Vues en plan" before "Coupes & élévations"
       const planRank = generateKeyBetween(null, null);
       const verticalRank = generateKeyBetween(planRank, null);
@@ -179,26 +302,53 @@ export default function useCreateScopeFromPreset({ projectId }) {
       dispatch(setSelectedBaseMapsListingId(planListing?.id));
     }
 
+    // per-scope visibility of the pre-existing baseMap listings
+    // (scope.baseMapsSettings.disabledListingIds). The recap modal's eyes
+    // (hiddenExistingListingIds) win when provided; otherwise fall back to
+    // the configuration's disableExistingListings flag (all non-reused
+    // existing listings hidden).
+    if (usesConfigurationFlow || empty) {
+      const listingIdsToDisable = empty
+        ? preExistingBaseMapListingIds
+        : hiddenExistingListingIds ??
+          (configuration?.baseMaps?.disableExistingListings
+            ? preExistingBaseMapListingIds.filter(
+                (id) => !configReusedListingIds.includes(id)
+              )
+            : []);
+      if (listingIdsToDisable.length > 0) {
+        await setDisabledBaseMapListingIds({
+          scopeId: scope.id,
+          listingIds: listingIdsToDisable,
+        });
+      }
+    }
+
     // scopeConfig (per-scope module/tool activation) — absent from the
-    // configuration => no row, the app defaults apply. The DPGF option needs
-    // the BUSINESS_OBJECTS module ON for this scope, so it materializes a row
-    // (seeded from the app defaults when the configuration carries none) with
-    // the module removed from the disabled list.
+    // configuration => no row, the app defaults apply. The DPGF and Carnet de
+    // détail options need their module ON for this scope (BUSINESS_OBJECTS /
+    // PORTFOLIO), so they materialize a row (seeded from the app defaults
+    // when the configuration carries none) with the module removed from the
+    // disabled list.
 
-    const dpgf = Boolean(options?.dpgf);
+    const optionEnabledModuleKeys = [
+      ...(dpgf ? ["BUSINESS_OBJECTS"] : []),
+      ...(carnetDetail ? ["PORTFOLIO"] : []),
+    ];
 
-    if (configuration?.scopeConfig || dpgf) {
+    if (configuration?.scopeConfig || optionEnabledModuleKeys.length > 0) {
       const baseScopeConfig = configuration?.scopeConfig ?? {
         disabledModuleKeys: [...DEFAULT_DISABLED_MODULE_KEYS],
       };
-      const scopeConfigProps = dpgf
-        ? {
-            ...baseScopeConfig,
-            disabledModuleKeys: (
-              baseScopeConfig.disabledModuleKeys ?? []
-            ).filter((k) => k !== "BUSINESS_OBJECTS"),
-          }
-        : baseScopeConfig;
+      const scopeConfigProps =
+        optionEnabledModuleKeys.length > 0
+          ? {
+              ...baseScopeConfig,
+              disabledModuleKeys: (
+                baseScopeConfig.disabledModuleKeys ?? []
+              ).filter((k) => !optionEnabledModuleKeys.includes(k)),
+            }
+          : baseScopeConfig;
       await createScopeConfig({
         scopeId: scope.id,
         projectId,
@@ -223,7 +373,11 @@ export default function useCreateScopeFromPreset({ projectId }) {
     dispatch(setLandOnDrawScopeId(scope.id));
     dispatch(setSelectedScopeId(scope.id));
     dispatch(setSelectedProjectId(projectId));
-    dispatch(setSelectedListingId(newListings?.[0]?.id));
+    // land on the first chosen annotation listing (never the system
+    // isForBaseMaps one when a real listing exists)
+    const firstAnnotationListing =
+      newListings?.find((l) => !l.isForBaseMaps) ?? newListings?.[0];
+    dispatch(setSelectedListingId(firstAnnotationListing?.id));
 
     // reinitialize the per-scope save counter so the stale-changes timer
     // can't inherit the previously selected scope's timestamp.

@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 
 import { useDispatch, useSelector } from "react-redux";
 import { setSelectedListingId, setOpenedPanel } from "../listingsSlice";
@@ -7,25 +7,31 @@ import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
 import useCreateListings from "../hooks/useCreateListings";
 import useCreateListingsFromPresetListingsKeys from "../hooks/useCreateListingsFromPresetListingsKeys";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
-import useResolvedPresetListings from "../hooks/useResolvedPresetListings";
 import useFavoriteListings from "../hooks/useFavoriteListings";
 
 import {
   Box,
   Button,
   Divider,
+  IconButton,
   TextField,
   Typography,
 } from "@mui/material";
+import CloseIcon from "@mui/icons-material/Close";
 
 import DialogGeneric from "Features/layout/components/DialogGeneric";
 import SectionPresetListingsSelector from "./SectionPresetListingsSelector";
 import SectionPresetListingsPreview from "./SectionPresetListingsPreview";
 
+// Deferred mode: when onCreateEmpty / onAddPresets are provided, the dialog
+// hands the user's choice back to the caller instead of writing listings to
+// the db (used by the Krto creator, where the scope does not exist yet).
 export default function DialogCreateListing({
   open,
   onClose,
   isForBaseMaps,
+  onCreateEmpty,
+  onAddPresets,
 }) {
   const dispatch = useDispatch();
 
@@ -60,6 +66,12 @@ export default function DialogCreateListing({
 
   async function handleCreateEmpty() {
     if (!emptyName.trim()) return;
+    if (onCreateEmpty) {
+      onCreateEmpty(emptyName.trim());
+      setEmptyName("");
+      onClose?.();
+      return;
+    }
     const newListing = {
       name: emptyName.trim(),
       projectId,
@@ -81,6 +93,14 @@ export default function DialogCreateListing({
   async function handleAddPresets() {
     const favoriteKeys = selectedKeys.filter((k) => k.startsWith("fav_"));
     const presetKeys = selectedKeys.filter((k) => !k.startsWith("fav_"));
+
+    if (onAddPresets) {
+      // deferred mode — only preset keys travel (favorites need a live scope)
+      onAddPresets(presetKeys);
+      setSelectedKeys([]);
+      onClose?.();
+      return;
+    }
 
     let allCreated = [];
 
@@ -136,7 +156,14 @@ export default function DialogCreateListing({
     <DialogGeneric open={open} onClose={onClose} maxWidth={false}>
       <Box sx={{ width: 700, display: "flex", flexDirection: "column" }}>
         {/* Section 1: Create empty list */}
-        <Box sx={{ p: 3 }}>
+        <Box sx={{ p: 3, position: "relative" }}>
+          <IconButton
+            size="small"
+            onClick={() => onClose?.()}
+            sx={{ position: "absolute", top: 12, right: 12 }}
+          >
+            <CloseIcon fontSize="small" />
+          </IconButton>
           <Typography variant="h6" sx={{ mb: 2 }}>
             {titleS}
           </Typography>
