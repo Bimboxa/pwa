@@ -59,14 +59,10 @@ export default function DialogCreatePortfolio({ open, onClose, onCreate }) {
     enabled: open && isDetailsPortfolio,
   });
 
-  const details = useMemo(() => {
-    const list = annotations?.filter((a) => a.type === "DETAIL") ?? [];
-    return list.sort((a, b) =>
-      (a.label || "").localeCompare(b.label || "", undefined, {
-        numeric: true,
-      })
-    );
-  }, [annotations]);
+  const details = useMemo(
+    () => annotations?.filter((a) => a.type === "DETAIL") ?? [],
+    [annotations]
+  );
 
   // Detail baseMap records (thumbnail + page number of each linked detail).
   const detailBaseMapIdsSignature = [
@@ -85,6 +81,25 @@ export default function DialogCreatePortfolio({ open, onClose, onCreate }) {
     }
     return byId;
   }, [detailBaseMapIdsSignature]);
+
+  // baseMap.detailRef is the displayed bubble reference; annotation label is
+  // the legacy fallback (same rule as useCreateDetailsPortfolio /
+  // getFolioDetailRef).
+  const getDetailRef = (detail) =>
+    (detail.detailBaseMapId &&
+      detailBaseMapById?.[detail.detailBaseMapId]?.detailRef) ||
+    detail.label ||
+    "";
+
+  const sortedDetails = useMemo(
+    () =>
+      [...details].sort((a, b) =>
+        getDetailRef(a).localeCompare(getDetailRef(b), undefined, {
+          numeric: true,
+        })
+      ),
+    [details, detailBaseMapById]
+  );
 
   // effects - prefill title block fields from data mapping on open
 
@@ -206,11 +221,12 @@ export default function DialogCreatePortfolio({ open, onClose, onCreate }) {
               </Typography>
             ) : (
               <List dense disablePadding>
-                {details.map((detail) => {
+                {sortedDetails.map((detail) => {
                   const detailBaseMap = detail.detailBaseMapId
                     ? detailBaseMapById?.[detail.detailBaseMapId]
                     : null;
                   const hasFolio = Boolean(detailBaseMap);
+                  const detailRef = getDetailRef(detail);
                   return (
                     <ListItemButton
                       key={detail.id}
@@ -257,12 +273,12 @@ export default function DialogCreatePortfolio({ open, onClose, onCreate }) {
                           }}
                         >
                           <Typography variant="caption" fontWeight="bold">
-                            {detail.label || "?"}
+                            {detailRef || "?"}
                           </Typography>
                         </Box>
                       )}
                       <ListItemText
-                        primary={`${detailS} ${detail.label || ""}`.trim()}
+                        primary={`${detailS} ${detailRef || ""}`.trim()}
                         secondary={
                           hasFolio
                             ? `${pageS} ${detailBaseMap.createdFrom?.pageNumber}`
