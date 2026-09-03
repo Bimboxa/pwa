@@ -190,7 +190,7 @@ export default function FieldActiveListing({
 
   const labelS = "Liste active";
   const addListingS = "Nouvelle liste";
-  const createListingS = "Créer une liste";
+  const createListingS = "+ Liste de modèles d'annotations";
   const autoVisibilityS = "Visibilité auto";
   const autoVisibilityTooltipS =
     "Au changement de liste : masque les autres listes et affiche tous les modèles de la liste sélectionnée.";
