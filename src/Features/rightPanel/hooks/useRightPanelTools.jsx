@@ -14,6 +14,7 @@ import {
   Chat,
   Image,
   FolderOpen,
+  CloudSync,
 } from "@mui/icons-material";
 
 import { Box } from "@mui/material";
@@ -114,6 +115,13 @@ export default function useRightPanelTools() {
       // Project-level resource files (PDF, DWG, images…): available in every
       // module. Bottom section, above the contextual "Réglages" (contextual
       // bottom tools are always appended last).
+      group: "bottom",
+    },
+    NOTES_APP_SYNC: {
+      label: "Sync",
+      icon: <CloudSync />,
+      // Scope-level notes-app (Krnet) data integration: available in every
+      // module. Bottom section, above the contextual "Réglages".
       group: "bottom",
     },
     OBJECTS_LIBRARY: {
