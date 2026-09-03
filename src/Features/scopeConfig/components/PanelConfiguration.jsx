@@ -16,7 +16,8 @@ import PageEditor2d from "./PageEditor2d";
 import PageEditor3d from "./PageEditor3d";
 import PageSatelliteMap from "./PageSatelliteMap";
 
-const DEFAULT_SELECTION = { type: "GENERAL", key: "DATA_PREFS" };
+const DEFAULT_SELECTION = { type: "GENERAL", key: "MODULES_TOOLS" };
+const FALLBACK_SELECTION = { type: "GENERAL", key: "DATA_PREFS" };
 
 // Two-column body of the Configuration dialog: left summary column
 // (Généralités / Modules / Outils / Éditeurs), right content page.
@@ -51,7 +52,7 @@ export default function PanelConfiguration({ onClose }) {
       selection.key === "MODULES_TOOLS" &&
       !scopeId)
   ) {
-    effectiveSelection = DEFAULT_SELECTION;
+    effectiveSelection = FALLBACK_SELECTION;
   }
 
   // render
