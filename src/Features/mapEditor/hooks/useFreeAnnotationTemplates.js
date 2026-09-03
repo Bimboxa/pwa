@@ -55,9 +55,19 @@ export default function useFreeAnnotationTemplates() {
     // run once per (scope, project) pair
     const provisionKey = `${scopeId}:${projectId}`;
     if (provisionedRef.current === provisionKey) return;
-    provisionedRef.current = provisionKey;
 
     const ensure = async () => {
+      // Authoritative check on the db row: the redux flag can lag behind a
+      // row written during scope creation (dexieSyncService emits async), and
+      // a missing row reads as "enabled". Bail without marking as provisioned
+      // so a later opt-in from the Configuration dialog still provisions.
+      const scopeConfigRow = await db.scopeConfigs
+        .where("scopeId")
+        .equals(scopeId)
+        .first();
+      if (scopeConfigRow?.systemAnnotationTemplates === false) return;
+      provisionedRef.current = provisionKey;
+
       // system listing
       const existingListing = await db.listings.get(listingId);
       if (!existingListing) {

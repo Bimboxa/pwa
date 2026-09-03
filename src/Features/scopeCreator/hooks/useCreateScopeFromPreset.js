@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import { useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
+import { nanoid } from "@reduxjs/toolkit";
 import { generateKeyBetween } from "fractional-indexing";
 
 import { setOpenScopeCreator } from "../scopeCreatorSlice";
@@ -170,7 +171,70 @@ export default function useCreateScopeFromPreset({ projectId }) {
       newEntities
     );
 
+    // scope id generated upfront so the scopeConfig row can precede the scope
+    const scopeId = nanoid();
+
+    // scopeConfig (per-scope module/tool activation) — absent from the
+    // configuration => no row, the app defaults apply. Written BEFORE the
+    // scope row: createScope selects the new scope right away, and with a
+    // scope already open the mounted Dessin panel (useFreeAnnotationTemplates)
+    // would read a missing row as "system templates enabled" and provision
+    // the "Générique" listing before this row lands. The DPGF and Carnet de
+    // détail options need their module ON for this scope (BUSINESS_OBJECTS /
+    // PORTFOLIO), so they materialize a row (seeded from the app defaults
+    // when the configuration carries none) with the module removed from the
+    // disabled list. Carnet de détail also needs the RESOURCES tool: the
+    // details workflow lives in the Ressources panel (folio source PDFs,
+    // "voir la source" on DETAIL annotations).
+
+    const optionEnabledModuleKeys = [
+      ...(dpgf ? ["BUSINESS_OBJECTS"] : []),
+      ...(carnetDetail ? ["PORTFOLIO"] : []),
+    ];
+    const optionEnabledToolKeys = [...(carnetDetail ? ["RESOURCES"] : [])];
+
+    // A configuration without system annotation templates also needs a row:
+    // useFreeAnnotationTemplates reads the persisted flag to skip the
+    // on-the-fly "Générique" listing provisioning.
+    const disableSystemTemplates =
+      usesConfigurationFlow && !initSystemAnnotationTemplates;
+
+    if (
+      configuration?.scopeConfig ||
+      optionEnabledModuleKeys.length > 0 ||
+      disableSystemTemplates
+    ) {
+      const baseScopeConfig = configuration?.scopeConfig ?? {
+        disabledModuleKeys: [...getDefaultDisabledModuleKeys(appConfig)],
+      };
+      const scopeConfigProps =
+        optionEnabledModuleKeys.length > 0
+          ? {
+              ...baseScopeConfig,
+              disabledModuleKeys: (
+                baseScopeConfig.disabledModuleKeys ?? []
+              ).filter((k) => !optionEnabledModuleKeys.includes(k)),
+              // materialize the filtered tool list explicitly: with an
+              // undefined disabledToolKeys, createScopeConfig would re-apply
+              // the app defaults, which contain RESOURCES.
+              ...(optionEnabledToolKeys.length > 0 && {
+                disabledToolKeys: (
+                  baseScopeConfig.disabledToolKeys ?? DEFAULT_DISABLED_TOOL_KEYS
+                ).filter((k) => !optionEnabledToolKeys.includes(k)),
+              }),
+            }
+          : baseScopeConfig;
+      await createScopeConfig({
+        scopeId,
+        projectId,
+        appConfig,
+        ...scopeConfigProps,
+        ...(disableSystemTemplates && { systemAnnotationTemplates: false }),
+      });
+    }
+
     const scope = await createScope({
+      id: scopeId,
       name,
       projectId,
       newListings,
@@ -336,61 +400,6 @@ export default function useCreateScopeFromPreset({ projectId }) {
           listingIds: listingIdsToDisable,
         });
       }
-    }
-
-    // scopeConfig (per-scope module/tool activation) — absent from the
-    // configuration => no row, the app defaults apply. The DPGF and Carnet de
-    // détail options need their module ON for this scope (BUSINESS_OBJECTS /
-    // PORTFOLIO), so they materialize a row (seeded from the app defaults
-    // when the configuration carries none) with the module removed from the
-    // disabled list. Carnet de détail also needs the RESOURCES tool: the
-    // details workflow lives in the Ressources panel (folio source PDFs,
-    // "voir la source" on DETAIL annotations).
-
-    const optionEnabledModuleKeys = [
-      ...(dpgf ? ["BUSINESS_OBJECTS"] : []),
-      ...(carnetDetail ? ["PORTFOLIO"] : []),
-    ];
-    const optionEnabledToolKeys = [...(carnetDetail ? ["RESOURCES"] : [])];
-
-    // A configuration without system annotation templates also needs a row:
-    // useFreeAnnotationTemplates reads the persisted flag to skip the
-    // on-the-fly "Générique" listing provisioning.
-    const disableSystemTemplates =
-      usesConfigurationFlow && !initSystemAnnotationTemplates;
-
-    if (
-      configuration?.scopeConfig ||
-      optionEnabledModuleKeys.length > 0 ||
-      disableSystemTemplates
-    ) {
-      const baseScopeConfig = configuration?.scopeConfig ?? {
-        disabledModuleKeys: [...getDefaultDisabledModuleKeys(appConfig)],
-      };
-      const scopeConfigProps =
-        optionEnabledModuleKeys.length > 0
-          ? {
-              ...baseScopeConfig,
-              disabledModuleKeys: (
-                baseScopeConfig.disabledModuleKeys ?? []
-              ).filter((k) => !optionEnabledModuleKeys.includes(k)),
-              // materialize the filtered tool list explicitly: with an
-              // undefined disabledToolKeys, createScopeConfig would re-apply
-              // the app defaults, which contain RESOURCES.
-              ...(optionEnabledToolKeys.length > 0 && {
-                disabledToolKeys: (
-                  baseScopeConfig.disabledToolKeys ?? DEFAULT_DISABLED_TOOL_KEYS
-                ).filter((k) => !optionEnabledToolKeys.includes(k)),
-              }),
-            }
-          : baseScopeConfig;
-      await createScopeConfig({
-        scopeId: scope.id,
-        projectId,
-        appConfig,
-        ...scopeConfigProps,
-        ...(disableSystemTemplates && { systemAnnotationTemplates: false }),
-      });
     }
 
     // DPGF option: seed the scope's first business-objects listing (the
