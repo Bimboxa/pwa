@@ -7,6 +7,7 @@ import createBusinessObjectListingService from "Features/businessObjects/service
 
 import { getNotesAppSession } from "./notesAppAuthService";
 import fetchNotesAppProjectDump from "./fetchNotesAppProjectDump";
+import buildNotesAppMediaIndex from "./buildNotesAppMediaIndex";
 import prepareNotesAppBusinessObjectsMerge from "./mergeNotesAppBusinessObjects";
 import prepareNotesAppBaseMapsMerge from "./mergeNotesAppBaseMaps";
 import prepareNotesAppPositionsMerge from "./mergeNotesAppPositions";
@@ -76,6 +77,8 @@ export default async function syncNotesAppScope({
 
   onProgress?.({ step: "fetch" });
   const dump = await fetchNotesAppProjectDump(link.projectId);
+  // noteId -> storage path/mime for the notes-feed media (photos, audio)
+  const mediaIndex = await buildNotesAppMediaIndex(link.projectId);
 
   const remoteListings = (dump.listings ?? []).filter((l) => !l.deletedAt);
 
@@ -142,6 +145,7 @@ export default async function syncNotesAppScope({
       listing: pair.listing,
       projectId: scope.projectId,
       userIdMaster,
+      mediaIndex,
     });
     const positionsMerge = await prepareNotesAppPositionsMerge({
       dump,
@@ -211,6 +215,9 @@ export default async function syncNotesAppScope({
           for (const { objectsMerge, positionsMerge } of merges) {
             if (objectsMerge.rows.length) {
               await db.businessObjects.bulkPut(objectsMerge.rows);
+            }
+            if (objectsMerge.fileRows.length) {
+              await db.files.bulkPut(objectsMerge.fileRows);
             }
             if (positionsMerge.pointRows.length) {
               await db.points.bulkPut(positionsMerge.pointRows);

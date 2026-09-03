@@ -19,6 +19,8 @@ import {
   ListItem,
   ListItemText,
   MenuItem,
+  Tab,
+  Tabs,
   TextField,
   Typography,
 } from "@mui/material";
@@ -36,6 +38,7 @@ import useRelsBusinessObjectAnnotation from "../hooks/useRelsBusinessObjectAnnot
 import useUpdateBusinessObject from "../hooks/useUpdateBusinessObject";
 
 import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTemplateIcon";
+import SectionNotesAppObjectNotes from "Features/notesApp/components/SectionNotesAppObjectNotes";
 import getAnnotationMainQtyLabel from "Features/annotations/utils/getAnnotationMainQtyLabel";
 import getBusinessObjectQtyLabel from "../utils/getBusinessObjectQtyLabel";
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
@@ -97,6 +100,17 @@ export default function PanelBusinessObjectProperties() {
     setLabel(businessObject?.label ?? "");
     setDescription(businessObject?.description ?? "");
   }, [businessObject?.id, businessObject?.label, businessObject?.description]);
+
+  // state — tabs: the "Notes" tab shows the Krnet notes feed of an imported
+  // object (photos, comments, events... under businessObject.notesAppNotes)
+
+  const [tab, setTab] = useState("PROPS");
+  const isNotesAppObject = businessObject?.remoteSource === "notesApp";
+  const notesCount = businessObject?.notesAppNotes?.length ?? 0;
+
+  useEffect(() => {
+    setTab("PROPS");
+  }, [businessObjectId]);
 
   // helpers — linked annotations + rolled-up quantities
 
@@ -218,6 +232,33 @@ export default function PanelBusinessObjectProperties() {
         </Box>
       </Box>
 
+      {/* tabs — only Krnet-imported objects carry a notes feed */}
+      {isNotesAppObject && (
+        <Tabs
+          value={tab}
+          onChange={(_e, v) => setTab(v)}
+          variant="fullWidth"
+          sx={{
+            minHeight: 36,
+            borderBottom: "1px solid",
+            borderColor: "divider",
+            "& .MuiTab-root": { minHeight: 36 },
+          }}
+        >
+          <Tab value="PROPS" label="Propriétés" />
+          <Tab
+            value="NOTES"
+            label={notesCount > 0 ? `Notes (${notesCount})` : "Notes"}
+          />
+        </Tabs>
+      )}
+
+      {tab === "NOTES" && isNotesAppObject && (
+        <SectionNotesAppObjectNotes businessObject={businessObject} />
+      )}
+
+      {tab !== "NOTES" && (
+      <>
       {/* props */}
       <Box
         sx={{
@@ -373,6 +414,8 @@ export default function PanelBusinessObjectProperties() {
           </List>
         )}
       </Box>
+      </>
+      )}
     </Box>
   );
 }
