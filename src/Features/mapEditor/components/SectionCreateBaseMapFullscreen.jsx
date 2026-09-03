@@ -39,6 +39,9 @@ import {
 import DialogCreateBlankBaseMap from "Features/baseMaps/components/DialogCreateBlankBaseMap";
 import DialogCreateBaseMapFromSatellite from "Features/satelliteMap/components/DialogCreateBaseMapFromSatellite";
 
+import { selectDisabledBaseMapSourceKeys } from "Features/scopeConfig/utils/scopeConfigSelectors";
+import BASE_MAP_SOURCE_CATALOG from "Features/baseMaps/data/baseMapSourceCatalog";
+
 import testIsPdf from "Features/pdf/utils/testIsPdf";
 import testIsImage from "Features/files/utils/testIsImage";
 import testIsDwg from "Features/files/utils/testIsDwg";
@@ -56,7 +59,7 @@ export default function SectionCreateBaseMapFullscreen({
   // strings
 
   const dropTitleS = "Glisser-déposer un plan ici";
-  const dropSubtitleS = "PDF · DWG · JPG · PNG — le format est reconnu automatiquement";
+  const dropSubtitleSuffixS = "le format est reconnu automatiquement";
   const storeInS = "Ranger dans";
   const orCreateFromS = "OU CRÉER DEPUIS";
 
@@ -82,6 +85,8 @@ export default function SectionCreateBaseMapFullscreen({
 
   const dwgSoonS = "Le format DWG arrive prochainement";
   const unsupportedS = "Format non pris en charge";
+  const sourceDisabledS =
+    "Source désactivée pour ce dossier (Configuration > Fonds de plan)";
   const noListingS = "Aucune liste de fonds de plan";
   const blankA3NameS = "Page blanche A3";
 
@@ -106,8 +111,24 @@ export default function SectionCreateBaseMapFullscreen({
   const selectedBaseMapsListingId = useSelector(
     (s) => s.mapEditor.selectedBaseMapsListingId
   );
+  // per-scope creation sources (Configuration > Fonds de plan)
+  const disabledSourceKeys = useSelector(selectDisabledBaseMapSourceKeys);
 
   // helpers
+
+  const isSourceEnabled = (key) => !disabledSourceKeys.includes(key);
+  const enabledSources = BASE_MAP_SOURCE_CATALOG.filter((source) =>
+    isSourceEnabled(source.key)
+  );
+  // the drop zone only makes sense with at least one file-based source
+  const enabledFileSources = enabledSources.filter((s) => s.fileBased);
+  const showDropZone = enabledFileSources.length > 0;
+  const dropAccept = enabledFileSources
+    .flatMap((source) => source.extensions)
+    .join(",");
+  const dropSubtitleS = `${enabledFileSources
+    .flatMap((source) => source.formats)
+    .join(" · ")} — ${dropSubtitleSuffixS}`;
 
   // resolved target listing for the new baseMap
   const listing =
@@ -186,11 +207,25 @@ export default function SectionCreateBaseMapFullscreen({
     const file = files?.[0];
     if (!file) return;
     if (testIsPdf(file)) {
+      if (!isSourceEnabled("PDF")) {
+        dispatch(setToaster({ message: sourceDisabledS, severity: "warning" }));
+        return;
+      }
       handlePdfFile(file);
     } else if (testIsImage(file)) {
+      if (!isSourceEnabled("IMAGE")) {
+        dispatch(setToaster({ message: sourceDisabledS, severity: "warning" }));
+        return;
+      }
       handleImageFile(file);
     } else if (testIsDwg(file)) {
-      dispatch(setToaster({ message: dwgSoonS, severity: "info" }));
+      const dwgEnabled = isSourceEnabled("DWG");
+      dispatch(
+        setToaster({
+          message: dwgEnabled ? dwgSoonS : sourceDisabledS,
+          severity: dwgEnabled ? "info" : "warning",
+        })
+      );
     } else {
       dispatch(setToaster({ message: unsupportedS, severity: "warning" }));
     }
@@ -301,22 +336,24 @@ export default function SectionCreateBaseMapFullscreen({
           >
             {/* Main drop zone */}
 
-            <Paper
-              elevation={3}
-              sx={{ width: 1, maxWidth: 560, borderRadius: "12px", p: 2 }}
-            >
-              <ContainerFilesSelectorV2
-                callToActionLabel={dropTitleS}
-                subLabel={dropSubtitleS}
-                accept=".png,.jpg,.jpeg,.pdf,.dwg"
-                onFilesChange={handleDropZoneFiles}
-                sxDropZone={{
-                  minHeight: 220,
-                  borderColor: (theme) =>
-                    alpha(theme.palette.secondary.main, 0.5),
-                }}
-              />
-            </Paper>
+            {showDropZone && (
+              <Paper
+                elevation={3}
+                sx={{ width: 1, maxWidth: 560, borderRadius: "12px", p: 2 }}
+              >
+                <ContainerFilesSelectorV2
+                  callToActionLabel={dropTitleS}
+                  subLabel={dropSubtitleS}
+                  accept={dropAccept}
+                  onFilesChange={handleDropZoneFiles}
+                  sxDropZone={{
+                    minHeight: 220,
+                    borderColor: (theme) =>
+                      alpha(theme.palette.secondary.main, 0.5),
+                  }}
+                />
+              </Paper>
+            )}
 
             {/* Destination listing */}
 
@@ -342,16 +379,19 @@ export default function SectionCreateBaseMapFullscreen({
               </Box>
             )}
 
-            {/* Other creation options */}
+            {/* Other creation options — cards of the enabled sources only
+                (Configuration > Fonds de plan > Sources de fonds de plan) */}
 
-            <Divider sx={{ width: 1, maxWidth: 720, my: 1 }}>
-              <Typography
-                variant="overline"
-                sx={{ color: "text.disabled", letterSpacing: 1 }}
-              >
-                {orCreateFromS}
-              </Typography>
-            </Divider>
+            {enabledSources.length > 0 && showDropZone && (
+              <Divider sx={{ width: 1, maxWidth: 720, my: 1 }}>
+                <Typography
+                  variant="overline"
+                  sx={{ color: "text.disabled", letterSpacing: 1 }}
+                >
+                  {orCreateFromS}
+                </Typography>
+              </Divider>
+            )}
 
             <Box
               sx={{
@@ -362,89 +402,104 @@ export default function SectionCreateBaseMapFullscreen({
                 maxWidth: 1000,
               }}
             >
-              <CardCreateBaseMapOption
-                title={dwgTitleS}
-                subtitle={dwgSubtitleS}
-                illustration={<IllustrationDwg />}
-                badge={soonS}
-                disabled
-                actions={
-                  <Button variant="outlined" color="inherit" size="small" disabled>
-                    {computerS}
-                  </Button>
-                }
-              />
-              <CardCreateBaseMapOption
-                title={pdfTitleS}
-                subtitle={pdfSubtitleS}
-                illustration={<IllustrationPdf />}
-                actions={
-                  <Button
-                    variant="outlined"
-                    color="inherit"
-                    size="small"
-                    onClick={() => pdfInputRef.current?.click()}
-                  >
-                    {computerS}
-                  </Button>
-                }
-              />
-              <CardCreateBaseMapOption
-                title={imageTitleS}
-                subtitle={imageSubtitleS}
-                illustration={<IllustrationImage />}
-                actions={
-                  <Button
-                    variant="outlined"
-                    color="inherit"
-                    size="small"
-                    onClick={() => imageInputRef.current?.click()}
-                  >
-                    {computerS}
-                  </Button>
-                }
-              />
-              <CardCreateBaseMapOption
-                title={blankTitleS}
-                subtitle={blankSubtitleS}
-                illustration={<IllustrationBlankPage />}
-                actions={
-                  <>
+              {isSourceEnabled("DWG") && (
+                <CardCreateBaseMapOption
+                  title={dwgTitleS}
+                  subtitle={dwgSubtitleS}
+                  illustration={<IllustrationDwg />}
+                  badge={soonS}
+                  disabled
+                  actions={
                     <Button
                       variant="outlined"
                       color="inherit"
                       size="small"
-                      startIcon={<LandscapeIcon />}
-                      onClick={handleCreateBlankA3}
+                      disabled
                     >
-                      {a3S}
+                      {computerS}
                     </Button>
+                  }
+                />
+              )}
+              {isSourceEnabled("PDF") && (
+                <CardCreateBaseMapOption
+                  title={pdfTitleS}
+                  subtitle={pdfSubtitleS}
+                  illustration={<IllustrationPdf />}
+                  actions={
                     <Button
                       variant="outlined"
                       color="inherit"
                       size="small"
-                      onClick={() => setOpenBlank(true)}
+                      onClick={() => pdfInputRef.current?.click()}
                     >
-                      {otherS}
+                      {computerS}
                     </Button>
-                  </>
-                }
-              />
-              <CardCreateBaseMapOption
-                title={satelliteTitleS}
-                subtitle={satelliteSubtitleS}
-                illustration={<IllustrationSatellite />}
-                actions={
-                  <Button
-                    variant="outlined"
-                    color="inherit"
-                    size="small"
-                    onClick={() => setOpenSatellite(true)}
-                  >
-                    {chooseZoneS}
-                  </Button>
-                }
-              />
+                  }
+                />
+              )}
+              {isSourceEnabled("IMAGE") && (
+                <CardCreateBaseMapOption
+                  title={imageTitleS}
+                  subtitle={imageSubtitleS}
+                  illustration={<IllustrationImage />}
+                  actions={
+                    <Button
+                      variant="outlined"
+                      color="inherit"
+                      size="small"
+                      onClick={() => imageInputRef.current?.click()}
+                    >
+                      {computerS}
+                    </Button>
+                  }
+                />
+              )}
+              {isSourceEnabled("BLANK_PAGE") && (
+                <CardCreateBaseMapOption
+                  title={blankTitleS}
+                  subtitle={blankSubtitleS}
+                  illustration={<IllustrationBlankPage />}
+                  actions={
+                    <>
+                      <Button
+                        variant="outlined"
+                        color="inherit"
+                        size="small"
+                        startIcon={<LandscapeIcon />}
+                        onClick={handleCreateBlankA3}
+                      >
+                        {a3S}
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        color="inherit"
+                        size="small"
+                        onClick={() => setOpenBlank(true)}
+                      >
+                        {otherS}
+                      </Button>
+                    </>
+                  }
+                />
+              )}
+              {isSourceEnabled("SATELLITE") && (
+                <CardCreateBaseMapOption
+                  title={satelliteTitleS}
+                  subtitle={satelliteSubtitleS}
+                  illustration={<IllustrationSatellite />}
+                  actions={
+                    <Button
+                      variant="outlined"
+                      color="inherit"
+                      size="small"
+                      onClick={() => setOpenSatellite(true)}
+                    >
+                      {chooseZoneS}
+                    </Button>
+                  }
+                />
+              )}
             </Box>
           </Box>
         </Box>

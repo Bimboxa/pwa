@@ -69,6 +69,11 @@ export default function PanelDashboardProjectDetail({ item }) {
   const selectedProjectId = useSelector((s) => s.projects.selectedProjectId);
   const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
   const userProfile = useSelector((s) => s.auth.userProfile);
+  // device preference (Configuration > Données & préférences): full creation
+  // flow (vide / pré-configuré) vs single button + compact dialog.
+  const configurationsManagement = useSelector(
+    (s) => s.appConfig.configurationsManagement
+  );
 
   const { createScopeFromPreset, isCreating } = useCreateScopeFromPreset({
     projectId: item?.projectId,
@@ -93,6 +98,8 @@ export default function PanelDashboardProjectDetail({ item }) {
     "Plan de repérage pré-configuré";
   const newEmptyS =
     appConfig?.strings?.scope?.newEmpty ?? "Plan de repérage vide";
+  const newScopeS =
+    appConfig?.strings?.scope?.new ?? "Créer un plan de repérage";
 
   // helpers
 
@@ -195,7 +202,7 @@ export default function PanelDashboardProjectDetail({ item }) {
     const trigram =
       userProfile?.trigram ?? getDebugAuthFromLocalStorage()?.trigram ?? null;
     try {
-      // bare scope: no listings, existing baseMap listings hidden
+      // bare scope (scopeCreator/data/emptyScopeConfiguration)
       await createScopeFromPreset({
         name: getDefaultScopeName({ trigram }),
         empty: true,
@@ -356,16 +363,28 @@ export default function PanelDashboardProjectDetail({ item }) {
             </Tooltip>
           )}
         </Box>
-        <Box sx={{ display: "flex", gap: 1 }}>
-          <Button
-            variant="outlined"
-            color="secondary"
-            startIcon={<Add />}
-            onClick={handleNewEmptyKrto}
-            disabled={!item.projectId || isCreating}
-          >
-            {newEmptyS}
-          </Button>
+        {configurationsManagement ? (
+          <Box sx={{ display: "flex", gap: 1 }}>
+            <Button
+              variant="outlined"
+              color="secondary"
+              startIcon={<Add />}
+              onClick={handleNewEmptyKrto}
+              disabled={!item.projectId || isCreating}
+            >
+              {newEmptyS}
+            </Button>
+            <Button
+              variant="contained"
+              color="secondary"
+              startIcon={<Add />}
+              onClick={handleNewKrto}
+              disabled={!item.projectId}
+            >
+              {newPreconfiguredS}
+            </Button>
+          </Box>
+        ) : (
           <Button
             variant="contained"
             color="secondary"
@@ -373,9 +392,9 @@ export default function PanelDashboardProjectDetail({ item }) {
             onClick={handleNewKrto}
             disabled={!item.projectId}
           >
-            {newPreconfiguredS}
+            {newScopeS}
           </Button>
-        </Box>
+        )}
       </Box>
 
       {/* krtos list */}

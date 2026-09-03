@@ -32,11 +32,13 @@ import resolvePresetScopeEntities from "../services/resolvePresetScopeEntities";
 import resolveConfigurationScopeListings from "../services/resolveConfigurationScopeListings";
 import createScopeConfig from "Features/scopeConfig/services/createScopeConfig";
 import {
-  DEFAULT_DISABLED_MODULE_KEYS,
+  getDefaultDisabledModuleKeys,
   DEFAULT_DISABLED_TOOL_KEYS,
 } from "Features/scopeConfig/utils/scopeConfigSelectors";
 import createBusinessObjectListingService from "Features/businessObjects/services/createBusinessObjectListingService";
 import setDisabledBaseMapListingIds from "Features/baseMapEditor/services/setDisabledBaseMapListingIds";
+
+import EMPTY_SCOPE_CONFIGURATION from "../data/emptyScopeConfiguration";
 
 export default function useCreateScopeFromPreset({ projectId }) {
   const dispatch = useDispatch();
@@ -83,15 +85,19 @@ export default function useCreateScopeFromPreset({ projectId }) {
     excludedLibraryKeys,
     removedBaseMapItemKeys,
     hiddenExistingListingIds,
-    // empty: create a bare scope — no listings at all, and hide the
-    // project's existing baseMap listings ("+ Krto vide" button).
+    // empty: create a bare scope from the built-in EMPTY_SCOPE_CONFIGURATION
+    // ("Krto vide" button / select entry): no annotation listing at all (no
+    // library, initSystemAnnotationTemplates false), a fallback "Fonds de
+    // plan" baseMap listing when the project has none, core modules only.
     empty,
   }) {
     // Krto creation configuration (card selector) — when absent, the legacy
     // preset path below runs unchanged.
-    const configuration = appConfig?.features?.krtoConfigurations?.items?.find(
-      (c) => c.key === configurationKey
-    );
+    const configuration = empty
+      ? EMPTY_SCOPE_CONFIGURATION
+      : appConfig?.features?.krtoConfigurations?.items?.find(
+          (c) => c.key === configurationKey
+        );
 
     const dpgf = Boolean(options?.dpgf);
     const carnetDetail = Boolean(options?.carnetDetail);
@@ -108,15 +114,22 @@ export default function useCreateScopeFromPreset({ projectId }) {
       ...(carnetDetail ? ["DIVERS"] : []),
     ];
 
-    const newListings = empty
-      ? []
-      : usesConfigurationFlow
+    // system annotation templates (isForBaseMaps preset listings at creation
+    // + the on-the-fly "Générique" Ligne/Polygone listing): only the generic
+    // scope (no configuration) seeds them by default; a configuration opts in
+    // through annotations.initSystemAnnotationTemplates (EMPTY config: false).
+    const initSystemAnnotationTemplates = configuration
+      ? (configuration.annotations?.initSystemAnnotationTemplates ?? false)
+      : true;
+
+    const newListings = usesConfigurationFlow
       ? await resolveConfigurationScopeListings({
           configuration,
           appConfig,
           projectId,
           extraLibraryKeys: allExtraLibraryKeys,
           excludedLibraryKeys,
+          initSystemAnnotationTemplates,
         })
       : await resolvePresetScopeListings({
           presetScopeKey,
@@ -270,7 +283,6 @@ export default function useCreateScopeFromPreset({ projectId }) {
         dispatch(setSelectedMainBaseMapId(firstBaseMapId));
       }
     } else if (
-      !empty &&
       !usesConfigurationFlow &&
       (!baseMapsListings || baseMapsListings?.length === 0)
     ) {
@@ -310,15 +322,14 @@ export default function useCreateScopeFromPreset({ projectId }) {
     // (hiddenExistingListingIds) win when provided; otherwise fall back to
     // the configuration's disableExistingListings flag (all non-reused
     // existing listings hidden).
-    if (usesConfigurationFlow || empty) {
-      const listingIdsToDisable = empty
-        ? preExistingBaseMapListingIds
-        : hiddenExistingListingIds ??
-          (configuration?.baseMaps?.disableExistingListings
-            ? preExistingBaseMapListingIds.filter(
-                (id) => !configReusedListingIds.includes(id)
-              )
-            : []);
+    if (usesConfigurationFlow) {
+      const listingIdsToDisable =
+        hiddenExistingListingIds ??
+        (configuration?.baseMaps?.disableExistingListings
+          ? preExistingBaseMapListingIds.filter(
+              (id) => !configReusedListingIds.includes(id)
+            )
+          : []);
       if (listingIdsToDisable.length > 0) {
         await setDisabledBaseMapListingIds({
           scopeId: scope.id,
@@ -342,9 +353,19 @@ export default function useCreateScopeFromPreset({ projectId }) {
     ];
     const optionEnabledToolKeys = [...(carnetDetail ? ["RESOURCES"] : [])];
 
-    if (configuration?.scopeConfig || optionEnabledModuleKeys.length > 0) {
+    // A configuration without system annotation templates also needs a row:
+    // useFreeAnnotationTemplates reads the persisted flag to skip the
+    // on-the-fly "Générique" listing provisioning.
+    const disableSystemTemplates =
+      usesConfigurationFlow && !initSystemAnnotationTemplates;
+
+    if (
+      configuration?.scopeConfig ||
+      optionEnabledModuleKeys.length > 0 ||
+      disableSystemTemplates
+    ) {
       const baseScopeConfig = configuration?.scopeConfig ?? {
-        disabledModuleKeys: [...DEFAULT_DISABLED_MODULE_KEYS],
+        disabledModuleKeys: [...getDefaultDisabledModuleKeys(appConfig)],
       };
       const scopeConfigProps =
         optionEnabledModuleKeys.length > 0
@@ -366,7 +387,9 @@ export default function useCreateScopeFromPreset({ projectId }) {
       await createScopeConfig({
         scopeId: scope.id,
         projectId,
+        appConfig,
         ...scopeConfigProps,
+        ...(disableSystemTemplates && { systemAnnotationTemplates: false }),
       });
     }
 

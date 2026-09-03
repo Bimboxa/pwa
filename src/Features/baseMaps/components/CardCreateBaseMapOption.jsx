@@ -1,5 +1,5 @@
 import { Box, Chip, Typography } from "@mui/material";
-import { alpha } from "@mui/material/styles";
+import { lighten } from "@mui/material/styles";
 
 export default function CardCreateBaseMapOption({
   title,
@@ -32,7 +32,8 @@ export default function CardCreateBaseMapOption({
             zIndex: 1,
             fontWeight: 500,
             color: "secondary.main",
-            bgcolor: (theme) => alpha(theme.palette.secondary.main, 0.12),
+            // opaque tint: the chip must mask the illustration underneath
+            bgcolor: (theme) => lighten(theme.palette.secondary.main, 0.88),
           }}
         />
       )}

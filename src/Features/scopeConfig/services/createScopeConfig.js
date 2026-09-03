@@ -2,14 +2,15 @@ import db, { withSystemWrite } from "App/db/db";
 import { notifyLocalChange } from "Features/remoteScopeConfigurations/services/localChangeTracker";
 
 import {
-  DEFAULT_DISABLED_MODULE_KEYS,
+  getDefaultDisabledModuleKeys,
   DEFAULT_DISABLED_TOOL_KEYS,
 } from "../utils/scopeConfigSelectors";
 
 /*
  * Create the db.scopeConfigs row for a scope with explicit ids — used at scope
  * creation time, where useScopeConfigActions (bound to the selected scope)
- * cannot be used. No-op when a row already exists.
+ * cannot be used. No-op when a row already exists. `appConfig` feeds the
+ * org-level module defaults when `disabledModuleKeys` is omitted.
  */
 export default async function createScopeConfig({
   scopeId,
@@ -17,6 +18,8 @@ export default async function createScopeConfig({
   disabledModuleKeys,
   disabledToolKeys,
   disabledToolKeysByModule,
+  systemAnnotationTemplates,
+  appConfig,
 }) {
   if (!scopeId) return;
 
@@ -32,10 +35,14 @@ export default async function createScopeConfig({
       scopeId,
       projectId,
       disabledModuleKeys: disabledModuleKeys ?? [
-        ...DEFAULT_DISABLED_MODULE_KEYS,
+        ...getDefaultDisabledModuleKeys(appConfig),
       ],
       disabledToolKeys: disabledToolKeys ?? [...DEFAULT_DISABLED_TOOL_KEYS],
       disabledToolKeysByModule: disabledToolKeysByModule ?? {},
+      // only materialized when the caller decides (absent => enabled)
+      ...(systemAnnotationTemplates !== undefined && {
+        systemAnnotationTemplates,
+      }),
     })
   );
   notifyLocalChange();

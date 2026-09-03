@@ -151,8 +151,19 @@ features:
   # Data lives in src/Data/<orgaCode>/configurations/ (one js file per
   # configuration + assets/ for the card SVGs); the schema is documented in
   # src/Features/appConfig/utils/resolveAppConfig.js.
+  # `simpleModeKeys` (optional): configuration keys offered by the compact
+  # creation dialog (device preference "Gestion des configurations" off);
+  # absent => every configuration.
   krtoConfigurations:
     enabled: false
+
+  # Per-scope module activation (db.scopeConfigs). Modules disabled by
+  # default for a scope without a row (keys of useViewers.jsx); absent =>
+  # only Fonds de plan + Dessin stay enabled.
+  scopeConfig:
+    defaultDisabledModuleKeys:
+      - MESHES
+      - POINT_OF_VIEW
 
   annotations:
     spriteImages:

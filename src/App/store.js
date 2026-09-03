@@ -47,13 +47,14 @@ import blueprintsReducer from "Features/blueprints/blueprintsSlice";
 import selectionReducer from "Features/selection/selectionSlice";
 import baseMapCreatorReducer from "Features/baseMapCreator/baseMapCreatorSlice";
 import baseMapEditorReducer from "Features/baseMapEditor/baseMapEditorSlice";
-import remoteScopeConfigurationsReducer, { syncedVersionPersistMiddleware } from "Features/remoteScopeConfigurations/remoteScopeConfigurationsSlice";
+import remoteScopeConfigurationsReducer, {
+  syncedVersionPersistMiddleware,
+} from "Features/remoteScopeConfigurations/remoteScopeConfigurationsSlice";
 import scopeFavoritesReducer from "Features/scopeFavorites/scopeFavoritesSlice";
 import dailyScopesReducer from "Features/dailyScopes/dailyScopesSlice";
 //
 import chatReducer from "Features/chat/chatSlice";
 import localLlmReducer from "Features/localLlm/localLlmSlice";
-import chronoReducer from "Features/chrono/chronoSlice";
 import showerReducer from "Features/shower/showerSlice";
 //
 import gapiReducer from "Features/gapi/gapiSlice";
@@ -137,7 +138,6 @@ const store = configureStore({
     //
     chat: chatReducer,
     localLlm: localLlmReducer,
-    chrono: chronoReducer,
     shower: showerReducer,
     //
     gapi: gapiReducer,

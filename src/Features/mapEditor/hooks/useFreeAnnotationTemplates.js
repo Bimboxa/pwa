@@ -6,6 +6,7 @@ import db from "App/db/db";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useUserEmail from "Features/auth/hooks/useUserEmail";
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
+import { selectSystemAnnotationTemplatesEnabled } from "Features/scopeConfig/utils/scopeConfigSelectors";
 
 import { triggerAnnotationTemplatesUpdate } from "Features/annotations/annotationsSlice";
 import { getDefaultsForShape } from "Features/annotations/constants/drawingShapeConfig";
@@ -19,6 +20,11 @@ import getAnnotationTemplateCode from "Features/annotations/utils/getAnnotationT
 //
 // Records use deterministic ids so ensure-exists is safe across reloads and
 // concurrent mounts (we only create when missing, never overwrite user edits).
+//
+// Per-scope opt-out: scopeConfigs.systemAnnotationTemplates === false (set by
+// a creation configuration with initSystemAnnotationTemplates false, or from
+// Configuration > Dessin) skips the provisioning. Gated on the scopeConfig
+// slice being synced so a not-yet-hydrated row can't be mistaken for "enabled".
 export default function useFreeAnnotationTemplates() {
   const dispatch = useDispatch();
 
@@ -26,6 +32,11 @@ export default function useFreeAnnotationTemplates() {
 
   const scopeId = useSelector((s) => s.scopes.selectedScopeId);
   const projectId = useSelector((s) => s.projects.selectedProjectId);
+  const scopeConfigSynced = useSelector((s) => s.scopeConfig.synced);
+  const systemTemplatesEnabled = useSelector(
+    selectSystemAnnotationTemplatesEnabled
+  );
+  const canProvision = scopeConfigSynced && systemTemplatesEnabled;
   const appConfig = useAppConfig();
   const { value: createdBy } = useUserEmail();
 
@@ -40,7 +51,7 @@ export default function useFreeAnnotationTemplates() {
   const provisionedRef = useRef(null);
 
   useEffect(() => {
-    if (!scopeId || !projectId || !listingId) return;
+    if (!scopeId || !projectId || !listingId || !canProvision) return;
     // run once per (scope, project) pair
     const provisionKey = `${scopeId}:${projectId}`;
     if (provisionedRef.current === provisionKey) return;
@@ -138,6 +149,7 @@ export default function useFreeAnnotationTemplates() {
     listingId,
     lineTemplateId,
     surfaceTemplateId,
+    canProvision,
     appConfig,
     createdBy,
     dispatch,

@@ -19,6 +19,9 @@ const FORMAT_BY_PAGE_ORIENTATION = {
  * declared by a Krto creation configuration (configuration.baseMaps.listings).
  * A pre-existing project listing with the same name (and verticalBaseMaps
  * flag) is reused instead of duplicated — pass it via existingListings.
+ * A listing config flagged `fallback: true` only exists for projects without
+ * any BASE_MAP listing yet: when the project already has some, it is neither
+ * created nor matched (the scope works with the existing listings).
  */
 export default function useCreateConfigurationBaseMaps() {
   const createListings = useCreateListings();
@@ -31,10 +34,17 @@ export default function useCreateConfigurationBaseMaps() {
     projectId,
     existingListings,
   }) {
-    const listingConfigs = configuration?.baseMaps?.listings ?? [];
+    const _existingListings = existingListings ?? [];
+
+    // fallback listings drop out as soon as the project has a listing
+    const listingConfigs = (configuration?.baseMaps?.listings ?? []).filter(
+      (listingConfig) =>
+        !listingConfig.fallback || _existingListings.length === 0
+    );
     if (listingConfigs.length === 0) {
       return {
-        firstListingId: null,
+        // land on the project's first listing when nothing is declared
+        firstListingId: _existingListings[0]?.id ?? null,
         firstBaseMapId: null,
         createdItemsCount: 0,
         reusedListingIds: [],
@@ -43,7 +53,6 @@ export default function useCreateConfigurationBaseMaps() {
 
     // reuse project listings matched by name + orientation flag
 
-    const _existingListings = existingListings ?? [];
     const resolved = listingConfigs.map((listingConfig) => ({
       listingConfig,
       existing:

@@ -221,16 +221,29 @@ export default async function resolveAppConfig(appConfig) {
   //     baseMaps: {
   //       disableExistingListings,  // hide the project's pre-existing
   //                                 // BASE_MAP listings for this scope
-  //       listings: [{ name, verticalBaseMaps, items: [
+  //       listings: [{ name, verticalBaseMaps,
+  //         fallback,               // true => created only when the project
+  //                                 // has no BASE_MAP listing at all
+  //         items: [
   //         { type: "BLANK_PAGE", name, pageFormat: "A4"|"A3",
   //           pageOrientation: "LANDSCAPE"|"PORTRAIT"|"SQUARE", scale },
   //         { type: "ASSET", name, assetPath, meterByPx },  // raster only
   //       ]}],
   //     },
-  //     annotations: { libraryKeys },  // annotationTemplatesLibraries keys
+  //     annotations: {
+  //       libraryKeys,              // annotationTemplatesLibraries keys
+  //       initSystemAnnotationTemplates,  // true => system annotation
+  //                                 // templates: isForBaseMaps preset
+  //                                 // listings + the "Générique" Ligne /
+  //                                 // Polygone listing (default false; the
+  //                                 // generic scope always seeds them)
+  //     },
   //     scopeConfig: { disabledModuleKeys, disabledToolKeys,
   //                    disabledToolKeysByModule } }  // absent => app defaults
   // Named export `configurationKeywordFamilies` = [{ key, label }].
+  // Yaml side: features.krtoConfigurations.simpleModeKeys (optional list of
+  // configuration keys) restricts the compact creation dialog shown when the
+  // "Gestion des configurations" device preference is off.
   if (orgaCode && appConfig.features?.krtoConfigurations?.enabled) {
     const registryKey = `../../../Data/${orgaCode}/configurations/index.js`;
     const loader = KRTO_CONFIGURATIONS_LOADERS[registryKey];

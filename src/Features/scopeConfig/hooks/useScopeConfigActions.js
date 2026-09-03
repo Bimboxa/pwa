@@ -6,8 +6,9 @@ import db, { withSystemWrite } from "App/db/db";
 import { notifyLocalChange } from "Features/remoteScopeConfigurations/services/localChangeTracker";
 
 import {
-  DEFAULT_DISABLED_MODULE_KEYS,
+  selectDefaultDisabledModuleKeys,
   DEFAULT_DISABLED_TOOL_KEYS,
+  DEFAULT_DISABLED_BASE_MAP_SOURCE_KEYS,
 } from "../utils/scopeConfigSelectors";
 
 function toggleKey(list, key) {
@@ -21,6 +22,9 @@ function toggleKey(list, key) {
 export default function useScopeConfigActions() {
   const scopeId = useSelector((s) => s.scopes.selectedScopeId);
   const projectId = useSelector((s) => s.projects.selectedProjectId);
+  const defaultDisabledModuleKeys = useSelector(
+    selectDefaultDisabledModuleKeys
+  );
 
   const upsert = useCallback(
     async (computePatch) => {
@@ -45,7 +49,7 @@ export default function useScopeConfigActions() {
             id: scopeId, // deterministic PK — see the db.js v32 comment
             scopeId,
             projectId,
-            disabledModuleKeys: [...DEFAULT_DISABLED_MODULE_KEYS],
+            disabledModuleKeys: [...defaultDisabledModuleKeys],
             disabledToolKeys: [...DEFAULT_DISABLED_TOOL_KEYS],
             disabledToolKeysByModule: {},
             ...patch,
@@ -54,18 +58,18 @@ export default function useScopeConfigActions() {
       }
       notifyLocalChange();
     },
-    [scopeId, projectId]
+    [scopeId, projectId, defaultDisabledModuleKeys]
   );
 
   const toggleModule = useCallback(
     (moduleKey) =>
       upsert((row) => ({
         disabledModuleKeys: toggleKey(
-          row?.disabledModuleKeys ?? DEFAULT_DISABLED_MODULE_KEYS,
+          row?.disabledModuleKeys ?? defaultDisabledModuleKeys,
           moduleKey
         ),
       })),
-    [upsert]
+    [upsert, defaultDisabledModuleKeys]
   );
 
   const toggleToolRoot = useCallback(
@@ -93,6 +97,27 @@ export default function useScopeConfigActions() {
     [upsert]
   );
 
+  // BaseMap creation sources of the Fonds de plan module (cards + drop zone
+  // of the creation section).
+  const toggleBaseMapSource = useCallback(
+    (sourceKey) =>
+      upsert((row) => ({
+        disabledBaseMapSourceKeys: toggleKey(
+          row?.disabledBaseMapSourceKeys ??
+            DEFAULT_DISABLED_BASE_MAP_SOURCE_KEYS,
+          sourceKey
+        ),
+      })),
+    [upsert]
+  );
+
+  // System annotation templates ("Générique" listing, Ligne / Polygone) —
+  // read by useFreeAnnotationTemplates before provisioning.
+  const setSystemAnnotationTemplates = useCallback(
+    (enabled) => upsert(() => ({ systemAnnotationTemplates: enabled })),
+    [upsert]
+  );
+
   // Per-scope module label override (left band + panel headers). An empty /
   // whitespace label removes the override — the appConfig / hardcoded default
   // applies again.
@@ -113,6 +138,8 @@ export default function useScopeConfigActions() {
     toggleModule,
     toggleToolRoot,
     toggleToolInModule,
+    toggleBaseMapSource,
+    setSystemAnnotationTemplates,
     setModuleLabel,
   };
 }

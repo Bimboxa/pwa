@@ -11,7 +11,11 @@ import {
   selectDisabledToolKeys,
   selectDisabledToolKeysByModule,
   selectModuleLabelsByKey,
+  selectDisabledBaseMapSourceKeys,
+  selectSystemAnnotationTemplatesEnabled,
 } from "../utils/scopeConfigSelectors";
+
+import BASE_MAP_SOURCE_CATALOG from "Features/baseMaps/data/baseMapSourceCatalog";
 
 import { Box, Divider, TextField, Typography } from "@mui/material";
 
@@ -37,9 +41,21 @@ export default function PageModuleConfig({ module, tools }) {
   const disabledToolKeys = useSelector(selectDisabledToolKeys);
   const disabledToolKeysByModule = useSelector(selectDisabledToolKeysByModule);
   const moduleLabelsByKey = useSelector(selectModuleLabelsByKey);
+  const disabledBaseMapSourceKeys = useSelector(
+    selectDisabledBaseMapSourceKeys
+  );
 
-  const { toggleModule, toggleToolInModule, setModuleLabel } =
-    useScopeConfigActions();
+  const systemTemplatesEnabled = useSelector(
+    selectSystemAnnotationTemplatesEnabled
+  );
+
+  const {
+    toggleModule,
+    toggleToolInModule,
+    toggleBaseMapSource,
+    setSystemAnnotationTemplates,
+    setModuleLabel,
+  } = useScopeConfigActions();
 
   // state — module label override edited locally, committed on blur
 
@@ -154,8 +170,43 @@ export default function PageModuleConfig({ module, tools }) {
         );
       })}
 
+      {module.key === "BASE_MAPS" && (
+        <>
+          <Divider sx={{ my: 2 }} />
+
+          <Typography variant="subtitle2" sx={{ mb: 1 }}>
+            Sources de fonds de plan
+          </Typography>
+
+          {BASE_MAP_SOURCE_CATALOG.map((source) => (
+            <RowSwitchConfig
+              key={source.key}
+              label={source.label}
+              caption={source.caption}
+              checked={!disabledBaseMapSourceKeys.includes(source.key)}
+              onChange={() => toggleBaseMapSource(source.key)}
+            />
+          ))}
+        </>
+      )}
+
       {module.key === "MAP" && (
         <>
+          <Divider sx={{ my: 2 }} />
+
+          <Typography variant="subtitle2" sx={{ mb: 1 }}>
+            Modèles système
+          </Typography>
+
+          <RowSwitchConfig
+            label="Liste Générique (Ligne / Polygone)"
+            caption="Créée automatiquement à l'ouverture du dossier. Désactivée : aucune liste système n'est ajoutée."
+            checked={systemTemplatesEnabled}
+            onChange={() =>
+              setSystemAnnotationTemplates(!systemTemplatesEnabled)
+            }
+          />
+
           <Divider sx={{ my: 2 }} />
 
           <Typography variant="subtitle2" sx={{ mb: 1 }}>

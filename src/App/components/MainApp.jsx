@@ -40,8 +40,6 @@ import useNetworkStatus from "Features/auth/hooks/useNetworkStatus";
 import PageDownloadKrtro from "Features/krtoFile/components/PageDownloadKrto";
 import PageDocumentation from "Features/documentation/components/PageDocumentation";
 
-import FloatingChrono from "Features/chrono/components/FloatingChrono";
-import OverlayNewChronoStep from "Features/chrono/components/OverlayNewChronoStep";
 import DialogConfiguration from "Features/scopeConfig/components/DialogConfiguration";
 
 startDexieSync();
@@ -107,8 +105,6 @@ function App({ pca, runningIn }) {
                       element={<PageDocumentation />}
                     />
                   </Routes>
-                  <FloatingChrono />
-                  <OverlayNewChronoStep />
                   {/* Single global mount of the full-page Configuration
                       dialog: serves the main app (desktop + mobile), the
                       dashboard and the project/scope selector pages. */}

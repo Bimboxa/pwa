@@ -1,10 +1,13 @@
 import { useSelector, useDispatch } from "react-redux";
 
-import { setDisable3D } from "Features/appConfig/appConfigSlice";
-import { setChronoVisible } from "Features/chrono/chronoSlice";
+import {
+  setDisable3D,
+  setConfigurationsManagement,
+} from "Features/appConfig/appConfigSlice";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import setDisable3DInLocalStorage from "Features/appConfig/services/setDisable3DInLocalStorage";
+import setConfigurationsManagementInLocalStorage from "Features/appConfig/services/setConfigurationsManagementInLocalStorage";
 
 import { Box, Typography } from "@mui/material";
 import FieldCheck from "Features/form/components/FieldCheck";
@@ -21,7 +24,15 @@ export default function PageDonneesPreferences({ onClose }) {
 
   const appConfig = useAppConfig();
   const disable3D = useSelector((s) => s.appConfig.disable3D);
-  const chronoVisible = useSelector((s) => s.chrono.visible);
+  const configurationsManagement = useSelector(
+    (s) => s.appConfig.configurationsManagement
+  );
+
+  // strings
+
+  const scopeS = appConfig?.strings?.scope?.nameSingular ?? "plan de repérage";
+  const configurationsManagementS = "Gestion des configurations";
+  const configurationsManagementHelperS = `Active le sélecteur de configurations à la création d'un ${scopeS.toLowerCase()}`;
 
   // helpers
 
@@ -34,8 +45,9 @@ export default function PageDonneesPreferences({ onClose }) {
     setDisable3DInLocalStorage(v);
   }
 
-  function handleChronoVisibleChange(v) {
-    dispatch(setChronoVisible(v));
+  function handleConfigurationsManagementChange(v) {
+    dispatch(setConfigurationsManagement(v));
+    setConfigurationsManagementInLocalStorage(v);
   }
 
   // render
@@ -60,11 +72,18 @@ export default function PageDonneesPreferences({ onClose }) {
 
       <Box sx={{ py: 0.5 }}>
         <FieldCheck
-          value={chronoVisible}
-          onChange={handleChronoVisibleChange}
-          label="Afficher le chrono"
+          value={configurationsManagement}
+          onChange={handleConfigurationsManagementChange}
+          label={configurationsManagementS}
           options={{ type: "switch" }}
         />
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{ display: "block", pl: 6 }}
+        >
+          {configurationsManagementHelperS}
+        </Typography>
       </Box>
 
       <Box sx={{ mt: 2 }}>

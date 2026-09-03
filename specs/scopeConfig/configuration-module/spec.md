@@ -13,7 +13,7 @@
 
 La configuration de l'application vit aujourd'hui dans un petit dialog de
 350 px (`PanelAppConfig`) : « Mode avancé », « Désactiver la 3D », projection
-de capture satellite, chrono, suppression des données de l'appareil. Ce format
+de capture satellite, suppression des données de l'appareil. Ce format
 ne laisse aucune place pour configurer les **modules** (bande verticale de
 gauche) ni les **outils** (bande verticale de droite), alors que tous les
 scopes n'ont pas besoin de tous les modules (un repérage simple n'a que faire
@@ -73,7 +73,7 @@ Promouvoir la configuration en vrai module :
    (Mercator / Lambert CC), « Éditeur 3D » est un emplacement réservé. ✅
    *Critère : valeurs persistées en localStorage, indépendantes du scope.*
 7. **Données & préférences** — Section Généralités : version de la config,
-   « Désactiver la 3D », « Afficher le chrono » (switch), « Supprimer les
+   « Désactiver la 3D », « Gestion des configurations » (switch), « Supprimer les
    données de l'appareil » (contenu de l'ancien dialog, hors bloc satellite).
    Le « Mode avancé » a été supprimé de l'application. ✅
 8. **Modules & outils (maquette)** — Page Généralités > Modules & outils :
@@ -184,8 +184,7 @@ Promouvoir la configuration en vrai module :
   pour laisser le hook `updating` retamponner) + `notifyLocalChange()`.
 - **Préférences appareil** (inchangées) : `vertexSizeMultiplier`
   (`mapEditorSettings` localStorage), `satelliteCaptureMode`, `disable3D`.
-  États de session exposés par la page : `chrono.visible`,
-  `popperMapListings.showLayers`.
+  État de session exposé par la page : `popperMapListings.showLayers`.
 - **Défauts** : `DEFAULT_DISABLED_MODULE_KEYS` / `DEFAULT_DISABLED_TOOL_KEYS`
   dans `scopeConfigSelectors.js` — fallback des sélecteurs ET semence de la
   première row (`useScopeConfigActions`). Ne jamais créer une row avec des
@@ -301,5 +300,5 @@ supprimé), `src/Features/mapEditor/components/InteractionLayer.jsx`
 
 **Supprimés** : `src/Features/appConfig/components/DialogAppConfig.jsx`,
 `src/Features/appConfig/components/PanelAppConfig.jsx`,
-`src/Features/chrono/components/ButtonShowChrono.jsx`,
+`src/Features/chrono/` (feature chrono supprimée),
 `src/Features/mapEditor/hooks/useInteractionModeHotkeys.js`.
