@@ -93,6 +93,14 @@ export default function PanelDashboardProjectDetail({ item }) {
 
   const scopeS = appConfig?.strings?.scope?.nameSingular ?? "plan de repérage";
   const scopesS = appConfig?.strings?.scope?.namePlural ?? "plans de repérage";
+  const noScopeInProjectS =
+    appConfig?.strings?.scope?.noScopeInProject ??
+    `Aucun ${scopeS} dans ce projet`;
+  const createFirstScopeHintS =
+    appConfig?.strings?.scope?.createFirstScopeHint ??
+    `Créez le premier ${scopeS} pour commencer le repérage.`;
+  const createFirstScopeS =
+    appConfig?.strings?.scope?.createFirstScope ?? `Créer le premier ${scopeS}`;
   const newPreconfiguredS =
     appConfig?.strings?.scope?.newPreconfigured ??
     "Plan de repérage pré-configuré";
@@ -433,10 +441,10 @@ export default function PanelDashboardProjectDetail({ item }) {
             <Typography
               sx={{ mt: 1.5, fontWeight: 600, color: "text.primary" }}
             >
-              Aucun {scopeS} dans ce projet
+              {noScopeInProjectS}
             </Typography>
             <Typography variant="body2" sx={{ mt: 0.5 }}>
-              Créez le premier {scopeS} pour commencer le repérage.
+              {createFirstScopeHintS}
             </Typography>
             <Button
               variant="contained"
@@ -446,7 +454,7 @@ export default function PanelDashboardProjectDetail({ item }) {
               disabled={!item.projectId}
               sx={{ mt: 2 }}
             >
-              Créer le premier {scopeS}
+              {createFirstScopeS}
             </Button>
           </Box>
         ) : (
