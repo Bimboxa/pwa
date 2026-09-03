@@ -31,7 +31,10 @@ import resolvePresetScopeListings from "../services/resolvePresetScopeListings";
 import resolvePresetScopeEntities from "../services/resolvePresetScopeEntities";
 import resolveConfigurationScopeListings from "../services/resolveConfigurationScopeListings";
 import createScopeConfig from "Features/scopeConfig/services/createScopeConfig";
-import { DEFAULT_DISABLED_MODULE_KEYS } from "Features/scopeConfig/utils/scopeConfigSelectors";
+import {
+  DEFAULT_DISABLED_MODULE_KEYS,
+  DEFAULT_DISABLED_TOOL_KEYS,
+} from "Features/scopeConfig/utils/scopeConfigSelectors";
 import createBusinessObjectListingService from "Features/businessObjects/services/createBusinessObjectListingService";
 import setDisabledBaseMapListingIds from "Features/baseMapEditor/services/setDisabledBaseMapListingIds";
 
@@ -329,12 +332,15 @@ export default function useCreateScopeFromPreset({ projectId }) {
     // détail options need their module ON for this scope (BUSINESS_OBJECTS /
     // PORTFOLIO), so they materialize a row (seeded from the app defaults
     // when the configuration carries none) with the module removed from the
-    // disabled list.
+    // disabled list. Carnet de détail also needs the RESOURCES tool: the
+    // details workflow lives in the Ressources panel (folio source PDFs,
+    // "voir la source" on DETAIL annotations).
 
     const optionEnabledModuleKeys = [
       ...(dpgf ? ["BUSINESS_OBJECTS"] : []),
       ...(carnetDetail ? ["PORTFOLIO"] : []),
     ];
+    const optionEnabledToolKeys = [...(carnetDetail ? ["RESOURCES"] : [])];
 
     if (configuration?.scopeConfig || optionEnabledModuleKeys.length > 0) {
       const baseScopeConfig = configuration?.scopeConfig ?? {
@@ -347,6 +353,14 @@ export default function useCreateScopeFromPreset({ projectId }) {
               disabledModuleKeys: (
                 baseScopeConfig.disabledModuleKeys ?? []
               ).filter((k) => !optionEnabledModuleKeys.includes(k)),
+              // materialize the filtered tool list explicitly: with an
+              // undefined disabledToolKeys, createScopeConfig would re-apply
+              // the app defaults, which contain RESOURCES.
+              ...(optionEnabledToolKeys.length > 0 && {
+                disabledToolKeys: (
+                  baseScopeConfig.disabledToolKeys ?? DEFAULT_DISABLED_TOOL_KEYS
+                ).filter((k) => !optionEnabledToolKeys.includes(k)),
+              }),
             }
           : baseScopeConfig;
       await createScopeConfig({

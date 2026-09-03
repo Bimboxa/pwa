@@ -22,9 +22,11 @@ function getSystemTemplateModelId(object, template) {
 // "Dessiner" for a Système: pre-create the source template AND every generated
 // template (with the user's dialog edits) in the target listing so the procedure
 // can find them, then arm drawing of the source. The procedure itself is launched
-// afterward from the existing "Dessin auto" controls (drawing never auto-runs it):
-// the source row carries procedureKeys, and the generated rows now exist in the
-// listing for matchAnnotationTemplate to resolve.
+// afterward from the existing "Dessin auto" controls — except procedures flagged
+// `launchOnSourceCreated` in the registry (e.g. CHATEAU_EAU_V1), whose params
+// dialog auto-opens right after the source is drawn: the source row carries
+// procedureKeys, and the generated rows now exist in the listing for
+// matchAnnotationTemplate to resolve.
 export default function usePlaceSystemFromLibrary() {
   const dispatch = useDispatch();
   const createTemplatesFromLibrary = useCreateAnnotationTemplatesFromLibrary();

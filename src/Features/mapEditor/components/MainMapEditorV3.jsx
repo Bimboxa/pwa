@@ -148,6 +148,7 @@ import imageUrlToPng from "Features/images/utils/imageUrlToPng";
 import useUserEmail from "Features/auth/hooks/useUserEmail";
 import useDeferredDrawingCommit from "../hooks/useDeferredDrawingCommit";
 import DeferredCommitDialogOutlet from "./DeferredCommitDialogOutlet";
+import ProcedureAutoLaunchDialogOutlet from "Features/annotationsAuto/components/ProcedureAutoLaunchDialogOutlet";
 import useSelectedNodes from "../hooks/useSelectedNodes";
 import useDrawingToolHotkeys from "../hooks/useDrawingToolHotkeys";
 import useFreeAnnotationHotkeys from "../hooks/useFreeAnnotationHotkeys";
@@ -2237,6 +2238,9 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                 onResume={deferredCommit.resumeCommit}
                 onCancel={deferredCommit.cancelCommit}
             />
+            {/* MAP instance only: the BASE_MAPS viewer mounts this editor too,
+                and the redux-driven dialog must not render twice */}
+            {isMapViewer && <ProcedureAutoLaunchDialogOutlet />}
             <PopperEditAnnotation viewerKey={forViewerKey} />
             <PopperEditAnnotations viewerKey={forViewerKey} allAnnotations={annotations} />
             <PopperEditScale viewerKey={forViewerKey} />

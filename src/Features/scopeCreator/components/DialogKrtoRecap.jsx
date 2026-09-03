@@ -76,7 +76,7 @@ export default function DialogKrtoRecap({
   const dpgfCaptionS = "Active le module Ouvrages avec une première liste « DPGF ».";
   const carnetDetailS = "Carnet de détail";
   const carnetDetailCaptionS =
-    "Folios de détails liés aux repères — active le module Carnet de plans.";
+    "Folios de détails liés aux repères — active le module Carnet de plans et l'outil Ressources.";
   const baseMapsS = "Fonds de plan";
   const addS = "+ Ajouter";
   const existingSectionS = "Dossiers existants";

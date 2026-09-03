@@ -1,5 +1,8 @@
 import { Vector3 } from "three";
 
+import alignPlaneHitToVertices from "./alignPlaneHitToVertices";
+import inPlaneOrthoSnap from "./inPlaneOrthoSnap";
+
 // Pixel threshold under which the cursor is considered "on" an axis line
 // projected through the last committed vertex.
 const AXIS_THRESHOLD_PX = 20;
@@ -82,13 +85,20 @@ function snapToInProgress(
 //   1. snap to a vertex of the in-progress polyline (lets the user close
 //      back to the first vertex without redrawing)
 //   2. snap to nearest existing mesh vertex (within pixel threshold)
-//   3. snap to the world axis line (X / Y / Z) closest to the cursor
+//   3. snap to the nearest mesh edge (optional `findNearestEdge` callback)
+//   4. with no last vertex: a base map plane hit (optional `intersectPlane`
+//      callback), refined by vertex alignment — this is how the FIRST point
+//      of a drawing lands on a bare plan
+//   5. in-plane ortho lock along the hovered plane's axes through the last
+//      vertex (beats the world axes on rotated / vertical base maps)
+//   6. snap to the world axis line (X / Y / Z) closest to the cursor
 //      ray, anchored at the last committed vertex
-//   4. fall back to a free position on the plane through the last vertex
+//   7. the base map plane hit (refined by vertex alignment)
+//   8. fall back to a free position on the plane through the last vertex
 //      perpendicular to the camera
 //
-// Returns { position, kind, meshKey?, axis? } or null when no candidate is
-// available (no vertex snap and no last vertex to anchor axis/free modes).
+// Returns { position, kind, meshKey?, axis?, baseMapId?, axisA?, axisB?,
+// alignFrom? } or null when no candidate is available.
 export default function computeSnapTarget({
   mouseNdc,
   camera,
@@ -96,6 +106,9 @@ export default function computeSnapTarget({
   lastVertex,
   inProgressPolyline,
   findNearestVertex,
+  findNearestEdge = null,
+  intersectPlane = null,
+  alignAdjacency = null,
 }) {
   const inProgressSnap = snapToInProgress(
     mouseNdc,
@@ -120,7 +133,44 @@ export default function computeSnapTarget({
     };
   }
 
-  if (!lastVertex) return null;
+  const edgeSnap = findNearestEdge?.(mouseNdc, camera, canvasSize);
+  if (edgeSnap?.position) {
+    return { position: edgeSnap.position, kind: "EDGE" };
+  }
+
+  const planeHit = intersectPlane?.(mouseNdc) ?? null;
+  const refinePlaneHit = () => {
+    const aligned = alignAdjacency
+      ? alignPlaneHitToVertices({
+          planeHit,
+          adjacency: alignAdjacency,
+          mouseNdc,
+          camera,
+          canvasSize,
+        })
+      : null;
+    if (aligned) return aligned;
+    return {
+      position: planeHit.position,
+      kind: "PLANE",
+      baseMapId: planeHit.baseMapId,
+      axisA: planeHit.axisA,
+      axisB: planeHit.axisB,
+    };
+  };
+
+  if (!lastVertex) return planeHit ? refinePlaneHit() : null;
+
+  if (planeHit) {
+    const ortho = inPlaneOrthoSnap({
+      planeHit,
+      lastVertex,
+      mouseNdc,
+      camera,
+      canvasSize,
+    });
+    if (ortho) return ortho;
+  }
 
   const lastVec = new Vector3(lastVertex.x, lastVertex.y, lastVertex.z);
   const cursorDir = getCursorDir(mouseNdc, camera);
@@ -146,6 +196,10 @@ export default function computeSnapTarget({
       axis: bestAxis,
     };
   }
+
+  // A hovered base map plane beats the camera-facing FREE plane — the latter
+  // is almost never wanted while the cursor is over a plan.
+  if (planeHit) return refinePlaneHit();
 
   const camForward = new Vector3();
   camera.getWorldDirection(camForward);

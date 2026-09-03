@@ -9,6 +9,25 @@ import { Raycaster, Vector3 } from "three";
 //
 // options.excludeSubtree: skip planes inside this group (e.g. the carried
 // base map).
+// options.onlyBaseMapId: keep only the planes of that base map (e.g. the 3D
+// rectangle draw, whose second corner must stay on the anchor's plan).
+// options.preferredBaseMapId: among (nearly) coplanar hits — several base
+// maps left at the default pose stack at the origin — pick that base map's
+// plane instead of the arbitrary closest hit. Same disambiguation rule as
+// the move tool's findBaseMapGroupsAtVertex ("the selected base map wins").
+
+// Two stacked hits closer than this along the ray are the "same" surface.
+const COPLANAR_HIT_EPS_M = 1e-3;
+
+function getOwningBaseMapGroup(mesh) {
+  let node = mesh;
+  while (node) {
+    if (node.userData?.kind === "baseMap") return node;
+    node = node.parent;
+  }
+  return null;
+}
+
 export default function intersectBaseMapPlane(
   editor,
   ndc,
@@ -18,6 +37,8 @@ export default function intersectBaseMapPlane(
   const scene = editor?.sceneManager?.scene;
   if (!scene || !camera) return null;
   const excludeSubtree = options.excludeSubtree ?? null;
+  const onlyBaseMapId = options.onlyBaseMapId ?? null;
+  const preferredBaseMapId = options.preferredBaseMapId ?? null;
 
   // Visible base map plane meshes (raycaster does not check visibility).
   const planes = [];
@@ -29,6 +50,11 @@ export default function intersectBaseMapPlane(
       if (excludeSubtree && parent === excludeSubtree) return;
       parent = parent.parent;
     }
+    if (onlyBaseMapId) {
+      let node = obj;
+      while (node && node.userData?.kind !== "baseMap") node = node.parent;
+      if (node?.userData?.baseMapId !== onlyBaseMapId) return;
+    }
     planes.push(obj);
   });
   if (!planes.length) return null;
@@ -38,19 +64,19 @@ export default function intersectBaseMapPlane(
   const hits = raycaster.intersectObjects(planes, false);
   if (!hits.length) return null;
 
-  const hit = hits[0];
+  let hit = hits[0];
+  if (preferredBaseMapId) {
+    const preferred = hits.find(
+      (h) =>
+        h.distance - hits[0].distance < COPLANAR_HIT_EPS_M &&
+        getOwningBaseMapGroup(h.object)?.userData?.baseMapId ===
+          preferredBaseMapId
+    );
+    if (preferred) hit = preferred;
+  }
   const mesh = hit.object;
 
-  // Owning base map group.
-  let node = mesh;
-  let group = null;
-  while (node) {
-    if (node.userData?.kind === "baseMap") {
-      group = node;
-      break;
-    }
-    node = node.parent;
-  }
+  const group = getOwningBaseMapGroup(mesh);
   const baseMapId = group?.userData?.baseMapId;
   if (!group || !baseMapId) return null;
 

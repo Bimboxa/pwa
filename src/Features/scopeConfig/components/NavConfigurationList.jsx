@@ -63,15 +63,6 @@ export default function NavConfigurationList({
     <Box sx={{ width: 260, minWidth: 260, overflowY: "auto" }}>
       <List dense>
         <ListSubheader disableSticky>Généralités</ListSubheader>
-        <ListItemButton
-          selected={isSelected("GENERAL", "DATA_PREFS")}
-          onClick={() => onSelect({ type: "GENERAL", key: "DATA_PREFS" })}
-        >
-          <ListItemIcon sx={{ minWidth: 36 }}>
-            <Storage fontSize="small" />
-          </ListItemIcon>
-          <ListItemText primary="Données & préférences" />
-        </ListItemButton>
         {showScopeSections && (
           <ListItemButton
             selected={isSelected("GENERAL", "MODULES_TOOLS")}
@@ -83,6 +74,15 @@ export default function NavConfigurationList({
             <ListItemText primary="Modules & outils" />
           </ListItemButton>
         )}
+        <ListItemButton
+          selected={isSelected("GENERAL", "DATA_PREFS")}
+          onClick={() => onSelect({ type: "GENERAL", key: "DATA_PREFS" })}
+        >
+          <ListItemIcon sx={{ minWidth: 36 }}>
+            <Storage fontSize="small" />
+          </ListItemIcon>
+          <ListItemText primary="Données & préférences" />
+        </ListItemButton>
 
         {showScopeSections && (
           <>

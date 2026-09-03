@@ -8,19 +8,31 @@ import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 import { LineSegments2 } from "three/examples/jsm/lines/LineSegments2.js";
 import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeometry.js";
 
+import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
+import { getDrawingToolByKey } from "Features/mapEditor/constants/drawingTools";
+import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
+import intersectBaseMapPlane from "Features/threedBaseMapMove/utils/intersectBaseMapPlane";
+import findNearestEdgeSnap from "Features/threedDimensions/utils/findNearestEdgeSnap";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 
 import useVertexSnap from "../hooks/useVertexSnap";
 import { setLastSnap } from "../services/lastSnapStore";
+import { getMeshAdjacency } from "../services/meshGraphStore";
+import computeRectangleCorners from "../utils/computeRectangleCorners";
 import computeSnapTarget from "../utils/computeSnapTarget";
 
 const COLOR_VERTEX = 0xff2d8d;
+const COLOR_EDGE = 0x2e7d32;
+const COLOR_PLANE = 0x1565c0;
+// In-plane ortho / vertex-alignment lock — the 2D axis-snap active red.
+const COLOR_LOCK = 0xff1744;
 const COLOR_AXIS_X = 0xff3b30;
 const COLOR_AXIS_Y = 0x34c759;
 const COLOR_AXIS_Z = 0x007aff;
 const COLOR_FREE = 0x000000;
 const COLOR_IN_PROGRESS = 0xff2d8d;
 const COLOR_TRAIT = 0x8a8a8a;
+const COLOR_CROSS = "#90a4ae";
 
 const LINEWIDTH_PREVIEW = 3;
 const LINEWIDTH_IN_PROGRESS = 4;
@@ -38,6 +50,13 @@ function colorForKind(kind) {
       return COLOR_AXIS_Y;
     case "AXIS_Z":
       return COLOR_AXIS_Z;
+    case "EDGE":
+      return COLOR_EDGE;
+    case "PLANE":
+      return COLOR_PLANE;
+    case "PLANE_ORTHO":
+    case "PLANE_ALIGN":
+      return COLOR_LOCK;
     case "FREE":
       return COLOR_FREE;
     case "VERTEX":
@@ -120,6 +139,10 @@ export default function DrawingOverlayThreed() {
   const trait3DSegments = useSelector(
     (s) => s.threedEditor.drawingMode.trait3DSegments
   );
+  const enabledDrawingMode = useSelector((s) => s.mapEditor.enabledDrawingMode);
+
+  const baseMaps = useBaseMaps()?.value;
+  const mainBaseMapId = useMainBaseMap()?.id;
 
   const { findNearestSnap } = useVertexSnap({ active });
 
@@ -128,6 +151,9 @@ export default function DrawingOverlayThreed() {
   const inProgressLinesRef = useRef(null);
   const previewLineRef = useRef(null);
   const snapCircleRef = useRef(null);
+  const crossARef = useRef(null);
+  const crossBRef = useRef(null);
+  const alignLineRef = useRef(null);
 
   // mount / unmount root group
   useEffect(() => {
@@ -205,8 +231,9 @@ export default function DrawingOverlayThreed() {
     getActiveThreedEditor()?.sceneManager?.renderScene?.();
   }, [inProgressPolyline, active]);
 
-  // pointer-move: snap detection + hover marker (SVG, screen-space) +
-  // dashed preview segment (Line2 with thick LineMaterial)
+  // pointer-move: snap detection + hover marker + plane cross + alignment
+  // line (SVG, screen-space) + dashed preview segment or rectangle loop
+  // (Line2 with thick LineMaterial)
   useEffect(() => {
     if (!active) return;
     const editor = getActiveThreedEditor();
@@ -216,34 +243,101 @@ export default function DrawingOverlayThreed() {
 
     const ndc = new Vector2();
 
+    // RECTANGLE behavior: the first committed vertex is the anchor; the
+    // cursor then previews the axis-aligned rectangle on the anchor's plan.
+    const behavior = getDrawingToolByKey(enabledDrawingMode)?.behavior;
+    const anchor =
+      behavior === "RECTANGLE" && inProgressPolyline.length >= 1
+        ? inProgressPolyline[0]
+        : null;
+    const anchorHost = anchor?.baseMapId
+      ? (baseMaps || []).find((b) => b.id === anchor.baseMapId)
+      : null;
+
+    function toScreen(worldPos, rect) {
+      const projected = worldPos.clone().project(camera);
+      if (projected.z < -1 || projected.z > 1) return null;
+      return {
+        sx: ((projected.x + 1) / 2) * rect.width,
+        sy: ((1 - projected.y) / 2) * rect.height,
+      };
+    }
+
     function updateSnapCircle(snap, rect) {
       const circle = snapCircleRef.current;
       if (!circle) return;
-      if (!snap?.position) {
+      const screen = snap?.position ? toScreen(snap.position, rect) : null;
+      if (!screen) {
         circle.style.display = "none";
         return;
       }
-      const projected = snap.position.clone().project(camera);
-      if (projected.z < -1 || projected.z > 1) {
-        circle.style.display = "none";
-        return;
-      }
-      const sx = ((projected.x + 1) / 2) * rect.width;
-      const sy = ((1 - projected.y) / 2) * rect.height;
-      circle.setAttribute("cx", sx);
-      circle.setAttribute("cy", sy);
+      circle.setAttribute("cx", screen.sx);
+      circle.setAttribute("cy", screen.sy);
       circle.style.stroke = colorHex(colorForKind(snap.kind));
       circle.style.display = "block";
+    }
+
+    // Cross helper of a plane hit: the two dashed lines through the point,
+    // parallel to the plane's edges, ending on its borders (mirrors
+    // MoveBaseMapOverlayThreed). The locked axis of a PLANE_ORTHO snap is
+    // drawn solid in the lock color.
+    function updateCross(snap, rect) {
+      const show = Boolean(snap?.axisA && snap?.axisB);
+      [
+        [crossARef, snap?.axisA, "A"],
+        [crossBRef, snap?.axisB, "B"],
+      ].forEach(([ref, axis, key]) => {
+        const el = ref.current;
+        if (!el) return;
+        const a = show ? toScreen(axis[0], rect) : null;
+        const b = show ? toScreen(axis[1], rect) : null;
+        if (!a || !b) {
+          el.style.display = "none";
+          return;
+        }
+        el.setAttribute("x1", a.sx);
+        el.setAttribute("y1", a.sy);
+        el.setAttribute("x2", b.sx);
+        el.setAttribute("y2", b.sy);
+        const locked = snap.kind === "PLANE_ORTHO" && snap.axis === key;
+        el.style.stroke = locked ? colorHex(COLOR_LOCK) : COLOR_CROSS;
+        if (locked) el.removeAttribute("stroke-dasharray");
+        else el.setAttribute("stroke-dasharray", "5 4");
+        el.style.display = "block";
+      });
+    }
+
+    function updateAlignLine(snap, rect) {
+      const el = alignLineRef.current;
+      if (!el) return;
+      const from =
+        snap?.kind === "PLANE_ALIGN" && snap.alignFrom
+          ? toScreen(snap.alignFrom, rect)
+          : null;
+      const to = from ? toScreen(snap.position, rect) : null;
+      if (!from || !to) {
+        el.style.display = "none";
+        return;
+      }
+      el.setAttribute("x1", from.sx);
+      el.setAttribute("y1", from.sy);
+      el.setAttribute("x2", to.sx);
+      el.setAttribute("y2", to.sy);
+      el.style.display = "block";
+    }
+
+    function clearPreviewLine() {
+      if (previewLineRef.current) {
+        rootRef.current?.remove(previewLineRef.current);
+        disposeObject(previewLineRef.current);
+        previewLineRef.current = null;
+      }
     }
 
     function updatePreviewLine(snap) {
       const root = rootRef.current;
       if (!root) return;
-      if (previewLineRef.current) {
-        root.remove(previewLineRef.current);
-        disposeObject(previewLineRef.current);
-        previewLineRef.current = null;
-      }
+      clearPreviewLine();
       const last = inProgressPolyline[inProgressPolyline.length - 1];
       const snapPos = snap?.position;
       if (!snapPos || !last) return;
@@ -265,6 +359,31 @@ export default function DrawingOverlayThreed() {
       }
     }
 
+    function updateRectanglePreview(snap) {
+      const root = rootRef.current;
+      if (!root) return;
+      clearPreviewLine();
+      if (!snap?.position || !anchor || !anchorHost) return;
+      const corners = computeRectangleCorners(
+        anchor,
+        snap.position,
+        anchorHost
+      );
+      if (!corners) return;
+      const mat = makeLineMaterial({
+        color: colorForKind(snap.kind),
+        linewidth: LINEWIDTH_PREVIEW,
+        dashed: true,
+        resolution: getCanvasResolution(editor),
+      });
+      const line = buildConnectedPolyline([...corners, corners[0]], mat);
+      if (line) {
+        line.renderOrder = 1002;
+        root.add(line);
+        previewLineRef.current = line;
+      }
+    }
+
     function onPointerMove(e) {
       const rect = dom.getBoundingClientRect();
       ndc.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
@@ -274,25 +393,46 @@ export default function DrawingOverlayThreed() {
         mouseNdc: ndc,
         camera,
         canvasSize,
-        lastVertex: inProgressPolyline[inProgressPolyline.length - 1],
-        inProgressPolyline,
+        // While a rectangle anchor is set, the lastVertex-anchored modes
+        // (AXIS / FREE / ortho) and the snap back onto the anchor itself are
+        // meaningless — the second corner lives on the anchor's plan.
+        lastVertex: anchor
+          ? undefined
+          : inProgressPolyline[inProgressPolyline.length - 1],
+        inProgressPolyline: anchor ? [] : inProgressPolyline,
         findNearestVertex: (mNdc, cam, sz) => findNearestSnap(mNdc, cam, sz),
+        findNearestEdge: (mNdc, cam, sz) =>
+          findNearestEdgeSnap(getMeshAdjacency(), mNdc, cam, sz),
+        intersectPlane: (mNdc) =>
+          intersectBaseMapPlane(
+            editor,
+            mNdc,
+            camera,
+            // Stacked unplaced base maps are coplanar at the origin — prefer
+            // the 2D-selected one so the drawing lands on the plan the user
+            // is looking at (and will look for) in 2D.
+            anchor
+              ? { onlyBaseMapId: anchor.baseMapId }
+              : { preferredBaseMapId: mainBaseMapId }
+          ),
+        alignAdjacency: getMeshAdjacency(),
       });
       setLastSnap(snap);
       updateSnapCircle(snap, rect);
-      updatePreviewLine(snap);
+      updateCross(snap, rect);
+      updateAlignLine(snap, rect);
+      if (anchor) updateRectanglePreview(snap);
+      else updatePreviewLine(snap);
       editor.sceneManager.renderScene?.();
     }
 
     function onPointerLeave() {
       setLastSnap(null);
-      const circle = snapCircleRef.current;
-      if (circle) circle.style.display = "none";
-      if (previewLineRef.current) {
-        rootRef.current?.remove(previewLineRef.current);
-        disposeObject(previewLineRef.current);
-        previewLineRef.current = null;
-      }
+      if (snapCircleRef.current) snapCircleRef.current.style.display = "none";
+      if (crossARef.current) crossARef.current.style.display = "none";
+      if (crossBRef.current) crossBRef.current.style.display = "none";
+      if (alignLineRef.current) alignLineRef.current.style.display = "none";
+      clearPreviewLine();
       editor.sceneManager.renderScene?.();
     }
 
@@ -302,7 +442,14 @@ export default function DrawingOverlayThreed() {
       dom.removeEventListener("pointermove", onPointerMove);
       dom.removeEventListener("pointerleave", onPointerLeave);
     };
-  }, [active, findNearestSnap, inProgressPolyline]);
+  }, [
+    active,
+    findNearestSnap,
+    inProgressPolyline,
+    enabledDrawingMode,
+    baseMaps,
+    mainBaseMapId,
+  ]);
 
   if (!active) return null;
   return (
@@ -316,6 +463,27 @@ export default function DrawingOverlayThreed() {
         zIndex: 5,
       }}
     >
+      <line
+        ref={crossARef}
+        stroke={COLOR_CROSS}
+        strokeWidth="1.5"
+        strokeDasharray="5 4"
+        style={{ display: "none" }}
+      />
+      <line
+        ref={crossBRef}
+        stroke={COLOR_CROSS}
+        strokeWidth="1.5"
+        strokeDasharray="5 4"
+        style={{ display: "none" }}
+      />
+      <line
+        ref={alignLineRef}
+        stroke={colorHex(COLOR_LOCK)}
+        strokeWidth="1.5"
+        strokeDasharray="5 4"
+        style={{ display: "none" }}
+      />
       <circle
         ref={snapCircleRef}
         r={SNAP_CIRCLE_RADIUS_PX}

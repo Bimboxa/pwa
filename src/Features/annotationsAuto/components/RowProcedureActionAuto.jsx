@@ -32,29 +32,41 @@ export default function RowProcedureActionAuto({ annotation }) {
 
   return (
     <>
-      {linkedProcedures.map((procedure) => (
-        <Box key={procedure.key}>
-          {hasProcedureParams(procedure) && (
-            <SectionProcedureParams
-              procedure={procedure}
-              row
-              hideHelperText
-              sx={{
-                px: 1.25,
-                py: 0.25,
-                bgcolor: (theme) => lighten(theme.palette.secondary.main, 0.93),
-              }}
-            />
-          )}
+      {linkedProcedures.map((procedure) => {
+        // An output of this procedure redirects to its source: play / reset /
+        // refresh on a generated row (e.g. the CHATEAU_EAU_V1 "Ligne" riding
+        // the Axe template) must operate on the annotation it was created
+        // from, not relaunch the procedure with itself as source.
+        const sourceId =
+          annotation?.autoCreatedByProcedureKey === procedure.key &&
+          annotation?.autoCreatedFrom
+            ? annotation.autoCreatedFrom
+            : annotation?.id;
+        return (
+          <Box key={procedure.key}>
+            {hasProcedureParams(procedure) && (
+              <SectionProcedureParams
+                procedure={procedure}
+                row
+                hideHelperText
+                sx={{
+                  px: 1.25,
+                  py: 0.25,
+                  bgcolor: (theme) =>
+                    lighten(theme.palette.secondary.main, 0.93),
+                }}
+              />
+            )}
 
-          <RowProcedureLauncher
-            procedure={procedure}
-            baseMapId={annotation?.baseMapId}
-            sourceAnnotationIds={[annotation?.id]}
-            sx={{ borderBottom: "1px solid", borderColor: "divider" }}
-          />
-        </Box>
-      ))}
+            <RowProcedureLauncher
+              procedure={procedure}
+              baseMapId={annotation?.baseMapId}
+              sourceAnnotationIds={[sourceId]}
+              sx={{ borderBottom: "1px solid", borderColor: "divider" }}
+            />
+          </Box>
+        );
+      })}
     </>
   );
 }

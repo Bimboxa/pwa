@@ -84,6 +84,7 @@ import ButtonZoomOutThreed from "./ButtonZoomOutThreed";
 import ButtonToggleThreedViewer from "Features/viewers/components/ButtonToggleThreedViewer";
 import BottomToolbarThreed from "Features/threedDrawing/components/BottomToolbarThreed";
 import DrawingOverlayThreed from "Features/threedDrawing/components/DrawingOverlayThreed";
+import useDessinToolHotkeysThreed from "Features/threedDrawing/hooks/useDessinToolHotkeysThreed";
 import useDrawingPointerHandlers from "Features/threedDrawing/hooks/useDrawingPointerHandlers";
 import useTemplateFaceDrawBridge from "Features/threedDrawing/hooks/useTemplateFaceDrawBridge";
 import useTemplateCoteDrawBridge from "Features/threedDrawing/hooks/useTemplateCoteDrawBridge";
@@ -440,6 +441,7 @@ export default function MainThreedEditor() {
   });
 
   useDrawingPointerHandlers();
+  useDessinToolHotkeysThreed();
   useDimensionPointerHandlers();
   useMeshingPointerHandlers();
   useExtrudePointerHandlers();

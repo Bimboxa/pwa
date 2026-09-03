@@ -9,7 +9,7 @@ import { setToaster } from "Features/layout/layoutSlice";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useAnnotationsAutoRun from "../hooks/useAnnotationsAutoRun";
 import useDeleteAnnotations from "Features/annotations/hooks/useDeleteAnnotations";
-import fireFlash from "../utils/fireFlash";
+import notifyProcedureRunResult from "../utils/notifyProcedureRunResult";
 
 import {
   Box,
@@ -140,27 +140,7 @@ export default function ProcedureActionButtons({
             procedureParams,
           }
     );
-    const created = result?.annotations?.length ?? 0;
-    const updated = result?.updatedAnnotations?.length ?? 0;
-    if (created > 0 || updated > 0) {
-      fireFlash();
-      const message =
-        created > 0
-          ? `${created} annotation(s) créée(s)`
-          : `${updated} annotation(s) mise(s) à jour`;
-      dispatch(setToaster({ message }));
-    } else if (result?.error) {
-      // procedure-specific failure message (e.g. open frontier loop)
-      dispatch(setToaster({ message: result.error, severity: "warning" }));
-    } else {
-      dispatch(
-        setToaster({
-          message:
-            "Aucune annotation créée. Vérifiez les catégories des modèles.",
-          severity: "warning",
-        })
-      );
-    }
+    notifyProcedureRunResult(dispatch, result);
   }
 
   async function resetProcedure() {

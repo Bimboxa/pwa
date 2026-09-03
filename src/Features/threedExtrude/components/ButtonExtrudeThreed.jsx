@@ -5,7 +5,9 @@ import { setExtrudeModeActive } from "Features/threedEditor/threedEditorSlice";
 import HeightIcon from "@mui/icons-material/Height";
 import { Button, Tooltip } from "@mui/material";
 
-export default function ButtonExtrudeThreed() {
+import ToolbarHotkeyBadge from "Features/threedDrawing/components/ToolbarHotkeyBadge";
+
+export default function ButtonExtrudeThreed({ hotkey }) {
   const dispatch = useDispatch();
 
   const active = useSelector((s) => s.threedEditor.extrudeMode.active);
@@ -29,6 +31,7 @@ export default function ButtonExtrudeThreed() {
         sx={{ textTransform: "none", borderRadius: "8px" }}
       >
         Extruder
+        <ToolbarHotkeyBadge hotkey={hotkey} />
       </Button>
     </Tooltip>
   );
