@@ -38,6 +38,9 @@ import useProjectBaseMapListings from "../hooks/useProjectBaseMapListings";
 import useDisabledBaseMapListingIds from "Features/baseMapEditor/hooks/useDisabledBaseMapListingIds";
 
 export default function BaseMapSelectorInMapEditorV2({ onEdit }) {
+    // strings
+    const createS = "Créer un fond de plan";
+
     const dispatch = useDispatch();
 
     const activeBaseMap = useMainBaseMap();
@@ -101,6 +104,7 @@ export default function BaseMapSelectorInMapEditorV2({ onEdit }) {
     // --- Handlers ---
     const handleOpen = (event) => setAnchorEl(event.currentTarget);
     const handleClose = () => { setAnchorEl(null); setEditingMapId(null); };
+    const handleCreate = () => dispatch(setShowCreateBaseMapSection(true));
 
     const handleSelectMap = (map) => {
         if (editingMapId === map.id) return;
@@ -116,12 +120,13 @@ export default function BaseMapSelectorInMapEditorV2({ onEdit }) {
     return (
         <ThemeProvider theme={darkTheme}>
             <Box sx={{ display: "flex", justifyContent: "center" }}>
-                <ButtonBase
-                    onClick={handleOpen}
+                {/* Single dark pill: selector (ButtonBase) + create affordance (IconButton) */}
+                <Box
                     sx={{
+                        display: "inline-flex",
+                        alignItems: "center",
                         height: 32,
-                        pl: onEdit ? 0.5 : 2,
-                        pr: 2,
+                        pr: 0.5,
                         borderRadius: 20,
                         // Utilisation des gris MUI
                         bgcolor: open ? "grey.800" : "#252525",
@@ -134,53 +139,85 @@ export default function BaseMapSelectorInMapEditorV2({ onEdit }) {
                         },
                     }}
                 >
-                    {onEdit && (
-                        <Tooltip title="Editer le fond de plan">
-                            <Box
-                                component="span"
-                                role="button"
-                                aria-label="Editer le fond de plan"
-                                onClick={(e) => { e.stopPropagation(); onEdit(); }}
-                                sx={{
-                                    display: "inline-flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    width: 24,
-                                    height: 24,
-                                    mr: 1,
-                                    flexShrink: 0,
-                                    borderRadius: "50%",
-                                    bgcolor: "grey.600",
-                                    color: "grey.100",
-                                    transition: "0.2s",
-                                    "&:hover": { bgcolor: "grey.500" },
-                                }}
-                            >
-                                <EditIcon sx={{ fontSize: 14 }} />
-                            </Box>
-                        </Tooltip>
-                    )}
-                    <Typography
-                        variant="body2"
+                    <ButtonBase
+                        onClick={handleOpen}
                         sx={{
-                            fontWeight: 600,
-                            mr: 1,
-                            // Texte légèrement grisé quand ouvert pour adoucir
-                            color: open ? "grey.300" : "#ffffff",
-                            fontSize: "0.85rem"
+                            height: "100%",
+                            pl: onEdit ? 0.5 : 2,
+                            pr: 1.5,
+                            borderRadius: "20px 0 0 20px",
                         }}
                     >
-                        {activeBaseMap?.name || "Sélectionner un plan"}
-                    </Typography>
-                    <KeyboardArrowDownIcon
-                        sx={{
-                            fontSize: 18,
-                            color: open ? "grey.500" : "rgba(255,255,255,0.7)",
-                            transform: open ? 'rotate(180deg)' : 'none',
-                            transition: '0.2s'
-                        }}
-                    />
-                </ButtonBase>
+                        {onEdit && (
+                            <Tooltip title="Editer le fond de plan">
+                                <Box
+                                    component="span"
+                                    role="button"
+                                    aria-label="Editer le fond de plan"
+                                    onClick={(e) => { e.stopPropagation(); onEdit(); }}
+                                    sx={{
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        width: 24,
+                                        height: 24,
+                                        mr: 1,
+                                        flexShrink: 0,
+                                        borderRadius: "50%",
+                                        bgcolor: "grey.600",
+                                        color: "grey.100",
+                                        transition: "0.2s",
+                                        "&:hover": { bgcolor: "grey.500" },
+                                    }}
+                                >
+                                    <EditIcon sx={{ fontSize: 14 }} />
+                                </Box>
+                            </Tooltip>
+                        )}
+                        <Typography
+                            variant="body2"
+                            sx={{
+                                fontWeight: 600,
+                                mr: 1,
+                                // Texte légèrement grisé quand ouvert pour adoucir
+                                color: open ? "grey.300" : "#ffffff",
+                                fontSize: "0.85rem"
+                            }}
+                        >
+                            {activeBaseMap?.name || "Sélectionner un plan"}
+                        </Typography>
+                        <KeyboardArrowDownIcon
+                            sx={{
+                                fontSize: 18,
+                                color: open ? "grey.500" : "rgba(255,255,255,0.7)",
+                                transform: open ? 'rotate(180deg)' : 'none',
+                                transition: '0.2s'
+                            }}
+                        />
+                    </ButtonBase>
+                    {/* Thin vertical separator between the selector and the "+" */}
+                    <Box sx={{ width: "1px", height: 16, bgcolor: "rgba(255,255,255,0.2)", flexShrink: 0 }} />
+                    <Tooltip title={createS}>
+                        <IconButton
+                            size="small"
+                            aria-label={createS}
+                            onClick={handleCreate}
+                            sx={{
+                                ml: 0.5,
+                                width: 24,
+                                height: 24,
+                                color: "rgba(255,255,255,0.7)",
+                                transition: "0.2s",
+                                "&:hover": {
+                                    bgcolor: "rgba(255,255,255,0.12)",
+                                    color: "#ffffff",
+                                },
+                            }}
+                        >
+                            <AddIcon sx={{ fontSize: 16 }} />
+                        </IconButton>
+                    </Tooltip>
+                </Box>
             </Box>
 
             <Popover
@@ -333,7 +370,7 @@ export default function BaseMapSelectorInMapEditorV2({ onEdit }) {
 
                 <Box sx={{ p: 0.5, borderTop: '1px solid', borderColor: 'grey.800', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
                     <ListItemButton
-                        onClick={() => { dispatch(setShowCreateBaseMapSection(true)); handleClose(); }}
+                        onClick={() => { handleCreate(); handleClose(); }}
                         sx={{ borderRadius: 1 }}
                     >
                         <ListItemIcon sx={{ minWidth: 32 }}><AddIcon fontSize="small" sx={{ color: "grey.400" }} /></ListItemIcon>

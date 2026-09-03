@@ -98,6 +98,11 @@ export default function TopBarDesktop() {
   // module displays the map editor, the 3D editor keeps its canvas chips.
   const isBusinessObjectsMap =
     viewerKey === "BUSINESS_OBJECTS" && effectiveViewerKey === "MAP";
+  // While the create-baseMap overlay is open, the baseMap-related controls
+  // (selector, versions, Z) are meaningless: hide the whole center section.
+  const isCreatingBaseMap = useSelector(
+    (s) => s.mapEditor.showCreateBaseMapSection
+  );
 
   // handlers
 
@@ -240,18 +245,21 @@ export default function TopBarDesktop() {
       </Box>
 
       {/* Center section - baseMap selectors or portfolio return */}
-      {(viewerKey === "MAP" ||
-        viewerKey === "BASE_MAPS" ||
-        isPovMap ||
-        isBusinessObjectsMap) && (
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          <BaseMapSelectorInMapEditorV2
-            onEdit={viewerKey === "MAP" ? handleGoToBaseMapsDetail : undefined}
-          />
-          <BaseMapVersionSelectorInTopBar />
-          <FieldBaseMapZInTopBar />
-        </Box>
-      )}
+      {!isCreatingBaseMap &&
+        (viewerKey === "MAP" ||
+          viewerKey === "BASE_MAPS" ||
+          isPovMap ||
+          isBusinessObjectsMap) && (
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <BaseMapSelectorInMapEditorV2
+              onEdit={
+                viewerKey === "MAP" ? handleGoToBaseMapsDetail : undefined
+              }
+            />
+            <BaseMapVersionSelectorInTopBar />
+            <FieldBaseMapZInTopBar />
+          </Box>
+        )}
       {isPortfolioViewer && (
         <Button
           size="small"
