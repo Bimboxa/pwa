@@ -37,7 +37,9 @@ const GENERIC_KEY = "__GENERIC__";
 // (system listings + default baseMap listings, same as the card selector's
 // "vierge" pill), then
 // the org configurations (simpleModeKeys subset) or, for orgs without Krto
-// configurations, the legacy preset scopes.
+// configurations, the legacy preset scopes (presetScopeKeys subset).
+// features.scopeCreator.simpleMode {showEmpty, showGeneric, presetScopeKeys}
+// (yaml) hides the built-in entries / restricts the preset scopes.
 export default function DialogCreateScopeSimple({ open, onClose, projectId }) {
   const dispatch = useDispatch();
 
@@ -72,9 +74,23 @@ export default function DialogCreateScopeSimple({ open, onClose, projectId }) {
   const trigram =
     userProfile?.trigram ?? getDebugAuthFromLocalStorage()?.trigram ?? null;
 
+  const simpleMode = appConfig?.features?.scopeCreator?.simpleMode;
+  const showEmpty = simpleMode?.showEmpty ?? true;
+  const showGeneric = simpleMode?.showGeneric ?? true;
+
   const configurations = krtoConfigurations
     ? getSimpleModeConfigurations(krtoConfigurations)
-    : (presetScopes ?? []);
+    : getSimpleModeConfigurations({
+        items: presetScopes ?? [],
+        simpleModeKeys: simpleMode?.presetScopeKeys,
+      });
+
+  // first visible entry — "vide", else "générique", else first configuration
+  const defaultKey = showEmpty
+    ? EMPTY_KEY
+    : showGeneric
+      ? GENERIC_KEY
+      : (configurations[0]?.key ?? EMPTY_KEY);
 
   function getPrefilledName(key) {
     if (key === EMPTY_KEY || key === GENERIC_KEY)
@@ -84,8 +100,8 @@ export default function DialogCreateScopeSimple({ open, onClose, projectId }) {
 
   // state
 
-  const [selectedKey, setSelectedKey] = useState(EMPTY_KEY);
-  const [name, setName] = useState(() => getPrefilledName(EMPTY_KEY));
+  const [selectedKey, setSelectedKey] = useState(defaultKey);
+  const [name, setName] = useState(() => getPrefilledName(defaultKey));
   const [nameEdited, setNameEdited] = useState(false);
 
   // handlers
@@ -188,8 +204,10 @@ export default function DialogCreateScopeSimple({ open, onClose, projectId }) {
             label={configLabelS}
             MenuProps={{ PaperProps: { sx: { maxHeight: 300 } } }}
           >
-            <MenuItem value={EMPTY_KEY}>{emptyLabelS}</MenuItem>
-            <MenuItem value={GENERIC_KEY}>{genericLabelS}</MenuItem>
+            {showEmpty && <MenuItem value={EMPTY_KEY}>{emptyLabelS}</MenuItem>}
+            {showGeneric && (
+              <MenuItem value={GENERIC_KEY}>{genericLabelS}</MenuItem>
+            )}
             {configurations.map((c) => (
               <MenuItem key={c.key} value={c.key}>
                 {c.name}
