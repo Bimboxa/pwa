@@ -14,6 +14,9 @@ import { setOpenDialogCreateEntity, triggerEntitiesTableUpdate } from "Features/
 import { setNewAnnotation, triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice";
 import { setSelectedItem } from "Features/selection/selectionSlice";
 import { setEnabledDrawingMode } from "Features/mapEditor/mapEditorSlice";
+import { setPendingProcedureLaunch } from "Features/annotationsAuto/annotationsAutoSlice";
+
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
 import db from "App/db/db";
 import getAnnotationTemplateFromNewAnnotation from "Features/annotations/utils/getAnnotationTemplateFromNewAnnotation";
@@ -75,6 +78,8 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
     // dispatch
 
     const dispatch = useDispatch();
+
+    const appConfig = useAppConfig();
 
     // data
 
@@ -1143,6 +1148,57 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
             } catch (e) {
                 console.error(
                     "[useHandleCommitDrawing] revolution axis placement failed",
+                    e
+                );
+            }
+        }
+
+        // Auto-launch of a linked procedure on source creation: when the
+        // freshly drawn annotation's template links a registry procedure
+        // flagged `launchOnSourceCreated` (and carrying a paramsDialog), arm
+        // the params-dialog auto-open (ProcedureAutoLaunchDialogOutlet) —
+        // e.g. committing an "Axe" (REVOLUTION_AXIS) opens the CHATEAU_EAU_V1
+        // dialog right away. Fresh listing annotations only: updates,
+        // base-map annotations and template-less drafts never trigger. The
+        // tool is disarmed like FREE_TEXT does — a drawing tool must not stay
+        // armed behind the modal.
+        if (
+            !_updatedAnnotation &&
+            !isBaseMapAnnotation &&
+            _newAnnotation?.annotationTemplateId &&
+            _newAnnotation?.listingId
+        ) {
+            try {
+                const templates = await getTemplatesForListing(
+                    _newAnnotation.listingId
+                );
+                const template = templates.find(
+                    (t) => t.id === _newAnnotation.annotationTemplateId
+                );
+                const procedureKeys = template?.procedureKeys ?? [];
+                const entry =
+                    procedureKeys.length > 0
+                        ? (
+                              appConfig?.automatedAnnotationsProcedures ?? []
+                          ).find(
+                              (p) =>
+                                  procedureKeys.includes(p.key) &&
+                                  p.launchOnSourceCreated &&
+                                  p.paramsDialog
+                          )
+                        : null;
+                if (entry) {
+                    dispatch(setEnabledDrawingMode(null));
+                    dispatch(
+                        setPendingProcedureLaunch({
+                            procedureKey: entry.key,
+                            sourceAnnotationId: _newAnnotation.id,
+                        })
+                    );
+                }
+            } catch (e) {
+                console.error(
+                    "[useHandleCommitDrawing] procedure auto-launch lookup failed",
                     e
                 );
             }

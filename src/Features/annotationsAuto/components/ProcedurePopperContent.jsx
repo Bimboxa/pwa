@@ -37,25 +37,33 @@ export default function ProcedurePopperContent({
   // shared by every section. A REVOLUTION_AXIS_PLACEMENT stands for its plan
   // axis: launching from the vertical map must source the AXIS row (params,
   // autoCreatedFrom tag and the dialog all live on it).
-  const sourceAnnotationIds = useLiveQuery(async () => {
+  const sourceAnnotations = useLiveQuery(async () => {
     if (!sourceTemplate?.id || !baseMapId) return [];
     const arr = await db.annotations
       .where("annotationTemplateId")
       .equals(sourceTemplate.id)
       .toArray();
+    return arr.filter((a) => !a.deletedAt && a.baseMapId === baseMapId);
+  }, [sourceTemplate?.id, baseMapId, annotationsUpdatedAt]);
+
+  // helpers
+
+  // A procedure's own outputs are results, not sources — e.g. the
+  // CHATEAU_EAU_V1 "Ligne" datum rides the Axe template and must not relaunch
+  // the procedure as its own source (it would also break the single-source
+  // params dialog by inflating the id set).
+  function getSourceAnnotationIds(procedure) {
     return [
       ...new Set(
-        arr
-          .filter((a) => !a.deletedAt && a.baseMapId === baseMapId)
+        (sourceAnnotations ?? [])
+          .filter((a) => a.autoCreatedByProcedureKey !== procedure.key)
           .map((a) =>
             a.type === "REVOLUTION_AXIS_PLACEMENT" ? a.revolutionAxisId : a.id
           )
           .filter(Boolean)
       ),
     ];
-  }, [sourceTemplate?.id, baseMapId, annotationsUpdatedAt]);
-
-  // helpers
+  }
 
   function getCreatedTemplates(procedure) {
     const createdTags = procedure?.createdMappingCategories ?? [];
@@ -138,7 +146,7 @@ export default function ProcedurePopperContent({
             <RowProcedureLauncher
               procedure={procedure}
               baseMapId={baseMapId}
-              sourceAnnotationIds={sourceAnnotationIds ?? []}
+              sourceAnnotationIds={getSourceAnnotationIds(procedure)}
               sx={{
                 mt: 1,
                 mx: -1,

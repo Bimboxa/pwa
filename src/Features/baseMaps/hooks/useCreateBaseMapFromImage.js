@@ -14,10 +14,12 @@ import db from "App/db/db";
  * Creates a baseMap entity from an image File and sets up its version system.
  * Used by the file-drop creator.
  *
- * @returns async ({ file, name, listing?, meterByPx?, latLng?, geo?, orientation?, source? }) => entity
+ * @returns async ({ file, name, listing?, meterByPx?, latLng?, geo?, orientation?, source?, selectOnCreate? }) => entity
  *   geo: optional capture provenance ({ mode, crs, bbox, scaleFactor, layer })
  *   orientation: 3D plane orientation ("HORIZONTAL" | "VERTICAL"); wins over
  *   the listing's verticalBaseMaps default
+ *   selectOnCreate: pass false to keep the current main base map (e.g. a
+ *   procedure creating its output map mid-flow must not switch the view)
  */
 export default function useCreateBaseMapFromImage() {
   const dispatch = useDispatch();
@@ -36,6 +38,7 @@ export default function useCreateBaseMapFromImage() {
     geo,
     orientation,
     source = "image",
+    selectOnCreate = true,
   }) {
     const listing = listingArg ?? projectBaseMapListings?.[0];
     if (!listing) return null;
@@ -73,7 +76,7 @@ export default function useCreateBaseMapFromImage() {
         });
       }
 
-      dispatch(setSelectedMainBaseMapId(_entity.id));
+      if (selectOnCreate) dispatch(setSelectedMainBaseMapId(_entity.id));
       triggerInitialSaveIfNeeded();
 
       logAppEvent("BASE_MAP_CREATED", { name, source, size: file?.size });

@@ -11,6 +11,10 @@ const initialState = {
   returnTechnique: true,
   ignoreInteriorWalls: false,
   running: false,
+  // {procedureKey, sourceAnnotationId} | null — armed by the drawing commit
+  // when the source template links a procedure flagged launchOnSourceCreated;
+  // consumed by ProcedureAutoLaunchDialogOutlet (params dialog auto-open).
+  pendingProcedureLaunch: null,
 };
 
 export const annotationsAutoSlice = createSlice({
@@ -47,6 +51,9 @@ export const annotationsAutoSlice = createSlice({
     setRunning: (state, action) => {
       state.running = action.payload;
     },
+    setPendingProcedureLaunch: (state, action) => {
+      state.pendingProcedureLaunch = action.payload;
+    },
     reset: () => initialState,
   },
 });
@@ -62,6 +69,7 @@ export const {
   setReturnTechnique,
   setIgnoreInteriorWalls,
   setRunning,
+  setPendingProcedureLaunch,
   reset,
 } = annotationsAutoSlice.actions;
 
