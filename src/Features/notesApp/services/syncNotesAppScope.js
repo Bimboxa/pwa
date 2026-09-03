@@ -1,29 +1,64 @@
+import { nanoid } from "@reduxjs/toolkit";
+
 import db, { withSystemWrite } from "App/db/db";
 import { withoutUndo } from "App/db/undoManager";
 
+import createBusinessObjectListingService from "Features/businessObjects/services/createBusinessObjectListingService";
+
 import { getNotesAppSession } from "./notesAppAuthService";
 import fetchNotesAppProjectDump from "./fetchNotesAppProjectDump";
-import prepareNotesAppEntitiesMerge from "./mergeNotesAppEntities";
+import prepareNotesAppBusinessObjectsMerge from "./mergeNotesAppBusinessObjects";
 import prepareNotesAppBaseMapsMerge from "./mergeNotesAppBaseMaps";
 import prepareNotesAppPositionsMerge from "./mergeNotesAppPositions";
 import { upsertMappingEntry } from "../utils/resolveNotesAppScopeLink";
 
 // Pull orchestrator: one project dump, then per mapped (remote list ->
-// Bimboxa listing) pair the entities + positions merges, plans merged once
-// at project level. Everything is prepared first (downloads included), then
-// committed in ONE transaction under withSystemWrite(withoutUndo(...)):
-// ownership/read-only guards bypassed, remote timestamps preserved, local
-// change tracker and undo stack untouched.
+// "Ouvrages" listing) pair the business-objects + positions merges, plans
+// merged once at project level. Everything is prepared first (downloads
+// included), then committed in ONE transaction under
+// withSystemWrite(withoutUndo(...)): ownership/read-only guards bypassed,
+// remote timestamps preserved, local change tracker and undo stack untouched.
 //
-// Remote lists without a mapping entry default to "create a linked listing"
-// (notesObject model, named after the remote list). Explicit "ignored"
-// entries are skipped.
+// Remote lists without a mapping entry default to "create a linked Ouvrages
+// listing" (named after the remote list). Explicit "ignored" entries are
+// skipped. Positions land as MARKER annotations in the scope's companion
+// "Repères" listing, linked to their object via relsBusinessObjectAnnotation.
+
+const POSITIONS_LISTING_KEY = "notesAppPositions";
+
+async function resolvePositionsListing({ scope, appConfig, userIdMaster, appName }) {
+  const scopeListings = (
+    await db.listings.where("projectId").equals(scope.projectId).toArray()
+  ).filter((l) => !l.deletedAt && l.scopeId === scope.id);
+
+  const existing = scopeListings.find((l) => l.key === POSITIONS_LISTING_KEY);
+  if (existing) return { positionsListing: existing, positionsListingRowToAdd: null };
+
+  const row = {
+    id: nanoid(),
+    key: POSITIONS_LISTING_KEY,
+    name: `Repères ${appName}`,
+    entityModelKey: "annotation",
+    ...(appConfig?.entityModelsObject?.annotation && {
+      entityModel: appConfig.entityModelsObject.annotation,
+    }),
+    table: "entities",
+    color: "#0288D1",
+    iconKey: "annotation",
+    spriteImageKey: "DEFAULT",
+    canCreateItem: false,
+    projectId: scope.projectId,
+    scopeId: scope.id,
+    createdByUserIdMaster: userIdMaster,
+  };
+  return { positionsListing: row, positionsListingRowToAdd: row };
+}
+
 export default async function syncNotesAppScope({
   scope,
   appConfig,
   userIdMaster,
   createdBy,
-  createListings,
   onProgress,
 }) {
   const link = scope?.notesApp;
@@ -36,6 +71,8 @@ export default async function syncNotesAppScope({
     error.code = "NOTES_APP_NOT_SIGNED_IN";
     throw error;
   }
+
+  const appName = appConfig?.features?.notesApp?.name ?? "Krnet";
 
   onProgress?.({ step: "fetch" });
   const dump = await fetchNotesAppProjectDump(link.projectId);
@@ -60,33 +97,28 @@ export default async function syncNotesAppScope({
     else remoteListingsToCreate.push(remoteListing);
   }
 
-  // --- create the missing linked listings (before the merge tx:
-  // useCreateListings has its own writes + entityModel resolution)
-  if (remoteListingsToCreate.length > 0) {
-    onProgress?.({ step: "createListings", count: remoteListingsToCreate.length });
-    const created = await createListings({
-      listings: remoteListingsToCreate.map((r) => ({
-        name: r.name,
-        entityModelKey: "notesObject",
-        table: "entities",
-        ...(r.color && { color: r.color }),
-        iconKey: "annotation",
-        spriteImageKey: "DEFAULT",
-        canCreateItem: true,
-      })),
-      scope,
+  // --- create the missing linked "Ouvrages" listings (before the merge tx:
+  // the service has its own write + entityModel resolution)
+  for (const remoteListing of remoteListingsToCreate) {
+    onProgress?.({ step: "createListings", listingName: remoteListing.name });
+    const listing = await createBusinessObjectListingService({
+      projectId: scope.projectId,
+      scopeId: scope.id,
+      name: remoteListing.name,
+      appConfig,
     });
-    created.forEach((listing, i) => {
-      const remoteListing = remoteListingsToCreate[i];
-      pairs.push({ remoteListing, listing });
-      listingsMapping = upsertMappingEntry(listingsMapping, {
-        remoteListingId: remoteListing.id,
-        remoteListingName: remoteListing.name,
-        localListingId: listing.id,
-        mode: "mapped",
-      });
+    pairs.push({ remoteListing, listing });
+    listingsMapping = upsertMappingEntry(listingsMapping, {
+      remoteListingId: remoteListing.id,
+      remoteListingName: remoteListing.name,
+      localListingId: listing.id,
+      mode: "mapped",
     });
   }
+
+  // --- companion listing hosting the imported MARKER annotations
+  const { positionsListing, positionsListingRowToAdd } =
+    await resolvePositionsListing({ scope, appConfig, userIdMaster, appName });
 
   // --- plans first (positions need the id map); downloads happen inside,
   // OUTSIDE the transaction below.
@@ -99,12 +131,12 @@ export default async function syncNotesAppScope({
     onProgress,
   });
 
-  // --- per-pair entities + positions
+  // --- per-pair business objects + positions
   const nowIso = new Date().toISOString();
   const merges = [];
   for (const pair of pairs) {
-    onProgress?.({ step: "entities", listingName: pair.remoteListing.name });
-    const entitiesMerge = await prepareNotesAppEntitiesMerge({
+    onProgress?.({ step: "objects", listingName: pair.remoteListing.name });
+    const objectsMerge = await prepareNotesAppBusinessObjectsMerge({
       dump,
       remoteListing: pair.remoteListing,
       listing: pair.listing,
@@ -115,13 +147,14 @@ export default async function syncNotesAppScope({
       dump,
       remoteListing: pair.remoteListing,
       listing: pair.listing,
+      positionsListing,
       scope,
       projectId: scope.projectId,
       userIdMaster,
-      entityIdMasterToLocalId: entitiesMerge.entityIdMasterToLocalId,
+      objectIdMasterToLocalId: objectsMerge.objectIdMasterToLocalId,
       baseMapIdMasterToLocalId: baseMapsMerge.baseMapIdMasterToLocalId,
     });
-    merges.push({ pair, entitiesMerge, positionsMerge });
+    merges.push({ pair, objectsMerge, positionsMerge });
 
     listingsMapping = upsertMappingEntry(listingsMapping, {
       remoteListingId: pair.remoteListing.id,
@@ -131,9 +164,9 @@ export default async function syncNotesAppScope({
       lastSyncAt: nowIso,
       lastSyncCounts: {
         entities:
-          entitiesMerge.counts.created +
-          entitiesMerge.counts.updated +
-          entitiesMerge.counts.deleted,
+          objectsMerge.counts.created +
+          objectsMerge.counts.updated +
+          objectsMerge.counts.deleted,
         positions:
           positionsMerge.counts.created +
           positionsMerge.counts.updated +
@@ -151,7 +184,8 @@ export default async function syncNotesAppScope({
         [
           db.scopes,
           db.listings,
-          db.entities,
+          db.businessObjects,
+          db.relsBusinessObjectAnnotation,
           db.baseMaps,
           db.baseMapVersions,
           db.annotations,
@@ -162,6 +196,9 @@ export default async function syncNotesAppScope({
           if (baseMapsMerge.listingRowToAdd) {
             await db.listings.put(baseMapsMerge.listingRowToAdd);
           }
+          if (positionsListingRowToAdd) {
+            await db.listings.put(positionsListingRowToAdd);
+          }
           if (baseMapsMerge.fileRows.length) {
             await db.files.bulkPut(baseMapsMerge.fileRows);
           }
@@ -171,15 +208,20 @@ export default async function syncNotesAppScope({
           if (baseMapsMerge.versionRows.length) {
             await db.baseMapVersions.bulkPut(baseMapsMerge.versionRows);
           }
-          for (const { entitiesMerge, positionsMerge } of merges) {
-            if (entitiesMerge.rows.length) {
-              await db.entities.bulkPut(entitiesMerge.rows);
+          for (const { objectsMerge, positionsMerge } of merges) {
+            if (objectsMerge.rows.length) {
+              await db.businessObjects.bulkPut(objectsMerge.rows);
             }
             if (positionsMerge.pointRows.length) {
               await db.points.bulkPut(positionsMerge.pointRows);
             }
             if (positionsMerge.annotationRows.length) {
               await db.annotations.bulkPut(positionsMerge.annotationRows);
+            }
+            if (positionsMerge.relRows.length) {
+              await db.relsBusinessObjectAnnotation.bulkPut(
+                positionsMerge.relRows
+              );
             }
           }
           await db.scopes.update(scope.id, {
@@ -205,11 +247,11 @@ export default async function syncNotesAppScope({
       baseMapsMerge.counts.updated +
       baseMapsMerge.counts.deleted,
   };
-  for (const { entitiesMerge, positionsMerge } of merges) {
+  for (const { objectsMerge, positionsMerge } of merges) {
     counts.entities +=
-      entitiesMerge.counts.created +
-      entitiesMerge.counts.updated +
-      entitiesMerge.counts.deleted;
+      objectsMerge.counts.created +
+      objectsMerge.counts.updated +
+      objectsMerge.counts.deleted;
     counts.positions +=
       positionsMerge.counts.created +
       positionsMerge.counts.updated +

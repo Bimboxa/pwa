@@ -5,7 +5,7 @@ import db from "App/db/db";
 import getEntityPureDataAndFilesDataByKey from "Features/entities/utils/getEntityPureDataAndFilesDataByKey";
 
 import downloadNotesAppFile from "./downloadNotesAppFile";
-import { isRemoteNewer } from "./mergeNotesAppEntities";
+import isRemoteNewer from "../utils/isRemoteNewer";
 
 function isBaseMapListing(row) {
   return row?.table === "baseMaps" || row?.entityModel?.type === "BASE_MAP";

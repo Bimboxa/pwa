@@ -2,31 +2,20 @@ import { nanoid } from "@reduxjs/toolkit";
 
 import db from "App/db/db";
 
-import mapNotesAppEntityToBimboxa from "../utils/mapNotesAppEntityToBimboxa";
+import isRemoteNewer from "../utils/isRemoteNewer";
+import mapNotesAppEntityToBusinessObject from "../utils/mapNotesAppEntityToBusinessObject";
 
-// Merge rule (loadKrtoZip parity): write a row only when absent locally or
-// when the remote row is newer than the local updatedAt. Tombstones
-// participate (remote deletedAt is written as a local soft-delete, remote
-// timestamps preserved). Reads are NOT filtered by the soft-delete
-// middleware, so local tombstones are part of the index.
-export function isRemoteNewer(remoteUpdatedAtMs, localRow) {
-  if (!localRow) return true;
-  const localTs =
-    Date.parse(localRow.updatedAt ?? localRow.createdAt ?? "") || 0;
-  return (remoteUpdatedAtMs ?? 0) > localTs;
-}
-
-// Prepares the db.entities rows for one mapped (remote list -> Bimboxa
-// listing) pair. Pure preparation: no write happens here — the orchestrator
-// commits everything in a single transaction.
-export default async function prepareNotesAppEntitiesMerge({
+// Prepares the db.businessObjects rows for one mapped (remote list ->
+// "Ouvrages" listing) pair. Pure preparation: no write happens here — the
+// orchestrator commits everything in a single transaction.
+export default async function prepareNotesAppBusinessObjectsMerge({
   dump,
   remoteListing,
   listing,
   projectId,
   userIdMaster,
 }) {
-  const localRows = await db.entities
+  const localRows = await db.businessObjects
     .where("listingId")
     .equals(listing.id)
     .toArray();
@@ -43,9 +32,9 @@ export default async function prepareNotesAppEntitiesMerge({
 
   // Seed with existing locals so parent remap and positions can reference
   // rows untouched by this run.
-  const entityIdMasterToLocalId = new Map();
+  const objectIdMasterToLocalId = new Map();
   for (const [idMaster, row] of localByIdMaster) {
-    entityIdMasterToLocalId.set(idMaster, row.id);
+    objectIdMasterToLocalId.set(idMaster, row.id);
   }
 
   const rows = [];
@@ -64,9 +53,9 @@ export default async function prepareNotesAppEntitiesMerge({
     }
 
     const localId = local?.id ?? nanoid();
-    entityIdMasterToLocalId.set(remote.id, localId);
+    objectIdMasterToLocalId.set(remote.id, localId);
 
-    const mapped = mapNotesAppEntityToBimboxa({
+    const mapped = mapNotesAppEntityToBusinessObject({
       remoteEntity: remote,
       remoteListing,
       localId,
@@ -75,13 +64,16 @@ export default async function prepareNotesAppEntitiesMerge({
       userIdMaster,
     });
 
-    // Merge over the local row: fields added locally in Bimboxa (images, zone
-    // assignment...) survive the pull; managed fields are overwritten.
+    // Merge over the local row: fields edited locally in Bimboxa (unit,
+    // color...) survive the pull; managed fields are overwritten.
     const row = local ? { ...local, ...mapped } : mapped;
     if (local) {
       row.createdAt = local.createdAt ?? row.createdAt;
       row.createdByUserIdMaster =
         local.createdByUserIdMaster ?? row.createdByUserIdMaster;
+      // unit and color are Bimboxa-owned once set: keep the local values.
+      row.unit = local.unit !== undefined ? local.unit : mapped.unit;
+      if (local.color) row.color = local.color;
       // A resurrected remote row must clear a stale local tombstone.
       if (!remote.deletedAt) delete row.deletedAt;
     }
@@ -97,10 +89,9 @@ export default async function prepareNotesAppEntitiesMerge({
   // sync) leaves the child at the tree root.
   for (const row of rows) {
     if (!row.parentId) continue;
-    const localParentId = entityIdMasterToLocalId.get(row.parentId);
-    if (localParentId) row.parentId = localParentId;
-    else delete row.parentId;
+    const localParentId = objectIdMasterToLocalId.get(row.parentId);
+    row.parentId = localParentId ?? null;
   }
 
-  return { rows, entityIdMasterToLocalId, counts };
+  return { rows, objectIdMasterToLocalId, counts };
 }

@@ -1,16 +1,18 @@
-// Maps a normalized notes-app entity row to a Bimboxa db.entities row.
+// Maps a normalized notes-app entity row to a Bimboxa db.businessObjects row
+// ("Ouvrages" tree).
 //
-// v1 contract: name -> name, code -> code; freeText field values are resolved
-// against the remote listing's model labels and concatenated into
-// `description`; everything else (categories, states, links refs...) is kept
-// raw under `notesAppRemote` — a lossless parsed snapshot enabling a 3-way
-// merge when push arrives.
+// v1 contract: name -> label, code kept as an extra prop; freeText field
+// values are resolved against the remote listing's model labels and
+// concatenated into `description`; everything else (categories, states...)
+// is kept raw under `notesAppRemote` — a lossless parsed snapshot enabling a
+// 3-way merge when push arrives. Both sides use fractional-indexing for
+// sibling order, so sortKey copies straight into sortIndex.
 //
 // parentId stays the REMOTE id here: the caller remaps it through the
-// idMaster map in a second pass (the local id of the parent may not exist
-// until the whole batch is built).
+// idMaster map in a second pass. unit is null (unit-less row): notes-app has
+// no quantity-unit concept — the user assigns U/ml/m² in Bimboxa afterwards.
 
-export default function mapNotesAppEntityToBimboxa({
+export default function mapNotesAppEntityToBusinessObject({
   remoteEntity,
   remoteListing,
   localId,
@@ -52,11 +54,14 @@ export default function mapNotesAppEntityToBimboxa({
     remoteUpdatedAt: remoteEntity.updatedAt ?? null,
     listingId: bimboxaListing.id,
     projectId,
-    name: remoteEntity.name,
+    ...(bimboxaListing.scopeId && { scopeId: bimboxaListing.scopeId }),
+    label: remoteEntity.name,
     ...(remoteEntity.code != null && { code: remoteEntity.code }),
     ...(description && { description }),
-    ...(remoteEntity.parentId && { parentId: remoteEntity.parentId }),
-    ...(remoteEntity.sortKey != null && { sortKey: remoteEntity.sortKey }),
+    ...(bimboxaListing.color && { color: bimboxaListing.color }),
+    parentId: remoteEntity.parentId ?? null,
+    ...(remoteEntity.sortKey != null && { sortIndex: remoteEntity.sortKey }),
+    unit: null,
     notesAppRemote: {
       name: remoteEntity.name ?? null,
       code: remoteEntity.code ?? null,

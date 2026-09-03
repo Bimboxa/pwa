@@ -2,12 +2,18 @@ import { nanoid } from "@reduxjs/toolkit";
 
 import db from "App/db/db";
 
-import { isRemoteNewer } from "./mergeNotesAppEntities";
+import isRemoteNewer from "../utils/isRemoteNewer";
 
 const clamp01 = (v) => Math.min(Math.max(Number(v) || 0, 0), 1);
 
 // Prepares the notes-app annotations (one optional position per object) ->
-// Bimboxa MARKER annotations + db.points rows for one mapped pair.
+// Bimboxa MARKER annotations + db.points + relsBusinessObjectAnnotation rows
+// for one mapped (remote list -> "Ouvrages" listing) pair.
+//
+// Business objects don't own annotations (no entityId): the markers live in
+// the scope's companion "Repères" listing (resolved by the orchestrator) and
+// each one is linked to its object through a rel row — the same N-N link the
+// Ouvrages module creates by hand.
 //
 // notes-app x/y are normalized 0..1 against the plan image — the exact same
 // frame as db.points (normalized vs baseMap.image.imageSize): coordinates
@@ -18,11 +24,12 @@ const clamp01 = (v) => Math.min(Math.max(Number(v) || 0, 0), 1);
 export default async function prepareNotesAppPositionsMerge({
   dump,
   remoteListing,
-  listing,
+  listing, // the mapped businessObjects listing
+  positionsListing, // the scope's companion annotation listing for markers
   scope,
   projectId,
   userIdMaster,
-  entityIdMasterToLocalId,
+  objectIdMasterToLocalId,
   baseMapIdMasterToLocalId,
 }) {
   const remoteEntityIds = new Set(
@@ -35,12 +42,17 @@ export default async function prepareNotesAppPositionsMerge({
   );
 
   const localRows = (
-    await db.annotations.where("listingId").equals(listing.id).toArray()
+    await db.annotations
+      .where("listingId")
+      .equals(positionsListing.id)
+      .toArray()
   ).filter((a) => a.remoteSource === "notesApp" && a.idMaster);
   const localByIdMaster = new Map(localRows.map((a) => [a.idMaster, a]));
 
   const annotationRows = [];
   const pointRows = [];
+  const relRows = [];
+  const tombstonedAnnotationIds = [];
   const counts = { created: 0, updated: 0, deleted: 0, unchanged: 0, skipped: 0 };
 
   for (const remote of remoteRows) {
@@ -66,13 +78,14 @@ export default async function prepareNotesAppPositionsMerge({
         updatedAt: updatedAtIso,
         remoteUpdatedAt: remote.updatedAt ?? null,
       });
+      tombstonedAnnotationIds.push(local.id);
       counts.deleted += 1;
       continue;
     }
 
-    const localEntityId = entityIdMasterToLocalId.get(remote.entityId);
+    const localObjectId = objectIdMasterToLocalId.get(remote.entityId);
     const localBaseMapId = baseMapIdMasterToLocalId.get(remote.baseMapId);
-    if (!localEntityId || !localBaseMapId) {
+    if (!localObjectId || !localBaseMapId) {
       // Plan or object without a local counterpart (e.g. plan skipped for a
       // missing image): count and move on.
       counts.skipped += 1;
@@ -85,24 +98,25 @@ export default async function prepareNotesAppPositionsMerge({
       x: clamp01(remote.x),
       y: clamp01(remote.y),
       projectId,
-      listingId: listing.id,
+      listingId: positionsListing.id,
       baseMapId: localBaseMapId,
       scopeId: scope.id,
     });
 
+    let annotationId;
     if (!local) {
+      annotationId = nanoid();
       const createdAtIso = remote.createdAt
         ? new Date(remote.createdAt).toISOString()
         : updatedAtIso;
       annotationRows.push({
-        id: nanoid(),
+        id: annotationId,
         idMaster: remote.id,
         remoteSource: "notesApp",
         remoteUpdatedAt: remote.updatedAt ?? null,
         type: "MARKER",
         point: { id: pointId },
-        entityId: localEntityId,
-        listingId: listing.id,
+        listingId: positionsListing.id,
         baseMapId: localBaseMapId,
         projectId,
         fillColor: listing.color ?? "#0288D1",
@@ -113,23 +127,63 @@ export default async function prepareNotesAppPositionsMerge({
       });
       counts.created += 1;
     } else {
-      annotationRows.push({
+      annotationId = local.id;
+      const row = {
         ...local,
         point: { id: pointId },
-        entityId: localEntityId,
         baseMapId: localBaseMapId,
         updatedAt: updatedAtIso,
         remoteUpdatedAt: remote.updatedAt ?? null,
-        deletedAt: undefined,
-      });
+      };
+      delete row.deletedAt; // resurrected remotely
+      annotationRows.push(row);
       counts.updated += 1;
+    }
+
+    // --- rel marker <-> business object (one live rel per pair — checked
+    // against the existing rels below)
+    relRows.push({
+      annotationId,
+      businessObjectId: localObjectId,
+    });
+  }
+
+  // Resolve the rels to actually write: skip (annotationId, businessObjectId)
+  // pairs already live, tombstone the rels of tombstoned annotations.
+  const relatedAnnotationIds = [
+    ...new Set([...relRows.map((r) => r.annotationId), ...tombstonedAnnotationIds]),
+  ];
+  const existingRels = relatedAnnotationIds.length
+    ? await db.relsBusinessObjectAnnotation
+        .where("annotationId")
+        .anyOf(relatedAnnotationIds)
+        .toArray()
+    : [];
+
+  const liveRelKeys = new Set(
+    existingRels
+      .filter((r) => !r.deletedAt)
+      .map((r) => `${r.annotationId}|${r.businessObjectId}`)
+  );
+  const relRowsToPut = relRows
+    .filter((r) => !liveRelKeys.has(`${r.annotationId}|${r.businessObjectId}`))
+    .map((r) => ({
+      id: nanoid(),
+      projectId,
+      scopeId: scope.id,
+      annotationId: r.annotationId,
+      businessObjectId: r.businessObjectId,
+      listingId: listing.id,
+      createdByUserIdMaster: userIdMaster,
+    }));
+
+  const nowIso = new Date().toISOString();
+  for (const rel of existingRels) {
+    if (rel.deletedAt) continue;
+    if (tombstonedAnnotationIds.includes(rel.annotationId)) {
+      relRowsToPut.push({ ...rel, deletedAt: nowIso });
     }
   }
 
-  // Drop the explicit `deletedAt: undefined` (bulkPut would store the key).
-  for (const row of annotationRows) {
-    if (row.deletedAt === undefined) delete row.deletedAt;
-  }
-
-  return { annotationRows, pointRows, counts };
+  return { annotationRows, pointRows, relRows: relRowsToPut, counts };
 }

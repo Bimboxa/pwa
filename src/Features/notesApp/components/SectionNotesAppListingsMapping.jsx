@@ -26,8 +26,8 @@ const IGNORE = "__IGNORE__";
 export default function SectionNotesAppListingsMapping({ appName = "Krnet" }) {
   // strings
 
-  const titleS = `Listes ${appName} → listes de la mission`;
-  const createS = "Créer une liste";
+  const titleS = `Listes ${appName} → listes d'ouvrages de la mission`;
+  const createS = "Créer une liste d'ouvrages";
   const ignoreS = "Ignorer";
   const plansS = "Plans";
   const plansTargetS = "→ Fonds de plan";
@@ -69,8 +69,9 @@ export default function SectionNotesAppListingsMapping({ appName = "Krnet" }) {
 
   // helpers
 
+  // Targets = the scope's "Ouvrages" listings (business objects tree).
   const targetListings = (scopeListings ?? []).filter(
-    (l) => l.table === "entities" && !l.deletedAt
+    (l) => l.entityModelKey === "businessObject" && !l.deletedAt
   );
 
   const getRowValue = (remoteListing) => {
@@ -160,7 +161,7 @@ export default function SectionNotesAppListingsMapping({ appName = "Krnet" }) {
                   </Typography>
                   {entry?.lastSyncCounts && (
                     <Typography variant="caption" color="text.secondary" noWrap>
-                      {`${entry.lastSyncCounts.entities ?? 0} objet(s), ${
+                      {`${entry.lastSyncCounts.entities ?? 0} ouvrage(s), ${
                         entry.lastSyncCounts.positions ?? 0
                       } position(s)`}
                     </Typography>

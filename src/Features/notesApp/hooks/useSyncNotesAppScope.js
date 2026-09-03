@@ -2,13 +2,16 @@ import { useDispatch, useSelector } from "react-redux";
 
 import { setToaster } from "Features/layout/layoutSlice";
 import { triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice";
+import {
+  triggerBusinessObjectsUpdate,
+  triggerRelsBusinessObjectAnnotationUpdate,
+} from "Features/businessObjects/businessObjectsSlice";
 import { setNotesAppSyncStatus } from "../notesAppSlice";
 
 import db from "App/db/db";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useUserEmail from "Features/auth/hooks/useUserEmail";
-import useCreateListings from "Features/listings/hooks/useCreateListings";
 import getUserIdMaster from "Features/auth/utils/getUserIdMaster";
 
 import syncNotesAppScope from "../services/syncNotesAppScope";
@@ -20,7 +23,6 @@ export default function useSyncNotesAppScope() {
   const dispatch = useDispatch();
 
   const appConfig = useAppConfig();
-  const createListings = useCreateListings();
   const { value: createdBy } = useUserEmail();
   const userProfile = useSelector((s) => s.auth.userProfile);
   const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
@@ -48,17 +50,18 @@ export default function useSyncNotesAppScope() {
         appConfig,
         userIdMaster,
         createdBy,
-        createListings,
         onProgress: (progress) =>
           dispatch(setNotesAppSyncStatus({ status: "syncing", ...progress })),
       });
 
       dispatch(triggerAnnotationsUpdate());
+      dispatch(triggerBusinessObjectsUpdate());
+      dispatch(triggerRelsBusinessObjectAnnotationUpdate());
       dispatch(setNotesAppSyncStatus({ status: "success", step: null }));
       const c = result.counts;
       dispatch(
         setToaster({
-          message: `Données récupérées : ${c.entities} objet(s), ${c.baseMaps} plan(s), ${c.positions} position(s)`,
+          message: `Données récupérées : ${c.entities} ouvrage(s), ${c.baseMaps} plan(s), ${c.positions} position(s)`,
         })
       );
       return result;
