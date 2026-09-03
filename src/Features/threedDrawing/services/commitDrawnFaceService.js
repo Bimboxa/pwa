@@ -56,15 +56,39 @@ export default async function commitDrawnFaceService({
   layerId = null,
   createAnnotationFn = null,
 }) {
-  if (!cornersInOrder?.length || cornersInOrder.length < 3) return null;
-  if (!baseMaps?.length) return null;
-  if (!templateProps?.annotationTemplateId) return null;
+  // Aborted commits are silent for the caller (null return) — say why in the
+  // console so a "nothing happened" report is diagnosable.
+  const abort = (reason) => {
+    console.warn(`[threedDrawing] face commit aborted: ${reason}`);
+    return null;
+  };
 
-  const host = pickHostBaseMap(cornersInOrder, baseMaps);
-  if (!host) return null;
+  if (!cornersInOrder?.length || cornersInOrder.length < 3)
+    return abort(`needs 3+ corners (got ${cornersInOrder?.length ?? 0})`);
+  if (!baseMaps?.length) return abort("no base maps available");
+  if (!templateProps?.annotationTemplateId)
+    return abort("no armed template (annotationTemplateId missing)");
+
+  // Host resolution: a unanimous baseMapId carried by the drawn vertices
+  // (PLANE snaps stamp it) wins over the centroid heuristic — with several
+  // unplaced base maps stacked coplanar at the origin, pickHostBaseMap ties
+  // on every candidate and would pick an arbitrary one, re-hosting the face
+  // away from the plan the cursor actually snapped to.
+  const carriedIds = new Set(
+    cornersInOrder.map((v) => v.baseMapId).filter(Boolean)
+  );
+  let host = null;
+  if (carriedIds.size === 1) {
+    const id = carriedIds.values().next().value;
+    host = baseMaps.find((b) => b.id === id) ?? null;
+  }
+  if (!host) host = pickHostBaseMap(cornersInOrder, baseMaps);
+  if (!host)
+    return abort("no host base map (projection failed on every base map)");
 
   const classification = classifyFaceVsBaseMap(cornersInOrder, host);
-  if (!classification) return null;
+  if (!classification)
+    return abort(`face vs base map ${host.id} classification failed`);
 
   let annotationFields;
   let projectedPoints;
@@ -79,13 +103,16 @@ export default async function commitDrawnFaceService({
           offsetTop: 0,
         }))
       );
-      if (projectedPoints.length < 3) return null;
+      if (projectedPoints.length < 3)
+        return abort("degenerate PARALLEL face after dedupe");
       annotationFields = buildFaceAnnotationFields({
         classifiedShape: "POLYGON",
         classificationFields: {
           type: "POLYGON",
           offsetZ: roundForDisplay(classification.offset),
-          height: 0,
+          // 2D parity: a flat-on-plan commit takes the template's extrusion
+          // height, like the same template drawn in the 2D editor.
+          height: templateProps.height ?? 0,
         },
         templateProps,
       });
@@ -99,7 +126,7 @@ export default async function commitDrawnFaceService({
       // exactly instead of walking the cycle (which double-covered the band
       // and drew the full bounding rectangle).
       const band = buildVerticalBandPoints(classification.projected);
-      if (!band) return null;
+      if (!band) return abort("degenerate PERPENDICULAR band");
       projectedPoints = band.points;
       annotationFields = buildFaceAnnotationFields({
         classifiedShape: "POLYLINE",
@@ -130,7 +157,8 @@ export default async function commitDrawnFaceService({
           offsetTop: 0,
         }))
       );
-      if (projectedPoints.length < 3) return null;
+      if (projectedPoints.length < 3)
+        return abort("degenerate OBLIQUE face after dedupe");
       annotationFields = buildFaceAnnotationFields({
         classifiedShape: "POLYGON",
         classificationFields: {
@@ -143,7 +171,7 @@ export default async function commitDrawnFaceService({
       break;
     }
     default:
-      return null;
+      return abort(`unknown classification kind ${classification.kind}`);
   }
 
   const pointRefs = await insertOrReusePoints({

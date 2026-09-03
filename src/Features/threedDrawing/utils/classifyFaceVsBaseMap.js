@@ -12,12 +12,17 @@ const COLLINEAR_EPS = 2e-3; // 0.2% of normalized space — perpendicular footpr
 
 function computeFaceNormal(vertices) {
   if (vertices.length < 3) return null;
-  const a = new Vector3(vertices[0].x, vertices[0].y, vertices[0].z);
-  const b = new Vector3(vertices[1].x, vertices[1].y, vertices[1].z);
-  const c = new Vector3(vertices[2].x, vertices[2].y, vertices[2].z);
-  const ab = b.clone().sub(a);
-  const ac = c.clone().sub(a);
-  const n = ab.cross(ac);
+  // Newell's method over ALL vertices — a first-triplet cross product
+  // degenerates when the first three clicks are collinear (common when
+  // tracing along a straight wall), silently killing the classification.
+  const n = new Vector3();
+  for (let i = 0; i < vertices.length; i++) {
+    const a = vertices[i];
+    const b = vertices[(i + 1) % vertices.length];
+    n.x += (a.y - b.y) * (a.z + b.z);
+    n.y += (a.z - b.z) * (a.x + b.x);
+    n.z += (a.x - b.x) * (a.y + b.y);
+  }
   if (n.lengthSq() < 1e-12) return null;
   return n.normalize();
 }

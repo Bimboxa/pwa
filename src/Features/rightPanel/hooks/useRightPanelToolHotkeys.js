@@ -5,6 +5,7 @@ import { setSelectedMenuItemKey } from "../rightPanelSlice";
 import { setCaptureToolActive } from "Features/mapEditor/mapEditorSlice";
 import { selectSubtractPickAnnotationId } from "Features/mapEditor/utils/subtractPickMode";
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
+import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 
 import useRightPanelTools from "./useRightPanelTools";
 
@@ -80,6 +81,15 @@ export default function useRightPanelToolHotkeys() {
         selectEffectiveViewerKey(s) === "MAP" &&
         s.mapEditor.selectedNode?.nodeType === "ANNOTATION" &&
         s.mapEditor.selectedNode?.annotationType === "POLYGON"
+      )
+        return;
+      // "E" belongs to the 3D bottom toolbar (Extruder) while the Dessin
+      // module shows its 3D editor — yield without consuming
+      // (useDessinToolHotkeysThreed fires instead).
+      if (
+        letter === "e" &&
+        s.viewers.selectedViewerKey === "MAP" &&
+        isThreedFamilyViewerKey(selectEffectiveViewerKey(s))
       )
         return;
 

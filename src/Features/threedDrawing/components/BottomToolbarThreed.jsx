@@ -23,7 +23,8 @@ import ButtonRotateAnnotationThreed from "Features/threedAnnotationMove/componen
 // "Tourner" (base map), no "Extruder" nor "Coupe".
 // Dessin module (MAP): "Déplacer" / "Tourner" act on the selected
 // ANNOTATIONS (threedAnnotationMove) — the base-map versions stay in the
-// other modules.
+// other modules. No "Coupe" there either, and the tools carry the E / D / R
+// hotkey badges (bound by useDessinToolHotkeysThreed in MainThreedEditor).
 // The zoom out lives outside the toolbar (ButtonZoomOutThreed, bottom-right
 // of the editor).
 export default function BottomToolbarThreed() {
@@ -62,20 +63,22 @@ export default function BottomToolbarThreed() {
       <Stack direction="row" spacing={1} alignItems="center">
         {!isViewerModule && (
           <>
-            {!isBaseMapsModule && <ButtonExtrudeThreed />}
+            {!isBaseMapsModule && (
+              <ButtonExtrudeThreed hotkey={isMapModule ? "E" : undefined} />
+            )}
             {isMeshesViewer && <ButtonMeshThreed />}
             {!isMapModule && <ButtonMoveBaseMapThreed />}
             {!isMapModule && <ButtonRotateBaseMapThreed />}
-            {isMapModule && <ButtonMoveAnnotationThreed />}
-            {isMapModule && <ButtonRotateAnnotationThreed />}
+            {isMapModule && <ButtonMoveAnnotationThreed hotkey="D" />}
+            {isMapModule && <ButtonRotateAnnotationThreed hotkey="R" />}
             {/* No leading divider when nothing precedes "Coupe" (Viewer
-                module). */}
-            {!isBaseMapsModule && (
+                module) and no trailing one when "Coupe" is hidden (Dessin). */}
+            {!isBaseMapsModule && !isMapModule && (
               <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
             )}
           </>
         )}
-        {!isBaseMapsModule && (
+        {!isBaseMapsModule && !isMapModule && (
           <Tooltip title="Plan de coupe">
             <Button
               size="small"
