@@ -6,6 +6,7 @@ import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 import FieldAnnotationHeight from "Features/annotations/components/FieldAnnotationHeight";
 import FieldAnnotationTemplateFill from "Features/annotations/components/FieldAnnotationTemplateFill";
 import FieldAnnotationTemplateStroke from "Features/annotations/components/FieldAnnotationTemplateStroke";
+import FieldAnnotationTemplateStrokeWidth from "Features/annotations/components/FieldAnnotationTemplateStrokeWidth";
 import FieldAnnotationTemplateRender3d from "Features/annotations/components/FieldAnnotationTemplateRender3d";
 
 import { MATERIAL3D_NONE_KEY } from "Features/photorealRender/utils/material3dPresets";
@@ -32,10 +33,8 @@ export default function FormObjectAnnotationConfig({
     editable.includes(key) || (key === "label" && isObject3DEntry(object));
   const hasFill = has("fillColor") || has("fillType") || has("fillOpacity");
   const hasStroke =
-    has("strokeColor") ||
-    has("strokeWidth") ||
-    has("strokeOpacity") ||
-    has("strokeType");
+    has("strokeColor") || has("strokeOpacity") || has("strokeType");
+  const hasStrokeWidth = has("strokeWidth");
   const hasMaterial3d = has("material3d");
   const hasRender3d = has("color3D") || has("opacity3D") || hasMaterial3d;
 
@@ -110,6 +109,13 @@ export default function FormObjectAnnotationConfig({
 
       {hasStroke && (
         <FieldAnnotationTemplateStroke
+          value={draft}
+          onChange={(v) => onChange(v)}
+        />
+      )}
+
+      {hasStrokeWidth && (
+        <FieldAnnotationTemplateStrokeWidth
           value={draft}
           onChange={(v) => onChange(v)}
         />

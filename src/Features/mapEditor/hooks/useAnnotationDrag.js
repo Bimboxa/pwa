@@ -143,11 +143,11 @@ export default function useAnnotationDrag({
    * Démarre un drag d'annotation (move, resize, ou rotate).
    * Retourne false si l'utilisateur n'a pas la permission.
    *
-   * @param {{ nodeId: string, startMouseInLocal: {x,y}, partType: string|null, startMouseScreen: {x,y}, nodeContext?: string, wrapperAnnotationIds?: string[], wrapperBbox?: Object, rotationContext?: {center: {x,y}, startRotation: number}, anchorLocal?: {x,y} }} params
+   * @param {{ nodeId: string, startMouseInLocal: {x,y}, partType: string|null, startMouseScreen: {x,y}, nodeContext?: string, wrapperAnnotationIds?: string[], wrapperBbox?: Object, rotationContext?: {center: {x,y}, startRotation: number}, anchorLocal?: {x,y}, labelElbowSeed?: {x,y} }} params
    * @returns {boolean} true si le drag a été initié
    */
   const initAnnotationDrag = useCallback(
-    ({ nodeId, startMouseInLocal, partType, startMouseScreen, nodeContext, wrapperAnnotationIds, wrapperBbox, rotationContext, clickOnly, anchorLocal }) => {
+    ({ nodeId, startMouseInLocal, partType, startMouseScreen, nodeContext, wrapperAnnotationIds, wrapperBbox, rotationContext, clickOnly, anchorLocal, labelElbowSeed }) => {
       const isWrapper = nodeId === WRAPPER_NODE_ID;
 
       // GUARD : une empreinte est la projection d'une annotation hébergée par
@@ -184,6 +184,9 @@ export default function useAnnotationDrag({
         // Reference point of the annotation at drag start (marker-like types
         // only). Snapping a whole-annotation move lands THIS on the target.
         anchorLocal: anchorLocal ?? null,
+        // Label leader elbow at drag start (VARIABLE stub mode, image px):
+        // carried to the commit and to the transient preview.
+        labelElbowSeed: labelElbowSeed ?? null,
       };
 
       setDragAnnotationState(newState);
@@ -202,7 +205,7 @@ export default function useAnnotationDrag({
    * @returns {boolean} true si l'événement a été consommé
    */
   const handleAnnotationDragMove = useCallback(
-    (event, snapAnchorTarget = null) => {
+    (event, snapAnchorTarget = null, constrainDelta = null) => {
       const _state = dragAnnotationStateRef.current;
       if (!_state) return false;
 
@@ -239,6 +242,7 @@ export default function useAnnotationDrag({
             pendingMovesRef.current.set(_state.selectedAnnotationId, {
               deltaPos: { x: 0, y: 0 },
               partType: _state.partType || null,
+              labelElbowSeed: _state.labelElbowSeed ?? null,
             });
           }
           setPendingMovesVersion((v) => v + 1);
@@ -315,6 +319,11 @@ export default function useAnnotationDrag({
             x: currentMouseInLocal.x - _cur.startMouseInLocal.x,
             y: currentMouseInLocal.y - _cur.startMouseInLocal.y,
           };
+          // Constrained whole-move (glued opening sliding along its host):
+          // the caller maps the free delta onto the allowed one.
+          if (typeof constrainDelta === "function") {
+            deltaPos = constrainDelta(deltaPos) ?? deltaPos;
+          }
         }
 
         // Update pendingMove ref (pas de re-render, lu par TransientAnnotationLayer)
@@ -333,6 +342,7 @@ export default function useAnnotationDrag({
             {
               deltaPos,
               partType: dragAnnotationStateRef.current.partType || null,
+              labelElbowSeed: dragAnnotationStateRef.current.labelElbowSeed ?? null,
             }
           );
         }
@@ -376,7 +386,8 @@ export default function useAnnotationDrag({
           _state.selectedAnnotationId,
           _state.deltaPos,
           _state.partType,
-          _state.localPos
+          _state.localPos,
+          { labelElbowSeed: _state.labelElbowSeed ?? null }
         );
       }
 

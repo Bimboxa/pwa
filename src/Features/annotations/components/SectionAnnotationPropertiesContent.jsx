@@ -20,12 +20,15 @@ import FieldWrapperDimensions from "./FieldWrapperDimensions";
 import FieldAnnotationRotation from "./FieldAnnotationRotation";
 import FieldAnnotationFill from "./FieldAnnotationFill";
 import FieldAnnotationStroke from "./FieldAnnotationStroke";
+import FieldAnnotationStrokeWidth from "./FieldAnnotationStrokeWidth";
 import FieldAnnotationIsEraser from "./FieldAnnotationIsEraser";
 import FieldAnnotationIsExt from "./FieldAnnotationIsExt";
 import FieldAnnotationIsLayer from "./FieldAnnotationIsLayer";
 import FieldAnnotationIsProfile from "./FieldAnnotationIsProfile";
 import FieldAnnotationLabel from "./FieldAnnotationLabel";
+import FieldAnnotationLabelStub from "./FieldAnnotationLabelStub";
 import FieldAnnotationLinearLayout from "./FieldAnnotationLinearLayout";
+import FieldAnnotationOpening from "./FieldAnnotationOpening";
 import FieldAnnotationArrows from "./FieldAnnotationArrows";
 import FieldAnnotationFreeText from "./FieldAnnotationFreeText";
 import FieldAnnotationTextContent from "./FieldAnnotationTextContent";
@@ -57,9 +60,8 @@ export default function SectionAnnotationPropertiesContent({
     !isFreeText &&
     (configurableProps.includes("fillColor") ||
       configurableProps.includes("fillOpacity"));
-  const showStroke =
-    configurableProps.includes("strokeColor") ||
-    configurableProps.includes("strokeWidth");
+  const showStroke = configurableProps.includes("strokeColor");
+  const showStrokeWidth = configurableProps.includes("strokeWidth");
 
   // handlers
 
@@ -160,6 +162,12 @@ export default function SectionAnnotationPropertiesContent({
         {drawingShape === "CIRCULATION" && (
           <FieldAnnotationArrows annotation={annotation} />
         )}
+        {drawingShape === "OPENING" && (
+          <FieldAnnotationOpening
+            annotation={annotation}
+            overrideFields={overrideFields}
+          />
+        )}
         {isFreeText && <FieldAnnotationTextContent annotation={annotation} />}
         {isFreeText && <FieldAnnotationFreeText annotation={annotation} />}
         {showFill && (
@@ -174,7 +182,20 @@ export default function SectionAnnotationPropertiesContent({
             overrideFields={overrideFields}
           />
         )}
+        {showStrokeWidth && (
+          <FieldAnnotationStrokeWidth
+            annotation={annotation}
+            overrideFields={overrideFields}
+          />
+        )}
         {!hideOverview && <FieldAnnotationLabel annotation={annotation} />}
+        {/* Standalone LABEL: no Etiquette tab, the leader stub lives here. */}
+        {type === "LABEL" && (
+          <FieldAnnotationLabelStub
+            annotation={annotation}
+            overrideFields={overrideFields}
+          />
+        )}
         <FieldAnnotationIsProfile annotation={annotation} />
         <FieldAnnotationIsEraser annotation={annotation} />
         {["POLYLINE", "STRIP", "POLYGON"].includes(type) && (

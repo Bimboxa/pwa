@@ -15,6 +15,7 @@ import {
   getDrawingToolByKey,
 } from "Features/mapEditor/constants/drawingTools.jsx";
 import getNewAnnotationPropsFromAnnotationTemplate from "Features/annotations/utils/getNewAnnotationPropsFromAnnotationTemplate";
+import getLocateBusinessObjectDraftProps from "Features/businessObjects/utils/getLocateBusinessObjectDraftProps";
 
 // Drawing shapes allowed to start a draw while the Dessin module is toggled to
 // its 3D editor: OBJECT_3D (3D placement mode), POLYGON / POLYLINE
@@ -48,6 +49,15 @@ export default function useDrawFromTemplate(annotationTemplate, listingId) {
   const isThreedToggledEditor = useSelector((s) =>
     isThreedFamilyViewerKey(selectEffectiveViewerKey(s))
   );
+  // Ouvrages module: drawing with a location template (the business-objects
+  // listing's own templates) while an object is selected LOCATES it — the
+  // draft carries the LOCATE_BUSINESS_OBJECT commit interceptor.
+  const locatingBusinessObjectId = useSelector((s) =>
+    s.viewers.selectedViewerKey === "BUSINESS_OBJECTS" &&
+    annotationTemplate?.isBusinessObjectAnnotation
+      ? (s.businessObjects?.selectedBusinessObjectId ?? null)
+      : null
+  );
 
   // helpers
 
@@ -70,10 +80,13 @@ export default function useDrawFromTemplate(annotationTemplate, listingId) {
 
   const dispatchDraw = (tool) => {
     dispatch(setSelectedListingId(listingId));
-    const baseProps = getNewAnnotationPropsFromAnnotationTemplate(
-      annotationTemplate,
-      rememberedDraftProps
-    );
+    const baseProps = {
+      ...getNewAnnotationPropsFromAnnotationTemplate(
+        annotationTemplate,
+        rememberedDraftProps
+      ),
+      ...getLocateBusinessObjectDraftProps(locatingBusinessObjectId),
+    };
     if (tool.annotationType) {
       dispatch(setNewAnnotation({ ...baseProps, type: tool.annotationType }));
     } else {

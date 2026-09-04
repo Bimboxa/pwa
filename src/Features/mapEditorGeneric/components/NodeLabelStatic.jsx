@@ -4,6 +4,11 @@ import { IconButton } from "@mui/material";
 import { Refresh, Visibility, VisibilityOff } from "@mui/icons-material";
 
 import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
+import getAnnotationLabelStubConfig from "Features/annotations/utils/getAnnotationLabelStubConfig";
+import useMapZoom from "../hooks/useMapZoom";
+import getLabelLeaderGeometry from "../utils/getLabelLeaderGeometry";
+import { useDispatch } from "react-redux";
+import { triggerBusinessObjectsUpdate } from "Features/businessObjects/businessObjectsSlice";
 
 import db from "App/db/db";
 
@@ -28,11 +33,16 @@ export default function NodeLabelStatic({
     onSizeChange,
     containerK = 1,
     forceHideLabel = false,
+    // Parent annotation selected (NodePolylineStatic / NodeMarkerStatic /
+    // NodeStripStatic): the state in which the chip is dragged, so the
+    // VARIABLE-mode elbow handle must be reachable there too.
+    showElbowHandle = false,
 }) {
 
     // data
 
     const updateAnnotation = useUpdateAnnotation();
+    const dispatch = useDispatch();
 
 
     // helpers
@@ -40,6 +50,7 @@ export default function NodeLabelStatic({
     const data = { ...annotation, ...annotationOverride };
     const {
         id,
+        mainBusinessObjectId,
         targetPoint = { x: 0, y: 0 },
         labelPoint = { x: 0, y: 0 },
         width: fixedWidth,
@@ -52,7 +63,17 @@ export default function NodeLabelStatic({
         fontSize = DEFAULT_FONT_SIZE,
         shadow = false,
         hidden,
+        // Leader stub (see getAnnotationLabelStubConfig / getLabelLeaderGeometry)
+        elbowPoint,
+        barycenter,
+        labelDelta,
+        imageSize: dataImageSize,
     } = data;
+    const stub = getAnnotationLabelStubConfig(data);
+    const isSubLabel = id.startsWith("label::");
+    // Standalone LABEL: imageSize is attached by useAnnotationsV2 (the prop is
+    // not threaded by every host).
+    const elbowImageSize = dataImageSize ?? imageSize;
 
     // -- 0. id --
     const annotationId = id.replace("label::", "");
@@ -82,6 +103,13 @@ export default function NodeLabelStatic({
         return `scale(calc(1 / (var(--map-zoom, 1) * ${k})))`;
     }, [containerK]);
 
+    // Flushed zoom published by MapEditorViewport at the same moment as the
+    // CSS var above (1 outside the map editor): lets the leader geometry be
+    // computed in image px from CSS-px chip measurements. Only subscribed
+    // when a stub is drawn (no re-render on zoom flush otherwise).
+    const zoom = useMapZoom(stub.length > 0);
+    const zk = (zoom || 1) * (containerK || 1);
+
     // --- 3. COORDONNÉES ---
     // targetPoint and labelPoint are already in pixel coordinates
     // (resolved by useAnnotationsV2 or computed from resolved points in polyline/marker sub-labels)
@@ -107,6 +135,13 @@ export default function NodeLabelStatic({
     const saveLabel = async (value) => {
         try {
             const _annotationId = id.startsWith("label::") ? id.replace("label::", "") : id;
+            // Main annotation of a located business object: the chip shows
+            // the object's name — editing it renames the OBJECT (the row's
+            // own label is kept in sync too, best effort).
+            if (mainBusinessObjectId) {
+                await db.businessObjects.update(mainBusinessObjectId, { label: value });
+                dispatch(triggerBusinessObjectsUpdate());
+            }
             // The chip always shows and edits the annotation's OWN label —
             // labels are decoupled from entities (an entity-linked annotation
             // no longer renames its entity from here).
@@ -198,6 +233,90 @@ export default function NodeLabelStatic({
         e.stopPropagation();
         // Back to auto width (content-driven).
         saveWidth(null);
+    };
+
+    // --- 4c. COUDE DU DÉPORT (mode VARIABLE, drag local de la poignée) ---
+    // Same local-drag model as the width handle: screen dx → image px with
+    // the zoom captured at pointerdown; the live value stays as override until
+    // the persisted elbow catches up.
+    const [liveElbowX, setLiveElbowX] = useState(null);
+
+    useEffect(() => {
+        // Tolerant compare: the persisted value goes through a barycenter /
+        // normalization round-trip.
+        if (
+            liveElbowX != null &&
+            Number.isFinite(elbowPoint?.x) &&
+            Math.abs(elbowPoint.x - liveElbowX) < 0.01
+        ) {
+            setLiveElbowX(null);
+        }
+    }, [elbowPoint?.x, liveElbowX]);
+
+    const saveElbow = async (elbowX, elbowY) => {
+        try {
+            if (isSubLabel) {
+                if (!barycenter) return;
+                const nextDelta = { ...(labelDelta ?? {}) };
+                if (elbowX == null) delete nextDelta.elbow;
+                else nextDelta.elbow = { x: elbowX - barycenter.x, y: elbowY - barycenter.y };
+                await updateAnnotation({ id: annotationId, labelDelta: nextDelta });
+            } else {
+                if (elbowX == null) {
+                    await updateAnnotation({ id, elbowPoint: null });
+                    return;
+                }
+                if (!elbowImageSize?.width || !elbowImageSize?.height) {
+                    console.warn("[NodeLabelStatic] elbow not saved: imageSize unknown", id);
+                    return;
+                }
+                await updateAnnotation({
+                    id,
+                    elbowPoint: {
+                        x: elbowX / elbowImageSize.width,
+                        y: elbowY / elbowImageSize.height,
+                    },
+                });
+            }
+        } catch (err) {
+            console.error(err);
+            setLiveElbowX(null);
+        }
+    };
+
+    const handleElbowPointerDown = (e, startElbowX) => {
+        e.stopPropagation();
+        // Suppresses the compat mousedown: neither the capture-phase drag
+        // start of InteractionLayer nor the viewport pan fire.
+        e.preventDefault();
+        const startX = e.clientX;
+        const zkAtStart = zk || 1;
+        let lastX = null;
+
+        const computeX = (clientX) => startElbowX + (clientX - startX) / zkAtStart;
+
+        const onMove = (ev) => {
+            lastX = computeX(ev.clientX);
+            setLiveElbowX(lastX);
+        };
+        const onUp = (ev) => {
+            window.removeEventListener("pointermove", onMove);
+            window.removeEventListener("pointerup", onUp);
+            window.removeEventListener("pointercancel", onUp);
+            const finalX = lastX ?? computeX(ev.clientX);
+            setLiveElbowX(finalX);
+            saveElbow(finalX, labelPx.y);
+        };
+        window.addEventListener("pointermove", onMove);
+        window.addEventListener("pointerup", onUp);
+        window.addEventListener("pointercancel", onUp);
+    };
+
+    const handleElbowReset = (e) => {
+        e.stopPropagation();
+        // Back to the derived (FIXED-like) elbow.
+        setLiveElbowX(null);
+        saveElbow(null);
     };
 
     // Save pending changes when deselected (textarea unmount skips onBlur)
@@ -327,11 +446,37 @@ export default function NodeLabelStatic({
     }
 
     // --- 6b. LIAISON ---
-    // Single segment target → chip center: the chip scale now depends on the
-    // CSS var --map-zoom (unavailable to JS, frozen during wheel gestures), so
-    // a chip-edge attach point cannot be computed reliably. The opaque chip is
-    // rendered after the line and visually clips it at its edge at every zoom.
-    const leaderPoints = `${targetPx.x},${targetPx.y} ${labelPx.x},${labelPx.y}`;
+    // target → elbow → horizontal stub → chip edge (or a single segment when
+    // the stub is 0 / the target sits under the chip). Chip-edge geometry is
+    // measured in CSS px and converted with the flushed zoom (useMapZoom), the
+    // same value the CSS counter-scale uses, so both agree at every zoom
+    // (including during the wheel-gesture freeze). The opaque chip is painted
+    // after the line and hides whatever runs under it.
+    const leader = getLabelLeaderGeometry({
+        targetPx,
+        labelPx,
+        // offsetWidth is border-box; strip the selection buffer added above.
+        halfWidthImg: (labelSize.w - (selected ? 4 : 0)) / 2 / zk,
+        stubImg: stub.length / zk,
+        mode: stub.mode,
+        elbowX: liveElbowX ?? elbowPoint?.x ?? null,
+    });
+    const leaderPoints = leader.points.map((p) => `${p.x},${p.y}`).join(" ");
+
+    // VARIABLE mode without a stored elbow: publish the elbow drawn right now
+    // so a LABEL_BOX drag (InteractionLayer reads the dataset at drag start)
+    // can pin it at commit — the chip moves, the elbow stays.
+    const elbowSeed =
+        stub.mode === "VARIABLE" && stub.length > 0 && !elbowPoint && leader.elbow
+            ? `${leader.elbow.x},${leader.elbow.y}`
+            : undefined;
+    if (elbowSeed) dataProps["data-label-elbow-seed"] = elbowSeed;
+
+    const showElbow =
+        (selected || showElbowHandle) &&
+        stub.mode === "VARIABLE" &&
+        stub.length > 0 &&
+        Boolean(leader.elbow);
 
     // Hide everything when the Etiquette content is fully toggled off (unless
     // selected: the placeholder chip stays editable).
@@ -375,6 +520,37 @@ export default function NodeLabelStatic({
                     <circle r={10} fill="transparent" stroke="transparent" data-part-type="TARGET" />
                 </g>
             </g>
+
+            {/* B2. COUDE (mode variable) : drag local = déplace le coude,
+                double-clic = retour au coude dérivé. Rendu avant la puce pour
+                rester sous elle. */}
+            {showElbow && (
+                <g transform={`translate(${leader.elbow.x}, ${leader.elbow.y})`}>
+                    <g data-label-scale style={{ transform: scaleTransform, transformBox: "fill-box", transformOrigin: "center" }}>
+                        <circle
+                            r={10}
+                            fill="transparent"
+                            stroke="transparent"
+                            data-interaction="ui-overlay"
+                            style={{ cursor: "ew-resize", pointerEvents: "auto", touchAction: "none" }}
+                            onPointerDown={(e) => handleElbowPointerDown(e, leader.elbow.x)}
+                            onDoubleClick={handleElbowReset}
+                        />
+                        <circle
+                            r={5}
+                            fill="#ffffff"
+                            stroke={activeColor}
+                            strokeWidth={1.5}
+                            data-interaction="ui-overlay"
+                            style={{ cursor: "ew-resize", pointerEvents: "auto", touchAction: "none" }}
+                            onPointerDown={(e) => handleElbowPointerDown(e, leader.elbow.x)}
+                            onDoubleClick={handleElbowReset}
+                        >
+                            <title>Coude du déport (double-clic : auto)</title>
+                        </circle>
+                    </g>
+                </g>
+            )}
 
             {/* C. LABEL BOX */}
             <g transform={`translate(${labelPx.x}, ${labelPx.y})`}>

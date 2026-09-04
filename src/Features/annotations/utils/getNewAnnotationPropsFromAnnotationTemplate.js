@@ -40,6 +40,9 @@ const ALWAYS_COPY_KEYS = [
   // Zone delimitation polygons (zonings module): per-zone templates carry this
   // flag; the commit skips the entity creation for them.
   "isZoneAnnotation",
+  // Location templates of a business-objects listing (Ouvrages module): the
+  // drawn annotation is the object's main annotation, no entity behind it.
+  "isBusinessObjectAnnotation",
 ];
 
 export default function getNewAnnotationPropsFromAnnotationTemplate(

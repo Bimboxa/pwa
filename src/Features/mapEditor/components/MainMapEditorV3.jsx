@@ -53,6 +53,8 @@ import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation"
 import applyLayerStackingToAnnotations from "Features/annotations/utils/applyLayerStackingToAnnotations";
 import applyOpeningOnPolygon from "Features/annotations/utils/applyOpeningOnPolygon";
 import reflowOpeningsForHost from "Features/mapEditor/services/reflowOpeningsForHostService";
+import moveOpeningAlongHostService from "Features/annotations/services/moveOpeningAlongHostService";
+import isOpeningAnnotation from "Features/annotations/utils/isOpeningAnnotation";
 import applyPointsMovesService from "Features/annotations/services/applyPointsMovesService";
 import shadeMeshCellColor from "Features/mesh/utils/meshCellColor";
 import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
@@ -147,6 +149,7 @@ import getObject3DAnnotationRectanglePointsFromOnePoint from "Features/object3D/
 import imageUrlToPng from "Features/images/utils/imageUrlToPng";
 import useUserEmail from "Features/auth/hooks/useUserEmail";
 import useDeferredDrawingCommit from "../hooks/useDeferredDrawingCommit";
+import useDeleteAnnotations from "Features/annotations/hooks/useDeleteAnnotations";
 import DeferredCommitDialogOutlet from "./DeferredCommitDialogOutlet";
 import ProcedureAutoLaunchDialogOutlet from "Features/annotationsAuto/components/ProcedureAutoLaunchDialogOutlet";
 import useSelectedNodes from "../hooks/useSelectedNodes";
@@ -582,9 +585,15 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     // deferredCommit.commit so an armed newAnnotation.commitInterceptor can
     // divert the commit to a dialog (see drawingCommitInterceptors).
     const { value: userEmail } = useUserEmail();
+    const deleteAnnotationsForInterceptors = useDeleteAnnotations();
     const deferredCommit = useDeferredDrawingCommit({
         commitFn: _handleCommitDrawing,
-        deps: { projectId, createdBy: userEmail, dispatch },
+        deps: {
+            projectId,
+            createdBy: userEmail,
+            dispatch,
+            deleteAnnotations: deleteAnnotationsForInterceptors,
+        },
     });
     const updateAnnotation = useUpdateAnnotation();
     const { handleSplitCommit, handlePolylineSplitAtVertex } = useHandleSplitCommit({ newEntity });
@@ -1397,7 +1406,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
         }
     };
 
-    const handleAnnotationMoveCommit = async (annotationId, deltaPos, partType, localPos) => {
+    const handleAnnotationMoveCommit = async (annotationId, deltaPos, partType, localPos, extra) => {
         const imageSize = baseMap?.getImageSize?.();
         if (!imageSize) return;
 
@@ -1470,7 +1479,11 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
             }
 
 
-            const labelDelta = getAnnotationLabelDeltaFromDeltaPos(annotation, deltaPos, partType);
+            // VARIABLE stub mode: the elbow drawn at drag start (published by
+            // NodeLabelStatic, read by InteractionLayer) gets pinned here.
+            const labelDelta = getAnnotationLabelDeltaFromDeltaPos(annotation, deltaPos, partType, {
+                elbowSeed: extra?.labelElbowSeed ?? null,
+            });
             await db.annotations.update(annotation.id, { labelDelta });
 
 
@@ -1551,6 +1564,13 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
 
             else if (annotation.type === "LABEL" || annotation.type === "FREE_TEXT") {
                 const { targetPoint, labelPoint } = annotation;
+                // Pinned leader elbow (LABEL, VARIABLE stub mode), image px.
+                const elbowPx = annotation.elbowPoint ?? null;
+                const elbowSeed = extra?.labelElbowSeed ?? null;
+                const normalizeElbow = (p) => ({
+                    x: p.x / imageSize.width,
+                    y: p.y / imageSize.height,
+                });
 
                 const updates = {};
 
@@ -1579,6 +1599,11 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                             y: (targetPoint.y + deltaPos.y) / imageSize.height
                         };
                     }
+                    // First chip drag in VARIABLE mode: pin the elbow that was
+                    // drawn before the drag (the chip moves, the elbow stays).
+                    if (annotation.type === "LABEL" && !elbowPx && elbowSeed) {
+                        updates.elbowPoint = normalizeElbow(elbowSeed);
+                    }
                 }
                 // 3. Cas général (Déplacement global)
                 else {
@@ -1590,6 +1615,12 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                         x: (labelPoint.x + deltaPos.x) / imageSize.width,
                         y: (labelPoint.y + deltaPos.y) / imageSize.height
                     };
+                    if (elbowPx) {
+                        updates.elbowPoint = normalizeElbow({
+                            x: elbowPx.x + deltaPos.x,
+                            y: elbowPx.y + deltaPos.y,
+                        });
+                    }
                 }
 
                 await db.annotations.update(annotation.id, updates);
@@ -1835,6 +1866,18 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
             // translates every point. Reuses the wrapper commit for its
             // shared-point handling: a point also referenced by another
             // annotation is forked instead of dragging that annotation along.
+            // OPENING (door / window) whole-move: slides along its host wall
+            // (anchor rewrite + reflow), or plain translation when free.
+            else if (isOpeningAnnotation(annotation)) {
+                await moveOpeningAlongHostService({
+                    annotation,
+                    deltaPos,
+                    meterByPx: baseMap?.getMeterByPx?.(),
+                    dispatch,
+                });
+                return; // the service dispatches triggerAnnotationsUpdate itself
+            }
+
             else if (annotation.type === "RULER") {
                 const pointUpdates = new Map();
                 for (const pt of annotation.points ?? []) {

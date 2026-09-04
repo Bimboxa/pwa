@@ -4,6 +4,7 @@ import { nanoid } from "@reduxjs/toolkit";
 import db from "App/db/db";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
+import useReflowOpeningsForHosts from "Features/mapEditor/hooks/useReflowOpeningsForHosts";
 import useUpdateAnnotation from "./useUpdateAnnotation";
 
 import { offsetPolyline } from "Features/geometry/utils/offsetPolylineAsPolygon";
@@ -28,6 +29,7 @@ import {
 export default function useToggleAnnotationStripType() {
   const baseMap = useMainBaseMap();
   const updateAnnotation = useUpdateAnnotation();
+  const reflowOpenings = useReflowOpeningsForHosts();
   const projectId = useSelector((s) => s.projects.selectedProjectId);
 
   return async (annotation) => {
@@ -114,5 +116,11 @@ export default function useToggleAnnotationStripType() {
         points: refs,
       });
     });
+
+    // Glued openings: the point ids were re-minted (stale anchors) and the
+    // glue curve moved from the stroke centre to the band median (or back)
+    // — re-anchor them by projection on the new geometry. Runs after the
+    // transaction (useUpdateAnnotation skips it inside one).
+    await reflowOpenings({ hostIds: [annotation.id] });
   };
 }

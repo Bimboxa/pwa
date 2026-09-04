@@ -12,7 +12,9 @@ import NodeLinearLayoutStatic from './NodeLinearLayoutStatic';
 
 import computeOpeningEndpointsFromHost, { buildHostCurve } from 'Features/mapEditor/utils/computeOpeningEndpointsFromHost';
 import computeOpeningSegmentPlacement from 'Features/mapEditor/utils/computeOpeningSegmentPlacement';
+import getOpeningHostOffsetPx from 'Features/mapEditor/utils/getOpeningHostOffsetPx';
 import getSegmentLengthItems from 'Features/annotations/utils/getSegmentLengthItems';
+import isOpeningAnnotation from 'Features/annotations/utils/isOpeningAnnotation';
 
 export default function TransientTopologyLayer({
     annotations,
@@ -247,6 +249,8 @@ export default function TransientTopologyLayer({
                 const widthM = Number(openingAnn.width);
                 if (!(widthM > 0)) continue;
                 const openingLengthPx = widthM / baseMapMeterByPx;
+                // STRIP host: glue curve = band median (stored edge + width/2).
+                const hostOffsetPx = getOpeningHostOffsetPx(hostAnn, baseMapMeterByPx);
 
                 let endpoints = null;
 
@@ -271,6 +275,7 @@ export default function TransientTopologyLayer({
                                 (Number(rel.hostDistanceM) || 0) / baseMapMeterByPx,
                             openingLengthPx,
                             arcControlPx,
+                            hostOffsetPx,
                         });
                     }
                 }
@@ -305,6 +310,7 @@ export default function TransientTopologyLayer({
                         hoverThresholdPx: Infinity,
                         vertexSnapPx: 0,
                         anchorEnd: "start",
+                        meterByPx: baseMapMeterByPx,
                     });
                     if (!placement) continue;
                     // Keep the opening CENTER at its projection on the found
@@ -313,7 +319,8 @@ export default function TransientTopologyLayer({
                     const segCurve = buildHostCurve(
                         placement.segStart,
                         placement.segEnd,
-                        placement.arcControl
+                        placement.arcControl,
+                        placement.hostOffsetPx
                     );
                     endpoints = computeOpeningEndpointsFromHost({
                         segStartPx: placement.segStart,
@@ -321,6 +328,7 @@ export default function TransientTopologyLayer({
                         hostDistancePx: segCurve.project(center).s,
                         openingLengthPx,
                         arcControlPx: placement.arcControl,
+                        hostOffsetPx: placement.hostOffsetPx,
                     });
                 }
 
@@ -432,9 +440,7 @@ export default function TransientTopologyLayer({
     return (
         <g className="transient-layer">
             {modifiedAnnotations.map(ann => {
-                const isOpeningNode =
-                    ann.drawingShape === "OPENING" ||
-                    (ann.isOpening && ann.points?.length === 2);
+                const isOpeningNode = isOpeningAnnotation(ann);
                 return <React.Fragment key={ann.id}>
                     {isOpeningNode && <NodeOpeningStatic
                         annotation={ann}

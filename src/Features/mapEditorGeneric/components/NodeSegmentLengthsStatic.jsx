@@ -57,6 +57,13 @@ const CONFLICT_MESSAGES = {
 //
 // `points` must be the SAME resolved array as `annotation.points` (the id →
 // index mapping done at commit time indexes into what the service reads).
+//
+// `simple` + `onCommitLength` (OPENING annotations, NodeOpeningStatic): a
+// single editable cote with no padlocks and no drag / angle toggles — the
+// value is committed through the given callback ({ seg, targetMeters,
+// dispatch }) → { ok, reason } instead of the contour solver. The no-mode
+// show/hide cotes toggle is kept so the cote can be revealed from the
+// opening itself.
 export default function NodeSegmentLengthsStatic({
   annotation,
   points = [],
@@ -68,6 +75,8 @@ export default function NodeSegmentLengthsStatic({
   printMode,
   isTransient,
   disableVertexEditing = false,
+  simple = false,
+  onCommitLength,
 }) {
   // data
 
@@ -277,6 +286,21 @@ export default function NodeSegmentLengthsStatic({
       // The field reads in the display unit; the service works in meters.
       const factor = unit === "M" ? 1 : unit === "MM" ? 0.001 : 0.01;
 
+      // Custom commit (opening width): no locks, no contour solver.
+      if (onCommitLength) {
+        const custom = await onCommitLength({
+          seg,
+          targetMeters: typed * factor,
+          dispatch,
+        });
+        if (custom?.ok === false) {
+          flashConflict(seg.startPointId, custom.reason);
+          return;
+        }
+        closeEditor();
+        return;
+      }
+
       // Locks are stored by point id; the solver works on indexes into the
       // very array the service reads (annotation.points === points).
       const indexByPointId = new Map();
@@ -326,6 +350,7 @@ export default function NodeSegmentLengthsStatic({
       dispatch,
       flashConflict,
       closeEditor,
+      onCommitLength,
     ]
   );
 
@@ -368,6 +393,11 @@ export default function NodeSegmentLengthsStatic({
     (interactionMode === "EDIT" && !straightItems.length)
   )
     return null;
+
+  // Simple mode (opening): the toolbar only carries the no-mode cotes toggle
+  // — nothing to show in EDIT (no angle padlock) or without a scale.
+  const showToolbar =
+    Boolean(angleLockAnchor) && (!simple || (isNoMode && hasScale));
 
   return (
     <g data-segment-lengths="1">
@@ -447,6 +477,7 @@ export default function NodeSegmentLengthsStatic({
                     {/* Same lock affordance as the RULER cote fields: closed =
                         this segment keeps its length when ANOTHER segment is
                         edited (rigid translation through it). */}
+                    {!simple && (
                     <IconButton
                       size="small"
                       title={
@@ -478,6 +509,7 @@ export default function NodeSegmentLengthsStatic({
                         <LockOpenIcon sx={{ fontSize: 16 }} />
                       )}
                     </IconButton>
+                    )}
                   </div>
                 </foreignObject>
               ) : (
@@ -486,8 +518,8 @@ export default function NodeSegmentLengthsStatic({
                   // enough to size the readability background and place the
                   // inline padlock; SVG has no cheap text measurement.
                   const textW = seg.text.length * 7.2;
-                  const lockW = 14;
-                  const totalW = lockW + 2 + textW;
+                  const lockW = simple ? 0 : 14;
+                  const totalW = simple ? textW : lockW + 2 + textW;
                   const left = -totalW / 2;
                   return (
                     <g data-interaction="ui-overlay" {...overlayGuards}>
@@ -505,6 +537,7 @@ export default function NodeSegmentLengthsStatic({
                       />
                       {/* Inline padlock: locks the cote directly, without
                           opening the editor first. */}
+                      {!simple && (
                       <g
                         onClick={(e) => {
                           e.stopPropagation();
@@ -535,8 +568,9 @@ export default function NodeSegmentLengthsStatic({
                           color={ACCENT_COLOR}
                         />
                       </g>
+                      )}
                       <text
-                        x={left + lockW + 2}
+                        x={simple ? left : left + lockW + 2}
                         y={0}
                         textAnchor="start"
                         dominantBaseline="central"
@@ -566,7 +600,7 @@ export default function NodeSegmentLengthsStatic({
           No-mode: 3 toggles — show/hide cotes, enable segment drag, angle
           padlock. Rendered as HTML buttons in a foreignObject so they get
           real MUI Tooltips. */}
-      {angleLockAnchor && (
+      {showToolbar && (
         <g
           transform={`translate(${angleLockAnchor.x}, ${angleLockAnchor.y})`}
         >
@@ -613,7 +647,7 @@ export default function NodeSegmentLengthsStatic({
                     </IconButton>
                   </Tooltip>
                 )}
-                {isNoMode && (
+                {isNoMode && !simple && (
                   <Tooltip
                     placement="top"
                     arrow
@@ -642,6 +676,7 @@ export default function NodeSegmentLengthsStatic({
                     </IconButton>
                   </Tooltip>
                 )}
+                {!simple && (
                 <Tooltip
                   placement="top"
                   arrow
@@ -669,6 +704,7 @@ export default function NodeSegmentLengthsStatic({
                     )}
                   </IconButton>
                 </Tooltip>
+                )}
               </div>
             </foreignObject>
           </g>
@@ -678,6 +714,7 @@ export default function NodeSegmentLengthsStatic({
       {/* per-point padlocks (arc control points excluded: locking a control
           point is meaningless in v1) */}
       {labelsActive &&
+        !simple &&
         points.map((pt, i) => {
         if (!pt?.id || typeOf(pt) === "circle") return null;
         const isLocked = Boolean(lockedPointIds[pt.id]);

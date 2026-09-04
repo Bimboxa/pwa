@@ -14,6 +14,7 @@ import {
   selectSelectedPartIds,
 } from "Features/selection/selectionSlice";
 import useSelectedNodes from "../hooks/useSelectedNodes";
+import isOpeningAnnotation, { sortOpeningsLast } from "Features/annotations/utils/isOpeningAnnotation";
 
 const selectWrapperMode = (state) => state.mapEditor.wrapperMode;
 
@@ -101,8 +102,9 @@ export default function EditedObjectLayer({
   const finalPose = isBgContext ? { x: 0, y: 0, k: 1 } : basePose;
 
   // On filtre celles qui sont cachées (topology/segment split)
-  const annotationsToRender = activeAnnotations.filter(
-    (a) => !hiddenAnnotationIds.includes(a.id)
+  // Openings last so a multi-selection keeps the wall gap above its host.
+  const annotationsToRender = sortOpeningsLast(
+    activeAnnotations.filter((a) => !hiddenAnnotationIds.includes(a.id))
   );
 
   // Wrapper bbox for point-based annotations (POLYLINE, POLYGON, STRIP)
@@ -173,10 +175,14 @@ export default function EditedObjectLayer({
     >
       {annotationsToRender.map((annotation) => {
         // Style spécifique pour chaque annotation
+        // A selected OPENING is draggable as a whole too: the drag slides it
+        // along its host wall (constrained in InteractionLayer, committed by
+        // moveOpeningAlongHostService).
         const isDraggable =
           (annotation.type === "MARKER" ||
             annotation.type === "LABEL" ||
-            annotation.type === "FREE_TEXT") &&
+            annotation.type === "FREE_TEXT" ||
+            isOpeningAnnotation(annotation)) &&
           selectedNode?.nodeId === annotation.id;
 
         // Est-ce que l'annotation entière est sélectionnée ?

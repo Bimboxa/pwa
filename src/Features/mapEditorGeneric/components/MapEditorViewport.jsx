@@ -1,6 +1,7 @@
 // components/MapEditorViewport.jsx
 import { useRef, useImperativeHandle, forwardRef, useCallback, useLayoutEffect, useEffect } from 'react';
 import screenToWorld from '../utils/screenToWorld';
+import { MapZoomContext, createMapZoomStore } from '../hooks/useMapZoom';
 
 // Zoom sensitivity constant (same as MapEditorGeneric.jsx)
 const ZOOM_SENSITIVITY = 1.0015;
@@ -25,6 +26,9 @@ const MapEditorViewport = forwardRef(({
 }, ref) => {
     const svgRef = useRef(null);
     const cameraGroupRef = useRef(null);
+    // JS mirror of --map-zoom (see useMapZoom): same value, same moment.
+    const zoomStoreRef = useRef(null);
+    if (!zoomStoreRef.current) zoomStoreRef.current = createMapZoomStore(1);
 
     // 1. ÉTAT DE LA CAMÉRA (Stocké dans une Ref pour la performance)
     const cameraMatrix = useRef({ x: 0, y: 0, k: 1 });
@@ -54,6 +58,7 @@ const MapEditorViewport = forwardRef(({
         if (lastAppliedZoomRef.current === k) return;
         cameraGroupRef.current.style.setProperty('--map-zoom', k);
         lastAppliedZoomRef.current = k;
+        zoomStoreRef.current.set(k);
     };
 
     // Applies the camera matrix to the DOM via the SVG transform attribute.
@@ -325,6 +330,7 @@ const MapEditorViewport = forwardRef(({
     };
 
     return (
+        <MapZoomContext.Provider value={zoomStoreRef.current}>
         <div style={{ width: '100%', height: '100%', overflow: 'hidden', position: 'relative' }}>
             <svg
                 ref={svgRef}
@@ -351,6 +357,7 @@ const MapEditorViewport = forwardRef(({
                 {htmlOverlay}
             </div>
         </div >
+        </MapZoomContext.Provider>
     );
 });
 

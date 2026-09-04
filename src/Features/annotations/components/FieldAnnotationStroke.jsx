@@ -10,11 +10,12 @@ export default function FieldAnnotationStroke({ annotation, overrideFields }) {
 
   // helpers
 
+  // Stroke STYLE only — the width has its own row (FieldAnnotationStrokeWidth).
+  // strokeWidthUnit is passed read-only to label the dash band inputs.
   const strokeValue = {
     strokeColor: annotation?.strokeColor ?? "#000000",
     strokeType: annotation?.strokeType ?? "SOLID",
     strokeOpacity: annotation?.strokeOpacity ?? 1,
-    strokeWidth: annotation?.strokeWidth ?? 1,
     strokeWidthUnit: annotation?.strokeWidthUnit ?? "PX",
     dashLength: annotation?.dashLength ?? null,
     dashGap: annotation?.dashGap ?? null,
@@ -28,8 +29,6 @@ export default function FieldAnnotationStroke({ annotation, overrideFields }) {
       strokeColor: newValue.strokeColor,
       strokeType: newValue.strokeType,
       strokeOpacity: newValue.strokeOpacity,
-      strokeWidth: newValue.strokeWidth,
-      strokeWidthUnit: newValue.strokeWidthUnit,
       dashLength: newValue.dashLength,
       dashGap: newValue.dashGap,
     });

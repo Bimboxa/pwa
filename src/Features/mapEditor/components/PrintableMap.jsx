@@ -3,6 +3,7 @@ import React, { forwardRef } from 'react';
 import NodeSvgImage from 'Features/mapEditorGeneric/components/NodeSvgImage';
 import NodeAnnotationStatic from 'Features/mapEditorGeneric/components/NodeAnnotationStatic'; // ou NodePolylineStatic + NodeMarkerStati
 import NodeLegendStatic from 'Features/mapEditorGeneric/components/NodeLegendStatic';
+import { sortOpeningsLast } from 'Features/annotations/utils/isOpeningAnnotation';
 
 const PrintableMap = forwardRef(({
     bgImageUrl,
@@ -30,8 +31,10 @@ const PrintableMap = forwardRef(({
     const bgImageAnnotations = showBgImage
         ? annotations.filter(({ nodeType }) => nodeType === "BG_IMAGE_TEXT")
         : [];
-    const baseMapAnnotations = annotations.filter(({ baseMapId }) =>
-        Boolean(baseMapId)
+    // Openings last: their white gap must cover the host wall (see
+    // StaticMapContent).
+    const baseMapAnnotations = sortOpeningsLast(
+        annotations.filter(({ baseMapId }) => Boolean(baseMapId))
     );
 
     return (

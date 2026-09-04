@@ -14,10 +14,13 @@ import {
 import { DialogTitle, Box } from "@mui/material";
 import { getDefaultsForShape } from "Features/annotations/constants/drawingShapeConfig";
 
+// templateDefaults: optional props merged into the initial draft (e.g. the
+// isBusinessObjectAnnotation flag of a business-objects listing's templates).
 export default function DialogCreateAnnotationTemplate({
   open,
   onClose,
   listingId,
+  templateDefaults,
 }) {
   // strings
 
@@ -36,8 +39,10 @@ export default function DialogCreateAnnotationTemplate({
     label: "",
     isFromAnnotation: true,
     ...getDefaultsForShape("POLYGON"),
-    // color props locked by default: the template imposes them on annotations
+    // color props locked by default: the template imposes them on annotations.
+    // The stroke width (STROKE_WIDTH_FIELDS) stays unlocked on purpose.
     overrideFields: [...FILL_FIELDS, ...STROKE_FIELDS],
+    ...(templateDefaults ?? {}),
   };
 
   const [tempAnnotationTemplate, setTempAnnotationTemplate] = useState(

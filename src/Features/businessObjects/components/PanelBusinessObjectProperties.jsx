@@ -25,7 +25,12 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { AddLink, LinkOff, ArrowBack as Back } from "@mui/icons-material";
+import {
+  AddLink,
+  LinkOff,
+  ArrowBack as Back,
+  LocationOff,
+} from "@mui/icons-material";
 
 import { CirclePicker } from "react-color";
 import defaultColors from "Features/colors/data/defaultColors";
@@ -37,6 +42,8 @@ import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemp
 import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
 import useRelsBusinessObjectAnnotation from "../hooks/useRelsBusinessObjectAnnotation";
 import useUpdateBusinessObject from "../hooks/useUpdateBusinessObject";
+import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
+import unsetMainAnnotationService from "../services/unsetMainAnnotationService";
 
 import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTemplateIcon";
 import SectionNotesAppObjectNotes from "Features/notesApp/components/SectionNotesAppObjectNotes";
@@ -47,9 +54,11 @@ import getItemsByKey from "Features/misc/utils/getItemsByKey";
 import { BUSINESS_OBJECT_UNITS } from "../constants/businessObjectEntityModel";
 
 // Right-panel properties of a business object selected in the Ouvrages
-// drawer: editable props (label, color, description, unit), the list of the
-// linked annotations with per-annotation quantities and unlink buttons, the
-// rolled-up total per the object's unit, and the picking-mode toggle.
+// drawer: editable props (label, color, description, unit), the "Localiser"
+// action + the object's MAIN annotations (one per base map, "Localisation"
+// section), the list of the other linked annotations with per-annotation
+// quantities and unlink buttons, the rolled-up total per the object's unit,
+// and the picking-mode toggle.
 export default function PanelBusinessObjectProperties() {
   const dispatch = useDispatch();
 
@@ -87,6 +96,15 @@ export default function PanelBusinessObjectProperties() {
   const spriteImage = useAnnotationSpriteImage();
   const updateBusinessObject = useUpdateBusinessObject();
 
+  const { value: baseMaps } = useBaseMaps();
+  const baseMapNameById = useMemo(() => {
+    const byId = {};
+    (baseMaps ?? []).forEach((b) => {
+      byId[b.id] = b.name ?? b.label ?? "";
+    });
+    return byId;
+  }, [baseMaps]);
+
   const annotationTemplateById = useMemo(
     () => getItemsByKey(annotationTemplates ?? [], "id"),
     [annotationTemplates]
@@ -123,6 +141,17 @@ export default function PanelBusinessObjectProperties() {
       .filter((a) => relByAnnotationId[a.id])
       .map((a) => ({ annotation: a, rel: relByAnnotationId[a.id] }));
   }, [rels, annotations]);
+
+  // main annotations ("Localisation") vs plain links ("Annotations liées");
+  // the quantity rollup counts both.
+  const mainRows = useMemo(
+    () => linkedRows.filter(({ rel }) => rel.isMain),
+    [linkedRows]
+  );
+  const plainRows = useMemo(
+    () => linkedRows.filter(({ rel }) => !rel.isMain),
+    [linkedRows]
+  );
 
   const qties = useMemo(() => {
     const stats = { count: 0, length: 0, surface: 0 };
@@ -189,6 +218,12 @@ export default function PanelBusinessObjectProperties() {
 
   async function handleUnlink(rel) {
     await db.relsBusinessObjectAnnotation.delete(rel.id);
+    dispatch(triggerRelsBusinessObjectAnnotationUpdate());
+  }
+
+  // "Retirer la localisation": the annotation stays linked, not main anymore
+  async function handleUnsetMain(rel) {
+    await unsetMainAnnotationService({ rel });
     dispatch(triggerRelsBusinessObjectAnnotationUpdate());
   }
 
@@ -341,8 +376,90 @@ export default function PanelBusinessObjectProperties() {
         </Button>
       </Box>
 
-      {/* linked annotations + total */}
+      {/* main annotations (one per base map) + linked annotations + total */}
       <Box sx={{ overflowY: "auto", flex: 1 }}>
+        {mainRows.length > 0 && (
+          <>
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                px: 1.5,
+                py: 0.75,
+                bgcolor: "panel.sectionBg",
+              }}
+            >
+              <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                Localisation
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                {`${mainRows.length} plan${mainRows.length > 1 ? "s" : ""}`}
+              </Typography>
+            </Box>
+            <List dense disablePadding>
+              {mainRows.map(({ annotation, rel }) => {
+                const template =
+                  annotationTemplateById[annotation.annotationTemplateId];
+                return (
+                  <ListItem
+                    key={annotation.id}
+                    sx={{
+                      py: 0.25,
+                      "&:hover .business-object-unlink": {
+                        visibility: "visible",
+                      },
+                    }}
+                  >
+                    <Box sx={{ mr: 1, display: "flex", alignItems: "center" }}>
+                      <AnnotationTemplateIcon
+                        template={template}
+                        size={20}
+                        spriteImage={spriteImage}
+                      />
+                    </Box>
+                    <ListItemText
+                      primary={
+                        baseMapNameById[rel.baseMapId ?? annotation.baseMapId] ||
+                        "Plan"
+                      }
+                      secondary={template?.label}
+                      slotProps={{
+                        primary: { variant: "body2", noWrap: true },
+                        secondary: { variant: "caption", noWrap: true },
+                      }}
+                    />
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ ml: 1, whiteSpace: "nowrap" }}
+                    >
+                      {getAnnotationMainQtyLabel(annotation, annotation.qties)}
+                    </Typography>
+                    <IconButton
+                      className="business-object-unlink"
+                      size="small"
+                      onClick={() => handleUnsetMain(rel)}
+                      title="Retirer la localisation (l'annotation reste liée)"
+                      sx={{ ml: 0.5, visibility: "hidden" }}
+                    >
+                      <LocationOff sx={{ fontSize: 16 }} />
+                    </IconButton>
+                    <IconButton
+                      className="business-object-unlink"
+                      size="small"
+                      onClick={() => handleUnlink(rel)}
+                      title="Délier cette annotation"
+                      sx={{ visibility: "hidden" }}
+                    >
+                      <LinkOff sx={{ fontSize: 16 }} />
+                    </IconButton>
+                  </ListItem>
+                );
+              })}
+            </List>
+          </>
+        )}
         <Box
           sx={{
             display: "flex",
@@ -360,13 +477,13 @@ export default function PanelBusinessObjectProperties() {
             {getBusinessObjectQtyLabel(businessObject.unit, qties)}
           </Typography>
         </Box>
-        {linkedRows.length === 0 ? (
+        {plainRows.length === 0 ? (
           <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>
             Aucune annotation liée à cet ouvrage
           </Typography>
         ) : (
           <List dense disablePadding>
-            {linkedRows.map(({ annotation, rel }) => {
+            {plainRows.map(({ annotation, rel }) => {
               const template =
                 annotationTemplateById[annotation.annotationTemplateId];
               return (

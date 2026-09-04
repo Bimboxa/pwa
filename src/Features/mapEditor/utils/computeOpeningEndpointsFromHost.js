@@ -47,52 +47,69 @@ function getCircleFrom3Points(p0, p1, p2) {
  * S-C-S arc A→B through `arcControl`. Abscissas (s) are curvilinear, measured
  * from A (the reference vertex).
  *
+ * `offsetPx` shifts the curve laterally along the LEFT normal (-uy, ux) of
+ * the travel direction A→B (same convention as offsetPolylineAsPolygon):
+ * that is how a STRIP host exposes its median line, since its stored points
+ * are one edge of the band (see getOpeningHostOffsetPx). A straight segment
+ * keeps its length; an arc keeps its centre and its angular span, only the
+ * radius changes (r - dir·offset: for a CW arc the left normal points to the
+ * centre), so abscissas stay measured from the offset start point.
+ *
  * @returns {{
  *   len: number,
  *   pointAt: (s: number) => { x: number, y: number },
  *   project: (p: { x, y }) => { s: number, distance: number },
  * }}
  */
-export function buildHostCurve(A, B, arcControl) {
+export function buildHostCurve(A, B, arcControl, offsetPx = 0) {
+  const offset = Number.isFinite(offsetPx) ? offsetPx : 0;
+
   if (arcControl) {
     const circ = getCircleFrom3Points(A, arcControl, B);
     if (circ && circ.r > 0) {
-      const { center, r, isCW } = circ;
+      const { center, isCW } = circ;
       const angleStart = Math.atan2(A.y - center.y, A.x - center.x);
       const angleEnd = Math.atan2(B.y - center.y, B.x - center.x);
       // isCW arcs sweep in +angle direction, CCW in -angle direction
       // (same convention as getBestSnap's projectOnArc).
       const dir = isCW ? 1 : -1;
       const span = normalizeAngle(dir * (angleEnd - angleStart));
-      const len = span * r;
+      // Offset arc: same centre, radius shifted along the left normal.
+      const r = circ.r - dir * offset;
+      if (r > 0) {
+        const len = span * r;
 
-      const pointAt = (s) => {
-        const angle = angleStart + dir * (s / r);
-        return {
-          x: center.x + Math.cos(angle) * r,
-          y: center.y + Math.sin(angle) * r,
+        const pointAt = (s) => {
+          const angle = angleStart + dir * (s / r);
+          return {
+            x: center.x + Math.cos(angle) * r,
+            y: center.y + Math.sin(angle) * r,
+          };
         };
-      };
 
-      const project = (p) => {
-        const dx = p.x - center.x;
-        const dy = p.y - center.y;
-        const dist = Math.hypot(dx, dy);
-        if (dist === 0) return { s: 0, distance: r };
-        const angleAt = Math.atan2(dy, dx);
-        const rel = normalizeAngle(dir * (angleAt - angleStart));
-        if (rel <= span) {
-          return { s: rel * r, distance: Math.abs(dist - r) };
-        }
-        // Outside the arc — clamp to the nearest endpoint.
-        const dA = Math.hypot(p.x - A.x, p.y - A.y);
-        const dB = Math.hypot(p.x - B.x, p.y - B.y);
-        return dA < dB ? { s: 0, distance: dA } : { s: len, distance: dB };
-      };
+        const startPt = pointAt(0);
+        const endPt = pointAt(len);
 
-      return { len, pointAt, project };
+        const project = (p) => {
+          const dx = p.x - center.x;
+          const dy = p.y - center.y;
+          const dist = Math.hypot(dx, dy);
+          if (dist === 0) return { s: 0, distance: r };
+          const angleAt = Math.atan2(dy, dx);
+          const rel = normalizeAngle(dir * (angleAt - angleStart));
+          if (rel <= span) {
+            return { s: rel * r, distance: Math.abs(dist - r) };
+          }
+          // Outside the arc — clamp to the nearest endpoint.
+          const dA = Math.hypot(p.x - startPt.x, p.y - startPt.y);
+          const dB = Math.hypot(p.x - endPt.x, p.y - endPt.y);
+          return dA < dB ? { s: 0, distance: dA } : { s: len, distance: dB };
+        };
+
+        return { len, pointAt, project };
+      }
     }
-    // Degenerate arc → fall through to linear
+    // Degenerate arc (or offset swallowing the radius) → fall through to linear
   }
 
   const ux = B.x - A.x;
@@ -101,10 +118,13 @@ export function buildHostCurve(A, B, arcControl) {
   const nx = len === 0 ? 0 : ux / len;
   const ny = len === 0 ? 0 : uy / len;
 
-  const pointAt = (s) => ({ x: A.x + nx * s, y: A.y + ny * s });
+  // Offset start point along the left normal (-ny, nx).
+  const A0 = { x: A.x - ny * offset, y: A.y + nx * offset };
+
+  const pointAt = (s) => ({ x: A0.x + nx * s, y: A0.y + ny * s });
 
   const project = (p) => {
-    const s = Math.max(0, Math.min(len, (p.x - A.x) * nx + (p.y - A.y) * ny));
+    const s = Math.max(0, Math.min(len, (p.x - A0.x) * nx + (p.y - A0.y) * ny));
     const proj = pointAt(s);
     return { s, distance: Math.hypot(p.x - proj.x, p.y - proj.y) };
   };
@@ -126,6 +146,8 @@ export function buildHostCurve(A, B, arcControl) {
  * @param {number} args.hostDistancePx - opening center abscissa from segStart
  * @param {number} args.openingLengthPx - opening width along the wall
  * @param {{x,y}} [args.arcControlPx] - S-C-S middle control point (arc host)
+ * @param {number} [args.hostOffsetPx] - lateral offset of the glue curve from
+ *   the stored segment (STRIP median line, see getOpeningHostOffsetPx)
  * @returns {{ p1: {x,y}, p2: {x,y}, fits: boolean, hostDistancePx: number }}
  */
 export default function computeOpeningEndpointsFromHost({
@@ -134,15 +156,21 @@ export default function computeOpeningEndpointsFromHost({
   hostDistancePx,
   openingLengthPx,
   arcControlPx,
+  hostOffsetPx = 0,
 }) {
-  const curve = buildHostCurve(segStartPx, segEndPx, arcControlPx);
+  const curve = buildHostCurve(
+    segStartPx,
+    segEndPx,
+    arcControlPx,
+    hostOffsetPx
+  );
   const L = openingLengthPx;
 
   if (!(L > 0) || curve.len < L) {
-    // Opening no longer fits — it spans the whole segment.
+    // Opening no longer fits — it spans the whole (offset) segment.
     return {
-      p1: { ...segStartPx },
-      p2: { ...segEndPx },
+      p1: curve.pointAt(0),
+      p2: curve.pointAt(curve.len),
       fits: false,
       hostDistancePx,
     };

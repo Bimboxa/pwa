@@ -52,6 +52,10 @@ export default function getAnnotationTemplateProps(annotationTemplate) {
     height: annotationTemplate?.height,
     offsetZ: annotationTemplate?.offsetZ,
 
+    // OPENING — door / window symbol type. Only applied to annotations when
+    // listed in overrideFields (padlock); otherwise seeded at creation.
+    openingType: annotationTemplate?.openingType,
+
     // LINEAR_LAYOUT (calepinage linéaire) — band width + bar distribution.
     // Only applied to annotations when listed in overrideFields (padlock).
     width: annotationTemplate?.width,
@@ -93,6 +97,12 @@ export default function getAnnotationTemplateProps(annotationTemplate) {
     showUnitLabel: annotationTemplate?.showUnitLabel,
     showTotalCote: annotationTemplate?.showTotalCote,
     showRulerLabel: annotationTemplate?.showRulerLabel,
+
+    // Label leader stub ("déport horizontal"). Read-time defaults for the
+    // annotations without their own value (not seeded at creation); forced
+    // onto every annotation when listed in overrideFields (padlock).
+    labelStubLength: annotationTemplate?.labelStubLength,
+    labelStubMode: annotationTemplate?.labelStubMode,
 
     overrideFields: annotationTemplate?.overrideFields,
   };

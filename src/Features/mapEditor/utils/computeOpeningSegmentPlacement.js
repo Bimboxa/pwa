@@ -8,6 +8,8 @@
 // (the caller then falls back to free placement).
 
 import { buildHostCurve } from "./computeOpeningEndpointsFromHost";
+import getOpeningHostOffsetPx from "./getOpeningHostOffsetPx";
+import { getStripChunks } from "Features/geometry/utils/getStripePolygons";
 
 const typeOf = (p) => (p?.type === "circle" ? "circle" : "square");
 
@@ -15,21 +17,45 @@ const typeOf = (p) => (p?.type === "circle" ? "circle" : "square");
 // host curve and becomes an endpoint snap candidate.
 const ON_CURVE_TOLERANCE_PX = 2;
 
+const HOST_TYPES = ["POLYLINE", "POLYGON", "STRIP"];
+
 // Collects hosting segments (straight + full S-C-S arcs) from the main
-// contour of each candidate annotation.
-function collectHostSegments(annotations) {
+// contour of each candidate annotation. Each segment carries `offsetPx`, the
+// lateral offset of the glue curve from the stored points (0 for POLYLINE /
+// POLYGON, half the signed band width for a STRIP — its median line).
+function collectHostSegments(annotations, meterByPx) {
   const segments = [];
 
   for (const ann of annotations) {
-    if (!["POLYLINE", "POLYGON"].includes(ann.type)) continue;
+    if (!HOST_TYPES.includes(ann.type)) continue;
     if (ann.isOpening) continue;
-    const pts = ann.points;
+
+    const isStrip = ann.type === "STRIP";
+    let pts = ann.points;
+    let shouldClose = ann.closeLine || ann.type === "POLYGON";
+    let hiddenSet = null;
+    if (isStrip) {
+      // Implicit closure (last == first) is folded into effectivePoints;
+      // hidden segments have no band, so they cannot host an opening.
+      const { effectiveCloseLine, effectivePoints } = getStripChunks(ann);
+      pts = effectivePoints;
+      shouldClose = effectiveCloseLine;
+      hiddenSet = new Set(ann.hiddenSegmentsIdx ?? []);
+    }
     if (!Array.isArray(pts) || pts.length < 2) continue;
 
+    const offsetPx = getOpeningHostOffsetPx(ann, meterByPx);
     const n = pts.length;
-    const shouldClose = ann.closeLine || ann.type === "POLYGON";
     const limit = shouldClose ? n : n - 1;
     const getPt = (i) => pts[(i + n) % n];
+    const push = (segIndex, A, B, arcControl, span = 1) => {
+      if (hiddenSet) {
+        for (let k = 0; k < span; k++) {
+          if (hiddenSet.has((segIndex + k) % n)) return;
+        }
+      }
+      segments.push({ ann, segIndex, A, B, arcControl, offsetPx });
+    };
 
     let i = 0;
     while (i < limit) {
@@ -42,7 +68,7 @@ function collectHostSegments(annotations) {
         while (j < i + n && typeOf(getPt(j)) === "circle") j++;
 
         if (!shouldClose && j >= n) {
-          segments.push({ ann, segIndex: i, A: p0, B: p1, arcControl: null });
+          push(i, p0, p1, null);
           i++;
           continue;
         }
@@ -50,13 +76,7 @@ function collectHostSegments(annotations) {
         const pNextSquare = getPt(j);
 
         if (j === i + 2) {
-          segments.push({
-            ann,
-            segIndex: i,
-            A: p0,
-            B: pNextSquare,
-            arcControl: p1,
-          });
+          push(i, p0, pNextSquare, p1, 2);
           i += 2;
           continue;
         }
@@ -65,20 +85,14 @@ function collectHostSegments(annotations) {
         // getBestSnap).
         let k = i;
         while (k < j) {
-          segments.push({
-            ann,
-            segIndex: k,
-            A: getPt(k),
-            B: getPt(k + 1),
-            arcControl: null,
-          });
+          push(k, getPt(k), getPt(k + 1), null);
           k++;
         }
         i = j;
         continue;
       }
 
-      segments.push({ ann, segIndex: i, A: p0, B: p1, arcControl: null });
+      push(i, p0, p1, null);
       i++;
     }
   }
@@ -115,15 +129,22 @@ function collectVertexCandidates(annotations) {
  * @param {number} args.hoverThresholdPx - max cursor↔host distance (10cm plan)
  * @param {number} args.vertexSnapPx - endpoint↔vertex magnetism threshold
  * @param {"start"|"end"} [args.anchorEnd] - which endpoint the mouse holds (S key)
+ * @param {number} [args.meterByPx] - base map scale, needed to size the median
+ *   offset of STRIP hosts (CM band widths); STRIPs are skipped without it
  * @returns {null | {
  *   p1: {x,y}, p2: {x,y},
  *   hostAnnotationId: string, hostSegmentIndex: number,
  *   segStartId: string, segEndId: string,
  *   segStart: {x,y}, segEnd: {x,y},
  *   arcControlId: string|null, arcControl: {x,y}|null,
+ *   hostOffsetPx: number,
  *   hostDistancePx: number, fits: boolean,
  *   snapped: null | { which: "p1"|"p2", x: number, y: number, pointId: string },
  * }}
+ *
+ * segStart / segEnd are the host's STORED vertices (the ones the anchor
+ * references); p1 / p2 and hostDistancePx live on the glue curve, i.e. the
+ * stored segment shifted by hostOffsetPx (the STRIP median line).
  */
 export default function computeOpeningSegmentPlacement({
   cursorPx,
@@ -132,25 +153,28 @@ export default function computeOpeningSegmentPlacement({
   hoverThresholdPx,
   vertexSnapPx,
   anchorEnd = "start",
+  meterByPx,
 }) {
   if (!cursorPx || !Array.isArray(annotations) || !(openingLengthPx > 0)) {
     return null;
   }
 
-  const segments = collectHostSegments(annotations);
+  const segments = collectHostSegments(annotations, meterByPx);
   if (!segments.length) return null;
 
-  // 1. Nearest hosting segment
+  // 1. Nearest hosting segment. A STRIP is hovered from anywhere inside its
+  // band, so its threshold grows by the median offset (half the width).
   let best = null;
   for (const seg of segments) {
-    const curve = buildHostCurve(seg.A, seg.B, seg.arcControl);
+    const curve = buildHostCurve(seg.A, seg.B, seg.arcControl, seg.offsetPx);
     if (curve.len === 0) continue;
     const proj = curve.project(cursorPx);
+    if (proj.distance > hoverThresholdPx + Math.abs(seg.offsetPx)) continue;
     if (!best || proj.distance < best.proj.distance) {
       best = { seg, curve, proj };
     }
   }
-  if (!best || best.proj.distance > hoverThresholdPx) return null;
+  if (!best) return null;
 
   const { seg, curve, proj } = best;
   const L = openingLengthPx;
@@ -166,14 +190,15 @@ export default function computeOpeningSegmentPlacement({
     arcControl: seg.arcControl
       ? { x: seg.arcControl.x, y: seg.arcControl.y }
       : null,
+    hostOffsetPx: seg.offsetPx,
   };
 
   // 2. Opening longer than the hosting segment — invalid preview
   if (curve.len < L) {
     return {
       ...base,
-      p1: { x: seg.A.x, y: seg.A.y },
-      p2: { x: seg.B.x, y: seg.B.y },
+      p1: curve.pointAt(0),
+      p2: curve.pointAt(curve.len),
       hostDistancePx: curve.len / 2,
       fits: false,
       snapped: null,

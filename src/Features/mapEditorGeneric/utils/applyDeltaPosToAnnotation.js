@@ -294,6 +294,14 @@ export default function applyDeltaPosToAnnotation(annotation, deltaPos, partType
                 x: _annotation.labelPoint.x + deltaPos.x,
                 y: _annotation.labelPoint.y + deltaPos.y
             };
+            // Pinned leader elbow (VARIABLE stub mode) rides the whole move;
+            // TARGET / LABEL_BOX drags leave it where it is.
+            if (_annotation.elbowPoint) {
+                _annotation.elbowPoint = {
+                    x: _annotation.elbowPoint.x + deltaPos.x,
+                    y: _annotation.elbowPoint.y + deltaPos.y
+                };
+            }
         }
     }
 

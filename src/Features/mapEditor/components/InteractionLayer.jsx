@@ -43,6 +43,7 @@ import { setColorToReplace } from 'Features/opencv/opencvSlice';
 import { setSelectedVersionId } from 'Features/baseMapEditor/baseMapEditorSlice';
 import { setOpenDialogDeleteSelectedAnnotation, setTempAnnotations, setNewAnnotation, patchNewAnnotation, triggerAnnotationsUpdate } from 'Features/annotations/annotationsSlice';
 import getDraftFieldVisibility from 'Features/mapEditor/utils/getDraftFieldVisibility';
+import isOpeningAnnotation, { getOpeningType } from 'Features/annotations/utils/isOpeningAnnotation';
 import {
   setAnchorPosition,
   setClickedNode,
@@ -158,6 +159,8 @@ import {
 } from 'Features/geometry/utils/computeConstrainedDragMoves';
 import { setDragCursor, clearDragCursor } from 'Features/mapEditor/utils/dragCursor';
 import computeOpeningSegmentPlacement from 'Features/mapEditor/utils/computeOpeningSegmentPlacement';
+import getOpeningHostSlide from 'Features/annotations/utils/getOpeningHostSlide';
+import getOpeningStrokeFromHost from 'Features/mapEditor/utils/getOpeningStrokeFromHost';
 import getAxisSnap from 'Features/mapEditor/utils/getAxisSnap';
 import getSnapModes from 'Features/mapEditor/utils/getSnapModes';
 import getEffectiveDetectionMode, { SEGMENT_SNAP_MODES } from 'Features/mapEditor/utils/getEffectiveDetectionMode';
@@ -551,6 +554,11 @@ const InteractionLayer = forwardRef(({
   // No-mode overlay toggle: hovering a segment of the selected annotation
   // drags it (EDIT-like) instead of offering the add-vertex projection.
   const segmentDragEnabled = useSelector((s) => s.mapEditor.segmentDragEnabled);
+  // No-mode overlay toggle: cotes shown on the selected annotation ("mesure"
+  // mode) — the user edits lengths through the labels, so every cursor snap
+  // is off (no accidental vertex insertion on a segment click, no snap
+  // marker competing with a cote label).
+  const showSegmentCotes = useSelector((s) => s.mapEditor.showSegmentCotes);
 
   // Computed selectedNode equivalent (first item)
   const { node: selectedNode, nodes: selectedNodes } = useSelectedNodes();
@@ -2785,6 +2793,7 @@ const InteractionLayer = forwardRef(({
       hoverThresholdPx: OPENING_HOVER_THRESHOLD_M / mbp,
       vertexSnapPx: SNAP_THRESHOLD_ABSOLUTE / scale,
       anchorEnd: openingAnchorEndRef.current,
+      meterByPx: mbp, // STRIP hosts glue on their median line (band width / 2)
     });
 
     let state;
@@ -2806,9 +2815,18 @@ const InteractionLayer = forwardRef(({
       state = { p1, p2, free: true, fits: true, snapped: null };
     }
 
-    const strokeWidth = Number(na?.strokeWidth) || 0;
+    // Band thickness: the hovered host wall's (what the commit persists —
+    // getOpeningStrokeFromHost), else the template's.
+    const hostStroke = placement
+      ? getOpeningStrokeFromHost(
+          anns.find((a) => a.id === placement.hostAnnotationId),
+          mbp
+        )
+      : null;
+    const strokeWidth = Number(hostStroke?.strokeWidth ?? na?.strokeWidth) || 0;
+    const strokeWidthUnit = hostStroke?.strokeWidthUnit ?? na?.strokeWidthUnit;
     const bandWidthPx =
-      na?.strokeWidthUnit === "CM" ? (strokeWidth * 0.01) / mbp : strokeWidth;
+      strokeWidthUnit === "CM" ? (strokeWidth * 0.01) / mbp : strokeWidth;
 
     openingSegmentStateRef.current = state;
     openingPreviewLayerRef.current?.update({
@@ -3372,6 +3390,27 @@ const InteractionLayer = forwardRef(({
       const enabledDrawingMode = enabledDrawingModeRef.current;
 
       if (e.repeat) return;
+
+      // The single selected DOOR opening (drawingShape OPENING, openingType
+      // DOOR) the Tab / S hotkeys act on, or null. Same guard cascade as the
+      // "Évider" E shortcut: active viewer, no drawing tool, no paste mode,
+      // exactly one selected annotation node, no sub-selected point, and
+      // edit rights on it.
+      const getSelectedDoorForHotkey = () => {
+        if (!isActiveViewerRef.current) return null;
+        if (e.ctrlKey || e.metaKey || e.altKey) return null;
+        if (enabledDrawingModeRef.current) return null;
+        if (pasteClipboardRef.current) return null;
+        if (selectedNode?.nodeType !== "ANNOTATION") return null;
+        if (selectedAnnotationsForCopyRef.current?.length !== 1) return null;
+        if (selectedPointId) return null;
+        const ann = selectedAnnotationRef.current;
+        if (!ann?.id || ann.id !== selectedNode?.nodeId) return null;
+        if (!isOpeningAnnotation(ann)) return null;
+        if (getOpeningType(ann) !== "DOOR") return null;
+        if (!permissions.canEditAnnotation(ann.id)) return null;
+        return ann;
+      };
 
       // Commits the in-progress drawing for the standard click/strip/brush
       // modes. Returns true when the mode was commit-capable — shared by the
@@ -4430,6 +4469,19 @@ const InteractionLayer = forwardRef(({
             }
             break;
           }
+          // Selected DOOR opening (no drawing tool): S flips the side of the
+          // wall the leaf swings to. Persisted as a scalar field — the
+          // liveQuery re-renders the symbol (see NodeOpeningStatic).
+          {
+            const door = getSelectedDoorForHotkey();
+            if (door) {
+              e.preventDefault();
+              db.annotations.update(door.id, {
+                doorSide: (door.doorSide === -1 ? -1 : 1) * -1,
+              });
+              break;
+            }
+          }
           // SEGMENT tool: the dark-band hover snapping is on J (see below) —
           // keep S inert so the two hotkey sets stay distinct.
           if (SEGMENT_SNAP_MODES.includes(enabledDrawingModeRef.current)) break;
@@ -4469,6 +4521,20 @@ const InteractionLayer = forwardRef(({
           if (!permissions.canEditAnnotation(selectedNode?.nodeId)) break;
           e.preventDefault();
           hollowOutAnnotationRef.current?.(annToCarve);
+          break;
+        }
+
+        // Selected DOOR opening (no drawing tool): Tab swaps the hinge end
+        // (p1 ⇄ p2, i.e. left ⇄ right jamb). preventDefault keeps the
+        // browser's focus traversal out of the editor. While a drawing tool
+        // is active, Tab is owned by useDrawingToolHotkeys (capture phase).
+        case "Tab": {
+          const door = getSelectedDoorForHotkey();
+          if (!door) break;
+          e.preventDefault();
+          db.annotations.update(door.id, {
+            doorHinge: door.doorHinge === "END" ? "START" : "END",
+          });
           break;
         }
 
@@ -6401,7 +6467,46 @@ const InteractionLayer = forwardRef(({
           snappingLayerRef.current?.update(null);
         }
       }
-      const consumed = handleAnnotationDragMove(event, dragSnapTarget);
+      // Glued OPENING whole-move: the free delta is mapped onto the host
+      // glue curve (polyline axis / STRIP median) — the opening slides along
+      // its wall and stops at the segment ends. Same math as the commit
+      // (moveOpeningAlongHostService) so the ghost lands where it persists.
+      let constrainDelta = null;
+      if (
+        dragAnnotationState?.active &&
+        !dragAnnotationState.partType &&
+        !dragAnnotationState.isWrapper
+      ) {
+        const draggedOpening = annotations?.find(
+          (a) => a.id === dragAnnotationState.selectedAnnotationId
+        );
+        if (isOpeningAnnotation(draggedOpening) && draggedOpening.points?.length === 2) {
+          const rel = openingRelRows?.find((r) => r.openingAnnotationId === draggedOpening.id);
+          const host = rel && annotations?.find((a) => a.id === rel.hostAnnotationId);
+          if (rel && host) {
+            const mbp = meterByPxRef.current;
+            const [q1, q2] = draggedOpening.points;
+            const center0 = { x: (q1.x + q2.x) / 2, y: (q1.y + q2.y) / 2 };
+            constrainDelta = (raw) => {
+              const slide = getOpeningHostSlide({
+                opening: draggedOpening,
+                host,
+                targetCenter: { x: center0.x + raw.x, y: center0.y + raw.y },
+                meterByPx: mbp,
+                notchPointIds:
+                  rel.carve?.mode === "CONTOUR" ? rel.carve.notchPointIds ?? [] : [],
+                preferredAnchor: {
+                  startId: rel.hostSegmentStartPointId,
+                  endId: rel.hostSegmentEndPointId,
+                  arcControlId: rel.hostArcControlPointId ?? null,
+                },
+              });
+              return slide ? slide.delta : raw;
+            };
+          }
+        }
+      }
+      const consumed = handleAnnotationDragMove(event, dragSnapTarget, constrainDelta);
       if (consumed) return;
     }
 
@@ -6421,7 +6526,14 @@ const InteractionLayer = forwardRef(({
     // In no-mode with nothing selected (and no draw armed), snapping is fully
     // off — no vertex / midpoint / projection marker over a hovered
     // annotation, so a click simply selects it.
-    const preventSnapping = isPanning || dragAnnotationState?.active || dragBaseMapState?.active || POINTER_CLICK_MODES.includes(enabledDrawingMode) || enabledDrawingMode === "OPENING_SEGMENT" || (interactionMode === "SELECT" && !isRevolutionAxisMode) || (isNoMode && !selectedAnnotation?.id && !enabledDrawingMode) || isShiftSelection;
+    // A selected OPENING (door / window) is edited through its length cote
+    // only: no vertex / midpoint / projection helper on hover, so the click
+    // goes straight to the cote (or deselects) instead of inserting a vertex.
+    const isOpeningSelected = !enabledDrawingMode && isOpeningAnnotation(selectedAnnotation);
+    // No-mode "mesure" (cotes toggle ON) on a selected annotation: lengths
+    // are edited through the cote labels, no snap at all.
+    const isCotesEditSelection = isNoMode && !enabledDrawingMode && Boolean(selectedAnnotation?.id) && showSegmentCotes;
+    const preventSnapping = isPanning || dragAnnotationState?.active || dragBaseMapState?.active || POINTER_CLICK_MODES.includes(enabledDrawingMode) || enabledDrawingMode === "OPENING_SEGMENT" || (interactionMode === "SELECT" && !isRevolutionAxisMode) || (isNoMode && !selectedAnnotation?.id && !enabledDrawingMode) || isOpeningSelected || isCotesEditSelection || isShiftSelection;
 
     let snapResult;
     if (snappingEnabled && !preventSnapping) {
@@ -6475,6 +6587,9 @@ const InteractionLayer = forwardRef(({
     } else {
       // Nettoyage si on ne snap pas
       snappingLayerRef.current?.update(null);
+      // No stale snap may survive for a selected opening (the drag paths
+      // above own the ref in the other prevented cases).
+      if (isOpeningSelected || isCotesEditSelection) currentSnapRef.current = null;
     }
 
     // D'. OPENING_SEGMENT PREVIEW — fixed-length segment glued to the nearest
@@ -7465,9 +7580,21 @@ const InteractionLayer = forwardRef(({
     if (draggableGroup) {
       e.stopPropagation();
       e.preventDefault();
-      const { nodeId, nodeContext } = draggableGroup.dataset;
+      const { nodeId, nodeContext, labelElbowSeed: labelElbowSeedRaw } =
+        draggableGroup.dataset;
       const worldPos = viewportRef.current?.screenToWorld(e.clientX, e.clientY);
       const startMouseInLocal = toLocalCoords(worldPos);
+
+      // Label leader elbow drawn at drag start ("x,y" image px, published by
+      // NodeLabelStatic in VARIABLE stub mode when no elbow is stored yet):
+      // pinned at commit so the chip moves and the elbow stays.
+      let labelElbowSeed = null;
+      if (labelElbowSeedRaw) {
+        const [sx, sy] = labelElbowSeedRaw.split(",").map(Number);
+        if (Number.isFinite(sx) && Number.isFinite(sy)) {
+          labelElbowSeed = { x: sx, y: sy };
+        }
+      }
 
       // Label chip / target / leader: draggable only once the label (or its
       // annotation) is selected — an unselected label click only selects.
@@ -7510,6 +7637,7 @@ const InteractionLayer = forwardRef(({
         nodeContext,
         clickOnly,
         anchorLocal,
+        labelElbowSeed,
         ...resolveWrapperInfo(nodeId, partType),
       });
     }
@@ -8023,10 +8151,18 @@ const InteractionLayer = forwardRef(({
           if (!isActive) return null;
           const singleDeltaPos = dragAnnotationState?.deltaPos ?? pendingMove?.deltaPos;
           const singlePartType = dragAnnotationState?.partType ?? pendingMove?.partType;
+          // VARIABLE stub mode, first chip drag: preview with the elbow the
+          // commit will pin, so nothing jumps at release.
+          const singleElbowSeed =
+            dragAnnotationState?.labelElbowSeed ?? pendingMove?.labelElbowSeed;
+          const singleAnnotation =
+            singleElbowSeed && selectedAnnotation && !selectedAnnotation.elbowPoint
+              ? { ...selectedAnnotation, elbowPoint: singleElbowSeed }
+              : selectedAnnotation;
           return (
             <g transform={`translate(${targetPose.x}, ${targetPose.y}) scale(${targetPose.k})`}>
               <TransientAnnotationLayer
-                annotation={selectedAnnotation}
+                annotation={singleAnnotation}
                 deltaPos={singleDeltaPos}
                 partType={singlePartType}
                 basePose={targetPose}

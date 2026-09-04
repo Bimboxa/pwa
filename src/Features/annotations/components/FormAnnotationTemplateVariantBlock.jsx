@@ -13,14 +13,17 @@ import FieldIcon from "Features/form/components/FieldIcon";
 import FieldAnnotationTemplateFill from "./FieldAnnotationTemplateFill";
 import FieldAnnotationTemplatePoint from "./FieldAnnotationTemplatePoint";
 import FieldAnnotationTemplateStroke from "./FieldAnnotationTemplateStroke";
+import FieldAnnotationTemplateStrokeWidth from "./FieldAnnotationTemplateStrokeWidth";
 import FieldAnnotationTemplateRender3d from "./FieldAnnotationTemplateRender3d";
 import FieldAnnotationTemplateLegend from "./FieldAnnotationTemplateLegend";
+import FieldAnnotationTemplateLabel from "./FieldAnnotationTemplateLabel";
 import FieldAnnotationTemplateDrawingShape from "./FieldAnnotationTemplateDrawingShape";
 import FieldAnnotationTemplateDefaultTool from "./FieldAnnotationTemplateDefaultTool";
 import FieldAnnotationTemplateCote from "./FieldAnnotationTemplateCote";
 import FieldAnnotationTemplateFreeText from "./FieldAnnotationTemplateFreeText";
 import FieldAnnotationTemplateLinearLayout from "./FieldAnnotationTemplateLinearLayout";
 import FieldAnnotationTemplateArrows from "./FieldAnnotationTemplateArrows";
+import FieldAnnotationTemplateOpening from "./FieldAnnotationTemplateOpening";
 import FieldQty from "Features/form/components/FieldQty";
 import FieldCheck from "Features/form/components/FieldCheck";
 import FieldMappingCategories from "./FieldMappingCategories";
@@ -99,16 +102,18 @@ export default function FormAnnotationTemplateVariantBlock({
   // derived values for field components
 
   const fill = { fillColor, fillType, fillOpacity };
+  // Stroke STYLE ("Contour") — the width has its own row + lock below.
+  // strokeWidthUnit is passed read-only to label the dash band inputs.
   const stroke = {
     strokeColor,
     strokeType,
     strokeOpacity,
-    strokeWidth,
     strokeWidthUnit,
     strokeOffset: strokeOffset === 0 ? true : false,
     dashLength,
     dashGap,
   };
+  const strokeWidthValue = { strokeWidth, strokeWidthUnit };
   const point = { fillColor, variant, size, sizeUnit };
 
   const pointVariants = [
@@ -130,12 +135,12 @@ export default function FormAnnotationTemplateVariantBlock({
     configurableProps.includes("fillColor") ||
     configurableProps.includes("fillOpacity") ||
     configurableProps.includes("fillType");
-  const hasStroke =
-    configurableProps.includes("strokeColor") ||
-    configurableProps.includes("strokeWidth");
+  const hasStroke = configurableProps.includes("strokeColor");
+  const hasStrokeWidth = configurableProps.includes("strokeWidth");
   const hasIcon = configurableProps.includes("iconKey");
   const hasHeight = configurableProps.includes("height");
   const hasWidth = configurableProps.includes("width");
+  const hasOpeningType = configurableProps.includes("openingType");
   const hasImage = configurableProps.includes("image");
   const hasObject3D = configurableProps.includes("object3D");
   const hasMeterByPx = configurableProps.includes("meterByPx");
@@ -145,6 +150,20 @@ export default function FormAnnotationTemplateVariantBlock({
   const hasFreeText = configurableProps.includes("fontFamily");
   const hasArrows = configurableProps.includes("arrowStep");
   const hasHideSlope = configurableProps.includes("hideSlope");
+  // Label leader stub: every shape with a label chip (sub-label or standalone
+  // LABEL). Shape-gated on purpose (not via configurableProps) so the template
+  // value stays a read-time default instead of being seeded at creation.
+  const hasLabelStub = ![
+    "COTE",
+    "RULER",
+    "TEXT",
+    "FREE_TEXT",
+    "DETAIL",
+    "IMAGE",
+    "OBJECT_3D",
+    "REVOLUTION_AXIS",
+    "REVOLUTION_AXIS_PLACEMENT",
+  ].includes(drawingShape);
   const hasMaterial3d = configurableProps.includes("material3d");
   const hasRender3d =
     configurableProps.includes("color3D") ||
@@ -232,6 +251,10 @@ export default function FormAnnotationTemplateVariantBlock({
 
   function handleStrokeChange(stroke) {
     onChange({ ...annotationTemplate, ...stroke });
+  }
+
+  function handleStrokeWidthChange(strokeWidth) {
+    onChange({ ...annotationTemplate, ...strokeWidth });
   }
 
   function handlePointChange(point) {
@@ -361,6 +384,17 @@ export default function FormAnnotationTemplateVariantBlock({
             />
           )}
 
+          {/* Stroke width (POLYLINE, OPENING, COTE…) — own row so its lock is
+              independent of the Contour style lock (unlocked by default) */}
+          {hasStrokeWidth && (
+            <FieldAnnotationTemplateStrokeWidth
+              value={strokeWidthValue}
+              onChange={handleStrokeWidthChange}
+              overrideFields={overrideFields}
+              onOverrideFieldsChange={handleOverrideFieldsChange}
+            />
+          )}
+
           {/* Icon selector (MARKER) */}
           {hasIcon && (
             <FieldIcon
@@ -438,30 +472,46 @@ export default function FormAnnotationTemplateVariantBlock({
               annotations, which can act as exterior-side guides. */}
           {!compact &&
             ["POLYLINE", "STRIP", "POLYGON"].includes(drawingShape) && (
-            <WhiteSectionGeneric>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <Typography variant="body2" sx={{ fontWeight: "bold", flex: 1 }}>
-                  Extérieur
-                </Typography>
-                <Switch
-                  size="small"
-                  checked={Boolean(annotationTemplate?.isExt)}
-                  onChange={(e) => handleIsExtChange(e.target.checked)}
-                />
-                <OverrideToggle
-                  field="isExt"
-                  overrideFields={overrideFields}
-                  onToggle={handleToggleOverride}
-                />
-              </Box>
-            </WhiteSectionGeneric>
+              <WhiteSectionGeneric>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <Typography
+                    variant="body2"
+                    sx={{ fontWeight: "bold", flex: 1 }}
+                  >
+                    Extérieur
+                  </Typography>
+                  <Switch
+                    size="small"
+                    checked={Boolean(annotationTemplate?.isExt)}
+                    onChange={(e) => handleIsExtChange(e.target.checked)}
+                  />
+                  <OverrideToggle
+                    field="isExt"
+                    overrideFields={overrideFields}
+                    onToggle={handleToggleOverride}
+                  />
+                </Box>
+              </WhiteSectionGeneric>
+            )}
+
+          {/* Opening type (OPENING) — none / door / window symbol */}
+          {hasOpeningType && (
+            <FieldAnnotationTemplateOpening
+              annotationTemplate={annotationTemplate}
+              onChange={onChange}
+              overrideFields={overrideFields}
+              onToggleOverride={handleToggleOverride}
+            />
           )}
 
           {/* Width (OPENING) — opening width along the wall */}
           {!compact && hasWidth && (
             <WhiteSectionGeneric>
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <Typography variant="body2" sx={{ fontWeight: "bold", flex: 1 }}>
+                <Typography
+                  variant="body2"
+                  sx={{ fontWeight: "bold", flex: 1 }}
+                >
                   Largeur
                 </Typography>
                 <FieldAnnotationHeight
@@ -485,7 +535,10 @@ export default function FormAnnotationTemplateVariantBlock({
           {hasHeight && !(compact && drawingShape === "POLYGON") && (
             <WhiteSectionGeneric>
               <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <Typography variant="body2" sx={{ fontWeight: "bold", flex: 1 }}>
+                <Typography
+                  variant="body2"
+                  sx={{ fontWeight: "bold", flex: 1 }}
+                >
                   {drawingShape === "POLYGON" ? "Epaisseur" : "Hauteur"}
                 </Typography>
                 <FieldAnnotationHeight
@@ -579,6 +632,16 @@ export default function FormAnnotationTemplateVariantBlock({
               onLabelLegendChange={handleLabelLegendChange}
               onHiddenInLegendChange={handleHiddenInLegendChange}
               onGroupLabelChange={handleGroupLabelChange}
+            />
+          )}
+
+          {/* Label leader stub ("déport horizontal") */}
+          {hasLabelStub && (
+            <FieldAnnotationTemplateLabel
+              annotationTemplate={annotationTemplate}
+              onChange={onChange}
+              overrideFields={overrideFields}
+              onOverrideFieldsChange={handleOverrideFieldsChange}
             />
           )}
 

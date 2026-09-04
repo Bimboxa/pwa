@@ -37,7 +37,8 @@ export default function SectionCreateAnnotationTemplateVariantBlock({
     iconKey: "circle",
     label: "",
     isFromAnnotation: true,
-    // color props locked by default: the template imposes them on annotations
+    // color props locked by default: the template imposes them on annotations.
+    // The stroke width (STROKE_WIDTH_FIELDS) stays unlocked on purpose.
     overrideFields: [...FILL_FIELDS, ...STROKE_FIELDS],
   };
 

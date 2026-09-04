@@ -26,16 +26,18 @@ export function resolveActiveToolForTemplate(template, selectedToolKey) {
 // Single source of truth for the "start drawing from a template" dispatch
 // sequence (shared by the panel row and the L/S hotkeys). The template's flags
 // (e.g. isFreeAnnotation) ride along via getNewAnnotationPropsFromAnnotationTemplate.
+// extraProps: caller overrides merged over the template-derived draft (e.g. a
+// preset label, a transport-only commitInterceptor).
 export default function startDrawFromTemplate(
   dispatch,
-  { template, listingId, activeTool, rememberedProps }
+  { template, listingId, activeTool, rememberedProps, extraProps }
 ) {
   if (!template || !activeTool) return;
   dispatch(setSelectedListingId(listingId));
-  const baseProps = getNewAnnotationPropsFromAnnotationTemplate(
-    template,
-    rememberedProps
-  );
+  const baseProps = {
+    ...getNewAnnotationPropsFromAnnotationTemplate(template, rememberedProps),
+    ...(extraProps ?? {}),
+  };
   if (activeTool.annotationType) {
     dispatch(
       setNewAnnotation({ ...baseProps, type: activeTool.annotationType })

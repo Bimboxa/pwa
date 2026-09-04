@@ -14,6 +14,7 @@ import filterAnnotationsByViewBox from "Features/annotations/utils/filterAnnotat
 
 import NodeSvgImage from "Features/mapEditorGeneric/components/NodeSvgImage";
 import NodeAnnotationStatic from "Features/mapEditorGeneric/components/NodeAnnotationStatic";
+import { sortOpeningsLast } from "Features/annotations/utils/isOpeningAnnotation";
 
 import computeDefaultViewBox from "../utils/computeDefaultViewBox";
 import EmptyContainerPlaceholder from "./EmptyContainerPlaceholder";
@@ -81,8 +82,9 @@ export default function BaseMapContainerSvg({
     });
   }
 
-  const nonLabelAnnotations = visibleAnnotations?.filter(
-    (a) => a.type !== "LABEL"
+  // Openings last: their white gap must cover the host wall.
+  const nonLabelAnnotations = sortOpeningsLast(
+    visibleAnnotations?.filter((a) => a.type !== "LABEL")
   );
   const labelAnnotations = viewBox
     ? filterAnnotationsByViewBox(

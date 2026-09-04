@@ -9,13 +9,13 @@ import {
   InputBase,
   ButtonBase,
   Button,
-  Divider,
   ToggleButtonGroup,
   ToggleButton,
 } from "@mui/material";
 import {
   HorizontalRule as SolidLineIcon,
   LineStyle as DashedLineIcon,
+  MoreHoriz as MoreIcon,
   Lock as LockIcon,
   LockOpen as LockOpenIcon,
 } from "@mui/icons-material";
@@ -30,27 +30,18 @@ const STROKE_TYPES = [
   { value: "DASHED", title: "Pointillés", Icon: DashedLineIcon },
 ];
 
-const WIDTH_UNITS = [
-  { value: "PX", label: "px" },
-  { value: "CM", label: "cm" },
-];
-
-const WIDTH_PRESETS = [1, 2, 4, 8];
-
-// Visual thickness (px) of the little stroke-preview bar, clamped so a large
-// width stays legible in the compact button / presets.
-function previewThickness(width) {
-  return Math.max(1, Math.min(8, Number(width) || 1));
-}
-
-// Compact single-line stroke editor (design 2a): the line style stays visible,
-// a dedicated ÉPAISSEUR button (stroke preview + value) opens a width popover
-// (presets 1/2/4/8 + numeric + px/cm), and a separate colour·opacité swatch opens
-// the shared colour popover (palette + hex + opacity only — width lives on its
-// own button now). An optional global lock toggles all stroke props together.
+// Compact single-line stroke STYLE editor ("Contour"): the line style stays
+// visible, a "…" button (DASHED strips only) opens the coloured dash bands
+// popover (length / gap), and the colour·opacité swatch opens the shared colour
+// popover (palette + hex + opacity). An optional global lock toggles all
+// STROKE_FIELDS together.
 //
-//   value: { strokeColor, strokeType, strokeOpacity, strokeWidth, strokeWidthUnit,
-//            dashLength, dashGap }
+// The stroke WIDTH lives in its own row (FieldStrokeWidthCompact) so it can be
+// locked independently; strokeWidthUnit is only read here to label the dash
+// band inputs (bands are expressed in the width unit) and is never written.
+//
+//   value: { strokeColor, strokeType, strokeOpacity, dashLength, dashGap,
+//            strokeWidthUnit? }
 //   onChange(nextValue)                            — emits the full merged object
 //   overrideFields / onOverrideFieldsChange        — optional template override lock
 //   disabledFields                                 — optional: grey out & disable fields
@@ -69,14 +60,13 @@ export default function FieldStrokeCompact({
     strokeColor = "#000000",
     strokeType = "SOLID",
     strokeOpacity = 1,
-    strokeWidth = 1,
     strokeWidthUnit = "PX",
     dashLength,
     dashGap,
   } = value ?? {};
 
   const [anchorColor, setAnchorColor] = useState(null);
-  const [anchorWidth, setAnchorWidth] = useState(null);
+  const [anchorDash, setAnchorDash] = useState(null);
 
   const showDashOptions = withDashOptions && strokeType === "DASHED";
 
@@ -93,7 +83,7 @@ export default function FieldStrokeCompact({
   const colorDisabled = isDisabled("strokeColor");
   const typeDisabled = isDisabled("strokeType");
   const opacityDisabled = isDisabled("strokeOpacity");
-  const widthDisabled = isDisabled("strokeWidth");
+  const dashDisabled = isDisabled("dashLength");
 
   const disabledSx = { opacity: 0.4, pointerEvents: "none" };
 
@@ -108,15 +98,6 @@ export default function FieldStrokeCompact({
   function handleOpacityChange(pct) {
     const clamped = Math.max(0, Math.min(100, Number(pct) || 0));
     onChange({ ...value, strokeOpacity: clamped / 100 });
-  }
-  function handleWidthChange(raw) {
-    const cleaned = String(raw)
-      .replace(",", ".")
-      .replace(/[^0-9.]/g, "");
-    onChange({ ...value, strokeWidth: cleaned === "" ? 0 : Number(cleaned) });
-  }
-  function handleUnitChange(e, unit) {
-    if (unit !== null) onChange({ ...value, strokeWidthUnit: unit });
   }
   function handleDashFieldChange(field, raw) {
     const cleaned = String(raw)
@@ -166,43 +147,25 @@ export default function FieldStrokeCompact({
           ))}
         </ToggleButtonGroup>
 
-        {/* width button → width popover */}
-        <ButtonBase
-          onClick={(e) => setAnchorWidth(e.currentTarget)}
-          disabled={widthDisabled}
-          title="Épaisseur du trait"
-          sx={{
-            flexShrink: 0,
-            display: "flex",
-            alignItems: "center",
-            gap: 0.75,
-            height: 30,
-            px: 1,
-            border: "1px solid",
-            borderColor: "divider",
-            borderRadius: 1.5,
-          }}
-        >
-          <Box
+        {/* coloured dash bands (DASHED strips) → dash popover */}
+        {showDashOptions && (
+          <IconButton
+            size="small"
+            onClick={(e) => setAnchorDash(e.currentTarget)}
+            disabled={dashDisabled}
+            title="Bandes colorées"
             sx={{
-              width: 14,
-              // string with unit: a bare 1 would be read as 100% by MUI sizing
-              height: `${previewThickness(strokeWidth)}px`,
-              borderRadius: 1,
-              bgcolor: "text.primary",
-            }}
-          />
-          <Typography
-            variant="caption"
-            sx={{
-              fontWeight: "bold",
-              color: "text.secondary",
-              whiteSpace: "nowrap",
+              flexShrink: 0,
+              border: "1px solid",
+              borderColor: "divider",
+              borderRadius: 1.5,
+              height: 30,
+              width: 30,
             }}
           >
-            {strokeWidth} {unitLabel}
-          </Typography>
-        </ButtonBase>
+            <MoreIcon fontSize="small" />
+          </IconButton>
+        )}
 
         {/* colour + opacity swatch → colour popover */}
         <ButtonBase
@@ -260,11 +223,11 @@ export default function FieldStrokeCompact({
         )}
       </Box>
 
-      {/* width popover — presets + numeric + unit */}
+      {/* dash popover — coloured band length / gap (in the stroke width unit) */}
       <Popover
-        open={Boolean(anchorWidth)}
-        anchorEl={anchorWidth}
-        onClose={() => setAnchorWidth(null)}
+        open={Boolean(anchorDash)}
+        anchorEl={anchorDash}
+        onClose={() => setAnchorDash(null)}
         anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
         transformOrigin={{ vertical: "top", horizontal: "right" }}
         slotProps={{ paper: { sx: { mt: 1, borderRadius: 2, boxShadow: 6 } } }}
@@ -276,166 +239,77 @@ export default function FieldStrokeCompact({
             display: "flex",
             flexDirection: "column",
             gap: 1,
+            ...(dashDisabled ? disabledSx : {}),
           }}
         >
-          <Box
-            sx={{
-              display: "flex",
-              gap: 0.5,
-              p: 0.5,
-              bgcolor: "action.hover",
-              borderRadius: 1.5,
-            }}
+          <Typography
+            variant="caption"
+            sx={{ fontWeight: "bold", color: "text.secondary" }}
           >
-            {WIDTH_PRESETS.map((w) => {
-              const selected = Number(strokeWidth) === w;
-              return (
-                <ButtonBase
-                  key={w}
-                  onClick={() => onChange({ ...value, strokeWidth: w })}
-                  title={`${w} px`}
-                  sx={{
-                    flex: 1,
-                    height: 26,
-                    borderRadius: 1,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    bgcolor: selected ? "background.paper" : "transparent",
-                    boxShadow: selected ? 1 : 0,
-                  }}
-                >
-                  <Box
-                    sx={{
-                      width: 18,
-                      // string with unit: a bare 1 would be read as 100% by MUI sizing
-                      height: `${previewThickness(w)}px`,
-                      borderRadius: 1,
-                      bgcolor: "text.primary",
-                    }}
-                  />
-                </ButtonBase>
-              );
-            })}
-          </Box>
-
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <InputBase
-              value={strokeWidth ?? ""}
-              onChange={(e) => handleWidthChange(e.target.value)}
-              sx={{
-                width: 52,
-                border: "1px solid",
-                borderColor: "divider",
-                borderRadius: 1,
-                px: 1,
-                height: 28,
-                fontSize: "0.8rem",
-                "& input": { textAlign: "center", p: 0 },
-              }}
-            />
-            <ToggleButtonGroup
-              size="small"
-              exclusive
-              value={strokeWidthUnit}
-              onChange={handleUnitChange}
-              sx={{
-                "& .MuiToggleButton-root": {
-                  px: 1,
-                  py: 0.25,
-                  fontSize: "0.7rem",
-                },
-              }}
+            Bandes colorées
+          </Typography>
+          {[
+            {
+              field: "dashLength",
+              label: "Longueur",
+              inputValue: dashLength,
+              placeholder: STRIP_DASH_DEFAULTS.dashLength,
+            },
+            {
+              field: "dashGap",
+              label: "Espacement",
+              inputValue: dashGap,
+              placeholder: STRIP_DASH_DEFAULTS.dashGap,
+            },
+          ].map(({ field, label: rowLabel, inputValue, placeholder }) => (
+            <Box
+              key={field}
+              sx={{ display: "flex", alignItems: "center", gap: 1 }}
             >
-              {WIDTH_UNITS.map((u) => (
-                <ToggleButton key={u.value} value={u.value}>
-                  {u.label}
-                </ToggleButton>
-              ))}
-            </ToggleButtonGroup>
-          </Box>
-
-          {/* Colored dash blocks (DASHED strips) — own section */}
-          {showDashOptions && (
-            <>
-              <Divider sx={{ my: 0.5 }} />
               <Typography
                 variant="caption"
-                sx={{ fontWeight: "bold", color: "text.secondary" }}
+                color="text.secondary"
+                sx={{ flex: 1 }}
               >
-                Bandes colorées
+                {rowLabel}
               </Typography>
-              {[
-                {
-                  field: "dashLength",
-                  label: "Longueur",
-                  inputValue: dashLength,
-                  placeholder: STRIP_DASH_DEFAULTS.dashLength,
-                },
-                {
-                  field: "dashGap",
-                  label: "Espacement",
-                  inputValue: dashGap,
-                  placeholder: STRIP_DASH_DEFAULTS.dashGap,
-                },
-              ].map(({ field, label: rowLabel, inputValue, placeholder }) => (
-                <Box
-                  key={field}
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 1,
-                    ...(isDisabled("dashLength") ? disabledSx : {}),
-                  }}
-                >
-                  <Typography
-                    variant="caption"
-                    color="text.secondary"
-                    sx={{ flex: 1 }}
-                  >
-                    {rowLabel}
-                  </Typography>
-                  <InputBase
-                    value={inputValue ?? ""}
-                    placeholder={String(placeholder)}
-                    onChange={(e) =>
-                      handleDashFieldChange(field, e.target.value)
-                    }
-                    sx={{
-                      width: 52,
-                      border: "1px solid",
-                      borderColor: "divider",
-                      borderRadius: 1,
-                      px: 1,
-                      height: 28,
-                      fontSize: "0.8rem",
-                      "& input": { textAlign: "center", p: 0 },
-                    }}
-                  />
-                  <Typography
-                    variant="caption"
-                    sx={{
-                      fontWeight: "bold",
-                      color: "text.secondary",
-                      width: 22,
-                    }}
-                  >
-                    {unitLabel}
-                  </Typography>
-                </Box>
-              ))}
-            </>
-          )}
+              <InputBase
+                value={inputValue ?? ""}
+                placeholder={String(placeholder)}
+                onChange={(e) => handleDashFieldChange(field, e.target.value)}
+                sx={{
+                  width: 52,
+                  border: "1px solid",
+                  borderColor: "divider",
+                  borderRadius: 1,
+                  px: 1,
+                  height: 28,
+                  fontSize: "0.8rem",
+                  "& input": { textAlign: "center", p: 0 },
+                }}
+              />
+              <Typography
+                variant="caption"
+                sx={{
+                  fontWeight: "bold",
+                  color: "text.secondary",
+                  width: 22,
+                }}
+              >
+                {unitLabel}
+              </Typography>
+            </Box>
+          ))}
 
           <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-            <Button size="small" onClick={() => setAnchorWidth(null)}>
+            <Button size="small" onClick={() => setAnchorDash(null)}>
               OK
             </Button>
           </Box>
         </Box>
       </Popover>
 
-      {/* colour popover — palette + opacity only (width moved to its own button) */}
+      {/* colour popover — palette + opacity */}
       <Popover
         open={Boolean(anchorColor)}
         anchorEl={anchorColor}

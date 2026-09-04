@@ -39,6 +39,7 @@ import isRevolutionHelperInScope, {
     getScopeIdByListingId,
 } from "Features/annotations/utils/isRevolutionHelperInScope";
 import addAnnotationOpening from "Features/annotations/services/addAnnotationOpening";
+import getOpeningStrokeFromHost from "Features/mapEditor/utils/getOpeningStrokeFromHost";
 import deriveOpeningContourAnchor from "Features/mapEditor/utils/deriveOpeningContourAnchor";
 import getAnnotationAsPolygons from "Features/geometry/utils/getAnnotationAsPolygons";
 import getDefaultStackOffsetZ from "Features/annotations/utils/getDefaultStackOffsetZ";
@@ -256,6 +257,10 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
         // the (possibly re-derived) host anchor written to relAnnotationOpenings.
         let openingCarve = null;
         let openingAnchor = null;
+        // Thickness inherited from the host wall (POLYLINE / STRIP band width,
+        // in CM) so the opening gap covers the wall exactly; null keeps the
+        // template value (POLYGON host, free placement).
+        let openingStrokeFromHost = null;
         const openingHostId = options?.openingHostId;
         if (isOpeningSegmentCommit && openingHostId && width && height) {
             openingCarve = { mode: "NONE" };
@@ -267,6 +272,7 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
             };
 
             const host = await db.annotations.get(openingHostId);
+            openingStrokeFromHost = getOpeningStrokeFromHost(host, baseMap?.getMeterByPx?.());
             if (host?.type === "POLYGON") {
                 // Band polygon across the wall: length = the opening segment,
                 // thickness = the template strokeWidth (CM).
@@ -347,7 +353,11 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
         // Zone delimitation polygons live in a ZONING listing whose table is
         // `zones` — creating an entity there would write a garbage zone row.
         const isZoneAnnotation = newAnnotation?.isZoneAnnotation;
-        if (!entityId && !isBaseMapAnnotation && !isRevolutionHelper && !isFreeAnnotation && !isZoneAnnotation) {
+        // Same for the location templates of a business-objects listing
+        // (table `businessObjects`): the annotation is linked to its object
+        // by relsBusinessObjectAnnotation, never by an entity row.
+        const isBusinessObjectAnnotation = newAnnotation?.isBusinessObjectAnnotation;
+        if (!entityId && !isBaseMapAnnotation && !isRevolutionHelper && !isFreeAnnotation && !isZoneAnnotation && !isBusinessObjectAnnotation) {
             const entity = await createEntity(newEntity)
             entityId = entity.id;
         }
@@ -721,6 +731,9 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
                 // ... props de style
             };
 
+            // OPENING dropped on a POLYLINE / STRIP wall: its thickness is the
+            // wall's, not the template's.
+            if (openingStrokeFromHost) Object.assign(_newAnnotation, openingStrokeFromHost);
 
             if (isBaseMapAnnotation) _newAnnotation.isBaseMapAnnotation = true;
 
@@ -1292,7 +1305,13 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
         // Reset
         //resetNewAnnotation();
 
-
+        // Result consumed by the deferred-commit afterCommit hooks
+        // (drawingCommitInterceptors): the persisted draft, or the updated
+        // annotation when the commit edited an existing one.
+        return {
+            annotation: _updatedAnnotation ? null : _newAnnotation,
+            updatedAnnotation: _updatedAnnotation ?? null,
+        };
     }
 
     return { handleDrawingCommit };
