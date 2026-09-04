@@ -27,6 +27,7 @@ import FieldAnnotationIsLayer from "./FieldAnnotationIsLayer";
 import FieldAnnotationIsProfile from "./FieldAnnotationIsProfile";
 import FieldAnnotationLabel from "./FieldAnnotationLabel";
 import FieldAnnotationLabelStub from "./FieldAnnotationLabelStub";
+import FieldAnnotationLabelSize from "./FieldAnnotationLabelSize";
 import FieldAnnotationLinearLayout from "./FieldAnnotationLinearLayout";
 import FieldAnnotationOpening from "./FieldAnnotationOpening";
 import FieldAnnotationArrows from "./FieldAnnotationArrows";
@@ -192,6 +193,13 @@ export default function SectionAnnotationPropertiesContent({
         {/* Standalone LABEL: no Etiquette tab, the leader stub lives here. */}
         {type === "LABEL" && (
           <FieldAnnotationLabelStub
+            annotation={annotation}
+            overrideFields={overrideFields}
+          />
+        )}
+        {/* Standalone LABEL: "Taille fixe" (FREE_TEXT display rules). */}
+        {type === "LABEL" && (
+          <FieldAnnotationLabelSize
             annotation={annotation}
             overrideFields={overrideFields}
           />

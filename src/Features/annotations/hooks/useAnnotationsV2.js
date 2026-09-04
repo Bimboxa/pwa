@@ -1199,13 +1199,11 @@ export default function useAnnotationsV2(options) {
               x: annotation.labelPoint.x * width,
               y: annotation.labelPoint.y * height,
             };
-            // FREE_TEXT sizes are PDF points "as if the base map filled an
-            // A4/A3 page": the renderers need the image long side to derive
-            // the pt→image-px scale (getFreeTextPageScale), and imageSize is
-            // only known here.
-            if (_annotation.type === "FREE_TEXT") {
-              _annotation.imageLongSidePx = Math.max(width, height);
-            }
+            // FREE_TEXT sizes (and "Taille fixe" LABEL sizes) are PDF points
+            // "as if the base map filled an A4/A3 page": the renderers need
+            // the image long side to derive the pt→image-px scale
+            // (getFreeTextPageScale), and imageSize is only known here.
+            _annotation.imageLongSidePx = Math.max(width, height);
             // LABEL: pinned leader elbow (VARIABLE stub mode, normalized like
             // targetPoint) + the image size the elbow handle needs to persist
             // it (NodeLabelStatic is not given imageSize by EditedObjectLayer).

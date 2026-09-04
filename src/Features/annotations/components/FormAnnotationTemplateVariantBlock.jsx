@@ -17,6 +17,7 @@ import FieldAnnotationTemplateStrokeWidth from "./FieldAnnotationTemplateStrokeW
 import FieldAnnotationTemplateRender3d from "./FieldAnnotationTemplateRender3d";
 import FieldAnnotationTemplateLegend from "./FieldAnnotationTemplateLegend";
 import FieldAnnotationTemplateLabel from "./FieldAnnotationTemplateLabel";
+import FieldAnnotationTemplateLabelSize from "./FieldAnnotationTemplateLabelSize";
 import FieldAnnotationTemplateDrawingShape from "./FieldAnnotationTemplateDrawingShape";
 import FieldAnnotationTemplateDefaultTool from "./FieldAnnotationTemplateDefaultTool";
 import FieldAnnotationTemplateCote from "./FieldAnnotationTemplateCote";
@@ -360,6 +361,18 @@ export default function FormAnnotationTemplateVariantBlock({
                   onToggle={handleToggleOverride}
                 />
               }
+            />
+          )}
+
+          {/* Standalone LABEL "Taille fixe" (FREE_TEXT display rules). Shape-
+              gated like the leader stub: a read-time template default, not
+              seeded at creation. */}
+          {drawingShape === "LABEL" && (
+            <FieldAnnotationTemplateLabelSize
+              annotationTemplate={annotationTemplate}
+              onChange={onChange}
+              overrideFields={overrideFields}
+              onOverrideFieldsChange={handleOverrideFieldsChange}
             />
           )}
 

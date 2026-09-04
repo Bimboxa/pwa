@@ -104,6 +104,10 @@ export default function getAnnotationTemplateProps(annotationTemplate) {
     labelStubLength: annotationTemplate?.labelStubLength,
     labelStubMode: annotationTemplate?.labelStubMode,
 
+    // Standalone LABEL "Taille fixe" (fontSize / pageFormat above are shared
+    // with FREE_TEXT / COTE). Same read-time model as the stub.
+    isFixedSize: annotationTemplate?.isFixedSize,
+
     overrideFields: annotationTemplate?.overrideFields,
   };
 

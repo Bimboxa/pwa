@@ -5,6 +5,8 @@ import { Refresh, Visibility, VisibilityOff } from "@mui/icons-material";
 
 import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
 import getAnnotationLabelStubConfig from "Features/annotations/utils/getAnnotationLabelStubConfig";
+import getAnnotationLabelSizeConfig from "Features/annotations/utils/getAnnotationLabelSizeConfig";
+import { getFreeTextPageScale } from "Features/annotations/constants/freeTextConstants";
 import useMapZoom from "../hooks/useMapZoom";
 import getLabelLeaderGeometry from "../utils/getLabelLeaderGeometry";
 import { useDispatch } from "react-redux";
@@ -68,6 +70,7 @@ export default function NodeLabelStatic({
         barycenter,
         labelDelta,
         imageSize: dataImageSize,
+        imageLongSidePx,
     } = data;
     const stub = getAnnotationLabelStubConfig(data);
     const isSubLabel = id.startsWith("label::");
@@ -92,21 +95,50 @@ export default function NodeLabelStatic({
         : null;
 
     // --- 1. MODE DE TAILLE ---
-    const sizeVariant = "FIXED_IN_CONTAINER_PARENT";
+    // Standalone LABEL only (sub-labels stay screen-constant): "Taille fixe"
+    // = FREE_TEXT display rules — the chip is MAP-FIXED and everything inside
+    // it (font, padding, width, leader stub) is a PDF POINT "as if the base
+    // map filled an A4/A3 page", drawn at pageScale = imageLongSide /
+    // pageLongSide (getFreeTextPageScale). Resolved own ?? template ?? default
+    // like the stub (getAnnotationLabelSizeConfig).
+    const sizeCfg = getAnnotationLabelSizeConfig(data);
+    const isFixedSize = !hasLines && sizeCfg.isFixedSize;
+    const imageLongSide =
+        imageLongSidePx ??
+        (elbowImageSize
+            ? Math.max(elbowImageSize.width || 0, elbowImageSize.height || 0)
+            : undefined);
+    const pageScale = isFixedSize
+        ? getFreeTextPageScale(sizeCfg.pageFormat, imageLongSide)
+        : 1;
+    // Sub-labels: S/M/L px from getAnnotationLabelPropsFromAnnotation.
+    // Standalone: page pt in fixed mode, the historical 14px otherwise.
+    const effectiveFontSize = hasLines
+        ? fontSize
+        : isFixedSize
+            ? sizeCfg.fontSize
+            : DEFAULT_FONT_SIZE;
 
     // --- 2. SCALE ---
     // Constant screen size: counter-scale by container k AND map zoom (same
     // formula as NodeCoteStatic — --map-zoom is written by MapEditorViewport,
     // missing var falls back to 1 outside the map editor, e.g. portfolio).
+    // Always used by the UI handles (target dot, elbow); by the chip too
+    // unless "Taille fixe", where the chip group is scaled page pt → image px
+    // instead and the in-chip handle folds pageScale into its counter-scale.
     const scaleTransform = useMemo(() => {
         const k = containerK || 1;
         return `scale(calc(1 / (var(--map-zoom, 1) * ${k})))`;
     }, [containerK]);
+    const chipTransform = isFixedSize ? `scale(${pageScale})` : scaleTransform;
+    const uiScaleInBoxExpr = `calc(1 / (var(--map-zoom, 1) * ${(containerK || 1) * pageScale}))`;
 
     // Flushed zoom published by MapEditorViewport at the same moment as the
     // CSS var above (1 outside the map editor): lets the leader geometry be
     // computed in image px from CSS-px chip measurements. Only subscribed
-    // when a stub is drawn (no re-render on zoom flush otherwise).
+    // when a stub is drawn (no re-render on zoom flush otherwise) — the
+    // fixed-size chip is measured in page pt, but the VARIABLE-mode elbow
+    // drag still converts screen px → image px with it.
     const zoom = useMapZoom(stub.length > 0);
     const zk = (zoom || 1) * (containerK || 1);
 
@@ -156,14 +188,18 @@ export default function NodeLabelStatic({
     };
 
     // --- 4b. LARGEUR RÉGLABLE (drag de la poignée droite, 2D uniquement) ---
-    // The chip is constant screen size, so 1 dragged CSS px = 1 width px.
+    // Screen-constant chip: 1 dragged CSS px = 1 width px. "Taille fixe"
+    // chip: the screen delta is converted to page pt through the box's real
+    // on-screen scale (bounding rect / layout width — absorbs map zoom,
+    // containerK, pageScale and browser zoom at once, like NodeFreeTextStatic).
     // Live width during the drag, then persisted: `labelWidth` on the
-    // annotation for sub-labels, `width` for standalone LABEL annotations.
+    // annotation for sub-labels, `width` for standalone LABEL annotations
+    // (screen px, or page pt in fixed mode).
     const [liveWidth, setLiveWidth] = useState(null);
     const effectiveFixedWidth = liveWidth ?? fixedWidth;
 
-    const MIN_WIDTH = 60;
-    const MAX_WIDTH = 600;
+    const MIN_WIDTH = isFixedSize ? 20 : 60;
+    const MAX_WIDTH = isFixedSize ? 2000 : 600;
 
     const saveWidth = async (value) => {
         try {
@@ -194,6 +230,12 @@ export default function NodeLabelStatic({
         e.preventDefault();
         const startX = e.clientX;
         const startW = boxRef.current?.offsetWidth || fixedWidth || MIN_WIDTH;
+        // screen px per local (chip) px — ~1 for a screen-constant chip.
+        const rect = boxRef.current?.getBoundingClientRect();
+        const screenScale =
+            rect?.width && boxRef.current?.offsetWidth
+                ? rect.width / boxRef.current.offsetWidth
+                : 1;
         let lastW = null;
 
         const computeWidth = (clientX) =>
@@ -202,7 +244,7 @@ export default function NodeLabelStatic({
                     MAX_WIDTH,
                     // The chip is centered on labelPoint: the edge follows the
                     // cursor when the width grows by twice the pointer delta.
-                    Math.max(MIN_WIDTH, startW + 2 * (clientX - startX))
+                    Math.max(MIN_WIDTH, startW + (2 * (clientX - startX)) / screenScale)
                 )
             );
 
@@ -413,7 +455,7 @@ export default function NodeLabelStatic({
         const ro = new ResizeObserver(updateSize);
         ro.observe(el);
         return () => ro.disconnect();
-    }, [localValue, fixedWidth, onSizeChange, selected, fontSize, sizeVariant, linesKey]);
+    }, [localValue, fixedWidth, onSizeChange, selected, effectiveFontSize, isFixedSize, pageScale, linesKey]);
 
     // --- 7. RENDU ---
     const dataProps = {
@@ -429,7 +471,8 @@ export default function NodeLabelStatic({
 
     const fontStyles = {
         fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
-        fontSize: `${fontSize}px`,
+        // CSS px in the chip: screen px, or page pt under the fixed-size scale.
+        fontSize: `${effectiveFontSize}px`,
         fontWeight: 'bold',
         lineHeight: 1.2,
         textAlign: 'center',
@@ -451,13 +494,16 @@ export default function NodeLabelStatic({
     // measured in CSS px and converted with the flushed zoom (useMapZoom), the
     // same value the CSS counter-scale uses, so both agree at every zoom
     // (including during the wheel-gesture freeze). The opaque chip is painted
-    // after the line and hides whatever runs under it.
+    // after the line and hides whatever runs under it. Fixed-size chip: the
+    // measurements are page pt, the stub length too → image px via pageScale.
     const leader = getLabelLeaderGeometry({
         targetPx,
         labelPx,
         // offsetWidth is border-box; strip the selection buffer added above.
-        halfWidthImg: (labelSize.w - (selected ? 4 : 0)) / 2 / zk,
-        stubImg: stub.length / zk,
+        halfWidthImg: isFixedSize
+            ? ((labelSize.w - (selected ? 4 : 0)) / 2) * pageScale
+            : (labelSize.w - (selected ? 4 : 0)) / 2 / zk,
+        stubImg: isFixedSize ? stub.length * pageScale : stub.length / zk,
         mode: stub.mode,
         elbowX: liveElbowX ?? elbowPoint?.x ?? null,
     });
@@ -552,9 +598,10 @@ export default function NodeLabelStatic({
                 </g>
             )}
 
-            {/* C. LABEL BOX */}
+            {/* C. LABEL BOX (screen-constant, or page pt → image px when
+                "Taille fixe") */}
             <g transform={`translate(${labelPx.x}, ${labelPx.y})`}>
-                <g data-label-scale style={{ transform: scaleTransform }}>
+                <g data-label-scale style={{ transform: chipTransform }}>
                     <foreignObject
                         x={-labelSize.w / 2}
                         y={-labelSize.h / 2}
@@ -648,7 +695,7 @@ export default function NodeLabelStatic({
                                         <div
                                             style={{
                                                 ...fontStyles,
-                                                fontSize: `${Math.round(fontSize * 0.85)}px`,
+                                                fontSize: `${Math.round(effectiveFontSize * 0.85)}px`,
                                                 fontWeight: 'normal',
                                                 color: textColor,
                                                 whiteSpace: 'pre-wrap',
@@ -741,7 +788,11 @@ export default function NodeLabelStatic({
                                         position: 'absolute',
                                         right: -6,
                                         top: '50%',
-                                        transform: 'translateY(-50%)',
+                                        // Fixed-size chip: keep the handle at screen size.
+                                        transform: isFixedSize
+                                            ? `translateY(-50%) scale(${uiScaleInBoxExpr})`
+                                            : 'translateY(-50%)',
+                                        transformOrigin: 'center',
                                         width: 8,
                                         height: 22,
                                         borderRadius: 4,
