@@ -1,0 +1,348 @@
+import { useEffect, useMemo, useRef } from "react";
+import { useDispatch } from "react-redux";
+import { useLiveQuery } from "dexie-react-hooks";
+
+import { setToaster } from "Features/layout/layoutSlice";
+
+import { Box, Button, Chip, Typography } from "@mui/material";
+import {
+  Notes as TextIcon,
+  Event as EventIcon,
+  ImageNotSupported as MissingMediaIcon,
+} from "@mui/icons-material";
+
+import db from "App/db/db";
+
+import useNotesAppScopeLink from "../hooks/useNotesAppScopeLink";
+import { getNotesAppClient } from "../services/notesAppClient";
+
+// Notes feed of a Krnet-imported business object: the free notes (photos,
+// comments, audio, events) added on the object in notes-app, imported at
+// sync time under businessObject.notesAppNotes (media binaries in db.files).
+
+const LEVEL_PROPS = {
+  alert: { label: "Alerte", color: "warning" },
+  blocking: { label: "Bloquant", color: "error" },
+};
+
+function formatDate(iso) {
+  if (!iso) return null;
+  try {
+    return new Date(iso).toLocaleString("fr-FR", {
+      dateStyle: "short",
+      timeStyle: "short",
+    });
+  } catch {
+    return null;
+  }
+}
+
+export default function SectionNotesAppObjectNotes({ businessObject }) {
+  const dispatch = useDispatch();
+
+  // data — the linked Krnet project id (live Storage diagnostics in debug)
+
+  const { link } = useNotesAppScopeLink();
+
+  // strings
+
+  const emptyS = "Aucune note sur cet objet.";
+  const missingMediaS = "Média non synchronisé";
+
+  // data
+
+  const notes = useMemo(
+    () => businessObject?.notesAppNotes ?? [],
+    [businessObject?.notesAppNotes]
+  );
+
+  // media blob URLs from db.files (revoked on change/unmount)
+
+  const fileNames = notes.filter((n) => n.fileName).map((n) => n.fileName);
+  const fileNamesKey = fileNames.join(",");
+  const blobUrlsRef = useRef([]);
+
+  const mediaUrlByFileName = useLiveQuery(async () => {
+    blobUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+    blobUrlsRef.current = [];
+    if (!fileNames.length) return {};
+    const files = await db.files.bulkGet(fileNames);
+    const byFileName = {};
+    files.forEach((file) => {
+      if (!file?.fileArrayBuffer) return;
+      const url = URL.createObjectURL(
+        new Blob([file.fileArrayBuffer], { type: file.fileMime })
+      );
+      blobUrlsRef.current.push(url);
+      byFileName[file.fileName] = url;
+    });
+    return byFileName;
+  }, [fileNamesKey]);
+
+  useEffect(() => {
+    return () => {
+      blobUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+      blobUrlsRef.current = [];
+    };
+  }, []);
+
+  // handlers — debug: copies the raw notes payload + the local db.files
+  // status of each media to the clipboard (helps diagnosing missing images:
+  // entry without fileName = never resolved in Storage at sync time; entry
+  // with fileName but found:false = binary missing locally).
+
+  async function handleDebugCopy() {
+    try {
+      const files = await db.files.bulkGet(fileNames);
+      const filesStatus = {};
+      fileNames.forEach((fileName, i) => {
+        const file = files[i];
+        filesStatus[fileName] = file
+          ? {
+              found: true,
+              size: file.fileArrayBuffer?.byteLength ?? 0,
+              mime: file.fileMime ?? null,
+            }
+          : { found: false };
+      });
+
+      // Live Storage diagnostics: remote object size + a real signed-URL
+      // fetch, per media note — tells a broken remote object (mobile upload)
+      // from a broken download or local write.
+      const storageStatus = {};
+      const projectId = link?.projectId;
+      if (projectId) {
+        try {
+          const client = getNotesAppClient();
+          const mediaNotes = notes.filter(
+            (n) => n.type === "photo" || n.type === "audio"
+          );
+          for (const note of mediaNotes) {
+            const folder = `${projectId}/${note.type}s`;
+            const { data: listed, error: listError } = await client.storage
+              .from("project-files")
+              .list(folder, { search: `${note.idMaster}.` });
+            if (listError) {
+              storageStatus[note.idMaster] = { listError: listError.message };
+              continue;
+            }
+            const item = listed?.[0];
+            if (!item) {
+              storageStatus[note.idMaster] = { storageObject: null };
+              continue;
+            }
+            const path = `${folder}/${item.name}`;
+            let fetchInfo = null;
+            const { data: signed, error: signError } = await client.storage
+              .from("project-files")
+              .createSignedUrl(path, 60);
+            if (signed?.signedUrl) {
+              const response = await fetch(signed.signedUrl);
+              const blob = await response.blob();
+              fetchInfo = {
+                httpStatus: response.status,
+                blobSize: blob.size,
+                contentType: response.headers.get("content-type"),
+              };
+            } else if (signError) {
+              fetchInfo = { signError: signError.message };
+            }
+            storageStatus[note.idMaster] = {
+              storageObject: {
+                name: item.name,
+                size: item.metadata?.size ?? null,
+                mimetype: item.metadata?.mimetype ?? null,
+              },
+              fetch: fetchInfo,
+            };
+          }
+        } catch (e) {
+          storageStatus.error = String(e);
+        }
+      } else {
+        storageStatus.error = "no linked notes-app project on the scope";
+      }
+
+      const payload = {
+        businessObjectId: businessObject?.id,
+        idMaster: businessObject?.idMaster,
+        label: businessObject?.label,
+        notesAppNotes: notes,
+        filesStatus,
+        storageStatus,
+      };
+      await navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
+      dispatch(setToaster({ message: "JSON des notes copié" }));
+    } catch (e) {
+      console.log("[notesApp] debug copy failed", e);
+      dispatch(
+        setToaster({ message: "Copie impossible (voir console)", isError: true })
+      );
+    }
+  }
+
+  // render
+
+  const debugButton = (
+    <Button
+      size="small"
+      onClick={handleDebugCopy}
+      sx={{
+        alignSelf: "center",
+        color: "text.disabled",
+        textTransform: "none",
+        fontSize: 12,
+      }}
+    >
+      debug
+    </Button>
+  );
+
+  if (notes.length === 0) {
+    return (
+      <Box sx={{ display: "flex", flexDirection: "column", flex: 1 }}>
+        <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>
+          {emptyS}
+        </Typography>
+        {debugButton}
+      </Box>
+    );
+  }
+
+  return (
+    <Box
+      sx={{
+        p: 1.5,
+        display: "flex",
+        flexDirection: "column",
+        gap: 1.5,
+        overflowY: "auto",
+        flex: 1,
+      }}
+    >
+      {notes.map((note) => {
+        const dateS = formatDate(note.createdAt);
+        const level = LEVEL_PROPS[note.level];
+        const mediaUrl = note.fileName
+          ? mediaUrlByFileName?.[note.fileName]
+          : null;
+        const isMedia = note.type === "photo" || note.type === "audio";
+
+        return (
+          <Box
+            key={note.idMaster}
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              gap: 0.5,
+              p: 1,
+              borderRadius: 1,
+              bgcolor: "background.paper",
+              border: "1px solid",
+              borderColor: level
+                ? `${level.color}.light`
+                : "divider",
+            }}
+          >
+            {/* header: date + level */}
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 1,
+              }}
+            >
+              <Typography variant="caption" color="text.secondary">
+                {dateS}
+              </Typography>
+              {level && (
+                <Chip size="small" label={level.label} color={level.color} />
+              )}
+            </Box>
+
+            {/* content per type */}
+            {note.type === "photo" &&
+              (mediaUrl ? (
+                <Box
+                  component="img"
+                  src={mediaUrl}
+                  alt="Photo"
+                  sx={{ width: 1, borderRadius: 1, display: "block" }}
+                />
+              ) : (
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1,
+                    color: "text.secondary",
+                  }}
+                >
+                  <MissingMediaIcon fontSize="small" />
+                  <Typography variant="caption">{missingMediaS}</Typography>
+                </Box>
+              ))}
+
+            {note.type === "audio" &&
+              (mediaUrl ? (
+                <Box
+                  component="audio"
+                  controls
+                  src={mediaUrl}
+                  sx={{ width: 1 }}
+                />
+              ) : (
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1,
+                    color: "text.secondary",
+                  }}
+                >
+                  <MissingMediaIcon fontSize="small" />
+                  <Typography variant="caption">{missingMediaS}</Typography>
+                </Box>
+              ))}
+
+            {note.type === "text" && (
+              <Box sx={{ display: "flex", gap: 1 }}>
+                <TextIcon fontSize="small" color="action" sx={{ mt: 0.25 }} />
+                <Typography
+                  variant="body2"
+                  sx={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}
+                >
+                  {note.content}
+                </Typography>
+              </Box>
+            )}
+
+            {note.type === "event" && (
+              <Box sx={{ display: "flex", gap: 1 }}>
+                <EventIcon fontSize="small" color="action" sx={{ mt: 0.25 }} />
+                <Typography
+                  variant="body2"
+                  sx={{ fontStyle: "italic", wordBreak: "break-word" }}
+                >
+                  {note.content}
+                </Typography>
+              </Box>
+            )}
+
+            {/* unknown types (future): raw content fallback */}
+            {!isMedia &&
+              note.type !== "text" &&
+              note.type !== "event" &&
+              note.content && (
+                <Typography variant="body2" sx={{ wordBreak: "break-word" }}>
+                  {note.content}
+                </Typography>
+              )}
+          </Box>
+        );
+      })}
+      {debugButton}
+    </Box>
+  );
+}

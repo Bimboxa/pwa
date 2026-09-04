@@ -78,6 +78,7 @@ import elevationReducer from "Features/elevation/elevationSlice";
 import meshReducer from "Features/mesh/meshSlice";
 import povReducer from "Features/pov/povSlice";
 import urlParamsReducer from "Features/urlParams/urlParamsSlice";
+import notesAppReducer from "Features/notesApp/notesAppSlice";
 
 import { syncTabsMiddleware, initSyncTabsListener } from "./syncTabsMiddleware";
 import { startTabsRegistry } from "./tabsRegistry";
@@ -160,6 +161,7 @@ const store = configureStore({
     mesh: meshReducer,
     pov: povReducer,
     urlParams: urlParamsReducer,
+    notesApp: notesAppReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

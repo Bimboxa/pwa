@@ -14,6 +14,7 @@ import {
   Chat,
   Image,
   FolderOpen,
+  CloudSync,
 } from "@mui/icons-material";
 
 import { Box } from "@mui/material";
@@ -115,6 +116,17 @@ export default function useRightPanelTools() {
       // module. Bottom section, above the contextual "Réglages" (contextual
       // bottom tools are always appended last).
       group: "bottom",
+    },
+    NOTES_APP_SYNC: {
+      label: "Sync",
+      icon: <CloudSync />,
+      // Scope-level notes-app (Krnet) data integration: available in every
+      // module. Bottom section, above the contextual "Réglages".
+      group: "bottom",
+      // Hard org gate, on top of the features.tools allowlist: hidden
+      // everywhere (band AND scope-config catalog) unless the org enables
+      // the integration. Off by default; only appConfig_lei turns it on.
+      disabled: appConfig?.features?.notesApp?.enabled !== true,
     },
     OBJECTS_LIBRARY: {
       label: "Bibliothèque",

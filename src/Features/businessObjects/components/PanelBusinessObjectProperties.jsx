@@ -8,6 +8,7 @@ import {
 } from "../businessObjectsSlice";
 import { setSelectedItem } from "Features/selection/selectionSlice";
 import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
+import { setNotesAppObjectPropertiesTab } from "Features/notesApp/notesAppSlice";
 
 import {
   Box,
@@ -19,6 +20,8 @@ import {
   ListItem,
   ListItemText,
   MenuItem,
+  Tab,
+  Tabs,
   TextField,
   Typography,
 } from "@mui/material";
@@ -43,6 +46,7 @@ import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import unsetMainAnnotationService from "../services/unsetMainAnnotationService";
 
 import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTemplateIcon";
+import SectionNotesAppObjectNotes from "Features/notesApp/components/SectionNotesAppObjectNotes";
 import getAnnotationMainQtyLabel from "Features/annotations/utils/getAnnotationMainQtyLabel";
 import getBusinessObjectQtyLabel from "../utils/getBusinessObjectQtyLabel";
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
@@ -115,6 +119,16 @@ export default function PanelBusinessObjectProperties() {
     setLabel(businessObject?.label ?? "");
     setDescription(businessObject?.description ?? "");
   }, [businessObject?.id, businessObject?.label, businessObject?.description]);
+
+  // state — tabs: the "Notes" tab shows the Krnet notes feed of an imported
+  // object (photos, comments, events... under businessObject.notesAppNotes).
+  // The selection lives in Redux so browsing from object to object keeps the
+  // Notes tab open; non-Krnet objects (no tab bar) fall back to "PROPS".
+
+  const tab = useSelector((s) => s.notesApp.objectPropertiesTab);
+  const isNotesAppObject = businessObject?.remoteSource === "notesApp";
+  const notesCount = businessObject?.notesAppNotes?.length ?? 0;
+  const effectiveTab = isNotesAppObject && tab === "NOTES" ? "NOTES" : "PROPS";
 
   // helpers — linked annotations + rolled-up quantities
 
@@ -253,6 +267,33 @@ export default function PanelBusinessObjectProperties() {
         </Box>
       </Box>
 
+      {/* tabs — only Krnet-imported objects carry a notes feed */}
+      {isNotesAppObject && (
+        <Tabs
+          value={effectiveTab}
+          onChange={(_e, v) => dispatch(setNotesAppObjectPropertiesTab(v))}
+          variant="fullWidth"
+          sx={{
+            minHeight: 36,
+            borderBottom: "1px solid",
+            borderColor: "divider",
+            "& .MuiTab-root": { minHeight: 36 },
+          }}
+        >
+          <Tab value="PROPS" label="Propriétés" />
+          <Tab
+            value="NOTES"
+            label={notesCount > 0 ? `Notes (${notesCount})` : "Notes"}
+          />
+        </Tabs>
+      )}
+
+      {effectiveTab === "NOTES" && (
+        <SectionNotesAppObjectNotes businessObject={businessObject} />
+      )}
+
+      {effectiveTab !== "NOTES" && (
+      <>
       {/* props */}
       <Box
         sx={{
@@ -490,6 +531,8 @@ export default function PanelBusinessObjectProperties() {
           </List>
         )}
       </Box>
+      </>
+      )}
     </Box>
   );
 }

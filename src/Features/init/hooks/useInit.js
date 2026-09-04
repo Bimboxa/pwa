@@ -26,6 +26,7 @@ import useInitRcUserAccount from "Features/sync/hooks/useInitRcUserAccount";
 
 import useInitCheckRemoteScopeConfiguration from "Features/remoteScopeConfigurations/hooks/useInitCheckRemoteScopeConfiguration";
 import useInitAppLog from "Features/appLog/hooks/useInitAppLog";
+import useInitNotesAppSession from "Features/notesApp/hooks/useInitNotesAppSession";
 
 //import useInitFetchServicesCredentials from "Features/servicesCredentials/hooks/useInitFetchServicesCredentials";
 //import useInitServicesConfig from "Features/settings/hooks/useInitServicesConfig";
@@ -42,6 +43,7 @@ export default function useInit() {
   useInitAppConfig();
   useDetectNewVersion();
   useInitAppLog();
+  useInitNotesAppSession();
 
   useEffect(() => {
     setupSWUpdateListener();

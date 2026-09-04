@@ -41,6 +41,7 @@ import PanelLocalLlm from "Features/localLlm/components/PanelLocalLlm";
 import PanelEditorSettings from "Features/settings/components/PanelEditorSettings";
 import PanelResources from "Features/resources/components/PanelResources";
 import PanelBaseMapTransforms from "Features/baseMapTransforms/components/PanelBaseMapTransforms";
+import PanelNotesAppSync from "Features/notesApp/components/PanelNotesAppSync";
 
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
@@ -213,6 +214,7 @@ export default function RightPanelContainer() {
           {selectedKey === "LOCAL_LLM" && <PanelLocalLlm />}
           {selectedKey === "SETTINGS" && <PanelEditorSettings />}
           {selectedKey === "BASE_MAP_TRANSFORMS" && <PanelBaseMapTransforms />}
+          {selectedKey === "NOTES_APP_SYNC" && <PanelNotesAppSync />}
         </Box>
       </Slide>
 
