@@ -75,8 +75,15 @@ export default async function prepareNotesAppBaseMapsMerge({
   const fileRows = [];
   const versionRows = [];
   const baseMapIdMasterToLocalId = new Map();
+  // image width in px per local baseMap id — the positions merge needs it to
+  // compute the LABEL chip offset in the normalized frame.
+  const baseMapWidthByLocalId = new Map();
   for (const [idMaster, row] of localByIdMaster) {
     baseMapIdMasterToLocalId.set(idMaster, row.id);
+    baseMapWidthByLocalId.set(
+      row.id,
+      row.refWidth ?? row.image?.imageSize?.width ?? null
+    );
   }
 
   const counts = {
@@ -136,6 +143,11 @@ export default async function prepareNotesAppBaseMapsMerge({
     baseMapIdMasterToLocalId.set(remote.id, localId);
 
     let imageData = null;
+    const setWidthFromImage = (data) => {
+      if (data?.imageSize?.width) {
+        baseMapWidthByLocalId.set(localId, data.imageSize.width);
+      }
+    };
     if (imageChanged) {
       const file = await downloadNotesAppFile({
         storagePath,
@@ -158,6 +170,7 @@ export default async function prepareNotesAppBaseMapsMerge({
         }
       );
       imageData = result?.pureData?.image ?? null;
+      setWidthFromImage(imageData);
       const fileData = result?.filesDataByKey?.image;
       if (fileData) fileRows.push(fileData);
     }
@@ -241,6 +254,7 @@ export default async function prepareNotesAppBaseMapsMerge({
     fileRows,
     versionRows,
     baseMapIdMasterToLocalId,
+    baseMapWidthByLocalId,
     counts,
   };
 }

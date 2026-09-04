@@ -1,7 +1,10 @@
 import { useDispatch, useSelector } from "react-redux";
 
 import { setToaster } from "Features/layout/layoutSlice";
-import { triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice";
+import {
+  triggerAnnotationsUpdate,
+  triggerAnnotationTemplatesUpdate,
+} from "Features/annotations/annotationsSlice";
 import {
   triggerBusinessObjectsUpdate,
   triggerRelsBusinessObjectAnnotationUpdate,
@@ -55,6 +58,7 @@ export default function useSyncNotesAppScope() {
       });
 
       dispatch(triggerAnnotationsUpdate());
+      dispatch(triggerAnnotationTemplatesUpdate());
       dispatch(triggerBusinessObjectsUpdate());
       dispatch(triggerRelsBusinessObjectAnnotationUpdate());
       dispatch(setNotesAppSyncStatus({ status: "success", step: null }));

@@ -1,5 +1,3 @@
-import { nanoid } from "@reduxjs/toolkit";
-
 import db, { withSystemWrite } from "App/db/db";
 import { withoutUndo } from "App/db/undoManager";
 
@@ -11,6 +9,7 @@ import buildNotesAppMediaIndex from "./buildNotesAppMediaIndex";
 import prepareNotesAppBusinessObjectsMerge from "./mergeNotesAppBusinessObjects";
 import prepareNotesAppBaseMapsMerge from "./mergeNotesAppBaseMaps";
 import prepareNotesAppPositionsMerge from "./mergeNotesAppPositions";
+import resolveNotesAppLocationTemplate from "./resolveNotesAppLocationTemplate";
 import { upsertMappingEntry } from "../utils/resolveNotesAppScopeLink";
 
 // Pull orchestrator: one project dump, then per mapped (remote list ->
@@ -22,37 +21,29 @@ import { upsertMappingEntry } from "../utils/resolveNotesAppScopeLink";
 //
 // Remote lists without a mapping entry default to "create a linked Ouvrages
 // listing" (named after the remote list). Explicit "ignored" entries are
-// skipped. Positions land as MARKER annotations in the scope's companion
-// "Repères" listing, linked to their object via relsBusinessObjectAnnotation.
+// skipped. Positions follow the located-business-objects contract: LABEL
+// annotations issued from one of the listing's own annotationTemplates
+// (created from the appConfig default when missing), flagged as the object's
+// MAIN annotation via relsBusinessObjectAnnotation { isMain, baseMapId }.
 
-const POSITIONS_LISTING_KEY = "notesAppPositions";
+// Companion listing used by earlier versions to host imported MARKERs — its
+// annotations are migrated into the businessObjects listings, the listing
+// itself is tombstoned.
+const LEGACY_POSITIONS_LISTING_KEY = "notesAppPositions";
 
-async function resolvePositionsListing({ scope, appConfig, userIdMaster, appName }) {
-  const scopeListings = (
-    await db.listings.where("projectId").equals(scope.projectId).toArray()
-  ).filter((l) => !l.deletedAt && l.scopeId === scope.id);
-
-  const existing = scopeListings.find((l) => l.key === POSITIONS_LISTING_KEY);
-  if (existing) return { positionsListing: existing, positionsListingRowToAdd: null };
-
-  const row = {
-    id: nanoid(),
-    key: POSITIONS_LISTING_KEY,
-    name: `Repères ${appName}`,
-    entityModelKey: "annotation",
-    ...(appConfig?.entityModelsObject?.annotation && {
-      entityModel: appConfig.entityModelsObject.annotation,
-    }),
-    table: "entities",
-    color: "#0288D1",
-    iconKey: "annotation",
-    spriteImageKey: "DEFAULT",
-    canCreateItem: false,
-    projectId: scope.projectId,
-    scopeId: scope.id,
-    createdByUserIdMaster: userIdMaster,
-  };
-  return { positionsListing: row, positionsListingRowToAdd: row };
+async function resolveLegacyPositionsListing(scope) {
+  const scopeListings = await db.listings
+    .where("projectId")
+    .equals(scope.projectId)
+    .toArray();
+  return (
+    scopeListings.find(
+      (l) =>
+        !l.deletedAt &&
+        l.scopeId === scope.id &&
+        l.key === LEGACY_POSITIONS_LISTING_KEY
+    ) ?? null
+  );
 }
 
 export default async function syncNotesAppScope({
@@ -72,8 +63,6 @@ export default async function syncNotesAppScope({
     error.code = "NOTES_APP_NOT_SIGNED_IN";
     throw error;
   }
-
-  const appName = appConfig?.features?.notesApp?.name ?? "Krnet";
 
   onProgress?.({ step: "fetch" });
   const dump = await fetchNotesAppProjectDump(link.projectId);
@@ -119,9 +108,9 @@ export default async function syncNotesAppScope({
     });
   }
 
-  // --- companion listing hosting the imported MARKER annotations
-  const { positionsListing, positionsListingRowToAdd } =
-    await resolvePositionsListing({ scope, appConfig, userIdMaster, appName });
+  // --- legacy companion listing (earlier versions hosted bare MARKERs
+  // there): its annotations are migrated per pair, the listing tombstoned.
+  const legacyPositionsListing = await resolveLegacyPositionsListing(scope);
 
   // --- plans first (positions need the id map); downloads happen inside,
   // OUTSIDE the transaction below.
@@ -147,18 +136,29 @@ export default async function syncNotesAppScope({
       userIdMaster,
       mediaIndex,
     });
+    // location template of the listing (its own annotationTemplates; created
+    // from the appConfig default when it has none)
+    const { template: locationTemplate, templateRowToAdd } =
+      await resolveNotesAppLocationTemplate({
+        listing: pair.listing,
+        projectId: scope.projectId,
+        appConfig,
+        userIdMaster,
+      });
     const positionsMerge = await prepareNotesAppPositionsMerge({
       dump,
       remoteListing: pair.remoteListing,
       listing: pair.listing,
-      positionsListing,
+      locationTemplate,
+      legacyPositionsListing,
       scope,
       projectId: scope.projectId,
       userIdMaster,
       objectIdMasterToLocalId: objectsMerge.objectIdMasterToLocalId,
       baseMapIdMasterToLocalId: baseMapsMerge.baseMapIdMasterToLocalId,
+      baseMapWidthByLocalId: baseMapsMerge.baseMapWidthByLocalId,
     });
-    merges.push({ pair, objectsMerge, positionsMerge });
+    merges.push({ pair, objectsMerge, positionsMerge, templateRowToAdd });
 
     listingsMapping = upsertMappingEntry(listingsMapping, {
       remoteListingId: pair.remoteListing.id,
@@ -193,15 +193,12 @@ export default async function syncNotesAppScope({
           db.baseMaps,
           db.baseMapVersions,
           db.annotations,
-          db.points,
+          db.annotationTemplates,
           db.files,
         ],
         async () => {
           if (baseMapsMerge.listingRowToAdd) {
             await db.listings.put(baseMapsMerge.listingRowToAdd);
-          }
-          if (positionsListingRowToAdd) {
-            await db.listings.put(positionsListingRowToAdd);
           }
           if (baseMapsMerge.fileRows.length) {
             await db.files.bulkPut(baseMapsMerge.fileRows);
@@ -212,15 +209,19 @@ export default async function syncNotesAppScope({
           if (baseMapsMerge.versionRows.length) {
             await db.baseMapVersions.bulkPut(baseMapsMerge.versionRows);
           }
-          for (const { objectsMerge, positionsMerge } of merges) {
+          for (const {
+            objectsMerge,
+            positionsMerge,
+            templateRowToAdd,
+          } of merges) {
+            if (templateRowToAdd) {
+              await db.annotationTemplates.put(templateRowToAdd);
+            }
             if (objectsMerge.rows.length) {
               await db.businessObjects.bulkPut(objectsMerge.rows);
             }
             if (objectsMerge.fileRows.length) {
               await db.files.bulkPut(objectsMerge.fileRows);
-            }
-            if (positionsMerge.pointRows.length) {
-              await db.points.bulkPut(positionsMerge.pointRows);
             }
             if (positionsMerge.annotationRows.length) {
               await db.annotations.bulkPut(positionsMerge.annotationRows);
@@ -230,6 +231,12 @@ export default async function syncNotesAppScope({
                 positionsMerge.relRows
               );
             }
+          }
+          // migrated companion listing: nothing points at it any more
+          if (legacyPositionsListing) {
+            await db.listings.update(legacyPositionsListing.id, {
+              deletedAt: nowIso,
+            });
           }
           await db.scopes.update(scope.id, {
             notesApp: {
