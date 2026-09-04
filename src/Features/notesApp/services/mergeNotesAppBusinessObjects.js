@@ -103,8 +103,10 @@ export default async function prepareNotesAppBusinessObjectsMerge({
   async function ensureNoteMediaFiles(noteEntries, localObjectId) {
     for (const entry of noteEntries) {
       if (!entry.fileName) continue;
+      // A 0-byte local file counts as missing (self-heals a broken download
+      // or a Storage object fixed after a first sync).
       const existing = await db.files.get(entry.fileName);
-      if (existing) continue;
+      if (existing?.fileArrayBuffer?.byteLength > 0) continue;
       const media = mediaIndex?.get(entry.idMaster);
       if (!media) continue;
       try {

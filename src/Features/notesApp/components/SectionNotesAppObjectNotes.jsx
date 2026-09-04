@@ -13,6 +13,9 @@ import {
 
 import db from "App/db/db";
 
+import useNotesAppScopeLink from "../hooks/useNotesAppScopeLink";
+import { getNotesAppClient } from "../services/notesAppClient";
+
 // Notes feed of a Krnet-imported business object: the free notes (photos,
 // comments, audio, events) added on the object in notes-app, imported at
 // sync time under businessObject.notesAppNotes (media binaries in db.files).
@@ -36,6 +39,10 @@ function formatDate(iso) {
 
 export default function SectionNotesAppObjectNotes({ businessObject }) {
   const dispatch = useDispatch();
+
+  // data — the linked Krnet project id (live Storage diagnostics in debug)
+
+  const { link } = useNotesAppScopeLink();
 
   // strings
 
@@ -98,12 +105,71 @@ export default function SectionNotesAppObjectNotes({ businessObject }) {
             }
           : { found: false };
       });
+
+      // Live Storage diagnostics: remote object size + a real signed-URL
+      // fetch, per media note — tells a broken remote object (mobile upload)
+      // from a broken download or local write.
+      const storageStatus = {};
+      const projectId = link?.projectId;
+      if (projectId) {
+        try {
+          const client = getNotesAppClient();
+          const mediaNotes = notes.filter(
+            (n) => n.type === "photo" || n.type === "audio"
+          );
+          for (const note of mediaNotes) {
+            const folder = `${projectId}/${note.type}s`;
+            const { data: listed, error: listError } = await client.storage
+              .from("project-files")
+              .list(folder, { search: `${note.idMaster}.` });
+            if (listError) {
+              storageStatus[note.idMaster] = { listError: listError.message };
+              continue;
+            }
+            const item = listed?.[0];
+            if (!item) {
+              storageStatus[note.idMaster] = { storageObject: null };
+              continue;
+            }
+            const path = `${folder}/${item.name}`;
+            let fetchInfo = null;
+            const { data: signed, error: signError } = await client.storage
+              .from("project-files")
+              .createSignedUrl(path, 60);
+            if (signed?.signedUrl) {
+              const response = await fetch(signed.signedUrl);
+              const blob = await response.blob();
+              fetchInfo = {
+                httpStatus: response.status,
+                blobSize: blob.size,
+                contentType: response.headers.get("content-type"),
+              };
+            } else if (signError) {
+              fetchInfo = { signError: signError.message };
+            }
+            storageStatus[note.idMaster] = {
+              storageObject: {
+                name: item.name,
+                size: item.metadata?.size ?? null,
+                mimetype: item.metadata?.mimetype ?? null,
+              },
+              fetch: fetchInfo,
+            };
+          }
+        } catch (e) {
+          storageStatus.error = String(e);
+        }
+      } else {
+        storageStatus.error = "no linked notes-app project on the scope";
+      }
+
       const payload = {
         businessObjectId: businessObject?.id,
         idMaster: businessObject?.idMaster,
         label: businessObject?.label,
         notesAppNotes: notes,
         filesStatus,
+        storageStatus,
       };
       await navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
       dispatch(setToaster({ message: "JSON des notes copié" }));
