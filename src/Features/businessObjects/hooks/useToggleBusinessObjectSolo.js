@@ -10,17 +10,19 @@ import {
 // Clicking a business object toggles its SOLO display: the editors show only
 // the annotations linked to it or to its descendants (useAnnotationsV2
 // filter keyed on selectedBusinessObjectId), the base map switches and zooms
-// to the first linked annotation. Re-clicking the soloed object restores the
-// full display. The properties panel is NOT opened — the object's properties
-// show when the user opens it (routing on selectedBusinessObjectId).
+// to the object's MAIN annotation (the one on the active base map first),
+// else to the first linked annotation. Re-clicking the soloed object restores
+// the full display. The properties panel is NOT opened — the object's
+// properties show when the user opens it (routing on selectedBusinessObjectId).
 export default function useToggleBusinessObjectSolo() {
   const dispatch = useDispatch();
 
   const selectedBusinessObjectId = useSelector(
     (s) => s.businessObjects.selectedBusinessObjectId
   );
+  const selectedBaseMapId = useSelector((s) => s.mapEditor.selectedBaseMapId);
 
-  return (businessObject, soloAnnotations) => {
+  return (businessObject, soloAnnotations, mainAnnotations) => {
     if (!businessObject) return;
 
     // toggle off: re-click on the soloed object restores the full display
@@ -34,14 +36,18 @@ export default function useToggleBusinessObjectSolo() {
     dispatch(clearSelection());
     dispatch(setSelectedBusinessObjectId(businessObject.id));
 
-    // soloAnnotations = own + descendants' linked annotations (resolved, in
-    // tree order) — pose the camera on the first one.
-    const first = soloAnnotations?.[0];
-    if (first?.baseMapId) dispatch(setSelectedMainBaseMapId(first.baseMapId));
-    if (first?.points?.length > 0) {
-      dispatch(setZoomTo(first.points[0]));
-    } else if (first?.x != null) {
-      dispatch(setZoomTo({ x: first.x, y: first.y }));
+    // Camera target: main annotation on the active base map → first main
+    // annotation → first linked annotation (own + descendants', tree order).
+    const mains = mainAnnotations ?? [];
+    const target =
+      mains.find((a) => a.baseMapId === selectedBaseMapId) ??
+      mains[0] ??
+      soloAnnotations?.[0];
+    if (target?.baseMapId) dispatch(setSelectedMainBaseMapId(target.baseMapId));
+    if (target?.points?.length > 0) {
+      dispatch(setZoomTo(target.points[0]));
+    } else if (target?.x != null) {
+      dispatch(setZoomTo({ x: target.x, y: target.y }));
     }
   };
 }

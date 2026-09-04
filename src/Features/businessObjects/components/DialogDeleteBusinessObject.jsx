@@ -12,6 +12,7 @@ import {
 import db from "App/db/db";
 import useDeleteBusinessObject from "../hooks/useDeleteBusinessObject";
 import { getBusinessObjectDescendants } from "../utils/buildBusinessObjectsTree";
+import getMainRelsOfBusinessObjectsService from "../services/getMainRelsOfBusinessObjectsService";
 
 export default function DialogDeleteBusinessObject({
   open,
@@ -22,7 +23,7 @@ export default function DialogDeleteBusinessObject({
 
   // state
 
-  const [counts, setCounts] = useState(null); // {objects, rels}
+  const [counts, setCounts] = useState(null); // {objects, rels, mains}
 
   // effects — cascade counts for the confirmation message
 
@@ -39,14 +40,17 @@ export default function DialogDeleteBusinessObject({
         businessObject,
         ...getBusinessObjectDescendants(listingObjects, businessObject.id),
       ];
+      const objectIds = objectsToDelete.map((o) => o.id);
       const rels = await db.relsBusinessObjectAnnotation
         .where("businessObjectId")
-        .anyOf(objectsToDelete.map((o) => o.id))
+        .anyOf(objectIds)
         .toArray();
+      const mains = await getMainRelsOfBusinessObjectsService(objectIds);
       if (!cancelled)
         setCounts({
           objects: objectsToDelete.length,
-          rels: rels.filter((r) => !r.deletedAt).length,
+          rels: rels.filter((r) => !r.deletedAt && !r.isMain).length,
+          mains: mains.length,
         });
     })();
     return () => {
@@ -72,6 +76,12 @@ export default function DialogDeleteBusinessObject({
             {counts.objects > 1
               ? `${counts.objects} ouvrages (sous-ouvrages inclus) seront supprimés.`
               : "1 ouvrage sera supprimé."}
+            {counts.mains > 0 &&
+              ` ${counts.mains} annotation${
+                counts.mains > 1 ? "s" : ""
+              } de localisation ${
+                counts.mains > 1 ? "seront supprimées" : "sera supprimée"
+              } du plan.`}
             {counts.rels > 0 &&
               ` ${counts.rels} liaison${counts.rels > 1 ? "s" : ""} d'annotation${
                 counts.rels > 1 ? "s" : ""

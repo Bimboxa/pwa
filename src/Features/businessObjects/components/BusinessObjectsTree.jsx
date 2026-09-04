@@ -40,7 +40,12 @@ export default function BusinessObjectsTree({ listing }) {
   const moveBusinessObject = useMoveBusinessObject();
   const collapsedIds = useSelector((s) => s.businessObjects.collapsedIds);
 
-  const { qtiesByObjectId, annotationsByObjectId } = useBusinessObjectQties({
+  const {
+    qtiesByObjectId,
+    annotationsByObjectId,
+    mainRelsByObjectId,
+    mainAnnotationsByObjectId,
+  } = useBusinessObjectQties({
     listingId: listing.id,
   });
 
@@ -207,6 +212,8 @@ export default function BusinessObjectsTree({ listing }) {
                 qties={qtiesByObjectId[businessObject.id]}
                 linkedAnnotations={annotationsByObjectId[businessObject.id]}
                 soloAnnotations={soloAnnotationsByObjectId[businessObject.id]}
+                mainRels={mainRelsByObjectId[businessObject.id]}
+                mainAnnotations={mainAnnotationsByObjectId[businessObject.id]}
                 onAddChildBusinessObject={() =>
                   setCreateTarget({ parentBusinessObject: businessObject })
                 }

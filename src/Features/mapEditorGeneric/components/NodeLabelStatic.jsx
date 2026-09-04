@@ -4,6 +4,8 @@ import { IconButton } from "@mui/material";
 import { Refresh, Visibility, VisibilityOff } from "@mui/icons-material";
 
 import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
+import { useDispatch } from "react-redux";
+import { triggerBusinessObjectsUpdate } from "Features/businessObjects/businessObjectsSlice";
 
 import db from "App/db/db";
 
@@ -33,6 +35,7 @@ export default function NodeLabelStatic({
     // data
 
     const updateAnnotation = useUpdateAnnotation();
+    const dispatch = useDispatch();
 
 
     // helpers
@@ -40,6 +43,7 @@ export default function NodeLabelStatic({
     const data = { ...annotation, ...annotationOverride };
     const {
         id,
+        mainBusinessObjectId,
         targetPoint = { x: 0, y: 0 },
         labelPoint = { x: 0, y: 0 },
         width: fixedWidth,
@@ -107,6 +111,13 @@ export default function NodeLabelStatic({
     const saveLabel = async (value) => {
         try {
             const _annotationId = id.startsWith("label::") ? id.replace("label::", "") : id;
+            // Main annotation of a located business object: the chip shows
+            // the object's name — editing it renames the OBJECT (the row's
+            // own label is kept in sync too, best effort).
+            if (mainBusinessObjectId) {
+                await db.businessObjects.update(mainBusinessObjectId, { label: value });
+                dispatch(triggerBusinessObjectsUpdate());
+            }
             // The chip always shows and edits the annotation's OWN label —
             // labels are decoupled from entities (an entity-linked annotation
             // no longer renames its entity from here).

@@ -57,5 +57,8 @@ export default function getAnnotationLabelPropsFromAnnotation(annotation) {
         fillColor: visibleColor,
         strokeColor: annotation.strokeColor,
         hidden: !annotation.showLabel,
+        // Main annotation of a located business object: the chip shows the
+        // object's label, and editing it renames the object.
+        mainBusinessObjectId: annotation.mainBusinessObjectId ?? null,
     };
 }

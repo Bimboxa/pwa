@@ -13,6 +13,9 @@ import { Box, Button, Chip, TextField, Typography } from "@mui/material";
 
 import useBusinessObjects from "../hooks/useBusinessObjects";
 import useRelsBusinessObjectAnnotation from "../hooks/useRelsBusinessObjectAnnotation";
+import useDeleteAnnotations from "Features/annotations/hooks/useDeleteAnnotations";
+import getMainRelsOfBusinessObjectsService from "../services/getMainRelsOfBusinessObjectsService";
+import syncMainAnnotationLabelsService from "../services/syncMainAnnotationLabelsService";
 
 import {
   serializeBusinessObjectsTree,
@@ -42,6 +45,7 @@ const KIND_PROPS = {
 
 export default function SectionQuickEditBusinessObjects({ listing, onClose }) {
   const dispatch = useDispatch();
+  const deleteAnnotations = useDeleteAnnotations();
 
   // data
 
@@ -140,7 +144,30 @@ export default function SectionQuickEditBusinessObjects({ listing, onClose }) {
     if (!review || applying) return;
     setApplying(true);
     try {
+      // main annotations of the objects about to be deleted: they belong to
+      // the object (drawn by "Localiser") and go with it — collected before
+      // the rels are soft-deleted by the apply service
+      const mainAnnotationIds = (
+        await getMainRelsOfBusinessObjectsService(review.plan.deletionIds)
+      ).map((r) => r.annotationId);
+
       await applyBusinessObjectsQuickEditService({ plan: review.plan });
+
+      if (mainAnnotationIds.length > 0) {
+        try {
+          await deleteAnnotations(mainAnnotationIds);
+        } catch (e) {
+          console.error("[SectionQuickEditBusinessObjects] main annotations", e);
+        }
+      }
+      // renamed objects: write the new name into their main annotations
+      for (const { id, patch } of review.plan.updates ?? []) {
+        if (patch?.label != null)
+          await syncMainAnnotationLabelsService({
+            businessObjectId: id,
+            label: patch.label,
+          });
+      }
 
       // a deleted object can't stay selected / armed for linking
       if (review.plan.deletionIds.includes(selectedBusinessObjectId))
@@ -149,7 +176,10 @@ export default function SectionQuickEditBusinessObjects({ listing, onClose }) {
         dispatch(setLinkingBusinessObjectId(null));
 
       dispatch(triggerBusinessObjectsUpdate());
-      if (review.plan.deletionIds.length > 0)
+      if (
+        review.plan.deletionIds.length > 0 ||
+        review.plan.updates?.some((u) => u.patch?.label != null)
+      )
         dispatch(triggerRelsBusinessObjectAnnotationUpdate());
       dispatch(
         setToaster({

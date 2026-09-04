@@ -353,7 +353,11 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
         // Zone delimitation polygons live in a ZONING listing whose table is
         // `zones` — creating an entity there would write a garbage zone row.
         const isZoneAnnotation = newAnnotation?.isZoneAnnotation;
-        if (!entityId && !isBaseMapAnnotation && !isRevolutionHelper && !isFreeAnnotation && !isZoneAnnotation) {
+        // Same for the location templates of a business-objects listing
+        // (table `businessObjects`): the annotation is linked to its object
+        // by relsBusinessObjectAnnotation, never by an entity row.
+        const isBusinessObjectAnnotation = newAnnotation?.isBusinessObjectAnnotation;
+        if (!entityId && !isBaseMapAnnotation && !isRevolutionHelper && !isFreeAnnotation && !isZoneAnnotation && !isBusinessObjectAnnotation) {
             const entity = await createEntity(newEntity)
             entityId = entity.id;
         }
@@ -1301,7 +1305,13 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
         // Reset
         //resetNewAnnotation();
 
-
+        // Result consumed by the deferred-commit afterCommit hooks
+        // (drawingCommitInterceptors): the persisted draft, or the updated
+        // annotation when the commit edited an existing one.
+        return {
+            annotation: _updatedAnnotation ? null : _newAnnotation,
+            updatedAnnotation: _updatedAnnotation ?? null,
+        };
     }
 
     return { handleDrawingCommit };

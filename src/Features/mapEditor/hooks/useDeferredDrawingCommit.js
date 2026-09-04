@@ -13,8 +13,15 @@ import { getDrawingCommitInterceptor } from "../services/drawingCommitIntercepto
 // payload needs no serialization, and unmounting the editor (module switch)
 // drops it — cancel-by-navigation for free.
 //
+// After the actual write (direct or resumed), an entry's optional
+// afterCommit({ result, newAnnotation, context, deps }) runs with the commit
+// result ({ annotation, updatedAnnotation } from useHandleCommitDrawing) —
+// post-creation side effects (links, one-shot disarm…) without touching the
+// commit hook.
+//
 // commitFn: the untouched useHandleCommitDrawing().handleDrawingCommit.
-// deps: { projectId, createdBy, dispatch } forwarded to interceptors.
+// deps: { projectId, createdBy, dispatch, deleteAnnotations } forwarded to
+// interceptors.
 // ---------------------------------------------------------------------------
 
 export default function useDeferredDrawingCommit({ commitFn, deps }) {
@@ -53,22 +60,47 @@ export default function useDeferredDrawingCommit({ commitFn, deps }) {
       return;
     }
 
-    return commitFn(rawPoints, {
+    const commitResult = await commitFn(rawPoints, {
       ...options,
       newAnnotation: strippedNewAnnotation,
       ...(result?.proceed?.extraOptions ?? {}),
     });
+    if (entry.afterCommit) {
+      await entry.afterCommit({
+        result: commitResult,
+        newAnnotation: strippedNewAnnotation,
+        context,
+        deps,
+      });
+    }
+    return commitResult;
   };
 
   const resumeCommit = async (extraOptions) => {
     if (!pending) return;
-    const { points, options, newAnnotation: strippedNewAnnotation } = pending;
+    const {
+      key,
+      points,
+      options,
+      newAnnotation: strippedNewAnnotation,
+      context,
+    } = pending;
     setPending(null);
-    return commitFn(points, {
+    const commitResult = await commitFn(points, {
       ...options,
       newAnnotation: strippedNewAnnotation,
       ...(extraOptions ?? {}),
     });
+    const entry = getDrawingCommitInterceptor(key);
+    if (entry?.afterCommit) {
+      await entry.afterCommit({
+        result: commitResult,
+        newAnnotation: strippedNewAnnotation,
+        context,
+        deps,
+      });
+    }
+    return commitResult;
   };
 
   // Nothing was written before the dialog opened, and the InteractionLayer
