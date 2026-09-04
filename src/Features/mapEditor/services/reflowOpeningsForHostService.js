@@ -7,6 +7,7 @@ import computeOpeningEndpointsFromHost, {
 } from "Features/mapEditor/utils/computeOpeningEndpointsFromHost";
 import computeOpeningSegmentPlacement from "Features/mapEditor/utils/computeOpeningSegmentPlacement";
 import deriveOpeningContourAnchor from "Features/mapEditor/utils/deriveOpeningContourAnchor";
+import getOpeningHostOffsetPx from "Features/mapEditor/utils/getOpeningHostOffsetPx";
 import updateAnnotationOpeningAnchor from "Features/annotations/services/updateAnnotationOpeningAnchor";
 import applyOpeningOnPolygon from "Features/annotations/utils/applyOpeningOnPolygon";
 import getAnnotationAsPolygons from "Features/geometry/utils/getAnnotationAsPolygons";
@@ -88,6 +89,7 @@ function anchorIsValid(hostPointsRefs, rel, closed) {
 export default async function reflowOpeningsForHost({
   movedPointIds = [],
   hostIds = [],
+  openingIds = [], // optional: restrict to these opening annotation ids
   projectId,
   imageSize,
   meterByPx,
@@ -102,9 +104,11 @@ export default async function reflowOpeningsForHost({
 
   const movedSet = new Set(movedPointIds);
   const hostSet = new Set(hostIds);
+  const openingSet = openingIds.length ? new Set(openingIds) : null;
 
   const rels = allRels.filter((r) => {
     if (r.deletedAt) return false;
+    if (openingSet && !openingSet.has(r.openingAnnotationId)) return false;
     if (hostSet.has(r.hostAnnotationId)) return true;
     return (
       movedSet.has(r.hostSegmentStartPointId) ||
@@ -128,6 +132,10 @@ export default async function reflowOpeningsForHost({
 
     const hostPx = await resolveAnnotationPx(host, imageSize);
     const closed = Boolean(host.closeLine || host.type === "POLYGON");
+    // STRIP host: the opening sits on the band's median line, offset from
+    // the stored edge by half the (signed) width. Recomputed from the host
+    // each time so a thickness / side change moves the opening along.
+    const hostOffsetPx = getOpeningHostOffsetPx(host, meterByPx);
     const hostPxById = {};
     hostPx.forEach((p) => {
       if (p?.id) hostPxById[p.id] = p;
@@ -163,6 +171,7 @@ export default async function reflowOpeningsForHost({
         hoverThresholdPx: Infinity,
         vertexSnapPx: 0,
         anchorEnd: "start",
+        meterByPx,
       });
       if (!placement) continue;
       // placement.hostDistancePx anchors the p1 ENDPOINT at the cursor
@@ -172,7 +181,8 @@ export default async function reflowOpeningsForHost({
       const segCurve = buildHostCurve(
         placement.segStart,
         placement.segEnd,
-        placement.arcControl
+        placement.arcControl,
+        placement.hostOffsetPx
       );
       anchor = {
         startId: placement.segStartId,
@@ -201,6 +211,7 @@ export default async function reflowOpeningsForHost({
       hostDistancePx: anchor.distancePx,
       openingLengthPx,
       arcControlPx,
+      hostOffsetPx,
     });
 
     // 1. Reposition the opening's own 2 point rows.

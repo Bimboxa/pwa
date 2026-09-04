@@ -20,6 +20,7 @@ import NodeRevolutionAxisStatic from "./NodeRevolutionAxisStatic";
 import NodeRevolutionAxisPlacementStatic from "./NodeRevolutionAxisPlacementStatic";
 
 import resolveAnnotationDefaults from "Features/annotations/utils/resolveAnnotationDefaults";
+import isOpeningAnnotation from "Features/annotations/utils/isOpeningAnnotation";
 
 // Memoized with the default shallow compare. Callers must keep props
 // id-derived or referentially stable — in particular pass
@@ -108,10 +109,7 @@ function NodeAnnotationStatic({
     case "POLYLINE":
       // OPENING: template-driven wall opening (2-point POLYLINE glued on a
       // host wall) — dedicated band + jamb-ticks renderer.
-      if (
-        resolvedAnnotation.drawingShape === "OPENING" ||
-        (resolvedAnnotation.isOpening && resolvedAnnotation.points?.length === 2)
-      ) {
+      if (isOpeningAnnotation(resolvedAnnotation)) {
         return <NodeOpeningStatic {...props} annotation={resolvedAnnotation} />;
       }
       return <NodePolylineStatic {...props} annotation={resolvedAnnotation} />;

@@ -8,6 +8,7 @@ import FieldTextV2 from "Features/form/components/FieldTextV2";
 import FieldColorV2 from "Features/form/components/FieldColorV2";
 import FieldAnnotationTemplateFill from "Features/annotations/components/FieldAnnotationTemplateFill";
 import FieldAnnotationTemplateStroke from "Features/annotations/components/FieldAnnotationTemplateStroke";
+import FieldAnnotationTemplateStrokeWidth from "Features/annotations/components/FieldAnnotationTemplateStrokeWidth";
 import {
   resolveDrawingShape,
   getShapeConfig,
@@ -43,9 +44,8 @@ export default function SystemTemplateCard({
   const hasFill = ["fillColor", "fillType", "fillOpacity"].some((key) =>
     configurableProps.includes(key)
   );
-  const hasStroke = ["strokeColor", "strokeWidth"].some((key) =>
-    configurableProps.includes(key)
-  );
+  const hasStroke = configurableProps.includes("strokeColor");
+  const hasStrokeWidth = configurableProps.includes("strokeWidth");
   // Simple shapes (MARKER, LABEL, TEXT, POINT) get a single color field.
   const useSimpleFillColor =
     hasFill && !configurableProps.includes("fillOpacity");
@@ -170,10 +170,16 @@ export default function SystemTemplateCard({
                 strokeColor,
                 strokeType,
                 strokeOpacity,
-                strokeWidth,
                 strokeWidthUnit,
               }}
               onChange={(stroke) => patch(stroke)}
+            />
+          )}
+
+          {hasStrokeWidth && (
+            <FieldAnnotationTemplateStrokeWidth
+              value={{ strokeWidth, strokeWidthUnit }}
+              onChange={(width) => patch(width)}
             />
           )}
         </Box>

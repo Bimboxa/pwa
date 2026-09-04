@@ -3,12 +3,26 @@ import { useDispatch, useSelector } from "react-redux";
 import { triggerAnnotationsUpdate } from "../annotationsSlice";
 
 import { nanoid } from "@reduxjs/toolkit";
+import Dexie from "dexie";
 
 import db from "App/db/db";
+
+import useReflowOpeningsForHosts from "Features/mapEditor/hooks/useReflowOpeningsForHosts";
+
+// Host fields whose change moves a STRIP's median line — the curve its glued
+// openings sit on (see getOpeningHostOffsetPx). A `type` change covers the
+// POLYLINE <-> STRIP conversions (useToggleAnnotationStripType).
+const STRIP_MEDIAN_FIELDS = [
+  "strokeWidth",
+  "strokeWidthUnit",
+  "stripOrientation",
+  "type",
+];
 
 export default function useUpdateAnnotation() {
   const dispatch = useDispatch();
   const projectId = useSelector((s) => s.projects.selectedProjectId);
+  const reflowOpenings = useReflowOpeningsForHosts();
 
   return async (updates, options) => {
     // Deferred writes from the drawing commit (see useHandleCommitDrawing):
@@ -77,6 +91,24 @@ export default function useUpdateAnnotation() {
           "[useUpdateAnnotation] Could not sync relAnnotationMappingCategory:",
           err
         );
+      }
+    }
+
+    // A STRIP's openings glue on its median line: a thickness / side / type
+    // edit moves that line, so reposition them (no-op without glued
+    // openings). Restricted to STRIP hosts (or type changes) so a POLYGON
+    // host's carve is not needlessly rebuilt on every stroke edit.
+    // Skipped inside an enclosing Dexie transaction (the rel table is not in
+    // its scope) — such callers reflow themselves once committed
+    // (useToggleAnnotationStripType).
+    if (
+      updates?.id &&
+      !Dexie.currentTransaction &&
+      STRIP_MEDIAN_FIELDS.some((f) => updates[f] !== undefined)
+    ) {
+      const row = await db.annotations.get(updates.id);
+      if (row?.type === "STRIP" || updates.type !== undefined) {
+        await reflowOpenings({ hostIds: [updates.id] });
       }
     }
 

@@ -202,7 +202,7 @@ export default function useAnnotationDrag({
    * @returns {boolean} true si l'événement a été consommé
    */
   const handleAnnotationDragMove = useCallback(
-    (event, snapAnchorTarget = null) => {
+    (event, snapAnchorTarget = null, constrainDelta = null) => {
       const _state = dragAnnotationStateRef.current;
       if (!_state) return false;
 
@@ -315,6 +315,11 @@ export default function useAnnotationDrag({
             x: currentMouseInLocal.x - _cur.startMouseInLocal.x,
             y: currentMouseInLocal.y - _cur.startMouseInLocal.y,
           };
+          // Constrained whole-move (glued opening sliding along its host):
+          // the caller maps the free delta onto the allowed one.
+          if (typeof constrainDelta === "function") {
+            deltaPos = constrainDelta(deltaPos) ?? deltaPos;
+          }
         }
 
         // Update pendingMove ref (pas de re-render, lu par TransientAnnotationLayer)

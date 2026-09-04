@@ -19,6 +19,7 @@ import NodeAnnotationStatic from "Features/mapEditorGeneric/components/NodeAnnot
 import NodeLabelStatic from "Features/mapEditorGeneric/components/NodeLabelStatic";
 import getAnnotationLabelPropsFromAnnotation from "Features/annotations/utils/getAnnotationLabelPropsFromAnnotation";
 import resolveAnnotationDefaults from "Features/annotations/utils/resolveAnnotationDefaults";
+import { sortOpeningsLast } from "Features/annotations/utils/isOpeningAnnotation";
 import NodeLegendStatic from "Features/mapEditorGeneric/components/NodeLegendStatic";
 import NodeClippingPlanStatic from "Features/mapEditorGeneric/components/NodeClippingPlanStatic";
 import MeshSelectionHighlight from "Features/mapEditor/components/MeshSelectionHighlight";
@@ -145,8 +146,14 @@ function StaticMapContent({
   // null viewBox → no filtering (first render / unknown viewport). The
   // topology set (idsAffectedBySelectedPoint), MeshSelectionHighlight and
   // the BG layer intentionally keep the FULL annotations array.
+  // Openings (doors / windows) paint a white gap over their host wall: they
+  // are moved to the END of the draw order (the listing / template order
+  // would otherwise let a wall drawn later cover its openings).
   const visibleBaseMapAnnotations = useMemo(
-    () => filterAnnotationsByViewBox(baseMapAnnotations, visibleViewBox),
+    () =>
+      sortOpeningsLast(
+        filterAnnotationsByViewBox(baseMapAnnotations, visibleViewBox)
+      ),
     [baseMapAnnotations, visibleViewBox]
   );
 

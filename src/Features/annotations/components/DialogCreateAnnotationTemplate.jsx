@@ -36,7 +36,8 @@ export default function DialogCreateAnnotationTemplate({
     label: "",
     isFromAnnotation: true,
     ...getDefaultsForShape("POLYGON"),
-    // color props locked by default: the template imposes them on annotations
+    // color props locked by default: the template imposes them on annotations.
+    // The stroke width (STROKE_WIDTH_FIELDS) stays unlocked on purpose.
     overrideFields: [...FILL_FIELDS, ...STROKE_FIELDS],
   };
 

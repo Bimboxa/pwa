@@ -52,6 +52,10 @@ export default function getAnnotationTemplateProps(annotationTemplate) {
     height: annotationTemplate?.height,
     offsetZ: annotationTemplate?.offsetZ,
 
+    // OPENING — door / window symbol type. Only applied to annotations when
+    // listed in overrideFields (padlock); otherwise seeded at creation.
+    openingType: annotationTemplate?.openingType,
+
     // LINEAR_LAYOUT (calepinage linéaire) — band width + bar distribution.
     // Only applied to annotations when listed in overrideFields (padlock).
     width: annotationTemplate?.width,

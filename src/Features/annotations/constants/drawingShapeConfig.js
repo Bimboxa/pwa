@@ -201,12 +201,20 @@ const DRAWING_SHAPE_CONFIG = {
     },
     shapeCategory: "rectangle",
   },
+  // OPENING — a door / window glued on a host wall (2-point POLYLINE, see
+  // NodeOpeningStatic). `openingType` picks the architectural symbol drawn in
+  // the wall gap: NONE (plain gap), DOOR (leaf + swing arc) or WINDOW (thin
+  // frame + centre line). A DOOR also carries, on the ANNOTATION only, its
+  // hinge end (`doorHinge`: START = p1 / END = p2, toggled with Tab) and the
+  // side of the wall it swings to (`doorSide`: +1 / -1 along the left normal
+  // of p1→p2, toggled with S).
   OPENING: {
     label: "Ouverture",
     annotationType: "POLYLINE",
     tools: ["OPENING_SEGMENT"],
     configurableProps: [
       "width", // opening width ALONG the wall, meters
+      "openingType", // NONE | DOOR | WINDOW
       "strokeColor",
       "strokeWidth",
       "strokeWidthUnit",
@@ -217,10 +225,13 @@ const DRAWING_SHAPE_CONFIG = {
       isOpening: true, // rides into the draft via {...defaults}
       width: 0.9,
       height: 2.1,
-      strokeColor: "#ff0000", // OPENING_COLOR (buildToolDraft.js)
+      openingType: "NONE",
+      // Symbol lines (leaf, arc, window frame) are drawn in strokeColor —
+      // black by default so they read like a plan symbol.
+      strokeColor: "#000000",
       strokeWidth: 20,
       strokeWidthUnit: "CM",
-      strokeOpacity: 0.8,
+      strokeOpacity: 1,
       strokeType: "SOLID",
     },
     shapeCategory: "polyline",

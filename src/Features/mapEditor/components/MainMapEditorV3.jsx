@@ -53,6 +53,8 @@ import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation"
 import applyLayerStackingToAnnotations from "Features/annotations/utils/applyLayerStackingToAnnotations";
 import applyOpeningOnPolygon from "Features/annotations/utils/applyOpeningOnPolygon";
 import reflowOpeningsForHost from "Features/mapEditor/services/reflowOpeningsForHostService";
+import moveOpeningAlongHostService from "Features/annotations/services/moveOpeningAlongHostService";
+import isOpeningAnnotation from "Features/annotations/utils/isOpeningAnnotation";
 import applyPointsMovesService from "Features/annotations/services/applyPointsMovesService";
 import shadeMeshCellColor from "Features/mesh/utils/meshCellColor";
 import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
@@ -1835,6 +1837,18 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
             // translates every point. Reuses the wrapper commit for its
             // shared-point handling: a point also referenced by another
             // annotation is forked instead of dragging that annotation along.
+            // OPENING (door / window) whole-move: slides along its host wall
+            // (anchor rewrite + reflow), or plain translation when free.
+            else if (isOpeningAnnotation(annotation)) {
+                await moveOpeningAlongHostService({
+                    annotation,
+                    deltaPos,
+                    meterByPx: baseMap?.getMeterByPx?.(),
+                    dispatch,
+                });
+                return; // the service dispatches triggerAnnotationsUpdate itself
+            }
+
             else if (annotation.type === "RULER") {
                 const pointUpdates = new Map();
                 for (const pt of annotation.points ?? []) {
