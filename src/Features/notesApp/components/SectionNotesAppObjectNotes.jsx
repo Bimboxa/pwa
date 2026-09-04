@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useRef } from "react";
+import { useDispatch } from "react-redux";
 import { useLiveQuery } from "dexie-react-hooks";
 
-import { Box, Chip, Typography } from "@mui/material";
+import { setToaster } from "Features/layout/layoutSlice";
+
+import { Box, Button, Chip, Typography } from "@mui/material";
 import {
   Notes as TextIcon,
   Event as EventIcon,
@@ -32,6 +35,8 @@ function formatDate(iso) {
 }
 
 export default function SectionNotesAppObjectNotes({ businessObject }) {
+  const dispatch = useDispatch();
+
   // strings
 
   const emptyS = "Aucune note sur cet objet.";
@@ -74,13 +79,67 @@ export default function SectionNotesAppObjectNotes({ businessObject }) {
     };
   }, []);
 
+  // handlers — debug: copies the raw notes payload + the local db.files
+  // status of each media to the clipboard (helps diagnosing missing images:
+  // entry without fileName = never resolved in Storage at sync time; entry
+  // with fileName but found:false = binary missing locally).
+
+  async function handleDebugCopy() {
+    try {
+      const files = await db.files.bulkGet(fileNames);
+      const filesStatus = {};
+      fileNames.forEach((fileName, i) => {
+        const file = files[i];
+        filesStatus[fileName] = file
+          ? {
+              found: true,
+              size: file.fileArrayBuffer?.byteLength ?? 0,
+              mime: file.fileMime ?? null,
+            }
+          : { found: false };
+      });
+      const payload = {
+        businessObjectId: businessObject?.id,
+        idMaster: businessObject?.idMaster,
+        label: businessObject?.label,
+        notesAppNotes: notes,
+        filesStatus,
+      };
+      await navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
+      dispatch(setToaster({ message: "JSON des notes copié" }));
+    } catch (e) {
+      console.log("[notesApp] debug copy failed", e);
+      dispatch(
+        setToaster({ message: "Copie impossible (voir console)", isError: true })
+      );
+    }
+  }
+
   // render
+
+  const debugButton = (
+    <Button
+      size="small"
+      onClick={handleDebugCopy}
+      sx={{
+        alignSelf: "center",
+        color: "text.disabled",
+        textTransform: "none",
+        fontSize: 12,
+      }}
+    >
+      debug
+    </Button>
+  );
 
   if (notes.length === 0) {
     return (
-      <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>
-        {emptyS}
-      </Typography>
+      <Box sx={{ display: "flex", flexDirection: "column", flex: 1 }}>
+        <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>
+          {emptyS}
+        </Typography>
+        {debugButton}
+      </Box>
     );
   }
 
@@ -217,6 +276,7 @@ export default function SectionNotesAppObjectNotes({ businessObject }) {
           </Box>
         );
       })}
+      {debugButton}
     </Box>
   );
 }

@@ -11,6 +11,10 @@ const initialState = {
   remoteListingsByProjectId: {}, // { [projectId]: [{ id, name, color, ... }] }
 
   syncStatus: { status: "idle", step: null, message: null }, // idle | syncing | success | error
+
+  // Selected tab of the business-object properties panel ("PROPS" | "NOTES").
+  // In Redux so browsing from object to object keeps the Notes tab open.
+  objectPropertiesTab: "PROPS",
 };
 
 const notesAppSlice = createSlice({
@@ -38,6 +42,9 @@ const notesAppSlice = createSlice({
     setNotesAppSyncStatus: (state, action) => {
       state.syncStatus = { ...state.syncStatus, ...action.payload };
     },
+    setNotesAppObjectPropertiesTab: (state, action) => {
+      state.objectPropertiesTab = action.payload;
+    },
   },
 });
 
@@ -48,6 +55,7 @@ export const {
   setNotesAppRemoteProjectsStatus,
   setNotesAppRemoteListings,
   setNotesAppSyncStatus,
+  setNotesAppObjectPropertiesTab,
 } = notesAppSlice.actions;
 
 export default notesAppSlice.reducer;

@@ -8,6 +8,7 @@ import {
 } from "../businessObjectsSlice";
 import { setSelectedItem } from "Features/selection/selectionSlice";
 import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
+import { setNotesAppObjectPropertiesTab } from "Features/notesApp/notesAppSlice";
 
 import {
   Box,
@@ -102,15 +103,14 @@ export default function PanelBusinessObjectProperties() {
   }, [businessObject?.id, businessObject?.label, businessObject?.description]);
 
   // state — tabs: the "Notes" tab shows the Krnet notes feed of an imported
-  // object (photos, comments, events... under businessObject.notesAppNotes)
+  // object (photos, comments, events... under businessObject.notesAppNotes).
+  // The selection lives in Redux so browsing from object to object keeps the
+  // Notes tab open; non-Krnet objects (no tab bar) fall back to "PROPS".
 
-  const [tab, setTab] = useState("PROPS");
+  const tab = useSelector((s) => s.notesApp.objectPropertiesTab);
   const isNotesAppObject = businessObject?.remoteSource === "notesApp";
   const notesCount = businessObject?.notesAppNotes?.length ?? 0;
-
-  useEffect(() => {
-    setTab("PROPS");
-  }, [businessObjectId]);
+  const effectiveTab = isNotesAppObject && tab === "NOTES" ? "NOTES" : "PROPS";
 
   // helpers — linked annotations + rolled-up quantities
 
@@ -235,8 +235,8 @@ export default function PanelBusinessObjectProperties() {
       {/* tabs — only Krnet-imported objects carry a notes feed */}
       {isNotesAppObject && (
         <Tabs
-          value={tab}
-          onChange={(_e, v) => setTab(v)}
+          value={effectiveTab}
+          onChange={(_e, v) => dispatch(setNotesAppObjectPropertiesTab(v))}
           variant="fullWidth"
           sx={{
             minHeight: 36,
@@ -253,11 +253,11 @@ export default function PanelBusinessObjectProperties() {
         </Tabs>
       )}
 
-      {tab === "NOTES" && isNotesAppObject && (
+      {effectiveTab === "NOTES" && (
         <SectionNotesAppObjectNotes businessObject={businessObject} />
       )}
 
-      {tab !== "NOTES" && (
+      {effectiveTab !== "NOTES" && (
       <>
       {/* props */}
       <Box
