@@ -123,6 +123,10 @@ export default function useRightPanelTools() {
       // Scope-level notes-app (Krnet) data integration: available in every
       // module. Bottom section, above the contextual "Réglages".
       group: "bottom",
+      // Hard org gate, on top of the features.tools allowlist: hidden
+      // everywhere (band AND scope-config catalog) unless the org enables
+      // the integration. Off by default; only appConfig_lei turns it on.
+      disabled: appConfig?.features?.notesApp?.enabled !== true,
     },
     OBJECTS_LIBRARY: {
       label: "Bibliothèque",
