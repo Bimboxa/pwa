@@ -41,13 +41,21 @@ export default async function resolvePresetListings({
   let prevRank = null;
 
   for (let presetListing of presetListings) {
-    let shouldAdd = true;
     presetListing = structuredClone(presetListing);
 
     // entityModel
 
     const entityModel =
       appConfig.entityModelsObject[presetListing.entityModelKey];
+    if (!entityModel) {
+      // A preset listing pointing to an unknown entity model must not break
+      // the whole resolution (one bad yaml entry used to empty the
+      // "Ajouter des listes pré-configurées" dialog).
+      console.warn(
+        `[resolvePresetListings] preset listing "${presetListing.key}" skipped: unknown entityModelKey "${presetListing.entityModelKey}"`
+      );
+      continue;
+    }
     presetListing.entityModel = entityModel;
 
     // icon & colors
@@ -60,10 +68,12 @@ export default async function resolvePresetListings({
 
     // articlesNomenclatures — resolve keys into full objects
     if (presetListing.articlesNomenclaturesKeys?.length > 0) {
-      const articlesNomenclaturesObject = appConfig.articlesNomenclaturesObject ?? {};
-      presetListing.articlesNomenclatures = presetListing.articlesNomenclaturesKeys
-        .map((key) => articlesNomenclaturesObject[key])
-        .filter(Boolean);
+      const articlesNomenclaturesObject =
+        appConfig.articlesNomenclaturesObject ?? {};
+      presetListing.articlesNomenclatures =
+        presetListing.articlesNomenclaturesKeys
+          .map((key) => articlesNomenclaturesObject[key])
+          .filter(Boolean);
       delete presetListing.articlesNomenclaturesKeys;
     }
 
@@ -91,7 +101,11 @@ export default async function resolvePresetListings({
 
     // scope id
 
-    if (["LOCATED_ENTITY", "BLUEPRINT", "PORTFOLIO_PAGE"].includes(entityModel.type)) {
+    if (
+      ["LOCATED_ENTITY", "BLUEPRINT", "PORTFOLIO_PAGE"].includes(
+        entityModel.type
+      )
+    ) {
       presetListing.scopeId = scopeId;
     }
 
@@ -108,7 +122,6 @@ export default async function resolvePresetListings({
     presetListing.canCreateItem = true;
 
     // return
-    // if (shouldAdd) listings.push(presetListing);
     listings.push(presetListing);
   }
 
