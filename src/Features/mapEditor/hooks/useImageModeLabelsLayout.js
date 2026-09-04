@@ -192,11 +192,15 @@ export default function useImageModeLabelsLayout({
       Object.entries(layout).forEach(([id, { labelPoint }]) => {
         const c = byCandidateId.get(id);
         if (!c) return;
+        // Relocated chips drop any pinned leader elbow (VARIABLE stub mode)
+        // and fall back to the FIXED stub geometry: the auto-layout only
+        // knows chips and targets.
         if (c.kind === "LABEL") {
-          overrides[id] = { labelPoint };
+          overrides[id] = { labelPoint, elbowPoint: null };
         } else {
           // newDelta = oldDelta + (newLabelPoint - oldLabelPoint), so the
-          // barycenter never needs recomputing and the target part is kept.
+          // barycenter never needs recomputing and the target part is kept
+          // (elbow deliberately not carried over, see above).
           const oldDelta = c.labelDelta?.label ?? { x: 0, y: 0 };
           overrides[id] = {
             labelDelta: {

@@ -223,7 +223,8 @@ function NodeMarkerStatic({
       {showNodeLabel && <NodeLabelStatic
         annotation={labelAnnotation}
         containerK={containerK}
-        hidden={!showNodeLabel} />}
+        hidden={!showNodeLabel}
+        showElbowHandle={Boolean(selected)} />}
     </g>
   );
 }

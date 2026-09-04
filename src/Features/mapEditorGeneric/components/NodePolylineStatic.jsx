@@ -1978,6 +1978,7 @@ function NodePolylineStatic({
           annotation={labelAnnotation}
           containerK={containerK}
           hidden={!mergedAnnotation.showLabel}
+          showElbowHandle={Boolean(selected)}
         />
       )}
 

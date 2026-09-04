@@ -7580,9 +7580,21 @@ const InteractionLayer = forwardRef(({
     if (draggableGroup) {
       e.stopPropagation();
       e.preventDefault();
-      const { nodeId, nodeContext } = draggableGroup.dataset;
+      const { nodeId, nodeContext, labelElbowSeed: labelElbowSeedRaw } =
+        draggableGroup.dataset;
       const worldPos = viewportRef.current?.screenToWorld(e.clientX, e.clientY);
       const startMouseInLocal = toLocalCoords(worldPos);
+
+      // Label leader elbow drawn at drag start ("x,y" image px, published by
+      // NodeLabelStatic in VARIABLE stub mode when no elbow is stored yet):
+      // pinned at commit so the chip moves and the elbow stays.
+      let labelElbowSeed = null;
+      if (labelElbowSeedRaw) {
+        const [sx, sy] = labelElbowSeedRaw.split(",").map(Number);
+        if (Number.isFinite(sx) && Number.isFinite(sy)) {
+          labelElbowSeed = { x: sx, y: sy };
+        }
+      }
 
       // Label chip / target / leader: draggable only once the label (or its
       // annotation) is selected — an unselected label click only selects.
@@ -7625,6 +7637,7 @@ const InteractionLayer = forwardRef(({
         nodeContext,
         clickOnly,
         anchorLocal,
+        labelElbowSeed,
         ...resolveWrapperInfo(nodeId, partType),
       });
     }
@@ -8138,10 +8151,18 @@ const InteractionLayer = forwardRef(({
           if (!isActive) return null;
           const singleDeltaPos = dragAnnotationState?.deltaPos ?? pendingMove?.deltaPos;
           const singlePartType = dragAnnotationState?.partType ?? pendingMove?.partType;
+          // VARIABLE stub mode, first chip drag: preview with the elbow the
+          // commit will pin, so nothing jumps at release.
+          const singleElbowSeed =
+            dragAnnotationState?.labelElbowSeed ?? pendingMove?.labelElbowSeed;
+          const singleAnnotation =
+            singleElbowSeed && selectedAnnotation && !selectedAnnotation.elbowPoint
+              ? { ...selectedAnnotation, elbowPoint: singleElbowSeed }
+              : selectedAnnotation;
           return (
             <g transform={`translate(${targetPose.x}, ${targetPose.y}) scale(${targetPose.k})`}>
               <TransientAnnotationLayer
-                annotation={selectedAnnotation}
+                annotation={singleAnnotation}
                 deltaPos={singleDeltaPos}
                 partType={singlePartType}
                 basePose={targetPose}

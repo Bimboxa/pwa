@@ -13,6 +13,7 @@ import db from "App/db/db";
 import FieldCheck from "Features/form/components/FieldCheck";
 import FieldTextV2 from "Features/form/components/FieldTextV2";
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
+import FieldAnnotationLabelStub from "./FieldAnnotationLabelStub";
 
 const FONT_SIZE_OPTIONS = [
   { value: "S", label: "S" },
@@ -38,6 +39,7 @@ export default function SectionAnnotationLabelContent({ annotation }) {
 
   const templateLabel =
     annotation?.templateLabel ?? annotation?.annotationTemplate?.label;
+  const overrideFields = annotation?.annotationTemplate?.overrideFields;
 
   // handlers
 
@@ -173,6 +175,11 @@ export default function SectionAnnotationLabelContent({ annotation }) {
             </ToggleButtonGroup>
           </Box>
         </WhiteSectionGeneric>
+
+        <FieldAnnotationLabelStub
+          annotation={annotation}
+          overrideFields={overrideFields}
+        />
 
         <FieldCheck
           value={shadow}

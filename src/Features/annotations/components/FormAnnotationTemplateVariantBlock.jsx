@@ -16,6 +16,7 @@ import FieldAnnotationTemplateStroke from "./FieldAnnotationTemplateStroke";
 import FieldAnnotationTemplateStrokeWidth from "./FieldAnnotationTemplateStrokeWidth";
 import FieldAnnotationTemplateRender3d from "./FieldAnnotationTemplateRender3d";
 import FieldAnnotationTemplateLegend from "./FieldAnnotationTemplateLegend";
+import FieldAnnotationTemplateLabel from "./FieldAnnotationTemplateLabel";
 import FieldAnnotationTemplateDrawingShape from "./FieldAnnotationTemplateDrawingShape";
 import FieldAnnotationTemplateDefaultTool from "./FieldAnnotationTemplateDefaultTool";
 import FieldAnnotationTemplateCote from "./FieldAnnotationTemplateCote";
@@ -149,6 +150,20 @@ export default function FormAnnotationTemplateVariantBlock({
   const hasFreeText = configurableProps.includes("fontFamily");
   const hasArrows = configurableProps.includes("arrowStep");
   const hasHideSlope = configurableProps.includes("hideSlope");
+  // Label leader stub: every shape with a label chip (sub-label or standalone
+  // LABEL). Shape-gated on purpose (not via configurableProps) so the template
+  // value stays a read-time default instead of being seeded at creation.
+  const hasLabelStub = ![
+    "COTE",
+    "RULER",
+    "TEXT",
+    "FREE_TEXT",
+    "DETAIL",
+    "IMAGE",
+    "OBJECT_3D",
+    "REVOLUTION_AXIS",
+    "REVOLUTION_AXIS_PLACEMENT",
+  ].includes(drawingShape);
   const hasMaterial3d = configurableProps.includes("material3d");
   const hasRender3d =
     configurableProps.includes("color3D") ||
@@ -617,6 +632,16 @@ export default function FormAnnotationTemplateVariantBlock({
               onLabelLegendChange={handleLabelLegendChange}
               onHiddenInLegendChange={handleHiddenInLegendChange}
               onGroupLabelChange={handleGroupLabelChange}
+            />
+          )}
+
+          {/* Label leader stub ("déport horizontal") */}
+          {hasLabelStub && (
+            <FieldAnnotationTemplateLabel
+              annotationTemplate={annotationTemplate}
+              onChange={onChange}
+              overrideFields={overrideFields}
+              onOverrideFieldsChange={handleOverrideFieldsChange}
             />
           )}
 

@@ -98,6 +98,12 @@ export default function getAnnotationTemplateProps(annotationTemplate) {
     showTotalCote: annotationTemplate?.showTotalCote,
     showRulerLabel: annotationTemplate?.showRulerLabel,
 
+    // Label leader stub ("déport horizontal"). Read-time defaults for the
+    // annotations without their own value (not seeded at creation); forced
+    // onto every annotation when listed in overrideFields (padlock).
+    labelStubLength: annotationTemplate?.labelStubLength,
+    labelStubMode: annotationTemplate?.labelStubMode,
+
     overrideFields: annotationTemplate?.overrideFields,
   };
 

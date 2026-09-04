@@ -1206,6 +1206,18 @@ export default function useAnnotationsV2(options) {
             if (_annotation.type === "FREE_TEXT") {
               _annotation.imageLongSidePx = Math.max(width, height);
             }
+            // LABEL: pinned leader elbow (VARIABLE stub mode, normalized like
+            // targetPoint) + the image size the elbow handle needs to persist
+            // it (NodeLabelStatic is not given imageSize by EditedObjectLayer).
+            if (_annotation.type === "LABEL") {
+              _annotation.elbowPoint = annotation.elbowPoint
+                ? {
+                    x: annotation.elbowPoint.x * width,
+                    y: annotation.elbowPoint.y * height,
+                  }
+                : null;
+              _annotation.imageSize = { width, height };
+            }
           }
 
           // --- IMAGE

@@ -26,6 +26,7 @@ import FieldAnnotationIsExt from "./FieldAnnotationIsExt";
 import FieldAnnotationIsLayer from "./FieldAnnotationIsLayer";
 import FieldAnnotationIsProfile from "./FieldAnnotationIsProfile";
 import FieldAnnotationLabel from "./FieldAnnotationLabel";
+import FieldAnnotationLabelStub from "./FieldAnnotationLabelStub";
 import FieldAnnotationLinearLayout from "./FieldAnnotationLinearLayout";
 import FieldAnnotationOpening from "./FieldAnnotationOpening";
 import FieldAnnotationArrows from "./FieldAnnotationArrows";
@@ -188,6 +189,13 @@ export default function SectionAnnotationPropertiesContent({
           />
         )}
         {!hideOverview && <FieldAnnotationLabel annotation={annotation} />}
+        {/* Standalone LABEL: no Etiquette tab, the leader stub lives here. */}
+        {type === "LABEL" && (
+          <FieldAnnotationLabelStub
+            annotation={annotation}
+            overrideFields={overrideFields}
+          />
+        )}
         <FieldAnnotationIsProfile annotation={annotation} />
         <FieldAnnotationIsEraser annotation={annotation} />
         {["POLYLINE", "STRIP", "POLYGON"].includes(type) && (

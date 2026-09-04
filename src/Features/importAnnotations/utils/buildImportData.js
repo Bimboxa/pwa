@@ -28,6 +28,9 @@ const STYLE_FIELDS = [
   "extensionOffsetUnit",
   "showTotalCote",
   "showRulerLabel",
+  // label leader stub
+  "labelStubLength",
+  "labelStubMode",
   // CIRCULATION
   "arrowStep",
   "arrowRight",

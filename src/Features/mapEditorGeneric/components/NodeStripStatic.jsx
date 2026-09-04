@@ -584,7 +584,7 @@ function NodeStripStatic({
                 />
             )}
 
-            {showLabel && <NodeLabelStatic annotation={labelAnnotation} containerK={containerK} hidden={!mergedAnnotation.showLabel} />}
+            {showLabel && <NodeLabelStatic annotation={labelAnnotation} containerK={containerK} hidden={!mergedAnnotation.showLabel} showElbowHandle={Boolean(selected)} />}
         </g>
     );
 }

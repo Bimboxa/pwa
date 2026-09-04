@@ -1406,7 +1406,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
         }
     };
 
-    const handleAnnotationMoveCommit = async (annotationId, deltaPos, partType, localPos) => {
+    const handleAnnotationMoveCommit = async (annotationId, deltaPos, partType, localPos, extra) => {
         const imageSize = baseMap?.getImageSize?.();
         if (!imageSize) return;
 
@@ -1479,7 +1479,11 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
             }
 
 
-            const labelDelta = getAnnotationLabelDeltaFromDeltaPos(annotation, deltaPos, partType);
+            // VARIABLE stub mode: the elbow drawn at drag start (published by
+            // NodeLabelStatic, read by InteractionLayer) gets pinned here.
+            const labelDelta = getAnnotationLabelDeltaFromDeltaPos(annotation, deltaPos, partType, {
+                elbowSeed: extra?.labelElbowSeed ?? null,
+            });
             await db.annotations.update(annotation.id, { labelDelta });
 
 
@@ -1560,6 +1564,13 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
 
             else if (annotation.type === "LABEL" || annotation.type === "FREE_TEXT") {
                 const { targetPoint, labelPoint } = annotation;
+                // Pinned leader elbow (LABEL, VARIABLE stub mode), image px.
+                const elbowPx = annotation.elbowPoint ?? null;
+                const elbowSeed = extra?.labelElbowSeed ?? null;
+                const normalizeElbow = (p) => ({
+                    x: p.x / imageSize.width,
+                    y: p.y / imageSize.height,
+                });
 
                 const updates = {};
 
@@ -1588,6 +1599,11 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                             y: (targetPoint.y + deltaPos.y) / imageSize.height
                         };
                     }
+                    // First chip drag in VARIABLE mode: pin the elbow that was
+                    // drawn before the drag (the chip moves, the elbow stays).
+                    if (annotation.type === "LABEL" && !elbowPx && elbowSeed) {
+                        updates.elbowPoint = normalizeElbow(elbowSeed);
+                    }
                 }
                 // 3. Cas général (Déplacement global)
                 else {
@@ -1599,6 +1615,12 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                         x: (labelPoint.x + deltaPos.x) / imageSize.width,
                         y: (labelPoint.y + deltaPos.y) / imageSize.height
                     };
+                    if (elbowPx) {
+                        updates.elbowPoint = normalizeElbow({
+                            x: elbowPx.x + deltaPos.x,
+                            y: elbowPx.y + deltaPos.y,
+                        });
+                    }
                 }
 
                 await db.annotations.update(annotation.id, updates);
