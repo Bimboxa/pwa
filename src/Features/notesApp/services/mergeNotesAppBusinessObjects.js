@@ -32,8 +32,15 @@ function getRemoteNotesByEntityId(dump) {
 }
 
 function getNotesSignature(entries) {
+  // fileName presence is part of the signature: a media uploaded to Storage
+  // AFTER a first sync (deferred mobile upload, or a failed download that
+  // cleared the entry's fileName) doesn't bump the note's updated_at — the
+  // resolved-media bit is what triggers the refresh + download retry.
   return (entries ?? [])
-    .map((n) => `${n.idMaster}:${n.updatedAt ?? n.createdAt ?? ""}`)
+    .map(
+      (n) =>
+        `${n.idMaster}:${n.updatedAt ?? n.createdAt ?? ""}:${n.fileName ? 1 : 0}`
+    )
     .sort()
     .join("|");
 }
