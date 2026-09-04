@@ -62,6 +62,8 @@ import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTemplateIcon";
 import ProcedurePopperContent from "Features/annotationsAuto/components/ProcedurePopperContent";
 import DialogCreateAnnotationTemplate from "Features/annotations/components/DialogCreateAnnotationTemplate";
+import { useLiveQuery } from "dexie-react-hooks";
+import db from "App/db/db";
 import DialogCreateListing from "Features/listings/components/DialogCreateListing";
 import PopperSubtractHelper from "Features/mapEditor/components/PopperSubtractHelper";
 import PopperDrawingHelper from "Features/mapEditor/components/PopperDrawingHelper";
@@ -965,6 +967,9 @@ function AnnotationTemplatesForListing({
   annotations,
   annotationTemplateById,
   visibleTemplateIds,
+  // "Nouveau modèle" draft defaults (e.g. the isBusinessObjectAnnotation
+  // flag of a business-objects listing's location templates).
+  templateDefaults,
 }) {
   // data
 
@@ -1171,6 +1176,7 @@ function AnnotationTemplatesForListing({
           open={openCreateDialog}
           onClose={() => setOpenCreateDialog(false)}
           listingId={listingId}
+          templateDefaults={templateDefaults}
         />
       )}
     </Box>
@@ -1625,6 +1631,25 @@ export default function PopperMapListings() {
   const collapsed = useSelector((s) => s.popperMapListings.collapsed);
   const selectedItem = useSelector((s) => s.selection.selectedItems[0] || null);
 
+  // Ouvrages module with a selected (soloed) object: the popper narrows to
+  // the object — its name as title, the location templates of its listing
+  // (+ "Nouveau modèle"); drawing one of them LOCATES the object (see
+  // useDrawFromTemplate). No listing selector, no drawing tools.
+  const selectedBusinessObjectId = useSelector(
+    (s) => s.businessObjects?.selectedBusinessObjectId ?? null
+  );
+  const businessObjectsUpdatedAt = useSelector(
+    (s) => s.businessObjects?.businessObjectsUpdatedAt
+  );
+  const selectedBusinessObject = useLiveQuery(async () => {
+    if (viewerKey !== "BUSINESS_OBJECTS" || !selectedBusinessObjectId)
+      return null;
+    const o = await db.businessObjects.get(selectedBusinessObjectId);
+    return o && !o.deletedAt ? o : null;
+  }, [viewerKey, selectedBusinessObjectId, businessObjectsUpdatedAt]);
+  const isBusinessObjectMode =
+    viewerKey === "BUSINESS_OBJECTS" && Boolean(selectedBusinessObject);
+
   const baseMap = useMainBaseMap();
   const layers = useLayers({ filterByBaseMapId: baseMap?.id });
   const versionsCount = baseMap?.versions?.length ?? 0;
@@ -1740,7 +1765,11 @@ export default function PopperMapListings() {
     }, {});
   }, [allAnnotations]);
 
-  const titleS = isBaseMapsViewer ? "Dessins sur fond de plan" : "Annotations";
+  const titleS = isBusinessObjectMode
+    ? selectedBusinessObject.label
+    : isBaseMapsViewer
+      ? "Dessins sur fond de plan"
+      : "Annotations";
 
   // Viewer module: when the project has photos, the header title becomes an
   // "Annotations / Photos" toggle and the Photos side swaps the body for the
@@ -2179,6 +2208,7 @@ export default function PopperMapListings() {
             are listings, or when a new one can be created (empty-state CTA).
             Hidden in the Viewer module, where every listing is shown at once. */}
             {!isViewerModule &&
+              !isBusinessObjectMode &&
               (displayedListings?.length > 0 || canAddListing) && (
                 <Box
                   sx={{
@@ -2235,7 +2265,19 @@ export default function PopperMapListings() {
               {/* Viewer module: full legend — every listing at once (no chips
                   selector), each row always expanded with its templates. The
                   row's hover eye toggles all the listing's template eyes. */}
-              {isViewerModule
+              {isBusinessObjectMode && (
+                <Box sx={{ pt: 0.5 }}>
+                  <AnnotationTemplatesForListing
+                    listingId={selectedBusinessObject.listingId}
+                    annotations={
+                      annotationsByListingId?.[selectedBusinessObject.listingId]
+                    }
+                    annotationTemplateById={annotationTemplateById}
+                    templateDefaults={{ isBusinessObjectAnnotation: true }}
+                  />
+                </Box>
+              )}
+              {isBusinessObjectMode ? null : isViewerModule
                 ? !showPhotosBody &&
                   displayedListings?.map((listing) => (
                     <ListingRow
@@ -2288,9 +2330,10 @@ export default function PopperMapListings() {
               {/* Outils section — DRAW mode and "no mode" (null, draws like
                 DRAW), and always in the ZONES module (openings / splits on
                 the zone delimitation polygons) */}
-              {(effectiveInteractionMode === "DRAW" ||
-                effectiveInteractionMode == null ||
-                isZonesViewer) && (
+              {!isBusinessObjectMode &&
+                (effectiveInteractionMode === "DRAW" ||
+                  effectiveInteractionMode == null ||
+                  isZonesViewer) && (
                 <>
                   <Box
                     sx={{

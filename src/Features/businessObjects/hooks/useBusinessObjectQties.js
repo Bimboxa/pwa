@@ -8,7 +8,9 @@ import getItemsByKey from "Features/misc/utils/getItemsByKey";
 // Rolled-up quantities of every business object of a listing, from its linked
 // annotations. No hierarchical aggregation (v1): an object only counts its
 // own linked annotations.
-// Returns {qtiesByObjectId: {count, length, surface}, annotationsByObjectId}.
+// Returns {qtiesByObjectId: {count, length, surface}, annotationsByObjectId,
+// mainRelsByObjectId, mainAnnotationsByObjectId} — the last two hold the
+// object's MAIN annotations (rels flagged isMain, one per base map).
 export default function useBusinessObjectQties({ listingId } = {}) {
   // data
 
@@ -28,10 +30,21 @@ export default function useBusinessObjectQties({ listingId } = {}) {
     const annotationById = getItemsByKey(annotations ?? [], "id");
     const qtiesByObjectId = {};
     const annotationsByObjectId = {};
+    const mainRelsByObjectId = {};
+    const mainAnnotationsByObjectId = {};
 
     (rels ?? []).forEach((rel) => {
       const annotation = annotationById[rel.annotationId];
       if (!annotation) return;
+      if (rel.isMain) {
+        const objectId = rel.businessObjectId;
+        if (!mainRelsByObjectId[objectId]) {
+          mainRelsByObjectId[objectId] = [];
+          mainAnnotationsByObjectId[objectId] = [];
+        }
+        mainRelsByObjectId[objectId].push(rel);
+        mainAnnotationsByObjectId[objectId].push(annotation);
+      }
       // Mesh cells are children of a parent annotation that is already
       // counted; skip them so quantities are not double-counted.
       if (annotation.isMeshCell) return;
@@ -59,6 +72,11 @@ export default function useBusinessObjectQties({ listingId } = {}) {
       }
     });
 
-    return { qtiesByObjectId, annotationsByObjectId };
+    return {
+      qtiesByObjectId,
+      annotationsByObjectId,
+      mainRelsByObjectId,
+      mainAnnotationsByObjectId,
+    };
   }, [rels, annotations]);
 }

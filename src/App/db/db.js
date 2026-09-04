@@ -291,10 +291,16 @@ db.version(33).stores({
   // Business objects ("Ouvrages") of a listing, organized as a tree.
   businessObjects: "id,listingId,projectId,scopeId,parentId",
   // {id, projectId, scopeId, annotationId, businessObjectId,
-  //  listingId (the business-objects listingId)}
+  //  listingId (the business-objects listingId),
+  //  isMain?, baseMapId? — MAIN annotation of a "located" object on that
+  //  base map (drawn by "Localiser" with one of the listing's OWN
+  //  annotationTemplates, flagged isBusinessObjectAnnotation); its
+  //  displayed label = the object's label.}
   // N-N: several annotations per object AND several objects per annotation.
-  // Invariant (service-enforced): at most ONE live rel per
-  // (annotationId, businessObjectId) pair.
+  // Invariants (service-enforced): at most ONE live rel per
+  // (annotationId, businessObjectId) pair; at most one live isMain rel per
+  // (businessObjectId, baseMapId) and per annotationId. isMain is a boolean
+  // (not indexable) — filtered in memory after an indexed lookup.
   relsBusinessObjectAnnotation:
     "id,projectId,annotationId,businessObjectId,listingId",
 });

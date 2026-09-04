@@ -11,6 +11,7 @@ import {
   Chip,
   IconButton,
   ListItemButton,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import {
@@ -19,6 +20,7 @@ import {
   AddLink,
   ExpandMore,
   ChevronRight,
+  Place,
 } from "@mui/icons-material";
 
 import { useSortable } from "@dnd-kit/sortable";
@@ -45,6 +47,8 @@ export default function BusinessObjectTreeItem({
   qties,
   linkedAnnotations,
   soloAnnotations,
+  mainRels,
+  mainAnnotations,
   onAddChildBusinessObject,
 }) {
   const dispatch = useDispatch();
@@ -86,6 +90,16 @@ export default function BusinessObjectTreeItem({
   const isTitle = Boolean(businessObject.isTitle);
 
   const linkedCount = linkedAnnotations?.length ?? 0;
+  // "located" object: main annotation(s), one per base map
+  const locatedBaseMapsCount = new Set(
+    (mainRels ?? []).map((r) => r.baseMapId ?? "")
+  ).size;
+  const locatedS =
+    locatedBaseMapsCount > 0
+      ? `Localisé sur ${locatedBaseMapsCount} plan${
+          locatedBaseMapsCount > 1 ? "s" : ""
+        }`
+      : null;
   const qtyLabel =
     linkedCount > 0
       ? getBusinessObjectQtyLabel(businessObject.unit, qties)
@@ -110,7 +124,7 @@ export default function BusinessObjectTreeItem({
   // annotations linked to the object or its descendants, everything else is
   // hidden. Re-click restores the full display.
   function handleClick() {
-    toggleBusinessObjectSolo(businessObject, soloAnnotations);
+    toggleBusinessObjectSolo(businessObject, soloAnnotations, mainAnnotations);
   }
 
   function handleToggleCollapsed(e) {
@@ -250,6 +264,13 @@ export default function BusinessObjectTreeItem({
         >
           {businessObject.label}
         </Typography>
+
+        {/* located indicator: main annotation(s) on the plans */}
+        {locatedS && (
+          <Tooltip title={locatedS}>
+            <Place sx={{ fontSize: 14, color: "primary.main", ml: 0.5 }} />
+          </Tooltip>
+        )}
 
         {/* col 3: quantity, right-aligned */}
         {qtyLabel && (

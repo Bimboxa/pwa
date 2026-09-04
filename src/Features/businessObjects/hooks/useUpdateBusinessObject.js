@@ -1,8 +1,13 @@
 import { useDispatch } from "react-redux";
 
-import { triggerBusinessObjectsUpdate } from "../businessObjectsSlice";
+import {
+  triggerBusinessObjectsUpdate,
+  triggerRelsBusinessObjectAnnotationUpdate,
+} from "../businessObjectsSlice";
 
 import db from "App/db/db";
+
+import syncMainAnnotationLabelsService from "../services/syncMainAnnotationLabelsService";
 
 export default function useUpdateBusinessObject() {
   const dispatch = useDispatch();
@@ -24,6 +29,17 @@ export default function useUpdateBusinessObject() {
 
     await db.businessObjects.update(businessObjectId, updates);
     dispatch(triggerBusinessObjectsUpdate());
+
+    // Renaming a located object writes the new name into its main
+    // annotations' rows (best effort — the displayed label is derived at
+    // read time anyway).
+    if (label != null) {
+      const updated = await syncMainAnnotationLabelsService({
+        businessObjectId,
+        label,
+      });
+      if (updated > 0) dispatch(triggerRelsBusinessObjectAnnotationUpdate());
+    }
   };
 
   return update;

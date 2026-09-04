@@ -149,6 +149,7 @@ import getObject3DAnnotationRectanglePointsFromOnePoint from "Features/object3D/
 import imageUrlToPng from "Features/images/utils/imageUrlToPng";
 import useUserEmail from "Features/auth/hooks/useUserEmail";
 import useDeferredDrawingCommit from "../hooks/useDeferredDrawingCommit";
+import useDeleteAnnotations from "Features/annotations/hooks/useDeleteAnnotations";
 import DeferredCommitDialogOutlet from "./DeferredCommitDialogOutlet";
 import ProcedureAutoLaunchDialogOutlet from "Features/annotationsAuto/components/ProcedureAutoLaunchDialogOutlet";
 import useSelectedNodes from "../hooks/useSelectedNodes";
@@ -584,9 +585,15 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     // deferredCommit.commit so an armed newAnnotation.commitInterceptor can
     // divert the commit to a dialog (see drawingCommitInterceptors).
     const { value: userEmail } = useUserEmail();
+    const deleteAnnotationsForInterceptors = useDeleteAnnotations();
     const deferredCommit = useDeferredDrawingCommit({
         commitFn: _handleCommitDrawing,
-        deps: { projectId, createdBy: userEmail, dispatch },
+        deps: {
+            projectId,
+            createdBy: userEmail,
+            dispatch,
+            deleteAnnotations: deleteAnnotationsForInterceptors,
+        },
     });
     const updateAnnotation = useUpdateAnnotation();
     const { handleSplitCommit, handlePolylineSplitAtVertex } = useHandleSplitCommit({ newEntity });

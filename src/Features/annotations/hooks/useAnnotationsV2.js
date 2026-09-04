@@ -393,6 +393,7 @@ import getExtrusionProfileFootprintShapes from "Features/annotations/utils/getEx
 import useAnnotationSubtractions from "Features/annotations/hooks/useAnnotationSubtractions";
 import useZoneSoloAnnotationIdSet from "Features/zonings/hooks/useZoneSoloAnnotationIdSet";
 import useBusinessObjectSoloAnnotationIdSet from "Features/businessObjects/hooks/useBusinessObjectSoloAnnotationIdSet";
+import useMainBusinessObjectLabelByAnnotationId from "Features/businessObjects/hooks/useMainBusinessObjectLabelByAnnotationId";
 import { selectPovFreezeCreatedBefore } from "Features/viewers/utils/effectiveViewerKey";
 import { getShape3DKey } from "Features/annotations/constants/shape3DConfig";
 import {
@@ -566,6 +567,12 @@ export default function useAnnotationsV2(options) {
     );
     const businessObjectSoloAnnotationIdSet =
       useBusinessObjectSoloAnnotationIdSet(soloBusinessObjectId);
+
+    // "located" business objects: the MAIN annotation of an object displays
+    // the object's label everywhere (2D chip, 3D sprite, panels). Content-
+    // keyed Map (stable identity while nothing changes).
+    const mainBusinessObjectLabelByAnnotationId =
+      useMainBusinessObjectLabelByAnnotationId();
 
     // template FOCUS (Dessin module's recap panel): templateId | null. Same
     // ignoreSolo / keepSoloDimmed semantics as the zone solo.
@@ -2369,6 +2376,24 @@ export default function useAnnotationsV2(options) {
         }
       });
 
+      // Main annotations of located business objects: the object's label
+      // wins over the row's own label AND the entity label. Applied after the
+      // template override so it can never be shadowed; `annotationLabel` is
+      // what the "Etiquette" chip reads, `label` what lists / exports read.
+      if (mainBusinessObjectLabelByAnnotationId.size > 0) {
+        result = result.map((annotation) => {
+          if (annotation?.isBaseMapAnnotation) return annotation;
+          const main = mainBusinessObjectLabelByAnnotationId.get(annotation?.id);
+          if (!main) return annotation;
+          return {
+            ...annotation,
+            label: main.label,
+            annotationLabel: main.label,
+            mainBusinessObjectId: main.businessObjectId,
+          };
+        });
+      }
+
       // recompute qties after template overrides so overridden height is reflected
       if (withQties) {
         // NOTE: no in-place `annotation.qties = ...` here — the identity
@@ -2789,6 +2814,7 @@ export default function useAnnotationsV2(options) {
       zoneSoloAnnotationIdSet,
       soloBusinessObjectId,
       businessObjectSoloAnnotationIdSet,
+      mainBusinessObjectLabelByAnnotationId,
       soloTemplateId,
       soloAnnotationId,
       keepSoloDimmed,
