@@ -16,6 +16,7 @@ import useSyncNotesAppScope from "../hooks/useSyncNotesAppScope";
 import SectionNotesAppConnection from "./SectionNotesAppConnection";
 import SectionNotesAppProjectLink from "./SectionNotesAppProjectLink";
 import SectionNotesAppListingsMapping from "./SectionNotesAppListingsMapping";
+import SectionNotesAppBaseMapsSync from "./SectionNotesAppBaseMapsSync";
 
 // The "Sync" right-panel tool: connection to notes-app (Krnet), "dossier"
 // (remote project) linked to the selected scope, listings mapping table and
@@ -81,6 +82,8 @@ export default function PanelNotesAppSync() {
       {session && scope?.id && link?.projectId && (
         <Box sx={{ flexGrow: 1, minHeight: 0, overflow: "auto" }}>
           <SectionNotesAppListingsMapping appName={appName} />
+          <Divider sx={{ my: 0.5 }} />
+          <SectionNotesAppBaseMapsSync />
         </Box>
       )}
 

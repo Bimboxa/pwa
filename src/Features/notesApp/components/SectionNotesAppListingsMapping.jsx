@@ -7,7 +7,6 @@ import {
   Select,
   Typography,
 } from "@mui/material";
-import { Map as MapIcon } from "@mui/icons-material";
 
 import useListingsByScope from "Features/listings/hooks/useListingsByScope";
 
@@ -29,8 +28,6 @@ export default function SectionNotesAppListingsMapping({ appName = "Krnet" }) {
   const titleS = `Listes ${appName} → listes d'ouvrages de la mission`;
   const createS = "Créer une liste d'ouvrages";
   const ignoreS = "Ignorer";
-  const plansS = "Plans";
-  const plansTargetS = "→ Fonds de plan";
   const errorS = "Impossible de récupérer les listes.";
 
   // data
@@ -187,22 +184,6 @@ export default function SectionNotesAppListingsMapping({ appName = "Krnet" }) {
             );
           })}
 
-          {/* fixed info row: plans always land in the base-map listing */}
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              gap: 1,
-              py: 0.5,
-              opacity: 0.7,
-            }}
-          >
-            <MapIcon fontSize="small" color="action" />
-            <Typography variant="body2">{plansS}</Typography>
-            <Typography variant="caption" color="text.secondary">
-              {plansTargetS}
-            </Typography>
-          </Box>
         </Box>
       )}
     </Box>
