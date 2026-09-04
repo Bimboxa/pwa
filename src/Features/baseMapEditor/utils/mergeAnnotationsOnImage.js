@@ -2,6 +2,16 @@
 // and the version transform needed to align the result in the reference frame.
 
 import { getFreeTextPageScale } from "Features/annotations/constants/freeTextConstants";
+import getAnnotationLabelSizeConfig from "Features/annotations/utils/getAnnotationLabelSizeConfig";
+import { getAnnotationOwnLabel } from "Features/annotations/utils/getAnnotationLabelDisplay";
+
+// Standalone LABEL chip: page-pt → image-px scale in "Taille fixe" mode,
+// plain image px otherwise (a screen-constant chip has no exact image size —
+// 1 CSS px is flattened as 1 image px, i.e. the zoom-1 look).
+function getLabelChipScale(a) {
+  const { isFixedSize, pageFormat } = getAnnotationLabelSizeConfig(a);
+  return isFixedSize ? getFreeTextPageScale(pageFormat, a.imageLongSidePx) : 1;
+}
 
 function loadImage(url) {
   return new Promise((resolve, reject) => {
@@ -51,10 +61,16 @@ function getAnnotationsBounds(annotations) {
         if (a.point) expandPoint(a.point.x - 20, a.point.y - 20);
         if (a.point) expandPoint(a.point.x + 20, a.point.y + 20);
         break;
-      case "LABEL":
+      case "LABEL": {
         if (a.targetPoint) expandPoint(a.targetPoint.x, a.targetPoint.y);
-        if (a.labelPoint) expandPoint(a.labelPoint.x, a.labelPoint.y);
+        if (a.labelPoint) {
+          const k = getLabelChipScale(a);
+          const halfW = (k * (a.width || 200)) / 2;
+          expandPoint(a.labelPoint.x - halfW, a.labelPoint.y - 30 * k);
+          expandPoint(a.labelPoint.x + halfW, a.labelPoint.y + 30 * k);
+        }
         break;
+      }
       case "FREE_TEXT": {
         if (a.targetPoint) expandPoint(a.targetPoint.x, a.targetPoint.y);
         if (a.labelPoint) {
@@ -251,24 +267,71 @@ function drawAnnotation(ctx, annotation, meterByPx) {
     }
 
     case "LABEL": {
-      const { targetPoint, labelPoint, label } = annotation;
+      // Standalone LABEL chip, same model as NodeLabelStatic: white chip,
+      // 1px border in the annotation colour, bold centred text, 8/4 padding,
+      // single-segment black leader. In "Taille fixe" mode the chip is drawn
+      // in page-pt space scaled by k (see getLabelChipScale) so the flatten
+      // matches the on-screen chip; otherwise 1 CSS px = 1 image px.
+      const {
+        targetPoint,
+        labelPoint,
+        width,
+        textColor = "#000000",
+        bgColor = "#ffffff",
+      } = annotation;
       if (!targetPoint || !labelPoint) return;
 
-      // Draw connector line
-      ctx.beginPath();
-      ctx.moveTo(targetPoint.x, targetPoint.y);
-      ctx.lineTo(labelPoint.x, labelPoint.y);
-      ctx.strokeStyle = hexToRgba(strokeColor || "#000000", 0.5);
-      ctx.lineWidth = 1;
-      ctx.stroke();
+      const { fontSize: cfgFontSize, isFixedSize } =
+        getAnnotationLabelSizeConfig(annotation);
+      const k = getLabelChipScale(annotation);
+      // Screen mode keeps the historical 14px font whatever the row says.
+      const fontSize = isFixedSize ? cfgFontSize : 14;
+      const text = getAnnotationOwnLabel(annotation) ?? "";
+      const lines = String(text).split("\n");
 
-      // Draw label text
-      if (label) {
-        ctx.font = "12px system-ui, -apple-system, sans-serif";
-        ctx.fillStyle = "#000000";
-        ctx.textBaseline = "middle";
-        ctx.fillText(label, labelPoint.x + 4, labelPoint.y);
-      }
+      ctx.save();
+      ctx.translate(labelPoint.x, labelPoint.y);
+      ctx.scale(k, k);
+
+      const padX = 8;
+      const padY = 4;
+      const lineHeight = fontSize * 1.2;
+      ctx.font = `bold ${fontSize}px "Roboto", "Helvetica", "Arial", sans-serif`;
+      const maxLineWidth = Math.max(
+        1,
+        ...lines.map((l) => ctx.measureText(l).width)
+      );
+      const boxW = width || Math.max(40, maxLineWidth + 2 * padX);
+      const boxH = lines.length * lineHeight + 2 * padY;
+      const boxX = -boxW / 2;
+      const boxY = -boxH / 2;
+
+      // Leader (image px space: undo the chip scale for the geometry, keep
+      // the 1.5px stroke constant like non-scaling-stroke).
+      ctx.save();
+      ctx.scale(1 / k, 1 / k);
+      ctx.beginPath();
+      ctx.moveTo(targetPoint.x - labelPoint.x, targetPoint.y - labelPoint.y);
+      ctx.lineTo(0, 0);
+      ctx.strokeStyle = hexToRgba("#000000", 0.7);
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+      ctx.restore();
+
+      ctx.fillStyle = bgColor;
+      ctx.fillRect(boxX, boxY, boxW, boxH);
+      ctx.strokeStyle = fillColor || "#2196f3";
+      ctx.lineWidth = 1;
+      ctx.strokeRect(boxX, boxY, boxW, boxH);
+
+      ctx.fillStyle = textColor;
+      ctx.textBaseline = "middle";
+      lines.forEach((line, i) => {
+        const lineW = ctx.measureText(line).width;
+        const ty = boxY + padY + (i + 0.5) * lineHeight;
+        ctx.fillText(line, -lineW / 2, ty);
+      });
+      ctx.restore();
       break;
     }
 

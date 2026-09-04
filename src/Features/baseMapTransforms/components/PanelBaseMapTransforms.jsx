@@ -9,6 +9,7 @@ import { Box, FormControlLabel, Switch, Typography } from "@mui/material";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 import SectionVersionTransforms from "Features/baseMaps/components/SectionVersionTransforms";
+import SectionBaseMapAnnotations from "./SectionBaseMapAnnotations";
 import SectionPhotoPlanQuickFlatten from "Features/photoPlans/components/SectionPhotoPlanQuickFlatten";
 
 export default function PanelBaseMapTransforms() {
@@ -50,6 +51,7 @@ export default function PanelBaseMapTransforms() {
 
       <BoxFlexVStretch sx={{ overflow: "auto", gap: 1, p: 1.5 }}>
         {baseMap?.isPhoto && <SectionPhotoPlanQuickFlatten baseMap={baseMap} />}
+        <SectionBaseMapAnnotations baseMap={baseMap} />
         <WhiteSectionGeneric>
           <Typography variant="body2" sx={{ fontWeight: "bold" }}>
             Dessin
