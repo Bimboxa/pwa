@@ -13,6 +13,7 @@ import DialogCreatePortfolio from "./DialogCreatePortfolio";
 
 import useCreatePortfolio from "Features/portfolios/hooks/useCreatePortfolio";
 import useCreateDetailsPortfolio from "Features/portfolios/hooks/useCreateDetailsPortfolio";
+import useCreateBaseMapPage from "Features/portfolioPages/hooks/useCreateBaseMapPage";
 
 // ---------------------------------------------------------------------------
 // PanelPortfolios — left panel of the Carnet de plans module: header with a
@@ -34,6 +35,7 @@ export default function PanelPortfolios() {
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const createPortfolio = useCreatePortfolio();
   const createDetailsPortfolio = useCreateDetailsPortfolio();
+  const createBaseMapPage = useCreateBaseMapPage();
 
   // state
 
@@ -44,6 +46,7 @@ export default function PanelPortfolios() {
   async function handleCreate({
     title,
     isDetailsPortfolio,
+    selectedBaseMapIds = [],
     selectedDetails,
     titleBlock,
   }) {
@@ -54,6 +57,7 @@ export default function PanelPortfolios() {
         scopeId,
         projectId,
         title,
+        baseMapIds: selectedBaseMapIds,
         details: selectedDetails,
         metadata,
       });
@@ -64,6 +68,17 @@ export default function PanelPortfolios() {
         title,
         metadata,
       });
+      // one plan page per selected baseMap, in the base map tree order
+      let afterSortIndex = null;
+      for (const baseMapId of selectedBaseMapIds) {
+        const page = await createBaseMapPage({
+          listing: portfolio,
+          projectId,
+          baseMapId,
+          afterSortIndex,
+        });
+        afterSortIndex = page.sortIndex;
+      }
     }
     dispatch(setDisplayedPortfolioId(portfolio.id));
   }
