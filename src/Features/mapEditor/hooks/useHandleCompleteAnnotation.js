@@ -2,7 +2,6 @@ import { nanoid } from "@reduxjs/toolkit";
 import { useSelector, useDispatch } from "react-redux";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
-import useCreateEntity from "Features/entities/hooks/useCreateEntity";
 import useCreateAnnotation from "Features/annotations/hooks/useCreateAnnotation";
 import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
 
@@ -47,7 +46,7 @@ const sanitizeArcs = (refs) => {
  * 2. POLYLINE + reconnect to same       → new closed POLYLINE (drawn path + original segment)
  * 3. POLYGON  + reconnect to same       → modify polygon (replace shortest contour side)
  */
-export default function useHandleCompleteAnnotation({ newEntity } = {}) {
+export default function useHandleCompleteAnnotation() {
   const dispatch = useDispatch();
 
   const baseMapId = useSelector((s) => s.mapEditor.selectedBaseMapId);
@@ -55,7 +54,6 @@ export default function useHandleCompleteAnnotation({ newEntity } = {}) {
   const listingId = useSelector((s) => s.listings.selectedListingId);
 
   const baseMap = useMainBaseMap();
-  const createEntity = useCreateEntity();
   const createAnnotation = useCreateAnnotation();
   const updateAnnotation = useUpdateAnnotation();
 
@@ -306,7 +304,6 @@ export default function useHandleCompleteAnnotation({ newEntity } = {}) {
         ];
       } else {
         // Start point is in the middle → create a new polyline (can't extend)
-        const entity = await createEntity(newEntity);
         const {
           id: _id,
           entityId: _eid,
@@ -316,7 +313,6 @@ export default function useHandleCompleteAnnotation({ newEntity } = {}) {
         await createAnnotation({
           ...hostProps,
           id: nanoid(),
-          entityId: entity.id,
           type: "POLYLINE",
           points: [{ id: effectiveStartPointId }, ...drawnPointRefs.slice(1)],
           closeLine: false,
@@ -407,7 +403,6 @@ export default function useHandleCompleteAnnotation({ newEntity } = {}) {
         ];
       }
 
-      const entity = await createEntity(newEntity);
       const {
         id: _id,
         entityId: _eid,
@@ -417,7 +412,6 @@ export default function useHandleCompleteAnnotation({ newEntity } = {}) {
       await createAnnotation({
         ...hostProps,
         id: nanoid(),
-        entityId: entity.id,
         type: "POLYLINE",
         points: closedPoints,
         closeLine: true,
@@ -514,7 +508,6 @@ export default function useHandleCompleteAnnotation({ newEntity } = {}) {
       });
 
       // Create new entity + annotation for piece 2
-      const entity = await createEntity(newEntity);
       const {
         id: _id,
         entityId: _eid,
@@ -525,7 +518,6 @@ export default function useHandleCompleteAnnotation({ newEntity } = {}) {
         ...hostProps,
         ...closeLineProps,
         id: nanoid(),
-        entityId: entity.id,
         points: polygon2Points,
       });
 
@@ -540,7 +532,6 @@ export default function useHandleCompleteAnnotation({ newEntity } = {}) {
 
     // Fallback: polygon + open path (just create a new polyline)
     if (isPolygon && !effectiveEndPointId) {
-      const entity = await createEntity(newEntity);
       const {
         id: _id,
         entityId: _eid,
@@ -551,7 +542,6 @@ export default function useHandleCompleteAnnotation({ newEntity } = {}) {
       await createAnnotation({
         ...hostProps,
         id: nanoid(),
-        entityId: entity.id,
         type: "POLYLINE",
         points: [...startRef, ...drawnPointRefs.slice(startRef.length ? 1 : 0)],
         closeLine: false,

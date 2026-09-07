@@ -4,7 +4,6 @@ import { useSelector } from "react-redux";
 import db from "App/db/db";
 
 import useCreateAnnotation from "Features/annotations/hooks/useCreateAnnotation";
-import useCreateEntity from "Features/entities/hooks/useCreateEntity";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 
 import buildWallPolylineFromChain from "Features/annotations/utils/buildWallPolylineFromChain";
@@ -22,7 +21,6 @@ import getAnnotationTemplateProps from "Features/annotations/utils/getAnnotation
 //     annotationTemplateId, template }
 export default function useGenerateWallsFromSegments() {
   const createAnnotation = useCreateAnnotation();
-  const createEntity = useCreateEntity();
   const baseMap = useMainBaseMap();
   const activeLayerId = useSelector((s) => s.layers?.activeLayerId);
 
@@ -76,17 +74,10 @@ export default function useGenerateWallsFromSegments() {
       }
       await db.points.bulkAdd(pointRecords);
 
-      // 2. Owning entity (mirrors useGenerateSlopeWalls).
-      const entity = await createEntity({
-        listingId: config.template?.listingId || annotation.listingId,
-        projectId: annotation.projectId,
-      });
-
-      // 3. The POLYLINE wall annotation.
+      // 2. The POLYLINE wall annotation.
       const newAnnotation = {
         ...getAnnotationTemplateProps(config.template),
         id: nanoid(),
-        entityId: entity?.id,
         projectId: annotation.projectId,
         listingId: config.template?.listingId || annotation.listingId,
         baseMapId: annotation.baseMapId,

@@ -2,7 +2,6 @@ import { nanoid } from "@reduxjs/toolkit";
 import { useSelector, useDispatch } from "react-redux";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
-import useCreateEntity from "Features/entities/hooks/useCreateEntity";
 import useCreateAnnotation from "Features/annotations/hooks/useCreateAnnotation";
 import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
 import splitArcOnInsert from "Features/geometry/utils/splitArcOnInsert";
@@ -50,13 +49,12 @@ function normalizeSnap(snap) {
  * - Arcs (S-C-S): insertions go through splitArcOnInsert; clicking an arc
  *   control point splits the arc at the control via splitArcAtControlPoint.
  */
-export default function useHandleSplitPolylineClick({ newEntity } = {}) {
+export default function useHandleSplitPolylineClick() {
   const dispatch = useDispatch();
   const baseMap = useMainBaseMap();
   const baseMapId = useSelector((s) => s.mapEditor.selectedBaseMapId);
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const listingId = useSelector((s) => s.listings.selectedListingId);
-  const createEntity = useCreateEntity();
   const createAnnotation = useCreateAnnotation();
   const updateAnnotation = useUpdateAnnotation();
 
@@ -320,7 +318,6 @@ export default function useHandleSplitPolylineClick({ newEntity } = {}) {
         closeLine: false,
       });
 
-      const entity = await createEntity(newEntity);
       const { id: _id, entityId: _eid, cuts: _cuts, ...hostProps } = annotation;
       await createAnnotation({
         ...hostProps,
@@ -328,7 +325,6 @@ export default function useHandleSplitPolylineClick({ newEntity } = {}) {
         ...legacyClear,
         ...profileFields2,
         id: nanoid(),
-        entityId: entity.id,
         points: piece2,
         closeLine: false,
       });

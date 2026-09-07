@@ -17,7 +17,6 @@ export const NON_TEMPLATE_KEYS = new Set([
   "baseMapId",
   "projectId",
   "listingId",
-  "entityId",
   "layerId",
   "isOpening",
   "guideLines",

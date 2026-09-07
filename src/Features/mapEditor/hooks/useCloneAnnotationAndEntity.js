@@ -5,11 +5,8 @@ import {
   triggerAnnotationsUpdate,
   triggerAnnotationTemplatesUpdate,
 } from "Features/annotations/annotationsSlice";
-import { triggerEntitiesTableUpdate } from "Features/entities/entitiesSlice";
 
 import useMainBaseMap from "./useMainBaseMap";
-import useUserEmail from "Features/auth/hooks/useUserEmail";
-import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 
 import getPolygonsPointsFromStripAnnotation from "Features/annotations/utils/getPolygonsPointsFromStripAnnotation";
 import applyStripElevation, {
@@ -35,8 +32,6 @@ export default function useCloneAnnotationAndEntity() {
 
     const dispatch = useDispatch();
     const baseMap = useMainBaseMap()
-    const { value: userEmail } = useUserEmail();
-    const { value: selectedListing } = useSelectedListing();
     const projectId = useSelector((s) => s.projects.selectedProjectId);
 
     const _newAnnotation = useSelector((state) => state.annotations.newAnnotation);
@@ -44,7 +39,6 @@ export default function useCloneAnnotationAndEntity() {
 
     return async (annotation, options) => {
         // options
-        const entityLabel = options?.entityLabel;
         const part = options?.part;
         const stripElevation = options?.stripElevation;
         // Default true = reuse source point refs (legacy behavior). false = mint
@@ -153,32 +147,18 @@ export default function useCloneAnnotationAndEntity() {
         // then flush them in a SINGLE Dexie transaction + a SINGLE set of Redux
         // dispatches — instead of one transaction + ~4 dispatches per item.
         // Mirrors the batched sibling useCloneAnnotationsAndEntities.
-        const entityTable =
-            selectedListing?.table ?? selectedListing?.entityModel?.defaultTable;
 
-        const allEntities = [];
         const allAnnotations = [];
         const allPoints = [];
 
         for (const item of itemsToCreate) {
-            const entityId = nanoid();
             const annotationId = nanoid();
-
-            // A. Domain entity for THIS specific geometry
-            allEntities.push({
-                id: entityId,
-                createdBy: userEmail,
-                listingId: newAnnotation.listingId || annotation.listingId,
-                projectId: annotation.projectId,
-                ...(entityLabel ? { label: entityLabel } : {}),
-            });
 
             // B. Annotation record
             const clonedAnnotation = {
                 ...annotation,
                 ...newAnnotation, // Apply new type/styles from store
                 id: annotationId,
-                entityId, // Link to the newly created entity
                 projectId,
                 listingId: newAnnotation.listingId || annotation.listingId,
                 points: item.points,
@@ -306,12 +286,9 @@ export default function useCloneAnnotationAndEntity() {
         // 5. One transaction for every write.
         const tables = [db.annotations, db.relAnnotationMappingCategory];
         if (allPoints.length > 0) tables.push(db.points);
-        if (entityTable && db[entityTable]) tables.push(db[entityTable]);
 
         await db.transaction("rw", tables, async () => {
             if (allPoints.length > 0) await db.points.bulkAdd(allPoints);
-            if (entityTable && allEntities.length > 0)
-                await db[entityTable].bulkAdd(allEntities);
             if (allAnnotations.length > 0)
                 await db.annotations.bulkAdd(allAnnotations);
             if (allMappingRels.length > 0)
@@ -321,7 +298,6 @@ export default function useCloneAnnotationAndEntity() {
         // 6. Single set of Redux dispatches for the whole batch.
         dispatch(triggerAnnotationsUpdate());
         dispatch(triggerAnnotationTemplatesUpdate());
-        if (entityTable) dispatch(triggerEntitiesTableUpdate(entityTable));
 
         // Return single object if only one created (backward compatibility),
         // else return array.

@@ -40,7 +40,6 @@ export default async function commitDrawnCoteService({
   projectId,
   listingId,
   templateProps = null,
-  entityId = null,
   layerId = null,
   createAnnotationFn = null,
 }) {
@@ -98,7 +97,6 @@ export default async function commitDrawnCoteService({
     listingId,
     baseMapId: host.id,
     annotationTemplateId: templateProps?.annotationTemplateId ?? null,
-    ...(entityId ? { entityId } : {}),
     ...(layerId ? { layerId } : {}),
     points: pointRefs,
     createdAt: new Date().toISOString(),

@@ -3,7 +3,7 @@ import { useState, useRef, useEffect } from "react";
 import { useSelector, useDispatch } from "react-redux";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
-import useCreateAnnotationAndEntityFromPoints from "Features/mapEditor/hooks/useCreateAnnotationAndEntityFromPoints";
+import useCreateAnnotationFromPoints from "Features/mapEditor/hooks/useCreateAnnotationFromPoints";
 
 import { setDrawingPolylinePoints } from "Features/mapEditor/mapEditorSlice";
 
@@ -31,7 +31,7 @@ export default function SectionEditedAnnotationNextPoint() {
 
   // data - func
 
-  const createFromPoints = useCreateAnnotationAndEntityFromPoints();
+  const createFromPoints = useCreateAnnotationFromPoints();
 
   // state
 

@@ -2,7 +2,6 @@ import { nanoid } from "@reduxjs/toolkit";
 import { useSelector, useDispatch } from "react-redux";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
-import useCreateEntity from "Features/entities/hooks/useCreateEntity";
 import useCreateAnnotation from "Features/annotations/hooks/useCreateAnnotation";
 import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
 
@@ -13,7 +12,7 @@ import { setToaster } from "Features/layout/layoutSlice";
 
 import db from "App/db/db";
 
-export default function useHandleSplitCommit({ newEntity } = {}) {
+export default function useHandleSplitCommit() {
 
     // data
 
@@ -24,7 +23,6 @@ export default function useHandleSplitCommit({ newEntity } = {}) {
     const listingId = useSelector(s => s.listings.selectedListingId);
 
     const baseMap = useMainBaseMap();
-    const createEntity = useCreateEntity();
     const createAnnotation = useCreateAnnotation();
     const updateAnnotation = useUpdateAnnotation();
 
@@ -88,12 +86,10 @@ export default function useHandleSplitCommit({ newEntity } = {}) {
         });
 
         // Create new entity + annotation for piece2
-        const entity = await createEntity(newEntity);
         const { id: _discardId, entityId: _discardEntityId, cuts: _discardCuts, ...hostProps } = annotation;
         await createAnnotation({
             ...hostProps,
             id: nanoid(),
-            entityId: entity.id,
             points: piece2.map(p => ({ id: p.id })),
         });
 
@@ -177,12 +173,10 @@ export default function useHandleSplitCommit({ newEntity } = {}) {
                 closeLine: false,
             });
 
-            const entity = await createEntity(newEntity);
             const { id: _id, entityId: _eid, cuts: _cuts, ...hostProps } = annotation;
             await createAnnotation({
                 ...hostProps,
                 id: nanoid(),
-                entityId: entity.id,
                 points: result.piece2,
                 closeLine: false,
             });

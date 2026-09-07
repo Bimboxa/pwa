@@ -6,7 +6,6 @@ import {
   triggerAnnotationsUpdate,
   triggerAnnotationTemplatesUpdate,
 } from "Features/annotations/annotationsSlice";
-import { triggerEntitiesTableUpdate } from "Features/entities/entitiesSlice";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useUserEmail from "Features/auth/hooks/useUserEmail";
@@ -136,12 +135,6 @@ export default function useVectoriseWallsAsPolylines() {
       const templateProps = getAnnotationTemplateProps(annotationTemplate);
 
       const targetListingId = annotationTemplate.listingId ?? listingId;
-      const targetListing = targetListingId
-        ? await db.listings.get(targetListingId)
-        : null;
-      const entityTable =
-        targetListing?.table ?? targetListing?.entityModel?.defaultTable;
-
       const rawMappingCategories = annotationTemplate.mappingCategories ?? [];
       const mappingCategories = rawMappingCategories
         .map(parseMappingCategory)
@@ -247,7 +240,6 @@ export default function useVectoriseWallsAsPolylines() {
         return id;
       };
 
-      const allEntities = [];
       const allAnnotations = [];
       const allMappingRels = [];
 
@@ -265,17 +257,6 @@ export default function useVectoriseWallsAsPolylines() {
         const id2 = getOrCreatePoint(p2.x, p2.y);
         if (id1 === id2) continue;
 
-        let entityId;
-        if (entityTable && targetListing) {
-          entityId = nanoid();
-          allEntities.push({
-            id: entityId,
-            createdBy: userEmail,
-            listingId: targetListingId,
-            projectId: targetListing.projectId ?? projectId,
-          });
-        }
-
         const annotationId = nanoid();
         allAnnotations.push({
           id: annotationId,
@@ -291,7 +272,6 @@ export default function useVectoriseWallsAsPolylines() {
           projectId,
           listingId: targetListingId,
           createdBy: userEmail,
-          ...(entityId ? { entityId } : {}),
           ...(activeLayerId ? { layerId: activeLayerId } : {}),
           points: [
             { id: id1, type: "square" },
@@ -328,17 +308,6 @@ export default function useVectoriseWallsAsPolylines() {
         const id2 = getOrCreatePoint(b.x, b.y);
         if (id1 === id2 || id1 === idC || idC === id2) continue;
 
-        let entityId;
-        if (entityTable && targetListing) {
-          entityId = nanoid();
-          allEntities.push({
-            id: entityId,
-            createdBy: userEmail,
-            listingId: targetListingId,
-            projectId: targetListing.projectId ?? projectId,
-          });
-        }
-
         const annotationId = nanoid();
         allAnnotations.push({
           id: annotationId,
@@ -354,7 +323,6 @@ export default function useVectoriseWallsAsPolylines() {
           projectId,
           listingId: targetListingId,
           createdBy: userEmail,
-          ...(entityId ? { entityId } : {}),
           ...(activeLayerId ? { layerId: activeLayerId } : {}),
           points: [
             { id: id1, type: "square" },
@@ -386,9 +354,6 @@ export default function useVectoriseWallsAsPolylines() {
       if (newPointRecords.length > 0) {
         await db.points.bulkAdd(newPointRecords);
       }
-      if (entityTable && allEntities.length > 0) {
-        await db[entityTable].bulkAdd(allEntities);
-      }
       await db.annotations.bulkAdd(allAnnotations);
       if (allMappingRels.length > 0) {
         await db.relAnnotationMappingCategory.bulkAdd(allMappingRels);
@@ -396,13 +361,9 @@ export default function useVectoriseWallsAsPolylines() {
 
       dispatch(triggerAnnotationsUpdate());
       dispatch(triggerAnnotationTemplatesUpdate());
-      dispatch(triggerEntitiesTableUpdate("annotations"));
-      if (entityTable && allEntities.length > 0) {
-        dispatch(triggerEntitiesTableUpdate(entityTable));
-      }
 
       console.log(
-        `[useVectoriseWallsAsPolylines] Created ${allAnnotations.length} POLYLINE annotations, ${allEntities.length} entities, ${newPointRecords.length} new points`
+        `[useVectoriseWallsAsPolylines] Created ${allAnnotations.length} POLYLINE annotations, ${newPointRecords.length} new points`
       );
 
       return {

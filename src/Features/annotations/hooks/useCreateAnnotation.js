@@ -44,7 +44,6 @@ export default function useCreateAnnotation() {
     try {
       // options
 
-      const entityId = options?.entityId;
       // Deferred writes from the drawing commit (see useHandleCommitDrawing):
       // point rows + snap updates land in the SAME Dexie transaction as the
       // annotation add, so the liveQueries re-run once per commit.
@@ -58,8 +57,6 @@ export default function useCreateAnnotation() {
         projectId,
         listingId: annotation?.listingId ?? listing?.id,
       };
-
-      if (entityId) _annotation.entityId = entityId;
 
       if (annotation.isScaleSegment) {
         _annotation.listingId = null;

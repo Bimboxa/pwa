@@ -10,13 +10,11 @@ import {
 import { setNewAnnotation } from "Features/annotations/annotationsSlice";
 
 import useCreateAnnotation from "Features/annotations/hooks/useCreateAnnotation";
-import useCreateEntity from "Features/entities/hooks/useCreateEntity";
 
-export default function useCreateAnnotationAndEntityFromPoints() {
+export default function useCreateAnnotationFromPoints() {
   const dispatch = useDispatch();
 
   const createAnnotation = useCreateAnnotation();
-  const createEntity = useCreateEntity();
 
   const newAnnotation = useSelector((s) => s.annotations.newAnnotation);
 
@@ -27,19 +25,17 @@ export default function useCreateAnnotationAndEntityFromPoints() {
   );
 
   return async ({ points, type }) => {
-    const entity = await createEntity({});
     const annotation = await createAnnotation({
       ...newAnnotation,
       type,
       points,
-      entityId: entity?.id,
       listingId: newAnnotation?.listingId ?? listingId,
       baseMapId,
       annotationTemplateId:
         newAnnotation?.annotationTemplateId ?? annotationTemplateId,
     });
 
-    console.log("[MainMapEditor] new polyline created", annotation, entity);
+    console.log("[MainMapEditor] new polyline created", annotation);
 
     // Reset drawing mode
     //dispatch(setEnabledDrawingMode(null));

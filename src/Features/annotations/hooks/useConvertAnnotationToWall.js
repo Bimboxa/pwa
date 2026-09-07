@@ -8,7 +8,6 @@ import { nanoid } from "@reduxjs/toolkit";
 import useSelectedAnnotation from "./useSelectedAnnotation";
 import useAnnotationsV2 from "./useAnnotationsV2";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
-import useCreateEntity from "Features/entities/hooks/useCreateEntity";
 
 import getSelectedAnnotationWallChains from "../utils/getSelectedAnnotationWallChains";
 import getAnnotationTemplateProps from "../utils/getAnnotationTemplateProps";
@@ -63,7 +62,6 @@ export default function useConvertAnnotationToWall() {
     caller: "useConvertAnnotationToWall",
   });
   const baseMap = useMainBaseMap();
-  const createEntity = useCreateEntity();
   const projectId = useSelector((s) => s.projects.selectedProjectId);
 
   return async () => {
@@ -146,10 +144,8 @@ export default function useConvertAnnotationToWall() {
     const mainRefs = main.refs;
 
     // Extra tronçons → new annotations cloning the selected annotation's
-    // template. Entities are created OUTSIDE the Dexie transaction (createEntity
-    // awaits non-Dexie async work, which would commit a transaction early).
+    // template.
     for (const chain of extraChains) {
-      const entity = await createEntity({ listingId, projectId });
       const { pointRows, refs } = buildRefs(chain.pointRefs);
       allPointRows.push(...pointRows);
 
@@ -157,7 +153,6 @@ export default function useConvertAnnotationToWall() {
       allAnnotationRows.push({
         ...getAnnotationTemplateProps(selectedTemplate),
         id: annotationId,
-        entityId: entity?.id,
         projectId,
         listingId,
         baseMapId: selected.baseMapId,

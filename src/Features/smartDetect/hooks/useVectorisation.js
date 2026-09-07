@@ -3,10 +3,8 @@ import { nanoid } from "@reduxjs/toolkit";
 import { useSelector, useDispatch } from "react-redux";
 
 import { triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice";
-import { triggerEntitiesTableUpdate } from "Features/entities/entitiesSlice";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
-import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 import getAnnotationTemplateProps from "Features/annotations/utils/getAnnotationTemplateProps";
 
 import db from "App/db/db";
@@ -24,7 +22,6 @@ export default function useVectorisation() {
   );
 
   const baseMap = useMainBaseMap();
-  const { value: selectedListing } = useSelectedListing();
 
   const vectorise = useCallback(
     async ({ annotations, annotationTemplate, enableExteriorOrtho = true, enableExteriorClose = true, enableInterior = true, polygonAsFillMode = false }) => {
@@ -150,7 +147,6 @@ export default function useVectorisation() {
 
       // ── 3. Build annotations with shared point topology ───────────────
       const templateProps = getAnnotationTemplateProps(annotationTemplate);
-      const entityTable = selectedListing?.table ?? selectedListing?.entityModel?.defaultTable;
 
       const SNAP_TOLERANCE = 3;
       const pointIndex = new Map();
@@ -164,7 +160,6 @@ export default function useVectorisation() {
       };
 
       const allAnnotations = [];
-      const allEntities = [];
 
       for (let i = 0; i < polylines.length; i++) {
         const polyline = polylines[i];
@@ -172,12 +167,6 @@ export default function useVectorisation() {
 
         const thicknessPx = thicknesses[i] ?? 2;
         const thicknessCm = Math.round(thicknessPx * versionMeterByPx * 100 * 10) / 10;
-
-        let entityId;
-        if (entityTable) {
-          entityId = nanoid();
-          allEntities.push({ id: entityId, listingId, projectId });
-        }
 
         const pointRefs = polyline.map((pt) => ({
           id: getOrCreatePoint(pt.x, pt.y),
@@ -194,7 +183,6 @@ export default function useVectorisation() {
           strokeWidth: thicknessCm,
           strokeWidthUnit: "CM",
           closeLine: false,
-          entityId,
           baseMapId,
           projectId,
           listingId,
@@ -213,17 +201,12 @@ export default function useVectorisation() {
         });
       }
 
-      const tables = [db.points, db.annotations];
-      if (entityTable && allEntities.length > 0) tables.push(db[entityTable]);
-
-      await db.transaction("rw", tables, async () => {
+      await db.transaction("rw", [db.points, db.annotations], async () => {
         if (allPoints.length > 0) await db.points.bulkAdd(allPoints);
-        if (entityTable && allEntities.length > 0) await db[entityTable].bulkAdd(allEntities);
         if (allAnnotations.length > 0) await db.annotations.bulkAdd(allAnnotations);
       });
 
       dispatch(triggerAnnotationsUpdate());
-      if (entityTable) dispatch(triggerEntitiesTableUpdate(entityTable));
 
       console.log(`[useVectorisation] Created ${allAnnotations.length} annotations, ${allPoints.length} points`);
 
@@ -241,7 +224,7 @@ export default function useVectorisation() {
 
       return { count: allAnnotations.length, wallAnnotations };
     },
-    [baseMap, baseMapId, projectId, listingId, activeLayerId, orthoSnapAngleOffset, selectedListing, dispatch]
+    [baseMap, baseMapId, projectId, listingId, activeLayerId, orthoSnapAngleOffset, dispatch]
   );
 
   return vectorise;

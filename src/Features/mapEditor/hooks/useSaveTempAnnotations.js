@@ -2,7 +2,6 @@ import { nanoid } from "@reduxjs/toolkit";
 import { useSelector, useDispatch } from "react-redux";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
-import useCreateEntity from "Features/entities/hooks/useCreateEntity";
 import useCreateAnnotation from "Features/annotations/hooks/useCreateAnnotation";
 
 import db from "App/db/db";
@@ -20,7 +19,6 @@ export default function useSaveTempAnnotations() {
 
     const tempAnnotations = useSelector(s => s.annotations.tempAnnotations);
 
-    const createEntity = useCreateEntity();
     const createAnnotation = useCreateAnnotation();
 
     const baseMap = useMainBaseMap();
@@ -36,10 +34,6 @@ export default function useSaveTempAnnotations() {
 
         // Process each annotation
         for (const tempAnn of annotations) {
-
-            // 1. Create Entity
-            const entity = await createEntity({});
-            const entityId = entity.id;
 
             const allNewPointsToSave = [];
 
@@ -86,7 +80,6 @@ export default function useSaveTempAnnotations() {
             const _newAnnotation = {
                 ...tempAnn,
                 id: nanoid(),
-                entityId,
                 baseMapId,
                 projectId,
                 listingId,

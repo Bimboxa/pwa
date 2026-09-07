@@ -4,10 +4,8 @@ import {
   triggerAnnotationsUpdate,
   triggerAnnotationTemplatesUpdate,
 } from "../annotationsSlice";
-import { triggerEntitiesTableUpdate } from "Features/entities/entitiesSlice";
 
 import useUpdateAnnotationTemplate from "./useUpdateAnnotationTemplate";
-import useUpdateEntity from "Features/entities/hooks/useUpdateEntity";
 import useUpdateListing from "Features/listings/hooks/useUpdateListing";
 
 import db from "App/db/db";
@@ -16,7 +14,6 @@ export default function useMoveAnnotationTemplateToListing() {
   const dispatch = useDispatch();
 
   const updateAnnotationTemplate = useUpdateAnnotationTemplate();
-  const updateEntity = useUpdateEntity();
   const updateListing = useUpdateListing();
 
   return async (annotationTemplateId, targetListingId) => {
@@ -106,38 +103,15 @@ export default function useMoveAnnotationTemplateToListing() {
       projectId: targetListing.projectId,
     });
 
-    // 5. Update all annotations and their entities
+    // 5. Update all annotations
     for (const annotation of annotations) {
-      // Update annotation listingId
       await db.annotations.update(annotation.id, {
         listingId: targetListingId,
       });
-
-      // Update entity listingId if it exists
-      // Entities are stored in db.entities (not in targetListing.table)
-      if (annotation.entityId) {
-        const entity = await db.entities.get(annotation.entityId);
-        if (entity) {
-          await updateEntity(
-            entity.id,
-            {
-              listingId: targetListingId,
-            },
-            {
-              listing: {
-                id: targetListingId,
-                table: "entities",
-                projectId: targetListing.projectId,
-              },
-            }
-          );
-        }
-      }
     }
 
     // Trigger updates
     dispatch(triggerAnnotationsUpdate());
     dispatch(triggerAnnotationTemplatesUpdate());
-    dispatch(triggerEntitiesTableUpdate("entities"));
   };
 }

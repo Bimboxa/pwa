@@ -1,7 +1,6 @@
 import { nanoid } from "@reduxjs/toolkit";
 import { useSelector, useDispatch } from "react-redux";
 
-import useCreateEntity from "Features/entities/hooks/useCreateEntity";
 import useCreateAnnotation from "Features/annotations/hooks/useCreateAnnotation";
 import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
 import useDeleteAnnotations from "Features/annotations/hooks/useDeleteAnnotations";
@@ -10,9 +9,8 @@ import { setToaster } from "Features/layout/layoutSlice";
 
 import db from "App/db/db";
 
-export default function useHandleCutSegment({ newEntity } = {}) {
+export default function useHandleCutSegment() {
   const dispatch = useDispatch();
-  const createEntity = useCreateEntity();
   const createAnnotation = useCreateAnnotation();
   const updateAnnotation = useUpdateAnnotation();
   const deleteAnnotations = useDeleteAnnotations();
@@ -75,12 +73,10 @@ export default function useHandleCutSegment({ newEntity } = {}) {
       });
 
       // Create a new entity + annotation for the second piece
-      const entity = await createEntity(newEntity);
       const { id: _id, entityId: _eid, cuts: _cuts, ...hostProps } = annotation;
       await createAnnotation({
         ...hostProps,
         id: nanoid(),
-        entityId: entity.id,
         points: result.piece2,
         closeLine: false,
       });

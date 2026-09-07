@@ -8,7 +8,6 @@ import { nanoid } from "@reduxjs/toolkit";
 import useSelectedAnnotation from "./useSelectedAnnotation";
 import useAnnotationsV2 from "./useAnnotationsV2";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
-import useCreateEntity from "Features/entities/hooks/useCreateEntity";
 
 import getSelectedAnnotationWallChains from "../utils/getSelectedAnnotationWallChains";
 import getAnnotationTemplateProps from "../utils/getAnnotationTemplateProps";
@@ -53,7 +52,6 @@ export default function useApplyAutoWalls() {
     caller: "useApplyAutoWalls",
   });
   const baseMap = useMainBaseMap();
-  const createEntity = useCreateEntity();
   const activeLayerId = useSelector((s) => s.layers?.activeLayerId);
   const projectId = useSelector((s) => s.projects.selectedProjectId);
 
@@ -108,9 +106,6 @@ export default function useApplyAutoWalls() {
 
     const wallListingId = template?.listingId || selected.listingId;
 
-    // Owning entities — created OUTSIDE the Dexie transaction (createEntity
-    // awaits non-Dexie async work, which would commit a transaction early).
-    // Their stale counterparts are left orphaned, like existing delete flows.
     const allPointRows = [];
     const allAnnotationRows = [];
     const allRelRows = [];
@@ -120,11 +115,6 @@ export default function useApplyAutoWalls() {
       .filter(Boolean);
 
     for (const { neighbor, pointRefs } of wallChains) {
-      const entity = await createEntity({
-        listingId: wallListingId,
-        projectId,
-      });
-
       const refs = [];
       for (const p of pointRefs) {
         const id = nanoid();
@@ -148,7 +138,6 @@ export default function useApplyAutoWalls() {
       allAnnotationRows.push({
         ...getAnnotationTemplateProps(template),
         id: annotationId,
-        entityId: entity?.id,
         projectId,
         listingId: wallListingId,
         baseMapId: selected.baseMapId,

@@ -2,7 +2,6 @@ import { useCallback } from "react";
 import { useSelector, useDispatch } from "react-redux";
 
 import { triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice";
-import { triggerEntitiesTableUpdate } from "Features/entities/entitiesSlice";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 
@@ -96,7 +95,7 @@ export default function usePolygonContours() {
         closed: true,
       }));
 
-      const { count, entityTable } = await createContourAnnotationsService({
+      const { count } = await createContourAnnotationsService({
         groups,
         boundaryAnnotationTemplate,
         outputType,
@@ -107,7 +106,6 @@ export default function usePolygonContours() {
       });
 
       dispatch(triggerAnnotationsUpdate());
-      if (entityTable) dispatch(triggerEntitiesTableUpdate(entityTable));
 
       console.log(`[usePolygonContours] Created ${count} contour annotations`);
       return { count };
