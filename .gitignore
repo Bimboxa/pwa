@@ -57,3 +57,6 @@ n8n/
 
 
 
+# Agent tooling (local only)
+AGENTS.md
+.agents/
