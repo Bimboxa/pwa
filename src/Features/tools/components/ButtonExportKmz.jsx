@@ -28,7 +28,6 @@ const annotations = useAnnotationsV2({
     caller: "ButtonExportKmz",
     filterByBaseMapId: mainBaseMap?.id,
     excludeListingsIds: hiddenListingsIds,
-    withEntity: true,
   });
 
   // helpers

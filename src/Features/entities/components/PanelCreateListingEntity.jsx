@@ -1,9 +1,8 @@
 import { useState } from "react";
 
-import { useSelector, useDispatch } from "react-redux";
+import { useDispatch } from "react-redux";
 
 import { setNewEntity } from "../entitiesSlice";
-import { setNewAnnotation } from "Features/annotations/annotationsSlice";
 
 import useEntityFormTemplate from "../hooks/useEntityFormTemplate";
 import useNewEntity from "../hooks/useNewEntity";
@@ -36,7 +35,6 @@ export default function PanelCreateListingEntity({
   // data
 
   const template = useEntityFormTemplate({ listing });
-  const newAnnotation = useSelector((s) => s.annotations.newAnnotation);
   const newEntity = useNewEntity();
 
   // data - func
@@ -61,15 +59,10 @@ export default function PanelCreateListingEntity({
   }
 
   async function handleCreateClick() {
-    console.log("Create listing entity - annotation", newAnnotation);
     // Logic to create a new listing entity goes here
-    const entity = await createEntity(tempItem, {
-      listing,
-      annotation: newAnnotation,
-    });
+    const entity = await createEntity(tempItem, { listing });
 
     dispatch(setNewEntity(null));
-    dispatch(setNewAnnotation(null));
 
     // Close the panel after creation
     if (onEntityCreated) onEntityCreated(entity);
@@ -77,7 +70,6 @@ export default function PanelCreateListingEntity({
 
   function handleClose() {
     dispatch(setNewEntity(null));
-    dispatch(setNewAnnotation(null));
     onClose();
   }
 

@@ -1,4 +1,5 @@
 import downloadBlob from "Features/files/utils/downloadBlob";
+import { getAnnotationOwnLabel } from "Features/annotations/utils/getAnnotationLabelDisplay";
 import generateItemsGridPdf from "./generateItemsGridPdf";
 import generateItemsGridPdfVariantH from "./generateItemsGridPdfVariantH";
 
@@ -12,10 +13,16 @@ export default async function createAnnotationsPdfReport(
 
   let items = annotations.map((annotation) => {
     const templateProps = annotation.annotationTemplateProps;
+    // Number = the row's own (auto-numbered) label, digits after the prefix.
+    const ownLabel = getAnnotationOwnLabel(annotation);
+    const isNumbered = ownLabel && ownLabel !== templateProps?.label;
+    const num = isNumbered
+      ? parseInt(String(ownLabel).replace(/^\D*/, ""), 10)
+      : NaN;
     return {
       ...annotation,
       description: annotation.entity?.text || annotation.entity?.description,
-      number: annotation.entity?.num ? Number(annotation.entity?.num) : "",
+      number: Number.isFinite(num) ? num : "",
       imageUrl: annotation.entity?.image?.imageUrlClient,
       label: templateProps?.labelLegend || templateProps?.label || annotation.label,
       groupLabel: templateProps?.groupLabel,

@@ -48,9 +48,8 @@ function getOutwardStripOrientation(ringTypedPoints) {
 /**
  * Persist contour annotations from typed point groups (factored out of
  * useWallBoundaries so the polygon-contours flow shares the exact same write
- * path). One Dexie transaction: db.points (normalized [0..1]) + entities of
- * the template's listing + db.annotations. The CALLER dispatches
- * triggerAnnotationsUpdate / triggerEntitiesTableUpdate.
+ * path). One Dexie transaction: db.points (normalized [0..1]) +
+ * db.annotations. The CALLER dispatches triggerAnnotationsUpdate.
  *
  * @param {Object} params
  * @param {Array<{typedPoints: Array<{x,y,type?}>, closed: boolean, boundaryType?: string}>} params.groups
@@ -58,7 +57,7 @@ function getOutwardStripOrientation(ringTypedPoints) {
  * @param {Object} params.boundaryAnnotationTemplate - owns the target listing
  * @param {"POLYLINE"|"STRIP"} [params.outputType]
  * @param {{width: number, height: number}} params.imageSize
- * @returns {Promise<{count: number, entityTable: string|undefined}>}
+ * @returns {Promise<{count: number}>}
  */
 export default async function createContourAnnotationsService({
   groups,
@@ -78,13 +77,9 @@ export default async function createContourAnnotationsService({
   if (!listingId) {
     throw new Error("boundaryAnnotationTemplate has no listingId");
   }
-  const targetListing = await db.listings.get(listingId);
 
   const { width, height } = imageSize ?? {};
   if (!width || !height) throw new Error("No image size available");
-
-  const entityTable =
-    targetListing?.table ?? targetListing?.entityModel?.defaultTable;
 
   const isStrip = outputType === "STRIP";
 
@@ -100,7 +95,6 @@ export default async function createContourAnnotationsService({
   };
 
   const allAnnotations = [];
-  const allEntities = [];
 
   for (const group of groups) {
     const typedPoints = group.typedPoints;
@@ -114,12 +108,6 @@ export default async function createContourAnnotationsService({
       pointRefs.push({ id, type: typeOf(p) });
     }
     if (pointRefs.length < 2) continue;
-
-    let entityId;
-    if (entityTable) {
-      entityId = nanoid();
-      allEntities.push({ id: entityId, listingId, projectId });
-    }
 
     // A STRIP band grows on the stripOrientation side of its main line. The
     // contour IS the main line and the band must lie OUTSIDE the closed
@@ -156,7 +144,6 @@ export default async function createContourAnnotationsService({
       isExt: boundaryAnnotationTemplate.isExt,
       ...stripProps,
       closeLine: group.closed === true,
-      entityId,
       baseMapId,
       projectId,
       listingId,
@@ -179,15 +166,10 @@ export default async function createContourAnnotationsService({
     });
   }
 
-  const tables = [db.points, db.annotations];
-  if (entityTable && allEntities.length > 0) tables.push(db[entityTable]);
-
-  await db.transaction("rw", tables, async () => {
+  await db.transaction("rw", [db.points, db.annotations], async () => {
     if (allPoints.length > 0) await db.points.bulkAdd(allPoints);
-    if (entityTable && allEntities.length > 0)
-      await db[entityTable].bulkAdd(allEntities);
     if (allAnnotations.length > 0) await db.annotations.bulkAdd(allAnnotations);
   });
 
-  return { count: allAnnotations.length, entityTable };
+  return { count: allAnnotations.length };
 }

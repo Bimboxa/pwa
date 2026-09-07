@@ -12,8 +12,6 @@ import {
 
 import useCreateAnnotation from "Features/annotations/hooks/useCreateAnnotation";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
-import useCreateEntity from "Features/entities/hooks/useCreateEntity";
-import useNewEntity from "Features/entities/hooks/useNewEntity";
 
 import commitDrawnCoteService from "Features/threedDrawing/services/commitDrawnCoteService";
 
@@ -44,10 +42,8 @@ export default function useDimensionPointerHandlers() {
   const baseMaps = useBaseMaps()?.value;
 
   // Template-driven mode (see useTemplateCoteDrawBridge): the committed cote
-  // carries the armed template + entity + layer.
+  // carries the armed template + layer.
   const createAnnotation = useCreateAnnotation();
-  const createEntity = useCreateEntity();
-  const newEntity = useNewEntity();
   const newAnnotation = useSelector((s) => s.annotations.newAnnotation);
   const activeLayerId = useSelector((s) => s.layers?.activeLayerId);
 
@@ -55,10 +51,6 @@ export default function useDimensionPointerHandlers() {
   useEffect(() => {
     newAnnotationRef.current = newAnnotation;
   }, [newAnnotation]);
-  const newEntityRef = useRef(newEntity);
-  useEffect(() => {
-    newEntityRef.current = newEntity;
-  }, [newEntity]);
   const activeLayerIdRef = useRef(activeLayerId);
   useEffect(() => {
     activeLayerIdRef.current = activeLayerId;
@@ -114,13 +106,6 @@ export default function useDimensionPointerHandlers() {
         const hasTemplate = Boolean(
           na?.annotationTemplateId && na?.type === "COTE"
         );
-        // Entity parity with the 2D commit (useHandleCommitDrawing): free
-        // annotations carry no entity.
-        let entityId = null;
-        if (hasTemplate && !na.isFreeAnnotation) {
-          const entity = await createEntity(newEntityRef.current);
-          entityId = entity?.id ?? null;
-        }
         await commitDrawnCoteService({
           a: startPoint,
           b: point,
@@ -128,7 +113,6 @@ export default function useDimensionPointerHandlers() {
           projectId,
           listingId,
           templateProps: hasTemplate ? na : null,
-          entityId,
           layerId: hasTemplate ? (activeLayerIdRef.current ?? null) : null,
           createAnnotationFn: hasTemplate ? createAnnotation : null,
         });
@@ -176,7 +160,6 @@ export default function useDimensionPointerHandlers() {
     projectId,
     listingId,
     createAnnotation,
-    createEntity,
     dispatch,
   ]);
 }

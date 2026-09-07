@@ -22,7 +22,6 @@ import { setSelectedItem } from "Features/selection/selectionSlice";
 import { setSelectedAnnotationId } from "Features/annotations/annotationsSlice";
 import {
   setSelectedEntityId,
-  setOpenDialogCreateEntity,
   setIsEditingEntity,
   setEditedEntity,
 } from "Features/entities/entitiesSlice";
@@ -95,9 +94,6 @@ import PopperEditAnnotation from "./PopperEditAnnotation";
 import PopperContextMenu from "Features/contextMenu/component/PopperContextMenu";
 
 import DialogDeleteSelectedItem from "Features/selection/components/DialogDeleteSelectedItem";
-import DialogAutoSelectAnnotationTemplateToCreateEntity from "Features/entities/components/DialogAutoSelectAnnotationTemplateToCreateEntity";
-import DialogAutoCreateEntity from "Features/entities/components/DialogAutoCreateEntity";
-import DialogAutoSetNewAnnotationFromFilesDrop from "Features/annotations/components/DialogAutoSetNewAnnotationFromFilesDrop";
 
 import downloadBlob from "Features/files/utils/downloadBlob";
 import getImageFromSvg from "Features/mapEditorGeneric/utils/getImageFromSvg";
@@ -384,7 +380,7 @@ export default function MainMapEditorV2() {
         baseMapId: mainBaseMap?.id,
       };
       dispatch(setNewAnnotation(_annotation));
-      dispatch(setOpenDialogCreateEntity(true));
+      await createAnnotation({ ..._annotation, type: "MARKER" });
 
       // Prepare entity data - include image if dropped
       // const entityData = { ...newEntity };
@@ -1304,9 +1300,6 @@ export default function MainMapEditorV2() {
         <LayerScreenCursor containerEl={containerRef?.current} />
       )}
       <DialogDeleteSelectedItem />
-      <DialogAutoSelectAnnotationTemplateToCreateEntity />
-      <DialogAutoCreateEntity />
-      <DialogAutoSetNewAnnotationFromFilesDrop />
       {/* <Button
         onClick={handleClick}
         sx={{ position: "absolute", bottom: 10, right: 10 }}

@@ -66,7 +66,6 @@ export default function PanelPrint() {
     filterBySelectedScope: true,
     withQties: true,
     withListingName: true,
-    withEntity: true,
     excludeIsForBaseMapsListings: true,
     hideBaseMapAnnotations: true,
   });

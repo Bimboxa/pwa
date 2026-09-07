@@ -2,7 +2,6 @@ import { nanoid } from "@reduxjs/toolkit";
 import { useSelector } from "react-redux";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
-import useCreateEntity from "Features/entities/hooks/useCreateEntity";
 import useCreateAnnotation from "Features/annotations/hooks/useCreateAnnotation";
 
 import getCenteredBandFromGuideLine from "Features/geometry/utils/getCenteredBandFromGuideLine";
@@ -30,7 +29,7 @@ const ARC_SAMPLES = 16;
 //
 // The slope arrow/% shows in 2D by default (unless the template sets hideSlope)
 // and the 3D ramp applies (the height computation reads guideLines regardless).
-export default function useHandleCommitRamp({ newEntity } = {}) {
+export default function useHandleCommitRamp() {
   // data
 
   const baseMapId = useSelector((s) => s.mapEditor.selectedBaseMapId);
@@ -43,7 +42,6 @@ export default function useHandleCommitRamp({ newEntity } = {}) {
   const rampDeltaHM = useSelector((s) => s.mapEditor.rampDeltaHM);
 
   const baseMap = useMainBaseMap();
-  const createEntity = useCreateEntity();
   const createAnnotation = useCreateAnnotation();
 
   // helpers
@@ -81,13 +79,6 @@ export default function useHandleCommitRamp({ newEntity } = {}) {
     }
     const slopePct =
       L2Dpx > 1e-6 && deltaHM ? (deltaHM / (L2Dpx * meterByPx)) * 100 : 0;
-
-    // 3. Entity (skip for baseMap annotations, which live outside the tree).
-    let entityId = newAnnotation?.entityId;
-    if (!entityId && !isBaseMapAnnotation) {
-      const entity = await createEntity(newEntity);
-      entityId = entity?.id;
-    }
 
     // 4. Persist band + median points to db.points (normalized [0..1]).
     const bandPoints = bandRing.map((p) => ({
@@ -137,7 +128,6 @@ export default function useHandleCommitRamp({ newEntity } = {}) {
       id: nanoid(),
       type: "POLYGON",
       annotationTemplateId,
-      entityId,
       baseMapId,
       projectId,
       listingId,

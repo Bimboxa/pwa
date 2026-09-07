@@ -22,27 +22,6 @@ db.listings.hook("deleting", () => {
   _listingsCache.key = null;
 });
 
-// Module-level incremental cache for entities (keyed by table)
-// Maps: table -> { idSet: Set<id>, cache: Map<id, entity> }
-const _entitiesCache = {};
-// Invalidate entity cache per table on updates/deletes
-const _hookEntityTable = (tableName) => {
-  if (!db[tableName]) return;
-  try {
-    db[tableName].hook("updating", (mods, primKey) => {
-      if (_entitiesCache[tableName])
-        _entitiesCache[tableName].cache.delete(primKey);
-    });
-    db[tableName].hook("deleting", (primKey) => {
-      if (_entitiesCache[tableName])
-        _entitiesCache[tableName].cache.delete(primKey);
-    });
-  } catch {
-    /* hook already registered */
-  }
-};
-const _hookedEntityTables = new Set();
-
 // Last-warned count of annotations with unresolved (orphaned) point refs, so
 // the "missing points" warning is emitted once per change instead of on every
 // useLiveQuery re-run.
@@ -437,7 +416,7 @@ export default function useAnnotationsV2(options) {
     const enabled = options?.enabled ?? true;
 
     // Per-instance identity cache (NOT module-level: options like
-    // withEntity/withQties/withListingName change the shape of the output
+    // withQties/withListingName change the shape of the output
     // objects, so instances must never share cached references).
     const stabilityRef = useRef(null);
     if (!stabilityRef.current) {
@@ -471,7 +450,6 @@ export default function useAnnotationsV2(options) {
 
     const excludeListingsIds = options?.excludeListingsIds;
 
-    const withEntity = options?.withEntity;
     const withListingName = options?.withListingName;
     const withQties = options?.withQties;
 
@@ -515,7 +493,6 @@ export default function useAnnotationsV2(options) {
     );
 
     const tempAnnotations = useSelector((s) => s.annotations.tempAnnotations);
-
 
     // NOTE: the Redux `annotationsUpdatedAt` tick is intentionally NOT a
     // dependency of the liveQuery below. Dexie's liveQuery natively observes
@@ -1208,9 +1185,12 @@ export default function useAnnotationsV2(options) {
             // the image long side to derive the pt→image-px scale
             // (getFreeTextPageScale), and imageSize is only known here.
             _annotation.imageLongSidePx = Math.max(width, height);
+            // The image size the node handles need to persist a moved point
+            // (LABEL elbow handle, FREE_TEXT edit-time anchor shift) — the
+            // nodes are not given imageSize by EditedObjectLayer.
+            _annotation.imageSize = { width, height };
             // LABEL: pinned leader elbow (VARIABLE stub mode, normalized like
-            // targetPoint) + the image size the elbow handle needs to persist
-            // it (NodeLabelStatic is not given imageSize by EditedObjectLayer).
+            // targetPoint).
             if (_annotation.type === "LABEL") {
               _annotation.elbowPoint = annotation.elbowPoint
                 ? {
@@ -1218,7 +1198,6 @@ export default function useAnnotationsV2(options) {
                     y: annotation.elbowPoint.y * height,
                   }
                 : null;
-              _annotation.imageSize = { width, height };
             }
           }
 
@@ -1524,135 +1503,6 @@ export default function useAnnotationsV2(options) {
       // _annotations = sortedAnnotationIds.map((id) => annotationById[id]);
 
       const _t5 = performance.now();
-      // -- ENTITY (batched) --
-
-      if (withEntity) {
-        // Group annotations by table for batch fetching
-        const _te0 = performance.now();
-        const byTable = {};
-        for (const annotation of _annotations) {
-          let table = annotation?.listingTable;
-          if (!table) table = listingsMap?.[annotation?.listingId]?.table;
-          if (table && annotation.entityId) {
-            if (!byTable[table]) byTable[table] = new Set();
-            byTable[table].add(annotation.entityId);
-          }
-        }
-
-        // Incremental batch fetch: only fetch IDs not already in cache
-        const entityCache = {};
-        let _fetchedCount = 0;
-        for (const [table, ids] of Object.entries(byTable)) {
-          // Ensure hooks are registered for this table
-          if (!_hookedEntityTables.has(table)) {
-            _hookEntityTable(table);
-            _hookedEntityTables.add(table);
-          }
-          // Init table cache if needed
-          if (!_entitiesCache[table]) {
-            _entitiesCache[table] = { cache: new Map() };
-          }
-          const tableCache = _entitiesCache[table].cache;
-
-          // Find IDs not in cache
-          const missingIds = [];
-          for (const id of ids) {
-            if (tableCache.has(id)) {
-              entityCache[id] = tableCache.get(id);
-            } else {
-              missingIds.push(id);
-            }
-          }
-
-          // Fetch only missing IDs
-          if (missingIds.length > 0) {
-            const fetched = await db[table]
-              .where("id")
-              .anyOf(missingIds)
-              .toArray();
-            _fetchedCount += fetched.length;
-            for (const e of fetched) {
-              tableCache.set(e.id, e);
-              entityCache[e.id] = e;
-            }
-          }
-        }
-        const _te1 = performance.now();
-
-        // Batch fetch all files needed by entities
-        const entityFileNames = new Set();
-        for (const entity of Object.values(entityCache)) {
-          if (Array.isArray(entity.images))
-            entity.images.forEach((img) => {
-              if (img?.fileName) entityFileNames.add(img.fileName);
-            });
-          for (const [key, val] of Object.entries(entity)) {
-            if (
-              key !== "images" &&
-              val &&
-              typeof val === "object" &&
-              val.isImage &&
-              val.fileName
-            )
-              entityFileNames.add(val.fileName);
-          }
-        }
-        const entityFilesArray =
-          entityFileNames.size > 0
-            ? await db.files
-                .where("fileName")
-                .anyOf([...entityFileNames])
-                .toArray()
-            : [];
-        const entityFilesMap = {};
-        for (const f of entityFilesArray) {
-          entityFilesMap[f.fileName] = f;
-        }
-        const _te2 = performance.now();
-
-        if (_te2 - _te0 >= 10) {
-          console.log(
-            `[debug_perf]   entities detail: db.entities=${(_te1 - _te0).toFixed(1)}ms (${Object.keys(entityCache).length} entities, ${_fetchedCount} fetched) | db.files=${(_te2 - _te1).toFixed(1)}ms (${entityFilesArray.length} files)`
-          );
-        }
-
-        // Enrich annotations with entities
-        _annotations = await Promise.all(
-          _annotations.map(async (annotation) => {
-            let table = annotation?.listingTable;
-            if (!table) table = listingsMap?.[annotation?.listingId]?.table;
-            if (table && annotation.entityId) {
-              const entity = entityCache[annotation.entityId];
-              const { entityWithImages, hasImages } =
-                await getEntityWithImagesAsync(entity, entityFilesMap);
-              const listing = listingsMap[annotation?.listingId];
-              const em =
-                appConfig?.entityModelsObject?.[listing.entityModelKey];
-              const labelKey = em?.labelKey || "label";
-              let label = entity?.[labelKey];
-              const pad = em?.labelOptions?.zeroPadStart;
-              const prefix = em?.labelOptions?.prefix;
-              if (pad && label != null)
-                label = label.toString().padStart(pad, "0");
-              if (prefix && label != null) label = `${prefix}${label}`;
-              return {
-                ...annotation,
-                entity: entityWithImages,
-                hasImages,
-                // `label` below is the ENTITY label. Keep the annotation row's
-                // own label around: the "Etiquette" feature renders that one,
-                // deliberately decoupled from entities (and from appConfig,
-                // which resolves the entity labelKey asynchronously).
-                annotationLabel: annotation.label,
-                label,
-              };
-            } else {
-              return annotation;
-            }
-          })
-        );
-      }
-
       const _t6 = performance.now();
       // Only log the breakdown when the run is actually slow: healthy runs
       // (a few ms, several per commit across the ~8 instances) would flood
@@ -1666,7 +1516,6 @@ export default function useAnnotationsV2(options) {
             `  listings total: ${(_t3 - _t2).toFixed(1)}ms  [db.listings: ${(_t2b - _t2a).toFixed(1)}ms (${listings.length} found) | filters+scope: ${(_t2c - _t2b).toFixed(1)}ms | db.layers+sort: ${(_t3 - _t2c).toFixed(1)}ms]\n` +
             `  images batch:   ${(_t4 - _t3).toFixed(1)}ms\n` +
             `  points/qties:   ${(_t5 - _t4).toFixed(1)}ms (${referencedPointIds?.size ?? 0} pts, ${_pointsFetchedFromDb} from db, resolve memo ${_resolveMemoHits}/${_annotations?.length ?? 0})\n` +
-            `  entities:       ${(_t6 - _t5).toFixed(1)}ms\n` +
             `  TOTAL:          ${(_t6 - _t0).toFixed(1)}ms`
         );
       }
@@ -2357,7 +2206,6 @@ export default function useAnnotationsV2(options) {
       hideBaseMapAnnotations,
       baseMapsUpdatedAt,
       baseMaps?.length,
-      withEntity,
       hiddenLayerIds,
       showAnnotationsWithoutLayer,
       layersUpdatedAt,
@@ -2398,7 +2246,9 @@ export default function useAnnotationsV2(options) {
       if (mainBusinessObjectLabelByAnnotationId.size > 0) {
         result = result.map((annotation) => {
           if (annotation?.isBaseMapAnnotation) return annotation;
-          const main = mainBusinessObjectLabelByAnnotationId.get(annotation?.id);
+          const main = mainBusinessObjectLabelByAnnotationId.get(
+            annotation?.id
+          );
           if (!main) return annotation;
           return {
             ...annotation,
@@ -2855,18 +2705,10 @@ export default function useAnnotationsV2(options) {
       subtractionTargetIdsBySource,
       openingRowsByHostId,
       excludeProfileTemplates,
-      // TODO — stale entity labels on first load. `appConfig` is read inside
-      // this query (entity `labelKey` + prefix/zeroPad, and the scope filter's
-      // entityModel lookup) but is NOT a dependency: it loads asynchronously,
-      // so the first run resolves entity-linked `label` to undefined and
-      // nothing re-runs the query until an unrelated write happens. Affects
-      // every consumer of `annotation.label` (panel header, listings…); the
-      // "Etiquette" labels are immune since they read the row's own
-      // `annotationLabel`.
-      // Careful with the fix: adding `appConfig` itself makes this heavy query
-      // depend on an OBJECT REFERENCE, so any re-set of the config (even with
-      // identical content) triggers a full re-resolve of every annotation.
-      // Prefer a derived, stable value — e.g. a loaded flag or a version key.
+      // NOTE — `appConfig` is read inside this query (the scope filter's
+      // entityModel lookup) but is NOT a dependency: adding the object itself
+      // would make this heavy query re-resolve every annotation on any re-set
+      // of the config. Prefer a derived, stable value if it ever matters.
     ]);
 
     return processed;

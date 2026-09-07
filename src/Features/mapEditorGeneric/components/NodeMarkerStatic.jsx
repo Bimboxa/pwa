@@ -13,6 +13,7 @@ import useIsMobile from "Features/layout/hooks/useIsMobile";
 import NodeLabelStatic from "./NodeLabelStatic";
 
 import getAnnotationLabelPropsFromAnnotation from "Features/annotations/utils/getAnnotationLabelPropsFromAnnotation";
+import { getAnnotationOwnLabel } from "Features/annotations/utils/getAnnotationLabelDisplay";
 
 function NodeMarkerStatic({
   marker,
@@ -99,7 +100,15 @@ function NodeMarkerStatic({
   const sheetW = (columns || 1) * (tile || 0);
 
   // --- LABEL LAYOUT ---
-  const labelText = (marker?.entity?.num ?? "").toString();
+  // Own label of the row (auto-number when the listing enables it). Hidden
+  // when it is just the template NAME copied at creation, so un-numbered
+  // markers keep no badge.
+  const ownLabel = getAnnotationOwnLabel(marker);
+  const templateLabel = marker?.annotationTemplateProps?.label;
+  const labelText =
+    ownLabel != null && ownLabel !== "" && ownLabel !== templateLabel
+      ? String(ownLabel)
+      : "";
   const showLabel = Boolean(labelText);
   const textRef = useRef(null);
   const [labelSize, setLabelSize] = useState({ w: 0, h: 0 });

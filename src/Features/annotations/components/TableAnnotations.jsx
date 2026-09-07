@@ -21,7 +21,6 @@ export default function TableAnnotations() {
         caller: "TableAnnotations",
         filterByListingId: listingId,
         withQties: true,
-        withEntity: true,
     });
 
 

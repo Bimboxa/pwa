@@ -3,7 +3,6 @@ import { nanoid } from "@reduxjs/toolkit";
 import { useSelector, useDispatch } from "react-redux";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
-import useCreateEntity from "Features/entities/hooks/useCreateEntity";
 import useCreateAnnotation from "Features/annotations/hooks/useCreateAnnotation";
 import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
 import splitPolylineBetweenPoints from "Features/mapEditor/utils/splitPolylineBetweenPoints";
@@ -30,13 +29,12 @@ function normalizeSnap(snap) {
   };
 }
 
-export default function useHandleSplitPolyline({ newEntity } = {}) {
+export default function useHandleSplitPolyline() {
   const dispatch = useDispatch();
   const baseMap = useMainBaseMap();
   const baseMapId = useSelector((s) => s.mapEditor.selectedBaseMapId);
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const listingId = useSelector((s) => s.listings.selectedListingId);
-  const createEntity = useCreateEntity();
   const createAnnotation = useCreateAnnotation();
   const updateAnnotation = useUpdateAnnotation();
 
@@ -177,7 +175,6 @@ export default function useHandleSplitPolyline({ newEntity } = {}) {
 
     // Create new annotation for piece2 if it exists
     if (result.piece2) {
-      const entity = await createEntity(newEntity);
       const {
         id: _id,
         entityId: _eid,
@@ -187,7 +184,6 @@ export default function useHandleSplitPolyline({ newEntity } = {}) {
       await createAnnotation({
         ...hostProps,
         id: nanoid(),
-        entityId: entity.id,
         points: result.piece2,
         closeLine: false,
       });
@@ -262,7 +258,6 @@ export default function useHandleSplitPolyline({ newEntity } = {}) {
           points: result.piece1,
           closeLine: false,
         });
-        const entity = await createEntity(newEntity);
         const {
           id: _id,
           entityId: _eid,
@@ -272,7 +267,6 @@ export default function useHandleSplitPolyline({ newEntity } = {}) {
         await createAnnotation({
           ...hostProps,
           id: nanoid(),
-          entityId: entity.id,
           points: result.piece2,
           closeLine: false,
         });
@@ -328,7 +322,6 @@ export default function useHandleSplitPolyline({ newEntity } = {}) {
           points: result.piece1,
           closeLine: false,
         });
-        const entity = await createEntity(newEntity);
         const {
           id: _id,
           entityId: _eid,
@@ -338,7 +331,6 @@ export default function useHandleSplitPolyline({ newEntity } = {}) {
         await createAnnotation({
           ...hostProps,
           id: nanoid(),
-          entityId: entity.id,
           points: result.piece2,
           closeLine: false,
         });

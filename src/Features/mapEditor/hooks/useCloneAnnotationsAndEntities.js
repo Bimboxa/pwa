@@ -5,11 +5,9 @@ import {
   triggerAnnotationsUpdate,
   triggerAnnotationTemplatesUpdate,
 } from "Features/annotations/annotationsSlice";
-import { triggerEntitiesTableUpdate } from "Features/entities/entitiesSlice";
 
 import useMainBaseMap from "./useMainBaseMap";
-import useUserEmail from "Features/auth/hooks/useUserEmail";
-import useSelectedListing from "Features/listings/hooks/useSelectedListing";
+import { createAutoNumberLabelAllocator } from "Features/annotations/services/getNextAutoNumberLabelAsync";
 
 import getPolygonsPointsFromStripAnnotation from "Features/annotations/utils/getPolygonsPointsFromStripAnnotation";
 import applyStripElevation, {
@@ -34,8 +32,6 @@ function getSignedArea(points) {
 export default function useCloneAnnotationsAndEntities() {
   const dispatch = useDispatch();
   const baseMap = useMainBaseMap();
-  const { value: userEmail } = useUserEmail();
-  const { value: selectedListing } = useSelectedListing();
   const projectId = useSelector((s) => s.projects.selectedProjectId);
 
   const _newAnnotation = useSelector(
@@ -49,19 +45,17 @@ export default function useCloneAnnotationsAndEntities() {
     let newAnnotation = options?.newAnnotation;
     if (!newAnnotation) newAnnotation = _newAnnotation;
 
-    const entityLabel = options?.entityLabel;
     const stripElevation = options?.stripElevation;
     // Default true = reuse source point refs (legacy behavior). false = mint
     // brand-new db.points so the duplicate is fully independent.
     const keepOriginalPoints = options?.keepOriginalPoints ?? true;
     const imageSize = baseMap?.getImageSize?.() ?? baseMap?.image?.imageSize;
-    const entityTable =
-      selectedListing?.table ?? selectedListing?.entityModel?.defaultTable;
 
     // 1. Prepare all items in memory
-    const allEntities = [];
     const allAnnotations = [];
     const allPoints = [];
+    // Listing auto-numbering: copies get the next numbers of the batch.
+    const allocateAutoLabel = createAutoNumberLabelAllocator();
 
     for (const annotation of annotations) {
       const isPolygonToPolyline =
@@ -101,30 +95,21 @@ export default function useCloneAnnotationsAndEntities() {
       }
 
       for (const item of itemsToCreate) {
-        const entityId = nanoid();
         const annotationId = nanoid();
-
-        // Build entity record
-        allEntities.push({
-          id: entityId,
-          createdBy: userEmail,
-          listingId: newAnnotation.listingId || annotation.listingId,
-          projectId: annotation.projectId,
-          ...(entityLabel ? { label: entityLabel } : {}),
-        });
 
         // Build annotation record
         const clonedAnnotation = {
           ...annotation,
           ...newAnnotation,
           id: annotationId,
-          entityId,
           projectId,
           listingId: newAnnotation.listingId || annotation.listingId,
           points: item.points,
           cuts: item.cuts,
           ...(activeLayerId ? { layerId: activeLayerId } : {}),
         };
+        const autoLabel = await allocateAutoLabel(clonedAnnotation.listingId);
+        if (autoLabel) clonedAnnotation.label = autoLabel;
 
         if (isPolygonToPolyline || isStripToPolygon) {
           clonedAnnotation.closeLine = true;
@@ -210,14 +195,10 @@ export default function useCloneAnnotationsAndEntities() {
     // 3. Execute all writes in a single transaction
     const tables = [db.annotations, db.relAnnotationMappingCategory];
     if (allPoints.length > 0) tables.push(db.points);
-    if (entityTable && db[entityTable]) tables.push(db[entityTable]);
 
     await db.transaction("rw", tables, async () => {
       if (allPoints.length > 0) {
         await db.points.bulkAdd(allPoints);
-      }
-      if (entityTable && allEntities.length > 0) {
-        await db[entityTable].bulkAdd(allEntities);
       }
       if (allAnnotations.length > 0) {
         await db.annotations.bulkAdd(allAnnotations);
@@ -230,7 +211,6 @@ export default function useCloneAnnotationsAndEntities() {
     // 4. Single Redux dispatches
     dispatch(triggerAnnotationsUpdate());
     dispatch(triggerAnnotationTemplatesUpdate());
-    if (entityTable) dispatch(triggerEntitiesTableUpdate(entityTable));
 
     return allAnnotations;
   };

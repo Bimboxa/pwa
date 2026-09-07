@@ -132,6 +132,9 @@ export default function DialogCreateListing({
           color: fav.color,
           iconKey: fav.iconKey,
           showNewAnnotationToolbar: fav.showNewAnnotationToolbar,
+          autoNumberAnnotations: fav.autoNumberAnnotations,
+          autoNumberPrefix: fav.autoNumberPrefix,
+          autoNumberPadStart: fav.autoNumberPadStart,
           annotationTemplatesLibrary: fav.annotationTemplates,
           ...(isForBaseMaps && { isForBaseMaps: true }),
         };

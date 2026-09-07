@@ -227,10 +227,12 @@ export default function PanelSelectionProperties() {
     type = "ANNOTATION";
   } else if (
     selectedItem?.type === "NODE" &&
-    selectedItem?.nodeType === "ANNOTATION" &&
-    Boolean(selectedItem.entityId)
+    selectedItem?.nodeType === "ANNOTATION"
   ) {
-    type = "ENTITY_WITH_ANNOTATIONS";
+    // Annotation node selected without the showAnnotationsProperties flag
+    // (e.g. a selection restored from another surface): still show the
+    // annotation panel rather than the LISTING default.
+    type = "ANNOTATION";
   } else if (isBaseMapsViewer) {
     // Safety fallback in the BASE_MAPS viewer: a persisted selection of a type
     // not handled above (e.g. a LISTING left over from another viewer) still
@@ -250,8 +252,6 @@ export default function PanelSelectionProperties() {
       {type === "LISTING" && !isMapViewer && !isListingViewer && !isThreedViewer && <PanelListingProperties listing={listing} />}
 
       {type === "ENTITY" && <PanelEntityProperties />}
-
-      {type === "ENTITY_WITH_ANNOTATIONS" && <PanelEntityProperties />}
 
       {type === "ANNOTATION" && <PanelAnnotationProperties />}
 

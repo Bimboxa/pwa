@@ -14,7 +14,6 @@ import {
   setSelectedBaseMapsListingId,
   setSelectedMainBaseMapId,
   setSelectedNode,
-  setOpenDialogAutoSelectAnnotationTemplateToCreateEntity,
 } from "Features/mapEditor/mapEditorSlice";
 import { setSelectedEntityId } from "../entitiesSlice";
 import { setSelectedAnnotationId } from "Features/annotations/annotationsSlice";
@@ -42,19 +41,12 @@ export default function SectionListEntitiesInListPanel() {
 
   const entityModel = listing?.entityModel;
   const sortBy = entityModel?.sortBy ?? listing?.sortBy;
-  const filterByMainBaseMap = useSelector(
-    (s) => s.mapEditor.filterByMainBaseMap
-  );
 
   const { value: entities, loading } = useEntities({
     withImages: true,
     sortBy,
     withMarkers: entityModel?.type === "LOCATED_ENTITY",
-    withAnnotations: entityModel?.type === "LOCATED_ENTITY",
-    withQties: entityModel?.type === "LOCATED_ENTITY",
     withComputedFields: true,
-    filterByMainBaseMap:
-      entityModel?.type === "LOCATED_ENTITY" && filterByMainBaseMap,
   });
 
   const selectedItem = useSelector(selectSelectedItem);

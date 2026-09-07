@@ -13,7 +13,6 @@ import { Box, Typography, IconButton } from "@mui/material";
 import { ArrowBack as Back } from "@mui/icons-material";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
-import SectionEntityAnnotations from "./SectionEntityAnnotations";
 
 import FormEntity from "./FormEntity";
 
@@ -28,7 +27,7 @@ export default function PanelEntityProperties() {
 
     // data
 
-    const { value: entity } = useSelectedEntity({ withImages: true, withAnnotations: true });
+    const { value: entity } = useSelectedEntity({ withImages: true });
     const template = useEntityFormTemplate();
     const updateEntity = useUpdateEntity();
 
@@ -72,10 +71,6 @@ export default function PanelEntityProperties() {
                     onEntityChange={handleEntityChange}
                     sectionContainerEl={containerRef?.current}
                 />
-
-                {entity?.annotations?.length > 0 && <Box sx={{ py: 1 }}><SectionEntityAnnotations
-                    entity={entity}
-                /></Box>}
 
             </BoxFlexVStretch>
         </BoxFlexVStretch>

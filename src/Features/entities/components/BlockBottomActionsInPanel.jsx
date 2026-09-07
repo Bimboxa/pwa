@@ -18,7 +18,6 @@ import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 
 import { Box } from "@mui/material";
 import ButtonInPanelV2 from "Features/layout/components/ButtonInPanelV2";
-import SectionCreateAnnotationBeforeEntity from "./SectionCreateAnnotationBeforeEntity";
 
 
 
@@ -87,7 +86,6 @@ export default function BlockBottomActionsInPanel({ onSaved }) {
       width: 1, display: show ? "flex" : "none", flexDirection: "column",
       borderTop: theme => `1px solid ${theme.palette.divider}`,
     }}>
-      {/* <SectionCreateAnnotationBeforeEntity /> */}
       <ButtonInPanelV2
         label={saveS}
         onClick={handleSave}

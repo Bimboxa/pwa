@@ -15,12 +15,10 @@ const entitiesInitialState = {
   editedEntity: null,
   entityEditedAt: null,
   //
-  createAnnotationBeforeEntity: false,
   //
   entityTemplateUpdatedAt: null,
   //
   openDialogDeleteEntity: false,
-  openDialogCreateEntity: false,
 };
 
 export const entitiesSlice = createSlice({
@@ -71,15 +69,9 @@ export const entitiesSlice = createSlice({
       const entity = state.entitiesEntity[updates.id];
       state.entitiesEntity[updates.id] = { ...entity, ...updates };
     },
-    setCreateAnnotationBeforeEntity: (state, action) => {
-      state.createAnnotationBeforeEntity = action.payload;
-    },
     //
     setOpenDialogDeleteEntity: (state, action) => {
       state.openDialogDeleteEntity = action.payload;
-    },
-    setOpenDialogCreateEntity: (state, action) => {
-      state.openDialogCreateEntity = action.payload;
     },
   },
 });
@@ -97,12 +89,10 @@ export const {
   //
   createEntity,
   updateEntity,
-  setCreateAnnotationBeforeEntity,
   //
   triggerEntityTemplateUpdate,
   //
   setOpenDialogDeleteEntity,
-  setOpenDialogCreateEntity,
 } = entitiesSlice.actions;
 
 export default entitiesSlice.reducer;

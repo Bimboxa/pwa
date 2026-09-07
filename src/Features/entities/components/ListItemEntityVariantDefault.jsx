@@ -1,5 +1,3 @@
-import { useState, useRef } from "react";
-
 import {
   ListItem,
   ListItemButton,
@@ -7,16 +5,12 @@ import {
   Typography,
   Avatar,
   IconButton,
-  Popper,
-  Paper,
-  Fade
 } from "@mui/material";
 import { lighten } from "@mui/material/styles";
 import { NearMe as Focus, Image, Edit } from "@mui/icons-material";
 import theme from "Styles/theme";
 
 import AnnotationIcon from "Features/annotations/components/AnnotationIcon";
-import ToolbarCreateAnnotationFromListItemEntity from "Features/annotations/components/ToolbarCreateAnnotationFromListItemEntity";
 
 import getEntityMainImage from "../utils/getEntityMainImage";
 import getEntityQties from "../utils/getEntityQties";
@@ -28,30 +22,7 @@ export default function ListItemEntityVariantDefault({
   selection,
   listingColor = theme.palette.primary.main,
   spriteImage,
-  annotationEnabled,
 }) {
-  // --- Gestion du Hover Robuste ---
-  const [anchorEl, setAnchorEl] = useState(null);
-  const hoverTimeoutRef = useRef(null);
-
-  const isOpen = Boolean(anchorEl);
-
-  const handleListItemEnter = (event) => {
-    if (!annotationEnabled) return;
-    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
-    setAnchorEl(event.currentTarget);
-  };
-
-  const handlePopperEnter = () => {
-    if (hoverTimeoutRef.current) clearTimeout(hoverTimeoutRef.current);
-  };
-
-  const handleMouseLeave = () => {
-    hoverTimeoutRef.current = setTimeout(() => {
-      setAnchorEl(null);
-    }, 10);
-  };
-
   // --- Helpers ---
   let annotation;
   if (entity.annotations?.length > 0) annotation = entity.annotations[0];
@@ -92,8 +63,6 @@ export default function ListItemEntityVariantDefault({
       <ListItemButton
         onClick={handleClick}
         selected={isSelected}
-        onMouseEnter={handleListItemEnter}
-        onMouseLeave={handleMouseLeave}
         sx={{
           display: "flex",
           width: 1,
@@ -170,37 +139,6 @@ export default function ListItemEntityVariantDefault({
           </Typography>
         </Box>
       )}
-
-      <Popper
-        open={isOpen}
-        anchorEl={anchorEl}
-        placement="right"
-        transition
-        modifiers={[
-          { name: 'offset', options: { offset: [0, -8] } },
-          { name: 'preventOverflow', options: { padding: 8 } },
-        ]}
-        style={{ zIndex: 1500, pointerEvents: 'auto' }}
-        onMouseEnter={handlePopperEnter}
-        onMouseLeave={handleMouseLeave}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {({ TransitionProps }) => (
-          <Fade {...TransitionProps} timeout={10}>
-            <Paper
-              elevation={4}
-              sx={{
-                display: 'flex',
-                alignItems: 'center',
-                borderRadius: 1,
-                bgcolor: 'background.paper'
-              }}
-            >
-              <ToolbarCreateAnnotationFromListItemEntity entityId={entity.id} />
-            </Paper>
-          </Fade>
-        )}
-      </Popper>
     </ListItem>
   );
 }

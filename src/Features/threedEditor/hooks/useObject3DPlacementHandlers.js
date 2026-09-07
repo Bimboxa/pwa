@@ -12,8 +12,6 @@ import {
 } from "Features/threedEditor/threedEditorSlice";
 
 import useCreateAnnotation from "Features/annotations/hooks/useCreateAnnotation";
-import useCreateEntity from "Features/entities/hooks/useCreateEntity";
-import useNewEntity from "Features/entities/hooks/useNewEntity";
 
 import { getActiveThreedEditor } from "../services/threedEditorRegistry";
 import createObject3DPlacementController from "../services/object3DPlacementController";
@@ -42,8 +40,6 @@ export default function useObject3DPlacementHandlers() {
     renderMode === "REALISTIC" || renderMode === "PHOTOREAL";
 
   const createAnnotation = useCreateAnnotation();
-  const createEntity = useCreateEntity();
-  const newEntity = useNewEntity();
 
   // Values read inside the (stable-per-activation) controller callbacks.
   const newAnnotation = useSelector((s) => s.annotations.newAnnotation);
@@ -58,10 +54,6 @@ export default function useObject3DPlacementHandlers() {
     activeLayerIdRef.current = activeLayerId;
   }, [activeLayerId]);
 
-  const newEntityRef = useRef(newEntity);
-  useEffect(() => {
-    newEntityRef.current = newEntity;
-  }, [newEntity]);
 
   const committingRef = useRef(false);
 
@@ -125,9 +117,6 @@ export default function useObject3DPlacementHandlers() {
           meterByPx /
           imageSize.height;
 
-        // Entity parity with the 2D commit (useHandleCommitDrawing).
-        const entity = await createEntity(newEntityRef.current);
-
         await createAnnotation(
           {
             ...na,
@@ -144,8 +133,7 @@ export default function useObject3DPlacementHandlers() {
             ...(activeLayerIdRef.current
               ? { layerId: activeLayerIdRef.current }
               : {}),
-          },
-          { entityId: entity?.id }
+          }
         );
       } catch (e) {
         console.error("[Object3DPlacement] commit failed", e);

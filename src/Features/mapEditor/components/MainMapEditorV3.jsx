@@ -84,7 +84,6 @@ import EditedLegendLayer from "./EditedLegendLayer";
 import LayerCreateBaseMap from "./LayerCreateBaseMap";
 
 import CompareVersionSlider from "./CompareVersionSlider";
-import DialogAutoCreateEntity from "Features/entities/components/DialogAutoCreateEntity";
 import DialogDeleteSelectedAnnotation from "Features/annotations/components/DialogDeleteSelectedAnnotation";
 import PopperEditAnnotation from "./PopperEditAnnotation";
 import PopperEditAnnotations from "./PopperEditAnnotations";
@@ -134,7 +133,6 @@ import useHandleCutSegment from "../hooks/useHandleCutSegment";
 import useHandleTechnicalReturn from "../hooks/useHandleTechnicalReturn";
 import useHandleSplitPolyline from "../hooks/useHandleSplitPolyline";
 import useHandleSplitPolylineClick from "../hooks/useHandleSplitPolylineClick";
-import useNewEntity from "Features/entities/hooks/useNewEntity";
 import getSegmentAngle from "Features/geometry/utils/getSegmentAngle";
 import { buildSegmentFlagChanges } from "Features/annotations/utils/segmentFlags";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
@@ -393,7 +391,6 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     const rawAnnotations = useAnnotationsV2({
         caller: "MainMapEditorV3",
         enabled: isActiveViewer,
-        withEntity: true,
         excludeListingsIds: hiddenListingsIds,
         hideBaseMapAnnotations,
         filterByMainBaseMap: true,
@@ -564,9 +561,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     // handler - commit drawing
 
     _track("legendItems.length", legendItems?.length);
-    const newEntity = useNewEntity();
-    _track("newEntity", newEntity);
-    const { handleDrawingCommit: _handleCommitDrawing } = useHandleCommitDrawing({ newEntity, annotations });
+    const { handleDrawingCommit: _handleCommitDrawing } = useHandleCommitDrawing({ annotations });
     // Deferred commit mechanism: interactive draws funnel through
     // deferredCommit.commit so an armed newAnnotation.commitInterceptor can
     // divert the commit to a dialog (see drawingCommitInterceptors).
@@ -582,19 +577,19 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
         },
     });
     const updateAnnotation = useUpdateAnnotation();
-    const { handleSplitCommit, handlePolylineSplitAtVertex } = useHandleSplitCommit({ newEntity });
-    const handleCutSegment = useHandleCutSegment({ newEntity });
-    const handleTechnicalReturn = useHandleTechnicalReturn({ annotations, newEntity });
-    const { handleSplitPolylineClick, handleSplitPolylineEnter, resetSplitPolyline } = useHandleSplitPolyline({ newEntity });
-    const { handleSplitPolylineClickPoint } = useHandleSplitPolylineClick({ newEntity });
+    const { handleSplitCommit, handlePolylineSplitAtVertex } = useHandleSplitCommit();
+    const handleCutSegment = useHandleCutSegment();
+    const handleTechnicalReturn = useHandleTechnicalReturn({ annotations });
+    const { handleSplitPolylineClick, handleSplitPolylineEnter, resetSplitPolyline } = useHandleSplitPolyline();
+    const { handleSplitPolylineClickPoint } = useHandleSplitPolylineClick();
     const handleCommitGuideLine = useHandleCommitGuideLine();
     const handleCommitIsoHeightLine = useHandleCommitIsoHeightLine();
     const handleCommitProfileLine = useHandleCommitProfileLine();
-    const handleCommitRamp = useHandleCommitRamp({ newEntity });
+    const handleCommitRamp = useHandleCommitRamp();
     const deleteGuideLine = useDeleteGuideLine();
     const deleteIsoHeightLine = useDeleteIsoHeightLine();
     const deleteProfileLine = useDeleteProfileLine();
-    const { handleCompleteAnnotationCommit } = useHandleCompleteAnnotation({ newEntity });
+    const { handleCompleteAnnotationCommit } = useHandleCompleteAnnotation();
     const saveTempAnnotations = useSaveTempAnnotations();
     const createAnnotationsFromDetectedStrips = useCreateAnnotationsFromDetectedStrips();
     const createAnnotationsFromDetectedFeatures = useCreateAnnotationsFromDetectedFeatures();
@@ -2251,7 +2246,6 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
             )}
 
             <DialogDeleteSelectedAnnotation />
-            <DialogAutoCreateEntity />
             <DeferredCommitDialogOutlet
                 pending={deferredCommit.pending}
                 onResume={deferredCommit.resumeCommit}

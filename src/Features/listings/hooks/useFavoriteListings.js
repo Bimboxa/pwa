@@ -31,6 +31,9 @@ function cleanListing(listing) {
     table: listing.table,
     canCreateItem: listing.canCreateItem,
     showNewAnnotationToolbar: listing.showNewAnnotationToolbar,
+    autoNumberAnnotations: listing.autoNumberAnnotations,
+    autoNumberPrefix: listing.autoNumberPrefix,
+    autoNumberPadStart: listing.autoNumberPadStart,
     isForBaseMaps: listing.isForBaseMaps,
   };
 }

@@ -47,7 +47,6 @@ export default function DialogDownloadBlueprint({ svgElement, open, onClose }) {
     caller: "DialogDownloadBlueprint",
     filterByBaseMapId: mainBaseMap?.id,
     excludeListingsIds: hiddenListingsIds,
-    withEntity: true,
   });
 
   // state

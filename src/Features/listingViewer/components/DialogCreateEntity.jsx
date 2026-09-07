@@ -1,8 +1,7 @@
 import { useRef, useState } from "react";
-import { useSelector, useDispatch } from "react-redux";
+import { useDispatch } from "react-redux";
 
 import { setNewEntity } from "Features/entities/entitiesSlice";
-import { setNewAnnotation } from "Features/annotations/annotationsSlice";
 
 import useEntityFormTemplate from "Features/entities/hooks/useEntityFormTemplate";
 import useNewEntity from "Features/entities/hooks/useNewEntity";
@@ -34,7 +33,6 @@ export default function DialogCreateEntity({
   // data
 
   const template = useEntityFormTemplate({ listing });
-  const newAnnotation = useSelector((s) => s.annotations.newAnnotation);
   const newEntity = useNewEntity();
   const createEntity = useCreateEntity();
   const containerRef = useRef(null);
@@ -50,13 +48,9 @@ export default function DialogCreateEntity({
   }
 
   async function handleCreateClick() {
-    const entity = await createEntity(tempItem, {
-      listing,
-      annotation: newAnnotation,
-    });
+    const entity = await createEntity(tempItem, { listing });
 
     dispatch(setNewEntity(null));
-    dispatch(setNewAnnotation(null));
     setTempItem({});
 
     if (onEntityCreated) onEntityCreated(entity);
@@ -64,7 +58,6 @@ export default function DialogCreateEntity({
 
   function handleClose() {
     dispatch(setNewEntity(null));
-    dispatch(setNewAnnotation(null));
     setTempItem({});
     if (onClose) onClose();
   }

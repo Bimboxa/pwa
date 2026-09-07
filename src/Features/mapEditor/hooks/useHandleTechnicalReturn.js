@@ -2,7 +2,6 @@ import { nanoid } from "@reduxjs/toolkit";
 import { useDispatch } from "react-redux";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
-import useCreateEntity from "Features/entities/hooks/useCreateEntity";
 import useCreateAnnotation from "Features/annotations/hooks/useCreateAnnotation";
 import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
 import { setToaster } from "Features/layout/layoutSlice";
@@ -70,10 +69,9 @@ async function resolvePointCoords(point, imageSize) {
   return null;
 }
 
-export default function useHandleTechnicalReturn({ annotations, newEntity } = {}) {
+export default function useHandleTechnicalReturn({ annotations } = {}) {
   const dispatch = useDispatch();
   const baseMap = useMainBaseMap();
-  const createEntity = useCreateEntity();
   const createAnnotation = useCreateAnnotation();
   const updateAnnotation = useUpdateAnnotation();
 
@@ -227,7 +225,6 @@ export default function useHandleTechnicalReturn({ annotations, newEntity } = {}
     });
 
     // 10. Create a new annotation for the 1m return segment
-    const entity = await createEntity(newEntity);
     const {
       id: _id,
       entityId: _eid,
@@ -237,7 +234,6 @@ export default function useHandleTechnicalReturn({ annotations, newEntity } = {}
     await createAnnotation({
       ...hostProps,
       id: nanoid(),
-      entityId: entity.id,
       points: returnPoints,
       closeLine: false,
       annotationTemplateId: connectedAnnotation.annotationTemplateId,

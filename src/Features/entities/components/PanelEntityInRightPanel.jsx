@@ -1,9 +1,6 @@
-import { useState } from "react";
-
 import { useDispatch, useSelector } from "react-redux";
 
 import { setIsEditingEntity, setEditedEntity } from "../entitiesSlice";
-import { setSelectedAnnotationId } from "Features/annotations/annotationsSlice";
 
 import useEntity from "../hooks/useEntity";
 
@@ -13,8 +10,6 @@ import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import useEntityFormTemplate from "../hooks/useEntityFormTemplate";
 import FormGenericV2 from "Features/form/components/FormGenericV2";
 import ButtonInPanelV2 from "Features/layout/components/ButtonInPanelV2";
-import SectionEntityAnnotationInRightPanel from "./SectionEntityAnnotationInRightPanel";
-import SectionEditAnnotation from "Features/annotations/components/SectionEditAnnotation";
 
 export default function PanelEntityInRightPanel({ selectedItem }) {
   const dispatch = useDispatch();
@@ -31,16 +26,11 @@ export default function PanelEntityInRightPanel({ selectedItem }) {
     fromListingId: selectedItem?.listingId,
     entityId: selectedItem?.entityId,
     withImages: true,
-    withAnnotations: true,
   });
 
   const template = useEntityFormTemplate({
     listingId: selectedItem?.listingId,
   });
-
-  // state
-
-  const [openAnnotation, setOpenAnnotation] = useState(false);
 
   // data - func
   const update = useUpdateEntity();
@@ -63,21 +53,8 @@ export default function PanelEntityInRightPanel({ selectedItem }) {
     dispatch(setEditedEntity(null));
   }
 
-  function handleAnnotationEditClick(annotation) {
-    dispatch(setSelectedAnnotationId(annotation.id));
-    setOpenAnnotation(true);
-  }
-
-  if (openAnnotation) {
-    return <SectionEditAnnotation onClose={() => setOpenAnnotation(false)} />;
-  }
-
   return (
     <BoxFlexVStretch>
-      <SectionEntityAnnotationInRightPanel
-        entity={entity}
-        onEditClick={handleAnnotationEditClick}
-      />
       <FormGenericV2
         template={template}
         item={entity}

@@ -26,7 +26,6 @@ export default function useDownladPdfReport() {
     filterByBaseMapId: mainBaseMap?.id,
     filterBySelectedScope: true,
     excludeListingsIds: hiddenListingsIds,
-    withEntity: true,
     withLabel: true,
   });
 

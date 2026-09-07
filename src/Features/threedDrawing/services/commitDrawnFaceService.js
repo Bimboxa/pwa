@@ -39,7 +39,7 @@ function dedupeAdjacent(points, eps = POINT_DEDUPE_EPS) {
 //   - projectId, listingId: ownership for the new annotation/points
 //   - templateProps: the template-armed newAnnotation — required, since the
 //     only entry point is the template row click in PopperMapListings
-//   - entityId / layerId: linkage carried by the created annotation
+//   - layerId: layer carried by the created annotation
 //   - createAnnotationFn: useCreateAnnotation's fn — routes the commit
 //     through mapping-category rels + update triggers; falls back to the
 //     plain createAnnotationService when absent
@@ -52,7 +52,6 @@ export default async function commitDrawnFaceService({
   projectId,
   listingId,
   templateProps,
-  entityId = null,
   layerId = null,
   createAnnotationFn = null,
 }) {
@@ -187,7 +186,6 @@ export default async function commitDrawnFaceService({
     listingId,
     baseMapId: host.id,
     annotationTemplateId: templateProps.annotationTemplateId,
-    ...(entityId ? { entityId } : {}),
     ...(layerId ? { layerId } : {}),
     points: pointRefs,
     createdAt: new Date().toISOString(),

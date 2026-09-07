@@ -8,7 +8,6 @@ import MapIcon from "@mui/icons-material/Map";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 
 import AnnotationIcon from "./AnnotationIcon";
-import AnnotationEntityInfoChip from "./AnnotationEntityInfoChip";
 
 import {
     setSelectedMainBaseMapId,
@@ -64,7 +63,6 @@ export default function DatagridAnnotations({
                 type: annotation.type,
                 baseMapId: annotation.baseMapId,
                 listingId: annotation.listingId,
-                entityId: annotation.entityId,
                 annotationTemplateId: annotation.annotationTemplateId,
                 baseMapName: annotation.baseMapName,
                 variant: annotation.variant,
@@ -80,7 +78,6 @@ export default function DatagridAnnotations({
                 points: annotation.points,
                 x: annotation.x,
                 y: annotation.y,
-                entity: annotation.entity,
             };
         });
     }, [annotations, baseMapById]);
@@ -100,24 +97,6 @@ export default function DatagridAnnotations({
                 renderCell: (params) => {
                     return <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: 1 }}><AnnotationIcon annotation={params.row} /></Box>;
                 }
-            },
-            {
-                field: "entityInfo",
-                headerName: "",
-                width: 36,
-                align: "center",
-                headerAlign: "center",
-                sortable: false,
-                filterable: false,
-                disableColumnMenu: true,
-                renderCell: (params) => {
-                    if (!params.row.entity) return null;
-                    return (
-                        <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", height: 1 }}>
-                            <AnnotationEntityInfoChip entity={params.row.entity} />
-                        </Box>
-                    );
-                },
             },
             { field: "templateLabel", headerName: "Modèle", flex: 1, minWidth: 150 },
         ];
@@ -173,7 +152,7 @@ export default function DatagridAnnotations({
 
     function handleCopyToClipboard() {
         const dataColumns = columns.filter(
-            (col) => !["icon", "entityInfo", "actions"].includes(col.field)
+            (col) => !["icon", "actions"].includes(col.field)
         );
         const headers = dataColumns.map((col) => col.headerName || col.field);
         const lines = rows.map((row) =>
@@ -214,7 +193,6 @@ export default function DatagridAnnotations({
             nodeId: row.id,
             annotationType: row.type,
             listingId: row.listingId,
-            entityId: row.entityId,
             annotationTemplateId: row.annotationTemplateId,
         }));
         // Show the properties panel

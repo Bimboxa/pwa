@@ -134,7 +134,6 @@ export default function PanelTemplateAnnotations({
       type: "NODE",
       nodeType: "ANNOTATION",
       annotationType: a.type,
-      entityId: a.entityId,
       listingId: a.listingId,
       annotationTemplateId: a.annotationTemplateId,
       pointId: null,

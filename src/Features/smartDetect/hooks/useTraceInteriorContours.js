@@ -3,7 +3,6 @@ import { nanoid } from "@reduxjs/toolkit";
 import { useSelector } from "react-redux";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
-import useCreateEntity from "Features/entities/hooks/useCreateEntity";
 import useCreateAnnotation from "Features/annotations/hooks/useCreateAnnotation";
 import getAnnotationTemplateProps from "Features/annotations/utils/getAnnotationTemplateProps";
 
@@ -19,7 +18,6 @@ export default function useTraceInteriorContours() {
   const activeLayerId = useSelector((s) => s.layers?.activeLayerId);
 
   const baseMap = useMainBaseMap();
-  const createEntity = useCreateEntity();
   const createAnnotation = useCreateAnnotation();
 
   const trace = useCallback(
@@ -108,12 +106,6 @@ export default function useTraceInteriorContours() {
       // listing (so the legend groups under "Mur plein" or whatever was picked),
       // not the redux-selected one. Fall back to selected listing if missing.
       const targetListingId = annotationTemplate.listingId ?? listingId;
-      const targetListing = targetListingId
-        ? await db.listings.get(targetListingId)
-        : null;
-      const entityTable =
-        targetListing?.table ?? targetListing?.entityModel?.defaultTable;
-
       // Build the [{id, type}] point ref list for each wall polygon, allocating
       // new db.points records for projection vertices on the fly.
       const wallPointRefsList = wallPolygons.map((wall) =>
@@ -169,12 +161,7 @@ export default function useTraceInteriorContours() {
           points,
         };
 
-        let entityId;
-        if (entityTable && targetListing) {
-          const entity = await createEntity({}, { listing: targetListing });
-          entityId = entity?.id;
-        }
-        const created = await createAnnotation(annotation, { entityId });
+        const created = await createAnnotation(annotation);
         if (created) createdAnnotations.push(created);
       }
 
@@ -184,7 +171,7 @@ export default function useTraceInteriorContours() {
 
       return { count: createdAnnotations.length, polygonAnnotations: createdAnnotations };
     },
-    [baseMap, baseMapId, projectId, listingId, activeLayerId, createEntity, createAnnotation]
+    [baseMap, baseMapId, projectId, listingId, activeLayerId, createAnnotation]
   );
 
   return trace;

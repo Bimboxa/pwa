@@ -3,7 +3,6 @@ import { useSelector, useDispatch } from "react-redux";
 import polygonClipping from "polygon-clipping";
 
 import { triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice";
-import { triggerEntitiesTableUpdate } from "Features/entities/entitiesSlice";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 
@@ -381,7 +380,7 @@ export default function useWallBoundaries() {
       }
 
       // ── 7. Persist (points dedup grid + bulk write in one transaction) ─
-      const { count, entityTable } = await createContourAnnotationsService({
+      const { count } = await createContourAnnotationsService({
         groups: serviceGroups,
         boundaryAnnotationTemplate,
         outputType,
@@ -392,7 +391,6 @@ export default function useWallBoundaries() {
       });
 
       dispatch(triggerAnnotationsUpdate());
-      if (entityTable) dispatch(triggerEntitiesTableUpdate(entityTable));
 
       console.log(`[useWallBoundaries] Created ${count} boundary annotations`);
       return { count };

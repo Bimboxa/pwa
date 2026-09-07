@@ -86,7 +86,6 @@ export default function SectionAnnotationOpenings({ annotation }) {
           type: "NODE",
           nodeType: "ANNOTATION",
           annotationType: related.type,
-          entityId: related.entityId,
           listingId: related.listingId,
           annotationTemplateId: related.annotationTemplateId,
           pointId: null,

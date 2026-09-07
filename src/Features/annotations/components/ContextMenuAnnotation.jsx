@@ -5,17 +5,16 @@ import {
   setAnchorPosition,
   setClickedNode,
 } from "Features/contextMenu/contextMenuSlice";
-import { setOpenDialogAutoSelectAnnotationTemplateToCreateEntity } from "Features/mapEditor/mapEditorSlice";
+import {
+  setSelectedItem,
+  setShowAnnotationsProperties,
+} from "Features/selection/selectionSlice";
 
 import useMoveAnnotation from "../hooks/useMoveAnnotation";
-import useOnEntityEdit from "Features/entities/hooks/useOnEntityEdit";
 
 import { useLiveQuery } from "dexie-react-hooks";
 
-import useAppConfig from "Features/appConfig/hooks/useAppConfig";
-
 import db from "App/db/db";
-import getAnnotationEntityAsync from "Features/entities/services/getAnnotationEntityAsync";
 
 import {
   Paper,
@@ -34,9 +33,6 @@ export default function ContextMenuAnnotation() {
 
   const clickedNode = useSelector((s) => s.contextMenu.clickedNode);
   const moveAnnotation = useMoveAnnotation();
-  const appConfig = useAppConfig();
-
-  const onEntityEdit = useOnEntityEdit();
 
   // helpers - annotation
 
@@ -54,7 +50,6 @@ export default function ContextMenuAnnotation() {
     { label: "Reculer à l'arrière plan", handler: handleMoveBottom },
     { isDivider: true },
     { label: "Editer les propriétés", handler: handleEdit },
-    //{ label: "Ajouter un objet", handler: handleAddEntity },
   ];
 
   // helpers - show
@@ -64,17 +59,32 @@ export default function ContextMenuAnnotation() {
 
   // handlers
 
-  async function handleEdit() {
-    const entity = await getAnnotationEntityAsync(annotation, appConfig);
-    console.log("debug_1311_entity", entity);
-    if (entity) {
-      onEntityEdit(entity);
+  function handleEdit() {
+    // Select the annotation and open its properties panel (same dispatch set
+    // as useSelectAnnotationFromPanel).
+    if (annotation) {
+      dispatch(
+        setSelectedNode({
+          nodeId: annotation.id,
+          nodeType: "ANNOTATION",
+          nodeListingId: annotation.listingId,
+          annotationType: annotation.type,
+          origin: "CONTEXT_MENU",
+        })
+      );
+      dispatch(
+        setSelectedItem({
+          id: annotation.id,
+          type: "NODE",
+          nodeType: "ANNOTATION",
+          nodeId: annotation.id,
+          annotationType: annotation.type,
+          listingId: annotation.listingId,
+          annotationTemplateId: annotation.annotationTemplateId,
+        })
+      );
+      dispatch(setShowAnnotationsProperties(true));
     }
-    dispatch(setAnchorPosition(null));
-  }
-
-  function handleAddEntity() {
-    dispatch(setOpenDialogAutoSelectAnnotationTemplateToCreateEntity(true));
     dispatch(setAnchorPosition(null));
   }
 

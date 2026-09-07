@@ -131,6 +131,19 @@ export default function useListingFormTemplate(listing, options) {
         //hidden: true
       },
       {
+        key: "autoNumberAnnotations",
+        label: "Numérotation automatique",
+        type: "check",
+        options: { showAsSection: true },
+      },
+      {
+        key: "autoNumberPrefix",
+        label: "Préfixe de numérotation",
+        type: "text",
+        options: { showAsSection: true },
+        hidden: !listing?.autoNumberAnnotations,
+      },
+      {
         key: "verticalBaseMaps",
         label: "Coupes & élévations",
         type: "check",

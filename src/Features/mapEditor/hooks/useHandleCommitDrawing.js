@@ -5,12 +5,10 @@ import { nanoid } from "@reduxjs/toolkit";
 import { useSelector, useDispatch } from "react-redux";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
-import useCreateEntity from "Features/entities/hooks/useCreateEntity";
 import useCreateAnnotation from "Features/annotations/hooks/useCreateAnnotation";
 import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
 import useResetNewAnnotation from "Features/annotations/hooks/useResetNewAnnotation";
 
-import { setOpenDialogCreateEntity, triggerEntitiesTableUpdate } from "Features/entities/entitiesSlice";
 import { setNewAnnotation, triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice";
 import { setSelectedItem } from "Features/selection/selectionSlice";
 import { setEnabledDrawingMode } from "Features/mapEditor/mapEditorSlice";
@@ -76,7 +74,7 @@ const getTemplatesForListing = (listingId) => {
     return p;
 };
 
-export default function useHandleCommitDrawing({ newEntity, annotations } = {}) {
+export default function useHandleCommitDrawing({ annotations } = {}) {
 
     // dispatch
 
@@ -111,7 +109,6 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
     // POLYGON_CLICK ramps over existing 3D geometry stay continuous).
     const drawingOffset = useSelector(s => s.threedEditor?.drawingOffset ?? 0);
 
-    const createEntity = useCreateEntity();
 
     const updateAnnotation = useUpdateAnnotation();
     const createAnnotation = useCreateAnnotation();
@@ -359,38 +356,11 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
             }
         }
 
-        // ETAPE : création de l'entité ou non
-
-        let entityId = newAnnotation?.entityId;
-        const isFreeAnnotation = newAnnotation?.isFreeAnnotation;
-        // Zone delimitation polygons live in a ZONING listing whose table is
-        // `zones` — creating an entity there would write a garbage zone row.
-        const isZoneAnnotation = newAnnotation?.isZoneAnnotation;
-        // Same for the location templates of a business-objects listing
-        // (table `businessObjects`): the annotation is linked to its object
-        // by relsBusinessObjectAnnotation, never by an entity row.
-        const isBusinessObjectAnnotation = newAnnotation?.isBusinessObjectAnnotation;
-        if (!entityId && !isBaseMapAnnotation && !isRevolutionHelper && !isFreeAnnotation && !isZoneAnnotation && !isBusinessObjectAnnotation) {
-            const entity = await createEntity(newEntity)
-            entityId = entity.id;
-        }
-
         // edge case
         if (
             (newAnnotation.type === "LABEL" || newAnnotation.type === "FREE_TEXT") &&
             rawPoints.length === 1
         ) {
-            // dispatch(setOpenDialogCreateEntity(true))
-            // dispatch(setNewAnnotation({
-            //     ...newAnnotation,
-            //     entityId,
-            //     targetPoint: { x: _x / width, y: _y / height },
-            //     labelPoint: { x: (_x - 50) / width, y: (_y + 0) / height },
-            //     baseMapId,
-            //     projectId,
-            //     listingId,
-            // }))
-            // return;
             const { x: _x, y: _y } = rawPoints[0];
             // FREE_TEXT: the box is centered ON the click (targetPoint stays
             // coincident — it only matters once the connector is enabled).
@@ -399,7 +369,6 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
             _newAnnotation = {
                 ...newAnnotation,
                 id: nanoid(),
-                entityId,
                 targetPoint: { x: _x / width, y: _y / height },
                 labelPoint: isFreeText
                     ? { x: _x / width, y: _y / height }
@@ -725,7 +694,6 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
                 // and would overwrite the template id carried by the draft.
                 annotationTemplateId: annotationTemplateId ??
                     (isRevolutionHelper ? newAnnotation.annotationTemplateId : undefined),
-                entityId,
                 //points: finalPointIds.map(id => ({ id })), // Référence uniquement les IDs !
                 baseMapId,
                 projectId,
@@ -1110,7 +1078,6 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
                     type: "NODE",
                     nodeType: "ANNOTATION",
                     annotationType: "FREE_TEXT",
-                    entityId: _newAnnotation.entityId,
                     listingId: _newAnnotation.listingId,
                     annotationTemplateId: _newAnnotation.annotationTemplateId,
                     pointId: null,

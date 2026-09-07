@@ -15,9 +15,7 @@ import {
 
 import useCreateAnnotation from "Features/annotations/hooks/useCreateAnnotation";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
-import useCreateEntity from "Features/entities/hooks/useCreateEntity";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
-import useNewEntity from "Features/entities/hooks/useNewEntity";
 
 import { getDrawingToolByKey } from "Features/mapEditor/constants/drawingTools";
 
@@ -66,10 +64,8 @@ export default function useDrawingPointerHandlers() {
   const mainBaseMapId = useMainBaseMap()?.id;
 
   // Template-driven mode (see useTemplateFaceDrawBridge): the committed face
-  // carries the armed template + entity + layer instead of isPendingTemplate.
+  // carries the armed template + layer instead of isPendingTemplate.
   const createAnnotation = useCreateAnnotation();
-  const createEntity = useCreateEntity();
-  const newEntity = useNewEntity();
   const newAnnotation = useSelector((s) => s.annotations.newAnnotation);
   const activeLayerId = useSelector((s) => s.layers?.activeLayerId);
 
@@ -77,10 +73,6 @@ export default function useDrawingPointerHandlers() {
   useEffect(() => {
     newAnnotationRef.current = newAnnotation;
   }, [newAnnotation]);
-  const newEntityRef = useRef(newEntity);
-  useEffect(() => {
-    newEntityRef.current = newEntity;
-  }, [newEntity]);
   const activeLayerIdRef = useRef(activeLayerId);
   useEffect(() => {
     activeLayerIdRef.current = activeLayerId;
@@ -105,38 +97,25 @@ export default function useDrawingPointerHandlers() {
       );
     }
 
-    // Entity parity with the 2D commit (useHandleCommitDrawing): free
-    // annotations are backed by a hidden system template and carry no entity.
-    async function createEntityForCommit() {
-      const na = newAnnotationRef.current;
-      if (na.isFreeAnnotation) return null;
-      const entity = await createEntity(newEntityRef.current);
-      return entity?.id ?? null;
-    }
-
     async function commitFace(cornersInOrder) {
-      const entityId = await createEntityForCommit();
       return await commitDrawnFaceService({
         cornersInOrder,
         baseMaps: baseMaps || [],
         projectId,
         listingId,
         templateProps: newAnnotationRef.current,
-        entityId,
         layerId: activeLayerIdRef.current ?? null,
         createAnnotationFn: createAnnotation,
       });
     }
 
     async function commitPolyline(verticesInOrder, { closeLine = false } = {}) {
-      const entityId = await createEntityForCommit();
       return await commitDrawnPolylineService({
         verticesInOrder,
         baseMaps: baseMaps || [],
         projectId,
         listingId,
         templateProps: newAnnotationRef.current,
-        entityId,
         layerId: activeLayerIdRef.current ?? null,
         createAnnotationFn: createAnnotation,
         closeLine,

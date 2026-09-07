@@ -87,7 +87,6 @@ export default function useAutoLoadAnnotationsInThreedEditor({
   const annotations = useAnnotationsV2({
     caller: "MainThreedEditor",
     enabled: isActiveViewer,
-    withEntity: true,
     excludeListingsIds: hiddenListingsIds,
     hideBaseMapAnnotations: true,
     filterByMainBaseMap: true,
