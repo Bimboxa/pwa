@@ -1,34 +1,14 @@
-import useResetBaseMapPose from "Features/mapEditor/hooks/useResetBaseMapPose";
 import useBgImagesFromAppConfig from "./useBgImagesFromAppConfig";
 
-export default function useBgImageFormTemplate(bgImageItem) {
+export default function useBgImageFormTemplate() {
   // data
 
   const bgImages = useBgImagesFromAppConfig();
-
-  const onClick = useResetBaseMapPose();
 
   // main
 
   const template = {
     fields: [
-      // {
-      //   key: "show",
-      //   label: "Afficher",
-      //   type: "check",
-      // },
-      // {
-      //   key: "buttonResetBaseMapPose",
-      //   label: "Position du fond de plan",
-      //   type: "button",
-      //   options: {
-      //     buttonLabel: "Réinitialiser",
-      //     buttonVariant: "outlined",
-      //     buttonColor: "primary",
-
-      //     onClick: onClick,
-      //   },
-      // },
       {
         key: "imageKey",
         label: "Arrière plan",
@@ -37,11 +17,6 @@ export default function useBgImageFormTemplate(bgImageItem) {
           images: bgImages,
           columns: 2,
         },
-      },
-      {
-        key: "metadata",
-        label: "Cartouche",
-        type: "metadata",
       },
     ],
   };

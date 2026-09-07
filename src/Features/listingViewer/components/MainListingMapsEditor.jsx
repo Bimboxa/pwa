@@ -31,7 +31,6 @@ export default function MainListingMapsEditor({ listing, showAllListings }) {
     caller: "MainListingMapsEditor",
     filterByListingId,
     excludeIsForBaseMapsListings: true,
-    excludeBgAnnotations: true,
     withQties: true,
     withListingName: showAllListings,
     withEntity: true,

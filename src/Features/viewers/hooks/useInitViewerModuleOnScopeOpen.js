@@ -51,7 +51,6 @@ export default function useInitViewerModuleOnScopeOpen() {
     excludeProfileTemplates: true,
     hideBaseMapAnnotations: true,
     excludeIsForBaseMapsListings: true,
-    excludeBgAnnotations: true,
     ignoreSolo: true,
   });
 

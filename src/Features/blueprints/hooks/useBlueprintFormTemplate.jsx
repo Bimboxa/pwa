@@ -17,11 +17,6 @@ export default function useBlueprintFormTemplate() {
           columns: 2,
         },
       },
-      {
-        key: "bgImageRawTextAnnotations",
-        label: "Cartouche",
-        type: "metadata",
-      },
     ],
   };
 }

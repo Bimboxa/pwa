@@ -273,7 +273,6 @@ export default function PanelAnnotationsRecap() {
     filterByMainBaseMap: true,
     filterBySelectedScope: true,
     hideBaseMapAnnotations: true,
-    excludeBgAnnotations: true,
     excludeIsForBaseMapsListings: true,
     ignoreSolo: true,
     keepHiddenTemplates: true,

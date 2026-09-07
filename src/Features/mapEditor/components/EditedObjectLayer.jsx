@@ -28,7 +28,6 @@ export default function EditedObjectLayer({
   // selectedNodes, // Ignored
   baseMapMeterByPx,
   baseMapImageScale = 1,
-  onTextValueChange,
 }) {
   // Redux State
   const selectedItems = useSelector(selectSelectedItems);
@@ -238,7 +237,6 @@ export default function EditedObjectLayer({
               }
               sizeVariant="FIXED_IN_SCREEN"
               containerK={finalPose.k}
-              onTextValueChange={onTextValueChange}
               // Le point rouge s'affichera sur toutes les annotations qui le contiennent
               // (Elles vont se superposer au niveau du point rouge, ce qui est visuellement correct)
               selectedPointId={selectedPointId}

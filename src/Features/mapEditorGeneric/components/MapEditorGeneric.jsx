@@ -251,9 +251,6 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
 
   // === ANNOTATIONS ===
 
-  const bgImageAnnotations = showBgImage
-    ? annotations.filter(({ nodeType }) => nodeType === "BG_IMAGE_TEXT")
-    : [];
   const baseMapAnnotations = annotations.filter(({ baseMapId }) =>
     Boolean(baseMapId)
   );
@@ -1947,67 +1944,6 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
                 locked
               />
             )}
-            {/* Render non-selected BG annotations first */}
-            {bgImageAnnotations
-              .filter((annotation) => annotation.id !== selectedNode?.id)
-              .map((annotation) => (
-                <NodeAnnotation
-                  key={annotation.id}
-                  annotation={annotation}
-                  imageSize={bgSize}
-                  containerK={bgPose.k}
-                  worldScale={world.k}
-                  onDragStart={handleAnnotationDragStart}
-                  onDragEnd={handleAnnotationDragEnd}
-                  onChange={handleAnnotationChange}
-                  onClick={handleMarkerClick}
-                  spriteImage={annotationSpriteImage}
-                  selected={false}
-                />
-              ))}
-
-            {/* Render selected BG annotation last (on top) */}
-            {selectedNode?.id &&
-              bgImageAnnotations
-                .filter((annotation) => annotation.id === selectedNode.id)
-                .map((annotation) => {
-                  const isEdited = editedNode?.id === annotation.id;
-                  const canTransformNode =
-                    annotation?.canTransformNode ?? canTransformNodeStore;
-                  const content = (
-                    <NodeAnnotation
-                      key={annotation.id}
-                      annotation={annotation}
-                      imageSize={bgSize}
-                      containerK={bgPose.k}
-                      worldScale={world.k}
-                      onDragStart={handleAnnotationDragStart}
-                      onDragEnd={handleAnnotationDragEnd}
-                      onChange={handleAnnotationChange}
-                      onClick={handleMarkerClick}
-                      spriteImage={annotationSpriteImage}
-                      selected={true}
-                      edited={isEdited}
-                    />
-                  );
-                  return isEdited || !canTransformNode ? (
-                    <g key={annotation.id}>{content}</g>
-                  ) : (
-                    <SelectedAnnotationGroup
-                      key={annotation.id}
-                      annotation={annotation}
-                      containerK={bgPose.k}
-                      worldScale={world.k}
-                      imageSize={bgSize}
-                      toBaseFromClient={toBaseFromClient}
-                      onChange={handleAnnotationChange}
-                      onDragStart={handleAnnotationDragStart}
-                      onDragEnd={handleAnnotationDragEnd}
-                    >
-                      {content}
-                    </SelectedAnnotationGroup>
-                  );
-                })}
           </g>
 
           {/* BASE layer */}
@@ -2189,18 +2125,6 @@ const MapEditorGeneric = forwardRef(function MapEditorGeneric(props, ref) {
           {showBgImage && (
             <NodeSvgImage src={bgImageUrl} width={bgSize.w} height={bgSize.h} />
           )}
-          {bgImageAnnotations.map((a) => (
-            <NodeAnnotation
-              key={a.id + "_"}
-              annotation={a}
-              imageSize={bgSize}
-              containerK={bgPose.k}
-              worldScale={1}
-              onDragEnd={() => { }}
-              onClick={() => { }}
-              spriteImage={annotationSpriteImage}
-            />
-          ))}
         </g>
 
         <g

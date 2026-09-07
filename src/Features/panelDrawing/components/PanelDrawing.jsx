@@ -90,7 +90,6 @@ export default function PanelDrawing() {
     filterByMainBaseMap: !isAllScope,
     filterBySelectedScope: true,
     hideBaseMapAnnotations: true,
-    excludeBgAnnotations: true,
     excludeIsForBaseMapsListings: true,
     ignoreSolo: true,
     keepHiddenTemplates: true,

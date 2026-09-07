@@ -352,7 +352,6 @@ const _collectPointRowRefs = (annotation, pointsIndex) => {
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
-import useBgImageTextAnnotations from "Features/bgImage/hooks/useBgImageTextAnnotations";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
 
@@ -471,7 +470,6 @@ export default function useAnnotationsV2(options) {
     const filterBySelectedListing = options?.filterBySelectedListing;
 
     const excludeListingsIds = options?.excludeListingsIds;
-    const excludeBgAnnotations = options?.excludeBgAnnotations;
 
     const withEntity = options?.withEntity;
     const withListingName = options?.withListingName;
@@ -518,7 +516,6 @@ export default function useAnnotationsV2(options) {
 
     const tempAnnotations = useSelector((s) => s.annotations.tempAnnotations);
 
-    const bgImageTextAnnotations = useBgImageTextAnnotations();
 
     // NOTE: the Redux `annotationsUpdatedAt` tick is intentionally NOT a
     // dependency of the liveQuery below. Dexie's liveQuery natively observes
@@ -2688,10 +2685,6 @@ export default function useAnnotationsV2(options) {
       // override with temp annotations
       result = [...result, ...(tempAnnotations ?? [])];
 
-      // bg image text annotations
-      if (!baseMapAnnotationsOnly && !excludeBgAnnotations)
-        result = [...result, ...(bgImageTextAnnotations ?? [])];
-
       // sort by listing rank, then template order, with manual orderIndex as top priority
       if (sortByOrderIndex) {
         // listing order map (by rank) — ranks come from the Redux mirror
@@ -2854,9 +2847,7 @@ export default function useAnnotationsV2(options) {
       ignoreSolo,
       keepHiddenTemplates,
       tempAnnotations,
-      bgImageTextAnnotations,
       baseMapAnnotationsOnly,
-      excludeBgAnnotations,
       sortByOrderIndex,
       groupByBaseMap,
       listingsUpdatedAt,

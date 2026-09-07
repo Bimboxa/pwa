@@ -8,9 +8,6 @@ export default function useBlueprintPropsFromBgImageProps() {
   const baseMapId = useSelector((s) => s.mapEditor.selectedBaseMapId);
   const bgImageKey = useSelector((s) => s.bgImage.bgImageKeyInMapEditor);
   const legendFormat = useSelector((s) => s.mapEditor.legendFormat);
-  const bgImageRawTextAnnotations = useSelector(
-    (s) => s.bgImage.bgImageRawTextAnnotations
-  );
 
   const props = {
     baseMapPoseInBg,
@@ -19,7 +16,6 @@ export default function useBlueprintPropsFromBgImageProps() {
     baseMapId,
     bgImageKey,
     legendFormat,
-    bgImageRawTextAnnotations,
   };
 
   return props;

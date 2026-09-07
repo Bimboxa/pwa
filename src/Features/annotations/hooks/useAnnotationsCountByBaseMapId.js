@@ -22,7 +22,6 @@ export default function useAnnotationsCountByBaseMapId() {
     excludeProfileTemplates: true,
     hideBaseMapAnnotations: true,
     excludeIsForBaseMapsListings: true,
-    excludeBgAnnotations: true,
     ignoreSolo: true,
   });
 

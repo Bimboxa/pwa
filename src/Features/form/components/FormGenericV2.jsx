@@ -4,7 +4,6 @@ import { Box } from "@mui/material";
 
 import FieldSection from "./FieldSection";
 import FieldTextV2 from "./FieldTextV2";
-import FieldMetadata from "./FieldMetadata";
 import FieldImageV2 from "./FieldImageV2";
 import FieldImageKeyFromOptions from "./FieldImageKeyFromOptions";
 import FieldColorV2 from "./FieldColorV2";
@@ -86,18 +85,6 @@ export default function FormGenericV2({
           );
         }
 
-        if (field?.type === "metadata") {
-          return (
-            <FieldMetadata
-              key={field.key}
-              label={field.label}
-              value={value}
-              onChange={(newValue) =>
-                handleFieldValueChange(field.key, newValue)
-              }
-            />
-          );
-        }
 
         if (field?.type === "check") {
           return (

@@ -16,7 +16,6 @@ export default function ButtonMergeListingAnnotations({
     filterByListingId: listingId,
     filterByMainBaseMap: true,
     sortByOrderIndex: true,
-    excludeBgAnnotations: true,
   });
 
   // handlers

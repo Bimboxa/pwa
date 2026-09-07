@@ -62,9 +62,6 @@ export default function ToolbarMapEditorBlueprint({ svgElement }) {
   const baseMapId = useSelector((s) => s.mapEditor.selectedBaseMapId);
   const bgImageKey = useSelector((s) => s.bgImage.bgImageKeyInMapEditor);
   const legendFormat = useSelector((s) => s.mapEditor.legendFormat);
-  const bgImageRawTextAnnotations = useSelector(
-    (s) => s.bgImage.bgImageRawTextAnnotations
-  );
 
   const blueprints = useBlueprints();
   const blueprint = useBlueprintInMapEditor();
@@ -93,7 +90,6 @@ export default function ToolbarMapEditorBlueprint({ svgElement }) {
       baseMapId,
       bgImageKey,
       legendFormat,
-      bgImageRawTextAnnotations,
     };
 
     const result = await saveEntity(_newEntity, { updateSyncFile: true });
@@ -120,7 +116,6 @@ export default function ToolbarMapEditorBlueprint({ svgElement }) {
       bgImageKey,
       legendFormat,
       baseMapId,
-      bgImageRawTextAnnotations,
     };
 
     await saveEntity(_editedEntity, { updateSyncFile: true });

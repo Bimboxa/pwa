@@ -12,7 +12,6 @@ export default function ToolMergeVisibleAnnotations({ baseMap, onResult }) {
         caller: "ToolMergeVisibleAnnotations",
         filterByMainBaseMap: true,
         sortByOrderIndex: true,
-        excludeBgAnnotations: true,
     });
 
     // handlers

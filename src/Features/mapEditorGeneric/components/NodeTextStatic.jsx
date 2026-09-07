@@ -15,7 +15,6 @@ function NodeTextStatic({
     context,
     hovered,
     selected,
-    onTextValueChange,
     printMode,
 }) {
     const theme = useTheme();
@@ -102,13 +101,9 @@ function NodeTextStatic({
     const handleBlur = async () => {
         if (localValue !== text.textValue) {
             console.log("💾 Commit Text:", text.id);
-            if (onTextValueChange) {
-                onTextValueChange({ annotationId: text.id, textValue: localValue });
-            } else {
-                try {
-                    await db.annotations.update(text.id, { textValue: localValue });
-                } catch (e) { console.error(e); }
-            }
+            try {
+                await db.annotations.update(text.id, { textValue: localValue });
+            } catch (e) { console.error(e); }
         }
     };
 

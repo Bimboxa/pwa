@@ -83,7 +83,6 @@ export default function PanelPropertiesScope() {
   const annotationsV2 = useAnnotationsV2({
     caller: "PanelPropertiesScope",
     filterByBaseMapId: baseMapId,
-    excludeBgAnnotations: true,
     withQties: true,
     withEntity: true,
   });

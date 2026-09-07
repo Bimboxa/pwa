@@ -92,7 +92,6 @@ export default function DialogCreatePortfolio({ open, onClose, onCreate }) {
     excludeProfileTemplates: true,
     hideBaseMapAnnotations: true,
     excludeIsForBaseMapsListings: true,
-    excludeBgAnnotations: true,
     ignoreSolo: true,
     enabled: open,
   });

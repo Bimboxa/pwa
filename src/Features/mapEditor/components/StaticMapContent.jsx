@@ -130,9 +130,6 @@ function StaticMapContent({
 
   // helpers - annotations
 
-  const bgImageAnnotations = showBgImage
-    ? annotations.filter(({ nodeType }) => nodeType === "BG_IMAGE_TEXT")
-    : [];
   const baseMapAnnotations = useMemo(
     () =>
       annotations.filter(
@@ -190,44 +187,6 @@ function StaticMapContent({
             height={bgImageSize?.height}
           />
         )}
-
-        {bgImageAnnotations.map((annotation) => {
-          // Pour le texte BG, on garde la logique simple (ou on adapte si besoin)
-          if (hiddenAnnotationIds?.includes(annotation.id)) return null;
-          if (selectedNode?.nodeId === annotation.id) return null; // Masquer si édité
-
-          // Optimistic overlay : rendre invisible (opacity:0) au lieu de démonter
-          const hasPendingMove = !!getPendingMove(annotation.id);
-
-          return (
-            <g
-              key={annotation.id}
-              style={hasPendingMove ? { opacity: 0 } : undefined}
-            >
-              <NodeAnnotationStatic
-                annotation={annotation}
-                spriteImage={spriteImage}
-                imageSize={bgImageSize}
-                hovered={annotation.id === hoveredNode?.nodeId}
-                selected={false}
-                sizeVariant={sizeVariant}
-                containerK={bgPose.k}
-                baseMapMeterByPx={baseMapMeterByPx}
-                context="BG_IMAGE"
-                forceHideLabel={
-                  // Selected label: EditedObjectLayer renders the live copy
-                  // (resize, inline edit) — hide this static one underneath.
-                  selectedNode?.nodeId === "label::" + annotation.id ||
-                  selectedNodes?.some?.(
-                    (n) => n?.nodeId === "label::" + annotation.id
-                  ) ||
-                  hiddenAnnotationIds?.includes("label::" + annotation.id) ||
-                  !!getPendingMove("label::" + annotation.id)
-                }
-              />
-            </g>
-          );
-        })}
       </g>
 
       {/* --- BASE MAP LAYER --- */}

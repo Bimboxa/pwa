@@ -75,7 +75,6 @@ import useLegendItems from "Features/legend/hooks/useLegendItems";
 //import useCreateMarker from "Features/markers/hooks/useCreateMarker";
 import useCreateAnnotation from "Features/annotations/hooks/useCreateAnnotation";
 import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
-import useAutoBgImageRawTextAnnotations from "Features/bgImage/hooks/useAutoBgImageRawTextAnnotations";
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 import useSelectedAnnotationTemplateInMapEditor from "../hooks/useSelectedAnnotationTemplateInMapEditor";
 import useAutoResetBaseMapPose from "Features/bgImage/hooks/useAutoResetBaseMapPose";
@@ -168,7 +167,6 @@ export default function MainMapEditorV2() {
     addDemoAnnotations: false,
     filterByBaseMapId: mainBaseMap?.id,
     excludeListingsIds: hiddenListingsIds,
-    addBgImageTextAnnotations: true,
     withEntity: true,
     withLabel: true,
   });
@@ -261,7 +259,6 @@ export default function MainMapEditorV2() {
   // effects
 
   useAutoSelectMainBaseMap();
-  useAutoBgImageRawTextAnnotations();
   useAutoResetBaseMapPose();
   useAutoShowBgImage();
 

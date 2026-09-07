@@ -4,7 +4,6 @@ import { useDispatch } from "react-redux";
 import {
   setBgImageKeyInMapEditor,
   setShowBgImageInMapEditor,
-  setBgImageRawTextAnnotations,
 } from "Features/bgImage/bgImageSlice";
 import { setShowPrintableMap } from "Features/mapEditor/mapEditorSlice";
 
@@ -44,13 +43,6 @@ export default function PanelPdfReport() {
     console.log("[PanelPdfReport] handleItemChange", item);
     dispatch(setShowBgImageInMapEditor(item.show));
     dispatch(setBgImageKeyInMapEditor(item.imageKey));
-
-    // bgImageRawTextAnnotations
-    const raw = item?.metadata?.reduce((acc, cur) => {
-      if (cur.value) acc[cur.key] = cur.value;
-      return acc;
-    }, {});
-    dispatch(setBgImageRawTextAnnotations(raw));
   }
 
   async function handleGenerateClick() {

@@ -8,7 +8,6 @@ import { setAnchorPositionScale, setScaleInPx, setAngleInRad } from "../mapEdito
 import { setEnabledDrawingMode } from "../mapEditorSlice";
 import { setTempAnnotations, triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice";
 import { setBaseMapPoseInBg, setLegendFormat } from "../mapEditorSlice";
-import { setBgImageRawTextAnnotations } from "Features/bgImage/bgImageSlice";
 import { setShowCreateBaseMapSection } from "Features/mapEditor/mapEditorSlice";
 import { selectSelectedItems } from "Features/selection/selectionSlice";
 import { resetVersionCompare } from "Features/baseMapEditor/baseMapEditorSlice";
@@ -34,7 +33,6 @@ import useImageModeLabelsLayout from "Features/mapEditor/hooks/useImageModeLabel
 import useAutoSelectMainBaseMap from "../hooks/useAutoSelectMainBaseMap";
 import useAutoResetBaseMapPose from "Features/bgImage/hooks/useAutoResetBaseMapPose";
 import useAutoShowBgImage from "Features/bgImage/hooks/useAutoShowBgImage";
-import useAutoBgImageRawTextAnnotations from "Features/bgImage/hooks/useAutoBgImageRawTextAnnotations";
 import useHandleCommitDrawing from "../hooks/useHandleCommitDrawing";
 import useHandleCommitGuideLine from "../hooks/useHandleCommitGuideLine";
 import useHandleCommitIsoHeightLine from "../hooks/useHandleCommitIsoHeightLine";
@@ -330,18 +328,6 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
         showBgImageRef.current = showBgImage;
     }, [showBgImage]);
 
-
-    // bgImage annotations
-
-    useAutoBgImageRawTextAnnotations();
-    const bgImageRawTextAnnotations = useSelector((s) => s.bgImage.bgImageRawTextAnnotations);
-
-    function _updateBgImageRawTextAnnotation({ key, value }) {
-        dispatch(setBgImageRawTextAnnotations({
-            ...bgImageRawTextAnnotations,
-            [key]: value,
-        }));
-    }
 
     // baseMaps
 
@@ -1905,15 +1891,6 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     };
 
 
-    // handlers - text value change
-
-    const handleTextValueChange = ({ annotationId, textValue }) => {
-        _updateBgImageRawTextAnnotation({
-            key: annotationId,
-            value: textValue,
-        });
-    };
-
     // handlers - delete point
 
     const handleDeletePoint = async ({ annotationId, pointId }) => {
@@ -2205,7 +2182,6 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                         selectedNodes={selectedNodes}
                         baseMapMeterByPx={baseMap?.getMeterByPx()} // If needed for width calc
                         baseMapImageScale={baseMap?.getImageScale?.() ?? 1}
-                        onTextValueChange={handleTextValueChange}
                     />}
 
                     {/* PhotoPlan focus mask (photo baseMaps): blurs everything

@@ -3,8 +3,6 @@ import { createSlice } from "@reduxjs/toolkit";
 const bgImageInitialState = {
   showBgImageInMapEditor: false,
   bgImageKeyInMapEditor: "DEFAULT",
-  bgImageRawTextAnnotations: {}, // {key:value}
-  bgImageRawTextAnnotationsUpdatedAt: null,
 };
 
 export const bgImageSlice = createSlice({
@@ -17,17 +15,12 @@ export const bgImageSlice = createSlice({
     setBgImageKeyInMapEditor: (state, action) => {
       state.bgImageKeyInMapEditor = action.payload;
     },
-    setBgImageRawTextAnnotations: (state, action) => {
-      state.bgImageRawTextAnnotations = action.payload;
-      state.bgImageRawTextAnnotationsUpdatedAt = Date.now();
-    },
   },
 });
 
 export const {
   setShowBgImageInMapEditor,
   setBgImageKeyInMapEditor,
-  setBgImageRawTextAnnotations,
 } = bgImageSlice.actions;
 
 export default bgImageSlice.reducer;

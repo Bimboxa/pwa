@@ -1713,7 +1713,6 @@ export default function PopperMapListings() {
       isThreedViewer,
     filterByMainBaseMap: true,
     hideBaseMapAnnotations: true,
-    excludeBgAnnotations: true,
     withQties: true,
     excludeIsForBaseMapsListings: viewerKey !== "BASE_MAPS",
     onlyIsForBaseMapsListings: viewerKey === "BASE_MAPS",

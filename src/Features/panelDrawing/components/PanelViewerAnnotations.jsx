@@ -76,7 +76,6 @@ export default function PanelViewerAnnotations() {
     filterByMainBaseMap: !isAllScope,
     filterBySelectedScope: true,
     hideBaseMapAnnotations: true,
-    excludeBgAnnotations: true,
     excludeIsForBaseMapsListings: true,
     ignoreSolo: true,
     keepHiddenTemplates: true,

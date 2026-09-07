@@ -3593,8 +3593,7 @@ const InteractionLayer = forwardRef(({
       ) {
         e.preventDefault();
         // Keep only real template-backed annotations (those carrying an
-        // annotationTemplateId from the PopperMapListings). This drops the
-        // cartouche / BG image texts (nodeType "BG_IMAGE_TEXT") and any other
+        // annotationTemplateId from the PopperMapListings). This drops any
         // helper overlay that isn't a user-selectable annotation.
         //
         // Also re-apply the layer-visibility filter so the selection can never

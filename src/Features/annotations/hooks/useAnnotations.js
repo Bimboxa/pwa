@@ -8,7 +8,6 @@ import { useSelector } from "react-redux";
 import { useLiveQuery } from "dexie-react-hooks";
 
 import demoAnnotations from "../data/demoAnnotations";
-import useBgImageTextAnnotations from "Features/bgImage/hooks/useBgImageTextAnnotations";
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
 
 import db from "App/db/db";
@@ -23,7 +22,6 @@ export default function useAnnotations(options) {
   const filterByBaseMapId = options?.filterByBaseMapId;
   const filterByListingId = options?.filterByListingId;
   const excludeListingsIds = options?.excludeListingsIds;
-  const addBgImageTextAnnotations = options?.addBgImageTextAnnotations;
 
   const withEntity = options?.withEntity;
   const withLabel = options?.withLabel;
@@ -40,10 +38,6 @@ export default function useAnnotations(options) {
   const editedAnnotation = useSelector((s) => s.annotations.editedAnnotation);
   const isEditingAnnotation = useSelector(
     (s) => s.annotations.isEditingAnnotation
-  );
-  const bgImageTextAnnotations = useBgImageTextAnnotations();
-  const bgImageRawTextAnnotationsUpdatedAt = useSelector(
-    (s) => s.bgImage.bgImageRawTextAnnotationsUpdatedAt
   );
 
   const annotationTemplatesUpdatedAt = useSelector(
@@ -171,7 +165,6 @@ export default function useAnnotations(options) {
     filterByListingId,
     filterByBaseMapId,
     excludeListingsIds,
-    bgImageRawTextAnnotationsUpdatedAt,
   ]);
 
   // add annotation templates
@@ -186,10 +179,6 @@ export default function useAnnotations(options) {
 
   if (addDemoAnnotations)
     annotations = [...(annotations ?? []), ...demoAnnotations];
-
-  if (addBgImageTextAnnotations) {
-    annotations = [...(annotations ?? []), ...bgImageTextAnnotations];
-  }
 
   // temp annotations
   if (tempAnnotations.length > 0) {

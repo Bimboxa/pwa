@@ -12,7 +12,6 @@ import {
 import {
   setBgImageKeyInMapEditor,
   setShowBgImageInMapEditor,
-  setBgImageRawTextAnnotations,
 } from "Features/bgImage/bgImageSlice";
 
 import { setSelectedItem } from "Features/selection/selectionSlice";
@@ -88,12 +87,6 @@ export default function useOnEntityClick() {
 
         if (entity.bgImageKey)
           dispatch(setBgImageKeyInMapEditor(entity.bgImageKey));
-
-        if (entity.bgImageRawTextAnnotations) {
-          dispatch(
-            setBgImageRawTextAnnotations(entity.bgImageRawTextAnnotations)
-          );
-        }
 
         if (entity.legendFormat) dispatch(setLegendFormat(entity.legendFormat));
 

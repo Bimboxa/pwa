@@ -38,7 +38,7 @@ export default function useSelectedAnnotation() {
   // If we have a selected item in the new slice, prioritize it
   if (selectedItem?.nodeType === "ANNOTATION") {
     selectedAnnotationId = selectedItem.nodeId;
-  } else if (selectedItem?.context === "BG_IMAGE" || selectedItem?.nodeType === "BG_IMAGE_TEXT") {
+  } else if (selectedItem?.context === "BG_IMAGE") {
     // Handle other types if they map to annotations
     selectedAnnotationId = selectedItem.nodeId;
   }

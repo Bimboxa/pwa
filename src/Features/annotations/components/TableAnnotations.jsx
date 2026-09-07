@@ -20,7 +20,6 @@ export default function TableAnnotations() {
     const annotations = useAnnotationsV2({
         caller: "TableAnnotations",
         filterByListingId: listingId,
-        excludeBgAnnotations: true,
         withQties: true,
         withEntity: true,
     });

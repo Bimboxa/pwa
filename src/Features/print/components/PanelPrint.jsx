@@ -69,7 +69,6 @@ export default function PanelPrint() {
     withEntity: true,
     excludeIsForBaseMapsListings: true,
     hideBaseMapAnnotations: true,
-    excludeBgAnnotations: true,
   });
 
   const templateRankById = useTemplateRankById();

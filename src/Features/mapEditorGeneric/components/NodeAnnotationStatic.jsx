@@ -47,7 +47,6 @@ function NodeAnnotationStatic({
   showBgImage,
   context, // BG_IMAGE or BASE_MAP
   printMode,
-  onTextValueChange,
   forceHideLabel,
   highlightConnectedSegments,
   selectMode,
@@ -83,8 +82,7 @@ function NodeAnnotationStatic({
     imageSize,
     showBgImage,
     context,
-    onTextValueChange,
-    printMode,
+      printMode,
     forceHideLabel,
     highlightConnectedSegments,
     selectMode,

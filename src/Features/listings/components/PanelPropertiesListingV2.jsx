@@ -294,7 +294,6 @@ export default function PanelPropertiesListingV2({ listing }) {
   const annotationTemplateQtiesById = useAnnotationTemplateQtiesById();
   const listingAnnotations = useAnnotationsV2({
     filterByListingId: listing?.id,
-    excludeBgAnnotations: true,
     withQties: true,
     withEntity: true,
     caller: "PanelPropertiesListingV2",

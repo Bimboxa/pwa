@@ -230,7 +230,6 @@ export default function PanelPovFilters() {
     caller: "PanelPovFilters",
     filterByMainBaseMap: true,
     hideBaseMapAnnotations: true,
-    excludeBgAnnotations: true,
     excludeIsForBaseMapsListings: true,
     ignoreSolo: true,
     keepHiddenTemplates: true,

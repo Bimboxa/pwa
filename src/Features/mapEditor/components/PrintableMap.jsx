@@ -28,9 +28,6 @@ const PrintableMap = forwardRef(({
 
     // helpers
 
-    const bgImageAnnotations = showBgImage
-        ? annotations.filter(({ nodeType }) => nodeType === "BG_IMAGE_TEXT")
-        : [];
     // Openings last: their white gap must cover the host wall (see
     // StaticMapContent).
     const baseMapAnnotations = sortOpeningsLast(
@@ -62,17 +59,6 @@ const PrintableMap = forwardRef(({
                         width={bgImageSize?.width}
                         height={bgImageSize?.height}
                     />
-                    {bgImageAnnotations.map((annotation) => (
-                        <NodeAnnotationStatic
-                            key={annotation.id}
-                            annotation={annotation}
-                            spriteImage={spriteImage}
-                            imageSize={bgImageSize}
-                            containerK={bgPose.k}
-                            baseMapMeterByPx={baseMapMeterByPx}
-                            printMode={true}
-                        />
-                    ))}
                 </g>
             )}
 

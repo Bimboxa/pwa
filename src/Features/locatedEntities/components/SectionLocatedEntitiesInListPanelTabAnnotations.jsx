@@ -15,7 +15,6 @@ export default function SectionLocatedEntitiesInListPanelTabAnnotations() {
     caller: "SectionLocatedEntitiesInListPanelTabAnnotations",
     withQties: true,
     filterBySelectedListing: true,
-    excludeBgAnnotations: true,
     groupByBaseMap: true
   });
 
