@@ -72,6 +72,7 @@ export default function useCreateDetailsPortfolio() {
             pageNumber: createdFrom.pageNumber,
             rotation: createdFrom.rotation ?? 0,
             thumbnail: record.image?.thumbnail ?? null,
+            detailBaseMapId: record.id,
           },
           detailRef: record.detailRef ?? null,
           details: [],

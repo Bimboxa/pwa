@@ -15,17 +15,24 @@ import useDisplayedPortfolio from "Features/portfolios/hooks/useDisplayedPortfol
 import useTitleBlockManifest from "Features/titleBlocks/hooks/useTitleBlockManifest";
 import usePortfolioPageFrame from "Features/portfolios/hooks/usePortfolioPageFrame";
 
+import useFolioDetailBaseMap from "../hooks/useFolioDetailBaseMap";
+
 import PortfolioHeaderSvg from "./PortfolioHeaderSvg";
 import PortfolioTitleBarSvg from "./PortfolioTitleBarSvg";
 import PortfolioDetailRefSvg from "./PortfolioDetailRefSvg";
+import FolioAnnotationsSvg from "./FolioAnnotationsSvg";
 
 import getPageDimensions from "../utils/getPageDimensions";
 import { getCartoucheRectBottomRight } from "../utils/getPageLayout";
+import getFolioAnnotationsRect, {
+  getDetailPageDims,
+} from "../utils/getFolioAnnotationsRect";
 
 import db from "App/db/db";
 
 // Folio page (type "FOLIO_PAGE"): renders the PDF page referenced by
-// page.folio as a full-bleed image, with the cartouche bottom-right on top.
+// page.folio as a full-bleed image, the annotations drawn on the matching
+// detail baseMap on top of it, then the cartouche bottom-right.
 // Falls back to the snapshot thumbnail stored on the folio when the source
 // PDF is not available locally (post-Krto-import). No containers.
 export default function PortfolioFolioPageSvg({
@@ -49,6 +56,7 @@ export default function PortfolioFolioPageSvg({
   const { value: portfolio } = useDisplayedPortfolio();
   const manifest = useTitleBlockManifest(portfolio);
   const pageFrame = usePortfolioPageFrame();
+  const detailBaseMap = useFolioDetailBaseMap(page);
 
   const resource = useLiveQuery(async () => {
     if (!folio?.resourceId) return null;
@@ -102,8 +110,14 @@ export default function PortfolioFolioPageSvg({
   const isSelected = selectedItems.some(
     (i) => i.id === page.id && i.type === "PORTFOLIO_PAGE"
   );
-  const dims = pdfDims ?? getPageDimensions(page.format, page.orientation);
+  // real PDF dims, else dims derived from the detail baseMap (dpi + crop),
+  // else the page format — the last one only sizes the thumbnail fallback
+  const dims =
+    pdfDims ??
+    getDetailPageDims(detailBaseMap) ??
+    getPageDimensions(page.format, page.orientation);
   const src = imageUrl ?? folio?.thumbnail ?? null;
+  const annotationsRect = getFolioAnnotationsRect(detailBaseMap, dims);
   // margin consistent with framed pages; the frame itself is not rendered on
   // folio pages (the source PDF already carries its own frame)
   const cartouche = getCartoucheRectBottomRight(
@@ -148,6 +162,7 @@ export default function PortfolioFolioPageSvg({
       >
         {src && (
           <image
+            data-folio-image
             href={src}
             x="0"
             y="0"
@@ -166,6 +181,9 @@ export default function PortfolioFolioPageSvg({
           >
             {missingFileS}
           </text>
+        )}
+        {detailBaseMap && annotationsRect && (
+          <FolioAnnotationsSvg baseMap={detailBaseMap} rect={annotationsRect} />
         )}
         {cartouche && (
           <PortfolioHeaderSvg

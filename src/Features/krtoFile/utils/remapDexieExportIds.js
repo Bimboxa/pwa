@@ -324,9 +324,18 @@ export default function remapDexieExportIds(jsonData, opts) {
         }
       }
 
-      // FOLIO_PAGE portfolio pages carry the same nested folio resource ref.
-      if (tableName === "portfolioPages" && row.folio?.resourceId) {
-        row.folio.resourceId = remapId("resources", row.folio.resourceId);
+      // FOLIO_PAGE portfolio pages carry the same nested folio resource ref,
+      // plus the detail baseMap whose annotations are overlaid on the page.
+      if (tableName === "portfolioPages" && row.folio) {
+        if (row.folio.resourceId) {
+          row.folio.resourceId = remapId("resources", row.folio.resourceId);
+        }
+        if (row.folio.detailBaseMapId) {
+          row.folio.detailBaseMapId = remapId(
+            "baseMaps",
+            row.folio.detailBaseMapId
+          );
+        }
       }
 
       // Detail baseMaps: nested resource ref in createdFrom. pdfFileName is

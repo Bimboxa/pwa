@@ -75,11 +75,46 @@ function drawTitleBarOnPdfPage(
   }
 }
 
+// Captures the annotations overlaid on a folio page (FolioAnnotationsSvg,
+// tagged data-folio-annotations) as a full-page TRANSPARENT PNG: everything
+// else in the page svg (PDF image, cartouche, title bar, detail ref, texts)
+// is hidden during the capture. Returns null when the page draws no
+// annotation. The PNG is later stamped on the vector copy of the PDF page.
+async function captureFolioAnnotationsPng(pageId, pixelRatio) {
+  const svgEl = document.querySelector(
+    `svg[data-portfolio-page-id="${pageId}"]`
+  );
+  const overlay = svgEl?.querySelector("[data-folio-annotations]");
+  if (!overlay || overlay.childElementCount === 0) return null;
+
+  const hiddenEls = Array.from(svgEl.children).filter((el) => el !== overlay);
+  hiddenEls.forEach((el) => (el.style.visibility = "hidden"));
+  const prevBackground = svgEl.style.background;
+  svgEl.style.background = "transparent";
+  try {
+    const blob = await getImageFromSvg(svgEl, { pixelRatio });
+    return blob ? await blob.arrayBuffer() : null;
+  } catch (err) {
+    console.error("[portfolio pdf] folio annotations capture failed", err);
+    return null;
+  } finally {
+    svgEl.style.background = prevBackground;
+    hiddenEls.forEach((el) => (el.style.visibility = ""));
+  }
+}
+
 export default function useDownloadPortfolioPdf() {
   const [loading, setLoading] = useState(false);
   const appConfig = useAppConfig();
 
-  async function download({ portfolio, project, pages, spriteImage, portfolioLogoUrl, hdExport }) {
+  async function download({
+    portfolio,
+    project,
+    pages,
+    spriteImage,
+    portfolioLogoUrl,
+    hdExport,
+  }) {
     if (!pages?.length) return;
     setLoading(true);
 
@@ -137,7 +172,7 @@ export default function useDownloadPortfolioPdf() {
           );
           // folio.rotation is ABSOLUTE (it replaces the page's intrinsic
           // /Rotate, same convention as renderPageToPngBlob in the app)
-          const rotation = ((page.folio?.rotation ?? 0) % 360 + 360) % 360;
+          const rotation = (((page.folio?.rotation ?? 0) % 360) + 360) % 360;
           const rot = rotation % 90 === 0 ? rotation : 0;
           let folioDoc;
           let folioMeta = { type: "FOLIO" }; // fallback: page kept, no cartouche
@@ -209,6 +244,12 @@ export default function useDownloadPortfolioPdf() {
                 titleBar: null,
               };
             }
+            // annotations of the detail baseMap, drawn on screen over the
+            // PDF page: captured here (DOM), stamped in the vector pass
+            folioMeta.annotationsPng = await captureFolioAnnotationsPng(
+              page.id,
+              hdExport ? 4 : 2
+            );
           } catch (err) {
             // e.g. MissingPageContentsEmbeddingError on content-less pages
             console.warn(
@@ -348,6 +389,15 @@ export default function useDownloadPortfolioPdf() {
       );
       const allPages = pdfDoc.getPages();
 
+      for (const meta of pageMetas) {
+        if (!meta.annotationsPng) continue;
+        try {
+          meta.annotationsImage = await pdfDoc.embedPng(meta.annotationsPng);
+        } catch (err) {
+          console.error("[portfolio pdf] folio annotations embed failed", err);
+        }
+      }
+
       allPages.forEach((pdfPage, index) => {
         const meta = pageMetas[index];
         if (!meta) return;
@@ -364,6 +414,17 @@ export default function useDownloadPortfolioPdf() {
         }
 
         if (meta.type === "PLAN" || meta.type === "FOLIO") {
+          // FOLIO: annotations overlay, full page (captured at the on-screen
+          // page dims = the normalized page dims), under title + cartouche
+          if (meta.annotationsImage) {
+            const { width, height } = pdfPage.getSize();
+            pdfPage.drawImage(meta.annotationsImage, {
+              x: 0,
+              y: 0,
+              width,
+              height,
+            });
+          }
           if (meta.titleFormat?.show && meta.titleText) {
             drawTitleBarOnPdfPage(pdfPage, {
               rect: meta.titleFormat.rect,
