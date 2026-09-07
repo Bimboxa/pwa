@@ -1,5 +1,5 @@
 import { useRef, useState, useEffect, useMemo } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 
 import {
   setSelectedViewerKey,
@@ -10,10 +10,8 @@ import {
   setSelectedBaseMapsListingId,
 } from "Features/mapEditor/mapEditorSlice";
 import { setSelectedListingId } from "Features/listings/listingsSlice";
-import { setSelectedEntityId } from "Features/entities/entitiesSlice";
 import {
   setSelectedItem,
-  selectSelectedItem,
 } from "Features/selection/selectionSlice";
 
 import { Box, Typography, Button } from "@mui/material";
@@ -38,7 +36,6 @@ export default function SectionBaseMap({
 
   // data
 
-  const selectedItem = useSelector(selectSelectedItem);
 
   // state
 
@@ -64,9 +61,6 @@ export default function SectionBaseMap({
   const imageWidth = imageSize?.width;
   const imageHeight = imageSize?.height;
   const containerK = imageWidth && containerWidth ? containerWidth / imageWidth : 1;
-
-  const selectedEntityId =
-    selectedItem?.type === "ENTITY" ? selectedItem?.entityId : null;
 
   const nonLabelAnnotations = useMemo(
     () => annotations?.filter((a) => a.type !== "LABEL") ?? [],
@@ -185,26 +179,8 @@ export default function SectionBaseMap({
     dispatch(setSelectedViewerKey("MAP"));
   }
 
-  function handleSvgClick(e) {
-    const hit = e.target.closest?.("[data-node-entity-id]");
-    if (hit) {
-      const entityId = hit.dataset.nodeEntityId;
-      const listingId = hit.dataset.nodeListingId;
-      if (entityId) {
-        const newId = selectedEntityId === entityId ? null : entityId;
-        dispatch(setSelectedEntityId(newId));
-        dispatch(
-          setSelectedItem(
-            newId
-              ? { type: "ENTITY", entityId: newId, listingId }
-              : null
-          )
-        );
-        return;
-      }
-    }
+  function handleSvgClick() {
     // Click on empty area -> deselect
-    dispatch(setSelectedEntityId(null));
     dispatch(setSelectedItem(null));
   }
 
@@ -245,10 +221,6 @@ export default function SectionBaseMap({
                     imageSize={imageSize}
                     baseMapMeterByPx={meterByPx}
                     containerK={containerK}
-                    selected={
-                      !!annotation.entityId &&
-                      annotation.entityId === selectedEntityId
-                    }
                     printMode
                   />
                 ))}
@@ -275,10 +247,6 @@ export default function SectionBaseMap({
                     imageSize={imageSize}
                     baseMapMeterByPx={meterByPx}
                     containerK={containerK}
-                    selected={
-                      !!annotation.entityId &&
-                      annotation.entityId === selectedEntityId
-                    }
                     printMode
                   />
                 ))}

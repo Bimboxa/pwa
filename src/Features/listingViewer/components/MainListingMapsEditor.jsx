@@ -33,7 +33,6 @@ export default function MainListingMapsEditor({ listing, showAllListings }) {
     excludeIsForBaseMapsListings: true,
     withQties: true,
     withListingName: showAllListings,
-    withEntity: true,
   });
 
   // state

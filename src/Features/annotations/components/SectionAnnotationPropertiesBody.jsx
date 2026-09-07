@@ -6,9 +6,6 @@ import { setAnnotationPropertiesTab } from "Features/selection/selectionSlice";
 
 import useSelectedAnnotation from "Features/annotations/hooks/useSelectedAnnotation";
 import useSelectedAnnotationPart from "Features/annotations/hooks/useSelectedAnnotationPart";
-import useSelectedEntity from "Features/entities/hooks/useSelectedEntity";
-import useEntityFormTemplate from "Features/entities/hooks/useEntityFormTemplate";
-import useUpdateEntity from "Features/entities/hooks/useUpdateEntity";
 
 import { Box, Typography, Tabs, Tab } from "@mui/material";
 
@@ -17,8 +14,6 @@ import SectionAnnotationPropertiesContent from "./SectionAnnotationPropertiesCon
 import SectionAnnotationLabelContent from "./SectionAnnotationLabelContent";
 import SectionAnnotationPartPropertiesContent from "./SectionAnnotationPartPropertiesContent";
 import SectionMultiPartProperties from "./SectionMultiPartProperties";
-import FormEntity from "Features/entities/components/FormEntity";
-import SectionEntityAnnotations from "Features/entities/components/SectionEntityAnnotations";
 import SectionAnnotationZones from "Features/zonings/components/SectionAnnotationZones";
 import SectionAnnotationPhotoPlan from "Features/photoPlans/components/SectionAnnotationPhotoPlan";
 import SectionAnnotationFolioContent from "Features/detailFolio/components/SectionAnnotationFolioContent";
@@ -44,7 +39,6 @@ function getTabs(annotation) {
     { id: "PROPERTIES", label: "Propriété" },
     ...(showLabelTab ? [{ id: "LABEL", label: "Etiquette" }] : []),
     ...(annotation?.type === "DETAIL" ? [{ id: "FOLIO", label: "Folio" }] : []),
-    { id: "ENTITY", label: "Objet" },
   ];
 }
 
@@ -76,20 +70,6 @@ export default function SectionAnnotationPropertiesBody({
     !annotationProp || selectedAnnotation?.id === annotationProp.id;
   const hasPart = partApplies && part && part.kind && part.kind !== "NONE";
   const tab = useSelector((s) => s.selection.annotationPropertiesTab);
-  const { value: entity } = useSelectedEntity({
-    withImages: true,
-    withAnnotations: true,
-    // Prop mode: resolve the entity from the annotation itself (the
-    // selection may point elsewhere or be empty).
-    ...(annotationProp
-      ? {
-          entityId: annotationProp.entityId,
-          fromListingId: annotationProp.listingId,
-        }
-      : {}),
-  });
-  const template = useEntityFormTemplate();
-  const updateEntity = useUpdateEntity();
 
   // helpers
 
@@ -104,10 +84,6 @@ export default function SectionAnnotationPropertiesBody({
 
   function handleTabChange(e, newIdx) {
     dispatch(setAnnotationPropertiesTab(tabs[newIdx]?.id));
-  }
-
-  async function handleEntityChange(entity) {
-    await updateEntity(entity?.id, entity);
   }
 
   // render - no selection
@@ -171,32 +147,6 @@ export default function SectionAnnotationPropertiesBody({
           <SectionAnnotationFolioContent annotation={annotation} />
         )}
 
-        {!hasPart &&
-          effectiveTab === "ENTITY" &&
-          (entity ? (
-            <>
-              <FormEntity
-                template={template}
-                entity={entity}
-                onEntityChange={handleEntityChange}
-                sectionContainerEl={containerRef?.current}
-              />
-              {entity?.annotations?.length > 0 && (
-                <Box sx={{ py: 1 }}>
-                  <SectionEntityAnnotations
-                    entity={entity}
-                    selectedAnnotationId={annotation?.id}
-                  />
-                </Box>
-              )}
-            </>
-          ) : (
-            <Box sx={{ p: 2 }}>
-              <Typography variant="body2" color="text.secondary">
-                Aucun objet associé
-              </Typography>
-            </Box>
-          ))}
       </BoxFlexVStretch>
     </BoxFlexVStretch>
   );

@@ -19,7 +19,6 @@ export default function ToolbarSelectedEntity() {
 
   const { value: entity } = useSelectedEntity({
     withImages: true,
-    withAnnotations: true,
   });
   const annotationTemplates = useAnnotationTemplatesByProject();
   const baseMapId = useSelector((s) => s.mapEditor.selectedBaseMapId);

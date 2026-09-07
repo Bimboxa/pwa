@@ -50,7 +50,6 @@ export default function ElevationBaseMapViewer({
   const rawAnnotations = useAnnotationsV2({
     enabled: Boolean(baseMapId),
     filterByBaseMapId: baseMapId,
-    withEntity: true,
     withQties: true,
     sortByOrderIndex: true,
     // Drop the baseMap's own annotations (title-block / cartouche items in

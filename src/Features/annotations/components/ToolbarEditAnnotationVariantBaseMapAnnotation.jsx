@@ -6,7 +6,6 @@ import { setCanTransformNode } from "Features/mapEditor/mapEditorSlice";
 
 import useSelectedAnnotation from "../hooks/useSelectedAnnotation";
 import useUpdateAnnotation from "../hooks/useUpdateAnnotation";
-import useUpdateEntity from "Features/entities/hooks/useUpdateEntity";
 
 import { Box, IconButton, Paper } from "@mui/material";
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator";
@@ -31,7 +30,6 @@ export default function ToolbarEditAnnotationVariantBaseMapAnnotation() {
   // data
 
   const updateAnnotation = useUpdateAnnotation();
-  const updateEntity = useUpdateEntity();
 
   // helpers - show
 
@@ -53,12 +51,6 @@ export default function ToolbarEditAnnotationVariantBaseMapAnnotation() {
   }
   async function handleChange(newAnnotation) {
     await updateAnnotation(newAnnotation);
-  }
-
-  async function handleEntityLabelChange(label) {
-    const entityId = selectedAnnotation?.entityId;
-    if (!entityId) return;
-    await updateEntity(entityId, { label });
   }
 
   return (

@@ -27,7 +27,6 @@ export default function ButtonAutoLayoutLabels({ basePose }) {
         addDemoAnnotations: false,
         filterByBaseMapId: mainBaseMap?.id,
         excludeListingsIds: hiddenListingsIds,
-        withEntity: true,
         withLabel: true,
     });
 

@@ -42,7 +42,6 @@ export default function useSelectAnnotationFromPanel() {
         nodeId: annotation.id,
         annotationType: annotation.type,
         listingId: annotation.listingId,
-        entityId: annotation.entityId,
         annotationTemplateId: annotation.annotationTemplateId,
       })
     );

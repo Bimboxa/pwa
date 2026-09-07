@@ -2072,7 +2072,6 @@ const InteractionLayer = forwardRef(({
         type: "NODE",
         nodeType: "ANNOTATION",
         annotationType: ann?.type,
-        entityId: ann?.entityId,
         listingId: ann?.listingId,
         annotationTemplateId: ann?.annotationTemplateId,
         pointId: null,
@@ -3629,7 +3628,6 @@ const InteractionLayer = forwardRef(({
           type: "NODE",
           nodeType: "ANNOTATION",
           annotationType: ann?.type,
-          entityId: ann?.entityId,
           listingId: ann?.listingId,
           annotationTemplateId: ann?.annotationTemplateId,
           pointId: null,
@@ -5794,7 +5792,6 @@ const InteractionLayer = forwardRef(({
               type: "NODE",
               nodeType: "ANNOTATION",
               annotationType: annotation?.type,
-              entityId: annotation?.entityId,
               listingId: annotation?.listingId,
               annotationTemplateId: annotation?.annotationTemplateId,
               partId: null,
@@ -5976,7 +5973,6 @@ const InteractionLayer = forwardRef(({
             nodeId: hit.dataset.nodeId,
             nodeType: hit.dataset.nodeType, // "ANNOTATION"
             annotationType: hit.dataset.annotationType, // "POLYLINE", "MARKER", etc.
-            entityId: hit.dataset.nodeEntityId,
             listingId: hit.dataset.nodeListingId,
             annotationTemplateId: annotation?.annotationTemplateId,
             nodeContext: hit.dataset.nodeContext, // Optional but useful for EditedObjectLayer
@@ -7264,7 +7260,6 @@ const InteractionLayer = forwardRef(({
         type: "NODE",
         nodeType: "ANNOTATION",
         annotationType: annotation?.type,
-        entityId: annotation?.entityId,
         listingId: annotation?.listingId,
         annotationTemplateId: annotation?.annotationTemplateId,
         nodeContext: dragAnnotationState.nodeContext,

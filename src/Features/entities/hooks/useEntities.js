@@ -10,7 +10,6 @@ import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 import getSortedItems from "Features/misc/utils/getSortedItems";
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
 import { setFilterByMainBaseMap } from "Features/mapEditor/mapEditorSlice";
-import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
 import getEntityComputedFieldsAsync from "../services/getEntityComputedFieldsAsync";
@@ -22,13 +21,10 @@ export default function useEntities(options) {
 
   const withImages = options?.withImages;
   const withMarkers = options?.withMarkers;
-  const withAnnotations = options?.withAnnotations;
   const withComputedFields = options?.withComputedFields;
-  const withQties = options?.withQties;
 
   const filterByListingsKeys = options?.filterByListingsKeys;
   const filterByListingsIds = options?.filterByListingsIds;
-  const filterByMainBaseMap = options?.filterByMainBaseMap;
 
   const sortBy = options?.sortBy;
 
@@ -51,7 +47,6 @@ export default function useEntities(options) {
   const selectedListing = listings?.find((l) => l?.id === selectedListingId);
   const entitiesUpdatedAt = useSelector((s) => s.entities.entitiesUpdatedAt);
   const annotationTemplates = useAnnotationTemplates();
-  const annotations = useAnnotationsV2({ caller: "useEntities", withQties });
 
   // helpers
   const annotationTemplatesById = getItemsByKey(annotationTemplates, "id");
@@ -256,24 +251,7 @@ export default function useEntities(options) {
     entitiesUpdatedAt,
     baseMapId,
     withMarkers,
-    filterByMainBaseMap,
   ]);
-
-  if (withAnnotations) {
-    entities = entities?.map((entity) => {
-      return {
-        ...entity,
-        annotations: annotations?.filter((a) => a.entityId === entity.id),
-      };
-    });
-  }
-
-  // filter by baseMapId
-  if (filterByMainBaseMap) {
-    entities = entities?.filter((entity) => {
-      return entity?.annotations?.map((a) => a.baseMapId).includes(baseMapId);
-    });
-  }
 
   return { value: entities, loading };
 }

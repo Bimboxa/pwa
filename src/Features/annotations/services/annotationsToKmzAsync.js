@@ -1,13 +1,9 @@
 import JSZip from "jszip";
-import db from "App/db/db";
-import getAnnotationEntityAsync from "Features/entities/services/getAnnotationEntityAsync";
-import getEntityWithImagesAsync from "Features/entities/services/getEntityWithImagesAsync";
 
 export default async function annotationsToKmzAsync({
   annotations,
   baseMap,
   spriteImage,
-  appConfig,
 }) {
   // data
 
@@ -188,49 +184,6 @@ export default async function annotationsToKmzAsync({
     }
   }
 
-  // Helper: Get entity images
-  async function getEntityImages(entity, annotationId) {
-    if (!entity) return [];
-
-    const images = [];
-    const entriesWithImages = Object.entries(entity).filter(
-      ([key, value]) => value?.isImage && value?.fileName
-    );
-
-    for (const [key, value] of entriesWithImages) {
-      const file = await db.files.get(value.fileName);
-      if (file && file.fileArrayBuffer) {
-        const blob = new Blob([file.fileArrayBuffer], {
-          type: file.fileMime || "image/png",
-        });
-
-        // Convert blob to base64 data URL for embedding in KML description
-        const dataUrl = await new Promise((resolve) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result);
-          reader.readAsDataURL(blob);
-        });
-
-        // Generate unique filename using annotation ID and key
-        const originalFileName = value.fileName || `image_${key}`;
-        const extension = originalFileName.split(".").pop() || "png";
-        const baseName =
-          originalFileName.replace(/\.[^/.]+$/, "") || `image_${key}`;
-        const sanitizedBaseName = baseName.replace(/[^a-zA-Z0-9_-]/g, "_");
-        const uniqueFileName = `img_${annotationId}_${sanitizedBaseName}.${extension}`;
-
-        images.push({
-          blob,
-          fileName: uniqueFileName,
-          dataUrl, // Add data URL for use in descriptions
-          key,
-        });
-      }
-    }
-
-    return images;
-  }
-
   // Helper: Escape XML
   function escapeXml(unsafe) {
     return unsafe
@@ -243,45 +196,12 @@ export default async function annotationsToKmzAsync({
 
   // Helper: Create KML for annotation
   async function createAnnotationKML(annotation, index) {
-    const entity = appConfig
-      ? await getAnnotationEntityAsync(annotation, appConfig)
-      : null;
+    // Name / description: the annotation's own label (no entity link).
+    const placemarkName = annotation.label || `Annotation ${index + 1}`;
+    const placemarkDescription = annotation.label || placemarkName;
 
-    // Get entity data if not provided
-    let entityData = entity;
-    if (!entityData && annotation.entityId && annotation.listingId) {
-      const listing = await db.listings.get(annotation.listingId);
-      const table = listing?.table;
-      if (table) {
-        const entityRaw = await db[table].get(annotation.entityId);
-        if (entityRaw) {
-          const { entityWithImages } = await getEntityWithImagesAsync(
-            entityRaw
-          );
-          entityData = entityWithImages;
-        }
-      }
-    }
-
-    // Get name and description for KML
-    // Name: use entity.num if available, otherwise fallback to label or index
-    const placemarkName =
-      entityData?.num || annotation.label || `Annotation ${index + 1}`;
-
-    // Description: combine annotation.label and entity.text
-    const descriptionParts = [];
-    if (annotation.label) {
-      descriptionParts.push(annotation.label);
-    }
-    if (entityData?.text) {
-      descriptionParts.push(entityData.text);
-    }
-    const placemarkDescription = descriptionParts.join("\n") || placemarkName;
-
-    // Get entity images
-    const entityImages = entityData
-      ? await getEntityImages(entityData, annotation.id || `ann_${index}`)
-      : [];
+    // Images used to come from the linked entity; annotations carry none.
+    const entityImages = [];
 
     // Create colored circle icon with sprite in center for MARKER type
     let iconBlob = null;
@@ -334,21 +254,6 @@ export default async function annotationsToKmzAsync({
         }
       });
     }
-
-    // Add additional entity description if available and different
-    if (
-      entityData?.description &&
-      !descriptionParts.includes(entityData.description)
-    ) {
-      description += `<p>${escapeXml(String(entityData.description))}</p>`;
-    }
-
-    // Add entity images to description using file references from the ZIP
-    // Note: Some KMZ viewers may not support local file references and will show warnings
-    entityImages.forEach((img, idx) => {
-      description += `<p><img src="files/${img.fileName}" alt="Image ${idx + 1
-        }" style="max-width: 500px;"/></p>`;
-    });
 
     description += `</div>]]>`;
 

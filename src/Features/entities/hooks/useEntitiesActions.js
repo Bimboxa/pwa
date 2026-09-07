@@ -22,7 +22,6 @@ export default function useEntitiesActions() {
   const selectedEntityId = useSelector((s) => s.entities.selectedEntityId);
   const { value: selectedEntity } = useSelectedEntity({
     withImages: true,
-    withAnnotations: true,
   });
 
   // main

@@ -21,8 +21,6 @@ import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import BlockBottomActionsInPanel from "./BlockBottomActionsInPanel";
 import BlockEntityInPanel from "./BlockEntityInPanel";
 import HeaderEntityInPanel from "./HeaderEntityInPanel";
-import SectionEntityAnnotationInRightPanel from "./SectionEntityAnnotationInRightPanel";
-import SectionEntityAnnotations from "./SectionEntityAnnotations";
 
 
 export default function PanelEditEntity() {
@@ -31,7 +29,7 @@ export default function PanelEditEntity() {
 
   // data
 
-  const entity = useEntity({ withAnnotations: true });
+  const entity = useEntity();
 
   const template = useEntityFormTemplate();
   console.log("debug_1011_entity", entity, template);

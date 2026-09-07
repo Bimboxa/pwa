@@ -3,13 +3,10 @@ import { useSelector } from "react-redux";
 
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 
-import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
-
 import { useLiveQuery } from "dexie-react-hooks";
 
 import db from "App/db/db";
 
-import getItemsByKey from "Features/misc/utils/getItemsByKey";
 import { selectSelectedItem } from "Features/selection/selectionSlice";
 
 export default function useSelectedEntity(options) {
@@ -18,7 +15,6 @@ export default function useSelectedEntity(options) {
   const withImages = options?.withImages;
   const fromListingId = options?.fromListingId;
   const entityId = options?.entityId;
-  const withAnnotations = options?.withAnnotations;
 
   // state
 
@@ -31,7 +27,6 @@ export default function useSelectedEntity(options) {
   const _selectedEntityId = selectedItem?.entityId;
 
   const { value: _listing } = useSelectedListing();
-  const annotationTemplates = useAnnotationTemplates();
 
   const entity = useLiveQuery(async () => {
     // selectedId
@@ -83,25 +78,6 @@ export default function useSelectedEntity(options) {
             }
           })
         );
-    }
-
-    // add annotations
-    if (withAnnotations) {
-      const annotationTemplatesById = getItemsByKey(annotationTemplates, "id");
-      let annotations = await db.annotations
-        .where("entityId")
-        .equals(selectedEntityId)
-        .toArray();
-
-      annotations = annotations.map((annotation) => {
-        const annotationTemplate =
-          annotationTemplatesById[annotation?.annotationTemplateId];
-        return {
-          ...annotation,
-          label: annotationTemplate?.label,
-        };
-      });
-      _entity.annotations = annotations;
     }
 
     return _entity;

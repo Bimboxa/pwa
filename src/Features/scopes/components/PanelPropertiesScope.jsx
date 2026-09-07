@@ -84,7 +84,6 @@ export default function PanelPropertiesScope() {
     caller: "PanelPropertiesScope",
     filterByBaseMapId: baseMapId,
     withQties: true,
-    withEntity: true,
   });
   const annotations = annotationsV2;
   const layers = useLayers({ filterByBaseMapId: baseMapId, filterByScopeId: selectedScope?.id });

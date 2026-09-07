@@ -295,7 +295,6 @@ export default function PanelPropertiesListingV2({ listing }) {
   const listingAnnotations = useAnnotationsV2({
     filterByListingId: listing?.id,
     withQties: true,
-    withEntity: true,
     caller: "PanelPropertiesListingV2",
   });
   const selectedBaseMapId = useSelector((s) => s.mapEditor.selectedBaseMapId);
