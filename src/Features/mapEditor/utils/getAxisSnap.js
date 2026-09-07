@@ -16,12 +16,15 @@
 // Proximity is measured in SCREEN pixels so the snap radius is zoom-independent.
 //
 // Selection rules:
-//   - Off-screen candidates are ignored.
+//   - Off-screen candidates are ignored, unless they carry `ignoreBounds: true`
+//     (used for the points of the annotation currently being drawn: the user
+//     must be able to re-align on them after panning / zooming them off-screen).
 //   - At most ONE point is selected per axis: the one closest to the axis, and
 //     among (near-)equally-aligned points, the one closest to the mouse.
 //
 // Params:
-//   - candidates:   array of { x, y } points in LOCAL (image-pixel) space
+//   - candidates:   array of { x, y, ignoreBounds? } points in LOCAL
+//                   (image-pixel) space
 //   - cursorScreen: { x, y } cursor position in viewport-pixel space
 //   - project:      (localPt) => { x, y } viewport-pixel position of a local point
 //   - bounds:       { width, height } viewport size — candidates projected
@@ -79,9 +82,11 @@ export default function getAxisSnap({
     const s = project(p);
     if (!s || !Number.isFinite(s.x) || !Number.isFinite(s.y)) continue;
 
-    // Visibility filter — ignore points outside the viewport.
+    // Visibility filter — ignore points outside the viewport, except the
+    // candidates flagged `ignoreBounds` (in-progress drawing points).
     if (
       bounds &&
+      !p.ignoreBounds &&
       (s.x < 0 || s.x > bounds.width || s.y < 0 || s.y > bounds.height)
     ) {
       continue;

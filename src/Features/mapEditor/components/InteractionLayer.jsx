@@ -1814,7 +1814,15 @@ const InteractionLayer = forwardRef(({
   // Scans existing annotation points (+ the in-progress drawing points) and
   // returns an axis snap whose markers / X-Y locks are computed in screen space
   // (zoom-independent). `cursorScreen` is in viewport-pixel space.
-  const computeAxisSnap = (cursorScreen, { excludePointIds = null, annotationsList = null } = {}) => {
+  // Existing annotation points are viewport-culled by getAxisSnap. Two sets
+  // are exempted (`ignoreBounds`) so the user can still align on them after
+  // panning / zooming them off-screen: the in-progress drawing points, and
+  // the points of the annotations listed in `unboundedAnnotationIds` (the
+  // annotations owning the vertex being dragged).
+  const computeAxisSnap = (
+    cursorScreen,
+    { excludePointIds = null, annotationsList = null, unboundedAnnotationIds = null } = {}
+  ) => {
     const vp = viewportRef.current;
     if (!vp || !cursorScreen) return null;
     const pose = getTargetPose();
@@ -1827,12 +1835,19 @@ const InteractionLayer = forwardRef(({
           : null;
     const anns = annotationsList || annotationsForSnap || [];
     const candidates = [];
+    // Wrapper (not a mutation) when unbounded: point objects are reused by
+    // the commit paths.
+    const pushCandidate = (p, unbounded) => {
+      if (!Number.isFinite(p?.x) || !Number.isFinite(p?.y)) return;
+      candidates.push(unbounded ? { x: p.x, y: p.y, ignoreBounds: true } : p);
+    };
     for (const ann of anns) {
+      const unbounded = Boolean(unboundedAnnotationIds?.has(ann?.id));
       const pts = ann?.points;
       if (pts) {
         for (const p of pts) {
           if (excludeSet?.has(p?.id)) continue;
-          if (Number.isFinite(p?.x) && Number.isFinite(p?.y)) candidates.push(p);
+          pushCandidate(p, unbounded);
         }
       }
       // isoHeightLines / profileLines points (resolved refs mirror `id` from
@@ -1840,7 +1855,7 @@ const InteractionLayer = forwardRef(({
       for (const l of [...(ann?.isoHeightLines || []), ...(ann?.profileLines || [])]) {
         for (const p of l?.points || []) {
           if (excludeSet?.has(p?.id) || excludeSet?.has(p?.pointId)) continue;
-          if (Number.isFinite(p?.x) && Number.isFinite(p?.y)) candidates.push(p);
+          pushCandidate(p, unbounded);
         }
       }
       // Revolution axis anchors (centre + both diameter ends). They are derived
@@ -1849,11 +1864,11 @@ const InteractionLayer = forwardRef(({
       // invisible to the ortho lock — even though aligning a drawing on the
       // axis centre is one of the main reasons to draw one.
       for (const p of ann?._snapPoints || []) {
-        if (Number.isFinite(p?.x) && Number.isFinite(p?.y)) candidates.push(p);
+        pushCandidate(p, unbounded);
       }
     }
     for (const p of (drawingPointsRef.current || [])) {
-      if (Number.isFinite(p?.x) && Number.isFinite(p?.y)) candidates.push(p);
+      pushCandidate(p, true);
     }
     if (!candidates.length) return null;
 
@@ -6336,10 +6351,15 @@ const InteractionLayer = forwardRef(({
 
         // Distant-point axis snap helpers (same rings as the add-point flow):
         // only when no exact vertex/midpoint/projection snap already applies.
+        // The annotations owning the dragged vertex are exempted from the
+        // viewport culling so their off-screen vertices still provide axes.
         if (!snapOverride) {
           const axisSnap = computeAxisSnap(viewportPos, {
             excludePointIds: dragPointIds,
             annotationsList: annotations,
+            unboundedAnnotationIds: new Set(
+              _ds?.multiVertex?.annotationIds ?? _ds?.affectedIds ?? []
+            ),
           });
           axisSnapLayerRef.current?.update(axisSnap?.markers || null);
           screenCursorRef.current?.setSnappedBranches(axisSnap?.snappedBranches || null);
