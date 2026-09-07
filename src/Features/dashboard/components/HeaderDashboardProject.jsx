@@ -10,6 +10,7 @@ import {
   MenuItem,
   ListItemIcon,
   ListItemText,
+  CircularProgress,
 } from "@mui/material";
 import {
   Folder,
@@ -21,6 +22,7 @@ import {
   LinkOff,
   Edit,
   DeleteOutline,
+  FolderZip,
 } from "@mui/icons-material";
 
 import ChipProjectType from "./ChipProjectType";
@@ -33,6 +35,8 @@ export default function HeaderDashboardProject({
   onDetach,
   onRename,
   onDeleteLocalData,
+  onDownloadProjectData,
+  downloadingProjectData,
 }) {
   // state
 
@@ -44,6 +48,7 @@ export default function HeaderDashboardProject({
   const changeS = "Changer de chantier / opportunité";
   const detachS = "Détacher du référentiel";
   const renameS = "Renommer / changer le numéro";
+  const downloadProjectDataS = "Télécharger les données du projet";
   const deleteLocalDataS = "Supprimer les données locales";
 
   // helpers
@@ -67,6 +72,12 @@ export default function HeaderDashboardProject({
   const canDeleteLocalData = Boolean(
     item.isLocal && item.projectId && onDeleteLocalData
   );
+  // full local dump (debug): any installed project
+  const canDownloadProjectData = Boolean(
+    item.isLocal && item.projectId && onDownloadProjectData
+  );
+  const hasMenu =
+    canManageLink || canRename || canDeleteLocalData || canDownloadProjectData;
 
   // handlers
 
@@ -115,7 +126,7 @@ export default function HeaderDashboardProject({
             )}
           </Box>
         </Box>
-        {(canManageLink || canRename || canDeleteLocalData) && (
+        {hasMenu && (
           <>
             <Tooltip title="Plus d'actions">
               <IconButton
@@ -160,6 +171,21 @@ export default function HeaderDashboardProject({
                     <LinkOff fontSize="small" />
                   </ListItemIcon>
                   <ListItemText>{detachS}</ListItemText>
+                </MenuItem>
+              )}
+              {canDownloadProjectData && (
+                <MenuItem
+                  onClick={() => handleMenuItemClick(onDownloadProjectData)}
+                  disabled={Boolean(downloadingProjectData)}
+                >
+                  <ListItemIcon>
+                    {downloadingProjectData ? (
+                      <CircularProgress size={16} />
+                    ) : (
+                      <FolderZip fontSize="small" />
+                    )}
+                  </ListItemIcon>
+                  <ListItemText>{downloadProjectDataS}</ListItemText>
                 </MenuItem>
               )}
               {canDeleteLocalData && (

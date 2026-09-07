@@ -3,16 +3,8 @@ import { withoutUndo } from "App/db/undoManager";
 import { nanoid } from "@reduxjs/toolkit";
 import JSZip from "jszip";
 
-import store from "App/store";
-import getUserIdMaster from "Features/auth/utils/getUserIdMaster";
 import remapDexieExportIds from "Features/krtoFile/utils/remapDexieExportIds";
-
-// Importing user's master id, normalized to a string like the ownership layer
-// expects (App/db/ownership.normalizeOwnerId).
-function getImportingUserIdMaster() {
-  const raw = getUserIdMaster(store.getState()?.auth?.userProfile);
-  return raw != null ? String(raw) : "anonymous";
-}
+import getImportingUserIdMaster from "Features/krtoFile/utils/getImportingUserIdMaster";
 
 export default async function loadKrtoZip(file, options) {
   if (!file) throw new Error("Fichier invalide");
@@ -64,10 +56,14 @@ export default async function loadKrtoZip(file, options) {
         // 1. Ouvrir le ZIP
         const zip = await JSZip.loadAsync(file);
 
-        // 2. Lire le JSON principal
-        const jsonFile = Object.values(zip.files).find((f) =>
-          f.name.endsWith(".json")
-        );
+        // 2. Lire le JSON principal — the canonical entry first, then any
+        // `.json` for legacy zips (a project export carries a manifest.json
+        // too, which must never be mistaken for the dexie export).
+        const jsonFile =
+          zip.file("project_data.json") ??
+          Object.values(zip.files).find(
+            (f) => !f.dir && f.name.endsWith(".json")
+          );
         if (!jsonFile) throw new Error("JSON introuvable dans le ZIP");
 
         const jsonContent = await jsonFile.async("text");

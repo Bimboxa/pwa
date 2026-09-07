@@ -17,6 +17,7 @@ import useScopeFavorites from "Features/scopeFavorites/hooks/useScopeFavorites";
 import useFetchProjectScopeConfigurations from "../hooks/useFetchProjectScopeConfigurations";
 import useLinkProjectToReferentiel from "Features/projects/hooks/useLinkProjectToReferentiel";
 import useDeleteProject from "Features/projects/hooks/useDeleteProject";
+import useDownloadProjectExportZip from "Features/projects/hooks/useDownloadProjectExportZip";
 import parseBackendDate from "Features/date/utils/parseBackendDate";
 import getScopeConfigMetaData from "Features/remoteScopeConfigurations/utils/getScopeConfigMetaData";
 
@@ -65,6 +66,8 @@ export default function PanelDashboardProjectDetail({ item }) {
 
   const { detach } = useLinkProjectToReferentiel();
   const deleteProjectLocalData = useDeleteProject();
+  const { download: downloadProjectData, loading: downloadingProjectData } =
+    useDownloadProjectExportZip();
 
   const selectedProjectId = useSelector((s) => s.projects.selectedProjectId);
   const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
@@ -320,6 +323,10 @@ export default function PanelDashboardProjectDetail({ item }) {
         onDetach={hasReferentiel ? handleDetach : null}
         onRename={() => setRenameOpen(true)}
         onDeleteLocalData={() => setDeleteLocalDataOpen(true)}
+        onDownloadProjectData={() =>
+          downloadProjectData({ projectId: item.projectId })
+        }
+        downloadingProjectData={downloadingProjectData}
       />
 
       {/* krtos bar */}
