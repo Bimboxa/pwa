@@ -110,8 +110,9 @@ on their rels, bulk add, per-row patches), then a single tick dispatch.
 
 The configuration-based Krto creation recap gets an "Options" section with a "DPGF"
 checkbox: when checked, the created scope's scopeConfig enables `BUSINESS_OBJECTS`
-(removed from `disabledModuleKeys`, row seeded from defaults when the configuration
-carries no scopeConfig) and a first business-objects listing named "DPGF" is created.
+(added to the configuration's `enabledModuleKeys` before conversion to the persisted
+`disabledModuleKeys` row, seeded from the org default when the configuration carries
+no scopeConfig) and a first business-objects listing named "DPGF" is created.
 
 ## Nom de module par scope
 

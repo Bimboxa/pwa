@@ -238,8 +238,12 @@ export default async function resolveAppConfig(appConfig) {
   //                                 // Polygone listing (default false; the
   //                                 // generic scope always seeds them)
   //     },
-  //     scopeConfig: { disabledModuleKeys, disabledToolKeys,
-  //                    disabledToolKeysByModule } }  // absent => app defaults
+  //     scopeConfig: {             // absent => org default modules/tools
+  //       enabledModuleKeys,        // non-core modules to enable (keys of
+  //                                 // useViewers.jsx; Fonds de plan + Dessin
+  //                                 // always on; [] => core only)
+  //       disabledToolKeys,         // root-disabled tools (persisted form)
+  //       disabledToolKeysByModule } }
   // Named export `configurationKeywordFamilies` = [{ key, label }].
   // Yaml side: features.krtoConfigurations.simpleModeKeys (optional list of
   // configuration keys) restricts the compact creation dialog shown when the

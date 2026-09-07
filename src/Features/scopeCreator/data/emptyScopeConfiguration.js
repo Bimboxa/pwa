@@ -1,7 +1,4 @@
-import {
-  DEFAULT_DISABLED_MODULE_KEYS,
-  DEFAULT_DISABLED_TOOL_KEYS,
-} from "Features/scopeConfig/utils/scopeConfigSelectors";
+import { DEFAULT_DISABLED_TOOL_KEYS } from "Features/scopeConfig/utils/scopeConfigSelectors";
 
 /*
  * Built-in configuration of the "vide" scope (dashboard "Krto vide" button,
@@ -24,7 +21,7 @@ const EMPTY_SCOPE_CONFIGURATION = {
   },
   annotations: { libraryKeys: [], initSystemAnnotationTemplates: false },
   scopeConfig: {
-    disabledModuleKeys: [...DEFAULT_DISABLED_MODULE_KEYS],
+    enabledModuleKeys: [],
     disabledToolKeys: [...DEFAULT_DISABLED_TOOL_KEYS],
     disabledToolKeysByModule: {},
   },

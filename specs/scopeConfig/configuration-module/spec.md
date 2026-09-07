@@ -151,7 +151,9 @@ Promouvoir la configuration en vrai module :
   toggle 2D/3D de l'écran réel.
 - **FR-11** — **Configuration par défaut d'un scope** (pas de row
   `scopeConfigs`, ou champ absent) : modules actifs = Fonds de plan + Dessin
-  seulement (`DEFAULT_DISABLED_MODULE_KEYS`) ; outils désactivés par défaut =
+  + les modules listés par l'org dans
+  `features.scopeConfig.defaultEnabledModuleKeys` (yaml absent ⇒ cœur
+  seulement, `DEFAULT_DISABLED_MODULE_KEYS`) ; outils désactivés par défaut =
   Dessin auto, Élévation, Importer annotations, Ressources
   (`DEFAULT_DISABLED_TOOL_KEYS`). Le premier toggle crée la row en la semant
   depuis ces défauts.
@@ -189,6 +191,13 @@ Promouvoir la configuration en vrai module :
   dans `scopeConfigSelectors.js` — fallback des sélecteurs ET semence de la
   première row (`useScopeConfigActions`). Ne jamais créer une row avec des
   listes vides.
+- **Forme activée vs désactivée** : la row persiste `disabledModuleKeys`
+  (Krto zips, UI Configuration inchangés). Les configurations Krto
+  (`Data/<org>/configurations`, `scopeConfig.enabledModuleKeys`) et le défaut
+  org yaml (`defaultEnabledModuleKeys`) déclarent les modules **activés**
+  parmi `CONFIGURABLE_MODULE_KEYS` (catalogue moins les modules cœur) ;
+  `getDisabledModuleKeysFromEnabled` est l'unique point de conversion
+  (`getDefaultDisabledModuleKeys`, `resolveConfigurationScopeConfig`).
 
 ## 6. Mécanisme (chaîne de filtrage)
 

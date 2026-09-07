@@ -171,13 +171,16 @@ features:
   krtoConfigurations:
     enabled: false
 
-  # Per-scope module activation (db.scopeConfigs). Modules disabled by
-  # default for a scope without a row (keys of useViewers.jsx); absent =>
-  # only Fonds de plan + Dessin stay enabled.
+  # Per-scope module activation (db.scopeConfigs). Modules enabled by
+  # default for a scope without a row, besides the core Fonds de plan +
+  # Dessin (keys of useViewers.jsx); absent => core modules only.
   scopeConfig:
-    defaultDisabledModuleKeys:
-      - MESHES
-      - POINT_OF_VIEW
+    defaultEnabledModuleKeys:
+      - PHOTOS
+      - PORTFOLIO
+      - THREED
+      - ZONES
+      - BUSINESS_OBJECTS
 
   annotations:
     spriteImages:

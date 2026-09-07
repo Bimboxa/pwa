@@ -2,13 +2,21 @@
 //
 // Default configuration of a scope (no db.scopeConfigs row yet, or field
 // missing on an imported row): the org appConfig may list the modules
-// disabled by default (features.scopeConfig.defaultDisabledModuleKeys —
-// e.g. edx hides Zones, Maillage, Points de vue); without it only the core
-// modules (Fonds de plan, Dessin) are enabled. The advanced tools below start
-// disabled. The first toggle creates the row seeded from these defaults
-// (useScopeConfigActions).
+// enabled by default (features.scopeConfig.defaultEnabledModuleKeys — e.g.
+// edx enables Photos, Carnet de plans, Viewer besides the core modules);
+// without it only the core modules (Fonds de plan, Dessin) are enabled. The
+// advanced tools below start disabled. The first toggle creates the row
+// seeded from these defaults (useScopeConfigActions).
+//
+// Configurations (Data/<org>/configurations, yaml default) express modules
+// in the ENABLED form; the persisted row keeps the DISABLED form
+// (disabledModuleKeys). getDisabledModuleKeysFromEnabled is the single
+// conversion point.
 
-export const DEFAULT_DISABLED_MODULE_KEYS = [
+// Modules of the left band that a scope may enable or disable: the
+// useViewers.jsx catalog minus the locked core modules (BASE_MAPS, MAP) and
+// the hard-disabled entries. Keep in sync when a module is added.
+export const CONFIGURABLE_MODULE_KEYS = [
   "PHOTOS",
   "POINT_OF_VIEW",
   "PORTFOLIO",
@@ -17,6 +25,16 @@ export const DEFAULT_DISABLED_MODULE_KEYS = [
   "ZONES",
   "BUSINESS_OBJECTS",
 ];
+
+// Hardcoded default: only the core modules stay enabled.
+export const DEFAULT_DISABLED_MODULE_KEYS = [...CONFIGURABLE_MODULE_KEYS];
+
+// Enabled form -> persisted disabled form. Unknown or core keys in the
+// enabled list are ignored (core modules can never be disabled anyway).
+export function getDisabledModuleKeysFromEnabled(enabledModuleKeys) {
+  const enabled = new Set(enabledModuleKeys ?? []);
+  return CONFIGURABLE_MODULE_KEYS.filter((k) => !enabled.has(k));
+}
 
 export const DEFAULT_DISABLED_TOOL_KEYS = [
   "ANNOTATIONS_AUTO",
@@ -36,13 +54,14 @@ export function selectSelectedScopeConfig(s) {
   return scopeId ? (s.scopeConfig.itemsByScopeId[scopeId] ?? null) : null;
 }
 
-// Org-level default (appConfig) > hardcoded default. Pure accessor shared
-// with the non-hook code paths (createScopeConfig callers).
+// Org-level default (appConfig, enabled form) > hardcoded default. Returns
+// the DISABLED form consumed by the row writers. Pure accessor shared with
+// the non-hook code paths (createScopeConfig callers).
 export function getDefaultDisabledModuleKeys(appConfig) {
-  return (
-    appConfig?.features?.scopeConfig?.defaultDisabledModuleKeys ??
-    DEFAULT_DISABLED_MODULE_KEYS
-  );
+  const enabled = appConfig?.features?.scopeConfig?.defaultEnabledModuleKeys;
+  return enabled
+    ? getDisabledModuleKeysFromEnabled(enabled)
+    : DEFAULT_DISABLED_MODULE_KEYS;
 }
 
 export function selectDefaultDisabledModuleKeys(s) {

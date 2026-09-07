@@ -32,10 +32,8 @@ import resolvePresetScopeListings from "../services/resolvePresetScopeListings";
 import resolvePresetScopeEntities from "../services/resolvePresetScopeEntities";
 import resolveConfigurationScopeListings from "../services/resolveConfigurationScopeListings";
 import createScopeConfig from "Features/scopeConfig/services/createScopeConfig";
-import {
-  getDefaultDisabledModuleKeys,
-  DEFAULT_DISABLED_TOOL_KEYS,
-} from "Features/scopeConfig/utils/scopeConfigSelectors";
+import { DEFAULT_DISABLED_TOOL_KEYS } from "Features/scopeConfig/utils/scopeConfigSelectors";
+import resolveConfigurationScopeConfig from "../utils/resolveConfigurationScopeConfig";
 import createBusinessObjectListingService from "Features/businessObjects/services/createBusinessObjectListingService";
 import setDisabledBaseMapListingIds from "Features/baseMapEditor/services/setDisabledBaseMapListingIds";
 
@@ -183,7 +181,9 @@ export default function useCreateScopeFromPreset({ projectId }) {
     // détail options need their module ON for this scope (BUSINESS_OBJECTS /
     // PORTFOLIO), so they materialize a row (seeded from the app defaults
     // when the configuration carries none) with the module removed from the
-    // disabled list. Carnet de détail also needs the RESOURCES tool: the
+    // persisted disabled list — the configuration itself declares its
+    // modules in the enabled form (resolveConfigurationScopeConfig converts).
+    // Carnet de détail also needs the RESOURCES tool: the
     // details workflow lives in the Ressources panel (folio source PDFs,
     // "voir la source" on DETAIL annotations).
 
@@ -204,9 +204,10 @@ export default function useCreateScopeFromPreset({ projectId }) {
       optionEnabledModuleKeys.length > 0 ||
       disableSystemTemplates
     ) {
-      const baseScopeConfig = configuration?.scopeConfig ?? {
-        disabledModuleKeys: [...getDefaultDisabledModuleKeys(appConfig)],
-      };
+      const baseScopeConfig = resolveConfigurationScopeConfig(
+        configuration?.scopeConfig,
+        appConfig
+      );
       const scopeConfigProps =
         optionEnabledModuleKeys.length > 0
           ? {
