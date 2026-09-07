@@ -5,7 +5,6 @@ import {
   setAnchorPosition,
   setClickedNode,
 } from "Features/contextMenu/contextMenuSlice";
-import { setOpenDialogAutoSelectAnnotationTemplateToCreateEntity } from "Features/mapEditor/mapEditorSlice";
 
 import useDeleteAnnotationPoint from "../hooks/useDeleteAnnotationPoint";
 import useChangeAnnotationPointType from "../hooks/useChangeAnnotationPointType";

@@ -9,7 +9,6 @@ import { Box } from "@mui/material";
 import PopperBox from "Features/layout/components/PopperBox";
 
 import ContextMenuAnnotationTemplates from "Features/annotations/components/ContextMenuAnnotationTemplates";
-import ContextMenuCreateEntity from "Features/entities/components/ContextMenuCreateEntity";
 import ContextMenuPolylinePoint from "Features/annotations/components/ContextMenuPolylinePoint";
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 import { selectCaptureFramingActive } from "Features/viewers/utils/effectiveViewerKey";
@@ -59,7 +58,6 @@ export default function PopupContextMenu() {
       anchorPosition={anchorPosition}
       onClose={handleClose}
     >
-      {/* {mode === "CREATE" && <ContextMenuCreateEntity />} */}
       {mode === "ANNOTATION" && <ContextMenuAnnotationTemplates />}
       {mode === "POLYLINE_POINT" && <ContextMenuPolylinePoint />}
     </PopperBox>

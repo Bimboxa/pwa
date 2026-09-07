@@ -14,7 +14,6 @@ import {
   setSelectedBaseMapsListingId,
   setSelectedMainBaseMapId,
   setSelectedNode,
-  setOpenDialogAutoSelectAnnotationTemplateToCreateEntity,
 } from "Features/mapEditor/mapEditorSlice";
 import { setSelectedEntityId } from "../entitiesSlice";
 import { setSelectedAnnotationId } from "Features/annotations/annotationsSlice";

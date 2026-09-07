@@ -24,7 +24,6 @@ export default function useCreateEntity() {
     // options
     const listingOption = options?.listing;
     const updateSyncFile = options?.updateSyncFile;
-    const annotation = options?.annotation;
     // tx: { tables, writes } — commit the entity add (and its files) inside
     // ONE Dexie transaction together with the caller's extra writes (deferred
     // point rows, mapping rels…), so DB observers (liveQueries) re-run once
@@ -32,11 +31,6 @@ export default function useCreateEntity() {
     // outside the transaction: a non-Dexie await inside a Dexie transaction
     // commits it prematurely.
     const tx = options?.tx;
-
-    // data injection from annotation
-    if (annotation?.imageFile) {
-      data.image = { file: annotation.imageFile };
-    }
 
     // listing
     const listing = listingOption || _listing;
@@ -105,14 +99,6 @@ export default function useCreateEntity() {
           console.log("[useCreateEntity] sync error (tx)", e);
         }
       }
-      if (annotation) {
-        await create({
-          ...annotation,
-          entityId: entity.id,
-          listingId: listing.id,
-          listingTable: listing.table,
-        });
-      }
       dispatch(triggerEntitiesTableUpdate(table));
       return entity;
     }
@@ -161,16 +147,6 @@ export default function useCreateEntity() {
 
     try {
       await db[table].add(entity);
-
-      // Handle Annotation linkage
-      if (annotation) {
-        await create({
-          ...annotation,
-          entityId: entity.id,
-          listingId: listing.id,
-          listingTable: listing.table,
-        });
-      }
 
       // Handle Sync for Entity
       if (updateSyncFile) {
