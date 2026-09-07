@@ -1,17 +1,11 @@
 import { useNavigate } from "react-router-dom";
-import { useDispatch } from "react-redux";
-
-import { setOnboardingIsActive } from "../onboardingSlice";
-import { setOpenScopeCreator } from "Features/scopeCreator/scopeCreatorSlice";
 
 import { Box } from "@mui/material";
 
 import { Button, Typography } from "@mui/material";
 
-
 export default function BlockStartButtons({ isMobile, onShowCreateData }) {
   const navigate = useNavigate();
-  const dispatch = useDispatch();
 
   // strings
 
@@ -23,7 +17,6 @@ export default function BlockStartButtons({ isMobile, onShowCreateData }) {
   function handleStartOffline() {
     //onShowCreateData();
     navigate("/dashboard");
-    dispatch(setOpenScopeCreator(true))
     //dispatch(setOnboardingIsActive(true));
   }
 
