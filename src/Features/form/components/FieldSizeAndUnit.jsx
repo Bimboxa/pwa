@@ -1,4 +1,12 @@
-import { Box, Typography, IconButton, InputBase, Menu, MenuItem, Button } from "@mui/material";
+import {
+  Box,
+  Typography,
+  IconButton,
+  InputBase,
+  Menu,
+  MenuItem,
+  Button,
+} from "@mui/material";
 import { useState, useRef, useEffect } from "react";
 import { Refresh, ArrowDropDown as Down } from "@mui/icons-material";
 import WhiteSectionGeneric from "./WhiteSectionGeneric";
@@ -41,7 +49,13 @@ function AutoResizeInput({ value, onChange, placeholder }) {
   };
 
   return (
-    <Box sx={{ display: "inline-flex", alignItems: "center", position: "relative" }}>
+    <Box
+      sx={{
+        display: "inline-flex",
+        alignItems: "center",
+        position: "relative",
+      }}
+    >
       <span
         ref={spanRef}
         style={{
@@ -50,7 +64,7 @@ function AutoResizeInput({ value, onChange, placeholder }) {
           whiteSpace: "pre",
           fontSize: "0.875rem",
           fontWeight: 500,
-          fontFamily: "inherit"
+          fontFamily: "inherit",
         }}
       >
         {localValue || placeholder}
@@ -67,8 +81,8 @@ function AutoResizeInput({ value, onChange, placeholder }) {
           "& input": {
             textAlign: "center",
             p: 0,
-            "&::placeholder": { color: "text.disabled", opacity: 1 }
-          }
+            "&::placeholder": { color: "text.disabled", opacity: 1 },
+          },
         }}
       />
     </Box>
@@ -81,7 +95,15 @@ const DEFAULT_UNIT_OPTIONS = [
   { key: "M", label: "m" },
 ];
 
-export default function FieldSizeAndUnit({ value, onChange, unitOptions = DEFAULT_UNIT_OPTIONS }) {
+// inline: single row (label | control | reset) without the white card, so
+// the host can stack several rows in one section separated by dividers.
+export default function FieldSizeAndUnit({
+  value,
+  onChange,
+  unitOptions = DEFAULT_UNIT_OPTIONS,
+  label = "Dimensions",
+  inline = false,
+}) {
   // On extrait les valeurs actuelles pour les préserver lors des updates
   const size = value?.size ?? { width: null, height: null };
   const sizeUnit = value?.sizeUnit ?? "PX";
@@ -94,7 +116,7 @@ export default function FieldSizeAndUnit({ value, onChange, unitOptions = DEFAUL
 
   /**
    * CORRECTION : Fusion profonde de l'état
-   * On s'assure de toujours conserver le reste de 'value' 
+   * On s'assure de toujours conserver le reste de 'value'
    * ET le reste de 'size' lors d'une modif.
    */
   const handleUpdate = (newSizeProps, newUnit) => {
@@ -103,100 +125,141 @@ export default function FieldSizeAndUnit({ value, onChange, unitOptions = DEFAUL
       sizeUnit: newUnit ?? sizeUnit,
       size: {
         ...size,
-        ...newSizeProps
-      }
+        ...newSizeProps,
+      },
     });
   };
+
+  const control = (
+    <Box
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        bgcolor: "action.hover",
+        borderRadius: 2,
+        py: 0.75,
+        px: inline ? 1.5 : 2,
+        minHeight: 40,
+        justifyContent: "center",
+      }}
+    >
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+        <AutoResizeInput
+          value={size.width}
+          // On ne met à jour que width, handleUpdate préserve le reste
+          onChange={(v) => handleUpdate({ width: v })}
+          placeholder="0"
+        />
+        <Typography
+          sx={{
+            color: "text.disabled",
+            fontSize: "0.75rem",
+            fontWeight: "bold",
+          }}
+        >
+          ×
+        </Typography>
+        <AutoResizeInput
+          value={size.height}
+          // On ne met à jour que height, handleUpdate préserve le reste
+          onChange={(v) => handleUpdate({ height: v })}
+          placeholder="0"
+        />
+      </Box>
+
+      <Box
+        sx={{ ml: 1, borderLeft: "1px solid", borderColor: "divider", pl: 1 }}
+      >
+        <Button
+          size="small"
+          onClick={(e) => setAnchorEl(e.currentTarget)}
+          endIcon={<Down sx={{ fontSize: 16, ml: -0.5 }} />}
+          sx={{
+            textTransform: "none",
+            color: isEmpty ? "text.disabled" : "text.secondary",
+            fontWeight: isEmpty ? "normal" : "bold",
+            fontSize: "0.8125rem",
+            minWidth: 0,
+            p: 0,
+            "&:hover": { bgcolor: "transparent", color: "primary.main" },
+          }}
+        >
+          {isEmpty ? `(${unitLabel})` : unitLabel}
+        </Button>
+      </Box>
+    </Box>
+  );
+
+  const resetButton = (
+    <IconButton
+      size="small"
+      onClick={() => onChange({ ...value, size: null })}
+      sx={{ p: 0.5 }}
+    >
+      <Refresh sx={{ fontSize: 18 }} />
+    </IconButton>
+  );
+
+  const menu = (
+    <Menu
+      anchorEl={anchorEl}
+      open={Boolean(anchorEl)}
+      onClose={() => setAnchorEl(null)}
+      anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+      transformOrigin={{ vertical: "top", horizontal: "right" }}
+    >
+      {unitOptions.map((opt) => (
+        <MenuItem
+          key={opt.key}
+          selected={opt.key === sizeUnit}
+          onClick={() => {
+            // On met à jour l'unité, handleUpdate préserve l'objet size (width/height)
+            handleUpdate({}, opt.key);
+            setAnchorEl(null);
+          }}
+        >
+          <Typography variant="body2">{opt.label}</Typography>
+        </MenuItem>
+      ))}
+    </Menu>
+  );
+
+  if (inline) {
+    return (
+      <>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+          <Typography variant="body2" sx={{ fontWeight: "bold", flex: 1 }}>
+            {label}
+          </Typography>
+          {control}
+          {resetButton}
+        </Box>
+        {menu}
+      </>
+    );
+  }
 
   return (
     <WhiteSectionGeneric>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-
-        <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <Typography variant="body2" sx={{ fontWeight: "bold", color: "text.primary" }}>
-            Dimensions
-          </Typography>
-          <IconButton
-            size="small"
-            onClick={() => onChange({ ...value, size: null })}
-            sx={{ p: 0.5 }}
-          >
-            <Refresh sx={{ fontSize: 18 }} />
-          </IconButton>
-        </Box>
-
         <Box
           sx={{
             display: "flex",
             alignItems: "center",
-            bgcolor: "action.hover",
-            borderRadius: 2,
-            py: 0.75,
-            px: 2,
-            minHeight: 40,
-            justifyContent: "center",
+            justifyContent: "space-between",
           }}
         >
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <AutoResizeInput
-              value={size.width}
-              // On ne met à jour que width, handleUpdate préserve le reste
-              onChange={(v) => handleUpdate({ width: v })}
-              placeholder="0"
-            />
-            <Typography sx={{ color: "text.disabled", fontSize: "0.75rem", fontWeight: "bold" }}>
-              ×
-            </Typography>
-            <AutoResizeInput
-              value={size.height}
-              // On ne met à jour que height, handleUpdate préserve le reste
-              onChange={(v) => handleUpdate({ height: v })}
-              placeholder="0"
-            />
-          </Box>
-
-          <Box sx={{ ml: 1, borderLeft: "1px solid", borderColor: "divider", pl: 1 }}>
-            <Button
-              size="small"
-              onClick={(e) => setAnchorEl(e.currentTarget)}
-              endIcon={<Down sx={{ fontSize: 16, ml: -0.5 }} />}
-              sx={{
-                textTransform: "none",
-                color: isEmpty ? "text.disabled" : "text.secondary",
-                fontWeight: isEmpty ? "normal" : "bold",
-                fontSize: "0.8125rem",
-                minWidth: 0,
-                p: 0,
-                "&:hover": { bgcolor: "transparent", color: "primary.main" },
-              }}
-            >
-              {isEmpty ? `(${unitLabel})` : unitLabel}
-            </Button>
-          </Box>
-        </Box>
-      </Box>
-
-      <Menu
-        anchorEl={anchorEl}
-        open={Boolean(anchorEl)}
-        onClose={() => setAnchorEl(null)}
-        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-        transformOrigin={{ vertical: "top", horizontal: "right" }}
-      >
-        {unitOptions.map((opt) => (
-          <MenuItem
-            key={opt.key}
-            selected={opt.key === sizeUnit}
-            onClick={() => {
-              // On met à jour l'unité, handleUpdate préserve l'objet size (width/height)
-              handleUpdate({}, opt.key);
-              setAnchorEl(null);
-            }}
+          <Typography
+            variant="body2"
+            sx={{ fontWeight: "bold", color: "text.primary" }}
           >
-            <Typography variant="body2">{opt.label}</Typography>
-          </MenuItem>
-        ))}
-      </Menu>
+            {label}
+          </Typography>
+          {resetButton}
+        </Box>
+        {control}
+      </Box>
+      {menu}
     </WhiteSectionGeneric>
   );
 }

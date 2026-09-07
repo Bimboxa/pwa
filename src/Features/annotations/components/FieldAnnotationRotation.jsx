@@ -12,13 +12,15 @@ import commitWrapperTransform from "Features/mapEditor/services/commitWrapperTra
 
 import FieldRotation from "Features/form/components/FieldRotation";
 
-export default function FieldAnnotationRotation({ annotation }) {
+export default function FieldAnnotationRotation({ annotation, inline }) {
   const dispatch = useDispatch();
 
   // data
 
   const baseMap = useMainBaseMap();
-  const allAnnotations = useAnnotationsV2({ caller: "FieldAnnotationRotation" });
+  const allAnnotations = useAnnotationsV2({
+    caller: "FieldAnnotationRotation",
+  });
   const imageSize = baseMap?.image?.imageSize;
 
   // helpers
@@ -93,5 +95,7 @@ export default function FieldAnnotationRotation({ annotation }) {
 
   const value = { rotation: displayRotation };
 
-  return <FieldRotation value={value} onChange={handleChange} />;
+  return (
+    <FieldRotation value={value} onChange={handleChange} inline={inline} />
+  );
 }

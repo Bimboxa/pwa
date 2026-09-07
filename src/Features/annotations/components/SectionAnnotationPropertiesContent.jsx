@@ -16,8 +16,7 @@ import SectionAnnotationPentes from "./SectionAnnotationPentes";
 import SectionAnnotationSubtractions from "./SectionAnnotationSubtractions";
 import SectionAnnotationOpenings from "./SectionAnnotationOpenings";
 import ButtonAnnotationTemplate from "./ButtonAnnotationTemplate";
-import FieldWrapperDimensions from "./FieldWrapperDimensions";
-import FieldAnnotationRotation from "./FieldAnnotationRotation";
+import SectionAnnotationTransform from "./SectionAnnotationTransform";
 import FieldAnnotationFill from "./FieldAnnotationFill";
 import FieldAnnotationStroke from "./FieldAnnotationStroke";
 import FieldAnnotationStrokeWidth from "./FieldAnnotationStrokeWidth";
@@ -138,8 +137,7 @@ export default function SectionAnnotationPropertiesContent({
           flexDirection: "column",
         }}
       >
-        <FieldWrapperDimensions annotation={annotation} />
-        <FieldAnnotationRotation annotation={annotation} />
+        <SectionAnnotationTransform annotation={annotation} />
         {/* LINEAR_LAYOUT: band width L (bar length) — same section as the
             template form, without the override padlock. */}
         {type === "LINEAR_LAYOUT" && (

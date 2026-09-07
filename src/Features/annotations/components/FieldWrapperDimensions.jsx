@@ -22,14 +22,17 @@ const UNIT_OPTIONS = [
 
 const DEBOUNCE_MS = 600;
 
-export default function FieldWrapperDimensions({ annotation }) {
+export default function FieldWrapperDimensions({ annotation, inline }) {
   const dispatch = useDispatch();
   const debounceRef = useRef(null);
 
   // cleanup on unmount
-  useEffect(() => () => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-  }, []);
+  useEffect(
+    () => () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    },
+    []
+  );
 
   // data
 
@@ -53,7 +56,7 @@ export default function FieldWrapperDimensions({ annotation }) {
     annotation?.type === "OBJECT_3D";
 
   const bbox = isBboxAnnotation
-    ? annotation?.bbox ?? null
+    ? (annotation?.bbox ?? null)
     : computeWrapperBbox(
         annotation ? [annotation] : [],
         rotation,
@@ -94,11 +97,17 @@ export default function FieldWrapperDimensions({ annotation }) {
     // If reset (null), skip
     if (newDisplayW == null && newDisplayH == null) return;
 
-    const targetWidthPx = newDisplayW != null ? displayToPx(newDisplayW) : bboxWidth;
-    const targetHeightPx = newDisplayH != null ? displayToPx(newDisplayH) : bboxHeight;
+    const targetWidthPx =
+      newDisplayW != null ? displayToPx(newDisplayW) : bboxWidth;
+    const targetHeightPx =
+      newDisplayH != null ? displayToPx(newDisplayH) : bboxHeight;
 
     // Skip if no actual change
-    if (Math.abs(targetWidthPx - bboxWidth) < 0.01 && Math.abs(targetHeightPx - bboxHeight) < 0.01) return;
+    if (
+      Math.abs(targetWidthPx - bboxWidth) < 0.01 &&
+      Math.abs(targetHeightPx - bboxHeight) < 0.01
+    )
+      return;
 
     if (!hasRotation) {
       // --- Non-rotated: standard RESIZE_SE ---
@@ -179,8 +188,14 @@ export default function FieldWrapperDimensions({ annotation }) {
 
       // Update rotation center: center of the new bbox in pixel space
       const newRotCenter = {
-        x: anchorPixel.x + (targetWidthPx / 2) * cosR - (targetHeightPx / 2) * sinR,
-        y: anchorPixel.y + (targetWidthPx / 2) * sinR + (targetHeightPx / 2) * cosR,
+        x:
+          anchorPixel.x +
+          (targetWidthPx / 2) * cosR -
+          (targetHeightPx / 2) * sinR,
+        y:
+          anchorPixel.y +
+          (targetWidthPx / 2) * sinR +
+          (targetHeightPx / 2) * cosR,
       };
 
       await db.annotations.update(annotation.id, {
@@ -218,5 +233,12 @@ export default function FieldWrapperDimensions({ annotation }) {
     sizeUnit,
   };
 
-  return <FieldSizeAndUnit value={value} onChange={handleChange} unitOptions={UNIT_OPTIONS} />;
+  return (
+    <FieldSizeAndUnit
+      value={value}
+      onChange={handleChange}
+      unitOptions={UNIT_OPTIONS}
+      inline={inline}
+    />
+  );
 }
