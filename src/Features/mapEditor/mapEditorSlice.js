@@ -55,7 +55,6 @@ const mapEditorInitialState = {
   //
   showLayerScreenCursor: false,
   printModeEnabled: false,
-  openDialogAutoSelectAnnotationTemplateToCreateEntity: false,
   //
   bgImageKey: "DEFAULT", // "DEFAULT"
   //
@@ -601,15 +600,6 @@ export const mapEditorSlice = createSlice({
       state.screenToBaseLocalUpdatedAt = Date.now();
     },
 
-    // dialogs
-    setOpenDialogAutoSelectAnnotationTemplateToCreateEntity: (
-      state,
-      action
-    ) => {
-      state.openDialogAutoSelectAnnotationTemplateToCreateEntity =
-        action.payload;
-    },
-
     // fixed length
     setFixedLength: (state, action) => {
       state.fixedLength = action.payload;
@@ -988,7 +978,6 @@ export const {
   setZoomTo,
   triggerScreenToBaseLocalUpdate,
   // dialogs
-  setOpenDialogAutoSelectAnnotationTemplateToCreateEntity,
 
   // selected tool per template
   setSelectedToolKeyForTemplate,
