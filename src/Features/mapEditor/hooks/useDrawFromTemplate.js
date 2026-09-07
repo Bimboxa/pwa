@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import { setSelectedListingId } from "Features/listings/listingsSlice";
@@ -75,16 +76,23 @@ export default function useDrawFromTemplate(annotationTemplate, listingId) {
   const canDrawInCurrentEditor =
     !isThreedToggledEditor ||
     THREED_TOGGLED_DRAWABLE_SHAPES.includes(drawingShape);
+  // Props of the next draft (shape defaults → template → remembered toolbar
+  // edits). Shared by dispatchDraw and the rows previewing e.g. the stroke width.
+  const nextDraftProps = useMemo(
+    () =>
+      getNewAnnotationPropsFromAnnotationTemplate(
+        annotationTemplate,
+        rememberedDraftProps
+      ),
+    [annotationTemplate, rememberedDraftProps]
+  );
 
   // handlers
 
   const dispatchDraw = (tool) => {
     dispatch(setSelectedListingId(listingId));
     const baseProps = {
-      ...getNewAnnotationPropsFromAnnotationTemplate(
-        annotationTemplate,
-        rememberedDraftProps
-      ),
+      ...nextDraftProps,
       ...getLocateBusinessObjectDraftProps(locatingBusinessObjectId),
     };
     if (tool.annotationType) {
@@ -117,6 +125,7 @@ export default function useDrawFromTemplate(annotationTemplate, listingId) {
     activeTool,
     hasFixedTool,
     canDrawInCurrentEditor,
+    nextDraftProps,
     startDraw,
     selectToolAndDraw,
   };

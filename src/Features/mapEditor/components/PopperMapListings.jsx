@@ -114,6 +114,7 @@ import usePanelDrag from "Features/layout/hooks/usePanelDrag";
 
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
 import computeAnnotationTemplateQties from "Features/annotations/utils/computeAnnotationTemplateQties";
+import getStrokeWidthLabel from "Features/annotations/utils/getStrokeWidthLabel";
 import groupAnnotationTemplatesByGroupLabel from "Features/annotations/utils/groupAnnotationTemplatesByGroupLabel";
 
 
@@ -401,8 +402,14 @@ function AnnotationTemplateRow({
     if (!procedurePopperHoveredRef.current) scheduleCloseProcedurePopper();
   };
   // Tool resolution + start-draw dispatches (shared with the Dessin panel).
-  const { activeTool, hasFixedTool, startDraw, selectToolAndDraw } =
-    useDrawFromTemplate(annotationTemplate, listingId);
+  const {
+    drawingShape,
+    activeTool,
+    hasFixedTool,
+    nextDraftProps,
+    startDraw,
+    selectToolAndDraw,
+  } = useDrawFromTemplate(annotationTemplate, listingId);
   // "Maillage" toggle and the shared ?mode=viewer lock force SELECT-like
   // interaction → use the effective mode for all behavior gating in this row.
   const rawInteractionMode = useSelector(
@@ -450,6 +457,9 @@ function AnnotationTemplateRow({
   // Free annotations show their keyboard shortcut (L / P) next to the icon.
   const freeShortcut = getFreeAnnotationShortcut(annotationTemplate);
   const ActiveToolIcon = activeTool?.Icon;
+  // POLYLINE: thickness of the next drawn stroke, shown under the icon line.
+  const strokeWidthLabel =
+    drawingShape === "POLYLINE" ? getStrokeWidthLabel(nextDraftProps) : null;
 
   // handlers
 
@@ -632,6 +642,7 @@ function AnnotationTemplateRow({
         >
           <Box
             sx={{
+              position: "relative",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -649,6 +660,26 @@ function AnnotationTemplateRow({
               spriteImage={spriteImage}
               revolutionAxisVertical={isVerticalBaseMap}
             />
+            {strokeWidthLabel && (
+              <Typography
+                component="span"
+                sx={{
+                  position: "absolute",
+                  left: "50%",
+                  bottom: -1,
+                  transform: "translateX(-50%)",
+                  fontSize: "7px",
+                  lineHeight: 1,
+                  fontFamily: "monospace",
+                  color: "text.secondary",
+                  whiteSpace: "nowrap",
+                  pointerEvents: "none",
+                  userSelect: "none",
+                }}
+              >
+                {strokeWidthLabel}
+              </Typography>
+            )}
           </Box>
           {freeShortcut &&
             (interactionMode === "DRAW" || interactionMode == null) && (
