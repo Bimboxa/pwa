@@ -1,6 +1,6 @@
-import { useRef, useState } from "react";
+import { useRef } from "react";
 
-import { Box, Typography, Button, IconButton, FormControlLabel, Checkbox } from "@mui/material";
+import { Box, Typography, Button, IconButton } from "@mui/material";
 import { Image as ImageIcon, Delete } from "@mui/icons-material";
 
 import useDisplayedPortfolio from "Features/portfolios/hooks/useDisplayedPortfolio";
@@ -13,7 +13,6 @@ import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 import DebouncedTextField from "Features/form/components/DebouncedTextField";
 import TitleBlockFieldsForm from "Features/titleBlocks/components/TitleBlockFieldsForm";
 import IconButtonMoreActionsPortfolio from "./IconButtonMoreActionsPortfolio";
-import ButtonDownloadPortfolioPdf from "./ButtonDownloadPortfolioPdf";
 
 import resolveTitleBlockFields from "Features/titleBlocks/utils/resolveTitleBlockFields";
 import getTitleBlockPlaceholders from "Features/titleBlocks/utils/getTitleBlockPlaceholders";
@@ -25,7 +24,6 @@ export default function PanelPortfolioHeaderProperties() {
 
   const { value: portfolio } = useDisplayedPortfolio();
   const fileInputRef = useRef(null);
-  const [hdExport, setHdExport] = useState(false);
 
   // helpers
 
@@ -105,27 +103,6 @@ export default function PanelPortfolioHeaderProperties() {
           overflow: "auto",
         }}
       >
-        {/* Export */}
-        <WhiteSectionGeneric>
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-            <Typography variant="body2" sx={{ fontWeight: "bold" }}>
-              Export
-            </Typography>
-            <FormControlLabel
-              control={
-                <Checkbox
-                  size="small"
-                  checked={hdExport}
-                  onChange={(e) => setHdExport(e.target.checked)}
-                />
-              }
-              label="Haute définition"
-              slotProps={{ typography: { variant: "body2" } }}
-            />
-            <ButtonDownloadPortfolioPdf hdExport={hdExport} />
-          </Box>
-        </WhiteSectionGeneric>
-
         {/* Logo */}
         <WhiteSectionGeneric>
           <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
@@ -221,7 +198,6 @@ export default function PanelPortfolioHeaderProperties() {
             </Box>
           </WhiteSectionGeneric>
         )}
-
       </Box>
     </BoxFlexVStretch>
   );

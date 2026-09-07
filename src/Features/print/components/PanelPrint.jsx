@@ -35,6 +35,7 @@ import SliderBaseMapOpacity from "Features/mapEditor/components/SliderBaseMapOpa
 import SwitchBaseMapGrayScale from "Features/mapEditor/components/SwitchBaseMapGrayScale";
 import SectionDxfExport from "Features/print/components/SectionDxfExport";
 import SectionDownloadThreed from "Features/threedEditor/components/SectionDownloadThreed";
+import SectionPortfolioPdfExport from "Features/portfolioEditor/components/SectionPortfolioPdfExport";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import createSheetAnnotations from "Features/excel/utils/createSheetAnnotations";
 import createSheetAnnotationsAggregated from "Features/excel/utils/createSheetAnnotationsAggregated";
@@ -58,6 +59,7 @@ export default function PanelPrint() {
   const selectedModuleKey = useSelector(selectSelectedModuleKey); // "MAP" = Dessin
   const isThreed = isThreedFamilyViewerKey(effectiveViewerKey);
   const showDxfExport = selectedModuleKey === "MAP" && !isThreed;
+  const showPortfolioExport = selectedModuleKey === "PORTFOLIO";
 
   const baseMap = useMainBaseMap();
 
@@ -179,6 +181,10 @@ export default function PanelPrint() {
       </Box>
 
       <BoxFlexVStretch sx={{ overflow: "auto", gap: 1, p: 1 }}>
+        {/* Card 0 — module Carnet de plans: PDF download of the displayed
+            portfolio (moved here from the portfolio properties panel) */}
+        {showPortfolioExport && <SectionPortfolioPdfExport />}
+
         {/* Card 1 — Annotations count */}
         <WhiteSectionGeneric>
           <Box

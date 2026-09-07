@@ -85,7 +85,8 @@ export default function useRightPanelTools() {
     PRINT: {
       label: "Export",
       icon: <IconExportPlan />,
-      viewers: ["MAP", "THREED", "MESHES"],
+      // PORTFOLIO: hosts the portfolio PDF download (SectionPortfolioPdfExport).
+      viewers: ["MAP", "THREED", "MESHES", "PORTFOLIO"],
     },
     ELEVATION: {
       label: "Élévation",
