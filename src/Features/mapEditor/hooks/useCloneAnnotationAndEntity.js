@@ -7,6 +7,7 @@ import {
 } from "Features/annotations/annotationsSlice";
 
 import useMainBaseMap from "./useMainBaseMap";
+import { createAutoNumberLabelAllocator } from "Features/annotations/services/getNextAutoNumberLabelAsync";
 
 import getPolygonsPointsFromStripAnnotation from "Features/annotations/utils/getPolygonsPointsFromStripAnnotation";
 import applyStripElevation, {
@@ -150,6 +151,8 @@ export default function useCloneAnnotationAndEntity() {
 
         const allAnnotations = [];
         const allPoints = [];
+        // Listing auto-numbering: copies get the next numbers of the batch.
+        const allocateAutoLabel = createAutoNumberLabelAllocator();
 
         for (const item of itemsToCreate) {
             const annotationId = nanoid();
@@ -165,6 +168,8 @@ export default function useCloneAnnotationAndEntity() {
                 cuts: item.cuts,
                 ...(activeLayerId ? { layerId: activeLayerId } : {}),
             };
+            const autoLabel = await allocateAutoLabel(clonedAnnotation.listingId);
+            if (autoLabel) clonedAnnotation.label = autoLabel;
 
             // Part clones inherit the host's styles/template but must drop
             // host-only ring metadata that doesn't belong to the slice we kept.

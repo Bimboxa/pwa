@@ -32,6 +32,21 @@ function parseMappingCategory(entry) {
 }
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 import useCreateEntity from "Features/entities/hooks/useCreateEntity";
+import getNextAutoNumberLabelAsync from "../services/getNextAutoNumberLabelAsync";
+
+// Annotations whose label is owned by another mechanism: never auto-numbered.
+function isAutoNumberExempt(annotation) {
+  return Boolean(
+    annotation?.isBaseMapAnnotation ||
+      annotation?.isFreeAnnotation ||
+      annotation?.isZoneAnnotation ||
+      annotation?.isBusinessObjectAnnotation ||
+      annotation?.isScaleSegment ||
+      annotation?.isMeshCell ||
+      annotation?.type === "REVOLUTION_AXIS" ||
+      annotation?.type === "DETAIL"
+  );
+}
 
 export default function useCreateAnnotation() {
   const dispatch = useDispatch();
@@ -68,6 +83,17 @@ export default function useCreateAnnotation() {
       // counter. Template-linked helpers are normal listing annotations.
       if (isLegacyStyleRevolutionHelper(_annotation)) {
         _annotation.listingId = null;
+      }
+
+      // ── Auto-numbered label (listing option) ────────────────────────────
+      // Deliberately overwrites the draft label (the template NAME copied by
+      // ALWAYS_COPY_KEYS), like the entity label used to at read time.
+      // Read OUTSIDE the transaction below.
+      if (!options?.skipAutoNumber && !isAutoNumberExempt(_annotation)) {
+        const autoLabel = await getNextAutoNumberLabelAsync(
+          _annotation.listingId
+        );
+        if (autoLabel) _annotation.label = autoLabel;
       }
 
       // ── relAnnotationMappingCategory ────────────────────────────────────

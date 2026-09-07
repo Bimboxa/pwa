@@ -181,7 +181,6 @@ export default function LayerMarkerTooltip({
               </Box>
             )}
             <Typography variant="subtitle2" sx={{ fontWeight: 600, flex: 1 }}>
-              {hoveredMarker.entity?.num ? `#${hoveredMarker.entity.num}` : ""}{" "}
               {hoveredMarker?.label || "-?-"}
             </Typography>
           </Stack>

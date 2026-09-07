@@ -25,6 +25,7 @@ import {
   ListItemText,
   Chip,
   Tooltip,
+  TextField,
 } from "@mui/material";
 import {
   ChevronRight,
@@ -593,6 +594,68 @@ export default function PanelPropertiesListingV2({ listing }) {
             </Box>
           </WhiteSectionGeneric>
         )}
+
+        {/* Auto-numbered annotation labels */}
+        <WhiteSectionGeneric>
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ fontWeight: 600 }}
+            >
+              Numérotation automatique
+            </Typography>
+            <Switch
+              size="small"
+              checked={Boolean(listing?.autoNumberAnnotations)}
+              onChange={(e) =>
+                updateListing({
+                  id: listing.id,
+                  autoNumberAnnotations: e.target.checked,
+                })
+              }
+            />
+          </Box>
+          {listing?.autoNumberAnnotations && (
+            <Box sx={{ display: "flex", gap: 1, mt: 1 }}>
+              <TextField
+                key={`prefix-${listing.id}`}
+                size="small"
+                label="Préfixe"
+                defaultValue={listing.autoNumberPrefix ?? ""}
+                onBlur={(e) =>
+                  updateListing({
+                    id: listing.id,
+                    autoNumberPrefix: e.target.value.trim() || null,
+                  })
+                }
+                sx={{ flex: 1 }}
+              />
+              <TextField
+                key={`pad-${listing.id}`}
+                size="small"
+                label="Chiffres"
+                type="number"
+                slotProps={{ htmlInput: { min: 0, max: 9 } }}
+                defaultValue={listing.autoNumberPadStart ?? ""}
+                onBlur={(e) => {
+                  const n = parseInt(e.target.value, 10);
+                  updateListing({
+                    id: listing.id,
+                    autoNumberPadStart: Number.isFinite(n) && n > 0 ? n : null,
+                  });
+                }}
+                sx={{ width: 96 }}
+              />
+            </Box>
+          )}
+        </WhiteSectionGeneric>
 
         {/* Annotation templates */}
         {annotationTemplates?.length > 0 && (

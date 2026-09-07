@@ -7,6 +7,7 @@ import {
 } from "Features/annotations/annotationsSlice";
 
 import useMainBaseMap from "./useMainBaseMap";
+import { createAutoNumberLabelAllocator } from "Features/annotations/services/getNextAutoNumberLabelAsync";
 
 import getPolygonsPointsFromStripAnnotation from "Features/annotations/utils/getPolygonsPointsFromStripAnnotation";
 import applyStripElevation, {
@@ -53,6 +54,8 @@ export default function useCloneAnnotationsAndEntities() {
     // 1. Prepare all items in memory
     const allAnnotations = [];
     const allPoints = [];
+    // Listing auto-numbering: copies get the next numbers of the batch.
+    const allocateAutoLabel = createAutoNumberLabelAllocator();
 
     for (const annotation of annotations) {
       const isPolygonToPolyline =
@@ -105,6 +108,8 @@ export default function useCloneAnnotationsAndEntities() {
           cuts: item.cuts,
           ...(activeLayerId ? { layerId: activeLayerId } : {}),
         };
+        const autoLabel = await allocateAutoLabel(clonedAnnotation.listingId);
+        if (autoLabel) clonedAnnotation.label = autoLabel;
 
         if (isPolygonToPolyline || isStripToPolygon) {
           clonedAnnotation.closeLine = true;
