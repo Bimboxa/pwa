@@ -10,6 +10,7 @@ import { ArrowBack as Back } from "@mui/icons-material";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import SectionAnnotationPropertiesBody from "./SectionAnnotationPropertiesBody";
+import IconButtonMoreActionsAnnotation from "./IconButtonMoreActionsAnnotation";
 
 export default function PanelAnnotationProperties() {
   const dispatch = useDispatch();
@@ -44,22 +45,27 @@ export default function PanelAnnotationProperties() {
         sx={{
           display: "flex",
           alignItems: "center",
+          justifyContent: "space-between",
           p: 0.5,
           pl: 1,
         }}
       >
-        <IconButton onClick={() => dispatch(triggerSelectionBack())}>
-          <Back />
-        </IconButton>
+        <Box sx={{ display: "flex", alignItems: "center" }}>
+          <IconButton onClick={() => dispatch(triggerSelectionBack())}>
+            <Back />
+          </IconButton>
 
-        <Box sx={{ ml: 1 }}>
-          <Typography variant="caption" color="text.secondary">
-            {hasPart ? part.captionFr : "Annotation"}
-          </Typography>
-          <Typography variant="body2" sx={{ fontWeight: "bold" }}>
-            {hasPart ? part.label : label}
-          </Typography>
+          <Box sx={{ ml: 1 }}>
+            <Typography variant="caption" color="text.secondary">
+              {hasPart ? part.captionFr : "Annotation"}
+            </Typography>
+            <Typography variant="body2" sx={{ fontWeight: "bold" }}>
+              {hasPart ? part.label : label}
+            </Typography>
+          </Box>
         </Box>
+
+        <IconButtonMoreActionsAnnotation annotation={annotation} />
       </Box>
 
       <SectionAnnotationPropertiesBody />

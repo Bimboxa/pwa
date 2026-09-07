@@ -54,7 +54,8 @@ export default function SectionAnnotationPropertiesContent({
   // otherwise fall back to the wrong section set.
   const drawingShape = resolveDrawingShape(annotation);
   const configurableProps = getConfigurableProps(drawingShape);
-  // FREE_TEXT: all colors live in its grouped field — skip the fill section.
+  // FREE_TEXT: a pure text box — no overview / label / profile / eraser, its
+  // colors live in its own style cards (skip the fill section).
   const isFreeText = configurableProps.includes("fontFamily");
   const showFill =
     !isFreeText &&
@@ -87,7 +88,7 @@ export default function SectionAnnotationPropertiesContent({
 
   return (
     <>
-      {!hideOverview && (
+      {!hideOverview && !isFreeText && (
         <Box sx={{ display: "flex", gap: 1, p: 1, width: 1 }}>
           <Box
             sx={{
@@ -187,7 +188,9 @@ export default function SectionAnnotationPropertiesContent({
             overrideFields={overrideFields}
           />
         )}
-        {!hideOverview && <FieldAnnotationLabel annotation={annotation} />}
+        {!hideOverview && !isFreeText && (
+          <FieldAnnotationLabel annotation={annotation} />
+        )}
         {/* Standalone LABEL: no Etiquette tab, the leader stub lives here. */}
         {type === "LABEL" && (
           <FieldAnnotationLabelStub
@@ -202,8 +205,8 @@ export default function SectionAnnotationPropertiesContent({
             overrideFields={overrideFields}
           />
         )}
-        <FieldAnnotationIsProfile annotation={annotation} />
-        <FieldAnnotationIsEraser annotation={annotation} />
+        {!isFreeText && <FieldAnnotationIsProfile annotation={annotation} />}
+        {!isFreeText && <FieldAnnotationIsEraser annotation={annotation} />}
         {["POLYLINE", "STRIP", "POLYGON"].includes(type) && (
           <FieldAnnotationIsExt annotation={annotation} />
         )}

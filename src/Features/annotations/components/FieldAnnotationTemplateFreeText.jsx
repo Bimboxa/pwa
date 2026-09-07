@@ -27,7 +27,7 @@ import {
 } from "@mui/icons-material";
 
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
-import ColorPickerContent from "Features/colors/components/ColorPickerContent";
+import ColorDot from "./ColorDot";
 
 import {
   FREE_TEXT_FONT_OPTIONS,
@@ -35,7 +35,11 @@ import {
   FREE_TEXT_PAGE_FORMATS,
   getFreeTextFontStack,
 } from "Features/annotations/constants/freeTextConstants";
-import { getDefaultsForShape } from "Features/annotations/constants/drawingShapeConfig";
+import {
+  toggleGroupSx,
+  numberInputSx,
+} from "Features/annotations/constants/fieldSx";
+import getFreeTextStyleDefaults from "Features/annotations/utils/getFreeTextStyleDefaults";
 
 const ALIGN_OPTIONS = [
   { value: "LEFT", icon: <FormatAlignLeft fontSize="small" /> },
@@ -43,75 +47,12 @@ const ALIGN_OPTIONS = [
   { value: "RIGHT", icon: <FormatAlignRight fontSize="small" /> },
 ];
 
-const toggleGroupSx = {
-  flexShrink: 0,
-  bgcolor: "action.hover",
-  "& .MuiToggleButton-root": {
-    border: "none",
-    borderRadius: 1.5,
-    px: 1,
-    py: 0.25,
-    fontSize: "0.7rem",
-  },
-};
-
-const numberInputSx = {
-  width: 64,
-  border: "1px solid",
-  borderColor: "divider",
-  borderRadius: 1,
-  px: 1,
-  height: 28,
-  fontSize: "0.8rem",
-  "& input": { textAlign: "center", p: 0 },
-};
-
 const optionRowSx = {
   display: "flex",
   alignItems: "center",
   gap: 1,
   py: 0.5,
 };
-
-// Clickable color dot opening the shared brand color picker.
-function ColorDot({ value, onChange, title, disabled }) {
-  const [anchorEl, setAnchorEl] = useState(null);
-  return (
-    <>
-      <Box
-        onClick={(e) => !disabled && setAnchorEl(e.currentTarget)}
-        title={title}
-        sx={{
-          width: 24,
-          height: 24,
-          borderRadius: "50%",
-          bgcolor: value || "#fff",
-          cursor: disabled ? "default" : "pointer",
-          border: "2px solid",
-          borderColor: "divider",
-          opacity: disabled ? 0.4 : 1,
-          flexShrink: 0,
-          "&:hover": disabled ? {} : { transform: "scale(1.1)" },
-          transition: "transform 0.2s",
-        }}
-      />
-      <Popover
-        open={Boolean(anchorEl)}
-        anchorEl={anchorEl}
-        onClose={() => setAnchorEl(null)}
-        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-        transformOrigin={{ vertical: "top", horizontal: "right" }}
-        slotProps={{ paper: { sx: { mt: 1, borderRadius: 2, boxShadow: 6 } } }}
-      >
-        <ColorPickerContent
-          color={value}
-          onColorChange={onChange}
-          onClose={() => setAnchorEl(null)}
-        />
-      </Popover>
-    </>
-  );
-}
 
 // Compact single-line FREE_TEXT editor: text alignment stays visible, every
 // other option (font, size, B/I/U, colors, background / border / padding /
@@ -191,12 +132,7 @@ export default function FieldAnnotationTemplateFreeText({
   }
 
   function handleReset() {
-    const defaults = getDefaultsForShape("FREE_TEXT");
-    const changes = {};
-    FREE_TEXT_FIELDS.forEach((field) => {
-      if (field in defaults) changes[field] = defaults[field];
-    });
-    patch(changes);
+    patch(getFreeTextStyleDefaults());
   }
 
   // render

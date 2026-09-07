@@ -1,28 +1,38 @@
 import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
 
-import FieldAnnotationTemplateFreeText from "./FieldAnnotationTemplateFreeText";
-import { FREE_TEXT_FIELDS } from "Features/annotations/constants/freeTextConstants";
+import FieldAnnotationFreeTextAlign from "./FieldAnnotationFreeTextAlign";
+import FieldAnnotationFreeTextSize from "./FieldAnnotationFreeTextSize";
+import FieldAnnotationFreeTextStyle from "./FieldAnnotationFreeTextStyle";
+import FieldAnnotationFreeTextFill from "./FieldAnnotationFreeTextFill";
+import FieldAnnotationFreeTextBorder from "./FieldAnnotationFreeTextBorder";
 
-// Per-annotation FREE_TEXT editor (PanelProperties): same UI as the template
-// field, but writes the text-styling props onto the annotation row itself.
-// No padlock (onOverrideFieldsChange not provided — override locks are a
-// template-level concern).
+// Per-annotation FREE_TEXT style editor (PanelProperties): the template
+// popover options laid flat as five cards (alignment / size / style / fill /
+// border), each writing its own subset of the style props onto the
+// annotation row. No padlock — override locks are a template-level concern
+// (see FieldAnnotationTemplateFreeText).
 export default function FieldAnnotationFreeText({ annotation }) {
   const updateAnnotation = useUpdateAnnotation();
 
-  async function handleChange(updated) {
+  // handlers
+
+  async function handlePatch(changes) {
     if (!annotation?.id) return;
-    const patch = { id: annotation.id };
-    for (const key of FREE_TEXT_FIELDS) {
-      if (updated[key] !== annotation[key]) patch[key] = updated[key];
-    }
-    if (Object.keys(patch).length > 1) await updateAnnotation(patch);
+    await updateAnnotation({ id: annotation.id, ...changes });
   }
 
+  // render
+
   return (
-    <FieldAnnotationTemplateFreeText
-      annotationTemplate={annotation}
-      onChange={handleChange}
-    />
+    <>
+      <FieldAnnotationFreeTextAlign value={annotation} onChange={handlePatch} />
+      <FieldAnnotationFreeTextSize value={annotation} onChange={handlePatch} />
+      <FieldAnnotationFreeTextStyle value={annotation} onChange={handlePatch} />
+      <FieldAnnotationFreeTextFill value={annotation} onChange={handlePatch} />
+      <FieldAnnotationFreeTextBorder
+        value={annotation}
+        onChange={handlePatch}
+      />
+    </>
   );
 }

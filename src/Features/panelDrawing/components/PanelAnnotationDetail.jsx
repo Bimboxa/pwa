@@ -58,6 +58,7 @@ export default function PanelAnnotationDetail({
   const prevAnnotation = annotations[annotationIndex - 1];
   const nextAnnotation = annotations[annotationIndex + 1];
   const isSolo = soloAnnotationId === annotation?.id;
+  const isFreeText = annotation?.type === "FREE_TEXT";
 
   // handlers
 
@@ -238,19 +239,22 @@ export default function PanelAnnotationDetail({
       </Box>
 
       {/* Label field + shape overview / quantities card — above the tabs
-          (pulled out of the Propriété tab via hideOverview). */}
-      <Box
-        sx={{
-          display: "flex",
-          flexDirection: "column",
-          gap: 1,
-          px: 1.5,
-          pb: 1.5,
-        }}
-      >
-        <FieldAnnotationLabel annotation={annotation} />
-        <SectionAnnotationOverview annotation={annotation} />
-      </Box>
+          (pulled out of the Propriété tab via hideOverview). FREE_TEXT is a
+          pure text box: neither applies (same rule as the right panel). */}
+      {!isFreeText && (
+        <Box
+          sx={{
+            display: "flex",
+            flexDirection: "column",
+            gap: 1,
+            px: 1.5,
+            pb: 1.5,
+          }}
+        >
+          <FieldAnnotationLabel annotation={annotation} />
+          <SectionAnnotationOverview annotation={annotation} />
+        </Box>
+      )}
 
       {/* Shared properties body (tabs + content), fed by prop — no selection
           side effect from displaying the annotation here. */}
