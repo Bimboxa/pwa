@@ -1,12 +1,15 @@
 import { useRef, useLayoutEffect, useState, useEffect } from "react";
 
 import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
+import usePendingAnnotationUpdates, {
+  setPendingAnnotationUpdates,
+  markPendingAnnotationUpdatesCommitted,
+  clearPendingAnnotationUpdates,
+} from "Features/annotations/hooks/usePendingAnnotationUpdates";
 import {
   getFreeTextFontStack,
   getFreeTextPageScale,
 } from "Features/annotations/constants/freeTextConstants";
-
-import db from "App/db/db";
 
 // --- CONSTANTES ---
 const DOT_RADIUS = 2;
@@ -39,6 +42,12 @@ const MAX_WIDTH = 2000;
 // sizing span drives the box size (visible text when unselected, transparent
 // under the textarea when selected) with STRICTLY identical font styles, and
 // the border-box never changes on selection (selection feedback = outline).
+// Same rule for the width: in auto-width mode a LEFT / RIGHT aligned box keeps
+// its aligned edge pinned while typing (see "ANCRAGE PENDANT LA SAISIE").
+// Same rule at deselection: the values just written are merged over the DB
+// props from usePendingAnnotationUpdates until the liveQuery catches up, so
+// the fresh StaticMapContent instance mounted by the deselection never
+// shows the old text / position (the writing instance is unmounted).
 export default function NodeFreeTextStatic({
   annotation,
   annotationOverride,
@@ -57,10 +66,10 @@ export default function NodeFreeTextStatic({
   const data = { ...annotation, ...annotationOverride };
   const {
     id,
-    targetPoint = { x: 0, y: 0 },
-    labelPoint = { x: 0, y: 0 },
+    targetPoint: dbTargetPoint = { x: 0, y: 0 },
+    labelPoint: dbLabelPoint = { x: 0, y: 0 },
     width: fixedWidth,
-    textContent,
+    textContent: dbTextContent,
     placeholder = "Texte",
     fillColor = "#ffffff",
     hasBackground = true,
@@ -77,8 +86,27 @@ export default function NodeFreeTextStatic({
     hasConnector = false,
     pageFormat = "A4",
     imageLongSidePx,
+    imageSize,
     hidden,
   } = data;
+
+  // --- 0. MISES À JOUR EN ATTENTE ---
+  // Values written by saveText but not yet back from the liveQuery are
+  // merged over the DB props (NORMALIZED points → px via imageSize; hosts
+  // without imageSize keep the DB points). See usePendingAnnotationUpdates.
+  const pending = usePendingAnnotationUpdates(id);
+  const pendingUpdates = pending?.updates;
+  const canUsePendingPoints = Boolean(imageSize?.width && imageSize?.height);
+  const toPx = (p) => ({ x: p.x * imageSize.width, y: p.y * imageSize.height });
+  const textContent = pendingUpdates?.textContent ?? dbTextContent;
+  const labelPoint =
+    pendingUpdates?.labelPoint && canUsePendingPoints
+      ? toPx(pendingUpdates.labelPoint)
+      : dbLabelPoint;
+  const targetPoint =
+    pendingUpdates?.targetPoint && canUsePendingPoints
+      ? toPx(pendingUpdates.targetPoint)
+      : dbTargetPoint;
 
   // --- 1. SCALES ---
   // pageScale: page-pt → image-px (the box group is scaled by it, so all the
@@ -102,6 +130,10 @@ export default function NodeFreeTextStatic({
     y: labelPoint.y ?? targetPoint.y,
   };
 
+  // Latest render values for the save paths that run from refs / cleanups.
+  const latestRef = useRef(null);
+  latestRef.current = { labelPx, targetPx, imageSize, hasConnector, pageScale };
+
   // --- 3. GESTION TEXTE ---
   // The box shows and edits `textContent` — the annotation's own text prop,
   // decoupled from `label` (which upstream enrichment may overwrite with the
@@ -119,27 +151,77 @@ export default function NodeFreeTextStatic({
   const textRef = useRef(text);
   textRef.current = text;
 
+  // --- 3b. ANCRAGE PENDANT LA SAISIE ---
+  // The box is STORED centred on labelPoint (exports, drag, bbox all rely on
+  // it). In auto-width mode typing grows the box, and a centred box grows on
+  // BOTH sides: a LEFT-aligned text slides left at every keystroke. While
+  // editing, the aligned edge is pinned instead: the centre shift (page pt,
+  // measured on the box itself) is applied live, then persisted into
+  // labelPoint together with the text so nothing moves at validation.
+  // CENTER keeps the symmetric growth. At save the shift moves into the
+  // pending labelPoint (merged above) and resets to 0 in the same handler,
+  // so the displayed centre does not change.
+  const alignSign = textAlign === "RIGHT" ? -1 : textAlign === "CENTER" ? 0 : 1;
+  const [editShiftPt, setEditShiftPt] = useState(0);
+  const editShiftRef = useRef(0);
+  const editBaseWidthRef = useRef(null);
+
   const saveText = async (value) => {
+    const shiftPt = editShiftRef.current;
+    const updates = {};
+    if (value !== textRef.current) updates.textContent = value;
+    if (shiftPt) {
+      const { labelPx, targetPx, imageSize, hasConnector, pageScale } =
+        latestRef.current;
+      if (imageSize?.width && imageSize?.height) {
+        const dx = shiftPt * pageScale;
+        updates.labelPoint = {
+          x: (labelPx.x + dx) / imageSize.width,
+          y: labelPx.y / imageSize.height,
+        };
+        // Without connector the (hidden, coincident) targetPoint rides the
+        // box — same rule as the LABEL_BOX drag.
+        if (!hasConnector) {
+          updates.targetPoint = {
+            x: (targetPx.x + dx) / imageSize.width,
+            y: targetPx.y / imageSize.height,
+          };
+        }
+      } else {
+        console.warn(
+          "[NodeFreeTextStatic] anchor shift not saved: imageSize unknown",
+          id
+        );
+        editShiftRef.current = 0;
+        setEditShiftPt(0);
+      }
+    }
+    if (Object.keys(updates).length === 0) return;
+    // Optimistic first (before any await): every mounted instance — and the
+    // one the deselection is about to mount — renders the new values now.
+    const entry = setPendingAnnotationUpdates(id, updates);
+    if (updates.labelPoint) {
+      editShiftRef.current = 0;
+      setEditShiftPt(0);
+    }
     try {
-      await db.annotations.update(id, { textContent: value });
+      await updateAnnotation({ id, ...updates });
+      markPendingAnnotationUpdatesCommitted(entry);
     } catch (err) {
       console.error(err);
+      clearPendingAnnotationUpdates(id, entry);
     }
   };
 
   const handleBlur = () => {
-    if (localValue !== text) {
-      saveText(localValue);
-    }
+    saveText(localValue);
   };
 
   // Save pending changes when deselected (textarea unmount skips onBlur)
   useEffect(() => {
     if (!selected) return;
     return () => {
-      if (localValueRef.current !== textRef.current) {
-        saveText(localValueRef.current);
-      }
+      saveText(localValueRef.current);
     };
   }, [selected]);
 
@@ -320,6 +402,67 @@ export default function NodeFreeTextStatic({
     hasPadding,
   ]);
 
+  // Edit-time anchor: baseline width (re-captured whenever something other
+  // than the text changes the box width — style, fixed width, selection),
+  // then accumulate the centre shift on every text-driven width change.
+  // Declared BEFORE the text effect so a same-commit style change is
+  // absorbed by the baseline, not counted as a shift.
+  useLayoutEffect(() => {
+    editBaseWidthRef.current =
+      selected && boxRef.current ? boxRef.current.offsetWidth : null;
+  }, [
+    selected,
+    effectiveFixedWidth,
+    fontSize,
+    fontFamily,
+    fontWeight,
+    fontItalic,
+    fontUnderline,
+    hasPadding,
+    textAlign,
+    pageScale,
+  ]);
+
+  useLayoutEffect(() => {
+    if (!selected || !alignSign || editBaseWidthRef.current == null) return;
+    const w = boxRef.current?.offsetWidth;
+    if (!Number.isFinite(w)) return;
+    const delta = (alignSign * (w - editBaseWidthRef.current)) / 2;
+    editBaseWidthRef.current = w;
+    if (delta) {
+      editShiftRef.current += delta;
+      setEditShiftPt(editShiftRef.current);
+    }
+  }, [localValue]);
+
+  // Pending updates landed: the DB props now equal what was written, so the
+  // entry can go (merged === DB, nothing moves on screen).
+  useEffect(() => {
+    if (!pending) return;
+    const u = pending.updates;
+    const near = (a, b) => Math.abs(a - b) < 0.01;
+    const ptLanded = (pt, dbPt) =>
+      !pt ||
+      !canUsePendingPoints ||
+      (near(pt.x * imageSize.width, dbPt.x) &&
+        near(pt.y * imageSize.height, dbPt.y));
+    const landed =
+      (u.textContent === undefined ||
+        (u.textContent ?? "") === (dbTextContent ?? "")) &&
+      ptLanded(u.labelPoint, dbLabelPoint) &&
+      ptLanded(u.targetPoint, dbTargetPoint);
+    if (landed) clearPendingAnnotationUpdates(id, pending);
+  }, [
+    pending,
+    dbTextContent,
+    dbLabelPoint.x,
+    dbLabelPoint.y,
+    dbTargetPoint.x,
+    dbTargetPoint.y,
+  ]);
+
+  const boxPx = { x: labelPx.x + editShiftPt * pageScale, y: labelPx.y };
+
   // --- 7. RENDU ---
   const dataProps = {
     "data-node-id": id,
@@ -331,7 +474,7 @@ export default function NodeFreeTextStatic({
     "data-interaction": "draggable",
   };
 
-  const leaderPoints = `${targetPx.x},${targetPx.y} ${labelPx.x},${labelPx.y}`;
+  const leaderPoints = `${targetPx.x},${targetPx.y} ${boxPx.x},${boxPx.y}`;
 
   return (
     <g
@@ -398,7 +541,7 @@ export default function NodeFreeTextStatic({
       {/* C. BOÎTE DE TEXTE (map-fixed : aucun contre-zoom). The inner group
           scales page pt → image px, so everything inside the foreignObject
           is authored in page points (fontSize, padding, width). */}
-      <g transform={`translate(${labelPx.x}, ${labelPx.y})`}>
+      <g transform={`translate(${boxPx.x}, ${boxPx.y})`}>
         <g transform={`scale(${pageScale})`}>
           <foreignObject
             x={-boxSize.w / 2}

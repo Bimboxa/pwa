@@ -516,7 +516,6 @@ export default function useAnnotationsV2(options) {
 
     const tempAnnotations = useSelector((s) => s.annotations.tempAnnotations);
 
-
     // NOTE: the Redux `annotationsUpdatedAt` tick is intentionally NOT a
     // dependency of the liveQuery below. Dexie's liveQuery natively observes
     // every table read inside the callback (db.annotations, db.points,
@@ -1208,9 +1207,12 @@ export default function useAnnotationsV2(options) {
             // the image long side to derive the pt→image-px scale
             // (getFreeTextPageScale), and imageSize is only known here.
             _annotation.imageLongSidePx = Math.max(width, height);
+            // The image size the node handles need to persist a moved point
+            // (LABEL elbow handle, FREE_TEXT edit-time anchor shift) — the
+            // nodes are not given imageSize by EditedObjectLayer.
+            _annotation.imageSize = { width, height };
             // LABEL: pinned leader elbow (VARIABLE stub mode, normalized like
-            // targetPoint) + the image size the elbow handle needs to persist
-            // it (NodeLabelStatic is not given imageSize by EditedObjectLayer).
+            // targetPoint).
             if (_annotation.type === "LABEL") {
               _annotation.elbowPoint = annotation.elbowPoint
                 ? {
@@ -1218,7 +1220,6 @@ export default function useAnnotationsV2(options) {
                     y: annotation.elbowPoint.y * height,
                   }
                 : null;
-              _annotation.imageSize = { width, height };
             }
           }
 
@@ -2398,7 +2399,9 @@ export default function useAnnotationsV2(options) {
       if (mainBusinessObjectLabelByAnnotationId.size > 0) {
         result = result.map((annotation) => {
           if (annotation?.isBaseMapAnnotation) return annotation;
-          const main = mainBusinessObjectLabelByAnnotationId.get(annotation?.id);
+          const main = mainBusinessObjectLabelByAnnotationId.get(
+            annotation?.id
+          );
           if (!main) return annotation;
           return {
             ...annotation,
