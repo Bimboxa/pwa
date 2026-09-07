@@ -35,6 +35,12 @@ import resolveDetailRefFormat, {
   getDetailRefText,
 } from "../utils/resolveDetailRefFormat";
 import getFolioDetailRef from "../utils/getFolioDetailRef";
+import collectFreeTextVectorItems, {
+  FREE_TEXT_NODE_SELECTOR,
+} from "../utils/collectFreeTextVectorItems";
+import drawFreeTextItemsOnPdfPage, {
+  createFreeTextFontProvider,
+} from "../utils/drawFreeTextItemsOnPdfPage";
 
 function hexToPdfRgb(hex) {
   const match = /^#?([0-9a-f]{6})$/i.exec(hex || "");
@@ -87,7 +93,11 @@ async function captureFolioAnnotationsPng(pageId, pixelRatio) {
   const overlay = svgEl?.querySelector("[data-folio-annotations]");
   if (!overlay || overlay.childElementCount === 0) return null;
 
-  const hiddenEls = Array.from(svgEl.children).filter((el) => el !== overlay);
+  // FREE_TEXT boxes are redrawn as vector text in the vector pass
+  const hiddenEls = [
+    ...Array.from(svgEl.children).filter((el) => el !== overlay),
+    ...overlay.querySelectorAll(FREE_TEXT_NODE_SELECTOR),
+  ];
   hiddenEls.forEach((el) => (el.style.visibility = "hidden"));
   const prevBackground = svgEl.style.background;
   svgEl.style.background = "transparent";
@@ -245,7 +255,14 @@ export default function useDownloadPortfolioPdf() {
               };
             }
             // annotations of the detail baseMap, drawn on screen over the
-            // PDF page: captured here (DOM), stamped in the vector pass
+            // PDF page: captured here (DOM), stamped in the vector pass —
+            // except FREE_TEXT boxes, redrawn as vector text
+            const folioSvgEl = document.querySelector(
+              `svg[data-portfolio-page-id="${page.id}"]`
+            );
+            folioMeta.freeTexts = folioSvgEl
+              ? await collectFreeTextVectorItems(folioSvgEl)
+              : [];
             folioMeta.annotationsPng = await captureFolioAnnotationsPng(
               page.id,
               hdExport ? 4 : 2
@@ -282,12 +299,18 @@ export default function useDownloadPortfolioPdf() {
           pageFrameConfig
         );
 
-        // hide the title block + title bar + page frame before SVG capture:
-        // they are redrawn as vector content on the pdf-lib page after merge
+        // FREE_TEXT annotations: geometry + styles read from the DOM now,
+        // redrawn as vector text in the vector pass (never rasterized)
+        const freeTexts = await collectFreeTextVectorItems(svgEl);
+
+        // hide the title block + title bar + page frame (+ FREE_TEXT boxes)
+        // before SVG capture: they are redrawn as vector content on the
+        // pdf-lib page after merge
         const hiddenEls = [
           svgEl.querySelector("[data-portfolio-header]"),
           svgEl.querySelector("[data-portfolio-title-bar]"),
           svgEl.querySelector("[data-portfolio-frame]"),
+          ...svgEl.querySelectorAll(FREE_TEXT_NODE_SELECTOR),
         ].filter(Boolean);
         hiddenEls.forEach((el) => (el.style.visibility = "hidden"));
 
@@ -318,6 +341,7 @@ export default function useDownloadPortfolioPdf() {
           type: "PLAN",
           layout,
           pageTitle: page.title || "",
+          freeTexts,
           titleFormat,
           titleText: getPortfolioPageTitleText(titleFormat, {
             portfolioName: portfolio?.name,
@@ -398,6 +422,12 @@ export default function useDownloadPortfolioPdf() {
         }
       }
 
+      // standard fonts of the FREE_TEXT vector items (async embed, sync draw)
+      const freeTextFonts = createFreeTextFontProvider(pdfDoc);
+      for (const meta of pageMetas) {
+        await freeTextFonts.ensure(meta.freeTexts);
+      }
+
       allPages.forEach((pdfPage, index) => {
         const meta = pageMetas[index];
         if (!meta) return;
@@ -425,6 +455,9 @@ export default function useDownloadPortfolioPdf() {
               height,
             });
           }
+          // FREE_TEXT annotations as vector text, over the page content and
+          // under title + cartouche
+          drawFreeTextItemsOnPdfPage(pdfPage, meta.freeTexts, freeTextFonts);
           if (meta.titleFormat?.show && meta.titleText) {
             drawTitleBarOnPdfPage(pdfPage, {
               rect: meta.titleFormat.rect,
