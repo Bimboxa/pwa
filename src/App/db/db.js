@@ -9,10 +9,12 @@ import {
   getEffectiveOwner,
   isScopeEditor,
   normalizeOwnerId,
+  NoScopeSelectedError,
   OwnershipError,
   ReadOnlyScopeError,
 } from "./ownership";
 import getUserIdMaster from "Features/auth/utils/getUserIdMaster";
+import getSelectScopeRequiredMessage from "Features/scopes/utils/getSelectScopeRequiredMessage";
 import getUserTrigram from "Features/auth/utils/getUserTrigram";
 import { notifyLocalChange } from "Features/remoteScopeConfigurations/services/localChangeTracker";
 
@@ -444,10 +446,27 @@ function assertNotReadOnlyScope(tableName, obj) {
   throw new ReadOnlyScopeError();
 }
 
+// --- NO-SCOPE GUARD ---
+// Annotations are scope content (scope derived via listing.scopeId): creating
+// or modifying one while no scope is selected would land it nowhere. Base map
+// annotations (BASE_MAP_DETAIL) and legacy scale segments belong to the base
+// map, not to a scope. System writes (import / sync / cascade) bypass. Also
+// covers soft deletes (a put through the updating hook) and undo/redo puts.
+function assertScopeSelected(tableName, obj) {
+  if (_skipOwnershipGuard) return;
+  if (tableName !== "annotations") return;
+  if (obj?.isBaseMapAnnotation || obj?.isScaleSegment) return;
+  if (getCurrentScopeId()) return;
+  throw new NoScopeSelectedError(
+    getSelectScopeRequiredMessage(store.getState()?.appConfig?.value)
+  );
+}
+
 AUDIT_TABLES.forEach((tableName) => {
   db[tableName].hook("creating", function (primKey, obj) {
     // Before notifyLocalChange so a read-only scope is never marked dirty.
     assertNotReadOnlyScope(tableName, obj);
+    assertScopeSelected(tableName, obj);
     obj.createdAt = obj.createdAt || new Date().toISOString();
     obj.createdByUserIdMaster =
       obj.createdByUserIdMaster || getCurrentUserIdMaster();
@@ -460,6 +479,7 @@ AUDIT_TABLES.forEach((tableName) => {
 
   db[tableName].hook("updating", function (modifications, primKey, obj) {
     assertNotReadOnlyScope(tableName, obj);
+    assertScopeSelected(tableName, obj);
     if (!_skipOwnershipGuard) notifyLocalChange();
 
     if (_skipOwnershipGuard) {
@@ -629,6 +649,7 @@ async function softDeleteByKeys(downlevelTable, req, tableName) {
     const record = existingRecords[i];
     if (record && !record.deletedAt) {
       assertNotReadOnlyScope(tableName, record);
+      assertScopeSelected(tableName, record);
       if (
         !_skipOwnershipGuard &&
         !OWNERSHIP_EXEMPT_TABLES.has(tableName) &&
@@ -688,6 +709,7 @@ async function softDeleteByRange(downlevelTable, req, tableName) {
 
   for (const record of recordsToDelete) {
     assertNotReadOnlyScope(tableName, record);
+    assertScopeSelected(tableName, record);
   }
 
   if (!_skipOwnershipGuard && !OWNERSHIP_EXEMPT_TABLES.has(tableName)) {

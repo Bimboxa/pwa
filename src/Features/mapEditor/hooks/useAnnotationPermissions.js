@@ -5,6 +5,8 @@ import { setToaster } from "Features/layout/layoutSlice";
 import { canEditRecord } from "App/db/ownership";
 import getUserIdMaster from "Features/auth/utils/getUserIdMaster";
 import useIsSelectedScopeEditor from "Features/scopes/hooks/useIsSelectedScopeEditor";
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
+import getSelectScopeRequiredMessage from "Features/scopes/utils/getSelectScopeRequiredMessage";
 
 /**
  * Hook central de vérification des permissions d'annotation.
@@ -36,6 +38,15 @@ export default function useAnnotationPermissions({ annotations }) {
   const isEditorRef = useRef(isEditor);
   isEditorRef.current = isEditor;
 
+  // No-scope guard (mirrors assertScopeSelected in App/db/db.js) — refs so
+  // the callbacks stay stable. Base map annotations are exempt.
+  const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
+  const scopeIdRef = useRef(selectedScopeId);
+  scopeIdRef.current = selectedScopeId;
+  const appConfig = useAppConfig();
+  const scopeMessageRef = useRef();
+  scopeMessageRef.current = getSelectScopeRequiredMessage(appConfig);
+
   /**
    * Vérifie si l'utilisateur courant peut modifier une annotation.
    * Coût : O(n) lookup — appelé uniquement sur événement utilisateur.
@@ -47,8 +58,17 @@ export default function useAnnotationPermissions({ annotations }) {
    */
   const canEditAnnotation = useCallback(
     (annotationId, { silent = false } = {}) => {
-      if (isEditorRef.current) return true;
       const ann = annotationsRef.current?.find((a) => a.id === annotationId);
+      // Before the editor bypass: an edit grant does not replace a scope.
+      if (!scopeIdRef.current && !ann?.isBaseMapAnnotation) {
+        if (!silent) {
+          dispatch(
+            setToaster({ message: scopeMessageRef.current, isError: true })
+          );
+        }
+        return false;
+      }
+      if (isEditorRef.current) return true;
       if (canEditRecord(ann, currentUserId)) return true;
       if (!silent) {
         dispatch(setToaster({ message: PERMISSION_MESSAGE, isError: true }));
@@ -76,6 +96,7 @@ export default function useAnnotationPermissions({ annotations }) {
       const anns = annotationsRef.current ?? [];
       const myIds = [];
       const foreignIds = [];
+      const matched = [];
 
       for (const ann of anns) {
         const inMain = ann.points?.some((pt) => pt.id === pointId);
@@ -93,12 +114,28 @@ export default function useAnnotationPermissions({ annotations }) {
           l?.points?.some((g) => g.pointId === pointId || g.id === pointId)
         );
         if (inMain || inCuts || inInner || inGuide || inIso || inProfile) {
+          matched.push(ann);
           if (isEditorRef.current || canEditRecord(ann, currentUserId)) {
             myIds.push(ann.id);
           } else {
             foreignIds.push(ann.id);
           }
         }
+      }
+
+      // No scope selected: block outright (no fork attempt — the db guard
+      // would reject it anyway). Base map annotations stay editable.
+      if (!scopeIdRef.current && matched.some((a) => !a.isBaseMapAnnotation)) {
+        dispatch(
+          setToaster({ message: scopeMessageRef.current, isError: true })
+        );
+        return {
+          allowed: false,
+          mustFork: false,
+          blocked: true,
+          myAnnotationIds: [],
+          foreignAnnotationIds: matched.map((a) => a.id),
+        };
       }
 
       const blocked = myIds.length === 0;

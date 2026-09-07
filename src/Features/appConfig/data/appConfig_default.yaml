@@ -61,6 +61,7 @@ strings:
     new: "Nouveau dossier"
     create: "Créez un nouveau dossier"
     select: "Sélectionnez un dossier"
+    selectRequired: "Sélectionnez un dossier"
     myScopes: "Mes dossiers"
     nameLabel: "Nom du dossier"
     noScope: "Aucun dossier"

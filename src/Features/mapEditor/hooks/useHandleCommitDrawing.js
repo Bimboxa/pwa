@@ -15,8 +15,10 @@ import { setNewAnnotation, triggerAnnotationsUpdate } from "Features/annotations
 import { setSelectedItem } from "Features/selection/selectionSlice";
 import { setEnabledDrawingMode } from "Features/mapEditor/mapEditorSlice";
 import { setPendingProcedureLaunch } from "Features/annotationsAuto/annotationsAutoSlice";
+import { setToaster } from "Features/layout/layoutSlice";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
+import getSelectScopeRequiredMessage from "Features/scopes/utils/getSelectScopeRequiredMessage";
 
 import db from "App/db/db";
 import getAnnotationTemplateFromNewAnnotation from "Features/annotations/utils/getAnnotationTemplateFromNewAnnotation";
@@ -142,6 +144,17 @@ export default function useHandleCommitDrawing({ newEntity, annotations } = {}) 
         // newAnnotation
 
         const newAnnotation = options?.newAnnotation ?? newAnnotationInState
+
+        // No scope selected: nothing to attach the annotation to. Bail out
+        // before ANY write (cut host update, entity, template) — the Dexie
+        // guard alone would leave orphan rows, and useCreateAnnotation
+        // swallows its error. Base map annotations belong to the base map,
+        // not to a scope. The tool stays armed (InteractionLayer already
+        // cleared its local points): pick a scope and redraw.
+        if (!selectedScopeId && !isBaseMapAnnotation && !newAnnotation?.isScaleSegment) {
+            dispatch(setToaster({ message: getSelectScopeRequiredMessage(appConfig), isError: true }));
+            return;
+        }
 
         // Revolution helpers (see REVOLUTION_HELPER_TYPES): single-point
         // annotations with no entity. Template-driven since REVOLUTION_AXIS

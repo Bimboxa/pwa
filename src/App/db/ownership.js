@@ -112,3 +112,16 @@ export class ReadOnlyScopeError extends OwnershipError {
     this.name = "ReadOnlyScopeError";
   }
 }
+
+/**
+ * Thrown by the DB layer when an annotation is created / modified while no
+ * scope is selected. Extends OwnershipError so the MainAppLayout
+ * unhandledrejection handler surfaces it as a toast. The message is injected
+ * by db.js from appConfig strings (org wording).
+ */
+export class NoScopeSelectedError extends OwnershipError {
+  constructor(message = "Sélectionnez un plan de repérage") {
+    super(message);
+    this.name = "NoScopeSelectedError";
+  }
+}
