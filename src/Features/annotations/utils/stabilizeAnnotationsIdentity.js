@@ -90,6 +90,49 @@ export function annotationsStructurallyEqual(a, b) {
   return true;
 }
 
+// Diagnostic helpers (only run on a cache MISS, never on the reuse path).
+function summarize(value) {
+  try {
+    const str =
+      typeof value === "function"
+        ? "[fn]"
+        : (JSON.stringify(value) ?? "undefined");
+    return str.length > 80 ? `${str.slice(0, 80)}…` : str;
+  } catch {
+    return "[unserializable]";
+  }
+}
+
+// First top-level key on which `prev` and `next` differ, under the same rules
+// as annotationsStructurallyEqual — names what defeats the identity reuse of
+// one annotation (e.g. a value rebuilt on every run, or a key added/removed).
+export function describeAnnotationMiss(prev, next) {
+  if (!prev || !next || typeof prev !== "object" || typeof next !== "object") {
+    return { key: "<root>", prev: summarize(prev), next: summarize(next) };
+  }
+  for (const key of Object.keys(next)) {
+    if (!Object.prototype.hasOwnProperty.call(prev, key)) {
+      return { key: `+${key}`, prev: undefined, next: summarize(next[key]) };
+    }
+  }
+  for (const key of Object.keys(prev)) {
+    if (!Object.prototype.hasOwnProperty.call(next, key)) {
+      return { key: `-${key}`, prev: summarize(prev[key]), next: undefined };
+    }
+    const va = prev[key];
+    const vb = next[key];
+    if (va === vb) continue;
+    let same;
+    if (key === "subtractionTargets") same = sameIdList(va, vb);
+    else if (key === "baseMap" || key === "entity")
+      same = sameLinkedRecord(va, vb);
+    else if (typeof va === "function" && typeof vb === "function") same = true;
+    else same = boundedDeepEqual(va, vb, MAX_DEPTH);
+    if (!same) return { key, prev: summarize(va), next: summarize(vb) };
+  }
+  return { key: "<equal>", prev: undefined, next: undefined };
+}
+
 /**
  * Maps the pipeline output to referentially-stable objects.
  *
@@ -97,8 +140,11 @@ export function annotationsStructurallyEqual(a, b) {
  *                        MUST NOT be shared across hook instances (options
  *                        like withEntity/withQties change the object shape).
  * @param {Array}  next   This run's pipeline output.
- * @returns {{ list: Array, reused: number }} `list` reuses the previous run's
- *          objects (and the previous array itself when nothing changed).
+ * @returns {{ list: Array, reused: number, misses: Array }} `list` reuses the
+ *          previous run's objects (and the previous array itself when nothing
+ *          changed); `misses` describes each annotation that had a cached
+ *          predecessor but could not reuse it (diagnostics, see
+ *          describeAnnotationMiss) — id-less items are reported as such.
  */
 export default function stabilizeAnnotationsIdentity(state, next) {
   const byId = state.byId;
@@ -124,6 +170,7 @@ export default function stabilizeAnnotationsIdentity(state, next) {
   // changed, so consumers (3D carve, qties) never read stale target geometry
   // through a reused source reference.
   let reused = 0;
+  const misses = [];
   const list = decisions.map((d) => {
     const { id, item, prev } = d;
     let reusePrev = d.reusePrev;
@@ -132,6 +179,19 @@ export default function stabilizeAnnotationsIdentity(state, next) {
       item.subtractionTargetIds?.some((tid) => changedIds.has(tid))
     ) {
       reusePrev = false;
+      misses.push({
+        id,
+        type: item?.type,
+        key: "<subtraction target changed>",
+      });
+    } else if (!reusePrev && id == null) {
+      misses.push({ id: null, type: item?.type, key: "<no id>" });
+    } else if (!reusePrev && prev != null) {
+      misses.push({
+        id,
+        type: item?.type,
+        ...describeAnnotationMiss(prev, item),
+      });
     }
     if (reusePrev) {
       reused += 1;
@@ -153,8 +213,8 @@ export default function stabilizeAnnotationsIdentity(state, next) {
     prevArray.length === list.length &&
     list.every((item, i) => item === prevArray[i])
   ) {
-    return { list: prevArray, reused };
+    return { list: prevArray, reused, misses };
   }
   state.prevArray = list;
-  return { list, reused };
+  return { list, reused, misses };
 }

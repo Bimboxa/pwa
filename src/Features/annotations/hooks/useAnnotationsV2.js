@@ -1108,7 +1108,14 @@ export default function useAnnotationsV2(options) {
           const imageSize =
             baseMap?.getImageSize?.() || baseMap?.image?.imageSize;
 
-          if (!imageSize) return [];
+          // Unknown base map (deleted, or not in `baseMapById`) or no image
+          // size: the annotation cannot be resolved — dropped by the
+          // `.filter(Boolean)` closing this map. NEVER return `[]` here: an
+          // empty array survives as an element, the listing-name pass below
+          // turns it into an id-less `{ isForBaseMaps }` object that defeats
+          // the identity stabilization on every run (a fresh array reference
+          // per consumer render → effect loops in the 3D editor).
+          if (!imageSize) return null;
           const { width, height } = imageSize;
           const meterByPx = baseMap.getMeterByPx();
 
@@ -1476,7 +1483,8 @@ export default function useAnnotationsV2(options) {
           _entry.variants[_variantKey] = _annotation;
           _resolvedRowsCache.set(annotation, _entry);
           return { ..._annotation };
-        });
+        })
+        .filter(Boolean);
 
       // Warn once (per change) about annotations with orphaned point refs.
       if (_missingPointsAnnCount !== _lastMissingPointsWarnCount) {
@@ -2800,16 +2808,31 @@ export default function useAnnotationsV2(options) {
       // references for annotations whose resolved content did not change, so
       // memo(NodeAnnotationStatic) & co only re-render what actually changed.
       const _tStab = performance.now();
-      const { list: stableResult, reused } = stabilizeAnnotationsIdentity(
-        stabilityRef.current,
-        result
-      );
+      const {
+        list: stableResult,
+        reused,
+        misses,
+      } = stabilizeAnnotationsIdentity(stabilityRef.current, result);
       // Only log when something actually changed (or the compare got slow):
       // idle all-reused runs fire on every consumer re-render and their logs
       // flood the console buffer, evicting the interesting commit lines.
+      // The misses name WHICH annotation defeated the reuse and on WHICH key
+      // (a per-run rebuilt value there = a new array reference on every
+      // consumer render, i.e. an effect-loop hazard).
       if (reused < result.length || performance.now() - _tStab >= 5) {
+        const missesLabel = (misses ?? [])
+          .slice(0, 5)
+          .map(
+            (m) =>
+              `${m.type ?? "?"}#${m.id} @${m.key}` +
+              (m.prev !== undefined || m.next !== undefined
+                ? ` (${m.prev} → ${m.next})`
+                : "")
+          )
+          .join(" | ");
         console.log(
-          `[debug_perf] useAnnotationsV2 [${_caller}] stability: ${reused}/${result.length} reused (${(performance.now() - _tStab).toFixed(1)}ms)`
+          `[debug_perf] useAnnotationsV2 [${_caller}] stability: ${reused}/${result.length} reused (${(performance.now() - _tStab).toFixed(1)}ms)` +
+            (missesLabel ? `\n  misses: ${missesLabel}` : "")
         );
       }
 

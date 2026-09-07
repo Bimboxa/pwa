@@ -64,8 +64,24 @@ export function getDefaultDisabledModuleKeys(appConfig) {
     : DEFAULT_DISABLED_MODULE_KEYS;
 }
 
+// Memoized on the appConfig reference: `getDefaultDisabledModuleKeys`
+// rebuilds an array on every call, and a selector returning a fresh
+// reference re-renders every `useSelector` consumer (useViewers → the whole
+// left band) on every store update.
+let _defaultDisabledMemo = { appConfig: undefined, value: null };
+
 export function selectDefaultDisabledModuleKeys(s) {
-  return getDefaultDisabledModuleKeys(s.appConfig.value);
+  const appConfig = s.appConfig.value;
+  if (
+    _defaultDisabledMemo.appConfig !== appConfig ||
+    !_defaultDisabledMemo.value
+  ) {
+    _defaultDisabledMemo = {
+      appConfig,
+      value: getDefaultDisabledModuleKeys(appConfig),
+    };
+  }
+  return _defaultDisabledMemo.value;
 }
 
 export function selectDisabledModuleKeys(s) {
