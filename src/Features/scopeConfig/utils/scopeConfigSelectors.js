@@ -26,6 +26,7 @@ export const CONFIGURABLE_MODULE_KEYS = [
   "THREED",
   "MESHES",
   "ZONES",
+  "LISTING",
   ...BUSINESS_OBJECTS_MODULE_KEYS,
 ];
 

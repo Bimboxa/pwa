@@ -158,7 +158,9 @@ Promouvoir la configuration en vrai module :
   (`DEFAULT_DISABLED_TOOL_KEYS`). Le premier toggle crée la row en la semant
   depuis ces défauts.
 - **FR-12** — Le « Mode avancé » (`appConfig.advancedLayout`) est supprimé :
-  ses modules/outils (LISTING, LOCAL_LLM) passent en `disabled: true` ; le
+  LOCAL_LLM passe en `disabled: true` ; LISTING (« Liste d'objets ») devient un
+  module configurable par scope comme les autres (`CONFIGURABLE_MODULE_KEYS`,
+  désactivé par défaut, restaurable au reload, sans hotkey) ; le
   toggle DRAW/EDIT/SELECT et les hotkeys D/M/S disparaissent (reste
   `useResetInteractionMode` qui remet le mode résiduel à null) ; l'intercept
   ORTHO_PATHS marche désormais quand le mode est explicitement choisi dans
@@ -281,7 +283,7 @@ Plus `src/Features/viewers/hooks/useEnsureEnabledModule.js`,
 `src/App/store.js`, `src/App/components/MainApp.jsx`,
 `src/Features/appConfig/appConfigSlice.js` (advancedLayout retiré),
 `src/Features/viewers/hooks/useViewers.jsx` (LOCKED_MODULE_KEYS,
-ignoreScopeConfig, LISTING hard-disabled),
+ignoreScopeConfig, LISTING configurable par scope),
 `src/Features/viewers/components/VerticalMenuViewers.jsx`,
 `src/Features/viewers/hooks/useLandingViewerModuleOnScopeOpen.js`,
 `src/Features/layout/components/LayoutDesktop.jsx`,
