@@ -8,8 +8,15 @@ import {
 // matches the pdf-lib Helvetica metrics at export (WYSIWYG). Each text is
 // wrapped in a nested <svg> viewport so overflowing values are clipped like
 // the PDF ellipsis-truncation. Interactivity (selection, logo upload) stays
-// in the parent (PortfolioHeaderSvg).
-export default function TitleBlockSvg({ layoutData, style = {}, logoUrl }) {
+// in the parent (PortfolioHeaderSvg). `hideText(t)` lets an interactive
+// parent replace given text primitives with its own overlay (see
+// TitleBlockEditableSvg).
+export default function TitleBlockSvg({
+  layoutData,
+  style = {},
+  logoUrl,
+  hideText,
+}) {
   const { frame, lines, texts, imageSlots, svgPaths } = layoutData;
 
   const fontFamily = style.fontFamily || "Helvetica, Arial, sans-serif";
@@ -71,6 +78,7 @@ export default function TitleBlockSvg({ layoutData, style = {}, logoUrl }) {
 
       {/* Texts (nested svg = clipping viewport per cell) */}
       {texts.map((t, i) => {
+        if (hideText?.(t)) return null;
         let x = PAD_VALUE_LEFT;
         let textAnchor = "start";
         if (t.align === "right") {

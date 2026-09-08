@@ -72,7 +72,9 @@ function resolveCellValue(cell, { values, bindings }) {
  *   frame: {x, y, width, height},
  *   lines: Array<{x1, y1, x2, y2}>,
  *   texts: Array<{x, y, width, height, text, spans, kind, bold, align,
- *     fontSize, isPageNum}>, // `spans` ([{text, bold}]) replaces `text`
+ *     fontSize, isPageNum, bind, fallbackBind}>, // `spans` ([{text, bold}])
+ *     // replaces `text`; `bind` / `fallbackBind` echo the source cell so an
+ *     // interactive renderer can map a value cell back to its data target
  *   imageSlots: Array<{key, x, y, width, height}>,
  *   svgPaths: Array<{d, x, y, scale, fill, stroke, strokeWidth}>,
  *   pageNumCell: {x, y, width, height} | null,
@@ -222,6 +224,8 @@ export default function computeTitleBlockLayout(
       align,
       fontSize: style.valueFontSize ?? 10,
       isPageNum: cell.bind === "pageNum",
+      bind: cell.bind ?? null,
+      fallbackBind: cell.fallbackBind ?? null,
     };
     texts.push(valueCell);
     if (valueCell.isPageNum) {

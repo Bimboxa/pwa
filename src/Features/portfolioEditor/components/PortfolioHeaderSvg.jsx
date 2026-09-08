@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import {
@@ -11,7 +11,12 @@ import useSelectedProject from "Features/projects/hooks/useSelectedProject";
 import usePortfolioLogoUrl from "Features/portfolios/hooks/usePortfolioLogoUrl";
 import useTitleBlockManifest from "Features/titleBlocks/hooks/useTitleBlockManifest";
 
+import { Edit } from "@mui/icons-material";
+
+import ButtonGeneric from "Features/layout/components/ButtonGeneric";
 import TitleBlockSvg from "Features/titleBlocks/components/TitleBlockSvg";
+import TitleBlockLogoPlaceholder from "Features/titleBlocks/components/TitleBlockLogoPlaceholder";
+import DialogEditPortfolioTitleBlock from "./DialogEditPortfolioTitleBlock";
 
 import computeTitleBlockLayout from "Features/titleBlocks/utils/computeTitleBlockLayout";
 import resolveTitleBlockFields from "Features/titleBlocks/utils/resolveTitleBlockFields";
@@ -19,13 +24,32 @@ import resolveTitleBlockFields from "Features/titleBlocks/utils/resolveTitleBloc
 import theme from "Styles/theme";
 import db from "App/db/db";
 
+// "Éditer" button size below / above the selected cartouche (SVG units)
+const EDIT_BUTTON_WIDTH = 110;
+const EDIT_BUTTON_HEIGHT = 36;
+const EDIT_BUTTON_GAP = 8;
+
 // Interactive container of the page title block (cartouche): selection,
-// logo upload placeholder. Static drawing is delegated to TitleBlockSvg,
-// fed by the shared computeTitleBlockLayout engine (same one used by the
-// vector PDF export).
-export default function PortfolioHeaderSvg({ page, layout, pageIndex, totalPages }) {
+// logo upload placeholder, "Éditer" button + double-click opening the
+// enlarged edit dialog. Static drawing is delegated to TitleBlockSvg, fed by
+// the shared computeTitleBlockLayout engine (same one used by the vector PDF
+// export). The whole [data-portfolio-header] group is hidden at export, so
+// the button never leaks into the rasterized page.
+export default function PortfolioHeaderSvg({
+  page,
+  layout,
+  pageIndex,
+  totalPages,
+}) {
   const dispatch = useDispatch();
-  const logoInputRef = useRef(null);
+
+  // strings
+
+  const editS = "Éditer";
+
+  // state
+
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   // data
 
@@ -63,27 +87,43 @@ export default function PortfolioHeaderSvg({ page, layout, pageIndex, totalPages
   });
   const logoSlot = layoutData.imageSlots[0];
 
+  // TOP_FULL: button below the frame; BOTTOM_RIGHT: the frame is glued to the
+  // bottom margin, so the button sits above it.
+  const editButtonY =
+    layout.variant === "BOTTOM_RIGHT"
+      ? rect.y - EDIT_BUTTON_GAP - EDIT_BUTTON_HEIGHT
+      : rect.y + rect.height + EDIT_BUTTON_GAP;
+
   // handlers
 
   function handleClick(e) {
     e.stopPropagation();
     if (!portfolio) return;
-    dispatch(
-      setSelectedItem({ id: portfolio.id, type: "PORTFOLIO_HEADER" })
-    );
+    dispatch(setSelectedItem({ id: portfolio.id, type: "PORTFOLIO_HEADER" }));
   }
 
-  function handleLogoUpload(e) {
+  function handleDoubleClick(e) {
     e.stopPropagation();
-    const file = e.target.files?.[0];
-    if (!file || !portfolio) return;
+    if (!portfolio) return;
+    if (!isSelected) {
+      dispatch(setSelectedItem({ id: portfolio.id, type: "PORTFOLIO_HEADER" }));
+    }
+    setDialogOpen(true);
+  }
+
+  function handleEditClick(e) {
+    e.stopPropagation();
+    setDialogOpen(true);
+  }
+
+  function handleLogoFile(file) {
+    if (!portfolio) return;
     const reader = new FileReader();
     reader.onload = async () => {
       const updated = { ...config, logo: reader.result };
       await db.listings.update(portfolio.id, { metadata: updated });
     };
     reader.readAsDataURL(file);
-    if (logoInputRef.current) logoInputRef.current.value = "";
   }
 
   // render
@@ -91,7 +131,12 @@ export default function PortfolioHeaderSvg({ page, layout, pageIndex, totalPages
   if (!portfolio) return null;
 
   return (
-    <g data-portfolio-header onClick={handleClick} style={{ cursor: "pointer" }}>
+    <g
+      data-portfolio-header
+      onClick={handleClick}
+      onDoubleClick={handleDoubleClick}
+      style={{ cursor: "pointer" }}
+    >
       <TitleBlockSvg
         layoutData={layoutData}
         style={manifest.style}
@@ -99,57 +144,12 @@ export default function PortfolioHeaderSvg({ page, layout, pageIndex, totalPages
       />
 
       {/* Logo upload placeholder */}
-      {!resolvedLogoSrc && logoSlot && (
-        <foreignObject
-          x={logoSlot.x - 1}
-          y={logoSlot.y - 1}
-          width={logoSlot.width + 2}
-          height={logoSlot.height + 2}
-        >
-          <label
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              width: "100%",
-              height: "100%",
-              cursor: "pointer",
-              border: "1.5px dashed #ccc",
-              borderRadius: "3px",
-              boxSizing: "border-box",
-              background: "#fafafa",
-            }}
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              width="20"
-              height="20"
-              fill="#bbb"
-            >
-              <path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z" />
-            </svg>
-            <span
-              style={{
-                fontSize: "7px",
-                color: "#aaa",
-                fontFamily: manifest.style?.fontFamily || "sans-serif",
-                marginTop: "1px",
-              }}
-            >
-              Logo
-            </span>
-            <input
-              ref={logoInputRef}
-              type="file"
-              accept="image/*"
-              hidden
-              onChange={handleLogoUpload}
-            />
-          </label>
-        </foreignObject>
+      {!resolvedLogoSrc && (
+        <TitleBlockLogoPlaceholder
+          slot={logoSlot}
+          fontFamily={manifest.style?.fontFamily}
+          onFile={handleLogoFile}
+        />
       )}
 
       {/* Selection border */}
@@ -165,6 +165,41 @@ export default function PortfolioHeaderSvg({ page, layout, pageIndex, totalPages
           pointerEvents="none"
         />
       )}
+
+      {/* "Éditer" button, same look as the container toolbar */}
+      {isSelected && (
+        <foreignObject
+          x={rect.x}
+          y={editButtonY}
+          width={EDIT_BUTTON_WIDTH}
+          height={EDIT_BUTTON_HEIGHT}
+          style={{ overflow: "visible" }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            onDoubleClick={(e) => e.stopPropagation()}
+            style={{ display: "flex" }}
+          >
+            <ButtonGeneric
+              label={editS}
+              variant="outlined"
+              size="small"
+              startIcon={<Edit />}
+              onClick={handleEditClick}
+              sx={{ bgcolor: "white" }}
+            />
+          </div>
+        </foreignObject>
+      )}
+
+      <DialogEditPortfolioTitleBlock
+        open={dialogOpen}
+        onClose={() => setDialogOpen(false)}
+        page={page}
+        layout={layout}
+        pageIndex={pageIndex}
+        totalPages={totalPages}
+      />
     </g>
   );
 }
