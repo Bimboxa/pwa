@@ -42,13 +42,19 @@ import useDeleteAnnotationTemplate from "Features/annotations/hooks/useDeleteAnn
 
 import useLocationAnnotationTemplates from "../hooks/useLocationAnnotationTemplates";
 
+import useNotesAppConfig from "Features/notesApp/hooks/useNotesAppConfig";
+import SectionNotesAppListingConfigCard from "Features/notesApp/components/SectionNotesAppListingConfigCard";
+import PanelNotesAppListingConfig from "Features/notesApp/components/PanelNotesAppListingConfig";
+
 // Right-panel properties of a business-objects listing, reached with the back
 // arrow of the object properties panel (selection: {type: "LISTING"}). Name
 // edition, the "Numérotation" display option (3-column DPGF-like tree) and
 // the location templates: the listing's OWN annotationTemplates, created
 // with the same "Nouveau modèle" dialog as the Dessin popper and flagged
 // isBusinessObjectAnnotation. "Located" objects get a "Localiser" action that
-// draws their main annotation with one of them.
+// draws their main annotation with one of them. When the org has the Krnet
+// integration, a "Configuration Krnet" card opens the listing-configuration
+// sub-views (fields, state models, codification...) in place of the panel.
 export default function PanelBusinessObjectListingProperties({ listing }) {
   const dispatch = useDispatch();
 
@@ -75,6 +81,8 @@ export default function PanelBusinessObjectListingProperties({ listing }) {
     listingId: listing?.id,
   });
   const { guardEditRecord } = useCanEditRecord();
+  const notesAppEnabled = useNotesAppConfig()?.enabled === true;
+  const configView = useSelector((s) => s.notesApp.listingConfigView);
 
   const locationTemplates = useLocationAnnotationTemplates({ listing });
   const spriteImage = useAnnotationSpriteImage();
@@ -94,6 +102,11 @@ export default function PanelBusinessObjectListingProperties({ listing }) {
   const displayName = isEditingName ? nameValue : listing?.name || "";
 
   const objectsCount = businessObjects?.length ?? 0;
+  // stale stack of another listing = closed
+  const configViewOpen =
+    notesAppEnabled &&
+    configView.listingId === listing?.id &&
+    configView.stack.length > 0;
   const countS = `${objectsCount} ouvrage${objectsCount > 1 ? "s" : ""}`;
 
   // handlers
@@ -149,6 +162,16 @@ export default function PanelBusinessObjectListingProperties({ listing }) {
   async function handleNameBlur() {
     if (nameValue !== null && listing?.id && guardEditRecord(listing)) {
       await db.listings.update(listing.id, { name: nameValue });
+      // the name is part of the Krnet configuration: stamp the local edit
+      // so the sync conflict rule and the push selection see it
+      if (listing.notesApp) {
+        await db.listings.update(listing.id, {
+          notesApp: {
+            ...listing.notesApp,
+            localUpdatedAt: new Date().toISOString(),
+          },
+        });
+      }
     }
     setNameValue(null);
   }
@@ -166,6 +189,10 @@ export default function PanelBusinessObjectListingProperties({ listing }) {
   // useListingById spreads an undefined record into a truthy `{entityModel}`
   // object, and reads are not filtered on deletedAt: guard on both.
   if (!listing?.id || listing.deletedAt) return null;
+
+  if (configViewOpen) {
+    return <PanelNotesAppListingConfig listing={listing} />;
+  }
 
   return (
     <BoxFlexVStretch>
@@ -221,9 +248,7 @@ export default function PanelBusinessObjectListingProperties({ listing }) {
                   onChange={handleToggleNumbering}
                 />
               }
-              label={
-                <Typography variant="body2">{numberingS}</Typography>
-              }
+              label={<Typography variant="body2">{numberingS}</Typography>}
               sx={{ ml: 0 }}
             />
             <Typography
@@ -234,6 +259,10 @@ export default function PanelBusinessObjectListingProperties({ listing }) {
             </Typography>
           </Box>
         </WhiteSectionGeneric>
+
+        {notesAppEnabled && (
+          <SectionNotesAppListingConfigCard listing={listing} />
+        )}
 
         <WhiteSectionGeneric>
           <Box sx={{ p: 1, display: "flex", flexDirection: "column", gap: 1 }}>
@@ -270,7 +299,9 @@ export default function PanelBusinessObjectListingProperties({ listing }) {
                     </Box>
                     <ListItemText
                       primary={template.label || "Sans nom"}
-                      slotProps={{ primary: { variant: "body2", noWrap: true } }}
+                      slotProps={{
+                        primary: { variant: "body2", noWrap: true },
+                      }}
                     />
                     <IconButton
                       className="location-template-delete"
@@ -307,7 +338,12 @@ export default function PanelBusinessObjectListingProperties({ listing }) {
       )}
 
       {deleteTarget && (
-        <Dialog open onClose={() => setDeleteTarget(null)} maxWidth="xs" fullWidth>
+        <Dialog
+          open
+          onClose={() => setDeleteTarget(null)}
+          maxWidth="xs"
+          fullWidth
+        >
           <DialogTitle>
             {`Supprimer le modèle "${deleteTarget.template.label || "Sans nom"}" ?`}
           </DialogTitle>

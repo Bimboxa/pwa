@@ -9,6 +9,7 @@ import buildNotesAppMediaIndex from "./buildNotesAppMediaIndex";
 import prepareNotesAppBusinessObjectsMerge from "./mergeNotesAppBusinessObjects";
 import prepareNotesAppBaseMapsMerge from "./mergeNotesAppBaseMaps";
 import prepareNotesAppPositionsMerge from "./mergeNotesAppPositions";
+import prepareNotesAppListingConfigMerge from "./mergeNotesAppListingConfig";
 import resolveNotesAppLocationTemplate from "./resolveNotesAppLocationTemplate";
 import { upsertMappingEntry } from "../utils/resolveNotesAppScopeLink";
 
@@ -25,6 +26,8 @@ import { upsertMappingEntry } from "../utils/resolveNotesAppScopeLink";
 // annotations issued from one of the listing's own annotationTemplates
 // (created from the appConfig default when missing), flagged as the object's
 // MAIN annotation via relsBusinessObjectAnnotation { isMain, baseMapId }.
+// The listing configuration (Krnet settings + state models) is merged per
+// pair as well, into listing.notesApp (see mergeNotesAppListingConfig).
 
 // Companion listing used by earlier versions to host imported MARKERs — its
 // annotations are migrated into the businessObjects listings, the listing
@@ -108,6 +111,19 @@ export default async function syncNotesAppScope({
     });
   }
 
+  // --- remote -> local listing ids, for the listing refs held by the Krnet
+  // settings (nomenclatures, link targets). Mapped-but-tombstoned remote
+  // lists are included so their refs still resolve.
+  const remoteToLocalListingId = new Map();
+  for (const m of listingsMapping) {
+    if (m.mode === "mapped" && m.localListingId) {
+      remoteToLocalListingId.set(m.remoteListingId, m.localListingId);
+    }
+  }
+  for (const pair of pairs) {
+    remoteToLocalListingId.set(pair.remoteListing.id, pair.listing.id);
+  }
+
   // --- legacy companion listing (earlier versions hosted bare MARKERs
   // there): its annotations are migrated per pair, the listing tombstoned.
   const legacyPositionsListing = await resolveLegacyPositionsListing(scope);
@@ -158,7 +174,19 @@ export default async function syncNotesAppScope({
       baseMapIdMasterToLocalId: baseMapsMerge.baseMapIdMasterToLocalId,
       baseMapWidthByLocalId: baseMapsMerge.baseMapWidthByLocalId,
     });
-    merges.push({ pair, objectsMerge, positionsMerge, templateRowToAdd });
+    const configMerge = await prepareNotesAppListingConfigMerge({
+      dump,
+      remoteListing: pair.remoteListing,
+      listing: pair.listing,
+      remoteToLocalListingId,
+    });
+    merges.push({
+      pair,
+      objectsMerge,
+      positionsMerge,
+      templateRowToAdd,
+      configMerge,
+    });
 
     listingsMapping = upsertMappingEntry(listingsMapping, {
       remoteListingId: pair.remoteListing.id,
@@ -210,12 +238,17 @@ export default async function syncNotesAppScope({
             await db.baseMapVersions.bulkPut(baseMapsMerge.versionRows);
           }
           for (const {
+            pair,
             objectsMerge,
             positionsMerge,
             templateRowToAdd,
+            configMerge,
           } of merges) {
             if (templateRowToAdd) {
               await db.annotationTemplates.put(templateRowToAdd);
+            }
+            if (configMerge?.patch) {
+              await db.listings.update(pair.listing.id, configMerge.patch);
             }
             if (objectsMerge.rows.length) {
               await db.businessObjects.bulkPut(objectsMerge.rows);
@@ -256,12 +289,14 @@ export default async function syncNotesAppScope({
     listings: pairs.length,
     entities: 0,
     positions: 0,
+    listingsConfig: 0,
     baseMaps:
       baseMapsMerge.counts.created +
       baseMapsMerge.counts.updated +
       baseMapsMerge.counts.deleted,
   };
-  for (const { objectsMerge, positionsMerge } of merges) {
+  for (const { objectsMerge, positionsMerge, configMerge } of merges) {
+    counts.listingsConfig += configMerge?.counts.applied ?? 0;
     counts.entities +=
       objectsMerge.counts.created +
       objectsMerge.counts.updated +
