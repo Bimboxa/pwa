@@ -173,7 +173,9 @@ features:
 
   # Per-scope module activation (db.scopeConfigs). Modules enabled by
   # default for a scope without a row, besides the core Fonds de plan +
-  # Dessin (keys of useViewers.jsx); absent => core modules only.
+  # Dessin (keys of useViewers.jsx); absent => core modules only. One key
+  # per business object type: BUSINESS_OBJECTS (STANDARD),
+  # BUSINESS_OBJECTS_<TYPE> for the other registry types.
   scopeConfig:
     defaultEnabledModuleKeys:
       - PHOTOS

@@ -8,6 +8,7 @@ import PanelListingContainer from "Features/listings/components/PanelListingCont
 import ButtonCloseLeftPanel from "./ButtonCloseLeftPanel";
 import VerticalSelectorListing from "Features/listings/components/VerticalSelectorListing";
 import VerticalBarInLeftPanel from "./VerticalBarInLeftPanel";
+import { isBusinessObjectsModuleKey } from "Features/businessObjects/utils/businessObjectModuleKeys";
 
 export default function LeftPanel() {
   const dispatch = useDispatch();
@@ -32,7 +33,7 @@ export default function LeftPanel() {
   if (selectedViewerKey === "PORTFOLIO") width = 0;
   if (selectedViewerKey === "BASE_MAPS") width = 0;
   if (selectedViewerKey === "ZONES") width = 0;
-  if (selectedViewerKey === "BUSINESS_OBJECTS") width = 0;
+  if (isBusinessObjectsModuleKey(selectedViewerKey)) width = 0;
   if (selectedViewerKey === "LISTING") width = 0;
   if (selectedViewerKey === "ADMIN") width = 0;
 
@@ -47,7 +48,7 @@ export default function LeftPanel() {
 
   return (
     <Box sx={{ display: "flex", zIndex: 2 }}>
-      {!isFullScreen && selectedViewerKey !== "MAP" && selectedViewerKey !== "PHOTOS" && selectedViewerKey !== "THREED" && selectedViewerKey !== "MESHES" && selectedViewerKey !== "POINT_OF_VIEW" && selectedViewerKey !== "PORTFOLIO" && selectedViewerKey !== "BASE_MAPS" && selectedViewerKey !== "ZONES" && selectedViewerKey !== "BUSINESS_OBJECTS" && selectedViewerKey !== "LISTING" && selectedViewerKey !== "ADMIN" && (
+      {!isFullScreen && selectedViewerKey !== "MAP" && selectedViewerKey !== "PHOTOS" && selectedViewerKey !== "THREED" && selectedViewerKey !== "MESHES" && selectedViewerKey !== "POINT_OF_VIEW" && selectedViewerKey !== "PORTFOLIO" && selectedViewerKey !== "BASE_MAPS" && selectedViewerKey !== "ZONES" && !isBusinessObjectsModuleKey(selectedViewerKey) && selectedViewerKey !== "LISTING" && selectedViewerKey !== "ADMIN" && (
         <VerticalBarInLeftPanel>
           <VerticalSelectorListing onSeeAllClick={handleSeeAllClick} />
         </VerticalBarInLeftPanel>

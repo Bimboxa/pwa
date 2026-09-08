@@ -1,8 +1,12 @@
 import { useSelector } from "react-redux";
 
-import { selectDisabledModuleKeys } from "Features/scopeConfig/utils/scopeConfigSelectors";
+import {
+  selectDisabledModuleKeys,
+  selectModuleOrder,
+} from "Features/scopeConfig/utils/scopeConfigSelectors";
 
-import useBusinessObjectsModuleLabel from "Features/businessObjects/hooks/useBusinessObjectsModuleLabel";
+import useBusinessObjectsModules from "Features/businessObjects/hooks/useBusinessObjectsModules";
+import sortModulesByOrder from "../utils/sortModulesByOrder";
 
 import {
   Map,
@@ -19,7 +23,6 @@ import {
   PhotoCamera,
   PhotoLibrary,
   AccountTree,
-  Foundation,
 } from "@mui/icons-material";
 
 import theme from "Styles/theme";
@@ -42,11 +45,17 @@ export const LOCKED_MODULE_KEYS = new Set(["BASE_MAPS", "MAP"]);
 // the per-scope disabled ones (db.scopeConfigs); every other consumer gets
 // the scope-filtered list, so the band, the module selector and the
 // Ctrl+letter hotkeys all drop a disabled module for free.
+//
+// The business-objects modules (one per type of the
+// businessObjectTypesCatalog registry, label / icon configurable per scope)
+// are built by useBusinessObjectsModules. The per-scope module order
+// (scopeConfigs.moduleOrder) is applied last, on both paths, so the band and
+// the Configuration dialog show the same order.
 export default function useViewers({ ignoreScopeConfig = false } = {}) {
   const legacy = useSelector((s) => s.appConfig.enableMapEditorLegacy);
   const disabledModuleKeys = useSelector(selectDisabledModuleKeys);
-  // Per-scope override > appConfig strings > "Ouvrages".
-  const businessObjectsLabel = useBusinessObjectsModuleLabel();
+  const moduleOrder = useSelector(selectModuleOrder);
+  const businessObjectsModules = useBusinessObjectsModules();
 
   const viewers = [
     // {
@@ -143,23 +152,10 @@ export default function useViewers({ ignoreScopeConfig = false } = {}) {
       // Relies on the V3 map editor (the legacy branch renders V2).
       disabled: legacy,
     },
-    {
-      key: "BUSINESS_OBJECTS",
-      // Configurable label: per-scope scopeConfig override, then org appConfig
-      // strings.modules.businessObjects, then "Ouvrages".
-      label: businessObjectsLabel,
-      shortLabel: businessObjectsLabel,
-      icon: <Foundation />,
-      bgcolor: theme.palette.viewers.businessObjects,
-      // Ctrl+O is free (browser open-file is blocked by preventDefault on
-      // match, same argument as Ctrl+P above).
-      hotkey: "O",
-      // 2D editor = "MAP": the module displays the shared MainMapEditorV3
-      // instance (like Zones) so entering the module keeps the camera framing.
-      editors: ["MAP", "THREED"],
-      // Relies on the V3 map editor (the legacy branch renders V2).
-      disabled: legacy,
-    },
+    // Business-objects modules ("Ouvrages" for the STANDARD type, Ctrl+O —
+    // free: the browser open-file dialog is blocked by preventDefault on
+    // match, same argument as Ctrl+P above).
+    ...businessObjectsModules,
     {
       key: "LISTING",
       label: "Liste d'objets",
@@ -210,7 +206,7 @@ export default function useViewers({ ignoreScopeConfig = false } = {}) {
     },
   ];
 
-  return viewers
+  const modules = viewers
     .filter((v) => !v.disabled)
     .filter(
       (v) =>
@@ -219,4 +215,6 @@ export default function useViewers({ ignoreScopeConfig = false } = {}) {
         !disabledModuleKeys.includes(v.key)
     )
     .map((v) => ({ ...v, editors: v.editors ?? [v.key] }));
+
+  return sortModulesByOrder(modules, moduleOrder);
 }

@@ -47,6 +47,7 @@ import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 import BaseMapSelectorInMapEditorV2 from "Features/baseMaps/components/BaseMapSelectorInMapEditorV2";
 import BaseMapVersionSelectorInTopBar from "Features/baseMaps/components/BaseMapVersionSelectorInTopBar";
 import FieldBaseMapZInTopBar from "Features/baseMaps/components/FieldBaseMapZInTopBar";
+import { isBusinessObjectsModuleKey } from "Features/businessObjects/utils/businessObjectModuleKeys";
 
 export default function TopBarDesktop() {
   const dispatch = useDispatch();
@@ -97,7 +98,7 @@ export default function TopBarDesktop() {
   // Ouvrages module: same rule as POV — the 2D selector shows while the
   // module displays the map editor, the 3D editor keeps its canvas chips.
   const isBusinessObjectsMap =
-    viewerKey === "BUSINESS_OBJECTS" && effectiveViewerKey === "MAP";
+    isBusinessObjectsModuleKey(viewerKey) && effectiveViewerKey === "MAP";
   // While the create-baseMap overlay is open, the baseMap-related controls
   // (selector, versions, Z) are meaningless: hide the whole center section.
   const isCreatingBaseMap = useSelector(

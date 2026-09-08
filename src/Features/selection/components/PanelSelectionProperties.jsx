@@ -3,6 +3,7 @@ import { selectSelectedItems, selectSelectedPointIds, selectSelectedPartIds } fr
 
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 import useListingById from "Features/listings/hooks/useListingById";
+import { isBusinessObjectsModuleKey } from "Features/businessObjects/utils/businessObjectModuleKeys";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import PanelListingProperties from "Features/listings/components/PanelListingProperties";
@@ -88,7 +89,7 @@ export default function PanelSelectionProperties() {
     // Photo selected from a photos grid (popper / panel) or its map node.
     type = "PHOTO";
   } else if (
-    selectedViewerKey === "BUSINESS_OBJECTS" &&
+    isBusinessObjectsModuleKey(selectedViewerKey) &&
     selectedBusinessObjectId &&
     !selectedItem
   ) {
@@ -98,7 +99,7 @@ export default function PanelSelectionProperties() {
     // over this branch while it lasts.
     type = "BUSINESS_OBJECT";
   } else if (
-    selectedViewerKey === "BUSINESS_OBJECTS" &&
+    isBusinessObjectsModuleKey(selectedViewerKey) &&
     (selectedItem?.type === "LISTING" || !selectedItem)
   ) {
     // Back arrow of the object properties panel (LISTING selection), and the

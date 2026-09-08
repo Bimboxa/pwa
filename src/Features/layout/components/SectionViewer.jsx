@@ -12,7 +12,8 @@ import TableViewer from "Features/tables/components/ViewerTable";
 import MainPortfolioEditor from "Features/portfolioEditor/components/MainPortfolioEditor";
 import MainBaseMapViewer from "Features/baseMapEditor/components/MainBaseMapViewer";
 import ZoningsTree from "Features/zonings/components/ZoningsTree";
-import PanelBusinessObjects from "Features/businessObjects/components/PanelBusinessObjects";
+import PanelBusinessObjectsByType from "Features/businessObjects/components/PanelBusinessObjectsByType";
+import { getBusinessObjectTypeKeyFromModuleKey } from "Features/businessObjects/utils/businessObjectModuleKeys";
 import PanelBaseMaps from "Features/baseMapEditor/components/PanelBaseMaps";
 import ViewerAdmin from "Features/adminEditor/components/ViewerAdmin";
 import MainListingViewer from "Features/listingViewer/components/MainListingViewer";
@@ -74,9 +75,11 @@ export default function SectionViewer() {
   // editor IS the shared map editor above (so `Z` keeps the camera framing),
   // its 3D editor the shared 3D one. Only the zonings drawer is module-specific.
   const isZonesModule = viewerKey === "ZONES";
-  // BUSINESS_OBJECTS follows the same multi-editor recipe as ZONES: shared 2D
-  // map editor, shared 3D editor, only the objects drawer is module-specific.
-  const isBusinessObjectsModule = viewerKey === "BUSINESS_OBJECTS";
+  // The business-objects modules (one per type of the registry) follow the
+  // same multi-editor recipe as ZONES: shared 2D map editor, shared 3D
+  // editor, only the objects drawer is module-specific (and type-specific).
+  const businessObjectTypeKey =
+    getBusinessObjectTypeKeyFromModuleKey(viewerKey);
   const showListing = viewerKey === "LISTING";
   const showAdmin = viewerKey === "ADMIN";
   // Viewer module, 2D editor: the chips band replaces the topbar baseMap
@@ -151,9 +154,9 @@ export default function SectionViewer() {
           tree below. Same in-flow sibling pattern as the Zones drawer so it
           serves both editors of the module; the guard is load-bearing for the
           same reason. */}
-      {isBusinessObjectsModule && (
-        <LeftDrawerPanel width={360} viewerKey="BUSINESS_OBJECTS">
-          <PanelBusinessObjects />
+      {businessObjectTypeKey && (
+        <LeftDrawerPanel width={360} viewerKey={viewerKey}>
+          <PanelBusinessObjectsByType typeKey={businessObjectTypeKey} />
         </LeftDrawerPanel>
       )}
 

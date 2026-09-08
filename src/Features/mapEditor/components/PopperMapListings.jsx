@@ -116,6 +116,7 @@ import getItemsByKey from "Features/misc/utils/getItemsByKey";
 import computeAnnotationTemplateQties from "Features/annotations/utils/computeAnnotationTemplateQties";
 import getStrokeWidthLabel from "Features/annotations/utils/getStrokeWidthLabel";
 import groupAnnotationTemplatesByGroupLabel from "Features/annotations/utils/groupAnnotationTemplatesByGroupLabel";
+import { isBusinessObjectsModuleKey } from "Features/businessObjects/utils/businessObjectModuleKeys";
 
 
 // ---------------------------------------------------------------------------
@@ -1673,13 +1674,13 @@ export default function PopperMapListings() {
     (s) => s.businessObjects?.businessObjectsUpdatedAt
   );
   const selectedBusinessObject = useLiveQuery(async () => {
-    if (viewerKey !== "BUSINESS_OBJECTS" || !selectedBusinessObjectId)
+    if (!isBusinessObjectsModuleKey(viewerKey) || !selectedBusinessObjectId)
       return null;
     const o = await db.businessObjects.get(selectedBusinessObjectId);
     return o && !o.deletedAt ? o : null;
   }, [viewerKey, selectedBusinessObjectId, businessObjectsUpdatedAt]);
   const isBusinessObjectMode =
-    viewerKey === "BUSINESS_OBJECTS" && Boolean(selectedBusinessObject);
+    isBusinessObjectsModuleKey(viewerKey) && Boolean(selectedBusinessObject);
 
   const baseMap = useMainBaseMap();
   const layers = useLayers({ filterByBaseMapId: baseMap?.id });
@@ -1708,7 +1709,7 @@ export default function PopperMapListings() {
       viewerKey === "MAP" ||
       viewerKey === "BASE_MAPS" ||
       viewerKey === "ZONES" ||
-      viewerKey === "BUSINESS_OBJECTS" ||
+      isBusinessObjectsModuleKey(viewerKey) ||
       isPovViewer ||
       isThreedViewer,
     filterByMainBaseMap: true,

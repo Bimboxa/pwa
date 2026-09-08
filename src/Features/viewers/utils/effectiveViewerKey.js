@@ -5,6 +5,7 @@
 // panel, top bar, side panels) keeps reading selectedViewerKey.
 
 import { isThreedFamilyViewerKey } from "./threedViewerKeys";
+import { isBusinessObjectsModuleKey } from "Features/businessObjects/utils/businessObjectModuleKeys";
 
 export const selectSelectedModuleKey = (s) => s.viewers.selectedViewerKey;
 
@@ -35,9 +36,8 @@ export const selectEffectiveViewerKey = (s) => {
   // (the shared "MAP" instance, or the BaseMap module's own instance).
   if (editorKey === "THREED" && s.appConfig.disable3D) {
     if (
-      ["MAP", "ZONES", "BUSINESS_OBJECTS", "THREED", "BASE_MAPS"].includes(
-        moduleKey
-      )
+      ["MAP", "ZONES", "THREED", "BASE_MAPS"].includes(moduleKey) ||
+      isBusinessObjectsModuleKey(moduleKey)
     )
       return get2dEditorKeyForModule(moduleKey);
   }
