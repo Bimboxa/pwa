@@ -16,7 +16,7 @@ import computeCalibrationTransform, {
 import { setSelectedItem } from "Features/selection/selectionSlice";
 import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 import { setDisplayedPortfolioId } from "Features/portfolios/portfoliosSlice";
-import { setListingViewerSelectedListingId } from "Features/listingViewer/listingViewerSlice";
+import { setSelectedListingId } from "Features/listings/listingsSlice";
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 import useSwitchViewer from "Features/viewers/hooks/useSwitchViewer";
 
@@ -194,10 +194,10 @@ export default function TopBarDesktop() {
     if (returnViewer === "PORTFOLIO" && viewerReturnContext?.portfolioId) {
       dispatch(setDisplayedPortfolioId(viewerReturnContext.portfolioId));
     }
+    // The listing viewer reads s.listings.selectedListingId (MainListingViewer,
+    // SelectorListingForViewer), not the listingViewer slice.
     if (returnViewer === "LISTING" && viewerReturnContext?.listingId) {
-      dispatch(
-        setListingViewerSelectedListingId(viewerReturnContext.listingId)
-      );
+      dispatch(setSelectedListingId(viewerReturnContext.listingId));
     }
     switchViewer(returnViewer);
     dispatch(setViewerReturnContext(null));

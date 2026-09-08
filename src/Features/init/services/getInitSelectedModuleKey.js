@@ -4,9 +4,8 @@ import { BUSINESS_OBJECTS_MODULE_KEYS } from "Features/businessObjects/utils/bus
 
 // Module keys restorable on page load — kept in sync with useViewers.jsx
 // (the business-objects modules come from the types registry: a persisted
-// key of a type that no longer exists is not restored).
-// LISTING is excluded on purpose: the module is hard-disabled (former
-// advanced-mode module), so it would be absent from the band after a reload.
+// key of a type that no longer exists is not restored). A restored module
+// disabled on the current scope is handled by useEnsureEnabledModule.
 const RESTORABLE_MODULE_KEYS = [
   "MAP",
   "BASE_MAPS",
@@ -16,6 +15,7 @@ const RESTORABLE_MODULE_KEYS = [
   "MESHES",
   "ZONES",
   "PHOTOS",
+  "LISTING",
   ...BUSINESS_OBJECTS_MODULE_KEYS,
 ];
 

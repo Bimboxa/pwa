@@ -162,8 +162,10 @@ export default function useViewers({ ignoreScopeConfig = false } = {}) {
       shortLabel: "Objets",
       icon: <FormatListBulleted />,
       bgcolor: theme.palette.viewers.listing,
-      // Former advanced-mode module — kept declared but disabled by default.
-      disabled: true,
+      // Per-scope configurable module (CONFIGURABLE_MODULE_KEYS), disabled by
+      // default like every non-core module. No hotkey: Ctrl+L is the browser
+      // address bar, not reliably cancelable (same choice as Zones / Viewer).
+      // 2D-only: the module hosts its own listing viewer, no map editor.
     },
     {
       key: "PRINT",
