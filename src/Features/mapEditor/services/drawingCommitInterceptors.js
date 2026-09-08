@@ -61,7 +61,7 @@ const registry = {
     DialogComponent: DialogCreateDetailBaseMapOnCommit,
   },
 
-  // "Localiser" an object (BUSINESS_OBJECTS module): the drawn annotation
+  // "Localiser" an object (business-objects modules): the drawn annotation
   // becomes the object's MAIN annotation on its base map (rel isMain). The
   // previous main annotation of the object on that base map is deleted, and
   // the tool disarms (one-shot placement): a second click would otherwise

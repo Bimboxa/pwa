@@ -1,3 +1,5 @@
+import { BUSINESS_OBJECTS_MODULE_KEYS } from "Features/businessObjects/utils/businessObjectModuleKeys";
+
 // Seeded entries required by selectEffectiveViewerKey (the Viewer and Zones
 // modules' 2D editor is "MAP", not their own key) — kept in sync with
 // viewersSlice.
@@ -9,9 +11,11 @@ const DEFAULT_EDITOR_KEY_BY_MODULE = {
   // PHOTOS is a MODULE key only (like ZONES): its single editor is the
   // shared "MAP" instance.
   PHOTOS: "MAP",
-  // BUSINESS_OBJECTS is a MODULE key only (like ZONES): its 2D editor is the
-  // shared "MAP" instance.
-  BUSINESS_OBJECTS: "MAP",
+  // The business-objects modules (one per type of the registry) are MODULE
+  // keys only (like ZONES): their 2D editor is the shared "MAP" instance.
+  // Load-bearing: without a seeded entry, a restored module would fall back
+  // to its own key as editor key.
+  ...Object.fromEntries(BUSINESS_OBJECTS_MODULE_KEYS.map((k) => [k, "MAP"])),
 };
 
 // Multi-editor modules and their possible editor keys (see useViewers.jsx).
@@ -25,7 +29,7 @@ const KNOWN_MODULE_KEYS = [
   "POINT_OF_VIEW",
   "ZONES",
   "PHOTOS",
-  "BUSINESS_OBJECTS",
+  ...BUSINESS_OBJECTS_MODULE_KEYS,
 ];
 // "BASE_MAPS" is both a module key and the key of that module's own 2D editor.
 const KNOWN_EDITOR_KEYS = ["BASE_MAPS", "MAP", "THREED"];

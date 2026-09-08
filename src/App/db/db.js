@@ -275,6 +275,10 @@ db.version(32).stores({
   //  scope gets a fresh id, reads always go through the scopeId index),
   //  scopeId, projectId,
   //  disabledModuleKeys: [moduleKey] (hidden from the left band),
+  //  knownModuleKeys: [moduleKey] (configurable keys known at write time —
+  //  a module added later follows the org default, scopeConfigSelectors),
+  //  moduleOrder: [moduleKey] (left-band order, full list),
+  //  moduleLabelsByKey / moduleIconKeysByKey: {moduleKey: label | iconKey},
   //  disabledToolKeys: [toolKey] (root-disabled: gone in every module),
   //  disabledToolKeysByModule: {moduleKey: [toolKey]}}
   // One row per scope by convention. Collaborative configuration of the

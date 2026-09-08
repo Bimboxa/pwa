@@ -3,6 +3,7 @@ import { notifyLocalChange } from "Features/remoteScopeConfigurations/services/l
 
 import {
   getDefaultDisabledModuleKeys,
+  CONFIGURABLE_MODULE_KEYS,
   DEFAULT_DISABLED_TOOL_KEYS,
 } from "../utils/scopeConfigSelectors";
 
@@ -37,6 +38,9 @@ export default async function createScopeConfig({
       disabledModuleKeys: disabledModuleKeys ?? [
         ...getDefaultDisabledModuleKeys(appConfig),
       ],
+      // Every creation path materializes the full disabled list, so the
+      // row knows the whole catalog (see getEffectiveDisabledModuleKeys).
+      knownModuleKeys: [...CONFIGURABLE_MODULE_KEYS],
       disabledToolKeys: disabledToolKeys ?? [...DEFAULT_DISABLED_TOOL_KEYS],
       disabledToolKeysByModule: disabledToolKeysByModule ?? {},
       // only materialized when the caller decides (absent => enabled)

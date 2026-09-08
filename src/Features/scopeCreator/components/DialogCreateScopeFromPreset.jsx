@@ -124,7 +124,8 @@ export default function DialogCreateScopeFromPreset({
   // main ouvrage/type categories (selects in the recap modal) — prefilled
   // from the selected configuration, saved into scope.metaData.categories.
   const [categories, setCategories] = useState({ ouvrage: null, type: null });
-  // creation options — dpgf: BUSINESS_OBJECTS module + first "DPGF" listing;
+  // creation options — dpgf: BUSINESS_OBJECTS module (STANDARD business
+  // object type) + first "DPGF" listing;
   // carnetDetail: PORTFOLIO module + DIVERS annotation library.
   const [options, setOptions] = useState({ dpgf: false, carnetDetail: false });
   // extra baseMap listings added via "+ Ajouter" in the recap modal.

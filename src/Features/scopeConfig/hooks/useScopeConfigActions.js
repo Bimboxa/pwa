@@ -7,6 +7,8 @@ import { notifyLocalChange } from "Features/remoteScopeConfigurations/services/l
 
 import {
   selectDefaultDisabledModuleKeys,
+  getEffectiveDisabledModuleKeys,
+  CONFIGURABLE_MODULE_KEYS,
   DEFAULT_DISABLED_TOOL_KEYS,
   DEFAULT_DISABLED_BASE_MAP_SOURCE_KEYS,
 } from "../utils/scopeConfigSelectors";
@@ -39,8 +41,23 @@ export default function useScopeConfigActions() {
       // updatedAt so the updating hook restamps it (feeds the Krto merge
       // newest-wins). notifyLocalChange is suppressed under withSystemWrite,
       // so call it explicitly: config changes are pushable content.
+      //
+      // Every write materializes the effective disabled list and re-stamps
+      // knownModuleKeys: a module the row did not know (added to the catalog
+      // after the row was written) keeps following the org default it was
+      // displayed with, instead of reading as enabled once the stamp covers
+      // it (see getEffectiveDisabledModuleKeys).
       if (row) {
-        await withSystemWrite(() => db.scopeConfigs.update(row.id, patch));
+        await withSystemWrite(() =>
+          db.scopeConfigs.update(row.id, {
+            disabledModuleKeys: getEffectiveDisabledModuleKeys(
+              row,
+              defaultDisabledModuleKeys
+            ),
+            ...patch,
+            knownModuleKeys: [...CONFIGURABLE_MODULE_KEYS],
+          })
+        );
       } else {
         // First toggle on this scope: seed the row from the app defaults so
         // the stored lists stay consistent with what the user was seeing.
@@ -53,6 +70,7 @@ export default function useScopeConfigActions() {
             disabledToolKeys: [...DEFAULT_DISABLED_TOOL_KEYS],
             disabledToolKeysByModule: {},
             ...patch,
+            knownModuleKeys: [...CONFIGURABLE_MODULE_KEYS],
           })
         );
       }
@@ -65,7 +83,7 @@ export default function useScopeConfigActions() {
     (moduleKey) =>
       upsert((row) => ({
         disabledModuleKeys: toggleKey(
-          row?.disabledModuleKeys ?? defaultDisabledModuleKeys,
+          getEffectiveDisabledModuleKeys(row, defaultDisabledModuleKeys),
           moduleKey
         ),
       })),
@@ -133,6 +151,28 @@ export default function useScopeConfigActions() {
     [upsert]
   );
 
+  // Per-scope module icon override (left band, Configuration nav / mockup).
+  // A null / empty key removes the override — the type's default icon
+  // applies again.
+  const setModuleIconKey = useCallback(
+    (moduleKey, iconKey) =>
+      upsert((row) => {
+        const next = { ...(row?.moduleIconKeysByKey ?? {}) };
+        if (iconKey) next[moduleKey] = iconKey;
+        else delete next[moduleKey];
+        return { moduleIconKeysByKey: next };
+      }),
+    [upsert]
+  );
+
+  // Per-scope order of the left-band modules: the full ordered list of
+  // module keys (SectionModuleOrder rewrites it from the live catalog on
+  // every drag, which also purges stale keys).
+  const setModuleOrder = useCallback(
+    (moduleKeys) => upsert(() => ({ moduleOrder: [...moduleKeys] })),
+    [upsert]
+  );
+
   return {
     scopeId,
     toggleModule,
@@ -141,5 +181,7 @@ export default function useScopeConfigActions() {
     toggleBaseMapSource,
     setSystemAnnotationTemplates,
     setModuleLabel,
+    setModuleIconKey,
+    setModuleOrder,
   };
 }

@@ -1,7 +1,10 @@
 import getDisable3DFromLocalStorage from "Features/appConfig/services/getDisable3DFromLocalStorage";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
+import { BUSINESS_OBJECTS_MODULE_KEYS } from "Features/businessObjects/utils/businessObjectModuleKeys";
 
-// Module keys restorable on page load — kept in sync with useViewers.jsx.
+// Module keys restorable on page load — kept in sync with useViewers.jsx
+// (the business-objects modules come from the types registry: a persisted
+// key of a type that no longer exists is not restored).
 // LISTING is excluded on purpose: the module is hard-disabled (former
 // advanced-mode module), so it would be absent from the band after a reload.
 const RESTORABLE_MODULE_KEYS = [
@@ -13,7 +16,7 @@ const RESTORABLE_MODULE_KEYS = [
   "MESHES",
   "ZONES",
   "PHOTOS",
-  "BUSINESS_OBJECTS",
+  ...BUSINESS_OBJECTS_MODULE_KEYS,
 ];
 
 export default function getInitSelectedModuleKey() {

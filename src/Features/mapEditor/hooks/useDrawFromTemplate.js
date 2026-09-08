@@ -17,6 +17,7 @@ import {
 } from "Features/mapEditor/constants/drawingTools.jsx";
 import getNewAnnotationPropsFromAnnotationTemplate from "Features/annotations/utils/getNewAnnotationPropsFromAnnotationTemplate";
 import getLocateBusinessObjectDraftProps from "Features/businessObjects/utils/getLocateBusinessObjectDraftProps";
+import { isBusinessObjectsModuleKey } from "Features/businessObjects/utils/businessObjectModuleKeys";
 
 // Drawing shapes allowed to start a draw while the Dessin module is toggled to
 // its 3D editor: OBJECT_3D (3D placement mode), POLYGON / POLYLINE
@@ -54,7 +55,7 @@ export default function useDrawFromTemplate(annotationTemplate, listingId) {
   // listing's own templates) while an object is selected LOCATES it — the
   // draft carries the LOCATE_BUSINESS_OBJECT commit interceptor.
   const locatingBusinessObjectId = useSelector((s) =>
-    s.viewers.selectedViewerKey === "BUSINESS_OBJECTS" &&
+    isBusinessObjectsModuleKey(s.viewers.selectedViewerKey) &&
     annotationTemplate?.isBusinessObjectAnnotation
       ? (s.businessObjects?.selectedBusinessObjectId ?? null)
       : null

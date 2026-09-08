@@ -11,6 +11,7 @@ import {
 import { Box, ButtonBase, Tooltip, Typography } from "@mui/material";
 
 import CardToggle3d from "./CardToggle3d";
+import SectionModuleOrder from "./SectionModuleOrder";
 
 // "Généralités > Modules & outils" page: a mockup of the main screen — the
 // left modules band and the right tools band rendered as on the real layout,
@@ -18,7 +19,8 @@ import CardToggle3d from "./CardToggle3d";
 // without scrolling. Clicking a module toggles its per-scope activation;
 // clicking a tool toggles its ROOT activation (per-module activation stays
 // on the module pages). Locked items (Fonds de plan, Dessin, Propriétés,
-// Réglages) never toggle.
+// Réglages) never toggle. The module order list beside the mockup persists
+// the per-scope order of the left band (the mockup band follows it).
 export default function PageModulesToolsMockup({ modules, tools }) {
   // data
 
@@ -125,7 +127,12 @@ export default function PageModulesToolsMockup({ modules, tools }) {
           {t.icon}
           <Typography
             variant="caption"
-            sx={{ mt: "2px", fontSize: "0.6rem", lineHeight: 1.2, textAlign: "center" }}
+            sx={{
+              mt: "2px",
+              fontSize: "0.6rem",
+              lineHeight: 1.2,
+              textAlign: "center",
+            }}
           >
             {t.label}
           </Typography>
@@ -151,83 +158,93 @@ export default function PageModulesToolsMockup({ modules, tools }) {
         Modules & outils
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        {"Cliquez sur un module ou un outil pour l'activer ou le désactiver."}
+        {
+          "Cliquez sur un module ou un outil pour l'activer ou le désactiver. Réordonnez les modules dans la liste de droite."
+        }
       </Typography>
 
-      <Box
-        sx={{
-          display: "flex",
-          flexGrow: 1,
-          minHeight: 320,
-          border: (theme) => `1px solid ${theme.palette.divider}`,
-          borderRadius: 1,
-          overflow: "hidden",
-        }}
-      >
-        {/* left band mockup — modules */}
+      <Box sx={{ display: "flex", flexGrow: 1, minHeight: 320 }}>
         <Box
           sx={{
             display: "flex",
-            flexDirection: "column",
-            bgcolor: "common.black",
-            py: 0.5,
-            width: 76,
-            minWidth: 76,
-            overflowY: "auto",
-          }}
-        >
-          {modules.map(renderModule)}
-        </Box>
-
-        {/* central work area — the 3D activation card sits bottom-right,
-            where the real 2D/3D toggle lives on the main screen */}
-        <Box
-          sx={{
             flexGrow: 1,
             minWidth: 0,
-            position: "relative",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            bgcolor: "background.default",
+            border: (theme) => `1px solid ${theme.palette.divider}`,
+            borderRadius: 1,
             overflow: "hidden",
           }}
         >
-          <Typography variant="caption" color="text.disabled">
-            Zone de travail
-          </Typography>
-          <Box sx={{ position: "absolute", right: 16, bottom: 16 }}>
-            <CardToggle3d />
+          {/* left band mockup — modules */}
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              bgcolor: "common.black",
+              py: 0.5,
+              width: 76,
+              minWidth: 76,
+              overflowY: "auto",
+            }}
+          >
+            {modules.map(renderModule)}
+          </Box>
+
+          {/* central work area — the 3D activation card sits bottom-right,
+            where the real 2D/3D toggle lives on the main screen */}
+          <Box
+            sx={{
+              flexGrow: 1,
+              minWidth: 0,
+              position: "relative",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              bgcolor: "background.default",
+              overflow: "hidden",
+            }}
+          >
+            <Typography variant="caption" color="text.disabled">
+              Zone de travail
+            </Typography>
+            <Box sx={{ position: "absolute", right: 16, bottom: 16 }}>
+              <CardToggle3d />
+            </Box>
+          </Box>
+
+          {/* right band mockup — tools */}
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 0.5,
+              p: 0.5,
+              borderLeft: (theme) => `1px solid ${theme.palette.divider}`,
+              bgcolor: "background.default",
+              overflowY: "auto",
+            }}
+          >
+            {topTools.map(renderTool)}
+            {bottomTools.length > 0 && (
+              <Box
+                sx={{
+                  mt: "auto",
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  gap: 0.5,
+                }}
+              >
+                {bottomTools.map(renderTool)}
+              </Box>
+            )}
           </Box>
         </Box>
 
-        {/* right band mockup — tools */}
-        <Box
-          sx={{
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            gap: 0.5,
-            p: 0.5,
-            borderLeft: (theme) => `1px solid ${theme.palette.divider}`,
-            bgcolor: "background.default",
-            overflowY: "auto",
-          }}
-        >
-          {topTools.map(renderTool)}
-          {bottomTools.length > 0 && (
-            <Box
-              sx={{
-                mt: "auto",
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                gap: 0.5,
-              }}
-            >
-              {bottomTools.map(renderTool)}
-            </Box>
-          )}
+        {/* per-scope module order — a dedicated sortable list, separate from
+            the activation toggles of the mockup */}
+        <Box sx={{ width: 260, minWidth: 260, ml: 3, overflowY: "auto" }}>
+          <SectionModuleOrder modules={modules} />
         </Box>
       </Box>
     </Box>

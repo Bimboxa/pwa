@@ -4,6 +4,8 @@ import { useSelector, useDispatch } from "react-redux";
 import { setShowLayers } from "Features/popperMapListings/popperMapListingsSlice";
 
 import { LOCKED_MODULE_KEYS } from "Features/viewers/hooks/useViewers";
+import { getBusinessObjectTypeKeyFromModuleKey } from "Features/businessObjects/utils/businessObjectModuleKeys";
+import { getBusinessObjectType } from "Features/businessObjects/data/businessObjectTypesCatalog";
 
 import useScopeConfigActions from "../hooks/useScopeConfigActions";
 import {
@@ -11,6 +13,7 @@ import {
   selectDisabledToolKeys,
   selectDisabledToolKeysByModule,
   selectModuleLabelsByKey,
+  selectModuleIconKeysByKey,
   selectDisabledBaseMapSourceKeys,
   selectSystemAnnotationTemplatesEnabled,
 } from "../utils/scopeConfigSelectors";
@@ -20,15 +23,14 @@ import BASE_MAP_SOURCE_CATALOG from "Features/baseMaps/data/baseMapSourceCatalog
 import { Box, Divider, TextField, Typography } from "@mui/material";
 
 import RowSwitchConfig from "./RowSwitchConfig";
-
-// Modules whose label is configurable per scope (stored in
-// scopeConfigs.moduleLabelsByKey). Generic mechanism, exposed for the
-// Ouvrages module only in v1.
-const RENAMABLE_MODULE_KEYS = new Set(["BUSINESS_OBJECTS"]);
+import FieldModuleIconPicker from "./FieldModuleIconPicker";
 
 // Module page of the Configuration dialog: activation of the module itself
-// (a disabled module leaves the left band, its Ctrl+letter unbinds), then
-// the per-module activation of the tools available in that module.
+// (a disabled module leaves the left band, its Ctrl+letter unbinds), the
+// label / icon overrides of the business-objects modules (one per type of
+// the registry, stored in scopeConfigs.moduleLabelsByKey /
+// moduleIconKeysByKey — generic mechanisms, exposed for those modules only),
+// then the per-module activation of the tools available in that module.
 export default function PageModuleConfig({ module, tools }) {
   const dispatch = useDispatch();
 
@@ -41,6 +43,7 @@ export default function PageModuleConfig({ module, tools }) {
   const disabledToolKeys = useSelector(selectDisabledToolKeys);
   const disabledToolKeysByModule = useSelector(selectDisabledToolKeysByModule);
   const moduleLabelsByKey = useSelector(selectModuleLabelsByKey);
+  const moduleIconKeysByKey = useSelector(selectModuleIconKeysByKey);
   const disabledBaseMapSourceKeys = useSelector(
     selectDisabledBaseMapSourceKeys
   );
@@ -55,6 +58,7 @@ export default function PageModuleConfig({ module, tools }) {
     toggleBaseMapSource,
     setSystemAnnotationTemplates,
     setModuleLabel,
+    setModuleIconKey,
   } = useScopeConfigActions();
 
   // state — module label override edited locally, committed on blur
@@ -70,7 +74,13 @@ export default function PageModuleConfig({ module, tools }) {
 
   const locked = LOCKED_MODULE_KEYS.has(module.key);
   const enabled = locked || !disabledModuleKeys.includes(module.key);
-  const renamable = RENAMABLE_MODULE_KEYS.has(module.key);
+  const businessObjectTypeKey = getBusinessObjectTypeKeyFromModuleKey(
+    module.key
+  );
+  const renamable = businessObjectTypeKey !== null;
+  const iconConfigurable = businessObjectTypeKey !== null;
+  const defaultIconKey =
+    getBusinessObjectType(businessObjectTypeKey)?.defaultIconKey ?? null;
 
   const moduleTools = tools.filter(
     (t) => !t.viewers || t.viewers.includes(module.key)
@@ -123,6 +133,22 @@ export default function PageModuleConfig({ module, tools }) {
               if (e.key === "Enter") e.target.blur();
             }}
             helperText="Nom du module pour ce dossier (bandeau de gauche, panneaux). Vide : nom par défaut."
+          />
+        </>
+      )}
+
+      {iconConfigurable && (
+        <>
+          <Divider sx={{ my: 2 }} />
+
+          <Typography variant="subtitle2" sx={{ mb: 1 }}>
+            Icône du module
+          </Typography>
+
+          <FieldModuleIconPicker
+            value={moduleIconKeysByKey[module.key] ?? null}
+            defaultIconKey={defaultIconKey}
+            onChange={(iconKey) => setModuleIconKey(module.key, iconKey)}
           />
         </>
       )}

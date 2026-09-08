@@ -35,6 +35,8 @@ import createScopeConfig from "Features/scopeConfig/services/createScopeConfig";
 import { DEFAULT_DISABLED_TOOL_KEYS } from "Features/scopeConfig/utils/scopeConfigSelectors";
 import resolveConfigurationScopeConfig from "../utils/resolveConfigurationScopeConfig";
 import createBusinessObjectListingService from "Features/businessObjects/services/createBusinessObjectListingService";
+import { getBusinessObjectsModuleKey } from "Features/businessObjects/utils/businessObjectModuleKeys";
+import { DEFAULT_BUSINESS_OBJECT_TYPE_KEY } from "Features/businessObjects/data/businessObjectTypesCatalog";
 import setDisabledBaseMapListingIds from "Features/baseMapEditor/services/setDisabledBaseMapListingIds";
 
 import EMPTY_SCOPE_CONFIGURATION from "../data/emptyScopeConfiguration";
@@ -188,7 +190,7 @@ export default function useCreateScopeFromPreset({ projectId }) {
     // "voir la source" on DETAIL annotations).
 
     const optionEnabledModuleKeys = [
-      ...(dpgf ? ["BUSINESS_OBJECTS"] : []),
+      ...(dpgf ? [getBusinessObjectsModuleKey()] : []),
       ...(carnetDetail ? ["PORTFOLIO"] : []),
     ];
     const optionEnabledToolKeys = [...(carnetDetail ? ["RESOURCES"] : [])];
@@ -411,6 +413,7 @@ export default function useCreateScopeFromPreset({ projectId }) {
         projectId,
         scopeId: scope.id,
         name: "DPGF",
+        typeKey: DEFAULT_BUSINESS_OBJECT_TYPE_KEY,
         appConfig,
       });
     }

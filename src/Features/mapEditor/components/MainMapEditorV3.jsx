@@ -2298,7 +2298,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
 
             {/* Business-object link mode helper ("Ouvrages") — self-guards on
                 the linkingBusinessObjectId flag, armed from the
-                BUSINESS_OBJECTS module (not the Dessin panel). */}
+                business-objects modules (not the Dessin panel). */}
             {!versionCompareEnabled && !imageModeActive && (
                 <PopperLinkBusinessObjectHelper />
             )}

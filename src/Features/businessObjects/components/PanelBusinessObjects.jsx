@@ -10,21 +10,24 @@ import LeftDrawerPanelHeader from "Features/leftPanel/components/LeftDrawerPanel
 
 import useBusinessObjectListings from "../hooks/useBusinessObjectListings";
 import useBusinessObjectsModuleLabel from "../hooks/useBusinessObjectsModuleLabel";
+import { DEFAULT_BUSINESS_OBJECT_TYPE_KEY } from "../data/businessObjectTypesCatalog";
 
 import FieldActiveBusinessObjectListing from "./FieldActiveBusinessObjectListing";
 import BusinessObjectsTree from "./BusinessObjectsTree";
 import SectionQuickEditBusinessObjects from "./SectionQuickEditBusinessObjects";
 
-// Left panel of the BUSINESS_OBJECTS module ("Ouvrages"): listing selector on
-// top (FieldActiveListing pattern), objects tree of the selected listing
-// below.
-export default function PanelBusinessObjects() {
+// Left panel of a business-objects module ("Ouvrages" for the STANDARD
+// type): listing selector on top (FieldActiveListing pattern), objects tree
+// of the selected listing below. Only the listings of `typeKey` are listed.
+export default function PanelBusinessObjects({
+  typeKey = DEFAULT_BUSINESS_OBJECT_TYPE_KEY,
+}) {
   const dispatch = useDispatch();
 
   // data
 
-  const moduleLabel = useBusinessObjectsModuleLabel();
-  const listings = useBusinessObjectListings();
+  const moduleLabel = useBusinessObjectsModuleLabel(typeKey);
+  const listings = useBusinessObjectListings({ typeKey });
   const selectedListingId = useSelector(
     (s) => s.businessObjects.selectedListingId
   );
@@ -73,9 +76,13 @@ export default function PanelBusinessObjects() {
       />
 
       {activeListing && (
-        <Box sx={{ display: "flex", justifyContent: "flex-end", px: 1, mt: -0.5 }}>
+        <Box
+          sx={{ display: "flex", justifyContent: "flex-end", px: 1, mt: -0.5 }}
+        >
           <Tooltip
-            title={quickEditOpen ? "Retour à l'arbre" : "Édition rapide (texte)"}
+            title={
+              quickEditOpen ? "Retour à l'arbre" : "Édition rapide (texte)"
+            }
           >
             <IconButton
               size="small"
