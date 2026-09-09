@@ -9,9 +9,7 @@ import {
   setSelectedBaseMapsListingId,
 } from "Features/mapEditor/mapEditorSlice";
 import { setSelectedListingId } from "Features/listings/listingsSlice";
-import {
-  setSelectedItem,
-} from "Features/selection/selectionSlice";
+import { setSelectedItem } from "Features/selection/selectionSlice";
 
 import { Box, Typography, Button } from "@mui/material";
 
@@ -65,49 +63,49 @@ export default function SectionBaseMap({
         {baseMap.name}
       </Typography>
       <Box sx={{ display: "flex", gap: 2, width: 1 }}>
-      {/* BaseMap image with annotation overlay - 40% width */}
-      <Box
-        sx={{ width: "40%", flexShrink: 0, cursor: "pointer" }}
-        onClick={handleSvgClick}
-      >
-        <BaseMapAnnotationsSvg baseMap={baseMap} annotations={annotations} />
-      </Box>
-
-      {/* Content - quantities */}
-      <Box
-        sx={{
-          flex: 1,
-          display: "flex",
-          flexDirection: "column",
-          minWidth: 0,
-          pl: "24px",
-          pr: "24px",
-        }}
-      >
-        {isBaseMapListing ? null : isBusinessObjectListing ? (
-          <SectionBusinessObjectQties
-            businessObjects={businessObjects}
-            rels={businessObjectRels}
-            annotations={annotations}
-          />
-        ) : (
-          <SectionAnnotationTemplateQties
-            annotations={annotations}
-            annotationTemplates={annotationTemplates}
-            groupByListing={showAllListings}
-          />
-        )}
-
-        <Box sx={{ mt: "auto", pt: 1 }}>
-          <Button
-            variant="outlined"
-            size="small"
-            onClick={handleOpenInMapViewer}
-          >
-            Modifier le repérage
-          </Button>
+        {/* BaseMap image with annotation overlay - 40% width */}
+        <Box
+          sx={{ width: "40%", flexShrink: 0, cursor: "pointer" }}
+          onClick={handleSvgClick}
+        >
+          <BaseMapAnnotationsSvg baseMap={baseMap} annotations={annotations} />
         </Box>
-      </Box>
+
+        {/* Content - quantities */}
+        <Box
+          sx={{
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+            minWidth: 0,
+            pl: "24px",
+            pr: "24px",
+          }}
+        >
+          {isBaseMapListing ? null : isBusinessObjectListing ? (
+            <SectionBusinessObjectQties
+              businessObjects={businessObjects}
+              rels={businessObjectRels}
+              annotations={annotations}
+            />
+          ) : (
+            <SectionAnnotationTemplateQties
+              annotations={annotations}
+              annotationTemplates={annotationTemplates}
+              groupByListing={showAllListings}
+            />
+          )}
+
+          <Box sx={{ mt: "auto", pt: 1 }}>
+            <Button
+              variant="outlined"
+              size="small"
+              onClick={handleOpenInMapViewer}
+            >
+              Modifier le repérage
+            </Button>
+          </Box>
+        </Box>
       </Box>
     </Box>
   );

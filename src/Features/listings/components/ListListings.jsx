@@ -18,9 +18,6 @@ import iconsMap from "../data/iconsMap";
 import SkeletonList from "Features/layout/components/SkeletonList";
 import IconListingVariantBasic from "./IconListingVariantBasic";
 
-// `showIcon` false drops the listing's colored icon square: panels that group
-// listings by type carry the icon on the group header instead, where it says
-// something the row does not repeat.
 export default function ListListings({
   listings,
   selection,
@@ -28,7 +25,6 @@ export default function ListListings({
   onSeeObjects,
   loading,
   onAddClick,
-  showIcon = true,
 }) {
   // strings
 
@@ -70,8 +66,8 @@ export default function ListListings({
                 selected={selection?.includes(listing?.id)}
                 onClick={() => onClick(listing)}
               >
-                {showIcon && <IconListingVariantBasic listing={listing} />}
-                <Typography variant="body2" sx={{ pl: showIcon ? 1 : 0 }}>
+                <IconListingVariantBasic listing={listing} />
+                <Typography variant="body2" sx={{ pl: 1 }}>
                   {listing?.name}
                 </Typography>
               </ListItemButton>

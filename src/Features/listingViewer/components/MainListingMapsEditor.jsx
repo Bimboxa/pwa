@@ -51,6 +51,10 @@ export default function MainListingMapsEditor({ listing }) {
 
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const { value: baseMaps } = useBaseMaps({ filterByProject: projectId });
+  // Base map folders switched off by the eye of the SCOPE panel.
+  const hiddenListingsIds = useSelector(
+    (s) => s.listings.hiddenListingsIds || []
+  );
 
   // helpers - listing mode
 
@@ -111,27 +115,36 @@ export default function MainListingMapsEditor({ listing }) {
     return map;
   }, [allAnnotations]);
 
-  // Base maps worth a section for the selected listing (see the table above).
+  // Base maps worth a section for the selected listing (see the table above),
+  // minus the folders hidden from the panel.
   const displayedBaseMaps = useMemo(() => {
     if (!baseMaps?.length) return [];
-    if (showAllListings) return baseMaps;
+    const visibleBaseMaps = hiddenListingsIds.length
+      ? baseMaps.filter(
+          (baseMap) => !hiddenListingsIds.includes(baseMap.listingId)
+        )
+      : baseMaps;
+    if (showAllListings) return visibleBaseMaps;
     if (isBaseMapListing)
-      return baseMaps.filter((baseMap) => baseMap.listingId === listing?.id);
+      return visibleBaseMaps.filter(
+        (baseMap) => baseMap.listingId === listing?.id
+      );
     if (isBusinessObjectListing) {
       const linkedIds = new Set(
         (businessObjectRels ?? []).map((rel) => rel.annotationId)
       );
-      return baseMaps.filter((baseMap) =>
+      return visibleBaseMaps.filter((baseMap) =>
         (annotationsByBaseMapId[baseMap.id] ?? []).some((a) =>
           linkedIds.has(a.id)
         )
       );
     }
-    return baseMaps.filter(
+    return visibleBaseMaps.filter(
       (baseMap) => (annotationsByBaseMapId[baseMap.id] ?? []).length > 0
     );
   }, [
     baseMaps,
+    hiddenListingsIds,
     showAllListings,
     isBaseMapListing,
     isBusinessObjectListing,

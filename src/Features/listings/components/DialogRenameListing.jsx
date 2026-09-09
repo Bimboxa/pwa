@@ -1,65 +1,64 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
+
+import {
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  TextField,
+} from "@mui/material";
 
 import useUpdateListing from "../hooks/useUpdateListing";
 
-import { Box, TextField } from "@mui/material";
+// Rename dialog of any listing. Goes through useUpdateListing (ownership
+// guard + sync file), not a raw db.listings.update.
+export default function DialogRenameListing({ open, listing, onClose }) {
+  const updateListing = useUpdateListing();
 
-import DialogGeneric from "Features/layout/components/DialogGeneric";
-import HeaderTitleClose from "Features/layout/components/HeaderTitleClose";
-import ButtonInPanel from "Features/layout/components/ButtonInPanel";
-
-export default function DialogRenameListing({ open, onClose, listing }) {
   // strings
 
   const titleS = "Renommer la liste";
-  const labelS = "Nom de la liste";
-  const saveS = "Renommer";
-
-  // data
-
-  const updateListing = useUpdateListing();
+  const nameS = "Nom";
+  const cancelS = "Annuler";
+  const renameS = "Renommer";
 
   // state
 
-  const [tempName, setTempName] = useState(listing?.name ?? "");
-  useEffect(() => {
-    setTempName(listing?.name ?? "");
-  }, [listing?.id, open]);
-
-  // helpers
-
-  const canSave = Boolean(tempName.trim());
+  const [name, setName] = useState(listing?.name ?? "");
 
   // handlers
 
-  async function handleSave() {
-    const name = tempName.trim();
-    if (!name) return;
-    if (name !== listing?.name) {
-      await updateListing({ ...listing, name }, { updateSyncFile: true });
-    }
+  async function handleRename() {
+    await updateListing({ id: listing.id, name });
     onClose();
   }
 
   // render
 
   return (
-    <DialogGeneric open={open} onClose={onClose} width={350}>
-      <HeaderTitleClose title={titleS} onClose={onClose} />
-      <Box sx={{ p: 2 }}>
+    <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
+      <DialogTitle>{titleS}</DialogTitle>
+      <DialogContent>
         <TextField
-          fullWidth
           autoFocus
+          fullWidth
           size="small"
-          label={labelS}
-          value={tempName}
-          onChange={(e) => setTempName(e.target.value)}
+          label={nameS}
+          value={name}
+          onChange={(e) => setName(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === "Enter" && canSave) handleSave();
+            if (e.key === "Enter" && name) handleRename();
           }}
+          sx={{ mt: 1 }}
         />
-      </Box>
-      <ButtonInPanel label={saveS} onClick={handleSave} disabled={!canSave} />
-    </DialogGeneric>
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>{cancelS}</Button>
+        <Button variant="contained" onClick={handleRename} disabled={!name}>
+          {renameS}
+        </Button>
+      </DialogActions>
+    </Dialog>
   );
 }

@@ -10,7 +10,7 @@ import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useListingsByScope from "Features/listings/hooks/useListingsByScope";
 import useListingGroupsWithIcons from "../hooks/useListingGroupsWithIcons";
 
-import { Box, Button, IconButton, Tooltip, Typography } from "@mui/material";
+import { Box, Button, Typography } from "@mui/material";
 import { Add as AddIcon } from "@mui/icons-material";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
@@ -27,10 +27,11 @@ import getListingGroupsByEntityModelType from "Features/listings/utils/getListin
 // its nature (base maps, annotations, business objects, exports...), grouped
 // by family (base maps first, then annotations, then one group per business
 // object type). Each group header carries its family icon and a "+" opening
-// that family's own creation dialog; the panel-level "+" keeps the generic
-// entry point. A click selects the listing — which narrows the recap editor
-// and sends the listing properties to the right panel; there is no subview to
-// drill into.
+// that family's own creation dialog — there is no panel-level "+": a listing
+// always belongs to a family, so the generic entry point only asked a question
+// the group already answers. A click selects the listing — which narrows the
+// recap editor and sends the listing properties to the right panel; there is
+// no subview to drill into.
 export default function SelectorListingForViewer({ selectedListingId }) {
   const dispatch = useDispatch();
 
@@ -108,25 +109,7 @@ export default function SelectorListingForViewer({ selectedListingId }) {
 
   return (
     <BoxFlexVStretch>
-      <Box
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          pr: 1,
-        }}
-      >
-        <LeftDrawerPanelHeader title={titleS} />
-        <Tooltip title={createListingS}>
-          <IconButton
-            size="small"
-            color="secondary"
-            onClick={() => setCreateTarget({ kind: "BUSINESS_OBJECT" })}
-          >
-            <AddIcon fontSize="small" />
-          </IconButton>
-        </Tooltip>
-      </Box>
+      <LeftDrawerPanelHeader title={titleS} />
 
       {loading ? (
         <ListListings loading />
