@@ -34,7 +34,7 @@ export default function LeftPanel() {
   if (selectedViewerKey === "BASE_MAPS") width = 0;
   if (selectedViewerKey === "ZONES") width = 0;
   if (isBusinessObjectsModuleKey(selectedViewerKey)) width = 0;
-  if (selectedViewerKey === "LISTING") width = 0;
+  if (selectedViewerKey === "SCOPE") width = 0;
   if (selectedViewerKey === "ADMIN") width = 0;
 
   // handler
@@ -48,7 +48,7 @@ export default function LeftPanel() {
 
   return (
     <Box sx={{ display: "flex", zIndex: 2 }}>
-      {!isFullScreen && selectedViewerKey !== "MAP" && selectedViewerKey !== "PHOTOS" && selectedViewerKey !== "THREED" && selectedViewerKey !== "MESHES" && selectedViewerKey !== "POINT_OF_VIEW" && selectedViewerKey !== "PORTFOLIO" && selectedViewerKey !== "BASE_MAPS" && selectedViewerKey !== "ZONES" && !isBusinessObjectsModuleKey(selectedViewerKey) && selectedViewerKey !== "LISTING" && selectedViewerKey !== "ADMIN" && (
+      {!isFullScreen && selectedViewerKey !== "MAP" && selectedViewerKey !== "PHOTOS" && selectedViewerKey !== "THREED" && selectedViewerKey !== "MESHES" && selectedViewerKey !== "POINT_OF_VIEW" && selectedViewerKey !== "PORTFOLIO" && selectedViewerKey !== "BASE_MAPS" && selectedViewerKey !== "ZONES" && !isBusinessObjectsModuleKey(selectedViewerKey) && selectedViewerKey !== "SCOPE" && selectedViewerKey !== "ADMIN" && (
         <VerticalBarInLeftPanel>
           <VerticalSelectorListing onSeeAllClick={handleSeeAllClick} />
         </VerticalBarInLeftPanel>

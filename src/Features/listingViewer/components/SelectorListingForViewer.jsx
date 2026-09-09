@@ -20,15 +20,15 @@ import DialogCreateBusinessObjectListing from "Features/businessObjects/componen
 
 import getListingGroupsByEntityModelType from "Features/listings/utils/getListingGroupsByEntityModelType";
 
-// Listing selector of the "Objets" module: every listing of the scope
-// whatever its nature (base maps, annotations, business objects, exports...),
-// grouped by entityModel type. Header + "+" mirror the Fond de plan module
-// panel (PanelBaseMaps): the creation dialog carries the type and the name,
-// so the panel needs a single action.
-export default function SelectorListingForViewer({
-  onListingSelected,
-  selectedListingId,
-}) {
+// Listing selector of the SCOPE module: every listing of the scope whatever
+// its nature (base maps, annotations, business objects, exports...), grouped
+// by entityModel type (base maps first, then annotations, then business
+// objects). Header + "+" mirror the Fond de plan module panel (PanelBaseMaps):
+// the creation dialog carries the type and the name, so the panel needs a
+// single action. A click selects the listing — which narrows the recap editor
+// and sends the listing properties to the right panel; there is no subview to
+// drill into.
+export default function SelectorListingForViewer({ selectedListingId }) {
   const dispatch = useDispatch();
 
   // strings
@@ -68,11 +68,6 @@ export default function SelectorListingForViewer({
 
   function handleListingClick(listing) {
     selectListing(listing);
-  }
-
-  function handleSeeObjects(listing) {
-    selectListing(listing);
-    if (onListingSelected) onListingSelected();
   }
 
   function handleListingCreated(listing) {
@@ -139,7 +134,6 @@ export default function SelectorListingForViewer({
               group={group}
               selection={selection}
               onListingClick={handleListingClick}
-              onSeeObjects={handleSeeObjects}
             />
           ))}
         </BoxFlexVStretch>

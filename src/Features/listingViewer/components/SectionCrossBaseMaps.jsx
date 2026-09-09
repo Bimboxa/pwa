@@ -1,126 +1,41 @@
-import { useState, useMemo } from "react";
+import { useState } from "react";
 
 import { Box, Typography, Button } from "@mui/material";
 import { TableChart } from "@mui/icons-material";
 
 import DialogGeneric from "Features/layout/components/DialogGeneric";
 import DatagridAnnotations from "Features/annotations/components/DatagridAnnotations";
-import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTemplateIcon";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
-import ToggleSingleSelectorGeneric from "Features/layout/components/ToggleSingleSelectorGeneric";
-import SectionArticlesQties from "Features/articles/components/SectionArticlesQties";
+import SectionAnnotationTemplateQties from "./SectionAnnotationTemplateQties";
+import SectionBusinessObjectQties from "./SectionBusinessObjectQties";
 
-import getItemsByKey from "Features/misc/utils/getItemsByKey";
-import getAnnotationTemplateMainQtyLabel from "Features/annotations/utils/getAnnotationTemplateMainQtyLabel";
-
+// Totals of the SCOPE module recap, above the per-base-map sections: the
+// listing name and its annotation count on the left, the quantities of the
+// whole listing on the right (see MainListingMapsEditor for the mode table).
 export default function SectionCrossBaseMaps({
   listing,
   showAllListings,
+  isBaseMapListing,
+  isBusinessObjectListing,
   annotations,
   annotationTemplates,
-  qtyMode,
-  onQtyModeChange,
+  businessObjects,
+  businessObjectRels,
 }) {
+  // strings
+
+  const allListingsS = "Tous les objets";
+  const annotationsS = "annotations";
+  const seeDataS = "Voir les données";
+
   // state
 
   const [openDialog, setOpenDialog] = useState(false);
 
   // helpers
 
-  const title = showAllListings ? "Tous les objets" : listing?.name;
+  const title = showAllListings ? allListingsS : listing?.name;
   const annotationCount = annotations?.length ?? 0;
-  const isArticlesMode = qtyMode === "ARTICLES";
-
-  const annotationTemplateById = getItemsByKey(
-    annotationTemplates ?? [],
-    "id"
-  );
-
-  // helpers - grouped by listing (for showAllListings mode)
-
-  const groupedByListing = useMemo(() => {
-    if (!showAllListings || !annotations?.length) return [];
-    const listingMap = {};
-    for (const annotation of annotations) {
-      const templateId = annotation.annotationTemplateId;
-      if (!templateId) continue;
-      const listingName = annotation.listingName || "Sans liste";
-      if (!listingMap[listingName]) listingMap[listingName] = {};
-      if (!listingMap[listingName][templateId]) {
-        listingMap[listingName][templateId] = {
-          count: 0,
-          length: 0,
-          surface: 0,
-          unit: 0,
-        };
-      }
-      const stats = listingMap[listingName][templateId];
-      stats.count += 1;
-      stats.unit = stats.count;
-      if (annotation.qties?.enabled) {
-        if (Number.isFinite(annotation.qties.length))
-          stats.length += annotation.qties.length;
-        if (Number.isFinite(annotation.qties.surface))
-          stats.surface += annotation.qties.surface;
-      }
-    }
-    return Object.entries(listingMap)
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([listingName, qtiesById]) => ({
-        listingName,
-        templates: Object.entries(qtiesById)
-          .map(([templateId, stats]) => {
-            const template = annotationTemplateById[templateId];
-            if (!template) return null;
-            return {
-              ...template,
-              mainQtyLabel: getAnnotationTemplateMainQtyLabel(template, stats),
-            };
-          })
-          .filter(Boolean)
-          .sort((a, b) => (a.label ?? "").localeCompare(b.label ?? "")),
-      }));
-  }, [showAllListings, annotations, annotationTemplateById]);
-
-  // helpers - flat list (for single listing mode)
-
-  const templateQties = useMemo(() => {
-    if (showAllListings || !annotations?.length) return {};
-    const qtiesById = {};
-    for (const annotation of annotations) {
-      const templateId = annotation.annotationTemplateId;
-      if (!templateId) continue;
-      if (!qtiesById[templateId]) {
-        qtiesById[templateId] = { count: 0, length: 0, surface: 0, unit: 0 };
-      }
-      const stats = qtiesById[templateId];
-      stats.count += 1;
-      stats.unit = stats.count;
-      if (annotation.qties?.enabled) {
-        if (Number.isFinite(annotation.qties.length))
-          stats.length += annotation.qties.length;
-        if (Number.isFinite(annotation.qties.surface))
-          stats.surface += annotation.qties.surface;
-      }
-    }
-    return qtiesById;
-  }, [showAllListings, annotations]);
-
-  const templatesWithQties = Object.entries(templateQties)
-    .map(([templateId, stats]) => {
-      const template = annotationTemplateById[templateId];
-      if (!template) return null;
-      return {
-        ...template,
-        mainQtyLabel: getAnnotationTemplateMainQtyLabel(template, stats),
-      };
-    })
-    .filter(Boolean)
-    .sort((a, b) => (a.label ?? "").localeCompare(b.label ?? ""));
-
-  const hasAnnotations = showAllListings
-    ? groupedByListing.length > 0
-    : templatesWithQties.length > 0;
 
   // handlers
 
@@ -132,90 +47,7 @@ export default function SectionCrossBaseMaps({
     setOpenDialog(false);
   }
 
-  function handleQtyModeChange(newValue) {
-    if (newValue) onQtyModeChange(newValue);
-  }
-
-  // render - annotations recap
-
-  function renderAnnotationsRecap() {
-    if (!hasAnnotations) {
-      return (
-        <Typography variant="body2" color="text.secondary">
-          Aucun objet repéré
-        </Typography>
-      );
-    }
-    if (showAllListings) {
-      return (
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-          {groupedByListing.map((group) => (
-            <Box key={group.listingName}>
-              <Typography
-                variant="body2"
-                sx={{ fontWeight: "bold", mb: 0.5 }}
-              >
-                {group.listingName}
-              </Typography>
-              <Box
-                sx={{
-                  display: "flex",
-                  flexDirection: "column",
-                  gap: 0.25,
-                }}
-              >
-                {group.templates.map((template) => (
-                  <Box
-                    key={template.id}
-                    sx={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 1,
-                    }}
-                  >
-                    <AnnotationTemplateIcon template={template} size={16} />
-                    <Typography variant="body2" noWrap sx={{ flex: 1 }}>
-                      {template.label}
-                    </Typography>
-                    <Typography
-                      variant="body2"
-                      color="text.secondary"
-                      noWrap
-                      sx={{ fontFamily: "monospace", fontWeight: 500 }}
-                    >
-                      {template.mainQtyLabel}
-                    </Typography>
-                  </Box>
-                ))}
-              </Box>
-            </Box>
-          ))}
-        </Box>
-      );
-    }
-    return (
-      <Box sx={{ display: "flex", flexDirection: "column", gap: 0.5 }}>
-        {templatesWithQties.map((template) => (
-          <Box
-            key={template.id}
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              gap: 1,
-            }}
-          >
-            <AnnotationTemplateIcon template={template} size={16} />
-            <Typography variant="body2" noWrap sx={{ flex: 1 }}>
-              {template.label}
-            </Typography>
-            <Typography variant="body2" color="text.secondary" noWrap sx={{ fontFamily: "monospace", fontWeight: 500 }}>
-              {template.mainQtyLabel}
-            </Typography>
-          </Box>
-        ))}
-      </Box>
-    );
-  }
+  // render
 
   return (
     <Box sx={{ display: "flex", gap: 2, width: 1 }}>
@@ -250,7 +82,7 @@ export default function SectionCrossBaseMaps({
               color="text.secondary"
               sx={{ ml: 1 }}
             >
-              annotations
+              {annotationsS}
             </Typography>
           </Typography>
           <Button
@@ -259,12 +91,13 @@ export default function SectionCrossBaseMaps({
             startIcon={<TableChart />}
             onClick={handleOpenDialog}
           >
-            Voir les données
+            {seeDataS}
           </Button>
         </Box>
       </Box>
 
-      {/* Right column */}
+      {/* Right column — quantities, driven by the listing type. A base map
+          listing carries none: the section stays empty. */}
       <Box
         sx={{
           flex: 1,
@@ -275,21 +108,18 @@ export default function SectionCrossBaseMaps({
           pr: "24px",
         }}
       >
-        <Box sx={{ mb: 2 }}>
-          <ToggleSingleSelectorGeneric
-            options={[
-              { key: "ANNOTATIONS", label: "Repérages" },
-              { key: "ARTICLES", label: "Ouvrages" },
-            ]}
-            selectedKey={qtyMode}
-            onChange={handleQtyModeChange}
+        {isBaseMapListing ? null : isBusinessObjectListing ? (
+          <SectionBusinessObjectQties
+            businessObjects={businessObjects}
+            rels={businessObjectRels}
+            annotations={annotations}
           />
-        </Box>
-
-        {isArticlesMode ? (
-          <SectionArticlesQties annotations={annotations} />
         ) : (
-          renderAnnotationsRecap()
+          <SectionAnnotationTemplateQties
+            annotations={annotations}
+            annotationTemplates={annotationTemplates}
+            groupByListing={showAllListings}
+          />
         )}
       </Box>
 

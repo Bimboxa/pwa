@@ -4,6 +4,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { setShowLayers } from "Features/popperMapListings/popperMapListingsSlice";
 
 import { LOCKED_MODULE_KEYS } from "Features/viewers/hooks/useViewers";
+import { SCOPE_MODULE_KEY } from "Features/listingViewer/utils/resolveScopeModuleLabel";
 import { getBusinessObjectTypeKeyFromModuleKey } from "Features/businessObjects/utils/businessObjectModuleKeys";
 import { getBusinessObjectType } from "Features/businessObjects/data/businessObjectTypesCatalog";
 
@@ -80,7 +81,12 @@ export default function PageModuleConfig({ module, tools }) {
   const businessObjectTypeKey = getBusinessObjectTypeKeyFromModuleKey(
     module.key
   );
-  const renamable = businessObjectTypeKey !== null;
+  // The SCOPE module reads moduleLabelsByKey too (useScopeModuleLabel), so it
+  // is renamable per scope. Its icon is NOT configurable: only the
+  // business-objects modules resolve moduleIconKeysByKey (useViewers hardcodes
+  // every other module's icon), so the picker would be a dead control.
+  const renamable =
+    businessObjectTypeKey !== null || module.key === SCOPE_MODULE_KEY;
   const iconConfigurable = businessObjectTypeKey !== null;
   const defaultIconKey =
     getBusinessObjectType(businessObjectTypeKey)?.defaultIconKey ?? null;

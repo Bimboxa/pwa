@@ -21,12 +21,13 @@ const DEFAULT_LABEL_BY_TYPE = {
   LEGEND_ENTITY: "Légendes",
 };
 
-// Display order of the groups. A type absent from this list is appended
-// after them, in the order it is met.
+// Display order of the groups: the scope reads top-down as base maps first,
+// then what is drawn on them, then what those drawings feed. A type absent
+// from this list is appended after them, in the order it is met.
 const TYPE_ORDER = [
+  "BASE_MAP",
   "LOCATED_ENTITY",
   "BUSINESS_OBJECT",
-  "BASE_MAP",
   "ANNOTATION_TEMPLATE",
   "PHOTO",
   "ZONING",

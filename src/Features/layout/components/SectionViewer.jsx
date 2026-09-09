@@ -81,7 +81,7 @@ export default function SectionViewer() {
   // editor, only the objects drawer is module-specific (and type-specific).
   const businessObjectTypeKey =
     getBusinessObjectTypeKeyFromModuleKey(viewerKey);
-  const showListing = viewerKey === "LISTING";
+  const showScope = viewerKey === "SCOPE";
   const showAdmin = viewerKey === "ADMIN";
   // Viewer module, 2D editor: the chips band replaces the topbar baseMap
   // selector (the 3D editor mounts its own instance in MainThreedEditor).
@@ -219,7 +219,7 @@ export default function SectionViewer() {
         <MainBaseMapViewer />
       </PanelShowable>}
 
-      {showListing && <PanelShowable show={showListing} sx={{ position: "absolute", zIndex: 0 }}>
+      {showScope && <PanelShowable show={showScope} sx={{ position: "absolute", zIndex: 0 }}>
         <MainListingViewer />
       </PanelShowable>}
 

@@ -160,7 +160,7 @@ export default function useRightPanelTools() {
     },
     // Global capture: same frame as the POV framing (panel-independent). The
     // only capture entry point since the Export tool dropped its "Export
-    // rapide" card. Every module with a 2D/3D editor — PORTFOLIO and LISTING
+    // rapide" card. Every module with a 2D/3D editor — PORTFOLIO and SCOPE
     // have no capture host. Plain "V" (smart-detect's in-draw "v" is disjoint:
     // the hotkey hook is inert while drawing).
     {

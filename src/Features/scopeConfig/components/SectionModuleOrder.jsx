@@ -1,6 +1,7 @@
 import { useSelector } from "react-redux";
 
 import { LOCKED_MODULE_KEYS } from "Features/viewers/hooks/useViewers";
+import { PINNED_TOP_MODULE_KEYS } from "Features/viewers/utils/sortModulesByOrder";
 
 import useScopeConfigActions from "../hooks/useScopeConfigActions";
 import { selectDisabledModuleKeys } from "../utils/scopeConfigSelectors";
@@ -14,6 +15,7 @@ import {
   Typography,
 } from "@mui/material";
 import DragIndicator from "@mui/icons-material/DragIndicator";
+import PushPin from "@mui/icons-material/PushPin";
 
 import {
   DndContext,
@@ -29,6 +31,43 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+
+// Fixed row of a pinned module: same layout as the sortable rows, without a
+// drag handle — sortModulesByOrder hoists these keys whatever the stored
+// order, so letting them be dragged would persist an order the band ignores.
+function FixedRowModuleOrder({ module }) {
+  return (
+    <ListItem
+      dense
+      disableGutters
+      sx={{
+        gap: 1,
+        px: 1,
+        borderBottom: (theme) => `1px solid ${theme.palette.divider}`,
+        bgcolor: "background.paper",
+      }}
+    >
+      <Box
+        component="span"
+        sx={{
+          display: "inline-flex",
+          alignItems: "center",
+          flexShrink: 0,
+          color: "text.disabled",
+        }}
+      >
+        <PushPin sx={{ fontSize: 16 }} />
+      </Box>
+      <ListItemIcon sx={{ minWidth: 32, "& svg": { fontSize: 20 } }}>
+        {module.icon}
+      </ListItemIcon>
+      <ListItemText
+        primary={module.label}
+        primaryTypographyProps={{ variant: "body2", noWrap: true }}
+      />
+    </ListItem>
+  );
+}
 
 // One row of the module order list: drag handle + module icon + label.
 // Disabled modules stay in the list (dimmed) so their position is kept when
@@ -108,10 +147,18 @@ export default function SectionModuleOrder({ modules }) {
 
   // helpers
 
-  const ids = modules.map((m) => m.key);
+  const pinnedModules = modules.filter((m) =>
+    PINNED_TOP_MODULE_KEYS.includes(m.key)
+  );
+  const sortableModules = modules.filter(
+    (m) => !PINNED_TOP_MODULE_KEYS.includes(m.key)
+  );
+  const ids = sortableModules.map((m) => m.key);
 
   // handlers
 
+  // The persisted order carries the sortable keys only: the pinned ones are
+  // hoisted by sortModulesByOrder and their rank would be meaningless.
   function handleDragEnd({ active, over }) {
     if (!over || active.id === over.id) return;
     const from = ids.indexOf(active.id);
@@ -140,7 +187,10 @@ export default function SectionModuleOrder({ modules }) {
       >
         <SortableContext items={ids} strategy={verticalListSortingStrategy}>
           <List dense disablePadding>
-            {modules.map((m) => (
+            {pinnedModules.map((m) => (
+              <FixedRowModuleOrder key={m.key} module={m} />
+            ))}
+            {sortableModules.map((m) => (
               <SortableRowModuleOrder
                 key={m.key}
                 module={m}

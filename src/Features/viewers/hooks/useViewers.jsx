@@ -6,6 +6,7 @@ import {
 } from "Features/scopeConfig/utils/scopeConfigSelectors";
 
 import useBusinessObjectsModules from "Features/businessObjects/hooks/useBusinessObjectsModules";
+import useScopeModuleLabel from "Features/listingViewer/hooks/useScopeModuleLabel";
 import sortModulesByOrder from "../utils/sortModulesByOrder";
 
 import {
@@ -17,7 +18,7 @@ import {
   AdminPanelSettings,
   Draw,
   Layers,
-  FormatListBulleted,
+  Topic,
   ViewInAr,
   GridOn,
   PhotoCamera,
@@ -28,9 +29,9 @@ import {
 import theme from "Styles/theme";
 
 // Modules that can never be disabled from the Configuration dialog: the app
-// always keeps its two core modules. Also shields against imported
-// scopeConfig rows that would list them as disabled.
-export const LOCKED_MODULE_KEYS = new Set(["BASE_MAPS", "MAP"]);
+// always keeps the scope overview and its two core modules. Also shields
+// against imported scopeConfig rows that would list them as disabled.
+export const LOCKED_MODULE_KEYS = new Set(["SCOPE", "BASE_MAPS", "MAP"]);
 
 // Each entry is a MODULE of the left band. `editors` lists the editors the
 // module can display (default: the module's own key). Multi-editor modules
@@ -56,13 +57,21 @@ export default function useViewers({ ignoreScopeConfig = false } = {}) {
   const disabledModuleKeys = useSelector(selectDisabledModuleKeys);
   const moduleOrder = useSelector(selectModuleOrder);
   const businessObjectsModules = useBusinessObjectsModules();
+  const scopeModuleLabel = useScopeModuleLabel();
 
   const viewers = [
-    // {
-    //   key: "BLUEPRINT",
-    //   label: "Plan de repérage",
-    //   icon: <Print />,
-    // },
+    {
+      key: "SCOPE",
+      label: scopeModuleLabel,
+      shortLabel: scopeModuleLabel,
+      icon: <Topic />,
+      bgcolor: theme.palette.viewers.scope,
+      // Overview of the scope: the listings on the left, the base maps and
+      // their quantities in the editor. Locked (LOCKED_MODULE_KEYS) and
+      // pinned first (PINNED_TOP_MODULE_KEYS) — the entry point of a scope.
+      // No hotkey: Ctrl+S is the browser save dialog, not reliably cancelable.
+      // 2D-only: the module hosts its own viewer, no map editor.
+    },
     {
       key: "BASE_MAPS",
       label: "Fonds de plan",
@@ -156,17 +165,6 @@ export default function useViewers({ ignoreScopeConfig = false } = {}) {
     // free: the browser open-file dialog is blocked by preventDefault on
     // match, same argument as Ctrl+P above).
     ...businessObjectsModules,
-    {
-      key: "LISTING",
-      label: "Liste d'objets",
-      shortLabel: "Objets",
-      icon: <FormatListBulleted />,
-      bgcolor: theme.palette.viewers.listing,
-      // Per-scope configurable module (CONFIGURABLE_MODULE_KEYS), disabled by
-      // default like every non-core module. No hotkey: Ctrl+L is the browser
-      // address bar, not reliably cancelable (same choice as Zones / Viewer).
-      // 2D-only: the module hosts its own listing viewer, no map editor.
-    },
     {
       key: "PRINT",
       label: "Format impression",
