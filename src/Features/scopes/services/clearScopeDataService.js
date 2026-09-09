@@ -19,6 +19,7 @@ export default async function clearScopeDataService(scopeId) {
         await db.portfolioPages.where("scopeId").equals(scopeId).delete();
         await db.portfolioBaseMapContainers.where("scopeId").equals(scopeId).delete();
         await db.layers.where("scopeId").equals(scopeId).delete();
+        await db.globalLayers.where("scopeId").equals(scopeId).delete();
         await db.scopeConfigs.where("scopeId").equals(scopeId).delete();
 
         // Tables liées par listingId (entities, maps, etc.)
@@ -32,6 +33,11 @@ export default async function clearScopeDataService(scopeId) {
             await db.relsZoneAnnotation.where("listingId").anyOf(listingIds).delete();
             await db.businessObjects.where("listingId").anyOf(listingIds).delete();
             await db.relsBusinessObjectAnnotation.where("listingId").anyOf(listingIds).delete();
+            await db.workPackages.where("listingId").anyOf(listingIds).delete();
+            await db.relsWorkPackageAnnotation.where("listingId").anyOf(listingIds).delete();
+            await db.plannings.where("listingId").anyOf(listingIds).delete();
+            await db.planningResources.where("listingId").anyOf(listingIds).delete();
+            await db.planningSlots.where("listingId").anyOf(listingIds).delete();
             if (listingKeys.length > 0) {
                 await db.entitiesProps.where("listingKey").anyOf(listingKeys).delete();
             }

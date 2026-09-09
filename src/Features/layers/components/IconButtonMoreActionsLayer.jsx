@@ -5,6 +5,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import db from "App/db/db";
 import useDeleteLayer from "../hooks/useDeleteLayer";
 import useLayers from "../hooks/useLayers";
+import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 
 import { setSelectedItem } from "Features/selection/selectionSlice";
 
@@ -20,7 +21,14 @@ export default function IconButtonMoreActionsLayer({ layer }) {
   const annotationsUpdatedAt = useSelector(
     (s) => s.annotations.annotationsUpdatedAt
   );
-  const allLayers = useLayers({ filterByBaseMapId: layer?.baseMapId, filterByScopeId: selectedScopeId });
+  // A global layer carries no baseMapId: the counts and the "move to"
+  // targets read the displayed base map (useLayers is mode-aware).
+  const mainBaseMap = useMainBaseMap();
+  const baseMapId = layer?.baseMapId ?? mainBaseMap?.id ?? null;
+  const allLayers = useLayers({
+    filterByBaseMapId: baseMapId,
+    filterByScopeId: selectedScopeId,
+  });
 
   // state
 
@@ -31,10 +39,10 @@ export default function IconButtonMoreActionsLayer({ layer }) {
 
   const annotationCount = useLiveQuery(
     async () => {
-      if (!layer?.id || !layer?.baseMapId) return 0;
+      if (!layer?.id || !baseMapId) return 0;
       const annotations = await db.annotations
         .where("baseMapId")
-        .equals(layer.baseMapId)
+        .equals(baseMapId)
         .toArray();
       let filtered = annotations.filter(
         (a) => !a.deletedAt && !a.isBaseMapAnnotation && a.layerId === layer.id
@@ -60,7 +68,7 @@ export default function IconButtonMoreActionsLayer({ layer }) {
       }
       return filtered.length;
     },
-    [layer?.id, layer?.baseMapId, selectedScopeId, annotationsUpdatedAt],
+    [layer?.id, baseMapId, selectedScopeId, annotationsUpdatedAt],
     0
   );
 

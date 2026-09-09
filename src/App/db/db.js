@@ -315,6 +315,66 @@ db.version(33).stores({
     "id,projectId,annotationId,businessObjectId,listingId",
 });
 
+db.version(34).stores({
+  // Work zones ("tâches localisées") of a PLANNING business-objects listing:
+  // {id, listingId (the PLANNING listing), projectId, scopeId, label, color,
+  //  sortIndex (fractional index), workStationIds: [businessObjectId] —
+  //  tasks ("postes de travail") of the same listing whose hoursRatio ×
+  //  zone quantity gives the zone's hours budget (dangling ids ignored at
+  //  read time), computedAt? (last "Calculer les heures")}
+  // The zone's delimitation polygons and its computed intersection copies
+  // are db.annotations rows of the same listing flagged isWorkZoneAnnotation
+  // / isWorkZoneComputed + workZoneId (booleans not indexable: filtered in
+  // memory after the listingId lookup).
+  workZones: "id,listingId,projectId,scopeId",
+  // Time planning of a PLANNING listing (one per listing in v1):
+  // {id, listingId, projectId, scopeId, label, timeAxisMode
+  //  ("CALENDAR"|"STEPS"), stepHours (4..8), hoursPerDay (8),
+  //  startDate ("YYYY-MM-DD", CALENDAR), currentStep (STEPS "now" cursor),
+  //  sortIndex}
+  plannings: "id,listingId,projectId,scopeId",
+  // Rows of a planning (free "resources": "Compagnon 1"...):
+  // {id, planningId, listingId, projectId, scopeId, label, sortIndex}
+  planningResources: "id,planningId,listingId,projectId,scopeId",
+  // Blocks: one resource on one work zone during `steps` consecutive steps
+  // from `startStep` (0-based from the planning start). Consumed hours =
+  // steps × planning.stepHours.
+  // {id, planningId, planningResourceId, workZoneId, listingId, projectId,
+  //  scopeId, startStep, steps}
+  planningSlots:
+    "id,planningId,planningResourceId,workZoneId,listingId,projectId,scopeId",
+});
+
+db.version(35).stores({
+  // Global layers (scopeConfigs.layersMode "GLOBAL"): same rows as db.layers
+  // WITHOUT baseMapId — one list shared by every base map of the scope.
+  // annotation.layerId points at db.layers or db.globalLayers depending on
+  // the scope's layers mode (see Features/layers/utils/layersMode.js).
+  // {id, projectId, scopeId, name, orderIndex}
+  globalLayers: "id,projectId,scopeId",
+  // Work packages ("lots") of a PLANNING business-objects listing: a set of
+  // linked annotations (relsWorkPackageAnnotation), scheduled in time by the
+  // planning. workStationIds = the tasks the package covers (EMPTY = every
+  // task of the listing); a task only counts the linked annotations whose
+  // layerId matches its globalLayerId (null = every annotation). Replaces
+  // the v34 workZones (delimitation + computed copies), migrated at runtime
+  // by migrateWorkZonesToWorkPackagesService.
+  // {id, listingId, projectId, scopeId, label, color, workStationIds,
+  //  sortIndex}
+  workPackages: "id,listingId,projectId,scopeId",
+  // {id, projectId, scopeId, annotationId, workPackageId, listingId}
+  // Invariant (service-enforced): at most ONE live rel per (annotationId,
+  // listingId) — the work packages of a listing partition the drawing;
+  // linking an annotation to another package of the listing replaces it.
+  relsWorkPackageAnnotation:
+    "id,projectId,annotationId,workPackageId,listingId",
+  // Blocks now target a work package (workZoneId rows are migrated).
+  planningSlots:
+    "id,planningId,planningResourceId,workPackageId,listingId,projectId,scopeId",
+  // workZones (v34) stays declared: legacy rows read by the migration, then
+  // hard-deleted.
+});
+
 // --- AUDIT HOOKS ---
 
 const AUDIT_TABLES = [
@@ -358,6 +418,12 @@ const AUDIT_TABLES = [
   "scopeConfigs",
   "businessObjects",
   "relsBusinessObjectAnnotation",
+  "globalLayers",
+  "workPackages",
+  "relsWorkPackageAnnotation",
+  "plannings",
+  "planningResources",
+  "planningSlots",
 ];
 
 // Shared/collaborative tables exempt from the ownership guard: records here can
@@ -389,6 +455,13 @@ const OWNERSHIP_EXEMPT_TABLES = new Set([
   // and unlinking must be able to soft-delete rels created by other users.
   "businessObjects",
   "relsBusinessObjectAnnotation",
+  // Work packages and the time planning are shared structure too (anyone
+  // edits packages, links, resources and blocks).
+  "workPackages",
+  "relsWorkPackageAnnotation",
+  "plannings",
+  "planningResources",
+  "planningSlots",
 ]);
 
 // --- READ-ONLY SCOPE GUARD ---
@@ -630,6 +703,12 @@ const SOFT_DELETE_TABLES = new Set([
   "photoPlans",
   "businessObjects",
   "relsBusinessObjectAnnotation",
+  "globalLayers",
+  "workPackages",
+  "relsWorkPackageAnnotation",
+  "plannings",
+  "planningResources",
+  "planningSlots",
 ]);
 
 let _skipSoftDelete = false;

@@ -57,6 +57,11 @@ export default function remapDexieExportIds(jsonData, opts) {
     parentAnnotationId: "annotations",
     meshCellAnnotationId: "annotations",
     businessObjectId: "businessObjects",
+    // Work packages + time planning (PLANNING listings); tasks' global layer.
+    workPackageId: "workPackages",
+    globalLayerId: "globalLayers",
+    planningId: "plannings",
+    planningResourceId: "planningResources",
   };
 
   // Per-table FK target overrides: a field name shared across tables but
@@ -241,6 +246,21 @@ export default function remapDexieExportIds(jsonData, opts) {
           "baseMaps",
           row.calibrationInputs.planBaseMapId
         );
+      }
+
+      // Work packages: the covered tasks are an array of business-object ids
+      // (SIMPLE_FK only remaps scalar columns).
+      if (tableName === "workPackages" && Array.isArray(row.workStationIds)) {
+        row.workStationIds = row.workStationIds.map((id) =>
+          remapId("businessObjects", id)
+        );
+      }
+
+      // layerId may point at a GLOBAL layer (scope in layersMode "GLOBAL"):
+      // the SIMPLE_FK pass above targets db.layers and falls through for an
+      // unknown id, so a still-old id known to globalLayers is remapped here.
+      if (row.layerId && idMap.globalLayers?.[row.layerId]) {
+        row.layerId = idMap.globalLayers[row.layerId];
       }
 
       // POV view metadata (nested baseMap / version / template refs used to

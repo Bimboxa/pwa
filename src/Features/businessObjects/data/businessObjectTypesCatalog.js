@@ -84,7 +84,10 @@ const BUSINESS_OBJECT_TYPES = [
       linkTo: "Lier à une tâche",
     },
     // tasks have no color: name + ratio only
-    features: { hoursBudget: true, color: false },
+    // workPackages: the panel gets a second tab of work packages (sets of
+    // linked annotations × the listing's tasks → hours) and the time
+    // planning; tasks carry an optional globalLayerId (annotation partition).
+    features: { hoursBudget: true, color: false, workPackages: true },
   },
 ];
 

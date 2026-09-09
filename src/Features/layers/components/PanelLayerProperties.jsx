@@ -1,17 +1,20 @@
 import { useDispatch, useSelector } from "react-redux";
 import { useLiveQuery } from "dexie-react-hooks";
 
-import { selectSelectedItem, triggerSelectionBack } from "Features/selection/selectionSlice";
+import {
+  selectSelectedItem,
+  triggerSelectionBack,
+} from "Features/selection/selectionSlice";
 
 import { Box, Typography, IconButton } from "@mui/material";
 import { ArrowBack as Back } from "@mui/icons-material";
 
-import db from "App/db/db";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 import FieldTextV2 from "Features/form/components/FieldTextV2";
 import IconButtonMoreActionsLayer from "./IconButtonMoreActionsLayer";
 import useUpdateLayer from "../hooks/useUpdateLayer";
+import { getLayerByIdAsync } from "../utils/layersMode";
 
 export default function PanelLayerProperties() {
   const dispatch = useDispatch();
@@ -22,14 +25,11 @@ export default function PanelLayerProperties() {
   const selectedItem = useSelector(selectSelectedItem);
   const layersUpdatedAt = useSelector((s) => s.layers.layersUpdatedAt);
 
-  const layer = useLiveQuery(
-    async () => {
-      if (!selectedItem?.id) return null;
-      const record = await db.layers.get(selectedItem.id);
-      return record?.deletedAt ? null : record;
-    },
-    [selectedItem?.id, layersUpdatedAt]
-  );
+  const layer = useLiveQuery(async () => {
+    if (!selectedItem?.id) return null;
+    const record = await getLayerByIdAsync(selectedItem.id);
+    return record?.deletedAt ? null : record;
+  }, [selectedItem?.id, layersUpdatedAt]);
 
   // helpers
 

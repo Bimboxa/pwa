@@ -13,7 +13,8 @@ export default function useUpdateBusinessObject() {
   const dispatch = useDispatch();
 
   // Edit a business object's props (label / color / description / unit /
-  // isTitle / hoursRatio / hoursRatioMode / hoursRatioUnit). unit: null
+  // isTitle / hoursRatio / hoursRatioMode / hoursRatioUnit / globalLayerId).
+  // unit: null
   // clears the unit (unit-less row, and every task — the quantity unit is an
   // articles-only prop); hoursRatio: null (or a non-finite value) clears the
   // ratio; pass undefined to leave a field untouched.
@@ -28,6 +29,7 @@ export default function useUpdateBusinessObject() {
       hoursRatio,
       hoursRatioMode,
       hoursRatioUnit,
+      globalLayerId,
     } = {}
   ) => {
     const updates = {};
@@ -40,6 +42,10 @@ export default function useUpdateBusinessObject() {
       updates.hoursRatio = Number.isFinite(hoursRatio) ? hoursRatio : null;
     if (hoursRatioMode != null) updates.hoursRatioMode = hoursRatioMode;
     if (hoursRatioUnit != null) updates.hoursRatioUnit = hoursRatioUnit;
+    // PLANNING tasks: global layer (annotation partition) the task applies
+    // to; null = every annotation of a work package. undefined = untouched.
+    if (globalLayerId !== undefined)
+      updates.globalLayerId = globalLayerId || null;
     if (Object.keys(updates).length === 0) return;
 
     await db.businessObjects.update(businessObjectId, updates);

@@ -65,9 +65,23 @@ export function getHoursRatioUnitLabel(unit, mode = DEFAULT_HOURS_RATIO_MODE) {
   return mode === "CADENCE" ? `${u}/h` : `h/${u}`;
 }
 
-// "12,5 h"
-export function formatHours(hours) {
-  return `${formatBusinessObjectNumber(hours, 1)} h`;
+// Hours in a man-day ("Jr.H"): fixed 8 h, independent of a planning's own
+// hoursPerDay (the day count is a reading aid, not a scheduling unit).
+export const HOURS_PER_MAN_DAY = 8;
+
+// Man-days of an hours amount, rounded to the half day.
+export function getManDays(hours) {
+  const h = Number.isFinite(hours) ? hours : 0;
+  return Math.round((h / HOURS_PER_MAN_DAY) * 2) / 2;
+}
+
+// "138 h (17,5 Jr.H)" — hours rounded to the unit, man-days in parentheses.
+// `withDays: false` drops the parentheses where space is tight (paired
+// values, narrow columns).
+export function formatHours(hours, { withDays = true } = {}) {
+  const h = `${formatBusinessObjectNumber(hours, 0)} h`;
+  if (!withDays) return h;
+  return `${h} (${formatBusinessObjectNumber(getManDays(hours), 1)} Jr.H)`;
 }
 
 // "0,5 h/m²" or "2 m²/h" per the task's persisted mode; null without ratio.

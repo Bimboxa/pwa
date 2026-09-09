@@ -9,6 +9,8 @@ import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
 import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTemplateIcon";
 import getAnnotationQties from "Features/annotations/utils/getAnnotationQties";
+import useAnnotationTaskHours from "Features/businessObjects/hooks/useAnnotationTaskHours";
+import { formatHours } from "Features/businessObjects/utils/hoursRatioConversions";
 
 const MapTooltip = forwardRef(({ hoveredNode, annotations, x, y, isSelected }, ref) => {
 
@@ -49,6 +51,11 @@ const MapTooltip = forwardRef(({ hoveredNode, annotations, x, y, isSelected }, r
     const surface = qties?.surfaceDeveloped != null ? qties.surfaceDeveloped : qties?.surface;
     const showLength = Boolean(qties?.enabled) && length > 0;
     const showSurface = Boolean(qties?.enabled) && surface > 0;
+
+    // helper - PLANNING module: hours this annotation represents for each
+    // applicable task of the active listing (empty everywhere else)
+    const { tasks: taskHours, workPackage, total: taskHoursTotal } =
+        useAnnotationTaskHours({ annotation, qties });
 
     // helper - image
     const entity = annotation?.entity;
@@ -177,6 +184,37 @@ const MapTooltip = forwardRef(({ hoveredNode, annotations, x, y, isSelected }, r
                     <Typography variant="caption" sx={{ fontFamily: 'monospace', color: 'warning.main', fontWeight: 500 }}>
                         {surface.toFixed(2)} m²
                     </Typography>
+                </Box>
+            )}
+            {/* PLANNING module: the tasks ("postes") this annotation feeds,
+                with its own share of hours (qty × ratio), under its task
+                (work package). Nothing at all when the annotation belongs to
+                no work package. */}
+            {taskHours.length > 0 && (
+                <Box sx={{ mt: 0.75, pt: 0.5, borderTop: "1px solid", borderColor: "rgba(255,255,255,0.2)" }}>
+                    <Box sx={{ display: "flex", justifyContent: "space-between", gap: 1 }}>
+                        <Typography variant="caption" noWrap sx={{ color: 'grey.500', minWidth: 0 }}>
+                            {workPackage?.label}
+                        </Typography>
+                        {taskHoursTotal != null && (
+                            <Typography variant="caption" sx={{ fontFamily: 'monospace', fontWeight: 600 }}>
+                                {formatHours(taskHoursTotal)}
+                            </Typography>
+                        )}
+                    </Box>
+                    {taskHours.map((task) => (
+                        <Box key={task.id} sx={{ display: "flex", justifyContent: "space-between", gap: 1 }}>
+                            <Typography variant="caption" noWrap sx={{ minWidth: 0 }}>
+                                {task.label}
+                            </Typography>
+                            <Typography
+                                variant="caption"
+                                sx={{ fontFamily: 'monospace', color: task.hours != null ? 'success.light' : 'grey.500', whiteSpace: "nowrap" }}
+                            >
+                                {task.hours != null ? formatHours(task.hours, { withDays: false }) : "sans ratio"}
+                            </Typography>
+                        </Box>
+                    ))}
                 </Box>
             )}
         </Paper>

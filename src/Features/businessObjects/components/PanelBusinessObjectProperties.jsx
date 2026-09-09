@@ -48,6 +48,7 @@ import unsetMainAnnotationService from "../services/unsetMainAnnotationService";
 
 import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTemplateIcon";
 import FieldHoursRatioCompact from "./FieldHoursRatioCompact";
+import FieldTaskGlobalLayer from "./FieldTaskGlobalLayer";
 import SectionNotesAppObjectNotes from "Features/notesApp/components/SectionNotesAppObjectNotes";
 import getAnnotationMainQtyLabel from "Features/annotations/utils/getAnnotationMainQtyLabel";
 import getBusinessObjectQtyLabel from "../utils/getBusinessObjectQtyLabel";
@@ -256,6 +257,10 @@ export default function PanelBusinessObjectProperties() {
     updateBusinessObject(businessObject.id, { isTitle: e.target.checked });
   }
 
+  function handleGlobalLayerChange(globalLayerId) {
+    updateBusinessObject(businessObject.id, { globalLayerId });
+  }
+
   function handleColorChange(color) {
     updateBusinessObject(businessObject.id, { color: color.hex });
   }
@@ -458,6 +463,12 @@ export default function PanelBusinessObjectProperties() {
                 onKeyDown={(e) => {
                   if (e.key === "Enter") e.target.blur();
                 }}
+              />
+            )}
+            {hasHoursBudget && (
+              <FieldTaskGlobalLayer
+                value={businessObject.globalLayerId ?? ""}
+                onChange={handleGlobalLayerChange}
               />
             )}
             {hasColor && (

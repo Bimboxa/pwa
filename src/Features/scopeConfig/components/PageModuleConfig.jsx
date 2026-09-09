@@ -16,6 +16,7 @@ import {
   selectModuleIconKeysByKey,
   selectDisabledBaseMapSourceKeys,
   selectSystemAnnotationTemplatesEnabled,
+  selectLayersMode,
 } from "../utils/scopeConfigSelectors";
 
 import BASE_MAP_SOURCE_CATALOG from "Features/baseMaps/data/baseMapSourceCatalog";
@@ -51,12 +52,14 @@ export default function PageModuleConfig({ module, tools }) {
   const systemTemplatesEnabled = useSelector(
     selectSystemAnnotationTemplatesEnabled
   );
+  const layersMode = useSelector(selectLayersMode);
 
   const {
     toggleModule,
     toggleToolInModule,
     toggleBaseMapSource,
     setSystemAnnotationTemplates,
+    setLayersMode,
     setModuleLabel,
     setModuleIconKey,
   } = useScopeConfigActions();
@@ -244,6 +247,14 @@ export default function PageModuleConfig({ module, tools }) {
             caption="Activé automatiquement quand le fond de plan contient des calques."
             checked={showLayers}
             onChange={() => dispatch(setShowLayers(!showLayers))}
+          />
+          <RowSwitchConfig
+            label="Calques globaux"
+            caption="Une seule liste de calques pour tous les fonds de plan du scope (au lieu d'une liste par fond de plan). Les tâches du Planning se rattachent aux calques globaux."
+            checked={layersMode === "GLOBAL"}
+            onChange={() =>
+              setLayersMode(layersMode === "GLOBAL" ? "BASE_MAP" : "GLOBAL")
+            }
           />
         </>
       )}

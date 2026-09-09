@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
-import { setSelectedListingId } from "../businessObjectsSlice";
+import { setSelectedListingId, setPanelTabKey } from "../businessObjectsSlice";
 
-import { Box, IconButton, Tooltip } from "@mui/material";
+import { Box, IconButton, Tab, Tabs, Tooltip } from "@mui/material";
 import { EditNote, AccountTree } from "@mui/icons-material";
 
 import LeftDrawerPanelHeader from "Features/leftPanel/components/LeftDrawerPanelHeader";
@@ -15,6 +15,13 @@ import { DEFAULT_BUSINESS_OBJECT_TYPE_KEY } from "../data/businessObjectTypesCat
 import FieldActiveBusinessObjectListing from "./FieldActiveBusinessObjectListing";
 import BusinessObjectsTree from "./BusinessObjectsTree";
 import SectionQuickEditBusinessObjects from "./SectionQuickEditBusinessObjects";
+import SectionWorkPackages from "./SectionWorkPackages";
+import getBusinessObjectTypeOfListing from "../utils/getBusinessObjectTypeOfListing";
+
+const PANEL_TABS = [
+  { id: "WORK_STATIONS", label: "Poste de travail" },
+  { id: "WORK_PACKAGES", label: "Tâches" },
+];
 
 // Left panel of a business-objects module ("Ouvrages" for the STANDARD
 // type): listing selector on top (FieldActiveListing pattern), objects tree
@@ -31,6 +38,7 @@ export default function PanelBusinessObjects({
   const selectedListingId = useSelector(
     (s) => s.businessObjects.selectedListingId
   );
+  const panelTabKey = useSelector((s) => s.businessObjects.panelTabKey);
 
   // state
 
@@ -41,6 +49,12 @@ export default function PanelBusinessObjects({
 
   const activeListing =
     listings?.find((l) => l.id === selectedListingId) ?? null;
+  // PLANNING listings: second tab of work packages.
+  const hasWorkPackages = Boolean(
+    activeListing &&
+    getBusinessObjectTypeOfListing(activeListing).features?.workPackages
+  );
+  const showWorkPackages = hasWorkPackages && panelTabKey === "WORK_PACKAGES";
 
   // effects — auto-select the first listing when none is selected (or the
   // selected one left the scope).
@@ -75,7 +89,27 @@ export default function PanelBusinessObjects({
         activeListing={activeListing}
       />
 
-      {activeListing && (
+      {hasWorkPackages && (
+        <Tabs
+          value={
+            panelTabKey === "WORK_PACKAGES" ? "WORK_PACKAGES" : "WORK_STATIONS"
+          }
+          onChange={(_e, v) => dispatch(setPanelTabKey(v))}
+          variant="fullWidth"
+          sx={{
+            minHeight: 36,
+            borderBottom: "1px solid",
+            borderColor: "divider",
+            "& .MuiTab-root": { minHeight: 36 },
+          }}
+        >
+          {PANEL_TABS.map(({ id, label }) => (
+            <Tab key={id} value={id} label={label} />
+          ))}
+        </Tabs>
+      )}
+
+      {activeListing && !showWorkPackages && (
         <Box
           sx={{ display: "flex", justifyContent: "flex-end", px: 1, mt: -0.5 }}
         >
@@ -99,7 +133,9 @@ export default function PanelBusinessObjects({
         </Box>
       )}
 
-      {activeListing && quickEditOpen ? (
+      {showWorkPackages ? (
+        <SectionWorkPackages key={activeListing.id} listing={activeListing} />
+      ) : activeListing && quickEditOpen ? (
         <SectionQuickEditBusinessObjects
           key={activeListing.id}
           listing={activeListing}

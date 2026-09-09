@@ -52,7 +52,7 @@ export default async function createKrtoZip(scopeId, options) {
 
     // Tables avec scopeId direct
     const tablesWithScopeId = new Set([
-        "baseMapViews", "syncFiles", "layers",
+        "baseMapViews", "syncFiles", "layers", "globalLayers",
         "portfolioBaseMapContainers", "meshes3d", "povs",
         "scopeConfigs",
     ]);
@@ -76,6 +76,10 @@ export default async function createKrtoZip(scopeId, options) {
         "portfolioPages",
         "zones", "relsZoneAnnotation",
         "businessObjects", "relsBusinessObjectAnnotation",
+        // Work packages + time planning of PLANNING listings (rows carry
+        // projectId + listingId).
+        "workPackages", "relsWorkPackageAnnotation",
+        "plannings", "planningResources", "planningSlots",
         // Photos: rows carry projectId + listingId (PHOTO album listing, kept
         // by relevantListings above); their image files carry the same
         // listingId so the files filter ships them too. The photo point is

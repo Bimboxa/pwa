@@ -54,6 +54,9 @@ export default function BusinessObjectTreeItem({
   mainAnnotations,
   // rolled-up hours (own + descendants) — PLANNING listings only
   hoursBudget,
+  // {total, planned, done, plannedRatio, doneRatio} over the work packages
+  // (useTaskPlanningProgress) — PLANNING listings only
+  planningProgress,
   onAddChildBusinessObject,
 }) {
   const dispatch = useDispatch();
@@ -123,9 +126,22 @@ export default function BusinessObjectTreeItem({
       : null;
   const ratioLabel = hasHoursBudget ? formatHoursRatio(businessObject) : null;
   const hoursLabel =
-    hasHoursBudget && hoursBudget > 0 ? formatHours(hoursBudget) : null;
+    hasHoursBudget && hoursBudget > 0
+      ? formatHours(hoursBudget, { withDays: false })
+      : null;
+  const pct = (r) => `${Math.round(r * 100)} %`;
+  const plannedLabel =
+    planningProgress?.plannedRatio != null
+      ? `planifié ${pct(planningProgress.plannedRatio)}`
+      : null;
+  const doneLabel =
+    planningProgress?.doneRatio != null
+      ? `fait ${pct(planningProgress.doneRatio)}`
+      : null;
   const captionLabel = hasHoursBudget
-    ? [ratioLabel, qtyLabel].filter(Boolean).join(" · ")
+    ? [ratioLabel, qtyLabel, plannedLabel, doneLabel]
+        .filter(Boolean)
+        .join(" · ")
     : "";
   const rightLabel = hasHoursBudget ? hoursLabel : qtyLabel;
 

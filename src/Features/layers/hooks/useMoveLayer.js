@@ -4,6 +4,8 @@ import { generateKeyBetween } from "fractional-indexing";
 import db from "App/db/db";
 import { triggerLayersUpdate } from "../layersSlice";
 
+// Mode-agnostic: the id is looked up in db.layers first, then in
+// db.globalLayers.
 export default function useMoveLayer() {
   const dispatch = useDispatch();
 
@@ -12,7 +14,8 @@ export default function useMoveLayer() {
       prevOrderIndex ?? null,
       nextOrderIndex ?? null
     );
-    await db.layers.update(layerId, { orderIndex });
+    const updated = await db.layers.update(layerId, { orderIndex });
+    if (!updated) await db.globalLayers.update(layerId, { orderIndex });
     dispatch(triggerLayersUpdate());
   };
 

@@ -185,6 +185,18 @@ export function selectDisabledBaseMapSourceKeys(s) {
 // Ligne / Polygone templates, provisioned on the fly by
 // useFreeAnnotationTemplates. Absent field => enabled (legacy scopes); a
 // configuration with initSystemAnnotationTemplates false persists it off.
+// Layers mode of the scope: "BASE_MAP" (db.layers, one list per base map —
+// the historical mechanism, default) or "GLOBAL" (db.globalLayers, one list
+// shared by every base map of the scope; the tasks of the PLANNING module
+// point at global layers). Same UI either way (Features/layers).
+export const LAYERS_MODES = ["BASE_MAP", "GLOBAL"];
+export const DEFAULT_LAYERS_MODE = "BASE_MAP";
+
+export function selectLayersMode(s) {
+  const mode = selectSelectedScopeConfig(s)?.layersMode;
+  return LAYERS_MODES.includes(mode) ? mode : DEFAULT_LAYERS_MODE;
+}
+
 export function selectSystemAnnotationTemplatesEnabled(s) {
   return selectSelectedScopeConfig(s)?.systemAnnotationTemplates ?? true;
 }

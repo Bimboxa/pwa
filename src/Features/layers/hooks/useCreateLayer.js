@@ -4,6 +4,8 @@ import { generateKeyBetween } from "fractional-indexing";
 
 import db from "App/db/db";
 import { setActiveLayerId, triggerLayersUpdate } from "../layersSlice";
+import { selectLayersMode } from "Features/scopeConfig/utils/scopeConfigSelectors";
+import { getLayersTable } from "../utils/layersMode";
 import { triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice";
 import collectReferencedPointIds from "Features/annotations/utils/collectReferencedPointIds";
 import {
@@ -15,13 +17,17 @@ export default function useCreateLayer() {
   const dispatch = useDispatch();
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const scopeId = useSelector((s) => s.scopes.selectedScopeId);
+  // GLOBAL mode: the layer belongs to the scope (no baseMapId), rows in
+  // db.globalLayers; BASE_MAP mode: per base map in db.layers.
+  const mode = useSelector(selectLayersMode);
 
   const createLayer = async ({ baseMapId, name, annotationIdsToDuplicate }) => {
+    const isGlobal = mode === "GLOBAL";
+    const table = getLayersTable(mode);
     // compute orderIndex after the last existing layer
-    const existing = await db.layers
-      .where("baseMapId")
-      .equals(baseMapId)
-      .toArray();
+    const existing = isGlobal
+      ? await db.globalLayers.where("scopeId").equals(scopeId).toArray()
+      : await db.layers.where("baseMapId").equals(baseMapId).toArray();
     const sorted = existing
       .filter((r) => !r.deletedAt && r.orderIndex != null)
       .map((r) => r.orderIndex)
@@ -31,14 +37,14 @@ export default function useCreateLayer() {
 
     const layer = {
       id: nanoid(),
-      baseMapId,
+      ...(isGlobal ? {} : { baseMapId }),
       projectId,
       scopeId,
       name,
       orderIndex,
     };
 
-    await db.layers.add(layer);
+    await table.add(layer);
 
     // duplicate annotations if requested
     if (annotationIdsToDuplicate?.length > 0) {
@@ -76,22 +82,22 @@ async function duplicateAnnotations(annotationIds, newLayerId) {
   const pointIds = collectReferencedPointIds(sourceAnnotations);
   const [sourcePoints, meshRels, subtractionRels, openingRels] =
     await Promise.all([
-    pointIds.size > 0
-      ? db.points.bulkGet([...pointIds]).then((pts) => pts.filter(Boolean))
-      : [],
-    db.relAnnotationMeshCells
-      .where("parentAnnotationId")
-      .anyOf(sourceIds)
-      .toArray(),
-    db.relAnnotationSubtractions
-      .where("sourceAnnotationId")
-      .anyOf(sourceIds)
-      .toArray(),
-    db.relAnnotationOpenings
-      .where("hostAnnotationId")
-      .anyOf(sourceIds)
-      .toArray(),
-  ]);
+      pointIds.size > 0
+        ? db.points.bulkGet([...pointIds]).then((pts) => pts.filter(Boolean))
+        : [],
+      db.relAnnotationMeshCells
+        .where("parentAnnotationId")
+        .anyOf(sourceIds)
+        .toArray(),
+      db.relAnnotationSubtractions
+        .where("sourceAnnotationId")
+        .anyOf(sourceIds)
+        .toArray(),
+      db.relAnnotationOpenings
+        .where("hostAnnotationId")
+        .anyOf(sourceIds)
+        .toArray(),
+    ]);
 
   // duplicate points, building old ID -> new ID map
   const pointIdMap = {};

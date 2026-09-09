@@ -15,6 +15,7 @@ import ZoningsTree from "Features/zonings/components/ZoningsTree";
 import PanelBusinessObjectsByType from "Features/businessObjects/components/PanelBusinessObjectsByType";
 import { getBusinessObjectTypeKeyFromModuleKey } from "Features/businessObjects/utils/businessObjectModuleKeys";
 import PanelBaseMaps from "Features/baseMapEditor/components/PanelBaseMaps";
+import PanelPlanningBottom from "Features/planning/components/PanelPlanningBottom";
 import ViewerAdmin from "Features/adminEditor/components/ViewerAdmin";
 import MainListingViewer from "Features/listingViewer/components/MainListingViewer";
 import LeftDrawerPanel from "Features/leftPanel/components/LeftDrawerPanel";
@@ -241,6 +242,10 @@ export default function SectionViewer() {
       {/* Capture tool: save bar under the frame, in every module (fixed
           positioning — it measures the capture host itself) */}
       {captureToolActive && <ButtonSaveCapture />}
+
+      {/* PLANNING module: time planning overlaying the bottom of the editors
+          (the editor keeps its size; see PanelPlanningBottom) */}
+      {businessObjectTypeKey === "PLANNING" && <PanelPlanningBottom />}
       </Box>
     </BoxCenter>
   );

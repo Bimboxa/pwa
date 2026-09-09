@@ -18,6 +18,7 @@ import ButtonDownloadMapEditorInPdf from "./ButtonDownloadMapEditorInPdf";
 import ButtonFullScreen from "Features/layout/components/ButtonFullScreen";
 import ButtonEditScale from "./ButtonEditScale";
 import ButtonEditLatLng from "./ButtonEditLatLng";
+import selectPlanningBottomInset from "Features/planning/utils/selectPlanningBottomInset";
 
 export default function LayerMapEditorDesktop({ svgElement }) {
   // data
@@ -25,6 +26,9 @@ export default function LayerMapEditorDesktop({ svgElement }) {
   const openRightPanel = useSelector((s) => s.rightPanel.selectedMenuItemKey);
   const width = useSelector((s) => s.rightPanel.width);
   const { value: listing } = useSelectedListing();
+  // PLANNING module: the bottom planning panel overlays the editor — the
+  // bottom groups lift by its height so they stay reachable.
+  const bottomInset = useSelector(selectPlanningBottomInset);
 
   // helpers
 
@@ -61,7 +65,7 @@ export default function LayerMapEditorDesktop({ svgElement }) {
         sx={{
           position: "absolute",
           left: "16px",
-          bottom: "16px",
+          bottom: `${16 + bottomInset}px`,
           zIndex: 10000,
           display: "flex",
           alignItems: "center",
@@ -76,7 +80,7 @@ export default function LayerMapEditorDesktop({ svgElement }) {
           sx={{
             position: "absolute",
             right: "8px",
-            bottom: "8px",
+            bottom: `${8 + bottomInset}px`,
             zIndex: 10000,
             display: "flex",
             alignItems: "center",
@@ -114,7 +118,7 @@ export default function LayerMapEditorDesktop({ svgElement }) {
       <Box
         sx={{
           position: "absolute",
-          bottom: "8px",
+          bottom: `${8 + bottomInset}px`,
           left: "8px",
           zIndex: 10000,
         }}
@@ -125,7 +129,7 @@ export default function LayerMapEditorDesktop({ svgElement }) {
       <Box
         sx={{
           position: "absolute",
-          bottom: "8px",
+          bottom: `${8 + bottomInset}px`,
           left: "50%",
           transform: "translateX(-50%)",
           zIndex: 10000,
@@ -137,7 +141,7 @@ export default function LayerMapEditorDesktop({ svgElement }) {
       <Box
         sx={{
           position: "absolute",
-          bottom: "8px",
+          bottom: `${8 + bottomInset}px`,
           //right: openRightPanel ? `${width + 8}px` : "8px",
           right: "8px",
           zIndex: 10000,

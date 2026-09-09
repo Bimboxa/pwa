@@ -18,6 +18,7 @@ import { CirclePicker } from "react-color";
 import defaultColors from "Features/colors/data/defaultColors";
 
 import FieldHoursRatioCompact from "./FieldHoursRatioCompact";
+import FieldTaskGlobalLayer from "./FieldTaskGlobalLayer";
 
 import useCreateBusinessObject from "../hooks/useCreateBusinessObject";
 import useUpdateBusinessObject from "../hooks/useUpdateBusinessObject";
@@ -91,6 +92,10 @@ export default function DialogBusinessObjectForm({
   const [hoursRatioUnit, setHoursRatioUnit] = useState(() =>
     getHoursRatioUnit(businessObject)
   );
+  // global layer of the task (tasks): "" = every annotation
+  const [globalLayerId, setGlobalLayerId] = useState(
+    businessObject?.globalLayerId ?? ""
+  );
 
   // strings
 
@@ -113,6 +118,7 @@ export default function DialogBusinessObjectForm({
           ),
           hoursRatioMode,
           hoursRatioUnit,
+          globalLayerId: globalLayerId || null,
         }
       : {};
     // tasks have no quantity unit: that one belongs to priced articles
@@ -236,6 +242,12 @@ export default function DialogBusinessObjectForm({
               unit={hoursRatioUnit}
               onUnitChange={setHoursRatioUnit}
             />
+            <Box sx={{ mt: 2 }}>
+              <FieldTaskGlobalLayer
+                value={globalLayerId}
+                onChange={setGlobalLayerId}
+              />
+            </Box>
           </Box>
         )}
         {hasColor && (

@@ -92,6 +92,12 @@ export default function useScopeConfigActions() {
 
   // System annotation templates ("Générique" listing, Ligne / Polygone) —
   // read by useFreeAnnotationTemplates before provisioning.
+  // "BASE_MAP" | "GLOBAL" (scopeConfigSelectors.selectLayersMode)
+  const setLayersMode = useCallback(
+    (layersMode) => upsert(() => ({ layersMode })),
+    [upsert]
+  );
+
   const setSystemAnnotationTemplates = useCallback(
     (enabled) => upsert(() => ({ systemAnnotationTemplates: enabled })),
     [upsert]
@@ -141,6 +147,7 @@ export default function useScopeConfigActions() {
     toggleToolInModule,
     toggleBaseMapSource,
     setSystemAnnotationTemplates,
+    setLayersMode,
     setModuleLabel,
     setModuleIconKey,
     setModuleOrder,

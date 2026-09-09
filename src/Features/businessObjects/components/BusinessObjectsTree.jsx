@@ -1,7 +1,13 @@
 import { useMemo, useState } from "react";
 import { useSelector } from "react-redux";
 
-import { Box, List, ListItemButton, ListItemText, Typography } from "@mui/material";
+import {
+  Box,
+  List,
+  ListItemButton,
+  ListItemText,
+  Typography,
+} from "@mui/material";
 import { Add } from "@mui/icons-material";
 
 import {
@@ -20,6 +26,7 @@ import { generateKeyBetween } from "fractional-indexing";
 import useBusinessObjects from "../hooks/useBusinessObjects";
 import useMoveBusinessObject from "../hooks/useMoveBusinessObject";
 import useBusinessObjectQties from "../hooks/useBusinessObjectQties";
+import useTaskPlanningProgress from "Features/planning/hooks/useTaskPlanningProgress";
 import buildBusinessObjectsTree, {
   getBusinessObjectDescendants,
   getBusinessObjectsTreeDisplayMeta,
@@ -40,6 +47,11 @@ export default function BusinessObjectsTree({ listing }) {
 
   const type = getBusinessObjectTypeOfListing(listing);
   const hasHoursBudget = Boolean(type.features?.hoursBudget);
+  // PLANNING listings: per-task planned / done share over the work packages
+  const hasWorkPackages = Boolean(type.features?.workPackages);
+  const planningProgress = useTaskPlanningProgress({
+    listingId: hasWorkPackages ? listing.id : null,
+  });
 
   const { value: businessObjects } = useBusinessObjects({
     listingId: listing.id,
@@ -120,9 +132,7 @@ export default function BusinessObjectsTree({ listing }) {
   }, [flatTree]);
   const parentIds = useMemo(
     () =>
-      new Set(
-        (businessObjects ?? []).map((o) => o.parentId).filter(Boolean)
-      ),
+      new Set((businessObjects ?? []).map((o) => o.parentId).filter(Boolean)),
     [businessObjects]
   );
 
@@ -231,6 +241,9 @@ export default function BusinessObjectsTree({ listing }) {
                 mainRels={mainRelsByObjectId[businessObject.id]}
                 mainAnnotations={mainAnnotationsByObjectId[businessObject.id]}
                 hoursBudget={hoursBudget?.totalById[businessObject.id] ?? null}
+                planningProgress={
+                  planningProgress.byTaskId[businessObject.id] ?? null
+                }
                 onAddChildBusinessObject={() =>
                   setCreateTarget({ parentBusinessObject: businessObject })
                 }

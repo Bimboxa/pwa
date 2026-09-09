@@ -4,6 +4,9 @@ import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 import useRelsBusinessObjectAnnotation from "./useRelsBusinessObjectAnnotation";
 
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
+import accumulateAnnotationQties, {
+  createEmptyQties,
+} from "../utils/accumulateAnnotationQties";
 
 // Rolled-up quantities of every business object of a listing, from its linked
 // annotations. No hierarchical aggregation (v1): an object only counts its
@@ -51,25 +54,12 @@ export default function useBusinessObjectQties({ listingId } = {}) {
 
       const objectId = rel.businessObjectId;
       if (!qtiesByObjectId[objectId]) {
-        qtiesByObjectId[objectId] = { count: 0, length: 0, surface: 0 };
+        qtiesByObjectId[objectId] = createEmptyQties();
         annotationsByObjectId[objectId] = [];
       }
       annotationsByObjectId[objectId].push(annotation);
 
-      const stats = qtiesByObjectId[objectId];
-      const qty = annotation.qties;
-      // Unit count: 1 per annotation, except when the annotation carries its
-      // own count (LINEAR_LAYOUT: qties.count = number of bars).
-      stats.count += Number.isFinite(qty?.count) ? qty.count : 1;
-      if (qty?.enabled) {
-        // Prefer developed (sloped) values, like the template rollups.
-        const length =
-          qty.lengthDeveloped != null ? qty.lengthDeveloped : qty.length;
-        const surface =
-          qty.surfaceDeveloped != null ? qty.surfaceDeveloped : qty.surface;
-        if (Number.isFinite(length)) stats.length += length;
-        if (Number.isFinite(surface)) stats.surface += surface;
-      }
+      accumulateAnnotationQties(qtiesByObjectId[objectId], annotation);
     });
 
     return {

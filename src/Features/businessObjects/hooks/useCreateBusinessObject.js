@@ -30,6 +30,7 @@ export default function useCreateBusinessObject() {
     hoursRatio,
     hoursRatioMode,
     hoursRatioUnit,
+    globalLayerId,
   }) => {
     const listingId = listing.id;
     const projectId = listing.projectId;
@@ -60,6 +61,7 @@ export default function useCreateBusinessObject() {
       ...(Number.isFinite(hoursRatio) ? { hoursRatio } : {}),
       ...(hoursRatioMode ? { hoursRatioMode } : {}),
       ...(hoursRatioUnit ? { hoursRatioUnit } : {}),
+      ...(globalLayerId ? { globalLayerId } : {}),
       sortIndex: generateKeyBetween(lastSortIndex ?? null, null),
       // unit is nullable (unit-less rows, e.g. titles): null passes through,
       // only an omitted unit falls back to the default.

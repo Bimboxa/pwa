@@ -98,6 +98,7 @@ import useCreateAnnotationFromSurfaceDrop from "Features/smartDetect/hooks/useCr
 import PopperMapListings from "./PopperMapListings";
 import FloatingHelpersDessin from "Features/panelDrawing/components/FloatingHelpersDessin";
 import PopperLinkBusinessObjectHelper from "Features/businessObjects/components/PopperLinkBusinessObjectHelper";
+import PopperLinkWorkPackageHelper from "Features/businessObjects/components/PopperLinkWorkPackageHelper";
 import PanelDrawingHelperPortal from "Features/panelDrawing/components/PanelDrawingHelperPortal";
 import ImageModeOverlay from "./ImageModeOverlay";
 import ButtonCloseImageMode from "./ButtonCloseImageMode";
@@ -2300,7 +2301,10 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                 the linkingBusinessObjectId flag, armed from the
                 business-objects modules (not the Dessin panel). */}
             {!versionCompareEnabled && !imageModeActive && (
-                <PopperLinkBusinessObjectHelper />
+                <>
+                  <PopperLinkBusinessObjectHelper />
+                  <PopperLinkWorkPackageHelper />
+                </>
             )}
 
             {imageModeActive && (

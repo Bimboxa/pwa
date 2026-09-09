@@ -53,9 +53,8 @@ export default function SectionQuickEditBusinessObjects({ listing, onClose }) {
 
   // strings
 
-  const objectLabelS = getBusinessObjectTypeOfListing(
-    listing
-  ).strings.objectLabel.toLowerCase();
+  const objectLabelS =
+    getBusinessObjectTypeOfListing(listing).strings.objectLabel.toLowerCase();
 
   // data
 
@@ -107,7 +106,9 @@ export default function SectionQuickEditBusinessObjects({ listing, onClose }) {
     const { selectionStart, selectionEnd, value } = el;
 
     const lineStart = value.lastIndexOf("\n", selectionStart - 1) + 1;
-    const isMultiline = value.slice(selectionStart, selectionEnd).includes("\n");
+    const isMultiline = value
+      .slice(selectionStart, selectionEnd)
+      .includes("\n");
 
     let newValue;
     let newStart;
@@ -167,7 +168,10 @@ export default function SectionQuickEditBusinessObjects({ listing, onClose }) {
         try {
           await deleteAnnotations(mainAnnotationIds);
         } catch (e) {
-          console.error("[SectionQuickEditBusinessObjects] main annotations", e);
+          console.error(
+            "[SectionQuickEditBusinessObjects] main annotations",
+            e
+          );
         }
       }
       // renamed objects: write the new name into their main annotations
@@ -249,11 +253,18 @@ export default function SectionQuickEditBusinessObjects({ listing, onClose }) {
                   alignItems: "flex-start",
                   height: 1,
                   overflow: "auto",
-                  "& textarea": { height: "100% !important", overflow: "auto !important" },
+                  "& textarea": {
+                    height: "100% !important",
+                    overflow: "auto !important",
+                  },
                 },
               },
             }}
-            sx={{ flex: 1, minHeight: 0, "& .MuiInputBase-root": { height: 1 } }}
+            sx={{
+              flex: 1,
+              minHeight: 0,
+              "& .MuiInputBase-root": { height: 1 },
+            }}
           />
           <Box sx={{ display: "flex", gap: 1 }}>
             <Button size="small" onClick={onClose} sx={{ flex: 1 }}>
@@ -316,7 +327,9 @@ export default function SectionQuickEditBusinessObjects({ listing, onClose }) {
                     />
                   ))}
                   <Typography variant="body2" noWrap sx={{ minWidth: 0 }}>
-                    {change.from ? `${change.from} → ${change.label}` : change.label}
+                    {change.from
+                      ? `${change.from} → ${change.label}`
+                      : change.label}
                   </Typography>
                   {relsCount > 0 && (
                     <Typography variant="caption" color="error.main">

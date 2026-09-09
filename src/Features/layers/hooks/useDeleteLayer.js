@@ -4,6 +4,10 @@ import db from "App/db/db";
 import { triggerLayersUpdate, setActiveLayerId } from "../layersSlice";
 import { triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice";
 import useDeleteAnnotations from "Features/annotations/hooks/useDeleteAnnotations";
+import {
+  getLayerAnnotationsAsync,
+  getLayerByIdAsync,
+} from "../utils/layersMode";
 
 export default function useDeleteLayer() {
   const dispatch = useDispatch();
@@ -11,16 +15,10 @@ export default function useDeleteLayer() {
   const deleteAnnotations = useDeleteAnnotations();
 
   const deleteLayer = async ({ layerId, mode, targetLayerId }) => {
-    // fetch annotations belonging to this layer (indexed query on baseMapId)
-    const layer = await db.layers.get(layerId);
-    const layerAnnotations = layer?.baseMapId
-      ? (
-          await db.annotations
-            .where("baseMapId")
-            .equals(layer.baseMapId)
-            .toArray()
-        ).filter((a) => !a.deletedAt && a.layerId === layerId)
-      : [];
+    // fetch annotations belonging to this layer (per base map, or across the
+    // project for a global layer)
+    const layer = await getLayerByIdAsync(layerId);
+    const layerAnnotations = await getLayerAnnotationsAsync(layer);
 
     if (mode === "DELETE_ANNOTATIONS") {
       const ids = layerAnnotations.map((a) => a.id);
@@ -40,8 +38,9 @@ export default function useDeleteLayer() {
       }
     }
 
-    // soft-delete the layer
-    await db.layers.delete(layerId);
+    // soft-delete the layer (in its own table)
+    if (layer?.isGlobal) await db.globalLayers.delete(layerId);
+    else await db.layers.delete(layerId);
 
     // clear active layer if needed
     if (activeLayerId === layerId) {
