@@ -8,6 +8,7 @@ import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useListingsByScope from "Features/listings/hooks/useListingsByScope";
+import useListingItemsCountById from "Features/listings/hooks/useListingItemsCountById";
 import useListingGroupsWithIcons from "../hooks/useListingGroupsWithIcons";
 
 import { Box, Button, Typography } from "@mui/material";
@@ -68,6 +69,7 @@ export default function SelectorListingForViewer({ selectedListingId }) {
     [listings, entityModelTypes]
   );
   const groups = useListingGroupsWithIcons(rawGroups);
+  const itemsCountById = useListingItemsCountById(listings);
   const isEmpty = !loading && groups.length === 0;
   const selection = selectedListingId ? [selectedListingId] : [];
 
@@ -159,6 +161,7 @@ export default function SelectorListingForViewer({ selectedListingId }) {
               key={group.key}
               group={group}
               selection={selection}
+              itemsCountById={itemsCountById}
               onListingClick={handleListingClick}
               onCreateClick={
                 getCreateTargetOfGroup(group) ? handleCreateClick : undefined

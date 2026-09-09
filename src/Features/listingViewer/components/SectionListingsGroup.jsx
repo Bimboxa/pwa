@@ -30,6 +30,7 @@ import { generateKeyBetween } from "fractional-indexing";
 export default function SectionListingsGroup({
   group,
   selection,
+  itemsCountById,
   onListingClick,
   onCreateClick,
 }) {
@@ -135,6 +136,7 @@ export default function SectionListingsGroup({
                 key={listing.id}
                 listing={listing}
                 selected={selection?.includes(listing.id)}
+                itemsCount={itemsCountById?.[listing.id]}
                 showVisibility={showVisibility}
                 onClick={onListingClick}
               />

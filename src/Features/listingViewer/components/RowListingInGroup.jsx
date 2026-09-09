@@ -24,6 +24,7 @@ import { CSS } from "@dnd-kit/utilities";
 export default function RowListingInGroup({
   listing,
   selected,
+  itemsCount,
   showVisibility = false,
   onClick,
 }) {
@@ -90,12 +91,15 @@ export default function RowListingInGroup({
         // never shifts the row.
         borderLeft: "3px solid",
         borderLeftColor: selected ? "secondary.main" : "transparent",
-        "&:hover .rowListingActions": { opacity: 1 },
+        "&:hover .rowListingActions, &:hover .rowListingDragHandle": {
+          opacity: 1,
+        },
       }}
     >
       <Tooltip title={dragS}>
         <Box
           component="span"
+          className="rowListingDragHandle"
           {...attributes}
           {...listeners}
           sx={{
@@ -106,6 +110,10 @@ export default function RowListingInGroup({
             color: "text.disabled",
             cursor: "grab",
             touchAction: "none",
+            // Revealed on row hover like the actions; the space is kept so
+            // the name never shifts.
+            opacity: isDragging ? 1 : 0,
+            transition: "opacity 0.15s ease",
             "&:active": { cursor: "grabbing" },
           }}
         >
@@ -117,7 +125,14 @@ export default function RowListingInGroup({
         onClick={() => onClick(listing)}
         sx={{ flex: 1, minWidth: 0, py: 1.25, px: 1 }}
       >
-        <Typography variant="body2" noWrap sx={{ opacity: hidden ? 0.5 : 1 }}>
+        <Typography
+          variant="body2"
+          noWrap
+          sx={{
+            opacity: hidden ? 0.5 : 1,
+            fontWeight: selected ? 700 : 400,
+          }}
+        >
           {listing?.name}
         </Typography>
       </ListItemButton>
@@ -148,6 +163,22 @@ export default function RowListingInGroup({
         )}
         <IconButtonMoreActionsListing listing={listing} size="small" />
       </Box>
+
+      {/* Item count — information, not an action: always visible, and outside
+          the hover-revealed actions box. */}
+      <Typography
+        variant="caption"
+        color="text.secondary"
+        sx={{
+          flexShrink: 0,
+          pr: 1,
+          minWidth: 20,
+          textAlign: "right",
+          fontVariantNumeric: "tabular-nums",
+        }}
+      >
+        {itemsCount ?? ""}
+      </Typography>
     </Box>
   );
 }
