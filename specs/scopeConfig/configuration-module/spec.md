@@ -186,6 +186,14 @@ Promouvoir la configuration en vrai module :
   `moduleIconKeysByKey` n'est résolu que par les modules Ouvrages.
   Un `localStorage.initSelectedModuleKey` valant `"LISTING"` est remappé sur
   `"SCOPE"` au démarrage.
+  Panneau de droite : les autres modules choisissent le panneau de propriétés
+  d'après leur clé de module, ce que SCOPE ne peut pas faire — toutes les
+  natures de liste y cohabitent. `PanelSelectionProperties` y route donc sur
+  le `entityModel.type` de la liste sélectionnée : `BUSINESS_OBJECT` →
+  `PanelBusinessObjectListingProperties` (seul à exposer la config de synchro
+  notes-app / Krnet), `BASE_MAP` → `PanelBaseMapListingProperties`, sinon
+  `PanelPropertiesListingV2`. La flèche retour de ces panneaux pose une
+  sélection `SCOPE`, traitée comme dans le module Fonds de plan.
 
 ## 5. Modèle de données & état
 

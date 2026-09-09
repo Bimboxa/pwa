@@ -118,7 +118,7 @@ export default function PanelDrawing() {
   // listing stays pinned first only while it has no rank — a drag reorder in
   // FieldActiveListing gives every listing a rank, which then wins)
 
-  const comesFromListing = viewerReturnContext?.fromViewer === "LISTING";
+  const comesFromListing = viewerReturnContext?.fromViewer === "SCOPE";
   const returnListingId = viewerReturnContext?.listingId;
 
   const displayedListings = useMemo(() => {
