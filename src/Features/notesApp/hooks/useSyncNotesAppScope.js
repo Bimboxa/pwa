@@ -9,6 +9,7 @@ import {
   triggerBusinessObjectsUpdate,
   triggerRelsBusinessObjectAnnotationUpdate,
 } from "Features/businessObjects/businessObjectsSlice";
+import { triggerListingsUpdate } from "Features/listings/listingsSlice";
 import { setNotesAppSyncStatus } from "../notesAppSlice";
 
 import db from "App/db/db";
@@ -46,7 +47,9 @@ export default function useSyncNotesAppScope() {
     const userIdMaster =
       rawUserIdMaster != null ? String(rawUserIdMaster) : "anonymous";
 
-    dispatch(setNotesAppSyncStatus({ status: "syncing", step: "fetch", message: null }));
+    dispatch(
+      setNotesAppSyncStatus({ status: "syncing", step: "fetch", message: null })
+    );
     try {
       const result = await syncNotesAppScope({
         scope,
@@ -61,18 +64,22 @@ export default function useSyncNotesAppScope() {
       dispatch(triggerAnnotationTemplatesUpdate());
       dispatch(triggerBusinessObjectsUpdate());
       dispatch(triggerRelsBusinessObjectAnnotationUpdate());
+      dispatch(triggerListingsUpdate());
       dispatch(setNotesAppSyncStatus({ status: "success", step: null }));
       const c = result.counts;
       dispatch(
         setToaster({
-          message: `Données récupérées : ${c.entities} ouvrage(s), ${c.baseMaps} plan(s), ${c.positions} position(s)`,
+          message: `Données récupérées : ${c.entities} ouvrage(s), ${c.baseMaps} plan(s), ${c.positions} position(s), ${c.listingsConfig} config(s) de liste`,
         })
       );
       return result;
     } catch (e) {
       console.error("[notesApp] sync failed", e);
       dispatch(
-        setNotesAppSyncStatus({ status: "error", message: e.message ?? String(e) })
+        setNotesAppSyncStatus({
+          status: "error",
+          message: e.message ?? String(e),
+        })
       );
       const message =
         e?.code === "NOTES_APP_NOT_SIGNED_IN"

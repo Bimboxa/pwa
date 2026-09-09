@@ -2,33 +2,40 @@
 
 ## What is a listing?
 
-A **listing** is a container (list) of entities. It defines *what type* of entities it holds, *how* they are displayed, and *what fields* they have. Every entity belongs to exactly one listing.
+A **listing** is a container (list) of entities. It defines _what type_ of entities it holds, _how_ they are displayed, and _what fields_ they have. Every entity belongs to exactly one listing.
 
 A listing carries its **entityModel** — a data model from the app configuration that defines the entity type (e.g. `LOCATED_ENTITY`, `ZONE_ENTITY`, `BASE_MAP`, `BLUEPRINT`, `ANNOTATION_TEMPLATE`), the entity fields, labels, computed fields, etc.
 
 ## Listing properties
 
-| Property | Description |
-|---|---|
-| `id` | Unique identifier (nanoid) |
-| `key` | Preset key (from appConfig presetListingsObject), optional |
-| `name` | Display name |
-| `projectId` | Parent project |
-| `scopeId` | Parent scope (set for LOCATED_ENTITY, BLUEPRINT types) |
-| `entityModelKey` | Key referencing the entity model in appConfig |
-| `entityModel` | Resolved entity model object (stored at creation) |
-| `table` | Dexie table where entities are stored (e.g. `"entities"`, `"baseMaps"`) |
-| `canCreateItem` | Whether the user can create entities in this listing |
-| `metadata` | Arbitrary metadata (may contain file references) |
-| `annotationTemplatesLibrary` | Annotation templates to create alongside the listing |
-| `initialEntities` | Entities to create when the listing is created |
-| `relatedListings` | Map of field keys to related listing objects |
-| `relatedEntities` | Related entities configuration |
-| `iconKey` | Icon identifier |
-| `color` | Display color |
-| `spriteImageKey` | Sprite image key for annotations |
-| `uniqueByProject` | If true, only one listing with this key per project |
-| `createdBy` | User email of the creator |
+| Property                     | Description                                                                                                                               |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`                         | Unique identifier (nanoid)                                                                                                                |
+| `key`                        | Preset key (from appConfig presetListingsObject), optional                                                                                |
+| `name`                       | Display name                                                                                                                              |
+| `projectId`                  | Parent project                                                                                                                            |
+| `scopeId`                    | Parent scope (set for LOCATED_ENTITY, BLUEPRINT types)                                                                                    |
+| `entityModelKey`             | Key referencing the entity model in appConfig                                                                                             |
+| `entityModel`                | Resolved entity model object (stored at creation)                                                                                         |
+| `table`                      | Dexie table where entities are stored (e.g. `"entities"`, `"baseMaps"`)                                                                   |
+| `canCreateItem`              | Whether the user can create entities in this listing                                                                                      |
+| `metadata`                   | Arbitrary metadata (may contain file references)                                                                                          |
+| `annotationTemplatesLibrary` | Annotation templates to create alongside the listing                                                                                      |
+| `initialEntities`            | Entities to create when the listing is created                                                                                            |
+| `relatedListings`            | Map of field keys to related listing objects                                                                                              |
+| `relatedEntities`            | Related entities configuration                                                                                                            |
+| `iconKey`                    | Icon identifier                                                                                                                           |
+| `color`                      | Display color                                                                                                                             |
+| `spriteImageKey`             | Sprite image key for annotations                                                                                                          |
+| `uniqueByProject`            | If true, only one listing with this key per project                                                                                       |
+| `createdBy`                  | User email of the creator                                                                                                                 |
+| `rank`                       | Fractional-indexing sort key (business-object listings)                                                                                   |
+| `isTree`                     | Entities form a tree (`parentId` + `sortIndex`)                                                                                           |
+| `showNumbering`              | Business-object listings: 3-column numbered display                                                                                       |
+| `businessObjectType`         | `STANDARD` \| `NOMENCLATURE` (business-object listings, missing ⇒ STANDARD)                                                               |
+| `idMaster`                   | Remote id of the listing in Krnet (notes-app), set at pull or first push                                                                  |
+| `remoteSource`               | `"notesApp"` when linked to Krnet                                                                                                         |
+| `notesApp`                   | Krnet listing configuration (settings, state models, sync cursors) — see [docs/notesApp/LISTING_CONFIG.md](../notesApp/LISTING_CONFIG.md) |
 
 ## Dexie schema
 
@@ -102,11 +109,11 @@ resolvePresetListings({ projectId, scopeId, appConfig, presetListingsKeys })
 
 ### Consumers
 
-| Caller | presetListingsKeys | Description |
-|---|---|---|
-| `useResolvedPresetListings` | all (no filter) | UI display of available presets |
-| `useCreateListingsFromPresetListingsKeys` | user-selected keys | Create listings from selected presets |
-| `resolvePresetScopeListings` | scope's listing keys | Resolve listings for a preset scope |
+| Caller                                    | presetListingsKeys   | Description                           |
+| ----------------------------------------- | -------------------- | ------------------------------------- |
+| `useResolvedPresetListings`               | all (no filter)      | UI display of available presets       |
+| `useCreateListingsFromPresetListingsKeys` | user-selected keys   | Create listings from selected presets |
+| `resolvePresetScopeListings`              | scope's listing keys | Resolve listings for a preset scope   |
 
 ## Reading listings
 
@@ -127,20 +134,21 @@ All read hooks include a backward-compatible fallback: if `listing.entityModel` 
 
 ### useListings options
 
-| Option | Description |
-|---|---|
-| `filterByProjectId` | Filter by project id |
-| `filterByScopeId` | Filter by scope id (BASE_MAP listings are always included) |
-| `filterByKeys` | Filter by listing keys |
-| `filterByListingsIds` | Filter by listing ids |
-| `filterByEntityModelType` | Filter by `entityModel.type` |
-| `relsZoneEntityListings` | Only listings with `entityModel.relsZoneEntity` |
-| `baseMapsOnly` | Only BASE_MAP listings |
-| `withFiles` | Enrich metadata with file blobs from Dexie |
+| Option                    | Description                                                |
+| ------------------------- | ---------------------------------------------------------- |
+| `filterByProjectId`       | Filter by project id                                       |
+| `filterByScopeId`         | Filter by scope id (BASE_MAP listings are always included) |
+| `filterByKeys`            | Filter by listing keys                                     |
+| `filterByListingsIds`     | Filter by listing ids                                      |
+| `filterByEntityModelType` | Filter by `entityModel.type`                               |
+| `relsZoneEntityListings`  | Only listings with `entityModel.relsZoneEntity`            |
+| `baseMapsOnly`            | Only BASE_MAP listings                                     |
+| `withFiles`               | Enrich metadata with file blobs from Dexie                 |
 
 ### Scope filtering logic
 
 When `filterByScopeId` is set, listings are filtered to include:
+
 - Listings whose `scopeId` matches the filter value
 - **BASE_MAP** listings (shared across all scopes, regardless of their `scopeId`)
 

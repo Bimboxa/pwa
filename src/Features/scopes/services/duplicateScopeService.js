@@ -8,6 +8,9 @@ import {
   remapPointIds,
   remapAnnotationIds,
 } from "Features/annotations/utils/remapAnnotationRefs";
+import remapNotesAppListingRefs, {
+  remapNotesAppStateModelIds,
+} from "Features/notesApp/utils/remapNotesAppListingRefs";
 
 export const NO_LAYER_ID = "__no_layer__";
 export const NO_TEMPLATE_KEY_PREFIX = "__no_template__:";
@@ -43,6 +46,35 @@ function prepareCopy(record, createdBy) {
 }
 
 const notDeleted = (r) => r && !r.deletedAt;
+
+// Krnet configuration of a copied listing: the config (settings + state
+// models) is kept, the LINK is dropped — the copy is not the Krnet list
+// (idMaster) and state models are Supabase rows with a global primary key,
+// so they get fresh ids (the `state` fields follow). Listing refs are
+// remapped through the listing id map.
+function copyNotesAppConfig(notesApp, listingIdMap) {
+  if (!notesApp) return undefined;
+  const stateModelIdMap = {};
+  (notesApp.stateModels ?? []).forEach((sm) => {
+    if (sm?.id) stateModelIdMap[sm.id] = nanoid();
+  });
+  const remapped = remapNotesAppStateModelIds(notesApp, stateModelIdMap);
+  return {
+    settings: remapNotesAppListingRefs(remapped.settings ?? {}, listingIdMap),
+    stateModels: (remapped.stateModels ?? [])
+      .filter((sm) => sm && !sm.deletedAt)
+      .map((sm) => ({
+        ...sm,
+        listingStateModelId: null,
+        isLocalOnly: true,
+      })),
+    entityModelId: null,
+    icon: notesApp.icon ?? null,
+    color: notesApp.color ?? null,
+    remoteUpdatedAt: 0,
+    localUpdatedAt: null,
+  };
+}
 
 /**
  * Duplicate a scope: new ids for every record (scope, listings, templates,
@@ -193,48 +225,45 @@ export default async function duplicateScopeService({
     openingRels,
     mappingRels,
     entityGroups,
-  ] =
-    await Promise.all([
-      pointIds.size > 0
-        ? db.points
-            .bulkGet([...pointIds])
-            .then((rows) => rows.filter(notDeleted))
-        : [],
-      keptAnnotationIds.length > 0
-        ? db.relAnnotationMeshCells
-            .where("parentAnnotationId")
-            .anyOf(keptAnnotationIds)
-            .toArray()
-            .then((rows) => rows.filter(notDeleted))
-        : [],
-      keptAnnotationIds.length > 0
-        ? db.relAnnotationSubtractions
-            .where("sourceAnnotationId")
-            .anyOf(keptAnnotationIds)
-            .toArray()
-            .then((rows) => rows.filter(notDeleted))
-        : [],
-      keptAnnotationIds.length > 0
-        ? db.relAnnotationOpenings
-            .where("hostAnnotationId")
-            .anyOf(keptAnnotationIds)
-            .toArray()
-            .then((rows) => rows.filter(notDeleted))
-        : [],
-      keptAnnotationIds.length > 0
-        ? db.relAnnotationMappingCategory
-            .where("annotationId")
-            .anyOf(keptAnnotationIds)
-            .toArray()
-            .then((rows) => rows.filter(notDeleted))
-        : [],
-      Promise.all(
-        Object.entries(entityIdsByTable).map(async ([table, ids]) => ({
-          table,
-          rows: (await db.table(table).bulkGet([...ids])).filter(notDeleted),
-        }))
-      ),
-    ]);
+  ] = await Promise.all([
+    pointIds.size > 0
+      ? db.points.bulkGet([...pointIds]).then((rows) => rows.filter(notDeleted))
+      : [],
+    keptAnnotationIds.length > 0
+      ? db.relAnnotationMeshCells
+          .where("parentAnnotationId")
+          .anyOf(keptAnnotationIds)
+          .toArray()
+          .then((rows) => rows.filter(notDeleted))
+      : [],
+    keptAnnotationIds.length > 0
+      ? db.relAnnotationSubtractions
+          .where("sourceAnnotationId")
+          .anyOf(keptAnnotationIds)
+          .toArray()
+          .then((rows) => rows.filter(notDeleted))
+      : [],
+    keptAnnotationIds.length > 0
+      ? db.relAnnotationOpenings
+          .where("hostAnnotationId")
+          .anyOf(keptAnnotationIds)
+          .toArray()
+          .then((rows) => rows.filter(notDeleted))
+      : [],
+    keptAnnotationIds.length > 0
+      ? db.relAnnotationMappingCategory
+          .where("annotationId")
+          .anyOf(keptAnnotationIds)
+          .toArray()
+          .then((rows) => rows.filter(notDeleted))
+      : [],
+    Promise.all(
+      Object.entries(entityIdsByTable).map(async ([table, ids]) => ({
+        table,
+        rows: (await db.table(table).bulkGet([...ids])).filter(notDeleted),
+      }))
+    ),
+  ]);
 
   // id maps (upfront so intra-batch references can be remapped)
 
@@ -264,13 +293,23 @@ export default async function duplicateScopeService({
     createdBy,
     createdByTrigram,
     isPublic: false,
+    // the copy is not linked to the source's Krnet project
+    notesApp: null,
   };
 
-  const newListings = listingsToCopy.map((l) => ({
-    ...prepareCopy(l, createdBy),
-    id: listingIdMap[l.id],
-    scopeId: newScopeId,
-  }));
+  const newListings = listingsToCopy.map((l) => {
+    const copy = {
+      ...prepareCopy(l, createdBy),
+      id: listingIdMap[l.id],
+      scopeId: newScopeId,
+    };
+    // Krnet link is per listing: dropped on the copy (config kept)
+    delete copy.idMaster;
+    delete copy.remoteSource;
+    if (l.notesApp)
+      copy.notesApp = copyNotesAppConfig(l.notesApp, listingIdMap);
+    return copy;
+  });
 
   const newTemplates = templatesToCopy.map((t) => ({
     ...prepareCopy(t, createdBy),

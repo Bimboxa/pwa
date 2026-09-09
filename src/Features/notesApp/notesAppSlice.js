@@ -15,6 +15,13 @@ const initialState = {
   // Selected tab of the business-object properties panel ("PROPS" | "NOTES").
   // In Redux so browsing from object to object keeps the Notes tab open.
   objectPropertiesTab: "PROPS",
+
+  // Sub-view stack of the Krnet listing configuration (business-object
+  // listing properties panel). In Redux so the panel remounts (selection
+  // changes, live queries) keep the open view. Entries:
+  // { key: "CONFIG" | "FIELDS" | "FIELD" | "STATE_MODELS" | "STATE_MODEL"
+  //   | "STATE" | "AUTO_CODE", fieldId?, stateModelId?, stateId? }
+  listingConfigView: { listingId: null, stack: [] },
 };
 
 const notesAppSlice = createSlice({
@@ -45,6 +52,19 @@ const notesAppSlice = createSlice({
     setNotesAppObjectPropertiesTab: (state, action) => {
       state.objectPropertiesTab = action.payload;
     },
+    pushListingConfigView: (state, action) => {
+      const { listingId, view } = action.payload;
+      if (state.listingConfigView.listingId !== listingId) {
+        state.listingConfigView = { listingId, stack: [] };
+      }
+      state.listingConfigView.stack.push(view);
+    },
+    popListingConfigView: (state) => {
+      state.listingConfigView.stack.pop();
+    },
+    resetListingConfigView: (state) => {
+      state.listingConfigView = { listingId: null, stack: [] };
+    },
   },
 });
 
@@ -56,6 +76,9 @@ export const {
   setNotesAppRemoteListings,
   setNotesAppSyncStatus,
   setNotesAppObjectPropertiesTab,
+  pushListingConfigView,
+  popListingConfigView,
+  resetListingConfigView,
 } = notesAppSlice.actions;
 
 export default notesAppSlice.reducer;
