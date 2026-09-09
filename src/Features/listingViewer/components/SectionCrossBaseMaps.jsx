@@ -9,9 +9,10 @@ import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import SectionAnnotationTemplateQties from "./SectionAnnotationTemplateQties";
 import SectionBusinessObjectQties from "./SectionBusinessObjectQties";
 
-// Totals of the SCOPE module recap, above the per-base-map sections: the
-// listing name and its annotation count on the left, the quantities of the
-// whole listing on the right (see MainListingMapsEditor for the mode table).
+// Totals of the SCOPE module recap, above the per-base-map sections: the same
+// two-column layout as a base map row, with "Total" standing in for the plan
+// and the quantities of the whole listing on the right (see
+// MainListingMapsEditor for the mode table).
 export default function SectionCrossBaseMaps({
   listing,
   showAllListings,
@@ -25,7 +26,7 @@ export default function SectionCrossBaseMaps({
   // strings
 
   const allListingsS = "Tous les objets";
-  const annotationsS = "annotations";
+  const totalS = "Total";
   const seeDataS = "Voir les données";
 
   // state
@@ -34,8 +35,8 @@ export default function SectionCrossBaseMaps({
 
   // helpers
 
+  // Still the dialog's title — the header itself only says "Total".
   const title = showAllListings ? allListingsS : listing?.name;
-  const annotationCount = annotations?.length ?? 0;
 
   // handlers
 
@@ -51,40 +52,22 @@ export default function SectionCrossBaseMaps({
 
   return (
     <Box sx={{ display: "flex", gap: 2, width: 1 }}>
-      {/* Left column */}
+      {/* Left column — "Total" in place of the base map, so the totals line
+          up with the per-base-map rows below. */}
       <Box
         sx={{
           width: "40%",
           flexShrink: 0,
           display: "flex",
           flexDirection: "column",
+          justifyContent: "center",
           gap: 1,
         }}
       >
-        <Typography variant="h6" sx={{ fontWeight: "bold", mb: 1 }}>
-          {title}
+        <Typography variant="h6" sx={{ fontWeight: "bold" }}>
+          {totalS}
         </Typography>
-        <Box
-          sx={{
-            flex: 1,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 1,
-          }}
-        >
-          <Typography variant="h3" sx={{ fontWeight: "bold" }}>
-            {annotationCount}
-            <Typography
-              component="span"
-              variant="subtitle1"
-              color="text.secondary"
-              sx={{ ml: 1 }}
-            >
-              {annotationsS}
-            </Typography>
-          </Typography>
+        <Box>
           <Button
             variant="outlined"
             size="small"

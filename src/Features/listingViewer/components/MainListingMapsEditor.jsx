@@ -1,18 +1,25 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useSelector } from "react-redux";
 
 import { Box, Typography, Divider } from "@mui/material";
+import { Image as ImageIcon, TableRows } from "@mui/icons-material";
 
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 import useBusinessObjects from "Features/businessObjects/hooks/useBusinessObjects";
 import useRelsBusinessObjectAnnotation from "Features/businessObjects/hooks/useRelsBusinessObjectAnnotation";
+import ToggleSingleSelectorGeneric from "Features/layout/components/ToggleSingleSelectorGeneric";
 import SectionBaseMap from "./SectionBaseMap";
+import SectionBaseMapCard from "./SectionBaseMapCard";
 import SectionCrossBaseMaps from "./SectionCrossBaseMaps";
 
-// Recap editor of the SCOPE module: the totals of the selected listing, then
-// one section per base map (thumbnail + quantities).
+// Recap editor of the SCOPE module, in two display modes (toggle top right):
+//   - IMAGE (default): a two-column grid of sheet-shaped cards, the plan faded
+//     and desaturated under its annotations. No quantities — the drawings are
+//     the subject.
+//   - QUANTITIES: the totals of the selected listing, then one row per base
+//     map (thumbnail + quantities).
 //
 // The selected listing drives everything. Its entityModel type decides which
 // quantities are displayed (annotation templates / business objects / none),
@@ -24,11 +31,21 @@ import SectionCrossBaseMaps from "./SectionCrossBaseMaps";
 //                          of its objects, quantities per object;
 //   - annotation listing-> the base maps carrying one of its annotations,
 //                          quantities per annotation template.
+const DISPLAY_MODES = { IMAGE: "IMAGE", QUANTITIES: "QUANTITIES" };
+
 export default function MainListingMapsEditor({ listing }) {
   // strings
 
   const noBaseMapS = "Aucun fond de plan dans ce périmètre.";
   const noBaseMapForListingS = "Aucun fond de plan pour cette liste.";
+  const imageModeS = "Image";
+  const quantitiesModeS = "Quantités";
+
+  // state
+
+  // Display mode of the editor. Local like the mode it replaces: it is a way
+  // of looking at the recap, not a setting of the scope.
+  const [displayMode, setDisplayMode] = useState(DISPLAY_MODES.IMAGE);
 
   // data
 
@@ -123,6 +140,14 @@ export default function MainListingMapsEditor({ listing }) {
     annotationsByBaseMapId,
   ]);
 
+  // handlers
+
+  // The toggle group clears the value when the active button is pressed
+  // again; keep the current mode rather than falling into an empty editor.
+  function handleDisplayModeChange(mode) {
+    if (mode) setDisplayMode(mode);
+  }
+
   // render
 
   if (!hasBaseMaps) {
@@ -142,6 +167,10 @@ export default function MainListingMapsEditor({ listing }) {
     );
   }
 
+  const isImageMode = displayMode === DISPLAY_MODES.IMAGE;
+  const showEmptyMessage =
+    displayedBaseMaps.length === 0 && !annotationsLoading;
+
   return (
     <Box
       sx={{
@@ -152,38 +181,88 @@ export default function MainListingMapsEditor({ listing }) {
         p: 2,
       }}
     >
-      <SectionCrossBaseMaps
-        listing={listing}
-        showAllListings={showAllListings}
-        isBaseMapListing={isBaseMapListing}
-        isBusinessObjectListing={isBusinessObjectListing}
-        annotations={allAnnotations}
-        annotationTemplates={annotationTemplates}
-        businessObjects={businessObjects}
-        businessObjectRels={businessObjectRels}
-      />
-      <Divider sx={{ my: 2 }} />
-      {displayedBaseMaps.length === 0 && !annotationsLoading && (
-        <Typography variant="body2" color="text.secondary">
-          {noBaseMapForListingS}
-        </Typography>
-      )}
-      {displayedBaseMaps.map((baseMap, index) => (
-        <Box key={baseMap.id}>
-          <SectionBaseMap
-            baseMap={baseMap}
+      {/* Display mode toggle, top right of the editor */}
+      <Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
+        <ToggleSingleSelectorGeneric
+          options={[
+            {
+              key: DISPLAY_MODES.IMAGE,
+              label: imageModeS,
+              icon: <ImageIcon fontSize="small" />,
+            },
+            {
+              key: DISPLAY_MODES.QUANTITIES,
+              label: quantitiesModeS,
+              icon: <TableRows fontSize="small" />,
+            },
+          ]}
+          selectedKey={displayMode}
+          onChange={handleDisplayModeChange}
+        />
+      </Box>
+
+      {isImageMode ? (
+        showEmptyMessage ? (
+          <Typography variant="body2" color="text.secondary">
+            {noBaseMapForListingS}
+          </Typography>
+        ) : (
+          <Box
+            sx={{
+              display: "grid",
+              gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+              gap: 2,
+            }}
+          >
+            {displayedBaseMaps.map((baseMap) => (
+              <SectionBaseMapCard
+                key={baseMap.id}
+                baseMap={baseMap}
+                listing={listing}
+                annotations={annotationsByBaseMapId[baseMap.id] ?? []}
+                showAllListings={showAllListings}
+              />
+            ))}
+          </Box>
+        )
+      ) : (
+        <>
+          <SectionCrossBaseMaps
             listing={listing}
-            annotationTemplates={annotationTemplates}
-            annotations={annotationsByBaseMapId[baseMap.id] ?? []}
             showAllListings={showAllListings}
             isBaseMapListing={isBaseMapListing}
             isBusinessObjectListing={isBusinessObjectListing}
+            annotations={allAnnotations}
+            annotationTemplates={annotationTemplates}
             businessObjects={businessObjects}
             businessObjectRels={businessObjectRels}
           />
-          {index < displayedBaseMaps.length - 1 && <Divider sx={{ my: 2 }} />}
-        </Box>
-      ))}
+          <Divider sx={{ my: 2 }} />
+          {showEmptyMessage && (
+            <Typography variant="body2" color="text.secondary">
+              {noBaseMapForListingS}
+            </Typography>
+          )}
+          {displayedBaseMaps.map((baseMap, index) => (
+            <Box key={baseMap.id}>
+              <SectionBaseMap
+                baseMap={baseMap}
+                listing={listing}
+                annotationTemplates={annotationTemplates}
+                annotations={annotationsByBaseMapId[baseMap.id] ?? []}
+                showAllListings={showAllListings}
+                isBaseMapListing={isBaseMapListing}
+                isBusinessObjectListing={isBusinessObjectListing}
+                businessObjects={businessObjects}
+                businessObjectRels={businessObjectRels}
+              />
+              {index < displayedBaseMaps.length - 1 && (
+                <Divider sx={{ my: 2 }} />
+              )}
+            </Box>
+          ))}
+        </>
+      )}
     </Box>
   );
 }
