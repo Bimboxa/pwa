@@ -1,6 +1,18 @@
+import BUSINESS_OBJECT_TYPES, {
+  DEFAULT_BUSINESS_OBJECT_TYPE_KEY,
+} from "Features/businessObjects/data/businessObjectTypesCatalog";
+
 // Groups listings by their entityModel type, for panels that display every
 // listing of a scope whatever its nature (base maps, annotations, business
 // objects, exports...).
+//
+// BUSINESS_OBJECT is split further, one group per business object TYPE
+// (STANDARD / NOMENCLATURE / PLANNING...): each type is its own family, with
+// its own module, label and icon in the left band — a single "Ouvrages" group
+// could not carry them. Those groups stay adjacent, in registry order, at the
+// BUSINESS_OBJECT slot of TYPE_ORDER, and carry `businessObjectTypeKey` so the
+// caller can resolve the per-scope module label / icon (hooks, hence not
+// resolved here).
 //
 // appConfig.features.entityModelTypes only declares the types an org exposes
 // in the create-listing dialog (BASE_MAP / LOCATED_ENTITY / BLUEPRINT for
@@ -36,6 +48,8 @@ const TYPE_ORDER = [
   "BLUEPRINT",
   "LEGEND_ENTITY",
 ];
+
+const BUSINESS_OBJECT_TYPE = "BUSINESS_OBJECT";
 
 const UNKNOWN_TYPE_KEY = "UNKNOWN";
 const UNKNOWN_TYPE_LABEL = "Autres";
@@ -78,7 +92,7 @@ export default function getListingGroupsByEntityModelType({
 
   // label: org override > default map > entityModel name > raw type
 
-  return orderedTypes.map((type) => {
+  return orderedTypes.flatMap((type) => {
     const groupListings = listingsByType.get(type);
     const label =
       labelByType[type] ??
@@ -86,6 +100,36 @@ export default function getListingGroupsByEntityModelType({
       groupListings[0]?.entityModel?.name ??
       (type === UNKNOWN_TYPE_KEY ? UNKNOWN_TYPE_LABEL : type);
 
-    return { type, label, listings: groupListings };
+    if (type === BUSINESS_OBJECT_TYPE) {
+      return splitBusinessObjectGroups(groupListings, label);
+    }
+
+    return [{ key: type, type, label, listings: groupListings }];
   });
+}
+
+// One group per business object type met, in registry order; a listing whose
+// businessObjectType is missing or unknown counts as the default type (same
+// rule as getBusinessObjectTypeOfListing). `label` is the type's default —
+// the caller overrides it with the resolved per-scope module label.
+function splitBusinessObjectGroups(listings, fallbackLabel) {
+  const knownKeys = new Set(BUSINESS_OBJECT_TYPES.map((t) => t.key));
+  const byTypeKey = new Map();
+
+  listings.forEach((listing) => {
+    const rawKey = listing?.businessObjectType;
+    const typeKey = knownKeys.has(rawKey)
+      ? rawKey
+      : DEFAULT_BUSINESS_OBJECT_TYPE_KEY;
+    if (!byTypeKey.has(typeKey)) byTypeKey.set(typeKey, []);
+    byTypeKey.get(typeKey).push(listing);
+  });
+
+  return BUSINESS_OBJECT_TYPES.filter((t) => byTypeKey.has(t.key)).map((t) => ({
+    key: `${BUSINESS_OBJECT_TYPE}:${t.key}`,
+    type: BUSINESS_OBJECT_TYPE,
+    businessObjectTypeKey: t.key,
+    label: t.defaultLabel ?? fallbackLabel,
+    listings: byTypeKey.get(t.key),
+  }));
 }

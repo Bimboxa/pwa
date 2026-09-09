@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { useDispatch, useSelector } from "react-redux";
 
@@ -8,6 +8,7 @@ import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useListingsByScope from "Features/listings/hooks/useListingsByScope";
+import useListingGroupsWithIcons from "../hooks/useListingGroupsWithIcons";
 
 import { Box, Button, IconButton, Tooltip, Typography } from "@mui/material";
 import { Add as AddIcon } from "@mui/icons-material";
@@ -17,15 +18,17 @@ import LeftDrawerPanelHeader from "Features/leftPanel/components/LeftDrawerPanel
 import ListListings from "Features/listings/components/ListListings";
 import SectionListingsGroup from "./SectionListingsGroup";
 import DialogCreateBusinessObjectListing from "Features/businessObjects/components/DialogCreateBusinessObjectListing";
+import DialogCreateBaseMapListing from "Features/baseMapEditor/components/DialogCreateBaseMapListing";
+import DialogCreateListing from "Features/listings/components/DialogCreateListing";
 
 import getListingGroupsByEntityModelType from "Features/listings/utils/getListingGroupsByEntityModelType";
 
 // Listing selector of the SCOPE module: every listing of the scope whatever
 // its nature (base maps, annotations, business objects, exports...), grouped
-// by entityModel type (base maps first, then annotations, then business
-// objects). Header + "+" mirror the Fond de plan module panel (PanelBaseMaps):
-// the creation dialog carries the type and the name, so the panel needs a
-// single action. A click selects the listing — which narrows the recap editor
+// by family (base maps first, then annotations, then one group per business
+// object type). Each group header carries its family icon and a "+" opening
+// that family's own creation dialog; the panel-level "+" keeps the generic
+// entry point. A click selects the listing — which narrows the recap editor
 // and sends the listing properties to the right panel; there is no subview to
 // drill into.
 export default function SelectorListingForViewer({ selectedListingId }) {
@@ -47,14 +50,23 @@ export default function SelectorListingForViewer({ selectedListingId }) {
 
   // state
 
-  const [openCreateListing, setOpenCreateListing] = useState(false);
+  // Creation dialog to display: null, or {kind, typeKey} — the group's "+"
+  // pins the family, the panel "+" opens the generic business-object dialog
+  // with its own type selector.
+  const [createTarget, setCreateTarget] = useState(null);
 
   // helpers
 
-  const groups = getListingGroupsByEntityModelType({
-    listings,
-    entityModelTypes: appConfig?.features?.entityModelTypes,
-  });
+  const entityModelTypes = appConfig?.features?.entityModelTypes;
+  const rawGroups = useMemo(
+    () =>
+      getListingGroupsByEntityModelType({
+        listings,
+        entityModelTypes,
+      }),
+    [listings, entityModelTypes]
+  );
+  const groups = useListingGroupsWithIcons(rawGroups);
   const isEmpty = !loading && groups.length === 0;
   const selection = selectedListingId ? [selectedListingId] : [];
 
@@ -71,7 +83,25 @@ export default function SelectorListingForViewer({ selectedListingId }) {
   }
 
   function handleListingCreated(listing) {
-    selectListing(listing);
+    if (listing) selectListing(listing);
+  }
+
+  function handleCloseCreate() {
+    setCreateTarget(null);
+  }
+
+  // A family without a creation dialog of its own (exports, zonings, legends…
+  // are created by the flows that own them) shows no "+".
+  function getCreateTargetOfGroup(group) {
+    if (group.businessObjectTypeKey)
+      return { kind: "BUSINESS_OBJECT", typeKey: group.businessObjectTypeKey };
+    if (group.type === "BASE_MAP") return { kind: "BASE_MAP" };
+    if (group.type === "LOCATED_ENTITY") return { kind: "LOCATED_ENTITY" };
+    return null;
+  }
+
+  function handleCreateClick(group) {
+    setCreateTarget(getCreateTargetOfGroup(group));
   }
 
   // render
@@ -91,7 +121,7 @@ export default function SelectorListingForViewer({ selectedListingId }) {
           <IconButton
             size="small"
             color="secondary"
-            onClick={() => setOpenCreateListing(true)}
+            onClick={() => setCreateTarget({ kind: "BUSINESS_OBJECT" })}
           >
             <AddIcon fontSize="small" />
           </IconButton>
@@ -120,7 +150,7 @@ export default function SelectorListingForViewer({ selectedListingId }) {
             variant="contained"
             color="secondary"
             startIcon={<AddIcon />}
-            onClick={() => setOpenCreateListing(true)}
+            onClick={() => setCreateTarget({ kind: "BUSINESS_OBJECT" })}
             sx={{ textTransform: "none", fontWeight: 600 }}
           >
             {createListingS}
@@ -130,21 +160,37 @@ export default function SelectorListingForViewer({ selectedListingId }) {
         <BoxFlexVStretch sx={{ overflow: "auto" }}>
           {groups.map((group) => (
             <SectionListingsGroup
-              key={group.type}
+              key={group.key}
               group={group}
               selection={selection}
               onListingClick={handleListingClick}
+              onCreateClick={
+                getCreateTargetOfGroup(group) ? handleCreateClick : undefined
+              }
             />
           ))}
         </BoxFlexVStretch>
       )}
 
-      {openCreateListing && (
+      {createTarget?.kind === "BUSINESS_OBJECT" && (
         <DialogCreateBusinessObjectListing
           open
-          onClose={() => setOpenCreateListing(false)}
+          typeKey={createTarget.typeKey}
+          onClose={handleCloseCreate}
           onCreated={handleListingCreated}
         />
+      )}
+
+      {createTarget?.kind === "BASE_MAP" && (
+        <DialogCreateBaseMapListing
+          open
+          onClose={handleCloseCreate}
+          onCreated={handleListingCreated}
+        />
+      )}
+
+      {createTarget?.kind === "LOCATED_ENTITY" && (
+        <DialogCreateListing open onClose={handleCloseCreate} />
       )}
     </BoxFlexVStretch>
   );
