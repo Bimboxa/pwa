@@ -38,7 +38,9 @@ export default function PlanningResourceRow({
       sx={{
         position: "sticky",
         left: 0,
-        zIndex: 2,
+        // Above a selected block (zIndex 2): both live in the same stacking
+        // context and the band comes after this cell in DOM order.
+        zIndex: 3,
         width: LEFT_COL_WIDTH,
         minWidth: LEFT_COL_WIDTH,
         height: ROW_HEIGHT,

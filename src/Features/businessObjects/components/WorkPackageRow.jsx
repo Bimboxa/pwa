@@ -1,7 +1,12 @@
 import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
-import { setLinkingWorkPackageId } from "../businessObjectsSlice";
+import {
+  setActiveWorkPackageId,
+  setLinkingWorkPackageId,
+} from "../businessObjectsSlice";
+import { setSelectedItem } from "Features/selection/selectionSlice";
+import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 
 import {
   Box,
@@ -11,20 +16,27 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import { AddLink, MoreHoriz } from "@mui/icons-material";
+import {
+  AddLink,
+  FilterAlt,
+  FilterAltOutlined,
+  MoreHoriz,
+} from "@mui/icons-material";
 
 import useToggleWorkPackageSolo from "../hooks/useToggleWorkPackageSolo";
 
 import MenuActionsWorkPackage from "./MenuActionsWorkPackage";
+import selectSelectedWorkPackageId from "../utils/selectSelectedWorkPackageId";
 import formatConsumedVsBudget from "Features/planning/utils/formatConsumedVsBudget";
 import formatBusinessObjectNumber from "../utils/formatBusinessObjectNumber";
 import { getBusinessObjectUnitLabel } from "../utils/getBusinessObjectQtyLabel";
 import { formatHours } from "../utils/hoursRatioConversions";
 
 // Row of a work package in the "Work packages" tab: colour, label, linked
-// annotations count, consumed / budget hours, picking-mode toggle, menu;
-// under it, the DERIVED tasks (per global layer) with their hours. Click =
-// SOLO toggle (only the package's annotations stay displayed).
+// annotations count, consumed / budget hours, solo filter, picking-mode
+// toggle, menu; under it, the DERIVED tasks (per global layer) with their
+// hours. Click = SELECT (properties panel + Gantt target); the filter icon
+// owns the SOLO display.
 export default function WorkPackageRow({
   workPackage,
   listing,
@@ -34,8 +46,9 @@ export default function WorkPackageRow({
   consumed = 0,
 }) {
   const dispatch = useDispatch();
-  const selectedWorkPackageId = useSelector(
-    (s) => s.businessObjects.selectedWorkPackageId
+  const selectedWorkPackageId = useSelector(selectSelectedWorkPackageId);
+  const soloWorkPackageId = useSelector(
+    (s) => s.businessObjects.soloWorkPackageId
   );
   const linkingWorkPackageId = useSelector(
     (s) => s.businessObjects.linkingWorkPackageId
@@ -47,6 +60,7 @@ export default function WorkPackageRow({
   // helpers
 
   const isSelected = selectedWorkPackageId === workPackage.id;
+  const isSolo = soloWorkPackageId === workPackage.id;
   const isLinking = linkingWorkPackageId === workPackage.id;
   const { text: hoursS, diff } = formatConsumedVsBudget(consumed, budget);
   const hoursColor =
@@ -58,7 +72,22 @@ export default function WorkPackageRow({
 
   // handlers
 
+  // Click = SELECT: properties panel + ACTIVE package (the Gantt's target
+  // when creating blocks). The SOLO display has its own filter icon.
   function handleClick() {
+    dispatch(setActiveWorkPackageId(workPackage.id));
+    dispatch(
+      setSelectedItem({
+        id: workPackage.id,
+        type: "WORK_PACKAGE",
+        listingId: workPackage.listingId,
+      })
+    );
+    dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
+  }
+
+  function handleSoloClick(e) {
+    e.stopPropagation();
     toggleWorkPackageSolo(workPackage, annotations);
   }
 
@@ -129,11 +158,27 @@ export default function WorkPackageRow({
         <Box
           className="work-package-actions"
           sx={{
-            visibility: isLinking ? "visible" : "hidden",
+            visibility: isLinking || isSolo ? "visible" : "hidden",
             display: "flex",
             alignItems: "center",
           }}
         >
+          <IconButton
+            size="small"
+            onClick={handleSoloClick}
+            title={
+              isSolo
+                ? "Tout afficher"
+                : `Afficher uniquement « ${workPackage.label} »`
+            }
+            color={isSolo ? "primary" : "default"}
+          >
+            {isSolo ? (
+              <FilterAlt sx={{ fontSize: 16 }} />
+            ) : (
+              <FilterAltOutlined sx={{ fontSize: 16 }} />
+            )}
+          </IconButton>
           <IconButton
             size="small"
             onClick={handleLinkingClick}

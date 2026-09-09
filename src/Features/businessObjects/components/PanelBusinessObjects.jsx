@@ -10,6 +10,7 @@ import LeftDrawerPanelHeader from "Features/leftPanel/components/LeftDrawerPanel
 
 import useBusinessObjectListings from "../hooks/useBusinessObjectListings";
 import useBusinessObjectsModuleLabel from "../hooks/useBusinessObjectsModuleLabel";
+import useDefaultSelectionInBusinessObjectsModule from "../hooks/useDefaultSelectionInBusinessObjectsModule";
 import { DEFAULT_BUSINESS_OBJECT_TYPE_KEY } from "../data/businessObjectTypesCatalog";
 
 import FieldActiveBusinessObjectListing from "./FieldActiveBusinessObjectListing";
@@ -55,6 +56,11 @@ export default function PanelBusinessObjects({
     getBusinessObjectTypeOfListing(activeListing).features?.workPackages
   );
   const showWorkPackages = hasWorkPackages && panelTabKey === "WORK_PACKAGES";
+
+  // effects — with nothing selected, the module lands on its listing's
+  // properties (right panel).
+
+  useDefaultSelectionInBusinessObjectsModule(activeListing);
 
   // effects — auto-select the first listing when none is selected (or the
   // selected one left the scope).

@@ -42,6 +42,8 @@ import useDeleteAnnotationTemplate from "Features/annotations/hooks/useDeleteAnn
 
 import useLocationAnnotationTemplates from "../hooks/useLocationAnnotationTemplates";
 import canLocateBusinessObjects from "../utils/canLocateBusinessObjects";
+import getBusinessObjectTypeOfListing from "../utils/getBusinessObjectTypeOfListing";
+import SectionPlanningAnnotationListings from "./SectionPlanningAnnotationListings";
 
 import useNotesAppConfig from "Features/notesApp/hooks/useNotesAppConfig";
 import SectionNotesAppListingConfigCard from "Features/notesApp/components/SectionNotesAppListingConfigCard";
@@ -110,6 +112,11 @@ export default function PanelBusinessObjectListingProperties({ listing }) {
 
   const objectsCount = businessObjects?.length ?? 0;
   const canLocate = canLocateBusinessObjects(listing);
+  // PLANNING listings only (type feature): the drawing lists feeding the
+  // planning.
+  const showAnnotationListings = Boolean(
+    getBusinessObjectTypeOfListing(listing).features?.annotationListings
+  );
   // stale stack of another listing = closed
   const configViewOpen =
     notesAppEnabled &&
@@ -301,6 +308,8 @@ export default function PanelBusinessObjectListingProperties({ listing }) {
         {notesAppEnabled && (
           <SectionNotesAppListingConfigCard listing={listing} />
         )}
+
+        {showAnnotationListings && <SectionPlanningAnnotationListings />}
 
         {canLocate && (
           <WhiteSectionGeneric>

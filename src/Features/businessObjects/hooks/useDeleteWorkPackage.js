@@ -3,19 +3,27 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   triggerWorkPackagesUpdate,
   triggerRelsWorkPackageAnnotationUpdate,
-  setSelectedWorkPackageId,
+  setActiveWorkPackageId,
+  setSoloWorkPackageId,
   setLinkingWorkPackageId,
 } from "../businessObjectsSlice";
+import { clearSelection } from "Features/selection/selectionSlice";
 import { triggerPlanningUpdate } from "Features/planning/planningSlice";
 
 import db from "App/db/db";
+
+import selectSelectedWorkPackageId from "../utils/selectSelectedWorkPackageId";
 
 // Deletes a work package with its annotation links and its planning blocks.
 // The annotations themselves are untouched (they belong to the Dessin).
 export default function useDeleteWorkPackage() {
   const dispatch = useDispatch();
-  const selectedWorkPackageId = useSelector(
-    (s) => s.businessObjects.selectedWorkPackageId
+  const selectedWorkPackageId = useSelector(selectSelectedWorkPackageId);
+  const activeWorkPackageId = useSelector(
+    (s) => s.businessObjects.activeWorkPackageId
+  );
+  const soloWorkPackageId = useSelector(
+    (s) => s.businessObjects.soloWorkPackageId
   );
   const linkingWorkPackageId = useSelector(
     (s) => s.businessObjects.linkingWorkPackageId
@@ -48,8 +56,11 @@ export default function useDeleteWorkPackage() {
         }
       }
     );
-    if (selectedWorkPackageId === workPackage.id)
-      dispatch(setSelectedWorkPackageId(null));
+    if (selectedWorkPackageId === workPackage.id) dispatch(clearSelection());
+    if (activeWorkPackageId === workPackage.id)
+      dispatch(setActiveWorkPackageId(null));
+    if (soloWorkPackageId === workPackage.id)
+      dispatch(setSoloWorkPackageId(null));
     if (linkingWorkPackageId === workPackage.id)
       dispatch(setLinkingWorkPackageId(null));
     dispatch(triggerWorkPackagesUpdate());

@@ -657,6 +657,46 @@ export default function PanelPropertiesListingV2({ listing }) {
           )}
         </WhiteSectionGeneric>
 
+        {/* Feeds the PLANNING module (declarative tag, see
+            businessObjects/utils/isForPlanning) — drawing lists only */}
+        {listing?.entityModel?.type === "LOCATED_ENTITY" &&
+          !listing?.isForBaseMaps && (
+            <WhiteSectionGeneric>
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
+              >
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ fontWeight: 600 }}
+                >
+                  Planning
+                </Typography>
+                <Switch
+                  size="small"
+                  checked={Boolean(listing?.isForPlanning)}
+                  onChange={(e) =>
+                    updateListing({
+                      id: listing.id,
+                      isForPlanning: e.target.checked,
+                    })
+                  }
+                />
+              </Box>
+              <Typography
+                variant="caption"
+                sx={{ display: "block", color: "text.secondary" }}
+              >
+                Liste proposée dans la section « Liste d&apos;annotations » des
+                plannings du scope.
+              </Typography>
+            </WhiteSectionGeneric>
+          )}
+
         {/* Annotation templates */}
         {annotationTemplates?.length > 0 && (
           <WhiteSectionGeneric>

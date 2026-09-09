@@ -26,14 +26,21 @@ A new left-band module `BUSINESS_OBJECTS` (default label "Ouvrages"):
   **isTitle** (title band row). The unit drives the default quantity rollup
   rule: U → count, L → length, S → surface.
 - Left panel: listing selector on top (FieldActiveListing pattern), objects tree below.
-- Clicking an object toggles its **SOLO display**: the editors show only the
+- Clicking an object **SELECTS** it: `setSelectedItem({type: "BUSINESS_OBJECT",
+  id, listingId})` in the selection slice (row highlight + properties panel,
+  force-opened) and `businessObjects.activeBusinessObjectId` — the module's
+  ACTIVE object, PERSISTENT where the selection is not (each committed
+  location selects the annotation it created, and the popper's "Localisation"
+  mode / the LOCATE_BUSINESS_OBJECT target must survive it).
+- The row's **filter icon** toggles the object's **SOLO display** (zones drawer
+  pattern, `businessObjects.soloBusinessObjectId`): the editors show only the
   annotations linked to it **or to its descendants** (relsBusinessObjectAnnotation,
-  `useBusinessObjectSoloAnnotationIdSet` → `useAnnotationsV2` filter keyed on
-  `selectedBusinessObjectId`, zone-solo semantics: base-map annotations kept,
-  `ignoreSolo`/`keepSoloDimmed` honored); the base map switches and zooms to the
-  first linked annotation. Re-click restores the full display. The properties
-  panel is NOT auto-opened; the solo survives map selections (an annotation
-  click shows the annotation props, Escape returns to the object props).
+  `useBusinessObjectSoloAnnotationIdSet` → `useAnnotationsV2` filter, zone-solo
+  semantics: base-map annotations kept, `ignoreSolo`/`keepSoloDimmed` honored);
+  the base map switches and zooms to the first linked annotation. Re-click
+  restores the full display. Display only: the solo survives every selection
+  change (an annotation click shows the annotation props, Escape falls back to
+  the listing props).
 - Linking gestures (both): (a) from a map multi-selection → "Lier à un ouvrage" action in
   the right panel; (b) picking mode armed on an object → click annotations on the map to
   link/unlink (Escape exits). 2D only for (b).
@@ -62,10 +69,14 @@ The object properties panel header has a back arrow navigating to the
 listing's properties via the selection slice (`setSelectedItem({type:
 "LISTING"})` → `BUSINESS_OBJECT_LISTING` routing, BASE_MAP_LISTING pattern):
 `PanelBusinessObjectListingProperties` = name edition + "Numérotation" toggle,
-its own back arrow returns to the scope panel. Routing in the module: soloed
-object with no other selection → object props; LISTING selection or nothing
-selected → listing props (module default); NODE selection → annotation props
-(the solo persists underneath).
+its own back arrow returns to the scope panel. Routing in the module is driven
+by the SELECTION alone: `BUSINESS_OBJECT` / `WORK_PACKAGE` item → object /
+package props; `LISTING` item → listing props; NODE item → annotation props
+(the solo persists underneath). With an EMPTY selection the module's active
+listing is selected by `useDefaultSelectionInBusinessObjectsModule`, so the
+listing props are the module's default — entering the module drops the
+selection inherited from the previous one (`selectionSlice` case on
+`setSelectedViewerKey`, business-objects modules only).
 
 `listing.showNumbering` (toggled from the listing selector's "…" menu or the
 listing properties panel) turns

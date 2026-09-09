@@ -87,7 +87,15 @@ const BUSINESS_OBJECT_TYPES = [
     // workPackages: the panel gets a second tab of work packages (sets of
     // linked annotations × the listing's tasks → hours) and the time
     // planning; tasks carry an optional globalLayerId (annotation partition).
-    features: { hoursBudget: true, color: false, workPackages: true },
+    // annotationListings: the listing properties panel gets the "Liste
+    // d'annotations" section — the drawing lists declared as feeding this
+    // planning (listing.isForPlanning, declarative only).
+    features: {
+      hoursBudget: true,
+      color: false,
+      workPackages: true,
+      annotationListings: true,
+    },
   },
 ];
 

@@ -52,10 +52,10 @@ export default function useAnnotationTaskHours({ annotation, qties } = {}) {
     listingId: enabled ? listingId : null,
   });
 
-  // task soloed in the "Poste de travail" tab: the tooltip then shows that
+  // active task of the "Poste de travail" tab: the tooltip then shows that
   // task (and its sub-tasks) only
   const selectedTaskId = useSelector(
-    (s) => s.businessObjects?.selectedBusinessObjectId ?? null
+    (s) => s.businessObjects?.activeBusinessObjectId ?? null
   );
 
   const relsUpdatedAt = useSelector(

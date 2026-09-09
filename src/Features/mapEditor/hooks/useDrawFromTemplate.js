@@ -53,8 +53,10 @@ export default function useDrawFromTemplate(annotationTemplate, listingId) {
     isThreedFamilyViewerKey(selectEffectiveViewerKey(s))
   );
   // Ouvrages module: drawing with a location template (the business-objects
-  // listing's own templates) while an object is selected LOCATES it — the
-  // draft carries the LOCATE_BUSINESS_OBJECT commit interceptor. Only for
+  // listing's own templates) while an object is ACTIVE LOCATES it — the
+  // draft carries the LOCATE_BUSINESS_OBJECT commit interceptor. The ACTIVE
+  // id (not the selection) is what survives the map selection each committed
+  // location produces, so several base maps can be located in a row. Only for
   // located listings (opt-in listing.canLocateBusinessObjects, read on the
   // template's own listing through the Dexie mirror listingsById).
   const locatingBusinessObjectId = useSelector((s) => {
@@ -65,7 +67,7 @@ export default function useDrawFromTemplate(annotationTemplate, listingId) {
       return null;
     const listing = s.listings.listingsById?.[annotationTemplate.listingId];
     if (!canLocateBusinessObjects(listing)) return null;
-    return s.businessObjects?.selectedBusinessObjectId ?? null;
+    return s.businessObjects?.activeBusinessObjectId ?? null;
   });
 
   // helpers

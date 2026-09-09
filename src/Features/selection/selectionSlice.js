@@ -1,5 +1,8 @@
 import { createSlice } from "@reduxjs/toolkit";
 
+import { setSelectedViewerKey } from "Features/viewers/viewersSlice";
+import { isBusinessObjectsModuleKey } from "Features/businessObjects/utils/businessObjectModuleKeys";
+
 // The single sub-selection slot (selectedItems[0].pointId / partId / partType)
 // mirrors the multi arrays as a "representative". When the arrays change we must
 // keep that representative in sync, otherwise a stale pointId/partId lingers and
@@ -193,6 +196,15 @@ export const selectionSlice = createSlice({
           item.type = "LISTING";
           item.id = item.listingId;
         }
+        else if (
+          item.type === "BUSINESS_OBJECT" ||
+          item.type === "WORK_PACKAGE"
+        ) {
+          // Business object / work package (business-objects modules) → its
+          // listing, the module's default selection.
+          item.type = "LISTING";
+          item.id = item.listingId;
+        }
         else if (item.type === "ENTITY") {
           item.type = "LISTING";
           item.id = item.listingId;
@@ -256,6 +268,18 @@ export const selectionSlice = createSlice({
     },
   },
   extraReducers: (builder) => {
+    // Entering a business-objects module drops the selection inherited from
+    // the module we come from (an annotation of the Dessin module, a baseMap,
+    // …): those modules land on their own listing, posed right after by
+    // useDefaultSelectionInBusinessObjectsModule. Restricted to them on
+    // purpose — Dessin <-> Viewer must keep its annotation selection.
+    builder.addCase(setSelectedViewerKey, (state, action) => {
+      if (!isBusinessObjectsModuleKey(action.payload)) return;
+      state.selectedItems = [];
+      state.selectedPointIds = [];
+      state.selectedPartIds = [];
+      state.showAnnotationsProperties = false;
+    });
     // Switching the MAIN baseMap (top-bar chips, BaseMapSelectorInMapEditorV2,
     // baseMap trees, …) while the properties panel shows a baseMap must
     // retarget the BASE_MAP selection item so the panel follows the newly

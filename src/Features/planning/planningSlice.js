@@ -40,7 +40,10 @@ export const planningSlice = createSlice({
     setPanelOpen: (state, action) => {
       state.panelOpen = Boolean(action.payload);
       storePlanningPanelLayout({ open: state.panelOpen });
-      if (!state.panelOpen) state.playActive = false;
+      if (!state.panelOpen) {
+        state.playActive = false;
+        state.selectedSlotId = null;
+      }
     },
     // payload: {active, step?}
     setPlayActive: (state, action) => {

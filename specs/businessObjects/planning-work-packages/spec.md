@@ -58,14 +58,18 @@ and was replaced (legacy rows migrated at runtime, see Migration).
 - Map hover tooltip (`MapTooltip` + `useAnnotationTaskHours`): in a PLANNING
   module it appends, under the quantities, the annotation's work package and
   the hours it represents for each applicable task (same layer + package
-  filters, restricted to the soloed task and its sub-tasks when one is
+  filters, restricted to the ACTIVE task and its sub-tasks when one is
   selected in the "Poste de travail" tab). Nothing is shown for an annotation
   belonging to no work package.
 - Hours formatting (`formatHours`): rounded to the unit + man-days at 8 h
   rounded to the half day, "138 h (17,5 Jr.H)"; `{withDays: false}` in paired
   values and narrow columns.
-- Row click = SOLO (`selectedWorkPackageId`, `useWorkPackageSoloAnnotationIdSet`
-  in `useAnnotationsV2`, mutually exclusive with the task solo).
+- Row click = SELECT: `setSelectedItem({type: "WORK_PACKAGE", id, listingId})`
+  (properties panel) + `businessObjects.activeWorkPackageId` (the Gantt's
+  target when creating blocks — persistent, so a map selection never disarms
+  it). The row's filter icon owns the SOLO display (`soloWorkPackageId`,
+  `useWorkPackageSoloAnnotationIdSet` in `useAnnotationsV2`, mutually exclusive
+  with the task solo).
 - Deletion: package → its rels + planning blocks (annotations untouched);
   annotation deletion cascades its rel (`useDeleteAnnotations`).
 
@@ -76,15 +80,32 @@ package); planned = over the packages carrying ≥ 1 block; done (play mode) =
 over the packages DONE at the play step. The task row caption shows
 "planifié 62 %" (+ "fait 30 %" while playing).
 
-## Time planning — `src/Features/planning/` (unchanged mechanics)
+## Time planning — `src/Features/planning/`
 
 Bottom overlay panel (`PanelPlanningBottom`, `zIndex 5`, resizable), free
 resources, CALENDAR / STEPS axis (`planningTimeAxis.js`), blocks per
-(resource, package) created by clicking a cell with a package soloed, native
-pointer drag, Delete key. Play mode (`SectionPlanningPlayControls`): ‹ › steps,
-highlighted column, map styled by package status
-(`useWorkPackagePlayStatus` → done light grey / in progress coloured on top /
-to do and unpackaged very light grey). No "now" line.
+(resource, package).
+
+The grid is driven by `pointerdown` only, never by `click`: a `click` is emitted
+on the common ancestor of the pointerdown / pointerup targets, so after a block
+drag it landed on the row band and created a phantom block. Interaction model:
+
+- press an empty band with a package ACTIVE in the left tab → 1-step block (not
+  auto-selected, so consecutive presses keep creating);
+- press a block → selects it (`planning.selectedSlotId`) and makes its package
+  the active + selected one;
+- a **selected** block can be moved (steps + resource row) and resized from its
+  two handles — left = start (end fixed), right = end (`useSlotPointerDrag`
+  modes `move` / `resizeStart` / `resizeEnd`, 3 px threshold, `pointercancel`
+  aborts);
+- press an empty band while a block is selected → clears the selection only;
+- Escape clears the selection, Delete / Backspace removes the selected block
+  (window capture + `stopPropagation`, so `InteractionLayer` never sees it;
+  bails on editable targets and on `.MuiModal-root`).
+
+Play mode (`SectionPlanningPlayControls`): ‹ › steps, highlighted column, map
+styled by package status (`useWorkPackagePlayStatus` → done light grey / in
+progress coloured on top / to do and unpackaged very light grey). No "now" line.
 
 ## Migration (v34 work zones → v35 work packages)
 

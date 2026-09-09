@@ -3,9 +3,11 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   triggerBusinessObjectsUpdate,
   triggerRelsBusinessObjectAnnotationUpdate,
-  setSelectedBusinessObjectId,
+  setActiveBusinessObjectId,
+  setSoloBusinessObjectId,
   setLinkingBusinessObjectId,
 } from "../businessObjectsSlice";
+import { clearSelection } from "Features/selection/selectionSlice";
 import { setToaster } from "Features/layout/layoutSlice";
 
 import db from "App/db/db";
@@ -13,13 +15,18 @@ import db from "App/db/db";
 import useDeleteAnnotations from "Features/annotations/hooks/useDeleteAnnotations";
 
 import { getBusinessObjectDescendants } from "../utils/buildBusinessObjectsTree";
+import selectSelectedBusinessObjectId from "../utils/selectSelectedBusinessObjectId";
 import getMainRelsOfBusinessObjectsService from "../services/getMainRelsOfBusinessObjectsService";
 
 export default function useDeleteBusinessObject() {
   const dispatch = useDispatch();
 
-  const selectedBusinessObjectId = useSelector(
-    (s) => s.businessObjects.selectedBusinessObjectId
+  const selectedBusinessObjectId = useSelector(selectSelectedBusinessObjectId);
+  const activeBusinessObjectId = useSelector(
+    (s) => s.businessObjects.activeBusinessObjectId
+  );
+  const soloBusinessObjectId = useSelector(
+    (s) => s.businessObjects.soloBusinessObjectId
   );
   const linkingBusinessObjectId = useSelector(
     (s) => s.businessObjects.linkingBusinessObjectId
@@ -83,8 +90,13 @@ export default function useDeleteBusinessObject() {
       }
     }
 
-    if (objectIdsSet.has(selectedBusinessObjectId))
-      dispatch(setSelectedBusinessObjectId(null));
+    // a deleted object can't stay selected / active / soloed / armed: the
+    // module's default selection effect falls back to the listing.
+    if (objectIdsSet.has(selectedBusinessObjectId)) dispatch(clearSelection());
+    if (objectIdsSet.has(activeBusinessObjectId))
+      dispatch(setActiveBusinessObjectId(null));
+    if (objectIdsSet.has(soloBusinessObjectId))
+      dispatch(setSoloBusinessObjectId(null));
     if (objectIdsSet.has(linkingBusinessObjectId))
       dispatch(setLinkingBusinessObjectId(null));
     dispatch(triggerBusinessObjectsUpdate());

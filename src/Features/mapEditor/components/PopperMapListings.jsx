@@ -1663,34 +1663,36 @@ export default function PopperMapListings() {
   const collapsed = useSelector((s) => s.popperMapListings.collapsed);
   const selectedItem = useSelector((s) => s.selection.selectedItems[0] || null);
 
-  // Ouvrages module with a selected (soloed) object of a LOCATED listing
-  // (opt-in listing.canLocateBusinessObjects): the popper narrows to the
-  // object — its name as title, the location templates of its listing
-  // (+ "Nouveau modèle"); drawing one of them LOCATES the object (see
-  // useDrawFromTemplate). No listing selector, no drawing tools. Otherwise
-  // the popper stays the plain Dessin panel (the solo display is untouched).
-  const selectedBusinessObjectId = useSelector(
-    (s) => s.businessObjects?.selectedBusinessObjectId ?? null
+  // Ouvrages module with an ACTIVE object of a LOCATED listing (opt-in
+  // listing.canLocateBusinessObjects): the popper narrows to the object — its
+  // name as title, the location templates of its listing (+ "Nouveau
+  // modèle"); drawing one of them LOCATES the object (see useDrawFromTemplate).
+  // No listing selector, no drawing tools. Otherwise the popper stays the
+  // plain Dessin panel. Keyed on the ACTIVE id, not on the selection: each
+  // committed location selects the annotation it just created, and the popper
+  // must stay in this mode to locate the object on the next base map.
+  const activeBusinessObjectId = useSelector(
+    (s) => s.businessObjects?.activeBusinessObjectId ?? null
   );
   const businessObjectsUpdatedAt = useSelector(
     (s) => s.businessObjects?.businessObjectsUpdatedAt
   );
-  const selectedBusinessObject = useLiveQuery(async () => {
-    if (!isBusinessObjectsModuleKey(viewerKey) || !selectedBusinessObjectId)
+  const activeBusinessObject = useLiveQuery(async () => {
+    if (!isBusinessObjectsModuleKey(viewerKey) || !activeBusinessObjectId)
       return null;
-    const o = await db.businessObjects.get(selectedBusinessObjectId);
+    const o = await db.businessObjects.get(activeBusinessObjectId);
     return o && !o.deletedAt ? o : null;
-  }, [viewerKey, selectedBusinessObjectId, businessObjectsUpdatedAt]);
+  }, [viewerKey, activeBusinessObjectId, businessObjectsUpdatedAt]);
   // listingsById = Dexie mirror kept by dexieSyncService
-  const selectedBusinessObjectListing = useSelector((s) =>
-    selectedBusinessObject?.listingId
-      ? (s.listings.listingsById?.[selectedBusinessObject.listingId] ?? null)
+  const activeBusinessObjectListing = useSelector((s) =>
+    activeBusinessObject?.listingId
+      ? (s.listings.listingsById?.[activeBusinessObject.listingId] ?? null)
       : null
   );
   const isBusinessObjectMode =
     isBusinessObjectsModuleKey(viewerKey) &&
-    Boolean(selectedBusinessObject) &&
-    canLocateBusinessObjects(selectedBusinessObjectListing);
+    Boolean(activeBusinessObject) &&
+    canLocateBusinessObjects(activeBusinessObjectListing);
 
   const baseMap = useMainBaseMap();
   const layers = useLayers({ filterByBaseMapId: baseMap?.id });
@@ -1807,7 +1809,7 @@ export default function PopperMapListings() {
   }, [allAnnotations]);
 
   const titleS = isBusinessObjectMode
-    ? selectedBusinessObject.label
+    ? activeBusinessObject.label
     : isBaseMapsViewer
       ? "Dessins sur fond de plan"
       : "Annotations";
@@ -2309,9 +2311,9 @@ export default function PopperMapListings() {
               {isBusinessObjectMode && (
                 <Box sx={{ pt: 0.5 }}>
                   <AnnotationTemplatesForListing
-                    listingId={selectedBusinessObject.listingId}
+                    listingId={activeBusinessObject.listingId}
                     annotations={
-                      annotationsByListingId?.[selectedBusinessObject.listingId]
+                      annotationsByListingId?.[activeBusinessObject.listingId]
                     }
                     annotationTemplateById={annotationTemplateById}
                     templateDefaults={{ isBusinessObjectAnnotation: true }}

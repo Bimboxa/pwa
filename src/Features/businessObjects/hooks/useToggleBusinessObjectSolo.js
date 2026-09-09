@@ -1,24 +1,23 @@
 import { useDispatch, useSelector } from "react-redux";
 
-import { setSelectedBusinessObjectId } from "../businessObjectsSlice";
-import { clearSelection } from "Features/selection/selectionSlice";
+import { setSoloBusinessObjectId } from "../businessObjectsSlice";
 import {
   setSelectedMainBaseMapId,
   setZoomTo,
 } from "Features/mapEditor/mapEditorSlice";
 
-// Clicking a business object toggles its SOLO display: the editors show only
-// the annotations linked to it or to its descendants (useAnnotationsV2
-// filter keyed on selectedBusinessObjectId), the base map switches and zooms
+// The row's filter icon toggles the object's SOLO display: the editors show
+// only the annotations linked to it or to its descendants (useAnnotationsV2
+// filter keyed on soloBusinessObjectId), the base map switches and zooms
 // to the object's MAIN annotation (the one on the active base map first),
-// else to the first linked annotation. Re-clicking the soloed object restores
-// the full display. The properties panel is NOT opened — the object's
-// properties show when the user opens it (routing on selectedBusinessObjectId).
+// else to the first linked annotation. Re-clicking the icon restores the full
+// display. Display only: the row CLICK owns the selection (zonings.soloZone
+// pattern), so the solo survives every selection change.
 export default function useToggleBusinessObjectSolo() {
   const dispatch = useDispatch();
 
-  const selectedBusinessObjectId = useSelector(
-    (s) => s.businessObjects.selectedBusinessObjectId
+  const soloBusinessObjectId = useSelector(
+    (s) => s.businessObjects.soloBusinessObjectId
   );
   const selectedBaseMapId = useSelector((s) => s.mapEditor.selectedBaseMapId);
 
@@ -26,15 +25,12 @@ export default function useToggleBusinessObjectSolo() {
     if (!businessObject) return;
 
     // toggle off: re-click on the soloed object restores the full display
-    if (businessObject.id === selectedBusinessObjectId) {
-      dispatch(setSelectedBusinessObjectId(null));
+    if (businessObject.id === soloBusinessObjectId) {
+      dispatch(setSoloBusinessObjectId(null));
       return;
     }
 
-    // Drop any stale map selection: its annotation may be hidden by the solo,
-    // leaving an orphan editing wrapper otherwise.
-    dispatch(clearSelection());
-    dispatch(setSelectedBusinessObjectId(businessObject.id));
+    dispatch(setSoloBusinessObjectId(businessObject.id));
 
     // Camera target: main annotation on the active base map → first main
     // annotation → first linked annotation (own + descendants', tree order).

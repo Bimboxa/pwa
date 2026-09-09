@@ -4,9 +4,11 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   triggerBusinessObjectsUpdate,
   triggerRelsBusinessObjectAnnotationUpdate,
-  setSelectedBusinessObjectId,
+  setActiveBusinessObjectId,
+  setSoloBusinessObjectId,
   setLinkingBusinessObjectId,
 } from "../businessObjectsSlice";
+import { clearSelection } from "Features/selection/selectionSlice";
 import { setToaster } from "Features/layout/layoutSlice";
 
 import { Box, Button, Chip, TextField, Typography } from "@mui/material";
@@ -23,6 +25,7 @@ import {
 } from "../utils/businessObjectsQuickEdit";
 import applyBusinessObjectsQuickEditService from "../services/applyBusinessObjectsQuickEditService";
 import getBusinessObjectTypeOfListing from "../utils/getBusinessObjectTypeOfListing";
+import selectSelectedBusinessObjectId from "../utils/selectSelectedBusinessObjectId";
 
 // One chip style per change kind of the review list.
 const KIND_PROPS = {
@@ -64,8 +67,12 @@ export default function SectionQuickEditBusinessObjects({ listing, onClose }) {
   const { value: rels } = useRelsBusinessObjectAnnotation({
     listingId: listing.id,
   });
-  const selectedBusinessObjectId = useSelector(
-    (s) => s.businessObjects.selectedBusinessObjectId
+  const selectedBusinessObjectId = useSelector(selectSelectedBusinessObjectId);
+  const activeBusinessObjectId = useSelector(
+    (s) => s.businessObjects.activeBusinessObjectId
+  );
+  const soloBusinessObjectId = useSelector(
+    (s) => s.businessObjects.soloBusinessObjectId
   );
   const linkingBusinessObjectId = useSelector(
     (s) => s.businessObjects.linkingBusinessObjectId
@@ -183,9 +190,13 @@ export default function SectionQuickEditBusinessObjects({ listing, onClose }) {
           });
       }
 
-      // a deleted object can't stay selected / armed for linking
+      // a deleted object can't stay selected / active / soloed / armed
       if (review.plan.deletionIds.includes(selectedBusinessObjectId))
-        dispatch(setSelectedBusinessObjectId(null));
+        dispatch(clearSelection());
+      if (review.plan.deletionIds.includes(activeBusinessObjectId))
+        dispatch(setActiveBusinessObjectId(null));
+      if (review.plan.deletionIds.includes(soloBusinessObjectId))
+        dispatch(setSoloBusinessObjectId(null));
       if (review.plan.deletionIds.includes(linkingBusinessObjectId))
         dispatch(setLinkingBusinessObjectId(null));
 

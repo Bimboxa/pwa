@@ -4,6 +4,7 @@ import { useDispatch } from "react-redux";
 import { generateKeyBetween } from "fractional-indexing";
 
 import { setSelectedListingId } from "../businessObjectsSlice";
+import { setSelectedItem } from "Features/selection/selectionSlice";
 import { triggerListingsUpdate } from "Features/listings/listingsSlice";
 
 import {
@@ -150,6 +151,10 @@ export default function FieldActiveBusinessObjectListing({
 
   const handleSelectListing = (listingId) => {
     dispatch(setSelectedListingId(listingId));
+    // The properties panel follows the active listing: any object / work
+    // package selection of the previous listing is stale. The right panel is
+    // not force-opened (changing list must not pop it up).
+    dispatch(setSelectedItem({ id: listingId, type: "LISTING", listingId }));
     setMenuAnchor(null);
   };
 

@@ -43,6 +43,7 @@ import SectionWorkPackageTasksPicker from "./SectionWorkPackageTasksPicker";
 import getAnnotationMainQtyLabel from "Features/annotations/utils/getAnnotationMainQtyLabel";
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
 import formatBusinessObjectNumber from "../utils/formatBusinessObjectNumber";
+import selectSelectedWorkPackageId from "../utils/selectSelectedWorkPackageId";
 import { getBusinessObjectUnitLabel } from "../utils/getBusinessObjectQtyLabel";
 import { formatHours } from "../utils/hoursRatioConversions";
 
@@ -70,16 +71,14 @@ function SectionBand({ label, value }) {
   );
 }
 
-// Right-panel properties of the work package soloed in the PLANNING drawer:
+// Right-panel properties of the work package selected in the PLANNING drawer:
 // label / colour, picking-mode toggle, budget vs consumed, the DERIVED tasks
 // with their detail (qty × ratio), the linked annotations (select / unlink),
 // delete.
 export default function PanelWorkPackageProperties() {
   const dispatch = useDispatch();
 
-  const workPackageId = useSelector(
-    (s) => s.businessObjects.selectedWorkPackageId
-  );
+  const workPackageId = useSelector(selectSelectedWorkPackageId);
   const workPackagesUpdatedAt = useSelector(
     (s) => s.businessObjects.workPackagesUpdatedAt
   );

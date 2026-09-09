@@ -32,6 +32,7 @@ A listing carries its **entityModel** — a data model from the app configuratio
 | `rank`                       | Fractional-indexing sort key (business-object listings)                                                                                   |
 | `isTree`                     | Entities form a tree (`parentId` + `sortIndex`)                                                                                           |
 | `showNumbering`              | Business-object listings: 3-column numbered display                                                                                       |
+| `isForPlanning`              | Annotation listing (LOCATED_ENTITY) declared as feeding the PLANNING module — declarative only, nothing filters on it                     |
 | `businessObjectType`         | `STANDARD` \| `NOMENCLATURE` (business-object listings, missing ⇒ STANDARD)                                                               |
 | `idMaster`                   | Remote id of the listing in Krnet (notes-app), set at pull or first push                                                                  |
 | `remoteSource`               | `"notesApp"` when linked to Krnet                                                                                                         |

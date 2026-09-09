@@ -4,6 +4,6 @@ import { isBusinessObjectsModuleKey } from "./businessObjectModuleKeys";
 // business-objects modules (the solo must never filter Dessin / 3D).
 export default function selectSoloWorkPackageId(s) {
   return isBusinessObjectsModuleKey(s.viewers?.selectedViewerKey)
-    ? (s.businessObjects?.selectedWorkPackageId ?? null)
+    ? (s.businessObjects?.soloWorkPackageId ?? null)
     : null;
 }

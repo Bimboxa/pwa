@@ -557,11 +557,11 @@ export default function useAnnotationsV2(options) {
       soloZone?.zoneId
     );
 
-    // business-object SOLO (Ouvrages module): clicking an object shows only
-    // the annotations linked to it or to its descendants. Same ignoreSolo /
-    // keepSoloDimmed semantics as the zone solo.
+    // business-object SOLO (Ouvrages module): the row's filter icon shows
+    // only the annotations linked to the object or to its descendants. Same
+    // ignoreSolo / keepSoloDimmed semantics as the zone solo.
     const soloBusinessObjectId = useSelector(
-      (s) => s.businessObjects?.selectedBusinessObjectId ?? null
+      (s) => s.businessObjects?.soloBusinessObjectId ?? null
     );
     const businessObjectSoloAnnotationIdSet =
       useBusinessObjectSoloAnnotationIdSet(soloBusinessObjectId);

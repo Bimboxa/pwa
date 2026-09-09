@@ -2,9 +2,12 @@ import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import {
+  setActiveBusinessObjectId,
   setLinkingBusinessObjectId,
   toggleBusinessObjectCollapsed,
 } from "../businessObjectsSlice";
+import { setSelectedItem } from "Features/selection/selectionSlice";
+import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 
 import {
   Box,
@@ -20,6 +23,8 @@ import {
   AddLink,
   ExpandMore,
   ChevronRight,
+  FilterAlt,
+  FilterAltOutlined,
   Place,
 } from "@mui/icons-material";
 
@@ -29,6 +34,7 @@ import { CSS } from "@dnd-kit/utilities";
 import useToggleBusinessObjectSolo from "../hooks/useToggleBusinessObjectSolo";
 
 import MenuActionsBusinessObject from "./MenuActionsBusinessObject";
+import selectSelectedBusinessObjectId from "../utils/selectSelectedBusinessObjectId";
 import getBusinessObjectQtyLabel from "../utils/getBusinessObjectQtyLabel";
 import getHoursRatioUnit from "../utils/getHoursRatioUnit";
 import getBusinessObjectTypeOfListing from "../utils/getBusinessObjectTypeOfListing";
@@ -63,8 +69,9 @@ export default function BusinessObjectTreeItem({
 
   // data
 
-  const selectedBusinessObjectId = useSelector(
-    (s) => s.businessObjects.selectedBusinessObjectId
+  const selectedBusinessObjectId = useSelector(selectSelectedBusinessObjectId);
+  const soloBusinessObjectId = useSelector(
+    (s) => s.businessObjects.soloBusinessObjectId
   );
   const linkingBusinessObjectId = useSelector(
     (s) => s.businessObjects.linkingBusinessObjectId
@@ -93,6 +100,7 @@ export default function BusinessObjectTreeItem({
   // helpers
 
   const isSelected = selectedBusinessObjectId === businessObject.id;
+  const isSolo = soloBusinessObjectId === businessObject.id;
   const isLinking = linkingBusinessObjectId === businessObject.id;
   const collapsed = collapsedIds.includes(businessObject.id);
   const isTitle = Boolean(businessObject.isTitle);
@@ -160,10 +168,24 @@ export default function BusinessObjectTreeItem({
 
   // handlers
 
-  // Clicking a row toggles its SOLO display: the editors show only the
-  // annotations linked to the object or its descendants, everything else is
-  // hidden. Re-click restores the full display.
+  // Clicking a row SELECTS the object: its properties open in the right panel
+  // and it becomes the module's ACTIVE object (popper "Localisation" mode,
+  // LOCATE_BUSINESS_OBJECT target). The SOLO display is toggled exclusively by
+  // the filter icon button (zones drawer pattern).
   function handleClick() {
+    dispatch(setActiveBusinessObjectId(businessObject.id));
+    dispatch(
+      setSelectedItem({
+        id: businessObject.id,
+        type: "BUSINESS_OBJECT",
+        listingId: businessObject.listingId,
+      })
+    );
+    dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
+  }
+
+  function handleSoloClick(e) {
+    e.stopPropagation();
     toggleBusinessObjectSolo(businessObject, soloAnnotations, mainAnnotations);
   }
 
@@ -210,11 +232,27 @@ export default function BusinessObjectTreeItem({
     <Box
       className="business-object-actions"
       sx={{
-        visibility: isLinking ? "visible" : "hidden",
+        visibility: isLinking || isSolo ? "visible" : "hidden",
         display: "flex",
         alignItems: "center",
       }}
     >
+      <IconButton
+        size="small"
+        onClick={handleSoloClick}
+        title={
+          isSolo
+            ? "Tout afficher"
+            : `Afficher uniquement « ${businessObject.label} »`
+        }
+        color={isSolo ? "primary" : "default"}
+      >
+        {isSolo ? (
+          <FilterAlt sx={{ fontSize: 16 }} />
+        ) : (
+          <FilterAltOutlined sx={{ fontSize: 16 }} />
+        )}
+      </IconButton>
       <IconButton
         size="small"
         onClick={handleLinkingClick}

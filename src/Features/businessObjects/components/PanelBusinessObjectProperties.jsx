@@ -53,6 +53,7 @@ import SectionNotesAppObjectNotes from "Features/notesApp/components/SectionNote
 import getAnnotationMainQtyLabel from "Features/annotations/utils/getAnnotationMainQtyLabel";
 import getBusinessObjectQtyLabel from "../utils/getBusinessObjectQtyLabel";
 import getBusinessObjectTypeOfListing from "../utils/getBusinessObjectTypeOfListing";
+import selectSelectedBusinessObjectId from "../utils/selectSelectedBusinessObjectId";
 import getHoursRatioUnit from "../utils/getHoursRatioUnit";
 import {
   formatHours,
@@ -68,8 +69,8 @@ import {
   DEFAULT_HOURS_RATIO_MODE,
 } from "../constants/businessObjectEntityModel";
 
-// Right-panel properties of a business object selected in the Ouvrages
-// drawer: editable props (label, description, unit, color — the field set
+// Right-panel properties of the business object selected in the Ouvrages
+// drawer (selection item {type: "BUSINESS_OBJECT"}): editable props (label, description, unit, color — the field set
 // follows the listing type features), the object's MAIN annotations (one
 // per base map, "Localisation" section, drawn from the Dessin popper), the
 // list of the other linked annotations with per-annotation quantities and
@@ -82,9 +83,7 @@ export default function PanelBusinessObjectProperties() {
 
   // data — selected object
 
-  const businessObjectId = useSelector(
-    (s) => s.businessObjects.selectedBusinessObjectId
-  );
+  const businessObjectId = useSelector(selectSelectedBusinessObjectId);
   const businessObjectsUpdatedAt = useSelector(
     (s) => s.businessObjects.businessObjectsUpdatedAt
   );

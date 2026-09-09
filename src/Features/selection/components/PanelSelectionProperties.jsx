@@ -53,12 +53,6 @@ export default function PanelSelectionProperties() {
   const showAnnotationsProperties = useSelector(
     (s) => s.selection.showAnnotationsProperties
   );
-  const selectedBusinessObjectId = useSelector(
-    (s) => s.businessObjects.selectedBusinessObjectId
-  );
-  const selectedWorkPackageId = useSelector(
-    (s) => s.businessObjects.selectedWorkPackageId
-  );
   // Ouvrages module: active listing of the drawer, fallback of the default
   // (no-selection) listing panel.
   const businessObjectsListingId = useSelector(
@@ -102,29 +96,32 @@ export default function PanelSelectionProperties() {
     type = "ANNOTATION_LABEL";
   } else if (
     isBusinessObjectsModuleKey(selectedViewerKey) &&
-    selectedWorkPackageId &&
-    !selectedItem
+    selectedItem?.type === "WORK_PACKAGE"
   ) {
-    // Soloed work package (PLANNING drawer, "Work packages" tab) with no
-    // other selection: the package's properties (tasks, hours, annotations).
+    // Work package selected in the PLANNING drawer ("Tâches" tab): the
+    // package's properties (tasks, hours, annotations).
     type = "WORK_PACKAGE";
   } else if (
     isBusinessObjectsModuleKey(selectedViewerKey) &&
-    selectedBusinessObjectId &&
-    !selectedItem
+    selectedItem?.type === "BUSINESS_OBJECT"
   ) {
-    // Soloed business object (Ouvrages drawer) with no other selection: the
-    // object's properties (linked annotations + quantities). The solo
-    // survives map selections, so a selected annotation/listing/scope wins
-    // over this branch while it lasts.
+    // Business object selected in the Ouvrages drawer: the object's
+    // properties (linked annotations + quantities). Selecting an annotation
+    // on the map replaces it like any other selection — the SOLO display and
+    // the module's ACTIVE object are separate states and survive it. Scoped
+    // to the module: leaving it keeps the item, and the other modules must
+    // fall through to their own default.
     type = "BUSINESS_OBJECT";
   } else if (
     isBusinessObjectsModuleKey(selectedViewerKey) &&
     (selectedItem?.type === "LISTING" || !selectedItem)
   ) {
     // Back arrow of the object properties panel (LISTING selection), and the
-    // module's default with nothing selected: the listing properties (name +
-    // "Numérotation" display option) — the BASE_MAP_LISTING pattern.
+    // module's default: the listing properties (name + "Numérotation" display
+    // option) — the BASE_MAP_LISTING pattern. The `!selectedItem` arm covers
+    // the frame before useDefaultSelectionInBusinessObjectsModule poses the
+    // LISTING selection (without it `type` would fall back to the generic
+    // LISTING branch, showing the Dessin module's listing).
     type = "BUSINESS_OBJECT_LISTING";
   } else if (
     isCanvasViewer &&

@@ -2,8 +2,8 @@ import { useEffect, useMemo, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import { setSelectedSlotId } from "../planningSlice";
-import { setSelectedWorkPackageId } from "Features/businessObjects/businessObjectsSlice";
-import { clearSelection } from "Features/selection/selectionSlice";
+import { setActiveWorkPackageId } from "Features/businessObjects/businessObjectsSlice";
+import { setSelectedItem } from "Features/selection/selectionSlice";
 import { setToaster } from "Features/layout/layoutSlice";
 
 import { Box, Typography } from "@mui/material";
@@ -33,10 +33,29 @@ import {
 import getSlotConsumedHours from "../utils/getSlotConsumedHours";
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
 
+const isEditableTarget = (el) => {
+  if (!el) return false;
+  const tag = el.tagName;
+  return (
+    tag === "INPUT" ||
+    tag === "TEXTAREA" ||
+    tag === "SELECT" ||
+    el.isContentEditable
+  );
+};
+
 // Gantt grid of a planning: resource rows × time steps, blocks per (resource,
-// work package), red now line. Click an empty cell with a work package soloed in
-// the left tab → 1-step block; drag to move (rows too) / resize (right
-// edge); Delete on the selected block.
+// work package).
+//
+// Everything is driven by `pointerdown`, never by `click`: a click is emitted on
+// the common ancestor of the pointerdown / pointerup targets, so after a drag it
+// lands on the row band and used to create a phantom block.
+//
+// Press an empty band with a work package soloed in the left tab → 1-step block
+// (when a block is selected, that first press only clears the selection). Press a
+// block → selects it. A SELECTED block can be dragged (steps + resource row) and
+// resized from its two handles (left = start, right = end). Escape clears the
+// selection, Delete / Backspace removes the selected block.
 export default function PlanningGrid({
   planning,
   workPackages,
@@ -57,8 +76,8 @@ export default function PlanningGrid({
   const selectedSlotId = useSelector((s) => s.planning.selectedSlotId);
   const playActive = useSelector((s) => s.planning.playActive);
   const playStep = useSelector((s) => s.planning.playStep);
-  const selectedWorkPackageId = useSelector(
-    (s) => s.businessObjects.selectedWorkPackageId
+  const activeWorkPackageId = useSelector(
+    (s) => s.businessObjects.activeWorkPackageId
   );
 
   // play mode: keep the current column visible
@@ -73,6 +92,29 @@ export default function PlanningGrid({
       el.scrollLeft = Math.max(0, left - LEFT_COL_WIDTH - el.clientWidth / 3);
     }
   }, [playActive, playStep]);
+
+  // Escape / Delete on the selected block. Capture phase + stopPropagation so
+  // the shortcut does not depend on the grid holding the focus and the map
+  // editor's window-level Delete handler (which would open the
+  // delete-annotation dialog) never sees the event.
+  useEffect(() => {
+    if (!selectedSlotId) return;
+    function onKey(e) {
+      if (e.repeat) return;
+      if (isEditableTarget(e.target)) return;
+      // Let MUI dialogs / menus / popovers close themselves on Escape.
+      if (e.target?.closest?.(".MuiModal-root")) return;
+      if (e.key === "Escape") {
+        dispatch(setSelectedSlotId(null));
+      } else if (e.key === "Delete" || e.key === "Backspace") {
+        deleteSlot(selectedSlotId);
+      } else return;
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [selectedSlotId, dispatch, deleteSlot]);
 
   // helpers
 
@@ -124,13 +166,6 @@ export default function PlanningGrid({
         planningResourceId: resource?.id,
       });
     },
-    onClick: (slot) => {
-      dispatch(clearSelection());
-      dispatch(setSelectedSlotId(slot.id));
-      if (slot.workPackageId !== selectedWorkPackageId)
-        dispatch(setSelectedWorkPackageId(slot.workPackageId));
-      rootRef.current?.focus();
-    },
   });
 
   // slots per row (preview applied)
@@ -154,8 +189,28 @@ export default function PlanningGrid({
 
   // handlers
 
-  async function handleCellClick(e, resource) {
-    if (!selectedWorkPackageId || !workPackageById[selectedWorkPackageId]) {
+  function selectSlot(slot) {
+    dispatch(setSelectedSlotId(slot.id));
+    if (slot.workPackageId !== activeWorkPackageId) {
+      dispatch(setActiveWorkPackageId(slot.workPackageId));
+      dispatch(
+        setSelectedItem({
+          id: slot.workPackageId,
+          type: "WORK_PACKAGE",
+          listingId: planning?.listingId ?? null,
+        })
+      );
+    }
+  }
+
+  async function handleBandPointerDown(e, resource) {
+    // A press on an empty band first clears the block selection: a second press
+    // creates a block.
+    if (selectedSlotId) {
+      dispatch(setSelectedSlotId(null));
+      return;
+    }
+    if (!activeWorkPackageId || !workPackageById[activeWorkPackageId]) {
       dispatch(
         setToaster({
           message:
@@ -166,28 +221,16 @@ export default function PlanningGrid({
     }
     const rect = e.currentTarget.getBoundingClientRect();
     const step = Math.max(0, Math.floor((e.clientX - rect.left) / COL_WIDTH));
-    const created = await createSlot({
+    // Not auto-selected: consecutive presses keep creating blocks (a press on
+    // an empty band deselects first, so auto-selecting would cost two presses
+    // per block).
+    await createSlot({
       planning,
       planningResourceId: resource.id,
-      workPackageId: selectedWorkPackageId,
+      workPackageId: activeWorkPackageId,
       startStep: step,
       steps: 1,
     });
-    dispatch(setSelectedSlotId(created.id));
-    rootRef.current?.focus();
-  }
-
-  function handleKeyDown(e) {
-    const tag = document.activeElement?.tagName;
-    if (tag === "INPUT" || tag === "TEXTAREA") return;
-    if ((e.key === "Delete" || e.key === "Backspace") && selectedSlotId) {
-      e.stopPropagation();
-      e.preventDefault();
-      deleteSlot(selectedSlotId);
-    } else if (e.key === "Escape") {
-      e.stopPropagation();
-      dispatch(setSelectedSlotId(null));
-    }
   }
 
   // render
@@ -199,13 +242,17 @@ export default function PlanningGrid({
   }px, rgba(0,0,0,0.12) ${COL_WIDTH - 1}px ${COL_WIDTH}px), repeating-linear-gradient(90deg, transparent 0 ${
     spd * COL_WIDTH - 1
   }px, rgba(0,0,0,0.35) ${spd * COL_WIDTH - 1}px ${spd * COL_WIDTH}px)`;
+  const bandCursor = selectedSlotId
+    ? "default"
+    : activeWorkPackageId
+      ? "cell"
+      : "default";
 
   return (
     <Box
       ref={rootRef}
       tabIndex={0}
-      onKeyDown={handleKeyDown}
-      onClick={() => {
+      onPointerDown={() => {
         if (selectedSlotId) dispatch(setSelectedSlotId(null));
       }}
       sx={{ flex: 1, minHeight: 0, overflow: "auto", outline: "none" }}
@@ -228,9 +275,10 @@ export default function PlanningGrid({
               canMoveDown={rowIndex < resources.length - 1}
             />
             <Box
-              onClick={(e) => {
+              onPointerDown={(e) => {
+                if (e.button !== 0) return;
                 e.stopPropagation();
-                handleCellClick(e, resource);
+                handleBandPointerDown(e, resource);
               }}
               sx={{
                 position: "relative",
@@ -240,7 +288,7 @@ export default function PlanningGrid({
                 borderBottom: "1px solid",
                 borderColor: "divider",
                 backgroundImage: gridBackground,
-                cursor: selectedWorkPackageId ? "cell" : "default",
+                cursor: bandCursor,
               }}
             >
               {slotsByRowIndex[rowIndex].map(
@@ -262,11 +310,21 @@ export default function PlanningGrid({
                       }
                       selected={slot.id === selectedSlotId}
                       dragging={dragging}
-                      onPointerDownMove={(e) =>
-                        startDrag(e, { slot, mode: "move", rowIndex })
+                      onPointerDown={(e) => {
+                        if (e.button !== 0) return;
+                        e.stopPropagation();
+                        // Select first, drag second.
+                        if (slot.id !== selectedSlotId) {
+                          selectSlot(slot);
+                          return;
+                        }
+                        startDrag(e, { slot, mode: "move", rowIndex });
+                      }}
+                      onPointerDownResizeStart={(e) =>
+                        startDrag(e, { slot, mode: "resizeStart", rowIndex })
                       }
-                      onPointerDownResize={(e) =>
-                        startDrag(e, { slot, mode: "resize", rowIndex })
+                      onPointerDownResizeEnd={(e) =>
+                        startDrag(e, { slot, mode: "resizeEnd", rowIndex })
                       }
                       onDelete={(s) => deleteSlot(s.id)}
                     />
