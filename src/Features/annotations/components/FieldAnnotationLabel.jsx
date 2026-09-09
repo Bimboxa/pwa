@@ -4,8 +4,15 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice";
 import { triggerEntitiesTableUpdate } from "Features/entities/entitiesSlice";
 
+import { IconButton, Tooltip } from "@mui/material";
+import {
+  Visibility as VisibilityIcon,
+  VisibilityOff as VisibilityOffIcon,
+} from "@mui/icons-material";
+
 import db from "App/db/db";
 import FieldTextV2 from "Features/form/components/FieldTextV2";
+import hasAnnotationSubLabel from "../utils/hasAnnotationSubLabel";
 
 import useRelsBusinessObjectAnnotation from "Features/businessObjects/hooks/useRelsBusinessObjectAnnotation";
 import useUpdateBusinessObject from "Features/businessObjects/hooks/useUpdateBusinessObject";
@@ -19,6 +26,11 @@ import useUpdateBusinessObject from "Features/businessObjects/hooks/useUpdateBus
 // displayed label is derived from it (useAnnotationsV2 override).
 export default function FieldAnnotationLabel({ annotation }) {
   const dispatch = useDispatch();
+
+  // strings
+
+  const showLabelS = "Afficher l'étiquette";
+  const hideLabelS = "Masquer l'étiquette";
 
   // data
 
@@ -52,7 +64,19 @@ export default function FieldAnnotationLabel({ annotation }) {
       : null;
   const updateBusinessObject = useUpdateBusinessObject();
 
+  // helpers — show / hide toggle only for annotations with a sub-label
+  // (same predicate as the Etiquette panel).
+
+  const canToggleLabel = hasAnnotationSubLabel(annotation);
+  const showLabel = Boolean(annotation?.showLabel);
+
   // handlers
+
+  async function handleToggleShowLabel() {
+    if (!annotation?.id) return;
+    await db.annotations.update(annotation.id, { showLabel: !showLabel });
+    dispatch(triggerAnnotationsUpdate());
+  }
 
   async function handleChange(label) {
     if (!annotation?.id) return;
@@ -77,7 +101,7 @@ export default function FieldAnnotationLabel({ annotation }) {
 
   // render
 
-  let fieldLabel = "Label";
+  let fieldLabel = "Etiquette";
   let value = annotation?.label ?? "";
   if (detailBaseMapId) {
     fieldLabel = "Référence";
@@ -87,12 +111,24 @@ export default function FieldAnnotationLabel({ annotation }) {
     value = mainBusinessObject.label ?? "";
   }
 
+  const endAction = canToggleLabel ? (
+    <Tooltip title={showLabel ? hideLabelS : showLabelS}>
+      <IconButton size="small" onClick={handleToggleShowLabel}>
+        {showLabel ? (
+          <VisibilityIcon fontSize="small" />
+        ) : (
+          <VisibilityOffIcon fontSize="small" />
+        )}
+      </IconButton>
+    </Tooltip>
+  ) : null;
+
   return (
     <FieldTextV2
       label={fieldLabel}
       value={value}
       onChange={handleChange}
-      options={{ showAsField: true, changeOnBlur: true, hideMic: true }}
+      options={{ showAsField: true, changeOnBlur: true, hideMic: true, endAction }}
     />
   );
 }

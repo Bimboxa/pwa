@@ -31,6 +31,9 @@ export default function FieldTextV2({ value, onChange, options, label }) {
   const isNumber = options?.isNumber;
   const changeOnBlur = options?.changeOnBlur;
   const startAdornment = options?.startAdornment; // string | ReactNode
+  // ReactNode rendered right after the text field (outside the input), e.g.
+  // an action IconButton — the inner endAdornment stays for the Close button.
+  const endAction = options?.endAction;
 
   const [recording, setRecording] = useState(false);
 
@@ -70,16 +73,26 @@ export default function FieldTextV2({ value, onChange, options, label }) {
   }
 
   function handleOnBlur() {
-    console.log("handleOnBlur", tempValue);
-
     let newValue = tempValue.toString().trim();
 
+    // Unchanged value: no commit (avoids a write on every focus loss).
+    if (newValue === String(value ?? "").trim()) return;
+
     if (isNumber) {
-      newValue.replace(",", ".");
+      newValue = newValue.replace(",", ".");
       newValue = Number(newValue);
       if (isNaN(newValue)) newValue = 0;
     }
     onChange(newValue);
+  }
+
+  // Enter commits (blur) on single-line fields; multiline keeps the newline.
+  function handleKeyDown(e) {
+    e.stopPropagation();
+    if (e.key === "Enter" && !e.shiftKey && !multiline) {
+      e.preventDefault();
+      e.target.blur();
+    }
   }
 
   // render
@@ -95,7 +108,7 @@ export default function FieldTextV2({ value, onChange, options, label }) {
     value={tempValue}
     onChange={handleChange}
     onBlur={handleOnBlur}
-    onKeyDown={(e) => e.stopPropagation()}
+    onKeyDown={handleKeyDown}
     slotProps={{
       input: {
         startAdornment: startAdornment ? (
@@ -158,8 +171,9 @@ export default function FieldTextV2({ value, onChange, options, label }) {
       <Typography variant="body2" sx={{ fontWeight: "bold" }} noWrap>
         {label}
       </Typography>
-      <Box sx={{ flex: 1, minWidth: 0, justifyContent: "flex-end", alignItems: "center", display: "flex" }}>
+      <Box sx={{ flex: 1, minWidth: 0, justifyContent: "flex-end", alignItems: "center", display: "flex", gap: 0.5 }}>
         {textField}
+        {endAction}
       </Box>
     </Box>
     </WhiteSectionGeneric>
@@ -214,10 +228,13 @@ export default function FieldTextV2({ value, onChange, options, label }) {
             flex: 1,
             minWidth: 0,
             display: "flex",
+            alignItems: "center",
+            gap: 0.5,
             ...showLabel && { p: 1 }
           }}
         >
           {textField}
+          {endAction}
         </Box>
       </Box>
     </Box>

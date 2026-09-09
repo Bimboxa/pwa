@@ -7,15 +7,16 @@ import db from "App/db/db";
 import { triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice";
 import getAnnotationLabelDeltaFromDeltaPos from "Features/annotations/utils/getAnnotationLabelDeltaFromDeltaPos";
 import {
+  buildAnnotationLabelSelectionItem,
+  getSelectedAnnotationIds,
+} from "Features/annotations/utils/annotationLabelSelection";
+import {
   setSelectedNode,
   setAnnotationToolbarPosition,
   setAnnotationsToolbarPosition,
 } from "Features/mapEditor/mapEditorSlice";
 import {
   setSelectedItem,
-  toggleItemSelection,
-  setShowAnnotationsProperties,
-  setAnnotationPropertiesTab,
   selectSelectedItems,
 } from "Features/selection/selectionSlice";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
@@ -76,14 +77,13 @@ export default function useAnnotationLabelDragHandlers({ rendererIsReady }) {
   );
 
   // Currently-selected annotation id — a label is only draggable once its
-  // annotation is selected (same rule as the 2D editor).
+  // annotation (or the label itself, ANNOTATION_LABEL) is selected (same
+  // rule as the 2D editor).
   const selectedItems = useSelector(selectSelectedItems);
   const selectedAnnotationIdRef = useRef(null);
   selectedAnnotationIdRef.current =
-    selectedItems.length === 1 &&
-    selectedItems[0]?.type === "NODE" &&
-    selectedItems[0]?.nodeType === "ANNOTATION"
-      ? selectedItems[0].nodeId
+    selectedItems.length === 1
+      ? getSelectedAnnotationIds(selectedItems)[0] ?? null
       : null;
 
   const dragRef = useRef(null);
@@ -292,39 +292,30 @@ export default function useAnnotationLabelDragHandlers({ rendererIsReady }) {
       if (drag.clickOnly && drag.moved) return;
 
       // Selection (click OR drag end) — safe here: the rebuild it triggers
-      // now happens after the gesture. Mirrors the cote-sprite click branch
-      // of MainThreedEditor.
+      // now happens after the gesture. Clicking a label card selects the
+      // LABEL (ANNOTATION_LABEL item → Etiquette panel), same as the 2D chip.
+      // Always a single replace: a label never joins a multi-selection.
       const { annotationType, listingId, annotationTemplateId } =
         drag.sprite.userData;
-      const item = {
-        id: drag.annotationId,
-        nodeId: drag.annotationId,
-        type: "NODE",
-        nodeType: "ANNOTATION",
-        annotationType,
-        listingId,
-        annotationTemplateId,
-      };
+      const item = buildAnnotationLabelSelectionItem({
+        annotation: {
+          id: drag.annotationId,
+          type: annotationType,
+          listingId,
+          annotationTemplateId,
+        },
+      });
       const position = { x: e.clientX, y: e.clientY };
-      if (e?.shiftKey) {
-        dispatch(toggleItemSelection(item));
-      } else {
-        dispatch(
-          setSelectedNode({
-            id: drag.annotationId,
-            nodeId: drag.annotationId,
-            nodeType: "ANNOTATION",
-            annotationType,
-            listingId,
-          })
-        );
-        dispatch(setSelectedItem(item));
-        dispatch(setShowAnnotationsProperties(true));
-        // Clicking a label card = selecting the label: open the annotation's
-        // properties panel directly on the Etiquette tab (same behavior as
-        // clicking the 2D chip, where the label:: nodeId drives the reducer).
-        dispatch(setAnnotationPropertiesTab("LABEL"));
-      }
+      dispatch(
+        setSelectedNode({
+          id: drag.annotationId,
+          nodeId: drag.annotationId,
+          nodeType: "ANNOTATION",
+          annotationType,
+          listingId,
+        })
+      );
+      dispatch(setSelectedItem(item));
       dispatch(clearSubSelection());
       dispatch(setAnnotationToolbarPosition(position));
       dispatch(setAnnotationsToolbarPosition(position));

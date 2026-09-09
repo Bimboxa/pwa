@@ -36,7 +36,10 @@ export default function useSelectedAnnotation() {
 
   let selectedAnnotationId = _selectedAnnotationId;
   // If we have a selected item in the new slice, prioritize it
-  if (selectedItem?.nodeType === "ANNOTATION") {
+  if (selectedItem?.type === "ANNOTATION_LABEL") {
+    // A selected label resolves to its parent annotation.
+    selectedAnnotationId = selectedItem.annotationId;
+  } else if (selectedItem?.nodeType === "ANNOTATION") {
     selectedAnnotationId = selectedItem.nodeId;
   } else if (selectedItem?.context === "BG_IMAGE") {
     // Handle other types if they map to annotations

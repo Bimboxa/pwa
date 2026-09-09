@@ -33,6 +33,11 @@ export default function getDraftFieldVisibility(
   // hides the generic height / offset / thickness fields.
   const isRampTool = enabledDrawingMode === "RAMP";
 
+  // Purely annotative shapes (callout bubble, free text) have no 3D body:
+  // the Offset / height fields would be meaningless noise for them.
+  const isAnnotativeShape =
+    drawingShape === "DETAIL" || drawingShape === "FREE_TEXT";
+
   const overrideFields = newAnnotation?.overrideFields;
   const isFieldOverridden = (field) =>
     Array.isArray(overrideFields) && overrideFields.includes(field);
@@ -47,9 +52,15 @@ export default function getDraftFieldVisibility(
         drawingShape === "LINEAR_LAYOUT")) ||
       isOpeningBand);
   const showOffset =
-    !isToolGroup && !isRampTool && !isFieldOverridden("offsetZ");
+    !isToolGroup &&
+    !isRampTool &&
+    !isAnnotativeShape &&
+    !isFieldOverridden("offsetZ");
   const showHeight =
-    !isToolGroup && !isRampTool && !isFieldOverridden("height");
+    !isToolGroup &&
+    !isRampTool &&
+    !isAnnotativeShape &&
+    !isFieldOverridden("height");
   const showWidth =
     (drawingShape === "OPENING" || drawingShape === "LINEAR_LAYOUT") &&
     !isFieldOverridden("width");

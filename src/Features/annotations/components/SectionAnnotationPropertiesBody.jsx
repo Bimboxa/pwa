@@ -11,33 +11,18 @@ import { Box, Typography, Tabs, Tab } from "@mui/material";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import SectionAnnotationPropertiesContent from "./SectionAnnotationPropertiesContent";
-import SectionAnnotationLabelContent from "./SectionAnnotationLabelContent";
 import SectionAnnotationPartPropertiesContent from "./SectionAnnotationPartPropertiesContent";
 import SectionMultiPartProperties from "./SectionMultiPartProperties";
 import SectionAnnotationZones from "Features/zonings/components/SectionAnnotationZones";
 import SectionAnnotationPhotoPlan from "Features/photoPlans/components/SectionAnnotationPhotoPlan";
 import SectionAnnotationFolioContent from "Features/detailFolio/components/SectionAnnotationFolioContent";
 
-// Types without a draggable sub-label (no labelDelta model) — no Etiquette tab.
-const TYPES_WITHOUT_LABEL = [
-  "COTE",
-  "RULER",
-  "TEXT",
-  "LABEL",
-  "FREE_TEXT",
-  "DETAIL",
-];
-
+// The label options ("Etiquette") are no longer a tab here: clicking the
+// label chip selects it (ANNOTATION_LABEL) and opens its own panel
+// (PanelAnnotationLabelProperties).
 function getTabs(annotation) {
-  const showLabelTab =
-    annotation &&
-    !TYPES_WITHOUT_LABEL.includes(annotation.type) &&
-    !annotation.isMeshCell &&
-    !annotation.isBaseMapAnnotation;
-
   return [
     { id: "PROPERTIES", label: "Propriété" },
-    ...(showLabelTab ? [{ id: "LABEL", label: "Etiquette" }] : []),
     ...(annotation?.type === "DETAIL" ? [{ id: "FOLIO", label: "Folio" }] : []),
   ];
 }
@@ -75,8 +60,8 @@ export default function SectionAnnotationPropertiesBody({
 
   const tabs = getTabs(annotation);
   const tabIds = tabs.map(({ id }) => id);
-  // Selected tab may not exist for this annotation (e.g. "LABEL" then a COTE
-  // gets selected) — fall back to the first tab.
+  // Selected tab may not exist for this annotation (e.g. "FOLIO" then a
+  // POLYGON gets selected, or a stale "LABEL") — fall back to the first tab.
   const effectiveTab = tabIds.includes(tab) ? tab : "PROPERTIES";
   const idx = tabIds.indexOf(effectiveTab);
 
@@ -102,7 +87,8 @@ export default function SectionAnnotationPropertiesBody({
 
   return (
     <BoxFlexVStretch ref={containerRef}>
-      {!hasPart && (
+      {/* A single tab is no navigation: hide the bar. */}
+      {!hasPart && tabs.length > 1 && (
         <Tabs value={idx} onChange={handleTabChange}>
           {tabs.map(({ id, label }) => (
             <Tab key={id} label={label} id={id} />
@@ -137,10 +123,6 @@ export default function SectionAnnotationPropertiesBody({
                 self-hiding otherwise. */}
             <SectionAnnotationPhotoPlan annotation={annotation} />
           </>
-        )}
-
-        {!hasPart && effectiveTab === "LABEL" && (
-          <SectionAnnotationLabelContent annotation={annotation} />
         )}
 
         {!hasPart && effectiveTab === "FOLIO" && (

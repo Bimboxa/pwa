@@ -9,6 +9,7 @@ import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import PanelListingProperties from "Features/listings/components/PanelListingProperties";
 import PanelPropertiesListingV2 from "Features/listings/components/PanelPropertiesListingV2";
 import PanelAnnotationProperties from "Features/annotations/components/PanelAnnotationProperties";
+import PanelAnnotationLabelProperties from "Features/annotations/components/PanelAnnotationLabelProperties";
 import PanelAnnotationTemplateProperties from "Features/annotations/components/PanelAnnotationTemplateProperties";
 import PanelEntityProperties from "Features/entities/components/PanelEntityProperties";
 import PanelBaseMapContainerProperties from "Features/portfolioEditor/components/PanelBaseMapContainerProperties";
@@ -34,6 +35,7 @@ import PanelPovProperties from "Features/pov/components/PanelPovProperties";
 import PanelZoneProperties from "Features/zonings/components/PanelZoneProperties";
 import PanelBusinessObjectProperties from "Features/businessObjects/components/PanelBusinessObjectProperties";
 import PanelBusinessObjectListingProperties from "Features/businessObjects/components/PanelBusinessObjectListingProperties";
+import PanelWorkPackageProperties from "Features/businessObjects/components/PanelWorkPackageProperties";
 import PanelPovFrameProperties from "Features/pov/components/PanelPovFrameProperties";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 
@@ -53,6 +55,9 @@ export default function PanelSelectionProperties() {
   );
   const selectedBusinessObjectId = useSelector(
     (s) => s.businessObjects.selectedBusinessObjectId
+  );
+  const selectedWorkPackageId = useSelector(
+    (s) => s.businessObjects.selectedWorkPackageId
   );
   // Ouvrages module: active listing of the drawer, fallback of the default
   // (no-selection) listing panel.
@@ -88,6 +93,21 @@ export default function PanelSelectionProperties() {
   } else if (selectedItem?.type === "PHOTO") {
     // Photo selected from a photos grid (popper / panel) or its map node.
     type = "PHOTO";
+  } else if (
+    selectedItem?.type === "ANNOTATION_LABEL" &&
+    selectedItems.length === 1
+  ) {
+    // Annotation label (2D chip / 3D card) selected: its own panel — the
+    // former Etiquette tab. Back selects the parent annotation.
+    type = "ANNOTATION_LABEL";
+  } else if (
+    isBusinessObjectsModuleKey(selectedViewerKey) &&
+    selectedWorkPackageId &&
+    !selectedItem
+  ) {
+    // Soloed work package (PLANNING drawer, "Work packages" tab) with no
+    // other selection: the package's properties (tasks, hours, annotations).
+    type = "WORK_PACKAGE";
   } else if (
     isBusinessObjectsModuleKey(selectedViewerKey) &&
     selectedBusinessObjectId &&
@@ -256,6 +276,8 @@ export default function PanelSelectionProperties() {
 
       {type === "ANNOTATION" && <PanelAnnotationProperties />}
 
+      {type === "ANNOTATION_LABEL" && <PanelAnnotationLabelProperties />}
+
       {type === "ANNOTATION_TEMPLATE" && <PanelAnnotationTemplateProperties />}
 
       {type === "BASE_MAP_CONTAINER" && <PanelBaseMapContainerProperties />}
@@ -305,6 +327,8 @@ export default function PanelSelectionProperties() {
       {type === "ZONE" && <PanelZoneProperties />}
 
       {type === "BUSINESS_OBJECT" && <PanelBusinessObjectProperties />}
+
+      {type === "WORK_PACKAGE" && <PanelWorkPackageProperties />}
 
       {/* listingById when a LISTING is selected (back arrow), the module's
           active listing otherwise (no-selection default). Not `listing`: once

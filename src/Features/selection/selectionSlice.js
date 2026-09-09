@@ -63,11 +63,6 @@ export const selectionSlice = createSlice({
       if (!item || item.type !== "NODE") {
         state.showAnnotationsProperties = false;
       }
-      // A selected label ("label::<id>") opens its annotation's properties
-      // panel directly on the Etiquette tab.
-      if (item?.type === "NODE" && item?.nodeId?.startsWith?.("label::")) {
-        state.annotationPropertiesTab = "LABEL";
-      }
     },
     setSelectedItems: (state, action) => {
       // Handles setting items directly
@@ -148,6 +143,19 @@ export const selectionSlice = createSlice({
         if (item.type === "ANNOTATION_TEMPLATE") {
           item.type = "LISTING";
           item.id = item.listingId;
+        }
+        else if (item.type === "ANNOTATION_LABEL") {
+          // Label → its parent annotation (NODE item + annotation panel).
+          item.type = "NODE";
+          item.id = item.annotationId;
+          item.nodeId = item.annotationId;
+          item.annotationType = item.parentAnnotationType ?? null;
+          item.partId = null;
+          item.partType = null;
+          delete item.annotationId;
+          delete item.parentAnnotationType;
+          state.showAnnotationsProperties = true;
+          state.annotationPropertiesTab = "PROPERTIES";
         }
         else if (item.type === "NODE" && item.nodeType === "MESH3D") {
           // Mailles live outside the listing hierarchy — back = deselect.

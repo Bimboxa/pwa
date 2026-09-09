@@ -24,6 +24,11 @@ const ROT_RING_R = TIP_OFFSET + BUBBLE_R + 8; // rotation helper orbit
 const DEFAULT_FONT_SIZE = 14;
 const SMALL_FONT_SIZE = 11;
 
+// Rotation cursor — circular arrow (270° arc + chevron head), white halo
+// under a black stroke so it reads on any background. Hotspot = center.
+// Same data-URI pattern as CURSOR_ADD / CURSOR_REMOVE in NodePolylineStatic.
+const CURSOR_ROTATE = `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24'><g fill='none' stroke-linecap='round' stroke-linejoin='round'><path d='M12 5 A7 7 0 1 1 5 12 M2 15 L5 11 L8 15' stroke='white' stroke-width='4.5'/><path d='M12 5 A7 7 0 1 1 5 12 M2 15 L5 11 L8 15' stroke='black' stroke-width='2'/></g></svg>") 12 12, grab`;
+
 // DETAIL node — a "detail bubble": white circle with a thick ring containing
 // a short label, plus a filled triangular arrow whose TIP is the annotation's
 // stored point. The tip sits at the local origin so it stays glued to the
@@ -221,7 +226,9 @@ function NodeDetailStatic({
     <g
       transform={`translate(${tipX}, ${tipY})`}
       style={{
-        cursor: dragged ? "grabbing" : "pointer",
+        // Selected: the bubble/arrow are a move-drag zone → "move" (4 arrows);
+        // the rotate ring below overrides with its own cursor.
+        cursor: dragged ? "grabbing" : selected ? "move" : "pointer",
         opacity: dragged ? 0.7 : 1,
         transition: "opacity 0.1s",
       }}
@@ -332,7 +339,7 @@ function NodeDetailStatic({
               strokeWidth={14}
               data-interaction="rotate-annotation"
               data-node-id={id}
-              style={{ pointerEvents: "stroke", cursor: "grab" }}
+              style={{ pointerEvents: "stroke", cursor: CURSOR_ROTATE }}
             />
             {/* Grip dot on the arrow side, as affordance */}
             <circle

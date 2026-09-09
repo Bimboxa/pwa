@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import { useSelector } from "react-redux";
 
+import { getSelectedAnnotationIds } from "Features/annotations/utils/annotationLabelSelection";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import applyAnnotationMaterialState, {
   STATE_DIM,
@@ -37,9 +38,7 @@ export default function ThreedSelectionDimmer({
   const mainBaseMapId = mainBaseMap?.id ?? null;
 
   const selectedIdsRef = useRef([]);
-  selectedIdsRef.current = selectedItems
-    .filter((i) => i.type === "NODE" && i.nodeType === "ANNOTATION")
-    .map((i) => i.nodeId || i.id);
+  selectedIdsRef.current = getSelectedAnnotationIds(selectedItems);
 
   // Maille (MESH3D) selections dim annotations too — same "everything
   // translucent except the selection" mechanism as annotation selections.

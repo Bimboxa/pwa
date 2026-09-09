@@ -6,6 +6,7 @@ import { selectSelectedItems, clearSelection } from "Features/selection/selectio
 import DialogDeleteRessource from "Features/layout/components/DialogDeleteRessource";
 
 import useDeleteAnnotations from "../hooks/useDeleteAnnotations";
+import { isAnnotationLabelNodeId } from "../utils/annotationLabelSelection";
 import useDeleteMeshes3d from "Features/threedMesh/hooks/useDeleteMeshes3d";
 import { setAnnotationToolbarPosition } from "Features/mapEditor/mapEditorSlice";
 
@@ -32,8 +33,16 @@ export default function DialogDeleteSelectedAnnotation() {
     const mesh3dIds = selectedItems
       .filter((item) => item.nodeId && item.nodeType === "MESH3D")
       .map((item) => item.nodeId);
+    // ANNOTATION_LABEL items ("label::<id>") are never deletable here: a
+    // label is hidden, not deleted (Delete key handlers).
     const annotationIds = selectedItems
-      .filter((item) => item.nodeId && item.nodeType !== "MESH3D")
+      .filter(
+        (item) =>
+          item.nodeId &&
+          item.nodeType !== "MESH3D" &&
+          item.type !== "ANNOTATION_LABEL" &&
+          !isAnnotationLabelNodeId(item.nodeId)
+      )
       .map((item) => item.nodeId);
     if (mesh3dIds.length === 0 && annotationIds.length === 0) return;
 

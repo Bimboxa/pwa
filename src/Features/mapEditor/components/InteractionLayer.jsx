@@ -66,7 +66,8 @@ import {
   setSelectedPartIds,
   toggleSelectedPartId,
   clearSelectedPartIds,
-  setShowAnnotationsProperties
+  setShowAnnotationsProperties,
+  triggerSelectionBack,
 } from "Features/selection/selectionSlice";
 
 import useResetNewAnnotation from 'Features/annotations/hooks/useResetNewAnnotation';
@@ -108,7 +109,8 @@ import anchorAnnotationToTarget from 'Features/annotations/services/anchorAnnota
 import addAnnotationSubtraction from 'Features/annotations/services/addAnnotationSubtraction';
 import addAnnotationSubtractions from 'Features/annotations/services/addAnnotationSubtractions';
 import toggleAnnotationBusinessObjectLinkService from 'Features/businessObjects/services/toggleAnnotationBusinessObjectLinkService';
-import { setLinkingBusinessObjectId, triggerRelsBusinessObjectAnnotationUpdate } from 'Features/businessObjects/businessObjectsSlice';
+import { setLinkingBusinessObjectId, triggerRelsBusinessObjectAnnotationUpdate, setLinkingWorkPackageId, triggerRelsWorkPackageAnnotationUpdate } from 'Features/businessObjects/businessObjectsSlice';
+import toggleAnnotationWorkPackageLinkService from 'Features/businessObjects/services/toggleAnnotationWorkPackageLinkService';
 import { isForeignFootprintId } from 'Features/annotations/constants/foreignFootprint';
 import updateAnnotationService from 'Features/annotations/services/updateAnnotationService';
 import AnnotationEditingWrapper from './AnnotationEditingWrapper';
@@ -167,6 +169,7 @@ import getEffectiveDetectionMode, { SEGMENT_SNAP_MODES } from 'Features/mapEdito
 import getAnnotationEditionPanelAnchor from 'Features/annotations/utils/getAnnotationEditionPanelAnchor';
 import pasteAnnotationService from 'Features/mapEditor/services/pasteAnnotationService';
 import getAnnotationLabelPropsFromAnnotation from 'Features/annotations/utils/getAnnotationLabelPropsFromAnnotation';
+import { isAnnotationLabelNodeId, getAnnotationIdFromLabelNodeId, buildAnnotationLabelSelectionItem } from 'Features/annotations/utils/annotationLabelSelection';
 import toggleSelectedNodeFunction from '../utils/toggleSelectedNode';
 
 import { setToaster } from "Features/layout/layoutSlice";
@@ -581,6 +584,8 @@ const InteractionLayer = forwardRef(({
   const subtractTargetAnnotationId = useSelector((s) => s.mapEditor.subtractTargetAnnotationId);
   // Business-object link mode (clicks toggle links to this "Ouvrages" object)
   const linkingBusinessObjectId = useSelector((s) => s.businessObjects.linkingBusinessObjectId);
+  // Work-package link mode (clicks move annotations into this PLANNING package)
+  const linkingWorkPackageId = useSelector((s) => s.businessObjects.linkingWorkPackageId);
   const selectedProjectId = useSelector((s) => s.projects.selectedProjectId);
   const mapEditorMode = useSelector((s) => s.mapEditor.mapEditorMode);
   const orthoSnapAngleOffset = useSelector((s) => s.mapEditor.orthoSnapAngleOffset);
@@ -2900,6 +2905,11 @@ const InteractionLayer = forwardRef(({
     linkingBusinessObjectIdRef.current = linkingBusinessObjectId;
   }, [linkingBusinessObjectId]);
 
+  const linkingWorkPackageIdRef = useRef(linkingWorkPackageId);
+  useEffect(() => {
+    linkingWorkPackageIdRef.current = linkingWorkPackageId;
+  }, [linkingWorkPackageId]);
+
   const stripDetectionOrientationRef = useRef(stripDetectionOrientation);
   useEffect(() => {
     stripDetectionOrientationRef.current = stripDetectionOrientation;
@@ -3933,6 +3943,13 @@ const InteractionLayer = forwardRef(({
             return;
           }
 
+          // Cancel work-package link mode if active
+          if (linkingWorkPackageIdRef.current) {
+            dispatch(setLinkingWorkPackageId(null));
+            e.stopPropagation();
+            return;
+          }
+
           // Abort an in-flight GLOBAL smart-detect run (spinner phase) without
           // clearing the rest of the drawing state.
           if (globalDetectionAbortRef.current) {
@@ -4755,6 +4772,20 @@ const InteractionLayer = forwardRef(({
               return;
             }
           }
+          else if (selectedNode?.type === "ANNOTATION_LABEL") {
+            // Selected LABEL: Delete hides the label (never deletes the
+            // parent annotation), then the selection falls back on it.
+            const labelAnnotationId = selectedNode.annotationId;
+            if (!labelAnnotationId || !permissions.canEditAnnotation(labelAnnotationId)) break;
+            e.stopPropagation();
+            db.annotations
+              .update(labelAnnotationId, { showLabel: false })
+              .then(() => {
+                dispatch(triggerAnnotationsUpdate());
+                dispatch(triggerSelectionBack());
+              })
+              .catch((err) => console.error(err));
+          }
           else if (selectedNode?.nodeId) {
             // PERMISSION GUARD : bloquer si pas propriétaire de l'annotation
             if (!permissions.canEditAnnotation(selectedNode?.nodeId)) break;
@@ -4884,7 +4915,7 @@ const InteractionLayer = forwardRef(({
     // Cross-tab navigation: in pure SELECT mode (no drawing tool, no anchor
     // pick), forward the click world position to the parent so it can
     // broadcast a 3D-camera pan event to other tabs.
-    if (!enabledDrawingMode && !anchorSourceAnnotationId && !subtractSourceAnnotationId && !subtractTargetAnnotationId && !linkingBusinessObjectId) {
+    if (!enabledDrawingMode && !anchorSourceAnnotationId && !subtractSourceAnnotationId && !subtractTargetAnnotationId && !linkingBusinessObjectId && !linkingWorkPackageId) {
       onMapClickInSelectMode?.({ worldPos, event });
     }
 
@@ -5040,6 +5071,40 @@ const InteractionLayer = forwardRef(({
                 }
                 : {
                   message: `Annotation déliée de "${businessObject.label}"`,
+                  severity: "info",
+                }
+            )
+          );
+        }
+      }
+      // Stay in link mode; only Escape exits it.
+      return;
+    }
+
+    // Work-package link mode (PLANNING): each click on an annotation moves it
+    // into the armed package (or out of it on a second click). Multi-pick:
+    // empty-space clicks do nothing, only Escape exits.
+    if (linkingWorkPackageId && !enabledDrawingMode) {
+      const nativeTarget = event.nativeEvent?.target || event.target;
+      const hit = nativeTarget.closest?.('[data-node-type="ANNOTATION"]');
+      if (hit && !isForeignFootprintId(hit.dataset.nodeId)) {
+        const annotationId = hit.dataset.nodeId;
+        const workPackage = await db.workPackages.get(linkingWorkPackageId);
+        if (workPackage && !workPackage.deletedAt) {
+          const result = await toggleAnnotationWorkPackageLinkService({
+            workPackage,
+            annotationId,
+          });
+          dispatch(triggerRelsWorkPackageAnnotationUpdate());
+          dispatch(
+            setToaster(
+              result === "linked"
+                ? {
+                  message: `Annotation liée à "${workPackage.label}"`,
+                  severity: "success",
+                }
+                : {
+                  message: `Annotation retirée de "${workPackage.label}"`,
                   severity: "info",
                 }
             )
@@ -5948,6 +6013,30 @@ const InteractionLayer = forwardRef(({
           dispatch(setSelectedPhotoId(photoId));
           dispatch(setSelectedItem({ id: photoId, type: "PHOTO" }));
           dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
+          if (tooltipData) setTooltipData(null);
+          return;
+        }
+
+        // --- 1b. ANNOTATION LABEL (chip "label::<id>") ---
+        // Usually handled by the pointerup path (the chip is draggable, so
+        // the world click doesn't fire); kept for the fallback paths.
+        else if (
+          hit?.dataset?.annotationType === "LABEL" &&
+          isAnnotationLabelNodeId(hit?.dataset?.nodeId)
+        ) {
+          const parentAnnotation = annotations?.find(
+            (a) => a.id === getAnnotationIdFromLabelNodeId(hit.dataset.nodeId)
+          );
+          dispatch(
+            setSelectedItem(
+              buildAnnotationLabelSelectionItem({
+                annotation: parentAnnotation,
+                nodeId: hit.dataset.nodeId,
+                nodeContext: hit.dataset.nodeContext,
+              })
+            )
+          );
+          dispatch(setAnnotationToolbarPosition(null));
           if (tooltipData) setTooltipData(null);
           return;
         }
@@ -7226,6 +7315,30 @@ const InteractionLayer = forwardRef(({
     if (!dragAnnotationState?.active && dragAnnotationState?.pending) {
 
       const annotationId = dragAnnotationState.selectedAnnotationId;
+
+      // Click on an annotation LABEL chip ("label::<id>"): select the label
+      // itself (ANNOTATION_LABEL item → Etiquette panel). Always a single
+      // replace (shift included): a label never joins a multi-selection.
+      // No toolbar / popper for a label.
+      if (isAnnotationLabelNodeId(annotationId)) {
+        const parentAnnotation = annotations?.find(
+          (a) => a.id === getAnnotationIdFromLabelNodeId(annotationId)
+        );
+        dispatch(
+          setSelectedItem(
+            buildAnnotationLabelSelectionItem({
+              annotation: parentAnnotation,
+              nodeId: annotationId,
+              nodeContext: dragAnnotationState.nodeContext,
+            })
+          )
+        );
+        dispatch(setAnnotationToolbarPosition(null));
+        if (tooltipData) setTooltipData(null);
+        handleAnnotationDragEnd();
+        return;
+      }
+
       const annotation = annotations?.find((a) => a.id === annotationId);
 
       let panelAnchor = null;
@@ -7269,7 +7382,10 @@ const InteractionLayer = forwardRef(({
 
       let _selectedItems = [...selectedItems];
 
-      if (event.shiftKey) {
+      // Shift from a selected LABEL: replace, never mix a label with
+      // annotation nodes in a multi-selection.
+      const labelSelected = selectedItems[0]?.type === "ANNOTATION_LABEL";
+      if (event.shiftKey && !labelSelected) {
         dispatch(toggleItemSelection(newItem));
         const exists = _selectedItems.find(i => i.id === newItem.id);
         if (exists) {

@@ -4,6 +4,7 @@ import { useSelector } from "react-redux";
 import { Group } from "three";
 
 import getAnnotationLabelPropsFromAnnotation from "Features/annotations/utils/getAnnotationLabelPropsFromAnnotation";
+import { getSelectedAnnotationIds } from "Features/annotations/utils/annotationLabelSelection";
 import { selectSelectedItems } from "Features/selection/selectionSlice";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 import pixelToWorld from "Features/threedEditor/js/utilsAnnotationsManager/pixelToWorld";
@@ -96,9 +97,9 @@ export default function ThreedAnnotationLabels({ annotations }) {
   const selectedAnnotationId = useSelector((s) => {
     const items = selectSelectedItems(s);
     if (items.length !== 1) return null;
-    const it = items[0];
-    if (it?.type !== "NODE" || it?.nodeType !== "ANNOTATION") return null;
-    return idsKey.split(",").includes(it.nodeId) ? it.nodeId : null;
+    const id = getSelectedAnnotationIds(items)[0];
+    if (!id) return null;
+    return idsKey.split(",").includes(id) ? id : null;
   });
 
   // Re-run once loadAnnotations has ensured the basemap groups exist — on a

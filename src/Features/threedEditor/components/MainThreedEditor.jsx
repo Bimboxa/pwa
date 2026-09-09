@@ -2,6 +2,9 @@ import React, { useRef, useState, useEffect, useCallback } from "react";
 import { useDispatch, useSelector, useStore } from "react-redux";
 import { Box3, Raycaster, Vector2, Vector3 } from "three";
 
+import selectPlanningBottomInset from "Features/planning/utils/selectPlanningBottomInset";
+
+import { getSelectedAnnotationIds } from "Features/annotations/utils/annotationLabelSelection";
 import useAutoLoadMapsInThreedEditor from "../hooks/useAutoLoadMapsInThreedEditor";
 import useAutoLoadPhotoPlansInThreedEditor from "../hooks/useAutoLoadPhotoPlansInThreedEditor";
 import useAutoLoadAnnotationsInThreedEditor from "../hooks/useAutoLoadAnnotationsInThreedEditor";
@@ -277,6 +280,9 @@ export default function MainThreedEditor() {
   const rightPanelKey = useSelector((s) => s.rightPanel.selectedMenuItemKey);
   const rightPanelWidth = useSelector((s) => s.rightPanel.width);
   const rightPanelOpen = Boolean(rightPanelKey);
+  // PLANNING module: the bottom planning panel overlays the editor — the
+  // bottom-right group lifts by its height so it stays reachable.
+  const planningBottomInset = useSelector(selectPlanningBottomInset);
   // Render mode (Standard / Réaliste / Photoréaliste).
   const renderMode = useSelector((s) => s.threedEditor.renderMode);
   // PHOTOREAL environment (Standard / Extérieur / Intérieur).
@@ -468,9 +474,7 @@ export default function MainThreedEditor() {
   const getStateForId = useCallback(
     (id, isHovered, isLineHover = false) => {
       const items = store.getState().selection.selectedItems || [];
-      const ids = items
-        .filter((i) => i.type === "NODE" && i.nodeType === "ANNOTATION")
-        .map((i) => i.nodeId || i.id);
+      const ids = getSelectedAnnotationIds(items);
       // Maille (MESH3D) selections dim annotations too — same "everything
       // translucent except the selection" mechanism.
       const hasSelection =
@@ -488,9 +492,7 @@ export default function MainThreedEditor() {
   // run sub-element raycasts against just that face). Returns null otherwise.
   const getSoloSelectedAnnotationId = useCallback(() => {
     const items = store.getState().selection.selectedItems || [];
-    const ids = items
-      .filter((i) => i.type === "NODE" && i.nodeType === "ANNOTATION")
-      .map((i) => i.nodeId || i.id);
+    const ids = getSelectedAnnotationIds(items);
     if (ids.length !== 1) return null;
     return ids[0];
   }, [store]);
@@ -2148,7 +2150,7 @@ export default function MainThreedEditor() {
           sx={{
             position: "absolute",
             right: rightPanelOpen ? `${rightPanelWidth + 16}px` : "16px",
-            bottom: "16px",
+            bottom: `${16 + planningBottomInset}px`,
             zIndex: 10,
             display: "flex",
             alignItems: "center",

@@ -138,6 +138,53 @@ export default function SectionAnnotationPropertiesContent({
           flexDirection: "column",
         }}
       >
+        {!hideOverview && !isFreeText && (
+          <FieldAnnotationLabel annotation={annotation} />
+        )}
+        {/* Standalone LABEL: no Etiquette tab, the leader stub lives here. */}
+        {type === "LABEL" && (
+          <FieldAnnotationLabelStub
+            annotation={annotation}
+            overrideFields={overrideFields}
+          />
+        )}
+        {/* Standalone LABEL: "Taille fixe" (FREE_TEXT display rules). */}
+        {type === "LABEL" && (
+          <FieldAnnotationLabelSize
+            annotation={annotation}
+            overrideFields={overrideFields}
+          />
+        )}
+        {drawingShape === "CIRCULATION" && (
+          <FieldAnnotationArrows annotation={annotation} />
+        )}
+        {drawingShape === "OPENING" && (
+          <FieldAnnotationOpening
+            annotation={annotation}
+            overrideFields={overrideFields}
+          />
+        )}
+        {isFreeText && <FieldAnnotationTextContent annotation={annotation} />}
+        {isFreeText && <FieldAnnotationFreeText annotation={annotation} />}
+        {/* Style (fill / stroke) before the dimensions. */}
+        {showFill && (
+          <FieldAnnotationFill
+            annotation={annotation}
+            overrideFields={overrideFields}
+          />
+        )}
+        {showStroke && (
+          <FieldAnnotationStroke
+            annotation={annotation}
+            overrideFields={overrideFields}
+          />
+        )}
+        {showStrokeWidth && (
+          <FieldAnnotationStrokeWidth
+            annotation={annotation}
+            overrideFields={overrideFields}
+          />
+        )}
         <SectionAnnotationTransform annotation={annotation} />
         {/* LINEAR_LAYOUT: band width L (bar length) — same section as the
             template form, without the override padlock. */}
@@ -158,52 +205,6 @@ export default function SectionAnnotationPropertiesContent({
         )}
         {type === "LINEAR_LAYOUT" && (
           <FieldAnnotationLinearLayout annotation={annotation} />
-        )}
-        {drawingShape === "CIRCULATION" && (
-          <FieldAnnotationArrows annotation={annotation} />
-        )}
-        {drawingShape === "OPENING" && (
-          <FieldAnnotationOpening
-            annotation={annotation}
-            overrideFields={overrideFields}
-          />
-        )}
-        {isFreeText && <FieldAnnotationTextContent annotation={annotation} />}
-        {isFreeText && <FieldAnnotationFreeText annotation={annotation} />}
-        {showFill && (
-          <FieldAnnotationFill
-            annotation={annotation}
-            overrideFields={overrideFields}
-          />
-        )}
-        {showStroke && (
-          <FieldAnnotationStroke
-            annotation={annotation}
-            overrideFields={overrideFields}
-          />
-        )}
-        {showStrokeWidth && (
-          <FieldAnnotationStrokeWidth
-            annotation={annotation}
-            overrideFields={overrideFields}
-          />
-        )}
-        {!hideOverview && !isFreeText && (
-          <FieldAnnotationLabel annotation={annotation} />
-        )}
-        {/* Standalone LABEL: no Etiquette tab, the leader stub lives here. */}
-        {type === "LABEL" && (
-          <FieldAnnotationLabelStub
-            annotation={annotation}
-            overrideFields={overrideFields}
-          />
-        )}
-        {/* Standalone LABEL: "Taille fixe" (FREE_TEXT display rules). */}
-        {type === "LABEL" && (
-          <FieldAnnotationLabelSize
-            annotation={annotation}
-            overrideFields={overrideFields}
-          />
         )}
         {!isFreeText && <FieldAnnotationIsProfile annotation={annotation} />}
         {!isFreeText && <FieldAnnotationIsEraser annotation={annotation} />}

@@ -1,7 +1,12 @@
 import { useEffect } from "react";
 import { useDispatch, useStore } from "react-redux";
 
-import { setOpenDialogDeleteSelectedAnnotation } from "Features/annotations/annotationsSlice";
+import db from "App/db/db";
+import {
+  setOpenDialogDeleteSelectedAnnotation,
+  triggerAnnotationsUpdate,
+} from "Features/annotations/annotationsSlice";
+import { triggerSelectionBack } from "Features/selection/selectionSlice";
 import useAnnotationPermissions from "Features/mapEditor/hooks/useAnnotationPermissions";
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
@@ -23,6 +28,25 @@ export default function useDeleteAnnotationOnKeyboardInThreedEditor({
       // Effective key, not the raw module key: the shortcut follows the
       // editor actually displayed (e.g. the Dessin module toggled to 3D).
       if (!isThreedFamilyViewerKey(selectEffectiveViewerKey(state))) return;
+
+      // Selected label: Delete hides the label (never deletes the parent
+      // annotation), then the selection falls back on the annotation.
+      const selectedLabel = state.selection.selectedItems.find(
+        (item) => item.type === "ANNOTATION_LABEL"
+      );
+      if (selectedLabel) {
+        const annotationId = selectedLabel.annotationId;
+        if (!annotationId || !canEditAnnotation(annotationId)) return;
+        e.stopPropagation();
+        db.annotations
+          .update(annotationId, { showLabel: false })
+          .then(() => {
+            dispatch(triggerAnnotationsUpdate());
+            dispatch(triggerSelectionBack());
+          })
+          .catch((err) => console.error(err));
+        return;
+      }
 
       const selectedNode = state.selection.selectedItems.find(
         (item) => item.type === "NODE"
