@@ -83,7 +83,13 @@ export default function RowListingInGroup({
         alignItems: "center",
         bgcolor: "background.paper",
         borderBottom: "1px solid",
-        borderColor: "divider",
+        borderBottomColor: "divider",
+        // Selection reads as a bar in the margin, not a filled row: the rows
+        // stay legible and the eye finds the current one down the edge. The
+        // border is always there, transparent when unselected, so selecting
+        // never shifts the row.
+        borderLeft: "3px solid",
+        borderLeftColor: selected ? "secondary.main" : "transparent",
         "&:hover .rowListingActions": { opacity: 1 },
       }}
     >
@@ -108,7 +114,6 @@ export default function RowListingInGroup({
       </Tooltip>
 
       <ListItemButton
-        selected={selected}
         onClick={() => onClick(listing)}
         sx={{ flex: 1, minWidth: 0, py: 1.25, px: 1 }}
       >

@@ -73,18 +73,31 @@ export default function SelectorListingForViewer({ selectedListingId }) {
 
   // handlers
 
+  // Selecting drives what the right panel SHOWS, but never opens it: the
+  // panel is the user's to open (the "..." menu and the properties tool lead
+  // there). Creation is the exception below — a listing you just made is
+  // waiting to be configured.
   function selectListing(listing) {
     dispatch(setSelectedListingId(listing.id));
     dispatch(setSelectedItem({ id: listing.id, type: "LISTING" }));
-    dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
   }
 
+  function deselectListing() {
+    dispatch(setSelectedListingId(null));
+    dispatch(setSelectedItem(null));
+  }
+
+  // Clicking the selected listing again clears the selection, which puts the
+  // editor back on the all-listings totals.
   function handleListingClick(listing) {
-    selectListing(listing);
+    if (listing.id === selectedListingId) deselectListing();
+    else selectListing(listing);
   }
 
   function handleListingCreated(listing) {
-    if (listing) selectListing(listing);
+    if (!listing) return;
+    selectListing(listing);
+    dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
   }
 
   function handleCloseCreate() {
