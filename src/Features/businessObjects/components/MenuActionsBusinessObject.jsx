@@ -5,6 +5,8 @@ import { Menu, MenuItem } from "@mui/material";
 import DialogBusinessObjectForm from "./DialogBusinessObjectForm";
 import DialogDeleteBusinessObject from "./DialogDeleteBusinessObject";
 
+import getBusinessObjectTypeOfListing from "../utils/getBusinessObjectTypeOfListing";
+
 export default function MenuActionsBusinessObject({
   anchorEl,
   businessObject,
@@ -17,13 +19,16 @@ export default function MenuActionsBusinessObject({
   const [openEdit, setOpenEdit] = useState(false);
   const [openDelete, setOpenDelete] = useState(false);
 
+  // helpers
+
+  const type = getBusinessObjectTypeOfListing(listing);
+
   // handlers
 
   function handleAddChild() {
     onClose();
     onAddChildBusinessObject?.();
   }
-
 
   // render
 
@@ -34,7 +39,7 @@ export default function MenuActionsBusinessObject({
         anchorEl={anchorEl}
         onClose={onClose}
       >
-        <MenuItem onClick={handleAddChild}>Ajouter un sous-ouvrage</MenuItem>
+        <MenuItem onClick={handleAddChild}>{type.strings.addChild}</MenuItem>
         <MenuItem onClick={() => setOpenEdit(true)}>Modifier</MenuItem>
         <MenuItem
           onClick={() => setOpenDelete(true)}

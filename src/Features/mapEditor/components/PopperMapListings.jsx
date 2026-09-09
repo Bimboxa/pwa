@@ -117,7 +117,7 @@ import computeAnnotationTemplateQties from "Features/annotations/utils/computeAn
 import getStrokeWidthLabel from "Features/annotations/utils/getStrokeWidthLabel";
 import groupAnnotationTemplatesByGroupLabel from "Features/annotations/utils/groupAnnotationTemplatesByGroupLabel";
 import { isBusinessObjectsModuleKey } from "Features/businessObjects/utils/businessObjectModuleKeys";
-
+import canLocateBusinessObjects from "Features/businessObjects/utils/canLocateBusinessObjects";
 
 // ---------------------------------------------------------------------------
 // ToolRow — one cut/split tool with click-to-draw + tool picker menu
@@ -1663,10 +1663,12 @@ export default function PopperMapListings() {
   const collapsed = useSelector((s) => s.popperMapListings.collapsed);
   const selectedItem = useSelector((s) => s.selection.selectedItems[0] || null);
 
-  // Ouvrages module with a selected (soloed) object: the popper narrows to
-  // the object — its name as title, the location templates of its listing
+  // Ouvrages module with a selected (soloed) object of a LOCATED listing
+  // (opt-in listing.canLocateBusinessObjects): the popper narrows to the
+  // object — its name as title, the location templates of its listing
   // (+ "Nouveau modèle"); drawing one of them LOCATES the object (see
-  // useDrawFromTemplate). No listing selector, no drawing tools.
+  // useDrawFromTemplate). No listing selector, no drawing tools. Otherwise
+  // the popper stays the plain Dessin panel (the solo display is untouched).
   const selectedBusinessObjectId = useSelector(
     (s) => s.businessObjects?.selectedBusinessObjectId ?? null
   );
@@ -1679,8 +1681,16 @@ export default function PopperMapListings() {
     const o = await db.businessObjects.get(selectedBusinessObjectId);
     return o && !o.deletedAt ? o : null;
   }, [viewerKey, selectedBusinessObjectId, businessObjectsUpdatedAt]);
+  // listingsById = Dexie mirror kept by dexieSyncService
+  const selectedBusinessObjectListing = useSelector((s) =>
+    selectedBusinessObject?.listingId
+      ? (s.listings.listingsById?.[selectedBusinessObject.listingId] ?? null)
+      : null
+  );
   const isBusinessObjectMode =
-    isBusinessObjectsModuleKey(viewerKey) && Boolean(selectedBusinessObject);
+    isBusinessObjectsModuleKey(viewerKey) &&
+    Boolean(selectedBusinessObject) &&
+    canLocateBusinessObjects(selectedBusinessObjectListing);
 
   const baseMap = useMainBaseMap();
   const layers = useLayers({ filterByBaseMapId: baseMap?.id });
@@ -2308,55 +2318,58 @@ export default function PopperMapListings() {
                   />
                 </Box>
               )}
-              {isBusinessObjectMode ? null : isViewerModule
-                ? !showPhotosBody &&
-                  displayedListings?.map((listing) => (
-                    <ListingRow
-                      key={listing.id}
-                      listing={listing}
-                      isExpanded
-                      alwaysExpanded
-                      hideCaret
-                      annotationCount={
-                        annotationCountByListingId?.[listing.id] || 0
-                      }
-                      annotations={annotationsByListingId?.[listing.id]}
-                      annotationTemplateById={annotationTemplateById}
-                      visibleTemplateIds={visibleTemplateIds}
-                    />
-                  ))
-                : activeListing && (
-                    <ListingRow
-                      key={activeListing.id}
-                      listing={activeListing}
-                      isExpanded
-                      alwaysExpanded
-                      hideCaret
-                      // The selector above already names the listing — keep
-                      // the band only in BASE_MAPS (it hosts the merge action).
-                      hideHeader={!isBaseMapsViewer}
-                      annotationCount={
-                        isBaseMapsViewer
-                          ? annotationsByListingId?.[activeListing.id]
-                              ?.length || 0
-                          : annotationCountByListingId?.[activeListing.id] || 0
-                      }
-                      annotations={annotationsByListingId?.[activeListing.id]}
-                      annotationTemplateById={annotationTemplateById}
-                      visibleTemplateIds={visibleTemplateIds}
-                      extraAction={
-                        isBaseMapsViewer ? (
-                          <ButtonMergeListingAnnotations
-                            listingId={activeListing.id}
-                            baseMap={baseMap}
-                            onResult={(file) =>
-                              handleMergeResult(file, activeListing.name)
-                            }
-                          />
-                        ) : undefined
-                      }
-                    />
-                  )}
+              {isBusinessObjectMode
+                ? null
+                : isViewerModule
+                  ? !showPhotosBody &&
+                    displayedListings?.map((listing) => (
+                      <ListingRow
+                        key={listing.id}
+                        listing={listing}
+                        isExpanded
+                        alwaysExpanded
+                        hideCaret
+                        annotationCount={
+                          annotationCountByListingId?.[listing.id] || 0
+                        }
+                        annotations={annotationsByListingId?.[listing.id]}
+                        annotationTemplateById={annotationTemplateById}
+                        visibleTemplateIds={visibleTemplateIds}
+                      />
+                    ))
+                  : activeListing && (
+                      <ListingRow
+                        key={activeListing.id}
+                        listing={activeListing}
+                        isExpanded
+                        alwaysExpanded
+                        hideCaret
+                        // The selector above already names the listing — keep
+                        // the band only in BASE_MAPS (it hosts the merge action).
+                        hideHeader={!isBaseMapsViewer}
+                        annotationCount={
+                          isBaseMapsViewer
+                            ? annotationsByListingId?.[activeListing.id]
+                                ?.length || 0
+                            : annotationCountByListingId?.[activeListing.id] ||
+                              0
+                        }
+                        annotations={annotationsByListingId?.[activeListing.id]}
+                        annotationTemplateById={annotationTemplateById}
+                        visibleTemplateIds={visibleTemplateIds}
+                        extraAction={
+                          isBaseMapsViewer ? (
+                            <ButtonMergeListingAnnotations
+                              listingId={activeListing.id}
+                              baseMap={baseMap}
+                              onResult={(file) =>
+                                handleMergeResult(file, activeListing.name)
+                              }
+                            />
+                          ) : undefined
+                        }
+                      />
+                    )}
 
               {/* Outils section — DRAW mode and "no mode" (null, draws like
                 DRAW), and always in the ZONES module (openings / splits on
@@ -2365,43 +2378,43 @@ export default function PopperMapListings() {
                 (effectiveInteractionMode === "DRAW" ||
                   effectiveInteractionMode == null ||
                   isZonesViewer) && (
-                <>
-                  <Box
-                    sx={{
-                      mt: 2,
-                      px: 1,
-                      py: 0.5,
-                      bgcolor: "panel.sectionBg",
-                      borderTop: "1px solid",
-                      borderColor: "panel.border",
-                    }}
-                  >
-                    <Typography
-                      variant="caption"
+                  <>
+                    <Box
                       sx={{
-                        color: "panel.textMuted",
-                        fontWeight: 700,
-                        letterSpacing: "0.06em",
-                        textTransform: "uppercase",
-                        fontSize: "11px",
+                        mt: 2,
+                        px: 1,
+                        py: 0.5,
+                        bgcolor: "panel.sectionBg",
+                        borderTop: "1px solid",
+                        borderColor: "panel.border",
                       }}
                     >
-                      Outils de dessin
-                    </Typography>
-                  </Box>
-                  <List dense disablePadding>
-                    {TOOL_ITEMS.map((tool) => (
-                      <ToolRow
-                        key={tool.type}
-                        type={tool.type}
-                        label={tool.label}
-                        Icon={tool.Icon}
-                        shortcut={tool.shortcut}
-                      />
-                    ))}
-                  </List>
-                </>
-              )}
+                      <Typography
+                        variant="caption"
+                        sx={{
+                          color: "panel.textMuted",
+                          fontWeight: 700,
+                          letterSpacing: "0.06em",
+                          textTransform: "uppercase",
+                          fontSize: "11px",
+                        }}
+                      >
+                        Outils de dessin
+                      </Typography>
+                    </Box>
+                    <List dense disablePadding>
+                      {TOOL_ITEMS.map((tool) => (
+                        <ToolRow
+                          key={tool.type}
+                          type={tool.type}
+                          label={tool.label}
+                          Icon={tool.Icon}
+                          shortcut={tool.shortcut}
+                        />
+                      ))}
+                    </List>
+                  </>
+                )}
             </>
           </Box>
         </>

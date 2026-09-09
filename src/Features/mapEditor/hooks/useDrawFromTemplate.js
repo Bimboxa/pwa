@@ -18,6 +18,7 @@ import {
 import getNewAnnotationPropsFromAnnotationTemplate from "Features/annotations/utils/getNewAnnotationPropsFromAnnotationTemplate";
 import getLocateBusinessObjectDraftProps from "Features/businessObjects/utils/getLocateBusinessObjectDraftProps";
 import { isBusinessObjectsModuleKey } from "Features/businessObjects/utils/businessObjectModuleKeys";
+import canLocateBusinessObjects from "Features/businessObjects/utils/canLocateBusinessObjects";
 
 // Drawing shapes allowed to start a draw while the Dessin module is toggled to
 // its 3D editor: OBJECT_3D (3D placement mode), POLYGON / POLYLINE
@@ -53,13 +54,19 @@ export default function useDrawFromTemplate(annotationTemplate, listingId) {
   );
   // Ouvrages module: drawing with a location template (the business-objects
   // listing's own templates) while an object is selected LOCATES it — the
-  // draft carries the LOCATE_BUSINESS_OBJECT commit interceptor.
-  const locatingBusinessObjectId = useSelector((s) =>
-    isBusinessObjectsModuleKey(s.viewers.selectedViewerKey) &&
-    annotationTemplate?.isBusinessObjectAnnotation
-      ? (s.businessObjects?.selectedBusinessObjectId ?? null)
-      : null
-  );
+  // draft carries the LOCATE_BUSINESS_OBJECT commit interceptor. Only for
+  // located listings (opt-in listing.canLocateBusinessObjects, read on the
+  // template's own listing through the Dexie mirror listingsById).
+  const locatingBusinessObjectId = useSelector((s) => {
+    if (
+      !isBusinessObjectsModuleKey(s.viewers.selectedViewerKey) ||
+      !annotationTemplate?.isBusinessObjectAnnotation
+    )
+      return null;
+    const listing = s.listings.listingsById?.[annotationTemplate.listingId];
+    if (!canLocateBusinessObjects(listing)) return null;
+    return s.businessObjects?.selectedBusinessObjectId ?? null;
+  });
 
   // helpers
 

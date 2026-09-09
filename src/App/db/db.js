@@ -293,8 +293,12 @@ db.version(33).stores({
   // {id, listingId (BUSINESS_OBJECT listing), parentId|null, label, color,
   //  description?, sortIndex (fractional index among siblings),
   //  unit ("U"|"L"|"S" — u / ml / m², drives the quantity rollup rule),
+  //  hoursRatio? (number|null — PLANNING tasks: hours per `unit`),
+  //  hoursRatioMode? ("RATIO"|"CADENCE" — display mode of hoursRatio,
+  //  cadence = 1 / ratio),
   //  scopeId, projectId}
-  // Business objects ("Ouvrages") of a listing, organized as a tree.
+  // Business objects ("Ouvrages", tasks...) of a listing, organized as a
+  // tree.
   businessObjects: "id,listingId,projectId,scopeId,parentId",
   // {id, projectId, scopeId, annotationId, businessObjectId,
   //  listingId (the business-objects listingId),

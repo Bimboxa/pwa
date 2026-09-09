@@ -8,16 +8,23 @@ import {
   DEFAULT_BUSINESS_OBJECT_TYPE_KEY,
   getBusinessObjectType,
 } from "../data/businessObjectTypesCatalog";
+import { getBusinessObjectsModuleKey } from "../utils/businessObjectModuleKeys";
+
+import enableScopeModuleService from "Features/scopeConfig/services/enableScopeModuleService";
 
 // Creates a BUSINESS_OBJECT listing ("Ouvrages" list). Plain service so the
 // Krto creation flow (DPGF option) can call it outside a hook. `typeKey` is
 // the business object type of the listing (businessObjectTypesCatalog) —
-// the module of that type is the only one displaying it.
+// the module of that type is the only one displaying it, so creating the
+// listing also enables that module for the scope (idempotent).
+// `canLocateBusinessObjects` opts the listing into the main-location flow
+// (utils/canLocateBusinessObjects): written only when true, missing = false.
 export default async function createBusinessObjectListingService({
   projectId,
   scopeId,
   name,
   typeKey = DEFAULT_BUSINESS_OBJECT_TYPE_KEY,
+  canLocateBusinessObjects = false,
   appConfig,
 } = {}) {
   const entityModel =
@@ -54,8 +61,17 @@ export default async function createBusinessObjectListingService({
     canCreateItem: false,
     // v1 only handles tree listings (parentId + fractional sortIndex).
     isTree: true,
+    ...(canLocateBusinessObjects ? { canLocateBusinessObjects: true } : {}),
   };
 
   await db.listings.add(listing);
+
+  await enableScopeModuleService({
+    scopeId,
+    projectId,
+    moduleKey: getBusinessObjectsModuleKey(typeKey),
+    appConfig,
+  });
+
   return listing;
 }

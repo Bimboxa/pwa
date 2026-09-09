@@ -22,6 +22,7 @@ import {
   buildQuickEditDiff,
 } from "../utils/businessObjectsQuickEdit";
 import applyBusinessObjectsQuickEditService from "../services/applyBusinessObjectsQuickEditService";
+import getBusinessObjectTypeOfListing from "../utils/getBusinessObjectTypeOfListing";
 
 // One chip style per change kind of the review list.
 const KIND_PROPS = {
@@ -40,12 +41,21 @@ const KIND_PROPS = {
 // parentheses: (m) → ml, (m2) → m², (u) → unité. "Mettre à jour" runs the
 // diff (adds / deletions / renames / moves / order / unit changes) and shows
 // the review list ("x modifications") with Confirmer / Annuler; Confirmer
-// applies the whole batch in one transaction.
+// applies the whole batch in one transaction. The grammar knows nothing of
+// the tasks' hours ratio: updates are partial patches (label / unit / title /
+// parent / order), so an existing ratio survives — a unit change keeps the
+// ratio value (its meaning changes) — and added lines start without ratio.
 // ---------------------------------------------------------------------------
 
 export default function SectionQuickEditBusinessObjects({ listing, onClose }) {
   const dispatch = useDispatch();
   const deleteAnnotations = useDeleteAnnotations();
+
+  // strings
+
+  const objectLabelS = getBusinessObjectTypeOfListing(
+    listing
+  ).strings.objectLabel.toLowerCase();
 
   // data
 
@@ -218,7 +228,7 @@ export default function SectionQuickEditBusinessObjects({ listing, onClose }) {
       }}
     >
       <Typography variant="caption" color="text.secondary">
-        Une ligne par ouvrage, TAB pour l&apos;indentation. Unité entre
+        Une ligne par {objectLabelS}, TAB pour l&apos;indentation. Unité entre
         parenthèses : (m), (m2), (u) — sans parenthèses : pas d&apos;unité.
         Titres entre crochets : [m2], ou [] sans unité.
       </Typography>

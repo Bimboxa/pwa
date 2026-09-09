@@ -2,16 +2,14 @@ import { useCallback } from "react";
 
 import { useSelector } from "react-redux";
 
-import db, { withSystemWrite } from "App/db/db";
-import { notifyLocalChange } from "Features/remoteScopeConfigurations/services/localChangeTracker";
-
 import {
   selectDefaultDisabledModuleKeys,
   getEffectiveDisabledModuleKeys,
-  CONFIGURABLE_MODULE_KEYS,
   DEFAULT_DISABLED_TOOL_KEYS,
   DEFAULT_DISABLED_BASE_MAP_SOURCE_KEYS,
 } from "../utils/scopeConfigSelectors";
+
+import upsertScopeConfigService from "../services/upsertScopeConfigService";
 
 function toggleKey(list, key) {
   const current = list ?? [];
@@ -28,54 +26,17 @@ export default function useScopeConfigActions() {
     selectDefaultDisabledModuleKeys
   );
 
+  // Bound to the selected scope; the write itself (system write, row
+  // seeding, knownModuleKeys stamp, local-change notification) lives in
+  // upsertScopeConfigService, shared with the non-hook callers.
   const upsert = useCallback(
-    async (computePatch) => {
-      if (!scopeId) return;
-      const row = await db.scopeConfigs
-        .where("scopeId")
-        .equals(scopeId)
-        .first();
-      const patch = computePatch(row);
-      // System write: the configuration is collaborative — writable by any
-      // user, even a visitor of a foreign private scope. The patch omits
-      // updatedAt so the updating hook restamps it (feeds the Krto merge
-      // newest-wins). notifyLocalChange is suppressed under withSystemWrite,
-      // so call it explicitly: config changes are pushable content.
-      //
-      // Every write materializes the effective disabled list and re-stamps
-      // knownModuleKeys: a module the row did not know (added to the catalog
-      // after the row was written) keeps following the org default it was
-      // displayed with, instead of reading as enabled once the stamp covers
-      // it (see getEffectiveDisabledModuleKeys).
-      if (row) {
-        await withSystemWrite(() =>
-          db.scopeConfigs.update(row.id, {
-            disabledModuleKeys: getEffectiveDisabledModuleKeys(
-              row,
-              defaultDisabledModuleKeys
-            ),
-            ...patch,
-            knownModuleKeys: [...CONFIGURABLE_MODULE_KEYS],
-          })
-        );
-      } else {
-        // First toggle on this scope: seed the row from the app defaults so
-        // the stored lists stay consistent with what the user was seeing.
-        await withSystemWrite(() =>
-          db.scopeConfigs.add({
-            id: scopeId, // deterministic PK — see the db.js v32 comment
-            scopeId,
-            projectId,
-            disabledModuleKeys: [...defaultDisabledModuleKeys],
-            disabledToolKeys: [...DEFAULT_DISABLED_TOOL_KEYS],
-            disabledToolKeysByModule: {},
-            ...patch,
-            knownModuleKeys: [...CONFIGURABLE_MODULE_KEYS],
-          })
-        );
-      }
-      notifyLocalChange();
-    },
+    (computePatch) =>
+      upsertScopeConfigService({
+        scopeId,
+        projectId,
+        defaultDisabledModuleKeys,
+        computePatch,
+      }),
     [scopeId, projectId, defaultDisabledModuleKeys]
   );
 

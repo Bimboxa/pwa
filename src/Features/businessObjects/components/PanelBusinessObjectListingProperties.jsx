@@ -41,6 +41,7 @@ import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSp
 import useDeleteAnnotationTemplate from "Features/annotations/hooks/useDeleteAnnotationTemplate";
 
 import useLocationAnnotationTemplates from "../hooks/useLocationAnnotationTemplates";
+import canLocateBusinessObjects from "../utils/canLocateBusinessObjects";
 
 import useNotesAppConfig from "Features/notesApp/hooks/useNotesAppConfig";
 import SectionNotesAppListingConfigCard from "Features/notesApp/components/SectionNotesAppListingConfigCard";
@@ -48,11 +49,14 @@ import PanelNotesAppListingConfig from "Features/notesApp/components/PanelNotesA
 
 // Right-panel properties of a business-objects listing, reached with the back
 // arrow of the object properties panel (selection: {type: "LISTING"}). Name
-// edition, the "Numérotation" display option (3-column DPGF-like tree) and
-// the location templates: the listing's OWN annotationTemplates, created
-// with the same "Nouveau modèle" dialog as the Dessin popper and flagged
-// isBusinessObjectAnnotation. "Located" objects get a "Localiser" action that
-// draws their main annotation with one of them. When the org has the Krnet
+// edition, the "Numérotation" display option (3-column DPGF-like tree), the
+// "Localisation sur les plans" opt-in (listing.canLocateBusinessObjects) and,
+// when it is on, the location templates: the listing's OWN
+// annotationTemplates, created with the same "Nouveau modèle" dialog as the
+// Dessin popper and flagged isBusinessObjectAnnotation — drawing one from
+// the popper (business-object mode) creates the object's main annotation.
+// Turning the option off hides the templates card only: templates and
+// existing main annotations are kept. When the org has the Krnet
 // integration, a "Configuration Krnet" card opens the listing-configuration
 // sub-views (fields, state models, codification...) in place of the panel.
 export default function PanelBusinessObjectListingProperties({ listing }) {
@@ -65,6 +69,9 @@ export default function PanelBusinessObjectListingProperties({ listing }) {
   const numberingS = "Numérotation";
   const numberingCaptionS =
     "Affiche les ouvrages sur 3 colonnes : numéro, nom, quantité.";
+  const canLocateS = "Localisation sur les plans";
+  const canLocateCaptionS =
+    "Les ouvrages peuvent être localisés sur les plans : dessiner un modèle de localisation crée l'annotation principale de l'ouvrage. Les localisations existantes sont conservées.";
   const locationS = "Modèles de localisation";
   const locationCaptionS =
     "Les ouvrages sont localisés sur les plans avec ces modèles : l'annotation dessinée devient l'annotation principale de l'ouvrage et porte son nom.";
@@ -102,6 +109,7 @@ export default function PanelBusinessObjectListingProperties({ listing }) {
   const displayName = isEditingName ? nameValue : listing?.name || "";
 
   const objectsCount = businessObjects?.length ?? 0;
+  const canLocate = canLocateBusinessObjects(listing);
   // stale stack of another listing = closed
   const configViewOpen =
     notesAppEnabled &&
@@ -149,6 +157,14 @@ export default function PanelBusinessObjectListingProperties({ listing }) {
     if (!listing?.id || !guardEditRecord(listing)) return;
     await db.listings.update(listing.id, {
       showNumbering: e.target.checked,
+    });
+    dispatch(triggerListingsUpdate());
+  }
+
+  async function handleToggleCanLocate(e) {
+    if (!listing?.id || !guardEditRecord(listing)) return;
+    await db.listings.update(listing.id, {
+      canLocateBusinessObjects: e.target.checked,
     });
     dispatch(triggerListingsUpdate());
   }
@@ -260,75 +276,105 @@ export default function PanelBusinessObjectListingProperties({ listing }) {
           </Box>
         </WhiteSectionGeneric>
 
+        <WhiteSectionGeneric>
+          <Box sx={{ p: 1 }}>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  size="small"
+                  checked={canLocate}
+                  onChange={handleToggleCanLocate}
+                />
+              }
+              label={<Typography variant="body2">{canLocateS}</Typography>}
+              sx={{ ml: 0 }}
+            />
+            <Typography
+              variant="caption"
+              sx={{ display: "block", color: "text.secondary" }}
+            >
+              {canLocateCaptionS}
+            </Typography>
+          </Box>
+        </WhiteSectionGeneric>
+
         {notesAppEnabled && (
           <SectionNotesAppListingConfigCard listing={listing} />
         )}
 
-        <WhiteSectionGeneric>
-          <Box sx={{ p: 1, display: "flex", flexDirection: "column", gap: 1 }}>
-            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-              <AddLocationAlt sx={{ fontSize: 16, color: "text.secondary" }} />
-              <Typography variant="body2">{locationS}</Typography>
-            </Box>
-            <Typography variant="caption" color="text.secondary">
-              {locationCaptionS}
-            </Typography>
-            {locationTemplates.length === 0 ? (
-              <Typography variant="caption" color="text.disabled">
-                {locationEmptyS}
-              </Typography>
-            ) : (
-              <List dense disablePadding sx={{ mx: -1 }}>
-                {locationTemplates.map((template) => (
-                  <ListItemButton
-                    key={template.id}
-                    onClick={() => handleSelectTemplate(template)}
-                    sx={{
-                      py: 0.25,
-                      "&:hover .location-template-delete": {
-                        visibility: "visible",
-                      },
-                    }}
-                  >
-                    <Box sx={{ mr: 1, display: "flex", alignItems: "center" }}>
-                      <AnnotationTemplateIcon
-                        template={template}
-                        size={20}
-                        spriteImage={spriteImage}
-                      />
-                    </Box>
-                    <ListItemText
-                      primary={template.label || "Sans nom"}
-                      slotProps={{
-                        primary: { variant: "body2", noWrap: true },
-                      }}
-                    />
-                    <IconButton
-                      className="location-template-delete"
-                      size="small"
-                      title={deleteTemplateS}
-                      onClick={(e) => handleAskDeleteTemplate(e, template)}
-                      sx={{ visibility: "hidden" }}
-                    >
-                      <Delete sx={{ fontSize: 16 }} />
-                    </IconButton>
-                  </ListItemButton>
-                ))}
-              </List>
-            )}
-            <Button
-              size="small"
-              variant="outlined"
-              startIcon={<Add />}
-              onClick={handleOpenCreateTemplate}
+        {canLocate && (
+          <WhiteSectionGeneric>
+            <Box
+              sx={{ p: 1, display: "flex", flexDirection: "column", gap: 1 }}
             >
-              {newTemplateS}
-            </Button>
-          </Box>
-        </WhiteSectionGeneric>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                <AddLocationAlt
+                  sx={{ fontSize: 16, color: "text.secondary" }}
+                />
+                <Typography variant="body2">{locationS}</Typography>
+              </Box>
+              <Typography variant="caption" color="text.secondary">
+                {locationCaptionS}
+              </Typography>
+              {locationTemplates.length === 0 ? (
+                <Typography variant="caption" color="text.disabled">
+                  {locationEmptyS}
+                </Typography>
+              ) : (
+                <List dense disablePadding sx={{ mx: -1 }}>
+                  {locationTemplates.map((template) => (
+                    <ListItemButton
+                      key={template.id}
+                      onClick={() => handleSelectTemplate(template)}
+                      sx={{
+                        py: 0.25,
+                        "&:hover .location-template-delete": {
+                          visibility: "visible",
+                        },
+                      }}
+                    >
+                      <Box
+                        sx={{ mr: 1, display: "flex", alignItems: "center" }}
+                      >
+                        <AnnotationTemplateIcon
+                          template={template}
+                          size={20}
+                          spriteImage={spriteImage}
+                        />
+                      </Box>
+                      <ListItemText
+                        primary={template.label || "Sans nom"}
+                        slotProps={{
+                          primary: { variant: "body2", noWrap: true },
+                        }}
+                      />
+                      <IconButton
+                        className="location-template-delete"
+                        size="small"
+                        title={deleteTemplateS}
+                        onClick={(e) => handleAskDeleteTemplate(e, template)}
+                        sx={{ visibility: "hidden" }}
+                      >
+                        <Delete sx={{ fontSize: 16 }} />
+                      </IconButton>
+                    </ListItemButton>
+                  ))}
+                </List>
+              )}
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={<Add />}
+                onClick={handleOpenCreateTemplate}
+              >
+                {newTemplateS}
+              </Button>
+            </Box>
+          </WhiteSectionGeneric>
+        )}
       </BoxFlexVStretch>
 
-      {openCreateTemplate && (
+      {canLocate && openCreateTemplate && (
         <DialogCreateAnnotationTemplate
           open
           listingId={listing.id}

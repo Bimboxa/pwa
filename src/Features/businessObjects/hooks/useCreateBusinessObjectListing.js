@@ -16,12 +16,19 @@ export default function useCreateBusinessObjectListing() {
   const _scopeId = useSelector((s) => s.scopes.selectedScopeId);
   const selectedTypeKey = useSelector(selectSelectedBusinessObjectTypeKey);
 
-  const create = async ({ projectId, scopeId, name, typeKey } = {}) => {
+  const create = async ({
+    projectId,
+    scopeId,
+    name,
+    typeKey,
+    canLocateBusinessObjects,
+  } = {}) => {
     return createBusinessObjectListingService({
       projectId: projectId ?? _projectId,
       scopeId: scopeId ?? _scopeId,
       name,
       typeKey: typeKey ?? selectedTypeKey ?? DEFAULT_BUSINESS_OBJECT_TYPE_KEY,
+      canLocateBusinessObjects,
       appConfig,
     });
   };

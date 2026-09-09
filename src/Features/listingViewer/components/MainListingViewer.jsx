@@ -42,17 +42,33 @@ export default function MainListingViewer() {
   // render
 
   return (
-    <Box sx={{ width: 1, height: 1, display: "flex", position: "relative", overflow: "hidden" }}>
+    <Box
+      sx={{
+        width: 1,
+        height: 1,
+        display: "flex",
+        position: "relative",
+        overflow: "hidden",
+      }}
+    >
       {/* Left panel */}
       <LeftDrawerPanel width={panelWidth} viewerKey="LISTING">
-        <BoxFlexVStretch sx={{ height: 1 }}>
-          <HeaderListingViewerPanel
-            listing={listing}
-            title={showSelector ? "Listes" : listing?.name || "Listing"}
-            showIcon={!showSelector}
-            showSwap={!showSelector}
-            onSelectListing={handleSelectListing}
-          />
+        <BoxFlexVStretch
+          sx={{
+            height: 1,
+            borderRight: "1px solid",
+            borderColor: "divider",
+          }}
+        >
+          {/* In selector mode the header (title + "+") belongs to
+              SelectorListingForViewer, like the Fond de plan module panel. */}
+          {!showSelector && (
+            <HeaderListingViewerPanel
+              listing={listing}
+              title={listing?.name || "Listing"}
+              onSelectListing={handleSelectListing}
+            />
+          )}
           {!showSelector && listing && <PanelListingViewerTabs />}
           <BoxFlexVStretch sx={{ overflow: "auto" }}>
             {showSelector ? (
@@ -77,7 +93,10 @@ export default function MainListingViewer() {
 
       {/* Right: baseMaps grid editor */}
       <Box sx={{ flex: 1, minWidth: 0, position: "relative" }}>
-        <MainListingMapsEditor listing={listing} showAllListings={showSelector} />
+        <MainListingMapsEditor
+          listing={listing}
+          showAllListings={showSelector}
+        />
       </Box>
     </Box>
   );

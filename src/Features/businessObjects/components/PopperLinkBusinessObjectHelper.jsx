@@ -8,6 +8,8 @@ import db from "App/db/db";
 
 import useRelsBusinessObjectAnnotation from "../hooks/useRelsBusinessObjectAnnotation";
 
+import getBusinessObjectTypeOfListing from "../utils/getBusinessObjectTypeOfListing";
+
 // Floating helper shown while the business-object link mode is active
 // (PopperSubtractHelper pattern): the armed object, an instruction, the live
 // count of linked annotations, and the Escape shortcut to exit the mode.
@@ -31,6 +33,17 @@ export default function PopperLinkBusinessObjectHelper() {
   const { value: rels } = useRelsBusinessObjectAnnotation({
     businessObjectId: linkingBusinessObjectId,
   });
+
+  // the object's listing type says whether the object carries a color
+  // (listingsById = Dexie mirror kept by dexieSyncService)
+  const listing = useSelector((s) =>
+    businessObject?.listingId
+      ? (s.listings.listingsById?.[businessObject.listingId] ?? null)
+      : null
+  );
+  const hasColor = Boolean(
+    getBusinessObjectTypeOfListing(listing).features?.color
+  );
 
   // helpers
 
@@ -80,15 +93,17 @@ export default function PopperLinkBusinessObjectHelper() {
         </Typography>
 
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          <Box
-            sx={{
-              width: 10,
-              height: 10,
-              minWidth: 10,
-              borderRadius: "2px",
-              bgcolor: businessObject.color,
-            }}
-          />
+          {hasColor && (
+            <Box
+              sx={{
+                width: 10,
+                height: 10,
+                minWidth: 10,
+                borderRadius: "2px",
+                bgcolor: businessObject.color,
+              }}
+            />
+          )}
           <Typography variant="caption" color="text.secondary">
             {`${count} annotation${count > 1 ? "s" : ""} liée${
               count > 1 ? "s" : ""

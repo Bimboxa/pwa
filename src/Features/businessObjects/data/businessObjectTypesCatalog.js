@@ -13,6 +13,29 @@
 
 export const DEFAULT_BUSINESS_OBJECT_TYPE_KEY = "STANDARD";
 
+// Wording of the objects of a type (French UI strings, read by the tree,
+// the create/edit dialog, the actions menu and the properties panel through
+// utils/getBusinessObjectTypeOfListing) and feature flags.
+const STANDARD_STRINGS = {
+  objectLabel: "Ouvrage",
+  newObject: "Nouvel ouvrage",
+  // + ` "${parent.label}"`
+  newChildPrefix: "Nouveau sous-ouvrage de",
+  editObject: "Modifier l'ouvrage",
+  addChild: "Ajouter un sous-ouvrage",
+  empty: "Aucun ouvrage",
+  noLinkedAnnotations: "Aucune annotation liée à cet ouvrage",
+  linkTo: "Lier à un ouvrage",
+};
+
+// hoursBudget: the objects are TASKS carrying an hours ratio (hoursRatio =
+// hours per `unit`); hours budget = linked quantities × ratio, rolled up
+// over the sub-tasks (utils/getBusinessObjectHoursBudget).
+// color: the objects carry an editable color (row swatch, pickers in the
+// form / properties panel). false = the color is neither shown nor editable;
+// rows still store DEFAULT_BUSINESS_OBJECT_COLOR (never read).
+const STANDARD_FEATURES = { hoursBudget: false, color: true };
+
 const BUSINESS_OBJECT_TYPES = [
   {
     key: "STANDARD",
@@ -25,6 +48,8 @@ const BUSINESS_OBJECT_TYPES = [
     // 2D editor = the shared "MAP" instance (like Zones) so entering the
     // module keeps the camera framing; 3D editor = the shared 3D one.
     editors: ["MAP", "THREED"],
+    strings: STANDARD_STRINGS,
+    features: STANDARD_FEATURES,
   },
   {
     // Category trees (nomenclatures): same tree panel as STANDARD, no
@@ -36,6 +61,30 @@ const BUSINESS_OBJECT_TYPES = [
     defaultLabel: "Nomenclatures",
     defaultIconKey: "category",
     editors: ["MAP", "THREED"],
+    strings: STANDARD_STRINGS,
+    features: STANDARD_FEATURES,
+  },
+  {
+    // Planning: hierarchical TASKS carrying an hours ratio. Same tree panel,
+    // with the ratio / rolled-up hours in the rows and a total band. Module
+    // key BUSINESS_OBJECTS_PLANNING (knownModuleKeys rule, like
+    // NOMENCLATURE), no module hotkey.
+    key: "PLANNING",
+    defaultLabel: "Planning",
+    defaultIconKey: "task",
+    editors: ["MAP", "THREED"],
+    strings: {
+      objectLabel: "Tâche",
+      newObject: "Nouvelle tâche",
+      newChildPrefix: "Nouvelle sous-tâche de",
+      editObject: "Modifier la tâche",
+      addChild: "Ajouter une sous-tâche",
+      empty: "Aucune tâche",
+      noLinkedAnnotations: "Aucune annotation liée à cette tâche",
+      linkTo: "Lier à une tâche",
+    },
+    // tasks have no color: name + ratio only
+    features: { hoursBudget: true, color: false },
   },
 ];
 

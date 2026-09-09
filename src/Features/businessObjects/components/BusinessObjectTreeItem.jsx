@@ -30,6 +30,9 @@ import useToggleBusinessObjectSolo from "../hooks/useToggleBusinessObjectSolo";
 
 import MenuActionsBusinessObject from "./MenuActionsBusinessObject";
 import getBusinessObjectQtyLabel from "../utils/getBusinessObjectQtyLabel";
+import getHoursRatioUnit from "../utils/getHoursRatioUnit";
+import getBusinessObjectTypeOfListing from "../utils/getBusinessObjectTypeOfListing";
+import { formatHours, formatHoursRatio } from "../utils/hoursRatioConversions";
 
 // Per-level row backgrounds. Title rows: grey band, darker at each TITLE
 // nesting level. Object rows: white, then greyer at each OBJECT nesting
@@ -49,6 +52,8 @@ export default function BusinessObjectTreeItem({
   soloAnnotations,
   mainRels,
   mainAnnotations,
+  // rolled-up hours (own + descendants) — PLANNING listings only
+  hoursBudget,
   onAddChildBusinessObject,
 }) {
   const dispatch = useDispatch();
@@ -100,10 +105,29 @@ export default function BusinessObjectTreeItem({
           locatedBaseMapsCount > 1 ? "s" : ""
         }`
       : null;
+  // Tasks (hoursBudget feature): the right column shows the rolled-up hours,
+  // the ratio and the quantity move to a caption line under the label. A task
+  // reads its quantity in its RATIO unit — it has no quantity unit of its own.
+  // The color chip only shows for the types carrying a color.
+  const type = getBusinessObjectTypeOfListing(listing);
+  const hasHoursBudget = Boolean(type.features?.hoursBudget);
+  const hasColor = Boolean(type.features?.color);
   const qtyLabel =
     linkedCount > 0
-      ? getBusinessObjectQtyLabel(businessObject.unit, qties)
+      ? getBusinessObjectQtyLabel(
+          hasHoursBudget
+            ? getHoursRatioUnit(businessObject)
+            : businessObject.unit,
+          qties
+        )
       : null;
+  const ratioLabel = hasHoursBudget ? formatHoursRatio(businessObject) : null;
+  const hoursLabel =
+    hasHoursBudget && hoursBudget > 0 ? formatHours(hoursBudget) : null;
+  const captionLabel = hasHoursBudget
+    ? [ratioLabel, qtyLabel].filter(Boolean).join(" · ")
+    : "";
+  const rightLabel = hasHoursBudget ? hoursLabel : qtyLabel;
 
   const titleLevel = Math.min(
     displayMeta?.titleAncestors ?? 0,
@@ -242,8 +266,8 @@ export default function BusinessObjectTreeItem({
           </Typography>
         )}
 
-        {/* color chip: tree mode only, object rows only */}
-        {!showNumbering && !isTitle && (
+        {/* color chip: colored types, tree mode only, object rows only */}
+        {hasColor && !showNumbering && !isTitle && (
           <Box
             sx={{
               width: 12,
@@ -256,14 +280,34 @@ export default function BusinessObjectTreeItem({
           />
         )}
 
-        {/* col 2: label */}
-        <Typography
-          variant="body2"
-          noWrap
-          sx={{ flex: 1, minWidth: 0, fontWeight: labelFontWeight }}
-        >
-          {businessObject.label}
-        </Typography>
+        {/* col 2: label (+ ratio · quantity caption for tasks) */}
+        {captionLabel ? (
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Typography
+              variant="body2"
+              noWrap
+              sx={{ fontWeight: labelFontWeight }}
+            >
+              {businessObject.label}
+            </Typography>
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              noWrap
+              sx={{ display: "block", lineHeight: 1.2 }}
+            >
+              {captionLabel}
+            </Typography>
+          </Box>
+        ) : (
+          <Typography
+            variant="body2"
+            noWrap
+            sx={{ flex: 1, minWidth: 0, fontWeight: labelFontWeight }}
+          >
+            {businessObject.label}
+          </Typography>
+        )}
 
         {/* located indicator: main annotation(s) on the plans */}
         {locatedS && (
@@ -272,14 +316,14 @@ export default function BusinessObjectTreeItem({
           </Tooltip>
         )}
 
-        {/* col 3: quantity, right-aligned */}
-        {qtyLabel && (
+        {/* col 3: quantity (tasks: rolled-up hours), right-aligned */}
+        {rightLabel && (
           <Typography
             variant="caption"
             color="text.secondary"
             sx={{ ml: 0.5, whiteSpace: "nowrap", textAlign: "right" }}
           >
-            {qtyLabel}
+            {rightLabel}
           </Typography>
         )}
         {!showNumbering && linkedCount > 0 && (

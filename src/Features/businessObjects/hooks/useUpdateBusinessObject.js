@@ -13,11 +13,22 @@ export default function useUpdateBusinessObject() {
   const dispatch = useDispatch();
 
   // Edit a business object's props (label / color / description / unit /
-  // isTitle). unit: null clears the unit (unit-less row); pass undefined to
-  // leave a field untouched.
+  // isTitle / hoursRatio / hoursRatioMode / hoursRatioUnit). unit: null
+  // clears the unit (unit-less row, and every task — the quantity unit is an
+  // articles-only prop); hoursRatio: null (or a non-finite value) clears the
+  // ratio; pass undefined to leave a field untouched.
   const update = async (
     businessObjectId,
-    { label, color, description, unit, isTitle } = {}
+    {
+      label,
+      color,
+      description,
+      unit,
+      isTitle,
+      hoursRatio,
+      hoursRatioMode,
+      hoursRatioUnit,
+    } = {}
   ) => {
     const updates = {};
     if (label != null) updates.label = label;
@@ -25,6 +36,10 @@ export default function useUpdateBusinessObject() {
     if (description != null) updates.description = description;
     if (unit !== undefined) updates.unit = unit;
     if (isTitle !== undefined) updates.isTitle = Boolean(isTitle);
+    if (hoursRatio !== undefined)
+      updates.hoursRatio = Number.isFinite(hoursRatio) ? hoursRatio : null;
+    if (hoursRatioMode != null) updates.hoursRatioMode = hoursRatioMode;
+    if (hoursRatioUnit != null) updates.hoursRatioUnit = hoursRatioUnit;
     if (Object.keys(updates).length === 0) return;
 
     await db.businessObjects.update(businessObjectId, updates);

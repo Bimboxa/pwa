@@ -2,6 +2,7 @@ import db, { withSystemWrite } from "App/db/db";
 import { withoutUndo } from "App/db/undoManager";
 
 import createBusinessObjectListingService from "Features/businessObjects/services/createBusinessObjectListingService";
+import canLocateBusinessObjects from "Features/businessObjects/utils/canLocateBusinessObjects";
 
 import { getNotesAppSession } from "./notesAppAuthService";
 import fetchNotesAppProjectDump from "./fetchNotesAppProjectDump";
@@ -100,6 +101,8 @@ export default async function syncNotesAppScope({
       projectId: scope.projectId,
       scopeId: scope.id,
       name: remoteListing.name,
+      // Krnet positions are main annotations: the listing is located
+      canLocateBusinessObjects: true,
       appConfig,
     });
     pairs.push({ remoteListing, listing });
@@ -246,6 +249,14 @@ export default async function syncNotesAppScope({
           } of merges) {
             if (templateRowToAdd) {
               await db.annotationTemplates.put(templateRowToAdd);
+            }
+            // Krnet-mapped listings are always located (their positions are
+            // main annotations); backfills the listings mapped before the
+            // flag existed.
+            if (!canLocateBusinessObjects(pair.listing)) {
+              await db.listings.update(pair.listing.id, {
+                canLocateBusinessObjects: true,
+              });
             }
             if (configMerge?.patch) {
               await db.listings.update(pair.listing.id, configMerge.patch);

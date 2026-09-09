@@ -24,15 +24,22 @@ import buildBusinessObjectsTree, {
   getBusinessObjectDescendants,
   getBusinessObjectsTreeDisplayMeta,
 } from "../utils/buildBusinessObjectsTree";
+import getBusinessObjectTypeOfListing from "../utils/getBusinessObjectTypeOfListing";
+import { getHoursBudgetByObjectId } from "../utils/getBusinessObjectHoursBudget";
+import { formatHours } from "../utils/hoursRatioConversions";
 
 import BusinessObjectTreeItem from "./BusinessObjectTreeItem";
 import DialogBusinessObjectForm from "./DialogBusinessObjectForm";
 
 // Objects tree of the selected business-objects listing: dnd reorder /
 // reparent (drop rule + cycle guard cloned from the zonings tree), per-row
-// quantities from the linked annotations.
+// quantities from the linked annotations. PLANNING listings (type feature
+// hoursBudget) add the rolled-up hours per row and a total band.
 export default function BusinessObjectsTree({ listing }) {
   // data
+
+  const type = getBusinessObjectTypeOfListing(listing);
+  const hasHoursBudget = Boolean(type.features?.hoursBudget);
 
   const { value: businessObjects } = useBusinessObjects({
     listingId: listing.id,
@@ -73,6 +80,15 @@ export default function BusinessObjectsTree({ listing }) {
     (businessObjects ?? []).forEach((o) => collect(o.id));
     return byId;
   }, [businessObjects, annotationsByObjectId]);
+
+  // Hours budget per task (own + descendants) and listing total — tasks only.
+  const hoursBudget = useMemo(
+    () =>
+      hasHoursBudget
+        ? getHoursBudgetByObjectId(businessObjects ?? [], qtiesByObjectId)
+        : null,
+    [hasHoursBudget, businessObjects, qtiesByObjectId]
+  );
 
   // state
 
@@ -214,6 +230,7 @@ export default function BusinessObjectsTree({ listing }) {
                 soloAnnotations={soloAnnotationsByObjectId[businessObject.id]}
                 mainRels={mainRelsByObjectId[businessObject.id]}
                 mainAnnotations={mainAnnotationsByObjectId[businessObject.id]}
+                hoursBudget={hoursBudget?.totalById[businessObject.id] ?? null}
                 onAddChildBusinessObject={() =>
                   setCreateTarget({ parentBusinessObject: businessObject })
                 }
@@ -225,7 +242,7 @@ export default function BusinessObjectsTree({ listing }) {
                 color="text.disabled"
                 sx={{ pl: 2, py: 0.5, display: "block" }}
               >
-                Aucun ouvrage
+                {type.strings.empty}
               </Typography>
             )}
           </List>
@@ -238,12 +255,40 @@ export default function BusinessObjectsTree({ listing }) {
       >
         <Add sx={{ fontSize: 20, mr: 1 }} color="disabled" />
         <ListItemText
-          primary="Nouvel ouvrage"
+          primary={type.strings.newObject}
           slotProps={{
             primary: { variant: "body2", color: "text.disabled" },
           }}
         />
       </ListItemButton>
+
+      {/* listing total of the hours budget — sticky at the bottom of the
+          panel's scroll area (the negative margins cancel the root padding) */}
+      {hasHoursBudget && (
+        <Box
+          sx={{
+            position: "sticky",
+            bottom: 0,
+            mx: -1,
+            mb: -1,
+            px: 2,
+            py: 0.75,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            bgcolor: "panel.sectionBg",
+            borderTop: "1px solid",
+            borderColor: "divider",
+          }}
+        >
+          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+            Total
+          </Typography>
+          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+            {formatHours(hoursBudget?.grandTotal ?? 0)}
+          </Typography>
+        </Box>
+      )}
 
       {createTarget && (
         <DialogBusinessObjectForm

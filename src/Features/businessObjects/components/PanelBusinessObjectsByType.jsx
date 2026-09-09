@@ -7,6 +7,9 @@ const PANEL_BY_TYPE_KEY = {
   STANDARD: PanelBusinessObjects,
   // Category trees: the same listing selector + tree panel.
   NOMENCLATURE: PanelBusinessObjects,
+  // Tasks: the same panel, the type's features (hoursBudget) drive the
+  // ratio / hours columns and the total band.
+  PLANNING: PanelBusinessObjects,
 };
 
 export default function PanelBusinessObjectsByType({ typeKey }) {
