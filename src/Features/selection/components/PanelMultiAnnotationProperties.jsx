@@ -26,7 +26,6 @@ import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useDeleteAnnotations from "Features/annotations/hooks/useDeleteAnnotations";
 import getAnnotationQties from "Features/annotations/utils/getAnnotationQties";
 import SectionLinkAnnotationsToBusinessObject from "Features/businessObjects/components/SectionLinkAnnotationsToBusinessObject";
-import SectionLinkAnnotationsToWorkPackage from "Features/businessObjects/components/SectionLinkAnnotationsToWorkPackage";
 
 export default function PanelMultiAnnotationProperties() {
   // strings
@@ -190,13 +189,6 @@ export default function PanelMultiAnnotationProperties() {
         {/* Card 2: link to a business object ("Ouvrages") — hidden when the
             scope has none. */}
         <SectionLinkAnnotationsToBusinessObject
-          annotationIds={selectedItems
-            .filter((item) => item.nodeId)
-            .map((item) => item.nodeId)}
-        />
-
-        {/* Card 2b: move into a work package of the active PLANNING listing */}
-        <SectionLinkAnnotationsToWorkPackage
           annotationIds={selectedItems
             .filter((item) => item.nodeId)
             .map((item) => item.nodeId)}

@@ -112,15 +112,6 @@ export default function useDeleteAnnotations() {
       ),
     ];
 
-    // 1e. Cascade: work-package links (PLANNING module).
-    const workPackageRels = await db.relsWorkPackageAnnotation
-      .where("annotationId")
-      .anyOf(idsToDelete)
-      .toArray();
-    const workPackageRelIds = [
-      ...new Set(workPackageRels.filter((r) => !r.deletedAt).map((r) => r.id)),
-    ];
-
     // 2. Determine which annotations are cutHosts (batch template lookup)
     const uniqueTemplateIds = [
       ...new Set(
@@ -223,7 +214,6 @@ export default function useDeleteAnnotations() {
         db.relAnnotationMeshCells,
         db.relAnnotationOpenings,
         db.relsBusinessObjectAnnotation,
-        db.relsWorkPackageAnnotation,
       ],
       async () => {
         // Cascade soft-delete subtraction relations
@@ -246,11 +236,6 @@ export default function useDeleteAnnotations() {
           await db.relsBusinessObjectAnnotation.bulkDelete(
             businessObjectRelIds
           );
-        }
-
-        // Cascade soft-delete work-package links
-        if (workPackageRelIds.length > 0) {
-          await db.relsWorkPackageAnnotation.bulkDelete(workPackageRelIds);
         }
 
         // Batch cuts-cleanup updates

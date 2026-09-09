@@ -371,29 +371,6 @@ import getExtrusionProfileFootprintShapes from "Features/annotations/utils/getEx
 import useAnnotationSubtractions from "Features/annotations/hooks/useAnnotationSubtractions";
 import useZoneSoloAnnotationIdSet from "Features/zonings/hooks/useZoneSoloAnnotationIdSet";
 import useBusinessObjectSoloAnnotationIdSet from "Features/businessObjects/hooks/useBusinessObjectSoloAnnotationIdSet";
-import { selectLayersMode } from "Features/scopeConfig/utils/scopeConfigSelectors";
-import { getLayersAsync } from "Features/layers/utils/layersMode";
-import selectSoloWorkPackageId from "Features/businessObjects/utils/selectSoloWorkPackageId";
-import useWorkPackageSoloAnnotationIdSet from "Features/businessObjects/hooks/useWorkPackageSoloAnnotationIdSet";
-import useWorkPackagePlayStatus from "Features/planning/hooks/useWorkPackagePlayStatus";
-import { PLAY_STATUS } from "Features/planning/utils/getWorkPackagePlayStatusById";
-
-// Planning "Play" mode styles: the annotations of the done work packages in
-// light grey, the rest of the drawing (packages to do, annotations in no
-// package) in very light transparent grey; the packages in progress keep
-// their colours.
-const PLAY_STYLE_DONE = {
-  fillColor: "#bdbdbd",
-  strokeColor: "#9e9e9e",
-  fillOpacity: 0.55,
-  strokeOpacity: 0.8,
-};
-const PLAY_STYLE_TODO = {
-  fillColor: "#e0e0e0",
-  strokeColor: "#cfcfcf",
-  fillOpacity: 0.2,
-  strokeOpacity: 0.35,
-};
 import useMainBusinessObjectLabelByAnnotationId from "Features/businessObjects/hooks/useMainBusinessObjectLabelByAnnotationId";
 import { selectPovFreezeCreatedBefore } from "Features/viewers/utils/effectiveViewerKey";
 import { getShape3DKey } from "Features/annotations/constants/shape3DConfig";
@@ -540,7 +517,6 @@ export default function useAnnotationsV2(options) {
       (s) => s.layers?.showAnnotationsWithoutLayer ?? true
     );
     const layersUpdatedAt = useSelector((s) => s.layers?.layersUpdatedAt);
-    const layersMode = useSelector(selectLayersMode);
 
     const listingsUpdatedAt = useSelector((s) => s.listings.listingsUpdatedAt);
     // Redux mirror of db.listings (dexieSyncService liveQuery) — used by the
@@ -565,21 +541,6 @@ export default function useAnnotationsV2(options) {
     );
     const businessObjectSoloAnnotationIdSet =
       useBusinessObjectSoloAnnotationIdSet(soloBusinessObjectId);
-
-    // work-package SOLO (PLANNING module): only the annotations linked to
-    // the soloed package show (null outside the business-objects modules).
-    // Same ignoreSolo / keepSoloDimmed semantics as the zone solo.
-    const soloWorkPackageId = useSelector(selectSoloWorkPackageId);
-    const workPackageSoloAnnotationIdSet =
-      useWorkPackageSoloAnnotationIdSet(soloWorkPackageId);
-    // Planning "Play" mode: status of every work package at the play step +
-    // the package of every linked annotation (stable EMPTY maps while off).
-    // Display-only: skipped by ignoreSolo callers.
-    const {
-      statusByWorkPackageId: playStatusByWorkPackageId,
-      workPackageIdByAnnotationId: playWorkPackageIdByAnnotationId,
-    } = useWorkPackagePlayStatus();
-    const playActive = playStatusByWorkPackageId.size > 0;
 
     // "located" business objects: the MAIN annotation of an object displays
     // the object's label everywhere (2D chip, 3D sprite, panels). Content-
@@ -935,14 +896,16 @@ export default function useAnnotationsV2(options) {
 
       // layer sort order — first layer's annotations drawn on top (last in array)
       const _t2c = performance.now();
-      if (baseMapId || layersMode === "GLOBAL") {
-        // mode-aware (scopeConfigs.layersMode): global layers span every
-        // base map of the scope
-        const layers = await getLayersAsync({
-          mode: layersMode,
-          baseMapId,
-          scopeId: layersMode === "GLOBAL" ? scope?.id : null,
-        });
+      if (baseMapId) {
+        const layers = (
+          await db.layers.where("baseMapId").equals(baseMapId).toArray()
+        )
+          .filter((l) => !l.deletedAt)
+          .sort((a, b) => {
+            const ai = a.orderIndex ?? "";
+            const bi = b.orderIndex ?? "";
+            return ai < bi ? -1 : ai > bi ? 1 : 0;
+          });
         if (layers.length > 0) {
           const layerOrder = {};
           layers.forEach((l, i) => {
@@ -2246,7 +2209,6 @@ export default function useAnnotationsV2(options) {
       hiddenLayerIds,
       showAnnotationsWithoutLayer,
       layersUpdatedAt,
-      layersMode,
       subtractionTargetIdsBySource,
       povFreezeCreatedBefore,
       dbWriteTick,
@@ -2498,36 +2460,6 @@ export default function useAnnotationsV2(options) {
       // filter out annotations whose template is hidden
       if (!keepHiddenTemplates) result = result.filter((a) => !a.hidden);
 
-      // Planning "Play" mode (PLANNING module): every annotation is styled by
-      // the status of its work package at the play step — done = light grey,
-      // in progress = its colours (drawn last, on top), to do / no package =
-      // very light grey. Wins over the work-package solo.
-      const playDisplay = playActive && !ignoreSolo;
-      if (playDisplay) {
-        const others = [];
-        const inProgress = [];
-        result.forEach((a) => {
-          if (a.isBaseMapAnnotation) {
-            others.push(a);
-            return;
-          }
-          const wpId = playWorkPackageIdByAnnotationId.get(a.id);
-          const status = wpId ? playStatusByWorkPackageId.get(wpId) : null;
-          if (status === PLAY_STATUS.IN_PROGRESS) {
-            inProgress.push({ ...a, _playStatus: status });
-          } else if (status === PLAY_STATUS.DONE) {
-            others.push({ ...a, ...PLAY_STYLE_DONE, _playStatus: status });
-          } else {
-            others.push({
-              ...a,
-              ...PLAY_STYLE_TODO,
-              _playStatus: PLAY_STATUS.TODO,
-            });
-          }
-        });
-        result = [...others, ...inProgress];
-      }
-
       // exclude profile-template annotations (3D viewer only — they stay
       // visible in 2D, but are dropped from the 3D scene)
       if (excludeProfileTemplates) {
@@ -2552,21 +2484,6 @@ export default function useAnnotationsV2(options) {
           );
         } else {
           result = result.filter(isInZoneSolo);
-        }
-      }
-
-      // work-package solo (PLANNING module): keep only the annotations linked
-      // to the soloed work package. Base-map annotations are always kept.
-      // Not applied in play mode (every package is displayed by status).
-      if (!ignoreSolo && soloWorkPackageId && !playDisplay) {
-        const isInWorkPackageSolo = (a) =>
-          a.isBaseMapAnnotation || workPackageSoloAnnotationIdSet.has(a.id);
-        if (keepSoloDimmed) {
-          result = result.map((a) =>
-            isInWorkPackageSolo(a) ? a : { ...a, _soloDimmed: true }
-          );
-        } else {
-          result = result.filter(isInWorkPackageSolo);
         }
       }
 
@@ -2773,11 +2690,6 @@ export default function useAnnotationsV2(options) {
       zoneSoloAnnotationIdSet,
       soloBusinessObjectId,
       businessObjectSoloAnnotationIdSet,
-      soloWorkPackageId,
-      workPackageSoloAnnotationIdSet,
-      playStatusByWorkPackageId,
-      playWorkPackageIdByAnnotationId,
-      playActive,
       mainBusinessObjectLabelByAnnotationId,
       soloTemplateId,
       soloAnnotationId,
