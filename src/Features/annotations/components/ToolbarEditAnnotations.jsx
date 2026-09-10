@@ -416,7 +416,13 @@ export default function ToolbarEditAnnotations({
 
   return (
     <Box
-      sx={{ display: "flex", flexDirection: "column", alignItems: "center" }}
+      sx={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        minHeight: 0,
+        maxHeight: "100%",
+      }}
     >
       <Paper
         elevation={6}
@@ -424,12 +430,20 @@ export default function ToolbarEditAnnotations({
           borderRadius: 3,
           overflow: "hidden",
           minWidth: 250,
+          // The header and the bottom tools stay pinned: only the template
+          // group list scrolls, so a large selection never pushes the actions
+          // row off screen.
+          display: "flex",
+          flexDirection: "column",
+          minHeight: 0,
+          maxHeight: "100%",
         }}
       >
         {/* Header - draggable */}
         <Box
           onMouseDown={onDragStart}
           sx={{
+            flexShrink: 0,
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
@@ -494,8 +508,16 @@ export default function ToolbarEditAnnotations({
           </Tooltip>
         </Box>
 
-        {/* Template group rows */}
-        <Box sx={{ py: 0.5 }}>
+        {/* Template group rows - the only scrollable area of the toolbar */}
+        <Box
+          sx={{
+            pt: 0.5,
+            flex: "1 1 auto",
+            minHeight: 0,
+            overflowY: "auto",
+            overflowX: "hidden",
+          }}
+        >
           {templateGroups.map((group) => (
             <TemplateGroupRow
               key={group.templateId}
@@ -505,40 +527,43 @@ export default function ToolbarEditAnnotations({
               }
             />
           ))}
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              px: 1.25,
-              py: 0.5,
-            }}
-          >
-            <Tooltip title="Changer le modèle">
-              <IconButton
-                size="small"
-                onClick={handleTemplateDropdownClick}
-                sx={{
-                  borderRadius: 1,
-                  fontSize: "0.75rem",
-                  color: "text.secondary",
-                  "&:hover": { bgcolor: "action.hover", color: "text.primary" },
-                }}
-              >
-                <ArrowDropDownIcon sx={{ fontSize: 18, mr: 0.25 }} />
-                <Typography variant="caption" sx={{ fontWeight: 500 }}>
-                  Changer le modèle
-                </Typography>
-              </IconButton>
-            </Tooltip>
-          </Box>
         </Box>
 
-        <Divider />
+        <Box
+          sx={{
+            flexShrink: 0,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            px: 1.25,
+            py: 0.5,
+          }}
+        >
+          <Tooltip title="Changer le modèle">
+            <IconButton
+              size="small"
+              onClick={handleTemplateDropdownClick}
+              sx={{
+                borderRadius: 1,
+                fontSize: "0.75rem",
+                color: "text.secondary",
+                "&:hover": { bgcolor: "action.hover", color: "text.primary" },
+              }}
+            >
+              <ArrowDropDownIcon sx={{ fontSize: 18, mr: 0.25 }} />
+              <Typography variant="caption" sx={{ fontWeight: 500 }}>
+                Changer le modèle
+              </Typography>
+            </IconButton>
+          </Tooltip>
+        </Box>
+
+        <Divider sx={{ flexShrink: 0 }} />
 
         {/* Batch height */}
         <Box
           sx={{
+            flexShrink: 0,
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
@@ -574,117 +599,127 @@ export default function ToolbarEditAnnotations({
         </Box>
 
         {/* Batch 3D shape (e.g. revolution from a shared axis) */}
-        <Shape3DBatchSelector annotations={annotations} />
+        <Box sx={{ flexShrink: 0 }}>
+          <Shape3DBatchSelector annotations={annotations} />
+        </Box>
 
-        <Divider />
+        <Divider sx={{ flexShrink: 0 }} />
 
         {/* Actions row */}
-        <ToolbarAnnotationActions
-          accentColor="#6366F1"
-          onClone={handleCloneClick}
-          onResize={handleResizeClick}
-          resizeActive={wrapperMode}
-          onDelete={handleDeleteClick}
-          extraActions={
-            <>
-              {canMerge && (
-                <Tooltip title="Fusionner les annotations">
-                  <IconButton
-                    size="small"
-                    onClick={handleMergeClick}
-                    sx={{
-                      color: "text.disabled",
-                      "&:hover": {
-                        color: "#6366F1",
-                        bgcolor: "#6366F1" + "18",
-                      },
-                    }}
-                  >
-                    <MergeIcon fontSize="small" />
-                  </IconButton>
-                </Tooltip>
-              )}
-              {hasPolylinesAndPolygons && (
-                <IconButtonReentrantAngles
+        <Box sx={{ flexShrink: 0 }}>
+          <ToolbarAnnotationActions
+            accentColor="#6366F1"
+            onClone={handleCloneClick}
+            onResize={handleResizeClick}
+            resizeActive={wrapperMode}
+            onDelete={handleDeleteClick}
+            extraActions={
+              <>
+                {canMerge && (
+                  <Tooltip title="Fusionner les annotations">
+                    <IconButton
+                      size="small"
+                      onClick={handleMergeClick}
+                      sx={{
+                        color: "text.disabled",
+                        "&:hover": {
+                          color: "#6366F1",
+                          bgcolor: "#6366F1" + "18",
+                        },
+                      }}
+                    >
+                      <MergeIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                )}
+                {hasPolylinesAndPolygons && (
+                  <IconButtonReentrantAngles
+                    annotations={annotations}
+                    accentColor="#6366F1"
+                  />
+                )}
+                {hasPolylines && (
+                  <IconButtonSettingOut
+                    annotations={annotations.filter(
+                      (a) => a.type === "POLYLINE"
+                    )}
+                    accentColor="#6366F1"
+                  />
+                )}
+                {(hasPolylinesOrPolygons || hasStrips) && (
+                  <IconButtonSplitInSegments
+                    annotations={annotations.filter((a) =>
+                      ["POLYLINE", "POLYGON", "STRIP"].includes(a.type)
+                    )}
+                    accentColor="#6366F1"
+                  />
+                )}
+                {allAreAlignable && (
+                  <IconButtonCleanSegments
+                    annotations={annotations}
+                    accentColor="#6366F1"
+                  />
+                )}
+                {allArePolylines && (
+                  <IconButtonCurvature
+                    annotations={annotations}
+                    accentColor="#6366F1"
+                  />
+                )}
+                {hasPolygons && (
+                  <IconButtonConvertAnnotation
+                    annotations={annotations.filter(
+                      (a) => a.type === "POLYGON"
+                    )}
+                    accentColor="#6366F1"
+                  />
+                )}
+                {hasPolygons && (
+                  <IconButtonVectorisation
+                    annotations={annotations.filter(
+                      (a) => a.type === "POLYGON"
+                    )}
+                    accentColor="#6366F1"
+                  />
+                )}
+                {(hasPolylinesOrStrips || hasPolygons) && (
+                  <IconButtonContours
+                    annotations={annotations.filter((a) =>
+                      ["POLYLINE", "STRIP", "POLYGON"].includes(a.type)
+                    )}
+                    accentColor="#6366F1"
+                  />
+                )}
+                {hasPolylinesOrStrips && (
+                  <IconButtonCloseEnvelope
+                    annotations={annotations.filter((a) =>
+                      ["POLYLINE", "STRIP"].includes(a.type)
+                    )}
+                    accentColor="#6366F1"
+                  />
+                )}
+                {closedShapeAnnotations.length > 0 && (
+                  <IconButtonDilateAnnotation
+                    annotations={closedShapeAnnotations}
+                    accentColor="#6366F1"
+                  />
+                )}
+              </>
+            }
+            layerChip={
+              annotations.length > 0 ? (
+                <ChipLayerSelector
+                  annotationIds={annotations.map((a) => a.id)}
                   annotations={annotations}
-                  accentColor="#6366F1"
+                  baseMapId={baseMap?.id}
                 />
-              )}
-              {hasPolylines && (
-                <IconButtonSettingOut
-                  annotations={annotations.filter((a) => a.type === "POLYLINE")}
-                  accentColor="#6366F1"
-                />
-              )}
-              {(hasPolylinesOrPolygons || hasStrips) && (
-                <IconButtonSplitInSegments
-                  annotations={annotations.filter((a) =>
-                    ["POLYLINE", "POLYGON", "STRIP"].includes(a.type)
-                  )}
-                  accentColor="#6366F1"
-                />
-              )}
-              {allAreAlignable && (
-                <IconButtonCleanSegments
-                  annotations={annotations}
-                  accentColor="#6366F1"
-                />
-              )}
-              {allArePolylines && (
-                <IconButtonCurvature
-                  annotations={annotations}
-                  accentColor="#6366F1"
-                />
-              )}
-              {hasPolygons && (
-                <IconButtonConvertAnnotation
-                  annotations={annotations.filter((a) => a.type === "POLYGON")}
-                  accentColor="#6366F1"
-                />
-              )}
-              {hasPolygons && (
-                <IconButtonVectorisation
-                  annotations={annotations.filter((a) => a.type === "POLYGON")}
-                  accentColor="#6366F1"
-                />
-              )}
-              {(hasPolylinesOrStrips || hasPolygons) && (
-                <IconButtonContours
-                  annotations={annotations.filter((a) =>
-                    ["POLYLINE", "STRIP", "POLYGON"].includes(a.type)
-                  )}
-                  accentColor="#6366F1"
-                />
-              )}
-              {hasPolylinesOrStrips && (
-                <IconButtonCloseEnvelope
-                  annotations={annotations.filter((a) =>
-                    ["POLYLINE", "STRIP"].includes(a.type)
-                  )}
-                  accentColor="#6366F1"
-                />
-              )}
-              {closedShapeAnnotations.length > 0 && (
-                <IconButtonDilateAnnotation
-                  annotations={closedShapeAnnotations}
-                  accentColor="#6366F1"
-                />
-              )}
-            </>
-          }
-          layerChip={
-            annotations.length > 0 ? (
-              <ChipLayerSelector
-                annotationIds={annotations.map((a) => a.id)}
-                annotations={annotations}
-                baseMapId={baseMap?.id}
-              />
-            ) : null
-          }
-        />
+              ) : null
+            }
+          />
 
-        {/* Zones band (ZONES module): link the selection to zones */}
-        <SectionZonesBandInToolbar annotations={annotations} />
+          {/* Zones band (ZONES module): link the selection to zones */}
+          <SectionZonesBandInToolbar annotations={annotations} />
+        </Box>
 
         {/* Clone template selector menu */}
         <Menu
@@ -787,8 +822,14 @@ export default function ToolbarEditAnnotations({
 function TemplateGroupRow({ group, onRemove }) {
   // helpers
 
-  const { annotation, count, totalSurface, totalLength, totalUnits, hasSurface } =
-    group;
+  const {
+    annotation,
+    count,
+    totalSurface,
+    totalLength,
+    totalUnits,
+    hasSurface,
+  } = group;
   const label =
     annotation?.annotationTemplateProps?.label || annotation?.label || "-";
   const countSuffix = count > 1 ? ` (×${count})` : "";

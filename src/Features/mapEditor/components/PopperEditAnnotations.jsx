@@ -12,7 +12,10 @@ import {
 } from "Features/viewers/utils/effectiveViewerKey";
 import { matchesActiveViewerKey } from "Features/viewers/utils/threedViewerKeys";
 
-export default function PopperEditAnnotations({ viewerKey = null, allAnnotations }) {
+export default function PopperEditAnnotations({
+  viewerKey = null,
+  allAnnotations,
+}) {
   // data
 
   const anchorPosition = useSelector(
@@ -20,7 +23,10 @@ export default function PopperEditAnnotations({ viewerKey = null, allAnnotations
   );
 
   const selectedItems = useSelector(selectSelectedItems);
-  const selectedNodes = selectedItems.map((i) => ({ nodeId: i.nodeId, nodeType: i.type }));
+  const selectedNodes = selectedItems.map((i) => ({
+    nodeId: i.nodeId,
+    nodeType: i.type,
+  }));
 
   // Effective key, not the raw module key: the toolbar follows the editor
   // actually displayed (e.g. the Dessin module toggled to its 3D editor).
@@ -38,7 +44,10 @@ export default function PopperEditAnnotations({ viewerKey = null, allAnnotations
     : activeViewerKey === "MAP";
 
   const open =
-    shouldShow && isWidest && !captureFramingActive && selectedNodes?.length > 1;
+    shouldShow &&
+    isWidest &&
+    !captureFramingActive &&
+    selectedNodes?.length > 1;
 
   // drag
 
@@ -56,10 +65,25 @@ export default function PopperEditAnnotations({ viewerKey = null, allAnnotations
         zIndex: 1000,
         pointerEvents: "none",
         transition: isDragging.current ? "none" : "transform 0.1s ease-out",
+        // Never taller than the editor: the toolbar scrolls its annotation
+        // list instead of pushing its bottom tools out of the viewport.
+        // A downward drag eats into the available height accordingly.
+        display: "flex",
+        maxHeight: `calc(100% - ${32 + Math.max(0, dragOffset.y)}px)`,
       }}
     >
-      <Box sx={{ pointerEvents: "auto" }}>
-        <ToolbarEditAnnotations allAnnotations={allAnnotations} onDragStart={handleDragStart} />
+      <Box
+        sx={{
+          pointerEvents: "auto",
+          display: "flex",
+          minHeight: 0,
+          maxHeight: "100%",
+        }}
+      >
+        <ToolbarEditAnnotations
+          allAnnotations={allAnnotations}
+          onDragStart={handleDragStart}
+        />
       </Box>
     </Box>
   );
