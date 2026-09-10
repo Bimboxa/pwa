@@ -10,6 +10,7 @@ import SectionDrawingHelperContent from "./SectionDrawingHelperContent";
 import usePanelDrag from "Features/layout/hooks/usePanelDrag";
 import useRelsBusinessObjectAnnotation from "Features/businessObjects/hooks/useRelsBusinessObjectAnnotation";
 import selectLocatingBusinessObjectId from "Features/businessObjects/utils/selectLocatingBusinessObjectId";
+import selectLinkBusinessObjectDraftId from "Features/businessObjects/utils/selectLinkBusinessObjectDraftId";
 
 // ---------------------------------------------------------------------------
 // PopperDrawingHelper — floating panel shown while drawing
@@ -24,16 +25,22 @@ export default function PopperDrawingHelper() {
   // LOCATE_BUSINESS_OBJECT interceptor; the header names the object and a
   // warning tells when its main annotation on this base map gets replaced.
 
+  // A LINK draw (regular template drawn while an object is active) names the
+  // object too — the created annotation links to it, nothing is replaced.
+
   const locatingBusinessObjectId = useSelector(selectLocatingBusinessObjectId);
+  const linkBusinessObjectId = useSelector(selectLinkBusinessObjectDraftId);
+  const draftBusinessObjectId =
+    locatingBusinessObjectId ?? linkBusinessObjectId;
   const businessObjectsUpdatedAt = useSelector(
     (s) => s.businessObjects?.businessObjectsUpdatedAt
   );
   const selectedBaseMapId = useSelector((s) => s.mapEditor.selectedBaseMapId);
-  const locatingBusinessObject = useLiveQuery(async () => {
-    if (!locatingBusinessObjectId) return null;
-    const o = await db.businessObjects.get(locatingBusinessObjectId);
+  const draftBusinessObject = useLiveQuery(async () => {
+    if (!draftBusinessObjectId) return null;
+    const o = await db.businessObjects.get(draftBusinessObjectId);
     return o && !o.deletedAt ? o : null;
-  }, [locatingBusinessObjectId, businessObjectsUpdatedAt]);
+  }, [draftBusinessObjectId, businessObjectsUpdatedAt]);
   const { value: locatingRels } = useRelsBusinessObjectAnnotation({
     businessObjectId: locatingBusinessObjectId,
   });
@@ -41,8 +48,10 @@ export default function PopperDrawingHelper() {
     (r) => r.isMain && r.baseMapId === selectedBaseMapId
   );
 
-  const titleS = locatingBusinessObject
-    ? `Localiser — ${locatingBusinessObject.label}`
+  const titleS = draftBusinessObject
+    ? locatingBusinessObjectId
+      ? `Localiser — ${draftBusinessObject.label}`
+      : `Ouvrage — ${draftBusinessObject.label}`
     : drawS;
 
   // state
@@ -94,7 +103,7 @@ export default function PopperDrawingHelper() {
         </Typography>
       </Box>
 
-      {locatingBusinessObject && (
+      {locatingBusinessObjectId && draftBusinessObject && (
         <Box sx={{ px: 1.5, pt: 1, display: "flex", flexDirection: "column" }}>
           <Typography variant="caption" color="text.secondary">
             L&apos;annotation dessinée devient l&apos;annotation principale de

@@ -79,7 +79,11 @@ import {
 } from "Features/popperMapListings/popperMapListingsSlice";
 import useLayers from "Features/layers/hooks/useLayers";
 import { alpha } from "@mui/material/styles";
-import { setEnabledDrawingMode } from "Features/mapEditor/mapEditorSlice";
+import {
+  setEnabledDrawingMode,
+  setSelectedToolKeyForTemplate,
+} from "Features/mapEditor/mapEditorSlice";
+import selectEffectiveInteractionMode from "Features/popperMapListings/utils/selectEffectiveInteractionMode";
 
 import ShortcutBadge from "Features/smartDetect/components/ShortcutBadge";
 
@@ -412,30 +416,17 @@ function AnnotationTemplateRow({
     startDraw,
     selectToolAndDraw,
   } = useDrawFromTemplate(annotationTemplate, listingId);
-  // "Maillage" toggle and the shared ?mode=viewer lock force SELECT-like
-  // interaction → use the effective mode for all behavior gating in this row.
-  const rawInteractionMode = useSelector(
-    (s) => s.popperMapListings.interactionMode
-  );
-  const showMeshCells = useSelector((s) => s.annotations.showMeshCells);
-  const viewerMode = useSelector((s) => s.urlParams.viewerMode);
-  const isThreedViewer = useSelector((s) =>
-    isThreedFamilyViewerKey(s.viewers.selectedViewerKey)
-  );
-  const isZonesViewerRow = useSelector(
-    (s) => s.viewers.selectedViewerKey === "ZONES"
-  );
+  // Module / display overrides (Maillage, 3D, ?mode=viewer, ZONES → SELECT;
+  // business-objects module without an active object → EDIT) → use the
+  // effective mode for all behavior gating in this row.
+  const effectiveInteractionMode = useSelector(selectEffectiveInteractionMode);
   // Viewer module (read-only legend): procedures can't be launched there, so
   // the "Auto" chip (and its procedure popper) is hidden.
   const isViewerModuleRow = useSelector(
     (s) => s.viewers.selectedViewerKey === "THREED"
   );
   const showProcedureChip = hasProcedure && !isViewerModuleRow;
-  const interactionMode = forceDrawMode
-    ? "DRAW"
-    : showMeshCells || isThreedViewer || viewerMode || isZonesViewerRow
-      ? "SELECT"
-      : rawInteractionMode;
+  const interactionMode = forceDrawMode ? "DRAW" : effectiveInteractionMode;
   const selectedItem = useSelector((s) => s.selection.selectedItems[0] || null);
   const isEditTarget =
     (interactionMode === "EDIT" || interactionMode === "SELECT") &&
@@ -525,6 +516,17 @@ function AnnotationTemplateRow({
   };
 
   const handleSelectTool = (tool) => {
+    // EDIT (Modification): the picker only records the template's tool — a
+    // draw must not start from a row that edits instead of drawing.
+    if (interactionMode === "EDIT") {
+      dispatch(
+        setSelectedToolKeyForTemplate({
+          templateId: annotationTemplate?.id,
+          toolKey: tool.key,
+        })
+      );
+      return;
+    }
     selectToolAndDraw(tool);
   };
 
@@ -1035,20 +1037,9 @@ function AnnotationTemplatesForListing({
   // effective interaction mode).
   const baseMap = useMainBaseMap();
   const isVerticalBaseMap = baseMap?.orientation === "VERTICAL";
-  const rawInteractionMode = useSelector(
-    (s) => s.popperMapListings.interactionMode
-  );
-  const showMeshCells = useSelector((s) => s.annotations.showMeshCells);
-  const viewerMode = useSelector((s) => s.urlParams.viewerMode);
-  const isZonesViewer = useSelector(
-    (s) => s.viewers.selectedViewerKey === "ZONES"
-  );
+  const effectiveInteractionMode = useSelector(selectEffectiveInteractionMode);
   const isDrawInteraction =
-    (rawInteractionMode === "DRAW" || rawInteractionMode == null) &&
-    !showMeshCells &&
-    !isThreedViewer &&
-    !viewerMode &&
-    !isZonesViewer;
+    effectiveInteractionMode === "DRAW" || effectiveInteractionMode == null;
   const qtiesById = useMemo(
     () => computeAnnotationTemplateQties(annotations, annotationTemplateById),
     [annotations, annotationTemplateById]
@@ -1646,32 +1637,26 @@ export default function PopperMapListings() {
   );
   const mirrors3dFilters = (isThreedViewer && !isViewer2d) || isPovThreed;
   const showLayers = useSelector((s) => s.popperMapListings.showLayers);
-  const interactionMode = useSelector(
-    (s) => s.popperMapListings.interactionMode
-  );
-  // "Maillage" toggle: shows mesh cells instead of meshed parents and forces a
-  // SELECT-like (read-only) interaction. The mode toggle is disabled while on.
-  const showMeshCells = useSelector((s) => s.annotations.showMeshCells);
-  // viewer mode (?mode=viewer) locks the editor to read-only SELECT.
-  const viewerMode = useSelector((s) => s.urlParams.viewerMode);
-  // ZONES module: the template listings are a read-only legend (display
-  // actions only, like the Dessin SELECT mode); drawing goes through the
-  // dedicated "Nouvelle zone" section.
-  const effectiveInteractionMode =
-    showMeshCells || isThreedViewer || viewerMode || isZonesViewer
-      ? "SELECT"
-      : interactionMode;
+  // Raw popperMapListings.interactionMode overridden by the module / display
+  // contexts (selectEffectiveInteractionMode): "Maillage" toggle, 3D viewers,
+  // ?mode=viewer and the ZONES module force a read-only SELECT legend; a
+  // business-objects module without an active object forces EDIT.
+  const effectiveInteractionMode = useSelector(selectEffectiveInteractionMode);
   const collapsed = useSelector((s) => s.popperMapListings.collapsed);
   const selectedItem = useSelector((s) => s.selection.selectedItems[0] || null);
 
-  // Ouvrages module with an ACTIVE object of a LOCATED listing (opt-in
-  // listing.canLocateBusinessObjects): the popper narrows to the object — its
-  // name as title, the location templates of its listing (+ "Nouveau
-  // modèle"); drawing one of them LOCATES the object (see useDrawFromTemplate).
-  // No listing selector, no drawing tools. Otherwise the popper stays the
-  // plain Dessin panel. Keyed on the ACTIVE id, not on the selection: each
-  // committed location selects the annotation it just created, and the popper
-  // must stay in this mode to locate the object on the next base map.
+  // Ouvrages modules — the ACTIVE object is the popper's drawing context:
+  // - LOCATED listing (opt-in listing.canLocateBusinessObjects): the popper
+  //   narrows to the object — its name as title, the location templates of
+  //   its listing (+ "Nouveau modèle"); drawing one of them LOCATES the object
+  //   (see useDrawFromTemplate). No listing selector, no drawing tools.
+  // - otherwise: plain Dessin panel titled with the object's name; every
+  //   annotation drawn from a template LINKS to the object at commit
+  //   (LINK_BUSINESS_OBJECT interceptor).
+  // - no active object: the panel is edit-only (selectEffectiveInteractionMode
+  //   forces EDIT) — template rows edit, only the cut / opening tools remain.
+  // Keyed on the ACTIVE id, not on the selection: each committed annotation
+  // selects itself, and the popper must keep its object across draws.
   const activeBusinessObjectId = useSelector(
     (s) => s.businessObjects?.activeBusinessObjectId ?? null
   );
@@ -1690,10 +1675,13 @@ export default function PopperMapListings() {
       ? (s.listings.listingsById?.[activeBusinessObject.listingId] ?? null)
       : null
   );
-  const isBusinessObjectMode =
-    isBusinessObjectsModuleKey(viewerKey) &&
+  const isBusinessObjectsModule = isBusinessObjectsModuleKey(viewerKey);
+  const isLocateBusinessObjectMode =
+    isBusinessObjectsModule &&
     Boolean(activeBusinessObject) &&
     canLocateBusinessObjects(activeBusinessObjectListing);
+  const isBusinessObjectsModuleNoObject =
+    isBusinessObjectsModule && !activeBusinessObject;
 
   const baseMap = useMainBaseMap();
   const layers = useLayers({ filterByBaseMapId: baseMap?.id });
@@ -1809,11 +1797,12 @@ export default function PopperMapListings() {
     }, {});
   }, [allAnnotations]);
 
-  const titleS = isBusinessObjectMode
-    ? activeBusinessObject.label
-    : isBaseMapsViewer
-      ? "Dessins sur fond de plan"
-      : "Annotations";
+  const titleS =
+    isBusinessObjectsModule && activeBusinessObject
+      ? activeBusinessObject.label
+      : isBaseMapsViewer
+        ? "Dessins sur fond de plan"
+        : "Annotations";
 
   // Viewer module: when the project has photos, the header title becomes an
   // "Annotations / Photos" toggle and the Photos side swaps the body for the
@@ -1962,7 +1951,7 @@ export default function PopperMapListings() {
   // effect - ESC clears the EDIT target template
 
   useEffect(() => {
-    if (interactionMode !== "EDIT") return;
+    if (effectiveInteractionMode !== "EDIT") return;
     const onKey = (e) => {
       if (e.key !== "Escape") return;
       if (selectedItem?.type === "ANNOTATION_TEMPLATE") {
@@ -1971,7 +1960,7 @@ export default function PopperMapListings() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [interactionMode, selectedItem?.type, dispatch]);
+  }, [effectiveInteractionMode, selectedItem?.type, dispatch]);
 
   // handlers
 
@@ -2255,7 +2244,7 @@ export default function PopperMapListings() {
             are listings, or when a new one can be created (empty-state CTA).
             Hidden in the Viewer module, where every listing is shown at once. */}
             {!isViewerModule &&
-              !isBusinessObjectMode &&
+              !isLocateBusinessObjectMode &&
               (displayedListings?.length > 0 || canAddListing) && (
                 <Box
                   sx={{
@@ -2326,7 +2315,7 @@ export default function PopperMapListings() {
               {/* Viewer module: full legend — every listing at once (no chips
                   selector), each row always expanded with its templates. The
                   row's hover eye toggles all the listing's template eyes. */}
-              {isBusinessObjectMode && (
+              {isLocateBusinessObjectMode && (
                 <Box sx={{ pt: 0.5 }}>
                   <AnnotationTemplatesForListing
                     listingId={activeBusinessObject.listingId}
@@ -2338,7 +2327,7 @@ export default function PopperMapListings() {
                   />
                 </Box>
               )}
-              {isBusinessObjectMode
+              {isLocateBusinessObjectMode
                 ? null
                 : isViewerModule
                   ? !showPhotosBody &&
@@ -2392,12 +2381,15 @@ export default function PopperMapListings() {
                     )}
 
               {/* Outils section — DRAW mode and "no mode" (null, draws like
-                DRAW), and always in the ZONES module (openings / splits on
-                the zone delimitation polygons) */}
-              {!isBusinessObjectMode &&
+                DRAW), always in the ZONES module (openings / splits on the
+                zone delimitation polygons) and in a business-objects module
+                without an active object (edit-only panel: cuts / openings on
+                existing annotations stay possible) */}
+              {!isLocateBusinessObjectMode &&
                 (effectiveInteractionMode === "DRAW" ||
                   effectiveInteractionMode == null ||
-                  isZonesViewer) && (
+                  isZonesViewer ||
+                  isBusinessObjectsModuleNoObject) && (
                   <>
                     <Box
                       sx={{

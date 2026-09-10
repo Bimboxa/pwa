@@ -7,7 +7,9 @@ import { setEnabledDrawingMode } from "Features/mapEditor/mapEditorSlice";
 import { setToaster } from "Features/layout/layoutSlice";
 import { triggerRelsBusinessObjectAnnotationUpdate } from "Features/businessObjects/businessObjectsSlice";
 import { LOCATE_BUSINESS_OBJECT_INTERCEPTOR_KEY } from "Features/businessObjects/constants/locateBusinessObjectInterceptor";
+import { LINK_BUSINESS_OBJECT_INTERCEPTOR_KEY } from "Features/businessObjects/constants/linkBusinessObjectInterceptor";
 import setMainAnnotationForBusinessObjectService from "Features/businessObjects/services/setMainAnnotationForBusinessObjectService";
+import linkAnnotationsToBusinessObjectService from "Features/businessObjects/services/linkAnnotationsToBusinessObjectService";
 
 // ---------------------------------------------------------------------------
 // drawingCommitInterceptors — declarative registry for the deferred drawing
@@ -110,6 +112,46 @@ const registry = {
         // one-shot: disarm the tool and drop the interceptor from the draft
         dispatch?.(setEnabledDrawingMode(null));
         dispatch?.(setNewAnnotation(newAnnotation));
+      }
+    },
+  },
+
+  // Drawing a regular template while an object is ACTIVE in a business-objects
+  // module: the created annotation gets a plain link to the object (N-N rel,
+  // no isMain — same row as the "Lier à un ouvrage" flows). Not one-shot: the
+  // draft keeps the interceptor (only the written copy is stripped), so the
+  // next draws link to the same object. Commits that edited an EXISTING
+  // annotation (openings / holes / snap-merge) return no created annotation
+  // and are skipped on purpose.
+  [LINK_BUSINESS_OBJECT_INTERCEPTOR_KEY]: {
+    intercept: async () => ({ proceed: {} }),
+    afterCommit: async ({ result, newAnnotation, context, deps }) => {
+      const { dispatch } = deps ?? {};
+      const annotation = result?.annotation;
+      if (!annotation?.id || !context?.businessObjectId) return;
+      if (newAnnotation?.isOpening) return;
+
+      const businessObject = await db.businessObjects.get(
+        context.businessObjectId
+      );
+      if (!businessObject || businessObject.deletedAt) return;
+
+      try {
+        const newRels = await linkAnnotationsToBusinessObjectService({
+          businessObject,
+          annotationIds: [annotation.id],
+        });
+        if (newRels.length > 0) {
+          dispatch?.(triggerRelsBusinessObjectAnnotationUpdate());
+        }
+      } catch (e) {
+        console.error("[drawingCommitInterceptors] LINK_BUSINESS_OBJECT", e);
+        dispatch?.(
+          setToaster({
+            message: `Impossible de lier l'annotation à "${businessObject.label}".`,
+            isError: true,
+          })
+        );
       }
     },
   },

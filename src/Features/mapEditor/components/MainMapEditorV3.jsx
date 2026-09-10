@@ -153,6 +153,7 @@ import useSelectedNodes from "../hooks/useSelectedNodes";
 import useDrawingToolHotkeys from "../hooks/useDrawingToolHotkeys";
 import useFreeAnnotationHotkeys from "../hooks/useFreeAnnotationHotkeys";
 import useResetInteractionMode from "../hooks/useResetInteractionMode";
+import useSyncLinkBusinessObjectDraft from "Features/businessObjects/hooks/useSyncLinkBusinessObjectDraft";
 import useOpeningHotkey from "../hooks/useOpeningHotkey";
 import useToolGroupHotkey from "../hooks/useToolGroupHotkey";
 
@@ -192,6 +193,9 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     useFreeAnnotationHotkeys();
     // reset a residual interaction mode (set by ZONES / POV flows) to the default
     useResetInteractionMode();
+    // business-objects modules — a draw linking to the ACTIVE object follows
+    // it (disarmed when no object is active any more)
+    useSyncLinkBusinessObjectDraft();
     // hotkeys — start an opening draw (O) when not drawing
     useOpeningHotkey();
     // hotkeys — start segment removal (X = Retirer un segment) when not drawing

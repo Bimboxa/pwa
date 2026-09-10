@@ -6,8 +6,10 @@ import {
   setLinkingBusinessObjectId,
   toggleBusinessObjectCollapsed,
 } from "../businessObjectsSlice";
-import { setSelectedItem } from "Features/selection/selectionSlice";
-import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
+import {
+  clearSelection,
+  setSelectedItem,
+} from "Features/selection/selectionSlice";
 
 import {
   Box,
@@ -70,6 +72,9 @@ export default function BusinessObjectTreeItem({
   // data
 
   const selectedBusinessObjectId = useSelector(selectSelectedBusinessObjectId);
+  const activeBusinessObjectId = useSelector(
+    (s) => s.businessObjects.activeBusinessObjectId
+  );
   const soloBusinessObjectId = useSelector(
     (s) => s.businessObjects.soloBusinessObjectId
   );
@@ -100,6 +105,7 @@ export default function BusinessObjectTreeItem({
   // helpers
 
   const isSelected = selectedBusinessObjectId === businessObject.id;
+  const isActive = activeBusinessObjectId === businessObject.id;
   const isSolo = soloBusinessObjectId === businessObject.id;
   const isLinking = linkingBusinessObjectId === businessObject.id;
   const collapsed = collapsedIds.includes(businessObject.id);
@@ -168,11 +174,19 @@ export default function BusinessObjectTreeItem({
 
   // handlers
 
-  // Clicking a row SELECTS the object: its properties open in the right panel
-  // and it becomes the module's ACTIVE object (popper "Localisation" mode,
-  // LOCATE_BUSINESS_OBJECT target). The SOLO display is toggled exclusively by
-  // the filter icon button (zones drawer pattern).
+  // Clicking a row makes the object the module's ACTIVE object (popper titled
+  // with its name, drawn annotations link to it — LOCATE / LINK interceptor
+  // targets) and selects it (its properties show in the right panel when that
+  // panel is open — the click does NOT open it). Clicking the active object
+  // again deactivates it: the popper falls back to its edit-only mode and the
+  // module's default LISTING selection re-poses. The SOLO display is toggled
+  // exclusively by the filter icon button (zones drawer pattern).
   function handleClick() {
+    if (isActive) {
+      dispatch(setActiveBusinessObjectId(null));
+      dispatch(clearSelection());
+      return;
+    }
     dispatch(setActiveBusinessObjectId(businessObject.id));
     dispatch(
       setSelectedItem({
@@ -181,7 +195,6 @@ export default function BusinessObjectTreeItem({
         listingId: businessObject.listingId,
       })
     );
-    dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
   }
 
   function handleSoloClick(e) {
@@ -278,7 +291,7 @@ export default function BusinessObjectTreeItem({
         {...attributes}
         {...listeners}
         component="div"
-        selected={isSelected}
+        selected={isSelected || isActive}
         onClick={handleClick}
         sx={{
           // "Numérotation": flat 3-column rows — the number carries the

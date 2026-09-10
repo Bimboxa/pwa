@@ -17,6 +17,7 @@ import {
 } from "Features/mapEditor/constants/drawingTools.jsx";
 import getNewAnnotationPropsFromAnnotationTemplate from "Features/annotations/utils/getNewAnnotationPropsFromAnnotationTemplate";
 import getLocateBusinessObjectDraftProps from "Features/businessObjects/utils/getLocateBusinessObjectDraftProps";
+import getLinkBusinessObjectDraftProps from "Features/businessObjects/utils/getLinkBusinessObjectDraftProps";
 import { isBusinessObjectsModuleKey } from "Features/businessObjects/utils/businessObjectModuleKeys";
 import canLocateBusinessObjects from "Features/businessObjects/utils/canLocateBusinessObjects";
 
@@ -59,16 +60,29 @@ export default function useDrawFromTemplate(annotationTemplate, listingId) {
   // location produces, so several base maps can be located in a row. Only for
   // located listings (opt-in listing.canLocateBusinessObjects, read on the
   // template's own listing through the Dexie mirror listingsById).
-  const locatingBusinessObjectId = useSelector((s) => {
+  const isLocateTemplate = useSelector((s) => {
     if (
       !isBusinessObjectsModuleKey(s.viewers.selectedViewerKey) ||
       !annotationTemplate?.isBusinessObjectAnnotation
     )
-      return null;
+      return false;
     const listing = s.listings.listingsById?.[annotationTemplate.listingId];
-    if (!canLocateBusinessObjects(listing)) return null;
-    return s.businessObjects?.activeBusinessObjectId ?? null;
+    return canLocateBusinessObjects(listing);
   });
+  const activeBusinessObjectId = useSelector((s) =>
+    isBusinessObjectsModuleKey(s.viewers.selectedViewerKey)
+      ? (s.businessObjects?.activeBusinessObjectId ?? null)
+      : null
+  );
+  const locatingBusinessObjectId = isLocateTemplate
+    ? activeBusinessObjectId
+    : null;
+  // Any OTHER template drawn while an object is active LINKS the created
+  // annotation to it (plain rel, LINK_BUSINESS_OBJECT interceptor). Distinct
+  // from the slice's linkingBusinessObjectId (map picking mode).
+  const linkDrawBusinessObjectId = isLocateTemplate
+    ? null
+    : activeBusinessObjectId;
 
   // helpers
 
@@ -104,6 +118,7 @@ export default function useDrawFromTemplate(annotationTemplate, listingId) {
     const baseProps = {
       ...nextDraftProps,
       ...getLocateBusinessObjectDraftProps(locatingBusinessObjectId),
+      ...getLinkBusinessObjectDraftProps(linkDrawBusinessObjectId),
     };
     if (tool.annotationType) {
       dispatch(setNewAnnotation({ ...baseProps, type: tool.annotationType }));
