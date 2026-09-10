@@ -10,6 +10,11 @@ import applyPasteTransformToPoints from "Features/mapEditor/utils/applyPasteTran
  * mapping ids — never reuses ids from the source annotations, so moving a paste
  * cannot tug the originals.
  *
+ * A base point may carry an opaque `sourceId`: every base point sharing one
+ * within a single call resolves to the SAME freshly minted point id, so welded
+ * geometry (wall junctions) survives the batch. The editor's clipboard sets no
+ * sourceId — only the annotations importer does (see importAnnotations).
+ *
  * The whole group shares `pasteClipboard.sourceCenter`, so feeding each item
  * its own absolute basePoints with the same (sourceCenter → targetCenter)
  * transform translates the entire group by one delta (relative positions
@@ -65,8 +70,21 @@ export default async function pasteAnnotationService({
   const allAnnotations = [];
   const allSourceIds = []; // parallel to allAnnotations: each clone's source id
 
+  // Weld map, run-local: a base point carrying `sourceId` mints ONE row for the
+  // whole batch, shared by every annotation referencing that source point. This
+  // is what keeps wall junctions (a vertex shared by a contour and a partition)
+  // welded through an import — without it each occurrence would get its own row
+  // and dragging the vertex would tear the junction apart. Opt-in: the editor's
+  // own copy/paste clipboard carries no sourceId, so its behaviour is unchanged.
+  const pointIdBySourceId = new Map();
+
   function normalize(p, sourceAnnotation) {
+    const sourceId = p.sourceId;
+    if (sourceId && pointIdBySourceId.has(sourceId)) {
+      return pointIdBySourceId.get(sourceId);
+    }
     const id = nanoid();
+    if (sourceId) pointIdBySourceId.set(sourceId, id);
     allPoints.push({
       id,
       x: p.x / width,
@@ -86,8 +104,15 @@ export default async function pasteAnnotationService({
   function refsFrom(transformedPxPoints, sourceRefs, sourceAnnotation) {
     return transformedPxPoints.map((pt, i) => {
       const id = normalize(pt, sourceAnnotation);
-      const carriedType = sourceRefs?.[i]?.type;
-      return { id, ...(carriedType ? { type: carriedType } : {}) };
+      const ref = sourceRefs?.[i];
+      // type / offsetTop / offsetBottom live on the inline ref, never on the
+      // db.points row (see resolvePoints) — carry them across the clone.
+      return {
+        id,
+        ...(ref?.type ? { type: ref.type } : {}),
+        ...(ref?.offsetTop ? { offsetTop: ref.offsetTop } : {}),
+        ...(ref?.offsetBottom ? { offsetBottom: ref.offsetBottom } : {}),
+      };
     });
   }
 

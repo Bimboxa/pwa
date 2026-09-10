@@ -30,10 +30,14 @@ import db from "App/db/db";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useListingsByScope from "Features/listings/hooks/useListingsByScope";
+import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
 import pasteAnnotationService from "Features/mapEditor/services/pasteAnnotationService";
 
 import parseImportAnnotationsJson from "../utils/parseImportAnnotationsJson";
 import buildImportData from "../utils/buildImportData";
+import resolveImportTemplatesService, {
+  isImportTemplateReusable,
+} from "../services/resolveImportTemplatesService";
 import importMeshService from "../services/importMeshService";
 import ImportAnnotationsPreview from "./ImportAnnotationsPreview";
 import ImportAnnotationsTemplateList from "./ImportAnnotationsTemplateList";
@@ -54,6 +58,9 @@ export default function PanelImportAnnotations() {
     excludeIsForBaseMaps: true,
   });
   const mainBaseMap = useMainBaseMap();
+  // Project-wide (no listing filter), like useAnnotationsV2 — used to show
+  // which imported templates already exist before running the import.
+  const annotationTemplates = useAnnotationTemplates();
 
   // state
 
@@ -78,6 +85,19 @@ export default function PanelImportAnnotations() {
   const data = parseResult.ok ? parseResult.data : null;
   const error = parseResult.error;
   const isMesh = data?.kind === "MESH";
+  const isDump = data?.kind === "DUMP";
+
+  // Templates of the payload already present in the project: the import links
+  // to them instead of duplicating. Only the dump format carries real db ids.
+  const reusedTemplateIds = useMemo(() => {
+    if (!isDump || !data?.annotationTemplates) return null;
+    const rowsById = new Map((annotationTemplates ?? []).map((t) => [t.id, t]));
+    return new Set(
+      data.annotationTemplates
+        .filter((t) => isImportTemplateReusable(rowsById.get(t.id), projectId))
+        .map((t) => t.id)
+    );
+  }, [isDump, data?.annotationTemplates, annotationTemplates, projectId]);
 
   const mbpxTarget = mainBaseMap?.getMeterByPx?.() ?? null;
   const widthMetersNum = parseFloat(widthMeters);
@@ -100,7 +120,12 @@ export default function PanelImportAnnotations() {
 
   useEffect(() => {
     if (targetListingId) return;
-    if (
+    // A dump names the listing it was copied from: land the annotations back
+    // there so a copy → re-import round-trip is a no-op.
+    const sourceListingId = data?.sourceListingId;
+    if (sourceListingId && listings?.some((l) => l.id === sourceListingId)) {
+      setTargetListingId(sourceListingId);
+    } else if (
       selectedListingId &&
       listings?.some((l) => l.id === selectedListingId)
     ) {
@@ -108,7 +133,7 @@ export default function PanelImportAnnotations() {
     } else if (listings?.length) {
       setTargetListingId(listings[0].id);
     }
-  }, [listings, selectedListingId, targetListingId]);
+  }, [listings, selectedListingId, targetListingId, data?.sourceListingId]);
 
   // effect - clear the previous mesh results when the input changes
 
@@ -150,7 +175,19 @@ export default function PanelImportAnnotations() {
     }
 
     try {
-      const { templateRecords, clipboard, relative } = buildImportData({
+      const excluded = new Set(excludedTemplateIds);
+      const { templateIdMap, templateRecords } =
+        await resolveImportTemplatesService({
+          templates: (data.annotationTemplates ?? []).filter(
+            (t) => !excluded.has(t.id)
+          ),
+          projectId,
+          listingId: targetListingId,
+          // Only the dump carries real db template ids (see the service).
+          preserveIds: isDump,
+        });
+
+      const { clipboard, relative } = buildImportData({
         data,
         widthMeters: widthMetersNum,
         mainBaseMap,
@@ -158,6 +195,7 @@ export default function PanelImportAnnotations() {
         listingId: targetListingId,
         excludedTemplateIds,
         relativeToBaseMap,
+        templateIdMap,
       });
       if (!clipboard.items.length) return;
 
@@ -200,8 +238,9 @@ export default function PanelImportAnnotations() {
           Importer des annotations
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Collez le JSON inline : annotations (taille image, templates,
-          annotations) ou maillage d’annotations existantes (kind « MESH »).
+          Collez le JSON : données d’annotations copiées depuis la barre
+          d’outils de sélection, JSON inline (taille image, templates,
+          annotations), ou maillage d’annotations existantes (kind « MESH »).
         </Typography>
 
         <TextField
@@ -212,7 +251,7 @@ export default function PanelImportAnnotations() {
           fullWidth
           value={rawJson}
           onChange={(e) => setRawJson(e.target.value)}
-          placeholder='{ "image": { "width": 2000, "height": 1500 }, "annotationTemplates": [...], "annotations": [...] }'
+          placeholder='{ "imageSize": { "width": 4725, "height": 2362 }, "meterByPx": 0.0127, "annotations": [...] }'
           error={Boolean(error)}
           sx={{
             mb: 2,
@@ -288,6 +327,20 @@ export default function PanelImportAnnotations() {
               </Select>
             </FormControl>
 
+            {isDump && (
+              <Alert severity="info" sx={{ mb: 2 }}>
+                {`Données d’annotations copiées — ${data.annotations.length} annotation(s), ${data.annotationTemplates.length} template(s). Les points partagés (jonctions) restent soudés.`}
+              </Alert>
+            )}
+
+            {data.skipped?.length > 0 && (
+              <Alert severity="warning" sx={{ mb: 2 }}>
+                {`${data.skipped.length} annotation(s) ignorée(s) : ${[
+                  ...new Set(data.skipped.map((a) => a.type ?? "?")),
+                ].join(", ")}.`}
+              </Alert>
+            )}
+
             <FormControlLabel
               sx={{ mb: 1, display: "flex" }}
               control={
@@ -345,6 +398,7 @@ export default function PanelImportAnnotations() {
             <ImportAnnotationsTemplateList
               templates={data.annotationTemplates}
               excludedTemplateIds={excludedTemplateIds}
+              reusedIds={reusedTemplateIds}
               onToggle={handleToggleTemplate}
             />
           </>

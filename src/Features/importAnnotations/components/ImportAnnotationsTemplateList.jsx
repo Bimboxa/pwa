@@ -1,5 +1,6 @@
 import {
   Box,
+  Chip,
   List,
   ListItem,
   ListItemText,
@@ -8,7 +9,9 @@ import {
 } from "@mui/material";
 
 // Color swatch + label + type for each imported template, with a switch to
-// include/exclude it (and its annotations) from the import.
+// include/exclude it (and its annotations) from the import. `reusedIds` marks
+// the templates already present in the target project (dump format), which the
+// import links to instead of duplicating.
 function swatchColor(tpl) {
   return tpl.fillColor || tpl.strokeColor || "#bdbdbd";
 }
@@ -16,11 +19,14 @@ function swatchColor(tpl) {
 export default function ImportAnnotationsTemplateList({
   templates,
   excludedTemplateIds,
+  reusedIds,
   onToggle,
 }) {
   if (!templates?.length) return null;
 
   const excluded = new Set(excludedTemplateIds ?? []);
+  const reused =
+    reusedIds instanceof Set ? reusedIds : new Set(reusedIds ?? []);
   const includedCount = templates.filter((t) => !excluded.has(t.id)).length;
 
   return (
@@ -36,12 +42,22 @@ export default function ImportAnnotationsTemplateList({
               key={tpl.id}
               disableGutters
               secondaryAction={
-                <Switch
-                  edge="end"
-                  size="small"
-                  checked={isIncluded}
-                  onChange={() => onToggle?.(tpl.id)}
-                />
+                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                  {reusedIds && (
+                    <Chip
+                      size="small"
+                      variant="outlined"
+                      label={reused.has(tpl.id) ? "existant" : "à créer"}
+                      sx={{ height: 18, fontSize: 10 }}
+                    />
+                  )}
+                  <Switch
+                    edge="end"
+                    size="small"
+                    checked={isIncluded}
+                    onChange={() => onToggle?.(tpl.id)}
+                  />
+                </Box>
               }
             >
               <Box
