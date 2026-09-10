@@ -133,10 +133,17 @@ export default function useScopeConfigActions() {
   );
 
   // Per-scope order of the left-band modules: the full ordered list of
-  // module keys (SectionModuleOrder rewrites it from the live catalog on
+  // module keys (SectionModulesConfig rewrites it from the live catalog on
   // every drag, which also purges stale keys).
   const setModuleOrder = useCallback(
     (moduleKeys) => upsert(() => ({ moduleOrder: [...moduleKeys] })),
+    [upsert]
+  );
+
+  // Per-scope order of the right-band tools, same contract as
+  // setModuleOrder (SectionToolsConfig rewrites the full list on a drag).
+  const setToolOrder = useCallback(
+    (toolKeys) => upsert(() => ({ toolOrder: [...toolKeys] })),
     [upsert]
   );
 
@@ -151,5 +158,6 @@ export default function useScopeConfigActions() {
     setModuleLabel,
     setModuleIconKey,
     setModuleOrder,
+    setToolOrder,
   };
 }

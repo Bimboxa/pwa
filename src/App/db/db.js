@@ -280,7 +280,8 @@ db.version(32).stores({
   //  moduleOrder: [moduleKey] (left-band order, full list),
   //  moduleLabelsByKey / moduleIconKeysByKey: {moduleKey: label | iconKey},
   //  disabledToolKeys: [toolKey] (root-disabled: gone in every module),
-  //  disabledToolKeysByModule: {moduleKey: [toolKey]}}
+  //  disabledToolKeysByModule: {moduleKey: [toolKey]},
+  //  toolOrder: [toolKey] (right-band order, full list)}
   // One row per scope by convention. Collaborative configuration of the
   // left-band modules and right-band tools: AUDITED (timestamps feed the
   // Krto merge) and OWNERSHIP-EXEMPT; the app writes it exclusively through

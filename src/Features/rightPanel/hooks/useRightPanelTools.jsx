@@ -24,7 +24,10 @@ import IconExportPlan from "Features/icons/IconExportPlan";
 import {
   selectDisabledToolKeys,
   selectDisabledToolKeysByModule,
+  selectToolOrder,
 } from "Features/scopeConfig/utils/scopeConfigSelectors";
+
+import sortToolsByOrder from "../utils/sortToolsByOrder";
 
 // Tools that can never be disabled from the Configuration dialog:
 // SELECTION_PROPERTIES keeps the "every module shows at least Propriétés"
@@ -42,19 +45,22 @@ export const LOCKED_TOOL_KEYS = new Set(["SELECTION_PROPERTIES", "SETTINGS"]);
 // current module (or from appConfig.features.tools) never binds its letter.
 //
 // Returns { menuItems, toolsByKey, catalog }:
-//   - menuItems: the filtered, ordered list rendered in the band (hotkeys included).
+//   - menuItems: the filtered, ordered list rendered in the band (hotkeys
+//     included). Both lists end on sortToolsByOrder, so the band and the
+//     Configuration dialog agree on the per-scope order (scopeConfigs.toolOrder).
 //   - toolsByKey: raw metadata for EVERY known tool (unfiltered, `scopeDisabled`
 //     flagged), used by the auto-close effect to look up a still-open tool's
 //     `viewers` even after it left the list.
 //   - catalog: every configurable tool for the Configuration dialog — the
-//     org-allowlist tools (order preserved, SELECTION_PROPERTIES force-included)
-//     plus the contextual ones, unfiltered by module or scopeConfig, each
-//     annotated with `locked`.
+//     org-allowlist tools (SELECTION_PROPERTIES force-included) plus the
+//     contextual ones, unfiltered by module or scopeConfig, in the per-scope
+//     band order, each annotated with `locked`.
 export default function useRightPanelTools() {
   const appConfig = useAppConfig();
   const selectedViewerKey = useSelector((s) => s.viewers.selectedViewerKey);
   const disabledToolKeys = useSelector(selectDisabledToolKeys);
   const disabledToolKeysByModule = useSelector(selectDisabledToolKeysByModule);
+  const toolOrder = useSelector(selectToolOrder);
 
   // const - tools without a `viewers` field are available in every viewer
 
@@ -293,6 +299,13 @@ export default function useRightPanelTools() {
   }
   menuItems.push(...bottomTools);
 
+  // Per-scope order (Configuration > Modules & outils), applied last so it
+  // wins over the default slots above — including the "Bibliothèque" hoist,
+  // which only survives while the scope stores no explicit order. The
+  // bottom-anchored tools keep their own band section whatever their rank
+  // (VerticalMenuV2 splits on `group`).
+  menuItems = sortToolsByOrder(menuItems, toolOrder);
+
   // catalog — see the hook doc comment. Mirrors the menu construction rules
   // (org allowlist order, SELECTION_PROPERTIES force-included, `disabled`
   // dropped) without the module / scopeConfig filters.
@@ -307,7 +320,7 @@ export default function useRightPanelTools() {
     });
   }
   catalog.push(...contextualTools.filter((t) => !t.disabled));
-  const catalogWithLock = catalog.map((t) => ({
+  const catalogWithLock = sortToolsByOrder(catalog, toolOrder).map((t) => ({
     ...t,
     locked: LOCKED_TOOL_KEYS.has(t.key),
   }));

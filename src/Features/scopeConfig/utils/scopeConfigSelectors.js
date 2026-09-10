@@ -172,6 +172,13 @@ export function selectModuleOrder(s) {
   return selectSelectedScopeConfig(s)?.moduleOrder ?? null;
 }
 
+// Per-scope order of the right-band tools (full list of tool keys, locked
+// ones included). null => catalog order. Applied by useRightPanelTools
+// through sortToolsByOrder; the row's own array keeps the reference stable.
+export function selectToolOrder(s) {
+  return selectSelectedScopeConfig(s)?.toolOrder ?? null;
+}
+
 // Creation sources hidden from the Fonds de plan creation section.
 export function selectDisabledBaseMapSourceKeys(s) {
   return (
