@@ -5,6 +5,7 @@ import { Box } from "@mui/material";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import LeftDrawerPanel from "Features/leftPanel/components/LeftDrawerPanel";
 import SelectorListingForViewer from "./SelectorListingForViewer";
+import ButtonSelectorListingInViewer from "./ButtonSelectorListingInViewer";
 import MainListingMapsEditor from "./MainListingMapsEditor";
 
 import useListingById from "Features/listings/hooks/useListingById";
@@ -18,6 +19,7 @@ export default function MainListingViewer() {
 
   const selectedListingId = useSelector((s) => s.listings.selectedListingId);
   const listing = useListingById(selectedListingId);
+  const leftPanelDocked = useSelector((s) => s.leftPanel.leftPanelDocked);
 
   // helpers
 
@@ -50,6 +52,14 @@ export default function MainListingViewer() {
 
       {/* Right: baseMaps recap editor */}
       <Box sx={{ flex: 1, minWidth: 0, position: "relative" }}>
+        {/* Folded panel: the floating selector takes over naming the current
+            listing and changing it. zIndex 10 is the app's floating-overlay
+            level — below the drawer (20), which must keep sliding over it. */}
+        {!leftPanelDocked && (
+          <Box sx={{ position: "absolute", top: 16, left: 16, zIndex: 10 }}>
+            <ButtonSelectorListingInViewer listing={listing} />
+          </Box>
+        )}
         <MainListingMapsEditor listing={listing} />
       </Box>
     </Box>

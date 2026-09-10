@@ -33,7 +33,10 @@ import getListingGroupsByEntityModelType from "Features/listings/utils/getListin
 // the group already answers. A click selects the listing — which narrows the
 // recap editor and sends the listing properties to the right panel; there is
 // no subview to drill into.
-export default function SelectorListingForViewer({ selectedListingId }) {
+export default function SelectorListingForViewer({
+  selectedListingId,
+  onListingSelected,
+}) {
   const dispatch = useDispatch();
 
   // strings
@@ -91,9 +94,14 @@ export default function SelectorListingForViewer({ selectedListingId }) {
 
   // Clicking the selected listing again clears the selection, which puts the
   // editor back on the all-listings totals.
+  // `onListingSelected` is the floating-button caller (ButtonSelectorListingInViewer)
+  // closing its popover: deselecting counts too, it is a choice like any other.
+  // The creation flow below never calls it — the creation dialogs are children
+  // of this component, so closing the popover would unmount the open dialog.
   function handleListingClick(listing) {
     if (listing.id === selectedListingId) deselectListing();
     else selectListing(listing);
+    onListingSelected?.();
   }
 
   function handleListingCreated(listing) {
