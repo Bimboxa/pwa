@@ -26,6 +26,7 @@ import {
   Chip,
   Tooltip,
   TextField,
+  Popover,
 } from "@mui/material";
 import {
   ChevronRight,
@@ -57,6 +58,8 @@ import DatagridAnnotations from "Features/annotations/components/DatagridAnnotat
 import { resolveShapeCategory } from "Features/annotations/constants/drawingShapes.jsx";
 import { resolveDrawingShape } from "Features/annotations/constants/drawingShapeConfig";
 import IconButtonMoreActionsListing from "./IconButtonMoreActionsListing";
+import AvatarListing from "./AvatarListing";
+import { getDefaultListingAvatarString } from "../utils/getListingAvatarString";
 import useFavoriteListings from "../hooks/useFavoriteListings";
 
 function getTemplateMainColor(template) {
@@ -310,12 +313,18 @@ export default function PanelPropertiesListingV2({ listing }) {
   // state
 
   const [name, setName] = useState(listing?.name ?? "");
+  const [avatarValue, setAvatarValue] = useState(listing?.avatarString ?? "");
+  const [avatarAnchor, setAvatarAnchor] = useState(null);
   const [addCategoriesTemplate, setAddCategoriesTemplate] = useState(null);
   const [openTableDialog, setOpenTableDialog] = useState(false);
 
   useEffect(() => {
     setName(listing?.name ?? "");
   }, [listing?.id, listing?.name]);
+
+  useEffect(() => {
+    setAvatarValue(listing?.avatarString ?? "");
+  }, [listing?.id, listing?.avatarString]);
 
   // data - base maps with annotation counts for this listing
 
@@ -350,6 +359,9 @@ export default function PanelPropertiesListingV2({ listing }) {
 
   const label = listing?.name ?? "Liste";
   const backToScopeS = "Retour";
+  const avatarS = "Avatar";
+  const editAvatarS = "Modifier l'avatar";
+  const avatarHintS = "Vide = automatique";
 
   // handlers
 
@@ -366,6 +378,22 @@ export default function PanelPropertiesListingV2({ listing }) {
   const handleNameKeyDown = (e) => {
     if (e.key === "Enter") {
       e.target.blur();
+    }
+  };
+
+  const handleAvatarClose = async () => {
+    setAvatarAnchor(null);
+    if (!listing?.id) return;
+    const next = avatarValue.trim() || null;
+    const current = listing.avatarString?.trim() || null;
+    if (next === current) return;
+    await updateListing({ id: listing.id, avatarString: next });
+  };
+
+  const handleAvatarKeyDown = (e) => {
+    if (e.key === "Enter" || e.key === "Escape") {
+      e.preventDefault();
+      handleAvatarClose();
     }
   };
 
@@ -519,23 +547,78 @@ export default function PanelPropertiesListingV2({ listing }) {
           >
             Nom
           </Typography>
-          <InputBase
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            onBlur={handleNameBlur}
-            onKeyDown={handleNameKeyDown}
-            fullWidth
-            sx={{
-              fontSize: "0.875rem",
-              px: 1,
-              py: 0.5,
-              borderRadius: 1,
-              border: (theme) => `1px solid ${theme.palette.divider}`,
-              "&:focus-within": {
-                borderColor: "primary.main",
-              },
-            }}
-          />
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Tooltip title={editAvatarS}>
+              <span>
+                <AvatarListing
+                  listing={{ ...listing, name, avatarString: avatarValue }}
+                  size={36}
+                  variant="selected"
+                  onClick={(e) => setAvatarAnchor(e.currentTarget)}
+                />
+              </span>
+            </Tooltip>
+            <InputBase
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onBlur={handleNameBlur}
+              onKeyDown={handleNameKeyDown}
+              sx={{
+                flex: 1,
+                fontSize: "0.875rem",
+                px: 1,
+                py: 0.5,
+                borderRadius: 1,
+                border: (theme) => `1px solid ${theme.palette.divider}`,
+                "&:focus-within": {
+                  borderColor: "primary.main",
+                },
+              }}
+            />
+          </Box>
+          <Popover
+            open={Boolean(avatarAnchor)}
+            anchorEl={avatarAnchor}
+            onClose={handleAvatarClose}
+            anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+            transformOrigin={{ vertical: "top", horizontal: "left" }}
+            slotProps={{ paper: { sx: { p: 1.5, mt: 0.5 } } }}
+          >
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ fontWeight: 600, mb: 0.5, display: "block" }}
+            >
+              {avatarS}
+            </Typography>
+            <InputBase
+              autoFocus
+              value={avatarValue}
+              onChange={(e) => setAvatarValue(e.target.value)}
+              onKeyDown={handleAvatarKeyDown}
+              placeholder={getDefaultListingAvatarString({ ...listing, name })}
+              inputProps={{ maxLength: 3 }}
+              sx={{
+                width: 80,
+                fontSize: "0.875rem",
+                fontWeight: 700,
+                px: 1,
+                py: 0.5,
+                borderRadius: 1,
+                border: (theme) => `1px solid ${theme.palette.divider}`,
+                "&:focus-within": {
+                  borderColor: "primary.main",
+                },
+              }}
+            />
+            <Typography
+              variant="caption"
+              color="text.disabled"
+              sx={{ display: "block", mt: 0.5 }}
+            >
+              {avatarHintS}
+            </Typography>
+          </Popover>
         </WhiteSectionGeneric>
 
         {/* Favorite toggle */}

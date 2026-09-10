@@ -97,6 +97,7 @@ import { resolveDrawingShape } from "Features/annotations/constants/drawingShape
 
 import useListings from "Features/listings/hooks/useListings";
 import FieldActiveListing from "Features/panelDrawing/components/FieldActiveListing";
+import ListingAvatarsBar from "Features/panelDrawing/components/ListingAvatarsBar";
 import useProjectPhotos from "Features/photos/hooks/useProjectPhotos";
 import SectionPopperPhotos from "Features/photos/components/SectionPopperPhotos";
 import useFreeAnnotationTemplates from "Features/mapEditor/hooks/useFreeAnnotationTemplates";
@@ -1824,6 +1825,9 @@ export default function PopperMapListings() {
   const popperContentMode = useSelector(
     (s) => s.popperMapListings.viewerContentMode
   );
+  const listingSelectorMode = useSelector(
+    (s) => s.popperMapListings.listingSelectorMode
+  );
   const showPhotosToggle = isViewerModule && projectPhotos.length > 0;
   const showPhotosBody = showPhotosToggle && popperContentMode === "PHOTOS";
 
@@ -2259,12 +2263,26 @@ export default function PopperMapListings() {
                     borderColor: "panel.border",
                   }}
                 >
-                  <FieldActiveListing
-                    listings={displayedListings}
-                    activeListing={activeListing}
-                    countsByListingId={annotationCountByListingId}
-                    showAddListing={canAddListing}
-                  />
+                  {/* Either the LISTE ACTIVE field or the avatars band,
+                      per the "Sélecteur / Avatars" switch of the "..."
+                      menu. The field stays for the empty state (its CTA
+                      creates the first listing). */}
+                  {listingSelectorMode === "AVATARS" && !hasNoListing ? (
+                    <ListingAvatarsBar
+                      listings={displayedListings}
+                      activeListing={activeListing}
+                      countsByListingId={annotationCountByListingId}
+                      showAddListing={canAddListing}
+                    />
+                  ) : (
+                    <FieldActiveListing
+                      listings={displayedListings}
+                      activeListing={activeListing}
+                      countsByListingId={annotationCountByListingId}
+                      showAddListing={canAddListing}
+                      showModeSwitch
+                    />
+                  )}
                 </Box>
               )}
 

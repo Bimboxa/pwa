@@ -1,8 +1,12 @@
 import { createSlice } from "@reduxjs/toolkit";
 
+// "SELECTOR" (LISTE ACTIVE field) | "AVATARS" (listing avatars band).
+const LISTING_SELECTOR_MODES = ["SELECTOR", "AVATARS"];
+
 const popperMapListingsSlice = createSlice({
   name: "popperMapListings",
   initialState: {
+    listingSelectorMode: "AVATARS",
     showLayers: false,
     // null | "DRAW" | "EDIT" | "SELECT" — null = "no mode" (default): the
     // popper behaves like DRAW, and the selected annotation gets EDIT-like
@@ -31,6 +35,13 @@ const popperMapListingsSlice = createSlice({
     setViewerContentMode(state, action) {
       state.viewerContentMode = action.payload ?? "ANNOTATIONS";
     },
+    setListingSelectorMode(state, action) {
+      state.listingSelectorMode = LISTING_SELECTOR_MODES.includes(
+        action.payload
+      )
+        ? action.payload
+        : "AVATARS";
+    },
   },
 });
 
@@ -40,6 +51,7 @@ export const {
   setCollapsed,
   setShowInBaseMapsViewer,
   setViewerContentMode,
+  setListingSelectorMode,
 } = popperMapListingsSlice.actions;
 
 export default popperMapListingsSlice.reducer;

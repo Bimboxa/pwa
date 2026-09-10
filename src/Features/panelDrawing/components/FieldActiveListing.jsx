@@ -4,7 +4,6 @@ import { useDispatch, useSelector } from "react-redux";
 import { generateKeyBetween } from "fractional-indexing";
 
 import {
-  setSelectedListingId,
   setHiddenListingsIds,
   triggerListingsUpdate,
 } from "Features/listings/listingsSlice";
@@ -51,7 +50,7 @@ import { CSS } from "@dnd-kit/utilities";
 import DialogCreateListing from "Features/listings/components/DialogCreateListing";
 import MenuMoreActionsActiveListing from "./MenuMoreActionsActiveListing";
 
-import useUpdateAnnotationTemplates from "Features/annotations/hooks/useUpdateAnnotationTemplates";
+import useSelectActiveListing from "Features/panelDrawing/hooks/useSelectActiveListing";
 
 import db from "App/db/db";
 
@@ -183,6 +182,8 @@ export default function FieldActiveListing({
   // Hosts where creating a listing is not allowed (e.g. the popper in some
   // viewers) hide the "Nouvelle liste" entry and the empty-state CTA.
   showAddListing = true,
+  // Popper host: the "..." menu gets the "Sélecteur / Avatars" mode switch.
+  showModeSwitch = false,
 }) {
   const dispatch = useDispatch();
 
@@ -204,7 +205,7 @@ export default function FieldActiveListing({
     (s) => s.panelDrawing.autoListingVisibility
   );
 
-  const updateAnnotationTemplates = useUpdateAnnotationTemplates();
+  const selectListing = useSelectActiveListing(listings);
 
   // state
 
@@ -230,44 +231,9 @@ export default function FieldActiveListing({
 
   // handlers
 
-  const handleSelectListing = async (listingId) => {
-    dispatch(setSelectedListingId(listingId));
+  const handleSelectListing = (listingId) => {
+    selectListing(listingId);
     setMenuAnchor(null);
-
-    if (!autoVisibility) {
-      // Even without auto visibility, selecting a listing always unhides it.
-      if (hiddenListingsIds.includes(listingId))
-        dispatch(
-          setHiddenListingsIds(
-            hiddenListingsIds.filter((id) => id !== listingId)
-          )
-        );
-      return;
-    }
-
-    // Auto visibility: hide every other listing of the panel (hidden ids
-    // from other scopes are preserved) and unhide all the templates of the
-    // selected listing.
-    const panelIds = (listings ?? []).map((l) => l.id);
-    const keptHiddenIds = hiddenListingsIds.filter(
-      (id) => !panelIds.includes(id)
-    );
-    dispatch(
-      setHiddenListingsIds([
-        ...keptHiddenIds,
-        ...panelIds.filter((id) => id !== listingId),
-      ])
-    );
-
-    const templates = await db.annotationTemplates
-      .where("listingId")
-      .equals(listingId)
-      .toArray();
-    await updateAnnotationTemplates(
-      templates
-        .filter((t) => !t.deletedAt && t.hidden)
-        .map((t) => ({ id: t.id, hidden: false }))
-    );
   };
 
   const handleToggleListingVisibility = (e, listingId) => {
@@ -403,6 +369,7 @@ export default function FieldActiveListing({
         anchorEl={moreMenuAnchor}
         onClose={() => setMoreMenuAnchor(null)}
         listing={activeListing}
+        showModeSwitch={showModeSwitch}
       />
 
       <Menu
