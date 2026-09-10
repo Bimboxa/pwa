@@ -1,29 +1,30 @@
 import { useSelector, useDispatch } from "react-redux";
 
-import {
-  setDisable3D,
-  setConfigurationsManagement,
-} from "Features/appConfig/appConfigSlice";
+import { setConfigurationsManagement } from "Features/appConfig/appConfigSlice";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
-import setDisable3DInLocalStorage from "Features/appConfig/services/setDisable3DInLocalStorage";
 import setConfigurationsManagementInLocalStorage from "Features/appConfig/services/setConfigurationsManagementInLocalStorage";
 
-import { Box, Typography } from "@mui/material";
-import FieldCheck from "Features/form/components/FieldCheck";
+import { Box, List, Typography } from "@mui/material";
+import Tune from "@mui/icons-material/Tune";
 
+import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
+import WhiteSectionTitle from "Features/form/components/WhiteSectionTitle";
 import ButtonDeleteProjects from "Features/appConfig/components/ButtonDeleteProjects";
 
-// "Généralités > Données & préférences" page: device-level settings and local
-// data management (the former compact PanelAppConfig, minus the satellite
-// block which moved to the "Carte satellite" editor page).
+import PageConfigLayout from "./PageConfigLayout";
+import RowConfig from "./RowItemConfig";
+
+// "Généralités > Données & préférences" page: the device-level settings in
+// one white section, the local data management in another. The 3D switch
+// moved to "Modules & outils" (SectionThreedConfig), where it sits next to
+// the modules it gates.
 export default function PageDonneesPreferences({ onClose }) {
   const dispatch = useDispatch();
 
   // data
 
   const appConfig = useAppConfig();
-  const disable3D = useSelector((s) => s.appConfig.disable3D);
   const configurationsManagement = useSelector(
     (s) => s.appConfig.configurationsManagement
   );
@@ -31,8 +32,12 @@ export default function PageDonneesPreferences({ onClose }) {
   // strings
 
   const scopeS = appConfig?.strings?.scope?.nameSingular ?? "plan de repérage";
+  const titleS = "Données & préférences";
+  const configurationS = "Configuration";
   const configurationsManagementS = "Gestion des configurations";
   const configurationsManagementHelperS = `Active le sélecteur de configurations à la création d'un ${scopeS.toLowerCase()}`;
+  const dataS = "Données";
+  const dataHelperS = "Projets et plans stockés sur cet appareil.";
 
   // helpers
 
@@ -40,55 +45,51 @@ export default function PageDonneesPreferences({ onClose }) {
 
   // handlers
 
-  function handleDisable3DChange(v) {
-    dispatch(setDisable3D(v));
-    setDisable3DInLocalStorage(v);
-  }
-
-  function handleConfigurationsManagementChange(v) {
-    dispatch(setConfigurationsManagement(v));
-    setConfigurationsManagementInLocalStorage(v);
+  function handleConfigurationsManagementToggle() {
+    const next = !configurationsManagement;
+    dispatch(setConfigurationsManagement(next));
+    setConfigurationsManagementInLocalStorage(next);
   }
 
   // render
 
   return (
-    <Box sx={{ px: 3, py: 2, maxWidth: 560 }}>
-      <Typography variant="h6" sx={{ mb: 0.5 }}>
-        Données & préférences
-      </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Version : {version}
-      </Typography>
+    <PageConfigLayout title={titleS} subtitle={`Version : ${version}`}>
+      <WhiteSectionGeneric>
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+          <WhiteSectionTitle>{configurationS}</WhiteSectionTitle>
 
-      <Box sx={{ py: 0.5 }}>
-        <FieldCheck
-          value={disable3D}
-          onChange={handleDisable3DChange}
-          label="Désactiver la 3D"
-          options={{ type: "switch" }}
-        />
-      </Box>
+          {/* same row as the Modules & outils lists: one click anywhere
+              toggles, no handle — there is nothing to reorder here */}
+          <List disablePadding>
+            <RowConfig
+              item={{
+                key: "CONFIGURATIONS_MANAGEMENT",
+                icon: <Tune />,
+                label: configurationsManagementS,
+                caption: configurationsManagementHelperS,
+                checked: Boolean(configurationsManagement),
+              }}
+              onToggle={handleConfigurationsManagementToggle}
+            />
+          </List>
+        </Box>
+      </WhiteSectionGeneric>
 
-      <Box sx={{ py: 0.5 }}>
-        <FieldCheck
-          value={configurationsManagement}
-          onChange={handleConfigurationsManagementChange}
-          label={configurationsManagementS}
-          options={{ type: "switch" }}
-        />
-        <Typography
-          variant="caption"
-          color="text.secondary"
-          sx={{ display: "block", pl: 6 }}
-        >
-          {configurationsManagementHelperS}
-        </Typography>
-      </Box>
+      <WhiteSectionGeneric>
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+          <Box>
+            <WhiteSectionTitle>{dataS}</WhiteSectionTitle>
+            <Typography variant="caption" color="text.secondary">
+              {dataHelperS}
+            </Typography>
+          </Box>
 
-      <Box sx={{ mt: 2 }}>
-        <ButtonDeleteProjects onDeleted={onClose} />
-      </Box>
-    </Box>
+          <Box sx={{ py: 1 }}>
+            <ButtonDeleteProjects onDeleted={onClose} />
+          </Box>
+        </Box>
+      </WhiteSectionGeneric>
+    </PageConfigLayout>
   );
 }

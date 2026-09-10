@@ -1,12 +1,3 @@
-import { useSelector } from "react-redux";
-
-import { LOCKED_MODULE_KEYS } from "Features/viewers/hooks/useViewers";
-
-import {
-  selectDisabledModuleKeys,
-  selectDisabledToolKeys,
-} from "../utils/scopeConfigSelectors";
-
 import {
   Box,
   List,
@@ -25,19 +16,18 @@ import {
 
 // Left summary column of the Configuration dialog. Sections top to bottom:
 // Généralités, Modules, Outils (both hidden without a selected scope),
-// Éditeurs. Per-scope disabled modules/tools render dimmed.
+// Éditeurs. `modules` / `tools` are the ENABLED ones only (filtered by
+// PanelConfiguration), and `show3dEditor` follows the device 3D preference:
+// the column mirrors what the app actually shows, a disabled entry is
+// switched back on from the "Modules & outils" page.
 export default function NavConfigurationList({
   modules,
   tools,
+  show3dEditor,
   showScopeSections,
   selection,
   onSelect,
 }) {
-  // data
-
-  const disabledModuleKeys = useSelector(selectDisabledModuleKeys);
-  const disabledToolKeys = useSelector(selectDisabledToolKeys);
-
   // helpers
 
   const isSelected = (type, key) =>
@@ -45,11 +35,15 @@ export default function NavConfigurationList({
 
   const editorItems = [
     { key: "EDITOR_2D", label: "Éditeur 2D", icon: <Draw fontSize="small" /> },
-    {
-      key: "EDITOR_3D",
-      label: "Éditeur 3D",
-      icon: <ViewInAr fontSize="small" />,
-    },
+    ...(show3dEditor
+      ? [
+          {
+            key: "EDITOR_3D",
+            label: "Éditeur 3D",
+            icon: <ViewInAr fontSize="small" />,
+          },
+        ]
+      : []),
     {
       key: "SATELLITE",
       label: "Carte satellite",
@@ -87,38 +81,28 @@ export default function NavConfigurationList({
         {showScopeSections && (
           <>
             <ListSubheader disableSticky>Modules</ListSubheader>
-            {modules.map((m) => {
-              const dimmed =
-                !LOCKED_MODULE_KEYS.has(m.key) &&
-                disabledModuleKeys.includes(m.key);
-              return (
-                <ListItemButton
-                  key={m.key}
-                  selected={isSelected("MODULE", m.key)}
-                  onClick={() => onSelect({ type: "MODULE", key: m.key })}
-                  sx={{ opacity: dimmed ? 0.45 : 1 }}
-                >
-                  <ListItemIcon sx={{ minWidth: 36 }}>{m.icon}</ListItemIcon>
-                  <ListItemText primary={m.label} />
-                </ListItemButton>
-              );
-            })}
+            {modules.map((m) => (
+              <ListItemButton
+                key={m.key}
+                selected={isSelected("MODULE", m.key)}
+                onClick={() => onSelect({ type: "MODULE", key: m.key })}
+              >
+                <ListItemIcon sx={{ minWidth: 36 }}>{m.icon}</ListItemIcon>
+                <ListItemText primary={m.label} />
+              </ListItemButton>
+            ))}
 
             <ListSubheader disableSticky>Outils</ListSubheader>
-            {tools.map((t) => {
-              const dimmed = disabledToolKeys.includes(t.key);
-              return (
-                <ListItemButton
-                  key={t.key}
-                  selected={isSelected("TOOL", t.key)}
-                  onClick={() => onSelect({ type: "TOOL", key: t.key })}
-                  sx={{ opacity: dimmed ? 0.45 : 1 }}
-                >
-                  <ListItemIcon sx={{ minWidth: 36 }}>{t.icon}</ListItemIcon>
-                  <ListItemText primary={t.label} />
-                </ListItemButton>
-              );
-            })}
+            {tools.map((t) => (
+              <ListItemButton
+                key={t.key}
+                selected={isSelected("TOOL", t.key)}
+                onClick={() => onSelect({ type: "TOOL", key: t.key })}
+              >
+                <ListItemIcon sx={{ minWidth: 36 }}>{t.icon}</ListItemIcon>
+                <ListItemText primary={t.label} />
+              </ListItemButton>
+            ))}
           </>
         )}
 
