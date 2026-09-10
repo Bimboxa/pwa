@@ -73,7 +73,7 @@ export default function PanelSelectionProperties() {
   const isPovViewer = selectedViewerKey === "POINT_OF_VIEW";
 
   const isMapViewer = selectedViewerKey === "MAP";
-  const isListingViewer = selectedViewerKey === "LISTING";
+  const isScopeViewer = selectedViewerKey === "SCOPE";
   const isThreedViewer = isThreedFamilyViewerKey(selectedViewerKey);
 
   // The MAP and BASE_MAPS viewers share the same canvas (InteractionLayer), so
@@ -112,6 +112,20 @@ export default function PanelSelectionProperties() {
     // to the module: leaving it keeps the item, and the other modules must
     // fall through to their own default.
     type = "BUSINESS_OBJECT";
+  } else if (isScopeViewer && selectedItem?.type === "LISTING") {
+    // SCOPE module: listings of every nature sit in the same panel, so the
+    // properties panel is chosen from the LISTING's own entityModel type
+    // instead of the module key like the branches below. A business-objects
+    // listing notably carries the notes-app (Krnet) sync configuration, which
+    // only PanelBusinessObjectListingProperties exposes.
+    const entityModelType = listing?.entityModel?.type;
+    if (entityModelType === "BUSINESS_OBJECT") type = "BUSINESS_OBJECT_LISTING";
+    else if (entityModelType === "BASE_MAP") type = "BASE_MAP_LISTING";
+    else type = "LISTING";
+  } else if (isScopeViewer && selectedItem?.type === "SCOPE") {
+    // Back arrow of the listing panels lands on the scope panel, same chain as
+    // the baseMap module.
+    type = "SCOPE";
   } else if (
     isBusinessObjectsModuleKey(selectedViewerKey) &&
     (selectedItem?.type === "LISTING" || !selectedItem)
@@ -266,8 +280,8 @@ export default function PanelSelectionProperties() {
 
       {/* THREED uses the V2 panel too so the back chain ends listing → scope,
           matching the 2D editor. */}
-      {type === "LISTING" && (isMapViewer || isListingViewer || isThreedViewer) && <PanelPropertiesListingV2 listing={listing} />}
-      {type === "LISTING" && !isMapViewer && !isListingViewer && !isThreedViewer && <PanelListingProperties listing={listing} />}
+      {type === "LISTING" && (isMapViewer || isScopeViewer || isThreedViewer) && <PanelPropertiesListingV2 listing={listing} />}
+      {type === "LISTING" && !isMapViewer && !isScopeViewer && !isThreedViewer && <PanelListingProperties listing={listing} />}
 
       {type === "ENTITY" && <PanelEntityProperties />}
 

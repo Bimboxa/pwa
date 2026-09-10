@@ -196,7 +196,7 @@ export default function TopBarDesktop() {
     }
     // The listing viewer reads s.listings.selectedListingId (MainListingViewer,
     // SelectorListingForViewer), not the listingViewer slice.
-    if (returnViewer === "LISTING" && viewerReturnContext?.listingId) {
+    if (returnViewer === "SCOPE" && viewerReturnContext?.listingId) {
       dispatch(setSelectedListingId(viewerReturnContext.listingId));
     }
     switchViewer(returnViewer);

@@ -1848,7 +1848,7 @@ export default function PopperMapListings() {
 
   const selectedListingId = useSelector((s) => s.listings.selectedListingId);
   const viewerReturnContext = useSelector((s) => s.viewers.viewerReturnContext);
-  const comesFromListing = viewerReturnContext?.fromViewer === "LISTING";
+  const comesFromListing = viewerReturnContext?.fromViewer === "SCOPE";
   const [openCreateListing, setOpenCreateListing] = useState(false);
   const [headerHovered, setHeaderHovered] = useState(false);
 

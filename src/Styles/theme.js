@@ -131,7 +131,7 @@ let theme = createTheme(
         pov: indigo[600],
         portfolio: purple[600],
         admin: teal[700],
-        listing: green[600],
+        scope: green[600],
         zones: cyan[700],
         businessObjects: brown[600],
       },

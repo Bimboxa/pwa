@@ -1,43 +1,27 @@
-import { useState } from "react";
 import { useSelector } from "react-redux";
 
 import { Box } from "@mui/material";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import LeftDrawerPanel from "Features/leftPanel/components/LeftDrawerPanel";
-import PanelListingViewerTabs from "./PanelListingViewerTabs";
-import PanelListingAnnotationTemplates from "./PanelListingAnnotationTemplates";
-import PanelListingEntities from "./PanelListingEntities";
 import SelectorListingForViewer from "./SelectorListingForViewer";
-import HeaderListingViewerPanel from "./HeaderListingViewerPanel";
 import MainListingMapsEditor from "./MainListingMapsEditor";
 
 import useListingById from "Features/listings/hooks/useListingById";
 
+// Editor of the SCOPE module: every listing of the scope on the left, the
+// base maps and their quantities on the right. The panel always shows the
+// list — picking a listing narrows the editor, it does not open a subview
+// (the listing's own properties land in the right panel).
 export default function MainListingViewer() {
   // data
 
   const selectedListingId = useSelector((s) => s.listings.selectedListingId);
-  const selectedTabId = useSelector((s) => s.listingViewer.selectedTabId);
   const listing = useListingById(selectedListingId);
-
-  // state
-
-  const [showSelector, setShowSelector] = useState(!selectedListingId);
 
   // helpers
 
   const panelWidth = 300;
-
-  // handlers
-
-  function handleSelectListing() {
-    setShowSelector(true);
-  }
-
-  function handleListingSelected() {
-    setShowSelector(false);
-  }
 
   // render
 
@@ -52,7 +36,7 @@ export default function MainListingViewer() {
       }}
     >
       {/* Left panel */}
-      <LeftDrawerPanel width={panelWidth} viewerKey="LISTING">
+      <LeftDrawerPanel width={panelWidth} viewerKey="SCOPE">
         <BoxFlexVStretch
           sx={{
             height: 1,
@@ -60,43 +44,13 @@ export default function MainListingViewer() {
             borderColor: "divider",
           }}
         >
-          {/* In selector mode the header (title + "+") belongs to
-              SelectorListingForViewer, like the Fond de plan module panel. */}
-          {!showSelector && (
-            <HeaderListingViewerPanel
-              listing={listing}
-              title={listing?.name || "Listing"}
-              onSelectListing={handleSelectListing}
-            />
-          )}
-          {!showSelector && listing && <PanelListingViewerTabs />}
-          <BoxFlexVStretch sx={{ overflow: "auto" }}>
-            {showSelector ? (
-              <SelectorListingForViewer
-                onListingSelected={handleListingSelected}
-                selectedListingId={selectedListingId}
-              />
-            ) : listing ? (
-              selectedTabId === "ENTITIES" ? (
-                <PanelListingEntities listing={listing} />
-              ) : (
-                <PanelListingAnnotationTemplates listing={listing} />
-              )
-            ) : (
-              <Box sx={{ p: 2, color: "text.secondary" }}>
-                Select a listing to view its entities.
-              </Box>
-            )}
-          </BoxFlexVStretch>
+          <SelectorListingForViewer selectedListingId={selectedListingId} />
         </BoxFlexVStretch>
       </LeftDrawerPanel>
 
-      {/* Right: baseMaps grid editor */}
+      {/* Right: baseMaps recap editor */}
       <Box sx={{ flex: 1, minWidth: 0, position: "relative" }}>
-        <MainListingMapsEditor
-          listing={listing}
-          showAllListings={showSelector}
-        />
+        <MainListingMapsEditor listing={listing} />
       </Box>
     </Box>
   );

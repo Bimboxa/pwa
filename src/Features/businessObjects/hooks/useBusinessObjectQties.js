@@ -3,14 +3,12 @@ import { useMemo } from "react";
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 import useRelsBusinessObjectAnnotation from "./useRelsBusinessObjectAnnotation";
 
-import getItemsByKey from "Features/misc/utils/getItemsByKey";
-import accumulateAnnotationQties, {
-  createEmptyQties,
-} from "../utils/accumulateAnnotationQties";
+import computeBusinessObjectQties from "../utils/computeBusinessObjectQties";
 
 // Rolled-up quantities of every business object of a listing, from its linked
-// annotations. No hierarchical aggregation (v1): an object only counts its
-// own linked annotations.
+// annotations, over the whole scope. The rollup rule itself lives in
+// computeBusinessObjectQties (shared with the SCOPE module recap, which feeds
+// it one base map's annotations at a time).
 // Returns {qtiesByObjectId: {count, length, surface}, annotationsByObjectId,
 // mainRelsByObjectId, mainAnnotationsByObjectId} — the last two hold the
 // object's MAIN annotations (rels flagged isMain, one per base map).
@@ -29,44 +27,8 @@ export default function useBusinessObjectQties({ listingId } = {}) {
 
   // main
 
-  return useMemo(() => {
-    const annotationById = getItemsByKey(annotations ?? [], "id");
-    const qtiesByObjectId = {};
-    const annotationsByObjectId = {};
-    const mainRelsByObjectId = {};
-    const mainAnnotationsByObjectId = {};
-
-    (rels ?? []).forEach((rel) => {
-      const annotation = annotationById[rel.annotationId];
-      if (!annotation) return;
-      if (rel.isMain) {
-        const objectId = rel.businessObjectId;
-        if (!mainRelsByObjectId[objectId]) {
-          mainRelsByObjectId[objectId] = [];
-          mainAnnotationsByObjectId[objectId] = [];
-        }
-        mainRelsByObjectId[objectId].push(rel);
-        mainAnnotationsByObjectId[objectId].push(annotation);
-      }
-      // Mesh cells are children of a parent annotation that is already
-      // counted; skip them so quantities are not double-counted.
-      if (annotation.isMeshCell) return;
-
-      const objectId = rel.businessObjectId;
-      if (!qtiesByObjectId[objectId]) {
-        qtiesByObjectId[objectId] = createEmptyQties();
-        annotationsByObjectId[objectId] = [];
-      }
-      annotationsByObjectId[objectId].push(annotation);
-
-      accumulateAnnotationQties(qtiesByObjectId[objectId], annotation);
-    });
-
-    return {
-      qtiesByObjectId,
-      annotationsByObjectId,
-      mainRelsByObjectId,
-      mainAnnotationsByObjectId,
-    };
-  }, [rels, annotations]);
+  return useMemo(
+    () => computeBusinessObjectQties({ rels, annotations }),
+    [rels, annotations]
+  );
 }

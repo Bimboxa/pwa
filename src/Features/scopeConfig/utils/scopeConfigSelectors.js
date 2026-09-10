@@ -16,7 +16,7 @@
 import { BUSINESS_OBJECTS_MODULE_KEYS } from "Features/businessObjects/utils/businessObjectModuleKeys";
 
 // Modules of the left band that a scope may enable or disable: the
-// useViewers.jsx catalog minus the locked core modules (BASE_MAPS, MAP) and
+// useViewers.jsx catalog minus the locked modules (SCOPE, BASE_MAPS, MAP) and
 // the hard-disabled entries. Keep in sync when a module is added; the
 // business-objects modules (one per registered type) come from the registry.
 export const CONFIGURABLE_MODULE_KEYS = [
@@ -26,7 +26,6 @@ export const CONFIGURABLE_MODULE_KEYS = [
   "THREED",
   "MESHES",
   "ZONES",
-  "LISTING",
   ...BUSINESS_OBJECTS_MODULE_KEYS,
 ];
 

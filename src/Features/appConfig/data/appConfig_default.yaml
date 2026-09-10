@@ -53,6 +53,8 @@ strings:
 
   scope:
     dashboardTitle: "Dossiers"
+    # Also names the SCOPE module of the left band (the scope overview),
+    # unless a scope overrides it (scopeConfig.moduleLabelsByKey.SCOPE).
     nameSingular: "Dossier"
     description: "Un dossier est un dossier de plans de repérage de même type."
     namePlural: "Dossiers"

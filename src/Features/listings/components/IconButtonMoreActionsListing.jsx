@@ -11,11 +11,12 @@ import { setSelectedItem } from "Features/selection/selectionSlice";
 import { IconButton, Menu, MenuItem, Divider } from "@mui/material";
 import { MoreVert as MoreActionsIcon } from "@mui/icons-material";
 import DialogDeleteRessource from "Features/layout/components/DialogDeleteRessource";
+import DialogRenameListing from "./DialogRenameListing";
 
 import { OwnershipError } from "App/db/ownership";
 import useCanEditRecord from "App/hooks/useCanEditRecord";
 
-export default function IconButtonMoreActionsListing({ listing }) {
+export default function IconButtonMoreActionsListing({ listing, size }) {
   const dispatch = useDispatch();
 
   // data
@@ -29,6 +30,7 @@ export default function IconButtonMoreActionsListing({ listing }) {
   const [anchorEl, setAnchorEl] = useState(null);
   const open = Boolean(anchorEl);
   const [openDelete, setOpenDelete] = useState(false);
+  const [openRename, setOpenRename] = useState(false);
 
   // handlers
 
@@ -57,6 +59,12 @@ export default function IconButtonMoreActionsListing({ listing }) {
     setAnchorEl(null);
   };
 
+  const handleRename = () => {
+    setAnchorEl(null);
+    if (!guardEditRecord(listing)) return;
+    setOpenRename(true);
+  };
+
   const handleDelete = () => {
     setAnchorEl(null);
     if (!guardEditRecord(listing)) return;
@@ -65,17 +73,28 @@ export default function IconButtonMoreActionsListing({ listing }) {
 
   return (
     <>
-      <IconButton onClick={handleClick}>
-        <MoreActionsIcon />
+      <IconButton onClick={handleClick} size={size}>
+        <MoreActionsIcon fontSize={size === "small" ? "small" : undefined} />
       </IconButton>
 
       <Menu open={open} anchorEl={anchorEl} onClose={handleClose}>
+        <MenuItem onClick={handleRename} disabled={!canEditRecord(listing)}>
+          Renommer
+        </MenuItem>
         <MenuItem onClick={handleDuplicate}>Dupliquer</MenuItem>
         <Divider />
         <MenuItem onClick={handleDelete} disabled={!canEditRecord(listing)}>
           Supprimer
         </MenuItem>
       </Menu>
+
+      {openRename && (
+        <DialogRenameListing
+          open
+          listing={listing}
+          onClose={() => setOpenRename(false)}
+        />
+      )}
 
       <DialogDeleteRessource
         open={openDelete}

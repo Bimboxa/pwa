@@ -112,8 +112,8 @@ Promouvoir la configuration en vrai module :
   de module, hotkeys Ctrl+lettre dérivés). Le module sélectionné devient-il
   désactivé → bascule automatique vers `MAP` ou le premier module actif
   (garde `useEnsureEnabledModule`, active seulement après hydratation de la
-  synchro). Fonds de plan et Dessin étant verrouillés (FR-5), la bande garde
-  toujours au moins deux modules.
+  synchro). SCOPE, Fonds de plan et Dessin étant verrouillés (FR-5), la bande
+  garde toujours au moins trois modules.
 - **FR-4** — Un outil désactivé à la racine est filtré de la bande de droite
   dans tous les modules ; un outil désactivé par module ne l'est que dans ce
   module. Les hotkeys d'outils dérivent de la liste filtrée (aucun code
@@ -121,9 +121,9 @@ Promouvoir la configuration en vrai module :
 - **FR-5** — Éléments verrouillés, jamais désactivables : côté outils,
   `SELECTION_PROPERTIES` (Propriétés — invariant d'injection forcée : chaque
   module garde au moins un outil) et `SETTINGS` (Réglages — porte de sortie) ;
-  côté modules, `BASE_MAPS` (Fonds de plan) et `MAP` (Dessin) — constante
-  `LOCKED_MODULE_KEYS` exportée par `useViewers`, qui protège aussi le filtre
-  contre une row importée les listant désactivés. Rendus en switch
+  côté modules, `SCOPE`, `BASE_MAPS` (Fonds de plan) et `MAP` (Dessin) —
+  constante `LOCKED_MODULE_KEYS` exportée par `useViewers`, qui protège aussi
+  le filtre contre une row importée les listant désactivés. Rendus en switch
   désactivé-ON avec la mention « Toujours actif ».
 - **FR-6** — Le catalogue d'outils configurables = allowlist
   `appConfig.features.tools` (ordre préservé) + outils contextuels (Capture,
@@ -160,7 +160,8 @@ Promouvoir la configuration en vrai module :
 - **FR-12** — Le « Mode avancé » (`appConfig.advancedLayout`) est supprimé :
   LOCAL_LLM passe en `disabled: true` ; LISTING (« Liste d'objets ») devient un
   module configurable par scope comme les autres (`CONFIGURABLE_MODULE_KEYS`,
-  désactivé par défaut, restaurable au reload, sans hotkey) ; le
+  désactivé par défaut, restaurable au reload, sans hotkey) — repris depuis par
+  FR-16, qui en fait le module SCOPE verrouillé ; le
   toggle DRAW/EDIT/SELECT et les hotkeys D/M/S disparaissent (reste
   `useResetInteractionMode` qui remet le mode résiduel à null) ; l'intercept
   ORTHO_PATHS marche désormais quand le mode est explicitement choisi dans
@@ -169,6 +170,30 @@ Promouvoir la configuration en vrai module :
   « Travailler avec des calques » branché sur l'état de session
   `popperMapListings.showLayers` (déplacé du panneau propriétés du popper),
   auto-activation conservée quand le fond de plan contient des calques.
+- **FR-16** — Module `SCOPE` (vue d'ensemble du périmètre : les listes à
+  gauche, les fonds de plan et leurs quantités dans l'éditeur). Il **remplace**
+  le module `LISTING` de FR-12 : même feature (`Features/listingViewer`), clé
+  renommée, retiré de `CONFIGURABLE_MODULE_KEYS` et ajouté à
+  `LOCKED_MODULE_KEYS`. Toujours actif, et **épinglé en tête** de la bande
+  quel que soit l'ordre enregistré : `PINNED_TOP_MODULE_KEYS`
+  (`sortModulesByOrder`) hisse la clé sur les deux branches, sinon un
+  `moduleOrder` antérieur — qui ignore la clé — la renverrait en fin de liste.
+  La section « Ordre des modules » l'affiche en ligne figée, hors de la liste
+  triable, pour que l'ordre persisté ne contredise jamais la bande.
+  Libellé : override de scope (`moduleLabelsByKey.SCOPE`, éditable comme pour
+  les modules Ouvrages) > `appConfig.strings.scope.nameSingular` (« Krto »,
+  « Mission ») > « Dossier ». L'icône n'est pas configurable par scope :
+  `moduleIconKeysByKey` n'est résolu que par les modules Ouvrages.
+  Un `localStorage.initSelectedModuleKey` valant `"LISTING"` est remappé sur
+  `"SCOPE"` au démarrage.
+  Panneau de droite : les autres modules choisissent le panneau de propriétés
+  d'après leur clé de module, ce que SCOPE ne peut pas faire — toutes les
+  natures de liste y cohabitent. `PanelSelectionProperties` y route donc sur
+  le `entityModel.type` de la liste sélectionnée : `BUSINESS_OBJECT` →
+  `PanelBusinessObjectListingProperties` (seul à exposer la config de synchro
+  notes-app / Krnet), `BASE_MAP` → `PanelBaseMapListingProperties`, sinon
+  `PanelPropertiesListingV2`. La flèche retour de ces panneaux pose une
+  sélection `SCOPE`, traitée comme dans le module Fonds de plan.
 
 ## 5. Modèle de données & état
 
@@ -283,7 +308,7 @@ Plus `src/Features/viewers/hooks/useEnsureEnabledModule.js`,
 `src/App/store.js`, `src/App/components/MainApp.jsx`,
 `src/Features/appConfig/appConfigSlice.js` (advancedLayout retiré),
 `src/Features/viewers/hooks/useViewers.jsx` (LOCKED_MODULE_KEYS,
-ignoreScopeConfig, LISTING configurable par scope),
+ignoreScopeConfig, LISTING configurable par scope — devenu SCOPE, cf. FR-16),
 `src/Features/viewers/components/VerticalMenuViewers.jsx`,
 `src/Features/viewers/hooks/useLandingViewerModuleOnScopeOpen.js`,
 `src/Features/layout/components/LayoutDesktop.jsx`,

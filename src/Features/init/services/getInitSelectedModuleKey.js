@@ -15,12 +15,16 @@ const RESTORABLE_MODULE_KEYS = [
   "MESHES",
   "ZONES",
   "PHOTOS",
-  "LISTING",
+  "SCOPE",
   ...BUSINESS_OBJECTS_MODULE_KEYS,
 ];
 
 export default function getInitSelectedModuleKey() {
   const moduleKey = localStorage.getItem("initSelectedModuleKey");
+
+  // The "Liste d'objets" module became the SCOPE module: restore the users
+  // who left the app on it instead of dropping them on the default module.
+  if (moduleKey === "LISTING") return "SCOPE";
 
   if (!RESTORABLE_MODULE_KEYS.includes(moduleKey)) return null;
 

@@ -70,7 +70,6 @@ import portfolioBaseMapContainersReducer from "Features/portfolioBaseMapContaine
 import adminEditorReducer from "Features/adminEditor/adminEditorSlice";
 //
 import annotationsAutoReducer from "Features/annotationsAuto/annotationsAutoSlice";
-import listingViewerReducer from "Features/listingViewer/listingViewerSlice";
 import layersReducer from "Features/layers/layersSlice";
 import popperMapListingsReducer from "Features/popperMapListings/popperMapListingsSlice";
 import panelDrawingReducer from "Features/panelDrawing/panelDrawingSlice";
@@ -154,7 +153,6 @@ const store = configureStore({
     //
     annotationsAuto: annotationsAutoReducer,
     //
-    listingViewer: listingViewerReducer,
     layers: layersReducer,
     popperMapListings: popperMapListingsReducer,
     panelDrawing: panelDrawingReducer,
