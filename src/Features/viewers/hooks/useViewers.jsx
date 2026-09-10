@@ -7,6 +7,8 @@ import {
 
 import useBusinessObjectsModules from "Features/businessObjects/hooks/useBusinessObjectsModules";
 import useScopeModuleLabel from "Features/listingViewer/hooks/useScopeModuleLabel";
+import IconAnnotatedPlan from "Features/icons/IconAnnotatedPlan";
+
 import sortModulesByOrder from "../utils/sortModulesByOrder";
 
 import {
@@ -18,7 +20,6 @@ import {
   AdminPanelSettings,
   Draw,
   Layers,
-  Topic,
   ViewInAr,
   GridOn,
   PhotoCamera,
@@ -64,7 +65,7 @@ export default function useViewers({ ignoreScopeConfig = false } = {}) {
       key: "SCOPE",
       label: scopeModuleLabel,
       shortLabel: scopeModuleLabel,
-      icon: <Topic />,
+      icon: <IconAnnotatedPlan />,
       bgcolor: theme.palette.viewers.scope,
       // Overview of the scope: the listings on the left, the base maps and
       // their quantities in the editor. Locked (LOCKED_MODULE_KEYS) and
