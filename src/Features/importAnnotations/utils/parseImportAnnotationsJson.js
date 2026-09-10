@@ -36,9 +36,25 @@
 //   ]
 // }
 //
+// A third shape is the "annotations dump" copied by the debug button of the
+// multi-selection toolbar — hydrated rows, points in PIXELS, no root
+// `annotationTemplates` (each row embeds `annotationTemplateProps` instead):
+//
+// {
+//   "imageSize": { "width": <px>, "height": <px> },
+//   "meterByPx": <m/px>,
+//   "annotations": [ { ...<db row>, "annotationTemplateProps": {...},
+//                      "points": [ { "id": "...", "x": <px>, "y": <px> } ] } ]
+// }
+//
+// It is normalized into the shape above by normalizeAnnotationsDumpJson and
+// carries data.kind === "DUMP". See docs/annotations/IMPORT_ANNOTATIONS_DUMP.md.
+//
 // Returns { ok: true, data } or { ok: false, error } where error is a short
 // human-readable French message for the panel. Mesh results carry
 // data.kind === "MESH" so the panel can branch.
+
+import normalizeAnnotationsDumpJson from "./normalizeAnnotationsDumpJson";
 
 const SUPPORTED_TYPES = ["POLYLINE", "POLYGON", "COTE", "RULER", "STRIP"];
 const MESH_ORIENTATIONS = ["VERTICAL", "HORIZONTAL", "FREE"];
@@ -144,6 +160,33 @@ function parseMeshJson(json) {
   return { ok: true, data: { ...json, kind: "MESH" } };
 }
 
+// Validate the envelope of the "Copy annotations data" dump, then hand it to
+// normalizeAnnotationsDumpJson. Unsupported types are skipped (and surfaced in
+// data.skipped) rather than rejecting the whole paste — a dump of a mixed
+// selection must stay importable.
+function parseAnnotationsDumpJson(json) {
+  const imageSize = json.imageSize;
+  if (!imageSize || !(imageSize.width > 0) || !(imageSize.height > 0)) {
+    return {
+      ok: false,
+      error:
+        "Champ `imageSize` manquant ou invalide (width/height > 0 requis).",
+    };
+  }
+  if (!Array.isArray(json.annotations) || json.annotations.length === 0) {
+    return { ok: false, error: "`annotations` doit être un tableau non vide." };
+  }
+
+  const data = normalizeAnnotationsDumpJson(json);
+  if (data.annotations.length === 0) {
+    return {
+      ok: false,
+      error: `Aucune annotation importable (${data.skipped.length} ignorée(s)).`,
+    };
+  }
+  return { ok: true, data };
+}
+
 export default function parseImportAnnotationsJson(text) {
   if (!text || !text.trim()) {
     return { ok: false, error: null }; // empty input → no error, just nothing
@@ -163,6 +206,11 @@ export default function parseImportAnnotationsJson(text) {
   // MESH shape → its own validation path
   if (json.kind === "MESH" || Array.isArray(json.meshes)) {
     return parseMeshJson(json);
+  }
+
+  // DUMP shape (debug "Copy annotations data") → validate + normalize to the shape below
+  if (json.imageSize && Array.isArray(json.annotations)) {
+    return parseAnnotationsDumpJson(json);
   }
 
   // image

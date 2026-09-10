@@ -1,62 +1,7 @@
 import { nanoid } from "@reduxjs/toolkit";
 
 import { resolveDrawingShapeFromType } from "Features/annotations/constants/drawingShapeConfig";
-import getAnnotationTemplateCode from "Features/annotations/utils/getAnnotationTemplateCode";
-
-// Style fields copied from an imported template onto each imported annotation,
-// so both the paste ghost and the placed annotation render correctly even
-// before the (newly created) template is resolved by the render layer.
-const STYLE_FIELDS = [
-  "fillColor",
-  "fillOpacity",
-  "fillType",
-  "strokeColor",
-  "strokeOpacity",
-  "strokeWidth",
-  "strokeWidthUnit",
-  "strokeType",
-  // STRIP (band width is carried by strokeWidth/strokeWidthUnit)
-  "stripOrientation",
-  "dashLength",
-  "dashGap",
-  // COTE / RULER
-  "unit",
-  "decimals",
-  "fontSize",
-  "showUnitLabel",
-  "extensionOffset",
-  "extensionOffsetUnit",
-  "showTotalCote",
-  "showRulerLabel",
-  // label leader stub
-  "labelStubLength",
-  "labelStubMode",
-  // CIRCULATION
-  "arrowStep",
-  "arrowRight",
-  "arrowLeft",
-  // FREE_TEXT
-  "hasBackground",
-  "textColor",
-  "borderColor",
-  "fontFamily",
-  "pageFormat",
-  "fontWeight",
-  "fontItalic",
-  "fontUnderline",
-  "textAlign",
-  "hasBorder",
-  "hasPadding",
-  "hasConnector",
-];
-
-function pickStyle(obj) {
-  const out = {};
-  for (const key of STYLE_FIELDS) {
-    if (obj?.[key] !== undefined && obj[key] !== null) out[key] = obj[key];
-  }
-  return out;
-}
+import { pickStyle } from "./importStyleFields";
 
 /**
  * Compute pixel-per-normalized-unit factors so the imported drawing keeps its
@@ -116,18 +61,40 @@ function computeStripWidthPx(style, mbpxTarget) {
   return Math.abs(strokeWidth);
 }
 
+// Normalized [0..1] → target pixels, carrying the ref flags (arc `type`, per
+// vertex Z offsets) and `sourceId` — the latter is what lets
+// pasteAnnotationService weld the annotations that share a source point.
+function toBasePoints(points, pxPerNormX, pxPerNormY) {
+  return (points ?? []).map((p) => ({
+    ...p,
+    x: p.x * pxPerNormX,
+    y: p.y * pxPerNormY,
+  }));
+}
+
+// The ref array parallel to basePoints. pasteAnnotationService reads `type` and
+// the offsets off it (they live on the inline ref, never on the db.points row).
+function toPointRefs(points) {
+  return (points ?? []).map((p) => ({
+    ...(p.type ? { type: p.type } : {}),
+    ...(p.offsetTop ? { offsetTop: p.offsetTop } : {}),
+    ...(p.offsetBottom ? { offsetBottom: p.offsetBottom } : {}),
+  }));
+}
+
 /**
- * Turn parsed inline JSON into:
- *  - templateRecords: full db.annotationTemplates rows (with new ids), ready to bulkAdd
- *  - clipboard: { sourceCenter, items } feeding the existing paste-ghost flow
+ * Turn parsed inline JSON into a `clipboard: { sourceCenter, items }` feeding
+ * the existing paste-ghost flow. Template rows are resolved upstream by
+ * resolveImportTemplatesService and injected here as `templateIdMap`.
  *
  * @param {Object} params
- * @param {Object} params.data        - parsed + validated inline JSON
+ * @param {Object} params.data        - parsed + validated inline JSON (or normalized dump)
  * @param {number} params.widthMeters - real-world image width (m), or undefined
  * @param {Object} params.mainBaseMap - target/calibration BaseMap instance
  * @param {string} params.projectId
  * @param {string} params.listingId
- * @returns {{ templateRecords: Object[], clipboard: Object, scaled: boolean }}
+ * @param {Map<string,string>} params.templateIdMap - source template id → db id
+ * @returns {{ clipboard: Object, scaled: boolean, relative: boolean }}
  */
 export default function buildImportData({
   data,
@@ -137,6 +104,7 @@ export default function buildImportData({
   listingId,
   excludedTemplateIds,
   relativeToBaseMap,
+  templateIdMap,
 }) {
   const image = data.image;
   const mbpxTarget = mainBaseMap?.getMeterByPx?.() ?? null;
@@ -151,33 +119,6 @@ export default function buildImportData({
   });
 
   const excluded = new Set(excludedTemplateIds ?? []);
-  const includedTemplates = (data.annotationTemplates || []).filter(
-    (t) => !excluded.has(t.id)
-  );
-
-  // 1. New template ids + records (source local id → new db id)
-  const templateIdMap = new Map();
-  const templateRecords = includedTemplates.map((tpl) => {
-    const id = nanoid();
-    templateIdMap.set(tpl.id, id);
-    const style = pickStyle(tpl);
-    const record = {
-      ...style,
-      id,
-      projectId,
-      listingId,
-      label: tpl.label ?? tpl.type,
-      type: tpl.type,
-      drawingShape: tpl.drawingShape ?? resolveDrawingShapeFromType(tpl.type),
-    };
-    record.code = getAnnotationTemplateCode({
-      annotation: record,
-      listingKey: listingId,
-    });
-    return record;
-  });
-
-  // 2. Clipboard items (annotation + scaled basePoints in target px)
   const baseMapId = mainBaseMap?.id;
   const items = [];
   const allBasePoints = [];
@@ -189,25 +130,23 @@ export default function buildImportData({
     }
 
     const newTplId = ann.annotationTemplateId
-      ? templateIdMap.get(ann.annotationTemplateId)
+      ? templateIdMap?.get(ann.annotationTemplateId)
       : undefined;
     const tplDef = (data.annotationTemplates || []).find(
       (t) => t.id === ann.annotationTemplateId
     );
 
-    const basePoints = ann.points.map((p) => ({
-      x: p.x * pxPerNormX,
-      y: p.y * pxPerNormY,
-      ...(p.type ? { type: p.type } : {}),
-    }));
-    allBasePoints.push(...basePoints);
-
-    // Style: template first, then annotation-level overrides.
-    const style = { ...pickStyle(tplDef), ...pickStyle(ann) };
+    // The dump format ships full DB rows, already scrubbed of the hydrated
+    // fields by normalizeAnnotationsDumpJson — take them verbatim, so nothing
+    // is silently dropped. The inline-JSON format has no row, only style keys:
+    // merge template first, then annotation-level overrides.
+    const style = ann.props ?? { ...pickStyle(tplDef), ...pickStyle(ann) };
 
     const annotation = {
       ...style,
-      id: nanoid(),
+      // Kept from the source: pasteAnnotationService mints a fresh id at write
+      // time but uses this one to clone the source's mapping-category rows.
+      id: ann.id ?? nanoid(),
       type: ann.type,
       projectId,
       listingId,
@@ -215,12 +154,32 @@ export default function buildImportData({
       drawingShape: resolveDrawingShapeFromType(ann.type),
       ...(newTplId ? { annotationTemplateId: newTplId } : {}),
       ...(ann.closeLine !== undefined ? { closeLine: ann.closeLine } : {}),
-      // points refs carry the arc `type` flags (parallel to basePoints) so
-      // pasteAnnotationService preserves them on the placed annotation.
-      points: ann.points.map((p) => (p.type ? { type: p.type } : {})),
     };
 
-    const item = { annotation, basePoints };
+    const item = { annotation };
+
+    if (ann.point) {
+      // Single-point family (POINT / MARKER / DETAIL).
+      const [basePoint] = toBasePoints([ann.point], pxPerNormX, pxPerNormY);
+      item.basePoint = basePoint;
+      allBasePoints.push(basePoint);
+    } else {
+      const basePoints = toBasePoints(ann.points, pxPerNormX, pxPerNormY);
+      item.basePoints = basePoints;
+      allBasePoints.push(...basePoints);
+      // points refs carry the arc `type` flag and the per-vertex Z offsets
+      // (parallel to basePoints) so pasteAnnotationService preserves them.
+      annotation.points = toPointRefs(ann.points);
+
+      if (ann.cuts?.length) {
+        item.baseCuts = ann.cuts.map((cut) => ({
+          points: toBasePoints(cut.points, pxPerNormX, pxPerNormY),
+        }));
+        annotation.cuts = ann.cuts.map((cut) => ({
+          points: toPointRefs(cut.points),
+        }));
+      }
+    }
 
     // STRIP ghost needs the band width (target px) + orientation.
     if (ann.type === "STRIP") {
@@ -231,7 +190,7 @@ export default function buildImportData({
     items.push(item);
   }
 
-  // 3. Group source center = bbox center of all basePoints
+  // Group source center = bbox center of all basePoints
   let sourceCenter = { x: 0, y: 0 };
   if (allBasePoints.length) {
     const xs = allBasePoints.map((p) => p.x);
@@ -243,7 +202,6 @@ export default function buildImportData({
   }
 
   return {
-    templateRecords,
     clipboard: { sourceCenter, items },
     scaled,
     relative: Boolean(relative),

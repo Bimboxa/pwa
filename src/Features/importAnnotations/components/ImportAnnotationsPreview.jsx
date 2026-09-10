@@ -4,53 +4,15 @@ import { Box } from "@mui/material";
 import NodeAnnotationStatic from "Features/mapEditorGeneric/components/NodeAnnotationStatic";
 import { resolveDrawingShapeFromType } from "Features/annotations/constants/drawingShapeConfig";
 
-// Style fields propagated from a template onto its annotations for rendering.
-const STYLE_FIELDS = [
-  "fillColor",
-  "fillOpacity",
-  "fillType",
-  "strokeColor",
-  "strokeOpacity",
-  "strokeWidth",
-  "strokeWidthUnit",
-  "strokeType",
-  "stripOrientation",
-  "unit",
-  "decimals",
-  "fontSize",
-  "showUnitLabel",
-  "extensionOffset",
-  "extensionOffsetUnit",
-  "showTotalCote",
-  "showRulerLabel",
-  // label leader stub
-  "labelStubLength",
-  "labelStubMode",
-  // CIRCULATION
-  "arrowStep",
-  "arrowRight",
-  "arrowLeft",
-  // FREE_TEXT
-  "hasBackground",
-  "textColor",
-  "borderColor",
-  "fontFamily",
-  "pageFormat",
-  "fontWeight",
-  "fontItalic",
-  "fontUnderline",
-  "textAlign",
-  "hasBorder",
-  "hasPadding",
-  "hasConnector",
-];
+import { pickStyle } from "../utils/importStyleFields";
 
-function pickStyle(obj) {
-  const out = {};
-  for (const key of STYLE_FIELDS) {
-    if (obj?.[key] !== undefined && obj[key] !== null) out[key] = obj[key];
-  }
-  return out;
+// Normalized [0..1] → source pixel space, for the SVG viewBox below.
+function toPx(points, width, height) {
+  return (points ?? []).map((p) => ({
+    ...p,
+    x: p.x * width,
+    y: p.y * height,
+  }));
 }
 
 /**
@@ -79,21 +41,27 @@ export default function ImportAnnotationsPreview({
     return (data.annotations || [])
       .filter((ann) => !excluded.has(ann.annotationTemplateId))
       .map((ann, idx) => {
-      const tpl = templatesById.get(ann.annotationTemplateId);
-      const style = { ...pickStyle(tpl), ...pickStyle(ann) };
-      return {
-        ...style,
-        id: ann.id ?? `preview_${idx}`,
-        type: ann.type,
-        drawingShape: resolveDrawingShapeFromType(ann.type),
-        ...(ann.closeLine !== undefined ? { closeLine: ann.closeLine } : {}),
-        points: ann.points.map((p) => ({
-          x: p.x * width,
-          y: p.y * height,
-          ...(p.type ? { type: p.type } : {}),
-        })),
-      };
-    });
+        const tpl = templatesById.get(ann.annotationTemplateId);
+        // Dump rows come pre-scrubbed in `props`; inline JSON needs the merge.
+        const style = ann.props ?? { ...pickStyle(tpl), ...pickStyle(ann) };
+        return {
+          ...style,
+          id: ann.id ?? `preview_${idx}`,
+          type: ann.type,
+          drawingShape: resolveDrawingShapeFromType(ann.type),
+          ...(ann.closeLine !== undefined ? { closeLine: ann.closeLine } : {}),
+          ...(ann.point
+            ? { point: toPx([ann.point], width, height)[0] }
+            : { points: toPx(ann.points, width, height) }),
+          ...(ann.cuts?.length
+            ? {
+                cuts: ann.cuts.map((cut) => ({
+                  points: toPx(cut.points, width, height),
+                })),
+              }
+            : {}),
+        };
+      });
   }, [data, width, height, excludedTemplateIds]);
 
   if (!width || !height) return null;
