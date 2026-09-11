@@ -1,6 +1,7 @@
 import { useDispatch, useSelector } from "react-redux";
 
 import { setOpenAppConfig } from "Features/appConfig/appConfigSlice";
+import { setViewerReturnContext } from "../viewersSlice";
 
 import useSwitchViewer from "../hooks/useSwitchViewer";
 
@@ -33,6 +34,10 @@ export default function VerticalMenuViewers() {
   // handlers
 
   function handleClick(viewerKey) {
+    // A manual module change ends the "opened from the recap / portfolio"
+    // round-trip: drop the return context so its listing narrowing and
+    // "Retour" button do not outlive the navigation they belong to.
+    dispatch(setViewerReturnContext(null));
     switchViewer(viewerKey);
     if (!leftPanelDocked) onMouseEnter();
   }

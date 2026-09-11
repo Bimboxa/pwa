@@ -22,10 +22,11 @@ import SectionBusinessObjectQties from "./SectionBusinessObjectQties";
 // listing (see MainListingMapsEditor for the mode table).
 export default function SectionBaseMap({
   baseMap,
-  listing,
   annotationTemplates,
   annotations = [],
   showAllListings = false,
+  // Annotation listing the Dessin module narrows to (null = every listing).
+  returnListingId = null,
   isBaseMapListing = false,
   isBusinessObjectListing = false,
   businessObjects,
@@ -39,11 +40,11 @@ export default function SectionBaseMap({
     dispatch(
       setViewerReturnContext({
         fromViewer: "SCOPE",
-        listingId: showAllListings ? null : listing?.id,
+        listingId: returnListingId,
       })
     );
-    if (!showAllListings && listing?.id) {
-      dispatch(setSelectedListingId(listing.id));
+    if (returnListingId) {
+      dispatch(setSelectedListingId(returnListingId));
     }
     dispatch(setSelectedBaseMapsListingId(baseMap.listingId));
     dispatch(setSelectedMainBaseMapId(baseMap.id));

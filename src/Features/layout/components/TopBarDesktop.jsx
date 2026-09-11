@@ -22,6 +22,7 @@ import useSwitchViewer from "Features/viewers/hooks/useSwitchViewer";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useMainBaseMapListing from "Features/baseMaps/hooks/useMainBaseMapListing";
+import useScopeModuleLabel from "Features/listingViewer/hooks/useScopeModuleLabel";
 
 import { Box, Button, Divider } from "@mui/material";
 import { ArrowBack } from "@mui/icons-material";
@@ -77,10 +78,14 @@ export default function TopBarDesktop() {
 
   const scopesEnabled = appConfig?.features?.scopes?.enabled;
   const returnViewer = viewerReturnContext?.fromViewer;
+  const scopeModuleLabel = useScopeModuleLabel();
 
+  // The return button is the only thing that clears a SCOPE / PORTFOLIO
+  // return context (handleReturnToViewer) — every fromViewer written by the
+  // recap / portfolio openers must have a label here.
   const returnLabelByViewer = {
     PORTFOLIO: "Portfolio",
-    LISTING: "Objets",
+    SCOPE: scopeModuleLabel,
   };
   const returnLabel = returnLabelByViewer[returnViewer];
 

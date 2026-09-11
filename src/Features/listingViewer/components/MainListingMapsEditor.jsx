@@ -71,6 +71,15 @@ export default function MainListingMapsEditor({ listing }) {
       ? undefined
       : listing?.id;
 
+  // Listing the Dessin module narrows to when a base map is opened from here
+  // (viewerReturnContext.listingId). Only an annotation listing qualifies: the
+  // drawing panels list LOCATED_ENTITY listings without isForBaseMaps, so a
+  // base map / business-objects listing id would empty them.
+  const returnListingId =
+    entityModelType === "LOCATED_ENTITY" && !listing?.isForBaseMaps
+      ? listing.id
+      : null;
+
   // data - annotations
 
   const annotationTemplates = useAnnotationTemplates({
@@ -231,9 +240,8 @@ export default function MainListingMapsEditor({ listing }) {
               <SectionBaseMapCard
                 key={baseMap.id}
                 baseMap={baseMap}
-                listing={listing}
                 annotations={annotationsByBaseMapId[baseMap.id] ?? []}
-                showAllListings={showAllListings}
+                returnListingId={returnListingId}
               />
             ))}
           </Box>
@@ -260,10 +268,10 @@ export default function MainListingMapsEditor({ listing }) {
             <Box key={baseMap.id}>
               <SectionBaseMap
                 baseMap={baseMap}
-                listing={listing}
                 annotationTemplates={annotationTemplates}
                 annotations={annotationsByBaseMapId[baseMap.id] ?? []}
                 showAllListings={showAllListings}
+                returnListingId={returnListingId}
                 isBaseMapListing={isBaseMapListing}
                 isBusinessObjectListing={isBusinessObjectListing}
                 businessObjects={businessObjects}
