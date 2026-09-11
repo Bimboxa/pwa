@@ -5,6 +5,7 @@ import {
   linkScopeToNotesAppProject,
   unlinkScopeFromNotesAppProject,
   setNotesAppListingMapping,
+  setNotesAppBaseMapMapping,
 } from "../utils/resolveNotesAppScopeLink";
 
 // Selected scope + its notes-app link (scope.notesApp) + write helpers.
@@ -16,7 +17,11 @@ export default function useNotesAppScopeLink() {
 
   const linkProject = async ({ projectId, projectName }) => {
     if (!scope?.id) return;
-    await linkScopeToNotesAppProject({ scopeId: scope.id, projectId, projectName });
+    await linkScopeToNotesAppProject({
+      scopeId: scope.id,
+      projectId,
+      projectName,
+    });
   };
 
   const unlinkProject = async () => {
@@ -29,5 +34,17 @@ export default function useNotesAppScopeLink() {
     await setNotesAppListingMapping({ scope, ...entry });
   };
 
-  return { scope, link, linkProject, unlinkProject, setListingMapping };
+  const setBaseMapMapping = async (entry) => {
+    if (!scope?.id) return;
+    await setNotesAppBaseMapMapping({ scope, ...entry });
+  };
+
+  return {
+    scope,
+    link,
+    linkProject,
+    unlinkProject,
+    setListingMapping,
+    setBaseMapMapping,
+  };
 }

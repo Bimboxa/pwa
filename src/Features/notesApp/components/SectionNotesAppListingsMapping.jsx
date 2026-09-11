@@ -19,9 +19,8 @@ const IGNORE = "__IGNORE__";
 
 // Mapping table between the linked notes-app project's lists and the scope's
 // listings. One row per remote list; target = create a linked listing
-// (default), an existing listing of the scope, or ignore. Plans are not
-// mapped row by row: a fixed info row reminds they all land in the project's
-// "Fonds de plan" listing.
+// (default), an existing listing of the scope, or ignore. Plans have their
+// own table (SectionNotesAppBaseMapsMapping).
 export default function SectionNotesAppListingsMapping({ appName = "Krnet" }) {
   // strings
 
@@ -183,7 +182,6 @@ export default function SectionNotesAppListingsMapping({ appName = "Krnet" }) {
               </Box>
             );
           })}
-
         </Box>
       )}
     </Box>

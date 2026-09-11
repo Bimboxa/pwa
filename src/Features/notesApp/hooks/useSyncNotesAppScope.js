@@ -10,6 +10,7 @@ import {
   triggerRelsBusinessObjectAnnotationUpdate,
 } from "Features/businessObjects/businessObjectsSlice";
 import { triggerListingsUpdate } from "Features/listings/listingsSlice";
+import { triggerEntitiesTableUpdate } from "Features/entities/entitiesSlice";
 import { setNotesAppSyncStatus } from "../notesAppSlice";
 
 import db from "App/db/db";
@@ -65,11 +66,19 @@ export default function useSyncNotesAppScope() {
       dispatch(triggerBusinessObjectsUpdate());
       dispatch(triggerRelsBusinessObjectAnnotationUpdate());
       dispatch(triggerListingsUpdate());
+      dispatch(triggerEntitiesTableUpdate("baseMaps"));
       dispatch(setNotesAppSyncStatus({ status: "success", step: null }));
       const c = result.counts;
+      const extras = [];
+      if (c.baseMapsMoved) extras.push(`${c.baseMapsMoved} plan(s) déplacé(s)`);
+      if (c.baseMapsIgnored)
+        extras.push(`${c.baseMapsIgnored} plan(s) ignoré(s)`);
+      if (c.baseMapsSkipped)
+        extras.push(`${c.baseMapsSkipped} plan(s) sans image`);
+      const extrasS = extras.length ? ` (${extras.join(", ")})` : "";
       dispatch(
         setToaster({
-          message: `Données récupérées : ${c.entities} ouvrage(s), ${c.baseMaps} plan(s), ${c.positions} position(s), ${c.listingsConfig} config(s) de liste`,
+          message: `Données récupérées : ${c.entities} ouvrage(s), ${c.baseMaps} plan(s)${extrasS}, ${c.positions} position(s), ${c.shapes} forme(s), ${c.listingsConfig} config(s) de liste`,
         })
       );
       return result;
