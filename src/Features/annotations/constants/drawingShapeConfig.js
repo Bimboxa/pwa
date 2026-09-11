@@ -579,4 +579,36 @@ export function resolveDrawingShape(template) {
   return null;
 }
 
+// Geometry family of an annotation `type`: the storage model the resolver
+// (useAnnotationsV2) reads for that type. Two types of the same family can be
+// swapped freely (a STRIP is a POLYLINE with a width, a RECTANGLE a POLYGON
+// with 4 vertices); switching across families would leave the row without
+// the geometry its new type expects — a POLYGON flipped to LABEL has `points`
+// but no targetPoint / labelPoint and crashes the resolver on the next read.
+//   - "POINTS": `points` refs (POLYLINE, POLYGON, STRIP, RULER, COTE, ...)
+//   - "POINT":  a single `point` ref (MARKER, POINT, DETAIL, revolution axes)
+//   - "LABEL":  inline normalized targetPoint / labelPoint (LABEL, FREE_TEXT)
+//   - "BBOX":   inline normalized bbox (IMAGE, RECTANGLE, OBJECT_3D)
+const GEOMETRY_KIND_BY_TYPE = {
+  MARKER: "POINT",
+  POINT: "POINT",
+  DETAIL: "POINT",
+  REVOLUTION_AXIS: "POINT",
+  REVOLUTION_AXIS_PLACEMENT: "POINT",
+  LABEL: "LABEL",
+  FREE_TEXT: "LABEL",
+  IMAGE: "BBOX",
+  RECTANGLE: "BBOX",
+  OBJECT_3D: "BBOX",
+};
+
+export function getGeometryKindFromType(annotationType) {
+  if (!annotationType) return null;
+  return GEOMETRY_KIND_BY_TYPE[annotationType] ?? "POINTS";
+}
+
+export function getGeometryKindFromShape(drawingShape) {
+  return getGeometryKindFromType(getAnnotationType(drawingShape));
+}
+
 export default DRAWING_SHAPE_CONFIG;
