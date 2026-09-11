@@ -8,6 +8,14 @@
 // sourceListingIds, autoCode.nomenclatureListingId) hold LOCAL Bimboxa
 // listing ids; they are remapped at sync time (remapNotesAppListingRefs).
 //
+// Object preview ("Aperçu de l'objet"): `mapCard = {avatar, primary,
+// secondary}` — text sources are `name`, `code`, a field id, or
+// `<fieldId>:code` for link fields (name / code of the linked object). Only
+// the non-default keys are stored; the Krnet-only keys
+// (avatarFallbackListingIds, avatarFallbackTemplateKeys) are preserved
+// verbatim. `listCard: true` makes the list rows use that preview
+// (avatar + two texts) instead of name + code.
+//
 // Pure module: no React, no Dexie (replayable in node).
 
 // --- field types (authoritative list = Krnet FieldEditorScreen)
@@ -54,11 +62,13 @@ export const CARD_TEXT_FIELD_TYPES = [
   "linkSingle",
   "linkMulti",
 ];
+export const LINK_CARD_TYPES = ["linkSingle", "linkMulti"];
 export const MAP_CARD_DEFAULTS = {
   avatar: "photo",
   primary: "name",
   secondary: "code",
 };
+const MAP_CARD_SLOT_KEYS = ["avatar", "primary", "secondary"];
 const CARD_TYPE_LABELS = {
   freeText: "Texte libre",
   category: "Catégorie",
@@ -146,18 +156,64 @@ export function getMapCardSetting(settings) {
   return { ...MAP_CARD_DEFAULTS, ...stored };
 }
 
+// Text options of a card slot: name, code, then the eligible fields of the
+// model (two options per link field: name / code of the linked object).
 export function getMapCardTextOptions(fields) {
-  return [
+  const out = [
     { value: "name", label: "Nom" },
     { value: "code", label: "Code" },
-    ...(fields || [])
-      .filter((f) => CARD_TEXT_FIELD_TYPES.includes(f.type))
-      .map((f) => ({
-        value: f.id,
-        label: f.label || CARD_TYPE_LABELS[f.type],
-        type: f.type,
-      })),
   ];
+  for (const f of fields || []) {
+    if (!CARD_TEXT_FIELD_TYPES.includes(f?.type)) continue;
+    const label = f.label || CARD_TYPE_LABELS[f.type];
+    if (LINK_CARD_TYPES.includes(f.type)) {
+      out.push({ value: f.id, label: `${label} (nom)`, type: f.type });
+      out.push({
+        value: `${f.id}:code`,
+        label: `${label} (code)`,
+        type: f.type,
+      });
+    } else {
+      out.push({ value: f.id, label, type: f.type });
+    }
+  }
+  return out;
+}
+
+// Source `<fieldId>` or `<fieldId>:code` → {fieldId, mode}.
+export function parseCardSource(src) {
+  const str = String(src || "");
+  const i = str.lastIndexOf(":");
+  if (i > 0 && str.slice(i + 1) === "code") {
+    return { fieldId: str.slice(0, i), mode: "code" };
+  }
+  return { fieldId: str, mode: "name" };
+}
+
+// Field of the model designated by a card source, or null (name / code /
+// none, deleted field, non-eligible type, `:code` on a non-link field).
+export function getCardField(fields, src) {
+  if (!src || src === "name" || src === "code" || src === "none") return null;
+  const { fieldId, mode } = parseCardSource(src);
+  const field = (fields || []).find((f) => f?.id === fieldId);
+  if (!field || !CARD_TEXT_FIELD_TYPES.includes(field.type)) return null;
+  if (mode === "code" && !LINK_CARD_TYPES.includes(field.type)) return null;
+  return field;
+}
+
+// Effective source of a card slot: the default when the configured field
+// no longer exists (`none` is only valid for the secondary text).
+export function getEffectiveCardSource(fields, key, mapCard) {
+  const src = mapCard?.[key];
+  if (src === "name" || src === "code") return src;
+  if (src === "none" && key === "secondary") return "none";
+  return getCardField(fields, src) ? src : MAP_CARD_DEFAULTS[key];
+}
+
+export const usesListCard = (settings) => !!parseSettings(settings).listCard;
+
+export function setListCard(settings, value) {
+  return setBooleanSetting(settings, "listCard", value);
 }
 
 // --- setters (Krnet "delete when default" semantics)
@@ -194,14 +250,18 @@ export function setMapLabel(settings, value) {
   return next;
 }
 
-// Only the keys differing from the defaults are stored.
+// Only the slot keys differing from the defaults are stored; every other
+// key of the stored object (Krnet's avatar fallbacks...) is kept verbatim.
 export function setMapCard(settings, key, value) {
   const s = parseSettings(settings);
   const current = { ...getMapCardSetting(s), [key]: value };
   const stored = {};
-  for (const k of ["avatar", "primary", "secondary"]) {
-    if (current[k] && current[k] !== MAP_CARD_DEFAULTS[k])
-      stored[k] = current[k];
+  for (const [k, v] of Object.entries(current)) {
+    if (MAP_CARD_SLOT_KEYS.includes(k)) {
+      if (v && v !== MAP_CARD_DEFAULTS[k]) stored[k] = v;
+    } else if (v !== undefined && !(Array.isArray(v) && v.length === 0)) {
+      stored[k] = v;
+    }
   }
   const next = { ...s };
   if (Object.keys(stored).length) next.mapCard = stored;

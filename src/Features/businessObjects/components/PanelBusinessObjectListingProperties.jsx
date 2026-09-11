@@ -5,6 +5,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { setSelectedItem } from "Features/selection/selectionSlice";
 import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 import { triggerListingsUpdate } from "Features/listings/listingsSlice";
+import { setListingPropertiesTab } from "../businessObjectsSlice";
 
 import useBusinessObjects from "../hooks/useBusinessObjects";
 import useCanEditRecord from "App/hooks/useCanEditRecord";
@@ -25,6 +26,8 @@ import {
   Typography,
   IconButton,
   InputBase,
+  Tab,
+  Tabs,
 } from "@mui/material";
 import {
   ArrowBack as Back,
@@ -46,7 +49,7 @@ import getBusinessObjectTypeOfListing from "../utils/getBusinessObjectTypeOfList
 import SectionPlanningAnnotationListings from "./SectionPlanningAnnotationListings";
 
 import useNotesAppConfig from "Features/notesApp/hooks/useNotesAppConfig";
-import SectionNotesAppListingConfigCard from "Features/notesApp/components/SectionNotesAppListingConfigCard";
+import SectionNotesAppListingAdvanced from "Features/notesApp/components/SectionNotesAppListingAdvanced";
 import PanelNotesAppListingConfig from "Features/notesApp/components/PanelNotesAppListingConfig";
 
 // Right-panel properties of a business-objects listing, reached with the back
@@ -59,14 +62,18 @@ import PanelNotesAppListingConfig from "Features/notesApp/components/PanelNotesA
 // the popper (business-object mode) creates the object's main annotation.
 // Turning the option off hides the templates card only: templates and
 // existing main annotations are kept. When the org has the Krnet
-// integration, a "Configuration Krnet" card opens the listing-configuration
-// sub-views (fields, state models, codification...) in place of the panel.
+// integration the panel gets two tabs: "Général" (the cards above) and
+// "Avancé" (the listing configuration synced with Krnet: fields, state
+// models, codification, object preview — SectionNotesAppListingAdvanced);
+// the sub-views that tab opens replace the whole panel until closed.
 export default function PanelBusinessObjectListingProperties({ listing }) {
   const dispatch = useDispatch();
 
   // strings
 
   const titleS = "Liste d'ouvrages";
+  const tabGeneralS = "Général";
+  const tabAdvancedS = "Avancé";
   const nameS = "Nom de la liste";
   const numberingS = "Numérotation";
   const numberingCaptionS =
@@ -92,6 +99,9 @@ export default function PanelBusinessObjectListingProperties({ listing }) {
   const { guardEditRecord } = useCanEditRecord();
   const notesAppEnabled = useNotesAppConfig()?.enabled === true;
   const configView = useSelector((s) => s.notesApp.listingConfigView);
+  const propertiesTab = useSelector(
+    (s) => s.businessObjects.listingPropertiesTab
+  );
 
   const locationTemplates = useLocationAnnotationTemplates({ listing });
   const spriteImage = useAnnotationSpriteImage();
@@ -123,6 +133,10 @@ export default function PanelBusinessObjectListingProperties({ listing }) {
     configView.listingId === listing?.id &&
     configView.stack.length > 0;
   const countS = `${objectsCount} ouvrage${objectsCount > 1 ? "s" : ""}`;
+  // the Avancé tab only exists with the integration: a stale "ADVANCED"
+  // falls back to Général
+  const effectiveTab =
+    notesAppEnabled && propertiesTab === "ADVANCED" ? "ADVANCED" : "GENERAL";
 
   // handlers
 
@@ -243,145 +257,164 @@ export default function PanelBusinessObjectListingProperties({ listing }) {
         </Box>
       </Box>
 
-      <BoxFlexVStretch sx={{ overflow: "auto", gap: 1, p: 1.5 }}>
-        <WhiteSectionGeneric>
-          <Box sx={{ p: 1 }}>
-            <Typography variant="caption" color="text.secondary">
-              {nameS}
-            </Typography>
-            <InputBase
-              value={displayName}
-              onChange={(e) => setNameValue(e.target.value)}
-              onFocus={handleNameFocus}
-              onBlur={handleNameBlur}
-              onKeyDown={handleNameKeyDown}
-              fullWidth
-              sx={{ fontSize: "0.875rem" }}
-            />
-          </Box>
-        </WhiteSectionGeneric>
+      {notesAppEnabled && (
+        <Tabs
+          value={effectiveTab}
+          onChange={(_e, v) => dispatch(setListingPropertiesTab(v))}
+          variant="fullWidth"
+          sx={{
+            minHeight: 36,
+            borderBottom: "1px solid",
+            borderColor: "divider",
+            "& .MuiTab-root": { minHeight: 36 },
+          }}
+        >
+          <Tab value="GENERAL" label={tabGeneralS} />
+          <Tab value="ADVANCED" label={tabAdvancedS} />
+        </Tabs>
+      )}
 
-        <WhiteSectionGeneric>
-          <Box sx={{ p: 1 }}>
-            <FormControlLabel
-              control={
-                <Checkbox
-                  size="small"
-                  checked={Boolean(listing.showNumbering)}
-                  onChange={handleToggleNumbering}
-                />
-              }
-              label={<Typography variant="body2">{numberingS}</Typography>}
-              sx={{ ml: 0 }}
-            />
-            <Typography
-              variant="caption"
-              sx={{ display: "block", color: "text.secondary" }}
-            >
-              {numberingCaptionS}
-            </Typography>
-          </Box>
-        </WhiteSectionGeneric>
+      {effectiveTab === "ADVANCED" && (
+        <SectionNotesAppListingAdvanced listing={listing} />
+      )}
 
-        <WhiteSectionGeneric>
-          <Box sx={{ p: 1 }}>
-            <FormControlLabel
-              control={
-                <Checkbox
-                  size="small"
-                  checked={canLocate}
-                  onChange={handleToggleCanLocate}
-                />
-              }
-              label={<Typography variant="body2">{canLocateS}</Typography>}
-              sx={{ ml: 0 }}
-            />
-            <Typography
-              variant="caption"
-              sx={{ display: "block", color: "text.secondary" }}
-            >
-              {canLocateCaptionS}
-            </Typography>
-          </Box>
-        </WhiteSectionGeneric>
-
-        {notesAppEnabled && (
-          <SectionNotesAppListingConfigCard listing={listing} />
-        )}
-
-        {showAnnotationListings && <SectionPlanningAnnotationListings />}
-
-        {canLocate && (
+      {effectiveTab === "GENERAL" && (
+        <BoxFlexVStretch sx={{ overflow: "auto", gap: 1, p: 1.5 }}>
           <WhiteSectionGeneric>
-            <Box
-              sx={{ p: 1, display: "flex", flexDirection: "column", gap: 1 }}
-            >
-              <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-                <AddLocationAlt
-                  sx={{ fontSize: 16, color: "text.secondary" }}
-                />
-                <Typography variant="body2">{locationS}</Typography>
-              </Box>
+            <Box sx={{ p: 1 }}>
               <Typography variant="caption" color="text.secondary">
-                {locationCaptionS}
+                {nameS}
               </Typography>
-              {locationTemplates.length === 0 ? (
-                <Typography variant="caption" color="text.disabled">
-                  {locationEmptyS}
-                </Typography>
-              ) : (
-                <List dense disablePadding sx={{ mx: -1 }}>
-                  {locationTemplates.map((template) => (
-                    <ListItemButton
-                      key={template.id}
-                      onClick={() => handleSelectTemplate(template)}
-                      sx={{
-                        py: 0.25,
-                        "&:hover .location-template-delete": {
-                          visibility: "visible",
-                        },
-                      }}
-                    >
-                      <Box
-                        sx={{ mr: 1, display: "flex", alignItems: "center" }}
-                      >
-                        <AnnotationTemplateIcon
-                          template={template}
-                          size={20}
-                          spriteImage={spriteImage}
-                        />
-                      </Box>
-                      <ListItemText
-                        primary={template.label || "Sans nom"}
-                        slotProps={{
-                          primary: { variant: "body2", noWrap: true },
-                        }}
-                      />
-                      <IconButton
-                        className="location-template-delete"
-                        size="small"
-                        title={deleteTemplateS}
-                        onClick={(e) => handleAskDeleteTemplate(e, template)}
-                        sx={{ visibility: "hidden" }}
-                      >
-                        <Delete sx={{ fontSize: 16 }} />
-                      </IconButton>
-                    </ListItemButton>
-                  ))}
-                </List>
-              )}
-              <Button
-                size="small"
-                variant="outlined"
-                startIcon={<Add />}
-                onClick={handleOpenCreateTemplate}
-              >
-                {newTemplateS}
-              </Button>
+              <InputBase
+                value={displayName}
+                onChange={(e) => setNameValue(e.target.value)}
+                onFocus={handleNameFocus}
+                onBlur={handleNameBlur}
+                onKeyDown={handleNameKeyDown}
+                fullWidth
+                sx={{ fontSize: "0.875rem" }}
+              />
             </Box>
           </WhiteSectionGeneric>
-        )}
-      </BoxFlexVStretch>
+
+          <WhiteSectionGeneric>
+            <Box sx={{ p: 1 }}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    size="small"
+                    checked={Boolean(listing.showNumbering)}
+                    onChange={handleToggleNumbering}
+                  />
+                }
+                label={<Typography variant="body2">{numberingS}</Typography>}
+                sx={{ ml: 0 }}
+              />
+              <Typography
+                variant="caption"
+                sx={{ display: "block", color: "text.secondary" }}
+              >
+                {numberingCaptionS}
+              </Typography>
+            </Box>
+          </WhiteSectionGeneric>
+
+          <WhiteSectionGeneric>
+            <Box sx={{ p: 1 }}>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    size="small"
+                    checked={canLocate}
+                    onChange={handleToggleCanLocate}
+                  />
+                }
+                label={<Typography variant="body2">{canLocateS}</Typography>}
+                sx={{ ml: 0 }}
+              />
+              <Typography
+                variant="caption"
+                sx={{ display: "block", color: "text.secondary" }}
+              >
+                {canLocateCaptionS}
+              </Typography>
+            </Box>
+          </WhiteSectionGeneric>
+
+          {showAnnotationListings && <SectionPlanningAnnotationListings />}
+
+          {canLocate && (
+            <WhiteSectionGeneric>
+              <Box
+                sx={{ p: 1, display: "flex", flexDirection: "column", gap: 1 }}
+              >
+                <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                  <AddLocationAlt
+                    sx={{ fontSize: 16, color: "text.secondary" }}
+                  />
+                  <Typography variant="body2">{locationS}</Typography>
+                </Box>
+                <Typography variant="caption" color="text.secondary">
+                  {locationCaptionS}
+                </Typography>
+                {locationTemplates.length === 0 ? (
+                  <Typography variant="caption" color="text.disabled">
+                    {locationEmptyS}
+                  </Typography>
+                ) : (
+                  <List dense disablePadding sx={{ mx: -1 }}>
+                    {locationTemplates.map((template) => (
+                      <ListItemButton
+                        key={template.id}
+                        onClick={() => handleSelectTemplate(template)}
+                        sx={{
+                          py: 0.25,
+                          "&:hover .location-template-delete": {
+                            visibility: "visible",
+                          },
+                        }}
+                      >
+                        <Box
+                          sx={{ mr: 1, display: "flex", alignItems: "center" }}
+                        >
+                          <AnnotationTemplateIcon
+                            template={template}
+                            size={20}
+                            spriteImage={spriteImage}
+                          />
+                        </Box>
+                        <ListItemText
+                          primary={template.label || "Sans nom"}
+                          slotProps={{
+                            primary: { variant: "body2", noWrap: true },
+                          }}
+                        />
+                        <IconButton
+                          className="location-template-delete"
+                          size="small"
+                          title={deleteTemplateS}
+                          onClick={(e) => handleAskDeleteTemplate(e, template)}
+                          sx={{ visibility: "hidden" }}
+                        >
+                          <Delete sx={{ fontSize: 16 }} />
+                        </IconButton>
+                      </ListItemButton>
+                    ))}
+                  </List>
+                )}
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={<Add />}
+                  onClick={handleOpenCreateTemplate}
+                >
+                  {newTemplateS}
+                </Button>
+              </Box>
+            </WhiteSectionGeneric>
+          )}
+        </BoxFlexVStretch>
+      )}
 
       {canLocate && openCreateTemplate && (
         <DialogCreateAnnotationTemplate

@@ -55,7 +55,9 @@ function toNoteEntry(note, mediaIndex) {
     ...(media && { fileName: media.fileName }),
     ...(note.settings?.level && { level: note.settings.level }),
     ...(note.position != null && { position: note.position }),
-    ...(note.createdAt && { createdAt: new Date(note.createdAt).toISOString() }),
+    ...(note.createdAt && {
+      createdAt: new Date(note.createdAt).toISOString(),
+    }),
     updatedAt: note.updatedAt ?? note.createdAt ?? null,
   };
 }
@@ -188,6 +190,11 @@ export default async function prepareNotesAppBusinessObjectsMerge({
         // unit and color are Bimboxa-owned once set: keep the local values.
         row.unit = local.unit !== undefined ? local.unit : mapped.unit;
         if (local.color) row.color = local.color;
+        // The listing-model field values edited in Bimboxa (Fiche tab) are
+        // shared with Krnet: a newer remote row wins over them (the local
+        // edits bump updatedAt, so they protect the row until Krnet changes
+        // it — row-level last-modified-wins).
+        delete row.fieldValues;
         // A resurrected remote row must clear a stale local tombstone.
         if (!remote.deletedAt) delete row.deletedAt;
       }

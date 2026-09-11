@@ -8,6 +8,7 @@ import {
 import db from "App/db/db";
 
 import syncMainAnnotationLabelsService from "../services/syncMainAnnotationLabelsService";
+import { setBusinessObjectFieldValue } from "../utils/businessObjectFieldValues";
 
 export default function useUpdateBusinessObject() {
   const dispatch = useDispatch();
@@ -30,6 +31,9 @@ export default function useUpdateBusinessObject() {
       hoursRatioMode,
       hoursRatioUnit,
       globalLayerId,
+      // {[fieldId]: value} — listing-model field values (Fiche tab), merged
+      // into businessObject.fieldValues; an empty value drops the key
+      fieldValues,
     } = {}
   ) => {
     const updates = {};
@@ -46,6 +50,15 @@ export default function useUpdateBusinessObject() {
     // to; null = every annotation of a work package. undefined = untouched.
     if (globalLayerId !== undefined)
       updates.globalLayerId = globalLayerId || null;
+    if (fieldValues && typeof fieldValues === "object") {
+      const current = (await db.businessObjects.get(businessObjectId))
+        ?.fieldValues;
+      let next = current ?? {};
+      for (const [fieldId, value] of Object.entries(fieldValues)) {
+        next = setBusinessObjectFieldValue(next, fieldId, value);
+      }
+      updates.fieldValues = next;
+    }
     if (Object.keys(updates).length === 0) return;
 
     await db.businessObjects.update(businessObjectId, updates);

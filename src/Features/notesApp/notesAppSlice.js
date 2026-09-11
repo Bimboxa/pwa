@@ -12,15 +12,16 @@ const initialState = {
 
   syncStatus: { status: "idle", step: null, message: null }, // idle | syncing | success | error
 
-  // Selected tab of the business-object properties panel ("PROPS" | "NOTES").
-  // In Redux so browsing from object to object keeps the Notes tab open.
+  // Selected tab of the business-object properties panel ("PROPS" | "FICHE"
+  // | "NOTES"). In Redux so browsing from object to object keeps the tab.
   objectPropertiesTab: "PROPS",
 
-  // Sub-view stack of the Krnet listing configuration (business-object
-  // listing properties panel). In Redux so the panel remounts (selection
-  // changes, live queries) keep the open view. Entries:
-  // { key: "CONFIG" | "FIELDS" | "FIELD" | "STATE_MODELS" | "STATE_MODEL"
-  //   | "STATE" | "AUTO_CODE", fieldId?, stateModelId?, stateId? }
+  // Sub-view stack of the listing configuration ("Avancé" tab of the
+  // business-object listing properties panel; the root CONFIG content is
+  // the tab itself, only the sub-views are stacked). In Redux so the panel
+  // remounts (selection changes, live queries) keep the open view. Entries:
+  // { key: "FIELDS" | "FIELD" | "STATE_MODELS" | "STATE_MODEL" | "STATE"
+  //   | "AUTO_CODE", fieldId?, stateModelId?, stateId? }
   listingConfigView: { listingId: null, stack: [] },
 };
 

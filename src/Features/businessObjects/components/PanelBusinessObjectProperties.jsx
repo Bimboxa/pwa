@@ -50,6 +50,9 @@ import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTe
 import FieldHoursRatioCompact from "./FieldHoursRatioCompact";
 import FieldTaskGlobalLayer from "./FieldTaskGlobalLayer";
 import SectionNotesAppObjectNotes from "Features/notesApp/components/SectionNotesAppObjectNotes";
+import SectionBusinessObjectFiche from "./SectionBusinessObjectFiche";
+import useNotesAppConfig from "Features/notesApp/hooks/useNotesAppConfig";
+import useNotesAppListingConfig from "Features/notesApp/hooks/useNotesAppListingConfig";
 import getAnnotationMainQtyLabel from "Features/annotations/utils/getAnnotationMainQtyLabel";
 import getBusinessObjectQtyLabel from "../utils/getBusinessObjectQtyLabel";
 import getBusinessObjectTypeOfListing from "../utils/getBusinessObjectTypeOfListing";
@@ -170,15 +173,24 @@ export default function PanelBusinessObjectProperties() {
     hoursRatioMode,
   ]);
 
-  // state — tabs: the "Notes" tab shows the Krnet notes feed of an imported
-  // object (photos, comments, events... under businessObject.notesAppNotes).
-  // The selection lives in Redux so browsing from object to object keeps the
-  // Notes tab open; non-Krnet objects (no tab bar) fall back to "PROPS".
+  // state — tabs: the "Fiche" tab edits the listing-model fields (Krnet
+  // "Modèle de fiche" of the listing, when it has one); the "Notes" tab
+  // shows the Krnet notes feed of an imported object (photos, comments,
+  // events... under businessObject.notesAppNotes). The selection lives in
+  // Redux so browsing from object to object keeps the tab; an object
+  // without the tab falls back to "PROPS".
 
   const tab = useSelector((s) => s.notesApp.objectPropertiesTab);
+  const notesAppEnabled = useNotesAppConfig()?.enabled === true;
+  const listingConfig = useNotesAppListingConfig(listing);
+  const hasFiche = notesAppEnabled && listingConfig.fields.length > 0;
   const isNotesAppObject = businessObject?.remoteSource === "notesApp";
   const notesCount = businessObject?.notesAppNotes?.length ?? 0;
-  const effectiveTab = isNotesAppObject && tab === "NOTES" ? "NOTES" : "PROPS";
+  const hasTabs = hasFiche || isNotesAppObject;
+  const effectiveTab =
+    (tab === "FICHE" && hasFiche) || (tab === "NOTES" && isNotesAppObject)
+      ? tab
+      : "PROPS";
 
   // helpers — linked annotations + rolled-up quantities
 
@@ -362,8 +374,9 @@ export default function PanelBusinessObjectProperties() {
         </Box>
       </Box>
 
-      {/* tabs — only Krnet-imported objects carry a notes feed */}
-      {isNotesAppObject && (
+      {/* tabs — Fiche when the listing has a fields model, Notes for
+          Krnet-imported objects (notes feed) */}
+      {hasTabs && (
         <Tabs
           value={effectiveTab}
           onChange={(_e, v) => dispatch(setNotesAppObjectPropertiesTab(v))}
@@ -376,10 +389,13 @@ export default function PanelBusinessObjectProperties() {
           }}
         >
           <Tab value="PROPS" label="Propriétés" />
-          <Tab
-            value="NOTES"
-            label={notesCount > 0 ? `Notes (${notesCount})` : "Notes"}
-          />
+          {hasFiche && <Tab value="FICHE" label="Fiche" />}
+          {isNotesAppObject && (
+            <Tab
+              value="NOTES"
+              label={notesCount > 0 ? `Notes (${notesCount})` : "Notes"}
+            />
+          )}
         </Tabs>
       )}
 
@@ -387,7 +403,22 @@ export default function PanelBusinessObjectProperties() {
         <SectionNotesAppObjectNotes businessObject={businessObject} />
       )}
 
-      {effectiveTab !== "NOTES" && (
+      {effectiveTab === "FICHE" && (
+        <SectionBusinessObjectFiche
+          businessObject={businessObject}
+          listing={listing}
+          locatedBaseMapsCount={
+            new Set(
+              mainRows.map(
+                ({ rel, annotation }) =>
+                  rel.baseMapId ?? annotation.baseMapId ?? ""
+              )
+            ).size
+          }
+        />
+      )}
+
+      {effectiveTab === "PROPS" && (
         <>
           {/* props */}
           <Box

@@ -12,6 +12,7 @@ import {
 } from "Features/selection/selectionSlice";
 
 import {
+  Avatar,
   Box,
   Chip,
   IconButton,
@@ -54,6 +55,10 @@ export default function BusinessObjectTreeItem({
   hasChildren,
   listing,
   showNumbering,
+  // {primary, secondary, initial, color, avatarUrl} | null — Krnet
+  // "Aperçu de l'objet" rendering (listing setting listCard), object rows
+  // only: avatar + two texts replace the color square + label
+  card,
   displayMeta,
   qties,
   linkedAnnotations,
@@ -158,6 +163,12 @@ export default function BusinessObjectTreeItem({
         .join(" · ")
     : "";
   const rightLabel = hasHoursBudget ? hoursLabel : qtyLabel;
+  // card rows: the configured texts; the tasks caption follows the
+  // secondary text on the same line
+  const primaryLabel = card?.primary || businessObject.label;
+  const secondaryLine = [card?.secondary, captionLabel]
+    .filter(Boolean)
+    .join(" · ");
 
   const titleLevel = Math.min(
     displayMeta?.titleAncestors ?? 0,
@@ -333,8 +344,27 @@ export default function BusinessObjectTreeItem({
           </Typography>
         )}
 
+        {/* card avatar: photo thumbnail, else initial on a colored disc */}
+        {card && (
+          <Avatar
+            src={card.avatarUrl ?? undefined}
+            sx={{
+              width: 28,
+              height: 28,
+              mr: 1,
+              fontSize: 13,
+              fontWeight: 700,
+              bgcolor: card.color,
+              color: "common.white",
+              flexShrink: 0,
+            }}
+          >
+            {card.initial}
+          </Avatar>
+        )}
+
         {/* color chip: colored types, tree mode only, object rows only */}
-        {hasColor && !showNumbering && !isTitle && (
+        {hasColor && !showNumbering && !isTitle && !card && (
           <Box
             sx={{
               width: 12,
@@ -347,15 +377,15 @@ export default function BusinessObjectTreeItem({
           />
         )}
 
-        {/* col 2: label (+ ratio · quantity caption for tasks) */}
-        {captionLabel ? (
+        {/* col 2: label (+ secondary text / ratio · quantity caption) */}
+        {secondaryLine ? (
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <Typography
               variant="body2"
               noWrap
               sx={{ fontWeight: labelFontWeight }}
             >
-              {businessObject.label}
+              {primaryLabel}
             </Typography>
             <Typography
               variant="caption"
@@ -363,7 +393,7 @@ export default function BusinessObjectTreeItem({
               noWrap
               sx={{ display: "block", lineHeight: 1.2 }}
             >
-              {captionLabel}
+              {secondaryLine}
             </Typography>
           </Box>
         ) : (
@@ -372,7 +402,7 @@ export default function BusinessObjectTreeItem({
             noWrap
             sx={{ flex: 1, minWidth: 0, fontWeight: labelFontWeight }}
           >
-            {businessObject.label}
+            {primaryLabel}
           </Typography>
         )}
 
