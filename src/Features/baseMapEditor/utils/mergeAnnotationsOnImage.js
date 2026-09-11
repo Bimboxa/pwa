@@ -4,6 +4,33 @@
 import { getFreeTextPageScale } from "Features/annotations/constants/freeTextConstants";
 import getAnnotationLabelSizeConfig from "Features/annotations/utils/getAnnotationLabelSizeConfig";
 import { getAnnotationOwnLabel } from "Features/annotations/utils/getAnnotationLabelDisplay";
+import coerceAnnotationNumericFields from "Features/annotations/utils/coerceAnnotationNumericFields";
+import getDoorSwingGeometry from "Features/annotations/utils/getDoorSwingGeometry";
+import isOpeningAnnotation, {
+  getOpeningType,
+  sortOpeningsLast,
+} from "Features/annotations/utils/isOpeningAnnotation";
+import { getAnnotationRingClosed } from "Features/annotations/utils/segmentFlags";
+import getStripePolygons, {
+  getStripChunks,
+  getStripDistancePx,
+  ARC_SAMPLES,
+  STRIP_DASH_DEFAULTS,
+} from "Features/geometry/utils/getStripePolygons";
+import { offsetPolyline } from "Features/geometry/utils/offsetPolylineAsPolygon";
+import {
+  expandArcsInPath,
+  expandArcsInPathWithHiddenMap,
+} from "Features/geometry/utils/arcSampling";
+
+// On-screen constants mirrored from the SVG renderers (screen px at zoom 1 =
+// image px in the flattened image).
+const STRIP_DIRECTOR_WIDTH_PX = 2; // NodeStripStatic STROKE_WIDTH_DEFAULT
+const STRIP_EXT_DIRECTOR_COLOR = "#00e5ff"; // NodeStripStatic isExt director
+const STRIP_DASH_BAND_RATIO = 0.6; // NodeStripStatic DASH_BAND_RATIO
+const OPENING_GAP_COLOR = "#ffffff"; // NodeOpeningStatic GAP_COLOR
+const OPENING_SYMBOL_WIDTH_PX = 1.5; // NodeOpeningStatic SYMBOL_STROKE_SCREEN_PX
+const OPENING_FRAME_WIDTH_PX = 1; // NodeOpeningStatic FRAME_STROKE_SCREEN_PX
 
 // Standalone LABEL chip: page-pt → image-px scale in "Taille fixe" mode,
 // plain image px otherwise (a screen-constant chip has no exact image size —
@@ -18,8 +45,7 @@ function loadImage(url) {
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.onload = () => resolve(img);
-    img.onerror = (err) =>
-      reject(new Error("Failed to load image: " + err));
+    img.onerror = (err) => reject(new Error("Failed to load image: " + err));
     img.src = url;
   });
 }
@@ -33,8 +59,9 @@ function hexToRgba(hex, alpha = 1) {
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
-// Compute bounding box of all annotation coordinates
-function getAnnotationsBounds(annotations) {
+// Compute bounding box of all annotation coordinates (exported for the
+// node replay: scripts/replay/mergeAnnotationsOnImageReplay.js)
+export function getAnnotationsBounds(annotations, meterByPx) {
   let minX = Infinity;
   let minY = Infinity;
   let maxX = -Infinity;
@@ -95,13 +122,45 @@ function getAnnotationsBounds(annotations) {
           expandPoint(a.textPoint.x + 200, a.textPoint.y + 30);
         }
         break;
-      default:
-        // POLYLINE, POLYGON, STRIP
+      case "STRIP": {
+        // The band lies on ONE side of the director line (stripOrientation):
+        // bound the offset polygons, not the stored points.
+        const shapes = getStripePolygons(a, meterByPx, true);
+        for (const shape of shapes) expandPoints(shape.points);
         expandPoints(a.points);
+        break;
+      }
+      default: {
+        if (isOpeningAnnotation(a)) {
+          const { p1, p2, gapWidth, door } = getOpeningGeometry(a, meterByPx);
+          if (p1 && p2) {
+            const h = gapWidth / 2;
+            for (const p of [p1, p2]) {
+              expandPoint(p.x - h, p.y - h);
+              expandPoint(p.x + h, p.y + h);
+            }
+            if (door) {
+              expandPoint(door.leafEnd.x, door.leafEnd.y);
+              expandPoint(door.arcEnd.x, door.arcEnd.y);
+            }
+          }
+          break;
+        }
+        // POLYLINE, POLYGON: stored points + half the stroke width.
+        const h = computeStrokeWidth(a, meterByPx) / 2;
+        const expandPointsWithStroke = (points) => {
+          if (!points?.length) return;
+          for (const p of points) {
+            expandPoint(p.x - h, p.y - h);
+            expandPoint(p.x + h, p.y + h);
+          }
+        };
+        expandPointsWithStroke(a.points);
         if (a.cuts) {
-          for (const cut of a.cuts) expandPoints(cut.points);
+          for (const cut of a.cuts) expandPointsWithStroke(cut.points);
         }
         break;
+      }
     }
   }
 
@@ -121,7 +180,8 @@ function drawPath(ctx, points, close = false) {
 
 // Compute the effective stroke width in pixels
 function computeStrokeWidth(annotation, meterByPx) {
-  const { type, strokeWidth = 2, strokeWidthUnit } = annotation;
+  const { type, strokeWidthUnit } = annotation;
+  const strokeWidth = Number(annotation.strokeWidth ?? 2);
   if (type === "POLYGON") return 0.5;
   if (strokeWidthUnit === "CM" && meterByPx > 0) {
     return (strokeWidth * 0.01) / meterByPx;
@@ -129,8 +189,275 @@ function computeStrokeWidth(annotation, meterByPx) {
   return strokeWidth;
 }
 
-// Draw a single annotation onto the canvas context
-function drawAnnotation(ctx, annotation, meterByPx) {
+// Ring of a POLYGON / closed POLYLINE / cut with its S-C-S arcs tessellated.
+function getRingPoints(points, closed) {
+  if (!points?.length) return [];
+  return expandArcsInPath(points, ARC_SAMPLES, closed);
+}
+
+// Stroke the centerline of a POLYLINE / POLYGON the way
+// NodePolylineStatic.renderContinuousStrokes does: S-C-S arcs tessellated,
+// hidden segments skipped (consecutive visible segments form one continuous
+// run), butt caps at run ends, round joins, `Z` when the closed ring has no
+// hidden segment, "1 1" dashes for DASHED.
+function strokeCenterline(ctx, annotation, { closed, color, opacity, width }) {
+  const { points, strokeType = "SOLID" } = annotation;
+  if (!points || points.length < 2) return;
+  if (strokeType === "NONE") return;
+
+  const { points: pts, hiddenSegmentsIdx: hidden } =
+    expandArcsInPathWithHiddenMap(
+      points,
+      ARC_SAMPLES,
+      annotation.hiddenSegmentsIdx ?? [],
+      closed
+    );
+  const n = pts.length;
+  if (n < 2) return;
+  const hiddenSet = new Set(hidden ?? []);
+  const segmentCount = closed ? n : n - 1;
+  const isDashed = strokeType === "DASHED";
+
+  ctx.save();
+  ctx.strokeStyle = hexToRgba(color, opacity);
+  ctx.lineWidth = width;
+  ctx.lineCap = "butt";
+  ctx.lineJoin = isDashed ? "bevel" : "round";
+  ctx.setLineDash(isDashed ? [1, 1] : []);
+
+  if (closed && hiddenSet.size === 0) {
+    ctx.beginPath();
+    drawPath(ctx, pts, true);
+    ctx.stroke();
+    ctx.restore();
+    return;
+  }
+
+  let runStarted = false;
+  for (let i = 0; i < segmentCount; i++) {
+    if (hiddenSet.has(i)) {
+      if (runStarted) ctx.stroke();
+      runStarted = false;
+      continue;
+    }
+    const a = pts[i];
+    const b = pts[(i + 1) % n];
+    if (!runStarted) {
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      runStarted = true;
+    }
+    ctx.lineTo(b.x, b.y);
+  }
+  if (runStarted) ctx.stroke();
+  ctx.restore();
+}
+
+// Trace the band polygons of a STRIP (outer ring + holes) on the current
+// path — caller decides fill / clip.
+function traceStripShapes(ctx, shapes) {
+  ctx.beginPath();
+  for (const shape of shapes) {
+    drawPath(ctx, shape.points, true);
+    for (const cut of shape.cuts || []) {
+      if (cut?.points?.length >= 3) drawPath(ctx, cut.points, true);
+    }
+  }
+}
+
+// STRIP — mirrors NodeStripStatic (non-selected look): the band is the
+// one-sided offset polygon of the director line (getStripePolygons handles
+// the CM width, stripOrientation, closeLine → annular ring, hidden segments,
+// arcs and cuts), filled in strokeColor at strokeOpacity, plus the 2px
+// director line. DASHED strips render as the membrane symbol: white band,
+// thin outline, colored dash blocks along the band centerline.
+function drawStrip(ctx, annotation, meterByPx) {
+  const {
+    points,
+    strokeColor,
+    fillColor,
+    strokeOpacity = 0.7,
+    strokeType,
+    isExt,
+  } = annotation;
+  if (!points || points.length < 2) return;
+
+  const color = strokeColor || fillColor || "#000000";
+  const shapes = getStripePolygons(annotation, meterByPx, true);
+  const useHatching = strokeType === "DASHED";
+
+  if (shapes.length) {
+    traceStripShapes(ctx, shapes);
+    ctx.fillStyle = useHatching ? "#ffffff" : hexToRgba(color, strokeOpacity);
+    ctx.fill("evenodd");
+
+    if (useHatching) {
+      // Thin outline (non-scaling 1px on screen).
+      ctx.strokeStyle = hexToRgba(color, strokeOpacity);
+      ctx.lineWidth = 1;
+      ctx.setLineDash([]);
+      ctx.stroke();
+
+      // Colored dash blocks along the band centerline, clipped to the band.
+      const distancePx = getStripDistancePx(annotation, meterByPx);
+      if (distancePx) {
+        const isCm = annotation.strokeWidthUnit === "CM" && meterByPx > 0;
+        const toPx = (v) => (isCm ? (v * 0.01) / meterByPx : v);
+        const dashPx = Math.max(
+          1,
+          toPx(Number(annotation.dashLength) || STRIP_DASH_DEFAULTS.dashLength)
+        );
+        const gapPx = Math.max(
+          1,
+          toPx(Number(annotation.dashGap) || STRIP_DASH_DEFAULTS.dashGap)
+        );
+        const { chunks } = getStripChunks(annotation);
+        ctx.save();
+        traceStripShapes(ctx, shapes);
+        ctx.clip("evenodd");
+        ctx.strokeStyle = hexToRgba(color, strokeOpacity);
+        ctx.lineWidth = Math.abs(distancePx) * STRIP_DASH_BAND_RATIO;
+        ctx.lineCap = "butt";
+        ctx.lineJoin = "miter";
+        ctx.setLineDash([dashPx, gapPx]);
+        for (const chunk of chunks) {
+          const axis = offsetPolyline(
+            expandArcsInPath(chunk, ARC_SAMPLES, false),
+            distancePx / 2
+          );
+          if (!axis || axis.length < 2) continue;
+          ctx.beginPath();
+          drawPath(ctx, axis, false);
+          ctx.stroke();
+        }
+        ctx.restore();
+      }
+    }
+  }
+
+  // Director line (2px on screen at zoom 1), hidden segments excluded by
+  // the chunk decomposition; closed strips get a closed ring.
+  const { effectiveCloseLine, effectivePoints, chunks } =
+    getStripChunks(annotation);
+  ctx.save();
+  ctx.strokeStyle = hexToRgba(isExt ? STRIP_EXT_DIRECTOR_COLOR : color, 1);
+  ctx.lineWidth = STRIP_DIRECTOR_WIDTH_PX;
+  ctx.lineCap = "butt";
+  ctx.lineJoin = "round";
+  ctx.setLineDash([]);
+  if (effectiveCloseLine && effectivePoints.length >= 3) {
+    ctx.beginPath();
+    drawPath(ctx, expandArcsInPath(effectivePoints, ARC_SAMPLES, true), true);
+    ctx.stroke();
+  } else {
+    for (const chunk of chunks) {
+      ctx.beginPath();
+      drawPath(ctx, expandArcsInPath(chunk, ARC_SAMPLES, false), false);
+      ctx.stroke();
+    }
+  }
+  ctx.restore();
+}
+
+// Shared opening geometry (NodeOpeningStatic): the jambs p1 / p2 sit on the
+// host centerline (median line for STRIP hosts, already offset at write
+// time), the gap band is the wall thickness in CM.
+function getOpeningGeometry(annotation, meterByPx) {
+  const a = coerceAnnotationNumericFields(annotation);
+  const {
+    points,
+    strokeWidth = 20,
+    strokeWidthUnit = "CM",
+    doorHinge = "START",
+    doorSide = 1,
+  } = a;
+  const p1 = points?.[0];
+  const p2 = points?.[1];
+  if (!p1 || !p2 || !Number.isFinite(p1.x) || !Number.isFinite(p2.x)) {
+    return { p1: null, p2: null, gapWidth: 0, door: null, openingType: "NONE" };
+  }
+  const isCmUnit = strokeWidthUnit === "CM" && meterByPx > 0;
+  const bandWidth = isCmUnit ? (strokeWidth * 0.01) / meterByPx : strokeWidth;
+  const gapWidth = Math.max(bandWidth, 0.1);
+  const openingType = getOpeningType(a);
+  const door =
+    openingType === "DOOR"
+      ? getDoorSwingGeometry({ p1, p2, bandWidth, doorHinge, doorSide })
+      : null;
+  return { p1, p2, gapWidth, door, openingType };
+}
+
+// OPENING (door / window / plain gap) — mirrors NodeOpeningStatic: opaque
+// white band = the wall gap (drawn AFTER the host, see sortOpeningsLast),
+// then the plan symbol in strokeColor: door leaf + swing arc, thin frame
+// around the gap, window centre line.
+function drawOpening(ctx, annotation, meterByPx) {
+  const { p1, p2, gapWidth, door, openingType } = getOpeningGeometry(
+    annotation,
+    meterByPx
+  );
+  if (!p1 || !p2) return;
+  const a = coerceAnnotationNumericFields(annotation);
+  const color = a.strokeColor || "#000000";
+  const opacity = Number.isFinite(a.strokeOpacity) ? a.strokeOpacity : 1;
+
+  ctx.save();
+  ctx.setLineDash([]);
+
+  // 1. Wall gap
+  ctx.beginPath();
+  ctx.moveTo(p1.x, p1.y);
+  ctx.lineTo(p2.x, p2.y);
+  ctx.strokeStyle = OPENING_GAP_COLOR;
+  ctx.lineWidth = gapWidth;
+  ctx.lineCap = "butt";
+  ctx.stroke();
+
+  // 2. Door leaf + swing arc
+  if (door) {
+    ctx.strokeStyle = hexToRgba(color, opacity);
+    ctx.lineWidth = OPENING_SYMBOL_WIDTH_PX;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    ctx.moveTo(door.leafStart.x, door.leafStart.y);
+    ctx.lineTo(door.leafEnd.x, door.leafEnd.y);
+    ctx.stroke();
+
+    const c = door.leafStart;
+    const startAngle = Math.atan2(door.leafEnd.y - c.y, door.leafEnd.x - c.x);
+    const endAngle = Math.atan2(door.arcEnd.y - c.y, door.arcEnd.x - c.x);
+    // SVG sweepFlag 1 = increasing angle (clockwise on a y-down screen) =
+    // canvas default direction; sweepFlag 0 → anticlockwise.
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, door.radius, startAngle, endAngle, door.sweepFlag === 0);
+    ctx.stroke();
+  }
+
+  // 3. Frame around the gap (+ window centre line)
+  if (openingType === "DOOR" || openingType === "WINDOW") {
+    const angle = Math.atan2(p2.y - p1.y, p2.x - p1.x);
+    const length = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+    ctx.save();
+    ctx.translate(p1.x, p1.y);
+    ctx.rotate(angle);
+    ctx.strokeStyle = hexToRgba(color, opacity);
+    ctx.lineWidth = OPENING_FRAME_WIDTH_PX;
+    ctx.lineCap = "butt";
+    ctx.strokeRect(0, -gapWidth / 2, length, gapWidth);
+    if (openingType === "WINDOW") {
+      ctx.beginPath();
+      ctx.moveTo(0, 0);
+      ctx.lineTo(length, 0);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  ctx.restore();
+}
+
+// Draw a single annotation onto the canvas context (exported for the replay)
+export function drawAnnotation(ctx, annotation, meterByPx) {
   const {
     type,
     strokeColor,
@@ -148,10 +475,10 @@ function drawAnnotation(ctx, annotation, meterByPx) {
       if (!points?.length) return;
 
       ctx.beginPath();
-      drawPath(ctx, points, true);
+      drawPath(ctx, getRingPoints(points, true), true);
       if (cuts) {
         for (const cut of cuts) {
-          drawPath(ctx, cut.points, true);
+          drawPath(ctx, getRingPoints(cut.points, true), true);
         }
       }
 
@@ -161,41 +488,46 @@ function drawAnnotation(ctx, annotation, meterByPx) {
         ctx.fill("evenodd");
       }
 
-      // Stroke
-      ctx.strokeStyle = hexToRgba(fillColor, strokeOpacity);
-      ctx.lineWidth = 0.5;
-      ctx.lineJoin = "round";
-      ctx.lineCap = "round";
-      ctx.stroke();
+      // Stroke (0.5px in the polygon colour, like NodePolylineStatic)
+      const ringStyle = {
+        closed: true,
+        color: fillColor,
+        opacity: strokeOpacity,
+        width: strokeWidth,
+      };
+      strokeCenterline(ctx, annotation, ringStyle);
+      if (cuts) {
+        for (const cut of cuts) {
+          if (cut?.points?.length >= 2) {
+            strokeCenterline(
+              ctx,
+              { ...cut, strokeType: annotation.strokeType },
+              ringStyle
+            );
+          }
+        }
+      }
       break;
     }
 
     case "POLYLINE": {
+      if (isOpeningAnnotation(annotation)) {
+        drawOpening(ctx, annotation, meterByPx);
+        break;
+      }
       const { points } = annotation;
       if (!points?.length || points.length < 2) return;
-
-      ctx.beginPath();
-      drawPath(ctx, points, false);
-      ctx.strokeStyle = hexToRgba(strokeColor, strokeOpacity);
-      ctx.lineWidth = strokeWidth;
-      ctx.lineJoin = "round";
-      ctx.lineCap = "round";
-      ctx.stroke();
+      strokeCenterline(ctx, annotation, {
+        closed: getAnnotationRingClosed(annotation),
+        color: strokeColor,
+        opacity: strokeOpacity,
+        width: strokeWidth,
+      });
       break;
     }
 
     case "STRIP": {
-      // Draw as a filled polyline with width
-      const { points } = annotation;
-      if (!points?.length || points.length < 2) return;
-
-      ctx.beginPath();
-      drawPath(ctx, points, false);
-      ctx.strokeStyle = hexToRgba(strokeColor || fillColor, strokeOpacity);
-      ctx.lineWidth = strokeWidth;
-      ctx.lineJoin = "round";
-      ctx.lineCap = "round";
-      ctx.stroke();
+      drawStrip(ctx, annotation, meterByPx);
       break;
     }
 
@@ -242,10 +574,7 @@ function drawAnnotation(ctx, annotation, meterByPx) {
         ctx.rotate((rotation * Math.PI) / 180);
         ctx.translate(-(x + width / 2), -(y + height / 2));
       }
-      ctx.fillStyle = hexToRgba(
-        fillColor,
-        fillOpacity
-      );
+      ctx.fillStyle = hexToRgba(fillColor, fillOpacity);
       ctx.fillRect(x, y, width, height);
       ctx.restore();
       break;
@@ -257,7 +586,13 @@ function drawAnnotation(ctx, annotation, meterByPx) {
     }
 
     case "TEXT": {
-      const { textValue, textPoint, fontSize = 16, textColor = "#000000", fontWeight = "normal" } = annotation;
+      const {
+        textValue,
+        textPoint,
+        fontSize = 16,
+        textColor = "#000000",
+        fontWeight = "normal",
+      } = annotation;
       if (!textPoint || !textValue) return;
       ctx.font = `${fontWeight} ${fontSize}px system-ui, -apple-system, sans-serif`;
       ctx.fillStyle = textColor;
@@ -521,7 +856,7 @@ export default async function mergeAnnotationsOnImage({
     maxY = Math.ceil(imgBottom);
   } else {
     // Compute the bounding box of all annotations
-    const annotBounds = getAnnotationsBounds(annotations);
+    const annotBounds = getAnnotationsBounds(annotations, meterByPx);
 
     // Determine the total bounds (image + annotations)
     minX = Math.min(imgLeft, 0);
@@ -568,8 +903,12 @@ export default async function mergeAnnotationsOnImage({
   ctx.drawImage(baseImg, 0, 0);
   ctx.restore();
 
-  // 2. Draw non-eraser annotations (sorted by orderIndex already)
-  const normalAnnotations = annotations.filter((a) => !a.isEraser);
+  // 2. Draw non-eraser annotations (sorted by orderIndex already). Hidden
+  // rows are skipped like on screen, and openings go LAST: they paint the
+  // white wall gap over their host (StaticMapContent / sortOpeningsLast).
+  const normalAnnotations = sortOpeningsLast(
+    annotations.filter((a) => !a.isEraser && !a.hidden)
+  );
   const eraserAnnotations = annotations.filter((a) => a.isEraser);
 
   // Draw IMAGE annotations first (async)
