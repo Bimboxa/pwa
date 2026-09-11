@@ -8,6 +8,7 @@ import useCreateListings from "../hooks/useCreateListings";
 import useCreateListingsFromPresetListingsKeys from "../hooks/useCreateListingsFromPresetListingsKeys";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useFavoriteListings from "../hooks/useFavoriteListings";
+import getDefaultLocatedEntityModel from "Features/listings/utils/getDefaultLocatedEntityModel";
 
 import {
   Box,
@@ -58,9 +59,7 @@ export default function DialogCreateListing({
 
   // helpers
 
-  const defaultEntityModel = Object.values(
-    appConfig?.entityModelsObject ?? {}
-  ).find((em) => em.isDefault && em.type === "LOCATED_ENTITY");
+  const defaultEntityModel = getDefaultLocatedEntityModel(appConfig);
 
   // handlers
 
@@ -77,8 +76,10 @@ export default function DialogCreateListing({
       projectId,
       canCreateItem: true,
       table: defaultEntityModel?.defaultTable ?? "entities",
-      entityModel: defaultEntityModel,
-      entityModelKey: defaultEntityModel?.key,
+      ...(defaultEntityModel && {
+        entityModel: defaultEntityModel,
+        entityModelKey: defaultEntityModel.key,
+      }),
       ...(isForBaseMaps && { isForBaseMaps: true }),
     };
     const [created] = await createListings({

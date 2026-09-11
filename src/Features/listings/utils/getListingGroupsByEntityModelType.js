@@ -21,7 +21,7 @@ import BUSINESS_OBJECT_TYPES, {
 // unknown type falls back to the entityModel name carried by the listing.
 
 const DEFAULT_LABEL_BY_TYPE = {
-  LOCATED_ENTITY: "Listes d'objets",
+  LOCATED_ENTITY: "Listes d'annotations",
   BUSINESS_OBJECT: "Ouvrages",
   BASE_MAP: "Fonds de plan",
   ANNOTATION_TEMPLATE: "Modèles d'annotation",
@@ -53,6 +53,16 @@ const BUSINESS_OBJECT_TYPE = "BUSINESS_OBJECT";
 
 const UNKNOWN_TYPE_KEY = "UNKNOWN";
 const UNKNOWN_TYPE_LABEL = "Autres";
+
+// Label of a listing family (entityModel.type), org override first. Shared
+// with the listing type selector so both read the same wording.
+// entityModelTypes: appConfig.features.entityModelTypes ([{type, name}]).
+export function getListingTypeLabel({ type, entityModelTypes } = {}) {
+  const override = entityModelTypes?.find(
+    (entityModelType) => entityModelType?.type === type
+  )?.name;
+  return override ?? DEFAULT_LABEL_BY_TYPE[type] ?? null;
+}
 
 // listings: [listing], entityModelTypes: appConfig.features.entityModelTypes
 // ([{type, name}], optional — org override of the labels).

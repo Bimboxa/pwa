@@ -49,6 +49,7 @@ import db from "App/db/db";
 import useDndSensors from "App/hooks/useDndSensors";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
+import FieldOptionKey from "Features/form/components/FieldOptionKey";
 import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTemplateIcon";
 import FieldAnnotationHeight from "Features/annotations/components/FieldAnnotationHeight";
 import OverrideToggle from "Features/annotations/components/OverrideToggle";
@@ -61,6 +62,7 @@ import IconButtonMoreActionsListing from "./IconButtonMoreActionsListing";
 import AvatarListing from "./AvatarListing";
 import { getDefaultListingAvatarString } from "../utils/getListingAvatarString";
 import useFavoriteListings from "../hooks/useFavoriteListings";
+import { getListingTypeLabel } from "../utils/getListingGroupsByEntityModelType";
 
 function getTemplateMainColor(template) {
   const shape = resolveDrawingShape(template);
@@ -361,6 +363,44 @@ export default function PanelPropertiesListingV2({ listing }) {
   const avatarS = "Avatar";
   const editAvatarS = "Modifier l'avatar";
   const avatarHintS = "Vide = automatique";
+  const listingTypeS = "Type de liste";
+
+  // helpers - listing type options
+  //
+  // Same catalog as the "Type d'objet" field of the create form
+  // (appConfig.features.entityModels.keys). Labelled by family (the wording
+  // of the scope panel sections) so a mistyped list can be moved back to
+  // "Listes d'annotations"; the model name is appended only when several
+  // models share a family (annotation / issue...).
+
+  const entityModelTypes = appConfig?.features?.entityModelTypes;
+  const listingTypeOptions = useMemo(() => {
+    const entityModelsObject = appConfig?.entityModelsObject ?? {};
+    const keys = appConfig?.features?.entityModels?.keys ?? [];
+    const models = keys
+      .map((key) => entityModelsObject[key])
+      .filter((em) => em?.key && em?.type && em.type !== "BUSINESS_OBJECT");
+    const countByType = {};
+    models.forEach((em) => {
+      countByType[em.type] = (countByType[em.type] ?? 0) + 1;
+    });
+    return models.map((em) => {
+      const familyLabel =
+        getListingTypeLabel({ type: em.type, entityModelTypes }) ?? em.name;
+      const label =
+        countByType[em.type] > 1 && em.name
+          ? `${familyLabel} · ${em.name}`
+          : familyLabel;
+      return { key: em.key, label };
+    });
+  }, [appConfig, entityModelTypes]);
+
+  const listingEntityModelKey =
+    listing?.entityModelKey ?? listing?.entityModel?.key ?? null;
+  const showListingType =
+    !listing?.isFreeAnnotationsListing &&
+    listing?.entityModel?.type !== "BUSINESS_OBJECT" &&
+    listingTypeOptions.length > 0;
 
   // handlers
 
@@ -485,6 +525,17 @@ export default function PanelPropertiesListingV2({ listing }) {
       projectId,
     });
     setAddCategoriesTemplate(null);
+  }
+
+  function handleListingTypeChange(entityModelKey) {
+    const entityModel = appConfig?.entityModelsObject?.[entityModelKey];
+    if (!entityModel || !listing?.id) return;
+    updateListing({
+      id: listing.id,
+      entityModelKey,
+      entityModel,
+      table: entityModel.defaultTable ?? listing?.table ?? "entities",
+    });
   }
 
   const handleToggleFavorite = async () => {
@@ -647,6 +698,18 @@ export default function PanelPropertiesListingV2({ listing }) {
             </IconButton>
           </Box>
         </WhiteSectionGeneric>
+
+        {/* Listing family (entityModel). Also the repair path for a list
+            created without entityModelKey: it shows "Choisir une option". */}
+        {showListingType && (
+          <FieldOptionKey
+            label={listingTypeS}
+            value={listingEntityModelKey}
+            valueOptions={listingTypeOptions}
+            onChange={handleListingTypeChange}
+            options={{ showAsSection: true }}
+          />
+        )}
 
         {/* Coupes & élévations (vertical baseMaps) */}
         {listing?.entityModel?.type === "BASE_MAP" && (

@@ -9,6 +9,7 @@ import useAppConfig from "Features/appConfig/hooks/useAppConfig"
 
 import useSelectedScope from "Features/scopes/hooks/useSelectedScope"
 import useCreateListings from "../hooks/useCreateListings"
+import getDefaultLocatedEntityModel from "Features/listings/utils/getDefaultLocatedEntityModel";
 
 import { Box, Typography } from "@mui/material"
 import { ArrowForward as Next } from "@mui/icons-material"
@@ -58,7 +59,7 @@ export default function PanelCreateListingV2({ onListingCreated }) {
 
     // helpers - default entityModel
 
-    const defaultEntityModel = Object.values(appConfig?.entityModelsObject).find(entityModel => entityModel.isDefault && entityModel.type === "LOCATED_ENTITY")
+    const defaultEntityModel = getDefaultLocatedEntityModel(appConfig)
 
     // helpers - steps
 

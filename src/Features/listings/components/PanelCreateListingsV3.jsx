@@ -9,6 +9,7 @@ import useCreateListingsFromPresetListingsKeys from "../hooks/useCreateListingsF
 import useCreateListings from "../hooks/useCreateListings";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useLogAppEvent from "Features/appLog/hooks/useLogAppEvent";
+import getDefaultLocatedEntityModel from "Features/listings/utils/getDefaultLocatedEntityModel";
 
 import { Box, Typography } from "@mui/material";
 
@@ -47,9 +48,7 @@ export default function PanelCreateListingsV3({ onListingCreated, isForBaseMaps 
 
   // helpers
 
-  const defaultEntityModel = Object.values(
-    appConfig?.entityModelsObject ?? {}
-  ).find((em) => em.isDefault && em.type === "LOCATED_ENTITY");
+  const defaultEntityModel = getDefaultLocatedEntityModel(appConfig);
 
   // handlers
 

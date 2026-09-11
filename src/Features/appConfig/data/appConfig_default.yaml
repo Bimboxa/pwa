@@ -136,7 +136,7 @@ features:
     - type: BASE_MAP
       name: Fonds de plan
     - type: LOCATED_ENTITY
-      name: Listes d'objets
+      name: Listes d'annotations
     - type: BLUEPRINT
       name: Exports
 

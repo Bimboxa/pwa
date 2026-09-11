@@ -3,6 +3,7 @@ import { useSelector } from "react-redux";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
 import useCreateListings from "Features/listings/hooks/useCreateListings";
+import getDefaultLocatedEntityModel from "Features/listings/utils/getDefaultLocatedEntityModel";
 
 // Create a new empty LOCATED_ENTITY listing by name and return the created
 // listing. Mirrors DialogCreateListing.handleCreateEmpty (the canonical
@@ -16,17 +17,17 @@ export default function useCreateListingForObjects() {
   return async (name) => {
     const listingName = (name ?? "").trim() || "Nouvelle liste";
 
-    const defaultEntityModel = Object.values(
-      appConfig?.entityModelsObject ?? {}
-    ).find((em) => em.isDefault && em.type === "LOCATED_ENTITY");
+    const defaultEntityModel = getDefaultLocatedEntityModel(appConfig);
 
     const newListing = {
       name: listingName,
       projectId,
       canCreateItem: true,
       table: defaultEntityModel?.defaultTable ?? "entities",
-      entityModel: defaultEntityModel,
-      entityModelKey: defaultEntityModel?.key,
+      ...(defaultEntityModel && {
+        entityModel: defaultEntityModel,
+        entityModelKey: defaultEntityModel.key,
+      }),
     };
 
     const created = await createListings({ listings: [newListing], scope });

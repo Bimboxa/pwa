@@ -11,6 +11,7 @@ import { selectSystemAnnotationTemplatesEnabled } from "Features/scopeConfig/uti
 import { triggerAnnotationTemplatesUpdate } from "Features/annotations/annotationsSlice";
 import { getDefaultsForShape } from "Features/annotations/constants/drawingShapeConfig";
 import getAnnotationTemplateCode from "Features/annotations/utils/getAnnotationTemplateCode";
+import getDefaultLocatedEntityModel from "Features/listings/utils/getDefaultLocatedEntityModel";
 
 // Free annotations ("Ligne" / "Surface") are not tied to a user-managed
 // classification template. They are backed, per scope, by two hidden "system"
@@ -71,9 +72,7 @@ export default function useFreeAnnotationTemplates() {
       // system listing
       const existingListing = await db.listings.get(listingId);
       if (!existingListing) {
-        const defaultEntityModel = Object.values(
-          appConfig?.entityModelsObject ?? {}
-        ).find((em) => em.isDefault && em.type === "LOCATED_ENTITY");
+        const defaultEntityModel = getDefaultLocatedEntityModel(appConfig);
         await db.listings.put({
           id: listingId,
           projectId,
