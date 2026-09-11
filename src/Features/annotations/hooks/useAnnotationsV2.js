@@ -336,6 +336,7 @@ import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
 
 import collectReferencedPointIds from "Features/annotations/utils/collectReferencedPointIds";
 import resolvePoints from "Features/annotations/utils/resolvePoints";
+import getEffectiveAnnotationType from "Features/annotations/utils/getEffectiveAnnotationType";
 import getBaseMapTransform from "Features/baseMaps/js/getBaseMapTransform";
 import getBaseMapForRender from "Features/threedEditor/js/utilsAnnotationsManager/getBaseMapForRender";
 import getAnnotationFootprintOnBaseMap from "Features/threedEditor/js/utilsAnnotationsManager/getAnnotationFootprintOnBaseMap";
@@ -1160,6 +1161,14 @@ export default function useAnnotationsV2(options) {
 
           _annotation.baseMapName = baseMap?.name;
 
+          // Geometry-family heal (getEffectiveAnnotationType): a row typed
+          // LABEL / FREE_TEXT without its 2-point geometry but with point refs
+          // (a POLYGON re-templated with a LABEL template by the former
+          // useChangeAnnotationTemplate) is dispatched below as the type of
+          // its own drawingShape instead of throwing in the LABEL branch —
+          // a throw here surfaces as a hook-order crash in the caller.
+          _annotation.type = getEffectiveAnnotationType(annotation);
+
           // legacy conversion
 
           const isMarkerLegacy =
@@ -1209,13 +1218,19 @@ export default function useAnnotationsV2(options) {
             _annotation.type === "LABEL" ||
             _annotation.type === "FREE_TEXT"
           ) {
+            // A row without its 2-point geometry (and without point refs the
+            // heal above could fall back on) is placed at the image centre
+            // rather than crashing the whole resolver.
+            const _targetPoint = annotation.targetPoint ??
+              annotation.labelPoint ?? { x: 0.5, y: 0.5 };
+            const _labelPoint = annotation.labelPoint ?? _targetPoint;
             _annotation.targetPoint = {
-              x: annotation.targetPoint.x * width,
-              y: annotation.targetPoint.y * height,
+              x: _targetPoint.x * width,
+              y: _targetPoint.y * height,
             };
             _annotation.labelPoint = {
-              x: annotation.labelPoint.x * width,
-              y: annotation.labelPoint.y * height,
+              x: _labelPoint.x * width,
+              y: _labelPoint.y * height,
             };
             // FREE_TEXT sizes (and "Taille fixe" LABEL sizes) are PDF points
             // "as if the base map filled an A4/A3 page": the renderers need
