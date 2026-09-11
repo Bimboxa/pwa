@@ -195,7 +195,7 @@ export default function PanelBusinessObjectProperties() {
   const isNotesAppObject = businessObject?.remoteSource === "notesApp";
   const notesCount = businessObject?.notesAppNotes?.length ?? 0;
 
-  // data — per-object pull from Krnet (header "Récupérer" button): the
+  // data — per-object pull from Krnet (header icon button): the
   // object must be linked to a Krnet object and the scope to a Krnet
   // project. Pull only: nothing is sent to Krnet.
   const { link: notesAppLink } = useNotesAppScopeLink();
@@ -208,7 +208,6 @@ export default function PanelBusinessObjectProperties() {
 
   // strings
 
-  const pullS = "Récupérer";
   const pullTitleS = `Récupérer les données de cet objet depuis ${notesAppName} (aucun envoi vers ${notesAppName})`;
   const debugTitleS =
     "Copier les données locales de l'objet (JSON) dans le presse-papier";
@@ -445,16 +444,14 @@ export default function PanelBusinessObjectProperties() {
           (pulling ? (
             <CircularProgress size={18} sx={{ mx: 1 }} />
           ) : (
-            <Button
+            <IconButton
               size="small"
-              variant="outlined"
-              startIcon={<CloudDownload />}
               onClick={handlePull}
               title={pullTitleS}
-              sx={{ whiteSpace: "nowrap", flexShrink: 0 }}
+              sx={{ flexShrink: 0 }}
             >
-              {pullS}
-            </Button>
+              <CloudDownload />
+            </IconButton>
           ))}
       </Box>
 

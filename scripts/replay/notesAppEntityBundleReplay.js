@@ -15,6 +15,7 @@
 
 import {
   buildNotesAppEntityDumps,
+  buildNotesAppEntitiesDumps,
   getRelatedEntityIds,
 } from "Features/notesApp/utils/buildNotesAppEntityDumps";
 import mapNotesAppEntityToBusinessObject from "Features/notesApp/utils/mapNotesAppEntityToBusinessObject";
@@ -113,6 +114,58 @@ check(
   ) &&
     dumps.shapesDump.annotations.length === 2 &&
     dumps.shapesDump.relsEntityAnnotation.length === 3
+);
+
+// --- listing dumps (plural variant, per-listing pull)
+
+console.log("listing dumps");
+const listingDumps = buildNotesAppEntitiesDumps({
+  entities: [
+    { id: "e1", listingId: "L1" },
+    { id: "e2", listingId: "L1" },
+    { id: "e1", listingId: "L1" }, // duplicate: dropped
+  ],
+  relatedEntities: [
+    { id: "t1", listingId: "L2" },
+    { id: "e2", listingId: "L1" }, // already in the list: dropped
+  ],
+  notes: [{ id: "n1", entityId: "e2" }],
+  links,
+  annotations: [
+    { id: "s1", type: "POLYGON" },
+    { id: "s1", type: "POLYGON" },
+  ],
+  relsEntityAnnotation: [...rels, rels[1]],
+});
+check(
+  "listing dump: list objects first, related after, deduped",
+  eq(
+    listingDumps.objectsDump.entities.map((e) => e.id),
+    ["e1", "e2", "t1"]
+  )
+);
+check(
+  "listing dump: shapes share the entities, annotations + rels deduped",
+  eq(
+    listingDumps.shapesDump.entities.map((e) => e.id),
+    ["e1", "e2", "t1"]
+  ) &&
+    listingDumps.shapesDump.annotations.length === 1 &&
+    listingDumps.shapesDump.relsEntityAnnotation.length === 3
+);
+check(
+  "singular variant delegates to the plural one",
+  eq(
+    buildNotesAppEntityDumps({ entity, relatedEntities: related }),
+    buildNotesAppEntitiesDumps({ entities: [entity], relatedEntities: related })
+  )
+);
+check(
+  "empty plural call yields empty dumps",
+  eq(buildNotesAppEntitiesDumps({}), {
+    objectsDump: { entities: [], notes: [], links: [] },
+    shapesDump: { entities: [], annotations: [], relsEntityAnnotation: [] },
+  })
 );
 
 // --- links on the mapped row

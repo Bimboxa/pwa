@@ -24,6 +24,7 @@ import {
   ListItemButton,
   ListItemText,
   Typography,
+  CircularProgress,
   IconButton,
   InputBase,
   Tab,
@@ -33,6 +34,7 @@ import {
   ArrowBack as Back,
   AddLocationAlt,
   Add,
+  CloudDownload,
   Delete,
 } from "@mui/icons-material";
 
@@ -49,6 +51,9 @@ import getBusinessObjectTypeOfListing from "../utils/getBusinessObjectTypeOfList
 import SectionPlanningAnnotationListings from "./SectionPlanningAnnotationListings";
 
 import useNotesAppConfig from "Features/notesApp/hooks/useNotesAppConfig";
+import useNotesAppScopeLink from "Features/notesApp/hooks/useNotesAppScopeLink";
+import useSyncNotesAppListing from "Features/notesApp/hooks/useSyncNotesAppListing";
+import { getNotesAppRemoteListingId } from "Features/notesApp/services/syncNotesAppListing";
 import SectionNotesAppListingAdvanced from "Features/notesApp/components/SectionNotesAppListingAdvanced";
 import PanelNotesAppListingConfig from "Features/notesApp/components/PanelNotesAppListingConfig";
 
@@ -65,7 +70,10 @@ import PanelNotesAppListingConfig from "Features/notesApp/components/PanelNotesA
 // integration the panel gets two tabs: "Général" (the cards above) and
 // "Avancé" (the listing configuration synced with Krnet: fields, state
 // models, codification, object preview — SectionNotesAppListingAdvanced);
-// the sub-views that tab opens replace the whole panel until closed.
+// the sub-views that tab opens replace the whole panel until closed. A
+// Krnet-linked listing gets a pull icon button in the header ("Récupérer"):
+// every object of the remote list with notes, links, positions, shapes and
+// the list configuration are fetched (useSyncNotesAppListing) — pull only.
 export default function PanelBusinessObjectListingProperties({ listing }) {
   const dispatch = useDispatch();
 
@@ -97,7 +105,9 @@ export default function PanelBusinessObjectListingProperties({ listing }) {
     listingId: listing?.id,
   });
   const { guardEditRecord } = useCanEditRecord();
-  const notesAppEnabled = useNotesAppConfig()?.enabled === true;
+  const notesAppConfig = useNotesAppConfig();
+  const notesAppEnabled = notesAppConfig?.enabled === true;
+  const notesAppName = notesAppConfig?.name ?? "Krnet";
   const configView = useSelector((s) => s.notesApp.listingConfigView);
   const propertiesTab = useSelector(
     (s) => s.businessObjects.listingPropertiesTab
@@ -107,6 +117,17 @@ export default function PanelBusinessObjectListingProperties({ listing }) {
   const spriteImage = useAnnotationSpriteImage();
   const { deleteAnnotationTemplate, getAnnotationCount } =
     useDeleteAnnotationTemplate();
+
+  // data — per-listing pull from Krnet (header icon button): the listing
+  // must be mapped on a Krnet list and the scope linked to a Krnet project.
+  // Pull only: nothing is sent to Krnet.
+  const { link: notesAppLink, scope: notesAppScope } = useNotesAppScopeLink();
+  const { syncListing, syncing: pulling } = useSyncNotesAppListing();
+  const canPull =
+    notesAppEnabled &&
+    Boolean(notesAppLink?.projectId) &&
+    Boolean(getNotesAppRemoteListingId({ listing, scope: notesAppScope }));
+  const pullTitleS = `Récupérer les données de cette liste depuis ${notesAppName} (aucun envoi vers ${notesAppName})`;
 
   // state
 
@@ -145,6 +166,11 @@ export default function PanelBusinessObjectListingProperties({ listing }) {
     // baseMap group properties panel.
     dispatch(setSelectedItem({ id: selectedScopeId, type: "SCOPE" }));
     dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
+  }
+
+  async function handlePull() {
+    if (pulling || !listing) return;
+    await syncListing(listing);
   }
 
   // handlers — location templates
@@ -244,7 +270,7 @@ export default function PanelBusinessObjectListingProperties({ listing }) {
         <IconButton onClick={handleBack}>
           <Back />
         </IconButton>
-        <Box sx={{ ml: 1 }}>
+        <Box sx={{ ml: 1, flexGrow: 1, minWidth: 0 }}>
           <Typography variant="caption" color="text.secondary">
             {titleS}
           </Typography>
@@ -255,6 +281,19 @@ export default function PanelBusinessObjectListingProperties({ listing }) {
             {countS}
           </Typography>
         </Box>
+        {canPull &&
+          (pulling ? (
+            <CircularProgress size={18} sx={{ mx: 1 }} />
+          ) : (
+            <IconButton
+              size="small"
+              onClick={handlePull}
+              title={pullTitleS}
+              sx={{ flexShrink: 0, mr: 0.5 }}
+            >
+              <CloudDownload />
+            </IconButton>
+          ))}
       </Box>
 
       {notesAppEnabled && (

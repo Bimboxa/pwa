@@ -23,14 +23,16 @@ import {
 // Shapes: every rel of a shape is fetched, whatever the object — the shapes
 // merge tombstones the local rels of the objects missing from the dump.
 
-const LISTING_COLUMNS = "id,name,icon,color,settings,updated_at,deleted_at";
+// Shared with fetchNotesAppListingBundle (same PostgREST access pattern).
+export const LISTING_COLUMNS =
+  "id,name,icon,color,settings,updated_at,deleted_at";
 const IN_CHUNK = 200;
 
 function unique(ids) {
   return [...new Set((ids ?? []).filter(Boolean))];
 }
 
-async function selectIn(client, table, column, ids, columns = "*") {
+export async function selectIn(client, table, column, ids, columns = "*") {
   const list = unique(ids);
   const rows = [];
   for (let i = 0; i < list.length; i += IN_CHUNK) {
@@ -44,7 +46,7 @@ async function selectIn(client, table, column, ids, columns = "*") {
   return rows;
 }
 
-function dedupeById(rows) {
+export function dedupeById(rows) {
   const byId = new Map();
   for (const row of rows) if (row?.id) byId.set(row.id, row);
   return [...byId.values()];

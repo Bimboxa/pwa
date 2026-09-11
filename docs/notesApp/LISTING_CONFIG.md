@@ -159,7 +159,7 @@ links are keyed on their own signature (link ids + `updated_at`) and a
 links-only change refreshes `notesAppRemote.links` without bumping the
 row's `updatedAt`.
 
-## Per-object pull ("Récupérer" button of the object header)
+## Per-object pull ("Récupérer" icon button of the object header)
 
 `PanelBusinessObjectProperties` header, Krnet-linked objects only
 (`remoteSource === "notesApp"` + `idMaster`, scope linked to a Krnet
@@ -203,6 +203,35 @@ Traps:
   objects).
 
 Replay: `scripts/replay/notesAppEntityBundleReplay.js`.
+
+## Per-listing pull ("Récupérer" icon button of the listing header)
+
+`PanelBusinessObjectListingProperties` header, Krnet-linked listings only
+(mapped in `scope.notesApp.listingsMapping`, else `listing.idMaster` —
+`getNotesAppRemoteListingId`; scope linked to a Krnet project):
+`useSyncNotesAppListing` → `syncNotesAppListing`. **Pull only**. Scope:
+
+- every object of the remote list (tombstones included, so deletions
+  propagate), with notes feed + media and links;
+- their **related objects** (same rule as the per-object pull), merged per
+  (remote list → local listing) pair, unmapped lists counted as ignored;
+- the positions and shapes of the list (the objects' MARKERs, the drawings
+  owned by the list and the drawings rel-linked to one of its objects),
+  for the listing's own pair only;
+- the **list configuration** (`listings` row, `entity_models`,
+  `state_models`, `listing_state_models` — `prepareNotesAppListingConfigMerge`,
+  same conflict rule as the scope pull);
+- the listing's mapping entry gets `lastSyncAt` / `lastSyncCounts`;
+  `scope.notesApp.lastSyncAt` (project-level) is left alone.
+
+`fetchNotesAppListingBundle` reads the rows with the same PostgREST
+selects (`selectIn` shared with the per-object bundle) and builds the mini
+dumps with `buildNotesAppEntitiesDumps` (plural variant of
+`buildNotesAppEntityDumps`). Plans are not merged (local imported-plans
+index), no local listing is created (the listing must already be linked).
+Errors: `NOTES_APP_LISTING_NOT_LINKED`, `NOTES_APP_LISTING_NOT_FOUND`,
+`NOTES_APP_LISTING_DELETED` (the scope pull owns deleted lists),
+`NOTES_APP_NOT_SIGNED_IN`.
 
 ## Traps
 

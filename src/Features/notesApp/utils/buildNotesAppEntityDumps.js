@@ -30,22 +30,29 @@ export function getRelatedEntityIds({ entity, links, relsEntityAnnotation }) {
 }
 
 // Mini dumps (pure): the objects merge reads entities + notes + links, the
-// positions / shapes merges read entities + annotations + rels.
-export function buildNotesAppEntityDumps({
-  entity,
+// positions / shapes merges read entities + annotations + rels. `entities`
+// are the objects the pull is about (one object, or every object of a
+// list), `relatedEntities` their link / category / shared-shape targets.
+export function buildNotesAppEntitiesDumps({
+  entities = [],
   relatedEntities = [],
   notes = [],
   links = [],
   annotations = [],
   relsEntityAnnotation = [],
 }) {
-  const entities = dedupeById([entity, ...relatedEntities]);
+  const allEntities = dedupeById([...entities, ...relatedEntities]);
   return {
-    objectsDump: { entities, notes, links },
+    objectsDump: { entities: allEntities, notes, links },
     shapesDump: {
-      entities,
+      entities: allEntities,
       annotations: dedupeById(annotations),
       relsEntityAnnotation: dedupeById(relsEntityAnnotation),
     },
   };
+}
+
+// Single-object variant (per-object pull).
+export function buildNotesAppEntityDumps({ entity, ...rest }) {
+  return buildNotesAppEntitiesDumps({ entities: [entity], ...rest });
 }
