@@ -37,6 +37,7 @@ import PanelBusinessObjectProperties from "Features/businessObjects/components/P
 import PanelBusinessObjectListingProperties from "Features/businessObjects/components/PanelBusinessObjectListingProperties";
 import PanelWorkPackageProperties from "Features/businessObjects/components/PanelWorkPackageProperties";
 import PanelPovFrameProperties from "Features/pov/components/PanelPovFrameProperties";
+import PanelPropertiesDrawing from "Features/panelDrawing/components/PanelPropertiesDrawing";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 
 export default function PanelSelectionProperties() {
@@ -179,7 +180,9 @@ export default function PanelSelectionProperties() {
     // exposing the slope (%) and a "..." menu with Supprimer.
     type = "GUIDE";
   } else if (isMapViewer && !selectedItem) {
-    type = "MAP_SUMMARY";
+    // Dessin module default: the module's own panel (base map overview,
+    // listings visibility, layers toggle).
+    type = "DRAWING_MODULE";
   } else if (
     isCanvasViewer &&
     selectedItems.length > 1 &&
@@ -241,6 +244,13 @@ export default function PanelSelectionProperties() {
       // PORTFOLIO_HEADER, PORTFOLIO, or no selection
       type = "PORTFOLIO_HEADER";
     }
+  } else if (!selectedItem) {
+    // Empty selection in a module without a dedicated default panel (SCOPE,
+    // THREED, MESHES, PHOTOS, ZONES): the scope panel. Modules with their own
+    // default (MAP, BASE_MAPS, POINT_OF_VIEW, PORTFOLIO, business objects)
+    // are caught above. Before the showAnnotationsProperties branch: a stale
+    // flag must not hide the module panel.
+    type = "SCOPE";
   } else if (selectedItem?.type === "ZONE") {
     // Zone selected in the zonings drawer (ZONES module): legend of the
     // annotations linked to the zone.
@@ -276,7 +286,7 @@ export default function PanelSelectionProperties() {
 
   return (
     <BoxFlexVStretch>
-      {type === "MAP_SUMMARY" && <PanelPropertiesScope />}
+      {type === "DRAWING_MODULE" && <PanelPropertiesDrawing />}
 
       {/* THREED uses the V2 panel too so the back chain ends listing → scope,
           matching the 2D editor. */}

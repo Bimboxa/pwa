@@ -1,40 +1,16 @@
 import { useMemo, useState } from "react";
 
 import { useDispatch, useSelector } from "react-redux";
-import {
-  setSelectedItem,
-  setSelectedItems,
-} from "Features/selection/selectionSlice";
-import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
-import {
-  setSelectedViewerKey,
-  setViewerReturnContext,
-} from "Features/viewers/viewersSlice";
+import { setSelectedItems } from "Features/selection/selectionSlice";
 
-import {
-  Box,
-  Typography,
-  IconButton,
-  Button,
-  Chip,
-  Tooltip,
-} from "@mui/material";
-import {
-  ChevronRight,
-  PlaylistAddCheck,
-  BugReport,
-  TableChart,
-} from "@mui/icons-material";
+import { Box, Typography, IconButton, Chip, Tooltip } from "@mui/material";
+import { PlaylistAddCheck, BugReport, TableChart } from "@mui/icons-material";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
-import FieldBaseMapOpacity from "Features/baseMaps/components/FieldBaseMapOpacity";
-import FieldBaseMapOpacityIn3d from "Features/threedEditor/components/FieldBaseMapOpacityIn3d";
+import SectionBaseMapOverview from "Features/baseMaps/components/SectionBaseMapOverview";
 import FieldTextV2 from "Features/form/components/FieldTextV2";
 import FieldSortableListings from "Features/popperMapListings/components/FieldSortableListings";
-import stringifyFileSize from "Features/files/utils/stringifyFileSize";
-import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
-import useMainBaseMapListing from "Features/baseMaps/hooks/useMainBaseMapListing";
 import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
 import useUpdateScope from "Features/scopes/hooks/useUpdateScope";
 import useCanEditRecord from "App/hooks/useCanEditRecord";
@@ -42,8 +18,7 @@ import { canEditRecord } from "App/db/ownership";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 import useLayers from "Features/layers/hooks/useLayers";
-import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
-import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
+import { selectSelectedModuleKey } from "Features/viewers/utils/effectiveViewerKey";
 
 import DialogGeneric from "Features/layout/components/DialogGeneric";
 import DatagridAnnotations from "Features/annotations/components/DatagridAnnotations";
@@ -56,18 +31,12 @@ export default function PanelPropertiesScope() {
   const dispatch = useDispatch();
   const appConfig = useAppConfig();
   const updateScope = useUpdateScope();
-  const baseMap = useMainBaseMap();
-  const mainBaseMapListing = useMainBaseMapListing();
   const { value: selectedScope } = useSelectedScope();
 
   const baseMapId = useSelector((s) => s.mapEditor.selectedBaseMapId);
 
-  // The opacity slider below drives whichever viewer is on screen, exactly
-  // like PanelBaseMapProperties: `baseMap.opacity` (DB, 2D display) in 2D, the
-  // session-only 3D state in the 3D family — the two are decoupled and
-  // `baseMap.opacity` never reaches the 3D scene.
-  const selectedViewerKey = useSelector(selectEffectiveViewerKey);
-  const isThreedViewer = isThreedFamilyViewerKey(selectedViewerKey);
+  // "Voir le détail" of the base map card comes back to the current module.
+  const selectedModuleKey = useSelector(selectSelectedModuleKey);
 
   // Scope RECORD rights stay creator-only: pure ownership check — the shared
   // useCanEditRecord hook now includes the editors-trigram bypass, which is
@@ -94,7 +63,6 @@ export default function PanelPropertiesScope() {
 
   const scopeName = selectedScope?.name ?? "-";
   const scopeLabel = appConfig?.strings?.scope?.nameSingular ?? "Repérage";
-  const baseMapUrl = baseMap?.getUrl?.();
 
   const annotationsByLayer = useMemo(() => {
     if (!annotations) return {};
@@ -115,20 +83,6 @@ export default function PanelPropertiesScope() {
     if (name && name.trim() && selectedScope) {
       updateScope({ id: selectedScope.id, name: name.trim() });
     }
-  }
-
-  function handleSelectBaseMap() {
-    if (!baseMap) return;
-    dispatch(
-      setSelectedItem({
-        id: baseMap.id,
-        type: "BASE_MAP",
-        listingId: mainBaseMapListing?.id,
-      })
-    );
-    dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
-    dispatch(setSelectedViewerKey("BASE_MAPS"));
-    dispatch(setViewerReturnContext({ fromViewer: "MAP" }));
   }
 
   function handleCopyAnnotationsDebug() {
@@ -215,64 +169,7 @@ export default function PanelPropertiesScope() {
         )}
 
         {/* Card 1: BaseMap preview + opacity */}
-        <WhiteSectionGeneric>
-          <Typography
-            variant="body2"
-            sx={{ fontWeight: "bold", mb: 1 }}
-          >
-            Fond de plan
-          </Typography>
-
-          {baseMapUrl && (
-            <Box
-              sx={{
-                width: 1,
-                height: 140,
-                backgroundImage: `url(${baseMapUrl})`,
-                backgroundSize: "cover",
-                backgroundPosition: "center",
-                backgroundRepeat: "no-repeat",
-                borderRadius: 1,
-                border: (theme) => `1px solid ${theme.palette.divider}`,
-              }}
-            />
-          )}
-
-          {(() => {
-            const activeVersion = baseMap?.getActiveVersion?.();
-            const imageSize = baseMap?.getActiveImageSize?.();
-            const aspectRatio = imageSize?.width && imageSize?.height
-              ? (imageSize.width / imageSize.height).toFixed(2)
-              : null;
-            const fileSizeS = stringifyFileSize(activeVersion?.image?.file?.size);
-            if (!activeVersion) return null;
-            const parts = [activeVersion.label || "Version"];
-            if (aspectRatio) parts.push(`r:${aspectRatio}`);
-            if (fileSizeS) parts.push(fileSizeS);
-            return (
-              <Typography variant="caption" color="text.secondary" sx={{ mb: 1 }}>
-                {parts.join(" — ")}
-              </Typography>
-            );
-          })()}
-
-          {baseMap &&
-            (isThreedViewer ? (
-              <FieldBaseMapOpacityIn3d baseMap={baseMap} />
-            ) : (
-              <FieldBaseMapOpacity baseMap={baseMap} />
-            ))}
-
-          <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 1 }}>
-            <Button
-              size="small"
-              endIcon={<ChevronRight />}
-              onClick={handleSelectBaseMap}
-            >
-              Voir le détail
-            </Button>
-          </Box>
-        </WhiteSectionGeneric>
+        <SectionBaseMapOverview returnFromViewer={selectedModuleKey} />
 
         {/* Card 2: Annotations summary */}
         <WhiteSectionGeneric>

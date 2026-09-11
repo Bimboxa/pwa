@@ -1687,10 +1687,13 @@ export default function PopperMapListings() {
   const layers = useLayers({ filterByBaseMapId: baseMap?.id });
   const versionsCount = baseMap?.versions?.length ?? 0;
 
-  // Auto-enable showLayers when baseMap has layers in MAP viewer
+  // Auto-enable showLayers when the baseMap has layers in the MAP viewer.
+  // Enable only: a manual choice (Dessin properties panel / Configuration
+  // page) is never forced back, and "on" without any layer stays on so the
+  // first layer can be created from the section.
   useEffect(() => {
-    if (viewerKey === "MAP") {
-      dispatch(setShowLayers(layers?.length > 0));
+    if (viewerKey === "MAP" && layers?.length > 0) {
+      dispatch(setShowLayers(true));
     }
   }, [layers?.length, viewerKey]);
 

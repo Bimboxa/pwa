@@ -11,7 +11,7 @@ import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useAnnotationTemplateQtiesById from "Features/annotations/hooks/useAnnotationTemplateQtiesById";
 
 import { setSelectedMainBaseMapId } from "Features/mapEditor/mapEditorSlice";
-import { setSelectedItem } from "Features/selection/selectionSlice";
+import { setSelectedItem, clearSelection } from "Features/selection/selectionSlice";
 import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 
 import {
@@ -285,7 +285,6 @@ export default function PanelPropertiesListingV2({ listing }) {
   const updateListing = useUpdateListing();
   const { isFavorite, toggleFavorite } = useFavoriteListings();
   const projectId = useSelector((s) => s.projects.selectedProjectId);
-  const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
   const annotationTemplates = useAnnotationTemplates({
     filterByListingId: listing?.id,
     sortByOrder: true,
@@ -366,7 +365,9 @@ export default function PanelPropertiesListingV2({ listing }) {
   // handlers
 
   function handleBackToScope() {
-    dispatch(setSelectedItem({ id: selectedScopeId, type: "SCOPE" }));
+    // Empty selection = the module's default panel (PanelSelectionProperties):
+    // the Dessin panel in the Dessin module, the scope panel elsewhere.
+    dispatch(clearSelection());
     dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
   }
 
