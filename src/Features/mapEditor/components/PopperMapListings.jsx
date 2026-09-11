@@ -1934,17 +1934,21 @@ export default function PopperMapListings() {
   const scopedListings = visibleListingIds
     ? visibleListings?.filter((l) => visibleListingIds.has(l.id))
     : visibleListings;
-  // Opened from the SCOPE recap with a listing selected: narrow to it. A
-  // returnListingId that matches nothing here (stale context from another
-  // scope, deleted listing) must not empty the panel: ignore the narrowing.
+  // Opened from the SCOPE recap with a listing selected: narrow to it, only
+  // while that listing is the selected one — creating a listing from the "+"
+  // avatar selects the new one, which must then show. A returnListingId that
+  // matches nothing here (stale context from another scope, deleted listing)
+  // must not empty the panel: ignore the narrowing.
   const returnListing =
-    comesFromListing && returnListingId
+    comesFromListing &&
+    returnListingId &&
+    (!selectedListingId || selectedListingId === returnListingId)
       ? scopedListings?.find((l) => l.id === returnListingId)
       : null;
   const displayedListings = returnListing ? [returnListing] : scopedListings;
   // No listing yet → the "+ Liste" chip becomes the main CTA (contained, orange).
   const hasNoListing = !displayedListings?.length;
-  const canAddListing = !returnListing && !isBaseMapsViewer && !isThreedViewer;
+  const canAddListing = !isBaseMapsViewer && !isThreedViewer;
 
   // The single "current" listing shown (band + templates) below the chips bar.
   // Falls back to the first chip when nothing is selected or the selection is

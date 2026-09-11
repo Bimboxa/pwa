@@ -130,15 +130,21 @@ export default function PanelDrawing() {
         (l) => !(l.isFreeAnnotationsListing && l.rank == null)
       ) ?? [];
     const ordered = [...pinnedSystemListings, ...otherListings];
-    // Opened from the SCOPE recap with a listing selected: narrow to it. A
-    // returnListingId that matches nothing here (stale context from another
-    // scope, deleted listing) must not empty the panel: ignore the narrowing.
-    if (comesFromListing && returnListingId) {
+    // Opened from the SCOPE recap with a listing selected: narrow to it, only
+    // while that listing is the selected one — creating a listing from the
+    // field selects the new one, which must then show. A returnListingId that
+    // matches nothing here (stale context from another scope, deleted
+    // listing) must not empty the panel: ignore the narrowing.
+    if (
+      comesFromListing &&
+      returnListingId &&
+      (!selectedListingId || selectedListingId === returnListingId)
+    ) {
       const returnListing = ordered.find((l) => l.id === returnListingId);
       if (returnListing) return [returnListing];
     }
     return ordered;
-  }, [listings, comesFromListing, returnListingId]);
+  }, [listings, comesFromListing, returnListingId, selectedListingId]);
 
   const activeListing =
     displayedListings.find((l) => l.id === selectedListingId) ??
