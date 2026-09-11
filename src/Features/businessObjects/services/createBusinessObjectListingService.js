@@ -4,11 +4,10 @@ import { generateKeyBetween } from "fractional-indexing";
 import db from "App/db/db";
 
 import { BUSINESS_OBJECT_ENTITY_MODEL } from "../constants/businessObjectEntityModel";
-import {
-  DEFAULT_BUSINESS_OBJECT_TYPE_KEY,
-  getBusinessObjectType,
-} from "../data/businessObjectTypesCatalog";
+import { DEFAULT_BUSINESS_OBJECT_TYPE_KEY } from "../data/businessObjectTypesCatalog";
 import { getBusinessObjectsModuleKey } from "../utils/businessObjectModuleKeys";
+
+import resolveBusinessObjectsModuleLabel from "../utils/resolveBusinessObjectsModuleLabel";
 
 import enableScopeModuleService from "Features/scopeConfig/services/enableScopeModuleService";
 
@@ -24,7 +23,7 @@ export default async function createBusinessObjectListingService({
   scopeId,
   name,
   typeKey = DEFAULT_BUSINESS_OBJECT_TYPE_KEY,
-  canLocateBusinessObjects = false,
+  canLocateBusinessObjects = typeKey === "PINNED_OBJECTS",
   appConfig,
 } = {}) {
   const entityModel =
@@ -43,8 +42,16 @@ export default async function createBusinessObjectListingService({
     .pop();
   const rank = generateKeyBetween(lastRank ?? null, null);
 
-  const defaultLabel =
-    getBusinessObjectType(typeKey)?.defaultLabel ?? "Ouvrages";
+  const scopeConfig = await db.scopeConfigs
+    .where("scopeId")
+    .equals(scopeId)
+    .first();
+  const defaultLabel = resolveBusinessObjectsModuleLabel({
+    typeKey,
+    moduleLabelsByKey: scopeConfig?.moduleLabelsByKey,
+    appConfigLabel: appConfig?.strings?.modules?.businessObjects,
+    appConfigLabelsByType: appConfig?.strings?.modules?.businessObjectsByType,
+  });
 
   const listing = {
     id: nanoid(),

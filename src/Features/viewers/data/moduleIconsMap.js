@@ -20,7 +20,11 @@ import {
   ElectricalServices,
   Carpenter,
   Layers,
+  PushPin,
+  LocationOn,
 } from "@mui/icons-material";
+
+import IconFloorPlan from "Features/icons/IconFloorPlan";
 
 // Curated icons a scope can pick for a configurable left-band module
 // (scopeConfigs.moduleIconKeysByKey: {moduleKey: iconKey}). Same shape as
@@ -48,6 +52,9 @@ const moduleIconsMap = new Map([
   ["electricalServices", ElectricalServices],
   ["carpenter", Carpenter],
   ["layers", Layers],
+  ["pushPin", PushPin],
+  ["locationOn", LocationOn],
+  ["floorPlan", IconFloorPlan],
 ]);
 
 export const MODULE_ICON_KEYS = [...moduleIconsMap.keys()];

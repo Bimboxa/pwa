@@ -152,6 +152,18 @@ export function selectDisabledToolKeysByModule(s) {
   return selectSelectedScopeConfig(s)?.disabledToolKeysByModule ?? EMPTY_OBJ;
 }
 
+// Creation-preset defaults also apply to older scopes that did not persist
+// module presentation settings. Explicit scope overrides still take precedence.
+export function selectPresetScopeConfig(s) {
+  const scope = s.scopes.scopesById?.[s.scopes.selectedScopeId];
+  if (!scope?.presetScopeKey) return EMPTY_OBJ;
+  return (
+    s.appConfig.value?.features?.krtoConfigurations?.items?.find(
+      (configuration) => configuration.key === scope.presetScopeKey
+    )?.scopeConfig ?? EMPTY_OBJ
+  );
+}
+
 // Per-scope module label overrides ({moduleKey: label}). Empty by default —
 // the module catalog falls back to its appConfig / hardcoded labels.
 export function selectModuleLabelsByKey(s) {
@@ -169,7 +181,11 @@ export function selectModuleIconKeysByKey(s) {
 // and disabled ones included). null => catalog order. Applied by useViewers
 // through sortModulesByOrder; the row's own array keeps the reference stable.
 export function selectModuleOrder(s) {
-  return selectSelectedScopeConfig(s)?.moduleOrder ?? null;
+  return (
+    selectSelectedScopeConfig(s)?.moduleOrder ??
+    selectPresetScopeConfig(s)?.moduleOrder ??
+    null
+  );
 }
 
 // Per-scope order of the right-band tools (full list of tool keys, locked

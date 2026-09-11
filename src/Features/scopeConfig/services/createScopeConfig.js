@@ -20,6 +20,9 @@ export default async function createScopeConfig({
   disabledToolKeys,
   disabledToolKeysByModule,
   systemAnnotationTemplates,
+  moduleLabelsByKey,
+  moduleIconKeysByKey,
+  moduleOrder,
   appConfig,
 }) {
   if (!scopeId) return;
@@ -43,6 +46,9 @@ export default async function createScopeConfig({
       knownModuleKeys: [...CONFIGURABLE_MODULE_KEYS],
       disabledToolKeys: disabledToolKeys ?? [...DEFAULT_DISABLED_TOOL_KEYS],
       disabledToolKeysByModule: disabledToolKeysByModule ?? {},
+      ...(moduleLabelsByKey !== undefined && { moduleLabelsByKey }),
+      ...(moduleIconKeysByKey !== undefined && { moduleIconKeysByKey }),
+      ...(moduleOrder !== undefined && { moduleOrder }),
       // only materialized when the caller decides (absent => enabled)
       ...(systemAnnotationTemplates !== undefined && {
         systemAnnotationTemplates,

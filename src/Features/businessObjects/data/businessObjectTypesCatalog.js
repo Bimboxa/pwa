@@ -65,6 +65,22 @@ const BUSINESS_OBJECT_TYPES = [
     features: STANDARD_FEATURES,
   },
   {
+    key: "PINNED_OBJECTS",
+    defaultLabel: "Objets localisés",
+    defaultIconKey: "pushPin",
+    editors: ["MAP", "THREED"],
+    strings: STANDARD_STRINGS,
+    features: STANDARD_FEATURES,
+  },
+  {
+    key: "LOCATIONS",
+    defaultLabel: "Localisations",
+    defaultIconKey: "locationOn",
+    editors: ["MAP", "THREED"],
+    strings: STANDARD_STRINGS,
+    features: STANDARD_FEATURES,
+  },
+  {
     // Planning: hierarchical TASKS carrying an hours ratio. Same tree panel,
     // with the ratio / rolled-up hours in the rows and a total band. Module
     // key BUSINESS_OBJECTS_PLANNING (knownModuleKeys rule, like

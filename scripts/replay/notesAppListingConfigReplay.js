@@ -47,6 +47,7 @@ import {
 import remapNotesAppListingRefs, {
   remapNotesAppStateModelIds,
 } from "Features/notesApp/utils/remapNotesAppListingRefs";
+import getNotesAppBusinessObjectType from "Features/notesApp/utils/getNotesAppBusinessObjectType";
 import buildNotesAppListingConfigPatch from "Features/notesApp/utils/buildNotesAppListingConfigPatch";
 import buildNotesAppListingConfigPushRows from "Features/notesApp/utils/buildNotesAppListingConfigPushRows";
 
@@ -61,6 +62,55 @@ function check(label, cond, detail) {
   }
 }
 const eq = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+
+// --- listing types
+
+check(
+  "locatable list maps to pinned objects",
+  getNotesAppBusinessObjectType({ isLocatable: true }) === "PINNED_OBJECTS"
+);
+check(
+  "location list wins over a stale locatable flag",
+  getNotesAppBusinessObjectType({
+    isLocationListing: true,
+    isLocatable: true,
+  }) === "LOCATIONS"
+);
+check(
+  "bulk location does not imply pinned objects",
+  getNotesAppBusinessObjectType({ isBulkLocatable: true }) === "STANDARD"
+);
+check(
+  "existing nomenclature is preserved without location flags",
+  getNotesAppBusinessObjectType({}, "NOMENCLATURE") === "NOMENCLATURE"
+);
+check(
+  "clearing location flags restores standard",
+  getNotesAppBusinessObjectType({}, "LOCATIONS") === "STANDARD"
+);
+const backfill = buildNotesAppListingConfigPatch({
+  listing: {
+    businessObjectType: "STANDARD",
+    notesApp: {
+      settings: { isLocationListing: true },
+      remoteUpdatedAt: 3000,
+    },
+  },
+  remoteListing: { id: "remote", updatedAt: 3000, settings: {} },
+});
+check(
+  "unchanged remote config backfills the type from local settings",
+  backfill.decision === "unchanged" &&
+    backfill.patch?.businessObjectType === "LOCATIONS"
+);
+const mapped = buildNotesAppListingConfigPatch({
+  listing: { businessObjectType: "STANDARD" },
+  remoteListing: { id: "remote", settings: { isLocatable: true } },
+});
+check(
+  "first mapping assigns the remote listing type",
+  mapped.patch?.businessObjectType === "PINNED_OBJECTS"
+);
 
 // --- settings setters
 

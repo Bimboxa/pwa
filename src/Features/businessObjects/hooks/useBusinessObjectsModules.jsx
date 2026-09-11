@@ -3,6 +3,7 @@ import { useSelector } from "react-redux";
 import {
   selectModuleLabelsByKey,
   selectModuleIconKeysByKey,
+  selectPresetScopeConfig,
 } from "Features/scopeConfig/utils/scopeConfigSelectors";
 
 import { getModuleIconComponent } from "Features/viewers/data/moduleIconsMap";
@@ -24,6 +25,13 @@ export default function useBusinessObjectsModules() {
   const legacy = useSelector((s) => s.appConfig.enableMapEditorLegacy);
   const moduleLabelsByKey = useSelector(selectModuleLabelsByKey);
   const moduleIconKeysByKey = useSelector(selectModuleIconKeysByKey);
+  const presetScopeConfig = useSelector(selectPresetScopeConfig);
+  const defaultModuleIconKeysByKey = useSelector(
+    (s) => s.appConfig.value?.features?.scopeConfig?.defaultModuleIconKeysByKey
+  );
+  const appConfigLabelsByType = useSelector(
+    (s) => s.appConfig.value?.strings?.modules?.businessObjectsByType
+  );
   const appConfigLabel = useSelector(
     (s) => s.appConfig.value?.strings?.modules?.businessObjects
   );
@@ -36,16 +44,22 @@ export default function useBusinessObjectsModules() {
       typeKey: type.key,
       moduleLabelsByKey,
       appConfigLabel,
+      appConfigLabelsByType,
     });
+    const defaultIconKey =
+      presetScopeConfig.moduleIconKeysByKey?.[key] ??
+      defaultModuleIconKeysByKey?.[key] ??
+      type.defaultIconKey;
     const Icon = getModuleIconComponent(
       moduleIconKeysByKey[key],
-      type.defaultIconKey
+      defaultIconKey
     );
     return {
       key,
       label,
       shortLabel: label,
       icon: <Icon />,
+      defaultIconKey,
       bgcolor: theme.palette.viewers.businessObjects,
       hotkey: type.hotkey,
       editors: type.editors,

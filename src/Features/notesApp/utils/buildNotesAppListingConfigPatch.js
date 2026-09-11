@@ -1,3 +1,4 @@
+import getNotesAppBusinessObjectType from "./getNotesAppBusinessObjectType";
 import remapNotesAppListingRefs from "./remapNotesAppListingRefs";
 import { stripLegacyNameField, parseSettings } from "./notesAppListingSettings";
 import {
@@ -78,7 +79,18 @@ export default function buildNotesAppListingConfigPatch({
   } else decision = "keepLocal";
 
   if (decision === "unchanged" || decision === "keepLocal") {
-    return { patch: null, decision, signature };
+    const businessObjectType = getNotesAppBusinessObjectType(
+      local?.settings,
+      listing?.businessObjectType
+    );
+    return {
+      patch:
+        businessObjectType !== (listing?.businessObjectType ?? "STANDARD")
+          ? { businessObjectType }
+          : null,
+      decision,
+      signature,
+    };
   }
 
   const rawSettings =
@@ -104,6 +116,10 @@ export default function buildNotesAppListingConfigPatch({
   );
 
   const patch = {
+    businessObjectType: getNotesAppBusinessObjectType(
+      settings,
+      listing?.businessObjectType
+    ),
     idMaster: remoteListing.id,
     remoteSource: "notesApp",
     // first link keeps the Bimboxa name; afterwards the remote name follows

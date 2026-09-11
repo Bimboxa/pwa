@@ -5,6 +5,8 @@ import PanelBusinessObjects from "./PanelBusinessObjects";
 // here. Unknown type => the STANDARD panel.
 const PANEL_BY_TYPE_KEY = {
   STANDARD: PanelBusinessObjects,
+  PINNED_OBJECTS: PanelBusinessObjects,
+  LOCATIONS: PanelBusinessObjects,
   // Category trees: the same listing selector + tree panel.
   NOMENCLATURE: PanelBusinessObjects,
   // Tasks: the same panel, the type's features (hoursBudget) drive the

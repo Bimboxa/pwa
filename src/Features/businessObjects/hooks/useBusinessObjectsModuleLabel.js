@@ -12,6 +12,9 @@ export default function useBusinessObjectsModuleLabel(
   typeKey = DEFAULT_BUSINESS_OBJECT_TYPE_KEY
 ) {
   const moduleLabelsByKey = useSelector(selectModuleLabelsByKey);
+  const appConfigLabelsByType = useSelector(
+    (s) => s.appConfig.value?.strings?.modules?.businessObjectsByType
+  );
   const appConfigLabel = useSelector(
     (s) => s.appConfig.value?.strings?.modules?.businessObjects
   );
@@ -20,5 +23,6 @@ export default function useBusinessObjectsModuleLabel(
     typeKey,
     moduleLabelsByKey,
     appConfigLabel,
+    appConfigLabelsByType,
   });
 }

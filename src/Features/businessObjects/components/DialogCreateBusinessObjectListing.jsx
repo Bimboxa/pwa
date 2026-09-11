@@ -67,7 +67,7 @@ export default function DialogCreateBusinessObjectListing({
   const [selectedTypeKey, setSelectedTypeKey] = useState(
     DEFAULT_BUSINESS_OBJECT_TYPE_KEY
   );
-  const [canLocate, setCanLocate] = useState(false);
+  const [canLocate, setCanLocate] = useState(null);
 
   // helpers
 
@@ -84,7 +84,8 @@ export default function DialogCreateBusinessObjectListing({
     const listing = await createBusinessObjectListing({
       name,
       typeKey: createdTypeKey,
-      canLocateBusinessObjects: canLocate,
+      canLocateBusinessObjects:
+        canLocate ?? createdTypeKey === "PINNED_OBJECTS",
     });
     if (listing) {
       dispatch(setSelectedListingId(listing.id));
@@ -115,7 +116,7 @@ export default function DialogCreateBusinessObjectListing({
           control={
             <Checkbox
               size="small"
-              checked={canLocate}
+              checked={canLocate ?? createdTypeKey === "PINNED_OBJECTS"}
               onChange={(e) => setCanLocate(e.target.checked)}
             />
           }

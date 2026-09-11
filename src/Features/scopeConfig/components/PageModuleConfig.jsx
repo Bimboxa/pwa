@@ -89,7 +89,9 @@ export default function PageModuleConfig({ module, tools }) {
     businessObjectTypeKey !== null || module.key === SCOPE_MODULE_KEY;
   const iconConfigurable = businessObjectTypeKey !== null;
   const defaultIconKey =
-    getBusinessObjectType(businessObjectTypeKey)?.defaultIconKey ?? null;
+    module.defaultIconKey ??
+    getBusinessObjectType(businessObjectTypeKey)?.defaultIconKey ??
+    null;
 
   const moduleTools = tools.filter(
     (t) => !t.viewers || t.viewers.includes(module.key)

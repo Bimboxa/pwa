@@ -34,7 +34,10 @@ strings:
 
   # Module labels (left band). Overridable per scope (scopeConfig).
   modules:
-    businessObjects: "Objets"
+    businessObjects: "Matériaux"
+    businessObjectsByType:
+      STANDARD: "Matériaux"
+      PINNED_OBJECTS: "Prélèvements & sondages"
 
   project:
     nameSingular: "Dossier"
@@ -116,6 +119,9 @@ features:
   # One key per business object type: BUSINESS_OBJECTS (STANDARD),
   # BUSINESS_OBJECTS_<TYPE> for the other registry types.
   scopeConfig:
+    defaultModuleIconKeysByKey:
+      BUSINESS_OBJECTS: layers
+      BUSINESS_OBJECTS_PINNED_OBJECTS: pushPin
     defaultEnabledModuleKeys:
       - PHOTOS
       - PORTFOLIO

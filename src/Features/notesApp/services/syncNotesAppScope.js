@@ -1,3 +1,6 @@
+import getNotesAppBusinessObjectType from "../utils/getNotesAppBusinessObjectType";
+import enableScopeModuleService from "Features/scopeConfig/services/enableScopeModuleService";
+import { getBusinessObjectsModuleKey } from "Features/businessObjects/utils/businessObjectModuleKeys";
 import db, { withSystemWrite } from "App/db/db";
 import { withoutUndo } from "App/db/undoManager";
 
@@ -150,6 +153,7 @@ export default async function syncNotesAppScope({
       projectId: scope.projectId,
       scopeId: scope.id,
       name: remoteListing.name,
+      typeKey: getNotesAppBusinessObjectType(remoteListing.settings),
       // Krnet positions are main annotations: the listing is located
       canLocateBusinessObjects: true,
       appConfig,
@@ -497,6 +501,17 @@ export default async function syncNotesAppScope({
       shapesMerge.counts.created +
       shapesMerge.counts.updated +
       shapesMerge.counts.deleted;
+  }
+  for (const { pair, configMerge } of merges) {
+    await enableScopeModuleService({
+      scopeId: scope.id,
+      projectId: scope.projectId,
+      moduleKey: getBusinessObjectsModuleKey(
+        configMerge?.patch?.businessObjectType ??
+          pair.listing.businessObjectType
+      ),
+      appConfig,
+    });
   }
   return { counts };
 }
