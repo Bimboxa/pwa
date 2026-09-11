@@ -5,6 +5,7 @@ import {
   setHideBaseMapImageInViewer,
   setLandOnDrawScopeId,
   setPinnedBaseMapIdsInViewer,
+  setViewerReturnContext,
 } from "../viewersSlice";
 import {
   setAnnotationsModeByBaseMapIdIn3d,
@@ -74,6 +75,17 @@ export default function useInitViewerModuleOnScopeOpen() {
       dispatch(setLandOnDrawScopeId(null));
     }
   }, [scopeId, landOnDrawScopeId, dispatch]);
+
+  // The return context ("Retour" button + listing narrowing of the drawing
+  // panels) only makes sense within the scope it was written in: a stale
+  // listingId from another scope would empty PopperMapListings / PanelDrawing
+  // of the scope opened (or created) next.
+  const viewerReturnContext = useSelector((s) => s.viewers.viewerReturnContext);
+  const viewerReturnContextRef = useRef(viewerReturnContext);
+  viewerReturnContextRef.current = viewerReturnContext;
+  useEffect(() => {
+    if (viewerReturnContextRef.current) dispatch(setViewerReturnContext(null));
+  }, [scopeId, dispatch]);
 
   // Landing guard — active from the very first mount until the initial
   // top-down fit closes the landing window (viewers.initialFitDoneForScopeId).

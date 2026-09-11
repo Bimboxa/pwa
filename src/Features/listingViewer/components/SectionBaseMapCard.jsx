@@ -28,9 +28,9 @@ const IMAGE_OPACITY = 0.2;
 // opens it in the drawing editor.
 export default function SectionBaseMapCard({
   baseMap,
-  listing,
   annotations = [],
-  showAllListings = false,
+  // Annotation listing the Dessin module narrows to (null = every listing).
+  returnListingId = null,
 }) {
   const dispatch = useDispatch();
 
@@ -40,11 +40,11 @@ export default function SectionBaseMapCard({
     dispatch(
       setViewerReturnContext({
         fromViewer: "SCOPE",
-        listingId: showAllListings ? null : listing?.id,
+        listingId: returnListingId,
       })
     );
-    if (!showAllListings && listing?.id) {
-      dispatch(setSelectedListingId(listing.id));
+    if (returnListingId) {
+      dispatch(setSelectedListingId(returnListingId));
     }
     dispatch(setSelectedBaseMapsListingId(baseMap.listingId));
     dispatch(setSelectedMainBaseMapId(baseMap.id));
