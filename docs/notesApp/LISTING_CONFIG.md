@@ -141,7 +141,10 @@ listings indexed by local id and Krnet id):
 |                       | category / linkSingle LOCAL object id, linkMulti LOCAL ids                |
 | Krnet snapshot (pull) | `notesAppRemote.fields[fieldId]` (freeText), `stateValues[stateModelId]`, |
 |                       | `settings.categories[<nomenclature idMaster>]` = remote object id mapped  |
-|                       | to the local object through its `idMaster`; links are not pulled          |
+|                       | to the local object through its `idMaster`; `links` = the object's        |
+|                       | outgoing Krnet links `[{ id, targetEntityId, sortKey, updatedAt }]` in    |
+|                       | field order — a linkSingle / linkMulti field reads the ones whose target  |
+|                       | (resolved through its `idMaster`) belongs to its target listing           |
 
 Effective value = local when the key exists, else remote. Empty local
 value → key removed (the snapshot shows through). Pull rule: a newer remote
@@ -149,6 +152,57 @@ row drops `fieldValues` (row-level last-modified-wins: local edits bump
 `updatedAt` and protect the row until Krnet changes it). Pushing the values
 to Krnet is future work.
 Replay: `scripts/replay/businessObjectCardReplay.js`.
+
+Links merge rule (`mergeNotesAppBusinessObjects`): like the notes feed, a
+link added or removed in Krnet does NOT bump `entities.updated_at`, so the
+links are keyed on their own signature (link ids + `updated_at`) and a
+links-only change refreshes `notesAppRemote.links` without bumping the
+row's `updatedAt`.
+
+## Per-object pull ("Récupérer" button of the object header)
+
+`PanelBusinessObjectProperties` header, Krnet-linked objects only
+(`remoteSource === "notesApp"` + `idMaster`, scope linked to a Krnet
+project): `useSyncNotesAppBusinessObject` → `syncNotesAppBusinessObject`.
+**Pull only** — nothing is sent to Krnet. Scope:
+
+- the object row (name, code, fields, states, parent, order), its notes
+  feed + media, its links;
+- its **related objects** (targets of its live links, its category objects,
+  the objects sharing one of its shapes), with THEIR notes and links —
+  updated when newer in Krnet, per (remote list → local listing) pair
+  resolved through `scope.notesApp.listingsMapping` (objects of an unmapped
+  or ignored list are counted as ignored);
+- its positions (MARKER → main LABEL) and shapes (POLYLINE / POLYGON), for
+  its own listing pair only.
+
+`fetchNotesAppEntityBundle` reads the rows with plain PostgREST selects
+(`entities`, `notes`, `links`, `annotations`, `rels_entity_annotation`,
+`listings` — project-access RLS, no dedicated RPC) and builds two mini
+dumps of the project-dump shape (`buildNotesAppEntityDumps`), so the scope
+merges (`mergeNotesAppBusinessObjects`, `mergeNotesAppPositions`,
+`mergeNotesAppShapes`) run untouched. Plans are not merged: the local
+imported-plans index (`getLocalNotesAppBaseMapIndex`) stands in, a position
+on a plan never imported is skipped. Single transaction, same write order
+as the scope pull; no `scope.notesApp.lastSyncAt` stamp.
+
+Traps:
+
+- a shape shared with other objects needs EVERY rel of the shape in the
+  dump (the shapes merge tombstones the local rels of the objects missing
+  from it) — hence the second rels fetch by `annotation_id`;
+- every object present in the dump must travel with its notes and links:
+  the merge keys them on their own signatures, an object without them would
+  be reset to empty;
+- an object moved to another Krnet list (`entity.listing_id` ≠ the list
+  mapped on its local listing) is refused (`NOTES_APP_OBJECT_MOVED`): the
+  scope pull owns list moves. Object unreadable / hard-deleted →
+  `NOTES_APP_OBJECT_NOT_FOUND`;
+- as in the scope pull, the rels of a shape towards objects of ANOTHER list
+  than the object's are dropped (the shapes merge only keeps the pair's
+  objects).
+
+Replay: `scripts/replay/notesAppEntityBundleReplay.js`.
 
 ## Traps
 

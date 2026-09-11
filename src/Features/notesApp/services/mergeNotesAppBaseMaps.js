@@ -31,6 +31,41 @@ function sameIds(a, b) {
   return x.length === y.length && x.every((id, i) => id === y[i]);
 }
 
+// Local index of the imported plans of a project (remoteSource notesApp +
+// idMaster), minus the ones ignored by scope.notesApp.baseMapsMapping: Krnet
+// plan id -> local baseMap id, and the image width in px per local id (the
+// positions merge needs it to compute the LABEL chip offset in the
+// normalized frame). Shared with the per-object pull, which merges no plan.
+export async function getLocalNotesAppBaseMapIndex({
+  projectId,
+  baseMapsMapping,
+}) {
+  const localRows = (
+    await db.baseMaps.where("projectId").equals(projectId).toArray()
+  ).filter((b) => b.remoteSource === "notesApp" && b.idMaster);
+  const ignoredRemoteIds = new Set(
+    (baseMapsMapping ?? [])
+      .filter((m) => m.mode === "ignored")
+      .map((m) => m.remoteBaseMapId)
+  );
+  const baseMapIdMasterToLocalId = new Map();
+  const baseMapWidthByLocalId = new Map();
+  for (const row of localRows) {
+    if (ignoredRemoteIds.has(row.idMaster)) continue;
+    baseMapIdMasterToLocalId.set(row.idMaster, row.id);
+    baseMapWidthByLocalId.set(
+      row.id,
+      row.refWidth ?? row.image?.imageSize?.width ?? null
+    );
+  }
+  return {
+    localRows,
+    ignoredRemoteIds,
+    baseMapIdMasterToLocalId,
+    baseMapWidthByLocalId,
+  };
+}
+
 // Prepares the notes-app plans -> db.baseMaps merge. Target listing per plan
 // = scope.notesApp.baseMapsMapping entry (an existing BASE_MAP listing of
 // the project, or "ignored"), else the project's default BASE_MAP listing
@@ -103,34 +138,16 @@ export default async function prepareNotesAppBaseMapsMerge({
   };
 
   // --- local index
-  const localRows = (
-    await db.baseMaps.where("projectId").equals(projectId).toArray()
-  ).filter((b) => b.remoteSource === "notesApp" && b.idMaster);
+  const { localRows, baseMapIdMasterToLocalId, baseMapWidthByLocalId } =
+    await getLocalNotesAppBaseMapIndex({ projectId, baseMapsMapping });
   const localByIdMaster = new Map(localRows.map((b) => [b.idMaster, b]));
 
   const remoteRows = dump.baseMaps ?? [];
-  const ignoredRemoteIds = new Set(
-    [...mappingByRemoteId.values()]
-      .filter((m) => m.mode === "ignored")
-      .map((m) => m.remoteBaseMapId)
-  );
 
   const baseMapRows = [];
   const fileRows = [];
   const versionRows = [];
   const moves = []; // { baseMapId, sourceListingId, targetListingId }
-  const baseMapIdMasterToLocalId = new Map();
-  // image width in px per local baseMap id — the positions merge needs it to
-  // compute the LABEL chip offset in the normalized frame.
-  const baseMapWidthByLocalId = new Map();
-  for (const [idMaster, row] of localByIdMaster) {
-    if (ignoredRemoteIds.has(idMaster)) continue;
-    baseMapIdMasterToLocalId.set(idMaster, row.id);
-    baseMapWidthByLocalId.set(
-      row.id,
-      row.refWidth ?? row.image?.imageSize?.width ?? null
-    );
-  }
 
   const counts = {
     created: 0,

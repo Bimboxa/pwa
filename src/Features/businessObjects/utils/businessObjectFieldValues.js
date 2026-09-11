@@ -9,7 +9,10 @@
 // - `businessObject.notesAppRemote` — the Krnet snapshot written by the
 //   pull (freeText under `fields`, states under `stateValues`, categories
 //   under `settings.categories` keyed by the REMOTE nomenclature listing id
-//   with REMOTE object ids; links are not pulled).
+//   with REMOTE object ids, links under `links` = the object's outgoing
+//   Krnet links [{ id, targetEntityId, sortKey }] in field order — a
+//   linkSingle / linkMulti field reads the ones whose target belongs to
+//   its target listing).
 // The effective value is the local one when set, else the remote one
 // mapped to local ids. A pull that brings a newer remote row drops the
 // local layer (row-level last-modified-wins, see
@@ -41,6 +44,22 @@ function hasLocalValue(businessObject, fieldId) {
   );
 }
 
+// LOCAL ids of the Krnet-linked objects of a link field: the remote links
+// whose target (resolved through its idMaster) is an object of the field's
+// target listing, in link order. Targets unknown locally are dropped.
+function getRemoteLinkedLocalIds(remote, field, ctx) {
+  if (!field?.targetListingId) return [];
+  const out = [];
+  for (const link of remote.links ?? []) {
+    const localId = ctx?.categoryLocalIdByIdMaster?.[link?.targetEntityId];
+    if (!localId) continue;
+    if (ctx?.objectById?.[localId]?.listingId !== field.targetListingId)
+      continue;
+    out.push(localId);
+  }
+  return out;
+}
+
 function getRemoteValue(businessObject, field, ctx) {
   const remote = businessObject?.notesAppRemote ?? {};
   switch (field.type) {
@@ -58,8 +77,10 @@ function getRemoteValue(businessObject, field, ctx) {
       if (!remoteObjectId) return null;
       return ctx?.categoryLocalIdByIdMaster?.[remoteObjectId] ?? null;
     }
+    case "linkSingle":
+      return getRemoteLinkedLocalIds(remote, field, ctx)[0] ?? null;
     case "linkMulti":
-      return [];
+      return getRemoteLinkedLocalIds(remote, field, ctx);
     default:
       return null;
   }

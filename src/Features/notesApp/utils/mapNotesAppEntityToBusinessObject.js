@@ -11,6 +11,11 @@
 // parentId stays the REMOTE id here: the caller remaps it through the
 // idMaster map in a second pass. unit is null (unit-less row): notes-app has
 // no quantity-unit concept — the user assigns U/ml/m² in Bimboxa afterwards.
+//
+// remoteLinks: the entity's live outgoing Krnet links (linkSingle /
+// linkMulti fields), as prepared by the merge ({ id, targetEntityId,
+// sortKey, updatedAt }, feed order) — kept under `notesAppRemote.links`
+// with REMOTE target ids, resolved at read time (businessObjectFieldValues).
 
 export default function mapNotesAppEntityToBusinessObject({
   remoteEntity,
@@ -19,6 +24,7 @@ export default function mapNotesAppEntityToBusinessObject({
   bimboxaListing,
   projectId,
   userIdMaster,
+  remoteLinks = [],
 }) {
   const fieldsModel = Array.isArray(remoteListing?.settings?.fields)
     ? remoteListing.settings.fields
@@ -33,7 +39,9 @@ export default function mapNotesAppEntityToBusinessObject({
     if (field?.type !== "freeText") continue;
     const value = remoteFields[field.id];
     if (value == null || value === "") continue;
-    freeTextLines.push(field.label ? `${field.label}: ${value}` : String(value));
+    freeTextLines.push(
+      field.label ? `${field.label}: ${value}` : String(value)
+    );
   }
   const description = freeTextLines.join("\n") || undefined;
 
@@ -70,6 +78,7 @@ export default function mapNotesAppEntityToBusinessObject({
       settings: remoteEntity.settings ?? null,
       parentId: remoteEntity.parentId ?? null,
       sortKey: remoteEntity.sortKey ?? null,
+      links: remoteLinks,
     },
     ...(createdAtIso && { createdAt: createdAtIso }),
     ...(updatedAtIso && { updatedAt: updatedAtIso }),

@@ -10,7 +10,10 @@ import downloadNotesAppFile from "./downloadNotesAppFile";
 // on the businessObject row under `notesAppNotes` — schemaless, travels in
 // Krto zips with the row. IMPORTANT: adding a note in Krnet does NOT bump the
 // entity's updated_at, so the notes merge is keyed on its own signature
-// (note ids + timestamps), independently from the entity merge rule.
+// (note ids + timestamps), independently from the entity merge rule. Same
+// for the object's outgoing links (Krnet `links` rows, linkSingle /
+// linkMulti fields): kept under `notesAppRemote.links`, keyed on their own
+// signature — a link added or removed in Krnet leaves the entity row alone.
 
 function getRemoteNotesByEntityId(dump) {
   const byEntityId = new Map();
@@ -43,6 +46,44 @@ function getNotesSignature(entries) {
     )
     .sort()
     .join("|");
+}
+
+function getRemoteLinksBySourceId(dump) {
+  const bySourceId = new Map();
+  for (const link of dump.links ?? []) {
+    if (!link.sourceEntityId || !link.targetEntityId || link.deletedAt)
+      continue;
+    if (!bySourceId.has(link.sourceEntityId)) {
+      bySourceId.set(link.sourceEntityId, []);
+    }
+    bySourceId.get(link.sourceEntityId).push(link);
+  }
+  for (const links of bySourceId.values()) {
+    // field order: sortKey (fractional index) then createdAt
+    links.sort((a, b) => {
+      const ka = a.sortKey ?? "";
+      const kb = b.sortKey ?? "";
+      if (ka !== kb) return ka < kb ? -1 : 1;
+      return (a.createdAt ?? 0) - (b.createdAt ?? 0);
+    });
+  }
+  return bySourceId;
+}
+
+function getLinksSignature(entries) {
+  return (entries ?? [])
+    .map((l) => `${l.id}:${l.updatedAt ?? ""}`)
+    .sort()
+    .join("|");
+}
+
+function toLinkEntry(link) {
+  return {
+    id: link.id,
+    targetEntityId: link.targetEntityId,
+    sortKey: link.sortKey ?? null,
+    updatedAt: link.updatedAt ?? null,
+  };
 }
 
 function toNoteEntry(note, mediaIndex) {
@@ -89,6 +130,7 @@ export default async function prepareNotesAppBusinessObjectsMerge({
     (e) => e.listingId === remoteListing.id
   );
   const remoteNotesByEntityId = getRemoteNotesByEntityId(dump);
+  const remoteLinksBySourceId = getRemoteLinksBySourceId(dump);
 
   // Seed with existing locals so parent remap and positions can reference
   // rows untouched by this run.
@@ -99,7 +141,14 @@ export default async function prepareNotesAppBusinessObjectsMerge({
 
   const rows = [];
   const fileRows = [];
-  const counts = { created: 0, updated: 0, deleted: 0, unchanged: 0, notes: 0 };
+  const counts = {
+    created: 0,
+    updated: 0,
+    deleted: 0,
+    unchanged: 0,
+    notes: 0,
+    links: 0,
+  };
 
   // --- media download helper (skip files already stored locally)
   async function ensureNoteMediaFiles(noteEntries, localObjectId) {
@@ -150,9 +199,16 @@ export default async function prepareNotesAppBusinessObjectsMerge({
       getNotesSignature(noteEntries) !==
       getNotesSignature(local?.notesAppNotes);
 
+    const linkEntries = (remoteLinksBySourceId.get(remote.id) ?? []).map(
+      toLinkEntry
+    );
+    const linksChanged =
+      getLinksSignature(linkEntries) !==
+      getLinksSignature(local?.notesAppRemote?.links);
+
     const entityNewer = isRemoteNewer(remote.updatedAt, local);
 
-    if (!entityNewer && !notesChanged) {
+    if (!entityNewer && !notesChanged && !linksChanged) {
       counts.unchanged += 1;
       continue;
     }
@@ -169,6 +225,7 @@ export default async function prepareNotesAppBusinessObjectsMerge({
       await ensureNoteMediaFiles(noteEntries, localId);
       counts.notes += noteEntries.length;
     }
+    if (linksChanged) counts.links += linkEntries.length;
 
     let row;
     if (entityNewer) {
@@ -179,6 +236,7 @@ export default async function prepareNotesAppBusinessObjectsMerge({
         bimboxaListing: listing,
         projectId,
         userIdMaster,
+        remoteLinks: linkEntries,
       });
       // Merge over the local row: fields edited locally in Bimboxa (unit,
       // color...) survive the pull; managed fields are overwritten.
@@ -199,9 +257,16 @@ export default async function prepareNotesAppBusinessObjectsMerge({
         if (!remote.deletedAt) delete row.deletedAt;
       }
     } else {
-      // Only the notes feed changed: refresh it WITHOUT bumping updatedAt so
-      // the entity merge rule stays keyed on the remote entity timestamp.
+      // Only the notes feed / the links changed: refresh them WITHOUT
+      // bumping updatedAt so the entity merge rule stays keyed on the remote
+      // entity timestamp.
       row = { ...local };
+      if (linksChanged) {
+        row.notesAppRemote = {
+          ...(local.notesAppRemote ?? {}),
+          links: linkEntries,
+        };
+      }
     }
     row.notesAppNotes = noteEntries;
     rows.push(row);

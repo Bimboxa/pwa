@@ -9,11 +9,13 @@ import {
 import { setSelectedItem } from "Features/selection/selectionSlice";
 import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 import { setNotesAppObjectPropertiesTab } from "Features/notesApp/notesAppSlice";
+import { setToaster } from "Features/layout/layoutSlice";
 
 import {
   Box,
   Button,
   Checkbox,
+  CircularProgress,
   FormControlLabel,
   IconButton,
   List,
@@ -29,6 +31,7 @@ import {
   AddLink,
   LinkOff,
   ArrowBack as Back,
+  CloudDownload,
   LocationOff,
 } from "@mui/icons-material";
 
@@ -53,6 +56,9 @@ import SectionNotesAppObjectNotes from "Features/notesApp/components/SectionNote
 import SectionBusinessObjectFiche from "./SectionBusinessObjectFiche";
 import useNotesAppConfig from "Features/notesApp/hooks/useNotesAppConfig";
 import useNotesAppListingConfig from "Features/notesApp/hooks/useNotesAppListingConfig";
+import useNotesAppScopeLink from "Features/notesApp/hooks/useNotesAppScopeLink";
+import useSyncNotesAppBusinessObject from "Features/notesApp/hooks/useSyncNotesAppBusinessObject";
+import buildBusinessObjectDebugPayload from "../utils/buildBusinessObjectDebugPayload";
 import getAnnotationMainQtyLabel from "Features/annotations/utils/getAnnotationMainQtyLabel";
 import getBusinessObjectQtyLabel from "../utils/getBusinessObjectQtyLabel";
 import getBusinessObjectTypeOfListing from "../utils/getBusinessObjectTypeOfListing";
@@ -181,11 +187,31 @@ export default function PanelBusinessObjectProperties() {
   // without the tab falls back to "PROPS".
 
   const tab = useSelector((s) => s.notesApp.objectPropertiesTab);
-  const notesAppEnabled = useNotesAppConfig()?.enabled === true;
+  const notesAppConfig = useNotesAppConfig();
+  const notesAppEnabled = notesAppConfig?.enabled === true;
+  const notesAppName = notesAppConfig?.name ?? "Krnet";
   const listingConfig = useNotesAppListingConfig(listing);
   const hasFiche = notesAppEnabled && listingConfig.fields.length > 0;
   const isNotesAppObject = businessObject?.remoteSource === "notesApp";
   const notesCount = businessObject?.notesAppNotes?.length ?? 0;
+
+  // data — per-object pull from Krnet (header "Récupérer" button): the
+  // object must be linked to a Krnet object and the scope to a Krnet
+  // project. Pull only: nothing is sent to Krnet.
+  const { link: notesAppLink } = useNotesAppScopeLink();
+  const { syncBusinessObject, syncing: pulling } =
+    useSyncNotesAppBusinessObject();
+  const canPull =
+    isNotesAppObject &&
+    Boolean(businessObject?.idMaster) &&
+    Boolean(notesAppLink?.projectId);
+
+  // strings
+
+  const pullS = "Récupérer";
+  const pullTitleS = `Récupérer les données de cet objet depuis ${notesAppName} (aucun envoi vers ${notesAppName})`;
+  const debugTitleS =
+    "Copier les données locales de l'objet (JSON) dans le presse-papier";
   const hasTabs = hasFiche || isNotesAppObject;
   const effectiveTab =
     (tab === "FICHE" && hasFiche) || (tab === "NOTES" && isNotesAppObject)
@@ -326,6 +352,35 @@ export default function PanelBusinessObjectProperties() {
     dispatch(triggerRelsBusinessObjectAnnotationUpdate());
   }
 
+  async function handlePull() {
+    if (pulling || !businessObject) return;
+    await syncBusinessObject(businessObject);
+  }
+
+  // debug: the object as stored locally (row, listing / scope link
+  // summaries, rels, linked annotations) to the clipboard
+  async function handleDebugCopy() {
+    try {
+      const payload = buildBusinessObjectDebugPayload({
+        businessObject,
+        listing,
+        scopeLink: notesAppLink,
+        rels: rels ?? [],
+        annotations: linkedRows.map(({ annotation }) => annotation),
+      });
+      await navigator.clipboard.writeText(JSON.stringify(payload, null, 2));
+      dispatch(setToaster({ message: "JSON de l'objet copié" }));
+    } catch (e) {
+      console.log("[businessObjects] debug copy failed", e);
+      dispatch(
+        setToaster({
+          message: "Copie impossible (voir console)",
+          isError: true,
+        })
+      );
+    }
+  }
+
   // "Retirer la localisation": the annotation stays linked, not main anymore
   async function handleUnsetMain(rel) {
     await unsetMainAnnotationService({ rel });
@@ -364,14 +419,43 @@ export default function PanelBusinessObjectProperties() {
             }}
           />
         )}
-        <Box>
-          <Typography variant="caption" color="text.secondary">
+        <Box sx={{ flexGrow: 1, minWidth: 0 }}>
+          <Typography variant="caption" color="text.secondary" noWrap>
             {type.strings.objectLabel}
           </Typography>
-          <Typography variant="body2" sx={{ fontWeight: "bold" }}>
+          <Typography variant="body2" sx={{ fontWeight: "bold" }} noWrap>
             {businessObject.label}
           </Typography>
         </Box>
+        <Button
+          size="small"
+          onClick={handleDebugCopy}
+          title={debugTitleS}
+          sx={{
+            color: "text.disabled",
+            textTransform: "none",
+            fontSize: 12,
+            minWidth: 0,
+            px: 0.5,
+          }}
+        >
+          debug
+        </Button>
+        {canPull &&
+          (pulling ? (
+            <CircularProgress size={18} sx={{ mx: 1 }} />
+          ) : (
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<CloudDownload />}
+              onClick={handlePull}
+              title={pullTitleS}
+              sx={{ whiteSpace: "nowrap", flexShrink: 0 }}
+            >
+              {pullS}
+            </Button>
+          ))}
       </Box>
 
       {/* tabs — Fiche when the listing has a fields model, Notes for
