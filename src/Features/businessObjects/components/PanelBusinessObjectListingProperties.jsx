@@ -27,8 +27,10 @@ import {
   CircularProgress,
   IconButton,
   InputBase,
+  MenuItem,
   Tab,
   Tabs,
+  TextField,
 } from "@mui/material";
 import {
   ArrowBack as Back,
@@ -56,6 +58,14 @@ import useSyncNotesAppListing from "Features/notesApp/hooks/useSyncNotesAppListi
 import { getNotesAppRemoteListingId } from "Features/notesApp/services/syncNotesAppListing";
 import SectionNotesAppListingAdvanced from "Features/notesApp/components/SectionNotesAppListingAdvanced";
 import PanelNotesAppListingConfig from "Features/notesApp/components/PanelNotesAppListingConfig";
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
+import enableScopeModuleService from "Features/scopeConfig/services/enableScopeModuleService";
+import BUSINESS_OBJECT_TYPES from "../data/businessObjectTypesCatalog";
+import { getBusinessObjectsModuleKey } from "../utils/businessObjectModuleKeys";
+
+const LISTING_TYPES = BUSINESS_OBJECT_TYPES.filter((type) =>
+  ["STANDARD", "NOMENCLATURE", "PINNED_OBJECTS", "LOCATIONS"].includes(type.key)
+);
 
 // Right-panel properties of a business-objects listing, reached with the back
 // arrow of the object properties panel (selection: {type: "LISTING"}). Name
@@ -83,6 +93,7 @@ export default function PanelBusinessObjectListingProperties({ listing }) {
   const tabGeneralS = "Général";
   const tabAdvancedS = "Avancé";
   const nameS = "Nom de la liste";
+  const typeS = "Type de liste";
   const numberingS = "Numérotation";
   const numberingCaptionS =
     "Affiche les ouvrages sur 3 colonnes : numéro, nom, quantité.";
@@ -105,6 +116,7 @@ export default function PanelBusinessObjectListingProperties({ listing }) {
     listingId: listing?.id,
   });
   const { guardEditRecord } = useCanEditRecord();
+  const appConfig = useAppConfig();
   const notesAppConfig = useNotesAppConfig();
   const notesAppEnabled = notesAppConfig?.enabled === true;
   const notesAppName = notesAppConfig?.name ?? "Krnet";
@@ -140,6 +152,7 @@ export default function PanelBusinessObjectListingProperties({ listing }) {
 
   const isEditingName = nameValue !== null;
   const displayName = isEditingName ? nameValue : listing?.name || "";
+  const listingType = getBusinessObjectTypeOfListing(listing);
 
   const objectsCount = businessObjects?.length ?? 0;
   const canLocate = canLocateBusinessObjects(listing);
@@ -205,6 +218,26 @@ export default function PanelBusinessObjectListingProperties({ listing }) {
     await db.listings.update(listing.id, {
       showNumbering: e.target.checked,
     });
+    dispatch(triggerListingsUpdate());
+  }
+
+  async function handleTypeChange(e) {
+    const businessObjectType = e.target.value;
+    if (
+      !listing?.id ||
+      businessObjectType === listingType.key ||
+      !LISTING_TYPES.some((type) => type.key === businessObjectType) ||
+      !guardEditRecord(listing)
+    )
+      return;
+
+    await enableScopeModuleService({
+      scopeId: listing.scopeId,
+      projectId: listing.projectId,
+      moduleKey: getBusinessObjectsModuleKey(businessObjectType),
+      appConfig,
+    });
+    await db.listings.update(listing.id, { businessObjectType });
     dispatch(triggerListingsUpdate());
   }
 
@@ -333,6 +366,28 @@ export default function PanelBusinessObjectListingProperties({ listing }) {
                 fullWidth
                 sx={{ fontSize: "0.875rem" }}
               />
+              <TextField
+                select
+                fullWidth
+                size="small"
+                label={typeS}
+                value={listingType.key}
+                onChange={handleTypeChange}
+                sx={{ mt: 2 }}
+              >
+                {!LISTING_TYPES.some(
+                  (type) => type.key === listingType.key
+                ) && (
+                  <MenuItem value={listingType.key} disabled>
+                    {listingType.defaultLabel}
+                  </MenuItem>
+                )}
+                {LISTING_TYPES.map((type) => (
+                  <MenuItem key={type.key} value={type.key}>
+                    {type.defaultLabel}
+                  </MenuItem>
+                ))}
+              </TextField>
             </Box>
           </WhiteSectionGeneric>
 
