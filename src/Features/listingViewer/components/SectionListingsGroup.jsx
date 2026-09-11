@@ -2,7 +2,7 @@ import { useDispatch } from "react-redux";
 
 import { triggerListingsUpdate } from "Features/listings/listingsSlice";
 
-import { Box, IconButton, Tooltip, Typography } from "@mui/material";
+import { Box, IconButton, List, Tooltip, Typography } from "@mui/material";
 import { Add as AddIcon } from "@mui/icons-material";
 
 import RowListingInGroup from "./RowListingInGroup";
@@ -130,7 +130,7 @@ export default function SectionListingsGroup({
         onDragEnd={handleDragEnd}
       >
         <SortableContext items={ids} strategy={verticalListSortingStrategy}>
-          <Box>
+          <List disablePadding>
             {listings.map((listing) => (
               <RowListingInGroup
                 key={listing.id}
@@ -141,7 +141,7 @@ export default function SectionListingsGroup({
                 onClick={onListingClick}
               />
             ))}
-          </Box>
+          </List>
         </SortableContext>
       </DndContext>
     </Box>

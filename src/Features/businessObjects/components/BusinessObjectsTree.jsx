@@ -26,6 +26,7 @@ import { generateKeyBetween } from "fractional-indexing";
 import useBusinessObjects from "../hooks/useBusinessObjects";
 import useMoveBusinessObject from "../hooks/useMoveBusinessObject";
 import useBusinessObjectQties from "../hooks/useBusinessObjectQties";
+import useBusinessObjectsListCard from "../hooks/useBusinessObjectsListCard";
 import useTaskPlanningProgress from "Features/planning/hooks/useTaskPlanningProgress";
 import buildBusinessObjectsTree, {
   getBusinessObjectDescendants,
@@ -41,7 +42,9 @@ import DialogBusinessObjectForm from "./DialogBusinessObjectForm";
 // Objects tree of the selected business-objects listing: dnd reorder /
 // reparent (drop rule + cycle guard cloned from the zonings tree), per-row
 // quantities from the linked annotations. PLANNING listings (type feature
-// hoursBudget) add the rolled-up hours per row and a total band.
+// hoursBudget) add the rolled-up hours per row and a total band. With the
+// listing setting `listCard` (Krnet "Aperçu de l'objet"), the object rows
+// render the configured avatar + primary + secondary texts instead.
 export default function BusinessObjectsTree({ listing }) {
   // data
 
@@ -58,6 +61,7 @@ export default function BusinessObjectsTree({ listing }) {
   });
   const moveBusinessObject = useMoveBusinessObject();
   const collapsedIds = useSelector((s) => s.businessObjects.collapsedIds);
+  const listCard = useBusinessObjectsListCard({ listing, businessObjects });
 
   const {
     qtiesByObjectId,
@@ -234,6 +238,11 @@ export default function BusinessObjectsTree({ listing }) {
                 hasChildren={parentIds.has(businessObject.id)}
                 listing={listing}
                 showNumbering={showNumbering}
+                card={
+                  listCard && !businessObject.isTitle
+                    ? listCard.getCard(businessObject)
+                    : null
+                }
                 displayMeta={displayMetaById[businessObject.id]}
                 qties={qtiesByObjectId[businessObject.id]}
                 linkedAnnotations={annotationsByObjectId[businessObject.id]}

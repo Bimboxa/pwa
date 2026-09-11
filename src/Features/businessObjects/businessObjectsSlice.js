@@ -11,6 +11,12 @@ const businessObjectsInitialState = {
   // PLANNING module panel tab: "WORK_STATIONS" (tasks tree) |
   // "WORK_PACKAGES" (work packages list).
   panelTabKey: "WORK_STATIONS",
+  // Listing properties panel tab: "GENERAL" (name, numbering, location...)
+  // | "ADVANCED" (the synced Krnet configuration: fields, state models,
+  // codification, object preview). Kept across listings AND business-object
+  // modules (Matériaux, Nomenclatures, Planning are distinct viewer keys)
+  // so configuring several listings in a row stays on the tab.
+  listingPropertiesTab: "GENERAL",
   // drawer state — own listing selection (s.listings.selectedListingId is the
   // Dessin module's active listing and must not be reused here).
   selectedListingId: null,
@@ -98,6 +104,9 @@ export const businessObjectsSlice = createSlice({
       state.panelTabKey = action.payload;
       resetObjectFocus(state);
     },
+    setListingPropertiesTab: (state, action) => {
+      state.listingPropertiesTab = action.payload;
+    },
     toggleBusinessObjectCollapsed: (state, action) => {
       const id = action.payload;
       if (state.collapsedIds.includes(id)) {
@@ -137,6 +146,7 @@ export const {
   setSoloWorkPackageId,
   setLinkingWorkPackageId,
   setPanelTabKey,
+  setListingPropertiesTab,
   toggleBusinessObjectCollapsed,
   setLinkingBusinessObjectId,
 } = businessObjectsSlice.actions;

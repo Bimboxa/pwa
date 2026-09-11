@@ -229,5 +229,7 @@ export default async function prepareNotesAppPositionsMerge({
 
   relRows.push(...relRowsById.values());
 
-  return { annotationRows, relRows, counts };
+  // relRowsById + listingRels = rels context handed to the shapes merge of the
+  // same pair (both passes see each other's promotions/demotions).
+  return { annotationRows, relRows, relRowsById, listingRels, counts };
 }

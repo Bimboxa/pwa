@@ -10,7 +10,6 @@ import useUpdateListingNotesAppConfig from "../hooks/useUpdateListingNotesAppCon
 import useNotesAppListingRefs from "../hooks/useNotesAppListingRefs";
 import usePushNotesAppListingsConfig from "../hooks/usePushNotesAppListingsConfig";
 
-import ViewListingConfigMain from "./ViewListingConfigMain";
 import ViewListingConfigFields from "./ViewListingConfigFields";
 import ViewListingConfigField from "./ViewListingConfigField";
 import ViewListingConfigStateModels from "./ViewListingConfigStateModels";
@@ -19,7 +18,6 @@ import ViewListingConfigState from "./ViewListingConfigState";
 import ViewListingConfigAutoCode from "./ViewListingConfigAutoCode";
 
 const VIEWS = {
-  CONFIG: ViewListingConfigMain,
   FIELDS: ViewListingConfigFields,
   FIELD: ViewListingConfigField,
   STATE_MODELS: ViewListingConfigStateModels,
@@ -28,10 +26,12 @@ const VIEWS = {
   AUTO_CODE: ViewListingConfigAutoCode,
 };
 
-// Router of the Krnet listing-configuration sub-views (right panel of a
-// business-object listing). The view stack lives in notesAppSlice
-// (listingConfigView) so panel remounts keep the open view; the top entry
-// picks the rendered view. Hooks are called once here and handed down.
+// Router of the listing-configuration SUB-views (right panel of a
+// business-object listing; the root CONFIG content is the "Avancé" tab,
+// see SectionNotesAppListingAdvanced). The view stack lives in
+// notesAppSlice (listingConfigView) so panel remounts keep the open view;
+// the top entry picks the rendered view, an empty stack hands back to the
+// tab. Hooks are called once here and handed down.
 export default function PanelNotesAppListingConfig({ listing }) {
   const dispatch = useDispatch();
 

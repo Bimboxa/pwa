@@ -11,6 +11,7 @@ const JSON_KEYS = new Set([
   "states",
   "transitions",
   "groupByListingIds",
+  "points", // shape vertices [{x,y}] normalized 0..1
 ]);
 
 const TIMESTAMP_KEYS = new Set(["createdAt", "updatedAt", "deletedAt"]);

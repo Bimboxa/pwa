@@ -19,6 +19,12 @@ import {
   setIncrementalNaming,
   setMapLabel,
   setMapCard,
+  setListCard,
+  usesListCard,
+  getMapCardTextOptions,
+  getCardField,
+  getEffectiveCardSource,
+  parseCardSource,
   stripLegacyNameField,
   buildField,
   isFieldValid,
@@ -91,6 +97,95 @@ check("mapCard stores non-default only", eq(mc.mapCard, { avatar: "none" }));
 check(
   "mapCard all default deletes",
   !("mapCard" in setMapCard(mc, "avatar", "photo"))
+);
+// Krnet-only keys survive a slot edit; empty fallback arrays are dropped
+const mcExtra = setMapCard(
+  {
+    mapCard: {
+      primary: "f1",
+      avatarFallbackListingIds: ["x"],
+      avatarFallbackTemplateKeys: ["k"],
+    },
+  },
+  "primary",
+  "name"
+);
+check(
+  "mapCard preserves fallback keys",
+  eq(mcExtra.mapCard, {
+    avatarFallbackListingIds: ["x"],
+    avatarFallbackTemplateKeys: ["k"],
+  })
+);
+check(
+  "mapCard drops empty fallback arrays",
+  !(
+    "mapCard" in
+    setMapCard({ mapCard: { avatarFallbackListingIds: [] } }, "avatar", "photo")
+  )
+);
+check("listCard stored", setListCard({}, true).listCard === true);
+check(
+  "listCard deleted when false",
+  !("listCard" in setListCard({ listCard: true }, false))
+);
+check("usesListCard parses strings", usesListCard('{"listCard":true}'));
+const cardFields = [
+  { id: "ft", type: "freeText", label: "Note" },
+  { id: "ln", type: "linkSingle", label: "Site", targetListingId: "L2" },
+  { id: "ph", type: "photo", label: "Photo" },
+];
+check(
+  "card text options: link field yields name + code",
+  eq(
+    getMapCardTextOptions(cardFields).map((o) => o.value),
+    ["name", "code", "ft", "ln", "ln:code"]
+  )
+);
+check(
+  "card text options: link labels",
+  getMapCardTextOptions(cardFields)
+    .filter((o) => o.value.startsWith("ln"))
+    .map((o) => o.label)
+    .join("|") === "Site (nom)|Site (code)"
+);
+check(
+  "parseCardSource code",
+  eq(parseCardSource("ln:code"), { fieldId: "ln", mode: "code" })
+);
+check(
+  "parseCardSource plain",
+  eq(parseCardSource("ft"), { fieldId: "ft", mode: "name" })
+);
+check(
+  "getCardField link code",
+  getCardField(cardFields, "ln:code")?.id === "ln"
+);
+check(
+  "getCardField :code on freeText → null",
+  getCardField(cardFields, "ft:code") === null
+);
+check("getCardField photo → null", getCardField(cardFields, "ph") === null);
+check("getCardField name → null", getCardField(cardFields, "name") === null);
+check(
+  "effective source: missing field → default",
+  getEffectiveCardSource(cardFields, "primary", { primary: "gone" }) === "name"
+);
+check(
+  "effective source: none only for secondary",
+  getEffectiveCardSource(cardFields, "secondary", { secondary: "none" }) ===
+    "none" &&
+    getEffectiveCardSource(cardFields, "primary", { primary: "none" }) ===
+      "name"
+);
+check(
+  "effective source: valid field kept",
+  getEffectiveCardSource(cardFields, "secondary", { secondary: "ln:code" }) ===
+    "ln:code"
+);
+check(
+  "effective source: undefined → default",
+  getEffectiveCardSource(cardFields, "secondary", {}) === "code"
 );
 
 // --- derived classifications + legacy name

@@ -8,27 +8,40 @@ import { getNotesAppSession } from "./notesAppAuthService";
 import fetchNotesAppProjectDump from "./fetchNotesAppProjectDump";
 import buildNotesAppMediaIndex from "./buildNotesAppMediaIndex";
 import prepareNotesAppBusinessObjectsMerge from "./mergeNotesAppBusinessObjects";
-import prepareNotesAppBaseMapsMerge from "./mergeNotesAppBaseMaps";
+import prepareNotesAppBaseMapsMerge, {
+  applyNotesAppBaseMapLocations,
+} from "./mergeNotesAppBaseMaps";
 import prepareNotesAppPositionsMerge from "./mergeNotesAppPositions";
+import prepareNotesAppShapesMerge from "./mergeNotesAppShapes";
 import prepareNotesAppListingConfigMerge from "./mergeNotesAppListingConfig";
-import resolveNotesAppLocationTemplate from "./resolveNotesAppLocationTemplate";
-import { upsertMappingEntry } from "../utils/resolveNotesAppScopeLink";
+import resolveNotesAppTemplates from "./resolveNotesAppTemplates";
+import {
+  upsertMappingEntry,
+  upsertBaseMapMappingEntry,
+} from "../utils/resolveNotesAppScopeLink";
+import { isShapeType } from "../utils/mapNotesAppShapeToAnnotation";
 
 // Pull orchestrator: one project dump, then per mapped (remote list ->
-// "Ouvrages" listing) pair the business-objects + positions merges, plans
-// merged once at project level. Everything is prepared first (downloads
-// included), then committed in ONE transaction under
+// "Ouvrages" listing) pair the business-objects + positions + shapes merges,
+// plans merged once at project level. Everything is prepared first
+// (downloads included), then committed in ONE transaction under
 // withSystemWrite(withoutUndo(...)): ownership/read-only guards bypassed,
 // remote timestamps preserved, local change tracker and undo stack untouched.
 //
 // Remote lists without a mapping entry default to "create a linked Ouvrages
 // listing" (named after the remote list). Explicit "ignored" entries are
-// skipped. Positions follow the located-business-objects contract: LABEL
+// skipped. Plans follow scope.notesApp.baseMapsMapping (target base-map
+// listing per plan, or ignored; default = the project's "Fonds de plan"
+// listing). Positions follow the located-business-objects contract: LABEL
 // annotations issued from one of the listing's own annotationTemplates
 // (created from the appConfig default when missing), flagged as the object's
 // MAIN annotation via relsBusinessObjectAnnotation { isMain, baseMapId }.
-// The listing configuration (Krnet settings + state models) is merged per
-// pair as well, into listing.notesApp (see mergeNotesAppListingConfig).
+// Krnet drawings (POLYLINE / POLYGON) become annotations of the same listing
+// (own templates per shape, db.points rows) linked to their objects through
+// plain rels. The listing configuration (Krnet settings + state models) is
+// merged per pair as well, into listing.notesApp (see
+// mergeNotesAppListingConfig). Plan <-> location associations are resolved
+// to local business objects in a post-pass (all pairs merged).
 
 // Companion listing used by earlier versions to host imported MARKERs — its
 // annotations are migrated into the businessObjects listings, the listing
@@ -48,6 +61,41 @@ async function resolveLegacyPositionsListing(scope) {
         l.key === LEGACY_POSITIONS_LISTING_KEY
     ) ?? null
   );
+}
+
+// Same cascade as useMoveBaseMapToListing, inside the sync transaction.
+async function moveBaseMapToListing({
+  baseMapId,
+  sourceListingId,
+  targetListingId,
+}) {
+  await db.baseMaps.update(baseMapId, { listingId: targetListingId });
+  const versions = await db.baseMapVersions
+    .where("baseMapId")
+    .equals(baseMapId)
+    .toArray();
+  await db.baseMapVersions
+    .where("baseMapId")
+    .equals(baseMapId)
+    .modify({ listingId: targetListingId });
+  await db.files
+    .where("entityId")
+    .equals(baseMapId)
+    .modify({ listingId: targetListingId });
+  const versionFileNames = versions
+    .map((v) => v.image?.fileName)
+    .filter(Boolean);
+  if (versionFileNames.length > 0) {
+    await db.files
+      .where("fileName")
+      .anyOf(versionFileNames)
+      .modify({ listingId: targetListingId });
+  }
+  const retag = (row) => {
+    if (row.listingId === sourceListingId) row.listingId = targetListingId;
+  };
+  await db.annotations.where("baseMapId").equals(baseMapId).modify(retag);
+  await db.points.where("baseMapId").equals(baseMapId).modify(retag);
 }
 
 export default async function syncNotesAppScope({
@@ -77,6 +125,7 @@ export default async function syncNotesAppScope({
 
   // --- resolve mapping decisions
   let listingsMapping = [...(link.listingsMapping ?? [])];
+  let baseMapsMapping = [...(link.baseMapsMapping ?? [])];
   const pairs = []; // { remoteListing, listing }
   const remoteListingsToCreate = [];
 
@@ -139,12 +188,42 @@ export default async function syncNotesAppScope({
     userIdMaster,
     createdBy,
     appConfig,
+    baseMapsMapping,
     onProgress,
   });
 
-  // --- per-pair business objects + positions
+  // --- which shapes each pair may own (drawn from the remote list, or
+  // linked to one of its objects when listing_id is null)
+  const shapeTypesByRemoteListingId = new Map();
+  const relsByAnnotationId = new Map();
+  for (const rel of dump.relsEntityAnnotation ?? []) {
+    if (rel?.deletedAt || !rel?.annotationId) continue;
+    const list = relsByAnnotationId.get(rel.annotationId) ?? [];
+    list.push(rel);
+    relsByAnnotationId.set(rel.annotationId, list);
+  }
+  const remoteListingIdByEntityId = new Map(
+    (dump.entities ?? []).map((e) => [e.id, e.listingId])
+  );
+  for (const a of dump.annotations ?? []) {
+    if (!isShapeType(a.type) || a.deletedAt) continue;
+    const listingIds = a.listingId
+      ? [a.listingId]
+      : (relsByAnnotationId.get(a.id) ?? [])
+          .map((r) => remoteListingIdByEntityId.get(r.entityId))
+          .filter(Boolean);
+    for (const listingId of listingIds) {
+      const set = shapeTypesByRemoteListingId.get(listingId) ?? new Set();
+      set.add(a.type);
+      shapeTypesByRemoteListingId.set(listingId, set);
+    }
+  }
+
+  // --- per-pair business objects + positions + shapes
   const nowIso = new Date().toISOString();
   const merges = [];
+  const claimedShapeIds = new Set();
+  const objectIdMasterToLocalId = new Map();
   for (const pair of pairs) {
     onProgress?.({ step: "objects", listingName: pair.remoteListing.name });
     const objectsMerge = await prepareNotesAppBusinessObjectsMerge({
@@ -155,11 +234,20 @@ export default async function syncNotesAppScope({
       userIdMaster,
       mediaIndex,
     });
-    // location template of the listing (its own annotationTemplates; created
-    // from the appConfig default when it has none)
-    const { template: locationTemplate, templateRowToAdd } =
-      await resolveNotesAppLocationTemplate({
+    for (const [idMaster, localId] of objectsMerge.objectIdMasterToLocalId) {
+      objectIdMasterToLocalId.set(idMaster, localId);
+    }
+    // templates of the listing (its own annotationTemplates; created from
+    // the defaults when it has none for a shape)
+    const shapes = [
+      "LABEL",
+      ...(shapeTypesByRemoteListingId.get(pair.remoteListing.id) ?? []),
+    ];
+    const { templatesByShape, templateRowsToAdd } =
+      await resolveNotesAppTemplates({
         listing: pair.listing,
+        remoteListing: pair.remoteListing,
+        shapes,
         projectId: scope.projectId,
         appConfig,
         userIdMaster,
@@ -168,7 +256,7 @@ export default async function syncNotesAppScope({
       dump,
       remoteListing: pair.remoteListing,
       listing: pair.listing,
-      locationTemplate,
+      locationTemplate: templatesByShape.LABEL,
       legacyPositionsListing,
       scope,
       projectId: scope.projectId,
@@ -176,6 +264,22 @@ export default async function syncNotesAppScope({
       objectIdMasterToLocalId: objectsMerge.objectIdMasterToLocalId,
       baseMapIdMasterToLocalId: baseMapsMerge.baseMapIdMasterToLocalId,
       baseMapWidthByLocalId: baseMapsMerge.baseMapWidthByLocalId,
+    });
+    const shapesMerge = await prepareNotesAppShapesMerge({
+      dump,
+      remoteListing: pair.remoteListing,
+      listing: pair.listing,
+      templatesByShape,
+      scope,
+      projectId: scope.projectId,
+      userIdMaster,
+      objectIdMasterToLocalId: objectsMerge.objectIdMasterToLocalId,
+      baseMapIdMasterToLocalId: baseMapsMerge.baseMapIdMasterToLocalId,
+      claimedShapeIds,
+      relsContext: {
+        listingRels: positionsMerge.listingRels,
+        relRowsById: positionsMerge.relRowsById,
+      },
     });
     const configMerge = await prepareNotesAppListingConfigMerge({
       dump,
@@ -187,7 +291,8 @@ export default async function syncNotesAppScope({
       pair,
       objectsMerge,
       positionsMerge,
-      templateRowToAdd,
+      shapesMerge,
+      templateRowsToAdd,
       configMerge,
     });
 
@@ -206,8 +311,56 @@ export default async function syncNotesAppScope({
           positionsMerge.counts.created +
           positionsMerge.counts.updated +
           positionsMerge.counts.deleted,
+        shapes:
+          shapesMerge.counts.created +
+          shapesMerge.counts.updated +
+          shapesMerge.counts.deleted,
       },
     });
+  }
+
+  // --- plan <-> location post-pass: Krnet location entity ids -> local
+  // business objects (objects of lists not re-synced this run are read
+  // from the db).
+  const projectObjects = await db.businessObjects
+    .where("projectId")
+    .equals(scope.projectId)
+    .toArray();
+  for (const o of projectObjects) {
+    if (
+      o.remoteSource === "notesApp" &&
+      o.idMaster &&
+      !o.deletedAt &&
+      !objectIdMasterToLocalId.has(o.idMaster)
+    ) {
+      objectIdMasterToLocalId.set(o.idMaster, o.id);
+    }
+  }
+  const ignoredRemoteBaseMapIds = new Set(
+    baseMapsMapping
+      .filter((m) => m.mode === "ignored")
+      .map((m) => m.remoteBaseMapId)
+  );
+  const ignoredLocalBaseMapIds = new Set(
+    [...baseMapsMerge.rowsByLocalId.values()]
+      .filter((r) => ignoredRemoteBaseMapIds.has(r.idMaster))
+      .map((r) => r.id)
+  );
+  const baseMapRows = applyNotesAppBaseMapLocations({
+    rowsByLocalId: baseMapsMerge.rowsByLocalId,
+    baseMapRows: baseMapsMerge.baseMapRows,
+    ignoredLocalIds: ignoredLocalBaseMapIds,
+    objectIdMasterToLocalId,
+  });
+
+  // explicit plan mappings get a sync stamp (absence stays "default")
+  for (const remoteId of baseMapsMerge.syncedRemoteIds) {
+    if (baseMapsMapping.some((m) => m.remoteBaseMapId === remoteId)) {
+      baseMapsMapping = upsertBaseMapMappingEntry(baseMapsMapping, {
+        remoteBaseMapId: remoteId,
+        lastSyncAt: nowIso,
+      });
+    }
   }
 
   // --- single transaction
@@ -225,6 +378,7 @@ export default async function syncNotesAppScope({
           db.baseMapVersions,
           db.annotations,
           db.annotationTemplates,
+          db.points,
           db.files,
         ],
         async () => {
@@ -234,21 +388,27 @@ export default async function syncNotesAppScope({
           if (baseMapsMerge.fileRows.length) {
             await db.files.bulkPut(baseMapsMerge.fileRows);
           }
-          if (baseMapsMerge.baseMapRows.length) {
-            await db.baseMaps.bulkPut(baseMapsMerge.baseMapRows);
+          if (baseMapRows.length) {
+            await db.baseMaps.bulkPut(baseMapRows);
           }
           if (baseMapsMerge.versionRows.length) {
             await db.baseMapVersions.bulkPut(baseMapsMerge.versionRows);
+          }
+          // moves after the row writes: the cascade retags versions/files
+          // (rewritten rows already carry the target listing)
+          for (const move of baseMapsMerge.moves) {
+            await moveBaseMapToListing(move);
           }
           for (const {
             pair,
             objectsMerge,
             positionsMerge,
-            templateRowToAdd,
+            shapesMerge,
+            templateRowsToAdd,
             configMerge,
           } of merges) {
-            if (templateRowToAdd) {
-              await db.annotationTemplates.put(templateRowToAdd);
+            if (templateRowsToAdd.length) {
+              await db.annotationTemplates.bulkPut(templateRowsToAdd);
             }
             // Krnet-mapped listings are always located (their positions are
             // main annotations); backfills the listings mapped before the
@@ -267,13 +427,20 @@ export default async function syncNotesAppScope({
             if (objectsMerge.fileRows.length) {
               await db.files.bulkPut(objectsMerge.fileRows);
             }
-            if (positionsMerge.annotationRows.length) {
-              await db.annotations.bulkPut(positionsMerge.annotationRows);
+            if (shapesMerge.pointRows.length) {
+              await db.points.bulkAdd(shapesMerge.pointRows);
             }
-            if (positionsMerge.relRows.length) {
-              await db.relsBusinessObjectAnnotation.bulkPut(
-                positionsMerge.relRows
-              );
+            const annotationRows = [
+              ...positionsMerge.annotationRows,
+              ...shapesMerge.annotationRows,
+            ];
+            if (annotationRows.length) {
+              await db.annotations.bulkPut(annotationRows);
+            }
+            // one rels context per pair, shared by both passes
+            const relRows = [...shapesMerge.relRowsById.values()];
+            if (relRows.length) {
+              await db.relsBusinessObjectAnnotation.bulkPut(relRows);
             }
           }
           // migrated companion listing: nothing points at it any more
@@ -286,6 +453,7 @@ export default async function syncNotesAppScope({
             notesApp: {
               ...link,
               listingsMapping,
+              baseMapsMapping,
               lastSyncAt: nowIso,
               lastSyncStatus: "success",
             },
@@ -300,13 +468,22 @@ export default async function syncNotesAppScope({
     listings: pairs.length,
     entities: 0,
     positions: 0,
+    shapes: 0,
     listingsConfig: 0,
     baseMaps:
       baseMapsMerge.counts.created +
       baseMapsMerge.counts.updated +
       baseMapsMerge.counts.deleted,
+    baseMapsMoved: baseMapsMerge.counts.moved,
+    baseMapsIgnored: baseMapsMerge.counts.ignored,
+    baseMapsSkipped: baseMapsMerge.counts.skipped,
   };
-  for (const { objectsMerge, positionsMerge, configMerge } of merges) {
+  for (const {
+    objectsMerge,
+    positionsMerge,
+    shapesMerge,
+    configMerge,
+  } of merges) {
     counts.listingsConfig += configMerge?.counts.applied ?? 0;
     counts.entities +=
       objectsMerge.counts.created +
@@ -316,6 +493,10 @@ export default async function syncNotesAppScope({
       positionsMerge.counts.created +
       positionsMerge.counts.updated +
       positionsMerge.counts.deleted;
+    counts.shapes +=
+      shapesMerge.counts.created +
+      shapesMerge.counts.updated +
+      shapesMerge.counts.deleted;
   }
   return { counts };
 }

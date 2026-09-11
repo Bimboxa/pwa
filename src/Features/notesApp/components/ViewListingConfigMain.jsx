@@ -1,4 +1,4 @@
-import { Box, Button, List, Typography } from "@mui/material";
+import { Box, Button, List, Switch, Typography } from "@mui/material";
 import { CloudUpload } from "@mui/icons-material";
 
 import db from "App/db/db";
@@ -19,6 +19,9 @@ import {
   getMapLabelOptions,
   getMapCardSetting,
   getMapCardTextOptions,
+  getEffectiveCardSource,
+  usesListCard,
+  setListCard,
   setBooleanSetting,
   setItemName,
   setIncrementalNaming,
@@ -27,10 +30,12 @@ import {
   setMapCard,
 } from "../utils/notesAppListingSettings";
 
-// Landing view of the Krnet configuration — the "Identité" tab of the
+// Landing view of the listing configuration — the "Identité" tab of the
 // mobile ConfigEntityModelScreen: identity, naming, organisation flags, map
-// label / map card, exclusions, plus the rows opening the fields, state
-// models and codification views.
+// label / object preview, exclusions, plus the rows opening the fields,
+// state models and codification views. Rendered at the root of the
+// "Avancé" tab (`isRoot`: link status + push button instead of the back
+// header) — the sub-views it opens are stacked over the panel.
 export default function ViewListingConfigMain({
   listing,
   config,
@@ -38,12 +43,16 @@ export default function ViewListingConfigMain({
   navigate,
   pushConfig,
   appName,
+  isRoot = false,
 }) {
   // strings
 
   const titleS = "Configuration";
   const captionS = `Configuration ${appName} · ${listing?.name ?? ""}`;
   const pushS = `Envoyer vers ${appName}`;
+  const linkedS = `Lié à ${appName}`;
+  const dirtyS = "Modifications non envoyées";
+  const notLinkedS = "Non lié";
   const identityS = "Identité";
   const nameS = "Nom";
   const itemNameS = "Nom d'un objet (singulier)";
@@ -67,12 +76,15 @@ export default function ViewListingConfigMain({
   const mapLabelS = "Repère sur le plan";
   const mapLabelHintS =
     "Texte affiché dans l'étiquette de l'objet sur les plans (le nom si la valeur est vide).";
-  const mapCardS = "Aperçu sur le plan";
+  const mapCardS = "Aperçu de l'objet";
   const avatarS = "Avatar";
   const primaryS = "Texte principal";
   const secondaryS = "Texte secondaire";
   const mapCardHintS =
-    "Cellule affichée quand on touche un objet sur un plan. Sans photo, l'avatar est un disque à la couleur de la liste ; un texte vide retombe sur le nom (principal) ou le nom de la liste (secondaire).";
+    "Cellule affichée quand on touche un objet sur un plan. Sans photo (ni photo de repli sur un objet lié), l'avatar est un disque à la couleur de la liste ; un texte vide retombe sur le nom (principal) ou le nom de la liste (secondaire).";
+  const listCardS = "Utiliser cet aperçu dans la liste";
+  const listCardHintS =
+    "Les lignes de la liste affichent l'avatar et les deux textes au lieu du nom et du code.";
   const excludeLinksS = "Exclure des liens";
   const excludeQuickAccessS =
     "Exclure de l'accès rapide depuis le journal des notes";
@@ -85,9 +97,11 @@ export default function ViewListingConfigMain({
   // data
 
   const { guardEditRecord } = useCanEditRecord();
-  const { settings, fields, stateModels } = config;
+  const { settings, fields, stateModels, isLinked, isDirty } = config;
 
   // helpers
+
+  const statusS = isDirty ? dirtyS : isLinked ? linkedS : notLinkedS;
 
   const isNotes = !!settings.isNotesListing;
   const isLocationList = !!settings.isLocationListing;
@@ -108,8 +122,9 @@ export default function ViewListingConfigMain({
     ...cardTextOptions,
   ];
   const mapCard = getMapCardSetting(settings);
+  const listCard = usesListCard(settings);
   const cardActive = (key, options) => {
-    const v = mapCard[key] || MAP_CARD_DEFAULTS[key];
+    const v = getEffectiveCardSource(fields, key, mapCard);
     return options.some((o) => o.value === v) ? v : MAP_CARD_DEFAULTS[key];
   };
 
@@ -133,26 +148,52 @@ export default function ViewListingConfigMain({
 
   // render
 
+  const pushButton = (
+    <Button
+      size="small"
+      variant="outlined"
+      startIcon={<CloudUpload />}
+      onClick={() => pushConfig({ listingIds: [listing.id], force: true })}
+      sx={{ whiteSpace: "nowrap", mr: 0.5 }}
+    >
+      {pushS}
+    </Button>
+  );
+
   return (
     <>
-      <HeaderListingConfigView
-        caption={captionS}
-        title={titleS}
-        onBack={navigate.pop}
-        action={
-          <Button
-            size="small"
-            variant="outlined"
-            startIcon={<CloudUpload />}
-            onClick={() =>
-              pushConfig({ listingIds: [listing.id], force: true })
-            }
-            sx={{ whiteSpace: "nowrap", mr: 0.5 }}
+      {isRoot ? (
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 1,
+            px: 1.5,
+            py: 0.5,
+            borderBottom: (theme) => `1px solid ${theme.palette.divider}`,
+          }}
+        >
+          <Typography
+            variant="caption"
+            noWrap
+            sx={{
+              flexGrow: 1,
+              minWidth: 0,
+              color: isDirty ? "warning.main" : "text.secondary",
+            }}
           >
-            {pushS}
-          </Button>
-        }
-      />
+            {statusS}
+          </Typography>
+          {pushButton}
+        </Box>
+      ) : (
+        <HeaderListingConfigView
+          caption={captionS}
+          title={titleS}
+          onBack={navigate.pop}
+          action={pushButton}
+        />
+      )}
       <Box
         sx={{
           flex: 1,
@@ -305,6 +346,32 @@ export default function ViewListingConfigMain({
                 sx={{ display: "block", color: "text.secondary", mt: 0.5 }}
               >
                 {mapCardHintS}
+              </Typography>
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 1,
+                  mt: 1,
+                }}
+              >
+                <Typography variant="body2">{listCardS}</Typography>
+                <Switch
+                  size="small"
+                  checked={listCard}
+                  onChange={(e) =>
+                    update.updateSettings((s) =>
+                      setListCard(s, e.target.checked)
+                    )
+                  }
+                />
+              </Box>
+              <Typography
+                variant="caption"
+                sx={{ display: "block", color: "text.secondary" }}
+              >
+                {listCardHintS}
               </Typography>
             </WhiteSectionGeneric>
             <RowToggleWithHint
