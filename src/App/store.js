@@ -79,6 +79,7 @@ import meshReducer from "Features/mesh/meshSlice";
 import povReducer from "Features/pov/povSlice";
 import urlParamsReducer from "Features/urlParams/urlParamsSlice";
 import notesAppReducer from "Features/notesApp/notesAppSlice";
+import assistantRelayReducer from "Features/assistantRelay/assistantRelaySlice";
 
 import { syncTabsMiddleware, initSyncTabsListener } from "./syncTabsMiddleware";
 import { startTabsRegistry } from "./tabsRegistry";
@@ -162,6 +163,7 @@ const store = configureStore({
     pov: povReducer,
     urlParams: urlParamsReducer,
     notesApp: notesAppReducer,
+    assistantRelay: assistantRelayReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
