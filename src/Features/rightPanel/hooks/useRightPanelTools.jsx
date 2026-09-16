@@ -15,6 +15,7 @@ import {
   Image,
   FolderOpen,
   CloudSync,
+  SmartToy,
 } from "@mui/icons-material";
 
 import { Box } from "@mui/material";
@@ -134,6 +135,17 @@ export default function useRightPanelTools() {
       // everywhere (band AND scope-config catalog) unless the org enables
       // the integration. Off by default; only appConfig_lei turns it on.
       disabled: appConfig?.features?.notesApp?.enabled !== true,
+    },
+    ASSISTANT_RELAY: {
+      label: "Assistant IA",
+      icon: <SmartToy />,
+      viewers: ["MAP"],
+      // ChatGPT relay (reperage-mcp): publish the current base map, import the
+      // detected annotations. Bottom section, above the contextual "Réglages".
+      group: "bottom",
+      // Same hard org gate as NOTES_APP_SYNC: hidden unless the org enables
+      // the relay in appConfig.features.assistantRelay.
+      disabled: appConfig?.features?.assistantRelay?.enabled !== true,
     },
     OBJECTS_LIBRARY: {
       label: "Bibliothèque",

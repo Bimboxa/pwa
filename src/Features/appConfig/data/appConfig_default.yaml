@@ -125,6 +125,15 @@ orgaData:
 # FEATURES
 
 features:
+  # ChatGPT relay (reperage-mcp) — off by default, see appConfig_lei.yaml.
+  assistantRelay:
+    enabled: false
+    relayBaseUrl: ""
+    supabaseUrl: ""
+    supabaseAnonKey: ""
+    workspace: main
+    maxImageLongEdge: 1600
+    jpegQuality: 0.8
   entityModels: # used in create listing dialog
     keys:
       - baseMap

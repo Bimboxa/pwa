@@ -38,6 +38,7 @@ import PanelElevation from "Features/elevation/components/PanelElevation";
 import PanelImportAnnotations from "Features/importAnnotations/components/PanelImportAnnotations";
 import PanelObjectsLibrary from "Features/objectsLibrary/components/PanelObjectsLibrary";
 import PanelLocalLlm from "Features/localLlm/components/PanelLocalLlm";
+import PanelAssistantRelay from "Features/assistantRelay/components/PanelAssistantRelay";
 import PanelEditorSettings from "Features/settings/components/PanelEditorSettings";
 import PanelResources from "Features/resources/components/PanelResources";
 import PanelBaseMapTransforms from "Features/baseMapTransforms/components/PanelBaseMapTransforms";
@@ -215,6 +216,7 @@ export default function RightPanelContainer() {
           {selectedKey === "SETTINGS" && <PanelEditorSettings />}
           {selectedKey === "BASE_MAP_TRANSFORMS" && <PanelBaseMapTransforms />}
           {selectedKey === "NOTES_APP_SYNC" && <PanelNotesAppSync />}
+          {selectedKey === "ASSISTANT_RELAY" && <PanelAssistantRelay />}
         </Box>
       </Slide>
 
