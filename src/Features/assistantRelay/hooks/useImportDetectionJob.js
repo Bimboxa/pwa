@@ -5,8 +5,10 @@ import {
   setAssistantRelayJobActionStatus,
   upsertAssistantRelayJobs,
 } from "../assistantRelaySlice";
+import { setSelectedMainBaseMapId } from "Features/mapEditor/mapEditorSlice";
 
-import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
+import db from "App/db/db";
+import BaseMap from "Features/baseMaps/js/BaseMap";
 import parseImportAnnotationsJson from "Features/importAnnotations/utils/parseImportAnnotationsJson";
 import importAnnotationsInlineJsonService from "Features/importAnnotations/services/importAnnotationsInlineJsonService";
 
@@ -16,13 +18,43 @@ import {
   fetchJob,
 } from "../services/assistantRelayClient";
 
-// Import a proposal (detected by ChatGPT) onto the main baseMap through the
-// same pipeline as the "Import annotations" panel, then acknowledge it on
-// the relay. Reject = ack only.
+// Loads the base map a proposal was detected on. The relay returns, with the
+// job, the snapshot it targets (`snapshot.baseMapId`): the import goes onto
+// THAT base map, never onto the current one, even if another base map was
+// published in between.
+async function loadTargetBaseMap(job, projectId) {
+  const baseMapId = job?.snapshot?.baseMapId;
+  if (!baseMapId) {
+    throw new Error("Proposition sans fond de plan cible (snapshot manquant).");
+  }
+  const record = await db.baseMaps.get(baseMapId);
+  if (!record || record.deletedAt) {
+    throw new Error(
+      `Fond de plan introuvable localement (« ${
+        job.snapshot?.name ?? baseMapId
+      } »). Ouvrez le projet qui le contient ou republiez-le.`
+    );
+  }
+  if (record.projectId && projectId && record.projectId !== projectId) {
+    throw new Error(
+      `Ce fond de plan appartient à un autre projet (« ${
+        record.name ?? baseMapId
+      } »). Ouvrez ce projet pour importer la proposition.`
+    );
+  }
+  const versions = (
+    await db.baseMapVersions.where("baseMapId").equals(baseMapId).toArray()
+  ).filter((v) => !v.deletedAt);
+  return BaseMap.createFromRecord(record, versions);
+}
+
+// Import a proposal (detected by ChatGPT) onto the base map it targets,
+// through the same pipeline as the "Import annotations" panel, then
+// acknowledge it on the relay. Reject = ack only.
 export default function useImportDetectionJob() {
   const dispatch = useDispatch();
-  const mainBaseMap = useMainBaseMap();
   const projectId = useSelector((s) => s.projects.selectedProjectId);
+  const selectedBaseMapId = useSelector((s) => s.mapEditor.selectedBaseMapId);
 
   const importJob = useCallback(
     async (jobId, { listingId }) => {
@@ -34,6 +66,8 @@ export default function useImportDetectionJob() {
         const job = await fetchJob(jobId);
         if (!job?.payload) throw new Error("Proposition sans contenu.");
 
+        const targetBaseMap = await loadTargetBaseMap(job, projectId);
+
         // Same validator as the panel: the payload must be the inline shape.
         const parsed = parseImportAnnotationsJson(JSON.stringify(job.payload));
         if (!parsed.ok) throw new Error(parsed.error ?? "JSON invalide.");
@@ -42,11 +76,16 @@ export default function useImportDetectionJob() {
           data: parsed.data,
           projectId,
           listingId,
-          mainBaseMap,
+          mainBaseMap: targetBaseMap,
           widthMeters: parsed.data?.image?.widthMeters ?? null,
           relativeToBaseMap: true,
           dispatch,
         });
+
+        // Show the user where the annotations landed.
+        if (targetBaseMap.id !== selectedBaseMapId) {
+          dispatch(setSelectedMainBaseMapId(targetBaseMap.id));
+        }
 
         acked = await ackJob(jobId, { status: "imported" });
         dispatch(upsertAssistantRelayJobs([acked]));
@@ -72,7 +111,7 @@ export default function useImportDetectionJob() {
         return { ok: false, error: message };
       }
     },
-    [dispatch, mainBaseMap, projectId]
+    [dispatch, projectId, selectedBaseMapId]
   );
 
   const rejectJob = useCallback(
@@ -97,6 +136,6 @@ export default function useImportDetectionJob() {
   return {
     importJob,
     rejectJob,
-    canImport: Boolean(mainBaseMap?.id && projectId),
+    canImport: Boolean(projectId),
   };
 }

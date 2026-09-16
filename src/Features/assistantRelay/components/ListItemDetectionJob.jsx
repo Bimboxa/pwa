@@ -44,7 +44,7 @@ export default function ListItemDetectionJob({
   const rejectS = "Rejeter";
   const listingS = "Liste cible";
   const staleS =
-    "Détectée sur un fond publié précédemment : vérifiez qu'il s'agit du fond affiché.";
+    "Proposition faite sur un autre fond de plan que le fond de plan courant : l'import se fera sur ce fond de plan-là.";
 
   // state
 
@@ -111,7 +111,7 @@ export default function ListItemDetectionJob({
       )}
 
       {proposed && !isCurrentSnapshot && (
-        <Alert severity="warning" sx={{ py: 0 }}>
+        <Alert severity="info" sx={{ py: 0 }}>
           {staleS}
         </Alert>
       )}
