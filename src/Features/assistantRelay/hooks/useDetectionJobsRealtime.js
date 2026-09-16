@@ -31,7 +31,10 @@ export default function useDetectionJobsRealtime({ connected, refresh }) {
 
     if (!hasSupabase) {
       dispatch(setAssistantRelayRealtimeStatus("unavailable"));
-      const id = setInterval(() => refresh?.(), POLL_INTERVAL_MS);
+      const id = setInterval(
+        () => refresh?.({ background: true }),
+        POLL_INTERVAL_MS
+      );
       return () => clearInterval(id);
     }
 
@@ -58,7 +61,7 @@ export default function useDetectionJobsRealtime({ connected, refresh }) {
           if (status === "SUBSCRIBED") {
             dispatch(setAssistantRelayRealtimeStatus("subscribed"));
             // Fill any gap between the initial fetch and the subscription.
-            refresh?.();
+            refresh?.({ background: true });
           } else if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
             dispatch(setAssistantRelayRealtimeStatus("error"));
           }
@@ -72,7 +75,15 @@ export default function useDetectionJobsRealtime({ connected, refresh }) {
       if (client && channel) client.removeChannel(channel);
       dispatch(setAssistantRelayRealtimeStatus("idle"));
     };
-  }, [connected, hasSupabase, workspace, config?.supabaseUrl]);
+  }, [
+    connected,
+    hasSupabase,
+    workspace,
+    config?.supabaseUrl,
+    config?.supabaseAnonKey,
+    refresh,
+    dispatch,
+  ]);
 
   return { realtimeStatus };
 }

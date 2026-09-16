@@ -26,27 +26,34 @@ export default function useAssistantRelaySession() {
   );
   const connectionError = useSelector((s) => s.assistantRelay.connectionError);
 
-  const enabled = Boolean(config?.enabled && config?.relayBaseUrl && token);
+  const relayBaseUrl = config?.relayBaseUrl;
+  const enabled = Boolean(config?.enabled && relayBaseUrl && token);
 
-  const refresh = useCallback(async () => {
-    if (!enabled) return;
-    dispatch(setAssistantRelayConnection({ status: "checking" }));
-    try {
-      const session = await fetchRelaySession();
-      dispatch(setAssistantRelaySnapshot(session?.currentSnapshot ?? null));
-      const jobs = await fetchRecentJobs(30);
-      dispatch(upsertAssistantRelayJobs(jobs));
-      dispatch(setAssistantRelayConnection({ status: "connected" }));
-    } catch (e) {
-      console.log("[assistantRelay] session check failed", e);
-      dispatch(
-        setAssistantRelayConnection({
-          status: "error",
-          error: describeRelayError(e),
-        })
-      );
-    }
-  }, [enabled, dispatch]);
+  const refresh = useCallback(
+    async ({ background = false } = {}) => {
+      if (!enabled) return;
+      // Background resync must keep the active Realtime subscription mounted.
+      if (!background) {
+        dispatch(setAssistantRelayConnection({ status: "checking" }));
+      }
+      try {
+        const session = await fetchRelaySession();
+        dispatch(setAssistantRelaySnapshot(session?.currentSnapshot ?? null));
+        const jobs = await fetchRecentJobs(30);
+        dispatch(upsertAssistantRelayJobs(jobs));
+        dispatch(setAssistantRelayConnection({ status: "connected" }));
+      } catch (e) {
+        console.log("[assistantRelay] session check failed", e);
+        dispatch(
+          setAssistantRelayConnection({
+            status: "error",
+            error: describeRelayError(e),
+          })
+        );
+      }
+    },
+    [enabled, relayBaseUrl, token, dispatch]
+  );
 
   useEffect(() => {
     if (!enabled) {
@@ -54,7 +61,7 @@ export default function useAssistantRelaySession() {
       return;
     }
     refresh();
-  }, [enabled, config?.relayBaseUrl, token]);
+  }, [enabled, refresh, dispatch]);
 
   return {
     enabled,
