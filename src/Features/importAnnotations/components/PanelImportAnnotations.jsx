@@ -1,13 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
-import { setPasteClipboard } from "Features/mapEditor/mapEditorSlice";
-import {
-  triggerAnnotationTemplatesUpdate,
-  triggerAnnotationsUpdate,
-} from "Features/annotations/annotationsSlice";
-import { setSelectedListingId } from "Features/listings/listingsSlice";
-
 import {
   Alert,
   Box,
@@ -26,18 +19,14 @@ import {
 } from "@mui/material";
 import { ContentCopy, Upload } from "@mui/icons-material";
 
-import db from "App/db/db";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useListingsByScope from "Features/listings/hooks/useListingsByScope";
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
-import pasteAnnotationService from "Features/mapEditor/services/pasteAnnotationService";
 
 import parseImportAnnotationsJson from "../utils/parseImportAnnotationsJson";
-import buildImportData from "../utils/buildImportData";
-import resolveImportTemplatesService, {
-  isImportTemplateReusable,
-} from "../services/resolveImportTemplatesService";
+import { isImportTemplateReusable } from "../services/resolveImportTemplatesService";
+import importAnnotationsInlineJsonService from "../services/importAnnotationsInlineJsonService";
 import importMeshService from "../services/importMeshService";
 import ImportAnnotationsPreview from "./ImportAnnotationsPreview";
 import ImportAnnotationsTemplateList from "./ImportAnnotationsTemplateList";
@@ -175,55 +164,18 @@ export default function PanelImportAnnotations() {
     }
 
     try {
-      const excluded = new Set(excludedTemplateIds);
-      const { templateIdMap, templateRecords } =
-        await resolveImportTemplatesService({
-          templates: (data.annotationTemplates ?? []).filter(
-            (t) => !excluded.has(t.id)
-          ),
-          projectId,
-          listingId: targetListingId,
-          // Only the dump carries real db template ids (see the service).
-          preserveIds: isDump,
-        });
-
-      const { clipboard, relative } = buildImportData({
+      await importAnnotationsInlineJsonService({
         data,
-        widthMeters: widthMetersNum,
-        mainBaseMap,
         projectId,
         listingId: targetListingId,
+        mainBaseMap,
+        widthMeters: widthMetersNum,
         excludedTemplateIds,
         relativeToBaseMap,
-        templateIdMap,
+        // Only the dump carries real db template ids (see the service).
+        preserveIds: isDump,
+        dispatch,
       });
-      if (!clipboard.items.length) return;
-
-      if (templateRecords.length) {
-        await db.annotationTemplates.bulkAdd(templateRecords);
-        dispatch(triggerAnnotationTemplatesUpdate());
-      }
-
-      // Switch the view to the target listing so the placed annotations
-      // (filtered by listingId) become visible.
-      dispatch(setSelectedListingId(targetListingId));
-
-      if (relative) {
-        // Position is fixed by the baseMap: place the group directly at its
-        // own (source) center with an identity transform — no manual click.
-        await pasteAnnotationService({
-          pasteClipboard: clipboard,
-          pasteTransform: { rotationDeg: 0, flipX: false },
-          targetCenter: clipboard.sourceCenter,
-          baseMap: mainBaseMap,
-          dispatch,
-          triggerAnnotationsUpdate,
-        });
-      } else {
-        // Enter single-shot paste mode: the next click on the map positions
-        // the group and exits.
-        dispatch(setPasteClipboard({ ...clipboard, once: true }));
-      }
     } catch (err) {
       console.error("[importAnnotations] import failed", err);
     }
