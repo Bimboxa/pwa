@@ -87,6 +87,68 @@ export function ackJob(jobId, { status, error }) {
   });
 }
 
+// Binary variant (PDF, preview): same auth and error mapping, returns a Blob.
+export async function relayFetchBlob(path) {
+  const baseUrl = getRelayBaseUrl();
+  const token = getToken();
+  let response;
+  try {
+    response = await fetch(`${baseUrl}/bridge${path}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  } catch (e) {
+    throw new AssistantRelayError("NETWORK", 0, e?.message);
+  }
+  if (!response.ok) {
+    let code = `HTTP_${response.status}`;
+    let message = null;
+    try {
+      const body = await response.json();
+      code = body?.error ?? code;
+      message = body?.message ?? null;
+    } catch {
+      // non-JSON error body
+    }
+    throw new AssistantRelayError(code, response.status, message);
+  }
+  return response.blob();
+}
+
+// ---- base map jobs (fond de plan proposé depuis le composant ChatGPT)
+
+export async function fetchBaseMapJobs(limit = 20) {
+  const data = await relayFetch(`/base-map-jobs?limit=${limit}`);
+  return data?.jobs ?? [];
+}
+
+// Job + `pdf` (summary + downloadPath) + `previewPath`.
+export function fetchBaseMapJob(jobId) {
+  return relayFetch(`/base-map-jobs/${jobId}`);
+}
+
+export function fetchBaseMapJobPdf(job) {
+  const path = job?.pdf?.downloadPath?.replace(/^\/bridge/, "");
+  if (!path) throw new AssistantRelayError("PDF_NOT_FOUND", 404);
+  return relayFetchBlob(path);
+}
+
+export function fetchBaseMapJobPreview(jobId) {
+  return relayFetchBlob(`/base-map-jobs/${jobId}/preview`);
+}
+
+// status: imported (with baseMapId) | rejected | failed (with error).
+// Repeating `imported` with the same baseMapId is accepted by the relay.
+export function ackBaseMapJob(jobId, { status, baseMapId, error }) {
+  return relayFetch(`/base-map-jobs/${jobId}/ack`, {
+    method: "POST",
+    json: {
+      status,
+      ...(baseMapId ? { baseMapId } : {}),
+      ...(error ? { error } : {}),
+    },
+  });
+}
+
 // Short French messages for the panel.
 export function describeRelayError(e) {
   const code = e?.code ?? "UNKNOWN";
@@ -103,6 +165,9 @@ export function describeRelayError(e) {
     JOB_NOT_FOUND: "Proposition introuvable sur le relai.",
     JOB_ALREADY_RESOLVED: "Proposition déjà traitée.",
     UPSTREAM_FAILED: "Erreur Supabase côté relai.",
+    PDF_NOT_FOUND: "PDF introuvable sur le relai.",
+    PREVIEW_NOT_FOUND: "Aperçu indisponible.",
+    SNAPSHOT_NOT_FOUND: "Fond de plan publié introuvable sur le relai.",
   };
   const base = messages[code] ?? `Erreur relai (${code}).`;
   return e?.message && e.message !== code ? `${base} ${e.message}` : base;

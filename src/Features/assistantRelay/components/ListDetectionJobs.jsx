@@ -46,9 +46,10 @@ export default function ListDetectionJobs({ realtimeStatus }) {
   // helpers
 
   const { proposed, history } = useMemo(() => {
-    const all = Object.values(jobsById ?? {}).sort((a, b) =>
-      (b.createdAt ?? "").localeCompare(a.createdAt ?? "")
-    );
+    // `draft` = not yet confirmed by the user in the ChatGPT preview.
+    const all = Object.values(jobsById ?? {})
+      .filter((j) => j.status !== "draft")
+      .sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""));
     return {
       proposed: all.filter((j) => j.status === "proposed"),
       history: all.filter((j) => j.status !== "proposed"),

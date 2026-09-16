@@ -4,12 +4,14 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   setAssistantRelayConnection,
   setAssistantRelaySnapshot,
+  upsertAssistantRelayBaseMapJobs,
   upsertAssistantRelayJobs,
 } from "../assistantRelaySlice";
 
 import useAssistantRelayConfig from "./useAssistantRelayConfig";
 import {
   describeRelayError,
+  fetchBaseMapJobs,
   fetchRecentJobs,
   fetchRelaySession,
 } from "../services/assistantRelayClient";
@@ -41,6 +43,8 @@ export default function useAssistantRelaySession() {
         dispatch(setAssistantRelaySnapshot(session?.currentSnapshot ?? null));
         const jobs = await fetchRecentJobs(30);
         dispatch(upsertAssistantRelayJobs(jobs));
+        const baseMapJobs = await fetchBaseMapJobs(30);
+        dispatch(upsertAssistantRelayBaseMapJobs(baseMapJobs));
         dispatch(setAssistantRelayConnection({ status: "connected" }));
       } catch (e) {
         console.log("[assistantRelay] session check failed", e);

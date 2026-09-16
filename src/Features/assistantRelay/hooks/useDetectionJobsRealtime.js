@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 
 import {
   setAssistantRelayRealtimeStatus,
+  upsertAssistantRelayBaseMapJobs,
   upsertAssistantRelayJobs,
 } from "../assistantRelaySlice";
 
@@ -10,13 +11,14 @@ import useAssistantRelayConfig from "./useAssistantRelayConfig";
 import {
   getAssistantRelaySupabaseClient,
   hasAssistantRelaySupabaseConfig,
+  mapBaseMapJobRow,
   mapDetectionJobRow,
 } from "../services/assistantRelaySupabaseClient";
 
 const POLL_INTERVAL_MS = 10000;
 
-// Live updates of detection_jobs while the panel is open and the relay is
-// connected. Supabase Realtime (postgres_changes) when configured; otherwise
+// Live updates of detection_jobs and base_map_jobs while the panel is open
+// and the relay is connected. Supabase Realtime (postgres_changes) when configured; otherwise
 // a light polling fallback through the bridge (`refresh`).
 export default function useDetectionJobsRealtime({ connected, refresh }) {
   const dispatch = useDispatch();
@@ -43,7 +45,7 @@ export default function useDetectionJobsRealtime({ connected, refresh }) {
     try {
       client = getAssistantRelaySupabaseClient();
       channel = client
-        .channel(`detection_jobs:${workspace}`)
+        .channel(`assistant_relay:${workspace}`)
         .on(
           "postgres_changes",
           {
@@ -55,6 +57,20 @@ export default function useDetectionJobsRealtime({ connected, refresh }) {
           (payload) => {
             const job = mapDetectionJobRow(payload?.new);
             if (job) dispatch(upsertAssistantRelayJobs([job]));
+          }
+        )
+        // Every .on() must be registered before subscribe().
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "base_map_jobs",
+            filter: `workspace=eq.${workspace}`,
+          },
+          (payload) => {
+            const job = mapBaseMapJobRow(payload?.new);
+            if (job) dispatch(upsertAssistantRelayBaseMapJobs([job]));
           }
         )
         .subscribe((status) => {

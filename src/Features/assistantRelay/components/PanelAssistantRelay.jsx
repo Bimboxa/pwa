@@ -13,11 +13,13 @@ import useDetectionJobsRealtime from "../hooks/useDetectionJobsRealtime";
 
 import SectionAssistantRelayConnection from "./SectionAssistantRelayConnection";
 import SectionAssistantRelayBaseMap from "./SectionAssistantRelayBaseMap";
+import ListBaseMapJobs from "./ListBaseMapJobs";
 import ListDetectionJobs from "./ListDetectionJobs";
 
 // The "Assistant IA" right-panel tool: pairing with the reperage-mcp relay,
-// publication of the current base map for ChatGPT, and import of the
-// annotation proposals it sends back (docs: reperage-mcp/README.md).
+// publication of the current base map for ChatGPT, import of the base maps
+// proposed from the ChatGPT component (PDF page rasterized here) and import
+// of the annotation proposals it sends back (docs: reperage-mcp/README.md).
 export default function PanelAssistantRelay() {
   const dispatch = useDispatch();
 
@@ -63,6 +65,8 @@ export default function PanelAssistantRelay() {
             <>
               <Divider />
               <SectionAssistantRelayBaseMap />
+              <Divider />
+              <ListBaseMapJobs />
               <Divider />
               <ListDetectionJobs realtimeStatus={realtimeStatus} />
             </>

@@ -14,6 +14,10 @@ const initialState = {
 
   jobsById: {}, // { [jobId]: DetectionJob }
   jobActionStatusById: {}, // { [jobId]: "importing" | "rejecting" | "error" }
+
+  baseMapJobsById: {}, // { [jobId]: BaseMapJob } (fonds de plan proposés)
+  // { [jobId]: "downloading" | "rendering" | "creating" | "publishing" | "rejecting" | "error" }
+  baseMapJobActionStatusById: {},
 };
 
 const assistantRelaySlice = createSlice({
@@ -27,6 +31,8 @@ const assistantRelaySlice = createSlice({
         state.connectionError = null;
         state.currentSnapshot = null;
         state.jobsById = {};
+        state.baseMapJobsById = {};
+        state.baseMapJobActionStatusById = {};
       }
     },
     setAssistantRelayConnection: (state, action) => {
@@ -54,6 +60,20 @@ const assistantRelaySlice = createSlice({
       if (status) state.jobActionStatusById[jobId] = status;
       else delete state.jobActionStatusById[jobId];
     },
+    upsertAssistantRelayBaseMapJobs: (state, action) => {
+      for (const job of action.payload ?? []) {
+        if (!job?.jobId) continue;
+        state.baseMapJobsById[job.jobId] = {
+          ...state.baseMapJobsById[job.jobId],
+          ...job,
+        };
+      }
+    },
+    setAssistantRelayBaseMapJobActionStatus: (state, action) => {
+      const { jobId, status } = action.payload;
+      if (status) state.baseMapJobActionStatusById[jobId] = status;
+      else delete state.baseMapJobActionStatusById[jobId];
+    },
     resetAssistantRelay: () => initialState,
   },
 });
@@ -66,6 +86,8 @@ export const {
   setAssistantRelayPublishStatus,
   upsertAssistantRelayJobs,
   setAssistantRelayJobActionStatus,
+  upsertAssistantRelayBaseMapJobs,
+  setAssistantRelayBaseMapJobActionStatus,
   resetAssistantRelay,
 } = assistantRelaySlice.actions;
 

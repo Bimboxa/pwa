@@ -32,6 +32,11 @@ function summarizeTemplates(templates) {
  * Phase 1 guard: the active version must have an identity transform, else
  * normalized coordinates of the displayed image would not map onto the
  * reference frame used by the import.
+ *
+ * Provenance: when the base map was cut out of a PDF stored on the relay
+ * (created from a ChatGPT base map job), `createdFrom.relay` carries the
+ * sourcePdfId / baseMapJobId and `createdFrom` the page/rotation/crop; both
+ * are published so the model can submit annotations in PDF user space.
  */
 export default async function publishBaseMapSnapshotService({
   baseMap,
@@ -60,6 +65,7 @@ export default async function publishBaseMapSnapshotService({
   });
 
   const meterByPx = baseMap.getMeterByPx?.() ?? baseMap.meterByPx ?? null;
+  const provenance = relayProvenance(baseMap, config);
 
   return publishBaseMapSnapshot({
     baseMapId: baseMap.id,
@@ -72,5 +78,31 @@ export default async function publishBaseMapSnapshotService({
     meterByPx: meterByPx > 0 ? meterByPx : null,
     templates: summarizeTemplates(templates),
     image,
+    ...provenance,
   });
+}
+
+function relayProvenance(baseMap, config) {
+  const cf = baseMap?.createdFrom;
+  const relay = cf?.relay;
+  if (cf?.type !== "PDF_PAGE" || !relay?.sourcePdfId) return {};
+  // Only meaningful on the relay the PDF lives on.
+  const sameRelay =
+    !relay.relayBaseUrl ||
+    !config?.relayBaseUrl ||
+    relay.relayBaseUrl.replace(/\/+$/, "") ===
+      config.relayBaseUrl.replace(/\/+$/, "");
+  if (!sameRelay) return {};
+  const rotation = Number(cf.rotation ?? 0);
+  return {
+    sourcePdfId: relay.sourcePdfId,
+    sourceFrame: {
+      pageNumber: Number(cf.pageNumber ?? 1),
+      rotation: [0, 90, 180, 270].includes(rotation) ? rotation : 0,
+      bboxInRatio: cf.bboxInRatio ?? { x1: 0, y1: 0, x2: 1, y2: 1 },
+      dpi: cf.dpi != null ? Math.round(Number(cf.dpi)) : null,
+      blueprintScale: cf.blueprintScale ? String(cf.blueprintScale) : null,
+    },
+    ...(relay.baseMapJobId ? { baseMapJobId: relay.baseMapJobId } : {}),
+  };
 }

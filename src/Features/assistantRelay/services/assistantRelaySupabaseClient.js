@@ -62,3 +62,31 @@ export function mapDetectionJobRow(row) {
     updatedAt: row.updated_at,
   };
 }
+
+// base_map_jobs row (snake_case) → BaseMapJob DTO (camelCase), the same
+// shape the bridge returns (frame = page/rotation/crop/dpi/scale).
+export function mapBaseMapJobRow(row) {
+  if (!row?.id) return null;
+  return {
+    jobId: row.id,
+    workspace: row.workspace,
+    status: row.status,
+    name: row.name,
+    sourcePdfId: row.source_pdf_id,
+    pdfFileName: row.pdf_file_name,
+    frame: {
+      pageNumber: row.page_number,
+      rotation: row.rotation ?? 0,
+      bboxInRatio: row.bbox ?? { x1: 0, y1: 0, x2: 1, y2: 1 },
+      dpi: row.dpi ?? null,
+      blueprintScale: row.blueprint_scale ?? null,
+    },
+    hasPreview: Boolean(row.preview_path),
+    baseMapId: row.base_map_id ?? null,
+    snapshotId: row.snapshot_id ?? null,
+    error: row.error ?? null,
+    createdBy: row.created_by ?? null,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}

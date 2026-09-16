@@ -134,6 +134,8 @@ features:
     workspace: main
     maxImageLongEdge: 1600
     jpegQuality: 0.8
+    # Republish a base map imported from a ChatGPT proposal right away.
+    autoPublishAfterImport: true
   entityModels: # used in create listing dialog
     keys:
       - baseMap
