@@ -56,6 +56,18 @@ export const LOCKED_TOOL_KEYS = new Set(["SELECTION_PROPERTIES", "SETTINGS"]);
 //     org-allowlist tools (SELECTION_PROPERTIES force-included) plus the
 //     contextual ones, unfiltered by module or scopeConfig, in the per-scope
 //     band order, each annotated with `locked`.
+// "Chat" closes the appConfig-driven bottom tools, whatever rank
+// appConfig.features.tools gives it: the contextual bottom tools
+// ("Réglages") are appended after it, so it sits right above them.
+function moveChatLast(tools) {
+  const index = tools.findIndex((t) => t.key === "CHAT");
+  if (index === -1 || index === tools.length - 1) return tools;
+  const next = [...tools];
+  const [chatTool] = next.splice(index, 1);
+  next.push(chatTool);
+  return next;
+}
+
 export default function useRightPanelTools() {
   const appConfig = useAppConfig();
   const selectedViewerKey = useSelector((s) => s.viewers.selectedViewerKey);
@@ -108,6 +120,12 @@ export default function useRightPanelTools() {
     CHAT: {
       label: "Chat",
       icon: <Chat />,
+      // Assistant chat: available in every module. Bottom section, right
+      // above the contextual "Réglages" (see moveChatLast below).
+      group: "bottom",
+      // Free outside a draw / paste: the Arc tool and the smart-detect only
+      // own "A" while drawing or pasting, and the hotkey hook is inert then.
+      hotkey: "A",
     },
     IMPORT_ANNOTATIONS: {
       label: "Importer annotations",
@@ -309,6 +327,7 @@ export default function useRightPanelTools() {
     );
     menuItems.splice(propertiesIndex + 1, 0, ...belowPropertiesTools);
   }
+  menuItems = moveChatLast(menuItems);
   menuItems.push(...bottomTools);
 
   // Per-scope order (Configuration > Modules & outils), applied last so it
@@ -331,11 +350,14 @@ export default function useRightPanelTools() {
       key: "SELECTION_PROPERTIES",
     });
   }
-  catalog.push(...contextualTools.filter((t) => !t.disabled));
-  const catalogWithLock = sortToolsByOrder(catalog, toolOrder).map((t) => ({
-    ...t,
-    locked: LOCKED_TOOL_KEYS.has(t.key),
-  }));
+  const orderedCatalog = moveChatLast(catalog);
+  orderedCatalog.push(...contextualTools.filter((t) => !t.disabled));
+  const catalogWithLock = sortToolsByOrder(orderedCatalog, toolOrder).map(
+    (t) => ({
+      ...t,
+      locked: LOCKED_TOOL_KEYS.has(t.key),
+    })
+  );
 
   return { menuItems, toolsByKey, catalog: catalogWithLock };
 }
