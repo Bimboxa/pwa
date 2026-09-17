@@ -25,6 +25,9 @@ export default function ImportAnnotationsPreview({
   data,
   widthMeters,
   excludedTemplateIds,
+  // Optional picture of the source (same frame as `data.image`), drawn under
+  // the annotations.
+  backgroundUrl,
 }) {
   const { width, height } = data?.image ?? {};
 
@@ -101,6 +104,17 @@ export default function ImportAnnotationsPreview({
         preserveAspectRatio="xMidYMid meet"
         style={{ width: "100%", height: "100%", display: "block" }}
       >
+        {backgroundUrl ? (
+          <image
+            href={backgroundUrl}
+            x={0}
+            y={0}
+            width={width}
+            height={height}
+            preserveAspectRatio="none"
+            opacity={0.55}
+          />
+        ) : null}
         {previewAnnotations.map((annotation) => (
           <NodeAnnotationStatic
             key={annotation.id}

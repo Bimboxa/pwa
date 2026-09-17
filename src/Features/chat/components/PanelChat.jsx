@@ -22,7 +22,9 @@ export default function PanelChat() {
   const messages = useSelector((state) => state.chat.messages);
   const isThinking = useSelector((state) => state.chat.isThinking);
 
-  const openChat = useSelector((s) => s.rightPanel.selectedMenuItemKey === "CHAT");
+  const openChat = useSelector(
+    (s) => s.rightPanel.selectedMenuItemKey === "CHAT"
+  );
 
   useEffect(() => {
     if (!openChat) {
@@ -112,7 +114,11 @@ export default function PanelChat() {
           msg.type === "vectorization" ? (
             <ChatMessageVectorization key={msg.id ?? i} message={msg} />
           ) : (
-            <ChatMessage key={msg.id ?? i} role={msg.role} content={msg.content} />
+            <ChatMessage
+              key={msg.id ?? i}
+              role={msg.role}
+              content={msg.content}
+            />
           )
         )}
         {isThinking && <ThinkingBubble />}

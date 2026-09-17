@@ -205,6 +205,29 @@ export function cancelVectorization(runId) {
   return relayFetch(`/vectorizations/${runId}/cancel`, { method: "POST" });
 }
 
+// Result card: what would be imported, normalized on the whole page
+// ({ image, annotationTemplates, annotations }).
+export function fetchVectorizationPreview(runId) {
+  return relayFetch(`/vectorizations/${runId}/preview`);
+}
+
+// The user's decision on the card. `confirm` only records the templates left
+// out: the PWA then creates the base map from the run's base map job.
+export function confirmVectorization(runId, { excludedTemplateIds = [] } = {}) {
+  return relayFetch(`/vectorizations/${runId}/confirm`, {
+    method: "POST",
+    json: { excludedTemplateIds },
+  });
+}
+
+export function dismissVectorization(runId) {
+  return relayFetch(`/vectorizations/${runId}/dismiss`, { method: "POST" });
+}
+
+export function fetchRelayPdf(pdfId) {
+  return relayFetchBlob(`/pdfs/${pdfId}`);
+}
+
 // A run refused at validation is checked again by the relay (stored result,
 // current rules). Never re-runs the model.
 export function revalidateVectorization(runId) {

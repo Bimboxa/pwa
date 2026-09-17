@@ -26,7 +26,7 @@ const RECONNECT_MS = [1000, 2000, 5000, 10000];
 // the relay runtime (not in the chat panel) so that closing the panel neither
 // cuts the progress stream nor blocks the import:
 //   1. streams the run events into the chat message;
-//   2. when the run is `ready`, creates the base map from its base map job —
+//   2. when the run is `ready` AND confirmed in the chat card, creates the base map from its base map job —
 //      in the project the run was launched from, never elsewhere. The
 //      snapshot published right after makes the relay create the live
 //      annotations job, which useApplyLiveDetectionJob imports.
@@ -158,9 +158,12 @@ export default function useVectorizationRunRuntime({ connected, refresh }) {
     document.addEventListener("visibilitychange", onChange);
     return () => document.removeEventListener("visibilitychange", onChange);
   }, []);
-  const baseMapJobId = run?.status === "ready" ? run.baseMapJobId : null;
+  // Only once the user confirmed the result card of the chat.
+  const baseMapJobId =
+    run?.status === "ready" && message?.confirmed ? run.baseMapJobId : null;
   const targetProjectId = pointer?.target?.projectId ?? null;
-  const listingId = pointer?.target?.baseMapListingId ?? undefined;
+  const listingId =
+    message?.baseMapListingId ?? pointer?.target?.baseMapListingId ?? undefined;
   const wrongProject = Boolean(
     baseMapJobId && targetProjectId && projectId !== targetProjectId
   );

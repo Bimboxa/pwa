@@ -18,7 +18,6 @@ import FieldTextV2 from "Features/form/components/FieldTextV2";
 import ChatPendingPdf from "./ChatPendingPdf";
 
 export default function ChatInput() {
-
   // strings
 
   const sendS = "Envoyer";
@@ -99,9 +98,9 @@ export default function ChatInput() {
           disabled={
             pendingPdf ? pendingPdf.status !== "ready" || hasActiveRun : !input
           }
-          label={sendS} />
+          label={sendS}
+        />
       </BoxAlignToRight>
-
     </Box>
   );
 }

@@ -24,6 +24,7 @@ import {
   resumeVectorizationImport,
   revalidateVectorization,
 } from "Features/assistantRelay/services/assistantRelayClient";
+import ChatVectorizationCard from "./ChatVectorizationCard";
 import { saveVectorizationPointer } from "Features/assistantRelay/utils/vectorizationPointer";
 
 const ORDER = ["queued", "analyzing", "ready", "importing", "completed"];
@@ -68,6 +69,8 @@ function buildSteps(message) {
     else if (rank >= 0 && active !== undefined)
       state = i < active ? "done" : i === active ? "active" : "todo";
     if (i === 3 && state === "active" && localFailed) state = "failed";
+    // `ready` but not confirmed in the card yet: nothing is running.
+    if (i === 3 && state === "active" && !message.confirmed) state = "todo";
     return { label, state };
   });
 }
@@ -154,7 +157,8 @@ export default function ChatMessageVectorization({ message }) {
       <Paper
         sx={{
           p: 1.5,
-          maxWidth: "90%",
+          maxWidth: "95%",
+          minWidth: 0,
           backgroundColor: "#e0e0e0",
           borderRadius: 2,
         }}
@@ -185,6 +189,10 @@ export default function ChatMessageVectorization({ message }) {
           >
             {cleanModelText(message.content)}
           </Typography>
+        ) : null}
+
+        {run.status === "ready" && !message.confirmed ? (
+          <ChatVectorizationCard message={message} />
         ) : null}
 
         {status ? (
