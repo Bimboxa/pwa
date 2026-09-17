@@ -94,7 +94,26 @@ export default function ChatInput() {
         }}
       />
 
-      <BoxAlignToRight sx={{ alignItems: "center", gap: 1 }}>
+      {/* DOM order = keyboard order: Tab from the text goes to "Envoyer", then
+          to the checkbox. `row-reverse` keeps the checkbox on the left. */}
+      <BoxAlignToRight
+        sx={{
+          alignItems: "center",
+          gap: 1,
+          flexDirection: "row-reverse",
+          justifyContent: "flex-start",
+        }}
+      >
+        <ButtonGeneric
+          variant="contained"
+          color="secondary"
+          startIcon={<SendIcon />}
+          onClick={handleSend}
+          disabled={
+            pendingPdf ? pendingPdf.status !== "ready" || hasActiveRun : !input
+          }
+          label={sendS}
+        />
         {/* Ticked: the model cannot ask for the plan picture (typed messages
             only — a dropped PDF is a vectorization). */}
         {!pendingPdf && (
@@ -111,16 +130,6 @@ export default function ChatInput() {
             slotProps={{ typography: { variant: "caption" } }}
           />
         )}
-        <ButtonGeneric
-          variant="contained"
-          color="secondary"
-          startIcon={<SendIcon />}
-          onClick={handleSend}
-          disabled={
-            pendingPdf ? pendingPdf.status !== "ready" || hasActiveRun : !input
-          }
-          label={sendS}
-        />
       </BoxAlignToRight>
     </Box>
   );
