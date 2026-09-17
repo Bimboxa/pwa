@@ -39,7 +39,7 @@ export default function ChatRelayBar() {
   const keyLabelS = "Clé du serveur IA";
   const connectS = "Connecter";
   const forgetS = "Oublier la clé";
-  const modelS = "Modèle";
+  const modelS = "Modèle d'analyse";
   const hintS = "La clé est conservée dans cet onglet seulement.";
 
   // data

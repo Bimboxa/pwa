@@ -165,7 +165,8 @@ export function ackBaseMapJob(jobId, { status, baseMapId, error }) {
 
 // One conversational turn, streamed. Events: { type: "text", delta },
 // { type: "tool", phase, callId, name, jobId?, liveStatus? },
-// { type: "done", responseId }, { type: "error", message }. Resolves when the
+// { type: "need_image", snapshotId }, { type: "done", responseId,
+// imageAttached, models, durationMs }, { type: "error", message }. Resolves when the
 // relay closes the stream.
 export async function streamChatTurn(input, { signal, onEvent } = {}) {
   const baseUrl = getRelayBaseUrl();
@@ -188,6 +189,15 @@ export async function streamChatTurn(input, { signal, onEvent } = {}) {
   }
   if (!response.ok) throw await toRelayError(response);
   await readEventStream(response, { signal, onEvent });
+}
+
+// Picture of a snapshot the relay only knows the context of: sent when a
+// chat turn says `need_image`. `image` = { mime, width, height, base64 }.
+export function uploadSnapshotImage(snapshotId, image) {
+  return relayFetch(`/snapshots/${snapshotId}/image`, {
+    method: "POST",
+    json: image,
+  });
 }
 
 // Undo button of a drawing made from the chat (no model involved): the relay

@@ -30,6 +30,7 @@ const TOOL_LABELS = {
   get_current_base_map: "Lecture du fond de plan",
   get_detection_instructions: "Lecture des consignes",
   get_detection_job: "Vérification d'un dessin",
+  request_plan_image: "Lecture du plan (image)",
 };
 const UNDOABLE = new Set([
   "draw_annotations",
@@ -66,7 +67,10 @@ export default function ChatMessageAssistant({ message }) {
   // Reading tools are noise once they have succeeded.
   const actions = (message.actions ?? []).filter(
     (a) =>
-      UNDOABLE.has(a.name) || a.name === "undo_drawing" || a.phase !== "done"
+      UNDOABLE.has(a.name) ||
+      a.name === "undo_drawing" ||
+      a.name === "request_plan_image" ||
+      a.phase !== "done"
   );
 
   async function handleUndo(action) {
@@ -140,6 +144,16 @@ export default function ChatMessageAssistant({ message }) {
         {message.content ? (
           <Typography variant="body1" sx={{ whiteSpace: "pre-line" }}>
             {message.content.replace(/\*\*(.+?)\*\*/g, "$1")}
+          </Typography>
+        ) : null}
+        {message.durationMs != null ? (
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ display: "block", mt: 0.5 }}
+          >
+            {(message.durationMs / 1000).toFixed(1)} s
+            {message.models?.length ? ` · ${message.models.join(" → ")}` : ""}
           </Typography>
         ) : null}
         {message.error ? (

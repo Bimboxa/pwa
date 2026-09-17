@@ -53,6 +53,44 @@ export default async function publishBaseMapSnapshotService({
   templates,
   config,
 }) {
+  const context = buildBaseMapContext({
+    baseMap,
+    projectId,
+    scopeId,
+    listingId,
+    templates,
+    config,
+  });
+  const image = await buildBaseMapSnapshotImage({
+    baseMap,
+    maxLongEdge: config?.maxImageLongEdge ?? 1600,
+    jpegQuality: config?.jpegQuality ?? 0.8,
+  });
+  const provenance = relayProvenance(baseMap, config);
+
+  return publishBaseMapSnapshot({
+    ...context,
+    image,
+    ...(provenance.baseMapJobId
+      ? { baseMapJobId: provenance.baseMapJobId }
+      : {}),
+  });
+}
+
+/**
+ * Everything the relay needs about a base map EXCEPT its picture: what the
+ * in-app chat sends with every message (the picture is uploaded only when
+ * the model asks to see the plan). `imageKey` changes when the image does,
+ * so the relay never receives the same picture twice.
+ */
+export function buildBaseMapContext({
+  baseMap,
+  projectId,
+  scopeId,
+  listingId,
+  templates,
+  config,
+}) {
   if (!baseMap?.id) throw new Error("Aucun fond de plan sélectionné.");
 
   const refSize = baseMap.getImageSize?.() || baseMap.image?.imageSize;
@@ -64,29 +102,34 @@ export default async function publishBaseMapSnapshotService({
       "La version active du fond est transformée (décalage/rotation/échelle) : publication non supportée."
     );
   }
-
-  const image = await buildBaseMapSnapshotImage({
-    baseMap,
-    maxLongEdge: config?.maxImageLongEdge ?? 1600,
-    jpegQuality: config?.jpegQuality ?? 0.8,
-  });
-
+  const refWidth = Math.round(refSize.width);
+  const refHeight = Math.round(refSize.height);
   const meterByPx = baseMap.getMeterByPx?.() ?? baseMap.meterByPx ?? null;
+  const imageFile =
+    baseMap.getActiveVersion?.()?.image?.fileName ??
+    baseMap.image?.fileName ??
+    "image";
   const provenance = relayProvenance(baseMap, config);
+  // The job id belongs to the full publication only (it triggers the
+  // annotations job of a vectorization run).
+  delete provenance.baseMapJobId;
 
-  return publishBaseMapSnapshot({
+  return {
     baseMapId: baseMap.id,
     projectId: projectId ?? null,
     scopeId: scopeId ?? null,
     listingId: listingId ?? null,
     name: baseMap.name ?? null,
-    refWidth: Math.round(refSize.width),
-    refHeight: Math.round(refSize.height),
+    refWidth,
+    refHeight,
     meterByPx: meterByPx > 0 ? meterByPx : null,
     templates: summarizeTemplates(templates),
-    image,
+    imageKey: `${baseMap.id}:${imageFile}:${refWidth}x${refHeight}`.slice(
+      0,
+      200
+    ),
     ...provenance,
-  });
+  };
 }
 
 function relayProvenance(baseMap, config) {

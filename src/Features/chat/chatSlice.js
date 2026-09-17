@@ -16,9 +16,9 @@ const chatSlice = createSlice({
     vectorization: null,
     // Models offered by the relay ([{ id, isDefault }]) and the user's pick
     // (null = the relay default).
-    // Conversation kept by the provider: id of the last turn, and the
-    // snapshot the model has already been shown.
-    conversation: { previousResponseId: null, attachedSnapshotId: null },
+    // Conversation kept by the provider: id of the last turn, and the key of
+    // the plan picture the model has already been shown.
+    conversation: { previousResponseId: null, imageKey: null },
     vectorizationModels: [],
     vectorizationModelId: null,
   },
@@ -77,7 +77,7 @@ const chatSlice = createSlice({
       state.messages = [];
       state.conversation = {
         previousResponseId: null,
-        attachedSnapshotId: null,
+        imageKey: null,
       };
     },
     setVectorizationModels(state, action) {

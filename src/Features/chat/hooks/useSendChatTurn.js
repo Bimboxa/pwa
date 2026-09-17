@@ -11,38 +11,32 @@ import {
   updateMessageById,
 } from "../chatSlice";
 
+import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
-import usePublishCurrentBaseMap from "Features/assistantRelay/hooks/usePublishCurrentBaseMap";
+import useAssistantRelayConfig from "Features/assistantRelay/hooks/useAssistantRelayConfig";
+import buildBaseMapSnapshotImage from "Features/assistantRelay/services/buildBaseMapSnapshotImage";
+import { buildBaseMapContext } from "Features/assistantRelay/services/publishBaseMapSnapshotService";
 import {
   describeRelayError,
   streamChatTurn,
+  uploadSnapshotImage,
 } from "Features/assistantRelay/services/assistantRelayClient";
 
-// Is the snapshot the relay holds still what the user is looking at? The
-// model reads the base map, its listing and its templates from it.
-function snapshotIsStale(snapshot, { baseMapId, listingId, templates }) {
-  if (!snapshot) return true;
-  if (snapshot.baseMapId !== baseMapId) return true;
-  if ((snapshot.listingId ?? null) !== (listingId ?? null)) return true;
-  const published = new Set((snapshot.templates ?? []).map((t) => t.id));
-  const current = (templates ?? []).map((t) => t.id);
-  return (
-    current.length !== published.size ||
-    current.some((id) => !published.has(id))
-  );
-}
-
 // A message typed in the chat (no PDF attached) = one conversational turn on
-// the relay: the model answers and acts through the relay's MCP tools; what
-// it draws comes back as live jobs applied by AssistantRelayRuntime.
+// the relay. The displayed base map goes along as CONTEXT only (size, scale,
+// listing, templates): "dessine un carré de 2 m" never moves a picture. When
+// the model decides it must look at the plan, the relay says `need_image` and
+// the picture is uploaded then — once per image version.
 export default function useSendChatTurn() {
   const dispatch = useDispatch();
-  const { publish, mainBaseMap } = usePublishCurrentBaseMap();
+  const config = useAssistantRelayConfig();
+  const mainBaseMap = useMainBaseMap();
   const { value: listing } = useSelectedListing();
   const templates = useAnnotationTemplates();
 
-  const snapshot = useSelector((s) => s.assistantRelay.currentSnapshot);
+  const projectId = useSelector((s) => s.projects.selectedProjectId);
+  const scopeId = useSelector((s) => s.scopes.selectedScopeId);
   const conversation = useSelector((s) => s.chat.conversation);
   const models = useSelector((s) => s.chat.vectorizationModels);
   const modelId = useSelector((s) => s.chat.vectorizationModelId);
@@ -74,37 +68,56 @@ export default function useSendChatTurn() {
           })
         );
       };
+      const setError = (error) => {
+        ensureBubble();
+        dispatch(updateMessageById({ id: messageId, changes: { error } }));
+      };
 
       try {
-        // The model works on what the relay holds: republish when the user
-        // has moved to another base map / listing, or created templates.
-        let current = snapshot;
-        if (
-          mainBaseMap?.id &&
-          snapshotIsStale(snapshot, {
-            baseMapId: mainBaseMap.id,
+        let baseMap = null;
+        if (mainBaseMap?.id) {
+          baseMap = buildBaseMapContext({
+            baseMap: mainBaseMap,
+            projectId,
+            scopeId,
             listingId: listing?.id,
             templates,
-          })
-        ) {
-          current = (await publish()) ?? snapshot;
+            config,
+          });
         }
-        const snapshotId = current?.snapshotId ?? null;
-        const attachSnapshot = Boolean(
-          snapshotId && snapshotId !== conversation.attachedSnapshotId
-        );
+
+        // The model asked to see the plan and the relay does not have this
+        // picture yet.
+        const sendImage = async (snapshotId) => {
+          try {
+            const image = await buildBaseMapSnapshotImage({
+              baseMap: mainBaseMap,
+              maxLongEdge: config?.maxImageLongEdge ?? 1600,
+              jpegQuality: config?.jpegQuality ?? 0.8,
+            });
+            await uploadSnapshotImage(snapshotId, image);
+          } catch (e) {
+            console.log("[chat] plan picture upload failed", e);
+            setError(
+              `Image du plan non envoyée : ${
+                e?.code ? describeRelayError(e) : e?.message
+              }`
+            );
+          }
+        };
 
         await streamChatTurn(
           {
             message,
+            // The turn starts on the relay's fast model; the selector is the
+            // model that takes over when the plan must be looked at.
             ...(modelId && models.some((m) => m.id === modelId)
-              ? { model: modelId }
+              ? { analysisModel: modelId }
               : {}),
             previousResponseId: conversation.previousResponseId,
-            attachSnapshot,
+            ...(baseMap ? { baseMap } : {}),
+            imageKeyInConversation: conversation.imageKey,
             context: {
-              baseMapName: mainBaseMap?.name ?? null,
-              listingId: listing?.id ?? null,
               listingName: listing?.name ?? null,
               selectedTemplateId: selectedTemplateId ?? null,
             },
@@ -121,23 +134,29 @@ export default function useSendChatTurn() {
                 dispatch(
                   appendMessageAction({ id: messageId, toolAction: event })
                 );
+              } else if (event.type === "need_image") {
+                sendImage(event.snapshotId);
               } else if (event.type === "done") {
+                ensureBubble();
                 dispatch(
                   setConversation({
                     previousResponseId: event.responseId,
-                    ...(attachSnapshot
-                      ? { attachedSnapshotId: snapshotId }
+                    ...(event.imageAttached && baseMap
+                      ? { imageKey: baseMap.imageKey }
                       : {}),
                   })
                 );
-              } else if (event.type === "error") {
-                ensureBubble();
                 dispatch(
                   updateMessageById({
                     id: messageId,
-                    changes: { error: event.message },
+                    changes: {
+                      durationMs: event.durationMs,
+                      models: event.models,
+                    },
                   })
                 );
+              } else if (event.type === "error") {
+                setError(event.message);
               }
             },
           }
@@ -145,13 +164,7 @@ export default function useSendChatTurn() {
         return { ok: true };
       } catch (e) {
         console.log("[chat] turn failed", e);
-        ensureBubble();
-        dispatch(
-          updateMessageById({
-            id: messageId,
-            changes: { error: e?.code ? describeRelayError(e) : e?.message },
-          })
-        );
+        setError(e?.code ? describeRelayError(e) : e?.message);
         return { ok: false };
       } finally {
         busy.current = false;
@@ -160,11 +173,12 @@ export default function useSendChatTurn() {
     },
     [
       dispatch,
-      publish,
+      config,
       mainBaseMap,
+      projectId,
+      scopeId,
       listing,
       templates,
-      snapshot,
       conversation,
       models,
       modelId,
