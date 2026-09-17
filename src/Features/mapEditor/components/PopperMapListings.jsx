@@ -94,7 +94,10 @@ import SectionCompareTwoImages from "Features/baseMapTransforms/components/Secti
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import ButtonGeneric from "Features/layout/components/ButtonGeneric";
 import ButtonMergeListingAnnotations from "Features/baseMapEditor/components/ButtonMergeListingAnnotations";
-import { setNewAnnotation } from "Features/annotations/annotationsSlice";
+import {
+  setNewAnnotation,
+  setSoloAnnotationTemplateId,
+} from "Features/annotations/annotationsSlice";
 import TOOL_ITEMS from "Features/mapEditor/constants/toolItems";
 import { getFreeAnnotationShortcut } from "Features/mapEditor/constants/freeAnnotationShortcuts";
 import { resolveDrawingShape } from "Features/annotations/constants/drawingShapeConfig";
@@ -360,6 +363,11 @@ function AnnotationTemplateRow({
   const dispatch = useDispatch();
   const updateAnnotationTemplate = useUpdateAnnotationTemplate();
 
+  // strings
+
+  const soloS = "Solo";
+  const exitSoloS = "Quitter le solo";
+
   // data
 
   const appConfig = useAppConfig();
@@ -443,6 +451,13 @@ function AnnotationTemplateRow({
         annotationTemplate?.id
   );
   const isHighlighted = isEditTarget || isArmedCoteRow;
+  // Template SOLO (transient render filter, see useAnnotationsV2): toggled
+  // from the row icon, exited from the orange band at the bottom of the panel.
+  const isSolo = useSelector(
+    (s) =>
+      Boolean(annotationTemplate?.id) &&
+      s.annotations.soloAnnotationTemplateId === annotationTemplate.id
+  );
 
   // helpers
 
@@ -459,6 +474,14 @@ function AnnotationTemplateRow({
   const handleStartDraw = () => {
     if (isEditing) return;
     startDraw();
+  };
+
+  const handleToggleSolo = (e) => {
+    // Keep the row click (draw / select) out of it.
+    e.stopPropagation();
+    dispatch(
+      setSoloAnnotationTemplateId(isSolo ? null : annotationTemplate?.id)
+    );
   };
 
   const handleSelectAsEditTarget = () => {
@@ -644,47 +667,88 @@ function AnnotationTemplateRow({
             minWidth: 0,
           }}
         >
-          <Box
-            sx={{
-              position: "relative",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              width: 24,
-              height: 24,
-              mr: 1,
-              flexShrink: 0,
-              opacity: isHidden ? 0.4 : 1,
-              filter: isHidden ? "grayscale(100%)" : "none",
-            }}
+          {/* Template icon = SOLO toggle (icon-button shape on row hover) */}
+          <Tooltip
+            title={isEditing ? "" : isSolo ? exitSoloS : soloS}
+            arrow
+            placement="bottom"
           >
-            <AnnotationTemplateIcon
-              template={annotationTemplate}
-              size={18}
-              spriteImage={spriteImage}
-              revolutionAxisVertical={isVerticalBaseMap}
-            />
-            {strokeWidthLabel && (
-              <Typography
-                component="span"
+            <Box
+              onClick={isEditing ? undefined : handleToggleSolo}
+              onDoubleClick={(e) => e.stopPropagation()}
+              sx={(theme) => ({
+                position: "relative",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: 24,
+                height: 24,
+                mr: 1,
+                flexShrink: 0,
+                borderRadius: 1,
+                transition: "background-color 120ms, box-shadow 120ms",
+                ...(isSolo && {
+                  bgcolor: alpha(theme.palette.secondary.main, 0.15),
+                  boxShadow: `0 0 0 2px ${theme.palette.secondary.main}`,
+                }),
+                // Button shape as soon as the whole row is hovered (shows the
+                // icon is clickable), stronger shadow on the icon itself.
+                ...(!isEditing &&
+                  isHovered && {
+                    bgcolor: "background.paper",
+                    boxShadow: isSolo
+                      ? `0 0 0 2px ${theme.palette.secondary.main}, ${theme.shadows[1]}`
+                      : `0 0 0 1px ${theme.palette.panel.border}, ${theme.shadows[1]}`,
+                  }),
+                ...(!isEditing && {
+                  cursor: "pointer",
+                  "&:hover": {
+                    bgcolor: "background.paper",
+                    boxShadow: isSolo
+                      ? `0 0 0 2px ${theme.palette.secondary.main}, ${theme.shadows[3]}`
+                      : `0 0 0 1px ${theme.palette.panel.border}, ${theme.shadows[3]}`,
+                  },
+                }),
+              })}
+            >
+              <Box
                 sx={{
-                  position: "absolute",
-                  left: "50%",
-                  bottom: -1,
-                  transform: "translateX(-50%)",
-                  fontSize: "7px",
-                  lineHeight: 1,
-                  fontFamily: "monospace",
-                  color: "text.secondary",
-                  whiteSpace: "nowrap",
-                  pointerEvents: "none",
-                  userSelect: "none",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  opacity: isHidden ? 0.4 : 1,
+                  filter: isHidden ? "grayscale(100%)" : "none",
                 }}
               >
-                {strokeWidthLabel}
-              </Typography>
-            )}
-          </Box>
+                <AnnotationTemplateIcon
+                  template={annotationTemplate}
+                  size={18}
+                  spriteImage={spriteImage}
+                  revolutionAxisVertical={isVerticalBaseMap}
+                />
+              </Box>
+              {strokeWidthLabel && (
+                <Typography
+                  component="span"
+                  sx={{
+                    position: "absolute",
+                    left: "50%",
+                    bottom: -1,
+                    transform: "translateX(-50%)",
+                    fontSize: "7px",
+                    lineHeight: 1,
+                    fontFamily: "monospace",
+                    color: "text.secondary",
+                    whiteSpace: "nowrap",
+                    pointerEvents: "none",
+                    userSelect: "none",
+                  }}
+                >
+                  {strokeWidthLabel}
+                </Typography>
+              )}
+            </Box>
+          </Tooltip>
           {freeShortcut &&
             (interactionMode === "DRAW" || interactionMode == null) && (
               <Box sx={{ mr: 1, flexShrink: 0 }}>
@@ -1600,10 +1664,21 @@ export default function PopperMapListings() {
   // Only used by the commented ListingChipsBar call site (chip selector).
   // eslint-disable-next-line no-unused-vars
   const addListS = "+ Liste";
+  const soloS = "Solo :";
+  const exitSoloS = "Quitter le solo";
 
   // data
 
   const dispatch = useDispatch();
+  // Template SOLO (toggled from a template row icon): orange band at the
+  // bottom of the panel, with the template name and an exit cross.
+  const soloTemplateId = useSelector(
+    (s) => s.annotations.soloAnnotationTemplateId
+  );
+  const soloTemplate = useLiveQuery(
+    () => (soloTemplateId ? db.annotationTemplates.get(soloTemplateId) : null),
+    [soloTemplateId]
+  );
   const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
   const enabledDrawingMode = useSelector((s) => s.mapEditor.enabledDrawingMode);
   const pasteClipboard = useSelector((s) => s.mapEditor.pasteClipboard);
@@ -1973,6 +2048,10 @@ export default function PopperMapListings() {
   }, [effectiveInteractionMode, selectedItem?.type, dispatch]);
 
   // handlers
+
+  const handleExitSolo = () => {
+    dispatch(setSoloAnnotationTemplateId(null));
+  };
 
   // A chip click just sets the current listing (persisted via setInitListingId
   // in the slice). Opening the listing properties stays an explicit action (the
@@ -2440,6 +2519,37 @@ export default function PopperMapListings() {
             </>
           </Box>
         </>
+      )}
+
+      {/* Template SOLO band — outside the scrollable body, so it stays visible
+          at the bottom (collapsed panel included). */}
+      {soloTemplateId && (
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 0.5,
+            pl: 1.5,
+            pr: 0.5,
+            py: 0.25,
+            flexShrink: 0,
+            bgcolor: "secondary.main",
+            color: "secondary.contrastText",
+          }}
+        >
+          <Typography variant="caption" noWrap sx={{ flex: 1, minWidth: 0 }}>
+            <b>{soloS}</b> {soloTemplate?.label}
+          </Typography>
+          <Tooltip title={exitSoloS} arrow placement="top">
+            <IconButton
+              size="small"
+              onClick={handleExitSolo}
+              sx={{ color: "inherit", p: 0.25 }}
+            >
+              <Close sx={{ fontSize: 16 }} />
+            </IconButton>
+          </Tooltip>
+        </Box>
       )}
 
       {/* Create listing dialog */}

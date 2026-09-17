@@ -1,11 +1,13 @@
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import { setHiddenListingsIds } from "Features/listings/listingsSlice";
 
-import { Badge, Box, Tooltip, Typography } from "@mui/material";
+import { Box, Tooltip, Typography } from "@mui/material";
 import Add from "@mui/icons-material/Add";
 import MoreHoriz from "@mui/icons-material/MoreHoriz";
+import Visibility from "@mui/icons-material/Visibility";
+import VisibilityOff from "@mui/icons-material/VisibilityOff";
 
 import AvatarListing from "Features/listings/components/AvatarListing";
 import DialogCreateListing from "Features/listings/components/DialogCreateListing";
@@ -17,16 +19,18 @@ import useSelectActiveListing from "Features/panelDrawing/hooks/useSelectActiveL
 // ListingAvatarsBar — compact alternative to the LISTE ACTIVE field: one
 // avatar per listing (selected in intense secondary, visible listings with
 // annotations on the current base map in light secondary, hidden or empty
-// listings in grey), a badge with the annotations count ("+99" above 99),
-// a "+" avatar to create a listing and, at the far right, the "..." menu of
-// the active listing (which hosts the Sélecteur / Avatars mode switch).
-// Click = toggle the listing visibility, double click = select the listing.
+// listings in grey), a "+" avatar to create a listing and, at the far right,
+// the "..." menu of the active listing (which hosts the Sélecteur / Avatars
+// mode switch).
+// Click = select the listing (unhides it, the other listings are untouched),
+// double click = select the listing and hide all the others.
+// Hover = two indicators above the avatar: a visibility toggle (left) and
+// the annotations count (right, "+99" above 99), plus a bottom tooltip with
+// the listing name.
 // ---------------------------------------------------------------------------
 
-// Single clicks are deferred so that a double click does not also toggle
-// the visibility twice before selecting.
-const DOUBLE_CLICK_DELAY_MS = 220;
 const MAX_BADGE_COUNT = 99;
+const INDICATOR_SIZE = 16;
 const AVATAR_SIZE = 32;
 
 export default function ListingAvatarsBar({
@@ -39,10 +43,6 @@ export default function ListingAvatarsBar({
 
   // strings
 
-  const hiddenS = "masquée";
-  const annotationS = "annotation";
-  const annotationsS = "annotations";
-  const helpS = "Clic : afficher / masquer · Double clic : sélectionner";
   const labelS = "Liste active";
   const addListingS = "Nouvelle liste";
   const moreS = "Actions sur la liste active";
@@ -57,13 +57,8 @@ export default function ListingAvatarsBar({
 
   // state
 
-  const clickTimerRef = useRef(null);
   const [moreMenuAnchor, setMoreMenuAnchor] = useState(null);
   const [openCreateListing, setOpenCreateListing] = useState(false);
-
-  useEffect(() => {
-    return () => clearTimeout(clickTimerRef.current);
-  }, []);
 
   // helpers
 
@@ -73,20 +68,6 @@ export default function ListingAvatarsBar({
     if (listing.id === activeListingId) return "selected";
     if (hidden || count === 0) return "muted";
     return "visible";
-  };
-
-  const getTooltip = (listing, count, hidden) => {
-    const name = listing.name ?? listing.label ?? "Liste";
-    const countS = `${count} ${count > 1 ? annotationsS : annotationS}`;
-    const stateS = hidden
-      ? `${name} · ${countS} · ${hiddenS}`
-      : `${name} · ${countS}`;
-    return (
-      <Box>
-        <Box>{stateS}</Box>
-        <Box sx={{ opacity: 0.7, fontSize: "0.7rem" }}>{helpS}</Box>
-      </Box>
-    );
   };
 
   const getBadgeContent = (count) =>
@@ -105,16 +86,19 @@ export default function ListingAvatarsBar({
     );
   };
 
+  // The two clicks of a double click also run handleClick: harmless, it
+  // only selects / unhides the same listing.
   const handleClick = (listingId) => {
-    clearTimeout(clickTimerRef.current);
-    clickTimerRef.current = setTimeout(() => {
-      toggleVisibility(listingId);
-    }, DOUBLE_CLICK_DELAY_MS);
+    selectListing(listingId, { hideOthers: false });
   };
 
   const handleDoubleClick = (listingId) => {
-    clearTimeout(clickTimerRef.current);
-    selectListing(listingId);
+    selectListing(listingId, { hideOthers: true });
+  };
+
+  const handleToggleVisibility = (e, listingId) => {
+    e.stopPropagation();
+    toggleVisibility(listingId);
   };
 
   // render
@@ -186,30 +170,22 @@ export default function ListingAvatarsBar({
             const hidden = hiddenListingsIds.includes(listing.id);
             const variant = getVariant(listing, count, hidden);
             return (
-              <Tooltip
+              <Box
                 key={listing.id}
-                title={getTooltip(listing, count, hidden)}
-                arrow
-                placement="top"
+                sx={{
+                  position: "relative",
+                  display: "inline-flex",
+                  "& .listingAvatarIndicator": {
+                    opacity: 0,
+                    transition: "opacity 120ms",
+                  },
+                  "&:hover .listingAvatarIndicator": { opacity: 1 },
+                }}
               >
-                <Badge
-                  badgeContent={getBadgeContent(count)}
-                  invisible={count === 0}
-                  overlap="circular"
-                  max={MAX_BADGE_COUNT + 1}
-                  sx={{
-                    "& .MuiBadge-badge": {
-                      fontSize: "0.6rem",
-                      fontWeight: 700,
-                      height: 16,
-                      minWidth: 16,
-                      px: 0.5,
-                      bgcolor: hidden ? "panel.iconMuted" : "secondary.main",
-                      color: "secondary.contrastText",
-                      border: "1.5px solid",
-                      borderColor: "background.paper",
-                    },
-                  }}
+                <Tooltip
+                  title={listing.name ?? listing.label ?? "Liste"}
+                  arrow
+                  placement="bottom"
                 >
                   <AvatarListing
                     listing={listing}
@@ -218,8 +194,70 @@ export default function ListingAvatarsBar({
                     onClick={() => handleClick(listing.id)}
                     onDoubleClick={() => handleDoubleClick(listing.id)}
                   />
-                </Badge>
-              </Tooltip>
+                </Tooltip>
+
+                {/* Hover indicator (top left): visibility toggle */}
+                <Box
+                  component="button"
+                  className="listingAvatarIndicator"
+                  onClick={(e) => handleToggleVisibility(e, listing.id)}
+                  onDoubleClick={(e) => e.stopPropagation()}
+                  sx={{
+                    position: "absolute",
+                    top: -INDICATOR_SIZE / 2,
+                    left: -INDICATOR_SIZE / 2,
+                    width: INDICATOR_SIZE + 2,
+                    height: INDICATOR_SIZE + 2,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    p: 0,
+                    borderRadius: "50%",
+                    border: "1.5px solid",
+                    borderColor: "background.paper",
+                    bgcolor: hidden ? "panel.iconMuted" : "secondary.main",
+                    color: "secondary.contrastText",
+                    cursor: "pointer",
+                    zIndex: 1,
+                  }}
+                >
+                  {hidden ? (
+                    <VisibilityOff sx={{ fontSize: 11 }} />
+                  ) : (
+                    <Visibility sx={{ fontSize: 11 }} />
+                  )}
+                </Box>
+
+                {/* Hover indicator (top right): annotations count */}
+                <Box
+                  className="listingAvatarIndicator"
+                  sx={{
+                    position: "absolute",
+                    top: -INDICATOR_SIZE / 2,
+                    right: -INDICATOR_SIZE / 2,
+                    height: INDICATOR_SIZE + 2,
+                    minWidth: INDICATOR_SIZE + 2,
+                    px: 0.5,
+                    boxSizing: "border-box",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    borderRadius: 999,
+                    border: "1.5px solid",
+                    borderColor: "background.paper",
+                    bgcolor: hidden ? "panel.iconMuted" : "secondary.main",
+                    color: "secondary.contrastText",
+                    fontSize: "0.6rem",
+                    fontWeight: 700,
+                    lineHeight: 1,
+                    zIndex: 1,
+                    // Display only: clicks go through to the avatar.
+                    pointerEvents: "none",
+                  }}
+                >
+                  {getBadgeContent(count)}
+                </Box>
+              </Box>
             );
           })}
 
