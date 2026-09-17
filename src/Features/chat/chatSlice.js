@@ -17,6 +17,9 @@ const chatSlice = createSlice({
     // Conversation kept by the provider: id of the last turn, and the key of
     // the plan picture the model has already been shown.
     conversation: { previousResponseId: null, imageKey: null },
+    // "Ne pas envoyer l'image": the model is not even offered the plan
+    // picture. Ticked by default — the user opts in per message.
+    blockPlanImage: true,
     // Levels of reflection offered by the relay ([{ id, label, model }]) and
     // the user's pick (null = the relay default, `high`).
     reasoningLevels: [],
@@ -70,6 +73,9 @@ const chatSlice = createSlice({
       const toolAction = message?.actions?.find((a) => a.callId === callId);
       if (toolAction) Object.assign(toolAction, changes);
     },
+    setBlockPlanImage(state, action) {
+      state.blockPlanImage = Boolean(action.payload);
+    },
     setConversation(state, action) {
       state.conversation = { ...state.conversation, ...action.payload };
     },
@@ -104,6 +110,7 @@ export const {
   setVectorization,
   appendMessageAction,
   updateMessageAction,
+  setBlockPlanImage,
   setConversation,
   resetConversation,
   setReasoningLevels,

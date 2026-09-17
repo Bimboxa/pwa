@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
+
+import { setBlockPlanImage } from "../chatSlice";
 
 import useIsMobile from "Features/layout/hooks/useIsMobile";
 import useSendChatTurn from "../hooks/useSendChatTurn";
@@ -7,7 +9,7 @@ import useStartVectorization, {
   DEFAULT_VECTORIZATION_INSTRUCTION,
 } from "../hooks/useStartVectorization";
 
-import { Box } from "@mui/material";
+import { Box, Checkbox, FormControlLabel } from "@mui/material";
 import { Send as SendIcon } from "@mui/icons-material";
 
 import ButtonGeneric from "Features/layout/components/ButtonGeneric";
@@ -19,6 +21,7 @@ export default function ChatInput() {
   // strings
 
   const sendS = "Envoyer";
+  const blockImageS = "Ne pas envoyer l'image";
 
   // state
 
@@ -28,6 +31,8 @@ export default function ChatInput() {
 
   const sendChatTurn = useSendChatTurn();
   const isThinking = useSelector((s) => s.chat.isThinking);
+  const dispatch = useDispatch();
+  const blockPlanImage = useSelector((s) => s.chat.blockPlanImage);
   const {
     pendingPdf,
     hasActiveRun,
@@ -88,7 +93,23 @@ export default function ChatInput() {
         }}
       />
 
-      <BoxAlignToRight>
+      <BoxAlignToRight sx={{ alignItems: "center", gap: 1 }}>
+        {/* Ticked: the model cannot ask for the plan picture (typed messages
+            only — a dropped PDF is a vectorization). */}
+        {!pendingPdf && (
+          <FormControlLabel
+            sx={{ mr: "auto", ml: 0 }}
+            control={
+              <Checkbox
+                size="small"
+                checked={blockPlanImage}
+                onChange={(e) => dispatch(setBlockPlanImage(e.target.checked))}
+              />
+            }
+            label={blockImageS}
+            slotProps={{ typography: { variant: "caption" } }}
+          />
+        )}
         <ButtonGeneric
           variant="contained"
           color="secondary"

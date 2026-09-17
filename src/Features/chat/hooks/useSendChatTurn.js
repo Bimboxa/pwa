@@ -38,6 +38,7 @@ export default function useSendChatTurn() {
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const scopeId = useSelector((s) => s.scopes.selectedScopeId);
   const conversation = useSelector((s) => s.chat.conversation);
+  const blockPlanImage = useSelector((s) => s.chat.blockPlanImage);
   const levels = useSelector((s) => s.chat.reasoningLevels);
   const levelId = useSelector((s) => s.chat.reasoningLevelId);
   const selectedTemplateId = useSelector(
@@ -116,6 +117,7 @@ export default function useSendChatTurn() {
               : {}),
             previousResponseId: conversation.previousResponseId,
             ...(baseMap ? { baseMap } : {}),
+            allowImage: !blockPlanImage,
             imageKeyInConversation: conversation.imageKey,
             context: {
               listingName: listing?.name ?? null,
@@ -180,6 +182,7 @@ export default function useSendChatTurn() {
       listing,
       templates,
       conversation,
+      blockPlanImage,
       levels,
       levelId,
       selectedTemplateId,
