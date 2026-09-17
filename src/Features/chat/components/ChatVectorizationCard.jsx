@@ -166,7 +166,7 @@ export default function ChatVectorizationCard({ message }) {
         mt: 1.5,
         p: 1,
         borderRadius: 1,
-        backgroundColor: "common.white",
+        backgroundColor: "#2b2b2b",
         display: "flex",
         flexDirection: "column",
         gap: 1,

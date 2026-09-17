@@ -1,4 +1,4 @@
-import {CircularProgress, Box, Paper} from "@mui/material";
+import { CircularProgress, Box, Paper } from "@mui/material";
 
 export default function ThinkingBubble() {
   return (
@@ -8,7 +8,9 @@ export default function ThinkingBubble() {
           p: 1.5,
           display: "flex",
           alignItems: "center",
-          backgroundColor: "#e0e0e0",
+          backgroundColor: "background.paper",
+          backgroundImage: "none",
+          boxShadow: "none",
           borderRadius: 2,
         }}
       >

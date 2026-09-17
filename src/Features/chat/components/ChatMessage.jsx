@@ -1,6 +1,6 @@
-import {Box, Typography, Paper} from "@mui/material";
+import { Box, Typography, Paper } from "@mui/material";
 
-export default function ChatMessage({role, content}) {
+export default function ChatMessage({ role, content }) {
   const isUser = role === "user";
 
   return (
@@ -9,12 +9,14 @@ export default function ChatMessage({role, content}) {
         sx={{
           p: 1.5,
           maxWidth: "75%",
-          backgroundColor: isUser ? "#1976d2" : "#e0e0e0",
-          color: isUser ? "white" : "black",
+          backgroundColor: isUser ? "#2b2b2b" : "background.paper",
+          backgroundImage: "none",
+          boxShadow: "none",
+          color: "text.primary",
           borderRadius: 2,
         }}
       >
-        <Typography variant="body1" sx={{whiteSpace: "pre-line"}}>
+        <Typography variant="body1" sx={{ whiteSpace: "pre-line" }}>
           {content}
         </Typography>
       </Paper>

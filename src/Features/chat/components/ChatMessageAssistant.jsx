@@ -106,7 +106,9 @@ export default function ChatMessageAssistant({ message }) {
         sx={{
           p: 1.5,
           maxWidth: "90%",
-          backgroundColor: "#e0e0e0",
+          backgroundColor: "background.paper",
+          backgroundImage: "none",
+          boxShadow: "none",
           borderRadius: 2,
         }}
       >

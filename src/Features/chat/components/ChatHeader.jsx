@@ -1,6 +1,5 @@
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 
-import { lighten } from "@mui/material";
 import { Box, Typography } from "@mui/material";
 import theme from "Styles/theme";
 
@@ -17,25 +16,25 @@ export default function ChatHeader() {
 
     // helper
 
-    const color = listing?.color ?? theme.palette.primary.main;
-    const lightColor = lighten(color, 0.2);
-    const textColor = theme.palette.getContrastText(lightColor);
-
+    const color = listing?.color ?? theme.palette.secondary.main;
 
     const titleS = `Liste ${listing?.name}`;
 
-    // render
+    // render — dark, like the panel; the listing colour stays as an accent.
 
     return (
         <Box
             sx={{
                 p: 2,
-                bgcolor: lightColor,
-                color: textColor,
+                bgcolor: "background.default",
+                color: "text.primary",
+                borderBottom: "1px solid",
+                borderColor: "divider",
+                borderLeft: `3px solid ${color}`,
             }}
         >
             <Typography variant="body2" sx={{ fontWeight: "bold" }}>{titleS}</Typography>
-            <Typography variant="subtitle1">{descriptionS}</Typography>
+            <Typography variant="body2" color="text.secondary">{descriptionS}</Typography>
         </Box>
     );
 }

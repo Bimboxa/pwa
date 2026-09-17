@@ -67,7 +67,8 @@ export default function ChatInput() {
     <Box
       display="flex"
       p={1}
-      borderTop="1px solid #ccc"
+      borderTop="1px solid"
+      borderColor="divider"
       overflow="auto"
       flexDirection="column"
       sx={{ width: 1 }}

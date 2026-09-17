@@ -128,8 +128,9 @@ export default function ChatRelayBar() {
         display: "flex",
         flexDirection: "column",
         gap: 1,
-        borderBottom: "1px solid #ddd",
-        backgroundColor: "white",
+        borderBottom: "1px solid",
+        borderColor: "divider",
+        backgroundColor: "background.default",
       }}
     >
       <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
@@ -147,10 +148,37 @@ export default function ChatRelayBar() {
             <Select
               size="small"
               variant="standard"
+              disableUnderline
               value={levelId ?? ""}
               onChange={handleModelChange}
-              sx={{ flex: 1, minWidth: 0, fontSize: 13 }}
-              MenuProps={{ PaperProps: { sx: { maxHeight: 320 } } }}
+              // Dark pill, like the rest of the panel.
+              sx={{
+                flex: 1,
+                minWidth: 0,
+                fontSize: 13,
+                backgroundColor: "#2b2b2b",
+                borderRadius: 999,
+                px: 1.5,
+                py: 0.25,
+                "& .MuiSelect-select": {
+                  py: 0.5,
+                  "&:focus": { backgroundColor: "transparent" },
+                },
+                "& .MuiSvgIcon-root": { color: "text.secondary", mr: 1 },
+              }}
+              MenuProps={{
+                PaperProps: {
+                  sx: {
+                    maxHeight: 320,
+                    mt: 0.5,
+                    backgroundColor: "#2b2b2b",
+                    backgroundImage: "none",
+                    border: "1px solid",
+                    borderColor: "divider",
+                    borderRadius: 2,
+                  },
+                },
+              }}
             >
               {levels.map((l) => (
                 <MenuItem key={l.id} value={l.id} sx={{ fontSize: 13 }}>

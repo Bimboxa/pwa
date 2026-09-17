@@ -4,6 +4,9 @@ import { useSelector, useDispatch } from "react-redux";
 import { setIsThinking } from "../chatSlice";
 
 import { Stack, Box, Typography } from "@mui/material";
+import { ThemeProvider } from "@mui/material/styles";
+
+import chatDarkTheme from "../chatDarkTheme";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import ChatInput from "./ChatInput";
@@ -71,64 +74,68 @@ export default function PanelChat() {
   }
 
   return (
-    <Box
-      onDragEnter={handleDragEnter}
-      onDragLeave={handleDragLeave}
-      onDragOver={handleDragOver}
-      onDrop={handleDrop}
-      sx={{
-        height: 1,
-        display: "flex",
-        flexDirection: "column",
-        borderLeft: "1px solid #ccc",
-        width: 1,
-        backgroundColor: "#f9f9f9",
-        position: "relative",
-      }}
-    >
-      {dragOver && (
-        <Box
-          sx={{
-            position: "absolute",
-            inset: 0,
-            zIndex: 2,
-            m: 1,
-            border: "2px dashed",
-            borderColor: "secondary.main",
-            borderRadius: 2,
-            backgroundColor: "rgba(255,255,255,0.85)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            pointerEvents: "none",
-          }}
-        >
-          <Typography variant="body1" color="secondary">
-            Déposer un PDF à vectoriser
-          </Typography>
-        </Box>
-      )}
-      <ChatHeader />
-      {canDropPdf && <ChatRelayBar />}
-      <Stack spacing={2} sx={{ flex: 1, overflowY: "auto", p: 1 }}>
-        {messages.map((msg, i) =>
-          msg.type === "vectorization" ? (
-            <ChatMessageVectorization key={msg.id ?? i} message={msg} />
-          ) : msg.type === "assistant" ? (
-            <ChatMessageAssistant key={msg.id ?? i} message={msg} />
-          ) : (
-            <ChatMessage
-              key={msg.id ?? i}
-              role={msg.role}
-              content={msg.content}
-            />
-          )
+    <ThemeProvider theme={chatDarkTheme}>
+      <Box
+        onDragEnter={handleDragEnter}
+        onDragLeave={handleDragLeave}
+        onDragOver={handleDragOver}
+        onDrop={handleDrop}
+        sx={{
+          height: 1,
+          display: "flex",
+          flexDirection: "column",
+          borderLeft: "1px solid",
+          borderColor: "divider",
+          width: 1,
+          backgroundColor: "background.default",
+          color: "text.primary",
+          position: "relative",
+        }}
+      >
+        {dragOver && (
+          <Box
+            sx={{
+              position: "absolute",
+              inset: 0,
+              zIndex: 2,
+              m: 1,
+              border: "2px dashed",
+              borderColor: "secondary.main",
+              borderRadius: 2,
+              backgroundColor: "rgba(23,23,23,0.9)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              pointerEvents: "none",
+            }}
+          >
+            <Typography variant="body1" color="secondary">
+              Déposer un PDF à vectoriser
+            </Typography>
+          </Box>
         )}
-        {isThinking && <ThinkingBubble />}
-        <SectionManagedDataByAgent />
-      </Stack>
+        <ChatHeader />
+        {canDropPdf && <ChatRelayBar />}
+        <Stack spacing={2} sx={{ flex: 1, overflowY: "auto", p: 1 }}>
+          {messages.map((msg, i) =>
+            msg.type === "vectorization" ? (
+              <ChatMessageVectorization key={msg.id ?? i} message={msg} />
+            ) : msg.type === "assistant" ? (
+              <ChatMessageAssistant key={msg.id ?? i} message={msg} />
+            ) : (
+              <ChatMessage
+                key={msg.id ?? i}
+                role={msg.role}
+                content={msg.content}
+              />
+            )
+          )}
+          {isThinking && <ThinkingBubble />}
+          <SectionManagedDataByAgent />
+        </Stack>
 
-      {openChat && <ChatInput />}
-    </Box>
+        {openChat && <ChatInput />}
+      </Box>
+    </ThemeProvider>
   );
 }

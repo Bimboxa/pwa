@@ -159,7 +159,9 @@ export default function ChatMessageVectorization({ message }) {
           p: 1.5,
           maxWidth: "95%",
           minWidth: 0,
-          backgroundColor: "#e0e0e0",
+          backgroundColor: "background.paper",
+          backgroundImage: "none",
+          boxShadow: "none",
           borderRadius: 2,
         }}
       >
