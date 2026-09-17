@@ -46,9 +46,18 @@ function canvasToBlob(canvas, mime, quality) {
 }
 
 /**
- * Render the baseMap image downscaled (long edge ≤ maxLongEdge) as JPEG for
- * the relay. The downscale keeps the aspect ratio, so normalized [0..1]
- * coordinates computed on it map straight onto the reference size.
+ * Picture of the base map IN ITS REFERENCE FRAME, downscaled (long edge ≤
+ * maxLongEdge) as JPEG for the relay.
+ *
+ * Annotations are normalized against the reference frame
+ * (`getImageSize()` = refWidth × refHeight), not against the pixels of the
+ * active version: a version is an image placed in that frame by its
+ * `transform` {x, y, scale, rotation} — the editor draws it with
+ * `translate(x, y) scale(scale) rotate(rotation)` (StaticMapContent). The same
+ * placement is reproduced here, so normalized [0..1] coordinates read on the
+ * published picture are reference coordinates whatever the active version
+ * (original, enhanced, re-scanned, shifted…). Areas of the frame the version
+ * does not cover stay white.
  *
  * @returns {Promise<{base64: string, mime: string, width: number, height: number}>}
  */
@@ -61,12 +70,14 @@ export default async function buildBaseMapSnapshotImage({
   const blob = await getBaseMapBlob(baseMap);
   const bitmap = await createImageBitmap(blob);
   try {
-    const scale = Math.min(
-      1,
-      maxLongEdge / Math.max(bitmap.width, bitmap.height)
-    );
-    const width = Math.max(1, Math.round(bitmap.width * scale));
-    const height = Math.max(1, Math.round(bitmap.height * scale));
+    const ref = baseMap?.getImageSize?.();
+    const refWidth = ref?.width > 0 ? ref.width : bitmap.width;
+    const refHeight = ref?.height > 0 ? ref.height : bitmap.height;
+    const t = baseMap?.getActiveVersionTransform?.() ?? {};
+
+    const k = Math.min(1, maxLongEdge / Math.max(refWidth, refHeight));
+    const width = Math.max(1, Math.round(refWidth * k));
+    const height = Math.max(1, Math.round(refHeight * k));
 
     const canvas = document.createElement("canvas");
     canvas.width = width;
@@ -75,7 +86,13 @@ export default async function buildBaseMapSnapshotImage({
     // JPEG has no alpha: flatten on white so transparent plans stay readable.
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, width, height);
-    ctx.drawImage(bitmap, 0, 0, width, height);
+    // reference px → canvas px, then the version placement (SVG order).
+    ctx.scale(width / refWidth, height / refHeight);
+    ctx.translate(t.x ?? 0, t.y ?? 0);
+    ctx.scale(t.scale ?? 1, t.scale ?? 1);
+    ctx.rotate(((t.rotation ?? 0) * Math.PI) / 180);
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(bitmap, 0, 0);
 
     const out = await canvasToBlob(
       canvas,

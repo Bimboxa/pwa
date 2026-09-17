@@ -1,16 +1,6 @@
 import buildBaseMapSnapshotImage from "./buildBaseMapSnapshotImage";
 import { publishBaseMapSnapshot } from "./assistantRelayClient";
 
-function isIdentityTransform(t) {
-  if (!t) return true;
-  return (
-    (t.x ?? 0) === 0 &&
-    (t.y ?? 0) === 0 &&
-    (t.rotation ?? 0) === 0 &&
-    (t.scale ?? 1) === 1
-  );
-}
-
 // Summarize the project templates for the model: label/type/colors, plus
 // what it needs to pick one when drawing live (shape, band width, height).
 function summarizeTemplates(templates) {
@@ -36,9 +26,8 @@ function summarizeTemplates(templates) {
  * Publish the main baseMap to the relay: downscaled JPEG + the metadata the
  * model and the import need (reference size, scale, templates).
  *
- * Phase 1 guard: the active version must have an identity transform, else
- * normalized coordinates of the displayed image would not map onto the
- * reference frame used by the import.
+ * The picture is built in the reference frame (see
+ * buildBaseMapSnapshotImage), so any active version can be published.
  *
  * Provenance: when the base map was cut out of a PDF stored on the relay
  * (created from a ChatGPT base map job), `createdFrom.relay` carries the
@@ -97,18 +86,18 @@ export function buildBaseMapContext({
   if (!refSize?.width || !refSize?.height) {
     throw new Error("Dimensions du fond de plan inconnues.");
   }
-  if (!isIdentityTransform(baseMap.getActiveVersionTransform?.())) {
-    throw new Error(
-      "La version active du fond est transformée (décalage/rotation/échelle) : publication non supportée."
-    );
-  }
   const refWidth = Math.round(refSize.width);
   const refHeight = Math.round(refSize.height);
   const meterByPx = baseMap.getMeterByPx?.() ?? baseMap.meterByPx ?? null;
+  // The published picture depends on the active version AND on how it sits
+  // in the reference frame: both are part of the key.
+  const version = baseMap.getActiveVersion?.();
+  const t = baseMap.getActiveVersionTransform?.() ?? {};
   const imageFile =
-    baseMap.getActiveVersion?.()?.image?.fileName ??
-    baseMap.image?.fileName ??
-    "image";
+    version?.image?.fileName ?? baseMap.image?.fileName ?? "image";
+  const placement = [t.x ?? 0, t.y ?? 0, t.scale ?? 1, t.rotation ?? 0]
+    .map((n) => Math.round(Number(n) * 1000) / 1000)
+    .join(",");
   const provenance = relayProvenance(baseMap, config);
   // The job id belongs to the full publication only (it triggers the
   // annotations job of a vectorization run).
@@ -124,10 +113,11 @@ export function buildBaseMapContext({
     refHeight,
     meterByPx: meterByPx > 0 ? meterByPx : null,
     templates: summarizeTemplates(templates),
-    imageKey: `${baseMap.id}:${imageFile}:${refWidth}x${refHeight}`.slice(
-      0,
-      200
-    ),
+    imageKey:
+      `${baseMap.id}:${imageFile}:${refWidth}x${refHeight}:${placement}`.slice(
+        0,
+        200
+      ),
     ...provenance,
   };
 }
