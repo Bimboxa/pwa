@@ -17,7 +17,7 @@ Le schéma est volontairement aligné sur le modèle `annotationTemplate` /
 
 - les coordonnées sont **normalisées dans `[0..1]`** par rapport à l'image source
   (origine en haut à gauche, `x`→droite, `y`→bas) ;
-- types supportés : **POLYLINE, POLYGON, COTE, STRIP** ;
+- types supportés : **POLYLINE, POLYGON (avec ouvertures `cuts`), COTE, STRIP, FREE_TEXT** ;
 - les courbes sont encodées en **triplet S-C-S** — un point de contrôle avec
   `"type":"circle"` entre deux sommets normaux (`"square"`), conformément à
   `Features/geometry/utils/arcSampling.js` ;
@@ -63,7 +63,9 @@ Le schéma est volontairement aligné sur le modèle `annotationTemplate` /
 > **Types d'éléments** :
 > - **POLYLINE** — lignes/segments ouverts (une arête, un cheminement, un axe).
 > - **POLYGON** — surfaces/zones fermées (une dalle, une section béton, une
->   zone). Mettre `"closeLine": true`.
+>   zone). Mettre `"closeLine": true`. Les **ouvertures** (trémies,
+>   réservations) vont dans `"cuts": [{"points":[…]}]` : des contours fermés
+>   d'au moins 3 points, dans les mêmes coordonnées que le contour.
 > - **STRIP** — une bande d'épaisseur constante le long d'une ligne directrice
 >   (une couche de matériau ou une bande du support béton). Donne ses `points`
 >   comme la ligne directrice ; règle `strokeWidth` à l'épaisseur avec
@@ -79,6 +81,12 @@ Le schéma est volontairement aligné sur le modèle `annotationTemplate` /
 >   points ; règle `"unit"` (`"MM"|"CM"|"M"`), `"decimals"`, et
 >   `"showUnitLabel": true`. **Retranscris la valeur écrite à l'identique** (voir
 >   « Cohérence »).
+> - **FREE_TEXT** — un texte posé sur le dessin (titre, note). Pas de `points` :
+>   `"textContent"` et `"labelPoint": {"x","y"}` = **centre** de la boîte de
+>   texte ; `"targetPoint"` + `"hasConnector": true` pour un trait de rappel.
+>   Style sur le template : `fontSize` (points, comme si le dessin entier était
+>   imprimé sur une page `pageFormat` A4/A3), `textColor`, `fontWeight`,
+>   `hasBackground` + `fillColor`, `hasBorder` + `borderColor`.
 > - **Courbes/arcs** — quand un segment est clairement courbe, modélise-le comme
 >   un groupe de 3 points sur la même polyline/polygon/strip : sommet de départ
 >   (pas de `type`), un **point de contrôle situé sur l'arc** avec

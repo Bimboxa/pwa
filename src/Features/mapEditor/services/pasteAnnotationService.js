@@ -21,7 +21,8 @@ import applyPasteTransformToPoints from "Features/mapEditor/utils/applyPasteTran
  * preserved) and rotates/flips it rigidly around the group center.
  *
  * Supported types per item: POLYGON (with cuts), POLYLINE, STRIP, COTE, POINT,
- * MARKER, DETAIL (keeps its detailBaseMapId link and bubble label).
+ * MARKER, DETAIL (keeps its detailBaseMapId link and bubble label), FREE_TEXT
+ * (inline normalized labelPoint / targetPoint, no db.points row).
  *
  * @param {Object} params
  * @param {Object} params.pasteClipboard  - { sourceCenter, sourceMeterByPx, items[] } from mapEditorSlice
@@ -132,6 +133,9 @@ export default async function pasteAnnotationService({
       cuts: _srcCuts,
       point: _srcPoint,
       targetPoint: _srcTargetPoint,
+      labelPoint: _srcLabelPoint,
+      imageLongSidePx: _srcImageLongSidePx,
+      imageSize: _srcImageSize,
       baseMapName: _srcBaseMapName,
       templateLabel: _srcTemplateLabel,
       annotationTemplate: _srcAnnotationTemplate,
@@ -298,6 +302,22 @@ export default async function pasteAnnotationService({
         transform,
       );
       clonedAnnotation.point = { id: normalize(transformed, sourceAnnotation) };
+    } else if (type === "FREE_TEXT") {
+      // LABEL geometry family: the anchors live inline on the row, normalized
+      // against the ACTIVE map — no db.points rows. `fontSize` is page-relative
+      // (getFreeTextPageScale) and is left untouched.
+      if (!item.baseLabelPoint) continue;
+      const [label, target] = applyPasteTransformToPoints(
+        [item.baseLabelPoint, item.baseTargetPoint ?? item.baseLabelPoint],
+        sourceCenter,
+        targetCenter,
+        transform,
+      );
+      clonedAnnotation.labelPoint = { x: label.x / width, y: label.y / height };
+      clonedAnnotation.targetPoint = {
+        x: target.x / width,
+        y: target.y / height,
+      };
     } else {
       continue;
     }

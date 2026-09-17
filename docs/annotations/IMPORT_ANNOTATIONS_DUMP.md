@@ -105,6 +105,7 @@ Couvert :
 |---|---|---|
 | `points` | POLYLINE, POLYGON, STRIP, COTE, RULER | `points` + `cuts` (trous de polygone) |
 | `point` | POINT, MARKER, DETAIL | `point` |
+| `label` | FREE_TEXT | `labelPoint` (centre de la boîte de texte) + `targetPoint`, stockés **inline et normalisés** sur la ligne (aucune ligne `db.points`) ; `textContent` repris tel quel. `fontSize` (points « page », voir `getFreeTextPageScale`) est remis à l'échelle quand le fond de plan cible n'a pas la même dimension réelle que la source, pour que le texte garde sa hauteur réelle. |
 
 Ces listes reflètent exactement ce que `pasteAnnotationService` sait cloner.
 Tout autre type est **ignoré** et signalé dans le panneau — un dump d'une

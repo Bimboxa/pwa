@@ -1,6 +1,8 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import { useSelector } from "react-redux";
 
+import { getFreeTextPageScale } from "Features/annotations/constants/freeTextConstants";
+
 const POINT_GHOST_RADIUS_PX = 8;
 const STRIP_DEFAULT_WIDTH_PX = 20;
 
@@ -211,6 +213,41 @@ function renderItem(item, key, meterByPx) {
         opacity={0.9}
         style={{ pointerEvents: "none" }}
       />
+    );
+  }
+
+  // FREE_TEXT previews as its text, centred on the box anchor like the placed
+  // annotation (the real box is measured from the DOM once the paste lands).
+  if (type === "FREE_TEXT" && item.baseLabelPoint) {
+    const fontPx =
+      (ann.fontSize ?? 14) *
+      getFreeTextPageScale(ann.pageFormat, item.imageLongSidePx);
+    const lines = String(ann.textContent ?? "").split("\n");
+    const lineHeight = fontPx * 1.2;
+    const firstBaseline =
+      item.baseLabelPoint.y - (lines.length * lineHeight) / 2 + fontPx;
+    return (
+      <text
+        key={key}
+        x={item.baseLabelPoint.x}
+        textAnchor="middle"
+        fontSize={fontPx}
+        fontFamily={ann.fontFamily ?? "Roboto"}
+        fontWeight={ann.fontWeight ?? "normal"}
+        fill={ann.textColor || "#2196f3"}
+        opacity={0.8}
+        style={{ pointerEvents: "none" }}
+      >
+        {lines.map((line, i) => (
+          <tspan
+            key={i}
+            x={item.baseLabelPoint.x}
+            y={firstBaseline + i * lineHeight}
+          >
+            {line}
+          </tspan>
+        ))}
+      </text>
     );
   }
 

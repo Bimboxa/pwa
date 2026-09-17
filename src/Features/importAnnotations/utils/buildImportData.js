@@ -3,6 +3,8 @@ import { nanoid } from "@reduxjs/toolkit";
 import { resolveDrawingShapeFromType } from "Features/annotations/constants/drawingShapeConfig";
 import { pickStyle } from "./importStyleFields";
 
+const FREE_TEXT_DEFAULT_FONT_SIZE = 14;
+
 /**
  * Compute pixel-per-normalized-unit factors so the imported drawing keeps its
  * real-world size when pasted onto the target (calibration) baseMap.
@@ -59,6 +61,30 @@ function computeStripWidthPx(style, mbpxTarget) {
     return Math.abs((strokeWidth * 0.01) / mbpxTarget);
   }
   return Math.abs(strokeWidth);
+}
+
+// FREE_TEXT `fontSize` is a page-point size relative to the WHOLE image (see
+// getFreeTextPageScale): unlike the geometry it does not follow the real-scale
+// mapping by itself. When the drawing is placed at real scale on a target whose
+// long side (in meters) differs from the source's, rescale it so the text keeps
+// its real-world height next to the shapes it was laid out with.
+function getFreeTextFontFactor({
+  image,
+  widthMeters,
+  mbpxTarget,
+  baseMapImageSize,
+  scaled,
+  relative,
+}) {
+  if (!scaled || relative) return 1;
+  if (!(baseMapImageSize?.width > 0) || !(baseMapImageSize?.height > 0))
+    return 1;
+  const sourceLongM = widthMeters * Math.max(1, image.height / image.width);
+  const targetLongM =
+    mbpxTarget * Math.max(baseMapImageSize.width, baseMapImageSize.height);
+  const factor = sourceLongM / targetLongM;
+  if (!Number.isFinite(factor) || factor <= 0) return 1;
+  return Math.abs(factor - 1) < 1e-6 ? 1 : factor;
 }
 
 // Normalized [0..1] → target pixels, carrying the ref flags (arc `type`, per
@@ -118,6 +144,15 @@ export default function buildImportData({
     baseMapImageSize,
   });
 
+  const freeTextFontFactor = getFreeTextFontFactor({
+    image,
+    widthMeters,
+    mbpxTarget,
+    baseMapImageSize,
+    scaled,
+    relative,
+  });
+
   const excluded = new Set(excludedTemplateIds ?? []);
   const baseMapId = mainBaseMap?.id;
   const items = [];
@@ -158,7 +193,32 @@ export default function buildImportData({
 
     const item = { annotation };
 
-    if (ann.point) {
+    if (ann.type === "FREE_TEXT") {
+      // LABEL geometry family: two inline anchors, no db.points rows.
+      // `labelPoint` is the CENTRE of the text box (NodeFreeTextStatic).
+      const label = ann.labelPoint ?? ann.targetPoint;
+      const [baseLabelPoint, baseTargetPoint] = toBasePoints(
+        [label, ann.targetPoint ?? label],
+        pxPerNormX,
+        pxPerNormY
+      );
+      item.baseLabelPoint = baseLabelPoint;
+      item.baseTargetPoint = baseTargetPoint;
+      // Paste ghost: fontSize is relative to the TARGET image long side.
+      item.imageLongSidePx = Math.max(
+        baseMapImageSize?.width ?? image.width,
+        baseMapImageSize?.height ?? image.height
+      );
+      allBasePoints.push(baseLabelPoint, baseTargetPoint);
+      if (ann.textContent !== undefined) {
+        annotation.textContent = ann.textContent;
+      }
+      if (freeTextFontFactor !== 1) {
+        const fontSize = annotation.fontSize ?? FREE_TEXT_DEFAULT_FONT_SIZE;
+        annotation.fontSize =
+          Math.round(fontSize * freeTextFontFactor * 100) / 100;
+      }
+    } else if (ann.point) {
       // Single-point family (POINT / MARKER / DETAIL).
       const [basePoint] = toBasePoints([ann.point], pxPerNormX, pxPerNormY);
       item.basePoint = basePoint;

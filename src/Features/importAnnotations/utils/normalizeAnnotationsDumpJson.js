@@ -16,7 +16,7 @@ import { resolveDrawingShapeFromType } from "Features/annotations/constants/draw
 //      as `sourceId` so pasteAnnotationService mints one db.points row per
 //      distinct source id instead of one per occurrence.
 
-// Both lists mirror exactly what pasteAnnotationService can clone (see its
+// The lists mirror exactly what pasteAnnotationService can clone (see its
 // type switch): claiming more would silently drop the extra types at write
 // time. Anything else lands in `skipped` and is reported in the panel.
 
@@ -25,6 +25,10 @@ const POINTS_FAMILY = ["POLYLINE", "POLYGON", "STRIP", "COTE", "RULER"];
 
 // Annotation types whose geometry is a single `point`.
 const POINT_FAMILY = ["POINT", "MARKER", "DETAIL"];
+
+// Annotation types whose geometry is two inline anchors (`labelPoint` = centre
+// of the text box, `targetPoint` = connector end), no db.points row.
+const LABEL_FAMILY = ["FREE_TEXT"];
 
 // Fields never carried onto the imported annotation row. Everything else in the
 // dumped row is kept verbatim — that is what preserves `height`, `color3D`,
@@ -55,6 +59,7 @@ const SCRUBBED_FIELDS = new Set([
   "qties",
   "corruptedPointIds",
   "imageSize",
+  "imageLongSidePx",
   // identity / audit / links — re-derived at write time
   "id",
   "projectId",
@@ -135,8 +140,9 @@ export default function normalizeAnnotationsDumpJson(json) {
     const type = ann?.type;
     const isPointsFamily = POINTS_FAMILY.includes(type);
     const isPointFamily = POINT_FAMILY.includes(type);
+    const isLabelFamily = LABEL_FAMILY.includes(type);
 
-    if (!isPointsFamily && !isPointFamily) {
+    if (!isPointsFamily && !isPointFamily && !isLabelFamily) {
       skipped.push({ id: ann?.id, type, reason: "type non supporté" });
       continue;
     }
@@ -162,6 +168,18 @@ export default function normalizeAnnotationsDumpJson(json) {
         .map((cut) => ({ points: normalizePoints(cut?.points, width, height) }))
         .filter((cut) => cut.points.length >= 3);
       if (cuts.length) normalized.cuts = cuts;
+    } else if (isLabelFamily) {
+      const anchor = (p) => {
+        const n = normalizePoint(p, width, height);
+        return n ? { x: n.x, y: n.y } : null;
+      };
+      const labelPoint = anchor(ann.labelPoint) ?? anchor(ann.targetPoint);
+      if (!labelPoint) {
+        skipped.push({ id: ann.id, type, reason: "labelPoint manquant" });
+        continue;
+      }
+      normalized.labelPoint = labelPoint;
+      normalized.targetPoint = anchor(ann.targetPoint) ?? labelPoint;
     } else {
       const point = normalizePoint(ann.point, width, height);
       if (!point) {

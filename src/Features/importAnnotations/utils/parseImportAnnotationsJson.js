@@ -14,9 +14,18 @@
 //   "annotations": [
 //     { "id": "a1", "type": "POLYGON|POLYLINE|COTE",
 //       "annotationTemplateId": "tpl_x", "closeLine": <bool>,
-//       "points": [ { "x": 0..1, "y": 0..1, "type": "circle"? } ] }
+//       "points": [ { "x": 0..1, "y": 0..1, "type": "circle"? } ],
+//       "cuts": [ { "points": [ ...>= 3 points ] } ]   // POLYGON holes, optional
+//     },
+//     { "id": "t1", "type": "FREE_TEXT", "annotationTemplateId": "tpl_txt",
+//       "textContent": "...",
+//       "labelPoint": { "x": 0..1, "y": 0..1 },        // CENTRE of the text box
+//       "targetPoint": { "x": 0..1, "y": 0..1 } }      // connector end, optional
 //   ]
 // }
+//
+// Mirrored by the relay's zod schema (reperage-mcp/shared/inlineJson.ts): keep
+// the two in sync.
 //
 // A second, "MESH" shape is also accepted: it adds a maillage to EXISTING
 // annotations (referenced by id) instead of creating new ones. Cut lines
@@ -56,7 +65,64 @@
 
 import normalizeAnnotationsDumpJson from "./normalizeAnnotationsDumpJson";
 
-const SUPPORTED_TYPES = ["POLYLINE", "POLYGON", "COTE", "RULER", "STRIP"];
+const SUPPORTED_TYPES = [
+  "POLYLINE",
+  "POLYGON",
+  "COTE",
+  "RULER",
+  "STRIP",
+  "FREE_TEXT",
+];
+
+// Returns a French error message, or null when the point is a valid
+// normalized {x, y}.
+function validateNormalizedPoint(p) {
+  if (typeof p?.x !== "number" || typeof p?.y !== "number") {
+    return "Un point n'a pas de coordonnées x/y numériques.";
+  }
+  if (p.x < 0 || p.x > 1 || p.y < 0 || p.y > 1) {
+    return "Les coordonnées des points doivent être normalisées dans [0..1].";
+  }
+  return null;
+}
+
+// FREE_TEXT has no `points`: a text and its two inline anchors.
+function validateFreeText(ann) {
+  if (typeof ann.textContent !== "string" || !ann.textContent.trim()) {
+    return "Un FREE_TEXT doit avoir un `textContent` non vide.";
+  }
+  if (!ann.labelPoint && !ann.targetPoint) {
+    return "Un FREE_TEXT doit avoir un `labelPoint` (centre de la boîte de texte).";
+  }
+  if (Array.isArray(ann.points) && ann.points.length > 0) {
+    return "Un FREE_TEXT n'a pas de `points` (utiliser labelPoint / targetPoint).";
+  }
+  for (const key of ["labelPoint", "targetPoint"]) {
+    if (ann[key] == null) continue;
+    const err = validateNormalizedPoint(ann[key]);
+    if (err) return err;
+  }
+  return null;
+}
+
+// POLYGON holes: closed rings of >= 3 normalized points.
+function validateCuts(ann) {
+  if (ann.cuts == null) return null;
+  if (!Array.isArray(ann.cuts)) return "`cuts` doit être un tableau.";
+  if (ann.cuts.length > 0 && ann.type !== "POLYGON") {
+    return "Les `cuts` (ouvertures) ne sont supportés que sur un POLYGON.";
+  }
+  for (const cut of ann.cuts) {
+    if (!Array.isArray(cut?.points) || cut.points.length < 3) {
+      return "Chaque ouverture (`cuts`) doit avoir au moins 3 points.";
+    }
+    for (const p of cut.points) {
+      const err = validateNormalizedPoint(p);
+      if (err) return err;
+    }
+  }
+  return null;
+}
 const MESH_ORIENTATIONS = ["VERTICAL", "HORIZONTAL", "FREE"];
 const MESH_MODES = ["POLYGON", "POLYLINE"];
 
@@ -264,6 +330,11 @@ export default function parseImportAnnotationsJson(text) {
         error: `annotationTemplateId inconnu : ${ann.annotationTemplateId}.`,
       };
     }
+    if (ann.type === "FREE_TEXT") {
+      const err = validateFreeText(ann);
+      if (err) return { ok: false, error: err };
+      continue;
+    }
     if (!Array.isArray(ann.points) || ann.points.length < 2) {
       return {
         ok: false,
@@ -274,20 +345,11 @@ export default function parseImportAnnotationsJson(text) {
       return { ok: false, error: "Une COTE doit avoir exactement 2 points." };
     }
     for (const p of ann.points) {
-      if (typeof p?.x !== "number" || typeof p?.y !== "number") {
-        return {
-          ok: false,
-          error: "Un point n'a pas de coordonnées x/y numériques.",
-        };
-      }
-      if (p.x < 0 || p.x > 1 || p.y < 0 || p.y > 1) {
-        return {
-          ok: false,
-          error:
-            "Les coordonnées des points doivent être normalisées dans [0..1].",
-        };
-      }
+      const err = validateNormalizedPoint(p);
+      if (err) return { ok: false, error: err };
     }
+    const cutsError = validateCuts(ann);
+    if (cutsError) return { ok: false, error: cutsError };
   }
 
   return { ok: true, data: json };

@@ -50,9 +50,27 @@ export default function ImportAnnotationsPreview({
           type: ann.type,
           drawingShape: resolveDrawingShapeFromType(ann.type),
           ...(ann.closeLine !== undefined ? { closeLine: ann.closeLine } : {}),
-          ...(ann.point
-            ? { point: toPx([ann.point], width, height)[0] }
-            : { points: toPx(ann.points, width, height) }),
+          ...(ann.type === "FREE_TEXT"
+            ? {
+                // Same hydration as useAnnotationsV2: px anchors + the image
+                // size NodeFreeTextStatic scales its page-point box with.
+                textContent: ann.textContent ?? style.textContent,
+                labelPoint: toPx(
+                  [ann.labelPoint ?? ann.targetPoint],
+                  width,
+                  height
+                )[0],
+                targetPoint: toPx(
+                  [ann.targetPoint ?? ann.labelPoint],
+                  width,
+                  height
+                )[0],
+                imageLongSidePx: Math.max(width, height),
+                imageSize: { width, height },
+              }
+            : ann.point
+              ? { point: toPx([ann.point], width, height)[0] }
+              : { points: toPx(ann.points, width, height) }),
           ...(ann.cuts?.length
             ? {
                 cuts: ann.cuts.map((cut) => ({
