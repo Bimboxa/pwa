@@ -161,6 +161,129 @@ export function ackBaseMapJob(jobId, { status, baseMapId, error }) {
   });
 }
 
+// ---- vectorization runs (PDF déposé dans le Chat, analysé depuis le relai)
+
+// Raw PDF body (no JSON, no multipart). Returns { pdfId, pageCount, pages }.
+export async function uploadRelayPdf(file) {
+  const baseUrl = getRelayBaseUrl();
+  const token = getToken();
+  const name = encodeURIComponent(file?.name || "document.pdf");
+  let response;
+  try {
+    response = await fetch(`${baseUrl}/bridge/pdfs?fileName=${name}`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/pdf",
+      },
+      body: file,
+    });
+  } catch (e) {
+    throw new AssistantRelayError("NETWORK", 0, e?.message);
+  }
+  if (!response.ok) throw await toRelayError(response);
+  return response.json();
+}
+
+// Models the relay offers for a run: [{ id, isDefault }], default first.
+export async function fetchVectorizationModels() {
+  const data = await relayFetch("/vectorization-models");
+  return data?.models ?? [];
+}
+
+// { pdfId, pageNumber, instruction, target, model?, clientRequestId } → run. The same
+// clientRequestId returns the same run (no second analysis).
+export function createVectorization(input) {
+  return relayFetch("/vectorizations", { method: "POST", json: input });
+}
+
+export function fetchVectorization(runId) {
+  return relayFetch(`/vectorizations/${runId}`);
+}
+
+export function cancelVectorization(runId) {
+  return relayFetch(`/vectorizations/${runId}/cancel`, { method: "POST" });
+}
+
+// Rebuilds an annotations job that expired / failed. Never re-runs the model.
+export function resumeVectorizationImport(runId) {
+  return relayFetch(`/vectorizations/${runId}/resume-import`, {
+    method: "POST",
+  });
+}
+
+// Server-sent events over fetch (EventSource cannot send the Bearer token).
+// Resolves when the relay closes the stream (run finished) or on abort;
+// rejects on a network / HTTP error so the caller can reconnect with the
+// last id it saw.
+export async function streamVectorizationEvents(
+  runId,
+  { after = 0, signal, onEvent } = {}
+) {
+  const baseUrl = getRelayBaseUrl();
+  const token = getToken();
+  let response;
+  try {
+    response = await fetch(
+      `${baseUrl}/bridge/vectorizations/${runId}/events?after=${after}`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "text/event-stream",
+        },
+        signal,
+      }
+    );
+  } catch (e) {
+    if (signal?.aborted) return;
+    throw new AssistantRelayError("NETWORK", 0, e?.message);
+  }
+  if (!response.ok) throw await toRelayError(response);
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  try {
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) return;
+      buffer += decoder.decode(value, { stream: true });
+      let cut;
+      while ((cut = buffer.indexOf("\n\n")) !== -1) {
+        const block = buffer.slice(0, cut);
+        buffer = buffer.slice(cut + 2);
+        const data = block
+          .split("\n")
+          .filter((l) => l.startsWith("data: "))
+          .map((l) => l.slice(6))
+          .join("\n");
+        if (!data) continue; // heartbeat comment
+        try {
+          onEvent?.(JSON.parse(data));
+        } catch (e) {
+          console.log("[assistantRelay] bad SSE block", e);
+        }
+      }
+    }
+  } catch (e) {
+    if (signal?.aborted) return;
+    throw new AssistantRelayError("NETWORK", 0, e?.message);
+  }
+}
+
+async function toRelayError(response) {
+  let code = `HTTP_${response.status}`;
+  let message = null;
+  try {
+    const body = await response.json();
+    code = body?.error ?? code;
+    message = body?.message ?? (body?.issues ? body.issues.join("; ") : null);
+  } catch {
+    // non-JSON error body
+  }
+  return new AssistantRelayError(code, response.status, message);
+}
+
 // Short French messages for the panel.
 export function describeRelayError(e) {
   const code = e?.code ?? "UNKNOWN";
@@ -188,6 +311,13 @@ export function describeRelayError(e) {
     NO_SCOPE: "Aucun scope sélectionné pour créer la liste.",
     LISTING_NOT_CREATED: "La liste n'a pas pu être créée.",
     NO_BASE_MAP: "Aucun fond de plan affiché.",
+    VECTORIZATION_DISABLED:
+      "La vectorisation n'est pas activée sur le relai (clé API absente).",
+    UNKNOWN_MODEL: "Modèle non proposé par le relai.",
+    RUN_ALREADY_ACTIVE: "Une vectorisation est déjà en cours.",
+    RUN_NOT_FOUND: "Vectorisation introuvable sur le relai.",
+    RUN_NOT_READY: "Le fond de plan n'a pas encore été créé et publié.",
+    PAYLOAD_TOO_LARGE: "Fichier trop volumineux pour le relai.",
   };
   const base = messages[code] ?? `Erreur relai (${code}).`;
   return e?.message && e.message !== code ? `${base} ${e.message}` : base;

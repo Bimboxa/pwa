@@ -6,6 +6,7 @@ import useAssistantRelayToken from "../hooks/useAssistantRelayToken";
 import useAssistantRelaySession from "../hooks/useAssistantRelaySession";
 import useDetectionJobsRealtime from "../hooks/useDetectionJobsRealtime";
 import useApplyLiveDetectionJob from "../hooks/useApplyLiveDetectionJob";
+import useVectorizationRunRuntime from "../hooks/useVectorizationRunRuntime";
 
 const LIVE_MODES = new Set(["live", "live_undo"]);
 
@@ -20,6 +21,8 @@ function AssistantRelayRuntimeInner() {
   useDetectionJobsRealtime({ connected, refresh });
   const jobsById = useSelector((s) => s.assistantRelay.jobsById);
   const { applyLiveJob } = useApplyLiveDetectionJob();
+  // PDF dropped in the chat: progress stream + base map creation.
+  useVectorizationRunRuntime({ connected, refresh });
 
   useEffect(() => {
     if (!connected) return;
