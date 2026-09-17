@@ -8,6 +8,7 @@ import { Stack, Box, Typography } from "@mui/material";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import ChatInput from "./ChatInput";
 import ChatMessage from "./ChatMessage";
+import ChatMessageAssistant from "./ChatMessageAssistant";
 import ChatMessageVectorization from "./ChatMessageVectorization";
 import ChatRelayBar from "./ChatRelayBar";
 import useStartVectorization from "../hooks/useStartVectorization";
@@ -113,6 +114,8 @@ export default function PanelChat() {
         {messages.map((msg, i) =>
           msg.type === "vectorization" ? (
             <ChatMessageVectorization key={msg.id ?? i} message={msg} />
+          ) : msg.type === "assistant" ? (
+            <ChatMessageAssistant key={msg.id ?? i} message={msg} />
           ) : (
             <ChatMessage
               key={msg.id ?? i}

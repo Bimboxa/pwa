@@ -1,9 +1,8 @@
 import { useEffect, useState } from "react";
+import { useSelector } from "react-redux";
 
 import useIsMobile from "Features/layout/hooks/useIsMobile";
-import useSendMessage from "../hooks/useSendMessage";
-import useProcessAnswer from "../hooks/useProcessAnswer";
-import useCallAgentDataManager from "../hooks/useCallAgentDataManager";
+import useSendChatTurn from "../hooks/useSendChatTurn";
 import useStartVectorization, {
   DEFAULT_VECTORIZATION_INSTRUCTION,
 } from "../hooks/useStartVectorization";
@@ -12,7 +11,6 @@ import { Box } from "@mui/material";
 import { Send as SendIcon } from "@mui/icons-material";
 
 import ButtonGeneric from "Features/layout/components/ButtonGeneric";
-import FieldText from "Features/form/components/FieldText";
 import BoxAlignToRight from "Features/layout/components/BoxAlignToRight";
 import FieldTextV2 from "Features/form/components/FieldTextV2";
 import ChatPendingPdf from "./ChatPendingPdf";
@@ -28,9 +26,8 @@ export default function ChatInput() {
 
   const isMobile = useIsMobile();
 
-  const sendMessage = useSendMessage();
-  const processAnswer = useProcessAnswer();
-  const callAgentDataManager = useCallAgentDataManager();
+  const sendChatTurn = useSendChatTurn();
+  const isThinking = useSelector((s) => s.chat.isThinking);
   const {
     pendingPdf,
     hasActiveRun,
@@ -54,14 +51,11 @@ export default function ChatInput() {
       if (ok) setInput("");
       return;
     }
-    if (!input.trim()) return;
-    //const answer = await sendMessage(input);
-    const answer = await callAgentDataManager(input);
-
-    // answer
-    console.log("answer", answer);
-    //processAnswer(answer);
+    if (!input.trim() || isThinking) return;
+    // No PDF: a conversational turn (the model acts through the relay tools).
+    const text = input;
     setInput("");
+    await sendChatTurn(text);
   };
 
   return (
@@ -83,10 +77,15 @@ export default function ChatInput() {
         options={{ fullWidth: true, multiline: true, hideMic: isMobile }}
         variant="outlined"
         size="small"
-        placeholder="Type your question..."
+        placeholder="Dessine un rond de 1 m, crée une liste… ou dépose un PDF"
         value={input}
         onChange={setInput}
-        onKeyDown={(e) => e.key === "Enter" && handleSend()}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            handleSend();
+          }
+        }}
       />
 
       <BoxAlignToRight>

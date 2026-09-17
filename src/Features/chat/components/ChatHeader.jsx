@@ -8,7 +8,8 @@ export default function ChatHeader() {
 
     // strings
 
-    const descriptionS = "Demandez ce que vous voulez modifier dans cette liste.";
+    const descriptionS =
+        "Demandez un dessin, une liste, des modèles… ou déposez un PDF à vectoriser.";
 
     // data
 

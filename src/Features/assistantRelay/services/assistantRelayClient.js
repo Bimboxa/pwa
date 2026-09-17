@@ -161,6 +161,41 @@ export function ackBaseMapJob(jobId, { status, baseMapId, error }) {
   });
 }
 
+// ---- chat turns (commandes en langage naturel : « dessine un rond de 1 m »)
+
+// One conversational turn, streamed. Events: { type: "text", delta },
+// { type: "tool", phase, callId, name, jobId?, liveStatus? },
+// { type: "done", responseId }, { type: "error", message }. Resolves when the
+// relay closes the stream.
+export async function streamChatTurn(input, { signal, onEvent } = {}) {
+  const baseUrl = getRelayBaseUrl();
+  const token = getToken();
+  let response;
+  try {
+    response = await fetch(`${baseUrl}/bridge/chat/turns`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+        Accept: "text/event-stream",
+      },
+      body: JSON.stringify(input),
+      signal,
+    });
+  } catch (e) {
+    if (signal?.aborted) return;
+    throw new AssistantRelayError("NETWORK", 0, e?.message);
+  }
+  if (!response.ok) throw await toRelayError(response);
+  await readEventStream(response, { signal, onEvent });
+}
+
+// Undo button of a drawing made from the chat (no model involved): the relay
+// creates the `live_undo` job, the runtime applies it.
+export function undoLiveJob(jobId) {
+  return relayFetch(`/jobs/${jobId}/undo`, { method: "POST" });
+}
+
 // ---- vectorization runs (PDF déposé dans le Chat, analysé depuis le relai)
 
 // Raw PDF body (no JSON, no multipart). Returns { pdfId, pageCount, pages }.
@@ -269,6 +304,12 @@ export async function streamVectorizationEvents(
   }
   if (!response.ok) throw await toRelayError(response);
 
+  await readEventStream(response, { signal, onEvent });
+}
+
+// Minimal SSE parser over fetch: one JSON `data:` line per block, comments
+// (heartbeats) ignored.
+async function readEventStream(response, { signal, onEvent }) {
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
@@ -340,6 +381,10 @@ export function describeRelayError(e) {
     NO_SCOPE: "Aucun scope sélectionné pour créer la liste.",
     LISTING_NOT_CREATED: "La liste n'a pas pu être créée.",
     NO_BASE_MAP: "Aucun fond de plan affiché.",
+    CHAT_DISABLED:
+      "L'assistant n'est pas activé sur le relai (clé API absente).",
+    NOT_UNDOABLE: "Ce dessin ne peut pas être annulé (pas encore appliqué ?).",
+    ALREADY_UNDONE: "Ce dessin est déjà annulé.",
     VECTORIZATION_DISABLED:
       "La vectorisation n'est pas activée sur le relai (clé API absente).",
     UNKNOWN_MODEL: "Modèle non proposé par le relai.",
