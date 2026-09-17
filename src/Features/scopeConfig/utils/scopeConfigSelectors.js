@@ -74,6 +74,7 @@ export function getDisabledModuleKeysFromEnabled(enabledModuleKeys) {
 
 export const DEFAULT_DISABLED_TOOL_KEYS = [
   "ANNOTATIONS_AUTO",
+  "CHAT",
   "ELEVATION",
   "IMPORT_ANNOTATIONS",
   "RESOURCES",
