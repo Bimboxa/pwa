@@ -1,33 +1,50 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import { setBlockPlanImage } from "../chatSlice";
 
-import useIsMobile from "Features/layout/hooks/useIsMobile";
 import useSendChatTurn from "../hooks/useSendChatTurn";
 import useStartVectorization, {
   DEFAULT_VECTORIZATION_INSTRUCTION,
 } from "../hooks/useStartVectorization";
 
-import { Box, Checkbox, FormControlLabel } from "@mui/material";
-import { Send as SendIcon } from "@mui/icons-material";
+import {
+  Box,
+  Checkbox,
+  FormControlLabel,
+  IconButton,
+  InputBase,
+  Typography,
+} from "@mui/material";
+import { Add as AddIcon, ArrowUpward as SendIcon } from "@mui/icons-material";
 
-import ButtonGeneric from "Features/layout/components/ButtonGeneric";
-import BoxAlignToRight from "Features/layout/components/BoxAlignToRight";
-import FieldTextV2 from "Features/form/components/FieldTextV2";
+import { CHAT_COLORS, CHAT_FONT } from "../chatDarkTheme";
+import ChatImageThumbs from "./ChatImageThumbs";
+import ChatLevelSelect from "./ChatLevelSelect";
 import ChatPendingPdf from "./ChatPendingPdf";
 
-export default function ChatInput() {
+const ATTACH_ACCEPT = "image/png,image/jpeg,image/webp,application/pdf";
+
+export default function ChatInput({
+  canAttach,
+  pendingImages = [],
+  attachError,
+  onAttachFiles,
+  onRemoveImage,
+  onImagesSent,
+}) {
   // strings
 
   const sendS = "Envoyer";
-  const blockImageS = "Ne pas envoyer l'image";
+  const attachS = "Joindre une image ou un PDF";
+  const blockImageS = "Ne pas envoyer le plan";
+  const blockImageTitleS =
+    "Coché : le modèle ne peut pas demander l'image du fond de plan affiché. Les images jointes sont toujours envoyées.";
+  const placeholderS = "Un dessin, une liste… une image ou un PDF";
 
   // state
 
   const [input, setInput] = useState("");
-
-  const isMobile = useIsMobile();
 
   const sendChatTurn = useSendChatTurn();
   const isThinking = useSelector((s) => s.chat.isThinking);
@@ -49,6 +66,16 @@ export default function ChatInput() {
     }
   }, [pdfStatus]);
 
+  // "Nouvelle session" also empties the draft.
+  const sessionId = useSelector((s) => s.chat.sessionId);
+  useEffect(() => {
+    setInput("");
+  }, [sessionId]);
+
+  const canSend = pendingPdf
+    ? pendingPdf.status === "ready" && !hasActiveRun
+    : Boolean(input.trim()) && !isThinking;
+
   const handleSend = async () => {
     if (pendingPdf) {
       if (pendingPdf.status !== "ready" || hasActiveRun) return;
@@ -57,89 +84,194 @@ export default function ChatInput() {
       return;
     }
     if (!input.trim() || isThinking) return;
-    // No PDF: a conversational turn (the model acts through the relay tools).
+    // No PDF: a conversational turn (the model acts through the relay tools),
+    // with the attached pictures if any.
     const text = input;
+    const images = pendingImages;
     setInput("");
-    await sendChatTurn(text);
+    onImagesSent?.();
+    await sendChatTurn(text, { images });
   };
+
+  const fileInputRef = useRef(null);
+
+  function handleFilesPicked(e) {
+    onAttachFiles?.(e.target.files);
+    // Same file again later must fire `change` again.
+    e.target.value = "";
+  }
+
+  // A screenshot pasted in the text is an attachment.
+  function handlePaste(e) {
+    const files = Array.from(e.clipboardData?.files ?? []);
+    if (!canAttach || !files.length) return;
+    e.preventDefault();
+    onAttachFiles?.(files);
+  }
+
+  function handleKeyDown(e) {
+    // The map editor listens to the keyboard: typing here is not a shortcut.
+    e.stopPropagation();
+    if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent?.isComposing) {
+      e.preventDefault();
+      handleSend();
+    }
+  }
 
   return (
     <Box
-      display="flex"
-      p={1}
-      borderTop="1px solid"
-      borderColor="divider"
-      overflow="auto"
-      flexDirection="column"
-      sx={{ width: 1 }}
-      gap={1}
+      sx={{
+        width: 1,
+        px: 1.5,
+        pt: 1,
+        pb: 0.75,
+        display: "flex",
+        flexDirection: "column",
+        gap: 0.5,
+      }}
     >
       <ChatPendingPdf
         pendingPdf={pendingPdf}
         onPageChange={setPageNumber}
         onClear={clearPdf}
       />
-      <FieldTextV2
-        options={{ fullWidth: true, multiline: true, hideMic: isMobile }}
-        variant="outlined"
-        size="small"
-        placeholder="Dessine un rond de 1 m, crée une liste… ou dépose un PDF"
-        value={input}
-        onChange={setInput}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && !e.shiftKey) {
-            e.preventDefault();
-            handleSend();
-          }
-        }}
-      />
+      <ChatImageThumbs images={pendingImages} onRemove={onRemoveImage} />
+      {attachError ? (
+        <Typography variant="caption" color="error">
+          {attachError}
+        </Typography>
+      ) : null}
 
-      {/* DOM order = keyboard order: Tab from the text goes to "Envoyer", then
-          to the checkbox. `row-reverse` keeps the checkbox on the left. */}
-      <BoxAlignToRight
+      {/* One rounded box: the text, and the send button in its corner.
+          DOM order = keyboard order: text → "Envoyer" → attach → checkbox →
+          level. */}
+      <Box
         sx={{
-          alignItems: "center",
-          gap: 1,
-          flexDirection: "row-reverse",
-          justifyContent: "flex-start",
+          display: "flex",
+          alignItems: "flex-end",
+          gap: 0.5,
+          pl: 1.5,
+          pr: 0.75,
+          py: 0.75,
+          backgroundColor: CHAT_COLORS.surface,
+          border: "1px solid",
+          borderColor: CHAT_COLORS.borderStrong,
+          borderRadius: "12px",
+          transition: "border-color 120ms",
+          "&:focus-within": { borderColor: "#5a5a5a" },
         }}
       >
-        <ButtonGeneric
-          variant="contained"
-          color="secondary"
-          size="small"
-          // Dense: same height as the checkbox row.
+        <InputBase
+          multiline
+          minRows={1}
+          maxRows={8}
+          fullWidth
+          placeholder={placeholderS}
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={handleKeyDown}
+          onKeyUp={(e) => e.stopPropagation()}
+          onPaste={handlePaste}
+          inputProps={{ "aria-label": placeholderS }}
           sx={{
-            py: 0.25,
-            px: 1.25,
-            minHeight: 0,
-            "& .MuiTypography-root": { fontSize: 12, lineHeight: 1.6 },
-            "& .MuiButton-startIcon": { mr: 0.5 },
+            py: "3px",
+            fontSize: CHAT_FONT.message,
+            lineHeight: 1.5,
+            color: "text.primary",
+            "& textarea::placeholder": {
+              color: CHAT_COLORS.textSecondary,
+              opacity: 1,
+            },
           }}
-          startIcon={<SendIcon fontSize="small" />}
-          onClick={handleSend}
-          disabled={
-            pendingPdf ? pendingPdf.status !== "ready" || hasActiveRun : !input
-          }
-          label={sendS}
         />
-        {/* Ticked: the model cannot ask for the plan picture (typed messages
-            only — a dropped PDF is a vectorization). */}
-        {!pendingPdf && (
-          <FormControlLabel
-            sx={{ mr: "auto", ml: 0 }}
-            control={
-              <Checkbox
-                size="small"
-                checked={blockPlanImage}
-                onChange={(e) => dispatch(setBlockPlanImage(e.target.checked))}
+        <IconButton
+          size="small"
+          aria-label={sendS}
+          title={sendS}
+          onClick={handleSend}
+          disabled={!canSend}
+          sx={{
+            width: 28,
+            height: 28,
+            flexShrink: 0,
+            borderRadius: "8px",
+            color: "#fff",
+            backgroundColor: "secondary.main",
+            "&:hover": { backgroundColor: "secondary.dark" },
+            "&.Mui-disabled": {
+              color: CHAT_COLORS.textSecondary,
+              backgroundColor: "transparent",
+            },
+          }}
+        >
+          <SendIcon sx={{ fontSize: 16 }} />
+        </IconButton>
+      </Box>
+
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 1,
+          minHeight: 28,
+        }}
+      >
+        <Box sx={{ display: "flex", alignItems: "center", minWidth: 0 }}>
+          {canAttach ? (
+            <>
+              <input
+                ref={fileInputRef}
+                type="file"
+                hidden
+                multiple
+                accept={ATTACH_ACCEPT}
+                onChange={handleFilesPicked}
               />
-            }
-            label={blockImageS}
-            slotProps={{ typography: { variant: "caption" } }}
-          />
-        )}
-      </BoxAlignToRight>
+              <IconButton
+                size="small"
+                aria-label={attachS}
+                title={attachS}
+                onClick={() => fileInputRef.current?.click()}
+                sx={{
+                  ml: "-4px",
+                  mr: 0.5,
+                  width: 26,
+                  height: 26,
+                  borderRadius: "8px",
+                  color: "text.secondary",
+                  "&:hover": { color: "text.primary" },
+                }}
+              >
+                <AddIcon sx={{ fontSize: 18 }} />
+              </IconButton>
+            </>
+          ) : null}
+          {/* Ticked: the model cannot ask for the plan picture (typed messages
+            only — a dropped PDF is a vectorization). */}
+          {!pendingPdf ? (
+            <FormControlLabel
+              title={blockImageTitleS}
+              sx={{ ml: "-2px", mr: 0, color: "text.secondary", minWidth: 0 }}
+              control={
+                <Checkbox
+                  size="small"
+                  color="default"
+                  checked={blockPlanImage}
+                  onChange={(e) =>
+                    dispatch(setBlockPlanImage(e.target.checked))
+                  }
+                />
+              }
+              label={blockImageS}
+              slotProps={{
+                typography: { sx: { fontSize: CHAT_FONT.button, ml: 0.25 } },
+              }}
+            />
+          ) : null}
+        </Box>
+        <ChatLevelSelect />
+      </Box>
     </Box>
   );
 }

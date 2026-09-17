@@ -164,9 +164,11 @@ export default function ChatVectorizationCard({ message }) {
     <Box
       sx={{
         mt: 1.5,
-        p: 1,
-        borderRadius: 1,
-        backgroundColor: "#2b2b2b",
+        p: 1.25,
+        borderRadius: "12px",
+        border: "1px solid",
+        borderColor: "divider",
+        backgroundColor: "background.paper",
         display: "flex",
         flexDirection: "column",
         gap: 1,
@@ -231,7 +233,12 @@ export default function ChatVectorizationCard({ message }) {
       ) : null}
 
       <Stack direction="row" spacing={1} justifyContent="flex-end">
-        <Button size="small" disabled={busy} onClick={handleDismiss}>
+        <Button
+          size="small"
+          color="inherit"
+          disabled={busy}
+          onClick={handleDismiss}
+        >
           {dismissS}
         </Button>
         <Button

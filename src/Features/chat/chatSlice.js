@@ -7,6 +7,9 @@ const chatSlice = createSlice({
     //   localStep?, localError? }
     messages: [],
     isThinking: false,
+    // Bumped by "Nouvelle session": a turn still streaming from the previous
+    // session must not write into the new one.
+    sessionId: 0,
     //
     managedDataByAgent: { structure: null, data: null }, // STRUCTURE: ZONING, TREE, LIST,
     // PDF dropped in the chat, uploaded to the relay, waiting for "Envoyer".
@@ -79,8 +82,14 @@ const chatSlice = createSlice({
     setConversation(state, action) {
       state.conversation = { ...state.conversation, ...action.payload };
     },
+    // "Nouvelle session": back to an empty chat, the provider-side
+    // conversation is forgotten too (the next turn starts a new one).
     resetConversation(state) {
+      state.sessionId += 1;
       state.messages = [];
+      state.isThinking = false;
+      state.pendingPdf = null;
+      state.managedDataByAgent = { structure: null, data: null };
       state.conversation = {
         previousResponseId: null,
         imageKey: null,

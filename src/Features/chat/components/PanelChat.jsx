@@ -15,6 +15,10 @@ import ChatMessageAssistant from "./ChatMessageAssistant";
 import ChatMessageVectorization from "./ChatMessageVectorization";
 import ChatRelayBar from "./ChatRelayBar";
 import useStartVectorization from "../hooks/useStartVectorization";
+import prepareChatImage, {
+  isChatImageFile,
+  MAX_CHAT_IMAGES,
+} from "../utils/prepareChatImage";
 import useAssistantRelayConfig from "Features/assistantRelay/hooks/useAssistantRelayConfig";
 import ThinkingBubble from "./ThinkingBubble";
 import ChatHeader from "./ChatHeader";
@@ -42,8 +46,88 @@ export default function PanelChat() {
   const canDropPdf =
     Boolean(relayConfig?.enabled && relayConfig?.relayBaseUrl) &&
     relayConfig?.chatVectorization !== false;
-  const { attachPdf } = useStartVectorization();
+  const { attachPdf, pendingPdf } = useStartVectorization();
+
+  // Pictures attached to the next message (dropped, pasted or picked). Kept
+  // here, not in the store: they are heavy and only matter until "Envoyer".
+  const [pendingImages, setPendingImages] = useState([]);
+  const [attachError, setAttachError] = useState(null);
+  const pendingImagesRef = useRef(pendingImages);
+  pendingImagesRef.current = pendingImages;
+
+  // "Nouvelle session" also drops what was waiting.
+  const sessionId = useSelector((s) => s.chat.sessionId);
+  useEffect(() => {
+    setPendingImages([]);
+    setAttachError(null);
+  }, [sessionId]);
+
+  // A PDF starts a vectorization, pictures go with a typed message: one or
+  // the other.
+  async function attachFiles(fileList) {
+    const files = Array.from(fileList ?? []);
+    if (!files.length) return;
+    setAttachError(null);
+    const images = files.filter(isChatImageFile);
+    if (!images.length) {
+      if (pendingImagesRef.current.length) {
+        setAttachError(pdfWithImagesS);
+        return;
+      }
+      attachPdf(files[0]);
+      return;
+    }
+    if (pendingPdf) {
+      setAttachError(imageWithPdfS);
+      return;
+    }
+    const room = MAX_CHAT_IMAGES - pendingImagesRef.current.length;
+    if (images.length > room) setAttachError(tooManyImagesS);
+    for (const file of images.slice(0, Math.max(0, room))) {
+      try {
+        const image = await prepareChatImage(file);
+        setPendingImages((list) =>
+          list.length < MAX_CHAT_IMAGES ? [...list, image] : list
+        );
+      } catch (e) {
+        setAttachError(e?.message ?? unreadableImageS);
+      }
+    }
+  }
+
+  function removeImage(id) {
+    setAttachError(null);
+    setPendingImages((list) => list.filter((image) => image.id !== id));
+  }
   const [dragOver, setDragOver] = useState(false);
+  // Pairing key form, opened from the status dot of the header.
+  const [editingKey, setEditingKey] = useState(false);
+
+  // strings
+
+  const emptyS =
+    "Demandez un dessin, une liste, des modèles… joignez une image à reproduire, ou déposez un PDF à vectoriser.";
+  const dropS = "Déposer un PDF à vectoriser ou une image";
+  const pdfWithImagesS = "Retirez les images pour vectoriser un PDF.";
+  const imageWithPdfS = "Retirez le PDF pour joindre une image.";
+  const tooManyImagesS = `${MAX_CHAT_IMAGES} images au maximum par message.`;
+  const unreadableImageS = "Image illisible.";
+
+  // The last message stays in view while the answer streams.
+  const listRef = useRef(null);
+  const lastMessage = messages[messages.length - 1];
+  const scrollKey = `${messages.length}:${lastMessage?.content?.length ?? 0}:${lastMessage?.actions?.length ?? 0}:${isThinking}`;
+  const messageCount = useRef(0);
+  useEffect(() => {
+    const el = listRef.current;
+    if (!el) return;
+    // A new message always scrolls; streamed text only follows when the user
+    // is already at the bottom (scrolling up to read is left alone).
+    const isNew = messages.length !== messageCount.current;
+    messageCount.current = messages.length;
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+    if (isNew || nearBottom) el.scrollTop = el.scrollHeight;
+  }, [scrollKey]);
   const dragDepth = useRef(0);
 
   const hasFiles = (e) =>
@@ -70,7 +154,7 @@ export default function PanelChat() {
     e.stopPropagation();
     dragDepth.current = 0;
     setDragOver(false);
-    attachPdf(e.dataTransfer.files?.[0]);
+    attachFiles(e.dataTransfer.files);
   }
 
   return (
@@ -109,14 +193,32 @@ export default function PanelChat() {
               pointerEvents: "none",
             }}
           >
-            <Typography variant="body1" color="secondary">
-              Déposer un PDF à vectoriser
+            <Typography variant="body2" color="secondary">
+              {dropS}
             </Typography>
           </Box>
         )}
-        <ChatHeader />
-        {canDropPdf && <ChatRelayBar />}
-        <Stack spacing={2} sx={{ flex: 1, overflowY: "auto", p: 1 }}>
+        <ChatHeader
+          showRelayStatus={canDropPdf}
+          onRelayStatusClick={() => setEditingKey((v) => !v)}
+        />
+        {canDropPdf && (
+          <ChatRelayBar editing={editingKey} onEditingChange={setEditingKey} />
+        )}
+        <Stack
+          ref={listRef}
+          spacing={2.5}
+          sx={{ flex: 1, overflowY: "auto", px: 2, py: 2 }}
+        >
+          {messages.length === 0 && !isThinking ? (
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={{ m: "auto", px: 2, textAlign: "center" }}
+            >
+              {emptyS}
+            </Typography>
+          ) : null}
           {messages.map((msg, i) =>
             msg.type === "vectorization" ? (
               <ChatMessageVectorization key={msg.id ?? i} message={msg} />
@@ -127,6 +229,7 @@ export default function PanelChat() {
                 key={msg.id ?? i}
                 role={msg.role}
                 content={msg.content}
+                images={msg.images}
               />
             )
           )}
@@ -134,7 +237,16 @@ export default function PanelChat() {
           <SectionManagedDataByAgent />
         </Stack>
 
-        {openChat && <ChatInput />}
+        {openChat && (
+          <ChatInput
+            canAttach={canDropPdf}
+            pendingImages={pendingImages}
+            attachError={attachError}
+            onAttachFiles={attachFiles}
+            onRemoveImage={removeImage}
+            onImagesSent={() => setPendingImages([])}
+          />
+        )}
       </Box>
     </ThemeProvider>
   );

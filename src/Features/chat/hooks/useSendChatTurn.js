@@ -1,4 +1,4 @@
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { v4 as uuidv4 } from "uuid";
 
@@ -46,17 +46,48 @@ export default function useSendChatTurn() {
   );
   const busy = useRef(false);
 
+  // "Nouvelle session" while a turn is streaming: stop listening to it and
+  // keep it out of the new session.
+  const sessionId = useSelector((s) => s.chat.sessionId);
+  const sessionRef = useRef(sessionId);
+  const abortRef = useRef(null);
+  useEffect(() => {
+    sessionRef.current = sessionId;
+    abortRef.current?.abort();
+    abortRef.current = null;
+  }, [sessionId]);
+
   return useCallback(
-    async (text) => {
+    // images: pictures attached to the message (prepareChatImage).
+    async (text, { images = [] } = {}) => {
       const message = (text ?? "").trim();
       if (!message || busy.current) return { ok: false };
       busy.current = true;
+      const turnSession = sessionRef.current;
+      const isStale = () => sessionRef.current !== turnSession;
+      const controller = new AbortController();
+      abortRef.current = controller;
       const messageId = uuidv4();
-      dispatch(addMessage({ id: uuidv4(), role: "user", content: message }));
+      dispatch(
+        addMessage({
+          id: uuidv4(),
+          role: "user",
+          content: message,
+          // Only the small previews stay in the conversation.
+          ...(images.length
+            ? {
+                images: images.map(({ name, thumbUrl }) => ({
+                  name,
+                  thumbUrl,
+                })),
+              }
+            : {}),
+        })
+      );
       dispatch(setIsThinking(true));
       let started = false;
       const ensureBubble = () => {
-        if (started) return;
+        if (started || isStale()) return;
         started = true;
         dispatch(setIsThinking(false));
         dispatch(
@@ -70,6 +101,7 @@ export default function useSendChatTurn() {
         );
       };
       const setError = (error) => {
+        if (isStale()) return;
         ensureBubble();
         dispatch(updateMessageById({ id: messageId, changes: { error } }));
       };
@@ -117,6 +149,15 @@ export default function useSendChatTurn() {
               : {}),
             previousResponseId: conversation.previousResponseId,
             ...(baseMap ? { baseMap } : {}),
+            ...(images.length
+              ? {
+                  images: images.map(({ mime, base64, name }) => ({
+                    mime,
+                    base64,
+                    name: name ?? null,
+                  })),
+                }
+              : {}),
             allowImage: !blockPlanImage,
             imageKeyInConversation: conversation.imageKey,
             context: {
@@ -125,7 +166,9 @@ export default function useSendChatTurn() {
             },
           },
           {
+            signal: controller.signal,
             onEvent: (event) => {
+              if (isStale()) return;
               if (event.type === "text") {
                 ensureBubble();
                 dispatch(
@@ -170,7 +213,8 @@ export default function useSendChatTurn() {
         return { ok: false };
       } finally {
         busy.current = false;
-        dispatch(setIsThinking(false));
+        if (abortRef.current === controller) abortRef.current = null;
+        if (!isStale()) dispatch(setIsThinking(false));
       }
     },
     [

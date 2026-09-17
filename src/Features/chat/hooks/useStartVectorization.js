@@ -38,7 +38,8 @@ export default function useStartVectorization() {
           setPendingPdf({
             status: "error",
             fileName: file.name,
-            error: "Seuls les fichiers PDF sont acceptés.",
+            error:
+              "Seuls les PDF et les images (PNG, JPEG, WebP) sont acceptés.",
           })
         );
         return;

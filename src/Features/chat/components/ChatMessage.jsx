@@ -1,25 +1,34 @@
-import { Box, Typography, Paper } from "@mui/material";
+import { Box } from "@mui/material";
 
-export default function ChatMessage({ role, content }) {
+import { CHAT_COLORS } from "../chatDarkTheme";
+import ChatImageThumbs from "./ChatImageThumbs";
+import ChatText from "./ChatText";
+
+// User messages sit in a bubble on the right; what the assistant says is
+// plain text on the panel, full width.
+export default function ChatMessage({ role, content, images }) {
   const isUser = role === "user";
 
+  if (!isUser) return <ChatText text={content} />;
+
   return (
-    <Box display="flex" justifyContent={isUser ? "flex-end" : "flex-start"}>
-      <Paper
+    <Box display="flex" justifyContent="flex-end">
+      <Box
         sx={{
-          p: 1.5,
-          maxWidth: "75%",
-          backgroundColor: isUser ? "#2b2b2b" : "background.paper",
-          backgroundImage: "none",
-          boxShadow: "none",
+          px: 1.5,
+          py: 1,
+          maxWidth: "85%",
+          backgroundColor: CHAT_COLORS.surfaceRaised,
           color: "text.primary",
-          borderRadius: 2,
+          borderRadius: "12px",
+          display: "flex",
+          flexDirection: "column",
+          gap: 0.75,
         }}
       >
-        <Typography variant="body1" sx={{ whiteSpace: "pre-line" }}>
-          {content}
-        </Typography>
-      </Paper>
+        <ChatImageThumbs images={images} size={72} />
+        <ChatText text={content} />
+      </Box>
     </Box>
   );
 }

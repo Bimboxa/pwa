@@ -7,7 +7,6 @@ import {
   Box,
   Button,
   CircularProgress,
-  Paper,
   Stack,
   Typography,
 } from "@mui/material";
@@ -21,6 +20,7 @@ import {
   describeRelayError,
   undoLiveJob,
 } from "Features/assistantRelay/services/assistantRelayClient";
+import ChatText from "./ChatText";
 
 const TOOL_LABELS = {
   draw_annotations: "Dessin",
@@ -39,7 +39,8 @@ const UNDOABLE = new Set([
 ]);
 
 function ActionIcon({ action }) {
-  if (action.phase === "started") return <CircularProgress size={14} />;
+  if (action.phase === "started")
+    return <CircularProgress size={13} thickness={5} color="inherit" />;
   if (action.phase === "failed" || action.liveStatus === "failed")
     return <ErrorIcon fontSize="small" color="error" />;
   if (action.liveStatus === "pending" || action.liveStatus === "discarded")
@@ -100,70 +101,75 @@ export default function ChatMessageAssistant({ message }) {
     }
   }
 
+  // No bubble: tool lines in a muted tone, then the answer as plain text.
   return (
-    <Box display="flex" justifyContent="flex-start">
-      <Paper
-        sx={{
-          p: 1.5,
-          maxWidth: "90%",
-          backgroundColor: "background.paper",
-          backgroundImage: "none",
-          boxShadow: "none",
-          borderRadius: 2,
-        }}
-      >
-        {actions.length > 0 ? (
-          <Stack spacing={0.5} sx={{ mb: message.content ? 1 : 0 }}>
-            {actions.map((action) => (
-              <Box key={action.callId}>
-                <Stack direction="row" spacing={1} alignItems="center">
+    <Box sx={{ minWidth: 0 }}>
+      {actions.length > 0 ? (
+        <Stack spacing={0.25} sx={{ mb: message.content ? 1 : 0 }}>
+          {actions.map((action) => (
+            <Box key={action.callId}>
+              <Stack
+                direction="row"
+                spacing={0.75}
+                alignItems="center"
+                sx={{ color: "text.secondary", minHeight: 26 }}
+              >
+                <Box
+                  sx={{
+                    width: 16,
+                    display: "flex",
+                    justifyContent: "center",
+                    flexShrink: 0,
+                  }}
+                >
                   <ActionIcon action={action} />
-                  <Typography variant="body2" sx={{ flex: 1 }}>
-                    {actionText(action)}
-                  </Typography>
-                  {UNDOABLE.has(action.name) &&
-                  action.jobId &&
-                  action.liveStatus === "applied" &&
-                  !action.undone ? (
-                    <Button
-                      size="small"
-                      disabled={busyCallId === action.callId}
-                      onClick={() => handleUndo(action)}
-                    >
-                      Annuler
-                    </Button>
-                  ) : null}
-                </Stack>
-                {action.undoError ? (
-                  <Typography variant="caption" color="error">
-                    {action.undoError}
-                  </Typography>
+                </Box>
+                <Typography variant="body2" color="inherit" sx={{ flex: 1 }}>
+                  {actionText(action)}
+                </Typography>
+                {UNDOABLE.has(action.name) &&
+                action.jobId &&
+                action.liveStatus === "applied" &&
+                !action.undone ? (
+                  <Button
+                    size="small"
+                    color="inherit"
+                    disabled={busyCallId === action.callId}
+                    onClick={() => handleUndo(action)}
+                  >
+                    Annuler
+                  </Button>
                 ) : null}
-              </Box>
-            ))}
-          </Stack>
-        ) : null}
-        {message.content ? (
-          <Typography variant="body1" sx={{ whiteSpace: "pre-line" }}>
-            {message.content.replace(/\*\*(.+?)\*\*/g, "$1")}
-          </Typography>
-        ) : null}
-        {message.durationMs != null ? (
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            sx={{ display: "block", mt: 0.5 }}
-          >
-            {(message.durationMs / 1000).toFixed(1)} s
-            {message.models?.length ? ` · ${message.models.join(" → ")}` : ""}
-          </Typography>
-        ) : null}
-        {message.error ? (
-          <Typography variant="body2" color="error" sx={{ mt: 0.5 }}>
-            {message.error}
-          </Typography>
-        ) : null}
-      </Paper>
+              </Stack>
+              {action.undoError ? (
+                <Typography
+                  variant="caption"
+                  color="error"
+                  sx={{ display: "block", pl: "22px" }}
+                >
+                  {action.undoError}
+                </Typography>
+              ) : null}
+            </Box>
+          ))}
+        </Stack>
+      ) : null}
+      {message.content ? <ChatText text={message.content} /> : null}
+      {message.durationMs != null ? (
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{ display: "block", mt: 0.5 }}
+        >
+          {(message.durationMs / 1000).toFixed(1)} s
+          {message.models?.length ? ` · ${message.models.join(" → ")}` : ""}
+        </Typography>
+      ) : null}
+      {message.error ? (
+        <Typography variant="body2" color="error" sx={{ mt: 0.5 }}>
+          {message.error}
+        </Typography>
+      ) : null}
     </Box>
   );
 }

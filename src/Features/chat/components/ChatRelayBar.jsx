@@ -3,15 +3,9 @@ import { useDispatch, useSelector } from "react-redux";
 
 import { setReasoningLevelId, setReasoningLevels } from "../chatSlice";
 
-import {
-  Box,
-  Button,
-  Chip,
-  MenuItem,
-  Select,
-  TextField,
-  Typography,
-} from "@mui/material";
+import { Box, Button, TextField, Typography } from "@mui/material";
+
+import { LEVEL_STORAGE_KEY } from "./ChatLevelSelect";
 
 import useAssistantRelayToken from "Features/assistantRelay/hooks/useAssistantRelayToken";
 import {
@@ -19,19 +13,12 @@ import {
   fetchReasoningLevels,
 } from "Features/assistantRelay/services/assistantRelayClient";
 
-const LEVEL_STORAGE_KEY = "bimboxa-chat-reasoningLevel";
-
-const STATUS_CHIP = {
-  idle: { label: "Non connecté", color: "default" },
-  checking: { label: "Vérification…", color: "default" },
-  connected: { label: "Connecté", color: "success" },
-  error: { label: "Erreur", color: "error" },
-};
-
-// Top of the chat: pairing key of the relay (until OAuth exists) and the
-// model used for the next vectorization. The connection itself is kept by
-// AssistantRelayRuntime: this bar only edits the token and reads the status.
-export default function ChatRelayBar() {
+// Under the header: pairing key of the relay (until OAuth exists). Shown only
+// when there is something to do — no key yet, an error, or the status dot of
+// the header was clicked (`editing`). Always mounted: it also loads the
+// levels of reflection offered by ChatLevelSelect. The connection itself is
+// kept by AssistantRelayRuntime: this bar only edits the token.
+export default function ChatRelayBar({ editing, onEditingChange }) {
   const dispatch = useDispatch();
 
   // strings
@@ -39,7 +26,6 @@ export default function ChatRelayBar() {
   const keyLabelS = "Clé du serveur IA";
   const connectS = "Connecter";
   const forgetS = "Oublier la clé";
-  const levelS = "Réflexion";
   const hintS = "La clé est conservée dans cet onglet seulement.";
 
   // data
@@ -49,14 +35,11 @@ export default function ChatRelayBar() {
     (s) => s.assistantRelay.connectionStatus
   );
   const connectionError = useSelector((s) => s.assistantRelay.connectionError);
-  const levels = useSelector((s) => s.chat.reasoningLevels);
-  const levelId = useSelector((s) => s.chat.reasoningLevelId);
   const connected = connectionStatus === "connected";
 
   // state
 
   const [draft, setDraft] = useState("");
-  const [editing, setEditing] = useState(false);
   const [modelsError, setModelsError] = useState(null);
 
   // Three levels of reflection; the relay decides which model each one
@@ -98,107 +81,33 @@ export default function ChatRelayBar() {
     if (!draft.trim()) return;
     setToken(draft);
     setDraft("");
-    setEditing(false);
+    onEditingChange?.(false);
   }
 
   function handleForget() {
     setToken("");
-    setEditing(false);
-  }
-
-  function handleModelChange(e) {
-    const id = e.target.value;
-    dispatch(setReasoningLevelId(id));
-    try {
-      localStorage.setItem(LEVEL_STORAGE_KEY, id);
-    } catch {
-      // ignore
-    }
+    onEditingChange?.(false);
   }
 
   // render
 
-  const chip = STATUS_CHIP[connectionStatus] ?? STATUS_CHIP.idle;
   const showKeyForm = !token || editing || connectionStatus === "error";
+  const showModelsError = connected && Boolean(modelsError);
+  if (!showKeyForm && !showModelsError) return null;
 
   return (
     <Box
       sx={{
-        p: 1,
+        px: 1.5,
+        py: 1,
         display: "flex",
         flexDirection: "column",
-        gap: 1,
+        gap: 0.75,
         borderBottom: "1px solid",
         borderColor: "divider",
         backgroundColor: "background.default",
       }}
     >
-      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-        <Chip
-          size="small"
-          label={chip.label}
-          color={chip.color}
-          onClick={() => setEditing((v) => !v)}
-        />
-        {connected && levels.length > 0 ? (
-          <>
-            <Typography variant="caption" color="text.secondary">
-              {levelS}
-            </Typography>
-            <Select
-              size="small"
-              variant="standard"
-              disableUnderline
-              value={levelId ?? ""}
-              onChange={handleModelChange}
-              // Dark pill, like the rest of the panel.
-              sx={{
-                flex: 1,
-                minWidth: 0,
-                fontSize: 13,
-                backgroundColor: "#2b2b2b",
-                borderRadius: 999,
-                px: 1.5,
-                py: 0.25,
-                "& .MuiSelect-select": {
-                  py: 0.5,
-                  "&:focus": { backgroundColor: "transparent" },
-                },
-                "& .MuiSvgIcon-root": { color: "text.secondary", mr: 1 },
-              }}
-              MenuProps={{
-                PaperProps: {
-                  sx: {
-                    maxHeight: 320,
-                    mt: 0.5,
-                    backgroundColor: "#2b2b2b",
-                    backgroundImage: "none",
-                    border: "1px solid",
-                    borderColor: "divider",
-                    borderRadius: 2,
-                  },
-                },
-              }}
-            >
-              {levels.map((l) => (
-                <MenuItem key={l.id} value={l.id} sx={{ fontSize: 13 }}>
-                  {l.label}
-                  <Typography
-                    component="span"
-                    variant="caption"
-                    color="text.secondary"
-                    sx={{ ml: 1 }}
-                  >
-                    {l.model}
-                    {l.reasoningEffort ? ` · ${l.reasoningEffort}` : ""}
-                  </Typography>
-                </MenuItem>
-              ))}
-            </Select>
-          </>
-        ) : null}
-      </Box>
-
       {showKeyForm ? (
         <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
           <TextField
@@ -216,8 +125,10 @@ export default function ChatRelayBar() {
           <Button
             size="small"
             variant="contained"
+            color="secondary"
             disabled={!draft.trim()}
             onClick={handleConnect}
+            sx={{ flexShrink: 0, height: 32 }}
           >
             {connectS}
           </Button>
@@ -225,7 +136,7 @@ export default function ChatRelayBar() {
       ) : null}
       {showKeyForm && token ? (
         <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-          <Button size="small" onClick={handleForget}>
+          <Button size="small" color="inherit" onClick={handleForget}>
             {forgetS}
           </Button>
         </Box>

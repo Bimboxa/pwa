@@ -8,7 +8,6 @@ import {
   Box,
   Button,
   CircularProgress,
-  Paper,
   Stack,
   Typography,
 } from "@mui/material";
@@ -24,6 +23,7 @@ import {
   resumeVectorizationImport,
   revalidateVectorization,
 } from "Features/assistantRelay/services/assistantRelayClient";
+import ChatText from "./ChatText";
 import ChatVectorizationCard from "./ChatVectorizationCard";
 import { saveVectorizationPointer } from "Features/assistantRelay/utils/vectorizationPointer";
 
@@ -75,18 +75,17 @@ function buildSteps(message) {
   });
 }
 
-// The model writes light markdown; the bubble is plain text.
+// Links to the model's sandbox files mean nothing here; the light markdown
+// left (bold, code) is rendered by ChatText.
 function cleanModelText(text) {
-  return (text ?? "")
-    .replace(/\[[^\]]*\]\(sandbox:[^)]*\)/g, "")
-    .replace(/\*\*(.+?)\*\*/g, "$1")
-    .trim();
+  return (text ?? "").replace(/\[[^\]]*\]\(sandbox:[^)]*\)/g, "").trim();
 }
 
 function StepIcon({ state }) {
   if (state === "done") return <DoneIcon fontSize="small" color="success" />;
   if (state === "failed") return <ErrorIcon fontSize="small" color="error" />;
-  if (state === "active") return <CircularProgress size={16} />;
+  if (state === "active")
+    return <CircularProgress size={13} thickness={5} color="inherit" />;
   return <TodoIcon fontSize="small" color="disabled" />;
 }
 
@@ -153,30 +152,36 @@ export default function ChatMessageVectorization({ message }) {
     message.streamError;
 
   return (
-    <Box display="flex" justifyContent="flex-start">
-      <Paper
-        sx={{
-          p: 1.5,
-          maxWidth: "95%",
-          minWidth: 0,
-          backgroundColor: "background.paper",
-          backgroundImage: "none",
-          boxShadow: "none",
-          borderRadius: 2,
-        }}
-      >
-        <Stack spacing={0.5}>
+    <Box sx={{ minWidth: 0 }}>
+      <Box>
+        <Stack spacing={0.25}>
           {steps.map((step) => (
             <Stack
               key={step.label}
               direction="row"
-              spacing={1}
+              spacing={0.75}
               alignItems="center"
+              sx={{ color: "text.secondary", minHeight: 24 }}
             >
-              <StepIcon state={step.state} />
+              <Box
+                sx={{
+                  width: 16,
+                  display: "flex",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                }}
+              >
+                <StepIcon state={step.state} />
+              </Box>
               <Typography
                 variant="body2"
-                color={step.state === "todo" ? "text.disabled" : "text.primary"}
+                color={
+                  step.state === "todo"
+                    ? "text.disabled"
+                    : step.state === "active"
+                      ? "text.primary"
+                      : "inherit"
+                }
               >
                 {step.label}
               </Typography>
@@ -185,12 +190,7 @@ export default function ChatMessageVectorization({ message }) {
         </Stack>
 
         {message.content ? (
-          <Typography
-            variant="body2"
-            sx={{ whiteSpace: "pre-line", mt: 1.5, color: "text.secondary" }}
-          >
-            {cleanModelText(message.content)}
-          </Typography>
+          <ChatText text={cleanModelText(message.content)} sx={{ mt: 1.5 }} />
         ) : null}
 
         {run.status === "ready" && !message.confirmed ? (
@@ -198,7 +198,7 @@ export default function ChatMessageVectorization({ message }) {
         ) : null}
 
         {status ? (
-          <Typography variant="body2" sx={{ mt: 1 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
             {status}
           </Typography>
         ) : null}
@@ -208,10 +208,11 @@ export default function ChatMessageVectorization({ message }) {
           </Typography>
         ) : null}
 
-        <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
+        <Stack direction="row" spacing={0.5} sx={{ mt: 1, ml: "-8px" }}>
           {analysing ? (
             <Button
               size="small"
+              color="inherit"
               disabled={busy}
               onClick={() => act(cancelVectorization)}
             >
@@ -221,6 +222,7 @@ export default function ChatMessageVectorization({ message }) {
           {canResumeImport ? (
             <Button
               size="small"
+              color="inherit"
               disabled={busy}
               onClick={() => act(resumeVectorizationImport)}
             >
@@ -230,6 +232,7 @@ export default function ChatMessageVectorization({ message }) {
           {canRevalidate ? (
             <Button
               size="small"
+              color="inherit"
               disabled={busy}
               onClick={() => act(revalidateVectorization)}
             >
@@ -239,6 +242,7 @@ export default function ChatMessageVectorization({ message }) {
           {message.baseMapId ? (
             <Button
               size="small"
+              color="inherit"
               onClick={() =>
                 dispatch(setSelectedMainBaseMapId(message.baseMapId))
               }
@@ -247,7 +251,7 @@ export default function ChatMessageVectorization({ message }) {
             </Button>
           ) : null}
         </Stack>
-      </Paper>
+      </Box>
     </Box>
   );
 }
