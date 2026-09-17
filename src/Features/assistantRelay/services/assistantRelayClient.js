@@ -205,6 +205,12 @@ export function cancelVectorization(runId) {
   return relayFetch(`/vectorizations/${runId}/cancel`, { method: "POST" });
 }
 
+// A run refused at validation is checked again by the relay (stored result,
+// current rules). Never re-runs the model.
+export function revalidateVectorization(runId) {
+  return relayFetch(`/vectorizations/${runId}/revalidate`, { method: "POST" });
+}
+
 // Rebuilds an annotations job that expired / failed. Never re-runs the model.
 export function resumeVectorizationImport(runId) {
   return relayFetch(`/vectorizations/${runId}/resume-import`, {
@@ -315,6 +321,9 @@ export function describeRelayError(e) {
       "La vectorisation n'est pas activée sur le relai (clé API absente).",
     UNKNOWN_MODEL: "Modèle non proposé par le relai.",
     RUN_ALREADY_ACTIVE: "Une vectorisation est déjà en cours.",
+    RUN_NOT_REVALIDABLE: "Ce traitement n'est pas en échec de validation.",
+    RESULT_EXPIRED:
+      "Le résultat du modèle n'est plus disponible (bac à sable expiré) : relancez l'analyse.",
     RUN_NOT_FOUND: "Vectorisation introuvable sur le relai.",
     RUN_NOT_READY: "Le fond de plan n'a pas encore été créé et publié.",
     PAYLOAD_TOO_LARGE: "Fichier trop volumineux pour le relai.",

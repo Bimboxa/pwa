@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useDispatch } from "react-redux";
 
-import { updateMessageById } from "../chatSlice";
+import { setVectorization, updateMessageById } from "../chatSlice";
 import { setSelectedMainBaseMapId } from "Features/mapEditor/mapEditorSlice";
 
 import {
@@ -22,7 +22,9 @@ import {
   cancelVectorization,
   describeRelayError,
   resumeVectorizationImport,
+  revalidateVectorization,
 } from "Features/assistantRelay/services/assistantRelayClient";
+import { saveVectorizationPointer } from "Features/assistantRelay/utils/vectorizationPointer";
 
 const ORDER = ["queued", "analyzing", "ready", "importing", "completed"];
 const FAILED_AT = {
@@ -70,6 +72,14 @@ function buildSteps(message) {
   });
 }
 
+// The model writes light markdown; the bubble is plain text.
+function cleanModelText(text) {
+  return (text ?? "")
+    .replace(/\[[^\]]*\]\(sandbox:[^)]*\)/g, "")
+    .replace(/\*\*(.+?)\*\*/g, "$1")
+    .trim();
+}
+
 function StepIcon({ state }) {
   if (state === "done") return <DoneIcon fontSize="small" color="success" />;
   if (state === "failed") return <ErrorIcon fontSize="small" color="error" />;
@@ -88,10 +98,24 @@ export default function ChatMessageVectorization({ message }) {
     run.status === "importing" ||
     (run.status === "failed" && run.failedStep === "annotations");
 
+  const canRevalidate =
+    run.status === "failed" && run.failedStep === "validation";
+
   const act = async (fn) => {
     setBusy(true);
     try {
       const next = await fn(run.runId);
+      // A run brought back to life (revalidated, import resumed) is followed
+      // again by the runtime: progress stream + base map creation.
+      if (!["completed", "failed", "cancelled"].includes(next?.status)) {
+        const pointer = {
+          runId: next.runId,
+          messageId: message.id,
+          target: next.target ?? {},
+        };
+        saveVectorizationPointer(pointer);
+        dispatch(setVectorization(pointer));
+      }
       dispatch(
         updateMessageById({
           id: message.id,
@@ -159,7 +183,7 @@ export default function ChatMessageVectorization({ message }) {
             variant="body2"
             sx={{ whiteSpace: "pre-line", mt: 1.5, color: "text.secondary" }}
           >
-            {message.content}
+            {cleanModelText(message.content)}
           </Typography>
         ) : null}
 
@@ -191,6 +215,15 @@ export default function ChatMessageVectorization({ message }) {
               onClick={() => act(resumeVectorizationImport)}
             >
               {"Relancer l'import"}
+            </Button>
+          ) : null}
+          {canRevalidate ? (
+            <Button
+              size="small"
+              disabled={busy}
+              onClick={() => act(revalidateVectorization)}
+            >
+              Revalider le résultat
             </Button>
           ) : null}
           {message.baseMapId ? (
