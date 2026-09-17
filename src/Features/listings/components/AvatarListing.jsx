@@ -16,6 +16,8 @@ export default function AvatarListing({
   onClick,
   onDoubleClick,
   sx,
+  // ref + event handlers injected by a wrapping Tooltip
+  ...props
 }) {
   // helpers
 
@@ -46,6 +48,7 @@ export default function AvatarListing({
 
   return (
     <Avatar
+      {...props}
       onClick={onClick}
       onDoubleClick={onDoubleClick}
       sx={[

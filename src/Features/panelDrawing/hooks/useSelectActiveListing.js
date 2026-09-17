@@ -14,6 +14,8 @@ import db from "App/db/db";
 // LISTE ACTIVE field and the listing avatars bar: selects the listing, always
 // unhides it, and with "Visibilité auto" hides every other listing of the
 // panel while unhiding all the templates of the selected one.
+// `options.hideOthers` overrides "Visibilité auto" for the listings part:
+// false = never touch the other listings, true = always hide them.
 // ---------------------------------------------------------------------------
 
 export default function useSelectActiveListing(listings) {
@@ -32,11 +34,13 @@ export default function useSelectActiveListing(listings) {
 
   // handler
 
-  const selectListing = async (listingId) => {
+  const selectListing = async (listingId, options) => {
+    const hideOthers = options?.hideOthers ?? Boolean(autoVisibility);
+
     dispatch(setSelectedListingId(listingId));
 
-    if (!autoVisibility) {
-      // Even without auto visibility, selecting a listing always unhides it.
+    if (!hideOthers) {
+      // Even without hiding the others, selecting a listing always unhides it.
       if (hiddenListingsIds.includes(listingId))
         dispatch(
           setHiddenListingsIds(
@@ -46,9 +50,8 @@ export default function useSelectActiveListing(listings) {
       return;
     }
 
-    // Auto visibility: hide every other listing of the panel (hidden ids
-    // from other scopes are preserved) and unhide all the templates of the
-    // selected listing.
+    // Hide every other listing of the panel (hidden ids from other scopes
+    // are preserved).
     const panelIds = (listings ?? []).map((l) => l.id);
     const keptHiddenIds = hiddenListingsIds.filter(
       (id) => !panelIds.includes(id)
@@ -59,6 +62,9 @@ export default function useSelectActiveListing(listings) {
         ...panelIds.filter((id) => id !== listingId),
       ])
     );
+
+    // Auto visibility also unhides all the templates of the selected listing.
+    if (!autoVisibility) return;
 
     const templates = await db.annotationTemplates
       .where("listingId")
