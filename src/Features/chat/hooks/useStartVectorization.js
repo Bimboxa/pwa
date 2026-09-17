@@ -22,8 +22,8 @@ export default function useStartVectorization() {
   const dispatch = useDispatch();
   const pendingPdf = useSelector((s) => s.chat.pendingPdf);
   const activeRun = useSelector((s) => s.chat.vectorization);
-  const models = useSelector((s) => s.chat.vectorizationModels);
-  const modelId = useSelector((s) => s.chat.vectorizationModelId);
+  const levels = useSelector((s) => s.chat.reasoningLevels);
+  const levelId = useSelector((s) => s.chat.reasoningLevelId);
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const scopeId = useSelector((s) => s.scopes.selectedScopeId);
   const { defaultListingId } = useCreateBaseMapFromRelayJob();
@@ -102,9 +102,9 @@ export default function useStartVectorization() {
           pageNumber: pendingPdf.pageNumber,
           instruction: text,
           target,
-          // Only a model the relay listed; otherwise its default.
-          ...(modelId && models.some((m) => m.id === modelId)
-            ? { model: modelId }
+          // Level of reflection; the relay picks the model.
+          ...(levelId && levels.some((l) => l.id === levelId)
+            ? { level: levelId }
             : {}),
           clientRequestId,
         });
@@ -140,8 +140,8 @@ export default function useStartVectorization() {
       projectId,
       scopeId,
       defaultListingId,
-      models,
-      modelId,
+      levels,
+      levelId,
     ]
   );
 

@@ -14,13 +14,13 @@ const chatSlice = createSlice({
     pendingPdf: null,
     // The run this tab follows: { runId, messageId, target }.
     vectorization: null,
-    // Models offered by the relay ([{ id, isDefault }]) and the user's pick
-    // (null = the relay default).
     // Conversation kept by the provider: id of the last turn, and the key of
     // the plan picture the model has already been shown.
     conversation: { previousResponseId: null, imageKey: null },
-    vectorizationModels: [],
-    vectorizationModelId: null,
+    // Levels of reflection offered by the relay ([{ id, label, model }]) and
+    // the user's pick (null = the relay default, `high`).
+    reasoningLevels: [],
+    reasoningLevelId: null,
   },
   reducers: {
     setIsThinking(state, action) {
@@ -80,11 +80,11 @@ const chatSlice = createSlice({
         imageKey: null,
       };
     },
-    setVectorizationModels(state, action) {
-      state.vectorizationModels = action.payload ?? [];
+    setReasoningLevels(state, action) {
+      state.reasoningLevels = action.payload ?? [];
     },
-    setVectorizationModelId(state, action) {
-      state.vectorizationModelId = action.payload ?? null;
+    setReasoningLevelId(state, action) {
+      state.reasoningLevelId = action.payload ?? null;
     },
     //
     setManagedDataByAgent(state, action) {
@@ -106,8 +106,8 @@ export const {
   updateMessageAction,
   setConversation,
   resetConversation,
-  setVectorizationModels,
-  setVectorizationModelId,
+  setReasoningLevels,
+  setReasoningLevelId,
   setManagedDataByAgent,
 } = chatSlice.actions;
 export default chatSlice.reducer;

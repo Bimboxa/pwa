@@ -38,8 +38,8 @@ export default function useSendChatTurn() {
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const scopeId = useSelector((s) => s.scopes.selectedScopeId);
   const conversation = useSelector((s) => s.chat.conversation);
-  const models = useSelector((s) => s.chat.vectorizationModels);
-  const modelId = useSelector((s) => s.chat.vectorizationModelId);
+  const levels = useSelector((s) => s.chat.reasoningLevels);
+  const levelId = useSelector((s) => s.chat.reasoningLevelId);
   const selectedTemplateId = useSelector(
     (s) => s.mapEditor.selectedAnnotationTemplateId
   );
@@ -109,10 +109,10 @@ export default function useSendChatTurn() {
         await streamChatTurn(
           {
             message,
-            // The turn starts on the relay's fast model; the selector is the
-            // model that takes over when the plan must be looked at.
-            ...(modelId && models.some((m) => m.id === modelId)
-              ? { analysisModel: modelId }
+            // The turn starts on the relay's fast level; the level picked in
+            // the chat takes over when the plan must be looked at.
+            ...(levelId && levels.some((l) => l.id === levelId)
+              ? { level: levelId }
               : {}),
             previousResponseId: conversation.previousResponseId,
             ...(baseMap ? { baseMap } : {}),
@@ -180,8 +180,8 @@ export default function useSendChatTurn() {
       listing,
       templates,
       conversation,
-      models,
-      modelId,
+      levels,
+      levelId,
       selectedTemplateId,
     ]
   );

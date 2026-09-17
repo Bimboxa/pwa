@@ -230,13 +230,15 @@ export async function uploadRelayPdf(file) {
   return response.json();
 }
 
-// Models the relay offers for a run: [{ id, isDefault }], default first.
-export async function fetchVectorizationModels() {
-  const data = await relayFetch("/vectorization-models");
-  return data?.models ?? [];
+// Levels of reflection offered in the chat: [{ id: "high"|"medium"|"low",
+// label, model, reasoningEffort, isDefault }]. The relay maps each level to a
+// model from what the provider's account offers.
+export async function fetchReasoningLevels() {
+  const data = await relayFetch("/reasoning-levels");
+  return data?.levels ?? [];
 }
 
-// { pdfId, pageNumber, instruction, target, model?, clientRequestId } → run. The same
+// { pdfId, pageNumber, instruction, target, level?, clientRequestId } → run. The same
 // clientRequestId returns the same run (no second analysis).
 export function createVectorization(input) {
   return relayFetch("/vectorizations", { method: "POST", json: input });

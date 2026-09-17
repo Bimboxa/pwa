@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
-import { setVectorizationModelId, setVectorizationModels } from "../chatSlice";
+import { setReasoningLevelId, setReasoningLevels } from "../chatSlice";
 
 import {
   Box,
@@ -16,10 +16,10 @@ import {
 import useAssistantRelayToken from "Features/assistantRelay/hooks/useAssistantRelayToken";
 import {
   describeRelayError,
-  fetchVectorizationModels,
+  fetchReasoningLevels,
 } from "Features/assistantRelay/services/assistantRelayClient";
 
-const MODEL_STORAGE_KEY = "bimboxa-chat-vectorizationModel";
+const LEVEL_STORAGE_KEY = "bimboxa-chat-reasoningLevel";
 
 const STATUS_CHIP = {
   idle: { label: "Non connecté", color: "default" },
@@ -39,7 +39,7 @@ export default function ChatRelayBar() {
   const keyLabelS = "Clé du serveur IA";
   const connectS = "Connecter";
   const forgetS = "Oublier la clé";
-  const modelS = "Modèle d'analyse";
+  const levelS = "Réflexion";
   const hintS = "La clé est conservée dans cet onglet seulement.";
 
   // data
@@ -49,8 +49,8 @@ export default function ChatRelayBar() {
     (s) => s.assistantRelay.connectionStatus
   );
   const connectionError = useSelector((s) => s.assistantRelay.connectionError);
-  const models = useSelector((s) => s.chat.vectorizationModels);
-  const modelId = useSelector((s) => s.chat.vectorizationModelId);
+  const levels = useSelector((s) => s.chat.reasoningLevels);
+  const levelId = useSelector((s) => s.chat.reasoningLevelId);
   const connected = connectionStatus === "connected";
 
   // state
@@ -59,20 +59,20 @@ export default function ChatRelayBar() {
   const [editing, setEditing] = useState(false);
   const [modelsError, setModelsError] = useState(null);
 
-  // The list comes from the relay (which asks the provider): a new model
-  // shows up here without a PWA release.
+  // Three levels of reflection; the relay decides which model each one
+  // means, from what the provider's account offers.
   useEffect(() => {
     if (!connected) return;
     let cancelled = false;
     (async () => {
       try {
-        const list = await fetchVectorizationModels();
+        const list = await fetchReasoningLevels();
         if (cancelled) return;
-        dispatch(setVectorizationModels(list));
+        dispatch(setReasoningLevels(list));
         setModelsError(null);
         let saved = null;
         try {
-          saved = localStorage.getItem(MODEL_STORAGE_KEY);
+          saved = localStorage.getItem(LEVEL_STORAGE_KEY);
         } catch {
           // ignore
         }
@@ -80,10 +80,10 @@ export default function ChatRelayBar() {
           list.find((m) => m.id === saved) ??
           list.find((m) => m.isDefault) ??
           list[0];
-        dispatch(setVectorizationModelId(initial?.id ?? null));
+        dispatch(setReasoningLevelId(initial?.id ?? null));
       } catch (e) {
         if (cancelled) return;
-        dispatch(setVectorizationModels([]));
+        dispatch(setReasoningLevels([]));
         setModelsError(e?.code ? describeRelayError(e) : e?.message);
       }
     })();
@@ -108,9 +108,9 @@ export default function ChatRelayBar() {
 
   function handleModelChange(e) {
     const id = e.target.value;
-    dispatch(setVectorizationModelId(id));
+    dispatch(setReasoningLevelId(id));
     try {
-      localStorage.setItem(MODEL_STORAGE_KEY, id);
+      localStorage.setItem(LEVEL_STORAGE_KEY, id);
     } catch {
       // ignore
     }
@@ -139,23 +139,31 @@ export default function ChatRelayBar() {
           color={chip.color}
           onClick={() => setEditing((v) => !v)}
         />
-        {connected && models.length > 0 ? (
+        {connected && levels.length > 0 ? (
           <>
             <Typography variant="caption" color="text.secondary">
-              {modelS}
+              {levelS}
             </Typography>
             <Select
               size="small"
               variant="standard"
-              value={modelId ?? ""}
+              value={levelId ?? ""}
               onChange={handleModelChange}
               sx={{ flex: 1, minWidth: 0, fontSize: 13 }}
               MenuProps={{ PaperProps: { sx: { maxHeight: 320 } } }}
             >
-              {models.map((m) => (
-                <MenuItem key={m.id} value={m.id} sx={{ fontSize: 13 }}>
-                  {m.id}
-                  {m.isDefault ? " (défaut)" : ""}
+              {levels.map((l) => (
+                <MenuItem key={l.id} value={l.id} sx={{ fontSize: 13 }}>
+                  {l.label}
+                  <Typography
+                    component="span"
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ ml: 1 }}
+                  >
+                    {l.model}
+                    {l.reasoningEffort ? ` · ${l.reasoningEffort}` : ""}
+                  </Typography>
                 </MenuItem>
               ))}
             </Select>
