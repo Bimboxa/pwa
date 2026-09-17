@@ -376,6 +376,14 @@ db.version(35).stores({
   // hard-deleted.
 });
 
+db.version(36).stores({
+  // relayJobId: set on rows created by a live job of the ChatGPT relay
+  // (Features/assistantRelay) so an undo can find them.
+  annotations:
+    "id,projectId,baseMapId,listingId,entityId,annotationTemplateId,relayJobId",
+  annotationTemplates: "id,projectId,listingId,code,label,relayJobId",
+});
+
 // --- AUDIT HOOKS ---
 
 const AUDIT_TABLES = [

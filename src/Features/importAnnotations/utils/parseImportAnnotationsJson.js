@@ -242,10 +242,11 @@ export default function parseImportAnnotationsJson(text) {
   }
   const templateIds = new Set(templates.map((t) => t.id));
 
-  // annotations
+  // annotations — an empty array is accepted (templates-only payload: the
+  // ChatGPT relay creates templates without placing anything).
   const annotations = json.annotations;
-  if (!Array.isArray(annotations) || annotations.length === 0) {
-    return { ok: false, error: "`annotations` doit être un tableau non vide." };
+  if (!Array.isArray(annotations)) {
+    return { ok: false, error: "`annotations` doit être un tableau." };
   }
   for (const ann of annotations) {
     if (!SUPPORTED_TYPES.includes(ann?.type)) {

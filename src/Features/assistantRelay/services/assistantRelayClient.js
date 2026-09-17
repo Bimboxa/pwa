@@ -80,11 +80,23 @@ export function fetchJob(jobId) {
   return relayFetch(`/jobs/${jobId}`);
 }
 
-export function ackJob(jobId, { status, error }) {
+// status: imported (with an optional `result`, live jobs) | rejected | failed
+// (with error).
+export function ackJob(jobId, { status, error, result }) {
   return relayFetch(`/jobs/${jobId}/ack`, {
     method: "POST",
-    json: error ? { status, error } : { status },
+    json: {
+      status,
+      ...(error ? { error } : {}),
+      ...(result ? { result } : {}),
+    },
   });
+}
+
+// Live jobs: take the job for this tab (proposed → applying). 409 when
+// another tab was first, 410 when the relay expired it.
+export function claimJob(jobId) {
+  return relayFetch(`/jobs/${jobId}/claim`, { method: "POST" });
 }
 
 // Binary variant (PDF, preview): same auth and error mapping, returns a Blob.
@@ -168,6 +180,11 @@ export function describeRelayError(e) {
     PDF_NOT_FOUND: "PDF introuvable sur le relai.",
     PREVIEW_NOT_FOUND: "Aperçu indisponible.",
     SNAPSHOT_NOT_FOUND: "Fond de plan publié introuvable sur le relai.",
+    JOB_EXPIRED: "Commande expirée sur le relai.",
+    TARGET_NOT_CALIBRATED:
+      "Le fond de plan affiché n'a pas d'échelle : calibrez-le d'abord.",
+    NO_LISTING: "Aucune liste d'annotations pour recevoir le dessin.",
+    NO_BASE_MAP: "Aucun fond de plan affiché.",
   };
   const base = messages[code] ?? `Erreur relai (${code}).`;
   return e?.message && e.message !== code ? `${base} ${e.message}` : base;

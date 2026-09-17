@@ -22,7 +22,7 @@ import {
 // job, the snapshot it targets (`snapshot.baseMapId`): the import goes onto
 // THAT base map, never onto the current one, even if another base map was
 // published in between.
-async function loadTargetBaseMap(job, projectId) {
+export async function loadTargetBaseMap(job, projectId) {
   const baseMapId = job?.snapshot?.baseMapId;
   if (!baseMapId) {
     throw new Error("Proposition sans fond de plan cible (snapshot manquant).");

@@ -46,13 +46,16 @@ export default function ListDetectionJobs({ realtimeStatus }) {
   // helpers
 
   const { proposed, history } = useMemo(() => {
-    // `draft` = not yet confirmed by the user in the ChatGPT preview.
+    // `draft` = not yet confirmed by the user in the ChatGPT preview. Live
+    // jobs (drawn directly by ChatGPT, applied by AssistantRelayRuntime) are
+    // never "à importer": they only show up in the history.
     const all = Object.values(jobsById ?? {})
       .filter((j) => j.status !== "draft")
       .sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""));
+    const isLive = (j) => j.mode && j.mode !== "proposal";
     return {
-      proposed: all.filter((j) => j.status === "proposed"),
-      history: all.filter((j) => j.status !== "proposed"),
+      proposed: all.filter((j) => j.status === "proposed" && !isLive(j)),
+      history: all.filter((j) => j.status !== "proposed" || isLive(j)),
     };
   }, [jobsById]);
 

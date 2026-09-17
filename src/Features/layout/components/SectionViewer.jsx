@@ -28,6 +28,7 @@ import PanelPovList from "Features/pov/components/PanelPovList";
 import ButtonSavePov from "Features/pov/components/ButtonSavePov";
 import ButtonCreatePovView from "Features/pov/components/ButtonCreatePovView";
 import ButtonSaveCapture from "Features/mapEditor/components/ButtonSaveCapture";
+import AssistantRelayRuntime from "Features/assistantRelay/components/AssistantRelayRuntime";
 import TopBaseMapChipsThreed from "Features/threedEditor/components/TopBaseMapChipsThreed";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 import {
@@ -172,6 +173,9 @@ export default function SectionViewer() {
       )}
 
       <Box sx={{ flex: 1, minWidth: 0, height: 1, position: "relative" }}>
+      {/* ChatGPT relay: live jobs are applied whether or not the "Assistant
+          IA" panel is open (renders nothing). */}
+      <AssistantRelayRuntime />
       <PanelShowable show={showMap} sx={{ position: "absolute", zIndex: 0 }}>
         {legacy ? <MainMapEditorV2 /> : <MainMapEditorV3 />}
       </PanelShowable>

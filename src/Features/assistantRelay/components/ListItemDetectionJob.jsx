@@ -14,9 +14,19 @@ import {
 
 const STATUS_CHIP = {
   proposed: { label: "À importer", color: "primary" },
+  applying: { label: "En cours", color: "info" },
   imported: { label: "Importée", color: "success" },
   rejected: { label: "Rejetée", color: "default" },
   failed: { label: "Échec", color: "error" },
+};
+
+// Live jobs (drawn / undone directly by ChatGPT, no manual import).
+const LIVE_STATUS_CHIP = {
+  proposed: { label: "Direct · en attente", color: "info" },
+  applying: { label: "Direct · en cours", color: "info" },
+  imported: { label: "Direct · appliquée", color: "success" },
+  rejected: { label: "Direct · abandonnée", color: "default" },
+  failed: { label: "Direct · échec", color: "error" },
 };
 
 function formatDate(iso) {
@@ -53,9 +63,13 @@ export default function ListItemDetectionJob({
 
   // helpers
 
-  const chip = STATUS_CHIP[job.status] ?? STATUS_CHIP.proposed;
+  const isLive = Boolean(job.mode && job.mode !== "proposal");
+  const chip =
+    (isLive ? LIVE_STATUS_CHIP[job.status] : STATUS_CHIP[job.status]) ??
+    STATUS_CHIP.proposed;
   const busy = actionStatus === "importing" || actionStatus === "rejecting";
-  const proposed = job.status === "proposed";
+  // Manual import controls: never for live jobs.
+  const proposed = job.status === "proposed" && !isLive;
   const targetListingId = listingId || defaultListingId || "";
 
   // handlers
@@ -94,7 +108,9 @@ export default function ListItemDetectionJob({
         }}
       >
         <Typography variant="body2" noWrap>
-          {job.annotationCount} annotation(s) · {job.templateCount} template(s)
+          {job.mode === "live_undo"
+            ? "Annulation d'un dessin"
+            : `${job.annotationCount} annotation(s) · ${job.templateCount} template(s)`}
         </Typography>
         <Chip size="small" label={chip.label} color={chip.color} />
       </Box>

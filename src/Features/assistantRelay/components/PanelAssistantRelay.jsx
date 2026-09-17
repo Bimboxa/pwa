@@ -1,4 +1,4 @@
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 
 import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 
@@ -9,7 +9,6 @@ import HeaderTitleClose from "Features/layout/components/HeaderTitleClose";
 
 import useAssistantRelayConfig from "../hooks/useAssistantRelayConfig";
 import useAssistantRelaySession from "../hooks/useAssistantRelaySession";
-import useDetectionJobsRealtime from "../hooks/useDetectionJobsRealtime";
 
 import SectionAssistantRelayConnection from "./SectionAssistantRelayConnection";
 import SectionAssistantRelayBaseMap from "./SectionAssistantRelayBaseMap";
@@ -34,7 +33,9 @@ export default function PanelAssistantRelay() {
   const config = useAssistantRelayConfig();
   const { connected, connectionStatus, connectionError, refresh } =
     useAssistantRelaySession();
-  const { realtimeStatus } = useDetectionJobsRealtime({ connected, refresh });
+  // The Realtime subscription lives in AssistantRelayRuntime (mounted with
+  // the viewer, panel open or not): the panel only displays its status.
+  const realtimeStatus = useSelector((s) => s.assistantRelay.realtimeStatus);
 
   // handlers
 

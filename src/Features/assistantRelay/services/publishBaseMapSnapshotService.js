@@ -11,7 +11,8 @@ function isIdentityTransform(t) {
   );
 }
 
-// Summarize the project templates for the model (label/type/colors only).
+// Summarize the project templates for the model: label/type/colors, plus
+// what it needs to pick one when drawing live (shape, band width, height).
 function summarizeTemplates(templates) {
   return (templates ?? [])
     .filter((t) => t?.id)
@@ -22,6 +23,12 @@ function summarizeTemplates(templates) {
       ...(t.type ? { type: t.type } : {}),
       ...(t.fillColor ? { fillColor: t.fillColor } : {}),
       ...(t.strokeColor ? { strokeColor: t.strokeColor } : {}),
+      ...(t.drawingShape ? { drawingShape: t.drawingShape } : {}),
+      ...(typeof t.strokeWidth === "number"
+        ? { strokeWidth: t.strokeWidth }
+        : {}),
+      ...(t.strokeWidthUnit ? { strokeWidthUnit: t.strokeWidthUnit } : {}),
+      ...(typeof t.height === "number" ? { height: t.height } : {}),
     }));
 }
 
