@@ -184,6 +184,9 @@ export function describeRelayError(e) {
     TARGET_NOT_CALIBRATED:
       "Le fond de plan affiché n'a pas d'échelle : calibrez-le d'abord.",
     NO_LISTING: "Aucune liste d'annotations pour recevoir le dessin.",
+    LISTING_NOT_FOUND: "Liste cible introuvable dans le projet courant.",
+    NO_SCOPE: "Aucun scope sélectionné pour créer la liste.",
+    LISTING_NOT_CREATED: "La liste n'a pas pu être créée.",
     NO_BASE_MAP: "Aucun fond de plan affiché.",
   };
   const base = messages[code] ?? `Erreur relai (${code}).`;

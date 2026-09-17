@@ -17,10 +17,14 @@ export default function useDeleteListing() {
   const currentUserId = useSelector((state) =>
     getUserIdMaster(state.auth.userProfile)
   );
+  const selectedListingId = useSelector((s) => s.listings.selectedListingId);
 
   const deleteFunc = async (listingId, options) => {
     // options
     const forceLocalToRemote = options?.forceLocalToRemote;
+    // keepSelection: only re-select another listing when the deleted one was
+    // the selected one (a deletion the user did not trigger from the UI).
+    const keepSelection = options?.keepSelection;
 
     // helpers
     const listing = listings.find((l) => l.id === listingId);
@@ -46,7 +50,9 @@ export default function useDeleteListing() {
         await db[listing.table].where("listingId").equals(listingId).delete();
     });
 
-    dispatch(setSelectedListingId(nextSelectedListingId));
+    if (!keepSelection || selectedListingId === listingId) {
+      dispatch(setSelectedListingId(nextSelectedListingId));
+    }
   };
 
   return deleteFunc;

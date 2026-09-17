@@ -55,6 +55,9 @@ export default function ListItemDetectionJob({
   const listingS = "Liste cible";
   const staleS =
     "Proposition faite sur un autre fond de plan que le fond de plan courant : l'import se fera sur ce fond de plan-là.";
+  const undoS = "Annulation d'un dessin";
+  const newListingS = "Nouvelle liste";
+  const targetedListingS = "liste ciblée";
 
   // state
 
@@ -71,6 +74,16 @@ export default function ListItemDetectionJob({
   // Manual import controls: never for live jobs.
   const proposed = job.status === "proposed" && !isLive;
   const targetListingId = listingId || defaultListingId || "";
+  // Live jobs may create a list (`listing.name`) or target one (`listing.id`).
+  const countsLabel = `${job.annotationCount} annotation(s) · ${job.templateCount} template(s)`;
+  const title =
+    job.mode === "live_undo"
+      ? undoS
+      : job.listing?.name
+        ? `${newListingS} « ${job.listing.name} » · ${job.templateCount} template(s)`
+        : job.listing?.id
+          ? `${countsLabel} · ${targetedListingS}`
+          : countsLabel;
 
   // handlers
 
@@ -108,9 +121,7 @@ export default function ListItemDetectionJob({
         }}
       >
         <Typography variant="body2" noWrap>
-          {job.mode === "live_undo"
-            ? "Annulation d'un dessin"
-            : `${job.annotationCount} annotation(s) · ${job.templateCount} template(s)`}
+          {title}
         </Typography>
         <Chip size="small" label={chip.label} color={chip.color} />
       </Box>

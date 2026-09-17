@@ -6,8 +6,15 @@ import editor from "App/editor";
 import { setToaster } from "Features/layout/layoutSlice";
 import { setSelectedMainBaseMapId } from "Features/mapEditor/mapEditorSlice";
 import { triggerAnnotationTemplatesUpdate } from "Features/annotations/annotationsSlice";
+import {
+  setOpenedPanel,
+  setSelectedListingId,
+} from "Features/listings/listingsSlice";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useListingsByScope from "Features/listings/hooks/useListingsByScope";
+import useCreateAnnotationListing from "Features/listings/hooks/useCreateAnnotationListing";
+import useDeleteListing from "Features/listings/hooks/useDeleteListing";
+import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
 import useDeleteAnnotations from "Features/annotations/hooks/useDeleteAnnotations";
 import parseImportAnnotationsJson from "Features/importAnnotations/utils/parseImportAnnotationsJson";
 import importAnnotationsInlineJsonService from "Features/importAnnotations/services/importAnnotationsInlineJsonService";
@@ -43,7 +50,8 @@ function liveError(code, message) {
 }
 
 // Applies the LIVE jobs of the ChatGPT relay (mode `live`: draw / create
-// templates, mode `live_undo`: remove what a live job created) as soon as
+// templates / create an annotations list, mode `live_undo`: remove what a
+// live job created) as soon as
 // they are seen — no confirmation. One tab claims the job on the relay
 // (`proposed → applying`, atomic) before touching the DB, then acks
 // `imported` with a `result` the model reads back.
@@ -58,6 +66,9 @@ export default function useApplyLiveDetectionJob() {
     excludeIsForBaseMaps: true,
   });
   const deleteAnnotations = useDeleteAnnotations();
+  const { value: scope } = useSelectedScope();
+  const createAnnotationListing = useCreateAnnotationListing();
+  const deleteListing = useDeleteListing();
 
   // Latest values for the async handler (jobs arrive while the user pans,
   // switches base map or listing).
@@ -69,15 +80,36 @@ export default function useApplyLiveDetectionJob() {
       selectedListingId,
       mainBaseMap,
       listings,
+      scope,
+      // Fresh function identities on every render: read through the ref so
+      // the handlers below stay stable.
+      createAnnotationListing,
+      deleteListing,
     };
   });
 
   // Jobs this tab already tried (claim lost, applied or failed): never twice.
   const attemptedRef = useRef(new Set());
 
-  const resolveListingId = useCallback((snapshot) => {
-    const { selectedListingId, listings } = latest.current;
+  // Target listing of a live job. `listing.id` (explicit target, e.g. a list
+  // a previous job created) wins; otherwise the selected listing, the
+  // snapshot's one, or the first of the scope.
+  const resolveListingId = useCallback(async (snapshot, listing) => {
+    const { projectId, selectedListingId, listings } = latest.current;
     const ids = new Set((listings ?? []).map((l) => l.id));
+    if (listing?.id) {
+      if (ids.has(listing.id)) return listing.id;
+      // The Redux mirror lags behind Dexie: a list created by the previous
+      // job may not be there yet.
+      const row = await db.listings.get(listing.id);
+      const isTarget =
+        row &&
+        !row.deletedAt &&
+        row.projectId === projectId &&
+        (row.entityModel?.type ?? "LOCATED_ENTITY") === "LOCATED_ENTITY";
+      if (!isTarget) throw liveError("LISTING_NOT_FOUND", listing.id);
+      return row.id;
+    }
     if (selectedListingId && ids.has(selectedListingId))
       return selectedListingId;
     if (snapshot?.listingId && ids.has(snapshot.listingId))
@@ -85,63 +117,138 @@ export default function useApplyLiveDetectionJob() {
     return listings?.[0]?.id ?? null;
   }, []);
 
-  // mode `live`: place the payload (annotations and/or templates).
+  // mode `live`: create the listing the job asks for (`listing.name`), then
+  // place the payload (annotations and/or templates) in the target listing.
   const applyDraw = useCallback(
     async (full) => {
-      const { projectId, selectedBaseMapId, mainBaseMap } = latest.current;
-      const parsed = parseImportAnnotationsJson(JSON.stringify(full.payload));
-      if (!parsed.ok) throw liveError("INVALID_PAYLOAD", parsed.error);
-      const hasAnnotations = (parsed.data.annotations ?? []).length > 0;
+      const {
+        projectId,
+        selectedBaseMapId,
+        mainBaseMap,
+        scope,
+        createAnnotationListing,
+      } = latest.current;
 
-      const listingId = resolveListingId(full.snapshot);
-      if (!listingId) throw liveError("NO_LISTING");
+      // A new list without templates carries an empty payload, which the
+      // import parser refuses: nothing to parse nor to place then.
+      const payload = full.payload ?? {};
+      const isEmpty =
+        !(payload.annotationTemplates ?? []).length &&
+        !(payload.annotations ?? []).length;
+      let data = null;
+      if (!isEmpty) {
+        const parsed = parseImportAnnotationsJson(JSON.stringify(payload));
+        if (!parsed.ok) throw liveError("INVALID_PAYLOAD", parsed.error);
+        data = parsed.data;
+      }
+      const hasAnnotations = (data?.annotations ?? []).length > 0;
+
+      const newListingName = (full.listing?.name ?? "").trim() || null;
+      if (isEmpty && !newListingName) throw liveError("INVALID_PAYLOAD");
+
+      // Everything that can fail is checked BEFORE the listing is created.
+      let listingId = null;
+      if (newListingName) {
+        if (!scope?.id) throw liveError("NO_SCOPE");
+      } else {
+        listingId = await resolveListingId(full.snapshot, full.listing);
+        if (!listingId) throw liveError("NO_LISTING");
+      }
 
       const placement = full.placement?.mode ?? "viewport_center";
-      let targetBaseMap;
-      let relativeToBaseMap;
+      let targetBaseMap = null;
+      let relativeToBaseMap = false;
       let targetCenter = null;
-      if (placement === "absolute") {
-        // Coordinates are on the snapshot image: that base map, wherever it is.
-        targetBaseMap = await loadTargetBaseMap(full, projectId);
-        relativeToBaseMap = true;
-      } else {
-        // The base map the user is looking at; real-world sizes are rescaled
-        // with its own scale (widthMeters of the payload vs its meterByPx).
-        targetBaseMap = mainBaseMap;
-        if (!targetBaseMap?.id) throw liveError("NO_BASE_MAP");
-        if (hasAnnotations && !(targetBaseMap.getMeterByPx?.() > 0)) {
-          throw liveError("TARGET_NOT_CALIBRATED");
-        }
-        relativeToBaseMap = false;
-        if (placement === "viewport_center") {
-          targetCenter = getViewportCenter(targetBaseMap);
-          if (!targetCenter) throw liveError("NO_BASE_MAP");
+      if (!isEmpty) {
+        if (placement === "absolute") {
+          // Coordinates are on the snapshot image: that base map, wherever
+          // it is.
+          targetBaseMap = await loadTargetBaseMap(full, projectId);
+          relativeToBaseMap = true;
+        } else {
+          // The base map the user is looking at; real-world sizes are
+          // rescaled with its own scale (widthMeters of the payload vs its
+          // meterByPx).
+          targetBaseMap = mainBaseMap;
+          if (!targetBaseMap?.id) throw liveError("NO_BASE_MAP");
+          if (hasAnnotations && !(targetBaseMap.getMeterByPx?.() > 0)) {
+            throw liveError("TARGET_NOT_CALIBRATED");
+          }
+          // A templates-only job places nothing: no viewport needed.
+          if (hasAnnotations && placement === "viewport_center") {
+            targetCenter = getViewportCenter(targetBaseMap);
+            if (!targetCenter) throw liveError("NO_BASE_MAP");
+          }
         }
       }
 
-      const result = await importAnnotationsInlineJsonService({
-        data: parsed.data,
-        projectId,
-        listingId,
-        mainBaseMap: targetBaseMap,
-        widthMeters: parsed.data?.image?.widthMeters ?? null,
-        relativeToBaseMap,
-        preserveIds: true,
-        targetCenter,
-        annotationProps: { relayJobId: full.jobId },
-        templateProps: { relayJobId: full.jobId },
-        dispatch,
-      });
+      let created = null;
+      if (newListingName) {
+        created = await createAnnotationListing({
+          name: newListingName,
+          props: { relayJobId: full.jobId },
+        });
+        if (!created?.id) throw liveError("LISTING_NOT_CREATED");
+        // Not in the Redux mirror yet: use the id directly.
+        listingId = created.id;
+      }
 
-      if (placement === "absolute" && targetBaseMap.id !== selectedBaseMapId) {
+      let result = { placed: [], createdTemplateIds: [], armed: false };
+      if (!isEmpty) {
+        try {
+          result = await importAnnotationsInlineJsonService({
+            data,
+            projectId,
+            listingId,
+            mainBaseMap: targetBaseMap,
+            widthMeters: data?.image?.widthMeters ?? null,
+            relativeToBaseMap,
+            preserveIds: true,
+            targetCenter,
+            annotationProps: { relayJobId: full.jobId },
+            templateProps: { relayJobId: full.jobId },
+            dispatch,
+          });
+        } catch (e) {
+          // No half-made list: drop the listing this job just created (and
+          // the templates it may already hold).
+          if (created) {
+            try {
+              await db.annotationTemplates
+                .where("relayJobId")
+                .equals(full.jobId)
+                .delete();
+              await db.listings.delete(created.id);
+            } catch (rollbackError) {
+              console.log("[assistantRelay] listing rollback", rollbackError);
+            }
+          }
+          throw e;
+        }
+      }
+
+      if (created) {
+        // Same as DialogCreateListing: show the new list.
+        dispatch(setSelectedListingId(created.id));
+        dispatch(setOpenedPanel("LISTING"));
+      }
+
+      if (
+        targetBaseMap &&
+        placement === "absolute" &&
+        targetBaseMap.id !== selectedBaseMapId
+      ) {
         dispatch(setSelectedMainBaseMapId(targetBaseMap.id));
       }
 
       return {
         annotationIds: (result.placed ?? []).map((a) => a.id),
         templateIds: result.createdTemplateIds ?? [],
-        baseMapId: targetBaseMap.id,
+        baseMapId: targetBaseMap?.id ?? null,
         listingId,
+        ...(created
+          ? { createdListingId: created.id, listingName: created.name }
+          : {}),
         placement,
         armed: Boolean(result.armed),
       };
@@ -149,8 +256,9 @@ export default function useApplyLiveDetectionJob() {
     [dispatch, resolveListingId]
   );
 
-  // mode `live_undo`: delete what job `undoOf` created (annotations, and its
-  // templates when nothing else uses them).
+  // mode `live_undo`: delete what job `undoOf` created (annotations, its
+  // templates when nothing else uses them, and the list it created when it
+  // is empty afterwards).
   const applyUndo = useCallback(
     async (full) => {
       const undoOf = full.undoOf;
@@ -184,10 +292,42 @@ export default function useApplyLiveDetectionJob() {
         deletedTemplateIds.push(t.id);
       }
       if (templates.length) dispatch(triggerAnnotationTemplatesUpdate());
+
+      // The list the job created (`relayJobId` on the listing row; no index,
+      // the table is small): removed only when nothing is left in it.
+      const createdListings = await db.listings
+        .filter((l) => l.relayJobId === undoOf && !l.deletedAt)
+        .toArray();
+      const deletedListingIds = [];
+      const keptListingIds = [];
+      const countAlive = (table, listingId) =>
+        table
+          ? table
+              .where("listingId")
+              .equals(listingId)
+              .filter((r) => !r.deletedAt)
+              .count()
+          : 0;
+      for (const l of createdListings) {
+        const counts = await Promise.all([
+          countAlive(db.annotations, l.id),
+          countAlive(db.annotationTemplates, l.id),
+          countAlive(db[l.table ?? "entities"], l.id),
+        ]);
+        if (counts.some((n) => n > 0)) {
+          keptListingIds.push(l.id);
+          continue;
+        }
+        await latest.current.deleteListing(l.id, { keepSelection: true });
+        deletedListingIds.push(l.id);
+      }
+
       return {
         deletedAnnotationIds: annotationIds,
         deletedTemplateIds,
         keptTemplateIds,
+        deletedListingIds,
+        keptListingIds,
       };
     },
     [dispatch, deleteAnnotations]
@@ -228,8 +368,10 @@ export default function useApplyLiveDetectionJob() {
         dispatch(upsertAssistantRelayJobs([acked]));
         const message =
           full.mode === "live_undo"
-            ? `ChatGPT : ${result.deletedAnnotationIds.length} annotation(s) annulée(s).`
-            : result.armed
+            ? `ChatGPT : ${result.deletedAnnotationIds.length} annotation(s) annulée(s).${result.deletedListingIds.length ? " Liste supprimée." : ""}`
+            : result.createdListingId
+              ? `ChatGPT : liste « ${result.listingName} » créée (${result.templateIds.length} template(s)).`
+              : result.armed
               ? "ChatGPT : cliquez sur le plan pour placer le dessin."
               : `ChatGPT : ${result.annotationIds.length} annotation(s), ${result.templateIds.length} template(s).`;
         dispatch(setToaster({ message, severity: "success" }));

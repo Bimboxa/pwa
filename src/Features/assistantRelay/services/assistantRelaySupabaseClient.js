@@ -55,6 +55,7 @@ export function mapDetectionJobRow(row) {
     status: row.status,
     mode: row.mode ?? "proposal",
     placement: row.placement ?? null,
+    listing: row.listing ?? null,
     result: row.result ?? null,
     undoOf: row.undo_of ?? null,
     annotationCount: row.annotation_count ?? 0,
