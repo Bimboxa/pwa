@@ -107,7 +107,16 @@ export default function ChatInput() {
         <ButtonGeneric
           variant="contained"
           color="secondary"
-          startIcon={<SendIcon />}
+          size="small"
+          // Dense: same height as the checkbox row.
+          sx={{
+            py: 0.25,
+            px: 1.25,
+            minHeight: 0,
+            "& .MuiTypography-root": { fontSize: 12, lineHeight: 1.6 },
+            "& .MuiButton-startIcon": { mr: 0.5 },
+          }}
+          startIcon={<SendIcon fontSize="small" />}
           onClick={handleSend}
           disabled={
             pendingPdf ? pendingPdf.status !== "ready" || hasActiveRun : !input
