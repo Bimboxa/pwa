@@ -110,6 +110,14 @@ export default async function loadKrtoZip(file, options) {
           const newProjectId = nanoid();
           const newScopeId = nanoid();
 
+          // Identity of the copy (same rule as loadProjectExportZip): detach
+          // the new project from the référentiel — the dashboard attaches
+          // remote scopeConfigurations by project idMaster, so keeping it
+          // would list the ORIGINAL scope's configurations under the copy.
+          for (const row of projectsTableData?.rows ?? []) {
+            if (row) delete row.idMaster;
+          }
+
           const { fileNameMap } = remapDexieExportIds(jsonData, {
             importingUserIdMaster: getImportingUserIdMaster(),
             overrideIds: {

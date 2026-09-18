@@ -39,6 +39,7 @@ export default function ButtonSaveScope() {
   // consistent with the "Ctrl + X" module badges of the left band.
   const hotkeyS = "Ctrl + S";
   const saveS = "Nouvelle version";
+  const firstSaveS = "Enregistrer";
   const savingS = "Sauvegarde en cours…";
   const moreS = "Options de sauvegarde";
 
@@ -47,6 +48,9 @@ export default function ButtonSaveScope() {
   const scopeId = useSelector((s) => s.scopes.selectedScopeId);
   const lastRemoteConfiguration = useSelector(
     (s) => s.remoteScopeConfigurations.lastRemoteConfiguration
+  );
+  const remoteConfigurationChecked = useSelector(
+    (s) => s.remoteScopeConfigurations.remoteConfigurationChecked
   );
   const lastSyncedRemoteConfigurationVersion = useSelector(
     (s) => s.remoteScopeConfigurations.lastSyncedRemoteConfigurationVersion
@@ -81,13 +85,24 @@ export default function ButtonSaveScope() {
 
   const isDirtyLook = isLocallyDirty; // contained warning vs outlined primary
 
+  // No remote configuration for this scope (server answered 404, and no
+  // version was ever pushed from here): the save creates a NEW configuration
+  // rather than a new version of an existing one.
+  const isFirstSave =
+    remoteConfigurationChecked &&
+    !lastRemoteConfiguration &&
+    lastSyncedRemoteConfigurationVersion == null;
+
   let tooltipS = "Tout est synchronisé";
-  if (isPullRequired)
+  if (isFirstSave)
+    tooltipS =
+      "Aucune version sur le serveur : enregistre comme nouvelle configuration";
+  else if (isPullRequired)
     tooltipS = "Une version plus récente existe sur le serveur";
   else if (isLocallyDirty)
     tooltipS = "Vous avez des modifications locales non sauvegardées";
 
-  let labelS = saveS;
+  let labelS = isFirstSave ? firstSaveS : saveS;
   if (isSaving) {
     labelS = savingFileSize
       ? `${savingS} (${stringifyFileSize(savingFileSize)})`

@@ -433,10 +433,9 @@ export default function useCreateScopeFromPreset({ projectId }) {
     // can't inherit the previously selected scope's timestamp.
     dispatch(restoreScopeSyncStateFromStorage(scope.id));
 
-    // reset remote-save guards for the freshly created scope: these are never
-    // cleared on scope switch (restoreSyncedVersionFromStorage no-ops on absent
-    // value), so a stale non-null value from a previous scope would short-circuit
-    // the initial auto-save.
+    // reset remote-save guards for the freshly created scope (the slice also
+    // resets them on setSelectedScopeId; kept explicit so the initial
+    // auto-save guard never sees a stale non-null value).
     dispatch(setLastRemoteConfiguration(null));
     dispatch(setLastSyncedRemoteConfigurationVersion(null));
 

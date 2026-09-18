@@ -62,7 +62,15 @@ export default function useInitCheckRemoteVersion() {
           },
         });
 
-        if (!response.ok) return;
+        if (!response.ok) {
+          // 404 = the server knows no configuration for this scope (new or
+          // duplicated scope): record the confirmed absence so the save
+          // button offers a first save instead of a "new version".
+          if (response.status === 404 && !cancelled) {
+            dispatch(setLastRemoteConfiguration(null));
+          }
+          return;
+        }
 
         const data = await response.json();
         const configuration = mapping ? transformObject(data, mapping) : data;

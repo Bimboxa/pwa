@@ -158,6 +158,10 @@ export default function remapDexieExportIds(jsonData, opts) {
         row.projectId = remapId("projects", row.projectId);
       if ("scopeId" in row) row.scopeId = remapId("scopes", row.scopeId);
 
+      // scopeConfigs: deterministic PK = scope id (createScopeConfig), not
+      // the fresh nanoid the generic pass assigned above.
+      if (tableName === "scopeConfigs" && row.scopeId) row.id = row.scopeId;
+
       // Simple FK columns.
       for (const [field, defaultTarget] of Object.entries(SIMPLE_FK)) {
         if (tableName === "zonings" && field === "listingId") continue; // handled as PK

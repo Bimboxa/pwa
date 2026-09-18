@@ -1,5 +1,7 @@
 import { createSlice } from "@reduxjs/toolkit";
 
+import { setSelectedScopeId } from "Features/scopes/scopesSlice";
+
 // --- localStorage helpers ---
 
 const SYNCED_VERSION_PREFIX = "syncedVersion_";
@@ -64,6 +66,10 @@ const remoteScopeConfigurationsInitialState = {
   userConfigurations: [], // scope configurations of the connected user (ByUser)
   projectConfigurations: {}, // project idMaster => scope configurations (ByProject)
   lastRemoteConfiguration: null,
+  // true once the server answered for the selected scope (a configuration,
+  // or a confirmed "none": 404). Lets the UI tell "not checked yet" apart
+  // from "this scope has no remote configuration".
+  remoteConfigurationChecked: false,
   lastSyncedRemoteConfigurationVersion: null,
   lastLocalChangeAt: null,
   lastSyncAt: null,
@@ -91,6 +97,7 @@ export const remoteScopeConfigurationsSlice = createSlice({
     },
     setLastRemoteConfiguration: (state, action) => {
       state.lastRemoteConfiguration = action.payload;
+      state.remoteConfigurationChecked = true;
     },
     setLastSyncedRemoteConfigurationVersion: (state, action) => {
       state.lastSyncedRemoteConfigurationVersion = action.payload;
@@ -138,6 +145,27 @@ export const remoteScopeConfigurationsSlice = createSlice({
     setPendingInitialSaveScopeId: (state, action) => {
       state.pendingInitialSaveScopeId = action.payload;
     },
+  },
+  extraReducers: (builder) => {
+    // Per-scope sync state must never survive a scope switch: a scope with no
+    // remote configuration (e.g. a duplicated import, whose scope ids are
+    // fresh) would otherwise inherit the previously opened scope's
+    // configuration / synced version and look linked to it (share popper,
+    // save button, remote-newer guard). Restore what localStorage knows for
+    // the new scope, null everything else.
+    builder.addCase(setSelectedScopeId, (state, action) => {
+      const scopeId = action.payload;
+      state.lastRemoteConfiguration = null;
+      state.remoteConfigurationChecked = false;
+      state.lastSyncedRemoteConfigurationVersion =
+        getSyncedVersionFromStorage(scopeId);
+      state.lastLocalChangeAt = getLastLocalChangeFromStorage(scopeId);
+      state.lastSyncAt = getLastSyncFromStorage(scopeId);
+      state.staleChangesDialogOpen = false;
+      state.remoteNewerDialogOpen = false;
+      state.dialogSyncOpen = false;
+      state.confirmSaveDialogOpen = false;
+    });
   },
 });
 

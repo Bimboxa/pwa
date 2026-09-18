@@ -208,7 +208,10 @@ export default function PageScopeLoader() {
                 dispatch(setSelectedProjectId(importedScope.projectId));
             }
             // Set scopeId BEFORE synced version so the middleware can persist to localStorage
+            // setSelectedScopeId resets the per-scope remote state: re-apply
+            // the configuration fetched above for the now-selected scope.
             dispatch(setSelectedScopeId(scopeId));
+            dispatch(setLastRemoteConfiguration(configuration));
             dispatch(setLastSyncedRemoteConfigurationVersion(configuration.version));
 
             setProgress(100);
