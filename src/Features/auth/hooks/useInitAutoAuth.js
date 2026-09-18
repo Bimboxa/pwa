@@ -27,9 +27,23 @@ export default function useInitAutoAuth() {
     }, [urlConfig, authDataMapping]);
 
     useEffect(() => {
-        const { jwt, userIdMaster, userName } = getDebugAuthFromLocalStorage() ?? {};
+        const { jwt, userIdMaster, userName, trigram } =
+            getDebugAuthFromLocalStorage() ?? {};
         if (userIdMaster) {
-            dispatch(updateUserProfile({ userIdMaster, userName }));
+            // Same shape as the profile produced by the autoAuth dataMapping
+            // (idMaster / trigram): the hooks that read
+            // `state.auth.userProfile.idMaster` directly (ByUser fetch,
+            // dashboard "Mes Krtos") must see the debug identity too when the
+            // autoAuth endpoint is unreachable (kal 401). `userIdMaster` is
+            // kept for getUserIdMaster's legacy field.
+            dispatch(
+                updateUserProfile({
+                    idMaster: userIdMaster,
+                    userIdMaster,
+                    userName,
+                    trigram,
+                })
+            );
         }
         if (jwt) {
             dispatch(setJwt(jwt));
