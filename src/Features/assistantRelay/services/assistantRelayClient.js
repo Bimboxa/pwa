@@ -1,4 +1,5 @@
 import store from "App/store";
+import getRelayIdentityHeaders from "../utils/getRelayIdentityHeaders.js";
 
 // HTTP client for the reperage-mcp bridge (/bridge/*). Base URL comes from
 // appConfig.features.assistantRelay.relayBaseUrl, the pairing token from the
@@ -29,12 +30,16 @@ function getToken() {
 export async function relayFetch(path, { method = "GET", json } = {}) {
   const baseUrl = getRelayBaseUrl();
   const token = getToken();
+  const identityHeaders = getRelayIdentityHeaders(
+    store.getState()?.auth?.userProfile
+  );
   let response;
   try {
     response = await fetch(`${baseUrl}/bridge${path}`, {
       method,
       headers: {
         Authorization: `Bearer ${token}`,
+        ...identityHeaders,
         ...(json !== undefined ? { "Content-Type": "application/json" } : {}),
       },
       body: json !== undefined ? JSON.stringify(json) : undefined,
@@ -103,10 +108,13 @@ export function claimJob(jobId) {
 export async function relayFetchBlob(path) {
   const baseUrl = getRelayBaseUrl();
   const token = getToken();
+  const identityHeaders = getRelayIdentityHeaders(
+    store.getState()?.auth?.userProfile
+  );
   let response;
   try {
     response = await fetch(`${baseUrl}/bridge${path}`, {
-      headers: { Authorization: `Bearer ${token}` },
+      headers: { Authorization: `Bearer ${token}`, ...identityHeaders },
     });
   } catch (e) {
     throw new AssistantRelayError("NETWORK", 0, e?.message);
@@ -171,12 +179,16 @@ export function ackBaseMapJob(jobId, { status, baseMapId, error }) {
 export async function streamChatTurn(input, { signal, onEvent } = {}) {
   const baseUrl = getRelayBaseUrl();
   const token = getToken();
+  const identityHeaders = getRelayIdentityHeaders(
+    store.getState()?.auth?.userProfile
+  );
   let response;
   try {
     response = await fetch(`${baseUrl}/bridge/chat/turns`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
+        ...identityHeaders,
         "Content-Type": "application/json",
         Accept: "text/event-stream",
       },
@@ -212,6 +224,9 @@ export function undoLiveJob(jobId) {
 export async function uploadRelayPdf(file) {
   const baseUrl = getRelayBaseUrl();
   const token = getToken();
+  const identityHeaders = getRelayIdentityHeaders(
+    store.getState()?.auth?.userProfile
+  );
   const name = encodeURIComponent(file?.name || "document.pdf");
   let response;
   try {
@@ -219,6 +234,7 @@ export async function uploadRelayPdf(file) {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
+        ...identityHeaders,
         "Content-Type": "application/pdf",
       },
       body: file,
@@ -298,6 +314,9 @@ export async function streamVectorizationEvents(
 ) {
   const baseUrl = getRelayBaseUrl();
   const token = getToken();
+  const identityHeaders = getRelayIdentityHeaders(
+    store.getState()?.auth?.userProfile
+  );
   let response;
   try {
     response = await fetch(
@@ -305,6 +324,7 @@ export async function streamVectorizationEvents(
       {
         headers: {
           Authorization: `Bearer ${token}`,
+          ...identityHeaders,
           Accept: "text/event-stream",
         },
         signal,

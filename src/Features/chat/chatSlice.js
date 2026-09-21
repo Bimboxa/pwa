@@ -1,3 +1,4 @@
+import { v4 as uuidv4 } from "uuid";
 import { createSlice } from "@reduxjs/toolkit";
 
 const chatSlice = createSlice({
@@ -19,7 +20,12 @@ const chatSlice = createSlice({
     vectorization: null,
     // Conversation kept by the provider: id of the last turn, and the key of
     // the plan picture the model has already been shown.
-    conversation: { previousResponseId: null, imageKey: null },
+    conversation: {
+      previousResponseId: null,
+      imageKey: null,
+      budgetSessionId: uuidv4(),
+      sessionName: null,
+    },
     // "Ne pas envoyer l'image": the model is not even offered the plan
     // picture. Ticked by default — the user opts in per message.
     blockPlanImage: true,
@@ -84,16 +90,21 @@ const chatSlice = createSlice({
     },
     // "Nouvelle session": back to an empty chat, the provider-side
     // conversation is forgotten too (the next turn starts a new one).
-    resetConversation(state) {
-      state.sessionId += 1;
-      state.messages = [];
-      state.isThinking = false;
-      state.pendingPdf = null;
-      state.managedDataByAgent = { structure: null, data: null };
-      state.conversation = {
-        previousResponseId: null,
-        imageKey: null,
-      };
+    resetConversation: {
+      prepare: () => ({ payload: uuidv4() }),
+      reducer(state, action) {
+        state.sessionId += 1;
+        state.messages = [];
+        state.isThinking = false;
+        state.pendingPdf = null;
+        state.managedDataByAgent = { structure: null, data: null };
+        state.conversation = {
+          previousResponseId: null,
+          imageKey: null,
+          budgetSessionId: action.payload,
+          sessionName: null,
+        };
+      },
     },
     setReasoningLevels(state, action) {
       state.reasoningLevels = action.payload ?? [];

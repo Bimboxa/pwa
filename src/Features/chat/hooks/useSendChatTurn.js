@@ -142,6 +142,10 @@ export default function useSendChatTurn() {
         await streamChatTurn(
           {
             message,
+            sessionId: conversation.budgetSessionId,
+            ...(conversation.sessionName
+              ? { sessionName: conversation.sessionName }
+              : {}),
             // The turn starts on the relay's fast level; the level picked in
             // the chat takes over when the plan must be looked at.
             ...(levelId && levels.some((l) => l.id === levelId)
@@ -169,7 +173,14 @@ export default function useSendChatTurn() {
             signal: controller.signal,
             onEvent: (event) => {
               if (isStale()) return;
-              if (event.type === "text") {
+              if (event.type === "session") {
+                dispatch(
+                  setConversation({
+                    budgetSessionId: event.sessionId,
+                    sessionName: event.sessionName,
+                  })
+                );
+              } else if (event.type === "text") {
                 ensureBubble();
                 dispatch(
                   appendMessageContent({ id: messageId, delta: event.delta })

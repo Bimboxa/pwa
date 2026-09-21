@@ -21,6 +21,7 @@ import { Add as AddIcon, ArrowUpward as SendIcon } from "@mui/icons-material";
 import { CHAT_COLORS, CHAT_FONT } from "../chatDarkTheme";
 import ChatImageThumbs from "./ChatImageThumbs";
 import ChatLevelSelect from "./ChatLevelSelect";
+import ChatBudgetIndicator from "./ChatBudgetIndicator";
 import ChatPendingPdf from "./ChatPendingPdf";
 
 const ATTACH_ACCEPT = "image/png,image/jpeg,image/webp,application/pdf";
@@ -270,7 +271,17 @@ export default function ChatInput({
             />
           ) : null}
         </Box>
-        <ChatLevelSelect />
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 0.5,
+            flexShrink: 0,
+          }}
+        >
+          <ChatLevelSelect />
+          <ChatBudgetIndicator />
+        </Box>
       </Box>
     </Box>
   );

@@ -20,6 +20,7 @@ export const DEFAULT_VECTORIZATION_INSTRUCTION =
 // run. The destination (project, scope, base maps listing) is frozen here.
 export default function useStartVectorization() {
   const dispatch = useDispatch();
+  const conversation = useSelector((s) => s.chat.conversation);
   const pendingPdf = useSelector((s) => s.chat.pendingPdf);
   const activeRun = useSelector((s) => s.chat.vectorization);
   const levels = useSelector((s) => s.chat.reasoningLevels);
@@ -99,6 +100,11 @@ export default function useStartVectorization() {
       );
       try {
         const run = await createVectorization({
+          sessionId: conversation.budgetSessionId,
+          sessionName: (conversation.sessionName ?? pendingPdf.fileName).slice(
+            0,
+            120
+          ),
           pdfId: pendingPdf.pdfId,
           pageNumber: pendingPdf.pageNumber,
           instruction: text,
@@ -137,6 +143,7 @@ export default function useStartVectorization() {
     },
     [
       dispatch,
+      conversation,
       pendingPdf,
       projectId,
       scopeId,
