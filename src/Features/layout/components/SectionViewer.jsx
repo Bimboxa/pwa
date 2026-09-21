@@ -7,7 +7,6 @@ import MainMapEditorV2 from "Features/mapEditor/components/MainMapEditorV2";
 import MainMapEditorV3 from "Features/mapEditor/components/MainMapEditorV3";
 import MainThreedEditor from "Features/threedEditor/components/MainThreedEditor";
 import MainLeafletEditor from "Features/leafletEditor/components/MainLeafletEditor";
-import MainGoogleMapEditor from "Features/gmap/components/MainGoogleMapEditor";
 import TableViewer from "Features/tables/components/ViewerTable";
 import MainPortfolioEditor from "Features/portfolioEditor/components/MainPortfolioEditor";
 import MainBaseMapViewer from "Features/baseMapEditor/components/MainBaseMapViewer";
@@ -208,7 +207,6 @@ export default function SectionViewer() {
         sx={{ position: "absolute", zIndex: 0 }}
       >
         {/* <MainLeafletEditor /> */}
-        {/* <MainGoogleMapEditor /> */}
       </PanelShowable>
 
       {showTable && <PanelShowable show={showTable} sx={{ position: "absolute", zIndex: 0 }}>
