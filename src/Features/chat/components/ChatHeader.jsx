@@ -1,3 +1,4 @@
+import { jwtDecode } from "jwt-decode";
 import { useDispatch, useSelector } from "react-redux";
 
 import { resetConversation } from "../chatSlice";
@@ -7,6 +8,7 @@ import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 import { Box, Button, IconButton, Tooltip, Typography } from "@mui/material";
 import { Add as AddIcon } from "@mui/icons-material";
 import theme from "Styles/theme";
+import useAssistantRelayToken from "Features/assistantRelay/hooks/useAssistantRelayToken";
 
 const RELAY_STATUS = {
   idle: { label: "Serveur IA non connecté", color: "text.disabled" },
@@ -24,7 +26,8 @@ export default function ChatHeader({ showRelayStatus, onRelayStatusClick }) {
 
   const newSessionS = "Nouvelle session";
   const runningS = "Analyse en cours : terminez-la ou annulez-la d'abord.";
-  const editKeyS = "modifier la clé";
+  const { token, mode } = useAssistantRelayToken();
+  const editKeyS = mode === "jwt" ? "détails de connexion" : "modifier la clé";
   const noListingS = "Assistant";
 
   // data
@@ -37,7 +40,26 @@ export default function ChatHeader({ showRelayStatus, onRelayStatusClick }) {
     (s) => s.assistantRelay.connectionStatus
   );
 
+  const jwtVerificationSkipped = useSelector(
+    (s) => s.assistantRelay.jwtVerificationSkipped
+  );
+
   // helpers
+
+  // Display only: decoding claims here never marks the server as connected.
+  let trigram = null;
+  if (mode === "jwt" && token) {
+    try {
+      const name =
+        jwtDecode(token)[
+          "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name"
+        ];
+      if (typeof name === "string" && name.trim() && name.length <= 200)
+        trigram = name;
+    } catch {
+      // Invalid payload: keep the status visible without disclosing the token.
+    }
+  }
 
   const color = listing?.color ?? theme.palette.secondary.main;
   const titleS = listing?.name ? `Liste ${listing.name}` : noListingS;
@@ -77,7 +99,22 @@ export default function ChatHeader({ showRelayStatus, onRelayStatusClick }) {
       </Typography>
 
       {showRelayStatus ? (
-        <Tooltip title={`${status.label} — ${editKeyS}`}>
+        <Tooltip
+          title={
+            <Box>
+              <Box>{status.label}</Box>
+              {mode === "jwt" ? (
+                <Box>Trigramme du JWT : {trigram ?? "indisponible"}</Box>
+              ) : null}
+              {mode === "jwt" &&
+              connectionStatus === "connected" &&
+              jwtVerificationSkipped ? (
+                <Box>Mode temporaire : JWT accepté sans vérification.</Box>
+              ) : null}
+              <Box>{editKeyS}</Box>
+            </Box>
+          }
+        >
           <IconButton
             size="small"
             aria-label={status.label}

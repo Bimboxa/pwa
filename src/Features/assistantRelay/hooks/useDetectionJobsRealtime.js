@@ -1,3 +1,8 @@
+import {
+  selectRelayToken,
+  selectRelayConnectionMode,
+  selectRelayContextKey,
+} from "../utils/relayConnection.js";
 import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
@@ -15,6 +20,9 @@ import {
   mapDetectionJobRow,
 } from "../services/assistantRelaySupabaseClient";
 
+import { streamRelayEvents } from "../services/assistantRelayClient";
+import { watchRelayEvents } from "../services/watchRelayEvents.js";
+
 const POLL_INTERVAL_MS = 10000;
 
 // Live updates of detection_jobs and base_map_jobs while the panel is open
@@ -26,12 +34,24 @@ export default function useDetectionJobsRealtime({ connected, refresh }) {
 
   const workspace = config?.workspace || "main";
   const hasSupabase = hasAssistantRelaySupabaseConfig(config);
+  const transport = useSelector((s) => s.assistantRelay.realtimeTransport);
+  const token = useSelector(selectRelayToken);
+  const mode = useSelector(selectRelayConnectionMode);
+  const contextKey = useSelector(selectRelayContextKey);
   const realtimeStatus = useSelector((s) => s.assistantRelay.realtimeStatus);
 
   useEffect(() => {
     if (!connected) return;
 
-    if (!hasSupabase) {
+    if (transport === "bridge-sse") {
+      return watchRelayEvents({
+        stream: streamRelayEvents,
+        refresh: () => refresh?.({ background: true }),
+        onStatus: (status) => dispatch(setAssistantRelayRealtimeStatus(status)),
+      });
+    }
+
+    if (transport === "bridge-polling" || !hasSupabase || mode === "jwt") {
       dispatch(setAssistantRelayRealtimeStatus("unavailable"));
       const id = setInterval(
         () => refresh?.({ background: true }),
@@ -94,6 +114,11 @@ export default function useDetectionJobsRealtime({ connected, refresh }) {
   }, [
     connected,
     hasSupabase,
+    transport,
+    token,
+    mode,
+    contextKey,
+    config?.relayBaseUrl,
     workspace,
     config?.supabaseUrl,
     config?.supabaseAnonKey,

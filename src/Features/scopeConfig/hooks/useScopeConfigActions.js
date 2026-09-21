@@ -147,7 +147,22 @@ export default function useScopeConfigActions() {
     [upsert]
   );
 
+  // Connection settings are collaborative; never store the key or JWT here.
+  const setChatConnection = useCallback(
+    (connection) =>
+      upsert(() => ({
+        chatConnection: connection
+          ? {
+              mode: connection.mode,
+              baseUrl: connection.baseUrl,
+            }
+          : null,
+      })),
+    [upsert]
+  );
+
   return {
+    setChatConnection,
     scopeId,
     toggleModule,
     toggleToolRoot,

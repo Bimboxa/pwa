@@ -41,6 +41,7 @@ vite.config.local.js
 
 # Temp
 temp
+tmp/
 
 # Data
 Data

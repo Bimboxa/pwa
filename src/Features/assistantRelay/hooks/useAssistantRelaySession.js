@@ -1,8 +1,15 @@
+import store from "App/store";
+import {
+  selectRelayToken,
+  selectRelayContextKey,
+} from "../utils/relayConnection.js";
 import { useCallback, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import {
   setAssistantRelayConnection,
+  setAssistantRelaySessionKey,
+  setAssistantRelayTransport,
   setAssistantRelaySnapshot,
   upsertAssistantRelayBaseMapJobs,
   upsertAssistantRelayJobs,
@@ -22,7 +29,9 @@ import {
 export default function useAssistantRelaySession() {
   const dispatch = useDispatch();
   const config = useAssistantRelayConfig();
-  const token = useSelector((s) => s.assistantRelay.token);
+  const token = useSelector(selectRelayToken);
+  const contextKey = useSelector(selectRelayContextKey);
+  const sessionKey = useSelector((s) => s.assistantRelay.sessionKey);
   const connectionStatus = useSelector(
     (s) => s.assistantRelay.connectionStatus
   );
@@ -34,42 +43,67 @@ export default function useAssistantRelaySession() {
   const refresh = useCallback(
     async ({ background = false } = {}) => {
       if (!enabled) return;
+      const isCurrent = () =>
+        selectRelayContextKey(store.getState()) === contextKey &&
+        selectRelayToken(store.getState()) === token;
       // Background resync must keep the active Realtime subscription mounted.
       if (!background) {
         dispatch(setAssistantRelayConnection({ status: "checking" }));
       }
       try {
-        const session = await fetchRelaySession();
+        const [session, jobs, baseMapJobs] = await Promise.all([
+          fetchRelaySession(),
+          fetchRecentJobs(30),
+          fetchBaseMapJobs(30),
+        ]);
+        if (!isCurrent()) return;
+        dispatch(
+          setAssistantRelayTransport(
+            session?.realtime?.enabled === false
+              ? "bridge-polling"
+              : (session?.realtime?.transport ?? null)
+          )
+        );
         dispatch(setAssistantRelaySnapshot(session?.currentSnapshot ?? null));
-        const jobs = await fetchRecentJobs(30);
         dispatch(upsertAssistantRelayJobs(jobs));
-        const baseMapJobs = await fetchBaseMapJobs(30);
         dispatch(upsertAssistantRelayBaseMapJobs(baseMapJobs));
-        dispatch(setAssistantRelayConnection({ status: "connected" }));
+        dispatch(
+          setAssistantRelayConnection({
+            status: "connected",
+            jwtVerificationSkipped:
+              session?.authentication?.jwtVerificationSkipped === true,
+          })
+        );
       } catch (e) {
+        if (!isCurrent()) return;
         console.log("[assistantRelay] session check failed", e);
+        // Keep reconnection/polling mounted through transient background errors.
+        if (background && e?.status !== 401 && e?.status !== 403) return;
         dispatch(
           setAssistantRelayConnection({
             status: "error",
             error: describeRelayError(e),
+            code: e?.code ?? null,
           })
         );
       }
     },
-    [enabled, relayBaseUrl, token, dispatch]
+    [enabled, relayBaseUrl, token, contextKey, dispatch]
   );
 
   useEffect(() => {
+    dispatch(setAssistantRelaySessionKey(enabled ? contextKey : null));
     if (!enabled) {
       dispatch(setAssistantRelayConnection({ status: "idle" }));
       return;
     }
     refresh();
-  }, [enabled, refresh, dispatch]);
+  }, [enabled, contextKey, refresh, dispatch]);
 
   return {
     enabled,
-    connected: connectionStatus === "connected",
+    connected:
+      enabled && sessionKey === contextKey && connectionStatus === "connected",
     connectionStatus,
     connectionError,
     refresh,

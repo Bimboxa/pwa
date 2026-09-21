@@ -125,10 +125,15 @@ orgaData:
 # FEATURES
 
 features:
-  # Shared pilot relay; pairing token is entered in the Assistant IA panel.
+  # Authentication for the Chat tool and its relay requests.
+  chat:
+    connection:
+      # jwt: signed-in user's auth.jwt; PWA_KEY: manually entered relay key.
+      mode: "PWA_KEY"
+      baseUrl: "https://reperage-mcp.onrender.com"
+  # Relay endpoint and storage notification settings; authentication is above.
   assistantRelay:
     enabled: true
-    relayBaseUrl: "https://reperage-mcp.onrender.com"
     supabaseUrl: "https://lemkkwfbdwfjuwmbycln.supabase.co"
     supabaseAnonKey: "sb_publishable_DaQSVyo6HCRfLnf6bRCv2A_s5f2fq1H"
     workspace: main

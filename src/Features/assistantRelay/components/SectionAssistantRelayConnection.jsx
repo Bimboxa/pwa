@@ -28,15 +28,15 @@ export default function SectionAssistantRelayConnection({
 
   // data
 
-  const { token, setToken } = useAssistantRelayToken();
+  const { token, setToken, mode } = useAssistantRelayToken();
 
   // state
 
-  const [draft, setDraft] = useState(token ?? "");
+  const [draft, setDraft] = useState(mode === "PWA_KEY" ? (token ?? "") : "");
 
   useEffect(() => {
-    setDraft(token ?? "");
-  }, [token]);
+    setDraft(mode === "PWA_KEY" ? (token ?? "") : "");
+  }, [token, mode]);
 
   // helpers
 
@@ -71,21 +71,31 @@ export default function SectionAssistantRelayConnection({
         <Chip size="small" label={chip.label} color={chip.color} />
       </Box>
 
-      <TextField
-        size="small"
-        fullWidth
-        type="password"
-        label={tokenLabelS}
-        value={draft}
-        onChange={(e) => setDraft(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && canApply) handleApply();
-        }}
-        autoComplete="off"
-      />
+      {mode === "PWA_KEY" ? (
+        <TextField
+          size="small"
+          fullWidth
+          type="password"
+          label={tokenLabelS}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && canApply) handleApply();
+          }}
+          autoComplete="off"
+        />
+      ) : (
+        <Typography variant="body2" color="text.secondary">
+          {mode !== "jwt"
+            ? "Mode de connexion du Chat invalide."
+            : token
+              ? "Connexion avec votre session utilisateur."
+              : "Connectez-vous à l’application pour utiliser le Chat."}
+        </Typography>
+      )}
 
       <Box sx={{ display: "flex", gap: 1, justifyContent: "flex-end" }}>
-        {token && (
+        {token && mode === "PWA_KEY" && (
           <Button size="small" onClick={handleForget}>
             {forgetS}
           </Button>
@@ -95,14 +105,16 @@ export default function SectionAssistantRelayConnection({
             {refreshS}
           </Button>
         )}
-        <Button
-          size="small"
-          variant="contained"
-          disabled={!canApply}
-          onClick={handleApply}
-        >
-          {applyS}
-        </Button>
+        {mode === "PWA_KEY" && (
+          <Button
+            size="small"
+            variant="contained"
+            disabled={!canApply}
+            onClick={handleApply}
+          >
+            {applyS}
+          </Button>
+        )}
       </Box>
 
       {connectionStatus === "error" && connectionError && (
@@ -110,7 +122,7 @@ export default function SectionAssistantRelayConnection({
           {connectionError}
         </Typography>
       )}
-      {!token && (
+      {!token && mode === "PWA_KEY" && (
         <Typography variant="caption" color="text.secondary">
           {hintS}
         </Typography>

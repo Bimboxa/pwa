@@ -1,9 +1,15 @@
 import store from "App/store";
-import getRelayIdentityHeaders from "../utils/getRelayIdentityHeaders.js";
+import {
+  selectRelayToken,
+  selectRelayConnectionMode,
+  selectRelayIdentityHeaders,
+  selectRelayBaseUrl,
+  normalizeRelayBaseUrl,
+} from "../utils/relayConnection.js";
 
 // HTTP client for the reperage-mcp bridge (/bridge/*). Base URL comes from
-// appConfig.features.assistantRelay.relayBaseUrl, the pairing token from the
-// slice (mirrored from sessionStorage).
+// the effective Chat tool configuration; JWT comes from the signed-in user,
+// while PWA_KEY uses the per-tab pairing key. Both use Authorization headers.
 
 export class AssistantRelayError extends Error {
   constructor(code, status, message) {
@@ -15,24 +21,33 @@ export class AssistantRelayError extends Error {
 }
 
 function getRelayBaseUrl() {
-  const url =
-    store.getState()?.appConfig?.value?.features?.assistantRelay?.relayBaseUrl;
+  const url = selectRelayBaseUrl(store.getState());
   if (!url) throw new AssistantRelayError("NOT_CONFIGURED", 0);
-  return url.replace(/\/+$/, "");
+  try {
+    return normalizeRelayBaseUrl(url);
+  } catch {
+    throw new AssistantRelayError("INVALID_RELAY_URL", 0);
+  }
 }
 
 function getToken() {
-  const token = store.getState()?.assistantRelay?.token;
-  if (!token) throw new AssistantRelayError("NO_TOKEN", 0);
+  const state = store.getState();
+  const mode = selectRelayConnectionMode(state);
+  if (mode !== "jwt" && mode !== "PWA_KEY")
+    throw new AssistantRelayError("INVALID_AUTH_MODE", 0);
+  const token = selectRelayToken(state);
+  if (!token)
+    throw new AssistantRelayError(
+      mode === "jwt" ? "NO_USER_JWT" : "NO_TOKEN",
+      0
+    );
   return token;
 }
 
 export async function relayFetch(path, { method = "GET", json } = {}) {
   const baseUrl = getRelayBaseUrl();
   const token = getToken();
-  const identityHeaders = getRelayIdentityHeaders(
-    store.getState()?.auth?.userProfile
-  );
+  const identityHeaders = selectRelayIdentityHeaders(store.getState());
   let response;
   try {
     response = await fetch(`${baseUrl}/bridge${path}`, {
@@ -108,9 +123,7 @@ export function claimJob(jobId) {
 export async function relayFetchBlob(path) {
   const baseUrl = getRelayBaseUrl();
   const token = getToken();
-  const identityHeaders = getRelayIdentityHeaders(
-    store.getState()?.auth?.userProfile
-  );
+  const identityHeaders = selectRelayIdentityHeaders(store.getState());
   let response;
   try {
     response = await fetch(`${baseUrl}/bridge${path}`, {
@@ -179,9 +192,7 @@ export function ackBaseMapJob(jobId, { status, baseMapId, error }) {
 export async function streamChatTurn(input, { signal, onEvent } = {}) {
   const baseUrl = getRelayBaseUrl();
   const token = getToken();
-  const identityHeaders = getRelayIdentityHeaders(
-    store.getState()?.auth?.userProfile
-  );
+  const identityHeaders = selectRelayIdentityHeaders(store.getState());
   let response;
   try {
     response = await fetch(`${baseUrl}/bridge/chat/turns`, {
@@ -224,9 +235,7 @@ export function undoLiveJob(jobId) {
 export async function uploadRelayPdf(file) {
   const baseUrl = getRelayBaseUrl();
   const token = getToken();
-  const identityHeaders = getRelayIdentityHeaders(
-    store.getState()?.auth?.userProfile
-  );
+  const identityHeaders = selectRelayIdentityHeaders(store.getState());
   const name = encodeURIComponent(file?.name || "document.pdf");
   let response;
   try {
@@ -314,9 +323,7 @@ export async function streamVectorizationEvents(
 ) {
   const baseUrl = getRelayBaseUrl();
   const token = getToken();
-  const identityHeaders = getRelayIdentityHeaders(
-    store.getState()?.auth?.userProfile
-  );
+  const identityHeaders = selectRelayIdentityHeaders(store.getState());
   let response;
   try {
     response = await fetch(
@@ -339,9 +346,26 @@ export async function streamVectorizationEvents(
   await readEventStream(response, { signal, onEvent });
 }
 
+// Authenticated job invalidations. Credentials stay in headers, never in URLs.
+export async function streamRelayEvents({ signal, onEvent, onActivity } = {}) {
+  const response = await fetch(`${getRelayBaseUrl()}/bridge/events`, {
+    headers: {
+      Authorization: `Bearer ${getToken()}`,
+      ...selectRelayIdentityHeaders(store.getState()),
+      Accept: "text/event-stream",
+    },
+    signal,
+  });
+  if (!response.ok) throw await toRelayError(response);
+  if (!response.headers.get("content-type")?.includes("text/event-stream")) {
+    throw new AssistantRelayError("INVALID_EVENT_STREAM", 0);
+  }
+  await readEventStream(response, { signal, onEvent, onActivity });
+}
+
 // Minimal SSE parser over fetch: one JSON `data:` line per block, comments
 // (heartbeats) ignored.
-async function readEventStream(response, { signal, onEvent }) {
+async function readEventStream(response, { signal, onEvent, onActivity }) {
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
@@ -349,6 +373,7 @@ async function readEventStream(response, { signal, onEvent }) {
     for (;;) {
       const { value, done } = await reader.read();
       if (done) return;
+      onActivity?.();
       buffer += decoder.decode(value, { stream: true });
       let cut;
       while ((cut = buffer.indexOf("\n\n")) !== -1) {
@@ -391,6 +416,10 @@ export function describeRelayError(e) {
   const code = e?.code ?? "UNKNOWN";
   const messages = {
     NOT_CONFIGURED: "Relai non configuré (appConfig.features.assistantRelay).",
+    INVALID_RELAY_URL:
+      "Adresse du serveur Chat invalide. Vérifiez Configuration → Chat.",
+    INVALID_AUTH_MODE: "Mode de connexion du Chat invalide (jwt ou PWA_KEY).",
+    NO_USER_JWT: "Connectez-vous à l’application pour utiliser le Chat.",
     NO_TOKEN: "Saisissez le token d'appairage.",
     NETWORK: "Relai injoignable (réseau ou CORS).",
     UNAUTHORIZED: "Token refusé par le relai.",
@@ -401,7 +430,7 @@ export function describeRelayError(e) {
     IMAGE_TOO_LARGE: "Image trop volumineuse pour le relai.",
     JOB_NOT_FOUND: "Proposition introuvable sur le relai.",
     JOB_ALREADY_RESOLVED: "Proposition déjà traitée.",
-    UPSTREAM_FAILED: "Erreur Supabase côté relai.",
+    UPSTREAM_FAILED: "Erreur de stockage côté relai.",
     PDF_NOT_FOUND: "PDF introuvable sur le relai.",
     PREVIEW_NOT_FOUND: "Aperçu indisponible.",
     SNAPSHOT_NOT_FOUND: "Fond de plan publié introuvable sur le relai.",

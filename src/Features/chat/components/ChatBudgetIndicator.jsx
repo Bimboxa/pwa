@@ -1,3 +1,4 @@
+import { selectRelayToken } from "Features/assistantRelay/utils/relayConnection.js";
 import { useEffect, useState } from "react";
 import { useSelector } from "react-redux";
 import {
@@ -35,7 +36,7 @@ export default function ChatBudgetIndicator() {
   const connected = useSelector(
     (s) => s.assistantRelay.connectionStatus === "connected"
   );
-  const token = useSelector((s) => s.assistantRelay.token);
+  const token = useSelector(selectRelayToken);
   const conversation = useSelector((s) => s.chat.conversation);
   const thinking = useSelector((s) => s.chat.isThinking);
   const projectId = useSelector((s) => s.projects.selectedProjectId);

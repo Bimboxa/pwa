@@ -1,9 +1,17 @@
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import { setReasoningLevelId, setReasoningLevels } from "../chatSlice";
 
-import { Box, Button, TextField, Typography } from "@mui/material";
+import {
+  Box,
+  Button,
+  IconButton,
+  TextField,
+  Tooltip,
+  Typography,
+} from "@mui/material";
+import InfoOutlinedIcon from "@mui/icons-material/InfoOutlined";
 
 import { LEVEL_STORAGE_KEY } from "./ChatLevelSelect";
 
@@ -13,7 +21,21 @@ import {
   fetchReasoningLevels,
 } from "Features/assistantRelay/services/assistantRelayClient";
 
-// Under the header: pairing key of the relay (until OAuth exists). Shown only
+// These are possible causes, not a diagnosis: authentication failures deliberately
+// do not disclose which part of a credential failed validation.
+function getConnectionHelp(code, mode) {
+  if (code === "UNAUTHORIZED") {
+    return mode === "jwt"
+      ? "Le serveur IA n’a pas accepté le jeton de votre session. Il peut être expiré, ou le serveur peut utiliser un autre mode de connexion ou une configuration JWT différente. Reconnectez-vous à l’application, puis vérifiez le mode JWT et l’adresse du serveur dans Configuration → Chat. Si le refus persiste, l’administrateur doit vérifier le mode JWT du serveur et les valeurs JWT_KEY, JWT_ISSUER et JWT_AUDIENCE, qui doivent correspondre à celles du service de connexion. La réponse du serveur ne précise pas la cause exacte."
+      : "Le serveur IA n’a pas accepté la clé d’appairage. Vérifiez l’adresse du serveur et le mode PWA_KEY dans Configuration → Chat, puis saisissez la clé fournie par l’administrateur. Celui-ci doit vérifier que le serveur utilise le mode shared-token et que la clé correspond à son PWA_TOKEN. La réponse du serveur ne précise pas la cause exacte.";
+  }
+  if (code === "NETWORK") {
+    return "La PWA n’arrive pas à joindre le serveur IA. Vérifiez votre connexion et l’adresse dans Configuration → Chat. Si le serveur est accessible, l’administrateur doit vérifier qu’il autorise les connexions depuis cette application (CORS).";
+  }
+  return "La connexion au serveur IA n’a pas pu être établie. Vérifiez le mode de connexion et l’adresse du serveur dans Configuration → Chat. Si le problème persiste, transmettez le message affiché à l’administrateur, sans partager votre jeton de session ni votre clé.";
+}
+
+// Under the header: user-session status or manual relay pairing key. Shown only
 // when there is something to do — no key yet, an error, or the status dot of
 // the header was clicked (`editing`). Always mounted: it also loads the
 // levels of reflection offered by ChatLevelSelect. The connection itself is
@@ -30,15 +52,27 @@ export default function ChatRelayBar({ editing, onEditingChange }) {
 
   // data
 
-  const { token, setToken } = useAssistantRelayToken();
+  const { token, setToken, mode } = useAssistantRelayToken();
   const connectionStatus = useSelector(
     (s) => s.assistantRelay.connectionStatus
   );
   const connectionError = useSelector((s) => s.assistantRelay.connectionError);
+  const connectionErrorCode = useSelector(
+    (s) => s.assistantRelay.connectionErrorCode
+  );
+  const helpId = useId();
   const connected = connectionStatus === "connected";
 
   // state
 
+  const [expandedError, setExpandedError] = useState(null);
+  const errorKey = JSON.stringify([
+    connectionStatus,
+    connectionErrorCode,
+    connectionError,
+    mode,
+  ]);
+  const showErrorHelp = expandedError === errorKey;
   const [draft, setDraft] = useState("");
   const [modelsError, setModelsError] = useState(null);
 
@@ -91,9 +125,12 @@ export default function ChatRelayBar({ editing, onEditingChange }) {
 
   // render
 
-  const showKeyForm = !token || editing || connectionStatus === "error";
+  const showKeyForm =
+    mode === "PWA_KEY" && (!token || editing || connectionStatus === "error");
+  const showSessionInfo =
+    mode !== "PWA_KEY" && (!token || editing || connectionStatus === "error");
   const showModelsError = connected && Boolean(modelsError);
-  if (!showKeyForm && !showModelsError) return null;
+  if (!showKeyForm && !showModelsError && !showSessionInfo) return null;
 
   return (
     <Box
@@ -108,6 +145,15 @@ export default function ChatRelayBar({ editing, onEditingChange }) {
         backgroundColor: "background.default",
       }}
     >
+      {showSessionInfo ? (
+        <Typography variant="caption" color="text.secondary">
+          {mode !== "jwt"
+            ? "Mode de connexion du Chat invalide."
+            : token
+              ? "Connexion avec votre session utilisateur."
+              : "Connectez-vous à l’application pour utiliser le Chat."}
+        </Typography>
+      ) : null}
       {showKeyForm ? (
         <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
           <TextField
@@ -143,16 +189,52 @@ export default function ChatRelayBar({ editing, onEditingChange }) {
       ) : null}
 
       {connectionStatus === "error" && connectionError ? (
-        <Typography variant="caption" color="error">
-          {connectionError}
-        </Typography>
+        <Box>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+            <Typography variant="caption" color="error">
+              {connectionError}
+            </Typography>
+            <Tooltip title="Comprendre cette erreur">
+              <IconButton
+                size="small"
+                aria-label="Comprendre l’erreur de connexion"
+                aria-expanded={showErrorHelp}
+                aria-controls={showErrorHelp ? helpId : undefined}
+                onClick={() =>
+                  setExpandedError(showErrorHelp ? null : errorKey)
+                }
+                sx={{ color: "text.secondary", p: 0.5, flexShrink: 0 }}
+              >
+                <InfoOutlinedIcon sx={{ fontSize: 16 }} />
+              </IconButton>
+            </Tooltip>
+          </Box>
+          {showErrorHelp ? (
+            <Typography
+              id={helpId}
+              component="p"
+              variant="caption"
+              color="text.secondary"
+              sx={{
+                mt: 0.75,
+                p: 1,
+                border: "1px solid",
+                borderColor: "divider",
+                borderRadius: 1,
+                lineHeight: 1.6,
+              }}
+            >
+              {getConnectionHelp(connectionErrorCode, mode)}
+            </Typography>
+          ) : null}
+        </Box>
       ) : null}
       {connected && modelsError ? (
         <Typography variant="caption" color="error">
           {modelsError}
         </Typography>
       ) : null}
-      {!token ? (
+      {!token && mode === "PWA_KEY" ? (
         <Typography variant="caption" color="text.secondary">
           {hintS}
         </Typography>

@@ -11,6 +11,7 @@ import {
 
 import { Box, Divider, Typography } from "@mui/material";
 
+import SectionChatConnectionConfig from "./SectionChatConnectionConfig";
 import RowSwitchConfig from "./RowSwitchConfig";
 
 // Tool page of the Configuration dialog: root activation (a root-disabled
@@ -69,6 +70,8 @@ export default function PageToolConfig({ tool, modules }) {
           onChange={() => toggleToolRoot(tool.key)}
         />
       )}
+
+      {tool.key === "CHAT" && <SectionChatConnectionConfig />}
 
       <Divider sx={{ my: 2 }} />
 

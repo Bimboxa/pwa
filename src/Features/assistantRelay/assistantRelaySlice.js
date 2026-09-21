@@ -4,9 +4,13 @@ import { createSlice } from "@reduxjs/toolkit";
 // lives in sessionStorage (see useAssistantRelayToken) and is mirrored here.
 
 const initialState = {
-  token: null,
+  token: null, // Manual PWA_KEY only. User JWT stays in auth.jwt.
+  sessionKey: null,
   connectionStatus: "idle", // idle | checking | connected | error
   connectionError: null,
+  connectionErrorCode: null,
+  jwtVerificationSkipped: false,
+  realtimeTransport: null,
   realtimeStatus: "idle", // idle | subscribed | error | unavailable
 
   currentSnapshot: null, // SnapshotSummary from the relay, or null
@@ -24,11 +28,22 @@ const assistantRelaySlice = createSlice({
   name: "assistantRelay",
   initialState,
   reducers: {
+    setAssistantRelaySessionKey: (state, action) => {
+      if (state.sessionKey === action.payload) return;
+      const pairingKey = state.token;
+      Object.assign(state, initialState, {
+        token: pairingKey,
+        sessionKey: action.payload,
+      });
+    },
     setAssistantRelayToken: (state, action) => {
       state.token = action.payload ?? null;
       if (!state.token) {
+        state.realtimeTransport = null;
         state.connectionStatus = "idle";
         state.connectionError = null;
+        state.connectionErrorCode = null;
+        state.jwtVerificationSkipped = false;
         state.currentSnapshot = null;
         state.jobsById = {};
         state.baseMapJobsById = {};
@@ -36,9 +51,15 @@ const assistantRelaySlice = createSlice({
       }
     },
     setAssistantRelayConnection: (state, action) => {
-      const { status, error } = action.payload;
+      const { status, error, code, jwtVerificationSkipped } = action.payload;
       state.connectionStatus = status;
       state.connectionError = error ?? null;
+      state.connectionErrorCode = code ?? null;
+      state.jwtVerificationSkipped =
+        status === "connected" && jwtVerificationSkipped === true;
+    },
+    setAssistantRelayTransport: (state, action) => {
+      state.realtimeTransport = action.payload ?? null;
     },
     setAssistantRelayRealtimeStatus: (state, action) => {
       state.realtimeStatus = action.payload;
@@ -79,8 +100,10 @@ const assistantRelaySlice = createSlice({
 });
 
 export const {
+  setAssistantRelaySessionKey,
   setAssistantRelayToken,
   setAssistantRelayConnection,
+  setAssistantRelayTransport,
   setAssistantRelayRealtimeStatus,
   setAssistantRelaySnapshot,
   setAssistantRelayPublishStatus,

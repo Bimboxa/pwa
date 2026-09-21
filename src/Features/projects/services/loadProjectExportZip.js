@@ -79,6 +79,18 @@ export default async function loadProjectExportZip(file, options) {
     }
     imageBuffers = remappedBuffers;
 
+    // A project export holds ONE project, but its filter widens rows by
+    // union (scopeId / listingId / referenced point ids) so rows carrying a
+    // stale or foreign projectId still ship. The generic remap only rewrites
+    // the exported project's id: force every row onto the copy's project so
+    // none stays reachable by (or wiped with) a foreign project.
+    for (const t of jsonData.data.data) {
+      if (t.tableName === "projects") continue;
+      for (const row of t.rows ?? []) {
+        if (row && "projectId" in row) row.projectId = newProjectId;
+      }
+    }
+
     // Identity of the copy: detach it from the référentiel (the dashboard
     // attaches remote configurations by idMaster) and mark the name.
     const projectsTable = jsonData.data.data.find(
