@@ -20,6 +20,7 @@ import { Box, CircularProgress, LinearProgress } from "@mui/material";
 
 import ButtonGeneric from "Features/layout/components/ButtonGeneric";
 import { setShowCreateBaseMapSection, setSelectedMainBaseMapId } from "Features/mapEditor/mapEditorSlice";
+import { setCreatingInListingId } from "Features/baseMapEditor/baseMapEditorSlice";
 
 import ensurePdfPageResources from "Features/resources/services/ensurePdfPageResourcesService";
 import getDebugAuthFromLocalStorage from "Features/auth/services/getDebugAuthFromLocalStorage";
@@ -177,6 +178,7 @@ export default function ButtonCreateBaseMaps({ pdfDocument, pdfFile }) {
             dispatch(setCreating(false));
             dispatch(setOpenBaseMapCreator(false));
             dispatch(setShowCreateBaseMapSection(false));
+            dispatch(setCreatingInListingId(null));
         } catch (error) {
             console.error("Erreur lors de la création des fonds de plan :", error);
             dispatch(setCreating(false));

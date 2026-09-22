@@ -81,7 +81,6 @@ import EditedObjectLayer from "./EditedObjectLayer";
 import EditedBaseMapLayer from "./EditedBaseMapLayer";
 import EditedVersionLayer from "./EditedVersionLayer";
 import EditedLegendLayer from "./EditedLegendLayer";
-import LayerCreateBaseMap from "./LayerCreateBaseMap";
 
 import CompareVersionSlider from "./CompareVersionSlider";
 import DialogDeleteSelectedAnnotation from "Features/annotations/components/DialogDeleteSelectedAnnotation";
@@ -2267,7 +2266,6 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
             {/* <DialogAutoMigrateToMapEditorV3 /> */}
 
             <LayerTools />
-            <LayerCreateBaseMap />
 
             {!versionCompareEnabled &&
                 !imageModeActive &&

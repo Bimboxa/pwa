@@ -19,11 +19,13 @@ import {
   Paper,
   Divider,
 } from "@mui/material";
-import { CropLandscape as LandscapeIcon } from "@mui/icons-material";
+import {
+  CropLandscape as LandscapeIcon,
+  Close as CloseIcon,
+} from "@mui/icons-material";
 import { alpha } from "@mui/material/styles";
 
 import DialogGeneric from "Features/layout/components/DialogGeneric";
-import IconButtonClose from "Features/layout/components/IconButtonClose";
 import ButtonGeneric from "Features/layout/components/ButtonGeneric";
 import ImageGeneric from "Features/images/components/ImageGeneric";
 import ContainerFilesSelectorV2 from "Features/files/components/ContainerFilesSelectorV2";
@@ -62,6 +64,7 @@ export default function SectionCreateBaseMapFullscreen({
   const dropSubtitleSuffixS = "le format est reconnu automatiquement";
   const storeInS = "Ranger dans";
   const orCreateFromS = "OU CRÉER DEPUIS";
+  const closeS = "Fermer";
 
   const namePlaceholderS = "Nom du fond de plan";
   const createS = "Créer le fond de plan";
@@ -308,8 +311,15 @@ export default function SectionCreateBaseMapFullscreen({
         }}
       >
         {showClose && (
-          <Box sx={{ position: "absolute", top: 0, right: 0, p: 1, zIndex: 2 }}>
-            <IconButtonClose onClose={onClose} />
+          <Box sx={{ position: "absolute", top: 0, right: 0, p: 2, zIndex: 2 }}>
+            <Button
+              variant="outlined"
+              color="secondary"
+              endIcon={<CloseIcon />}
+              onClick={onClose}
+            >
+              {closeS}
+            </Button>
           </Box>
         )}
 
