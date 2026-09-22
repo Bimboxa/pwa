@@ -27,7 +27,6 @@ import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import DialogDeleteRessource from "Features/layout/components/DialogDeleteRessource";
 import FieldTextV2 from "Features/form/components/FieldTextV2";
 import FieldCheck from "Features/form/components/FieldCheck";
-import SectionVersionTransforms from "./SectionVersionTransforms";
 
 import { nanoid } from "@reduxjs/toolkit";
 import { generateKeyBetween } from "fractional-indexing";
@@ -39,7 +38,8 @@ import stringifyFileSize from "Features/files/utils/stringifyFileSize";
 // Properties of ONE version of a base map. Reached from the Versions list of
 // the base map panel (row click → BASE_MAP_VERSION selection item carrying
 // baseMapId) or from a version image clicked in the BASE_MAPS viewer (no
-// baseMapId → main base map). Back returns to the base map panel.
+// baseMapId → main base map). Back returns to the base map panel. Image
+// transformations live in the "Transfo." right-panel tool, not here.
 export default function PanelBaseMapVersionProperties() {
   const dispatch = useDispatch();
 
@@ -255,7 +255,6 @@ export default function PanelBaseMapVersionProperties() {
           </Typography>
         )}
 
-        <SectionVersionTransforms baseMap={baseMap} versionId={version.id} />
       </Box>
 
       <Menu open={menuOpen} anchorEl={anchorEl} onClose={handleMenuClose}>
