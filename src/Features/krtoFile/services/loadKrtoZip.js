@@ -4,6 +4,7 @@ import { nanoid } from "@reduxjs/toolkit";
 import JSZip from "jszip";
 
 import remapDexieExportIds from "Features/krtoFile/utils/remapDexieExportIds";
+import dedupImportedResourcesBySourceKey from "Features/krtoFile/utils/dedupImportedResourcesBySourceKey";
 import getImportingUserIdMaster from "Features/krtoFile/utils/getImportingUserIdMaster";
 
 export default async function loadKrtoZip(file, options) {
@@ -205,6 +206,10 @@ export default async function loadKrtoZip(file, options) {
             });
           }
         }
+
+        // 3ter. PDF page resources already present locally (same content
+        // key) are reused instead of duplicated.
+        await dedupImportedResourcesBySourceKey(jsonData);
 
         // 4. Créer le Blob JSON pour Dexie
         const jsonBlob = new Blob([JSON.stringify(jsonData)], {

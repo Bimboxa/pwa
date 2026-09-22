@@ -33,6 +33,7 @@ import {
   Typography,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
+import RefreshIcon from "@mui/icons-material/Refresh";
 import MoreHoriz from "@mui/icons-material/MoreHoriz";
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
@@ -45,6 +46,8 @@ import activateBaseMapVersion from "Features/baseMaps/utils/activateBaseMapVersi
 import createBaseMapVersionFromSource from "Features/baseMaps/services/createBaseMapVersionFromSource";
 import formatVersionDate from "Features/baseMaps/utils/formatVersionDate";
 import getBaseMapDisplayName from "Features/baseMaps/utils/getBaseMapDisplayName";
+import useRegenerateBaseMapEligibility from "Features/baseMaps/hooks/useRegenerateBaseMapEligibility";
+import useOpenRegenerateBaseMap from "Features/baseMaps/hooks/useOpenRegenerateBaseMap";
 import getBaseMapTransform, {
   DEFAULT_ORIENTATION,
 } from "Features/baseMaps/js/getBaseMapTransform";
@@ -67,6 +70,7 @@ export default function PanelBaseMapVersions({ baseMap }) {
   const position3dS = "Position 3D";
   const openPosition3dS = "Localisation 3D";
   const newVersionS = "Nouvelle version";
+  const regenerateS = "Régénérer depuis le PDF";
   const legacyImageS = "Image d'origine";
 
   // data
@@ -75,6 +79,8 @@ export default function PanelBaseMapVersions({ baseMap }) {
     (s) => s.baseMapEditor.selectedVersionId
   );
   const hiddenVersionIds = useSelector((s) => s.baseMapEditor.hiddenVersionIds);
+  const regenerateEligibility = useRegenerateBaseMapEligibility(baseMap);
+  const openRegenerateBaseMap = useOpenRegenerateBaseMap();
 
   // state
 
@@ -372,6 +378,37 @@ export default function PanelBaseMapVersions({ baseMap }) {
             {newVersionS}
           </Typography>
         </ListItemButton>
+
+        {/* Régénérer depuis le PDF (PDF-derived base maps only) */}
+        {regenerateEligibility.show && (
+          <Tooltip title={regenerateEligibility.reason ?? ""} placement="left">
+            <span>
+              <ListItemButton
+                disabled={regenerateEligibility.disabled}
+                onClick={() => openRegenerateBaseMap(baseMap)}
+                sx={{ pl: 2, py: 0.75, gap: 1.5 }}
+              >
+                <Box
+                  sx={{
+                    width: 40,
+                    height: 28,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    borderRadius: 1,
+                    border: "1.5px dashed",
+                    borderColor: "divider",
+                  }}
+                >
+                  <RefreshIcon sx={{ fontSize: 16, color: "text.disabled" }} />
+                </Box>
+                <Typography variant="body2" color="text.disabled">
+                  {regenerateS}
+                </Typography>
+              </ListItemButton>
+            </span>
+          </Tooltip>
+        )}
 
         {/* Position 3D */}
         <Box

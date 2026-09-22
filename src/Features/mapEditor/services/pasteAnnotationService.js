@@ -1,4 +1,5 @@
 import { nanoid } from "@reduxjs/toolkit";
+import scaleAnnotationPxFields from "Features/annotations/utils/scaleAnnotationPxFields";
 
 import db from "App/db/db";
 import applyPasteTransformToPoints from "Features/mapEditor/utils/applyPasteTransformToPoints";
@@ -165,25 +166,8 @@ export default async function pasteAnnotationService({
         sourceAnnotation.annotationLabel ?? sourceAnnotation.label;
     }
 
-    // Pixel-unit size fields must follow the group rescale, otherwise a strip
-    // keeps its source px width and changes real-world thickness. Only
-    // POLYLINE/STRIP use strokeWidth as a physical band width (getStripePolygons)
-    // — POLYGON's stroke is a cosmetic outline. CM-based widths are already
-    // real-world and stay untouched.
-    if (scale !== 1 && (type === "STRIP" || type === "POLYLINE")) {
-      if (
-        typeof clonedAnnotation.strokeWidth === "number" &&
-        clonedAnnotation.strokeWidthUnit !== "CM"
-      ) {
-        clonedAnnotation.strokeWidth *= scale;
-      }
-      if (typeof clonedAnnotation.stripWidthPx === "number") {
-        clonedAnnotation.stripWidthPx *= scale;
-      }
-      if (type === "STRIP" && typeof clonedAnnotation.width === "number") {
-        clonedAnnotation.width *= scale;
-      }
-    }
+    // Pixel-unit size fields must follow the group rescale (see the util).
+    scaleAnnotationPxFields(clonedAnnotation, scale);
 
     if (
       type === "POLYGON" ||

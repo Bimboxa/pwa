@@ -116,6 +116,7 @@ export default async function duplicateScopeService({
     sourceBaseMapViews,
     sourceDimensions3d,
     sourceScopeConfig,
+    sourceScopeResources,
   ] = await Promise.all([
     listingIds.length > 0
       ? db.annotationTemplates
@@ -147,6 +148,13 @@ export default async function duplicateScopeService({
       .toArray()
       .then((rows) => rows.filter(notDeleted)),
     db.scopeConfigs.where("scopeId").equals(scope.id).first(),
+    // SCOPE-scoped resources follow the duplicate (PROJECT / GLOBAL ones are
+    // visible from the copy anyway).
+    db.resources
+      .where("scopeId")
+      .equals(scope.id)
+      .toArray()
+      .then((rows) => rows.filter((r) => notDeleted(r) && r.visibility === "SCOPE")),
   ]);
 
   const liveLayerIds = new Set(sourceLayers.map((l) => l.id));
@@ -441,6 +449,14 @@ export default async function duplicateScopeService({
     scopeId: newScopeId,
   }));
 
+  // The copies share the main-file blob (same fileName): useDeleteResource
+  // only drops the db.files row when no live resource references it.
+  const newResources = sourceScopeResources.map((r) => ({
+    ...prepareCopy(r, createdBy),
+    id: nanoid(),
+    scopeId: newScopeId,
+  }));
+
   // Module/tool activation follows the duplicate (id = scopeId convention).
   const newScopeConfig = sourceScopeConfig
     ? {
@@ -478,6 +494,7 @@ export default async function duplicateScopeService({
           db.baseMapViews,
           db.dimensions3d,
           db.scopeConfigs,
+          db.resources,
         ],
         async () => {
           await db.scopes.add(newScope);
@@ -504,6 +521,7 @@ export default async function duplicateScopeService({
           if (newDimensions3d.length > 0)
             await db.dimensions3d.bulkAdd(newDimensions3d);
           if (newScopeConfig) await db.scopeConfigs.add(newScopeConfig);
+          if (newResources.length > 0) await db.resources.bulkAdd(newResources);
         }
       )
     )

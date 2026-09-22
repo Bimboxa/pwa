@@ -20,6 +20,7 @@ import SelectorPdfPage from "./SelectorPdfPage"
 import PdfImageEditor from "./PdfImageEditor"
 import SectionPreviewBaseMaps from "./SectionPreviewBaseMaps"
 import ButtonAddTempImage from "./ButtonAddTempImage"
+import SectionRegenerateBaseMap from "./SectionRegenerateBaseMap"
 import FieldTextV2 from "Features/form/components/FieldTextV2"
 
 
@@ -32,6 +33,10 @@ export default function PageBaseMapCreator({ onClose }) {
     const rotate = useSelector(s => s.baseMapCreator.rotate);
     const blueprintScale = useSelector(s => s.baseMapCreator.blueprintScale);
     const creating = useSelector(s => s.baseMapCreator.creating);
+    // "Régénérer depuis le PDF": single stored page, crop pre-filled,
+    // rotation / scale locked, no temp images.
+    const regenerate = useSelector(s => s.baseMapCreator.regenerate);
+    const isRegenerate = Boolean(regenerate);
 
     // state
     const { pdfDocument, error: pdfError, progress: pdfProgress } = usePdfDocument(pdfFile);
@@ -55,7 +60,9 @@ export default function PageBaseMapCreator({ onClose }) {
 
 
     // helpers
-    const label = pdfFile ? pdfFile.name : "Selectionner un fichier PDF";
+    const label = isRegenerate
+        ? `Régénérer « ${regenerate.baseMapName} »${pdfFile ? ` — ${pdfFile.name}` : ""}`
+        : pdfFile ? pdfFile.name : "Selectionner un fichier PDF";
 
     // handlers
     function handlePageChange(pageNumber) {
@@ -89,10 +96,12 @@ export default function PageBaseMapCreator({ onClose }) {
 
             <BoxFlexVStretch>
                 <Box sx={{ display: "flex", width: 1, height: 1 }}>
-                    {/* Colonne de gauche : Miniatures */}
-                    <Box sx={{ overflow: "auto", minWidth: 0, width: 150 }}>
-                        <SelectorPdfPage pageNumber={pageNumber} thumbnails={thumbnails} onPageNumberChange={handlePageChange} />
-                    </Box>
+                    {/* Colonne de gauche : Miniatures (une seule page en régénération) */}
+                    {!isRegenerate && (
+                        <Box sx={{ overflow: "auto", minWidth: 0, width: 150 }}>
+                            <SelectorPdfPage pageNumber={pageNumber} thumbnails={thumbnails} onPageNumberChange={handlePageChange} />
+                        </Box>
+                    )}
 
                     {/* Zone centrale : Editeur ou Skeleton */}
                     <Box sx={{
@@ -128,16 +137,20 @@ export default function PageBaseMapCreator({ onClose }) {
                             alignItems: "center",
 
                         }}>
-                            <IconButton onClick={() => handleRotate({ counter: false })}>
+                            <IconButton onClick={() => handleRotate({ counter: false })} disabled={isRegenerate}>
                                 <RotateCw />
                             </IconButton>
-                            <IconButton onClick={() => handleRotate({ counter: true })}>
+                            <IconButton onClick={() => handleRotate({ counter: true })} disabled={isRegenerate}>
                                 <RotateCcw />
                             </IconButton>
-                            <Box sx={{ width: 140, minWidth: 140, display: "flex", alignItems: "center" }}>
+                            <Box sx={{
+                                width: 140, minWidth: 140, display: "flex", alignItems: "center",
+                                // scale locked in regenerate mode (meterByPx follows the dpi)
+                                ...(isRegenerate ? { pointerEvents: "none", opacity: 0.6 } : {}),
+                            }}>
                                 <FieldTextV2
                                     value={blueprintScale}
-                                    onChange={(value) => dispatch(setBlueprintScale(value))}
+                                    onChange={(value) => { if (!isRegenerate) dispatch(setBlueprintScale(value)); }}
                                     label="Echelle"
                                     options={{
                                         showLabel: true,
@@ -147,7 +160,9 @@ export default function PageBaseMapCreator({ onClose }) {
                                     }}
                                 />
                             </Box>
-                            <ButtonAddTempImage pdfFile={pdfFile} pdfDocument={pdfDocument} blueprintScale={blueprintScale} />
+                            {!isRegenerate && (
+                                <ButtonAddTempImage pdfFile={pdfFile} pdfDocument={pdfDocument} blueprintScale={blueprintScale} />
+                            )}
                         </Box>
 
                         <Box sx={{
@@ -156,7 +171,11 @@ export default function PageBaseMapCreator({ onClose }) {
                             position: "relative",
                         }}>
                             {displayImageUrl ? (
-                                <PdfImageEditor imageUrl={displayImageUrl} sourceKey={sourceKey} />
+                                <PdfImageEditor
+                                    imageUrl={displayImageUrl}
+                                    sourceKey={isRegenerate ? `regen_${regenerate.baseMapId}_${sourceKey}` : sourceKey}
+                                    initialBboxInRatio={isRegenerate ? regenerate.createdFrom?.bboxInRatio ?? undefined : undefined}
+                                />
                             ) : (
                                 <Box sx={{
                                     width: "100%", height: "100%", p: 4, boxSizing: "border-box",
@@ -234,7 +253,11 @@ export default function PageBaseMapCreator({ onClose }) {
                         borderTop: theme => `1px solid ${theme.palette.divider}`,
                         borderLeft: theme => `1px solid ${theme.palette.divider}`,
                     }}>
-                        <SectionPreviewBaseMaps pdfDocument={pdfDocument} pdfFile={pdfFile} />
+                        {isRegenerate ? (
+                            <SectionRegenerateBaseMap pdfDocument={pdfDocument} />
+                        ) : (
+                            <SectionPreviewBaseMaps pdfDocument={pdfDocument} pdfFile={pdfFile} />
+                        )}
                     </Box>
                 </Box>
 

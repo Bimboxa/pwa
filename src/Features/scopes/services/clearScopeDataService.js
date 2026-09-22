@@ -22,6 +22,26 @@ export default async function clearScopeDataService(scopeId) {
         await db.globalLayers.where("scopeId").equals(scopeId).delete();
         await db.scopeConfigs.where("scopeId").equals(scopeId).delete();
 
+        // SCOPE-scoped resources (dropped in the panel with "Cette scope"):
+        // their main file goes too unless another live resource shares it
+        // (a duplicated scope reuses the same fileName).
+        const scopeResources = (
+            await db.resources.where("scopeId").equals(scopeId).toArray()
+        ).filter((r) => r.visibility === "SCOPE");
+        if (scopeResources.length > 0) {
+            const removedIds = new Set(scopeResources.map((r) => r.id));
+            const stillReferenced = new Set(
+                (await db.resources.toArray())
+                    .filter((r) => !removedIds.has(r.id) && !r.deletedAt && r.fileName)
+                    .map((r) => r.fileName)
+            );
+            const fileNames = scopeResources
+                .map((r) => r.fileName)
+                .filter((fn) => fn && !stillReferenced.has(fn));
+            await db.resources.bulkDelete([...removedIds]);
+            if (fileNames.length > 0) await db.files.bulkDelete(fileNames);
+        }
+
         // Tables liées par listingId (entities, maps, etc.)
         if (listingIds.length > 0) {
             await db.entities.where("listingId").anyOf(listingIds).delete();

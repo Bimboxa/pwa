@@ -1,5 +1,7 @@
 import {
   Avatar,
+  Box,
+  Chip,
   List,
   ListItemAvatar,
   ListItemButton,
@@ -8,6 +10,11 @@ import {
 import { InsertDriveFileOutlined } from "@mui/icons-material";
 
 import stringifyFileSize from "Features/files/utils/stringifyFileSize";
+
+import getResourceVisibility, {
+  RESOURCE_VISIBILITY_LABELS,
+} from "../utils/getResourceVisibility";
+import getResourceSecondaryLabel from "../utils/getResourceSecondaryLabel";
 
 export default function ListResources({
   resources,
@@ -20,11 +27,16 @@ export default function ListResources({
     <List dense disablePadding>
       {resources.map((resource) => {
         const trigram = resource.createdBy?.trigram;
-        const secondary = [stringifyFileSize(resource.fileSize), trigram]
+        const secondary = [
+          getResourceSecondaryLabel(resource),
+          stringifyFileSize(resource.fileSize),
+          trigram,
+        ]
           .filter(Boolean)
           .join(" · ");
         const showFileTypeLabel =
           resource.fileType && resource.fileType !== "OTHER";
+        const visibility = getResourceVisibility(resource);
         return (
           <ListItemButton
             key={resource.id}
@@ -64,7 +76,16 @@ export default function ListResources({
               primary={resource.name}
               secondary={secondary}
               primaryTypographyProps={{ variant: "body2", noWrap: true }}
+              secondaryTypographyProps={{ noWrap: true }}
             />
+            <Box sx={{ ml: 1, flexShrink: 0 }}>
+              <Chip
+                size="small"
+                variant="outlined"
+                label={RESOURCE_VISIBILITY_LABELS[visibility]}
+                sx={{ fontSize: 10, height: 20 }}
+              />
+            </Box>
           </ListItemButton>
         );
       })}
