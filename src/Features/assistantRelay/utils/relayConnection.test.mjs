@@ -11,6 +11,7 @@ import {
 
 const makeState = () => ({
   appConfig: {
+    chatConnection: null,
     value: {
       features: {
         chat: { connection: { mode: "jwt", baseUrl: "https://chat.example" } },
@@ -26,15 +27,15 @@ const makeState = () => ({
   assistantRelay: { token: "manual-pwa-key" },
   projects: { selectedProjectId: "project-1" },
   scopes: { selectedScopeId: "scope-1" },
-  scopeConfig: { itemsByScopeId: {} },
 });
 
 test("organization defaults initialize mode/URL; saved tool settings take precedence", () => {
   const state = makeState();
   assert.equal(selectRelayConnectionMode(state), "jwt");
   assert.equal(selectRelayBaseUrl(state), "https://chat.example");
-  state.scopeConfig.itemsByScopeId["scope-1"] = {
-    chatConnection: { mode: "PWA_KEY", baseUrl: "https://custom.example" },
+  state.appConfig.chatConnection = {
+    mode: "PWA_KEY",
+    baseUrl: "https://custom.example",
   };
   assert.equal(selectRelayConnectionMode(state), "PWA_KEY");
   assert.equal(selectRelayBaseUrl(state), "https://custom.example");
@@ -42,7 +43,7 @@ test("organization defaults initialize mode/URL; saved tool settings take preced
     "https://new-default.example";
   assert.equal(selectRelayBaseUrl(state), "https://custom.example");
   // Reset uses the current organization defaults again.
-  state.scopeConfig.itemsByScopeId["scope-1"].chatConnection = null;
+  state.appConfig.chatConnection = null;
   assert.equal(selectRelayBaseUrl(state), "https://new-default.example");
   assert.equal(selectRelayConnectionMode(state), "jwt");
 });
@@ -91,10 +92,13 @@ test("context keys isolate saved endpoints/users/scopes without including creden
   assert.equal(selectRelayContextKey(state), key);
   state.scopes.selectedScopeId = "scope-2";
   assert.notEqual(selectRelayContextKey(state), key);
-  state.scopeConfig.itemsByScopeId["scope-2"] = {
-    chatConnection: { baseUrl: "https://other.example" },
+  const scopeKey = selectRelayContextKey(state);
+  state.appConfig.chatConnection = {
+    mode: "jwt",
+    baseUrl: "https://other.example",
   };
   assert.equal(selectRelayBaseUrl(state), "https://other.example");
+  assert.notEqual(selectRelayContextKey(state), scopeKey);
 });
 
 test("base URL normalization rejects credentials/query/fragment and unsafe schemes", () => {

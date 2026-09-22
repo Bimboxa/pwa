@@ -24,7 +24,7 @@ export default function SectionAssistantRelayConnection({
   const forgetS = "Oublier";
   const refreshS = "Rafraîchir";
   const hintS =
-    "Le token est conservé dans cet onglet seulement. Il est fourni avec le relai (PWA_TOKEN).";
+    "Le token est conservé sur cet appareil. Il est fourni avec le relai (PWA_TOKEN).";
 
   // data
 

@@ -26,13 +26,13 @@ import {
 function getConnectionHelp(code, mode) {
   if (code === "UNAUTHORIZED") {
     return mode === "jwt"
-      ? "Le serveur IA n’a pas accepté le jeton de votre session. Il peut être expiré, ou le serveur peut utiliser un autre mode de connexion ou une configuration JWT différente. Reconnectez-vous à l’application, puis vérifiez le mode JWT et l’adresse du serveur dans Configuration → Chat. Si le refus persiste, l’administrateur doit vérifier le mode JWT du serveur et les valeurs JWT_KEY, JWT_ISSUER et JWT_AUDIENCE, qui doivent correspondre à celles du service de connexion. La réponse du serveur ne précise pas la cause exacte."
-      : "Le serveur IA n’a pas accepté la clé d’appairage. Vérifiez l’adresse du serveur et le mode PWA_KEY dans Configuration → Chat, puis saisissez la clé fournie par l’administrateur. Celui-ci doit vérifier que le serveur utilise le mode shared-token et que la clé correspond à son PWA_TOKEN. La réponse du serveur ne précise pas la cause exacte.";
+      ? "Le serveur IA n’a pas accepté le jeton de votre session. Il peut être expiré, ou le serveur peut utiliser un autre mode de connexion ou une configuration JWT différente. Reconnectez-vous à l’application, puis vérifiez le mode JWT et l’adresse du serveur dans Configuration → Serveur Chat. Si le refus persiste, l’administrateur doit vérifier le mode JWT du serveur et les valeurs JWT_KEY, JWT_ISSUER et JWT_AUDIENCE, qui doivent correspondre à celles du service de connexion. La réponse du serveur ne précise pas la cause exacte."
+      : "Le serveur IA n’a pas accepté la clé d’appairage. Vérifiez l’adresse du serveur et le mode PWA_KEY dans Configuration → Serveur Chat, puis saisissez la clé fournie par l’administrateur. Celui-ci doit vérifier que le serveur utilise le mode shared-token et que la clé correspond à son PWA_TOKEN. La réponse du serveur ne précise pas la cause exacte.";
   }
   if (code === "NETWORK") {
-    return "La PWA n’arrive pas à joindre le serveur IA. Vérifiez votre connexion et l’adresse dans Configuration → Chat. Si le serveur est accessible, l’administrateur doit vérifier qu’il autorise les connexions depuis cette application (CORS).";
+    return "La PWA n’arrive pas à joindre le serveur IA. Vérifiez votre connexion et l’adresse dans Configuration → Serveur Chat. Si le serveur est accessible, l’administrateur doit vérifier qu’il autorise les connexions depuis cette application (CORS).";
   }
-  return "La connexion au serveur IA n’a pas pu être établie. Vérifiez le mode de connexion et l’adresse du serveur dans Configuration → Chat. Si le problème persiste, transmettez le message affiché à l’administrateur, sans partager votre jeton de session ni votre clé.";
+  return "La connexion au serveur IA n’a pas pu être établie. Vérifiez le mode de connexion et l’adresse du serveur dans Configuration → Serveur Chat. Si le problème persiste, transmettez le message affiché à l’administrateur, sans partager votre jeton de session ni votre clé.";
 }
 
 // Under the header: user-session status or manual relay pairing key. Shown only
@@ -48,7 +48,8 @@ export default function ChatRelayBar({ editing, onEditingChange }) {
   const keyLabelS = "Clé du serveur IA";
   const connectS = "Connecter";
   const forgetS = "Oublier la clé";
-  const hintS = "La clé est conservée dans cet onglet seulement.";
+  const hintS =
+    "La clé est conservée sur cet appareil (Configuration → Serveur Chat).";
 
   // data
 

@@ -14,9 +14,11 @@ import {
   Satellite as SatelliteIcon,
 } from "@mui/icons-material";
 
+import IconCatStarEyes from "Features/icons/IconCatStarEyes";
+
 // Left summary column of the Configuration dialog. Sections top to bottom:
-// Généralités, Modules, Outils (both hidden without a selected scope),
-// Éditeurs. `modules` / `tools` are the ENABLED ones only (filtered by
+// Généralités (app-level entries always shown), Modules, Outils (both hidden
+// without a selected scope), Éditeurs. `modules` / `tools` are the ENABLED ones only (filtered by
 // PanelConfiguration), and `show3dEditor` follows the device 3D preference:
 // the column mirrors what the app actually shows, a disabled entry is
 // switched back on from the "Modules & outils" page.
@@ -76,6 +78,15 @@ export default function NavConfigurationList({
             <Storage fontSize="small" />
           </ListItemIcon>
           <ListItemText primary="Données & préférences" />
+        </ListItemButton>
+        <ListItemButton
+          selected={isSelected("GENERAL", "CHAT_CONNECTION")}
+          onClick={() => onSelect({ type: "GENERAL", key: "CHAT_CONNECTION" })}
+        >
+          <ListItemIcon sx={{ minWidth: 36 }}>
+            <IconCatStarEyes fontSize="small" />
+          </ListItemIcon>
+          <ListItemText primary="Serveur Chat" />
         </ListItemButton>
 
         {showScopeSections && (

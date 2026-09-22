@@ -1,7 +1,7 @@
 import { createSlice } from "@reduxjs/toolkit";
 
 // State of the "Assistant IA" (ChatGPT relay) connector. The pairing token
-// lives in sessionStorage (see useAssistantRelayToken) and is mirrored here.
+// lives in localStorage (see pairingKeyStorage) and is mirrored here.
 
 const initialState = {
   token: null, // Manual PWA_KEY only. User JWT stays in auth.jwt.

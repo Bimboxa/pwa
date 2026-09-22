@@ -9,6 +9,7 @@ import {
   setConfigurationsManagement,
   setSatelliteCaptureMode,
   setDefaultModuleKey,
+  setChatConnection,
 } from "../appConfigSlice";
 
 import resolveAppConfig from "../utils/resolveAppConfig";
@@ -18,6 +19,7 @@ import getDisable3DFromLocalStorage from "../services/getDisable3DFromLocalStora
 import getConfigurationsManagementFromLocalStorage from "../services/getConfigurationsManagementFromLocalStorage";
 import getSatelliteCaptureModeFromLocalStorage from "../services/getSatelliteCaptureModeFromLocalStorage";
 import getDefaultModuleKeyFromLocalStorage from "../services/getDefaultModuleKeyFromLocalStorage";
+import getChatConnectionFromLocalStorage from "../services/getChatConnectionFromLocalStorage";
 
 export default function useInitAppConfig() {
   const dispatch = useDispatch();
@@ -47,6 +49,7 @@ export default function useInitAppConfig() {
       setSatelliteCaptureMode(getSatelliteCaptureModeFromLocalStorage())
     );
     dispatch(setDefaultModuleKey(getDefaultModuleKeyFromLocalStorage()));
+    dispatch(setChatConnection(getChatConnectionFromLocalStorage()));
   }, []);
 
   useEffect(() => {

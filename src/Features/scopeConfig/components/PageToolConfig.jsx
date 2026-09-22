@@ -9,16 +9,15 @@ import {
   selectDisabledToolKeysByModule,
 } from "../utils/scopeConfigSelectors";
 
-import { Box, Divider, Typography } from "@mui/material";
+import { Box, Button, Divider, Typography } from "@mui/material";
 
-import SectionChatConnectionConfig from "./SectionChatConnectionConfig";
 import RowSwitchConfig from "./RowSwitchConfig";
 
 // Tool page of the Configuration dialog: root activation (a root-disabled
 // tool is gone in every module, whatever its per-module state), plus a
 // read-only availability status per module — per-module editing stays on
 // the module pages.
-export default function PageToolConfig({ tool, modules }) {
+export default function PageToolConfig({ tool, modules, onSelect }) {
   // data
 
   const disabledModuleKeys = useSelector(selectDisabledModuleKeys);
@@ -71,7 +70,32 @@ export default function PageToolConfig({ tool, modules }) {
         />
       )}
 
-      {tool.key === "CHAT" && <SectionChatConnectionConfig />}
+      {/* The Chat server connection is an app-level setting, not per scope. */}
+      {tool.key === "CHAT" && (
+        <>
+          <Divider sx={{ my: 2 }} />
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 2,
+            }}
+          >
+            <Typography variant="body2" color="text.secondary">
+              La connexion au serveur Chat se règle au niveau de l’application.
+            </Typography>
+            <Button
+              size="small"
+              onClick={() =>
+                onSelect?.({ type: "GENERAL", key: "CHAT_CONNECTION" })
+              }
+            >
+              Serveur Chat
+            </Button>
+          </Box>
+        </>
+      )}
 
       <Divider sx={{ my: 2 }} />
 

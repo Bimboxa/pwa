@@ -22,6 +22,7 @@ import PageToolConfig from "./PageToolConfig";
 import PageEditor2d from "./PageEditor2d";
 import PageEditor3d from "./PageEditor3d";
 import PageSatelliteMap from "./PageSatelliteMap";
+import PageChatConnection from "./PageChatConnection";
 
 const DEFAULT_SELECTION = { type: "GENERAL", key: "MODULES_TOOLS" };
 const FALLBACK_SELECTION = { type: "GENERAL", key: "DATA_PREFS" };
@@ -111,6 +112,10 @@ export default function PanelConfiguration({ onClose }) {
             <PageDonneesPreferences onClose={onClose} />
           )}
         {effectiveSelection.type === "GENERAL" &&
+          effectiveSelection.key === "CHAT_CONNECTION" && (
+            <PageChatConnection />
+          )}
+        {effectiveSelection.type === "GENERAL" &&
           effectiveSelection.key === "MODULES_TOOLS" && (
             <PageModulesTools
               modules={modules}
@@ -122,7 +127,11 @@ export default function PanelConfiguration({ onClose }) {
           <PageModuleConfig module={selectedModule} tools={catalog} />
         )}
         {effectiveSelection.type === "TOOL" && selectedTool && (
-          <PageToolConfig tool={selectedTool} modules={modules} />
+          <PageToolConfig
+            tool={selectedTool}
+            modules={modules}
+            onSelect={setSelection}
+          />
         )}
         {effectiveSelection.type === "EDITOR" &&
           effectiveSelection.key === "EDITOR_2D" && <PageEditor2d />}

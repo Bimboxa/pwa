@@ -1,10 +1,9 @@
 import getRelayIdentityHeaders from "./getRelayIdentityHeaders.js";
 
-// Saved per-scope tool settings override organization defaults. Credentials
-// never belong in this collaborative configuration record.
+// App-level (device) settings override organization defaults. Credentials
+// never belong in this record.
 export const selectSavedChatConnection = (state) =>
-  state.scopeConfig?.itemsByScopeId?.[state.scopes?.selectedScopeId]
-    ?.chatConnection;
+  state.appConfig?.chatConnection;
 export const selectRelayConnectionMode = (state) =>
   selectSavedChatConnection(state)?.mode ??
   state.appConfig?.value?.features?.chat?.connection?.mode ??

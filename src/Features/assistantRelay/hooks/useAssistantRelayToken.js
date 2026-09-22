@@ -7,11 +7,10 @@ import {
   selectRelayToken,
   selectRelayConnectionMode,
 } from "../utils/relayConnection.js";
+import { readPairingKey, writePairingKey } from "../utils/pairingKeyStorage.js";
 
-const STORAGE_KEY = "bimboxa-assistantRelay-token";
-
-// Pairing token: kept per tab (sessionStorage) and mirrored in the slice.
-// Never persisted in the bundle nor in IndexedDB.
+// Pairing token (Debug / PWA_KEY mode): persisted on the device (see
+// pairingKeyStorage) and mirrored in the slice.
 export default function useAssistantRelayToken() {
   const dispatch = useDispatch();
   const token = useSelector(selectRelayToken);
@@ -20,25 +19,14 @@ export default function useAssistantRelayToken() {
 
   useEffect(() => {
     if (mode !== "PWA_KEY" || pairingKey) return;
-    try {
-      const stored = sessionStorage.getItem(STORAGE_KEY);
-      if (stored) dispatch(setAssistantRelayToken(stored));
-    } catch {
-      // sessionStorage unavailable (private mode…)
-    }
+    const stored = readPairingKey();
+    if (stored) dispatch(setAssistantRelayToken(stored));
   }, [mode, pairingKey, dispatch]);
 
   const setToken = useCallback(
     (value) => {
       if (mode !== "PWA_KEY") return;
-      const trimmed = (value ?? "").trim();
-      try {
-        if (trimmed) sessionStorage.setItem(STORAGE_KEY, trimmed);
-        else sessionStorage.removeItem(STORAGE_KEY);
-      } catch {
-        // ignore
-      }
-      dispatch(setAssistantRelayToken(trimmed || null));
+      dispatch(setAssistantRelayToken(writePairingKey(value)));
     },
     [dispatch, mode]
   );

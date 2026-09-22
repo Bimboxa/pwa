@@ -19,6 +19,9 @@ const appConfigSlice = createSlice({
     // device preference: module a scope lands on when opened from the
     // dashboard (see useLandingViewerModuleOnScopeOpen)
     defaultModuleKey: "MAP",
+    // device preference: Chat server connection { mode, baseUrl } overriding
+    // the org yaml defaults (null = org defaults). Never holds credentials.
+    chatConnection: null,
   },
   reducers: {
     setConfigCode: (state, action) => {
@@ -58,6 +61,9 @@ const appConfigSlice = createSlice({
     setDefaultModuleKey: (state, action) => {
       state.defaultModuleKey = action.payload;
     },
+    setChatConnection: (state, action) => {
+      state.chatConnection = action.payload;
+    },
   },
 });
 
@@ -74,5 +80,6 @@ export const {
   setConfigurationsManagement,
   setSatelliteCaptureMode,
   setDefaultModuleKey,
+  setChatConnection,
 } = appConfigSlice.actions;
 export default appConfigSlice.reducer;
