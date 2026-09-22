@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import db from "App/db/db";
+import { assertAiTaskTarget } from "Features/aiTasks/utils/aiTaskSource";
 import editor from "App/editor";
 import { setToaster } from "Features/layout/layoutSlice";
 import { setSelectedMainBaseMapId } from "Features/mapEditor/mapEditorSlice";
@@ -164,6 +165,29 @@ export default function useApplyLiveDetectionJob() {
           // Coordinates are on the snapshot image: that base map, wherever
           // it is.
           targetBaseMap = await loadTargetBaseMap(full, projectId);
+          assertAiTaskTarget(targetBaseMap, full.payload);
+          if (full.payload?.aiTaskTemplateIds?.length) {
+            const mapped = await db.annotationTemplates.bulkGet(
+              full.payload.aiTaskTemplateIds
+            );
+            if (
+              mapped.some(
+                (t) =>
+                  !t ||
+                  t.deletedAt ||
+                  t.projectId !== projectId ||
+                  t.listingId !== listingId ||
+                  (t.type ?? t.drawingShape) !==
+                    full.payload.annotationTemplates.find(
+                      (template) => template.id === t.id
+                    )?.type
+              )
+            )
+              throw liveError(
+                "AI_TASK_MAPPING_CHANGED",
+                "Un modèle associé a été supprimé ou déplacé. Rouvrez la tâche pour vérifier les correspondances."
+              );
+          }
           relativeToBaseMap = true;
         } else {
           // The base map the user is looking at; real-world sizes are
@@ -372,8 +396,8 @@ export default function useApplyLiveDetectionJob() {
             : result.createdListingId
               ? `ChatGPT : liste « ${result.listingName} » créée (${result.templateIds.length} template(s)).`
               : result.armed
-              ? "ChatGPT : cliquez sur le plan pour placer le dessin."
-              : `ChatGPT : ${result.annotationIds.length} annotation(s), ${result.templateIds.length} template(s).`;
+                ? "ChatGPT : cliquez sur le plan pour placer le dessin."
+                : `ChatGPT : ${result.annotationIds.length} annotation(s), ${result.templateIds.length} template(s).`;
         dispatch(setToaster({ message, severity: "success" }));
       } catch (e) {
         console.log("[assistantRelay] live job failed", jobId, e);

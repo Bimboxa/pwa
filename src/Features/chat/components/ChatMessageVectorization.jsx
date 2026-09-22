@@ -53,7 +53,9 @@ function buildSteps(message) {
     "PDF reçu",
     `Analyse par le modèle${run.model ? ` (${run.model})` : ""}`,
     `Résultat vérifié${counts}`,
-    "Création du fond de plan",
+    run.target?.existingBaseMap
+      ? "Recalage sur le fond de plan"
+      : "Création du fond de plan",
     "Import des annotations",
   ];
   // Index of the step being worked on, from the run status.

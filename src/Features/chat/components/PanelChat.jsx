@@ -10,6 +10,7 @@ import chatDarkTheme from "../chatDarkTheme";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import ChatInput from "./ChatInput";
+import ChatAiTasks from "Features/aiTasks/components/ChatAiTasks";
 import ChatMessage from "./ChatMessage";
 import ChatMessageAssistant from "./ChatMessageAssistant";
 import ChatMessageVectorization from "./ChatMessageVectorization";
@@ -237,6 +238,7 @@ export default function PanelChat() {
           <SectionManagedDataByAgent />
         </Stack>
 
+        {openChat && canDropPdf && <ChatAiTasks />}
         {openChat && (
           <ChatInput
             canAttach={canDropPdf}

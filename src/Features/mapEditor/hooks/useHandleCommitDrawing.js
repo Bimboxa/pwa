@@ -1,3 +1,4 @@
+import { completeAiTaskExample } from "Features/aiTasks/services/aiTaskExampleCapture";
 import { useRef } from "react";
 
 import { nanoid } from "@reduxjs/toolkit";
@@ -141,6 +142,24 @@ export default function useHandleCommitDrawing({ annotations } = {}) {
         // newAnnotation
 
         const newAnnotation = options?.newAnnotation ?? newAnnotationInState
+
+        // AIT examples are transient geometry: intercept before any write,
+        // template creation, merge, or scope-dependent drawing operation.
+        if (newAnnotation?.aiTaskExampleId) {
+            completeAiTaskExample({ id: newAnnotation.aiTaskExampleId, baseMapId,
+                points: rawPoints, size: baseMap?.getImageSize?.(), closeLine, type: newAnnotation.type,
+                previewStyle: {
+                    strokeWidth: newAnnotation.strokeWidth,
+                    strokeWidthUnit: newAnnotation.strokeWidthUnit,
+                    stripOrientation: newAnnotation.stripOrientation,
+                    strokeColor: newAnnotation.strokeColor,
+                    strokeOpacity: newAnnotation.strokeOpacity,
+                    meterByPx: baseMap?.getMeterByPx?.(),
+                } });
+            dispatch(setEnabledDrawingMode(null));
+            resetNewAnnotation();
+            return;
+        }
 
         // No scope selected: nothing to attach the annotation to. Bail out
         // before ANY write (cut host update, entity, template) — the Dexie

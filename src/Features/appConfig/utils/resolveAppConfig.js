@@ -120,6 +120,8 @@ const KRTO_CONFIGURATIONS_LOADERS = import.meta.glob(
   { eager: false }
 );
 
+const AI_TASK_LOADERS = import.meta.glob("../../../Data/*/aits/index.js");
+
 export default async function resolveAppConfig(appConfig) {
   // edge case
 
@@ -129,6 +131,17 @@ export default async function resolveAppConfig(appConfig) {
 
   // appConfig code
   const orgaCode = appConfig.orgaCode;
+  const loadAiTasks =
+    AI_TASK_LOADERS[`../../../Data/${orgaCode}/aits/index.js`];
+  newAppConfig.aiTasks = [];
+  if (loadAiTasks) {
+    try {
+      const { default: tasks } = await loadAiTasks();
+      newAppConfig.aiTasks = Array.isArray(tasks) ? tasks : [];
+    } catch (error) {
+      console.error("[resolveAppConfig] Could not load AI tasks", error);
+    }
+  }
 
   // orgaData
 
