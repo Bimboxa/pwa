@@ -52,8 +52,10 @@ export default function ButtonCreateBaseMaps({ pdfDocument, pdfFile }) {
 
     // helpers
 
-    // Build one temp base map per PDF page (full page, no crop / no rotation),
-    // updating the live preview and the progress bar as we go.
+    // Build one temp base map per PDF page (full page, no crop), updating the
+    // live preview and the progress bar as we go. The rotation handed to
+    // pdfjs is absolute: use each page's intrinsic /Rotate so the render
+    // matches the thumbnails / RESOURCES viewer (0 would ignore it).
     async function buildPerPageTempBaseMaps() {
         const total = pdfDocument?.numPages ?? 0;
         dispatch(setTempBaseMaps([]));
@@ -65,18 +67,25 @@ export default function ButtonCreateBaseMaps({ pdfDocument, pdfFile }) {
             const name = buildBaseMapNameForPage(baseMapName, page);
             dispatch(addTempBaseMap({ id, name }));
 
+            let rotate = 0;
+            try {
+                rotate = (await pdfDocument.getPage(page)).rotate ?? 0;
+            } catch (e) {
+                console.warn("[baseMapCreator] intrinsic rotation unavailable", page, e);
+            }
+
             const { imageFile, meterByPx, dpi } = await renderTempBaseMapImage({
                 pdfFile,
                 pdfDocument,
                 page,
                 bboxInRatio: null,
-                rotate: 0,
+                rotate,
                 blueprintScale,
                 resolution: null, // AUTO
             });
 
             dispatch(updateTempBaseMap({ id, updates: { imageFile, name, meterByPx } }));
-            temps.push({ id, name, imageFile, meterByPx, page, bboxInRatio: null, rotate: 0, dpi });
+            temps.push({ id, name, imageFile, meterByPx, page, bboxInRatio: null, rotate, dpi });
             setProgress({ done: page, total });
         }
         return temps;

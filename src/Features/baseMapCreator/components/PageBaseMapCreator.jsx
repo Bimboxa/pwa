@@ -6,6 +6,7 @@ import { setRotate, setPdfFile, setTempBaseMaps, setBlueprintScale, setBaseMapNa
 
 import usePdfDocument from "Features/pdf/hooks/usePdfDocument"
 import usePdfThumbnails from "Features/pdf/hooks/usePdfThumbnails"
+import usePdfPageIntrinsicRotation from "Features/pdf/hooks/usePdfPageIntrinsicRotation"
 import usePdfPageImageUrl from "../hooks/usePdfPageImageUrl"
 
 // Ajout de Skeleton dans les imports
@@ -41,7 +42,25 @@ export default function PageBaseMapCreator({ onClose }) {
     // state
     const { pdfDocument, error: pdfError, progress: pdfProgress } = usePdfDocument(pdfFile);
     const { thumbnails, error } = usePdfThumbnails(pdfDocument, pageNumber);
-    const { imageUrl, isUpgrading } = usePdfPageImageUrl(pdfDocument, pageNumber, rotate);
+
+    // `rotate` is the ABSOLUTE rotation handed to pdfjs (createdFrom.rotation
+    // convention, shared with the detail / folio renders). It must start at
+    // the page's intrinsic /Rotate — not 0 — otherwise a landscape page
+    // stored with /Rotate 90 shows up turned versus the RESOURCES viewer and
+    // the thumbnails. Regenerate mode already carries the stored absolute
+    // rotation, so the intrinsic value is not applied there.
+    const intrinsicRotation = usePdfPageIntrinsicRotation(pdfDocument, pageNumber);
+    const rotateResolved = isRegenerate || intrinsicRotation != null;
+    useEffect(() => {
+        if (isRegenerate || intrinsicRotation == null) return;
+        dispatch(setRotate(intrinsicRotation));
+    }, [pdfDocument, pageNumber, intrinsicRotation, isRegenerate]);
+
+    const { imageUrl, isUpgrading } = usePdfPageImageUrl(
+        pdfDocument,
+        pageNumber,
+        rotateResolved ? rotate : null
+    );
     const sourceKey = `${pageNumber}_${rotate}`;
 
     // Use the page thumbnail (200 px JPEG, generated for the left panel) as
