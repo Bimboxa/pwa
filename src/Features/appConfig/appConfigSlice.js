@@ -16,6 +16,9 @@ const appConfigSlice = createSlice({
     // compact name + configuration dialog (default)
     configurationsManagement: false,
     satelliteCaptureMode: "MERCATOR", // "MERCATOR" | "LAMBERT_CC" (see satelliteMap/utils/satelliteCaptureModes)
+    // device preference: module a scope lands on when opened from the
+    // dashboard (see useLandingViewerModuleOnScopeOpen)
+    defaultModuleKey: "MAP",
   },
   reducers: {
     setConfigCode: (state, action) => {
@@ -52,6 +55,9 @@ const appConfigSlice = createSlice({
     setSatelliteCaptureMode: (state, action) => {
       state.satelliteCaptureMode = action.payload;
     },
+    setDefaultModuleKey: (state, action) => {
+      state.defaultModuleKey = action.payload;
+    },
   },
 });
 
@@ -67,5 +73,6 @@ export const {
   setDisable3D,
   setConfigurationsManagement,
   setSatelliteCaptureMode,
+  setDefaultModuleKey,
 } = appConfigSlice.actions;
 export default appConfigSlice.reducer;

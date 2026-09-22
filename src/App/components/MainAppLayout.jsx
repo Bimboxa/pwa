@@ -10,6 +10,7 @@ import useRemoteContainer from "Features/sync/hooks/useRemoteContainer";
 import useDndSensors from "App/hooks/useDndSensors";
 import useAutoRedirect from "App/hooks/useAutoRedirect";
 import useAutoSelectListing from "Features/listings/hooks/useAutoSelectListing";
+import useAutoSelectEnabledBaseMapOnScopeOpen from "Features/mapEditor/hooks/useAutoSelectEnabledBaseMapOnScopeOpen";
 import useAutoLayoutOnboarding from "Features/onboarding/hooks/useAutoLayoutOnboarding";
 import useAutoLayout from "Features/layout/hooks/useAutoLayout";
 import useAutoSelectEntityId from "Features/entities/hooks/useAutoSelectEntityId";
@@ -44,6 +45,7 @@ export default function MainAppLayout() {
   useAutoFetchOrgaDataFolder();
   useAutoRedirect();
   useAutoSelectListing();
+  useAutoSelectEnabledBaseMapOnScopeOpen();
   //useAutoLayoutOnboarding();
   useAutoLayout();
   useAutoSelectEntityId();

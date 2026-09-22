@@ -3,7 +3,7 @@ import { BUSINESS_OBJECTS_MODULE_KEYS } from "Features/businessObjects/utils/bus
 // Seeded entries required by selectEffectiveViewerKey (the Viewer and Zones
 // modules' 2D editor is "MAP", not their own key) — kept in sync with
 // viewersSlice.
-const DEFAULT_EDITOR_KEY_BY_MODULE = {
+export const DEFAULT_EDITOR_KEY_BY_MODULE = {
   BASE_MAPS: "BASE_MAPS",
   MAP: "MAP",
   THREED: "THREED",
