@@ -50,6 +50,7 @@ import TogglePhotoOrFlattened from "Features/photoPlans/components/TogglePhotoOr
 import DialogDeleteRessource from "Features/layout/components/DialogDeleteRessource";
 import FieldTextV2 from "Features/form/components/FieldTextV2";
 import FieldBaseMapOpacity from "./FieldBaseMapOpacity";
+import FieldBaseMapBlueprintScale from "./FieldBaseMapBlueprintScale";
 import FieldBaseMapVersions from "./FieldBaseMapVersions";
 import PanelBaseMapPositionInMainRef from "./PanelBaseMapPositionInMainRef";
 import PanelBaseMapTransformInThreed from "Features/threedEditor/components/PanelBaseMapTransformInThreed";
@@ -269,6 +270,8 @@ export default function PanelBaseMapProperties() {
             placeholder: "1, A, ...",
           }}
         />
+        {/* "1 : xx" scale of PDF-derived base maps (self-hiding) */}
+        <FieldBaseMapBlueprintScale baseMap={baseMap} />
 
         <WhiteSectionGeneric>
           {/* In the 3D viewer, the slider/eye drive the 3D scene display
