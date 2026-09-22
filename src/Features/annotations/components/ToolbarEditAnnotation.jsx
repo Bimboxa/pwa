@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 
 import db from "App/db/db";
 
@@ -135,7 +135,6 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
   const { candidates: cloneCandidates, listings: cloneListings } =
     useAnnotationTemplateCandidates(selectedAnnotation) ?? {};
 
-  const wrapperMode = useSelector((s) => s.mapEditor.wrapperMode);
 
   // state
 
@@ -330,10 +329,6 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
       keepOriginalPoints,
     });
     handleCloneClose();
-  }
-
-  function handleResizeClick() {
-    dispatch(setWrapperMode(!wrapperMode));
   }
 
   async function handleDeleteClick() {
@@ -835,9 +830,7 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
                 : undefined
           }
           hideClone={hasPart && part.kind === "POINT"}
-          onResize={handleResizeClick}
-          resizeActive={wrapperMode}
-          hideResize={hasPart}
+          hideResize
           onDelete={handleDeleteClick}
           hideDelete={hasPart}
           extraActions={

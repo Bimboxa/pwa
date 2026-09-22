@@ -4,6 +4,7 @@ import { IconButton, Tooltip } from "@mui/material";
 import {
   Lock as LockIcon,
   LockOpen as LockOpenIcon,
+  OpenWith as MoveResizeIcon,
   Straighten as StraightenIcon,
 } from "@mui/icons-material";
 import IconSegmentDrag from "Features/icons/IconSegmentDrag";
@@ -12,6 +13,7 @@ import {
   setAnglesLocked,
   setSegmentDragEnabled,
   setShowSegmentCotes,
+  setWrapperMode,
 } from "Features/mapEditor/mapEditorSlice";
 
 import getSegmentLengthItems from "Features/annotations/utils/getSegmentLengthItems";
@@ -24,6 +26,17 @@ const FIELD_W_PX = 116;
 const FIELD_H_PX = 30;
 
 const ACCENT_COLOR = "#2196f3";
+
+// Overlay toolbar geometry, screen px: MUI small IconButton with p: 0.5
+// around an 18px icon ≈ 34px, plus the flex gap.
+const OVERLAY_BUTTON_PX = 34;
+const OVERLAY_GAP_PX = 4;
+const OVERLAY_H_PX = 40;
+// Distance between the bbox top edge and the overlay bottom edge. Must clear
+// the wrapper's rotation handle (AnnotationEditingWrapper, 50px above the
+// bbox) when the move / resize wrapper is active.
+const OVERLAY_OFFSET_PX = 50;
+const OVERLAY_OFFSET_WRAPPER_PX = 94;
 
 // Below this on-screen segment length (px) the label starts fading out; fully
 // gone 30px lower. A faded label is still clickable at the midpoint — accepted:
@@ -95,6 +108,11 @@ export default function NodeSegmentLengthsStatic({
   const segmentDragEnabled = useSelector(
     (s) => s.mapEditor.segmentDragEnabled
   );
+
+  // Move / resize wrapper (mapEditorSlice): the 4-arrow toggle above the
+  // annotation shows the transform frame (body drag, resize + rotation
+  // handles) rendered by EditedObjectLayer. Reset on selection change.
+  const wrapperMode = useSelector((s) => s.mapEditor.wrapperMode);
 
   // Multi-selection: the no-mode overlay targets ONE annotation — with
   // several selected, each node would grow its own toolbar. Hide it (cotes
@@ -204,12 +222,12 @@ export default function NodeSegmentLengthsStatic({
     hasScale &&
     (interactionMode === "EDIT" || (isNoMode && showSegmentCotes));
 
-  // Top overlay: EDIT keeps its single angle padlock (scale required, as
-  // before); no-mode shows the 3-toggle toolbar on THE selected annotation
-  // (hidden on multi-selection).
+  // Top overlay: EDIT shows the move toggle (single selection) and its angle
+  // padlock (scale + straight segment required, as before); no-mode shows the
+  // 4-toggle toolbar on THE selected annotation (hidden on multi-selection).
   const overlayActive =
     baseActive &&
-    (interactionMode === "EDIT" ? hasScale : isNoMode && !hasMultiSelection);
+    (interactionMode === "EDIT" || (isNoMode && !hasMultiSelection));
 
   const counterScaleTransform = useMemo(() => {
     const k = containerK || 1;
@@ -386,18 +404,33 @@ export default function NodeSegmentLengthsStatic({
 
   // render
 
-  // EDIT keeps its historical all-or-nothing visual (no straight segment →
-  // nothing at all); no-mode shows the overlay toolbar regardless.
-  if (
-    !overlayActive ||
-    (interactionMode === "EDIT" && !straightItems.length)
-  )
-    return null;
+  if (!overlayActive) return null;
 
-  // Simple mode (opening): the toolbar only carries the no-mode cotes toggle
-  // — nothing to show in EDIT (no angle padlock) or without a scale.
-  const showToolbar =
-    Boolean(angleLockAnchor) && (!simple || (isNoMode && hasScale));
+  // Which overlay buttons are rendered — drives the foreignObject width so
+  // the group stays centered on the bbox whatever the mode.
+  // - move / resize: point-based annotations only (openings have no wrapper);
+  //   multi-selection is handled by the top toolbar.
+  // - angle padlock: EDIT keeps its historical gating (scale + at least one
+  //   straight segment), no-mode always.
+  const showMoveButton = !simple && !hasMultiSelection;
+  const showCotesButton = isNoMode && hasScale;
+  const showSegmentDragButton = isNoMode && !simple;
+  const showAnglesButton =
+    !simple &&
+    (interactionMode !== "EDIT" || (hasScale && straightItems.length > 0));
+  const overlayButtonCount =
+    Number(showMoveButton) +
+    Number(showCotesButton) +
+    Number(showSegmentDragButton) +
+    Number(showAnglesButton);
+  const overlayWidth =
+    overlayButtonCount * OVERLAY_BUTTON_PX +
+    Math.max(0, overlayButtonCount - 1) * OVERLAY_GAP_PX;
+  const overlayOffset = wrapperMode
+    ? OVERLAY_OFFSET_WRAPPER_PX
+    : OVERLAY_OFFSET_PX;
+
+  const showToolbar = Boolean(angleLockAnchor) && overlayButtonCount > 0;
 
   return (
     <g data-segment-lengths="1">
@@ -595,21 +628,22 @@ export default function NodeSegmentLengthsStatic({
       })}
 
       {/* Overlay above the annotation (session-wide toggles, mapEditorSlice).
-          EDIT: single ANGLE padlock — preserves the joint angles during
-          vertex / segment drags and typed length edits (default: unlocked).
-          No-mode: 3 toggles — show/hide cotes, enable segment drag, angle
-          padlock. Rendered as HTML buttons in a foreignObject so they get
-          real MUI Tooltips. */}
+          Up to 4 toggles: move / resize wrapper, show/hide cotes (no-mode),
+          enable segment drag (no-mode), ANGLE padlock — preserves the joint
+          angles during vertex / segment drags and typed length edits
+          (default: unlocked). Rendered as HTML buttons in a foreignObject so
+          they get real MUI Tooltips. While the wrapper is active the group
+          is pushed further up so the rotation handle stays reachable. */}
       {showToolbar && (
         <g
           transform={`translate(${angleLockAnchor.x}, ${angleLockAnchor.y})`}
         >
           <g style={{ transform: counterScaleTransform }}>
             <foreignObject
-              x={isNoMode ? -58 : -20}
-              y={-50}
-              width={isNoMode ? 116 : 40}
-              height={40}
+              x={-overlayWidth / 2}
+              y={-overlayOffset}
+              width={overlayWidth}
+              height={OVERLAY_H_PX}
               style={{ overflow: "visible" }}
             >
               <div
@@ -619,10 +653,35 @@ export default function NodeSegmentLengthsStatic({
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  gap: 4,
+                  gap: OVERLAY_GAP_PX,
                 }}
               >
-                {isNoMode && hasScale && (
+                {showMoveButton && (
+                  <Tooltip
+                    placement="top"
+                    arrow
+                    title={
+                      wrapperMode
+                        ? "Désactiver déplacer / redimensionner"
+                        : "Déplacer / Redimensionner"
+                    }
+                  >
+                    <IconButton
+                      size="small"
+                      onClick={() => dispatch(setWrapperMode(!wrapperMode))}
+                      sx={{
+                        bgcolor: "rgba(255,255,255,0.9)",
+                        border: `1px solid ${ACCENT_COLOR}`,
+                        color: wrapperMode ? ACCENT_COLOR : "text.disabled",
+                        "&:hover": { bgcolor: "white" },
+                        p: 0.5,
+                      }}
+                    >
+                      <MoveResizeIcon sx={{ fontSize: 18 }} />
+                    </IconButton>
+                  </Tooltip>
+                )}
+                {showCotesButton && (
                   <Tooltip
                     placement="top"
                     arrow
@@ -647,7 +706,7 @@ export default function NodeSegmentLengthsStatic({
                     </IconButton>
                   </Tooltip>
                 )}
-                {isNoMode && !simple && (
+                {showSegmentDragButton && (
                   <Tooltip
                     placement="top"
                     arrow
@@ -676,7 +735,7 @@ export default function NodeSegmentLengthsStatic({
                     </IconButton>
                   </Tooltip>
                 )}
-                {!simple && (
+                {showAnglesButton && (
                 <Tooltip
                   placement="top"
                   arrow
@@ -712,9 +771,11 @@ export default function NodeSegmentLengthsStatic({
       )}
 
       {/* per-point padlocks (arc control points excluded: locking a control
-          point is meaningless in v1) */}
+          point is meaningless in v1). EDIT keeps its historical gating: no
+          straight segment → no padlocks either. */}
       {labelsActive &&
         !simple &&
+        (interactionMode !== "EDIT" || straightItems.length > 0) &&
         points.map((pt, i) => {
         if (!pt?.id || typeOf(pt) === "circle") return null;
         const isLocked = Boolean(lockedPointIds[pt.id]);
