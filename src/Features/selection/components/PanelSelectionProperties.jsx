@@ -207,6 +207,12 @@ export default function PanelSelectionProperties() {
     // node(s) directly to the annotation panels instead of falling through to
     // the LISTING default.
     type = selectedItems.length > 1 ? "MULTI_ANNOTATION" : "ANNOTATION";
+  } else if (selectedItem?.type === "BASE_MAP_VERSION") {
+    // A version of a base map (row of the versions list in the base map
+    // panel, or a version image clicked in the BASE_MAPS viewer): its own
+    // panel — label, active switch, transforms. Before the BASE_MAPS
+    // fallbacks, which would map it to the base map panel.
+    type = "BASE_MAP_VERSION";
   } else if (
     (isMapViewer || isThreedViewer) &&
     selectedItem?.type === "BASE_MAP"

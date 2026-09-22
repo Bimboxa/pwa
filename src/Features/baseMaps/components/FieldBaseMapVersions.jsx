@@ -23,7 +23,11 @@ import {
 import {
   DragIndicator,
   Add as AddIcon,
+  ChevronRight,
 } from "@mui/icons-material";
+
+import { setSelectedItem } from "Features/selection/selectionSlice";
+import { setSelectedVersionId } from "Features/baseMapEditor/baseMapEditorSlice";
 
 import {
   DndContext,
@@ -107,6 +111,7 @@ function SortableVersionRow({ version, isSelected, onClick }) {
             sx={{ height: 18, fontSize: "0.65rem" }}
           />
         )}
+        <ChevronRight color="action" fontSize="small" sx={{ ml: 0.5 }} />
       </ListItemButton>
     </div>
   );
@@ -143,9 +148,19 @@ export default function FieldBaseMapVersions({ baseMap }) {
 
   // handlers
 
-  async function handleVersionClick(version) {
-    if (!baseMap?.id || version.isActive) return;
-    await activateBaseMapVersion(baseMap.id, version.id, dispatch);
+  // A row opens the version's own properties panel (label, active switch,
+  // transforms, delete) — activation happens there.
+  function handleVersionClick(version) {
+    if (!baseMap?.id) return;
+    dispatch(setSelectedVersionId(version.id));
+    dispatch(
+      setSelectedItem({
+        id: version.id,
+        type: "BASE_MAP_VERSION",
+        baseMapId: baseMap.id,
+        listingId: baseMap.listingId,
+      })
+    );
   }
 
   async function handleDragEnd(event) {

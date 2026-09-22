@@ -9,6 +9,7 @@ import {
 import { setSelectedVersionId } from "Features/baseMapEditor/baseMapEditorSlice";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
+import useBaseMap from "../hooks/useBaseMap";
 
 import {
   Box,
@@ -16,7 +17,6 @@ import {
   IconButton,
   Menu,
   MenuItem,
-  InputBase,
 } from "@mui/material";
 import {
   MoreVert as MoreActionsIcon,
@@ -24,8 +24,9 @@ import {
 } from "@mui/icons-material";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
-import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 import DialogDeleteRessource from "Features/layout/components/DialogDeleteRessource";
+import FieldTextV2 from "Features/form/components/FieldTextV2";
+import FieldCheck from "Features/form/components/FieldCheck";
 import SectionVersionTransforms from "./SectionVersionTransforms";
 
 import { nanoid } from "@reduxjs/toolkit";
@@ -33,45 +34,79 @@ import { generateKeyBetween } from "fractional-indexing";
 import db from "App/db/db";
 import activateBaseMapVersion from "Features/baseMaps/utils/activateBaseMapVersion";
 import useDeleteBaseMapVersion from "Features/baseMaps/hooks/useDeleteBaseMapVersion";
+import stringifyFileSize from "Features/files/utils/stringifyFileSize";
 
+// Properties of ONE version of a base map. Reached from the Versions list of
+// the base map panel (row click → BASE_MAP_VERSION selection item carrying
+// baseMapId) or from a version image clicked in the BASE_MAPS viewer (no
+// baseMapId → main base map). Back returns to the base map panel.
 export default function PanelBaseMapVersionProperties() {
   const dispatch = useDispatch();
 
+  // strings
+
+  const headerS = "Version";
+  const labelS = "Libellé";
+  const activeS = "Version active";
+  const duplicateS = "Dupliquer";
+  const deleteS = "Supprimer";
+  const onlyVersionS = "Seule version : elle reste active.";
+
   // data
 
-  const baseMap = useMainBaseMap();
-  const deleteVersion = useDeleteBaseMapVersion();
+  const selectedItems = useSelector(selectSelectedItems);
+  const selectedItem = selectedItems[0];
   const selectedVersionId = useSelector(
     (s) => s.baseMapEditor.selectedVersionId
   );
-  const selectedItems = useSelector(selectSelectedItems);
-  const selectedItem = selectedItems[0];
 
-  const version = baseMap?.versions?.find((v) => v.id === selectedVersionId);
+  const mainBaseMap = useMainBaseMap();
+  const itemBaseMap = useBaseMap({ id: selectedItem?.baseMapId ?? null });
+  const baseMap = itemBaseMap ?? mainBaseMap;
+
+  const versionId =
+    selectedItem?.type === "BASE_MAP_VERSION"
+      ? selectedItem.id
+      : selectedVersionId;
+  const version = baseMap?.versions?.find((v) => v.id === versionId);
+
+  const deleteVersion = useDeleteBaseMapVersion();
 
   // state
 
   const [anchorEl, setAnchorEl] = useState(null);
   const menuOpen = Boolean(anchorEl);
   const [openDelete, setOpenDelete] = useState(false);
-  const [labelValue, setLabelValue] = useState(null);
 
   // helpers
 
-  const isEditing = labelValue !== null;
-  const displayLabel = isEditing ? labelValue : version?.label || "";
+  const canDelete = (baseMap?.versions?.length ?? 0) > 1;
+  const isOnlyVersion = (baseMap?.versions?.length ?? 0) <= 1;
+  const imageSize = version?.image?.imageSize;
+  const infoParts = [];
+  if (imageSize?.width && imageSize?.height) {
+    infoParts.push(`${imageSize.width} × ${imageSize.height} px`);
+  }
+  const fileSizeS = stringifyFileSize(
+    version?.image?.file?.size ?? version?.image?.fileSize
+  );
+  if (fileSizeS) infoParts.push(fileSizeS);
 
   // handlers
 
-  function handleBack() {
+  function selectBaseMap() {
     dispatch(setSelectedVersionId(null));
     dispatch(
       setSelectedItem({
         id: baseMap.id,
         type: "BASE_MAP",
-        listingId: selectedItem?.listingId,
+        listingId: selectedItem?.listingId ?? baseMap.listingId,
       })
     );
+  }
+
+  function handleBack() {
+    selectBaseMap();
   }
 
   function handleMenuClick(event) {
@@ -88,10 +123,30 @@ export default function PanelBaseMapVersionProperties() {
     setOpenDelete(true);
   }
 
-  async function handleSetActive() {
-    setAnchorEl(null);
-    if (!baseMap?.id || !selectedVersionId) return;
-    await activateBaseMapVersion(baseMap.id, selectedVersionId, dispatch);
+  async function handleLabelChange(value) {
+    if (!version?.id) return;
+    const label = value ?? "";
+    if (label === (version.label || "")) return;
+    await db.baseMapVersions.update(version.id, { label });
+  }
+
+  // Active switch: ON activates this version; OFF activates the next other
+  // live version (there is always exactly one active version).
+  async function handleActiveChange(checked) {
+    if (!baseMap?.id || !version?.id) return;
+    if (checked) {
+      if (!version.isActive) {
+        await activateBaseMapVersion(baseMap.id, version.id, dispatch);
+      }
+      return;
+    }
+    if (!version.isActive) return;
+    const other = [...(baseMap.versions || [])]
+      .filter((v) => v.id !== version.id)
+      .sort((a, b) =>
+        (a.fractionalIndex || "").localeCompare(b.fractionalIndex || "")
+      )[0];
+    if (other) await activateBaseMapVersion(baseMap.id, other.id, dispatch);
   }
 
   async function handleDuplicate() {
@@ -101,9 +156,7 @@ export default function PanelBaseMapVersionProperties() {
     const sortedVersions = [...(baseMap.versions || [])].sort((a, b) =>
       (a.fractionalIndex || "").localeCompare(b.fractionalIndex || "")
     );
-    const currentIdx = sortedVersions.findIndex(
-      (v) => v.id === selectedVersionId
-    );
+    const currentIdx = sortedVersions.findIndex((v) => v.id === version.id);
     const afterIndex = sortedVersions[currentIdx]?.fractionalIndex ?? null;
     const beforeIndex =
       currentIdx + 1 < sortedVersions.length
@@ -111,8 +164,8 @@ export default function PanelBaseMapVersionProperties() {
         : null;
     const newFractionalIndex = generateKeyBetween(afterIndex, beforeIndex);
 
-    // Read version record to get raw image metadata (without hydrated ImageObject)
-    const versionRecord = await db.baseMapVersions.get(selectedVersionId);
+    // Raw record: image metadata without the hydrated ImageObject.
+    const versionRecord = await db.baseMapVersions.get(version.id);
 
     await db.baseMapVersions.put({
       id: nanoid(),
@@ -128,34 +181,16 @@ export default function PanelBaseMapVersionProperties() {
     });
   }
 
-  // handlers - label
-
-  function handleLabelFocus() {
-    setLabelValue(version?.label || "");
-  }
-
-  async function handleLabelBlur() {
-    if (labelValue !== null && baseMap?.id && selectedVersionId) {
-      await db.baseMapVersions.update(selectedVersionId, {
-        label: labelValue,
-      });
-    }
-    setLabelValue(null);
-  }
-
-  function handleLabelKeyDown(e) {
-    if (e.key === "Enter") {
-      e.target.blur();
-    } else if (e.key === "Escape") {
-      setLabelValue(null);
-    }
+  async function handleConfirmDelete() {
+    if (!baseMap?.id || !version?.id) return;
+    await deleteVersion({ baseMapId: baseMap.id, versionId: version.id });
+    setOpenDelete(false);
+    selectBaseMap();
   }
 
   // render
 
   if (!baseMap || !version) return null;
-
-  const canDelete = baseMap.versions?.length > 1;
 
   return (
     <BoxFlexVStretch>
@@ -168,17 +203,22 @@ export default function PanelBaseMapVersionProperties() {
           pl: 1,
         }}
       >
-        <Box sx={{ display: "flex", alignItems: "center" }}>
+        <Box sx={{ display: "flex", alignItems: "center", minWidth: 0 }}>
           <IconButton onClick={handleBack}>
             <Back />
           </IconButton>
-          <Box sx={{ ml: 1 }}>
+          <Box sx={{ ml: 1, minWidth: 0 }}>
             <Typography variant="caption" color="text.secondary">
-              Version
+              {headerS} · {baseMap.name}
             </Typography>
-            <Typography variant="body2" sx={{ fontWeight: "bold" }}>
-              {version.label || "Version"}
+            <Typography variant="body2" sx={{ fontWeight: "bold" }} noWrap>
+              {version.label || headerS}
             </Typography>
+            {infoParts.length > 0 && (
+              <Typography variant="caption" color="text.secondary">
+                {infoParts.join(" — ")}
+              </Typography>
+            )}
           </Box>
         </Box>
 
@@ -196,58 +236,43 @@ export default function PanelBaseMapVersionProperties() {
           overflow: "auto",
         }}
       >
-        <WhiteSectionGeneric>
-          <Box sx={{ p: 1 }}>
-            <Typography variant="caption" color="text.secondary">
-              Nom
-            </Typography>
-            <InputBase
-              value={displayLabel}
-              onChange={(e) => setLabelValue(e.target.value)}
-              onFocus={handleLabelFocus}
-              onBlur={handleLabelBlur}
-              onKeyDown={handleLabelKeyDown}
-              fullWidth
-              sx={{ fontSize: "0.875rem" }}
-            />
-          </Box>
-        </WhiteSectionGeneric>
-
-        <SectionVersionTransforms
-          baseMap={baseMap}
-          versionId={selectedVersionId}
+        <FieldTextV2
+          label={labelS}
+          value={version.label || ""}
+          onChange={handleLabelChange}
+          options={{ showAsField: true, changeOnBlur: true, hideMic: true }}
         />
+
+        <FieldCheck
+          value={Boolean(version.isActive)}
+          onChange={handleActiveChange}
+          label={activeS}
+          options={{ type: "switch", showAsField: true }}
+        />
+        {isOnlyVersion && (
+          <Typography variant="caption" color="text.secondary" sx={{ px: 1 }}>
+            {onlyVersionS}
+          </Typography>
+        )}
+
+        <SectionVersionTransforms baseMap={baseMap} versionId={version.id} />
       </Box>
 
       <Menu open={menuOpen} anchorEl={anchorEl} onClose={handleMenuClose}>
-        <MenuItem onClick={handleSetActive} disabled={version.isActive}>
-          Définir comme active
-        </MenuItem>
-        <MenuItem onClick={handleDuplicate}>Dupliquer</MenuItem>
-        <MenuItem onClick={handleDelete} disabled={!canDelete}>
-          Supprimer
+        <MenuItem onClick={handleDuplicate}>{duplicateS}</MenuItem>
+        <MenuItem
+          onClick={handleDelete}
+          disabled={!canDelete}
+          sx={{ color: "error.main" }}
+        >
+          {deleteS}
         </MenuItem>
       </Menu>
 
       <DialogDeleteRessource
         open={openDelete}
         onClose={() => setOpenDelete(false)}
-        onConfirmAsync={async () => {
-          if (!baseMap?.id || !selectedVersionId) return;
-          await deleteVersion({
-            baseMapId: baseMap.id,
-            versionId: selectedVersionId,
-          });
-          dispatch(setSelectedVersionId(null));
-          dispatch(
-            setSelectedItem({
-              id: baseMap.id,
-              type: "BASE_MAP",
-              listingId: selectedItem?.listingId,
-            })
-          );
-          setOpenDelete(false);
-        }}
+        onConfirmAsync={handleConfirmDelete}
       />
     </BoxFlexVStretch>
   );
