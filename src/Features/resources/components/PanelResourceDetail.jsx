@@ -1,4 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
+import { useSelector } from "react-redux";
+import { useLiveQuery } from "dexie-react-hooks";
+
+import db from "App/db/db";
 
 import {
   Box,
@@ -15,12 +19,19 @@ import { ArrowBack, Delete, Download, MoreHoriz } from "@mui/icons-material";
 import BoxCenter from "Features/layout/components/BoxCenter";
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import ContainerFilesSelectorV2 from "Features/files/components/ContainerFilesSelectorV2";
+import DialogDeleteRessource from "Features/layout/components/DialogDeleteRessource";
+import FieldOptionKey from "Features/form/components/FieldOptionKey";
 import stringifyFileSize from "Features/files/utils/stringifyFileSize";
 
 import useResourceFile from "../hooks/useResourceFile";
 import useDeleteResource from "../hooks/useDeleteResource";
 import useReattachResourceFile from "../hooks/useReattachResourceFile";
 import ViewerPdfPages from "./ViewerPdfPages";
+import getResourceVisibility, {
+  RESOURCE_VISIBILITIES,
+  RESOURCE_VISIBILITY_LABELS,
+} from "../utils/getResourceVisibility";
+import getResourceSecondaryLabel from "../utils/getResourceSecondaryLabel";
 
 export default function PanelResourceDetail({ resource, onBack }) {
   // strings
@@ -31,26 +42,55 @@ export default function PanelResourceDetail({ resource, onBack }) {
     "Le fichier n'est pas disponible sur cet appareil (il n'est pas embarqué dans l'enregistrement du scope).";
   const reattachS = "Recharger le fichier en local";
   const noPreviewS = "Aperçu non disponible pour ce type de fichier.";
+  const visibilityS = "Périmètre";
 
   // data
 
   const { file, loading, fileIsMissing } = useResourceFile(resource);
   const deleteResource = useDeleteResource();
   const reattachResourceFile = useReattachResourceFile();
+  const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
+
+  // Base maps cut from this PDF page: deleting the resource disables their
+  // "Régénérer depuis le PDF" action (the base maps themselves stay intact).
+  const linkedBaseMapCount = useLiveQuery(async () => {
+    if (resource?.kind !== "PDF_PAGE") return 0;
+    return db.baseMaps
+      .filter((b) => !b.deletedAt && b.createdFrom?.resourceId === resource.id)
+      .count();
+  }, [resource?.id, resource?.kind]);
 
   // state
 
   const [menuAnchorEl, setMenuAnchorEl] = useState(null);
   const [reattaching, setReattaching] = useState(false);
+  const [openDelete, setOpenDelete] = useState(false);
 
   // helpers
 
   const isPdf = resource.fileType === "PDF";
   const isImage = resource.fileType === "IMAGE";
   const trigram = resource.createdBy?.trigram;
-  const infoS = [stringifyFileSize(resource.fileSize), trigram]
+  const infoS = [
+    getResourceSecondaryLabel(resource),
+    stringifyFileSize(resource.fileSize),
+    trigram,
+  ]
     .filter(Boolean)
     .join(" · ");
+  const visibility = getResourceVisibility(resource);
+  const visibilityOptions = RESOURCE_VISIBILITIES.map((key) => ({
+    key,
+    label: RESOURCE_VISIBILITY_LABELS[key],
+  }));
+  const linkedS =
+    linkedBaseMapCount > 0
+      ? `${linkedBaseMapCount} fond(s) de plan ont été créés depuis cette page`
+      : null;
+  const deleteMessage =
+    linkedBaseMapCount > 0
+      ? `${linkedS}. Ils resteront intacts, mais ne pourront plus être régénérés depuis le PDF.`
+      : undefined;
 
   const imageUrl = useMemo(() => {
     if (!file || !isImage) return null;
@@ -65,10 +105,23 @@ export default function PanelResourceDetail({ resource, onBack }) {
 
   // handlers
 
-  async function handleDelete() {
+  function handleDelete() {
     setMenuAnchorEl(null);
+    setOpenDelete(true);
+  }
+
+  async function handleConfirmDelete() {
+    setOpenDelete(false);
     await deleteResource(resource);
     onBack();
+  }
+
+  async function handleVisibilityChange(next) {
+    if (next === visibility) return;
+    await db.resources.update(resource.id, {
+      visibility: next,
+      scopeId: next === "SCOPE" ? selectedScopeId ?? null : null,
+    });
   }
 
   function handleDownload() {
@@ -145,6 +198,48 @@ export default function PanelResourceDetail({ resource, onBack }) {
           </MenuItem>
         </Menu>
       </Box>
+
+      {/* scope ("périmètre") + linked base maps */}
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 1,
+          px: 1,
+          py: 0.5,
+          borderBottom: (theme) => `1px solid ${theme.palette.divider}`,
+          flexShrink: 0,
+        }}
+      >
+        <Box sx={{ minWidth: 0 }}>
+          <Typography variant="caption" color="text.secondary" noWrap>
+            {visibilityS}
+          </Typography>
+          {linkedS && (
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              sx={{ display: "block" }}
+              noWrap
+            >
+              {linkedS}
+            </Typography>
+          )}
+        </Box>
+        <FieldOptionKey
+          value={visibility}
+          onChange={handleVisibilityChange}
+          valueOptions={visibilityOptions}
+        />
+      </Box>
+
+      <DialogDeleteRessource
+        open={openDelete}
+        onClose={() => setOpenDelete(false)}
+        onConfirmAsync={handleConfirmDelete}
+        message={deleteMessage}
+      />
 
       {/* body */}
       {loading ? (

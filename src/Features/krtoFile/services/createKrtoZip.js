@@ -135,6 +135,38 @@ export default async function createKrtoZip(scopeId, options) {
             .filter(Boolean)
     );
 
+    // 2quater. PDF pages kept as the source of base maps (resources with
+    // kind = "PDF_PAGE", see ensurePdfPageResourcesService): unlike hand
+    // uploaded resources, their single-page file DOES ship — it is what
+    // makes "Régénérer depuis le PDF" work after an import on another
+    // device. Whitelisted like POV thumbnails (their file rows carry no
+    // listingId). Only pages referenced by a live base map of the project.
+    const projectBaseMaps = await db.baseMaps
+        .where("projectId")
+        .equals(projectId)
+        .toArray();
+    const referencedResourceIds = new Set(
+        projectBaseMaps
+            .filter((b) => !b.deletedAt)
+            .map((b) => b.createdFrom?.resourceId)
+            .filter(Boolean)
+    );
+    const projectResources = await db.resources
+        .where("projectId")
+        .equals(projectId)
+        .toArray();
+    const pdfPageResourceFileNames = new Set(
+        projectResources
+            .filter(
+                (r) =>
+                    !r.deletedAt &&
+                    r.kind === "PDF_PAGE" &&
+                    r.fileName &&
+                    referencedResourceIds.has(r.id)
+            )
+            .map((r) => r.fileName)
+    );
+
     // 3. Export via Dexie
     const blob = await db.export({
         filter: (table, value) => {
@@ -163,7 +195,11 @@ export default async function createKrtoZip(scopeId, options) {
             // filtre files ci-dessous l'exclut par construction (même
             // mécanisme que pov.rawImage). L'utilisateur ré-attache le fichier
             // en local depuis le panneau Ressources après import.
-            if (table === "resources") return value.projectId === projectId;
+            // Périmètre : les ressources SCOPE d'une autre scope ne partent pas.
+            if (table === "resources") {
+                if (value.projectId !== projectId) return false;
+                return value.visibility !== "SCOPE" || value.scopeId === scopeId;
+            }
 
             // Tables indexées par scopeId
             if (tablesWithScopeId.has(table)) return value.scopeId === scopeId;
@@ -174,7 +210,10 @@ export default async function createKrtoZip(scopeId, options) {
 
             // Fichiers : on exclut les images des versions supprimées orphelines
             if (table === "files") {
-                if (povImageFileNames.has(value.fileName)) {
+                if (
+                    povImageFileNames.has(value.fileName) ||
+                    pdfPageResourceFileNames.has(value.fileName)
+                ) {
                     return value.projectId === projectId;
                 }
                 return (

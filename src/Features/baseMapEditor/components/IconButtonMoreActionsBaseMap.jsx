@@ -6,7 +6,7 @@ import { setSelectedVersionId } from "../baseMapEditorSlice";
 import { setSelectedMainBaseMapId } from "Features/mapEditor/mapEditorSlice";
 import { setSelectedItem } from "Features/selection/selectionSlice";
 
-import { IconButton, Menu, MenuItem } from "@mui/material";
+import { IconButton, Menu, MenuItem, Tooltip } from "@mui/material";
 import { MoreVert as MoreActionsIcon } from "@mui/icons-material";
 
 import DialogDeleteRessource from "Features/layout/components/DialogDeleteRessource";
@@ -15,6 +15,8 @@ import useDeleteBaseMap, {
   countBaseMapAnnotations,
 } from "Features/baseMaps/hooks/useDeleteBaseMap";
 import { triggerBaseMapsUpdate } from "Features/baseMaps/baseMapsSlice";
+import useRegenerateBaseMapEligibility from "Features/baseMaps/hooks/useRegenerateBaseMapEligibility";
+import useOpenRegenerateBaseMap from "Features/baseMaps/hooks/useOpenRegenerateBaseMap";
 import db from "App/db/db";
 
 export default function IconButtonMoreActionsBaseMap({
@@ -33,6 +35,7 @@ export default function IconButtonMoreActionsBaseMap({
   const renameS = "Renommer";
   const editRefS = "Modifier la référence";
   const addVersionS = "Nouvelle version";
+  const regenerateS = "Régénérer depuis le PDF";
   const deleteS = "Supprimer le fond de plan";
 
   // helpers - detail baseMaps have no versions and no 3D placement
@@ -50,6 +53,8 @@ export default function IconButtonMoreActionsBaseMap({
 
   const selectedBaseMapId = useSelector((s) => s.mapEditor.selectedBaseMapId);
   const deleteBaseMap = useDeleteBaseMap();
+  const regenerateEligibility = useRegenerateBaseMapEligibility(baseMap);
+  const openRegenerateBaseMap = useOpenRegenerateBaseMap();
 
   // state
 
@@ -95,6 +100,11 @@ export default function IconButtonMoreActionsBaseMap({
     onAddVersion?.();
   }
 
+  async function handleRegenerate() {
+    setAnchorEl(null);
+    await openRegenerateBaseMap(baseMap);
+  }
+
   // Same field / update as the Position 3D panels (orientation of the plane
   // in the 3D scene: HORIZONTAL = floor, VERTICAL = wall).
   async function handleToggleOrientation() {
@@ -138,6 +148,18 @@ export default function IconButtonMoreActionsBaseMap({
         {onEditRef && <MenuItem onClick={handleEditRef}>{editRefS}</MenuItem>}
         {!isDetail && (
           <MenuItem onClick={handleAddVersion}>{addVersionS}</MenuItem>
+        )}
+        {regenerateEligibility.show && (
+          <Tooltip title={regenerateEligibility.reason ?? ""} placement="left">
+            <span>
+              <MenuItem
+                onClick={handleRegenerate}
+                disabled={regenerateEligibility.disabled}
+              >
+                {regenerateS}
+              </MenuItem>
+            </span>
+          </Tooltip>
         )}
         {!isDetail && (
           <MenuItem onClick={handleToggleOrientation}>

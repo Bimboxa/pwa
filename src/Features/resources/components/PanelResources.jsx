@@ -6,6 +6,8 @@ import { setSelectedResourceId } from "../resourcesSlice";
 
 import { Box, Typography } from "@mui/material";
 
+import FieldOptionKey from "Features/form/components/FieldOptionKey";
+
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import HeaderTitleClose from "Features/layout/components/HeaderTitleClose";
 import ContainerFilesSelectorV2 from "Features/files/components/ContainerFilesSelectorV2";
@@ -14,6 +16,10 @@ import useResources from "../hooks/useResources";
 import useCreateResourcesFromFiles from "../hooks/useCreateResourcesFromFiles";
 import ListResources from "./ListResources";
 import PanelResourceDetail from "./PanelResourceDetail";
+import {
+  RESOURCE_VISIBILITIES,
+  RESOURCE_VISIBILITY_LABELS,
+} from "../utils/getResourceVisibility";
 
 export default function PanelResources() {
   const dispatch = useDispatch();
@@ -22,6 +28,7 @@ export default function PanelResources() {
 
   const titleS = "Ressources";
   const dropS = "Déposer ici des fichiers qui seront utilisés comme ressources";
+  const visibilityS = "Périmètre des nouveaux fichiers";
 
   // data
 
@@ -32,6 +39,9 @@ export default function PanelResources() {
 
   const selectedResourceId = useSelector((s) => s.resources.selectedResourceId);
   const [creating, setCreating] = useState(false);
+  // Scope ("périmètre") applied to the files dropped next: SCOPE (this
+  // scope only), PROJECT (every scope of the project) or GLOBAL.
+  const [visibility, setVisibility] = useState("SCOPE");
   const [dragging, setDragging] = useState(false);
   // dragenter/dragleave fire on every child: keep a depth counter so the
   // overlay only closes when the pointer really leaves the panel.
@@ -51,7 +61,7 @@ export default function PanelResources() {
     if (!files?.length) return;
     setCreating(true);
     try {
-      await createResourcesFromFiles(files);
+      await createResourcesFromFiles(files, { visibility });
     } finally {
       setCreating(false);
     }
@@ -95,6 +105,34 @@ export default function PanelResources() {
     );
   }
 
+  const visibilityOptions = RESOURCE_VISIBILITIES.map((key) => ({
+    key,
+    label: RESOURCE_VISIBILITY_LABELS[key],
+  }));
+
+  const visibilitySelector = (
+    <Box
+      sx={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        px: 1,
+        py: 0.5,
+        gap: 1,
+        flexShrink: 0,
+      }}
+    >
+      <Typography variant="caption" color="text.secondary" noWrap>
+        {visibilityS}
+      </Typography>
+      <FieldOptionKey
+        value={visibility}
+        onChange={setVisibility}
+        valueOptions={visibilityOptions}
+      />
+    </Box>
+  );
+
   // render - list
 
   return (
@@ -108,14 +146,17 @@ export default function PanelResources() {
       <HeaderTitleClose title={titleS} onClose={handleClose} />
 
       {resources.length === 0 ? (
-        <Box sx={{ flexGrow: 1, minHeight: 0, p: 1 }}>
-          <ContainerFilesSelectorV2
-            callToActionLabel={dropS}
-            multiple
-            onFilesChange={handleFilesChange}
-            loading={creating}
-          />
-        </Box>
+        <>
+          {visibilitySelector}
+          <Box sx={{ flexGrow: 1, minHeight: 0, p: 1 }}>
+            <ContainerFilesSelectorV2
+              callToActionLabel={dropS}
+              multiple
+              onFilesChange={handleFilesChange}
+              loading={creating}
+            />
+          </Box>
+        </>
       ) : (
         <>
           <Box sx={{ flexGrow: 1, minHeight: 0, overflow: "auto" }}>
@@ -126,6 +167,7 @@ export default function PanelResources() {
               }
             />
           </Box>
+          {visibilitySelector}
           <Box sx={{ height: 150, flexShrink: 0, p: 1 }}>
             <ContainerFilesSelectorV2
               callToActionLabel={dropS}

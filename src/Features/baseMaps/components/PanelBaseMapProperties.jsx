@@ -27,7 +27,6 @@ import downloadBlob from "Features/files/utils/downloadBlob";
 import addBackgroundToImage from "Features/images/utils/addBackgroundToImage";
 import stringifyFileSize from "Features/files/utils/stringifyFileSize";
 import db from "App/db/db";
-import activateBaseMapVersion from "Features/baseMaps/utils/activateBaseMapVersion";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 
@@ -37,7 +36,6 @@ import {
   IconButton,
   Menu,
   MenuItem,
-  InputBase,
   ButtonBase,
 } from "@mui/material";
 import {
@@ -50,8 +48,9 @@ import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 import TogglePhotoOrFlattened from "Features/photoPlans/components/TogglePhotoOrFlattened";
 import DialogDeleteRessource from "Features/layout/components/DialogDeleteRessource";
-import ButtonInPanelV2 from "Features/layout/components/ButtonInPanelV2";
+import FieldTextV2 from "Features/form/components/FieldTextV2";
 import FieldBaseMapOpacity from "./FieldBaseMapOpacity";
+import FieldBaseMapBlueprintScale from "./FieldBaseMapBlueprintScale";
 import FieldBaseMapVersions from "./FieldBaseMapVersions";
 import PanelBaseMapPositionInMainRef from "./PanelBaseMapPositionInMainRef";
 import PanelBaseMapTransformInThreed from "Features/threedEditor/components/PanelBaseMapTransformInThreed";
@@ -59,6 +58,11 @@ import FieldBaseMapOpacityIn3d from "Features/threedEditor/components/FieldBaseM
 
 export default function PanelBaseMapProperties() {
   const dispatch = useDispatch();
+
+  // strings
+
+  const labelS = "Libellé";
+  const referenceS = "Référence";
 
   // data
 
@@ -99,10 +103,6 @@ export default function PanelBaseMapProperties() {
   const [anchorEl, setAnchorEl] = useState(null);
   const menuOpen = Boolean(anchorEl);
   const [openDelete, setOpenDelete] = useState(false);
-  const [openDeleteVersion, setOpenDeleteVersion] = useState(false);
-  const [nameValue, setNameValue] = useState(null);
-  const [detailRefValue, setDetailRefValue] = useState(null);
-  const [versionLabelValue, setVersionLabelValue] = useState(null);
   const [view, setView] = useState("main"); // "main" | "position3d"
 
   // One-shot view request from the left panel (Position 3D section of the
@@ -117,19 +117,6 @@ export default function PanelBaseMapProperties() {
   // helpers
 
   const isThreedViewer = isThreedFamilyViewerKey(selectedViewerKey);
-
-  const isEditingName = nameValue !== null;
-  const displayName = isEditingName ? nameValue : baseMap?.name || "";
-
-  const isEditingDetailRef = detailRefValue !== null;
-  const displayDetailRef = isEditingDetailRef
-    ? detailRefValue
-    : baseMap?.detailRef || "";
-
-  const isEditingVersionLabel = versionLabelValue !== null;
-  const displayVersionLabel = isEditingVersionLabel
-    ? versionLabelValue
-    : activeVersion?.label || "";
 
   const aspectRatio =
     imageSize?.width && imageSize?.height
@@ -172,84 +159,29 @@ export default function PanelBaseMapProperties() {
     if (processedImageFile) downloadBlob(processedImageFile, baseMap.name);
   }
 
-  // handlers - baseMap name
+  // handlers - baseMap name / reference (changeOnBlur fields)
 
-  function handleNameFocus() {
-    setNameValue(baseMap?.name || "");
-  }
-
-  async function handleNameBlur() {
-    if (nameValue !== null && baseMap?.id) {
-      if (baseMap.isDetail) {
-        // Detail baseMaps have no listing (listingId null): useUpdateEntity
-        // would fall back to the SELECTED listing and write the wrong table.
-        await db.baseMaps.update(baseMap.id, { name: nameValue });
-        dispatch(triggerEntitiesTableUpdate("baseMaps"));
-      } else {
-        await updateEntity(
-          baseMap.id,
-          { name: nameValue },
-          { listing: baseMapListing }
-        );
-      }
-    }
-    setNameValue(null);
-  }
-
-  function handleNameKeyDown(e) {
-    if (e.key === "Enter") {
-      e.target.blur();
-    } else if (e.key === "Escape") {
-      setNameValue(null);
-    }
-  }
-
-  // handlers - detail reference
-
-  function handleDetailRefFocus() {
-    setDetailRefValue(baseMap?.detailRef || "");
-  }
-
-  async function handleDetailRefBlur() {
-    if (detailRefValue !== null && baseMap?.id) {
-      // Direct write: works for any baseMap, listing-less details included.
-      await db.baseMaps.update(baseMap.id, {
-        detailRef: detailRefValue.trim() || null,
-      });
+  async function handleNameChange(value) {
+    if (!baseMap?.id) return;
+    const name = value ?? "";
+    if (name === (baseMap.name || "")) return;
+    if (baseMap.isDetail) {
+      // Detail baseMaps have no listing (listingId null): useUpdateEntity
+      // would fall back to the SELECTED listing and write the wrong table.
+      await db.baseMaps.update(baseMap.id, { name });
       dispatch(triggerEntitiesTableUpdate("baseMaps"));
-    }
-    setDetailRefValue(null);
-  }
-
-  function handleDetailRefKeyDown(e) {
-    if (e.key === "Enter") {
-      e.target.blur();
-    } else if (e.key === "Escape") {
-      setDetailRefValue(null);
+    } else {
+      await updateEntity(baseMap.id, { name }, { listing: baseMapListing });
     }
   }
 
-  // handlers - version label
-
-  function handleVersionLabelFocus() {
-    setVersionLabelValue(activeVersion?.label || "");
-  }
-
-  async function handleVersionLabelBlur() {
-    if (versionLabelValue !== null && activeVersion?.id) {
-      await db.baseMapVersions.update(activeVersion.id, {
-        label: versionLabelValue,
-      });
-    }
-    setVersionLabelValue(null);
-  }
-
-  function handleVersionLabelKeyDown(e) {
-    if (e.key === "Enter") {
-      e.target.blur();
-    } else if (e.key === "Escape") {
-      setVersionLabelValue(null);
-    }
+  async function handleDetailRefChange(value) {
+    if (!baseMap?.id) return;
+    const detailRef = (value ?? "").trim() || null;
+    if (detailRef === (baseMap.detailRef || null)) return;
+    // Direct write: works for any baseMap, listing-less details included.
+    await db.baseMaps.update(baseMap.id, { detailRef });
+    dispatch(triggerEntitiesTableUpdate("baseMaps"));
   }
 
   // render
@@ -318,55 +250,28 @@ export default function PanelBaseMapProperties() {
       <BoxFlexVStretch sx={{ overflow: "auto", gap: 1, p: 1.5 }}>
         {/* Photo <-> mise à plat quick switch (photoPlans) — self-hiding. */}
         <TogglePhotoOrFlattened baseMap={baseMap} />
-        <WhiteSectionGeneric>
-          <Box sx={{ p: 1, display: "flex", flexDirection: "column", gap: 1 }}>
-            <Box>
-              <Typography variant="caption" color="text.secondary">
-                Fond de plan
-              </Typography>
-              <InputBase
-                value={displayName}
-                onChange={(e) => setNameValue(e.target.value)}
-                onFocus={handleNameFocus}
-                onBlur={handleNameBlur}
-                onKeyDown={handleNameKeyDown}
-                fullWidth
-                sx={{ fontSize: "0.875rem" }}
-              />
-            </Box>
-            <Box>
-              <Typography variant="caption" color="text.secondary">
-                Référence
-              </Typography>
-              <InputBase
-                value={displayDetailRef}
-                onChange={(e) => setDetailRefValue(e.target.value)}
-                onFocus={handleDetailRefFocus}
-                onBlur={handleDetailRefBlur}
-                onKeyDown={handleDetailRefKeyDown}
-                placeholder="1, A, ..."
-                fullWidth
-                sx={{ fontSize: "0.875rem" }}
-              />
-            </Box>
-            {activeVersion && (
-              <Box>
-                <Typography variant="caption" color="text.secondary">
-                  Version active
-                </Typography>
-                <InputBase
-                  value={displayVersionLabel}
-                  onChange={(e) => setVersionLabelValue(e.target.value)}
-                  onFocus={handleVersionLabelFocus}
-                  onBlur={handleVersionLabelBlur}
-                  onKeyDown={handleVersionLabelKeyDown}
-                  fullWidth
-                  sx={{ fontSize: "0.875rem" }}
-                />
-              </Box>
-            )}
-          </Box>
-        </WhiteSectionGeneric>
+        {/* Same "label | field" white sections as the annotation template
+            panel. The version label is edited in the version's own panel
+            (click a row of the Versions list). */}
+        <FieldTextV2
+          label={labelS}
+          value={baseMap.name || ""}
+          onChange={handleNameChange}
+          options={{ showAsField: true, changeOnBlur: true, hideMic: true }}
+        />
+        <FieldTextV2
+          label={referenceS}
+          value={baseMap.detailRef || ""}
+          onChange={handleDetailRefChange}
+          options={{
+            showAsField: true,
+            changeOnBlur: true,
+            hideMic: true,
+            placeholder: "1, A, ...",
+          }}
+        />
+        {/* "1 : xx" scale of PDF-derived base maps (self-hiding) */}
+        <FieldBaseMapBlueprintScale baseMap={baseMap} />
 
         <WhiteSectionGeneric>
           {/* In the 3D viewer, the slider/eye drive the 3D scene display
@@ -396,15 +301,6 @@ export default function PanelBaseMapProperties() {
         </WhiteSectionGeneric>
 
         <FieldBaseMapVersions baseMap={baseMap} />
-
-        {activeVersion && baseMap.versions?.length > 1 && (
-          <ButtonInPanelV2
-            label="Supprimer la version"
-            variant="outlined"
-            color="error"
-            onClick={() => setOpenDeleteVersion(true)}
-          />
-        )}
       </BoxFlexVStretch>
 
       <Menu open={menuOpen} anchorEl={anchorEl} onClose={handleMenuClose}>
@@ -430,22 +326,6 @@ export default function PanelBaseMapProperties() {
             dispatch(setSelectedMainBaseMapId(null));
           }
           setOpenDelete(false);
-        }}
-      />
-
-      <DialogDeleteRessource
-        open={openDeleteVersion}
-        onClose={() => setOpenDeleteVersion(false)}
-        onConfirmAsync={async () => {
-          if (!baseMap?.id || !activeVersion?.id) return;
-          const otherVersion = baseMap.versions?.find(
-            (v) => v.id !== activeVersion.id
-          );
-          if (otherVersion) {
-            await activateBaseMapVersion(baseMap.id, otherVersion.id, dispatch);
-          }
-          await db.baseMapVersions.delete(activeVersion.id);
-          setOpenDeleteVersion(false);
         }}
       />
     </BoxFlexVStretch>

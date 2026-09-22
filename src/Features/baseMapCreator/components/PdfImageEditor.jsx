@@ -30,7 +30,9 @@ function centerAspectCrop(mediaWidth, mediaHeight, aspect) {
 
 // --- COMPOSANT PRINCIPAL ---
 
-export default function PdfImageEditor({ imageUrl, sourceKey, onSave, onCancel }) {
+// initialBboxInRatio: crop pre-filled on source load (regenerate mode);
+// undefined => full page.
+export default function PdfImageEditor({ imageUrl, sourceKey, initialBboxInRatio, onSave, onCancel }) {
     const dispatch = useDispatch();
 
     const imgRef = useRef(null);
@@ -74,15 +76,16 @@ export default function PdfImageEditor({ imageUrl, sourceKey, onSave, onCancel }
 
         if (sourceKey !== lastSourceKeyRef.current) {
             lastSourceKeyRef.current = sourceKey;
+            const b = initialBboxInRatio ?? { x1: 0, y1: 0, x2: 1, y2: 1 };
             const initialCrop = {
                 unit: '%',
-                x: 0,
-                y: 0,
-                width: 100,
-                height: 100
+                x: b.x1 * 100,
+                y: b.y1 * 100,
+                width: (b.x2 - b.x1) * 100,
+                height: (b.y2 - b.y1) * 100,
             };
             setCrop(initialCrop);
-            dispatch(setBboxInRatio({ x1: 0, y1: 0, x2: 1, y2: 1 }));
+            dispatch(setBboxInRatio({ ...b }));
         }
     }
 

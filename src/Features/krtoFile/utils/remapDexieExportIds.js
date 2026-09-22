@@ -371,6 +371,14 @@ export default function remapDexieExportIds(jsonData, opts) {
           row.createdFrom.resourceId
         );
       }
+      // PDF-derived base maps: the version holding the PDF render (the one
+      // "Régénérer depuis le PDF" replaces).
+      if (tableName === "baseMaps" && row.createdFrom?.versionId) {
+        row.createdFrom.versionId = remapId(
+          "baseMapVersions",
+          row.createdFrom.versionId
+        );
+      }
 
       // Embedded fileName refs (baseMap.image.fileName, version.image.fileName,
       // entity file blobs) + the files-row own fileName.

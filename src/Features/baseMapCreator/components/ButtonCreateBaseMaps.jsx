@@ -21,6 +21,9 @@ import { Box, CircularProgress, LinearProgress } from "@mui/material";
 import ButtonGeneric from "Features/layout/components/ButtonGeneric";
 import { setShowCreateBaseMapSection, setSelectedMainBaseMapId } from "Features/mapEditor/mapEditorSlice";
 
+import ensurePdfPageResources from "Features/resources/services/ensurePdfPageResourcesService";
+import getDebugAuthFromLocalStorage from "Features/auth/services/getDebugAuthFromLocalStorage";
+
 import renderTempBaseMapImage from "../utils/renderTempBaseMapImage";
 import buildBaseMapNameForPage from "../utils/buildBaseMapNameForPage";
 import computeBaseMapsPlacements from "../utils/computeBaseMapsPlacements";
@@ -40,6 +43,8 @@ export default function ButtonCreateBaseMaps({ pdfDocument, pdfFile }) {
     const blueprintScale = useSelector((s) => s.baseMapCreator.blueprintScale);
     const baseMapName = useSelector((s) => s.baseMapCreator.baseMapName);
     const creating = useSelector((s) => s.baseMapCreator.creating);
+    const projectId = useSelector((s) => s.projects.selectedProjectId);
+    const userProfile = useSelector((s) => s.auth.userProfile);
 
     // state
 
@@ -47,8 +52,10 @@ export default function ButtonCreateBaseMaps({ pdfDocument, pdfFile }) {
 
     // helpers
 
-    // Build one temp base map per PDF page (full page, no crop / no rotation),
-    // updating the live preview and the progress bar as we go.
+    // Build one temp base map per PDF page (full page, no crop), updating the
+    // live preview and the progress bar as we go. The rotation handed to
+    // pdfjs is absolute: use each page's intrinsic /Rotate so the render
+    // matches the thumbnails / RESOURCES viewer (0 would ignore it).
     async function buildPerPageTempBaseMaps() {
         const total = pdfDocument?.numPages ?? 0;
         dispatch(setTempBaseMaps([]));
@@ -60,18 +67,25 @@ export default function ButtonCreateBaseMaps({ pdfDocument, pdfFile }) {
             const name = buildBaseMapNameForPage(baseMapName, page);
             dispatch(addTempBaseMap({ id, name }));
 
+            let rotate = 0;
+            try {
+                rotate = (await pdfDocument.getPage(page)).rotate ?? 0;
+            } catch (e) {
+                console.warn("[baseMapCreator] intrinsic rotation unavailable", page, e);
+            }
+
             const { imageFile, meterByPx, dpi } = await renderTempBaseMapImage({
                 pdfFile,
                 pdfDocument,
                 page,
                 bboxInRatio: null,
-                rotate: 0,
+                rotate,
                 blueprintScale,
                 resolution: null, // AUTO
             });
 
             dispatch(updateTempBaseMap({ id, updates: { imageFile, name, meterByPx } }));
-            temps.push({ id, name, imageFile, meterByPx, page, bboxInRatio: null, rotate: 0, dpi });
+            temps.push({ id, name, imageFile, meterByPx, page, bboxInRatio: null, rotate, dpi });
             setProgress({ done: page, total });
         }
         return temps;
@@ -94,18 +108,41 @@ export default function ButtonCreateBaseMaps({ pdfDocument, pdfFile }) {
                 pdfDocument,
                 blueprintScale,
             });
+            // Keep the source: each used PDF page is extracted into a
+            // single-page PDF resource (deduped by content), so the base map
+            // can be regenerated later (new crop / dpi) from the exact page.
+            const debugAuth = getDebugAuthFromLocalStorage();
+            const pageResources = await ensurePdfPageResources({
+                pdfFile,
+                pdfDocument,
+                pageNumbers: baseMapsToCreate.map((bm) => bm.page).filter((p) => p != null),
+                projectId,
+                createdBy: {
+                    idMaster: userProfile?.idMaster ?? debugAuth?.userIdMaster ?? null,
+                    trigram: userProfile?.trigram ?? debugAuth?.trigram ?? null,
+                },
+            });
+
             const baseMapsWithPlacement = baseMapsToCreate.map((bm) => {
                 const placement = placements.get(bm.id);
                 const next = placement ? { ...bm, ...placement } : { ...bm };
                 // PDF provenance (page + crop + dpi), persisted on the record
-                // so the render could be replayed from the source PDF later.
+                // so the render can be replayed from the stored page later.
                 // Skipped for non-PDF temp images (no page).
                 if (bm.page != null) {
+                    const resource = pageResources.get(bm.page) ?? null;
                     next.createdFrom = {
                         type: "PDF_PAGE",
-                        pdfFileName: pdfFile?.name ?? null,
-                        resourceId: null,
-                        pageNumber: bm.page,
+                        // The resource is single-page: pageNumber is the page
+                        // IN the resource (contract of renderDetailBaseMapImage
+                        // / getFolioAnnotationsRect), sourcePageNumber the page
+                        // in the original PDF (display only). pdfFileName =
+                        // resource name so resolveDetailResource's name
+                        // fallback finds it after a re-import.
+                        pdfFileName: resource?.name ?? pdfFile?.name ?? null,
+                        resourceId: resource?.id ?? null,
+                        pageNumber: resource ? 1 : bm.page,
+                        sourcePageNumber: bm.page,
                         rotation: bm.rotate ?? 0,
                         bboxInRatio: bm.bboxInRatio ?? null,
                         dpi: bm.dpi ?? null,

@@ -167,7 +167,7 @@ export default function SectionDetailBaseMaps() {
               const isSelected = selectedBaseMapId === record.id;
               const isEditing = editingId === record.id;
               const { label: nameS } = getBaseMapDisplayName(record);
-              const pageNumber = record.createdFrom?.pageNumber;
+              const pageNumber = (record.createdFrom?.sourcePageNumber ?? record.createdFrom?.pageNumber);
               const detailRef = record.detailRef;
               const subtitleS = [
                 detailRef ? `${detailS} ${detailRef}` : detailS,

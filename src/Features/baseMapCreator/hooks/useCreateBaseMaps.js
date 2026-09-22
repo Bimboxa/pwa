@@ -71,6 +71,7 @@ export default function useCreateBaseMaps() {
             prevSortIndex = sortIndex;
 
             const entityId = nanoid();
+            const versionId = nanoid();
             const result = await getEntityPureDataAndFilesDataByKey(
                 {
                     name: baseMap.name,
@@ -78,7 +79,11 @@ export default function useCreateBaseMaps() {
                     meterByPx: baseMap.meterByPx,
                     sortIndex,
                     // PDF provenance (page + crop + dpi), null for images.
-                    createdFrom: baseMap.createdFrom ?? null,
+                    // versionId pins the version holding the PDF render —
+                    // the one "Régénérer depuis le PDF" replaces.
+                    createdFrom: baseMap.createdFrom
+                        ? { ...baseMap.createdFrom, versionId }
+                        : null,
                 },
                 {
                     entityId,
@@ -127,7 +132,7 @@ export default function useCreateBaseMaps() {
 
                 // Set up the version system with the initial version.
                 versionRecords.push({
-                    id: nanoid(),
+                    id: versionId,
                     baseMapId: entityId,
                     projectId: listing.projectId,
                     listingId: listing.id,

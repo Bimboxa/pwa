@@ -6,6 +6,7 @@ import { setRotate, setPdfFile, setTempBaseMaps, setBlueprintScale, setBaseMapNa
 
 import usePdfDocument from "Features/pdf/hooks/usePdfDocument"
 import usePdfThumbnails from "Features/pdf/hooks/usePdfThumbnails"
+import usePdfPageIntrinsicRotation from "Features/pdf/hooks/usePdfPageIntrinsicRotation"
 import usePdfPageImageUrl from "../hooks/usePdfPageImageUrl"
 
 // Ajout de Skeleton dans les imports
@@ -20,6 +21,7 @@ import SelectorPdfPage from "./SelectorPdfPage"
 import PdfImageEditor from "./PdfImageEditor"
 import SectionPreviewBaseMaps from "./SectionPreviewBaseMaps"
 import ButtonAddTempImage from "./ButtonAddTempImage"
+import SectionRegenerateBaseMap from "./SectionRegenerateBaseMap"
 import FieldTextV2 from "Features/form/components/FieldTextV2"
 
 
@@ -32,11 +34,33 @@ export default function PageBaseMapCreator({ onClose }) {
     const rotate = useSelector(s => s.baseMapCreator.rotate);
     const blueprintScale = useSelector(s => s.baseMapCreator.blueprintScale);
     const creating = useSelector(s => s.baseMapCreator.creating);
+    // "Régénérer depuis le PDF": single stored page, crop pre-filled,
+    // rotation / scale locked, no temp images.
+    const regenerate = useSelector(s => s.baseMapCreator.regenerate);
+    const isRegenerate = Boolean(regenerate);
 
     // state
     const { pdfDocument, error: pdfError, progress: pdfProgress } = usePdfDocument(pdfFile);
     const { thumbnails, error } = usePdfThumbnails(pdfDocument, pageNumber);
-    const { imageUrl, isUpgrading } = usePdfPageImageUrl(pdfDocument, pageNumber, rotate);
+
+    // `rotate` is the ABSOLUTE rotation handed to pdfjs (createdFrom.rotation
+    // convention, shared with the detail / folio renders). It must start at
+    // the page's intrinsic /Rotate — not 0 — otherwise a landscape page
+    // stored with /Rotate 90 shows up turned versus the RESOURCES viewer and
+    // the thumbnails. Regenerate mode already carries the stored absolute
+    // rotation, so the intrinsic value is not applied there.
+    const intrinsicRotation = usePdfPageIntrinsicRotation(pdfDocument, pageNumber);
+    const rotateResolved = isRegenerate || intrinsicRotation != null;
+    useEffect(() => {
+        if (isRegenerate || intrinsicRotation == null) return;
+        dispatch(setRotate(intrinsicRotation));
+    }, [pdfDocument, pageNumber, intrinsicRotation, isRegenerate]);
+
+    const { imageUrl, isUpgrading } = usePdfPageImageUrl(
+        pdfDocument,
+        pageNumber,
+        rotateResolved ? rotate : null
+    );
     const sourceKey = `${pageNumber}_${rotate}`;
 
     // Use the page thumbnail (200 px JPEG, generated for the left panel) as
@@ -55,7 +79,9 @@ export default function PageBaseMapCreator({ onClose }) {
 
 
     // helpers
-    const label = pdfFile ? pdfFile.name : "Selectionner un fichier PDF";
+    const label = isRegenerate
+        ? `Régénérer « ${regenerate.baseMapName} »${pdfFile ? ` — ${pdfFile.name}` : ""}`
+        : pdfFile ? pdfFile.name : "Selectionner un fichier PDF";
 
     // handlers
     function handlePageChange(pageNumber) {
@@ -89,10 +115,12 @@ export default function PageBaseMapCreator({ onClose }) {
 
             <BoxFlexVStretch>
                 <Box sx={{ display: "flex", width: 1, height: 1 }}>
-                    {/* Colonne de gauche : Miniatures */}
-                    <Box sx={{ overflow: "auto", minWidth: 0, width: 150 }}>
-                        <SelectorPdfPage pageNumber={pageNumber} thumbnails={thumbnails} onPageNumberChange={handlePageChange} />
-                    </Box>
+                    {/* Colonne de gauche : Miniatures (une seule page en régénération) */}
+                    {!isRegenerate && (
+                        <Box sx={{ overflow: "auto", minWidth: 0, width: 150 }}>
+                            <SelectorPdfPage pageNumber={pageNumber} thumbnails={thumbnails} onPageNumberChange={handlePageChange} />
+                        </Box>
+                    )}
 
                     {/* Zone centrale : Editeur ou Skeleton */}
                     <Box sx={{
@@ -128,16 +156,20 @@ export default function PageBaseMapCreator({ onClose }) {
                             alignItems: "center",
 
                         }}>
-                            <IconButton onClick={() => handleRotate({ counter: false })}>
+                            <IconButton onClick={() => handleRotate({ counter: false })} disabled={isRegenerate}>
                                 <RotateCw />
                             </IconButton>
-                            <IconButton onClick={() => handleRotate({ counter: true })}>
+                            <IconButton onClick={() => handleRotate({ counter: true })} disabled={isRegenerate}>
                                 <RotateCcw />
                             </IconButton>
-                            <Box sx={{ width: 140, minWidth: 140, display: "flex", alignItems: "center" }}>
+                            <Box sx={{
+                                width: 140, minWidth: 140, display: "flex", alignItems: "center",
+                                // scale locked in regenerate mode (meterByPx follows the dpi)
+                                ...(isRegenerate ? { pointerEvents: "none", opacity: 0.6 } : {}),
+                            }}>
                                 <FieldTextV2
                                     value={blueprintScale}
-                                    onChange={(value) => dispatch(setBlueprintScale(value))}
+                                    onChange={(value) => { if (!isRegenerate) dispatch(setBlueprintScale(value)); }}
                                     label="Echelle"
                                     options={{
                                         showLabel: true,
@@ -147,7 +179,9 @@ export default function PageBaseMapCreator({ onClose }) {
                                     }}
                                 />
                             </Box>
-                            <ButtonAddTempImage pdfFile={pdfFile} pdfDocument={pdfDocument} blueprintScale={blueprintScale} />
+                            {!isRegenerate && (
+                                <ButtonAddTempImage pdfFile={pdfFile} pdfDocument={pdfDocument} blueprintScale={blueprintScale} />
+                            )}
                         </Box>
 
                         <Box sx={{
@@ -156,7 +190,11 @@ export default function PageBaseMapCreator({ onClose }) {
                             position: "relative",
                         }}>
                             {displayImageUrl ? (
-                                <PdfImageEditor imageUrl={displayImageUrl} sourceKey={sourceKey} />
+                                <PdfImageEditor
+                                    imageUrl={displayImageUrl}
+                                    sourceKey={isRegenerate ? `regen_${regenerate.baseMapId}_${sourceKey}` : sourceKey}
+                                    initialBboxInRatio={isRegenerate ? regenerate.createdFrom?.bboxInRatio ?? undefined : undefined}
+                                />
                             ) : (
                                 <Box sx={{
                                     width: "100%", height: "100%", p: 4, boxSizing: "border-box",
@@ -234,7 +272,11 @@ export default function PageBaseMapCreator({ onClose }) {
                         borderTop: theme => `1px solid ${theme.palette.divider}`,
                         borderLeft: theme => `1px solid ${theme.palette.divider}`,
                     }}>
-                        <SectionPreviewBaseMaps pdfDocument={pdfDocument} pdfFile={pdfFile} />
+                        {isRegenerate ? (
+                            <SectionRegenerateBaseMap pdfDocument={pdfDocument} />
+                        ) : (
+                            <SectionPreviewBaseMaps pdfDocument={pdfDocument} pdfFile={pdfFile} />
+                        )}
                     </Box>
                 </Box>
 

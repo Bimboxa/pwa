@@ -384,6 +384,17 @@ db.version(36).stores({
   annotationTemplates: "id,projectId,listingId,code,label,relayJobId",
 });
 
+db.version(37).stores({
+  // Resource scope ("périmètre"): visibility = "GLOBAL" | "PROJECT" | "SCOPE"
+  // (+ scopeId when SCOPE) drives what the RESOURCES panel lists; legacy
+  // rows without the field behave as PROJECT. sourceKey (content hash +
+  // page number) dedups the single-page PDFs extracted for base maps
+  // (kind = "PDF_PAGE", see Features/resources/services/
+  // ensurePdfPageResourcesService): two base maps cut from the same page of
+  // the same PDF share one resource.
+  resources: "id,projectId,scopeId,sourceKey",
+});
+
 // --- AUDIT HOOKS ---
 
 const AUDIT_TABLES = [
