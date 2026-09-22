@@ -134,6 +134,9 @@ export default function FormObjectAnnotationConfig({
           onMaterial3dChange={(key) =>
             patch({ material3d: key === MATERIAL3D_NONE_KEY ? null : key })
           }
+          onReset={() =>
+            patch({ color3D: null, opacity3D: null, material3d: null })
+          }
         />
       )}
 

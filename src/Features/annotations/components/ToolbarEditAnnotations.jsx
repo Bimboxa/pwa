@@ -382,8 +382,12 @@ export default function ToolbarEditAnnotations({
         baseMap
       );
       // annotationTemplateProps is a render-time snapshot (useAnnotationsV2
-      // recomputes it); don't persist it to the DB record.
+      // recomputes it); don't persist it to the DB record. Same for the
+      // template-owned 3D rendering overrides, re-derived at read time.
       delete merged.annotationTemplateProps;
+      delete merged.color3D;
+      delete merged.opacity3D;
+      delete merged.material3d;
       return {
         ...merged,
         id: annotation.id,

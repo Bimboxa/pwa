@@ -14,14 +14,29 @@ import useColorPalettes from "../hooks/useColorPalettes";
 // passed as `children` and render between the palette and the hex row, matching
 // the compact fill/stroke design. Reused by the fill, stroke and simple-colour
 // fields so every colour picker looks the same.
+//
+// `color` may be null for "no own colour" (e.g. the 3D colour inheriting the 2D
+// one): no palette swatch is then marked selected, the hex input is empty and
+// shows `placeholder` (the inherited colour), and clearing the hex input emits
+// null rather than "" (only in that nullable mode, i.e. when `placeholder` is
+// given — the fill/stroke pickers keep their behaviour). `header` renders
+// above the palettes (an explicit "inherit" option, for instance).
 export default function ColorPickerContent({
   color,
+  placeholder,
   onColorChange,
   onClose,
+  header,
   children,
 }) {
   const sections = useColorPalettes();
   const current = (color ?? "").toLowerCase();
+
+  const nullable = placeholder !== undefined && placeholder !== null;
+
+  function handleHexChange(value) {
+    onColorChange(nullable && value === "" ? null : value);
+  }
 
   return (
     <Box
@@ -33,6 +48,8 @@ export default function ColorPickerContent({
         gap: 1.25,
       }}
     >
+      {header}
+
       {sections.map((section) => (
         <Box
           key={section.key}
@@ -82,13 +99,16 @@ export default function ColorPickerContent({
             width: 18,
             height: 18,
             borderRadius: 0.75,
-            bgcolor: color,
+            bgcolor: color ?? placeholder,
             boxShadow: "inset 0 0 0 1px rgba(0,0,0,0.1)",
+            border: nullable && !color ? "1px dashed" : "none",
+            borderColor: "text.disabled",
           }}
         />
         <InputBase
           value={color ?? ""}
-          onChange={(e) => onColorChange(e.target.value)}
+          placeholder={placeholder ?? undefined}
+          onChange={(e) => handleHexChange(e.target.value)}
           sx={{
             flex: 1,
             border: "1px solid",

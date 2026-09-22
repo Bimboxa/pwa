@@ -301,6 +301,17 @@ export default function FormAnnotationTemplateVariantBlock({
     onChange({ ...annotationTemplate, opacity3D });
   }
 
+  // Back to "3D inherits the 2D rendering": null IS the meaningful value here
+  // (see getAnnotationPropsFromAnnotationTemplateProps), never delete the keys.
+  function handleRender3dReset() {
+    onChange({
+      ...annotationTemplate,
+      color3D: null,
+      opacity3D: null,
+      material3d: null,
+    });
+  }
+
   function handleToggleOverride(field) {
     const current = Array.isArray(overrideFields) ? [...overrideFields] : [];
     const index = current.indexOf(field);
@@ -680,6 +691,7 @@ export default function FormAnnotationTemplateVariantBlock({
               onColor3DChange={handleColor3DChange}
               onOpacity3DChange={handleOpacity3DChange}
               onMaterial3dChange={handleMaterial3dChange}
+              onReset={handleRender3dReset}
             />
           )}
 

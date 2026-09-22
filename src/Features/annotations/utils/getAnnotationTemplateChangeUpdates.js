@@ -5,8 +5,17 @@ import getEffectiveAnnotationType from "./getEffectiveAnnotationType";
 import { getGeometryKindFromType } from "../constants/drawingShapeConfig";
 
 // Read-time fields (useAnnotationsV2 / the template merge) that must never
-// reach the DB row.
-const DERIVED_FIELDS = new Set(["annotationTemplateProps", "annotationLabel"]);
+// reach the DB row. The 3D rendering overrides (color3D / opacity3D /
+// material3d) are template-owned and re-derived at read time: stamping them
+// on the row used to leave a stale colour behind once the template went back
+// to "inherit the 2D colour".
+const DERIVED_FIELDS = new Set([
+  "annotationTemplateProps",
+  "annotationLabel",
+  "color3D",
+  "opacity3D",
+  "material3d",
+]);
 
 // The DB patch to apply when `annotation` switches to `template`.
 //

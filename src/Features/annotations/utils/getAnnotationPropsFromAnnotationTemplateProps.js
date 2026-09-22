@@ -104,21 +104,19 @@ export default function getAnnotationPropsFromAnnotationTemplateProps(annotation
         result.hideSlope = annotationTemplateProps.hideSlope;
     }
 
-    // material3d (PHOTOREAL material preset) is a template-level rendering
-    // choice and is always applied (not a per-annotation style override, so
-    // not gated by overrideFields).
-    if (annotationTemplateProps.material3d !== null && annotationTemplateProps.material3d !== undefined) {
-        result.material3d = annotationTemplateProps.material3d;
-    }
-
-    // color3D / opacity3D are 3D-only rendering overrides, always applied like
-    // material3d (not per-annotation style overrides, so not gated by
-    // overrideFields). Unset (null/undefined) => 3D falls back to the 2D color.
-    if (annotationTemplateProps.color3D !== null && annotationTemplateProps.color3D !== undefined) {
-        result.color3D = annotationTemplateProps.color3D;
-    }
-    if (annotationTemplateProps.opacity3D !== null && annotationTemplateProps.opacity3D !== undefined) {
-        result.opacity3D = annotationTemplateProps.opacity3D;
+    // material3d (PHOTOREAL material preset), color3D and opacity3D are
+    // template-owned 3D rendering choices (no per-annotation UI, so not gated
+    // by overrideFields). They are fully derived from the template: a value on
+    // the template wins, and an unset (null/undefined) template value CLEARS
+    // any stale copy the row may carry (older template switches used to stamp
+    // them on the row), so the 3D really falls back to the 2D color/opacity.
+    for (const key of ["material3d", "color3D", "opacity3D"]) {
+        const value = annotationTemplateProps[key];
+        if (value !== null && value !== undefined) {
+            result[key] = value;
+        } else {
+            delete result[key];
+        }
     }
 
     // isExt (exterior-side guide flag) is handled by the generic overrideFields
