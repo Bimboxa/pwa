@@ -6,13 +6,10 @@ import { setSelectedScopeId } from "Features/scopes/scopesSlice";
 
 import useSelectedProject from "Features/projects/hooks/useSelectedProject";
 import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
-import useLeftAreaHover from "Features/leftPanel/hooks/useLeftAreaHover";
 
 import { IconButton, Box, Typography, Tooltip } from "@mui/material";
 import HomeIcon from "@mui/icons-material/Home";
-import { ViewSidebar } from "@mui/icons-material";
 
-import { setLeftPanelDocked } from "Features/leftPanel/leftPanelSlice";
 import ButtonGeneric from "./ButtonGeneric";
 import ButtonDialogOnboardingSelectProject from "Features/projects/components/ButtonDialogOnboardingSelectProject";
 import ButtonDialogOnboardingSelectScope from "Features/scopes/components/ButtonDialogOnboardingSelectScope";
@@ -25,22 +22,15 @@ export default function TopBarBreadcrumbs() {
 
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const scopeId = useSelector((s) => s.scopes.selectedScopeId);
-  const leftPanelDocked = useSelector((s) => s.leftPanel.leftPanelDocked);
   const viewerMode = useSelector((s) => s.urlParams.viewerMode);
 
   const { value: selectedProject } = useSelectedProject();
   const { value: selectedScope } = useSelectedScope();
 
-  // hover - reveal the left drawer overlay when undocked
-
-  const { onMouseEnter, onMouseLeave } = useLeftAreaHover();
-
   // helper
 
   const noProject = !Boolean(projectId);
   const noScope = !Boolean(scopeId);
-
-  console.log("projectId and scopeId", noProject, noScope, projectId);
 
   // handlers
 
@@ -71,31 +61,6 @@ export default function TopBarBreadcrumbs() {
     );
   };
 
-  const ToggleDock = () => (
-    <Tooltip
-      title={
-        leftPanelDocked
-          ? "Masquer le panneau latéral"
-          : "Garder le panneau latéral ouvert"
-      }
-    >
-      <IconButton
-        size="small"
-        onClick={() => dispatch(setLeftPanelDocked(!leftPanelDocked))}
-        onMouseEnter={leftPanelDocked ? undefined : onMouseEnter}
-        onMouseLeave={leftPanelDocked ? undefined : onMouseLeave}
-        sx={{
-          color: "action.active",
-          bgcolor: leftPanelDocked ? "action.selected" : "transparent",
-          borderRadius: 1,
-          p: 0.5,
-        }}
-      >
-        <ViewSidebar sx={{ fontSize: 20 }} />
-      </IconButton>
-    </Tooltip>
-  );
-
   const Project = () => (
     <Box sx={{ maxWidth: 200, display: "flex" }}>
       <Tooltip title={selectedProject?.name}>
@@ -112,7 +77,7 @@ export default function TopBarBreadcrumbs() {
   const Scope = () => (
     <ButtonGeneric
       label={selectedScope?.name}
-    //onClick={() => dispatch(setSelectedScopeId(null))}
+      //onClick={() => dispatch(setSelectedScopeId(null))}
     />
   );
 
@@ -122,7 +87,6 @@ export default function TopBarBreadcrumbs() {
     return (
       <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
         <Home />
-        <ToggleDock />
         <Separator />
         <ButtonDialogOnboardingSelectProject />
       </Box>
@@ -141,7 +105,6 @@ export default function TopBarBreadcrumbs() {
     return (
       <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
         <Home />
-        <ToggleDock />
         <Separator />
         <Project />
         {/* <Separator />
