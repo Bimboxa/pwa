@@ -11,9 +11,8 @@ import { InsertDriveFileOutlined } from "@mui/icons-material";
 
 import stringifyFileSize from "Features/files/utils/stringifyFileSize";
 
-import getResourceVisibility, {
-  RESOURCE_VISIBILITY_LABELS,
-} from "../utils/getResourceVisibility";
+import getResourceVisibility from "../utils/getResourceVisibility";
+import useResourceVisibilityLabels from "../hooks/useResourceVisibilityLabels";
 import getResourceSecondaryLabel from "../utils/getResourceSecondaryLabel";
 
 export default function ListResources({
@@ -21,6 +20,10 @@ export default function ListResources({
   onResourceClick,
   isResourceDisabled,
 }) {
+  // data
+
+  const visibilityLabels = useResourceVisibilityLabels();
+
   // render
 
   return (
@@ -82,7 +85,7 @@ export default function ListResources({
               <Chip
                 size="small"
                 variant="outlined"
-                label={RESOURCE_VISIBILITY_LABELS[visibility]}
+                label={visibilityLabels[visibility]}
                 sx={{ fontSize: 10, height: 20 }}
               />
             </Box>

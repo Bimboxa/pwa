@@ -16,10 +16,8 @@ import useResources from "../hooks/useResources";
 import useCreateResourcesFromFiles from "../hooks/useCreateResourcesFromFiles";
 import ListResources from "./ListResources";
 import PanelResourceDetail from "./PanelResourceDetail";
-import {
-  RESOURCE_VISIBILITIES,
-  RESOURCE_VISIBILITY_LABELS,
-} from "../utils/getResourceVisibility";
+import { RESOURCE_VISIBILITIES } from "../utils/getResourceVisibility";
+import useResourceVisibilityLabels from "../hooks/useResourceVisibilityLabels";
 
 export default function PanelResources() {
   const dispatch = useDispatch();
@@ -34,6 +32,7 @@ export default function PanelResources() {
 
   const resources = useResources();
   const createResourcesFromFiles = useCreateResourcesFromFiles();
+  const visibilityLabels = useResourceVisibilityLabels();
 
   // state
 
@@ -107,7 +106,7 @@ export default function PanelResources() {
 
   const visibilityOptions = RESOURCE_VISIBILITIES.map((key) => ({
     key,
-    label: RESOURCE_VISIBILITY_LABELS[key],
+    label: visibilityLabels[key],
   }));
 
   const visibilitySelector = (

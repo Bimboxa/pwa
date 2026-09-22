@@ -29,8 +29,8 @@ import useReattachResourceFile from "../hooks/useReattachResourceFile";
 import ViewerPdfPages from "./ViewerPdfPages";
 import getResourceVisibility, {
   RESOURCE_VISIBILITIES,
-  RESOURCE_VISIBILITY_LABELS,
 } from "../utils/getResourceVisibility";
+import useResourceVisibilityLabels from "../hooks/useResourceVisibilityLabels";
 import getResourceSecondaryLabel from "../utils/getResourceSecondaryLabel";
 
 export default function PanelResourceDetail({ resource, onBack }) {
@@ -50,6 +50,7 @@ export default function PanelResourceDetail({ resource, onBack }) {
   const deleteResource = useDeleteResource();
   const reattachResourceFile = useReattachResourceFile();
   const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
+  const visibilityLabels = useResourceVisibilityLabels();
 
   // Base maps cut from this PDF page: deleting the resource disables their
   // "Régénérer depuis le PDF" action (the base maps themselves stay intact).
@@ -81,7 +82,7 @@ export default function PanelResourceDetail({ resource, onBack }) {
   const visibility = getResourceVisibility(resource);
   const visibilityOptions = RESOURCE_VISIBILITIES.map((key) => ({
     key,
-    label: RESOURCE_VISIBILITY_LABELS[key],
+    label: visibilityLabels[key],
   }));
   const linkedS =
     linkedBaseMapCount > 0

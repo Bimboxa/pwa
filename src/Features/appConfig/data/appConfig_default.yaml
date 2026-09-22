@@ -56,6 +56,8 @@ strings:
     # Also names the SCOPE module of the left band (the scope overview),
     # unless a scope overrides it (scopeConfig.moduleLabelsByKey.SCOPE).
     nameSingular: "Dossier"
+    # Resource scope ("périmètre") option: files visible in this scope only.
+    thisScope: "Ce plan de repérage"
     description: "Un dossier est un dossier de plans de repérage de même type."
     namePlural: "Dossiers"
     seeAll: "Tous les dossiers"
