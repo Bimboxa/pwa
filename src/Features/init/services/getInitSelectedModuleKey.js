@@ -6,7 +6,7 @@ import { BUSINESS_OBJECTS_MODULE_KEYS } from "Features/businessObjects/utils/bus
 // (the business-objects modules come from the types registry: a persisted
 // key of a type that no longer exists is not restored). A restored module
 // disabled on the current scope is handled by useEnsureEnabledModule.
-const RESTORABLE_MODULE_KEYS = [
+export const RESTORABLE_MODULE_KEYS = [
   "MAP",
   "BASE_MAPS",
   "THREED",

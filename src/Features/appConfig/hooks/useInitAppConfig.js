@@ -8,6 +8,7 @@ import {
   setDisable3D,
   setConfigurationsManagement,
   setSatelliteCaptureMode,
+  setDefaultModuleKey,
 } from "../appConfigSlice";
 
 import resolveAppConfig from "../utils/resolveAppConfig";
@@ -16,6 +17,7 @@ import getAppConfigDefault from "../services/getAppConfigDefault";
 import getDisable3DFromLocalStorage from "../services/getDisable3DFromLocalStorage";
 import getConfigurationsManagementFromLocalStorage from "../services/getConfigurationsManagementFromLocalStorage";
 import getSatelliteCaptureModeFromLocalStorage from "../services/getSatelliteCaptureModeFromLocalStorage";
+import getDefaultModuleKeyFromLocalStorage from "../services/getDefaultModuleKeyFromLocalStorage";
 
 export default function useInitAppConfig() {
   const dispatch = useDispatch();
@@ -44,6 +46,7 @@ export default function useInitAppConfig() {
     dispatch(
       setSatelliteCaptureMode(getSatelliteCaptureModeFromLocalStorage())
     );
+    dispatch(setDefaultModuleKey(getDefaultModuleKeyFromLocalStorage()));
   }, []);
 
   useEffect(() => {

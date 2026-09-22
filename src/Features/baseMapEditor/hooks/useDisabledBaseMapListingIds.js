@@ -22,6 +22,9 @@ export default function useDisabledBaseMapListingIds() {
 
   const disabledListingIds =
     scope?.baseMapsSettings?.disabledListingIds ?? EMPTY;
+  // EMPTY is also returned while the scope query is pending: consumers that
+  // must not act on a not-yet-loaded scope wait on `synced`.
+  const synced = scope !== undefined;
 
   const toggleListingDisabled = useCallback(
     async (listingId) => {
@@ -43,5 +46,5 @@ export default function useDisabledBaseMapListingIds() {
     [scopeId]
   );
 
-  return { scopeId, disabledListingIds, toggleListingDisabled };
+  return { scopeId, disabledListingIds, synced, toggleListingDisabled };
 }

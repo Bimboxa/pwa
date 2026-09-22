@@ -1,12 +1,19 @@
 import { useSelector, useDispatch } from "react-redux";
 
-import { setConfigurationsManagement } from "Features/appConfig/appConfigSlice";
+import {
+  setConfigurationsManagement,
+  setDefaultModuleKey,
+} from "Features/appConfig/appConfigSlice";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
+import useViewers from "Features/viewers/hooks/useViewers";
 import setConfigurationsManagementInLocalStorage from "Features/appConfig/services/setConfigurationsManagementInLocalStorage";
+import setDefaultModuleKeyInLocalStorage from "Features/appConfig/services/setDefaultModuleKeyInLocalStorage";
+import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 
 import { Box, List, Typography } from "@mui/material";
 import Tune from "@mui/icons-material/Tune";
+import ViewModule from "@mui/icons-material/ViewModule";
 
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 import WhiteSectionTitle from "Features/form/components/WhiteSectionTitle";
@@ -14,6 +21,7 @@ import ButtonDeleteProjects from "Features/appConfig/components/ButtonDeleteProj
 
 import PageConfigLayout from "./PageConfigLayout";
 import RowConfig from "./RowItemConfig";
+import RowSelectConfig from "./RowSelectConfig";
 
 // "Généralités > Données & préférences" page: the device-level settings in
 // one white section, the local data management in another. The 3D switch
@@ -28,6 +36,11 @@ export default function PageDonneesPreferences({ onClose }) {
   const configurationsManagement = useSelector(
     (s) => s.appConfig.configurationsManagement
   );
+  const defaultModuleKey = useSelector((s) => s.appConfig.defaultModuleKey);
+  const disable3D = useSelector((s) => s.appConfig.disable3D);
+  // Full module catalog (the dialog is opened from the dashboard, with no
+  // scope selected): per-scope disabling is not a device-level concern.
+  const modules = useViewers({ ignoreScopeConfig: true });
 
   // strings
 
@@ -36,6 +49,8 @@ export default function PageDonneesPreferences({ onClose }) {
   const configurationS = "Configuration";
   const configurationsManagementS = "Gestion des configurations";
   const configurationsManagementHelperS = `Active le sélecteur de configurations à la création d'un ${scopeS.toLowerCase()}`;
+  const defaultModuleS = "Module par défaut";
+  const defaultModuleHelperS = `Module affiché à l'ouverture d'un ${scopeS.toLowerCase()}`;
   const dataS = "Données";
   const dataHelperS = "Projets et plans stockés sur cet appareil.";
 
@@ -43,12 +58,22 @@ export default function PageDonneesPreferences({ onClose }) {
 
   const version = appConfig?.version ?? "-";
 
+  const moduleOptions = modules
+    .filter((m) => !disable3D || !isThreedFamilyViewerKey(m.key))
+    .map((m) => ({ key: m.key, label: m.label }));
+
   // handlers
 
   function handleConfigurationsManagementToggle() {
     const next = !configurationsManagement;
     dispatch(setConfigurationsManagement(next));
     setConfigurationsManagementInLocalStorage(next);
+  }
+
+  function handleDefaultModuleChange(moduleKey) {
+    if (!moduleKey) return;
+    dispatch(setDefaultModuleKey(moduleKey));
+    setDefaultModuleKeyInLocalStorage(moduleKey);
   }
 
   // render
@@ -73,6 +98,15 @@ export default function PageDonneesPreferences({ onClose }) {
               onToggle={handleConfigurationsManagementToggle}
             />
           </List>
+
+          <RowSelectConfig
+            icon={<ViewModule />}
+            label={defaultModuleS}
+            caption={defaultModuleHelperS}
+            value={defaultModuleKey ?? "MAP"}
+            options={moduleOptions}
+            onChange={handleDefaultModuleChange}
+          />
         </Box>
       </WhiteSectionGeneric>
 
