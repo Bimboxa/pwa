@@ -11,7 +11,6 @@ import {
   AutoAwesome,
   Settings,
   Category,
-  Chat,
   Image,
   FolderOpen,
   CloudSync,
@@ -21,6 +20,7 @@ import {
 import { Box } from "@mui/material";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
+import IconCatStarEyes from "Features/icons/IconCatStarEyes";
 import IconExportPlan from "Features/icons/IconExportPlan";
 import {
   selectDisabledToolKeys,
@@ -119,7 +119,7 @@ export default function useRightPanelTools() {
     },
     CHAT: {
       label: "Chat",
-      icon: <Chat />,
+      icon: <IconCatStarEyes />,
       // Assistant chat: available in every module. Bottom section, right
       // above the contextual "Réglages" (see moveChatLast below).
       group: "bottom",

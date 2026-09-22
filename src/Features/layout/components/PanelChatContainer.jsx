@@ -6,9 +6,9 @@ import {setOpenChat} from "../layoutSlice";
 
 import {Paper, IconButton, Box} from "@mui/material";
 import {Close} from "@mui/icons-material";
-import {Chat} from "@mui/icons-material";
 
 import PanelChat from "Features/chat/components/PanelChat";
+import IconCatStarEyes from "Features/icons/IconCatStarEyes";
 
 export default function PanelChatContainer() {
   const dispatch = useDispatch();
@@ -72,7 +72,7 @@ export default function PanelChatContainer() {
             transform: "translateY(-50%)",
           }}
         >
-          <Chat />
+          <IconCatStarEyes />
         </IconButton>
       )}
       <PanelChat />
