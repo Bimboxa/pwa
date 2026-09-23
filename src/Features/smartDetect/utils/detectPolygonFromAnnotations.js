@@ -4,6 +4,8 @@ import {
   circleFromThreePoints,
 } from "Features/geometry/utils/arcSampling";
 import collapseArcsInPolyline from "Features/geometry/utils/collapseArcsInPolyline";
+import getAnnotationAsPolygons from "Features/geometry/utils/getAnnotationAsPolygons";
+import { getStripDistancePx } from "Features/geometry/utils/getStripePolygons";
 
 import findPolygonCandidates from "./findPolygonCandidates";
 
@@ -15,7 +17,8 @@ const MAX_SEGMENTS = 1500;
 /**
  * detectPolygonFromAnnotations
  *
- * 1. Decompose annotations + drawingPoints into INDEPENDENT segments
+ * 1. Decompose annotations (POLYGON + cuts, POLYLINE, STRIP) + drawingPoints
+ *    into INDEPENDENT segments
  * 2. Call findPolygonCandidates → minimal closed loops of the planar arrangement
  * 3. Pick the smallest loop containing the mouse position
  * 4. Find cuts (closed loops fully inside the envelope)
@@ -25,6 +28,8 @@ const MAX_SEGMENTS = 1500;
  * @param {Array<{x:number, y:number}>} params.drawingPoints - Current drawing points in progress
  * @param {{x:number, y:number}} params.mousePos - Mouse position in local coords
  * @param {number} [params.tolerance=5] - Endpoint merge tolerance in pixels
+ * @param {number} [params.meterByPx] - Base map scale, needed to resolve the
+ *   band width of STRIP / thick POLYLINE annotations (CM stroke widths)
  * @returns {{ outerRing: Array<{x,y,type?}>, cuts: Array<Array<{x,y,type?}>> } | null}
  *
  * The returned rings carry per-point `type` ("circle" on arc midpoints,
@@ -36,6 +41,7 @@ export default function detectPolygonFromAnnotations({
   drawingPoints,
   mousePos,
   tolerance = 5,
+  meterByPx,
 }) {
   if (!annotations || !mousePos) return null;
 
@@ -45,7 +51,8 @@ export default function detectPolygonFromAnnotations({
   let { segments, sourceArcCircles } = extractSegments(
     annotations,
     drawingPoints,
-    tolerance
+    tolerance,
+    meterByPx
   );
   if (segments.length === 0) return null;
   if (segments.length > MAX_SEGMENTS) {
@@ -75,7 +82,11 @@ export default function detectPolygonFromAnnotations({
         cutContainingMouse
       );
       if (innerEnvelope) {
-        const innerCuts = findCutsFromCycles(candidates, innerEnvelope);
+        const innerCuts = findCutsFromCycles(
+          candidates,
+          innerEnvelope,
+          tolerance
+        );
         return {
           outerRing: collapseRingToTypedPoints(
             innerEnvelope,
@@ -92,7 +103,7 @@ export default function detectPolygonFromAnnotations({
   }
 
   // Step 4: Find cuts — other DFS cycles fully inside the envelope
-  const cuts = findCutsFromCycles(candidates, envelope);
+  const cuts = findCutsFromCycles(candidates, envelope, tolerance);
 
   return {
     outerRing: collapseRingToTypedPoints(envelope, sourceArcCircles, tolerance),
@@ -106,7 +117,18 @@ export default function detectPolygonFromAnnotations({
 // Decompose annotations → independent segments
 // ---------------------------------------------------------------------------
 
-function extractSegments(annotations, drawingPoints, tolerance = 5) {
+// Stroke width of a POLYLINE in image pixels (CM converted via meterByPx,
+// mirrors getAnnotationAsPolygons). 0 when unknown.
+function getStrokeWidthPx(ann, meterByPx) {
+  const w = Number(ann?.strokeWidth) || 0;
+  if (w <= 0) return 0;
+  if (ann.strokeWidthUnit === "CM") {
+    return meterByPx > 0 ? (w * 0.01) / meterByPx : 0;
+  }
+  return w;
+}
+
+function extractSegments(annotations, drawingPoints, tolerance = 5, meterByPx) {
   const segments = [];
   const sourceArcCircles = [];
 
@@ -187,7 +209,15 @@ function extractSegments(annotations, drawingPoints, tolerance = 5) {
         }
       }
     } else if (ann.type === "POLYLINE") {
-      pushPath(pts, !!ann.closeLine);
+      // Thick polylines (walls drawn with a CM stroke width) are bounded by
+      // their two faces, not their axis: a contour snapped to a visible face
+      // sits half a stroke away from the centerline. Thin lines keep the
+      // centerline (their band would collapse under the weld tolerance).
+      const halfWidth = getStrokeWidthPx(ann, meterByPx) / 2;
+      if (halfWidth > tolerance) pushBandOutline(ann, pts, halfWidth);
+      else pushPath(pts, !!ann.closeLine);
+    } else if (ann.type === "STRIP") {
+      pushBandOutline(ann, pts, Math.abs(getStripDistancePx(ann, meterByPx)));
     }
   }
 
@@ -199,6 +229,59 @@ function extractSegments(annotations, drawingPoints, tolerance = 5) {
   }
 
   return { segments, sourceArcCircles };
+
+  // Feed the full band footprint of a wall-like annotation (both faces + end
+  // caps, openings carved) — the same polygons the renderer / quantities use
+  // (getAnnotationAsPolygons). A STRIP's band is offset to ONE side of its
+  // drawn line (stripOrientation), a thick POLYLINE's band is symmetric: in
+  // both cases the face a room stops at is a band edge, so a contour snapped
+  // to any visible edge closes the loop. Falls back to the drawn line when
+  // the band cannot be built. `edgeOffsetPx` is the distance from the drawn
+  // arcs to the band edges, used to register the concentric arc circles.
+  function pushBandOutline(ann, typedPts, edgeOffsetPx) {
+    let shapes = [];
+    try {
+      shapes = getAnnotationAsPolygons(ann, { meterByPx }) || [];
+    } catch {
+      shapes = [];
+    }
+    if (shapes.length === 0) {
+      pushPath(typedPts, !!ann.closeLine);
+      return;
+    }
+    // Band edges are concentric with the drawn arcs: register both offset
+    // radii so the discretized contour can still be collapsed back to arcs.
+    const before = sourceArcCircles.length;
+    collectArcCircles(typedPts, !!ann.closeLine);
+    const d = Math.abs(edgeOffsetPx) || 0;
+    if (d > 0) {
+      // Snapshot the range: the loop appends to the array it reads from.
+      const drawnArcs = sourceArcCircles.slice(before);
+      for (const c of drawnArcs) {
+        sourceArcCircles.push({ center: c.center, r: c.r + d });
+        if (c.r - d > 0)
+          sourceArcCircles.push({ center: c.center, r: c.r - d });
+      }
+    }
+    for (const shape of shapes) {
+      if (shape?.points?.length >= 3) {
+        pushPath(
+          shape.points.map((p) => ({ x: p.x, y: p.y })),
+          true
+        );
+      }
+      if (Array.isArray(shape?.cuts)) {
+        for (const cut of shape.cuts) {
+          if (cut?.points?.length >= 3) {
+            pushPath(
+              cut.points.map((p) => ({ x: p.x, y: p.y })),
+              true
+            );
+          }
+        }
+      }
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -356,10 +439,16 @@ function selectEnvelope(candidates, mousePos) {
 /**
  * Find cuts from DFS-detected cycles: any cycle that is smaller than
  * the envelope AND fully inside it becomes a cut (hole).
+ *
+ * A cycle that touches the envelope boundary is a neighbouring face (a wall
+ * band the contour already wraps around, an adjacent room…), not a hole:
+ * `pointInPolygon` is undefined for on-boundary vertices, so such cycles
+ * are rejected explicitly instead of relying on the ray-cast's luck.
  */
-function findCutsFromCycles(allCycles, envelope) {
+function findCutsFromCycles(allCycles, envelope, tolerance = 5) {
   const cuts = [];
   const envelopeArea = Math.abs(polygonArea(envelope));
+  const touchTol = Math.max(1e-3, tolerance);
 
   for (const ring of allCycles) {
     const area = Math.abs(polygonArea(ring));
@@ -368,6 +457,8 @@ function findCutsFromCycles(allCycles, envelope) {
       continue;
     // Must be smaller
     if (area >= envelopeArea) continue;
+    // Must not share the envelope boundary (neighbouring face, not a hole)
+    if (ring.some((p) => isPointNearRing(p, envelope, touchTol))) continue;
     // All points must be inside the envelope
     if (!ring.every((p) => pointInPolygon(p, envelope))) continue;
 

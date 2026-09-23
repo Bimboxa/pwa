@@ -787,6 +787,7 @@ const InteractionLayer = forwardRef(({
       drawingPoints: currentDrawingPoints,
       mousePos: localMousePos,
       tolerance,
+      meterByPx: meterByPxRef.current,
     });
     detectedPolygonRef.current = result;
     syncSmartDetectionPresent();
@@ -5641,6 +5642,7 @@ const InteractionLayer = forwardRef(({
             drawingPoints: [],
             mousePos: outlineLocalPos,
             tolerance,
+            meterByPx: meterByPxRef.current,
           });
 
           if (controller.signal.aborted) return;
