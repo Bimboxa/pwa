@@ -11,6 +11,11 @@ import {
   updateMessageById,
 } from "../chatSlice";
 
+import getUserIdMaster from "Features/auth/utils/getUserIdMaster";
+import {
+  detectionArchiveKey,
+  saveDetectionDebug,
+} from "../services/detectionDebugStore";
 import { updateChatProgress } from "../utils/chatProgress";
 import resolveAiTaskSource from "Features/aiTasks/services/resolveAiTaskSource";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
@@ -49,6 +54,7 @@ export default function useSendChatTurn() {
     filterBySelectedScope: true,
   });
 
+  const userProfile = useSelector((s) => s.auth.userProfile);
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const scopeId = useSelector((s) => s.scopes.selectedScopeId);
   const conversation = useSelector((s) => s.chat.conversation);
@@ -92,6 +98,13 @@ export default function useSendChatTurn() {
       let assistantText = "";
       let reasoningSummary = "";
       const actions = new Map();
+      const debugRecords = new Map();
+      const archiveKey = detectionArchiveKey(
+        getUserIdMaster(userProfile),
+        projectId,
+        mainBaseMap?.id
+      );
+      let debugSaves = Promise.resolve();
       dispatch(
         addMessage({
           id: uuidv4(),
@@ -312,7 +325,42 @@ export default function useSendChatTurn() {
             signal: controller.signal,
             onEvent: (event) => {
               if (isStale() || controller.signal.aborted) return;
-              if (event.type === "progress") {
+              if (event.type === "detection_debug") {
+                ensureBubble();
+                const record = {
+                  id: `${messageId}:${event.artifact.stage}:${event.artifact.id}`,
+                  messageId,
+                  archiveKey,
+                  listingId: listing?.id ?? null,
+                  createdAt: Date.now(),
+                  artifact: event.artifact,
+                };
+                debugRecords.set(record.id, record);
+                dispatch(
+                  updateMessageById({
+                    id: messageId,
+                    changes: { detectionDebug: [...debugRecords.values()] },
+                  })
+                );
+                // Serialize writes so rapid SSE events cannot evict a newer record.
+                debugSaves = debugSaves
+                  .then(() => saveDetectionDebug(record))
+                  .catch((error) => {
+                    debugRecords.set(record.id, {
+                      ...record,
+                      saveError: error?.message ?? "Stockage indisponible",
+                    });
+                    if (!isStale())
+                      dispatch(
+                        updateMessageById({
+                          id: messageId,
+                          changes: {
+                            detectionDebug: [...debugRecords.values()],
+                          },
+                        })
+                      );
+                  });
+              } else if (event.type === "progress") {
                 reportProgress(event);
               } else if (event.type === "tokens") {
                 ensureBubble();
@@ -412,6 +460,7 @@ export default function useSendChatTurn() {
       dispatch,
       config,
       mainBaseMap,
+      userProfile,
       projectId,
       scopeId,
       listing,

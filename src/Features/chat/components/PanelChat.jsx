@@ -23,6 +23,7 @@ import prepareChatImage, {
 } from "../utils/prepareChatImage";
 import useAssistantRelayConfig from "Features/assistantRelay/hooks/useAssistantRelayConfig";
 import ThinkingBubble from "./ThinkingBubble";
+import ChatDetectionHistory from "./ChatDetectionHistory";
 import ChatHeader from "./ChatHeader";
 import SectionManagedDataByAgent from "./SectionManagedDataByAgent";
 
@@ -229,6 +230,7 @@ export default function PanelChat() {
         {canDropPdf && (
           <ChatRelayBar editing={editingKey} onEditingChange={setEditingKey} />
         )}
+        <ChatDetectionHistory />
         <Stack
           ref={listRef}
           spacing={2.5}
