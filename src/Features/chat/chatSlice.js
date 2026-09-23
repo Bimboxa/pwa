@@ -8,6 +8,7 @@ const chatSlice = createSlice({
     //   localStep?, localError? }
     messages: [],
     isThinking: false,
+    budgetRevision: 0,
     // Bumped by "Nouvelle session": a turn still streaming from the previous
     // session must not write into the new one.
     sessionId: 0,
@@ -35,6 +36,9 @@ const chatSlice = createSlice({
     reasoningLevelId: null,
   },
   reducers: {
+    refreshBudget(state) {
+      state.budgetRevision += 1;
+    },
     setIsThinking(state, action) {
       state.isThinking = action.payload;
     },
@@ -120,6 +124,7 @@ const chatSlice = createSlice({
 });
 
 export const {
+  refreshBudget,
   setIsThinking,
   sendMessageContent,
   receiveMessageContent,

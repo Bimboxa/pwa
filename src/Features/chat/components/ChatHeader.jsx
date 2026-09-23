@@ -1,7 +1,9 @@
+import { useState } from "react";
+import { relayFetch } from "Features/assistantRelay/services/assistantRelayClient";
 import { jwtDecode } from "jwt-decode";
 import { useDispatch, useSelector } from "react-redux";
 
-import { resetConversation } from "../chatSlice";
+import { refreshBudget, resetConversation } from "../chatSlice";
 
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 
@@ -24,6 +26,8 @@ const RELAY_STATUS = {
 // instead of the (irrelevant) JWT user.
 export default function ChatHeader({ showRelayStatus, onRelayStatusClick }) {
   const dispatch = useDispatch();
+  const [reconciling, setReconciling] = useState(false);
+  const [budgetNotice, setBudgetNotice] = useState(null);
 
   // strings
 
@@ -86,8 +90,33 @@ export default function ChatHeader({ showRelayStatus, onRelayStatusClick }) {
 
   // handlers
 
-  function handleNewSession() {
+  async function handleNewSession() {
+    if (reconciling) return;
     dispatch(resetConversation());
+    setBudgetNotice(null);
+    if (connectionStatus !== "connected") return;
+    setReconciling(true);
+    try {
+      const budget = await relayFetch("/chat/budget/reconcile", {
+        method: "POST",
+      });
+      const remaining = new Intl.NumberFormat("fr-FR", {
+        style: "currency",
+        currency: "EUR",
+      }).format(budget.reservedMicros / 1000000);
+      setBudgetNotice(
+        budget.reservedMicros > 0
+          ? `Budget vérifié : ${remaining} restent réservés pour des appels en cours ou à vérifier.`
+          : "Budget vérifié : aucune somme réservée."
+      );
+    } catch {
+      setBudgetNotice(
+        "Nouvelle session créée. Vérification du budget indisponible ; les réservations sont conservées."
+      );
+    } finally {
+      dispatch(refreshBudget());
+      setReconciling(false);
+    }
   }
 
   // render — dark, like the panel; the listing colour stays as an accent.
@@ -179,15 +208,25 @@ export default function ChatHeader({ showRelayStatus, onRelayStatusClick }) {
               size="small"
               color="inherit"
               startIcon={<AddIcon />}
-              disabled={!canReset}
+              disabled={!canReset || reconciling}
               onClick={handleNewSession}
               sx={{ color: "text.secondary", whiteSpace: "nowrap" }}
             >
-              {newSessionS}
+              {reconciling ? "Vérification du budget…" : newSessionS}
             </Button>
           </span>
         </Tooltip>
       </Box>
+      {budgetNotice && (
+        <Typography
+          role="status"
+          variant="caption"
+          color="text.secondary"
+          sx={{ px: 1.5, py: 0.5 }}
+        >
+          {budgetNotice}
+        </Typography>
+      )}
     </>
   );
 }

@@ -37,6 +37,7 @@ export default function ChatBudgetIndicator() {
     (s) => s.assistantRelay.connectionStatus === "connected"
   );
   const token = useSelector(selectRelayToken);
+  const budgetRevision = useSelector((s) => s.chat.budgetRevision);
   const conversation = useSelector((s) => s.chat.conversation);
   const thinking = useSelector((s) => s.chat.isThinking);
   const projectId = useSelector((s) => s.projects.selectedProjectId);
@@ -91,11 +92,14 @@ export default function ChatBudgetIndicator() {
     sessionId,
     conversation.previousResponseId,
     thinking,
+    budgetRevision,
   ]);
 
   // helpers
-  const percent =
-    budget?.limitMicros > 0
+  const unlimited = budget?.limitEnforced === false;
+  const percent = unlimited
+    ? 0
+    : budget?.limitMicros > 0
       ? Math.min(100, (budget.spentMicros / budget.limitMicros) * 100)
       : budget
         ? 100
@@ -104,7 +108,9 @@ export default function ChatBudgetIndicator() {
     percent >= 100 ? "error" : percent >= 80 ? "warning" : "success";
   const session = budget?.sessions.find((s) => s.id === sessionId);
   const label = budget
-    ? `${euros(budget.spentMicros)} consommés sur ${euros(budget.limitMicros)}`
+    ? unlimited
+      ? `${euros(budget.spentMicros)} consommés · Debug sans plafond`
+      : `${euros(budget.spentMicros)} consommés sur ${euros(budget.limitMicros)}`
     : "Consommation du budget";
   async function copy(value) {
     try {
@@ -143,7 +149,9 @@ export default function ChatBudgetIndicator() {
               sx={{ color: "action.disabledBackground", position: "absolute" }}
             />
             <CircularProgress
-              aria-label="Part du budget consommée"
+              aria-label={
+                unlimited ? "Debug sans plafond" : "Part du budget consommée"
+              }
               variant="determinate"
               value={percent}
               color={error ? "warning" : color}
@@ -161,7 +169,13 @@ export default function ChatBudgetIndicator() {
                 color: "text.secondary",
               }}
             >
-              {error ? "!" : budget ? `${Math.round(percent)}%` : "…"}
+              {error
+                ? "!"
+                : budget
+                  ? unlimited
+                    ? "∞"
+                    : `${Math.round(percent)}%`
+                  : "…"}
             </Typography>
           </Box>
         </IconButton>
@@ -194,7 +208,9 @@ export default function ChatBudgetIndicator() {
             mb: 1,
           }}
         >
-          <Typography fontWeight={600}>Budget IA</Typography>
+          <Typography fontWeight={600}>
+            {unlimited ? "Consommation IA · Debug" : "Budget IA"}
+          </Typography>
           <IconButton
             size="small"
             aria-label="Fermer le détail du budget"
@@ -216,12 +232,15 @@ export default function ChatBudgetIndicator() {
                 component="span"
                 sx={{ fontSize: 15, color: "text.secondary", fontWeight: 400 }}
               >
-                / {euros(budget.limitMicros)}
+                {unlimited
+                  ? "· Sans plafond"
+                  : `/ ${euros(budget.limitMicros)}`}
               </Box>
             </Typography>
             <Typography variant="body2" color="text.secondary">
-              {euros(budget.availableMicros)} disponibles · Crédit sans
-              expiration
+              {unlimited
+                ? "Mode debug : suivi de consommation sans blocage budgétaire."
+                : `${euros(budget.availableMicros)} disponibles · Crédit sans expiration`}
             </Typography>
             {budget.reservedMicros > 0 ? (
               <Typography
@@ -238,7 +257,7 @@ export default function ChatBudgetIndicator() {
                 Budget commun à la connexion partagée.
               </Typography>
             ) : null}
-            {budget.availableMicros === 0 ? (
+            {!unlimited && budget.availableMicros === 0 ? (
               <Alert severity="warning" sx={{ mt: 1 }}>
                 Budget disponible épuisé.
               </Alert>

@@ -8,6 +8,7 @@ import {
   detectionArchiveKey,
   listDetectionDebug,
 } from "../services/detectionDebugStore";
+import { groupDetectionDebug } from "../utils/groupDetectionDebug";
 import ChatDetectionDebug from "./ChatDetectionDebug";
 
 export default function ChatDetectionHistory() {
@@ -44,8 +45,8 @@ export default function ChatDetectionHistory() {
       {open && (
         <Box sx={{ maxHeight: 350, overflow: "auto" }}>
           <Typography variant="caption" color="text.secondary">
-            Les 30 dernières captures de ce plan, conservées dans ce navigateur.
-            Effacer les données du navigateur les supprime.
+            Les 30 derniers diagnostics de ce plan, conservées dans ce
+            navigateur. Effacer les données du navigateur les supprime.
           </Typography>
           {!archiveKey && (
             <Typography variant="caption" sx={{ display: "block" }}>
@@ -59,11 +60,11 @@ export default function ChatDetectionHistory() {
               Aucune capture enregistrée.
             </Typography>
           )}
-          {state.rows
-            .filter((record) => record.archiveKey === archiveKey)
-            .map((record) => (
-              <ChatDetectionDebug key={record.id} record={record} />
-            ))}
+          {groupDetectionDebug(
+            state.rows.filter((record) => record.archiveKey === archiveKey)
+          ).map((record) => (
+            <ChatDetectionDebug key={record.id} record={record} />
+          ))}
         </Box>
       )}
     </Box>

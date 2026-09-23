@@ -11,6 +11,7 @@ import {
   updateMessageById,
 } from "../chatSlice";
 
+import { groupDetectionDebug } from "../utils/groupDetectionDebug";
 import getUserIdMaster from "Features/auth/utils/getUserIdMaster";
 import {
   detectionArchiveKey,
@@ -105,6 +106,39 @@ export default function useSendChatTurn() {
         mainBaseMap?.id
       );
       let debugSaves = Promise.resolve();
+      let latestDebug = null;
+      const publishDebug = (status = "in_progress") => {
+        if (!debugRecords.size) return;
+        latestDebug = {
+          ...groupDetectionDebug([...debugRecords.values()])[0],
+          status,
+          updatedAt: Date.now(),
+        };
+        const record = latestDebug;
+        if (!isStale())
+          dispatch(
+            updateMessageById({
+              id: messageId,
+              changes: { detectionDebug: [record] },
+            })
+          );
+        debugSaves = debugSaves
+          .then(() => saveDetectionDebug(record))
+          .catch((error) => {
+            latestDebug = {
+              ...latestDebug,
+              saveError: error?.message ?? "Stockage indisponible",
+            };
+            if (!isStale())
+              dispatch(
+                updateMessageById({
+                  id: messageId,
+                  changes: { detectionDebug: [latestDebug] },
+                })
+              );
+          });
+      };
+
       dispatch(
         addMessage({
           id: uuidv4(),
@@ -336,30 +370,7 @@ export default function useSendChatTurn() {
                   artifact: event.artifact,
                 };
                 debugRecords.set(record.id, record);
-                dispatch(
-                  updateMessageById({
-                    id: messageId,
-                    changes: { detectionDebug: [...debugRecords.values()] },
-                  })
-                );
-                // Serialize writes so rapid SSE events cannot evict a newer record.
-                debugSaves = debugSaves
-                  .then(() => saveDetectionDebug(record))
-                  .catch((error) => {
-                    debugRecords.set(record.id, {
-                      ...record,
-                      saveError: error?.message ?? "Stockage indisponible",
-                    });
-                    if (!isStale())
-                      dispatch(
-                        updateMessageById({
-                          id: messageId,
-                          changes: {
-                            detectionDebug: [...debugRecords.values()],
-                          },
-                        })
-                      );
-                  });
+                publishDebug();
               } else if (event.type === "progress") {
                 reportProgress(event);
               } else if (event.type === "tokens") {
@@ -445,6 +456,7 @@ export default function useSendChatTurn() {
         setError(e?.code ? describeRelayError(e) : e?.message);
         return { ok: false };
       } finally {
+        publishDebug(controller.signal.aborted ? "interrupted" : "finished");
         busy.current = false;
         if (abortRef.current === controller) abortRef.current = null;
         if (stopRef.current === stop) stopRef.current = null;

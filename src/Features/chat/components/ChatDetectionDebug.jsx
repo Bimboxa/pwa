@@ -1,30 +1,22 @@
 import { useState } from "react";
 import { Box, Button, Stack, Typography } from "@mui/material";
+import { serializeDetectionDebug } from "../utils/groupDetectionDebug";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 
-const LABELS = {
-  raw_detection: "Détection brute du LLM",
-  converted_detection: "Géométrie convertie par le serveur",
-  pdf_inspection: "Diagnostic de lecture du PDF",
-};
-
-export default function ChatDetectionDebug({ record }) {
+export default function ChatDetectionDebug({ record, active = false }) {
   const [expanded, setExpanded] = useState(false);
   const [copyStatus, setCopyStatus] = useState("");
-  const artifact = record.artifact;
-  // Keep the exact raw argument string in the export, even if invalid JSON.
-  const serialize = () =>
-    JSON.stringify(
-      {
-        version: 1,
-        createdAt: record.createdAt,
-        messageId: record.messageId,
-        listingId: record.listingId,
-        ...artifact,
-      },
-      null,
-      2
+  const serialize = () => serializeDetectionDebug(record);
+  function download() {
+    const url = URL.createObjectURL(
+      new Blob([serialize()], { type: "application/json" })
     );
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `diagnostic-${record.messageId ?? record.id}.json`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
   async function copy() {
     try {
       await navigator.clipboard.writeText(serialize());
@@ -34,13 +26,24 @@ export default function ChatDetectionDebug({ record }) {
       setExpanded(true);
     }
   }
+  if (active)
+    return (
+      <Typography
+        role="status"
+        variant="caption"
+        color="text.secondary"
+        sx={{ display: "block", mt: 0.75 }}
+      >
+        Diagnostic en cours...
+      </Typography>
+    );
   return (
     <Box
       sx={{ mt: 0.75, borderLeft: "2px solid", borderColor: "divider", pl: 1 }}
     >
       <Stack direction="row" alignItems="center" spacing={1}>
         <Typography variant="caption" sx={{ flex: 1 }}>
-          {LABELS[artifact.stage] ?? "Diagnostic"}
+          Diagnostic
         </Typography>
         <Button
           size="small"
@@ -48,6 +51,9 @@ export default function ChatDetectionDebug({ record }) {
           onClick={copy}
         >
           Copier
+        </Button>
+        <Button size="small" onClick={download}>
+          Télécharger
         </Button>
         <Button
           size="small"
@@ -63,11 +69,6 @@ export default function ChatDetectionDebug({ record }) {
       {copyStatus && (
         <Typography role="status" variant="caption" sx={{ display: "block" }}>
           {copyStatus}
-        </Typography>
-      )}
-      {artifact.stage === "pdf_inspection" && (
-        <Typography variant="caption" sx={{ display: "block" }}>
-          Diagnostic technique ; ce n’est pas une géométrie détectée.
         </Typography>
       )}
       {record.saveError && (

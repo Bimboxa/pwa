@@ -20,6 +20,7 @@ import {
   describeRelayError,
   undoLiveJob,
 } from "Features/assistantRelay/services/assistantRelayClient";
+import { groupDetectionDebug } from "../utils/groupDetectionDebug";
 import ChatDetectionDebug from "./ChatDetectionDebug";
 import ChatTokenUsage from "./ChatTokenUsage";
 import ThinkingBubble from "./ThinkingBubble";
@@ -205,8 +206,12 @@ export default function ChatMessageAssistant({ message }) {
           Réponse interrompue.
         </Typography>
       ) : null}
-      {(message.detectionDebug ?? []).map((record) => (
-        <ChatDetectionDebug key={record.id} record={record} />
+      {groupDetectionDebug(message.detectionDebug).map((record) => (
+        <ChatDetectionDebug
+          key={record.id}
+          record={record}
+          active={Boolean(message.progress)}
+        />
       ))}
       {message.error ? (
         <Typography variant="body2" color="error" sx={{ mt: 0.5 }}>
