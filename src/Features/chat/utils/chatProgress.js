@@ -1,5 +1,6 @@
 export const CHAT_PROGRESS_LABELS = {
   preparing: "Préparation de la demande…",
+  reading_pdf_vectors: "Extraction des tracés vectoriels du PDF…",
   preparing_pdf: "Préparation du PDF source…",
   uploading_pdf: "Envoi du PDF au serveur…",
   connecting: "Connexion au serveur…",

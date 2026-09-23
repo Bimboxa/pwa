@@ -231,11 +231,8 @@ export default function useSendChatTurn() {
               transform: source.existingBaseMap.transform,
             };
           } catch (error) {
-            // Auto can still analyze the reference image if the original PDF
-            // is unavailable locally or cannot be resolved on the relay.
-            console.warn(
-              "[chat] source PDF unavailable; using plan image",
-              error
+            throw new Error(
+              `PDF source indisponible : ${error?.message ?? "erreur de chargement"}. Rétablissez l’accès au PDF avant de relancer Auto.`
             );
           }
         }
