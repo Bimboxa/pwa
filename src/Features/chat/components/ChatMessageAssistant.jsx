@@ -28,9 +28,11 @@ import ChatText from "./ChatText";
 
 const TOOL_LABELS = {
   draw_annotations: "Dessin",
+  query_annotations: "Sélection des annotations",
+  update_annotations_batch: "Modification des annotations",
   create_annotation_templates: "Création de modèles d'annotation",
   create_annotation_listing: "Création d'une liste",
-  undo_drawing: "Annulation d'un dessin",
+  undo_drawing: "Annulation des modifications",
   get_current_base_map: "Lecture du fond de plan",
   get_detection_instructions: "Lecture des consignes",
   get_detection_job: "Vérification d'un dessin",
@@ -38,6 +40,7 @@ const TOOL_LABELS = {
 };
 const UNDOABLE = new Set([
   "draw_annotations",
+  "update_annotations_batch",
   "create_annotation_templates",
   "create_annotation_listing",
 ]);

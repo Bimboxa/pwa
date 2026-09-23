@@ -395,6 +395,10 @@ db.version(37).stores({
   resources: "id,projectId,scopeId,sourceKey",
 });
 
+db.version(38).stores({
+  annotationBatchReceipts: "jobId,createdAt",
+});
+
 // --- AUDIT HOOKS ---
 
 const AUDIT_TABLES = [
@@ -656,8 +660,8 @@ db.points.hook("creating", function (primKey, obj) {
 // --- UNDO HOOKS ---
 
 UNDO_TABLES.forEach((tableName) => {
-  db[tableName].hook("creating", function (primKey, obj) {
-    if (_skipUndo) return;
+  db[tableName].hook("creating", function (primKey, obj, tx) {
+    if (_skipUndo || tx?.annotationBatch) return;
     const snapshot = { ...obj };
     this.onsuccess = (key) => {
       pushUndo({
@@ -670,8 +674,8 @@ UNDO_TABLES.forEach((tableName) => {
     };
   });
 
-  db[tableName].hook("updating", function (modifications, primKey, obj) {
-    if (_skipUndo) return;
+  db[tableName].hook("updating", function (modifications, primKey, obj, tx) {
+    if (_skipUndo || tx?.annotationBatch) return;
     const before = { ...obj };
     this.onsuccess = () => {
       pushUndo({

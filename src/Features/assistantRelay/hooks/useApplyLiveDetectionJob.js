@@ -1,3 +1,8 @@
+import BaseMap from "Features/baseMaps/js/BaseMap";
+import { applyAnnotationBatch } from "../services/annotationBatchService.js";
+import { buildBaseMapContext } from "../services/publishBaseMapSnapshotService";
+import { pushUndo, forgetAnnotationBatchUndo } from "App/db/undoManager";
+import { triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice";
 import { useCallback, useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
@@ -357,6 +362,50 @@ export default function useApplyLiveDetectionJob() {
     [dispatch, deleteAnnotations]
   );
 
+  const applyBatch = useCallback(
+    async (full) => {
+      const { projectId, scope } = latest.current;
+      const result = await applyAnnotationBatch(
+        db,
+        full,
+        { projectId, scopeId: scope?.id },
+        async () => {
+          // Metadata only: hydrating images/PDFs would leave the IndexedDB
+          // transaction and could request tables outside its scope.
+          const record = await db.baseMaps.get(full.snapshot.baseMapId);
+          const versions = (
+            await db.baseMapVersions
+              .where("baseMapId")
+              .equals(record.id)
+              .toArray()
+          ).filter((v) => !v.deletedAt);
+          const activeVersion = versions.find((v) => v.isActive) ?? versions[0];
+          const baseMap = new BaseMap({
+            ...record,
+            versions,
+            image: activeVersion?.image ?? record.image,
+          });
+          const frame = buildBaseMapContext({ baseMap });
+          return {
+            imageKey: frame.imageKey,
+            meterByPx: frame.meterByPx,
+            refSize: { width: frame.refWidth, height: frame.refHeight },
+          };
+        }
+      );
+      if (result.batchKind !== "query" && !result.replayed) {
+        dispatch(triggerAnnotationsUpdate());
+        if (result.batchKind === "undo")
+          forgetAnnotationBatchUndo(full.payload.annotationBatch.undoOf);
+        if (result.batchKind === "update" && result.updatedCount) {
+          pushUndo({ type: "annotation_batch", key: full.jobId });
+        }
+      }
+      return result;
+    },
+    [dispatch]
+  );
+
   const applyLiveJob = useCallback(
     async (job) => {
       const jobId = job?.jobId;
@@ -371,27 +420,44 @@ export default function useApplyLiveDetectionJob() {
       if (!latest.current.projectId) return;
       attemptedRef.current.add(jobId);
 
+      // A committed batch with a lost acknowledgement is safe to acknowledge
+      // again. Never re-execute an applying job without its local receipt.
+      const receipt = await db.annotationBatchReceipts.get(jobId);
+      if (job.status === "applying" && !receipt) {
+        attemptedRef.current.delete(jobId);
+        return;
+      }
+
       // Claim first: the loser (another tab) or an expired job stops here.
       let claimed;
       try {
-        claimed = await claimJob(jobId);
+        claimed = receipt ? job : await claimJob(jobId);
         dispatch(upsertAssistantRelayJobs([claimed]));
       } catch (e) {
         console.log("[assistantRelay] live claim skipped", jobId, e?.code);
         return;
       }
 
+      let committedBatch = false;
       try {
         const full = await fetchJob(jobId);
         if (!full?.payload) throw liveError("INVALID_PAYLOAD");
-        const result =
-          full.mode === "live_undo"
+        const result = full.payload.annotationBatch
+          ? await applyBatch(full)
+          : full.mode === "live_undo"
             ? await applyUndo(full)
             : await applyDraw(full);
-        const acked = await ackJob(jobId, { status: "imported", result });
+        committedBatch = Boolean(full.payload.annotationBatch);
+        const { replayed: _replayed, ...ackResult } = result;
+        const acked = await ackJob(jobId, {
+          status: "imported",
+          result: ackResult,
+        });
         dispatch(upsertAssistantRelayJobs([acked]));
-        const message =
-          full.mode === "live_undo"
+        if (result.batchKind === "query") return;
+        const message = result.batchKind
+          ? `ChatGPT : ${result.updatedCount} annotation(s) ${result.batchKind === "undo" ? "restaurée(s)" : "modifiée(s)"}.`
+          : full.mode === "live_undo"
             ? `ChatGPT : ${result.deletedAnnotationIds.length} annotation(s) annulée(s).${result.deletedListingIds.length ? " Liste supprimée." : ""}`
             : result.createdListingId
               ? `ChatGPT : liste « ${result.listingName} » créée (${result.templateIds.length} template(s)).`
@@ -401,13 +467,24 @@ export default function useApplyLiveDetectionJob() {
         dispatch(setToaster({ message, severity: "success" }));
       } catch (e) {
         console.log("[assistantRelay] live job failed", jobId, e);
+        if (committedBatch) {
+          attemptedRef.current.delete(jobId);
+          dispatch(
+            setToaster({
+              message:
+                "Lot appliqué localement. Accusé de réception en attente ; ne relancez pas la modification.",
+              severity: "warning",
+            })
+          );
+          return;
+        }
         const message = e?.code
           ? describeRelayError(e)
           : (e?.message ?? "Commande impossible.");
         try {
           const failed = await ackJob(jobId, {
             status: "failed",
-            error: String(e?.code ?? message).slice(0, 2000),
+            error: String(e?.message ?? e?.code ?? message).slice(0, 2000),
           });
           dispatch(upsertAssistantRelayJobs([failed]));
         } catch (ackError) {
@@ -422,7 +499,7 @@ export default function useApplyLiveDetectionJob() {
         );
       }
     },
-    [dispatch, applyDraw, applyUndo]
+    [dispatch, applyDraw, applyUndo, applyBatch]
   );
 
   return { applyLiveJob };

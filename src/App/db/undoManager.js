@@ -28,6 +28,18 @@ export function pushUndo(entry) {
   redoStack = [];
 }
 
+async function restoreBatch(db, entry, direction) {
+  const [{ restoreAnnotationBatch }, { default: store }] = await Promise.all([
+    import("../../Features/assistantRelay/services/annotationBatchService.js"),
+    import("../store"),
+  ]);
+  const state = store.getState();
+  await restoreAnnotationBatch(db, entry.key, direction, {
+    projectId: state.projects.selectedProjectId,
+    scopeId: state.scopes.selectedScopeId,
+  });
+}
+
 async function getDb() {
   const { default: db } = await import("./db");
   return db;
@@ -41,6 +53,9 @@ export async function undo() {
 
   await withoutUndo(async () => {
     switch (entry.type) {
+      case "annotation_batch":
+        await restoreBatch(db, entry, "undo");
+        break;
       case "create":
         // Record didn't exist before → hard delete it
         await db[entry.table].delete(entry.key);
@@ -54,6 +69,9 @@ export async function undo() {
         await db[entry.table].put(entry.before);
         break;
     }
+  }).catch((error) => {
+    undoStack.push(entry);
+    throw error;
   });
 
   redoStack.push(entry);
@@ -67,6 +85,9 @@ export async function redo() {
 
   await withoutUndo(async () => {
     switch (entry.type) {
+      case "annotation_batch":
+        await restoreBatch(db, entry, "redo");
+        break;
       case "create":
         // Re-create the record
         await db[entry.table].put(entry.after);
@@ -80,9 +101,20 @@ export async function redo() {
         await db[entry.table].put(entry.after);
         break;
     }
+  }).catch((error) => {
+    redoStack.push(entry);
+    throw error;
   });
 
   undoStack.push(entry);
+}
+
+// Chat undo already restored this batch; keep keyboard history navigable.
+export function forgetAnnotationBatchUndo(jobId) {
+  const keep = (entry) =>
+    entry.type !== "annotation_batch" || entry.key !== jobId;
+  undoStack = undoStack.filter(keep);
+  redoStack = redoStack.filter(keep);
 }
 
 export function canUndo() {

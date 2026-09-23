@@ -27,7 +27,10 @@ function AssistantRelayRuntimeInner() {
   useEffect(() => {
     if (!connected) return;
     for (const job of Object.values(jobsById ?? {})) {
-      if (LIVE_MODES.has(job?.mode) && job.status === "proposed") {
+      if (
+        LIVE_MODES.has(job?.mode) &&
+        ["proposed", "applying"].includes(job.status)
+      ) {
         applyLiveJob(job);
       }
     }

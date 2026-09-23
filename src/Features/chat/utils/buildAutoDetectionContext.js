@@ -54,6 +54,11 @@ export function buildExistingAnnotations(annotations, listingId, baseMapId) {
           ? { annotationTemplateId: a.annotationTemplateId }
           : {}),
         type: a.type,
+        label: a.label,
+        isExt: a.isExt,
+        strokeColor: a.strokeColor,
+        fillColor: a.fillColor,
+        lockedFields: a.annotationTemplateProps?.overrideFields ?? [],
         geometry,
       };
     });
