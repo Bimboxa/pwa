@@ -348,6 +348,65 @@ export default function parseImportAnnotationsJson(text) {
       const err = validateNormalizedPoint(p);
       if (err) return { ok: false, error: err };
     }
+    if (ann.openings !== undefined) {
+      if (
+        !["POLYLINE", "STRIP"].includes(ann.type) ||
+        !Array.isArray(ann.openings) ||
+        ann.openings.length > 500
+      )
+        return {
+          ok: false,
+          error: "Les openings nécessitent une POLYLINE ou une STRIP.",
+        };
+      for (const o of ann.openings) {
+        const k = o.hostSegmentIndex ?? 0;
+        const next =
+          k +
+          (ann.points[(k + 1) % ann.points.length]?.type === "circle" ? 2 : 1);
+        if (
+          !Number.isInteger(k) ||
+          k < 0 ||
+          !ann.points[k] ||
+          ann.points[k].type === "circle" ||
+          (!ann.closeLine && next >= ann.points.length) ||
+          !Number.isFinite(o.width) ||
+          o.width <= 0 ||
+          !Number.isFinite(o.height) ||
+          o.height <= 0 ||
+          !Number.isFinite(o.hostDistanceM) ||
+          o.hostDistanceM < 0 ||
+          (o.offsetZ !== undefined && !Number.isFinite(o.offsetZ)) ||
+          !Array.isArray(o.points) ||
+          o.points.length < 2 ||
+          o.points.length > 500
+        )
+          return {
+            ok: false,
+            error: "Ouverture invalide (segment hôte, dimensions ou points).",
+          };
+        for (const p of o.points) {
+          const error = validateNormalizedPoint(p);
+          if (error) return { ok: false, error };
+        }
+      }
+    }
+    if (ann.guideLines !== undefined) {
+      if (!Array.isArray(ann.guideLines) || ann.guideLines.length > 500)
+        return { ok: false, error: "guideLines invalides." };
+      for (const g of ann.guideLines) {
+        if (
+          !Number.isFinite(g.slopePct) ||
+          !Array.isArray(g.points) ||
+          g.points.length < 2 ||
+          g.points.length > 500
+        )
+          return { ok: false, error: "Ligne de pente invalide." };
+        for (const p of g.points) {
+          const error = validateNormalizedPoint(p);
+          if (error) return { ok: false, error };
+        }
+      }
+    }
     const cutsError = validateCuts(ann);
     if (cutsError) return { ok: false, error: cutsError };
   }

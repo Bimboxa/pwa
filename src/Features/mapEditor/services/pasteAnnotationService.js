@@ -70,6 +70,7 @@ export default async function pasteAnnotationService({
 
   const allPoints = [];
   const allAnnotations = [];
+  const allOpeningRelations = [];
   const allSourceIds = []; // parallel to allAnnotations: each clone's source id
 
   // Weld map, run-local: a base point carrying `sourceId` mints ONE row for the
@@ -141,6 +142,7 @@ export default async function pasteAnnotationService({
       templateLabel: _srcTemplateLabel,
       annotationTemplate: _srcAnnotationTemplate,
       annotationLabel: _srcAnnotationLabel,
+      openings: _srcOpenings,
       guideLines: _srcGuideLines,
       isoHeightLines: _srcIsoHeightLines,
       profileLines: _srcProfileLines,
@@ -181,12 +183,12 @@ export default async function pasteAnnotationService({
         item.basePoints,
         sourceCenter,
         targetCenter,
-        transform,
+        transform
       );
       clonedAnnotation.points = refsFrom(
         transformed,
         sourceAnnotation.points,
-        sourceAnnotation,
+        sourceAnnotation
       );
 
       if (type === "POLYGON" && item.baseCuts?.length) {
@@ -195,19 +197,76 @@ export default async function pasteAnnotationService({
             cut.points,
             sourceCenter,
             targetCenter,
-            transform,
+            transform
           );
           return {
             id: nanoid(),
             points: refsFrom(
               cutTransformed,
               sourceAnnotation.cuts?.[ci]?.points,
-              sourceAnnotation,
+              sourceAnnotation
             ),
           };
         });
       } else if (type === "POLYGON") {
         clonedAnnotation.cuts = [];
+      }
+
+      // Imported openings become independent editable annotations and relations.
+      // All rows share the host transaction and are included in the live-job undo.
+      for (const opening of item.baseOpenings ?? []) {
+        const transformedOpening = applyPasteTransformToPoints(
+          opening.points,
+          sourceCenter,
+          targetCenter,
+          transform
+        );
+        const openingId = nanoid();
+        const start = opening.hostSegmentIndex ?? 0;
+        const hostRefs = clonedAnnotation.points;
+        const middle = (start + 1) % hostRefs.length;
+        const arc = hostRefs[middle]?.type === "circle";
+        const end = (start + (arc ? 2 : 1)) % hostRefs.length;
+        if (!hostRefs[start] || start === end)
+          throw new Error("Invalid imported opening host segment");
+        allAnnotations.push({
+          id: openingId,
+          ...(clonedAnnotation.relayJobId
+            ? { relayJobId: clonedAnnotation.relayJobId }
+            : {}),
+          projectId: clonedAnnotation.projectId,
+          listingId: clonedAnnotation.listingId,
+          baseMapId: baseMap.id,
+          ...(activeLayerId ? { layerId: activeLayerId } : {}),
+          type: "POLYLINE",
+          drawingShape: "OPENING",
+          isOpening: true,
+          openingType: "NONE",
+          width: opening.width,
+          height: opening.height,
+          offsetZ: opening.offsetZ ?? 0,
+          strokeColor: clonedAnnotation.strokeColor,
+          strokeWidth: opening.strokeWidth ?? clonedAnnotation.strokeWidth,
+          strokeWidthUnit:
+            opening.strokeWidthUnit ?? clonedAnnotation.strokeWidthUnit,
+          points: refsFrom(
+            transformedOpening,
+            opening.points,
+            sourceAnnotation
+          ),
+        });
+        allSourceIds.push(null);
+        allOpeningRelations.push({
+          id: nanoid(),
+          projectId: clonedAnnotation.projectId,
+          hostAnnotationId: newAnnotationId,
+          openingAnnotationId: openingId,
+          hostSegmentStartPointId: hostRefs[start].id,
+          hostSegmentEndPointId: hostRefs[end].id,
+          hostArcControlPointId: arc ? hostRefs[middle].id : null,
+          hostDistanceM: opening.hostDistanceM,
+          carve: { mode: "NONE" },
+        });
       }
 
       // Guide lines: same rigid transform as the contour, fresh db.points,
@@ -220,7 +279,7 @@ export default async function pasteAnnotationService({
             glPoints,
             sourceCenter,
             targetCenter,
-            transform,
+            transform
           );
           return {
             ...meta,
@@ -241,7 +300,7 @@ export default async function pasteAnnotationService({
             lPoints,
             sourceCenter,
             targetCenter,
-            transform,
+            transform
           );
           return {
             ...meta,
@@ -263,7 +322,7 @@ export default async function pasteAnnotationService({
             lPoints,
             sourceCenter,
             targetCenter,
-            transform,
+            transform
           );
           return {
             ...meta,
@@ -283,7 +342,7 @@ export default async function pasteAnnotationService({
         [item.basePoint],
         sourceCenter,
         targetCenter,
-        transform,
+        transform
       );
       clonedAnnotation.point = { id: normalize(transformed, sourceAnnotation) };
     } else if (type === "FREE_TEXT") {
@@ -295,7 +354,7 @@ export default async function pasteAnnotationService({
         [item.baseLabelPoint, item.baseTargetPoint ?? item.baseLabelPoint],
         sourceCenter,
         targetCenter,
-        transform,
+        transform
       );
       clonedAnnotation.labelPoint = { x: label.x / width, y: label.y / height };
       clonedAnnotation.targetPoint = {
@@ -319,12 +378,19 @@ export default async function pasteAnnotationService({
   // Single transaction: write points + annotations + cloned mapping rows.
   await db.transaction(
     "rw",
-    [db.points, db.annotations, db.relAnnotationMappingCategory],
+    [
+      db.points,
+      db.annotations,
+      db.relAnnotationMappingCategory,
+      db.relAnnotationOpenings,
+    ],
     async () => {
       if (allPoints.length > 0) {
         await db.points.bulkAdd(allPoints);
       }
       await db.annotations.bulkAdd(allAnnotations);
+      if (allOpeningRelations.length)
+        await db.relAnnotationOpenings.bulkAdd(allOpeningRelations);
 
       // Clone mapping-category rows from the sources so qty sums work
       // immediately. One query for all sources, then re-key per pasted clone.
@@ -358,7 +424,7 @@ export default async function pasteAnnotationService({
           await db.relAnnotationMappingCategory.bulkAdd(clonedMappingRows);
         }
       }
-    },
+    }
   );
 
   // Single Redux dispatch after the transaction commits — one liveQuery rerun.

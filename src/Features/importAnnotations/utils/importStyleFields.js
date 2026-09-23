@@ -7,6 +7,8 @@
 // "dump" format (Copy annotations data) goes the other way round: it ships
 // full DB rows and is scrubbed with a denylist in normalizeAnnotationsDumpJson.
 export const STYLE_FIELDS = [
+  "height",
+  "hideSlope",
   "fillColor",
   "fillOpacity",
   "fillType",

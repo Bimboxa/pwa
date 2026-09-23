@@ -231,6 +231,18 @@ export default function buildImportData({
       // (parallel to basePoints) so pasteAnnotationService preserves them.
       annotation.points = toPointRefs(ann.points);
 
+      if (ann.guideLines?.length) {
+        item.baseGuideLines = ann.guideLines.map((g) => ({
+          ...g,
+          points: toBasePoints(g.points, pxPerNormX, pxPerNormY),
+        }));
+      }
+      if (ann.openings?.length) {
+        item.baseOpenings = ann.openings.map((o) => ({
+          ...o,
+          points: toBasePoints(o.points, pxPerNormX, pxPerNormY),
+        }));
+      }
       if (ann.cuts?.length) {
         item.baseCuts = ann.cuts.map((cut) => ({
           points: toBasePoints(cut.points, pxPerNormX, pxPerNormY),
