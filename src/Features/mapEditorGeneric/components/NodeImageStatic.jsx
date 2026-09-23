@@ -1,6 +1,8 @@
 import { memo, useMemo } from "react";
 import theme from "Styles/theme";
 
+import NodeImageToolbarOverlay from "./NodeImageToolbarOverlay";
+
 // Taille des poignées de redimensionnement (en pixels écran fixes)
 const HANDLE_SIZE = 10; // Un peu plus grand pour faciliter le grab
 const HALF_HANDLE = HANDLE_SIZE / 2;
@@ -13,7 +15,9 @@ export default memo(function NodeImageStatic({
     dragged,
     grayScale = false,
     containerK = 1,
-
+    draggedPartType,
+    baseMapMeterByPx,
+    printMode,
 }) {
     const { bbox, image, id, opacity } = imageAnnotation;
     const { x, y, width, height } = bbox ?? {};
@@ -34,6 +38,25 @@ export default memo(function NodeImageStatic({
 
 
 
+
+    // Top-centre of the ROTATED bbox (base-map px): the overlay toolbar sits
+    // outside the rotate group so it never turns with the image.
+    const overlayAnchor = useMemo(() => {
+        const cx = displayWidth / 2;
+        const cy = displayHeight / 2;
+        const rotation = imageAnnotation.rotation || 0;
+        const rad = (rotation * Math.PI) / 180;
+        const cos = Math.cos(rad);
+        const sin = Math.sin(rad);
+        const ax = (x || 0) + cx;
+        const ay = (y || 0) + cy;
+        let minY = Infinity;
+        for (const [dx, dy] of [[-cx, -cy], [cx, -cy], [cx, cy], [-cx, cy]]) {
+            const ry = ay + dx * sin + dy * cos;
+            if (ry < minY) minY = ry;
+        }
+        return { x: ax, y: minY };
+    }, [x, y, displayWidth, displayHeight, imageAnnotation.rotation]);
 
     if (!src) return null;
 
@@ -58,6 +81,7 @@ export default memo(function NodeImageStatic({
     const cx = displayWidth / 2;
     const cy = displayHeight / 2;
     const rotation = imageAnnotation.rotation || 0;
+
 
     // --- 2. RENDU DES POIGNÉES AVEC SCALE FIXE ---
     const renderHandle = (type, hx, hy) => (
@@ -121,11 +145,37 @@ export default memo(function NodeImageStatic({
 
 
 
+    // Angle badge shown while rotating (counter-rotated to stay readable) —
+    // same feedback as NodeObject3DStatic.
+    const renderAngleBadge = () => {
+        const displayedAngle = Math.round(((rotation % 360) + 360) % 360);
+        return (
+            <g
+                transform={`translate(${cx}, ${cy}) rotate(${-rotation})`}
+                style={{ pointerEvents: "none" }}
+            >
+                <g style={{ transform: handleScaleTransform }}>
+                    <rect x={-26} y={-12} width={52} height={24} rx={12} fill="rgba(0,0,0,0.75)" />
+                    <text
+                        x={0}
+                        y={4}
+                        textAnchor="middle"
+                        fill="#fff"
+                        fontSize={12}
+                        fontFamily={theme.typography?.fontFamily}
+                    >
+                        {displayedAngle}°
+                    </text>
+                </g>
+            </g>
+        );
+    };
+
     // --- RENDU ---
     return (
+        <g style={{ opacity: dragged ? 0.7 : opacity }}>
         <g
             transform={`translate(${x || 0}, ${y || 0}) rotate(${rotation}, ${cx}, ${cy})`}
-            style={{ opacity: dragged ? 0.7 : opacity }}
         >
 
 
@@ -173,6 +223,19 @@ export default memo(function NodeImageStatic({
                     {renderHandle("SE", displayWidth, displayHeight)}
                     {renderRotationHandle()}
                 </g>
+            )}
+
+            {dragged && draggedPartType === "ROTATE" && renderAngleBadge()}
+        </g>
+
+            {/* Overlay toolbar (scale / change image) — outside the rotate group */}
+            {selected && !dragged && !printMode && (
+                <NodeImageToolbarOverlay
+                    annotation={imageAnnotation}
+                    anchor={overlayAnchor}
+                    containerK={containerK}
+                    baseMapMeterByPx={baseMapMeterByPx}
+                />
             )}
         </g>
     );

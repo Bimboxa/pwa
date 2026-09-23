@@ -233,6 +233,11 @@ export default function FormAnnotationTemplateVariantBlock({
     const newAnnotationTemplate = { ...annotationTemplate, image };
     if (!newAnnotationTemplate.label && label)
       newAnnotationTemplate.label = label;
+    // Cleared image (delete button): the template keeps no default image.
+    if (!image) {
+      onChange({ ...annotationTemplate, image: null });
+      return;
+    }
     if (!newAnnotationTemplate.meterByPx && meterByPx)
       newAnnotationTemplate.meterByPx = meterByPx;
     onChange(newAnnotationTemplate);
@@ -482,7 +487,11 @@ export default function FormAnnotationTemplateVariantBlock({
                   </Box>
                 )}
               </Box>
-              <FieldImageV2 value={image} onChange={handleImageChange} />
+              <FieldImageV2
+                label="Image par défaut (optionnel)"
+                value={image}
+                onChange={handleImageChange}
+              />
             </Box>
           )}
 

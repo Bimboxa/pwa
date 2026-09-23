@@ -5456,7 +5456,7 @@ const InteractionLayer = forwardRef(({
     }
 
     // --- CASE 3: MEASURE / SEGMENT (Auto-commit after 2 points) ---
-    else if (["MEASURE", "SEGMENT", "POLYLINE_SEGMENT", "STRIP_SEGMENT", "RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", "COTE_TWO_CLICK", "LOCALIZED_REPAIR"].includes(enabledDrawingMode)) {
+    else if (["MEASURE", "IMAGE_SCALE", "SEGMENT", "POLYLINE_SEGMENT", "STRIP_SEGMENT", "RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", "COTE_TWO_CLICK", "LOCALIZED_REPAIR"].includes(enabledDrawingMode)) {
       let finalPos = toLocalCoords(worldPos);
 
       // Apply Angle Snap (Ortho) if Shift is held or ortho snap is enabled
@@ -5530,7 +5530,7 @@ const InteractionLayer = forwardRef(({
           // 2. Trigger Commit
           // This will call onCommitDrawingRef.current(points) inside InteractionLayer
           commitPolyline(event);
-          if (enabledDrawingMode === "MEASURE") dispatch(setEnabledDrawingMode(null));
+          if (enabledDrawingMode === "MEASURE" || enabledDrawingMode === "IMAGE_SCALE") dispatch(setEnabledDrawingMode(null));
           if (isRectangleMode) clearRectBuffers();
         }
       }
@@ -6707,7 +6707,7 @@ const InteractionLayer = forwardRef(({
     }
 
     // E. DRAWING PREVIEW
-    if (['CLICK', 'POLYLINE_CLICK', 'POLYGON_CLICK', 'CUT_CLICK', 'SPLIT_CLICK', 'STRIP', 'ONE_CLICK', "MEASURE", "SEGMENT", "POLYLINE_SEGMENT", "STRIP_SEGMENT", "RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", "LOCALIZED_REPAIR", "CIRCLE", "POLYLINE_CIRCLE", "POLYGON_CIRCLE", "CUT_CIRCLE", "POLYLINE_CIRCLE_RADIUS", "POLYGON_CIRCLE_RADIUS", "REVOLUTION_AXIS_PLAN", "PHOTO_POSE", "ARC", "POLYLINE_ARC", "COMPLETE_ANNOTATION", "COTE_TWO_CLICK", "ADD_GUIDE_LINE", "ADD_ISO_HEIGHT_LINE", "ADD_PROFILE_LINE", "RAMP"].includes(enabledDrawingMode)) {
+    if (['CLICK', 'POLYLINE_CLICK', 'POLYGON_CLICK', 'CUT_CLICK', 'SPLIT_CLICK', 'STRIP', 'ONE_CLICK', "MEASURE", "IMAGE_SCALE", "SEGMENT", "POLYLINE_SEGMENT", "STRIP_SEGMENT", "RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", "LOCALIZED_REPAIR", "CIRCLE", "POLYLINE_CIRCLE", "POLYGON_CIRCLE", "CUT_CIRCLE", "POLYLINE_CIRCLE_RADIUS", "POLYGON_CIRCLE_RADIUS", "REVOLUTION_AXIS_PLAN", "PHOTO_POSE", "ARC", "POLYLINE_ARC", "COMPLETE_ANNOTATION", "COTE_TWO_CLICK", "ADD_GUIDE_LINE", "ADD_ISO_HEIGHT_LINE", "ADD_PROFILE_LINE", "RAMP"].includes(enabledDrawingMode)) {
       const localPos = toLocalCoords(worldPos);
       let previewPos = localPos;
 
@@ -7148,7 +7148,7 @@ const InteractionLayer = forwardRef(({
         commitPoint();
       }
 
-      else if (["RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", "MEASURE", "SEGMENT", "POLYLINE_SEGMENT", "STRIP_SEGMENT", "COTE_TWO_CLICK"].includes(enabledDrawingMode) && newPointsList?.length === 2) {
+      else if (["RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", "MEASURE", "IMAGE_SCALE", "SEGMENT", "POLYLINE_SEGMENT", "STRIP_SEGMENT", "COTE_TWO_CLICK"].includes(enabledDrawingMode) && newPointsList?.length === 2) {
         commitPolyline(e); // add "e" to get clientX & clientY to set the measurePopper anchor position.
       }
 
@@ -7535,14 +7535,22 @@ const InteractionLayer = forwardRef(({
     const partNode = target.closest('[data-part-type]');
     const partType = partNode?.dataset?.partType;
 
-    const resizeHandle = target.closest('[data-interaction="resize-annotation"]');
+    let resizeHandle = target.closest('[data-interaction="resize-annotation"]');
     const basemapHandle = target.closest('[data-interaction="transform-basemap"]');
     const versionHandle = target.closest('[data-interaction="transform-version"]');
     const calibrationHandle = target.closest('[data-interaction="calibration-target"]');
     const legendHandle = target.closest('[data-interaction="transform-legend"]');
     const textHandle = target.closest('[data-interaction="transform-text"]');
-    const rotateHandle = target.closest('[data-interaction="rotate-annotation"]');
+    let rotateHandle = target.closest('[data-interaction="rotate-annotation"]');
     const hit = target.closest('[data-node-type]');
+    // IMAGE scale cote: both clicks land ON the selected image, which is
+    // itself draggable (and shows its resize / rotate handles) — the drawn
+    // points must win over any transform.
+    if (enabledDrawingModeRef.current === "IMAGE_SCALE") {
+      draggableGroup = null;
+      resizeHandle = null;
+      rotateHandle = null;
+    }
 
     // Si Shift est pressé -> Lasso (annotation-level or point-level)
     //
@@ -8304,7 +8312,7 @@ const InteractionLayer = forwardRef(({
           );
         })()}
 
-        {(enabledDrawingMode && (drawingPoints.length > 0 || (enabledDrawingMode === "ONE_CLICK" && newAnnotation?.type === "OBJECT_3D"))) && (
+        {(enabledDrawingMode && (drawingPoints.length > 0 || (enabledDrawingMode === "ONE_CLICK" && ["OBJECT_3D", "IMAGE"].includes(newAnnotation?.type)))) && (
           <g transform={`translate(${targetPose.x}, ${targetPose.y}) scale(${targetPose.k})`}>
             <DrawingLayer
               ref={drawingLayerRef}
@@ -8313,6 +8321,7 @@ const InteractionLayer = forwardRef(({
               enabledDrawingMode={enabledDrawingMode}
               containerK={targetPose.k}
               meterByPx={baseMapMeterByPx}
+              baseMapImageSize={baseMapImageSize}
               baseMapImageScale={baseMapImageScale}
               isForBaseMaps={newAnnotation?.isForBaseMaps}
               orthoSnapAngleOffset={orthoSnapAngleOffset}

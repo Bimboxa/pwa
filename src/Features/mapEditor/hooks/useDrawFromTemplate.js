@@ -16,6 +16,7 @@ import {
   getDrawingToolByKey,
 } from "Features/mapEditor/constants/drawingTools.jsx";
 import getNewAnnotationPropsFromAnnotationTemplate from "Features/annotations/utils/getNewAnnotationPropsFromAnnotationTemplate";
+import getImagePickDraftProps from "Features/imageAnnotations/utils/getImagePickDraftProps";
 import getLocateBusinessObjectDraftProps from "Features/businessObjects/utils/getLocateBusinessObjectDraftProps";
 import getLinkBusinessObjectDraftProps from "Features/businessObjects/utils/getLinkBusinessObjectDraftProps";
 import { isBusinessObjectsModuleKey } from "Features/businessObjects/utils/businessObjectModuleKeys";
@@ -120,6 +121,7 @@ export default function useDrawFromTemplate(annotationTemplate, listingId) {
       ...getLocateBusinessObjectDraftProps(locatingBusinessObjectId),
       ...getLinkBusinessObjectDraftProps(linkDrawBusinessObjectId),
     };
+    Object.assign(baseProps, getImagePickDraftProps(drawingShape, baseProps));
     if (tool.annotationType) {
       dispatch(setNewAnnotation({ ...baseProps, type: tool.annotationType }));
     } else {

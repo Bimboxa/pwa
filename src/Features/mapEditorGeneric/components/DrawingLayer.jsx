@@ -28,6 +28,7 @@ import {
 } from "Features/annotations/utils/revolutionAxisGlyph";
 
 import theme from "Styles/theme";
+import getImageAnnotationSizeInBaseMapPx from "Features/imageAnnotations/utils/getImageAnnotationSizeInBaseMapPx";
 
 // Number of samples per arc segment — mirrors NodePolylineStatic so the live
 // preview matches the committed render.
@@ -102,6 +103,7 @@ const DrawingLayer = forwardRef(
       enabledDrawingMode,
       containerK,
       meterByPx,
+      baseMapImageSize,
       baseMapImageScale = 1,
       isForBaseMaps = false,
       orthoSnapAngleOffset = 0,
@@ -120,6 +122,7 @@ const DrawingLayer = forwardRef(
     const previewLinearLayoutFillRef = useRef(null);
     const previewLinearLayoutTicksRef = useRef(null);
     const previewObject3DRef = useRef(null); // OBJECT_3D top-view ghost under the cursor
+    const previewImageRef = useRef(null); // IMAGE ghost under the cursor
     // Revolution axis preview — mirrors the NodeRevolutionAxisStatic glyph
     // (orange half-arc + black half-arc + diameter + centre dot).
     const previewRevAxisGroupRef = useRef(null);
@@ -157,6 +160,8 @@ const DrawingLayer = forwardRef(
 
     const meterByPxRef = useRef(meterByPx);
     meterByPxRef.current = meterByPx;
+    const baseMapImageSizeRef = useRef(baseMapImageSize);
+    baseMapImageSizeRef.current = baseMapImageSize;
 
     const rampWidthMRef = useRef(rampWidthM);
     rampWidthMRef.current = rampWidthM;
@@ -290,6 +295,12 @@ const DrawingLayer = forwardRef(
     const drawObject3D =
       enabledDrawingMode === "ONE_CLICK" && type === "OBJECT_3D";
     const object3DTopViewUrl = newAnnotation?.object3D?.topViewDataUrl;
+    // IMAGE placement: the image follows the cursor at its placement footprint
+    // (getImageAnnotationSizeInBaseMapPx). Fresh picks carry a blob: URL, drafts
+    // armed from a template only the persisted thumbnail (dataURL).
+    const drawImage = enabledDrawingMode === "ONE_CLICK" && type === "IMAGE";
+    const imageGhostUrl =
+      newAnnotation?.image?.imageUrlClient ?? newAnnotation?.image?.thumbnail;
 
     const firstPoint = points?.[0];
 
@@ -316,6 +327,27 @@ const DrawingLayer = forwardRef(
             previewObject3DRef.current.style.display = "block";
           } else {
             previewObject3DRef.current.style.display = "none";
+          }
+          return;
+        }
+
+        // IMAGE: same gesture as OBJECT_3D — ghost centred on the cursor.
+        if (drawImage && previewImageRef.current) {
+          const na = newAnnotationRef.current || {};
+          const size = getImageAnnotationSizeInBaseMapPx({
+            image: na.image,
+            meterByPx: na.meterByPx,
+            baseMapMeterByPx: meterByPxRef.current,
+            baseMapImageSize: baseMapImageSizeRef.current,
+          });
+          if (size) {
+            previewImageRef.current.setAttribute("x", cursorPos.x - size.width / 2);
+            previewImageRef.current.setAttribute("y", cursorPos.y - size.height / 2);
+            previewImageRef.current.setAttribute("width", size.width);
+            previewImageRef.current.setAttribute("height", size.height);
+            previewImageRef.current.style.display = "block";
+          } else {
+            previewImageRef.current.style.display = "none";
           }
           return;
         }
@@ -948,6 +980,18 @@ const DrawingLayer = forwardRef(
           <image
             ref={previewObject3DRef}
             href={object3DTopViewUrl}
+            preserveAspectRatio="none"
+            opacity={0.6}
+            style={{ display: "none", pointerEvents: "none" }}
+          />
+        )}
+
+        {/* A000'. IMAGE ghost — the annotation image under the cursor, at its
+            placement footprint. */}
+        {drawImage && imageGhostUrl && (
+          <image
+            ref={previewImageRef}
+            href={imageGhostUrl}
             preserveAspectRatio="none"
             opacity={0.6}
             style={{ display: "none", pointerEvents: "none" }}

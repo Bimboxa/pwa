@@ -4,7 +4,7 @@ import { useSelector, useDispatch } from "react-redux";
 import { nanoid } from "@reduxjs/toolkit";
 
 
-import { setAnchorPositionScale, setScaleInPx, setAngleInRad } from "../mapEditorSlice";
+import { setAnchorPositionScale, setScaleInPx, setAngleInRad, setImageScaleDraft } from "../mapEditorSlice";
 import { setEnabledDrawingMode } from "../mapEditorSlice";
 import { setTempAnnotations, triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice";
 import { setBaseMapPoseInBg, setLegendFormat } from "../mapEditorSlice";
@@ -87,6 +87,8 @@ import DialogDeleteSelectedAnnotation from "Features/annotations/components/Dial
 import PopperEditAnnotation from "./PopperEditAnnotation";
 import PopperEditAnnotations from "./PopperEditAnnotations";
 import PopperEditScale from "./PopperEditScale";
+import PopperImageScale from "./PopperImageScale";
+import DialogChangeAnnotationImage from "Features/imageAnnotations/components/DialogChangeAnnotationImage";
 import PopperContextMenu from "Features/contextMenu/component/PopperContextMenu";
 import DialogAutoMigrateToMapEditorV3 from "./DialogAutoMigrateToMapEditorV3";
 import useSaveTempAnnotations from "Features/mapEditor/hooks/useSaveTempAnnotations";
@@ -140,7 +142,6 @@ import fitBoundsToViewport from "../utils/fitBoundsToViewport";
 import getAnnotationBounds from "../utils/getAnnotationBounds";
 import getAnnotationTemplateSizeInPx from "Features/annotations/utils/getAnnotationTemplateSizeInPx";
 import getRectangleRawPointsFromOnePoint from "Features/rectangles/utils/getRectangleRawPointsFromOnePoint";
-import getImageAnnotationRectanglePointsFromOnePoint from "Features/imageAnnotations/utils/getImageAnnotationRectanglePointsFromOnePoint";
 import getObject3DAnnotationRectanglePointsFromOnePoint from "Features/object3D/utils/getObject3DAnnotationRectanglePointsFromOnePoint";
 import imageUrlToPng from "Features/images/utils/imageUrlToPng";
 import useUserEmail from "Features/auth/hooks/useUserEmail";
@@ -242,6 +243,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     const spriteImage = useAnnotationSpriteImage();
     _track("spriteImage", spriteImage?.src);
     const enabledDrawingMode = useSelector((state) => state.mapEditor.enabledDrawingMode);
+    const imageScaleDraft = useSelector((state) => state.mapEditor.imageScaleDraft);
     _track("enabledDrawingMode", enabledDrawingMode);
     const mapEditorMode = useSelector((state) => state.mapEditor.mapEditorMode);
     const orthoSnapAngleOffset = useSelector((state) => state.mapEditor.orthoSnapAngleOffset);
@@ -631,15 +633,8 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
             options = { ...options ?? {}, drawRectangle: true }
         }
 
-        if (rawPoints.length === 1 && type === "IMAGE") {
-            const points = getImageAnnotationRectanglePointsFromOnePoint({
-                annotation: newAnnotation,
-                baseMapMeterByPx: baseMap?.getMeterByPx(),
-                point: rawPoints[0],
-            })
-            rawPoints = points;
-            options = { ...options ?? {}, drawRectangle: true }
-        }
+        // IMAGE: the 1-click → bbox conversion lives in useHandleCommitDrawing
+        // (the image may only be known once the IMAGE_PICK dialog resumes).
 
         if (rawPoints.length === 1 && type === "OBJECT_3D") {
             const points = getObject3DAnnotationRectanglePointsFromOnePoint({
@@ -991,6 +986,32 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     const handleResetCamera = () => {
         interactionLayerRef.current?.setCameraMatrix(defaultCameraMatrixRef.current);
     };
+    // IMAGE scale tool: the 2-click cote drawn on the image — keep it visible
+    // (temp polyline) and open the popper asking its real length.
+    const handleImageScaleCommit = (points, event) => {
+        const p1 = points[0];
+        const p2 = points[points.length - 1];
+        const lengthInPx = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+        dispatch(setTempAnnotations([{
+            id: nanoid(),
+            type: "POLYLINE",
+            points: [p1, p2],
+            strokeColor: theme.palette.secondary.main,
+            strokeWidth: 2,
+            strokeWidthUnit: "PX",
+            outOfSnapScope: true,
+            baseMapId: baseMap.id,
+            projectId,
+        }]));
+        dispatch(setImageScaleDraft({
+            ...(imageScaleDraft ?? {}),
+            points: [p1, p2],
+            lengthInPx,
+            anchorPosition: { x: event.clientX, y: event.clientY },
+        }));
+        dispatch(setEnabledDrawingMode(null));
+    };
+
 
     // handlers - move point
 
@@ -2034,6 +2055,9 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                         }
                         else if (["CIRCLE", "POLYLINE_CIRCLE", "POLYGON_CIRCLE", "CUT_CIRCLE"].includes(enabledDrawingMode)) {
                             return handleCommitDrawingFromCircle(points);
+                        else if (enabledDrawingMode === 'IMAGE_SCALE') {
+                            return handleImageScaleCommit(points, event);
+                        }
                         }
                         else if (enabledDrawingMode === "REVOLUTION_AXIS_PLAN") {
                             return handleCommitDrawingFromRevolutionAxis(points);
@@ -2266,6 +2290,8 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
             {/* <DialogAutoMigrateToMapEditorV3 /> */}
 
             <LayerTools />
+            <PopperImageScale viewerKey={forViewerKey} />
+            <DialogChangeAnnotationImage />
 
             {!versionCompareEnabled &&
                 !imageModeActive &&

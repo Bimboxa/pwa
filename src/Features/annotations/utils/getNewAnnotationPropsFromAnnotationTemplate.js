@@ -4,6 +4,7 @@ import {
   getAnnotationType,
   resolveDrawingShape,
 } from "Features/annotations/constants/drawingShapeConfig";
+import getImageRefFromEntityImage from "Features/imageAnnotations/utils/getImageRefFromEntityImage";
 
 // Toolbar-editable draft props remembered per template (see mapEditorSlice
 // draftPropsByTemplateId). Structural keys (id, type, points, listingId…) are
@@ -67,6 +68,13 @@ export default function getNewAnnotationPropsFromAnnotationTemplate(
     ) {
       props[key] = annotationTemplate[key];
     }
+  }
+
+  // IMAGE: the template comes hydrated (db.files row + blob: URL inside
+  // `image`); the draft must only carry the persistent reference.
+  if (props.image !== undefined) {
+    props.image = getImageRefFromEntityImage(props.image);
+    if (!props.image) delete props.image;
   }
 
   // Always copy certain structural keys

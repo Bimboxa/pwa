@@ -1,3 +1,5 @@
+import getImageRefFromEntityImage from "Features/imageAnnotations/utils/getImageRefFromEntityImage";
+
 export default function getAnnotationTemplateProps(annotationTemplate) {
   if (!annotationTemplate) return {};
 
@@ -7,7 +9,8 @@ export default function getAnnotationTemplateProps(annotationTemplate) {
   const props = {
     type: annotationTemplate?.type,
 
-    image: annotationTemplate?.image,
+    // Persistent reference only (hydrated templates carry the db.files row).
+    image: getImageRefFromEntityImage(annotationTemplate?.image) ?? undefined,
     label: annotationTemplate?.label,
     labelLegend: annotationTemplate?.labelLegend,
     groupLabel: annotationTemplate?.groupLabel,

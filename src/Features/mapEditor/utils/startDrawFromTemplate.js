@@ -3,6 +3,7 @@ import { setNewAnnotation } from "Features/annotations/annotationsSlice";
 import { setEnabledDrawingMode } from "Features/mapEditor/mapEditorSlice";
 
 import getNewAnnotationPropsFromAnnotationTemplate from "Features/annotations/utils/getNewAnnotationPropsFromAnnotationTemplate";
+import getImagePickDraftProps from "Features/imageAnnotations/utils/getImagePickDraftProps";
 import { resolveDrawingShape } from "Features/annotations/constants/drawingShapeConfig";
 import {
   getDrawingToolsByShape,
@@ -38,6 +39,10 @@ export default function startDrawFromTemplate(
     ...getNewAnnotationPropsFromAnnotationTemplate(template, rememberedProps),
     ...(extraProps ?? {}),
   };
+  Object.assign(
+    baseProps,
+    getImagePickDraftProps(resolveDrawingShape(template), baseProps)
+  );
   if (activeTool.annotationType) {
     dispatch(
       setNewAnnotation({ ...baseProps, type: activeTool.annotationType })

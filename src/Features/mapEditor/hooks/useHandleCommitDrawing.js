@@ -23,6 +23,7 @@ import db from "App/db/db";
 import getAnnotationTemplateFromNewAnnotation from "Features/annotations/utils/getAnnotationTemplateFromNewAnnotation";
 import imageUrlToPng from "Features/images/utils/imageUrlToPng";
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
+import getImageAnnotationRectanglePointsFromOnePoint from "Features/imageAnnotations/utils/getImageAnnotationRectanglePointsFromOnePoint";
 
 import resolvePoints from "Features/annotations/utils/resolvePoints";
 import resolveCuts from "Features/annotations/utils/resolveCuts";
@@ -135,13 +136,33 @@ export default function useHandleCommitDrawing({ annotations } = {}) {
 
         const closeLine = options?.closeLine;
         const cutHostId = options?.cutHostId;
-        const drawRectangle = options?.drawRectangle;
+        let drawRectangle = options?.drawRectangle;
         const skipTemplateCreation = options?.skipTemplateCreation;
         const detectedCuts = options?.detectedCuts; // from polygon auto-detection
 
         // newAnnotation
 
         const newAnnotation = options?.newAnnotation ?? newAnnotationInState
+
+        // IMAGE one-click placement: the click is the image centre; the two
+        // corners feed the bbox commit below. Done here (not in the editor)
+        // because the image may only arrive with the resumed deferred commit
+        // (IMAGE_PICK dialog). Without a scale on either side the image gets
+        // a readable default footprint.
+        if (rawPoints?.length === 1 && newAnnotation?.type === "IMAGE") {
+            const rectPoints = getImageAnnotationRectanglePointsFromOnePoint({
+                annotation: newAnnotation,
+                baseMapMeterByPx: baseMap?.getMeterByPx?.(),
+                baseMapImageSize: baseMap?.getImageSize?.(),
+                point: rawPoints[0],
+            });
+            if (!rectPoints) {
+                dispatch(setToaster({ message: "Aucune image pour cette annotation.", isError: true }));
+                return;
+            }
+            rawPoints = rectPoints;
+            drawRectangle = true;
+        }
 
         // AIT examples are transient geometry: intercept before any write,
         // template creation, merge, or scope-dependent drawing operation.

@@ -172,6 +172,14 @@ const mapEditorInitialState = {
   scaleAnnotationId: null,
   anchorPositionScale: null,
 
+  // IMAGE annotation tools (NodeImageToolbarOverlay)
+  // Scale by a 2-click cote drawn on the image (IMAGE_SCALE drawing mode):
+  // { annotationId, points?, lengthInPx?, anchorPosition? } — the popper
+  // opens once anchorPosition is set. Survives setEnabledDrawingMode(null).
+  imageScaleDraft: null,
+  // Annotation whose image is being replaced (DialogChangeAnnotationImage).
+  imageChangeAnnotationId: null,
+
   // latlng
   anchorPositionLatLng: null,
   latLng: null,
@@ -365,6 +373,13 @@ export const mapEditorSlice = createSlice({
     },
     setScaleAnnotationId: (state, action) => {
       state.scaleAnnotationId = action.payload;
+    },
+    // IMAGE annotation tools
+    setImageScaleDraft: (state, action) => {
+      state.imageScaleDraft = action.payload;
+    },
+    setImageChangeAnnotationId: (state, action) => {
+      state.imageChangeAnnotationId = action.payload;
     },
     // latlng
     setAnchorPositionLatLng: (state, action) => {
@@ -869,6 +884,8 @@ export const {
   setScaleInPx,
   setAngleInRad,
   setScaleAnnotationId,
+  setImageScaleDraft,
+  setImageChangeAnnotationId,
   //
   setAnchorPositionLatLng,
   setLatLng,

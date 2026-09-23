@@ -1,21 +1,24 @@
+import getImageAnnotationSizeInBaseMapPx from "./getImageAnnotationSizeInBaseMapPx";
+
+// One-click IMAGE placement: the click is the CENTRE of the image; the two
+// returned corners feed the `drawRectangle` bbox commit.
 export default function getImageAnnotationRectanglePointsFromOnePoint({
-    annotation,
-    baseMapMeterByPx,
-    point,
+  annotation,
+  baseMapMeterByPx,
+  baseMapImageSize,
+  point,
 }) {
+  const size = getImageAnnotationSizeInBaseMapPx({
+    image: annotation?.image,
+    meterByPx: annotation?.meterByPx,
+    baseMapMeterByPx,
+    baseMapImageSize,
+  });
+  if (!size) return null;
 
-    const annotationMeterByPx = annotation.meterByPx;
-    const annotationImageSize = annotation.image.imageSize;
-
-    const annotationWidthInBaseMap = annotationImageSize.width * annotationMeterByPx / baseMapMeterByPx;
-    const annotationHeightInBaseMap = annotationImageSize.height * annotationMeterByPx / baseMapMeterByPx;
-
-    const x1 = point.x - annotationWidthInBaseMap / 2;
-    const y1 = point.y - annotationHeightInBaseMap / 2;
-
-    const x2 = point.x + annotationWidthInBaseMap / 2;
-    const y2 = point.y + annotationHeightInBaseMap / 2;
-
-    return [{ x: x1, y: y1 }, { x: x2, y: y2 }];
-
+  const { width, height } = size;
+  return [
+    { x: point.x - width / 2, y: point.y - height / 2 },
+    { x: point.x + width / 2, y: point.y + height / 2 },
+  ];
 }

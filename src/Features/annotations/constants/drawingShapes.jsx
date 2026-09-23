@@ -96,6 +96,27 @@ const DRAWING_SHAPES = [
     ),
   },
   {
+    key: "IMAGE",
+    label: "Image",
+    icon: (
+      <SvgIcon fontSize="small" viewBox="0 0 20 20">
+        {/* picture frame with a sun and a hill */}
+        <rect
+          x="2"
+          y="3"
+          width="16"
+          height="14"
+          rx="2"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.5"
+        />
+        <circle cx="7" cy="8" r="1.8" fill="currentColor" />
+        <path d="M4 15 L9 10.5 L12 13 L14 11.5 L16 15 Z" fill="currentColor" />
+      </SvgIcon>
+    ),
+  },
+  {
     key: "POLYLINE",
     label: "Ligne",
     icon: (

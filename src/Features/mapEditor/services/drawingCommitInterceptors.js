@@ -1,5 +1,6 @@
 import findDetailBaseMap from "Features/baseMaps/services/findDetailBaseMap";
 import DialogCreateDetailBaseMapOnCommit from "Features/baseMaps/components/DialogCreateDetailBaseMapOnCommit";
+import DialogPickImageOnCommit from "Features/imageAnnotations/components/DialogPickImageOnCommit";
 
 import db from "App/db/db";
 import { setNewAnnotation } from "Features/annotations/annotationsSlice";
@@ -38,6 +39,21 @@ import linkAnnotationsToBusinessObjectService from "Features/businessObjects/ser
 // ---------------------------------------------------------------------------
 
 const registry = {
+  // IMAGE placement from a template without a default image: the click parks
+  // the commit and asks for the image (file / paste); the resumed draft carries
+  // the File, persisted by useCreateAnnotation → createEntity (db.files row
+  // with the annotation's listingId). A draft that already has an image
+  // (default image, or picked once when the tool stays armed) commits directly.
+  IMAGE_PICK: {
+    intercept: async ({ newAnnotation }) => {
+      if (newAnnotation?.image?.fileName || newAnnotation?.image?.file) {
+        return { proceed: {} };
+      }
+      return { openDialog: true };
+    },
+    DialogComponent: DialogPickImageOnCommit,
+  },
+
   // "Ajouter au fond de plan" from the resources PDF viewer (BASE_MAPS
   // module): a DETAIL placement click links the annotation to the detail
   // baseMap of the armed PDF page. Page already materialized → direct commit;
