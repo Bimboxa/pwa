@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useDispatch } from "react-redux";
 
 import { setVectorization, updateMessageById } from "../chatSlice";
@@ -27,6 +27,8 @@ import ChatText from "./ChatText";
 import ChatVectorizationCard from "./ChatVectorizationCard";
 import { saveVectorizationPointer } from "Features/assistantRelay/utils/vectorizationPointer";
 
+import stringifyFileSize from "Features/files/utils/stringifyFileSize";
+
 const ORDER = ["queued", "analyzing", "ready", "importing", "completed"];
 const FAILED_AT = {
   analysis: 1,
@@ -50,7 +52,7 @@ function buildSteps(message) {
       ? ` (${run.annotationCount} annotations, ${run.templateCount ?? 0} modèles)`
       : "";
   const labels = [
-    "PDF reçu",
+    `PDF reçu — ${stringifyFileSize(message.pdfByteSize) || "taille inconnue"}`,
     `Analyse par le modèle${run.model ? ` (${run.model})` : ""}`,
     `Résultat vérifié${counts}`,
     run.target?.existingBaseMap
@@ -91,6 +93,66 @@ function StepIcon({ state }) {
   return <TodoIcon fontSize="small" color="disabled" />;
 }
 
+// Keep the clock local so long model messages do not render every second.
+function VectorizationActivity({ run }) {
+  const [now, setNow] = useState(Date.now);
+  const analysing = run.status === "queued" || run.status === "analyzing";
+  const running = analysing || run.status === "importing";
+
+  useEffect(() => {
+    if (!running) return;
+    setNow(Date.now());
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, [running, run.runId]);
+
+  const start = Date.parse(run.createdAt);
+  const end = running ? now : Date.parse(run.updatedAt);
+  const seconds = Math.max(0, Math.floor((end - start) / 1000));
+  const elapsed = Number.isFinite(seconds)
+    ? `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`
+    : null;
+
+  if (!analysing && !elapsed) return null;
+  return (
+    <Stack
+      direction="row"
+      spacing={1}
+      alignItems="center"
+      sx={{ mt: 1, color: "text.secondary" }}
+    >
+      {analysing ? (
+        <Stack direction="row" spacing={0.75} alignItems="center" role="status">
+          <CircularProgress
+            size={12}
+            thickness={5}
+            color="inherit"
+            aria-hidden="true"
+            sx={{
+              "@media (prefers-reduced-motion: reduce)": {
+                animation: "none",
+                "& .MuiCircularProgress-circle": { animation: "none" },
+              },
+            }}
+          />
+          <Typography variant="body2">krtographing...</Typography>
+        </Stack>
+      ) : null}
+      {elapsed ? (
+        <Typography
+          variant="body2"
+          component="span"
+          role="timer"
+          aria-label="Temps écoulé"
+          sx={{ fontVariantNumeric: "tabular-nums" }}
+        >
+          {elapsed}
+        </Typography>
+      ) : null}
+    </Stack>
+  );
+}
+
 export default function ChatMessageVectorization({ message }) {
   const dispatch = useDispatch();
   const [busy, setBusy] = useState(false);
@@ -115,6 +177,7 @@ export default function ChatMessageVectorization({ message }) {
         const pointer = {
           runId: next.runId,
           messageId: message.id,
+          pdfByteSize: message.pdfByteSize,
           target: next.target ?? {},
         };
         saveVectorizationPointer(pointer);
@@ -190,6 +253,8 @@ export default function ChatMessageVectorization({ message }) {
             </Stack>
           ))}
         </Stack>
+
+        <VectorizationActivity run={run} />
 
         {message.content ? (
           <ChatText text={cleanModelText(message.content)} sx={{ mt: 1.5 }} />

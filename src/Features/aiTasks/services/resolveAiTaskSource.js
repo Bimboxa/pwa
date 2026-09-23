@@ -1,6 +1,9 @@
 import db from "App/db/db";
 import { buildBaseMapContext } from "Features/assistantRelay/services/publishBaseMapSnapshotService";
-import { uploadRelayPdf } from "Features/assistantRelay/services/assistantRelayClient";
+import {
+  fetchBaseMapJob,
+  uploadRelayPdf,
+} from "Features/assistantRelay/services/assistantRelayClient";
 
 import { describeAiTaskSource } from "../utils/aiTaskSource";
 
@@ -19,6 +22,11 @@ export default async function resolveAiTaskSource({
     relay.relayBaseUrl.replace(/\/+$/, "") ===
       config?.relayBaseUrl?.replace(/\/+$/, "");
   let pdfId = sameRelay ? relay?.sourcePdfId : null;
+  let pdfByteSize = null;
+  if (pdfId && relay?.baseMapJobId) {
+    const job = await fetchBaseMapJob(relay.baseMapJobId);
+    pdfByteSize = job.pdf?.byteSize ?? null;
+  }
   if (!pdfId) {
     const resource = cf.resourceId
       ? await db.resources.get(cf.resourceId)
@@ -38,9 +46,11 @@ export default async function resolveAiTaskSource({
       })
     );
     pdfId = uploaded.pdfId;
+    pdfByteSize = uploaded.byteSize;
   }
   return {
     pdfId,
+    pdfByteSize,
     pageNumber: source.frame.pageNumber,
     existingBaseMap: {
       context: {

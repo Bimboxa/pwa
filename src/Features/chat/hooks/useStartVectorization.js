@@ -53,6 +53,7 @@ export default function useStartVectorization() {
           setPendingPdf({
             status: "ready",
             pdfId: pdf.pdfId,
+            pdfByteSize: pdf.byteSize ?? file.size,
             fileName: pdf.fileName ?? file.name,
             pageCount: pdf.pageCount ?? 1,
             pageNumber: 1,
@@ -60,6 +61,16 @@ export default function useStartVectorization() {
         );
       } catch (e) {
         console.log("[chat] pdf upload failed", e);
+        if (e?.code === "EMPTY_PDF") {
+          dispatch(
+            addMessage({
+              id: uuidv4(),
+              role: "assistant",
+              content: "",
+              error: describeRelayError(e),
+            })
+          );
+        }
         dispatch(
           setPendingPdf({
             status: "error",
@@ -120,11 +131,17 @@ export default function useStartVectorization() {
             id: messageId,
             role: "assistant",
             type: "vectorization",
+            pdfByteSize: pendingPdf.pdfByteSize,
             content: "",
             run,
           })
         );
-        const pointer = { runId: run.runId, messageId, target };
+        const pointer = {
+          runId: run.runId,
+          messageId,
+          target,
+          pdfByteSize: pendingPdf.pdfByteSize,
+        };
         saveVectorizationPointer(pointer);
         dispatch(setVectorization(pointer));
         dispatch(setPendingPdf(null));

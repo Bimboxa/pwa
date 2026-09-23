@@ -58,6 +58,7 @@ export default function useVectorizationRunRuntime({ connected, refresh }) {
             id: saved.messageId,
             role: "assistant",
             type: "vectorization",
+            pdfByteSize: saved.pdfByteSize,
             content: current.summary ?? "",
             run: current,
           })

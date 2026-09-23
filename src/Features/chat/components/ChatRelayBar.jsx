@@ -29,6 +29,11 @@ function getConnectionHelp(code, mode) {
       ? "Le serveur IA n’a pas accepté le jeton de votre session. Il peut être expiré, ou le serveur peut utiliser un autre mode de connexion ou une configuration JWT différente. Reconnectez-vous à l’application, puis vérifiez le mode JWT et l’adresse du serveur dans Configuration → Serveur Chat. Si le refus persiste, l’administrateur doit vérifier le mode JWT du serveur et les valeurs JWT_KEY, JWT_ISSUER et JWT_AUDIENCE, qui doivent correspondre à celles du service de connexion. La réponse du serveur ne précise pas la cause exacte."
       : "Le serveur IA n’a pas accepté la clé d’appairage. Vérifiez l’adresse du serveur et le mode PWA_KEY dans Configuration → Serveur Chat, puis saisissez la clé fournie par l’administrateur. Celui-ci doit vérifier que le serveur utilise le mode shared-token et que la clé correspond à son PWA_TOKEN. La réponse du serveur ne précise pas la cause exacte.";
   }
+  if (code === "APPLICATION_CONTEXT_REQUIRED") {
+    return mode === "PWA_KEY"
+      ? "Le serveur attend une session JWT, mais le Chat utilise le mode Debug. Choisissez Production dans Configuration → Serveur Chat, ou configurez le serveur avec PWA_AUTH_MODE=shared-token pour utiliser la clé."
+      : "Le serveur attend le contexte utilisateur et projet. Reconnectez-vous à l’application et sélectionnez votre projet.";
+  }
   if (code === "NETWORK") {
     return "La PWA n’arrive pas à joindre le serveur IA. Vérifiez votre connexion et l’adresse dans Configuration → Serveur Chat. Si le serveur est accessible, l’administrateur doit vérifier qu’il autorise les connexions depuis cette application (CORS).";
   }
@@ -47,7 +52,6 @@ export default function ChatRelayBar({ editing, onEditingChange }) {
 
   const keyLabelS = "Clé du serveur IA";
   const connectS = "Connecter";
-  const forgetS = "Oublier la clé";
   const hintS =
     "La clé est conservée sur cet appareil (Configuration → Serveur Chat).";
 
@@ -119,19 +123,23 @@ export default function ChatRelayBar({ editing, onEditingChange }) {
     onEditingChange?.(false);
   }
 
-  function handleForget() {
-    setToken("");
-    onEditingChange?.(false);
-  }
-
   // render
 
-  const showKeyForm =
-    mode === "PWA_KEY" && (!token || editing || connectionStatus === "error");
+  const showKeyForm = mode === "PWA_KEY" && !token;
+  const showSavedKeyInfo = mode === "PWA_KEY" && Boolean(token) && editing;
+  const showConnectionError =
+    connectionStatus === "error" && Boolean(connectionError);
   const showSessionInfo =
     mode !== "PWA_KEY" && (!token || editing || connectionStatus === "error");
   const showModelsError = connected && Boolean(modelsError);
-  if (!showKeyForm && !showModelsError && !showSessionInfo) return null;
+  if (
+    !showKeyForm &&
+    !showModelsError &&
+    !showSessionInfo &&
+    !showSavedKeyInfo &&
+    !showConnectionError
+  )
+    return null;
 
   return (
     <Box
@@ -181,15 +189,14 @@ export default function ChatRelayBar({ editing, onEditingChange }) {
           </Button>
         </Box>
       ) : null}
-      {showKeyForm && token ? (
-        <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-          <Button size="small" color="inherit" onClick={handleForget}>
-            {forgetS}
-          </Button>
-        </Box>
+      {showSavedKeyInfo ? (
+        <Typography variant="caption" color="text.secondary">
+          Clé enregistrée. Pour la modifier, ouvrez Configuration → Serveur
+          Chat.
+        </Typography>
       ) : null}
 
-      {connectionStatus === "error" && connectionError ? (
+      {showConnectionError ? (
         <Box>
           <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
             <Typography variant="caption" color="error">

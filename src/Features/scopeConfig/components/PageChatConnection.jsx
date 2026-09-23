@@ -15,6 +15,7 @@ import {
   Alert,
   Box,
   Button,
+  Chip,
   TextField,
   ToggleButton,
   ToggleButtonGroup,
@@ -24,6 +25,8 @@ import {
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 import WhiteSectionTitle from "Features/form/components/WhiteSectionTitle";
 import PageConfigLayout from "./PageConfigLayout";
+import useAssistantRelayToken from "Features/assistantRelay/hooks/useAssistantRelayToken";
+import useAssistantRelaySession from "Features/assistantRelay/hooks/useAssistantRelaySession";
 
 import setChatConnectionInLocalStorage from "Features/appConfig/services/setChatConnectionInLocalStorage";
 import {
@@ -45,6 +48,12 @@ export default function PageChatConnection() {
   const baseUrl = useSelector(selectRelayBaseUrl);
   const saved = useSelector(selectSavedChatConnection);
   const pairingKey = useSelector((s) => s.assistantRelay.token);
+  useAssistantRelayToken();
+  const { connected, connectionStatus, connectionError, refresh } =
+    useAssistantRelaySession();
+  const connectionErrorCode = useSelector(
+    (s) => s.assistantRelay.connectionErrorCode
+  );
 
   // state
 
@@ -70,6 +79,27 @@ export default function PageChatConnection() {
   const isDebug = draftMode === "PWA_KEY";
   const canSave = Boolean(draftUrl.trim()) && (!isDebug || draftKey.trim());
 
+  const hasUnsavedChanges =
+    draftMode !== mode ||
+    draftUrl.trim().replace(/\/+$/, "") !== baseUrl ||
+    (isDebug && draftKey.trim() !== (pairingKey ?? ""));
+  const statusLabel = hasUnsavedChanges
+    ? "Modifications non enregistrées"
+    : connectionStatus === "checking"
+      ? "Connexion en cours…"
+      : connected
+        ? "Connexion établie"
+        : connectionStatus === "error"
+          ? "Connexion impossible"
+          : "Non connecté";
+  const statusColor = hasUnsavedChanges
+    ? "default"
+    : connected
+      ? "success"
+      : connectionStatus === "error"
+        ? "error"
+        : "default";
+
   // handlers
 
   function handleModeChange(_, value) {
@@ -86,6 +116,9 @@ export default function PageChatConnection() {
         dispatch(setAssistantRelayToken(writePairingKey(draftKey)));
       setChatConnectionInLocalStorage(connection);
       dispatch(setChatConnection(connection));
+      // Changed credentials/config reconnect through the session hook.
+      // Saving unchanged settings also retries a failed connection.
+      if (!reset && !hasUnsavedChanges) void refresh();
     } catch (e) {
       setError(e.message || "Enregistrement impossible.");
     }
@@ -140,6 +173,17 @@ export default function PageChatConnection() {
               ? "Réglages enregistrés sur cet appareil."
               : "Valeurs par défaut de l’organisation."}
           </Typography>
+          <Box role="status" aria-live="polite">
+            <Chip size="small" label={statusLabel} color={statusColor} />
+          </Box>
+          {!hasUnsavedChanges && connectionStatus === "error" && (
+            <Alert severity="error">
+              {mode === "PWA_KEY" &&
+              connectionErrorCode === "APPLICATION_CONTEXT_REQUIRED"
+                ? "Le serveur attend une session JWT. Choisissez Production, ou configurez le serveur avec PWA_AUTH_MODE=shared-token pour utiliser le mode Debug."
+                : connectionError}
+            </Alert>
+          )}
           {error && <Alert severity="error">{error}</Alert>}
           <Box
             sx={{

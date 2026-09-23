@@ -233,6 +233,13 @@ export function undoLiveJob(jobId) {
 
 // Raw PDF body (no JSON, no multipart). Returns { pdfId, pageCount, pages }.
 export async function uploadRelayPdf(file) {
+  if (file?.size === 0) {
+    throw new AssistantRelayError(
+      "EMPTY_PDF",
+      400,
+      describeRelayError({ code: "EMPTY_PDF" })
+    );
+  }
   const baseUrl = getRelayBaseUrl();
   const token = getToken();
   const identityHeaders = selectRelayIdentityHeaders(store.getState());
@@ -431,6 +438,8 @@ export function describeRelayError(e) {
     JOB_NOT_FOUND: "Proposition introuvable sur le relai.",
     JOB_ALREADY_RESOLVED: "Proposition déjà traitée.",
     UPSTREAM_FAILED: "Erreur de stockage côté relai.",
+    EMPTY_PDF:
+      "Le fichier PDF est vide (0 octet). Envoi annulé. Sélectionnez un PDF non vide.",
     PDF_NOT_FOUND: "PDF introuvable sur le relai.",
     PREVIEW_NOT_FOUND: "Aperçu indisponible.",
     SNAPSHOT_NOT_FOUND: "Fond de plan publié introuvable sur le relai.",

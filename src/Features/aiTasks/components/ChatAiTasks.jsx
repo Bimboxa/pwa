@@ -38,7 +38,10 @@ import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemp
 import useListings from "Features/listings/hooks/useListings";
 import useListingsByScope from "Features/listings/hooks/useListingsByScope";
 import useAssistantRelayConfig from "Features/assistantRelay/hooks/useAssistantRelayConfig";
-import { createVectorization } from "Features/assistantRelay/services/assistantRelayClient";
+import {
+  createVectorization,
+  describeRelayError,
+} from "Features/assistantRelay/services/assistantRelayClient";
 import { saveVectorizationPointer } from "Features/assistantRelay/utils/vectorizationPointer";
 import resolveAiTaskSource from "../services/resolveAiTaskSource";
 import prepareAiTaskDestination from "../services/prepareAiTaskDestination";
@@ -100,6 +103,7 @@ export default function ChatAiTasks() {
   // A launch frozen before its first network request is reused after an
   // uncertain response; editable UI drafts cannot alter that pending launch.
   const launchRef = useRef(null);
+  const pdfByteSizeRef = useRef(null);
   const destinationRef = useRef(null);
   const [launchLocked, setLaunchLocked] = useState(false);
   const sensors = useSensors(
@@ -324,6 +328,7 @@ export default function ChatAiTasks() {
           listingId: listingId === "new" ? null : listingId,
           config,
         });
+        pdfByteSizeRef.current = source.pdfByteSize;
         const current = currentContext.current;
         if (
           current.projectId !== selection.projectId ||
@@ -395,13 +400,19 @@ export default function ChatAiTasks() {
           id: messageId,
           role: "assistant",
           type: "vectorization",
+          pdfByteSize: pdfByteSizeRef.current,
           content: "",
           run,
           confirmed: true,
           baseMapId: selection.baseMap.id,
         })
       );
-      const pointer = { runId: run.runId, messageId, target: run.target };
+      const pointer = {
+        runId: run.runId,
+        messageId,
+        target: run.target,
+        pdfByteSize: pdfByteSizeRef.current,
+      };
       saveVectorizationPointer(pointer);
       dispatch(setVectorization(pointer));
       setPanelOpen(false);
@@ -435,7 +446,17 @@ export default function ChatAiTasks() {
           clientRequestId: uuidv4(),
         }));
       }
-      setError(e.message ?? "Impossible de lancer la tâche.");
+      const error = e?.code
+        ? describeRelayError(e)
+        : (e.message ?? "Impossible de lancer la tâche.");
+      setError(error);
+      if (e?.code === "EMPTY_PDF") {
+        dispatch(
+          addMessage({ id: uuidv4(), role: "assistant", content: "", error })
+        );
+        setPanelOpen(false);
+        setSelection(null);
+      }
     } finally {
       submitting.current = false;
       setBusy(false);
