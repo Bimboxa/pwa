@@ -32,17 +32,27 @@ const WALL_SEAM_DIHEDRAL_DEG = 15;
 // keep the original stroke opacity. Near-coplanar cluster boundaries (below
 // WALL_SEAM_DIHEDRAL_DEG) are suppressed entirely. Falls back to EdgesGeometry
 // when the extraction is unusable.
-// Exported for the carve pipeline (subtractAnnotationGeometries), which
-// rebuilds wall edges from the carved geometry with this same extraction.
-// The returned LineSegments is tagged and carries a per-call material clone
-// (safe to dispose — never the module singleton).
-export function buildWallEdges(geom) {
-  const positions = extractPlanarSketchEdges(geom, {
-    seamDihedralDeg: WALL_SEAM_DIHEDRAL_DEG,
-  });
+// Exported for the carve pipeline (subtractAnnotationGeometries) and the
+// Wireframe settings, which rebuild edges from CSG-carved geometry (triangle
+// soup with T-junctions) with this same extraction. Options:
+// - seamDihedralDeg: seam suppression threshold (default: wall seams).
+// - kind: userData.gridEdgeKind written on the lines (default WALL_PLANAR).
+// - material: reused as-is (never disposed here); when omitted the lines carry
+//   a per-call clone of the module singleton (safe to dispose).
+export function buildWallEdges(
+  geom,
+  {
+    seamDihedralDeg = WALL_SEAM_DIHEDRAL_DEG,
+    kind = "WALL_PLANAR",
+    material,
+  } = {}
+) {
+  const lineMaterial = material ?? EDGE_MATERIAL.clone();
+  const positions = extractPlanarSketchEdges(geom, { seamDihedralDeg });
   if (!positions?.length) {
     return tagWallEdges(
-      new LineSegments(new EdgesGeometry(geom), EDGE_MATERIAL.clone())
+      new LineSegments(new EdgesGeometry(geom, seamDihedralDeg), lineMaterial),
+      kind
     );
   }
   const deduped = [];
@@ -58,11 +68,11 @@ export function buildWallEdges(geom) {
   }
   const edgeGeom = new BufferGeometry();
   edgeGeom.setAttribute("position", new Float32BufferAttribute(deduped, 3));
-  return tagWallEdges(new LineSegments(edgeGeom, EDGE_MATERIAL.clone()));
+  return tagWallEdges(new LineSegments(edgeGeom, lineMaterial), kind);
 }
 
-function tagWallEdges(lines) {
-  lines.userData = { isGridEdge: true, gridEdgeKind: "WALL_PLANAR" };
+function tagWallEdges(lines, kind = "WALL_PLANAR") {
+  lines.userData = { isGridEdge: true, gridEdgeKind: kind };
   lines.raycast = () => {};
   return lines;
 }

@@ -1,4 +1,4 @@
-import { EdgesGeometry, LineSegments, Matrix4 } from "three";
+import { Matrix4 } from "three";
 import {
   Brush,
   Evaluator,
@@ -134,75 +134,72 @@ export default function subtractAnnotationGeometries(
     }
     if (!didSubtract) return sourceObject;
 
-    // Remove stale decoration children (edges / iso lines drawn from the
-    // original, un-carved outline), keeping every carved mesh (or any child
-    // whose subtree holds one). Grid-edge lines (userData.isGridEdge, tagged
-    // by the builders) are remembered so they can be rebuilt from the carved
-    // geometry below; the first one's material is reused for the rebuild.
-    let removedEdgeInfo = null;
-    const captureEdge = (child) => {
-      if (removedEdgeInfo) return false;
-      removedEdgeInfo = {
-        material: child.material,
-        kind: child.userData.gridEdgeKind,
-      };
-      return true;
+    // Remove stale decoration children (iso lines drawn from the original,
+    // un-carved outline) among the direct children, keeping every carved mesh
+    // (or any child whose subtree holds one).
+    const keep = new Set(sourceMeshes);
+    const holdsCarvedMesh = (obj) => {
+      let found = false;
+      obj.traverse?.((c) => {
+        if (keep.has(c)) found = true;
+      });
+      return found;
     };
-    if (sourceObject.children) {
-      const keep = new Set(sourceMeshes);
-      const holdsCarvedMesh = (obj) => {
-        let found = false;
-        obj.traverse?.((c) => {
-          if (keep.has(c)) found = true;
-        });
-        return found;
-      };
-      const toRemove = sourceObject.children.filter((c) => !holdsCarvedMesh(c));
-      for (const child of toRemove) {
-        child.geometry?.dispose?.();
-        if (!(child.userData?.isGridEdge && captureEdge(child))) {
-          child.material?.dispose?.();
-        }
-        sourceObject.remove(child);
-      }
+    for (const child of (sourceObject.children || []).filter(
+      (c) => !holdsCarvedMesh(c)
+    )) {
+      if (child.userData?.isGridEdge) continue; // handled below
+      child.geometry?.dispose?.();
+      child.material?.dispose?.();
+      sourceObject.remove(child);
     }
-    // Also purge grid edges rebuilt by a previous carve of this same object
-    // (those hang under the carved meshes, so the strip above keeps them).
-    for (const sourceMesh of sourceMeshes) {
-      const stale = (sourceMesh.children || []).filter(
-        (c) => c.userData?.isGridEdge
-      );
-      for (const child of stale) {
-        child.geometry?.dispose?.();
-        if (!captureEdge(child)) child.material?.dispose?.();
-        sourceMesh.remove(child);
+
+    // Purge every grid-edge line (userData.isGridEdge, tagged by the builders)
+    // at ANY depth: a direct child of the builder group, a grandchild when the
+    // builder nests groups (open STRIP = one wall group per chunk), or a child
+    // of a carved mesh (rebuilt by a previous carve of this same object).
+    // They all trace the un-carved outline. The first one's material and
+    // kind are remembered so the edges can be rebuilt from the carved
+    // geometry below.
+    let removedEdgeInfo = null;
+    const staleEdges = [];
+    sourceObject.traverse?.((c) => {
+      if (c !== sourceObject && c.userData?.isGridEdge) staleEdges.push(c);
+    });
+    for (const child of staleEdges) {
+      child.geometry?.dispose?.();
+      if (removedEdgeInfo) {
+        child.material?.dispose?.();
+      } else {
+        removedEdgeInfo = {
+          material: child.material,
+          kind: child.userData.gridEdgeKind,
+        };
       }
+      child.parent?.remove(child);
     }
 
     // Rebuild the black grid/outline from the carved geometry (only when the
     // un-carved object had one — e.g. per-vertex-Z surfaces stay edge-free).
     // Skipped by headless callers (quantities) via options.rebuildEdges.
+    // The carved geometry is a triangle soup with T-junctions, so a raw
+    // EdgesGeometry would slash diagonals across flat faces: buildWallEdges
+    // coalesces coplanar faces first. "EDGES" lines keep the 1° default
+    // threshold of EdgesGeometry so arc facets stay drawn as before.
     // Attached as a CHILD of the carved mesh: the carved geometry is in the
     // mesh's local frame, so an identity-transform child lands exactly on the
-    // surface — and it survives the strip on a later re-carve.
+    // surface — and it is found again by the purge on a later re-carve.
     if (options.rebuildEdges && removedEdgeInfo) {
+      const { kind, material } = removedEdgeInfo;
+      const seamDihedralDeg = kind === "WALL_PLANAR" ? undefined : 1;
       for (const sourceMesh of sourceMeshes) {
-        let edges;
-        if (removedEdgeInfo.kind === "WALL_PLANAR") {
-          edges = buildWallEdges(sourceMesh.geometry);
-          edges.material.dispose();
-          edges.material = removedEdgeInfo.material;
-        } else {
-          edges = new LineSegments(
-            new EdgesGeometry(sourceMesh.geometry),
-            removedEdgeInfo.material
-          );
-          edges.userData = {
-            isGridEdge: true,
-            gridEdgeKind: removedEdgeInfo.kind,
-          };
-          edges.raycast = () => {};
-        }
+        const edges = buildWallEdges(sourceMesh.geometry, {
+          kind,
+          material,
+          seamDihedralDeg,
+        });
+        edges.userData.sourceMesh = sourceMesh;
+        edges.userData.appliedThresholdDeg = seamDihedralDeg ?? 1;
         sourceMesh.add(edges);
       }
     }
