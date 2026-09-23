@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { v4 as uuidv4 } from "uuid";
 
@@ -11,8 +11,15 @@ import {
   updateMessageById,
 } from "../chatSlice";
 
+import { updateChatProgress } from "../utils/chatProgress";
+import resolveAiTaskSource from "Features/aiTasks/services/resolveAiTaskSource";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
+import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
+import {
+  buildExistingAnnotations,
+  getVisibleListingTemplates,
+} from "../utils/buildAutoDetectionContext";
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
 import useAssistantRelayConfig from "Features/assistantRelay/hooks/useAssistantRelayConfig";
 import buildBaseMapSnapshotImage from "Features/assistantRelay/services/buildBaseMapSnapshotImage";
@@ -34,6 +41,13 @@ export default function useSendChatTurn() {
   const mainBaseMap = useMainBaseMap();
   const { value: listing } = useSelectedListing();
   const templates = useAnnotationTemplates();
+  const annotations = useAnnotationsV2({
+    caller: "useSendChatTurn",
+    enabled: Boolean(mainBaseMap?.id && listing?.id),
+    filterByMainBaseMap: true,
+    filterBySelectedListing: true,
+    filterBySelectedScope: true,
+  });
 
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const scopeId = useSelector((s) => s.scopes.selectedScopeId);
@@ -51,23 +65,33 @@ export default function useSendChatTurn() {
   const sessionId = useSelector((s) => s.chat.sessionId);
   const sessionRef = useRef(sessionId);
   const abortRef = useRef(null);
+  const stopRef = useRef(null);
+  const [pausedTurn, setPausedTurn] = useState(null);
+  const stopChatTurn = useCallback(() => stopRef.current?.(), []);
   useEffect(() => {
     sessionRef.current = sessionId;
     abortRef.current?.abort();
     abortRef.current = null;
+    stopRef.current = null;
+    setPausedTurn(null);
   }, [sessionId]);
+  useEffect(() => () => abortRef.current?.abort(), []);
 
-  return useCallback(
+  const sendChatTurn = useCallback(
     // images: pictures attached to the message (prepareChatImage).
-    async (text, { images = [] } = {}) => {
+    async (text, { images = [], autoDetect = false, interruptedTurn } = {}) => {
       const message = (text ?? "").trim();
       if (!message || busy.current) return { ok: false };
       busy.current = true;
+      setPausedTurn(null);
       const turnSession = sessionRef.current;
       const isStale = () => sessionRef.current !== turnSession;
       const controller = new AbortController();
       abortRef.current = controller;
       const messageId = uuidv4();
+      let assistantText = "";
+      let reasoningSummary = "";
+      const actions = new Map();
       dispatch(
         addMessage({
           id: uuidv4(),
@@ -101,12 +125,76 @@ export default function useSendChatTurn() {
         );
       };
       const setError = (error) => {
-        if (isStale()) return;
+        if (isStale() || controller.signal.aborted) return;
         ensureBubble();
         dispatch(updateMessageById({ id: messageId, changes: { error } }));
       };
 
+      let progress = { startedAt: Date.now(), stage: "preparing" };
+      const reportProgress = (event) => {
+        if (isStale() || controller.signal.aborted) return;
+        ensureBubble();
+        progress = updateChatProgress(
+          progress,
+          typeof event === "string" ? { stage: event } : event
+        );
+        dispatch(
+          updateMessageById({
+            id: messageId,
+            changes: { progress, planStatus: progress.planStatus },
+          })
+        );
+      };
+      reportProgress("preparing");
+
+      const stop = () => {
+        if (controller.signal.aborted || isStale()) return;
+        controller.abort();
+        ensureBubble();
+        dispatch(setIsThinking(false));
+        dispatch(
+          updateMessageById({
+            id: messageId,
+            changes: { stopped: true, progress: null },
+          })
+        );
+        setPausedTurn({
+          baseMapId: mainBaseMap?.id,
+          listingId: listing?.id,
+          options: {
+            images,
+            autoDetect,
+            interruptedTurn: {
+              request: interruptedTurn?.request ?? message,
+              assistantText: [interruptedTurn?.assistantText, assistantText]
+                .filter(Boolean)
+                .join("\n")
+                .slice(-64000),
+              actions: [
+                ...(interruptedTurn?.actions ?? []),
+                ...actions.values(),
+              ],
+            },
+          },
+        });
+      };
+      stopRef.current = stop;
+
       try {
+        const visibleTemplates = getVisibleListingTemplates(
+          templates,
+          listing?.id
+        );
+        if (
+          autoDetect &&
+          (!mainBaseMap?.id ||
+            !listing?.id ||
+            ((autoDetect === true || autoDetect.currentListing) &&
+              !visibleTemplates.length))
+        )
+          throw new Error(
+            "Sélectionnez un fond et une liste contenant des modèles visibles."
+          );
         let baseMap = null;
         if (mainBaseMap?.id) {
           baseMap = buildBaseMapContext({
@@ -114,21 +202,59 @@ export default function useSendChatTurn() {
             projectId,
             scopeId,
             listingId: listing?.id,
-            templates,
+            templates: autoDetect ? visibleTemplates : templates,
             config,
           });
         }
+
+        if (autoDetect && !baseMap?.meterByPx)
+          throw new Error(
+            "Calibrez le fond de plan avant de lancer le repérage automatique."
+          );
+
+        let planPdf;
+        if (autoDetect && mainBaseMap?.createdFrom?.type === "PDF_PAGE") {
+          try {
+            reportProgress("preparing_pdf");
+            const source = await resolveAiTaskSource({
+              baseMap: mainBaseMap,
+              projectId,
+              scopeId,
+              listingId: listing?.id,
+              config,
+              onProgress: reportProgress,
+            });
+            baseMap.sourcePdfId = source.pdfId;
+            baseMap.sourceFrame = source.existingBaseMap.context.sourceFrame;
+            planPdf = {
+              sourceImageSize: source.existingBaseMap.sourceImageSize,
+              transform: source.existingBaseMap.transform,
+            };
+          } catch (error) {
+            // Auto can still analyze the reference image if the original PDF
+            // is unavailable locally or cannot be resolved on the relay.
+            console.warn(
+              "[chat] source PDF unavailable; using plan image",
+              error
+            );
+          }
+        }
+        if (controller.signal.aborted || isStale()) return { ok: false };
 
         // The model asked to see the plan and the relay does not have this
         // picture yet.
         const sendImage = async (snapshotId) => {
           try {
+            reportProgress("preparing_image");
             const image = await buildBaseMapSnapshotImage({
               baseMap: mainBaseMap,
               maxLongEdge: config?.maxImageLongEdge ?? 1600,
               jpegQuality: config?.jpegQuality ?? 0.8,
             });
+            if (controller.signal.aborted || isStale()) return;
+            reportProgress("uploading_image");
             await uploadSnapshotImage(snapshotId, image);
+            reportProgress("image_ready");
           } catch (e) {
             console.log("[chat] plan picture upload failed", e);
             setError(
@@ -139,9 +265,12 @@ export default function useSendChatTurn() {
           }
         };
 
+        reportProgress("connecting");
         await streamChatTurn(
           {
             message,
+            autoDetect,
+            ...(planPdf ? { planPdf } : {}),
             sessionId: conversation.budgetSessionId,
             ...(conversation.sessionName
               ? { sessionName: conversation.sessionName }
@@ -162,18 +291,52 @@ export default function useSendChatTurn() {
                   })),
                 }
               : {}),
-            allowImage: !blockPlanImage,
+            allowImage: Boolean(autoDetect) || !blockPlanImage,
             imageKeyInConversation: conversation.imageKey,
             context: {
+              ...(interruptedTurn ? { interruptedTurn } : {}),
               listingName: listing?.name ?? null,
-              selectedTemplateId: selectedTemplateId ?? null,
+              selectedTemplateId: autoDetect
+                ? null
+                : (selectedTemplateId ?? null),
+              templateGuides: visibleTemplates.map((t) => ({
+                id: t.id,
+                description:
+                  typeof t.description === "string" ? t.description : "",
+              })),
+              existingAnnotations: buildExistingAnnotations(
+                annotations,
+                listing?.id,
+                mainBaseMap?.id
+              ),
             },
           },
           {
             signal: controller.signal,
             onEvent: (event) => {
-              if (isStale()) return;
-              if (event.type === "session") {
+              if (isStale() || controller.signal.aborted) return;
+              if (event.type === "progress") {
+                reportProgress(event);
+              } else if (event.type === "tokens") {
+                ensureBubble();
+                dispatch(
+                  updateMessageById({
+                    id: messageId,
+                    changes: { tokenUsage: event.usage },
+                  })
+                );
+              } else if (event.type === "reasoning") {
+                ensureBubble();
+                reasoningSummary = (reasoningSummary + event.delta).slice(
+                  -12000
+                );
+                dispatch(
+                  updateMessageById({
+                    id: messageId,
+                    changes: { reasoningSummary },
+                  })
+                );
+              } else if (event.type === "session") {
                 dispatch(
                   setConversation({
                     budgetSessionId: event.sessionId,
@@ -181,11 +344,24 @@ export default function useSendChatTurn() {
                   })
                 );
               } else if (event.type === "text") {
+                if (progress.stage !== "answering") reportProgress("answering");
+                assistantText += event.delta;
                 ensureBubble();
                 dispatch(
                   appendMessageContent({ id: messageId, delta: event.delta })
                 );
               } else if (event.type === "tool") {
+                if (
+                  event.phase === "started" &&
+                  event.name !== "request_plan_image"
+                )
+                  reportProgress("tools");
+                actions.set(event.callId, {
+                  name: event.name,
+                  phase: event.phase,
+                  jobId: event.jobId ?? null,
+                  liveStatus: event.liveStatus ?? null,
+                });
                 ensureBubble();
                 dispatch(
                   appendMessageAction({ id: messageId, toolAction: event })
@@ -217,15 +393,22 @@ export default function useSendChatTurn() {
             },
           }
         );
-        return { ok: true };
+        return { ok: !controller.signal.aborted };
       } catch (e) {
+        if (controller.signal.aborted) return { ok: false };
         console.log("[chat] turn failed", e);
         setError(e?.code ? describeRelayError(e) : e?.message);
         return { ok: false };
       } finally {
         busy.current = false;
         if (abortRef.current === controller) abortRef.current = null;
-        if (!isStale()) dispatch(setIsThinking(false));
+        if (stopRef.current === stop) stopRef.current = null;
+        if (!isStale()) {
+          dispatch(setIsThinking(false));
+          dispatch(
+            updateMessageById({ id: messageId, changes: { progress: null } })
+          );
+        }
       }
     },
     [
@@ -236,6 +419,7 @@ export default function useSendChatTurn() {
       scopeId,
       listing,
       templates,
+      annotations,
       conversation,
       blockPlanImage,
       levels,
@@ -243,4 +427,17 @@ export default function useSendChatTurn() {
       selectedTemplateId,
     ]
   );
+  const canResume = Boolean(
+    pausedTurn &&
+    pausedTurn.baseMapId === mainBaseMap?.id &&
+    pausedTurn.listingId === listing?.id
+  );
+  const resumeChatTurn = useCallback(() => {
+    if (!canResume) return Promise.resolve({ ok: false });
+    return sendChatTurn(
+      "Reprends la demande interrompue en tenant compte des résultats déjà reçus, sans répéter les actions effectuées.",
+      pausedTurn.options
+    );
+  }, [canResume, pausedTurn, sendChatTurn]);
+  return { sendChatTurn, stopChatTurn, resumeChatTurn, canResume };
 }

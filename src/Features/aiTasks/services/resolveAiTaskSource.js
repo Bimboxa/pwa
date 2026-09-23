@@ -13,6 +13,7 @@ export default async function resolveAiTaskSource({
   scopeId,
   listingId,
   config,
+  onProgress,
 }) {
   const source = describeAiTaskSource(baseMap);
   const cf = baseMap.createdFrom;
@@ -40,6 +41,7 @@ export default async function resolveAiTaskSource({
       throw new Error(
         "Le PDF source n’est pas téléchargé. Ouvrez-le dans les ressources avant de réessayer."
       );
+    onProgress?.("uploading_pdf");
     const uploaded = await uploadRelayPdf(
       new File([file.fileArrayBuffer], source.fileName, {
         type: "application/pdf",

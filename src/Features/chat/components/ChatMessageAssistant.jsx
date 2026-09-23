@@ -20,6 +20,8 @@ import {
   describeRelayError,
   undoLiveJob,
 } from "Features/assistantRelay/services/assistantRelayClient";
+import ChatTokenUsage from "./ChatTokenUsage";
+import ThinkingBubble from "./ThinkingBubble";
 import ChatText from "./ChatText";
 
 const TOOL_LABELS = {
@@ -38,7 +40,9 @@ const UNDOABLE = new Set([
   "create_annotation_listing",
 ]);
 
-function ActionIcon({ action }) {
+function ActionIcon({ action, stopped }) {
+  if (stopped && action.phase === "started")
+    return <PendingIcon fontSize="small" color="disabled" />;
   if (action.phase === "started")
     return <CircularProgress size={13} thickness={5} color="inherit" />;
   if (action.phase === "failed" || action.liveStatus === "failed")
@@ -48,8 +52,10 @@ function ActionIcon({ action }) {
   return <DoneIcon fontSize="small" color="success" />;
 }
 
-function actionText(action) {
+function actionText(action, stopped) {
   const label = TOOL_LABELS[action.name] ?? action.name;
+  if (stopped && action.phase === "started")
+    return `${label} — suivi interrompu`;
   if (action.undone) return `${label} — annulé`;
   if (action.phase === "started") return `${label}…`;
   if (action.liveStatus === "pending")
@@ -104,6 +110,15 @@ export default function ChatMessageAssistant({ message }) {
   // No bubble: tool lines in a muted tone, then the answer as plain text.
   return (
     <Box sx={{ minWidth: 0 }}>
+      {message.planStatus && (
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{ display: "block", mb: 0.5 }}
+        >
+          {message.planStatus}
+        </Typography>
+      )}
       {actions.length > 0 ? (
         <Stack spacing={0.25} sx={{ mb: message.content ? 1 : 0 }}>
           {actions.map((action) => (
@@ -122,10 +137,10 @@ export default function ChatMessageAssistant({ message }) {
                     flexShrink: 0,
                   }}
                 >
-                  <ActionIcon action={action} />
+                  <ActionIcon action={action} stopped={message.stopped} />
                 </Box>
                 <Typography variant="body2" color="inherit" sx={{ flex: 1 }}>
-                  {actionText(action)}
+                  {actionText(action, message.stopped)}
                 </Typography>
                 {UNDOABLE.has(action.name) &&
                 action.jobId &&
@@ -155,6 +170,25 @@ export default function ChatMessageAssistant({ message }) {
         </Stack>
       ) : null}
       {message.content ? <ChatText text={message.content} /> : null}
+      {message.progress && <ThinkingBubble progress={message.progress} />}
+      {message.tokenUsage && (
+        <ChatTokenUsage
+          usage={message.tokenUsage}
+          active={Boolean(message.progress)}
+        />
+      )}
+      {message.reasoningSummary && (
+        <Box component="details" sx={{ mt: 0.5, color: "text.secondary" }}>
+          <Typography
+            component="summary"
+            variant="caption"
+            sx={{ cursor: "pointer" }}
+          >
+            Résumé de réflexion
+          </Typography>
+          <ChatText text={message.reasoningSummary} />
+        </Box>
+      )}
       {message.durationMs != null ? (
         <Typography
           variant="caption"
@@ -163,6 +197,11 @@ export default function ChatMessageAssistant({ message }) {
         >
           {(message.durationMs / 1000).toFixed(1)} s
           {message.models?.length ? ` · ${message.models.join(" → ")}` : ""}
+        </Typography>
+      ) : null}
+      {message.stopped ? (
+        <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+          Réponse interrompue.
         </Typography>
       ) : null}
       {message.error ? (

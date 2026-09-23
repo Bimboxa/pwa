@@ -1,28 +1,47 @@
-import { Box } from "@mui/material";
-import { keyframes } from "@mui/system";
+import { useEffect, useState } from "react";
+import { CircularProgress, Stack, Typography } from "@mui/material";
+import { CHAT_PROGRESS_LABELS, formatChatElapsed } from "../utils/chatProgress";
 
-const pulse = keyframes`
-  0%, 100% { transform: scale(0.7); opacity: 0.45; }
-  50% { transform: scale(1); opacity: 1; }
-`;
-
-// The model is working: a pulsing accent dot, no bubble.
-export default function ThinkingBubble() {
+export default function ThinkingBubble({ progress }) {
+  const [mountedAt] = useState(Date.now);
+  const [now, setNow] = useState(Date.now);
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
   return (
-    <Box
-      role="status"
-      aria-label="Réflexion en cours"
-      sx={{ display: "flex", alignItems: "center", height: 22 }}
-    >
-      <Box
-        sx={{
-          width: 10,
-          height: 10,
-          borderRadius: "50%",
-          backgroundColor: "secondary.main",
-          animation: `${pulse} 1.2s ease-in-out infinite`,
-        }}
-      />
-    </Box>
+    <Stack spacing={0.5} sx={{ py: 1, color: "text.secondary" }}>
+      <Stack direction="row" spacing={1} alignItems="center">
+        <CircularProgress
+          size={14}
+          color="inherit"
+          aria-hidden="true"
+          sx={{
+            "@media (prefers-reduced-motion: reduce)": {
+              animation: "none",
+              "& .MuiCircularProgress-circle": { animation: "none" },
+            },
+          }}
+        />
+        <Typography variant="body2" role="status">
+          {CHAT_PROGRESS_LABELS[progress?.stage] ?? "krtographing..."}
+        </Typography>
+        <Typography
+          variant="body2"
+          role="timer"
+          aria-label="Temps écoulé"
+          sx={{
+            ml: "auto",
+            fontVariantNumeric: "tabular-nums",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {formatChatElapsed(progress?.startedAt ?? mountedAt, now)}
+        </Typography>
+      </Stack>
+      {progress?.model && (
+        <Typography variant="caption">{progress.model}</Typography>
+      )}
+    </Stack>
   );
 }

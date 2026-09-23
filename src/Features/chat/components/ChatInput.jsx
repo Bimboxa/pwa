@@ -3,7 +3,6 @@ import { useDispatch, useSelector } from "react-redux";
 
 import { setBlockPlanImage } from "../chatSlice";
 
-import useSendChatTurn from "../hooks/useSendChatTurn";
 import useStartVectorization, {
   DEFAULT_VECTORIZATION_INSTRUCTION,
 } from "../hooks/useStartVectorization";
@@ -27,6 +26,8 @@ import ChatPendingPdf from "./ChatPendingPdf";
 const ATTACH_ACCEPT = "image/png,image/jpeg,image/webp,application/pdf";
 
 export default function ChatInput({
+  sendChatTurn,
+  sending,
   canAttach,
   pendingImages = [],
   attachError,
@@ -47,7 +48,6 @@ export default function ChatInput({
 
   const [input, setInput] = useState("");
 
-  const sendChatTurn = useSendChatTurn();
   const isThinking = useSelector((s) => s.chat.isThinking);
   const dispatch = useDispatch();
   const blockPlanImage = useSelector((s) => s.chat.blockPlanImage);
@@ -75,7 +75,7 @@ export default function ChatInput({
 
   const canSend = pendingPdf
     ? pendingPdf.status === "ready" && !hasActiveRun
-    : Boolean(input.trim()) && !isThinking;
+    : Boolean(input.trim()) && !isThinking && !sending;
 
   const handleSend = async () => {
     if (pendingPdf) {
@@ -84,7 +84,7 @@ export default function ChatInput({
       if (ok) setInput("");
       return;
     }
-    if (!input.trim() || isThinking) return;
+    if (!input.trim() || isThinking || sending) return;
     // No PDF: a conversational turn (the model acts through the relay tools),
     // with the attached pictures if any.
     const text = input;

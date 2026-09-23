@@ -64,7 +64,16 @@ import getNewAnnotationPropsFromAnnotationTemplate from "Features/annotations/ut
 import AiTaskMappingRow from "./AiTaskMappingRow";
 import AiTaskWorkPanel from "./AiTaskWorkPanel";
 
-export default function ChatAiTasks() {
+import ChatAutoButton from "Features/chat/components/ChatAutoButton";
+import { getVisibleListingTemplates } from "Features/chat/utils/buildAutoDetectionContext";
+
+export default function ChatAiTasks({
+  sendChatTurn,
+  sending,
+  onStop,
+  onPlay,
+  canResume,
+}) {
   const appConfig = useAppConfig();
   const baseMap = useMainBaseMap();
   const templates = useAnnotationTemplates();
@@ -123,7 +132,8 @@ export default function ChatAiTasks() {
       selection.scopeId !== scopeId ||
       selection.baseMap?.id !== baseMap?.id);
   const disabled = busy || launchLocked || Boolean(drawing);
-  const unavailable = busy || chat.isThinking || Boolean(chat.vectorization);
+  const unavailable =
+    sending || busy || chat.isThinking || Boolean(chat.vectorization);
 
   function cancelDrawing() {
     const id = captureRef.current;
@@ -462,7 +472,7 @@ export default function ChatAiTasks() {
       setBusy(false);
     }
   }
-  if (!tasks.length) return null;
+
   const destinationName =
     listingId === "new"
       ? newListingName
@@ -471,9 +481,15 @@ export default function ChatAiTasks() {
     <>
       <Stack
         direction="row"
-        spacing={1}
-        sx={{ px: 2, pb: 1, flexWrap: "wrap", gap: 1 }}
+        sx={{ px: 2, pb: 1, flexWrap: "wrap", gap: 1, alignItems: "center" }}
       >
+        <ChatAutoButton
+          send={sendChatTurn}
+          disabled={unavailable || !baseMap?.id || !selectedListingId}
+          hasVisibleTemplates={
+            getVisibleListingTemplates(templates, selectedListingId).length > 0
+          }
+        />
         {tasks.map((task) => (
           <Button
             key={task.id}
@@ -488,6 +504,17 @@ export default function ChatAiTasks() {
               : task.label}
           </Button>
         ))}
+        <Button
+          size="small"
+          variant="outlined"
+          color="inherit"
+          sx={{ ml: "auto" }}
+          disabled={canResume ? sending || unavailable : !sending}
+          onClick={canResume ? onPlay : onStop}
+          aria-label={canResume ? "Reprendre la réponse" : "Arrêter la réponse"}
+        >
+          {canResume ? "Play" : "Stop"}
+        </Button>
       </Stack>
       {panelOpen && selection && (
         <Box

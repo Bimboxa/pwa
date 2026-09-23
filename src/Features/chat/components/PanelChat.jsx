@@ -9,6 +9,7 @@ import { ThemeProvider } from "@mui/material/styles";
 import chatDarkTheme from "../chatDarkTheme";
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
+import useSendChatTurn from "../hooks/useSendChatTurn";
 import ChatInput from "./ChatInput";
 import ChatAiTasks from "Features/aiTasks/components/ChatAiTasks";
 import ChatMessage from "./ChatMessage";
@@ -27,6 +28,28 @@ import SectionManagedDataByAgent from "./SectionManagedDataByAgent";
 
 export default function PanelChat() {
   const dispatch = useDispatch();
+  const {
+    sendChatTurn: sendTurn,
+    stopChatTurn,
+    resumeChatTurn,
+    canResume,
+  } = useSendChatTurn();
+  const [sending, setSending] = useState(false);
+  const sendingRef = useRef(false);
+  async function runChatTurn(callback) {
+    if (sendingRef.current) return { ok: false };
+    sendingRef.current = true;
+    setSending(true);
+    try {
+      return await callback();
+    } finally {
+      sendingRef.current = false;
+      setSending(false);
+    }
+  }
+
+  const sendChatTurn = (...args) => runChatTurn(() => sendTurn(...args));
+  const playChatTurn = () => runChatTurn(resumeChatTurn);
 
   const messages = useSelector((state) => state.chat.messages);
   const isThinking = useSelector((state) => state.chat.isThinking);
@@ -238,9 +261,19 @@ export default function PanelChat() {
           <SectionManagedDataByAgent />
         </Stack>
 
-        {openChat && canDropPdf && <ChatAiTasks />}
+        {openChat && canDropPdf && (
+          <ChatAiTasks
+            sendChatTurn={sendChatTurn}
+            sending={sending}
+            onStop={stopChatTurn}
+            onPlay={playChatTurn}
+            canResume={canResume}
+          />
+        )}
         {openChat && (
           <ChatInput
+            sendChatTurn={sendChatTurn}
+            sending={sending}
             canAttach={canDropPdf}
             pendingImages={pendingImages}
             attachError={attachError}
