@@ -7,6 +7,9 @@ const baseMapCreatorInitialState = {
   open: false,
   //
   pdfFile: null,
+  // Project resource the pdfFile was loaded from (create "from resources"),
+  // null when the file comes from disk / clipboard. { id, kind, name }.
+  pdfSourceResource: null,
   pdfImageUrl: null,
   //
   pageNumber: 1,
@@ -41,7 +44,10 @@ export const baseMapCreatorSlice = createSlice({
   reducers: {
     setOpenBaseMapCreator: (state, action) => {
       state.open = action.payload;
-      if (!action.payload) state.regenerate = null;
+      if (!action.payload) {
+        state.regenerate = null;
+        state.pdfSourceResource = null;
+      }
     },
     openRegenerateBaseMap: (state, action) => {
       const { baseMapId, baseMapName, createdFrom } = action.payload;
@@ -66,6 +72,10 @@ export const baseMapCreatorSlice = createSlice({
     },
     setPdfFile: (state, action) => {
       state.pdfFile = action.payload;
+      state.pdfSourceResource = null;
+    },
+    setPdfSourceResource: (state, action) => {
+      state.pdfSourceResource = action.payload ?? null;
     },
     setPdfImageUrl: (state, action) => {
       state.pdfImageUrl = action.payload;
@@ -127,6 +137,7 @@ export const {
   setPdfImageUrl,
   setOpenBaseMapCreator,
   setPdfFile,
+  setPdfSourceResource,
   setPageNumber,
   setRotate,
   setBboxInRatio,

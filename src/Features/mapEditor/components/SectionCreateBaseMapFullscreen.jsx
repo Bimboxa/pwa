@@ -10,6 +10,7 @@ import { setToaster } from "Features/layout/layoutSlice";
 
 import useProjectBaseMapListings from "Features/baseMaps/hooks/useProjectBaseMapListings";
 import useCreateBaseMapFromImage from "Features/baseMaps/hooks/useCreateBaseMapFromImage";
+import useOpenBaseMapCreatorFromResource from "Features/baseMapCreator/hooks/useOpenBaseMapCreatorFromResource";
 
 import {
   Box,
@@ -40,6 +41,7 @@ import {
 } from "Features/baseMaps/components/IllustrationsCreateBaseMap";
 import DialogCreateBlankBaseMap from "Features/baseMaps/components/DialogCreateBlankBaseMap";
 import DialogCreateBaseMapFromSatellite from "Features/satelliteMap/components/DialogCreateBaseMapFromSatellite";
+import DialogSelectPdfResource from "Features/resources/components/DialogSelectPdfResource";
 
 import { selectDisabledBaseMapSourceKeys } from "Features/scopeConfig/utils/scopeConfigSelectors";
 import BASE_MAP_SOURCE_CATALOG from "Features/baseMaps/data/baseMapSourceCatalog";
@@ -81,6 +83,7 @@ export default function SectionCreateBaseMapFullscreen({
   const satelliteSubtitleS = "Extrait géoréférencé";
 
   const computerS = "Ordinateur";
+  const resourcesS = "Ressources";
   const a3S = "A3";
   const otherS = "Autre…";
   const chooseZoneS = "Choisir une zone";
@@ -105,11 +108,13 @@ export default function SectionCreateBaseMapFullscreen({
   const [name, setName] = useState("");
   const [openBlank, setOpenBlank] = useState(false);
   const [openSatellite, setOpenSatellite] = useState(false);
+  const [openPdfResource, setOpenPdfResource] = useState(false);
 
   // data
 
   const listings = useProjectBaseMapListings({ excludeDisabled: true });
   const createBaseMapFromImage = useCreateBaseMapFromImage();
+  const openBaseMapCreatorFromResource = useOpenBaseMapCreatorFromResource();
 
   const selectedBaseMapsListingId = useSelector(
     (s) => s.mapEditor.selectedBaseMapsListingId
@@ -200,6 +205,14 @@ export default function SectionCreateBaseMapFullscreen({
     // created, so don't call onClose here.
     dispatch(setPdfFile(file));
     dispatch(setOpenBaseMapCreator(true));
+  }
+
+  async function handlePdfResourceSelect(resource) {
+    // same as handlePdfFile: the creator dialog takes over and closes the
+    // section itself once the baseMaps are created.
+    const ok = await openBaseMapCreatorFromResource(resource);
+    if (ok) setOpenPdfResource(false);
+    return ok;
   }
 
   function handleImageFile(file) {
@@ -437,14 +450,24 @@ export default function SectionCreateBaseMapFullscreen({
                   subtitle={pdfSubtitleS}
                   illustration={<IllustrationPdf />}
                   actions={
-                    <Button
-                      variant="outlined"
-                      color="inherit"
-                      size="small"
-                      onClick={() => pdfInputRef.current?.click()}
-                    >
-                      {computerS}
-                    </Button>
+                    <>
+                      <Button
+                        variant="outlined"
+                        color="inherit"
+                        size="small"
+                        onClick={() => pdfInputRef.current?.click()}
+                      >
+                        {computerS}
+                      </Button>
+                      <Button
+                        variant="outlined"
+                        color="inherit"
+                        size="small"
+                        onClick={() => setOpenPdfResource(true)}
+                      >
+                        {resourcesS}
+                      </Button>
+                    </>
                   }
                 />
               )}
@@ -580,6 +603,12 @@ export default function SectionCreateBaseMapFullscreen({
         onClose={() => setOpenSatellite(false)}
         listing={listing}
         onCreated={handleSatelliteCreated}
+      />
+
+      <DialogSelectPdfResource
+        open={openPdfResource}
+        onClose={() => setOpenPdfResource(false)}
+        onSelect={handlePdfResourceSelect}
       />
     </>
   );

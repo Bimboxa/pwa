@@ -2,6 +2,8 @@ import { useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { nanoid } from "@reduxjs/toolkit";
 
+import db from "App/db/db";
+
 import {
     setOpenBaseMapCreator,
     clearSourceContainer,
@@ -40,6 +42,7 @@ export default function ButtonCreateBaseMaps({ pdfDocument, pdfFile }) {
     const logAppEvent = useLogAppEvent();
     const tempBaseMaps = useSelector((s) => s.baseMapCreator.tempBaseMaps);
     const sourceContainerId = useSelector((s) => s.baseMapCreator.sourceContainerId);
+    const pdfSourceResource = useSelector((s) => s.baseMapCreator.pdfSourceResource);
     const oneBaseMapPerPage = useSelector((s) => s.baseMapCreator.oneBaseMapPerPage);
     const blueprintScale = useSelector((s) => s.baseMapCreator.blueprintScale);
     const baseMapName = useSelector((s) => s.baseMapCreator.baseMapName);
@@ -92,6 +95,15 @@ export default function ButtonCreateBaseMaps({ pdfDocument, pdfFile }) {
         return temps;
     }
 
+    // Map(pageNumber -> resource) for a PDF_PAGE source resource (page 1 only),
+    // null when the source is not such a resource or its row is gone.
+    async function getPdfPageSourceResources() {
+        if (pdfSourceResource?.kind !== "PDF_PAGE") return null;
+        const resource = await db.resources.get(pdfSourceResource.id);
+        if (!resource || resource.deletedAt) return null;
+        return new Map([[1, resource]]);
+    }
+
     // handlers
 
     async function handleCreateClick() {
@@ -112,17 +124,22 @@ export default function ButtonCreateBaseMaps({ pdfDocument, pdfFile }) {
             // Keep the source: each used PDF page is extracted into a
             // single-page PDF resource (deduped by content), so the base map
             // can be regenerated later (new crop / dpi) from the exact page.
+            // When the source is already a PDF_PAGE resource (single-page PDF
+            // picked from the project resources), reuse it as is: hashing its
+            // bytes would yield a new sourceKey and duplicate the resource.
             const debugAuth = getDebugAuthFromLocalStorage();
-            const pageResources = await ensurePdfPageResources({
-                pdfFile,
-                pdfDocument,
-                pageNumbers: baseMapsToCreate.map((bm) => bm.page).filter((p) => p != null),
-                projectId,
-                createdBy: {
-                    idMaster: userProfile?.idMaster ?? debugAuth?.userIdMaster ?? null,
-                    trigram: userProfile?.trigram ?? debugAuth?.trigram ?? null,
-                },
-            });
+            const pageResources =
+                (await getPdfPageSourceResources()) ??
+                (await ensurePdfPageResources({
+                    pdfFile,
+                    pdfDocument,
+                    pageNumbers: baseMapsToCreate.map((bm) => bm.page).filter((p) => p != null),
+                    projectId,
+                    createdBy: {
+                        idMaster: userProfile?.idMaster ?? debugAuth?.userIdMaster ?? null,
+                        trigram: userProfile?.trigram ?? debugAuth?.trigram ?? null,
+                    },
+                }));
 
             const baseMapsWithPlacement = baseMapsToCreate.map((bm) => {
                 const placement = placements.get(bm.id);
