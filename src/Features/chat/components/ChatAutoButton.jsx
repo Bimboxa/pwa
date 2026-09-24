@@ -141,9 +141,8 @@ export default function ChatAutoButton({
               </Alert>
             )}
             <Typography variant="caption" color="text.secondary">
-              Le plan sera envoyé pour cette détection, même si « Ne pas envoyer
-              le plan » est coché. Le PDF source est utilisé en priorité, sinon
-              l’image du fond.
+              Le plan sera envoyé pour cette détection. Le PDF source est
+              utilisé en priorité, sinon l’image du fond.
             </Typography>
           </Stack>
           <Box

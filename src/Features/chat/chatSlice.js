@@ -29,9 +29,6 @@ const chatSlice = createSlice({
       budgetSessionId: uuidv4(),
       sessionName: null,
     },
-    // "Ne pas envoyer l'image": the model is not even offered the plan
-    // picture. Ticked by default — the user opts in per message.
-    blockPlanImage: true,
     // Levels of reflection offered by the relay ([{ id, label, model }]) and
     // the user's pick (null = the relay default, `high`).
     reasoningLevels: [],
@@ -91,9 +88,6 @@ const chatSlice = createSlice({
       const toolAction = message?.actions?.find((a) => a.callId === callId);
       if (toolAction) Object.assign(toolAction, changes);
     },
-    setBlockPlanImage(state, action) {
-      state.blockPlanImage = Boolean(action.payload);
-    },
     captureSessionContext(state, action) {
       if (state.conversation.navigationContext) return;
       state.conversation.navigationContext = action.payload;
@@ -139,7 +133,6 @@ export const {
   setVectorization,
   appendMessageAction,
   updateMessageAction,
-  setBlockPlanImage,
   setConversation,
   captureSessionContext,
   resetConversation,

@@ -1,3 +1,21 @@
+export const CHAT_TOOL_LABELS = {
+  code_interpreter: "Analyse Python distante",
+  render_plan_region: "Rendu du plan",
+  query_plan_geometry: "Recherche géométrique",
+  measure_plan_geometry: "Mesures géométriques",
+  check_plan_geometry: "Vérification géométrique",
+  draw_annotations: "Dessin",
+  query_annotations: "Sélection des annotations",
+  update_annotations_batch: "Modification des annotations",
+  create_annotation_templates: "Création de modèles d'annotation",
+  create_annotation_listing: "Création d'une liste",
+  undo_drawing: "Annulation des modifications",
+  get_current_base_map: "Lecture du fond de plan",
+  get_detection_instructions: "Lecture des consignes",
+  get_detection_job: "Vérification d'un dessin",
+  request_plan_image: "Lecture du plan (image)",
+};
+
 export const CHAT_PROGRESS_LABELS = {
   preparing: "Préparation de la demande…",
   reading_pdf_vectors: "Extraction des tracés vectoriels du PDF…",
@@ -11,7 +29,7 @@ export const CHAT_PROGRESS_LABELS = {
   image_ready: "Image prête côté serveur…",
   preparing_request: "Préparation de la requête LLM…",
   sending: "Envoi de la requête au LLM…",
-  analyzing: "krtographing...",
+  analyzing: "Analyse de la demande…",
   tools: "Application des actions sur le plan…",
   answering: "Rédaction de la réponse…",
 };
@@ -26,6 +44,7 @@ export function updateChatProgress(progress, event) {
   const next = {
     ...progress,
     stage: event.stage,
+    toolName: event.stage === "tools" ? (event.toolName ?? null) : null,
     ...(event.model ? { model: event.model } : {}),
   };
   if (event.stage === "pdf_ready") next.planStatus = "PDF prêt côté serveur";
@@ -44,4 +63,12 @@ export function updateChatProgress(progress, event) {
 export function formatChatElapsed(startedAt, now) {
   const seconds = Math.max(0, Math.floor((now - startedAt) / 1000));
   return `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
+}
+
+export function getChatProgressLabel(progress) {
+  const toolLabel =
+    progress?.stage === "tools" && CHAT_TOOL_LABELS[progress.toolName];
+  return toolLabel
+    ? `${toolLabel}…`
+    : (CHAT_PROGRESS_LABELS[progress?.stage] ?? CHAT_PROGRESS_LABELS.analyzing);
 }

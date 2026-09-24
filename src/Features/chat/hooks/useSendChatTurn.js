@@ -13,14 +13,19 @@ import {
 } from "../chatSlice";
 
 import { groupDetectionDebug } from "../utils/groupDetectionDebug";
+import getUserTrigram from "Features/auth/utils/getUserTrigram";
 import getUserIdMaster from "Features/auth/utils/getUserIdMaster";
 import {
   detectionArchiveKey,
   saveDetectionDebug,
 } from "../services/detectionDebugStore";
+import { createLlmTrace, advanceLlmTrace } from "../utils/chatTrace";
+import { updateChatTimeline } from "../utils/chatTimeline";
 import { updateChatProgress } from "../utils/chatProgress";
 import { chatPlanSource } from "../utils/chatPlanSource";
 import resolveAiTaskSource from "Features/aiTasks/services/resolveAiTaskSource";
+import useSelectedProject from "Features/projects/hooks/useSelectedProject";
+import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
@@ -49,6 +54,8 @@ export default function useSendChatTurn() {
   const captureContext = useCaptureSessionContext();
   const config = useAssistantRelayConfig();
   const mainBaseMap = useMainBaseMap();
+  const { value: project } = useSelectedProject();
+  const { value: scope } = useSelectedScope();
   const { value: listing } = useSelectedListing();
   const templates = useAnnotationTemplates();
   const annotations = useAnnotationsV2({
@@ -63,7 +70,6 @@ export default function useSendChatTurn() {
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const scopeId = useSelector((s) => s.scopes.selectedScopeId);
   const conversation = useSelector((s) => s.chat.conversation);
-  const blockPlanImage = useSelector((s) => s.chat.blockPlanImage);
   const levels = useSelector((s) => s.chat.reasoningLevels);
   const levelId = useSelector((s) => s.chat.reasoningLevelId);
   const selectedTemplateId = useSelector(
@@ -94,6 +100,8 @@ export default function useSendChatTurn() {
       const message = (text ?? "").trim();
       if (!message || busy.current) return { ok: false };
       const session = captureContext();
+      let llmTrace = conversation.llmTrace ?? createLlmTrace();
+      dispatch(setConversation({ llmTrace }));
       busy.current = true;
       setPausedTurn(null);
       const turnSession = sessionRef.current;
@@ -103,6 +111,7 @@ export default function useSendChatTurn() {
       const messageId = uuidv4();
       let assistantText = "";
       let reasoningSummary = "";
+      let timeline;
       const actions = new Map();
       const debugRecords = new Map();
       const archiveKey = detectionArchiveKey(
@@ -176,7 +185,16 @@ export default function useSendChatTurn() {
           })
         );
       };
+      const recordTimeline = (event) => {
+        if (isStale()) return;
+        const next = updateChatTimeline(timeline, event, Date.now(), message);
+        if (next === timeline) return;
+        timeline = next;
+        ensureBubble();
+        dispatch(updateMessageById({ id: messageId, changes: { timeline } }));
+      };
       const setError = (error) => {
+        recordTimeline({ type: "error" });
         if (isStale() || controller.signal.aborted) return;
         ensureBubble();
         dispatch(updateMessageById({ id: messageId, changes: { error } }));
@@ -186,6 +204,10 @@ export default function useSendChatTurn() {
       const reportProgress = (event) => {
         if (isStale() || controller.signal.aborted) return;
         ensureBubble();
+        recordTimeline({
+          ...(typeof event === "string" ? { stage: event } : event),
+          type: "progress",
+        });
         progress = updateChatProgress(
           progress,
           typeof event === "string" ? { stage: event } : event
@@ -332,6 +354,7 @@ export default function useSendChatTurn() {
             planKind: planSource.planKind,
             ...(planPdf ? { planPdf } : {}),
             sessionId: session.budgetSessionId,
+            llmTrace,
             ...(session.sessionName
               ? { sessionName: session.sessionName }
               : {}),
@@ -351,9 +374,19 @@ export default function useSendChatTurn() {
                   })),
                 }
               : {}),
-            allowImage: Boolean(autoDetect) || !blockPlanImage,
+            // Let the model request the plan PDF or image only when needed.
+            allowImage: true,
             imageKeyInConversation: conversation.imageKey,
             context: {
+              userTrigram: getUserTrigram(userProfile)?.slice(0, 512) ?? null,
+              projectName:
+                project?.id === projectId
+                  ? (project.name?.slice(0, 512) ?? null)
+                  : null,
+              scopeName:
+                scope?.id === scopeId
+                  ? (scope.name?.slice(0, 512) ?? null)
+                  : null,
               ...(interruptedTurn ? { interruptedTurn } : {}),
               listingName: listing?.name ?? null,
               selectedTemplateId: autoDetect
@@ -375,6 +408,7 @@ export default function useSendChatTurn() {
             signal: controller.signal,
             onEvent: (event) => {
               if (isStale() || controller.signal.aborted) return;
+              if (event.type !== "progress") recordTimeline(event);
               if (event.type === "detection_debug") {
                 ensureBubble();
                 const record = {
@@ -390,6 +424,8 @@ export default function useSendChatTurn() {
               } else if (event.type === "progress") {
                 reportProgress(event);
               } else if (event.type === "tokens") {
+                llmTrace = advanceLlmTrace(llmTrace, event.usage);
+                dispatch(setConversation({ llmTrace }));
                 ensureBubble();
                 dispatch(
                   updateMessageById({
@@ -427,7 +463,7 @@ export default function useSendChatTurn() {
                   event.phase === "started" &&
                   event.name !== "request_plan_image"
                 )
-                  reportProgress("tools");
+                  reportProgress({ stage: "tools", toolName: event.name });
                 actions.set(event.callId, {
                   name: event.name,
                   phase: event.phase,
@@ -474,6 +510,7 @@ export default function useSendChatTurn() {
         setError(e?.code ? describeRelayError(e) : e?.message);
         return { ok: false };
       } finally {
+        recordTimeline({ type: "trace_end" });
         publishDebug(controller.signal.aborted ? "interrupted" : "finished");
         busy.current = false;
         if (abortRef.current === controller) abortRef.current = null;
@@ -481,7 +518,13 @@ export default function useSendChatTurn() {
         if (!isStale()) {
           dispatch(setIsThinking(false));
           dispatch(
-            updateMessageById({ id: messageId, changes: { progress: null } })
+            updateMessageById({
+              id: messageId,
+              changes: {
+                progress: null,
+                totalDurationMs: Date.now() - progress.startedAt,
+              },
+            })
           );
         }
       }
@@ -494,11 +537,12 @@ export default function useSendChatTurn() {
       userProfile,
       projectId,
       scopeId,
+      project,
+      scope,
       listing,
       templates,
       annotations,
       conversation,
-      blockPlanImage,
       levels,
       levelId,
       selectedTemplateId,

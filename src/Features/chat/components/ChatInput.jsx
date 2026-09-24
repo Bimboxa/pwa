@@ -1,26 +1,19 @@
 import { useEffect, useRef, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
-
-import { setBlockPlanImage } from "../chatSlice";
+import { useSelector } from "react-redux";
 
 import useStartVectorization, {
   DEFAULT_VECTORIZATION_INSTRUCTION,
 } from "../hooks/useStartVectorization";
+import useSpeechDictation from "../hooks/useSpeechDictation";
 
-import {
-  Box,
-  Checkbox,
-  FormControlLabel,
-  IconButton,
-  InputBase,
-  Typography,
-} from "@mui/material";
+import { Box, IconButton, InputBase, Typography } from "@mui/material";
 import { Add as AddIcon, ArrowUpward as SendIcon } from "@mui/icons-material";
 
 import { CHAT_COLORS, CHAT_FONT } from "../chatDarkTheme";
 import ChatImageThumbs from "./ChatImageThumbs";
 import ChatLevelSelect from "./ChatLevelSelect";
 import ChatBudgetIndicator from "./ChatBudgetIndicator";
+import ChatMicButton from "./ChatMicButton";
 import ChatPendingPdf from "./ChatPendingPdf";
 
 const ATTACH_ACCEPT = "image/png,image/jpeg,image/webp,application/pdf";
@@ -39,18 +32,14 @@ export default function ChatInput({
 
   const sendS = "Envoyer";
   const attachS = "Joindre une image ou un PDF";
-  const blockImageS = "Ne pas envoyer le plan";
-  const blockImageTitleS =
-    "Coché : le modèle ne peut pas demander l'image du fond de plan affiché. Les images jointes sont toujours envoyées.";
   const placeholderS = "Un dessin, une liste… une image ou un PDF";
+  const listeningPlaceholderS = "Je vous écoute…";
 
   // state
 
   const [input, setInput] = useState("");
 
   const isThinking = useSelector((s) => s.chat.isThinking);
-  const dispatch = useDispatch();
-  const blockPlanImage = useSelector((s) => s.chat.blockPlanImage);
   const {
     pendingPdf,
     hasActiveRun,
@@ -58,6 +47,17 @@ export default function ChatInput({
     setPageNumber,
     startVectorization,
   } = useStartVectorization();
+
+  // Dictation writes straight into the draft; it stops once the message is
+  // sent (one cycle per message).
+  const dictation = useSpeechDictation({ onText: setInput });
+  const {
+    supported: micSupported,
+    listening,
+    error: dictationError,
+    stop: stopDictation,
+    rebase: rebaseDictation,
+  } = dictation;
 
   // A PDF was dropped: propose the default instruction (still editable).
   const pdfStatus = pendingPdf?.status;
@@ -71,7 +71,8 @@ export default function ChatInput({
   const sessionId = useSelector((s) => s.chat.sessionId);
   useEffect(() => {
     setInput("");
-  }, [sessionId]);
+    stopDictation();
+  }, [sessionId, stopDictation]);
 
   const canSend = pendingPdf
     ? pendingPdf.status === "ready" && !hasActiveRun
@@ -81,7 +82,10 @@ export default function ChatInput({
     if (pendingPdf) {
       if (pendingPdf.status !== "ready" || hasActiveRun) return;
       const { ok } = await startVectorization(input);
-      if (ok) setInput("");
+      if (ok) {
+        setInput("");
+        stopDictation();
+      }
       return;
     }
     if (!input.trim() || isThinking || sending) return;
@@ -90,6 +94,8 @@ export default function ChatInput({
     const text = input;
     const images = pendingImages;
     setInput("");
+    // Stop before awaiting: a late result must not refill the emptied draft.
+    stopDictation();
     onImagesSent?.();
     await sendChatTurn(text, { images });
   };
@@ -108,6 +114,17 @@ export default function ChatInput({
     if (!canAttach || !files.length) return;
     e.preventDefault();
     onAttachFiles?.(files);
+  }
+
+  function handleInputChange(e) {
+    const value = e.target.value;
+    setInput(value);
+    // Typed while listening: the next transcript builds on the typed text.
+    if (listening) rebaseDictation(value);
+  }
+
+  function handleMicToggle() {
+    dictation.toggle(input);
   }
 
   function handleKeyDown(e) {
@@ -137,15 +154,15 @@ export default function ChatInput({
         onClear={clearPdf}
       />
       <ChatImageThumbs images={pendingImages} onRemove={onRemoveImage} />
-      {attachError ? (
+      {attachError || dictationError ? (
         <Typography variant="caption" color="error">
-          {attachError}
+          {attachError || dictationError}
         </Typography>
       ) : null}
 
       {/* One rounded box: the text, and the send button in its corner.
-          DOM order = keyboard order: text → "Envoyer" → attach → checkbox →
-          level. */}
+          DOM order = keyboard order: text → "Envoyer" → attach →
+          level → micro → budget. */}
       <Box
         sx={{
           display: "flex",
@@ -167,9 +184,9 @@ export default function ChatInput({
           minRows={1}
           maxRows={8}
           fullWidth
-          placeholder={placeholderS}
+          placeholder={listening ? listeningPlaceholderS : placeholderS}
           value={input}
-          onChange={(e) => setInput(e.target.value)}
+          onChange={handleInputChange}
           onKeyDown={handleKeyDown}
           onKeyUp={(e) => e.stopPropagation()}
           onPaste={handlePaste}
@@ -248,28 +265,6 @@ export default function ChatInput({
               </IconButton>
             </>
           ) : null}
-          {/* Ticked: the model cannot ask for the plan picture (typed messages
-            only — a dropped PDF is a vectorization). */}
-          {!pendingPdf ? (
-            <FormControlLabel
-              title={blockImageTitleS}
-              sx={{ ml: "-2px", mr: 0, color: "text.secondary", minWidth: 0 }}
-              control={
-                <Checkbox
-                  size="small"
-                  color="default"
-                  checked={blockPlanImage}
-                  onChange={(e) =>
-                    dispatch(setBlockPlanImage(e.target.checked))
-                  }
-                />
-              }
-              label={blockImageS}
-              slotProps={{
-                typography: { sx: { fontSize: CHAT_FONT.button, ml: 0.25 } },
-              }}
-            />
-          ) : null}
         </Box>
         <Box
           sx={{
@@ -280,6 +275,11 @@ export default function ChatInput({
           }}
         >
           <ChatLevelSelect />
+          <ChatMicButton
+            supported={micSupported}
+            listening={listening}
+            onToggle={handleMicToggle}
+          />
           <ChatBudgetIndicator />
         </Box>
       </Box>

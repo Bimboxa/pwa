@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { updateChatProgress, formatChatElapsed } from "./chatProgress.js";
+import {
+  updateChatProgress,
+  formatChatElapsed,
+  getChatProgressLabel,
+} from "./chatProgress.js";
 
 test("progress distinguishes a prepared PDF from provider acceptance without resetting elapsed time", () => {
   const started = { startedAt: 1000, stage: "preparing" };
@@ -39,4 +43,28 @@ test("late upload completion cannot replace an acknowledged image analysis", () 
     { stage: "image_fallback" }
   );
   assert.equal(fallback.planStatus, "Source utilisée : image du fond");
+});
+
+test("tool progress identifies the current task and clears it when analysis resumes", () => {
+  const started = { startedAt: 1000, stage: "analyzing", model: "model" };
+  const rendering = updateChatProgress(started, {
+    stage: "tools",
+    toolName: "render_plan_region",
+  });
+  assert.equal(getChatProgressLabel(rendering), "Rendu du plan…");
+  const measuring = updateChatProgress(rendering, {
+    stage: "tools",
+    toolName: "measure_plan_geometry",
+  });
+  assert.equal(getChatProgressLabel(measuring), "Mesures géométriques…");
+  assert.equal(measuring.startedAt, 1000);
+  assert.equal(measuring.model, "model");
+  const resumed = updateChatProgress(measuring, { stage: "analyzing" });
+  assert.equal(resumed.toolName, null);
+  assert.equal(getChatProgressLabel(resumed), "Analyse de la demande…");
+  assert.equal(
+    getChatProgressLabel({ stage: "tools", toolName: "future_tool" }),
+    "Application des actions sur le plan…"
+  );
+  assert.equal(getChatProgressLabel(), "Analyse de la demande…");
 });

@@ -41,26 +41,32 @@ export default function ChatDetectionDebug({ record, active = false }) {
     <Box
       sx={{ mt: 0.75, borderLeft: "2px solid", borderColor: "divider", pl: 1 }}
     >
-      <Stack direction="row" alignItems="center" spacing={1}>
+      <Stack spacing={0.5}>
         <Typography variant="caption" sx={{ flex: 1 }}>
-          Diagnostic
+          Données du diagnostic
+        </Typography>
+        <Typography variant="caption" color="text.secondary">
+          Les captures techniques enregistrées pendant le traitement sont
+          regroupées au format JSON. Copiez-les pour les partager, téléchargez
+          un fichier pour les conserver ou affichez le JSON pour les consulter
+          ici.
         </Typography>
         <Button
           size="small"
           startIcon={<ContentCopyIcon fontSize="inherit" />}
           onClick={copy}
         >
-          Copier
+          Copier les données
         </Button>
         <Button size="small" onClick={download}>
-          Télécharger
+          Télécharger le fichier JSON
         </Button>
         <Button
           size="small"
           onClick={() => setExpanded((v) => !v)}
           aria-expanded={expanded}
         >
-          JSON
+          {expanded ? "Masquer le JSON" : "Afficher le JSON"}
         </Button>
       </Stack>
       <Typography variant="caption" color="text.secondary">

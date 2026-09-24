@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { CircularProgress, Stack, Typography } from "@mui/material";
-import { CHAT_PROGRESS_LABELS, formatChatElapsed } from "../utils/chatProgress";
+import { getChatProgressLabel, formatChatElapsed } from "../utils/chatProgress";
 
 export default function ThinkingBubble({ progress }) {
   const [mountedAt] = useState(Date.now);
@@ -9,7 +9,7 @@ export default function ThinkingBubble({ progress }) {
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
   }, []);
-  const label = CHAT_PROGRESS_LABELS[progress?.stage] ?? "krtographing...";
+  const label = getChatProgressLabel(progress);
   return (
     <Stack spacing={0.5} sx={{ py: 1, minWidth: 0, color: "text.secondary" }}>
       <Stack
