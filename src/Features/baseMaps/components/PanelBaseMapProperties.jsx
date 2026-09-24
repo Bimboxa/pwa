@@ -51,6 +51,7 @@ import DialogDeleteRessource from "Features/layout/components/DialogDeleteRessou
 import FieldTextV2 from "Features/form/components/FieldTextV2";
 import FieldBaseMapOpacity from "./FieldBaseMapOpacity";
 import FieldBaseMapBlueprintScale from "./FieldBaseMapBlueprintScale";
+import SectionBaseMapSource from "./SectionBaseMapSource";
 import FieldBaseMapVersions from "./FieldBaseMapVersions";
 import PanelBaseMapPositionInMainRef from "./PanelBaseMapPositionInMainRef";
 import PanelBaseMapTransformInThreed from "Features/threedEditor/components/PanelBaseMapTransformInThreed";
@@ -250,6 +251,8 @@ export default function PanelBaseMapProperties() {
       <BoxFlexVStretch sx={{ overflow: "auto", gap: 1, p: 1.5 }}>
         {/* Photo <-> mise à plat quick switch (photoPlans) — self-hiding. */}
         <TogglePhotoOrFlattened baseMap={baseMap} />
+        {/* "Source : <pdf>" → RESOURCES panel (PDF base maps, self-hiding) */}
+        <SectionBaseMapSource baseMap={baseMap} />
         {/* Same "label | field" white sections as the annotation template
             panel. The version label is edited in the version's own panel
             (click a row of the Versions list). */}
