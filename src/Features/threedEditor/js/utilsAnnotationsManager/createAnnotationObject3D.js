@@ -64,6 +64,7 @@ import buildInlineExtrusionMesh from "./buildInlineExtrusionMesh";
 import expandShellProfileArcs from "Features/geometry/utils/expandShellProfileArcs";
 import getInlineExtrusionSetup from "Features/annotations/utils/getInlineExtrusionSetup";
 import createObject3DAnnotation from "./createObject3DAnnotation";
+import createImageAnnotation3D from "./createImageAnnotation3D";
 
 // Screen-space thickness (px) of the vertical "trait" rendered for a POINT
 // annotation with a height — matches DrawingOverlayThreed's LINEWIDTH_TRAIT.
@@ -1105,6 +1106,12 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
           console.error("[OBJECT_3D] failed to load GLB", err);
         });
       object = placeholder;
+      break;
+    }
+    case "IMAGE": {
+      // Flat textured plane on the base map at the bbox footprint (texture
+      // loaded async, plane shown once ready — see createImageAnnotation3D).
+      object = createImageAnnotation3D(annotation, baseMap, options);
       break;
     }
     default:

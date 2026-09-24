@@ -44,3 +44,18 @@ bbox centre. No `db.points` row is involved (geometry kind `BBOX`, like
     Propriétés panel (`FieldAnnotationImage`).
 - While `IMAGE_SCALE` is armed, `InteractionLayer` ignores the image's drag /
   resize / rotate handles so both clicks land as cote points.
+
+## 3D viewer
+
+`createAnnotationObject3D` has an `IMAGE` case (`createImageAnnotation3D`):
+a `PlaneGeometry` sized to the bbox footprint in metres, centred with
+`pixelToWorld`, rotated by `-rotation` about basemap-local Z (same pose as
+OBJECT_3D), lifted by `offsetZ` + 1 cm above the base map plane. The
+`MeshBasicMaterial` is transparent with `alphaTest` so PNG alpha cuts out the
+picture. The texture is loaded from `db.files` by `fileName` (fallback:
+`imageUrlClient`), cached per `fileName + fileUpdatedAt` and shared across
+rebuilds; the plane is returned hidden and shown through `onAsyncLoaded`.
+
+`getEntityWithImagesAsync` keeps one object URL per file row so a hydrated
+IMAGE annotation keeps its identity between liveQuery runs (otherwise the 3D
+diff would rebuild the plane on every emission).

@@ -2,6 +2,24 @@ import db from "App/db/db";
 import testIsImage from "Features/files/utils/testIsImage";
 import getImageSizeAsync from "Features/images/utils/getImageSizeAsync";
 
+// One object URL per db.files row (keyed by fileName + updatedAt): the same
+// image resolved on every liveQuery run keeps the same `imageUrlClient`, so
+// the resolved annotation keeps its identity (stabilizeAnnotationsIdentity)
+// and the 3D viewer does not rebuild IMAGE planes on each emission. Also
+// stops leaking one unrevoked blob URL per run.
+const objectUrlByFileKey = new Map();
+
+function getStableObjectUrl(file) {
+  const key = `${file.fileName}::${file.updatedAt ?? ""}`;
+  let url = objectUrlByFileKey.get(key);
+  if (!url) {
+    const blob = new Blob([file.fileArrayBuffer], { type: file.fileMime });
+    url = URL.createObjectURL(blob);
+    objectUrlByFileKey.set(key, url);
+  }
+  return url;
+}
+
 export default async function getEntityWithImagesAsync(entity, filesMap) {
   if (!entity) return {};
 
@@ -17,8 +35,7 @@ export default async function getEntityWithImagesAsync(entity, filesMap) {
     const file = filesMap ? filesMap[item.fileName] : await db.files.get(item.fileName);
 
     if (file && file.fileArrayBuffer) {
-      const blob = new Blob([file.fileArrayBuffer], { type: file.fileMime });
-      const url = URL.createObjectURL(blob);
+      const url = getStableObjectUrl(file);
 
       hasImages = true; // Side effect : on note qu'on a trouvé au moins une image
 
@@ -29,7 +46,10 @@ export default async function getEntityWithImagesAsync(entity, filesMap) {
       };
 
       // Si la taille n'est pas déjà dans les métadonnées (compatibilité ou fallback)
-      if (!enrichedItem.imageSize && testIsImage(blob)) {
+      if (
+        !enrichedItem.imageSize &&
+        testIsImage({ type: file.fileMime, name: file.srcFileName ?? "" })
+      ) {
         enrichedItem.imageSize = await getImageSizeAsync(url);
       }
 
