@@ -462,10 +462,29 @@ function findCutsFromCycles(allCycles, envelope, tolerance = 5) {
     // All points must be inside the envelope
     if (!ring.every((p) => pointInPolygon(p, envelope))) continue;
 
-    cuts.push(ring);
+    cuts.push({ ring, area });
   }
 
-  return cuts;
+  // Keep only the OUTERMOST cycles. A connected group of wall bands (two
+  // interior walls meeting in a T, a closed partition…) yields every face of
+  // its planar arrangement — each band piece, each overlap, each enclosed
+  // room — plus the outline of the whole group. Only that outline is a hole
+  // of the surface; the nested faces would overlap it and each other.
+  const isNested = (inner, outer) =>
+    inner.every(
+      (p) => pointInPolygon(p, outer) || isPointNearRing(p, outer, touchTol)
+    );
+  return cuts
+    .filter(
+      (c, i) =>
+        !cuts.some(
+          (o, j) =>
+            j !== i &&
+            (o.area > c.area || (o.area === c.area && j < i)) &&
+            isNested(c.ring, o.ring)
+        )
+    )
+    .map((c) => c.ring);
 }
 
 // ---------------------------------------------------------------------------
