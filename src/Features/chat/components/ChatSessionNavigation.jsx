@@ -1,11 +1,6 @@
 import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { setSelectedProjectId } from "Features/projects/projectsSlice";
-import { setSelectedScopeId } from "Features/scopes/scopesSlice";
-import {
-  setSelectedMainBaseMapId,
-  setSelectedBaseMapsListingId,
-} from "Features/mapEditor/mapEditorSlice";
+import applyChatSessionContext from "../utils/applyChatSessionContext";
 import {
   Box,
   Button,
@@ -24,11 +19,7 @@ export default function ChatSessionNavigation() {
   const menuId = `chat-navigation-${sessionId}`;
 
   function applyContext() {
-    if (!context) return;
-    dispatch(setSelectedProjectId(context.projectId));
-    dispatch(setSelectedScopeId(context.scopeId));
-    dispatch(setSelectedBaseMapsListingId(context.baseMapListingId ?? null));
-    dispatch(setSelectedMainBaseMapId(context.baseMapId));
+    applyChatSessionContext(dispatch, context);
     setAnchorEl(null);
   }
 

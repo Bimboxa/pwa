@@ -1,5 +1,6 @@
 import { useState } from "react";
 import ChatSessionNavigation from "./ChatSessionNavigation";
+import applyChatSessionContext from "../utils/applyChatSessionContext";
 import {
   cancelVectorization,
   describeRelayError,
@@ -302,6 +303,10 @@ export default function ChatHeader({
               onClick={() => {
                 setAnchorEl(null);
                 dispatch(selectSession(id));
+                applyChatSessionContext(
+                  dispatch,
+                  sessions[id].conversation.navigationContext
+                );
               }}
             >
               <ListItemIcon>
