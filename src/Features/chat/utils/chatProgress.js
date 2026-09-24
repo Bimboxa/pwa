@@ -1,4 +1,9 @@
 export const CHAT_TOOL_LABELS = {
+  summarize_plan_vectors: "Synthèse des familles vectorielles",
+  prepare_visible_geometry: "Reconstruction des contours masqués",
+  analyze_linear_sections: "Analyse des axes et épaisseurs",
+  validate_section_candidates: "Validation des sections",
+  analyze_rectangular_sections: "Analyse des sections rectangulaires",
   code_interpreter: "Analyse Python distante",
   render_plan_region: "Rendu du plan",
   query_plan_geometry: "Recherche géométrique",

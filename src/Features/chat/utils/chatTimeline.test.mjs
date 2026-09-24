@@ -119,7 +119,8 @@ test("trace history is bounded and reports discarded entries", () => {
 });
 
 test("Python purpose updates the existing step and survives JSON export", async () => {
-  const { serializeChatTimeline, updateChatTimeline } = await import("./chatTimeline.js");
+  const { serializeChatTimeline, updateChatTimeline } =
+    await import("./chatTimeline.js");
   let state = updateChatTimeline(
     undefined,
     { type: "tool", phase: "started", callId: "py1", name: "code_interpreter" },
@@ -147,4 +148,77 @@ test("Python purpose updates the existing step and survives JSON export", async 
   assert.equal(data.steps[0].durationMs, 400);
   assert.equal(data.steps[0].status, "done");
   assert.deepEqual(JSON.parse(serializeChatTimeline(null)).steps, []);
+});
+
+test("stable server numbers and failure details survive updates and JSON export", async () => {
+  const { serializeChatTimeline } = await import("./chatTimeline.js");
+  let state = update(undefined, { type: "progress", stage: "preparing" }, 1);
+  state = update(
+    state,
+    { type: "tokens", stepNumber: 2, usage: { step: 1, traceCode: "ABC-01" } },
+    2
+  );
+  for (const phase of ["started", "started", "failed"])
+    state = update(
+      state,
+      {
+        type: "tool",
+        callId: "ci-1",
+        name: "code_interpreter",
+        phase,
+        stepNumber: 3,
+        ...(phase === "failed" ? { detail: "Tool call limit reached" } : {}),
+      },
+      3
+    );
+  const exported = JSON.parse(serializeChatTimeline(state));
+  assert.deepEqual(
+    exported.steps.map((e) => e.stepNumber),
+    [1, 2, 3]
+  );
+  assert.equal(exported.steps[2].detail, "Tool call limit reached");
+  assert.equal(state.nextStepNumber, 4);
+});
+
+test("legacy exports number steps including omitted entries", async () => {
+  const { serializeChatTimeline } = await import("./chatTimeline.js");
+  const data = JSON.parse(
+    serializeChatTimeline({ omitted: 8, entries: [{ id: "old" }] })
+  );
+  assert.equal(data.steps[0].stepNumber, 9);
+});
+
+test("interpreter code remains exact across lifecycle updates and JSON export", async () => {
+  const { serializeChatTimeline } = await import("./chatTimeline.js");
+  const code =
+    "# KRT_STEP: Inspect geometry.\n" + "    print('é <tag>')\n".repeat(500);
+  const base = {
+    type: "tool",
+    callId: "python-code",
+    name: "code_interpreter",
+  };
+  let state = update(undefined, { ...base, phase: "started", code }, 0);
+  state = update(state, { ...base, phase: "started" }, 10);
+  state = update(
+    state,
+    { ...base, phase: "failed", detail: "Python error" },
+    20
+  );
+  const steps = JSON.parse(serializeChatTimeline(state)).steps;
+  assert.equal(steps.length, 1);
+  assert.equal(steps[0].code, code);
+  assert.equal(steps[0].status, "failed");
+  assert.equal(steps[0].detail, "Python error");
+  const old = update(undefined, { ...base, phase: "done" });
+  assert.equal(JSON.parse(serializeChatTimeline(old)).steps[0].code, null);
+  const other = update(undefined, {
+    ...base,
+    name: "query_annotations",
+    phase: "done",
+    code,
+  });
+  assert.equal(
+    JSON.parse(serializeChatTimeline(other)).steps[0].code,
+    undefined
+  );
 });

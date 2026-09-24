@@ -5,6 +5,27 @@ export function drawingLiveStatus(status) {
   return "pending";
 }
 
+// Use only jobs linked to this message, never unrelated recent detections.
+export async function recoverMessageDrawings(actions, dependencies) {
+  const results = [];
+  const jobs = new Map();
+  for (const action of actions ?? []) {
+    if (action.name !== "draw_annotations" || !action.jobId || action.undone)
+      continue;
+    let result = jobs.get(action.jobId);
+    if (!result) {
+      try {
+        result = await recoverChatDrawing(action.jobId, dependencies);
+      } catch (error) {
+        result = { failure: error };
+      }
+      jobs.set(action.jobId, result);
+    }
+    results.push({ action, ...result });
+  }
+  return results;
+}
+
 // Retrieve the original job; never create another drawing or rerun inference.
 export async function recoverChatDrawing(jobId, { fetchJob, applyLiveJob }) {
   let job = await fetchJob(jobId);

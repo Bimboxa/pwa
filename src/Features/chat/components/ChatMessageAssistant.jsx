@@ -30,6 +30,7 @@ import ChatTimeline from "./ChatTimeline";
 import ThinkingBubble from "./ThinkingBubble";
 import ChatText from "./ChatText";
 import ChatRecoverDrawing from "./ChatRecoverDrawing";
+import ChatRecoverDetectedAnnotations from "./ChatRecoverDetectedAnnotations";
 import ChatDrawingDiagnostic from "./ChatDrawingDiagnostic";
 import { drawingLiveStatus } from "../utils/recoverChatDrawing";
 import { CHAT_TOOL_LABELS, formatChatElapsed } from "../utils/chatProgress";
@@ -342,6 +343,7 @@ export default function ChatMessageAssistant({ message }) {
               {message.planStatus}
             </Typography>
           ) : null}
+          <ChatRecoverDetectedAnnotations key={message.id} message={message} />
           <ChatTimeline
             timeline={message.timeline}
             active={Boolean(message.progress)}

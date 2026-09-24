@@ -1,7 +1,19 @@
 import { useEffect, useState } from "react";
 import SmartToyOutlinedIcon from "@mui/icons-material/SmartToyOutlined";
+import CodeIcon from "@mui/icons-material/Code";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
-import { Box, Button, Stack, Typography } from "@mui/material";
+import {
+  Box,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  IconButton,
+  Stack,
+  Tooltip,
+  Typography,
+} from "@mui/material";
 import {
   formatStepDuration,
   serializeChatTimeline,
@@ -16,6 +28,10 @@ const STATUS = {
 
 export default function ChatTimeline({ timeline, active }) {
   const [copyStatus, setCopyStatus] = useState("");
+  const [codeEntryId, setCodeEntryId] = useState(null);
+  const codeEntry = timeline?.entries?.find(
+    (entry) => entry.id === codeEntryId
+  );
   const copySteps = async () => {
     try {
       await navigator.clipboard.writeText(serializeChatTimeline(timeline));
@@ -64,8 +80,12 @@ export default function ChatTimeline({ timeline, active }) {
         </Typography>
       )}
       <Stack component="ol" spacing={1} sx={{ pl: 2.5, my: 1 }}>
-        {(timeline?.entries ?? []).map((entry) => (
-          <Box component="li" key={entry.id}>
+        {(timeline?.entries ?? []).map((entry, index) => (
+          <Box
+            component="li"
+            key={entry.id}
+            value={entry.stepNumber ?? (timeline?.omitted ?? 0) + index + 1}
+          >
             <Stack direction="row" spacing={0.75} alignItems="center">
               {entry.kind === "model" && (
                 <SmartToyOutlinedIcon
@@ -74,6 +94,18 @@ export default function ChatTimeline({ timeline, active }) {
                 />
               )}
               <Typography variant="body2">{entry.title}</Typography>
+              {entry.name === "code_interpreter" &&
+                typeof entry.code === "string" && (
+                  <Tooltip title="Voir le code Python">
+                    <IconButton
+                      size="small"
+                      aria-label="Voir le code Python"
+                      onClick={() => setCodeEntryId(entry.id)}
+                    >
+                      <CodeIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                )}
             </Stack>
             <Typography
               variant="caption"
@@ -92,6 +124,15 @@ export default function ChatTimeline({ timeline, active }) {
                 {entry.name}
               </Typography>
             )}
+            {entry.detail && (
+              <Typography
+                variant="body2"
+                color="error"
+                sx={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}
+              >
+                {entry.detail}
+              </Typography>
+            )}
             {entry.summary && (
               <Typography variant="body2" color="text.secondary">
                 {entry.summary}
@@ -100,6 +141,36 @@ export default function ChatTimeline({ timeline, active }) {
           </Box>
         ))}
       </Stack>
+      <Dialog
+        open={Boolean(codeEntry)}
+        onClose={() => setCodeEntryId(null)}
+        fullWidth
+        maxWidth="md"
+        aria-labelledby="python-step-code-title"
+      >
+        <DialogTitle id="python-step-code-title">
+          Code Python
+          {codeEntry?.stepNumber ? ` · Étape ${codeEntry.stepNumber}` : ""}
+        </DialogTitle>
+        <DialogContent dividers>
+          <Box
+            component="pre"
+            sx={{
+              m: 0,
+              overflowX: "auto",
+              fontFamily: "monospace",
+              fontSize: 13,
+              whiteSpace: "pre",
+              tabSize: 4,
+            }}
+          >
+            <code>{codeEntry?.code}</code>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setCodeEntryId(null)}>Fermer</Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

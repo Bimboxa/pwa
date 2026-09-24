@@ -200,14 +200,16 @@ export default function useSendChatTurn() {
         dispatch(updateMessageById({ id: messageId, changes: { error } }));
       };
 
+      let serverTimelineStarted = false;
       let progress = { startedAt: Date.now(), stage: "preparing" };
-      const reportProgress = (event) => {
+      const reportProgress = (event, fromServer = false) => {
         if (isStale() || controller.signal.aborted) return;
         ensureBubble();
-        recordTimeline({
-          ...(typeof event === "string" ? { stage: event } : event),
-          type: "progress",
-        });
+        if (!serverTimelineStarted || fromServer)
+          recordTimeline({
+            ...(typeof event === "string" ? { stage: event } : event),
+            type: "progress",
+          });
         progress = updateChatProgress(
           progress,
           typeof event === "string" ? { stage: event } : event
@@ -347,6 +349,7 @@ export default function useSendChatTurn() {
         };
 
         reportProgress("connecting");
+        serverTimelineStarted = true;
         await streamChatTurn(
           {
             message,
@@ -355,6 +358,7 @@ export default function useSendChatTurn() {
             ...(planPdf ? { planPdf } : {}),
             sessionId: session.budgetSessionId,
             llmTrace,
+            nextTimelineStep: timeline?.nextStepNumber ?? 1,
             ...(session.sessionName
               ? { sessionName: session.sessionName }
               : {}),
@@ -422,7 +426,7 @@ export default function useSendChatTurn() {
                 debugRecords.set(record.id, record);
                 publishDebug();
               } else if (event.type === "progress") {
-                reportProgress(event);
+                reportProgress(event, true);
               } else if (event.type === "tokens") {
                 llmTrace = advanceLlmTrace(llmTrace, event.usage);
                 dispatch(setConversation({ llmTrace }));

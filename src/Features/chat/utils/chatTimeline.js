@@ -17,7 +17,7 @@ const short = (text) =>
     .trim()
     .slice(0, 220);
 
-// Store only observable lifecycle metadata, never tool arguments or raw prompts.
+// Store observable lifecycle metadata and interpreter code, never tool arguments or raw prompts.
 export function updateChatTimeline(
   previous,
   event,
@@ -27,6 +27,7 @@ export function updateChatTimeline(
   const state = previous ?? {
     entries: [],
     omitted: 0,
+    nextStepNumber: 1,
     pendingTools: [],
     model: null,
   };
@@ -52,6 +53,14 @@ export function updateChatTimeline(
     entries: state.entries.map((entry) => ({ ...entry })),
     pendingTools: [...state.pendingTools],
   };
+  const allocate = () => {
+    const number =
+      event.stepNumber ??
+      next.nextStepNumber ??
+      (next.omitted ?? 0) + next.entries.length + 1;
+    next.nextStepNumber = Math.max(next.nextStepNumber ?? 1, number + 1);
+    return number;
+  };
   const endPreparation = () => {
     for (const entry of next.entries)
       if (entry.kind === "preparation" && entry.status === "running") {
@@ -71,6 +80,7 @@ export function updateChatTimeline(
       next.entries.push({
         id: `stage-${now}-${next.entries.length}`,
         kind: "preparation",
+        stepNumber: allocate(),
         stage: event.stage,
         title: CHAT_PROGRESS_LABELS[event.stage],
         status: "running",
@@ -92,6 +102,7 @@ export function updateChatTimeline(
         id: `model-${event.usage.traceCode ?? event.usage.step}`,
         ...(event.usage.traceCode ? { traceCode: event.usage.traceCode } : {}),
         kind: "model",
+        stepNumber: allocate(),
         step: event.usage.step,
         title: event.usage.traceCode
           ? `${event.usage.traceCode} · Appel au modèle`
@@ -119,6 +130,7 @@ export function updateChatTimeline(
       entry = {
         id: `tool-${event.callId}`,
         kind: "tool",
+        stepNumber: allocate(),
         name: event.name,
         title: CHAT_TOOL_LABELS[event.name] ?? event.name,
         startedAt: event.phase === "started" ? now : null,
@@ -126,7 +138,12 @@ export function updateChatTimeline(
       };
       next.entries.push(entry);
     }
+    if (event.name === "code_interpreter" && typeof event.code === "string")
+      entry.code = event.code;
     if (event.summary) entry.summary = short(event.summary);
+    if (event.detail) entry.detail = String(event.detail).slice(-4000);
+    if (event.phase === "failed" && !entry.detail)
+      entry.detail = "Aucun détail d’erreur fourni par le serveur.";
     if (event.phase !== "started") {
       entry.status = event.phase === "failed" ? "failed" : "done";
       entry.endedAt = now;
@@ -165,10 +182,14 @@ export function formatStepDuration(entry, now) {
 export function serializeChatTimeline(timeline) {
   return JSON.stringify(
     {
-      version: 1,
+      version: 2,
       omitted: timeline?.omitted ?? 0,
-      steps: (timeline?.entries ?? []).map((entry) => ({
+      steps: (timeline?.entries ?? []).map((entry, index) => ({
         ...entry,
+        ...(entry.name === "code_interpreter"
+          ? { code: entry.code ?? null }
+          : {}),
+        stepNumber: entry.stepNumber ?? (timeline?.omitted ?? 0) + index + 1,
         durationMs:
           entry.startedAt != null && entry.endedAt != null
             ? Math.max(0, entry.endedAt - entry.startedAt)
