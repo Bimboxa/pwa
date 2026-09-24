@@ -4,14 +4,8 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   toggleBaseMapVisibleIn3d,
   setBaseMapAnnotationsModeIn3d,
-  toggleMainBaseMapImageIn3d,
-  toggleMainBaseMapAnnotationsIn3d,
 } from "Features/threedEditor/threedEditorSlice";
-import {
-  setHideBaseMapImageInViewer,
-  setHideAnnotationsInViewer,
-  togglePinnedBaseMapIdInViewer,
-} from "Features/viewers/viewersSlice";
+import { togglePinnedBaseMapIdInViewer } from "Features/viewers/viewersSlice";
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 
 import {
@@ -37,6 +31,7 @@ import PushPinOutlinedIcon from "@mui/icons-material/PushPinOutlined";
 
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
+import useMainBaseMapVisibilityToggles from "Features/baseMaps/hooks/useMainBaseMapVisibilityToggles";
 import useSelectMainBaseMap from "Features/threedEditor/hooks/useSelectMainBaseMap";
 import useAnnotationsCountByBaseMapId from "Features/annotations/hooks/useAnnotationsCountByBaseMapId";
 import useDisabledBaseMapListingIds from "Features/baseMapEditor/hooks/useDisabledBaseMapListingIds";
@@ -75,12 +70,14 @@ export default function TopBaseMapChipsThreed({ inTopBar = false }) {
   const annotationsModeByBaseMapId = useSelector(
     (s) => s.threedEditor.annotationsModeByBaseMapIdIn3d
   );
-  const hideMainImage = useSelector(
-    (s) => s.threedEditor.hideMainBaseMapImageIn3d
-  );
-  const hideMainAnnotations = useSelector(
-    (s) => s.threedEditor.hideMainBaseMapAnnotationsIn3d
-  );
+  // Main chip: same state + toggles as the top-bar selector
+  // (BaseMapSelectorInMapEditorV2), resolved against the displayed editor.
+  const {
+    imageOn: mainImageOn,
+    annotationsOn: mainAnnotationsOn,
+    toggleImage: toggleMainImage,
+    toggleAnnotations: toggleMainAnnotations,
+  } = useMainBaseMapVisibilityToggles();
   const isViewerModule = useSelector(
     (s) => s.viewers.selectedViewerKey === "THREED"
   );
@@ -96,12 +93,6 @@ export default function TopBaseMapChipsThreed({ inTopBar = false }) {
   const hideAnnotationsBadge = isBaseMapsModule && !showAnnotationsInBaseMaps;
   const pinnedIds = useSelector((s) => s.viewers.pinnedBaseMapIdsInViewer);
   const effectiveViewerKey = useSelector(selectEffectiveViewerKey);
-  const hideBaseMapImageInViewer = useSelector(
-    (s) => s.viewers.hideBaseMapImageInViewer
-  );
-  const hideAnnotationsInViewer = useSelector(
-    (s) => s.viewers.hideAnnotationsInViewer
-  );
 
   // state
 
@@ -111,9 +102,8 @@ export default function TopBaseMapChipsThreed({ inTopBar = false }) {
   // helpers
 
   // Viewer module displaying its 2D editor: the selected chip goes solid
-  // black, its eye hides the image in the 2D editor (same flag as the top-bar
-  // selector's eye, BaseMapSelectorInMapEditorV2), and it embeds a version
-  // selector; the other chips lose their (3D-only) eye.
+  // black and embeds a version selector; the other chips lose their (3D-only)
+  // eye. The main chip's eye/badge state lives in the shared hook above.
   const isViewer2d = isViewerModule && effectiveViewerKey === "MAP";
 
   // Per-scope disabled listings leave the band and the "…" pin menu — except
@@ -155,11 +145,8 @@ export default function TopBaseMapChipsThreed({ inTopBar = false }) {
 
   function handleToggleImage(e, map, isMain) {
     e.stopPropagation();
-    if (isViewer2d) {
-      // 2D editor: the selected chip's eye hides the image entirely.
-      dispatch(setHideBaseMapImageInViewer(!hideBaseMapImageInViewer));
-    } else if (isMain) {
-      dispatch(toggleMainBaseMapImageIn3d());
+    if (isMain) {
+      toggleMainImage();
     } else {
       dispatch(toggleBaseMapVisibleIn3d(map.id));
     }
@@ -181,12 +168,8 @@ export default function TopBaseMapChipsThreed({ inTopBar = false }) {
 
   function handleToggleAnnotations(e, map, isMain, annotationsOn) {
     e.stopPropagation();
-    if (isViewer2d) {
-      // 2D editor: the selected chip's badge hides the annotations entirely
-      // (same flag as the top-bar selector's badge).
-      dispatch(setHideAnnotationsInViewer(annotationsOn));
-    } else if (isMain) {
-      dispatch(toggleMainBaseMapAnnotationsIn3d());
+    if (isMain) {
+      toggleMainAnnotations();
     } else {
       dispatch(
         setBaseMapAnnotationsModeIn3d({
@@ -228,21 +211,15 @@ export default function TopBaseMapChipsThreed({ inTopBar = false }) {
     >
       {displayedBaseMaps.map((map) => {
         const isMain = map.id === mainBaseMap?.id;
-        // Viewer 2D: the selected chip is solid black and its eye drives the
-        // 2D editor image; the (3D-only) eye is hidden on the other chips.
+        // Viewer 2D: the selected chip is solid black; the (3D-only) eye is
+        // hidden on the other chips.
         const isBlackChip = isViewer2d && isMain;
-        const imageOn = isViewer2d
-          ? !hideBaseMapImageInViewer
-          : isMain
-            ? !hideMainImage
-            : visibleIds.includes(map.id);
+        const imageOn = isMain ? mainImageOn : visibleIds.includes(map.id);
         const annotationsMode =
           annotationsModeByBaseMapId?.[map.id] ?? ANNOTATIONS_DISPLAY_MODE.NONE;
-        const annotationsOn = isViewer2d
-          ? !hideAnnotationsInViewer
-          : isMain
-            ? !hideMainAnnotations
-            : annotationsMode !== ANNOTATIONS_DISPLAY_MODE.NONE;
+        const annotationsOn = isMain
+          ? mainAnnotationsOn
+          : annotationsMode !== ANNOTATIONS_DISPLAY_MODE.NONE;
         const annotationsCount = annotationsCountByBaseMapId[map.id] ?? 0;
         const showImageEye = !isViewer2d || isMain;
         const versions = map.versions ?? [];

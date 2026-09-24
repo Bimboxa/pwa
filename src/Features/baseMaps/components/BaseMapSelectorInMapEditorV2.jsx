@@ -32,7 +32,6 @@ import LayersIcon from "@mui/icons-material/Layers";
 
 // Redux & Hooks
 import { setSelectedMainBaseMapId, setSelectedBaseMapsListingId, setShowCreateBaseMapSection } from "Features/mapEditor/mapEditorSlice";
-import { setHideBaseMapImageInViewer, setHideAnnotationsInViewer } from "Features/viewers/viewersSlice";
 import useUpdateEntity from "Features/entities/hooks/useUpdateEntity";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useBaseMaps from "../hooks/useBaseMaps";
@@ -40,10 +39,12 @@ import useDetailBaseMaps from "../hooks/useDetailBaseMaps";
 import useProjectBaseMapListings from "../hooks/useProjectBaseMapListings";
 import useDisabledBaseMapListingIds from "Features/baseMapEditor/hooks/useDisabledBaseMapListingIds";
 import useAnnotationsCountByBaseMapId from "Features/annotations/hooks/useAnnotationsCountByBaseMapId";
+import useMainBaseMapVisibilityToggles from "../hooks/useMainBaseMapVisibilityToggles";
 
 // Mirrors the 3D/Viewer chips band (TopBaseMapChipsThreed) for the main
-// baseMap: a layers "eye" toggling the image visibility in the 2D editor
-// (`showImageToggle`), the name, and a badge with its annotations count.
+// baseMap: a layers "eye" toggling the image visibility in the DISPLAYED
+// editor, 2D or 3D (`showImageToggle`), the name, and a badge with its
+// annotations count toggling their visibility (same shared state as the band).
 // `onEdit` (Dessin module) is now reachable from the popover footer.
 export default function BaseMapSelectorInMapEditorV2({ onEdit, showImageToggle = false }) {
     // strings
@@ -70,7 +71,6 @@ export default function BaseMapSelectorInMapEditorV2({ onEdit, showImageToggle =
     const updateEntity = useUpdateEntity();
 
     const showCreateBaseMapSection = useSelector((s) => s.mapEditor.showCreateBaseMapSection);
-    const hideBaseMapImage = useSelector((s) => s.viewers.hideBaseMapImageInViewer);
     // Same rule as the chips band: in the BaseMaps module the drawing
     // annotations are not loaded unless the panel switch loads them.
     const hideAnnotationsBadge = useSelector(
@@ -78,9 +78,8 @@ export default function BaseMapSelectorInMapEditorV2({ onEdit, showImageToggle =
     );
     const annotationsCountByBaseMapId = useAnnotationsCountByBaseMapId();
     const annotationsCount = annotationsCountByBaseMapId[activeBaseMap?.id] ?? 0;
-    const imageOn = !hideBaseMapImage;
-    const hideAnnotations = useSelector((s) => s.viewers.hideAnnotationsInViewer);
-    const annotationsOn = !hideAnnotations;
+    const { imageOn, annotationsOn, toggleImage, toggleAnnotations } =
+        useMainBaseMapVisibilityToggles();
 
     const [anchorEl, setAnchorEl] = useState(null);
     const [editingMapId, setEditingMapId] = useState(null);
@@ -137,11 +136,11 @@ export default function BaseMapSelectorInMapEditorV2({ onEdit, showImageToggle =
     const handleCreate = () => dispatch(setShowCreateBaseMapSection(true));
     const handleToggleImage = (e) => {
         e.stopPropagation();
-        dispatch(setHideBaseMapImageInViewer(imageOn));
+        toggleImage();
     };
     const handleToggleAnnotations = (e) => {
         e.stopPropagation();
-        dispatch(setHideAnnotationsInViewer(annotationsOn));
+        toggleAnnotations();
     };
 
     const handleSelectMap = (map) => {
