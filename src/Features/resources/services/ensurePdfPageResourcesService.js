@@ -9,8 +9,9 @@ import getPdfPageThumbnailDataUrl from "Features/detailFolio/utils/getPdfPageThu
 // Persists the PDF pages a base map is cut from as project resources
 // (kind = "PDF_PAGE", visibility = "PROJECT"): one single-page PDF per source
 // page, extracted with pdf-lib and stored in db.files under the standard
-// resource convention. Dedup key = sha256(source bytes) + page number, so
-// two base maps created from the same page of the same PDF (even in two
+// resource convention. Dedup key = sha256(source bytes) + page number,
+// scoped to the PROJECT (the RESOURCES panel lists a project's rows), so two
+// base maps created from the same page of the same PDF (even in two
 // sessions) share one resource. Returns Map<pageNumber, resourceRow>.
 //
 // Never throws. When pdf-lib cannot re-read the PDF (unusual xref, broken
@@ -65,7 +66,7 @@ export default async function ensurePdfPageResources({
     const sourceKey = `${hash}@full`;
     const existing = (
       await db.resources.where("sourceKey").equals(sourceKey).toArray()
-    ).filter((r) => !r.deletedAt && r.fileName);
+    ).filter((r) => !r.deletedAt && r.fileName && r.projectId === projectId);
     for (const r of existing) {
       const fileRecord = await db.files.get(r.fileName);
       if (fileRecord?.fileArrayBuffer) {
@@ -137,7 +138,7 @@ export default async function ensurePdfPageResources({
       // 1. Reuse an existing live resource with the same content key.
       const existing = (
         await db.resources.where("sourceKey").equals(sourceKey).toArray()
-      ).filter((r) => !r.deletedAt);
+      ).filter((r) => !r.deletedAt && r.projectId === projectId);
       const reusable = existing.find((r) => r.fileName);
       if (reusable) {
         const fileRecord = await db.files.get(reusable.fileName);

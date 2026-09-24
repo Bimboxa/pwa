@@ -209,7 +209,9 @@ export default async function loadKrtoZip(file, options) {
 
         // 3ter. PDF page resources already present locally (same content
         // key) are reused instead of duplicated.
-        await dedupImportedResourcesBySourceKey(jsonData);
+        await dedupImportedResourcesBySourceKey(jsonData, {
+          targetProjectId: loadDataToProjectId ?? null,
+        });
 
         // 4. Créer le Blob JSON pour Dexie
         const jsonBlob = new Blob([JSON.stringify(jsonData)], {

@@ -5,7 +5,13 @@ import db from "App/db/db";
 // incoming sourceKey, the incoming row (and its file row) is dropped and the
 // base maps referencing it are re-pointed to the local resource, so the
 // RESOURCES panel does not fill with identical pages. Mutates jsonData.
-export default async function dedupImportedResourcesBySourceKey(jsonData) {
+// Scoped to the target project (`targetProjectId`, else each row's own
+// projectId — the duplicate path already remapped it): the panel lists a
+// project's rows, so a row of another project must not be reused.
+export default async function dedupImportedResourcesBySourceKey(
+  jsonData,
+  { targetProjectId = null } = {}
+) {
   const tables = jsonData?.data?.data ?? [];
   const resourcesTable = tables.find((t) => t.tableName === "resources");
   const rows = resourcesTable?.rows?.filter((r) => r?.sourceKey) ?? [];
@@ -18,20 +24,24 @@ export default async function dedupImportedResourcesBySourceKey(jsonData) {
   if (localRows.length === 0) return;
 
   // Prefer a local row whose file is present.
-  const localByKey = new Map();
+  const localByKey = new Map(); // `${projectId}|${sourceKey}` -> candidate
   for (const r of localRows) {
     const fileRecord = await db.files.get(r.fileName);
     const hasFile = Boolean(fileRecord?.fileArrayBuffer);
-    const current = localByKey.get(r.sourceKey);
+    const key = `${r.projectId}|${r.sourceKey}`;
+    const current = localByKey.get(key);
     if (!current || (hasFile && !current.hasFile)) {
-      localByKey.set(r.sourceKey, { row: r, hasFile });
+      localByKey.set(key, { row: r, hasFile });
     }
   }
 
   const resourceIdMap = {}; // incoming id -> local id
   const droppedFileNames = new Set();
   resourcesTable.rows = resourcesTable.rows.filter((r) => {
-    const local = r?.sourceKey ? localByKey.get(r.sourceKey) : null;
+    const projectId = targetProjectId ?? r?.projectId;
+    const local = r?.sourceKey
+      ? localByKey.get(`${projectId}|${r.sourceKey}`)
+      : null;
     if (!local || local.row.id === r.id) return true;
     resourceIdMap[r.id] = local.row.id;
     if (r.fileName && r.fileName !== local.row.fileName) {
