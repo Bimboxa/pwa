@@ -37,6 +37,10 @@ export default function remapDexieExportIds(jsonData, opts) {
     sourcePhotoBaseMapId: "baseMaps",
     // DETAIL annotation -> detail baseMap link.
     detailBaseMapId: "baseMaps",
+    // BASE_MAP_LINK section mark -> target vertical baseMap, and its clone ->
+    // source mark.
+    linkedBaseMapId: "baseMaps",
+    sourceLinkAnnotationId: "annotations",
     povId: "povs",
     listingId: "listings",
     annotationTemplateId: "annotationTemplates",

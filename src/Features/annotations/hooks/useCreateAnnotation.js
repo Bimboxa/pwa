@@ -44,7 +44,8 @@ function isAutoNumberExempt(annotation) {
       annotation?.isScaleSegment ||
       annotation?.isMeshCell ||
       annotation?.type === "REVOLUTION_AXIS" ||
-      annotation?.type === "DETAIL"
+      annotation?.type === "DETAIL" ||
+      annotation?.type === "BASE_MAP_LINK"
   );
 }
 

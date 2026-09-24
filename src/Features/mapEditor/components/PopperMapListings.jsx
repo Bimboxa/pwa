@@ -56,6 +56,7 @@ import { Check, Close } from "@mui/icons-material";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import AnnotationTemplateRowRevolutionAxisVertical from "./AnnotationTemplateRowRevolutionAxisVertical";
+import SectionBaseMapLinkClones from "Features/baseMapLinks/components/SectionBaseMapLinkClones";
 import { isLegacyStyleRevolutionHelper } from "Features/annotations/constants/drawingShapeConfig";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 
@@ -1185,6 +1186,14 @@ function AnnotationTemplatesForListing({
                 );
               }
               if (item?.isDivider) return null;
+              // A BASE_MAP_LINK section mark is authored on plans only; on a
+              // vertical base map its clones come from the dedicated
+              // "Coupes / élévations liées" section (SectionBaseMapLinkClones).
+              if (
+                isVerticalBaseMap &&
+                resolveDrawingShape(item) === "BASE_MAP_LINK"
+              )
+                return null;
               const templateQties = qtiesById?.[item.id];
               const count = templateQties?.count || 0;
               const qtyLabel = templateQties?.mainQtyLabel;
@@ -2468,6 +2477,17 @@ export default function PopperMapListings() {
                         }
                       />
                     )}
+
+              {/* Coupes / élévations liées — on a VERTICAL base map targeted
+                by BASE_MAP_LINK marks: one row per link to draw its clone
+                here (the clone poses this base map in 3D). */}
+              {!isLocateBusinessObjectMode && (
+                <SectionBaseMapLinkClones
+                  baseMap={baseMap}
+                  annotationTemplateById={annotationTemplateById}
+                  spriteImage={spriteImage}
+                />
+              )}
 
               {/* Outils section — DRAW mode and "no mode" (null, draws like
                 DRAW), always in the ZONES module (openings / splits on the

@@ -348,6 +348,17 @@ const DRAWING_TOOLS = [
     behavior: "SEGMENT",
     drawingMode: "POLYLINE_SEGMENT",
   },
+  // BASE_MAP_LINK tool — a section mark is a plain 2-point segment, so it
+  // borrows the POLYLINE_SEGMENT interaction while keeping its own type
+  // through the commit (same pattern as LINEAR_LAYOUT_SEGMENT above).
+  {
+    key: "BASE_MAP_LINK_SEGMENT",
+    label: "Coupe (2 clics)",
+    Icon: IconPolylineSegment,
+    annotationType: "BASE_MAP_LINK",
+    behavior: "SEGMENT",
+    drawingMode: "POLYLINE_SEGMENT",
+  },
   // ADD_GUIDE_LINE tool — draw a guideLine polyline on the selected
   // annotation (the ramp gradient axis + slope arrow). Multi-click, finish
   // with Enter, cancel with Escape.

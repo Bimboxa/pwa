@@ -3,6 +3,7 @@ import { useDispatch } from "react-redux";
 import { triggerAnnotationsUpdate } from "../annotationsSlice";
 
 import db from "App/db/db";
+import collectBaseMapLinkCloneIds from "Features/baseMapLinks/services/collectBaseMapLinkCloneIds";
 
 export default function useDeleteAnnotation() {
   const dispatch = useDispatch();
@@ -82,6 +83,11 @@ export default function useDeleteAnnotation() {
         }
       } else {
         console.warn("debug_3110_annotation_no_listing", annotation);
+      }
+      // BASE_MAP_LINK source mark: its clones (on elevations) go with it.
+      if (annotation?.type === "BASE_MAP_LINK") {
+        const cloneIds = await collectBaseMapLinkCloneIds([annotationId]);
+        for (const cloneId of cloneIds) await db.annotations.delete(cloneId);
       }
       await db.annotations.delete(annotationId);
       console.log("[useDeleteAnnotation] deleted annotation", annotationId);

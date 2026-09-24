@@ -14,6 +14,7 @@ import NodeOpeningStatic from "./NodeOpeningStatic";
 import NodeRectangleStatic from "./NodeRectangleStatic";
 import NodeCoteStatic from "./NodeCoteStatic";
 import NodeLinearLayoutStatic from "./NodeLinearLayoutStatic";
+import NodeBaseMapLinkStatic from "./NodeBaseMapLinkStatic";
 import NodeRulerStatic from "./NodeRulerStatic";
 import NodePhotoStatic from "./NodePhotoStatic";
 import NodeRevolutionAxisStatic from "./NodeRevolutionAxisStatic";
@@ -120,6 +121,13 @@ function NodeAnnotationStatic({
     case "LINEAR_LAYOUT":
       return (
         <NodeLinearLayoutStatic {...props} annotation={resolvedAnnotation} />
+      );
+
+    // BASE_MAP_LINK: "Coupe - Elévation" section mark — 2-point segment with
+    // view-direction arrows, linked to a vertical base map.
+    case "BASE_MAP_LINK":
+      return (
+        <NodeBaseMapLinkStatic {...props} annotation={resolvedAnnotation} />
       );
 
     case "TEXT":

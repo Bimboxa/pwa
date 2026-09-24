@@ -7,6 +7,7 @@ const TYPES_WITHOUT_LABEL = [
   "LABEL",
   "FREE_TEXT",
   "DETAIL",
+  "BASE_MAP_LINK",
 ];
 
 export default function hasAnnotationSubLabel(annotation) {

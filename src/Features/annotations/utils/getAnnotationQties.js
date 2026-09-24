@@ -371,6 +371,10 @@ export default function getAnnotationQties({
     // describes the drawing, it is not part of the work. No quantities.
     if (annotation.type === "RULER") return { enabled: false };
 
+    // BASE_MAP_LINK is a section mark (a navigation / posing helper): it
+    // describes the drawing, no quantities.
+    if (annotation.type === "BASE_MAP_LINK") return { enabled: false };
+
     // DETAIL is a callout bubble: counted (1 u), no length/surface.
     if (annotation.type === "DETAIL")
       return { enabled: true, length: 0, surface: 0 };

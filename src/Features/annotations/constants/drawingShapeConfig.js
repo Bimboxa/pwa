@@ -329,6 +329,25 @@ const DRAWING_SHAPE_CONFIG = {
     },
     shapeCategory: "polyline",
   },
+  // BASE_MAP_LINK ("Coupe - Elévation"): a 2-point section mark drawn on a
+  // horizontal plan and linked to a VERTICAL base map (linkedBaseMapId). Its
+  // clone, drawn on that elevation (sourceLinkAnnotationId), poses the
+  // elevation in 3D (angle + position + scale) — see
+  // resyncBaseMapLinkPlacementsService. The observer stands on the RIGHT of
+  // the p1 → p2 direction on screen (view-direction arrows).
+  BASE_MAP_LINK: {
+    label: "Coupe - Elévation",
+    annotationType: "BASE_MAP_LINK",
+    tools: ["BASE_MAP_LINK_SEGMENT"],
+    configurableProps: ["strokeColor", "strokeWidth", "strokeOpacity"],
+    defaults: {
+      strokeColor: secondary,
+      strokeWidth: 2,
+      strokeWidthUnit: "PX",
+      strokeOpacity: 1,
+    },
+    shapeCategory: "polyline",
+  },
   // Revolution helpers — geometry that defines a surface-of-revolution shape3D
   // (REVOLUTION). REVOLUTION_AXIS is a template-drivable shape: axes are drawn
   // from an annotationTemplate row of the listings panel.
@@ -538,6 +557,7 @@ const TYPE_TO_SHAPE = {
   RECTANGLE: "POLYGON",
   OBJECT_3D: "OBJECT_3D",
   LINEAR_LAYOUT: "LINEAR_LAYOUT",
+  BASE_MAP_LINK: "BASE_MAP_LINK",
   COTE: "COTE",
   RULER: "RULER",
   REVOLUTION_AXIS: "REVOLUTION_AXIS",

@@ -90,6 +90,11 @@ export default function NodeSegmentLengthsStatic({
   disableVertexEditing = false,
   simple = false,
   onCommitLength,
+  // Extra buttons appended to the overlay row by the host node (e.g. the
+  // "Lier à un fond de plan" action of a BASE_MAP_LINK). `extraButtonCount`
+  // keeps the row centred on the bbox (drives the foreignObject width).
+  extraButtons = null,
+  extraButtonCount = 0,
 }) {
   // data
 
@@ -422,7 +427,8 @@ export default function NodeSegmentLengthsStatic({
     Number(showMoveButton) +
     Number(showCotesButton) +
     Number(showSegmentDragButton) +
-    Number(showAnglesButton);
+    Number(showAnglesButton) +
+    (extraButtons ? extraButtonCount : 0);
   const overlayWidth =
     overlayButtonCount * OVERLAY_BUTTON_PX +
     Math.max(0, overlayButtonCount - 1) * OVERLAY_GAP_PX;
@@ -764,6 +770,7 @@ export default function NodeSegmentLengthsStatic({
                   </IconButton>
                 </Tooltip>
                 )}
+                {extraButtons}
               </div>
             </foreignObject>
           </g>

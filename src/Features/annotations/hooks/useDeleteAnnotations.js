@@ -5,6 +5,7 @@ import { triggerAnnotationsUpdate } from "../annotationsSlice";
 import db from "App/db/db";
 import collectReferencedPointIds from "Features/annotations/utils/collectReferencedPointIds";
 import softDeleteOrphanPoints from "Features/annotations/services/softDeleteOrphanPoints";
+import collectBaseMapLinkCloneIds from "Features/baseMapLinks/services/collectBaseMapLinkCloneIds";
 
 export default function useDeleteAnnotations() {
   const dispatch = useDispatch();
@@ -42,6 +43,22 @@ export default function useDeleteAnnotations() {
         (a) => a && !a.deletedAt
       );
       for (const c of childCells) {
+        validAnnotations.push(c);
+        idsToDelete.push(c.id);
+        idsToDeleteSet.add(c.id);
+      }
+    }
+
+    // 1a-ter. Cascade to BASE_MAP_LINK clones: a clone (drawn on an elevation)
+    // is meaningless without its source mark on the plan.
+    const cloneIds = (await collectBaseMapLinkCloneIds(idsToDelete)).filter(
+      (id) => !idsToDeleteSet.has(id)
+    );
+    if (cloneIds.length > 0) {
+      const clones = (await db.annotations.bulkGet(cloneIds)).filter(
+        (a) => a && !a.deletedAt
+      );
+      for (const c of clones) {
         validAnnotations.push(c);
         idsToDelete.push(c.id);
         idsToDeleteSet.add(c.id);
