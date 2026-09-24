@@ -33,6 +33,7 @@ import FieldAnnotationArrows from "./FieldAnnotationArrows";
 import FieldAnnotationFreeText from "./FieldAnnotationFreeText";
 import FieldAnnotationTextContent from "./FieldAnnotationTextContent";
 import FieldAnnotationImage from "./FieldAnnotationImage";
+import FieldAnnotationOpacity from "./FieldAnnotationOpacity";
 
 // hideOverview: the hosting panel renders the preview / height / quantities
 // card and the label field itself, above the tabs (panel annotation subview)
@@ -187,6 +188,7 @@ export default function SectionAnnotationPropertiesContent({
           />
         )}
         {type === "IMAGE" && <FieldAnnotationImage annotation={annotation} />}
+        {type === "IMAGE" && <FieldAnnotationOpacity annotation={annotation} />}
         <SectionAnnotationTransform annotation={annotation} />
         {/* LINEAR_LAYOUT: band width L (bar length) — same section as the
             template form, without the override padlock. */}
