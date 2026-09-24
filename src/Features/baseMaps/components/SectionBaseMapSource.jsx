@@ -10,6 +10,9 @@ import { ArrowForward, PictureAsPdfOutlined } from "@mui/icons-material";
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 
 import { resolveDetailResource } from "Features/baseMaps/services/detailBaseMapUtils";
+import duplicateResourceToProject from "Features/resources/services/duplicateResourceToProjectService";
+import { triggerEntitiesTableUpdate } from "Features/entities/entitiesSlice";
+import db from "App/db/db";
 
 // "Source : <pdf>" row of the base map panel, for base maps cut from a PDF
 // kept as a resource. The arrow opens the RESOURCES panel on that PDF at
@@ -44,11 +47,26 @@ export default function SectionBaseMapSource({ baseMap }) {
 
   // handlers
 
-  function handleOpen() {
+  // The source must live in the base map's project (the RESOURCES panel
+  // lists a project's rows). Base maps created before the dedup was
+  // project-scoped may point at another project's resource: heal them by
+  // copying the resource into the project and re-pointing createdFrom.
+  async function handleOpen() {
     if (!resource) return;
+    let target = resource;
+    if (projectId && resource.projectId !== projectId) {
+      const copy = await duplicateResourceToProject(resource, { projectId });
+      if (copy) {
+        target = copy;
+        await db.baseMaps.update(baseMap.id, {
+          createdFrom: { ...createdFrom, resourceId: copy.id, pdfFileName: copy.name },
+        });
+        dispatch(triggerEntitiesTableUpdate("baseMaps"));
+      }
+    }
     dispatch(
       openResourceAtPage({
-        resourceId: resource.id,
+        resourceId: target.id,
         pageNumber: createdFrom?.pageNumber ?? 1,
         rotation: createdFrom?.rotation,
       })

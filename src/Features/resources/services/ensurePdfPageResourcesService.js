@@ -4,6 +4,7 @@ import { PDFDocument, PDFName, PDFObjectCopier } from "pdf-lib";
 import db from "App/db/db";
 
 import getArrayBufferSha256 from "Features/files/utils/getArrayBufferSha256";
+import duplicateResourceToProject from "./duplicateResourceToProjectService";
 import getPdfPageThumbnailDataUrl from "Features/detailFolio/utils/getPdfPageThumbnailDataUrl";
 
 // Persists the PDF pages a base map is cut from as project resources
@@ -59,6 +60,19 @@ export default async function ensurePdfPageResources({
     return srcDoc;
   };
 
+  // Same content already kept in ANOTHER project: copy it into this one
+  // (cheaper than re-extracting, and the panel lists a project's rows).
+  const duplicateFromOtherProject = async (sourceKey) => {
+    const twins = (
+      await db.resources.where("sourceKey").equals(sourceKey).toArray()
+    ).filter((r) => !r.deletedAt && r.fileName && r.projectId !== projectId);
+    for (const twin of twins) {
+      const copy = await duplicateResourceToProject(twin, { projectId, createdBy });
+      if (copy) return copy;
+    }
+    return null;
+  };
+
   // Fallback: the whole PDF as one resource (see header). Created once.
   let fullResource = null;
   const getFullResource = async () => {
@@ -73,6 +87,11 @@ export default async function ensurePdfPageResources({
         fullResource = r;
         return r;
       }
+    }
+    const twinCopy = await duplicateFromOtherProject(sourceKey);
+    if (twinCopy) {
+      fullResource = twinCopy;
+      return twinCopy;
     }
     if (existing[0]) {
       // metadata row without its file (post-Krto import): re-attach
@@ -171,7 +190,14 @@ export default async function ensurePdfPageResources({
         continue;
       }
 
-      // 2. Extract the page and create the resource.
+      // 2. Same page already kept in another project: copy it here.
+      const twinCopy = await duplicateFromOtherProject(sourceKey);
+      if (twinCopy) {
+        result.set(pageNumber, { ...twinCopy, pageInResource: 1 });
+        continue;
+      }
+
+      // 3. Extract the page and create the resource.
       const pageBytes = await extractPage(await getSrcDoc(), pageNumber);
       const id = nanoid();
       const name = `${baseName} — p.${pageNumber}.pdf`;
