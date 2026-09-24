@@ -166,6 +166,7 @@ export default function FormAnnotationTemplateVariantBlock({
     "OBJECT_3D",
     "REVOLUTION_AXIS",
     "REVOLUTION_AXIS_PLACEMENT",
+    "BASE_MAP_LINK",
   ].includes(drawingShape);
   const hasMaterial3d = configurableProps.includes("material3d");
   const hasRender3d =

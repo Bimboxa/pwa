@@ -179,6 +179,9 @@ const mapEditorInitialState = {
   imageScaleDraft: null,
   // Annotation whose image is being replaced (DialogChangeAnnotationImage).
   imageChangeAnnotationId: null,
+  // BASE_MAP_LINK "Lier à un fond de plan" menu (MenuLinkBaseMapOutlet):
+  // { annotationId, anchorPosition: {top, left} } | null.
+  baseMapLinkMenu: null,
 
   // latlng
   anchorPositionLatLng: null,
@@ -380,6 +383,10 @@ export const mapEditorSlice = createSlice({
     },
     setImageChangeAnnotationId: (state, action) => {
       state.imageChangeAnnotationId = action.payload;
+    },
+    // BASE_MAP_LINK tools
+    setBaseMapLinkMenu: (state, action) => {
+      state.baseMapLinkMenu = action.payload ?? null;
     },
     // latlng
     setAnchorPositionLatLng: (state, action) => {
@@ -886,6 +893,7 @@ export const {
   setScaleAnnotationId,
   setImageScaleDraft,
   setImageChangeAnnotationId,
+  setBaseMapLinkMenu,
   //
   setAnchorPositionLatLng,
   setLatLng,

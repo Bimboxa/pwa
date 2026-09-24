@@ -1,6 +1,7 @@
 import { triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice";
 import getBaseMapImageSizeFromRecord from "Features/baseMaps/utils/getBaseMapImageSizeFromRecord";
 import reflowOpeningsForHost from "Features/mapEditor/services/reflowOpeningsForHostService";
+import { resyncBaseMapLinksForAnnotationIds } from "Features/baseMapLinks/services/resyncBaseMapLinkPlacementsService";
 
 import db from "App/db/db";
 
@@ -94,6 +95,20 @@ export default async function applyPointsMovesService({
       });
     } catch (e) {
       console.error("[openings] reflow failed", e);
+    }
+  }
+
+  // A moved BASE_MAP_LINK mark (plan or clone) re-poses the elevation it
+  // drives — covers the EDIT segment drag, angle-locked vertex drags and the
+  // inline cote edit, none of which go through MainMapEditorV3's vertex path.
+  if (annotation.type === "BASE_MAP_LINK") {
+    try {
+      await resyncBaseMapLinksForAnnotationIds({
+        annotationIds: [annotation.id],
+        dispatch,
+      });
+    } catch (e) {
+      console.error("[baseMapLinks] resync failed", e);
     }
   }
 

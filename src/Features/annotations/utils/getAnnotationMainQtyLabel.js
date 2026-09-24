@@ -21,7 +21,11 @@ export default function getAnnotationMainQtyLabel(annotation, qties) {
 
   if (["POLYGON", "RECTANGLE"].includes(type)) {
     variant = "SURFACE";
-  } else if (type === "DETAIL" || type === "FREE_TEXT") {
+  } else if (
+    type === "DETAIL" ||
+    type === "FREE_TEXT" ||
+    type === "BASE_MAP_LINK"
+  ) {
     variant = "COUNT";
   } else if (["POINT"].includes(type)) {
     // A POINT revolved around an axis carries a real linear quantity (the

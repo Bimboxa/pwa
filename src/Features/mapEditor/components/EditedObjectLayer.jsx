@@ -18,7 +18,13 @@ import isOpeningAnnotation, { sortOpeningsLast } from "Features/annotations/util
 
 const selectWrapperMode = (state) => state.mapEditor.wrapperMode;
 
-const POINT_BASED_TYPES = ["POLYLINE", "POLYGON", "STRIP", "LINEAR_LAYOUT"];
+const POINT_BASED_TYPES = [
+  "POLYLINE",
+  "POLYGON",
+  "STRIP",
+  "LINEAR_LAYOUT",
+  "BASE_MAP_LINK",
+];
 
 export default function EditedObjectLayer({
   basePose,

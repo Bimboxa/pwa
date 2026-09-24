@@ -824,8 +824,15 @@ export default function useAnnotationsV2(options) {
       // visibility filter below anyway. Display-only: the revolution
       // resolution reads the axis and its placement straight from Dexie, so a
       // hidden axis still drives its lathes and still poses its base map.
+      // Same record-level eye for BASE_MAP_LINK clones (panel section on a
+      // vertical base map): the resync reads Dexie directly, so a hidden
+      // clone still poses its base map.
       _annotations = _annotations.filter(
-        (a) => !(isRevolutionHelperType(a.type) && a.hidden)
+        (a) =>
+          !(
+            (isRevolutionHelperType(a.type) || a.type === "BASE_MAP_LINK") &&
+            a.hidden
+          )
       );
 
       // Template-linked revolution helpers are normal listing annotations and

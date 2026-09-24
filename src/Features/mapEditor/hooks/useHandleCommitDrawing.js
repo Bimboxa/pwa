@@ -47,6 +47,7 @@ import getAnnotationAsPolygons from "Features/geometry/utils/getAnnotationAsPoly
 import getDefaultStackOffsetZ from "Features/annotations/utils/getDefaultStackOffsetZ";
 import { isRevolutionHelperType } from "Features/annotations/constants/drawingShapeConfig";
 import resyncRevolutionAxisPlacementsService from "Features/elevation/services/resyncRevolutionAxisPlacementsService";
+import resyncBaseMapLinkPlacementsService from "Features/baseMapLinks/services/resyncBaseMapLinkPlacementsService";
 
 // Module-level cache of the per-listing annotationTemplates query (ÉTAPE 2.5
 // below): the query ran on EVERY drawing commit (~30ms of IDB on slow
@@ -760,7 +761,7 @@ export default function useHandleCommitDrawing({ annotations } = {}) {
 
             if (closeLine) _newAnnotation.closeLine = true;
 
-            if (["POLYGON", "POLYLINE", "STRIP", "COTE", "RULER", "LINEAR_LAYOUT"].includes(newAnnotation?.type)) {
+            if (["POLYGON", "POLYLINE", "STRIP", "COTE", "RULER", "LINEAR_LAYOUT", "BASE_MAP_LINK"].includes(newAnnotation?.type)) {
                 _newAnnotation.points = finalPointIds.map((id, i) => {
                     const entry = { id };
                     if (rawPoints[i]?.type) entry.type = rawPoints[i].type;
@@ -1181,6 +1182,46 @@ export default function useHandleCommitDrawing({ annotations } = {}) {
             } catch (e) {
                 console.error(
                     "[useHandleCommitDrawing] revolution axis placement failed",
+                    e
+                );
+            }
+        }
+
+        // Drawing the CLONE of a BASE_MAP_LINK section mark on a VERTICAL base
+        // map is what POSES that base map in 3D (angle + position + scale so
+        // the clone lands on the plan mark). One clone per (link, base map):
+        // replace any earlier one, then disarm — the panel row that armed it
+        // is a one-shot entry.
+        if (
+            _newAnnotation?.type === "BASE_MAP_LINK" &&
+            _newAnnotation?.sourceLinkAnnotationId &&
+            _newAnnotation?.id
+        ) {
+            try {
+                const previous = (
+                    await db.annotations
+                        .where("baseMapId")
+                        .equals(_newAnnotation.baseMapId)
+                        .toArray()
+                ).filter(
+                    (a) =>
+                        !a.deletedAt &&
+                        a.type === "BASE_MAP_LINK" &&
+                        a.sourceLinkAnnotationId === _newAnnotation.sourceLinkAnnotationId &&
+                        a.id !== _newAnnotation.id
+                );
+                // Soft delete (db.js middleware) — keeps undo working.
+                for (const p of previous) await db.annotations.delete(p.id);
+
+                await resyncBaseMapLinkPlacementsService({
+                    cloneId: _newAnnotation.id,
+                    dispatch,
+                });
+                dispatch(triggerAnnotationsUpdate());
+                dispatch(setEnabledDrawingMode(null));
+            } catch (e) {
+                console.error(
+                    "[useHandleCommitDrawing] base map link clone failed",
                     e
                 );
             }

@@ -89,6 +89,8 @@ import PopperEditAnnotations from "./PopperEditAnnotations";
 import PopperEditScale from "./PopperEditScale";
 import PopperImageScale from "./PopperImageScale";
 import DialogChangeAnnotationImage from "Features/imageAnnotations/components/DialogChangeAnnotationImage";
+import MenuLinkBaseMapOutlet from "Features/baseMapLinks/components/MenuLinkBaseMapOutlet";
+import { resyncBaseMapLinksForAnnotationIds } from "Features/baseMapLinks/services/resyncBaseMapLinkPlacementsService";
 import PopperContextMenu from "Features/contextMenu/component/PopperContextMenu";
 import DialogAutoMigrateToMapEditorV3 from "./DialogAutoMigrateToMapEditorV3";
 import useSaveTempAnnotations from "Features/mapEditor/hooks/useSaveTempAnnotations";
@@ -1113,6 +1115,14 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
         // Reposition openings anchored on the moved vertex (glued openings
         // follow their host wall) + refresh their carve.
         await reflowOpenings({ movedPointIds: [pointId] });
+
+        // A BASE_MAP_LINK vertex (plan mark or its clone) poses an elevation.
+        await resyncBaseMapLinksForAnnotationIds({
+            annotationIds: (annotations ?? [])
+                .filter((a) => a.type === "BASE_MAP_LINK" && a.points?.some((pt) => pt.id === pointId))
+                .map((a) => a.id),
+            dispatch,
+        });
     };
 
     // Multi-point commit (EDIT-mode segment drag / angle-locked vertex drag):
@@ -1145,6 +1155,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
         });
         await reflowOpenings({ movedPointIds: pointIds, hostIds: annotationIds });
         dispatch(triggerAnnotationsUpdate());
+        await resyncBaseMapLinksForAnnotationIds({ annotationIds, dispatch });
     };
 
     const handleDuplicateAndMovePoint = async ({ originalPointId, annotationId, newPos }) => {
@@ -1435,7 +1446,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
 
         // WRAPPER (group transform for point-based annotations)
         if (annotationId === "wrapper") {
-            const POINT_BASED_TYPES = ["POLYLINE", "POLYGON", "STRIP", "LINEAR_LAYOUT"];
+            const POINT_BASED_TYPES = ["POLYLINE", "POLYGON", "STRIP", "LINEAR_LAYOUT", "BASE_MAP_LINK"];
             const wrapperAnnotationIds = selectedItems
                 .filter(item => item.type === "NODE" && POINT_BASED_TYPES.includes(item.annotationType))
                 .map(item => item.nodeId);
@@ -1472,6 +1483,8 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
             await reflowOpenings({ hostIds: wrapperAnnotationIds });
 
             dispatch(triggerAnnotationsUpdate());
+            // Moved BASE_MAP_LINK marks re-pose the elevations they drive.
+            await resyncBaseMapLinksForAnnotationIds({ annotationIds: wrapperAnnotationIds, dispatch });
             return;
         }
 
@@ -2292,6 +2305,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
             <PopperEditScale viewerKey={forViewerKey} />
             <PopperImageScale viewerKey={forViewerKey} />
             <DialogChangeAnnotationImage />
+            <MenuLinkBaseMapOutlet />
             <PopperContextMenu />
 
             {/* <DialogAutoMigrateToMapEditorV3 /> */}

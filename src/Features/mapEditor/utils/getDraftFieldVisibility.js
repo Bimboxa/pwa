@@ -36,7 +36,9 @@ export default function getDraftFieldVisibility(
   // Purely annotative shapes (callout bubble, free text) have no 3D body:
   // the Offset / height fields would be meaningless noise for them.
   const isAnnotativeShape =
-    drawingShape === "DETAIL" || drawingShape === "FREE_TEXT";
+    drawingShape === "DETAIL" ||
+    drawingShape === "FREE_TEXT" ||
+    drawingShape === "BASE_MAP_LINK";
 
   const overrideFields = newAnnotation?.overrideFields;
   const isFieldOverridden = (field) =>
