@@ -11,6 +11,7 @@ import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 
 import { resolveDetailResource } from "Features/baseMaps/services/detailBaseMapUtils";
 import duplicateResourceToProject from "Features/resources/services/duplicateResourceToProjectService";
+import getResourceVisibility from "Features/resources/utils/getResourceVisibility";
 import { triggerEntitiesTableUpdate } from "Features/entities/entitiesSlice";
 import db from "App/db/db";
 
@@ -54,7 +55,8 @@ export default function SectionBaseMapSource({ baseMap }) {
   async function handleOpen() {
     if (!resource) return;
     let target = resource;
-    if (projectId && resource.projectId !== projectId) {
+    const isGlobal = getResourceVisibility(resource) === "GLOBAL";
+    if (projectId && resource.projectId !== projectId && !isGlobal) {
       const copy = await duplicateResourceToProject(resource, { projectId });
       if (copy) {
         target = copy;

@@ -5,6 +5,12 @@ import db from "App/db/db";
 
 import getArrayBufferSha256 from "Features/files/utils/getArrayBufferSha256";
 import duplicateResourceToProject from "./duplicateResourceToProjectService";
+import getResourceVisibility from "../utils/getResourceVisibility";
+
+// A row usable from `projectId`: its own rows, plus GLOBAL rows (visible
+// from every project — reused as is, never copied).
+const isVisibleFromProject = (r, projectId) =>
+  r.projectId === projectId || getResourceVisibility(r) === "GLOBAL";
 import getPdfPageThumbnailDataUrl from "Features/detailFolio/utils/getPdfPageThumbnailDataUrl";
 
 // Persists the PDF pages a base map is cut from as project resources
@@ -65,7 +71,7 @@ export default async function ensurePdfPageResources({
   const duplicateFromOtherProject = async (sourceKey) => {
     const twins = (
       await db.resources.where("sourceKey").equals(sourceKey).toArray()
-    ).filter((r) => !r.deletedAt && r.fileName && r.projectId !== projectId);
+    ).filter((r) => !r.deletedAt && r.fileName && !isVisibleFromProject(r, projectId));
     for (const twin of twins) {
       const copy = await duplicateResourceToProject(twin, { projectId, createdBy });
       if (copy) return copy;
@@ -80,7 +86,7 @@ export default async function ensurePdfPageResources({
     const sourceKey = `${hash}@full`;
     const existing = (
       await db.resources.where("sourceKey").equals(sourceKey).toArray()
-    ).filter((r) => !r.deletedAt && r.fileName && r.projectId === projectId);
+    ).filter((r) => !r.deletedAt && r.fileName && isVisibleFromProject(r, projectId));
     for (const r of existing) {
       const fileRecord = await db.files.get(r.fileName);
       if (fileRecord?.fileArrayBuffer) {
@@ -157,7 +163,7 @@ export default async function ensurePdfPageResources({
       // 1. Reuse an existing live resource with the same content key.
       const existing = (
         await db.resources.where("sourceKey").equals(sourceKey).toArray()
-      ).filter((r) => !r.deletedAt && r.projectId === projectId);
+      ).filter((r) => !r.deletedAt && isVisibleFromProject(r, projectId));
       const reusable = existing.find((r) => r.fileName);
       if (reusable) {
         const fileRecord = await db.files.get(reusable.fileName);

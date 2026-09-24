@@ -2,11 +2,14 @@ import { nanoid } from "@reduxjs/toolkit";
 
 import db from "App/db/db";
 
+import getResourceVisibility from "../utils/getResourceVisibility";
+
 // Returns a live resource of `projectId` holding the same content as
 // `resource` (same sourceKey, file present): the resource itself when it
 // already belongs to the project, an existing same-project twin, or a copy
 // (new row + copied db.files bytes). The source PDF of a base map must live
 // in the base map's project — the RESOURCES panel lists a project's rows.
+// A GLOBAL resource is visible from every project: it is reused as is.
 // Returns null when the source file is missing.
 export default async function duplicateResourceToProject(
   resource,
@@ -14,6 +17,7 @@ export default async function duplicateResourceToProject(
 ) {
   if (!resource?.fileName || !projectId) return null;
   if (resource.projectId === projectId) return resource;
+  if (getResourceVisibility(resource) === "GLOBAL") return resource;
 
   if (resource.sourceKey) {
     const twins = (

@@ -28,7 +28,8 @@ export default async function dedupImportedResourcesBySourceKey(
   for (const r of localRows) {
     const fileRecord = await db.files.get(r.fileName);
     const hasFile = Boolean(fileRecord?.fileArrayBuffer);
-    const key = `${r.projectId}|${r.sourceKey}`;
+    // GLOBAL rows are visible from every project: indexed under "GLOBAL".
+    const key = `${r.visibility === "GLOBAL" ? "GLOBAL" : r.projectId}|${r.sourceKey}`;
     const current = localByKey.get(key);
     if (!current || (hasFile && !current.hasFile)) {
       localByKey.set(key, { row: r, hasFile });
@@ -40,7 +41,8 @@ export default async function dedupImportedResourcesBySourceKey(
   resourcesTable.rows = resourcesTable.rows.filter((r) => {
     const projectId = targetProjectId ?? r?.projectId;
     const local = r?.sourceKey
-      ? localByKey.get(`${projectId}|${r.sourceKey}`)
+      ? localByKey.get(`${projectId}|${r.sourceKey}`) ??
+        localByKey.get(`GLOBAL|${r.sourceKey}`)
       : null;
     if (!local || local.row.id === r.id) return true;
     resourceIdMap[r.id] = local.row.id;
