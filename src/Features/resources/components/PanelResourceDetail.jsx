@@ -55,7 +55,7 @@ export default function PanelResourceDetail({ resource, onBack }) {
   // Base maps cut from this PDF page: deleting the resource disables their
   // "Régénérer depuis le PDF" action (the base maps themselves stay intact).
   const linkedBaseMapCount = useLiveQuery(async () => {
-    if (resource?.kind !== "PDF_PAGE") return 0;
+    if (resource?.kind !== "PDF_PAGE" && resource?.kind !== "PDF_SOURCE") return 0;
     return db.baseMaps
       .filter((b) => !b.deletedAt && b.createdFrom?.resourceId === resource.id)
       .count();

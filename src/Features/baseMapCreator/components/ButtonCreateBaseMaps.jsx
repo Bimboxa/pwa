@@ -17,6 +17,7 @@ import useCreateBaseMaps from "../hooks/useCreateBaseMaps";
 import useLinkBaseMapToContainer from "../hooks/useLinkBaseMapToContainer";
 import useTriggerInitialScopeSaveIfNeeded from "Features/remoteScopeConfigurations/hooks/useTriggerInitialScopeSaveIfNeeded";
 import useLogAppEvent from "Features/appLog/hooks/useLogAppEvent";
+import { setToaster } from "Features/layout/layoutSlice";
 
 import { Box, CircularProgress, LinearProgress } from "@mui/material";
 
@@ -49,6 +50,11 @@ export default function ButtonCreateBaseMaps({ pdfDocument, pdfFile }) {
     const creating = useSelector((s) => s.baseMapCreator.creating);
     const projectId = useSelector((s) => s.projects.selectedProjectId);
     const userProfile = useSelector((s) => s.auth.userProfile);
+
+    // strings
+
+    const sourceNotKeptS =
+        "Le PDF source n'a pas pu être conservé : la régénération depuis le PDF ne sera pas disponible (voir la console).";
 
     // state
 
@@ -98,10 +104,20 @@ export default function ButtonCreateBaseMaps({ pdfDocument, pdfFile }) {
     // Map(pageNumber -> resource) for a PDF_PAGE source resource (page 1 only),
     // null when the source is not such a resource or its row is gone.
     async function getPdfPageSourceResources() {
-        if (pdfSourceResource?.kind !== "PDF_PAGE") return null;
+        const kind = pdfSourceResource?.kind;
+        if (kind !== "PDF_PAGE" && kind !== "PDF_SOURCE") return null;
         const resource = await db.resources.get(pdfSourceResource.id);
         if (!resource || resource.deletedAt) return null;
-        return new Map([[1, resource]]);
+        if (kind === "PDF_SOURCE") {
+            // whole-PDF resource: every page maps to itself
+            const pages = tempBaseMaps.map((bm) => bm.page).filter((p) => p != null);
+            const total = pdfDocument?.numPages ?? 0;
+            const all = oneBaseMapPerPage
+                ? Array.from({ length: total }, (_, i) => i + 1)
+                : pages;
+            return new Map(all.map((p) => [p, { ...resource, pageInResource: p }]));
+        }
+        return new Map([[1, { ...resource, pageInResource: 1 }]]);
     }
 
     // handlers
@@ -128,18 +144,25 @@ export default function ButtonCreateBaseMaps({ pdfDocument, pdfFile }) {
             // picked from the project resources), reuse it as is: hashing its
             // bytes would yield a new sourceKey and duplicate the resource.
             const debugAuth = getDebugAuthFromLocalStorage();
+            const sourceFailures = [];
+            const pdfPages = baseMapsToCreate.map((bm) => bm.page).filter((p) => p != null);
             const pageResources =
                 (await getPdfPageSourceResources()) ??
                 (await ensurePdfPageResources({
                     pdfFile,
                     pdfDocument,
-                    pageNumbers: baseMapsToCreate.map((bm) => bm.page).filter((p) => p != null),
+                    pageNumbers: pdfPages,
                     projectId,
                     createdBy: {
                         idMaster: userProfile?.idMaster ?? debugAuth?.userIdMaster ?? null,
                         trigram: userProfile?.trigram ?? debugAuth?.trigram ?? null,
                     },
+                    failures: sourceFailures,
                 }));
+            const missingPages = pdfPages.filter((p) => !pageResources.get(p));
+            if (missingPages.length > 0 || sourceFailures.length > 0) {
+                dispatch(setToaster({ message: sourceNotKeptS, severity: "warning" }));
+            }
 
             const baseMapsWithPlacement = baseMapsToCreate.map((bm) => {
                 const placement = placements.get(bm.id);
@@ -159,7 +182,7 @@ export default function ButtonCreateBaseMaps({ pdfDocument, pdfFile }) {
                         // fallback finds it after a re-import.
                         pdfFileName: resource?.name ?? pdfFile?.name ?? null,
                         resourceId: resource?.id ?? null,
-                        pageNumber: resource ? 1 : bm.page,
+                        pageNumber: resource ? resource.pageInResource ?? 1 : bm.page,
                         sourcePageNumber: bm.page,
                         rotation: bm.rotate ?? 0,
                         bboxInRatio: bm.bboxInRatio ?? null,

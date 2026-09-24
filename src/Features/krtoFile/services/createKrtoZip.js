@@ -160,7 +160,7 @@ export default async function createKrtoZip(scopeId, options) {
             .filter(
                 (r) =>
                     !r.deletedAt &&
-                    r.kind === "PDF_PAGE" &&
+                    (r.kind === "PDF_PAGE" || r.kind === "PDF_SOURCE") &&
                     r.fileName &&
                     referencedResourceIds.has(r.id)
             )

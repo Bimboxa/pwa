@@ -13,15 +13,20 @@ import getPdfPageThumbnailDataUrl from "Features/detailFolio/utils/getPdfPageThu
 // two base maps created from the same page of the same PDF (even in two
 // sessions) share one resource. Returns Map<pageNumber, resourceRow>.
 //
-// Never throws: an extraction failure (encrypted / corrupt PDF) is logged
-// and the page is simply absent from the map — the base map creation must
-// not fail because its source could not be kept.
+// Never throws. When pdf-lib cannot re-read the PDF (unusual xref, broken
+// objects…), the WHOLE source PDF is kept instead as ONE resource (kind
+// "PDF_SOURCE", sourceKey = hash@full) shared by every page; the returned
+// entry then carries `pageInResource` = the original page number (1 for an
+// extracted page). Only when even that fails is the page absent from the
+// map — the base map creation must not fail because its source could not
+// be kept. `failures` collects the errors for the caller's feedback.
 export default async function ensurePdfPageResources({
   pdfFile,
   pdfDocument,
   pageNumbers,
   projectId,
   createdBy,
+  failures = [],
 }) {
   const result = new Map();
   const pages = [...new Set((pageNumbers ?? []).filter((p) => p >= 1))];
@@ -34,6 +39,7 @@ export default async function ensurePdfPageResources({
     hash = await getArrayBufferSha256(bytes, pdfFile);
   } catch (e) {
     console.error("[resources] ensurePdfPageResources: read failed", e);
+    failures.push(e);
     return result;
   }
 
@@ -44,9 +50,85 @@ export default async function ensurePdfPageResources({
   let srcDoc = null;
   const getSrcDoc = async () => {
     if (!srcDoc) {
-      srcDoc = await PDFDocument.load(bytes, { ignoreEncryption: true });
+      srcDoc = await PDFDocument.load(bytes, {
+        ignoreEncryption: true,
+        throwOnInvalidObject: false,
+      });
     }
     return srcDoc;
+  };
+
+  // Fallback: the whole PDF as one resource (see header). Created once.
+  let fullResource = null;
+  const getFullResource = async () => {
+    if (fullResource) return fullResource;
+    const sourceKey = `${hash}@full`;
+    const existing = (
+      await db.resources.where("sourceKey").equals(sourceKey).toArray()
+    ).filter((r) => !r.deletedAt && r.fileName);
+    for (const r of existing) {
+      const fileRecord = await db.files.get(r.fileName);
+      if (fileRecord?.fileArrayBuffer) {
+        fullResource = r;
+        return r;
+      }
+    }
+    if (existing[0]) {
+      // metadata row without its file (post-Krto import): re-attach
+      const r = existing[0];
+      await db.transaction("rw", db.resources, db.files, async () => {
+        await db.files.put({
+          fileName: r.fileName,
+          fileMime: "application/pdf",
+          srcFileName: r.name,
+          fileArrayBuffer: bytes.slice(0),
+          projectId: r.projectId,
+          fileType: "PDF",
+        });
+        await db.resources.update(r.id, { fileSize: bytes.byteLength });
+      });
+      fullResource = { ...r, fileSize: bytes.byteLength };
+      return fullResource;
+    }
+    const id = nanoid();
+    const name = pdfFileName;
+    const fileName = `resource_${id}_${name}`;
+    let thumbnail = null;
+    try {
+      if (pdfDocument) {
+        thumbnail = await getPdfPageThumbnailDataUrl(pdfDocument, 1, 0);
+      }
+    } catch (e) {
+      console.warn("[resources] page thumbnail failed", e);
+    }
+    const resource = {
+      id,
+      projectId,
+      name,
+      fileName,
+      fileSize: bytes.byteLength,
+      fileMime: "application/pdf",
+      fileType: "PDF",
+      thumbnail,
+      createdBy,
+      kind: "PDF_SOURCE",
+      visibility: "PROJECT",
+      sourceKey,
+      source: { pdfFileName, pageCount },
+    };
+    await db.transaction("rw", db.resources, db.files, async () => {
+      await db.files.put({
+        fileName,
+        fileMime: "application/pdf",
+        srcFileName: name,
+        fileArrayBuffer: bytes.slice(0),
+        projectId,
+        fileType: "PDF",
+      });
+      await db.resources.add(resource);
+    });
+    fullResource = resource;
+    return resource;
   };
 
   for (const pageNumber of pages) {
@@ -60,7 +142,7 @@ export default async function ensurePdfPageResources({
       if (reusable) {
         const fileRecord = await db.files.get(reusable.fileName);
         if (fileRecord?.fileArrayBuffer) {
-          result.set(pageNumber, reusable);
+          result.set(pageNumber, { ...reusable, pageInResource: 1 });
           continue;
         }
         // Metadata row without its file (post-Krto-import): re-extract the
@@ -80,7 +162,11 @@ export default async function ensurePdfPageResources({
             fileMime: "application/pdf",
           });
         });
-        result.set(pageNumber, { ...reusable, fileSize: pageBytes.byteLength });
+        result.set(pageNumber, {
+          ...reusable,
+          fileSize: pageBytes.byteLength,
+          pageInResource: 1,
+        });
         continue;
       }
 
@@ -138,12 +224,22 @@ export default async function ensurePdfPageResources({
         });
         await db.resources.add(resource);
       });
-      result.set(pageNumber, resource);
+      result.set(pageNumber, { ...resource, pageInResource: 1 });
     } catch (e) {
       console.error(
-        `[resources] ensurePdfPageResources: page ${pageNumber} skipped`,
+        `[resources] ensurePdfPageResources: page ${pageNumber} extraction failed, keeping the whole PDF`,
         e
       );
+      try {
+        const full = await getFullResource();
+        result.set(pageNumber, { ...full, pageInResource: pageNumber });
+      } catch (e2) {
+        console.error(
+          `[resources] ensurePdfPageResources: page ${pageNumber} skipped`,
+          e2
+        );
+        failures.push(e2);
+      }
     }
   }
 

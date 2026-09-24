@@ -59,7 +59,9 @@ export const baseMapCreatorSlice = createSlice({
         createdFrom,
       };
       state.open = true;
-      state.pageNumber = 1;
+      // page IN the resource (1 for an extracted page, the original page
+      // when the whole PDF was kept as source)
+      state.pageNumber = createdFrom?.pageNumber ?? 1;
       state.rotate = createdFrom?.rotation ?? 0;
       state.bboxInRatio = { ...bbox };
       state.blueprintScale = createdFrom?.blueprintScale ?? "";
