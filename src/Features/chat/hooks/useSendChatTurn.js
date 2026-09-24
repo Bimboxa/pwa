@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { v4 as uuidv4 } from "uuid";
+import useCaptureSessionContext from "./useCaptureSessionContext";
 
 import {
   addMessage,
@@ -18,6 +19,7 @@ import {
   saveDetectionDebug,
 } from "../services/detectionDebugStore";
 import { updateChatProgress } from "../utils/chatProgress";
+import { chatPlanSource } from "../utils/chatPlanSource";
 import resolveAiTaskSource from "Features/aiTasks/services/resolveAiTaskSource";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
@@ -34,6 +36,7 @@ import {
   describeRelayError,
   streamChatTurn,
   uploadSnapshotImage,
+  attachSnapshotPdf,
 } from "Features/assistantRelay/services/assistantRelayClient";
 
 // A message typed in the chat (no PDF attached) = one conversational turn on
@@ -43,6 +46,7 @@ import {
 // the picture is uploaded then — once per image version.
 export default function useSendChatTurn() {
   const dispatch = useDispatch();
+  const captureContext = useCaptureSessionContext();
   const config = useAssistantRelayConfig();
   const mainBaseMap = useMainBaseMap();
   const { value: listing } = useSelectedListing();
@@ -89,6 +93,7 @@ export default function useSendChatTurn() {
     async (text, { images = [], autoDetect = false, interruptedTurn } = {}) => {
       const message = (text ?? "").trim();
       if (!message || busy.current) return { ok: false };
+      const session = captureContext();
       busy.current = true;
       setPausedTurn(null);
       const turnSession = sessionRef.current;
@@ -259,30 +264,11 @@ export default function useSendChatTurn() {
             "Calibrez le fond de plan avant de lancer le repérage automatique."
           );
 
-        let planPdf;
-        if (autoDetect && mainBaseMap?.createdFrom?.type === "PDF_PAGE") {
-          try {
-            reportProgress("preparing_pdf");
-            const source = await resolveAiTaskSource({
-              baseMap: mainBaseMap,
-              projectId,
-              scopeId,
-              listingId: listing?.id,
-              config,
-              onProgress: reportProgress,
-            });
-            baseMap.sourcePdfId = source.pdfId;
-            baseMap.sourceFrame = source.existingBaseMap.context.sourceFrame;
-            planPdf = {
-              sourceImageSize: source.existingBaseMap.sourceImageSize,
-              transform: source.existingBaseMap.transform,
-            };
-          } catch (error) {
-            throw new Error(
-              `PDF source indisponible : ${error?.message ?? "erreur de chargement"}. Rétablissez l’accès au PDF avant de relancer Auto.`
-            );
-          }
-        }
+        // Metadata only; source bytes are resolved after a server request.
+        const planSource = chatPlanSource(mainBaseMap);
+        const planPdf = planSource.planPdf;
+        if (baseMap && planSource.sourceFrame)
+          baseMap.sourceFrame = planSource.sourceFrame;
         if (controller.signal.aborted || isStale()) return { ok: false };
 
         // The model asked to see the plan and the relay does not have this
@@ -309,15 +295,45 @@ export default function useSendChatTurn() {
           }
         };
 
+        let pdfUpload;
+        const sendPdf = (snapshotId) => {
+          pdfUpload ??= (async () => {
+            try {
+              reportProgress("preparing_pdf");
+              const source = await resolveAiTaskSource({
+                baseMap: mainBaseMap,
+                projectId,
+                scopeId,
+                listingId: listing?.id,
+                config,
+                onProgress: reportProgress,
+              });
+              if (controller.signal.aborted || isStale()) return;
+              await attachSnapshotPdf(snapshotId, {
+                pdfId: source.pdfId,
+                imageKey: baseMap.imageKey,
+              });
+            } catch (error) {
+              if (controller.signal.aborted || isStale()) return;
+              setError(
+                `PDF source indisponible : ${error?.message ?? "erreur de chargement"}`
+              );
+              controller.abort();
+            }
+          })();
+          return pdfUpload;
+        };
+
         reportProgress("connecting");
         await streamChatTurn(
           {
             message,
             autoDetect,
+            planKind: planSource.planKind,
             ...(planPdf ? { planPdf } : {}),
-            sessionId: conversation.budgetSessionId,
-            ...(conversation.sessionName
-              ? { sessionName: conversation.sessionName }
+            sessionId: session.budgetSessionId,
+            ...(session.sessionName
+              ? { sessionName: session.sessionName }
               : {}),
             // The turn starts on the relay's fast level; the level picked in
             // the chat takes over when the plan must be looked at.
@@ -422,6 +438,8 @@ export default function useSendChatTurn() {
                 dispatch(
                   appendMessageAction({ id: messageId, toolAction: event })
                 );
+              } else if (event.type === "need_pdf") {
+                sendPdf(event.snapshotId);
               } else if (event.type === "need_image") {
                 sendImage(event.snapshotId);
               } else if (event.type === "done") {
@@ -470,6 +488,7 @@ export default function useSendChatTurn() {
     },
     [
       dispatch,
+      captureContext,
       config,
       mainBaseMap,
       userProfile,

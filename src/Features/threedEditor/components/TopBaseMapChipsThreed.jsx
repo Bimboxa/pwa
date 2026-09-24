@@ -9,6 +9,7 @@ import {
 } from "Features/threedEditor/threedEditorSlice";
 import {
   setHideBaseMapImageInViewer,
+  setHideAnnotationsInViewer,
   togglePinnedBaseMapIdInViewer,
 } from "Features/viewers/viewersSlice";
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
@@ -98,6 +99,9 @@ export default function TopBaseMapChipsThreed({ inTopBar = false }) {
   const hideBaseMapImageInViewer = useSelector(
     (s) => s.viewers.hideBaseMapImageInViewer
   );
+  const hideAnnotationsInViewer = useSelector(
+    (s) => s.viewers.hideAnnotationsInViewer
+  );
 
   // state
 
@@ -107,7 +111,8 @@ export default function TopBaseMapChipsThreed({ inTopBar = false }) {
   // helpers
 
   // Viewer module displaying its 2D editor: the selected chip goes solid
-  // black, its eye hides the image in the 2D editor, and it embeds a version
+  // black, its eye hides the image in the 2D editor (same flag as the top-bar
+  // selector's eye, BaseMapSelectorInMapEditorV2), and it embeds a version
   // selector; the other chips lose their (3D-only) eye.
   const isViewer2d = isViewerModule && effectiveViewerKey === "MAP";
 
@@ -176,7 +181,11 @@ export default function TopBaseMapChipsThreed({ inTopBar = false }) {
 
   function handleToggleAnnotations(e, map, isMain, annotationsOn) {
     e.stopPropagation();
-    if (isMain) {
+    if (isViewer2d) {
+      // 2D editor: the selected chip's badge hides the annotations entirely
+      // (same flag as the top-bar selector's badge).
+      dispatch(setHideAnnotationsInViewer(annotationsOn));
+    } else if (isMain) {
       dispatch(toggleMainBaseMapAnnotationsIn3d());
     } else {
       dispatch(
@@ -229,9 +238,11 @@ export default function TopBaseMapChipsThreed({ inTopBar = false }) {
             : visibleIds.includes(map.id);
         const annotationsMode =
           annotationsModeByBaseMapId?.[map.id] ?? ANNOTATIONS_DISPLAY_MODE.NONE;
-        const annotationsOn = isMain
-          ? !hideMainAnnotations
-          : annotationsMode !== ANNOTATIONS_DISPLAY_MODE.NONE;
+        const annotationsOn = isViewer2d
+          ? !hideAnnotationsInViewer
+          : isMain
+            ? !hideMainAnnotations
+            : annotationsMode !== ANNOTATIONS_DISPLAY_MODE.NONE;
         const annotationsCount = annotationsCountByBaseMapId[map.id] ?? 0;
         const showImageEye = !isViewer2d || isMain;
         const versions = map.versions ?? [];
@@ -353,8 +364,9 @@ export default function TopBaseMapChipsThreed({ inTopBar = false }) {
                 </Box>
               </Tooltip>
             )}
-            {hideAnnotationsBadge ? null : isViewer2d ? (
-              // 2D: plain count display — the annotations toggles are 3D-only.
+            {hideAnnotationsBadge ? null : isViewer2d && !isMain ? (
+              // 2D, non-selected chips: plain count display (only the main
+              // baseMap's annotations are on screen).
               <Box
                 sx={{
                   minWidth: 24,
@@ -383,9 +395,13 @@ export default function TopBaseMapChipsThreed({ inTopBar = false }) {
             ) : (
               <Tooltip
                 title={
-                  annotationsOn
-                    ? "Masquer les annotations dans la vue 3D"
-                    : "Afficher les annotations dans la vue 3D"
+                  isViewer2d
+                    ? annotationsOn
+                      ? "Masquer les annotations"
+                      : "Afficher les annotations"
+                    : annotationsOn
+                      ? "Masquer les annotations dans la vue 3D"
+                      : "Afficher les annotations dans la vue 3D"
                 }
                 disableInteractive
               >

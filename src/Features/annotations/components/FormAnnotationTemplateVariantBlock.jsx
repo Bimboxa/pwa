@@ -16,6 +16,7 @@ import FieldAnnotationTemplateStroke from "./FieldAnnotationTemplateStroke";
 import FieldAnnotationTemplateStrokeWidth from "./FieldAnnotationTemplateStrokeWidth";
 import FieldAnnotationTemplateRender3d from "./FieldAnnotationTemplateRender3d";
 import FieldAnnotationTemplateLegend from "./FieldAnnotationTemplateLegend";
+import FieldAnnotationTemplateDescription from "./FieldAnnotationTemplateDescription";
 import FieldAnnotationTemplateLabel from "./FieldAnnotationTemplateLabel";
 import FieldAnnotationTemplateLabelSize from "./FieldAnnotationTemplateLabelSize";
 import FieldAnnotationTemplateDrawingShape from "./FieldAnnotationTemplateDrawingShape";
@@ -86,6 +87,7 @@ export default function FormAnnotationTemplateVariantBlock({
     labelLegend,
     hiddenInLegend,
     groupLabel,
+    description,
     image,
     object3D,
     material3d,
@@ -218,6 +220,10 @@ export default function FormAnnotationTemplateVariantBlock({
     onChange({ ...annotationTemplate, groupLabel });
   }
 
+  function handleDescriptionChange(description) {
+    onChange({ ...annotationTemplate, description });
+  }
+
   function handleHeightChange(height) {
     onChange({ ...annotationTemplate, height });
   }
@@ -227,17 +233,17 @@ export default function FormAnnotationTemplateVariantBlock({
   }
 
   function handleImageChange(image) {
+    // Cleared image (delete button): the template keeps no default image.
+    if (!image) {
+      onChange({ ...annotationTemplate, image: null });
+      return;
+    }
     const { label, meterByPx } = getImageAnnotationPropsFromFileName(
       image.fileName
     );
     const newAnnotationTemplate = { ...annotationTemplate, image };
     if (!newAnnotationTemplate.label && label)
       newAnnotationTemplate.label = label;
-    // Cleared image (delete button): the template keeps no default image.
-    if (!image) {
-      onChange({ ...annotationTemplate, image: null });
-      return;
-    }
     if (!newAnnotationTemplate.meterByPx && meterByPx)
       newAnnotationTemplate.meterByPx = meterByPx;
     onChange(newAnnotationTemplate);
@@ -665,6 +671,14 @@ export default function FormAnnotationTemplateVariantBlock({
               onLabelLegendChange={handleLabelLegendChange}
               onHiddenInLegendChange={handleHiddenInLegendChange}
               onGroupLabelChange={handleGroupLabelChange}
+            />
+          )}
+
+          {/* Free-text description: context for the AI assistant */}
+          {!isCreating && (
+            <FieldAnnotationTemplateDescription
+              description={description}
+              onDescriptionChange={handleDescriptionChange}
             />
           )}
 

@@ -59,6 +59,7 @@ import {
   suggestAiTaskMappings,
   templateType,
   toAiTaskContract,
+  withTemplateDescription,
 } from "../utils/aiTaskMappings";
 import getNewAnnotationPropsFromAnnotationTemplate from "Features/annotations/utils/getNewAnnotationPropsFromAnnotationTemplate";
 import AiTaskMappingRow from "./AiTaskMappingRow";
@@ -67,13 +68,7 @@ import AiTaskWorkPanel from "./AiTaskWorkPanel";
 import ChatAutoButton from "Features/chat/components/ChatAutoButton";
 import { getVisibleListingTemplates } from "Features/chat/utils/buildAutoDetectionContext";
 
-export default function ChatAiTasks({
-  sendChatTurn,
-  sending,
-  onStop,
-  onPlay,
-  canResume,
-}) {
+export default function ChatAiTasks({ sendChatTurn, sending }) {
   const appConfig = useAppConfig();
   const baseMap = useMainBaseMap();
   const templates = useAnnotationTemplates();
@@ -83,6 +78,7 @@ export default function ChatAiTasks({
   });
   const config = useAssistantRelayConfig();
   const dispatch = useDispatch();
+  const sessionId = useSelector((s) => s.chat.sessionId);
   const chat = useSelector((s) => s.chat);
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const scopeId = useSelector((s) => s.scopes.selectedScopeId);
@@ -117,7 +113,9 @@ export default function ChatAiTasks({
   const [launchLocked, setLaunchLocked] = useState(false);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
   );
   const tasks = (appConfig?.aiTasks ?? []).filter(
     (t) => t.execution === "pdfVectorization"
@@ -213,7 +211,13 @@ export default function ChatAiTasks({
   }
   function updateRow(id, patch) {
     setRows((previous) =>
-      previous.map((r) => (r.id === id ? { ...r, ...patch } : r))
+      previous.map((r) =>
+        r.id === id
+          ? "templateId" in patch
+            ? withTemplateDescription({ ...r, ...patch }, available)
+            : { ...r, ...patch }
+          : r
+      )
     );
   }
   function changeListing(value) {
@@ -221,7 +225,10 @@ export default function ChatAiTasks({
     setRows((previous) =>
       suggestAiTaskMappings(previous, available, value).map((r, i) =>
         previous[i].templateId
-          ? { ...r, templateId: previous[i].templateId }
+          ? withTemplateDescription(
+              { ...r, templateId: previous[i].templateId },
+              available
+            )
           : r
       )
     );
@@ -423,7 +430,7 @@ export default function ChatAiTasks({
         target: run.target,
         pdfByteSize: pdfByteSizeRef.current,
       };
-      saveVectorizationPointer(pointer);
+      saveVectorizationPointer(pointer, sessionId);
       dispatch(setVectorization(pointer));
       setPanelOpen(false);
       setSelection(null);
@@ -504,17 +511,6 @@ export default function ChatAiTasks({
               : task.label}
           </Button>
         ))}
-        <Button
-          size="small"
-          variant="outlined"
-          color="inherit"
-          sx={{ ml: "auto" }}
-          disabled={canResume ? sending || unavailable : !sending}
-          onClick={canResume ? onPlay : onStop}
-          aria-label={canResume ? "Reprendre la réponse" : "Arrêter la réponse"}
-        >
-          {canResume ? "Play" : "Stop"}
-        </Button>
       </Stack>
       {panelOpen && selection && (
         <Box

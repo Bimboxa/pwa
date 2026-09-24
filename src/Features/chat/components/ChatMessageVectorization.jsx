@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 
 import { setVectorization, updateMessageById } from "../chatSlice";
 import { setSelectedMainBaseMapId } from "Features/mapEditor/mapEditorSlice";
@@ -155,6 +155,7 @@ function VectorizationActivity({ run }) {
 
 export default function ChatMessageVectorization({ message }) {
   const dispatch = useDispatch();
+  const sessionId = useSelector((s) => s.chat.sessionId);
   const [busy, setBusy] = useState(false);
 
   const run = message.run ?? {};
@@ -180,7 +181,7 @@ export default function ChatMessageVectorization({ message }) {
           pdfByteSize: message.pdfByteSize,
           target: next.target ?? {},
         };
-        saveVectorizationPointer(pointer);
+        saveVectorizationPointer(pointer, sessionId);
         dispatch(setVectorization(pointer));
       }
       dispatch(

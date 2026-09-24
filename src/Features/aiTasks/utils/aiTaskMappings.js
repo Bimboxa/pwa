@@ -14,8 +14,22 @@ export function suggestAiTaskMappings(rows, templates, listingId) {
         templateType(t) === row.type &&
         normalize(t.label) === normalize(row.detectionLabel)
     );
-    return { ...row, templateId: matches.length === 1 ? matches[0].id : "" };
+    return withTemplateDescription(
+      { ...row, templateId: matches.length === 1 ? matches[0].id : "" },
+      templates
+    );
   });
+}
+// A row mapped on an existing template inherits the template's free-text
+// description as a default hint when the row has none (the user edits it
+// afterwards in the work panel).
+export function withTemplateDescription(row, templates) {
+  if (row.description?.trim() || !row.templateId || row.templateId === "new")
+    return row;
+  const description = templates
+    .find((t) => t.id === row.templateId)
+    ?.description?.trim();
+  return description ? { ...row, description } : row;
 }
 export function mappedTemplate(row, templates) {
   return row.templateId === "new"

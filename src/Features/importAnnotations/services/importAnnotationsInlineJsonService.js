@@ -1,4 +1,5 @@
 import db from "App/db/db";
+import { verifyImageAssets } from "../utils/imageImport";
 import { setPasteClipboard } from "Features/mapEditor/mapEditorSlice";
 import {
   triggerAnnotationTemplatesUpdate,
@@ -61,6 +62,7 @@ export default async function importAnnotationsInlineJsonService({
     throw new Error("importAnnotationsInlineJsonService: missing target");
   }
 
+  await verifyImageAssets(data.imageAssets);
   const excluded = new Set(excludedTemplateIds);
   const { templateIdMap, templateRecords } =
     await resolveImportTemplatesService({

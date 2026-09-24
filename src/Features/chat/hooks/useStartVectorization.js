@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { v4 as uuidv4 } from "uuid";
+import useCaptureSessionContext from "./useCaptureSessionContext";
 
 import { addMessage, setPendingPdf, setVectorization } from "../chatSlice";
 
@@ -20,7 +21,8 @@ export const DEFAULT_VECTORIZATION_INSTRUCTION =
 // run. The destination (project, scope, base maps listing) is frozen here.
 export default function useStartVectorization() {
   const dispatch = useDispatch();
-  const conversation = useSelector((s) => s.chat.conversation);
+  const captureContext = useCaptureSessionContext();
+  const sessionId = useSelector((s) => s.chat.sessionId);
   const pendingPdf = useSelector((s) => s.chat.pendingPdf);
   const activeRun = useSelector((s) => s.chat.vectorization);
   const levels = useSelector((s) => s.chat.reasoningLevels);
@@ -87,10 +89,14 @@ export default function useStartVectorization() {
       if (pendingPdf?.status !== "ready") return { ok: false };
       if (!projectId) {
         dispatch(
-          setPendingPdf({ status: "error", error: "Aucun projet sélectionné." })
+          setPendingPdf({
+            status: "error",
+            error: "Aucun projet sélectionné.",
+          })
         );
         return { ok: false };
       }
+      const session = captureContext();
       const text =
         (instruction ?? "").trim() || DEFAULT_VECTORIZATION_INSTRUCTION;
       const target = {
@@ -111,8 +117,8 @@ export default function useStartVectorization() {
       );
       try {
         const run = await createVectorization({
-          sessionId: conversation.budgetSessionId,
-          sessionName: (conversation.sessionName ?? pendingPdf.fileName).slice(
+          sessionId: session.budgetSessionId,
+          sessionName: (session.sessionName ?? pendingPdf.fileName).slice(
             0,
             120
           ),
@@ -142,7 +148,7 @@ export default function useStartVectorization() {
           target,
           pdfByteSize: pendingPdf.pdfByteSize,
         };
-        saveVectorizationPointer(pointer);
+        saveVectorizationPointer(pointer, sessionId);
         dispatch(setVectorization(pointer));
         dispatch(setPendingPdf(null));
         return { ok: true, run };
@@ -160,7 +166,8 @@ export default function useStartVectorization() {
     },
     [
       dispatch,
-      conversation,
+      captureContext,
+      sessionId,
       pendingPdf,
       projectId,
       scopeId,

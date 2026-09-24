@@ -1,14 +1,43 @@
 import { useState } from "react";
-import { relayFetch } from "Features/assistantRelay/services/assistantRelayClient";
+import ChatSessionNavigation from "./ChatSessionNavigation";
+import {
+  cancelVectorization,
+  describeRelayError,
+  relayFetch,
+} from "Features/assistantRelay/services/assistantRelayClient";
 import { jwtDecode } from "jwt-decode";
 import { useDispatch, useSelector } from "react-redux";
 
-import { refreshBudget, resetConversation } from "../chatSlice";
+import {
+  refreshBudget,
+  resetConversation,
+  selectSession,
+  setVectorization,
+  updateMessageById,
+} from "../chatSlice";
 
+import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 
-import { Box, Button, IconButton, Tooltip, Typography } from "@mui/material";
-import { Add as AddIcon } from "@mui/icons-material";
+import {
+  Box,
+  IconButton,
+  Tooltip,
+  Typography,
+  Menu,
+  MenuItem,
+  Divider,
+  ListItemIcon,
+  ListItemText,
+} from "@mui/material";
+import {
+  Add as AddIcon,
+  ExpandMore,
+  Stop,
+  PlayArrow,
+  Check,
+} from "@mui/icons-material";
+import { saveVectorizationPointer } from "Features/assistantRelay/utils/vectorizationPointer";
 import theme from "Styles/theme";
 import useAssistantRelayToken from "Features/assistantRelay/hooks/useAssistantRelayToken";
 import { selectRelayBaseUrl } from "Features/assistantRelay/utils/relayConnection.js";
@@ -20,30 +49,43 @@ const RELAY_STATUS = {
   error: { label: "Serveur IA : erreur", color: "error.main" },
 };
 
-// Slim title bar: the target listing, the relay status (a dot, click = edit
-// the pairing key) and "Nouvelle session". In Debug (PWA_KEY) mode a "Debug"
-// strip sits on top and the status tooltip describes the key connection
-// instead of the (irrelevant) JWT user.
-export default function ChatHeader({ showRelayStatus, onRelayStatusClick }) {
+// The session selector remains available while another session is running.
+// The listing colour and connection status keep their existing meaning.
+export default function ChatHeader({
+  showRelayStatus,
+  onRelayStatusClick,
+  sending,
+  onStop,
+  onPlay,
+  canResume,
+}) {
   const dispatch = useDispatch();
-  const [reconciling, setReconciling] = useState(false);
+  const [anchorEl, setAnchorEl] = useState(null);
+  const [stopping, setStopping] = useState(false);
   const [budgetNotice, setBudgetNotice] = useState(null);
 
   // strings
 
   const newSessionS = "Nouvelle session";
-  const runningS = "Analyse en cours : terminez-la ou annulez-la d'abord.";
   const { token, mode } = useAssistantRelayToken();
   const editKeyS = mode === "jwt" ? "détails de connexion" : "modifier la clé";
-  const noListingS = "Assistant";
   const debugS = "Debug — connexion avec la clé du serveur (PWA_KEY)";
 
   // data
 
   const { value: listing } = useSelectedListing();
-  const hasMessages = useSelector((s) => s.chat.messages.length > 0);
-  const hasPendingPdf = useSelector((s) => Boolean(s.chat.pendingPdf));
-  const hasActiveRun = useSelector((s) => Boolean(s.chat.vectorization));
+  const mainBaseMap = useMainBaseMap();
+  const isDrawingModule = useSelector(
+    (s) => s.viewers.selectedViewerKey === "MAP"
+  );
+  const sessions = useSelector((s) => s.chat.sessions);
+  const sessionIds = useSelector((s) => s.chat.sessionIds);
+  const sessionId = useSelector((s) => s.chat.sessionId);
+  const activeRun = useSelector((s) => s.chat.vectorization);
+  const sessionTitle = (session) =>
+    session.conversation.sessionName ||
+    session.messages.find((m) => m.role === "user")?.content?.slice(0, 80) ||
+    `Session ${session.sessionId + 1}`;
   const connectionStatus = useSelector(
     (s) => s.assistantRelay.connectionStatus
   );
@@ -84,18 +126,41 @@ export default function ChatHeader({ showRelayStatus, onRelayStatusClick }) {
   }
 
   const color = listing?.color ?? theme.palette.secondary.main;
-  const titleS = listing?.name ? `Liste ${listing.name}` : noListingS;
+  const titleS = sessionTitle(sessions[sessionId]);
   const status = RELAY_STATUS[connectionStatus] ?? RELAY_STATUS.idle;
-  const canReset = (hasMessages || hasPendingPdf) && !hasActiveRun;
 
   // handlers
 
+  async function handleStop() {
+    onStop?.();
+    if (!activeRun || stopping) return;
+    setStopping(true);
+    try {
+      const run = await cancelVectorization(activeRun.runId);
+      dispatch(
+        updateMessageById({ id: activeRun.messageId, changes: { run } })
+      );
+      if (["cancelled", "completed", "failed"].includes(run.status)) {
+        dispatch(setVectorization(null));
+        saveVectorizationPointer(null, sessionId);
+      }
+    } catch (error) {
+      setBudgetNotice(describeRelayError(error));
+    } finally {
+      setStopping(false);
+    }
+  }
+
   async function handleNewSession() {
-    if (reconciling) return;
-    dispatch(resetConversation());
+    setAnchorEl(null);
+    dispatch(
+      resetConversation({
+        baseMapName: isDrawingModule ? mainBaseMap?.name : null,
+      })
+    );
     setBudgetNotice(null);
     if (connectionStatus !== "connected") return;
-    setReconciling(true);
+
     try {
       const budget = await relayFetch("/chat/budget/reconcile", {
         method: "POST",
@@ -115,7 +180,6 @@ export default function ChatHeader({ showRelayStatus, onRelayStatusClick }) {
       );
     } finally {
       dispatch(refreshBudget());
-      setReconciling(false);
     }
   }
 
@@ -152,6 +216,7 @@ export default function ChatHeader({ showRelayStatus, onRelayStatusClick }) {
           borderLeft: `3px solid ${color}`,
         }}
       >
+        <ChatSessionNavigation />
         <Typography
           variant="body2"
           noWrap
@@ -201,19 +266,90 @@ export default function ChatHeader({ showRelayStatus, onRelayStatusClick }) {
           </Tooltip>
         ) : null}
 
-        <Tooltip title={hasActiveRun ? runningS : ""}>
-          {/* span: a disabled button does not fire the tooltip events */}
-          <span>
-            <Button
-              size="small"
-              color="inherit"
-              startIcon={<AddIcon />}
-              disabled={!canReset || reconciling}
-              onClick={handleNewSession}
-              sx={{ color: "text.secondary", whiteSpace: "nowrap" }}
+        <Tooltip title="Choisir une session">
+          <IconButton
+            size="small"
+            aria-label="Choisir une session"
+            aria-haspopup="menu"
+            aria-expanded={Boolean(anchorEl)}
+            aria-controls={anchorEl ? `chat-sessions-${sessionId}` : undefined}
+            onClick={(e) => setAnchorEl(e.currentTarget)}
+          >
+            <ExpandMore />
+          </IconButton>
+        </Tooltip>
+        <Menu
+          id={`chat-sessions-${sessionId}`}
+          anchorEl={anchorEl}
+          anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+          transformOrigin={{ vertical: "top", horizontal: "right" }}
+          open={Boolean(anchorEl)}
+          onClose={() => setAnchorEl(null)}
+          slotProps={{
+            paper: {
+              sx: {
+                maxHeight: 360,
+                width: 320,
+                maxWidth: "calc(100vw - 32px)",
+              },
+            },
+          }}
+        >
+          {sessionIds.map((id) => (
+            <MenuItem
+              key={id}
+              selected={id === sessionId}
+              onClick={() => {
+                setAnchorEl(null);
+                dispatch(selectSession(id));
+              }}
             >
-              {reconciling ? "Vérification du budget…" : newSessionS}
-            </Button>
+              <ListItemIcon>
+                {id === sessionId ? <Check fontSize="small" /> : null}
+              </ListItemIcon>
+              <ListItemText
+                primary={sessionTitle(sessions[id])}
+                secondary={
+                  sessions[id].sending || sessions[id].vectorization
+                    ? "En cours…"
+                    : undefined
+                }
+                slotProps={{ primary: { noWrap: true } }}
+              />
+            </MenuItem>
+          ))}
+          <Divider />
+          <MenuItem onClick={handleNewSession}>
+            <ListItemIcon>
+              <AddIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>{newSessionS}</ListItemText>
+          </MenuItem>
+        </Menu>
+        <Tooltip
+          title={
+            canResume && !sending && !activeRun
+              ? "Reprendre la réponse"
+              : "Stop — interrompre la session"
+          }
+        >
+          <span>
+            <IconButton
+              size="small"
+              aria-label={
+                canResume && !sending && !activeRun
+                  ? "Reprendre la réponse"
+                  : "Stop — interrompre la session"
+              }
+              disabled={stopping || (!sending && !canResume && !activeRun)}
+              onClick={sending || activeRun ? handleStop : onPlay}
+            >
+              {canResume && !sending && !activeRun ? (
+                <PlayArrow fontSize="small" />
+              ) : (
+                <Stop fontSize="small" />
+              )}
+            </IconButton>
           </span>
         </Tooltip>
       </Box>

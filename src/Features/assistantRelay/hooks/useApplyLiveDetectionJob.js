@@ -1,10 +1,12 @@
+import { drawingDiagnostics } from "../utils/drawingDiagnostics";
+import { prepareAnnotationBatchFrame } from "../services/prepareAnnotationBatchFrame.js";
 import BaseMap from "Features/baseMaps/js/BaseMap";
 import { applyAnnotationBatch } from "../services/annotationBatchService.js";
 import { buildBaseMapContext } from "../services/publishBaseMapSnapshotService";
 import { pushUndo, forgetAnnotationBatchUndo } from "App/db/undoManager";
 import { triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice";
 import { useCallback, useEffect, useRef } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch, useSelector, useStore } from "react-redux";
 
 import db from "App/db/db";
 import { assertAiTaskTarget } from "Features/aiTasks/utils/aiTaskSource";
@@ -63,6 +65,7 @@ function liveError(code, message) {
 // `imported` with a `result` the model reads back.
 export default function useApplyLiveDetectionJob() {
   const dispatch = useDispatch();
+  const store = useStore();
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const selectedBaseMapId = useSelector((s) => s.mapEditor.selectedBaseMapId);
   const selectedListingId = useSelector((s) => s.listings.selectedListingId);
@@ -364,34 +367,29 @@ export default function useApplyLiveDetectionJob() {
 
   const applyBatch = useCallback(
     async (full) => {
-      const { projectId, scope } = latest.current;
+      // A committed receipt only needs acknowledgement; replay must not depend
+      // on loading an image which may since have changed or become unavailable.
+      const receipt = await db.annotationBatchReceipts.get(full.jobId);
+      const readFrame = receipt
+        ? async () => {
+            throw liveError("BATCH_RECEIPT_MISSING");
+          }
+        : await prepareAnnotationBatchFrame(
+            db,
+            full.snapshot.baseMapId,
+            (record, versions) => BaseMap.createFromRecord(record, versions),
+            (baseMap) => buildBaseMapContext({ baseMap })
+          );
+      // Refresh after async hydration: the user may have switched scope while
+      // the image loaded. Read IDs, not the asynchronously resolved scope object.
+      const state = store.getState();
+      const projectId = state.projects.selectedProjectId;
+      const scopeId = state.scopes.selectedScopeId;
       const result = await applyAnnotationBatch(
         db,
         full,
-        { projectId, scopeId: scope?.id },
-        async () => {
-          // Metadata only: hydrating images/PDFs would leave the IndexedDB
-          // transaction and could request tables outside its scope.
-          const record = await db.baseMaps.get(full.snapshot.baseMapId);
-          const versions = (
-            await db.baseMapVersions
-              .where("baseMapId")
-              .equals(record.id)
-              .toArray()
-          ).filter((v) => !v.deletedAt);
-          const activeVersion = versions.find((v) => v.isActive) ?? versions[0];
-          const baseMap = new BaseMap({
-            ...record,
-            versions,
-            image: activeVersion?.image ?? record.image,
-          });
-          const frame = buildBaseMapContext({ baseMap });
-          return {
-            imageKey: frame.imageKey,
-            meterByPx: frame.meterByPx,
-            refSize: { width: frame.refWidth, height: frame.refHeight },
-          };
-        }
+        { projectId, scopeId },
+        readFrame
       );
       if (result.batchKind !== "query" && !result.replayed) {
         dispatch(triggerAnnotationsUpdate());
@@ -403,27 +401,60 @@ export default function useApplyLiveDetectionJob() {
       }
       return result;
     },
-    [dispatch]
+    [dispatch, store]
   );
 
   const applyLiveJob = useCallback(
-    async (job) => {
+    async (job, { manual = false } = {}) => {
       const jobId = job?.jobId;
-      if (!jobId || attemptedRef.current.has(jobId)) return;
+      // An explicit recovery can retry a claim that previously failed before
+      // any import. The relay still atomically arbitrates concurrent tabs.
+      if (
+        manual &&
+        jobId &&
+        (job.status === "proposed" ||
+          (job.status === "rejected" && job.error === "expired"))
+      ) {
+        attemptedRef.current.delete(jobId);
+      }
+      if (!jobId) return;
+      const trace = (phase, details = {}) =>
+        drawingDiagnostics.record(jobId, phase, {
+          manual,
+          visibility:
+            typeof document === "undefined" ? null : document.visibilityState,
+          online: typeof navigator === "undefined" ? null : navigator.onLine,
+          ...details,
+        });
+      if (attemptedRef.current.has(jobId)) {
+        trace("skipped_already_attempted");
+        return;
+      }
       // Only a visible tab draws (a hidden one would draw off-screen and
       // steal the job from the tab the user is looking at).
       if (
         typeof document !== "undefined" &&
         document.visibilityState !== "visible"
-      )
+      ) {
+        trace("skipped_hidden_tab");
         return;
-      if (!latest.current.projectId) return;
+      }
+      const activeState = store.getState();
+      if (
+        !activeState.projects.selectedProjectId ||
+        !activeState.scopes.selectedScopeId
+      ) {
+        trace("skipped_missing_context");
+        return;
+      }
       attemptedRef.current.add(jobId);
 
       // A committed batch with a lost acknowledgement is safe to acknowledge
       // again. Never re-execute an applying job without its local receipt.
+      trace("checking_local_receipt");
       const receipt = await db.annotationBatchReceipts.get(jobId);
       if (job.status === "applying" && !receipt) {
+        trace("skipped_applying_without_receipt");
         attemptedRef.current.delete(jobId);
         return;
       }
@@ -431,16 +462,24 @@ export default function useApplyLiveDetectionJob() {
       // Claim first: the loser (another tab) or an expired job stops here.
       let claimed;
       try {
-        claimed = receipt ? job : await claimJob(jobId);
+        trace("claim_started");
+        claimed = receipt ? job : await claimJob(jobId, { manual });
+        trace("claim_succeeded", { status: claimed.status });
         dispatch(upsertAssistantRelayJobs([claimed]));
       } catch (e) {
+        trace("claim_failed", {
+          code: e?.code ?? "UNKNOWN",
+          httpStatus: e?.status,
+        });
         console.log("[assistantRelay] live claim skipped", jobId, e?.code);
         return;
       }
 
       let committedBatch = false;
       try {
+        trace("payload_fetch_started");
         const full = await fetchJob(jobId);
+        trace("application_started");
         if (!full?.payload) throw liveError("INVALID_PAYLOAD");
         const result = full.payload.annotationBatch
           ? await applyBatch(full)
@@ -448,11 +487,13 @@ export default function useApplyLiveDetectionJob() {
             ? await applyUndo(full)
             : await applyDraw(full);
         committedBatch = Boolean(full.payload.annotationBatch);
+        trace("application_finished");
         const { replayed: _replayed, ...ackResult } = result;
         const acked = await ackJob(jobId, {
           status: "imported",
           result: ackResult,
         });
+        trace("ack_succeeded", { status: acked.status });
         dispatch(upsertAssistantRelayJobs([acked]));
         if (result.batchKind === "query") return;
         const message = result.batchKind
@@ -466,6 +507,10 @@ export default function useApplyLiveDetectionJob() {
                 : `ChatGPT : ${result.annotationIds.length} annotation(s), ${result.templateIds.length} template(s).`;
         dispatch(setToaster({ message, severity: "success" }));
       } catch (e) {
+        trace("application_or_ack_failed", {
+          code: e?.code ?? "UNKNOWN",
+          httpStatus: e?.status,
+        });
         console.log("[assistantRelay] live job failed", jobId, e);
         if (committedBatch) {
           attemptedRef.current.delete(jobId);
@@ -499,7 +544,7 @@ export default function useApplyLiveDetectionJob() {
         );
       }
     },
-    [dispatch, applyDraw, applyUndo, applyBatch]
+    [dispatch, store, applyDraw, applyUndo, applyBatch]
   );
 
   return { applyLiveJob };

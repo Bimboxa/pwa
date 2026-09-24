@@ -14,6 +14,7 @@ import {
     IconButton,
     createTheme,
     ThemeProvider,
+    useTheme,
     InputBase,
     Popover,
     ButtonBase,
@@ -27,21 +28,39 @@ import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import EditIcon from "@mui/icons-material/Edit";
 import CheckIcon from "@mui/icons-material/Check";
 import CloseIcon from "@mui/icons-material/Close";
+import LayersIcon from "@mui/icons-material/Layers";
 
 // Redux & Hooks
 import { setSelectedMainBaseMapId, setSelectedBaseMapsListingId, setShowCreateBaseMapSection } from "Features/mapEditor/mapEditorSlice";
+import { setHideBaseMapImageInViewer, setHideAnnotationsInViewer } from "Features/viewers/viewersSlice";
 import useUpdateEntity from "Features/entities/hooks/useUpdateEntity";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useBaseMaps from "../hooks/useBaseMaps";
 import useDetailBaseMaps from "../hooks/useDetailBaseMaps";
 import useProjectBaseMapListings from "../hooks/useProjectBaseMapListings";
 import useDisabledBaseMapListingIds from "Features/baseMapEditor/hooks/useDisabledBaseMapListingIds";
+import useAnnotationsCountByBaseMapId from "Features/annotations/hooks/useAnnotationsCountByBaseMapId";
 
-export default function BaseMapSelectorInMapEditorV2({ onEdit }) {
+// Mirrors the 3D/Viewer chips band (TopBaseMapChipsThreed) for the main
+// baseMap: a layers "eye" toggling the image visibility in the 2D editor
+// (`showImageToggle`), the name, and a badge with its annotations count.
+// `onEdit` (Dessin module) is now reachable from the popover footer.
+export default function BaseMapSelectorInMapEditorV2({ onEdit, showImageToggle = false }) {
     // strings
     const createS = "Créer un fond de plan";
+    const editS = "Éditer le fond de plan";
+    const hideImageS = "Masquer l'image du fond de plan";
+    const showImageS = "Afficher l'image du fond de plan";
+    const hideAnnotationsS = "Masquer les annotations";
+    const showAnnotationsS = "Afficher les annotations";
 
     const dispatch = useDispatch();
+
+    // The local dark theme below drops the app palette: read the global
+    // secondary (the chips' "image on" color) before entering the provider.
+    const appTheme = useTheme();
+    const secondaryMain = appTheme.palette.secondary.main;
+    const secondaryContrast = appTheme.palette.secondary.contrastText;
 
     const activeBaseMap = useMainBaseMap();
     const { value: baseMaps = [] } = useBaseMaps({});
@@ -51,6 +70,17 @@ export default function BaseMapSelectorInMapEditorV2({ onEdit }) {
     const updateEntity = useUpdateEntity();
 
     const showCreateBaseMapSection = useSelector((s) => s.mapEditor.showCreateBaseMapSection);
+    const hideBaseMapImage = useSelector((s) => s.viewers.hideBaseMapImageInViewer);
+    // Same rule as the chips band: in the BaseMaps module the drawing
+    // annotations are not loaded unless the panel switch loads them.
+    const hideAnnotationsBadge = useSelector(
+        (s) => s.viewers.selectedViewerKey === "BASE_MAPS" && !s.baseMapEditor.showAnnotations
+    );
+    const annotationsCountByBaseMapId = useAnnotationsCountByBaseMapId();
+    const annotationsCount = annotationsCountByBaseMapId[activeBaseMap?.id] ?? 0;
+    const imageOn = !hideBaseMapImage;
+    const hideAnnotations = useSelector((s) => s.viewers.hideAnnotationsInViewer);
+    const annotationsOn = !hideAnnotations;
 
     const [anchorEl, setAnchorEl] = useState(null);
     const [editingMapId, setEditingMapId] = useState(null);
@@ -105,6 +135,14 @@ export default function BaseMapSelectorInMapEditorV2({ onEdit }) {
     const handleOpen = (event) => setAnchorEl(event.currentTarget);
     const handleClose = () => { setAnchorEl(null); setEditingMapId(null); };
     const handleCreate = () => dispatch(setShowCreateBaseMapSection(true));
+    const handleToggleImage = (e) => {
+        e.stopPropagation();
+        dispatch(setHideBaseMapImageInViewer(imageOn));
+    };
+    const handleToggleAnnotations = (e) => {
+        e.stopPropagation();
+        dispatch(setHideAnnotationsInViewer(annotationsOn));
+    };
 
     const handleSelectMap = (map) => {
         if (editingMapId === map.id) return;
@@ -143,18 +181,18 @@ export default function BaseMapSelectorInMapEditorV2({ onEdit }) {
                         onClick={handleOpen}
                         sx={{
                             height: "100%",
-                            pl: onEdit ? 0.5 : 2,
+                            pl: showImageToggle ? 0.5 : 2,
                             pr: 1.5,
                             borderRadius: "20px 0 0 20px",
                         }}
                     >
-                        {onEdit && (
-                            <Tooltip title="Editer le fond de plan">
+                        {showImageToggle && (
+                            <Tooltip title={imageOn ? hideImageS : showImageS}>
                                 <Box
                                     component="span"
                                     role="button"
-                                    aria-label="Editer le fond de plan"
-                                    onClick={(e) => { e.stopPropagation(); onEdit(); }}
+                                    aria-label={imageOn ? hideImageS : showImageS}
+                                    onClick={handleToggleImage}
                                     sx={{
                                         display: "inline-flex",
                                         alignItems: "center",
@@ -164,13 +202,15 @@ export default function BaseMapSelectorInMapEditorV2({ onEdit }) {
                                         mr: 1,
                                         flexShrink: 0,
                                         borderRadius: "50%",
-                                        bgcolor: "grey.600",
-                                        color: "grey.100",
+                                        bgcolor: imageOn ? secondaryMain : "grey.700",
+                                        color: imageOn ? secondaryContrast : "grey.400",
+                                        border: "1px solid",
+                                        borderColor: imageOn ? "transparent" : "rgba(255,255,255,0.25)",
                                         transition: "0.2s",
-                                        "&:hover": { bgcolor: "grey.500" },
+                                        "&:hover": { filter: "brightness(1.15)" },
                                     }}
                                 >
-                                    <EditIcon sx={{ fontSize: 14 }} />
+                                    <LayersIcon sx={{ fontSize: 14 }} />
                                 </Box>
                             </Tooltip>
                         )}
@@ -186,6 +226,42 @@ export default function BaseMapSelectorInMapEditorV2({ onEdit }) {
                         >
                             {activeBaseMap?.name || "Sélectionner un plan"}
                         </Typography>
+                        {activeBaseMap && !hideAnnotationsBadge && (
+                            <Tooltip title={annotationsOn ? hideAnnotationsS : showAnnotationsS}>
+                                <Box
+                                    component="span"
+                                    role="button"
+                                    aria-label={annotationsOn ? hideAnnotationsS : showAnnotationsS}
+                                    onClick={handleToggleAnnotations}
+                                    sx={{
+                                        minWidth: 24,
+                                        px: 0.75,
+                                        py: 0.125,
+                                        mr: 1,
+                                        borderRadius: "8px",
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        bgcolor: annotationsOn ? secondaryMain : "transparent",
+                                        border: "1px solid",
+                                        borderColor: annotationsOn ? "transparent" : "rgba(255,255,255,0.35)",
+                                        transition: "0.2s",
+                                        "&:hover": { filter: "brightness(1.15)", borderColor: "rgba(255,255,255,0.6)" },
+                                    }}
+                                >
+                                    <Typography
+                                        variant="caption"
+                                        sx={{
+                                            fontWeight: 600,
+                                            lineHeight: 1.4,
+                                            color: annotationsOn ? secondaryContrast : "grey.500",
+                                        }}
+                                    >
+                                        {annotationsCount}
+                                    </Typography>
+                                </Box>
+                            </Tooltip>
+                        )}
                         <KeyboardArrowDownIcon
                             sx={{
                                 fontSize: 18,
@@ -368,7 +444,7 @@ export default function BaseMapSelectorInMapEditorV2({ onEdit }) {
                     </List>
                 )}
 
-                <Box sx={{ p: 0.5, borderTop: '1px solid', borderColor: 'grey.800', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                <Box sx={{ p: 0.5, borderTop: '1px solid', borderColor: 'grey.800', display: 'flex', flexDirection: 'column', alignItems: 'stretch', flexShrink: 0 }}>
                     <ListItemButton
                         onClick={() => { handleCreate(); handleClose(); }}
                         sx={{ borderRadius: 1 }}
@@ -379,6 +455,18 @@ export default function BaseMapSelectorInMapEditorV2({ onEdit }) {
                             primaryTypographyProps={{ variant: 'body2', color: "grey.300", fontWeight: 600 }}
                         />
                     </ListItemButton>
+                    {onEdit && activeBaseMap && (
+                        <ListItemButton
+                            onClick={() => { onEdit(); handleClose(); }}
+                            sx={{ borderRadius: 1 }}
+                        >
+                            <ListItemIcon sx={{ minWidth: 32 }}><EditIcon fontSize="small" sx={{ color: "grey.400" }} /></ListItemIcon>
+                            <ListItemText
+                                primary={editS}
+                                primaryTypographyProps={{ variant: 'body2', color: "grey.300", fontWeight: 600 }}
+                            />
+                        </ListItemButton>
+                    )}
                 </Box>
             </Popover>
         </ThemeProvider>

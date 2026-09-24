@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 
 import { updateMessageAction } from "../chatSlice";
 
@@ -25,6 +25,9 @@ import ChatDetectionDebug from "./ChatDetectionDebug";
 import ChatTokenUsage from "./ChatTokenUsage";
 import ThinkingBubble from "./ThinkingBubble";
 import ChatText from "./ChatText";
+import ChatRecoverDrawing from "./ChatRecoverDrawing";
+import ChatDrawingDiagnostic from "./ChatDrawingDiagnostic";
+import { drawingLiveStatus } from "../utils/recoverChatDrawing";
 
 const TOOL_LABELS = {
   draw_annotations: "Dessin",
@@ -65,7 +68,8 @@ function actionText(action, stopped) {
   if (action.phase === "started") return `${label}…`;
   if (action.liveStatus === "pending")
     return `${label} — envoyé, pas encore appliqué`;
-  if (action.liveStatus === "discarded") return `${label} — abandonné`;
+  if (action.liveStatus === "discarded")
+    return `${label} — expiré ou abandonné`;
   if (action.phase === "failed" || action.liveStatus === "failed")
     return `${label} — échec`;
   return label;
@@ -77,13 +81,21 @@ export default function ChatMessageAssistant({ message }) {
   const dispatch = useDispatch();
   const [busyCallId, setBusyCallId] = useState(null);
   // Reading tools are noise once they have succeeded.
-  const actions = (message.actions ?? []).filter(
-    (a) =>
-      UNDOABLE.has(a.name) ||
-      a.name === "undo_drawing" ||
-      a.name === "request_plan_image" ||
-      a.phase !== "done"
-  );
+  const jobsById = useSelector((state) => state.assistantRelay.jobsById);
+  const actions = (message.actions ?? [])
+    .map((action) => {
+      const job = jobsById?.[action.jobId];
+      return job && action.name === "draw_annotations"
+        ? { ...action, liveStatus: drawingLiveStatus(job.status) }
+        : action;
+    })
+    .filter(
+      (a) =>
+        UNDOABLE.has(a.name) ||
+        a.name === "undo_drawing" ||
+        a.name === "request_plan_image" ||
+        a.phase !== "done"
+    );
 
   async function handleUndo(action) {
     setBusyCallId(action.callId);
@@ -161,6 +173,39 @@ export default function ChatMessageAssistant({ message }) {
                   </Button>
                 ) : null}
               </Stack>
+              {action.name === "draw_annotations" &&
+              action.jobId &&
+              ["pending", "discarded"].includes(action.liveStatus) &&
+              !action.undone ? (
+                <ChatRecoverDrawing messageId={message.id} action={action} />
+              ) : null}
+              {action.name === "draw_annotations" &&
+              action.jobId &&
+              ["pending", "discarded", "failed"].includes(action.liveStatus) ? (
+                <ChatDrawingDiagnostic jobId={action.jobId} />
+              ) : null}
+              {action.recoveryError && action.liveStatus !== "applied" ? (
+                <Typography
+                  role="alert"
+                  variant="caption"
+                  color="error"
+                  sx={{ display: "block", pl: "22px" }}
+                >
+                  {action.recoveryError}
+                </Typography>
+              ) : null}
+              {action.name === "draw_annotations" &&
+              action.liveStatus === "applied" &&
+              !action.undone ? (
+                <Typography
+                  role="status"
+                  variant="caption"
+                  color="success.main"
+                  sx={{ display: "block", pl: "22px" }}
+                >
+                  Annotations appliquées au plan.
+                </Typography>
+              ) : null}
               {action.undoError ? (
                 <Typography
                   variant="caption"

@@ -1,6 +1,8 @@
 import { v4 as uuidv4 } from "uuid";
 import { createSlice } from "@reduxjs/toolkit";
 
+import { loadVectorizationSessionIds } from "../assistantRelay/utils/vectorizationPointer.js";
+
 const chatSlice = createSlice({
   name: "chat",
   initialState: {
@@ -9,8 +11,8 @@ const chatSlice = createSlice({
     messages: [],
     isThinking: false,
     budgetRevision: 0,
-    // Bumped by "Nouvelle session": a turn still streaming from the previous
-    // session must not write into the new one.
+    sending: false,
+    // Stable local identity, preserved while another session is selected.
     sessionId: 0,
     //
     managedDataByAgent: { structure: null, data: null }, // STRUCTURE: ZONING, TREE, LIST,
@@ -36,6 +38,9 @@ const chatSlice = createSlice({
     reasoningLevelId: null,
   },
   reducers: {
+    setSending(state, action) {
+      state.sending = action.payload;
+    },
     refreshBudget(state) {
       state.budgetRevision += 1;
     },
@@ -89,26 +94,24 @@ const chatSlice = createSlice({
     setBlockPlanImage(state, action) {
       state.blockPlanImage = Boolean(action.payload);
     },
+    captureSessionContext(state, action) {
+      if (state.conversation.navigationContext) return;
+      state.conversation.navigationContext = action.payload;
+      const name = action.payload.baseMapName;
+      state.conversation.sessionName = name
+        ? `[${name.slice(0, 90)}] Session ${state.sessionId + 1}`
+        : null;
+    },
     setConversation(state, action) {
       state.conversation = { ...state.conversation, ...action.payload };
     },
-    // "Nouvelle session": back to an empty chat, the provider-side
-    // conversation is forgotten too (the next turn starts a new one).
+    // Session creation is handled by the outer reducer without clearing history.
     resetConversation: {
-      prepare: () => ({ payload: uuidv4() }),
-      reducer(state, action) {
-        state.sessionId += 1;
-        state.messages = [];
-        state.isThinking = false;
-        state.pendingPdf = null;
-        state.managedDataByAgent = { structure: null, data: null };
-        state.conversation = {
-          previousResponseId: null,
-          imageKey: null,
-          budgetSessionId: action.payload,
-          sessionName: null,
-        };
-      },
+      prepare: ({ baseMapName } = {}) => ({
+        payload: uuidv4(),
+        meta: { baseMapName: baseMapName?.trim() || null },
+      }),
+      reducer() {},
     },
     setReasoningLevels(state, action) {
       state.reasoningLevels = action.payload ?? [];
@@ -124,6 +127,7 @@ const chatSlice = createSlice({
 });
 
 export const {
+  setSending,
   refreshBudget,
   setIsThinking,
   sendMessageContent,
@@ -137,9 +141,91 @@ export const {
   updateMessageAction,
   setBlockPlanImage,
   setConversation,
+  captureSessionContext,
   resetConversation,
   setReasoningLevels,
   setReasoningLevelId,
   setManagedDataByAgent,
 } = chatSlice.actions;
-export default chatSlice.reducer;
+// Keep the active session projection for consumers outside a session provider.
+// Scoped actions always update their originating session, including late events.
+export const selectSession = (sessionId) => ({
+  type: "chat/selectSession",
+  payload: sessionId,
+});
+
+export default function reducer(state, action) {
+  if (!state?.sessions) {
+    const first = state ?? chatSlice.getInitialState();
+    const sessions = { [first.sessionId]: first };
+    for (const sessionId of loadVectorizationSessionIds()) {
+      sessions[sessionId] = {
+        ...chatSlice.getInitialState(),
+        sessionId,
+        conversation: { ...first.conversation, budgetSessionId: uuidv4() },
+      };
+    }
+    state = {
+      ...first,
+      activeSessionId: first.sessionId,
+      sessionIds: Object.keys(sessions).map(Number),
+      sessions,
+    };
+  }
+  if (action.type === "chat/selectSession") {
+    if (!state.sessions[action.payload]) return state;
+    return {
+      ...state,
+      ...state.sessions[action.payload],
+      activeSessionId: action.payload,
+    };
+  }
+  if (action.type === resetConversation.type) {
+    const sessionId = Math.max(...state.sessionIds) + 1;
+    const session = {
+      ...chatSlice.getInitialState(),
+      sessionId,
+      reasoningLevels: state.reasoningLevels,
+      reasoningLevelId: state.reasoningLevelId,
+      budgetRevision: state.budgetRevision,
+      conversation: {
+        previousResponseId: null,
+        imageKey: null,
+        budgetSessionId: action.payload,
+        // Draft title; refreshed with the actual context at the first send.
+        sessionName: action.meta?.baseMapName
+          ? `[${action.meta.baseMapName.slice(0, 90)}] Session ${sessionId + 1}`
+          : null,
+      },
+    };
+    return {
+      ...state,
+      ...session,
+      activeSessionId: sessionId,
+      sessionIds: [...state.sessionIds, sessionId],
+      sessions: { ...state.sessions, [sessionId]: session },
+    };
+  }
+  if (
+    action.type === refreshBudget.type ||
+    action.type === setReasoningLevels.type
+  ) {
+    const sessions = Object.fromEntries(
+      Object.entries(state.sessions).map(([id, session]) => [
+        id,
+        chatSlice.reducer(session, action),
+      ])
+    );
+    return { ...state, ...sessions[state.activeSessionId], sessions };
+  }
+  const sessionId = action.meta?.chatSessionId ?? state.activeSessionId;
+  const previous = state.sessions[sessionId];
+  if (!previous) return state;
+  const session = chatSlice.reducer(previous, action);
+  if (session === previous) return state;
+  return {
+    ...state,
+    ...(sessionId === state.activeSessionId ? session : {}),
+    sessions: { ...state.sessions, [sessionId]: session },
+  };
+}

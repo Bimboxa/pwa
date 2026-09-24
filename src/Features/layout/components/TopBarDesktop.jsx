@@ -261,6 +261,8 @@ export default function TopBarDesktop() {
               onEdit={
                 viewerKey === "MAP" ? handleGoToBaseMapsDetail : undefined
               }
+              // The BaseMaps module edits the image itself: no eye there.
+              showImageToggle={viewerKey !== "BASE_MAPS"}
             />
             <BaseMapVersionSelectorInTopBar />
             <FieldBaseMapZInTopBar />

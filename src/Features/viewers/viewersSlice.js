@@ -23,9 +23,14 @@ const viewersInitialState = {
   // Annotation-less baseMaps pinned into the Viewer module's chips band
   // (session-only, reset on scope open by useInitViewerModuleOnScopeOpen).
   pinnedBaseMapIdsInViewer: [],
-  // Viewer module, 2D editor: hide the main baseMap image entirely (toggled
-  // from the selected chip's eye in the chips band).
+  // 2D map editors: hide the main baseMap image entirely (toggled from the
+  // top-bar baseMap selector's eye, and from the selected chip's eye in the
+  // Viewer 2D chips band). Session-only, reset when the scope changes.
   hideBaseMapImageInViewer: false,
+  // 2D map editors: hide the annotations entirely (toggled from the count
+  // badge of the top-bar baseMap selector / Viewer 2D selected chip).
+  // Session-only, reset when the scope changes.
+  hideAnnotationsInViewer: false,
   // Scope whose initial top-down fit already ran (ThreedInitialFitOnLanding).
   // In redux (not a component ref) so the 2D/3D editor toggles — which
   // unmount the component — don't re-arm the fit; reset when the scope
@@ -65,12 +70,22 @@ export const viewersSlice = createSlice({
     setHideBaseMapImageInViewer: (state, action) => {
       state.hideBaseMapImageInViewer = Boolean(action.payload);
     },
+    setHideAnnotationsInViewer: (state, action) => {
+      state.hideAnnotationsInViewer = Boolean(action.payload);
+    },
     setInitialFitDoneForScopeId: (state, action) => {
       state.initialFitDoneForScopeId = action.payload ?? null;
     },
     setLandOnDrawScopeId: (state, action) => {
       state.landOnDrawScopeId = action.payload ?? null;
     },
+  },
+  extraReducers: (builder) => {
+    // A baseMap hidden in one scope must not open the next one blank.
+    builder.addCase("scopes/setSelectedScopeId", (state) => {
+      state.hideBaseMapImageInViewer = false;
+      state.hideAnnotationsInViewer = false;
+    });
   },
 });
 
@@ -81,6 +96,7 @@ export const {
   togglePinnedBaseMapIdInViewer,
   setPinnedBaseMapIdsInViewer,
   setHideBaseMapImageInViewer,
+  setHideAnnotationsInViewer,
   setInitialFitDoneForScopeId,
   setLandOnDrawScopeId,
   //

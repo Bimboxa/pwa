@@ -115,8 +115,11 @@ export function ackJob(jobId, { status, error, result }) {
 
 // Live jobs: take the job for this tab (proposed → applying). 409 when
 // another tab was first, 410 when the relay expired it.
-export function claimJob(jobId) {
-  return relayFetch(`/jobs/${jobId}/claim`, { method: "POST" });
+export function claimJob(jobId, { manual = false } = {}) {
+  return relayFetch(`/jobs/${jobId}/claim`, {
+    method: "POST",
+    json: { manual },
+  });
 }
 
 // Binary variant (PDF, preview): same auth and error mapping, returns a Blob.
@@ -220,6 +223,14 @@ export function uploadSnapshotImage(snapshotId, image) {
   return relayFetch(`/snapshots/${snapshotId}/image`, {
     method: "POST",
     json: image,
+  });
+}
+
+// Link the PDF requested by an active chat turn after resolving/uploading it.
+export function attachSnapshotPdf(snapshotId, source) {
+  return relayFetch(`/snapshots/${snapshotId}/pdf`, {
+    method: "POST",
+    json: source,
   });
 }
 

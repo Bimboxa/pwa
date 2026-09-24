@@ -88,6 +88,23 @@ function renderItem(item, key, meterByPx) {
   const strokeColor = ann?.strokeColor || "#2196f3";
   const fillColor = ann?.fillColor || "rgba(33, 150, 243, 0.2)";
 
+  if (
+    type === "IMAGE" &&
+    item.baseImageCorners?.length === 3 &&
+    item.imageAsset
+  ) {
+    const [o, x, y] = item.baseImageCorners;
+    return (
+      <image
+        href={`data:image/png;base64,${item.imageAsset.base64}`}
+        width={1}
+        height={1}
+        preserveAspectRatio="none"
+        opacity={item.annotation.opacity ?? 1}
+        transform={`matrix(${x.x - o.x} ${x.y - o.y} ${y.x - o.x} ${y.y - o.y} ${o.x} ${o.y})`}
+      />
+    );
+  }
   if (type === "POLYGON" && item.basePoints?.length) {
     const outerD =
       "M " + item.basePoints.map((p) => `${p.x} ${p.y}`).join(" L ") + " Z";

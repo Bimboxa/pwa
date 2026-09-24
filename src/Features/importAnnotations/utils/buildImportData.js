@@ -1,3 +1,4 @@
+import { generateKeyBetween } from "fractional-indexing";
 import { nanoid } from "@reduxjs/toolkit";
 
 import { resolveDrawingShapeFromType } from "Features/annotations/constants/drawingShapeConfig";
@@ -158,7 +159,15 @@ export default function buildImportData({
   const items = [];
   const allBasePoints = [];
 
-  for (const ann of data.annotations) {
+  // An explicit source order preserves interleaved PDF images and vectors.
+  const ordered = data.annotations.some((a) => a.sourceOrder !== undefined);
+  let orderIndex = null;
+  const sourceAnnotations = ordered
+    ? [...data.annotations].sort(
+        (a, b) => (a.sourceOrder ?? 0) - (b.sourceOrder ?? 0)
+      )
+    : data.annotations;
+  for (const ann of sourceAnnotations) {
     // Skip annotations whose template was excluded from the import.
     if (ann.annotationTemplateId && excluded.has(ann.annotationTemplateId)) {
       continue;
@@ -191,9 +200,21 @@ export default function buildImportData({
       ...(ann.closeLine !== undefined ? { closeLine: ann.closeLine } : {}),
     };
 
+    if (ordered) {
+      orderIndex = generateKeyBetween(orderIndex, null);
+      annotation.orderIndex = orderIndex;
+    }
     const item = { annotation };
 
-    if (ann.type === "FREE_TEXT") {
+    if (ann.type === "IMAGE") {
+      item.baseImageCorners = toBasePoints(ann.points, pxPerNormX, pxPerNormY);
+      item.imageAsset = data.imageAssets.find(
+        (asset) => asset.id === ann.imageAssetId
+      );
+      annotation.opacity = ann.opacity ?? 1;
+      const [o, x, y] = item.baseImageCorners;
+      allBasePoints.push(o, x, y, { x: x.x + y.x - o.x, y: x.y + y.y - o.y });
+    } else if (ann.type === "FREE_TEXT") {
       // LABEL geometry family: two inline anchors, no db.points rows.
       // `labelPoint` is the CENTRE of the text box (NodeFreeTextStatic).
       const label = ann.labelPoint ?? ann.targetPoint;

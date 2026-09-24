@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 
-import { setIsThinking } from "../chatSlice";
+import { setSending } from "../chatSlice";
 
 import { Stack, Box, Typography } from "@mui/material";
 import { ThemeProvider } from "@mui/material/styles";
 
 import chatDarkTheme from "../chatDarkTheme";
 
-import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
+import ChatSessionProvider from "./ChatSessionProvider";
 import useSendChatTurn from "../hooks/useSendChatTurn";
 import ChatInput from "./ChatInput";
 import ChatAiTasks from "Features/aiTasks/components/ChatAiTasks";
@@ -28,6 +28,25 @@ import ChatHeader from "./ChatHeader";
 import SectionManagedDataByAgent from "./SectionManagedDataByAgent";
 
 export default function PanelChat() {
+  const sessionIds = useSelector((s) => s.chat.sessionIds);
+  const activeSessionId = useSelector((s) => s.chat.activeSessionId);
+  return sessionIds.map((sessionId) => (
+    <ChatSessionProvider key={sessionId} sessionId={sessionId}>
+      <Box
+        sx={{
+          display: sessionId === activeSessionId ? "flex" : "none",
+          height: 1,
+          width: 1,
+          minHeight: 0,
+        }}
+      >
+        <ChatSessionPanel />
+      </Box>
+    </ChatSessionProvider>
+  ));
+}
+
+function ChatSessionPanel() {
   const dispatch = useDispatch();
   const {
     sendChatTurn: sendTurn,
@@ -35,17 +54,17 @@ export default function PanelChat() {
     resumeChatTurn,
     canResume,
   } = useSendChatTurn();
-  const [sending, setSending] = useState(false);
+  const sending = useSelector((s) => s.chat.sending);
   const sendingRef = useRef(false);
   async function runChatTurn(callback) {
     if (sendingRef.current) return { ok: false };
     sendingRef.current = true;
-    setSending(true);
+    dispatch(setSending(true));
     try {
       return await callback();
     } finally {
       sendingRef.current = false;
-      setSending(false);
+      dispatch(setSending(false));
     }
   }
 
@@ -58,12 +77,6 @@ export default function PanelChat() {
   const openChat = useSelector(
     (s) => s.rightPanel.selectedMenuItemKey === "CHAT"
   );
-
-  useEffect(() => {
-    if (!openChat) {
-      dispatch(setIsThinking(false));
-    }
-  }, [openChat]);
 
   // PDF drop → vectorization run through the relay (Assistant IA). Opt-out:
   // appConfig.features.assistantRelay.chatVectorization: false.
@@ -80,7 +93,7 @@ export default function PanelChat() {
   const pendingImagesRef = useRef(pendingImages);
   pendingImagesRef.current = pendingImages;
 
-  // "Nouvelle session" also drops what was waiting.
+  // Each mounted session owns its attachments and draft.
   const sessionId = useSelector((s) => s.chat.sessionId);
   useEffect(() => {
     setPendingImages([]);
@@ -224,6 +237,10 @@ export default function PanelChat() {
           </Box>
         )}
         <ChatHeader
+          sending={sending}
+          onStop={stopChatTurn}
+          onPlay={playChatTurn}
+          canResume={canResume}
           showRelayStatus={canDropPdf}
           onRelayStatusClick={() => setEditingKey((v) => !v)}
         />
@@ -264,13 +281,7 @@ export default function PanelChat() {
         </Stack>
 
         {openChat && canDropPdf && (
-          <ChatAiTasks
-            sendChatTurn={sendChatTurn}
-            sending={sending}
-            onStop={stopChatTurn}
-            onPlay={playChatTurn}
-            canResume={canResume}
-          />
+          <ChatAiTasks sendChatTurn={sendChatTurn} sending={sending} />
         )}
         {openChat && (
           <ChatInput

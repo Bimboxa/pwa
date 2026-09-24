@@ -1,3 +1,7 @@
+import {
+  batchFrameDifferences,
+  batchFrameErrorDetail,
+} from "./annotationBatchFrame.js";
 import resolveProps from "../../annotations/utils/getAnnotationPropsFromAnnotationTemplateProps.js";
 import templateProps from "../../annotations/utils/getAnnotationTemplateProps.js";
 
@@ -167,20 +171,30 @@ const targetOf = (full) => ({
   listingId: full.listing?.id ?? full.payload.annotationBatch.listingId,
 });
 async function validateTarget(db, target, context) {
-  if (
-    !target.listingId ||
-    !target.scopeId ||
-    String(target.projectId) !== String(context.projectId) ||
-    target.scopeId !== context.scopeId
-  )
-    fail("BATCH_CONTEXT_CHANGED");
+  const missingTarget = [
+    "projectId",
+    "scopeId",
+    "baseMapId",
+    "listingId",
+  ].filter(
+    (key) =>
+      target[key] === null || target[key] === undefined || target[key] === ""
+  );
+  if (missingTarget.length)
+    fail("BATCH_TARGET_INCOMPLETE", missingTarget.join(", "));
+  if (context.projectId == null || !context.scopeId)
+    fail("BATCH_CONTEXT_NOT_READY");
+  const changed = ["projectId", "scopeId"].filter(
+    (key) => String(target[key]) !== String(context[key])
+  );
+  if (changed.length) fail("BATCH_CONTEXT_CHANGED", changed.join(", "));
   const listing = await db.listings.get(target.listingId);
   const baseMap = await db.baseMaps.get(target.baseMapId);
   if (
     !alive(listing) ||
     !alive(baseMap) ||
     String(listing.projectId) !== String(target.projectId) ||
-    listing.scopeId !== target.scopeId ||
+    String(listing.scopeId) !== String(target.scopeId) ||
     String(baseMap.projectId) !== String(target.projectId)
   )
     fail("BATCH_TARGET_NOT_FOUND");
@@ -279,7 +293,12 @@ export async function applyAnnotationBatch(db, full, context, readFrame) {
     const target = targetOf(full);
     await validateTarget(db, target, context);
     const frame = await readFrame();
-    if (!same(command.frame, frame)) fail("BATCH_FRAME_CHANGED");
+    if (batchFrameDifferences(command.frame, frame).length) {
+      fail("BATCH_FRAME_CHANGED", batchFrameErrorDetail(command.frame, frame));
+    }
+    // Keep the published calibration throughout the command. Local reads only
+    // validate it; neither selection nor the model recomputes the scale.
+    const publishedFrame = command.frame;
     const receipt = {
       jobId: full.jobId,
       kind: command.kind,
@@ -305,7 +324,7 @@ export async function applyAnnotationBatch(db, full, context, readFrame) {
             effectiveAnnotation(row, t),
             t,
             filter,
-            frame.meterByPx
+            publishedFrame.meterByPx
           )
         )
           continue;
@@ -322,7 +341,7 @@ export async function applyAnnotationBatch(db, full, context, readFrame) {
           );
       }
       receipt.selected = selected;
-      receipt.frame = frame;
+      receipt.frame = publishedFrame;
       receipt.result = {
         selectionId: full.jobId,
         count: selected.length,
@@ -348,7 +367,7 @@ export async function applyAnnotationBatch(db, full, context, readFrame) {
         if (
           selection?.kind !== "query" ||
           !same(selection.target, target) ||
-          !same(selection.frame, frame)
+          batchFrameDifferences(selection.frame, publishedFrame).length > 0
         )
           fail("SELECTION_NOT_FOUND", group.selectionId);
         if (selection.consumedBy)

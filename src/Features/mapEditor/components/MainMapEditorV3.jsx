@@ -259,12 +259,16 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     const grayLevelThreshold = useSelector((s) => s.baseMapEditor.grayLevelThreshold);
     const viewerKey = useSelector(selectEffectiveViewerKey);
     const isActiveViewer = viewerKey === forViewerKey;
-    // Viewer module 2D: the selected chip's eye hides the baseMap image
-    // entirely (annotations only). Module-key gated so Dessin is untouched.
+    // Selected chip / top-bar eye: hide the baseMap image entirely
+    // (annotations only). Every 2D map editor honors the flag except the
+    // BaseMaps module, whose editor IS the image.
     const hideBaseMapImage = useSelector(
-        (s) =>
-            s.viewers.selectedViewerKey === "THREED" &&
-            s.viewers.hideBaseMapImageInViewer
+        (s) => forViewerKey !== "BASE_MAPS" && s.viewers.hideBaseMapImageInViewer
+    );
+    // Count badge of the same controls: hide the annotations entirely
+    // (display AND interaction — nothing to snap on or select).
+    const hideAnnotations = useSelector(
+        (s) => forViewerKey !== "BASE_MAPS" && s.viewers.hideAnnotationsInViewer
     );
     // Viewer module (key THREED): read-only consultation. The left panel
     // (PanelViewerAnnotations) owns the legend when VISIBLE; otherwise the
@@ -424,6 +428,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     const { parentIdSet } = useMeshCellRelations();
     const annotations = useMemo(() => {
         if (!rawAnnotations) return rawAnnotations;
+        if (hideAnnotations) return [];
         if (!showMeshCells) return rawAnnotations.filter((a) => !a.isMeshCell);
         // show the cells; shade adjacent ones (by meshCellIndex) so they're
         // distinguishable while staying close to the parent's color.
@@ -435,7 +440,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                 const shaded = shadeMeshCellColor(base, a.label);
                 return { ...a, strokeColor: shaded, fillColor: shaded };
             });
-    }, [rawAnnotations, showMeshCells, parentIdSet]);
+    }, [rawAnnotations, hideAnnotations, showMeshCells, parentIdSet]);
 
     // Layer STRIPs (isLayer): DISPLAY-ONLY stacked geometry (offset by the
     // accumulated thickness of the layers beneath, 45° ramps at their edges).
@@ -981,11 +986,6 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
         dispatch(setEnabledDrawingMode(null))
     };
 
-    // handlers
-
-    const handleResetCamera = () => {
-        interactionLayerRef.current?.setCameraMatrix(defaultCameraMatrixRef.current);
-    };
     // IMAGE scale tool: the 2-click cote drawn on the image — keep it visible
     // (temp polyline) and open the popper asking its real length.
     const handleImageScaleCommit = (points, event) => {
@@ -1012,6 +1012,11 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
         dispatch(setEnabledDrawingMode(null));
     };
 
+    // handlers
+
+    const handleResetCamera = () => {
+        interactionLayerRef.current?.setCameraMatrix(defaultCameraMatrixRef.current);
+    };
 
     // handlers - move point
 
@@ -2050,14 +2055,14 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                         else if (enabledDrawingMode === 'MEASURE') {
                             return handleMeasureCommit(points, event);
                         }
+                        else if (enabledDrawingMode === 'IMAGE_SCALE') {
+                            return handleImageScaleCommit(points, event);
+                        }
                         else if (["RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE"].includes(enabledDrawingMode)) {
                             return handleCommitDrawingFromRectangle(points, event);
                         }
                         else if (["CIRCLE", "POLYLINE_CIRCLE", "POLYGON_CIRCLE", "CUT_CIRCLE"].includes(enabledDrawingMode)) {
                             return handleCommitDrawingFromCircle(points);
-                        else if (enabledDrawingMode === 'IMAGE_SCALE') {
-                            return handleImageScaleCommit(points, event);
-                        }
                         }
                         else if (enabledDrawingMode === "REVOLUTION_AXIS_PLAN") {
                             return handleCommitDrawingFromRevolutionAxis(points);
@@ -2285,13 +2290,13 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
             <PopperEditAnnotation viewerKey={forViewerKey} />
             <PopperEditAnnotations viewerKey={forViewerKey} allAnnotations={annotations} />
             <PopperEditScale viewerKey={forViewerKey} />
+            <PopperImageScale viewerKey={forViewerKey} />
+            <DialogChangeAnnotationImage />
             <PopperContextMenu />
 
             {/* <DialogAutoMigrateToMapEditorV3 /> */}
 
             <LayerTools />
-            <PopperImageScale viewerKey={forViewerKey} />
-            <DialogChangeAnnotationImage />
 
             {!versionCompareEnabled &&
                 !imageModeActive &&

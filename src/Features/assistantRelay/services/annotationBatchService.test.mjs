@@ -1,3 +1,4 @@
+import { prepareAnnotationBatchFrame } from "./prepareAnnotationBatchFrame.js";
 import "fake-indexeddb/auto";
 import Dexie from "dexie";
 import assert from "node:assert/strict";
@@ -318,4 +319,158 @@ test("selection samples do not truncate targets and empty matches do not write",
     ).updatedCount,
     0
   );
+});
+
+test("missing target metadata and unloaded active context are not reported as a changed plan", async (t) => {
+  const f = await fixture(t);
+  const job = f.job("incomplete", { kind: "query", filter: {} });
+  delete job.snapshot.scopeId;
+  await assert.rejects(
+    applyAnnotationBatch(f.db, job, context, async () => frame),
+    (error) =>
+      error.code === "BATCH_TARGET_INCOMPLETE" &&
+      error.message.includes("scopeId")
+  );
+  await assert.rejects(
+    f.run("not-ready", { kind: "query", filter: {} }, { projectId: "p" }),
+    (error) => error.code === "BATCH_CONTEXT_NOT_READY"
+  );
+  assert.equal(await f.db.annotationBatchReceipts.count(), 0);
+  await assert.rejects(
+    f.run(
+      "changed",
+      { kind: "query", filter: {} },
+      { ...context, scopeId: "other" }
+    ),
+    (error) =>
+      error.code === "BATCH_CONTEXT_CHANGED" &&
+      error.message.includes("scopeId")
+  );
+});
+
+test("frame errors identify calibration versus image-version differences", async (t) => {
+  const f = await fixture(t);
+  await assert.rejects(
+    applyAnnotationBatch(
+      f.db,
+      f.job("frame", { kind: "query", filter: {} }),
+      context,
+      async () => ({ ...frame, meterByPx: 0.02 })
+    ),
+    (error) =>
+      error.code === "BATCH_FRAME_CHANGED" &&
+      error.message ===
+        "BATCH_FRAME_CHANGED: meterByPx (published=0.01, current=0.02)"
+  );
+});
+
+test("batch frame uses publication's hydrated dimensions, not stale raw image metadata", async (t) => {
+  const f = await fixture(t);
+  await f.db.baseMaps.update("b", {
+    image: { fileName: "plan.png", imageSize: { width: 50, height: 50 } },
+  });
+  const readFrame = await prepareAnnotationBatchFrame(
+    f.db,
+    "b",
+    async (record) => {
+      assert.equal(
+        Dexie.currentTransaction,
+        null,
+        "image hydration must not run in a transaction"
+      );
+      // ImageObject recomputes these from actual image bytes during publication.
+      return {
+        ...record,
+        image: { ...record.image, imageSize: { width: 100, height: 100 } },
+      };
+    },
+    (baseMap) => ({
+      imageKey: "frame",
+      meterByPx: 0.01,
+      refWidth: baseMap.image.imageSize.width,
+      refHeight: baseMap.image.imageSize.height,
+    })
+  );
+  const result = await applyAnnotationBatch(
+    f.db,
+    f.job("loaded-query", { kind: "query", filter: {} }),
+    context,
+    readFrame
+  );
+  assert.equal(result.count, 2);
+  await f.update("loaded-update", [
+    f.group("loaded-query", [{ op: "set", values: { height: 2 } }]),
+  ]);
+  assert.equal((await f.db.annotations.get("a")).height, 2);
+});
+
+test("frame preparation still detects changes made during async hydration", async (t) => {
+  const f = await fixture(t);
+  const readFrame = await prepareAnnotationBatchFrame(
+    f.db,
+    "b",
+    async (record) => {
+      await f.db.baseMaps.update("b", { meterByPx: 0.03 });
+      return record;
+    },
+    () => ({
+      imageKey: "frame",
+      meterByPx: 0.01,
+      refWidth: 100,
+      refHeight: 100,
+    })
+  );
+  await assert.rejects(
+    applyAnnotationBatch(
+      f.db,
+      f.job("raced-query", { kind: "query", filter: {} }),
+      context,
+      readFrame
+    ),
+    /BATCH_FRAME_CHANGED: persistedSource/
+  );
+  assert.equal(await f.db.annotationBatchReceipts.count(), 0);
+});
+
+test("float noise does not block a batch and queries keep the published calibration", async (t) => {
+  const f = await fixture(t);
+  await f.db.annotations.update("a", {
+    strokeWidth: 10,
+    strokeWidthUnit: "PX",
+  });
+  const localFrame = { ...frame, meterByPx: 0.009999999999999998 };
+  const readFrame = async () => localFrame;
+  const queried = await applyAnnotationBatch(
+    f.db,
+    f.job("precision-query", {
+      kind: "query",
+      filter: { ids: ["a"], thicknessLessThanMeters: 0.1 },
+    }),
+    context,
+    readFrame
+  );
+  // 10 PX * published 0.01 = exactly 10 cm: strict '< 10 cm' excludes it.
+  // Recomputing with local float noise would incorrectly include this wall.
+  assert.equal(queried.count, 0);
+  assert.equal(
+    (await f.db.annotationBatchReceipts.get("precision-query")).frame.meterByPx,
+    0.01
+  );
+  await applyAnnotationBatch(
+    f.db,
+    f.job("height-query", { kind: "query", filter: { isExt: true } }),
+    context,
+    readFrame
+  );
+  const updated = await applyAnnotationBatch(
+    f.db,
+    f.job("height-update", {
+      kind: "update",
+      groups: [f.group("height-query", [{ op: "set", values: { height: 2 } }])],
+    }),
+    context,
+    readFrame
+  );
+  assert.equal(updated.updatedCount, 1);
+  assert.equal((await f.db.annotations.get("b")).height, 2);
 });

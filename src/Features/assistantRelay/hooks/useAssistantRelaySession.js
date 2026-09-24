@@ -1,3 +1,4 @@
+import { drawingDiagnostics } from "../utils/drawingDiagnostics";
 import store from "App/store";
 import {
   selectRelayToken,
@@ -57,6 +58,7 @@ export default function useAssistantRelaySession() {
           fetchBaseMapJobs(30),
         ]);
         if (!isCurrent()) return;
+        drawingDiagnostics.connection({ status: "refresh_succeeded" });
         dispatch(
           setAssistantRelayTransport(
             session?.realtime?.enabled === false
@@ -76,6 +78,10 @@ export default function useAssistantRelaySession() {
         );
       } catch (e) {
         if (!isCurrent()) return;
+        drawingDiagnostics.connection({
+          status: "refresh_failed",
+          code: e?.code ?? "UNKNOWN",
+        });
         console.log("[assistantRelay] session check failed", e);
         // Keep reconnection/polling mounted through transient background errors.
         if (background && e?.status !== 401 && e?.status !== 403) return;

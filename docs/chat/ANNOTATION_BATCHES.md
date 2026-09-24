@@ -39,3 +39,19 @@ synchronization mechanism is unchanged.
 
 Validation: `node --test src/Features/assistantRelay/services/annotationBatchService.test.mjs`
 uses Dexie with fake-indexeddb, exercising actual transactions and rollback.
+
+Frame validation hydrates the base map through the same `BaseMap.createFromRecord`
+path used by chat publication. Raw image metadata alone is not authoritative:
+image loading recomputes dimensions and PDF detail images may be generated lazily.
+Hydration runs before the write transaction; the persisted base-map/version
+records are checked again inside the transaction, preserving conflict detection.
+Committed receipts skip image loading during acknowledgement recovery. Frame
+errors identify the differing component (imageKey, meterByPx, refSize, or a
+persisted-source race); incomplete targets and unloaded context use distinct codes.
+
+Calibration comparisons allow a relative floating-point tolerance of 1e-9 (no
+absolute tolerance or decimal rounding). Image identity and reference dimensions
+remain exact. Selection calculations retain the calibration published at command
+creation, including strict thickness thresholds; neither the local comparison
+nor the LLM replaces or recalculates it. Significant frame mismatches report both
+published and current values, rather than inferring a user action from an error.

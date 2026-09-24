@@ -1,3 +1,7 @@
+import {
+  imagePlacement,
+  imageFileRecord,
+} from "Features/importAnnotations/utils/imageImport";
 import { nanoid } from "@reduxjs/toolkit";
 import scaleAnnotationPxFields from "Features/annotations/utils/scaleAnnotationPxFields";
 
@@ -119,6 +123,7 @@ export default async function pasteAnnotationService({
     });
   }
 
+  const imageFiles = [];
   for (const item of pasteClipboard.items) {
     const sourceAnnotation = item.annotation;
     const type = sourceAnnotation?.type;
@@ -336,6 +341,22 @@ export default async function pasteAnnotationService({
           };
         });
       }
+    } else if (type === "IMAGE") {
+      if (!item.baseImageCorners || !item.imageAsset)
+        throw new Error("Missing IMAGE placement or asset");
+      const corners = applyPasteTransformToPoints(
+        item.baseImageCorners,
+        sourceCenter,
+        targetCenter,
+        transform
+      );
+      Object.assign(
+        clonedAnnotation,
+        imagePlacement(corners, { width, height })
+      );
+      const record = imageFileRecord(item.imageAsset, clonedAnnotation);
+      clonedAnnotation.image = record.image;
+      imageFiles.push(record.file);
     } else if (type === "POINT" || type === "MARKER" || type === "DETAIL") {
       if (!item.basePoint) continue;
       const [transformed] = applyPasteTransformToPoints(
@@ -380,6 +401,7 @@ export default async function pasteAnnotationService({
     "rw",
     [
       db.points,
+      db.files,
       db.annotations,
       db.relAnnotationMappingCategory,
       db.relAnnotationOpenings,
@@ -388,6 +410,7 @@ export default async function pasteAnnotationService({
       if (allPoints.length > 0) {
         await db.points.bulkAdd(allPoints);
       }
+      if (imageFiles.length) await db.files.bulkAdd(imageFiles);
       await db.annotations.bulkAdd(allAnnotations);
       if (allOpeningRelations.length)
         await db.relAnnotationOpenings.bulkAdd(allOpeningRelations);

@@ -3,6 +3,9 @@ import { publishBaseMapSnapshot } from "./assistantRelayClient";
 
 // Summarize the project templates for the model: label/type/colors, plus
 // what it needs to pick one when drawing live (shape, band width, height).
+// `description` (template.description) is NOT sent yet: the relay's
+// TemplateSummary schema is strict and would reject the payload. Add it to the
+// relay first, then include it here.
 function summarizeTemplates(templates) {
   return (templates ?? [])
     .filter((t) => t?.id)

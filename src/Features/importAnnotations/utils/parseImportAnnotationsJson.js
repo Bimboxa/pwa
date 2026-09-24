@@ -63,6 +63,7 @@
 // human-readable French message for the panel. Mesh results carry
 // data.kind === "MESH" so the panel can branch.
 
+import { validateImageImport } from "./imageImport";
 import normalizeAnnotationsDumpJson from "./normalizeAnnotationsDumpJson";
 
 const SUPPORTED_TYPES = [
@@ -72,6 +73,7 @@ const SUPPORTED_TYPES = [
   "RULER",
   "STRIP",
   "FREE_TEXT",
+  "IMAGE",
 ];
 
 // Returns a French error message, or null when the point is a valid
@@ -314,6 +316,31 @@ export default function parseImportAnnotationsJson(text) {
   if (!Array.isArray(annotations)) {
     return { ok: false, error: "`annotations` doit être un tableau." };
   }
+  // Keep the dense PDF import budget aligned with the relay validator.
+  const pointCount = annotations.reduce((sum, a) => {
+    const groups = [
+      a,
+      ...[a?.cuts, a?.openings, a?.guideLines].flatMap((v) =>
+        Array.isArray(v) ? v : []
+      ),
+    ];
+    return (
+      sum +
+      groups.reduce(
+        (n, group) =>
+          n + (Array.isArray(group?.points) ? group.points.length : 0),
+        0
+      )
+    );
+  }, 0);
+  if (annotations.length > 20000 || pointCount > 500000) {
+    return {
+      ok: false,
+      error: "Import limité à 20 000 annotations et 500 000 points.",
+    };
+  }
+  const imageError = validateImageImport(json);
+  if (imageError) return { ok: false, error: imageError };
   for (const ann of annotations) {
     if (!SUPPORTED_TYPES.includes(ann?.type)) {
       return {

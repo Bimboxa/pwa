@@ -153,6 +153,7 @@ Each template MUST follow this shape (mirror the structure of [`src/Data/edx/ann
 {
   "label": "Membrane EPDM",
   "labelLegend": "Membrane EPDM",
+  "description": "Surface d'étanchéité courante en toiture, hachurée sur le plan, hors relevés et costières.",
   "mappingCategories": ["OUVRAGE:MEMBRANE_EPDM"],
   "drawingShape": "POLYGON",
   "fillColor": "#4a9410",
@@ -169,6 +170,7 @@ Rules of thumb when synthesizing:
 - `mainQtyKey`: `S` for surfaces (m²), `L` for linear (ml), `U` for ponctual (u).
 - Pick semantically distinct `fillColor`/`strokeColor` per template (no near-duplicates).
 - `mappingCategories`: use the convention `["OUVRAGE:<SHORT_CODE>"]` with an uppercase short code derived from the label.
+- `description` (optional, free text, French): how to recognize this work on the plan. It is shown in the template's "Avancé" tab and used as context for the AI assistant.
 
 ### 8. Final rasterization (one baseMap per validated zone)
 

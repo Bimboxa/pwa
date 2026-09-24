@@ -279,6 +279,7 @@ def make_annotation_template_rows(templates, listing_id, project_id):
             "fillColor", "fillType", "fillOpacity",
             "strokeColor", "strokeType", "strokeOpacity", "strokeWidth", "strokeWidthUnit", "strokeOffset",
             "size", "sizeUnit", "height", "iconKey", "defaultTool", "showSlope",
+            "description",
         ):
             if k in t:
                 row[k] = t[k]

@@ -32,6 +32,7 @@ const RECONNECT_MS = [1000, 2000, 5000, 10000];
 //      annotations job, which useApplyLiveDetectionJob imports.
 export default function useVectorizationRunRuntime({ connected, refresh }) {
   const dispatch = useDispatch();
+  const sessionId = useSelector((s) => s.chat.sessionId);
   const pointer = useSelector((s) => s.chat.vectorization);
   const message = useSelector((s) =>
     pointer ? s.chat.messages.find((m) => m.id === pointer.messageId) : null
@@ -46,7 +47,7 @@ export default function useVectorizationRunRuntime({ connected, refresh }) {
   // After a reload: pick the run of this tab up again.
   useEffect(() => {
     if (!connected || pointer) return;
-    const saved = loadVectorizationPointer();
+    const saved = loadVectorizationPointer(sessionId);
     if (!saved) return;
     let cancelled = false;
     (async () => {
@@ -63,17 +64,18 @@ export default function useVectorizationRunRuntime({ connected, refresh }) {
             run: current,
           })
         );
-        if (FINAL.has(current.status)) saveVectorizationPointer(null);
+        if (FINAL.has(current.status))
+          saveVectorizationPointer(null, sessionId);
         else dispatch(setVectorization(saved));
       } catch (e) {
         console.log("[assistantRelay] vectorization restore failed", e);
-        if (e?.status === 404) saveVectorizationPointer(null);
+        if (e?.status === 404) saveVectorizationPointer(null, sessionId);
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [connected, pointer, dispatch]);
+  }, [connected, pointer, dispatch, sessionId]);
 
   // 1. Progress stream, reconnected from the last event id it saw.
   useEffect(() => {
@@ -101,7 +103,7 @@ export default function useVectorizationRunRuntime({ connected, refresh }) {
         dispatch(updateMessageById({ id: messageId, changes }));
         if (FINAL.has(event.status)) {
           finished = true;
-          saveVectorizationPointer(null);
+          saveVectorizationPointer(null, sessionId);
           dispatch(setVectorization(null));
         }
       }
@@ -118,7 +120,7 @@ export default function useVectorizationRunRuntime({ connected, refresh }) {
           attempt = 0; // closed cleanly: finished, or an idle proxy cut it
         } catch (e) {
           if (e?.status === 404) {
-            saveVectorizationPointer(null);
+            saveVectorizationPointer(null, sessionId);
             dispatch(setVectorization(null));
             return;
           }
@@ -137,7 +139,7 @@ export default function useVectorizationRunRuntime({ connected, refresh }) {
     })();
 
     return () => controller.abort();
-  }, [connected, runId, messageId, dispatch]);
+  }, [connected, runId, messageId, dispatch, sessionId]);
 
   // The annotations job was just created on the relay: read the jobs now
   // rather than waiting for Realtime (or for the polling fallback).
