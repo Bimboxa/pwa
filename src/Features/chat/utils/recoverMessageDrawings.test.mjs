@@ -60,3 +60,17 @@ test("recovers missing local statuses once and continues after one job fails", a
     ["applied", "applied", "applied"]
   );
 });
+
+for (const phase of ["failed", "interrupted"]) {
+  test(`reports a ${phase} drawing without a job instead of silently ignoring it`, async () => {
+    const action = drawing(null, { callId: "refused-drawing", phase });
+    const results = await recoverMessageDrawings([action], {
+      fetchJob: async () => assert.fail("Must not fetch unrelated jobs"),
+      applyLiveJob: async () => assert.fail("Must not import unvalidated geometry"),
+    });
+    assert.equal(results.length, 1);
+    assert.equal(results[0].action, action);
+    assert.match(results[0].error, /reprenez le traitement/i);
+    assert.equal(results[0].liveStatus, undefined);
+  });
+}

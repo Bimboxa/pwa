@@ -16,6 +16,7 @@ import {
 } from "@mui/material";
 import {
   formatStepDuration,
+  formatTokenUsage,
   serializeChatTimeline,
 } from "../utils/chatTimeline";
 
@@ -124,6 +125,15 @@ export default function ChatTimeline({ timeline, active }) {
                 {entry.name}
               </Typography>
             )}
+            {entry.kind === "model" && formatTokenUsage(entry.usage) && (
+              <Typography
+                variant="caption"
+                display="block"
+                color="text.secondary"
+              >
+                {formatTokenUsage(entry.usage)}
+              </Typography>
+            )}
             {entry.detail && (
               <Typography
                 variant="body2"
@@ -141,6 +151,11 @@ export default function ChatTimeline({ timeline, active }) {
           </Box>
         ))}
       </Stack>
+      {formatTokenUsage(timeline?.usage) && (
+        <Typography variant="caption" color="text.secondary">
+          Total du tour : {formatTokenUsage(timeline.usage)}
+        </Typography>
+      )}
       <Dialog
         open={Boolean(codeEntry)}
         onClose={() => setCodeEntryId(null)}

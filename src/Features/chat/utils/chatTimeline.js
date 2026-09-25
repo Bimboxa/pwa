@@ -122,6 +122,8 @@ export function updateChatTimeline(
     if (event.usage.confirmed) {
       entry.status = "done";
       entry.endedAt = now;
+      // Provider-confirmed counters: cache share is what compares two runs.
+      entry.usage = pickUsage(event.usage);
     }
   } else if (event.type === "tool") {
     endPreparation();
@@ -145,7 +147,9 @@ export function updateChatTimeline(
     if (event.phase === "failed" && !entry.detail)
       entry.detail = "Aucun détail d’erreur fourni par le serveur.";
     if (event.phase !== "started") {
-      entry.status = event.phase === "failed" ? "failed" : "done";
+      entry.status = ["failed", "interrupted"].includes(event.phase)
+        ? event.phase
+        : "done";
       entry.endedAt = now;
       const label = CHAT_TOOL_LABELS[event.name] ?? event.name;
       if (!next.pendingTools.includes(label)) next.pendingTools.push(label);
@@ -165,12 +169,45 @@ export function updateChatTimeline(
     // A provider may report usage before reporting an incomplete/failed response.
     if (event.type === "error" && next.entries.at(-1)?.kind === "model")
       next.entries.at(-1).status = "failed";
+    if (event.type === "done" && event.usage)
+      next.usage = pickUsage(event.usage);
   }
   if (next.entries.length > MAX_STEPS) {
     next.omitted += next.entries.length - MAX_STEPS;
     next.entries = next.entries.slice(-MAX_STEPS);
   }
   return next;
+}
+
+const count = (value) => (Number.isFinite(value) ? value : null);
+function pickUsage(usage) {
+  return {
+    inputTokens: count(usage?.inputTokens),
+    cachedTokens: count(usage?.cachedTokens),
+    outputTokens: count(usage?.outputTokens),
+    reasoningTokens: count(usage?.reasoningTokens),
+  };
+}
+
+const tokens = (value) => new Intl.NumberFormat("fr-FR").format(value);
+
+// "Entrée 12 300 tokens (9 800 en cache) · Sortie 1 200 (450 raisonnement)"
+export function formatTokenUsage(usage) {
+  if (!usage || usage.inputTokens == null) return "";
+  const input = `Entrée ${tokens(usage.inputTokens)} tokens${
+    usage.cachedTokens != null
+      ? ` (${tokens(usage.cachedTokens)} en cache)`
+      : ""
+  }`;
+  const output =
+    usage.outputTokens != null
+      ? ` · Sortie ${tokens(usage.outputTokens)}${
+          usage.reasoningTokens
+            ? ` (${tokens(usage.reasoningTokens)} raisonnement)`
+            : ""
+        }`
+      : "";
+  return input + output;
 }
 
 export function formatStepDuration(entry, now) {

@@ -3,6 +3,7 @@ import { test } from "node:test";
 import {
   updateChatTimeline as update,
   formatStepDuration,
+  formatTokenUsage,
 } from "./chatTimeline.js";
 
 test("timeline keeps model calls, tool results and contextual summaries after completion", () => {
@@ -221,4 +222,89 @@ test("interpreter code remains exact across lifecycle updates and JSON export", 
     JSON.parse(serializeChatTimeline(other)).steps[0].code,
     undefined
   );
+});
+
+test("unconfirmed Python execution remains interrupted and raster tools have readable labels", () => {
+  let state = update(
+    undefined,
+    {
+      type: "tool",
+      phase: "started",
+      callId: "python",
+      name: "code_interpreter",
+    },
+    0
+  );
+  state = update(
+    state,
+    {
+      type: "tool",
+      phase: "interrupted",
+      callId: "python",
+      name: "code_interpreter",
+      detail: "Execution not confirmed",
+    },
+    100
+  );
+  state = update(state, { type: "done" }, 200);
+  assert.equal(state.entries[0].status, "interrupted");
+  assert.equal(state.entries[0].detail, "Execution not confirmed");
+  state = update(
+    state,
+    {
+      type: "tool",
+      phase: "done",
+      callId: "raster",
+      name: "analyze_raster_sections",
+      summary: "3 candidats",
+    },
+    250
+  );
+  assert.equal(state.entries[1].title, "Mesure des sections raster");
+  assert.equal(state.entries[1].summary, "3 candidats");
+});
+
+test("timeline keeps confirmed token counters per model call and the turn total", () => {
+  let state = update(
+    undefined,
+    { type: "tokens", usage: { step: 1, confirmed: false, outputTokens: 3 } },
+    0
+  );
+  assert.equal(state.entries[0].usage, undefined);
+  state = update(
+    state,
+    {
+      type: "tokens",
+      usage: {
+        step: 1,
+        confirmed: true,
+        inputTokens: 12300,
+        cachedTokens: 9800,
+        outputTokens: 1200,
+        reasoningTokens: 450,
+      },
+    },
+    10
+  );
+  assert.deepEqual(state.entries[0].usage, {
+    inputTokens: 12300,
+    cachedTokens: 9800,
+    outputTokens: 1200,
+    reasoningTokens: 450,
+  });
+  assert.equal(
+    formatTokenUsage(state.entries[0].usage),
+    "Entrée 12\u202f300 tokens (9\u202f800 en cache) · Sortie 1\u202f200 (450 raisonnement)"
+  );
+  state = update(
+    state,
+    {
+      type: "done",
+      usage: { inputTokens: 12300, cachedTokens: 9800, outputTokens: 1200 },
+    },
+    20
+  );
+  assert.equal(state.usage.cachedTokens, 9800);
+  assert.equal(formatTokenUsage(undefined), "");
+  assert.equal(formatTokenUsage({ inputTokens: null }), "");
 });

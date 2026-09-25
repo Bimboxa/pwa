@@ -19,6 +19,7 @@ export default function ChatAutoButton({
   const [currentListing, setCurrentListing] = useState(true);
   const [autonomous, setAutonomous] = useState(false);
   const [description, setDescription] = useState("");
+  const [aiGeometry, setAiGeometry] = useState(false);
   const valid =
     (currentListing || autonomous) &&
     (!currentListing || hasVisibleTemplates) &&
@@ -30,6 +31,7 @@ export default function ChatAutoButton({
       currentListing,
       autonomous,
       description: autonomous ? description.trim() : "",
+      aiGeometry,
     };
     const message = [
       currentListing
@@ -114,6 +116,24 @@ export default function ChatAutoButton({
                 L’IA choisit les types d’annotations et définit les nouveaux
                 modèles à partir de votre description. Ils seront créés dans la
                 liste courante.
+              </Typography>
+            </Box>
+            <Box>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={aiGeometry}
+                    onChange={(e) => setAiGeometry(e.target.checked)}
+                  />
+                }
+                label="Calcul géométrique IA"
+              />
+              <Typography variant="body2" color="text.secondary">
+                Aucun outil local de calcul géométrique (Python) n’est utilisé :
+                le modèle lit le PDF et calcule lui-même axes, épaisseurs et
+                jonctions (Code Interpreter OpenAI). Sur un fond image sans PDF,
+                analyse visuelle uniquement. Permet de comparer coût et qualité
+                avec les outils locaux.
               </Typography>
             </Box>
             {autonomous && (

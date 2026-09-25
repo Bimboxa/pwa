@@ -10,8 +10,19 @@ export async function recoverMessageDrawings(actions, dependencies) {
   const results = [];
   const jobs = new Map();
   for (const action of actions ?? []) {
-    if (action.name !== "draw_annotations" || !action.jobId || action.undone)
+    if (action.name !== "draw_annotations" || action.undone) continue;
+    if (!action.jobId) {
+      if (["failed", "interrupted"].includes(action.phase)) {
+        results.push({
+          action,
+          error:
+            action.phase === "failed"
+              ? "Le dessin a été refusé avant son enregistrement. Aucun dessin validé ne peut être rapatrié pour cette tentative. Consultez l’étape Dessin en échec, puis reprenez le traitement pour corriger les annotations."
+              : "Le dessin a été interrompu sans identifiant de récupération. Reprenez le traitement pour vérifier son état. Aucun calcul n’a été relancé.",
+        });
+      }
       continue;
+    }
     let result = jobs.get(action.jobId);
     if (!result) {
       try {
