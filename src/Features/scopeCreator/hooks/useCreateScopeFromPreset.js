@@ -140,21 +140,22 @@ export default function useCreateScopeFromPreset({ projectId }) {
 
     // "+ Nouvelle liste": empty annotation listings added in the recap modal,
     // appended after the resolved ones (rank chain continues).
-    const extraAnnotationNames = (extraAnnotationListings ?? [])
-      .map((l) => l?.name?.trim())
-      .filter(Boolean);
-    if (extraAnnotationNames.length > 0) {
+    const extraListings = (extraAnnotationListings ?? [])
+      .map((l) => ({ ...l, name: l?.name?.trim() }))
+      .filter((l) => l.name);
+    if (extraListings.length > 0) {
       let prevRank =
         newListings
           .map((l) => l.rank)
           .filter(Boolean)
           .sort()
           .pop() ?? null;
-      for (const listingName of extraAnnotationNames) {
+      for (const extra of extraListings) {
         const rank = generateKeyBetween(prevRank, null);
         prevRank = rank;
         newListings.push({
-          name: listingName,
+          name: extra.name,
+          ...(extra.avatarString && { avatarString: extra.avatarString }),
           entityModelKey: "annotation",
           table: "entities",
           canCreateItem: true,

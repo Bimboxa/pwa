@@ -9,6 +9,7 @@ import useCreateListingsFromPresetListingsKeys from "../hooks/useCreateListingsF
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useFavoriteListings from "../hooks/useFavoriteListings";
 import getDefaultLocatedEntityModel from "Features/listings/utils/getDefaultLocatedEntityModel";
+import { getDefaultListingAvatarString } from "../utils/getListingAvatarString";
 
 import {
   Box,
@@ -21,6 +22,7 @@ import {
 import CloseIcon from "@mui/icons-material/Close";
 
 import DialogGeneric from "Features/layout/components/DialogGeneric";
+import AvatarListing from "./AvatarListing";
 import SectionPresetListingsSelector from "./SectionPresetListingsSelector";
 import SectionPresetListingsPreview from "./SectionPresetListingsPreview";
 
@@ -41,6 +43,8 @@ export default function DialogCreateListing({
   const titleS = "Nouvelle liste";
   const emptyNamePlaceholderS = "Observations, repérages, métrés, ...";
   const createEmptyS = "Créer";
+  const avatarS = "Avatar";
+  const avatarHelperS = "Vide = automatique";
   const presetTitleS = "Ajouter des listes pré-configurées";
 
   // data
@@ -55,24 +59,30 @@ export default function DialogCreateListing({
   // state
 
   const [emptyName, setEmptyName] = useState("");
+  const [avatarString, setAvatarString] = useState("");
   const [selectedKeys, setSelectedKeys] = useState([]);
 
   // helpers
 
   const defaultEntityModel = getDefaultLocatedEntityModel(appConfig);
+  const previewListing = { name: emptyName, avatarString };
+  const avatarPlaceholder = getDefaultListingAvatarString({ name: emptyName });
 
   // handlers
 
   async function handleCreateEmpty() {
     if (!emptyName.trim()) return;
+    const cleanAvatarString = avatarString.trim() || null;
     if (onCreateEmpty) {
-      onCreateEmpty(emptyName.trim());
+      onCreateEmpty(emptyName.trim(), { avatarString: cleanAvatarString });
       setEmptyName("");
+      setAvatarString("");
       onClose?.();
       return;
     }
     const newListing = {
       name: emptyName.trim(),
+      avatarString: cleanAvatarString,
       projectId,
       canCreateItem: true,
       table: defaultEntityModel?.defaultTable ?? "entities",
@@ -86,6 +96,8 @@ export default function DialogCreateListing({
       listings: [newListing],
       scope,
     });
+    setEmptyName("");
+    setAvatarString("");
     dispatch(setSelectedListingId(created.id));
     dispatch(setOpenedPanel("LISTING"));
     onClose?.(created);
@@ -171,7 +183,31 @@ export default function DialogCreateListing({
           <Typography variant="h6" sx={{ mb: 2 }}>
             {titleS}
           </Typography>
-          <Box sx={{ display: "flex", gap: 1.5, alignItems: "center" }}>
+          <Box sx={{ display: "flex", gap: 1.5, alignItems: "flex-start" }}>
+            <AvatarListing
+              listing={previewListing}
+              size={40}
+              variant="selected"
+            />
+            <TextField
+              size="small"
+              label={avatarS}
+              value={avatarString}
+              onChange={(e) => setAvatarString(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleCreateEmpty();
+              }}
+              placeholder={avatarPlaceholder}
+              helperText={avatarHelperS}
+              slotProps={{
+                htmlInput: {
+                  maxLength: 3,
+                  style: { fontWeight: 700, textAlign: "center" },
+                },
+                inputLabel: { shrink: true },
+              }}
+              sx={{ width: 96, flexShrink: 0 }}
+            />
             <TextField
               size="small"
               fullWidth

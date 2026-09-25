@@ -696,10 +696,10 @@ export default function DialogKrtoRecap({
           <DialogCreateListing
             open={createListingOpen}
             onClose={() => setCreateListingOpen(false)}
-            onCreateEmpty={(listingName) =>
+            onCreateEmpty={(listingName, { avatarString } = {}) =>
               onExtraAnnotationListingsChange([
                 ...(extraAnnotationListings ?? []),
-                { name: listingName },
+                { name: listingName, ...(avatarString && { avatarString }) },
               ])
             }
             onAddPresets={(presetKeys) =>
