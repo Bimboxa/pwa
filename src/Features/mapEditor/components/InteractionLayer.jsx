@@ -431,6 +431,7 @@ const InteractionLayer = forwardRef(({
   onSplitPolylineEnter,
   onSplitPolylineReset,
   onSplitPolylineClickPoint,
+  onJoinAnnotationsRect,
   onProjectionSnapInsert,
   snappingEnabled = true,
   // selectedNode, // Removed prop usage, use Redux
@@ -739,17 +740,25 @@ const InteractionLayer = forwardRef(({
     syncSmartDetectionPresent();
   };
 
-  // Build the concerned-annotation set from the 2-click selection rectangle and
-  // compute the first proposal. Coordinates are local pixel space.
-  const handleLocalizedRepairRectangle = (twoPoints) => {
-    if (!twoPoints || twoPoints.length < 2) return;
+  // Normalize the 2 clicked corners of a selection rectangle into
+  // { x, y, width, height } (local pixel space). Shared by the
+  // LOCALIZED_REPAIR and JOIN_ANNOTATIONS tools.
+  const twoPointsToRect = (twoPoints) => {
+    if (!twoPoints || twoPoints.length < 2) return null;
     const [p0, p1] = twoPoints;
-    const rect = {
+    return {
       x: Math.min(p0.x, p1.x),
       y: Math.min(p0.y, p1.y),
       width: Math.abs(p1.x - p0.x),
       height: Math.abs(p1.y - p0.y),
     };
+  };
+
+  // Build the concerned-annotation set from the 2-click selection rectangle and
+  // compute the first proposal. Coordinates are local pixel space.
+  const handleLocalizedRepairRectangle = (twoPoints) => {
+    const rect = twoPointsToRect(twoPoints);
+    if (!rect) return;
     const anns = annotationsRef.current || [];
     const ids = new Set(getConcernedAnnotationIds(anns, rect));
     const concerned = anns.filter((a) => ids.has(a.id));
@@ -1915,7 +1924,7 @@ const InteractionLayer = forwardRef(({
   // Drawing modes whose action is a single click on existing geometry — show a
   // pointer cursor and hide the ScreenCursor crosshair.
   const POINTER_CLICK_MODES = [...SEGMENT_SELECT_MODES, "REASSIGN_TEMPLATE"];
-  const NO_SMART_DETECT_MODES = [...SEGMENT_SELECT_MODES, "SPLIT_POLYLINE", "SPLIT_POLYLINE_CLICK", "COMPLETE_ANNOTATION"];
+  const NO_SMART_DETECT_MODES = [...SEGMENT_SELECT_MODES, "SPLIT_POLYLINE", "SPLIT_POLYLINE_CLICK", "COMPLETE_ANNOTATION", "JOIN_ANNOTATIONS"];
 
   const [showSmartDetect, setShowSmartDetect] = useState(false);
   const showSmartDetectRef = useRef(showSmartDetect);
@@ -3039,6 +3048,11 @@ const InteractionLayer = forwardRef(({
   useEffect(() => {
     onSplitPolylineClickPointRef.current = onSplitPolylineClickPoint;
   }, [onSplitPolylineClickPoint]);
+
+  const onJoinAnnotationsRectRef = useRef(onJoinAnnotationsRect);
+  useEffect(() => {
+    onJoinAnnotationsRectRef.current = onJoinAnnotationsRect;
+  }, [onJoinAnnotationsRect]);
 
   // drawing state + commit (extracted to useDrawingCommit)
 
@@ -5456,7 +5470,7 @@ const InteractionLayer = forwardRef(({
     }
 
     // --- CASE 3: MEASURE / SEGMENT (Auto-commit after 2 points) ---
-    else if (["MEASURE", "IMAGE_SCALE", "SEGMENT", "POLYLINE_SEGMENT", "STRIP_SEGMENT", "RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", "COTE_TWO_CLICK", "LOCALIZED_REPAIR"].includes(enabledDrawingMode)) {
+    else if (["MEASURE", "IMAGE_SCALE", "SEGMENT", "POLYLINE_SEGMENT", "STRIP_SEGMENT", "RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", "COTE_TWO_CLICK", "LOCALIZED_REPAIR", "JOIN_ANNOTATIONS"].includes(enabledDrawingMode)) {
       let finalPos = toLocalCoords(worldPos);
 
       // Apply Angle Snap (Ortho) if Shift is held or ortho snap is enabled
@@ -5524,6 +5538,13 @@ const InteractionLayer = forwardRef(({
         // points (the flashing-green proposal replaces them; Space commits).
         if (enabledDrawingMode === "LOCALIZED_REPAIR") {
           handleLocalizedRepairRectangle(nextPoints);
+          setDrawingPoints([]);
+          drawingPointsRef.current = [];
+        } else if (enabledDrawingMode === "JOIN_ANNOTATIONS") {
+          // JOIN_ANNOTATIONS: same ephemeral rectangle — the wall ends inside
+          // it are joined right away (useHandleJoinAnnotationsRect) and the
+          // tool stays armed for the next rectangle.
+          onJoinAnnotationsRectRef.current?.(twoPointsToRect(nextPoints));
           setDrawingPoints([]);
           drawingPointsRef.current = [];
         } else {
@@ -6707,7 +6728,7 @@ const InteractionLayer = forwardRef(({
     }
 
     // E. DRAWING PREVIEW
-    if (['CLICK', 'POLYLINE_CLICK', 'POLYGON_CLICK', 'CUT_CLICK', 'SPLIT_CLICK', 'STRIP', 'ONE_CLICK', "MEASURE", "IMAGE_SCALE", "SEGMENT", "POLYLINE_SEGMENT", "STRIP_SEGMENT", "RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", "LOCALIZED_REPAIR", "CIRCLE", "POLYLINE_CIRCLE", "POLYGON_CIRCLE", "CUT_CIRCLE", "POLYLINE_CIRCLE_RADIUS", "POLYGON_CIRCLE_RADIUS", "REVOLUTION_AXIS_PLAN", "PHOTO_POSE", "ARC", "POLYLINE_ARC", "COMPLETE_ANNOTATION", "COTE_TWO_CLICK", "ADD_GUIDE_LINE", "ADD_ISO_HEIGHT_LINE", "ADD_PROFILE_LINE", "RAMP"].includes(enabledDrawingMode)) {
+    if (['CLICK', 'POLYLINE_CLICK', 'POLYGON_CLICK', 'CUT_CLICK', 'SPLIT_CLICK', 'STRIP', 'ONE_CLICK', "MEASURE", "IMAGE_SCALE", "SEGMENT", "POLYLINE_SEGMENT", "STRIP_SEGMENT", "RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", "LOCALIZED_REPAIR", "JOIN_ANNOTATIONS", "CIRCLE", "POLYLINE_CIRCLE", "POLYGON_CIRCLE", "CUT_CIRCLE", "POLYLINE_CIRCLE_RADIUS", "POLYGON_CIRCLE_RADIUS", "REVOLUTION_AXIS_PLAN", "PHOTO_POSE", "ARC", "POLYLINE_ARC", "COMPLETE_ANNOTATION", "COTE_TWO_CLICK", "ADD_GUIDE_LINE", "ADD_ISO_HEIGHT_LINE", "ADD_PROFILE_LINE", "RAMP"].includes(enabledDrawingMode)) {
       const localPos = toLocalCoords(worldPos);
       let previewPos = localPos;
 

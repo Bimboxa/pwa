@@ -263,13 +263,18 @@ const DrawingLayer = forwardRef(
     // RAMP draws a POLYGON (type === "POLYGON") but previews a band centered on
     // the drawn median line instead of the closed polygon-of-the-clicks.
     const isRamp = enabledDrawingMode === "RAMP";
-    const isLocalizedRepair = enabledDrawingMode === "LOCALIZED_REPAIR";
+    // Ephemeral selection rectangles (no annotation committed): thin green
+    // non-scaling frame, no fill.
+    const isSelectionRectMode = ["LOCALIZED_REPAIR", "JOIN_ANNOTATIONS"].includes(
+      enabledDrawingMode
+    );
     const drawRectangle = [
       "RECTANGLE",
       "POLYLINE_RECTANGLE",
       "POLYGON_RECTANGLE",
       "CUT_RECTANGLE",
       "LOCALIZED_REPAIR",
+      "JOIN_ANNOTATIONS",
     ].includes(enabledDrawingMode);
     const drawCircle = [
       "CIRCLE",
@@ -1059,15 +1064,15 @@ const DrawingLayer = forwardRef(
           <polygon
             ref={previewRectRef}
             fill="none"
-            {...(!isLocalizedRepair &&
+            {...(!isSelectionRectMode &&
               isPolygon && { fill: fillColor || "rgba(92, 92, 236, 0.1)" })}
             fillOpacity={newAnnotation?.fillOpacity ?? 0.8}
             stroke={
-              isLocalizedRepair ? "#00ff00" : effectiveStrokeColor || "#2196f3"
+              isSelectionRectMode ? "#00ff00" : effectiveStrokeColor || "#2196f3"
             }
-            strokeWidth={isLocalizedRepair ? 2 : previewStrokeWidth}
+            strokeWidth={isSelectionRectMode ? 2 : previewStrokeWidth}
             vectorEffect={
-              isLocalizedRepair ? "non-scaling-stroke" : previewVectorEffect
+              isSelectionRectMode ? "non-scaling-stroke" : previewVectorEffect
             }
             style={{ display: "none", pointerEvents: "none" }}
           />

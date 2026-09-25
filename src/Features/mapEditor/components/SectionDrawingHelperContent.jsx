@@ -164,7 +164,9 @@ export default function SectionDrawingHelperContent() {
     !isThreedToggledEditor &&
     !isSegmentSelectMode &&
     Boolean(enabledDrawingMode) &&
-    !["REASSIGN_TEMPLATE", "LOCALIZED_REPAIR"].includes(enabledDrawingMode);
+    !["REASSIGN_TEMPLATE", "LOCALIZED_REPAIR", "JOIN_ANNOTATIONS"].includes(
+      enabledDrawingMode
+    );
 
   // Kept for future use (e.g. to conditionally show helper UI per target).
   // Referenced here so the helper stays imported by the component.
@@ -181,7 +183,8 @@ export default function SectionDrawingHelperContent() {
       {!isThreedToggledEditor &&
         !isSegmentSelectMode &&
         enabledDrawingMode !== "REASSIGN_TEMPLATE" &&
-        enabledDrawingMode !== "LOCALIZED_REPAIR" && <CardLoupe />}
+        enabledDrawingMode !== "LOCALIZED_REPAIR" &&
+        enabledDrawingMode !== "JOIN_ANNOTATIONS" && <CardLoupe />}
       {isThreedToggledEditor && (
         <Box
           sx={{
@@ -245,6 +248,22 @@ export default function SectionDrawingHelperContent() {
           }}
         >
           {"Cliquez sur un point le long d'une polyligne pour la couper en 2"}
+        </Box>
+      )}
+      {enabledDrawingMode === "JOIN_ANNOTATIONS" && (
+        <Box
+          sx={{
+            px: 1.5,
+            py: 1.5,
+            borderRadius: 1,
+            bgcolor: "primary.main",
+            color: "primary.contrastText",
+            fontSize: "0.875rem",
+            fontWeight: 600,
+            textAlign: "center",
+          }}
+        >
+          {"Dessinez un rectangle autour des extrémités à raccorder"}
         </Box>
       )}
       {showSmartDetectCard && <CardSmartDetect />}

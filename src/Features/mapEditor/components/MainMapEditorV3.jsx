@@ -137,6 +137,7 @@ import useHandleCutSegment from "../hooks/useHandleCutSegment";
 import useHandleTechnicalReturn from "../hooks/useHandleTechnicalReturn";
 import useHandleSplitPolyline from "../hooks/useHandleSplitPolyline";
 import useHandleSplitPolylineClick from "../hooks/useHandleSplitPolylineClick";
+import useHandleJoinAnnotationsRect from "../hooks/useHandleJoinAnnotationsRect";
 import getSegmentAngle from "Features/geometry/utils/getSegmentAngle";
 import { buildSegmentFlagChanges } from "Features/annotations/utils/segmentFlags";
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
@@ -204,6 +205,8 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     useToolGroupHotkey("x", "SPLIT_LINE");
     // hotkeys — start polyline cut (C = Couper un segment) when not drawing
     useToolGroupHotkey("c", "SPLIT_POLYLINE_CLICK");
+    // hotkeys — start wall-ends join (J = Joindre) when not drawing
+    useToolGroupHotkey("j", "JOIN_ANNOTATIONS");
 
     // const
 
@@ -595,6 +598,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     const handleTechnicalReturn = useHandleTechnicalReturn({ annotations });
     const { handleSplitPolylineClick, handleSplitPolylineEnter, resetSplitPolyline } = useHandleSplitPolyline();
     const { handleSplitPolylineClickPoint } = useHandleSplitPolylineClick();
+    const { handleJoinAnnotationsRect } = useHandleJoinAnnotationsRect({ annotations });
     const handleCommitGuideLine = useHandleCommitGuideLine();
     const handleCommitIsoHeightLine = useHandleCommitIsoHeightLine();
     const handleCommitProfileLine = useHandleCommitProfileLine();
@@ -2134,6 +2138,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                     onSplitPolylineEnter={handleSplitPolylineEnter}
                     onSplitPolylineReset={resetSplitPolyline}
                     onSplitPolylineClickPoint={handleSplitPolylineClickPoint}
+                    onJoinAnnotationsRect={handleJoinAnnotationsRect}
                     onCommitGuideLine={handleCommitGuideLine}
                     onCommitIsoHeightLine={handleCommitIsoHeightLine}
                     onCommitProfileLine={handleCommitProfileLine}

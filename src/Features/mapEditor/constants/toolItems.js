@@ -1,6 +1,7 @@
 import { StopCircle } from "@mui/icons-material";
 import IconCutLine from "Features/icons/IconCutLine";
 import IconSplitPolylineClick from "Features/icons/IconSplitPolylineClick";
+import IconJoinAnnotations from "Features/icons/IconJoinAnnotations";
 
 // TODO: clean up the code behind the drawing tools removed from this UI list
 // (SPLIT_SURFACE "Couper des surfaces", TECHNICAL_RETURN "Retour 1m",
@@ -21,6 +22,12 @@ const TOOL_ITEMS = [
     label: "Couper un segment",
     Icon: IconSplitPolylineClick,
     shortcut: "C",
+  },
+  {
+    type: "JOIN_ANNOTATIONS",
+    label: "Joindre",
+    Icon: IconJoinAnnotations,
+    shortcut: "J",
   },
 ];
 

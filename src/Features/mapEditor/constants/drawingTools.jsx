@@ -32,6 +32,7 @@ import IconCutSegment from "Features/icons/IconCutSegment";
 import IconSplitPolygon from "Features/icons/IconSplitPolygon";
 import IconSplitPolyline from "Features/icons/IconSplitPolyline";
 import IconSplitPolylineClick from "Features/icons/IconSplitPolylineClick";
+import IconJoinAnnotations from "Features/icons/IconJoinAnnotations";
 import IconTechnicalReturn from "Features/icons/IconTechnicalReturn";
 import IconStrip from "Features/icons/IconStrip";
 
@@ -410,6 +411,16 @@ const DRAWING_TOOLS = [
     annotationType: "LOCALIZED_REPAIR",
     behavior: "LOCALIZED_REPAIR",
   },
+  // JOIN_ANNOTATIONS tool (Joindre) — draw a selection rectangle (2 clicks)
+  // around wall ends; they are extended / shortened along their own segment
+  // so the walls connect (see useHandleJoinAnnotationsRect).
+  {
+    key: "JOIN_ANNOTATIONS",
+    label: "Joindre",
+    Icon: IconJoinAnnotations,
+    annotationType: "JOIN_ANNOTATIONS",
+    behavior: "JOIN_ANNOTATIONS",
+  },
   // REVOLUTION axis helpers — the geometry that defines a REVOLUTION shape3D.
   // Both tools are armed from a REVOLUTION_AXIS template row of the listings
   // panel: the axis is authored on the PLAN with 2 clicks (centre → radius +
@@ -457,6 +468,7 @@ export const DRAWING_TOOLS_BY_TYPE = {
   ISO_HEIGHT_LINE: ["ADD_ISO_HEIGHT_LINE"],
   PROFILE_LINE: ["ADD_PROFILE_LINE"],
   LOCALIZED_REPAIR: ["LOCALIZED_REPAIR"],
+  JOIN_ANNOTATIONS: ["JOIN_ANNOTATIONS"],
 };
 
 export function getDrawingToolsByShape(drawingShape) {
