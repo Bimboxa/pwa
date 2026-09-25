@@ -15,6 +15,7 @@ import {
   Typography,
 } from "@mui/material";
 import {
+  formatCost,
   formatStepDuration,
   formatTokenUsage,
   serializeChatTimeline,
@@ -153,7 +154,11 @@ export default function ChatTimeline({ timeline, active }) {
       </Stack>
       {formatTokenUsage(timeline?.usage) && (
         <Typography variant="caption" color="text.secondary">
-          Total du tour : {formatTokenUsage(timeline.usage)}
+          Total du tour{timeline.steps ? ` (${timeline.steps} appel(s))` : ""} :{" "}
+          {formatTokenUsage(timeline.usage)}
+          {timeline.cost !== undefined
+            ? ` · Coût du tour : ${formatCost(timeline.cost)}`
+            : ""}
         </Typography>
       )}
       <Dialog

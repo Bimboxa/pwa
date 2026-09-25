@@ -8,6 +8,7 @@ import {
   appendMessageAction,
   appendMessageContent,
   setConversation,
+  addTurnUsage,
   setIsThinking,
   updateMessageById,
 } from "../chatSlice";
@@ -404,7 +405,8 @@ export default function useSendChatTurn() {
               existingAnnotations: buildExistingAnnotations(
                 annotations,
                 listing?.id,
-                mainBaseMap?.id
+                mainBaseMap?.id,
+                baseMap?.meterByPx
               ),
             },
           },
@@ -431,12 +433,6 @@ export default function useSendChatTurn() {
                 llmTrace = advanceLlmTrace(llmTrace, event.usage);
                 dispatch(setConversation({ llmTrace }));
                 ensureBubble();
-                dispatch(
-                  updateMessageById({
-                    id: messageId,
-                    changes: { tokenUsage: event.usage },
-                  })
-                );
               } else if (event.type === "reasoning") {
                 ensureBubble();
                 reasoningSummary = (reasoningSummary + event.delta).slice(
@@ -498,7 +494,15 @@ export default function useSendChatTurn() {
                     changes: {
                       durationMs: event.durationMs,
                       models: event.models,
+                      cost: event.cost ?? null,
                     },
+                  })
+                );
+                dispatch(
+                  addTurnUsage({
+                    usage: event.usage,
+                    cost: event.cost,
+                    steps: event.steps,
                   })
                 );
               } else if (event.type === "error") {

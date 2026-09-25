@@ -13,7 +13,34 @@ export function getVisibleListingTemplates(templates, listingId) {
 
 // useAnnotationsV2 has already resolved the geometry to reference pixels and
 // applied the map visibility filters. Never send entities, images or DB refs.
-export function buildExistingAnnotations(annotations, listingId, baseMapId) {
+// Reference-pixel decimals for 1 mm of the plan (3 when uncalibrated): the
+// geometry below stays in the model's context for the whole session.
+export function millimetreDecimals(meterByPx) {
+  return Number.isFinite(meterByPx) && meterByPx > 0
+    ? Math.max(0, Math.ceil(Math.log10(meterByPx / 0.001)))
+    : 3;
+}
+
+function roundNumbers(value, decimals) {
+  if (typeof value === "number")
+    return Number.isInteger(value)
+      ? value
+      : Math.round(value * 10 ** decimals) / 10 ** decimals;
+  if (Array.isArray(value)) return value.map((v) => roundNumbers(v, decimals));
+  if (value && typeof value === "object")
+    return Object.fromEntries(
+      Object.entries(value).map(([k, v]) => [k, roundNumbers(v, decimals)])
+    );
+  return value;
+}
+
+export function buildExistingAnnotations(
+  annotations,
+  listingId,
+  baseMapId,
+  meterByPx = null
+) {
+  const decimals = millimetreDecimals(meterByPx);
   return (annotations ?? [])
     .filter(
       (a) =>
@@ -46,8 +73,9 @@ export function buildExistingAnnotations(annotations, listingId, baseMapId) {
         "stripOrientation",
         "text",
       ]) {
-        if (a[key] != null) geometry[key] = a[key];
+        if (a[key] != null) geometry[key] = roundNumbers(a[key], decimals);
       }
+      const lockedFields = a.annotationTemplateProps?.overrideFields ?? [];
       return {
         id: a.id,
         ...(a.annotationTemplateId
@@ -58,7 +86,7 @@ export function buildExistingAnnotations(annotations, listingId, baseMapId) {
         isExt: a.isExt,
         strokeColor: a.strokeColor,
         fillColor: a.fillColor,
-        lockedFields: a.annotationTemplateProps?.overrideFields ?? [],
+        ...(lockedFields.length ? { lockedFields } : {}),
         geometry,
       };
     });

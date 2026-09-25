@@ -17,7 +17,10 @@ const short = (text) =>
     .trim()
     .slice(0, 220);
 
-// Store observable lifecycle metadata and interpreter code, never tool arguments or raw prompts.
+// Store observable lifecycle metadata, interpreter code and the exact drawing
+// arguments captured by the relay (`detection_debug` raw_detection, i.e.
+// draw_annotations / create_annotation_templates), never other tool arguments
+// or raw prompts.
 export function updateChatTimeline(
   previous,
   event,
@@ -45,6 +48,12 @@ export function updateChatTimeline(
   if (
     !["progress", "tokens", "tool", "error", "trace_end", "done"].includes(
       event.type
+    ) &&
+    !(
+      event.type === "detection_debug" &&
+      event.artifact?.stage === "raw_detection" &&
+      event.artifact.callId &&
+      typeof event.artifact.data?.argumentsJson === "string"
     )
   )
     return state;
@@ -122,9 +131,31 @@ export function updateChatTimeline(
     if (event.usage.confirmed) {
       entry.status = "done";
       entry.endedAt = now;
+      // The relay names the model that answered: the `sending` progress event
+      // arrives after the first (unconfirmed) tokens event, and the model can
+      // change during a turn.
+      if (event.usage.model) entry.model = event.usage.model;
       // Provider-confirmed counters: cache share is what compares two runs.
       entry.usage = pickUsage(event.usage);
     }
+  } else if (event.type === "detection_debug") {
+    // Arrives before the tool's `started` event: reserve its step now.
+    const id = `tool-${event.artifact.callId}`;
+    let entry = next.entries.find((item) => item.id === id);
+    if (!entry) {
+      const name = event.artifact.data.tool ?? "draw_annotations";
+      entry = {
+        id,
+        kind: "tool",
+        stepNumber: allocate(),
+        name,
+        title: CHAT_TOOL_LABELS[name] ?? name,
+        startedAt: now,
+        status: "running",
+      };
+      next.entries.push(entry);
+    }
+    entry.argumentsJson = event.artifact.data.argumentsJson;
   } else if (event.type === "tool") {
     endPreparation();
     let entry = next.entries.find((item) => item.id === `tool-${event.callId}`);
@@ -139,7 +170,8 @@ export function updateChatTimeline(
         status: "running",
       };
       next.entries.push(entry);
-    }
+    } else if (event.phase === "started" && entry.startedAt == null)
+      entry.startedAt = now;
     if (event.name === "code_interpreter" && typeof event.code === "string")
       entry.code = event.code;
     if (event.summary) entry.summary = short(event.summary);
@@ -169,8 +201,11 @@ export function updateChatTimeline(
     // A provider may report usage before reporting an incomplete/failed response.
     if (event.type === "error" && next.entries.at(-1)?.kind === "model")
       next.entries.at(-1).status = "failed";
-    if (event.type === "done" && event.usage)
+    if (event.type === "done" && event.usage) {
       next.usage = pickUsage(event.usage);
+      next.cost = event.cost ?? null;
+      next.steps = Number.isInteger(event.steps) ? event.steps : null;
+    }
   }
   if (next.entries.length > MAX_STEPS) {
     next.omitted += next.entries.length - MAX_STEPS;
@@ -184,20 +219,48 @@ function pickUsage(usage) {
   return {
     inputTokens: count(usage?.inputTokens),
     cachedTokens: count(usage?.cachedTokens),
+    cacheWriteTokens: count(usage?.cacheWriteTokens),
     outputTokens: count(usage?.outputTokens),
     reasoningTokens: count(usage?.reasoningTokens),
+    model: usage?.model ?? null,
+    // Micro-euros priced by the relay for this call (null: unknown rate).
+    costMicros: count(usage?.costMicros),
   };
 }
 
 const tokens = (value) => new Intl.NumberFormat("fr-FR").format(value);
+const euros = new Intl.NumberFormat("fr-FR", {
+  style: "currency",
+  currency: "EUR",
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 3,
+});
 
-// "Entrée 12 300 tokens (9 800 en cache) · Sortie 1 200 (450 raisonnement)"
+// 12345 micro-euros → "0,012 €"
+export function formatMicros(micros) {
+  return Number.isFinite(micros) ? euros.format(micros / 1e6) : "";
+}
+
+// { micros, complete } → "0,42 €" or "≥ 0,42 € (tarif inconnu pour une partie)"
+export function formatCost(cost) {
+  if (!cost || !Number.isFinite(cost.micros)) return "Coût indisponible";
+  const amount = formatMicros(cost.micros);
+  return cost.complete === false
+    ? `≥ ${amount} (tarif inconnu pour une partie)`
+    : amount;
+}
+
+// "Entrée 12 300 tokens (9 800 en cache) · Sortie 1 200 (450 raisonnement) · 0,012 €"
 export function formatTokenUsage(usage) {
   if (!usage || usage.inputTokens == null) return "";
+  const cache = [
+    usage.cachedTokens != null ? `${tokens(usage.cachedTokens)} en cache` : "",
+    usage.cacheWriteTokens ? `${tokens(usage.cacheWriteTokens)} écrits` : "",
+  ]
+    .filter(Boolean)
+    .join(", ");
   const input = `Entrée ${tokens(usage.inputTokens)} tokens${
-    usage.cachedTokens != null
-      ? ` (${tokens(usage.cachedTokens)} en cache)`
-      : ""
+    cache ? ` (${cache})` : ""
   }`;
   const output =
     usage.outputTokens != null
@@ -207,13 +270,37 @@ export function formatTokenUsage(usage) {
             : ""
         }`
       : "";
-  return input + output;
+  const cost =
+    usage.costMicros != null ? ` · ${formatMicros(usage.costMicros)}` : "";
+  return input + output + cost;
+}
+
+// Session accumulator (chatSlice.conversation.usage) → one line.
+export function formatSessionUsage(usage) {
+  if (!usage || !usage.turns) return "";
+  return (
+    `${usage.turns} tour(s) · ${usage.calls} appel(s) au modèle · ` +
+    `Entrée ${tokens(usage.inputTokens)} tokens (${tokens(usage.cachedTokens)} en cache) · ` +
+    `Sortie ${tokens(usage.outputTokens)} · Coût cumulé ${formatCost({
+      micros: usage.costMicros,
+      complete: usage.costComplete,
+    })}`
+  );
 }
 
 export function formatStepDuration(entry, now) {
   if (entry.startedAt == null) return "Durée indisponible";
   const ms = Math.max(0, (entry.endedAt ?? now) - entry.startedAt);
   return ms < 1000 ? `${ms} ms` : `${(ms / 1000).toFixed(1)} s`;
+}
+
+// Exact provider arguments: parsed when valid, kept verbatim otherwise.
+function parseArguments(json) {
+  try {
+    return JSON.parse(json);
+  } catch {
+    return json;
+  }
 }
 
 export function serializeChatTimeline(timeline) {
@@ -225,6 +312,9 @@ export function serializeChatTimeline(timeline) {
         ...entry,
         ...(entry.name === "code_interpreter"
           ? { code: entry.code ?? null }
+          : {}),
+        ...(typeof entry.argumentsJson === "string"
+          ? { arguments: parseArguments(entry.argumentsJson) }
           : {}),
         stepNumber: entry.stepNumber ?? (timeline?.omitted ?? 0) + index + 1,
         durationMs:

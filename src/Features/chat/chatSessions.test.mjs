@@ -12,6 +12,8 @@ import reducer, {
   setPendingPdf,
   setVectorization,
   setReasoningLevels,
+  addTurnUsage,
+  EMPTY_SESSION_USAGE,
 } from "./chatSlice.js";
 import createChatSessionStore from "./utils/createChatSessionStore.js";
 import {
@@ -161,4 +163,50 @@ test("first send without a map clears an obsolete draft map title", () => {
     })
   );
   assert.equal(store.getState().chat.conversation.sessionName, null);
+});
+
+test("turn usage accumulates per session and a new session starts from zero", () => {
+  const store = makeStore();
+  const first = createChatSessionStore(store, 0);
+  assert.deepEqual(store.getState().chat.conversation.usage, EMPTY_SESSION_USAGE);
+  first.dispatch(
+    addTurnUsage({
+      steps: 3,
+      usage: {
+        inputTokens: 1000,
+        cachedTokens: 400,
+        cacheWriteTokens: 100,
+        outputTokens: 50,
+        reasoningTokens: 10,
+      },
+      cost: { micros: 20000, currency: "EUR", complete: true },
+    })
+  );
+  first.dispatch(
+    addTurnUsage({
+      steps: 2,
+      usage: { inputTokens: 500, cachedTokens: 450, outputTokens: 20 },
+      cost: { micros: 5000, currency: "EUR", complete: false },
+    })
+  );
+  assert.deepEqual(store.getState().chat.conversation.usage, {
+    turns: 2,
+    calls: 5,
+    inputTokens: 1500,
+    cachedTokens: 850,
+    cacheWriteTokens: 100,
+    outputTokens: 70,
+    reasoningTokens: 10,
+    costMicros: 25000,
+    costComplete: false,
+  });
+  store.dispatch(resetConversation());
+  assert.deepEqual(store.getState().chat.conversation.usage, EMPTY_SESSION_USAGE);
+  // The previous session keeps its totals, and late events still reach it.
+  first.dispatch(
+    addTurnUsage({ steps: 1, usage: { inputTokens: 1 }, cost: null })
+  );
+  assert.equal(store.getState().chat.sessions[0].conversation.usage.turns, 3);
+  assert.equal(store.getState().chat.sessions[0].conversation.usage.inputTokens, 1501);
+  assert.equal(store.getState().chat.conversation.usage.turns, 0);
 });

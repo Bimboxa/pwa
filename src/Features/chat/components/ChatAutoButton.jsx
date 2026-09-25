@@ -20,6 +20,7 @@ export default function ChatAutoButton({
   const [autonomous, setAutonomous] = useState(false);
   const [description, setDescription] = useState("");
   const [aiGeometry, setAiGeometry] = useState(false);
+  const [parallelTools, setParallelTools] = useState(false);
   const valid =
     (currentListing || autonomous) &&
     (!currentListing || hasVisibleTemplates) &&
@@ -32,6 +33,7 @@ export default function ChatAutoButton({
       autonomous,
       description: autonomous ? description.trim() : "",
       aiGeometry,
+      parallelTools,
     };
     const message = [
       currentListing
@@ -134,6 +136,22 @@ export default function ChatAutoButton({
                 jonctions (Code Interpreter OpenAI). Sur un fond image sans PDF,
                 analyse visuelle uniquement. Permet de comparer coût et qualité
                 avec les outils locaux.
+              </Typography>
+            </Box>
+            <Box>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={parallelTools}
+                    onChange={(e) => setParallelTools(e.target.checked)}
+                  />
+                }
+                label="Parallélisme"
+              />
+              <Typography variant="body2" color="text.secondary">
+                Le modèle peut demander plusieurs outils dans une même réponse
+                (analyses indépendantes, dessins). Décoché : un outil par appel
+                au modèle, exécutés l’un après l’autre.
               </Typography>
             </Box>
             {autonomous && (

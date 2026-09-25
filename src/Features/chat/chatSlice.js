@@ -3,6 +3,20 @@ import { createSlice } from "@reduxjs/toolkit";
 
 import { loadVectorizationSessionIds } from "../assistantRelay/utils/vectorizationPointer.js";
 
+// Tokens and cost of the session, summed over its turns from the relay's
+// `done` events (micro-euros priced server-side; no ledger involved).
+export const EMPTY_SESSION_USAGE = Object.freeze({
+  turns: 0,
+  calls: 0,
+  inputTokens: 0,
+  cachedTokens: 0,
+  cacheWriteTokens: 0,
+  outputTokens: 0,
+  reasoningTokens: 0,
+  costMicros: 0,
+  costComplete: true,
+});
+
 const chatSlice = createSlice({
   name: "chat",
   initialState: {
@@ -28,6 +42,7 @@ const chatSlice = createSlice({
       imageKey: null,
       budgetSessionId: uuidv4(),
       sessionName: null,
+      usage: EMPTY_SESSION_USAGE,
     },
     // Levels of reflection offered by the relay ([{ id, label, model }]) and
     // the user's pick (null = the relay default, `high`).
@@ -99,6 +114,23 @@ const chatSlice = createSlice({
     setConversation(state, action) {
       state.conversation = { ...state.conversation, ...action.payload };
     },
+    // `done` event of a turn: { usage, cost, steps }.
+    addTurnUsage(state, action) {
+      const { usage, cost, steps } = action.payload ?? {};
+      const previous = state.conversation.usage ?? EMPTY_SESSION_USAGE;
+      const add = (key) => (previous[key] ?? 0) + (usage?.[key] ?? 0);
+      state.conversation.usage = {
+        turns: previous.turns + 1,
+        calls: previous.calls + (Number.isInteger(steps) ? steps : 0),
+        inputTokens: add("inputTokens"),
+        cachedTokens: add("cachedTokens"),
+        cacheWriteTokens: add("cacheWriteTokens"),
+        outputTokens: add("outputTokens"),
+        reasoningTokens: add("reasoningTokens"),
+        costMicros: previous.costMicros + (cost?.micros ?? 0),
+        costComplete: previous.costComplete && Boolean(cost?.complete),
+      };
+    },
     // Session creation is handled by the outer reducer without clearing history.
     resetConversation: {
       prepare: ({ baseMapName } = {}) => ({
@@ -134,6 +166,7 @@ export const {
   appendMessageAction,
   updateMessageAction,
   setConversation,
+  addTurnUsage,
   captureSessionContext,
   resetConversation,
   setReasoningLevels,
@@ -155,7 +188,11 @@ export default function reducer(state, action) {
       sessions[sessionId] = {
         ...chatSlice.getInitialState(),
         sessionId,
-        conversation: { ...first.conversation, budgetSessionId: uuidv4() },
+        conversation: {
+          ...first.conversation,
+          budgetSessionId: uuidv4(),
+          usage: EMPTY_SESSION_USAGE,
+        },
       };
     }
     state = {
@@ -189,6 +226,7 @@ export default function reducer(state, action) {
         sessionName: action.meta?.baseMapName
           ? `[${action.meta.baseMapName.slice(0, 90)}] Session ${sessionId + 1}`
           : null,
+        usage: EMPTY_SESSION_USAGE,
       },
     };
     return {

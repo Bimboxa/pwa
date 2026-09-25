@@ -4,6 +4,8 @@ import {
   updateChatTimeline as update,
   formatStepDuration,
   formatTokenUsage,
+  formatCost,
+  formatSessionUsage,
 } from "./chatTimeline.js";
 
 test("timeline keeps model calls, tool results and contextual summaries after completion", () => {
@@ -289,8 +291,11 @@ test("timeline keeps confirmed token counters per model call and the turn total"
   assert.deepEqual(state.entries[0].usage, {
     inputTokens: 12300,
     cachedTokens: 9800,
+    cacheWriteTokens: null,
     outputTokens: 1200,
     reasoningTokens: 450,
+    model: null,
+    costMicros: null,
   });
   assert.equal(
     formatTokenUsage(state.entries[0].usage),
@@ -305,6 +310,153 @@ test("timeline keeps confirmed token counters per model call and the turn total"
     20
   );
   assert.equal(state.usage.cachedTokens, 9800);
+  assert.equal(state.cost, null);
   assert.equal(formatTokenUsage(undefined), "");
   assert.equal(formatTokenUsage({ inputTokens: null }), "");
+});
+
+test("timeline keeps the priced model of each call and the cost of the turn", () => {
+  let state = update(
+    undefined,
+    { type: "progress", stage: "sending", model: "gpt-5.4-mini" },
+    0
+  );
+  state = update(
+    state,
+    { type: "tokens", usage: { step: 1, confirmed: false, outputTokens: 0 } },
+    1
+  );
+  // The relay switched to the analysis model during the call.
+  state = update(
+    state,
+    {
+      type: "tokens",
+      usage: {
+        step: 1,
+        confirmed: true,
+        model: "gpt-6-astra",
+        costMicros: 12345,
+        inputTokens: 1000,
+        cachedTokens: 0,
+        cacheWriteTokens: 1000,
+        outputTokens: 100,
+        reasoningTokens: 0,
+      },
+    },
+    5
+  );
+  assert.equal(state.entries[0].model, "gpt-6-astra");
+  assert.equal(state.entries[0].usage.costMicros, 12345);
+  assert.equal(
+    formatTokenUsage(state.entries[0].usage),
+    "Entrée 1\u202f000 tokens (0 en cache, 1\u202f000 écrits) · Sortie 100 · 0,012\u00a0€"
+  );
+  state = update(
+    state,
+    {
+      type: "done",
+      steps: 1,
+      usage: { inputTokens: 1000, cachedTokens: 0, outputTokens: 100 },
+      cost: { micros: 12345, currency: "EUR", complete: true },
+    },
+    9
+  );
+  assert.deepEqual(state.cost, {
+    micros: 12345,
+    currency: "EUR",
+    complete: true,
+  });
+  assert.equal(state.steps, 1);
+  assert.equal(formatCost(state.cost), "0,012\u00a0€");
+  assert.equal(
+    formatCost({ micros: 420000, complete: false }),
+    "≥ 0,42\u00a0€ (tarif inconnu pour une partie)"
+  );
+  assert.equal(formatCost(null), "Coût indisponible");
+  assert.equal(
+    formatSessionUsage({
+      turns: 2,
+      calls: 5,
+      inputTokens: 50000,
+      cachedTokens: 40000,
+      outputTokens: 800,
+      costMicros: 1500000,
+      costComplete: true,
+    }),
+    "2 tour(s) · 5 appel(s) au modèle · Entrée 50\u202f000 tokens (40\u202f000 en cache) · Sortie 800 · Coût cumulé 1,50\u00a0€"
+  );
+  assert.equal(formatSessionUsage({ turns: 0 }), "");
+});
+
+test("drawing arguments captured by the relay join their step and the JSON export", async () => {
+  const { serializeChatTimeline } = await import("./chatTimeline.js");
+  const argumentsJson = JSON.stringify({
+    shapes: [{ kind: "polyline", template: { label: "À vérifier" } }],
+  });
+  let state = update(
+    undefined,
+    {
+      type: "detection_debug",
+      artifact: {
+        id: "d1",
+        callId: "d1",
+        stage: "raw_detection",
+        data: { tool: "draw_annotations", argumentsJson, step: 3 },
+      },
+    },
+    100
+  );
+  assert.equal(state.entries.length, 1);
+  state = update(
+    state,
+    { type: "tool", phase: "started", callId: "d1", name: "draw_annotations" },
+    120
+  );
+  state = update(
+    state,
+    {
+      type: "tool",
+      phase: "done",
+      callId: "d1",
+      name: "draw_annotations",
+      jobId: "job",
+      liveStatus: "applied",
+    },
+    500
+  );
+  // Other diagnostics and other tools' arguments are not recorded.
+  state = update(
+    state,
+    {
+      type: "detection_debug",
+      artifact: {
+        id: "c",
+        callId: "d1",
+        stage: "converted_detection",
+        data: {},
+      },
+    },
+    510
+  );
+  state = update(
+    state,
+    {
+      type: "detection_debug",
+      artifact: {
+        id: "b",
+        callId: "b",
+        stage: "raw_detection",
+        data: { tool: "create_annotation_templates", argumentsJson: "{bad" },
+      },
+    },
+    520
+  );
+  assert.equal(state.entries.length, 2);
+  const steps = JSON.parse(serializeChatTimeline(state)).steps;
+  assert.equal(steps[0].name, "draw_annotations");
+  assert.equal(steps[0].status, "done");
+  assert.equal(steps[0].durationMs, 400);
+  assert.deepEqual(steps[0].arguments, JSON.parse(argumentsJson));
+  assert.equal(steps[1].arguments, "{bad");
+  assert.equal(steps[1].status, "running");
 });

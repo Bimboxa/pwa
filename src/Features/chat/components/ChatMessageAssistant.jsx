@@ -2,6 +2,7 @@ import { useId, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import { updateMessageAction } from "../chatSlice";
+import { formatSessionUsage } from "../utils/chatTimeline";
 
 import {
   Box,
@@ -78,6 +79,9 @@ export default function ChatMessageAssistant({ message }) {
   const [busyCallId, setBusyCallId] = useState(null);
   // Reading tools are noise once they have succeeded.
   const jobsById = useSelector((state) => state.assistantRelay.jobsById);
+  const sessionUsage = useSelector(
+    (state) => state.chat.conversation?.usage ?? null
+  );
   const actions = (message.actions ?? []).map((action) => {
     const job = jobsById?.[action.jobId];
     return job && action.name === "draw_annotations"
@@ -368,6 +372,15 @@ export default function ChatMessageAssistant({ message }) {
               display="block"
             >
               Modèles utilisés : {message.models.join(" → ")}
+            </Typography>
+          ) : null}
+          {formatSessionUsage(sessionUsage) ? (
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              display="block"
+            >
+              Session (cumul à ce jour) : {formatSessionUsage(sessionUsage)}
             </Typography>
           ) : null}
           {groupDetectionDebug(message.detectionDebug).map((record) => (
