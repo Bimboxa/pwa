@@ -4,6 +4,9 @@ import getPageDimensions from "./getPageDimensions";
 import { resolveFrameInsets, PAGE_FRAME_DEFAULTS } from "./computePageFrame";
 
 const TITLE_BAR_HEIGHT = 32;
+// Bottom-right cartouche: 40% of the inner width, capped so the title block
+// keeps its A3 size on A2 / A1 / A0 sheets (449 pt = A3 landscape value).
+const MAX_CARTOUCHE_WIDTH_PT = 449;
 
 export { TITLE_BAR_HEIGHT };
 
@@ -29,7 +32,10 @@ export function getCartoucheRectBottomRight(
 ) {
   const m = getPageMargins(pageFrame);
   const fullWidth = pageDims.width - m.left - m.right;
-  const cartoucheWidth = Math.round(fullWidth * 0.4);
+  const cartoucheWidth = Math.min(
+    Math.round(fullWidth * 0.4),
+    MAX_CARTOUCHE_WIDTH_PT
+  );
   if (
     cartoucheWidth < 200 ||
     pageDims.height < titleBlockHeight + m.top + m.bottom
@@ -51,11 +57,13 @@ export default function getPageLayout(
   pageFrame = null
 ) {
   const pageDims = getPageDimensions(format, orientation);
-  const isA3Landscape = format === "A3" && orientation === "landscape";
+  // A3 and larger landscape sheets: plan-style layout (cartouche bottom
+  // right); A4 (and every portrait page) keeps the full-width top cartouche.
+  const isLargeLandscape = orientation === "landscape" && format !== "A4";
   const m = getPageMargins(pageFrame);
   const fullWidth = pageDims.width - m.left - m.right;
 
-  if (isA3Landscape) {
+  if (isLargeLandscape) {
     // BOTTOM_RIGHT variant: cartouche bottom-right, title bar top-left
     const cartouche = getCartoucheRectBottomRight(
       pageDims,

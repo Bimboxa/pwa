@@ -177,8 +177,40 @@ export default function PortfolioPageSvg({ page, pageIndex, totalPages, zoom }) 
     }
 
     const imageSize = baseMap.getImageSize();
+    const printZone = baseMap.getPrintZone?.();
 
-    if (imageSize) {
+    if (printZone) {
+      // Print zone: the page takes the sheet format and the container is the
+      // FULL page with the zone as viewBox (exact 1:N / page-pt sizes) —
+      // same rule as useCreateBaseMapPage.
+      if (
+        page.format !== printZone.format ||
+        page.orientation !== printZone.orientation
+      ) {
+        await updateEntity(
+          page.id,
+          { format: printZone.format, orientation: printZone.orientation },
+          { listing: portfolio }
+        );
+      }
+      const pageDims = getPageDimensions(
+        printZone.format,
+        printZone.orientation
+      );
+      await db.portfolioBaseMapContainers.update(containerId, {
+        baseMapId: baseMap.id,
+        x: 0,
+        y: 0,
+        width: pageDims.width,
+        height: pageDims.height,
+        viewBox: {
+          x: printZone.x,
+          y: printZone.y,
+          width: printZone.width,
+          height: printZone.height,
+        },
+      });
+    } else if (imageSize) {
       const fitted = fitContainerToBaseMap(imageSize, contentArea);
       const viewBox = {
         x: 0,

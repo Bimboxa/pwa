@@ -6,7 +6,7 @@ import { Refresh, Visibility, VisibilityOff } from "@mui/icons-material";
 import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
 import getAnnotationLabelStubConfig from "Features/annotations/utils/getAnnotationLabelStubConfig";
 import getAnnotationLabelSizeConfig from "Features/annotations/utils/getAnnotationLabelSizeConfig";
-import { getFreeTextPageScale } from "Features/annotations/constants/freeTextConstants";
+import { getTextPageScale } from "Features/annotations/constants/freeTextConstants";
 import useMapZoom from "../hooks/useMapZoom";
 import getLabelLeaderGeometry from "../utils/getLabelLeaderGeometry";
 import { useDispatch } from "react-redux";
@@ -71,6 +71,7 @@ export default function NodeLabelStatic({
         labelDelta,
         imageSize: dataImageSize,
         imageLongSidePx,
+        pagePxPerPt,
     } = data;
     const stub = getAnnotationLabelStubConfig(data);
     const isSubLabel = id.startsWith("label::");
@@ -109,7 +110,11 @@ export default function NodeLabelStatic({
             ? Math.max(elbowImageSize.width || 0, elbowImageSize.height || 0)
             : undefined);
     const pageScale = isFixedSize
-        ? getFreeTextPageScale(sizeCfg.pageFormat, imageLongSide)
+        ? getTextPageScale({
+              pagePxPerPt,
+              pageFormat: sizeCfg.pageFormat,
+              imageLongSidePx: imageLongSide,
+          })
         : 1;
     // Sub-labels: S/M/L px from getAnnotationLabelPropsFromAnnotation.
     // Standalone: page pt in fixed mode, the historical 14px otherwise.

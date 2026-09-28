@@ -5,8 +5,6 @@ import {
   IconButton,
   InputBase,
   Switch,
-  ToggleButtonGroup,
-  ToggleButton,
 } from "@mui/material";
 import {
   Lock as LockIcon,
@@ -19,29 +17,15 @@ import getAnnotationLabelSizeConfig, {
   DEFAULT_LABEL_FONT_SIZE_PT,
   LABEL_SIZE_FIELDS,
 } from "Features/annotations/utils/getAnnotationLabelSizeConfig";
-import { FREE_TEXT_PAGE_FORMATS } from "Features/annotations/constants/freeTextConstants";
 
 // strings
 
 const titleS = "Taille fixe";
 const fontSizeS = "Taille du texte";
-const pageFormatS = "Format de la page";
 const hintS =
-  "Fixe par rapport au plan (zoome avec le fond de plan), taille en points comme si le fond remplissait la page.";
+  "Fixe par rapport au plan (zoome avec le fond de plan), taille en points de la zone d'impression du fond de plan.";
 const lockTitleS = "Appliquer aux étiquettes déjà créées";
 const resetS = "Réinit.";
-
-const toggleGroupSx = {
-  flexShrink: 0,
-  bgcolor: "action.hover",
-  "& .MuiToggleButton-root": {
-    border: "none",
-    borderRadius: 1.5,
-    px: 1,
-    py: 0.25,
-    fontSize: "0.7rem",
-  },
-};
 
 const numberInputSx = {
   width: 64,
@@ -67,7 +51,7 @@ export default function FieldAnnotationTemplateLabelSize({
 }) {
   // helpers
 
-  const { isFixedSize, fontSize, pageFormat } =
+  const { isFixedSize, fontSize } =
     getAnnotationLabelSizeConfig(annotationTemplate);
 
   const showOverrides = typeof onOverrideFieldsChange === "function";
@@ -90,10 +74,6 @@ export default function FieldAnnotationTemplateLabelSize({
           ? parsed
           : DEFAULT_LABEL_FONT_SIZE_PT,
     });
-  }
-
-  function handlePageFormatChange(e, next) {
-    if (next !== null) onChange({ ...annotationTemplate, pageFormat: next });
   }
 
   function handleToggleGlobalOverride() {
@@ -168,25 +148,6 @@ export default function FieldAnnotationTemplateLabelSize({
                 }
                 sx={numberInputSx}
               />
-            </Box>
-
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-              <Typography variant="body2" sx={{ flex: 1 }}>
-                {pageFormatS}
-              </Typography>
-              <ToggleButtonGroup
-                value={pageFormat}
-                exclusive
-                onChange={handlePageFormatChange}
-                size="small"
-                sx={toggleGroupSx}
-              >
-                {FREE_TEXT_PAGE_FORMATS.map((o) => (
-                  <ToggleButton key={o.key} value={o.key}>
-                    {o.label}
-                  </ToggleButton>
-                ))}
-              </ToggleButtonGroup>
             </Box>
           </>
         )}

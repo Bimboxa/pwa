@@ -4,8 +4,6 @@ import {
   Button,
   InputBase,
   Switch,
-  ToggleButtonGroup,
-  ToggleButton,
 } from "@mui/material";
 import { Lock as LockIcon } from "@mui/icons-material";
 
@@ -18,28 +16,14 @@ import getAnnotationLabelSizeConfig, {
   DEFAULT_LABEL_FONT_SIZE_PT,
   LABEL_SIZE_FIELDS,
 } from "Features/annotations/utils/getAnnotationLabelSizeConfig";
-import { FREE_TEXT_PAGE_FORMATS } from "Features/annotations/constants/freeTextConstants";
 
 // strings
 
 const titleS = "Taille fixe";
 const fontSizeS = "Taille du texte";
-const pageFormatS = "Format de la page";
 const inheritedS = "Hérité du modèle";
 const lockedS = "Verrouillé par le modèle";
 const resetS = "Réinit.";
-
-const toggleGroupSx = {
-  flexShrink: 0,
-  bgcolor: "action.hover",
-  "& .MuiToggleButton-root": {
-    border: "none",
-    borderRadius: 1.5,
-    px: 1,
-    py: 0.25,
-    fontSize: "0.7rem",
-  },
-};
 
 const numberInputSx = {
   width: 64,
@@ -54,8 +38,9 @@ const numberInputSx = {
 
 // Per-annotation "Taille fixe" of a standalone LABEL: off = screen-constant
 // chip (historical), on = FREE_TEXT display rules (map-fixed, text size in
-// page points for an A4/A3 page). Unset = inherited from the template
-// (read-time), see getAnnotationLabelSizeConfig.
+// page points of the base map's print zone — legacy A4/A3 long-side rule
+// without one). Unset = inherited from the template (read-time), see
+// getAnnotationLabelSizeConfig.
 export default function FieldAnnotationLabelSize({
   annotation,
   overrideFields,
@@ -64,8 +49,7 @@ export default function FieldAnnotationLabelSize({
 
   // helpers
 
-  const { isFixedSize, fontSize, pageFormat } =
-    getAnnotationLabelSizeConfig(annotation);
+  const { isFixedSize, fontSize } = getAnnotationLabelSizeConfig(annotation);
   const isOwn = hasOwnLabelSizeValue(annotation);
   const locked =
     Array.isArray(overrideFields) &&
@@ -94,10 +78,7 @@ export default function FieldAnnotationLabelSize({
     });
   }
 
-  function handlePageFormatChange(e, next) {
-    if (next !== null && next !== pageFormat) update({ pageFormat: next });
-  }
-
+  // pageFormat: legacy own value, cleared too.
   function handleReset() {
     update({ isFixedSize: null, fontSize: null, pageFormat: null, width: null });
   }
@@ -161,24 +142,6 @@ export default function FieldAnnotationLabelSize({
               />
             </Box>
 
-            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-              <Typography variant="body2" sx={{ flex: 1 }}>
-                {pageFormatS}
-              </Typography>
-              <ToggleButtonGroup
-                value={pageFormat}
-                exclusive
-                onChange={handlePageFormatChange}
-                size="small"
-                sx={toggleGroupSx}
-              >
-                {FREE_TEXT_PAGE_FORMATS.map((o) => (
-                  <ToggleButton key={o.key} value={o.key}>
-                    {o.label}
-                  </ToggleButton>
-                ))}
-              </ToggleButtonGroup>
-            </Box>
           </Box>
         )}
       </Box>

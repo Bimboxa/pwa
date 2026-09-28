@@ -60,6 +60,7 @@ const SCRUBBED_FIELDS = new Set([
   "corruptedPointIds",
   "imageSize",
   "imageLongSidePx",
+  "pagePxPerPt",
   // identity / audit / links — re-derived at write time
   "id",
   "projectId",

@@ -78,8 +78,8 @@ const DRAWING_SHAPE_CONFIG = {
       "borderColor",
       "fontFamily",
       "fontSize",
-      // Page format A4 / A3: fontSize is in PDF points as if the base map
-      // filled that page (see freeTextConstants.getFreeTextPageScale).
+      // Page format A4 / A3 — LEGACY: only read when the base map has no
+      // print zone (freeTextConstants.getTextPageScale); no UI writes it.
       "pageFormat",
       "fontWeight",
       "fontItalic",

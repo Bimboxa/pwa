@@ -1,7 +1,7 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
 import { useSelector } from "react-redux";
 
-import { getFreeTextPageScale } from "Features/annotations/constants/freeTextConstants";
+import { getTextPageScale } from "Features/annotations/constants/freeTextConstants";
 
 const POINT_GHOST_RADIUS_PX = 8;
 const STRIP_DEFAULT_WIDTH_PX = 20;
@@ -238,7 +238,11 @@ function renderItem(item, key, meterByPx) {
   if (type === "FREE_TEXT" && item.baseLabelPoint) {
     const fontPx =
       (ann.fontSize ?? 14) *
-      getFreeTextPageScale(ann.pageFormat, item.imageLongSidePx);
+      getTextPageScale({
+        pagePxPerPt: item.pagePxPerPt ?? ann.pagePxPerPt,
+        pageFormat: ann.pageFormat,
+        imageLongSidePx: item.imageLongSidePx ?? ann.imageLongSidePx,
+      });
     const lines = String(ann.textContent ?? "").split("\n");
     const lineHeight = fontPx * 1.2;
     const firstBaseline =

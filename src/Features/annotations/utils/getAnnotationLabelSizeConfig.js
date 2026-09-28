@@ -8,7 +8,8 @@
 //   base map filled an A4/A3 page" (pageFormat, see
 //   freeTextConstants.getFreeTextPageScale).
 // - fontSize: text size in page points (fixed mode only).
-// - pageFormat: "A4" | "A3" (fixed mode only).
+// - pageFormat: "A4" | "A3" — LEGACY, only used when the base map has no
+//   print zone (getTextPageScale); no UI writes it any more.
 //
 // Resolution: annotation own value ?? template value ?? app default — the
 // same READ-TIME model as the leader stub (getAnnotationLabelStubConfig):
