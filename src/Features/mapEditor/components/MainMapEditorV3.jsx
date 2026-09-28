@@ -1,4 +1,4 @@
-import { useRef, useEffect, useMemo, useState } from "react";
+import { useRef, useEffect, useLayoutEffect, useMemo } from "react";
 import { useSelector, useDispatch } from "react-redux";
 
 import { nanoid } from "@reduxjs/toolkit";
@@ -379,27 +379,28 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
 
     // Print zone (« Zone d'impression ») = the WORLD reference frame outside
     // the background-page mode: the sheet CENTRE sits at the world origin and
-    // the image is posed INSIDE it (pose = -centre in image px), so moving
-    // the image on the sheet never moves the camera nor the sheet, and a
-    // sheet resize (always around its centre) leaves the image still.
-    // - printZoneDraft: live rect during a PrintZoneLayer drag, folded into
-    //   the pose synchronously (same render as the frame) — no jitter.
-    // - the resulting pose is mirrored into redux (baseMapPoseInBg) for the
-    //   consumers converting image px <-> world there (POV snapshot /
-    //   restore, 2D <-> 3D switch, entity click).
-    const [printZoneDraft, setPrintZoneDraft] = useState(null);
+    // the image is posed INSIDE it (pose = -centre in image px, k = 1).
+    // - Live drags (PrintZoneLayer) never re-render React: the layer sets an
+    //   imperative transform on printZoneWorldRef (the group holding the
+    //   image + annotations), the sheet stays still; the ONE db write on
+    //   pointerup re-emits the record and the layout effect below clears the
+    //   transform in the same commit as the new pose (no flash). A resize
+    //   changes the sheet's world size, so the camera k is compensated there
+    //   too (about the origin = sheet centre) for the sheet to stay put.
+    // - the pose is mirrored into redux (baseMapPoseInBg) for the consumers
+    //   converting image px <-> world there (POV snapshot / restore, 2D <->
+    //   3D switch, entity click).
     const resolvedPrintZone = baseMap?.getPrintZone?.() ?? null;
-    const effectivePrintZone = printZoneDraft ?? resolvedPrintZone;
     const zonePoseInBg = useMemo(() => {
-        if (showBgImage || !effectivePrintZone) return null;
-        const { x, y, width, height } = effectivePrintZone;
+        if (showBgImage || !resolvedPrintZone) return null;
+        const { x, y, width, height } = resolvedPrintZone;
         return { x: -(x + width / 2), y: -(y + height / 2), k: 1, r: 0 };
     }, [
         showBgImage,
-        effectivePrintZone?.x,
-        effectivePrintZone?.y,
-        effectivePrintZone?.width,
-        effectivePrintZone?.height,
+        resolvedPrintZone?.x,
+        resolvedPrintZone?.y,
+        resolvedPrintZone?.width,
+        resolvedPrintZone?.height,
     ]);
     const basePoseInBg = zonePoseInBg ?? basePoseInBgStored;
     useEffect(() => {
@@ -408,17 +409,24 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
         if (s?.x === zonePoseInBg.x && s?.y === zonePoseInBg.y && s?.k === zonePoseInBg.k) return;
         dispatch(setBaseMapPoseInBg(zonePoseInBg));
     }, [zonePoseInBg, basePoseInBgStored]);
-    // Drop the draft once the persisted zone caught up, or on map change.
-    useEffect(() => {
-        if (!printZoneDraft || !resolvedPrintZone) return;
-        const same = ["x", "y", "width", "height"].every(
-            (key) => Math.round(printZoneDraft[key]) === Math.round(resolvedPrintZone[key])
-        );
-        if (same) setPrintZoneDraft(null);
-    }, [printZoneDraft, resolvedPrintZone]);
-    useEffect(() => {
-        setPrintZoneDraft(null);
-    }, [baseMap?.id]);
+    const printZoneWorldRef = useRef(null);
+    const printZoneCommitRef = useRef(null); // { widthBefore } while a drag write is in flight
+    useLayoutEffect(() => {
+        const g = printZoneWorldRef.current;
+        if (g?.getAttribute("transform")) g.removeAttribute("transform");
+        const pending = printZoneCommitRef.current;
+        printZoneCommitRef.current = null;
+        if (!pending || !resolvedPrintZone?.width) return;
+        const ratio = pending.widthBefore / resolvedPrintZone.width;
+        if (!(ratio > 0) || Math.abs(ratio - 1) < 1e-9) return;
+        const m = interactionLayerRef.current?.getCameraMatrix?.();
+        if (m) interactionLayerRef.current?.setCameraMatrix?.({ ...m, k: m.k * ratio });
+    }, [
+        resolvedPrintZone?.x,
+        resolvedPrintZone?.y,
+        resolvedPrintZone?.width,
+        resolvedPrintZone?.height,
+    ]);
 
 
     const { pose: basePose } = useBaseMapPose({
@@ -551,9 +559,19 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     const handlePrintZoneDeselect = () => {
         dispatch(clearSelection());
     };
-    // Drag end: keep the draft until the liveQuery re-emits the record.
+    // Live drag: imperative transform of the image + annotations group
+    // (world units), null to clear (pointercancel).
+    const handlePrintZoneLiveTransform = (transform) => {
+        const g = printZoneWorldRef.current;
+        if (!g) return;
+        if (transform) g.setAttribute("transform", transform);
+        else g.removeAttribute("transform");
+    };
+    // Drag end: the live transform stays until the record re-emits (layout
+    // effect above), which also compensates the camera on a resize.
     const handlePrintZoneCommit = (printZone) => {
         if (!baseMap?.id) return;
+        printZoneCommitRef.current = { widthBefore: resolvedPrintZone?.width };
         updateBaseMapPrintZone(baseMap.id, printZone);
     };
 
@@ -2229,6 +2247,10 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                         notifyCameraChange();
                     }}
                 >
+                    {/* Print zone world group: everything posed with basePose
+                        (image, annotations, edit layers) — a PrintZoneLayer
+                        drag transforms it imperatively, the sheet stays out. */}
+                    <g ref={printZoneWorldRef}>
                     <g style={(selectedNode || selectedNodes?.length > 0) ? contextDimmedStyle : contextNormalStyle}>
                         <StaticMapContent
                             selectedNode={selectedNode}
@@ -2306,25 +2328,6 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                         baseMapImageScale={baseMap?.getImageScale?.() ?? 1}
                     />}
 
-                    {/* Print zone: dashed sheet frame (+ name in Dessin), outside
-                        the dimmed group so it stays clickable with a selection. */}
-                    {(forViewerKey === "BASE_MAPS" || (forViewerKey === "MAP" && isDessinModule)) &&
-                        baseMap?.getPrintZone?.() && !baseMap.isPhoto && !imageModeActive && !versionCompareEnabled && (
-                        <PrintZoneLayer
-                            baseMap={baseMap}
-                            basePose={basePose}
-                            zone={effectivePrintZone}
-                            isSelected={isPrintZoneSelected}
-                            explicitlySelected={isPrintZoneExplicitlySelected}
-                            interactive={printZoneInteractive && !imageModeActive}
-                            showName={forViewerKey === "MAP"}
-                            onSelect={handlePrintZoneSelect}
-                            onDeselect={handlePrintZoneDeselect}
-                            onDraftChange={setPrintZoneDraft}
-                            onCommit={handlePrintZoneCommit}
-                        />
-                    )}
-
                     {/* PhotoPlan focus mask (photo baseMaps): blurs everything
                         outside the selected plan's zone. Display-only. */}
                     {baseMap?.isPhoto && (
@@ -2342,6 +2345,25 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                         zone plans). Self-hiding. */}
                     {baseMap?.isPhoto && (
                         <PhotoPlanReprojectedAnnotationsLayer baseMap={baseMap} basePose={basePose} />
+                    )}
+                    </g>
+
+                    {/* Print zone: dashed sheet frame (+ name in Dessin), outside
+                        the dimmed group so it stays clickable with a selection. */}
+                    {(forViewerKey === "BASE_MAPS" || (forViewerKey === "MAP" && isDessinModule)) &&
+                        baseMap?.getPrintZone?.() && !baseMap.isPhoto && !imageModeActive && !versionCompareEnabled && (
+                        <PrintZoneLayer
+                            baseMap={baseMap}
+                            basePose={basePose}
+                            isSelected={isPrintZoneSelected}
+                            explicitlySelected={isPrintZoneExplicitlySelected}
+                            interactive={printZoneInteractive && !imageModeActive}
+                            showName={forViewerKey === "MAP"}
+                            onSelect={handlePrintZoneSelect}
+                            onDeselect={handlePrintZoneDeselect}
+                            onLiveTransform={handlePrintZoneLiveTransform}
+                            onCommit={handlePrintZoneCommit}
+                        />
                     )}
 
                 </InteractionLayer>
