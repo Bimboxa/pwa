@@ -7,13 +7,24 @@ import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
 import useListings from "../hooks/useListings";
 import useLinkedListings from "../hooks/useLinkedListings";
 import useLinkListingsToScope from "../hooks/useLinkListingsToScope";
+import useListingItemsCountById from "../hooks/useListingItemsCountById";
 
-import { Box, Button, Divider, IconButton, Typography } from "@mui/material";
+import {
+  Box,
+  Button,
+  Divider,
+  IconButton,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemText,
+  Typography,
+} from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 
 import DialogGeneric from "Features/layout/components/DialogGeneric";
 import ListScopes from "Features/scopes/components/ListScopes";
-import ListListings from "./ListListings";
+import AvatarListing from "./AvatarListing";
 
 // « Depuis un autre Krto »: pick another scope of the project on the left,
 // tick its drawing listings on the right, "Ajouter" links them into the
@@ -34,6 +45,8 @@ export default function DialogAddListingsFromScope({ open, onClose }) {
   const noScopeS = `Aucun autre ${scopeS} dans ce projet.`;
   const pickScopeS = `Sélectionnez un ${scopeS} pour voir ses listes.`;
   const noListingS = "Aucune liste à ajouter.";
+  const annotationsCountS = (count) =>
+    count === 1 ? "1 annotation" : `${count} annotations`;
   const readOnlyHintS = `Les listes ajoutées restent en lecture seule ici : modifiez-les depuis leur ${scopeS}.`;
   const addS = "Ajouter";
 
@@ -95,6 +108,8 @@ export default function DialogAddListingsFromScope({ open, onClose }) {
         !linkedSourceByListingId[l.id]
     );
   }, [sourceListingsRaw, sourceScopeId, linkedSourceByListingId]);
+
+  const countById = useListingItemsCountById(sourceListings);
 
   const selectedListings = sourceListings.filter((l) =>
     selection.includes(l.id)
@@ -202,11 +217,38 @@ export default function DialogAddListingsFromScope({ open, onClose }) {
                 {noListingS}
               </Typography>
             ) : (
-              <ListListings
-                listings={sourceListings}
-                selection={selection}
-                onClick={handleListingClick}
-              />
+              <List dense disablePadding>
+                {sourceListings.map((listing) => {
+                  const selected = selection.includes(listing.id);
+                  return (
+                    <ListItem key={listing.id} disablePadding divider>
+                      <ListItemButton
+                        selected={selected}
+                        onClick={() => handleListingClick(listing)}
+                        sx={{ gap: 1.5, py: 1 }}
+                      >
+                        <AvatarListing
+                          listing={listing}
+                          size={32}
+                          variant={selected ? "selected" : "visible"}
+                        />
+                        <ListItemText
+                          primary={listing.name ?? listing.label ?? "Liste"}
+                          secondary={annotationsCountS(
+                            countById?.[listing.id] ?? 0
+                          )}
+                          primaryTypographyProps={{
+                            variant: "body2",
+                            noWrap: true,
+                            fontWeight: selected ? 600 : 400,
+                          }}
+                          secondaryTypographyProps={{ variant: "caption" }}
+                        />
+                      </ListItemButton>
+                    </ListItem>
+                  );
+                })}
+              </List>
             )}
           </Box>
         </Box>
