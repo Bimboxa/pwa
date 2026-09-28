@@ -11,6 +11,7 @@ import { setBaseMapPoseInBg, setLegendFormat } from "../mapEditorSlice";
 import { setShowCreateBaseMapSection } from "Features/mapEditor/mapEditorSlice";
 import { selectSelectedItems, setSelectedItem, clearSelection } from "Features/selection/selectionSlice";
 import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
+import { setPropertiesRequestedView } from "Features/baseMaps/baseMapsSlice";
 import { resetVersionCompare } from "Features/baseMapEditor/baseMapEditorSlice";
 import { setLocalizingPhotoId } from "Features/photos/photosSlice";
 import { DEFAULT_FOV_DEG } from "Features/photos/constants/photoNode";
@@ -565,6 +566,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
         if (!baseMap?.id) return;
         dispatch(setSelectedItem({ id: baseMap.id, type: "BASE_MAP", listingId: baseMap.listingId }));
         dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
+        dispatch(setPropertiesRequestedView("printZone"));
     };
     const handlePrintZoneDeselect = () => {
         dispatch(clearSelection());

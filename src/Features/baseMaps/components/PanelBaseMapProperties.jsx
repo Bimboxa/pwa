@@ -51,7 +51,7 @@ import DialogDeleteRessource from "Features/layout/components/DialogDeleteRessou
 import FieldTextV2 from "Features/form/components/FieldTextV2";
 import FieldBaseMapOpacity from "./FieldBaseMapOpacity";
 import FieldBaseMapBlueprintScale from "./FieldBaseMapBlueprintScale";
-import SectionBaseMapPrintZone from "./SectionBaseMapPrintZone";
+import PanelBaseMapPrintZone from "./PanelBaseMapPrintZone";
 import SectionBaseMapSource from "./SectionBaseMapSource";
 import FieldBaseMapVersions from "./FieldBaseMapVersions";
 import PanelBaseMapPositionInMainRef from "./PanelBaseMapPositionInMainRef";
@@ -65,6 +65,7 @@ export default function PanelBaseMapProperties() {
 
   const labelS = "Libellé";
   const referenceS = "Référence";
+  const printZoneS = "Zone d'impression";
 
   // data
 
@@ -105,7 +106,7 @@ export default function PanelBaseMapProperties() {
   const [anchorEl, setAnchorEl] = useState(null);
   const menuOpen = Boolean(anchorEl);
   const [openDelete, setOpenDelete] = useState(false);
-  const [view, setView] = useState("main"); // "main" | "position3d"
+  const [view, setView] = useState("main"); // "main" | "position3d" | "printZone"
 
   // One-shot view request from the left panel (Position 3D section of the
   // base map detail view, #312): consume it and clear it.
@@ -189,6 +190,12 @@ export default function PanelBaseMapProperties() {
   // render
 
   if (!baseMap) return null;
+
+  if (view === "printZone") {
+    return (
+      <PanelBaseMapPrintZone baseMap={baseMap} onBack={() => setView("main")} />
+    );
+  }
 
   if (view === "position3d") {
     // In the 3D viewer, position editing happens live in the scene (transform
@@ -276,9 +283,26 @@ export default function PanelBaseMapProperties() {
         />
         {/* "1 : xx" scale of PDF-derived base maps (self-hiding) */}
         <FieldBaseMapBlueprintScale baseMap={baseMap} />
-        {/* Print zone: sheet format / orientation / 1:N over the image
-            (self-hiding for photos) */}
-        <SectionBaseMapPrintZone baseMap={baseMap} />
+        {/* Print zone: sheet format / orientation / 1:N over the image —
+            dedicated sub-panel (not for photos) */}
+        {!baseMap.isPhoto && (
+          <WhiteSectionGeneric>
+            <ButtonBase
+              onClick={() => setView("printZone")}
+              sx={{
+                width: 1,
+                p: 1,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                borderRadius: 1,
+              }}
+            >
+              <Typography variant="body2">{printZoneS}</Typography>
+              <ChevronRight color="action" />
+            </ButtonBase>
+          </WhiteSectionGeneric>
+        )}
 
         <WhiteSectionGeneric>
           {/* In the 3D viewer, the slider/eye drive the 3D scene display
