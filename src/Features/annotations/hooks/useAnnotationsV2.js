@@ -1,3 +1,4 @@
+import { getPrintZonePxPerPt } from "Features/baseMaps/utils/printZone";
 import { useMemo, useRef, useSyncExternalStore } from "react";
 import Dexie from "dexie";
 import { useLiveQuery } from "dexie-react-hooks";
@@ -1159,6 +1160,9 @@ export default function useAnnotationsV2(options) {
           if (!imageSize) return null;
           const { width, height } = imageSize;
           const meterByPx = baseMap.getMeterByPx();
+          // Page-pt → image-px scale of the texts (print zone), null when
+          // the base map has none (legacy formula in the renderers).
+          const pagePxPerPt = getPrintZonePxPerPt(baseMap.printZone);
 
           // Resolve memo lookup (see _resolvedRowsCache at module level):
           // identity of the annotation row + its point rows + base map
@@ -1173,6 +1177,7 @@ export default function useAnnotationsV2(options) {
             _memoEntry.width === width &&
             _memoEntry.height === height &&
             _memoEntry.meterByPx === meterByPx &&
+            _memoEntry.pagePxPerPt === pagePxPerPt &&
             _memoEntry.baseMapName === baseMap?.name &&
             _memoEntry.deps.length === _depRefs.length &&
             _memoEntry.deps.every((r, i) => r === _depRefs[i])
@@ -1266,6 +1271,7 @@ export default function useAnnotationsV2(options) {
             // the image long side to derive the pt→image-px scale
             // (getFreeTextPageScale), and imageSize is only known here.
             _annotation.imageLongSidePx = Math.max(width, height);
+            _annotation.pagePxPerPt = pagePxPerPt;
             // The image size the node handles need to persist a moved point
             // (LABEL elbow handle, FREE_TEXT edit-time anchor shift) — the
             // nodes are not given imageSize by EditedObjectLayer.
@@ -1534,6 +1540,7 @@ export default function useAnnotationsV2(options) {
                 width,
                 height,
                 meterByPx,
+                pagePxPerPt,
                 baseMapName: baseMap?.name,
                 variants: {},
               };

@@ -51,6 +51,7 @@ import DialogDeleteRessource from "Features/layout/components/DialogDeleteRessou
 import FieldTextV2 from "Features/form/components/FieldTextV2";
 import FieldBaseMapOpacity from "./FieldBaseMapOpacity";
 import FieldBaseMapBlueprintScale from "./FieldBaseMapBlueprintScale";
+import SectionBaseMapPrintZone from "./SectionBaseMapPrintZone";
 import SectionBaseMapSource from "./SectionBaseMapSource";
 import FieldBaseMapVersions from "./FieldBaseMapVersions";
 import PanelBaseMapPositionInMainRef from "./PanelBaseMapPositionInMainRef";
@@ -275,6 +276,9 @@ export default function PanelBaseMapProperties() {
         />
         {/* "1 : xx" scale of PDF-derived base maps (self-hiding) */}
         <FieldBaseMapBlueprintScale baseMap={baseMap} />
+        {/* Print zone: sheet format / orientation / 1:N over the image
+            (self-hiding for photos) */}
+        <SectionBaseMapPrintZone baseMap={baseMap} />
 
         <WhiteSectionGeneric>
           {/* In the 3D viewer, the slider/eye drive the 3D scene display

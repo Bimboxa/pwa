@@ -7,8 +7,9 @@ import {
 
 import useUpdateEntity from "Features/entities/hooks/useUpdateEntity";
 import useDisplayedPortfolio from "Features/portfolios/hooks/useDisplayedPortfolio";
+import { PAGE_FORMAT_KEYS } from "Features/portfolioEditor/utils/getPageDimensions";
 
-const FORMATS = ["A4", "A3"];
+const FORMATS = PAGE_FORMAT_KEYS;
 
 export default function CardPortfolioPageSize({ page }) {
   // data

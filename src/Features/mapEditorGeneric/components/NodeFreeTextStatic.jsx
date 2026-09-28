@@ -8,7 +8,7 @@ import usePendingAnnotationUpdates, {
 } from "Features/annotations/hooks/usePendingAnnotationUpdates";
 import {
   getFreeTextFontStack,
-  getFreeTextPageScale,
+  getTextPageScale,
 } from "Features/annotations/constants/freeTextConstants";
 
 // --- CONSTANTES ---
@@ -89,6 +89,7 @@ export default function NodeFreeTextStatic({
     // the right): texts copied from a PDF keep their orientation.
     rotation = 0,
     imageLongSidePx,
+    pagePxPerPt,
     imageSize,
     hidden,
   } = data;
@@ -116,7 +117,11 @@ export default function NodeFreeTextStatic({
   // CSS inside — fontSize, padding, width — is authored in page points).
   // imageLongSidePx is stamped by useAnnotationsV2 (the only place imageSize
   // is known); missing (foreign host) → scale 1 = plain image px.
-  const pageScale = getFreeTextPageScale(pageFormat, imageLongSidePx);
+  const pageScale = getTextPageScale({
+    pagePxPerPt,
+    pageFormat,
+    imageLongSidePx,
+  });
 
   // UI handles (target dot, width handle, selection outline) keep a constant
   // SCREEN size, with the NodeLabelStatic formula (--map-zoom from

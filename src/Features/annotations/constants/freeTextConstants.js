@@ -60,11 +60,13 @@ export const FREE_TEXT_FIELDS = [
   "hasConnector",
 ];
 
-// "Format de la page": the text size is expressed in PDF POINTS as if the
-// base map filled an A4 / A3 page (matching the portfolio PDF export, see
-// portfolioEditor/utils/getPageDimensions.js — 1 pt = 1/72 inch). The box is
-// rendered at scale k = imageLongSide / pageLongSide, so a 14pt text reads
-// as a 14pt text on the exported page whatever the image resolution.
+// Text sizes (FREE_TEXT, "Taille fixe" LABEL) are PDF POINTS (1 pt = 1/72
+// inch), matching the portfolio PDF export. Two page-pt → image-px paths:
+// - the base map has a printZone (« Zone d'impression »): the scale is the
+//   zone's pagePxPerPt (zone width in image px / sheet width in pt), stamped
+//   on every resolved text by useAnnotationsV2 — see getTextPageScale;
+// - legacy (no zone): "as if the base map filled an A4 / A3 page" along its
+//   long side, i.e. k = imageLongSide / pageLongSide (annotation.pageFormat).
 export const FREE_TEXT_PAGE_FORMATS = [
   { key: "A4", label: "A4" },
   { key: "A3", label: "A3" },
@@ -72,7 +74,15 @@ export const FREE_TEXT_PAGE_FORMATS = [
 
 const PAGE_LONG_SIDE_PT = { A4: 842, A3: 1191 };
 
+// Legacy formula (no print zone on the base map).
 export function getFreeTextPageScale(pageFormat, imageLongSidePx) {
   const longSide = PAGE_LONG_SIDE_PT[pageFormat] ?? PAGE_LONG_SIDE_PT.A4;
   return imageLongSidePx > 0 ? imageLongSidePx / longSide : 1;
+}
+
+// Page-pt → image-px scale of a text annotation: the base map's print zone
+// wins (pagePxPerPt), the legacy per-annotation pageFormat otherwise.
+export function getTextPageScale({ pagePxPerPt, pageFormat, imageLongSidePx }) {
+  if (pagePxPerPt > 0) return pagePxPerPt;
+  return getFreeTextPageScale(pageFormat, imageLongSidePx);
 }

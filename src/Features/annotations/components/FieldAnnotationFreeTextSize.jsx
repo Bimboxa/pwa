@@ -5,40 +5,28 @@ import {
   InputBase,
   Select,
   MenuItem,
-  ToggleButtonGroup,
-  ToggleButton,
 } from "@mui/material";
 
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 
-import {
-  FREE_TEXT_FONT_OPTIONS,
-  FREE_TEXT_PAGE_FORMATS,
-} from "Features/annotations/constants/freeTextConstants";
-import {
-  toggleGroupSx,
-  numberInputSx,
-} from "Features/annotations/constants/fieldSx";
+import { FREE_TEXT_FONT_OPTIONS } from "Features/annotations/constants/freeTextConstants";
+import { numberInputSx } from "Features/annotations/constants/fieldSx";
 
 // strings
 
 const titleS = "Taille";
 const fontFamilyS = "Police";
 const fontSizeS = "Taille du texte";
-const pageFormatS = "Format de la page";
 
 const DEFAULT_FONT_SIZE = 14;
 
 const rowSx = { display: "flex", alignItems: "center", gap: 1 };
 
-// FREE_TEXT "Taille" card: font family, text size (page pt, shown as px)
-// and the A4 / A3 page format the size refers to.
+// FREE_TEXT "Taille" card: font family and text size (page pt, shown as
+// px). The pt → image-px scale comes from the base map's print zone
+// (« Zone d'impression »), or the legacy A4 long-side rule without one.
 export default function FieldAnnotationFreeTextSize({ value, onChange }) {
-  const {
-    fontFamily = "Roboto",
-    fontSize = DEFAULT_FONT_SIZE,
-    pageFormat = "A4",
-  } = value ?? {};
+  const { fontFamily = "Roboto", fontSize = DEFAULT_FONT_SIZE } = value ?? {};
 
   // handlers
 
@@ -48,10 +36,6 @@ export default function FieldAnnotationFreeTextSize({ value, onChange }) {
       fontSize:
         Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_FONT_SIZE,
     });
-  }
-
-  function handlePageFormatChange(e, newFormat) {
-    if (newFormat !== null) onChange({ pageFormat: newFormat });
   }
 
   // render
@@ -105,29 +89,6 @@ export default function FieldAnnotationFreeTextSize({ value, onChange }) {
             }
             sx={numberInputSx}
           />
-        </Box>
-
-        <Divider />
-
-        {/* The size is in PDF points as if the base map filled this page:
-            pick the format the plan will be exported on. */}
-        <Box sx={rowSx}>
-          <Typography variant="body2" sx={{ flex: 1 }}>
-            {pageFormatS}
-          </Typography>
-          <ToggleButtonGroup
-            value={pageFormat}
-            exclusive
-            onChange={handlePageFormatChange}
-            size="small"
-            sx={toggleGroupSx}
-          >
-            {FREE_TEXT_PAGE_FORMATS.map((f) => (
-              <ToggleButton key={f.key} value={f.key}>
-                {f.label}
-              </ToggleButton>
-            ))}
-          </ToggleButtonGroup>
         </Box>
       </Box>
     </WhiteSectionGeneric>

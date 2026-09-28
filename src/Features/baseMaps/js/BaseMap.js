@@ -1,3 +1,4 @@
+import { isPrintZoneValid } from "Features/baseMaps/utils/printZone";
 import { nanoid } from "@reduxjs/toolkit";
 import ImageObject from "Features/images/js/ImageObject";
 import getDateString from "Features/misc/utils/getDateString";
@@ -60,6 +61,10 @@ export default class BaseMap {
     // Short reference displayed in the DETAIL annotation bubbles linked to
     // this baseMap (e.g. "1", "A"). Editable on any baseMap.
     detailRef,
+    // Print zone (« Zone d'impression »): { format, orientation, scale, x, y,
+    // width, height } — sheet rect in REFERENCE image px, see
+    // baseMaps/utils/printZone.js. null = no zone (legacy behaviour).
+    printZone,
     // version system
     versions,
     refWidth,
@@ -90,6 +95,7 @@ export default class BaseMap {
     this.isDetail = isDetail;
     this.createdFrom = createdFrom;
     this.detailRef = detailRef ?? null;
+    this.printZone = printZone ?? null;
     // version system
     this.versions = versions || [];
     this.refWidth = refWidth || null;
@@ -427,6 +433,11 @@ export default class BaseMap {
     return this.meterByPx;
   };
 
+  // Valid print zone or null (invalid / missing → legacy behaviour).
+  getPrintZone = () => {
+    return isPrintZoneValid(this.printZone) ? this.printZone : null;
+  };
+
   // SERIALIZER
 
   toJSON() {
@@ -441,6 +452,7 @@ export default class BaseMap {
       latLng: this.latLng,
       mainAngleInDeg: this.mainAngleInDeg,
       rotation2D: this.rotation2D,
+      printZone: this.printZone ?? null,
     };
 
     if (this.versions?.length > 0) {

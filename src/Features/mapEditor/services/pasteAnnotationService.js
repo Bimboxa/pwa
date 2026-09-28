@@ -142,6 +142,7 @@ export default async function pasteAnnotationService({
       targetPoint: _srcTargetPoint,
       labelPoint: _srcLabelPoint,
       imageLongSidePx: _srcImageLongSidePx,
+      pagePxPerPt: _srcPagePxPerPt,
       imageSize: _srcImageSize,
       baseMapName: _srcBaseMapName,
       templateLabel: _srcTemplateLabel,

@@ -9,7 +9,8 @@ import { setEnabledDrawingMode, setChatRepairZone } from "../mapEditorSlice";
 import { setTempAnnotations, triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice";
 import { setBaseMapPoseInBg, setLegendFormat } from "../mapEditorSlice";
 import { setShowCreateBaseMapSection } from "Features/mapEditor/mapEditorSlice";
-import { selectSelectedItems } from "Features/selection/selectionSlice";
+import { selectSelectedItems, setSelectedItem } from "Features/selection/selectionSlice";
+import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 import { resetVersionCompare } from "Features/baseMapEditor/baseMapEditorSlice";
 import { setLocalizingPhotoId } from "Features/photos/photosSlice";
 import { DEFAULT_FOV_DEG } from "Features/photos/constants/photoNode";
@@ -79,6 +80,8 @@ import LayerTools from "./LayerTools";
 import StaticMapContent from "./StaticMapContent";
 import EditedObjectLayer from "./EditedObjectLayer";
 import EditedBaseMapLayer from "./EditedBaseMapLayer";
+import PrintZoneLayer from "./PrintZoneLayer";
+import useUpdateBaseMapPrintZone from "Features/baseMaps/hooks/useUpdateBaseMapPrintZone";
 import EditedVersionLayer from "./EditedVersionLayer";
 import EditedLegendLayer from "./EditedLegendLayer";
 
@@ -481,6 +484,27 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     const legendQtiesById = useAnnotationTemplateQtiesByIdForBaseMap(baseMap?.id);
 
     const isLegendSelected = showBgImage && selectedNode?.nodeType === "LEGEND";
+
+    // Print zone (« Zone d'impression », PrintZoneLayer): Fonds de plan
+    // module and the Dessin module only (the MAP instance also serves the
+    // Viewer / Photos / POV modules). Selected = the BASE_MAP selection item
+    // (frame / name click, base map tree); in BASE_MAPS an empty selection
+    // already shows the base map panel, so the frame is editable too.
+    const updateBaseMapPrintZone = useUpdateBaseMapPrintZone();
+    const isPrintZoneSelected =
+        (selectedItems?.[0]?.type === "BASE_MAP" && selectedItems[0].id === baseMap?.id) ||
+        (forViewerKey === "BASE_MAPS" && !(selectedItems?.length > 0));
+    const printZoneInteractive =
+        !enabledDrawingMode && !isBaseMapSelected && !isLegendSelected;
+    const handlePrintZoneSelect = () => {
+        if (!baseMap?.id) return;
+        dispatch(setSelectedItem({ id: baseMap.id, type: "BASE_MAP", listingId: baseMap.listingId }));
+        dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
+    };
+    const handlePrintZoneCommit = (printZone) => {
+        if (!baseMap?.id) return;
+        updateBaseMapPrintZone(baseMap.id, printZone);
+    };
 
     // image mode — Export rapide is MAP-only; the POV viewer and the global
     // Capture tool (hotkey V) arm the framing on demand, on any 2D instance
@@ -2230,6 +2254,21 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                         baseMapMeterByPx={baseMap?.getMeterByPx()} // If needed for width calc
                         baseMapImageScale={baseMap?.getImageScale?.() ?? 1}
                     />}
+
+                    {/* Print zone: dashed sheet frame (+ name in Dessin), outside
+                        the dimmed group so it stays clickable with a selection. */}
+                    {(forViewerKey === "BASE_MAPS" || (forViewerKey === "MAP" && isDessinModule)) &&
+                        baseMap?.getPrintZone?.() && !baseMap.isPhoto && !imageModeActive && !versionCompareEnabled && (
+                        <PrintZoneLayer
+                            baseMap={baseMap}
+                            basePose={basePose}
+                            isSelected={isPrintZoneSelected}
+                            interactive={printZoneInteractive && !imageModeActive}
+                            showName={forViewerKey === "MAP"}
+                            onSelect={handlePrintZoneSelect}
+                            onCommit={handlePrintZoneCommit}
+                        />
+                    )}
 
                     {/* PhotoPlan focus mask (photo baseMaps): blurs everything
                         outside the selected plan's zone. Display-only. */}

@@ -42,6 +42,10 @@ import drawFreeTextItemsOnPdfPage, {
   createFreeTextFontProvider,
 } from "../utils/drawFreeTextItemsOnPdfPage";
 
+// Longest side of the rasterized page PNG (portfolio pages are captured
+// as a whole then embedded in the PDF).
+const MAX_PAGE_RASTER_SIDE_PX = 8192;
+
 function hexToPdfRgb(hex) {
   const match = /^#?([0-9a-f]{6})$/i.exec(hex || "");
   if (!match) return rgb(0.2, 0.2, 0.2);
@@ -316,7 +320,12 @@ export default function useDownloadPortfolioPdf() {
 
         // capture SVG as PNG blob
         // Always render at 2x for non-retina screens; HD doubles again to 4x
-        const pixelRatio = hdExport ? 4 : 2;
+        // — capped on large sheets (A0 at 4x ≈ 13 500 px exceeds the
+        // browser canvas limits).
+        const pixelRatio = Math.min(
+          hdExport ? 4 : 2,
+          MAX_PAGE_RASTER_SIDE_PX / Math.max(dims.width, dims.height)
+        );
         const blob = await getImageFromSvg(svgEl, { pixelRatio });
 
         hiddenEls.forEach((el) => (el.style.visibility = ""));

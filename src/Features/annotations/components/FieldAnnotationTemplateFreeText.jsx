@@ -32,7 +32,6 @@ import ColorDot from "./ColorDot";
 import {
   FREE_TEXT_FONT_OPTIONS,
   FREE_TEXT_FIELDS,
-  FREE_TEXT_PAGE_FORMATS,
   getFreeTextFontStack,
 } from "Features/annotations/constants/freeTextConstants";
 import {
@@ -71,7 +70,6 @@ export default function FieldAnnotationTemplateFreeText({
     borderColor = "#000000",
     fontFamily = "Roboto",
     fontSize = 14,
-    pageFormat = "A4",
     fontWeight = "normal",
     fontItalic = false,
     fontUnderline = false,
@@ -117,10 +115,6 @@ export default function FieldAnnotationTemplateFreeText({
   function handleFontSizeChange(raw) {
     const parsed = raw === "" ? 14 : Number(raw);
     patch({ fontSize: Number.isFinite(parsed) && parsed > 0 ? parsed : 14 });
-  }
-
-  function handlePageFormatChange(e, newFormat) {
-    if (newFormat !== null) patch({ pageFormat: newFormat });
   }
 
   function handleToggleGlobalOverride() {
@@ -299,27 +293,6 @@ export default function FieldAnnotationTemplateFreeText({
                 }
                 sx={numberInputSx}
               />
-            </Box>
-
-            {/* The size is in PDF points as if the base map filled this
-                page: pick the format the plan will be exported on. */}
-            <Box sx={optionRowSx}>
-              <Typography variant="body2" sx={{ flex: 1 }}>
-                Format de la page
-              </Typography>
-              <ToggleButtonGroup
-                value={pageFormat}
-                exclusive
-                onChange={handlePageFormatChange}
-                size="small"
-                sx={toggleGroupSx}
-              >
-                {FREE_TEXT_PAGE_FORMATS.map((f) => (
-                  <ToggleButton key={f.key} value={f.key}>
-                    {f.label}
-                  </ToggleButton>
-                ))}
-              </ToggleButtonGroup>
             </Box>
 
             <Box sx={optionRowSx}>

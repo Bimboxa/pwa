@@ -1,7 +1,7 @@
 // Merges visible annotations onto a baseMap image, producing a new image file
 // and the version transform needed to align the result in the reference frame.
 
-import { getFreeTextPageScale } from "Features/annotations/constants/freeTextConstants";
+import { getTextPageScale } from "Features/annotations/constants/freeTextConstants";
 import getAnnotationLabelSizeConfig from "Features/annotations/utils/getAnnotationLabelSizeConfig";
 import { getAnnotationOwnLabel } from "Features/annotations/utils/getAnnotationLabelDisplay";
 import coerceAnnotationNumericFields from "Features/annotations/utils/coerceAnnotationNumericFields";
@@ -37,7 +37,13 @@ const OPENING_FRAME_WIDTH_PX = 1; // NodeOpeningStatic FRAME_STROKE_SCREEN_PX
 // 1 CSS px is flattened as 1 image px, i.e. the zoom-1 look).
 function getLabelChipScale(a) {
   const { isFixedSize, pageFormat } = getAnnotationLabelSizeConfig(a);
-  return isFixedSize ? getFreeTextPageScale(pageFormat, a.imageLongSidePx) : 1;
+  return isFixedSize
+    ? getTextPageScale({
+        pagePxPerPt: a.pagePxPerPt,
+        pageFormat,
+        imageLongSidePx: a.imageLongSidePx,
+      })
+    : 1;
 }
 
 function loadImage(url) {
@@ -102,7 +108,11 @@ export function getAnnotationsBounds(annotations, meterByPx) {
         if (a.targetPoint) expandPoint(a.targetPoint.x, a.targetPoint.y);
         if (a.labelPoint) {
           // width / margins are page pt — scale them to image px.
-          const k = getFreeTextPageScale(a.pageFormat, a.imageLongSidePx);
+          const k = getTextPageScale({
+            pagePxPerPt: a.pagePxPerPt,
+            pageFormat: a.pageFormat,
+            imageLongSidePx: a.imageLongSidePx,
+          });
           const halfW = (k * (a.width || 200)) / 2;
           expandPoint(a.labelPoint.x - halfW, a.labelPoint.y - 30 * k);
           expandPoint(a.labelPoint.x + halfW, a.labelPoint.y + 30 * k);
@@ -672,10 +682,11 @@ export function drawAnnotation(ctx, annotation, meterByPx) {
 
     case "FREE_TEXT": {
       // The box is MAP-FIXED: sizes are PDF points "as if the base map
-      // filled an A4/A3 page" (pageFormat). Drawn in page-pt space around
-      // the box centre, scaled by k = imageLongSide / pageLongSide
-      // (imageLongSidePx stamped by useAnnotationsV2) — same rule as
-      // NodeFreeTextStatic, so the flatten is exact.
+      // filled an A4/A3 page" (legacy pageFormat) or, when the base map has
+      // a print zone, pt of that sheet (pagePxPerPt). Drawn in page-pt space
+      // around the box centre, scaled by k (getTextPageScale, inputs stamped
+      // by useAnnotationsV2) — same rule as NodeFreeTextStatic, so the
+      // flatten is exact.
       const {
         targetPoint,
         labelPoint,
@@ -695,10 +706,11 @@ export function drawAnnotation(ctx, annotation, meterByPx) {
         hasConnector = false,
         pageFormat = "A4",
         imageLongSidePx,
+        pagePxPerPt,
       } = annotation;
       if (!labelPoint) return;
 
-      const k = getFreeTextPageScale(pageFormat, imageLongSidePx);
+      const k = getTextPageScale({ pagePxPerPt, pageFormat, imageLongSidePx });
 
       // Connector line (drawn first, under the box) — image px space.
       if (hasConnector && targetPoint) {
