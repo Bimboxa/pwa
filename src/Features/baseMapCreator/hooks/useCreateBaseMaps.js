@@ -84,6 +84,9 @@ export default function useCreateBaseMaps() {
                     createdFrom: baseMap.createdFrom
                         ? { ...baseMap.createdFrom, versionId }
                         : null,
+                    // Print zone seeded by the creator (blank pages of a
+                    // configuration); PDF pages resolve it at read time.
+                    ...(baseMap.printZone && { printZone: baseMap.printZone }),
                 },
                 {
                     entityId,

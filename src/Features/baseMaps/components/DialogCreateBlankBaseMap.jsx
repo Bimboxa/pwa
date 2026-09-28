@@ -21,6 +21,7 @@ import ButtonInPanelV2 from "Features/layout/components/ButtonInPanelV2";
 
 import createBlankImageFile from "Features/images/utils/createBlankImageFile";
 import getBlankBaseMapGeometry, {
+  getBlankBaseMapPrintZone,
   FORMATS,
   SIZES,
   SCALES,
@@ -97,6 +98,13 @@ export default function DialogCreateBlankBaseMap({
       listing,
       meterByPx,
       orientation,
+      printZone: getBlankBaseMapPrintZone({
+        format,
+        size,
+        scale,
+        pixelWidth,
+        pixelHeight,
+      }),
     });
 
     handleClose();

@@ -24,7 +24,12 @@ import {
   getScaleFromPrintZone,
   isPrintZoneValid,
   roundPrintZone,
+  matchPageFormat,
+  getPdfPagePrintZone,
+  resolvePrintZone,
+  createPrintZoneFromSheet,
 } from "Features/baseMaps/utils/printZone";
+import { getBlankBaseMapPrintZone } from "Features/baseMaps/utils/getBlankBaseMapGeometry";
 import { getTextPageScale } from "Features/annotations/constants/freeTextConstants";
 
 let failures = 0;
@@ -230,6 +235,136 @@ check(
 check(
   "legacy A4 default",
   getTextPageScale({ pageFormat: undefined, imageLongSidePx: 842 }) === 1
+);
+
+console.log("resolved defaults");
+const m1 = matchPageFormat(1191, 842);
+check(
+  "1191x842 pt → A3 landscape",
+  m1?.format === "A3" && m1?.orientation === "landscape"
+);
+const m2 = matchPageFormat(595.3, 841.9);
+check(
+  "595.3x841.9 pt → A4 portrait",
+  m2?.format === "A4" && m2?.orientation === "portrait"
+);
+check("letter 612x792 pt → no match", matchPageFormat(612, 792) === null);
+// A3 landscape page rendered at 150 dpi = 2481 x 1754 px, full page
+const pdfFull = getPdfPagePrintZone({
+  createdFrom: {
+    type: "PDF_PAGE",
+    dpi: 150,
+    bboxInRatio: null,
+    blueprintScale: "100",
+  },
+  imageSize: { width: 2481, height: 1754 },
+});
+check(
+  "PDF full page → A3 landscape",
+  pdfFull?.format === "A3" && pdfFull?.orientation === "landscape"
+);
+check(
+  "PDF full page → zone = image, x/y 0",
+  pdfFull.x === 0 && pdfFull.y === 0 && pdfFull.width === 2481
+);
+check("PDF blueprintScale → scale 100", pdfFull.scale === 100);
+// same page cropped to the right half (x 0.5..1, y 0..1) → 1240 x 1754 px
+const pdfCrop = getPdfPagePrintZone({
+  createdFrom: {
+    type: "PDF_PAGE",
+    dpi: 150,
+    bboxInRatio: { x1: 0.5, y1: 0, x2: 1, y2: 1 },
+    blueprintScale: null,
+  },
+  imageSize: { width: 1240.5, height: 1754 },
+});
+check(
+  "PDF crop → page width back to 2481",
+  near(pdfCrop.width, 2481, 1e-6),
+  pdfCrop.width
+);
+check(
+  "PDF crop → page starts at -1240.5",
+  near(pdfCrop.x, -1240.5, 1e-6),
+  pdfCrop.x
+);
+check("PDF crop → no scale", pdfCrop.scale === null);
+check(
+  "PDF letter page → null",
+  getPdfPagePrintZone({
+    createdFrom: { type: "PDF_PAGE", dpi: 72 },
+    imageSize: { width: 612, height: 792 },
+  }) === null
+);
+const stored = {
+  format: "A4",
+  orientation: "portrait",
+  scale: 50,
+  x: 1,
+  y: 2,
+  width: 100,
+  height: 141.4,
+};
+check(
+  "resolve: stored wins",
+  resolvePrintZone({
+    printZone: stored,
+    createdFrom: pdfFull,
+    imageSize: { width: 2481, height: 1754 },
+  }) === stored
+);
+const rPdf = resolvePrintZone({
+  printZone: null,
+  createdFrom: { type: "PDF_PAGE", dpi: 150 },
+  imageSize: { width: 2481, height: 1754 },
+});
+check("resolve: PDF page next", rPdf.format === "A3" && rPdf.width === 2481);
+const rDef = resolvePrintZone({
+  printZone: null,
+  createdFrom: null,
+  imageSize: { width: 4000, height: 3000 },
+});
+check(
+  "resolve: A3 landscape fit last",
+  rDef.format === "A3" && near(rDef.height, 3000)
+);
+check(
+  "resolve: no image size → null",
+  resolvePrintZone({ printZone: null, imageSize: null }) === null
+);
+const blank = getBlankBaseMapPrintZone({
+  format: "portrait",
+  size: "A4",
+  scale: 50,
+  pixelWidth: 1240,
+  pixelHeight: 1754,
+});
+check(
+  "blank A4 portrait 1:50 → zone = image",
+  blank.format === "A4" &&
+    blank.orientation === "portrait" &&
+    blank.scale === 50 &&
+    blank.width === 1240 &&
+    blank.height === 1754
+);
+check(
+  "blank carre → null",
+  getBlankBaseMapPrintZone({
+    format: "carre",
+    size: "A4",
+    scale: 50,
+    pixelWidth: 1,
+    pixelHeight: 1,
+  }) === null
+);
+const sheet = createPrintZoneFromSheet({
+  format: "A0",
+  orientation: "portrait",
+  imageSize: { width: 1000, height: 1414 },
+});
+check(
+  "sheet A0 portrait → height from aspect",
+  near(sheet.height, (1000 * 3370) / 2384, 1e-6)
 );
 
 if (failures) {

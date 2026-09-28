@@ -231,8 +231,9 @@ export default function buildImportData({
         baseMapImageSize?.width ?? image.width,
         baseMapImageSize?.height ?? image.height
       );
-      // Target base map print zone (null → legacy long-side rule).
-      item.pagePxPerPt = getPrintZonePxPerPt(mainBaseMap?.printZone);
+      // Target base map print zone (resolved default without a base map →
+      // null → legacy long-side rule).
+      item.pagePxPerPt = getPrintZonePxPerPt(mainBaseMap?.getPrintZone?.());
       allBasePoints.push(baseLabelPoint, baseTargetPoint);
       if (ann.textContent !== undefined) {
         annotation.textContent = ann.textContent;

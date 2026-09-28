@@ -162,6 +162,91 @@ export function applyPrintZoneFormatChange(
   return resizePrintZoneKeepingCenter(next, size);
 }
 
+// Zone covering the whole image as a known sheet (blank pages created at a
+// given format / scale, PDF pages rendered full-page).
+export function createPrintZoneFromSheet({
+  format,
+  orientation,
+  scale = null,
+  imageSize,
+}) {
+  const W = imageSize?.width;
+  const H = imageSize?.height;
+  if (!(W > 0) || !(H > 0)) return null;
+  if (!PRINT_ZONE_FORMATS.includes(format)) return null;
+  if (!PRINT_ZONE_ORIENTATIONS.includes(orientation)) return null;
+  return {
+    format,
+    orientation,
+    scale: scale > 0 ? scale : null,
+    x: 0,
+    y: 0,
+    width: W,
+    height: W / getPrintZoneAspect(format, orientation),
+  };
+}
+
+// Closest ISO A format / orientation of a sheet given in pt (3% tolerance),
+// null when the sheet is not an A format.
+const FORMAT_MATCH_TOLERANCE = 0.03;
+export function matchPageFormat(widthPt, heightPt) {
+  if (!(widthPt > 0) || !(heightPt > 0)) return null;
+  let best = null;
+  for (const format of PRINT_ZONE_FORMATS) {
+    for (const orientation of PRINT_ZONE_ORIENTATIONS) {
+      const pt = getPageDimensions(format, orientation);
+      const err = Math.max(
+        Math.abs(widthPt - pt.width) / pt.width,
+        Math.abs(heightPt - pt.height) / pt.height
+      );
+      if (err <= FORMAT_MATCH_TOLERANCE && (!best || err < best.err)) {
+        best = { format, orientation, err };
+      }
+    }
+  }
+  return best ? { format: best.format, orientation: best.orientation } : null;
+}
+
+// Sheet of a base map rendered from a PDF page (createdFrom = PDF_PAGE with
+// dpi, optional crop bboxInRatio {x1,y1,x2,y2} in page ratio): the full page
+// rect in image px, when the page is an A format. Cropped renders get the
+// page placed around the crop (negative offsets).
+export function getPdfPagePrintZone({ createdFrom, imageSize }) {
+  const W = imageSize?.width;
+  const H = imageSize?.height;
+  const dpi = Number(createdFrom?.dpi);
+  if (createdFrom?.type !== "PDF_PAGE" || !(dpi > 0)) return null;
+  if (!(W > 0) || !(H > 0)) return null;
+  const bbox = createdFrom.bboxInRatio;
+  const spanX = bbox ? bbox.x2 - bbox.x1 : 1;
+  const spanY = bbox ? bbox.y2 - bbox.y1 : 1;
+  if (!(spanX > 0) || !(spanY > 0)) return null;
+  const pagePxW = W / spanX;
+  const pagePxH = H / spanY;
+  const match = matchPageFormat((pagePxW * 72) / dpi, (pagePxH * 72) / dpi);
+  if (!match) return null;
+  const scale = Number(createdFrom.blueprintScale);
+  return {
+    format: match.format,
+    orientation: match.orientation,
+    scale: scale > 0 ? scale : null,
+    x: bbox ? -bbox.x1 * pagePxW : 0,
+    y: bbox ? -bbox.y1 * pagePxH : 0,
+    width: pagePxW,
+    height: pagePxW / getPrintZoneAspect(match.format, match.orientation),
+  };
+}
+
+// Every base map has a print zone: the stored one, else the PDF page it was
+// rendered from, else an A3 landscape sheet fitted to the image. Pure —
+// takes the record fields (BaseMap.getPrintZone / raw db rows).
+export function resolvePrintZone({ printZone, createdFrom, imageSize }) {
+  if (isPrintZoneValid(printZone)) return printZone;
+  const fromPdf = getPdfPagePrintZone({ createdFrom, imageSize });
+  if (fromPdf) return fromPdf;
+  return createDefaultPrintZone({ imageSize });
+}
+
 // "50", "100", "1234.5" — same display rule as FieldBaseMapBlueprintScale.
 export function formatPrintZoneScale(scale) {
   if (!(scale > 0)) return "";

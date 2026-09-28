@@ -7,11 +7,14 @@ import { getPrintZoneAspect } from "Features/baseMaps/utils/printZone";
 // rect in the base map reference frame (same group as the annotations).
 //
 // - Fonds de plan + Dessin modules. In Dessin the base map name sits at the
-//   bottom-left of the zone; clicking it (or the dashed frame) selects the
+//   bottom-left of the sheet; clicking it (or the dashed frame) selects the
 //   base map (right panel → PanelBaseMapProperties, where the zone fields
 //   live).
-// - Selected: the frame is dragged (MOVE); when the size is not locked by a
-//   1:N scale, the corner handles resize it keeping the sheet aspect.
+// - The user positions the IMAGE on the sheet, not the sheet: a MOVE drag
+//   (frame stroke, or the image itself once the base map is explicitly
+//   selected) keeps the sheet still on screen and slides the image — i.e.
+//   the zone rect moves by -d in image px while the camera pans by +d.
+// - Free scale: corner handles resize the sheet keeping its aspect.
 // - Self-contained gesture (PhotoPlanGuideLinesLayer pattern): pointer
 //   capture + preventDefault on pointerdown, so the editor's mousedown
 //   pipeline (pan / draw / clearSelection) never sees it. Draft rect during
@@ -42,20 +45,25 @@ export default function PrintZoneLayer({
   baseMap,
   basePose,
   isSelected,
+  explicitlySelected,
   interactive,
   showName,
   onSelect,
+  onDeselect,
   onCommit,
+  onPanCamera,
 }) {
   // state
 
   const [draft, setDraft] = useState(null);
   const gRef = useRef(null);
-  const dragRef = useRef(null); // { handleType, startClient, startLocal, startZone, active, lastDraft }
+  // { handleType, startClient, startScale, startZone, active, lastDraft }
+  const dragRef = useRef(null);
 
   // data
 
   const printZone = baseMap?.getPrintZone?.() ?? null;
+  const imageSize = baseMap?.getImageSize?.();
   const zone = draft ?? printZone;
   const sizeLocked = printZone?.scale > 0 && baseMap?.getMeterByPx?.() > 0;
 
@@ -73,13 +81,11 @@ export default function PrintZoneLayer({
   const k = basePose.k || 1;
   const nameS = getBaseMapDisplayName(baseMap).label;
 
-  // helpers — coords via the group's CTM (camera + basePose folded in)
+  // helpers
 
-  const toLocal = (e) => {
-    const ctm = gRef.current?.getScreenCTM?.();
-    if (!ctm) return null;
-    return new DOMPoint(e.clientX, e.clientY).matrixTransform(ctm.inverse());
-  };
+  // Screen px per image px at drag start (camera pans during a MOVE drag
+  // change the CTM offset, never its scale).
+  const getScreenScale = () => gRef.current?.getScreenCTM?.()?.a || 1;
 
   const resizeFromCorner = (startZone, handleType, d) => {
     const ratio = getPrintZoneAspect(startZone.format, startZone.orientation);
@@ -103,13 +109,14 @@ export default function PrintZoneLayer({
     if (!el || !interactive) return;
     e.stopPropagation();
     e.preventDefault();
-    const startLocal = toLocal(e);
     dragRef.current = {
       handleType: el.getAttribute("data-handle-type"),
       startClient: { x: e.clientX, y: e.clientY },
-      startLocal,
+      startScale: getScreenScale(),
       startZone: zone,
       active: false,
+      lastDraft: null,
+      panned: { x: 0, y: 0 },
     };
     gRef.current?.setPointerCapture?.(e.pointerId);
   };
@@ -118,27 +125,33 @@ export default function PrintZoneLayer({
     const drag = dragRef.current;
     if (!drag) return;
     e.stopPropagation();
+    const D = {
+      x: e.clientX - drag.startClient.x,
+      y: e.clientY - drag.startClient.y,
+    };
     if (!drag.active) {
-      const canDrag = isSelected && drag.handleType !== "SELECT";
+      const canDrag =
+        isSelected &&
+        drag.handleType !== "SELECT" &&
+        drag.handleType !== "IMAGE_CLICK";
       const moved =
-        Math.abs(e.clientX - drag.startClient.x) > DRAG_THRESHOLD_PX ||
-        Math.abs(e.clientY - drag.startClient.y) > DRAG_THRESHOLD_PX;
+        Math.abs(D.x) > DRAG_THRESHOLD_PX || Math.abs(D.y) > DRAG_THRESHOLD_PX;
       if (!canDrag || !moved) return;
       drag.active = true;
     }
-    const local = toLocal(e);
-    if (!local || !drag.startLocal) return;
-    const d = {
-      x: local.x - drag.startLocal.x,
-      y: local.y - drag.startLocal.y,
-    };
+    const d = { x: D.x / drag.startScale, y: D.y / drag.startScale };
     let next = null;
     if (drag.handleType === "MOVE") {
+      // Image slides under a still sheet: zone -d, camera +D.
       next = {
         ...drag.startZone,
-        x: drag.startZone.x + d.x,
-        y: drag.startZone.y + d.y,
+        x: drag.startZone.x - d.x,
+        y: drag.startZone.y - d.y,
       };
+      if (onPanCamera) {
+        onPanCamera(D.x - drag.panned.x, D.y - drag.panned.y);
+        drag.panned = D;
+      }
     } else if (!sizeLocked) {
       next = resizeFromCorner(drag.startZone, drag.handleType, d);
     }
@@ -155,11 +168,13 @@ export default function PrintZoneLayer({
     dragRef.current = null;
     gRef.current?.releasePointerCapture?.(e.pointerId);
     if (e.type === "pointercancel") {
+      if (onPanCamera) onPanCamera(-drag.panned.x, -drag.panned.y);
       setDraft(null);
       return;
     }
     if (!drag.active) {
-      onSelect?.();
+      if (drag.handleType === "IMAGE_CLICK") onDeselect?.();
+      else onSelect?.();
       return;
     }
     // Draft kept until the liveQuery re-emits the record (effect above).
@@ -169,6 +184,8 @@ export default function PrintZoneLayer({
   // render
 
   const showHandles = isSelected && interactive && !sizeLocked;
+  const showImageGrab =
+    explicitlySelected && interactive && imageSize?.width > 0;
   const counterZoom = `scale(calc(1 / (var(--map-zoom, 1) * ${k})))`;
 
   return (
@@ -187,6 +204,21 @@ export default function PrintZoneLayer({
         }
       }}
     >
+      {/* 0. image grab area (explicit selection): drag the image itself */}
+      {showImageGrab && (
+        <rect
+          x={0}
+          y={0}
+          width={imageSize.width}
+          height={imageSize.height}
+          fill="transparent"
+          style={{ pointerEvents: "all", cursor: "move" }}
+          data-interaction="transform-print-zone"
+          data-handle-type="MOVE"
+          data-image-grab="true"
+        />
+      )}
+
       {/* 1. dashed sheet frame (never interactive) */}
       <rect
         x={x}
@@ -195,8 +227,8 @@ export default function PrintZoneLayer({
         height={height}
         fill="none"
         stroke={STROKE}
-        strokeWidth={isSelected ? 2 : 1.5}
-        strokeDasharray="6 4"
+        strokeWidth={isSelected ? 1 : 0.75}
+        strokeDasharray="4 3"
         vectorEffect="non-scaling-stroke"
         style={{ pointerEvents: "none" }}
       />

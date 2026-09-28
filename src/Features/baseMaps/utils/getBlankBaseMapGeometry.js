@@ -36,3 +36,29 @@ export default function getBlankBaseMapGeometry({ format, size, scale }) {
   const meterByPx = scale / (PX_PER_MM * 1000);
   return { pixelWidth, pixelHeight, meterByPx };
 }
+
+// Print zone of a blank page: the whole image IS the sheet. "carre" has no
+// ISO format → null (the read-time default applies).
+export const ORIENTATION_BY_FORMAT = {
+  paysage: "landscape",
+  portrait: "portrait",
+};
+export function getBlankBaseMapPrintZone({
+  format,
+  size,
+  scale,
+  pixelWidth,
+  pixelHeight,
+}) {
+  const orientation = ORIENTATION_BY_FORMAT[format];
+  if (!orientation) return null;
+  return {
+    format: size,
+    orientation,
+    scale: scale > 0 ? scale : null,
+    x: 0,
+    y: 0,
+    width: pixelWidth,
+    height: pixelHeight,
+  };
+}

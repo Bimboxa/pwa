@@ -127,7 +127,6 @@ const MapEditorViewport = forwardRef(({
                 k: Number.isFinite(k) ? k : 1,
             };
 
-            console.log("[VIEWPORT] setCameraMatrix (validated)", cameraMatrix.current);
             updateTransform(true);
         },
         screenToWorld: (screenX, screenY) => {

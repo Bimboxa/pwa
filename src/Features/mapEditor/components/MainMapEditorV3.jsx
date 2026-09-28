@@ -9,7 +9,7 @@ import { setEnabledDrawingMode, setChatRepairZone } from "../mapEditorSlice";
 import { setTempAnnotations, triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice";
 import { setBaseMapPoseInBg, setLegendFormat } from "../mapEditorSlice";
 import { setShowCreateBaseMapSection } from "Features/mapEditor/mapEditorSlice";
-import { selectSelectedItems, setSelectedItem } from "Features/selection/selectionSlice";
+import { selectSelectedItems, setSelectedItem, clearSelection } from "Features/selection/selectionSlice";
 import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 import { resetVersionCompare } from "Features/baseMapEditor/baseMapEditorSlice";
 import { setLocalizingPhotoId } from "Features/photos/photosSlice";
@@ -491,8 +491,12 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     // (frame / name click, base map tree); in BASE_MAPS an empty selection
     // already shows the base map panel, so the frame is editable too.
     const updateBaseMapPrintZone = useUpdateBaseMapPrintZone();
+    // Explicit = the base map itself is the selection item: the image
+    // becomes draggable on the sheet (a click on it deselects).
+    const isPrintZoneExplicitlySelected =
+        selectedItems?.[0]?.type === "BASE_MAP" && selectedItems[0].id === baseMap?.id;
     const isPrintZoneSelected =
-        (selectedItems?.[0]?.type === "BASE_MAP" && selectedItems[0].id === baseMap?.id) ||
+        isPrintZoneExplicitlySelected ||
         (forViewerKey === "BASE_MAPS" && !(selectedItems?.length > 0));
     const printZoneInteractive =
         !enabledDrawingMode && !isBaseMapSelected && !isLegendSelected;
@@ -501,9 +505,20 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
         dispatch(setSelectedItem({ id: baseMap.id, type: "BASE_MAP", listingId: baseMap.listingId }));
         dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
     };
+    const handlePrintZoneDeselect = () => {
+        dispatch(clearSelection());
+    };
     const handlePrintZoneCommit = (printZone) => {
         if (!baseMap?.id) return;
         updateBaseMapPrintZone(baseMap.id, printZone);
+    };
+    // MOVE drag of the image on the sheet: the layer moves the zone by -d in
+    // image px and asks for a +D screen px camera pan so the sheet stays
+    // still on screen while the image (and annotations) slide.
+    const handlePrintZonePanCamera = (dx, dy) => {
+        const m = interactionLayerRef.current?.getCameraMatrix?.();
+        if (!m) return;
+        interactionLayerRef.current?.setCameraMatrix?.({ ...m, x: m.x + dx, y: m.y + dy });
     };
 
     // image mode — Export rapide is MAP-only; the POV viewer and the global
@@ -2263,10 +2278,13 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                             baseMap={baseMap}
                             basePose={basePose}
                             isSelected={isPrintZoneSelected}
+                            explicitlySelected={isPrintZoneExplicitlySelected}
                             interactive={printZoneInteractive && !imageModeActive}
                             showName={forViewerKey === "MAP"}
                             onSelect={handlePrintZoneSelect}
+                            onDeselect={handlePrintZoneDeselect}
                             onCommit={handlePrintZoneCommit}
+                            onPanCamera={handlePrintZonePanCamera}
                         />
                     )}
 
