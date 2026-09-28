@@ -8,6 +8,7 @@ import {
   canEditRecord,
   getEffectiveOwner,
   isScopeEditor,
+  LinkedListingReadOnlyError,
   normalizeOwnerId,
   NoScopeSelectedError,
   OwnershipError,
@@ -15,6 +16,7 @@ import {
 } from "./ownership";
 import getUserIdMaster from "Features/auth/utils/getUserIdMaster";
 import getSelectScopeRequiredMessage from "Features/scopes/utils/getSelectScopeRequiredMessage";
+import getLinkedListingReadOnlyMessage from "Features/listings/utils/getLinkedListingReadOnlyMessage";
 import getUserTrigram from "Features/auth/utils/getUserTrigram";
 import { notifyLocalChange } from "Features/remoteScopeConfigurations/services/localChangeTracker";
 
@@ -399,6 +401,21 @@ db.version(38).stores({
   annotationBatchReceipts: "jobId,createdAt",
 });
 
+db.version(39).stores({
+  // Listings LINKED into a scope from another scope of the same project
+  // ("Depuis un autre Krto"): {id, projectId, scopeId (the HOST scope that
+  // displays the listing), listingId, sourceScopeId (== listing.scopeId at
+  // link time — paternity never moves: the listing keeps its own scopeId)}.
+  // Invariant (service-enforced): at most ONE live rel per
+  // (scopeId, listingId); a listing is never linked into its own scope.
+  // Linked listings are READ-ONLY in the host (db guard
+  // assertNotLinkedListingContent + UI guards); their content ships only in
+  // the SOURCE scope's Krto zip — the host zip carries the rel rows alone, so
+  // a link whose source scope / listing is not loaded locally is simply
+  // invisible (filtered at read time by getLinkedListingIdsForScope).
+  relsScopeListing: "id,projectId,scopeId,listingId,sourceScopeId",
+});
+
 // --- AUDIT HOOKS ---
 
 const AUDIT_TABLES = [
@@ -448,6 +465,7 @@ const AUDIT_TABLES = [
   "plannings",
   "planningResources",
   "planningSlots",
+  "relsScopeListing",
 ];
 
 // Shared/collaborative tables exempt from the ownership guard: records here can
@@ -486,6 +504,9 @@ const OWNERSHIP_EXEMPT_TABLES = new Set([
   "plannings",
   "planningResources",
   "planningSlots",
+  // Scope ↔ listing links are shared structure: anyone can unlink a listing
+  // from the host scope (the private-scope read-only guard still applies).
+  "relsScopeListing",
 ]);
 
 // --- READ-ONLY SCOPE GUARD ---
@@ -567,11 +588,38 @@ function assertScopeSelected(tableName, obj) {
   );
 }
 
+// --- LINKED LISTING GUARD ---
+// A listing linked into the selected scope from another scope
+// (db.relsScopeListing, "Depuis un autre Krto") is READ-ONLY there: its
+// annotations are displayed for reference and edited from their own scope.
+// Being linked into the selected scope implies listing.scopeId !== selected
+// scope (the link service refuses self-links), so annotations of a foreign
+// NON-linked listing (scope creation flows) are untouched. The linked map is
+// precomputed by listingsSlice from the live-synced rel rows. Annotations
+// only (v1): the template `hidden` eye is a legitimate host-side display
+// write, and point rows carry no reliable listingId. System writes bypass.
+function assertNotLinkedListingContent(tableName, obj) {
+  if (_skipOwnershipGuard) return;
+  if (tableName !== "annotations") return;
+  if (obj?.isBaseMapAnnotation || obj?.isScaleSegment) return;
+  const listingId = obj?.listingId;
+  if (!listingId) return;
+  const state = store.getState();
+  const scopeId = state?.scopes?.selectedScopeId;
+  if (!scopeId) return;
+  const linked = state?.listings?.linkedListingSourceByScopeId?.[scopeId];
+  if (!linked?.[listingId]) return;
+  throw new LinkedListingReadOnlyError(
+    getLinkedListingReadOnlyMessage(state?.appConfig?.value)
+  );
+}
+
 AUDIT_TABLES.forEach((tableName) => {
   db[tableName].hook("creating", function (primKey, obj) {
     // Before notifyLocalChange so a read-only scope is never marked dirty.
     assertNotReadOnlyScope(tableName, obj);
     assertScopeSelected(tableName, obj);
+    assertNotLinkedListingContent(tableName, obj);
     obj.createdAt = obj.createdAt || new Date().toISOString();
     obj.createdByUserIdMaster =
       obj.createdByUserIdMaster || getCurrentUserIdMaster();
@@ -585,6 +633,7 @@ AUDIT_TABLES.forEach((tableName) => {
   db[tableName].hook("updating", function (modifications, primKey, obj) {
     assertNotReadOnlyScope(tableName, obj);
     assertScopeSelected(tableName, obj);
+    assertNotLinkedListingContent(tableName, obj);
     if (!_skipOwnershipGuard) notifyLocalChange();
 
     if (_skipOwnershipGuard) {
@@ -733,6 +782,7 @@ const SOFT_DELETE_TABLES = new Set([
   "plannings",
   "planningResources",
   "planningSlots",
+  "relsScopeListing",
 ]);
 
 let _skipSoftDelete = false;
@@ -761,6 +811,7 @@ async function softDeleteByKeys(downlevelTable, req, tableName) {
     if (record && !record.deletedAt) {
       assertNotReadOnlyScope(tableName, record);
       assertScopeSelected(tableName, record);
+      assertNotLinkedListingContent(tableName, record);
       if (
         !_skipOwnershipGuard &&
         !OWNERSHIP_EXEMPT_TABLES.has(tableName) &&
@@ -821,6 +872,7 @@ async function softDeleteByRange(downlevelTable, req, tableName) {
   for (const record of recordsToDelete) {
     assertNotReadOnlyScope(tableName, record);
     assertScopeSelected(tableName, record);
+    assertNotLinkedListingContent(tableName, record);
   }
 
   if (!_skipOwnershipGuard && !OWNERSHIP_EXEMPT_TABLES.has(tableName)) {

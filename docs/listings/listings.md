@@ -151,7 +151,8 @@ All read hooks include a backward-compatible fallback: if `listing.entityModel` 
 When `filterByScopeId` is set, listings are filtered to include:
 
 - Listings whose `scopeId` matches the filter value
-- **BASE_MAP** listings (shared across all scopes, regardless of their `scopeId`)
+- **BASE_MAP** / **PHOTO** listings (shared across all scopes, regardless of their `scopeId`)
+- Listings **linked from another scope** (`db.relsScopeListing`, "Depuis un autre Krto"): the listing keeps its own `scopeId` (paternity), the host scope only holds a rel row `{scopeId: host, listingId, sourceScopeId}`. Only displayable links count (source listing and source scope loaded locally — `getLinkedListingIdsForScope`); linked listings are appended after the scope's own listings and are read-only in the host (db guard on `annotations` + UI guards, `useLinkedListings`).
 
 ### Selector
 

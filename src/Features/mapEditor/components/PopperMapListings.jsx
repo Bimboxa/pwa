@@ -65,7 +65,6 @@ import ProcedurePopperContent from "Features/annotationsAuto/components/Procedur
 import DialogCreateAnnotationTemplate from "Features/annotations/components/DialogCreateAnnotationTemplate";
 import { useLiveQuery } from "dexie-react-hooks";
 import db from "App/db/db";
-import DialogCreateListing from "Features/listings/components/DialogCreateListing";
 import PopperSubtractHelper from "Features/mapEditor/components/PopperSubtractHelper";
 import PopperDrawingHelper from "Features/mapEditor/components/PopperDrawingHelper";
 import PopperPasteHelper from "Features/mapEditor/components/PopperPasteHelper";
@@ -104,6 +103,9 @@ import { getFreeAnnotationShortcut } from "Features/mapEditor/constants/freeAnno
 import { resolveDrawingShape } from "Features/annotations/constants/drawingShapeConfig";
 
 import useListings from "Features/listings/hooks/useListings";
+import useLinkedListings from "Features/listings/hooks/useLinkedListings";
+import getLinkedListingReadOnlyMessage from "Features/listings/utils/getLinkedListingReadOnlyMessage";
+import { setToaster } from "Features/layout/layoutSlice";
 import FieldActiveListing from "Features/panelDrawing/components/FieldActiveListing";
 import ListingAvatarsBar from "Features/panelDrawing/components/ListingAvatarsBar";
 import useProjectPhotos from "Features/photos/hooks/useProjectPhotos";
@@ -360,6 +362,10 @@ function AnnotationTemplateRow({
   // REVOLUTION_AXIS icon: inverted T on a vertical base map, circle + centre
   // point on the plan.
   isVerticalBaseMap,
+  // Listing linked from another scope ("Depuis un autre Krto"): the row is a
+  // read-only display entry — no draw / edit / tool / reassign, no drag; the
+  // eye and the solo stay (host-side display actions).
+  readOnly = false,
 }) {
   const dispatch = useDispatch();
   const updateAnnotationTemplate = useUpdateAnnotationTemplate();
@@ -498,6 +504,15 @@ function AnnotationTemplateRow({
 
   const handleRowClick = () => {
     if (isEditing) return;
+    if (readOnly) {
+      dispatch(
+        setToaster({
+          message: getLinkedListingReadOnlyMessage(appConfig),
+          isError: true,
+        })
+      );
+      return;
+    }
     // Armed cote row (Maillage module): click again to disarm — same dispatch
     // pair as the Esc handler of useDimensionPointerHandlers, so the bridge
     // deactivates the 3D dimension mode.
@@ -646,13 +661,13 @@ function AnnotationTemplateRow({
       >
         {/* Drag handle */}
         <Box
-          {...(dragListeners ?? {})}
+          {...(readOnly ? {} : (dragListeners ?? {}))}
           onClick={(e) => e.stopPropagation()}
           sx={{
             display: "flex",
             alignItems: "center",
-            cursor: "grab",
-            opacity: isHovered ? 1 : 0,
+            cursor: readOnly ? "default" : "grab",
+            opacity: isHovered && !readOnly ? 1 : 0,
             transition: "opacity 0.15s",
             mr: 0.5,
             flexShrink: 0,
@@ -891,6 +906,7 @@ function AnnotationTemplateRow({
             interactionMode === "EDIT" ? (
               /* EDIT mode — reassign-template (paint bucket) + visibility */
               <>
+                {!readOnly && (
                 <Tooltip
                   title="Modifier le modèle d'une annotation"
                   arrow
@@ -910,6 +926,7 @@ function AnnotationTemplateRow({
                     <FormatColorFill fontSize="inherit" sx={{ fontSize: 16 }} />
                   </IconButton>
                 </Tooltip>
+                )}
                 <Tooltip
                   title={isHidden ? "Afficher" : "Masquer"}
                   arrow
@@ -933,8 +950,9 @@ function AnnotationTemplateRow({
               </>
             ) : (
               <>
-                {/* Properties + tool buttons hidden in SELECT mode (read-only) */}
-                {interactionMode !== "SELECT" && (
+                {/* Properties + tool buttons hidden in SELECT mode (read-only)
+                    and for a listing linked from another scope */}
+                {interactionMode !== "SELECT" && !readOnly && (
                   <>
                     {/* Properties button */}
                     <Tooltip title="Propriétés" arrow placement="bottom">
@@ -1076,6 +1094,9 @@ function AnnotationTemplatesForListing({
   // "Nouveau modèle" draft defaults (e.g. the isBusinessObjectAnnotation
   // flag of a business-objects listing's location templates).
   templateDefaults,
+  // Listing linked from another scope: read-only rows, no reorder, no
+  // "Nouveau modèle".
+  readOnly = false,
 }) {
   // data
 
@@ -1143,8 +1164,11 @@ function AnnotationTemplatesForListing({
   // dnd handlers
 
   const handleDragEnd = useCallback(
-    (event) => reorderAnnotationTemplates(event, annotationTemplates),
-    [reorderAnnotationTemplates, annotationTemplates]
+    (event) => {
+      if (readOnly) return;
+      reorderAnnotationTemplates(event, annotationTemplates);
+    },
+    [reorderAnnotationTemplates, annotationTemplates, readOnly]
   );
 
   // render
@@ -1224,6 +1248,7 @@ function AnnotationTemplatesForListing({
                   forceDrawMode={
                     isMeshesModule && resolveDrawingShape(item) === "COTE"
                   }
+                  readOnly={readOnly}
                 />
               );
             })}
@@ -1231,8 +1256,9 @@ function AnnotationTemplatesForListing({
         </SortableContext>
       </DndContext>
 
-      {/* + Nouveau modele — hidden in 3D (read-only) and while SELECT-filtering */}
-      {!isThreedViewer && !visibleTemplateIds && (
+      {/* + Nouveau modele — hidden in 3D (read-only), while SELECT-filtering
+          and for a listing linked from another scope */}
+      {!isThreedViewer && !visibleTemplateIds && !readOnly && (
         <ListItemButton
           onClick={() => setOpenCreateDialog(true)}
           sx={{
@@ -1309,6 +1335,10 @@ function ListingRow({
 }) {
   const dispatch = useDispatch();
 
+  // strings
+
+  const fromS = "Depuis";
+
   // state
 
   const [isHovered, setIsHovered] = useState(false);
@@ -1316,6 +1346,11 @@ function ListingRow({
   // data
 
   const updateAnnotationTemplates = useUpdateAnnotationTemplates();
+  // Listing linked from another scope ("Depuis un autre Krto"): read-only
+  // band in palette.listingFromOtherScope, with the source scope's name.
+  const { isLinkedListing, getSourceScope } = useLinkedListings();
+  const isLinked = isLinkedListing(listing?.id);
+  const sourceScope = isLinked ? getSourceScope(listing?.id) : null;
 
   // helpers
 
@@ -1368,6 +1403,7 @@ function ListingRow({
         annotations={annotations}
         annotationTemplateById={annotationTemplateById}
         visibleTemplateIds={visibleTemplateIds}
+        readOnly={isLinked}
       />
     );
   }
@@ -1389,6 +1425,11 @@ function ListingRow({
           "&:hover": { bgcolor: "panel.border" },
           borderTop: "1px solid",
           borderColor: "panel.border",
+          // Linked listing flag: left bar in the "other scope" colour.
+          borderLeft: "3px solid",
+          borderLeftColor: isLinked
+            ? "listingFromOtherScope.main"
+            : "transparent",
           opacity: isHidden ? 0.5 : 1,
         }}
       >
@@ -1429,6 +1470,25 @@ function ListingRow({
           >
             {listing.name ?? listing.label ?? "Liste"}
           </Typography>
+          {isLinked && (
+            <Tooltip
+              title={sourceScope?.name ? `${fromS} ${sourceScope.name}` : ""}
+              arrow
+            >
+              <Chip
+                label={sourceScope?.name ?? fromS}
+                size="small"
+                sx={{
+                  ml: 0.5,
+                  height: 16,
+                  maxWidth: 110,
+                  bgcolor: "listingFromOtherScope.main",
+                  color: "listingFromOtherScope.contrastText",
+                  "& .MuiChip-label": { px: 0.75, fontSize: "10px" },
+                }}
+              />
+            </Tooltip>
+          )}
         </Box>
 
         {extraAction}
@@ -1467,7 +1527,11 @@ function ListingRow({
                 fontWeight: 600,
                 fontFamily: "monospace",
                 color:
-                  annotationCount > 0 ? "secondary.main" : "panel.countEmpty",
+                  annotationCount > 0
+                    ? isLinked
+                      ? "listingFromOtherScope.main"
+                      : "secondary.main"
+                    : "panel.countEmpty",
                 visibility: isHovered ? "hidden" : "visible",
               }}
             >
@@ -1499,6 +1563,7 @@ function ListingRow({
           annotations={annotations}
           annotationTemplateById={annotationTemplateById}
           visibleTemplateIds={visibleTemplateIds}
+          readOnly={isLinked}
         />
       )}
     </Box>
@@ -1935,7 +2000,6 @@ export default function PopperMapListings() {
   const selectedListingId = useSelector((s) => s.listings.selectedListingId);
   const viewerReturnContext = useSelector((s) => s.viewers.viewerReturnContext);
   const comesFromListing = viewerReturnContext?.fromViewer === "SCOPE";
-  const [openCreateListing, setOpenCreateListing] = useState(false);
   const [headerHovered, setHeaderHovered] = useState(false);
 
   const [mergeResult, setMergeResult] = useState(null);
@@ -2579,13 +2643,6 @@ export default function PopperMapListings() {
       )}
 
       {/* Create listing dialog */}
-      {openCreateListing && (
-        <DialogCreateListing
-          open={openCreateListing}
-          onClose={() => setOpenCreateListing(false)}
-          isForBaseMaps={isBaseMapsViewer}
-        />
-      )}
 
       {/* Merge compare dialog */}
       {openMergeCompare && mergeResult && (

@@ -48,6 +48,9 @@ export default function useDeleteListing() {
       await db.files.where("listingId").equals(listingId).delete();
       if (listing?.table)
         await db[listing.table].where("listingId").equals(listingId).delete();
+      // Links of this listing into OTHER scopes ("Depuis un autre Krto") —
+      // hygiene: dangling rels are filtered at read time anyway.
+      await db.relsScopeListing.where("listingId").equals(listingId).delete();
     });
 
     if (!keepSelection || selectedListingId === listingId) {

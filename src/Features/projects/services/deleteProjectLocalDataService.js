@@ -62,6 +62,7 @@ export default async function deleteProjectLocalDataService(projectId) {
         const byProjectId = [
           db.scopes,
           db.listings,
+          db.relsScopeListing,
           db.baseMaps,
           db.baseMapVersions,
           db.blueprints,

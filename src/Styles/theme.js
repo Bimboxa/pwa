@@ -170,6 +170,13 @@ let theme = createTheme(
         countEmpty: "#d0d0e0",
         iconMuted: "#9090a8",
       },
+      // Listings LINKED into the scope from another scope ("Depuis un autre
+      // Krto", db.relsScopeListing): replaces `secondary` on their rows, chips
+      // and avatars so a borrowed, read-only listing reads at a glance.
+      listingFromOtherScope: {
+        main: "#00456a",
+        contrastText: "#fff",
+      },
     },
     typography: {
       fontFamily: "'DM Sans', sans-serif",

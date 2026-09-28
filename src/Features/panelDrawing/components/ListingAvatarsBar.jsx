@@ -10,7 +10,8 @@ import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
 
 import AvatarListing from "Features/listings/components/AvatarListing";
-import DialogCreateListing from "Features/listings/components/DialogCreateListing";
+import DialogChooseListingSource from "Features/listings/components/DialogChooseListingSource";
+import useLinkedListings from "Features/listings/hooks/useLinkedListings";
 import MenuMoreActionsActiveListing from "./MenuMoreActionsActiveListing";
 
 import useSelectActiveListing from "Features/panelDrawing/hooks/useSelectActiveListing";
@@ -54,6 +55,7 @@ export default function ListingAvatarsBar({
   );
 
   const selectListing = useSelectActiveListing(listings);
+  const { isLinkedListing, getSourceScope } = useLinkedListings();
 
   // state
 
@@ -169,6 +171,11 @@ export default function ListingAvatarsBar({
             const count = countsByListingId?.[listing.id] ?? 0;
             const hidden = hiddenListingsIds.includes(listing.id);
             const variant = getVariant(listing, count, hidden);
+            const linked = isLinkedListing(listing.id);
+            const sourceScopeName = linked
+              ? getSourceScope(listing.id)?.name
+              : null;
+            const name = listing.name ?? listing.label ?? "Liste";
             return (
               <Box
                 key={listing.id}
@@ -183,7 +190,11 @@ export default function ListingAvatarsBar({
                 }}
               >
                 <Tooltip
-                  title={listing.name ?? listing.label ?? "Liste"}
+                  title={
+                    linked && sourceScopeName
+                      ? `${name} — depuis ${sourceScopeName}`
+                      : name
+                  }
                   arrow
                   placement="bottom"
                 >
@@ -191,6 +202,7 @@ export default function ListingAvatarsBar({
                     listing={listing}
                     size={AVATAR_SIZE}
                     variant={variant}
+                    linked={linked}
                     onClick={() => handleClick(listing.id)}
                     onDoubleClick={() => handleDoubleClick(listing.id)}
                   />
@@ -330,7 +342,7 @@ export default function ListingAvatarsBar({
       />
 
       {openCreateListing && (
-        <DialogCreateListing
+        <DialogChooseListingSource
           open={openCreateListing}
           onClose={() => setOpenCreateListing(false)}
           isForBaseMaps={false}

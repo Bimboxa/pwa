@@ -9,7 +9,10 @@ import {
   setRelsScopeItemByScopeId,
 } from "../Features/scopes/scopesSlice";
 import { setBaseMapsById } from "Features/baseMaps/baseMapsSlice";
-import { setListingsById } from "../Features/listings/listingsSlice";
+import {
+  setListingsById,
+  setRelsScopeListing,
+} from "../Features/listings/listingsSlice";
 import { setEntitiesById } from "../Features/entities/entitiesSlice";
 import { setSyncFiles } from "../Features/sync/syncSlice";
 import { setScopeConfigs } from "../Features/scopeConfig/scopeConfigSlice";
@@ -27,12 +30,22 @@ const syncConfigs = [
   },
   {
     table: "listings",
-    query: () => db.listings.toArray().then(r => r.filter(i => !i.deletedAt)),
+    query: () =>
+      db.listings.toArray().then((r) => r.filter((i) => !i.deletedAt)),
     action: setListingsById,
   },
   {
+    // Scope ↔ listing links ("Depuis un autre Krto"): feeds the listings
+    // selector scope filter and the db linked-listing guard.
+    table: "relsScopeListing",
+    query: () =>
+      db.relsScopeListing.toArray().then((r) => r.filter((i) => !i.deletedAt)),
+    action: setRelsScopeListing,
+  },
+  {
     table: "entities",
-    query: () => db.entities.toArray().then(r => r.filter(i => !i.deletedAt)),
+    query: () =>
+      db.entities.toArray().then((r) => r.filter((i) => !i.deletedAt)),
     action: setEntitiesById,
   },
   {

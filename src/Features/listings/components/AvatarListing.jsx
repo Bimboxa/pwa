@@ -7,12 +7,15 @@ import getListingAvatarString from "Features/listings/utils/getListingAvatarStri
 // AvatarListing — round initials avatar of a listing.
 // variant: "selected" (intense secondary), "visible" (light secondary),
 // "muted" (grey: hidden listing or no annotation).
+// `linked` (listing linked from another scope, "Depuis un autre Krto"):
+// the secondary tints swap to palette.listingFromOtherScope.
 // ---------------------------------------------------------------------------
 
 export default function AvatarListing({
   listing,
   size = 28,
   variant = "visible",
+  linked = false,
   onClick,
   onDoubleClick,
   sx,
@@ -24,22 +27,26 @@ export default function AvatarListing({
   const text = getListingAvatarString(listing);
 
   const variantSx = (theme) => {
+    const accent = linked
+      ? theme.palette.listingFromOtherScope
+      : theme.palette.secondary;
     switch (variant) {
       case "selected":
         return {
-          bgcolor: theme.palette.secondary.main,
-          color: theme.palette.secondary.contrastText,
+          bgcolor: accent.main,
+          color: accent.contrastText,
         };
       case "muted":
         return {
           bgcolor: theme.palette.panel.countEmpty,
           color: theme.palette.panel.textMuted,
+          ...(linked && { boxShadow: `0 0 0 2px ${alpha(accent.main, 0.5)}` }),
         };
       case "visible":
       default:
         return {
-          bgcolor: alpha(theme.palette.secondary.main, 0.3),
-          color: theme.palette.secondary.dark,
+          bgcolor: alpha(accent.main, 0.3),
+          color: accent.dark ?? accent.main,
         };
     }
   };

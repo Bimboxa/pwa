@@ -6,6 +6,7 @@ import { Box, IconButton, List, Tooltip, Typography } from "@mui/material";
 import { Add as AddIcon } from "@mui/icons-material";
 
 import RowListingInGroup from "./RowListingInGroup";
+import useLinkedListings from "Features/listings/hooks/useLinkedListings";
 
 import db from "App/db/db";
 import useDndSensors from "App/hooks/useDndSensors";
@@ -43,6 +44,7 @@ export default function SectionListingsGroup({
   // data
 
   const sensors = useDndSensors();
+  const { isLinkedListing } = useLinkedListings();
 
   // helpers
 
@@ -64,6 +66,9 @@ export default function SectionListingsGroup({
     let prev = null;
     const updates = [];
     for (const listing of reordered) {
+      // Linked listings (other scope): never ranked from the host — their
+      // rank belongs to the source scope's order.
+      if (isLinkedListing(listing.id)) continue;
       const rank = generateKeyBetween(prev, null);
       updates.push(db.listings.update(listing.id, { rank }));
       prev = rank;

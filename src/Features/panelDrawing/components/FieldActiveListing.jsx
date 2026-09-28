@@ -47,7 +47,8 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
-import DialogCreateListing from "Features/listings/components/DialogCreateListing";
+import DialogChooseListingSource from "Features/listings/components/DialogChooseListingSource";
+import useLinkedListings from "Features/listings/hooks/useLinkedListings";
 import MenuMoreActionsActiveListing from "./MenuMoreActionsActiveListing";
 
 import useSelectActiveListing from "Features/panelDrawing/hooks/useSelectActiveListing";
@@ -75,6 +76,10 @@ function SortableMenuItemListing({
   count,
   onSelect,
   onToggleVisibility,
+  // Listing linked from another scope ("Depuis un autre Krto"): read-only
+  // reference — selectable, not sortable, flagged in the linked colour.
+  linked = false,
+  sourceScopeName,
 }) {
   const {
     attributes,
@@ -83,7 +88,9 @@ function SortableMenuItemListing({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: listing.id });
+  } = useSortable({ id: listing.id, disabled: linked });
+
+  const accent = linked ? "listingFromOtherScope.main" : "secondary.main";
 
   return (
     <MenuItem
@@ -99,15 +106,20 @@ function SortableMenuItemListing({
       sx={{
         gap: 1,
         py: 0.75,
-        // Selection flag: secondary left border (replaces the tick).
+        // Selection flag: secondary left border (replaces the tick); a linked
+        // listing always shows its bar in the "other scope" colour.
         borderLeft: "3px solid",
-        borderLeftColor: selected ? "secondary.main" : "transparent",
+        borderLeftColor: linked
+          ? "listingFromOtherScope.main"
+          : selected
+            ? "secondary.main"
+            : "transparent",
       }}
     >
       <Box
         component="span"
-        {...attributes}
-        {...listeners}
+        {...(linked ? {} : attributes)}
+        {...(linked ? {} : listeners)}
         onClick={(e) => e.stopPropagation()}
         sx={{
           display: "inline-flex",
@@ -115,9 +127,10 @@ function SortableMenuItemListing({
           flexShrink: 0,
           ml: -0.5,
           color: "panel.iconMuted",
-          cursor: "grab",
+          cursor: linked ? "default" : "grab",
           touchAction: "none",
-          "&:active": { cursor: "grabbing" },
+          "&:active": { cursor: linked ? "default" : "grabbing" },
+          ...(linked && { visibility: "hidden" }),
         }}
       >
         <DragIndicator sx={{ fontSize: 16 }} />
@@ -132,6 +145,25 @@ function SortableMenuItemListing({
       >
         {listing.name ?? listing.label ?? "Liste"}
       </ListItemText>
+      {linked && (
+        <Tooltip
+          title={sourceScopeName ? `Depuis ${sourceScopeName}` : ""}
+          arrow
+        >
+          <Chip
+            label={sourceScopeName ?? "Lié"}
+            size="small"
+            sx={{
+              height: 16,
+              maxWidth: 90,
+              flexShrink: 1,
+              bgcolor: "listingFromOtherScope.main",
+              color: "listingFromOtherScope.contrastText",
+              "& .MuiChip-label": { px: 0.75, fontSize: "10px" },
+            }}
+          />
+        </Tooltip>
+      )}
       {/* Annotations count, scoped like the panel (active base map or all
           base maps). */}
       <Chip
@@ -149,7 +181,7 @@ function SortableMenuItemListing({
             color: hidden
               ? "text.disabled"
               : count > 0
-                ? "secondary.main"
+                ? accent
                 : "panel.countEmpty",
           },
         }}
@@ -161,7 +193,7 @@ function SortableMenuItemListing({
           sx={{
             p: 0.5,
             flexShrink: 0,
-            color: hidden ? "secondary.main" : "panel.iconMuted",
+            color: hidden ? accent : "panel.iconMuted",
           }}
         >
           {hidden ? (
@@ -206,6 +238,7 @@ export default function FieldActiveListing({
   );
 
   const selectListing = useSelectActiveListing(listings);
+  const { isLinkedListing, getSourceScope } = useLinkedListings();
 
   // state
 
@@ -259,6 +292,10 @@ export default function FieldActiveListing({
       let prev = null;
       const updates = [];
       for (const l of reordered) {
+        // Linked listings (other scope) are never ranked from here: their
+        // rank belongs to the source scope's order (and the row is not
+        // sortable anyway — the selector appends them after the own ones).
+        if (isLinkedListing(l.id)) continue;
         const rank = generateKeyBetween(prev, null);
         updates.push(db.listings.update(l.id, { rank }));
         prev = rank;
@@ -407,6 +444,8 @@ export default function FieldActiveListing({
                 count={countsByListingId?.[listing.id] ?? 0}
                 onSelect={handleSelectListing}
                 onToggleVisibility={handleToggleListingVisibility}
+                linked={isLinkedListing(listing.id)}
+                sourceScopeName={getSourceScope(listing.id)?.name}
               />
             ))}
           </SortableContext>
@@ -455,7 +494,7 @@ export default function FieldActiveListing({
       </Menu>
 
       {openCreateListing && (
-        <DialogCreateListing
+        <DialogChooseListingSource
           open={openCreateListing}
           onClose={() => setOpenCreateListing(false)}
           isForBaseMaps={false}

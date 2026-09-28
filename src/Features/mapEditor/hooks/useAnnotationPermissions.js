@@ -7,6 +7,8 @@ import getUserIdMaster from "Features/auth/utils/getUserIdMaster";
 import useIsSelectedScopeEditor from "Features/scopes/hooks/useIsSelectedScopeEditor";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import getSelectScopeRequiredMessage from "Features/scopes/utils/getSelectScopeRequiredMessage";
+import getLinkedListingReadOnlyMessage from "Features/listings/utils/getLinkedListingReadOnlyMessage";
+import { selectLinkedListingSourceForSelectedScope } from "Features/listings/selectors/listingsSelectors";
 
 /**
  * Hook central de vérification des permissions d'annotation.
@@ -47,6 +49,20 @@ export default function useAnnotationPermissions({ annotations }) {
   const scopeMessageRef = useRef();
   scopeMessageRef.current = getSelectScopeRequiredMessage(appConfig);
 
+  // Linked-listing guard (mirrors assertNotLinkedListingContent in
+  // App/db/db.js): annotations of a listing linked from another scope are
+  // read-only here — checked BEFORE the editor bypass (an edit grant on the
+  // host does not cover foreign content).
+  const linkedSourceByListingId = useSelector(
+    selectLinkedListingSourceForSelectedScope
+  );
+  const linkedRef = useRef(linkedSourceByListingId);
+  linkedRef.current = linkedSourceByListingId;
+  const linkedMessageRef = useRef();
+  linkedMessageRef.current = getLinkedListingReadOnlyMessage(appConfig);
+  const isLinkedAnnotation = (ann) =>
+    Boolean(ann?.listingId && linkedRef.current?.[ann.listingId]);
+
   /**
    * Vérifie si l'utilisateur courant peut modifier une annotation.
    * Coût : O(n) lookup — appelé uniquement sur événement utilisateur.
@@ -64,6 +80,14 @@ export default function useAnnotationPermissions({ annotations }) {
         if (!silent) {
           dispatch(
             setToaster({ message: scopeMessageRef.current, isError: true })
+          );
+        }
+        return false;
+      }
+      if (isLinkedAnnotation(ann)) {
+        if (!silent) {
+          dispatch(
+            setToaster({ message: linkedMessageRef.current, isError: true })
           );
         }
         return false;
@@ -128,6 +152,21 @@ export default function useAnnotationPermissions({ annotations }) {
       if (!scopeIdRef.current && matched.some((a) => !a.isBaseMapAnnotation)) {
         dispatch(
           setToaster({ message: scopeMessageRef.current, isError: true })
+        );
+        return {
+          allowed: false,
+          mustFork: false,
+          blocked: true,
+          myAnnotationIds: [],
+          foreignAnnotationIds: matched.map((a) => a.id),
+        };
+      }
+      // Linked listing: block outright too — a shared vertex with a read-only
+      // annotation must not be forked either (the db guard would reject the
+      // foreign side of the fork).
+      if (matched.some(isLinkedAnnotation)) {
+        dispatch(
+          setToaster({ message: linkedMessageRef.current, isError: true })
         );
         return {
           allowed: false,

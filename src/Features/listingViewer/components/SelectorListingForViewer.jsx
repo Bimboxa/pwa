@@ -20,7 +20,7 @@ import ListListings from "Features/listings/components/ListListings";
 import SectionListingsGroup from "./SectionListingsGroup";
 import DialogCreateBusinessObjectListing from "Features/businessObjects/components/DialogCreateBusinessObjectListing";
 import DialogCreateBaseMapListing from "Features/baseMapEditor/components/DialogCreateBaseMapListing";
-import DialogCreateListing from "Features/listings/components/DialogCreateListing";
+import DialogChooseListingSource from "Features/listings/components/DialogChooseListingSource";
 
 import getListingGroupsByEntityModelType from "Features/listings/utils/getListingGroupsByEntityModelType";
 
@@ -197,7 +197,7 @@ export default function SelectorListingForViewer({
       )}
 
       {createTarget?.kind === "LOCATED_ENTITY" && (
-        <DialogCreateListing open onClose={handleCloseCreate} />
+        <DialogChooseListingSource open onClose={handleCloseCreate} />
       )}
     </BoxFlexVStretch>
   );

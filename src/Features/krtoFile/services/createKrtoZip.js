@@ -55,6 +55,11 @@ export default async function createKrtoZip(scopeId, options) {
         "baseMapViews", "syncFiles", "layers", "globalLayers",
         "portfolioBaseMapContainers", "meshes3d", "povs",
         "scopeConfigs",
+        // Links to listings of OTHER scopes ("Depuis un autre Krto"): the
+        // host zip ships the rel rows only — the linked content belongs to
+        // the source scope's own zip (getScopeRelevantListings ignores
+        // linked listings on purpose).
+        "relsScopeListing",
     ]);
 
     // Tables avec listingId (sans projectId)

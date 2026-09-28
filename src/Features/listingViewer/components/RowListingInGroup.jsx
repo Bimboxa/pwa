@@ -16,6 +16,7 @@ import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
 
 import IconButtonMoreActionsListing from "Features/listings/components/IconButtonMoreActionsListing";
+import useLinkedListings from "Features/listings/hooks/useLinkedListings";
 
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -47,12 +48,20 @@ export default function RowListingInGroup({
   const dragS = "Glisser pour réordonner";
   const showS = "Afficher";
   const hideS = "Masquer";
+  const fromS = "Depuis";
 
   // data
 
   const hiddenListingsIds = useSelector(
     (s) => s.listings.hiddenListingsIds || []
   );
+
+  // Listing linked from another scope ("Depuis un autre Krto"): read-only
+  // reference row — not sortable, flagged in palette.listingFromOtherScope
+  // with the source scope's name.
+  const { isLinkedListing, getSourceScope } = useLinkedListings();
+  const linked = isLinkedListing(listing.id);
+  const sourceScopeName = linked ? getSourceScope(listing.id)?.name : null;
 
   const {
     attributes,
@@ -61,7 +70,7 @@ export default function RowListingInGroup({
     transform,
     transition,
     isDragging,
-  } = useSortable({ id: listing.id });
+  } = useSortable({ id: listing.id, disabled: linked });
 
   // helpers
 
@@ -97,32 +106,35 @@ export default function RowListingInGroup({
         zIndex: isDragging ? 1200 : "auto",
         opacity: isDragging ? 0.8 : 1,
       }}
-      sx={(theme) => ({
-        // The tint lives on the row, not on the button: the drag handle and the
-        // actions sit outside the button, and hovering them must still light up
-        // the whole row.
-        bgcolor: selected
-          ? alpha(theme.palette.secondary.main, 0.12)
-          : "background.paper",
-        "&:hover": {
-          bgcolor: alpha(theme.palette.secondary.main, selected ? 0.18 : 0.05),
-        },
-        // Selection also reads as a bar in the margin, so the eye finds the
-        // current row down the edge. The border is always there, transparent
-        // when unselected, so selecting never shifts the row.
-        borderLeft: "3px solid",
-        borderLeftColor: selected ? "secondary.main" : "transparent",
-        "&:hover .rowListingActions, &:hover .rowListingDragHandle": {
-          opacity: 1,
-        },
-      })}
+      sx={(theme) => {
+        const accent = linked
+          ? theme.palette.listingFromOtherScope.main
+          : theme.palette.secondary.main;
+        return {
+          // The tint lives on the row, not on the button: the drag handle and
+          // the actions sit outside the button, and hovering them must still
+          // light up the whole row.
+          bgcolor: selected ? alpha(accent, 0.12) : "background.paper",
+          "&:hover": {
+            bgcolor: alpha(accent, selected ? 0.18 : 0.05),
+          },
+          // Selection also reads as a bar in the margin, so the eye finds the
+          // current row down the edge. The border is always there,
+          // transparent when unselected, so selecting never shifts the row. A
+          // linked listing always shows its bar.
+          borderLeft: "3px solid",
+          borderLeftColor: linked || selected ? accent : "transparent",
+          "&:hover .rowListingActions": { opacity: 1 },
+          ...(!linked && { "&:hover .rowListingDragHandle": { opacity: 1 } }),
+        };
+      }}
     >
-      <Tooltip title={dragS}>
+      <Tooltip title={linked ? "" : dragS}>
         <Box
           component="span"
           className="rowListingDragHandle"
-          {...attributes}
-          {...listeners}
+          {...(linked ? {} : attributes)}
+          {...(linked ? {} : listeners)}
           sx={{
             position: "absolute",
             left: 4,
@@ -168,6 +180,22 @@ export default function RowListingInGroup({
         >
           {listing?.name}
         </Typography>
+        {linked && (
+          <Tooltip title={sourceScopeName ? `${fromS} ${sourceScopeName}` : ""}>
+            <Typography
+              variant="caption"
+              noWrap
+              sx={{
+                ml: 1,
+                maxWidth: 90,
+                color: "listingFromOtherScope.main",
+                fontWeight: 600,
+              }}
+            >
+              {sourceScopeName ?? fromS}
+            </Typography>
+          </Tooltip>
+        )}
       </ListItemButton>
 
       <Box
