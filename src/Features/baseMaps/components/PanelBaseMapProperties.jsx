@@ -15,6 +15,7 @@ import { setSelectedMainBaseMapId } from "Features/mapEditor/mapEditorSlice";
 import {
   setSelectedBaseMapId,
   setPropertiesRequestedView,
+  setShowPrintZone,
 } from "Features/baseMaps/baseMapsSlice";
 import { triggerEntitiesTableUpdate } from "Features/entities/entitiesSlice";
 
@@ -37,6 +38,7 @@ import {
   Menu,
   MenuItem,
   ButtonBase,
+  Switch,
 } from "@mui/material";
 import {
   MoreVert as MoreActionsIcon,
@@ -66,6 +68,7 @@ export default function PanelBaseMapProperties() {
   const labelS = "Libellé";
   const referenceS = "Référence";
   const printZoneS = "Zone d'impression";
+  const showPrintZoneS = "Afficher la zone d'impression";
 
   // data
 
@@ -111,6 +114,7 @@ export default function PanelBaseMapProperties() {
   // One-shot view request from the left panel (Position 3D section of the
   // base map detail view, #312): consume it and clear it.
   const requestedView = useSelector((s) => s.baseMaps.propertiesRequestedView);
+  const showPrintZone = useSelector((s) => s.baseMaps.showPrintZone);
   useEffect(() => {
     if (!requestedView) return;
     setView(requestedView);
@@ -287,8 +291,30 @@ export default function PanelBaseMapProperties() {
             dedicated sub-panel (not for photos) */}
         {!baseMap.isPhoto && (
           <WhiteSectionGeneric>
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                pl: 1,
+              }}
+            >
+              <Typography variant="body2">{showPrintZoneS}</Typography>
+              <Switch
+                size="small"
+                checked={Boolean(showPrintZone)}
+                onChange={(e) => dispatch(setShowPrintZone(e.target.checked))}
+              />
+            </Box>
+          </WhiteSectionGeneric>
+        )}
+        {!baseMap.isPhoto && (
+          <WhiteSectionGeneric>
             <ButtonBase
-              onClick={() => setView("printZone")}
+              onClick={() => {
+                dispatch(setShowPrintZone(true));
+                setView("printZone");
+              }}
               sx={{
                 width: 1,
                 p: 1,

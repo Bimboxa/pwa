@@ -553,6 +553,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     // (frame / name click, base map tree); in BASE_MAPS an empty selection
     // already shows the base map panel, so the frame is editable too.
     const updateBaseMapPrintZone = useUpdateBaseMapPrintZone();
+    const showPrintZoneSheet = useSelector((s) => s.baseMaps.showPrintZone);
     // Explicit = the base map itself is the selection item: the image
     // becomes draggable on the sheet (a click on it deselects).
     const isPrintZoneExplicitlySelected =
@@ -2370,6 +2371,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                             explicitlySelected={isPrintZoneExplicitlySelected}
                             interactive={printZoneInteractive && !imageModeActive}
                             showName={forViewerKey === "MAP"}
+                            showSheet={showPrintZoneSheet}
                             onSelect={handlePrintZoneSelect}
                             onDeselect={handlePrintZoneDeselect}
                             onLiveTransform={handlePrintZoneLiveTransform}
