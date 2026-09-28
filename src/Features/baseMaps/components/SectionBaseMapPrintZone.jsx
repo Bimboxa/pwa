@@ -50,13 +50,18 @@ export default function SectionBaseMapPrintZone({ baseMap }) {
   const orientationS = "Orientation";
   const landscapeS = "Paysage";
   const portraitS = "Portrait";
-  const scaleS = "Échelle";
-  const freeS = "libre";
-  const lockedS = "Taille fixée par l'échelle";
+  const scaleS = "Échelle de la feuille";
+  const freeS = "Libre";
+  const customScaleS = "Autre";
+  const lockedS =
+    "Feuille fixée à cette échelle : le fond de plan est mis à l'échelle";
+  const freeHintS =
+    "Libre : l'échelle suit la taille du fond de plan dans la feuille";
   const notAppliedS = "Échelle non appliquée au fond de plan";
-  const fitS = "Ajuster la feuille à l'image";
-  const fitDisabledS = "Videz l'échelle pour ajuster la feuille à l'image";
-  const centerS = "Centrer l'image";
+  const fitS = "Ajuster le fond de plan à la feuille";
+  const fitDisabledS =
+    "Passez l'échelle en « Libre » pour ajuster le fond de plan à la feuille";
+  const centerS = "Centrer le fond de plan";
   const applyScaleS = "Appliquer l'échelle au fond de plan";
   const applyScaleHintS =
     "Calibre le fond de plan pour que la zone soit imprimée à cette échelle";
@@ -89,7 +94,27 @@ export default function SectionBaseMapPrintZone({ baseMap }) {
       (derivedScale ? ` — 1 : ${formatPrintZoneScale(derivedScale)}` : "")
     : "";
 
+  // Common plan scales; "free" = null (the sheet follows the image size).
+  const scalePresets = [20, 50, 100, 200];
+  const presetValue =
+    zone?.scale > 0
+      ? scalePresets.includes(zone.scale)
+        ? String(zone.scale)
+        : "custom"
+      : "free";
+  const effectiveScale = zone?.scale > 0 ? zone.scale : derivedScale;
+
   // handlers
+
+  function handlePresetChange(_, value) {
+    if (!value || value === presetValue) return;
+    if (value === "custom") return;
+    const scale = value === "free" ? null : Number(value);
+    updatePrintZone(
+      baseMap.id,
+      applyPrintZoneFormatChange(zone, { scale, meterByPx })
+    );
+  }
 
   function handleFormatChange(_, format) {
     if (!format || format === zone.format) return;
@@ -114,6 +139,10 @@ export default function SectionBaseMapPrintZone({ baseMap }) {
     const parsed = raw === "" ? null : Number(raw);
     const scale = parsed > 0 && Number.isFinite(parsed) ? parsed : null;
     if (scale === (zone.scale ?? null)) return;
+    // Free sheet: blurring the displayed (derived) value unchanged is a no-op.
+    if (!(zone.scale > 0) && scale != null && derivedScale != null) {
+      if (Math.abs(scale - derivedScale) < 0.05) return;
+    }
     updatePrintZone(
       baseMap.id,
       applyPrintZoneFormatChange(zone, { scale, meterByPx })
@@ -204,23 +233,51 @@ export default function SectionBaseMapPrintZone({ baseMap }) {
           </ToggleButtonGroup>
         </Box>
 
+        <Box>
+          <Typography variant="caption" color="text.secondary">
+            {scaleS}
+          </Typography>
+          <ToggleButtonGroup
+            value={presetValue}
+            exclusive
+            onChange={handlePresetChange}
+            size="small"
+            fullWidth
+          >
+            {scalePresets.map((n) => (
+              <ToggleButton key={n} value={String(n)}>
+                <Typography variant="body2">1:{n}</Typography>
+              </ToggleButton>
+            ))}
+            {presetValue === "custom" && (
+              <ToggleButton value="custom">
+                <Typography variant="body2">{customScaleS}</Typography>
+              </ToggleButton>
+            )}
+            <ToggleButton value="free">
+              <Typography variant="body2">{freeS}</Typography>
+            </ToggleButton>
+          </ToggleButtonGroup>
+        </Box>
         <FieldTextV2
-          label={scaleS}
-          value={zone.scale > 0 ? formatPrintZoneScale(zone.scale) : ""}
+          label="1 :"
+          value={effectiveScale ? formatPrintZoneScale(effectiveScale) : ""}
           onChange={handleScaleChange}
           options={{
             showAsLabelAndField: true,
             changeOnBlur: true,
             hideMic: true,
-            startAdornment: "1 :",
-            placeholder: derivedScale
-              ? formatPrintZoneScale(derivedScale)
-              : freeS,
+            placeholder: "50, 100, …",
           }}
         />
         {locked && !scaleMismatch && (
           <Typography variant="caption" color="text.secondary">
             {lockedS}
+          </Typography>
+        )}
+        {!(zone.scale > 0) && (
+          <Typography variant="caption" color="text.secondary">
+            {freeHintS}
           </Typography>
         )}
         {scaleMismatch && (
