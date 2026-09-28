@@ -7,8 +7,9 @@ import getBaseMapDisplayName from "Features/baseMaps/utils/getBaseMapDisplayName
 // MainMapEditorV3 transforms during a drag.
 //
 // - Fonds de plan + Dessin modules. In Dessin the base map name sits at the
-//   bottom-left of the IMAGE (it follows the drag); the sheet carries a
-//   « Zone d'impression » label below its bottom-left corner. Clicking either (or the dashed
+//   below the IMAGE's bottom-left corner (it follows the drag); the sheet
+//   (shown only when showSheet, panel switch, hidden by default) carries a
+//   « Zone d'impression » label below its bottom-right corner. Clicking either (or the dashed
 //   frame) selects the base map and opens its print zone panel (right
 //   panel → PanelBaseMapProperties "printZone" view).
 // - The user positions the IMAGE on the sheet, not the sheet. The sheet
@@ -48,6 +49,7 @@ export default function PrintZoneLayer({
   explicitlySelected,
   interactive,
   showName,
+  showSheet = true,
   onSelect,
   onDeselect,
   onLiveTransform,
@@ -285,13 +287,14 @@ export default function PrintZoneLayer({
                 </g>
               </g>
             ))}
-          {/* base map name (Dessin), bottom-left of the IMAGE — follows it */}
+          {/* base map name (Dessin), below the IMAGE's bottom-left corner —
+              follows it */}
           {showName && W > 0 && H > 0 && (
             <g transform={`translate(0, ${H})`}>
               <g style={{ transform: counterZoomLive }}>
                 <text
-                  x={6}
-                  y={-6}
+                  x={0}
+                  y={12}
                   fontSize={11}
                   fill={STROKE}
                   fontFamily="inherit"
@@ -311,64 +314,68 @@ export default function PrintZoneLayer({
         </g>
       </g>
 
-      {/* B. sheet group — still during MOVE / RESIZE */}
-      <g transform={poseTransform}>
-        <g>
-          {/* 1. dashed sheet frame (never interactive) */}
-          <rect
-            x={x}
-            y={y}
-            width={width}
-            height={height}
-            fill="none"
-            stroke={STROKE}
-            strokeWidth={isSelected ? 1 : 0.75}
-            strokeDasharray="4 3"
-            vectorEffect="non-scaling-stroke"
-            style={{ pointerEvents: "none" }}
-          />
+      {/* B. sheet group — still during MOVE / RESIZE; hidden unless the
+          panel's « Afficher la zone d'impression » switch is on */}
+      {showSheet && (
+        <g transform={poseTransform}>
+          <g>
+            {/* 1. dashed sheet frame (never interactive) */}
+            <rect
+              x={x}
+              y={y}
+              width={width}
+              height={height}
+              fill="none"
+              stroke={STROKE}
+              strokeWidth={isSelected ? 1 : 0.75}
+              strokeDasharray="4 3"
+              vectorEffect="non-scaling-stroke"
+              style={{ pointerEvents: "none" }}
+            />
 
-          {/* 2. invisible hit band on the sheet stroke */}
-          <rect
-            x={x}
-            y={y}
-            width={width}
-            height={height}
-            fill="none"
-            stroke="transparent"
-            strokeWidth={HIT_BAND_PX}
-            vectorEffect="non-scaling-stroke"
-            style={{
-              pointerEvents: interactive ? "stroke" : "none",
-              cursor: isSelected ? "move" : "pointer",
-            }}
-            data-interaction="transform-print-zone"
-            data-handle-type="MOVE"
-          />
+            {/* 2. invisible hit band on the sheet stroke */}
+            <rect
+              x={x}
+              y={y}
+              width={width}
+              height={height}
+              fill="none"
+              stroke="transparent"
+              strokeWidth={HIT_BAND_PX}
+              vectorEffect="non-scaling-stroke"
+              style={{
+                pointerEvents: interactive ? "stroke" : "none",
+                cursor: isSelected ? "move" : "pointer",
+              }}
+              data-interaction="transform-print-zone"
+              data-handle-type="MOVE"
+            />
 
-          {/* 3. sheet label, bottom-left OUTSIDE the sheet (below the edge) */}
-          <g transform={`translate(${x}, ${y + height})`}>
-            <g style={{ transform: counterZoom }}>
-              <text
-                x={0}
-                y={12}
-                fontSize={10}
-                fill={STROKE}
-                fontFamily="inherit"
-                style={{
-                  pointerEvents: interactive ? "all" : "none",
-                  cursor: "pointer",
-                  userSelect: "none",
-                }}
-                data-interaction="transform-print-zone"
-                data-handle-type="SELECT"
-              >
-                {sheetLabelS}
-              </text>
+            {/* 3. sheet label, below the sheet's bottom-right corner */}
+            <g transform={`translate(${x + width}, ${y + height})`}>
+              <g style={{ transform: counterZoom }}>
+                <text
+                  x={0}
+                  y={12}
+                  fontSize={10}
+                  fill={STROKE}
+                  fontFamily="inherit"
+                  textAnchor="end"
+                  style={{
+                    pointerEvents: interactive ? "all" : "none",
+                    cursor: "pointer",
+                    userSelect: "none",
+                  }}
+                  data-interaction="transform-print-zone"
+                  data-handle-type="SELECT"
+                >
+                  {sheetLabelS}
+                </text>
+              </g>
             </g>
           </g>
         </g>
-      </g>
+      )}
     </g>
   );
 }

@@ -16,6 +16,9 @@ const baseMapsInitialState = {
   // specific subview (e.g. "position3d" from the left panel's Position 3D
   // section) — consumed and cleared by the panel.
   propertiesRequestedView: null,
+  // Dashed sheet of the print zone in the 2D editors (PrintZoneLayer):
+  // hidden by default, toggled from the base map properties panel.
+  showPrintZone: false,
   // Enhanced image results (background fetch results)
   enhancedImageResults: {}, // { [baseMapId]: { blob, objectUrl, completedAt } }
   enhancedImageErrors: {}, // { [baseMapId]: { error, failedAt } }
@@ -46,6 +49,9 @@ export const baseMapsSlice = createSlice({
     },
     setPropertiesRequestedView: (state, action) => {
       state.propertiesRequestedView = action.payload;
+    },
+    setShowPrintZone: (state, action) => {
+      state.showPrintZone = Boolean(action.payload);
     },
     setEnhancedImageResult: (state, action) => {
       const { baseMapId, blob, objectUrl, completedAt } = action.payload;
@@ -119,6 +125,7 @@ export const {
   setIsCreatingBaseMap,
   setEditedBaseMap,
   setPropertiesRequestedView,
+  setShowPrintZone,
   //
   setEnhancedImageResult,
   setEnhancedImageError,
