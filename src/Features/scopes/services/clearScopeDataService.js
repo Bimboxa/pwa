@@ -21,6 +21,10 @@ export default async function clearScopeDataService(scopeId) {
         await db.layers.where("scopeId").equals(scopeId).delete();
         await db.globalLayers.where("scopeId").equals(scopeId).delete();
         await db.scopeConfigs.where("scopeId").equals(scopeId).delete();
+        // Links to listings of other scopes (host side) and links OF this
+        // scope's listings into other scopes (source side, now dangling).
+        await db.relsScopeListing.where("scopeId").equals(scopeId).delete();
+        await db.relsScopeListing.where("sourceScopeId").equals(scopeId).delete();
 
         // SCOPE-scoped resources (dropped in the panel with "Cette scope"):
         // their main file goes too unless another live resource shares it

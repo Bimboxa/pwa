@@ -15,6 +15,12 @@ const listingsInitialState = {
   listingsMap: exampleListingsMap,
   listingsUpdatedAt: null,
   listingsById: null,
+  // {[hostScopeId]: {[listingId]: sourceScopeId}} — listings LINKED into a
+  // scope from another scope (db.relsScopeListing live-synced by
+  // dexieSyncService, live rows only). Precomputed here so the db guard and
+  // the listings selector do O(1) lookups. Dangling links (source listing /
+  // scope not loaded) are filtered at read time by getLinkedListingIdsForScope.
+  linkedListingSourceByScopeId: {},
   //
   selectedListingId: null,
   //
@@ -47,6 +53,16 @@ export const listingsSlice = createSlice({
     setSelectedListingId: (state, action) => {
       state.selectedListingId = action.payload;
       setInitListingId(action.payload);
+    },
+    setRelsScopeListing: (state, action) => {
+      const rels = action.payload ?? [];
+      const byScopeId = {};
+      for (const rel of rels) {
+        if (!rel || rel.deletedAt || !rel.scopeId || !rel.listingId) continue;
+        if (!byScopeId[rel.scopeId]) byScopeId[rel.scopeId] = {};
+        byScopeId[rel.scopeId][rel.listingId] = rel.sourceScopeId ?? null;
+      }
+      state.linkedListingSourceByScopeId = byScopeId;
     },
     //
     triggerListingsUpdate: (state) => {
@@ -91,6 +107,7 @@ export const {
   setListingsById,
   //
   setSelectedListingId,
+  setRelsScopeListing,
   triggerListingsUpdate,
   //
   createListing,

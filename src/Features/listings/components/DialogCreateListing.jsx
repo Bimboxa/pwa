@@ -29,12 +29,15 @@ import SectionPresetListingsPreview from "./SectionPresetListingsPreview";
 // Deferred mode: when onCreateEmpty / onAddPresets are provided, the dialog
 // hands the user's choice back to the caller instead of writing listings to
 // the db (used by the Krto creator, where the scope does not exist yet).
+// `mode` (DialogChooseListingSource): "EMPTY" shows the empty-list section
+// only, "PRESETS" the pre-configured lists section only; undefined = both.
 export default function DialogCreateListing({
   open,
   onClose,
   isForBaseMaps,
   onCreateEmpty,
   onAddPresets,
+  mode,
 }) {
   const dispatch = useDispatch();
 
@@ -66,6 +69,8 @@ export default function DialogCreateListing({
 
   const defaultEntityModel = getDefaultLocatedEntityModel(appConfig);
   const previewListing = { name: emptyName, avatarString };
+  const showEmpty = mode !== "PRESETS";
+  const showPresets = mode !== "EMPTY";
   const avatarPlaceholder = getDefaultListingAvatarString({ name: emptyName });
 
   // handlers
@@ -129,29 +134,31 @@ export default function DialogCreateListing({
 
     // create from favorite listings
     if (favoriteKeys.length > 0) {
-      const favListings = favoriteKeys.map((key) => {
-        const sourceId = key.replace("fav_", "");
-        const fav = favoriteListings.find(
-          (f) => f.sourceListingId === sourceId
-        );
-        if (!fav) return null;
-        return {
-          name: fav.name,
-          projectId,
-          canCreateItem: fav.canCreateItem ?? true,
-          table: fav.table ?? "entities",
-          entityModel: fav.entityModel,
-          entityModelKey: fav.entityModelKey,
-          color: fav.color,
-          iconKey: fav.iconKey,
-          showNewAnnotationToolbar: fav.showNewAnnotationToolbar,
-          autoNumberAnnotations: fav.autoNumberAnnotations,
-          autoNumberPrefix: fav.autoNumberPrefix,
-          autoNumberPadStart: fav.autoNumberPadStart,
-          annotationTemplatesLibrary: fav.annotationTemplates,
-          ...(isForBaseMaps && { isForBaseMaps: true }),
-        };
-      }).filter(Boolean);
+      const favListings = favoriteKeys
+        .map((key) => {
+          const sourceId = key.replace("fav_", "");
+          const fav = favoriteListings.find(
+            (f) => f.sourceListingId === sourceId
+          );
+          if (!fav) return null;
+          return {
+            name: fav.name,
+            projectId,
+            canCreateItem: fav.canCreateItem ?? true,
+            table: fav.table ?? "entities",
+            entityModel: fav.entityModel,
+            entityModelKey: fav.entityModelKey,
+            color: fav.color,
+            iconKey: fav.iconKey,
+            showNewAnnotationToolbar: fav.showNewAnnotationToolbar,
+            autoNumberAnnotations: fav.autoNumberAnnotations,
+            autoNumberPrefix: fav.autoNumberPrefix,
+            autoNumberPadStart: fav.autoNumberPadStart,
+            annotationTemplatesLibrary: fav.annotationTemplates,
+            ...(isForBaseMaps && { isForBaseMaps: true }),
+          };
+        })
+        .filter(Boolean);
 
       if (favListings.length > 0) {
         const created = await createListings({ listings: favListings, scope });
@@ -172,92 +179,111 @@ export default function DialogCreateListing({
     <DialogGeneric open={open} onClose={onClose} maxWidth={false}>
       <Box sx={{ width: 700, display: "flex", flexDirection: "column" }}>
         {/* Section 1: Create empty list */}
-        <Box sx={{ p: 3, position: "relative" }}>
-          <IconButton
-            size="small"
-            onClick={() => onClose?.()}
-            sx={{ position: "absolute", top: 12, right: 12 }}
-          >
-            <CloseIcon fontSize="small" />
-          </IconButton>
-          <Typography variant="h6" sx={{ mb: 2 }}>
-            {titleS}
-          </Typography>
-          <Box sx={{ display: "flex", gap: 1.5, alignItems: "flex-start" }}>
-            <AvatarListing
-              listing={previewListing}
-              size={40}
-              variant="selected"
-            />
-            <TextField
+        {showEmpty && (
+          <Box sx={{ p: 3, position: "relative" }}>
+            <IconButton
               size="small"
-              label={avatarS}
-              value={avatarString}
-              onChange={(e) => setAvatarString(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleCreateEmpty();
-              }}
-              placeholder={avatarPlaceholder}
-              helperText={avatarHelperS}
-              slotProps={{
-                htmlInput: {
-                  maxLength: 3,
-                  style: { fontWeight: 700, textAlign: "center" },
-                },
-                inputLabel: { shrink: true },
-              }}
-              sx={{ width: 96, flexShrink: 0 }}
-            />
-            <TextField
-              size="small"
-              fullWidth
-              placeholder={emptyNamePlaceholderS}
-              value={emptyName}
-              onChange={(e) => setEmptyName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleCreateEmpty();
-              }}
-            />
-            <Button
-              variant="contained"
-              color="secondary"
-              disabled={!emptyName.trim()}
-              onClick={handleCreateEmpty}
-              sx={{ textTransform: "none", fontWeight: 600, flexShrink: 0 }}
+              onClick={() => onClose?.()}
+              sx={{ position: "absolute", top: 12, right: 12 }}
             >
-              {createEmptyS}
-            </Button>
+              <CloseIcon fontSize="small" />
+            </IconButton>
+            <Typography variant="h6" sx={{ mb: 2 }}>
+              {titleS}
+            </Typography>
+            <Box sx={{ display: "flex", gap: 1.5, alignItems: "flex-start" }}>
+              <AvatarListing
+                listing={previewListing}
+                size={40}
+                variant="selected"
+              />
+              <TextField
+                size="small"
+                label={avatarS}
+                value={avatarString}
+                onChange={(e) => setAvatarString(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleCreateEmpty();
+                }}
+                placeholder={avatarPlaceholder}
+                helperText={avatarHelperS}
+                slotProps={{
+                  htmlInput: {
+                    maxLength: 3,
+                    style: { fontWeight: 700, textAlign: "center" },
+                  },
+                  inputLabel: { shrink: true },
+                }}
+                sx={{ width: 96, flexShrink: 0 }}
+              />
+              <TextField
+                size="small"
+                fullWidth
+                placeholder={emptyNamePlaceholderS}
+                value={emptyName}
+                onChange={(e) => setEmptyName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") handleCreateEmpty();
+                }}
+              />
+              <Button
+                variant="contained"
+                color="secondary"
+                disabled={!emptyName.trim()}
+                onClick={handleCreateEmpty}
+                sx={{ textTransform: "none", fontWeight: 600, flexShrink: 0 }}
+              >
+                {createEmptyS}
+              </Button>
+            </Box>
           </Box>
-        </Box>
+        )}
 
-        <Divider />
+        {showEmpty && showPresets && <Divider />}
 
         {/* Section 2: Add pre-configured lists */}
-        <Box sx={{ p: 3, bgcolor: "background.default" }}>
-          <Typography
-            variant="subtitle1"
-            sx={{ fontWeight: 600, mb: 2, color: "text.secondary" }}
+        {showPresets && (
+          <Box
+            sx={{ p: 3, bgcolor: "background.default", position: "relative" }}
           >
-            {presetTitleS}
-          </Typography>
+            {!showEmpty && (
+              <IconButton
+                size="small"
+                onClick={() => onClose?.()}
+                sx={{ position: "absolute", top: 12, right: 12 }}
+              >
+                <CloseIcon fontSize="small" />
+              </IconButton>
+            )}
+            <Typography
+              variant={showEmpty ? "subtitle1" : "h6"}
+              sx={{
+                fontWeight: 600,
+                mb: 2,
+                color: showEmpty ? "text.secondary" : "text.primary",
+              }}
+            >
+              {presetTitleS}
+            </Typography>
 
-          <Box sx={{ display: "flex", gap: 2, minHeight: 300 }}>
-            <Box sx={{ flex: 1, minWidth: 0 }}>
-              <SectionPresetListingsSelector
-                selectedKeys={selectedKeys}
-                onChange={setSelectedKeys}
-                isForBaseMaps={isForBaseMaps}
-              />
-            </Box>
+            <Box sx={{ display: "flex", gap: 2, minHeight: 300 }}>
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <SectionPresetListingsSelector
+                  selectedKeys={selectedKeys}
+                  onChange={setSelectedKeys}
+                  isForBaseMaps={isForBaseMaps}
+                />
+              </Box>
 
-            <Box sx={{ flex: 1, minWidth: 0 }}>
-              <SectionPresetListingsPreview
-                selectedKeys={selectedKeys}
-                onAddListings={handleAddPresets}
-              />
+              <Box sx={{ flex: 1, minWidth: 0 }}>
+                <SectionPresetListingsPreview
+                  selectedKeys={selectedKeys}
+                  onAddListings={handleAddPresets}
+                />
+              </Box>
             </Box>
           </Box>
-        </Box>
+        )}
       </Box>
     </DialogGeneric>
   );

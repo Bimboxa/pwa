@@ -125,3 +125,20 @@ export class NoScopeSelectedError extends OwnershipError {
     this.name = "NoScopeSelectedError";
   }
 }
+
+/**
+ * Thrown by the DB layer when an annotation of a listing LINKED into the
+ * selected scope from another scope (db.relsScopeListing) is created /
+ * modified / deleted: linked listings are read-only in the host scope.
+ * Extends OwnershipError so the MainAppLayout unhandledrejection handler
+ * surfaces it as a toast. The message is injected by db.js from appConfig
+ * strings (org wording).
+ */
+export class LinkedListingReadOnlyError extends OwnershipError {
+  constructor(
+    message = "Cette liste vient d'un autre plan de repérage : modifiez-la depuis celui-ci"
+  ) {
+    super(message);
+    this.name = "LinkedListingReadOnlyError";
+  }
+}

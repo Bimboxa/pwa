@@ -15,6 +15,9 @@ import DialogRenameListing from "./DialogRenameListing";
 
 import { OwnershipError } from "App/db/ownership";
 import useCanEditRecord from "App/hooks/useCanEditRecord";
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
+import useLinkedListings from "../hooks/useLinkedListings";
+import useUnlinkListingFromScope from "../hooks/useUnlinkListingFromScope";
 
 export default function IconButtonMoreActionsListing({ listing, size }) {
   const dispatch = useDispatch();
@@ -24,6 +27,14 @@ export default function IconButtonMoreActionsListing({ listing, size }) {
   const deleteListing = useDeleteListing();
   const createListings = useCreateListings();
   const { canEditRecord, guardEditRecord } = useCanEditRecord();
+  // Listing linked from another scope ("Depuis un autre Krto"): the only
+  // action is unlinking it from this scope.
+  const appConfig = useAppConfig();
+  const scopeS = appConfig?.strings?.scope?.nameSingular ?? "plan de repérage";
+  const { isLinkedListing } = useLinkedListings();
+  const unlinkListing = useUnlinkListingFromScope();
+  const linked = isLinkedListing(listing?.id);
+  const unlinkS = `Retirer du ${scopeS}`;
 
   // state
 
@@ -71,6 +82,11 @@ export default function IconButtonMoreActionsListing({ listing, size }) {
     setOpenDelete(true);
   };
 
+  const handleUnlink = async () => {
+    setAnchorEl(null);
+    await unlinkListing(listing?.id);
+  };
+
   return (
     <>
       <IconButton onClick={handleClick} size={size}>
@@ -78,14 +94,30 @@ export default function IconButtonMoreActionsListing({ listing, size }) {
       </IconButton>
 
       <Menu open={open} anchorEl={anchorEl} onClose={handleClose}>
-        <MenuItem onClick={handleRename} disabled={!canEditRecord(listing)}>
-          Renommer
-        </MenuItem>
-        <MenuItem onClick={handleDuplicate}>Dupliquer</MenuItem>
-        <Divider />
-        <MenuItem onClick={handleDelete} disabled={!canEditRecord(listing)}>
-          Supprimer
-        </MenuItem>
+        {linked ? (
+          <MenuItem onClick={handleUnlink}>{unlinkS}</MenuItem>
+        ) : (
+          [
+            <MenuItem
+              key="rename"
+              onClick={handleRename}
+              disabled={!canEditRecord(listing)}
+            >
+              Renommer
+            </MenuItem>,
+            <MenuItem key="duplicate" onClick={handleDuplicate}>
+              Dupliquer
+            </MenuItem>,
+            <Divider key="divider" />,
+            <MenuItem
+              key="delete"
+              onClick={handleDelete}
+              disabled={!canEditRecord(listing)}
+            >
+              Supprimer
+            </MenuItem>,
+          ]
+        )}
       </Menu>
 
       {openRename && (

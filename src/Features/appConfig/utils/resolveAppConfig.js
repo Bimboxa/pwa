@@ -229,6 +229,11 @@ export default async function resolveAppConfig(appConfig) {
   //         { type: "ASSET", name, assetPath, meterByPx },  // raster only
   //       ]}],
   //     },
+  //     sourceConfigurationKeys,    // optional [configurationKey]: Krto
+  //                                 // configurations whose scopes of the
+  //                                 // project are suggested first in the
+  //                                 // « Depuis un autre Krto » dialog
+  //                                 // (DialogAddListingsFromScope)
   //     annotations: {
   //       libraryKeys,              // annotationTemplatesLibraries keys
   //       initSystemAnnotationTemplates,  // true => system annotation

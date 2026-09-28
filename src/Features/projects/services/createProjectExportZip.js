@@ -38,6 +38,7 @@ import {
 const PROJECT_TABLES = new Set([
   "scopes",
   "listings",
+  "relsScopeListing",
   "baseMaps",
   "baseMapVersions",
   "blueprints",

@@ -19,6 +19,7 @@ import Star from "@mui/icons-material/Star";
 import StarBorder from "@mui/icons-material/StarBorder";
 import ContentCopy from "@mui/icons-material/ContentCopy";
 import DeleteOutline from "@mui/icons-material/DeleteOutline";
+import LinkOff from "@mui/icons-material/LinkOff";
 
 import DialogDeleteRessource from "Features/layout/components/DialogDeleteRessource";
 import DialogRenameListing from "Features/listings/components/DialogRenameListing";
@@ -27,6 +28,9 @@ import useCreateListings from "Features/listings/hooks/useCreateListings";
 import useFavoriteListings from "Features/listings/hooks/useFavoriteListings";
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
 import useCanEditRecord from "App/hooks/useCanEditRecord";
+import useLinkedListings from "Features/listings/hooks/useLinkedListings";
+import useUnlinkListingFromScope from "Features/listings/hooks/useUnlinkListingFromScope";
+import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import { OwnershipError } from "App/db/ownership";
 
 // ---------------------------------------------------------------------------
@@ -56,6 +60,17 @@ export default function MenuMoreActionsActiveListing({
   const deleteS = "Supprimer la liste";
 
   // data
+
+  const appConfig = useAppConfig();
+  const scopeS = appConfig?.strings?.scope?.nameSingular ?? "plan de repérage";
+  // Listing linked from another scope: the only action is unlinking it (its
+  // content is edited from the source scope).
+  const { isLinkedListing, getSourceScope } = useLinkedListings();
+  const unlinkListing = useUnlinkListingFromScope();
+  const linked = isLinkedListing(listing?.id);
+  const sourceScopeName = linked ? getSourceScope(listing?.id)?.name : null;
+  const unlinkS = `Retirer du ${scopeS}`;
+  const fromS = sourceScopeName ? `Depuis ${sourceScopeName}` : null;
 
   const deleteListing = useDeleteListing();
   const createListings = useCreateListings();
@@ -117,6 +132,11 @@ export default function MenuMoreActionsActiveListing({
     onClose();
     if (!guardEditRecord(listing)) return;
     setOpenDelete(true);
+  };
+
+  const handleUnlink = async () => {
+    onClose();
+    await unlinkListing(listing?.id);
   };
 
   // render
@@ -198,53 +218,84 @@ export default function MenuMoreActionsActiveListing({
           >
             {listing?.name ?? listing?.label ?? "Liste"}
           </Typography>
+          {fromS && (
+            <Typography
+              variant="caption"
+              noWrap
+              sx={{ display: "block", color: "listingFromOtherScope.main" }}
+            >
+              {fromS}
+            </Typography>
+          )}
         </Box>
 
-        <MenuItem onClick={handleRename} sx={{ gap: 1, py: 0.75 }}>
-          <ListItemIcon sx={{ minWidth: 28 }}>
-            <Edit sx={{ fontSize: 18 }} />
-          </ListItemIcon>
-          <ListItemText primaryTypographyProps={{ variant: "body2" }}>
-            {renameS}
-          </ListItemText>
-        </MenuItem>
-
-        <MenuItem onClick={handleToggleFavorite} sx={{ gap: 1, py: 0.75 }}>
-          <ListItemIcon sx={{ minWidth: 28 }}>
-            {favorite ? (
-              <Star sx={{ fontSize: 18, color: "warning.main" }} />
-            ) : (
-              <StarBorder sx={{ fontSize: 18 }} />
-            )}
-          </ListItemIcon>
-          <ListItemText primaryTypographyProps={{ variant: "body2" }}>
-            {favorite ? removeFavoriteS : addFavoriteS}
-          </ListItemText>
-        </MenuItem>
-
-        <MenuItem onClick={handleDuplicate} sx={{ gap: 1, py: 0.75 }}>
-          <ListItemIcon sx={{ minWidth: 28 }}>
-            <ContentCopy sx={{ fontSize: 18 }} />
-          </ListItemIcon>
-          <ListItemText primaryTypographyProps={{ variant: "body2" }}>
-            {duplicateS}
-          </ListItemText>
-        </MenuItem>
-
-        <Divider />
-
-        <MenuItem
-          onClick={handleDelete}
-          disabled={!canEditRecord(listing)}
-          sx={{ gap: 1, py: 0.75, color: "error.main" }}
-        >
-          <ListItemIcon sx={{ minWidth: 28 }}>
-            <DeleteOutline sx={{ fontSize: 18, color: "error.main" }} />
-          </ListItemIcon>
-          <ListItemText primaryTypographyProps={{ variant: "body2" }}>
-            {deleteS}
-          </ListItemText>
-        </MenuItem>
+        {linked ? (
+          <MenuItem onClick={handleUnlink} sx={{ gap: 1, py: 0.75 }}>
+            <ListItemIcon sx={{ minWidth: 28 }}>
+              <LinkOff sx={{ fontSize: 18 }} />
+            </ListItemIcon>
+            <ListItemText primaryTypographyProps={{ variant: "body2" }}>
+              {unlinkS}
+            </ListItemText>
+          </MenuItem>
+        ) : (
+          [
+            <MenuItem
+              key="rename"
+              onClick={handleRename}
+              sx={{ gap: 1, py: 0.75 }}
+            >
+              <ListItemIcon sx={{ minWidth: 28 }}>
+                <Edit sx={{ fontSize: 18 }} />
+              </ListItemIcon>
+              <ListItemText primaryTypographyProps={{ variant: "body2" }}>
+                {renameS}
+              </ListItemText>
+            </MenuItem>,
+            <MenuItem
+              key="favorite"
+              onClick={handleToggleFavorite}
+              sx={{ gap: 1, py: 0.75 }}
+            >
+              <ListItemIcon sx={{ minWidth: 28 }}>
+                {favorite ? (
+                  <Star sx={{ fontSize: 18, color: "warning.main" }} />
+                ) : (
+                  <StarBorder sx={{ fontSize: 18 }} />
+                )}
+              </ListItemIcon>
+              <ListItemText primaryTypographyProps={{ variant: "body2" }}>
+                {favorite ? removeFavoriteS : addFavoriteS}
+              </ListItemText>
+            </MenuItem>,
+            <MenuItem
+              key="duplicate"
+              onClick={handleDuplicate}
+              sx={{ gap: 1, py: 0.75 }}
+            >
+              <ListItemIcon sx={{ minWidth: 28 }}>
+                <ContentCopy sx={{ fontSize: 18 }} />
+              </ListItemIcon>
+              <ListItemText primaryTypographyProps={{ variant: "body2" }}>
+                {duplicateS}
+              </ListItemText>
+            </MenuItem>,
+            <Divider key="divider" />,
+            <MenuItem
+              key="delete"
+              onClick={handleDelete}
+              disabled={!canEditRecord(listing)}
+              sx={{ gap: 1, py: 0.75, color: "error.main" }}
+            >
+              <ListItemIcon sx={{ minWidth: 28 }}>
+                <DeleteOutline sx={{ fontSize: 18, color: "error.main" }} />
+              </ListItemIcon>
+              <ListItemText primaryTypographyProps={{ variant: "body2" }}>
+                {deleteS}
+              </ListItemText>
+            </MenuItem>,
+          ]
+        )}
       </Menu>
 
       {openRename && (

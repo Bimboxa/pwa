@@ -16,6 +16,8 @@ import { setToaster } from "Features/layout/layoutSlice";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import getSelectScopeRequiredMessage from "Features/scopes/utils/getSelectScopeRequiredMessage";
+import getLinkedListingReadOnlyMessage from "Features/listings/utils/getLinkedListingReadOnlyMessage";
+import { selectLinkedListingSourceForSelectedScope } from "Features/listings/selectors/listingsSelectors";
 
 import db from "App/db/db";
 import getAnnotationTemplateFromNewAnnotation from "Features/annotations/utils/getAnnotationTemplateFromNewAnnotation";
@@ -89,6 +91,9 @@ export default function useHandleCommitDrawing({ annotations } = {}) {
     const projectId = useSelector(s => s.projects.selectedProjectId);
     const listingId = useSelector(s => s.listings.selectedListingId);
     const selectedScopeId = useSelector(s => s.scopes.selectedScopeId);
+    // Listings linked from another scope are read-only here (see
+    // assertNotLinkedListingContent in App/db/db.js).
+    const linkedListingSourceByListingId = useSelector(selectLinkedListingSourceForSelectedScope);
     const newAnnotationInState = useSelector(s => s.annotations.newAnnotation);
     const openedPanel = useSelector(s => s.listings.openedPanel);
     const autoMergeOnCommit = useSelector(s => s.mapEditor.autoMergeOnCommit);
@@ -170,6 +175,12 @@ export default function useHandleCommitDrawing({ annotations } = {}) {
         // cleared its local points): pick a scope and redraw.
         if (!selectedScopeId && !isBaseMapAnnotation && !newAnnotation?.isScaleSegment) {
             dispatch(setToaster({ message: getSelectScopeRequiredMessage(appConfig), isError: true }));
+            return;
+        }
+        // Linked listing ("Depuis un autre Krto"): read-only in this scope —
+        // same early bail-out as above, before any write.
+        if (listingId && linkedListingSourceByListingId[listingId] && !isBaseMapAnnotation) {
+            dispatch(setToaster({ message: getLinkedListingReadOnlyMessage(appConfig), isError: true }));
             return;
         }
 

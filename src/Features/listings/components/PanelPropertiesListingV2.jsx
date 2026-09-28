@@ -11,7 +11,10 @@ import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useAnnotationTemplateQtiesById from "Features/annotations/hooks/useAnnotationTemplateQtiesById";
 
 import { setSelectedMainBaseMapId } from "Features/mapEditor/mapEditorSlice";
-import { setSelectedItem, clearSelection } from "Features/selection/selectionSlice";
+import {
+  setSelectedItem,
+  clearSelection,
+} from "Features/selection/selectionSlice";
 import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 
 import {
@@ -62,6 +65,7 @@ import IconButtonMoreActionsListing from "./IconButtonMoreActionsListing";
 import AvatarListing from "./AvatarListing";
 import { getDefaultListingAvatarString } from "../utils/getListingAvatarString";
 import useFavoriteListings from "../hooks/useFavoriteListings";
+import useLinkedListings from "../hooks/useLinkedListings";
 import { getListingTypeLabel } from "../utils/getListingGroupsByEntityModelType";
 
 function getTemplateMainColor(template) {
@@ -286,6 +290,14 @@ export default function PanelPropertiesListingV2({ listing }) {
 
   const updateListing = useUpdateListing();
   const { isFavorite, toggleFavorite } = useFavoriteListings();
+  // Listing linked from another scope ("Depuis un autre Krto"): read-only
+  // here — banner + locked name / avatar (edited from the source scope).
+  const { isLinkedListing, getSourceScope } = useLinkedListings();
+  const isLinked = isLinkedListing(listing?.id);
+  const linkedSourceScope = isLinked ? getSourceScope(listing?.id) : null;
+  const linkedReadOnlyS = linkedSourceScope?.name
+    ? `Depuis ${linkedSourceScope.name} — lecture seule`
+    : "Depuis un autre plan de repérage — lecture seule";
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const annotationTemplates = useAnnotationTemplates({
     filterByListingId: listing?.id,
@@ -588,6 +600,24 @@ export default function PanelPropertiesListingV2({ listing }) {
         <IconButtonMoreActionsListing listing={listing} />
       </Box>
 
+      {isLinked && (
+        <Box
+          sx={{
+            mx: 1,
+            mb: 0.5,
+            px: 1,
+            py: 0.5,
+            borderRadius: 1,
+            bgcolor: "listingFromOtherScope.main",
+            color: "listingFromOtherScope.contrastText",
+          }}
+        >
+          <Typography variant="caption" sx={{ fontWeight: 600 }}>
+            {linkedReadOnlyS}
+          </Typography>
+        </Box>
+      )}
+
       {/* Content */}
       <BoxFlexVStretch sx={{ overflow: "auto", gap: 1, p: 1 }}>
         {/* Name field */}
@@ -606,15 +636,21 @@ export default function PanelPropertiesListingV2({ listing }) {
                   listing={{ ...listing, name, avatarString: avatarValue }}
                   size={36}
                   variant="selected"
-                  onClick={(e) => setAvatarAnchor(e.currentTarget)}
+                  linked={isLinked}
+                  onClick={
+                    isLinked
+                      ? undefined
+                      : (e) => setAvatarAnchor(e.currentTarget)
+                  }
                 />
               </span>
             </Tooltip>
             <InputBase
               value={name}
+              readOnly={isLinked}
               onChange={(e) => setName(e.target.value)}
-              onBlur={handleNameBlur}
-              onKeyDown={handleNameKeyDown}
+              onBlur={isLinked ? undefined : handleNameBlur}
+              onKeyDown={isLinked ? undefined : handleNameKeyDown}
               sx={{
                 flex: 1,
                 fontSize: "0.875rem",

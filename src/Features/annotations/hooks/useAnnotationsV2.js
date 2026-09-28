@@ -373,6 +373,7 @@ import useAnnotationSubtractions from "Features/annotations/hooks/useAnnotationS
 import useZoneSoloAnnotationIdSet from "Features/zonings/hooks/useZoneSoloAnnotationIdSet";
 import useBusinessObjectSoloAnnotationIdSet from "Features/businessObjects/hooks/useBusinessObjectSoloAnnotationIdSet";
 import { selectLayersMode } from "Features/scopeConfig/utils/scopeConfigSelectors";
+import { selectLinkedListingSourceForSelectedScope } from "Features/listings/selectors/listingsSelectors";
 import { getLayersAsync } from "Features/layers/utils/layersMode";
 import selectSoloWorkPackageId from "Features/businessObjects/utils/selectSoloWorkPackageId";
 import useWorkPackageSoloAnnotationIdSet from "Features/businessObjects/hooks/useWorkPackageSoloAnnotationIdSet";
@@ -550,6 +551,24 @@ export default function useAnnotationsV2(options) {
     // writes), it updates on any db.listings write, so a rank reorder
     // (FieldActiveListing drag) re-sorts the z-order immediately.
     const listingsById = useSelector((s) => s.listings.listingsById);
+    // Listings LINKED into the selected scope from other scopes ("Depuis un
+    // autre Krto"): their annotations pass the scope filter below. Read from
+    // Redux OUTSIDE the liveQuery (no extra IDB read / observation for the
+    // ~6 mounted instances) and reduced to a STRING dep — the selector object
+    // is deep-equal memoized, but a string key only changes on link/unlink
+    // (an object dep would be one more thing to keep stable).
+    const linkedListingSourceByListingId = useSelector(
+      selectLinkedListingSourceForSelectedScope
+    );
+    const linkedListingIdsKey = useMemo(
+      () => Object.keys(linkedListingSourceByListingId).sort().join(","),
+      [linkedListingSourceByListingId]
+    );
+    const linkedListingIds = useMemo(
+      () =>
+        new Set(linkedListingIdsKey ? linkedListingIdsKey.split(",") : []),
+      [linkedListingIdsKey]
+    );
 
     // zone SOLO (zonings module): {zoneId, listingId, templateId} | null.
     // Applies in every interaction mode, DRAW included.
@@ -911,7 +930,10 @@ export default function useAnnotationsV2(options) {
               return (
                 em?.type === "BASE_MAP" ||
                 em?.type === "PHOTO" ||
-                l.scopeId === scope?.id
+                l.scopeId === scope?.id ||
+                // linked from another scope (db.relsScopeListing) — same
+                // rule as the listings selector (makeGetListingsByOptions)
+                linkedListingIds.has(l.id)
               );
             })
             .map((l) => l.id)
@@ -2812,6 +2834,7 @@ export default function useAnnotationsV2(options) {
       groupByBaseMap,
       listingsUpdatedAt,
       listingsById,
+      linkedListingIds,
       subtractionTargetIdsBySource,
       openingRowsByHostId,
       excludeProfileTemplates,
