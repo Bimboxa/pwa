@@ -384,9 +384,10 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     //   imperative transform on printZoneWorldRef (the group holding the
     //   image + annotations), the sheet stays still; the ONE db write on
     //   pointerup re-emits the record and the layout effect below clears the
-    //   transform in the same commit as the new pose (no flash). A resize
-    //   changes the sheet's world size, so the camera k is compensated there
-    //   too (about the origin = sheet centre) for the sheet to stay put.
+    //   transform in the same commit as the new pose (no flash). Any change
+    //   of the sheet's world size (drag resize, panel edits) gets the camera
+    //   k compensated there too (about the origin = sheet centre): the sheet
+    //   stays put on screen, the image rescales.
     // - the pose is mirrored into redux (baseMapPoseInBg) for the consumers
     //   converting image px <-> world there (POV snapshot / restore, 2D <->
     //   3D switch, entity click).
@@ -410,18 +411,27 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
         dispatch(setBaseMapPoseInBg(zonePoseInBg));
     }, [zonePoseInBg, basePoseInBgStored]);
     const printZoneWorldRef = useRef(null);
-    const printZoneCommitRef = useRef(null); // { widthBefore } while a drag write is in flight
+    // The sheet is the FIXED thing on screen: whatever changes its size in
+    // image px (drag resize commit, format / orientation / scale / fit from
+    // the panel), the camera k is compensated by the long-side ratio about
+    // the origin (= sheet centre) in the same commit — the image is what
+    // visibly rescales. Long side (not width) so an orientation swap turns
+    // the sheet in place.
+    const printZoneLongSideRef = useRef(null); // { baseMapId, longSide }
     useLayoutEffect(() => {
         const g = printZoneWorldRef.current;
         if (g?.getAttribute("transform")) g.removeAttribute("transform");
-        const pending = printZoneCommitRef.current;
-        printZoneCommitRef.current = null;
-        if (!pending || !resolvedPrintZone?.width) return;
-        const ratio = pending.widthBefore / resolvedPrintZone.width;
+        if (!resolvedPrintZone?.width || !resolvedPrintZone?.height) return;
+        const longSide = Math.max(resolvedPrintZone.width, resolvedPrintZone.height);
+        const prev = printZoneLongSideRef.current;
+        printZoneLongSideRef.current = { baseMapId: baseMap?.id, longSide };
+        if (!prev || prev.baseMapId !== baseMap?.id) return;
+        const ratio = prev.longSide / longSide;
         if (!(ratio > 0) || Math.abs(ratio - 1) < 1e-9) return;
         const m = interactionLayerRef.current?.getCameraMatrix?.();
         if (m) interactionLayerRef.current?.setCameraMatrix?.({ ...m, k: m.k * ratio });
     }, [
+        baseMap?.id,
         resolvedPrintZone?.x,
         resolvedPrintZone?.y,
         resolvedPrintZone?.width,
@@ -571,7 +581,6 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     // effect above), which also compensates the camera on a resize.
     const handlePrintZoneCommit = (printZone) => {
         if (!baseMap?.id) return;
-        printZoneCommitRef.current = { widthBefore: resolvedPrintZone?.width };
         updateBaseMapPrintZone(baseMap.id, printZone);
     };
 
