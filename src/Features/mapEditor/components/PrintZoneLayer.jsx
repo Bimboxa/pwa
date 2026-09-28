@@ -8,7 +8,7 @@ import getBaseMapDisplayName from "Features/baseMaps/utils/getBaseMapDisplayName
 //
 // - Fonds de plan + Dessin modules. In Dessin the base map name sits at the
 //   bottom-left of the IMAGE (it follows the drag); the sheet carries a
-//   « Zone d'impression » label bottom-right. Clicking either (or the dashed
+//   « Zone d'impression » label below its bottom-left corner. Clicking either (or the dashed
 //   frame) selects the base map and opens its print zone panel (right
 //   panel → PanelBaseMapProperties "printZone" view).
 // - The user positions the IMAGE on the sheet, not the sheet. The sheet
@@ -346,16 +346,15 @@ export default function PrintZoneLayer({
             data-handle-type="MOVE"
           />
 
-          {/* 3. sheet label, bottom-right inside the sheet */}
-          <g transform={`translate(${x + width}, ${y + height})`}>
+          {/* 3. sheet label, bottom-left OUTSIDE the sheet (below the edge) */}
+          <g transform={`translate(${x}, ${y + height})`}>
             <g style={{ transform: counterZoom }}>
               <text
-                x={-6}
-                y={-6}
+                x={0}
+                y={12}
                 fontSize={10}
                 fill={STROKE}
                 fontFamily="inherit"
-                textAnchor="end"
                 style={{
                   pointerEvents: interactive ? "all" : "none",
                   cursor: "pointer",
