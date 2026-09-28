@@ -7,9 +7,10 @@ import getBaseMapDisplayName from "Features/baseMaps/utils/getBaseMapDisplayName
 // MainMapEditorV3 transforms during a drag.
 //
 // - Fonds de plan + Dessin modules. In Dessin the base map name sits at the
-//   bottom-left of the sheet; clicking it (or the dashed frame) selects the
-//   base map (right panel → PanelBaseMapProperties, where the zone fields
-//   live).
+//   bottom-left of the IMAGE (it follows the drag); the sheet carries a
+//   « Zone d'impression » label bottom-right. Clicking either (or the dashed
+//   frame) selects the base map and opens its print zone panel (right
+//   panel → PanelBaseMapProperties "printZone" view).
 // - The user positions the IMAGE on the sheet, not the sheet. The sheet
 //   centre is the world origin (see MainMapEditorV3), so:
 //   MOVE (frame stroke, or the image itself once explicitly selected) →
@@ -81,6 +82,7 @@ export default function PrintZoneLayer({
   const { x, y, width, height } = zone;
   const k = basePose.k || 1;
   const nameS = getBaseMapDisplayName(baseMap).label;
+  const sheetLabelS = "Zone d'impression";
   const W = imageSize?.width || 0;
   const H = imageSize?.height || 0;
   const poseTransform = `translate(${basePose.x}, ${basePose.y}) scale(${k})`;
@@ -283,6 +285,29 @@ export default function PrintZoneLayer({
                 </g>
               </g>
             ))}
+          {/* base map name (Dessin), bottom-left of the IMAGE — follows it */}
+          {showName && W > 0 && H > 0 && (
+            <g transform={`translate(0, ${H})`}>
+              <g style={{ transform: counterZoomLive }}>
+                <text
+                  x={6}
+                  y={-6}
+                  fontSize={11}
+                  fill={STROKE}
+                  fontFamily="inherit"
+                  style={{
+                    pointerEvents: interactive ? "all" : "none",
+                    cursor: "pointer",
+                    userSelect: "none",
+                  }}
+                  data-interaction="transform-print-zone"
+                  data-handle-type="SELECT"
+                >
+                  {nameS}
+                </text>
+              </g>
+            </g>
+          )}
         </g>
       </g>
 
@@ -321,29 +346,28 @@ export default function PrintZoneLayer({
             data-handle-type="MOVE"
           />
 
-          {/* 3. base map name (Dessin), bottom-left inside the sheet */}
-          {showName && (
-            <g transform={`translate(${x}, ${y + height})`}>
-              <g style={{ transform: counterZoom }}>
-                <text
-                  x={6}
-                  y={-6}
-                  fontSize={11}
-                  fill={STROKE}
-                  fontFamily="inherit"
-                  style={{
-                    pointerEvents: interactive ? "all" : "none",
-                    cursor: "pointer",
-                    userSelect: "none",
-                  }}
-                  data-interaction="transform-print-zone"
-                  data-handle-type="SELECT"
-                >
-                  {nameS}
-                </text>
-              </g>
+          {/* 3. sheet label, bottom-right inside the sheet */}
+          <g transform={`translate(${x + width}, ${y + height})`}>
+            <g style={{ transform: counterZoom }}>
+              <text
+                x={-6}
+                y={-6}
+                fontSize={10}
+                fill={STROKE}
+                fontFamily="inherit"
+                textAnchor="end"
+                style={{
+                  pointerEvents: interactive ? "all" : "none",
+                  cursor: "pointer",
+                  userSelect: "none",
+                }}
+                data-interaction="transform-print-zone"
+                data-handle-type="SELECT"
+              >
+                {sheetLabelS}
+              </text>
             </g>
-          )}
+          </g>
         </g>
       </g>
     </g>

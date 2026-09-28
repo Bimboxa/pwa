@@ -32,7 +32,8 @@ import {
   getScaleFromPrintZone,
 } from "../utils/printZone";
 
-// « Zone d'impression » of a base map: the physical sheet (format,
+// « Zone d'impression » of a base map (body of PanelBaseMapPrintZone): the
+// physical sheet (format,
 // orientation, optional 1:N scale) the image is positioned on. Every base
 // map has one (stored, else resolved from the PDF page / A3 landscape by
 // BaseMap.getPrintZone); « Réinitialiser » drops the stored one. The image
@@ -43,7 +44,6 @@ export default function SectionBaseMapPrintZone({ baseMap }) {
 
   // strings
 
-  const titleS = "Zone d'impression";
   const defaultPdfS = "Par défaut : page du PDF";
   const defaultS = "Par défaut : A3 paysage ajusté à l'image";
   const formatS = "Format";
@@ -183,9 +183,6 @@ export default function SectionBaseMapPrintZone({ baseMap }) {
   return (
     <WhiteSectionGeneric>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-        <Typography variant="body2" sx={{ fontWeight: "bold" }}>
-          {titleS}
-        </Typography>
         {!isStored && (
           <Typography variant="caption" color="text.secondary">
             {isDefaultFromPdf ? defaultPdfS : defaultS}
