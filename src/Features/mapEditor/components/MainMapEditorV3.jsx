@@ -1,4 +1,4 @@
-import { useRef, useEffect, useMemo } from "react";
+import { useRef, useEffect, useMemo, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 
 import { nanoid } from "@reduxjs/toolkit";
@@ -363,7 +363,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     const cleanOnCommit = useSelector((s) => s.smartDetect.cleanOnCommit);
 
     useEffect(() => {
-        if (baseMap && bgImage) {
+        if (baseMap && bgImage && showBgImage) {
             const defaultBaseMapPoseInBg = getDefaultBaseMapPoseInBg({
                 baseMap,
                 bgImage,
@@ -371,11 +371,54 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
             console.log("=> defaultBaseMapPoseInBg", defaultBaseMapPoseInBg);
             dispatch(setBaseMapPoseInBg(defaultBaseMapPoseInBg));
         }
-    }, [baseMap?.id, bgImage?.url]);
+    }, [baseMap?.id, bgImage?.url, showBgImage]);
 
     useAutoSelectMainBaseMap();
     //useAutoResetBaseMapPose();
-    const basePoseInBg = useSelector((s) => s.mapEditor.baseMapPoseInBg);
+    const basePoseInBgStored = useSelector((s) => s.mapEditor.baseMapPoseInBg);
+
+    // Print zone (« Zone d'impression ») = the WORLD reference frame outside
+    // the background-page mode: the sheet CENTRE sits at the world origin and
+    // the image is posed INSIDE it (pose = -centre in image px), so moving
+    // the image on the sheet never moves the camera nor the sheet, and a
+    // sheet resize (always around its centre) leaves the image still.
+    // - printZoneDraft: live rect during a PrintZoneLayer drag, folded into
+    //   the pose synchronously (same render as the frame) — no jitter.
+    // - the resulting pose is mirrored into redux (baseMapPoseInBg) for the
+    //   consumers converting image px <-> world there (POV snapshot /
+    //   restore, 2D <-> 3D switch, entity click).
+    const [printZoneDraft, setPrintZoneDraft] = useState(null);
+    const resolvedPrintZone = baseMap?.getPrintZone?.() ?? null;
+    const effectivePrintZone = printZoneDraft ?? resolvedPrintZone;
+    const zonePoseInBg = useMemo(() => {
+        if (showBgImage || !effectivePrintZone) return null;
+        const { x, y, width, height } = effectivePrintZone;
+        return { x: -(x + width / 2), y: -(y + height / 2), k: 1, r: 0 };
+    }, [
+        showBgImage,
+        effectivePrintZone?.x,
+        effectivePrintZone?.y,
+        effectivePrintZone?.width,
+        effectivePrintZone?.height,
+    ]);
+    const basePoseInBg = zonePoseInBg ?? basePoseInBgStored;
+    useEffect(() => {
+        if (!zonePoseInBg) return;
+        const s = basePoseInBgStored;
+        if (s?.x === zonePoseInBg.x && s?.y === zonePoseInBg.y && s?.k === zonePoseInBg.k) return;
+        dispatch(setBaseMapPoseInBg(zonePoseInBg));
+    }, [zonePoseInBg, basePoseInBgStored]);
+    // Drop the draft once the persisted zone caught up, or on map change.
+    useEffect(() => {
+        if (!printZoneDraft || !resolvedPrintZone) return;
+        const same = ["x", "y", "width", "height"].every(
+            (key) => Math.round(printZoneDraft[key]) === Math.round(resolvedPrintZone[key])
+        );
+        if (same) setPrintZoneDraft(null);
+    }, [printZoneDraft, resolvedPrintZone]);
+    useEffect(() => {
+        setPrintZoneDraft(null);
+    }, [baseMap?.id]);
 
 
     const { pose: basePose } = useBaseMapPose({
@@ -508,17 +551,10 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     const handlePrintZoneDeselect = () => {
         dispatch(clearSelection());
     };
+    // Drag end: keep the draft until the liveQuery re-emits the record.
     const handlePrintZoneCommit = (printZone) => {
         if (!baseMap?.id) return;
         updateBaseMapPrintZone(baseMap.id, printZone);
-    };
-    // MOVE drag of the image on the sheet: the layer moves the zone by -d in
-    // image px and asks for a +D screen px camera pan so the sheet stays
-    // still on screen while the image (and annotations) slide.
-    const handlePrintZonePanCamera = (dx, dy) => {
-        const m = interactionLayerRef.current?.getCameraMatrix?.();
-        if (!m) return;
-        interactionLayerRef.current?.setCameraMatrix?.({ ...m, x: m.x + dx, y: m.y + dy });
     };
 
     // image mode — Export rapide is MAP-only; the POV viewer and the global
@@ -2277,14 +2313,15 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                         <PrintZoneLayer
                             baseMap={baseMap}
                             basePose={basePose}
+                            zone={effectivePrintZone}
                             isSelected={isPrintZoneSelected}
                             explicitlySelected={isPrintZoneExplicitlySelected}
                             interactive={printZoneInteractive && !imageModeActive}
                             showName={forViewerKey === "MAP"}
                             onSelect={handlePrintZoneSelect}
                             onDeselect={handlePrintZoneDeselect}
+                            onDraftChange={setPrintZoneDraft}
                             onCommit={handlePrintZoneCommit}
-                            onPanCamera={handlePrintZonePanCamera}
                         />
                     )}
 

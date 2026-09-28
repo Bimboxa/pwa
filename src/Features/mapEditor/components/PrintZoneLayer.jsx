@@ -1,7 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef } from "react";
 
 import getBaseMapDisplayName from "Features/baseMaps/utils/getBaseMapDisplayName";
-import { getPrintZoneAspect } from "Features/baseMaps/utils/printZone";
+import {
+  getPrintZoneAspect,
+  resizePrintZoneKeepingCenter,
+} from "Features/baseMaps/utils/printZone";
 
 // « Zone d'impression » of the main base map: light grey dashed sheet
 // rect in the base map reference frame (same group as the annotations).
@@ -10,15 +13,19 @@ import { getPrintZoneAspect } from "Features/baseMaps/utils/printZone";
 //   bottom-left of the sheet; clicking it (or the dashed frame) selects the
 //   base map (right panel → PanelBaseMapProperties, where the zone fields
 //   live).
-// - The user positions the IMAGE on the sheet, not the sheet: a MOVE drag
-//   (frame stroke, or the image itself once the base map is explicitly
-//   selected) keeps the sheet still on screen and slides the image — i.e.
-//   the zone rect moves by -d in image px while the camera pans by +d.
-// - Free scale: corner handles resize the sheet keeping its aspect.
+// - The user positions the IMAGE on the sheet, not the sheet: the sheet is
+//   the world reference frame (MainMapEditorV3 poses the image at -zone.x /
+//   -zone.y inside it), so a MOVE drag (frame stroke, or the image itself
+//   once the base map is explicitly selected) moves the zone rect by -d in
+//   image px: the sheet stays still on screen, the image slides. The live
+//   rect is owned by MainMapEditorV3 (onDraftChange) and folded into the
+//   pose in the same render — camera untouched, no jitter.
+// - Free scale: corner handles resize the sheet around its centre, keeping
+//   its aspect.
 // - Self-contained gesture (PhotoPlanGuideLinesLayer pattern): pointer
 //   capture + preventDefault on pointerdown, so the editor's mousedown
-//   pipeline (pan / draw / clearSelection) never sees it. Draft rect during
-//   the drag, ONE db write on pointerup through onCommit.
+//   pipeline (pan / draw / clearSelection) never sees it. ONE db write on
+//   pointerup through onCommit.
 // - data-capture-hide: never in the captured / exported images.
 
 const STROKE = "#9e9e9e";
@@ -33,29 +40,21 @@ const HANDLES = [
   { type: "SW", cursor: "sw-resize" },
 ];
 
-const sameRect = (a, b) =>
-  a &&
-  b &&
-  Math.round(a.x) === Math.round(b.x) &&
-  Math.round(a.y) === Math.round(b.y) &&
-  Math.round(a.width) === Math.round(b.width) &&
-  Math.round(a.height) === Math.round(b.height);
-
 export default function PrintZoneLayer({
   baseMap,
   basePose,
+  zone, // effective rect (draft during a drag, else the resolved zone)
   isSelected,
   explicitlySelected,
   interactive,
   showName,
   onSelect,
   onDeselect,
+  onDraftChange,
   onCommit,
-  onPanCamera,
 }) {
   // state
 
-  const [draft, setDraft] = useState(null);
   const gRef = useRef(null);
   // { handleType, startClient, startScale, startZone, active, lastDraft }
   const dragRef = useRef(null);
@@ -64,16 +63,7 @@ export default function PrintZoneLayer({
 
   const printZone = baseMap?.getPrintZone?.() ?? null;
   const imageSize = baseMap?.getImageSize?.();
-  const zone = draft ?? printZone;
   const sizeLocked = printZone?.scale > 0 && baseMap?.getMeterByPx?.() > 0;
-
-  // Drop the draft when the persisted record caught up (or the map changed).
-  useEffect(() => {
-    if (draft && sameRect(draft, printZone)) setDraft(null);
-  }, [draft, printZone]);
-  useEffect(() => {
-    setDraft(null);
-  }, [baseMap?.id]);
 
   if (!zone || !basePose) return null;
 
@@ -87,19 +77,19 @@ export default function PrintZoneLayer({
   // change the CTM offset, never its scale).
   const getScreenScale = () => gRef.current?.getScreenCTM?.()?.a || 1;
 
+  // Corner resize around the sheet centre (the centre is the world origin,
+  // see MainMapEditorV3): the image stays still, both opposite corners move.
   const resizeFromCorner = (startZone, handleType, d) => {
     const ratio = getPrintZoneAspect(startZone.format, startZone.orientation);
     const east = handleType === "NE" || handleType === "SE";
-    const north = handleType === "NW" || handleType === "NE";
-    const newW = Math.max(MIN_WIDTH_PX, startZone.width + (east ? d.x : -d.x));
-    const newH = newW / ratio;
-    return {
-      ...startZone,
-      x: east ? startZone.x : startZone.x + (startZone.width - newW),
-      y: north ? startZone.y + (startZone.height - newH) : startZone.y,
+    const newW = Math.max(
+      MIN_WIDTH_PX,
+      startZone.width + 2 * (east ? d.x : -d.x)
+    );
+    return resizePrintZoneKeepingCenter(startZone, {
       width: newW,
-      height: newH,
-    };
+      height: newW / ratio,
+    });
   };
 
   // handlers
@@ -116,7 +106,6 @@ export default function PrintZoneLayer({
       startZone: zone,
       active: false,
       lastDraft: null,
-      panned: { x: 0, y: 0 },
     };
     gRef.current?.setPointerCapture?.(e.pointerId);
   };
@@ -142,22 +131,18 @@ export default function PrintZoneLayer({
     const d = { x: D.x / drag.startScale, y: D.y / drag.startScale };
     let next = null;
     if (drag.handleType === "MOVE") {
-      // Image slides under a still sheet: zone -d, camera +D.
+      // Image slides under a still sheet: zone -d (the pose follows).
       next = {
         ...drag.startZone,
         x: drag.startZone.x - d.x,
         y: drag.startZone.y - d.y,
       };
-      if (onPanCamera) {
-        onPanCamera(D.x - drag.panned.x, D.y - drag.panned.y);
-        drag.panned = D;
-      }
     } else if (!sizeLocked) {
       next = resizeFromCorner(drag.startZone, drag.handleType, d);
     }
     if (next) {
       drag.lastDraft = next;
-      setDraft(next);
+      onDraftChange?.(next);
     }
   };
 
@@ -168,8 +153,7 @@ export default function PrintZoneLayer({
     dragRef.current = null;
     gRef.current?.releasePointerCapture?.(e.pointerId);
     if (e.type === "pointercancel") {
-      if (onPanCamera) onPanCamera(-drag.panned.x, -drag.panned.y);
-      setDraft(null);
+      onDraftChange?.(null);
       return;
     }
     if (!drag.active) {
@@ -177,7 +161,7 @@ export default function PrintZoneLayer({
       else onSelect?.();
       return;
     }
-    // Draft kept until the liveQuery re-emits the record (effect above).
+    // The draft stays until the liveQuery re-emits the record (owner side).
     if (drag.lastDraft) onCommit?.({ ...printZone, ...drag.lastDraft });
   };
 
