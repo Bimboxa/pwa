@@ -4,27 +4,38 @@ import usePortfolioPageFrame from "Features/portfolios/hooks/usePortfolioPageFra
 import getPageLayout from "Features/portfolioEditor/utils/getPageLayout";
 import getPageDimensions from "Features/portfolioEditor/utils/getPageDimensions";
 import fitContainerToBaseMap from "Features/portfolioEditor/utils/fitContainerToBaseMap";
-import { isPrintZoneValid } from "Features/baseMaps/utils/printZone";
+import { resolvePrintZone } from "Features/baseMaps/utils/printZone";
 
 import db from "App/db/db";
 
 // Creates one BASE_MAPS_PAGE holding the given baseMap: the page is created
 // with the baseMap name as title, then the auto-created container is filled
 // with the baseMap.
-// - With a print zone (« Zone d'impression »): the page takes the zone's
+// - Print zone (« Zone d'impression », resolved to a default sheet when
+//   none is stored): the page takes the zone's
 //   format / orientation and the container is the FULL page with the zone
 //   rect as viewBox — 1 zone px = 1 / pagePxPerPt pt, so a 1:N scale and the
 //   page-pt text sizes are exact; the cartouche / title bar draw over it.
-// - Without: fitted to the content area with a full-image viewBox,
-//   mirroring PortfolioPageSvg.handleSelectBaseMap.
+// - No image size at all: fitted to the content area with a full-image
+//   viewBox, mirroring PortfolioPageSvg.handleSelectBaseMap.
 export default function useCreateBaseMapPage() {
   const createPage = useCreatePortfolioPage();
   const pageFrame = usePortfolioPageFrame();
 
   const create = async ({ listing, projectId, baseMapId, afterSortIndex }) => {
     const baseMap = await db.baseMaps.get(baseMapId);
-    const zone = isPrintZoneValid(baseMap?.printZone)
-      ? baseMap.printZone
+    // Reference frame (annotations + print zone) first, legacy image size
+    // otherwise.
+    const imageSize =
+      baseMap?.refWidth > 0 && baseMap?.refHeight > 0
+        ? { width: baseMap.refWidth, height: baseMap.refHeight }
+        : baseMap?.image?.imageSize;
+    const zone = baseMap
+      ? resolvePrintZone({
+          printZone: baseMap.printZone,
+          createdFrom: baseMap.createdFrom,
+          imageSize,
+        })
       : null;
     const page = await createPage({
       listing,
@@ -39,13 +50,6 @@ export default function useCreateBaseMapPage() {
       .equals(page.id)
       .first();
     if (!container) return page;
-
-    // Reference frame (annotations + print zone) first, legacy image size
-    // otherwise.
-    const imageSize =
-      baseMap?.refWidth > 0 && baseMap?.refHeight > 0
-        ? { width: baseMap.refWidth, height: baseMap.refHeight }
-        : baseMap?.image?.imageSize;
 
     if (zone) {
       const dims = getPageDimensions(zone.format, zone.orientation);

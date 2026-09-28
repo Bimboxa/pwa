@@ -14,7 +14,7 @@ import db from "App/db/db";
  * Creates a baseMap entity from an image File and sets up its version system.
  * Used by the file-drop creator.
  *
- * @returns async ({ file, name, listing?, meterByPx?, latLng?, geo?, orientation?, source?, selectOnCreate? }) => entity
+ * @returns async ({ file, name, listing?, meterByPx?, latLng?, geo?, orientation?, printZone?, source?, selectOnCreate? }) => entity
  *   geo: optional capture provenance ({ mode, crs, bbox, scaleFactor, layer })
  *   orientation: 3D plane orientation ("HORIZONTAL" | "VERTICAL"); wins over
  *   the listing's verticalBaseMaps default
@@ -37,6 +37,7 @@ export default function useCreateBaseMapFromImage() {
     latLng,
     geo,
     orientation,
+    printZone,
     source = "image",
     selectOnCreate = true,
   }) {
@@ -49,6 +50,9 @@ export default function useCreateBaseMapFromImage() {
       meterByPx,
       ...(latLng && { latLng }),
       ...(geo && { geo }),
+      // Print zone seeded by the creator (blank pages); resolved at read
+      // time otherwise.
+      ...(printZone && { printZone }),
     };
 
     const _entity = await createEntity(entity, { listing });

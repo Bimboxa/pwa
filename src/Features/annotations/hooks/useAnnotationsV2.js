@@ -1160,9 +1160,9 @@ export default function useAnnotationsV2(options) {
           if (!imageSize) return null;
           const { width, height } = imageSize;
           const meterByPx = baseMap.getMeterByPx();
-          // Page-pt → image-px scale of the texts (print zone), null when
-          // the base map has none (legacy formula in the renderers).
-          const pagePxPerPt = getPrintZonePxPerPt(baseMap.printZone);
+          // Page-pt → image-px scale of the texts (print zone, resolved to
+          // a default sheet when none is stored).
+          const pagePxPerPt = getPrintZonePxPerPt(baseMap.getPrintZone?.());
 
           // Resolve memo lookup (see _resolvedRowsCache at module level):
           // identity of the annotation row + its point rows + base map

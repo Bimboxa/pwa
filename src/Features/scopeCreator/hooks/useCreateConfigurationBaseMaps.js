@@ -5,7 +5,9 @@ import useDefaultBaseMapsListingProps from "Features/baseMaps/hooks/useDefaultBa
 import useCreateBaseMaps from "Features/baseMapCreator/hooks/useCreateBaseMaps";
 
 import createBlankImageFile from "Features/images/utils/createBlankImageFile";
-import getBlankBaseMapGeometry from "Features/baseMaps/utils/getBlankBaseMapGeometry";
+import getBlankBaseMapGeometry, {
+  getBlankBaseMapPrintZone,
+} from "Features/baseMaps/utils/getBlankBaseMapGeometry";
 
 // configuration pageOrientation -> getBlankBaseMapGeometry format
 const FORMAT_BY_PAGE_ORIENTATION = {
@@ -125,7 +127,18 @@ export default function useCreateConfigurationBaseMaps() {
             height: pixelHeight,
             fileName: `${item.name ?? "page-blanche"}.png`,
           });
-          baseMaps.push({ name: item.name, imageFile, meterByPx });
+          baseMaps.push({
+            name: item.name,
+            imageFile,
+            meterByPx,
+            printZone: getBlankBaseMapPrintZone({
+              format,
+              size: item.pageFormat ?? "A3",
+              scale: item.scale ?? 50,
+              pixelWidth,
+              pixelHeight,
+            }),
+          });
         } else if (item.type === "ASSET" && item.assetUrl) {
           try {
             const response = await fetch(item.assetUrl);

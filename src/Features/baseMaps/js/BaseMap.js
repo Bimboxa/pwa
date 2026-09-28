@@ -1,4 +1,4 @@
-import { isPrintZoneValid } from "Features/baseMaps/utils/printZone";
+import { resolvePrintZone } from "Features/baseMaps/utils/printZone";
 import { nanoid } from "@reduxjs/toolkit";
 import ImageObject from "Features/images/js/ImageObject";
 import getDateString from "Features/misc/utils/getDateString";
@@ -63,7 +63,7 @@ export default class BaseMap {
     detailRef,
     // Print zone (« Zone d'impression »): { format, orientation, scale, x, y,
     // width, height } — sheet rect in REFERENCE image px, see
-    // baseMaps/utils/printZone.js. null = no zone (legacy behaviour).
+    // baseMaps/utils/printZone.js. null = resolved at read time (getPrintZone).
     printZone,
     // version system
     versions,
@@ -433,9 +433,15 @@ export default class BaseMap {
     return this.meterByPx;
   };
 
-  // Valid print zone or null (invalid / missing → legacy behaviour).
+  // Print zone (« Zone d'impression »): the stored one, else the PDF page
+  // sheet, else an A3 landscape sheet fitted to the image. null only without
+  // an image size.
   getPrintZone = () => {
-    return isPrintZoneValid(this.printZone) ? this.printZone : null;
+    return resolvePrintZone({
+      printZone: this.printZone,
+      createdFrom: this.createdFrom,
+      imageSize: this.getImageSize(),
+    });
   };
 
   // SERIALIZER

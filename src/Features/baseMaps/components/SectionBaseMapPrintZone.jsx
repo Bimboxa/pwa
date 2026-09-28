@@ -25,25 +25,27 @@ import {
   PRINT_ZONE_FORMATS,
   applyPrintZoneFormatChange,
   centerPrintZoneOnImage,
-  createDefaultPrintZone,
   fitPrintZoneToImage,
   formatPrintZoneScale,
   getMeterByPxFromPrintZone,
+  getPdfPagePrintZone,
   getScaleFromPrintZone,
 } from "../utils/printZone";
 
 // « Zone d'impression » of a base map: the physical sheet (format,
-// orientation, optional 1:N scale) positioned over the image. The rect is
-// also dragged on the map (PrintZoneLayer); both go through
-// useUpdateBaseMapPrintZone. Hidden for photo base maps.
+// orientation, optional 1:N scale) the image is positioned on. Every base
+// map has one (stored, else resolved from the PDF page / A3 landscape by
+// BaseMap.getPrintZone); « Réinitialiser » drops the stored one. The image
+// is also dragged on the sheet in the map editor (PrintZoneLayer); both go
+// through useUpdateBaseMapPrintZone. Hidden for photo base maps.
 export default function SectionBaseMapPrintZone({ baseMap }) {
   const dispatch = useDispatch();
 
   // strings
 
   const titleS = "Zone d'impression";
-  const noZoneS = "Aucune zone d'impression";
-  const createS = "Définir la zone d'impression";
+  const defaultPdfS = "Par défaut : page du PDF";
+  const defaultS = "Par défaut : A3 paysage ajusté à l'image";
   const formatS = "Format";
   const orientationS = "Orientation";
   const landscapeS = "Paysage";
@@ -52,13 +54,13 @@ export default function SectionBaseMapPrintZone({ baseMap }) {
   const freeS = "libre";
   const lockedS = "Taille fixée par l'échelle";
   const notAppliedS = "Échelle non appliquée au fond de plan";
-  const fitS = "Ajuster au contenu";
-  const fitDisabledS = "Videz l'échelle pour ajuster la zone au contenu";
-  const centerS = "Centrer";
+  const fitS = "Ajuster la feuille à l'image";
+  const fitDisabledS = "Videz l'échelle pour ajuster la feuille à l'image";
+  const centerS = "Centrer l'image";
   const applyScaleS = "Appliquer l'échelle au fond de plan";
   const applyScaleHintS =
     "Calibre le fond de plan pour que la zone soit imprimée à cette échelle";
-  const removeS = "Supprimer la zone";
+  const resetS = "Réinitialiser";
 
   // data
 
@@ -67,7 +69,13 @@ export default function SectionBaseMapPrintZone({ baseMap }) {
   // helpers
 
   const zone = baseMap?.getPrintZone?.() ?? null;
+  const isStored = Boolean(baseMap?.printZone);
   const imageSize = baseMap?.getImageSize?.();
+  const isDefaultFromPdf =
+    !isStored &&
+    Boolean(
+      getPdfPagePrintZone({ createdFrom: baseMap?.createdFrom, imageSize })
+    );
   const meterByPx = baseMap?.getMeterByPx?.();
   const hasMeterByPx = meterByPx > 0;
   const locked = Boolean(zone?.scale > 0 && hasMeterByPx);
@@ -82,11 +90,6 @@ export default function SectionBaseMapPrintZone({ baseMap }) {
     : "";
 
   // handlers
-
-  function handleCreate() {
-    const created = createDefaultPrintZone({ imageSize });
-    if (created) updatePrintZone(baseMap.id, created);
-  }
 
   function handleFormatChange(_, format) {
     if (!format || format === zone.format) return;
@@ -140,36 +143,13 @@ export default function SectionBaseMapPrintZone({ baseMap }) {
     dispatch(triggerAnnotationsUpdate());
   }
 
-  function handleRemove() {
+  function handleReset() {
     updatePrintZone(baseMap.id, null);
   }
 
   // render
 
-  if (!baseMap || baseMap.isPhoto) return null;
-
-  if (!zone) {
-    return (
-      <WhiteSectionGeneric>
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-          <Typography variant="body2" sx={{ fontWeight: "bold" }}>
-            {titleS}
-          </Typography>
-          <Typography variant="caption" color="text.secondary">
-            {noZoneS}
-          </Typography>
-          <Button
-            size="small"
-            variant="outlined"
-            onClick={handleCreate}
-            disabled={!(imageSize?.width > 0 && imageSize?.height > 0)}
-          >
-            {createS}
-          </Button>
-        </Box>
-      </WhiteSectionGeneric>
-    );
-  }
+  if (!baseMap || baseMap.isPhoto || !zone) return null;
 
   return (
     <WhiteSectionGeneric>
@@ -177,6 +157,11 @@ export default function SectionBaseMapPrintZone({ baseMap }) {
         <Typography variant="body2" sx={{ fontWeight: "bold" }}>
           {titleS}
         </Typography>
+        {!isStored && (
+          <Typography variant="caption" color="text.secondary">
+            {isDefaultFromPdf ? defaultPdfS : defaultS}
+          </Typography>
+        )}
 
         <Box>
           <Typography variant="caption" color="text.secondary">
@@ -277,14 +262,15 @@ export default function SectionBaseMapPrintZone({ baseMap }) {
           )}
         </Box>
 
-        <Button
-          size="small"
-          color="error"
-          onClick={handleRemove}
-          sx={{ alignSelf: "flex-start" }}
-        >
-          {removeS}
-        </Button>
+        {isStored && (
+          <Button
+            size="small"
+            onClick={handleReset}
+            sx={{ alignSelf: "flex-start" }}
+          >
+            {resetS}
+          </Button>
+        )}
       </Box>
     </WhiteSectionGeneric>
   );
