@@ -53,7 +53,7 @@ export function assertAiTaskTarget(baseMap, payload) {
     !matches(current, expected)
   ) {
     throw new Error(
-      "Le référentiel du fond a changé pendant l’analyse. Relancez GO auto sur le fond actuel."
+      "Le référentiel du fond a changé pendant l’analyse. Relancez la détection sur le fond actuel."
     );
   }
 }

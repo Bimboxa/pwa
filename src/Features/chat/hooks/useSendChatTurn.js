@@ -267,6 +267,7 @@ export default function useSendChatTurn() {
           (!mainBaseMap?.id ||
             !listing?.id ||
             ((autoDetect === true || autoDetect.currentListing) &&
+              !autoDetect?.repair &&
               !visibleTemplates.length))
         )
           throw new Error(
@@ -482,7 +483,12 @@ export default function useSendChatTurn() {
                 ensureBubble();
                 dispatch(
                   setConversation({
-                    previousResponseId: event.responseId,
+                    // Null when the relay answered without any model call (a
+                    // deterministic zone repair): the conversation pointer
+                    // is unchanged.
+                    ...(event.responseId
+                      ? { previousResponseId: event.responseId }
+                      : {}),
                     ...(event.imageAttached && baseMap
                       ? { imageKey: baseMap.imageKey }
                       : {}),

@@ -265,9 +265,11 @@ const DrawingLayer = forwardRef(
     const isRamp = enabledDrawingMode === "RAMP";
     // Ephemeral selection rectangles (no annotation committed): thin green
     // non-scaling frame, no fill.
-    const isSelectionRectMode = ["LOCALIZED_REPAIR", "JOIN_ANNOTATIONS"].includes(
-      enabledDrawingMode
-    );
+    const isSelectionRectMode = [
+      "LOCALIZED_REPAIR",
+      "JOIN_ANNOTATIONS",
+      "CHAT_REPAIR",
+    ].includes(enabledDrawingMode);
     const drawRectangle = [
       "RECTANGLE",
       "POLYLINE_RECTANGLE",
@@ -275,6 +277,7 @@ const DrawingLayer = forwardRef(
       "CUT_RECTANGLE",
       "LOCALIZED_REPAIR",
       "JOIN_ANNOTATIONS",
+      "CHAT_REPAIR",
     ].includes(enabledDrawingMode);
     const drawCircle = [
       "CIRCLE",

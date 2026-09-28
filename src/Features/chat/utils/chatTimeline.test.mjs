@@ -460,3 +460,27 @@ test("drawing arguments captured by the relay join their step and the JSON expor
   assert.equal(steps[1].arguments, "{bad");
   assert.equal(steps[1].status, "running");
 });
+
+test("the deterministic pre-pass stage is a preparation step closed by its first tool", () => {
+  let state = update(
+    undefined,
+    { type: "progress", stage: "analyzing_geometry", model: "test" },
+    0
+  );
+  assert.equal(state.entries[0].kind, "preparation");
+  assert.equal(state.entries[0].title, "Pré-analyse géométrique du plan…");
+  assert.equal(state.entries[0].status, "running");
+  state = update(
+    state,
+    {
+      type: "tool",
+      name: "render_plan_region",
+      callId: "prepass-1",
+      phase: "started",
+    },
+    5
+  );
+  assert.equal(state.entries[0].status, "done");
+  assert.equal(state.entries[1].id, "tool-prepass-1");
+  assert.equal(state.entries[1].title, "Rendu du plan");
+});

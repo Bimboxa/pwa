@@ -1,7 +1,8 @@
 import { useSelector } from "react-redux";
 
-import { IconButton, Tooltip } from "@mui/material";
 import { Healing as HealingIcon } from "@mui/icons-material";
+
+import ToolbarToolButton from "./ToolbarToolButton";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import repairAnnotationGeometry from "../utils/repairAnnotationGeometry";
@@ -134,20 +135,11 @@ export default function IconButtonRepairAnnotation({
   // render
 
   return (
-    <Tooltip title="Réparer la géométrie">
-      <IconButton
-        size="small"
-        onClick={handleClick}
-        sx={{
-          color: "text.disabled",
-          "&:hover": {
-            color: accentColor,
-            bgcolor: accentColor + "18",
-          },
-        }}
-      >
-        <HealingIcon fontSize="small" />
-      </IconButton>
-    </Tooltip>
+    <ToolbarToolButton
+      icon={<HealingIcon fontSize="small" />}
+      label="Réparer la géométrie"
+      onClick={handleClick}
+      accentColor={accentColor}
+    />
   );
 }

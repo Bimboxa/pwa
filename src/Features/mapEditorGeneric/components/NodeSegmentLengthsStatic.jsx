@@ -19,6 +19,8 @@ import {
 import getSegmentLengthItems from "Features/annotations/utils/getSegmentLengthItems";
 import applySegmentLengthEditService from "Features/annotations/services/applySegmentLengthEditService";
 import { typeOf } from "Features/geometry/utils/arcSampling";
+import OverlayButtonMoreAnnotationTools from "Features/annotations/components/OverlayButtonMoreAnnotationTools";
+import getAnnotationHasEditTools from "Features/annotations/utils/getAnnotationHasEditTools";
 
 // Inline length editor footprint, screen px. A <foreignObject> hit-tests only
 // within its own box, so it must comfortably contain input + padlock.
@@ -423,11 +425,16 @@ export default function NodeSegmentLengthsStatic({
   const showAnglesButton =
     !simple &&
     (interactionMode !== "EDIT" || (hasScale && straightItems.length > 0));
+  // - "Plus d'outils": the whole edit-tool row of the annotation toolbar as
+  //   a menu (icon + label); single selection only, like the move button.
+  const showMoreButton =
+    !simple && !hasMultiSelection && getAnnotationHasEditTools(annotation);
   const overlayButtonCount =
     Number(showMoveButton) +
     Number(showCotesButton) +
     Number(showSegmentDragButton) +
     Number(showAnglesButton) +
+    Number(showMoreButton) +
     (extraButtons ? extraButtonCount : 0);
   const overlayWidth =
     overlayButtonCount * OVERLAY_BUTTON_PX +
@@ -769,6 +776,12 @@ export default function NodeSegmentLengthsStatic({
                     )}
                   </IconButton>
                 </Tooltip>
+                )}
+                {showMoreButton && (
+                  <OverlayButtonMoreAnnotationTools
+                    annotation={annotation}
+                    overlayColor={ACCENT_COLOR}
+                  />
                 )}
                 {extraButtons}
               </div>

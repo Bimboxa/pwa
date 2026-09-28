@@ -268,7 +268,12 @@ export default function DialogGenerateSlopeWalls({
   return (
     <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
       <DialogTitle>Parois de la pente</DialogTitle>
-      <DialogContent dividers>
+      <DialogContent
+        dividers
+        onKeyDown={(e) => {
+          if (e.key !== "Escape") e.stopPropagation();
+        }}
+      >
         <Box sx={{ display: "flex", gap: 2 }}>
           <SideSection
             title="Paroi gauche"

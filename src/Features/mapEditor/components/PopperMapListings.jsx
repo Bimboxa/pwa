@@ -672,7 +672,7 @@ function AnnotationTemplateRow({
           <Tooltip
             title={isEditing ? "" : isSolo ? exitSoloS : soloS}
             arrow
-            placement="bottom"
+            placement="left"
           >
             <Box
               onClick={isEditing ? undefined : handleToggleSolo}
@@ -770,31 +770,37 @@ function AnnotationTemplateRow({
               sx={{ fontSize: "0.875rem", flex: 1 }}
             />
           ) : (
-            <Typography
-              variant="body2"
-              color={isHidden ? "text.disabled" : "panel.textPrimary"}
-              sx={{
-                lineHeight: 1.3,
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                userSelect: "none",
-              }}
+            <Tooltip
+              title={annotationTemplate.label ?? ""}
+              placement="top-start"
+              enterDelay={600}
             >
-              {annotationTemplate.label}
-              {annotationTemplate.height != null && (
-                <Typography
-                  component="span"
-                  sx={{
-                    fontSize: "10px",
-                    color: "text.secondary",
-                    ml: 0.5,
-                  }}
-                >
-                  [ht. {annotationTemplate.height}m]
-                </Typography>
-              )}
-            </Typography>
+              <Typography
+                variant="body2"
+                color={isHidden ? "text.disabled" : "panel.textPrimary"}
+                sx={{
+                  lineHeight: 1.3,
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  userSelect: "none",
+                }}
+              >
+                {annotationTemplate.label}
+                {annotationTemplate.height != null && (
+                  <Typography
+                    component="span"
+                    sx={{
+                      fontSize: "10px",
+                      color: "text.secondary",
+                      ml: 0.5,
+                    }}
+                  >
+                    [ht. {annotationTemplate.height}m]
+                  </Typography>
+                )}
+              </Typography>
+            </Tooltip>
           )}
 
           {showProcedureChip && (

@@ -1,5 +1,4 @@
 import { useState } from "react";
-import ChatSessionNavigation from "./ChatSessionNavigation";
 import applyChatSessionContext from "../utils/applyChatSessionContext";
 import {
   cancelVectorization,
@@ -217,7 +216,32 @@ export default function ChatHeader({
           borderLeft: `3px solid ${color}`,
         }}
       >
-        <ChatSessionNavigation />
+        <Tooltip
+          title={
+            canResume && !sending && !activeRun
+              ? "Reprendre la réponse"
+              : "Stop — interrompre la session"
+          }
+        >
+          <span>
+            <IconButton
+              size="small"
+              aria-label={
+                canResume && !sending && !activeRun
+                  ? "Reprendre la réponse"
+                  : "Stop — interrompre la session"
+              }
+              disabled={stopping || (!sending && !canResume && !activeRun)}
+              onClick={sending || activeRun ? handleStop : onPlay}
+            >
+              {canResume && !sending && !activeRun ? (
+                <PlayArrow fontSize="small" />
+              ) : (
+                <Stop fontSize="small" />
+              )}
+            </IconButton>
+          </span>
+        </Tooltip>
         <Typography
           variant="body2"
           noWrap
@@ -331,31 +355,14 @@ export default function ChatHeader({
             <ListItemText>{newSessionS}</ListItemText>
           </MenuItem>
         </Menu>
-        <Tooltip
-          title={
-            canResume && !sending && !activeRun
-              ? "Reprendre la réponse"
-              : "Stop — interrompre la session"
-          }
-        >
-          <span>
-            <IconButton
-              size="small"
-              aria-label={
-                canResume && !sending && !activeRun
-                  ? "Reprendre la réponse"
-                  : "Stop — interrompre la session"
-              }
-              disabled={stopping || (!sending && !canResume && !activeRun)}
-              onClick={sending || activeRun ? handleStop : onPlay}
-            >
-              {canResume && !sending && !activeRun ? (
-                <PlayArrow fontSize="small" />
-              ) : (
-                <Stop fontSize="small" />
-              )}
-            </IconButton>
-          </span>
+        <Tooltip title={newSessionS}>
+          <IconButton
+            size="small"
+            aria-label={newSessionS}
+            onClick={handleNewSession}
+          >
+            <AddIcon fontSize="small" />
+          </IconButton>
         </Tooltip>
       </Box>
       {budgetNotice && (

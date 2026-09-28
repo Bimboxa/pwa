@@ -421,6 +421,16 @@ const DRAWING_TOOLS = [
     annotationType: "JOIN_ANNOTATIONS",
     behavior: "JOIN_ANNOTATIONS",
   },
+  // CHAT_REPAIR (chat « Réparation ») — same 2-click selection rectangle; the
+  // zone is stored in mapEditor.chatRepairZone and the mode exits at once. The
+  // chat panel then sends the zone to the relay for a deterministic repair.
+  {
+    key: "CHAT_REPAIR",
+    label: "Zone de réparation",
+    Icon: IconJoinAnnotations,
+    annotationType: "CHAT_REPAIR",
+    behavior: "CHAT_REPAIR",
+  },
   // REVOLUTION axis helpers — the geometry that defines a REVOLUTION shape3D.
   // Both tools are armed from a REVOLUTION_AXIS template row of the listings
   // panel: the axis is authored on the PLAN with 2 clicks (centre → radius +
@@ -469,6 +479,7 @@ export const DRAWING_TOOLS_BY_TYPE = {
   PROFILE_LINE: ["ADD_PROFILE_LINE"],
   LOCALIZED_REPAIR: ["LOCALIZED_REPAIR"],
   JOIN_ANNOTATIONS: ["JOIN_ANNOTATIONS"],
+  CHAT_REPAIR: ["CHAT_REPAIR"],
 };
 
 export function getDrawingToolsByShape(drawingShape) {

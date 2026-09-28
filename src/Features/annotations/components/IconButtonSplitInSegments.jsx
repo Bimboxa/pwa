@@ -9,10 +9,11 @@ import useDeleteAnnotations from "../hooks/useDeleteAnnotations";
 import useListings from "Features/listings/hooks/useListings";
 import { resolveDrawingShape } from "../constants/drawingShapeConfig";
 
-import { Box, Button, IconButton, Menu, Tooltip, Typography } from "@mui/material";
+import { Box, Button, Menu, Typography } from "@mui/material";
 
 import SelectorAnnotationTemplateVariantDense from "./SelectorAnnotationTemplateVariantDense";
 import IconSplitInSegments from "Features/icons/IconSplitInSegments";
+import ToolbarToolButton from "./ToolbarToolButton";
 
 export default function IconButtonSplitInSegments({
   annotations,
@@ -57,8 +58,8 @@ export default function IconButtonSplitInSegments({
 
   // handlers
 
-  function handleOpen(event) {
-    setAnchorEl(event.currentTarget);
+  function handleOpen(event, anchor) {
+    setAnchorEl(anchor);
   }
 
   function handleClose() {
@@ -97,21 +98,12 @@ export default function IconButtonSplitInSegments({
 
   return (
     <>
-      <Tooltip title={titleS}>
-        <IconButton
-          size="small"
-          onClick={handleOpen}
-          sx={{
-            color: "text.disabled",
-            "&:hover": {
-              color: accentColor,
-              bgcolor: accentColor + "18",
-            },
-          }}
-        >
-          <IconSplitInSegments fontSize="small" />
-        </IconButton>
-      </Tooltip>
+      <ToolbarToolButton
+        icon={<IconSplitInSegments fontSize="small" />}
+        label={titleS}
+        onClick={handleOpen}
+        accentColor={accentColor}
+      />
 
       <Menu
         open={open}

@@ -234,6 +234,9 @@ export default function buildImportData({
       if (ann.textContent !== undefined) {
         annotation.textContent = ann.textContent;
       }
+      if (typeof ann.rotation === "number" && ann.rotation !== 0) {
+        annotation.rotation = ann.rotation;
+      }
       if (freeTextFontFactor !== 1) {
         const fontSize = annotation.fontSize ?? FREE_TEXT_DEFAULT_FONT_SIZE;
         annotation.fontSize =

@@ -37,6 +37,7 @@ async function fixture(t) {
     baseMaps: "id",
     baseMapVersions: "id,baseMapId",
     annotationBatchReceipts: "jobId",
+    points: "id",
   });
   await db.listings.put({ id: "l", projectId: "p", scopeId: "s" });
   await db.baseMaps.put({ id: "b", projectId: "p" });
@@ -473,4 +474,112 @@ test("float noise does not block a batch and queries keep the published calibrat
   );
   assert.equal(updated.updatedCount, 1);
   assert.equal((await f.db.annotations.get("b")).height, 2);
+});
+
+// Zone repair: the relay moves END points read in reference pixels of the
+// published frame (100 px = 1 m here).
+async function geometryFixture(t) {
+  const f = await fixture(t);
+  await f.db.points.bulkPut([
+    { id: "p0", x: 0.1, y: 0.5, projectId: "p", baseMapId: "b" },
+    { id: "p1", x: 0.4, y: 0.5, projectId: "p", baseMapId: "b" },
+    { id: "shared", x: 0.45, y: 0.47, projectId: "p", baseMapId: "b" },
+    { id: "p3", x: 0.45, y: 0.1, projectId: "p", baseMapId: "b" },
+  ]);
+  await f.db.annotations.update("a", {
+    points: [{ id: "p0" }, { id: "p1" }],
+  });
+  await f.db.annotations.update("b", {
+    points: [{ id: "p3" }, { id: "shared" }],
+    hiddenSegmentsPointIds: ["shared"],
+  });
+  // A third annotation shares the vertex of "b".
+  await f.db.annotations.put({
+    ...base,
+    id: "d",
+    points: [{ id: "shared" }, { id: "p0" }],
+  });
+  // The fixture's own writes are not batch writes.
+  f.history.length = 0;
+  const geometry = (id, moves) =>
+    f.run(id, { kind: "geometry", coordinateSpace: "reference_pixels", moves });
+  return { ...f, geometry };
+}
+
+test("geometry batch moves end points, forks shared vertices and restores on undo/redo", async (t) => {
+  const f = await geometryFixture(t);
+  const moves = [
+    { annotationId: "a", pointId: "p1", from: { x: 40, y: 50 }, to: { x: 46, y: 50 } },
+    { annotationId: "b", pointId: "shared", from: { x: 45, y: 47 }, to: { x: 45, y: 49.1 } },
+  ];
+  const result = await f.geometry("g", moves);
+  assert.equal(result.batchKind, "geometry");
+  assert.equal(result.movedCount, 2);
+  assert.deepEqual(result.annotationIds, ["a", "b"]);
+  assert.equal(result.movedPointIds.length, 2);
+  assert.equal(result.movedPointIds[0], "p1");
+  const forked = result.movedPointIds[1];
+  assert.notEqual(forked, "shared");
+  // Unshared point moved in place.
+  const p1 = await f.db.points.get("p1");
+  assert.ok(Math.abs(p1.x - 0.46) < 1e-9 && Math.abs(p1.y - 0.5) < 1e-9);
+  // Shared vertex: "b" references a fresh point, "d" keeps the original.
+  const rowB = await f.db.annotations.get("b");
+  assert.deepEqual(rowB.points.map((p) => p.id), ["p3", forked]);
+  assert.deepEqual(rowB.hiddenSegmentsPointIds, [forked]);
+  assert.deepEqual((await f.db.annotations.get("d")).points.map((p) => p.id), ["shared", "p0"]);
+  const original = await f.db.points.get("shared");
+  assert.ok(Math.abs(original.x - 0.45) < 1e-9 && Math.abs(original.y - 0.47) < 1e-9);
+  const moved = await f.db.points.get(forked);
+  assert.ok(Math.abs(moved.y - 0.491) < 1e-9);
+  assert.equal(moved.projectId, "p");
+  assert.deepEqual(f.history, []);
+  // Replay returns the receipt; undo and redo move the points back and forth.
+  assert.equal((await f.geometry("g", moves)).replayed, true);
+  const undone = await restoreAnnotationBatch(f.db, "g", "undo", context);
+  assert.equal(undone.batchKind, "undo");
+  assert.deepEqual(undone.movedPointIds, ["p1", forked]);
+  assert.ok(Math.abs((await f.db.points.get("p1")).x - 0.4) < 1e-9);
+  assert.ok(Math.abs((await f.db.points.get(forked)).y - 0.47) < 1e-9);
+  await assert.rejects(restoreAnnotationBatch(f.db, "g", "undo", context), /BATCH_ALREADY_RESTORED/);
+  await restoreAnnotationBatch(f.db, "g", "redo", context);
+  assert.ok(Math.abs((await f.db.points.get("p1")).x - 0.46) < 1e-9);
+  const viaJob = await f.run("undo-g", { kind: "undo", undoOf: "g" });
+  assert.equal(viaJob.movedCount, 2);
+  assert.ok(Math.abs((await f.db.points.get("p1")).x - 0.4) < 1e-9);
+});
+
+test("geometry batch refuses stale points, unknown references, rotated annotations and duplicates", async (t) => {
+  const f = await geometryFixture(t);
+  // The relay read the point 5 mm away from where it is: refused (1 mm).
+  await assert.rejects(
+    f.geometry("stale", [{ annotationId: "a", pointId: "p1", from: { x: 40.5, y: 50 }, to: { x: 46, y: 50 } }]),
+    /ANNOTATION_CHANGED: p1/
+  );
+  // Within a millimetre (relay rounding) it is accepted.
+  const ok = await f.geometry("rounded", [{ annotationId: "a", pointId: "p1", from: { x: 40.05, y: 50 }, to: { x: 46, y: 50 } }]);
+  assert.equal(ok.movedCount, 1);
+  await assert.rejects(
+    f.geometry("foreign", [{ annotationId: "a", pointId: "p3", from: { x: 45, y: 10 }, to: { x: 45, y: 12 } }]),
+    /ANNOTATION_CHANGED: a\.p3/
+  );
+  await f.db.annotations.update("b", { rotation: 12 });
+  await assert.rejects(
+    f.geometry("rotated", [{ annotationId: "b", pointId: "p3", from: { x: 45, y: 10 }, to: { x: 45, y: 12 } }]),
+    /ANNOTATION_ROTATED/
+  );
+  await assert.rejects(
+    f.geometry("twice", [
+      { annotationId: "a", pointId: "p0", from: { x: 10, y: 50 }, to: { x: 8, y: 50 } },
+      { annotationId: "a", pointId: "p0", from: { x: 10, y: 50 }, to: { x: 6, y: 50 } },
+    ]),
+    /OVERLAPPING_SELECTIONS/
+  );
+  await assert.rejects(f.geometry("empty", []), /INVALID_BATCH/);
+  await assert.rejects(
+    f.run("space", { kind: "geometry", coordinateSpace: "meters", moves: [{ annotationId: "a", pointId: "p0", from: { x: 0, y: 0 }, to: { x: 1, y: 1 } }] }),
+    /INVALID_BATCH/
+  );
+  // Nothing of the refused batches was written.
+  assert.ok(Math.abs((await f.db.points.get("p0")).x - 0.1) < 1e-9);
 });

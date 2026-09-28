@@ -382,3 +382,431 @@ test("input points are not mutated", () => {
   });
   assert.equal(JSON.stringify([A, B]), snapshot);
 });
+
+// ---------------------------------------------------------------------------
+// mergeIfPossible ("Fusionner si possible")
+// ---------------------------------------------------------------------------
+
+const T = { annotationTemplateId: "tpl" };
+const mergeOf = (annotations, rect, extra = {}) =>
+  computeJoinAnnotationEnds({
+    annotations,
+    rect,
+    meterByPx: MBP,
+    mergeIfPossible: true,
+    ...extra,
+  });
+
+test("merge: same template + width at a corner → one junction at the intersection", () => {
+  // A ends (last) at (0, 10) going up; B ends (first) at (10, 0) going left.
+  const A = wall(
+    "A",
+    [
+      [0, 100],
+      [0, 10],
+    ],
+    T
+  );
+  const B = wall(
+    "B",
+    [
+      [10, 0],
+      [100, 0],
+    ],
+    T
+  );
+  const { moves, merges, reason } = mergeOf([A, B], rectAround(0, 0));
+  assert.equal(reason, undefined);
+  assert.equal(moves.length, 0);
+  assert.equal(merges.length, 1);
+  const m = merges[0];
+  near(m.junction, 0, 0);
+  // Tie on point count → e1 (A) survives; its end is the LAST vertex.
+  assert.equal(m.keepId, "A");
+  assert.equal(m.keepEndPointId, "A_1");
+  assert.equal(m.dropId, "B");
+  assert.equal(m.dropEndPointId, "B_0");
+  assert.equal(m.attachAtStart, false);
+  // B's end is its FIRST vertex and we append → no reversal.
+  assert.equal(m.reverseDropped, false);
+});
+
+test("merge: chaining flags for the 4 FIRST/LAST combinations", () => {
+  const cases = [
+    // [A pts, B pts, attachAtStart, reverseDropped]
+    [
+      [
+        [0, 100],
+        [0, 10],
+      ],
+      [
+        [10, 0],
+        [100, 0],
+      ],
+      false,
+      false,
+    ],
+    [
+      [
+        [0, 100],
+        [0, 10],
+      ],
+      [
+        [100, 0],
+        [10, 0],
+      ],
+      false,
+      true,
+    ],
+    [
+      [
+        [0, 10],
+        [0, 100],
+      ],
+      [
+        [10, 0],
+        [100, 0],
+      ],
+      true,
+      true,
+    ],
+    [
+      [
+        [0, 10],
+        [0, 100],
+      ],
+      [
+        [100, 0],
+        [10, 0],
+      ],
+      true,
+      false,
+    ],
+  ];
+  for (const [aPts, bPts, attachAtStart, reverseDropped] of cases) {
+    const { merges } = mergeOf(
+      [wall("A", aPts, T), wall("B", bPts, T)],
+      rectAround(0, 0)
+    );
+    assert.equal(merges.length, 1);
+    assert.equal(merges[0].keepId, "A");
+    assert.equal(merges[0].attachAtStart, attachAtStart);
+    assert.equal(merges[0].reverseDropped, reverseDropped);
+    near(merges[0].junction, 0, 0);
+  }
+});
+
+test("merge: the wall with more points survives", () => {
+  const A = wall(
+    "A",
+    [
+      [0, 100],
+      [0, 10],
+    ],
+    T
+  );
+  const B = wall(
+    "B",
+    [
+      [10, 0],
+      [100, 0],
+      [100, 50],
+    ],
+    T
+  );
+  const { merges } = mergeOf([A, B], rectAround(0, 0));
+  assert.equal(merges.length, 1);
+  assert.equal(merges[0].keepId, "B");
+  assert.equal(merges[0].dropId, "A");
+  assert.equal(merges[0].attachAtStart, true);
+  // A's end is its LAST vertex and we prepend → no reversal.
+  assert.equal(merges[0].reverseDropped, false);
+});
+
+test("merge: different width or template → classic corner join", () => {
+  const A = wall(
+    "A",
+    [
+      [0, 100],
+      [0, 10],
+    ],
+    T
+  );
+  const B30 = wall(
+    "B",
+    [
+      [10, 0],
+      [100, 0],
+    ],
+    { ...T, strokeWidth: 30 }
+  );
+  const r1 = mergeOf([A, B30], rectAround(0, 0));
+  assert.equal(r1.merges.length, 0);
+  assert.equal(r1.moves.length, 2);
+
+  const B2 = wall(
+    "B",
+    [
+      [10, 0],
+      [100, 0],
+    ],
+    { annotationTemplateId: "other" }
+  );
+  const r2 = mergeOf([A, B2], rectAround(0, 0));
+  assert.equal(r2.merges.length, 0);
+  assert.equal(r2.moves.length, 2);
+
+  // No template on one side → no merge either.
+  const B3 = wall("B", [
+    [10, 0],
+    [100, 0],
+  ]);
+  const r3 = mergeOf([A, B3], rectAround(0, 0));
+  assert.equal(r3.merges.length, 0);
+  assert.equal(r3.moves.length, 2);
+
+  // Different types (POLYLINE vs STRIP) never merge.
+  const S = wall(
+    "S",
+    [
+      [10, 0],
+      [100, 0],
+    ],
+    { ...T, type: "STRIP" }
+  );
+  const r4 = mergeOf([A, S], rectAround(0, 0));
+  assert.equal(r4.merges.length, 0);
+});
+
+test("merge: mergeIfPossible=false keeps the classic behaviour", () => {
+  const A = wall(
+    "A",
+    [
+      [0, 100],
+      [0, 10],
+    ],
+    T
+  );
+  const B = wall(
+    "B",
+    [
+      [10, 0],
+      [100, 0],
+    ],
+    T
+  );
+  const off = computeJoinAnnotationEnds({
+    annotations: [A, B],
+    rect: rectAround(0, 0),
+    meterByPx: MBP,
+  });
+  assert.equal(off.merges.length, 0);
+  assert.equal(off.moves.length, 2);
+});
+
+test("merge: parallel collinear ends (≤ 1 cm) meet at their midpoint", () => {
+  const A = wall(
+    "A",
+    [
+      [-100, 0],
+      [-10, 0],
+    ],
+    T
+  );
+  const B = wall(
+    "B",
+    [
+      [10, 0.5],
+      [100, 0.5],
+    ],
+    T
+  );
+  const { merges, moves } = mergeOf([A, B], rectAround(0, 0));
+  assert.equal(moves.length, 0);
+  assert.equal(merges.length, 1);
+  near(merges[0].junction, 0, 0, 1e-6);
+});
+
+test("merge: parallel ends offset by 5 cm → classic midpoint bridge", () => {
+  const A = wall(
+    "A",
+    [
+      [-100, 0],
+      [-10, 0],
+    ],
+    T
+  );
+  const B = wall(
+    "B",
+    [
+      [10, 5],
+      [100, 5],
+    ],
+    T
+  );
+  const { merges, moves } = mergeOf([A, B], rectAround(0, 0));
+  assert.equal(merges.length, 0);
+  assert.equal(moves.length, 2);
+  const m = byPoint(moves);
+  near(m.A_1, 0, 0);
+  near(m.B_0, 0, 5);
+});
+
+test("merge: parallel ends pointing the same way (overlap) do not merge", () => {
+  // Both ends point to +x: A's last end and B's first end (B runs to -x).
+  const A = wall(
+    "A",
+    [
+      [-100, 0],
+      [-10, 0],
+    ],
+    T
+  );
+  const B = wall(
+    "B",
+    [
+      [10, 0],
+      [-100, 0],
+    ],
+    T
+  );
+  const { merges } = mergeOf([A, B], rectAround(0, 0));
+  assert.equal(merges.length, 0);
+});
+
+test("merge: STRIP band side must match after chaining", () => {
+  const S = { ...T, type: "STRIP" };
+  // Appended without reversal: orientations must be equal.
+  const A = wall(
+    "A",
+    [
+      [0, 100],
+      [0, 10],
+    ],
+    { ...S, stripOrientation: 1 }
+  );
+  const Bsame = wall(
+    "B",
+    [
+      [10, 0],
+      [100, 0],
+    ],
+    { ...S, stripOrientation: 1 }
+  );
+  const Bopp = wall(
+    "B",
+    [
+      [10, 0],
+      [100, 0],
+    ],
+    { ...S, stripOrientation: -1 }
+  );
+  assert.equal(mergeOf([A, Bsame], rectAround(0, 0)).merges.length, 1);
+  assert.equal(mergeOf([A, Bopp], rectAround(0, 0)).merges.length, 0);
+  // Appended WITH reversal (B's end is its last vertex): the reversed path
+  // flips the band side, so opposite orientations are the compatible ones.
+  const Brev = wall(
+    "B",
+    [
+      [100, 0],
+      [10, 0],
+    ],
+    { ...S, stripOrientation: -1 }
+  );
+  const BrevSame = wall(
+    "B",
+    [
+      [100, 0],
+      [10, 0],
+    ],
+    { ...S, stripOrientation: 1 }
+  );
+  const r = mergeOf([A, Brev], rectAround(0, 0));
+  assert.equal(r.merges.length, 1);
+  assert.equal(r.merges[0].reverseDropped, true);
+  assert.equal(mergeOf([A, BrevSame], rectAround(0, 0)).merges.length, 0);
+});
+
+test("merge: intersection behind the neighbour vertex → no merge", () => {
+  // A's end segment is 10 px long (end at (0, 10) pointing up); B's line
+  // crosses A's line at (0, 30), i.e. 20 px behind A's end — past A's
+  // neighbour vertex. Only the two ends are inside the rectangle.
+  const A = wall(
+    "A",
+    [
+      [0, 20],
+      [0, 10],
+    ],
+    T
+  );
+  const B = wall(
+    "B",
+    [
+      [20, -6],
+      [10, 12],
+    ],
+    T
+  );
+  const { merges, moves } = mergeOf([A, B], {
+    x: -5,
+    y: 5,
+    width: 20,
+    height: 10,
+  });
+  assert.equal(merges.length, 0);
+  assert.equal(moves.length, 2);
+});
+
+test("merge: both ends of the same wall never merge", () => {
+  const A = wall(
+    "A",
+    [
+      [10, 0],
+      [100, 0],
+      [100, 100],
+      [0, 100],
+      [0, 10],
+    ],
+    T
+  );
+  const { merges, moves } = mergeOf([A], rectAround(0, 0));
+  assert.equal(merges.length, 0);
+  assert.equal(moves.length, 2);
+});
+
+test("merge: merged ends are consumed, leftover end T-joins the survivor", () => {
+  const A = wall(
+    "A",
+    [
+      [0, 100],
+      [0, 10],
+    ],
+    T
+  );
+  const B = wall(
+    "B",
+    [
+      [10, 0],
+      [100, 0],
+    ],
+    T
+  );
+  // C ends near the junction too, but far enough to be the leftover.
+  const C = wall(
+    "C",
+    [
+      [40, -100],
+      [40, -25],
+    ],
+    T
+  );
+  const { merges, moves } = mergeOf([A, B, C], {
+    x: -30,
+    y: -30,
+    width: 80,
+    height: 60,
+  });
+  assert.equal(merges.length, 1);
+  assert.equal(moves.length, 1);
+  assert.equal(moves[0].annotationId, "C");
+});

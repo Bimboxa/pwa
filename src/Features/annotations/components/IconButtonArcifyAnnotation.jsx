@@ -4,8 +4,7 @@ import { clearSelection } from "Features/selection/selectionSlice";
 
 import useArcifyAnnotation from "../hooks/useArcifyAnnotation";
 
-import { IconButton, Tooltip } from "@mui/material";
-
+import ToolbarToolButton from "./ToolbarToolButton";
 import IconCurvature from "Features/icons/IconCurvature";
 
 export default function IconButtonArcifyAnnotation({
@@ -38,20 +37,11 @@ export default function IconButtonArcifyAnnotation({
   // render
 
   return (
-    <Tooltip title={titleS}>
-      <IconButton
-        size="small"
-        onClick={handleClick}
-        sx={{
-          color: "text.disabled",
-          "&:hover": {
-            color: accentColor,
-            bgcolor: accentColor + "18",
-          },
-        }}
-      >
-        <IconCurvature fontSize="small" />
-      </IconButton>
-    </Tooltip>
+    <ToolbarToolButton
+      icon={<IconCurvature fontSize="small" />}
+      label={titleS}
+      onClick={handleClick}
+      accentColor={accentColor}
+    />
   );
 }

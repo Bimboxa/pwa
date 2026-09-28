@@ -7,6 +7,7 @@ const PREPARATION = new Set([
   "uploading_pdf",
   "connecting",
   "reading_pdf_vectors",
+  "analyzing_geometry",
   "preparing_image",
   "uploading_image",
   "preparing_request",

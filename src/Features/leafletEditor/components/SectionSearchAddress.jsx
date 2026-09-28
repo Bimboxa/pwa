@@ -9,6 +9,11 @@ import {
 import LocationOnIcon from "@mui/icons-material/LocationOn";
 import { debounce } from "@mui/material/utils";
 
+// Géoplateforme geocoding API (BAN-compatible). The historical
+// api-adresse.data.gouv.fr endpoint was decommissioned in January 2026 and
+// only survives as a redirect to this URL.
+const SEARCH_URL = "https://data.geopf.fr/geocodage/search/";
+
 export default function SectionSearchAddress({ onLatLongChange }) {
   const [inputValue, setInputValue] = useState("");
   const [options, setOptions] = useState([]);
@@ -19,9 +24,8 @@ export default function SectionSearchAddress({ onLatLongChange }) {
   const fetchAddress = useMemo(
     () =>
       debounce((request, callback) => {
-        fetch(
-          `https://api-adresse.data.gouv.fr/search/?q=${request.input}&limit=5`
-        )
+        const params = new URLSearchParams({ q: request.input, limit: "5" });
+        fetch(`${SEARCH_URL}?${params}`)
           .then((response) => response.json())
           .then((data) => {
             // Transformation du GeoJSON en format utilisable par l'Autocomplete

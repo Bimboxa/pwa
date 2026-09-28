@@ -13,7 +13,7 @@ import {
 
 const MIN_QUERY_LENGTH = 3;
 const SEARCH_DELAY_MS = 350;
-const SEARCH_URL = "https://api-adresse.data.gouv.fr/search/";
+const SEARCH_URL = "https://data.geopf.fr/geocodage/search/";
 
 export default function SectionSearchAddress({ onLatLongChange }) {
   const [query, setQuery] = useState("");

@@ -93,6 +93,7 @@ import createInnerPointService from 'Features/points/services/createInnerPointSe
 import Box from '@mui/material/Box';
 import MapEditorViewport from 'Features/mapEditorGeneric/components/MapEditorViewport';
 import DrawingLayer from 'Features/mapEditorGeneric/components/DrawingLayer';
+import ChatRepairZoneLayer from 'Features/mapEditorGeneric/components/ChatRepairZoneLayer';
 import PasteAnnotationPreviewLayer from 'Features/mapEditorGeneric/components/PasteAnnotationPreviewLayer';
 import BrushDrawingLayer from 'Features/mapEditorGeneric/components/BrushDrawingLayer';
 import ScreenCursorV2 from 'Features/mapEditorGeneric/components/ScreenCursorV2';
@@ -432,6 +433,7 @@ const InteractionLayer = forwardRef(({
   onSplitPolylineReset,
   onSplitPolylineClickPoint,
   onJoinAnnotationsRect,
+  onChatRepairRect,
   onProjectionSnapInsert,
   snappingEnabled = true,
   // selectedNode, // Removed prop usage, use Redux
@@ -1924,7 +1926,7 @@ const InteractionLayer = forwardRef(({
   // Drawing modes whose action is a single click on existing geometry — show a
   // pointer cursor and hide the ScreenCursor crosshair.
   const POINTER_CLICK_MODES = [...SEGMENT_SELECT_MODES, "REASSIGN_TEMPLATE"];
-  const NO_SMART_DETECT_MODES = [...SEGMENT_SELECT_MODES, "SPLIT_POLYLINE", "SPLIT_POLYLINE_CLICK", "COMPLETE_ANNOTATION", "JOIN_ANNOTATIONS"];
+  const NO_SMART_DETECT_MODES = [...SEGMENT_SELECT_MODES, "SPLIT_POLYLINE", "SPLIT_POLYLINE_CLICK", "COMPLETE_ANNOTATION", "JOIN_ANNOTATIONS", "CHAT_REPAIR"];
 
   const [showSmartDetect, setShowSmartDetect] = useState(false);
   const showSmartDetectRef = useRef(showSmartDetect);
@@ -3053,6 +3055,11 @@ const InteractionLayer = forwardRef(({
   useEffect(() => {
     onJoinAnnotationsRectRef.current = onJoinAnnotationsRect;
   }, [onJoinAnnotationsRect]);
+
+  const onChatRepairRectRef = useRef(onChatRepairRect);
+  useEffect(() => {
+    onChatRepairRectRef.current = onChatRepairRect;
+  }, [onChatRepairRect]);
 
   // drawing state + commit (extracted to useDrawingCommit)
 
@@ -5470,7 +5477,7 @@ const InteractionLayer = forwardRef(({
     }
 
     // --- CASE 3: MEASURE / SEGMENT (Auto-commit after 2 points) ---
-    else if (["MEASURE", "IMAGE_SCALE", "SEGMENT", "POLYLINE_SEGMENT", "STRIP_SEGMENT", "RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", "COTE_TWO_CLICK", "LOCALIZED_REPAIR", "JOIN_ANNOTATIONS"].includes(enabledDrawingMode)) {
+    else if (["MEASURE", "IMAGE_SCALE", "SEGMENT", "POLYLINE_SEGMENT", "STRIP_SEGMENT", "RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", "COTE_TWO_CLICK", "LOCALIZED_REPAIR", "JOIN_ANNOTATIONS", "CHAT_REPAIR"].includes(enabledDrawingMode)) {
       let finalPos = toLocalCoords(worldPos);
 
       // Apply Angle Snap (Ortho) if Shift is held or ortho snap is enabled
@@ -5547,6 +5554,13 @@ const InteractionLayer = forwardRef(({
           onJoinAnnotationsRectRef.current?.(twoPointsToRect(nextPoints));
           setDrawingPoints([]);
           drawingPointsRef.current = [];
+        } else if (enabledDrawingMode === "CHAT_REPAIR") {
+          // CHAT_REPAIR: the rectangle is the zone of a chat « Réparation »;
+          // it is handed to the chat panel and the mode exits right away.
+          onChatRepairRectRef.current?.(twoPointsToRect(nextPoints));
+          setDrawingPoints([]);
+          drawingPointsRef.current = [];
+          dispatch(setEnabledDrawingMode(null));
         } else {
           // 2. Trigger Commit
           // This will call onCommitDrawingRef.current(points) inside InteractionLayer
@@ -6728,7 +6742,7 @@ const InteractionLayer = forwardRef(({
     }
 
     // E. DRAWING PREVIEW
-    if (['CLICK', 'POLYLINE_CLICK', 'POLYGON_CLICK', 'CUT_CLICK', 'SPLIT_CLICK', 'STRIP', 'ONE_CLICK', "MEASURE", "IMAGE_SCALE", "SEGMENT", "POLYLINE_SEGMENT", "STRIP_SEGMENT", "RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", "LOCALIZED_REPAIR", "JOIN_ANNOTATIONS", "CIRCLE", "POLYLINE_CIRCLE", "POLYGON_CIRCLE", "CUT_CIRCLE", "POLYLINE_CIRCLE_RADIUS", "POLYGON_CIRCLE_RADIUS", "REVOLUTION_AXIS_PLAN", "PHOTO_POSE", "ARC", "POLYLINE_ARC", "COMPLETE_ANNOTATION", "COTE_TWO_CLICK", "ADD_GUIDE_LINE", "ADD_ISO_HEIGHT_LINE", "ADD_PROFILE_LINE", "RAMP"].includes(enabledDrawingMode)) {
+    if (['CLICK', 'POLYLINE_CLICK', 'POLYGON_CLICK', 'CUT_CLICK', 'SPLIT_CLICK', 'STRIP', 'ONE_CLICK', "MEASURE", "IMAGE_SCALE", "SEGMENT", "POLYLINE_SEGMENT", "STRIP_SEGMENT", "RECTANGLE", "POLYLINE_RECTANGLE", "POLYGON_RECTANGLE", "CUT_RECTANGLE", "LOCALIZED_REPAIR", "JOIN_ANNOTATIONS", "CHAT_REPAIR", "CIRCLE", "POLYLINE_CIRCLE", "POLYGON_CIRCLE", "CUT_CIRCLE", "POLYLINE_CIRCLE_RADIUS", "POLYGON_CIRCLE_RADIUS", "REVOLUTION_AXIS_PLAN", "PHOTO_POSE", "ARC", "POLYLINE_ARC", "COMPLETE_ANNOTATION", "COTE_TWO_CLICK", "ADD_GUIDE_LINE", "ADD_ISO_HEIGHT_LINE", "ADD_PROFILE_LINE", "RAMP"].includes(enabledDrawingMode)) {
       const localPos = toLocalCoords(worldPos);
       let previewPos = localPos;
 
@@ -8132,6 +8146,7 @@ const InteractionLayer = forwardRef(({
             ref={openingPreviewLayerRef}
             containerK={targetPose.k}
           />
+          <ChatRepairZoneLayer containerK={targetPose.k} />
         </g>
 
         {(dragState?.active || dragState?.frozen) && (() => {

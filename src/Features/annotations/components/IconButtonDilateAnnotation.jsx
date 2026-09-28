@@ -6,6 +6,7 @@ import { Add as AddIcon, Remove as RemoveIcon } from "@mui/icons-material";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import offsetPolygon from "Features/geometry/utils/offsetPolygon";
 import IconDilate from "./IconDilate";
+import ToolbarToolButton from "./ToolbarToolButton";
 
 import db from "App/db/db";
 
@@ -24,8 +25,8 @@ export default function IconButtonDilateAnnotation({ annotations, accentColor })
 
   // handlers
 
-  function handleClick(event) {
-    setAnchorEl(anchorEl ? null : event.currentTarget);
+  function handleClick(event, anchor) {
+    setAnchorEl(anchorEl ? null : anchor);
   }
 
   function handleClose() {
@@ -110,22 +111,13 @@ export default function IconButtonDilateAnnotation({ annotations, accentColor })
 
   return (
     <>
-      <Tooltip title="Dilater / Contracter">
-        <IconButton
-          size="small"
-          onClick={handleClick}
-          sx={{
-            color: open ? accentColor : "text.disabled",
-            bgcolor: open ? accentColor + "18" : "transparent",
-            "&:hover": {
-              color: accentColor,
-              bgcolor: accentColor + "18",
-            },
-          }}
-        >
-          <IconDilate fontSize="small" />
-        </IconButton>
-      </Tooltip>
+      <ToolbarToolButton
+        icon={<IconDilate fontSize="small" />}
+        label="Dilater / Contracter"
+        onClick={handleClick}
+        accentColor={accentColor}
+        active={open}
+      />
 
       <Popover
         open={open}

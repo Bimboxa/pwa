@@ -1,5 +1,6 @@
-import { IconButton, Tooltip } from "@mui/material";
 import { Cached as CachedIcon } from "@mui/icons-material";
+
+import ToolbarToolButton from "./ToolbarToolButton";
 
 import useToggleAnnotationStripType from "../hooks/useToggleAnnotationStripType";
 
@@ -17,22 +18,11 @@ export default function IconButtonToggleStripType({ annotation, accentColor }) {
   };
 
   return (
-    <Tooltip title={title}>
-      <IconButton
-        size="small"
-        onClick={handleClick}
-        sx={{
-          color: "text.disabled",
-          ...(accentColor && {
-            "&:hover": {
-              color: accentColor,
-              bgcolor: accentColor + "18",
-            },
-          }),
-        }}
-      >
-        <CachedIcon fontSize="small" />
-      </IconButton>
-    </Tooltip>
+    <ToolbarToolButton
+      icon={<CachedIcon fontSize="small" />}
+      label={title}
+      onClick={handleClick}
+      accentColor={accentColor}
+    />
   );
 }

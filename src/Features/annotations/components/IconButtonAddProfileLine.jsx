@@ -2,8 +2,9 @@ import { useDispatch, useSelector } from "react-redux";
 
 import { setEnabledDrawingMode } from "Features/mapEditor/mapEditorSlice";
 
-import { IconButton, Tooltip } from "@mui/material";
 import ShowChart from "@mui/icons-material/ShowChart";
+
+import ToolbarToolButton from "./ToolbarToolButton";
 
 // Starts the ADD_PROFILE_LINE drawing mode for the selected POLYGON. The
 // InteractionLayer ADD_PROFILE_LINE branch commits the drawn polyline onto
@@ -25,21 +26,12 @@ export default function IconButtonAddProfileLine({ accentColor }) {
   }
 
   return (
-    <Tooltip title="Ajouter un profil">
-      <IconButton
-        size="small"
-        onClick={handleClick}
-        sx={{
-          color: isActive ? accentColor : "text.disabled",
-          bgcolor: isActive ? accentColor + "18" : "transparent",
-          "&:hover": {
-            color: accentColor,
-            bgcolor: accentColor + "18",
-          },
-        }}
-      >
-        <ShowChart fontSize="small" />
-      </IconButton>
-    </Tooltip>
+    <ToolbarToolButton
+      icon={<ShowChart fontSize="small" />}
+      label="Ajouter un profil"
+      onClick={handleClick}
+      accentColor={accentColor}
+      active={isActive}
+    />
   );
 }

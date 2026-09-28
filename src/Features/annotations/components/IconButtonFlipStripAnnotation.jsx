@@ -1,5 +1,6 @@
-import { IconButton, Tooltip } from "@mui/material";
 import { Flip as FlipIcon } from "@mui/icons-material";
+
+import ToolbarToolButton from "./ToolbarToolButton";
 
 import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
 
@@ -27,22 +28,11 @@ export default function IconButtonFlipStripAnnotation({
   };
 
   return (
-    <Tooltip title={title}>
-      <IconButton
-        size="small"
-        onClick={handleToggleFlip}
-        sx={{
-          color: "text.disabled",
-          ...(accentColor && {
-            "&:hover": {
-              color: accentColor,
-              bgcolor: accentColor + "18",
-            },
-          }),
-        }}
-      >
-        <FlipIcon fontSize="small" />
-      </IconButton>
-    </Tooltip>
+    <ToolbarToolButton
+      icon={<FlipIcon fontSize="small" />}
+      label={title}
+      onClick={handleToggleFlip}
+      accentColor={accentColor}
+    />
   );
 }

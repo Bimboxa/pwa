@@ -14,6 +14,7 @@ import {
 import { Box, Typography, IconButton, List, Tooltip } from "@mui/material";
 import LayersIcon from "@mui/icons-material/Layers";
 import Add from "@mui/icons-material/Add";
+import BugReportIcon from "@mui/icons-material/BugReport";
 
 import db from "App/db/db";
 import useLayers from "../hooks/useLayers";
@@ -22,6 +23,7 @@ import useDndSensors from "App/hooks/useDndSensors";
 import useMoveLayer from "../hooks/useMoveLayer";
 import LayerRow from "./LayerRow";
 import DialogCreateLayer from "./DialogCreateLayer";
+import stringifyAnnotationData from "Features/annotations/utils/stringifyAnnotationData";
 
 export default function SectionLayers({ baseMapId }) {
   const dispatch = useDispatch();
@@ -31,7 +33,10 @@ export default function SectionLayers({ baseMapId }) {
   // data
 
   const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
-  const layers = useLayers({ filterByBaseMapId: baseMapId, filterByScopeId: selectedScopeId });
+  const layers = useLayers({
+    filterByBaseMapId: baseMapId,
+    filterByScopeId: selectedScopeId,
+  });
   const activeLayerId = useSelector((s) => s.layers.activeLayerId);
   const annotationsUpdatedAt = useSelector(
     (s) => s.annotations.annotationsUpdatedAt
@@ -43,70 +48,73 @@ export default function SectionLayers({ baseMapId }) {
   // applied — each row shows the size of its own layer regardless of toggle.
   const hiddenListingsIds = useSelector((s) => s.listings.hiddenListingsIds);
 
-  // annotation counts per layer (aligned with what the map actually draws)
-  const countByLayerId = useLiveQuery(
-    async () => {
-      if (!baseMapId) return {};
+  // annotations grouped per layer (aligned with what the map actually draws).
+  // The raw db rows are kept (not only counts) so the debug button can copy
+  // them to the clipboard.
+  const annotationsByLayerId = useLiveQuery(async () => {
+    if (!baseMapId) return {};
 
-      // Pre-template revolution helpers bypass the listing/scope visibility
-      // filters, exactly like in useAnnotationsV2. Template-linked ones count
-      // like normal listing annotations.
-      const isRevolutionHelper = (a) => isLegacyStyleRevolutionHelper(a);
+    // Pre-template revolution helpers bypass the listing/scope visibility
+    // filters, exactly like in useAnnotationsV2. Template-linked ones count
+    // like normal listing annotations.
+    const isRevolutionHelper = (a) => isLegacyStyleRevolutionHelper(a);
 
-      const annotations = await db.annotations
-        .where("baseMapId")
-        .equals(baseMapId)
-        .toArray();
-      let filtered = annotations.filter((a) => !a.deletedAt);
+    const annotations = await db.annotations
+      .where("baseMapId")
+      .equals(baseMapId)
+      .toArray();
+    let filtered = annotations.filter((a) => !a.deletedAt);
 
-      // Resolve the listings referenced by these annotations to know which are
-      // isForBaseMaps and which belong to the current scope.
-      const listingIds = [
-        ...new Set(filtered.map((a) => a.listingId).filter(Boolean)),
-      ];
-      const listings = listingIds.length
-        ? await db.listings.where("id").anyOf(listingIds).toArray()
-        : [];
-      const listingsMap = new Map(listings.map((l) => [l.id, l]));
-      const forBaseMapsListingIds = new Set(
-        listings.filter((l) => l.isForBaseMaps).map((l) => l.id)
-      );
+    // Resolve the listings referenced by these annotations to know which are
+    // isForBaseMaps and which belong to the current scope.
+    const listingIds = [
+      ...new Set(filtered.map((a) => a.listingId).filter(Boolean)),
+    ];
+    const listings = listingIds.length
+      ? await db.listings.where("id").anyOf(listingIds).toArray()
+      : [];
+    const listingsMap = new Map(listings.map((l) => [l.id, l]));
+    const forBaseMapsListingIds = new Set(
+      listings.filter((l) => l.isForBaseMaps).map((l) => l.id)
+    );
 
-      // exclude isForBaseMaps listings (MAP viewer)
+    // exclude isForBaseMaps listings (MAP viewer)
+    filtered = filtered.filter(
+      (a) => isRevolutionHelper(a) || !forBaseMapsListingIds.has(a.listingId)
+    );
+
+    // exclude hidden listings (mirrors excludeListingsIds: hiddenListingsIds)
+    if (hiddenListingsIds?.length) {
       filtered = filtered.filter(
-        (a) => isRevolutionHelper(a) || !forBaseMapsListingIds.has(a.listingId)
+        (a) => isRevolutionHelper(a) || !hiddenListingsIds.includes(a.listingId)
       );
+    }
 
-      // exclude hidden listings (mirrors excludeListingsIds: hiddenListingsIds)
-      if (hiddenListingsIds?.length) {
-        filtered = filtered.filter(
-          (a) =>
-            isRevolutionHelper(a) || !hiddenListingsIds.includes(a.listingId)
-        );
-      }
+    // scope filter: only count annotations whose listing belongs to the scope
+    if (selectedScopeId) {
+      filtered = filtered.filter(
+        (a) =>
+          isRevolutionHelper(a) ||
+          (a.listingId &&
+            listingsMap.get(a.listingId)?.scopeId === selectedScopeId)
+      );
+    }
 
-      // scope filter: only count annotations whose listing belongs to the scope
-      if (selectedScopeId) {
-        filtered = filtered.filter(
-          (a) =>
-            isRevolutionHelper(a) ||
-            (a.listingId &&
-              listingsMap.get(a.listingId)?.scopeId === selectedScopeId)
-        );
-      }
+    const byLayerId = { __no_layer__: [] };
+    filtered.forEach((a) => {
+      const key = a.layerId || "__no_layer__";
+      if (!byLayerId[key]) byLayerId[key] = [];
+      byLayerId[key].push(a);
+    });
+    return byLayerId;
+  }, [baseMapId, annotationsUpdatedAt, selectedScopeId, hiddenListingsIds]);
 
-      const counts = { __no_layer__: 0 };
-      filtered.forEach((a) => {
-        if (a.layerId) {
-          counts[a.layerId] = (counts[a.layerId] || 0) + 1;
-        } else {
-          counts.__no_layer__ += 1;
-        }
-      });
-      return counts;
-    },
-    [baseMapId, annotationsUpdatedAt, selectedScopeId, hiddenListingsIds]
-  );
+  const countByLayerId = useMemo(() => {
+    if (!annotationsByLayerId) return null;
+    return Object.fromEntries(
+      Object.entries(annotationsByLayerId).map(([k, v]) => [k, v.length])
+    );
+  }, [annotationsByLayerId]);
 
   // DnD sensors
 
@@ -122,7 +130,11 @@ export default function SectionLayers({ baseMapId }) {
   // effects - clear active layer when switching baseMap
 
   useEffect(() => {
-    if (activeLayerId && layers && !layers.find((l) => l.id === activeLayerId)) {
+    if (
+      activeLayerId &&
+      layers &&
+      !layers.find((l) => l.id === activeLayerId)
+    ) {
       dispatch(setActiveLayerId(null));
     }
   }, [layers, activeLayerId]);
@@ -151,10 +163,7 @@ export default function SectionLayers({ baseMapId }) {
 
   // helpers
 
-  const sortableIds = useMemo(
-    () => layers?.map((l) => l.id) ?? [],
-    [layers]
-  );
+  const sortableIds = useMemo(() => layers?.map((l) => l.id) ?? [], [layers]);
 
   // state
 
@@ -168,6 +177,19 @@ export default function SectionLayers({ baseMapId }) {
     setOpenCreateDialog(false);
   };
 
+  const handleCopyDebugData = () => {
+    const data = stringifyAnnotationData({
+      baseMapId,
+      selectedScopeId,
+      hiddenListingsIds,
+      hiddenLayerIds,
+      showAnnotationsWithoutLayer,
+      countByLayerId,
+      annotationsByLayerId,
+    });
+    navigator.clipboard.writeText(data);
+  };
+
   const handleDragEnd = (event) => {
     const { active, over } = event;
     if (!over || active.id === over.id || !layers?.length) return;
@@ -179,7 +201,8 @@ export default function SectionLayers({ baseMapId }) {
     let prev, next;
     if (oldIndex < newIndex) {
       prev = layers[newIndex]?.orderIndex ?? null;
-      next = newIndex + 1 < layers.length ? layers[newIndex + 1]?.orderIndex : null;
+      next =
+        newIndex + 1 < layers.length ? layers[newIndex + 1]?.orderIndex : null;
     } else {
       prev = newIndex > 0 ? layers[newIndex - 1]?.orderIndex : null;
       next = layers[newIndex]?.orderIndex ?? null;
@@ -222,15 +245,33 @@ export default function SectionLayers({ baseMapId }) {
             Calques
           </Typography>
         </Box>
-        <Tooltip title="Nouveau calque" arrow>
-          <IconButton
-            size="small"
-            onClick={() => setOpenCreateDialog(true)}
-            sx={{ p: 0.25, color: "panel.textMuted" }}
-          >
-            <Add sx={{ fontSize: 16 }} />
-          </IconButton>
-        </Tooltip>
+        <Box sx={{ display: "flex", alignItems: "center" }}>
+          <Tooltip title="Copy layers annotations data">
+            <IconButton
+              size="small"
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={handleCopyDebugData}
+              sx={{
+                p: 0.25,
+                flexShrink: 0,
+                color: "text.disabled",
+                opacity: 0.4,
+                "&:hover": { opacity: 1, bgcolor: "action.hover" },
+              }}
+            >
+              <BugReportIcon sx={{ fontSize: 16 }} />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Nouveau calque" arrow>
+            <IconButton
+              size="small"
+              onClick={() => setOpenCreateDialog(true)}
+              sx={{ p: 0.25, color: "panel.textMuted" }}
+            >
+              <Add sx={{ fontSize: 16 }} />
+            </IconButton>
+          </Tooltip>
+        </Box>
       </Box>
 
       {/* Layers list */}
@@ -256,10 +297,7 @@ export default function SectionLayers({ baseMapId }) {
         </DndContext>
 
         {/* "Calque 0" row — below layers */}
-        <LayerRow
-          isNoLayerRow
-          count={countByLayerId?.__no_layer__ ?? 0}
-        />
+        <LayerRow isNoLayerRow count={countByLayerId?.__no_layer__ ?? 0} />
       </List>
 
       {openCreateDialog && (

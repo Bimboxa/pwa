@@ -9,6 +9,7 @@ import {
   setAutoOffsetsOnCommit,
   setAvoidVisibleAnnotationsOnCommit,
   setDefaultOffsetOnCommit,
+  setJoinMergeIfPossible,
   setRepairMode,
 } from "Features/mapEditor/mapEditorSlice";
 import { REPAIR_MODES } from "Features/localizedRepair/constants/repairShortcuts";
@@ -146,6 +147,9 @@ export default function SectionDrawingHelperContent() {
   const defaultOffsetOnCommit = useSelector(
     (s) => s.mapEditor.defaultOffsetOnCommit
   );
+  const joinMergeIfPossible = useSelector(
+    (s) => s.mapEditor.joinMergeIfPossible
+  );
   const isSegmentSelectMode = SEGMENT_SELECT_MODES.includes(enabledDrawingMode);
   const showSmartDetectCard =
     SMART_DETECT_CAPABLE_MODES.includes(enabledDrawingMode);
@@ -164,9 +168,12 @@ export default function SectionDrawingHelperContent() {
     !isThreedToggledEditor &&
     !isSegmentSelectMode &&
     Boolean(enabledDrawingMode) &&
-    !["REASSIGN_TEMPLATE", "LOCALIZED_REPAIR", "JOIN_ANNOTATIONS"].includes(
-      enabledDrawingMode
-    );
+    ![
+      "REASSIGN_TEMPLATE",
+      "LOCALIZED_REPAIR",
+      "JOIN_ANNOTATIONS",
+      "CHAT_REPAIR",
+    ].includes(enabledDrawingMode);
 
   // Kept for future use (e.g. to conditionally show helper UI per target).
   // Referenced here so the helper stays imported by the component.
@@ -184,7 +191,8 @@ export default function SectionDrawingHelperContent() {
         !isSegmentSelectMode &&
         enabledDrawingMode !== "REASSIGN_TEMPLATE" &&
         enabledDrawingMode !== "LOCALIZED_REPAIR" &&
-        enabledDrawingMode !== "JOIN_ANNOTATIONS" && <CardLoupe />}
+        enabledDrawingMode !== "JOIN_ANNOTATIONS" &&
+        enabledDrawingMode !== "CHAT_REPAIR" && <CardLoupe />}
       {isThreedToggledEditor && (
         <Box
           sx={{
@@ -264,6 +272,45 @@ export default function SectionDrawingHelperContent() {
           }}
         >
           {"Dessinez un rectangle autour des extrémités à raccorder"}
+        </Box>
+      )}
+      {enabledDrawingMode === "JOIN_ANNOTATIONS" && (
+        <Paper
+          elevation={0}
+          sx={{
+            px: 1,
+            py: 0.5,
+            bgcolor: "background.default",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 1,
+          }}
+        >
+          <Typography variant="caption" color="text.secondary">
+            Fusionner si possible
+          </Typography>
+          <Switch
+            size="small"
+            checked={Boolean(joinMergeIfPossible)}
+            onChange={(e) => dispatch(setJoinMergeIfPossible(e.target.checked))}
+          />
+        </Paper>
+      )}
+      {enabledDrawingMode === "CHAT_REPAIR" && (
+        <Box
+          sx={{
+            px: 1.5,
+            py: 1.5,
+            borderRadius: 1,
+            bgcolor: "primary.main",
+            color: "primary.contrastText",
+            fontSize: "0.875rem",
+            fontWeight: 600,
+            textAlign: "center",
+          }}
+        >
+          {"Dessinez un rectangle autour de la zone à réparer (2 clics)"}
         </Box>
       )}
       {showSmartDetectCard && <CardSmartDetect />}

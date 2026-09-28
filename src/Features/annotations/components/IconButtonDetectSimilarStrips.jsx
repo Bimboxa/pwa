@@ -10,11 +10,11 @@ import {
   Checkbox,
   CircularProgress,
   FormControlLabel,
-  IconButton,
   Popover,
-  Tooltip,
 } from "@mui/material";
 import { AutoFixHigh as MagicIcon } from "@mui/icons-material";
+
+import ToolbarToolButton from "./ToolbarToolButton";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
@@ -78,8 +78,8 @@ export default function IconButtonDetectSimilarStrips({
 
   // handlers
 
-  function handleIconClick(event) {
-    setAnchorEl(anchorEl ? null : event.currentTarget);
+  function handleIconClick(event, anchor) {
+    setAnchorEl(anchorEl ? null : anchor);
   }
 
   function handleClose() {
@@ -200,29 +200,20 @@ export default function IconButtonDetectSimilarStrips({
 
   return (
     <>
-      <Tooltip title="Détection similaire">
-        <IconButton
-          size="small"
-          onClick={handleIconClick}
-          disabled={loading}
-          sx={{
-            color: open ? accentColor : "text.disabled",
-            bgcolor: open ? accentColor + "18" : "transparent",
-            ...(accentColor && {
-              "&:hover": {
-                color: accentColor,
-                bgcolor: accentColor + "18",
-              },
-            }),
-          }}
-        >
-          {loading ? (
+      <ToolbarToolButton
+        icon={
+          loading ? (
             <CircularProgress size={18} thickness={5} />
           ) : (
             <MagicIcon fontSize="small" />
-          )}
-        </IconButton>
-      </Tooltip>
+          )
+        }
+        label="Détection similaire"
+        onClick={handleIconClick}
+        accentColor={accentColor}
+        active={open}
+        disabled={loading}
+      />
 
       <Popover
         open={open}

@@ -382,6 +382,12 @@ export default async function pasteAnnotationService({
         x: target.x / width,
         y: target.y / height,
       };
+      // The box turns with the group (its own rotation plus the paste one).
+      const rotationDeg = Number(transform?.rotationDeg) || 0;
+      if (rotationDeg || clonedAnnotation.rotation) {
+        clonedAnnotation.rotation =
+          (Number(clonedAnnotation.rotation) || 0) + rotationDeg;
+      }
     } else {
       continue;
     }

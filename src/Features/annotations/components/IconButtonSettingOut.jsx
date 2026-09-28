@@ -15,12 +15,12 @@ import {
   CircularProgress,
   Divider,
   FormControlLabel,
-  IconButton,
   InputBase,
   Popover,
-  Tooltip,
   Typography,
 } from "@mui/material";
+
+import ToolbarToolButton from "./ToolbarToolButton";
 
 import SelectorAnnotationTemplateVariantDense from "./SelectorAnnotationTemplateVariantDense";
 import IconSettingOut from "./IconSettingOut";
@@ -65,8 +65,8 @@ export default function IconButtonSettingOut({ annotations, accentColor }) {
 
   // handlers
 
-  function handleOpen(event) {
-    setAnchorEl(anchorEl ? null : event.currentTarget);
+  function handleOpen(event, anchor) {
+    setAnchorEl(anchorEl ? null : anchor);
   }
 
   function handleClose() {
@@ -111,22 +111,13 @@ export default function IconButtonSettingOut({ annotations, accentColor }) {
 
   return (
     <>
-      <Tooltip title="Calepiner">
-        <IconButton
-          size="small"
-          onClick={handleOpen}
-          sx={{
-            color: open ? accentColor : "text.disabled",
-            bgcolor: open ? accentColor + "18" : "transparent",
-            "&:hover": {
-              color: accentColor,
-              bgcolor: accentColor + "18",
-            },
-          }}
-        >
-          <IconSettingOut fontSize="small" />
-        </IconButton>
-      </Tooltip>
+      <ToolbarToolButton
+        icon={<IconSettingOut fontSize="small" />}
+        label="Calepiner"
+        onClick={handleOpen}
+        accentColor={accentColor}
+        active={open}
+      />
 
       <Popover
         open={open}
@@ -137,6 +128,9 @@ export default function IconButtonSettingOut({ annotations, accentColor }) {
         slotProps={{ paper: { sx: { borderRadius: 2, mt: 0.5 } } }}
       >
         <Box
+          onKeyDown={(e) => {
+            if (e.key !== "Escape") e.stopPropagation();
+          }}
           sx={{
             display: "flex",
             flexDirection: "column",

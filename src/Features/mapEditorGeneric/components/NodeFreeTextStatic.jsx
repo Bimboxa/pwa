@@ -85,6 +85,9 @@ export default function NodeFreeTextStatic({
     hasPadding = true,
     hasConnector = false,
     pageFormat = "A4",
+    // Degrees, clockwise on screen, around the box centre (0 = reading to
+    // the right): texts copied from a PDF keep their orientation.
+    rotation = 0,
     imageLongSidePx,
     imageSize,
     hidden,
@@ -541,7 +544,11 @@ export default function NodeFreeTextStatic({
       {/* C. BOÎTE DE TEXTE (map-fixed : aucun contre-zoom). The inner group
           scales page pt → image px, so everything inside the foreignObject
           is authored in page points (fontSize, padding, width). */}
-      <g transform={`translate(${boxPx.x}, ${boxPx.y})`}>
+      <g
+        transform={`translate(${boxPx.x}, ${boxPx.y})${
+          rotation ? ` rotate(${rotation})` : ""
+        }`}
+      >
         <g transform={`scale(${pageScale})`}>
           <foreignObject
             x={-boxSize.w / 2}

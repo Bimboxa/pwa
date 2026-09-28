@@ -15,15 +15,14 @@ import {
   CircularProgress,
   Divider,
   FormControlLabel,
-  IconButton,
   Menu,
   Switch,
-  Tooltip,
   Typography,
 } from "@mui/material";
 
 import SelectorAnnotationTemplateVariantDense from "./SelectorAnnotationTemplateVariantDense";
 import IconVectorisation from "Features/icons/IconVectorisation";
+import ToolbarToolButton from "./ToolbarToolButton";
 
 export default function IconButtonVectorisation({ annotations, accentColor }) {
   const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
@@ -73,7 +72,7 @@ export default function IconButtonVectorisation({ annotations, accentColor }) {
 
   // handlers
 
-  function handleOpen(event) { setAnchorEl(event.currentTarget); }
+  function handleOpen(event, anchor) { setAnchorEl(anchor); }
   function handleClose() { setAnchorEl(null); }
 
   async function handleTemplateChange(annotationTemplateId) {
@@ -107,21 +106,14 @@ export default function IconButtonVectorisation({ annotations, accentColor }) {
 
   return (
     <>
-      <Tooltip title={disabled ? "Échelle requise pour la vectorisation" : "Vectoriser les murs"}>
-        <span>
-          <IconButton
-            size="small"
-            onClick={handleOpen}
-            disabled={disabled || loading}
-            sx={{
-              color: "text.disabled",
-              "&:hover": { color: accentColor, bgcolor: accentColor + "18" },
-            }}
-          >
-            {loading ? <CircularProgress size={18} /> : <IconVectorisation fontSize="small" />}
-          </IconButton>
-        </span>
-      </Tooltip>
+      <ToolbarToolButton
+        icon={loading ? <CircularProgress size={18} /> : <IconVectorisation fontSize="small" />}
+        label="Vectoriser les murs"
+        tooltip={disabled ? "Échelle requise pour la vectorisation" : undefined}
+        onClick={handleOpen}
+        accentColor={accentColor}
+        disabled={disabled || loading}
+      />
 
       <Menu
         open={open}

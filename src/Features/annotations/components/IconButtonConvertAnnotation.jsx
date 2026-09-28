@@ -15,12 +15,10 @@ import {
   Checkbox,
   Divider,
   FormControlLabel,
-  IconButton,
   Menu,
   MenuItem,
   ListItemIcon,
   ListItemText,
-  Tooltip,
   Typography,
 } from "@mui/material";
 import Check from "@mui/icons-material/Check";
@@ -29,6 +27,7 @@ import ArrowDropDownIcon from "@mui/icons-material/ArrowDropDown";
 
 import SelectorAnnotationTemplateVariantDense from "./SelectorAnnotationTemplateVariantDense";
 import IconConvertAnnotation from "Features/icons/IconConvertAnnotation";
+import ToolbarToolButton from "./ToolbarToolButton";
 
 export default function IconButtonConvertAnnotation({
   annotations,
@@ -74,8 +73,8 @@ export default function IconButtonConvertAnnotation({
 
   // handlers
 
-  function handleOpen(event) {
-    setAnchorEl(event.currentTarget);
+  function handleOpen(event, anchor) {
+    setAnchorEl(anchor);
   }
 
   function handleClose() {
@@ -115,21 +114,12 @@ export default function IconButtonConvertAnnotation({
 
   return (
     <>
-      <Tooltip title="Transformer">
-        <IconButton
-          size="small"
-          onClick={handleOpen}
-          sx={{
-            color: "text.disabled",
-            "&:hover": {
-              color: accentColor,
-              bgcolor: accentColor + "18",
-            },
-          }}
-        >
-          <IconConvertAnnotation fontSize="small" />
-        </IconButton>
-      </Tooltip>
+      <ToolbarToolButton
+        icon={<IconConvertAnnotation fontSize="small" />}
+        label="Transformer"
+        onClick={handleOpen}
+        accentColor={accentColor}
+      />
 
       <Menu
         open={open}

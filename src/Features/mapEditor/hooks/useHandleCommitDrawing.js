@@ -1,4 +1,3 @@
-import { completeAiTaskExample } from "Features/aiTasks/services/aiTaskExampleCapture";
 import { useRef } from "react";
 
 import { nanoid } from "@reduxjs/toolkit";
@@ -8,7 +7,6 @@ import { useSelector, useDispatch } from "react-redux";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useCreateAnnotation from "Features/annotations/hooks/useCreateAnnotation";
 import useUpdateAnnotation from "Features/annotations/hooks/useUpdateAnnotation";
-import useResetNewAnnotation from "Features/annotations/hooks/useResetNewAnnotation";
 
 import { setNewAnnotation, triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice";
 import { setSelectedItem } from "Features/selection/selectionSlice";
@@ -117,7 +115,6 @@ export default function useHandleCommitDrawing({ annotations } = {}) {
     const createAnnotation = useCreateAnnotation();
 
     const baseMap = useMainBaseMap();
-    const resetNewAnnotation = useResetNewAnnotation();
     const activeLayerId = useSelector(s => s.layers?.activeLayerId);
     const { value: selectedListing } = useSelectedListing();
 
@@ -163,24 +160,6 @@ export default function useHandleCommitDrawing({ annotations } = {}) {
             }
             rawPoints = rectPoints;
             drawRectangle = true;
-        }
-
-        // AIT examples are transient geometry: intercept before any write,
-        // template creation, merge, or scope-dependent drawing operation.
-        if (newAnnotation?.aiTaskExampleId) {
-            completeAiTaskExample({ id: newAnnotation.aiTaskExampleId, baseMapId,
-                points: rawPoints, size: baseMap?.getImageSize?.(), closeLine, type: newAnnotation.type,
-                previewStyle: {
-                    strokeWidth: newAnnotation.strokeWidth,
-                    strokeWidthUnit: newAnnotation.strokeWidthUnit,
-                    stripOrientation: newAnnotation.stripOrientation,
-                    strokeColor: newAnnotation.strokeColor,
-                    strokeOpacity: newAnnotation.strokeOpacity,
-                    meterByPx: baseMap?.getMeterByPx?.(),
-                } });
-            dispatch(setEnabledDrawingMode(null));
-            resetNewAnnotation();
-            return;
         }
 
         // No scope selected: nothing to attach the annotation to. Bail out

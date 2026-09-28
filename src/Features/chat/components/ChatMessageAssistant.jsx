@@ -39,6 +39,7 @@ import { CHAT_TOOL_LABELS, formatChatElapsed } from "../utils/chatProgress";
 const UNDOABLE = new Set([
   "draw_annotations",
   "update_annotations_batch",
+  "move_annotation_points",
   "create_annotation_templates",
   "create_annotation_listing",
 ]);

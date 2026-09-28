@@ -14,6 +14,7 @@ export default function ChatAutoButton({
   send,
   disabled,
   hasVisibleTemplates,
+  hasPdfSource = false,
 }) {
   const [open, setOpen] = useState(false);
   const [currentListing, setCurrentListing] = useState(true);
@@ -21,13 +22,34 @@ export default function ChatAutoButton({
   const [description, setDescription] = useState("");
   const [aiGeometry, setAiGeometry] = useState(false);
   const [parallelTools, setParallelTools] = useState(false);
-  const valid =
-    (currentListing || autonomous) &&
-    (!currentListing || hasVisibleTemplates) &&
-    (!autonomous || Boolean(description.trim()));
+  // « Contenu du PDF » : copie fidèle du PDF source par le relais, sans
+  // modèle IA ; exclusive des autres options (elles sont ignorées).
+  const [pdfContent, setPdfContent] = useState(false);
+  const valid = pdfContent
+    ? hasPdfSource
+    : (currentListing || autonomous) &&
+      (!currentListing || hasVisibleTemplates) &&
+      (!autonomous || Boolean(description.trim()));
 
   function launch() {
     if (disabled || !valid) return;
+    if (pdfContent) {
+      setOpen(false);
+      send(
+        "Importe le contenu du PDF tel quel (vecteurs, images, textes) dans la liste courante, sans interprétation.",
+        {
+          autoDetect: {
+            currentListing: false,
+            autonomous: false,
+            description: "",
+            aiGeometry: false,
+            parallelTools: false,
+            pdfContent: true,
+          },
+        }
+      );
+      return;
+    }
     const options = {
       currentListing,
       autonomous,
@@ -94,6 +116,7 @@ export default function ChatAutoButton({
                 control={
                   <Checkbox
                     checked={currentListing}
+                    disabled={pdfContent}
                     onChange={(e) => setCurrentListing(e.target.checked)}
                   />
                 }
@@ -109,6 +132,7 @@ export default function ChatAutoButton({
                 control={
                   <Checkbox
                     checked={autonomous}
+                    disabled={pdfContent}
                     onChange={(e) => setAutonomous(e.target.checked)}
                   />
                 }
@@ -125,6 +149,7 @@ export default function ChatAutoButton({
                 control={
                   <Checkbox
                     checked={aiGeometry}
+                    disabled={pdfContent}
                     onChange={(e) => setAiGeometry(e.target.checked)}
                   />
                 }
@@ -143,6 +168,7 @@ export default function ChatAutoButton({
                 control={
                   <Checkbox
                     checked={parallelTools}
+                    disabled={pdfContent}
                     onChange={(e) => setParallelTools(e.target.checked)}
                   />
                 }
@@ -154,7 +180,30 @@ export default function ChatAutoButton({
                 au modèle, exécutés l’un après l’autre.
               </Typography>
             </Box>
-            {autonomous && (
+            <Box>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    checked={pdfContent}
+                    onChange={(e) => setPdfContent(e.target.checked)}
+                  />
+                }
+                label="Contenu du PDF (vecteurs, images, textes)"
+              />
+              <Typography variant="body2" color="text.secondary">
+                Copie fidèle du PDF source dans la liste courante, sans
+                interprétation : un modèle par style de trait, de surface,
+                d’image et de texte, dans le groupe « Import PDF ». Aucun appel
+                au modèle IA ; les autres options sont ignorées.
+              </Typography>
+            </Box>
+            {pdfContent && !hasPdfSource && (
+              <Alert severity="warning">
+                Ce fond de plan n’a pas été créé depuis une page PDF : il n’y a
+                pas de contenu PDF à copier.
+              </Alert>
+            )}
+            {!pdfContent && autonomous && (
               <TextField
                 label="Que faut-il repérer ?"
                 multiline
@@ -166,13 +215,13 @@ export default function ChatAutoButton({
                 placeholder="Exemple : repérer les portes, les fenêtres et les poteaux…"
               />
             )}
-            {currentListing && autonomous && (
+            {!pdfContent && currentListing && autonomous && (
               <Alert severity="info">
                 L’IA commence par les modèles de la liste, puis peut en créer de
                 nouveaux dans le groupe « IA ».
               </Alert>
             )}
-            {currentListing && !hasVisibleTemplates && (
+            {!pdfContent && currentListing && !hasVisibleTemplates && (
               <Alert severity="warning">
                 Cette liste ne contient aucun modèle visible. Choisissez la
                 détection autonome seule ou ajoutez des modèles.
@@ -197,7 +246,9 @@ export default function ChatAutoButton({
               disabled={disabled || !valid}
               onClick={launch}
             >
-              Lancer la détection
+              {pdfContent
+                ? "Importer le contenu du PDF"
+                : "Lancer la détection"}
             </Button>
           </Box>
         </Box>

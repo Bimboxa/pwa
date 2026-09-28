@@ -5,6 +5,7 @@ import { applyAnnotationBatch } from "../services/annotationBatchService.js";
 import { buildBaseMapContext } from "../services/publishBaseMapSnapshotService";
 import { pushUndo, forgetAnnotationBatchUndo } from "App/db/undoManager";
 import { triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice";
+import reflowOpeningsForHost from "Features/mapEditor/services/reflowOpeningsForHostService";
 import { useCallback, useEffect, useRef } from "react";
 import { useDispatch, useSelector, useStore } from "react-redux";
 
@@ -395,8 +396,28 @@ export default function useApplyLiveDetectionJob() {
         dispatch(triggerAnnotationsUpdate());
         if (result.batchKind === "undo")
           forgetAnnotationBatchUndo(full.payload.annotationBatch.undoOf);
-        if (result.batchKind === "update" && result.updatedCount) {
+        if (
+          (result.batchKind === "update" && result.updatedCount) ||
+          (result.batchKind === "geometry" && result.movedCount)
+        ) {
           pushUndo({ type: "annotation_batch", key: full.jobId });
+        }
+        // Moved wall ends (zone repair, or its undo): openings glued on a
+        // moved vertex follow their host, like a vertex drag.
+        if (result.movedPointIds?.length) {
+          const frame = full.payload.annotationBatch.frame;
+          if (frame?.refSize && frame.meterByPx > 0) {
+            try {
+              await reflowOpeningsForHost({
+                movedPointIds: result.movedPointIds,
+                projectId,
+                imageSize: frame.refSize,
+                meterByPx: frame.meterByPx,
+              });
+            } catch (e) {
+              console.error("[openings] reflow failed", e);
+            }
+          }
         }
       }
       return result;

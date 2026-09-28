@@ -1,9 +1,10 @@
 import { useState } from "react";
 
-import { Box, IconButton, Tooltip } from "@mui/material";
+import { Box } from "@mui/material";
 import AutoAwesome from "@mui/icons-material/AutoAwesome";
 
 import IconSlopeWall from "./IconSlopeWall";
+import ToolbarToolButton from "./ToolbarToolButton";
 import DialogAutoWalls from "./DialogAutoWalls";
 
 // "Parois auto": creates the vertical walls connecting the selected
@@ -19,26 +20,19 @@ export default function IconButtonAutoWalls({ accentColor }) {
 
   return (
     <>
-      <Tooltip title="Parois auto">
-        <IconButton
-          size="small"
-          onClick={() => setOpen(true)}
-          sx={{
-            color: "text.disabled",
-            "&:hover": {
-              color: accentColor,
-              bgcolor: accentColor + "18",
-            },
-          }}
-        >
+      <ToolbarToolButton
+        icon={
           <Box sx={{ position: "relative", display: "inline-flex" }}>
             <IconSlopeWall fontSize="small" />
             <AutoAwesome
               sx={{ fontSize: 9, position: "absolute", top: -3, right: -4 }}
             />
           </Box>
-        </IconButton>
-      </Tooltip>
+        }
+        label="Parois auto"
+        onClick={() => setOpen(true)}
+        accentColor={accentColor}
+      />
       {open && (
         <DialogAutoWalls
           open={open}

@@ -7,11 +7,12 @@ import {
   setSimplifyOuterContour,
 } from "Features/smartDetect/smartDetectSlice";
 
-import { Box, IconButton, Popover, Tooltip } from "@mui/material";
+import { Box, Popover } from "@mui/material";
 
 import FieldCheck from "Features/form/components/FieldCheck";
 import ButtonInPanelV2 from "Features/layout/components/ButtonInPanelV2";
 import IconSimplify from "./IconSimplify";
+import ToolbarToolButton from "./ToolbarToolButton";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import {
@@ -49,8 +50,8 @@ export default function IconButtonSimplifyAnnotation({
 
   // handlers
 
-  function handleClick(event) {
-    setAnchorEl(anchorEl ? null : event.currentTarget);
+  function handleClick(event, anchor) {
+    setAnchorEl(anchorEl ? null : anchor);
   }
 
   function handleClose() {
@@ -231,22 +232,13 @@ export default function IconButtonSimplifyAnnotation({
 
   return (
     <>
-      <Tooltip title="Simplifier la géométrie">
-        <IconButton
-          size="small"
-          onClick={handleClick}
-          sx={{
-            color: open ? accentColor : "text.disabled",
-            bgcolor: open ? accentColor + "18" : "transparent",
-            "&:hover": {
-              color: accentColor,
-              bgcolor: accentColor + "18",
-            },
-          }}
-        >
-          <IconSimplify fontSize="small" />
-        </IconButton>
-      </Tooltip>
+      <ToolbarToolButton
+        icon={<IconSimplify fontSize="small" />}
+        label="Simplifier la géométrie"
+        onClick={handleClick}
+        accentColor={accentColor}
+        active={open}
+      />
 
       <Popover
         open={open}

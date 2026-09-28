@@ -16,6 +16,14 @@
 //   - Near-parallel ends: both ends are pulled to the midpoint between them
 //     (projected on their own line).
 //
+// With `mergeIfPossible`, a pair of ends whose walls share the same template
+// (hence the same type) and the same width is MERGED instead: the two walls
+// become one polyline with a single junction vertex at the intersection of
+// the two end segments (or, for parallel ends that are collinear within
+// JOIN_MERGE_COLLINEAR_TOL_M, at their midpoint). Such pairs are returned in
+// `merges` (persisted by applyJoinAnnotationMergesService); every other pair
+// falls back to the corner rule above.
+//
 // Band model: for a wall direction d (unit) the LEFT normal is n = (-d.y,
 // d.x) — the convention of offsetPolylineAsPolygons / getStripDistancePx. A
 // POLYLINE band is centred ([-w/2, +w/2]); a STRIP band is one-sided,
@@ -27,6 +35,9 @@
 // tested with `node --test`.
 
 export const JOIN_OVERLAP_M = 0.01;
+
+// Merge rule — parallel end segments must be collinear within this distance.
+export const JOIN_MERGE_COLLINEAR_TOL_M = 0.01;
 
 // Below this |sin(angle)| two ends are treated as parallel.
 const PARALLEL_SIN_EPS = 0.05;
@@ -247,6 +258,87 @@ const joinCorner = (e1, e2, overlapPx) => {
   ];
 };
 
+// Merge rule ("Fusionner si possible"): when both ends belong to distinct
+// walls of the same template and width, return the merge record describing
+// how the two walls chain into one — or null when the pair must fall back to
+// the corner rule. `collinearTolPx` bounds the lateral offset of parallel
+// ends. The survivor (`keep`) is the wall with the most points (tie → e1) and
+// is never reversed; the absorbed wall (`drop`) is reversed when needed.
+const getMergeJunction = (e1, e2, collinearTolPx) => {
+  if (e1.wallId === e2.wallId) return null;
+  const a1 = e1.ann;
+  const a2 = e2.ann;
+  if (!a1 || !a2) return null;
+  if (a1.type !== a2.type) return null;
+  if (!a1.annotationTemplateId || !a2.annotationTemplateId) return null;
+  if (a1.annotationTemplateId !== a2.annotationTemplateId) return null;
+  if (a1.strokeWidthUnit !== a2.strokeWidthUnit) return null;
+  if (Math.abs(Number(a1.strokeWidth) - Number(a2.strokeWidth)) > 1e-6)
+    return null;
+
+  // Junction point.
+  let junction = null;
+  const sinT = Math.abs(cross(e1.dir, e2.dir));
+  if (sinT >= PARALLEL_SIN_EPS) {
+    junction = lineIntersection(e1.point, e1.dir, e2.point, e2.dir);
+    if (!junction) return null;
+    // The moved vertex must not fold back behind its neighbour.
+    for (const e of [e1, e2]) {
+      const t = dot(
+        { x: junction.x - e.point.x, y: junction.y - e.point.y },
+        e.dir
+      );
+      if (t <= -e.segmentLength) return null;
+    }
+  } else {
+    // Parallel: the ends must face each other across the gap and lie on the
+    // same line (within tolerance).
+    if (dot(e1.dir, e2.dir) >= 0) return null;
+    const off12 = Math.abs(
+      cross(e1.dir, { x: e2.point.x - e1.point.x, y: e2.point.y - e1.point.y })
+    );
+    const off21 = Math.abs(
+      cross(e2.dir, { x: e1.point.x - e2.point.x, y: e1.point.y - e2.point.y })
+    );
+    if (off12 > collinearTolPx || off21 > collinearTolPx) return null;
+    const m = {
+      x: (e1.point.x + e2.point.x) / 2,
+      y: (e1.point.y + e2.point.y) / 2,
+    };
+    junction = projectOnLine(m, e1.point, e1.dir);
+  }
+  if (!isFinitePoint(junction)) return null;
+
+  // Survivor / absorbed + chaining orientation.
+  let keep = e1;
+  let drop = e2;
+  if (e2.pointCount > e1.pointCount) {
+    keep = e2;
+    drop = e1;
+  }
+  const attachAtStart = keep.endIndex === "FIRST";
+  const reverseDropped = attachAtStart
+    ? drop.endIndex === "FIRST"
+    : drop.endIndex === "LAST";
+
+  // STRIP: the band must stay on the same side once the paths are chained.
+  if (a1.type === "STRIP") {
+    const orient = (a) => ((a.stripOrientation ?? 1) < 0 ? -1 : 1);
+    const dropSide = orient(drop.ann) * (reverseDropped ? -1 : 1);
+    if (orient(keep.ann) !== dropSide) return null;
+  }
+
+  return {
+    keepId: keep.wallId,
+    keepEndPointId: keep.pointId,
+    dropId: drop.wallId,
+    dropEndPointId: drop.pointId,
+    junction,
+    attachAtStart,
+    reverseDropped,
+  };
+};
+
 // T junction: `end` enters the host segment's band by overlapPx. Returns the
 // new end position or null when the lines are parallel.
 const joinT = (end, host, overlapPx) => {
@@ -263,13 +355,17 @@ export default function computeJoinAnnotationEnds({
   annotations,
   rect,
   meterByPx,
+  mergeIfPossible = false,
 }) {
   const skipped = [];
-  if (!(meterByPx > 0)) return { moves: [], skipped, reason: "NO_SCALE" };
+  const merges = [];
+  if (!(meterByPx > 0))
+    return { moves: [], merges, skipped, reason: "NO_SCALE" };
   if (!rect || !Array.isArray(annotations))
-    return { moves: [], skipped, reason: "NO_END" };
+    return { moves: [], merges, skipped, reason: "NO_END" };
 
   const overlapPx = JOIN_OVERLAP_M / meterByPx;
+  const collinearTolPx = JOIN_MERGE_COLLINEAR_TOL_M / meterByPx;
   const inRect = makeInRect(rect);
   const segmentCrossesRect = makeSegmentCrossesRect(rect);
 
@@ -288,7 +384,7 @@ export default function computeJoinAnnotationEnds({
       skipped.push({ annotationId: a.id, reason: "PX_WIDTH" });
       continue;
     }
-    walls.push({ id: a.id, points, band });
+    walls.push({ id: a.id, ann: a, points, band });
   }
 
   // 2. Ends inside the rectangle.
@@ -303,11 +399,15 @@ export default function computeJoinAnnotationEnds({
       if (dir)
         ends.push({
           wallId: wall.id,
+          ann: wall.ann,
           pointId: first.id,
           point: first,
           dir,
           band: mirrorBand(wall.band),
           segmentKey: `${wall.id}::0`,
+          endIndex: "FIRST",
+          segmentLength: dist(points[1], first),
+          pointCount: n,
         });
     }
     if (last.id && inRect(last)) {
@@ -315,15 +415,20 @@ export default function computeJoinAnnotationEnds({
       if (dir)
         ends.push({
           wallId: wall.id,
+          ann: wall.ann,
           pointId: last.id,
           point: last,
           dir,
           band: wall.band,
           segmentKey: `${wall.id}::${n - 2}`,
+          endIndex: "LAST",
+          segmentLength: dist(points[n - 2], last),
+          pointCount: n,
         });
     }
   }
-  if (ends.length === 0) return { moves: [], skipped, reason: "NO_END" };
+  if (ends.length === 0)
+    return { moves: [], merges, skipped, reason: "NO_END" };
 
   // 3. Greedy pairing of the closest ends (never both ends of one segment).
   const pairs = [];
@@ -340,7 +445,11 @@ export default function computeJoinAnnotationEnds({
     if (used.has(i) || used.has(j)) continue;
     used.add(i);
     used.add(j);
-    placements.push(...joinCorner(ends[i], ends[j], overlapPx));
+    const merge = mergeIfPossible
+      ? getMergeJunction(ends[i], ends[j], collinearTolPx)
+      : null;
+    if (merge) merges.push(merge);
+    else placements.push(...joinCorner(ends[i], ends[j], overlapPx));
   }
 
   // 4. Leftover ends → T junction against a crossing segment of another wall.
@@ -385,7 +494,8 @@ export default function computeJoinAnnotationEnds({
 
   return {
     moves,
+    merges,
     skipped,
-    reason: moves.length === 0 ? "NO_TARGET" : undefined,
+    reason: moves.length === 0 && merges.length === 0 ? "NO_TARGET" : undefined,
   };
 }

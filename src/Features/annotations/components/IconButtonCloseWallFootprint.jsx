@@ -1,11 +1,12 @@
 import { useState } from "react";
 
-import { Box, IconButton, Popover, TextField, Tooltip } from "@mui/material";
+import { Box, Popover, TextField } from "@mui/material";
 
 import { nanoid } from "@reduxjs/toolkit";
 
 import ButtonInPanelV2 from "Features/layout/components/ButtonInPanelV2";
 import IconCloseWallFootprint from "./IconCloseWallFootprint";
+import ToolbarToolButton from "./ToolbarToolButton";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import removeWallFootprint from "Features/geometry/utils/removeWallFootprint";
@@ -33,8 +34,8 @@ export default function IconButtonCloseWallFootprint({
 
   // handlers
 
-  function handleClick(event) {
-    setAnchorEl(anchorEl ? null : event.currentTarget);
+  function handleClick(event, anchor) {
+    setAnchorEl(anchorEl ? null : anchor);
   }
 
   function handleClose() {
@@ -103,22 +104,13 @@ export default function IconButtonCloseWallFootprint({
 
   return (
     <>
-      <Tooltip title="Retirer l'empreinte des murs">
-        <IconButton
-          size="small"
-          onClick={handleClick}
-          sx={{
-            color: open ? accentColor : "text.disabled",
-            bgcolor: open ? accentColor + "18" : "transparent",
-            "&:hover": {
-              color: accentColor,
-              bgcolor: accentColor + "18",
-            },
-          }}
-        >
-          <IconCloseWallFootprint fontSize="small" />
-        </IconButton>
-      </Tooltip>
+      <ToolbarToolButton
+        icon={<IconCloseWallFootprint fontSize="small" />}
+        label="Retirer l'empreinte des murs"
+        onClick={handleClick}
+        accentColor={accentColor}
+        active={open}
+      />
 
       <Popover
         open={open}
@@ -128,7 +120,12 @@ export default function IconButtonCloseWallFootprint({
         transformOrigin={{ vertical: "top", horizontal: "center" }}
         slotProps={{ paper: { sx: { borderRadius: 2, mt: 0.5 } } }}
       >
-        <Box sx={{ p: 1.5, display: "flex", flexDirection: "column", gap: 1 }}>
+        <Box
+          onKeyDown={(e) => {
+            if (e.key !== "Escape") e.stopPropagation();
+          }}
+          sx={{ p: 1.5, display: "flex", flexDirection: "column", gap: 1 }}
+        >
           <TextField
             type="number"
             size="small"

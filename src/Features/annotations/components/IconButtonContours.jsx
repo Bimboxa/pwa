@@ -10,18 +10,12 @@ import { resolveDrawingShape } from "../constants/drawingShapeConfig";
 import { getStripWidthPx } from "../utils/convertStripPolyline";
 import offsetControlPolyline from "Features/geometry/utils/offsetControlPolyline";
 
-import {
-  Box,
-  CircularProgress,
-  IconButton,
-  Menu,
-  Tooltip,
-  Typography,
-} from "@mui/material";
+import { Box, CircularProgress, Menu, Typography } from "@mui/material";
 
 import SelectorAnnotationTemplateVariantDense from "./SelectorAnnotationTemplateVariantDense";
 import ToggleSingleSelectorGeneric from "Features/layout/components/ToggleSingleSelectorGeneric";
 import IconContours from "Features/icons/IconContours";
+import ToolbarToolButton from "./ToolbarToolButton";
 
 export default function IconButtonContours({ annotations, accentColor }) {
   // data
@@ -86,8 +80,8 @@ export default function IconButtonContours({ annotations, accentColor }) {
 
   // handlers
 
-  function handleOpen(event) {
-    setAnchorEl(event.currentTarget);
+  function handleOpen(event, anchor) {
+    setAnchorEl(anchor);
   }
   function handleClose() {
     setAnchorEl(null);
@@ -129,27 +123,21 @@ export default function IconButtonContours({ annotations, accentColor }) {
 
   return (
     <>
-      <Tooltip title="Contours">
-        <span>
-          <IconButton
-            size="small"
-            onClick={handleOpen}
-            disabled={
-              loading || (!wallCandidates?.length && !polygonCandidates?.length)
-            }
-            sx={{
-              color: "text.disabled",
-              "&:hover": { color: accentColor, bgcolor: accentColor + "18" },
-            }}
-          >
-            {loading ? (
-              <CircularProgress size={18} />
-            ) : (
-              <IconContours fontSize="small" />
-            )}
-          </IconButton>
-        </span>
-      </Tooltip>
+      <ToolbarToolButton
+        icon={
+          loading ? (
+            <CircularProgress size={18} />
+          ) : (
+            <IconContours fontSize="small" />
+          )
+        }
+        label="Contours"
+        onClick={handleOpen}
+        accentColor={accentColor}
+        disabled={
+          loading || (!wallCandidates?.length && !polygonCandidates?.length)
+        }
+      />
 
       <Menu
         open={open}

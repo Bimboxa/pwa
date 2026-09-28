@@ -1,8 +1,9 @@
-import { IconButton, Tooltip } from "@mui/material";
 import {
   CloseFullscreen as CloseLineIcon,
   OpenInFull as OpenLineIcon,
 } from "@mui/icons-material";
+
+import ToolbarToolButton from "./ToolbarToolButton";
 
 import db from "App/db/db";
 
@@ -23,28 +24,17 @@ export default function IconButtonToggleAnnotationCloseLine({
   };
 
   return (
-    <Tooltip title={title}>
-      <IconButton
-        size="small"
-        onClick={handleToggleCloseLine}
-        sx={
-          accentColor
-            ? {
-                color: "text.disabled",
-                "&:hover": {
-                  color: accentColor,
-                  bgcolor: accentColor + "18",
-                },
-              }
-            : undefined
-        }
-      >
-        {!annotation.closeLine ? (
+    <ToolbarToolButton
+      icon={
+        !annotation.closeLine ? (
           <CloseLineIcon fontSize="small" />
         ) : (
           <OpenLineIcon fontSize="small" />
-        )}
-      </IconButton>
-    </Tooltip>
+        )
+      }
+      label={title}
+      onClick={handleToggleCloseLine}
+      accentColor={accentColor}
+    />
   );
 }

@@ -104,6 +104,12 @@ function validateFreeText(ann) {
     const err = validateNormalizedPoint(ann[key]);
     if (err) return err;
   }
+  if (
+    ann.rotation !== undefined &&
+    (typeof ann.rotation !== "number" || !Number.isFinite(ann.rotation))
+  ) {
+    return "La `rotation` d'un FREE_TEXT doit être un nombre (degrés).";
+  }
   return null;
 }
 

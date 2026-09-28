@@ -35,8 +35,6 @@ export default function MainLeafletEditor() {
 
   // init
 
-  //useInitLoadGeoportailPlugin();
-
   useEffect(() => {
     if (mapRef.current) {
       console.log("[debug] mapRef.current", mapRef.current);

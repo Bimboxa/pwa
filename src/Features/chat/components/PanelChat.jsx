@@ -11,7 +11,7 @@ import chatDarkTheme from "../chatDarkTheme";
 import ChatSessionProvider from "./ChatSessionProvider";
 import useSendChatTurn from "../hooks/useSendChatTurn";
 import ChatInput from "./ChatInput";
-import ChatAiTasks from "Features/aiTasks/components/ChatAiTasks";
+import ChatActionsBar from "./ChatActionsBar";
 import ChatMessage from "./ChatMessage";
 import ChatMessageAssistant from "./ChatMessageAssistant";
 import ChatMessageVectorization from "./ChatMessageVectorization";
@@ -280,8 +280,12 @@ function ChatSessionPanel() {
           <SectionManagedDataByAgent />
         </Stack>
 
-        {openChat && canDropPdf && (
-          <ChatAiTasks sendChatTurn={sendChatTurn} sending={sending} />
+        {openChat && (
+          <ChatActionsBar
+            sendChatTurn={sendChatTurn}
+            sending={sending}
+            showAuto={canDropPdf}
+          />
         )}
         {openChat && (
           <ChatInput

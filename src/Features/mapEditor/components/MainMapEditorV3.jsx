@@ -5,7 +5,7 @@ import { nanoid } from "@reduxjs/toolkit";
 
 
 import { setAnchorPositionScale, setScaleInPx, setAngleInRad, setImageScaleDraft } from "../mapEditorSlice";
-import { setEnabledDrawingMode } from "../mapEditorSlice";
+import { setEnabledDrawingMode, setChatRepairZone } from "../mapEditorSlice";
 import { setTempAnnotations, triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice";
 import { setBaseMapPoseInBg, setLegendFormat } from "../mapEditorSlice";
 import { setShowCreateBaseMapSection } from "Features/mapEditor/mapEditorSlice";
@@ -2139,6 +2139,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                     onSplitPolylineReset={resetSplitPolyline}
                     onSplitPolylineClickPoint={handleSplitPolylineClickPoint}
                     onJoinAnnotationsRect={handleJoinAnnotationsRect}
+                    onChatRepairRect={(rect) => dispatch(setChatRepairZone(rect))}
                     onCommitGuideLine={handleCommitGuideLine}
                     onCommitIsoHeightLine={handleCommitIsoHeightLine}
                     onCommitProfileLine={handleCommitProfileLine}

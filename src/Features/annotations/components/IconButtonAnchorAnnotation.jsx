@@ -3,8 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { setAnchorSourceAnnotationId } from "Features/mapEditor/mapEditorSlice";
 import { clearSelection } from "Features/selection/selectionSlice";
 
-import { IconButton, Tooltip } from "@mui/material";
-
+import ToolbarToolButton from "./ToolbarToolButton";
 import IconAnchorSnap from "./IconAnchorSnap";
 
 export default function IconButtonAnchorAnnotation({ annotation, accentColor }) {
@@ -29,21 +28,12 @@ export default function IconButtonAnchorAnnotation({ annotation, accentColor }) 
   }
 
   return (
-    <Tooltip title={isActive ? "Annuler l'ancrage" : "Ancrer sur un voisin"}>
-      <IconButton
-        size="small"
-        onClick={handleClick}
-        sx={{
-          color: isActive ? accentColor : "text.disabled",
-          bgcolor: isActive ? accentColor + "18" : "transparent",
-          "&:hover": {
-            color: accentColor,
-            bgcolor: accentColor + "18",
-          },
-        }}
-      >
-        <IconAnchorSnap fontSize="small" />
-      </IconButton>
-    </Tooltip>
+    <ToolbarToolButton
+      icon={<IconAnchorSnap fontSize="small" />}
+      label={isActive ? "Annuler l'ancrage" : "Ancrer sur un voisin"}
+      onClick={handleClick}
+      accentColor={accentColor}
+      active={isActive}
+    />
   );
 }

@@ -2,8 +2,9 @@ import { useDispatch, useSelector } from "react-redux";
 
 import { setEnabledDrawingMode } from "Features/mapEditor/mapEditorSlice";
 
-import { IconButton, Tooltip } from "@mui/material";
 import SsidChart from "@mui/icons-material/SsidChart";
+
+import ToolbarToolButton from "./ToolbarToolButton";
 
 // Starts the ADD_ISO_HEIGHT_LINE drawing mode for the selected POLYGON. The
 // InteractionLayer ADD_ISO_HEIGHT_LINE branch commits the drawn polyline onto
@@ -24,21 +25,12 @@ export default function IconButtonAddIsoHeightLine({ accentColor }) {
   }
 
   return (
-    <Tooltip title="Ajouter une courbe de niveau">
-      <IconButton
-        size="small"
-        onClick={handleClick}
-        sx={{
-          color: isActive ? accentColor : "text.disabled",
-          bgcolor: isActive ? accentColor + "18" : "transparent",
-          "&:hover": {
-            color: accentColor,
-            bgcolor: accentColor + "18",
-          },
-        }}
-      >
-        <SsidChart fontSize="small" />
-      </IconButton>
-    </Tooltip>
+    <ToolbarToolButton
+      icon={<SsidChart fontSize="small" />}
+      label="Ajouter une courbe de niveau"
+      onClick={handleClick}
+      accentColor={accentColor}
+      active={isActive}
+    />
   );
 }

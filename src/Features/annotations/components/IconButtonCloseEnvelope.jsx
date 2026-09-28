@@ -14,10 +14,11 @@ import {
   getStripProps,
 } from "../utils/convertStripPolyline";
 
-import { CircularProgress, IconButton, Menu, Tooltip } from "@mui/material";
+import { CircularProgress, Menu } from "@mui/material";
 
 import SelectorAnnotationTemplateVariantDense from "./SelectorAnnotationTemplateVariantDense";
 import IconCloseEnvelope from "Features/icons/IconCloseEnvelope";
+import ToolbarToolButton from "./ToolbarToolButton";
 
 import db from "App/db/db";
 
@@ -55,7 +56,7 @@ export default function IconButtonCloseEnvelope({ annotations, accentColor }) {
 
   // handlers
 
-  function handleOpen(event) { setAnchorEl(event.currentTarget); }
+  function handleOpen(event, anchor) { setAnchorEl(anchor); }
   function handleClose() { setAnchorEl(null); }
 
   async function handleTemplateChange(annotationTemplateId) {
@@ -173,21 +174,13 @@ export default function IconButtonCloseEnvelope({ annotations, accentColor }) {
 
   return (
     <>
-      <Tooltip title="Fermer l'enveloppe">
-        <span>
-          <IconButton
-            size="small"
-            onClick={handleOpen}
-            disabled={loading || !wallCandidates?.length}
-            sx={{
-              color: "text.disabled",
-              "&:hover": { color: accentColor, bgcolor: accentColor + "18" },
-            }}
-          >
-            {loading ? <CircularProgress size={18} /> : <IconCloseEnvelope fontSize="small" />}
-          </IconButton>
-        </span>
-      </Tooltip>
+      <ToolbarToolButton
+        icon={loading ? <CircularProgress size={18} /> : <IconCloseEnvelope fontSize="small" />}
+        label="Fermer l'enveloppe"
+        onClick={handleOpen}
+        accentColor={accentColor}
+        disabled={loading || !wallCandidates?.length}
+      />
 
       <Menu
         open={open}

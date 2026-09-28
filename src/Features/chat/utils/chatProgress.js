@@ -14,6 +14,8 @@ export const CHAT_TOOL_LABELS = {
   measure_plan_geometry: "Mesures géométriques",
   check_plan_geometry: "Vérification géométrique",
   draw_annotations: "Dessin",
+  repair_annotation_junctions: "Réparation des jonctions",
+  move_annotation_points: "Raccordement des extrémités",
   query_annotations: "Sélection des annotations",
   update_annotations_batch: "Modification des annotations",
   create_annotation_templates: "Création de modèles d'annotation",
@@ -28,6 +30,7 @@ export const CHAT_TOOL_LABELS = {
 export const CHAT_PROGRESS_LABELS = {
   preparing: "Préparation de la demande…",
   reading_pdf_vectors: "Extraction des tracés vectoriels du PDF…",
+  analyzing_geometry: "Pré-analyse géométrique du plan…",
   preparing_pdf: "Préparation du PDF source…",
   uploading_pdf: "Envoi du PDF au serveur…",
   connecting: "Connexion au serveur…",

@@ -58,6 +58,7 @@ import AnnotationMeasurements from "./AnnotationMeasurements";
 import ToolbarEditRevolutionAxis from "./ToolbarEditRevolutionAxis";
 import ToolbarEditRevolutionAxisPlacement from "./ToolbarEditRevolutionAxisPlacement";
 import ToolbarAnnotationActions from "./ToolbarAnnotationActions";
+import EditAnnotationTools from "./EditAnnotationTools";
 import RowProcedureActionAuto from "Features/annotationsAuto/components/RowProcedureActionAuto";
 import ToolbarPartGroupRow from "./ToolbarPartGroupRow";
 import SelectorAnnotationTemplateVariantDense from "./SelectorAnnotationTemplateVariantDense";
@@ -66,36 +67,9 @@ import FieldAnnotationHeight from "./FieldAnnotationHeight";
 import FieldAnnotationThickness from "./FieldAnnotationThickness";
 import FieldAnnotationIsExtSwitch from "./FieldAnnotationIsExtSwitch";
 import Shape3DSelector from "./Shape3DSelector";
-import IconButtonFlipStripAnnotation from "./IconButtonFlipStripAnnotation";
-import IconButtonFlipExtrusionAnnotation from "./IconButtonFlipExtrusionAnnotation";
-import IconButtonToggleStripType from "./IconButtonToggleStripType";
-import IconButtonToggleAnnotationCloseLine from "./IconButtonToggleAnnotationCloseLine";
-import IconButtonDetectSimilarStrips from "./IconButtonDetectSimilarStrips";
-import IconButtonAnchorAnnotation from "./IconButtonAnchorAnnotation";
-import IconButtonSubtractAnnotation from "./IconButtonSubtractAnnotation";
-import IconButtonSubtractFromAnnotation from "./IconButtonSubtractFromAnnotation";
 import ToolbarEditForeignFootprint from "./ToolbarEditForeignFootprint";
-import IconButtonHollowOutAnnotation from "./IconButtonHollowOutAnnotation";
-import IconButtonAssignZoneAnnotations from "Features/zonings/components/IconButtonAssignZoneAnnotations";
 import SectionZonesBandInToolbar from "Features/zonings/components/SectionZonesBandInToolbar";
-import IconButtonDilateAnnotation from "./IconButtonDilateAnnotation";
-import IconButtonRepairAnnotation from "./IconButtonRepairAnnotation";
-import IconButtonSplitInSegments from "./IconButtonSplitInSegments";
-import IconButtonSettingOut from "./IconButtonSettingOut";
-import IconButtonConvertAnnotation from "./IconButtonConvertAnnotation";
-import IconButtonVectorisation from "./IconButtonVectorisation";
-import IconButtonSimplifyAnnotation from "./IconButtonSimplifyAnnotation";
-import IconButtonArcifyAnnotation from "./IconButtonArcifyAnnotation";
 import IconButtonArcifySelectedPoints from "./IconButtonArcifySelectedPoints";
-import IconButtonCloseWallFootprint from "./IconButtonCloseWallFootprint";
-import IconButtonSlopeWalls from "./IconButtonSlopeWalls";
-import IconButtonAutoWalls from "./IconButtonAutoWalls";
-import IconButtonContours from "./IconButtonContours";
-import IconButtonCloseEnvelope from "./IconButtonCloseEnvelope";
-import IconButtonAddGuideLine from "./IconButtonAddGuideLine";
-import IconButtonAddIsoHeightLine from "./IconButtonAddIsoHeightLine";
-import IconButtonAddProfileLine from "./IconButtonAddProfileLine";
-import IconButtonAutoSlope from "./IconButtonAutoSlope";
 import ToolbarEditGuideLine from "./ToolbarEditGuideLine";
 import ToolbarEditIsoHeightLine from "./ToolbarEditIsoHeightLine";
 import ToolbarEditProfileLine from "./ToolbarEditProfileLine";
@@ -844,172 +818,11 @@ export default function ToolbarEditAnnotation({ onDragStart }) {
                 />
               ) : null
             ) : (
-              <>
-                {["POLYLINE", "STRIP"].includes(selectedAnnotation?.type) && (
-                  <IconButtonAnchorAnnotation
-                    annotation={selectedAnnotation}
-                    accentColor={accentColor}
-                  />
-                )}
-                {["POLYLINE", "STRIP"].includes(selectedAnnotation?.type) &&
-                  !selectedAnnotation?.closeLine && (
-                    <IconButtonToggleStripType
-                      annotation={selectedAnnotation}
-                      accentColor={accentColor}
-                    />
-                  )}
-                {["POLYLINE", "STRIP"].includes(selectedAnnotation?.type) && (
-                  <IconButtonToggleAnnotationCloseLine
-                    annotation={selectedAnnotation}
-                    accentColor={accentColor}
-                  />
-                )}
-                {["STRIP", "LINEAR_LAYOUT"].includes(
-                  selectedAnnotation?.type
-                ) && (
-                  <IconButtonFlipStripAnnotation
-                    annotation={selectedAnnotation}
-                    accentColor={accentColor}
-                  />
-                )}
-                {selectedAnnotation?.shape3D?.key === "EXTRUSION_PROFILE" && (
-                  <IconButtonFlipExtrusionAnnotation
-                    annotation={selectedAnnotation}
-                    accentColor={accentColor}
-                  />
-                )}
-                {selectedAnnotation?.type === "STRIP" && (
-                  <IconButtonDetectSimilarStrips
-                    annotation={selectedAnnotation}
-                    accentColor={accentColor}
-                  />
-                )}
-                {isClosedShape && (
-                  <IconButtonDilateAnnotation
-                    annotations={[selectedAnnotation]}
-                    accentColor={accentColor}
-                  />
-                )}
-                {["POLYLINE", "POLYGON", "STRIP"].includes(
-                  selectedAnnotation?.type
-                ) && (
-                  <IconButtonRepairAnnotation
-                    annotation={selectedAnnotation}
-                    accentColor={accentColor}
-                  />
-                )}
-                {["POLYLINE", "POLYGON", "STRIP"].includes(
-                  selectedAnnotation?.type
-                ) && (
-                  <IconButtonSplitInSegments
-                    annotations={[selectedAnnotation]}
-                    accentColor={accentColor}
-                  />
-                )}
-                {selectedAnnotation?.type === "POLYLINE" && (
-                  <IconButtonSettingOut
-                    annotations={[selectedAnnotation]}
-                    accentColor={accentColor}
-                  />
-                )}
-                {["POLYGON", "RECTANGLE", "POLYLINE", "STRIP"].includes(
-                  selectedAnnotation?.type
-                ) && (
-                  <>
-                    <IconButtonSubtractAnnotation
-                      annotation={selectedAnnotation}
-                      accentColor={accentColor}
-                    />
-                    <IconButtonSubtractFromAnnotation
-                      annotation={selectedAnnotation}
-                      accentColor={accentColor}
-                    />
-                  </>
-                )}
-                {selectedAnnotation?.type === "POLYGON" && (
-                  <IconButtonHollowOutAnnotation
-                    annotation={selectedAnnotation}
-                    accentColor={accentColor}
-                  />
-                )}
-                {selectedAnnotation?.isZoneAnnotation &&
-                  selectedAnnotation?.type === "POLYGON" && (
-                    <IconButtonAssignZoneAnnotations
-                      annotation={selectedAnnotation}
-                      accentColor={accentColor}
-                    />
-                  )}
-                {selectedAnnotation?.type === "POLYGON" && (
-                  <IconButtonConvertAnnotation
-                    annotations={[selectedAnnotation]}
-                    accentColor={accentColor}
-                  />
-                )}
-                {selectedAnnotation?.type === "POLYGON" && (
-                  <IconButtonVectorisation
-                    annotations={[selectedAnnotation]}
-                    accentColor={accentColor}
-                  />
-                )}
-                {selectedAnnotation?.type === "POLYGON" && (
-                  <IconButtonCloseWallFootprint
-                    annotation={selectedAnnotation}
-                    accentColor={accentColor}
-                  />
-                )}
-                {selectedAnnotation?.type === "POLYGON" && (
-                  <IconButtonAddGuideLine accentColor={accentColor} />
-                )}
-                {selectedAnnotation?.type === "POLYGON" && (
-                  <IconButtonAddIsoHeightLine accentColor={accentColor} />
-                )}
-                {["POLYGON", "POLYLINE"].includes(selectedAnnotation?.type) && (
-                  <IconButtonAddProfileLine accentColor={accentColor} />
-                )}
-                {selectedAnnotation?.type === "POLYGON" && (
-                  <IconButtonAutoSlope accentColor={accentColor} />
-                )}
-                {selectedAnnotation?.type === "POLYGON" &&
-                  selectedAnnotation?.guideLines?.some(
-                    (g) => g?.points?.length >= 2 && g?.slopePct
-                  ) && (
-                    <IconButtonSlopeWalls
-                      annotation={selectedAnnotation}
-                      accentColor={accentColor}
-                    />
-                  )}
-                {["POLYGON", "POLYLINE"].includes(selectedAnnotation?.type) && (
-                  <IconButtonAutoWalls accentColor={accentColor} />
-                )}
-                {["POLYLINE", "POLYGON", "STRIP"].includes(
-                  selectedAnnotation?.type
-                ) && (
-                  <IconButtonSimplifyAnnotation
-                    annotation={selectedAnnotation}
-                    accentColor={accentColor}
-                  />
-                )}
-                {selectedAnnotation?.type === "POLYLINE" && (
-                  <IconButtonArcifyAnnotation
-                    annotation={selectedAnnotation}
-                    accentColor={accentColor}
-                  />
-                )}
-                {["POLYLINE", "STRIP", "POLYGON"].includes(
-                  selectedAnnotation?.type
-                ) && (
-                  <IconButtonContours
-                    annotations={[selectedAnnotation]}
-                    accentColor={accentColor}
-                  />
-                )}
-                {["POLYLINE", "STRIP"].includes(selectedAnnotation?.type) && (
-                  <IconButtonCloseEnvelope
-                    annotations={[selectedAnnotation]}
-                    accentColor={accentColor}
-                  />
-                )}
-              </>
+              <EditAnnotationTools
+                selectedAnnotation={selectedAnnotation}
+                accentColor={accentColor}
+                isClosedShape={isClosedShape}
+              />
             )
           }
           layerChip={

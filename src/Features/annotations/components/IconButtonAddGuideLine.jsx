@@ -2,8 +2,9 @@ import { useDispatch, useSelector } from "react-redux";
 
 import { setEnabledDrawingMode } from "Features/mapEditor/mapEditorSlice";
 
-import { IconButton, Tooltip } from "@mui/material";
 import Timeline from "@mui/icons-material/Timeline";
+
+import ToolbarToolButton from "./ToolbarToolButton";
 
 // Starts the ADD_GUIDE_LINE drawing mode for the selected POLYGON. The
 // InteractionLayer ADD_GUIDE_LINE branch commits the drawn polyline onto the
@@ -24,21 +25,12 @@ export default function IconButtonAddGuideLine({ accentColor }) {
   }
 
   return (
-    <Tooltip title="Ajouter une ligne guide">
-      <IconButton
-        size="small"
-        onClick={handleClick}
-        sx={{
-          color: isActive ? accentColor : "text.disabled",
-          bgcolor: isActive ? accentColor + "18" : "transparent",
-          "&:hover": {
-            color: accentColor,
-            bgcolor: accentColor + "18",
-          },
-        }}
-      >
-        <Timeline fontSize="small" />
-      </IconButton>
-    </Tooltip>
+    <ToolbarToolButton
+      icon={<Timeline fontSize="small" />}
+      label="Ajouter une ligne guide"
+      onClick={handleClick}
+      accentColor={accentColor}
+      active={isActive}
+    />
   );
 }

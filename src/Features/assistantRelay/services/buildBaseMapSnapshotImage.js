@@ -47,7 +47,7 @@ function canvasToBlob(canvas, mime, quality) {
 
 /**
  * Picture of the base map IN ITS REFERENCE FRAME, downscaled (long edge ≤
- * maxLongEdge) as JPEG for the relay.
+ * maxLongEdge), as a Blob.
  *
  * Annotations are normalized against the reference frame
  * (`getImageSize()` = refWidth × refHeight), not against the pixels of the
@@ -59,9 +59,9 @@ function canvasToBlob(canvas, mime, quality) {
  * (original, enhanced, re-scanned, shifted…). Areas of the frame the version
  * does not cover stay white.
  *
- * @returns {Promise<{base64: string, mime: string, width: number, height: number}>}
+ * @returns {Promise<{blob: Blob, mime: string, width: number, height: number}>}
  */
-export default async function buildBaseMapSnapshotImage({
+export async function buildBaseMapSnapshotBlob({
   baseMap,
   maxLongEdge = DEFAULT_MAX_LONG_EDGE,
   jpegQuality = DEFAULT_JPEG_QUALITY,
@@ -99,8 +99,18 @@ export default async function buildBaseMapSnapshotImage({
       mime,
       mime === "image/jpeg" ? jpegQuality : undefined
     );
-    return { base64: await blobToBase64(out), mime, width, height };
+    return { blob: out, mime, width, height };
   } finally {
     bitmap.close?.();
   }
+}
+
+/**
+ * Same picture as buildBaseMapSnapshotBlob, base64-encoded for the relay.
+ *
+ * @returns {Promise<{base64: string, mime: string, width: number, height: number}>}
+ */
+export default async function buildBaseMapSnapshotImage(params) {
+  const { blob, mime, width, height } = await buildBaseMapSnapshotBlob(params);
+  return { base64: await blobToBase64(blob), mime, width, height };
 }

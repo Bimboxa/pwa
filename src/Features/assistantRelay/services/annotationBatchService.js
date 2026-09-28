@@ -4,8 +4,12 @@ import {
 } from "./annotationBatchFrame.js";
 import resolveProps from "../../annotations/utils/getAnnotationPropsFromAnnotationTemplateProps.js";
 import templateProps from "../../annotations/utils/getAnnotationTemplateProps.js";
+import { SEGMENT_FLAG_FIELDS } from "../../annotations/utils/segmentFlags.js";
 
 export const MAX_BATCH_ANNOTATIONS = 2000;
+// Zone repair (kind "geometry"): end points moved by the relay, at most this
+// many per job.
+export const MAX_GEOMETRY_MOVES = 500;
 const FIELDS = [
   "isExt",
   "height",
@@ -163,7 +167,14 @@ const tables = (db) => [
   db.baseMaps,
   db.baseMapVersions,
   db.annotationBatchReceipts,
+  // Point rows of the geometry batches (absent from older test databases).
+  ...(db.points ? [db.points] : []),
 ];
+const newPointId = () =>
+  globalThis.crypto?.randomUUID?.() ??
+  `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
+const finite = (p) =>
+  p && typeof p === "object" && Number.isFinite(p.x) && Number.isFinite(p.y);
 const targetOf = (full) => ({
   projectId: full.snapshot.projectId,
   scopeId: full.snapshot.scopeId,
@@ -234,11 +245,44 @@ const sample = (row, t) => {
   };
 };
 
+// Geometry batch (zone repair): every moved point is put back (undo) or
+// forward (redo). A point forked by the batch keeps its own row: the fork is
+// not undone, only its position. Called inside the transaction.
+async function restoreGeometryReceipt(db, receipt, direction) {
+  const undo = direction === "undo";
+  const targets = [];
+  for (const change of receipt.changes) {
+    const point = await db.points.get(change.pointId);
+    if (!point) fail("ANNOTATION_CHANGED", change.pointId);
+    const expected = undo ? change.after : change.before;
+    if (Math.hypot(point.x - expected.x, point.y - expected.y) > 1e-9)
+      fail("ANNOTATION_CHANGED", change.pointId);
+    const row = await db.annotations.get(change.annotationId);
+    assertRow(row, receipt.target);
+    targets.push([change.pointId, undo ? change.before : change.after]);
+  }
+  for (const [pointId, position] of targets)
+    await db.points.update(pointId, { x: position.x, y: position.y });
+  receipt.undone = undo;
+  await db.annotationBatchReceipts.put(receipt);
+  return {
+    annotationIds: [...new Set(receipt.changes.map((c) => c.annotationId))],
+    movedCount: receipt.changes.length,
+    movedPointIds: receipt.changes.map((c) => c.pointId),
+    batchKind: direction,
+  };
+}
+
 // Called inside a Dexie transaction. The receipt and all data commit together.
 async function restoreReceipt(db, receipt, direction) {
   const undo = direction === "undo";
-  if (receipt.kind !== "update" || Boolean(receipt.undone) === undo)
+  if (
+    !["update", "geometry"].includes(receipt.kind) ||
+    Boolean(receipt.undone) === undo
+  )
     fail("BATCH_ALREADY_RESTORED");
+  if (receipt.kind === "geometry")
+    return restoreGeometryReceipt(db, receipt, direction);
   for (const change of receipt.changes) {
     const row = await db.annotations.get(change.id);
     assertRow(row, receipt.target);
@@ -278,7 +322,7 @@ export async function applyAnnotationBatch(db, full, context, readFrame) {
   const command = full.payload?.annotationBatch;
   if (
     command?.version !== 1 ||
-    !["query", "update", "undo"].includes(command.kind)
+    !["query", "update", "geometry", "undo"].includes(command.kind)
   )
     fail("INVALID_BATCH");
   return db.transaction("rw", tables(db), async (tx) => {
@@ -416,6 +460,113 @@ export async function applyAnnotationBatch(db, full, context, readFrame) {
         matchedCount: usedIds.size,
         unchangedCount: usedIds.size - changes.length,
         batchKind: "update",
+      };
+    } else if (command.kind === "geometry") {
+      // Zone repair: the relay read every point (`from`, reference pixels of
+      // the published frame) and asks to move it to `to`. A point that moved
+      // since, a rotated annotation or an unknown reference refuses the whole
+      // batch. A vertex shared with another annotation is forked first, so
+      // the neighbour keeps its own end.
+      const moves = command.moves;
+      if (
+        !Array.isArray(moves) ||
+        !moves.length ||
+        moves.length > MAX_GEOMETRY_MOVES ||
+        command.coordinateSpace !== "reference_pixels"
+      )
+        fail("INVALID_BATCH");
+      const width = publishedFrame?.refSize?.width;
+      const height = publishedFrame?.refSize?.height;
+      if (!(width > 0) || !(height > 0)) fail("BATCH_FRAME_CHANGED", "refSize");
+      // One millimetre of the plan (the relay rounds what it reads to 1 mm).
+      const tolerance =
+        publishedFrame.meterByPx > 0 ? 0.001 / publishedFrame.meterByPx : 0.01;
+      const refCount = new Map();
+      await db.annotations
+        .filter((a) => alive(a) && a.baseMapId === target.baseMapId)
+        .each((a) => {
+          const ids = new Set();
+          a.points?.forEach((p) => p?.id && ids.add(p.id));
+          a.cuts?.forEach((cut) =>
+            cut?.points?.forEach((p) => p?.id && ids.add(p.id))
+          );
+          ids.forEach((id) => refCount.set(id, (refCount.get(id) || 0) + 1));
+        });
+      const changes = [];
+      const seen = new Set();
+      for (const move of moves) {
+        if (
+          !move ||
+          typeof move.annotationId !== "string" ||
+          typeof move.pointId !== "string" ||
+          !finite(move.from) ||
+          !finite(move.to)
+        )
+          fail("INVALID_BATCH", "move");
+        if (seen.has(move.pointId)) fail("OVERLAPPING_SELECTIONS", move.pointId);
+        seen.add(move.pointId);
+        const row = await db.annotations.get(move.annotationId);
+        assertRow(row, target);
+        if (row.rotation || row.rotationCenter)
+          fail("ANNOTATION_ROTATED", row.id);
+        if (!row.points?.some((p) => p?.id === move.pointId))
+          fail("ANNOTATION_CHANGED", `${row.id}.${move.pointId}`);
+        const point = await db.points.get(move.pointId);
+        if (!point) fail("ANNOTATION_CHANGED", move.pointId);
+        const current = { x: point.x * width, y: point.y * height };
+        if (
+          Math.hypot(current.x - move.from.x, current.y - move.from.y) >
+          tolerance
+        )
+          fail("ANNOTATION_CHANGED", move.pointId);
+        changes.push({
+          annotationId: row.id,
+          pointId: move.pointId,
+          shared: (refCount.get(move.pointId) || 0) > 1,
+          before: { x: point.x, y: point.y },
+          after: { x: move.to.x / width, y: move.to.y / height },
+          source: point,
+        });
+      }
+      // All validation completes before the first write.
+      for (const change of changes) {
+        if (change.shared) {
+          const forked = newPointId();
+          await db.points.add({
+            ...change.source,
+            id: forked,
+            x: change.after.x,
+            y: change.after.y,
+          });
+          const row = await db.annotations.get(change.annotationId);
+          const patch = {
+            points: row.points.map((p) =>
+              p?.id === change.pointId ? { ...p, id: forked } : p
+            ),
+          };
+          for (const { idField } of SEGMENT_FLAG_FIELDS)
+            if (Array.isArray(row[idField]))
+              patch[idField] = row[idField].map((id) =>
+                id === change.pointId ? forked : id
+              );
+          await db.annotations.update(row.id, patch);
+          change.forkedFrom = change.pointId;
+          change.pointId = forked;
+        } else {
+          await db.points.update(change.pointId, {
+            x: change.after.x,
+            y: change.after.y,
+          });
+        }
+        delete change.shared;
+        delete change.source;
+      }
+      receipt.changes = changes;
+      receipt.result = {
+        annotationIds: [...new Set(changes.map((c) => c.annotationId))],
+        movedCount: changes.length,
+        movedPointIds: changes.map((c) => c.pointId),
+        batchKind: "geometry",
       };
     } else {
       const original = await db.annotationBatchReceipts.get(command.undoOf);

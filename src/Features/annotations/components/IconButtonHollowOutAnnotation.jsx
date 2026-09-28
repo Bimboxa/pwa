@@ -1,5 +1,4 @@
-import { IconButton, Tooltip } from "@mui/material";
-
+import ToolbarToolButton from "./ToolbarToolButton";
 import IconHollowOut from "./IconHollowOut";
 
 import useHollowOutAnnotation from "../hooks/useHollowOutAnnotation";
@@ -18,20 +17,11 @@ export default function IconButtonHollowOutAnnotation({
   // render
 
   return (
-    <Tooltip title="Evider (découper par les annotations visibles) — E">
-      <IconButton
-        size="small"
-        onClick={() => hollowOutAnnotation(annotation)}
-        sx={{
-          color: "text.disabled",
-          "&:hover": {
-            color: accentColor,
-            bgcolor: accentColor + "18",
-          },
-        }}
-      >
-        <IconHollowOut fontSize="small" />
-      </IconButton>
-    </Tooltip>
+    <ToolbarToolButton
+      icon={<IconHollowOut fontSize="small" />}
+      label="Evider (découper par les annotations visibles) — E"
+      onClick={() => hollowOutAnnotation(annotation)}
+      accentColor={accentColor}
+    />
   );
 }

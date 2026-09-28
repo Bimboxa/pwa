@@ -43,6 +43,7 @@ const mapEditorInitialState = {
   autoOffsetsOnCommit: false, // when true, a POLYGON drawn via CLICK tool inherits offsetZ/height + per-point offsetBottom/offsetTop from snapped neighbors so the 3D surface stays continuous
   avoidVisibleAnnotationsOnCommit: false, // when true, on commit of a POLYGON, visible annotations of a different annotationTemplateId are subtracted from the drawn polygon (outer carving + cuts)
   defaultOffsetOnCommit: false, // when true, a newly drawn annotation is auto-lifted so its offsetZ sits just above every extruded annotation its footprint overlaps (offsetZ = max(offsetZ + height) over overlapped)
+  joinMergeIfPossible: true, // JOIN_ANNOTATIONS (Joindre): when true, two ends of walls sharing the same template and width are merged into one polyline (junction vertex at the intersection) instead of being joined as a corner
   // RAMP tool — transient params shown in the bottom drawing toolbar while the
   // "Rampe" tool is active. Not persisted on the annotation/template.
   rampWidthM: 1, // band width in meters, centered on the drawn median line
@@ -289,6 +290,12 @@ const mapEditorInitialState = {
   pasteTransform: { rotationDeg: 0, flipX: false },
   // copy/paste pattern detection sub-mode: null | "GLOBAL" | "HOVER" | "ADJUST"
   pasteDetectionMode: null,
+
+  // Chat « Réparation »: rectangle { x, y, width, height } in base-map
+  // reference pixels picked with the CHAT_REPAIR drawing mode (2 clicks). It
+  // survives leaving the drawing mode: the chat panel reads it, launches the
+  // repair turn and clears it.
+  chatRepairZone: null,
 };
 
 export const mapEditorSlice = createSlice({
@@ -347,6 +354,9 @@ export const mapEditorSlice = createSlice({
     },
     setDefaultOffsetOnCommit: (state, action) => {
       state.defaultOffsetOnCommit = action.payload;
+    },
+    setJoinMergeIfPossible: (state, action) => {
+      state.joinMergeIfPossible = action.payload;
     },
     setRampWidthM: (state, action) => {
       state.rampWidthM = action.payload;
@@ -833,6 +843,14 @@ export const mapEditorSlice = createSlice({
     setPasteDetectionMode: (state, action) => {
       state.pasteDetectionMode = action.payload;
     },
+
+    // chat « Réparation » zone
+    setChatRepairZone: (state, action) => {
+      state.chatRepairZone = action.payload ?? null;
+    },
+    clearChatRepairZone: (state) => {
+      state.chatRepairZone = null;
+    },
     rotatePasteClipboard: (state) => {
       state.pasteTransform.rotationDeg =
         (state.pasteTransform.rotationDeg + 90) % 360;
@@ -879,6 +897,7 @@ export const {
   setDrawingHasFirstPoint,
   setRepairMode,
   setAutoMergeOnCommit,
+  setJoinMergeIfPossible,
   setAutoOffsetsOnCommit,
   setAvoidVisibleAnnotationsOnCommit,
   setDefaultOffsetOnCommit,
@@ -1049,6 +1068,10 @@ export const {
   rotatePasteClipboard,
   flipPasteClipboardX,
   setPasteDetectionMode,
+
+  // chat « Réparation » zone
+  setChatRepairZone,
+  clearChatRepairZone,
 } = mapEditorSlice.actions;
 
 export default mapEditorSlice.reducer;

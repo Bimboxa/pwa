@@ -1,5 +1,6 @@
-import { IconButton, Tooltip } from "@mui/material";
 import { SwapHoriz as SwapHorizIcon } from "@mui/icons-material";
+
+import ToolbarToolButton from "./ToolbarToolButton";
 
 import db from "App/db/db";
 
@@ -25,22 +26,11 @@ export default function IconButtonFlipExtrusionAnnotation({
   };
 
   return (
-    <Tooltip title={title}>
-      <IconButton
-        size="small"
-        onClick={handleToggleFlip}
-        sx={{
-          color: "text.disabled",
-          ...(accentColor && {
-            "&:hover": {
-              color: accentColor,
-              bgcolor: accentColor + "18",
-            },
-          }),
-        }}
-      >
-        <SwapHorizIcon fontSize="small" />
-      </IconButton>
-    </Tooltip>
+    <ToolbarToolButton
+      icon={<SwapHorizIcon fontSize="small" />}
+      label={title}
+      onClick={handleToggleFlip}
+      accentColor={accentColor}
+    />
   );
 }

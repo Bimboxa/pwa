@@ -1,7 +1,9 @@
 import { useState } from "react";
 
-import { CircularProgress, IconButton, Tooltip } from "@mui/material";
+import { CircularProgress } from "@mui/material";
 import { SelectAll } from "@mui/icons-material";
+
+import ToolbarToolButton from "Features/annotations/components/ToolbarToolButton";
 
 import useAssignZoneToAnnotations from "../hooks/useAssignZoneToAnnotations";
 
@@ -33,24 +35,17 @@ export default function IconButtonAssignZoneAnnotations({
   // render
 
   return (
-    <Tooltip title="Affecter la zone (relier les annotations à l'intérieur)">
-      <IconButton
-        size="small"
-        onClick={handleClick}
-        sx={{
-          color: "text.disabled",
-          "&:hover": {
-            color: accentColor,
-            bgcolor: accentColor + "18",
-          },
-        }}
-      >
-        {running ? (
+    <ToolbarToolButton
+      icon={
+        running ? (
           <CircularProgress size={16} />
         ) : (
           <SelectAll fontSize="small" />
-        )}
-      </IconButton>
-    </Tooltip>
+        )
+      }
+      label="Affecter la zone (relier les annotations à l'intérieur)"
+      onClick={handleClick}
+      accentColor={accentColor}
+    />
   );
 }

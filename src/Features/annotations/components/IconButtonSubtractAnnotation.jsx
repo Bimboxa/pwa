@@ -3,8 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { setSubtractSourceAnnotationId } from "Features/mapEditor/mapEditorSlice";
 import { clearSelection } from "Features/selection/selectionSlice";
 
-import { IconButton, Tooltip } from "@mui/material";
-
+import ToolbarToolButton from "./ToolbarToolButton";
 import IconSubtract from "./IconSubtract";
 
 export default function IconButtonSubtractAnnotation({
@@ -32,25 +31,14 @@ export default function IconButtonSubtractAnnotation({
   }
 
   return (
-    <Tooltip
-      title={
+    <ToolbarToolButton
+      icon={<IconSubtract fontSize="small" />}
+      label={
         isActive ? "Annuler la soustraction" : "Soustraire une annotation"
       }
-    >
-      <IconButton
-        size="small"
-        onClick={handleClick}
-        sx={{
-          color: isActive ? accentColor : "text.disabled",
-          bgcolor: isActive ? accentColor + "18" : "transparent",
-          "&:hover": {
-            color: accentColor,
-            bgcolor: accentColor + "18",
-          },
-        }}
-      >
-        <IconSubtract fontSize="small" />
-      </IconButton>
-    </Tooltip>
+      onClick={handleClick}
+      accentColor={accentColor}
+      active={isActive}
+    />
   );
 }
