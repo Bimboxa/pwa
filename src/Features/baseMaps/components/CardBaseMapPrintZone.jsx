@@ -9,8 +9,6 @@ import {
   Button,
   IconButton,
   InputBase,
-  MenuItem,
-  Select,
   ToggleButton,
   ToggleButtonGroup,
   Tooltip,
@@ -31,11 +29,12 @@ import {
   numberInputSx,
 } from "Features/annotations/constants/fieldSx";
 import {
-  PRINT_ZONE_FORMATS,
   applyPrintZoneFormatChange,
   formatPrintZoneScale,
   getScaleFromPrintZone,
 } from "../utils/printZone";
+
+const CARD_FORMATS = ["A4", "A3"];
 
 // Compact « Zone d'impression » card of the base map properties panel:
 // title + visibility toggle of the dashed sheet (hidden by default), ONE row
@@ -67,6 +66,11 @@ export default function CardBaseMapPrintZone({ baseMap, onSeeMore }) {
   const derivedScale = zone ? getScaleFromPrintZone(zone, meterByPx) : null;
   const effectiveScale = zone?.scale > 0 ? zone.scale : derivedScale;
   const scaleText = effectiveScale ? formatPrintZoneScale(effectiveScale) : "";
+  // A4 / A3 here; a larger format picked in the sub-panel shows as a third
+  // toggle so the current value is always visible.
+  const cardFormats = CARD_FORMATS.includes(zone?.format)
+    ? CARD_FORMATS
+    : [...CARD_FORMATS, zone?.format].filter(Boolean);
 
   // state — scale input text, committed on blur / Enter
 
@@ -81,8 +85,7 @@ export default function CardBaseMapPrintZone({ baseMap, onSeeMore }) {
     dispatch(setShowPrintZone(!showPrintZone));
   }
 
-  function handleFormatChange(e) {
-    const format = e.target.value;
+  function handleFormatChange(_, format) {
     if (!format || format === zone.format) return;
     updatePrintZone(
       baseMap.id,
@@ -154,20 +157,19 @@ export default function CardBaseMapPrintZone({ baseMap, onSeeMore }) {
             pl: 1,
           }}
         >
-          <Select
+          <ToggleButtonGroup
             value={zone.format}
+            exclusive
             onChange={handleFormatChange}
             size="small"
-            variant="standard"
-            disableUnderline
-            sx={{ fontSize: "0.8rem", minWidth: 48 }}
+            sx={toggleGroupSx}
           >
-            {PRINT_ZONE_FORMATS.map((f) => (
-              <MenuItem key={f} value={f} sx={{ fontSize: "0.85rem" }}>
+            {cardFormats.map((f) => (
+              <ToggleButton key={f} value={f}>
                 {f}
-              </MenuItem>
+              </ToggleButton>
             ))}
-          </Select>
+          </ToggleButtonGroup>
 
           <ToggleButtonGroup
             value={zone.orientation}
