@@ -29,6 +29,7 @@ import useBaseMapsGridLayout from "../hooks/useBaseMapsGridLayout";
 import { Box } from "@mui/material";
 import {
   AlignHorizontalLeft,
+  RestartAlt,
   OpenWith,
   GridView,
   ZoomOutMap,
@@ -102,6 +103,7 @@ export default function LayerBaseMapsGrid({ forViewerKey }) {
   const reorganizeS = "Réorganiser";
   const reorganizeDoneS = "Terminer la réorganisation";
   const alignS = "Aligner";
+  const resetS = "Réinitialiser la disposition";
 
   // data
 
@@ -130,8 +132,12 @@ export default function LayerBaseMapsGrid({ forViewerKey }) {
   // same counts as the base map chips (whole scope, solo ignored)
   const annotationsCountByBaseMapId = useAnnotationsCountByBaseMapId();
   const selectMainBaseMap = useSelectMainBaseMap();
-  const { positions, setSheetPosition, setSheetPositions } =
-    useBaseMapsGridLayout();
+  const {
+    positions,
+    setSheetPosition,
+    setSheetPositions,
+    resetSheetPositions,
+  } = useBaseMapsGridLayout();
 
   // state
 
@@ -227,6 +233,7 @@ export default function LayerBaseMapsGrid({ forViewerKey }) {
   sheetByIdRef.current = sheetById;
 
   const baseMapIds = useMemo(() => items.map((item) => item.sheet.id), [items]);
+  const hasManualPositions = baseMapIds.some((id) => positions[id]);
   const annotationsByBaseMapId = useBaseMapsGridAnnotations({
     baseMapIds,
     forViewerKey,
@@ -413,6 +420,13 @@ export default function LayerBaseMapsGrid({ forViewerKey }) {
 
   function handleClose() {
     handleOpen(selectedBaseMapId ?? mainBaseMapId);
+  }
+
+  // Drops the hand-made arrangement of the displayed table: the sheets go
+  // back to their default slots.
+  function handleReset() {
+    resetSheetPositions(baseMapIds);
+    later(() => flyGridCamera(getFitAllCamera(), FIT_DURATION_MS), 0);
   }
 
   function handleFitAll() {
@@ -608,6 +622,14 @@ export default function LayerBaseMapsGrid({ forViewerKey }) {
           }}
         >
           <SelectorBaseMapsGridImageMode />
+          {reorganizing && (
+            <ButtonBaseMapsGrid
+              title={resetS}
+              icon={<RestartAlt fontSize="small" />}
+              disabled={!hasManualPositions}
+              onClick={handleReset}
+            />
+          )}
           {reorganizing && (
             <ButtonBaseMapsGrid
               title={alignS}
