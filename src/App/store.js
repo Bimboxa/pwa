@@ -81,6 +81,7 @@ import urlParamsReducer from "Features/urlParams/urlParamsSlice";
 import notesAppReducer from "Features/notesApp/notesAppSlice";
 import assistantRelayReducer from "Features/assistantRelay/assistantRelaySlice";
 import scopeVisibilityReducer from "Features/scopeVisibility/scopeVisibilitySlice";
+import baseMapsGridReducer from "Features/baseMapsGrid/baseMapsGridSlice";
 import scopeVisibilityPersistMiddleware from "Features/scopeVisibility/scopeVisibilityPersistMiddleware";
 
 import { syncTabsMiddleware, initSyncTabsListener } from "./syncTabsMiddleware";
@@ -167,6 +168,7 @@ const store = configureStore({
     notesApp: notesAppReducer,
     assistantRelay: assistantRelayReducer,
     scopeVisibility: scopeVisibilityReducer,
+    baseMapsGrid: baseMapsGridReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

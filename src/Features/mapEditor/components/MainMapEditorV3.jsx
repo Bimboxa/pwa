@@ -82,6 +82,8 @@ import StaticMapContent from "./StaticMapContent";
 import EditedObjectLayer from "./EditedObjectLayer";
 import EditedBaseMapLayer from "./EditedBaseMapLayer";
 import PrintZoneLayer from "./PrintZoneLayer";
+import LayerBaseMapsGrid from "Features/baseMapsGrid/components/LayerBaseMapsGrid";
+import { selectBaseMapsGridMounted } from "Features/baseMapsGrid/baseMapsGridSlice";
 import useUpdateBaseMapPrintZone from "Features/baseMaps/hooks/useUpdateBaseMapPrintZone";
 import EditedVersionLayer from "./EditedVersionLayer";
 import EditedLegendLayer from "./EditedLegendLayer";
@@ -268,6 +270,8 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     const grayLevelThreshold = useSelector((s) => s.baseMapEditor.grayLevelThreshold);
     const viewerKey = useSelector(selectEffectiveViewerKey);
     const isActiveViewer = viewerKey === forViewerKey;
+    // Base maps grid ("table of plans") covering this editor.
+    const baseMapsGridMounted = useSelector(selectBaseMapsGridMounted) && isActiveViewer;
     // Selected chip / top-bar eye: hide the baseMap image entirely
     // (annotations only). Every 2D map editor honors the flag except the
     // BaseMaps module, whose editor IS the image.
@@ -2506,6 +2510,13 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                     spriteImage={spriteImage}
                     qtiesById={legendQtiesById}
                 />
+            )}
+
+            {/* Base maps grid: overlay of the editor (same screen rect, so
+                a sheet is handed over between both cameras in place). It
+                stacks UNDER PopperMapListings, which stays usable over it. */}
+            {baseMapsGridMounted && !imageModeActive && (
+                <LayerBaseMapsGrid forViewerKey={forViewerKey} />
             )}
 
             {/* Export rapide only — the POV and capture-tool save bars carry

@@ -16,6 +16,7 @@ import SelectorDrawingPanel from "./SelectorDrawingPanel";
 import DialogCalibration2D from "./DialogCalibration2D";
 import ButtonToggleThreedViewer from "Features/viewers/components/ButtonToggleThreedViewer";
 import ButtonZoomOutMap from "./ButtonZoomOutMap";
+import ButtonOpenBaseMapsGrid from "Features/baseMapsGrid/components/ButtonOpenBaseMapsGrid";
 
 
 export default function UILayerDesktop({ mapController, onResetCamera, viewport }) {
@@ -114,6 +115,23 @@ export default function UILayerDesktop({ mapController, onResetCamera, viewport 
             </Box> */}
 
 
+
+            {/* Top-right: base maps grid ("table of plans") */}
+            <Box
+                data-capture-hide
+                sx={{
+                    position: "absolute",
+                    right: panelOpen ? `${panelWidth + 16}px` : "16px",
+                    top: "7px",
+                    zIndex: 1,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1,
+                    transition: "right 0.2s ease",
+                }}
+            >
+                <ButtonOpenBaseMapsGrid />
+            </Box>
 
             <Box
                 data-capture-hide
