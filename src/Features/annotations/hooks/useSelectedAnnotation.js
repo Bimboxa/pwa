@@ -6,6 +6,11 @@ import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemp
 
 import getEntityWithImagesAsync from "Features/entities/services/getEntityWithImagesAsync";
 
+import {
+  isTemplatelessAnnotation,
+  TEMPLATELESS_LABEL,
+} from "Features/annotations/utils/templatelessAnnotations";
+
 import db from "App/db/db";
 import useAnnotationsV2 from "./useAnnotationsV2";
 
@@ -94,7 +99,7 @@ export default function useSelectedAnnotation() {
   if (!annotation) return null;
 
   if (!annotation.isBaseMapAnnotation) {
-    annotation = { ...annotation, templateLabel: template?.label || "-?", annotationTemplate: template };
+    annotation = { ...annotation, templateLabel: template?.label || (isTemplatelessAnnotation(annotation) ? TEMPLATELESS_LABEL : "-?"), annotationTemplate: template };
   }
 
   // return

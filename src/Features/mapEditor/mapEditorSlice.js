@@ -216,6 +216,9 @@ const mapEditorInitialState = {
   // last selected drawing tool per annotation template / tool type
   selectedToolKeyByTemplateId: {}, // { [templateId|toolType]: toolKey }
 
+  // annotation type drawn by the "Dessin" tool (templateless annotations)
+  templatelessDrawingShape: "POLYGON",
+
   // last draft props (dimensions + colour) tuned in the drawing toolbar, per
   // annotation template, so re-arming the same template restores them as
   // defaults (session-only, not persisted to the template itself)
@@ -717,6 +720,10 @@ export const mapEditorSlice = createSlice({
       state.selectedToolKeyByTemplateId[templateId] = toolKey;
     },
 
+    setTemplatelessDrawingShape: (state, action) => {
+      state.templatelessDrawingShape = action.payload;
+    },
+
     // Remember the last draft properties (dimensions + colour) the user tuned in
     // the drawing toolbar, keyed by annotationTemplateId, so re-arming the same
     // template restores them as defaults (session-only, not persisted to the
@@ -1025,6 +1032,7 @@ export const {
 
   // selected tool per template
   setSelectedToolKeyForTemplate,
+  setTemplatelessDrawingShape,
   setDraftPropsForTemplate,
 
   // anchor snap

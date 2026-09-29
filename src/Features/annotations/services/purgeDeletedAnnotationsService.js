@@ -2,6 +2,7 @@ import db, { withHardDelete, withSystemWrite } from "App/db/db";
 import { withoutUndo } from "App/db/undoManager";
 
 import collectReferencedPointIds from "Features/annotations/utils/collectReferencedPointIds";
+import { isTemplatelessAnnotationInScope } from "Features/annotations/utils/templatelessAnnotations";
 
 // Compaction ("Purger les suppressions"): hard-deletes the dead weight that
 // accumulates in db.annotations / db.points and slows every useAnnotationsV2
@@ -67,7 +68,12 @@ export default async function purgeDeletedAnnotationsService({
 
   // Delete set = only rows belonging to the current scope's listings.
   const deletedAnnotationIds = allAnnotations
-    .filter((a) => a.deletedAt && scopeListingIds.has(a.listingId))
+    .filter(
+      (a) =>
+        a.deletedAt &&
+        (scopeListingIds.has(a.listingId) ||
+          isTemplatelessAnnotationInScope(a, scopeId))
+    )
     .map((a) => a.id);
 
   // Points are scoped via their OWN scopeId (stamped at creation by the

@@ -32,6 +32,7 @@ function parseMappingCategory(entry) {
 }
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 import useCreateEntity from "Features/entities/hooks/useCreateEntity";
+import { isTemplatelessAnnotation } from "../utils/templatelessAnnotations";
 import getNextAutoNumberLabelAsync from "../services/getNextAutoNumberLabelAsync";
 
 // Annotations whose label is owned by another mechanism: never auto-numbered.
@@ -43,6 +44,7 @@ function isAutoNumberExempt(annotation) {
       annotation?.isBusinessObjectAnnotation ||
       annotation?.isScaleSegment ||
       annotation?.isMeshCell ||
+      annotation?.isTemplateless ||
       annotation?.type === "REVOLUTION_AXIS" ||
       annotation?.type === "DETAIL" ||
       annotation?.type === "BASE_MAP_LINK"
@@ -83,6 +85,12 @@ export default function useCreateAnnotation() {
       // re-attach them to the selected listing and inflate its annotation
       // counter. Template-linked helpers are normal listing annotations.
       if (isLegacyStyleRevolutionHelper(_annotation)) {
+        _annotation.listingId = null;
+      }
+
+      // Templateless annotations ("Dessin" tool) belong to a scope + a base
+      // map only: same rule, never re-attached to the selected listing.
+      if (isTemplatelessAnnotation(_annotation)) {
         _annotation.listingId = null;
       }
 

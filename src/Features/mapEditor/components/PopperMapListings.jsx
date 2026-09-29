@@ -103,6 +103,12 @@ import {
   toggleAnnotationTemplateHidden,
 } from "Features/scopeVisibility/scopeVisibilitySlice";
 import TOOL_ITEMS from "Features/mapEditor/constants/toolItems";
+import RowTemplatelessDraw from "Features/mapEditor/components/RowTemplatelessDraw";
+import {
+  isTemplatelessAnnotationInScope,
+  TEMPLATELESS_LABEL,
+  TEMPLATELESS_TEMPLATE_ID,
+} from "Features/annotations/utils/templatelessAnnotations";
 import { getFreeAnnotationShortcut } from "Features/mapEditor/constants/freeAnnotationShortcuts";
 import { resolveDrawingShape } from "Features/annotations/constants/drawingShapeConfig";
 
@@ -1756,7 +1762,12 @@ export default function PopperMapListings() {
     (s) => s.annotations.soloAnnotationTemplateId
   );
   const soloTemplate = useLiveQuery(
-    () => (soloTemplateId ? db.annotationTemplates.get(soloTemplateId) : null),
+    () =>
+      soloTemplateId === TEMPLATELESS_TEMPLATE_ID
+        ? { label: TEMPLATELESS_LABEL }
+        : soloTemplateId
+          ? db.annotationTemplates.get(soloTemplateId)
+          : null,
     [soloTemplateId]
   );
   const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
@@ -1887,6 +1898,16 @@ export default function PopperMapListings() {
         }
       : {}),
   });
+
+  // "Dessin" tool row counter: annotations drawn without template in the
+  // selected scope (eye-hidden ones included, like the template rows).
+  const templatelessCount = useMemo(
+    () =>
+      (allAnnotationsInclHidden ?? []).filter((a) =>
+        isTemplatelessAnnotationInScope(a, selectedScopeId)
+      ).length,
+    [allAnnotationsInclHidden, selectedScopeId]
+  );
 
   // visible-only set for counts and qties (matches what's on screen).
   const allAnnotations = useMemo(
@@ -2592,15 +2613,29 @@ export default function PopperMapListings() {
                       </Typography>
                     </Box>
                     <List dense disablePadding>
-                      {TOOL_ITEMS.map((tool) => (
-                        <ToolRow
-                          key={tool.type}
-                          type={tool.type}
-                          label={tool.label}
-                          Icon={tool.Icon}
-                          shortcut={tool.shortcut}
-                        />
-                      ))}
+                      {TOOL_ITEMS.map((tool) =>
+                        tool.isTemplatelessDraw ? (
+                          // templateless annotations belong to a scope, not
+                          // to the ZONES / business-objects flows
+                          viewerKey === "MAP" && (
+                            <RowTemplatelessDraw
+                              key={tool.type}
+                              label={tool.label}
+                              Icon={tool.Icon}
+                              shortcut={tool.shortcut}
+                              count={templatelessCount}
+                            />
+                          )
+                        ) : (
+                          <ToolRow
+                            key={tool.type}
+                            type={tool.type}
+                            label={tool.label}
+                            Icon={tool.Icon}
+                            shortcut={tool.shortcut}
+                          />
+                        )
+                      )}
                     </List>
                   </>
                 )}

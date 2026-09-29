@@ -164,6 +164,7 @@ import useFreeAnnotationHotkeys from "../hooks/useFreeAnnotationHotkeys";
 import useResetInteractionMode from "../hooks/useResetInteractionMode";
 import useSyncLinkBusinessObjectDraft from "Features/businessObjects/hooks/useSyncLinkBusinessObjectDraft";
 import useOpeningHotkey from "../hooks/useOpeningHotkey";
+import useTemplatelessDrawHotkey from "../hooks/useTemplatelessDrawHotkey";
 import useToolGroupHotkey from "../hooks/useToolGroupHotkey";
 
 const contextDimmedStyle = {
@@ -213,6 +214,8 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     useToolGroupHotkey("c", "SPLIT_POLYLINE_CLICK");
     // hotkeys — start wall-ends join (J = Joindre) when not drawing
     useToolGroupHotkey("j", "JOIN_ANNOTATIONS");
+    // hotkeys — start a templateless draw (D = Dessin) when not drawing
+    useTemplatelessDrawHotkey();
 
     // const
 
