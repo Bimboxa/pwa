@@ -77,5 +77,23 @@ export default function useBaseMapsGridLayout() {
     [projectId]
   );
 
-  return { positions, setSheetPosition, setSheetPositions };
+  // back to the auto layout for these sheets
+  const resetSheetPositions = useCallback(
+    (baseMapIds) => {
+      setPositions((current) => {
+        const next = { ...current };
+        baseMapIds.forEach((id) => delete next[id]);
+        writePositions(projectId, next);
+        return next;
+      });
+    },
+    [projectId]
+  );
+
+  return {
+    positions,
+    setSheetPosition,
+    setSheetPositions,
+    resetSheetPositions,
+  };
 }
