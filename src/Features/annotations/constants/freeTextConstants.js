@@ -41,6 +41,14 @@ export function getFreeTextFontStack(fontFamily) {
   );
 }
 
+// Box metrics in page pt — shared by the renderer (NodeFreeTextStatic) and
+// the placement ghost (DrawingLayer) so both draw the exact same box.
+export const FREE_TEXT_PADDING_X = 8;
+export const FREE_TEXT_PADDING_Y = 4;
+export const FREE_TEXT_MIN_WIDTH = 20;
+export const FREE_TEXT_PLACEHOLDER = "Texte";
+export const FREE_TEXT_DEFAULT_TEXT_COLOR = "#000000";
+
 // FREE_TEXT-specific template / annotation style fields — the subset restored
 // by "Réinit." and toggled as ONE group by the template padlock.
 export const FREE_TEXT_FIELDS = [

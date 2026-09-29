@@ -2,6 +2,14 @@
 import React, { forwardRef, useImperativeHandle, useRef, useEffect, useId } from 'react';
 
 import { AXIS_SNAP_ACTIVE_COLOR } from './AxisSnapLayer';
+import {
+    getFreeTextFontStack,
+    FREE_TEXT_PADDING_X,
+    FREE_TEXT_PADDING_Y,
+    FREE_TEXT_MIN_WIDTH,
+    FREE_TEXT_PLACEHOLDER,
+    FREE_TEXT_DEFAULT_TEXT_COLOR,
+} from 'Features/annotations/constants/freeTextConstants';
 
 const SPINNER_STYLE = `
 @keyframes cursor-spin {
@@ -21,6 +29,24 @@ const ScreenCursorV2 = forwardRef(({ newAnnotation, visible, rotationAngle = 0, 
     const dimGroupRef = useRef(null);
     const maskHoleRef = useRef(null);
     const lastPosRef = useRef({ x: 0, y: 0 });
+    // FREE_TEXT placement ghost — provisional text box centred on the cursor,
+    // drawn above the crosshair. Authored in page pt (same metrics as
+    // NodeFreeTextStatic); ghostScaleRef = page pt → screen px.
+    const ghostRef = useRef(null);
+    const ghostScaleRef = useRef(null);
+    const isFreeText = newAnnotation?.type === "FREE_TEXT";
+    const updateGhost = () => {
+        const ghost = ghostRef.current;
+        if (!ghost) return;
+        const scale = ghostScaleRef.current;
+        if (!(scale > 0)) {
+            ghost.style.display = 'none';
+            return;
+        }
+        const { x, y } = lastPosRef.current;
+        ghost.setAttribute('transform', `translate(${x}, ${y}) scale(${scale})`);
+        ghost.style.display = '';
+    };
     const zoomRectSizeRef = useRef({ width: 0, height: 0 });
     const rotationAngleRef = useRef(rotationAngle);
     useEffect(() => { rotationAngleRef.current = rotationAngle; }, [rotationAngle]);
@@ -30,7 +56,11 @@ const ScreenCursorV2 = forwardRef(({ newAnnotation, visible, rotationAngle = 0, 
     const uid = useId().replace(/:/g, "-");
     const maskId = `screen-cursor-zoom-mask-${uid}`;
 
-    const color = newAnnotation?.strokeColor ?? newAnnotation?.fillColor ?? "red";
+    // FREE_TEXT: the crosshair follows the text colour (fillColor is the box
+    // background, white by default).
+    const color = isFreeText
+        ? (newAnnotation.textColor ?? FREE_TEXT_DEFAULT_TEXT_COLOR)
+        : (newAnnotation?.strokeColor ?? newAnnotation?.fillColor ?? "red");
 
     const updateZoomRect = (x, y) => {
         const { width, height } = zoomRectSizeRef.current;
@@ -85,6 +115,12 @@ const ScreenCursorV2 = forwardRef(({ newAnnotation, visible, rotationAngle = 0, 
                 spinnerRef.current.setAttribute('cy', y);
             }
             updateZoomRect(x, y);
+            updateGhost();
+        },
+
+        setGhostScale: (scale) => {
+            ghostScaleRef.current = scale;
+            updateGhost();
         },
 
         triggerFlash: () => {
@@ -213,6 +249,42 @@ const ScreenCursorV2 = forwardRef(({ newAnnotation, visible, rotationAngle = 0, 
                     />
                 )}
             </g>
+            {isFreeText && (
+                <g ref={ghostRef} style={{ display: 'none' }} stroke="none">
+                    <foreignObject x={0} y={0} width={1} height={1} style={{ overflow: 'visible' }}>
+                        <div
+                            style={{
+                                position: 'absolute',
+                                top: 0,
+                                left: 0,
+                                transform: 'translate(-50%, -50%)',
+                                width: 'max-content',
+                                minWidth: `${FREE_TEXT_MIN_WIDTH}px`,
+                                boxSizing: 'border-box',
+                                padding: newAnnotation.hasPadding === false
+                                    ? 0
+                                    : `${FREE_TEXT_PADDING_Y}px ${FREE_TEXT_PADDING_X}px`,
+                                backgroundColor: newAnnotation.hasBackground === false
+                                    ? 'transparent'
+                                    : (newAnnotation.fillColor ?? '#ffffff'),
+                                border: `1px dashed ${color}`,
+                                borderRadius: '2px',
+                                fontFamily: getFreeTextFontStack(newAnnotation.fontFamily),
+                                fontSize: `${newAnnotation.fontSize ?? 14}px`,
+                                fontWeight: newAnnotation.fontWeight === 'bold' ? 'bold' : 'normal',
+                                fontStyle: newAnnotation.fontItalic ? 'italic' : 'normal',
+                                textDecoration: newAnnotation.fontUnderline ? 'underline' : 'none',
+                                lineHeight: 1.2,
+                                whiteSpace: 'pre',
+                                color,
+                                userSelect: 'none',
+                            }}
+                        >
+                            {FREE_TEXT_PLACEHOLDER}
+                        </div>
+                    </foreignObject>
+                </g>
+            )}
             <circle
                 ref={spinnerRef}
                 cx={0}

@@ -50,6 +50,7 @@ import {
   isTemplatelessAnnotation,
 } from "Features/annotations/utils/templatelessAnnotations";
 import TEMPLATELESS_DRAWING_SHAPES from "Features/annotations/constants/templatelessDrawingShapes.jsx";
+import { FREE_TEXT_DEFAULT_TEXT_COLOR } from "Features/annotations/constants/freeTextConstants";
 import getAnnotationColor from "Features/annotations/utils/getAnnotationColor";
 import buildToolDraft from "Features/mapEditor/utils/buildToolDraft";
 import startTemplatelessDraw from "Features/mapEditor/utils/startTemplatelessDraw";
@@ -58,6 +59,7 @@ import { selectIsTemplateCoteDrawActive } from "Features/threedDrawing/utils/tem
 import ToggleSingleSelectorGeneric from "Features/layout/components/ToggleSingleSelectorGeneric";
 import FieldAnnotationHeight from "Features/annotations/components/FieldAnnotationHeight";
 import FieldAnnotationThickness from "Features/annotations/components/FieldAnnotationThickness";
+import FieldAnnotationFontSizeInline from "Features/annotations/components/FieldAnnotationFontSizeInline";
 import FieldCheck from "Features/form/components/FieldCheck";
 import ColorPickerContent from "Features/colors/components/ColorPickerContent";
 import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTemplateIcon";
@@ -115,15 +117,23 @@ export default function ToolbarDrawingDraft() {
 
   // helpers
 
-  const color =
-    getAnnotationColor(newAnnotation) ?? theme.palette.secondary.main;
+  // FREE_TEXT: the toolbar colour is the text colour (fillColor is the box
+  // background, edited from the properties panel).
+  const isFreeText = newAnnotation?.type === "FREE_TEXT";
+  const color = isFreeText
+    ? (newAnnotation.textColor ?? FREE_TEXT_DEFAULT_TEXT_COLOR)
+    : (getAnnotationColor(newAnnotation) ?? theme.palette.secondary.main);
   const shapeCategory = drawingShape
     ? resolveShapeCategory(drawingShape)
     : null;
   // REVOLUTION_AXIS is a "circle" shape but only exposes a stroke colour.
   const isStrokeColor =
     shapeCategory === "polyline" || drawingShape === "REVOLUTION_AXIS";
-  const colorField = isStrokeColor ? "strokeColor" : "fillColor";
+  const colorField = isFreeText
+    ? "textColor"
+    : isStrokeColor
+      ? "strokeColor"
+      : "fillColor";
 
   // Field visibility + tool-group flags for the current draft. Shared with the
   // E / H keyboard shortcuts (InteractionLayer) via getDraftFieldVisibility so
@@ -139,6 +149,7 @@ export default function ToolbarDrawingDraft() {
     showHeight,
     showWidth,
     showIsLayer,
+    showFontSize,
   } = getDraftFieldVisibility(newAnnotation, enabledDrawingMode);
 
   const showColor = !isToolGroup && !isFieldOverridden(colorField);
@@ -148,6 +159,7 @@ export default function ToolbarDrawingDraft() {
     showHeight ||
     showWidth ||
     showIsLayer ||
+    showFontSize ||
     isRampTool;
 
   const tools = toolGroupType
@@ -209,9 +221,11 @@ export default function ToolbarDrawingDraft() {
     ? (selectedCutToolKey ?? enabledDrawingMode)
     : enabledDrawingMode;
 
-  const colorPopoverTitle = isStrokeColor
-    ? "Couleur de tracé"
-    : "Couleur de remplissage";
+  const colorPopoverTitle = isFreeText
+    ? "Couleur du texte"
+    : isStrokeColor
+      ? "Couleur de tracé"
+      : "Couleur de remplissage";
 
   // handlers
 
@@ -545,6 +559,12 @@ export default function ToolbarDrawingDraft() {
           onChange={handleFieldChange}
           active={metricInputField === "height"}
           shortcut="H"
+        />
+      )}
+      {showFontSize && (
+        <FieldAnnotationFontSizeInline
+          value={newAnnotation?.fontSize}
+          onChange={handleFieldChange}
         />
       )}
       {showIsLayer && (
