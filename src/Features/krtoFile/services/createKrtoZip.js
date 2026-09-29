@@ -4,6 +4,7 @@ import sanitizeName from "Features/misc/utils/sanitizeName";
 import parseDexieExportBlob from "Features/krtoFile/utils/parseDexieExportBlob";
 import getScopeRelevantListings from "Features/krtoFile/utils/getScopeRelevantListings";
 import collectReferencedPointIds from "Features/annotations/utils/collectReferencedPointIds";
+import { isTemplatelessAnnotationInScope } from "Features/annotations/utils/templatelessAnnotations";
 import upsertCurrentUserInDirectory from "Features/usersDirectory/services/upsertCurrentUserInDirectory";
 import JSZip from "jszip";
 
@@ -106,8 +107,23 @@ export default async function createKrtoZip(scopeId, options) {
     // use. Unreferenced (orphan) points are intentionally dropped.
     const exportedAnnotations = (
         await db.annotations.where("projectId").equals(projectId).toArray()
-    ).filter((a) => listingIds.has(a.listingId));
+    ).filter(
+        (a) =>
+            listingIds.has(a.listingId) ||
+            // templateless annotations ("Dessin" tool): no listing, scoped
+            // by their own scopeId
+            isTemplatelessAnnotationInScope(a, scopeId)
+    );
     const referencedPointIds = collectReferencedPointIds(exportedAnnotations);
+
+    // Images of the templateless IMAGE annotations: their file rows carry no
+    // listingId, whitelisted like the POV thumbnails below.
+    const templatelessImageFileNames = new Set(
+        exportedAnnotations
+            .filter((a) => !a.deletedAt && isTemplatelessAnnotationInScope(a, scopeId))
+            .map((a) => a.image?.fileName)
+            .filter(Boolean)
+    );
 
     // 2bis. Versions de baseMap supprimées (soft-delete) : on conserve la version
     // dans le JSON, mais on exclut son image du zip pour éviter de l'alourdir avec
@@ -220,7 +236,8 @@ export default async function createKrtoZip(scopeId, options) {
             if (table === "files") {
                 if (
                     povImageFileNames.has(value.fileName) ||
-                    pdfPageResourceFileNames.has(value.fileName)
+                    pdfPageResourceFileNames.has(value.fileName) ||
+                    templatelessImageFileNames.has(value.fileName)
                 ) {
                     return value.projectId === projectId;
                 }
@@ -236,6 +253,14 @@ export default async function createKrtoZip(scopeId, options) {
             // only the inline thumbnail; the image is regenerated from the
             // source PDF once the resource file is re-attached.
             if (table === "baseMaps" && value.isDetail) {
+                return value.projectId === projectId;
+            }
+
+            // Templateless annotations ("Dessin" tool): no listing
+            if (
+                table === "annotations" &&
+                isTemplatelessAnnotationInScope(value, scopeId)
+            ) {
                 return value.projectId === projectId;
             }
 

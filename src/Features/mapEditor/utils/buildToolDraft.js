@@ -1,3 +1,5 @@
+import { getDrawingToolTypeByKey } from "../constants/drawingTools.jsx";
+
 // Opening (ouverture) draft colour — openings are drawn in red @ 0.8 opacity.
 export const OPENING_COLOR = "#ff0000";
 
@@ -11,6 +13,9 @@ export const OPENING_COLOR = "#ff0000";
 // cleared.
 export default function buildToolDraft(newAnnotation, tool, openingDefaults) {
   const base = { ...newAnnotation, type: tool.annotationType };
+  // Tool groups (openings / splits) reuse the previous draft: it must not
+  // keep the templateless flag of a previous "Dessin" draw.
+  if (getDrawingToolTypeByKey(tool.key)) delete base.isTemplateless;
   if (tool.isOpening) {
     base.isOpening = true;
     base.strokeColor = OPENING_COLOR;

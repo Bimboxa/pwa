@@ -361,6 +361,12 @@ import db from "App/db/db";
 
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
 import stabilizeAnnotationsIdentity from "Features/annotations/utils/stabilizeAnnotationsIdentity";
+import {
+  getAnnotationTemplateKey,
+  isTemplatelessAnnotation,
+  TEMPLATELESS_TEMPLATE_ID,
+} from "Features/annotations/utils/templatelessAnnotations";
+import { selectHiddenAnnotationTemplateIdSet } from "Features/scopeVisibility/selectors/scopeVisibilitySelectors";
 import getAnnotationTemplateProps from "Features/annotations/utils/getAnnotationTemplateProps";
 import getAnnotationPropsFromAnnotationTemplateProps from "Features/annotations/utils/getAnnotationPropsFromAnnotationTemplateProps";
 import getEntityWithImagesAsync from "Features/entities/services/getEntityWithImagesAsync";
@@ -607,6 +613,11 @@ export default function useAnnotationsV2(options) {
     // keyed Map (stable identity while nothing changes).
     const mainBusinessObjectLabelByAnnotationId =
       useMainBusinessObjectLabelByAnnotationId();
+
+    // eye of the templateless annotations ("Dessin" tool row)
+    const hideTemplateless = useSelector((s) =>
+      selectHiddenAnnotationTemplateIdSet(s).has(TEMPLATELESS_TEMPLATE_ID)
+    );
 
     // template FOCUS (Dessin module's recap panel): templateId | null. Same
     // ignoreSolo / keepSoloDimmed semantics as the zone solo.
@@ -947,6 +958,9 @@ export default function useAnnotationsV2(options) {
           // them rather than making them vanish.
           if (isRevolutionHelper(a))
             return !a.scopeId || a.scopeId === scope.id;
+          // Templateless annotations ("Dessin" tool): no listing either,
+          // scoped by their own `scopeId`.
+          if (isTemplatelessAnnotation(a)) return a.scopeId === scope.id;
           return scopeListingIds.has(a.listingId);
         });
       }
@@ -2329,6 +2343,13 @@ export default function useAnnotationsV2(options) {
           return annotation;
         } else {
           const baseMap = baseMapById[annotation?.baseMapId];
+          // Templateless annotations ("Dessin" tool) carry their own style;
+          // their eye is the sentinel id of the hidden templates list.
+          if (isTemplatelessAnnotation(annotation)) {
+            return hideTemplateless
+              ? { ...annotation, hidden: true }
+              : annotation;
+          }
           const templateProps = getAnnotationTemplateProps(
             annotationTemplatesMap[annotation?.annotationTemplateId]
           );
@@ -2654,7 +2675,8 @@ export default function useAnnotationsV2(options) {
       // kept, like the zone solo above.
       if (!ignoreSolo && soloTemplateId) {
         const isInTemplateSolo = (a) =>
-          a.isBaseMapAnnotation || a.annotationTemplateId === soloTemplateId;
+          a.isBaseMapAnnotation ||
+          getAnnotationTemplateKey(a) === soloTemplateId;
         if (keepSoloDimmed) {
           result = result.map((a) =>
             isInTemplateSolo(a) ? a : { ...a, _soloDimmed: true }
@@ -2842,6 +2864,7 @@ export default function useAnnotationsV2(options) {
       playWorkPackageIdByAnnotationId,
       playActive,
       mainBusinessObjectLabelByAnnotationId,
+      hideTemplateless,
       soloTemplateId,
       soloAnnotationId,
       keepSoloDimmed,

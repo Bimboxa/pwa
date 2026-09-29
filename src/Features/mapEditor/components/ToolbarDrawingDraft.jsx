@@ -1,16 +1,21 @@
 import { useState } from "react";
-import { useSelector, useDispatch } from "react-redux";
+import { useSelector, useDispatch, useStore } from "react-redux";
 
 import {
   Paper,
   Box,
+  ButtonBase,
   Divider,
   Popover,
   Typography,
   IconButton,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
 } from "@mui/material";
 import { Close as CloseIcon } from "@mui/icons-material";
-import { CompactPicker } from "react-color";
+import ArrowDropDown from "@mui/icons-material/ArrowDropDown";
 
 import {
   setEnabledDrawingMode,
@@ -19,6 +24,12 @@ import {
   setRampDeltaHM,
   setOpeningStrokeWidth,
   setDraftPropsForTemplate,
+  clearDrawingPolylinePoints,
+  clearDrawingRectanglePoints,
+  clearDrawingSegmentPoints,
+  clearRectDims,
+  clearConstraintBuffer,
+  setRectHasFirstPoint,
 } from "../mapEditorSlice";
 import { setNewAnnotation } from "Features/annotations/annotationsSlice";
 import { REMEMBERABLE_DRAFT_KEYS } from "Features/annotations/utils/getNewAnnotationPropsFromAnnotationTemplate";
@@ -34,14 +45,21 @@ import {
   getOpeningHotkeyForTool,
 } from "../constants/drawingToolHotkeys";
 import { resolveShapeCategory } from "Features/annotations/constants/drawingShapes.jsx";
+import {
+  getDraftSessionKey,
+  isTemplatelessAnnotation,
+} from "Features/annotations/utils/templatelessAnnotations";
+import TEMPLATELESS_DRAWING_SHAPES from "Features/annotations/constants/templatelessDrawingShapes.jsx";
 import getAnnotationColor from "Features/annotations/utils/getAnnotationColor";
 import buildToolDraft from "Features/mapEditor/utils/buildToolDraft";
+import startTemplatelessDraw from "Features/mapEditor/utils/startTemplatelessDraw";
 import { selectIsTemplateCoteDrawActive } from "Features/threedDrawing/utils/templateCoteDrawSelectors";
 
 import ToggleSingleSelectorGeneric from "Features/layout/components/ToggleSingleSelectorGeneric";
 import FieldAnnotationHeight from "Features/annotations/components/FieldAnnotationHeight";
 import FieldAnnotationThickness from "Features/annotations/components/FieldAnnotationThickness";
 import FieldCheck from "Features/form/components/FieldCheck";
+import ColorPickerContent from "Features/colors/components/ColorPickerContent";
 import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTemplateIcon";
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
 
@@ -49,10 +67,17 @@ import theme from "Styles/theme";
 
 export default function ToolbarDrawingDraft() {
   const dispatch = useDispatch();
+  const store = useStore();
+
+  // strings
+
+  const shapeMenuTitleS = "Type d'annotation";
+  const changeShapeS = "Changer de type d'annotation";
 
   // state
 
   const [colorAnchorEl, setColorAnchorEl] = useState(null);
+  const [shapeMenuAnchorEl, setShapeMenuAnchorEl] = useState(null);
 
   // data
 
@@ -81,6 +106,12 @@ export default function ToolbarDrawingDraft() {
   const drawnTemplate = annotationTemplates?.find(
     (t) => t.id === newAnnotation?.annotationTemplateId
   );
+
+  // Templateless draw ("Dessin" tool): the block shows the annotation type.
+  const templatelessShape =
+    !drawnTemplate && isTemplatelessAnnotation(newAnnotation)
+      ? TEMPLATELESS_DRAWING_SHAPES.find((shape) => shape.key === drawingShape)
+      : null;
 
   // helpers
 
@@ -208,6 +239,14 @@ export default function ToolbarDrawingDraft() {
           toolKey: tool?.key ?? mode,
         })
       );
+    } else if (isTemplatelessAnnotation(newAnnotation) && mode) {
+      // "Dessin" tool: remember the drawing mode per annotation type
+      dispatch(
+        setSelectedToolKeyForTemplate({
+          templateId: getDraftSessionKey(newAnnotation),
+          toolKey: tool?.key ?? mode,
+        })
+      );
     }
   }
 
@@ -218,7 +257,8 @@ export default function ToolbarDrawingDraft() {
   // Persist the whitelisted props just edited so re-arming the same template
   // restores them as defaults (mapEditor.draftPropsByTemplateId).
   function rememberDraftProps(changed) {
-    const templateId = newAnnotation?.annotationTemplateId;
+    // templateless drafts are remembered per annotation type
+    const templateId = getDraftSessionKey(newAnnotation);
     if (!templateId) return;
     const props = {};
     for (const key of REMEMBERABLE_DRAFT_KEYS) {
@@ -229,9 +269,24 @@ export default function ToolbarDrawingDraft() {
     }
   }
 
-  function handleColorChange(picked) {
-    dispatch(setNewAnnotation({ ...newAnnotation, [colorField]: picked.hex }));
-    rememberDraftProps({ [colorField]: picked.hex });
+  function handleColorChange(hex) {
+    dispatch(setNewAnnotation({ ...newAnnotation, [colorField]: hex }));
+    rememberDraftProps({ [colorField]: hex });
+  }
+
+  // "Dessin" tool: switch the annotation type without leaving the draw. The
+  // new type starts from a clean geometry (like the in-draw tool switch of
+  // useDrawingToolHotkeys).
+  function handleShapeChange(shape) {
+    setShapeMenuAnchorEl(null);
+    if (shape.key === drawingShape) return;
+    dispatch(clearDrawingPolylinePoints());
+    dispatch(clearDrawingRectanglePoints());
+    dispatch(clearDrawingSegmentPoints());
+    dispatch(clearRectDims());
+    dispatch(clearConstraintBuffer());
+    dispatch(setRectHasFirstPoint(false));
+    startTemplatelessDraw(dispatch, store.getState(), shape.key);
   }
 
   function handleFieldChange(next) {
@@ -319,6 +374,108 @@ export default function ToolbarDrawingDraft() {
               </Typography>
             </Box>
           </Box>
+          <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
+        </>
+      )}
+
+      {templatelessShape && (
+        <>
+          <ButtonBase
+            onClick={(e) => setShapeMenuAnchorEl(e.currentTarget)}
+            title={changeShapeS}
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 0.75,
+              flexShrink: 0,
+              mr: 0.5,
+              pl: 0.5,
+              py: 0.25,
+              borderRadius: 1,
+              textAlign: "left",
+              color: "text.secondary",
+              "&:hover": { bgcolor: "action.hover" },
+            }}
+          >
+            {templatelessShape.icon}
+            <Box>
+              <Typography
+                variant="caption"
+                sx={{
+                  display: "block",
+                  color: "text.secondary",
+                  lineHeight: 1.2,
+                  fontSize: "0.65rem",
+                }}
+              >
+                Dessiner
+              </Typography>
+              <Typography
+                variant="body2"
+                noWrap
+                sx={{
+                  fontWeight: 600,
+                  lineHeight: 1.2,
+                  maxWidth: 160,
+                  color: "text.primary",
+                }}
+              >
+                {templatelessShape.label}
+              </Typography>
+            </Box>
+            <ArrowDropDown sx={{ fontSize: 18 }} />
+          </ButtonBase>
+          <Menu
+            anchorEl={shapeMenuAnchorEl}
+            open={Boolean(shapeMenuAnchorEl)}
+            onClose={() => setShapeMenuAnchorEl(null)}
+            anchorOrigin={{ vertical: "top", horizontal: "left" }}
+            transformOrigin={{ vertical: "bottom", horizontal: "left" }}
+            slotProps={{
+              paper: {
+                sx: {
+                  minWidth: 200,
+                  borderRadius: 2,
+                  border: "1px solid",
+                  borderColor: "panel.border",
+                  mb: 1,
+                },
+              },
+            }}
+          >
+            <Box
+              sx={{
+                px: 2,
+                py: 1,
+                borderBottom: "1px solid",
+                borderColor: "panel.border",
+              }}
+            >
+              <Typography
+                variant="body2"
+                sx={{ fontWeight: 600, color: "panel.textPrimary" }}
+              >
+                {shapeMenuTitleS}
+              </Typography>
+            </Box>
+            {TEMPLATELESS_DRAWING_SHAPES.map((shape) => (
+              <MenuItem
+                key={shape.key}
+                selected={shape.key === drawingShape}
+                onClick={() => handleShapeChange(shape)}
+                sx={{ gap: 1, py: 0.75 }}
+              >
+                <ListItemIcon
+                  sx={{ minWidth: 28, "& .MuiSvgIcon-root": { fontSize: 18 } }}
+                >
+                  {shape.icon}
+                </ListItemIcon>
+                <ListItemText primaryTypographyProps={{ variant: "body2" }}>
+                  {shape.label}
+                </ListItemText>
+              </MenuItem>
+            ))}
+          </Menu>
           <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
         </>
       )}
@@ -453,9 +610,11 @@ export default function ToolbarDrawingDraft() {
             <CloseIcon fontSize="inherit" />
           </IconButton>
         </Box>
-        <Box sx={{ p: 1 }}>
-          <CompactPicker color={color} onChange={handleColorChange} />
-        </Box>
+        <ColorPickerContent
+          color={color}
+          onColorChange={handleColorChange}
+          onClose={() => setColorAnchorEl(null)}
+        />
       </Popover>
     </Paper>
   );

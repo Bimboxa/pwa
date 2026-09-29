@@ -574,6 +574,10 @@ const InteractionLayer = forwardRef(({
   const pasteTransform = useSelector((s) => s.mapEditor.pasteTransform);
   const pasteDetectionMode = useSelector((s) => s.mapEditor.pasteDetectionMode);
   const activeLayerId = useSelector((s) => s.layers?.activeLayerId);
+  // paste: templateless annotations land in the selected scope
+  const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
+  const selectedScopeIdRef = useRef(selectedScopeId);
+  selectedScopeIdRef.current = selectedScopeId;
   const hiddenLayerIds = useSelector((s) => s.layers?.hiddenLayerIds || []);
   const showAnnotationsWithoutLayer = useSelector(
     (s) => s.layers?.showAnnotationsWithoutLayer ?? true,
@@ -4918,6 +4922,7 @@ const InteractionLayer = forwardRef(({
         baseMap: calibrationBaseMap,
         targetMeterByPx: meterByPxRef.current,
         activeLayerId,
+        scopeId: selectedScopeIdRef.current,
         dispatch,
         triggerAnnotationsUpdate,
       }).catch((err) => {

@@ -7,17 +7,18 @@ import ExpandMore from "@mui/icons-material/ExpandMore";
 import ChevronRight from "@mui/icons-material/ChevronRight";
 
 import RowPanelDrawingTool from "./RowPanelDrawingTool";
+import RowTemplatelessDraw from "Features/mapEditor/components/RowTemplatelessDraw";
 import TOOL_ITEMS from "Features/mapEditor/constants/toolItems";
 
 // ---------------------------------------------------------------------------
 // SectionPanelDrawingTools — collapsible "OUTILS DE DESSIN" section listing
-// the shortcut cut/split tools (Ouverture O, Retirer un segment X, Couper un
+// the shortcut tools (Dessin D, Ouverture O, Retirer un segment X, Couper un
 // segment C).
 // ---------------------------------------------------------------------------
 
 const SHORTCUT_TOOLS = TOOL_ITEMS.filter((t) => t.shortcut);
 
-export default function SectionPanelDrawingTools() {
+export default function SectionPanelDrawingTools({ templatelessCount }) {
   const dispatch = useDispatch();
 
   // strings
@@ -71,15 +72,26 @@ export default function SectionPanelDrawingTools() {
 
       {!collapsed && (
         <List dense disablePadding>
-          {SHORTCUT_TOOLS.map((tool) => (
-            <RowPanelDrawingTool
-              key={tool.type}
-              type={tool.type}
-              label={tool.label}
-              Icon={tool.Icon}
-              shortcut={tool.shortcut}
-            />
-          ))}
+          {SHORTCUT_TOOLS.map((tool) =>
+            tool.isTemplatelessDraw ? (
+              <RowTemplatelessDraw
+                key={tool.type}
+                label={tool.label}
+                Icon={tool.Icon}
+                shortcut={tool.shortcut}
+                count={templatelessCount}
+                variant="panel"
+              />
+            ) : (
+              <RowPanelDrawingTool
+                key={tool.type}
+                type={tool.type}
+                label={tool.label}
+                Icon={tool.Icon}
+                shortcut={tool.shortcut}
+              />
+            )
+          )}
         </List>
       )}
     </Box>

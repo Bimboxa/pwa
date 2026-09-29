@@ -3,6 +3,7 @@ import getAnnotationPropsFromAnnotationTemplateProps from "./getAnnotationPropsF
 import getAnnotationTypeOnTemplateChange from "./getAnnotationTypeOnTemplateChange";
 import getEffectiveAnnotationType from "./getEffectiveAnnotationType";
 import { getGeometryKindFromType } from "../constants/drawingShapeConfig";
+import { isTemplatelessAnnotation } from "./templatelessAnnotations";
 
 // Read-time fields (useAnnotationsV2 / the template merge) that must never
 // reach the DB row. The 3D rendering overrides (color3D / opacity3D /
@@ -69,6 +70,11 @@ export default function getAnnotationTemplateChangeUpdates({
     annotationTemplateId: template.id,
     templateLabel: template.label,
     listingId: template.listingId,
+    // A templateless annotation ("Dessin" tool) becomes a regular listing
+    // annotation: it is no longer scoped by its own scopeId.
+    ...(isTemplatelessAnnotation(annotation)
+      ? { isTemplateless: false, scopeId: null }
+      : {}),
     // Persist the NEW template's lock set so the editor UI reflects it.
     overrideFields: templateProps.overrideFields,
   };

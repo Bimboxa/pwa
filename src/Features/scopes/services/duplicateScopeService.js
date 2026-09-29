@@ -4,6 +4,7 @@ import db, { withSystemWrite } from "App/db/db";
 import { withoutUndo } from "App/db/undoManager";
 
 import collectReferencedPointIds from "Features/annotations/utils/collectReferencedPointIds";
+import { isTemplatelessAnnotationInScope } from "Features/annotations/utils/templatelessAnnotations";
 import {
   remapPointIds,
   remapAnnotationIds,
@@ -109,6 +110,12 @@ export default async function duplicateScopeService({
 
   // read - scope content (parallel)
 
+  // templateless annotations ("Dessin" tool): no listing, scoped by their
+  // own scopeId (not indexed). Always copied, base map / layer filters apart.
+  const sourceTemplatelessAnnotations = (
+    await db.annotations.where("projectId").equals(scope.projectId).toArray()
+  ).filter((a) => notDeleted(a) && isTemplatelessAnnotationInScope(a, scope.id));
+
   const [
     sourceTemplates,
     sourceAnnotationsAll,
@@ -198,6 +205,15 @@ export default async function duplicateScopeService({
   keptAnnotations = keptAnnotations.filter((a) =>
     listingIdsToCopy.has(a.listingId)
   );
+
+  keptAnnotations = [
+    ...keptAnnotations,
+    ...sourceTemplatelessAnnotations.filter(
+      (a) =>
+        !disabledBaseMapSet.has(a.baseMapId) &&
+        !disabledLayerSet.has(getAnnotationLayerKey(a, liveLayerIds))
+    ),
+  ];
 
   const templatesToCopy = sourceTemplates.filter(
     (t) => listingIdsToCopy.has(t.listingId) && !disabledTemplateSet.has(t.id)
@@ -355,7 +371,9 @@ export default async function duplicateScopeService({
     const newAnn = {
       ...prepareCopy(a, createdBy),
       id: annotationIdMap[a.id],
-      listingId: listingIdMap[a.listingId],
+      ...(isTemplatelessAnnotationInScope(a, scope.id)
+        ? { listingId: null, scopeId: newScopeId }
+        : { listingId: listingIdMap[a.listingId] }),
       annotationTemplateId: a.annotationTemplateId
         ? (templateIdMap[a.annotationTemplateId] ?? a.annotationTemplateId)
         : a.annotationTemplateId,

@@ -46,6 +46,7 @@ import deriveOpeningContourAnchor from "Features/mapEditor/utils/deriveOpeningCo
 import getAnnotationAsPolygons from "Features/geometry/utils/getAnnotationAsPolygons";
 import getDefaultStackOffsetZ from "Features/annotations/utils/getDefaultStackOffsetZ";
 import { isRevolutionHelperType } from "Features/annotations/constants/drawingShapeConfig";
+import { isTemplatelessAnnotation } from "Features/annotations/utils/templatelessAnnotations";
 import resyncRevolutionAxisPlacementsService from "Features/elevation/services/resyncRevolutionAxisPlacementsService";
 import resyncBaseMapLinkPlacementsService from "Features/baseMapLinks/services/resyncBaseMapLinkPlacementsService";
 
@@ -89,7 +90,7 @@ export default function useHandleCommitDrawing({ annotations } = {}) {
 
     const baseMapId = useSelector(s => s.mapEditor.selectedBaseMapId);
     const projectId = useSelector(s => s.projects.selectedProjectId);
-    const listingId = useSelector(s => s.listings.selectedListingId);
+    const selectedListingId = useSelector(s => s.listings.selectedListingId);
     const selectedScopeId = useSelector(s => s.scopes.selectedScopeId);
     // Listings linked from another scope are read-only here (see
     // assertNotLinkedListingContent in App/db/db.js).
@@ -146,6 +147,13 @@ export default function useHandleCommitDrawing({ annotations } = {}) {
         // newAnnotation
 
         const newAnnotation = options?.newAnnotation ?? newAnnotationInState
+
+        // Templateless draw ("Dessin" tool, hotkey D): no annotation template,
+        // no listing — the annotation belongs to the base map + the scope
+        // only (its points carry no listingId either).
+        const isTemplateless = isTemplatelessAnnotation(newAnnotation)
+            && !newAnnotation?.annotationTemplateId;
+        const listingId = isTemplateless ? undefined : selectedListingId;
 
         // IMAGE one-click placement: the click is the image centre; the two
         // corners feed the bbox commit below. Done here (not in the editor)
@@ -406,7 +414,9 @@ export default function useHandleCommitDrawing({ annotations } = {}) {
                     : { x: (_x - 50) / width, y: (_y + 0) / height },
                 baseMapId,
                 projectId,
-                listingId,
+                ...(isTemplateless
+                    ? { scopeId: selectedScopeId ?? null, listingId: null }
+                    : { listingId }),
                 ...(activeLayerId && !isBaseMapAnnotation ? { layerId: activeLayerId } : {}),
 
                 // ... props de style
@@ -671,7 +681,7 @@ export default function useHandleCommitDrawing({ annotations } = {}) {
             // Revolution helpers only resolve an EXISTING template (the row that
             // armed the tool): a template-less helper draft must not create a
             // garbage template out of its scalar fields.
-            if (newAnnotation && !_updatedAnnotation && !isBaseMapAnnotation && !skipTemplateCreation && !(isRevolutionHelper && !newAnnotation.annotationTemplateId)) {
+            if (newAnnotation && !_updatedAnnotation && !isBaseMapAnnotation && !skipTemplateCreation && !isTemplateless && !(isRevolutionHelper && !newAnnotation.annotationTemplateId)) {
                 const existingAnnotationTemplates = await getTemplatesForListing(listingId);
                 // const existingAnnotationTemplate = getAnnotationTemplateFromNewAnnotation({
                 //     newAnnotation,
@@ -733,9 +743,11 @@ export default function useHandleCommitDrawing({ annotations } = {}) {
                 // keep the historical scope binding: without a template they
                 // cannot flow through the listing visibility filters, so
                 // useAnnotationsV2 keeps them visible through `scopeId`.
-                ...(isRevolutionHelper && !newAnnotation.annotationTemplateId
-                    ? { scopeId: selectedScopeId ?? null }
-                    : { listingId }),
+                ...(isTemplateless
+                    ? { scopeId: selectedScopeId ?? null, listingId: null }
+                    : isRevolutionHelper && !newAnnotation.annotationTemplateId
+                        ? { scopeId: selectedScopeId ?? null }
+                        : { listingId }),
                 ...(activeLayerId && !isBaseMapAnnotation
                     ? { layerId: activeLayerId }
                     : {}),

@@ -6,6 +6,7 @@ import { nanoid } from "@reduxjs/toolkit";
 import scaleAnnotationPxFields from "Features/annotations/utils/scaleAnnotationPxFields";
 
 import db from "App/db/db";
+import { isTemplatelessAnnotation } from "Features/annotations/utils/templatelessAnnotations";
 import applyPasteTransformToPoints from "Features/mapEditor/utils/applyPasteTransformToPoints";
 
 /**
@@ -40,6 +41,9 @@ import applyPasteTransformToPoints from "Features/mapEditor/utils/applyPasteTran
  *   combined with pasteClipboard.sourceMeterByPx it rescales the group so
  *   real-world dimensions are preserved across maps of different scales.
  * @param {string} params.activeLayerId   - optional, applied to new annotations
+ * @param {string} params.scopeId         - optional, selected scope: templateless
+ *   annotations ("Dessin" tool) are scoped by their own scopeId, the clones
+ *   must land in the scope they are pasted in
  * @param {Function} params.dispatch      - Redux dispatch
  * @param {Function} params.triggerAnnotationsUpdate - the slice action
  * @returns {Promise<Object[]>}
@@ -51,6 +55,7 @@ export default async function pasteAnnotationService({
   baseMap,
   targetMeterByPx,
   activeLayerId,
+  scopeId,
   dispatch,
   triggerAnnotationsUpdate,
 }) {
@@ -164,6 +169,9 @@ export default async function pasteAnnotationService({
       baseMapId: baseMap.id,
       entityId: undefined, // logical entity link not carried over — would require its own row
       ...(activeLayerId ? { layerId: activeLayerId } : {}),
+      ...(isTemplatelessAnnotation(sourceAnnotation) && scopeId
+        ? { scopeId, listingId: null }
+        : {}),
     };
 
     // DETAIL: the hydrated `label` is the ENTITY label (useAnnotationsV2 moves

@@ -1,4 +1,4 @@
-import { StopCircle } from "@mui/icons-material";
+import { Draw, StopCircle } from "@mui/icons-material";
 import IconCutLine from "Features/icons/IconCutLine";
 import IconSplitPolylineClick from "Features/icons/IconSplitPolylineClick";
 import IconJoinAnnotations from "Features/icons/IconJoinAnnotations";
@@ -9,7 +9,17 @@ import IconJoinAnnotations from "Features/icons/IconJoinAnnotations";
 // COMPLETE_ANNOTATION "Prolonger").
 // Once confirmed unused elsewhere, drop their interaction handlers / drawing
 // modes / hooks and the REPAIR_MODES / SectionRepairModes wiring.
+//
+// isTemplatelessDraw: "Dessin" row — draws an annotation with no template nor
+// listing (RowTemplatelessDraw / useTemplatelessDrawHotkey), not a tool group.
 const TOOL_ITEMS = [
+  {
+    type: "DRAW",
+    label: "Dessin",
+    Icon: Draw,
+    shortcut: "D",
+    isTemplatelessDraw: true,
+  },
   { type: "CUT", label: "Ouverture", Icon: StopCircle, shortcut: "O" },
   {
     type: "SPLIT_LINE",

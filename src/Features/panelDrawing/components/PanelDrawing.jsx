@@ -24,6 +24,7 @@ import useListings from "Features/listings/hooks/useListings";
 import useFreeAnnotationTemplates from "Features/mapEditor/hooks/useFreeAnnotationTemplates";
 import computeAnnotationTemplateQties from "Features/annotations/utils/computeAnnotationTemplateQties";
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
+import { isTemplatelessAnnotationInScope } from "Features/annotations/utils/templatelessAnnotations";
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 
@@ -102,6 +103,15 @@ export default function PanelDrawing() {
         }
       : {}),
   });
+
+  // "Dessin" tool row counter (annotations drawn without template).
+  const templatelessCount = useMemo(
+    () =>
+      (annotations ?? []).filter((a) =>
+        isTemplatelessAnnotationInScope(a, selectedScopeId)
+      ).length,
+    [annotations, selectedScopeId]
+  );
 
   const { value: listings } = useListings({
     filterByScopeId: selectedScopeId,
@@ -295,7 +305,9 @@ export default function PanelDrawing() {
           </Box>
 
           {/* Cut / split tools — 2D drawing modes only */}
-          {!isThreedEditor && <SectionPanelDrawingTools />}
+          {!isThreedEditor && (
+            <SectionPanelDrawingTools templatelessCount={templatelessCount} />
+          )}
         </>
       )}
     </Box>

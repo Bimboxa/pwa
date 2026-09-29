@@ -22,6 +22,7 @@ import {
   OPENING_TOOL_HOTKEYS,
 } from "../constants/drawingToolHotkeys";
 import buildToolDraft from "../utils/buildToolDraft";
+import { getDraftSessionKey } from "Features/annotations/utils/templatelessAnnotations";
 
 // Keyboard shortcuts to switch the active drawing tool without leaving the
 // drawing flow:
@@ -62,7 +63,8 @@ export default function useDrawingToolHotkeys() {
       };
       // Opening tools live in the "CUT" tool group; persist the active variant
       // under that group id so the toolbar highlight tracks it.
-      const templateId = isOpening ? "CUT" : newAnnotation.annotationTemplateId;
+      // Templateless drafts ("Dessin" tool) are keyed per annotation type.
+      const templateId = isOpening ? "CUT" : getDraftSessionKey(newAnnotation);
       if (templateId) {
         dispatch(
           setSelectedToolKeyForTemplate({ templateId, toolKey: tool.key })
