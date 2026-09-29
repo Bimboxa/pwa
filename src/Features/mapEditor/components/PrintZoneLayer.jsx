@@ -9,9 +9,9 @@ import getBaseMapDisplayName from "Features/baseMaps/utils/getBaseMapDisplayName
 // - Fonds de plan + Dessin modules. In Dessin the base map name sits at the
 //   below the IMAGE's bottom-left corner (it follows the drag); the sheet
 //   (shown only when showSheet, panel switch, hidden by default) carries a
-//   « Zone d'impression » label below its bottom-right corner. Clicking either (or the dashed
-//   frame) selects the base map and opens its print zone panel (right
-//   panel → PanelBaseMapProperties "printZone" view).
+//   « Zone d'impression » label below its bottom-right corner. The name
+//   selects the base map (its properties panel); the dashed frame / sheet
+//   label select it AND open the print zone sub-panel.
 // - The user positions the IMAGE on the sheet, not the sheet. The sheet
 //   centre is the world origin (see MainMapEditorV3), so:
 //   MOVE (frame stroke, or the image itself once explicitly selected) →
@@ -50,7 +50,8 @@ export default function PrintZoneLayer({
   interactive,
   showName,
   showSheet = true,
-  onSelect,
+  onSelect, // sheet frame / sheet label → print zone panel
+  onSelectBaseMap, // base map name → base map properties
   onDeselect,
   onLiveTransform,
   onCommit,
@@ -59,7 +60,7 @@ export default function PrintZoneLayer({
 
   const gRef = useRef(null); // outer group (camera frame): pointer capture
   const liveRef = useRef(null); // image frame group: follows the live transform
-  // { handleType: MOVE | IMAGE | SELECT | NW.., startClient,
+  // { handleType: MOVE | IMAGE | SELECT | SELECT_BASE_MAP | NW.., startClient,
   //   startScreenScale, startZone, anchorImg, handleImg, active, nextZone }
   const dragRef = useRef(null);
 
@@ -143,7 +144,10 @@ export default function PrintZoneLayer({
       y: e.clientY - drag.startClient.y,
     };
     if (!drag.active) {
-      const canDrag = isSelected && drag.handleType !== "SELECT";
+      const canDrag =
+        isSelected &&
+        drag.handleType !== "SELECT" &&
+        drag.handleType !== "SELECT_BASE_MAP";
       const moved =
         Math.abs(D.x) > DRAG_THRESHOLD_PX || Math.abs(D.y) > DRAG_THRESHOLD_PX;
       if (!canDrag || !moved) return;
@@ -207,6 +211,7 @@ export default function PrintZoneLayer({
     }
     if (!drag.active) {
       if (drag.handleType === "IMAGE") onDeselect?.();
+      else if (drag.handleType === "SELECT_BASE_MAP") onSelectBaseMap?.();
       else onSelect?.();
       return;
     }
@@ -304,7 +309,7 @@ export default function PrintZoneLayer({
                     userSelect: "none",
                   }}
                   data-interaction="transform-print-zone"
-                  data-handle-type="SELECT"
+                  data-handle-type="SELECT_BASE_MAP"
                 >
                   {nameS}
                 </text>

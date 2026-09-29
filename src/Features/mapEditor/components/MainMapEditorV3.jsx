@@ -569,6 +569,14 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
         dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
         dispatch(setPropertiesRequestedView("printZone"));
     };
+    // Base map name: the base map itself is the selected item, on its main
+    // properties view (not the print zone sub-panel).
+    const handleBaseMapNameSelect = () => {
+        if (!baseMap?.id) return;
+        dispatch(setSelectedItem({ id: baseMap.id, type: "BASE_MAP", listingId: baseMap.listingId }));
+        dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
+        dispatch(setPropertiesRequestedView("main"));
+    };
     const handlePrintZoneDeselect = () => {
         dispatch(clearSelection());
     };
@@ -2373,6 +2381,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                             showName={forViewerKey === "MAP"}
                             showSheet={showPrintZoneSheet}
                             onSelect={handlePrintZoneSelect}
+                            onSelectBaseMap={handleBaseMapNameSelect}
                             onDeselect={handlePrintZoneDeselect}
                             onLiveTransform={handlePrintZoneLiveTransform}
                             onCommit={handlePrintZoneCommit}
