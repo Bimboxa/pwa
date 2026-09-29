@@ -1,9 +1,11 @@
+import { useMemo } from "react";
 import { useSelector } from "react-redux";
 import { useLiveQuery } from "dexie-react-hooks";
 import db from "App/db/db";
 
 import getEntityWithImagesAsync from "Features/entities/services/getEntityWithImagesAsync";
 import sortAnnotationTemplatesByOrder from "Features/annotations/utils/sortAnnotationTemplatesByOrder";
+import { selectHiddenAnnotationTemplateIds } from "Features/scopeVisibility/selectors/scopeVisibilitySelectors";
 
 export default function useAnnotationTemplates(options) {
   // options
@@ -22,20 +24,28 @@ export default function useAnnotationTemplates(options) {
 
   const projectId = useSelector((s) => s.projects.selectedProjectId);
 
+  // Template visibility (the "eye") is per-scope LOCAL state (scopeVisibility
+  // slice + localStorage), no longer the persisted `hidden` field: derived
+  // here for every reader, overriding whatever a legacy row still carries.
+  const hiddenIds = useSelector(selectHiddenAnnotationTemplateIds);
+  const hiddenIdsKey = hiddenIds.join(",");
 
-
-  let annotationTemplates = useLiveQuery(async () => {
+  const rawAnnotationTemplates = useLiveQuery(async () => {
     let templates = [];
     if (filterByListingId) {
-      templates = (await db.annotationTemplates
-        .where("listingId")
-        .equals(filterByListingId)
-        .toArray()).filter(r => !r.deletedAt);
+      templates = (
+        await db.annotationTemplates
+          .where("listingId")
+          .equals(filterByListingId)
+          .toArray()
+      ).filter((r) => !r.deletedAt);
     } else if (projectId) {
-      templates = (await db.annotationTemplates
-        .where("projectId")
-        .equals(projectId)
-        .toArray()).filter(r => !r.deletedAt);
+      templates = (
+        await db.annotationTemplates
+          .where("projectId")
+          .equals(projectId)
+          .toArray()
+      ).filter((r) => !r.deletedAt);
     }
     // add images
     if (templates) {
@@ -49,6 +59,17 @@ export default function useAnnotationTemplates(options) {
 
     return templates;
   }, [filterByListingId, annotationTemplatesUpdatedAt, projectId]);
+
+  // Memoized on the rows + the hidden key: useAnnotationsV2 recomputes its
+  // whole stage B on the identity of this array.
+  let annotationTemplates = useMemo(() => {
+    if (!rawAnnotationTemplates) return rawAnnotationTemplates;
+    const hiddenSet = new Set(hiddenIdsKey ? hiddenIdsKey.split(",") : []);
+    return rawAnnotationTemplates.map((t) => ({
+      ...t,
+      hidden: hiddenSet.has(t.id),
+    }));
+  }, [rawAnnotationTemplates, hiddenIdsKey]);
 
   // edition
   if (editedAnnotationTemplate && annotationTemplates) {

@@ -1,4 +1,7 @@
 import { useState, useMemo } from "react";
+import { useDispatch } from "react-redux";
+
+import { setAnnotationTemplatesHidden } from "Features/scopeVisibility/scopeVisibilitySlice";
 
 import {
   Box,
@@ -15,7 +18,6 @@ import VisibilityOff from "@mui/icons-material/VisibilityOff";
 
 import RowPanelDrawingTemplate from "./RowPanelDrawingTemplate";
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
-import useUpdateAnnotationTemplates from "Features/annotations/hooks/useUpdateAnnotationTemplates";
 import groupAnnotationTemplatesByGroupLabel from "Features/annotations/utils/groupAnnotationTemplatesByGroupLabel";
 
 // ---------------------------------------------------------------------------
@@ -32,13 +34,14 @@ export default function SectionViewerListing({
   qtiesById,
   spriteImage,
 }) {
+  const dispatch = useDispatch();
+
   // data
 
   const allTemplates = useAnnotationTemplates({
     filterByListingId: listing.id,
     sortByOrder: true,
   });
-  const updateAnnotationTemplates = useUpdateAnnotationTemplates();
 
   // state
 
@@ -65,15 +68,16 @@ export default function SectionViewerListing({
 
   // handlers
 
-  // Batch-toggle every template eye of the listing in one write, only
-  // touching templates whose `hidden` actually changes.
-  async function handleToggleVisibility(e) {
+  // Toggle every template eye of the listing in one dispatch (per-scope
+  // local state, scopeVisibility slice).
+  function handleToggleVisibility(e) {
     e.stopPropagation();
-    const targetHidden = !isHidden;
-    const updates = (allTemplates ?? [])
-      .filter((t) => Boolean(t.hidden) !== targetHidden)
-      .map((t) => ({ id: t.id, hidden: targetHidden }));
-    await updateAnnotationTemplates(updates);
+    dispatch(
+      setAnnotationTemplatesHidden({
+        ids: (allTemplates ?? []).map((t) => t.id),
+        hidden: !isHidden,
+      })
+    );
   }
 
   // render

@@ -21,7 +21,10 @@ export default function useUpdateAnnotationTemplates() {
 
     await db.transaction("rw", [db.annotationTemplates], async () => {
       await Promise.all(
-        updatesArray.map(({ id, ...fields }) =>
+        // `hidden` is per-scope local state (scopeVisibility slice), never
+        // written to the row.
+        // eslint-disable-next-line no-unused-vars
+        updatesArray.map(({ id, hidden, ...fields }) =>
           db.annotationTemplates.update(id, {
             ...fields,
             updatedBy: userEmail,

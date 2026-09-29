@@ -18,10 +18,7 @@ import {
   setHideMainBaseMapAnnotationsIn3d,
   setBaseMapOpacityByIdIn3d,
 } from "Features/threedEditor/threedEditorSlice";
-import {
-  triggerAnnotationsUpdate,
-  triggerAnnotationTemplatesUpdate,
-} from "Features/annotations/annotationsSlice";
+import { setHiddenAnnotationTemplateIds } from "Features/scopeVisibility/scopeVisibilitySlice";
 
 import activateBaseMapVersion from "Features/baseMaps/utils/activateBaseMapVersion";
 
@@ -80,8 +77,8 @@ export default async function applyPovSceneStateService({
   if (pov.showLogo !== undefined)
     dispatch(setImageModeShowLogo(Boolean(pov.showLogo)));
 
-  // 3. annotation templates visibility — one batch write, only where the
-  // hidden flag actually changes (useUpdateAnnotationTemplates pattern).
+  // 3. annotation templates visibility — per-scope LOCAL state
+  // (scopeVisibility slice, saved to localStorage), no template write.
   //
   // `visibleAnnotationTemplateIds` is a WHITELIST: every template outside of
   // it is hidden, which also covers templates created after the view was
@@ -99,17 +96,11 @@ export default async function applyPovSceneStateService({
       .where("projectId")
       .equals(projectId)
       .toArray();
-    const updates = templates
-      .filter((t) => !t.deletedAt)
-      .filter((t) => Boolean(t.hidden) !== isHidden(t))
-      .map((t) => ({ key: t.id, changes: { hidden: isHidden(t) } }));
-    if (updates.length > 0) {
-      await db.transaction("rw", [db.annotationTemplates], async () => {
-        await db.annotationTemplates.bulkUpdate(updates);
-      });
-      dispatch(triggerAnnotationTemplatesUpdate());
-      dispatch(triggerAnnotationsUpdate());
-    }
+    dispatch(
+      setHiddenAnnotationTemplateIds(
+        templates.filter((t) => !t.deletedAt && isHidden(t)).map((t) => t.id)
+      )
+    );
   }
 
   // 4. baseMaps + active versions (guarded: references may have been deleted)

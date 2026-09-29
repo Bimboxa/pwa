@@ -21,7 +21,7 @@ import ProcedurePopperContent from "Features/annotationsAuto/components/Procedur
 import SplitButtonStartDraw from "./SplitButtonStartDraw";
 import ShortcutBadge from "Features/smartDetect/components/ShortcutBadge";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
-import useUpdateAnnotationTemplate from "Features/annotations/hooks/useUpdateAnnotationTemplate";
+import { toggleAnnotationTemplateHidden } from "Features/scopeVisibility/scopeVisibilitySlice";
 import { getFreeAnnotationShortcut } from "Features/mapEditor/constants/freeAnnotationShortcuts";
 
 // ---------------------------------------------------------------------------
@@ -52,8 +52,6 @@ export default function RowPanelDrawingTemplate({
   const dispatch = useDispatch();
 
   // data
-
-  const updateAnnotationTemplate = useUpdateAnnotationTemplate();
 
   // Linked ANNOTATIONS_CREATOR procedures — same "Auto" chip + popper as the
   // popper row (the panel is the only Dessin entry point of the procedures).
@@ -115,12 +113,10 @@ export default function RowPanelDrawingTemplate({
     if (!procedurePopperHoveredRef.current) scheduleCloseProcedurePopper();
   };
 
-  const handleToggleHidden = async (e) => {
+  // Template eye: per-scope local state (scopeVisibility slice).
+  const handleToggleHidden = (e) => {
     e.stopPropagation();
-    await updateAnnotationTemplate({
-      ...annotationTemplate,
-      hidden: !annotationTemplate?.hidden,
-    });
+    dispatch(toggleAnnotationTemplateHidden(annotationTemplate?.id));
   };
 
   const handleOpenDetail = () => {

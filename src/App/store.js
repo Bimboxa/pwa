@@ -80,6 +80,8 @@ import povReducer from "Features/pov/povSlice";
 import urlParamsReducer from "Features/urlParams/urlParamsSlice";
 import notesAppReducer from "Features/notesApp/notesAppSlice";
 import assistantRelayReducer from "Features/assistantRelay/assistantRelaySlice";
+import scopeVisibilityReducer from "Features/scopeVisibility/scopeVisibilitySlice";
+import scopeVisibilityPersistMiddleware from "Features/scopeVisibility/scopeVisibilityPersistMiddleware";
 
 import { syncTabsMiddleware, initSyncTabsListener } from "./syncTabsMiddleware";
 import { startTabsRegistry } from "./tabsRegistry";
@@ -164,11 +166,16 @@ const store = configureStore({
     urlParams: urlParamsReducer,
     notesApp: notesAppReducer,
     assistantRelay: assistantRelayReducer,
+    scopeVisibility: scopeVisibilityReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
       serializableCheck: false,
-    }).concat(syncedVersionPersistMiddleware, syncTabsMiddleware),
+    }).concat(
+      syncedVersionPersistMiddleware,
+      scopeVisibilityPersistMiddleware,
+      syncTabsMiddleware
+    ),
 });
 
 initSyncTabsListener(store);

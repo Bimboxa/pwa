@@ -63,6 +63,8 @@ export default function PanelPrint() {
 
   const baseMap = useMainBaseMap();
 
+  // Data export includes everything: the template eyes are a display
+  // setting of this device (scopeVisibility), not a scope property.
   const annotations = useAnnotationsV2({
     caller: "PanelPrint",
     filterBySelectedScope: true,
@@ -70,6 +72,7 @@ export default function PanelPrint() {
     withListingName: true,
     excludeIsForBaseMapsListings: true,
     hideBaseMapAnnotations: true,
+    keepHiddenTemplates: true,
   });
 
   const templateRankById = useTemplateRankById();

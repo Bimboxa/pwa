@@ -285,6 +285,18 @@ export default async function createKrtoZip(scopeId, options) {
     // dangling reference too. remapDexieExportIds builds its fileNameMap from
     // the exported `files` rows, so a surviving rawImage.fileName would get no
     // mapping and a duplicated scope would point at the source machine's file.
+    // Template visibility (the eye) is per-scope LOCAL state on each device
+    // (scopeVisibility slice + localStorage), never exported: strip the legacy
+    // `hidden` flag rows may still carry from the former persisted model.
+    const templatesTableData = jsonData.data.data.find(
+        (t) => t.tableName === "annotationTemplates"
+    );
+    if (templatesTableData?.rows) {
+        for (const row of templatesTableData.rows) {
+            if (row && "hidden" in row) delete row.hidden;
+        }
+    }
+
     const povsTableData = jsonData.data.data.find((t) => t.tableName === "povs");
     if (povsTableData?.rows) {
         for (const row of povsTableData.rows) {

@@ -1,5 +1,7 @@
 import { createSlice } from "@reduxjs/toolkit";
 
+import getInitScopeVisibility from "Features/init/services/getInitScopeVisibility";
+
 const threedEditorInitialState = {
   showGrid: false,
   // When true, basemap images are hidden in the live 3D view AND omitted from
@@ -61,8 +63,9 @@ const threedEditorInitialState = {
   // selected baseMap. Session-only, same lifecycle as `baseMapOpacityIn3d`.
   opacityByBaseMapIdIn3d: {},
   // Base maps explicitly shown in the 3D scene *in addition to* the main
-  // (selected) base map, which is always loaded. Session-only, resets on
-  // every reload — same lifecycle as `baseMapOpacityIn3d`.
+  // (selected) base map, which is always loaded. Per-scope local state:
+  // saved to localStorage by scopeVisibilityPersistMiddleware (with the
+  // three fields below) and restored on scope selection.
   visibleBaseMapIdsIn3d: [],
   // Per-base-map annotation display mode in the 3D scene, keyed by baseMapId.
   // Value "NORMAL" | "DIMMED"; a missing key means "NONE" (no annotations).
@@ -80,6 +83,11 @@ const threedEditorInitialState = {
   // reset the hideMain* flags (see extraReducers) — the startup restore of
   // the persisted main would flash the image mid-load otherwise.
   revealOnMainSelectSuspended: false,
+  // hideMain* flags restored from localStorage for a given main base map
+  // (scope selection): consumed by the "reveal fully" extraReducer when the
+  // persisted main gets re-selected at startup, so the restore does not
+  // clobber them. Null once consumed or when another main is selected.
+  restoredMainState: null,
   // Fire-and-forget cross-tab event: pan the 3D camera to a world-space
   // point. `triggeredAt` makes repeated clicks at the same spot still fire.
   // `baseMapId` is a guard: the consumer ignores the event when its current
@@ -832,10 +840,51 @@ export const threedEditorSlice = createSlice({
     // so the startup restore of the persisted main doesn't flash the image.
     builder.addMatcher(
       (action) => action.type === "mapEditors/setSelectedMainBaseMapId",
-      (state) => {
+      (state, action) => {
         if (state.revealOnMainSelectSuspended) return;
+        const restored = state.restoredMainState;
+        state.restoredMainState = null;
+        if (
+          restored &&
+          action.payload &&
+          restored.mainBaseMapId === action.payload
+        ) {
+          // Startup re-selection of the persisted main: keep the flags the
+          // user left on this scope instead of revealing fully.
+          state.hideMainBaseMapImageIn3d = restored.hideMainBaseMapImageIn3d;
+          state.hideMainBaseMapAnnotationsIn3d =
+            restored.hideMainBaseMapAnnotationsIn3d;
+          return;
+        }
         state.hideMainBaseMapImageIn3d = false;
         state.hideMainBaseMapAnnotationsIn3d = false;
+      }
+    );
+    // Scope selection: restore the scope's saved 3D base map toggles (or the
+    // defaults). The hideMain* flags only make sense for the main they were
+    // saved with: parked in restoredMainState until that main is selected.
+    builder.addMatcher(
+      (action) => action.type === "scopes/setSelectedScopeId",
+      (state, action) => {
+        const saved = getInitScopeVisibility(action.payload)?.threed;
+        state.visibleBaseMapIdsIn3d = saved?.visibleBaseMapIdsIn3d ?? [];
+        state.annotationsModeByBaseMapIdIn3d =
+          saved?.annotationsModeByBaseMapIdIn3d ?? {};
+        state.hideMainBaseMapImageIn3d = Boolean(
+          saved?.hideMainBaseMapImageIn3d
+        );
+        state.hideMainBaseMapAnnotationsIn3d = Boolean(
+          saved?.hideMainBaseMapAnnotationsIn3d
+        );
+        state.restoredMainState = saved?.mainBaseMapId
+          ? {
+              mainBaseMapId: saved.mainBaseMapId,
+              hideMainBaseMapImageIn3d: Boolean(saved.hideMainBaseMapImageIn3d),
+              hideMainBaseMapAnnotationsIn3d: Boolean(
+                saved.hideMainBaseMapAnnotationsIn3d
+              ),
+            }
+          : null;
       }
     );
   },

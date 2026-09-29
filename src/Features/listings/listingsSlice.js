@@ -3,6 +3,7 @@ import { createSlice } from "@reduxjs/toolkit";
 import exampleListingsMap from "./data/exampleListingsMap";
 
 import setInitListingId from "Features/init/services/setInitListingId";
+import getInitScopeVisibility from "Features/init/services/getInitScopeVisibility";
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
 
 const listingsInitialState = {
@@ -26,6 +27,10 @@ const listingsInitialState = {
   //
   openListingSyncDetail: false,
   //
+  // Listings hidden from the editors (eye of the Dessin panel / avatars /
+  // SCOPE-module base map folders). Per-scope local state: re-hydrated from
+  // localStorage on every scope selection (scopeVisibilityPersistMiddleware
+  // saves it), so ids never leak from one scope to the next.
   hiddenListingsIds: [],
 };
 
@@ -94,6 +99,17 @@ export const listingsSlice = createSlice({
         (id) => id !== action.payload
       );
     },
+  },
+  extraReducers: (builder) => {
+    // Matched by type string to avoid importing scopesSlice (setInitListingId
+    // is already the only init dependency here).
+    builder.addMatcher(
+      (action) => action.type === "scopes/setSelectedScopeId",
+      (state, action) => {
+        state.hiddenListingsIds =
+          getInitScopeVisibility(action.payload)?.hiddenListingsIds ?? [];
+      }
+    );
   },
 });
 
