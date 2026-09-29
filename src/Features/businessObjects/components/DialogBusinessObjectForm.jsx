@@ -9,14 +9,11 @@ import {
   DialogContent,
   DialogTitle,
   FormControlLabel,
-  MenuItem,
   TextField,
   Typography,
 } from "@mui/material";
 
-import { CirclePicker } from "react-color";
-import defaultColors from "Features/colors/data/defaultColors";
-
+import FieldColorV2 from "Features/form/components/FieldColorV2";
 import FieldHoursRatioCompact from "./FieldHoursRatioCompact";
 import FieldTaskGlobalLayer from "./FieldTaskGlobalLayer";
 
@@ -24,13 +21,14 @@ import useCreateBusinessObject from "../hooks/useCreateBusinessObject";
 import useUpdateBusinessObject from "../hooks/useUpdateBusinessObject";
 
 import {
-  BUSINESS_OBJECT_UNITS,
   DEFAULT_BUSINESS_OBJECT_UNIT,
   DEFAULT_BUSINESS_OBJECT_COLOR,
   DEFAULT_HOURS_RATIO_MODE,
 } from "../constants/businessObjectEntityModel";
 import getBusinessObjectTypeOfListing from "../utils/getBusinessObjectTypeOfListing";
 import getHoursRatioUnit from "../utils/getHoursRatioUnit";
+import { getBusinessObjectUnitText } from "../utils/getBusinessObjectQtyKind";
+import formatBusinessObjectNumber from "../utils/formatBusinessObjectNumber";
 import {
   getHoursRatioFromDisplayed,
   getHoursRatioInputText,
@@ -38,9 +36,9 @@ import {
 } from "../utils/hoursRatioConversions";
 
 // Create / edit form of a business object. The field set follows the
-// listing type (businessObjectTypesCatalog features): label + optional
-// description + "Titre" for every type; quantity unit and color for the
-// types carrying them; tasks (feature hoursBudget) replace the unit with the
+// listing type (businessObjectTypesCatalog features): code + label +
+// optional description + "Titre" for every type; quantity unit (free text),
+// reference quantity and color for the types carrying them; tasks (feature hoursBudget) replace the unit with the
 // hours ratio as a compact one-line row (FieldHoursRatioCompact, the ratio
 // carries its own unit) and have no color (feature color false). The stored
 // ratio is always hours per unit, the mode toggle only flips the displayed
@@ -65,6 +63,7 @@ export default function DialogBusinessObjectForm({
 
   const isEdit = Boolean(businessObject);
   const [label, setLabel] = useState(businessObject?.label ?? "");
+  const [code, setCode] = useState(businessObject?.code ?? "");
   const [color, setColor] = useState(
     businessObject?.color ??
       parentBusinessObject?.color ??
@@ -73,10 +72,17 @@ export default function DialogBusinessObjectForm({
   const [description, setDescription] = useState(
     businessObject?.description ?? ""
   );
-  // "" = unit-less (stored as null)
+  // free text, "" = unit-less (stored as null)
   const [unit, setUnit] = useState(
-    isEdit ? (businessObject?.unit ?? "") : DEFAULT_BUSINESS_OBJECT_UNIT
+    isEdit
+      ? getBusinessObjectUnitText(businessObject?.unit)
+      : DEFAULT_BUSINESS_OBJECT_UNIT
   );
+  // reference quantity text ("" = none)
+  const initialRefQtyText = Number.isFinite(businessObject?.refQty)
+    ? formatBusinessObjectNumber(businessObject.refQty, 3)
+    : "";
+  const [refQtyText, setRefQtyText] = useState(initialRefQtyText);
   const [isTitle, setIsTitle] = useState(Boolean(businessObject?.isTitle));
   // hours ratio (tasks): mode + field text in that mode ("" = no ratio)
   const [hoursRatioMode, setHoursRatioMode] = useState(
@@ -122,13 +128,20 @@ export default function DialogBusinessObjectForm({
         }
       : {};
     // tasks have no quantity unit: that one belongs to priced articles
-    const unitProp = hasHoursBudget ? null : unit || null;
+    const unitProp = hasHoursBudget ? null : unit.trim() || null;
+    // untouched text: the stored value (maybe more precise) is kept
+    const refQtyProp =
+      hasHoursBudget || refQtyText === initialRefQtyText
+        ? {}
+        : { refQty: parseHoursRatioInput(refQtyText.replace(/\s/g, "")) };
     if (isEdit) {
       await updateBusinessObject(businessObject.id, {
         label,
+        code: code.trim(),
         ...(hasColor ? { color } : {}),
         description,
         unit: unitProp,
+        ...refQtyProp,
         isTitle,
         ...ratioProps,
       });
@@ -137,9 +150,11 @@ export default function DialogBusinessObjectForm({
         listing,
         parentId: parentBusinessObject?.id ?? null,
         label,
+        code: code.trim(),
         ...(hasColor ? { color } : {}),
         description,
         unit: unitProp,
+        ...refQtyProp,
         isTitle,
         ...ratioProps,
       });
@@ -180,18 +195,26 @@ export default function DialogBusinessObjectForm({
     <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
       <DialogTitle>{title}</DialogTitle>
       <DialogContent>
-        <TextField
-          autoFocus
-          fullWidth
-          size="small"
-          label="Nom"
-          value={label}
-          onChange={(e) => setLabel(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && label) handleSubmit();
-          }}
-          sx={{ mt: 1 }}
-        />
+        <Box sx={{ display: "flex", gap: 1, mt: 1 }}>
+          <TextField
+            size="small"
+            label="Code"
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            sx={{ width: 110, flexShrink: 0 }}
+          />
+          <TextField
+            autoFocus
+            fullWidth
+            size="small"
+            label="Nom"
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && label) handleSubmit();
+            }}
+          />
+        </Box>
         <TextField
           fullWidth
           size="small"
@@ -214,23 +237,24 @@ export default function DialogBusinessObjectForm({
           sx={{ mt: 1, ml: 0 }}
         />
         {!hasHoursBudget && (
-          <TextField
-            select
-            fullWidth
-            size="small"
-            label="Unité de quantité"
-            value={unit}
-            onChange={(e) => setUnit(e.target.value)}
-            sx={{ mt: 1 }}
-          >
-            {/* "—" = unit-less row (a title, typically) */}
-            <MenuItem value="">—</MenuItem>
-            {BUSINESS_OBJECT_UNITS.map((u) => (
-              <MenuItem key={u.key} value={u.key}>
-                {u.label}
-              </MenuItem>
-            ))}
-          </TextField>
+          <Box sx={{ display: "flex", gap: 1, mt: 1 }}>
+            <TextField
+              fullWidth
+              size="small"
+              label="Quantité de référence"
+              value={refQtyText}
+              onChange={(e) => setRefQtyText(e.target.value)}
+            />
+            {/* free text; empty = unit-less row (a title, typically) */}
+            <TextField
+              size="small"
+              label="Unité"
+              placeholder="u, ml, m²…"
+              value={unit}
+              onChange={(e) => setUnit(e.target.value)}
+              sx={{ width: 130, flexShrink: 0 }}
+            />
+          </Box>
         )}
         {hasHoursBudget && (
           <Box sx={{ mt: 2 }}>
@@ -251,13 +275,12 @@ export default function DialogBusinessObjectForm({
           </Box>
         )}
         {hasColor && (
-          <Box sx={{ mt: 2, display: "flex", justifyContent: "center" }}>
-            <CirclePicker
-              onChange={(c) => setColor(c.hex)}
-              color={color}
-              colors={defaultColors}
-              circleSize={20}
-              circleSpacing={9}
+          <Box sx={{ mt: 2 }}>
+            <FieldColorV2
+              label="Couleur"
+              value={color}
+              onChange={setColor}
+              options={{ showAsSection: true }}
             />
           </Box>
         )}

@@ -294,8 +294,11 @@ db.version(32).stores({
 
 db.version(33).stores({
   // {id, listingId (BUSINESS_OBJECT listing), parentId|null, label, color,
-  //  description?, sortIndex (fractional index among siblings),
-  //  unit ("U"|"L"|"S" — u / ml / m², drives the quantity rollup rule),
+  //  code? (article number, free text), description?,
+  //  sortIndex (fractional index among siblings),
+  //  unit (free text — "m²", "ens"...; the quantity rollup rule is deduced
+  //  from it; legacy keys "U"|"L"|"S" read as u / ml / m²),
+  //  refQty? (reference quantity of the source document),
   //  hoursRatio? (number|null — PLANNING tasks: hours per `unit`),
   //  hoursRatioMode? ("RATIO"|"CADENCE" — display mode of hoursRatio,
   //  cadence = 1 / ratio),

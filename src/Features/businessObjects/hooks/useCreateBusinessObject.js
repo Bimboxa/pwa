@@ -13,6 +13,9 @@ import {
 } from "../constants/businessObjectEntityModel";
 import getBusinessObjectTypeOfListing from "../utils/getBusinessObjectTypeOfListing";
 
+// code: article number (free text); unit: free text; refQty: reference
+// quantity (source document), compared with the quantity rolled up from the
+// linked annotations.
 // hoursRatio / hoursRatioMode / hoursRatioUnit: PLANNING tasks only (hours
 // per unit, display mode, unit of that ratio); written when provided, absent
 // otherwise. Tasks pass unit: null — the quantity unit belongs to articles.
@@ -23,9 +26,11 @@ export default function useCreateBusinessObject() {
     listing,
     parentId,
     label,
+    code,
     color,
     description,
     unit,
+    refQty,
     isTitle,
     hoursRatio,
     hoursRatioMode,
@@ -56,7 +61,9 @@ export default function useCreateBusinessObject() {
       parentId: parentId ?? null,
       label: label || getBusinessObjectTypeOfListing(listing).strings.newObject,
       color: color || DEFAULT_BUSINESS_OBJECT_COLOR,
+      ...(code ? { code } : {}),
       ...(description ? { description } : {}),
+      ...(Number.isFinite(refQty) ? { refQty } : {}),
       ...(isTitle ? { isTitle: true } : {}),
       ...(Number.isFinite(hoursRatio) ? { hoursRatio } : {}),
       ...(hoursRatioMode ? { hoursRatioMode } : {}),

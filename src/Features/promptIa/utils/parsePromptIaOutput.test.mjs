@@ -76,3 +76,68 @@ test("normalizePromptIaPayload defaults to the image space and rejects unknown s
   );
   assert.match(bad.error, /coordinateSpace inconnu/);
 });
+
+const carnet = {
+  coordinateSpace: "image",
+  image: { width: 100, height: 50 },
+  annotationTemplates: [{ id: "tpl_detail", label: "Détail", type: "DETAIL" }],
+  baseMaps: [
+    {
+      id: "bm_A",
+      kind: "detail",
+      detailRef: "A",
+      source: { attachmentId: "res-1", pageNumber: 2 },
+    },
+    {
+      id: "existing-bm",
+      kind: "detail",
+      detailRef: "B",
+      source: { attachmentId: "res-1", pageNumber: 3 },
+    },
+  ],
+  annotations: [
+    { id: "d1", type: "DETAIL", annotationTemplateId: "tpl_detail", point: { x: 0.1, y: 0.2 }, detailBaseMapId: "bm_A" },
+    { id: "d2", type: "DETAIL", annotationTemplateId: "tpl_detail", point: { x: 0.3, y: 0.2 }, detailBaseMapId: "bm_A" },
+    { id: "d3", type: "DETAIL", annotationTemplateId: "tpl_detail", point: { x: 0.5, y: 0.2 }, detailBaseMapId: "existing-bm" },
+  ],
+};
+
+test("normalizePromptIaPayload remints new detail base maps and keeps the existing ones", () => {
+  let n = 0;
+  const r = normalizePromptIaPayload(carnet, {
+    existingTemplateIds: [],
+    existingBaseMapIds: ["existing-bm"],
+    newId: () => `id-${++n}`,
+  });
+  assert.equal(r.error, undefined);
+  assert.deepEqual(r.reusedBaseMapIds, ["existing-bm"]);
+  // The existing base map is not created again.
+  assert.equal(r.payload.baseMaps.length, 1);
+  const created = r.payload.baseMaps[0].id;
+  assert.notEqual(created, "bm_A");
+  assert.deepEqual(
+    r.payload.annotations.map((a) => a.detailBaseMapId),
+    [created, created, "existing-bm"]
+  );
+});
+
+test("normalizePromptIaPayload rejects a bubble linked to an unknown detail base map", () => {
+  const r = normalizePromptIaPayload(
+    {
+      ...carnet,
+      annotations: [{ ...carnet.annotations[0], detailBaseMapId: "bm_Z" }],
+    },
+    { existingTemplateIds: [], existingBaseMapIds: [], newId: () => "x" }
+  );
+  assert.equal(r.payload, null);
+  assert.match(r.error, /detailBaseMapId inconnu : bm_Z/);
+});
+
+test("normalizePromptIaPayload leaves payloads without baseMaps untouched", () => {
+  const r = normalizePromptIaPayload(payload, {
+    existingTemplateIds: ["existing-1"],
+    newId: () => "n",
+  });
+  assert.equal("baseMaps" in r.payload, false);
+  assert.deepEqual(r.reusedBaseMapIds, []);
+});

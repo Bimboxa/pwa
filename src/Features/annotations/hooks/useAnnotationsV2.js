@@ -1195,6 +1195,12 @@ export default function useAnnotationsV2(options) {
 
           _annotation.baseMapName = baseMap?.name;
 
+          // Page-pt → image-px scale inputs, on every type: the label chip
+          // of any annotation is sized in page points of the print zone by
+          // default (getAnnotationLabelPropsFromAnnotation).
+          _annotation.imageLongSidePx = Math.max(width, height);
+          _annotation.pagePxPerPt = pagePxPerPt;
+
           // Geometry-family heal (getEffectiveAnnotationType): a row typed
           // LABEL / FREE_TEXT without its 2-point geometry but with point refs
           // (a POLYGON re-templated with a LABEL template by the former
@@ -1244,6 +1250,12 @@ export default function useAnnotationsV2(options) {
               })[0];
               if (!_isResolved(_annotation.point) && _annotation.point?.id)
                 corruptedIds.push(_annotation.point.id);
+            }
+            // DETAIL: the bubble is sized in page points of the print zone
+            // (same pt→image-px scale as FREE_TEXT, see NodeDetailStatic).
+            if (_annotation.type === "DETAIL") {
+              _annotation.imageLongSidePx = Math.max(width, height);
+              _annotation.pagePxPerPt = pagePxPerPt;
             }
           }
 

@@ -122,6 +122,8 @@ function toPointRefs(points) {
  * @param {string} params.projectId
  * @param {string} params.listingId
  * @param {Map<string,string>} params.templateIdMap - source template id → db id
+ * @param {Map<string,string>} [params.baseMapIdMap] - payload detail baseMap
+ *   id → db id (DETAIL bubbles; an id absent from the map is an existing one)
  * @returns {{ clipboard: Object, scaled: boolean, relative: boolean }}
  */
 export default function buildImportData({
@@ -133,6 +135,7 @@ export default function buildImportData({
   excludedTemplateIds,
   relativeToBaseMap,
   templateIdMap,
+  baseMapIdMap,
 }) {
   const image = data.image;
   const mbpxTarget = mainBaseMap?.getMeterByPx?.() ?? null;
@@ -251,6 +254,18 @@ export default function buildImportData({
       const [basePoint] = toBasePoints([ann.point], pxPerNormX, pxPerNormY);
       item.basePoint = basePoint;
       allBasePoints.push(basePoint);
+      if (ann.type === "DETAIL" && !ann.props) {
+        annotation.arrowAngle = Number.isFinite(ann.arrowAngle)
+          ? ann.arrowAngle
+          : 0;
+        annotation.detailBaseMapId = ann.detailBaseMapId
+          ? baseMapIdMap?.get(ann.detailBaseMapId) ?? ann.detailBaseMapId
+          : null;
+        // The bubble shows the linked baseMap's detailRef; the row label is
+        // only the fallback text (same default as a hand-drawn bubble).
+        annotation.label =
+          typeof ann.label === "string" && ann.label.trim() ? ann.label : "X";
+      }
     } else {
       const basePoints = toBasePoints(ann.points, pxPerNormX, pxPerNormY);
       item.basePoints = basePoints;

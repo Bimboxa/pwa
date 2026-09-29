@@ -20,6 +20,8 @@ export const CHAT_TOOL_LABELS = {
   update_annotations_batch: "Modification des annotations",
   create_annotation_templates: "Création de modèles d'annotation",
   create_annotation_listing: "Création d'une liste",
+  create_detail_base_maps: "Création de fonds de détail",
+  render_attachment_pages: "Lecture d'une pièce jointe",
   undo_drawing: "Annulation des modifications",
   get_current_base_map: "Lecture du fond de plan",
   get_detection_instructions: "Lecture des consignes",

@@ -5,6 +5,7 @@ import {
     getAnnotationOwnLabel,
 } from "./getAnnotationLabelDisplay";
 import getAnnotationLabelStubConfig from "./getAnnotationLabelStubConfig";
+import getAnnotationLabelFixedSizeConfig from "./getAnnotationLabelFixedSizeConfig";
 
 export default function getAnnotationLabelPropsFromAnnotation(annotation) {
     if (!annotation) return null;
@@ -58,6 +59,12 @@ export default function getAnnotationLabelPropsFromAnnotation(annotation) {
         fontSize:
             ANNOTATION_LABEL_FONT_SIZES_PX[annotation.labelFontSize] ??
             ANNOTATION_LABEL_FONT_SIZES_PX.M,
+        // Size mode (resolved own ?? template ?? default): fixed relative to
+        // the print zone (sizes in page pt) or screen-constant (screen px).
+        // The pt → image-px scale inputs are stamped by useAnnotationsV2.
+        isFixedSize: getAnnotationLabelFixedSizeConfig(annotation).isFixedSize,
+        pagePxPerPt: annotation.pagePxPerPt,
+        imageLongSidePx: annotation.imageLongSidePx,
         labelPoint,
         targetPoint,
         labelStubLength: stub.length,
@@ -67,8 +74,8 @@ export default function getAnnotationLabelPropsFromAnnotation(annotation) {
         // relative to the barycenter without re-reading the row.
         barycenter,
         labelDelta,
-        // Chip width in screen px (resize handle in NodeLabelStatic);
-        // undefined = auto (content-driven).
+        // Chip width (resize handle in NodeLabelStatic), page pt or screen
+        // px like the font size; undefined = auto (content-driven).
         width: annotation.labelWidth,
         // Drop shadow on the 2D chip ("Ombre" switch, default off).
         shadow: annotation.labelShadow === true,

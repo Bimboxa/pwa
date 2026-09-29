@@ -21,10 +21,13 @@ A new left-band module `BUSINESS_OBJECTS` (default label "Ouvrages"):
 - Manages listings of `entityModel.type === "BUSINESS_OBJECT"`, flagged `isTree: true`
   (v1 handles only tree listings): objects organized as a tree (`parentId` + fractional
   `sortIndex`).
-- Object props: **color**, **label**, optional **description**, **unit**
-  (`U` | `L` | `S` → u / ml / m², or **null** = unit-less, no quantity shown),
-  **isTitle** (title band row). The unit drives the default quantity rollup
-  rule: U → count, L → length, S → surface.
+- Object props: **code** (article number, free text), **color**, **label**,
+  optional **description**, **unit** (FREE TEXT — "m²", "ens", "kg"…, or
+  **null** = unit-less, no quantity shown), **refQty** (reference quantity of
+  the source document), **isTitle** (title band row). The quantity rollup rule
+  is deduced from the unit text (`getBusinessObjectQtyKind`): "m²" / "m2" →
+  surface, "ml" / "m" → length, anything else → count. Legacy rows store the
+  former enum keys `U` | `L` | `S`, read as u / ml / m² (no migration).
 - Left panel: listing selector on top (FieldActiveListing pattern), objects tree below.
 - Clicking an object **SELECTS** it: `setSelectedItem({type: "BUSINESS_OBJECT",
   id, listingId})` in the selection slice (row highlight + properties panel,
@@ -51,7 +54,7 @@ A new left-band module `BUSINESS_OBJECTS` (default label "Ouvrages"):
 
 ```js
 businessObjects: "id,listingId,projectId,scopeId,parentId"
-// {id, listingId, parentId|null, label, color, description?, sortIndex, unit, scopeId, projectId}
+// {id, listingId, parentId|null, code?, label, color, description?, sortIndex, unit, refQty?, scopeId, projectId}
 relsBusinessObjectAnnotation: "id,projectId,annotationId,businessObjectId,listingId"
 // N-N; invariant: at most one live rel per (annotationId, businessObjectId)
 ```
@@ -63,12 +66,12 @@ per-table FK override (`businessObjects.parentId → businessObjects`, NOT the g
 Cleanup: project wipe, scope clear, annotation-delete cascade, listing delete
 (`useDeleteBusinessObjectListing`).
 
-## "Numérotation" display option + per-level styles
+## Codes ("Renuméroter") + row layout + per-level styles
 
 The object properties panel header has a back arrow navigating to the
 listing's properties via the selection slice (`setSelectedItem({type:
 "LISTING"})` → `BUSINESS_OBJECT_LISTING` routing, BASE_MAP_LISTING pattern):
-`PanelBusinessObjectListingProperties` = name edition + "Numérotation" toggle,
+`PanelBusinessObjectListingProperties` = name edition + "Renuméroter" action,
 its own back arrow returns to the scope panel. Routing in the module is driven
 by the SELECTION alone: `BUSINESS_OBJECT` / `WORK_PACKAGE` item → object /
 package props; `LISTING` item → listing props; NODE item → annotation props
@@ -78,11 +81,29 @@ listing props are the module's default — entering the module drops the
 selection inherited from the previous one (`selectionSlice` case on
 `setSelectedViewerKey`, business-objects modules only).
 
-`listing.showNumbering` (toggled from the listing selector's "…" menu or the
-listing properties panel) turns
-the tree into a flat 3-column DPGF-like rendering: hierarchical number
-(left, computed on the full tree — "2.1.3", every node counts), label (left),
-quantity (right); no indentation, no color chip, no link-count chip.
+The numbering is a STORED field: `businessObject.code` (imported, typed in
+the object form / properties panel, or written by "Renuméroter"). There is no
+computed numbering at display time and `listing.showNumbering` is no longer
+read. "Renuméroter" (listing selector's "…" menu or listing properties panel,
+`renumberBusinessObjectsService`) writes the tree numbering ("2.1.3", every
+node counts) into the codes in one transaction; it is disabled on
+Krnet-linked listings, whose codes come from the remote list.
+
+As soon as one object of the listing has a code, the tree turns into a flat
+3-column DPGF-like rendering: code (left), label, quantity (right); no
+indentation, no color chip, no link-count chip.
+
+Rows (`BusinessObjectTreeItem.jsx`):
+- the label wraps on several lines (rows are top-aligned, side items sit on
+  the first line);
+- the quantity + unit is flush right — the hover actions are an overlay, out
+  of the flow. Computed quantity when annotations are linked; else `refQty`,
+  greyed; else "– unit", greyed; nothing for a unit-less row;
+- when both the computed and the reference quantities exist and differ by
+  more than 5 % (`getBusinessObjectQtyGap`), a warning button opens
+  `PopperBusinessObjectQtyGap`: reference, computed, gap, and the computed
+  quantity per annotation template (`getBusinessObjectQtiesByTemplate`).
+- PLANNING rows are unchanged (rolled-up hours on the right).
 
 Per-level row styles (both display modes, capped at the 3rd level, see
 `BusinessObjectTreeItem.jsx`):
@@ -96,10 +117,14 @@ Per-level row styles (both display modes, capped at the 3rd level, see
 The panel has a quick-edit toggle (EditNote icon under the listing selector)
 replacing the tree with a multiline monospace editor: one row per line, TAB
 = one depth level (2 spaces tolerated; TAB / Shift+TAB indent/outdent in the
-textarea). Trailing suffix: unit in parentheses — `(m)` → L, `(m2)` → S,
-`(u)` → U — for object rows; unit in BRACKETS for TITLE rows (`[m2]`, or `[]`
-for a unit-less title); no suffix = unit-less object row. The suffix is
-authoritative: removing it clears the unit.
+textarea). Trailing suffix: unit in parentheses — a free text, `(m²)`,
+`(ml)`, `(u)`, `(ens)`… — for object rows; unit in BRACKETS for TITLE rows
+(`[m²]`, or `[]` for a unit-less title); no suffix = unit-less object row. A
+suffix is a unit when it is a single token (no space, 16 characters at most):
+a label ending with "(type A)" stays a label; `(m2)` / `(m)` are read as m² /
+ml; a unit holding spaces is written with non-breaking spaces. The suffix is
+authoritative: removing it clears the unit. Codes are not part of the text:
+matched objects keep theirs.
 
 "Mettre à jour" runs a diff (`buildQuickEditDiff` in
 `utils/businessObjectsQuickEdit.js`) against the live tree:

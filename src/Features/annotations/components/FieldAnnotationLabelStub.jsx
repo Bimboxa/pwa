@@ -16,6 +16,8 @@ import getAnnotationLabelStubConfig, {
   hasOwnLabelStubValue,
   LABEL_STUB_FIELDS,
 } from "Features/annotations/utils/getAnnotationLabelStubConfig";
+import getAnnotationLabelSizeConfig from "Features/annotations/utils/getAnnotationLabelSizeConfig";
+import getAnnotationLabelFixedSizeConfig from "Features/annotations/utils/getAnnotationLabelFixedSizeConfig";
 
 // strings
 
@@ -53,7 +55,7 @@ const numberInputSx = {
 };
 
 // Per-annotation "déport horizontal" of the label leader line: stub length
-// (screen px) + mode (Fixe: the elbow follows the chip / Variable: the elbow
+// (page pt for a fixed-size chip, screen px otherwise) + mode (Fixe: the elbow follows the chip / Variable: the elbow
 // stays put on the map). Shared by the Etiquette tab (sub-labels) and the
 // Propriétés tab of standalone LABEL annotations. Unset = inherited from the
 // template (read-time), see getAnnotationLabelStubConfig.
@@ -71,6 +73,12 @@ export default function FieldAnnotationLabelStub({
     Array.isArray(overrideFields) &&
     LABEL_STUB_FIELDS.some((f) => overrideFields.includes(f));
   const isStandaloneLabel = annotation?.type === "LABEL";
+  // The stub length follows the chip's unit: page pt when the chip is fixed
+  // relative to the print zone, screen px otherwise.
+  const isFixedSize = isStandaloneLabel
+    ? getAnnotationLabelSizeConfig(annotation).isFixedSize
+    : getAnnotationLabelFixedSizeConfig(annotation).isFixedSize;
+  const unitS = isFixedSize ? "pt" : "px";
 
   // handlers
 
@@ -149,7 +157,7 @@ export default function FieldAnnotationLabelStub({
             inputProps={{ min: 0, step: 1 }}
             endAdornment={
               <Typography variant="caption" color="text.secondary">
-                px
+                {unitS}
               </Typography>
             }
             sx={numberInputSx}

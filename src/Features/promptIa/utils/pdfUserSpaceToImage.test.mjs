@@ -74,3 +74,34 @@ test("convertPayloadToImageSpace converts every point group and drops out-of-cro
   assert.equal(poly.cuts[0].points.length, 3);
   assert.equal(data.annotations[1].labelPoint.x, 1);
 });
+
+test("convertPayloadToImageSpace converts the single point of a DETAIL and drops it outside the crop", () => {
+  const frame = { rotation: 0, bboxInRatio: { x1: 0, y1: 0, x2: 0.5, y2: 1 } };
+  const r = convertPayloadToImageSpace(
+    {
+      baseMaps: [
+        { id: "bm", source: { bboxInRatio: { x1: 0.1, y1: 0.1, x2: 0.9, y2: 0.9 } } },
+      ],
+      annotations: [
+        // quarter of the page width, mid height → centre of the crop
+        { id: "in", type: "DETAIL", point: { x: 10 + 210.5, y: 615 - 297.5 }, arrowAngle: 45 },
+        // right half of the page: outside the crop
+        { id: "out", type: "DETAIL", point: { x: 10 + 700, y: 615 - 297.5 } },
+      ],
+    },
+    frame,
+    page
+  );
+  assert.deepEqual(r.dropped, ["out"]);
+  assert.equal(r.data.annotations.length, 1);
+  assert.ok(close(r.data.annotations[0].point.x, 0.5, 1e-6));
+  assert.ok(close(r.data.annotations[0].point.y, 0.5, 1e-6));
+  assert.equal(r.data.annotations[0].arrowAngle, 45);
+  // A zone of an attached PDF page is never a plan coordinate.
+  assert.deepEqual(r.data.baseMaps[0].source.bboxInRatio, {
+    x1: 0.1,
+    y1: 0.1,
+    x2: 0.9,
+    y2: 0.9,
+  });
+});

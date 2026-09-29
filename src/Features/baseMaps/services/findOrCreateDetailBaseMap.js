@@ -12,13 +12,16 @@ import { PDFJS_DOC_PARAMS } from "Features/pdf/utils/pdfjsParams";
 import { renderPageToPngBlob } from "Features/pdf/utils/pdfToPngAsync";
 import findAutoDpi from "Features/pdf/utils/findAutoDpi";
 import getPdfPageThumbnailDataUrl from "Features/detailFolio/utils/getPdfPageThumbnailDataUrl";
+import { normalizeBboxInRatio } from "../utils/bboxInRatio";
 import { getDetailImageCacheKey } from "./detailBaseMapUtils";
 import findDetailBaseMap from "./findDetailBaseMap";
 
 GlobalWorkerOptions.workerSrc = pdfjsWorker;
 
-// Finds the detail baseMap matching a (pdf file name, page) pair, or creates
-// it. Detail baseMaps store NO file in db.files: their image is rendered on
+// Finds the detail baseMap matching a (pdf file name, page, crop) triple, or
+// creates it. `bboxInRatio` (fractions of the ROTATED page, null = whole page)
+// is the zone of interest; `props` are extra fields spread on a CREATED record
+// (provenance tags such as promptIaBatchId / relayJobId). Detail baseMaps store NO file in db.files: their image is rendered on
 // the fly from the source PDF (see BaseMap.createFromRecord) and cached in
 // memory for the session. Dedup (delegated to findDetailBaseMap) deliberately
 // ignores rotation — the rotation of the first creation wins, so annotations
@@ -33,7 +36,10 @@ export default async function findOrCreateDetailBaseMap({
   createdBy,
   name = null,
   detailRef = null,
+  bboxInRatio = null,
+  props = null,
 }) {
+  const bbox = normalizeBboxInRatio(bboxInRatio);
   const resource = await db.resources.get(resourceId);
   if (!resource || resource.deletedAt) return null;
   const pdfFileName = resource.name;
@@ -42,6 +48,7 @@ export default async function findOrCreateDetailBaseMap({
     resourceId,
     pageNumber,
     projectId,
+    bboxInRatio: bbox,
   });
   if (existing) return existing;
 
@@ -66,6 +73,7 @@ export default async function findOrCreateDetailBaseMap({
       pdfDocument,
       page: pageNumber,
       rotate: rotation,
+      bboxInRatio: bbox,
     });
 
     // Single full-resolution render (the probe is reused when already on
@@ -83,6 +91,7 @@ export default async function findOrCreateDetailBaseMap({
         pdfPage,
         resolution: dpi,
         rotate: rotation,
+        bboxInRatio: bbox,
       });
       blob = rendered.blob;
       width = rendered.width;
@@ -91,10 +100,12 @@ export default async function findOrCreateDetailBaseMap({
     const thumbnail = await getPdfPageThumbnailDataUrl(
       pdfDocument,
       pageNumber,
-      rotation
+      rotation,
+      bbox
     );
 
     const record = {
+      ...(props ?? {}),
       id: nanoid(),
       createdAt: getDateString(Date.now()),
       createdBy,
@@ -103,7 +114,9 @@ export default async function findOrCreateDetailBaseMap({
       isDetail: true,
       name:
         name?.trim() ||
-        `${pdfFileName.replace(/\.pdf$/i, "")} — p.${pageNumber}`,
+        `${pdfFileName.replace(/\.pdf$/i, "")} — p.${pageNumber}${
+          bbox ? " (zone)" : ""
+        }`,
       detailRef: detailRef?.trim() || null,
       createdFrom: {
         type: "PDF_PAGE",
@@ -111,7 +124,7 @@ export default async function findOrCreateDetailBaseMap({
         resourceId,
         pageNumber,
         rotation,
-        bboxInRatio: null,
+        bboxInRatio: bbox,
         dpi,
         blueprintScale: null,
       },

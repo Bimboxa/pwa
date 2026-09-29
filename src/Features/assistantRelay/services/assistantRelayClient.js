@@ -240,7 +240,8 @@ export function undoLiveJob(jobId) {
   return relayFetch(`/jobs/${jobId}/undo`, { method: "POST" });
 }
 
-// ---- vectorization runs (PDF déposé dans le Chat, analysé depuis le relai)
+// ---- PDFs stored on the relay (chat attachments, plan sources) and
+// vectorization runs
 
 // Raw PDF body (no JSON, no multipart). Returns { pdfId, pageCount, pages }.
 export async function uploadRelayPdf(file) {
@@ -279,12 +280,6 @@ export async function uploadRelayPdf(file) {
 export async function fetchReasoningLevels() {
   const data = await relayFetch("/reasoning-levels");
   return data?.levels ?? [];
-}
-
-// { pdfId, pageNumber, instruction, target, level?, clientRequestId } → run. The same
-// clientRequestId returns the same run (no second analysis).
-export function createVectorization(input) {
-  return relayFetch("/vectorizations", { method: "POST", json: input });
 }
 
 export function fetchVectorization(runId) {

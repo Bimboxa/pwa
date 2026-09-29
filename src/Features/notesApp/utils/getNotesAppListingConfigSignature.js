@@ -6,7 +6,7 @@
 // listing as notesApp.remoteUpdatedAt (the sync cursor).
 //
 // The local side is NOT keyed on listing.updatedAt: that stamp moves on
-// every listing write (rename, showNumbering, the sync's own creation...)
+// every listing write (rename, type, the sync's own creation...)
 // and would block every pull. notesApp.localUpdatedAt is stamped only by
 // the config hook (and the name handler); null = clean since the last sync.
 

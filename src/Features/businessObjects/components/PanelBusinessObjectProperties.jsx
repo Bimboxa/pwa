@@ -21,7 +21,6 @@ import {
   List,
   ListItem,
   ListItemText,
-  MenuItem,
   Tab,
   Tabs,
   TextField,
@@ -35,9 +34,6 @@ import {
   LocationOff,
 } from "@mui/icons-material";
 
-import { CirclePicker } from "react-color";
-import defaultColors from "Features/colors/data/defaultColors";
-
 import db from "App/db/db";
 
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
@@ -50,6 +46,7 @@ import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import unsetMainAnnotationService from "../services/unsetMainAnnotationService";
 
 import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTemplateIcon";
+import FieldColorV2 from "Features/form/components/FieldColorV2";
 import FieldHoursRatioCompact from "./FieldHoursRatioCompact";
 import FieldTaskGlobalLayer from "./FieldTaskGlobalLayer";
 import SectionNotesAppObjectNotes from "Features/notesApp/components/SectionNotesAppObjectNotes";
@@ -62,6 +59,11 @@ import useSyncNotesAppBusinessObject from "Features/notesApp/hooks/useSyncNotesA
 import buildBusinessObjectDebugPayload from "../utils/buildBusinessObjectDebugPayload";
 import getAnnotationMainQtyLabel from "Features/annotations/utils/getAnnotationMainQtyLabel";
 import getBusinessObjectQtyLabel from "../utils/getBusinessObjectQtyLabel";
+import { getBusinessObjectUnitText } from "../utils/getBusinessObjectQtyKind";
+import formatBusinessObjectNumber from "../utils/formatBusinessObjectNumber";
+import accumulateAnnotationQties, {
+  createEmptyQties,
+} from "../utils/accumulateAnnotationQties";
 import getBusinessObjectTypeOfListing from "../utils/getBusinessObjectTypeOfListing";
 import selectSelectedBusinessObjectId from "../utils/selectSelectedBusinessObjectId";
 import getHoursRatioUnit from "../utils/getHoursRatioUnit";
@@ -74,13 +76,19 @@ import {
 } from "../utils/hoursRatioConversions";
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
 
-import {
-  BUSINESS_OBJECT_UNITS,
-  DEFAULT_HOURS_RATIO_MODE,
-} from "../constants/businessObjectEntityModel";
+import { DEFAULT_HOURS_RATIO_MODE } from "../constants/businessObjectEntityModel";
+
+function getRefQtyText(refQty) {
+  return Number.isFinite(refQty) ? formatBusinessObjectNumber(refQty, 3) : "";
+}
+
+function blurOnEnter(e) {
+  if (e.key === "Enter") e.target.blur();
+}
 
 // Right-panel properties of the business object selected in the Ouvrages
-// drawer (selection item {type: "BUSINESS_OBJECT"}): editable props (label, description, unit, color — the field set
+// drawer (selection item {type: "BUSINESS_OBJECT"}): editable props (code,
+// label, description, free-text unit, reference quantity, color — the field set
 // follows the listing type features), the object's MAIN annotations (one
 // per base map, "Localisation" section, drawn from the Dessin popper), the
 // list of the other linked annotations with per-annotation quantities and
@@ -156,10 +164,15 @@ export default function PanelBusinessObjectProperties() {
     [annotationTemplates]
   );
 
-  // state — label & description edited locally, committed on blur
+  // state — text fields edited locally, committed on blur
 
   const [label, setLabel] = useState("");
+  const [code, setCode] = useState("");
   const [description, setDescription] = useState("");
+  // free text, "" = unit-less
+  const [unit, setUnit] = useState("");
+  // reference quantity text ("" = none)
+  const [refQtyText, setRefQtyText] = useState("");
   // ratio field text in the task's persisted mode ("" = no ratio)
   const [hoursRatioText, setHoursRatioText] = useState("");
 
@@ -168,14 +181,20 @@ export default function PanelBusinessObjectProperties() {
 
   useEffect(() => {
     setLabel(businessObject?.label ?? "");
+    setCode(businessObject?.code ?? "");
     setDescription(businessObject?.description ?? "");
+    setUnit(getBusinessObjectUnitText(businessObject?.unit));
+    setRefQtyText(getRefQtyText(businessObject?.refQty));
     setHoursRatioText(
       getHoursRatioInputText(businessObject?.hoursRatio, hoursRatioMode)
     );
   }, [
     businessObject?.id,
     businessObject?.label,
+    businessObject?.code,
     businessObject?.description,
+    businessObject?.unit,
+    businessObject?.refQty,
     businessObject?.hoursRatio,
     hoursRatioMode,
   ]);
@@ -242,19 +261,10 @@ export default function PanelBusinessObjectProperties() {
   );
 
   const qties = useMemo(() => {
-    const stats = { count: 0, length: 0, surface: 0 };
+    const stats = createEmptyQties();
     linkedRows.forEach(({ annotation }) => {
       if (annotation.isMeshCell) return;
-      const qty = annotation.qties;
-      stats.count += Number.isFinite(qty?.count) ? qty.count : 1;
-      if (qty?.enabled) {
-        const length =
-          qty.lengthDeveloped != null ? qty.lengthDeveloped : qty.length;
-        const surface =
-          qty.surfaceDeveloped != null ? qty.surfaceDeveloped : qty.surface;
-        if (Number.isFinite(length)) stats.length += length;
-        if (Number.isFinite(surface)) stats.surface += surface;
-      }
+      accumulateAnnotationQties(stats, annotation);
     });
     return stats;
   }, [linkedRows]);
@@ -285,9 +295,32 @@ export default function PanelBusinessObjectProperties() {
       updateBusinessObject(businessObject.id, { description });
   }
 
-  function handleUnitChange(e) {
-    // "" = unit-less (stored as null)
-    updateBusinessObject(businessObject.id, { unit: e.target.value || null });
+  function handleCodeBlur() {
+    if (!businessObject) return;
+    const next = code.trim();
+    if (next !== (businessObject.code ?? ""))
+      updateBusinessObject(businessObject.id, { code: next });
+    else setCode(next);
+  }
+
+  // "" = unit-less (stored as null). Compared as display texts, so a legacy
+  // "S" row shown as "m²" is not rewritten by a plain blur.
+  function handleUnitBlur() {
+    if (!businessObject) return;
+    const next = unit.trim();
+    if (next !== getBusinessObjectUnitText(businessObject.unit))
+      updateBusinessObject(businessObject.id, { unit: next || null });
+    else setUnit(next);
+  }
+
+  function handleRefQtyBlur() {
+    if (!businessObject) return;
+    // untouched text: the stored value (maybe more precise) is kept
+    if (refQtyText === getRefQtyText(businessObject.refQty)) return;
+    const refQty = parseHoursRatioInput(refQtyText.replace(/\s/g, ""));
+    if (refQty !== (businessObject.refQty ?? null))
+      updateBusinessObject(businessObject.id, { refQty });
+    else setRefQtyText(getRefQtyText(refQty));
   }
 
   function handleTitleChange(e) {
@@ -298,8 +331,12 @@ export default function PanelBusinessObjectProperties() {
     updateBusinessObject(businessObject.id, { globalLayerId });
   }
 
+  // hex string from the shared color picker
   function handleColorChange(color) {
-    updateBusinessObject(businessObject.id, { color: color.hex });
+    // the hex input of the picker fires on every keystroke
+    if (!/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(color ?? "")) return;
+    if (color === businessObject.color) return;
+    updateBusinessObject(businessObject.id, { color });
   }
 
   // Ratio field commits on blur; the stored value is the ratio (hours per
@@ -513,17 +550,26 @@ export default function PanelBusinessObjectProperties() {
               borderColor: "divider",
             }}
           >
-            <TextField
-              fullWidth
-              size="small"
-              label="Nom"
-              value={label}
-              onChange={(e) => setLabel(e.target.value)}
-              onBlur={handleLabelBlur}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") e.target.blur();
-              }}
-            />
+            <Box sx={{ display: "flex", gap: 1 }}>
+              <TextField
+                size="small"
+                label="Code"
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                onBlur={handleCodeBlur}
+                onKeyDown={blurOnEnter}
+                sx={{ width: 100, flexShrink: 0 }}
+              />
+              <TextField
+                fullWidth
+                size="small"
+                label="Nom"
+                value={label}
+                onChange={(e) => setLabel(e.target.value)}
+                onBlur={handleLabelBlur}
+                onKeyDown={blurOnEnter}
+              />
+            </Box>
             <TextField
               fullWidth
               size="small"
@@ -546,22 +592,28 @@ export default function PanelBusinessObjectProperties() {
               sx={{ ml: 0, mt: -1 }}
             />
             {!hasHoursBudget && (
-              <TextField
-                select
-                fullWidth
-                size="small"
-                label="Unité de quantité"
-                value={businessObject.unit ?? ""}
-                onChange={handleUnitChange}
-              >
-                {/* "—" = unit-less row (a title, typically) */}
-                <MenuItem value="">—</MenuItem>
-                {BUSINESS_OBJECT_UNITS.map((u) => (
-                  <MenuItem key={u.key} value={u.key}>
-                    {u.label}
-                  </MenuItem>
-                ))}
-              </TextField>
+              <Box sx={{ display: "flex", gap: 1 }}>
+                <TextField
+                  fullWidth
+                  size="small"
+                  label="Quantité de référence"
+                  value={refQtyText}
+                  onChange={(e) => setRefQtyText(e.target.value)}
+                  onBlur={handleRefQtyBlur}
+                  onKeyDown={blurOnEnter}
+                />
+                {/* free text; empty = unit-less row (a title, typically) */}
+                <TextField
+                  size="small"
+                  label="Unité"
+                  placeholder="u, ml, m²…"
+                  value={unit}
+                  onChange={(e) => setUnit(e.target.value)}
+                  onBlur={handleUnitBlur}
+                  onKeyDown={blurOnEnter}
+                  sx={{ width: 110, flexShrink: 0 }}
+                />
+              </Box>
             )}
             {hasHoursBudget && (
               <FieldHoursRatioCompact
@@ -584,15 +636,12 @@ export default function PanelBusinessObjectProperties() {
               />
             )}
             {hasColor && (
-              <Box sx={{ display: "flex", justifyContent: "center" }}>
-                <CirclePicker
-                  onChange={handleColorChange}
-                  color={businessObject.color}
-                  colors={defaultColors}
-                  circleSize={16}
-                  circleSpacing={9}
-                />
-              </Box>
+              <FieldColorV2
+                label="Couleur"
+                value={businessObject.color}
+                onChange={handleColorChange}
+                options={{ showAsSection: true }}
+              />
             )}
           </Box>
 

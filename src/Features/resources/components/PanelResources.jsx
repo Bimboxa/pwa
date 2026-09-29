@@ -38,6 +38,7 @@ export default function PanelResources() {
 
   const selectedResourceId = useSelector((s) => s.resources.selectedResourceId);
   const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState(null);
   // Scope ("périmètre") applied to the files dropped next: SCOPE (this
   // scope only), PROJECT (every scope of the project) or GLOBAL.
   const [visibility, setVisibility] = useState("SCOPE");
@@ -59,8 +60,12 @@ export default function PanelResources() {
   async function handleFilesChange(files) {
     if (!files?.length) return;
     setCreating(true);
+    setCreateError(null);
     try {
       await createResourcesFromFiles(files, { visibility });
+    } catch (e) {
+      // e.g. FILE_TOO_LARGE: the message is already user-facing.
+      setCreateError(e?.message ?? String(e));
     } finally {
       setCreating(false);
     }
@@ -110,26 +115,37 @@ export default function PanelResources() {
   }));
 
   const visibilitySelector = (
-    <Box
-      sx={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        px: 1,
-        py: 0.5,
-        gap: 1,
-        flexShrink: 0,
-      }}
-    >
-      <Typography variant="caption" color="text.secondary" noWrap>
-        {visibilityS}
-      </Typography>
-      <FieldOptionKey
-        value={visibility}
-        onChange={setVisibility}
-        valueOptions={visibilityOptions}
-      />
-    </Box>
+    <>
+      {createError && (
+        <Typography
+          variant="caption"
+          color="error"
+          sx={{ px: 1, pt: 0.5, flexShrink: 0 }}
+        >
+          {createError}
+        </Typography>
+      )}
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          px: 1,
+          py: 0.5,
+          gap: 1,
+          flexShrink: 0,
+        }}
+      >
+        <Typography variant="caption" color="text.secondary" noWrap>
+          {visibilityS}
+        </Typography>
+        <FieldOptionKey
+          value={visibility}
+          onChange={setVisibility}
+          valueOptions={visibilityOptions}
+        />
+      </Box>
+    </>
   );
 
   // render - list

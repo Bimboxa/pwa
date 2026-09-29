@@ -1,20 +1,26 @@
 import { useEffect, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 
-import useStartVectorization, {
-  DEFAULT_VECTORIZATION_INSTRUCTION,
-} from "../hooks/useStartVectorization";
 import useSpeechDictation from "../hooks/useSpeechDictation";
 
-import { Box, IconButton, InputBase, Typography } from "@mui/material";
+import {
+  Box,
+  IconButton,
+  InputBase,
+  Menu,
+  MenuItem,
+  Typography,
+} from "@mui/material";
 import { Add as AddIcon, ArrowUpward as SendIcon } from "@mui/icons-material";
+
+import DialogSelectPdfResource from "Features/resources/components/DialogSelectPdfResource";
 
 import { CHAT_COLORS, CHAT_FONT } from "../chatDarkTheme";
 import ChatImageThumbs from "./ChatImageThumbs";
 import ChatLevelSelect from "./ChatLevelSelect";
 import ChatBudgetIndicator from "./ChatBudgetIndicator";
 import ChatMicButton from "./ChatMicButton";
-import ChatPendingPdf from "./ChatPendingPdf";
+import ChatPdfAttachments from "./ChatPdfAttachments";
 
 const ATTACH_ACCEPT = "image/png,image/jpeg,image/webp,application/pdf";
 
@@ -23,15 +29,20 @@ export default function ChatInput({
   sending,
   canAttach,
   pendingImages = [],
+  pdfAttachments = [],
   attachError,
   onAttachFiles,
+  onAttachResource,
   onRemoveImage,
+  onRemovePdf,
   onImagesSent,
 }) {
   // strings
 
   const sendS = "Envoyer";
   const attachS = "Joindre une image ou un PDF";
+  const fromComputerS = "Depuis l’ordinateur";
+  const fromResourcesS = "PDF des ressources";
   const placeholderS = "Un dessin, une liste… une image ou un PDF";
   const listeningPlaceholderS = "Je vous écoute…";
 
@@ -39,14 +50,12 @@ export default function ChatInput({
 
   const [input, setInput] = useState("");
 
+  const [attachAnchor, setAttachAnchor] = useState(null);
+  const [openResources, setOpenResources] = useState(false);
+
   const isThinking = useSelector((s) => s.chat.isThinking);
-  const {
-    pendingPdf,
-    hasActiveRun,
-    clearPdf,
-    setPageNumber,
-    startVectorization,
-  } = useStartVectorization();
+  // A turn sent during an upload would not carry that PDF.
+  const uploading = pdfAttachments.some((a) => a.status === "uploading");
 
   // Dictation writes straight into the draft; it stops once the message is
   // sent (one cycle per message).
@@ -59,14 +68,6 @@ export default function ChatInput({
     rebase: rebaseDictation,
   } = dictation;
 
-  // A PDF was dropped: propose the default instruction (still editable).
-  const pdfStatus = pendingPdf?.status;
-  useEffect(() => {
-    if (pdfStatus === "uploading") {
-      setInput((current) => current || DEFAULT_VECTORIZATION_INSTRUCTION);
-    }
-  }, [pdfStatus]);
-
   // "Nouvelle session" also empties the draft.
   const sessionId = useSelector((s) => s.chat.sessionId);
   useEffect(() => {
@@ -74,23 +75,14 @@ export default function ChatInput({
     stopDictation();
   }, [sessionId, stopDictation]);
 
-  const canSend = pendingPdf
-    ? pendingPdf.status === "ready" && !hasActiveRun
-    : Boolean(input.trim()) && !isThinking && !sending;
+  const canSend =
+    Boolean(input.trim()) && !isThinking && !sending && !uploading;
 
   const handleSend = async () => {
-    if (pendingPdf) {
-      if (pendingPdf.status !== "ready" || hasActiveRun) return;
-      const { ok } = await startVectorization(input);
-      if (ok) {
-        setInput("");
-        stopDictation();
-      }
-      return;
-    }
-    if (!input.trim() || isThinking || sending) return;
-    // No PDF: a conversational turn (the model acts through the relay tools),
-    // with the attached pictures if any.
+    if (!canSend) return;
+    // A conversational turn (the model acts through the relay tools), with
+    // the attached pictures if any; the attached PDFs follow the
+    // conversation (see useSendChatTurn).
     const text = input;
     const images = pendingImages;
     setInput("");
@@ -148,11 +140,7 @@ export default function ChatInput({
         gap: 0.5,
       }}
     >
-      <ChatPendingPdf
-        pendingPdf={pendingPdf}
-        onPageChange={setPageNumber}
-        onClear={clearPdf}
-      />
+      <ChatPdfAttachments attachments={pdfAttachments} onRemove={onRemovePdf} />
       <ChatImageThumbs images={pendingImages} onRemove={onRemoveImage} />
       {attachError || dictationError ? (
         <Typography variant="caption" color="error">
@@ -250,7 +238,7 @@ export default function ChatInput({
                 size="small"
                 aria-label={attachS}
                 title={attachS}
-                onClick={() => fileInputRef.current?.click()}
+                onClick={(e) => setAttachAnchor(e.currentTarget)}
                 sx={{
                   ml: "-4px",
                   mr: 0.5,
@@ -263,6 +251,39 @@ export default function ChatInput({
               >
                 <AddIcon sx={{ fontSize: 18 }} />
               </IconButton>
+              <Menu
+                anchorEl={attachAnchor}
+                open={Boolean(attachAnchor)}
+                onClose={() => setAttachAnchor(null)}
+              >
+                <MenuItem
+                  dense
+                  onClick={() => {
+                    setAttachAnchor(null);
+                    fileInputRef.current?.click();
+                  }}
+                >
+                  {fromComputerS}
+                </MenuItem>
+                <MenuItem
+                  dense
+                  onClick={() => {
+                    setAttachAnchor(null);
+                    setOpenResources(true);
+                  }}
+                >
+                  {fromResourcesS}
+                </MenuItem>
+              </Menu>
+              <DialogSelectPdfResource
+                open={openResources}
+                onClose={() => setOpenResources(false)}
+                onSelect={async (resource) => {
+                  const ok = await onAttachResource?.(resource);
+                  if (ok) setOpenResources(false);
+                  return ok;
+                }}
+              />
             </>
           ) : null}
         </Box>

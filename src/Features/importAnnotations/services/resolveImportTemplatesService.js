@@ -85,6 +85,10 @@ export default async function resolveImportTemplatesService({
     if (!record.drawingShape) {
       record.drawingShape = resolveDrawingShapeFromType(record.type);
     }
+    // Detail bubbles stay out of the legend, like the preset template.
+    if (record.drawingShape === "DETAIL" && record.hiddenInLegend === undefined) {
+      record.hiddenInLegend = true;
+    }
     record.code = getAnnotationTemplateCode({
       annotation: record,
       listingKey: listingId,

@@ -16,7 +16,7 @@ import ChatMessage from "./ChatMessage";
 import ChatMessageAssistant from "./ChatMessageAssistant";
 import ChatMessageVectorization from "./ChatMessageVectorization";
 import ChatRelayBar from "./ChatRelayBar";
-import useStartVectorization from "../hooks/useStartVectorization";
+import useChatAttachments from "../hooks/useChatAttachments";
 import prepareChatImage, {
   isChatImageFile,
   MAX_CHAT_IMAGES,
@@ -78,13 +78,17 @@ function ChatSessionPanel() {
     (s) => s.rightPanel.selectedMenuItemKey === "CHAT"
   );
 
-  // PDF drop → vectorization run through the relay (Assistant IA). Opt-out:
-  // appConfig.features.assistantRelay.chatVectorization: false.
+  // Attachments and the Auto detection go through the relay (Assistant IA).
   const relayConfig = useAssistantRelayConfig();
-  const canDropPdf =
-    Boolean(relayConfig?.enabled && relayConfig?.relayBaseUrl) &&
-    relayConfig?.chatVectorization !== false;
-  const { attachPdf, pendingPdf } = useStartVectorization();
+  const canDropPdf = Boolean(
+    relayConfig?.enabled && relayConfig?.relayBaseUrl
+  );
+  const {
+    attachments: pdfAttachments,
+    attachPdf,
+    attachResource,
+    removeAttachment,
+  } = useChatAttachments();
 
   // Pictures attached to the next message (dropped, pasted or picked). Kept
   // here, not in the store: they are heavy and only matter until "Envoyer".
@@ -92,6 +96,8 @@ function ChatSessionPanel() {
   const [attachError, setAttachError] = useState(null);
   const pendingImagesRef = useRef(pendingImages);
   pendingImagesRef.current = pendingImages;
+  const pdfAttachmentsRef = useRef(pdfAttachments);
+  pdfAttachmentsRef.current = pdfAttachments;
 
   // Each mounted session owns its attachments and draft.
   const sessionId = useSelector((s) => s.chat.sessionId);
@@ -100,25 +106,24 @@ function ChatSessionPanel() {
     setAttachError(null);
   }, [sessionId]);
 
-  // A PDF starts a vectorization, pictures go with a typed message: one or
-  // the other.
+  // Pictures go with the next message; PDFs are attached to the conversation
+  // (a "carnet de détails" the model reads page by page).
   async function attachFiles(fileList) {
     const files = Array.from(fileList ?? []);
     if (!files.length) return;
     setAttachError(null);
     const images = files.filter(isChatImageFile);
-    if (!images.length) {
-      if (pendingImagesRef.current.length) {
-        setAttachError(pdfWithImagesS);
-        return;
+    for (const file of files.filter((f) => !isChatImageFile(f))) {
+      const outcome = await attachPdf(file);
+      // Upload errors are shown on the chip; the others here.
+      if (!outcome.ok && outcome.error) {
+        const shown = pdfAttachmentsRef.current.some(
+          (a) => a.status === "error" && a.error === outcome.error
+        );
+        if (!shown) setAttachError(outcome.error);
       }
-      attachPdf(files[0]);
-      return;
     }
-    if (pendingPdf) {
-      setAttachError(imageWithPdfS);
-      return;
-    }
+    if (!images.length) return;
     const room = MAX_CHAT_IMAGES - pendingImagesRef.current.length;
     if (images.length > room) setAttachError(tooManyImagesS);
     for (const file of images.slice(0, Math.max(0, room))) {
@@ -144,10 +149,8 @@ function ChatSessionPanel() {
   // strings
 
   const emptyS =
-    "Demandez un dessin, une liste, des modèles… joignez une image à reproduire, ou déposez un PDF à vectoriser.";
-  const dropS = "Déposer un PDF à vectoriser ou une image";
-  const pdfWithImagesS = "Retirez les images pour vectoriser un PDF.";
-  const imageWithPdfS = "Retirez le PDF pour joindre une image.";
+    "Demandez un dessin, une liste, des modèles… joignez une image à reproduire, ou un PDF à consulter (carnet de détails).";
+  const dropS = "Déposer un PDF ou une image";
   const tooManyImagesS = `${MAX_CHAT_IMAGES} images au maximum par message.`;
   const unreadableImageS = "Image illisible.";
 
@@ -293,9 +296,12 @@ function ChatSessionPanel() {
             sending={sending}
             canAttach={canDropPdf}
             pendingImages={pendingImages}
+            pdfAttachments={pdfAttachments}
             attachError={attachError}
             onAttachFiles={attachFiles}
+            onAttachResource={attachResource}
             onRemoveImage={removeImage}
+            onRemovePdf={removeAttachment}
             onImagesSent={() => setPendingImages([])}
           />
         )}

@@ -14,6 +14,35 @@ GlobalWorkerOptions.workerSrc = pdfjsWorker;
  *
  * @returns {Promise<{view: number[], rotate: number, width: number, height: number, pageCount: number}>}
  */
+/**
+ * Geometry of EVERY page of a PDF (attachments of the Prompt IA zip): the
+ * model needs the page sizes and rotations to give page-relative zones.
+ * `width` / `height` are those of `view`, in points, before /Rotate.
+ *
+ * @returns {Promise<{pageCount: number, pages: Array<{number: number, width: number, height: number, rotate: number}>}>}
+ */
+export async function readPdfPageFrames(pdfBlob) {
+  const data = await pdfBlob.arrayBuffer();
+  const pdfDocument = await getDocument({ data, ...PDFJS_DOC_PARAMS }).promise;
+  try {
+    const pages = [];
+    for (let number = 1; number <= pdfDocument.numPages; number++) {
+      const page = await pdfDocument.getPage(number);
+      const view = page.view.map((v) => Number(v));
+      pages.push({
+        number,
+        width: Math.round((view[2] - view[0]) * 100) / 100,
+        height: Math.round((view[3] - view[1]) * 100) / 100,
+        rotate: Number(page.rotate ?? 0),
+      });
+      page.cleanup();
+    }
+    return { pageCount: pdfDocument.numPages, pages };
+  } finally {
+    pdfDocument.destroy();
+  }
+}
+
 export default async function readPdfPageFrame(pdfBlob, pageNumber = 1) {
   const data = await pdfBlob.arrayBuffer();
   const pdfDocument = await getDocument({ data, ...PDFJS_DOC_PARAMS }).promise;

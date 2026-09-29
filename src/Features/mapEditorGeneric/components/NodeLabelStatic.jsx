@@ -96,14 +96,15 @@ export default function NodeLabelStatic({
         : null;
 
     // --- 1. MODE DE TAILLE ---
-    // Standalone LABEL only (sub-labels stay screen-constant): "Taille fixe"
-    // = FREE_TEXT display rules — the chip is MAP-FIXED and everything inside
-    // it (font, padding, width, leader stub) is a PDF POINT "as if the base
-    // map filled an A4/A3 page", drawn at pageScale = imageLongSide /
-    // pageLongSide (getFreeTextPageScale). Resolved own ?? template ?? default
-    // like the stub (getAnnotationLabelSizeConfig).
+    // "Taille fixe" (default) = FREE_TEXT display rules — the chip is
+    // MAP-FIXED and everything inside it (font, padding, width, leader stub)
+    // is a PDF POINT of the base map's print zone, drawn at pageScale
+    // (getTextPageScale). Off = screen-constant chip. Resolved own ?? template
+    // ?? default like the stub: getAnnotationLabelSizeConfig for the
+    // standalone LABEL; sub-labels carry the already resolved `isFixedSize`
+    // (getAnnotationLabelPropsFromAnnotation), read here as the own value.
     const sizeCfg = getAnnotationLabelSizeConfig(data);
-    const isFixedSize = !hasLines && sizeCfg.isFixedSize;
+    const isFixedSize = sizeCfg.isFixedSize;
     const imageLongSide =
         imageLongSidePx ??
         (elbowImageSize
@@ -116,7 +117,8 @@ export default function NodeLabelStatic({
               imageLongSidePx: imageLongSide,
           })
         : 1;
-    // Sub-labels: S/M/L px from getAnnotationLabelPropsFromAnnotation.
+    // Sub-labels: S/M/L from getAnnotationLabelPropsFromAnnotation (page pt
+    // in fixed mode, screen px otherwise).
     // Standalone: page pt in fixed mode, the historical 14px otherwise.
     const effectiveFontSize = hasLines
         ? fontSize
@@ -606,7 +608,15 @@ export default function NodeLabelStatic({
             {/* C. LABEL BOX (screen-constant, or page pt → image px when
                 "Taille fixe") */}
             <g transform={`translate(${labelPx.x}, ${labelPx.y})`}>
-                <g data-label-scale style={{ transform: chipTransform }}>
+                {/* Fixed-size chip: not tagged data-label-scale, so the
+                    portfolio framing overlays (which rewrite that transform
+                    to a screen-constant scale) leave its page scale alone. */}
+                <g
+                    {...(isFixedSize
+                        ? { "data-label-page-scale": "" }
+                        : { "data-label-scale": "" })}
+                    style={{ transform: chipTransform }}
+                >
                     <foreignObject
                         x={-labelSize.w / 2}
                         y={-labelSize.h / 2}

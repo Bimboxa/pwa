@@ -10,6 +10,9 @@ import pasteAnnotationService from "Features/mapEditor/services/pasteAnnotationS
 
 import buildImportData from "../utils/buildImportData";
 import resolveImportTemplatesService from "./resolveImportTemplatesService";
+import createDetailBaseMapsFromImportService, {
+  deleteCreatedDetailBaseMaps,
+} from "./createDetailBaseMapsFromImportService";
 
 /**
  * Import an already-parsed inline JSON / normalized dump (the non-mesh output
@@ -38,8 +41,14 @@ import resolveImportTemplatesService from "./resolveImportTemplatesService";
  * @param {Object} [params.annotationProps] - spread onto every placed
  *   annotation (e.g. relayJobId)
  * @param {Object} [params.templateProps]   - spread onto every CREATED template
+ * @param {Object} [params.baseMapProps]    - spread onto every CREATED detail baseMap
+ * @param {*} [params.createdBy]            - author of the created detail baseMaps
+ * @param {Function} [params.resolveAttachment] - async (attachmentId, fileName)
+ *   → resource id of the PDF behind `baseMaps[].source` (required when the
+ *   payload has a `baseMaps` block)
  * @param {Function} params.dispatch
- * @returns {Promise<{placed: Object[], createdTemplateCount: number, relative: boolean, armed: boolean}>}
+ * @returns {Promise<{placed: Object[], createdTemplateCount: number, relative: boolean, armed: boolean, createdBaseMapIds: string[], reusedBaseMapIds: string[], baseMapIds: Object}>}
+ *   `baseMapIds` maps each payload baseMap id to its db id (created or reused).
  */
 export default async function importAnnotationsInlineJsonService({
   data,
@@ -53,16 +62,92 @@ export default async function importAnnotationsInlineJsonService({
   targetCenter = null,
   annotationProps = null,
   templateProps = null,
+  baseMapProps = null,
+  createdBy = null,
+  resolveAttachment = null,
   dispatch,
 }) {
   if (!data || data.kind === "MESH") {
     throw new Error("importAnnotationsInlineJsonService: unsupported payload");
   }
-  if (!projectId || !listingId || !mainBaseMap?.id) {
+  // A payload that only creates detail baseMaps needs no listing nor map.
+  const baseMapsOnly =
+    (data.baseMaps ?? []).length > 0 &&
+    !(data.annotationTemplates ?? []).length &&
+    !(data.annotations ?? []).length;
+  if (!projectId || (!baseMapsOnly && (!listingId || !mainBaseMap?.id))) {
     throw new Error("importAnnotationsInlineJsonService: missing target");
   }
 
   await verifyImageAssets(data.imageAssets);
+
+  // Detail baseMaps first: the DETAIL bubbles link them by payload id.
+  const { baseMapIdMap, createdBaseMapIds, reusedBaseMapIds } =
+    await createDetailBaseMapsFromImportService({
+      baseMaps: data.baseMaps ?? [],
+      projectId,
+      createdBy,
+      resolveAttachment,
+      baseMapProps,
+      dispatch,
+    });
+  const baseMapsResult = {
+    createdBaseMapIds,
+    reusedBaseMapIds,
+    baseMapIds: Object.fromEntries(baseMapIdMap),
+  };
+  if (baseMapsOnly) {
+    return {
+      placed: [],
+      createdTemplateIds: [],
+      createdTemplateCount: 0,
+      relative: false,
+      armed: false,
+      ...baseMapsResult,
+    };
+  }
+
+  try {
+    return {
+      ...(await importTemplatesAndAnnotations({
+        data,
+        projectId,
+        listingId,
+        mainBaseMap,
+        widthMeters,
+        excludedTemplateIds,
+        relativeToBaseMap,
+        preserveIds,
+        targetCenter,
+        annotationProps,
+        templateProps,
+        baseMapIdMap,
+        dispatch,
+      })),
+      ...baseMapsResult,
+    };
+  } catch (e) {
+    // No half-made carnet: drop the baseMaps this call created.
+    await deleteCreatedDetailBaseMaps(createdBaseMapIds, dispatch);
+    throw e;
+  }
+}
+
+async function importTemplatesAndAnnotations({
+  data,
+  projectId,
+  listingId,
+  mainBaseMap,
+  widthMeters,
+  excludedTemplateIds,
+  relativeToBaseMap,
+  preserveIds,
+  targetCenter,
+  annotationProps,
+  templateProps,
+  baseMapIdMap,
+  dispatch,
+}) {
   const excluded = new Set(excludedTemplateIds);
   const { templateIdMap, templateRecords } =
     await resolveImportTemplatesService({
@@ -83,6 +168,7 @@ export default async function importAnnotationsInlineJsonService({
     excludedTemplateIds,
     relativeToBaseMap,
     templateIdMap,
+    baseMapIdMap,
   });
 
   if (annotationProps) {

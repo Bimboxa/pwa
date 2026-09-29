@@ -33,6 +33,7 @@ import {
   FilterAlt,
   FilterAltOutlined,
   Place,
+  WarningAmber,
 } from "@mui/icons-material";
 
 import { useSortable } from "@dnd-kit/sortable";
@@ -42,8 +43,13 @@ import useToggleBusinessObjectSolo from "../hooks/useToggleBusinessObjectSolo";
 import useOpenBusinessObjectDocumentLink from "../hooks/useOpenBusinessObjectDocumentLink";
 
 import MenuActionsBusinessObject from "./MenuActionsBusinessObject";
+import PopperBusinessObjectQtyGap from "./PopperBusinessObjectQtyGap";
 import selectSelectedBusinessObjectId from "../utils/selectSelectedBusinessObjectId";
 import getBusinessObjectQtyLabel from "../utils/getBusinessObjectQtyLabel";
+import getBusinessObjectQtyValue from "../utils/getBusinessObjectQtyValue";
+import getBusinessObjectQtyGap from "../utils/getBusinessObjectQtyGap";
+import { getBusinessObjectUnitText } from "../utils/getBusinessObjectQtyKind";
+import formatBusinessObjectNumber from "../utils/formatBusinessObjectNumber";
 import getHoursRatioUnit from "../utils/getHoursRatioUnit";
 import getBusinessObjectTypeOfListing from "../utils/getBusinessObjectTypeOfListing";
 import { formatHours, formatHoursRatio } from "../utils/hoursRatioConversions";
@@ -54,12 +60,23 @@ import { formatHours, formatHoursRatio } from "../utils/hoursRatioConversions";
 const TITLE_BGCOLORS = ["grey.200", "grey.300", "grey.400"];
 const OBJECT_BGCOLORS = ["background.paper", "grey.50", "grey.100"];
 
+// Rows are top-aligned (labels wrap on several lines): the side items are
+// centered on the FIRST line of the label.
+const FIRST_LINE_HEIGHT = 20;
+const firstLineSx = {
+  display: "flex",
+  alignItems: "center",
+  minHeight: FIRST_LINE_HEIGHT,
+  flexShrink: 0,
+};
+
 export default function BusinessObjectTreeItem({
   businessObject,
   depth,
   hasChildren,
   listing,
-  showNumbering,
+  // the listing has codes: flat 3-column rows (code / label / quantity)
+  showCodes,
   // {primary, secondary, initial, color, avatarUrl} | null — Krnet
   // "Aperçu de l'objet" rendering (listing setting listCard), object rows
   // only: avatar + two texts replace the color square + label
@@ -101,6 +118,7 @@ export default function BusinessObjectTreeItem({
   // state
 
   const [menuAnchor, setMenuAnchor] = useState(null);
+  const [gapAnchor, setGapAnchor] = useState(null);
   const [documentsAnchor, setDocumentsAnchor] = useState(null);
 
   // dnd — the whole row is draggable (5px activation keeps clicks working),
@@ -171,7 +189,27 @@ export default function BusinessObjectTreeItem({
         .filter(Boolean)
         .join(" · ")
     : "";
-  const rightLabel = hasHoursBudget ? hoursLabel : qtyLabel;
+  // Articles: quantity computed from the linked annotations, else the
+  // reference quantity (refQty, greyed), else the bare unit (greyed). A
+  // unit-less row (a title, typically) shows nothing.
+  const unitText = getBusinessObjectUnitText(businessObject.unit);
+  const hasRefQty = Number.isFinite(businessObject.refQty);
+  const articleQtyLabel =
+    qtyLabel ??
+    (unitText
+      ? `${
+          hasRefQty ? formatBusinessObjectNumber(businessObject.refQty, 1) : "–"
+        } ${unitText}`
+      : null);
+  const rightLabel = hasHoursBudget ? hoursLabel : articleQtyLabel;
+  const rightLabelMuted = !hasHoursBudget && !qtyLabel;
+  // gap between the computed quantity and the reference one (> 5 %)
+  const computedQty =
+    !hasHoursBudget && linkedCount > 0
+      ? getBusinessObjectQtyValue(businessObject.unit, qties)
+      : null;
+  const qtyGap = getBusinessObjectQtyGap(computedQty, businessObject.refQty);
+  const showQtyGap = Boolean(qtyGap?.isOver);
   // card rows: the configured texts; the tasks caption follows the
   // secondary text on the same line
   const primaryLabel = card?.primary || businessObject.label;
@@ -251,6 +289,11 @@ export default function BusinessObjectTreeItem({
     openDocumentLink(businessObject, rel);
   }
 
+  function handleGapClick(e) {
+    e.stopPropagation();
+    setGapAnchor(gapAnchor ? null : e.currentTarget);
+  }
+
   function handleMenuClick(e) {
     e.stopPropagation();
     setMenuAnchor(e.currentTarget);
@@ -262,8 +305,7 @@ export default function BusinessObjectTreeItem({
     <Box
       onClick={handleToggleCollapsed}
       sx={{
-        display: "flex",
-        alignItems: "center",
+        ...firstLineSx,
         mr: 0.25,
         ml: -0.75,
         color: "text.secondary",
@@ -282,9 +324,17 @@ export default function BusinessObjectTreeItem({
     <Box
       className="business-object-actions"
       sx={{
+        // out of the flow, over the end of the row: the quantity column
+        // stays flush right when the actions are hidden
+        position: "absolute",
+        top: 2,
+        right: 4,
         visibility: isLinking || isSolo ? "visible" : "hidden",
         display: "flex",
         alignItems: "center",
+        bgcolor: "background.paper",
+        borderRadius: 1,
+        boxShadow: 1,
       }}
     >
       <IconButton
@@ -344,9 +394,11 @@ export default function BusinessObjectTreeItem({
         selected={isSelected || isActive}
         onClick={handleClick}
         sx={{
-          // "Numérotation": flat 3-column rows — the number carries the
+          // Listing with codes: flat 3-column rows — the code carries the
           // hierarchy, no indentation. Tree mode keeps the indentation.
-          pl: showNumbering ? 1.5 : 2 + depth * 2,
+          pl: showCodes ? 1.5 : 2 + depth * 2,
+          pr: 1.5,
+          alignItems: "flex-start",
           bgcolor: rowBgcolor,
           ...sortableStyle,
           "&:hover .business-object-actions": { visibility: "visible" },
@@ -363,23 +415,27 @@ export default function BusinessObjectTreeItem({
             transition: "0.2s",
             ml: -1.5,
             mr: 0.5,
+            mt: "3px",
+            flexShrink: 0,
           }}
         />
         {chevron}
 
-        {/* col 1: hierarchical number (numbering mode only) */}
-        {showNumbering && (
+        {/* col 1: code (listings with codes only) */}
+        {showCodes && (
           <Typography
             variant="caption"
             sx={{
               fontFamily: "monospace",
               minWidth: 44,
+              mr: 1,
               flexShrink: 0,
+              lineHeight: `${FIRST_LINE_HEIGHT}px`,
               color: isTitle ? "text.primary" : "text.secondary",
               fontWeight: labelFontWeight,
             }}
           >
-            {displayMeta?.number}
+            {businessObject.code}
           </Typography>
         )}
 
@@ -403,7 +459,7 @@ export default function BusinessObjectTreeItem({
         )}
 
         {/* color chip: colored types, tree mode only, object rows only */}
-        {hasColor && !showNumbering && !isTitle && !card && (
+        {hasColor && !showCodes && !isTitle && !card && (
           <Box
             sx={{
               width: 12,
@@ -412,6 +468,7 @@ export default function BusinessObjectTreeItem({
               borderRadius: "2px",
               bgcolor: businessObject.color,
               mr: 1,
+              mt: "4px",
             }}
           />
         )}
@@ -421,16 +478,18 @@ export default function BusinessObjectTreeItem({
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <Typography
               variant="body2"
-              noWrap
-              sx={{ fontWeight: labelFontWeight }}
+              sx={{ fontWeight: labelFontWeight, overflowWrap: "anywhere" }}
             >
               {primaryLabel}
             </Typography>
             <Typography
               variant="caption"
               color="text.secondary"
-              noWrap
-              sx={{ display: "block", lineHeight: 1.2 }}
+              sx={{
+                display: "block",
+                lineHeight: 1.2,
+                overflowWrap: "anywhere",
+              }}
             >
               {secondaryLine}
             </Typography>
@@ -438,8 +497,12 @@ export default function BusinessObjectTreeItem({
         ) : (
           <Typography
             variant="body2"
-            noWrap
-            sx={{ flex: 1, minWidth: 0, fontWeight: labelFontWeight }}
+            sx={{
+              flex: 1,
+              minWidth: 0,
+              fontWeight: labelFontWeight,
+              overflowWrap: "anywhere",
+            }}
           >
             {primaryLabel}
           </Typography>
@@ -448,29 +511,73 @@ export default function BusinessObjectTreeItem({
         {/* located indicator: main annotation(s) on the plans */}
         {locatedS && (
           <Tooltip title={locatedS}>
-            <Place sx={{ fontSize: 14, color: "primary.main", ml: 0.5 }} />
+            <Place
+              sx={{
+                fontSize: 14,
+                color: "primary.main",
+                ml: 0.5,
+                mt: "3px",
+                flexShrink: 0,
+              }}
+            />
           </Tooltip>
         )}
 
-        {/* col 3: quantity (tasks: rolled-up hours), right-aligned */}
+        {!showCodes && linkedCount > 0 && (
+          <Box sx={{ ...firstLineSx, ml: 0.5 }}>
+            <Chip
+              label={linkedCount}
+              size="small"
+              sx={{ height: 16, fontSize: "0.65rem" }}
+            />
+          </Box>
+        )}
+
+        {/* quantity gap warning: computed vs reference quantity */}
+        {showQtyGap && (
+          <Box sx={{ ...firstLineSx, ml: 0.5 }}>
+            <IconButton
+              size="small"
+              onClick={handleGapClick}
+              onPointerDown={(e) => e.stopPropagation()}
+              title="Écart avec la quantité de référence"
+              sx={{ p: 0.25, color: "warning.main" }}
+            >
+              <WarningAmber sx={{ fontSize: 16 }} />
+            </IconButton>
+          </Box>
+        )}
+
+        {/* col 3: quantity + unit (tasks: rolled-up hours), flush right —
+            greyed when it is not computed from linked annotations */}
         {rightLabel && (
           <Typography
             variant="caption"
-            color="text.secondary"
-            sx={{ ml: 0.5, whiteSpace: "nowrap", textAlign: "right" }}
+            sx={{
+              ml: 1,
+              flexShrink: 0,
+              whiteSpace: "nowrap",
+              textAlign: "right",
+              lineHeight: `${FIRST_LINE_HEIGHT}px`,
+              color: rightLabelMuted ? "text.disabled" : "text.secondary",
+            }}
           >
             {rightLabel}
           </Typography>
         )}
-        {!showNumbering && linkedCount > 0 && (
-          <Chip
-            label={linkedCount}
-            size="small"
-            sx={{ ml: 0.5, height: 16, fontSize: "0.65rem" }}
-          />
-        )}
         {actions}
       </ListItemButton>
+
+      {gapAnchor && showQtyGap && (
+        <PopperBusinessObjectQtyGap
+          anchorEl={gapAnchor}
+          businessObject={businessObject}
+          computedQty={computedQty}
+          gap={qtyGap}
+          linkedAnnotations={linkedAnnotations}
+          onClose={() => setGapAnchor(null)}
+        />
+      )}
 
       {documentsAnchor && (
         <Menu

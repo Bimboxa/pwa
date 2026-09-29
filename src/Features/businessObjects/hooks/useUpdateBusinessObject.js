@@ -13,8 +13,10 @@ import { setBusinessObjectFieldValue } from "../utils/businessObjectFieldValues"
 export default function useUpdateBusinessObject() {
   const dispatch = useDispatch();
 
-  // Edit a business object's props (label / color / description / unit /
-  // isTitle / hoursRatio / hoursRatioMode / hoursRatioUnit / globalLayerId).
+  // Edit a business object's props (label / code / color / description /
+  // unit / refQty / isTitle / hoursRatio / hoursRatioMode / hoursRatioUnit /
+  // globalLayerId). code: "" or null clears the code; refQty: null (or a
+  // non-finite value) clears the reference quantity.
   // unit: null
   // clears the unit (unit-less row, and every task — the quantity unit is an
   // articles-only prop); hoursRatio: null (or a non-finite value) clears the
@@ -23,9 +25,11 @@ export default function useUpdateBusinessObject() {
     businessObjectId,
     {
       label,
+      code,
       color,
       description,
       unit,
+      refQty,
       isTitle,
       hoursRatio,
       hoursRatioMode,
@@ -40,7 +44,10 @@ export default function useUpdateBusinessObject() {
     if (label != null) updates.label = label;
     if (color != null) updates.color = color;
     if (description != null) updates.description = description;
+    if (code !== undefined) updates.code = code || null;
     if (unit !== undefined) updates.unit = unit;
+    if (refQty !== undefined)
+      updates.refQty = Number.isFinite(refQty) ? refQty : null;
     if (isTitle !== undefined) updates.isTitle = Boolean(isTitle);
     if (hoursRatio !== undefined)
       updates.hoursRatio = Number.isFinite(hoursRatio) ? hoursRatio : null;
