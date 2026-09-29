@@ -46,6 +46,8 @@ import createDetailBaseMapsFromImportService, {
  * @param {Function} [params.resolveAttachment] - async (attachmentId, fileName)
  *   → resource id of the PDF behind `baseMaps[].source` (required when the
  *   payload has a `baseMaps` block)
+ * @param {Map<string, string>} [params.annotationIdMapOut] - filled with
+ *   payload annotation id → id of the placed annotation
  * @param {Function} params.dispatch
  * @returns {Promise<{placed: Object[], createdTemplateCount: number, relative: boolean, armed: boolean, createdBaseMapIds: string[], reusedBaseMapIds: string[], baseMapIds: Object}>}
  *   `baseMapIds` maps each payload baseMap id to its db id (created or reused).
@@ -65,6 +67,7 @@ export default async function importAnnotationsInlineJsonService({
   baseMapProps = null,
   createdBy = null,
   resolveAttachment = null,
+  annotationIdMapOut = null,
   dispatch,
 }) {
   if (!data || data.kind === "MESH") {
@@ -122,6 +125,7 @@ export default async function importAnnotationsInlineJsonService({
         annotationProps,
         templateProps,
         baseMapIdMap,
+        annotationIdMapOut,
         dispatch,
       })),
       ...baseMapsResult,
@@ -146,6 +150,7 @@ async function importTemplatesAndAnnotations({
   annotationProps,
   templateProps,
   baseMapIdMap,
+  annotationIdMapOut,
   dispatch,
 }) {
   const excluded = new Set(excludedTemplateIds);
@@ -212,6 +217,7 @@ async function importTemplatesAndAnnotations({
       pasteTransform: { rotationDeg: 0, flipX: false },
       targetCenter: relative ? clipboard.sourceCenter : targetCenter,
       baseMap: mainBaseMap,
+      idMapOut: annotationIdMapOut,
       dispatch,
       triggerAnnotationsUpdate,
     });

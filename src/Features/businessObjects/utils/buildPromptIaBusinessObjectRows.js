@@ -11,7 +11,8 @@ const SORT_INDEX_DIGITS = "0123456789";
 /**
  * Items of parsePromptIaBusinessObjects → db.businessObjects rows of a
  * listing. Author refs never reach the database: every row gets a fresh id
- * and the parent links follow. Siblings keep the items order (sortIndex).
+ * (or the `id` the caller minted on the item, when other rows must point to
+ * it) and the parent links follow. Siblings keep the items order (sortIndex).
  *
  * `code` / `refQty` keep the source document's article number and quantity;
  * `unit` is the source unit, as written.
@@ -25,7 +26,7 @@ export default function buildPromptIaBusinessObjectRows({
   newId,
 }) {
   const idByRef = new Map();
-  (items ?? []).forEach((item) => idByRef.set(item.ref, newId()));
+  (items ?? []).forEach((item) => idByRef.set(item.ref, item.id ?? newId()));
 
   const rows = (items ?? []).map((item) => ({
     id: idByRef.get(item.ref),

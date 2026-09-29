@@ -26,11 +26,16 @@ export default function SectionPromptIaProjectOutput({
 
   const titleS = "2. Importer le résultat";
   const dropS = "Glisser & déposer le zip renvoyé par le chat IA";
-  const dropSubS = "projet.json + PDFs des fonds de plan";
+  const dropSubS =
+    "projet.json + PDFs des fonds de plan (+ image satellite, documents)";
   const createS = "Créer";
   const closeS = "Fermer";
   const missingProjectS = "Renseignez le nom et le numéro du projet.";
   const doneS = "Projet créé";
+  const referenceLabelByType = {
+    SATELLITE: "Référence : image satellite",
+    BASE_MAP: "Référence : fond de plan",
+  };
 
   // data
 
@@ -59,8 +64,38 @@ export default function SectionPromptIaProjectOutput({
         plural(output.summary.listings, "liste", "listes"),
         plural(output.summary.templates, "modèle", "modèles"),
         plural(output.summary.annotations, "annotation", "annotations"),
+        ...(output.summary.placements > 0
+          ? [
+              plural(
+                output.summary.placements,
+                "fond à positionner",
+                "fonds à positionner"
+              ),
+            ]
+          : []),
+        ...(output.summary.documents > 0
+          ? [plural(output.summary.documents, "document", "documents")]
+          : []),
+        ...(output.summary.businessObjects > 0
+          ? [plural(output.summary.businessObjects, "ouvrage", "ouvrages")]
+          : []),
+        ...(output.summary.issues > 0
+          ? [
+              plural(
+                output.summary.issues,
+                "point d'attention",
+                "points d'attention"
+              ),
+            ]
+          : []),
       ]
     : [];
+
+  const site = output?.data?.site;
+  const siteS = [site?.address, referenceLabelByType[site?.reference?.type]]
+    .filter(Boolean)
+    .join(" — ");
+  const warnings = output?.data?.warnings ?? [];
 
   const resultChips = result
     ? [
@@ -68,6 +103,38 @@ export default function SectionPromptIaProjectOutput({
         plural(result.counts.baseMaps, "fond de plan", "fonds de plan"),
         plural(result.counts.templates, "modèle", "modèles"),
         plural(result.counts.annotations, "annotation", "annotations"),
+        ...(result.counts.placed > 0
+          ? [
+              plural(
+                result.counts.placed,
+                "fond positionné",
+                "fonds positionnés"
+              ),
+            ]
+          : []),
+        ...(result.counts.documents > 0
+          ? [plural(result.counts.documents, "document", "documents")]
+          : []),
+        ...(result.counts.businessObjects > 0
+          ? [plural(result.counts.businessObjects, "ouvrage", "ouvrages")]
+          : []),
+        ...(result.counts.issues > 0
+          ? [
+              `${plural(
+                result.counts.issues,
+                "point d'attention",
+                "points d'attention"
+              )}${
+                result.counts.qtyGapIssues > 0
+                  ? ` (dont ${plural(
+                      result.counts.qtyGapIssues,
+                      "écart de quantité",
+                      "écarts de quantité"
+                    )})`
+                  : ""
+              }`,
+            ]
+          : []),
         ...(result.counts.skipped > 0
           ? [
               plural(
@@ -118,6 +185,8 @@ export default function SectionPromptIaProjectOutput({
       project,
       data: output.data,
       pdfFilesByPath: output.pdfFilesByPath,
+      referenceImageFile: output.referenceImageFile,
+      documentFilesByPath: output.documentFilesByPath,
     });
   }
 
@@ -149,8 +218,24 @@ export default function SectionPromptIaProjectOutput({
         </Box>
       )}
 
+      {Boolean(siteS) && !result && (
+        <Typography variant="caption" color="text.secondary">
+          {siteS}
+        </Typography>
+      )}
+
       {Boolean(output?.data?.note) && !result && (
         <Alert severity="info">{output.data.note}</Alert>
+      )}
+
+      {warnings.length > 0 && !result && (
+        <Alert severity="warning">
+          {warnings.map((message, index) => (
+            <Typography key={index} variant="caption" sx={{ display: "block" }}>
+              {message}
+            </Typography>
+          ))}
+        </Alert>
       )}
 
       {output && !hasProject && !result && (

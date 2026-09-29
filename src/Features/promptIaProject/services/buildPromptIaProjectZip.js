@@ -7,6 +7,7 @@ import { readPdfPageFrames } from "Features/promptIa/services/readPdfPageFrame";
 import instructionsBody from "../docs/PROMPT_IA_PROJECT_INSTRUCTIONS.md?raw";
 import {
   BASE_MAP_LISTING_KINDS,
+  BUSINESS_OBJECT_LISTING_TYPES,
   PROJECT_ANNOTATION_TYPES,
 } from "../utils/parsePromptIaProjectOutput";
 
@@ -29,15 +30,25 @@ export function buildProjectContext({ project, description, files }) {
     scopesDescription: description?.trim() ?? "",
     files,
     output: {
-      zipEntries: ["projet.json", "pdfs/<nom>.pdf"],
+      zipEntries: [
+        "projet.json",
+        "pdfs/<nom>.pdf",
+        "satellite/site.png",
+        "documents/<nom>.pdf",
+      ],
       rootKeys: [
         "version",
         "coordinateSpace",
         "project",
+        "site",
         "baseMaps",
+        "documents",
         "scopes",
         "note",
       ],
+      scopeKeys: ["id", "name", "listings", "businessObjectListings", "issues"],
+      businessObjectListingTypes: BUSINESS_OBJECT_LISTING_TYPES,
+      qtyGapThreshold: 0.05,
       coordinateSpaces: ["image", "pdf_user_space"],
       baseMapListings: BASE_MAP_LISTING_KINDS,
       annotationTypes: PROJECT_ANNOTATION_TYPES,
