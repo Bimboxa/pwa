@@ -38,7 +38,6 @@ import {
   Menu,
   MenuItem,
   ButtonBase,
-  Switch,
 } from "@mui/material";
 import {
   MoreVert as MoreActionsIcon,
@@ -54,6 +53,7 @@ import FieldTextV2 from "Features/form/components/FieldTextV2";
 import FieldBaseMapOpacity from "./FieldBaseMapOpacity";
 import FieldBaseMapBlueprintScale from "./FieldBaseMapBlueprintScale";
 import PanelBaseMapPrintZone from "./PanelBaseMapPrintZone";
+import CardBaseMapPrintZone from "./CardBaseMapPrintZone";
 import SectionBaseMapSource from "./SectionBaseMapSource";
 import FieldBaseMapVersions from "./FieldBaseMapVersions";
 import PanelBaseMapPositionInMainRef from "./PanelBaseMapPositionInMainRef";
@@ -67,8 +67,6 @@ export default function PanelBaseMapProperties() {
 
   const labelS = "Libellé";
   const referenceS = "Référence";
-  const printZoneS = "Zone d'impression";
-  const showPrintZoneS = "Afficher la zone d'impression";
 
   // data
 
@@ -114,7 +112,6 @@ export default function PanelBaseMapProperties() {
   // One-shot view request from the left panel (Position 3D section of the
   // base map detail view, #312): consume it and clear it.
   const requestedView = useSelector((s) => s.baseMaps.propertiesRequestedView);
-  const showPrintZone = useSelector((s) => s.baseMaps.showPrintZone);
   useEffect(() => {
     if (!requestedView) return;
     setView(requestedView);
@@ -289,46 +286,13 @@ export default function PanelBaseMapProperties() {
         <FieldBaseMapBlueprintScale baseMap={baseMap} />
         {/* Print zone: sheet format / orientation / 1:N over the image —
             dedicated sub-panel (not for photos) */}
-        {!baseMap.isPhoto && (
-          <WhiteSectionGeneric>
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                pl: 1,
-              }}
-            >
-              <Typography variant="body2">{showPrintZoneS}</Typography>
-              <Switch
-                size="small"
-                checked={Boolean(showPrintZone)}
-                onChange={(e) => dispatch(setShowPrintZone(e.target.checked))}
-              />
-            </Box>
-          </WhiteSectionGeneric>
-        )}
-        {!baseMap.isPhoto && (
-          <WhiteSectionGeneric>
-            <ButtonBase
-              onClick={() => {
-                dispatch(setShowPrintZone(true));
-                setView("printZone");
-              }}
-              sx={{
-                width: 1,
-                p: 1,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                borderRadius: 1,
-              }}
-            >
-              <Typography variant="body2">{printZoneS}</Typography>
-              <ChevronRight color="action" />
-            </ButtonBase>
-          </WhiteSectionGeneric>
-        )}
+        <CardBaseMapPrintZone
+          baseMap={baseMap}
+          onSeeMore={() => {
+            dispatch(setShowPrintZone(true));
+            setView("printZone");
+          }}
+        />
 
         <WhiteSectionGeneric>
           {/* In the 3D viewer, the slider/eye drive the 3D scene display
