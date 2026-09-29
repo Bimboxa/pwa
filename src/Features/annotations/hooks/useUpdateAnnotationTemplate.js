@@ -9,7 +9,12 @@ export default function useUpdateAnnotationTemplate() {
 
   const updateEntity = useUpdateEntity();
 
-  return async (updates) => {
+  return async (_updates) => {
+    // `hidden` is per-scope local state (scopeVisibility slice) derived onto
+    // the templates at read time — callers spread whole templates, so strip
+    // it rather than writing it back to the row.
+    // eslint-disable-next-line no-unused-vars
+    const { hidden, ...updates } = _updates;
     const options = {
       listing: {
         id: updates.listingId,

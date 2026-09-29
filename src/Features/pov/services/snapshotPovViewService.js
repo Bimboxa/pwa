@@ -5,6 +5,7 @@ import { getActiveMapEditor } from "Features/mapEditor/services/mapEditorRegistr
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 import getCaptureRectBounds from "Features/mapEditor/utils/getCaptureRectBounds";
 import getEffective3dCameraPose from "../utils/getEffective3dCameraPose";
+import { selectHiddenAnnotationTemplateIdSet } from "Features/scopeVisibility/selectors/scopeVisibilitySelectors";
 
 // Snapshots everything needed to reproduce the current framed view on any
 // screen size (see the povs table doc in App/db/db.js).
@@ -56,20 +57,23 @@ export default async function snapshotPovViewService({
   // (annotations created later are filtered out, see selectPovFreezeCreatedBefore).
   const viewCreatedAt = new Date().toISOString();
 
-  // annotation templates visibility (persistent `hidden` flag on the records).
-  // The whitelist is what drives the restore: a template created AFTER this
-  // snapshot is absent from it, hence hidden when the view is restored.
-  // The legacy blacklist is kept for records/Krto files written before.
+  // annotation templates visibility — per-scope LOCAL state (scopeVisibility
+  // slice), no longer a `hidden` flag on the records: the rows only list the
+  // live templates. The whitelist is what drives the restore: a template
+  // created AFTER this snapshot is absent from it, hence hidden when the
+  // view is restored. The legacy blacklist is kept for records/Krto files
+  // written before.
+  const hiddenSet = selectHiddenAnnotationTemplateIdSet(state);
   const templates = await db.annotationTemplates
     .where("projectId")
     .equals(projectId)
     .toArray();
   const liveTemplates = templates.filter((t) => !t.deletedAt);
   const hiddenAnnotationTemplateIds = liveTemplates
-    .filter((t) => t.hidden)
+    .filter((t) => hiddenSet.has(t.id))
     .map((t) => t.id);
   const visibleAnnotationTemplateIds = liveTemplates
-    .filter((t) => !t.hidden)
+    .filter((t) => !hiddenSet.has(t.id))
     .map((t) => t.id);
 
   // baseMaps & active versions

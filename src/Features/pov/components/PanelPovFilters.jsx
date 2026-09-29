@@ -1,5 +1,7 @@
 import { useMemo } from "react";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
+
+import { setAnnotationTemplatesHidden } from "Features/scopeVisibility/scopeVisibilitySlice";
 
 import { Box, IconButton, Typography } from "@mui/material";
 import { Visibility, VisibilityOff } from "@mui/icons-material";
@@ -9,7 +11,6 @@ import SectionPovBaseMapFilter from "./SectionPovBaseMapFilter";
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
 import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
-import useUpdateAnnotationTemplates from "Features/annotations/hooks/useUpdateAnnotationTemplates";
 import useExtraBaseMapIdsIn3d from "Features/threedEditor/hooks/useExtraBaseMapIdsIn3d";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import useListings from "Features/listings/hooks/useListings";
@@ -84,14 +85,14 @@ function TemplateFilterRow({ template, spriteImage, onToggleHidden }) {
 // Templates of one listing, grouped by groupLabel, filtered to the templates
 // that have an annotation on the displayed base maps.
 function ListingFilterSection({ listing, visibleTemplateIds, spriteImage }) {
+  const dispatch = useDispatch();
+
   // data
 
   const allTemplates = useAnnotationTemplates({
     filterByListingId: listing.id,
     sortByOrder: true,
   });
-  const updateAnnotationTemplates = useUpdateAnnotationTemplates();
-
   // helpers
 
   const templates = useMemo(
@@ -110,18 +111,23 @@ function ListingFilterSection({ listing, visibleTemplateIds, spriteImage }) {
 
   // handlers
 
-  async function handleToggleTemplateHidden(template) {
-    await updateAnnotationTemplates([
-      { id: template.id, hidden: !template.hidden },
-    ]);
+  // Eyes = per-scope local state (scopeVisibility slice), no template write.
+  function handleToggleTemplateHidden(template) {
+    dispatch(
+      setAnnotationTemplatesHidden({
+        ids: [template.id],
+        hidden: !template.hidden,
+      })
+    );
   }
 
-  async function handleToggleListingVisibility() {
-    const targetHidden = !isHidden;
-    const updates = templates
-      .filter((t) => Boolean(t.hidden) !== targetHidden)
-      .map((t) => ({ id: t.id, hidden: targetHidden }));
-    await updateAnnotationTemplates(updates);
+  function handleToggleListingVisibility() {
+    dispatch(
+      setAnnotationTemplatesHidden({
+        ids: templates.map((t) => t.id),
+        hidden: !isHidden,
+      })
+    );
   }
 
   // render

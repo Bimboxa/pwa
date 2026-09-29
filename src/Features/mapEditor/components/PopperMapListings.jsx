@@ -98,6 +98,10 @@ import {
   setNewAnnotation,
   setSoloAnnotationTemplateId,
 } from "Features/annotations/annotationsSlice";
+import {
+  setAnnotationTemplatesHidden,
+  toggleAnnotationTemplateHidden,
+} from "Features/scopeVisibility/scopeVisibilitySlice";
 import TOOL_ITEMS from "Features/mapEditor/constants/toolItems";
 import { getFreeAnnotationShortcut } from "Features/mapEditor/constants/freeAnnotationShortcuts";
 import { resolveDrawingShape } from "Features/annotations/constants/drawingShapeConfig";
@@ -117,7 +121,6 @@ import useSelectedZone from "Features/zonings/hooks/useSelectedZone";
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 import useExtraBaseMapIdsIn3d from "Features/threedEditor/hooks/useExtraBaseMapIdsIn3d";
 import useUpdateAnnotationTemplate from "Features/annotations/hooks/useUpdateAnnotationTemplate";
-import useUpdateAnnotationTemplates from "Features/annotations/hooks/useUpdateAnnotationTemplates";
 import useReorderAnnotationTemplates from "Features/annotations/hooks/useReorderAnnotationTemplates";
 import useDrawFromTemplate from "Features/mapEditor/hooks/useDrawFromTemplate";
 import useDrawToolOfType from "Features/mapEditor/hooks/useDrawToolOfType";
@@ -580,16 +583,11 @@ function AnnotationTemplateRow({
     dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
   };
 
-  const toggleHidden = async () => {
-    await updateAnnotationTemplate({
-      ...annotationTemplate,
-      hidden: !annotationTemplate?.hidden,
-    });
-  };
-
-  const handleToggleHidden = async (e) => {
+  // Template eye: per-scope local state (scopeVisibility slice), not a
+  // template write — works on a foreign private scope too.
+  const handleToggleHidden = (e) => {
     e.stopPropagation();
-    await toggleHidden();
+    dispatch(toggleAnnotationTemplateHidden(annotationTemplate?.id));
   };
 
   const handleStartEdit = (e) => {
@@ -907,25 +905,28 @@ function AnnotationTemplateRow({
               /* EDIT mode — reassign-template (paint bucket) + visibility */
               <>
                 {!readOnly && (
-                <Tooltip
-                  title="Modifier le modèle d'une annotation"
-                  arrow
-                  placement="bottom"
-                >
-                  <IconButton
-                    size="small"
-                    onClick={handleStartReassign}
-                    sx={{
-                      p: 0.5,
-                      color:
-                        annotationTemplate?.fillColor ??
-                        annotationTemplate?.strokeColor ??
-                        "panel.textMuted",
-                    }}
+                  <Tooltip
+                    title="Modifier le modèle d'une annotation"
+                    arrow
+                    placement="bottom"
                   >
-                    <FormatColorFill fontSize="inherit" sx={{ fontSize: 16 }} />
-                  </IconButton>
-                </Tooltip>
+                    <IconButton
+                      size="small"
+                      onClick={handleStartReassign}
+                      sx={{
+                        p: 0.5,
+                        color:
+                          annotationTemplate?.fillColor ??
+                          annotationTemplate?.strokeColor ??
+                          "panel.textMuted",
+                      }}
+                    >
+                      <FormatColorFill
+                        fontSize="inherit"
+                        sx={{ fontSize: 16 }}
+                      />
+                    </IconButton>
+                  </Tooltip>
                 )}
                 <Tooltip
                   title={isHidden ? "Afficher" : "Masquer"}
@@ -1345,7 +1346,6 @@ function ListingRow({
 
   // data
 
-  const updateAnnotationTemplates = useUpdateAnnotationTemplates();
   // Listing linked from another scope ("Depuis un autre Krto"): read-only
   // band in palette.listingFromOtherScope, with the source scope's name.
   const { isLinkedListing, getSourceScope } = useLinkedListings();
@@ -1368,16 +1368,16 @@ function ListingRow({
 
   // handlers
 
-  // Toggle every template eye of the listing in one batch write (single
-  // Dexie transaction + single refresh), only touching templates whose
-  // `hidden` actually changes.
-  async function handleToggleVisibility(e) {
+  // Toggle every template eye of the listing in one dispatch (per-scope
+  // local state, scopeVisibility slice).
+  function handleToggleVisibility(e) {
     e.stopPropagation();
-    const targetHidden = !isHidden;
-    const updates = listingTemplates
-      .filter((t) => Boolean(t.hidden) !== targetHidden)
-      .map((t) => ({ id: t.id, hidden: targetHidden }));
-    await updateAnnotationTemplates(updates);
+    dispatch(
+      setAnnotationTemplatesHidden({
+        ids: listingTemplates.map((t) => t.id),
+        hidden: !isHidden,
+      })
+    );
   }
 
   function handleListingClick() {
@@ -1900,8 +1900,6 @@ export default function PopperMapListings() {
     [annotationTemplates]
   );
 
-  const updateAnnotationTemplates = useUpdateAnnotationTemplates();
-
   // Chip eyes mirror the listing-row eye: a listing is hidden when every one
   // of its templates is hidden.
   const templatesByListingId = useMemo(() => {
@@ -2141,18 +2139,18 @@ export default function PopperMapListings() {
     dispatch(setSelectedListingId(listingId));
   }
 
-  // Chip eye: toggle every template eye of the listing in one batch write,
-  // only touching templates whose `hidden` actually changes (same rule as the
-  // listing-row eye).
+  // Chip eye: toggle every template eye of the listing in one dispatch
+  // (same rule as the listing-row eye).
   // Only used by the commented ListingChipsBar call site (chip selector).
   // eslint-disable-next-line no-unused-vars
-  async function handleToggleListingVisibility(listingId) {
+  function handleToggleListingVisibility(listingId) {
     const templates = templatesByListingId[listingId] ?? [];
-    const targetHidden = !hiddenByListingId[listingId];
-    const updates = templates
-      .filter((t) => Boolean(t.hidden) !== targetHidden)
-      .map((t) => ({ id: t.id, hidden: targetHidden }));
-    await updateAnnotationTemplates(updates);
+    dispatch(
+      setAnnotationTemplatesHidden({
+        ids: templates.map((t) => t.id),
+        hidden: !hiddenByListingId[listingId],
+      })
+    );
   }
 
   function handleMergeResult(file, listingName) {

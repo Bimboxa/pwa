@@ -2,16 +2,17 @@ import { useSelector, useDispatch } from "react-redux";
 
 import { setHiddenListingsIds } from "Features/listings/listingsSlice";
 import { setSoloAnnotationTemplateId } from "Features/annotations/annotationsSlice";
+import { setAnnotationTemplatesHidden } from "Features/scopeVisibility/scopeVisibilitySlice";
 
 import useListings from "Features/listings/hooks/useListings";
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
-import useUpdateAnnotationTemplates from "Features/annotations/hooks/useUpdateAnnotationTemplates";
 
 // ---------------------------------------------------------------------------
 // useIsolateAnnotationTemplate — "Isoler" as a plain bulk visibility action:
 // hide every other listing of the panel (redux hiddenListingsIds) and every
-// sibling template of the same listing (persisted `hidden` flag), instead of
-// the transient solo render filter. Second call restores everything.
+// sibling template of the same listing (per-scope local `hidden` state,
+// scopeVisibility slice), instead of the transient solo render filter.
+// Second call restores everything.
 // ---------------------------------------------------------------------------
 
 export default function useIsolateAnnotationTemplate(template) {
@@ -36,8 +37,6 @@ export default function useIsolateAnnotationTemplate(template) {
     filterByListingId: template?.listingId,
   });
 
-  const updateAnnotationTemplates = useUpdateAnnotationTemplates();
-
   // helpers
 
   const panelListingsIds = (listings ?? []).map((l) => l.id);
@@ -57,7 +56,7 @@ export default function useIsolateAnnotationTemplate(template) {
 
   // handlers
 
-  const toggleIsolation = async () => {
+  const toggleIsolation = () => {
     if (!template) return;
 
     // Hidden listing ids from other scopes are preserved either way.
@@ -69,10 +68,11 @@ export default function useIsolateAnnotationTemplate(template) {
       // Un-isolate: re-show the panel's listings and all the templates of
       // the isolated one's listing (other listings keep their own flags).
       dispatch(setHiddenListingsIds(keptHiddenIds));
-      await updateAnnotationTemplates(
-        (siblingTemplates ?? [])
-          .filter((t) => t.hidden)
-          .map((t) => ({ id: t.id, hidden: false }))
+      dispatch(
+        setAnnotationTemplatesHidden({
+          ids: (siblingTemplates ?? []).map((t) => t.id),
+          hidden: false,
+        })
       );
       return;
     }
@@ -81,13 +81,15 @@ export default function useIsolateAnnotationTemplate(template) {
     // the hidden-based isolation.
     dispatch(setSoloAnnotationTemplateId(null));
     dispatch(setHiddenListingsIds([...keptHiddenIds, ...otherListingsIds]));
-    const updates = [
-      ...otherTemplates
-        .filter((t) => !t.hidden)
-        .map((t) => ({ id: t.id, hidden: true })),
-      ...(template.hidden ? [{ id: template.id, hidden: false }] : []),
-    ];
-    await updateAnnotationTemplates(updates);
+    dispatch(
+      setAnnotationTemplatesHidden({
+        ids: otherTemplates.map((t) => t.id),
+        hidden: true,
+      })
+    );
+    dispatch(
+      setAnnotationTemplatesHidden({ ids: [template.id], hidden: false })
+    );
   };
 
   return { isIsolated, toggleIsolation };

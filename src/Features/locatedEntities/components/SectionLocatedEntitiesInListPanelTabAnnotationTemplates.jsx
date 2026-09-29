@@ -28,6 +28,7 @@ import useAnnotationTemplateQtiesById from "Features/annotations/hooks/useAnnota
 import { setSelectedItem } from "Features/selection/selectionSlice";
 import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 import useUpdateAnnotationTemplate from "Features/annotations/hooks/useUpdateAnnotationTemplate";
+import { toggleAnnotationTemplateHidden } from "Features/scopeVisibility/scopeVisibilitySlice";
 
 function DraggableAnnotationTemplateItem({
   annotationTemplate,
@@ -45,6 +46,7 @@ function DraggableAnnotationTemplateItem({
       },
     });
 
+  const dispatch = useDispatch();
   const updateAnnotationTemplate = useUpdateAnnotationTemplate();
 
   const style = transform
@@ -55,12 +57,10 @@ function DraggableAnnotationTemplateItem({
   const [isEditing, setIsEditing] = useState(false);
   const [tempLabel, setTempLabel] = useState("");
 
-  const handleToggleHidden = async (e) => {
+  // Template eye: per-scope local state (scopeVisibility slice).
+  const handleToggleHidden = (e) => {
     e.stopPropagation(); // Évite de déclencher le clic de création sur la ligne
-    await updateAnnotationTemplate({
-      ...annotationTemplate,
-      hidden: !annotationTemplate?.hidden
-    });
+    dispatch(toggleAnnotationTemplateHidden(annotationTemplate?.id));
   };
 
   const handleStartEdit = (e) => {

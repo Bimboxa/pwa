@@ -26,7 +26,7 @@ import AnnotationTemplateIcon from "Features/annotations/components/AnnotationTe
 import ProcedurePopperContent from "Features/annotationsAuto/components/ProcedurePopperContent";
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
 import useRevolutionAxes from "Features/annotations/hooks/useRevolutionAxes";
-import useUpdateAnnotationTemplate from "Features/annotations/hooks/useUpdateAnnotationTemplate";
+import { toggleAnnotationTemplateHidden } from "Features/scopeVisibility/scopeVisibilitySlice";
 import getNewAnnotationPropsFromAnnotationTemplate from "Features/annotations/utils/getNewAnnotationPropsFromAnnotationTemplate";
 import { getDrawingToolByKey } from "Features/mapEditor/constants/drawingTools.jsx";
 
@@ -53,7 +53,6 @@ export default function AnnotationTemplateRowRevolutionAxisVertical({
   dragListeners,
 }) {
   const dispatch = useDispatch();
-  const updateAnnotationTemplate = useUpdateAnnotationTemplate();
 
   // data
 
@@ -169,12 +168,10 @@ export default function AnnotationTemplateRowRevolutionAxisVertical({
     armAxis(axis);
   };
 
-  const handleToggleHidden = async (e) => {
+  // Template eye: per-scope local state (scopeVisibility slice).
+  const handleToggleHidden = (e) => {
     e.stopPropagation();
-    await updateAnnotationTemplate({
-      ...annotationTemplate,
-      hidden: !annotationTemplate?.hidden,
-    });
+    dispatch(toggleAnnotationTemplateHidden(annotationTemplate?.id));
   };
 
   // render

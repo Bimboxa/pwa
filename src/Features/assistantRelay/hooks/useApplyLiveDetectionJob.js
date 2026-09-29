@@ -386,10 +386,14 @@ export default function useApplyLiveDetectionJob() {
       const state = store.getState();
       const projectId = state.projects.selectedProjectId;
       const scopeId = state.scopes.selectedScopeId;
+      // Template eyes are per-scope local state (scopeVisibility slice):
+      // passed along so the batch filters see the same visibility as the map.
+      const hiddenAnnotationTemplateIds =
+        state.scopeVisibility?.hiddenAnnotationTemplateIds ?? [];
       const result = await applyAnnotationBatch(
         db,
         full,
-        { projectId, scopeId },
+        { projectId, scopeId, hiddenAnnotationTemplateIds },
         readFrame
       );
       if (result.batchKind !== "query" && !result.replayed) {

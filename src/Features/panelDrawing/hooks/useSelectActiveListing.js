@@ -5,7 +5,7 @@ import {
   setHiddenListingsIds,
 } from "Features/listings/listingsSlice";
 
-import useUpdateAnnotationTemplates from "Features/annotations/hooks/useUpdateAnnotationTemplates";
+import { setAnnotationTemplatesHidden } from "Features/scopeVisibility/scopeVisibilitySlice";
 
 import db from "App/db/db";
 
@@ -29,8 +29,6 @@ export default function useSelectActiveListing(listings) {
   const autoVisibility = useSelector(
     (s) => s.panelDrawing.autoListingVisibility
   );
-
-  const updateAnnotationTemplates = useUpdateAnnotationTemplates();
 
   // handler
 
@@ -66,14 +64,16 @@ export default function useSelectActiveListing(listings) {
     // Auto visibility also unhides all the templates of the selected listing.
     if (!autoVisibility) return;
 
+    // (per-scope local state, scopeVisibility slice — no template write)
     const templates = await db.annotationTemplates
       .where("listingId")
       .equals(listingId)
       .toArray();
-    await updateAnnotationTemplates(
-      templates
-        .filter((t) => !t.deletedAt && t.hidden)
-        .map((t) => ({ id: t.id, hidden: false }))
+    dispatch(
+      setAnnotationTemplatesHidden({
+        ids: templates.filter((t) => !t.deletedAt).map((t) => t.id),
+        hidden: false,
+      })
     );
   };
 

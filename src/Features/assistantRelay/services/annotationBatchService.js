@@ -219,7 +219,10 @@ function assertRow(row, target) {
   )
     fail("ANNOTATION_CHANGED", row?.id);
 }
-async function getTemplate(db, row, target) {
+// The template eye is per-scope LOCAL state (scopeVisibility slice), not a
+// row field: the caller passes the hidden ids in `context`, and the template
+// is returned with the derived `hidden` (matchesAnnotation reads it).
+async function getTemplate(db, row, target, context) {
   if (!row.annotationTemplateId) return undefined;
   const t = await db.annotationTemplates.get(row.annotationTemplateId);
   if (
@@ -228,7 +231,10 @@ async function getTemplate(db, row, target) {
     String(t.projectId) !== String(target.projectId)
   )
     fail("TEMPLATE_CHANGED", row.annotationTemplateId);
-  return t;
+  return {
+    ...t,
+    hidden: Boolean(context?.hiddenAnnotationTemplateIds?.includes(t.id)),
+  };
 }
 const sample = (row, t) => {
   const a = effectiveAnnotation(row, t);
@@ -362,7 +368,7 @@ export async function applyAnnotationBatch(db, full, context, readFrame) {
         if (!alive(row) || row.baseMapId !== target.baseMapId) continue;
         if (!filter.includeHidden && row.hidden) continue;
         assertRow(row, target);
-        const t = await getTemplate(db, row, target);
+        const t = await getTemplate(db, row, target, context);
         if (
           !matchesAnnotation(
             effectiveAnnotation(row, t),
@@ -423,7 +429,7 @@ export async function applyAnnotationBatch(db, full, context, readFrame) {
           if (usedIds.size > MAX_BATCH_ANNOTATIONS) fail("BATCH_TOO_LARGE");
           const row = await db.annotations.get(entry.id);
           assertRow(row, target);
-          const t = await getTemplate(db, row, target);
+          const t = await getTemplate(db, row, target, context);
           if (
             fingerprint(row) !== entry.expected ||
             fingerprint(t) !== entry.template
@@ -503,7 +509,8 @@ export async function applyAnnotationBatch(db, full, context, readFrame) {
           !finite(move.to)
         )
           fail("INVALID_BATCH", "move");
-        if (seen.has(move.pointId)) fail("OVERLAPPING_SELECTIONS", move.pointId);
+        if (seen.has(move.pointId))
+          fail("OVERLAPPING_SELECTIONS", move.pointId);
         seen.add(move.pointId);
         const row = await db.annotations.get(move.annotationId);
         assertRow(row, target);

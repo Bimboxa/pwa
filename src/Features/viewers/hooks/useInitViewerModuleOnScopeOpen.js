@@ -14,6 +14,7 @@ import {
 } from "Features/threedEditor/threedEditorSlice";
 
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
+import { selectHasSavedThreedVisibility } from "Features/scopeVisibility/selectors/scopeVisibilitySelectors";
 import useAnnotationsV2 from "Features/annotations/hooks/useAnnotationsV2";
 import { ANNOTATIONS_DISPLAY_MODE } from "Features/threedEditor/constants/annotationsDisplayModeIn3d";
 
@@ -22,6 +23,9 @@ import { ANNOTATIONS_DISPLAY_MODE } from "Features/threedEditor/constants/annota
 // annotations of EVERY annotated baseMap displayed. Runs once per scope open
 // (re-armed when the scope closes back to the dashboard). Mounted in
 // LayoutDesktop next to the landing effect.
+// Skipped entirely when the scope has saved 3D toggles on this device
+// (scopeVisibility, localStorage): the restored state is the user's own
+// choice and must not be overwritten by the defaults.
 export default function useInitViewerModuleOnScopeOpen() {
   const dispatch = useDispatch();
 
@@ -36,6 +40,7 @@ export default function useInitViewerModuleOnScopeOpen() {
     (s) => s.viewers.initialFitDoneForScopeId
   );
   const landOnDrawScopeId = useSelector((s) => s.viewers.landOnDrawScopeId);
+  const hasSavedThreedState = useSelector(selectHasSavedThreedVisibility);
   const hideMainImage = useSelector(
     (s) => s.threedEditor.hideMainBaseMapImageIn3d
   );
@@ -98,10 +103,10 @@ export default function useInitViewerModuleOnScopeOpen() {
 
   useEffect(() => {
     dispatch(setRevealOnMainSelectSuspended(landingActive));
-    if (landingActive && !hideMainImage) {
+    if (landingActive && !hideMainImage && !hasSavedThreedState) {
       dispatch(setHideMainBaseMapImageIn3d(true));
     }
-  }, [landingActive, hideMainImage, dispatch]);
+  }, [landingActive, hideMainImage, hasSavedThreedState, dispatch]);
 
   // Images off — dispatched as soon as the scope + main baseMap are known,
   // WITHOUT waiting for the annotations: the hide must be in redux before the
@@ -119,11 +124,20 @@ export default function useInitViewerModuleOnScopeOpen() {
     // must not clobber the flag set below.
     if (!mainBaseMap?.id) return;
     doneImagesScopeRef.current = scopeId;
+    // Saved toggles restored for this scope: keep them.
+    if (hasSavedThreedState) return;
 
     dispatch(setPinnedBaseMapIdsInViewer([]));
     dispatch(setHideBaseMapImageInViewer(false));
     dispatch(setHideMainBaseMapImageIn3d(true));
-  }, [scopeId, disable3D, isViewerModule, mainBaseMap?.id, dispatch]);
+  }, [
+    scopeId,
+    disable3D,
+    isViewerModule,
+    mainBaseMap?.id,
+    hasSavedThreedState,
+    dispatch,
+  ]);
 
   // Annotations of every annotated baseMap displayed — once the annotations
   // are loaded.
@@ -136,6 +150,8 @@ export default function useInitViewerModuleOnScopeOpen() {
     // seeding: nothing to display, keep the default eye states).
     if (!annotations?.length) return;
     doneAnnotationsScopeRef.current = scopeId;
+    // Saved toggles restored for this scope: keep them.
+    if (hasSavedThreedState) return;
 
     const modeByBaseMapId = {};
     annotations.forEach((a) => {
@@ -151,6 +167,7 @@ export default function useInitViewerModuleOnScopeOpen() {
     isViewerModule,
     mainBaseMap?.id,
     annotations,
+    hasSavedThreedState,
     dispatch,
   ]);
 }

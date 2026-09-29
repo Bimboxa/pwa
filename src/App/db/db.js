@@ -596,8 +596,9 @@ function assertScopeSelected(tableName, obj) {
 // scope (the link service refuses self-links), so annotations of a foreign
 // NON-linked listing (scope creation flows) are untouched. The linked map is
 // precomputed by listingsSlice from the live-synced rel rows. Annotations
-// only (v1): the template `hidden` eye is a legitimate host-side display
-// write, and point rows carry no reliable listingId. System writes bypass.
+// only (v1): the template eye is per-scope local state (scopeVisibility
+// slice, no row write), and point rows carry no reliable listingId. System
+// writes bypass.
 function assertNotLinkedListingContent(tableName, obj) {
   if (_skipOwnershipGuard) return;
   if (tableName !== "annotations") return;

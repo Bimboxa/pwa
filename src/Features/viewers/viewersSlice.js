@@ -4,6 +4,7 @@ import getInitSelectedModuleKey from "Features/init/services/getInitSelectedModu
 import setInitSelectedModuleKey from "Features/init/services/setInitSelectedModuleKey";
 import getInitEditorKeyByModule from "Features/init/services/getInitEditorKeyByModule";
 import setInitEditorKeyByModule from "Features/init/services/setInitEditorKeyByModule";
+import getInitScopeVisibility from "Features/init/services/getInitScopeVisibility";
 
 const viewersInitialState = {
   // The left-band selection is a MODULE key ("MAP" = Dessin, "THREED",
@@ -25,11 +26,12 @@ const viewersInitialState = {
   pinnedBaseMapIdsInViewer: [],
   // 2D map editors: hide the main baseMap image entirely (toggled from the
   // top-bar baseMap selector's eye, and from the selected chip's eye in the
-  // Viewer 2D chips band). Session-only, reset when the scope changes.
+  // Viewer 2D chips band). Per-scope local state: saved to localStorage by
+  // scopeVisibilityPersistMiddleware, restored on scope selection.
   hideBaseMapImageInViewer: false,
   // 2D map editors: hide the annotations entirely (toggled from the count
   // badge of the top-bar baseMap selector / Viewer 2D selected chip).
-  // Session-only, reset when the scope changes.
+  // Per-scope local state, same lifecycle as hideBaseMapImageInViewer.
   hideAnnotationsInViewer: false,
   // Scope whose initial top-down fit already ran (ThreedInitialFitOnLanding).
   // In redux (not a component ref) so the 2D/3D editor toggles — which
@@ -81,10 +83,12 @@ export const viewersSlice = createSlice({
     },
   },
   extraReducers: (builder) => {
-    // A baseMap hidden in one scope must not open the next one blank.
-    builder.addCase("scopes/setSelectedScopeId", (state) => {
-      state.hideBaseMapImageInViewer = false;
-      state.hideAnnotationsInViewer = false;
+    // A baseMap hidden in one scope must not open the next one blank:
+    // restore the scope's own saved toggles, else the defaults.
+    builder.addCase("scopes/setSelectedScopeId", (state, action) => {
+      const saved = getInitScopeVisibility(action.payload)?.viewer2d;
+      state.hideBaseMapImageInViewer = Boolean(saved?.hideBaseMapImageInViewer);
+      state.hideAnnotationsInViewer = Boolean(saved?.hideAnnotationsInViewer);
     });
   },
 });
