@@ -1,6 +1,12 @@
 import { useMemo } from "react";
 
-import { Box, ClickAwayListener, Paper, Popper, Typography } from "@mui/material";
+import {
+  Box,
+  ClickAwayListener,
+  Paper,
+  Popper,
+  Typography,
+} from "@mui/material";
 
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
 import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSpriteImage";
@@ -51,8 +57,8 @@ export default function PopperBusinessObjectQtyGap({
     [annotationTemplates]
   );
   const rows = useMemo(
-    () => getBusinessObjectQtiesByTemplate(linkedAnnotations),
-    [linkedAnnotations]
+    () => getBusinessObjectQtiesByTemplate(linkedAnnotations, businessObject),
+    [linkedAnnotations, businessObject]
   );
 
   const sign = gap.delta > 0 ? "+" : "";

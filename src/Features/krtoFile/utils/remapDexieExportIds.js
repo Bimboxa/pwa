@@ -269,6 +269,18 @@ export default function remapDexieExportIds(jsonData, opts) {
         );
       }
 
+      // Business objects: custom quantity formulas per annotation template
+      // (nested template refs, null = annotations without template).
+      if (tableName === "businessObjects" && Array.isArray(row.qtyFormulas)) {
+        row.qtyFormulas = row.qtyFormulas.map((item) => ({
+          ...item,
+          annotationTemplateId: remapId(
+            "annotationTemplates",
+            item?.annotationTemplateId
+          ),
+        }));
+      }
+
       // layerId may point at a GLOBAL layer (scope in layersMode "GLOBAL"):
       // the SIMPLE_FK pass above targets db.layers and falls through for an
       // unknown id, so a still-old id known to globalLayers is remapped here.

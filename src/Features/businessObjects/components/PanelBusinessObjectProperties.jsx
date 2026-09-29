@@ -52,18 +52,16 @@ import FieldTaskGlobalLayer from "./FieldTaskGlobalLayer";
 import SectionNotesAppObjectNotes from "Features/notesApp/components/SectionNotesAppObjectNotes";
 import SectionBusinessObjectFiche from "./SectionBusinessObjectFiche";
 import SectionBusinessObjectDocuments from "./SectionBusinessObjectDocuments";
+import SectionBusinessObjectQuantities from "./SectionBusinessObjectQuantities";
+import PanelBusinessObjectTemplateAnnotations from "./PanelBusinessObjectTemplateAnnotations";
 import useNotesAppConfig from "Features/notesApp/hooks/useNotesAppConfig";
 import useNotesAppListingConfig from "Features/notesApp/hooks/useNotesAppListingConfig";
 import useNotesAppScopeLink from "Features/notesApp/hooks/useNotesAppScopeLink";
 import useSyncNotesAppBusinessObject from "Features/notesApp/hooks/useSyncNotesAppBusinessObject";
 import buildBusinessObjectDebugPayload from "../utils/buildBusinessObjectDebugPayload";
 import getAnnotationMainQtyLabel from "Features/annotations/utils/getAnnotationMainQtyLabel";
-import getBusinessObjectQtyLabel from "../utils/getBusinessObjectQtyLabel";
 import { getBusinessObjectUnitText } from "../utils/getBusinessObjectQtyKind";
 import formatBusinessObjectNumber from "../utils/formatBusinessObjectNumber";
-import accumulateAnnotationQties, {
-  createEmptyQties,
-} from "../utils/accumulateAnnotationQties";
 import getBusinessObjectTypeOfListing from "../utils/getBusinessObjectTypeOfListing";
 import selectSelectedBusinessObjectId from "../utils/selectSelectedBusinessObjectId";
 import getHoursRatioUnit from "../utils/getHoursRatioUnit";
@@ -75,6 +73,7 @@ import {
   parseHoursRatioInput,
 } from "../utils/hoursRatioConversions";
 import getItemsByKey from "Features/misc/utils/getItemsByKey";
+import { getQtyFormulaKey } from "../utils/qtyFormula";
 
 import { DEFAULT_HOURS_RATIO_MODE } from "../constants/businessObjectEntityModel";
 
@@ -87,15 +86,19 @@ function blurOnEnter(e) {
 }
 
 // Right-panel properties of the business object selected in the Ouvrages
-// drawer (selection item {type: "BUSINESS_OBJECT"}): editable props (code,
-// label, description, free-text unit, reference quantity, color — the field set
-// follows the listing type features), the object's MAIN annotations (one
-// per base map, "Localisation" section, drawn from the Dessin popper), the
-// list of the other linked annotations with per-annotation quantities and
-// unlink buttons, the rolled-up total per the object's unit, and the
-// picking-mode toggle. Tasks (type feature hoursBudget) replace the unit
-// with the hours ratio field (Ratio / Cadence), add the rolled-up hours
-// budget band and have no color (feature color false).
+// drawer (selection item {type: "BUSINESS_OBJECT"}), in tabs.
+// "Infos": editable props (code, label, description, free-text unit,
+// reference quantity, color — the field set follows the listing type
+// features), the linked documents and the object's MAIN annotations (one per
+// base map, "Localisation" section, drawn from the Dessin popper).
+// "Quantités": the picking-mode toggle, the quantity summary (computed vs
+// reference, gap) and one card per linked annotation template with its
+// editable quantity formula (SectionBusinessObjectQuantities); a card opens
+// the template's linked annotations in a sub-panel
+// (PanelBusinessObjectTemplateAnnotations).
+// Tasks (type feature hoursBudget) replace the unit with the hours ratio
+// field (Ratio / Cadence), add the rolled-up hours budget band and have no
+// color (feature color false).
 export default function PanelBusinessObjectProperties() {
   const dispatch = useDispatch();
 
@@ -199,12 +202,13 @@ export default function PanelBusinessObjectProperties() {
     hoursRatioMode,
   ]);
 
-  // state — tabs: the "Fiche" tab edits the listing-model fields (Krnet
-  // "Modèle de fiche" of the listing, when it has one); the "Notes" tab
-  // shows the Krnet notes feed of an imported object (photos, comments,
-  // events... under businessObject.notesAppNotes). The selection lives in
-  // Redux so browsing from object to object keeps the tab; an object
-  // without the tab falls back to "PROPS".
+  // state — tabs: "Infos" (PROPS) and "Quantités" (QTY) for every object;
+  // the "Fiche" tab edits the listing-model fields (Krnet "Modèle de fiche"
+  // of the listing, when it has one); the "Notes" tab shows the Krnet notes
+  // feed of an imported object (photos, comments, events... under
+  // businessObject.notesAppNotes). The selection lives in Redux so browsing
+  // from object to object keeps the tab; an object without the tab falls
+  // back to "PROPS".
 
   const tab = useSelector((s) => s.notesApp.objectPropertiesTab);
   const notesAppConfig = useNotesAppConfig();
@@ -231,11 +235,22 @@ export default function PanelBusinessObjectProperties() {
   const pullTitleS = `Récupérer les données de cet objet depuis ${notesAppName} (aucun envoi vers ${notesAppName})`;
   const debugTitleS =
     "Copier les données locales de l'objet (JSON) dans le presse-papier";
-  const hasTabs = hasFiche || isNotesAppObject;
   const effectiveTab =
-    (tab === "FICHE" && hasFiche) || (tab === "NOTES" && isNotesAppObject)
+    tab === "QTY" ||
+    (tab === "FICHE" && hasFiche) ||
+    (tab === "NOTES" && isNotesAppObject)
       ? tab
       : "PROPS";
+
+  // state — annotation template whose linked annotations are shown in the
+  // sub-panel of the "Quantités" tab (getQtyFormulaKey key, "" = annotations
+  // without template); null = quantities recap
+
+  const [openedTemplateKey, setOpenedTemplateKey] = useState(null);
+
+  useEffect(() => {
+    setOpenedTemplateKey(null);
+  }, [businessObjectId, effectiveTab]);
 
   // helpers — linked annotations + rolled-up quantities
 
@@ -249,25 +264,24 @@ export default function PanelBusinessObjectProperties() {
       .map((a) => ({ annotation: a, rel: relByAnnotationId[a.id] }));
   }, [rels, annotations]);
 
-  // main annotations ("Localisation") vs plain links ("Annotations liées");
-  // the quantity rollup counts both.
+  // main annotations ("Localisation"); the "Annotations liées" recap and
+  // the quantity rollup count every linked annotation, main ones included.
   const mainRows = useMemo(
     () => linkedRows.filter(({ rel }) => rel.isMain),
     [linkedRows]
   );
-  const plainRows = useMemo(
-    () => linkedRows.filter(({ rel }) => !rel.isMain),
-    [linkedRows]
-  );
 
-  const qties = useMemo(() => {
-    const stats = createEmptyQties();
-    linkedRows.forEach(({ annotation }) => {
-      if (annotation.isMeshCell) return;
-      accumulateAnnotationQties(stats, annotation);
-    });
-    return stats;
-  }, [linkedRows]);
+  const openedTemplateRows = useMemo(
+    () =>
+      openedTemplateKey === null
+        ? []
+        : linkedRows.filter(
+            ({ annotation }) =>
+              getQtyFormulaKey(annotation.annotationTemplateId) ===
+              openedTemplateKey
+          ),
+    [linkedRows, openedTemplateKey]
+  );
 
   const isLinking = linkingBusinessObjectId === businessObject?.id;
 
@@ -428,6 +442,20 @@ export default function PanelBusinessObjectProperties() {
 
   if (!businessObject) return null;
 
+  if (effectiveTab === "QTY" && openedTemplateKey !== null) {
+    return (
+      <PanelBusinessObjectTemplateAnnotations
+        businessObject={businessObject}
+        template={annotationTemplateById[openedTemplateKey]}
+        rows={openedTemplateRows}
+        baseMapNameById={baseMapNameById}
+        spriteImage={spriteImage}
+        onBack={() => setOpenedTemplateKey(null)}
+        onUnlink={handleUnlink}
+      />
+    );
+  }
+
   return (
     <Box sx={{ display: "flex", flexDirection: "column", minHeight: 0 }}>
       {/* header */}
@@ -493,30 +521,29 @@ export default function PanelBusinessObjectProperties() {
           ))}
       </Box>
 
-      {/* tabs — Fiche when the listing has a fields model, Notes for
-          Krnet-imported objects (notes feed) */}
-      {hasTabs && (
-        <Tabs
-          value={effectiveTab}
-          onChange={(_e, v) => dispatch(setNotesAppObjectPropertiesTab(v))}
-          variant="fullWidth"
-          sx={{
-            minHeight: 36,
-            borderBottom: "1px solid",
-            borderColor: "divider",
-            "& .MuiTab-root": { minHeight: 36 },
-          }}
-        >
-          <Tab value="PROPS" label="Propriétés" />
-          {hasFiche && <Tab value="FICHE" label="Fiche" />}
-          {isNotesAppObject && (
-            <Tab
-              value="NOTES"
-              label={notesCount > 0 ? `Notes (${notesCount})` : "Notes"}
-            />
-          )}
-        </Tabs>
-      )}
+      {/* tabs — Infos + Quantités, Fiche when the listing has a fields
+          model, Notes for Krnet-imported objects (notes feed) */}
+      <Tabs
+        value={effectiveTab}
+        onChange={(_e, v) => dispatch(setNotesAppObjectPropertiesTab(v))}
+        variant="fullWidth"
+        sx={{
+          minHeight: 36,
+          borderBottom: "1px solid",
+          borderColor: "divider",
+          "& .MuiTab-root": { minHeight: 36 },
+        }}
+      >
+        <Tab value="PROPS" label="Infos" />
+        <Tab value="QTY" label="Quantités" />
+        {hasFiche && <Tab value="FICHE" label="Fiche" />}
+        {isNotesAppObject && (
+          <Tab
+            value="NOTES"
+            label={notesCount > 0 ? `Notes (${notesCount})` : "Notes"}
+          />
+        )}
+      </Tabs>
 
       {effectiveTab === "NOTES" && (
         <SectionNotesAppObjectNotes businessObject={businessObject} />
@@ -538,7 +565,7 @@ export default function PanelBusinessObjectProperties() {
       )}
 
       {effectiveTab === "PROPS" && (
-        <>
+        <Box sx={{ overflowY: "auto", flex: 1 }}>
           {/* props */}
           <Box
             sx={{
@@ -645,6 +672,103 @@ export default function PanelBusinessObjectProperties() {
             )}
           </Box>
 
+          {/* linked documents + main annotations (one per base map) */}
+          <SectionBusinessObjectDocuments
+            businessObjectId={businessObject.id}
+          />
+          {mainRows.length > 0 && (
+            <>
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  px: 1.5,
+                  py: 0.75,
+                  bgcolor: "panel.sectionBg",
+                }}
+              >
+                <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                  Localisation
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {`${mainRows.length} plan${mainRows.length > 1 ? "s" : ""}`}
+                </Typography>
+              </Box>
+              <List dense disablePadding>
+                {mainRows.map(({ annotation, rel }) => {
+                  const template =
+                    annotationTemplateById[annotation.annotationTemplateId];
+                  return (
+                    <ListItem
+                      key={annotation.id}
+                      sx={{
+                        py: 0.25,
+                        "&:hover .business-object-unlink": {
+                          visibility: "visible",
+                        },
+                      }}
+                    >
+                      <Box
+                        sx={{ mr: 1, display: "flex", alignItems: "center" }}
+                      >
+                        <AnnotationTemplateIcon
+                          template={template}
+                          size={20}
+                          spriteImage={spriteImage}
+                        />
+                      </Box>
+                      <ListItemText
+                        primary={
+                          baseMapNameById[
+                            rel.baseMapId ?? annotation.baseMapId
+                          ] || "Plan"
+                        }
+                        secondary={template?.label}
+                        slotProps={{
+                          primary: { variant: "body2", noWrap: true },
+                          secondary: { variant: "caption", noWrap: true },
+                        }}
+                      />
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ ml: 1, whiteSpace: "nowrap" }}
+                      >
+                        {getAnnotationMainQtyLabel(
+                          annotation,
+                          annotation.qties
+                        )}
+                      </Typography>
+                      <IconButton
+                        className="business-object-unlink"
+                        size="small"
+                        onClick={() => handleUnsetMain(rel)}
+                        title="Retirer la localisation (l'annotation reste liée)"
+                        sx={{ ml: 0.5, visibility: "hidden" }}
+                      >
+                        <LocationOff sx={{ fontSize: 16 }} />
+                      </IconButton>
+                      <IconButton
+                        className="business-object-unlink"
+                        size="small"
+                        onClick={() => handleUnlink(rel)}
+                        title="Délier cette annotation"
+                        sx={{ visibility: "hidden" }}
+                      >
+                        <LinkOff sx={{ fontSize: 16 }} />
+                      </IconButton>
+                    </ListItem>
+                  );
+                })}
+              </List>
+            </>
+          )}
+        </Box>
+      )}
+
+      {effectiveTab === "QTY" && (
+        <>
           {/* action: picking mode */}
           <Box sx={{ p: 1, borderBottom: "1px solid", borderColor: "divider" }}>
             <Button
@@ -658,11 +782,8 @@ export default function PanelBusinessObjectProperties() {
             </Button>
           </Box>
 
-          {/* main annotations (one per base map) + linked annotations + total */}
+          {/* hours budget (tasks) + quantity summary + template cards */}
           <Box sx={{ overflowY: "auto", flex: 1 }}>
-            <SectionBusinessObjectDocuments
-              businessObjectId={businessObject.id}
-            />
             {/* tasks: rolled-up hours budget (own + sub-tasks) */}
             {hasHoursBudget && (
               <>
@@ -711,174 +832,17 @@ export default function PanelBusinessObjectProperties() {
                 )}
               </>
             )}
-            {mainRows.length > 0 && (
-              <>
-                <Box
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    px: 1.5,
-                    py: 0.75,
-                    bgcolor: "panel.sectionBg",
-                  }}
-                >
-                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                    Localisation
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {`${mainRows.length} plan${mainRows.length > 1 ? "s" : ""}`}
-                  </Typography>
-                </Box>
-                <List dense disablePadding>
-                  {mainRows.map(({ annotation, rel }) => {
-                    const template =
-                      annotationTemplateById[annotation.annotationTemplateId];
-                    return (
-                      <ListItem
-                        key={annotation.id}
-                        sx={{
-                          py: 0.25,
-                          "&:hover .business-object-unlink": {
-                            visibility: "visible",
-                          },
-                        }}
-                      >
-                        <Box
-                          sx={{ mr: 1, display: "flex", alignItems: "center" }}
-                        >
-                          <AnnotationTemplateIcon
-                            template={template}
-                            size={20}
-                            spriteImage={spriteImage}
-                          />
-                        </Box>
-                        <ListItemText
-                          primary={
-                            baseMapNameById[
-                              rel.baseMapId ?? annotation.baseMapId
-                            ] || "Plan"
-                          }
-                          secondary={template?.label}
-                          slotProps={{
-                            primary: { variant: "body2", noWrap: true },
-                            secondary: { variant: "caption", noWrap: true },
-                          }}
-                        />
-                        <Typography
-                          variant="body2"
-                          color="text.secondary"
-                          sx={{ ml: 1, whiteSpace: "nowrap" }}
-                        >
-                          {getAnnotationMainQtyLabel(
-                            annotation,
-                            annotation.qties
-                          )}
-                        </Typography>
-                        <IconButton
-                          className="business-object-unlink"
-                          size="small"
-                          onClick={() => handleUnsetMain(rel)}
-                          title="Retirer la localisation (l'annotation reste liée)"
-                          sx={{ ml: 0.5, visibility: "hidden" }}
-                        >
-                          <LocationOff sx={{ fontSize: 16 }} />
-                        </IconButton>
-                        <IconButton
-                          className="business-object-unlink"
-                          size="small"
-                          onClick={() => handleUnlink(rel)}
-                          title="Délier cette annotation"
-                          sx={{ visibility: "hidden" }}
-                        >
-                          <LinkOff sx={{ fontSize: 16 }} />
-                        </IconButton>
-                      </ListItem>
-                    );
-                  })}
-                </List>
-              </>
-            )}
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                px: 1.5,
-                py: 0.75,
-                bgcolor: "panel.sectionBg",
-              }}
-            >
-              <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                Annotations liées
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {getBusinessObjectQtyLabel(
-                  hasHoursBudget ? ratioUnit : businessObject.unit,
-                  qties
-                )}
-              </Typography>
-            </Box>
-            {plainRows.length === 0 ? (
-              <Typography variant="body2" color="text.secondary" sx={{ p: 2 }}>
-                {type.strings.noLinkedAnnotations}
-              </Typography>
-            ) : (
-              <List dense disablePadding>
-                {plainRows.map(({ annotation, rel }) => {
-                  const template =
-                    annotationTemplateById[annotation.annotationTemplateId];
-                  return (
-                    <ListItem
-                      key={annotation.id}
-                      sx={{
-                        py: 0.25,
-                        "&:hover .business-object-unlink": {
-                          visibility: "visible",
-                        },
-                      }}
-                    >
-                      <Box
-                        sx={{ mr: 1, display: "flex", alignItems: "center" }}
-                      >
-                        <AnnotationTemplateIcon
-                          template={template}
-                          size={20}
-                          spriteImage={spriteImage}
-                        />
-                      </Box>
-                      <ListItemText
-                        primary={
-                          annotation.label ?? template?.label ?? "Annotation"
-                        }
-                        slotProps={{
-                          primary: { variant: "body2", noWrap: true },
-                        }}
-                      />
-                      <Typography
-                        variant="body2"
-                        color="text.secondary"
-                        sx={{ ml: 1, whiteSpace: "nowrap" }}
-                      >
-                        {getAnnotationMainQtyLabel(
-                          annotation,
-                          annotation.qties
-                        )}
-                      </Typography>
-                      <IconButton
-                        className="business-object-unlink"
-                        size="small"
-                        onClick={() => handleUnlink(rel)}
-                        title="Délier cette annotation"
-                        sx={{ ml: 0.5, visibility: "hidden" }}
-                      >
-                        <LinkOff sx={{ fontSize: 16 }} />
-                      </IconButton>
-                    </ListItem>
-                  );
-                })}
-              </List>
-            )}
+            <SectionBusinessObjectQuantities
+              businessObject={businessObject}
+              unit={hasHoursBudget ? ratioUnit : businessObject.unit}
+              showRefQty={!hasHoursBudget}
+              linkedRows={linkedRows}
+              annotations={annotations}
+              annotationTemplateById={annotationTemplateById}
+              spriteImage={spriteImage}
+              emptyLabel={type.strings.noLinkedAnnotations}
+              onOpenTemplate={setOpenedTemplateKey}
+            />
           </Box>
         </>
       )}
