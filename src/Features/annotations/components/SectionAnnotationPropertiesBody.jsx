@@ -14,6 +14,7 @@ import SectionAnnotationPropertiesContent from "./SectionAnnotationPropertiesCon
 import SectionAnnotationPartPropertiesContent from "./SectionAnnotationPartPropertiesContent";
 import SectionMultiPartProperties from "./SectionMultiPartProperties";
 import SectionAnnotationZones from "Features/zonings/components/SectionAnnotationZones";
+import SectionAnnotationBusinessObjects from "Features/businessObjects/components/SectionAnnotationBusinessObjects";
 import SectionAnnotationPhotoPlan from "Features/photoPlans/components/SectionAnnotationPhotoPlan";
 import SectionAnnotationFolioContent from "Features/detailFolio/components/SectionAnnotationFolioContent";
 
@@ -119,6 +120,9 @@ export default function SectionAnnotationPropertiesBody({
             {!annotation?.isZoneAnnotation && (
               <SectionAnnotationZones annotation={annotation} />
             )}
+            {/* Linked business objects (ouvrages, points...) — self-hiding
+                without link. */}
+            <SectionAnnotationBusinessObjects annotation={annotation} />
             {/* Plan photo (photoPlans) — POLYGON on a photo baseMap only,
                 self-hiding otherwise. */}
             <SectionAnnotationPhotoPlan annotation={annotation} />
@@ -128,7 +132,6 @@ export default function SectionAnnotationPropertiesBody({
         {!hasPart && effectiveTab === "FOLIO" && (
           <SectionAnnotationFolioContent annotation={annotation} />
         )}
-
       </BoxFlexVStretch>
     </BoxFlexVStretch>
   );

@@ -63,7 +63,7 @@ export default function SectionLinkAnnotationsToBusinessObject({
   const linkToS =
     typeKeys.size === 1
       ? getBusinessObjectTypeOfListing(groups[0]?.listing).strings.linkTo
-      : "Lier à un ouvrage / une tâche";
+      : "Lier à un objet";
 
   // handlers
 

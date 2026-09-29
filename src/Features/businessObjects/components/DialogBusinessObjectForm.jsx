@@ -42,7 +42,9 @@ import {
 // hours ratio as a compact one-line row (FieldHoursRatioCompact, the ratio
 // carries its own unit) and have no color (feature color false). The stored
 // ratio is always hours per unit, the mode toggle only flips the displayed
-// number. Edit mode when `businessObject` is provided.
+// number. Types without the features code / titleRows / quantities (issues)
+// drop those fields: label + description only. Edit mode when
+// `businessObject` is provided.
 export default function DialogBusinessObjectForm({
   open,
   listing,
@@ -58,6 +60,9 @@ export default function DialogBusinessObjectForm({
   const type = getBusinessObjectTypeOfListing(listing);
   const hasHoursBudget = Boolean(type.features?.hoursBudget);
   const hasColor = Boolean(type.features?.color);
+  const hasQuantities = Boolean(type.features?.quantities);
+  const hasCode = Boolean(type.features?.code);
+  const hasTitleRows = Boolean(type.features?.titleRows);
 
   // state
 
@@ -128,21 +133,26 @@ export default function DialogBusinessObjectForm({
         }
       : {};
     // tasks have no quantity unit: that one belongs to priced articles
-    const unitProp = hasHoursBudget ? null : unit.trim() || null;
+    // (nor the types without quantities)
+    const hasUnit = hasQuantities && !hasHoursBudget;
+    const unitProp = hasUnit ? unit.trim() || null : null;
     // untouched text: the stored value (maybe more precise) is kept
     const refQtyProp =
-      hasHoursBudget || refQtyText === initialRefQtyText
+      !hasUnit || refQtyText === initialRefQtyText
         ? {}
         : { refQty: parseHoursRatioInput(refQtyText.replace(/\s/g, "")) };
+    // undefined = field untouched (types without the feature)
+    const codeProp = hasCode ? { code: code.trim() } : {};
+    const isTitleProp = hasTitleRows ? { isTitle } : {};
     if (isEdit) {
       await updateBusinessObject(businessObject.id, {
         label,
-        code: code.trim(),
+        ...codeProp,
         ...(hasColor ? { color } : {}),
         description,
         unit: unitProp,
         ...refQtyProp,
-        isTitle,
+        ...isTitleProp,
         ...ratioProps,
       });
     } else {
@@ -150,12 +160,12 @@ export default function DialogBusinessObjectForm({
         listing,
         parentId: parentBusinessObject?.id ?? null,
         label,
-        code: code.trim(),
+        ...codeProp,
         ...(hasColor ? { color } : {}),
         description,
         unit: unitProp,
         ...refQtyProp,
-        isTitle,
+        ...isTitleProp,
         ...ratioProps,
       });
     }
@@ -196,13 +206,15 @@ export default function DialogBusinessObjectForm({
       <DialogTitle>{title}</DialogTitle>
       <DialogContent>
         <Box sx={{ display: "flex", gap: 1, mt: 1 }}>
-          <TextField
-            size="small"
-            label="Code"
-            value={code}
-            onChange={(e) => setCode(e.target.value)}
-            sx={{ width: 110, flexShrink: 0 }}
-          />
+          {hasCode && (
+            <TextField
+              size="small"
+              label="Code"
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              sx={{ width: 110, flexShrink: 0 }}
+            />
+          )}
           <TextField
             autoFocus
             fullWidth
@@ -225,18 +237,20 @@ export default function DialogBusinessObjectForm({
           minRows={2}
           sx={{ mt: 2 }}
         />
-        <FormControlLabel
-          control={
-            <Checkbox
-              size="small"
-              checked={isTitle}
-              onChange={handleTitleChange}
-            />
-          }
-          label={<Typography variant="body2">Titre (bandeau)</Typography>}
-          sx={{ mt: 1, ml: 0 }}
-        />
-        {!hasHoursBudget && (
+        {hasTitleRows && (
+          <FormControlLabel
+            control={
+              <Checkbox
+                size="small"
+                checked={isTitle}
+                onChange={handleTitleChange}
+              />
+            }
+            label={<Typography variant="body2">Titre (bandeau)</Typography>}
+            sx={{ mt: 1, ml: 0 }}
+          />
+        )}
+        {hasQuantities && !hasHoursBudget && (
           <Box sx={{ display: "flex", gap: 1, mt: 1 }}>
             <TextField
               fullWidth

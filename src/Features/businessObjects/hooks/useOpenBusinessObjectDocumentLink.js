@@ -2,15 +2,20 @@ import { useDispatch } from "react-redux";
 
 import { setActiveBusinessObjectId } from "../businessObjectsSlice";
 import { setSelectedItem } from "Features/selection/selectionSlice";
-import { openResourceAtPage } from "Features/resources/resourcesSlice";
+import {
+  openResourceAtPage,
+  setSelectedResourceId,
+} from "Features/resources/resourcesSlice";
 import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 import { setToaster } from "Features/layout/layoutSlice";
 
 import resolveResourceOfRelService from "Features/resources/services/resolveResourceOfRelService";
+import isWholeResourceRel from "../utils/isWholeResourceRel";
 
 // Opens the RESOURCES panel on the document, page and highlighted zone of a
-// db.relsBusinessObjectResource row. The business object is selected first:
-// the viewer only shows the highlights of the selected object.
+// db.relsBusinessObjectResource row (a whole-resource link just opens the
+// resource: no page target). The business object is selected first: the
+// viewer only shows the highlights of the selected object.
 export default function useOpenBusinessObjectDocumentLink() {
   const dispatch = useDispatch();
 
@@ -37,13 +42,17 @@ export default function useOpenBusinessObjectDocumentLink() {
         listingId: businessObject.listingId,
       })
     );
-    dispatch(
-      openResourceAtPage({
-        resourceId: resource.id,
-        pageNumber: rel.pageNumber,
-        highlightId: rel.id,
-      })
-    );
+    if (isWholeResourceRel(rel)) {
+      dispatch(setSelectedResourceId(resource.id));
+    } else {
+      dispatch(
+        openResourceAtPage({
+          resourceId: resource.id,
+          pageNumber: rel.pageNumber,
+          highlightId: rel.id,
+        })
+      );
+    }
     dispatch(setSelectedMenuItemKey("RESOURCES"));
   };
 }

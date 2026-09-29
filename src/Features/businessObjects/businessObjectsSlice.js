@@ -39,6 +39,9 @@ const businessObjectsInitialState = {
   soloBusinessObjectId: null,
   soloWorkPackageId: null,
   collapsedIds: [],
+  // Tree filter of the types with a status (ISSUE): "OPEN" (open objects
+  // only) | "ALL". A display preference: kept across listings and modules.
+  statusFilter: "OPEN",
   // picking mode: business object armed for link/unlink clicks on the map
   linkingBusinessObjectId: null,
   // picking mode: work package armed for link/unlink clicks on the map
@@ -123,6 +126,9 @@ export const businessObjectsSlice = createSlice({
       state.linkingBusinessObjectId = action.payload;
       if (action.payload) state.linkingWorkPackageId = null;
     },
+    setStatusFilter: (state, action) => {
+      state.statusFilter = action.payload;
+    },
   },
   extraReducers: (builder) => {
     // A module switch clears the active object, the solo and the picking mode
@@ -154,6 +160,7 @@ export const {
   setListingPropertiesTab,
   toggleBusinessObjectCollapsed,
   setLinkingBusinessObjectId,
+  setStatusFilter,
 } = businessObjectsSlice.actions;
 
 export default businessObjectsSlice.reducer;

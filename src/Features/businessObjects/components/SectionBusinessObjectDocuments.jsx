@@ -2,7 +2,10 @@ import { useDispatch } from "react-redux";
 import { useLiveQuery } from "dexie-react-hooks";
 
 import { triggerRelsBusinessObjectResourceUpdate } from "../businessObjectsSlice";
-import { openResourceAtPage } from "Features/resources/resourcesSlice";
+import {
+  openResourceAtPage,
+  setSelectedResourceId,
+} from "Features/resources/resourcesSlice";
 import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 import { setToaster } from "Features/layout/layoutSlice";
 
@@ -14,18 +17,24 @@ import {
   ListItemText,
   Typography,
 } from "@mui/material";
-import { LinkOff, PictureAsPdf } from "@mui/icons-material";
+import {
+  InsertDriveFileOutlined,
+  LinkOff,
+  PictureAsPdf,
+} from "@mui/icons-material";
 
 import db from "App/db/db";
 
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 import useRelsBusinessObjectResource from "../hooks/useRelsBusinessObjectResource";
 import sortDocumentRels from "../utils/sortDocumentRels";
+import isWholeResourceRel from "../utils/isWholeResourceRel";
 import resolveResourceOfRelService from "Features/resources/services/resolveResourceOfRelService";
 
 // White card of the business object properties panel listing its links to
-// highlighted zones of PDF documents (db.relsBusinessObjectResource). A row
-// click opens the document at the page in the RESOURCES panel.
+// resources (db.relsBusinessObjectResource): highlighted zones of PDF
+// documents and whole resources. A row click opens the resource (at the
+// page, for a zone) in the RESOURCES panel.
 export default function SectionBusinessObjectDocuments({ businessObjectId }) {
   const dispatch = useDispatch();
 
@@ -33,10 +42,11 @@ export default function SectionBusinessObjectDocuments({ businessObjectId }) {
 
   const titleS = "Documents";
   const emptyS =
-    "Aucun passage lié. Ouvrez un document dans Ressources et surlignez un texte.";
+    "Aucun document lié. Dans Ressources, liez une ressource ou surlignez un texte d'un document.";
   const pageS = "p.";
   const missingS = "Document introuvable";
-  const unlinkS = "Délier ce passage";
+  const unlinkPassageS = "Délier ce passage";
+  const unlinkResourceS = "Délier ce document";
 
   // data
 
@@ -59,13 +69,17 @@ export default function SectionBusinessObjectDocuments({ businessObjectId }) {
 
   function handleOpen(rel, resource) {
     if (!resource) return;
-    dispatch(
-      openResourceAtPage({
-        resourceId: resource.id,
-        pageNumber: rel.pageNumber,
-        highlightId: rel.id,
-      })
-    );
+    if (isWholeResourceRel(rel)) {
+      dispatch(setSelectedResourceId(resource.id));
+    } else {
+      dispatch(
+        openResourceAtPage({
+          resourceId: resource.id,
+          pageNumber: rel.pageNumber,
+          highlightId: rel.id,
+        })
+      );
+    }
     dispatch(setSelectedMenuItemKey("RESOURCES"));
   }
 
@@ -117,6 +131,8 @@ export default function SectionBusinessObjectDocuments({ businessObjectId }) {
               const resource = resourceByRelId?.[rel.id];
               const isMissing = resourceByRelId && !resource;
               const name = resource?.name ?? rel.resourceName ?? "";
+              const isWhole = isWholeResourceRel(rel);
+              const Icon = isWhole ? InsertDriveFileOutlined : PictureAsPdf;
               return (
                 <ListItemButton
                   key={rel.id}
@@ -132,14 +148,18 @@ export default function SectionBusinessObjectDocuments({ businessObjectId }) {
                     },
                   }}
                 >
-                  <PictureAsPdf
-                    sx={{ fontSize: 18, mr: 1, color: "text.secondary" }}
-                  />
+                  <Icon sx={{ fontSize: 18, mr: 1, color: "text.secondary" }} />
                   <ListItemText
                     primary={rel.text ? `« ${rel.text} »` : name}
-                    secondary={`${
-                      isMissing ? `${missingS} · ` : ""
-                    }${name} · ${pageS} ${rel.pageNumber}`}
+                    secondary={
+                      isWhole
+                        ? isMissing
+                          ? missingS
+                          : null
+                        : `${
+                            isMissing ? `${missingS} · ` : ""
+                          }${name} · ${pageS} ${rel.pageNumber}`
+                    }
                     slotProps={{
                       primary: { variant: "body2", noWrap: true },
                       secondary: { variant: "caption", noWrap: true },
@@ -149,7 +169,7 @@ export default function SectionBusinessObjectDocuments({ businessObjectId }) {
                     className="business-object-unlink"
                     size="small"
                     onClick={(e) => handleUnlink(e, rel)}
-                    title={unlinkS}
+                    title={isWhole ? unlinkResourceS : unlinkPassageS}
                     sx={{ ml: 0.5, visibility: "hidden" }}
                   >
                     <LinkOff sx={{ fontSize: 16 }} />

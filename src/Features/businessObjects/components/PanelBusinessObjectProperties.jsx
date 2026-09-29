@@ -52,6 +52,7 @@ import FieldTaskGlobalLayer from "./FieldTaskGlobalLayer";
 import SectionNotesAppObjectNotes from "Features/notesApp/components/SectionNotesAppObjectNotes";
 import SectionBusinessObjectFiche from "./SectionBusinessObjectFiche";
 import SectionBusinessObjectDocuments from "./SectionBusinessObjectDocuments";
+import SectionBusinessObjectLinkedAnnotations from "./SectionBusinessObjectLinkedAnnotations";
 import SectionBusinessObjectQuantities from "./SectionBusinessObjectQuantities";
 import PanelBusinessObjectTemplateAnnotations from "./PanelBusinessObjectTemplateAnnotations";
 import useNotesAppConfig from "Features/notesApp/hooks/useNotesAppConfig";
@@ -64,6 +65,10 @@ import { getBusinessObjectUnitText } from "../utils/getBusinessObjectQtyKind";
 import formatBusinessObjectNumber from "../utils/formatBusinessObjectNumber";
 import getBusinessObjectTypeOfListing from "../utils/getBusinessObjectTypeOfListing";
 import selectSelectedBusinessObjectId from "../utils/selectSelectedBusinessObjectId";
+import {
+  BUSINESS_OBJECT_STATUS,
+  isBusinessObjectClosed,
+} from "../utils/getBusinessObjectStatus";
 import getHoursRatioUnit from "../utils/getHoursRatioUnit";
 import {
   formatHours,
@@ -99,6 +104,10 @@ function blurOnEnter(e) {
 // Tasks (type feature hoursBudget) replace the unit with the hours ratio
 // field (Ratio / Cadence), add the rolled-up hours budget band and have no
 // color (feature color false).
+// Issues (type features status, no quantities / code / titleRows): label +
+// description, an open / closed checkbox in the header, no "Quantités" tab —
+// the picking-mode toggle and the linked annotations list move to "Infos"
+// (SectionBusinessObjectLinkedAnnotations).
 export default function PanelBusinessObjectProperties() {
   const dispatch = useDispatch();
 
@@ -130,6 +139,10 @@ export default function PanelBusinessObjectProperties() {
   const type = getBusinessObjectTypeOfListing(listing);
   const hasHoursBudget = Boolean(type.features?.hoursBudget);
   const hasColor = Boolean(type.features?.color);
+  const hasQuantities = Boolean(type.features?.quantities);
+  const hasCode = Boolean(type.features?.code);
+  const hasTitleRows = Boolean(type.features?.titleRows);
+  const hasStatus = Boolean(type.features?.status);
 
   // hours budget of the whole listing (own + descendants per task) — null
   // listingId short-circuits the queries for non-task listings
@@ -236,7 +249,7 @@ export default function PanelBusinessObjectProperties() {
   const debugTitleS =
     "Copier les données locales de l'objet (JSON) dans le presse-papier";
   const effectiveTab =
-    tab === "QTY" ||
+    (tab === "QTY" && hasQuantities) ||
     (tab === "FICHE" && hasFiche) ||
     (tab === "NOTES" && isNotesAppObject)
       ? tab
@@ -341,6 +354,14 @@ export default function PanelBusinessObjectProperties() {
     updateBusinessObject(businessObject.id, { isTitle: e.target.checked });
   }
 
+  function handleStatusChange(e) {
+    updateBusinessObject(businessObject.id, {
+      status: e.target.checked
+        ? BUSINESS_OBJECT_STATUS.CLOSED
+        : BUSINESS_OBJECT_STATUS.OPEN,
+    });
+  }
+
   function handleGlobalLayerChange(globalLayerId) {
     updateBusinessObject(businessObject.id, { globalLayerId });
   }
@@ -442,6 +463,14 @@ export default function PanelBusinessObjectProperties() {
 
   if (!businessObject) return null;
 
+  const isClosed = hasStatus && isBusinessObjectClosed(businessObject);
+  const closedAtS =
+    isClosed && businessObject.closedAt
+      ? `Clôturé le ${new Date(businessObject.closedAt).toLocaleDateString(
+          "fr-FR"
+        )}`
+      : null;
+
   if (effectiveTab === "QTY" && openedTemplateKey !== null) {
     return (
       <PanelBusinessObjectTemplateAnnotations
@@ -484,9 +513,18 @@ export default function PanelBusinessObjectProperties() {
             }}
           />
         )}
+        {hasStatus && (
+          <Checkbox
+            size="small"
+            checked={isClosed}
+            onChange={handleStatusChange}
+            title={isClosed ? "Rouvrir" : "Fermer"}
+            sx={{ p: 0.25 }}
+          />
+        )}
         <Box sx={{ flexGrow: 1, minWidth: 0 }}>
           <Typography variant="caption" color="text.secondary" noWrap>
-            {type.strings.objectLabel}
+            {[type.strings.objectLabel, closedAtS].filter(Boolean).join(" · ")}
           </Typography>
           <Typography variant="body2" sx={{ fontWeight: "bold" }} noWrap>
             {businessObject.label}
@@ -535,7 +573,7 @@ export default function PanelBusinessObjectProperties() {
         }}
       >
         <Tab value="PROPS" label="Infos" />
-        <Tab value="QTY" label="Quantités" />
+        {hasQuantities && <Tab value="QTY" label="Quantités" />}
         {hasFiche && <Tab value="FICHE" label="Fiche" />}
         {isNotesAppObject && (
           <Tab
@@ -578,15 +616,17 @@ export default function PanelBusinessObjectProperties() {
             }}
           >
             <Box sx={{ display: "flex", gap: 1 }}>
-              <TextField
-                size="small"
-                label="Code"
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                onBlur={handleCodeBlur}
-                onKeyDown={blurOnEnter}
-                sx={{ width: 100, flexShrink: 0 }}
-              />
+              {hasCode && (
+                <TextField
+                  size="small"
+                  label="Code"
+                  value={code}
+                  onChange={(e) => setCode(e.target.value)}
+                  onBlur={handleCodeBlur}
+                  onKeyDown={blurOnEnter}
+                  sx={{ width: 100, flexShrink: 0 }}
+                />
+              )}
               <TextField
                 fullWidth
                 size="small"
@@ -607,18 +647,20 @@ export default function PanelBusinessObjectProperties() {
               multiline
               minRows={2}
             />
-            <FormControlLabel
-              control={
-                <Checkbox
-                  size="small"
-                  checked={Boolean(businessObject.isTitle)}
-                  onChange={handleTitleChange}
-                />
-              }
-              label={<Typography variant="body2">Titre (bandeau)</Typography>}
-              sx={{ ml: 0, mt: -1 }}
-            />
-            {!hasHoursBudget && (
+            {hasTitleRows && (
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    size="small"
+                    checked={Boolean(businessObject.isTitle)}
+                    onChange={handleTitleChange}
+                  />
+                }
+                label={<Typography variant="body2">Titre (bandeau)</Typography>}
+                sx={{ ml: 0, mt: -1 }}
+              />
+            )}
+            {hasQuantities && !hasHoursBudget && (
               <Box sx={{ display: "flex", gap: 1 }}>
                 <TextField
                   fullWidth
@@ -676,6 +718,18 @@ export default function PanelBusinessObjectProperties() {
           <SectionBusinessObjectDocuments
             businessObjectId={businessObject.id}
           />
+          {!hasQuantities && (
+            <SectionBusinessObjectLinkedAnnotations
+              rows={linkedRows}
+              annotationTemplateById={annotationTemplateById}
+              baseMapNameById={baseMapNameById}
+              spriteImage={spriteImage}
+              isLinking={isLinking}
+              onToggleLinking={handleToggleLinking}
+              onUnlink={handleUnlink}
+              emptyLabel={type.strings.noLinkedAnnotations}
+            />
+          )}
           {mainRows.length > 0 && (
             <>
               <Box

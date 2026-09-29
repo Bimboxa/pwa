@@ -14,6 +14,7 @@ import {
 import {
   Avatar,
   Box,
+  Checkbox,
   Chip,
   IconButton,
   ListItemButton,
@@ -40,6 +41,7 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
 import useToggleBusinessObjectSolo from "../hooks/useToggleBusinessObjectSolo";
+import useUpdateBusinessObject from "../hooks/useUpdateBusinessObject";
 import useOpenBusinessObjectDocumentLink from "../hooks/useOpenBusinessObjectDocumentLink";
 
 import MenuActionsBusinessObject from "./MenuActionsBusinessObject";
@@ -52,6 +54,11 @@ import { getBusinessObjectUnitText } from "../utils/getBusinessObjectQtyKind";
 import formatBusinessObjectNumber from "../utils/formatBusinessObjectNumber";
 import getHoursRatioUnit from "../utils/getHoursRatioUnit";
 import getBusinessObjectTypeOfListing from "../utils/getBusinessObjectTypeOfListing";
+import {
+  BUSINESS_OBJECT_STATUS,
+  isBusinessObjectClosed,
+} from "../utils/getBusinessObjectStatus";
+import isWholeResourceRel from "../utils/isWholeResourceRel";
 import { formatHours, formatHoursRatio } from "../utils/hoursRatioConversions";
 
 // Per-level row backgrounds. Title rows: grey band, darker at each TITLE
@@ -89,7 +96,8 @@ export default function BusinessObjectTreeItem({
   soloAnnotations,
   mainRels,
   mainAnnotations,
-  // links to highlighted zones of PDF documents, in reading order
+  // links to resources (highlighted zones of PDF documents or whole
+  // resources), in reading order
   documentRels,
   // rolled-up hours (own + descendants) — PLANNING listings only
   hoursBudget,
@@ -116,6 +124,7 @@ export default function BusinessObjectTreeItem({
 
   const toggleBusinessObjectSolo = useToggleBusinessObjectSolo();
   const openDocumentLink = useOpenBusinessObjectDocumentLink();
+  const updateBusinessObject = useUpdateBusinessObject();
 
   // state
 
@@ -164,8 +173,16 @@ export default function BusinessObjectTreeItem({
   const type = getBusinessObjectTypeOfListing(listing);
   const hasHoursBudget = Boolean(type.features?.hoursBudget);
   const hasColor = Boolean(type.features?.color);
+  const hasQuantities = Boolean(type.features?.quantities);
+  // open / closed points (type feature status): checkbox + struck label
+  const hasStatus = Boolean(type.features?.status);
+  const isClosed = hasStatus && isBusinessObjectClosed(businessObject);
+  const closedLabelSx = isClosed
+    ? { textDecoration: "line-through", color: "text.disabled" }
+    : {};
+  const statusS = isClosed ? "Rouvrir" : "Fermer";
   const qtyLabel =
-    linkedCount > 0
+    hasQuantities && linkedCount > 0
       ? getBusinessObjectQtyLabel(
           hasHoursBudget
             ? getHoursRatioUnit(businessObject)
@@ -199,7 +216,7 @@ export default function BusinessObjectTreeItem({
   const hasRefQty = Number.isFinite(businessObject.refQty);
   const articleQtyLabel =
     qtyLabel ??
-    (unitText
+    (hasQuantities && unitText
       ? `${
           hasRefQty ? formatBusinessObjectNumber(businessObject.refQty, 1) : "–"
         } ${unitText}`
@@ -208,7 +225,7 @@ export default function BusinessObjectTreeItem({
   const rightLabelMuted = !hasHoursBudget && !qtyLabel;
   // gap between the computed quantity and the reference one (> 5 %)
   const computedQty =
-    !hasHoursBudget && linkedCount > 0
+    hasQuantities && !hasHoursBudget && linkedCount > 0
       ? getBusinessObjectQtyValue(businessObject.unit, qties)
       : null;
   const qtyGap = getBusinessObjectQtyGap(computedQty, businessObject.refQty);
@@ -272,6 +289,14 @@ export default function BusinessObjectTreeItem({
         listingId: businessObject.listingId,
       })
     );
+  }
+
+  function handleStatusChange(e) {
+    updateBusinessObject(businessObject.id, {
+      status: e.target.checked
+        ? BUSINESS_OBJECT_STATUS.CLOSED
+        : BUSINESS_OBJECT_STATUS.OPEN,
+    });
   }
 
   function handleSoloClick(e) {
@@ -377,9 +402,13 @@ export default function BusinessObjectTreeItem({
           size="small"
           onClick={handleDocumentsClick}
           title={
-            documentRels.length === 1
-              ? "Voir le passage lié dans le document"
-              : `Voir les ${documentRels.length} passages liés dans les documents`
+            documentRels.every(isWholeResourceRel)
+              ? documentRels.length === 1
+                ? "Voir le document lié"
+                : `Voir les ${documentRels.length} documents liés`
+              : documentRels.length === 1
+                ? "Voir le passage lié dans le document"
+                : `Voir les ${documentRels.length} passages liés dans les documents`
           }
         >
           <DescriptionOutlined sx={{ fontSize: 16 }} />
@@ -498,12 +527,31 @@ export default function BusinessObjectTreeItem({
           />
         )}
 
+        {/* status checkbox: types with a status, object rows only. Stops the
+            pointer events: neither the row click nor the dnd must fire. */}
+        {hasStatus && !isTitle && (
+          <Checkbox
+            size="small"
+            checked={isClosed}
+            disabled={readOnly}
+            onChange={handleStatusChange}
+            onClick={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
+            title={statusS}
+            sx={{ p: 0, mr: 0.75, height: FIRST_LINE_HEIGHT }}
+          />
+        )}
+
         {/* col 2: label (+ secondary text / ratio · quantity caption) */}
         {secondaryLine ? (
           <Box sx={{ flex: 1, minWidth: 0 }}>
             <Typography
               variant="body2"
-              sx={{ fontWeight: labelFontWeight, overflowWrap: "anywhere" }}
+              sx={{
+                fontWeight: labelFontWeight,
+                overflowWrap: "anywhere",
+                ...closedLabelSx,
+              }}
             >
               {primaryLabel}
             </Typography>
@@ -527,6 +575,7 @@ export default function BusinessObjectTreeItem({
               minWidth: 0,
               fontWeight: labelFontWeight,
               overflowWrap: "anywhere",
+              ...closedLabelSx,
             }}
           >
             {primaryLabel}
@@ -618,7 +667,11 @@ export default function BusinessObjectTreeItem({
             >
               <ListItemText
                 primary={rel.text ? `« ${rel.text} »` : rel.resourceName}
-                secondary={`${rel.resourceName ?? ""} · p. ${rel.pageNumber}`}
+                secondary={
+                  isWholeResourceRel(rel)
+                    ? (rel.resourceName ?? "")
+                    : `${rel.resourceName ?? ""} · p. ${rel.pageNumber}`
+                }
                 slotProps={{
                   primary: { variant: "body2", noWrap: true },
                   secondary: { variant: "caption", noWrap: true },
