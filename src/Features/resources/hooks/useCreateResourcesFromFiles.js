@@ -6,6 +6,7 @@ import db from "App/db/db";
 import getDebugAuthFromLocalStorage from "Features/auth/services/getDebugAuthFromLocalStorage";
 import getResourceFileType from "../utils/getResourceFileType";
 import generateResourceThumbnail from "../utils/generateResourceThumbnail";
+import detectIsPdfDocumentService from "../services/detectIsPdfDocumentService";
 
 // Creates one resource per dropped/selected file. The main file is written to
 // db.files WITHOUT listingId: the Krto files filter requires a relevant
@@ -42,8 +43,15 @@ export default function useCreateResourcesFromFiles() {
       const id = nanoid();
       const fileName = `resource_${id}_${file.name}`;
       const thumbnail = await generateResourceThumbnail(file);
+      // Text document (CCTP…) vs plan: drives the viewer (selectable text +
+      // highlights linked to business objects).
+      const isDocument =
+        getResourceFileType(file) === "PDF"
+          ? await detectIsPdfDocumentService({ file })
+          : false;
 
       resourceRecords.push({
+        isDocument,
         id,
         projectId,
         name: file.name,

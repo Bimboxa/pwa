@@ -81,6 +81,9 @@ export default async function createKrtoZip(scopeId, options) {
         "portfolioPages",
         "zones", "relsZoneAnnotation",
         "businessObjects", "relsBusinessObjectAnnotation",
+        // Document highlights linked to business objects: the rel rows ship,
+        // the PDF file does not (it stays a project / scope resource).
+        "relsBusinessObjectResource",
         // Work packages + time planning of PLANNING listings (rows carry
         // projectId + listingId).
         "workPackages", "relsWorkPackageAnnotation",

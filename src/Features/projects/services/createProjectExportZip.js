@@ -53,6 +53,7 @@ const PROJECT_TABLES = new Set([
   "relsZoneEntity",
   "businessObjects",
   "relsBusinessObjectAnnotation",
+  "relsBusinessObjectResource",
   "globalLayers",
   "workPackages",
   "relsWorkPackageAnnotation",

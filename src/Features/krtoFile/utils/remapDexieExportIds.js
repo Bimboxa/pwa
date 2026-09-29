@@ -64,6 +64,8 @@ export default function remapDexieExportIds(jsonData, opts) {
     parentAnnotationId: "annotations",
     meshCellAnnotationId: "annotations",
     businessObjectId: "businessObjects",
+    // relsBusinessObjectResource -> highlighted PDF resource.
+    resourceId: "resources",
     // Work packages + time planning (PLANNING listings); tasks' global layer.
     workPackageId: "workPackages",
     globalLayerId: "globalLayers",

@@ -28,6 +28,7 @@ import searchPdfPages from "Features/detailFolio/utils/searchPdfPages";
 import ListPdfSearchResults from "Features/detailFolio/components/ListPdfSearchResults";
 
 import ListPdfPages from "./ListPdfPages";
+import ViewerPdfDocumentPage from "./ViewerPdfDocumentPage";
 import SectionAddDetailToBaseMap from "./SectionAddDetailToBaseMap";
 
 const MIN_SEARCH_LENGTH = 2;
@@ -41,7 +42,11 @@ const MIN_SEARCH_LENGTH = 2;
 // intrinsic /Rotate; anything sent downstream (render, armed placement
 // context) is the ABSOLUTE effective rotation (intrinsic + delta), matching
 // the app-wide folio.rotation convention.
-export default function ViewerPdfPages({ resource, file }) {
+//
+// `isDocument` (text document, not a plan): the page is not converted to an
+// image — ViewerPdfDocumentPage renders it with a selectable text layer and
+// the highlights linked to business objects.
+export default function ViewerPdfPages({ resource, file, isDocument }) {
   const dispatch = useDispatch();
 
   // strings
@@ -65,6 +70,7 @@ export default function ViewerPdfPages({ resource, file }) {
   const [pageNumber, setPageNumber] = useState(1);
   const [rotationDelta, setRotationDelta] = useState(0);
   const [searchText, setSearchText] = useState("");
+  const [flashHighlightId, setFlashHighlightId] = useState(null);
 
   // One-shot navigation target (e.g. "Voir le détail" on a DETAIL
   // annotation): apply then clear, so a later click on the same page
@@ -75,6 +81,7 @@ export default function ViewerPdfPages({ resource, file }) {
     if (!targetPdfPage || !pdfDocument) return;
     const targetPageNumber = Math.max(1, targetPdfPage.pageNumber ?? 1);
     setPageNumber(targetPageNumber);
+    setFlashHighlightId(targetPdfPage.highlightId ?? null);
     if (typeof targetPdfPage.rotation === "number") {
       pdfDocument
         .getPage(targetPageNumber)
@@ -97,7 +104,7 @@ export default function ViewerPdfPages({ resource, file }) {
       ? null
       : (((intrinsicRotation + rotationDelta) % 360) + 360) % 360;
   const { imageUrl } = usePdfPageImageUrl(
-    pdfDocument,
+    isDocument ? null : pdfDocument,
     pageNumber,
     effectiveRotation
   );
@@ -248,7 +255,16 @@ export default function ViewerPdfPages({ resource, file }) {
             p: 1,
           }}
         >
-          {imageUrl ? (
+          {isDocument ? (
+            <ViewerPdfDocumentPage
+              resource={resource}
+              pdfDocument={pdfDocument}
+              pageNumber={pageNumber}
+              rotation={effectiveRotation}
+              rotationDelta={rotationDelta}
+              flashHighlightId={flashHighlightId}
+            />
+          ) : imageUrl ? (
             <img
               src={imageUrl}
               alt={`${pageS} ${pageNumber}`}

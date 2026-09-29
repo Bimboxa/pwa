@@ -54,6 +54,7 @@ import FieldHoursRatioCompact from "./FieldHoursRatioCompact";
 import FieldTaskGlobalLayer from "./FieldTaskGlobalLayer";
 import SectionNotesAppObjectNotes from "Features/notesApp/components/SectionNotesAppObjectNotes";
 import SectionBusinessObjectFiche from "./SectionBusinessObjectFiche";
+import SectionBusinessObjectDocuments from "./SectionBusinessObjectDocuments";
 import useNotesAppConfig from "Features/notesApp/hooks/useNotesAppConfig";
 import useNotesAppListingConfig from "Features/notesApp/hooks/useNotesAppListingConfig";
 import useNotesAppScopeLink from "Features/notesApp/hooks/useNotesAppScopeLink";
@@ -610,6 +611,9 @@ export default function PanelBusinessObjectProperties() {
 
           {/* main annotations (one per base map) + linked annotations + total */}
           <Box sx={{ overflowY: "auto", flex: 1 }}>
+            <SectionBusinessObjectDocuments
+              businessObjectId={businessObject.id}
+            />
             {/* tasks: rolled-up hours budget (own + sub-tasks) */}
             {hasHoursBudget && (
               <>
