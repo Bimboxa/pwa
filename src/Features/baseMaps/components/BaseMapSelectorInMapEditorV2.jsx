@@ -45,11 +45,10 @@ import useMainBaseMapVisibilityToggles from "../hooks/useMainBaseMapVisibilityTo
 // baseMap: a layers "eye" toggling the image visibility in the DISPLAYED
 // editor, 2D or 3D (`showImageToggle`), the name, and a badge with its
 // annotations count toggling their visibility (same shared state as the band).
-// `onEdit` (Dessin module) is now reachable from the popover footer.
-export default function BaseMapSelectorInMapEditorV2({ onEdit, showImageToggle = false }) {
+// Editing a baseMap is done from the BaseMaps module, not from this popover.
+export default function BaseMapSelectorInMapEditorV2({ showImageToggle = false }) {
     // strings
     const createS = "Créer un fond de plan";
-    const editS = "Éditer le fond de plan";
     const hideImageS = "Masquer l'image du fond de plan";
     const showImageS = "Afficher l'image du fond de plan";
     const hideAnnotationsS = "Masquer les annotations";
@@ -454,18 +453,6 @@ export default function BaseMapSelectorInMapEditorV2({ onEdit, showImageToggle =
                             primaryTypographyProps={{ variant: 'body2', color: "grey.300", fontWeight: 600 }}
                         />
                     </ListItemButton>
-                    {onEdit && activeBaseMap && (
-                        <ListItemButton
-                            onClick={() => { onEdit(); handleClose(); }}
-                            sx={{ borderRadius: 1 }}
-                        >
-                            <ListItemIcon sx={{ minWidth: 32 }}><EditIcon fontSize="small" sx={{ color: "grey.400" }} /></ListItemIcon>
-                            <ListItemText
-                                primary={editS}
-                                primaryTypographyProps={{ variant: 'body2', color: "grey.300", fontWeight: 600 }}
-                            />
-                        </ListItemButton>
-                    )}
                 </Box>
             </Popover>
         </ThemeProvider>

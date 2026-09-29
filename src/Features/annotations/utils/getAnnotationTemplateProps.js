@@ -106,6 +106,8 @@ export default function getAnnotationTemplateProps(annotationTemplate) {
     // onto every annotation when listed in overrideFields (padlock).
     labelStubLength: annotationTemplate?.labelStubLength,
     labelStubMode: annotationTemplate?.labelStubMode,
+    // Label chip size mode (fixed vs print zone / screen-constant), same model.
+    labelIsFixedSize: annotationTemplate?.labelIsFixedSize,
 
     // Standalone LABEL "Taille fixe" (fontSize / pageFormat above are shared
     // with FREE_TEXT / COTE). Same read-time model as the stub.

@@ -17,6 +17,10 @@ Fichiers du zip :
   (`source` non nul dans `contexte.json`). L'image `plan.png` correspond à la
   page `source.pageNumber`, tournée de `source.rotation` degrés (sens horaire)
   puis rognée selon `source.bboxInRatio` (fractions de la page tournée).
+- `pieces-jointes/…` — les fichiers joints par l'utilisateur (carnet de
+  détails en PDF, documents de référence), listés dans
+  `contexte.json.attachments` avec leur identifiant `id`, leur chemin `file`
+  et, pour un PDF, la taille et la rotation de chaque page.
 
 ## Deux voies au choix
 
@@ -85,6 +89,10 @@ Le préambule de ce fichier et `contexte.json.mode` indiquent le mode.
 
 **Les deux** : commence par les modèles existants, puis complète avec de
 nouveaux templates pour ce que la description demande en plus.
+
+**Carnet de détails** (`mode.details`) : voir la section « Carnet de
+détails ». Ce mode peut être demandé seul (tu ne dessines alors que des
+pastilles et ne crées que des fonds de détail) ou avec une détection.
 
 ## Règles géométriques
 
@@ -203,11 +211,102 @@ B) ou `source.pointsPerCm` (voie A).
   dessine ce mur avec le modèle « À vérifier » et signale la jonction dans ton
   résumé (position, raison).
 
+## Carnet de détails
+
+À appliquer quand `mode.details` est vrai, ou quand la demande parle de
+détails, de pastilles ou de carnet. Le but : sur le plan, une **pastille**
+(bulle ronde avec une flèche) à chaque endroit traité par un dessin de détail,
+et, pour chaque dessin de détail, un **fond de détail** découpé dans un PDF
+joint.
+
+**Lire le carnet.** Ouvre le ou les PDF de `attachments` (chemin `file`).
+Chaque page est décrite dans `attachments[].pages` : `number` (à partir de 1),
+`width` et `height` en points avant rotation, `rotate` (rotation propre de la
+page). Repère sur chaque page les dessins de détail : un cadre, un titre, un
+repère, une échelle.
+
+**Associer.** Pour chaque détail du carnet, cherche sur le plan l'endroit ou
+les endroits qu'il décrit (même repère écrit sur le plan, même ouvrage, même
+coupe). Un détail peut être appelé à plusieurs endroits : plusieurs pastilles
+pointent alors vers le même fond. Un détail du carnet qui ne correspond à
+rien sur le plan ne donne ni pastille ni fond, sauf si la demande veut tout
+le carnet. Dans le doute sur l'emplacement, place la pastille et signale-le
+dans ton résumé.
+
+**Fonds de détail** : clé racine `baseMaps`, un élément par dessin de détail.
+
+- `id` : court et unique (`bm_A`, `bm_B`…).
+- `kind` : toujours `"detail"`.
+- `name` : lisible, en français, par exemple « Détail A — Acrotère ».
+- `detailRef` : le repère affiché dans la pastille, 1 à 4 caractères (`A`,
+  `B`, `1`, `D3`). Reprends le repère du carnet quand il existe ; sinon
+  lettre dans l'ordre, en poursuivant après les repères de
+  `existingDetailBaseMaps`.
+- `source.attachmentId` : l'`id` de la pièce jointe dans `attachments`
+  (recopié tel quel, ce n'est pas le nom du fichier).
+- `source.pageNumber` : numéro de page, à partir de 1.
+- `source.rotation` : rotation d'affichage de la page, `0`, `90`, `180` ou
+  `270` (sens horaire). Prends la valeur `rotate` de la page, sauf si le
+  dessin se lit mieux autrement.
+- `source.bboxInRatio` : la zone d'intérêt `{x1, y1, x2, y2}`, en fractions
+  dans `[0, 1]` de la page **tournée de `source.rotation`**, origine en haut
+  à gauche, `x1 < x2`, `y1 < y2`. Encadre le dessin complet avec son titre et
+  ses cotes, plus 2 à 5 % de marge. `null` = page entière (une page qui ne
+  porte qu'un seul détail). Ne découpe jamais un même détail en plusieurs
+  zones.
+
+Pour mesurer une zone : rends la page tournée en image (par exemple PyMuPDF
+`page.set_rotation(r)` puis `page.get_pixmap()`), relève le cadre en pixels,
+puis divise par la largeur et la hauteur de cette image.
+
+**Pastilles** : annotations de type `DETAIL`.
+
+- Recopie `contexte.json.detailTemplate` tel quel dans `annotationTemplates`
+  et référence son `id` (`tpl_detail`). Si les `templates` fournis contiennent
+  déjà un modèle de type `DETAIL`, utilise plutôt celui-là.
+- `point` : la **pointe de la flèche**, posée sur l'ouvrage concerné, dans
+  l'espace de coordonnées annoncé par `coordinateSpace` (mêmes règles que les
+  autres annotations). Pas de `points`.
+- `arrowAngle` : direction de la flèche en degrés, sens horaire à l'écran,
+  `0` = flèche pointant vers la droite, `90` = vers le bas. La bulle se place
+  à l'opposé de la pointe : choisis un angle qui la pose dans une zone libre
+  du plan, sans recouvrir de tracés ni d'autres pastilles.
+- `detailBaseMapId` : l'`id` d'un élément de `baseMaps`, ou l'`id` d'un fond
+  de `existingDetailBaseMaps`.
+
+**Réutiliser.** `existingDetailBaseMaps` liste les fonds de détail déjà
+créés dans le projet (`id`, `detailRef`, page et zone). Si un détail y figure
+déjà, référence son `id` dans `detailBaseMapId` et ne le remets pas dans
+`baseMaps`. Jamais deux éléments de `baseMaps` pour la même page et la même
+zone. Ne replace pas une pastille déjà présente dans `existingAnnotations`.
+
+Exemple (une pastille, un fond) :
+
+```json
+{
+  "version": "1.0",
+  "coordinateSpace": "image",
+  "image": { "width": 3000, "height": 2121, "widthMeters": 42.5 },
+  "annotationTemplates": [
+    { "id": "tpl_detail", "label": "Détail", "type": "DETAIL", "fillColor": "#e85426", "hiddenInLegend": true }
+  ],
+  "baseMaps": [
+    { "id": "bm_A", "kind": "detail", "name": "Détail A — Acrotère", "detailRef": "A", "source": { "attachmentId": "k3J9…", "pageNumber": 3, "rotation": 0, "bboxInRatio": { "x1": 0.08, "y1": 0.12, "x2": 0.52, "y2": 0.61 } } }
+  ],
+  "annotations": [
+    { "id": "d1", "type": "DETAIL", "annotationTemplateId": "tpl_detail", "point": { "x": 0.42, "y": 0.31 }, "arrowAngle": 135, "detailBaseMapId": "bm_A" }
+  ]
+}
+```
+
 ## Schéma de sortie
 
-Types autorisés : `POLYLINE`, `POLYGON`, `STRIP`, `COTE`, `FREE_TEXT`.
+Types autorisés : `POLYLINE`, `POLYGON`, `STRIP`, `COTE`, `FREE_TEXT`,
+`DETAIL`.
 Clés racine autorisées : `version`, `coordinateSpace`, `image`,
-`annotationTemplates`, `annotations`, `note`. `image.width` / `image.height`
+`annotationTemplates`, `annotations`, `baseMaps`, `note`. Quand le résultat ne
+contient que des fonds de détail, `annotationTemplates` et `annotations` sont
+des tableaux vides. `image.width` / `image.height`
 = `plan.image.width` / `plan.image.height` ; `image.widthMeters` =
 `plan.widthMeters`. Chaque `annotationTemplateId` doit exister dans
 `annotationTemplates`. Les `id` sont courts et uniques.
@@ -244,7 +343,8 @@ est un poteau de 20 × 85 cm tracé par l'axe de son grand côté :
 ## Forme de la réponse
 
 1. Un court résumé (3 lignes maximum) : page ou image traitée, voie utilisée,
-   nombre de templates et d'annotations, doutes marqués « À vérifier ».
+   nombre de templates et d'annotations, doutes marqués « À vérifier », et
+   pour un carnet le nombre de pastilles et de fonds de détail.
 2. Puis le JSON complet **sur une seule ligne**, dans un bloc de code, sans
    aucun texte à l'intérieur du bloc. Si tu disposes d'un environnement
    d'exécution, génère cette ligne par code

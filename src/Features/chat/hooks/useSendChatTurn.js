@@ -7,6 +7,7 @@ import {
   addMessage,
   appendMessageAction,
   appendMessageContent,
+  markAttachmentsSent,
   setConversation,
   addTurnUsage,
   setIsThinking,
@@ -24,6 +25,7 @@ import { createLlmTrace, advanceLlmTrace } from "../utils/chatTrace";
 import { updateChatTimeline } from "../utils/chatTimeline";
 import { updateChatProgress } from "../utils/chatProgress";
 import { chatPlanSource } from "../utils/chatPlanSource";
+import { buildTurnAttachments } from "../utils/chatAttachments";
 import resolveAiTaskSource from "Features/aiTasks/services/resolveAiTaskSource";
 import useSelectedProject from "Features/projects/hooks/useSelectedProject";
 import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
@@ -71,6 +73,7 @@ export default function useSendChatTurn() {
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const scopeId = useSelector((s) => s.scopes.selectedScopeId);
   const conversation = useSelector((s) => s.chat.conversation);
+  const pdfAttachments = useSelector((s) => s.chat.attachments);
   const levels = useSelector((s) => s.chat.reasoningLevels);
   const levelId = useSelector((s) => s.chat.reasoningLevelId);
   const selectedTemplateId = useSelector(
@@ -380,6 +383,14 @@ export default function useSendChatTurn() {
                   })),
                 }
               : {}),
+            // PDFs attached to the conversation (carnet de détails): sent with
+            // every ordinary turn. A detection only reads the plan.
+            ...(autoDetect
+              ? {}
+              : buildTurnAttachments(
+                  pdfAttachments,
+                  conversation.attachmentsSent
+                )),
             // Let the model request the plan PDF or image only when needed.
             allowImage: true,
             imageKeyInConversation: conversation.imageKey,
@@ -504,6 +515,8 @@ export default function useSendChatTurn() {
                     },
                   })
                 );
+                if (event.attachmentsSent?.length)
+                  dispatch(markAttachmentsSent(event.attachmentsSent));
                 dispatch(
                   addTurnUsage({
                     usage: event.usage,
@@ -557,6 +570,7 @@ export default function useSendChatTurn() {
       templates,
       annotations,
       conversation,
+      pdfAttachments,
       levels,
       levelId,
       selectedTemplateId,

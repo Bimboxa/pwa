@@ -2,7 +2,9 @@
 // both the 2D chip (NodeLabelStatic) and the 3D card sprite
 // (createAnnotationLabelSprite) so the two views always show the same content.
 
-// 2D chip font size in screen px per preset ("M" = historical DEFAULT_FONT_SIZE).
+// 2D chip font size per preset ("M" = historical DEFAULT_FONT_SIZE): page
+// points of the print zone when the chip is fixed-size (default, see
+// getAnnotationLabelFixedSizeConfig), screen px otherwise.
 export const ANNOTATION_LABEL_FONT_SIZES_PX = { S: 11, M: 14, L: 18 };
 
 // The 3D card derives its on-screen size from the SAME px sizes (see

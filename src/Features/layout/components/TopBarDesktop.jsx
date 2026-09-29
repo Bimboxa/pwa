@@ -5,7 +5,6 @@ import {
   setIsCalibrating,
   setShowCalibration,
   setCalibrationTargets,
-  setHiddenVersionIds,
 } from "Features/baseMapEditor/baseMapEditorSlice";
 import db from "App/db/db";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
@@ -13,15 +12,12 @@ import computeCalibrationTransform, {
   DEFAULT_RED,
   DEFAULT_GREEN,
 } from "Features/mapEditor/utils/computeCalibrationTransform";
-import { setSelectedItem } from "Features/selection/selectionSlice";
-import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 import { setDisplayedPortfolioId } from "Features/portfolios/portfoliosSlice";
 import { setSelectedListingId } from "Features/listings/listingsSlice";
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 import useSwitchViewer from "Features/viewers/hooks/useSwitchViewer";
 
 import useAppConfig from "Features/appConfig/hooks/useAppConfig";
-import useMainBaseMapListing from "Features/baseMaps/hooks/useMainBaseMapListing";
 import useScopeModuleLabel from "Features/listingViewer/hooks/useScopeModuleLabel";
 
 import { Box, Button, Divider } from "@mui/material";
@@ -68,7 +64,6 @@ export default function TopBarDesktop() {
     (s) => s.baseMapEditor.calibrationTargetsByVersionId
   );
   const baseMap = useMainBaseMap();
-  const mainBaseMapListing = useMainBaseMapListing();
 
   // helper - em
 
@@ -173,28 +168,6 @@ export default function TopBarDesktop() {
     dispatch(setShowCalibration(false));
   }
 
-  function handleGoToBaseMapsDetail() {
-    // Hide all non-active versions so only the active one is visible
-    const versions = baseMap?.versions || [];
-    const activeVersion = baseMap?.getActiveVersion?.();
-    if (activeVersion) {
-      const nonActiveIds = versions
-        .filter((v) => v.id !== activeVersion.id)
-        .map((v) => v.id);
-      dispatch(setHiddenVersionIds(nonActiveIds));
-    }
-    dispatch(
-      setSelectedItem({
-        id: baseMap.id,
-        type: "BASE_MAP",
-        listingId: mainBaseMapListing?.id,
-      })
-    );
-    dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
-    switchViewer("BASE_MAPS");
-    dispatch(setViewerReturnContext({ fromViewer: "MAP" }));
-  }
-
   function handleReturnToViewer() {
     if (returnViewer === "PORTFOLIO" && viewerReturnContext?.portfolioId) {
       dispatch(setDisplayedPortfolioId(viewerReturnContext.portfolioId));
@@ -258,9 +231,6 @@ export default function TopBarDesktop() {
           isBusinessObjectsMap) && (
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
             <BaseMapSelectorInMapEditorV2
-              onEdit={
-                viewerKey === "MAP" ? handleGoToBaseMapsDetail : undefined
-              }
               // The BaseMaps module edits the image itself: no eye there.
               showImageToggle={viewerKey !== "BASE_MAPS"}
             />

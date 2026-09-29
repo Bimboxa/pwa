@@ -66,8 +66,10 @@ function inFrame(p) {
 
 /**
  * Brings an inline payload authored in `pdf_user_space` into the image frame.
- * Converts `points`, `cuts`, `openings`, `guideLines`, `labelPoint` and
- * `targetPoint`; drops the annotations that end up outside the crop.
+ * Converts `points`, `cuts`, `openings`, `guideLines`, `labelPoint`,
+ * `targetPoint` and the single `point` of a DETAIL; drops the annotations
+ * that end up outside the crop. `baseMaps[].source.bboxInRatio` is never
+ * converted: it is a fraction of the attached PDF page, not of this plan.
  *
  * @returns {{data: Object, dropped: string[]}}
  */
@@ -106,6 +108,10 @@ export function convertPayloadToImageSpace(payload, frame, page) {
     if (a.targetPoint) {
       next.targetPoint = toImage(a.targetPoint);
       all.push(next.targetPoint);
+    }
+    if (a.point) {
+      next.point = toImage(a.point);
+      all.push(next.point);
     }
     if (all.every(inFrame)) annotations.push(next);
     else dropped.push(a.id);

@@ -136,10 +136,13 @@ export default function BusinessObjectsTree({ listing }) {
     [flatTree]
   );
 
-  // "Numérotation" listing option: 3-column DPGF-like rendering (number /
-  // label / quantity). The numbering + level metadata is computed on the FULL
-  // tree so collapsing never renumbers the visible rows.
-  const showNumbering = Boolean(listing.showNumbering);
+  // Listing with codes (stored `code` of the objects — imported, typed or
+  // written by "Renuméroter"): 3-column DPGF-like rendering (code / label /
+  // quantity). The level metadata is computed on the FULL tree.
+  const showCodes = useMemo(
+    () => (businessObjects ?? []).some((o) => Boolean(o.code)),
+    [businessObjects]
+  );
   const displayMetaById = useMemo(() => {
     const metas = getBusinessObjectsTreeDisplayMeta(flatTree);
     const byId = {};
@@ -251,7 +254,7 @@ export default function BusinessObjectsTree({ listing }) {
                 depth={depth}
                 hasChildren={parentIds.has(businessObject.id)}
                 listing={listing}
-                showNumbering={showNumbering}
+                showCodes={showCodes}
                 card={
                   listCard && !businessObject.isTitle
                     ? listCard.getCard(businessObject)

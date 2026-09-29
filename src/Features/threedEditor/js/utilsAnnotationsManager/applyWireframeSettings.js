@@ -15,7 +15,9 @@ import { buildWallEdges } from "./extrudePolylineWall";
 //   buildWallEdges instead of a raw EdgesGeometry (which would slash
 //   diagonals across flat faces). "WALL_PLANAR" lines keep their coalesced
 //   planar extraction (they already suppress construction seams) —
-//   visibility only.
+//   visibility only. This covers PX walls AND the CM-width POLYLINE / STRIP
+//   walls (extrudeClosedShape `wallEdges` option), so the threshold slider
+//   does not affect either.
 //
 // Rebuild is skipped while hidden: toggling back to visible re-applies the
 // current threshold (callers always pass the full settings), so the lazy

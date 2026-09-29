@@ -1,5 +1,7 @@
 import db from "App/db/db";
 
+import { bboxKey } from "../utils/bboxInRatio";
+
 // Session cache key for the on-the-fly rendered image of a detail baseMap.
 // Derived from every createdFrom field that changes the rendered pixels, so
 // creation (findOrCreateDetailBaseMap) and hydration (BaseMap.createFromRecord)
@@ -7,9 +9,11 @@ import db from "App/db/db";
 export function getDetailImageCacheKey(record) {
   const c = record?.createdFrom;
   if (!c) return null;
+  // The crop is part of the key: a zone and the whole page of the same PDF
+  // page never share a session image.
   return `detail:${c.pdfFileName}@p${c.pageNumber}@r${c.rotation ?? 0}@d${
     c.dpi
-  }`;
+  }${bboxKey(c.bboxInRatio)}`;
 }
 
 // Resolves the source resource of a detail baseMap. createdFrom.resourceId is

@@ -30,9 +30,11 @@ const chatSlice = createSlice({
     sessionId: 0,
     //
     managedDataByAgent: { structure: null, data: null }, // STRUCTURE: ZONING, TREE, LIST,
-    // PDF dropped in the chat, uploaded to the relay, waiting for "Envoyer".
-    // { status: "uploading"|"ready"|"error", fileName, pdfId, pageCount, pageNumber, error }
-    pendingPdf: null,
+    // PDFs attached to the conversation (a "carnet de détails"…): each is a
+    // project resource, uploaded to the relay. Sent with every turn.
+    // { id: resourceId, name, byteSize, pageCount,
+    //   status: "uploading"|"ready"|"error", pdfId, error }
+    attachments: [],
     // The run this tab follows: { runId, messageId, target }.
     vectorization: null,
     // Conversation kept by the provider: id of the last turn, and the key of
@@ -43,6 +45,8 @@ const chatSlice = createSlice({
       budgetSessionId: uuidv4(),
       sessionName: null,
       usage: EMPTY_SESSION_USAGE,
+      // pdfIds of the attachments the provider already received as files.
+      attachmentsSent: [],
     },
     // Levels of reflection offered by the relay ([{ id, label, model }]) and
     // the user's pick (null = the relay default, `high`).
@@ -80,10 +84,31 @@ const chatSlice = createSlice({
       const message = state.messages.find((m) => m.id === id);
       if (message) message.content = (message.content ?? "") + delta;
     },
-    setPendingPdf(state, action) {
-      state.pendingPdf = action.payload
-        ? { ...(state.pendingPdf ?? {}), ...action.payload }
-        : null;
+    addAttachment(state, action) {
+      const attachment = action.payload;
+      if (!attachment?.id) return;
+      if (state.attachments.some((a) => a.id === attachment.id)) return;
+      state.attachments.push(attachment);
+    },
+    updateAttachment(state, action) {
+      const { id, changes } = action.payload;
+      const attachment = state.attachments.find((a) => a.id === id);
+      if (attachment) Object.assign(attachment, changes);
+    },
+    removeAttachment(state, action) {
+      state.attachments = state.attachments.filter(
+        (a) => a.id !== action.payload
+      );
+    },
+    clearAttachments(state) {
+      state.attachments = [];
+    },
+    // `done.attachmentsSent` of a turn.
+    markAttachmentsSent(state, action) {
+      const known = state.conversation.attachmentsSent ?? [];
+      const added = (action.payload ?? []).filter((id) => !known.includes(id));
+      if (added.length)
+        state.conversation.attachmentsSent = [...known, ...added];
     },
     setVectorization(state, action) {
       state.vectorization = action.payload ?? null;
@@ -161,7 +186,11 @@ export const {
   addMessage,
   updateMessageById,
   appendMessageContent,
-  setPendingPdf,
+  addAttachment,
+  updateAttachment,
+  removeAttachment,
+  clearAttachments,
+  markAttachmentsSent,
   setVectorization,
   appendMessageAction,
   updateMessageAction,
@@ -227,6 +256,7 @@ export default function reducer(state, action) {
           ? `[${action.meta.baseMapName.slice(0, 90)}] Session ${sessionId + 1}`
           : null,
         usage: EMPTY_SESSION_USAGE,
+        attachmentsSent: [],
       },
     };
     return {

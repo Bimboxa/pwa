@@ -1,37 +1,56 @@
 import { nanoid } from "nanoid";
 import { generateKeyBetween } from "fractional-indexing";
 
-import buildBusinessObjectsTree from "./buildBusinessObjectsTree";
-import { DEFAULT_BUSINESS_OBJECT_COLOR } from "../constants/businessObjectEntityModel";
+import buildBusinessObjectsTree from "./buildBusinessObjectsTree.js";
+import { getBusinessObjectUnitText } from "./getBusinessObjectQtyKind.js";
+import { DEFAULT_BUSINESS_OBJECT_COLOR } from "../constants/businessObjectEntityModel.js";
 
 // ---------------------------------------------------------------------------
 // Quick text edition of a business-objects tree.
 //
 // Text format: one row per line, one leading TAB per depth level (runs of
 // 2 spaces are tolerated). Trailing suffix:
-// - unit in parentheses → object row: (m) → L, (m2) → S, (u) → U;
-// - unit in BRACKETS → TITLE row: [m2], or [] for a unit-less title;
+// - unit in parentheses → object row: (m²), (ml), (u), (ens), (kg)...;
+// - unit in BRACKETS → TITLE row: [m²], or [] for a unit-less title;
 // - no suffix (or empty parentheses) → unit-less object row.
+// The unit is a free text: a suffix is read as a unit when it is a single
+// token (no space, 16 characters at most), so a label ending with
+// "(type A)" stays a label. (m2) and (m) are read as m² and ml. A unit
+// holding spaces is written with non-breaking spaces.
 //
 //   Gros œuvre []
-//   \tCuvelage [m2]
-//   \t\tVoiles (m2)
-//   \t\tRadier (m2)
-//   Joints (m)
+//   \tCuvelage [m²]
+//   \t\tVoiles (m²)
+//   \t\tRadier (m²)
+//   Joints (ml)
 //
 // serialize → parse → diff (label matching + positional rename pairing + LIS
 // order detection) → plan {additions, updates, deletionIds} applied in one
 // transaction by applyBusinessObjectsQuickEditService.
 // ---------------------------------------------------------------------------
 
-const UNIT_TO_TOKEN = { U: "u", L: "m", S: "m2" };
-const TOKEN_TO_UNIT = { u: "U", m: "L", ml: "L", m2: "S", "m²": "S" };
+const NBSP = "\u00a0";
+const UNIT_BY_TOKEN = { m: "ml", m2: "m²" };
+const UNIT_TOKEN = "[^ \\t()\\[\\]]{1,16}";
+const PAREN_REGEX = new RegExp(`^(.*?)\\s*\\(\\s*(${UNIT_TOKEN})?\\s*\\)$`);
+const BRACKET_REGEX = new RegExp(`^(.*?)\\s*\\[\\s*(${UNIT_TOKEN})?\\s*\\]$`);
+
+function unitToToken(unit) {
+  return getBusinessObjectUnitText(unit).replace(/\s+/g, NBSP) || null;
+}
+
+function tokenToUnit(token) {
+  if (!token) return null;
+  const text = token.replaceAll(NBSP, " ").trim();
+  if (!text) return null;
+  return UNIT_BY_TOKEN[text.toLowerCase()] ?? text;
+}
 
 export function serializeBusinessObjectsTree(businessObjects) {
   const flatTree = buildBusinessObjectsTree(businessObjects);
   return flatTree
     .map(({ businessObject, depth }) => {
-      const token = UNIT_TO_TOKEN[businessObject.unit] ?? null;
+      const token = unitToToken(businessObject.unit);
       const suffix = businessObject.isTitle
         ? ` [${token ?? ""}]`
         : token
@@ -67,14 +86,12 @@ export function parseBusinessObjectsText(text) {
     let label = body;
     let unit = null;
     let isTitle = false;
-    const parenMatch = body.match(/^(.*?)\s*\(\s*(m2|m²|ml|m|u)?\s*\)$/i);
-    const bracketMatch = body.match(/^(.*?)\s*\[\s*(m2|m²|ml|m|u)?\s*\]$/i);
+    const parenMatch = body.match(PAREN_REGEX);
+    const bracketMatch = body.match(BRACKET_REGEX);
     const suffixMatch = bracketMatch ?? parenMatch;
     if (suffixMatch) {
       label = suffixMatch[1].trim();
-      unit = suffixMatch[2]
-        ? (TOKEN_TO_UNIT[suffixMatch[2].toLowerCase()] ?? null)
-        : null;
+      unit = tokenToUnit(suffixMatch[2]);
       isTitle = Boolean(bracketMatch);
     }
     if (!label) continue;
@@ -286,8 +303,9 @@ export function buildQuickEditDiff({ listing, businessObjects, text }) {
       patch.label = line.label;
       addKind(objectId, "RENAME");
     }
-    // the suffix is authoritative: no suffix = unit-less (null)
-    if ((line.unit ?? null) !== (object.unit ?? null)) {
+    // the suffix is authoritative: no suffix = unit-less (null). Compared
+    // as display texts: a legacy "S" row and its "(m²)" line are the same.
+    if ((line.unit ?? "") !== getBusinessObjectUnitText(object.unit)) {
       patch.unit = line.unit ?? null;
       addKind(objectId, "UNIT");
     }

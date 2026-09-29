@@ -41,7 +41,7 @@ const KIND_PROPS = {
 // ---------------------------------------------------------------------------
 // SectionQuickEditBusinessObjects — text edition of the whole objects tree of
 // a listing. One object per line, TAB = one depth level, unit in trailing
-// parentheses: (m) → ml, (m2) → m², (u) → unité. "Mettre à jour" runs the
+// parentheses, as a free text: (m²), (ml), (u), (ens)... "Mettre à jour" runs the
 // diff (adds / deletions / renames / moves / order / unit changes) and shows
 // the review list ("x modifications") with Confirmer / Annuler; Confirmer
 // applies the whole batch in one transaction. The grammar knows nothing of
@@ -244,8 +244,9 @@ export default function SectionQuickEditBusinessObjects({ listing, onClose }) {
     >
       <Typography variant="caption" color="text.secondary">
         Une ligne par {objectLabelS}, TAB pour l&apos;indentation. Unité entre
-        parenthèses : (m), (m2), (u) — sans parenthèses : pas d&apos;unité.
-        Titres entre crochets : [m2], ou [] sans unité.
+        parenthèses, en un seul mot : (m²), (ml), (u), (ens)… — sans
+        parenthèses : pas d&apos;unité. Titres entre crochets : [m²], ou []
+        sans unité.
       </Typography>
 
       {!review && (

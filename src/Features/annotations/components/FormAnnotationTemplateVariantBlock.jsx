@@ -19,6 +19,7 @@ import FieldAnnotationTemplateLegend from "./FieldAnnotationTemplateLegend";
 import FieldAnnotationTemplateDescription from "./FieldAnnotationTemplateDescription";
 import FieldAnnotationTemplateLabel from "./FieldAnnotationTemplateLabel";
 import FieldAnnotationTemplateLabelSize from "./FieldAnnotationTemplateLabelSize";
+import FieldAnnotationTemplateDetailSize from "./FieldAnnotationTemplateDetailSize";
 import FieldAnnotationTemplateDrawingShape from "./FieldAnnotationTemplateDrawingShape";
 import FieldAnnotationTemplateDefaultTool from "./FieldAnnotationTemplateDefaultTool";
 import FieldAnnotationTemplateCote from "./FieldAnnotationTemplateCote";
@@ -399,6 +400,18 @@ export default function FormAnnotationTemplateVariantBlock({
             />
           )}
 
+          {/* DETAIL bubble text size (page points of the print zone). Shape-
+              gated like the LABEL size: a read-time template default, not
+              seeded at creation. */}
+          {drawingShape === "DETAIL" && (
+            <FieldAnnotationTemplateDetailSize
+              annotationTemplate={annotationTemplate}
+              onChange={onChange}
+              overrideFields={overrideFields}
+              onOverrideFieldsChange={handleOverrideFieldsChange}
+            />
+          )}
+
           {/* Full fill controls (POLYGON) */}
           {hasFill && !useSimpleFillColor && (
             <FieldAnnotationTemplateFill
@@ -690,6 +703,9 @@ export default function FormAnnotationTemplateVariantBlock({
               onChange={onChange}
               overrideFields={overrideFields}
               onOverrideFieldsChange={handleOverrideFieldsChange}
+              // Standalone LABEL: size mode owned by
+              // FieldAnnotationTemplateLabelSize (isFixedSize).
+              showFixedSize={drawingShape !== "LABEL"}
             />
           )}
 

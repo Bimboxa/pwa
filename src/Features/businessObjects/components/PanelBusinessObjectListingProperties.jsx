@@ -5,7 +5,10 @@ import { useDispatch, useSelector } from "react-redux";
 import { setSelectedItem } from "Features/selection/selectionSlice";
 import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 import { triggerListingsUpdate } from "Features/listings/listingsSlice";
-import { setListingPropertiesTab } from "../businessObjectsSlice";
+import {
+  setListingPropertiesTab,
+  triggerBusinessObjectsUpdate,
+} from "../businessObjectsSlice";
 
 import useBusinessObjects from "../hooks/useBusinessObjects";
 import useCanEditRecord from "App/hooks/useCanEditRecord";
@@ -48,6 +51,7 @@ import useAnnotationSpriteImage from "Features/annotations/hooks/useAnnotationSp
 import useDeleteAnnotationTemplate from "Features/annotations/hooks/useDeleteAnnotationTemplate";
 
 import useLocationAnnotationTemplates from "../hooks/useLocationAnnotationTemplates";
+import renumberBusinessObjectsService from "../services/renumberBusinessObjectsService";
 import canLocateBusinessObjects from "../utils/canLocateBusinessObjects";
 import getBusinessObjectTypeOfListing from "../utils/getBusinessObjectTypeOfListing";
 import SectionPlanningAnnotationListings from "./SectionPlanningAnnotationListings";
@@ -69,7 +73,8 @@ const LISTING_TYPES = BUSINESS_OBJECT_TYPES.filter((type) =>
 
 // Right-panel properties of a business-objects listing, reached with the back
 // arrow of the object properties panel (selection: {type: "LISTING"}). Name
-// edition, the "Numérotation" display option (3-column DPGF-like tree), the
+// edition, the "Renuméroter" action (tree numbering written into the
+// objects' code), the
 // "Localisation sur les plans" opt-in (listing.canLocateBusinessObjects) and,
 // when it is on, the location templates: the listing's OWN
 // annotationTemplates, created with the same "Nouveau modèle" dialog as the
@@ -94,9 +99,10 @@ export default function PanelBusinessObjectListingProperties({ listing }) {
   const tabAdvancedS = "Avancé";
   const nameS = "Nom de la liste";
   const typeS = "Type de liste";
-  const numberingS = "Numérotation";
+  const numberingS = "Codes";
+  const renumberS = "Renuméroter";
   const numberingCaptionS =
-    "Affiche les ouvrages sur 3 colonnes : numéro, nom, quantité.";
+    "Écrit la numérotation de l'arborescence (1, 1.1, 1.2…) dans le code des ouvrages. Les codes existants sont remplacés.";
   const canLocateS = "Localisation sur les plans";
   const canLocateCaptionS =
     "Les ouvrages peuvent être localisés sur les plans : dessiner un modèle de localisation crée l'annotation principale de l'ouvrage. Les localisations existantes sont conservées.";
@@ -213,12 +219,10 @@ export default function PanelBusinessObjectListingProperties({ listing }) {
     setDeleteTarget(null);
   }
 
-  async function handleToggleNumbering(e) {
+  async function handleRenumber() {
     if (!listing?.id || !guardEditRecord(listing)) return;
-    await db.listings.update(listing.id, {
-      showNumbering: e.target.checked,
-    });
-    dispatch(triggerListingsUpdate());
+    await renumberBusinessObjectsService({ listingId: listing.id });
+    dispatch(triggerBusinessObjectsUpdate());
   }
 
   async function handleTypeChange(e) {
@@ -393,20 +397,26 @@ export default function PanelBusinessObjectListingProperties({ listing }) {
 
           <WhiteSectionGeneric>
             <Box sx={{ p: 1 }}>
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    size="small"
-                    checked={Boolean(listing.showNumbering)}
-                    onChange={handleToggleNumbering}
-                  />
-                }
-                label={<Typography variant="body2">{numberingS}</Typography>}
-                sx={{ ml: 0 }}
-              />
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
+              >
+                <Typography variant="body2">{numberingS}</Typography>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  onClick={handleRenumber}
+                  disabled={Boolean(listing.notesApp) || objectsCount === 0}
+                >
+                  {renumberS}
+                </Button>
+              </Box>
               <Typography
                 variant="caption"
-                sx={{ display: "block", color: "text.secondary" }}
+                sx={{ display: "block", color: "text.secondary", mt: 0.5 }}
               >
                 {numberingCaptionS}
               </Typography>

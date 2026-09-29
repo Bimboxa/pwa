@@ -18,6 +18,16 @@ export const REVIEW_TEMPLATE = {
   groupLabel: "IA",
 };
 
+// Template of the detail bubbles ("pastilles") of a carnet de détails: copied
+// as-is by the model, like REVIEW_TEMPLATE. Colour = the app's secondary.
+export const DETAIL_TEMPLATE = {
+  id: "tpl_detail",
+  label: "Détail",
+  type: "DETAIL",
+  fillColor: "#e85426",
+  hiddenInLegend: true,
+};
+
 // Enough examples for the model to imitate every template without turning
 // contexte.json into a dump of the plan.
 const MAX_EXAMPLES = 300;
@@ -54,6 +64,9 @@ export function summarizeTemplateForPrompt(t) {
     if (t[key] !== undefined && t[key] !== null && t[key] !== "")
       out[key] = t[key];
   }
+  // Preset bubble templates only carry `drawingShape`: the output contract
+  // is keyed on `type`.
+  if (!out.type && t.drawingShape === "DETAIL") out.type = "DETAIL";
   if (typeof t.description === "string" && t.description.trim())
     out.description = t.description.trim();
   return out;
@@ -90,6 +103,31 @@ function pointsPerCm(source, widthMeters) {
   return cropWidth > 0 ? round4(cropWidth / (widthMeters * 100)) : null;
 }
 
+// Detail baseMaps the project already has: the model links them by id
+// instead of creating the same page twice. `attachmentId` is set when the
+// source PDF is one of the zip's attachments.
+export function summarizeDetailBaseMaps(detailBaseMaps, attachments) {
+  const attached = attachments ?? [];
+  return (detailBaseMaps ?? []).map((bm) => {
+    const from = bm.createdFrom ?? {};
+    const attachment =
+      attached.find((a) => a.id === from.resourceId) ??
+      attached.find((a) => a.name === from.pdfFileName);
+    return {
+      id: bm.id,
+      name: bm.name ?? null,
+      detailRef: bm.detailRef ?? null,
+      source: {
+        attachmentId: attachment?.id ?? null,
+        pdfFileName: from.pdfFileName ?? null,
+        pageNumber: from.pageNumber ?? null,
+        rotation: from.rotation ?? 0,
+        bboxInRatio: from.bboxInRatio ?? null,
+      },
+    };
+  });
+}
+
 // Examples: a few per template first, then fill up to the cap.
 export function pickExamples(existing, max = MAX_EXAMPLES) {
   if (existing.length <= max) return existing;
@@ -120,7 +158,11 @@ export function pickExamples(existing, max = MAX_EXAMPLES) {
  * @param {{id:string,name:string}} p.listing
  * @param {Object[]} p.templates - project annotation templates
  * @param {Object[]} p.annotations - useAnnotationsV2 rows (reference pixels)
- * @param {{fromTemplates:boolean, free:boolean, description:string}} p.mode
+ * @param {{fromTemplates:boolean, free:boolean, details:boolean, description:string}} p.mode
+ * @param {Object[]} [p.attachments] - files of the zip: {id, name, file,
+ *   mime, byteSize, pageCount, pages}
+ * @param {Object[]} [p.detailBaseMaps] - raw detail baseMap records of the
+ *   project (useDetailBaseMaps), offered for reuse
  */
 export default function buildPromptIaContext({
   baseMap,
@@ -130,6 +172,8 @@ export default function buildPromptIaContext({
   templates,
   annotations,
   mode,
+  attachments = [],
+  detailBaseMaps = [],
 }) {
   const ref = baseMap.getImageSize?.() || baseMap.image?.imageSize;
   const refWidth = Math.round(ref.width);
@@ -164,7 +208,8 @@ export default function buildPromptIaContext({
     mode: {
       fromTemplates: Boolean(mode.fromTemplates),
       free: Boolean(mode.free),
-      description: mode.free ? mode.description ?? "" : "",
+      details: Boolean(mode.details),
+      description: mode.free || mode.details ? mode.description ?? "" : "",
     },
     plan: {
       name: baseMap.name ?? null,
@@ -195,8 +240,28 @@ export default function buildPromptIaContext({
     existingAnnotations: examples,
     existingAnnotationsTotal: existing.length,
     reviewTemplate: REVIEW_TEMPLATE,
+    attachments: attachments.map((a) => ({
+      id: a.id,
+      name: a.name,
+      file: a.file,
+      mime: a.mime ?? null,
+      byteSize: a.byteSize ?? null,
+      pageCount: a.pageCount ?? null,
+      pages: a.pages ?? [],
+    })),
+    detailTemplate: DETAIL_TEMPLATE,
+    existingDetailBaseMaps: summarizeDetailBaseMaps(detailBaseMaps, attachments),
     output: {
       coordinateSpaces: ["image", "pdf_user_space"],
+      rootKeys: [
+        "version",
+        "coordinateSpace",
+        "note",
+        "image",
+        "annotationTemplates",
+        "annotations",
+        "baseMaps",
+      ],
       singleLine: true,
     },
   };

@@ -42,6 +42,7 @@ const UNDOABLE = new Set([
   "move_annotation_points",
   "create_annotation_templates",
   "create_annotation_listing",
+  "create_detail_base_maps",
 ]);
 
 function ActionIcon({ action, stopped }) {

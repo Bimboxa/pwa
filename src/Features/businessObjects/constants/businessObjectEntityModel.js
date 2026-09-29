@@ -13,15 +13,17 @@ export const BUSINESS_OBJECT_ENTITY_MODEL = {
   },
 };
 
-// Quantity units: u / ml / m². The unit drives the default rollup rule of the
-// linked annotations' quantities (U → count, L → length, S → surface).
+// Units of the tasks' hours ratio (hoursRatioUnit): u / ml / m². The quantity
+// unit of a business object (`unit`) is a FREE TEXT — the rollup rule of the
+// linked annotations' quantities is deduced from it
+// (getBusinessObjectQtyKind); these keys are also the legacy values of `unit`.
 export const BUSINESS_OBJECT_UNITS = [
   { key: "U", label: "u" },
   { key: "L", label: "ml" },
   { key: "S", label: "m²" },
 ];
 
-export const DEFAULT_BUSINESS_OBJECT_UNIT = "U";
+export const DEFAULT_BUSINESS_OBJECT_UNIT = "u";
 
 // Display mode of a task's hours ratio (PLANNING type): RATIO = hours per
 // unit (the stored hoursRatio), CADENCE = units per hour (1 / ratio, a view

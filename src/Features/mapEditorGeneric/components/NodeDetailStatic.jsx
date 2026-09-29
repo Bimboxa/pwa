@@ -8,21 +8,22 @@ import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 import { triggerEntitiesTableUpdate } from "Features/entities/entitiesSlice";
 
 import { resolveDetailResource } from "Features/baseMaps/services/detailBaseMapUtils";
+import { getTextPageScale } from "Features/annotations/constants/freeTextConstants";
+import getAnnotationDetailSizeConfig from "Features/annotations/utils/getAnnotationDetailSizeConfig";
+import getDetailBubbleGeometry, {
+  DETAIL_LINE_HEIGHT,
+  DETAIL_EMPTY_TEXT,
+} from "Features/annotations/utils/getDetailBubbleGeometry";
+import measureTextWidth from "Features/annotations/utils/measureTextWidth";
 
 import { darken } from "@mui/material/styles";
 
 import db from "App/db/db";
 
-// --- CONSTANTES (screen px — the whole node is counter-scaled) ---
-const BUBBLE_R = 16;
-const RING_W = 3;
-const ARROW_LEN = 12; // gap between the tip and the bubble edge
-const ARROW_HALF_W = 7;
-const ARROW_BASE_OVERLAP = 4; // arrow base hidden under the bubble fill
-const TIP_OFFSET = BUBBLE_R + ARROW_LEN; // tip → bubble center
-const ROT_RING_R = TIP_OFFSET + BUBBLE_R + 8; // rotation helper orbit
-const DEFAULT_FONT_SIZE = 14;
-const SMALL_FONT_SIZE = 11;
+// --- CONSTANTES (screen px — edit helpers only, counter-scaled) ---
+const ROT_GRAB_W = 14;
+const ROT_GRIP_R = 5;
+const CROSSHAIR_HALF = 10;
 
 // Rotation cursor — circular arrow (270° arc + chevron head), white halo
 // under a black stroke so it reads on any background. Hotspot = center.
@@ -32,9 +33,13 @@ const CURSOR_ROTATE = `url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.or
 // DETAIL node — a "detail bubble": white circle with a thick ring containing
 // a short label, plus a filled triangular arrow whose TIP is the annotation's
 // stored point. The tip sits at the local origin so it stays glued to the
-// exact spot at any zoom; the bubble is drawn at a fixed SCREEN-px offset
-// opposite the arrow direction (arrowAngle, degrees, 0 = arrow pointing
-// right, clockwise-positive in the y-down SVG screen frame).
+// exact spot at any zoom; the bubble is drawn opposite the arrow direction
+// (arrowAngle, degrees, 0 = arrow pointing right, clockwise-positive in the
+// y-down SVG screen frame).
+// The bubble is FIXED relative to the base map (it zooms with the plan) and
+// sized from its text: the font size is a page point of the base map's print
+// zone (FREE_TEXT rules, getTextPageScale) and every dimension derives from
+// it (getDetailBubbleGeometry). Only the edit helpers keep a screen size.
 function NodeDetailStatic({
   annotation,
   annotationOverride, // transient drag override
@@ -77,20 +82,66 @@ function NodeDetailStatic({
   // every annotation linked to it; ownLabel is the unlinked/legacy fallback.
   const bubbleText = (detailBaseMapId && detailBaseMap?.detailRef) || ownLabel;
 
+  // state — inline label editing (NodeLabelStatic pattern)
+
+  const [localValue, setLocalValue] = useState(bubbleText);
+
+  useEffect(() => {
+    setLocalValue(bubbleText);
+  }, [bubbleText]);
+
   // helpers
+
+  const { fontSize } = getAnnotationDetailSizeConfig(merged);
+
+  // Page-pt → image-px scale (print zone of the base map). Rows that were
+  // not stamped by useAnnotationsV2 (drafts) fall back to 1.
+  const pageScale = useMemo(() => {
+    const scale = getTextPageScale({
+      pagePxPerPt: merged.pagePxPerPt,
+      pageFormat: "A4",
+      imageLongSidePx: merged.imageLongSidePx,
+    });
+    return scale > 0 ? scale : 1;
+  }, [merged.pagePxPerPt, merged.imageLongSidePx]);
+
+  // The bubble follows the text being typed.
+  const displayedText = selected ? localValue : bubbleText;
+  const geometry = useMemo(
+    () =>
+      getDetailBubbleGeometry({
+        text: displayedText,
+        fontSize,
+        measureTextWidth,
+      }),
+    [displayedText, fontSize]
+  );
+  const {
+    radius,
+    ringWidth,
+    arrowLen,
+    arrowHalfW,
+    arrowBaseOverlap,
+    tipOffset,
+    hitRadius,
+    rotRingR,
+    textHeight,
+  } = geometry;
 
   const rad = (arrowAngle * Math.PI) / 180;
   // Bubble center, opposite the arrow (y-down frame: cos/sin used as-is).
-  const cx = -TIP_OFFSET * Math.cos(rad);
-  const cy = -TIP_OFFSET * Math.sin(rad);
+  const cx = -tipOffset * Math.cos(rad);
+  const cy = -tipOffset * Math.sin(rad);
 
-  // Constant screen size: counter-scale by container k AND map zoom (same
-  // formula as NodeLabelStatic — --map-zoom is written by MapEditorViewport,
-  // missing var falls back to 1 outside the map editor, e.g. portfolio).
-  const scaleTransform = useMemo(() => {
+  // Edit helpers keep a constant screen size inside the page-pt frame:
+  // counter-scale by container k, map zoom AND the page scale (same formula
+  // as NodeLabelStatic — --map-zoom is written by MapEditorViewport, missing
+  // var falls back to 1 outside the map editor, e.g. portfolio).
+  const uiScaleExpr = useMemo(() => {
     const k = containerK || 1;
-    return `scale(calc(1 / (var(--map-zoom, 1) * ${k})))`;
-  }, [containerK]);
+    return `calc(1 / (var(--map-zoom, 1) * ${k * pageScale}))`;
+  }, [containerK, pageScale]);
+  const uiScaleTransform = `scale(${uiScaleExpr})`;
 
   const displayColor = useMemo(() => {
     if (hovered || selected) {
@@ -103,25 +154,15 @@ function NodeDetailStatic({
     return fillColor;
   }, [fillColor, hovered, selected]);
 
-  const fontSize =
-    (bubbleText?.length ?? 0) > 2 ? SMALL_FONT_SIZE : DEFAULT_FONT_SIZE;
-
+  // px = page pt inside the scaled frame
   const fontStyles = {
     fontFamily: "Roboto, Helvetica, Arial, sans-serif",
     fontSize: `${fontSize}px`,
     fontWeight: "bold",
-    lineHeight: 1.2,
+    lineHeight: DETAIL_LINE_HEIGHT,
     color: "#000000",
     whiteSpace: "pre",
   };
-
-  // state — inline label editing (NodeLabelStatic pattern)
-
-  const [localValue, setLocalValue] = useState(bubbleText);
-
-  useEffect(() => {
-    setLocalValue(bubbleText);
-  }, [bubbleText]);
 
   // refs to access latest values in the deselect cleanup
   const localValueRef = useRef(localValue);
@@ -234,13 +275,13 @@ function NodeDetailStatic({
       }}
       {...dataProps}
     >
-      {/* Screen-px frame — origin = arrow TIP */}
-      <g style={{ transform: scaleTransform }}>
+      {/* Page-pt frame (map-fixed) — origin = arrow TIP */}
+      <g transform={`scale(${pageScale})`}>
         {/* Arrow — the only rotated element; its base overlaps under
                     the bubble fill so the joint stays clean at any angle */}
         <g transform={`rotate(${arrowAngle})`}>
           <path
-            d={`M 0 0 L ${-(ARROW_LEN + ARROW_BASE_OVERLAP)} ${-ARROW_HALF_W} L ${-(ARROW_LEN + ARROW_BASE_OVERLAP)} ${ARROW_HALF_W} Z`}
+            d={`M 0 0 L ${-(arrowLen + arrowBaseOverlap)} ${-arrowHalfW} L ${-(arrowLen + arrowBaseOverlap)} ${arrowHalfW} Z`}
             fill={displayColor}
           />
         </g>
@@ -250,10 +291,10 @@ function NodeDetailStatic({
         <circle
           cx={cx}
           cy={cy}
-          r={BUBBLE_R}
+          r={radius}
           fill="#ffffff"
           stroke={displayColor}
-          strokeWidth={RING_W}
+          strokeWidth={ringWidth}
           style={
             selected
               ? { filter: "drop-shadow(0px 2px 3px rgba(0,0,0,0.4))" }
@@ -262,14 +303,14 @@ function NodeDetailStatic({
         />
 
         {/* Hit zone — bubble only, the tip area stays click-free */}
-        <circle cx={cx} cy={cy} r={BUBBLE_R + 4} fill="transparent" />
+        <circle cx={cx} cy={cy} r={hitRadius} fill="transparent" />
 
         {/* Label — centered on the bubble, editable inline when selected */}
         <foreignObject
-          x={cx - BUBBLE_R}
-          y={cy - BUBBLE_R}
-          width={BUBBLE_R * 2}
-          height={BUBBLE_R * 2}
+          x={cx - radius}
+          y={cy - radius}
+          width={radius * 2}
+          height={radius * 2}
           style={{ overflow: "visible" }}
         >
           <div
@@ -301,8 +342,10 @@ function NodeDetailStatic({
                   height: "100%",
                   display: "flex",
                   textAlign: "center",
-                  // Vertically center the single line in the bubble.
-                  paddingTop: `${BUBBLE_R - fontSize * 0.6}px`,
+                  // Vertically center the text in the bubble.
+                  boxSizing: "border-box",
+                  padding: 0,
+                  paddingTop: `${radius - textHeight / 2}px`,
                   background: "transparent",
                   border: "none",
                   outline: "none",
@@ -313,7 +356,7 @@ function NodeDetailStatic({
                 }}
               />
             ) : (
-              <span style={fontStyles}>{bubbleText || "X"}</span>
+              <span style={fontStyles}>{bubbleText || DETAIL_EMPTY_TEXT}</span>
             )}
           </div>
         </foreignObject>
@@ -325,99 +368,115 @@ function NodeDetailStatic({
         {selected && !dragged && (
           <>
             <circle
-              r={ROT_RING_R}
+              r={rotRingR}
               fill="none"
               stroke="#555555"
               strokeWidth={1}
               strokeDasharray="4 4"
+              vectorEffect="non-scaling-stroke"
               style={{ pointerEvents: "none" }}
             />
             <circle
-              r={ROT_RING_R}
+              r={rotRingR}
               fill="none"
               stroke="transparent"
-              strokeWidth={14}
               data-interaction="rotate-annotation"
               data-node-id={id}
-              style={{ pointerEvents: "stroke", cursor: CURSOR_ROTATE }}
+              style={{
+                // screen-constant grab width
+                strokeWidth: `calc(${ROT_GRAB_W}px * ${uiScaleExpr})`,
+                pointerEvents: "stroke",
+                cursor: CURSOR_ROTATE,
+              }}
             />
             {/* Grip dot on the arrow side, as affordance */}
-            <circle
-              cx={ROT_RING_R * Math.cos(rad)}
-              cy={ROT_RING_R * Math.sin(rad)}
-              r={5}
-              fill="#ffffff"
-              stroke="#555555"
+            <g
+              transform={`translate(${rotRingR * Math.cos(rad)}, ${rotRingR * Math.sin(rad)})`}
               style={{ pointerEvents: "none" }}
-            />
+            >
+              <circle
+                r={ROT_GRIP_R}
+                fill="#ffffff"
+                stroke="#555555"
+                style={{ transform: uiScaleTransform }}
+              />
+            </g>
 
             {/* Action buttons — linked only: "Voir le fond de plan" selects
                 the detail baseMap in the map editor, "Voir la source" opens
                 the RESOURCES panel on the source PDF at the detail's page */}
             {detailBaseMapId && (
-              <foreignObject
-                x={-140}
-                y={ROT_RING_R + 10}
-                width={280}
-                height={40}
-                style={{ overflow: "visible" }}
-              >
-                <div
-                  style={{
-                    width: "100%",
-                    display: "flex",
-                    justifyContent: "center",
-                    gap: "8px",
-                  }}
+              <g transform={`translate(0, ${rotRingR})`}>
+                <foreignObject
+                  x={-140}
+                  y={10}
+                  width={280}
+                  height={40}
+                  style={{ overflow: "visible", transform: uiScaleTransform }}
                 >
-                  {[
-                    { label: viewBaseMapS, onClick: handleViewBaseMap },
-                    { label: viewSourceS, onClick: handleViewSource },
-                  ].map(({ label, onClick }) => (
-                    <button
-                      key={label}
-                      onMouseDown={(e) => e.stopPropagation()}
-                      onClick={onClick}
-                      style={{
-                        ...fontStyles,
-                        fontSize: "12px",
-                        fontWeight: 500,
-                        whiteSpace: "nowrap",
-                        padding: "4px 10px",
-                        background: "#ffffff",
-                        color: "#000000",
-                        border: "1px solid #555555",
-                        borderRadius: "16px",
-                        boxShadow: "0px 2px 3px rgba(0,0,0,0.3)",
-                        cursor: "pointer",
-                        pointerEvents: "auto",
-                      }}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-              </foreignObject>
+                  <div
+                    style={{
+                      width: "100%",
+                      display: "flex",
+                      justifyContent: "center",
+                      gap: "8px",
+                    }}
+                  >
+                    {[
+                      { label: viewBaseMapS, onClick: handleViewBaseMap },
+                      { label: viewSourceS, onClick: handleViewSource },
+                    ].map(({ label, onClick }) => (
+                      <button
+                        key={label}
+                        onMouseDown={(e) => e.stopPropagation()}
+                        onClick={onClick}
+                        style={{
+                          ...fontStyles,
+                          fontSize: "12px",
+                          fontWeight: 500,
+                          whiteSpace: "nowrap",
+                          padding: "4px 10px",
+                          background: "#ffffff",
+                          color: "#000000",
+                          border: "1px solid #555555",
+                          borderRadius: "16px",
+                          boxShadow: "0px 2px 3px rgba(0,0,0,0.3)",
+                          cursor: "pointer",
+                          pointerEvents: "auto",
+                        }}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </foreignObject>
+              </g>
             )}
           </>
         )}
 
         {/* Crosshair during a move drag (NodePointStatic pattern) */}
         {dragged && draggedPartType !== "ROTATE" && (
-          <g style={{ pointerEvents: "none", opacity: 0.8 }}>
+          <g
+            style={{
+              pointerEvents: "none",
+              opacity: 0.8,
+              transform: uiScaleTransform,
+            }}
+          >
             <line
-              x1={-10}
+              x1={-CROSSHAIR_HALF}
               y1={0}
-              x2={10}
+              x2={CROSSHAIR_HALF}
               y2={0}
               stroke="black"
               strokeWidth={1}
             />
             <line
               x1={0}
-              y1={-10}
+              y1={-CROSSHAIR_HALF}
               x2={0}
-              y2={10}
+              y2={CROSSHAIR_HALF}
               stroke="black"
               strokeWidth={1}
             />

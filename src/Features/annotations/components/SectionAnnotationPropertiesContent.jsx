@@ -27,6 +27,7 @@ import FieldAnnotationIsProfile from "./FieldAnnotationIsProfile";
 import FieldAnnotationLabel from "./FieldAnnotationLabel";
 import FieldAnnotationLabelStub from "./FieldAnnotationLabelStub";
 import FieldAnnotationLabelSize from "./FieldAnnotationLabelSize";
+import FieldAnnotationDetailSize from "./FieldAnnotationDetailSize";
 import FieldAnnotationLinearLayout from "./FieldAnnotationLinearLayout";
 import FieldAnnotationOpening from "./FieldAnnotationOpening";
 import FieldAnnotationArrows from "./FieldAnnotationArrows";
@@ -153,6 +154,13 @@ export default function SectionAnnotationPropertiesContent({
         {/* Standalone LABEL: "Taille fixe" (FREE_TEXT display rules). */}
         {type === "LABEL" && (
           <FieldAnnotationLabelSize
+            annotation={annotation}
+            overrideFields={overrideFields}
+          />
+        )}
+        {/* DETAIL: text size of the bubble (page points of the print zone). */}
+        {type === "DETAIL" && (
+          <FieldAnnotationDetailSize
             annotation={annotation}
             overrideFields={overrideFields}
           />

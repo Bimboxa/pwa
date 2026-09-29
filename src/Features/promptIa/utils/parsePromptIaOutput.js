@@ -61,14 +61,22 @@ function findBalancedEnd(s, start) {
  * - keeps the ids of templates that exist in the project (the import then
  *   reuses those rows: `preserveIds`), and gives every other template a fresh
  *   id so an author id like "tpl_mur" never reaches the database;
- * - drops import-time metadata that is not a template row field.
+ * - drops import-time metadata that is not a template row field;
+ * - same id rule for the detail baseMaps of `baseMaps`: an entry whose id is
+ *   an existing detail baseMap is dropped (nothing to create, the bubbles
+ *   link the existing one), every other entry gets a fresh id, and the
+ *   `detailBaseMapId` of the DETAIL annotations follows.
  *
  * @param {Object} json
- * @param {{existingTemplateIds: Iterable<string>, newId: () => string}} opts
+ * @param {{existingTemplateIds: Iterable<string>,
+ *   existingBaseMapIds?: Iterable<string>, newId: () => string}} opts
  * @returns {{payload: Object, coordinateSpace: string, note: string|null,
- *   reusedTemplateIds: string[], error?: string}}
+ *   reusedTemplateIds: string[], reusedBaseMapIds: string[], error?: string}}
  */
-export function normalizePromptIaPayload(json, { existingTemplateIds, newId }) {
+export function normalizePromptIaPayload(
+  json,
+  { existingTemplateIds, existingBaseMapIds, newId }
+) {
   const { coordinateSpace: rawSpace, note, ...rest } = json;
   const coordinateSpace = rawSpace ?? IMAGE_SPACE;
   if (!COORDINATE_SPACES.includes(coordinateSpace)) {
@@ -77,6 +85,7 @@ export function normalizePromptIaPayload(json, { existingTemplateIds, newId }) {
       coordinateSpace,
       note: null,
       reusedTemplateIds: [],
+      reusedBaseMapIds: [],
       error: `coordinateSpace inconnu : ${coordinateSpace} (attendu ${COORDINATE_SPACES.join(" ou ")}).`,
     };
   }
@@ -97,22 +106,68 @@ export function normalizePromptIaPayload(json, { existingTemplateIds, newId }) {
         return { ...row, id };
       })
     : rest.annotationTemplates;
+  // Detail baseMaps: existing ids are reused, author ids are reminted.
+  const existingBaseMaps = new Set(existingBaseMapIds ?? []);
+  const baseMapIdMap = new Map();
+  const reusedBaseMapIds = [];
+  const baseMaps = Array.isArray(rest.baseMaps)
+    ? rest.baseMaps.flatMap((bm) => {
+        if (!bm || typeof bm !== "object" || typeof bm.id !== "string")
+          return [bm];
+        if (existingBaseMaps.has(bm.id)) {
+          reusedBaseMapIds.push(bm.id);
+          return [];
+        }
+        // A duplicate author id keeps its own entry: the import validator
+        // reports it.
+        if (baseMapIdMap.has(bm.id)) return [bm];
+        const id = newId();
+        baseMapIdMap.set(bm.id, id);
+        return [{ ...bm, id }];
+      })
+    : rest.baseMaps;
+
+  let unknownBaseMapId = null;
   const annotations = Array.isArray(rest.annotations)
-    ? rest.annotations.map((a) =>
-        a && idMap.has(a.annotationTemplateId)
-          ? { ...a, annotationTemplateId: idMap.get(a.annotationTemplateId) }
-          : a
-      )
+    ? rest.annotations.map((a) => {
+        if (!a || typeof a !== "object") return a;
+        let next = a;
+        if (idMap.has(a.annotationTemplateId))
+          next = {
+            ...next,
+            annotationTemplateId: idMap.get(a.annotationTemplateId),
+          };
+        const target = a.detailBaseMapId;
+        if (typeof target === "string" && target) {
+          if (baseMapIdMap.has(target))
+            next = { ...next, detailBaseMapId: baseMapIdMap.get(target) };
+          else if (!existingBaseMaps.has(target))
+            unknownBaseMapId = unknownBaseMapId ?? target;
+        }
+        return next;
+      })
     : rest.annotations;
+  if (unknownBaseMapId) {
+    return {
+      payload: null,
+      coordinateSpace,
+      note: null,
+      reusedTemplateIds,
+      reusedBaseMapIds,
+      error: `detailBaseMapId inconnu : ${unknownBaseMapId} (attendu un id de \`baseMaps\` ou d’un fond de détail existant).`,
+    };
+  }
   return {
     payload: {
       version: rest.version ?? "1.0",
       ...rest,
       annotationTemplates,
       annotations,
+      ...(baseMaps !== undefined ? { baseMaps } : {}),
     },
     coordinateSpace,
     note: typeof note === "string" && note.trim() ? note.trim() : null,
     reusedTemplateIds,
+    reusedBaseMapIds,
   };
 }

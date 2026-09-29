@@ -517,7 +517,9 @@ function extrudeStripPolygons(
       effHeight,
       material,
       cuts,
-      verticalLift
+      verticalLift,
+      [],
+      { wallEdges: true }
     );
     if (sub) group.add(sub);
   });
@@ -594,7 +596,9 @@ function extrudeWallPolygon(
       effHeight,
       material,
       [innerLocal],
-      verticalLift
+      verticalLift,
+      [],
+      { wallEdges: true }
     );
   }
 
@@ -631,7 +635,9 @@ function extrudeWallPolygon(
     effHeight,
     material,
     undefined,
-    verticalLift
+    verticalLift,
+    [],
+    { wallEdges: true }
   );
 }
 

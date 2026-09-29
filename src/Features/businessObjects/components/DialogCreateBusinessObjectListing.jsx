@@ -17,6 +17,8 @@ import {
   Typography,
 } from "@mui/material";
 
+import DialogPromptIaBusinessObjects from "./DialogPromptIaBusinessObjects";
+
 import useCreateBusinessObjectListing from "../hooks/useCreateBusinessObjectListing";
 import selectSelectedBusinessObjectTypeKey from "../utils/selectSelectedBusinessObjectTypeKey";
 import BUSINESS_OBJECT_TYPES, {
@@ -31,7 +33,9 @@ import BUSINESS_OBJECT_TYPES, {
 // state — where nothing else says which family the list belongs to. A caller
 // may also pin the type with the `typeKey` prop. The "Localisation sur les
 // plans" checkbox opts the listing into the main-location flow (off by
-// default, see utils/canLocateBusinessObjects).
+// default, see utils/canLocateBusinessObjects). "Prompt IA" opens the
+// file-driven creation (DialogPromptIaBusinessObjects): the listing and its
+// objects are then created together from an external AI chat's answer.
 export default function DialogCreateBusinessObjectListing({
   open,
   onClose,
@@ -50,6 +54,7 @@ export default function DialogCreateBusinessObjectListing({
     "Les ouvrages pourront être localisés sur les plans (une annotation principale par plan).";
   const cancelS = "Annuler";
   const createS = "Créer";
+  const promptIaS = "Prompt IA";
 
   // data
 
@@ -68,6 +73,7 @@ export default function DialogCreateBusinessObjectListing({
     DEFAULT_BUSINESS_OBJECT_TYPE_KEY
   );
   const [canLocate, setCanLocate] = useState(null);
+  const [openPromptIa, setOpenPromptIa] = useState(false);
 
   // helpers
 
@@ -77,6 +83,8 @@ export default function DialogCreateBusinessObjectListing({
   const titleS = showTypeSelector
     ? "Nouvelle liste"
     : "Nouvelle liste d'ouvrages";
+  const canLocateBusinessObjects =
+    canLocate ?? createdTypeKey === "PINNED_OBJECTS";
 
   // handlers
 
@@ -84,8 +92,7 @@ export default function DialogCreateBusinessObjectListing({
     const listing = await createBusinessObjectListing({
       name,
       typeKey: createdTypeKey,
-      canLocateBusinessObjects:
-        canLocate ?? createdTypeKey === "PINNED_OBJECTS",
+      canLocateBusinessObjects,
     });
     if (listing) {
       dispatch(setSelectedListingId(listing.id));
@@ -97,62 +104,86 @@ export default function DialogCreateBusinessObjectListing({
   // render
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
-      <DialogTitle>{titleS}</DialogTitle>
-      <DialogContent>
-        <TextField
-          autoFocus
-          fullWidth
-          size="small"
-          label={nameS}
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && name) handleCreate();
-          }}
-          sx={{ mt: 1 }}
-        />
-        <FormControlLabel
-          control={
-            <Checkbox
-              size="small"
-              checked={canLocate ?? createdTypeKey === "PINNED_OBJECTS"}
-              onChange={(e) => setCanLocate(e.target.checked)}
-            />
-          }
-          label={<Typography variant="body2">{canLocateS}</Typography>}
-          sx={{ mt: 1, ml: 0 }}
-        />
-        <Typography
-          variant="caption"
-          sx={{ display: "block", color: "text.secondary" }}
-        >
-          {canLocateCaptionS}
-        </Typography>
-        {showTypeSelector && (
+    <>
+      <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
+        <DialogTitle>{titleS}</DialogTitle>
+        <DialogContent>
           <TextField
-            select
+            autoFocus
             fullWidth
             size="small"
-            label={typeS}
-            value={selectedTypeKey}
-            onChange={(e) => setSelectedTypeKey(e.target.value)}
-            sx={{ mt: 2 }}
+            label={nameS}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && name) handleCreate();
+            }}
+            sx={{ mt: 1 }}
+          />
+          <FormControlLabel
+            control={
+              <Checkbox
+                size="small"
+                checked={canLocateBusinessObjects}
+                onChange={(e) => setCanLocate(e.target.checked)}
+              />
+            }
+            label={<Typography variant="body2">{canLocateS}</Typography>}
+            sx={{ mt: 1, ml: 0 }}
+          />
+          <Typography
+            variant="caption"
+            sx={{ display: "block", color: "text.secondary" }}
           >
-            {BUSINESS_OBJECT_TYPES.map((type) => (
-              <MenuItem key={type.key} value={type.key}>
-                {type.defaultLabel}
-              </MenuItem>
-            ))}
-          </TextField>
-        )}
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose}>{cancelS}</Button>
-        <Button variant="contained" onClick={handleCreate} disabled={!name}>
-          {createS}
-        </Button>
-      </DialogActions>
-    </Dialog>
+            {canLocateCaptionS}
+          </Typography>
+          {showTypeSelector && (
+            <TextField
+              select
+              fullWidth
+              size="small"
+              label={typeS}
+              value={selectedTypeKey}
+              onChange={(e) => setSelectedTypeKey(e.target.value)}
+              sx={{ mt: 2 }}
+            >
+              {BUSINESS_OBJECT_TYPES.map((type) => (
+                <MenuItem key={type.key} value={type.key}>
+                  {type.defaultLabel}
+                </MenuItem>
+              ))}
+            </TextField>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button
+            size="small"
+            variant="outlined"
+            color="inherit"
+            onClick={() => setOpenPromptIa(true)}
+            sx={{ mr: "auto" }}
+          >
+            {promptIaS}
+          </Button>
+          <Button onClick={onClose}>{cancelS}</Button>
+          <Button variant="contained" onClick={handleCreate} disabled={!name}>
+            {createS}
+          </Button>
+        </DialogActions>
+      </Dialog>
+      {openPromptIa && (
+        <DialogPromptIaBusinessObjects
+          open
+          onClose={() => setOpenPromptIa(false)}
+          initialName={name}
+          typeKey={createdTypeKey}
+          canLocateBusinessObjects={canLocateBusinessObjects}
+          onCreated={(listing) => {
+            onCreated?.(listing);
+            onClose();
+          }}
+        />
+      )}
+    </>
   );
 }

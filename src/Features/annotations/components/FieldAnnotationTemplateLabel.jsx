@@ -4,6 +4,7 @@ import {
   Button,
   IconButton,
   InputBase,
+  Switch,
   ToggleButtonGroup,
   ToggleButton,
 } from "@mui/material";
@@ -20,10 +21,15 @@ import {
   LABEL_STUB_FIELDS,
   LABEL_STUB_MODES,
 } from "Features/annotations/utils/getAnnotationLabelStubConfig";
+import getAnnotationLabelSizeConfig from "Features/annotations/utils/getAnnotationLabelSizeConfig";
+import getAnnotationLabelFixedSizeConfig, {
+  LABEL_FIXED_SIZE_FIELDS,
+} from "Features/annotations/utils/getAnnotationLabelFixedSizeConfig";
 
 // strings
 
 const titleS = "Étiquette";
+const fixedSizeS = "Taille fixe (zone d'impression)";
 const stubS = "Déport horizontal";
 const lockTitleS = "Appliquer aux étiquettes déjà créées";
 const resetS = "Réinit.";
@@ -56,16 +62,29 @@ const numberInputSx = {
   "& input": { textAlign: "center", p: 0 },
 };
 
-// Template-level label settings: leader stub length (screen px) + mode.
-// Unset = app default (32 px, Fixe). The value is a read-time default for the
-// annotations without their own value; the padlock forces it on every one.
+// Template-level label settings: chip size mode (fixed relative to the print
+// zone, default / screen-constant) + leader stub length (page pt or screen px
+// like the chip) + mode. Unset = app default (fixed, 32, Fixe). The value is a
+// read-time default for the annotations without their own value; the padlock
+// forces it on every one.
 export default function FieldAnnotationTemplateLabel({
   annotationTemplate,
   onChange,
   overrideFields,
   onOverrideFieldsChange,
+  showFixedSize = true,
 }) {
   // helpers
+
+  // The template is resolved like an annotation without a template: own
+  // value ?? app default.
+  const isFixedSize = showFixedSize
+    ? getAnnotationLabelFixedSizeConfig(annotationTemplate).isFixedSize
+    : getAnnotationLabelSizeConfig(annotationTemplate).isFixedSize;
+  const unitS = isFixedSize ? "pt" : "px";
+  const lockFields = showFixedSize
+    ? [...LABEL_STUB_FIELDS, ...LABEL_FIXED_SIZE_FIELDS]
+    : LABEL_STUB_FIELDS;
 
   const rawLength = annotationTemplate?.labelStubLength;
   const length =
@@ -96,11 +115,17 @@ export default function FieldAnnotationTemplateLabel({
       onChange({ ...annotationTemplate, labelStubMode: newMode });
   }
 
+  function handleFixedSizeChange(e) {
+    onChange({ ...annotationTemplate, labelIsFixedSize: e.target.checked });
+  }
+
+  // Locked state is read on the stub fields only (templates locked before the
+  // size mode existed stay locked); the toggle handles both groups.
   function handleToggleGlobalOverride() {
     const current = Array.isArray(overrideFields) ? [...overrideFields] : [];
     const next = allLocked
-      ? current.filter((f) => !LABEL_STUB_FIELDS.includes(f))
-      : Array.from(new Set([...current, ...LABEL_STUB_FIELDS]));
+      ? current.filter((f) => !lockFields.includes(f))
+      : Array.from(new Set([...current, ...lockFields]));
     onOverrideFieldsChange(next);
   }
 
@@ -109,6 +134,7 @@ export default function FieldAnnotationTemplateLabel({
       ...annotationTemplate,
       labelStubLength: null,
       labelStubMode: null,
+      ...(showFixedSize && { labelIsFixedSize: null }),
     });
   }
 
@@ -140,6 +166,19 @@ export default function FieldAnnotationTemplateLabel({
           )}
         </Box>
 
+        {showFixedSize && (
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Typography variant="body2" sx={{ flex: 1 }}>
+              {fixedSizeS}
+            </Typography>
+            <Switch
+              size="small"
+              checked={isFixedSize}
+              onChange={handleFixedSizeChange}
+            />
+          </Box>
+        )}
+
         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
           <Typography variant="body2" sx={{ flex: 1 }}>
             {stubS}
@@ -151,7 +190,7 @@ export default function FieldAnnotationTemplateLabel({
             inputProps={{ min: 0, step: 1 }}
             endAdornment={
               <Typography variant="caption" color="text.secondary">
-                px
+                {unitS}
               </Typography>
             }
             sx={numberInputSx}

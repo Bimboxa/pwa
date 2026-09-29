@@ -40,7 +40,7 @@ const numberInputSx = {
 
 // Template-level "Taille fixe" of standalone LABEL annotations: off = the
 // historical screen-constant chip; on = FREE_TEXT display rules (map-fixed,
-// text size in page points for an A4/A3 page). Unset = app default (off,
+// text size in page points of the print zone). Unset = app default (on,
 // 14pt, A4). The value is a read-time default for the annotations without
 // their own value; the padlock forces it on every one.
 export default function FieldAnnotationTemplateLabelSize({

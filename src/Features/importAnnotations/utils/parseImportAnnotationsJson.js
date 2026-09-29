@@ -20,9 +20,22 @@
 //     { "id": "t1", "type": "FREE_TEXT", "annotationTemplateId": "tpl_txt",
 //       "textContent": "...",
 //       "labelPoint": { "x": 0..1, "y": 0..1 },        // CENTRE of the text box
-//       "targetPoint": { "x": 0..1, "y": 0..1 } }      // connector end, optional
+//       "targetPoint": { "x": 0..1, "y": 0..1 } },     // connector end, optional
+//     { "id": "d1", "type": "DETAIL", "annotationTemplateId": "tpl_detail",
+//       "point": { "x": 0..1, "y": 0..1 },             // TIP of the arrow
+//       "arrowAngle": <deg clockwise, 0 = right>,
+//       "detailBaseMapId": "bm_A" }   // a baseMaps[].id or an existing detail baseMap
+//   ],
+//   "baseMaps": [                     // optional: detail baseMaps to create
+//     { "id": "bm_A", "kind": "detail", "name": "...", "detailRef": "A",
+//       "source": { "attachmentId": "<resource id | relay pdfId>",
+//                   "fileName": "...", "pageNumber": 1, "rotation": 0,
+//                   "bboxInRatio": { "x1", "y1", "x2", "y2" } | null } }
 //   ]
 // }
+//
+// `annotationTemplates` may be empty when `baseMaps` is not (a payload that
+// only creates detail baseMaps).
 //
 // Mirrored by the relay's zod schema (reperage-mcp/shared/inlineJson.ts): keep
 // the two in sync.
@@ -65,6 +78,10 @@
 
 import { validateImageImport } from "./imageImport";
 import normalizeAnnotationsDumpJson from "./normalizeAnnotationsDumpJson";
+import {
+  validateDetailAnnotation,
+  validateImportBaseMaps,
+} from "./validateDetailImport";
 
 const SUPPORTED_TYPES = [
   "POLYLINE",
@@ -74,6 +91,7 @@ const SUPPORTED_TYPES = [
   "STRIP",
   "FREE_TEXT",
   "IMAGE",
+  "DETAIL",
 ];
 
 // Returns a French error message, or null when the point is a valid
@@ -296,9 +314,19 @@ export default function parseImportAnnotationsJson(text) {
     };
   }
 
+  // baseMaps (detail baseMaps to create) — validated first: a payload that
+  // only creates baseMaps carries no template.
+  const baseMapsError = validateImportBaseMaps(json.baseMaps);
+  if (baseMapsError) return { ok: false, error: baseMapsError };
+  const hasBaseMaps =
+    Array.isArray(json.baseMaps) && json.baseMaps.length > 0;
+
   // annotationTemplates
   const templates = json.annotationTemplates;
-  if (!Array.isArray(templates) || templates.length === 0) {
+  if (
+    !Array.isArray(templates) ||
+    (templates.length === 0 && !hasBaseMaps)
+  ) {
     return {
       ok: false,
       error: "`annotationTemplates` doit être un tableau non vide.",
@@ -365,6 +393,11 @@ export default function parseImportAnnotationsJson(text) {
     }
     if (ann.type === "FREE_TEXT") {
       const err = validateFreeText(ann);
+      if (err) return { ok: false, error: err };
+      continue;
+    }
+    if (ann.type === "DETAIL") {
+      const err = validateDetailAnnotation(ann);
       if (err) return { ok: false, error: err };
       continue;
     }

@@ -2,24 +2,14 @@ import { useDispatch } from "react-redux";
 
 import { triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice";
 
-import {
-  Box,
-  Typography,
-  ToggleButtonGroup,
-  ToggleButton,
-} from "@mui/material";
+import { Box, Typography } from "@mui/material";
 
 import db from "App/db/db";
 import FieldCheck from "Features/form/components/FieldCheck";
 import FieldTextV2 from "Features/form/components/FieldTextV2";
 import WhiteSectionGeneric from "Features/form/components/WhiteSectionGeneric";
 import FieldAnnotationLabelStub from "./FieldAnnotationLabelStub";
-
-const FONT_SIZE_OPTIONS = [
-  { value: "S", label: "S" },
-  { value: "M", label: "M" },
-  { value: "L", label: "L" },
-];
+import FieldAnnotationLabelTextSize from "./FieldAnnotationLabelTextSize";
 
 // "Etiquette" tab of the annotation properties panel: visibility, content
 // (template label / annotation label / free description) and text size of the
@@ -34,7 +24,6 @@ export default function SectionAnnotationLabelContent({ annotation }) {
   const showAnnotationLabel = annotation?.labelShowAnnotationLabel !== false;
   const showDescription = annotation?.labelShowDescription !== false;
   const description = annotation?.labelDescription ?? "";
-  const fontSize = annotation?.labelFontSize ?? "M";
   const shadow = annotation?.labelShadow === true;
 
   const templateLabel =
@@ -137,44 +126,10 @@ export default function SectionAnnotationLabelContent({ annotation }) {
           </Box>
         </WhiteSectionGeneric>
 
-        <WhiteSectionGeneric>
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              width: 1,
-            }}
-          >
-            <Typography variant="body2" sx={{ fontWeight: "bold" }}>
-              Taille du texte
-            </Typography>
-            <ToggleButtonGroup
-              exclusive
-              size="small"
-              value={fontSize}
-              onChange={(e, value) => {
-                if (value) updateAnnotationFields({ labelFontSize: value });
-              }}
-              sx={{
-                bgcolor: "action.hover",
-                "& .MuiToggleButton-root": {
-                  border: "none",
-                  borderRadius: 1.5,
-                  px: 1.5,
-                  py: 0.25,
-                  fontSize: "0.7rem",
-                },
-              }}
-            >
-              {FONT_SIZE_OPTIONS.map(({ value, label }) => (
-                <ToggleButton key={value} value={value}>
-                  {label}
-                </ToggleButton>
-              ))}
-            </ToggleButtonGroup>
-          </Box>
-        </WhiteSectionGeneric>
+        <FieldAnnotationLabelTextSize
+          annotation={annotation}
+          overrideFields={overrideFields}
+        />
 
         <FieldAnnotationLabelStub
           annotation={annotation}

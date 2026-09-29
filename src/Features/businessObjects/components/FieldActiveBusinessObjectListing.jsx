@@ -3,14 +3,16 @@ import { useDispatch } from "react-redux";
 
 import { generateKeyBetween } from "fractional-indexing";
 
-import { setSelectedListingId } from "../businessObjectsSlice";
+import {
+  setSelectedListingId,
+  triggerBusinessObjectsUpdate,
+} from "../businessObjectsSlice";
 import { setSelectedItem } from "Features/selection/selectionSlice";
 import { triggerListingsUpdate } from "Features/listings/listingsSlice";
 
 import {
   Box,
   Button,
-  Checkbox,
   Typography,
   Menu,
   MenuItem,
@@ -39,6 +41,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 
 import useDeleteBusinessObjectListing from "../hooks/useDeleteBusinessObjectListing";
+import renumberBusinessObjectsService from "../services/renumberBusinessObjectsService";
 
 import DialogCreateBusinessObjectListing from "./DialogCreateBusinessObjectListing";
 import DialogRenameBusinessObjectListing from "./DialogRenameBusinessObjectListing";
@@ -206,15 +209,14 @@ export default function FieldActiveBusinessObjectListing({
     dispatch(setSelectedListingId(null));
   };
 
-  // "Numérotation" listing display option: 3-column DPGF-like tree rendering
-  // (number / label / quantity). Stored on the listing row; the menu stays
-  // open so the effect is visible immediately.
-  const handleToggleNumbering = async () => {
+  // "Renuméroter": writes the tree numbering (1, 1.1, 1.2...) into the
+  // objects' `code`. Not offered on Krnet-linked listings, whose codes come
+  // from the remote list.
+  const handleRenumber = async () => {
+    setMoreMenuAnchor(null);
     if (!activeListing) return;
-    await db.listings.update(activeListing.id, {
-      showNumbering: !activeListing.showNumbering,
-    });
-    dispatch(triggerListingsUpdate());
+    await renumberBusinessObjectsService({ listingId: activeListing.id });
+    dispatch(triggerBusinessObjectsUpdate());
   };
 
   // render
@@ -301,13 +303,11 @@ export default function FieldActiveBusinessObjectListing({
         open={Boolean(moreMenuAnchor)}
         onClose={() => setMoreMenuAnchor(null)}
       >
-        <MenuItem onClick={handleToggleNumbering} sx={{ gap: 0.5 }}>
-          <Checkbox
-            size="small"
-            checked={Boolean(activeListing?.showNumbering)}
-            sx={{ p: 0.5, ml: -1 }}
-          />
-          Numérotation
+        <MenuItem
+          onClick={handleRenumber}
+          disabled={Boolean(activeListing?.notesApp)}
+        >
+          Renuméroter
         </MenuItem>
         <Divider />
         <MenuItem onClick={handleRename}>Renommer</MenuItem>

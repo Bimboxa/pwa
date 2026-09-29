@@ -25,6 +25,8 @@ import useCreateAnnotationListing from "Features/listings/hooks/useCreateAnnotat
 import useDeleteListing from "Features/listings/hooks/useDeleteListing";
 import useSelectedScope from "Features/scopes/hooks/useSelectedScope";
 import useDeleteAnnotations from "Features/annotations/hooks/useDeleteAnnotations";
+import useUserEmail from "Features/auth/hooks/useUserEmail";
+import useDeleteBaseMap from "Features/baseMaps/hooks/useDeleteBaseMap";
 import parseImportAnnotationsJson from "Features/importAnnotations/utils/parseImportAnnotationsJson";
 import importAnnotationsInlineJsonService from "Features/importAnnotations/services/importAnnotationsInlineJsonService";
 
@@ -35,6 +37,7 @@ import {
   describeRelayError,
   fetchJob,
 } from "../services/assistantRelayClient";
+import resolveRelayPdfResource from "../services/resolveRelayPdfResource";
 import { loadTargetBaseMap } from "./useImportDetectionJob";
 
 // Centre of what the user is looking at, in base map pixels. Written by
@@ -79,6 +82,8 @@ export default function useApplyLiveDetectionJob() {
   const { value: scope } = useSelectedScope();
   const createAnnotationListing = useCreateAnnotationListing();
   const deleteListing = useDeleteListing();
+  const deleteBaseMap = useDeleteBaseMap();
+  const { value: userEmail } = useUserEmail();
 
   // Latest values for the async handler (jobs arrive while the user pans,
   // switches base map or listing).
@@ -95,6 +100,8 @@ export default function useApplyLiveDetectionJob() {
       // the handlers below stay stable.
       createAnnotationListing,
       deleteListing,
+      deleteBaseMap,
+      userEmail,
     };
   });
 
@@ -142,11 +149,14 @@ export default function useApplyLiveDetectionJob() {
       // A new list without templates carries an empty payload, which the
       // import parser refuses: nothing to parse nor to place then.
       const payload = full.payload ?? {};
+      // Nothing to draw nor any template: at most detail baseMaps to create
+      // (create_detail_base_maps), which need neither a listing nor a map.
       const isEmpty =
         !(payload.annotationTemplates ?? []).length &&
         !(payload.annotations ?? []).length;
+      const baseMapsOnly = isEmpty && (payload.baseMaps ?? []).length > 0;
       let data = null;
-      if (!isEmpty) {
+      if (!isEmpty || baseMapsOnly) {
         const parsed = parseImportAnnotationsJson(JSON.stringify(payload));
         if (!parsed.ok) throw liveError("INVALID_PAYLOAD", parsed.error);
         data = parsed.data;
@@ -154,13 +164,14 @@ export default function useApplyLiveDetectionJob() {
       const hasAnnotations = (data?.annotations ?? []).length > 0;
 
       const newListingName = (full.listing?.name ?? "").trim() || null;
-      if (isEmpty && !newListingName) throw liveError("INVALID_PAYLOAD");
+      if (isEmpty && !baseMapsOnly && !newListingName)
+        throw liveError("INVALID_PAYLOAD");
 
       // Everything that can fail is checked BEFORE the listing is created.
       let listingId = null;
       if (newListingName) {
         if (!scope?.id) throw liveError("NO_SCOPE");
-      } else {
+      } else if (!baseMapsOnly) {
         listingId = await resolveListingId(full.snapshot, full.listing);
         if (!listingId) throw liveError("NO_LISTING");
       }
@@ -227,7 +238,7 @@ export default function useApplyLiveDetectionJob() {
       }
 
       let result = { placed: [], createdTemplateIds: [], armed: false };
-      if (!isEmpty) {
+      if (!isEmpty || baseMapsOnly) {
         try {
           result = await importAnnotationsInlineJsonService({
             data,
@@ -240,6 +251,17 @@ export default function useApplyLiveDetectionJob() {
             targetCenter,
             annotationProps: { relayJobId: full.jobId },
             templateProps: { relayJobId: full.jobId },
+            baseMapProps: { relayJobId: full.jobId },
+            createdBy: latest.current.userEmail ?? null,
+            // On this path an attachment id is a relay pdfId.
+            resolveAttachment: (pdfId, fileName) =>
+              resolveRelayPdfResource(pdfId, {
+                fileName,
+                projectId,
+                scopeId: scope?.id ?? null,
+                createdBy: latest.current.userEmail ?? null,
+                chatState: store.getState().chat,
+              }),
             dispatch,
           });
         } catch (e) {
@@ -282,11 +304,19 @@ export default function useApplyLiveDetectionJob() {
         ...(created
           ? { createdListingId: created.id, listingName: created.name }
           : {}),
+        // Payload id → detail baseMap id (created or reused): what the model
+        // passes as detailBaseMapId afterwards.
+        ...(Object.keys(result.baseMapIds ?? {}).length
+          ? {
+              baseMapIds: result.baseMapIds,
+              createdBaseMapIds: result.createdBaseMapIds ?? [],
+            }
+          : {}),
         placement,
         armed: Boolean(result.armed),
       };
     },
-    [dispatch, resolveListingId]
+    [dispatch, resolveListingId, store]
   );
 
   // mode `live_undo`: delete what job `undoOf` created (annotations, its
@@ -355,12 +385,39 @@ export default function useApplyLiveDetectionJob() {
         deletedListingIds.push(l.id);
       }
 
+      // Detail baseMaps the job created: removed when no bubble links them
+      // and nothing was drawn on them (no index on relayJobId, small table).
+      const createdBaseMaps = await db.baseMaps
+        .filter((b) => b.relayJobId === undoOf && !b.deletedAt)
+        .toArray();
+      const deletedBaseMapIds = [];
+      const keptBaseMapIds = [];
+      for (const baseMap of createdBaseMaps) {
+        const used = await db.annotations
+          .filter(
+            (a) =>
+              !a.deletedAt &&
+              (a.detailBaseMapId === baseMap.id || a.baseMapId === baseMap.id)
+          )
+          .count();
+        if (used > 0) {
+          keptBaseMapIds.push(baseMap.id);
+          continue;
+        }
+        await latest.current.deleteBaseMap(baseMap);
+        if (editor.baseMapsCache) delete editor.baseMapsCache[baseMap.id];
+        deletedBaseMapIds.push(baseMap.id);
+      }
+
       return {
         deletedAnnotationIds: annotationIds,
         deletedTemplateIds,
         keptTemplateIds,
         deletedListingIds,
         keptListingIds,
+        ...(createdBaseMaps.length
+          ? { deletedBaseMapIds, keptBaseMapIds }
+          : {}),
       };
     },
     [dispatch, deleteAnnotations]
@@ -524,12 +581,14 @@ export default function useApplyLiveDetectionJob() {
         const message = result.batchKind
           ? `ChatGPT : ${result.updatedCount} annotation(s) ${result.batchKind === "undo" ? "restaurée(s)" : "modifiée(s)"}.`
           : full.mode === "live_undo"
-            ? `ChatGPT : ${result.deletedAnnotationIds.length} annotation(s) annulée(s).${result.deletedListingIds.length ? " Liste supprimée." : ""}`
+            ? `ChatGPT : ${result.deletedAnnotationIds.length} annotation(s) annulée(s).${result.deletedListingIds.length ? " Liste supprimée." : ""}${result.deletedBaseMapIds?.length ? ` ${result.deletedBaseMapIds.length} fond(s) de détail supprimé(s).` : ""}`
             : result.createdListingId
               ? `ChatGPT : liste « ${result.listingName} » créée (${result.templateIds.length} template(s)).`
               : result.armed
                 ? "ChatGPT : cliquez sur le plan pour placer le dessin."
-                : `ChatGPT : ${result.annotationIds.length} annotation(s), ${result.templateIds.length} template(s).`;
+                : result.createdBaseMapIds && !result.annotationIds.length
+                  ? `ChatGPT : ${result.createdBaseMapIds.length} fond(s) de détail créé(s).`
+                  : `ChatGPT : ${result.annotationIds.length} annotation(s), ${result.templateIds.length} template(s)${result.createdBaseMapIds?.length ? `, ${result.createdBaseMapIds.length} fond(s) de détail` : ""}.`;
         dispatch(setToaster({ message, severity: "success" }));
       } catch (e) {
         trace("application_or_ack_failed", {

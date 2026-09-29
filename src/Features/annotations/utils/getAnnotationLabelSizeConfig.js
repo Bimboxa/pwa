@@ -1,8 +1,8 @@
 // "Taille fixe" of a standalone LABEL annotation (the chip + leader type).
 //
-// - isFixedSize: false (default) → constant SCREEN size, the historical
+// - isFixedSize: false → constant SCREEN size, the historical
 //   NodeLabelStatic behaviour (counter-zoomed chip, 14px font).
-//   true → the chip is FIXED relative to the base map and follows the
+//   true (default) → the chip is FIXED relative to the base map and follows the
 //   FREE_TEXT display rules: it zooms with the plan and every size inside
 //   the chip (font, padding, width, leader stub) is a PDF POINT "as if the
 //   base map filled an A4/A3 page" (pageFormat, see
@@ -20,6 +20,7 @@
 
 import { FREE_TEXT_PAGE_FORMATS } from "Features/annotations/constants/freeTextConstants";
 
+export const DEFAULT_LABEL_IS_FIXED_SIZE = true;
 export const DEFAULT_LABEL_FONT_SIZE_PT = 14;
 export const DEFAULT_LABEL_PAGE_FORMAT = "A4";
 export const LABEL_SIZE_FIELDS = ["isFixedSize", "fontSize", "pageFormat"];
@@ -53,7 +54,7 @@ export default function getAnnotationLabelSizeConfig(annotation) {
   const isFixedSize =
     parseIsFixedSize(annotation?.isFixedSize) ??
     parseIsFixedSize(templateProps?.isFixedSize) ??
-    false;
+    DEFAULT_LABEL_IS_FIXED_SIZE;
   const fontSize =
     parseFontSize(annotation?.fontSize) ??
     parseFontSize(templateProps?.fontSize) ??

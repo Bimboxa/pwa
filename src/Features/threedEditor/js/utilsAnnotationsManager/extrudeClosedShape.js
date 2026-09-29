@@ -11,7 +11,6 @@ import {
   LineSegments,
   LineBasicMaterial,
   DoubleSide,
-  FrontSide,
   ShapeUtils,
   Vector2,
 } from "three";
@@ -24,6 +23,7 @@ import {
   adaptiveArcSamples,
 } from "Features/geometry/utils/arcSampling";
 import extractPlanarSketchEdges from "Features/threedEditor/js/postfx/extractPlanarSketchEdges";
+import { buildWallEdges } from "./extrudePolylineWall";
 
 // Angle-adaptive per-arc sampling (shared with getAnnotationQties' developed
 // surface so mesh and quantities agree): a full circle reads as ~24 segments,
@@ -117,7 +117,7 @@ function buildIsoHeightLines(expContour, expHoles, topZOf) {
   let faces;
   try {
     faces = ShapeUtils.triangulateShape(contourV2, holesV2) || [];
-  } catch (e) {
+  } catch {
     return null;
   }
   if (faces.length === 0) return null;
@@ -262,7 +262,8 @@ export default function extrudeClosedShape(
   // the chord heights only exist in the partition (contour vertices keep
   // their own offsets), so the flat Shape path would silently ignore them.
   const hasIsoChords =
-    Array.isArray(options.isoHeightChords) && options.isoHeightChords.length > 0;
+    Array.isArray(options.isoHeightChords) &&
+    options.isoHeightChords.length > 0;
   // Shell profiles (profileLines) force the per-vertex-Z path too: the shell
   // heights live in the profiles, not on the ring offsets.
   const hasShell = (options.shell?.profiles?.length ?? 0) > 0;
@@ -372,7 +373,21 @@ export default function extrudeClosedShape(
   // triangulation diagonal (1° default threshold) — a noisy black web. There,
   // the lit shading provides the silhouette and the white iso lines structure
   // the surface, so the edges are dropped.
-  if (!isPerVertexZPath) {
+  //
+  // `options.wallEdges` (POLYLINE / STRIP footprints extruded as walls): use
+  // the same edge rule as the PX-width walls of extrudePolylineWall —
+  // coplanar-face coalescing + suppression of construction seams below the
+  // wall dihedral threshold (15°), so the facets of a sampled arc no longer
+  // draw a vertical line each (EdgesGeometry's 1° default drew all of them).
+  // Lines are tagged WALL_PLANAR: visibility-only under the "Wireframe"
+  // settings (like PX walls) and rebuilt with the same rule after a CSG carve.
+  if (!isPerVertexZPath && options.wallEdges && isExtruded) {
+    const edges = buildWallEdges(geometry);
+    // Runtime ref for the carve / Wireframe passes (tagWallEdges replaces
+    // userData wholesale, so set it after the build).
+    edges.userData.sourceMesh = solidMesh;
+    group.add(edges);
+  } else if (!isPerVertexZPath) {
     const edges = new LineSegments(
       new EdgesGeometry(geometry),
       new LineBasicMaterial({

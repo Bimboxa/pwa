@@ -3,9 +3,13 @@ import { useDispatch, useSelector } from "react-redux";
 import { nanoid } from "@reduxjs/toolkit";
 
 import db from "App/db/db";
+import editor from "App/editor";
 import { triggerAnnotationTemplatesUpdate } from "Features/annotations/annotationsSlice";
 import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
 import useDeleteAnnotations from "Features/annotations/hooks/useDeleteAnnotations";
+import useUserEmail from "Features/auth/hooks/useUserEmail";
+import useDeleteBaseMap from "Features/baseMaps/hooks/useDeleteBaseMap";
+import useDetailBaseMaps from "Features/baseMaps/hooks/useDetailBaseMaps";
 import parseImportAnnotationsJson from "Features/importAnnotations/utils/parseImportAnnotationsJson";
 import importAnnotationsInlineJsonService from "Features/importAnnotations/services/importAnnotationsInlineJsonService";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
@@ -31,6 +35,9 @@ export default function useApplyPromptIaOutput() {
   const mainBaseMap = useMainBaseMap();
   const templates = useAnnotationTemplates();
   const deleteAnnotations = useDeleteAnnotations();
+  const deleteBaseMap = useDeleteBaseMap();
+  const detailBaseMaps = useDetailBaseMaps();
+  const { value: userEmail } = useUserEmail();
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -59,6 +66,7 @@ export default function useApplyPromptIaOutput() {
           .map((t) => t.id);
         const normalized = normalizePromptIaPayload(extracted.json, {
           existingTemplateIds,
+          existingBaseMapIds: (detailBaseMaps ?? []).map((b) => b.id),
           newId: nanoid,
         });
         if (normalized.error) throw new Error(normalized.error);
@@ -75,7 +83,11 @@ export default function useApplyPromptIaOutput() {
           const converted = convertPayloadToImageSpace(payload, pdf.frame, page);
           payload = converted.data;
           dropped = converted.dropped;
-          if (!payload.annotations?.length && dropped.length)
+          if (
+            !payload.annotations?.length &&
+            !payload.baseMaps?.length &&
+            dropped.length
+          )
             throw new Error(
               `Toutes les annotations (${dropped.length}) tombent hors du cadre du fond (page ${pdf.frame.pageNumber}, rotation ${pdf.frame.rotation}°). Vérifiez l’espace de coordonnées et la page.`
             );
@@ -95,6 +107,18 @@ export default function useApplyPromptIaOutput() {
           preserveIds: true,
           annotationProps: { promptIaBatchId: batchId },
           templateProps: { promptIaBatchId: batchId },
+          baseMapProps: { promptIaBatchId: batchId },
+          createdBy: userEmail ?? null,
+          // Prompt IA attachments are project resources: the attachment id
+          // of contexte.json is the resource id.
+          resolveAttachment: async (attachmentId) => {
+            const resource = await db.resources.get(attachmentId);
+            return resource &&
+              !resource.deletedAt &&
+              resource.projectId === projectId
+              ? resource.id
+              : null;
+          },
           dispatch,
         });
         const summary = {
@@ -102,6 +126,11 @@ export default function useApplyPromptIaOutput() {
           placedIds: (result.placed ?? []).map((a) => a.id),
           createdTemplateIds: result.createdTemplateIds ?? [],
           reusedTemplateIds: normalized.reusedTemplateIds,
+          createdBaseMapIds: result.createdBaseMapIds ?? [],
+          reusedBaseMapIds: [
+            ...normalized.reusedBaseMapIds,
+            ...(result.reusedBaseMapIds ?? []),
+          ],
           droppedIds: dropped,
           coordinateSpace: normalized.coordinateSpace,
           note: normalized.note,
@@ -119,11 +148,20 @@ export default function useApplyPromptIaOutput() {
         setBusy(false);
       }
     },
-    [dispatch, projectId, listingId, mainBaseMap, templates]
+    [
+      dispatch,
+      projectId,
+      listingId,
+      mainBaseMap,
+      templates,
+      detailBaseMaps,
+      userEmail,
+    ]
   );
 
   // Removes what the last paste created: its annotations, then its templates
-  // when nothing else uses them (same rule as the relay's live undo).
+  // and detail baseMaps when nothing else uses them (same rule as the relay's
+  // live undo).
   const undo = useCallback(async () => {
     if (!lastResult || busyRef.current) return;
     busyRef.current = true;
@@ -143,6 +181,16 @@ export default function useApplyPromptIaOutput() {
         touched = true;
       }
       if (touched) dispatch(triggerAnnotationTemplatesUpdate());
+      for (const id of lastResult.createdBaseMapIds ?? []) {
+        const linked = await db.annotations
+          .filter((a) => a.detailBaseMapId === id && !a.deletedAt)
+          .count();
+        if (linked > 0) continue;
+        const record = await db.baseMaps.get(id);
+        if (!record || record.deletedAt) continue;
+        await deleteBaseMap(record);
+        if (editor.baseMapsCache) delete editor.baseMapsCache[id];
+      }
       setLastResult(null);
     } catch (err) {
       console.error("[promptIa] undo failed", err);
@@ -151,7 +199,7 @@ export default function useApplyPromptIaOutput() {
       busyRef.current = false;
       setBusy(false);
     }
-  }, [dispatch, deleteAnnotations, lastResult]);
+  }, [dispatch, deleteAnnotations, deleteBaseMap, lastResult]);
 
   const clearError = useCallback(() => setError(null), []);
 

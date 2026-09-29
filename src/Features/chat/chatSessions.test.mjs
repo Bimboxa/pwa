@@ -9,7 +9,9 @@ import reducer, {
   selectSession,
   setSending,
   setConversation,
-  setPendingPdf,
+  addAttachment,
+  markAttachmentsSent,
+  updateAttachment,
   setVectorization,
   setReasoningLevels,
   addTurnUsage,
@@ -60,13 +62,29 @@ test("parallel responses and stop state stay in their originating sessions", asy
 test("late uploads and vectorization changes do not leak into another session", () => {
   const store = makeStore();
   const first = createChatSessionStore(store, 0);
+  first.dispatch(
+    addAttachment({ id: "res-a", name: "carnet.pdf", status: "uploading" })
+  );
   store.dispatch(resetConversation());
-  first.dispatch(setPendingPdf({ status: "ready", pdfId: "pdf-a" }));
+  // The upload ends after the user opened another session.
+  first.dispatch(
+    updateAttachment({
+      id: "res-a",
+      changes: { status: "ready", pdfId: "pdf-a" },
+    })
+  );
+  first.dispatch(markAttachmentsSent(["pdf-a"]));
+  first.dispatch(markAttachmentsSent(["pdf-a"]));
   first.dispatch(setVectorization({ runId: "run-a" }));
-  assert.equal(store.getState().chat.pendingPdf, null);
+  assert.deepEqual(store.getState().chat.attachments, []);
+  assert.deepEqual(store.getState().chat.conversation.attachmentsSent, []);
   assert.equal(store.getState().chat.vectorization, null);
   store.dispatch(selectSession(0));
-  assert.equal(store.getState().chat.pendingPdf.pdfId, "pdf-a");
+  assert.equal(store.getState().chat.attachments[0].pdfId, "pdf-a");
+  assert.equal(store.getState().chat.attachments.length, 1);
+  assert.deepEqual(store.getState().chat.conversation.attachmentsSent, [
+    "pdf-a",
+  ]);
   assert.equal(store.getState().chat.vectorization.runId, "run-a");
   store.dispatch(setReasoningLevels([{ id: "high" }]));
   assert.deepEqual(first.getState().chat.reasoningLevels, [{ id: "high" }]);
