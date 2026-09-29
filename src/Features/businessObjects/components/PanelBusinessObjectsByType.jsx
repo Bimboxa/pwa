@@ -12,6 +12,9 @@ const PANEL_BY_TYPE_KEY = {
   // Tasks: the same panel, the type's features (hoursBudget) drive the
   // ratio / hours columns and the total band.
   PLANNING: PanelBusinessObjects,
+  // Issues: the same panel, the type's features (status) drive the row
+  // checkbox and the Ouverts / Tous filter.
+  ISSUE: PanelBusinessObjects,
 };
 
 export default function PanelBusinessObjectsByType({ typeKey }) {

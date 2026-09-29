@@ -32,6 +32,7 @@ export default function SectionBusinessObjectQties({
     const { qtiesByObjectId } = computeBusinessObjectQties({
       rels,
       annotations,
+      businessObjects,
     });
 
     return buildBusinessObjectsTree(businessObjects)

@@ -23,6 +23,7 @@ import useCreateBusinessObjectListing from "../hooks/useCreateBusinessObjectList
 import selectSelectedBusinessObjectTypeKey from "../utils/selectSelectedBusinessObjectTypeKey";
 import BUSINESS_OBJECT_TYPES, {
   DEFAULT_BUSINESS_OBJECT_TYPE_KEY,
+  getBusinessObjectType,
 } from "../data/businessObjectTypesCatalog";
 
 // Creation dialog of a business-object listing.
@@ -36,6 +37,9 @@ import BUSINESS_OBJECT_TYPES, {
 // default, see utils/canLocateBusinessObjects). "Prompt IA" opens the
 // file-driven creation (DialogPromptIaBusinessObjects): the listing and its
 // objects are then created together from an external AI chat's answer.
+// Both follow the type's features: no location checkbox for the types
+// without `locate`, no "Prompt IA" (a priced-articles prompt: codes, units,
+// quantities) for the types without `quantities`.
 export default function DialogCreateBusinessObjectListing({
   open,
   onClose,
@@ -51,7 +55,7 @@ export default function DialogCreateBusinessObjectListing({
   const typeS = "Type de liste";
   const canLocateS = "Localisation sur les plans";
   const canLocateCaptionS =
-    "Les ouvrages pourront être localisés sur les plans (une annotation principale par plan).";
+    "Les objets pourront être localisés sur les plans (une annotation principale par plan).";
   const cancelS = "Annuler";
   const createS = "Créer";
   const promptIaS = "Prompt IA";
@@ -78,13 +82,18 @@ export default function DialogCreateBusinessObjectListing({
   // helpers
 
   const createdTypeKey = fixedTypeKey ?? selectedTypeKey;
+  const createdType =
+    getBusinessObjectType(createdTypeKey) ??
+    getBusinessObjectType(DEFAULT_BUSINESS_OBJECT_TYPE_KEY);
+  const hasLocate = Boolean(createdType.features.locate);
+  const hasPromptIa = Boolean(createdType.features.quantities);
   // A pinned type names the family in the title; a free one lets the
   // selector say it.
   const titleS = showTypeSelector
     ? "Nouvelle liste"
-    : "Nouvelle liste d'ouvrages";
+    : `Nouvelle ${createdType.strings.listLabel.toLowerCase()}`;
   const canLocateBusinessObjects =
-    canLocate ?? createdTypeKey === "PINNED_OBJECTS";
+    hasLocate && (canLocate ?? createdTypeKey === "PINNED_OBJECTS");
 
   // handlers
 
@@ -120,23 +129,27 @@ export default function DialogCreateBusinessObjectListing({
             }}
             sx={{ mt: 1 }}
           />
-          <FormControlLabel
-            control={
-              <Checkbox
-                size="small"
-                checked={canLocateBusinessObjects}
-                onChange={(e) => setCanLocate(e.target.checked)}
+          {hasLocate && (
+            <>
+              <FormControlLabel
+                control={
+                  <Checkbox
+                    size="small"
+                    checked={canLocateBusinessObjects}
+                    onChange={(e) => setCanLocate(e.target.checked)}
+                  />
+                }
+                label={<Typography variant="body2">{canLocateS}</Typography>}
+                sx={{ mt: 1, ml: 0 }}
               />
-            }
-            label={<Typography variant="body2">{canLocateS}</Typography>}
-            sx={{ mt: 1, ml: 0 }}
-          />
-          <Typography
-            variant="caption"
-            sx={{ display: "block", color: "text.secondary" }}
-          >
-            {canLocateCaptionS}
-          </Typography>
+              <Typography
+                variant="caption"
+                sx={{ display: "block", color: "text.secondary" }}
+              >
+                {canLocateCaptionS}
+              </Typography>
+            </>
+          )}
           {showTypeSelector && (
             <TextField
               select
@@ -156,15 +169,17 @@ export default function DialogCreateBusinessObjectListing({
           )}
         </DialogContent>
         <DialogActions>
-          <Button
-            size="small"
-            variant="outlined"
-            color="inherit"
-            onClick={() => setOpenPromptIa(true)}
-            sx={{ mr: "auto" }}
-          >
-            {promptIaS}
-          </Button>
+          {hasPromptIa && (
+            <Button
+              size="small"
+              variant="outlined"
+              color="inherit"
+              onClick={() => setOpenPromptIa(true)}
+              sx={{ mr: "auto" }}
+            >
+              {promptIaS}
+            </Button>
+          )}
           <Button onClick={onClose}>{cancelS}</Button>
           <Button variant="contained" onClick={handleCreate} disabled={!name}>
             {createS}

@@ -27,6 +27,7 @@ import useResourceFile from "../hooks/useResourceFile";
 import useDeleteResource from "../hooks/useDeleteResource";
 import useReattachResourceFile from "../hooks/useReattachResourceFile";
 import ViewerPdfPages from "./ViewerPdfPages";
+import ButtonLinkResourceToBusinessObject from "./ButtonLinkResourceToBusinessObject";
 import getResourceVisibility, {
   RESOURCE_VISIBILITIES,
 } from "../utils/getResourceVisibility";
@@ -60,7 +61,8 @@ export default function PanelResourceDetail({ resource, onBack }) {
   // Base maps cut from this PDF page: deleting the resource disables their
   // "Régénérer depuis le PDF" action (the base maps themselves stay intact).
   const linkedBaseMapCount = useLiveQuery(async () => {
-    if (resource?.kind !== "PDF_PAGE" && resource?.kind !== "PDF_SOURCE") return 0;
+    if (resource?.kind !== "PDF_PAGE" && resource?.kind !== "PDF_SOURCE")
+      return 0;
     return db.baseMaps
       .filter((b) => !b.deletedAt && b.createdFrom?.resourceId === resource.id)
       .count();
@@ -170,7 +172,7 @@ export default function PanelResourceDetail({ resource, onBack }) {
     if (next === visibility) return;
     await db.resources.update(resource.id, {
       visibility: next,
-      scopeId: next === "SCOPE" ? selectedScopeId ?? null : null,
+      scopeId: next === "SCOPE" ? (selectedScopeId ?? null) : null,
     });
   }
 
@@ -308,6 +310,9 @@ export default function PanelResourceDetail({ resource, onBack }) {
           />
         </Box>
       )}
+
+      {/* whole-resource link to the selected / active business object */}
+      <ButtonLinkResourceToBusinessObject resource={resource} />
 
       <DialogDeleteRessource
         open={openDelete}

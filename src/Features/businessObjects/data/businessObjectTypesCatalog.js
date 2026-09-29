@@ -26,6 +26,11 @@ const STANDARD_STRINGS = {
   empty: "Aucun ouvrage",
   noLinkedAnnotations: "Aucune annotation liée à cet ouvrage",
   linkTo: "Lier à un ouvrage",
+  listLabel: "Liste d'ouvrages",
+  // whole-resource link button of the RESOURCES panel
+  linkResourceTo: "Lier à l'ouvrage actif",
+  // heading of the objects linked to a selected annotation
+  linkedObjects: "Ouvrages liés",
 };
 
 // hoursBudget: the objects are TASKS carrying an hours ratio (hoursRatio =
@@ -35,6 +40,26 @@ const STANDARD_STRINGS = {
 // form / properties panel). false = the color is neither shown nor editable;
 // rows still store DEFAULT_BUSINESS_OBJECT_COLOR (never read).
 const STANDARD_FEATURES = { hoursBudget: false, color: true };
+
+// Flags every type resolves to when its entry does not set them (the
+// exported entries are normalized, consumers read plain booleans).
+// quantities: "Quantités" tab, reference quantity + unit, row quantity.
+// code: `code` field and the listing's "Codes / Renuméroter" card.
+// titleRows: "Titre (bandeau)" rows.
+// locate: the listing can opt in the "Localisation" (main annotations).
+// status: the objects are open / closed points (row checkbox, Ouverts / Tous
+// filter) — see utils/getBusinessObjectStatus.
+const FEATURE_DEFAULTS = {
+  hoursBudget: false,
+  color: false,
+  workPackages: false,
+  annotationListings: false,
+  quantities: true,
+  code: true,
+  titleRows: true,
+  locate: true,
+  status: false,
+};
 
 const BUSINESS_OBJECT_TYPES = [
   {
@@ -98,6 +123,9 @@ const BUSINESS_OBJECT_TYPES = [
       empty: "Aucune tâche",
       noLinkedAnnotations: "Aucune annotation liée à cette tâche",
       linkTo: "Lier à une tâche",
+      listLabel: "Liste de tâches",
+      linkResourceTo: "Lier à la tâche active",
+      linkedObjects: "Tâches liées",
     },
     // tasks have no color: name + ratio only
     // workPackages: the panel gets a second tab of work packages (sets of
@@ -113,7 +141,42 @@ const BUSINESS_OBJECT_TYPES = [
       annotationListings: true,
     },
   },
-];
+  {
+    // Issues: points to follow up, open / closed. A title + a description,
+    // plain links to annotations and resources — no code, no quantity, no
+    // color, no location. Module key BUSINESS_OBJECTS_ISSUE (knownModuleKeys
+    // rule, like NOMENCLATURE), no module hotkey. Named ISSUE, not NOTE: the
+    // notes are the Krnet feed of Features/notesApp.
+    key: "ISSUE",
+    defaultLabel: "Points",
+    defaultIconKey: "checklist",
+    editors: ["MAP", "THREED"],
+    strings: {
+      objectLabel: "Point",
+      newObject: "Nouveau point",
+      newChildPrefix: "Nouveau sous-point de",
+      editObject: "Modifier le point",
+      addChild: "Ajouter un sous-point",
+      empty: "Aucun point",
+      noLinkedAnnotations: "Aucune annotation liée à ce point",
+      linkTo: "Lier à un point",
+      listLabel: "Liste de points",
+      linkResourceTo: "Lier au point actif",
+      linkedObjects: "Points liés",
+    },
+    features: {
+      status: true,
+      quantities: false,
+      code: false,
+      titleRows: false,
+      locate: false,
+      color: false,
+    },
+  },
+].map((type) => ({
+  ...type,
+  features: { ...FEATURE_DEFAULTS, ...type.features },
+}));
 
 export default BUSINESS_OBJECT_TYPES;
 

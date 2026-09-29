@@ -94,7 +94,6 @@ export default function PanelBusinessObjectListingProperties({ listing }) {
 
   // strings
 
-  const titleS = "Liste d'ouvrages";
   const tabGeneralS = "Général";
   const tabAdvancedS = "Avancé";
   const nameS = "Nom de la liste";
@@ -159,9 +158,15 @@ export default function PanelBusinessObjectListingProperties({ listing }) {
   const isEditingName = nameValue !== null;
   const displayName = isEditingName ? nameValue : listing?.name || "";
   const listingType = getBusinessObjectTypeOfListing(listing);
+  const titleS = listingType.strings.listLabel;
+  // codes card / location opt-in: types carrying them only
+  const hasCode = Boolean(listingType.features.code);
+  const hasLocate = Boolean(listingType.features.locate);
 
   const objectsCount = businessObjects?.length ?? 0;
-  const canLocate = canLocateBusinessObjects(listing);
+  const canLocate =
+    Boolean(getBusinessObjectTypeOfListing(listing).features.locate) &&
+    canLocateBusinessObjects(listing);
   // PLANNING listings only (type feature): the drawing lists feeding the
   // planning.
   const showAnnotationListings = Boolean(
@@ -172,7 +177,9 @@ export default function PanelBusinessObjectListingProperties({ listing }) {
     notesAppEnabled &&
     configView.listingId === listing?.id &&
     configView.stack.length > 0;
-  const countS = `${objectsCount} ouvrage${objectsCount > 1 ? "s" : ""}`;
+  const countS = `${objectsCount} ${listingType.strings.objectLabel.toLowerCase()}${
+    objectsCount > 1 ? "s" : ""
+  }`;
   // the Avancé tab only exists with the integration: a stale "ADVANCED"
   // falls back to Général
   const effectiveTab =
@@ -395,55 +402,59 @@ export default function PanelBusinessObjectListingProperties({ listing }) {
             </Box>
           </WhiteSectionGeneric>
 
-          <WhiteSectionGeneric>
-            <Box sx={{ p: 1 }}>
-              <Box
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                }}
-              >
-                <Typography variant="body2">{numberingS}</Typography>
-                <Button
-                  size="small"
-                  variant="outlined"
-                  onClick={handleRenumber}
-                  disabled={Boolean(listing.notesApp) || objectsCount === 0}
+          {hasCode && (
+            <WhiteSectionGeneric>
+              <Box sx={{ p: 1 }}>
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                  }}
                 >
-                  {renumberS}
-                </Button>
-              </Box>
-              <Typography
-                variant="caption"
-                sx={{ display: "block", color: "text.secondary", mt: 0.5 }}
-              >
-                {numberingCaptionS}
-              </Typography>
-            </Box>
-          </WhiteSectionGeneric>
-
-          <WhiteSectionGeneric>
-            <Box sx={{ p: 1 }}>
-              <FormControlLabel
-                control={
-                  <Checkbox
+                  <Typography variant="body2">{numberingS}</Typography>
+                  <Button
                     size="small"
-                    checked={canLocate}
-                    onChange={handleToggleCanLocate}
-                  />
-                }
-                label={<Typography variant="body2">{canLocateS}</Typography>}
-                sx={{ ml: 0 }}
-              />
-              <Typography
-                variant="caption"
-                sx={{ display: "block", color: "text.secondary" }}
-              >
-                {canLocateCaptionS}
-              </Typography>
-            </Box>
-          </WhiteSectionGeneric>
+                    variant="outlined"
+                    onClick={handleRenumber}
+                    disabled={Boolean(listing.notesApp) || objectsCount === 0}
+                  >
+                    {renumberS}
+                  </Button>
+                </Box>
+                <Typography
+                  variant="caption"
+                  sx={{ display: "block", color: "text.secondary", mt: 0.5 }}
+                >
+                  {numberingCaptionS}
+                </Typography>
+              </Box>
+            </WhiteSectionGeneric>
+          )}
+
+          {hasLocate && (
+            <WhiteSectionGeneric>
+              <Box sx={{ p: 1 }}>
+                <FormControlLabel
+                  control={
+                    <Checkbox
+                      size="small"
+                      checked={canLocate}
+                      onChange={handleToggleCanLocate}
+                    />
+                  }
+                  label={<Typography variant="body2">{canLocateS}</Typography>}
+                  sx={{ ml: 0 }}
+                />
+                <Typography
+                  variant="caption"
+                  sx={{ display: "block", color: "text.secondary" }}
+                >
+                  {canLocateCaptionS}
+                </Typography>
+              </Box>
+            </WhiteSectionGeneric>
+          )}
 
           {showAnnotationListings && <SectionPlanningAnnotationListings />}
 

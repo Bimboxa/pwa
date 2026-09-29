@@ -9,13 +9,14 @@ import db from "App/db/db";
 
 import syncMainAnnotationLabelsService from "../services/syncMainAnnotationLabelsService";
 import { setBusinessObjectFieldValue } from "../utils/businessObjectFieldValues";
+import { BUSINESS_OBJECT_STATUS } from "../utils/getBusinessObjectStatus";
 
 export default function useUpdateBusinessObject() {
   const dispatch = useDispatch();
 
   // Edit a business object's props (label / code / color / description /
   // unit / refQty / isTitle / hoursRatio / hoursRatioMode / hoursRatioUnit /
-  // globalLayerId). code: "" or null clears the code; refQty: null (or a
+  // globalLayerId / qtyFormulas / status). code: "" or null clears the code; refQty: null (or a
   // non-finite value) clears the reference quantity.
   // unit: null
   // clears the unit (unit-less row, and every task — the quantity unit is an
@@ -35,9 +36,14 @@ export default function useUpdateBusinessObject() {
       hoursRatioMode,
       hoursRatioUnit,
       globalLayerId,
+      // [{annotationTemplateId, formula}] — custom quantity formulas per
+      // annotation template (see utils/qtyFormula), replaced as a whole
+      qtyFormulas,
       // {[fieldId]: value} — listing-model field values (Fiche tab), merged
       // into businessObject.fieldValues; an empty value drops the key
       fieldValues,
+      // "OPEN" | "CLOSED" (types with the status feature); closedAt follows
+      status,
     } = {}
   ) => {
     const updates = {};
@@ -57,6 +63,14 @@ export default function useUpdateBusinessObject() {
     // to; null = every annotation of a work package. undefined = untouched.
     if (globalLayerId !== undefined)
       updates.globalLayerId = globalLayerId || null;
+    if (Array.isArray(qtyFormulas)) updates.qtyFormulas = qtyFormulas;
+    if (status != null) {
+      const closed = status === BUSINESS_OBJECT_STATUS.CLOSED;
+      updates.status = closed
+        ? BUSINESS_OBJECT_STATUS.CLOSED
+        : BUSINESS_OBJECT_STATUS.OPEN;
+      updates.closedAt = closed ? new Date().toISOString() : null;
+    }
     if (fieldValues && typeof fieldValues === "object") {
       const current = (await db.businessObjects.get(businessObjectId))
         ?.fieldValues;

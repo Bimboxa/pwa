@@ -1,11 +1,15 @@
 import { useMemo, useState } from "react";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
+
+import { setStatusFilter } from "../businessObjectsSlice";
 
 import {
   Box,
   List,
   ListItemButton,
   ListItemText,
+  ToggleButton,
+  ToggleButtonGroup,
   Typography,
 } from "@mui/material";
 import { Add } from "@mui/icons-material";
@@ -35,6 +39,8 @@ import buildBusinessObjectsTree, {
   getBusinessObjectsTreeDisplayMeta,
 } from "../utils/buildBusinessObjectsTree";
 import getBusinessObjectTypeOfListing from "../utils/getBusinessObjectTypeOfListing";
+import selectSelectedBusinessObjectId from "../utils/selectSelectedBusinessObjectId";
+import { isBusinessObjectClosed } from "../utils/getBusinessObjectStatus";
 import { getHoursBudgetByObjectId } from "../utils/getBusinessObjectHoursBudget";
 import { formatHours } from "../utils/hoursRatioConversions";
 
@@ -47,9 +53,20 @@ import DialogBusinessObjectForm from "./DialogBusinessObjectForm";
 // hoursBudget) add the rolled-up hours per row and a total band. With the
 // listing setting `listCard` (Krnet "Aperçu de l'objet"), the object rows
 // render the configured avatar + primary + secondary texts instead.
+// Types with a status (ISSUE, type feature status) get an "Ouverts / Tous"
+// filter band: "Ouverts" hides the closed objects, except the ancestors of a
+// displayed row and the selected / active object (a row never vanishes under
+// the pointer when its checkbox is ticked).
 // `readOnly` (Viewer module): no creation, no dnd, no edition / linking
 // actions on the rows.
 export default function BusinessObjectsTree({ listing, readOnly = false }) {
+  const dispatch = useDispatch();
+
+  // strings
+
+  const openS = "Ouverts";
+  const allS = "Tous";
+
   // data
 
   const type = getBusinessObjectTypeOfListing(listing);
@@ -65,6 +82,12 @@ export default function BusinessObjectsTree({ listing, readOnly = false }) {
   });
   const moveBusinessObject = useMoveBusinessObject();
   const collapsedIds = useSelector((s) => s.businessObjects.collapsedIds);
+  const hasStatus = Boolean(type.features?.status);
+  const statusFilter = useSelector((s) => s.businessObjects.statusFilter);
+  const selectedBusinessObjectId = useSelector(selectSelectedBusinessObjectId);
+  const activeBusinessObjectId = useSelector(
+    (s) => s.businessObjects.activeBusinessObjectId
+  );
   const listCard = useBusinessObjectsListCard({ listing, businessObjects });
 
   const {
@@ -159,20 +182,66 @@ export default function BusinessObjectsTree({ listing, readOnly = false }) {
     [businessObjects]
   );
 
+  // Status filter "Ouverts": ids of the rows kept — the open objects, the
+  // selected / active one, and their ancestors (a closed parent of a kept
+  // row stays, greyed). null = no filtering.
+  const openCount = useMemo(
+    () =>
+      (businessObjects ?? []).filter((o) => !isBusinessObjectClosed(o)).length,
+    [businessObjects]
+  );
+  const keptIds = useMemo(() => {
+    if (!hasStatus || statusFilter !== "OPEN") return null;
+    const byId = {};
+    (businessObjects ?? []).forEach((o) => {
+      byId[o.id] = o;
+    });
+    const kept = new Set();
+    const keepWithAncestors = (object) => {
+      let current = object;
+      // cycle guard: a kept id stops the walk
+      while (current && !kept.has(current.id)) {
+        kept.add(current.id);
+        current = current.parentId ? byId[current.parentId] : null;
+      }
+    };
+    (businessObjects ?? []).forEach((o) => {
+      if (
+        !isBusinessObjectClosed(o) ||
+        o.id === selectedBusinessObjectId ||
+        o.id === activeBusinessObjectId
+      )
+        keepWithAncestors(o);
+    });
+    return kept;
+  }, [
+    hasStatus,
+    statusFilter,
+    businessObjects,
+    selectedBusinessObjectId,
+    activeBusinessObjectId,
+  ]);
+
   // Hide the rows whose any ancestor is collapsed (the flat tree is
   // depth-first: a collapsed node at depth d hides the following rows with
-  // depth > d until a row at depth <= d shows up).
+  // depth > d until a row at depth <= d shows up), and the rows filtered out
+  // by the status filter (a filtered-out row has no kept descendant).
   const visibleTree = useMemo(() => {
     const visible = [];
     let hiddenBelowDepth = null;
     flatTree.forEach(({ businessObject, depth }) => {
       if (hiddenBelowDepth != null && depth > hiddenBelowDepth) return;
       hiddenBelowDepth = null;
+      if (keptIds && !keptIds.has(businessObject.id)) return;
       visible.push({ businessObject, depth });
       if (collapsedIds.includes(businessObject.id)) hiddenBelowDepth = depth;
     });
     return visible;
-  }, [flatTree, collapsedIds]);
+  }, [flatTree, collapsedIds, keptIds]);
+
+  // objects exist but the status filter hides them all
+  const emptyS =
+    flatTree.length > 0 ? `${type.strings.empty} ouvert` : type.strings.empty;
 
   // dnd — 5px activation so plain clicks keep selecting the object
   const sensors = useSensors(
@@ -180,6 +249,10 @@ export default function BusinessObjectsTree({ listing, readOnly = false }) {
   );
 
   // handlers
+
+  function handleStatusFilterChange(_e, value) {
+    if (value) dispatch(setStatusFilter(value));
+  }
 
   // Drop rule (zonings clone): the dragged object lands next to the hovered
   // one, adopting its parent. The new fractional sortIndex slots it
@@ -242,6 +315,23 @@ export default function BusinessObjectsTree({ listing, readOnly = false }) {
 
   return (
     <Box sx={{ p: 1 }}>
+      {hasStatus && (
+        <ToggleButtonGroup
+          exclusive
+          fullWidth
+          size="small"
+          value={statusFilter}
+          onChange={handleStatusFilterChange}
+          sx={{ mb: 1, "& .MuiToggleButton-root": { py: 0.25 } }}
+        >
+          <ToggleButton value="OPEN" sx={{ textTransform: "none" }}>
+            {`${openS} (${openCount})`}
+          </ToggleButton>
+          <ToggleButton value="ALL" sx={{ textTransform: "none" }}>
+            {`${allS} (${flatTree.length})`}
+          </ToggleButton>
+        </ToggleButtonGroup>
+      )}
       <DndContext
         id={`business-objects-dnd-${listing.id}`}
         sensors={sensors}
@@ -280,13 +370,13 @@ export default function BusinessObjectsTree({ listing, readOnly = false }) {
                 }
               />
             ))}
-            {flatTree.length === 0 && (
+            {visibleTree.length === 0 && (
               <Typography
                 variant="caption"
                 color="text.disabled"
                 sx={{ pl: 2, py: 0.5, display: "block" }}
               >
-                {type.strings.empty}
+                {emptyS}
               </Typography>
             )}
           </List>

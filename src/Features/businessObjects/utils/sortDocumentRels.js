@@ -1,5 +1,6 @@
 // Reading order of document links (db.relsBusinessObjectResource rows):
-// document name, page, then position in the page.
+// document name, page, then position in the page. Whole-resource links (no
+// page, no rects) come first within their document.
 export default function sortDocumentRels(rels) {
   return [...(rels ?? [])].sort(
     (a, b) =>
