@@ -4,8 +4,9 @@ const resourcesInitialState = {
   // Resource opened in the RESOURCES right panel (list click, or programmatic
   // open from the "Voir le détail" button of a DETAIL annotation).
   selectedResourceId: null,
-  // One-shot navigation target for the PDF viewer: {pageNumber, rotation} —
-  // consumed then cleared by ViewerPdfPages.
+  // One-shot navigation target for the PDF viewer: {pageNumber, rotation,
+  // highlightId? (relsBusinessObjectResource row to flash)} — consumed then
+  // cleared by ViewerPdfPages.
   targetPdfPage: null,
 };
 
@@ -20,9 +21,14 @@ export const resourcesSlice = createSlice({
       state.targetPdfPage = action.payload;
     },
     openResourceAtPage: (state, action) => {
-      const { resourceId, pageNumber, rotation } = action.payload ?? {};
+      const { resourceId, pageNumber, rotation, highlightId } =
+        action.payload ?? {};
       state.selectedResourceId = resourceId ?? null;
-      state.targetPdfPage = { pageNumber: pageNumber ?? 1, rotation };
+      state.targetPdfPage = {
+        pageNumber: pageNumber ?? 1,
+        rotation,
+        highlightId,
+      };
     },
   },
 });

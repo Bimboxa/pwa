@@ -132,6 +132,14 @@ label for the scope. Resolution: scopeConfig > `appConfig.strings.modules.busine
 > "Ouvrages". Editable in the Configuration dialog, module page (BUSINESS_OBJECTS only
 in v1).
 
+## Documents (links to PDF highlights)
+
+The properties panel shows a white "Documents" card
+(`SectionBusinessObjectDocuments`) listing the object's links to highlighted
+passages of PDF documents (`db.relsBusinessObjectResource`, db v40). Full
+model and viewer behaviour:
+[`specs/resources/document-highlights/spec.md`](../../resources/document-highlights/spec.md).
+
 ## Hors périmètre v1
 
 - Hierarchical aggregation (a `qtyRule` field is reserved, never written).

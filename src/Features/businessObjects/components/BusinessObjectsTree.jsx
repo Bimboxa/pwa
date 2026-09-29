@@ -27,6 +27,8 @@ import useBusinessObjects from "../hooks/useBusinessObjects";
 import useMoveBusinessObject from "../hooks/useMoveBusinessObject";
 import useBusinessObjectQties from "../hooks/useBusinessObjectQties";
 import useBusinessObjectsListCard from "../hooks/useBusinessObjectsListCard";
+import useRelsBusinessObjectResource from "../hooks/useRelsBusinessObjectResource";
+import sortDocumentRels from "../utils/sortDocumentRels";
 import useTaskPlanningProgress from "Features/planning/hooks/useTaskPlanningProgress";
 import buildBusinessObjectsTree, {
   getBusinessObjectDescendants,
@@ -71,6 +73,18 @@ export default function BusinessObjectsTree({ listing }) {
   } = useBusinessObjectQties({
     listingId: listing.id,
   });
+
+  // Links to highlighted zones of PDF documents, in reading order.
+  const { value: documentRels } = useRelsBusinessObjectResource({
+    listingId: listing.id,
+  });
+  const documentRelsByObjectId = useMemo(() => {
+    const byObjectId = {};
+    sortDocumentRels(documentRels).forEach((rel) => {
+      (byObjectId[rel.businessObjectId] ??= []).push(rel);
+    });
+    return byObjectId;
+  }, [documentRels]);
 
   // Solo target of a row click: the object's own linked annotations + its
   // descendants' (the row display keeps the own-only counts — no hierarchical
@@ -248,6 +262,7 @@ export default function BusinessObjectsTree({ listing }) {
                 linkedAnnotations={annotationsByObjectId[businessObject.id]}
                 soloAnnotations={soloAnnotationsByObjectId[businessObject.id]}
                 mainRels={mainRelsByObjectId[businessObject.id]}
+                documentRels={documentRelsByObjectId[businessObject.id]}
                 mainAnnotations={mainAnnotationsByObjectId[businessObject.id]}
                 hoursBudget={hoursBudget?.totalById[businessObject.id] ?? null}
                 planningProgress={

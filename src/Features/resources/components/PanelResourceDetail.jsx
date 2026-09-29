@@ -32,6 +32,9 @@ import getResourceVisibility, {
 } from "../utils/getResourceVisibility";
 import useResourceVisibilityLabels from "../hooks/useResourceVisibilityLabels";
 import getResourceSecondaryLabel from "../utils/getResourceSecondaryLabel";
+import detectIsPdfDocumentService from "../services/detectIsPdfDocumentService";
+
+const DOCUMENT_TYPE_KEYS = ["DOCUMENT", "PLAN"];
 
 export default function PanelResourceDetail({ resource, onBack }) {
   // strings
@@ -43,6 +46,8 @@ export default function PanelResourceDetail({ resource, onBack }) {
   const reattachS = "Recharger le fichier en local";
   const noPreviewS = "Aperçu non disponible pour ce type de fichier.";
   const visibilityS = "Périmètre";
+  const typeS = "Type";
+  const documentTypeLabels = { DOCUMENT: "Document", PLAN: "Plan" };
 
   // data
 
@@ -66,10 +71,26 @@ export default function PanelResourceDetail({ resource, onBack }) {
   const [menuAnchorEl, setMenuAnchorEl] = useState(null);
   const [reattaching, setReattaching] = useState(false);
   const [openDelete, setOpenDelete] = useState(false);
+  // {resourceId, isDocument}: detection result for a legacy row
+  const [detected, setDetected] = useState(null);
 
   // helpers
 
   const isPdf = resource.fileType === "PDF";
+  // PDF pages kept as base map sources are plans by construction.
+  const isBaseMapSource =
+    resource.kind === "PDF_PAGE" || resource.kind === "PDF_SOURCE";
+  const needsDetection =
+    isPdf && !isBaseMapSource && typeof resource.isDocument !== "boolean";
+  const isDocument =
+    isPdf &&
+    (typeof resource.isDocument === "boolean"
+      ? resource.isDocument
+      : detected?.resourceId === resource.id && detected.isDocument);
+  const documentTypeOptions = DOCUMENT_TYPE_KEYS.map((key) => ({
+    key,
+    label: documentTypeLabels[key],
+  }));
   const isImage = resource.fileType === "IMAGE";
   const trigram = resource.createdBy?.trigram;
   const infoS = [
@@ -104,7 +125,35 @@ export default function PanelResourceDetail({ resource, onBack }) {
     };
   }, [imageUrl]);
 
+  // Rows created before the isDocument field: detect at first opening. The
+  // result is used right away; persisting is best effort (a resource can
+  // only be updated by its creator).
+  useEffect(() => {
+    if (!needsDetection || !file) return;
+    let cancelled = false;
+    (async () => {
+      const value = await detectIsPdfDocumentService({ file });
+      if (cancelled) return;
+      setDetected({ resourceId: resource.id, isDocument: value });
+      try {
+        await db.resources.update(resource.id, { isDocument: value });
+      } catch (e) {
+        console.warn("[resources] isDocument not persisted", e);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [needsDetection, file, resource.id]);
+
   // handlers
+
+  async function handleDocumentTypeChange(next) {
+    const value = next === "DOCUMENT";
+    if (value === isDocument) return;
+    setDetected({ resourceId: resource.id, isDocument: value });
+    await db.resources.update(resource.id, { isDocument: value });
+  }
 
   function handleDelete() {
     setMenuAnchorEl(null);
@@ -235,6 +284,31 @@ export default function PanelResourceDetail({ resource, onBack }) {
         />
       </Box>
 
+      {/* type: text document (selectable, highlightable) or plan */}
+      {isPdf && (
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 1,
+            px: 1,
+            py: 0.5,
+            borderBottom: (theme) => `1px solid ${theme.palette.divider}`,
+            flexShrink: 0,
+          }}
+        >
+          <Typography variant="caption" color="text.secondary" noWrap>
+            {typeS}
+          </Typography>
+          <FieldOptionKey
+            value={isDocument ? "DOCUMENT" : "PLAN"}
+            onChange={handleDocumentTypeChange}
+            valueOptions={documentTypeOptions}
+          />
+        </Box>
+      )}
+
       <DialogDeleteRessource
         open={openDelete}
         onClose={() => setOpenDelete(false)}
@@ -270,7 +344,11 @@ export default function PanelResourceDetail({ resource, onBack }) {
           </Box>
         </Box>
       ) : isPdf ? (
-        <ViewerPdfPages resource={resource} file={file} />
+        <ViewerPdfPages
+          resource={resource}
+          file={file}
+          isDocument={isDocument}
+        />
       ) : isImage ? (
         <Box
           sx={{

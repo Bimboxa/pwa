@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   triggerBusinessObjectsUpdate,
   triggerRelsBusinessObjectAnnotationUpdate,
+  triggerRelsBusinessObjectResourceUpdate,
   setActiveBusinessObjectId,
   setSoloBusinessObjectId,
   setLinkingBusinessObjectId,
@@ -63,6 +64,7 @@ export default function useDeleteBusinessObject() {
       "rw",
       db.businessObjects,
       db.relsBusinessObjectAnnotation,
+      db.relsBusinessObjectResource,
       async () => {
         await db.businessObjects.bulkDelete(objectIds);
         const rels = await db.relsBusinessObjectAnnotation
@@ -72,6 +74,15 @@ export default function useDeleteBusinessObject() {
         const relIds = rels.filter((r) => !r.deletedAt).map((r) => r.id);
         if (relIds.length > 0)
           await db.relsBusinessObjectAnnotation.bulkDelete(relIds);
+        const resourceRels = await db.relsBusinessObjectResource
+          .where("businessObjectId")
+          .anyOf(objectIds)
+          .toArray();
+        const resourceRelIds = resourceRels
+          .filter((r) => !r.deletedAt)
+          .map((r) => r.id);
+        if (resourceRelIds.length > 0)
+          await db.relsBusinessObjectResource.bulkDelete(resourceRelIds);
       }
     );
 
@@ -101,6 +112,7 @@ export default function useDeleteBusinessObject() {
       dispatch(setLinkingBusinessObjectId(null));
     dispatch(triggerBusinessObjectsUpdate());
     dispatch(triggerRelsBusinessObjectAnnotationUpdate());
+    dispatch(triggerRelsBusinessObjectResourceUpdate());
   };
 
   return deleteBusinessObject;

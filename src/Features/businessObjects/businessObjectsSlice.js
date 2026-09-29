@@ -6,6 +6,7 @@ const businessObjectsInitialState = {
   // db trigger ticks
   businessObjectsUpdatedAt: null,
   relsUpdatedAt: null,
+  relsResourceUpdatedAt: null,
   workPackagesUpdatedAt: null,
   relsWorkPackageUpdatedAt: null,
   // PLANNING module panel tab: "WORK_STATIONS" (tasks tree) |
@@ -65,6 +66,9 @@ export const businessObjectsSlice = createSlice({
     },
     triggerRelsBusinessObjectAnnotationUpdate: (state) => {
       state.relsUpdatedAt = Date.now();
+    },
+    triggerRelsBusinessObjectResourceUpdate: (state) => {
+      state.relsResourceUpdatedAt = Date.now();
     },
     triggerWorkPackagesUpdate: (state) => {
       state.workPackagesUpdatedAt = Date.now();
@@ -137,6 +141,7 @@ export const businessObjectsSlice = createSlice({
 export const {
   triggerBusinessObjectsUpdate,
   triggerRelsBusinessObjectAnnotationUpdate,
+  triggerRelsBusinessObjectResourceUpdate,
   triggerWorkPackagesUpdate,
   triggerRelsWorkPackageAnnotationUpdate,
   setSelectedListingId,

@@ -72,4 +72,11 @@ export default async function dedupImportedResourcesBySourceKey(
     const rid = row?.folio?.resourceId;
     if (rid && resourceIdMap[rid]) row.folio.resourceId = resourceIdMap[rid];
   }
+  const relsTable = tables.find(
+    (t) => t.tableName === "relsBusinessObjectResource"
+  );
+  for (const row of relsTable?.rows ?? []) {
+    const rid = row?.resourceId;
+    if (rid && resourceIdMap[rid]) row.resourceId = resourceIdMap[rid];
+  }
 }

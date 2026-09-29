@@ -17,6 +17,9 @@ import {
   Chip,
   IconButton,
   ListItemButton,
+  ListItemText,
+  Menu,
+  MenuItem,
   Tooltip,
   Typography,
 } from "@mui/material";
@@ -24,6 +27,7 @@ import {
   MoreHoriz,
   DragIndicator,
   AddLink,
+  DescriptionOutlined,
   ExpandMore,
   ChevronRight,
   FilterAlt,
@@ -35,6 +39,7 @@ import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
 import useToggleBusinessObjectSolo from "../hooks/useToggleBusinessObjectSolo";
+import useOpenBusinessObjectDocumentLink from "../hooks/useOpenBusinessObjectDocumentLink";
 
 import MenuActionsBusinessObject from "./MenuActionsBusinessObject";
 import selectSelectedBusinessObjectId from "../utils/selectSelectedBusinessObjectId";
@@ -65,6 +70,8 @@ export default function BusinessObjectTreeItem({
   soloAnnotations,
   mainRels,
   mainAnnotations,
+  // links to highlighted zones of PDF documents, in reading order
+  documentRels,
   // rolled-up hours (own + descendants) — PLANNING listings only
   hoursBudget,
   // {total, planned, done, plannedRatio, doneRatio} over the work packages
@@ -89,10 +96,12 @@ export default function BusinessObjectTreeItem({
   const collapsedIds = useSelector((s) => s.businessObjects.collapsedIds);
 
   const toggleBusinessObjectSolo = useToggleBusinessObjectSolo();
+  const openDocumentLink = useOpenBusinessObjectDocumentLink();
 
   // state
 
   const [menuAnchor, setMenuAnchor] = useState(null);
+  const [documentsAnchor, setDocumentsAnchor] = useState(null);
 
   // dnd — the whole row is draggable (5px activation keeps clicks working),
   // with a grab handle revealed on hover, like the zones drawer rows.
@@ -225,6 +234,23 @@ export default function BusinessObjectTreeItem({
     dispatch(setLinkingBusinessObjectId(isLinking ? null : businessObject.id));
   }
 
+  // Opens the linked document at the highlighted zone; several links: the
+  // menu lists them.
+  function handleDocumentsClick(e) {
+    e.stopPropagation();
+    if (!documentRels?.length) return;
+    if (documentRels.length === 1) {
+      openDocumentLink(businessObject, documentRels[0]);
+      return;
+    }
+    setDocumentsAnchor(e.currentTarget);
+  }
+
+  function handleDocumentRelClick(rel) {
+    setDocumentsAnchor(null);
+    openDocumentLink(businessObject, rel);
+  }
+
   function handleMenuClick(e) {
     e.stopPropagation();
     setMenuAnchor(e.currentTarget);
@@ -277,6 +303,19 @@ export default function BusinessObjectTreeItem({
           <FilterAltOutlined sx={{ fontSize: 16 }} />
         )}
       </IconButton>
+      {documentRels?.length > 0 && (
+        <IconButton
+          size="small"
+          onClick={handleDocumentsClick}
+          title={
+            documentRels.length === 1
+              ? "Voir le passage lié dans le document"
+              : `Voir les ${documentRels.length} passages liés dans les documents`
+          }
+        >
+          <DescriptionOutlined sx={{ fontSize: 16 }} />
+        </IconButton>
+      )}
       <IconButton
         size="small"
         onClick={handleLinkingClick}
@@ -432,6 +471,31 @@ export default function BusinessObjectTreeItem({
         )}
         {actions}
       </ListItemButton>
+
+      {documentsAnchor && (
+        <Menu
+          anchorEl={documentsAnchor}
+          open
+          onClose={() => setDocumentsAnchor(null)}
+        >
+          {documentRels?.map((rel) => (
+            <MenuItem
+              key={rel.id}
+              onClick={() => handleDocumentRelClick(rel)}
+              sx={{ maxWidth: 360 }}
+            >
+              <ListItemText
+                primary={rel.text ? `« ${rel.text} »` : rel.resourceName}
+                secondary={`${rel.resourceName ?? ""} · p. ${rel.pageNumber}`}
+                slotProps={{
+                  primary: { variant: "body2", noWrap: true },
+                  secondary: { variant: "caption", noWrap: true },
+                }}
+              />
+            </MenuItem>
+          ))}
+        </Menu>
+      )}
 
       {menuAnchor && (
         <MenuActionsBusinessObject

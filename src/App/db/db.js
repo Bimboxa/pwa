@@ -416,6 +416,23 @@ db.version(39).stores({
   relsScopeListing: "id,projectId,scopeId,listingId,sourceScopeId",
 });
 
+db.version(40).stores({
+  // Highlighted zones of a PDF "document" resource (resource.isDocument)
+  // linked to a business object. One row = the link AND its zone (a
+  // highlight never exists without its business object):
+  // {id, projectId, scopeId, listingId (the business-objects listingId),
+  //  businessObjectId, resourceId,
+  //  resourceName (fallback when the resource id changed after a re-import),
+  //  pageNumber (page IN the resource, 1-based),
+  //  rects: [{x, y, width, height}] — normalized [0..1], top-left origin,
+  //  in the frame of the page at its INTRINSIC rotation (viewer delta = 0),
+  //  text (the highlighted quote)}
+  // The same passage linked to two objects = two rows. The PDF file itself
+  // never ships in the Krto zip (only these rows + the resource metadata).
+  relsBusinessObjectResource:
+    "id,projectId,scopeId,listingId,businessObjectId,resourceId",
+});
+
 // --- AUDIT HOOKS ---
 
 const AUDIT_TABLES = [
@@ -459,6 +476,7 @@ const AUDIT_TABLES = [
   "scopeConfigs",
   "businessObjects",
   "relsBusinessObjectAnnotation",
+  "relsBusinessObjectResource",
   "globalLayers",
   "workPackages",
   "relsWorkPackageAnnotation",
@@ -497,6 +515,7 @@ const OWNERSHIP_EXEMPT_TABLES = new Set([
   // and unlinking must be able to soft-delete rels created by other users.
   "businessObjects",
   "relsBusinessObjectAnnotation",
+  "relsBusinessObjectResource",
   // Work packages and the time planning are shared structure too (anyone
   // edits packages, links, resources and blocks).
   "workPackages",
@@ -777,6 +796,7 @@ const SOFT_DELETE_TABLES = new Set([
   "photoPlans",
   "businessObjects",
   "relsBusinessObjectAnnotation",
+  "relsBusinessObjectResource",
   "globalLayers",
   "workPackages",
   "relsWorkPackageAnnotation",
