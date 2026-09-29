@@ -47,7 +47,9 @@ import DialogBusinessObjectForm from "./DialogBusinessObjectForm";
 // hoursBudget) add the rolled-up hours per row and a total band. With the
 // listing setting `listCard` (Krnet "Aperçu de l'objet"), the object rows
 // render the configured avatar + primary + secondary texts instead.
-export default function BusinessObjectsTree({ listing }) {
+// `readOnly` (Viewer module): no creation, no dnd, no edition / linking
+// actions on the rows.
+export default function BusinessObjectsTree({ listing, readOnly = false }) {
   // data
 
   const type = getBusinessObjectTypeOfListing(listing);
@@ -184,6 +186,7 @@ export default function BusinessObjectsTree({ listing }) {
   // before/after the target among the target's siblings, depending on the
   // drag direction.
   async function handleDragEnd({ active, over }) {
+    if (readOnly) return;
     if (!over || active.id === over.id) return;
     const dragged = businessObjects?.find((o) => o.id === active.id);
     const target = businessObjects?.find((o) => o.id === over.id);
@@ -254,6 +257,7 @@ export default function BusinessObjectsTree({ listing }) {
                 depth={depth}
                 hasChildren={parentIds.has(businessObject.id)}
                 listing={listing}
+                readOnly={readOnly}
                 showCodes={showCodes}
                 card={
                   listCard && !businessObject.isTitle
@@ -289,18 +293,20 @@ export default function BusinessObjectsTree({ listing }) {
         </SortableContext>
       </DndContext>
 
-      <ListItemButton
-        onClick={() => setCreateTarget({ parentBusinessObject: null })}
-        sx={{ pl: 2, color: "text.disabled" }}
-      >
-        <Add sx={{ fontSize: 20, mr: 1 }} color="disabled" />
-        <ListItemText
-          primary={type.strings.newObject}
-          slotProps={{
-            primary: { variant: "body2", color: "text.disabled" },
-          }}
-        />
-      </ListItemButton>
+      {!readOnly && (
+        <ListItemButton
+          onClick={() => setCreateTarget({ parentBusinessObject: null })}
+          sx={{ pl: 2, color: "text.disabled" }}
+        >
+          <Add sx={{ fontSize: 20, mr: 1 }} color="disabled" />
+          <ListItemText
+            primary={type.strings.newObject}
+            slotProps={{
+              primary: { variant: "body2", color: "text.disabled" },
+            }}
+          />
+        </ListItemButton>
+      )}
 
       {/* listing total of the hours budget — sticky at the bottom of the
           panel's scroll area (the negative margins cancel the root padding) */}
@@ -330,7 +336,7 @@ export default function BusinessObjectsTree({ listing }) {
         </Box>
       )}
 
-      {createTarget && (
+      {!readOnly && createTarget && (
         <DialogBusinessObjectForm
           open
           listing={listing}

@@ -29,7 +29,8 @@ import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys
 // Dessin panel.
 // ---------------------------------------------------------------------------
 
-export default function PanelViewerAnnotations() {
+// `header`: header of the main view, provided by PanelViewer (tabs toggle).
+export default function PanelViewerAnnotations({ header }) {
   // strings
 
   const descriptionS =
@@ -203,7 +204,7 @@ export default function PanelViewerAnnotations() {
         />
       ) : (
         <>
-          <LeftDrawerPanelHeader title="Annotations" />
+          {header ?? <LeftDrawerPanelHeader title="Annotations" />}
           <Typography
             variant="caption"
             sx={{ px: 2, pb: 1, color: "text.secondary" }}

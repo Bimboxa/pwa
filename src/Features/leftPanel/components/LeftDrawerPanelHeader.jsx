@@ -4,7 +4,12 @@ import ButtonToggleLeftPanelDock from "./ButtonToggleLeftPanelDock";
 
 // Shared header of the module left drawers: dock toggle followed by the
 // designation of the items listed below (e.g. "Annotations", "Mailles").
-export default function LeftDrawerPanelHeader({ title, hideDockToggle }) {
+// `children` replaces the title (e.g. the Viewer panel's tabs toggle).
+export default function LeftDrawerPanelHeader({
+  title,
+  hideDockToggle,
+  children,
+}) {
   return (
     <Box
       sx={{
@@ -19,13 +24,15 @@ export default function LeftDrawerPanelHeader({ title, hideDockToggle }) {
       }}
     >
       {!hideDockToggle && <ButtonToggleLeftPanelDock iconFontSize={18} />}
-      <Typography
-        variant="subtitle2"
-        noWrap
-        sx={{ color: "text.secondary", textTransform: "uppercase" }}
-      >
-        {title}
-      </Typography>
+      {children ?? (
+        <Typography
+          variant="subtitle2"
+          noWrap
+          sx={{ color: "text.secondary", textTransform: "uppercase" }}
+        >
+          {title}
+        </Typography>
+      )}
     </Box>
   );
 }

@@ -15,6 +15,14 @@ const panelDrawingSlice = createSlice({
     // only, or the whole repérage (all base maps). Drives useAnnotationsV2
     // and thus every displayed quantity.
     viewerAnnotationsScope: "BASE_MAP", // "BASE_MAP" | "ALL"
+    // Viewer module: content of the panel — the annotations, or the business
+    // objects of one type (business object type key). A stale key falls back
+    // to the annotations at read time (useViewerPanelTabs).
+    viewerPanelTab: "ANNOTATIONS", // "ANNOTATIONS" | business object type key
+    // Viewer module: listing displayed per business object type. Own slot —
+    // businessObjects.selectedListingId belongs to the business-objects
+    // modules, which auto-write it.
+    viewerBusinessObjectListingIdByType: {},
     // "Visibilité auto" option of the active-listing selector: selecting a
     // listing hides every other listing and unhides all its templates.
     autoListingVisibility: true,
@@ -43,6 +51,14 @@ const panelDrawingSlice = createSlice({
     setViewerAnnotationsScope(state, action) {
       state.viewerAnnotationsScope = action.payload ?? "BASE_MAP";
     },
+    setViewerPanelTab(state, action) {
+      state.viewerPanelTab = action.payload ?? "ANNOTATIONS";
+    },
+    setViewerBusinessObjectListingId(state, action) {
+      const { typeKey, listingId } = action.payload ?? {};
+      if (!typeKey) return;
+      state.viewerBusinessObjectListingIdByType[typeKey] = listingId ?? null;
+    },
     setAutoListingVisibility(state, action) {
       state.autoListingVisibility = Boolean(action.payload);
     },
@@ -55,6 +71,8 @@ export const {
   setDetailView,
   setDetailAnnotationId,
   setViewerAnnotationsScope,
+  setViewerPanelTab,
+  setViewerBusinessObjectListingId,
   setAutoListingVisibility,
 } = panelDrawingSlice.actions;
 
