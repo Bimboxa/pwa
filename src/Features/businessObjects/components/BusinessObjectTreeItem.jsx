@@ -75,6 +75,8 @@ export default function BusinessObjectTreeItem({
   depth,
   hasChildren,
   listing,
+  // Viewer module: display, solo, linked documents and selection only
+  readOnly = false,
   // the listing has codes: flat 3-column rows (code / label / quantity)
   showCodes,
   // {primary, secondary, initial, color, avatarUrl} | null — Krnet
@@ -127,6 +129,7 @@ export default function BusinessObjectTreeItem({
     useSortable({
       id: businessObject.id,
       data: { type: "businessObject", listingId: businessObject.listingId },
+      disabled: readOnly,
     });
 
   const sortableStyle = {
@@ -239,7 +242,23 @@ export default function BusinessObjectTreeItem({
   // again deactivates it: the popper falls back to its edit-only mode and the
   // module's default LISTING selection re-poses. The SOLO display is toggled
   // exclusively by the filter icon button (zones drawer pattern).
+  // Read-only rows only toggle the selection: the active object drives the
+  // drawing popper and the LOCATE / LINK interceptors of the module.
   function handleClick() {
+    if (readOnly) {
+      if (isSelected) {
+        dispatch(clearSelection());
+        return;
+      }
+      dispatch(
+        setSelectedItem({
+          id: businessObject.id,
+          type: "BUSINESS_OBJECT",
+          listingId: businessObject.listingId,
+        })
+      );
+      return;
+    }
     if (isActive) {
       dispatch(setActiveBusinessObjectId(null));
       dispatch(clearSelection());
@@ -366,21 +385,25 @@ export default function BusinessObjectTreeItem({
           <DescriptionOutlined sx={{ fontSize: 16 }} />
         </IconButton>
       )}
-      <IconButton
-        size="small"
-        onClick={handleLinkingClick}
-        title={
-          isLinking
-            ? "Quitter le mode liaison"
-            : "Lier des annotations au clic sur la carte"
-        }
-        color={isLinking ? "primary" : "default"}
-      >
-        <AddLink sx={{ fontSize: 16 }} />
-      </IconButton>
-      <IconButton size="small" onClick={handleMenuClick}>
-        <MoreHoriz sx={{ fontSize: 16 }} />
-      </IconButton>
+      {!readOnly && (
+        <IconButton
+          size="small"
+          onClick={handleLinkingClick}
+          title={
+            isLinking
+              ? "Quitter le mode liaison"
+              : "Lier des annotations au clic sur la carte"
+          }
+          color={isLinking ? "primary" : "default"}
+        >
+          <AddLink sx={{ fontSize: 16 }} />
+        </IconButton>
+      )}
+      {!readOnly && (
+        <IconButton size="small" onClick={handleMenuClick}>
+          <MoreHoriz sx={{ fontSize: 16 }} />
+        </IconButton>
+      )}
     </Box>
   );
 
@@ -391,7 +414,7 @@ export default function BusinessObjectTreeItem({
         {...attributes}
         {...listeners}
         component="div"
-        selected={isSelected || isActive}
+        selected={isSelected || (!readOnly && isActive)}
         onClick={handleClick}
         sx={{
           // Listing with codes: flat 3-column rows — the code carries the
@@ -405,20 +428,22 @@ export default function BusinessObjectTreeItem({
           "&:hover .row-drag-handle": { opacity: 1 },
         }}
       >
-        <DragIndicator
-          className="row-drag-handle"
-          sx={{
-            fontSize: 14,
-            color: "text.disabled",
-            cursor: "grab",
-            opacity: 0,
-            transition: "0.2s",
-            ml: -1.5,
-            mr: 0.5,
-            mt: "3px",
-            flexShrink: 0,
-          }}
-        />
+        {!readOnly && (
+          <DragIndicator
+            className="row-drag-handle"
+            sx={{
+              fontSize: 14,
+              color: "text.disabled",
+              cursor: "grab",
+              opacity: 0,
+              transition: "0.2s",
+              ml: -1.5,
+              mr: 0.5,
+              mt: "3px",
+              flexShrink: 0,
+            }}
+          />
+        )}
         {chevron}
 
         {/* col 1: code (listings with codes only) */}
