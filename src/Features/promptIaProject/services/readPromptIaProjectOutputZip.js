@@ -8,6 +8,10 @@ import parsePromptIaProjectOutput, {
 
 const PROJECT_JSON = "projet.json";
 
+const IMAGE_TYPES = { png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg" };
+const getImageType = (path) =>
+  IMAGE_TYPES[path.split(".").pop().toLowerCase()] ?? null;
+
 // Models often wrap everything in one top folder ("projet/…"): drop it so the
 // paths match the ones written in projet.json.
 function getCommonRoot(paths) {
@@ -29,10 +33,12 @@ function pickJsonPath(paths) {
 }
 
 /**
- * Reads the zip returned by the AI chat: `projet.json` + the PDFs.
+ * Reads the zip returned by the AI chat: `projet.json` + the PDFs + the
+ * satellite image of the site when there is one + the documents (CCTP…)
+ * the business objects point to.
  *
  * @param {File|Blob} file
- * @returns {Promise<{ok: true, data: Object, summary: Object, pdfFilesByPath: Map<string, File>}
+ * @returns {Promise<{ok: true, data: Object, summary: Object, pdfFilesByPath: Map<string, File>, referenceImageFile: File|null, documentFilesByPath: Map<string, File>}
  *   | {ok: false, error: string}>}
  */
 export default async function readPromptIaProjectOutputZip(file) {
@@ -66,7 +72,13 @@ export default async function readPromptIaProjectOutputZip(file) {
   }
 
   const pdfPaths = [...byPath.keys()].filter((p) => /\.pdf$/i.test(p));
-  const parsed = parsePromptIaProjectOutput(json, { pdfPaths, newId: nanoid });
+  const imagePaths = [...byPath.keys()].filter((p) => getImageType(p));
+  const parsed = parsePromptIaProjectOutput(json, {
+    pdfPaths,
+    imagePaths,
+    filePaths: [...byPath.keys()].filter((p) => p !== jsonPath),
+    newId: nanoid,
+  });
   if (!parsed.ok) return parsed;
 
   // Only the PDFs a base map uses are extracted.
@@ -81,5 +93,35 @@ export default async function readPromptIaProjectOutputZip(file) {
     );
   }
 
-  return { ...parsed, pdfFilesByPath };
+  let referenceImageFile = null;
+  const referencePath = parsed.data.site.reference?.file;
+  if (referencePath) {
+    const blob = await byPath.get(referencePath).async("blob");
+    referenceImageFile = new File([blob], referencePath.split("/").pop(), {
+      type: getImageType(referencePath),
+    });
+  }
+
+  const documentFilesByPath = new Map();
+  for (const document of parsed.data.documents) {
+    const path = document.file;
+    if (documentFilesByPath.has(path)) continue;
+    const blob = await byPath.get(path).async("blob");
+    const fileName = path.split("/").pop();
+    documentFilesByPath.set(
+      path,
+      new File([blob], fileName, {
+        type: /\.pdf$/i.test(path)
+          ? "application/pdf"
+          : (getImageType(path) ?? blob.type),
+      })
+    );
+  }
+
+  return {
+    ...parsed,
+    pdfFilesByPath,
+    referenceImageFile,
+    documentFilesByPath,
+  };
 }

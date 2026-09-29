@@ -44,6 +44,9 @@ import applyPasteTransformToPoints from "Features/mapEditor/utils/applyPasteTran
  * @param {string} params.scopeId         - optional, selected scope: templateless
  *   annotations ("Dessin" tool) are scoped by their own scopeId, the clones
  *   must land in the scope they are pasted in
+ * @param {Map<string, string>} params.idMapOut - optional, filled with
+ *   source annotation id → id of its clone (callers linking the clones to
+ *   other rows)
  * @param {Function} params.dispatch      - Redux dispatch
  * @param {Function} params.triggerAnnotationsUpdate - the slice action
  * @returns {Promise<Object[]>}
@@ -56,6 +59,7 @@ export default async function pasteAnnotationService({
   targetMeterByPx,
   activeLayerId,
   scopeId,
+  idMapOut,
   dispatch,
   triggerAnnotationsUpdate,
 }) {
@@ -464,6 +468,12 @@ export default async function pasteAnnotationService({
       }
     }
   );
+
+  if (idMapOut) {
+    allAnnotations.forEach((annotation, i) => {
+      if (allSourceIds[i]) idMapOut.set(allSourceIds[i], annotation.id);
+    });
+  }
 
   // Single Redux dispatch after the transaction commits — one liveQuery rerun.
   if (dispatch && triggerAnnotationsUpdate) {
