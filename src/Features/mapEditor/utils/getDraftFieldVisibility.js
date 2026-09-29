@@ -71,6 +71,12 @@ export default function getDraftFieldVisibility(
   const showIsLayer =
     !isToolGroup && !isRampTool && newAnnotation?.type === "STRIP";
 
+  // Text size (page pt) of a free text draft.
+  const showFontSize =
+    !isToolGroup &&
+    drawingShape === "FREE_TEXT" &&
+    !isFieldOverridden("fontSize");
+
   return {
     isCuttingTool,
     isOpeningBand,
@@ -83,5 +89,6 @@ export default function getDraftFieldVisibility(
     showHeight,
     showWidth,
     showIsLayer,
+    showFontSize,
   };
 }

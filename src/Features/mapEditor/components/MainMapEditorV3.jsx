@@ -85,6 +85,7 @@ import PrintZoneLayer from "./PrintZoneLayer";
 import LayerBaseMapsGrid from "Features/baseMapsGrid/components/LayerBaseMapsGrid";
 import { selectBaseMapsGridMounted } from "Features/baseMapsGrid/baseMapsGridSlice";
 import useUpdateBaseMapPrintZone from "Features/baseMaps/hooks/useUpdateBaseMapPrintZone";
+import { getPrintZonePxPerPt } from "Features/baseMaps/utils/printZone";
 import EditedVersionLayer from "./EditedVersionLayer";
 import EditedLegendLayer from "./EditedLegendLayer";
 
@@ -2228,6 +2229,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                     onCommitDetectedFeatures={handleCommitDetectedFeatures}
                     onCommitLocalizedRepair={handleCommitLocalizedRepair}
                     baseMapImageSize={baseMap?.getImageSize?.() || baseMap?.getImageSize?.()}
+                    pagePxPerPt={getPrintZonePxPerPt(resolvedPrintZone)}
                     baseMapImageScale={baseMap?.getImageScale()}
                     baseMapImageOffset={baseMap?.getImageOffset()}
                     baseMapImageUrl={baseMap?.getUrl()}

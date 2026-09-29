@@ -192,6 +192,7 @@ import applyFixedLengthConstraint from "Features/mapEditorGeneric/utils/applyFix
 import parseConstraintLengths, { CONSTRAINT_BUFFER_CHAR_RE } from "Features/mapEditor/utils/parseConstraintLengths";
 import expandConstraintLengths from "Features/mapEditor/utils/expandConstraintLengths";
 import useUndo from "App/db/useUndo";
+import { getTextPageScale } from "Features/annotations/constants/freeTextConstants";
 
 // constants
 
@@ -406,6 +407,7 @@ const InteractionLayer = forwardRef(({
   baseMapImageScale,
   baseMapImageOffset,
   baseMapImageUrl,
+  pagePxPerPt,
   baseMapMainAngleInDeg,
   bgPose = { x: 0, y: 0, k: 1 },
   activeContext = "BASE_MAP",
@@ -1709,6 +1711,7 @@ const InteractionLayer = forwardRef(({
   // update helper scale
 
   function handleCameraChange(cameraMatrix) {
+    updateFreeTextGhostScale(cameraMatrix.k);
     helperScaleRef.current?.updateZoom(cameraMatrix.k);
     onCameraChangeExternal?.(cameraMatrix);
 
@@ -1815,6 +1818,19 @@ const InteractionLayer = forwardRef(({
   const getTargetPose = () => {
     if (activeContext === "BG_IMAGE") return { x: 0, y: 0, k: 1 };
     return basePoseRef.current || { x: 0, y: 0, k: 1 };
+  };
+  // FREE_TEXT placement ghost (ScreenCursorV2, screen space): page pt →
+  // screen px = page scale × base map pose × camera zoom.
+  const updateFreeTextGhostScale = (cameraZoom) => {
+    const draft = newAnnotationRef.current;
+    if (draft?.type !== "FREE_TEXT") return;
+    const pageScale = getTextPageScale({
+      pagePxPerPt,
+      pageFormat: draft.pageFormat,
+      imageLongSidePx: Math.max(baseMapImageSize?.width ?? 0, baseMapImageSize?.height ?? 0),
+    });
+    const zoom = cameraZoom || viewportRef.current?.getZoom() || 1;
+    screenCursorRef.current?.setGhostScale(pageScale * (getTargetPose()?.k || 1) * zoom);
   };
   const getTargetScale = () => {
     return getTargetPose()?.k || 1;
@@ -3265,12 +3281,16 @@ const InteractionLayer = forwardRef(({
 
 
   // 1. Calculer le style curseur du conteneur
+  // FREE_TEXT placement: the native pointer is hidden, only the crosshair and
+  // the provisional text box follow the mouse.
+  const isFreeTextPlacementMode = enabledDrawingMode === "ONE_CLICK" && newAnnotation?.type === "FREE_TEXT";
   const getCursorStyle = () => {
     if (dragState?.active) return 'crosshair';
     // Marker-like axis drag: crosshair while it hunts for a snap target.
     if (dragAnnotationState?.active && dragAnnotationState?.anchorLocal)
       return 'crosshair';
     if (POINTER_CLICK_MODES.includes(enabledDrawingMode)) return 'pointer';
+    if (isFreeTextPlacementMode) return 'none';
     if (enabledDrawingMode) return 'crosshair'; // Priorité 1           // Priorité 2
     return 'default';                           // Défaut
   };
@@ -6313,6 +6333,7 @@ const InteractionLayer = forwardRef(({
     if (enabledDrawingMode || dragState?.active || dragAnnotationState?.active) {
       const cursorX = axisSnap?.screen?.x ?? viewportPos.x;
       const cursorY = axisSnap?.screen?.y ?? viewportPos.y;
+      updateFreeTextGhostScale();
       screenCursorRef.current?.move(cursorX, cursorY);
     }
 
@@ -6679,7 +6700,10 @@ const InteractionLayer = forwardRef(({
     // No-mode "mesure" (cotes toggle ON) on a selected annotation: lengths
     // are edited through the cote labels, no snap at all.
     const isCotesEditSelection = isNoMode && !enabledDrawingMode && Boolean(selectedAnnotation?.id) && showSegmentCotes;
-    const preventSnapping = isPanning || dragAnnotationState?.active || dragBaseMapState?.active || POINTER_CLICK_MODES.includes(enabledDrawingMode) || enabledDrawingMode === "OPENING_SEGMENT" || (interactionMode === "SELECT" && !isRevolutionAxisMode) || (isNoMode && !selectedAnnotation?.id && !enabledDrawingMode) || isOpeningSelected || isCotesEditSelection || isShiftSelection;
+    // FREE_TEXT placement: the text box stays centred on the cursor, it never
+    // snaps to the vertices / edges of the other annotations.
+    const isFreeTextPlacement = enabledDrawingMode === "ONE_CLICK" && newAnnotation?.type === "FREE_TEXT";
+    const preventSnapping = isPanning || dragAnnotationState?.active || dragBaseMapState?.active || POINTER_CLICK_MODES.includes(enabledDrawingMode) || enabledDrawingMode === "OPENING_SEGMENT" || (interactionMode === "SELECT" && !isRevolutionAxisMode) || (isNoMode && !selectedAnnotation?.id && !enabledDrawingMode) || isOpeningSelected || isCotesEditSelection || isShiftSelection || isFreeTextPlacement;
 
     let snapResult;
     if (snappingEnabled && !preventSnapping) {
@@ -6735,7 +6759,7 @@ const InteractionLayer = forwardRef(({
       snappingLayerRef.current?.update(null);
       // No stale snap may survive for a selected opening (the drag paths
       // above own the ref in the other prevented cases).
-      if (isOpeningSelected || isCotesEditSelection) currentSnapRef.current = null;
+      if (isOpeningSelected || isCotesEditSelection || isFreeTextPlacement) currentSnapRef.current = null;
     }
 
     // D'. OPENING_SEGMENT PREVIEW — fixed-length segment glued to the nearest
@@ -7978,7 +8002,7 @@ const InteractionLayer = forwardRef(({
         // qu'on peut déplacer le point (sauf si un drag de point est en cours).
         ...(enabledDrawingMode && !POINTER_CLICK_MODES.includes(enabledDrawingMode) && !dragState?.active && {
           '& *': {
-            cursor: 'crosshair !important',
+            cursor: isFreeTextPlacementMode ? 'none !important' : 'crosshair !important',
           },
           '& .vertex': {
             cursor: 'grab !important',

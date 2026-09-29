@@ -9,6 +9,9 @@ import usePendingAnnotationUpdates, {
 import {
   getFreeTextFontStack,
   getTextPageScale,
+  FREE_TEXT_PADDING_X,
+  FREE_TEXT_PADDING_Y,
+  FREE_TEXT_MIN_WIDTH,
 } from "Features/annotations/constants/freeTextConstants";
 
 // --- CONSTANTES ---
@@ -16,12 +19,12 @@ const DOT_RADIUS = 2;
 const LINE_WIDTH = 1.5;
 const LEADER_COLOR = "#000000";
 const LEADER_OPACITY = 0.7;
-const PADDING_X = 8;
-const PADDING_Y = 4;
+const PADDING_X = FREE_TEXT_PADDING_X;
+const PADDING_Y = FREE_TEXT_PADDING_Y;
 const SELECTION_COLOR = "#2196f3";
 // Page-pt bounds (the box lives in "page points": PDF pt as if the base map
 // filled an A4/A3 page — see getFreeTextPageScale).
-const MIN_WIDTH = 20;
+const MIN_WIDTH = FREE_TEXT_MIN_WIDTH;
 const MAX_WIDTH = 2000;
 
 // FREE_TEXT — a free text box, FIXED relative to the base map (it zooms with
