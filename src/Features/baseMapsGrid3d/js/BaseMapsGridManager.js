@@ -55,7 +55,7 @@ export default class BaseMapsGridManager {
   constructor({ sceneManager }) {
     this.sceneManager = sceneManager;
 
-    // id → { sheet, group, homePose, gridPose, decorations, contentVisible }
+    // id → { sheet, group, homePose, gridPose, decorations, imageOn }
     this.sheetsById = new Map();
     this.active = false;
     this.anchorId = null;
@@ -64,6 +64,8 @@ export default class BaseMapsGridManager {
     this.K = null;
     this.yaw = 0;
     this.hoveredId = null;
+    // global "Masquer les fonds de plan" switch (threedEditor.hideBaseMaps)
+    this.hideBaseMaps = false;
 
     this._materials = null;
     this._rafId = null;
@@ -98,7 +100,8 @@ export default class BaseMapsGridManager {
     sheets,
     anchorBaseMapId,
     layout = BASE_MAPS_GRID_3D_LAYOUT.GRID,
-    contentVisibleById = {},
+    imageOnById = {},
+    hideBaseMaps = false,
     animate = true,
   }) {
     const imagesManager = this.sceneManager.imagesManager;
@@ -120,8 +123,9 @@ export default class BaseMapsGridManager {
         homePose: sameGroup ? previousEntry.homePose : readPose(group),
         // kept for the re-entry: the anchor stays where the table put it
         gridPose: sameGroup ? previousEntry.gridPose : null,
+        scaleOverride: sameGroup ? previousEntry.scaleOverride : null,
         decorations: null,
-        contentVisible: contentVisibleById[sheet.id] ?? false,
+        imageOn: Boolean(imageOnById[sheet.id]),
       });
     });
 
@@ -138,6 +142,7 @@ export default class BaseMapsGridManager {
 
     this.active = true;
     this.layout = layout;
+    this.hideBaseMaps = hideBaseMaps;
     this.anchorId = this.sheetsById.has(anchorBaseMapId)
       ? anchorBaseMapId
       : this.sheetsById.keys().next().value;
@@ -165,10 +170,12 @@ export default class BaseMapsGridManager {
         sheet: entry.sheet,
         meterByPx: entry.gridPose.effectiveMeterByPx,
         materials,
-        contentVisible: entry.contentVisible,
+        imageOn: entry.imageOn,
       });
       entry.decorations.objects.forEach((object) => entry.group.add(object));
       entry.group.visible = true;
+      this._applyImageVisibility(entry);
+      this._applySheetScale(entry);
     });
     this.hoveredId = null;
 
@@ -223,17 +230,22 @@ export default class BaseMapsGridManager {
     this.sceneManager.renderScene();
   }
 
-  // { [baseMapId]: bool } — content (image or annotations) displayed.
-  setContentVisibleById(contentVisibleById) {
-    let changed = false;
+  // { [baseMapId]: bool } — image eye of each base map (same state as the
+  // layer icon of the chips). Drives the eye button, the label (shown while
+  // the image is off) and the image itself: on the table every group stays
+  // displayed, so the image of a base map that no longer takes part in the
+  // scene is hidden here (the regular visibility pass would hide its group).
+  setImageOnById(imageOnById, { hideBaseMaps = false } = {}) {
+    this.hideBaseMaps = hideBaseMaps;
     this.sheetsById.forEach((entry, id) => {
-      const visible = Boolean(contentVisibleById?.[id]);
-      if (entry.contentVisible === visible) return;
-      entry.contentVisible = visible;
-      entry.decorations?.setContentVisible(visible);
-      changed = true;
+      const imageOn = Boolean(imageOnById?.[id]);
+      if (entry.imageOn !== imageOn) {
+        entry.imageOn = imageOn;
+        entry.decorations?.setImageOn(imageOn);
+      }
+      this._applyImageVisibility(entry);
     });
-    if (changed) this.sceneManager.renderScene();
+    this.sceneManager.renderScene();
   }
 
   // pose hooks (ThreedEditor / ImagesManager)
@@ -342,6 +354,27 @@ export default class BaseMapsGridManager {
   }
 
   // internals
+
+  _applyImageVisibility(entry) {
+    const meshWrap = entry.group.userData.meshWrap;
+    if (meshWrap) meshWrap.visible = entry.imageOn && !this.hideBaseMaps;
+  }
+
+  // A base map without a scale has a 0-sized image plane. On the table it
+  // gets the scale of its sheet (effectiveMeterByPx) so its image can show;
+  // the real (missing) scale comes back when the sheet is released.
+  _applySheetScale(entry) {
+    const meterByPx = entry.gridPose?.effectiveMeterByPx;
+    const current = entry.group.userData.meterByPx;
+    const hasScale = Number.isFinite(current) && current > 0;
+    if (hasScale && !entry.scaleOverride) return;
+    if (!Number.isFinite(meterByPx) || meterByPx <= 0) return;
+    entry.scaleOverride = meterByPx;
+    this.sceneManager.imagesManager.setBaseMapPlaneScale(
+      entry.sheet.id,
+      meterByPx
+    );
+  }
 
   _resolution() {
     const dom = this.sceneManager.renderer?.domElement;
@@ -507,6 +540,17 @@ export default class BaseMapsGridManager {
     if (!entry.group.parent) return;
     applyPose(entry.group, { ...entry.homePose, scale: 1 });
     entry.group.visible = imagesManager.groupVisibleByBaseMapId[id] ?? true;
+    const meshWrap = entry.group.userData.meshWrap;
+    if (meshWrap) {
+      meshWrap.visible = imagesManager.imageVisibleByBaseMapId[id] ?? true;
+    }
+    // scale lent by the table, unless a real one arrived meanwhile
+    if (
+      entry.scaleOverride &&
+      entry.group.userData.meterByPx === entry.scaleOverride
+    ) {
+      imagesManager.setBaseMapPlaneScale(id, entry.sheet.meterByPx);
+    }
     imagesManager.removeUntexturedGroup(id);
   }
 

@@ -14,7 +14,7 @@ import { readBaseMapsGridPositions } from "Features/baseMapsGrid/hooks/useBaseMa
 
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 import buildBaseMapsGrid3dSheets from "../utils/buildBaseMapsGrid3dSheets";
-import { isBaseMapContentVisibleIn3d } from "../utils/baseMapContentVisibilityIn3d";
+import { isBaseMapImageOnIn3d } from "../utils/baseMapImageEyeIn3d";
 
 function getManager() {
   return getActiveThreedEditor()?.sceneManager?.baseMapsGridManager ?? null;
@@ -27,7 +27,8 @@ function getManager() {
 //     camera goes top-down over the table. Inactive: they fly back, the
 //     camera is left where it is.
 //   - anchor / layout: a click on a sheet lays the others around it.
-//   - content visibility (image / annotations eyes) → label + eye button.
+//   - image eyes (same state as the chips' layer icon) → image, label and
+//     eye button of each sheet.
 // Mounted once (BaseMapsGrid3dController) while a 3D editor is displayed.
 export default function useBaseMapsGrid3d() {
   const dispatch = useDispatch();
@@ -44,15 +45,10 @@ export default function useBaseMapsGrid3d() {
   const captureFramingActive = useSelector(selectCaptureFramingActive);
 
   const visibleIds = useSelector((s) => s.threedEditor.visibleBaseMapIdsIn3d);
-  const annotationsModeByBaseMapId = useSelector(
-    (s) => s.threedEditor.annotationsModeByBaseMapIdIn3d
-  );
   const hideMainImage = useSelector(
     (s) => s.threedEditor.hideMainBaseMapImageIn3d
   );
-  const hideMainAnnotations = useSelector(
-    (s) => s.threedEditor.hideMainBaseMapAnnotationsIn3d
-  );
+  const hideBaseMaps = useSelector((s) => s.threedEditor.hideBaseMaps);
 
   const mainBaseMap = useMainBaseMap();
   const { value: baseMaps } = useBaseMaps();
@@ -91,11 +87,11 @@ export default function useBaseMapsGrid3d() {
     })
     .join("|");
 
-  function getContentVisibleById(sheetIds) {
+  function getImageOnById(sheetIds) {
     const state = store.getState();
     const result = {};
     sheetIds.forEach((baseMapId) => {
-      result[baseMapId] = isBaseMapContentVisibleIn3d({
+      result[baseMapId] = isBaseMapImageOnIn3d({
         threedEditor: state.threedEditor,
         mainBaseMapId: state.mapEditor.selectedBaseMapId,
         baseMapId,
@@ -135,7 +131,8 @@ export default function useBaseMapsGrid3d() {
       sheets,
       anchorBaseMapId: gridState.anchorBaseMapId ?? mainBaseMapId,
       layout: gridState.layout,
-      contentVisibleById: getContentVisibleById(sheets.map((s) => s.id)),
+      imageOnById: getImageOnById(sheets.map((s) => s.id)),
+      hideBaseMaps: store.getState().threedEditor.hideBaseMaps,
     });
     if (!result) {
       // nothing to lay on the table
@@ -175,25 +172,22 @@ export default function useBaseMapsGrid3d() {
     manager.setAnchor(anchorBaseMapId, layout);
   }, [active, anchorBaseMapId, layout]);
 
-  // effects - content visibility → label + eye button
+  // effects - image eyes → image, label and eye button of the sheets
 
-  const visibilityKey = [
+  const imageEyesKey = [
     (visibleIds ?? []).join(","),
-    Object.entries(annotationsModeByBaseMapId ?? {})
-      .map(([id, mode]) => `${id}:${mode}`)
-      .join(","),
     hideMainImage,
-    hideMainAnnotations,
+    hideBaseMaps,
     mainBaseMapId,
   ].join("|");
 
   useEffect(() => {
     const manager = getManager();
     if (!active || !manager?.isActive()) return;
-    manager.setContentVisibleById(
-      getContentVisibleById([...manager.sheetsById.keys()])
-    );
-  }, [active, visibilityKey]);
+    manager.setImageOnById(getImageOnById([...manager.sheetsById.keys()]), {
+      hideBaseMaps,
+    });
+  }, [active, imageEyesKey]);
 
   // effects - a capture framing never snapshots the table
 

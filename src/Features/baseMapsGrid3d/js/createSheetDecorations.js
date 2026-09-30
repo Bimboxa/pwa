@@ -20,8 +20,9 @@ import { getSheetLocalCorners } from "../utils/computeBaseMapsGrid3dPoses";
 //   - outline: print zone frame (screen-space fat line; grey, orange hovered)
 //   - hitPlane: invisible plane over the print zone — hover / click target,
 //     also for the sheets that have no image mesh
-//   - label: base map name in the middle, shown while the content is hidden
-//   - eye: round button at the bottom-left, shows / hides the content
+//   - label: base map name in the middle, shown while the image is hidden
+//   - eye: round button at the bottom-left, the image eye of the base map
+//     (same state as the layer icon of the base map chips)
 // Everything is tagged `userData.isGridPlaceholder` (ignored by the export,
 // the snap index and the clipping).
 
@@ -85,7 +86,7 @@ export default function createSheetDecorations({
   sheet,
   meterByPx,
   materials,
-  contentVisible,
+  imageOn,
 }) {
   const [topLeft, topRight, , bottomLeft] = getSheetLocalCorners(
     sheet,
@@ -150,13 +151,11 @@ export default function createSheetDecorations({
   label.sprite.renderOrder = 1002;
   label.sprite.raycast = () => {};
   label.sprite.userData = { ...userData };
-  label.sprite.visible = !contentVisible;
+  label.sprite.visible = !imageOn;
 
   // eye button
   const eye = createIconSprite({
-    iconPath: contentVisible
-      ? ICON_PATHS.VISIBILITY
-      : ICON_PATHS.VISIBILITY_OFF,
+    iconPath: imageOn ? ICON_PATHS.VISIBILITY : ICON_PATHS.VISIBILITY_OFF,
     cssSize: EYE_CSS_SIZE,
   });
   const inset = Math.min(width, height) * EYE_INSET_RATIO;
@@ -173,7 +172,7 @@ export default function createSheetDecorations({
     setHovered: (hovered) => {
       outline.material = hovered ? materials.hover : materials.idle;
     },
-    setContentVisible: (visible) => {
+    setImageOn: (visible) => {
       label.sprite.visible = !visible;
       eye.setIcon(visible ? ICON_PATHS.VISIBILITY : ICON_PATHS.VISIBILITY_OFF);
     },

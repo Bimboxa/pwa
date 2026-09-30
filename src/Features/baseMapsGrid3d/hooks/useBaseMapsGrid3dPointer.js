@@ -10,7 +10,7 @@ import {
 import useSelectMainBaseMap from "Features/threedEditor/hooks/useSelectMainBaseMap";
 
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
-import { getToggleBaseMapContentIn3dActions } from "../utils/baseMapContentVisibilityIn3d";
+import { getToggleBaseMapImageIn3dAction } from "../utils/baseMapImageEyeIn3d";
 
 // Mirrors useDimensionPointerHandlers: past this distance a press-release is
 // a camera drag, not a click.
@@ -21,7 +21,8 @@ const TOOLTIP_OFFSET_PX = 15;
 // handlers of MainThreedEditor bail while it is open):
 //   - hover: orange outline around the sheet + its name in the tooltip
 //   - click on a sheet: the others are laid around it (camera untouched)
-//   - click on the eye button: shows / hides the base map content
+//   - click on the eye button: shows / hides the base map image (same
+//     action as the layer icon of the base map chips)
 //   - double-click on a sheet: closes the grid and opens that base map
 // The camera controls keep working (orbit / pan / zoom over the table).
 export default function useBaseMapsGrid3dPointer({ tooltipApiRef }) {
@@ -120,12 +121,12 @@ export default function useBaseMapsGrid3dPointer({ tooltipApiRef }) {
       const hit = pick(e);
       if (!hit) return;
       if (hit.kind === "eye") {
-        const state = store.getState();
-        getToggleBaseMapContentIn3dActions({
-          threedEditor: state.threedEditor,
-          mainBaseMapId: state.mapEditor.selectedBaseMapId,
-          baseMapId: hit.baseMapId,
-        }).forEach((action) => dispatch(action));
+        dispatch(
+          getToggleBaseMapImageIn3dAction({
+            mainBaseMapId: store.getState().mapEditor.selectedBaseMapId,
+            baseMapId: hit.baseMapId,
+          })
+        );
         return;
       }
       dispatch(focusBaseMapsGridSheet(hit.baseMapId));

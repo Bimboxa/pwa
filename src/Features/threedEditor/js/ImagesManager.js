@@ -314,6 +314,24 @@ export default class ImagesManager {
     });
   }
 
+  // Same as updateBaseMapGeometry, but also accepts a missing / invalid scale
+  // (0-sized plane, as built for a base map created without a scale). Used
+  // by the 3D base maps grid, which lends a scale to the scale-less sheets
+  // while they lie on the table and gives the real one back afterwards.
+  setBaseMapPlaneScale(baseMapId, meterByPx) {
+    const group = this.imagesMap[baseMapId];
+    if (!group) return;
+    group.userData.meterByPx = meterByPx;
+    const planePx = group.userData.planePx;
+    if (!planePx) return;
+    group.traverse?.((child) => {
+      if (child.userData?.isBasemap) {
+        child.geometry?.dispose?.();
+        child.geometry = buildBaseMapPlaneGeometry({ ...planePx, meterByPx });
+      }
+    });
+  }
+
   deleteAllImagesObjects() {
     try {
       console.log("[ImagesManager] deleteAllImagesObjects");
