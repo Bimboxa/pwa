@@ -50,6 +50,10 @@ const ScreenCursorV2 = forwardRef(({ newAnnotation, visible, rotationAngle = 0, 
     const zoomRectSizeRef = useRef({ width: 0, height: 0 });
     const rotationAngleRef = useRef(rotationAngle);
     useEffect(() => { rotationAngleRef.current = rotationAngle; }, [rotationAngle]);
+    // Transient crosshair rotation (degrees, same convention as rotationAngle)
+    // replacing rotationAngle for the two branches only — the zoom rect keeps
+    // the ortho angle. null = no override.
+    const rotationOverrideRef = useRef(null);
 
     // Unique mask id per instance — lets multiple ScreenCursors coexist on
     // the same page without stomping on each other's masks.
@@ -110,12 +114,29 @@ const ScreenCursorV2 = forwardRef(({ newAnnotation, visible, rotationAngle = 0, 
             if (linesGroupRef.current) {
                 linesGroupRef.current.setAttribute('transform', `rotate(${-rotationAngleRef.current}, ${x}, ${y})`);
             }
+            // Rotation override: turn the branches by the remaining delta on
+            // top of the group rotation.
+            const override = rotationOverrideRef.current;
+            const extraAngle = override == null ? 0 : override - (rotationAngleRef.current || 0);
+            for (const line of [vLineRef.current, hLineRef.current]) {
+                if (!line) continue;
+                if (extraAngle) {
+                    line.setAttribute('transform', `rotate(${-extraAngle}, ${x}, ${y})`);
+                } else {
+                    line.removeAttribute('transform');
+                }
+            }
             if (spinnerRef.current) {
                 spinnerRef.current.setAttribute('cx', x);
                 spinnerRef.current.setAttribute('cy', y);
             }
             updateZoomRect(x, y);
             updateGhost();
+        },
+
+        // Applied at the next move().
+        setRotationOverride: (angle) => {
+            rotationOverrideRef.current = Number.isFinite(angle) ? angle : null;
         },
 
         setGhostScale: (scale) => {
@@ -214,20 +235,21 @@ const ScreenCursorV2 = forwardRef(({ newAnnotation, visible, rotationAngle = 0, 
                 </g>
             )}
 
+            {/* Branches overshoot the viewport so they still span it once rotated. */}
             <g ref={linesGroupRef}>
                 {(crosshairAxis === "BOTH" || crosshairAxis === "V") && (
                     <line
                         ref={vLineRef}
-                        y1="0"
-                        y2="100%"
+                        y1="-300%"
+                        y2="400%"
                         vectorEffect="non-scaling-stroke"
                     />
                 )}
                 {(crosshairAxis === "BOTH" || crosshairAxis === "H") && (
                     <line
                         ref={hLineRef}
-                        x1="0"
-                        x2="100%"
+                        x1="-300%"
+                        x2="400%"
                         vectorEffect="non-scaling-stroke"
                     />
                 )}

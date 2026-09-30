@@ -166,6 +166,7 @@ import computeOpeningSegmentPlacement from 'Features/mapEditor/utils/computeOpen
 import getOpeningHostSlide from 'Features/annotations/utils/getOpeningHostSlide';
 import getOpeningStrokeFromHost from 'Features/mapEditor/utils/getOpeningStrokeFromHost';
 import getAxisSnap from 'Features/mapEditor/utils/getAxisSnap';
+import getAxisFrameFromDirection from 'Features/mapEditor/utils/getAxisFrameFromDirection';
 import getSnapModes from 'Features/mapEditor/utils/getSnapModes';
 import getEffectiveDetectionMode, { SEGMENT_SNAP_MODES } from 'Features/mapEditor/utils/getEffectiveDetectionMode';
 import getAnnotationEditionPanelAnchor from 'Features/annotations/utils/getAnnotationEditionPanelAnchor';
@@ -226,6 +227,19 @@ const MULTI_POINT_DRAWING_MODES = [
   "SPLIT_CLICK",
   "STRIP",
   "COMPLETE_ANNOTATION",
+];
+
+// Drawing modes whose preview is a straight segment from the last placed
+// point. With Shift held, the crosshair turns onto that segment and only its
+// branch normal to the segment can lock on a distant point.
+const SEGMENT_DRAWING_MODES = [
+  ...MULTI_POINT_DRAWING_MODES,
+  "MEASURE",
+  "IMAGE_SCALE",
+  "SEGMENT",
+  "POLYLINE_SEGMENT",
+  "STRIP_SEGMENT",
+  "COTE_TWO_CLICK",
 ];
 
 // OPENING_SEGMENT: max cursor↔wall distance (meters on the plan) below which
@@ -476,7 +490,7 @@ const InteractionLayer = forwardRef(({
   const snappingLayerRef = useRef(null);
   // Distant-point axis snapping (issue #282)
   const axisSnapLayerRef = useRef(null);
-  const axisSnapRef = useRef(null); // { x: localX|null, y: localY|null } applied at commit
+  const axisSnapRef = useRef(null); // { x: localX|null, y: localY|null, shiftConstrained? } applied at commit
   const closingMarkerRef = useRef(null);
   const helperScaleRef = useRef(null);
   // baseMapRafRef — now managed by useBaseMapDrag
@@ -1870,9 +1884,11 @@ const InteractionLayer = forwardRef(({
   // panning / zooming them off-screen: the in-progress drawing points, and
   // the points of the annotations listed in `unboundedAnnotationIds` (the
   // annotations owning the vertex being dragged).
+  // `axisFrame` ({ angleDeg, crossBranch }) replaces the ortho-snap frame and
+  // restricts the snap to one branch (Shift-constrained segment).
   const computeAxisSnap = (
     cursorScreen,
-    { excludePointIds = null, annotationsList = null, unboundedAnnotationIds = null } = {}
+    { excludePointIds = null, annotationsList = null, unboundedAnnotationIds = null, axisFrame = null } = {}
   ) => {
     const vp = viewportRef.current;
     if (!vp || !cursorScreen) return null;
@@ -1928,7 +1944,8 @@ const InteractionLayer = forwardRef(({
       cursorScreen,
       project: (p) => vp.worldToViewport(p.x * pose.k + pose.x, p.y * pose.k + pose.y),
       bounds: vp.getViewportSize?.(),
-      angleDeg: orthoSnapAngleOffsetRef.current || 0,
+      angleDeg: axisFrame ? axisFrame.angleDeg : orthoSnapAngleOffsetRef.current || 0,
+      branches: axisFrame?.crossBranch || "BOTH",
       snapPx: AXIS_SNAP_PX,
       approachPx: AXIS_SNAP_APPROACH_PX,
     });
@@ -4931,7 +4948,12 @@ const InteractionLayer = forwardRef(({
     // world X/Y so the committed point lands on the aligned coordinate. Applied
     // as a baseline before the per-mode ortho / fixed-length constraints, which
     // all derive from worldPos via toLocalCoords.
-    if (enabledDrawingMode && axisSnapRef.current) {
+    // A lock computed on a Shift-constrained segment only holds while Shift is
+    // still held at click time.
+    const isAxisLockStale =
+      axisSnapRef.current?.shiftConstrained &&
+      !(event.shiftKey || event.evt?.shiftKey);
+    if (enabledDrawingMode && axisSnapRef.current && !isAxisLockStale) {
       const local = axisSnapRef.current;
       if (Number.isFinite(local.x) && Number.isFinite(local.y)) {
         const pose = getTargetPose();
@@ -6329,6 +6351,38 @@ const InteractionLayer = forwardRef(({
     // --- DISTANT-POINT AXIS SNAP (issue #282) ---
     // Only while the drawing crosshair is visible (true drawing modes, not the
     // single-click pointer modes which have no branches to align with).
+    // With Shift held on a segment drawing mode, the segment being drawn is
+    // locked on a snapped direction: the crosshair turns onto that direction
+    // and only its branch normal to the segment may lock on a distant point,
+    // which slides the new point along the segment.
+    let segmentConstraint = null;
+    if (
+      (event.shiftKey || event.evt?.shiftKey) &&
+      SEGMENT_DRAWING_MODES.includes(enabledDrawingMode)
+    ) {
+      const pts = drawingPointsRef.current || [];
+      const lastPoint = pts[pts.length - 1];
+      if (lastPoint) {
+        const prevPoint = MULTI_POINT_DRAWING_MODES.includes(enabledDrawingMode)
+          ? pts[pts.length - 2]
+          : null;
+        const pos = snapToAngle(
+          toLocalCoords(worldPos),
+          lastPoint,
+          orthoSnapAngleOffsetRef.current,
+          45,
+          prevPoint
+        );
+        const dx = pos.x - lastPoint.x;
+        const dy = pos.y - lastPoint.y;
+        const length = Math.hypot(dx, dy);
+        if (length > 1e-6) {
+          const dir = { x: dx / length, y: dy / length };
+          segmentConstraint = { lastPoint, dir, pos, frame: getAxisFrameFromDirection(dir) };
+        }
+      }
+    }
+
     let axisSnap = null;
     const axisSnapActive =
       Boolean(enabledDrawingMode) &&
@@ -6336,8 +6390,28 @@ const InteractionLayer = forwardRef(({
       snappingEnabled &&
       !isPanning;
     if (axisSnapActive) {
-      axisSnap = computeAxisSnap(viewportPos);
-      axisSnapRef.current = axisSnap?.hasLock ? axisSnap.local : null;
+      axisSnap = computeAxisSnap(
+        viewportPos,
+        segmentConstraint ? { axisFrame: segmentConstraint.frame } : undefined
+      );
+      if (segmentConstraint && axisSnap?.hasLock && axisSnap.local) {
+        // Keep the locked point on the constrained segment line.
+        const { lastPoint, dir } = segmentConstraint;
+        const t =
+          (axisSnap.local.x - lastPoint.x) * dir.x +
+          (axisSnap.local.y - lastPoint.y) * dir.y;
+        segmentConstraint.pos = {
+          x: lastPoint.x + t * dir.x,
+          y: lastPoint.y + t * dir.y,
+        };
+      }
+      if (!axisSnap?.hasLock) {
+        axisSnapRef.current = null;
+      } else if (segmentConstraint) {
+        axisSnapRef.current = { ...segmentConstraint.pos, shiftConstrained: true };
+      } else {
+        axisSnapRef.current = axisSnap.local;
+      }
       axisSnapLayerRef.current?.update(axisSnap?.markers || null);
       screenCursorRef.current?.setSnappedBranches(axisSnap?.snappedBranches || null);
     } else {
@@ -6353,6 +6427,9 @@ const InteractionLayer = forwardRef(({
       const cursorX = axisSnap?.screen?.x ?? viewportPos.x;
       const cursorY = axisSnap?.screen?.y ?? viewportPos.y;
       updateFreeTextGhostScale();
+      screenCursorRef.current?.setRotationOverride(
+        segmentConstraint ? segmentConstraint.frame.angleDeg : null
+      );
       screenCursorRef.current?.move(cursorX, cursorY);
     }
 
@@ -6802,7 +6879,10 @@ const InteractionLayer = forwardRef(({
 
       // Angle snap drawing (use ref to always get latest points, even before re-render)
       const currentDrawingPts = drawingPointsRef.current;
-      if ((event.shiftKey || event.evt?.shiftKey) && currentDrawingPts.length > 0) {
+      if (segmentConstraint) {
+        // Shift-constrained segment: snapped direction + cross-branch lock
+        previewPos = segmentConstraint.pos;
+      } else if ((event.shiftKey || event.evt?.shiftKey) && currentDrawingPts.length > 0) {
         const lastPoint = currentDrawingPts[currentDrawingPts.length - 1];
         // Last-segment candidates only in multi-point modes, to match the click path
         const prevPoint = MULTI_POINT_DRAWING_MODES.includes(enabledDrawingMode)

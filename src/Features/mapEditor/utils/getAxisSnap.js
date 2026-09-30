@@ -30,6 +30,10 @@
 //   - bounds:       { width, height } viewport size — candidates projected
 //                   outside it are discarded (not visible on screen)
 //   - angleDeg:     ortho-snap angle of the crosshair branches (degrees)
+//   - branches:     "BOTH" (default) | "V" | "H" — branches allowed to snap.
+//                   A single branch is used when the point is constrained on
+//                   a line (Shift angle snap): only the branch normal to that
+//                   line may lock, sliding the point along it.
 //   - snapPx:       active snap threshold (red fill), default 6px
 //   - approachPx:   approach band (grey ring), default 16px
 //
@@ -59,6 +63,7 @@ export default function getAxisSnap({
   project,
   bounds,
   angleDeg = 0,
+  branches = "BOTH",
   snapPx = 6,
   approachPx = 16,
 }) {
@@ -74,6 +79,8 @@ export default function getAxisSnap({
   const sin = Math.sin(a);
   const u = { x: cos, y: -sin };
   const v = { x: sin, y: cos };
+  const useV = branches !== "H";
+  const useH = branches !== "V";
 
   let bestX = null; // vertical-branch candidate { dAxis, mouseDist, comp, screenX, screenY, active }
   let bestY = null; // horizontal-branch candidate
@@ -103,7 +110,7 @@ export default function getAxisSnap({
     const dxAxis = Math.abs(compU); // proximity to the vertical branch
     const dyAxis = Math.abs(compV); // proximity to the horizontal branch
 
-    if (dxAxis <= approachPx) {
+    if (useV && dxAxis <= approachPx) {
       const cand = {
         dAxis: dxAxis,
         mouseDist,
@@ -114,7 +121,7 @@ export default function getAxisSnap({
       };
       if (isBetterAxisCandidate(cand, bestX)) bestX = cand;
     }
-    if (dyAxis <= approachPx) {
+    if (useH && dyAxis <= approachPx) {
       const cand = {
         dAxis: dyAxis,
         mouseDist,
