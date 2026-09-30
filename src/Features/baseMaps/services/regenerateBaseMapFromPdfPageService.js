@@ -21,6 +21,7 @@ import buildFrameTransform, {
 } from "Features/baseMaps/utils/baseMapFrameTransform";
 import collectReferencedPointIds from "Features/annotations/utils/collectReferencedPointIds";
 import scaleAnnotationPxFields from "Features/annotations/utils/scaleAnnotationPxFields";
+import { mapMesh3dSourcePoints } from "Features/annotationMesh3d/utils/mesh3dSource";
 import getBaseMapTransform from "Features/baseMaps/js/getBaseMapTransform";
 import baseMapLocalToWorld from "Features/baseMaps/js/baseMapLocalToWorld";
 
@@ -308,6 +309,24 @@ export default async function regenerateBaseMapFromPdfPageService({
         ...(Number.isFinite(next.bbox.width) ? { width: NW(next.bbox.width) } : {}),
         ...(Number.isFinite(next.bbox.height) ? { height: NH(next.bbox.height) } : {}),
       };
+      changed = true;
+    }
+    // isMesh3d annotations: mesh vertices are [x, y, z] with x, y normalized
+    // like db.points (z in meters, frame-invariant).
+    if (Array.isArray(next.mesh3d?.vertices)) {
+      next.mesh3d = {
+        ...next.mesh3d,
+        vertices: next.mesh3d.vertices.map((v) => {
+          const np = N({ x: v[0], y: v[1] });
+          return [np.x, np.y, v[2]];
+        }),
+      };
+      changed = true;
+    }
+    // …and the snapshot of their original 2D geometry (inline normalized
+    // points, see mesh3dSource).
+    if (next.mesh3dSource) {
+      next.mesh3dSource = mapMesh3dSourcePoints(next.mesh3dSource, N);
       changed = true;
     }
     // POLYGON mesh lines are normalized; POLYLINE ones are {u, z} (invariant)

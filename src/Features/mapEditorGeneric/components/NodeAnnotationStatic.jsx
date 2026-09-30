@@ -87,7 +87,10 @@ function NodeAnnotationStatic({
     forceHideLabel,
     highlightConnectedSegments,
     selectMode,
-    disableVertexEditing,
+    // isMesh3d: the points are the plan projection of a stored 3D mesh —
+    // movable as a whole, never vertex-edited (that would break the link).
+    disableVertexEditing:
+      disableVertexEditing || Boolean(resolvedAnnotation?.isMesh3d),
   };
 
   // Note: point-based types (POLYGON, POLYLINE, STRIP) store their points

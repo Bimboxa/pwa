@@ -42,18 +42,20 @@ const COPLANAR_NORMAL_DOT = 0.9962;
 // click must land on an annotation.
 export function buildIndex(scene, options = {}) {
   const verts = [];
-  const adjacency = new Map(); // key -> { position, neighbors: Set<key> }
+  // key -> { position, neighbors: Set<key>, nodeIds: Set<annotationId> }
+  const adjacency = new Map();
   if (!scene) return { verts, adjacency };
   const excludeSet = new Set(options.excludeSubtrees ?? []);
   if (options.excludeSubtree) excludeSet.add(options.excludeSubtree);
   const annotationsOnly = !!options.annotationsOnly;
 
-  function ensureNode(key, position) {
+  function ensureNode(key, position, nodeId) {
     let entry = adjacency.get(key);
     if (!entry) {
-      entry = { position, neighbors: new Set() };
+      entry = { position, neighbors: new Set(), nodeIds: new Set() };
       adjacency.set(key, entry);
     }
+    if (nodeId) entry.nodeIds.add(nodeId);
     return entry;
   }
 
@@ -62,10 +64,14 @@ export function buildIndex(scene, options = {}) {
     if (obj.userData?.isHoverOverlay) return; // transient face stipple
     if (obj.userData?.isGridPlaceholder) return; // base maps grid decorations
     let isSnappable = false;
+    let nodeId = null; // owning annotation, when there is one
     let parent = obj;
     while (parent) {
       if (parent.visible === false) return; // hidden by an ancestor
       if (excludeSet.has(parent)) return;
+      if (parent.userData?.nodeType === "ANNOTATION") {
+        nodeId = parent.userData.nodeId ?? nodeId;
+      }
       if (
         parent.userData?.nodeType === "ANNOTATION" ||
         (!annotationsOnly &&
@@ -90,11 +96,11 @@ export function buildIndex(scene, options = {}) {
       tmp.set(pos.getX(i), pos.getY(i), pos.getZ(i));
       tmp.applyMatrix4(obj.matrixWorld);
       const worldPos = new Vector3(tmp.x, tmp.y, tmp.z);
-      verts.push({ position: worldPos, meshKey });
+      verts.push({ position: worldPos, meshKey, nodeId });
       worldByIdx[i] = worldPos;
       const k = quantizeVertex(worldPos);
       idxToKey.set(i, k);
-      ensureNode(k, worldPos);
+      ensureNode(k, worldPos, nodeId);
     }
 
     // Per-edge triangle bookkeeping for the feature-edge filter. Degenerate
@@ -182,7 +188,7 @@ export function buildIndex(scene, options = {}) {
 
 // React hook returning a `findNearestSnap` function that, given a mouse
 // position in NDC, the active camera, and the canvas size, returns the
-// closest snappable vertex in screen-space as `{position, meshKey}`, or null
+// closest snappable vertex in screen-space as `{position, meshKey, nodeId?}`, or null
 // if none is within `pixelThreshold`. Also publishes the mesh-edge
 // adjacency to `meshGraphStore` so face detection can reuse it.
 export default function useVertexSnap({ active }) {
@@ -242,6 +248,7 @@ export default function useVertexSnap({ active }) {
           best.position.z
         ),
         meshKey: best.meshKey,
+        nodeId: best.nodeId ?? undefined,
       };
     },
     []

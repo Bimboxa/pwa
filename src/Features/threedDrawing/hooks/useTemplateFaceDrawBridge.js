@@ -9,7 +9,10 @@ import {
   setDrawingModeActive,
 } from "Features/threedEditor/threedEditorSlice";
 
-import { selectIsTemplateFaceDrawActive } from "../utils/templateFaceDrawSelectors";
+import {
+  selectIsMesh3dDrawActive,
+  selectIsTemplateFaceDrawActive,
+} from "../utils/templateFaceDrawSelectors";
 
 // Bridges the template-driven face-draw request (derived from the regular 2D
 // drawing state set by the template row click in PopperMapListings) into the
@@ -18,10 +21,15 @@ import { selectIsTemplateFaceDrawActive } from "../utils/templateFaceDrawSelecto
 // index, MainThreedEditor's pointer short-circuit and the mutual-exclusion
 // reducers — is keyed on `threedEditor.drawingMode.active`, which reducers
 // cannot derive; this hook syncs the derived flag into it.
+//
+// The template-less mesh draw ("Dessin" tool in 3D, selectIsMesh3dDrawActive)
+// rides the same bridge: same machinery, different commit.
 export default function useTemplateFaceDrawBridge() {
   const dispatch = useDispatch();
 
-  const derivedActive = useSelector(selectIsTemplateFaceDrawActive);
+  const derivedActive = useSelector(
+    (s) => selectIsTemplateFaceDrawActive(s) || selectIsMesh3dDrawActive(s)
+  );
   const drawingActive = useSelector((s) => s.threedEditor.drawingMode.active);
   const templateId = useSelector(
     (s) => s.annotations.newAnnotation?.annotationTemplateId

@@ -1,9 +1,5 @@
 import { useState } from "react";
 
-import { useSelector } from "react-redux";
-
-import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
-
 import {
   Box,
   Typography,
@@ -27,6 +23,8 @@ import useDrawTemplateless from "Features/mapEditor/hooks/useDrawTemplateless";
 // sections (PopperMapListings + Dessin left panel): click to draw an
 // annotation with no template nor listing. Shows the count of templateless
 // annotations; on hover: annotation type picker, solo and eye.
+// In the 3D editor the same row starts the mesh drawing (lines on the faces of
+// the annotation meshes): the type picker only offers lines and surfaces.
 // ---------------------------------------------------------------------------
 
 const SX_BY_VARIANT = {
@@ -80,7 +78,6 @@ export default function RowTemplatelessDraw({
     toggleSolo,
     toggleHidden,
   } = useDrawTemplateless();
-  const is2dEditor = useSelector((s) => selectEffectiveViewerKey(s) === "MAP");
 
   // state
 
@@ -122,9 +119,6 @@ export default function RowTemplatelessDraw({
   };
 
   // render
-
-  // 2D tool only: the 3D commit path requires an annotation template.
-  if (!is2dEditor) return null;
 
   return (
     <Box>

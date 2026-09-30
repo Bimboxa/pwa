@@ -1,12 +1,23 @@
 import db from "App/db/db";
 import { nanoid } from "@reduxjs/toolkit";
 
+import applyAffineToMesh3d from "Features/annotationMesh3d/utils/applyAffineToMesh3d";
+import fitAffine2d from "Features/annotationMesh3d/utils/fitAffine2d";
+import { applyAffineToMesh3dSource } from "Features/annotationMesh3d/utils/mesh3dSource";
+
 /**
  * Commit a wrapper transform (move/resize/rotate) to the database.
  * Handles shared point logic:
  *   - Points only referenced by selected annotations → update directly
  *   - Points shared with non-selected annotations → duplicate (create new point)
  *   - Points shared within the selection → keep shared (one update or one duplicate)
+ *
+ * isMesh3d annotations: their points are only the plan projection of the
+ * stored mesh (annotation.mesh3d), so the mesh must follow. The affine map
+ * the transform applied to the annotation's points is fitted from the point
+ * updates and applied to the mesh, in the same transaction. This is the one
+ * place every wrapper transform goes through — 2D move / resize / rotate and
+ * the 3D move / rotate tools (commitAnnotationsTransformFrom3d).
  *
  * @param {Object} params
  * @param {string[]} params.selectedAnnotationIds - IDs of annotations in the wrapper
@@ -221,6 +232,41 @@ export default async function commitWrapperTransform({
           ops.push(db.annotations.update(annId, updates));
         }
       }
+    }
+
+    // 4c'. isMesh3d annotations: carry the mesh along with its projection.
+    for (const annId of selectedAnnotationIds) {
+      const ann = allAnnotations.find((a) => a.id === annId);
+      if (!ann?.isMesh3d || !ann.mesh3d?.vertices?.length) continue;
+      const pairs = [];
+      const collect = (pt) => {
+        const to = pointUpdates.get(pt?.id);
+        if (to && pt.x != null && pt.y != null) {
+          pairs.push({ from: { x: pt.x, y: pt.y }, to });
+        }
+      };
+      for (const pt of ann.points ?? []) collect(pt);
+      for (const cut of ann.cuts ?? []) {
+        for (const pt of cut.points ?? []) collect(pt);
+      }
+      const affine = fitAffine2d(pairs);
+      if (!affine) continue;
+      ops.push(
+        db.annotations.update(annId, {
+          mesh3d: applyAffineToMesh3d(ann.mesh3d, affine, imageSize),
+          // The snapshot of the original geometry follows too: a reset
+          // restores it where the mesh now stands.
+          ...(ann.mesh3dSource
+            ? {
+                mesh3dSource: applyAffineToMesh3dSource(
+                  ann.mesh3dSource,
+                  affine,
+                  imageSize
+                ),
+              }
+            : {}),
+        })
+      );
     }
 
     // 4d. Handle rotation

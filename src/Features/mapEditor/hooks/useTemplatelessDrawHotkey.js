@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useDispatch, useSelector, useStore } from "react-redux";
 
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
+import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 import { selectSubtractPickAnnotationId } from "../utils/subtractPickMode";
 import startTemplatelessDraw from "../utils/startTemplatelessDraw";
 
@@ -26,6 +27,11 @@ const isEditableTarget = (el) => {
 // useToolGroupHotkey. Once a draw runs, "d" keeps its in-draw meanings
 // (smart-detect loupe, segment direction — InteractionLayer). Registered on
 // the capture phase: it pre-empts the loupe while no draw is active.
+//
+// One shortcut for both editors of the Dessin module: MainMapEditorV3 (which
+// mounts this hook) stays mounted while the module shows its 3D editor, and
+// there the same letter starts the mesh drawing (lines on the faces of the
+// annotation meshes).
 export default function useTemplatelessDrawHotkey() {
   const dispatch = useDispatch();
   const store = useStore();
@@ -44,10 +50,13 @@ export default function useTemplatelessDrawHotkey() {
       if (s.mapEditor.pasteClipboard || selectSubtractPickAnnotationId(s))
         return;
 
-      // Only start a draw while the Dessin module displays the 2D editor
-      // (same guard as useToolGroupHotkey).
+      // Dessin module only, in its 2D editor or toggled to 3D.
       if (s.viewers.selectedViewerKey !== "MAP") return;
-      if (selectEffectiveViewerKey(s) !== "MAP") return;
+      const editorKey = selectEffectiveViewerKey(s);
+      const isThreedEditor = isThreedFamilyViewerKey(editorKey);
+      if (editorKey !== "MAP" && !isThreedEditor) return;
+      // Walk mode owns the keyboard.
+      if (isThreedEditor && s.threedEditor.walkMode.active) return;
 
       // Same rule as the free-draw letters: DRAW interaction mode or "no
       // mode" only, never in the shared read-only viewer.
@@ -62,7 +71,9 @@ export default function useTemplatelessDrawHotkey() {
       if (s.leftPanel.leftPanelDocked && s.panelDrawing.detailTemplateId)
         return;
 
-      startTemplatelessDraw(dispatch, s);
+      startTemplatelessDraw(dispatch, s, undefined, {
+        mesh3d: isThreedEditor,
+      });
       e.preventDefault();
       e.stopImmediatePropagation();
     };

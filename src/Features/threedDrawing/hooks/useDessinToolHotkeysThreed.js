@@ -21,14 +21,15 @@ const isEditableTarget = (el) => {
 };
 
 // Plain-letter shortcuts of the Dessin (MAP) module's 3D bottom toolbar:
-// E = Extruder, D = Déplacer (annotation), R = Tourner (annotation) — the
-// letters shown as badges in the toolbar buttons. Toggle semantics, exact
+// E = Extruder, M = Déplacer (annotation), R = Tourner (annotation) — the
+// letters shown as badges in the toolbar buttons. "D" is the "Dessin" tool,
+// in 3D like in 2D (useTemplatelessDrawHotkey). Toggle semantics, exact
 // parity with the buttons (the threedEditorSlice reducers own the mode
 // mutual exclusion).
 //
 // Scoped to "Dessin module + 3D editor active". useRightPanelToolHotkeys
 // yields "E" (Élévation) in that exact context so listener order never
-// decides; "D" and "R" have no other owner in 3D ("R" belongs to walk mode
+// decides; "M" and "R" have no other owner in 3D ("R" belongs to walk mode
 // and OBJECT_3D placement, both of which make this hook inert). Inert while
 // a draw is armed (a draw owns its own letters) and in walk mode. Mounted
 // from MainThreedEditor — NOT from BottomToolbarThreed, which unmounts as
@@ -45,7 +46,7 @@ export default function useDessinToolHotkeysThreed() {
       if (isEditableTarget(e.target)) return;
 
       const letter = e.key.toLowerCase();
-      if (letter !== "e" && letter !== "d" && letter !== "r") return;
+      if (letter !== "e" && letter !== "m" && letter !== "r") return;
 
       const s = store.getState();
       if (s.viewers.selectedViewerKey !== "MAP") return;
@@ -57,7 +58,7 @@ export default function useDessinToolHotkeysThreed() {
 
       if (letter === "e") {
         dispatch(setExtrudeModeActive(!s.threedEditor.extrudeMode.active));
-      } else if (letter === "d") {
+      } else if (letter === "m") {
         dispatch(
           setMoveAnnotationModeActive(!s.threedEditor.moveAnnotationMode.active)
         );

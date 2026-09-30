@@ -7,8 +7,9 @@ import { Vector3 } from "three";
 // Each unique edge (A-B) is projected to pixels; the closest point on the 2D
 // segment to the cursor is found via the clamped projection parameter `t`, and
 // the world-space snap point is reconstructed as A.lerp(B, t). Returns
-// `{ position: Vector3, kind: "EDGE" }` or null when no edge is within
-// `pixelThreshold`.
+// `{ position: Vector3, kind: "EDGE", nodeId? }` or null when no edge is
+// within `pixelThreshold` — `nodeId` is the annotation owning the edge (both
+// ends), when there is one.
 export default function findNearestEdgeSnap(
   adjacency,
   mouseNdc,
@@ -27,6 +28,7 @@ export default function findNearestEdgeSnap(
   const pb = new Vector3();
 
   let best = null;
+  let bestNodes = null;
   let bestSq = pixelThreshold * pixelThreshold;
 
   for (const [keyA, nodeA] of adjacency) {
@@ -61,10 +63,18 @@ export default function findNearestEdgeSnap(
       if (d2 < bestSq) {
         bestSq = d2;
         best = nodeA.position.clone().lerp(nodeB.position, t);
+        bestNodes = [nodeA, nodeB];
       }
     }
   }
 
   if (!best) return null;
-  return { position: best, kind: "EDGE" };
+  let nodeId;
+  for (const id of bestNodes[0].nodeIds ?? []) {
+    if (bestNodes[1].nodeIds?.has(id)) {
+      nodeId = id;
+      break;
+    }
+  }
+  return { position: best, kind: "EDGE", nodeId };
 }

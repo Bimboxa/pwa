@@ -17,6 +17,7 @@ import SectionAnnotationZones from "Features/zonings/components/SectionAnnotatio
 import SectionAnnotationBusinessObjects from "Features/businessObjects/components/SectionAnnotationBusinessObjects";
 import SectionAnnotationPhotoPlan from "Features/photoPlans/components/SectionAnnotationPhotoPlan";
 import SectionAnnotationFolioContent from "Features/detailFolio/components/SectionAnnotationFolioContent";
+import SectionAnnotationMesh3d from "Features/annotationMesh3d/components/SectionAnnotationMesh3d";
 
 // The label options ("Etiquette") are no longer a tab here: clicking the
 // label chip selects it (ANNOTATION_LABEL) and opens its own panel
@@ -126,6 +127,9 @@ export default function SectionAnnotationPropertiesBody({
             {/* Plan photo (photoPlans) — POLYGON on a photo baseMap only,
                 self-hiding otherwise. */}
             <SectionAnnotationPhotoPlan annotation={annotation} />
+            {/* Mesh 3D — annotation converted to a mesh: revert to its
+                original 2D geometry. Self-hiding otherwise. */}
+            <SectionAnnotationMesh3d annotation={annotation} />
           </>
         )}
 

@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 
 import { useSelector } from "react-redux";
-import { Group, Vector2 } from "three";
+import { Group, Plane, Raycaster, Vector2, Vector3 } from "three";
 import { Line2 } from "three/examples/jsm/lines/Line2.js";
 import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
@@ -19,7 +19,12 @@ import useVertexSnap from "../hooks/useVertexSnap";
 import { setLastSnap } from "../services/lastSnapStore";
 import { getMeshAdjacency } from "../services/meshGraphStore";
 import computeRectangleCorners from "../utils/computeRectangleCorners";
+import computeRectangleCornersOnPlane from "../utils/computeRectangleCornersOnPlane";
 import computeSnapTarget from "../utils/computeSnapTarget";
+import intersectAnnotationFace, {
+  buildFacePlaneHit,
+} from "../utils/intersectAnnotationFace";
+import { isMesh3dDraft } from "../utils/templateFaceDrawSelectors";
 
 const COLOR_VERTEX = 0xff2d8d;
 const COLOR_EDGE = 0x2e7d32;
@@ -53,6 +58,7 @@ function colorForKind(kind) {
     case "EDGE":
       return COLOR_EDGE;
     case "PLANE":
+    case "FACE":
       return COLOR_PLANE;
     case "PLANE_ORTHO":
     case "PLANE_ALIGN":
@@ -140,6 +146,10 @@ export default function DrawingOverlayThreed() {
     (s) => s.threedEditor.drawingMode.trait3DSegments
   );
   const enabledDrawingMode = useSelector((s) => s.mapEditor.enabledDrawingMode);
+  // Mesh drawing ("Dessin" tool in 3D): points also land on annotation faces.
+  const isMeshDraw = useSelector((s) =>
+    isMesh3dDraft(s.annotations.newAnnotation)
+  );
 
   const baseMaps = useBaseMaps()?.value;
   const mainBaseMapId = useMainBaseMap()?.id;
@@ -250,9 +260,70 @@ export default function DrawingOverlayThreed() {
       behavior === "RECTANGLE" && inProgressPolyline.length >= 1
         ? inProgressPolyline[0]
         : null;
-    const anchorHost = anchor?.baseMapId
-      ? (baseMaps || []).find((b) => b.id === anchor.baseMapId)
+    // A rectangle anchored on an annotation face (mesh drawing) lives on
+    // that face's plane; otherwise on the anchor's base map plane.
+    const anchorNormal = anchor?.faceNormal
+      ? new Vector3(
+          anchor.faceNormal.x,
+          anchor.faceNormal.y,
+          anchor.faceNormal.z
+        )
       : null;
+    const anchorHost =
+      !anchorNormal && anchor?.baseMapId
+        ? (baseMaps || []).find((b) => b.id === anchor.baseMapId)
+        : null;
+    const anchorPlane = anchorNormal
+      ? new Plane().setFromNormalAndCoplanarPoint(
+          anchorNormal,
+          new Vector3(anchor.x, anchor.y, anchor.z)
+        )
+      : null;
+    const raycaster = new Raycaster();
+    const traitPoints = trait3DSegments.flatMap((seg) => [seg.a, seg.b]);
+
+    function getRectangleCorners(position) {
+      if (anchorNormal) {
+        return computeRectangleCornersOnPlane(anchor, position, anchorNormal);
+      }
+      if (anchorHost)
+        return computeRectangleCorners(anchor, position, anchorHost);
+      return null;
+    }
+
+    // Plane under the cursor, in the shape computeSnapTarget expects.
+    function intersectPlane(mNdc) {
+      if (anchorPlane) {
+        // Second corner of a face-anchored rectangle: the anchor's plane.
+        raycaster.setFromCamera(mNdc, camera);
+        const hit = raycaster.ray.intersectPlane(anchorPlane, new Vector3());
+        return hit
+          ? buildFacePlaneHit(hit, anchorNormal, {
+              nodeId: anchor.nodeId,
+              baseMapId: anchor.baseMapId,
+            })
+          : null;
+      }
+      const planHit = intersectBaseMapPlane(
+        editor,
+        mNdc,
+        camera,
+        // Stacked unplaced base maps are coplanar at the origin — prefer
+        // the 2D-selected one so the drawing lands on the plan the user
+        // is looking at (and will look for) in 2D.
+        anchor
+          ? { onlyBaseMapId: anchor.baseMapId }
+          : { preferredBaseMapId: mainBaseMapId }
+      );
+      if (!isMeshDraw || anchor) return planHit;
+      // Mesh drawing: the nearest of the annotation face and the plan. A
+      // sheet lying on the plan is in front of it by its 1 mm lift only.
+      const faceHit = intersectAnnotationFace(editor, mNdc, camera);
+      if (!faceHit) return planHit;
+      if (!planHit) return faceHit;
+      const planDistance = camera.position.distanceTo(planHit.position);
+      return faceHit.distance <= planDistance + 2e-3 ? faceHit : planHit;
+    }
 
     function toScreen(worldPos, rect) {
       const projected = worldPos.clone().project(camera);
@@ -363,12 +434,8 @@ export default function DrawingOverlayThreed() {
       const root = rootRef.current;
       if (!root) return;
       clearPreviewLine();
-      if (!snap?.position || !anchor || !anchorHost) return;
-      const corners = computeRectangleCorners(
-        anchor,
-        snap.position,
-        anchorHost
-      );
+      if (!snap?.position || !anchor) return;
+      const corners = getRectangleCorners(snap.position);
       if (!corners) return;
       const mat = makeLineMaterial({
         color: colorForKind(snap.kind),
@@ -399,23 +466,19 @@ export default function DrawingOverlayThreed() {
         lastVertex: anchor
           ? undefined
           : inProgressPolyline[inProgressPolyline.length - 1],
-        inProgressPolyline: anchor ? [] : inProgressPolyline,
+        // Mesh drawing: the ends of the traits already drawn are snap
+        // targets too — the next segment chains with them.
+        inProgressPolyline: anchor
+          ? []
+          : isMeshDraw
+            ? [...traitPoints, ...inProgressPolyline]
+            : inProgressPolyline,
         findNearestVertex: (mNdc, cam, sz) => findNearestSnap(mNdc, cam, sz),
         findNearestEdge: (mNdc, cam, sz) =>
           findNearestEdgeSnap(getMeshAdjacency(), mNdc, cam, sz),
-        intersectPlane: (mNdc) =>
-          intersectBaseMapPlane(
-            editor,
-            mNdc,
-            camera,
-            // Stacked unplaced base maps are coplanar at the origin — prefer
-            // the 2D-selected one so the drawing lands on the plan the user
-            // is looking at (and will look for) in 2D.
-            anchor
-              ? { onlyBaseMapId: anchor.baseMapId }
-              : { preferredBaseMapId: mainBaseMapId }
-          ),
+        intersectPlane,
         alignAdjacency: getMeshAdjacency(),
+        attachFaceToPointSnaps: isMeshDraw && !anchor,
       });
       setLastSnap(snap);
       updateSnapCircle(snap, rect);
@@ -446,9 +509,11 @@ export default function DrawingOverlayThreed() {
     active,
     findNearestSnap,
     inProgressPolyline,
+    trait3DSegments,
     enabledDrawingMode,
     baseMaps,
     mainBaseMapId,
+    isMeshDraw,
   ]);
 
   if (!active) return null;

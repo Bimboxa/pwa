@@ -2,7 +2,7 @@
 // (mirrors its per-type conditions). Gates the "Plus d'outils" menu so it is
 // never empty (POINT, FREE_TEXT, IMAGE...).
 export default function getAnnotationHasEditTools(annotation) {
-  if (!annotation) return false;
+  if (!annotation || annotation.isMesh3d) return false;
   return (
     ["POLYLINE", "STRIP", "POLYGON", "RECTANGLE", "LINEAR_LAYOUT"].includes(
       annotation.type

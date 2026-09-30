@@ -19,17 +19,25 @@ import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 
 import { getDrawingToolByKey } from "Features/mapEditor/constants/drawingTools";
 
+import commitDrawnMesh3dPathService from "Features/annotationMesh3d/services/commitDrawnMesh3dPathService";
+
 import commitDrawnFaceService from "../services/commitDrawnFaceService";
 import commitDrawnPolylineService from "../services/commitDrawnPolylineService";
 import { getLastSnap } from "../services/lastSnapStore";
+import chainDrawnPath from "../utils/chainDrawnPath";
 import computeRectangleCorners from "../utils/computeRectangleCorners";
+import computeRectangleCornersOnPlane from "../utils/computeRectangleCornersOnPlane";
 import detectClosedFace from "../utils/detectClosedFace";
 import resolveBaseMapForPoint from "../utils/resolveBaseMapForPoint";
+import { isMesh3dDraft } from "../utils/templateFaceDrawSelectors";
 
 // Pointer movement (in CSS px) above which a press-release pair is treated as
 // a camera drag and NOT as a vertex commit. Mirrors the threshold used by
 // MainThreedEditor's selection click vs lasso disambiguation.
 const DRAG_THRESHOLD_PX = 4;
+
+// Two drawn points closer than this (m) are the same point.
+const SAME_POINT_EPS_M = 1e-4;
 
 // Wires click + key handlers for the 3D drawing mode. A vertex is committed
 // on pointerup only when the pointer hasn't moved past `DRAG_THRESHOLD_PX`
@@ -45,6 +53,16 @@ const DRAG_THRESHOLD_PX = 4;
 //
 // RECTANGLE-behavior tools get their own two-click flow: first click anchors
 // on a base map plane, second click commits the axis-aligned rectangle.
+//
+// Mesh drawing (template-less "Dessin" tool, isMesh3dDraft): the drawn path
+// does not become an annotation of its own. As soon as it cuts the face it
+// lies on — boundary to boundary, or back on its first point — that face is
+// split inside the annotation's mesh (commitDrawnMesh3dPathService); a closed
+// contour away from any face creates a flat mesh annotation. Both line tools
+// work: "Polyligne clic" chains the points, "Segment (2 clics)" draws one
+// segment at a time. A segment (or a path ended with Enter) that cuts nothing
+// yet stays on screen as a trait and is chained with the next ones
+// (chainDrawnPath). Escape cancels the path instead of committing it.
 export default function useDrawingPointerHandlers() {
   const dispatch = useDispatch();
 
@@ -58,6 +76,7 @@ export default function useDrawingPointerHandlers() {
   const enabledDrawingMode = useSelector((s) => s.mapEditor.enabledDrawingMode);
 
   const projectId = useSelector((s) => s.projects.selectedProjectId);
+  const scopeId = useSelector((s) => s.scopes.selectedScopeId);
   const listingId = useSelector((s) => s.listings.selectedListingId);
 
   const baseMaps = useBaseMaps()?.value;
@@ -80,6 +99,7 @@ export default function useDrawingPointerHandlers() {
 
   const downPosRef = useRef(null);
   const isDraggingRef = useRef(false);
+  const meshBusyRef = useRef(false);
 
   useEffect(() => {
     if (!active) return;
@@ -120,6 +140,144 @@ export default function useDrawingPointerHandlers() {
         createAnnotationFn: createAnnotation,
         closeLine,
       });
+    }
+
+    function isMeshDraw() {
+      return isMesh3dDraft(newAnnotationRef.current);
+    }
+
+    // Mesh drawing commit of the drawn points, chained with the traits they
+    // connect to: true when the chain split a face or created a sheet (path
+    // and traits are consumed), false to keep drawing.
+    async function commitMeshPath(drawn) {
+      const { vertices, closed, usedTraits } = chainDrawnPath(
+        drawn,
+        trait3DSegments
+      );
+      if (vertices.length < 2) return false;
+      try {
+        const result = await commitDrawnMesh3dPathService({
+          editor,
+          vertices,
+          closed,
+          baseMaps: baseMaps || [],
+          projectId,
+          scopeId,
+          draftProps: newAnnotationRef.current,
+          layerId: activeLayerIdRef.current ?? null,
+          createAnnotationFn: createAnnotation,
+          dispatch,
+        });
+        if (!result) return false;
+        console.log(
+          `[threedDrawing] mesh path committed: ${result.kind} ${result.annotation.id}`
+        );
+        // Drops the chained traits AND the in-progress path.
+        dispatch(consumeFaceSegments(usedTraits));
+        setTimeout(() => dispatch(bumpSnapIndexEpoch()), 350);
+        return true;
+      } catch (err) {
+        console.error("[threedDrawing] mesh path commit failed", err);
+        return false;
+      }
+    }
+
+    function toDrawingVertex(snap, extra = {}) {
+      const n = snap.faceNormal;
+      return {
+        x: snap.position.x,
+        y: snap.position.y,
+        z: snap.position.z,
+        meshKey: snap.meshKey,
+        snapKind: snap.kind,
+        ...(snap.baseMapId ? { baseMapId: snap.baseMapId } : {}),
+        ...(snap.nodeId ? { nodeId: snap.nodeId } : {}),
+        ...(n ? { faceNormal: { x: n.x, y: n.y, z: n.z } } : {}),
+        ...extra,
+      };
+    }
+
+    async function onMeshClick(snap) {
+      if (behavior === "RECTANGLE") {
+        if (inProgressPolyline.length === 0) {
+          // The anchor needs a plane: the face under the cursor, else the
+          // base map plane it sits on.
+          let baseMapId = snap.baseMapId ?? null;
+          if (!snap.faceNormal && !baseMapId) {
+            baseMapId =
+              resolveBaseMapForPoint(snap.position, baseMaps || [])?.baseMap
+                ?.id ?? null;
+          }
+          if (!snap.faceNormal && !baseMapId) {
+            console.warn(
+              "[threedDrawing] rectangle anchor ignored: on no face nor plan"
+            );
+            return;
+          }
+          dispatch(
+            pushDrawingVertex(
+              toDrawingVertex(snap, baseMapId ? { baseMapId } : {})
+            )
+          );
+          return;
+        }
+        const anchor = inProgressPolyline[0];
+        const host = (baseMaps || []).find((b) => b.id === anchor.baseMapId);
+        const corners = anchor.faceNormal
+          ? computeRectangleCornersOnPlane(
+              anchor,
+              snap.position,
+              anchor.faceNormal
+            )
+          : host
+            ? computeRectangleCorners(anchor, snap.position, host)
+            : null;
+        if (!corners) return; // degenerate: stay armed
+        const vertices = corners.map((c) => ({
+          x: c.x,
+          y: c.y,
+          z: c.z,
+          snapKind: anchor.snapKind,
+          ...(anchor.nodeId ? { nodeId: anchor.nodeId } : {}),
+          ...(anchor.baseMapId ? { baseMapId: anchor.baseMapId } : {}),
+        }));
+        const committed = await commitMeshPath([...vertices, vertices[0]]);
+        if (!committed) {
+          console.warn("[threedDrawing] rectangle split nothing: cancelled");
+          dispatch(cancelInProgressPolyline());
+        }
+        return;
+      }
+
+      const newVertex = toDrawingVertex(snap);
+      const isSame = (p, q) =>
+        Math.hypot(p.x - q.x, p.y - q.y, p.z - q.z) < SAME_POINT_EPS_M;
+      const last = inProgressPolyline[inProgressPolyline.length - 1];
+      if (last && isSame(last, newVertex)) return; // double click
+
+      if (inProgressPolyline.length === 0) {
+        dispatch(pushDrawingVertex(newVertex));
+        return;
+      }
+
+      // A click back on the first point closes the contour (chainDrawnPath
+      // reads the repeated point as the closure).
+      const closes =
+        inProgressPolyline.length >= 3 &&
+        isSame(inProgressPolyline[0], newVertex);
+      const committed = await commitMeshPath([
+        ...inProgressPolyline,
+        newVertex,
+      ]);
+      if (committed) return;
+      // A closed contour that commits nothing stays as drawn (Escape
+      // discards it).
+      if (closes) return;
+
+      dispatch(pushDrawingVertex(newVertex));
+      // "Segment (2 clics)": the segment ends here. It cut nothing yet — keep
+      // it as a trait, the next segments chain with it.
+      if (behavior === "SEGMENT") dispatch(flushInProgressAsTrait3D());
     }
 
     function warnIfOffMainBaseMap(created) {
@@ -215,6 +373,19 @@ export default function useDrawingPointerHandlers() {
       });
       if (!snap?.position) {
         console.warn("[threedDrawing] click ignored: no snap under cursor");
+        return;
+      }
+
+      if (isMeshDraw()) {
+        // One commit attempt at a time: a click landing while the previous
+        // one is still resolving would replay the same path.
+        if (meshBusyRef.current) return;
+        meshBusyRef.current = true;
+        try {
+          await onMeshClick(snap);
+        } finally {
+          meshBusyRef.current = false;
+        }
         return;
       }
 
@@ -357,6 +528,28 @@ export default function useDrawingPointerHandlers() {
 
     async function onKeyDown(e) {
       if (["INPUT", "TEXTAREA"].includes(e.target?.tagName)) return;
+      if (isMeshDraw()) {
+        if (e.key === "Enter") {
+          if (behavior === "RECTANGLE" || inProgressPolyline.length < 2) return;
+          // Enter closes the contour (like a click back on the first point)…
+          const committed =
+            inProgressPolyline.length >= 3 &&
+            (await commitMeshPath([
+              ...inProgressPolyline,
+              inProgressPolyline[0],
+            ]));
+          // …else ends the path there: kept as traits, to be chained.
+          if (!committed) dispatch(flushInProgressAsTrait3D());
+        } else if (e.key === "Escape") {
+          if (inProgressPolyline.length > 0) {
+            dispatch(cancelInProgressPolyline());
+          } else {
+            dispatch(setEnabledDrawingMode(null));
+            dispatch(setNewAnnotation({}));
+          }
+        }
+        return;
+      }
       if (e.key === "Enter") {
         // Rectangle: keys never commit (2D parity — the 2nd click does).
         if (behavior === "RECTANGLE") return;
@@ -405,6 +598,7 @@ export default function useDrawingPointerHandlers() {
     baseMaps,
     mainBaseMapId,
     projectId,
+    scopeId,
     listingId,
     enabledDrawingMode,
     dispatch,

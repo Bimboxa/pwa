@@ -188,6 +188,18 @@ export default function usePointDrag({
           })
           .map((ann) => ann.id);
 
+        // isMesh3d annotations are geometry-locked in 2D: their points are
+        // the plan projection of a stored 3D mesh, so a vertex they reference
+        // never moves on its own (not even dragged from a neighbor sharing
+        // it). The annotation still moves as a whole.
+        if (
+          _annotations.some(
+            (ann) => ann.isMesh3d && affectedIds.includes(ann.id)
+          )
+        ) {
+          return false;
+        }
+
         // Fork only when the vertex is genuinely SHARED: with another user's
         // annotation (mustFork) or, on the selected annotation's contour, with
         // at least one other annotation of mine — the fork's purpose is to
@@ -248,6 +260,14 @@ export default function usePointDrag({
 
         // Permission check : vérifier que l'annotation cible est à moi
         if (!permissions.canEditAnnotation(snap.previewAnnotationId)) return false;
+
+        // No vertex insertion on a geometry-locked isMesh3d annotation.
+        if (
+          annotationsRef.current?.find((a) => a.id === snap.previewAnnotationId)
+            ?.isMesh3d
+        ) {
+          return false;
+        }
 
         const tempId = `temp_${nanoid()}`;
 

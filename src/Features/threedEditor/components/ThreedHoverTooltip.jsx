@@ -63,12 +63,15 @@ const ThreedHoverTooltip = forwardRef((_, ref) => {
 
   if (!state.node) return null;
 
+  // node.partQties: the hover addresses ONE face / edge of a mesh annotation
+  // — its own measures replace the annotation totals.
   return (
     <MapTooltip
       hoveredNode={state.node}
       annotations={annotations || []}
       x={state.x}
       y={state.y}
+      qtiesOverride={state.node.partQties}
     />
   );
 });

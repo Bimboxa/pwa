@@ -4,8 +4,12 @@ import { setSoloAnnotationTemplateId } from "Features/annotations/annotationsSli
 import { toggleAnnotationTemplateHidden } from "Features/scopeVisibility/scopeVisibilitySlice";
 
 import { selectHiddenAnnotationTemplateIds } from "Features/scopeVisibility/selectors/scopeVisibilitySelectors";
+import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
+import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 
-import startTemplatelessDraw from "Features/mapEditor/utils/startTemplatelessDraw";
+import startTemplatelessDraw, {
+  MESH3D_DRAWING_SHAPES,
+} from "Features/mapEditor/utils/startTemplatelessDraw";
 import {
   DEFAULT_TEMPLATELESS_DRAWING_SHAPE,
   TEMPLATELESS_TEMPLATE_ID,
@@ -29,10 +33,19 @@ export default function useDrawTemplateless() {
     (s) => s.annotations.soloAnnotationTemplateId
   );
   const hiddenIds = useSelector(selectHiddenAnnotationTemplateIds);
+  // 3D editor: the tool draws lines on the faces of the annotation meshes.
+  const isThreedEditor = useSelector((s) =>
+    isThreedFamilyViewerKey(selectEffectiveViewerKey(s))
+  );
 
   // helpers
 
-  const shapes = TEMPLATELESS_DRAWING_SHAPES;
+  // 3D editor: lines and surfaces only (drawn on the mesh faces).
+  const shapes = isThreedEditor
+    ? TEMPLATELESS_DRAWING_SHAPES.filter((shape) =>
+        MESH3D_DRAWING_SHAPES.includes(shape.key)
+      )
+    : TEMPLATELESS_DRAWING_SHAPES;
   const activeShape =
     shapes.find((shape) => shape.key === drawingShape) ??
     shapes.find((shape) => shape.key === DEFAULT_TEMPLATELESS_DRAWING_SHAPE);
@@ -43,11 +56,15 @@ export default function useDrawTemplateless() {
   // handlers
 
   const startDraw = () => {
-    startTemplatelessDraw(dispatch, store.getState(), activeShape?.key);
+    startTemplatelessDraw(dispatch, store.getState(), activeShape?.key, {
+      mesh3d: isThreedEditor,
+    });
   };
 
   const selectShapeAndDraw = (shape) => {
-    startTemplatelessDraw(dispatch, store.getState(), shape.key);
+    startTemplatelessDraw(dispatch, store.getState(), shape.key, {
+      mesh3d: isThreedEditor,
+    });
   };
 
   const toggleSolo = () => {
@@ -63,6 +80,7 @@ export default function useDrawTemplateless() {
   return {
     shapes,
     activeShape,
+    isThreedEditor,
     startDraw,
     selectShapeAndDraw,
     isSolo,

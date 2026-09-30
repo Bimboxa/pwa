@@ -8,6 +8,7 @@ import computeWrapperBbox from "Features/mapEditor/utils/computeWrapperBbox";
 import commitWrapperTransform from "Features/mapEditor/services/commitWrapperTransform";
 import reflowOpeningsForHost from "Features/mapEditor/services/reflowOpeningsForHostService";
 import getBaseMapForRender from "Features/threedEditor/js/utilsAnnotationsManager/getBaseMapForRender";
+import { roundOffsetZ } from "Features/annotationMesh3d/utils/mesh3dFrame";
 
 // Write-back of a 3D annotation move/rotate into the 2D storage: the new
 // point positions land in db.points (normalized) through the same machinery
@@ -111,7 +112,17 @@ export default async function commitAnnotationsTransformFrom3d({
     await Promise.all(
       carried.map((ann) =>
         db.annotations.update(ann.id, {
-          offsetZ: (Number(ann.offsetZ) || 0) + deltaZ,
+          // 0.1 mm: a snapped drop carries float noise the toolbar would show.
+          offsetZ: roundOffsetZ((Number(ann.offsetZ) || 0) + deltaZ),
+          // isMesh3d: the snapshot of the original geometry climbs with the
+          // mesh (dotted key path: only that field of the snapshot).
+          ...(ann.mesh3dSource?.fields
+            ? {
+                "mesh3dSource.fields.offsetZ": roundOffsetZ(
+                  (Number(ann.mesh3dSource.fields.offsetZ) || 0) + deltaZ
+                ),
+              }
+            : {}),
         })
       )
     );
