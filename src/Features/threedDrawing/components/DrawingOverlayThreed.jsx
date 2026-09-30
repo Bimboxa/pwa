@@ -25,6 +25,8 @@ import intersectAnnotationFace, {
   buildFacePlaneHit,
 } from "../utils/intersectAnnotationFace";
 import { isMesh3dDraft } from "../utils/templateFaceDrawSelectors";
+import intersectScene3d from "Features/scene3d/services/intersectScene3d";
+import usePrepareScene3dPicking from "Features/scene3d/hooks/usePrepareScene3dPicking";
 
 const COLOR_VERTEX = 0xff2d8d;
 const COLOR_EDGE = 0x2e7d32;
@@ -59,6 +61,7 @@ function colorForKind(kind) {
       return COLOR_EDGE;
     case "PLANE":
     case "FACE":
+    case "SCAN":
       return COLOR_PLANE;
     case "PLANE_ORTHO":
     case "PLANE_ALIGN":
@@ -155,6 +158,16 @@ export default function DrawingOverlayThreed() {
   const mainBaseMapId = useMainBaseMap()?.id;
 
   const { findNearestSnap } = useVertexSnap({ active });
+  // POLYLINE templates can land their points on the SCENE_3D scans (a
+  // straight segment between two scan points). Not the polygons — a face
+  // needs coplanar points — nor mesh drawing (its lines split annotation
+  // faces).
+  const canDrawOnScan = useSelector(
+    (s) =>
+      s.annotations.newAnnotation?.type === "POLYLINE" &&
+      !isMesh3dDraft(s.annotations.newAnnotation)
+  );
+  usePrepareScene3dPicking(active && canDrawOnScan);
 
   const rootRef = useRef(null);
   const traitLinesRef = useRef(null);
@@ -315,6 +328,18 @@ export default function DrawingOverlayThreed() {
           ? { onlyBaseMapId: anchor.baseMapId }
           : { preferredBaseMapId: mainBaseMapId }
       );
+      // Polyline drawing: a SCENE_3D scan in front of the plan takes the
+      // point (on its surface). Not for rectangles (they live on a plane).
+      if (canDrawOnScan && behavior !== "RECTANGLE") {
+        const scanHit = intersectScene3d(editor, mNdc, camera);
+        if (scanHit?.isPending) return scanHit;
+        if (scanHit) {
+          const planDistance = planHit
+            ? camera.position.distanceTo(planHit.position)
+            : Infinity;
+          if (scanHit.distance <= planDistance) return scanHit;
+        }
+      }
       if (!isMeshDraw || anchor) return planHit;
       // Mesh drawing: the nearest of the annotation face and the plan. A
       // sheet lying on the plan is in front of it by its 1 mm lift only.
@@ -514,6 +539,7 @@ export default function DrawingOverlayThreed() {
     baseMaps,
     mainBaseMapId,
     isMeshDraw,
+    canDrawOnScan,
   ]);
 
   if (!active) return null;

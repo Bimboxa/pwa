@@ -141,7 +141,39 @@ sketch edges (`aquarelleMaterials`), hover / dim material swap
 contours (`SectionContourManager`), scene export (`buildExportScene`), shadow
 frustum fit (`RenderModeManager`), 3D lasso (`MainThreedEditor`). It is still
 cut by the clipping planes. Its geometries have no CPU copy: any new pass that
-reads vertex data must skip `isDecor` objects.
+reads vertex data must skip `isDecor` objects (the drawing tools pick the scan
+through their own data, see below).
+
+## Drawing on the scan
+
+POLYLINE templates and cotes can land their points on the scan surface in the
+3D editor (a straight segment between two picked points — not draped on the
+relief). Nothing new is stored: the existing commits
+(`commitDrawnPolylineService`, `commitDrawnCoteService`) turn the 3D vertices
+into a regular annotation on the scan's base map, with per-vertex heights
+(`offsetZ` + `offsetBottom`). The drawing is NOT attached to the scan: moving
+or rotating the scan afterwards leaves it in place.
+
+- **Picking data** (`scene3dPickStore`): the displayed scan has no CPU
+  geometry and its meshes never answer a raycast. Picking works on a separate
+  CPU-only copy — per chunk, positions + index read back from
+  `db.scene3dAssets` and a BVH (`three-mesh-bvh`, which supports the
+  normalized Uint16 positions as is). Built **on demand** when a drawing tool
+  needs it (`usePrepareScene3dPicking`, ~1 s for 2.8 M triangles, one chunk
+  per task), dropped after 60 s without a pick. Cost while drawing: positions
+  + index + BVH (~60 MB for 2.8 M triangles); a pick is ~0.02 ms.
+- **Picker** (`intersectScene3d`): explicit, called by the drawing overlays
+  only — the scan stays a backdrop for hover, selection and the other tools.
+  The ray is taken into the chunk space through `userData.scene3dPick.frame`
+  (published by `createScene3dAnnotation` in `MESH` display), the clipping
+  plane is honoured. `{ isPending: true }` while the data is being built:
+  the caller must not fall back to the plan behind the scan.
+- **Snap cascade** (`computeSnapTarget`, kind `"SCAN"`): a scan hit is final —
+  no in-plane ortho, vertex alignment nor world-axis lock (they would pull the
+  point off a surface that is not a plane). Vertices / edges hidden behind the
+  scan are skipped. Cotes: last fallback of `computeDimensionSnap`.
+- Not supported: polygons (a face needs coplanar points), rectangles, mesh
+  drawing, snapping to the scan's own vertices.
 
 The camera range follows the scans: "Distance de vue max" (Configuration >
 Éditeur 3D, `constants/viewDistances.js`) defaults to `AUTO`, which widens the

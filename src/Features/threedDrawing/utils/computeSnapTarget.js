@@ -86,6 +86,8 @@ function snapToInProgress(
 //      back to the first vertex without redrawing)
 //   2. snap to nearest existing mesh vertex (within pixel threshold)
 //   3. snap to the nearest mesh edge (optional `findNearestEdge` callback)
+//   3b. a point on a SCENE_3D scan under the cursor (`planeHit.isScan`,
+//      kind "SCAN") — taken as is, no lock
 //   4. with no last vertex: a base map plane hit (optional `intersectPlane`
 //      callback), refined by vertex alignment — this is how the FIRST point
 //      of a drawing lands on a bare plan
@@ -117,11 +119,20 @@ export default function computeSnapTarget({
   alignAdjacency = null,
   attachFaceToPointSnaps = false,
 }) {
+  // Plane / face / scan under the cursor — resolved once, on first need.
+  let cachedPlaneHit;
+  const getPlaneHit = () => {
+    if (cachedPlaneHit === undefined) {
+      cachedPlaneHit = intersectPlane?.(mouseNdc) ?? null;
+    }
+    return cachedPlaneHit;
+  };
+
   // Mesh drawing mode: a vertex / edge snap also reports the face under the
   // cursor (its normal), so a rectangle anchored on a corner knows its plane.
   const withFaceUnderCursor = (snap) => {
     if (!attachFaceToPointSnaps) return snap;
-    const hit = intersectPlane?.(mouseNdc);
+    const hit = getPlaneHit();
     if (!hit?.isFace) return snap;
     return {
       ...snap,
@@ -145,8 +156,18 @@ export default function computeSnapTarget({
     };
   }
 
+  // A vertex / edge of an annotation lying BEHIND a SCENE_3D scan (e.g. on
+  // the plan under it) is hidden by the scan: it must not steal the point
+  // the user is placing on the scan surface. Tolerance: the snap sits up to
+  // a few px away from the cursor ray, on a surface seen at an angle.
+  const isHiddenByScan = (position) => {
+    const hit = getPlaneHit();
+    if (!hit?.isScan) return false;
+    return camera.position.distanceTo(position) > hit.distance * 1.02 + 0.1;
+  };
+
   const vertexSnap = findNearestVertex(mouseNdc, camera, canvasSize);
-  if (vertexSnap?.position) {
+  if (vertexSnap?.position && !isHiddenByScan(vertexSnap.position)) {
     return withFaceUnderCursor({
       position: vertexSnap.position,
       meshKey: vertexSnap.meshKey,
@@ -156,7 +177,7 @@ export default function computeSnapTarget({
   }
 
   const edgeSnap = findNearestEdge?.(mouseNdc, camera, canvasSize);
-  if (edgeSnap?.position) {
+  if (edgeSnap?.position && !isHiddenByScan(edgeSnap.position)) {
     return withFaceUnderCursor({
       position: edgeSnap.position,
       kind: "EDGE",
@@ -164,7 +185,22 @@ export default function computeSnapTarget({
     });
   }
 
-  const planeHit = intersectPlane?.(mouseNdc) ?? null;
+  const planeHit = getPlaneHit();
+
+  // SCENE_3D scan under the cursor (intersectScene3d):
+  //   - still being prepared for picking → no target at all, rather than a
+  //     point that would silently land on the plan BEHIND the scan;
+  //   - a point ON the scan surface is final — every lock below (in-plane
+  //     ortho, vertex alignment, world axes) would pull it off a surface
+  //     that is not a plane.
+  if (planeHit?.isPending) return null;
+  if (planeHit?.isScan) {
+    return {
+      position: planeHit.position,
+      kind: "SCAN",
+      baseMapId: planeHit.baseMapId,
+    };
+  }
   // Snaps derived from a face hit keep pointing at the hit annotation.
   const withFace = (snap) =>
     snap && planeHit?.isFace

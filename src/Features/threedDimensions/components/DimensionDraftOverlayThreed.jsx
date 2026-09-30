@@ -8,6 +8,8 @@ import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 import useVertexSnap from "Features/threedDrawing/hooks/useVertexSnap";
+import intersectScene3d from "Features/scene3d/services/intersectScene3d";
+import usePrepareScene3dPicking from "Features/scene3d/hooks/usePrepareScene3dPicking";
 
 import { setLastDimensionSnap } from "../services/lastDimensionSnapStore";
 import computeDimensionSnap from "../utils/computeDimensionSnap";
@@ -53,6 +55,7 @@ export default function DimensionDraftOverlayThreed() {
   );
 
   const { findNearestSnap } = useVertexSnap({ active });
+  usePrepareScene3dPicking(active);
 
   const rootRef = useRef(null);
   const previewLineRef = useRef(null);
@@ -175,6 +178,7 @@ export default function DimensionDraftOverlayThreed() {
         camera,
         canvasSize,
         findNearestVertex: (mNdc, cam, sz) => findNearestSnap(mNdc, cam, sz),
+        intersectScan: (mNdc) => intersectScene3d(editor, mNdc, camera),
       });
       setLastDimensionSnap(snap);
       const screen = updateSnapCircle(snap, rect);

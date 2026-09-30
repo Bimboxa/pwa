@@ -5,6 +5,7 @@ import {
   Mesh,
   MeshBasicMaterial,
   MeshNormalMaterial,
+  Object3D,
   PlaneGeometry,
 } from "three";
 
@@ -124,11 +125,23 @@ export default function createScene3dAnnotation(annotation, baseMap, options) {
   }
 
   function showMesh() {
+    // Drawing on the scan (see intersectScene3d): the picker works on its
+    // own CPU data, in the chunk space — `frame` carries that space's world
+    // transform (the same one as every chunk mesh). A fully transparent
+    // scan is not drawable.
+    if (opacity > 0) {
+      const frame = new Object3D();
+      applyScene3dChunkTransform(frame, sceneBbox);
+      inner.add(frame);
+      outer.userData.scene3dPick = { sceneId: scene3d.sceneId, frame };
+    }
+
     const release = acquireScene3dAssets(scene3d.sceneId, {
       supportsBc1: Boolean(options?.supportsS3tc),
       onEvent: (event) => {
         if (disposed) return;
         if (event.type === "MISSING") {
+          delete outer.userData.scene3dPick;
           showProjection();
           return;
         }
@@ -168,6 +181,7 @@ export default function createScene3dAnnotation(annotation, baseMap, options) {
   outer.userData.dispose = () => {
     if (disposed) return;
     disposed = true;
+    delete outer.userData.scene3dPick;
     inner.children.forEach((child) => {
       if (child.userData.ownsGeometry) child.geometry?.dispose();
     });
