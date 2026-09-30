@@ -209,7 +209,7 @@ export default function buildPromptIaContext({
       fromTemplates: Boolean(mode.fromTemplates),
       free: Boolean(mode.free),
       details: Boolean(mode.details),
-      description: mode.free || mode.details ? mode.description ?? "" : "",
+      description: mode.description ?? "",
     },
     plan: {
       name: baseMap.name ?? null,

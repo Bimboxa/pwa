@@ -3,10 +3,15 @@ import { Mic as MicIcon, MicNone as MicNoneIcon } from "@mui/icons-material";
 
 // Dictation toggle under the chat input: grey when off, pulsing red while the
 // microphone is listening, disabled when the browser has no Web Speech API.
-export default function ChatMicButton({ supported, listening, onToggle }) {
+export default function ChatMicButton({
+  supported,
+  listening,
+  onToggle,
+  startLabel,
+}) {
   // strings
 
-  const startS = "Dicter le message";
+  const startS = startLabel ?? "Dicter le message";
   const stopS = "Arrêter la dictée";
   const unsupportedS = "Dictée non supportée par ce navigateur";
 

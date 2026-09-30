@@ -22,11 +22,44 @@ import {
 } from "../utils/parsePromptIaOutput";
 import { convertPayloadToImageSpace } from "../utils/pdfUserSpaceToImage";
 
+// What the payload will create, for the preview shown before the import.
+function buildPreview({ data, normalized, dropped }) {
+  const templates = Array.isArray(data.annotationTemplates)
+    ? data.annotationTemplates
+    : [];
+  const annotations = Array.isArray(data.annotations) ? data.annotations : [];
+  const reused = new Set(normalized.reusedTemplateIds);
+  const countByTemplateId = new Map();
+  for (const annotation of annotations) {
+    const id = annotation?.annotationTemplateId ?? null;
+    countByTemplateId.set(id, (countByTemplateId.get(id) ?? 0) + 1);
+  }
+  return {
+    annotations: annotations.length,
+    newTemplates: templates.filter((t) => !reused.has(t.id)).length,
+    reusedTemplates: reused.size,
+    newBaseMaps: Array.isArray(data.baseMaps) ? data.baseMaps.length : 0,
+    reusedBaseMaps: normalized.reusedBaseMapIds.length,
+    dropped: dropped.length,
+    note: normalized.note,
+    byTemplate: templates
+      .map((t) => ({
+        id: t.id,
+        label: t.label ?? t.name ?? t.type,
+        isNew: !reused.has(t.id),
+        count: countByTemplateId.get(t.id) ?? 0,
+      }))
+      .filter((row) => row.count > 0 || row.isNew),
+  };
+}
+
 /**
- * Applies the JSON pasted back from an external AI chat (Prompt IA zip) to
- * the current base map / listing, and undoes the last application.
+ * Reads the JSON given back by an external AI chat (Prompt IA zip), then
+ * applies it to the current base map / listing, and undoes the last
+ * application. Two phases, so the screen can show a preview in between:
  *
- * apply(text) → { ok, result } | { ok: false, error }
+ * prepare(text) → { ok, prepared } | { ok: false, error } — nothing written
+ * apply(prepared) → { ok, result } | { ok: false, error }
  */
 export default function useApplyPromptIaOutput() {
   const dispatch = useDispatch();
@@ -44,9 +77,8 @@ export default function useApplyPromptIaOutput() {
   const [lastResult, setLastResult] = useState(null);
   const busyRef = useRef(false);
 
-  const apply = useCallback(
+  const prepare = useCallback(
     async (text) => {
-      if (busyRef.current) return { ok: false, error: "Import en cours." };
       const extracted = extractJsonText(text);
       if (!extracted.ok) {
         setError(extracted.error);
@@ -57,8 +89,6 @@ export default function useApplyPromptIaOutput() {
         setError(msg);
         return { ok: false, error: msg };
       }
-      busyRef.current = true;
-      setBusy(true);
       setError(null);
       try {
         const existingTemplateIds = (templates ?? [])
@@ -96,13 +126,55 @@ export default function useApplyPromptIaOutput() {
         const parsed = parseImportAnnotationsJson(JSON.stringify(payload));
         if (!parsed.ok) throw new Error(parsed.error ?? "JSON invalide.");
 
+        return {
+          ok: true,
+          prepared: {
+            data: parsed.data,
+            reusedTemplateIds: normalized.reusedTemplateIds,
+            reusedBaseMapIds: normalized.reusedBaseMapIds,
+            droppedIds: dropped,
+            coordinateSpace: normalized.coordinateSpace,
+            note: normalized.note,
+            // the preview only holds for this target
+            listingId,
+            baseMapId: mainBaseMap.id,
+            preview: buildPreview({ data: parsed.data, normalized, dropped }),
+          },
+        };
+      } catch (err) {
+        console.error("[promptIa] prepare failed", err);
+        const msg = err?.message ?? String(err);
+        setError(msg);
+        return { ok: false, error: msg };
+      }
+    },
+    [projectId, listingId, mainBaseMap, templates, detailBaseMaps]
+  );
+
+  const apply = useCallback(
+    async (prepared) => {
+      if (busyRef.current) return { ok: false, error: "Import en cours." };
+      if (
+        !prepared ||
+        prepared.listingId !== listingId ||
+        prepared.baseMapId !== mainBaseMap?.id
+      ) {
+        const msg =
+          "Le fond de plan ou la liste a changé : collez à nouveau le résultat.";
+        setError(msg);
+        return { ok: false, error: msg };
+      }
+      busyRef.current = true;
+      setBusy(true);
+      setError(null);
+      try {
         const batchId = nanoid();
         const result = await importAnnotationsInlineJsonService({
-          data: parsed.data,
+          data: prepared.data,
           projectId,
           listingId,
           mainBaseMap,
-          widthMeters: parsed.data.image?.widthMeters,
+          widthMeters: prepared.data.image?.widthMeters,
           relativeToBaseMap: true,
           preserveIds: true,
           annotationProps: { promptIaBatchId: batchId },
@@ -125,15 +197,15 @@ export default function useApplyPromptIaOutput() {
           batchId,
           placedIds: (result.placed ?? []).map((a) => a.id),
           createdTemplateIds: result.createdTemplateIds ?? [],
-          reusedTemplateIds: normalized.reusedTemplateIds,
+          reusedTemplateIds: prepared.reusedTemplateIds,
           createdBaseMapIds: result.createdBaseMapIds ?? [],
           reusedBaseMapIds: [
-            ...normalized.reusedBaseMapIds,
+            ...prepared.reusedBaseMapIds,
             ...(result.reusedBaseMapIds ?? []),
           ],
-          droppedIds: dropped,
-          coordinateSpace: normalized.coordinateSpace,
-          note: normalized.note,
+          droppedIds: prepared.droppedIds,
+          coordinateSpace: prepared.coordinateSpace,
+          note: prepared.note,
           listingId,
         };
         setLastResult(summary);
@@ -148,15 +220,7 @@ export default function useApplyPromptIaOutput() {
         setBusy(false);
       }
     },
-    [
-      dispatch,
-      projectId,
-      listingId,
-      mainBaseMap,
-      templates,
-      detailBaseMaps,
-      userEmail,
-    ]
+    [dispatch, projectId, listingId, mainBaseMap, userEmail]
   );
 
   // Removes what the last paste created: its annotations, then its templates
@@ -203,5 +267,5 @@ export default function useApplyPromptIaOutput() {
 
   const clearError = useCallback(() => setError(null), []);
 
-  return { apply, undo, busy, error, lastResult, clearError };
+  return { prepare, apply, undo, busy, error, lastResult, clearError };
 }

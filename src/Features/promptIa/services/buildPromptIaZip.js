@@ -84,7 +84,16 @@ export function buildInstructionsMarkdown({ context, hasPdf }) {
     `**Mode** : ${describeMode(context.mode)}`,
     "",
     ...(context.mode.description
-      ? ["**Que faut-il repérer ?**", "", context.mode.description, ""]
+      ? [
+          // free / details: the description drives the detection; with the
+          // listing's templates alone it only refines it
+          context.mode.free || context.mode.details
+            ? "**Que faut-il repérer ?**"
+            : "**Précisions**",
+          "",
+          context.mode.description,
+          "",
+        ]
       : []),
     `**Liste cible** : ${context.listing?.name ?? "liste courante"} — ${context.templates.length} modèle(s) fourni(s), ${context.existingAnnotationsTotal} annotation(s) déjà dessinée(s).`,
     "",
