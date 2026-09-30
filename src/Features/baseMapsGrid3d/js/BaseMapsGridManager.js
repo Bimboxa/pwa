@@ -14,6 +14,9 @@ const OUTLINE_IDLE_COLOR = 0xbdbdbd;
 const OUTLINE_HOVER_COLOR = 0xe85426; // theme secondary.main
 const OUTLINE_IDLE_WIDTH = 1; // px (screen-space)
 const OUTLINE_HOVER_WIDTH = 2;
+// Zoom-out range over the table, in table diagonals (the table is at paper
+// scale: it can be far larger than the real scene).
+const ZOOM_OUT_RANGE_IN_DIAGONALS = 4;
 
 const _quaternion = new Quaternion();
 const _euler = new Euler();
@@ -135,6 +138,7 @@ export default class BaseMapsGridManager {
 
     if (this.sheetsById.size === 0) {
       this.active = false;
+      this.sceneManager.controlsManager?.clearDistanceBoost?.();
       this.sceneManager.renderScene();
       return null;
     }
@@ -177,6 +181,7 @@ export default class BaseMapsGridManager {
     });
     this.hoveredId = null;
 
+    this._boostCameraRange(result.box);
     this._fly({ toGrid: true, instant: !animate });
     return { box: result.box, yaw: this.yaw };
   }
@@ -302,6 +307,7 @@ export default class BaseMapsGridManager {
     this.active = false;
     this.closing = false;
     this.hoveredId = null;
+    this.sceneManager.controlsManager?.clearDistanceBoost?.();
     if (wasActive) this._listeners.forEach((listener) => listener());
   }
 
@@ -372,6 +378,7 @@ export default class BaseMapsGridManager {
     this.sheetsById = new Map();
     this.active = false;
     this.closing = false;
+    this.sceneManager.controlsManager?.clearDistanceBoost?.();
     this._materials?.idle.dispose();
     this._materials?.hover.dispose();
     this._materials = null;
@@ -403,6 +410,15 @@ export default class BaseMapsGridManager {
     );
     controls.setFocalOffset(focalOffset.x, focalOffset.y, focalOffset.z, false);
     controlsManager.syncCameraNow?.();
+  }
+
+  // The regular dolly limit / far plane are sized for the real scene: over
+  // the table they would block the zoom-out. Given back in _releaseAll.
+  _boostCameraRange(box) {
+    const diagonal = box.getSize(new Vector3()).length();
+    this.sceneManager.controlsManager?.setDistanceBoost?.(
+      ZOOM_OUT_RANGE_IN_DIAGONALS * diagonal
+    );
   }
 
   _applyImageVisibility(entry) {
@@ -596,6 +612,7 @@ export default class BaseMapsGridManager {
     this.K = null;
     this.anchorId = null;
     this.closing = false;
+    this.sceneManager.controlsManager?.clearDistanceBoost?.();
     this.sceneManager.renderScene();
   }
 }

@@ -68,6 +68,9 @@ export default class ControlsManager {
 
     // maxDistance stashed by animateFovTo, restored by restorePerspectiveFov.
     this._stashedMaxDistance = null;
+    // Zoom-out range lent to a temporarily larger scene (3D base maps grid):
+    // { baseMaxDistance, maxDistance, baseFar, far } — see setDistanceBoost.
+    this._distanceBoost = null;
 
     // Pivot-under-cursor scratch objects — allocated once, reused per event.
     this._pivotRaycaster = new Raycaster();
@@ -260,6 +263,63 @@ export default class ControlsManager {
       paddingTop: padding,
       paddingBottom: padding,
     });
+  };
+
+  // Lends a larger zoom-out range (dolly limit + camera far plane) to a scene
+  // that temporarily outgrows the regular one — the 3D base maps grid lays
+  // the base maps as paper sheets at the scale of the main one, a table that
+  // can span kilometres. No-op when the regular range already covers it.
+  // The regular dolly limit may be parked in the stash (ortho-like fov of the
+  // 3D → 2D switch): the boost is then applied there.
+  setDistanceBoost = (distance) => {
+    const controls = this.cameraControls;
+    const camera = this.sceneManager?.camera;
+    if (!controls || !camera) return;
+    this.clearDistanceBoost();
+    if (!Number.isFinite(distance) || distance <= 0) return;
+
+    const stashed = this._stashedMaxDistance != null;
+    const baseMaxDistance = stashed
+      ? this._stashedMaxDistance
+      : controls.maxDistance;
+    const baseFar = camera.far;
+    const maxDistance = Math.max(baseMaxDistance, distance);
+    const far = Math.max(baseFar, 2 * maxDistance);
+    this._distanceBoost = { baseMaxDistance, maxDistance, baseFar, far };
+
+    if (stashed) this._stashedMaxDistance = maxDistance;
+    else controls.maxDistance = maxDistance;
+    if (far !== baseFar) {
+      camera.far = far;
+      camera.updateProjectionMatrix();
+    }
+  };
+
+  // Gives the regular range back. The camera is never pulled in: when it
+  // stands beyond the regular limit, the limit stays at its distance (it can
+  // still come closer, not go further).
+  clearDistanceBoost = () => {
+    const boost = this._distanceBoost;
+    const controls = this.cameraControls;
+    const camera = this.sceneManager?.camera;
+    if (!boost || !controls || !camera) return;
+    this._distanceBoost = null;
+
+    const distance = controls.distance;
+    const maxDistance = Math.max(
+      boost.baseMaxDistance,
+      Number.isFinite(distance) ? distance : 0
+    );
+    if (this._stashedMaxDistance === boost.maxDistance) {
+      this._stashedMaxDistance = maxDistance;
+    } else if (controls.maxDistance === boost.maxDistance) {
+      controls.maxDistance = maxDistance;
+    }
+    const far = Math.max(boost.baseFar, 2 * maxDistance);
+    if (camera.far === boost.far && far !== camera.far) {
+      camera.far = far;
+      camera.updateProjectionMatrix();
+    }
   };
 
   // Face-on framing of a world-space Box3: pivot the camera onto the plane
