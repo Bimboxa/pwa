@@ -10,6 +10,7 @@ import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 import { selectPdfEditorOpen } from "Features/pdfEditor/pdfEditorSlice";
+import { prepareScene3dPicking } from "Features/scene3d/services/intersectScene3d";
 import createScene3dGroundSampler from "Features/scene3d/utils/createScene3dGroundSampler";
 import {
   ensureScene3dHeightMap,
@@ -201,9 +202,12 @@ export default function useWalkMode() {
     resetShoot();
     emitShoot({ ...spray.getJetState(), tool });
 
-    // Point under the screen-center crosshair (real surface or void).
+    // Point under the screen-center crosshair (real surface — meshes AND
+    // scan base maps — or void). The scan picking data is built on demand
+    // (first pick); start it right away so the first shots land on the scan.
+    prepareScene3dPicking(editor);
     const centerPick = () =>
-      pickWorldHitAtNdc({ sceneManager, ndcX: 0, ndcY: 0 });
+      pickWorldHitAtNdc({ sceneManager, ndcX: 0, ndcY: 0, editor });
 
     const emitMeasureState = () => {
       const st = measure.getState();
