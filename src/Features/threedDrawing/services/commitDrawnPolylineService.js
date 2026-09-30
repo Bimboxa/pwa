@@ -51,6 +51,11 @@ function dedupeAdjacent(points, { collapseClosingDuplicate } = {}) {
 // {x, y, z, baseMapId?} — a unanimous carried baseMapId wins over the
 // centroid heuristic for host resolution.
 //
+// Templateless draft ("Dessin" tool, `templateProps.isTemplateless` without
+// annotationTemplateId — a line drawn on a SCENE_3D scan): the annotation
+// belongs to the base map + `scopeId` only, no template nor listing, like a
+// templateless annotation drawn in 2D.
+//
 // Returns the created annotation record, or null on failure.
 export default async function commitDrawnPolylineService({
   verticesInOrder,
@@ -61,6 +66,7 @@ export default async function commitDrawnPolylineService({
   layerId = null,
   createAnnotationFn = null,
   closeLine = false,
+  scopeId = null,
 }) {
   // Aborted commits are silent for the caller (null return) — say why in the
   // console so a "nothing happened" report is diagnosable.
@@ -72,7 +78,10 @@ export default async function commitDrawnPolylineService({
   if (!verticesInOrder?.length || verticesInOrder.length < 2)
     return abort(`needs 2+ vertices (got ${verticesInOrder?.length ?? 0})`);
   if (!baseMaps?.length) return abort("no base maps available");
-  if (!templateProps?.annotationTemplateId)
+  const isTemplateless =
+    Boolean(templateProps?.isTemplateless) &&
+    !templateProps?.annotationTemplateId;
+  if (!isTemplateless && !templateProps?.annotationTemplateId)
     return abort("no armed template (annotationTemplateId missing)");
 
   const carriedIds = new Set(
@@ -144,21 +153,28 @@ export default async function commitDrawnPolylineService({
     projectedPoints,
     baseMap: host,
     projectId,
-    listingId,
+    listingId: isTemplateless ? undefined : listingId,
   });
 
   const annotation = {
     id: nanoid(),
     projectId,
-    listingId,
+    ...(isTemplateless
+      ? { scopeId: scopeId ?? null, listingId: null }
+      : {
+          listingId,
+          annotationTemplateId: templateProps.annotationTemplateId,
+        }),
     baseMapId: host.id,
-    annotationTemplateId: templateProps.annotationTemplateId,
     ...(layerId ? { layerId } : {}),
     points: pointRefs,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     ...annotationFields,
   };
+  // The draft of the 3D "Dessin" tool is tagged for mesh drawing; a plain
+  // polyline is not a mesh annotation.
+  delete annotation.isMesh3d;
 
   const create = createAnnotationFn ?? createAnnotationService;
   return await create(annotation);

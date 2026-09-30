@@ -39,7 +39,7 @@ export default function useLegendItems() {
     const idsMap = {};
     const legendItemsByListingName = [];
 
-    annotations.filter(a => a.type !== "IMAGE").forEach((annotation) => {
+    annotations.filter(a => a.type !== "IMAGE" && a.type !== "SCENE_3D").forEach((annotation) => {
       const templateId = annotation.annotationTemplateId;
       if (templateId) {
         const template = annotationTemplateById[templateId];

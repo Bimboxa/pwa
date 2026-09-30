@@ -1,3 +1,5 @@
+import getScene3dFootprintCorners from "Features/scene3d/utils/getScene3dFootprintCorners";
+
 // Return the list of vertices of an annotation, in the same local pixel
 // coordinate space as the resolved annotation.points (the space consumed by
 // getAnnotationBbox). Used by the lasso hit-test to decide whether an
@@ -17,6 +19,11 @@ export default function getAnnotationVertices(annotation) {
       { x: bbox.x, y: bbox.y + bbox.height },
       { x: bbox.x + bbox.width, y: bbox.y + bbox.height },
     ];
+  }
+
+  // 1b. SCENE_3D (3D scan): the 4 corners of the rotated footprint.
+  if (annotation.type === "SCENE_3D") {
+    return getScene3dFootprintCorners(annotation);
   }
 
   // 2. POINT / MARKER / LABEL: the single point.

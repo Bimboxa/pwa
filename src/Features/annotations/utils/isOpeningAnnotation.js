@@ -16,18 +16,22 @@ export function getOpeningType(annotation) {
 }
 
 // Draw-order helper: openings paint a white gap OVER their host wall, so they
-// must be rendered after every other annotation. Stable partition (relative
-// order preserved within each group); returns the same array when nothing
-// needs to move.
+// must be rendered after every other annotation. SCENE_3D scans are the
+// opposite: backdrops, rendered BEFORE everything else (their footprint
+// would otherwise cover, and steal the clicks of, the annotations drawn
+// earlier). Stable partition (relative order preserved within each group);
+// returns the same array when nothing needs to move.
 export function sortOpeningsLast(annotations) {
   if (!Array.isArray(annotations) || annotations.length === 0) {
     return annotations;
   }
+  const backdrops = [];
   const others = [];
   const openings = [];
   for (const a of annotations) {
-    (isOpeningAnnotation(a) ? openings : others).push(a);
+    if (a?.type === "SCENE_3D") backdrops.push(a);
+    else (isOpeningAnnotation(a) ? openings : others).push(a);
   }
-  if (openings.length === 0) return annotations;
-  return [...others, ...openings];
+  if (openings.length === 0 && backdrops.length === 0) return annotations;
+  return [...backdrops, ...others, ...openings];
 }

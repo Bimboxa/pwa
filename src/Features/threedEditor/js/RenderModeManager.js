@@ -395,6 +395,9 @@ export default class RenderModeManager {
 
     const addRoot = (root) => {
       if (!root) return;
+      // SCENE_3D scans cast no shadow: a scan hundreds of metres wide must
+      // not stretch the shadow map over the whole site.
+      if (root.userData?.isDecor) return;
       const b = new Box3().setFromObject(root);
       if (!b.isEmpty() && isFinite(b.min.x)) {
         box.union(b);

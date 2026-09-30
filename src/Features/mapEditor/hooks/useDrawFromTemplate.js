@@ -17,6 +17,7 @@ import {
 } from "Features/mapEditor/constants/drawingTools.jsx";
 import getNewAnnotationPropsFromAnnotationTemplate from "Features/annotations/utils/getNewAnnotationPropsFromAnnotationTemplate";
 import getImagePickDraftProps from "Features/imageAnnotations/utils/getImagePickDraftProps";
+import startScene3dImport from "Features/scene3d/utils/startScene3dImport";
 import getLocateBusinessObjectDraftProps from "Features/businessObjects/utils/getLocateBusinessObjectDraftProps";
 import getLinkBusinessObjectDraftProps from "Features/businessObjects/utils/getLinkBusinessObjectDraftProps";
 import { isBusinessObjectsModuleKey } from "Features/businessObjects/utils/businessObjectModuleKeys";
@@ -122,6 +123,10 @@ export default function useDrawFromTemplate(annotationTemplate, listingId) {
       ...getLinkBusinessObjectDraftProps(linkDrawBusinessObjectId),
     };
     Object.assign(baseProps, getImagePickDraftProps(drawingShape, baseProps));
+    // SCENE_3D: the scan files are picked first (import dialog), which then
+    // arms the placement.
+    const drawingMode = tool.drawingMode ?? tool.key;
+    if (startScene3dImport(dispatch, { draft: baseProps, drawingMode })) return;
     if (tool.annotationType) {
       dispatch(setNewAnnotation({ ...baseProps, type: tool.annotationType }));
     } else {

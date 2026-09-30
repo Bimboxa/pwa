@@ -35,6 +35,7 @@ import DialogAutoDownloadListingsData from "Features/listingsConfig/components/D
 import DialogAutoAddListing from "Features/listings/components/DialogAutoAddListing";
 import DialogAutoScopeCreator from "Features/scopeCreator/components/DialogAutoScopeCreator";
 import DialogBaseMapCreator from "Features/baseMapCreator/components/DialogBaseMapCreator";
+import DialogImportScene3d from "Features/scene3d/components/DialogImportScene3d";
 import SyncDialogsContainer from "Features/remoteScopeConfigurations/components/SyncDialogsContainer";
 
 export default function MainAppLayout() {
@@ -128,6 +129,7 @@ export default function MainAppLayout() {
       <DialogAutoSyncTasks />
       <DialogAutoAddListing />
       <DialogAutoScopeCreator />
+      <DialogImportScene3d />
       <DialogBaseMapCreator />
       <SyncDialogsContainer />
     </DndContext>

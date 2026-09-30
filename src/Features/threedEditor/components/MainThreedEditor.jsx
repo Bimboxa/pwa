@@ -34,6 +34,10 @@ import {
 } from "Features/selection/selectionSlice";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 import {
+  VIEW_DISTANCE_AUTO,
+  resolveViewDistance,
+} from "Features/threedEditor/constants/viewDistances";
+import {
   selectEffectiveViewerKey,
   selectIsPovViewer,
   selectPovFramingActive,
@@ -310,6 +314,7 @@ export default function MainThreedEditor() {
   const environment3d = useSelector((s) => s.threedEditor.environment3d);
   // Mouse navigation preset (Standard / Iso 2D + orbite / Iso SketchUp).
   const navigationPreset = useSelector((s) => s.threedEditor.navigationPreset);
+  const maxViewDistance = useSelector((s) => s.threedEditor.maxViewDistance);
   const clippingEnabled = useSelector(
     (s) => s.threedEditor.clippingPlane.enabled
   );
@@ -329,6 +334,14 @@ export default function MainThreedEditor() {
   // short-circuit without re-creating their callbacks (which would reset the
   // drag tracking mid-stream).
   const drawingActive = useSelector((s) => s.threedEditor.drawingMode.active);
+  // A drawing is armed: the drawing toolbar (ToolbarDrawingDraft, above the
+  // bottom bar) takes the bottom-centre spot — the 3D tools toolbar would sit
+  // half hidden behind it.
+  const drawingDraftToolbarShown = useSelector(
+    (s) =>
+      Boolean(s.mapEditor.enabledDrawingMode) &&
+      s.mapEditor.enabledDrawingMode !== "MEASURE"
+  );
   const drawingActiveRef = useRef(drawingActive);
   useEffect(() => {
     drawingActiveRef.current = drawingActive;
@@ -714,6 +727,29 @@ export default function MainThreedEditor() {
   });
 
   useDeleteAnnotationOnKeyboardInThreedEditor({ annotations });
+
+  // Sync the max view distance (device preference, Configuration > Éditeur
+  // 3D) → ControlsManager. AUTO follows the loaded SCENE_3D scans.
+  // Only while the 3D editor is shown, and never from an EMPTY list in AUTO:
+  // leaving 3D (and re-entering it) emits a transient `[]`, which would
+  // shrink the range in the middle of the 2D ↔ 3D camera transition.
+  const appliedViewDistanceRef = useRef({ setting: null, distance: null });
+  useEffect(() => {
+    if (!rendererIsReady || !isThreedViewer) return;
+    const applied = appliedViewDistanceRef.current;
+    const isStaleList =
+      maxViewDistance === VIEW_DISTANCE_AUTO &&
+      !annotations?.length &&
+      applied.setting === maxViewDistance;
+    if (isStaleList) return;
+    const distance = resolveViewDistance(maxViewDistance, annotations);
+    if (applied.setting === maxViewDistance && applied.distance === distance)
+      return;
+    appliedViewDistanceRef.current = { setting: maxViewDistance, distance };
+    threedEditorRef.current?.sceneManager?.controlsManager?.setRegularMaxDistance(
+      distance
+    );
+  }, [maxViewDistance, annotations, rendererIsReady, isThreedViewer]);
 
   // Annotation move / rotate tools (Dessin module) — need the resolved
   // annotations for the carry-set resolution and the 2D write-back.
@@ -1416,6 +1452,8 @@ export default function MainThreedEditor() {
       for (const id in map) {
         const object = map[id];
         if (!object || object.visible === false) continue;
+        // SCENE_3D scans are a backdrop: never lasso-selected in 3D.
+        if (object.userData?.isDecor) continue;
         const point = projectAnnotationToClient(
           object,
           camera,
@@ -1531,6 +1569,7 @@ export default function MainThreedEditor() {
     const annotationItems = [];
     Object.values(map).forEach((object) => {
       if (!object || object.visible === false) return;
+      if (object.userData?.isDecor) return; // SCENE_3D scans (backdrop)
       const point = projectAnnotationToClient(
         object,
         camera,
@@ -2406,7 +2445,7 @@ export default function MainThreedEditor() {
           <RotateAnnotationToolbarThreed />
         ) : meshingActive || isMeshesViewer ? (
           <MeshingToolbarThreed />
-        ) : (
+        ) : drawingDraftToolbarShown ? null : (
           <BottomToolbarThreed />
         ))}
       {/* Bottom-right group (zoom out + 2D/3D toggle) sits outside the swap

@@ -49,7 +49,16 @@ export default async function commitDrawnCoteService({
   const length3d = Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z);
   if (length3d < MIN_COTE_LENGTH_M) return null;
 
-  const host = pickHostBaseMap([a, b], baseMaps);
+  // A unanimous base map carried by the endpoints (points picked on a
+  // SCENE_3D scan) wins over the centroid heuristic — same rule as
+  // commitDrawnPolylineService.
+  const carriedIds = new Set([a.baseMapId, b.baseMapId].filter(Boolean));
+  let host = null;
+  if (carriedIds.size === 1) {
+    const id = carriedIds.values().next().value;
+    host = baseMaps.find((baseMap) => baseMap.id === id) ?? null;
+  }
+  if (!host) host = pickHostBaseMap([a, b], baseMaps);
   if (!host) return null;
 
   const pA = worldToBaseMapNormalized(a, host);

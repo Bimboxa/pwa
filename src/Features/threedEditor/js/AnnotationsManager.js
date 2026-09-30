@@ -150,6 +150,14 @@ export default class AnnotationsManager {
       ? new Vector2(dom.clientWidth, dom.clientHeight)
       : new Vector2(1, 1);
 
+    // SCENE_3D scans store BC1 (S3TC) textures: tell the builder whether the
+    // GPU can sample them directly (else they are decoded to RGBA).
+    const extensions = this.sceneManager.renderer?.extensions;
+    const supportsS3tc = Boolean(
+      extensions?.has("WEBGL_compressed_texture_s3tc") &&
+        extensions?.has("WEBGL_compressed_texture_s3tc_srgb")
+    );
+
     // Per-root finishing pass for the realistic render modes. Grid / gizmos /
     // lines / hover overlays never get the flags. Re-run on async loads (GLB /
     // profile sweeps) and after a CSG carve so late children / swapped
@@ -165,7 +173,12 @@ export default class AnnotationsManager {
     const applyShadowFlags = (root) => {
       if (!options?.realisticShading || !root) return;
       root.traverse?.((child) => {
-        if (!child.isMesh || child.userData?.isHoverOverlay) return;
+        if (
+          !child.isMesh ||
+          child.userData?.isHoverOverlay ||
+          child.userData?.isDecor
+        )
+          return;
         child.castShadow = true;
         if (options?.photorealShading) child.receiveShadow = true;
         if (child.material?.userData?.material3dNeedsBoxUvs) {
@@ -225,6 +238,7 @@ export default class AnnotationsManager {
       const object = createAnnotationObject3D(annotation, baseMapForRender, {
         ...options,
         resolution,
+        supportsS3tc,
         onAsyncLoaded: () => {
           // Late-arriving children (GLB scene, async profile sweep) — the map
           // holds the current root (it may have been swapped by a carve).

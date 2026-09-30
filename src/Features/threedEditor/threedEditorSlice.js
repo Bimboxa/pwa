@@ -6,7 +6,13 @@ import {
   storeNavigationPreset,
 } from "Features/threedEditor/services/navigationPresetLocalStorage";
 
+import {
+  loadMaxViewDistance,
+  storeMaxViewDistance,
+} from "Features/threedEditor/services/viewDistanceLocalStorage";
+
 import { isNavigationPreset } from "Features/threedEditor/constants/navigationPresets";
+import { isViewDistance } from "Features/threedEditor/constants/viewDistances";
 
 // Closes the base maps grid (3D "table à plans"): every other 3D tool mode
 // calls it when it arms, the grid poses being incompatible with them.
@@ -60,6 +66,11 @@ const threedEditorInitialState = {
   // localStorage, edited in Configuration > Éditeur 3D. Synced live by
   // MainThreedEditor → ControlsManager.setNavigationPreset.
   navigationPreset: loadNavigationPreset(),
+  // Regular zoom-out range of the camera: "AUTO" (default range, widened to
+  // the loaded SCENE_3D scans) or a distance in metres (see
+  // constants/viewDistances). Device preference like navigationPreset;
+  // synced by MainThreedEditor → ControlsManager.setRegularMaxDistance.
+  maxViewDistance: loadMaxViewDistance(),
   // "NAVIGATION" | "SELECTION" | "BASEMAP_POSITION".
   // - NAVIGATION: shift+drag = camera (OrbitControls).
   // - SELECTION: shift+drag = lasso selection.
@@ -345,6 +356,11 @@ export const threedEditorSlice = createSlice({
       if (!isNavigationPreset(action.payload)) return;
       state.navigationPreset = action.payload;
       storeNavigationPreset(state.navigationPreset);
+    },
+    setMaxViewDistance: (state, action) => {
+      if (!isViewDistance(action.payload)) return;
+      state.maxViewDistance = action.payload;
+      storeMaxViewDistance(state.maxViewDistance);
     },
     setEditorMode: (state, action) => {
       state.editorMode = action.payload;
@@ -991,6 +1007,7 @@ export const {
   setRenderMode,
   setEnvironment3d,
   setNavigationPreset,
+  setMaxViewDistance,
   setEditorMode,
   setDrawingOffset,
   setBaseMapOpacityIn3d,

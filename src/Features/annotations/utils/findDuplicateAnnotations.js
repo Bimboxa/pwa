@@ -12,7 +12,7 @@ const POINT_TYPES = [
   "REVOLUTION_AXIS",
   "REVOLUTION_AXIS_PLACEMENT",
 ];
-const BBOX_TYPES = ["RECTANGLE", "IMAGE", "OBJECT_3D"];
+const BBOX_TYPES = ["RECTANGLE", "IMAGE", "OBJECT_3D", "SCENE_3D"];
 
 function quantize(value, tolerance) {
   return Math.round(value / tolerance);

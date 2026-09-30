@@ -141,6 +141,9 @@ export default async function createProjectExportZip(projectId) {
 
   // 2. Metadata export (binaries stripped, see header).
   const blob = await db.export({
+    // SCENE_3D heavy data is local only (converted scan pieces, re-imported
+    // from the source files on another device).
+    skipTables: ["scene3dAssets"],
     filter: (table, value) => {
       if (!value) return false;
 

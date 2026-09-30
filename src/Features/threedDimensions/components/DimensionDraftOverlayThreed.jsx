@@ -8,6 +8,9 @@ import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 import useVertexSnap from "Features/threedDrawing/hooks/useVertexSnap";
+import intersectScene3d from "Features/scene3d/services/intersectScene3d";
+import usePrepareScene3dPicking from "Features/scene3d/hooks/usePrepareScene3dPicking";
+import buildDrawingVertexMarkers from "Features/threedDrawing/utils/buildDrawingVertexMarkers";
 
 import { setLastDimensionSnap } from "../services/lastDimensionSnapStore";
 import computeDimensionSnap from "../utils/computeDimensionSnap";
@@ -53,10 +56,12 @@ export default function DimensionDraftOverlayThreed() {
   );
 
   const { findNearestSnap } = useVertexSnap({ active });
+  usePrepareScene3dPicking(active);
 
   const rootRef = useRef(null);
   const previewLineRef = useRef(null);
   const snapCircleRef = useRef(null);
+  const startMarkerRef = useRef(null);
   const lengthLabelRef = useRef(null);
 
   // mount / unmount root group
@@ -77,9 +82,30 @@ export default function DimensionDraftOverlayThreed() {
       disposeObject(root);
       rootRef.current = null;
       previewLineRef.current = null;
+      startMarkerRef.current = null;
       editor.sceneManager.renderScene?.();
     };
   }, [active]);
+
+  // dot on the placed start point — the feedback of the first click
+  useEffect(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    if (startMarkerRef.current) {
+      root.remove(startMarkerRef.current);
+      disposeObject(startMarkerRef.current);
+      startMarkerRef.current = null;
+    }
+    const marker = startPoint
+      ? buildDrawingVertexMarkers([startPoint], COLOR_PREVIEW)
+      : null;
+    if (marker) {
+      marker.renderOrder = 1003;
+      root.add(marker);
+      startMarkerRef.current = marker;
+    }
+    getActiveThreedEditor()?.sceneManager?.renderScene?.();
+  }, [startPoint, active]);
 
   // pointer-move: snap detection + hover marker + preview segment + readout
   useEffect(() => {
@@ -138,13 +164,19 @@ export default function DimensionDraftOverlayThreed() {
       const snapPos = snap?.position;
       if (!snapPos || !startPoint) return;
 
+      // Dashes grow with the viewing distance (5 cm up close): a fixed 5 cm
+      // dash is sub-pixel at the scale of a site (e.g. on a SCENE_3D scan).
+      const dashSize = Math.max(
+        0.05,
+        camera.position.distanceTo(snapPos) * 0.008
+      );
       const mat = new LineMaterial({
         color: COLOR_PREVIEW,
         linewidth: LINEWIDTH_PREVIEW,
         resolution: getCanvasResolution(editor),
         dashed: true,
-        dashSize: 0.05,
-        gapSize: 0.05,
+        dashSize,
+        gapSize: dashSize,
         worldUnits: false,
         transparent: true,
         depthTest: false,
@@ -175,6 +207,7 @@ export default function DimensionDraftOverlayThreed() {
         camera,
         canvasSize,
         findNearestVertex: (mNdc, cam, sz) => findNearestSnap(mNdc, cam, sz),
+        intersectScan: (mNdc) => intersectScene3d(editor, mNdc, camera),
       });
       setLastDimensionSnap(snap);
       const screen = updateSnapCircle(snap, rect);

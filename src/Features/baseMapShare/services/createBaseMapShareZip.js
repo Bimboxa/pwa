@@ -112,6 +112,7 @@ export default async function createBaseMapShareZip({
   }
 
   const blob = await db.export({
+    skipTables: ["scene3dAssets"],
     filter: (table, value) => {
       if (!value) return false;
       if (table === "baseMaps") return value.id === baseMapId;

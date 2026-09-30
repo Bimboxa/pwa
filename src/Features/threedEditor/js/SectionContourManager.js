@@ -164,6 +164,8 @@ export default class SectionContourManager {
         // (aquarelle ink edges, revolution section markers).
         if (child.isLine2 || child.isLineSegments2) return;
         if (child.userData?.isSectionMarker) return;
+        // SCENE_3D scans: their geometry lives on the GPU only.
+        if (child.userData?.isDecor) return;
         if (child.isMesh && child.geometry) meshes.push(child);
       });
     });

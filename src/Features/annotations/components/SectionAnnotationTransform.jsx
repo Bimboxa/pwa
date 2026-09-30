@@ -7,12 +7,16 @@ import FieldAnnotationRotation from "./FieldAnnotationRotation";
 
 // Dimensions + Rotation stacked as two one-line rows in a single card,
 // separated by a divider — replaces the two former full-height sections.
+// SCENE_3D (3D scan): rotation only — the scan is at scale, never resized.
 export default function SectionAnnotationTransform({ annotation }) {
+  const hasDimensions = annotation?.type !== "SCENE_3D";
   return (
     <WhiteSectionGeneric>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-        <FieldWrapperDimensions annotation={annotation} inline />
-        <Divider />
+        {hasDimensions && (
+          <FieldWrapperDimensions annotation={annotation} inline />
+        )}
+        {hasDimensions && <Divider />}
         <FieldAnnotationRotation annotation={annotation} inline />
       </Box>
     </WhiteSectionGeneric>

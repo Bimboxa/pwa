@@ -25,6 +25,9 @@ import intersectAnnotationFace, {
   buildFacePlaneHit,
 } from "../utils/intersectAnnotationFace";
 import { isMesh3dDraft } from "../utils/templateFaceDrawSelectors";
+import intersectScene3d from "Features/scene3d/services/intersectScene3d";
+import usePrepareScene3dPicking from "Features/scene3d/hooks/usePrepareScene3dPicking";
+import buildDrawingVertexMarkers from "../utils/buildDrawingVertexMarkers";
 
 const COLOR_VERTEX = 0xff2d8d;
 const COLOR_EDGE = 0x2e7d32;
@@ -59,6 +62,7 @@ function colorForKind(kind) {
       return COLOR_EDGE;
     case "PLANE":
     case "FACE":
+    case "SCAN":
       return COLOR_PLANE;
     case "PLANE_ORTHO":
     case "PLANE_ALIGN":
@@ -93,14 +97,28 @@ function getCanvasResolution(editor) {
   return new Vector2(dom.clientWidth, dom.clientHeight);
 }
 
-function makeLineMaterial({ color, linewidth, dashed, resolution }) {
+// Dash length (world metres) of a preview line seen from `distance` metres:
+// 5 cm up close, growing with the distance so the dashes stay readable when
+// drawing at the scale of a site (e.g. on a SCENE_3D scan) — a fixed 5 cm
+// dash is sub-pixel there and the line fades out.
+function getDashSize(distance) {
+  return Math.max(0.05, (distance || 0) * 0.008);
+}
+
+function makeLineMaterial({
+  color,
+  linewidth,
+  dashed,
+  resolution,
+  dashSize = 0.05,
+}) {
   return new LineMaterial({
     color,
     linewidth,
     resolution,
     dashed: !!dashed,
-    dashSize: 0.05,
-    gapSize: 0.05,
+    dashSize,
+    gapSize: dashSize,
     worldUnits: false,
     transparent: true,
     depthTest: false,
@@ -155,10 +173,18 @@ export default function DrawingOverlayThreed() {
   const mainBaseMapId = useMainBaseMap()?.id;
 
   const { findNearestSnap } = useVertexSnap({ active });
+  // Lines (a POLYLINE template, or the "Dessin" tool on its line type) can
+  // land their points on the SCENE_3D scans: straight segments between the
+  // picked points. Not the polygons — a face needs coplanar points.
+  const canDrawOnScan = useSelector(
+    (s) => s.annotations.newAnnotation?.type === "POLYLINE"
+  );
+  usePrepareScene3dPicking(active && canDrawOnScan);
 
   const rootRef = useRef(null);
   const traitLinesRef = useRef(null);
   const inProgressLinesRef = useRef(null);
+  const inProgressMarkersRef = useRef(null);
   const previewLineRef = useRef(null);
   const snapCircleRef = useRef(null);
   const crossARef = useRef(null);
@@ -184,6 +210,7 @@ export default function DrawingOverlayThreed() {
       rootRef.current = null;
       traitLinesRef.current = null;
       inProgressLinesRef.current = null;
+      inProgressMarkersRef.current = null;
       previewLineRef.current = null;
       editor.sceneManager.renderScene?.();
     };
@@ -215,7 +242,9 @@ export default function DrawingOverlayThreed() {
     getActiveThreedEditor()?.sceneManager?.renderScene?.();
   }, [trait3DSegments, active]);
 
-  // sync in-progress polyline (committed segments only)
+  // sync in-progress polyline (committed segments only) + a dot on every
+  // placed point — the feedback of a click (a lone first point has no
+  // segment yet)
   useEffect(() => {
     const root = rootRef.current;
     if (!root) return;
@@ -223,6 +252,20 @@ export default function DrawingOverlayThreed() {
       root.remove(inProgressLinesRef.current);
       disposeObject(inProgressLinesRef.current);
       inProgressLinesRef.current = null;
+    }
+    if (inProgressMarkersRef.current) {
+      root.remove(inProgressMarkersRef.current);
+      disposeObject(inProgressMarkersRef.current);
+      inProgressMarkersRef.current = null;
+    }
+    const markers = buildDrawingVertexMarkers(
+      inProgressPolyline,
+      COLOR_IN_PROGRESS
+    );
+    if (markers) {
+      markers.renderOrder = 1001;
+      root.add(markers);
+      inProgressMarkersRef.current = markers;
     }
     if (inProgressPolyline.length >= 2) {
       const editor = getActiveThreedEditor();
@@ -315,14 +358,42 @@ export default function DrawingOverlayThreed() {
           ? { onlyBaseMapId: anchor.baseMapId }
           : { preferredBaseMapId: mainBaseMapId }
       );
-      if (!isMeshDraw || anchor) return planHit;
-      // Mesh drawing: the nearest of the annotation face and the plan. A
-      // sheet lying on the plan is in front of it by its 1 mm lift only.
-      const faceHit = intersectAnnotationFace(editor, mNdc, camera);
-      if (!faceHit) return planHit;
-      if (!planHit) return faceHit;
-      const planDistance = camera.position.distanceTo(planHit.position);
-      return faceHit.distance <= planDistance + 2e-3 ? faceHit : planHit;
+      // The nearest surface under the cursor wins.
+      let best = planHit;
+      let bestDistance = planHit
+        ? camera.position.distanceTo(planHit.position)
+        : Infinity;
+      // Mesh drawing: an annotation face in front of the plan. A sheet
+      // lying on the plan is in front of it by its 1 mm lift only.
+      if (isMeshDraw && !anchor) {
+        const faceHit = intersectAnnotationFace(editor, mNdc, camera);
+        if (faceHit && faceHit.distance <= bestDistance + 2e-3) {
+          best = faceHit;
+          bestDistance = faceHit.distance;
+        }
+      }
+      // Line drawing: a SCENE_3D scan in front takes the point (on its
+      // surface). Not for rectangles (they live on a plane).
+      if (canDrawOnScan && behavior !== "RECTANGLE") {
+        const scanHit = intersectScene3d(editor, mNdc, camera);
+        if (scanHit?.isPending) return scanHit;
+        if (scanHit && scanHit.distance < bestDistance) {
+          // Same target as a face / plan hit: the cross lies in the plane of
+          // the triangle under the cursor. Its arms grow with the viewing
+          // distance — a scan is looked at from much farther than a face.
+          best = {
+            ...buildFacePlaneHit(
+              scanHit.position,
+              scanHit.normal,
+              { baseMapId: scanHit.baseMapId, distance: scanHit.distance },
+              Math.max(0.5, scanHit.distance * 0.04)
+            ),
+            isFace: false,
+            isScan: true,
+          };
+        }
+      }
+      return best;
     }
 
     function toScreen(worldPos, rect) {
@@ -417,6 +488,7 @@ export default function DrawingOverlayThreed() {
         color: colorForKind(snap.kind),
         linewidth: LINEWIDTH_PREVIEW,
         dashed: true,
+        dashSize: getDashSize(camera.position.distanceTo(snapPos)),
         resolution: getCanvasResolution(editor),
       });
       const line = buildSegments(
@@ -514,6 +586,7 @@ export default function DrawingOverlayThreed() {
     baseMaps,
     mainBaseMapId,
     isMeshDraw,
+    canDrawOnScan,
   ]);
 
   if (!active) return null;

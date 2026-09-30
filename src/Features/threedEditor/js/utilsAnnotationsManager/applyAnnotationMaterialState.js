@@ -105,6 +105,9 @@ function lineStateMaterial(child, state) {
 
 export default function applyAnnotationMaterialState(object3D, state) {
   if (!object3D) return;
+  // SCENE_3D scans are a backdrop: never hover-tinted nor dimmed (their
+  // materials are shared per atlas and must not be swapped).
+  if (object3D.userData?.isDecor) return;
 
   object3D.traverse((child) => {
     if (!child.isMesh) return;

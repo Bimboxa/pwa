@@ -124,6 +124,15 @@ export default async function createKrtoZip(scopeId, options) {
             .map((a) => a.image?.fileName)
             .filter(Boolean)
     );
+    // SCENE_3D (3D scans): the top view image is the only binary that ships
+    // (the scan itself is local only, see db.scene3dAssets). Whitelisted
+    // for every exported scan — templateless ones carry no listingId.
+    exportedAnnotations
+        .filter((a) => !a.deletedAt && a.type === "SCENE_3D")
+        .forEach((a) => {
+            const fileName = a.scene3d?.topView?.fileName;
+            if (fileName) templatelessImageFileNames.add(fileName);
+        });
 
     // 2bis. Versions de baseMap supprimées (soft-delete) : on conserve la version
     // dans le JSON, mais on exclut son image du zip pour éviter de l'alourdir avec
@@ -193,6 +202,8 @@ export default async function createKrtoZip(scopeId, options) {
 
     // 3. Export via Dexie
     const blob = await db.export({
+        // SCENE_3D heavy data is local only: never read by a save.
+        skipTables: ["scene3dAssets"],
         filter: (table, value) => {
             if (!value) return false;
 
