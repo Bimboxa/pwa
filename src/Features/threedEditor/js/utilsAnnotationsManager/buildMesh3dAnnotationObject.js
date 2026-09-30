@@ -104,9 +104,14 @@ export default function buildMesh3dAnnotationObject(
     const faceMesh = new Mesh(geometry, material);
     // mesh3dFaceInfo: measures of the face (m², m), shown by the hover
     // tooltip — the geometry is metric, no need to go back to the row.
+    // mesh3dFaceEdges: its edges as vertex pairs (contour + holes), for the
+    // "face + its edges" selection.
     faceMesh.userData = {
       role: "SOLID",
       mesh3dFaceIndex: faceIndex,
+      mesh3dFaceEdges: getFaceLoops(face).flatMap((loop) =>
+        loop.map((vi, i) => [vi, loop[(i + 1) % loop.length]])
+      ),
       mesh3dFaceInfo: {
         surface: getFaceArea(mesh.vertices, face),
         length: getFacePerimeter(mesh.vertices, face),

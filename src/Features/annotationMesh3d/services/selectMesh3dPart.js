@@ -3,7 +3,12 @@ import {
   setSubSelection,
 } from "Features/selection/selectionSlice";
 
-import { isMesh3dPartId } from "../utils/mesh3dPartIds";
+import {
+  MESH3D_FACE_PART,
+  getMesh3dEdgePartId,
+  getMesh3dFacePartId,
+  isMesh3dPartId,
+} from "../utils/mesh3dPartIds";
 
 const getPartType = (partId) => (partId ? partId.split("::")[1] : null);
 
@@ -42,4 +47,26 @@ export default function selectMesh3dPart({
       partType: getPartType(representative),
     })
   );
+}
+
+// Selects a face TOGETHER with all its edges (double-click on a face): the
+// face is the representative part, the edges join it in the multi selection.
+// Shift+click then removes any of them (selectMesh3dPart, additive).
+//
+// edges: the face's edges as vertex pairs (faceMesh.userData.mesh3dFaceEdges).
+export function selectMesh3dFaceWithEdges({
+  dispatch,
+  annotationId,
+  faceIndex,
+  edges,
+}) {
+  const faceId = getMesh3dFacePartId(annotationId, faceIndex);
+  const partIds = [
+    faceId,
+    ...new Set(
+      (edges || []).map(([a, b]) => getMesh3dEdgePartId(annotationId, a, b))
+    ),
+  ];
+  dispatch(setSelectedPartIds(partIds));
+  dispatch(setSubSelection({ partId: faceId, partType: MESH3D_FACE_PART }));
 }

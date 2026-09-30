@@ -124,7 +124,9 @@ import Mesh3dPartsHighlightThreed from "Features/annotationMesh3d/components/Mes
 import pickMesh3dEdge, {
   buildMesh3dEdgeHelper,
 } from "Features/annotationMesh3d/services/pickMesh3dEdge";
-import selectMesh3dPart from "Features/annotationMesh3d/services/selectMesh3dPart";
+import selectMesh3dPart, {
+  selectMesh3dFaceWithEdges,
+} from "Features/annotationMesh3d/services/selectMesh3dPart";
 import {
   getMesh3dEdgePartId,
   getMesh3dFacePartId,
@@ -1213,6 +1215,42 @@ export default function MainThreedEditor() {
         )
       );
 
+      // Double-click on a face of a mesh annotation: selects the face WITH
+      // all its edges (no camera move). The two clicks of the gesture already
+      // selected the annotation and that face.
+      const firstHit = intersects[0];
+      const faceIndex = firstHit?.object?.userData?.mesh3dFaceIndex;
+      if (faceIndex !== undefined) {
+        let owner = firstHit.object;
+        while (owner && !owner.userData?.nodeId) owner = owner.parent;
+        if (owner?.userData?.isAnnotationMesh3d) {
+          const { nodeId, nodeType, annotationType, listingId } =
+            owner.userData;
+          const selected = store.getState().selection.selectedItems;
+          if (selected.length !== 1 || selected[0].id !== nodeId) {
+            dispatch(
+              setSelectedItem({
+                id: nodeId,
+                nodeId,
+                type: "NODE",
+                nodeType,
+                annotationType,
+                listingId,
+                annotationTemplateId: owner.userData.annotationTemplateId,
+              })
+            );
+            dispatch(setShowAnnotationsProperties(true));
+          }
+          selectMesh3dFaceWithEdges({
+            dispatch,
+            annotationId: nodeId,
+            faceIndex,
+            edges: firstHit.object.userData.mesh3dFaceEdges,
+          });
+          return;
+        }
+      }
+
       // The owning basemap of the closest hit, image mesh or annotation alike:
       // both hang under the basemap group, which carries the id. A hit
       // belonging to no basemap (maille, scene-root object3D) resolves to null
@@ -1239,7 +1277,7 @@ export default function MainThreedEditor() {
       selectMainBaseMap(baseMapId);
       if (frame) threedEditor.fitToBox3Facing(frame.box, frame.normal);
     },
-    [rendererIsReady, isThreedViewer, selectMainBaseMap]
+    [rendererIsReady, isThreedViewer, selectMainBaseMap, dispatch, store]
   );
 
   // Helper to check if an event target is within a MUI Popper or portal
