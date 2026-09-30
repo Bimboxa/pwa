@@ -51,16 +51,26 @@ export function pickWorldHitAtNdc({ sceneManager, ndcX, ndcY, editor = null }) {
       point: scanHit.position.clone(),
       distance: scanHit.distance,
       isScan: true,
+      baseMapId: scanHit.baseMapId ?? null,
     };
   }
 
-  if (best) return { point: best.point, isHit: true, isScan: !!best.isScan };
+  // `baseMapId`: the scan base map hit, if any — it hosts a cote shot on it
+  // (commitDrawnCoteService).
+  if (best)
+    return {
+      point: best.point,
+      isHit: true,
+      isScan: !!best.isScan,
+      baseMapId: best.baseMapId ?? null,
+    };
   return {
     point: raycaster.ray.origin
       .clone()
       .addScaledVector(raycaster.ray.direction, VOID_TARGET_DIST),
     isHit: false,
     isScan: false,
+    baseMapId: null,
   };
 }
 

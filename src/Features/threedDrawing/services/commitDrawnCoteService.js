@@ -31,6 +31,13 @@ const IN_PLANE_EPS_M = 5e-3;
 // insertOrReusePoints then reuses a single db.points row referenced twice —
 // intended (same plan position).
 //
+// Templateless cote (templateProps.isTemplateless, no annotationTemplateId —
+// e.g. the walk-mode laser meter without a Cote template in the listing):
+// the annotation belongs to the scope + the host base map only (`scopeId`,
+// `listingId: null`), same rule as commitDrawnPolylineService. It then
+// needs `createAnnotationFn` (useCreateAnnotation): createAnnotationService
+// refuses annotations without a template.
+//
 // Returns the created annotation record, or null on failure (no host
 // baseMap, degenerate segment, etc.).
 export default async function commitDrawnCoteService({
@@ -39,12 +46,16 @@ export default async function commitDrawnCoteService({
   baseMaps,
   projectId,
   listingId,
+  scopeId = null,
   templateProps = null,
   layerId = null,
   createAnnotationFn = null,
 }) {
   if (!a || !b) return null;
   if (!baseMaps?.length) return null;
+  const isTemplateless =
+    Boolean(templateProps?.isTemplateless) &&
+    !templateProps?.annotationTemplateId;
 
   const length3d = Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z);
   if (length3d < MIN_COTE_LENGTH_M) return null;
@@ -81,7 +92,7 @@ export default async function commitDrawnCoteService({
     projectedPoints,
     baseMap: host,
     projectId,
-    listingId,
+    listingId: isTemplateless ? undefined : listingId,
   });
 
   // In-plane: strip refs down to {id} to keep byte-parity with the 2D
@@ -103,9 +114,13 @@ export default async function commitDrawnCoteService({
   const annotation = {
     id: nanoid(),
     projectId,
-    listingId,
+    ...(isTemplateless
+      ? { scopeId: scopeId ?? null, listingId: null, isTemplateless: true }
+      : {
+          listingId,
+          annotationTemplateId: templateProps?.annotationTemplateId ?? null,
+        }),
     baseMapId: host.id,
-    annotationTemplateId: templateProps?.annotationTemplateId ?? null,
     ...(layerId ? { layerId } : {}),
     points: pointRefs,
     createdAt: new Date().toISOString(),

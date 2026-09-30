@@ -9,10 +9,11 @@ import buildDrawingVertexMarkers from "Features/threedDrawing/utils/buildDrawing
 import createDimensionLabelSprite from "Features/threedDimensions/services/createDimensionLabelSprite";
 import formatCoteLength from "Features/threedDimensions/utils/formatCoteLength";
 
-// Walk-mode "Mesure" tool: ephemeral dimensions shot from the crosshair.
-// shoot(point) twice = one measure (world-space Line2 + endpoint dots + a
-// length card sprite at the midpoint), kept in the scene until clearAll()
-// / dispose() (walk exit). Between the two shots, updatePreview(point)
+// Walk-mode laser meter: dimensions shot from the crosshair. shoot(point)
+// twice = one measure (world-space Line2 + endpoint dots + a length card
+// sprite at the midpoint). The caller persists it as a COTE annotation and
+// removes the ephemeral copy (removeLast); a measure that could not be
+// persisted stays in the scene until clearAll() / dispose() (walk exit). Between the two shots, updatePreview(point)
 // draws a dashed segment from the first point to the aimed point and
 // returns its live length. Nothing is persisted and nothing is pickable:
 // every object has a neutralised raycast, so the aim ray (pickWorldHitAtNdc,
@@ -169,21 +170,35 @@ export function createWalkMeasureController({ sceneManager, editor }) {
     measures.push({ a, b, lengthM, group });
   }
 
-  // First call: arm the start point. Second call: commit the measure.
+  // First call: arms the start point (returns null). Second call: commits
+  // the measure and returns its {a, b, lengthM} (world Vector3s) — the
+  // caller may persist it as a COTE annotation and drop the ephemeral copy
+  // with removeLast().
   function shoot(point) {
-    if (!point) return;
+    if (!point) return null;
     const p = point.clone();
     if (!startPoint) {
       startPoint = p;
       startMarker = makeMarkers([p]);
       if (startMarker) root.add(startMarker);
       render();
-      return;
+      return null;
     }
-    if (startPoint.distanceTo(p) < MIN_LENGTH_M) return;
+    if (startPoint.distanceTo(p) < MIN_LENGTH_M) return null;
     const a = startPoint;
     dropStart();
     commit(a, p);
+    render();
+    const last = measures[measures.length - 1];
+    return { a: last.a, b: last.b, lengthM: last.lengthM };
+  }
+
+  // Drop the most recent committed measure (persisted elsewhere).
+  function removeLast() {
+    const last = measures.pop();
+    if (!last) return;
+    root.remove(last.group);
+    disposeObject(last.group);
     render();
   }
 
@@ -244,5 +259,13 @@ export function createWalkMeasureController({ sceneManager, editor }) {
     };
   }
 
-  return { shoot, updatePreview, cancelStart, clearAll, dispose, getState };
+  return {
+    shoot,
+    removeLast,
+    updatePreview,
+    cancelStart,
+    clearAll,
+    dispose,
+    getState,
+  };
 }

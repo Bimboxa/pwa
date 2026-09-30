@@ -5,8 +5,15 @@ import { Vector3 } from "three";
 
 import { setWalkModeActive } from "Features/threedEditor/threedEditorSlice";
 
+import useAnnotationTemplates from "Features/annotations/hooks/useAnnotationTemplates";
+import useCreateAnnotation from "Features/annotations/hooks/useCreateAnnotation";
+import { resolveDrawingShape } from "Features/annotations/constants/drawingShapeConfig";
+import getNewAnnotationPropsFromAnnotationTemplate from "Features/annotations/utils/getNewAnnotationPropsFromAnnotationTemplate";
+import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import getBaseMapTransform from "Features/baseMaps/js/getBaseMapTransform";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
+import { getTemplatelessDraft } from "Features/mapEditor/utils/startTemplatelessDraw";
+import commitDrawnCoteService from "Features/threedDrawing/services/commitDrawnCoteService";
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 import { selectPdfEditorOpen } from "Features/pdfEditor/pdfEditorSlice";
@@ -69,6 +76,34 @@ export default function useWalkMode() {
   const mainBaseMap = useMainBaseMap();
 
   const controllerRef = useRef(null);
+
+  // Persisting the laser-meter shots as COTE annotations: the Cote template
+  // of the selected listing when it has one, else a templateless cote bound
+  // to the scope + the host base map (commitDrawnCoteService). Read through
+  // a ref at shot time (the controller effect must not re-run on them).
+  const projectId = useSelector((s) => s.projects.selectedProjectId);
+  const listingId = useSelector((s) => s.listings.selectedListingId);
+  const scopeId = useSelector((s) => s.scopes.selectedScopeId);
+  const activeLayerId = useSelector((s) => s.layers?.activeLayerId);
+  const draftPropsByTemplateId = useSelector(
+    (s) => s.mapEditor.draftPropsByTemplateId
+  );
+  const baseMaps = useBaseMaps()?.value;
+  const listingTemplates = useAnnotationTemplates({
+    filterByListingId: listingId,
+  });
+  const createAnnotation = useCreateAnnotation();
+  const coteCommitRef = useRef(null);
+  coteCommitRef.current = {
+    projectId,
+    listingId,
+    scopeId,
+    activeLayerId,
+    draftPropsByTemplateId,
+    baseMaps,
+    listingTemplates,
+    createAnnotation,
+  };
 
   // Ground = the selected baseMap plane. Prefer the live group's world Y
   // (reflects an in-flight gizmo move); fall back to the persisted transform.
@@ -209,13 +244,53 @@ export default function useWalkMode() {
     const centerPick = () =>
       pickWorldHitAtNdc({ sceneManager, ndcX: 0, ndcY: 0, editor });
 
+    // Cotes persisted during this walk (+ the ephemeral copies of the shots
+    // that could not be persisted).
+    let cotesCreated = 0;
     const emitMeasureState = () => {
       const st = measure.getState();
       emitShoot({
         measureHasStart: !!st.startPoint,
-        measureCount: st.measures.length,
+        measureCount: cotesCreated + st.measures.length,
       });
     };
+
+    // Second shot → COTE annotation. Template props: the listing's Cote
+    // template (with its remembered toolbar edits) or a templateless draft.
+    const persistCote = async ({ a, b }, hitA, hitB) => {
+      const ctx = coteCommitRef.current;
+      if (!ctx?.projectId || !ctx.baseMaps?.length) return null;
+      const coteTemplate = (ctx.listingTemplates ?? []).find(
+        (t) => resolveDrawingShape(t) === "COTE"
+      );
+      const templateProps = coteTemplate
+        ? {
+            ...getNewAnnotationPropsFromAnnotationTemplate(
+              coteTemplate,
+              ctx.draftPropsByTemplateId?.[coteTemplate.id]
+            ),
+            type: "COTE",
+          }
+        : { ...getTemplatelessDraft("COTE"), type: "COTE" };
+      const toPoint = (v, hit) => ({
+        x: v.x,
+        y: v.y,
+        z: v.z,
+        ...(hit?.baseMapId ? { baseMapId: hit.baseMapId } : {}),
+      });
+      return commitDrawnCoteService({
+        a: toPoint(a, hitA),
+        b: toPoint(b, hitB),
+        baseMaps: ctx.baseMaps,
+        projectId: ctx.projectId,
+        listingId: coteTemplate ? ctx.listingId : null,
+        scopeId: ctx.scopeId,
+        templateProps,
+        layerId: coteTemplate ? (ctx.activeLayerId ?? null) : null,
+        createAnnotationFn: ctx.createAnnotation,
+      });
+    };
+    let firstHit = null;
 
     // Live aim of the stream, re-read every frame while Space is held.
     // Origin: with the RPG image displayed, the jet exits its nozzle —
@@ -260,9 +335,26 @@ export default function useWalkMode() {
       // on a real surface (the void is not measurable).
       onPrimaryStart: () => {
         if (tool === "MEASURE") {
-          const { point, isHit } = centerPick();
-          if (!isHit) return;
-          measure.shoot(point);
+          const hit = centerPick();
+          if (!hit.isHit) return;
+          const pair = measure.shoot(hit.point);
+          if (!pair) {
+            firstHit = hit;
+          } else {
+            const hitA = firstHit;
+            firstHit = null;
+            persistCote(pair, hitA, hit)
+              .then((created) => {
+                if (!created) return;
+                // Rendered by ThreedCoteAnnotations from now on.
+                measure.removeLast();
+                cotesCreated += 1;
+                emitMeasureState();
+              })
+              .catch((err) =>
+                console.error("[walkMode] cote commit failed", err)
+              );
+          }
           emitShoot({ measureLiveM: null });
           emitMeasureState();
           return;
@@ -280,14 +372,17 @@ export default function useWalkMode() {
       onSwitchTool: () => {
         spray.stopStream();
         measure.cancelStart();
+        firstHit = null;
         tool = tool === "LANCE" ? "MEASURE" : "LANCE";
         emitShoot({ tool, firingUntil: 0, measureLiveM: null });
         emitMeasureState();
       },
       // Backspace / Delete: wipe the current tool's traces — the in-memory
-      // graffiti off the walls, or every measure.
+      // graffiti off the walls, or the pending first point + the ephemeral
+      // measures (persisted cotes are annotations: untouched).
       onClear: () => {
         if (tool === "MEASURE") {
+          firstHit = null;
           measure.clearAll();
           emitShoot({ measureLiveM: null });
           emitMeasureState();

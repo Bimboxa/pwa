@@ -409,8 +409,9 @@ function JetBody({ jetMode, spreadDeg }) {
   );
 }
 
-// Laser meter: the next expected shot and the number of measures kept in
-// the scene (the live length lives under the reticle).
+// Laser meter: the next expected shot and the number of cotes shot during
+// this walk (persisted as COTE annotations; the live length lives under the
+// reticle).
 function MeasureBody({ targetDistM, measureHasStart, measureCount }) {
   const noTarget = targetDistM == null;
   return (
@@ -435,14 +436,14 @@ function MeasureBody({ targetDistM, measureHasStart, measureCount }) {
         </Box>
         <Box sx={{ flexGrow: 1 }} />
         <Box sx={{ fontSize: 10, color: TEXT_DIM }}>
-          {measureCount} mesure{measureCount > 1 ? "s" : ""}
+          {measureCount} cote{measureCount > 1 ? "s" : ""}
         </Box>
       </Box>
       <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
         <Key>Espace</Key>
         <Hint>tirer</Hint>
         <Key>⌫</Key>
-        <Hint>effacer</Hint>
+        <Hint>annuler</Hint>
       </Box>
     </Box>
   );
