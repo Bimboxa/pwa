@@ -27,6 +27,14 @@ import { parseScene3dAssetId } from "../utils/scene3dAssetIds";
 // Memory: the scan is loaded ATLAS BY ATLAS (one texture row + its geometry
 // rows at a time) and every CPU copy is dropped once uploaded — the steady
 // state holds (almost) nothing in RAM.
+//
+// Consequence: an entry is bound to the WebGL renderer it was uploaded to.
+// A CPU-less geometry can never be uploaded again — a new renderer (the 3D
+// editor remounts: 2D/3D toggle, module switch) or a geometry.dispose()
+// from a generic scene teardown would crash three.js on the next render
+// ("Cannot read properties of null (reading 'byteLength')"). Entries are
+// therefore keyed by renderer (a mismatch evicts and reloads from IndexedDB)
+// and self-evict as soon as one of their geometries is disposed.
 
 const EVICTION_DELAY_MS = 15000;
 // Fallback without S3TC: the BC1 data is decoded to RGBA from this mip level
@@ -139,11 +147,17 @@ async function loadEntry(entry, supportsBc1) {
           ? createBc1Texture(textureRow)
           : createRgbaTexture(textureRow)
         : null,
-      geometries: geometryRows
-        .filter(Boolean)
-        .map((row) =>
-          buildScene3dChunkGeometry(row, { releaseAfterUpload: true })
-        ),
+      geometries: geometryRows.filter(Boolean).map((row) => {
+        const geometry = buildScene3dChunkGeometry(row, {
+          releaseAfterUpload: true,
+        });
+        // Disposed from outside (scene teardown…): the GPU copy is gone and
+        // the CPU one was released — the whole entry must reload.
+        geometry.addEventListener("dispose", () => {
+          if (!entry.disposed) disposeEntry(entry);
+        });
+        return geometry;
+      }),
     };
     if (entry.disposed) {
       disposeAtlas(atlas);
@@ -172,12 +186,22 @@ function disposeEntry(entry) {
 //   {type: "READY"} when every atlas is there;
 //   {type: "MISSING"} when the scan data is not on this device.
 // Returns the release function (call it exactly once).
+// renderer: the WebGLRenderer the resources are uploaded to (see the header:
+//   an entry uploaded to another renderer is evicted and reloaded).
 // supportsBc1: the renderer has the S3TC (+ sRGB) extensions.
-export function acquireScene3dAssets(sceneId, { supportsBc1, onEvent }) {
+export function acquireScene3dAssets(
+  sceneId,
+  { renderer = null, supportsBc1, onEvent }
+) {
   let entry = entries.get(sceneId);
+  if (entry && entry.renderer !== renderer) {
+    disposeEntry(entry);
+    entry = null;
+  }
   if (!entry) {
     entry = {
       sceneId,
+      renderer,
       refCount: 0,
       evictTimer: null,
       status: "LOADING",

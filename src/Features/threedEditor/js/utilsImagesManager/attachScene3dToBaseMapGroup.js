@@ -55,7 +55,7 @@ export function getScene3dGroupKey(baseMap) {
 // data, in the chunk space — `group.userData.scene3dPick = {sceneId, frame}`
 // carries that space's world transform (the same one as every chunk mesh).
 //
-// options: {supportsS3tc, opacity, onLoaded}. Returns the dispose function
+// options: {renderer, supportsS3tc, opacity, onLoaded}. Returns the dispose function
 // (empties the wrap, releases the cache reference — the shared geometries
 // and textures are never disposed here).
 export default function attachScene3dToBaseMapGroup(group, baseMap, options) {
@@ -93,6 +93,7 @@ export default function attachScene3dToBaseMapGroup(group, baseMap, options) {
   let disposed = false;
 
   const release = acquireScene3dAssets(scene3d.sceneId, {
+    renderer: options?.renderer ?? null,
     supportsBc1: Boolean(options?.supportsS3tc),
     onEvent: (event) => {
       if (disposed) return;
