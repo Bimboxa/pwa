@@ -182,7 +182,10 @@ const contextNormalStyle = {
 };
 
 
-// Render tracker — logs which values changed between renders
+// Render tracker — logs which values changed between renders. Prev values
+// are keyed per instance (label prefixed with forViewerKey): several
+// MainMapEditorV3 instances are mounted at once and would otherwise log a
+// fake ping-pong (A → B, B → A) whenever they disagree.
 const _prevValues = {};
 function _track(label, value) {
     const prev = _prevValues[label];
@@ -197,6 +200,7 @@ function _track(label, value) {
 
 export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     const dispatch = useDispatch();
+    const track = (label, value) => _track(`${forViewerKey}:${label}`, value);
 
     // hotkeys — switch drawing tool via keyboard (Tab / R / L / C / G)
     useDrawingToolHotkeys();
@@ -256,19 +260,19 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     const projectId = useSelector((state) => state.projects.selectedProjectId);
     const listingId = useSelector((state) => state.listings.selectedListingId);
     const spriteImage = useAnnotationSpriteImage();
-    _track("spriteImage", spriteImage?.src);
+    track("spriteImage", spriteImage?.src);
     const enabledDrawingMode = useSelector((state) => state.mapEditor.enabledDrawingMode);
     const imageScaleDraft = useSelector((state) => state.mapEditor.imageScaleDraft);
-    _track("enabledDrawingMode", enabledDrawingMode);
+    track("enabledDrawingMode", enabledDrawingMode);
     const mapEditorMode = useSelector((state) => state.mapEditor.mapEditorMode);
     const orthoSnapAngleOffset = useSelector((state) => state.mapEditor.orthoSnapAngleOffset);
 
     // Selection from new Redux slice
     const { nodes: selectedNodes, node: selectedNode } = useSelectedNodes();
-    _track("selectedNodes", selectedNodes);
-    _track("selectedNode", selectedNode?.nodeId);
+    track("selectedNodes", selectedNodes);
+    track("selectedNode", selectedNode?.nodeId);
     const selectedItems = useSelector(selectSelectedItems);
-    _track("selectedItems", selectedItems);
+    track("selectedItems", selectedItems);
 
     const hiddenListingsIds = useSelector((s) => s.listings.hiddenListingsIds);
     const grayLevelThreshold = useSelector((s) => s.baseMapEditor.grayLevelThreshold);
@@ -346,7 +350,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
 
     useAutoShowBgImage();
     const bgImage = useBgImageInMapEditor();
-    _track("bgImage", bgImage?.url);
+    track("bgImage", bgImage?.url);
     const showBgImage = useSelector((s) => s.bgImage.showBgImageInMapEditor);
     const showBgImageRef = useRef(showBgImage);
     useEffect(() => {
@@ -357,11 +361,11 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     // baseMaps
 
     const { value: baseMaps } = useBaseMaps();
-    _track("baseMaps.length", baseMaps?.length);
+    track("baseMaps.length", baseMaps?.length);
 
     // baseMap
     const baseMap = useMainBaseMap();
-    _track("baseMap", baseMap?.id);
+    track("baseMap", baseMap?.id);
 
     const baseMapOpacity = useSelector((s) => s.mapEditor.baseMapOpacity);
     const baseMapGrayScale = useSelector((s) => s.mapEditor.baseMapGrayScale);
@@ -371,7 +375,16 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     // Default true. Toggleable via setCleanOnCommit (smartDetectSlice).
     const cleanOnCommit = useSelector((s) => s.smartDetect.cleanOnCommit);
 
+    // baseMapPoseInBg is a SINGLE global value while several MainMapEditorV3
+    // instances can be mounted at once (the shared MAP instance + the
+    // BASE_MAPS one, see SectionViewer). Only the module's 2D editor
+    // (registersCamera, same ownership rule as the camera registry) mirrors
+    // its pose there: each instance resolves its own baseMap through its own
+    // live query, so right after a base map switch the two instances can
+    // hold different baseMaps and would otherwise overwrite each other's
+    // pose synchronously until React aborts (maximum update depth).
     useEffect(() => {
+        if (!registersCamera) return;
         if (baseMap && bgImage && showBgImage) {
             const defaultBaseMapPoseInBg = getDefaultBaseMapPoseInBg({
                 baseMap,
@@ -380,7 +393,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
             console.log("=> defaultBaseMapPoseInBg", defaultBaseMapPoseInBg);
             dispatch(setBaseMapPoseInBg(defaultBaseMapPoseInBg));
         }
-    }, [baseMap?.id, bgImage?.url, showBgImage]);
+    }, [registersCamera, baseMap?.id, bgImage?.url, showBgImage]);
 
     useAutoSelectMainBaseMap();
     //useAutoResetBaseMapPose();
@@ -413,12 +426,15 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
         resolvedPrintZone?.height,
     ]);
     const basePoseInBg = zonePoseInBg ?? basePoseInBgStored;
+    // Single writer (see the bg-image effect above): the non-owner instance
+    // still poses itself locally with its own zone (basePoseInBg) but never
+    // writes it into redux.
     useEffect(() => {
-        if (!zonePoseInBg) return;
+        if (!registersCamera || !zonePoseInBg) return;
         const s = basePoseInBgStored;
         if (s?.x === zonePoseInBg.x && s?.y === zonePoseInBg.y && s?.k === zonePoseInBg.k) return;
         dispatch(setBaseMapPoseInBg(zonePoseInBg));
-    }, [zonePoseInBg, basePoseInBgStored]);
+    }, [registersCamera, zonePoseInBg, basePoseInBgStored]);
     const printZoneWorldRef = useRef(null);
     // The sheet is the FIXED thing on screen: whatever changes its size in
     // image px (drag resize commit, format / orientation / scale / fit from
@@ -475,7 +491,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
         (s) => s.baseMapEditor.showAnnotations
     );
 
-    _track("newAnnotation", newAnnotation?.id);
+    track("newAnnotation", newAnnotation?.id);
     const rawAnnotations = useAnnotationsV2({
         caller: "MainMapEditorV3",
         enabled: isActiveViewer,
@@ -545,7 +561,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
         );
     }, [annotations, baseMap]);
 
-    _track("annotations.length", annotations?.length);
+    track("annotations.length", annotations?.length);
 
     // legend
 
@@ -697,7 +713,7 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
 
     // handler - commit drawing
 
-    _track("legendItems.length", legendItems?.length);
+    track("legendItems.length", legendItems?.length);
     const { handleDrawingCommit: _handleCommitDrawing } = useHandleCommitDrawing({ annotations });
     // Deferred commit mechanism: interactive draws funnel through
     // deferredCommit.commit so an armed newAnnotation.commitInterceptor can
