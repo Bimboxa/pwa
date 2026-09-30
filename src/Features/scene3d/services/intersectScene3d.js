@@ -19,13 +19,16 @@ const _inverse = new Matrix4();
 const _localRay = new Ray();
 const _normalMatrix = new Matrix3();
 
-// Scan roots of the scene that can be drawn on: SCENE_3D annotations shown
-// as a mesh (createScene3dAnnotation publishes `userData.scene3dPick`).
+// Scan roots of the scene that can be drawn on: the groups of the scan base
+// maps shown as a mesh (attachScene3dToBaseMapGroup publishes
+// `userData.scene3dPick` on the base map group).
 function getPickableRoots(editor) {
-  const map =
-    editor?.sceneManager?.annotationsManager?.annotationsObjectsMap ?? {};
+  const map = editor?.sceneManager?.imagesManager?.imagesMap ?? {};
   return Object.values(map).filter(
-    (root) => root?.userData?.scene3dPick && isObjectChainVisible(root)
+    (root) =>
+      root?.userData?.scene3dPick &&
+      isObjectChainVisible(root) &&
+      root.userData.scanWrap?.visible !== false
   );
 }
 
@@ -42,13 +45,13 @@ export function prepareScene3dPicking(editor) {
   return loading;
 }
 
-// Point of the SCENE_3D scans under the pointer — the explicit picker of the
+// Point of the scan base maps under the pointer — the explicit picker of the
 // 3D drawing tools (the scan meshes themselves never answer a raycast: a
 // scan stays a backdrop for hover, selection and every other tool).
 //
 // Returns, in the shape computeSnapTarget reads:
-//   {position, normal, isScan: true, nodeId, baseMapId, distance} — nearest
-//     visible hit (world space; the clipping plane is honoured);
+//   {position, normal, isScan: true, nodeId: null, baseMapId, distance} —
+//     nearest visible hit (world space; the clipping plane is honoured);
 //   {isPending: true} — the pointer is over a scan whose picking data is
 //     still being built: the caller must NOT fall back to what lies behind
 //     (the point would silently land on the plan under the scan);
@@ -101,7 +104,7 @@ export default function intersectScene3d(editor, ndc, camera) {
         position,
         normal,
         isScan: true,
-        nodeId: root.userData.nodeId ?? null,
+        nodeId: null,
         baseMapId: root.userData.baseMapId ?? null,
         distance,
       };

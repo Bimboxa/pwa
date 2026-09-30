@@ -50,7 +50,7 @@ export default async function commitDrawnCoteService({
   if (length3d < MIN_COTE_LENGTH_M) return null;
 
   // A unanimous base map carried by the endpoints (points picked on a
-  // SCENE_3D scan) wins over the centroid heuristic — same rule as
+  // scan base map) wins over the centroid heuristic — same rule as
   // commitDrawnPolylineService.
   const carriedIds = new Set([a.baseMapId, b.baseMapId].filter(Boolean));
   let host = null;

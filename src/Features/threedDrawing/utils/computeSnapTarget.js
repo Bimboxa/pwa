@@ -86,7 +86,7 @@ function snapToInProgress(
 //      back to the first vertex without redrawing)
 //   2. snap to nearest existing mesh vertex (within pixel threshold)
 //   3. snap to the nearest mesh edge (optional `findNearestEdge` callback)
-//   3b. a point on a SCENE_3D scan under the cursor (`planeHit.isScan`,
+//   3b. a point on a scan base map under the cursor (`planeHit.isScan`,
 //      kind "SCAN") — taken as is, no lock
 //   4. with no last vertex: a base map plane hit (optional `intersectPlane`
 //      callback), refined by vertex alignment — this is how the FIRST point
@@ -156,7 +156,7 @@ export default function computeSnapTarget({
     };
   }
 
-  // A vertex / edge of an annotation lying BEHIND a SCENE_3D scan (e.g. on
+  // A vertex / edge of an annotation lying BEHIND a scan base map (e.g. on
   // the plan under it) is hidden by the scan: it must not steal the point
   // the user is placing on the scan surface. Tolerance: the snap sits up to
   // a few px away from the cursor ray, on a surface seen at an angle.
@@ -187,7 +187,7 @@ export default function computeSnapTarget({
 
   const planeHit = getPlaneHit();
 
-  // SCENE_3D scan under the cursor (intersectScene3d):
+  // scan base map under the cursor (intersectScene3d):
   //   - still being prepared for picking → no target at all, rather than a
   //     point that would silently land on the plan BEHIND the scan;
   //   - a point ON the scan surface is final — every lock below (in-plane

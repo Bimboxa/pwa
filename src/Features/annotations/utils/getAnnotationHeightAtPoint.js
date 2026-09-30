@@ -14,7 +14,8 @@ import getPolygonZPlane, { getZAtXY } from "./getPolygonZPlane";
 // over the ring (polygons: guideLine ramp sampler when the floor is ramped,
 // else the least-squares plane of the vertex values).
 //
-// SCENE_3D scans are not handled here (see getScene3dHeightAtPx).
+// The relief of a scan base map is not handled here (see
+// getScene3dHeightAtPx).
 // annotation.points / guideLines are in px (resolved); point too.
 // Returns null when the annotation carries no usable geometry.
 

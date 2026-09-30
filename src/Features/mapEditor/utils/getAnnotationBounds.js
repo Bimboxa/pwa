@@ -33,7 +33,7 @@ export default function getAnnotationBounds(annotation, basePose) {
         bounds = { x: wx - size / 2, y: wy - size / 2, width: size, height: size };
     }
 
-    // CAS C : Bbox (SCENE_3D, IMAGE, OBJECT_3D…) — resolved pixel bbox
+    // CAS C : Bbox (IMAGE, OBJECT_3D…) — resolved pixel bbox
     else if (annotation.bbox) {
         const { x, y, width, height } = annotation.bbox;
         bounds = {

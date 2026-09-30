@@ -63,7 +63,7 @@ export function buildIndex(scene, options = {}) {
     if (!obj.isMesh || !obj.visible) return;
     if (obj.userData?.isHoverOverlay) return; // transient face stipple
     if (obj.userData?.isGridPlaceholder) return; // base maps grid decorations
-    if (obj.userData?.isDecor) return; // SCENE_3D scans (no CPU geometry)
+    if (obj.userData?.isDecor) return; // scan base maps (no CPU geometry)
     let isSnappable = false;
     let nodeId = null; // owning annotation, when there is one
     let parent = obj;

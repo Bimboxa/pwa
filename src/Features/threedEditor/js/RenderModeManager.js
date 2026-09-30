@@ -395,7 +395,7 @@ export default class RenderModeManager {
 
     const addRoot = (root) => {
       if (!root) return;
-      // SCENE_3D scans cast no shadow: a scan hundreds of metres wide must
+      // Decor objects cast no shadow: a scan hundreds of metres wide must
       // not stretch the shadow map over the whole site.
       if (root.userData?.isDecor) return;
       const b = new Box3().setFromObject(root);
@@ -406,7 +406,11 @@ export default class RenderModeManager {
     };
 
     const images = this.sceneManager.imagesManager?.imagesMap || {};
-    Object.values(images).forEach(addRoot);
+    // Base map groups: the plane only — the scan of a scan base map is a
+    // decor (its annotations are added by the loop below).
+    Object.values(images).forEach((group) =>
+      addRoot(group?.userData?.meshWrap ?? group)
+    );
     const annotations =
       this.sceneManager.annotationsManager?.annotationsObjectsMap || {};
     Object.values(annotations).forEach(addRoot);

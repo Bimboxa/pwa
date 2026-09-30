@@ -87,8 +87,7 @@ export default function useAnnotationDrag({
     if (
       ann.type === "IMAGE" ||
       ann.type === "RECTANGLE" ||
-      ann.type === "OBJECT_3D" ||
-      ann.type === "SCENE_3D"
+      ann.type === "OBJECT_3D"
     ) {
       hasChanged =
         ann.bbox?.x !== snap.bboxX ||

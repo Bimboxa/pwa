@@ -1,5 +1,7 @@
 import { useEffect } from "react";
-import { useStore } from "react-redux";
+import { useDispatch, useStore } from "react-redux";
+
+import { bumpBaseMapsLoadTick } from "../threedEditorSlice";
 
 import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
@@ -11,6 +13,7 @@ export default function useAutoLoadMapsInThreedEditor({
   const mainBaseMap = useMainBaseMap();
   const { value: baseMaps = [] } = useBaseMaps();
   const store = useStore();
+  const dispatch = useDispatch();
 
   const baseMapsKey = baseMaps.map((b) => b.id).join(",");
 
@@ -34,6 +37,7 @@ export default function useAutoLoadMapsInThreedEditor({
     // Opacity is owned by ImagesManager (recorded desired state, applied at
     // mesh attach) — nothing to pass here.
     threedEditor.loadMaps([mainBaseMap, ...extras]);
+    dispatch(bumpBaseMapsLoadTick());
   }, [rendererIsReady, mainBaseMap?.id, baseMapsKey]);
 
   // Repair effect: the first load above can run with an incomplete baseMap —
@@ -47,13 +51,16 @@ export default function useAutoLoadMapsInThreedEditor({
   // rebuilding the scene (annotations attached to the group are untouched).
   // Keyed on the blob url STRING (stable per version thanks to the
   // baseMapsCache in BaseMap.createFromRecord; it changes exactly when the
-  // active version or its file changes) + the version transform + meterByPx.
+  // active version or its file changes) + the version transform + meterByPx
+  // + the scan content of a scan base map (reload, display toggle).
   const versionKeyOf = (b) => {
     const t = b?.getActiveVersionTransform?.() || {};
     return [
       b?.image?.imageUrlClient ?? "",
       `${t.x ?? 0},${t.y ?? 0},${t.rotation ?? 0},${t.scale ?? 1}`,
       b?.meterByPx ?? "",
+      b?.scene3d?.sceneId ?? "",
+      b?.scene3d?.display3d ?? "",
     ].join(":");
   };
   const repairKey =
@@ -77,5 +84,6 @@ export default function useAutoLoadMapsInThreedEditor({
       threedEditor.ensureBaseMapLoaded(bm);
       threedEditor.applyBaseMapPlacement(bm);
     });
+    dispatch(bumpBaseMapsLoadTick());
   }, [rendererIsReady, mainBaseMap?.id, repairKey]);
 }

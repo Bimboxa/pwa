@@ -153,7 +153,7 @@ export default function SectionDrawingHelperContent() {
   // two-click cote, or (default) the line / face drawing.
   const isObject3DPlacement = useSelector(selectIsObject3DPlacementActive);
   const isThreedCoteDraw = useSelector(selectIsTemplateCoteDrawActive);
-  // Lines and cotes can land their points on a SCENE_3D scan: show the
+  // Lines and cotes can land their points on a scan base map: show the
   // status of its picking data (being prepared / ready).
   const canDrawOnScan = useSelector(
     (s) =>

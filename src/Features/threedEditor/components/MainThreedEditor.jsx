@@ -17,6 +17,8 @@ import useSyncClippingPlanTo3D from "../hooks/useSyncClippingPlanTo3D";
 import useNavigateCameraOnEvent from "../hooks/useNavigateCameraOnEvent";
 import useSelectAnnotationOnEvent from "../hooks/useSelectAnnotationOnEvent";
 import useSelectMainBaseMap from "../hooks/useSelectMainBaseMap";
+import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
+import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import getBaseMapPlaneFrame from "../js/utilsImagesManager/getBaseMapPlaneFrame";
 import {
   setSelectedNode,
@@ -729,27 +731,45 @@ export default function MainThreedEditor() {
   useDeleteAnnotationOnKeyboardInThreedEditor({ annotations });
 
   // Sync the max view distance (device preference, Configuration > Éditeur
-  // 3D) → ControlsManager. AUTO follows the loaded SCENE_3D scans.
-  // Only while the 3D editor is shown, and never from an EMPTY list in AUTO:
-  // leaving 3D (and re-entering it) emits a transient `[]`, which would
-  // shrink the range in the middle of the 2D ↔ 3D camera transition.
+  // 3D) → ControlsManager. AUTO follows the loaded scan base maps (main +
+  // visible extras). Only while the 3D editor is shown, and never from an
+  // EMPTY list in AUTO: leaving 3D (and re-entering it) emits a transient
+  // `[]`, which would shrink the range in the middle of the 2D ↔ 3D camera
+  // transition.
+  const viewDistanceMainBaseMap = useMainBaseMap();
+  const { value: viewDistanceBaseMaps = [] } = useBaseMaps();
+  const visibleBaseMapIdsIn3d = useSelector(
+    (s) => s.threedEditor.visibleBaseMapIdsIn3d
+  );
+  const sceneBaseMapsKey = [
+    viewDistanceMainBaseMap?.id,
+    ...(viewDistanceBaseMaps ?? [])
+      .filter((b) => visibleBaseMapIdsIn3d?.includes(b.id))
+      .map((b) => b.id),
+  ].join(",");
   const appliedViewDistanceRef = useRef({ setting: null, distance: null });
   useEffect(() => {
     if (!rendererIsReady || !isThreedViewer) return;
+    const sceneBaseMaps = [
+      viewDistanceMainBaseMap,
+      ...(viewDistanceBaseMaps ?? []).filter((b) =>
+        visibleBaseMapIdsIn3d?.includes(b.id)
+      ),
+    ].filter(Boolean);
     const applied = appliedViewDistanceRef.current;
     const isStaleList =
       maxViewDistance === VIEW_DISTANCE_AUTO &&
-      !annotations?.length &&
+      sceneBaseMaps.length === 0 &&
       applied.setting === maxViewDistance;
     if (isStaleList) return;
-    const distance = resolveViewDistance(maxViewDistance, annotations);
+    const distance = resolveViewDistance(maxViewDistance, sceneBaseMaps);
     if (applied.setting === maxViewDistance && applied.distance === distance)
       return;
     appliedViewDistanceRef.current = { setting: maxViewDistance, distance };
     threedEditorRef.current?.sceneManager?.controlsManager?.setRegularMaxDistance(
       distance
     );
-  }, [maxViewDistance, annotations, rendererIsReady, isThreedViewer]);
+  }, [maxViewDistance, sceneBaseMapsKey, rendererIsReady, isThreedViewer]);
 
   // Annotation move / rotate tools (Dessin module) — need the resolved
   // annotations for the carry-set resolution and the 2D write-back.
@@ -1452,7 +1472,7 @@ export default function MainThreedEditor() {
       for (const id in map) {
         const object = map[id];
         if (!object || object.visible === false) continue;
-        // SCENE_3D scans are a backdrop: never lasso-selected in 3D.
+        // scan base maps are a backdrop: never lasso-selected in 3D.
         if (object.userData?.isDecor) continue;
         const point = projectAnnotationToClient(
           object,
@@ -1569,7 +1589,7 @@ export default function MainThreedEditor() {
     const annotationItems = [];
     Object.values(map).forEach((object) => {
       if (!object || object.visible === false) return;
-      if (object.userData?.isDecor) return; // SCENE_3D scans (backdrop)
+      if (object.userData?.isDecor) return; // scan base maps (backdrop)
       const point = projectAnnotationToClient(
         object,
         camera,

@@ -99,7 +99,7 @@ function getCanvasResolution(editor) {
 
 // Dash length (world metres) of a preview line seen from `distance` metres:
 // 5 cm up close, growing with the distance so the dashes stay readable when
-// drawing at the scale of a site (e.g. on a SCENE_3D scan) — a fixed 5 cm
+// drawing at the scale of a site (e.g. on a scan base map) — a fixed 5 cm
 // dash is sub-pixel there and the line fades out.
 function getDashSize(distance) {
   return Math.max(0.05, (distance || 0) * 0.008);
@@ -174,7 +174,7 @@ export default function DrawingOverlayThreed() {
 
   const { findNearestSnap } = useVertexSnap({ active });
   // Lines (a POLYLINE template, or the "Dessin" tool on its line type) can
-  // land their points on the SCENE_3D scans: straight segments between the
+  // land their points on the scan base maps: straight segments between the
   // picked points. Not the polygons — a face needs coplanar points.
   const canDrawOnScan = useSelector(
     (s) => s.annotations.newAnnotation?.type === "POLYLINE"
@@ -372,7 +372,7 @@ export default function DrawingOverlayThreed() {
           bestDistance = faceHit.distance;
         }
       }
-      // Line drawing: a SCENE_3D scan in front takes the point (on its
+      // Line drawing: a scan base map in front takes the point (on its
       // surface). Not for rectangles (they live on a plane).
       if (canDrawOnScan && behavior !== "RECTANGLE") {
         const scanHit = intersectScene3d(editor, mNdc, camera);

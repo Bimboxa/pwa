@@ -92,7 +92,12 @@ export default class ThreedEditor {
       // Skip only when the existing mesh matches THIS image — a failed
       // texture load, an active-version switch or a version-transform edit
       // all fall through so addImageObject can rebuild the mesh in place.
-      if (imagesManager.hasCurrentImageObject(baseMap.id, image)) return;
+      // The scan of a scan base map is synced either way (reload of the scan
+      // data, display toggle).
+      if (imagesManager.hasCurrentImageObject(baseMap.id, image)) {
+        imagesManager.syncScene3d(baseMap.id);
+        return;
+      }
       imagesManager.addImageObject(image, baseMap);
       this.sceneManager.clippingManager?.reapply();
       this.sceneManager.renderModeManager?.onSceneStructureChanged();

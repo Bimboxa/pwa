@@ -236,7 +236,7 @@ const mapEditorInitialState = {
   // Multiplier applied to the vertex handle size in NodePolylineStatic.
   vertexSizeMultiplier: 1,
   // Altimetry under the cursor: a badge following the pointer with the
-  // altitude of the hovered annotation / SCENE_3D scan (persisted on the
+  // altitude of the hovered annotation / scan base map relief (persisted on the
   // device, see editorSettingsLocalStorage).
   cursorAltitudeEnabled: false,
 

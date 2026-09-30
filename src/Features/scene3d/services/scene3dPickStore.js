@@ -5,7 +5,7 @@ import db from "App/db/db";
 
 import { parseScene3dAssetId } from "../utils/scene3dAssetIds";
 
-// Picking data of the SCENE_3D scans: what lets a drawing tool land a point
+// Picking data of the scan base maps: what lets a drawing tool land a point
 // ON the scan mesh.
 //
 // The displayed scan has no CPU geometry (dropped after the GPU upload, see

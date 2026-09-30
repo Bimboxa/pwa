@@ -1,4 +1,4 @@
-// Sorts the files picked for a SCENE_3D import: the mesh (.ply) and its
+// Sorts the files picked for a scan import: the mesh (.ply) and its
 // texture atlases, matched by file name with the `TextureFile` lines of the
 // PLY header (case-insensitive, folders ignored).
 

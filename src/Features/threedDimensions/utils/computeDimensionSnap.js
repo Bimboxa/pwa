@@ -12,7 +12,7 @@ import findNearestVertexSnapInAdjacency from "./findNearestVertexSnapInAdjacency
 //   2. nearest mesh vertex
 //   3. nearest point on a cut-contour edge
 //   4. nearest point on a mesh edge
-//   5. the point of a SCENE_3D scan under the cursor (optional `intersectScan`
+//   5. the point of a scan base map under the cursor (optional `intersectScan`
 //      callback, see intersectScene3d) — measuring on a 3D scan
 // A vertex / edge lying BEHIND a scan is hidden by it and skipped.
 // Returns { position: Vector3, kind: "VERTEX" | "EDGE" | "SCAN", baseMapId? }

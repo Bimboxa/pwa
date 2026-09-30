@@ -1,4 +1,4 @@
-// BC1 (S3TC DXT1) → RGBA. Used as the fallback of the SCENE_3D textures on
+// BC1 (S3TC DXT1) → RGBA. Used as the fallback of the scan textures on
 // GPUs without the S3TC extension (the stored format is always BC1), and by
 // the encoder tests.
 //

@@ -15,13 +15,18 @@ import { triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice"
 import db, { withSystemWrite } from "App/db/db";
 import { canEditRecord, OwnershipError } from "App/db/ownership";
 import getUserIdMaster from "Features/auth/utils/getUserIdMaster";
+import deleteScene3dBaseMapsDataService from "Features/scene3d/services/deleteScene3dBaseMapsDataService";
 
-async function getListingBaseMapIds(listingId) {
+async function getListingBaseMaps(listingId) {
   const baseMaps = await db.baseMaps
     .where("listingId")
     .equals(listingId)
     .toArray();
-  return baseMaps.filter((bm) => !bm.deletedAt).map((bm) => bm.id);
+  return baseMaps.filter((bm) => !bm.deletedAt);
+}
+
+async function getListingBaseMapIds(listingId) {
+  return (await getListingBaseMaps(listingId)).map((bm) => bm.id);
 }
 
 /**
@@ -66,7 +71,8 @@ export default function useDeleteBaseMapListing() {
     // ownership — block early, before any write
     if (!canEditRecord(listing, currentUserId)) throw new OwnershipError();
 
-    const baseMapIds = await getListingBaseMapIds(listing.id);
+    const baseMaps = await getListingBaseMaps(listing.id);
+    const baseMapIds = baseMaps.map((bm) => bm.id);
 
     await db.transaction(
       "rw",
@@ -86,6 +92,9 @@ export default function useDeleteBaseMapListing() {
         });
       }
     );
+
+    // scan data of the scan base maps (local only, not soft-deleted)
+    await deleteScene3dBaseMapsDataService(baseMaps);
 
     dispatch(triggerEntitiesTableUpdate("baseMaps"));
     dispatch(triggerAnnotationsUpdate());

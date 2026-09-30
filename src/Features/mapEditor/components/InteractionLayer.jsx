@@ -125,7 +125,6 @@ import CursorAltitudeBadge from 'Features/mapEditorGeneric/components/CursorAlti
 import getBaseMapTransform from 'Features/baseMaps/js/getBaseMapTransform';
 import getAnnotationHeightAtPoint from 'Features/annotations/utils/getAnnotationHeightAtPoint';
 import getScene3dHeightAtPx, { getScene3dScanPointFromPx } from 'Features/scene3d/utils/getScene3dHeightAtPx';
-import { getScene3dDisplay2d } from 'Features/scene3d/constants/scene3dConstants';
 import { ensureScene3dHeightMap, getScene3dHeightMap, getScene3dHeightMapEntryStatus } from 'Features/scene3d/services/scene3dHeightMapStore';
 import SmartDetectLayer from 'Features/mapEditorGeneric/components/SmartDetectLayer';
 import TransientOrthoPathsLayer from 'Features/mapEditorGeneric/components/TransientOrthoPathsLayer';
@@ -2523,8 +2522,8 @@ const InteractionLayer = forwardRef(({
 
   // --- Altimetry under the cursor (CursorAltitudeBadge) ---
   // Everything the per-move update needs is kept in refs: the flag, the
-  // badge, an index of the annotations (by id + the SCENE_3D scans of the
-  // base map) and the base map altitude. The badge is driven imperatively
+  // badge, an index of the annotations (by id) and the base map (altitude,
+  // scan height map of a scan base map). The badge is driven imperatively
   // from handleWorldMouseMove — no React state per pointer move.
   const cursorAltitudeEnabled = useSelector(
     (s) => s.mapEditor.cursorAltitudeEnabled
@@ -2536,15 +2535,11 @@ const InteractionLayer = forwardRef(({
   const cursorAltitudeBadgeRef = useRef(null);
   const cursorAltitudeIndex = useMemo(() => {
     const byId = new Map();
-    const scans = [];
     (annotations || []).forEach((a) => {
       if (!a?.id) return;
       byId.set(a.id, a);
-      if (a.type === "SCENE_3D" && getScene3dDisplay2d(a) !== "HIDDEN") {
-        scans.push(a);
-      }
     });
-    return { byId, scans };
+    return { byId };
   }, [annotations]);
   const cursorAltitudeIndexRef = useRef(cursorAltitudeIndex);
   cursorAltitudeIndexRef.current = cursorAltitudeIndex;
@@ -6294,8 +6289,9 @@ const InteractionLayer = forwardRef(({
   // --- ALTIMÉTRIE SOUS LE CURSEUR ---
   // Absolute altitude (base map Z + height above the plan) of what lies
   // under the pointer: the hovered annotation (DOM hit, valid in every
-  // mode — drawing, pan, drag) else the SCENE_3D scan under the pointer
-  // (height map). Called on every pointer move when the mode is on.
+  // mode — drawing, pan, drag) else, on a scan base map (« Scène 3D »), the
+  // scan relief under the pointer (height map). Called on every pointer
+  // move when the mode is on.
   const formatAltitude = (value) => `${value.toFixed(2)} m`;
 
   const updateCursorAltitude = ({ worldPos, viewportPos, event }) => {
@@ -6308,15 +6304,15 @@ const InteractionLayer = forwardRef(({
       return;
     }
     const baseMapZ = transform.position.y || 0;
-    const { byId, scans } = cursorAltitudeIndexRef.current;
+    const { byId } = cursorAltitudeIndexRef.current;
     const localPos = toLocalCoords(worldPos);
 
-    // 1. hovered annotation (not a scan: its body is a backdrop)
+    // 1. hovered annotation
     const nativeTarget = event?.nativeEvent?.target || event?.target;
     const hitId = nativeTarget?.closest?.("[data-node-type='ANNOTATION']")
       ?.dataset?.nodeId;
     const hovered = hitId ? byId.get(hitId) : null;
-    if (hovered && hovered.type !== "SCENE_3D") {
+    if (hovered) {
       const heights = getAnnotationHeightAtPoint({
         annotation: hovered,
         point: localPos,
@@ -6336,35 +6332,42 @@ const InteractionLayer = forwardRef(({
       }
     }
 
-    // 2. scan under the pointer (last drawn = on top)
+    // 2. scan base map: relief under the pointer
     let pending = false;
-    for (let i = scans.length - 1; i >= 0; i--) {
-      const scan = scans[i];
-      const sceneId = scan.scene3d?.sceneId;
-      if (!sceneId) continue;
+    const sceneId = baseMap?.scene3d?.sceneId;
+    if (sceneId) {
+      const scanBaseMap = {
+        scene3d: baseMap.scene3d,
+        imageSize: baseMap.getImageSize?.(),
+        meterByPx: meterByPxRef.current || 0,
+      };
       const heightMap = getScene3dHeightMap(sceneId);
       if (!heightMap) {
         const status =
           getScene3dHeightMapEntryStatus(sceneId) ??
           ensureScene3dHeightMap(sceneId, {
-            bbox: scan.scene3d?.bbox,
-            projectId: scan.projectId,
+            bbox: baseMap.scene3d.bbox,
+            projectId: baseMap.projectId,
           });
-        // loading: only matters when the pointer is over the footprint
-        if (status === "LOADING" && getScene3dScanPointFromPx(scan, localPos)) {
+        // loading: only matters when the pointer is over the zone
+        if (
+          status === "LOADING" &&
+          getScene3dScanPointFromPx(scanBaseMap, localPos)
+        ) {
           pending = true;
         }
-        continue;
+      } else {
+        const height = getScene3dHeightAtPx(scanBaseMap, localPos, heightMap);
+        if (height !== null) {
+          badge.update({
+            x: viewportPos.x,
+            y: viewportPos.y,
+            main: `Z ${formatAltitude(baseMapZ + height)}`,
+            secondary: "",
+          });
+          return;
+        }
       }
-      const height = getScene3dHeightAtPx(scan, localPos, heightMap);
-      if (height === null) continue;
-      badge.update({
-        x: viewportPos.x,
-        y: viewportPos.y,
-        main: `Z ${formatAltitude(baseMapZ + height)}`,
-        secondary: "",
-      });
-      return;
     }
 
     if (pending) {
@@ -8618,7 +8621,7 @@ const InteractionLayer = forwardRef(({
           );
         })()}
 
-        {(enabledDrawingMode && (drawingPoints.length > 0 || (enabledDrawingMode === "ONE_CLICK" && ["OBJECT_3D", "IMAGE", "SCENE_3D"].includes(newAnnotation?.type)))) && (
+        {(enabledDrawingMode && (drawingPoints.length > 0 || (enabledDrawingMode === "ONE_CLICK" && ["OBJECT_3D", "IMAGE"].includes(newAnnotation?.type)))) && (
           <g transform={`translate(${targetPose.x}, ${targetPose.y}) scale(${targetPose.k})`}>
             <DrawingLayer
               ref={drawingLayerRef}

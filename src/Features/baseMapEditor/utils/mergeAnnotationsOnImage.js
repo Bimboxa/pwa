@@ -1,8 +1,6 @@
 // Merges visible annotations onto a baseMap image, producing a new image file
 // and the version transform needed to align the result in the reference frame.
 
-import loadScene3dTopViewBitmap from "Features/scene3d/services/loadScene3dTopViewBitmap";
-import { getScene3dDisplay2d } from "Features/scene3d/constants/scene3dConstants";
 import { getTextPageScale } from "Features/annotations/constants/freeTextConstants";
 import getAnnotationLabelSizeConfig from "Features/annotations/utils/getAnnotationLabelSizeConfig";
 import { getAnnotationOwnLabel } from "Features/annotations/utils/getAnnotationLabelDisplay";
@@ -123,7 +121,6 @@ export function getAnnotationsBounds(annotations, meterByPx) {
       }
       case "IMAGE":
       case "RECTANGLE":
-      case "SCENE_3D":
         if (a.bbox) {
           expandPoint(a.bbox.x, a.bbox.y);
           expandPoint(a.bbox.x + a.bbox.width, a.bbox.y + a.bbox.height);
@@ -598,11 +595,6 @@ export function drawAnnotation(ctx, annotation, meterByPx) {
       break;
     }
 
-    case "SCENE_3D": {
-      // 3D scans are drawn asynchronously, first (see drawScene3dAnnotation)
-      break;
-    }
-
     case "TEXT": {
       const {
         textValue,
@@ -816,34 +808,6 @@ async function drawImageAnnotation(ctx, annotation) {
   }
 }
 
-// Draw a SCENE_3D annotation (3D scan): its top view image in the bbox, like
-// NodeScene3DStatic (async because the image is read from db.files).
-async function drawScene3dAnnotation(ctx, annotation) {
-  const { bbox } = annotation;
-  if (!bbox || getScene3dDisplay2d(annotation) === "HIDDEN") return;
-
-  try {
-    const bitmap = await loadScene3dTopViewBitmap(annotation);
-    if (!bitmap) return;
-    const { x, y, width, height } = bbox;
-    const rotation = annotation.rotation || 0;
-
-    ctx.save();
-    if (rotation) {
-      ctx.translate(x + width / 2, y + height / 2);
-      ctx.rotate((rotation * Math.PI) / 180);
-      ctx.translate(-(x + width / 2), -(y + height / 2));
-    }
-    ctx.globalAlpha = annotation.opacity ?? 1;
-    ctx.drawImage(bitmap, x, y, width, height);
-    ctx.globalAlpha = 1;
-    ctx.restore();
-    bitmap.close();
-  } catch (e) {
-    console.warn("Failed to draw scene 3D annotation", e);
-  }
-}
-
 // Draw an eraser annotation (uses destination-out to erase pixels)
 function drawEraserAnnotation(ctx, annotation) {
   const { points, cuts } = annotation;
@@ -959,12 +923,7 @@ export default async function mergeAnnotationsOnImage({
   );
   const eraserAnnotations = annotations.filter((a) => a.isEraser);
 
-  // Draw the 3D scans (backdrops), then the IMAGE annotations (async)
-  for (const a of normalAnnotations) {
-    if (a.type === "SCENE_3D") {
-      await drawScene3dAnnotation(ctx, a);
-    }
-  }
+  // Draw the IMAGE annotations (async)
   for (const a of normalAnnotations) {
     if (a.type === "IMAGE") {
       await drawImageAnnotation(ctx, a);
@@ -973,7 +932,7 @@ export default async function mergeAnnotationsOnImage({
 
   // Draw other annotations
   for (const a of normalAnnotations) {
-    if (a.type !== "IMAGE" && a.type !== "SCENE_3D") {
+    if (a.type !== "IMAGE") {
       drawAnnotation(ctx, a, meterByPx);
     }
   }

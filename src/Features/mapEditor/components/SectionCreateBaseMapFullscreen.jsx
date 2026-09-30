@@ -38,9 +38,11 @@ import {
   IllustrationImage,
   IllustrationBlankPage,
   IllustrationSatellite,
+  IllustrationScene3d,
 } from "Features/baseMaps/components/IllustrationsCreateBaseMap";
 import DialogCreateBlankBaseMap from "Features/baseMaps/components/DialogCreateBlankBaseMap";
 import DialogCreateBaseMapFromSatellite from "Features/satelliteMap/components/DialogCreateBaseMapFromSatellite";
+import DialogCreateBaseMapFromScene3d from "Features/scene3d/components/DialogCreateBaseMapFromScene3d";
 import DialogSelectPdfResource from "Features/resources/components/DialogSelectPdfResource";
 
 import { selectDisabledBaseMapSourceKeys } from "Features/scopeConfig/utils/scopeConfigSelectors";
@@ -81,12 +83,15 @@ export default function SectionCreateBaseMapFullscreen({
   const blankSubtitleS = "Format à l'échelle";
   const satelliteTitleS = "Image satellite";
   const satelliteSubtitleS = "Extrait géoréférencé";
+  const scene3dTitleS = "Scène 3D";
+  const scene3dSubtitleS = "Scan 3D (PLY + textures)";
 
   const computerS = "Ordinateur";
   const resourcesS = "Ressources";
   const a3S = "A3";
   const otherS = "Autre…";
   const chooseZoneS = "Choisir une zone";
+  const chooseFilesS = "Choisir les fichiers";
   const soonS = "Prochainement";
 
   const dwgSoonS = "Le format DWG arrive prochainement";
@@ -108,6 +113,7 @@ export default function SectionCreateBaseMapFullscreen({
   const [name, setName] = useState("");
   const [openBlank, setOpenBlank] = useState(false);
   const [openSatellite, setOpenSatellite] = useState(false);
+  const [openScene3d, setOpenScene3d] = useState(false);
   const [openPdfResource, setOpenPdfResource] = useState(false);
 
   // data
@@ -304,6 +310,12 @@ export default function SectionCreateBaseMapFullscreen({
 
   function handleSatelliteCreated(entity) {
     setOpenSatellite(false);
+    onCreated?.(entity);
+    onClose?.();
+  }
+
+  function handleScene3dCreated(entity) {
+    setOpenScene3d(false);
     onCreated?.(entity);
     onClose?.();
   }
@@ -533,6 +545,23 @@ export default function SectionCreateBaseMapFullscreen({
                   }
                 />
               )}
+              {isSourceEnabled("SCENE_3D") && (
+                <CardCreateBaseMapOption
+                  title={scene3dTitleS}
+                  subtitle={scene3dSubtitleS}
+                  illustration={<IllustrationScene3d />}
+                  actions={
+                    <Button
+                      variant="outlined"
+                      color="inherit"
+                      size="small"
+                      onClick={() => setOpenScene3d(true)}
+                    >
+                      {chooseFilesS}
+                    </Button>
+                  }
+                />
+              )}
             </Box>
           </Box>
         </Box>
@@ -603,6 +632,13 @@ export default function SectionCreateBaseMapFullscreen({
         onClose={() => setOpenSatellite(false)}
         listing={listing}
         onCreated={handleSatelliteCreated}
+      />
+
+      <DialogCreateBaseMapFromScene3d
+        open={openScene3d}
+        onClose={() => setOpenScene3d(false)}
+        listing={listing}
+        onCreated={handleScene3dCreated}
       />
 
       <DialogSelectPdfResource

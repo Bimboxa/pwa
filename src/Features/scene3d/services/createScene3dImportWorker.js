@@ -1,4 +1,4 @@
-// Main-thread handle on the SCENE_3D import worker (one worker per import,
+// Main-thread handle on the scan import worker (one worker per import,
 // terminated when the import ends or is cancelled).
 
 function toError(message) {
@@ -18,6 +18,15 @@ export default function createScene3dImportWorker() {
   const textureJobs = new Map();
   let nextHeightMapId = 0;
   const heightMapJobs = new Map();
+  let nextClipId = 0;
+  // id → {chunkJobs: Map(key → {resolve, reject}), finish: {resolve, reject}}
+  const clipJobs = new Map();
+
+  const rejectClipJob = (job, error) => {
+    job.chunkJobs.forEach((chunkJob) => chunkJob.reject(error));
+    job.chunkJobs.clear();
+    job.finish?.reject(error);
+  };
 
   worker.onmessage = (event) => {
     const message = event.data;
@@ -33,6 +42,13 @@ export default function createScene3dImportWorker() {
     } else if (message.type === "HEIGHT_MAP") {
       heightMapJobs.get(message.id)?.resolve(message.heightMap);
       heightMapJobs.delete(message.id);
+    } else if (message.type === "CLIPPED_CHUNK") {
+      const job = clipJobs.get(message.id);
+      job?.chunkJobs.get(message.key)?.resolve(message.chunk);
+      job?.chunkJobs.delete(message.key);
+    } else if (message.type === "CLIPPED") {
+      clipJobs.get(message.id)?.finish?.resolve(message);
+      clipJobs.delete(message.id);
     } else if (message.type === "ERROR") {
       if (message.id != null && textureJobs.has(message.id)) {
         textureJobs.get(message.id).reject(toError(message));
@@ -40,6 +56,9 @@ export default function createScene3dImportWorker() {
       } else if (message.id != null && heightMapJobs.has(message.id)) {
         heightMapJobs.get(message.id).reject(toError(message));
         heightMapJobs.delete(message.id);
+      } else if (message.id != null && clipJobs.has(message.id)) {
+        rejectClipJob(clipJobs.get(message.id), toError(message));
+        clipJobs.delete(message.id);
       } else {
         parseJob?.reject(toError(message));
         parseJob = null;
@@ -54,6 +73,8 @@ export default function createScene3dImportWorker() {
     textureJobs.clear();
     heightMapJobs.forEach((job) => job.reject(error));
     heightMapJobs.clear();
+    clipJobs.forEach((job) => rejectClipJob(job, error));
+    clipJobs.clear();
   };
 
   return {
@@ -92,6 +113,37 @@ export default function createScene3dImportWorker() {
       return new Promise((resolve, reject) => {
         heightMapJobs.set(id, { resolve, reject });
         worker.postMessage({ type: "HEIGHT_MAP_FINISH", id });
+      });
+    },
+    // Clips the stored GEOMETRY rows of a scan to a zone of interest (see
+    // clipScene3dChunk). rows: async iterable of {key, row} read one by one
+    // (buffers transferred); each row is answered, IN ORDER and before the
+    // next one is read, through onChunk(key, clippedChunk | null) — the
+    // caller writes / deletes the row there, so the memory stays bounded.
+    // The height map of the clipped scan is rasterized meanwhile.
+    // → {heightMap, zMin, zMax, vertexCount, triangleCount}
+    async clipGeometry(bbox, polygon, rows, onChunk) {
+      const id = nextClipId++;
+      const job = { chunkJobs: new Map(), finish: null };
+      clipJobs.set(id, job);
+      worker.postMessage({ type: "CLIP_INIT", id, bbox, polygon });
+      for await (const { key, row } of rows) {
+        const chunk = {
+          positions: row.positions,
+          uvs: row.uvs ?? null,
+          index: row.index,
+        };
+        const transfer = [chunk.positions.buffer, chunk.index.buffer];
+        if (chunk.uvs) transfer.push(chunk.uvs.buffer);
+        const clipped = await new Promise((resolve, reject) => {
+          job.chunkJobs.set(key, { resolve, reject });
+          worker.postMessage({ type: "CLIP_CHUNK", id, key, chunk }, transfer);
+        });
+        await onChunk(key, clipped);
+      }
+      return new Promise((resolve, reject) => {
+        job.finish = { resolve, reject };
+        worker.postMessage({ type: "CLIP_FINISH", id });
       });
     },
     terminate() {
