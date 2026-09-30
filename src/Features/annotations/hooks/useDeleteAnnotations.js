@@ -6,6 +6,8 @@ import db from "App/db/db";
 import collectReferencedPointIds from "Features/annotations/utils/collectReferencedPointIds";
 import softDeleteOrphanPoints from "Features/annotations/services/softDeleteOrphanPoints";
 import collectBaseMapLinkCloneIds from "Features/baseMapLinks/services/collectBaseMapLinkCloneIds";
+import deleteScene3dAnnotationsDataService from "Features/scene3d/services/deleteScene3dAnnotationsDataService";
+import { withoutUndo } from "App/db/undoManager";
 
 export default function useDeleteAnnotations() {
   const dispatch = useDispatch();
@@ -230,8 +232,13 @@ export default function useDeleteAnnotations() {
       }
     }
 
+    // SCENE_3D (3D scans): their heavy data is hard-deleted with them (step
+    // 5c), so the deletion must not be undoable — an undo would bring back
+    // an annotation without its scan.
+    const hasScene3d = validAnnotations.some((a) => a.type === "SCENE_3D");
+
     // 5. Execute all writes in a single transaction
-    await db.transaction(
+    const runWrites = () => db.transaction(
       "rw",
       [
         db.annotations,
@@ -292,6 +299,8 @@ export default function useDeleteAnnotations() {
         await db.annotations.bulkDelete(idsToDelete);
       }
     );
+    if (hasScene3d) await withoutUndo(runWrites);
+    else await runWrites();
 
     // 5b. Best-effort cascade: soft-delete points orphaned by this deletion —
     // those referenced by the just-deleted annotations that no surviving live
@@ -308,6 +317,17 @@ export default function useDeleteAnnotations() {
       }
     } catch (e) {
       console.error("[useDeleteAnnotations] orphan point cleanup failed", e);
+    }
+
+    // 5c. SCENE_3D: delete the scan data (db.scene3dAssets) and the top view
+    // image of the deleted scans. Best effort, outside the transaction (heavy
+    // deletes); the orphan purge of the import dialog is the backstop.
+    if (hasScene3d) {
+      try {
+        await deleteScene3dAnnotationsDataService(validAnnotations);
+      } catch (e) {
+        console.error("[useDeleteAnnotations] scan data cleanup failed", e);
+      }
     }
 
     // 6. Single Redux dispatch

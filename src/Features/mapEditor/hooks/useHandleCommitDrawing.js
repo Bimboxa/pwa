@@ -24,6 +24,8 @@ import getAnnotationTemplateFromNewAnnotation from "Features/annotations/utils/g
 import imageUrlToPng from "Features/images/utils/imageUrlToPng";
 import useSelectedListing from "Features/listings/hooks/useSelectedListing";
 import getImageAnnotationRectanglePointsFromOnePoint from "Features/imageAnnotations/utils/getImageAnnotationRectanglePointsFromOnePoint";
+import { takePendingScene3d } from "Features/scene3d/services/scene3dPendingStore";
+import persistScene3dTopViewService from "Features/scene3d/services/persistScene3dTopViewService";
 
 import resolvePoints from "Features/annotations/utils/resolvePoints";
 import resolveCuts from "Features/annotations/utils/resolveCuts";
@@ -1096,6 +1098,30 @@ export default function useHandleCommitDrawing({ annotations } = {}) {
         // Sauvegarde DB — single transaction: deferred point rows + snap
         // updates + annotation (+ mapping rels) commit atomically, so the
         // liveQueries re-run once per drawing commit.
+        // SCENE_3D: the scan was converted by the import dialog (rows already
+        // in db.scene3dAssets); the annotation takes ownership of it here and
+        // its top view image is written to db.files.
+        if (_newAnnotation?.type === "SCENE_3D" && !_updatedAnnotation) {
+            const pendingTopView = takePendingScene3d(_newAnnotation.scene3d?.sceneId);
+            if (!pendingTopView) {
+                dispatch(setToaster({ message: "Aucune scène 3D chargée pour cette annotation.", isError: true }));
+                dispatch(setEnabledDrawingMode(null));
+                return;
+            }
+            _newAnnotation.scene3d = {
+                ..._newAnnotation.scene3d,
+                topView: await persistScene3dTopViewService({
+                    topView: pendingTopView,
+                    projectId: _newAnnotation.projectId,
+                    listingId: _newAnnotation.listingId ?? undefined,
+                    annotationId: _newAnnotation.id,
+                }),
+            };
+            _newAnnotation.rotation = 0;
+            _newAnnotation.sceneDisplay2d = "PROJECTION";
+            _newAnnotation.sceneDisplay3d = "MESH";
+        }
+
         if (_updatedAnnotation) {
             await updateAnnotation(_updatedAnnotation, {
                 pointRowsToSave: pendingPointRows,
@@ -1112,7 +1138,12 @@ export default function useHandleCommitDrawing({ annotations } = {}) {
         // textarea shows up focused right after the click (edit mode =
         // selection, like LABEL). Item built from _newAnnotation — waiting for
         // the DB roundtrip would delay the field by one liveQuery cycle.
-        if (_newAnnotation?.type === "FREE_TEXT" && !_updatedAnnotation) {
+        // SCENE_3D: one scan = one annotation. Same disarm + select, so the
+        // fresh scan shows its move / rotate handles right away.
+        if (
+            (_newAnnotation?.type === "FREE_TEXT" || _newAnnotation?.type === "SCENE_3D") &&
+            !_updatedAnnotation
+        ) {
             dispatch(setEnabledDrawingMode(null));
             dispatch(
                 setSelectedItem({
@@ -1120,7 +1151,7 @@ export default function useHandleCommitDrawing({ annotations } = {}) {
                     nodeId: _newAnnotation.id,
                     type: "NODE",
                     nodeType: "ANNOTATION",
-                    annotationType: "FREE_TEXT",
+                    annotationType: _newAnnotation.type,
                     listingId: _newAnnotation.listingId,
                     annotationTemplateId: _newAnnotation.annotationTemplateId,
                     pointId: null,

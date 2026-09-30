@@ -4,6 +4,7 @@ import { setEnabledDrawingMode } from "Features/mapEditor/mapEditorSlice";
 
 import getNewAnnotationPropsFromAnnotationTemplate from "Features/annotations/utils/getNewAnnotationPropsFromAnnotationTemplate";
 import getImagePickDraftProps from "Features/imageAnnotations/utils/getImagePickDraftProps";
+import startScene3dImport from "Features/scene3d/utils/startScene3dImport";
 import { resolveDrawingShape } from "Features/annotations/constants/drawingShapeConfig";
 import {
   getDrawingToolsByShape,
@@ -43,6 +44,10 @@ export default function startDrawFromTemplate(
     baseProps,
     getImagePickDraftProps(resolveDrawingShape(template), baseProps)
   );
+  // SCENE_3D: the scan files are picked first (import dialog), which then
+  // arms the placement.
+  const drawingMode = activeTool.drawingMode ?? activeTool.key;
+  if (startScene3dImport(dispatch, { draft: baseProps, drawingMode })) return;
   if (activeTool.annotationType) {
     dispatch(
       setNewAnnotation({ ...baseProps, type: activeTool.annotationType })

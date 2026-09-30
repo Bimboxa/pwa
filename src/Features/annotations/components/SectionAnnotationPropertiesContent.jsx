@@ -35,6 +35,7 @@ import FieldAnnotationFreeText from "./FieldAnnotationFreeText";
 import FieldAnnotationTextContent from "./FieldAnnotationTextContent";
 import FieldAnnotationImage from "./FieldAnnotationImage";
 import FieldAnnotationOpacity from "./FieldAnnotationOpacity";
+import FieldAnnotationScene3dDisplay from "Features/scene3d/components/FieldAnnotationScene3dDisplay";
 
 // hideOverview: the hosting panel renders the preview / height / quantities
 // card and the label field itself, above the tabs (panel annotation subview)
@@ -60,6 +61,9 @@ export default function SectionAnnotationPropertiesContent({
   // FREE_TEXT: a pure text box — no overview / label / profile / eraser, its
   // colors live in its own style cards (skip the fill section).
   const isFreeText = configurableProps.includes("fontFamily");
+  // SCENE_3D: a 3D scan used as a backdrop — no overview (height /
+  // quantities), no profile / eraser flags; its own display card instead.
+  const isScene3d = type === "SCENE_3D";
   const showFill =
     !isFreeText &&
     (configurableProps.includes("fillColor") ||
@@ -91,7 +95,7 @@ export default function SectionAnnotationPropertiesContent({
 
   return (
     <>
-      {!hideOverview && !isFreeText && (
+      {!hideOverview && !isFreeText && !isScene3d && (
         <Box sx={{ display: "flex", gap: 1, p: 1, width: 1 }}>
           <Box
             sx={{
@@ -197,6 +201,8 @@ export default function SectionAnnotationPropertiesContent({
         )}
         {type === "IMAGE" && <FieldAnnotationImage annotation={annotation} />}
         {type === "IMAGE" && <FieldAnnotationOpacity annotation={annotation} />}
+        {isScene3d && <FieldAnnotationScene3dDisplay annotation={annotation} />}
+        {isScene3d && <FieldAnnotationOpacity annotation={annotation} />}
         <SectionAnnotationTransform annotation={annotation} />
         {/* LINEAR_LAYOUT: band width L (bar length) — same section as the
             template form, without the override padlock. */}
@@ -218,8 +224,12 @@ export default function SectionAnnotationPropertiesContent({
         {type === "LINEAR_LAYOUT" && (
           <FieldAnnotationLinearLayout annotation={annotation} />
         )}
-        {!isFreeText && <FieldAnnotationIsProfile annotation={annotation} />}
-        {!isFreeText && <FieldAnnotationIsEraser annotation={annotation} />}
+        {!isFreeText && !isScene3d && (
+          <FieldAnnotationIsProfile annotation={annotation} />
+        )}
+        {!isFreeText && !isScene3d && (
+          <FieldAnnotationIsEraser annotation={annotation} />
+        )}
         {["POLYLINE", "STRIP", "POLYGON"].includes(type) && (
           <FieldAnnotationIsExt annotation={annotation} />
         )}

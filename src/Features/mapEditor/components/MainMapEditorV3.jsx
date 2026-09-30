@@ -14,6 +14,7 @@ import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 import { setPropertiesRequestedView } from "Features/baseMaps/baseMapsSlice";
 import { resetVersionCompare } from "Features/baseMapEditor/baseMapEditorSlice";
 import { setLocalizingPhotoId } from "Features/photos/photosSlice";
+import { setToaster } from "Features/layout/layoutSlice";
 import { DEFAULT_FOV_DEG } from "Features/photos/constants/photoNode";
 
 import useMeasure from "react-use-measure";
@@ -153,6 +154,7 @@ import getAnnotationBounds from "../utils/getAnnotationBounds";
 import getAnnotationTemplateSizeInPx from "Features/annotations/utils/getAnnotationTemplateSizeInPx";
 import getRectangleRawPointsFromOnePoint from "Features/rectangles/utils/getRectangleRawPointsFromOnePoint";
 import getObject3DAnnotationRectanglePointsFromOnePoint from "Features/object3D/utils/getObject3DAnnotationRectanglePointsFromOnePoint";
+import getScene3dRectanglePointsFromOnePoint from "Features/scene3d/utils/getScene3dRectanglePointsFromOnePoint";
 import imageUrlToPng from "Features/images/utils/imageUrlToPng";
 import useUserEmail from "Features/auth/hooks/useUserEmail";
 import useDeferredDrawingCommit from "../hooks/useDeferredDrawingCommit";
@@ -790,6 +792,25 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                 baseMapMeterByPx: baseMap?.getMeterByPx(),
                 point: rawPoints[0],
             })
+            rawPoints = points;
+            options = { ...options ?? {}, drawRectangle: true }
+        }
+
+        // SCENE_3D: the click is the origin of the scan frame; the bbox is
+        // the scan footprint around it.
+        if (rawPoints.length === 1 && type === "SCENE_3D") {
+            const points = getScene3dRectanglePointsFromOnePoint({
+                annotation: newAnnotation,
+                baseMapMeterByPx: baseMap?.getMeterByPx(),
+                point: rawPoints[0],
+            })
+            if (!points) {
+                dispatch(setToaster({
+                    message: "Le fond de plan n'a pas d'échelle : impossible de placer la scène 3D.",
+                    isError: true,
+                }));
+                return;
+            }
             rawPoints = points;
             options = { ...options ?? {}, drawRectangle: true }
         }
@@ -1997,8 +2018,11 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                 await db.annotations.update(annotation.id, updates);
             }
 
-            // --- OBJECT_3D : move + rotate only (no resize) ---
-            else if (annotation.type === "OBJECT_3D") {
+            // --- OBJECT_3D / SCENE_3D : move + rotate only (no resize) ---
+            else if (
+                annotation.type === "OBJECT_3D" ||
+                annotation.type === "SCENE_3D"
+            ) {
                 const bgW = imageSize.width;
                 const bgH = imageSize.height;
 

@@ -66,6 +66,8 @@ import expandShellProfileArcs from "Features/geometry/utils/expandShellProfileAr
 import getInlineExtrusionSetup from "Features/annotations/utils/getInlineExtrusionSetup";
 import createObject3DAnnotation from "./createObject3DAnnotation";
 import createImageAnnotation3D from "./createImageAnnotation3D";
+import createScene3dAnnotation from "./createScene3dAnnotation";
+import { getScene3dDisplay3d } from "Features/scene3d/constants/scene3dConstants";
 
 // Screen-space thickness (px) of the vertical "trait" rendered for a POINT
 // annotation with a height — matches DrawingOverlayThreed's LINEWIDTH_TRAIT.
@@ -1119,6 +1121,14 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
           console.error("[OBJECT_3D] failed to load GLB", err);
         });
       object = placeholder;
+      break;
+    }
+    case "SCENE_3D": {
+      // 3D scan: textured mesh streamed from the local scan data, or its
+      // top view as a flat quad (see createScene3dAnnotation). HIDDEN: no
+      // 3D object at all.
+      if (getScene3dDisplay3d(annotation) === "HIDDEN") return null;
+      object = createScene3dAnnotation(annotation, baseMap, options);
       break;
     }
     case "IMAGE": {

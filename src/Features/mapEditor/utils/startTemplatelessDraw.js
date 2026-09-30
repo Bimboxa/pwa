@@ -6,6 +6,7 @@ import {
 
 import getNewAnnotationPropsFromAnnotationTemplate from "Features/annotations/utils/getNewAnnotationPropsFromAnnotationTemplate";
 import getImagePickDraftProps from "Features/imageAnnotations/utils/getImagePickDraftProps";
+import startScene3dImport from "Features/scene3d/utils/startScene3dImport";
 import {
   getDrawingToolsByShape,
   getDrawingToolByKey,
@@ -74,6 +75,11 @@ export default function startTemplatelessDraw(
   );
 
   if (options.mesh3d) draft.isMesh3d = true;
+  // SCENE_3D: the scan files are picked first (import dialog), which then
+  // arms the placement. Not remembered as the "Dessin" shape: the D hotkey
+  // must not reopen a scan import.
+  const drawingMode = activeTool.drawingMode ?? activeTool.key;
+  if (startScene3dImport(dispatch, { draft, drawingMode })) return;
   if (shape === requested) dispatch(setTemplatelessDrawingShape(shape));
   dispatch(
     setNewAnnotation(

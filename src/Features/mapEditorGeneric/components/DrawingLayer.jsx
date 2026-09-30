@@ -7,6 +7,7 @@ import React, {
   useEffect,
 } from "react";
 
+import { getPendingScene3d } from "Features/scene3d/services/scene3dPendingStore";
 import { getCircleFrom3Points } from "Features/geometry/utils/getPolylinePointsFromCircle";
 import getCoteDisplayValue from "Features/annotations/utils/getCoteDisplayValue";
 import { useDrawingMetrics } from "App/contexts/DrawingMetricsContext";
@@ -303,6 +304,14 @@ const DrawingLayer = forwardRef(
     const drawObject3D =
       enabledDrawingMode === "ONE_CLICK" && type === "OBJECT_3D";
     const object3DTopViewUrl = newAnnotation?.object3D?.topViewDataUrl;
+    // SCENE_3D placement: the scan top view follows the cursor with the scan
+    // ORIGIN under it (the click sets the origin, not the centre). The image
+    // is the pending import's (no file yet) — same ghost element as OBJECT_3D.
+    const drawScene3d =
+      enabledDrawingMode === "ONE_CLICK" && type === "SCENE_3D";
+    const scene3dTopViewUrl = drawScene3d
+      ? getPendingScene3d(newAnnotation?.scene3d?.sceneId)?.topViewUrl
+      : null;
     // IMAGE placement: the image follows the cursor at its placement footprint
     // (getImageAnnotationSizeInBaseMapPx). Fresh picks carry a blob: URL, drafts
     // armed from a template only the persisted thumbnail (dataURL).
@@ -321,6 +330,33 @@ const DrawingLayer = forwardRef(
         // OBJECT_3D: render the top-view projection at the cursor, sized to the
         // model footprint (bbox X×Z meters / meterByPx). Runs before the
         // "no points" guard (nothing is placed until the click).
+        if (drawScene3d && previewObject3DRef.current) {
+          const sceneBbox = (newAnnotationRef.current || {}).scene3d?.bbox;
+          const mbp = meterByPxRef.current;
+          if (sceneBbox?.min && Number.isFinite(mbp) && mbp > 0) {
+            const { min, max } = sceneBbox;
+            previewObject3DRef.current.setAttribute(
+              "x",
+              cursorPos.x + min[0] / mbp
+            );
+            previewObject3DRef.current.setAttribute(
+              "y",
+              cursorPos.y - max[1] / mbp
+            );
+            previewObject3DRef.current.setAttribute(
+              "width",
+              (max[0] - min[0]) / mbp
+            );
+            previewObject3DRef.current.setAttribute(
+              "height",
+              (max[1] - min[1]) / mbp
+            );
+            previewObject3DRef.current.style.display = "block";
+          } else {
+            previewObject3DRef.current.style.display = "none";
+          }
+          return;
+        }
         if (drawObject3D && previewObject3DRef.current) {
           const na = newAnnotationRef.current || {};
           const bbox = na.object3D?.bbox;
@@ -984,10 +1020,11 @@ const DrawingLayer = forwardRef(
       <g className="drawing-layer">
         {/* A000. OBJECT_3D ghost — the model top-view projection under the
             cursor (object library), sized to the model footprint. */}
-        {drawObject3D && object3DTopViewUrl && (
+        {((drawObject3D && object3DTopViewUrl) ||
+          (drawScene3d && scene3dTopViewUrl)) && (
           <image
             ref={previewObject3DRef}
-            href={object3DTopViewUrl}
+            href={drawScene3d ? scene3dTopViewUrl : object3DTopViewUrl}
             preserveAspectRatio="none"
             opacity={0.6}
             style={{ display: "none", pointerEvents: "none" }}

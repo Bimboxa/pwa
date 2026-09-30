@@ -83,6 +83,7 @@ import assistantRelayReducer from "Features/assistantRelay/assistantRelaySlice";
 import scopeVisibilityReducer from "Features/scopeVisibility/scopeVisibilitySlice";
 import baseMapsGridReducer from "Features/baseMapsGrid/baseMapsGridSlice";
 import pdfEditorReducer from "Features/pdfEditor/pdfEditorSlice";
+import scene3dReducer from "Features/scene3d/scene3dSlice";
 import scopeVisibilityPersistMiddleware from "Features/scopeVisibility/scopeVisibilityPersistMiddleware";
 
 import { syncTabsMiddleware, initSyncTabsListener } from "./syncTabsMiddleware";
@@ -130,6 +131,7 @@ const store = configureStore({
     markers: markersReducer,
     bgImage: bgImageReducer,
     threedEditor: threedEditorReducer,
+    scene3d: scene3dReducer,
     mapEditor: mapEditorReducer,
     smartDetect: smartDetectReducer,
     reports: reportsReducer,

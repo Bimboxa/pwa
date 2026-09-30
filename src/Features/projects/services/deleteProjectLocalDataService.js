@@ -101,6 +101,7 @@ export default async function deleteProjectLocalDataService(projectId) {
           db.portfolioBaseMapContainers,
           db.scopeConfigs,
           db.files, // catches POV raw images + resource main files (no listingId)
+          db.scene3dAssets, // SCENE_3D heavy data (local only)
         ];
         for (const table of byProjectId) {
           await table.where("projectId").equals(projectId).delete();

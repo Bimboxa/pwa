@@ -33,6 +33,7 @@ import {
   setShowAnnotationsProperties,
 } from "Features/selection/selectionSlice";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
+import { resolveViewDistance } from "Features/threedEditor/constants/viewDistances";
 import {
   selectEffectiveViewerKey,
   selectIsPovViewer,
@@ -310,6 +311,7 @@ export default function MainThreedEditor() {
   const environment3d = useSelector((s) => s.threedEditor.environment3d);
   // Mouse navigation preset (Standard / Iso 2D + orbite / Iso SketchUp).
   const navigationPreset = useSelector((s) => s.threedEditor.navigationPreset);
+  const maxViewDistance = useSelector((s) => s.threedEditor.maxViewDistance);
   const clippingEnabled = useSelector(
     (s) => s.threedEditor.clippingPlane.enabled
   );
@@ -714,6 +716,16 @@ export default function MainThreedEditor() {
   });
 
   useDeleteAnnotationOnKeyboardInThreedEditor({ annotations });
+
+  // Sync the max view distance (device preference, Configuration > Éditeur
+  // 3D) → ControlsManager. AUTO follows the loaded SCENE_3D scans.
+  const viewDistance = resolveViewDistance(maxViewDistance, annotations);
+  useEffect(() => {
+    if (!rendererIsReady) return;
+    threedEditorRef.current?.sceneManager?.controlsManager?.setRegularMaxDistance(
+      viewDistance
+    );
+  }, [viewDistance, rendererIsReady]);
 
   // Annotation move / rotate tools (Dessin module) — need the resolved
   // annotations for the carry-set resolution and the 2D write-back.
@@ -1416,6 +1428,8 @@ export default function MainThreedEditor() {
       for (const id in map) {
         const object = map[id];
         if (!object || object.visible === false) continue;
+        // SCENE_3D scans are a backdrop: never lasso-selected in 3D.
+        if (object.userData?.isDecor) continue;
         const point = projectAnnotationToClient(
           object,
           camera,
@@ -1531,6 +1545,7 @@ export default function MainThreedEditor() {
     const annotationItems = [];
     Object.values(map).forEach((object) => {
       if (!object || object.visible === false) return;
+      if (object.userData?.isDecor) return; // SCENE_3D scans (backdrop)
       const point = projectAnnotationToClient(
         object,
         camera,

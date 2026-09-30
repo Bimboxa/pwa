@@ -165,6 +165,7 @@ export default function FormAnnotationTemplateVariantBlock({
     "DETAIL",
     "IMAGE",
     "OBJECT_3D",
+    "SCENE_3D",
     "REVOLUTION_AXIS",
     "REVOLUTION_AXIS_PLACEMENT",
     "BASE_MAP_LINK",

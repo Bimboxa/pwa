@@ -1,3 +1,5 @@
+import getScene3dFootprintCorners from "Features/scene3d/utils/getScene3dFootprintCorners";
+
 // Features/geometry/utils/getAnnotationBBox.js
 
 export default function getAnnotationBBox(annotation) {
@@ -15,6 +17,23 @@ export default function getAnnotationBBox(annotation) {
             y: bbox.y,
             width: bbox.width,
             height: bbox.height
+        };
+    }
+
+    // 2. SCENE_3D (3D scan): axis-aligned box of the ROTATED footprint — the
+    // footprint is large, the raw bbox would wrongly cull / miss a rotated scan.
+    else if (annotation.type === 'SCENE_3D') {
+        const corners = getScene3dFootprintCorners(annotation);
+        if (corners.length === 0) return null;
+        const xs = corners.map((c) => c.x);
+        const ys = corners.map((c) => c.y);
+        const minX = Math.min(...xs);
+        const minY = Math.min(...ys);
+        return {
+            x: minX,
+            y: minY,
+            width: Math.max(...xs) - minX,
+            height: Math.max(...ys) - minY
         };
     }
 

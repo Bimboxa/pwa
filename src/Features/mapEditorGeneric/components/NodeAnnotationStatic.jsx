@@ -9,6 +9,7 @@ import NodeFreeTextStatic from "./NodeFreeTextStatic";
 import NodeDetailStatic from "./NodeDetailStatic";
 import NodeImageStatic from "./NodeImageStatic";
 import NodeObject3DStatic from "./NodeObject3DStatic";
+import NodeScene3DStatic from "./NodeScene3DStatic";
 import NodePointStatic from "./NodePointStatic";
 import NodeOpeningStatic from "./NodeOpeningStatic";
 import NodeRectangleStatic from "./NodeRectangleStatic";
@@ -174,6 +175,10 @@ function NodeAnnotationStatic({
 
     case "OBJECT_3D":
       return <NodeObject3DStatic {...props} annotation={resolvedAnnotation} />;
+
+    // SCENE_3D: 3D scan, shown in 2D as its top-down projection.
+    case "SCENE_3D":
+      return <NodeScene3DStatic {...props} annotation={resolvedAnnotation} />;
 
     case "COTE":
       return <NodeCoteStatic {...props} annotation={resolvedAnnotation} />;

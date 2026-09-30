@@ -280,6 +280,18 @@ const DRAWING_SHAPE_CONFIG = {
     defaults: {},
     shapeCategory: "rectangle",
   },
+  // SCENE_3D — a 3D scan (photogrammetry mesh) placed on the base map. The
+  // files are picked when the tool is armed (import dialog) and belong to
+  // the annotation, not to the template: nothing is configurable here.
+  // See docs/annotations/SCENE_3D_ANNOTATIONS.md.
+  SCENE_3D: {
+    label: "Scène 3D",
+    annotationType: "SCENE_3D",
+    tools: ["ONE_CLICK"],
+    configurableProps: [],
+    defaults: {},
+    shapeCategory: "rectangle",
+  },
   // LINEAR_LAYOUT — "calepinage linéaire": a distribution of parallel bars
   // along an axis with a density. Drawn as a 2-point segment (the bottom edge
   // of the band); the band of `width` meters extends perpendicular on one side
@@ -556,6 +568,7 @@ const TYPE_TO_SHAPE = {
   POLYGON: "POLYGON",
   RECTANGLE: "POLYGON",
   OBJECT_3D: "OBJECT_3D",
+  SCENE_3D: "SCENE_3D",
   LINEAR_LAYOUT: "LINEAR_LAYOUT",
   BASE_MAP_LINK: "BASE_MAP_LINK",
   COTE: "COTE",
@@ -608,7 +621,8 @@ export function resolveDrawingShape(template) {
 //   - "POINTS": `points` refs (POLYLINE, POLYGON, STRIP, RULER, COTE, ...)
 //   - "POINT":  a single `point` ref (MARKER, POINT, DETAIL, revolution axes)
 //   - "LABEL":  inline normalized targetPoint / labelPoint (LABEL, FREE_TEXT)
-//   - "BBOX":   inline normalized bbox (IMAGE, RECTANGLE, OBJECT_3D)
+//   - "BBOX":   inline normalized bbox (IMAGE, RECTANGLE, OBJECT_3D,
+//               SCENE_3D)
 const GEOMETRY_KIND_BY_TYPE = {
   MARKER: "POINT",
   POINT: "POINT",
@@ -620,6 +634,7 @@ const GEOMETRY_KIND_BY_TYPE = {
   IMAGE: "BBOX",
   RECTANGLE: "BBOX",
   OBJECT_3D: "BBOX",
+  SCENE_3D: "BBOX",
 };
 
 export function getGeometryKindFromType(annotationType) {

@@ -18,6 +18,9 @@ import { loadNavigationPreset } from "Features/threedEditor/services/navigationP
 
 import resolveNavigationMouseActions from "Features/threedEditor/utils/resolveNavigationMouseActions";
 
+// Far plane of the camera at the default view distance (SceneManager).
+const DEFAULT_CAMERA_FAR = 1000;
+
 // camera-controls must be installed once with a (subset of) three before use.
 // We pass only the classes it needs so three stays tree-shakeable elsewhere.
 CameraControls.install({
@@ -358,7 +361,13 @@ export default class ControlsManager {
     const baseFar = camera.far;
     const maxDistance = Math.max(baseMaxDistance, distance);
     const far = Math.max(baseFar, 2 * maxDistance);
-    this._distanceBoost = { baseMaxDistance, maxDistance, baseFar, far };
+    this._distanceBoost = {
+      baseMaxDistance,
+      maxDistance,
+      baseFar,
+      far,
+      requested: distance,
+    };
 
     if (stashed) this._stashedMaxDistance = maxDistance;
     else controls.maxDistance = maxDistance;
@@ -366,6 +375,32 @@ export default class ControlsManager {
       camera.far = far;
       camera.updateProjectionMatrix();
     }
+  };
+
+  // Sets the REGULAR zoom-out range (dolly limit + camera far plane at twice
+  // the distance): the "Distance de vue max" setting, or its AUTO value
+  // derived from the loaded SCENE_3D scans. A boost in progress (base maps
+  // grid) is re-applied on top of the new range; a limit parked in the stash
+  // (ortho-like fov of the 3D → 2D switch) is updated there.
+  setRegularMaxDistance = (distance) => {
+    const controls = this.cameraControls;
+    const camera = this.sceneManager?.camera;
+    if (!controls || !camera) return;
+    if (!Number.isFinite(distance) || distance <= 0) return;
+
+    const boostRequest = this._distanceBoost?.requested ?? null;
+    this.clearDistanceBoost();
+
+    if (this._stashedMaxDistance != null) this._stashedMaxDistance = distance;
+    else controls.maxDistance = distance;
+    const far = Math.max(DEFAULT_CAMERA_FAR, 2 * distance);
+    if (camera.far !== far) {
+      camera.far = far;
+      camera.updateProjectionMatrix();
+    }
+
+    if (boostRequest != null) this.setDistanceBoost(boostRequest);
+    this.sceneManager.requestRender?.();
   };
 
   // Gives the regular range back. The camera is never pulled in: when it
