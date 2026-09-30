@@ -160,9 +160,15 @@ const formatM = (m, decimals = 1) =>
 
 // ----- reticle ---------------------------------------------------------------
 
-// Four ticks with a central gap + a dot; the ring appears while a measure
-// is armed (first point shot).
+// Four ticks with a central gap + a dot, each stroke drawn twice (a dark
+// wider stroke under the cyan one) so the reticle stays visible on white
+// plans and light-grey scans; the ring appears while a measure is armed
+// (first point shot).
 function Reticle({ armed }) {
+  const strokes = [
+    { stroke: "rgba(0,0,0,0.75)", width: 4 },
+    { stroke: ACCENT, width: 1.5 },
+  ];
   return (
     <Box
       component="svg"
@@ -174,36 +180,43 @@ function Reticle({ armed }) {
         transform: "translate(-50%, -50%)",
         width: 40,
         height: 40,
-        color: ACCENT,
         filter: "drop-shadow(0 0 3px rgba(93,228,255,0.9))",
       }}
     >
-      <g stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-        <line x1="20" y1="2" x2="20" y2="11" />
-        <line x1="20" y1="29" x2="20" y2="38" />
-        <line x1="2" y1="20" x2="11" y2="20" />
-        <line x1="29" y1="20" x2="38" y2="20" />
-      </g>
-      <circle cx="20" cy="20" r="1.6" fill="currentColor" />
-      {armed && (
-        <circle
-          cx="20"
-          cy="20"
-          r="14"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1"
-          strokeDasharray="4 3"
-          opacity="0.8"
-        />
-      )}
+      {strokes.map(({ stroke, width }) => (
+        <g
+          key={width}
+          stroke={stroke}
+          strokeWidth={width}
+          strokeLinecap="round"
+        >
+          <line x1="20" y1="2" x2="20" y2="11" />
+          <line x1="20" y1="29" x2="20" y2="38" />
+          <line x1="2" y1="20" x2="11" y2="20" />
+          <line x1="29" y1="20" x2="38" y2="20" />
+          {armed && (
+            <circle
+              cx="20"
+              cy="20"
+              r="14"
+              fill="none"
+              strokeWidth={width === 1.5 ? 1 : 3}
+              strokeDasharray="4 3"
+              opacity={width === 1.5 ? 0.9 : 0.75}
+            />
+          )}
+        </g>
+      ))}
+      <circle cx="20" cy="20" r="2.6" fill="rgba(0,0,0,0.75)" />
+      <circle cx="20" cy="20" r="1.6" fill={ACCENT} />
     </Box>
   );
 }
 
-// Live numbers right under the reticle: the measure length while a first
-// point is armed (big), the distance to the aimed surface (small; dimmed
-// when aiming the void).
+// Live numbers right under the reticle, each on a small dark tag with its
+// label: the measure length while a first point is armed (LONGUEUR), the
+// distance from the eye to the aimed surface (DISTANCE; dimmed when aiming
+// the void).
 function ReticleReadout({ tool, targetDistM, measureHasStart, measureLiveM }) {
   const showLive = tool === "MEASURE" && measureHasStart;
   return (
@@ -213,29 +226,63 @@ function ReticleReadout({ tool, targetDistM, measureHasStart, measureLiveM }) {
         left: "50%",
         top: "50%",
         transform: "translateX(-50%)",
-        mt: "26px",
+        mt: "28px",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        gap: "2px",
-        color: ACCENT,
-        textShadow: GLOW,
-        letterSpacing: 1,
+        gap: "4px",
         whiteSpace: "nowrap",
       }}
     >
       {showLive && (
-        <Box sx={{ fontSize: 16, fontWeight: 700 }}>
-          {formatM(measureLiveM, 2)}
-        </Box>
+        <ReadoutTag label="Longueur" value={formatM(measureLiveM, 2)} big />
       )}
+      <ReadoutTag
+        label="Distance"
+        value={formatM(targetDistM)}
+        dim={targetDistM == null}
+      />
+    </Box>
+  );
+}
+
+function ReadoutTag({ label, value, big = false, dim = false }) {
+  return (
+    <Box
+      sx={{
+        display: "flex",
+        alignItems: "baseline",
+        gap: 0.75,
+        px: 1,
+        py: "3px",
+        bgcolor: PANEL_BG,
+        backdropFilter: "blur(4px)",
+        boxShadow: `inset 0 0 0 1px ${dim ? ACCENT_FAINT : ACCENT_DIM}`,
+        clipPath:
+          "polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 6px 100%, 0 calc(100% - 6px))",
+        opacity: dim ? 0.7 : 1,
+      }}
+    >
       <Box
         sx={{
-          fontSize: showLive ? 11 : 13,
-          opacity: targetDistM == null ? 0.45 : showLive ? 0.75 : 1,
+          fontSize: 8,
+          letterSpacing: 1.5,
+          textTransform: "uppercase",
+          color: TEXT_DIM,
         }}
       >
-        {formatM(targetDistM)}
+        {label}
+      </Box>
+      <Box
+        sx={{
+          fontSize: big ? 16 : 12,
+          fontWeight: big ? 700 : 400,
+          letterSpacing: 1,
+          color: dim ? TEXT_DIM : ACCENT,
+          textShadow: dim ? "none" : GLOW,
+        }}
+      >
+        {value}
       </Box>
     </Box>
   );

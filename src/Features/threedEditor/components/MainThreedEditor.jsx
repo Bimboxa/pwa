@@ -2393,7 +2393,7 @@ export default function MainThreedEditor() {
           <Box
             sx={{
               display:
-                dessinPanelSlidedIn || viewerPanelSlidedIn
+                dessinPanelSlidedIn || viewerPanelSlidedIn || walkActive
                   ? "none"
                   : "contents",
             }}
@@ -2422,7 +2422,10 @@ export default function MainThreedEditor() {
           rendererIsReady={rendererIsReady}
         />
       )}
-      {isThreedViewer && !captureFramingActive && <TopBaseMapChipsThreed />}
+      {/* Walk mode: the first-person HUD owns the screen — no base map chips. */}
+      {isThreedViewer && !captureFramingActive && !walkActive && (
+        <TopBaseMapChipsThreed />
+      )}
       {isThreedViewer && rendererIsReady && (
         <BaseMapsGrid3dController tooltipApiRef={tooltipApiRef} />
       )}
@@ -2446,10 +2449,11 @@ export default function MainThreedEditor() {
         </Box>
       )}
       {/* No 3D toolbars in the POV viewer nor under the capture tool — their
-          save bars sit there. */}
+          save bars sit there — nor in walk mode (its HUD sits there). */}
       {isThreedViewer &&
         !isPovViewer &&
         !captureToolActive &&
+        !walkActive &&
         (clippingEditing ? (
           <ClippingToolbarThreed />
         ) : extrudeActive ? (
