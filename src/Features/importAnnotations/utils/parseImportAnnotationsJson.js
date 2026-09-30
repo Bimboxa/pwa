@@ -14,7 +14,9 @@
 //   "annotations": [
 //     { "id": "a1", "type": "POLYGON|POLYLINE|COTE",
 //       "annotationTemplateId": "tpl_x", "closeLine": <bool>,
-//       "points": [ { "x": 0..1, "y": 0..1, "type": "circle"? } ],
+//       "offsetZ": <m>?, "height": <m>?,             // 3D, above the plan
+//       "points": [ { "x": 0..1, "y": 0..1, "type": "circle"?,
+//                     "offsetTop": <m>?, "offsetBottom": <m>? } ],
 //       "cuts": [ { "points": [ ...>= 3 points ] } ]   // POLYGON holes, optional
 //     },
 //     { "id": "t1", "type": "FREE_TEXT", "annotationTemplateId": "tpl_txt",
@@ -102,6 +104,25 @@ function validateNormalizedPoint(p) {
   }
   if (p.x < 0 || p.x > 1 || p.y < 0 || p.y > 1) {
     return "Les coordonnées des points doivent être normalisées dans [0..1].";
+  }
+  for (const key of ["offsetTop", "offsetBottom"]) {
+    if (p[key] !== undefined && p[key] !== null && !Number.isFinite(p[key])) {
+      return `\`${key}\` d'un point doit être un nombre (mètres).`;
+    }
+  }
+  return null;
+}
+
+// Annotation-level 3D fields (metres above the plan), optional.
+function validateHeightFields(ann) {
+  for (const key of ["offsetZ", "height"]) {
+    if (
+      ann[key] !== undefined &&
+      ann[key] !== null &&
+      !Number.isFinite(ann[key])
+    ) {
+      return `\`${key}\` doit être un nombre (mètres).`;
+    }
   }
   return null;
 }
@@ -318,15 +339,11 @@ export default function parseImportAnnotationsJson(text) {
   // only creates baseMaps carries no template.
   const baseMapsError = validateImportBaseMaps(json.baseMaps);
   if (baseMapsError) return { ok: false, error: baseMapsError };
-  const hasBaseMaps =
-    Array.isArray(json.baseMaps) && json.baseMaps.length > 0;
+  const hasBaseMaps = Array.isArray(json.baseMaps) && json.baseMaps.length > 0;
 
   // annotationTemplates
   const templates = json.annotationTemplates;
-  if (
-    !Array.isArray(templates) ||
-    (templates.length === 0 && !hasBaseMaps)
-  ) {
+  if (!Array.isArray(templates) || (templates.length === 0 && !hasBaseMaps)) {
     return {
       ok: false,
       error: "`annotationTemplates` doit être un tableau non vide.",
@@ -391,6 +408,8 @@ export default function parseImportAnnotationsJson(text) {
         error: `annotationTemplateId inconnu : ${ann.annotationTemplateId}.`,
       };
     }
+    const heightError = validateHeightFields(ann);
+    if (heightError) return { ok: false, error: heightError };
     if (ann.type === "FREE_TEXT") {
       const err = validateFreeText(ann);
       if (err) return { ok: false, error: err };
