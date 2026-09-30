@@ -27,15 +27,11 @@ import intersectAnnotationFace, {
 import { isMesh3dDraft } from "../utils/templateFaceDrawSelectors";
 import intersectScene3d from "Features/scene3d/services/intersectScene3d";
 import usePrepareScene3dPicking from "Features/scene3d/hooks/usePrepareScene3dPicking";
-import Scene3dPickReticle from "Features/scene3d/components/Scene3dPickReticle";
-import updateScene3dPickReticle from "Features/scene3d/utils/updateScene3dPickReticle";
 import buildDrawingVertexMarkers from "../utils/buildDrawingVertexMarkers";
 
 const COLOR_VERTEX = 0xff2d8d;
 const COLOR_EDGE = 0x2e7d32;
 const COLOR_PLANE = 0x1565c0;
-// Point on a SCENE_3D scan: a vivid color that stands out on aerial textures.
-const COLOR_SCAN = 0xff6d00;
 // In-plane ortho / vertex-alignment lock — the 2D axis-snap active red.
 const COLOR_LOCK = 0xff1744;
 const COLOR_AXIS_X = 0xff3b30;
@@ -66,9 +62,8 @@ function colorForKind(kind) {
       return COLOR_EDGE;
     case "PLANE":
     case "FACE":
-      return COLOR_PLANE;
     case "SCAN":
-      return COLOR_SCAN;
+      return COLOR_PLANE;
     case "PLANE_ORTHO":
     case "PLANE_ALIGN":
       return COLOR_LOCK;
@@ -192,7 +187,6 @@ export default function DrawingOverlayThreed() {
   const inProgressMarkersRef = useRef(null);
   const previewLineRef = useRef(null);
   const snapCircleRef = useRef(null);
-  const scanReticleRef = useRef(null);
   const crossARef = useRef(null);
   const crossBRef = useRef(null);
   const alignLineRef = useRef(null);
@@ -383,7 +377,21 @@ export default function DrawingOverlayThreed() {
       if (canDrawOnScan && behavior !== "RECTANGLE") {
         const scanHit = intersectScene3d(editor, mNdc, camera);
         if (scanHit?.isPending) return scanHit;
-        if (scanHit && scanHit.distance < bestDistance) best = scanHit;
+        if (scanHit && scanHit.distance < bestDistance) {
+          // Same target as a face / plan hit: the cross lies in the plane of
+          // the triangle under the cursor. Its arms grow with the viewing
+          // distance — a scan is looked at from much farther than a face.
+          best = {
+            ...buildFacePlaneHit(
+              scanHit.position,
+              scanHit.normal,
+              { baseMapId: scanHit.baseMapId, distance: scanHit.distance },
+              Math.max(0.5, scanHit.distance * 0.04)
+            ),
+            isFace: false,
+            isScan: true,
+          };
+        }
       }
       return best;
     }
@@ -401,11 +409,7 @@ export default function DrawingOverlayThreed() {
       const circle = snapCircleRef.current;
       if (!circle) return;
       const screen = snap?.position ? toScreen(snap.position, rect) : null;
-      // A point on a SCENE_3D scan gets the high-contrast reticle instead of
-      // the thin circle (lost on an aerial texture).
-      const onScan = snap?.kind === "SCAN";
-      updateScene3dPickReticle(scanReticleRef.current, onScan ? screen : null);
-      if (!screen || onScan) {
+      if (!screen) {
         circle.style.display = "none";
         return;
       }
@@ -560,7 +564,6 @@ export default function DrawingOverlayThreed() {
     function onPointerLeave() {
       setLastSnap(null);
       if (snapCircleRef.current) snapCircleRef.current.style.display = "none";
-      updateScene3dPickReticle(scanReticleRef.current, null);
       if (crossARef.current) crossARef.current.style.display = "none";
       if (crossBRef.current) crossBRef.current.style.display = "none";
       if (alignLineRef.current) alignLineRef.current.style.display = "none";
@@ -626,7 +629,6 @@ export default function DrawingOverlayThreed() {
         fill="none"
         style={{ display: "none" }}
       />
-      <Scene3dPickReticle ref={scanReticleRef} color={colorHex(COLOR_SCAN)} />
     </svg>
   );
 }

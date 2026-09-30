@@ -199,6 +199,8 @@ export default function computeSnapTarget({
       position: planeHit.position,
       kind: "SCAN",
       baseMapId: planeHit.baseMapId,
+      axisA: planeHit.axisA,
+      axisB: planeHit.axisB,
     };
   }
   // Snaps derived from a face hit keep pointing at the hit annotation.

@@ -15,19 +15,23 @@ const _normalMatrix = new Matrix3();
 // Cross helper + in-plane axes of a point on a plane: the "horizontal" and
 // the "up the slope" directions of the face (computePlaneBasis), so the
 // in-plane ortho lock follows the face, whatever its orientation.
-export function buildFacePlaneHit(position, normal, extra = {}) {
+// crossHalfLength: half-length (m) of the cross arms.
+export function buildFacePlaneHit(
+  position,
+  normal,
+  extra = {},
+  crossHalfLength = CROSS_HALF_LENGTH_M
+) {
   const basis = computePlaneBasis(normal, position);
   const segment = (axis) => [
     position
       .clone()
       .add(
-        new Vector3(axis.x, axis.y, axis.z).multiplyScalar(-CROSS_HALF_LENGTH_M)
+        new Vector3(axis.x, axis.y, axis.z).multiplyScalar(-crossHalfLength)
       ),
     position
       .clone()
-      .add(
-        new Vector3(axis.x, axis.y, axis.z).multiplyScalar(CROSS_HALF_LENGTH_M)
-      ),
+      .add(new Vector3(axis.x, axis.y, axis.z).multiplyScalar(crossHalfLength)),
   ];
   return {
     position,

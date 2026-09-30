@@ -10,8 +10,6 @@ import { getActiveThreedEditor } from "Features/threedEditor/services/threedEdit
 import useVertexSnap from "Features/threedDrawing/hooks/useVertexSnap";
 import intersectScene3d from "Features/scene3d/services/intersectScene3d";
 import usePrepareScene3dPicking from "Features/scene3d/hooks/usePrepareScene3dPicking";
-import Scene3dPickReticle from "Features/scene3d/components/Scene3dPickReticle";
-import updateScene3dPickReticle from "Features/scene3d/utils/updateScene3dPickReticle";
 import buildDrawingVertexMarkers from "Features/threedDrawing/utils/buildDrawingVertexMarkers";
 
 import { setLastDimensionSnap } from "../services/lastDimensionSnapStore";
@@ -63,7 +61,6 @@ export default function DimensionDraftOverlayThreed() {
   const rootRef = useRef(null);
   const previewLineRef = useRef(null);
   const snapCircleRef = useRef(null);
-  const scanReticleRef = useRef(null);
   const startMarkerRef = useRef(null);
   const lengthLabelRef = useRef(null);
 
@@ -125,25 +122,15 @@ export default function DimensionDraftOverlayThreed() {
       if (!circle) return;
       if (!snap?.position) {
         circle.style.display = "none";
-        updateScene3dPickReticle(scanReticleRef.current, null);
         return;
       }
       const projected = snap.position.clone().project(camera);
       if (projected.z < -1 || projected.z > 1) {
         circle.style.display = "none";
-        updateScene3dPickReticle(scanReticleRef.current, null);
         return;
       }
       const sx = ((projected.x + 1) / 2) * rect.width;
       const sy = ((1 - projected.y) / 2) * rect.height;
-      // A point on a SCENE_3D scan gets the high-contrast reticle instead of
-      // the thin circle (lost on an aerial texture).
-      if (snap.kind === "SCAN") {
-        circle.style.display = "none";
-        updateScene3dPickReticle(scanReticleRef.current, { sx, sy });
-        return { sx, sy };
-      }
-      updateScene3dPickReticle(scanReticleRef.current, null);
       circle.setAttribute("cx", sx);
       circle.setAttribute("cy", sy);
       circle.style.stroke = colorForKind(snap.kind);
@@ -232,7 +219,6 @@ export default function DimensionDraftOverlayThreed() {
     function onPointerLeave() {
       setLastDimensionSnap(null);
       if (snapCircleRef.current) snapCircleRef.current.style.display = "none";
-      updateScene3dPickReticle(scanReticleRef.current, null);
       if (lengthLabelRef.current) lengthLabelRef.current.style.display = "none";
       if (previewLineRef.current) {
         rootRef.current?.remove(previewLineRef.current);
@@ -269,7 +255,6 @@ export default function DimensionDraftOverlayThreed() {
         fill="none"
         style={{ display: "none" }}
       />
-      <Scene3dPickReticle ref={scanReticleRef} />
       <text
         ref={lengthLabelRef}
         fontSize="13"

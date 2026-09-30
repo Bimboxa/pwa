@@ -177,9 +177,10 @@ or rotating the scan afterwards leaves it in place.
   scan are skipped. Cotes: last fallback of `computeDimensionSnap`.
 - **Feedback**: the preparation progress then "ready" is shown in the drawing
   helper (`SectionScene3dPickingStatus`, fed by `useScene3dPickingStatus`) and
-  a toast marks the end. A scan hit is drawn as a high-contrast screen-space
-  reticle (`Scene3dPickReticle` — the thin snap circle is lost on an aerial
-  texture), and every placed point gets a dot (`buildDrawingVertexMarkers`).
+  a toast marks the end. A scan hit shows the same target as a face / plan hit
+  (snap circle + dashed cross in the plane of the triangle under the cursor,
+  arms scaled with the viewing distance), and every placed point gets a dot
+  (`buildDrawingVertexMarkers`).
 - Not supported: polygons (a face needs coplanar points), rectangles,
   snapping to the scan's own vertices.
 
