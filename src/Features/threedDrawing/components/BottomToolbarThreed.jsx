@@ -23,7 +23,7 @@ import ButtonRotateAnnotationThreed from "Features/threedAnnotationMove/componen
 // "Tourner" (base map), no "Extruder" nor "Coupe".
 // Dessin module (MAP): "Déplacer" / "Tourner" act on the selected
 // ANNOTATIONS (threedAnnotationMove) — the base-map versions stay in the
-// other modules. No "Coupe" there either, and the tools carry the E / D / R
+// other modules. No "Coupe" there either, and the tools carry the E / M / R
 // hotkey badges (bound by useDessinToolHotkeysThreed in MainThreedEditor).
 // The zoom out lives outside the toolbar (ButtonZoomOutThreed, bottom-right
 // of the editor).
@@ -69,7 +69,7 @@ export default function BottomToolbarThreed() {
             {isMeshesViewer && <ButtonMeshThreed />}
             {!isMapModule && <ButtonMoveBaseMapThreed />}
             {!isMapModule && <ButtonRotateBaseMapThreed />}
-            {isMapModule && <ButtonMoveAnnotationThreed hotkey="D" />}
+            {isMapModule && <ButtonMoveAnnotationThreed hotkey="M" />}
             {isMapModule && <ButtonRotateAnnotationThreed hotkey="R" />}
             {/* No leading divider when nothing precedes "Coupe" (Viewer
                 module) and no trailing one when "Coupe" is hidden (Dessin). */}

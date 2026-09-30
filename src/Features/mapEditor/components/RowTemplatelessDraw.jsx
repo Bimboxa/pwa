@@ -24,8 +24,7 @@ import useDrawTemplateless from "Features/mapEditor/hooks/useDrawTemplateless";
 // annotation with no template nor listing. Shows the count of templateless
 // annotations; on hover: annotation type picker, solo and eye.
 // In the 3D editor the same row starts the mesh drawing (lines on the faces of
-// the annotation meshes): the type picker only offers lines and surfaces, and
-// there is no hotkey — "D" is "Déplacer" there.
+// the annotation meshes): the type picker only offers lines and surfaces.
 // ---------------------------------------------------------------------------
 
 const SX_BY_VARIANT = {
@@ -72,7 +71,6 @@ export default function RowTemplatelessDraw({
   const {
     shapes,
     activeShape,
-    isThreedEditor,
     startDraw,
     selectShapeAndDraw,
     isSolo,
@@ -149,7 +147,7 @@ export default function RowTemplatelessDraw({
         >
           <Icon sx={{ fontSize: styles.iconSize, color: styles.iconColor }} />
         </Box>
-        {shortcut && !isThreedEditor && (
+        {shortcut && (
           <Box sx={{ flexShrink: 0 }}>
             <ShortcutBadge>{shortcut}</ShortcutBadge>
           </Box>
