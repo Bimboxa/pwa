@@ -1,4 +1,7 @@
-import { Raycaster, Vector3 } from "three";
+import { Raycaster, Vector2, Vector3 } from "three";
+import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
+import { LineSegments2 } from "three/examples/jsm/lines/LineSegments2.js";
+import { LineSegmentsGeometry } from "three/examples/jsm/lines/LineSegmentsGeometry.js";
 
 import { isWorldPointVisible } from "Features/threedEditor/js/utilsAnnotationsManager/clippingPick";
 
@@ -37,8 +40,8 @@ export function getMesh3dEdgesWorld(annoObject) {
 
 // Mesh edge under the cursor, in screen space: the closest edge within
 // `thresholdPx`, ignoring the ones hidden behind the annotation's own faces
-// (or cut away by the clipping plane). Returns { a, b } (vertex indices) or
-// null.
+// (or cut away by the clipping plane). Returns { a, b, pa, pb, length }
+// (vertex indices, world end points, length in meters) or null.
 //
 // cursor: { x, y } client coords. rect: the canvas bounding rect.
 export default function pickMesh3dEdge(
@@ -105,7 +108,39 @@ export default function pickMesh3dEdge(
     raycaster.set(origin, toPoint.normalize());
     const hit = raycaster.intersectObjects(faces, false)[0];
     if (hit && hit.distance < pointDistance - OCCLUSION_TOL_M) continue;
-    return { a: edge.a, b: edge.b };
+    return {
+      a: edge.a,
+      b: edge.b,
+      pa: edge.pa,
+      pb: edge.pb,
+      length: edge.pa.distanceTo(edge.pb),
+    };
   }
   return null;
+}
+
+// Thick screen-space line over one mesh edge (world end points) — the hover
+// feedback of pickMesh3dEdge. Invisible to raycasts and to the snap index.
+// The caller adds it to the scene and disposes geometry + material.
+export function buildMesh3dEdgeHelper(pa, pb, { color, domElement }) {
+  const geometry = new LineSegmentsGeometry();
+  geometry.setPositions([pa.x, pa.y, pa.z, pb.x, pb.y, pb.z]);
+  const line = new LineSegments2(
+    geometry,
+    new LineMaterial({
+      color,
+      linewidth: 5,
+      resolution: new Vector2(
+        domElement?.clientWidth || 1,
+        domElement?.clientHeight || 1
+      ),
+      worldUnits: false,
+      transparent: true,
+      depthTest: false,
+    })
+  );
+  line.renderOrder = 999;
+  line.raycast = () => {};
+  line.userData.isHoverOverlay = true;
+  return line;
 }

@@ -13,6 +13,7 @@ import {
 import { getFace2d } from "Features/annotationMesh3d/utils/mesh3dFace2d";
 import { mesh3dToLocal } from "Features/annotationMesh3d/utils/mesh3dFrame";
 import {
+  getFaceArea,
   getFaceLoops,
   getFaceNormal,
 } from "Features/annotationMesh3d/utils/mesh3dTopology";
@@ -23,6 +24,19 @@ export const MESH3D_Z_FIGHT_OFFSET = 0.001;
 
 function signedTriangleArea(a, b, c) {
   return (b.x - a.x) * (c.y - a.y) - (c.x - a.x) * (b.y - a.y);
+}
+
+// Total length of the edges of a face (contour + holes).
+function getFacePerimeter(vertices, face) {
+  let sum = 0;
+  for (const loop of getFaceLoops(face)) {
+    for (let i = 0; i < loop.length; i++) {
+      const p = vertices[loop[i]];
+      const q = vertices[loop[(i + 1) % loop.length]];
+      sum += Math.hypot(q.x - p.x, q.y - p.y, q.z - p.z);
+    }
+  }
+  return sum;
 }
 
 // One planar face -> BufferGeometry, triangulated in the face plane and
@@ -88,7 +102,16 @@ export default function buildMesh3dAnnotationObject(
     const geometry = buildFaceGeometry(mesh.vertices, face, lift);
     if (!geometry) return;
     const faceMesh = new Mesh(geometry, material);
-    faceMesh.userData = { role: "SOLID", mesh3dFaceIndex: faceIndex };
+    // mesh3dFaceInfo: measures of the face (m², m), shown by the hover
+    // tooltip — the geometry is metric, no need to go back to the row.
+    faceMesh.userData = {
+      role: "SOLID",
+      mesh3dFaceIndex: faceIndex,
+      mesh3dFaceInfo: {
+        surface: getFaceArea(mesh.vertices, face),
+        length: getFacePerimeter(mesh.vertices, face),
+      },
+    };
     group.add(faceMesh);
   });
   if (!group.children.length) return null;

@@ -12,7 +12,10 @@ import getAnnotationQties from "Features/annotations/utils/getAnnotationQties";
 import useAnnotationTaskHours from "Features/businessObjects/hooks/useAnnotationTaskHours";
 import { formatHours } from "Features/businessObjects/utils/hoursRatioConversions";
 
-const MapTooltip = forwardRef(({ hoveredNode, annotations, x, y, isSelected }, ref) => {
+// qtiesOverride ({ length?, surface? }): quantities of the hovered PART (a
+// face / edge of a mesh annotation in the 3D editor) shown instead of the
+// annotation's own totals.
+const MapTooltip = forwardRef(({ hoveredNode, annotations, x, y, isSelected, qtiesOverride }, ref) => {
 
     // data
 
@@ -44,9 +47,11 @@ const MapTooltip = forwardRef(({ hoveredNode, annotations, x, y, isSelected }, r
 
     // helper - qties (the annotations prop carries no .qties — parents resolve
     // without withQties — so compute for the single hovered annotation)
-    const qties = annotation
-        ? getAnnotationQties({ annotation, meterByPx: baseMap?.meterByPx })
-        : null;
+    const qties = qtiesOverride
+        ? { enabled: true, ...qtiesOverride }
+        : annotation
+            ? getAnnotationQties({ annotation, meterByPx: baseMap?.meterByPx })
+            : null;
     const length = qties?.lengthDeveloped != null ? qties.lengthDeveloped : qties?.length;
     const surface = qties?.surfaceDeveloped != null ? qties.surfaceDeveloped : qties?.surface;
     const showLength = Boolean(qties?.enabled) && length > 0;
@@ -55,7 +60,11 @@ const MapTooltip = forwardRef(({ hoveredNode, annotations, x, y, isSelected }, r
     // helper - PLANNING module: hours this annotation represents for each
     // applicable task of the active listing (empty everywhere else)
     const { tasks: taskHours, workPackage, total: taskHoursTotal } =
-        useAnnotationTaskHours({ annotation, qties });
+        useAnnotationTaskHours({
+            // a part is not a planning quantity: no task hours for it
+            annotation: qtiesOverride ? null : annotation,
+            qties,
+        });
 
     // helper - image
     const entity = annotation?.entity;

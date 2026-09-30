@@ -121,7 +121,9 @@ import ExtrudeOverlayThreed from "Features/threedExtrude/components/ExtrudeOverl
 import useExtrudePointerHandlers from "Features/threedExtrude/hooks/useExtrudePointerHandlers";
 import useDeleteMesh3dPartsOnKeyboard from "Features/annotationMesh3d/hooks/useDeleteMesh3dPartsOnKeyboard";
 import Mesh3dPartsHighlightThreed from "Features/annotationMesh3d/components/Mesh3dPartsHighlightThreed";
-import pickMesh3dEdge from "Features/annotationMesh3d/services/pickMesh3dEdge";
+import pickMesh3dEdge, {
+  buildMesh3dEdgeHelper,
+} from "Features/annotationMesh3d/services/pickMesh3dEdge";
 import selectMesh3dPart from "Features/annotationMesh3d/services/selectMesh3dPart";
 import {
   getMesh3dEdgePartId,
@@ -190,6 +192,9 @@ export default function MainThreedEditor() {
   const lastPointerEventRef = useRef(null);
   const prevHoveredObjectRef = useRef(null);
   const lastHoveredIdRef = useRef(null);
+  // Mesh annotations: the hover addresses one face / edge ("F3", "E2_7").
+  const lastHoveredPartKeyRef = useRef(null);
+  const meshEdgeHoverRef = useRef({ helper: null, key: null });
   const tooltipApiRef = useRef(null);
   // Lasso (shift+drag) state
   const lassoStartRef = useRef(null); // { x, y } in client coords, or null
@@ -530,7 +535,7 @@ export default function MainThreedEditor() {
     }
   }, []);
 
-  const clearFaceHoverOverlay = useCallback(() => {
+  const clearFaceStipple = useCallback(() => {
     if (!faceHoverOverlayRef.current && faceHoverKeyRef.current == null) {
       return;
     }
@@ -539,6 +544,24 @@ export default function MainThreedEditor() {
     faceHoverKeyRef.current = null;
     threedEditorRef.current?.renderScene?.();
   }, []);
+
+  // Hovered edge of a mesh annotation (thick green line).
+  const clearMeshEdgeHover = useCallback(() => {
+    const { helper } = meshEdgeHoverRef.current;
+    if (!helper) return;
+    helper.parent?.remove(helper);
+    helper.geometry?.dispose?.();
+    helper.material?.dispose?.();
+    meshEdgeHoverRef.current = { helper: null, key: null };
+    threedEditorRef.current?.renderScene?.();
+  }, []);
+
+  // Face-level hover feedback: the face stipple, or the edge line of a mesh
+  // annotation.
+  const clearFaceHoverOverlay = useCallback(() => {
+    clearFaceStipple();
+    clearMeshEdgeHover();
+  }, [clearFaceStipple, clearMeshEdgeHover]);
 
   // Sync showGrid → sceneManager.grid.visible (and re-render)
   useEffect(() => {
@@ -1018,22 +1041,35 @@ export default function MainThreedEditor() {
               return;
             }
 
-            // Click on a face of the ALREADY selected mesh annotation: the
-            // face becomes a selection part of it (shift toggles it in the
-            // multi selection). The first click selects the annotation.
+            // Mesh annotation: the click selects the face (or the edge) under
+            // the cursor DIRECTLY, as a part of the annotation — the
+            // annotation and its part are selected in one go. On the already
+            // selected annotation, shift toggles the part in the multi
+            // selection. (The whole annotation is reached with the back
+            // arrow of the part panel.)
+            let meshPartId = null;
             const faceIndex = intersect.object.userData?.mesh3dFaceIndex;
-            if (
-              faceIndex !== undefined &&
-              object.userData.isAnnotationMesh3d &&
-              nodeId === soloId
-            ) {
-              selectMesh3dPart({
-                dispatch,
-                getState: store.getState,
-                partId: getMesh3dFacePartId(nodeId, faceIndex),
-                additive: event.shiftKey,
-              });
-              return;
+            if (faceIndex !== undefined && object.userData.isAnnotationMesh3d) {
+              const edge = pickMesh3dEdge(
+                object,
+                { x: event.clientX, y: event.clientY },
+                camera,
+                rect,
+                8,
+                clippingPlane
+              );
+              meshPartId = edge
+                ? getMesh3dEdgePartId(nodeId, edge.a, edge.b)
+                : getMesh3dFacePartId(nodeId, faceIndex);
+              if (nodeId === soloId) {
+                selectMesh3dPart({
+                  dispatch,
+                  getState: store.getState,
+                  partId: meshPartId,
+                  additive: event.shiftKey,
+                });
+                return;
+              }
             }
 
             const item = {
@@ -1044,6 +1080,11 @@ export default function MainThreedEditor() {
               annotationType,
               listingId,
               annotationTemplateId,
+              // Shift+click on another annotation keeps the plain annotation
+              // multi selection.
+              ...(meshPartId && !event.shiftKey
+                ? { partId: meshPartId, partType: meshPartId.split("::")[1] }
+                : {}),
             };
             const position = { x: event.clientX, y: event.clientY };
 
@@ -1802,6 +1843,48 @@ export default function MainThreedEditor() {
     }
 
     const hitId = hit?.userData?.nodeId ?? null;
+
+    // Mesh annotation: the hover addresses ONE face or edge of it — the
+    // tooltip shows that part's own measures and a click selects it.
+    let meshPart = null; // { key, qties, edge? }
+    if (hit?.userData?.isAnnotationMesh3d && hitIntersect) {
+      const edge = pickMesh3dEdge(
+        hit,
+        { x: event.clientX, y: event.clientY },
+        camera,
+        rect,
+        8,
+        clippingPlane
+      );
+      const faceIndex = hitIntersect.object.userData?.mesh3dFaceIndex;
+      if (edge) {
+        meshPart = {
+          key: `E${edge.a}_${edge.b}`,
+          qties: { length: edge.length },
+          edge,
+        };
+      } else if (faceIndex !== undefined) {
+        meshPart = {
+          key: `F${faceIndex}`,
+          qties: hitIntersect.object.userData.mesh3dFaceInfo ?? null,
+        };
+      }
+    }
+    const edgeHoverKey = meshPart?.edge ? `${hitId}:${meshPart.key}` : null;
+    if (edgeHoverKey !== meshEdgeHoverRef.current.key) {
+      clearMeshEdgeHover();
+      if (meshPart?.edge) {
+        const helper = buildMesh3dEdgeHelper(
+          meshPart.edge.pa,
+          meshPart.edge.pb,
+          { color: 0x00ff00, domElement }
+        );
+        scene.add(helper);
+        meshEdgeHoverRef.current = { helper, key: edgeHoverKey };
+        threedEditor.renderScene?.();
+      }
+    }
+
     // Fat-line hits (Line2/LineSegments2, e.g. the POINT height trait) have no
     // faces to stipple — they keep the whole-object green recolor fallback.
     const isLineHit = !!(
@@ -1838,24 +1921,51 @@ export default function MainThreedEditor() {
       if (hit && containerRect) {
         const { nodeId, nodeType, annotationType, listingId } = hit.userData;
         tooltipApiRef.current?.set(
-          { nodeId, nodeType, annotationType, listingId },
+          {
+            nodeId,
+            nodeType,
+            annotationType,
+            listingId,
+            partQties: meshPart?.qties ?? null,
+          },
           event.clientX - containerRect.left + 15,
           event.clientY - containerRect.top + 15
         );
       } else {
         tooltipApiRef.current?.clear();
       }
+    } else if (
+      hit &&
+      containerRect &&
+      (meshPart?.key ?? null) !== lastHoveredPartKeyRef.current
+    ) {
+      // Same mesh annotation, another face / edge: refresh the tooltip.
+      const { nodeId, nodeType, annotationType, listingId } = hit.userData;
+      tooltipApiRef.current?.set(
+        {
+          nodeId,
+          nodeType,
+          annotationType,
+          listingId,
+          partQties: meshPart?.qties ?? null,
+        },
+        event.clientX - containerRect.left + 15,
+        event.clientY - containerRect.top + 15
+      );
     }
+    lastHoveredPartKeyRef.current = meshPart?.key ?? null;
 
     // Face hover overlay maintenance — runs every tick, NOT only on hitId
     // change: moving to another face of the SAME annotation must rebuild the
     // overlay. Staying on the same face is a cheap key match (the region is
     // stamped in the adjacency cache), so nothing is rebuilt. Maille faces get
     // the same stipple as annotation faces.
+    // A hovered mesh edge replaces the face stipple.
     const overlayIntersect =
-      mesh3dIntersect || (hit && !isLineHit ? hitIntersect : null);
+      mesh3dIntersect ||
+      (hit && !isLineHit && !meshPart?.edge ? hitIntersect : null);
     if (!overlayIntersect) {
-      clearFaceHoverOverlay();
+      clearFaceStipple();
     } else {
       const hitObject = overlayIntersect.object;
       // Plane mode on CSG-carved meshes: highlight the whole coplanar surface
@@ -1896,6 +2006,8 @@ export default function MainThreedEditor() {
     getSoloSelectedAnnotationId,
     clearSubHoverHelper,
     clearFaceHoverOverlay,
+    clearFaceStipple,
+    clearMeshEdgeHover,
   ]);
 
   // Handle pointer move (drag tracking + schedule hover raycast)
