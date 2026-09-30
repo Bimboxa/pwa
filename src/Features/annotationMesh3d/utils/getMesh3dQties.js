@@ -3,6 +3,21 @@ import { dot, length } from "../../threedMesh/utils/vec3Utils.js";
 import isMesh3dClosed from "./isMesh3dClosed.js";
 import { getFaceLoops, getLoopAreaVector } from "./mesh3dTopology.js";
 
+// Signed volume (m³) of a LOCAL mesh by the divergence theorem: positive when
+// the faces are wound outward. Meaningless on an open mesh.
+export function getMesh3dSignedVolume(mesh) {
+  let volume6 = 0;
+  for (const face of mesh?.faces || []) {
+    for (const loop of getFaceLoops(face)) {
+      volume6 += dot(
+        mesh.vertices[face.loop[0]],
+        getLoopAreaVector(mesh.vertices, loop)
+      );
+    }
+  }
+  return volume6 / 6;
+}
+
 // Quantities of a LOCAL mesh (meters): developed surface (sum of the face
 // areas) and volume (divergence theorem over the faces — closed meshes only,
 // an open sheet has none).

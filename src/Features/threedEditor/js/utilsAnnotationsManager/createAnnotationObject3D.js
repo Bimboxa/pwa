@@ -61,6 +61,7 @@ import buildRevolutionCircleLine from "./buildRevolutionCircleLine";
 import attachFatLineRaycast from "./attachFatLineRaycast";
 import buildExtrudedProfileMesh from "./buildExtrudedProfileMesh";
 import buildInlineExtrusionMesh from "./buildInlineExtrusionMesh";
+import buildMesh3dAnnotationObject from "./buildMesh3dAnnotationObject";
 import expandShellProfileArcs from "Features/geometry/utils/expandShellProfileArcs";
 import getInlineExtrusionSetup from "Features/annotations/utils/getInlineExtrusionSetup";
 import createObject3DAnnotation from "./createObject3DAnnotation";
@@ -694,6 +695,12 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
   let object = null;
   switch (annotation.type) {
     case "POLYGON": {
+      // isMesh3d: the solid is the stored face mesh — annotation.points only
+      // holds its plan projection (2D display), never the 3D geometry.
+      if (annotation.isMesh3d && annotation.mesh3d?.faces?.length) {
+        object = buildMesh3dAnnotationObject(annotation, baseMap, material);
+        break;
+      }
       const pts = pointsToLocal(annotation.points || [], baseMap);
       const cuts = (annotation.cuts || [])
         .map((cut) => pointsToLocal(cut.points || [], baseMap))
@@ -1132,7 +1139,10 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
   // / triangulateAnnotationGeometry preserve this order). Positions are in
   // basemap-local space; convert with annoObject.localToWorld at consumption.
   let vertexRefs = null;
-  if (annotation.type === "POLYGON" || annotation.type === "RECTANGLE") {
+  if (
+    (annotation.type === "POLYGON" || annotation.type === "RECTANGLE") &&
+    !annotation.isMesh3d
+  ) {
     const sourcePoints =
       annotation.type === "RECTANGLE"
         ? bboxToCorners(annotation.bbox || { x: 0, y: 0, width: 0, height: 0 })
