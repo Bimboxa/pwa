@@ -18,6 +18,8 @@ import SectionContourManager from "./SectionContourManager";
 import RenderModeManager from "./RenderModeManager";
 import SketchPostFxManager from "./postfx/SketchPostFxManager";
 
+import BaseMapsGridManager from "Features/baseMapsGrid3d/js/BaseMapsGridManager";
+
 export default class SceneManager {
   constructor({ containerEl, onRendererIsReady }) {
     this.containerEl = containerEl;
@@ -37,6 +39,9 @@ export default class SceneManager {
     this.addGrid = null;
 
     this.imagesManager = new ImagesManager({ sceneManager: this });
+    // 3D base maps grid ("table à plans"): poses the base map groups as paper
+    // sheets. ImagesManager and ThreedEditor consult it while it is open.
+    this.baseMapsGridManager = new BaseMapsGridManager({ sceneManager: this });
     this.annotationsManager = new AnnotationsManager({ sceneManager: this });
     // Textured planes of calibrated photoPlans (photo baseMaps have no flat
     // plane in the scene — these are their 3D presence).
@@ -95,6 +100,7 @@ export default class SceneManager {
     this.renderer.setSize(width, height);
     this._updateCamera({ width, height });
     this.sectionContourManager?.onResize();
+    this.baseMapsGridManager?.onResize();
     this.renderScene();
   };
 

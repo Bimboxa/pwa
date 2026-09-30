@@ -2,6 +2,14 @@ import { createSlice } from "@reduxjs/toolkit";
 
 import getInitScopeVisibility from "Features/init/services/getInitScopeVisibility";
 
+// Closes the base maps grid (3D "table à plans"): every other 3D tool mode
+// calls it when it arms, the grid poses being incompatible with them.
+function closeBaseMapsGrid(state) {
+  state.baseMapsGridMode.active = false;
+  state.baseMapsGridMode.anchorBaseMapId = null;
+  state.baseMapsGridMode.layout = "GRID";
+}
+
 const threedEditorInitialState = {
   showGrid: false,
   // When true, basemap images are hidden in the live 3D view AND omitted from
@@ -265,6 +273,19 @@ const threedEditorInitialState = {
     // model as rotateBaseMapMode.angleBuffer.
     angleBuffer: "",
   },
+  // Base maps grid ("table à plans", G in the 3D viewer): every base map of
+  // the main base map's listing flies to a flat paper-sheet arrangement (same
+  // layout as the 2D grid), G again sends them back to their real poses. The
+  // three.js side lives in BaseMapsGridManager. Mutually exclusive with the
+  // other 3D tool modes.
+  baseMapsGridMode: {
+    active: false,
+    // Sheet the grid is laid around: it does not move (null = main base map).
+    anchorBaseMapId: null,
+    // "GRID": same arrangement as the 2D grid. "AROUND": the anchor in the
+    // middle, the other sheets in the cells around it (click on a sheet).
+    layout: "GRID",
+  },
   // First-person walk mode (W in the 3D viewer). Camera-controls suspended:
   // pointer-locked mouse looks, arrow keys move on the selected baseMap,
   // Space fires the concrete lance at the screen center.
@@ -318,6 +339,7 @@ export const threedEditorSlice = createSlice({
     },
     setEditorMode: (state, action) => {
       state.editorMode = action.payload;
+      if (action.payload === "BASEMAP_POSITION") closeBaseMapsGrid(state);
     },
     setDrawingOffset: (state, action) => {
       state.drawingOffset = action.payload;
@@ -396,6 +418,7 @@ export const threedEditorSlice = createSlice({
         state.drawingMode.snapIndexEpoch = 0;
       } else {
         // Mutually exclusive with dimension mode.
+        closeBaseMapsGrid(state);
         state.dimensionMode.active = false;
         state.dimensionMode.startPoint = null;
         state.meshingMode.active = false;
@@ -500,12 +523,18 @@ export const threedEditorSlice = createSlice({
     setClippingPlaneEditing: (state, action) => {
       state.clippingPlane.editing = action.payload;
       // Opening the editor implicitly creates/enables the plane.
-      if (action.payload) state.clippingPlane.enabled = true;
+      if (action.payload) {
+        state.clippingPlane.enabled = true;
+        closeBaseMapsGrid(state);
+      }
     },
     toggleClippingPlaneEditing: (state) => {
       const next = !state.clippingPlane.editing;
       state.clippingPlane.editing = next;
-      if (next) state.clippingPlane.enabled = true;
+      if (next) {
+        state.clippingPlane.enabled = true;
+        closeBaseMapsGrid(state);
+      }
     },
     setDimensionModeActive: (state, action) => {
       state.dimensionMode.active = action.payload;
@@ -513,6 +542,7 @@ export const threedEditorSlice = createSlice({
         state.dimensionMode.startPoint = null;
       } else {
         // Mutually exclusive with drawing and meshing modes.
+        closeBaseMapsGrid(state);
         state.drawingMode.active = false;
         state.drawingMode.inProgressPolyline = [];
         state.drawingMode.trait3DSegments = [];
@@ -547,6 +577,7 @@ export const threedEditorSlice = createSlice({
         state.meshingMode.cutSide = "LEFT";
       } else {
         // Mutually exclusive with drawing and dimension modes.
+        closeBaseMapsGrid(state);
         state.drawingMode.active = false;
         state.drawingMode.inProgressPolyline = [];
         state.drawingMode.trait3DSegments = [];
@@ -605,6 +636,7 @@ export const threedEditorSlice = createSlice({
       state.extrudeMode.valueBuffer = "";
       if (action.payload) {
         // Mutually exclusive with every other 3D tool mode.
+        closeBaseMapsGrid(state);
         state.drawingMode.active = false;
         state.drawingMode.inProgressPolyline = [];
         state.drawingMode.trait3DSegments = [];
@@ -654,6 +686,7 @@ export const threedEditorSlice = createSlice({
       state.walkMode.active = !!action.payload;
       if (action.payload) {
         // Mutually exclusive with every 3D tool mode.
+        closeBaseMapsGrid(state);
         state.drawingMode.active = false;
         state.drawingMode.inProgressPolyline = [];
         state.drawingMode.trait3DSegments = [];
@@ -676,11 +709,62 @@ export const threedEditorSlice = createSlice({
         state.rotateAnnotationMode.angleBuffer = "";
       }
     },
+    setBaseMapsGridModeActive: (state, action) => {
+      const active = !!action.payload;
+      state.baseMapsGridMode.active = active;
+      state.baseMapsGridMode.layout = "GRID";
+      if (!active) {
+        state.baseMapsGridMode.anchorBaseMapId = null;
+        return;
+      }
+      // Mutually exclusive with every other 3D tool mode.
+      state.drawingMode.active = false;
+      state.drawingMode.inProgressPolyline = [];
+      state.drawingMode.trait3DSegments = [];
+      state.drawingMode.axisLock = null;
+      state.dimensionMode.active = false;
+      state.dimensionMode.startPoint = null;
+      state.meshingMode.active = false;
+      state.meshingMode.tool = "SELECT";
+      state.walkMode.active = false;
+      state.extrudeMode.active = false;
+      state.extrudeMode.targetAnnotationId = null;
+      state.moveBaseMapMode.active = false;
+      state.moveBaseMapMode.carriedBaseMapId = null;
+      state.rotateBaseMapMode.active = false;
+      state.rotateBaseMapMode.carriedBaseMapId = null;
+      state.rotateBaseMapMode.referenceSet = false;
+      state.rotateBaseMapMode.angleBuffer = "";
+      state.moveAnnotationMode.active = false;
+      state.moveAnnotationMode.carriedAnnotationIds = [];
+      state.rotateAnnotationMode.active = false;
+      state.rotateAnnotationMode.carriedAnnotationIds = [];
+      state.rotateAnnotationMode.referenceSet = false;
+      state.rotateAnnotationMode.angleBuffer = "";
+      state.clippingPlane.editing = false;
+    },
+    setBaseMapsGridAnchorId: (state, action) => {
+      state.baseMapsGridMode.anchorBaseMapId = action.payload ?? null;
+    },
+    // Click on a sheet: the others are laid around it (it does not move).
+    // Click on the current anchor again: back to the 2D grid arrangement.
+    focusBaseMapsGridSheet: (state, action) => {
+      const id = action.payload ?? null;
+      if (!id) return;
+      const grid = state.baseMapsGridMode;
+      if (grid.anchorBaseMapId === id) {
+        grid.layout = grid.layout === "AROUND" ? "GRID" : "AROUND";
+      } else {
+        grid.anchorBaseMapId = id;
+        grid.layout = "AROUND";
+      }
+    },
     setMoveBaseMapModeActive: (state, action) => {
       state.moveBaseMapMode.active = !!action.payload;
       state.moveBaseMapMode.carriedBaseMapId = null;
       if (action.payload) {
         // Mutually exclusive with every other 3D tool mode.
+        closeBaseMapsGrid(state);
         state.drawingMode.active = false;
         state.drawingMode.inProgressPolyline = [];
         state.drawingMode.trait3DSegments = [];
@@ -712,6 +796,7 @@ export const threedEditorSlice = createSlice({
       state.rotateBaseMapMode.angleBuffer = "";
       if (action.payload) {
         // Mutually exclusive with every other 3D tool mode.
+        closeBaseMapsGrid(state);
         state.drawingMode.active = false;
         state.drawingMode.inProgressPolyline = [];
         state.drawingMode.trait3DSegments = [];
@@ -752,6 +837,7 @@ export const threedEditorSlice = createSlice({
       state.moveAnnotationMode.carriedAnnotationIds = [];
       if (action.payload) {
         // Mutually exclusive with every other 3D tool mode.
+        closeBaseMapsGrid(state);
         state.drawingMode.active = false;
         state.drawingMode.inProgressPolyline = [];
         state.drawingMode.trait3DSegments = [];
@@ -783,6 +869,7 @@ export const threedEditorSlice = createSlice({
       state.rotateAnnotationMode.angleBuffer = "";
       if (action.payload) {
         // Mutually exclusive with every other 3D tool mode.
+        closeBaseMapsGrid(state);
         state.drawingMode.active = false;
         state.drawingMode.inProgressPolyline = [];
         state.drawingMode.trait3DSegments = [];
@@ -834,6 +921,20 @@ export const threedEditorSlice = createSlice({
     },
   },
   extraReducers: (builder) => {
+    // The base maps grid never survives a change of main base map, scope,
+    // project, module or 2D/3D editor: the scene is rebuilt or read (camera
+    // sync) with the real poses.
+    builder.addMatcher(
+      (action) =>
+        action.type === "mapEditors/setSelectedMainBaseMapId" ||
+        action.type === "scopes/setSelectedScopeId" ||
+        action.type === "projects/setSelectedProjectId" ||
+        action.type === "viewers/setSelectedViewerKey" ||
+        action.type === "viewers/setModuleEditorKey",
+      (state) => {
+        closeBaseMapsGrid(state);
+      }
+    );
     // Selecting a base map as main must reveal it fully — reset its hide
     // flags. Matched by type string to avoid importing mapEditorSlice.
     // Suspended during the Viewer landing window (revealOnMainSelectSuspended)
@@ -951,6 +1052,9 @@ export const {
   clearExtrudeValueBuffer,
   setExtrudeTargetAnnotationId,
   setWalkModeActive,
+  setBaseMapsGridModeActive,
+  setBaseMapsGridAnchorId,
+  focusBaseMapsGridSheet,
   setMoveBaseMapModeActive,
   setMoveBaseMapCarriedId,
   setRotateBaseMapModeActive,

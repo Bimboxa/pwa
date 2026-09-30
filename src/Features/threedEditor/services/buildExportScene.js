@@ -61,7 +61,9 @@ export default function buildExportScene(
       obj.userData?.isSketchEdge ||
       // Partial-revolution section markers (fat boundary lines + poché fill)
       // are display-only decorations, same story as the sketch edges.
-      obj.userData?.isSectionMarker
+      obj.userData?.isSectionMarker ||
+      // 3D base maps grid decorations (sheet outline, label, eye button).
+      obj.userData?.isGridPlaceholder
     ) {
       return;
     }

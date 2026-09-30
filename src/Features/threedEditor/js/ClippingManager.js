@@ -358,6 +358,9 @@ export default class ClippingManager {
         // (Line / LineSegments) — otherwise the cut-away part keeps showing
         // its wireframe. Line materials honor clippingPlanes too.
         if ((!child.isMesh && !child.isLine) || !child.material) return;
+        // Base maps grid decorations (sheet outline, hit plane) are UI, not
+        // content: never sliced by the section plane.
+        if (child.userData?.isGridPlaceholder) return;
         const mats = Array.isArray(child.material)
           ? child.material
           : [child.material];

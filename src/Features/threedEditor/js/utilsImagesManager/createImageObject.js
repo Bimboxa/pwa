@@ -47,11 +47,12 @@ export function buildBaseMapPlaneGeometry({
   return geometry;
 }
 
-// Create the basemap Group synchronously (so AnnotationsManager can immediately
-// attach annotations as children), then asynchronously load the texture and
-// add the mesh when ready. Returns { group, ready } where `ready` resolves once
-// the mesh has been attached.
-export default function createImageObject(image) {
+// Synchronous part of createImageObject: the posed basemap Group with its
+// (empty) mesh wrapper and the stashes needed to attach the mesh later. Also
+// used alone for the texture-less groups of the 3D base maps grid
+// (ImagesManager.ensureBaseMapGroup), whose mesh is attached on demand by
+// ensureImageTexture.
+export function createBaseMapGroup(image) {
   const group = new Group();
   // The rotation order MUST be set BEFORE the rotation values, otherwise the
   // resulting matrix is built with the previous (default) order and the
@@ -81,6 +82,16 @@ export default function createImageObject(image) {
   meshWrap.userData.kind = "baseMapMeshWrap";
   group.add(meshWrap);
   group.userData.meshWrap = meshWrap;
+
+  return group;
+}
+
+// Create the basemap Group synchronously (so AnnotationsManager can immediately
+// attach annotations as children), then asynchronously load the texture and
+// add the mesh when ready. Returns { group, ready } where `ready` resolves once
+// the mesh has been attached.
+export default function createImageObject(image) {
+  const group = createBaseMapGroup(image);
 
   const ready = attachBaseMapMesh(group, image);
 
