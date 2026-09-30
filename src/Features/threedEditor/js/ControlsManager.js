@@ -78,6 +78,9 @@ export default class ControlsManager {
 
     // maxDistance stashed by animateFovTo, restored by restorePerspectiveFov.
     this._stashedMaxDistance = null;
+    // Regular range requested while a transition had lifted the limit (see
+    // setRegularMaxDistance), applied when the transition ends.
+    this._deferredMaxDistance = null;
 
     // Mouse navigation preset (device preference). Read from localStorage so
     // the editor starts on the right mapping; MainThreedEditor then keeps it
@@ -391,8 +394,16 @@ export default class ControlsManager {
     const boostRequest = this._distanceBoost?.requested ?? null;
     this.clearDistanceBoost();
 
-    if (this._stashedMaxDistance != null) this._stashedMaxDistance = distance;
-    else controls.maxDistance = distance;
+    if (this._stashedMaxDistance != null) {
+      this._stashedMaxDistance = distance;
+    } else if (controls.maxDistance === Infinity) {
+      // A camera transition (2D → 3D entry) has lifted the limit for its
+      // duration: clamping now would snap the camera mid-flight. Handed over
+      // when the transition puts the limit back.
+      this._deferredMaxDistance = distance;
+    } else {
+      controls.maxDistance = distance;
+    }
     const far = Math.max(DEFAULT_CAMERA_FAR, 2 * distance);
     if (camera.far !== far) {
       camera.far = far;
@@ -552,8 +563,10 @@ export default class ControlsManager {
       );
       await this._animateFovKeepingScale({ fovTo, durationMs, distance });
     } finally {
-      // The end distance (reference fov) is back within the normal limits.
-      controls.maxDistance = prevMaxDistance;
+      // The end distance (reference fov) is back within the normal limits
+      // (a regular range set meanwhile — setRegularMaxDistance — wins).
+      controls.maxDistance = this._deferredMaxDistance ?? prevMaxDistance;
+      this._deferredMaxDistance = null;
       controls.enabled = prevEnabled;
     }
   };

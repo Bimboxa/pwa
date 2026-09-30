@@ -699,9 +699,21 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
     ]);
 
     // effect - fit to selectedNode
+    // Once per selection: `annotations.length` is a dependency only to catch
+    // an annotation that was not loaded yet when it got selected. Without
+    // the guard, every reload of the list (e.g. coming back from the 3D
+    // editor, whose switch has just placed the 2D camera) re-fitted the view
+    // on the still-selected annotation — a camera jump at the end of the
+    // 3D → 2D transition.
 
+    const lastFittedSelectionRef = useRef(null);
     useEffect(() => {
-        if (selectedNode?.origin !== "LISTING") return;
+        if (selectedNode?.origin !== "LISTING") {
+            lastFittedSelectionRef.current = null;
+            return;
+        }
+        const fitKey = `${baseMap?.id}|${selectedNode?.nodeId}`;
+        if (lastFittedSelectionRef.current === fitKey) return;
         const annotation = annotations.find(a => a.id === selectedNode?.nodeId);
         if (annotation && annotation.baseMapId === baseMap?.id) {
             const bounds = getAnnotationBounds(annotation, basePose);
@@ -709,8 +721,9 @@ export default function MainMapEditorV3({ forViewerKey = "MAP" }) {
                 const targetMatrix = fitBoundsToViewport(bounds, viewport, 260);
                 interactionLayerRef.current?.setCameraMatrix(targetMatrix);
             }
+            lastFittedSelectionRef.current = fitKey;
         }
-    }, [baseMap?.id, selectedNode?.nodeId, annotations?.length])
+    }, [baseMap?.id, selectedNode?.nodeId, selectedNode?.origin, annotations?.length])
 
 
     // handler - commit drawing

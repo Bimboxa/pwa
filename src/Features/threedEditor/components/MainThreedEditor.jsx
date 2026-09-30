@@ -33,7 +33,10 @@ import {
   setShowAnnotationsProperties,
 } from "Features/selection/selectionSlice";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
-import { resolveViewDistance } from "Features/threedEditor/constants/viewDistances";
+import {
+  VIEW_DISTANCE_AUTO,
+  resolveViewDistance,
+} from "Features/threedEditor/constants/viewDistances";
 import {
   selectEffectiveViewerKey,
   selectIsPovViewer,
@@ -727,13 +730,26 @@ export default function MainThreedEditor() {
 
   // Sync the max view distance (device preference, Configuration > Éditeur
   // 3D) → ControlsManager. AUTO follows the loaded SCENE_3D scans.
-  const viewDistance = resolveViewDistance(maxViewDistance, annotations);
+  // Only while the 3D editor is shown, and never from an EMPTY list in AUTO:
+  // leaving 3D (and re-entering it) emits a transient `[]`, which would
+  // shrink the range in the middle of the 2D ↔ 3D camera transition.
+  const appliedViewDistanceRef = useRef({ setting: null, distance: null });
   useEffect(() => {
-    if (!rendererIsReady) return;
+    if (!rendererIsReady || !isThreedViewer) return;
+    const applied = appliedViewDistanceRef.current;
+    const isStaleList =
+      maxViewDistance === VIEW_DISTANCE_AUTO &&
+      !annotations?.length &&
+      applied.setting === maxViewDistance;
+    if (isStaleList) return;
+    const distance = resolveViewDistance(maxViewDistance, annotations);
+    if (applied.setting === maxViewDistance && applied.distance === distance)
+      return;
+    appliedViewDistanceRef.current = { setting: maxViewDistance, distance };
     threedEditorRef.current?.sceneManager?.controlsManager?.setRegularMaxDistance(
-      viewDistance
+      distance
     );
-  }, [viewDistance, rendererIsReady]);
+  }, [maxViewDistance, annotations, rendererIsReady, isThreedViewer]);
 
   // Annotation move / rotate tools (Dessin module) — need the resolved
   // annotations for the carry-set resolution and the 2D write-back.
