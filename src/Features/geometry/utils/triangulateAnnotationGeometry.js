@@ -8,6 +8,7 @@ import computeDomeSteinerField, {
 import prepareShellProfiles from "./prepareShellProfiles";
 import delaunayTriangulate from "./delaunayTriangulate";
 import expandShellProfileArcs from "./expandShellProfileArcs";
+import drapeHoleRingsOnContour from "./drapeHoleRingsOnContour";
 
 // Number of iso-height bands used for guideLine ramps. Single-sourced so the
 // 3D mesh, the visible iso lines and the developed-surface quantity all agree.
@@ -51,6 +52,11 @@ function shellBuildSignature(contour, holes, shellProfiles, mode, isoChords) {
 // Z math, per point:
 //   bottom = verticalLift + (p.offsetBottom ?? 0)
 //   top    = verticalLift + height + (p.offsetBottom ?? 0) + (p.offsetTop ?? 0)
+//
+// Hole rings (cuts) without authored offsets are first draped onto the
+// surfaces of the contour alone (drapeHoleRingsOnContour), so a sloped
+// polygon keeps its sheet and the cuts read as vertical cliffs in it instead
+// of pulling the sheet down to the base height (crater).
 //
 // Inputs are 2D in caller-consistent units (pixels for quantity callers, local
 // world units for 3D callers). `unitScale` (= meters per input-unit, e.g.
@@ -104,6 +110,10 @@ export default function triangulateAnnotationGeometry({
   let validHoles = (holes || []).filter(
     (h) => Array.isArray(h) && h.length >= 3
   );
+  // Cuts without their own offsets follow the contour's sheet (see header).
+  // Runs before every branch below (shell cache signature, chord / iso
+  // partitions, walls, volume) so they all read the draped rim heights.
+  validHoles = drapeHoleRingsOnContour(contour, validHoles);
   const validInnerEarly = (innerPoints || []).filter(
     (p) => p && Number.isFinite(p.x) && Number.isFinite(p.y)
   );
