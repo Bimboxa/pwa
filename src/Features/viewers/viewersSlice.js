@@ -21,12 +21,9 @@ const viewersInitialState = {
   // (the getter always merges over the seeded defaults).
   editorKeyByModule: getInitEditorKeyByModule(),
   viewerReturnContext: null, // { fromViewer, portfolioId, listingId, ... }
-  // Annotation-less baseMaps pinned into the Viewer module's chips band
-  // (session-only, reset on scope open by useInitViewerModuleOnScopeOpen).
-  pinnedBaseMapIdsInViewer: [],
   // 2D map editors: hide the main baseMap image entirely (toggled from the
-  // top-bar baseMap selector's eye, and from the selected chip's eye in the
-  // Viewer 2D chips band). Per-scope local state: saved to localStorage by
+  // top-bar baseMap selector's eye, and from the main row's eye in the base
+  // maps list). Per-scope local state: saved to localStorage by
   // scopeVisibilityPersistMiddleware, restored on scope selection.
   hideBaseMapImageInViewer: false,
   // 2D map editors: hide the annotations entirely (toggled from the count
@@ -60,15 +57,6 @@ export const viewersSlice = createSlice({
     setViewerReturnContext: (state, action) => {
       state.viewerReturnContext = action.payload;
     },
-    togglePinnedBaseMapIdInViewer: (state, action) => {
-      const id = action.payload;
-      const index = state.pinnedBaseMapIdsInViewer.indexOf(id);
-      if (index === -1) state.pinnedBaseMapIdsInViewer.push(id);
-      else state.pinnedBaseMapIdsInViewer.splice(index, 1);
-    },
-    setPinnedBaseMapIdsInViewer: (state, action) => {
-      state.pinnedBaseMapIdsInViewer = action.payload ?? [];
-    },
     setHideBaseMapImageInViewer: (state, action) => {
       state.hideBaseMapImageInViewer = Boolean(action.payload);
     },
@@ -97,8 +85,6 @@ export const {
   setSelectedViewerKey,
   setModuleEditorKey,
   setViewerReturnContext,
-  togglePinnedBaseMapIdInViewer,
-  setPinnedBaseMapIdsInViewer,
   setHideBaseMapImageInViewer,
   setHideAnnotationsInViewer,
   setInitialFitDoneForScopeId,

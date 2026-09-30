@@ -43,6 +43,9 @@ export default class ImagesManager {
     // instead of flashing visible until the next visibility pass.
     this.groupVisibleByBaseMapId = {};
     this.imageVisibleByBaseMapId = {};
+    // Scan mesh of a scan base map (scanWrap): image eye AND the "3D" button
+    // of the base maps list (hiddenScene3dBaseMapIdsIn3d). Same contract.
+    this.scanVisibleByBaseMapId = {};
     // Desired 3D opacity, mirrored from redux by useApplyBaseMapOpacityIn3d.
     // Same "record the desired state" contract as the visibility maps above,
     // and for the same reason: the basemap mesh is attached ASYNCHRONOUSLY
@@ -128,10 +131,8 @@ export default class ImagesManager {
       group.userData.meshWrap.visible = imageVisible;
     }
     this.scene.add(group);
+    // syncScene3d applies the recorded scan visibility to the scanWrap.
     this.syncScene3d(image.id);
-    if (imageVisible !== undefined && group.userData.scanWrap) {
-      group.userData.scanWrap.visible = imageVisible;
-    }
     // Base maps grid open: a group created meanwhile joins its sheet pose.
     this.sceneManager.baseMapsGridManager?.onGroupCreated(image.id, group);
     // Re-render once the texture is in. The group is already in the scene
@@ -200,6 +201,12 @@ export default class ImagesManager {
       },
     });
     if (dispose) group.userData.disposeScene3d = dispose;
+    // A scan hidden before its (re)attach — image eye off, "3D" button off,
+    // display3d toggled back to MESH — must not pop back in.
+    const scanVisible = this.scanVisibleByBaseMapId[baseMapId];
+    if (scanVisible !== undefined && group.userData.scanWrap) {
+      group.userData.scanWrap.visible = scanVisible;
+    }
   }
 
   // Editor teardown: release every scan reference so the shared cache can
@@ -324,20 +331,35 @@ export default class ImagesManager {
     const group = this.imagesMap[baseMapId];
     const meshWrap = group?.userData?.meshWrap;
     if (meshWrap) meshWrap.visible = visible;
-    // the scan of a scan base map is part of its "image"
-    const scanWrap = group?.userData?.scanWrap;
+  }
+
+  // Toggle only the scan mesh (the scanWrap child) of a scan base map. The
+  // caller (useApplyBaseMapVisibilityIn3d) folds the image eye into the
+  // value: the scan is part of the base map "image", plus its own opt-out.
+  // Same record-before-creation contract — syncScene3d applies it when the
+  // scanWrap gets (re)attached.
+  setBaseMapScanVisible(baseMapId, visible) {
+    this.scanVisibleByBaseMapId[baseMapId] = visible;
+    const scanWrap = this.imagesMap[baseMapId]?.userData?.scanWrap;
     if (scanWrap) scanWrap.visible = visible;
   }
 
   // Batch apply — one call per visibility pass. Records every desired state
   // (including for basemaps not created yet) and applies them to the groups
   // already in the scene.
-  setBaseMapVisibilities({ groupVisibleById = {}, imageVisibleById = {} }) {
+  setBaseMapVisibilities({
+    groupVisibleById = {},
+    imageVisibleById = {},
+    scanVisibleById = {},
+  }) {
     Object.entries(groupVisibleById).forEach(([id, visible]) =>
       this.setBaseMapVisible(id, visible)
     );
     Object.entries(imageVisibleById).forEach(([id, visible]) =>
       this.setBaseMapImageVisible(id, visible)
+    );
+    Object.entries(scanVisibleById).forEach(([id, visible]) =>
+      this.setBaseMapScanVisible(id, visible)
     );
   }
 

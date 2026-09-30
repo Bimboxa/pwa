@@ -28,13 +28,10 @@ import ButtonSavePov from "Features/pov/components/ButtonSavePov";
 import ButtonCreatePovView from "Features/pov/components/ButtonCreatePovView";
 import ButtonSaveCapture from "Features/mapEditor/components/ButtonSaveCapture";
 import AssistantRelayRuntime from "Features/assistantRelay/components/AssistantRelayRuntime";
-import TopBaseMapChipsThreed from "Features/threedEditor/components/TopBaseMapChipsThreed";
 import LayerCreateBaseMap from "Features/mapEditor/components/LayerCreateBaseMap";
 import LayerPdfEditor from "Features/pdfEditor/components/LayerPdfEditor";
-import { selectBaseMapsGridMounted } from "Features/baseMapsGrid/baseMapsGridSlice";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 import {
-  selectCaptureFramingActive,
   selectEffectiveViewerKey,
   selectPovFramingActive,
 } from "Features/viewers/utils/effectiveViewerKey";
@@ -86,16 +83,6 @@ export default function SectionViewer() {
     getBusinessObjectTypeKeyFromModuleKey(viewerKey);
   const showScope = viewerKey === "SCOPE";
   const showAdmin = viewerKey === "ADMIN";
-  // Viewer module, 2D editor: the chips band replaces the topbar baseMap
-  // selector (the 3D editor mounts its own instance in MainThreedEditor).
-  const captureFramingActive = useSelector(selectCaptureFramingActive);
-  // ...and the base maps grid covering the editor has its own tabs band.
-  const baseMapsGridMounted = useSelector(selectBaseMapsGridMounted);
-  const showViewerChipsIn2d =
-    viewerKey === "THREED" &&
-    effectiveKey === "MAP" &&
-    !captureFramingActive &&
-    !baseMapsGridMounted;
 
   return (
     // overflow hidden clips the sliding POV drawer at the viewer's left edge
@@ -237,8 +224,6 @@ export default function SectionViewer() {
       {showAdmin && <PanelShowable show={showAdmin} sx={{ position: "absolute", zIndex: 0 }}>
         <ViewerAdmin />
       </PanelShowable>}
-
-      {showViewerChipsIn2d && <TopBaseMapChipsThreed />}
 
       {/* POV: floating button at the bottom of the displayed editor (replaces
           the 3D bottom toolbar, hidden under POV) — "Créer une vue" while

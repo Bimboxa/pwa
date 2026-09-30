@@ -18,7 +18,7 @@ import FieldSlider from "Features/form/components/FieldSlider";
 // - Slider: per-baseMap override `opacityByBaseMapIdIn3d[baseMap.id]`
 //   (falls back to the global `baseMapOpacityIn3d` when unset).
 // - Eye: this baseMap's image visibility in the 3D scene — same toggles as
-//   the top chips overlay and the "Fonds de plan" list of the 3D panel.
+//   the "Fonds de plan" list of the popper / left panel and of the 3D panel.
 export default function FieldBaseMapOpacityIn3d({ baseMap }) {
   const dispatch = useDispatch();
 

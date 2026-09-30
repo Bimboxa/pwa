@@ -25,6 +25,7 @@ import PanelLayerProperties from "Features/layers/components/PanelLayerPropertie
 import PanelMultiAnnotationProperties from "./PanelMultiAnnotationProperties";
 import PanelPropertiesScope from "Features/scopes/components/PanelPropertiesScope";
 import PanelPropertiesPopperMapListings from "Features/popperMapListings/components/PanelPropertiesPopperMapListings";
+import PanelPropertiesBaseMapsList from "Features/popperMapListings/components/PanelPropertiesBaseMapsList";
 import PanelPropertiesPoints from "Features/points/components/PanelPropertiesPoints";
 import PanelPropertiesSegment from "Features/points/components/PanelPropertiesSegment";
 import PanelPropertiesGuideline from "Features/annotations/components/PanelPropertiesGuideline";
@@ -278,6 +279,8 @@ export default function PanelSelectionProperties() {
     type = "SCOPE";
   } else if (selectedItem?.type === "POPPER_MAP_LISTINGS") {
     type = "POPPER_MAP_LISTINGS";
+  } else if (selectedItem?.type === "POPPER_BASE_MAPS") {
+    type = "POPPER_BASE_MAPS";
   } else if (showAnnotationsProperties) {
     type = "ANNOTATION";
   } else if (
@@ -346,6 +349,8 @@ export default function PanelSelectionProperties() {
       {type === "SCOPE" && <PanelPropertiesScope />}
 
       {type === "POPPER_MAP_LISTINGS" && <PanelPropertiesPopperMapListings />}
+
+      {type === "POPPER_BASE_MAPS" && <PanelPropertiesBaseMapsList />}
 
       {type === "MULTI_ANNOTATION" && <PanelMultiAnnotationProperties />}
 

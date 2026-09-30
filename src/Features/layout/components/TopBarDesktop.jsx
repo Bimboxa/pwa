@@ -91,7 +91,8 @@ export default function TopBarDesktop() {
   // (2D/3D) it displays; the 3D recap and Maillage modules have none (pure
   // viewers / per-scope mailles). POV keeps the 2D selector when it displays
   // the map editor, and — like the 3D module — nothing when it displays the 3D
-  // editor: the baseMap chips live in the canvas there (TopBaseMapChipsThreed).
+  // editor: the base maps are picked from the "Fonds de plan" list of the
+  // popper / left panel there.
   const effectiveViewerKey = useSelector(selectEffectiveViewerKey);
   const isPovViewer = viewerKey === "POINT_OF_VIEW";
   const isPovMap = isPovViewer && effectiveViewerKey === "MAP";

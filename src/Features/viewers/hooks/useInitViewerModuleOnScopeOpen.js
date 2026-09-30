@@ -4,7 +4,6 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   setHideBaseMapImageInViewer,
   setLandOnDrawScopeId,
-  setPinnedBaseMapIdsInViewer,
   setViewerReturnContext,
 } from "../viewersSlice";
 import {
@@ -48,7 +47,8 @@ export default function useInitViewerModuleOnScopeOpen() {
     (s) => s.listings.hiddenListingsIds || []
   );
   const mainBaseMap = useMainBaseMap();
-  // Same option set as useAnnotationsCountByBaseMapId (the 3D chips badges):
+  // Same option set as useAnnotationsCountByBaseMapId (the base maps list
+  // badges):
   // every baseMap of the project is counted, not just the visible ones.
   const annotations = useAnnotationsV2({
     caller: "useInitViewerModuleOnScopeOpen",
@@ -127,7 +127,6 @@ export default function useInitViewerModuleOnScopeOpen() {
     // Saved toggles restored for this scope: keep them.
     if (hasSavedThreedState) return;
 
-    dispatch(setPinnedBaseMapIdsInViewer([]));
     dispatch(setHideBaseMapImageInViewer(false));
     dispatch(setHideMainBaseMapImageIn3d(true));
   }, [

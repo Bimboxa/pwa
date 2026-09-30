@@ -290,7 +290,7 @@ export const selectionSlice = createSlice({
       state.selectedPartIds = [];
       state.showAnnotationsProperties = false;
     });
-    // Switching the MAIN baseMap (top-bar chips, BaseMapSelectorInMapEditorV2,
+    // Switching the MAIN baseMap (base maps list, BaseMapSelectorInMapEditorV2,
     // baseMap trees, …) while the properties panel shows a baseMap must
     // retarget the BASE_MAP selection item so the panel follows the newly
     // selected baseMap. Matched by type string to avoid importing

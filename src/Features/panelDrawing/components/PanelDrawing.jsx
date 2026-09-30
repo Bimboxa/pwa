@@ -5,6 +5,8 @@ import { Box, Typography } from "@mui/material";
 
 import LeftDrawerPanelHeader from "Features/leftPanel/components/LeftDrawerPanelHeader";
 import WarningBaseMapNotToScale from "Features/mapEditor/components/WarningBaseMapNotToScale";
+import ToggleContentMode from "Features/popperMapListings/components/ToggleContentMode";
+import SectionBaseMapsList from "Features/baseMaps/components/SectionBaseMapsList";
 import FieldActiveListing from "./FieldActiveListing";
 import ChipsViewerScope from "./ChipsViewerScope";
 import ListPanelDrawingTemplates from "./ListPanelDrawingTemplates";
@@ -53,6 +55,11 @@ export default function PanelDrawing() {
   // container).
   const leftPanelDocked = useSelector((s) => s.leftPanel.leftPanelDocked);
   const effectiveViewerKey = useSelector(selectEffectiveViewerKey);
+  // Header toggle "Annotations | Fonds de plan" (shared with the popper):
+  // the "Fonds de plan" side swaps the body for the base maps list.
+  const showBaseMaps = useSelector(
+    (s) => s.popperMapListings.viewerContentMode === "BASE_MAPS"
+  );
   const hiddenListingsIds = useSelector(
     (s) => s.listings.hiddenListingsIds || []
   );
@@ -269,9 +276,20 @@ export default function PanelDrawing() {
           templateQties={qtiesById?.[detailTemplate.id]}
           spriteImage={spriteImage}
         />
+      ) : showBaseMaps ? (
+        <>
+          <LeftDrawerPanelHeader>
+            <ToggleContentMode />
+          </LeftDrawerPanelHeader>
+          <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto", pb: 1 }}>
+            <SectionBaseMapsList />
+          </Box>
+        </>
       ) : (
         <>
-          <LeftDrawerPanelHeader title="Dessin d'annotations" />
+          <LeftDrawerPanelHeader>
+            <ToggleContentMode />
+          </LeftDrawerPanelHeader>
           <Typography
             variant="caption"
             sx={{ px: 2, pb: 1, color: "text.secondary" }}

@@ -9,7 +9,7 @@ import db, { withSystemWrite } from "App/db/db";
 const EMPTY = [];
 
 // Per-scope list of BASE_MAP listing ids hidden from the base map selectors
-// (topbar selector, 3D chips band, elevation selector, portfolio popover).
+// (topbar selector, base maps list, elevation selector, portfolio popover).
 // Stored on the scope record (scope.baseMapsSettings.disabledListingIds) so it
 // travels with Krto exports and scope duplication, like mesh3dSettings.
 export default function useDisabledBaseMapListingIds() {

@@ -41,10 +41,10 @@ import useDisabledBaseMapListingIds from "Features/baseMapEditor/hooks/useDisabl
 import useAnnotationsCountByBaseMapId from "Features/annotations/hooks/useAnnotationsCountByBaseMapId";
 import useMainBaseMapVisibilityToggles from "../hooks/useMainBaseMapVisibilityToggles";
 
-// Mirrors the 3D/Viewer chips band (TopBaseMapChipsThreed) for the main
-// baseMap: a layers "eye" toggling the image visibility in the DISPLAYED
+// Mirrors the main row of the base maps list (SectionBaseMapsList) for the
+// main baseMap: a layers "eye" toggling the image visibility in the DISPLAYED
 // editor, 2D or 3D (`showImageToggle`), the name, and a badge with its
-// annotations count toggling their visibility (same shared state as the band).
+// annotations count toggling their visibility (same shared state as the list).
 // Editing a baseMap is done from the BaseMaps module, not from this popover.
 export default function BaseMapSelectorInMapEditorV2({ showImageToggle = false }) {
     // strings
@@ -70,7 +70,7 @@ export default function BaseMapSelectorInMapEditorV2({ showImageToggle = false }
     const updateEntity = useUpdateEntity();
 
     const showCreateBaseMapSection = useSelector((s) => s.mapEditor.showCreateBaseMapSection);
-    // Same rule as the chips band: in the BaseMaps module the drawing
+    // Same rule as the base maps list: in the BaseMaps module the drawing
     // annotations are not loaded unless the panel switch loads them.
     const hideAnnotationsBadge = useSelector(
         (s) => s.viewers.selectedViewerKey === "BASE_MAPS" && !s.baseMapEditor.showAnnotations

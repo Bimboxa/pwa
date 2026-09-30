@@ -37,8 +37,6 @@ import {
   Tooltip,
   FormControlLabel,
   Checkbox,
-  ToggleButton,
-  ToggleButtonGroup,
   Popper,
   Chip,
 } from "@mui/material";
@@ -75,8 +73,9 @@ import SectionLayers from "Features/layers/components/SectionLayers";
 import {
   setShowLayers,
   setCollapsed,
-  setViewerContentMode,
 } from "Features/popperMapListings/popperMapListingsSlice";
+import ToggleContentMode from "Features/popperMapListings/components/ToggleContentMode";
+import SectionBaseMapsList from "Features/baseMaps/components/SectionBaseMapsList";
 import useLayers from "Features/layers/hooks/useLayers";
 import { alpha } from "@mui/material/styles";
 import {
@@ -2036,9 +2035,11 @@ export default function PopperMapListings() {
         ? "Dessins sur fond de plan"
         : "Annotations";
 
-  // Viewer module: when the project has photos, the header title becomes an
-  // "Annotations / Photos" toggle and the Photos side swaps the body for the
-  // photo albums (2-column grids, click = select the photo).
+  // Header toggle "Annotations | Fonds de plan" (ToggleContentMode) — plus a
+  // "Photos" side in the Viewer module when the project has photos, which
+  // swaps the body for the photo albums (2-column grids, click = select the
+  // photo). The "Fonds de plan" side swaps the body for the base maps list.
+  // Locate-business-object mode keeps the object's label as a plain title.
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const projectPhotos = useProjectPhotos({
     projectId: isViewerModule ? projectId : null,
@@ -2049,8 +2050,11 @@ export default function PopperMapListings() {
   const listingSelectorMode = useSelector(
     (s) => s.popperMapListings.listingSelectorMode
   );
+  const showContentToggle = !isLocateBusinessObjectMode;
   const showPhotosToggle = isViewerModule && projectPhotos.length > 0;
   const showPhotosBody = showPhotosToggle && popperContentMode === "PHOTOS";
+  const showBaseMapsBody =
+    showContentToggle && popperContentMode === "BASE_MAPS";
 
   const { value: listings } = useListings({
     filterByScopeId: selectedScopeId,
@@ -2074,7 +2078,6 @@ export default function PopperMapListings() {
   const selectedListingId = useSelector((s) => s.listings.selectedListingId);
   const viewerReturnContext = useSelector((s) => s.viewers.viewerReturnContext);
   const comesFromListing = viewerReturnContext?.fromViewer === "SCOPE";
-  const [headerHovered, setHeaderHovered] = useState(false);
 
   const [mergeResult, setMergeResult] = useState(null);
   const [openMergeCompare, setOpenMergeCompare] = useState(false);
@@ -2326,8 +2329,6 @@ export default function PopperMapListings() {
     >
       {/* Draggable header (whole bar except action buttons on the right) */}
       <Box
-        onMouseEnter={() => setHeaderHovered(true)}
-        onMouseLeave={() => setHeaderHovered(false)}
         onMouseDown={handleMouseDown}
         sx={{
           display: "flex",
@@ -2351,34 +2352,11 @@ export default function PopperMapListings() {
           />
         </Box>
 
-        {showPhotosToggle ? (
-          <ToggleButtonGroup
-            value={popperContentMode}
-            exclusive
-            size="small"
-            onMouseDown={(e) => e.stopPropagation()}
-            onChange={(e, value) => {
-              if (value) dispatch(setViewerContentMode(value));
-            }}
-            sx={{ flex: 1 }}
-          >
-            <ToggleButton value="ANNOTATIONS" sx={{ flex: 1, py: 0.25 }}>
-              <Typography
-                variant="caption"
-                sx={{ fontWeight: 600, textTransform: "none" }}
-              >
-                Annotations
-              </Typography>
-            </ToggleButton>
-            <ToggleButton value="PHOTOS" sx={{ flex: 1, py: 0.25 }}>
-              <Typography
-                variant="caption"
-                sx={{ fontWeight: 600, textTransform: "none" }}
-              >
-                Photos
-              </Typography>
-            </ToggleButton>
-          </ToggleButtonGroup>
+        {showContentToggle ? (
+          <ToggleContentMode
+            showPhotos={showPhotosToggle}
+            annotationsLabel={isBaseMapsViewer ? "Dessins" : "Annotations"}
+          />
         ) : (
           <Typography
             variant="body2"
@@ -2388,9 +2366,10 @@ export default function PopperMapListings() {
           </Typography>
         )}
 
-        {/* Properties button (on hover, left of +Liste) — hidden in the
+        {/* Properties button — always visible; opens the properties of the
+            displayed side (annotations / base maps list). Hidden in the
             Viewer module (read-only legend, no popper properties there) */}
-        {headerHovered && !isBaseMapsViewer && !isViewerModule && (
+        {!isBaseMapsViewer && !isViewerModule && (
           <Tooltip title="Propriétés">
             <IconButton
               size="small"
@@ -2400,7 +2379,9 @@ export default function PopperMapListings() {
                 dispatch(
                   setSelectedItem({
                     id: selectedScopeId,
-                    type: "POPPER_MAP_LISTINGS",
+                    type: showBaseMapsBody
+                      ? "POPPER_BASE_MAPS"
+                      : "POPPER_MAP_LISTINGS",
                   })
                 );
                 dispatch(setSelectedMenuItemKey("SELECTION_PROPERTIES"));
@@ -2432,7 +2413,14 @@ export default function PopperMapListings() {
         </Tooltip>
       </Box>
 
-      {!collapsed && (
+      {/* "Fonds de plan" side: the base maps list replaces the whole body. */}
+      {!collapsed && showBaseMapsBody && (
+        <Box sx={{ overflow: "auto", flex: 1 }}>
+          <SectionBaseMapsList />
+        </Box>
+      )}
+
+      {!collapsed && !showBaseMapsBody && (
         <>
           {/* Interaction mode toggle (DRAW / EDIT / SELECT) — advanced mode
               only; hidden in 3D and viewer mode (read-only) */}
@@ -2701,7 +2689,7 @@ export default function PopperMapListings() {
 
       {/* Template SOLO band — outside the scrollable body, so it stays visible
           at the bottom (collapsed panel included). */}
-      {soloTemplateId && (
+      {soloTemplateId && !showBaseMapsBody && (
         <Box
           sx={{
             display: "flex",

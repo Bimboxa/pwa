@@ -9,7 +9,7 @@ import useAnnotationsV2 from "./useAnnotationsV2";
 // bg-image text). Deliberately omits filterByMainBaseMap/extraBaseMapIds so
 // useAnnotationsV2 falls through to its "all project annotations" fetch path
 // (see useAnnotationsV2.js ~L693) — every baseMap is counted, not just the
-// ones currently visible in 3D. Used by the 3D top base-map chips badges.
+// ones currently visible in 3D. Used by the base maps list / top bar badges.
 export default function useAnnotationsCountByBaseMapId() {
   const hiddenListingsIds = useSelector(
     (s) => s.listings.hiddenListingsIds || []

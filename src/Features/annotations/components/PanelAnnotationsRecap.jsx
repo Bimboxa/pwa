@@ -240,7 +240,7 @@ function ListingRecapSection({
 // Dessin module left drawer: recap of the displayed annotations grouped by
 // listing then annotation template, with the u / ml / m² quantities and a
 // FOCUS toggle per template. Scope: the main base map in the 2D editor; the
-// base maps whose annotations are enabled in the 3D chips band when the
+// base maps whose annotations are enabled in the base maps list when the
 // module displays the 3D editor (same legend scope as PanelPovFilters).
 export default function PanelAnnotationsRecap() {
   // strings

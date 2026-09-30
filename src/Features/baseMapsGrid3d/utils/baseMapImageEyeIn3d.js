@@ -4,7 +4,7 @@ import {
 } from "Features/threedEditor/threedEditorSlice";
 
 // Image eye of a base map in the 3D viewer — the exact state and action of
-// the layer icon of the base map chips (TopBaseMapChipsThreed): the main base
+// the image eye of the base maps list (SectionBaseMapsList): the main base
 // map is driven by `hideMainBaseMapImageIn3d`, the others by
 // `visibleBaseMapIdsIn3d`. The eye button of a sheet of the 3D base maps grid
 // goes through these, so both always show and do the same thing.

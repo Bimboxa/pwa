@@ -99,6 +99,11 @@ const threedEditorInitialState = {
   // saved to localStorage by scopeVisibilityPersistMiddleware (with the
   // three fields below) and restored on scope selection.
   visibleBaseMapIdsIn3d: [],
+  // Scan base maps (« Scène 3D ») whose mesh is hidden in the 3D scene, main
+  // or not — the "3D" button of the base maps list. Independent from the
+  // image eye (eye off hides plane + scan, this flag hides the scan only).
+  // Per-scope local state, persisted with the fields around it.
+  hiddenScene3dBaseMapIdsIn3d: [],
   // Per-base-map annotation display mode in the 3D scene, keyed by baseMapId.
   // Value "NORMAL" | "DIMMED"; a missing key means "NONE" (no annotations).
   // Independent from `visibleBaseMapIdsIn3d` (the image-eye toggle): a base
@@ -396,6 +401,18 @@ export const threedEditorSlice = createSlice({
     },
     setVisibleBaseMapIdsIn3d: (state, action) => {
       state.visibleBaseMapIdsIn3d = action.payload ?? [];
+    },
+    toggleScene3dHiddenIn3d: (state, action) => {
+      const id = action.payload;
+      const i = state.hiddenScene3dBaseMapIdsIn3d.indexOf(id);
+      if (i === -1) {
+        state.hiddenScene3dBaseMapIdsIn3d.push(id);
+      } else {
+        state.hiddenScene3dBaseMapIdsIn3d.splice(i, 1);
+      }
+    },
+    setHiddenScene3dBaseMapIdsIn3d: (state, action) => {
+      state.hiddenScene3dBaseMapIdsIn3d = action.payload ?? [];
     },
     setHideMainBaseMapImageIn3d: (state, action) => {
       state.hideMainBaseMapImageIn3d = Boolean(action.payload);
@@ -981,6 +998,8 @@ export const threedEditorSlice = createSlice({
       (state, action) => {
         const saved = getInitScopeVisibility(action.payload)?.threed;
         state.visibleBaseMapIdsIn3d = saved?.visibleBaseMapIdsIn3d ?? [];
+        state.hiddenScene3dBaseMapIdsIn3d =
+          saved?.hiddenScene3dBaseMapIdsIn3d ?? [];
         state.annotationsModeByBaseMapIdIn3d =
           saved?.annotationsModeByBaseMapIdIn3d ?? {};
         state.hideMainBaseMapImageIn3d = Boolean(
@@ -1021,6 +1040,8 @@ export const {
   setBaseMapOpacityByIdIn3d,
   toggleBaseMapVisibleIn3d,
   setVisibleBaseMapIdsIn3d,
+  toggleScene3dHiddenIn3d,
+  setHiddenScene3dBaseMapIdsIn3d,
   setHideMainBaseMapImageIn3d,
   setHideMainBaseMapAnnotationsIn3d,
   setBaseMapAnnotationsModeIn3d,

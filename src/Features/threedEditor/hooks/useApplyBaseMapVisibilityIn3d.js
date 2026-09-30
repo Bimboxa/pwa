@@ -5,14 +5,16 @@ import useBaseMaps from "Features/baseMaps/hooks/useBaseMaps";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
 
-// Mirrors `state.threedEditor.visibleBaseMapIdsIn3d` (image-eye toggle) and
+// Mirrors `state.threedEditor.visibleBaseMapIdsIn3d` (image-eye toggle),
 // `state.threedEditor.annotationsModeByBaseMapIdIn3d` (per-basemap annotation
-// display) to the 3D scene by toggling visibility flags — no scene reload.
+// display) and `state.threedEditor.hiddenScene3dBaseMapIdsIn3d` (scan mesh
+// "3D" button) to the 3D scene by toggling visibility flags — no scene reload.
 //
-// The image (meshWrap) and the annotations are decoupled:
+// The image (meshWrap), the scan (scanWrap) and the annotations are decoupled:
 //   - the basemap group is loaded + kept visible whenever the basemap
 //     "participates" (its image OR its annotations should show),
 //   - the image (meshWrap) is shown only when the eye is on,
+//   - the scan (scanWrap) is shown when the eye is on AND its "3D" button is,
 // so a basemap's annotations can render even while its image is hidden.
 //
 // A basemap shown for the first time is lazily created once, then cached so
@@ -36,14 +38,19 @@ export default function useApplyBaseMapVisibilityIn3d({
   // Global "Masquer les fonds de plan" switch: hides every basemap image
   // while keeping the groups (and their annotations) rendered.
   const hideBaseMaps = useSelector((s) => s.threedEditor.hideBaseMaps);
-  // Opt-out image eye of the main basemap (chips overlay / position panel).
+  // Opt-out image eye of the main basemap (base maps list / top bar selector).
   const hideMainImage = useSelector(
     (s) => s.threedEditor.hideMainBaseMapImageIn3d
+  );
+  // Scan base maps whose mesh is hidden ("3D" button of the base maps list).
+  const hiddenScanIds = useSelector(
+    (s) => s.threedEditor.hiddenScene3dBaseMapIdsIn3d
   );
   const mainBaseMap = useMainBaseMap();
   const { value: baseMaps = [] } = useBaseMaps();
 
   const visibleKey = (visibleIds || []).join(",");
+  const hiddenScanKey = (hiddenScanIds || []).join(",");
   const annotationsModeKey = Object.entries(annotationsModeByBaseMapId || {})
     .map(([id, mode]) => `${id}:${mode}`)
     .join(",");
@@ -57,12 +64,14 @@ export default function useApplyBaseMapVisibilityIn3d({
     const mainId = mainBaseMap?.id ?? null;
     const visible = new Set(visibleIds || []);
     const annoModes = annotationsModeByBaseMapId || {};
+    const hiddenScan = new Set(hiddenScanIds || []);
 
     // Single batch: the desired states are recorded in one pass (even for
     // groups not created yet — ImagesManager applies them at creation, so a
     // basemap loaded later never flashes its image before being hidden).
     const groupVisibleById = {};
     const imageVisibleById = {};
+    const scanVisibleById = {};
     baseMaps.forEach((bm) => {
       const eyeOn = bm.id === mainId ? !hideMainImage : visible.has(bm.id);
       const annoOn =
@@ -75,6 +84,8 @@ export default function useApplyBaseMapVisibilityIn3d({
         }
         groupVisibleById[bm.id] = true;
         imageVisibleById[bm.id] = eyeOn && !hideBaseMaps;
+        scanVisibleById[bm.id] =
+          eyeOn && !hideBaseMaps && !hiddenScan.has(bm.id);
       } else {
         groupVisibleById[bm.id] = false;
       }
@@ -82,11 +93,13 @@ export default function useApplyBaseMapVisibilityIn3d({
     imagesManager.setBaseMapVisibilities({
       groupVisibleById,
       imageVisibleById,
+      scanVisibleById,
     });
     editor.renderScene?.();
   }, [
     rendererIsReady,
     visibleKey,
+    hiddenScanKey,
     annotationsModeKey,
     mainBaseMap?.id,
     baseMapsKey,

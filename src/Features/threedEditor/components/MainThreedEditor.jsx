@@ -164,7 +164,6 @@ import {
 import { filterIntersectionsByVisibility } from "Features/threedEditor/js/utilsAnnotationsManager/visibilityPick";
 import ThreedAnnotationsVisibility from "./ThreedAnnotationsVisibility";
 import ThreedInitialFitOnLanding from "./ThreedInitialFitOnLanding";
-import TopBaseMapChipsThreed from "./TopBaseMapChipsThreed";
 
 // Maille groups currently in the scene (mesh3dId → parent group). Empty
 // outside the MESHES viewer: ThreedMeshes unpublishes its objects there.
@@ -242,7 +241,7 @@ export default function MainThreedEditor() {
   // useAutoLoadAnnotationsInThreedEditor and destroy + recreate every
   // annotation 3D object.
   const store = useStore();
-  // Promote a basemap to "main" — shared with the top chips band.
+  // Promote a basemap to "main" — shared with the base maps list.
   const selectMainBaseMap = useSelectMainBaseMap();
   const selectedViewerKey = useSelector(selectEffectiveViewerKey);
   const isThreedViewer = isThreedFamilyViewerKey(selectedViewerKey);
@@ -2421,10 +2420,6 @@ export default function MainThreedEditor() {
           threedEditorRef={threedEditorRef}
           rendererIsReady={rendererIsReady}
         />
-      )}
-      {/* Walk mode: the first-person HUD owns the screen — no base map chips. */}
-      {isThreedViewer && !captureFramingActive && !walkActive && (
-        <TopBaseMapChipsThreed />
       )}
       {isThreedViewer && rendererIsReady && (
         <BaseMapsGrid3dController tooltipApiRef={tooltipApiRef} />

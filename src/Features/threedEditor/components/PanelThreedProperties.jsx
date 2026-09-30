@@ -32,8 +32,8 @@ import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 // is displayed (see PanelEditorSettings). Holds the viewer toggles only:
 // screenshot capture + legend display live in the "Capture" tool, the USDZ /
 // OBJ scene download moved to the Export tool (SectionDownloadThreed), and
-// the baseMap position tools moved to the horizontal baseMap chips band of
-// the 3D viewer.
+// the baseMap position tools moved to the base maps list of the popper /
+// left panel.
 export default function PanelThreedProperties() {
   const dispatch = useDispatch();
 

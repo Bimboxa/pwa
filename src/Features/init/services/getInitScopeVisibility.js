@@ -25,6 +25,7 @@ const toThreed = (value) => {
   const modes = value.annotationsModeByBaseMapIdIn3d;
   return {
     visibleBaseMapIdsIn3d: toIdArray(value.visibleBaseMapIdsIn3d),
+    hiddenScene3dBaseMapIdsIn3d: toIdArray(value.hiddenScene3dBaseMapIdsIn3d),
     annotationsModeByBaseMapIdIn3d:
       modes && typeof modes === "object" && !Array.isArray(modes)
         ? { ...modes }

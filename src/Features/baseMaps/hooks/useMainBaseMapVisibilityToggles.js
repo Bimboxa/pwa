@@ -17,7 +17,7 @@ import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys
 //   useApplyBaseMapVisibilityIn3d / ThreedAnnotationsVisibility;
 // - 2D editor: the `viewers.hide*InViewer` flags, read by MainMapEditorV3.
 // Shared by the top-bar selector (BaseMapSelectorInMapEditorV2) and the
-// chips band (TopBaseMapChipsThreed) so both controls drive the same state.
+// base maps list (SectionBaseMapsList) so both controls drive the same state.
 // Callers keep their own `e.stopPropagation()`.
 export default function useMainBaseMapVisibilityToggles() {
   const dispatch = useDispatch();

@@ -12,7 +12,7 @@ import { setSelectedMainBaseMapId } from "Features/mapEditor/mapEditorSlice";
 import { ANNOTATIONS_DISPLAY_MODE } from "Features/threedEditor/constants/annotationsDisplayModeIn3d";
 
 // Promote a basemap to "main" (mapEditor.selectedBaseMapId) — shared by the top
-// chips band (TopBaseMapChipsThreed) and the 3D scene's double-click on a plan.
+// base maps list (SectionBaseMapsList) and the 3D scene's double-click on a plan.
 //
 // The state is read from the store at call time rather than through selectors:
 // the scene handler is a useCallback with stable deps, so a captured snapshot

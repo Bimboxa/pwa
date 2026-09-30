@@ -5,7 +5,7 @@ import { useSelector } from "react-redux";
 //   - global "Masquer les annotations" (threedEditor.hideAnnotationsIn3d,
 //     set from the Maillage panel),
 //   - main-basemap "Masquer les annotations" (hideMainBaseMapAnnotationsIn3d,
-//     set from the basemap chips overlay / position panel). Non-main basemaps
+//     set from the base maps list / top bar selector). Non-main basemaps
 //     don't need this path — their annotations are simply not loaded when
 //     their mode is NONE.
 // Lives as a child of MainThreedEditor so selection/toggle re-renders don't

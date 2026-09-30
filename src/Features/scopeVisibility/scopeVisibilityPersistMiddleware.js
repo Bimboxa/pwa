@@ -14,6 +14,7 @@ const pick3d = (state) => {
   const t = state.threedEditor ?? {};
   return {
     visibleBaseMapIdsIn3d: t.visibleBaseMapIdsIn3d ?? [],
+    hiddenScene3dBaseMapIdsIn3d: t.hiddenScene3dBaseMapIdsIn3d ?? [],
     annotationsModeByBaseMapIdIn3d: t.annotationsModeByBaseMapIdIn3d ?? {},
     hideMainBaseMapImageIn3d: Boolean(t.hideMainBaseMapImageIn3d),
     hideMainBaseMapAnnotationsIn3d: Boolean(t.hideMainBaseMapAnnotationsIn3d),
@@ -30,6 +31,8 @@ const changed2d = (prev, next) =>
 const changed3d = (prev, next) =>
   prev.threedEditor?.visibleBaseMapIdsIn3d !==
     next.threedEditor?.visibleBaseMapIdsIn3d ||
+  prev.threedEditor?.hiddenScene3dBaseMapIdsIn3d !==
+    next.threedEditor?.hiddenScene3dBaseMapIdsIn3d ||
   prev.threedEditor?.annotationsModeByBaseMapIdIn3d !==
     next.threedEditor?.annotationsModeByBaseMapIdIn3d ||
   prev.threedEditor?.hideMainBaseMapImageIn3d !==
