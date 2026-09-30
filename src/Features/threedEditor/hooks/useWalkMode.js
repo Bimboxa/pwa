@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 
 import { useDispatch, useSelector, useStore } from "react-redux";
 import { Vector3 } from "three";
@@ -10,6 +10,11 @@ import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 import { selectPdfEditorOpen } from "Features/pdfEditor/pdfEditorSlice";
+import createScene3dGroundSampler from "Features/scene3d/utils/createScene3dGroundSampler";
+import {
+  ensureScene3dHeightMap,
+  getScene3dHeightMap,
+} from "Features/scene3d/services/scene3dHeightMapStore";
 import {
   emitShoot,
   resetShoot,
@@ -84,6 +89,41 @@ export default function useWalkMode() {
   }
   const groundYRef = useRef(groundY);
   groundYRef.current = groundY;
+
+  // Scan base map: walk on the scan relief (height map) rather than on its
+  // plane. The sampler reads the height map lazily — null (still loading,
+  // outside the zone, empty cell) falls back to the plane in the controller.
+  const sceneId = mainBaseMap?.scene3d?.sceneId ?? null;
+  const groundSampler = useMemo(() => {
+    if (!sceneId || transform.orientation !== "HORIZONTAL") return null;
+    return createScene3dGroundSampler({
+      baseMap: mainBaseMap,
+      transform,
+      planeY: groundY,
+      getHeightMap: () => getScene3dHeightMap(sceneId),
+    });
+    // The transform is rebuilt every render: key on its scalar parts.
+  }, [
+    sceneId,
+    mainBaseMap,
+    groundY,
+    transform.orientation,
+    transform.angleDeg,
+    transform.position.x,
+    transform.position.z,
+  ]);
+  const groundSamplerRef = useRef(groundSampler);
+  groundSamplerRef.current = groundSampler;
+
+  // Make the height map of the scan available while walking (rasterized at
+  // import; rebuilt once for older scans — see scene3dHeightMapStore).
+  useEffect(() => {
+    if (!walkActive || !sceneId) return;
+    ensureScene3dHeightMap(sceneId, {
+      bbox: mainBaseMap?.scene3d?.bbox,
+      projectId: mainBaseMap?.projectId,
+    });
+  }, [walkActive, sceneId, mainBaseMap]);
 
   // P hotkey — only while a 3D-family viewer is effectively displayed.
   // Registered at mount, i.e. BEFORE the controller's capture listeners: P
@@ -207,6 +247,7 @@ export default function useWalkMode() {
     const controller = new WalkModeController({
       sceneManager,
       groundY: groundYRef.current,
+      sampleGroundY: groundSamplerRef.current,
       onRequestExit: () => dispatch(setWalkModeActive(false)),
       // Space pressed. Lance: continuous jet while held, the recoil/shake
       // animation of the weapon overlay runs for the whole hold (firingUntil
@@ -287,4 +328,7 @@ export default function useWalkMode() {
   useEffect(() => {
     controllerRef.current?.setGroundY(groundY);
   }, [groundY]);
+  useEffect(() => {
+    controllerRef.current?.setGroundSampler(groundSampler);
+  }, [groundSampler]);
 }

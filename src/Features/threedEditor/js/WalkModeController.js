@@ -22,7 +22,9 @@ import { MathUtils, Vector3 } from "three";
 //
 // Movement model (user-validated):
 // - eye at groundY + EYE_HEIGHT (+ the Z/W altitude offset) above the
-//   selected baseMap plane;
+//   ground: the selected baseMap plane, or — on a scan base map — the scan
+//   relief under the camera (sampleGroundY, read every frame; null falls
+//   back to the plane) so the walk stays above the 3D scene;
 // - |pitch| > CLIMB_PITCH: forward/back follow the full look vector (climb
 //   when looking up, descend when looking down);
 // - |pitch| <= CLIMB_PITCH: movement is horizontal and gravity glides the
@@ -80,6 +82,7 @@ export default class WalkModeController {
   constructor({
     sceneManager,
     groundY = 0,
+    sampleGroundY = null,
     onRequestExit,
     onPrimaryStart,
     onPrimaryStop,
@@ -90,6 +93,9 @@ export default class WalkModeController {
     onSprayNarrow,
   }) {
     this.sceneManager = sceneManager;
+    // Plane ground (fallback) and the live ground under the camera.
+    this._baseGroundY = groundY;
+    this._sampleGroundY = sampleGroundY;
     this.groundY = groundY;
     this.onRequestExit = onRequestExit;
     this.onPrimaryStart = onPrimaryStart;
@@ -122,7 +128,23 @@ export default class WalkModeController {
   }
 
   setGroundY = (y) => {
-    this.groundY = Number.isFinite(y) ? y : 0;
+    this._baseGroundY = Number.isFinite(y) ? y : 0;
+    this._updateGround();
+  };
+
+  // (x, z) → world ground Y | null (see createScene3dGroundSampler).
+  setGroundSampler = (fn) => {
+    this._sampleGroundY = typeof fn === "function" ? fn : null;
+    this._updateGround();
+  };
+
+  // Ground under the camera: the sampled relief, else the plane.
+  _updateGround = () => {
+    const camera = this.sceneManager?.camera;
+    const y = camera
+      ? this._sampleGroundY?.(camera.position.x, camera.position.z)
+      : null;
+    this.groundY = Number.isFinite(y) ? y : this._baseGroundY;
   };
 
   enter = () => {
@@ -149,6 +171,7 @@ export default class WalkModeController {
     // eye height while the gaze levels out to the horizon.
     this._keys = emptyKeys();
     this._altitudeOffset = 0;
+    this._updateGround();
     const eyeY = this._refEyeY();
     this._landingFromY = camera.position.y;
     this._landingFromPitch = this._pitch;
@@ -456,6 +479,10 @@ export default class WalkModeController {
       this._altitudeOffset = camera.position.y - (this.groundY + EYE_HEIGHT);
       moved = true;
     }
+
+    // Relief under the (possibly moved) camera before gravity and the floor
+    // clamp read it.
+    this._updateGround();
 
     const eyeY = this._refEyeY();
     if (!climbing && !vertSign && Math.abs(camera.position.y - eyeY) > 1e-4) {
