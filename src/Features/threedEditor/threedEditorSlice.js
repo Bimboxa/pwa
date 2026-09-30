@@ -1,6 +1,12 @@
 import { createSlice } from "@reduxjs/toolkit";
 
 import getInitScopeVisibility from "Features/init/services/getInitScopeVisibility";
+import {
+  loadNavigationPreset,
+  storeNavigationPreset,
+} from "Features/threedEditor/services/navigationPresetLocalStorage";
+
+import { isNavigationPreset } from "Features/threedEditor/constants/navigationPresets";
 
 // Closes the base maps grid (3D "table à plans"): every other 3D tool mode
 // calls it when it arms, the grid poses being incompatible with them.
@@ -49,6 +55,11 @@ const threedEditorInitialState = {
   // sky), "EXTERIOR" = HDR sky + warm sun, "INTERIOR" = indoor HDR (e.g. a
   // parking level — a sky background would be wrong there).
   environment3d: "EXTERIOR",
+  // Mouse navigation preset ("STANDARD" | "ISO_2D" | "SKETCHUP", see
+  // constants/navigationPresets). App-level device preference: persisted in
+  // localStorage, edited in Configuration > Éditeur 3D. Synced live by
+  // MainThreedEditor → ControlsManager.setNavigationPreset.
+  navigationPreset: loadNavigationPreset(),
   // "NAVIGATION" | "SELECTION" | "BASEMAP_POSITION".
   // - NAVIGATION: shift+drag = camera (OrbitControls).
   // - SELECTION: shift+drag = lasso selection.
@@ -329,6 +340,11 @@ export const threedEditorSlice = createSlice({
     },
     setEnvironment3d: (state, action) => {
       state.environment3d = action.payload;
+    },
+    setNavigationPreset: (state, action) => {
+      if (!isNavigationPreset(action.payload)) return;
+      state.navigationPreset = action.payload;
+      storeNavigationPreset(state.navigationPreset);
     },
     setEditorMode: (state, action) => {
       state.editorMode = action.payload;
@@ -974,6 +990,7 @@ export const {
   setWireframeAngleDeg,
   setRenderMode,
   setEnvironment3d,
+  setNavigationPreset,
   setEditorMode,
   setDrawingOffset,
   setBaseMapOpacityIn3d,
