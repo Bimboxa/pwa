@@ -1,35 +1,25 @@
-import { useState } from "react";
+import { useEffect, useRef } from "react";
 
-import {
-  Alert,
-  Box,
-  Chip,
-  CircularProgress,
-  LinearProgress,
-  Typography,
-} from "@mui/material";
+import { Alert, Box, Chip, LinearProgress, Typography } from "@mui/material";
 
-import ButtonGeneric from "Features/layout/components/ButtonGeneric";
+import FormProject from "Features/projects/components/FormProject";
 import DropZonePromptIaProject from "./DropZonePromptIaProject";
-
-import readPromptIaProjectOutputZip from "../services/readPromptIaProjectOutputZip";
 
 const plural = (count, one, many) => `${count} ${count > 1 ? many : one}`;
 
-export default function SectionPromptIaProjectOutput({
+export default function StepPromptIaProjectResult({
   project,
+  onProjectChange,
   creation,
-  onLoaded,
-  onDone,
+  output: outputState,
+  hasProject,
 }) {
   // strings
 
-  const titleS = "2. Importer le résultat";
   const dropS = "Glisser & déposer le zip renvoyé par le chat IA";
   const dropSubS =
-    "projet.json + PDFs des fonds de plan (+ image satellite, documents)";
-  const createS = "Créer";
-  const closeS = "Fermer";
+    "projet.json + PDFs des fonds de plan (+ image satellite, documents) — ou coller le fichier (Ctrl/Cmd+V)";
+  const previewS = "Aperçu";
   const missingProjectS = "Renseignez le nom et le numéro du projet.";
   const doneS = "Projet créé";
   const referenceLabelByType = {
@@ -39,20 +29,10 @@ export default function SectionPromptIaProjectOutput({
 
   // data
 
-  const { create, running, progress, result, error: creationError } = creation;
-
-  // state
-
-  const [reading, setReading] = useState(false);
-  const [output, setOutput] = useState(null);
-  const [fileName, setFileName] = useState(null);
-  const [error, setError] = useState(null);
+  const { running, progress, result, error: creationError } = creation;
+  const { reading, output, fileName, error, loadZip } = outputState;
 
   // helpers
-
-  const hasProject =
-    Boolean(project?.name?.trim()) && Boolean(project?.clientRef?.trim());
-  const canCreate = Boolean(output) && hasProject && !running && !result;
 
   const progressPct =
     progress.total > 0 ? Math.round((progress.done / progress.total) * 100) : 0;
@@ -147,27 +127,19 @@ export default function SectionPromptIaProjectOutput({
       ]
     : [];
 
-  async function loadZip(file) {
-    if (!file) return;
-    setReading(true);
-    setError(null);
-    setOutput(null);
-    setFileName(file.name);
-    try {
-      const read = await readPromptIaProjectOutputZip(file);
-      if (!read.ok) {
-        setError(read.error);
-        return;
-      }
-      setOutput(read);
-      onLoaded?.(read.data);
-    } catch (e) {
-      console.error("[promptIaProject] output zip failed", e);
-      setError(`Zip illisible : ${e?.message ?? String(e)}`);
-    } finally {
-      setReading(false);
-    }
-  }
+  // A zip copied in the file explorer can be pasted while the step is shown.
+  const pasteRef = useRef(null);
+  pasteRef.current = (e) => {
+    const file = Array.from(e.clipboardData?.files ?? [])[0];
+    if (!file || running || result || reading) return;
+    e.preventDefault();
+    loadZip(file);
+  };
+  useEffect(() => {
+    const handlePaste = (e) => pasteRef.current(e);
+    document.addEventListener("paste", handlePaste);
+    return () => document.removeEventListener("paste", handlePaste);
+  }, []);
 
   // handlers
 
@@ -179,23 +151,10 @@ export default function SectionPromptIaProjectOutput({
     loadZip(files[0]);
   }
 
-  async function handleCreate() {
-    if (!canCreate) return;
-    await create({
-      project,
-      data: output.data,
-      pdfFilesByPath: output.pdfFilesByPath,
-      referenceImageFile: output.referenceImageFile,
-      documentFilesByPath: output.documentFilesByPath,
-    });
-  }
-
   // render
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
-      <Typography variant="subtitle2">{titleS}</Typography>
-
       {!result && (
         <DropZonePromptIaProject
           label={fileName && output ? fileName : dropS}
@@ -211,35 +170,39 @@ export default function SectionPromptIaProjectOutput({
       {Boolean(error) && <Alert severity="error">{error}</Alert>}
 
       {output && !result && (
-        <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
-          {summaryChips.map((label) => (
-            <Chip key={label} label={label} size="small" />
-          ))}
-        </Box>
-      )}
-
-      {Boolean(siteS) && !result && (
-        <Typography variant="caption" color="text.secondary">
-          {siteS}
-        </Typography>
-      )}
-
-      {Boolean(output?.data?.note) && !result && (
-        <Alert severity="info">{output.data.note}</Alert>
-      )}
-
-      {warnings.length > 0 && !result && (
-        <Alert severity="warning">
-          {warnings.map((message, index) => (
-            <Typography key={index} variant="caption" sx={{ display: "block" }}>
-              {message}
+        <>
+          <Typography variant="subtitle2">{previewS}</Typography>
+          <Box sx={{ ...(running && { pointerEvents: "none", opacity: 0.6 }) }}>
+            <FormProject project={project} onChange={onProjectChange} />
+          </Box>
+          {!hasProject && <Alert severity="warning">{missingProjectS}</Alert>}
+          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+            {summaryChips.map((label) => (
+              <Chip key={label} label={label} size="small" />
+            ))}
+          </Box>
+          {Boolean(siteS) && (
+            <Typography variant="caption" color="text.secondary">
+              {siteS}
             </Typography>
-          ))}
-        </Alert>
-      )}
-
-      {output && !hasProject && !result && (
-        <Alert severity="warning">{missingProjectS}</Alert>
+          )}
+          {Boolean(output.data.note) && (
+            <Alert severity="info">{output.data.note}</Alert>
+          )}
+          {warnings.length > 0 && (
+            <Alert severity="warning">
+              {warnings.map((message, index) => (
+                <Typography
+                  key={index}
+                  variant="caption"
+                  sx={{ display: "block" }}
+                >
+                  {message}
+                </Typography>
+              ))}
+            </Alert>
+          )}
+        </>
       )}
 
       {running && (
@@ -290,32 +253,6 @@ export default function SectionPromptIaProjectOutput({
           )}
         </>
       )}
-
-      <Box sx={{ display: "flex", justifyContent: "flex-end" }}>
-        {result ? (
-          <ButtonGeneric
-            label={closeS}
-            onClick={() => onDone(result.projectId)}
-            variant="contained"
-            color="secondary"
-          />
-        ) : (
-          <ButtonGeneric
-            label={
-              running
-                ? `Création… (${progress.done}/${progress.total})`
-                : createS
-            }
-            onClick={handleCreate}
-            variant="contained"
-            color="secondary"
-            disabled={!canCreate}
-            startIcon={
-              running ? <CircularProgress size={14} color="inherit" /> : null
-            }
-          />
-        )}
-      </Box>
     </Box>
   );
 }
