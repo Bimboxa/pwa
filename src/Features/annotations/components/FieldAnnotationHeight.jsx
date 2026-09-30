@@ -12,10 +12,11 @@ export default function FieldAnnotationHeight({
   disabled = false,
   active = false,
   shortcut,
-  // Display-only rounding of the incoming value (e.g. 3 for the axis radius):
-  // what the user TYPES is committed untouched, only the echo of the stored
-  // value is shortened.
-  displayDecimals,
+  // Display-only rounding of the incoming value: what the user TYPES is
+  // committed untouched, only the echo of the stored value is shortened.
+  // Millimeter by default — a stored value carrying float noise
+  // (-1.0000000128…) must not flood the toolbar.
+  displayDecimals = 3,
 }) {
   const field = fieldProp ?? "height";
   // For POLYGON shapes, "height" is semantically a thickness ("épaisseur")

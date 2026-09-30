@@ -455,3 +455,17 @@ test("applyAffineToMesh3d moves the plan coords and un-mirrors the faces", () =>
   );
   assert.ok(signedVolume(mesh3dToLocal(mirrored, metrics)) > 0);
 });
+
+test("offsetZ is stored to 0.1 mm without moving the mesh", () => {
+  const metrics = { imageWidth: 1000, imageHeight: 1000, meterByPx: 0.01 };
+  const box = makeBox();
+  // float32-like noise on the altitude of the bottom
+  box.vertices.forEach((p) => (p.z += -1.0000000128746034));
+  const { mesh3d, offsetZ } = mesh3dFromLocal(box, metrics, 0);
+  assert.equal(offsetZ, -1);
+  // absolute z = stored z + offsetZ is unchanged
+  mesh3d.vertices.forEach((p, i) =>
+    near(p[2] + offsetZ, box.vertices[i].z, 1e-12)
+  );
+  assert.equal(mesh3dFromLocal(makeBox(), metrics, -0.00001).offsetZ, 0);
+});
