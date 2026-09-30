@@ -91,6 +91,20 @@ missing: 2D works (image), 3D shows the plane only, « Recharger les fichiers »
 applies the stored zone (`reloadScene3dBaseMapService`): image, scale and
 altitude do not move.
 
+## Prompt IA (height map export)
+
+When the main base map is a scan, the Prompt IA zip (`promptIa/services/
+buildPromptIaZip.js`) adds `hauteurs.png` + `hauteurs-apercu.png`, rendered by
+`buildPromptIaHeightMapImages` **in the pixel frame of `plan.png`** (same
+size: pixel (i, j) ↔ pixel (i, j)). Values are heights above the base map
+plane (the frame of `offsetZ`), encoded RG16 (`promptIa/utils/heightMapRg16.js`):
+`v = R*256 + G`, `0` = no surface, else `h = (v − 1) / 65534 × zMax`; the
+preview is 8-bit grey (black = 0, white = zMax). `contexte.json.plan.heightMap`
+carries `zMax`, `cellSizeM`, `planeAltitude` (`position.y`) and the formula.
+The HEIGHT row is awaited with `loadScene3dHeightMap` (promise flavour of
+`ensureScene3dHeightMap`); without scan data on the device the zip is built
+without relief and the panel says so.
+
 ## Creation (`components/DialogCreateBaseMapFromScene3d.jsx`)
 
 Card « Scène 3D » of the base map creation section (catalog key `SCENE_3D`,

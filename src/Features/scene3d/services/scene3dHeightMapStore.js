@@ -146,6 +146,26 @@ export function ensureScene3dHeightMap(sceneId, { bbox, projectId } = {}) {
   return entry.status;
 }
 
+// Same as ensureScene3dHeightMap, as a promise: resolves the height map
+// once READY, or null when the device has no scan data (MISSING) or the
+// rebuild failed (ERROR). Used by one-shot exports (Prompt IA zip).
+export function loadScene3dHeightMap(sceneId, { bbox, projectId } = {}) {
+  if (ensureScene3dHeightMap(sceneId, { bbox, projectId }) === "MISSING")
+    return Promise.resolve(null);
+  return new Promise((resolve) => {
+    const settle = () => {
+      const entry = entries.get(sceneId);
+      if (!entry || entry.status === "LOADING") return false;
+      resolve(entry.status === "READY" ? entry.heightMap : null);
+      return true;
+    };
+    if (settle()) return;
+    const unsubscribe = subscribeScene3dHeightMapStatus(() => {
+      if (settle()) unsubscribe();
+    });
+  });
+}
+
 // Height map of a scan, or null while it is not ready.
 export function getScene3dHeightMap(sceneId) {
   const entry = entries.get(sceneId);
