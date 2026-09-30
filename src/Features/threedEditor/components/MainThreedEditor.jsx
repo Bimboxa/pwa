@@ -308,6 +308,8 @@ export default function MainThreedEditor() {
   const renderMode = useSelector((s) => s.threedEditor.renderMode);
   // PHOTOREAL environment (Standard / Extérieur / Intérieur).
   const environment3d = useSelector((s) => s.threedEditor.environment3d);
+  // Mouse navigation preset (Standard / Iso 2D + orbite / Iso SketchUp).
+  const navigationPreset = useSelector((s) => s.threedEditor.navigationPreset);
   const clippingEnabled = useSelector(
     (s) => s.threedEditor.clippingPlane.enabled
   );
@@ -611,6 +613,15 @@ export default function MainThreedEditor() {
       environment3d
     );
   }, [environment3d, rendererIsReady]);
+
+  // Sync navigationPreset (device preference, Configuration > Éditeur 3D) →
+  // ControlsManager mouse button mapping.
+  useEffect(() => {
+    if (!rendererIsReady) return;
+    threedEditorRef.current?.sceneManager?.controlsManager?.setNavigationPreset(
+      navigationPreset
+    );
+  }, [navigationPreset, rendererIsReady]);
 
   // Sync clipping plane enabled → ClippingManager (create on first enable).
   useEffect(() => {
@@ -1607,19 +1618,21 @@ export default function MainThreedEditor() {
       isDraggingRef.current = false;
       dragStartRef.current = { x: event.clientX, y: event.clientY };
 
-      // Left button = orbit gesture: set the orbit point to the point under the
-      // cursor so the camera rotates around it (not the screen center).
-      // camera-controls' setOrbitPoint preserves the current view, so there is
-      // no jump — harmless for a plain selection click too. Skipped for the
-      // shift+lasso branch below.
+      // Orbit gesture (left button in the STANDARD navigation preset, middle
+      // button or Ctrl+left in the others — see ControlsManager.isPivotGesture):
+      // set the orbit point to the point under the cursor so the camera
+      // rotates around it (not the screen center). camera-controls'
+      // setOrbitPoint preserves the current view, so there is no jump —
+      // harmless for a plain selection click too. Skipped for the shift+lasso
+      // branch below.
       const isLasso =
         event.shiftKey &&
         event.button === 0 &&
         editorModeRef.current !== "BASEMAP_POSITION";
-      if (event.button === 0 && !isLasso) {
-        threedEditorRef.current?.sceneManager?.controlsManager?.updateRotationPivotFromEvent(
-          event
-        );
+      const controlsManager =
+        threedEditorRef.current?.sceneManager?.controlsManager;
+      if (!isLasso && controlsManager?.isPivotGesture(event)) {
+        controlsManager.updateRotationPivotFromEvent(event);
       }
 
       // Base maps grid: no lasso over the table (the orbit point above still
@@ -2153,7 +2166,9 @@ export default function MainThreedEditor() {
         // shift+click toggle.
       }
 
-      if (!isDraggingRef.current) {
+      // The middle button only navigates (dolly / orbit): a middle click that
+      // did not move must not select / deselect.
+      if (!isDraggingRef.current && event.button !== 1) {
         // Check if the click target is within the renderer's DOM element
         // This prevents clicks on portals (like PopperEditAnnotation) from triggering the raycaster
         if (!threedEditorRef.current) {

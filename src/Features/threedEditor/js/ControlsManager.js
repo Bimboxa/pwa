@@ -14,6 +14,10 @@ import {
 } from "three";
 import CameraControls from "camera-controls";
 
+import { loadNavigationPreset } from "Features/threedEditor/services/navigationPresetLocalStorage";
+
+import resolveNavigationMouseActions from "Features/threedEditor/utils/resolveNavigationMouseActions";
+
 // camera-controls must be installed once with a (subset of) three before use.
 // We pass only the classes it needs so three stays tree-shakeable elsewhere.
 CameraControls.install({
@@ -35,6 +39,9 @@ CameraControls.install({
 // pivot — e.g. annotations dimmed to opacity 0.3 after a solo selection. The
 // ray should pass through and land on the opaque geometry (or plane) behind.
 const PIVOT_OPACITY_THRESHOLD = 0.99;
+
+// camera-controls `mouseButtons` keys, indexed by PointerEvent.button.
+const MOUSE_BUTTON_NAMES = ["left", "middle", "right"];
 
 function isMaterialSeeThrough(material) {
   if (!material) return false;
@@ -68,6 +75,12 @@ export default class ControlsManager {
 
     // maxDistance stashed by animateFovTo, restored by restorePerspectiveFov.
     this._stashedMaxDistance = null;
+
+    // Mouse navigation preset (device preference). Read from localStorage so
+    // the editor starts on the right mapping; MainThreedEditor then keeps it
+    // in sync with the redux value (setNavigationPreset).
+    this._navigationPreset = loadNavigationPreset();
+    this._domElement = null;
     // Zoom-out range lent to a temporarily larger scene (3D base maps grid):
     // { baseMaxDistance, maxDistance, baseFar, far } — see setDistanceBoost.
     this._distanceBoost = null;
@@ -116,13 +129,24 @@ export default class ControlsManager {
     this.cameraControls.truckSpeed = 1.0; // pan
     this.cameraControls.dollySpeed = 0.5; // zoom
 
-    // Default mouse mapping: left = ROTATE, right = TRUCK (pan), wheel = DOLLY.
-    // Right-drag stays available for pan; on a Mac trackpad that's awkward, so
-    // we also map Option(Alt) + left-drag to pan by swapping the left action
-    // while Alt is held (see _onModifierKey / window blur reset below).
+    // Mouse mapping = the navigation preset (constants/navigationPresets);
+    // wheel stays DOLLY in every preset. STANDARD: left = ROTATE, right =
+    // TRUCK (pan). Right-drag is awkward on a Mac trackpad, so presets also
+    // bind a modifier key that swaps a button action while it is held (e.g.
+    // Option(Alt) + left-drag = pan in STANDARD) — see _onModifierKey / window
+    // blur reset below.
+    this._domElement = this.sceneManager.renderer.domElement;
+    this._applyMouseButtons({});
     window.addEventListener("keydown", this._onModifierKey);
     window.addEventListener("keyup", this._onModifierKey);
     window.addEventListener("blur", this._onWindowBlur);
+    // Capture phase: runs before camera-controls' own pointerdown listener.
+    this._domElement.addEventListener(
+      "pointerdown",
+      this._onPointerDownCapture,
+      true
+    );
+    this._domElement.addEventListener("mousedown", this._onMouseDown);
 
     // Prime the internal matrices, render once, then start the update loop.
     this.cameraControls.update(0);
@@ -131,30 +155,70 @@ export default class ControlsManager {
     this._loop();
   };
 
-  // ----- Option(Alt)+drag pan ------------------------------------------
+  // ----- navigation preset (mouse buttons + modifier keys) --------------
 
-  // Swap the left-mouse action to TRUCK (pan) while Alt is held, back to ROTATE
-  // otherwise. Only mutate on a real change so we don't disturb an in-flight
+  setNavigationPreset = (presetKey) => {
+    this._navigationPreset = presetKey;
+    this._applyMouseButtons({});
+  };
+
+  // Write the preset's button actions for the modifier keys currently held
+  // (`modifierState`: any event / object with altKey, ctrlKey, metaKey,
+  // shiftKey). Only mutate on a real change so we don't disturb an in-flight
   // gesture every keyrepeat.
-  _setPanModifier = (active) => {
+  _applyMouseButtons = (modifierState) => {
     const controls = this.cameraControls;
     if (!controls) return;
-    const want = active
-      ? CameraControls.ACTION.TRUCK
-      : CameraControls.ACTION.ROTATE;
-    if (controls.mouseButtons.left !== want) {
-      controls.mouseButtons.left = want;
-    }
+    const actions = resolveNavigationMouseActions(
+      this._navigationPreset,
+      modifierState
+    );
+    MOUSE_BUTTON_NAMES.forEach((name) => {
+      const want = CameraControls.ACTION[actions[name]];
+      if (controls.mouseButtons[name] !== want) {
+        controls.mouseButtons[name] = want;
+      }
+    });
   };
 
   _onModifierKey = (event) => {
-    this._setPanModifier(event.altKey === true);
+    this._applyMouseButtons(event);
   };
 
-  // If focus leaves the window while Alt is held, the keyup never arrives —
-  // reset to ROTATE so the left button isn't stuck panning.
+  // If focus leaves the window while a modifier is held, the keyup never
+  // arrives — reset to the preset's base mapping so a button isn't stuck on
+  // its modified action.
   _onWindowBlur = () => {
-    this._setPanModifier(false);
+    this._applyMouseButtons({});
+  };
+
+  // Re-sync from the pointer event itself: a modifier pressed while the
+  // window was not focused never fired its keydown.
+  _onPointerDownCapture = (event) => {
+    this._applyMouseButtons(event);
+  };
+
+  // The middle button navigates (dolly / orbit depending on the preset): stop
+  // the browser's middle-click auto-scroll from hijacking the drag.
+  _onMouseDown = (event) => {
+    if (event.button === 1) event.preventDefault();
+  };
+
+  // True when the pressed button starts a gesture that should re-anchor the
+  // orbit point under the cursor (see updateRotationPivotFromEvent): an orbit,
+  // or a pan held by the left / middle button (the grabbed point then stays
+  // under the cursor). Right-drag pan keeps the current orbit point.
+  isPivotGesture = (event) => {
+    if (event.pointerType === "touch") return true;
+    const name = MOUSE_BUTTON_NAMES[event.button];
+    if (!name) return false;
+    const actions = resolveNavigationMouseActions(
+      this._navigationPreset,
+      event
+    );
+    const action = actions[name];
+    if (action === "ROTATE") return true;
+    return action === "TRUCK" && name !== "right";
   };
 
   // ----- continuous update loop (render only on change) ----------------
@@ -186,6 +250,15 @@ export default class ControlsManager {
     window.removeEventListener("keydown", this._onModifierKey);
     window.removeEventListener("keyup", this._onModifierKey);
     window.removeEventListener("blur", this._onWindowBlur);
+    if (this._domElement) {
+      this._domElement.removeEventListener(
+        "pointerdown",
+        this._onPointerDownCapture,
+        true
+      );
+      this._domElement.removeEventListener("mousedown", this._onMouseDown);
+      this._domElement = null;
+    }
     if (this._rafId !== null) {
       cancelAnimationFrame(this._rafId);
       this._rafId = null;
