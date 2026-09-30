@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 
 import { useDispatch, useSelector } from "react-redux";
-import { Raycaster, Vector2 } from "three";
+import { Raycaster, Vector2, Vector3 } from "three";
 
 import db from "App/db/db";
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
@@ -33,6 +33,17 @@ import {
   deepHide,
   deepShow,
 } from "Features/threedDrawing/utils/deepVisibility";
+import createAnnotationObject3D from "Features/threedEditor/js/utilsAnnotationsManager/createAnnotationObject3D";
+import getEditableMesh3d, {
+  worldToMesh3dLocal,
+} from "Features/annotationMesh3d/services/getEditableMesh3d";
+import writeMesh3dService from "Features/annotationMesh3d/services/writeMesh3dService";
+import getPushPullRange from "Features/annotationMesh3d/utils/getPushPullRange";
+import isAnnotationConvertibleToMesh3d from "Features/annotationMesh3d/utils/isAnnotationConvertibleToMesh3d";
+import locatePathOnMesh3d from "Features/annotationMesh3d/utils/locatePathOnMesh3d";
+import { mesh3dFromLocal } from "Features/annotationMesh3d/utils/mesh3dFrame";
+import { getFaceNormal } from "Features/annotationMesh3d/utils/mesh3dTopology";
+import pushPullMesh3dFace from "Features/annotationMesh3d/utils/pushPullMesh3dFace";
 
 import {
   setExtrudeOverlay,
@@ -83,10 +94,16 @@ function disposeObject(obj) {
 // while extrudeMode.active (MainThreedEditor's hover/click paths
 // short-circuit). SketchUp-like two-click flow:
 //
-// - hover: only faces pointing along the extrusion axis (the baseMap normal)
-//   are eligible; they get the coplanar stipple + a cursor helper. Lateral and
-//   bottom faces, template-locked heights and REVOLUTION / EXTRUSION_PROFILE
-//   shapes are silently ignored.
+// - hover: eligible faces get the coplanar stipple + a cursor helper. Two
+//   kinds of push/pull share the flow:
+//   · HEIGHT — a face pointing along the extrusion axis (the baseMap normal)
+//     of a regular annotation: the value drives `annotation.height`.
+//     Template-locked heights and REVOLUTION / EXTRUSION_PROFILE shapes are
+//     silently ignored.
+//   · MESH3D — any face of an isMesh3d annotation, or a lateral / bottom
+//     face of a convertible regular annotation: the face moves along its own
+//     normal and the annotation is stored as a face mesh (converted on
+//     commit, see annotationMesh3d).
 // - click 1: arms the annotation owning the face. Its real mesh is hidden and
 //   replaced by a transient ghost rebuilt at every value change.
 // - mouse move: the value follows the cursor along the axis (toolbar field +
@@ -160,7 +177,8 @@ export default function useExtrudePointerHandlers() {
     let arming = false;
 
     // Per-annotation extrudability, resolved asynchronously (db reads) and
-    // cached for the whole activation. Values: true | false | "PENDING".
+    // cached for the whole activation. Values: "PENDING" | { height, mesh,
+    // isMesh3d } — which push/pull kinds the annotation accepts.
     const eligibility = new Map();
 
     dom.style.cursor = "crosshair";
@@ -183,17 +201,22 @@ export default function useExtrudePointerHandlers() {
       if (cached !== undefined) return cached;
       eligibility.set(annotationId, "PENDING");
       (async () => {
-        let ok = false;
+        let result = { height: false, mesh: false, isMesh3d: false };
         try {
           const annotation = await db.annotations.get(annotationId);
           const template = annotation?.annotationTemplateId
             ? await db.annotationTemplates.get(annotation.annotationTemplateId)
             : null;
-          ok = isAnnotationExtrudable(annotation, template);
+          const isMesh3d = Boolean(annotation?.isMesh3d);
+          result = {
+            isMesh3d,
+            height: !isMesh3d && isAnnotationExtrudable(annotation, template),
+            mesh: isMesh3d || isAnnotationConvertibleToMesh3d(annotation),
+          };
         } catch (err) {
           console.error("[threedExtrude] eligibility check failed", err);
         }
-        eligibility.set(annotationId, ok);
+        eligibility.set(annotationId, result);
         // The cursor may have stopped over the face while we were resolving —
         // re-run the hover so the stipple shows up without a mouse move.
         scheduleHover();
@@ -242,6 +265,7 @@ export default function useExtrudePointerHandlers() {
               intersect,
               axis,
               isTopFace: isExtrudableFaceHit(intersect, axis),
+              isMesh3dObject: Boolean(object.userData.isAnnotationMesh3d),
               rect,
             };
           }
@@ -277,6 +301,24 @@ export default function useExtrudePointerHandlers() {
       }
     }
 
+    // Which push/pull the face under the cursor gets: "HEIGHT", "MESH3D" or
+    // null (not extrudable / eligibility still resolving).
+    function getPickKind(pick) {
+      if (!pick?.nodeId) return null;
+      const el = getEligibility(pick.nodeId);
+      if (el === "PENDING") return null;
+      if (pick.isMesh3dObject) return el.isMesh3d ? "MESH3D" : null;
+      if (pick.isTopFace) return el.height ? "HEIGHT" : null;
+      return el.mesh ? "MESH3D" : null;
+    }
+
+    // MESH3D: the value is limited by the material behind the face.
+    function clampArmedValue(v) {
+      if (armed?.kind !== "MESH3D") return v;
+      const { min, max } = armed.range;
+      return Math.min(max, Math.max(min, v));
+    }
+
     function disposeGhost() {
       if (!armed?.ghost) return;
       armed.parent?.remove(armed.ghost);
@@ -287,6 +329,30 @@ export default function useExtrudePointerHandlers() {
     function rebuildGhost(v) {
       if (!armed) return;
       disposeGhost();
+      if (armed.kind === "MESH3D") {
+        const { ctx, faceIndex } = armed;
+        const { mesh3d, offsetZ } = mesh3dFromLocal(
+          pushPullMesh3dFace(ctx.mesh, faceIndex, clampArmedValue(v)),
+          ctx.metrics,
+          ctx.baseOffsetZ
+        );
+        const ghost = createAnnotationObject3D(
+          {
+            ...ctx.annotation,
+            type: "POLYGON",
+            isMesh3d: true,
+            mesh3d,
+            offsetZ,
+          },
+          ctx.metrics
+        );
+        if (ghost && armed.parent) {
+          armed.parent.add(ghost);
+          armed.ghost = ghost;
+        }
+        sceneManager.renderScene?.();
+        return;
+      }
       const height = Math.max(0, armed.baseHeight + v);
       const snapshot = {
         ...armed.snapshot,
@@ -316,10 +382,67 @@ export default function useExtrudePointerHandlers() {
       sceneManager.renderScene?.();
     }
 
-    async function arm(e, pick) {
+    // MESH3D arm: the face moves along its own normal. A regular annotation
+    // is converted in memory here — nothing is written before the commit.
+    async function armMesh3d(e, pick) {
+      const annotationId = pick.nodeId;
+      const ctx = await getEditableMesh3d({ editor, annotationId });
+      if (!ctx) {
+        console.warn(
+          `[threedExtrude] annotation ${annotationId} cannot be edited as a mesh`
+        );
+        return;
+      }
+      const faceIndex = ctx.isConversion
+        ? locatePathOnMesh3d(ctx.mesh, [
+            worldToMesh3dLocal(pick.intersect.point, ctx),
+          ])
+        : (pick.hitObject.userData?.mesh3dFaceIndex ?? -1);
+      if (!ctx.mesh.faces[faceIndex]) return;
+
+      const object =
+        sceneManager.annotationsManager?.annotationsObjectsMap?.[
+          annotationId
+        ] ?? pick.annotationObject;
+      if (!object?.parent) return;
+
+      const normal = getFaceNormal(
+        ctx.mesh.vertices,
+        ctx.mesh.faces[faceIndex]
+      );
+      ctx.baseMapGroup.updateWorldMatrix(true, false);
+      const axis = new Vector3(normal.x, normal.y, normal.z)
+        .transformDirection(ctx.baseMapGroup.matrixWorld)
+        .normalize();
+
+      clearStipple();
+      armed = {
+        kind: "MESH3D",
+        annotationId,
+        ctx,
+        faceIndex,
+        range: getPushPullRange(ctx.mesh, faceIndex),
+        axis,
+        anchor: pick.intersect.point.clone(),
+        object,
+        parent: object.parent,
+        ghost: null,
+        downPos: { x: e.clientX, y: e.clientY },
+        tracking: false,
+      };
+      deepHide(object);
+      rebuildGhost(valueRef.current);
+      dispatch(setExtrudeTargetAnnotationId(annotationId));
+    }
+
+    async function arm(e, pick, kind) {
       if (arming || armed) return;
       arming = true;
       try {
+        if (kind === "MESH3D") {
+          await armMesh3d(e, pick);
+          return;
+        }
         const annotationId = pick.nodeId;
         const snapshot = await loadAnnotationSnapshot(annotationId);
         if (!snapshot) return;
@@ -331,6 +454,7 @@ export default function useExtrudePointerHandlers() {
 
         clearStipple();
         armed = {
+          kind: "HEIGHT",
           annotationId,
           snapshot,
           baseHeight: Number(snapshot.annotation.height) || 0,
@@ -354,6 +478,30 @@ export default function useExtrudePointerHandlers() {
 
     async function commit() {
       if (!armed) return;
+      if (armed.kind === "MESH3D") {
+        const { ctx, faceIndex } = armed;
+        const applied = clampArmedValue(valueRef.current || 0);
+        cancelArm();
+        if (valueBufferRef.current !== "") {
+          dispatch(setExtrudeValue(applied));
+          dispatch(clearExtrudeValueBuffer());
+        }
+        // A zero push changes nothing — in particular it must not convert a
+        // regular annotation into a mesh.
+        if (!applied) return;
+        try {
+          await writeMesh3dService({
+            annotation: ctx.annotation,
+            mesh: pushPullMesh3dFace(ctx.mesh, faceIndex, applied),
+            baseOffsetZ: ctx.baseOffsetZ,
+            metrics: ctx.metrics,
+            dispatch,
+          });
+        } catch (err) {
+          console.error("[threedExtrude] mesh commit failed", err);
+        }
+        return;
+      }
       const { annotationId, baseHeight } = armed;
       const applied = valueRef.current || 0;
       const height = Math.max(0, baseHeight + applied);
@@ -394,7 +542,7 @@ export default function useExtrudePointerHandlers() {
         axis: armed.axis,
       });
       if (raw == null) return; // axis-aligned view: keep the last value
-      const next = roundCm(raw);
+      const next = clampArmedValue(roundCm(raw));
       if (next === valueRef.current) return;
       valueRef.current = next;
       dispatch(setExtrudeValue(next));
@@ -409,19 +557,21 @@ export default function useExtrudePointerHandlers() {
       if (armed) {
         updateArmedValue(e);
         const rect = dom.getBoundingClientRect();
+        // A typed value beyond the mesh range is applied clamped — show what
+        // will really be committed.
+        const shown = roundCm(clampArmedValue(valueRef.current || 0));
         setExtrudeOverlay({
           cursor: {
             x: e.clientX - rect.left,
             y: e.clientY - rect.top,
-            label: `${valueRef.current > 0 ? "+" : ""}${valueRef.current} m`,
+            label: `${shown > 0 ? "+" : ""}${shown} m`,
           },
         });
         return;
       }
 
       const pick = pickScene(e);
-      const extrudable =
-        pick?.nodeId && pick.isTopFace && getEligibility(pick.nodeId) === true;
+      const extrudable = getPickKind(pick) !== null;
 
       if (extrudable) {
         applyStipple(pick.hitObject, pick.intersect.faceIndex);
@@ -467,9 +617,9 @@ export default function useExtrudePointerHandlers() {
         return;
       }
       const pick = pickScene(e);
-      if (!pick?.nodeId || !pick.isTopFace) return;
-      if (getEligibility(pick.nodeId) !== true) return;
-      arm(e, pick);
+      const kind = getPickKind(pick);
+      if (!kind) return;
+      arm(e, pick, kind);
     }
 
     function onPointerCancel() {
