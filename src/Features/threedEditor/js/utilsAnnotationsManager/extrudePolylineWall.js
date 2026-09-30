@@ -9,9 +9,19 @@ import {
   EdgesGeometry,
   LineSegments,
   DoubleSide,
+  Vector3,
 } from "three";
+import { Line2 } from "three/examples/jsm/lines/Line2.js";
+import { LineGeometry } from "three/examples/jsm/lines/LineGeometry.js";
+import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 
 import extractPlanarSketchEdges from "../postfx/extractPlanarSketchEdges.js";
+import attachFatLineRaycast from "./attachFatLineRaycast.js";
+
+// Screen-space thickness (px) of a polyline without any vertical extent — a
+// plain line in space (e.g. drawn between two points of a SCENE_3D scan). A
+// 1 px WebGL line is hardly visible on a textured background.
+const FLAT_POLYLINE_LINEWIDTH_PX = 3;
 
 const EDGE_MATERIAL = new LineBasicMaterial({
   color: 0x000000,
@@ -136,7 +146,10 @@ export default function extrudePolylineWall(
   material,
   closeLine,
   verticalLift = 0,
-  hiddenSegmentsIdx = null
+  hiddenSegmentsIdx = null,
+  // {resolution}: canvas pixel size (Vector2), needed by the fat line of the
+  // flat fallback.
+  options = null
 ) {
   if (!points || points.length < 2) return null;
   const group = new Group();
@@ -156,6 +169,46 @@ export default function extrudePolylineWall(
     const bottoms = points.map((p) => verticalLift + (p?.offsetBottom ?? 0));
     const positions = [];
     points.forEach((p, i) => positions.push(p.x, p.y, bottoms[i]));
+
+    // Fat line (screen-space px thickness), same technique as the POINT
+    // vertical trait. Needs the canvas resolution — without it (headless
+    // build) the 1 px line below is kept.
+    if (options?.resolution) {
+      const linePositions = closeLine
+        ? [...positions, positions[0], positions[1], positions[2]]
+        : positions;
+      const lineGeom = new LineGeometry();
+      lineGeom.setPositions(linePositions);
+      const fatMat = new LineMaterial({
+        color: material.color.getHex(),
+        linewidth: FLAT_POLYLINE_LINEWIDTH_PX,
+        resolution: options.resolution,
+        worldUnits: false, // screen-space px thickness
+        transparent: true,
+        depthTest: true,
+      });
+      const line = new Line2(lineGeom, fatMat);
+      line.computeLineDistances();
+      // Hover / click picking without three's screen-space Line2 raycast.
+      const localPoints = [];
+      for (let i = 0; i < linePositions.length; i += 3) {
+        localPoints.push(
+          new Vector3(
+            linePositions[i],
+            linePositions[i + 1],
+            linePositions[i + 2]
+          )
+        );
+      }
+      attachFatLineRaycast(line, localPoints);
+      // Line2 is an `isMesh` over INSTANCED geometry: exported (and indexed
+      // by the vertex snap, isSnapLine) from these source positions instead.
+      line.userData.exportLine = { positions: linePositions };
+      line.userData.isSnapLine = true;
+      group.add(line);
+      return group;
+    }
+
     const geom = new BufferGeometry();
     geom.setAttribute("position", new Float32BufferAttribute(positions, 3));
     const lineMat = new LineBasicMaterial({ color: material.color });

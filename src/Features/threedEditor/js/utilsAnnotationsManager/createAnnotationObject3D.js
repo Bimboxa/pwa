@@ -955,7 +955,8 @@ export default function createAnnotationObject3D(annotation, baseMap, options) {
         material,
         !!annotation.closeLine,
         verticalLift,
-        expandedHidden
+        expandedHidden,
+        { resolution: options?.resolution }
       );
       break;
     }

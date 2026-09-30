@@ -84,6 +84,38 @@ export function buildIndex(scene, options = {}) {
     }
     if (!isSnappable) return;
 
+    // Fat lines (Line2) hold INSTANCED geometry — their `position` attribute
+    // is the segment quad template, not the line: never index it. A flat
+    // polyline (userData.isSnapLine, see extrudePolylineWall) is indexed from
+    // its source points instead (userData.exportLine, local space): its
+    // points snap, its segments are edges.
+    if (obj.isLine2 || obj.isLineSegments2) {
+      const linePositions = obj.userData?.isSnapLine
+        ? obj.userData.exportLine?.positions
+        : null;
+      if (!linePositions) return;
+      obj.updateWorldMatrix(true, false);
+      let prevKey = null;
+      for (let i = 0; i + 2 < linePositions.length; i += 3) {
+        const worldPos = new Vector3(
+          linePositions[i],
+          linePositions[i + 1],
+          linePositions[i + 2]
+        ).applyMatrix4(obj.matrixWorld);
+        const key = quantizeVertex(worldPos);
+        if (!adjacency.has(key)) {
+          verts.push({ position: worldPos, meshKey: obj.uuid, nodeId });
+        }
+        ensureNode(key, worldPos, nodeId);
+        if (prevKey && prevKey !== key) {
+          adjacency.get(prevKey).neighbors.add(key);
+          adjacency.get(key).neighbors.add(prevKey);
+        }
+        prevKey = key;
+      }
+      return;
+    }
+
     const geom = obj.geometry;
     const pos = geom?.attributes?.position;
     if (!pos) return;
