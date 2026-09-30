@@ -1,3 +1,4 @@
+import getBaseMapTransform from "Features/baseMaps/js/getBaseMapTransform";
 import {
   buildExistingAnnotations,
   getVisibleListingTemplates,
@@ -45,7 +46,9 @@ const TEMPLATE_KEYS = [
   "stripOrientation",
   "fillColor",
   "fillOpacity",
+  // 3D defaults (metres): extrusion height, lift above the plan
   "height",
+  "offsetZ",
   "isExt",
   "groupLabel",
   "unit",
@@ -128,6 +131,29 @@ export function summarizeDetailBaseMaps(detailBaseMaps, attachments) {
   });
 }
 
+// `plan.heightMap` of contexte.json: how to read `hauteurs.png` (RG16, see
+// utils/heightMapRg16) and what its values mean for the 3D fields.
+export function summarizeHeightMap(heightMap, baseMap) {
+  const planeAltitude = getBaseMapTransform(baseMap)?.position?.y ?? 0;
+  return {
+    file: heightMap.file,
+    previewFile: heightMap.previewFile,
+    width: heightMap.width,
+    height: heightMap.height,
+    encoding: "RG16",
+    formula: "v = R * 256 + G ; h = (v - 1) / 65534 * zMax",
+    noData: [0, 0],
+    unit: "m",
+    zMin: 0,
+    zMax: heightMap.zMax,
+    reference:
+      "hauteur au-dessus du plan du fond : le repère de offsetZ (le plan = 0)",
+    planeAltitude: Math.round(planeAltitude * 1000) / 1000,
+    cellSizeM: heightMap.cellSizeM,
+    coverage: heightMap.coverage,
+  };
+}
+
 // Examples: a few per template first, then fill up to the cap.
 export function pickExamples(existing, max = MAX_EXAMPLES) {
   if (existing.length <= max) return existing;
@@ -163,6 +189,9 @@ export function pickExamples(existing, max = MAX_EXAMPLES) {
  *   mime, byteSize, pageCount, pages}
  * @param {Object[]} [p.detailBaseMaps] - raw detail baseMap records of the
  *   project (useDetailBaseMaps), offered for reuse
+ * @param {Object|null} [p.heightMap] - height map picture of a scan base map
+ *   (buildPromptIaHeightMapImages): {file, previewFile, width, height, zMax,
+ *   coverage, cellSizeM}
  */
 export default function buildPromptIaContext({
   baseMap,
@@ -174,6 +203,7 @@ export default function buildPromptIaContext({
   mode,
   attachments = [],
   detailBaseMaps = [],
+  heightMap = null,
 }) {
   const ref = baseMap.getImageSize?.() || baseMap.image?.imageSize;
   const refWidth = Math.round(ref.width);
@@ -221,6 +251,8 @@ export default function buildPromptIaContext({
       pixelsPerCm: widthMeters
         ? round4(image.width / (widthMeters * 100))
         : null,
+      // Scan base map: heights above the plan, pixel for pixel with plan.png
+      heightMap: heightMap ? summarizeHeightMap(heightMap, baseMap) : null,
     },
     source: source
       ? {
@@ -250,9 +282,20 @@ export default function buildPromptIaContext({
       pages: a.pages ?? [],
     })),
     detailTemplate: DETAIL_TEMPLATE,
-    existingDetailBaseMaps: summarizeDetailBaseMaps(detailBaseMaps, attachments),
+    existingDetailBaseMaps: summarizeDetailBaseMaps(
+      detailBaseMaps,
+      attachments
+    ),
     output: {
       coordinateSpaces: ["image", "pdf_user_space"],
+      // 3D fields accepted on the annotations (metres above the plan)
+      annotationFields3d: [
+        "offsetZ",
+        "height",
+        "points[].offsetTop",
+        "points[].offsetBottom",
+        "guideLines[].slopePct",
+      ],
       rootKeys: [
         "version",
         "coordinateSpace",

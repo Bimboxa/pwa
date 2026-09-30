@@ -38,7 +38,7 @@ export default function useToggleThreedViewerHotkey() {
     if (enabledDrawingMode) return undefined;
     // The PDF editor layer covers the editor: no toggle underneath it.
     if (pdfEditorOpen) return undefined;
-    // Walk mode owns the keyboard (arrows, Space, W to exit).
+    // Walk mode owns the keyboard (arrows, Space, letters, P to exit).
     if (walkModeActive) return undefined;
 
     const handleKeyDown = (e) => {

@@ -5,10 +5,13 @@ import { buildBaseMapSnapshotBlob } from "Features/assistantRelay/services/build
 
 import instructionsBody from "../docs/PROMPT_IA_INSTRUCTIONS.md?raw";
 import buildPromptIaContext from "./buildPromptIaContext";
+import buildPromptIaHeightMapImages from "./buildPromptIaHeightMapImages";
 import loadSourcePdf from "./loadSourcePdf";
 import readPdfPageFrame, { readPdfPageFrames } from "./readPdfPageFrame";
 
 const ATTACHMENTS_DIR = "pieces-jointes";
+export const HEIGHT_MAP_FILE = "hauteurs.png";
+export const HEIGHT_MAP_PREVIEW_FILE = "hauteurs-apercu.png";
 
 // Long edge of plan.png: sharp enough for vision models to read thin walls
 // and small texts, small enough for a chat upload.
@@ -60,12 +63,19 @@ function describeDetectionMode(mode) {
 }
 
 export function buildInstructionsMarkdown({ context, hasPdf }) {
+  const heightMap = context.plan.heightMap;
   const files = [
     "- `contexte.json` — données du plan (à lire en premier)",
     `- \`plan.png\` — image du fond (${context.plan.image.width} × ${context.plan.image.height} px)`,
     hasPdf
       ? `- \`plan.pdf\` — page PDF source (page ${context.source.pageNumber})`
       : "- (pas de PDF source : travaille sur `plan.png`, voie B)",
+    ...(heightMap
+      ? [
+          `- \`${heightMap.file}\` — carte des hauteurs du scan, même taille que \`plan.png\` (0 → ${heightMap.zMax} m au-dessus du plan, encodage RG16, voir \`plan.heightMap\`)`,
+          `- \`${heightMap.previewFile}\` — aperçu en niveaux de gris de la carte des hauteurs (clair = haut)`,
+        ]
+      : []),
     ...context.attachments.map(
       (a) =>
         `- \`${a.file}\` — pièce jointe \`${a.id}\`${
@@ -101,6 +111,12 @@ export function buildInstructionsMarkdown({ context, hasPdf }) {
       ? `**Échelle** : l'image \`plan.png\` représente ${context.plan.widthMeters} m de large (${context.plan.meterByPx} m par pixel de référence).`
       : "**Échelle** : inconnue (fond non calibré) — n'invente pas de calibration.",
     "",
+    ...(heightMap
+      ? [
+          `**Relief** : le fond est un scan 3D. \`${heightMap.file}\` donne la hauteur du terrain et des ouvrages au-dessus du plan (0 → ${heightMap.zMax} m, cellule ${heightMap.cellSizeM} m). Renseigne \`offsetZ\`, \`height\`, \`offsetTop\` / \`offsetBottom\` à partir de ces valeurs (section « Relief et hauteurs (3D) »).`,
+          "",
+        ]
+      : []),
     "**Fichiers**",
     "",
     ...files,
@@ -120,7 +136,7 @@ export function buildInstructionsMarkdown({ context, hasPdf }) {
  *
  * `attachments` = [{ resource, file }] (file: File/Blob read from db.files).
  *
- * @returns {Promise<{fileName:string, files:string[], hasPdf:boolean, pdfReason:string|null, sizeBytes:number}>}
+ * @returns {Promise<{fileName:string, files:string[], hasPdf:boolean, pdfReason:string|null, hasHeightMap:boolean, heightMapZMax:number|null, heightMapReason:string|null, sizeBytes:number}>}
  */
 export default async function buildPromptIaZip({
   baseMap,
@@ -138,6 +154,24 @@ export default async function buildPromptIaZip({
     mime: "image/png",
     maxLongEdge: PLAN_IMAGE_LONG_EDGE,
   });
+
+  // Scan base map: its height map, in the pixel frame of plan.png.
+  let relief = null;
+  let heightMapReason = null;
+  if (baseMap?.scene3d?.sceneId) {
+    try {
+      const built = await buildPromptIaHeightMapImages({
+        baseMap,
+        image: { width: picture.width, height: picture.height },
+        projectId,
+      });
+      if (built?.blob) relief = built;
+      else heightMapReason = built?.reason ?? "Relief indisponible.";
+    } catch (err) {
+      console.error("[promptIa] height map failed", err);
+      heightMapReason = err?.message ?? String(err);
+    }
+  }
 
   const pdf = await loadSourcePdf({ baseMap, projectId });
   let source = null;
@@ -194,6 +228,17 @@ export default async function buildPromptIaZip({
     mode,
     attachments: attached,
     detailBaseMaps,
+    heightMap: relief
+      ? {
+          file: HEIGHT_MAP_FILE,
+          previewFile: HEIGHT_MAP_PREVIEW_FILE,
+          width: relief.width,
+          height: relief.height,
+          zMax: relief.zMax,
+          coverage: relief.coverage,
+          cellSizeM: relief.cellSizeM,
+        }
+      : null,
   });
   const instructions = buildInstructionsMarkdown({
     context,
@@ -206,6 +251,12 @@ export default async function buildPromptIaZip({
   // PNG / PDF are already compressed: store them as-is.
   zip.file("plan.png", picture.blob, { compression: "STORE" });
   if (pdf.file) zip.file("plan.pdf", pdf.file, { compression: "STORE" });
+  if (relief) {
+    zip.file(HEIGHT_MAP_FILE, relief.blob, { compression: "STORE" });
+    zip.file(HEIGHT_MAP_PREVIEW_FILE, relief.previewBlob, {
+      compression: "STORE",
+    });
+  }
   for (const a of attached) zip.file(a.file, a.blob, { compression: "STORE" });
 
   const blob = await zip.generateAsync({
@@ -224,10 +275,14 @@ export default async function buildPromptIaZip({
       "contexte.json",
       "plan.png",
       ...(pdf.file ? ["plan.pdf"] : []),
+      ...(relief ? [HEIGHT_MAP_FILE, HEIGHT_MAP_PREVIEW_FILE] : []),
       ...attached.map((a) => a.file),
     ],
     hasPdf: Boolean(pdf.file),
     pdfReason: pdf.reason,
+    hasHeightMap: Boolean(relief),
+    heightMapZMax: relief?.zMax ?? null,
+    heightMapReason,
     sizeBytes: blob.size,
     blob,
   };

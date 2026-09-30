@@ -191,6 +191,7 @@ export default class ImagesManager {
     group.userData.scene3dKey = key;
     if (!key) return;
     const dispose = attachScene3dToBaseMapGroup(group, baseMap, {
+      renderer: this.sceneManager.renderer,
       supportsS3tc: getRendererSupportsS3tc(this.sceneManager.renderer),
       opacity: getBaseMapOpacityIn3d(this.opacityState, baseMapId),
       onLoaded: () => {
@@ -201,6 +202,18 @@ export default class ImagesManager {
     if (dispose) group.userData.disposeScene3d = dispose;
   }
 
+  // Editor teardown: release every scan reference so the shared cache can
+  // evict the resources uploaded to this renderer (kept otherwise — with
+  // their CPU copies released — and replayed on the next renderer, which
+  // cannot upload them: see scene3dAssetsCache).
+  releaseScene3dAssets() {
+    Object.values(this.imagesMap).forEach((group) => {
+      group.userData.disposeScene3d?.();
+      delete group.userData.disposeScene3d;
+      delete group.userData.scene3dKey;
+    });
+  }
+
   // Drop a group that never got a mesh (grid placeholder) — it would
   // otherwise inflate the scene boxes read by the clipping / shadow managers.
   // Groups carrying a mesh or annotation objects are left alone.
@@ -209,7 +222,9 @@ export default class ImagesManager {
     if (!group || group.userData.textureStatus !== "none") return false;
     const meshWrap = group.userData.meshWrap;
     const scanWrap = group.userData.scanWrap;
-    if (group.children.some((child) => child !== meshWrap && child !== scanWrap))
+    if (
+      group.children.some((child) => child !== meshWrap && child !== scanWrap)
+    )
       return false;
     group.userData.disposeScene3d?.();
     this.scene.remove(group);

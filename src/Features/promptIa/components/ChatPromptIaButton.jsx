@@ -62,6 +62,8 @@ export default function ChatPromptIaButton({ disabled }) {
   const hasVisibleTemplates =
     getVisibleListingTemplates(templates, listingId).length > 0;
   const calibrated = (baseMap?.getMeterByPx?.() ?? baseMap?.meterByPx) > 0;
+  // Scan base map (« Scène 3D »): its height map goes into the zip.
+  const isScan = Boolean(baseMap?.scene3d?.sceneId);
 
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(0);
@@ -443,6 +445,13 @@ export default function ChatPromptIaButton({ disabled }) {
                   l’IA : 50 Mo au plus par fichier. Les fichiers joints sont
                   enregistrés dans les ressources du projet.
                 </Typography>
+                {isScan && (
+                  <Typography variant="caption" color="text.secondary">
+                    Relief du scan : la carte des hauteurs sera jointe au zip
+                    pour que l’IA renseigne la 3D des annotations (offsetZ,
+                    hauteur, pentes de toiture).
+                  </Typography>
+                )}
 
                 {attachErrors.map((message) => (
                   <Alert
@@ -503,6 +512,13 @@ export default function ChatPromptIaButton({ disabled }) {
                       {!built.hasPdf && built.pdfReason
                         ? ` PDF source absent (${built.pdfReason}) : l’IA travaillera sur l’image.`
                         : ""}
+                    </Alert>
+                  )}
+                  {built && isScan && (
+                    <Alert severity={built.hasHeightMap ? "info" : "warning"}>
+                      {built.hasHeightMap
+                        ? `Relief joint : hauteurs.png (0 → ${built.heightMapZMax} m au-dessus du plan).`
+                        : `Relief non joint : ${built.heightMapReason ?? "relief indisponible."}`}
                     </Alert>
                   )}
                   {buildError && <Alert severity="error">{buildError}</Alert>}

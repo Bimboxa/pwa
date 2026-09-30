@@ -7,7 +7,10 @@
 // "dump" format (Copy annotations data) goes the other way round: it ships
 // full DB rows and is scrubbed with a denylist in normalizeAnnotationsDumpJson.
 export const STYLE_FIELDS = [
+  // 3D (metres): extrusion height and lift above the plan; the per-vertex
+  // offsetTop / offsetBottom live on the point refs (buildImportData)
   "height",
+  "offsetZ",
   "hideSlope",
   "fillColor",
   "fillOpacity",

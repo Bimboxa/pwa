@@ -40,6 +40,9 @@ export default class ThreedEditor {
   dispose = () => {
     // Stop the camera-controls render loop and release its DOM listeners.
     this.sceneManager?.controlsManager?.dispose?.();
+    // Scan base maps: hand the GPU cache references back (the renderer dies
+    // with this editor).
+    this.sceneManager?.imagesManager?.releaseScene3dAssets?.();
     this.sceneManager?.baseMapsGridManager?.dispose?.();
     this.sceneManager?.renderModeManager?.dispose?.();
   };

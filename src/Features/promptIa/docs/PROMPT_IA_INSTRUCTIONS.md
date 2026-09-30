@@ -17,6 +17,9 @@ Fichiers du zip :
   (`source` non nul dans `contexte.json`). L'image `plan.png` correspond à la
   page `source.pageNumber`, tournée de `source.rotation` degrés (sens horaire)
   puis rognée selon `source.bboxInRatio` (fractions de la page tournée).
+- `hauteurs.png` / `hauteurs-apercu.png` — quand le fond est un scan 3D : la
+  carte des hauteurs au-dessus du plan, pixel pour pixel avec `plan.png`
+  (`plan.heightMap` dans `contexte.json`, section « Relief et hauteurs (3D) »).
 - `pieces-jointes/…` — les fichiers joints par l'utilisateur (carnet de
   détails en PDF, documents de référence), listés dans
   `contexte.json.attachments` avec leur identifiant `id`, leur chemin `file`
@@ -157,6 +160,159 @@ pastilles et ne crées que des fonds de détail) ou avec une détection.
   découpe explicitement ; ne supprime jamais de géométrie pour tenir dans une
   limite.
 
+## Relief et hauteurs (3D)
+
+Chaque annotation peut porter une géométrie verticale, en **mètres au-dessus
+du plan du fond** (le plan = 0) :
+
+- `offsetZ` — base de l'élément au-dessus du plan.
+- `height` — hauteur de l'élément (mur, acrotère, émergence) ou épaisseur
+  (dalle, pan de toiture). `0` = surface plate posée à `offsetZ`.
+- `offsetTop` / `offsetBottom` — décalages **par point** (`points[i]`, et
+  aussi `cuts[k].points[i]`), pour une surface ou un pied qui suivent une
+  pente.
+- Pour chaque sommet : `bas_i = offsetZ + offsetBottom_i` et
+  `haut_i = bas_i + height + offsetTop_i`.
+- `guideLines: [{"points": [A, B], "slopePct": 12}]` (POLYGON) — variante pour
+  une rampe à pente constante : la hauteur croît de A vers B de `slopePct` %
+  de la distance, le point le plus bas est rebasé à 0. Préfère `offsetTop`
+  par sommet dès que tu mesures les hauteurs.
+
+**Sans relief** (`plan.heightMap` absent de `contexte.json`) : n'invente
+aucune hauteur ; ne renseigne ces champs qu'à partir de cotes ou de légendes
+lisibles (par exemple « ht 2.50 »), sinon omets-les.
+
+**Avec relief** (`plan.heightMap` présent) : `hauteurs.png` a **exactement la
+taille de `plan.png`** — le pixel `(i, j)` de l'une est le pixel `(i, j)` de
+l'autre, les coordonnées normalisées sont identiques. Valeur d'un pixel :
+`v = R × 256 + G` ; `v = 0` = pas de surface (hors zone du scan) ; sinon
+`h = (v − 1) / 65534 × zMax` mètres au-dessus du plan (`zMax` dans
+`plan.heightMap`). `hauteurs-apercu.png` est le même relief en niveaux de
+gris (noir = 0, blanc = `zMax`) pour la lecture visuelle. Avec un
+environnement d'exécution :
+
+```python
+import numpy as np
+from PIL import Image
+a = np.asarray(Image.open("hauteurs.png").convert("RGB"), dtype=np.int64)
+v = a[..., 0] * 256 + a[..., 1]
+h = np.where(v == 0, np.nan, (v - 1) / 65534 * zMax)   # mètres, h[y, x]
+```
+
+Mesurer :
+
+- Hauteur d'un élément = **médiane** des pixels à l'intérieur de son contour
+  (jamais le maximum : un équipement ou un arbre fausserait la valeur).
+- Toiture : hauteur à chaque sommet = médiane d'un voisinage d'environ
+  3 × 3 cellules (`plan.heightMap.cellSizeM`, converti en pixels avec
+  `plan.pixelsPerCm`), pris 20 cm **à l'intérieur** du pan (jamais sur
+  l'arête, où l'acrotère ou le vide voisin polluent la mesure).
+- Émergence d'un objet posé sur une toiture = médiane de l'objet − médiane
+  de la toiture autour de lui.
+- Arrondis les hauteurs au centimètre.
+
+**Toiture en pente** : la surface d'un pan est plane → **un POLYGON par
+pan** (une toiture à deux pans = deux POLYGON qui partagent l'arête de
+faîtage ; une toiture à quatre pans = quatre POLYGON). Avec les hauteurs
+`z_i` mesurées aux sommets :
+
+- `height` = épaisseur du pan (`0.2` si inconnue, dis-le dans la note) ;
+- `offsetZ = min(z_i) − height` ;
+- `offsetTop_i = z_i − min(z_i)` sur chaque point (le sommet le plus bas
+  porte `0`, tu peux l'omettre).
+
+Les **ouvertures traversantes** (trémies, lanterneaux à déduire de la
+surface) vont dans `cuts` du pan ; leurs points suivent la pente par
+interpolation, sans `offsetTop`. Les **éléments qui émergent** (lanterneaux,
+édicules, gaines, cheminées, garde-corps, acrotères) sont des annotations
+**séparées** :
+
+- lanterneau / édicule → POLYGON avec `offsetZ` = hauteur de la toiture sous
+  l'objet et `height` = émergence ;
+- acrotère / mur / garde-corps → POLYLINE ou STRIP avec `offsetZ`, `height`,
+  et `offsetBottom_i` sur les points si le pied suit la pente
+  (`offsetBottom_i = z_toiture_i − offsetZ`).
+
+Un modèle par nature d'élément (`tpl_toiture_pan`, `tpl_lanterneau`,
+`tpl_acrotere`…), avec `height` par défaut sur le modèle ; les valeurs
+mesurées vont sur chaque annotation.
+
+Exemple : un pan incliné (bas à 6.10 m, haut à 7.30 m) percé d'une trémie,
+un lanterneau posé dessus (émergence 0.45 m) :
+
+```json
+{
+  "version": "1.0",
+  "coordinateSpace": "image",
+  "note": "Toiture 2 pans, hauteurs lues sur hauteurs.png, épaisseur supposée 0.2 m",
+  "image": { "width": 3000, "height": 2121, "widthMeters": 42.5 },
+  "annotationTemplates": [
+    {
+      "id": "tpl_toiture_pan",
+      "label": "Pan de toiture",
+      "type": "POLYGON",
+      "fillColor": "#8d6e63",
+      "fillOpacity": 0.4,
+      "strokeColor": "#5d4037",
+      "strokeWidth": 2,
+      "strokeWidthUnit": "PX",
+      "height": 0.2
+    },
+    {
+      "id": "tpl_lanterneau",
+      "label": "Lanterneau",
+      "type": "POLYGON",
+      "fillColor": "#4fc3f7",
+      "fillOpacity": 0.5,
+      "strokeColor": "#0288d1",
+      "strokeWidth": 2,
+      "strokeWidthUnit": "PX",
+      "height": 0.45
+    }
+  ],
+  "annotations": [
+    {
+      "id": "t1",
+      "type": "POLYGON",
+      "annotationTemplateId": "tpl_toiture_pan",
+      "closeLine": true,
+      "height": 0.2,
+      "offsetZ": 5.9,
+      "points": [
+        { "x": 0.2, "y": 0.3, "offsetTop": 1.2 },
+        { "x": 0.6, "y": 0.3, "offsetTop": 1.2 },
+        { "x": 0.6, "y": 0.55 },
+        { "x": 0.2, "y": 0.55 }
+      ],
+      "cuts": [
+        {
+          "points": [
+            { "x": 0.3, "y": 0.4 },
+            { "x": 0.34, "y": 0.4 },
+            { "x": 0.34, "y": 0.44 },
+            { "x": 0.3, "y": 0.44 }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "l1",
+      "type": "POLYGON",
+      "annotationTemplateId": "tpl_lanterneau",
+      "closeLine": true,
+      "height": 0.45,
+      "offsetZ": 6.7,
+      "points": [
+        { "x": 0.45, "y": 0.38 },
+        { "x": 0.49, "y": 0.38 },
+        { "x": 0.49, "y": 0.42 },
+        { "x": 0.45, "y": 0.42 }
+      ]
+    }
+  ]
+}
+```
+
 ## Raccordement des murs
 
 Un mur (POLYLINE ou STRIP) est dessiné comme une bande d'épaisseur `strokeWidth`
@@ -288,13 +444,37 @@ Exemple (une pastille, un fond) :
   "coordinateSpace": "image",
   "image": { "width": 3000, "height": 2121, "widthMeters": 42.5 },
   "annotationTemplates": [
-    { "id": "tpl_detail", "label": "Détail", "type": "DETAIL", "fillColor": "#e85426", "hiddenInLegend": true }
+    {
+      "id": "tpl_detail",
+      "label": "Détail",
+      "type": "DETAIL",
+      "fillColor": "#e85426",
+      "hiddenInLegend": true
+    }
   ],
   "baseMaps": [
-    { "id": "bm_A", "kind": "detail", "name": "Détail A — Acrotère", "detailRef": "A", "source": { "attachmentId": "k3J9…", "pageNumber": 3, "rotation": 0, "bboxInRatio": { "x1": 0.08, "y1": 0.12, "x2": 0.52, "y2": 0.61 } } }
+    {
+      "id": "bm_A",
+      "kind": "detail",
+      "name": "Détail A — Acrotère",
+      "detailRef": "A",
+      "source": {
+        "attachmentId": "k3J9…",
+        "pageNumber": 3,
+        "rotation": 0,
+        "bboxInRatio": { "x1": 0.08, "y1": 0.12, "x2": 0.52, "y2": 0.61 }
+      }
+    }
   ],
   "annotations": [
-    { "id": "d1", "type": "DETAIL", "annotationTemplateId": "tpl_detail", "point": { "x": 0.42, "y": 0.31 }, "arrowAngle": 135, "detailBaseMapId": "bm_A" }
+    {
+      "id": "d1",
+      "type": "DETAIL",
+      "annotationTemplateId": "tpl_detail",
+      "point": { "x": 0.42, "y": 0.31 },
+      "arrowAngle": 135,
+      "detailBaseMapId": "bm_A"
+    }
   ]
 }
 ```
@@ -309,7 +489,10 @@ contient que des fonds de détail, `annotationTemplates` et `annotations` sont
 des tableaux vides. `image.width` / `image.height`
 = `plan.image.width` / `plan.image.height` ; `image.widthMeters` =
 `plan.widthMeters`. Chaque `annotationTemplateId` doit exister dans
-`annotationTemplates`. Les `id` sont courts et uniques.
+`annotationTemplates`. Les `id` sont courts et uniques. Champs 3D autorisés
+sur les annotations (mètres au-dessus du plan, section « Relief et hauteurs
+(3D) ») : `offsetZ`, `height`, `offsetTop` / `offsetBottom` sur les points,
+`guideLines`.
 
 Exemple lisible (le vrai résultat est rendu sur une seule ligne). `w1` est un
 mur en L en un seul tracé (sommet à l'intersection des axes) ; `w2` est une
@@ -324,18 +507,113 @@ est un poteau de 20 × 85 cm tracé par l'axe de son grand côté :
   "note": "Page 1, 3 doutes marqués À vérifier",
   "image": { "width": 3000, "height": 2121, "widthMeters": 42.5 },
   "annotationTemplates": [
-    { "id": "tpl_wall", "label": "Mur", "type": "STRIP", "strokeColor": "#424242", "strokeWidth": 20, "strokeWidthUnit": "CM", "stripOrientation": 1 },
-    { "id": "tpl_partition", "label": "Cloison", "type": "POLYLINE", "strokeColor": "#1976d2", "strokeWidth": 10, "strokeWidthUnit": "CM" },
-    { "id": "tpl_column", "label": "Poteau", "type": "POLYLINE", "strokeColor": "#ab47bc", "strokeWidth": 20, "strokeWidthUnit": "CM" },
-    { "id": "tpl_room", "label": "Pièce", "type": "POLYGON", "fillColor": "#9E9E9E", "fillOpacity": 0.3, "strokeColor": "#424242", "strokeWidth": 2, "strokeWidthUnit": "PX" },
-    { "id": "tpl_cote", "label": "Cote", "type": "COTE", "strokeColor": "#000000", "strokeWidth": 1, "strokeWidthUnit": "PX", "unit": "CM", "decimals": 0, "showUnitLabel": true }
+    {
+      "id": "tpl_wall",
+      "label": "Mur",
+      "type": "STRIP",
+      "strokeColor": "#424242",
+      "strokeWidth": 20,
+      "strokeWidthUnit": "CM",
+      "stripOrientation": 1
+    },
+    {
+      "id": "tpl_partition",
+      "label": "Cloison",
+      "type": "POLYLINE",
+      "strokeColor": "#1976d2",
+      "strokeWidth": 10,
+      "strokeWidthUnit": "CM"
+    },
+    {
+      "id": "tpl_column",
+      "label": "Poteau",
+      "type": "POLYLINE",
+      "strokeColor": "#ab47bc",
+      "strokeWidth": 20,
+      "strokeWidthUnit": "CM"
+    },
+    {
+      "id": "tpl_room",
+      "label": "Pièce",
+      "type": "POLYGON",
+      "fillColor": "#9E9E9E",
+      "fillOpacity": 0.3,
+      "strokeColor": "#424242",
+      "strokeWidth": 2,
+      "strokeWidthUnit": "PX"
+    },
+    {
+      "id": "tpl_cote",
+      "label": "Cote",
+      "type": "COTE",
+      "strokeColor": "#000000",
+      "strokeWidth": 1,
+      "strokeWidthUnit": "PX",
+      "unit": "CM",
+      "decimals": 0,
+      "showUnitLabel": true
+    }
   ],
   "annotations": [
-    { "id": "w1", "type": "STRIP", "annotationTemplateId": "tpl_wall", "strokeWidth": 20, "strokeWidthUnit": "CM", "stripOrientation": 1, "points": [ { "x": 0.1, "y": 0.6 }, { "x": 0.1, "y": 0.2 }, { "x": 0.6, "y": 0.2 } ] },
-    { "id": "w2", "type": "POLYLINE", "annotationTemplateId": "tpl_partition", "strokeWidth": 10, "strokeWidthUnit": "CM", "points": [ { "x": 0.35, "y": 0.5 }, { "x": 0.35, "y": 0.2 } ] },
-    { "id": "p1", "type": "POLYLINE", "annotationTemplateId": "tpl_column", "strokeWidth": 20, "strokeWidthUnit": "CM", "points": [ { "x": 0.5, "y": 0.4 }, { "x": 0.5, "y": 0.43 } ] },
-    { "id": "r1", "type": "POLYGON", "annotationTemplateId": "tpl_room", "closeLine": true, "points": [ { "x": 0.1, "y": 0.2 }, { "x": 0.3, "y": 0.2 }, { "x": 0.3, "y": 0.5 }, { "x": 0.1, "y": 0.5 } ] },
-    { "id": "c1", "type": "COTE", "annotationTemplateId": "tpl_cote", "unit": "M", "decimals": 2, "showUnitLabel": true, "points": [ { "x": 0.1, "y": 0.58 }, { "x": 0.6, "y": 0.58 } ] }
+    {
+      "id": "w1",
+      "type": "STRIP",
+      "annotationTemplateId": "tpl_wall",
+      "strokeWidth": 20,
+      "strokeWidthUnit": "CM",
+      "stripOrientation": 1,
+      "points": [
+        { "x": 0.1, "y": 0.6 },
+        { "x": 0.1, "y": 0.2 },
+        { "x": 0.6, "y": 0.2 }
+      ]
+    },
+    {
+      "id": "w2",
+      "type": "POLYLINE",
+      "annotationTemplateId": "tpl_partition",
+      "strokeWidth": 10,
+      "strokeWidthUnit": "CM",
+      "points": [
+        { "x": 0.35, "y": 0.5 },
+        { "x": 0.35, "y": 0.2 }
+      ]
+    },
+    {
+      "id": "p1",
+      "type": "POLYLINE",
+      "annotationTemplateId": "tpl_column",
+      "strokeWidth": 20,
+      "strokeWidthUnit": "CM",
+      "points": [
+        { "x": 0.5, "y": 0.4 },
+        { "x": 0.5, "y": 0.43 }
+      ]
+    },
+    {
+      "id": "r1",
+      "type": "POLYGON",
+      "annotationTemplateId": "tpl_room",
+      "closeLine": true,
+      "points": [
+        { "x": 0.1, "y": 0.2 },
+        { "x": 0.3, "y": 0.2 },
+        { "x": 0.3, "y": 0.5 },
+        { "x": 0.1, "y": 0.5 }
+      ]
+    },
+    {
+      "id": "c1",
+      "type": "COTE",
+      "annotationTemplateId": "tpl_cote",
+      "unit": "M",
+      "decimals": 2,
+      "showUnitLabel": true,
+      "points": [
+        { "x": 0.1, "y": 0.58 },
+        { "x": 0.6, "y": 0.58 }
+      ]
+    }
   ]
 }
 ```

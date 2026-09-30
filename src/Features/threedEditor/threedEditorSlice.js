@@ -305,9 +305,9 @@ const threedEditorInitialState = {
   baseMapsGridMode: {
     active: false,
   },
-  // First-person walk mode (W in the 3D viewer). Camera-controls suspended:
+  // First-person walk mode (P in the 3D viewer). Camera-controls suspended:
   // pointer-locked mouse looks, arrow keys move on the selected baseMap,
-  // Space fires the concrete lance at the screen center.
+  // Space fires the current walk tool (lance / measure) at the screen center.
   walkMode: {
     active: false,
   },

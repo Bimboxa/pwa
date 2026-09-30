@@ -40,8 +40,10 @@ export default function useDeleteMesh3dPartsOnKeyboard() {
 
       const state = store.getState();
       if (!isThreedFamilyViewerKey(selectEffectiveViewerKey(state))) return;
-      // A tool that owns the keyboard (typed extrude value…) keeps Backspace.
+      // A tool that owns the keyboard (typed extrude value…) keeps Backspace;
+      // in walk mode Backspace / Delete clear the walk tool's traces.
       if (state.threedEditor.extrudeMode.active) return;
+      if (state.threedEditor.walkMode.active) return;
 
       const selectedItem = state.selection.selectedItems[0];
       const parts = getSelectedMesh3dParts(

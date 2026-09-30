@@ -91,6 +91,7 @@ import PopperMapListings from "Features/mapEditor/components/PopperMapListings";
 import PopperSubtractHelper from "Features/mapEditor/components/PopperSubtractHelper";
 import useSubtractPickHotkeysInThreedEditor from "../hooks/useSubtractPickHotkeysInThreedEditor";
 import ClippingToolbarThreed from "./ClippingToolbarThreed";
+import ButtonToggleWalkMode from "./ButtonToggleWalkMode";
 import ButtonZoomOutThreed from "./ButtonZoomOutThreed";
 import ButtonToggleThreedViewer from "Features/viewers/components/ButtonToggleThreedViewer";
 import BottomToolbarThreed from "Features/threedDrawing/components/BottomToolbarThreed";
@@ -2392,7 +2393,7 @@ export default function MainThreedEditor() {
           <Box
             sx={{
               display:
-                dessinPanelSlidedIn || viewerPanelSlidedIn
+                dessinPanelSlidedIn || viewerPanelSlidedIn || walkActive
                   ? "none"
                   : "contents",
             }}
@@ -2421,7 +2422,10 @@ export default function MainThreedEditor() {
           rendererIsReady={rendererIsReady}
         />
       )}
-      {isThreedViewer && !captureFramingActive && <TopBaseMapChipsThreed />}
+      {/* Walk mode: the first-person HUD owns the screen — no base map chips. */}
+      {isThreedViewer && !captureFramingActive && !walkActive && (
+        <TopBaseMapChipsThreed />
+      )}
       {isThreedViewer && rendererIsReady && (
         <BaseMapsGrid3dController tooltipApiRef={tooltipApiRef} />
       )}
@@ -2445,10 +2449,11 @@ export default function MainThreedEditor() {
         </Box>
       )}
       {/* No 3D toolbars in the POV viewer nor under the capture tool — their
-          save bars sit there. */}
+          save bars sit there — nor in walk mode (its HUD sits there). */}
       {isThreedViewer &&
         !isPovViewer &&
         !captureToolActive &&
+        !walkActive &&
         (clippingEditing ? (
           <ClippingToolbarThreed />
         ) : extrudeActive ? (
@@ -2468,7 +2473,7 @@ export default function MainThreedEditor() {
         ) : drawingDraftToolbarShown ? null : (
           <BottomToolbarThreed />
         ))}
-      {/* Bottom-right group (zoom out + 2D/3D toggle) sits outside the swap
+      {/* Bottom-right group (walk toggle + zoom out + 2D/3D toggle) sits outside the swap
           of bottom toolbars so it stays available in every module (Maillage
           included). Hidden while a capture/POV framing owns the screen. */}
       {isThreedViewer && !captureFramingActive && (
@@ -2484,6 +2489,7 @@ export default function MainThreedEditor() {
             transition: "right 0.2s ease",
           }}
         >
+          <ButtonToggleWalkMode />
           <ButtonZoomOutThreed />
           <ButtonToggleThreedViewer />
         </Box>

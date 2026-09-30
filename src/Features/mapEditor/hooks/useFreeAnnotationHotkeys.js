@@ -1,7 +1,12 @@
 import { useEffect } from "react";
 import { useDispatch, useSelector, useStore } from "react-redux";
 
-import { selectSelectedModuleKey } from "Features/viewers/utils/effectiveViewerKey";
+import {
+  selectEffectiveViewerKey,
+  selectSelectedModuleKey,
+} from "Features/viewers/utils/effectiveViewerKey";
+import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
+import { WALK_MODE_TOGGLE_KEY } from "Features/threedEditor/utils/walkModeToggle";
 import { selectSubtractPickAnnotationId } from "../utils/subtractPickMode";
 
 import useFreeAnnotationTemplates from "./useFreeAnnotationTemplates";
@@ -23,7 +28,8 @@ const isEditableTarget = (el) => {
 
 // Global shortcuts to START a free draw (letters from freeAnnotationShortcuts):
 //   - "L" → free line (POLYLINE)
-//   - "S" → free surface (POLYGON)
+//   - "P" → free surface (POLYGON) — 2D editor only: in the 3D editor P
+//     toggles the first-person walk mode (walkModeToggle)
 //
 // These fire UPSTREAM — only when no draw is active (!enabledDrawingMode). The
 // in-draw tool-selection letters in useDrawingToolHotkeys only attach while a
@@ -51,10 +57,21 @@ export default function useFreeAnnotationHotkeys() {
       if (s.mapEditor.pasteClipboard || selectSubtractPickAnnotationId(s))
         return;
 
-      // Walk mode owns the keyboard (P/M tune the spray nozzle there) — and
-      // being registered later on the same capture phase, its
+      // Walk mode owns the keyboard (Q/S/Z/W/R/O/B held or pressed there) —
+      // and being registered later on the same capture phase, its
       // stopImmediatePropagation cannot pre-empt this earlier listener.
       if (s.threedEditor.walkMode.active) return;
+
+      const key = e.key.toLowerCase();
+
+      // In the 3D editor P belongs to the walk mode toggle (useWalkMode,
+      // also a later capture listener): the free surface yields there, the
+      // free line (L) keeps working in both editors.
+      if (
+        key === WALK_MODE_TOGGLE_KEY &&
+        isThreedFamilyViewerKey(selectEffectiveViewerKey(s))
+      )
+        return;
 
       // Free-draw letters belong to the Dessin module only ("MAP" in the
       // left band, whichever of its 2D/3D editors is displayed) — in the
@@ -79,7 +96,6 @@ export default function useFreeAnnotationHotkeys() {
       if (s.leftPanel.leftPanelDocked && s.panelDrawing.detailTemplateId)
         return;
 
-      const key = e.key.toLowerCase();
       let template = null;
       if (key === getFreeAnnotationShortcut(lineTemplate)?.toLowerCase())
         template = lineTemplate;
