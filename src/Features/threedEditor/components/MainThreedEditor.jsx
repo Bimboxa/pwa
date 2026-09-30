@@ -121,8 +121,12 @@ import ExtrudeOverlayThreed from "Features/threedExtrude/components/ExtrudeOverl
 import useExtrudePointerHandlers from "Features/threedExtrude/hooks/useExtrudePointerHandlers";
 import useDeleteMesh3dPartsOnKeyboard from "Features/annotationMesh3d/hooks/useDeleteMesh3dPartsOnKeyboard";
 import Mesh3dPartsHighlightThreed from "Features/annotationMesh3d/components/Mesh3dPartsHighlightThreed";
+import {
+  MESH3D_EDGE_HOVER_WIDTH_PX,
+  MESH3D_PART_HOVER_COLOR,
+} from "Features/annotationMesh3d/constants/mesh3dPartColors";
 import pickMesh3dEdge, {
-  buildMesh3dEdgeHelper,
+  buildMesh3dEdgeLines,
 } from "Features/annotationMesh3d/services/pickMesh3dEdge";
 import selectMesh3dPart, {
   selectMesh3dFaceWithEdges,
@@ -1912,10 +1916,14 @@ export default function MainThreedEditor() {
     if (edgeHoverKey !== meshEdgeHoverRef.current.key) {
       clearMeshEdgeHover();
       if (meshPart?.edge) {
-        const helper = buildMesh3dEdgeHelper(
-          meshPart.edge.pa,
-          meshPart.edge.pb,
-          { color: 0x00ff00, domElement }
+        const { pa, pb } = meshPart.edge;
+        const helper = buildMesh3dEdgeLines(
+          [pa.x, pa.y, pa.z, pb.x, pb.y, pb.z],
+          {
+            color: MESH3D_PART_HOVER_COLOR,
+            linewidth: MESH3D_EDGE_HOVER_WIDTH_PX,
+            domElement,
+          }
         );
         scene.add(helper);
         meshEdgeHoverRef.current = { helper, key: edgeHoverKey };

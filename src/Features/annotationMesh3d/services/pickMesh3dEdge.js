@@ -119,24 +119,33 @@ export default function pickMesh3dEdge(
   return null;
 }
 
-// Thick screen-space line over one mesh edge (world end points) — the hover
-// feedback of pickMesh3dEdge. Invisible to raycasts and to the snap index.
-// The caller adds it to the scene and disposes geometry + material.
-export function buildMesh3dEdgeHelper(pa, pb, { color, domElement }) {
+// Thick screen-space lines over mesh edges — the hover / selection feedback.
+// Depth-tested: an edge hidden by the surrounding geometry stays hidden. The
+// polygon offset pulls the line in front of the faces it lies on (it would
+// z-fight with them otherwise). Invisible to raycasts and to the snap index.
+// The caller adds the line to the scene and disposes geometry + material.
+//
+// positions: flat world xyz pairs [ax, ay, az, bx, by, bz, …].
+export function buildMesh3dEdgeLines(
+  positions,
+  { color, linewidth, domElement }
+) {
   const geometry = new LineSegmentsGeometry();
-  geometry.setPositions([pa.x, pa.y, pa.z, pb.x, pb.y, pb.z]);
+  geometry.setPositions(positions);
   const line = new LineSegments2(
     geometry,
     new LineMaterial({
       color,
-      linewidth: 5,
+      linewidth,
       resolution: new Vector2(
         domElement?.clientWidth || 1,
         domElement?.clientHeight || 1
       ),
       worldUnits: false,
-      transparent: true,
-      depthTest: false,
+      depthTest: true,
+      polygonOffset: true,
+      polygonOffsetFactor: -6,
+      polygonOffsetUnits: -6,
     })
   );
   line.renderOrder = 999;
