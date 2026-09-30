@@ -21,6 +21,19 @@ export function isBaseMapImageOnIn3d({
   return (threedEditor.visibleBaseMapIdsIn3d ?? []).includes(baseMapId);
 }
 
+// Annotations of the base map displayed in the 3D viewer (badge of the chip).
+export function isBaseMapAnnotationsOnIn3d({
+  threedEditor,
+  mainBaseMapId,
+  baseMapId,
+}) {
+  if (baseMapId === mainBaseMapId) {
+    return !threedEditor.hideMainBaseMapAnnotationsIn3d;
+  }
+  const mode = threedEditor.annotationsModeByBaseMapIdIn3d?.[baseMapId];
+  return Boolean(mode) && mode !== "NONE";
+}
+
 export function getToggleBaseMapImageIn3dAction({ mainBaseMapId, baseMapId }) {
   return baseMapId === mainBaseMapId
     ? toggleMainBaseMapImageIn3d()

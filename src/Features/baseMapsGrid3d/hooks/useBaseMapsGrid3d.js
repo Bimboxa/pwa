@@ -1,10 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector, useStore } from "react-redux";
 
-import {
-  setBaseMapsGridAnchorId,
-  setBaseMapsGridModeActive,
-} from "Features/threedEditor/threedEditorSlice";
+import { setBaseMapsGridModeActive } from "Features/threedEditor/threedEditorSlice";
 
 import { selectCaptureFramingActive } from "Features/viewers/utils/effectiveViewerKey";
 
@@ -26,7 +23,7 @@ function getManager() {
 //     from the 2D grid's localStorage layout each time the grid opens); the
 //     camera goes top-down over the table. Inactive: they fly back, the
 //     camera is left where it is.
-//   - anchor / layout: a click on a sheet lays the others around it.
+//     The main base map is the anchor of the table: it does not move.
 //   - image eyes (same state as the chips' layer icon) → image, label and
 //     eye button of each sheet.
 // Mounted once (BaseMapsGrid3dController) while a 3D editor is displayed.
@@ -37,10 +34,6 @@ export default function useBaseMapsGrid3d() {
   // data
 
   const active = useSelector((s) => s.threedEditor.baseMapsGridMode.active);
-  const anchorBaseMapId = useSelector(
-    (s) => s.threedEditor.baseMapsGridMode.anchorBaseMapId
-  );
-  const layout = useSelector((s) => s.threedEditor.baseMapsGridMode.layout);
   const projectId = useSelector((s) => s.projects.selectedProjectId);
   const captureFramingActive = useSelector(selectCaptureFramingActive);
 
@@ -126,11 +119,9 @@ export default function useBaseMapsGrid3d() {
       listingId,
       positions: readBaseMapsGridPositions(projectId),
     });
-    const gridState = store.getState().threedEditor.baseMapsGridMode;
     const result = manager.open({
       sheets,
-      anchorBaseMapId: gridState.anchorBaseMapId ?? mainBaseMapId,
-      layout: gridState.layout,
+      anchorBaseMapId: mainBaseMapId,
       imageOnById: getImageOnById(sheets.map((s) => s.id)),
       hideBaseMaps: store.getState().threedEditor.hideBaseMaps,
     });
@@ -138,9 +129,6 @@ export default function useBaseMapsGrid3d() {
       // nothing to lay on the table
       dispatch(setBaseMapsGridModeActive(false));
       return;
-    }
-    if (gridState.anchorBaseMapId !== manager.anchorId) {
-      dispatch(setBaseMapsGridAnchorId(manager.anchorId));
     }
 
     if (!cameraFittedRef.current) {
@@ -158,19 +146,7 @@ export default function useBaseMapsGrid3d() {
           if (manager.isActive()) controlsManager.fitToBox3(box);
         });
     }
-    // anchor / layout changes are handled by the effect below
   }, [active, sheetsKey, listingId, projectId, sceneEpoch]);
-
-  // effects - anchor / layout (click on a sheet)
-
-  useEffect(() => {
-    const manager = getManager();
-    if (!active || !manager?.isActive() || !anchorBaseMapId) return;
-    if (manager.anchorId === anchorBaseMapId && manager.layout === layout) {
-      return;
-    }
-    manager.setAnchor(anchorBaseMapId, layout);
-  }, [active, anchorBaseMapId, layout]);
 
   // effects - image eyes → image, label and eye button of the sheets
 

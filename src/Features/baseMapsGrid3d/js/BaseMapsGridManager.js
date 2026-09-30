@@ -1,4 +1,4 @@
-import { Box3, Euler, Quaternion, Vector2, Vector3 } from "three";
+import { Box3, Euler, Matrix4, Quaternion, Vector2, Vector3 } from "three";
 import { LineMaterial } from "three/examples/jsm/lines/LineMaterial.js";
 
 import { BASE_MAP_ROTATION_ORDER } from "Features/baseMaps/js/getBaseMapTransform";
@@ -7,10 +7,7 @@ import { easeInOutCubic } from "Features/pov/utils/getPovFlightPose";
 import computeBaseMapsGrid3dPoses, {
   getSheetLocalCorners,
 } from "../utils/computeBaseMapsGrid3dPoses";
-import getAroundSheetsLayout from "../utils/getAroundSheetsLayout";
 import createSheetDecorations from "./createSheetDecorations";
-
-export const BASE_MAPS_GRID_3D_LAYOUT = { GRID: "GRID", AROUND: "AROUND" };
 
 const FLIGHT_DURATION_MS = 600;
 const OUTLINE_IDLE_COLOR = 0xbdbdbd;
@@ -20,6 +17,7 @@ const OUTLINE_HOVER_WIDTH = 2;
 
 const _quaternion = new Quaternion();
 const _euler = new Euler();
+const _unitScale = new Vector3(1, 1, 1);
 
 function readPose(group) {
   return {
@@ -59,11 +57,12 @@ export default class BaseMapsGridManager {
     this.sheetsById = new Map();
     this.active = false;
     this.anchorId = null;
-    this.layout = BASE_MAPS_GRID_3D_LAYOUT.GRID;
     // metres per paper point, fixed for the whole session (see open)
     this.K = null;
     this.yaw = 0;
     this.hoveredId = null;
+    // closing flight in progress (the sheets are still registered)
+    this.closing = false;
     // global "Masquer les fonds de plan" switch (threedEditor.hideBaseMaps)
     this.hideBaseMaps = false;
 
@@ -99,13 +98,13 @@ export default class BaseMapsGridManager {
   open({
     sheets,
     anchorBaseMapId,
-    layout = BASE_MAPS_GRID_3D_LAYOUT.GRID,
     imageOnById = {},
     hideBaseMaps = false,
     animate = true,
   }) {
     const imagesManager = this.sceneManager.imagesManager;
     this._cancelFlight();
+    this.closing = false;
 
     const previous = this.sheetsById;
     const wasOpen = this.active;
@@ -141,7 +140,6 @@ export default class BaseMapsGridManager {
     }
 
     this.active = true;
-    this.layout = layout;
     this.hideBaseMaps = hideBaseMaps;
     this.anchorId = this.sheetsById.has(anchorBaseMapId)
       ? anchorBaseMapId
@@ -183,23 +181,44 @@ export default class BaseMapsGridManager {
     return { box: result.box, yaw: this.yaw };
   }
 
-  // The sheets are laid again around `baseMapId`, which does not move.
-  // layout GRID = the 2D grid arrangement, AROUND = the anchor in the middle.
-  setAnchor(baseMapId, layout = this.layout) {
-    if (!this.active || !this.sheetsById.has(baseMapId)) return null;
-    const entry = this.sheetsById.get(baseMapId);
-    this.anchorId = baseMapId;
-    this.layout = layout;
-    // The target pose, not the live one: a click during a flight must not
-    // freeze the anchor mid-air.
-    const anchorRef = {
-      position: (entry.gridPose?.position ?? entry.group.position).clone(),
-      yaw: this.yaw,
-    };
-    const result = this._computePoses({ anchorRef, K: this.K });
-    if (!result) return null;
-    this._fly({ toGrid: true });
-    return { box: result.box, yaw: this.yaw };
+  // Leaves the grid AROUND one sheet: that sheet stays exactly where it is
+  // on screen while the others fly back to their real poses around it.
+  // The whole table and the camera are first moved, at once, by the
+  // similarity that takes the sheet from where it lies to its real pose —
+  // nothing changes on screen — then the regular closing flight runs (the
+  // kept sheet is already home).
+  closeAround(baseMapId) {
+    const kept = this.sheetsById.get(baseMapId);
+    if (!kept || !kept.group.parent || this.closing) {
+      this.close();
+      return;
+    }
+    this._cancelFlight();
+
+    const { position, euler } = kept.homePose;
+    _quaternion.setFromEuler(
+      _euler.set(euler.x, euler.y, euler.z, BASE_MAP_ROTATION_ORDER)
+    );
+    const home = new Matrix4().compose(position, _quaternion, _unitScale);
+    kept.group.updateMatrix();
+    // uniform scale of the similarity (the sheet goes back to scale 1)
+    const ratio = 1 / (kept.group.scale.x || 1);
+    const transform = home.multiply(kept.group.matrix.clone().invert());
+
+    this.sheetsById.forEach((entry) => {
+      const group = entry.group;
+      if (!group.parent) return;
+      group.updateMatrix();
+      group.matrix
+        .clone()
+        .premultiply(transform)
+        .decompose(group.position, group.quaternion, group.scale);
+    });
+    // exact landing of the kept sheet (no decomposition drift)
+    applyPose(kept.group, { ...kept.homePose, scale: 1 });
+
+    this._moveCamera(transform, ratio);
+    this.close();
   }
 
   // Back to the real poses. The decorations and the texture-less groups are
@@ -209,6 +228,9 @@ export default class BaseMapsGridManager {
       this.active = false;
       return;
     }
+    // already flying home (closeAround, then the redux close)
+    if (this.closing && !instant) return;
+    this.closing = true;
     this.active = false;
     this.hoveredId = null;
     this.sheetsById.forEach((entry) => entry.decorations?.setHovered(false));
@@ -278,27 +300,29 @@ export default class BaseMapsGridManager {
     this.sheetsById = new Map();
     const wasActive = this.active;
     this.active = false;
+    this.closing = false;
     this.hoveredId = null;
     if (wasActive) this._listeners.forEach((listener) => listener());
   }
 
   // picking
 
-  // Sheet under the pointer: { kind: "eye" | "sheet", baseMapId } or null.
-  // The raycaster must be set from the camera (sprites need it). No
+  // What lies under the pointer: { kind: "eye" | "nav" | "sheet", baseMapId }
+  // or null. The raycaster must be set from the camera (sprites need it). No
   // visibility filter on purpose: the hit planes are not rendered.
   pick(raycaster) {
     if (!this.active) return null;
-    const eyes = [];
+    const buttons = [];
     const planes = [];
     this.sheetsById.forEach((entry) => {
       if (!entry.decorations) return;
-      eyes.push(entry.decorations.eyeSprite);
+      buttons.push(entry.decorations.eyeSprite, entry.decorations.navSprite);
       planes.push(entry.decorations.hitPlane);
     });
-    const eyeHit = raycaster.intersectObjects(eyes, false)[0];
-    if (eyeHit) {
-      return { kind: "eye", baseMapId: eyeHit.object.userData.baseMapId };
+    const buttonHit = raycaster.intersectObjects(buttons, false)[0];
+    if (buttonHit) {
+      const { baseMapId, gridNavButton } = buttonHit.object.userData;
+      return { kind: gridNavButton ? "nav" : "eye", baseMapId };
     }
     const planeHit = raycaster.intersectObjects(planes, false)[0];
     if (planeHit) {
@@ -347,6 +371,7 @@ export default class BaseMapsGridManager {
     this.sheetsById.forEach((entry) => entry.decorations?.dispose());
     this.sheetsById = new Map();
     this.active = false;
+    this.closing = false;
     this._materials?.idle.dispose();
     this._materials?.hover.dispose();
     this._materials = null;
@@ -354,6 +379,31 @@ export default class BaseMapsGridManager {
   }
 
   // internals
+
+  // Moves the camera by a similarity (rigid transform + uniform scale), at
+  // once: what is on screen does not change when the scene moved the same.
+  _moveCamera(transform, ratio) {
+    const controlsManager = this.sceneManager.controlsManager;
+    const controls = controlsManager?.cameraControls;
+    if (!controls) return;
+    const position = controls.getPosition(new Vector3(), false);
+    const target = controls.getTarget(new Vector3(), false);
+    const focalOffset = controls.getFocalOffset(new Vector3(), false);
+    position.applyMatrix4(transform);
+    target.applyMatrix4(transform);
+    focalOffset.multiplyScalar(ratio);
+    controls.setLookAt(
+      position.x,
+      position.y,
+      position.z,
+      target.x,
+      target.y,
+      target.z,
+      false
+    );
+    controls.setFocalOffset(focalOffset.x, focalOffset.y, focalOffset.z, false);
+    controlsManager.syncCameraNow?.();
+  }
 
   _applyImageVisibility(entry) {
     const meshWrap = entry.group.userData.meshWrap;
@@ -409,27 +459,10 @@ export default class BaseMapsGridManager {
     return this._materials;
   }
 
-  // Grid poses of every sheet for the current anchor / layout. Writes
+  // Grid poses of every sheet for the current anchor. Writes
   // entry.gridPose and the session frame (K, yaw).
   _computePoses({ anchorRef, K }) {
-    let sheets = [...this.sheetsById.values()].map((entry) => entry.sheet);
-
-    if (this.layout === BASE_MAPS_GRID_3D_LAYOUT.AROUND) {
-      const positions = getAroundSheetsLayout({
-        sheets: sheets.map((sheet) => ({
-          id: sheet.id,
-          x: sheet.positionPt.x,
-          y: sheet.positionPt.y,
-          width: sheet.pagePt.width,
-          height: sheet.pagePt.height,
-        })),
-        anchorId: this.anchorId,
-      });
-      sheets = sheets.map((sheet) => ({
-        ...sheet,
-        positionPt: positions[sheet.id] ?? sheet.positionPt,
-      }));
-    }
+    const sheets = [...this.sheetsById.values()].map((entry) => entry.sheet);
 
     const result = computeBaseMapsGrid3dPoses({
       sheets,
@@ -562,6 +595,7 @@ export default class BaseMapsGridManager {
     entries.forEach((entry, id) => this._releaseEntry(id, entry));
     this.K = null;
     this.anchorId = null;
+    this.closing = false;
     this.sceneManager.renderScene();
   }
 }

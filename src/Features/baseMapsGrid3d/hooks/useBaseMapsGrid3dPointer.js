@@ -2,15 +2,16 @@ import { useEffect } from "react";
 import { useDispatch, useSelector, useStore } from "react-redux";
 import { Raycaster, Vector2 } from "three";
 
-import {
-  focusBaseMapsGridSheet,
-  setBaseMapsGridModeActive,
-} from "Features/threedEditor/threedEditorSlice";
+import { setBaseMapsGridModeActive } from "Features/threedEditor/threedEditorSlice";
 
 import useSelectMainBaseMap from "Features/threedEditor/hooks/useSelectMainBaseMap";
 
 import { getActiveThreedEditor } from "Features/threedEditor/services/threedEditorRegistry";
-import { getToggleBaseMapImageIn3dAction } from "../utils/baseMapImageEyeIn3d";
+import {
+  getToggleBaseMapImageIn3dAction,
+  isBaseMapAnnotationsOnIn3d,
+  isBaseMapImageOnIn3d,
+} from "../utils/baseMapImageEyeIn3d";
 
 // Mirrors useDimensionPointerHandlers: past this distance a press-release is
 // a camera drag, not a click.
@@ -20,14 +21,25 @@ const TOOLTIP_OFFSET_PX = 15;
 // Pointer of the 3D base maps grid (the regular hover / click / double-click
 // handlers of MainThreedEditor bail while it is open):
 //   - hover: orange outline around the sheet + its name in the tooltip
-//   - click on a sheet: the others are laid around it (camera untouched)
-//   - click on the eye button: shows / hides the base map image (same
-//     action as the layer icon of the base map chips)
+//   - click on the eye button (bottom-left): shows / hides the base map image
+//     (same action as the layer icon of the base map chips)
+//   - click on the navigation button (bottom-right): leaves the grid around
+//     this sheet — it stays where it is on screen, the other base maps fly
+//     back to their real poses around it
 //   - double-click on a sheet: closes the grid and opens that base map
-// The camera controls keep working (orbit / pan / zoom over the table).
+// A plain click on a sheet does nothing. The camera controls keep working
+// (orbit / pan / zoom over the table).
 export default function useBaseMapsGrid3dPointer({ tooltipApiRef }) {
   const dispatch = useDispatch();
   const store = useStore();
+
+  // strings
+
+  const showImageS = "Afficher l'image dans la vue 3D";
+  const hideImageS = "Masquer l'image dans la vue 3D";
+  const leaveAroundS = "Quitter la grille sur ce fond de plan";
+
+  // data
 
   const active = useSelector((s) => s.threedEditor.baseMapsGridMode.active);
   const selectMainBaseMap = useSelectMainBaseMap();
@@ -79,10 +91,22 @@ export default function useBaseMapsGrid3dPointer({ tooltipApiRef }) {
       }
       manager.setHovered(hit.baseMapId);
       dom.style.cursor = "pointer";
-      const name = manager.getSheetName(hit.baseMapId);
-      if (name) {
+      let text = manager.getSheetName(hit.baseMapId);
+      if (hit.kind === "nav") {
+        text = leaveAroundS;
+      } else if (hit.kind === "eye") {
+        const state = store.getState();
+        text = isBaseMapImageOnIn3d({
+          threedEditor: state.threedEditor,
+          mainBaseMapId: state.mapEditor.selectedBaseMapId,
+          baseMapId: hit.baseMapId,
+        })
+          ? hideImageS
+          : showImageS;
+      }
+      if (text) {
         tooltipApi?.setText(
-          name,
+          text,
           e.clientX - hit.rect.left + TOOLTIP_OFFSET_PX,
           e.clientY - hit.rect.top + TOOLTIP_OFFSET_PX
         );
@@ -129,7 +153,22 @@ export default function useBaseMapsGrid3dPointer({ tooltipApiRef }) {
         );
         return;
       }
-      dispatch(focusBaseMapsGridSheet(hit.baseMapId));
+      if (hit.kind === "nav") {
+        const state = store.getState();
+        const args = {
+          threedEditor: state.threedEditor,
+          mainBaseMapId: state.mapEditor.selectedBaseMapId,
+          baseMapId: hit.baseMapId,
+        };
+        // A sheet showing nothing would vanish once out of the grid: its
+        // image is turned on.
+        if (!isBaseMapImageOnIn3d(args) && !isBaseMapAnnotationsOnIn3d(args)) {
+          dispatch(getToggleBaseMapImageIn3dAction(args));
+        }
+        clearHover();
+        manager.closeAround(hit.baseMapId);
+        dispatch(setBaseMapsGridModeActive(false));
+      }
     }
 
     function onDoubleClick(e) {

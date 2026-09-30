@@ -11,9 +11,10 @@ import sizeSpriteInCssPx from "Features/threedAnnotationLabels/services/sizeSpri
 // Round icon button drawn in the 3D scene: white disc + a Material icon,
 // constant on-screen size (CSS px), whatever the scale of its parent group.
 //
-// The icons are the 24×24 path data of `@mui/icons-material` (Visibility /
-// VisibilityOff), drawn with Path2D — synchronous, no SVG image round trip.
+// The icons are the 24×24 path data of `@mui/icons-material` (Visibility,
+// VisibilityOff, NearMe), drawn with Path2D — synchronous, no SVG image round trip.
 export const ICON_PATHS = {
+  NEAR_ME: "M21 3 3 10.53v.98l6.84 2.65L12.48 21h.98z",
   VISIBILITY:
     "M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5M12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5m0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3",
   VISIBILITY_OFF:

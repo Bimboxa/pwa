@@ -6,8 +6,6 @@ import getInitScopeVisibility from "Features/init/services/getInitScopeVisibilit
 // calls it when it arms, the grid poses being incompatible with them.
 function closeBaseMapsGrid(state) {
   state.baseMapsGridMode.active = false;
-  state.baseMapsGridMode.anchorBaseMapId = null;
-  state.baseMapsGridMode.layout = "GRID";
 }
 
 const threedEditorInitialState = {
@@ -280,11 +278,6 @@ const threedEditorInitialState = {
   // other 3D tool modes.
   baseMapsGridMode: {
     active: false,
-    // Sheet the grid is laid around: it does not move (null = main base map).
-    anchorBaseMapId: null,
-    // "GRID": same arrangement as the 2D grid. "AROUND": the anchor in the
-    // middle, the other sheets in the cells around it (click on a sheet).
-    layout: "GRID",
   },
   // First-person walk mode (W in the 3D viewer). Camera-controls suspended:
   // pointer-locked mouse looks, arrow keys move on the selected baseMap,
@@ -712,11 +705,7 @@ export const threedEditorSlice = createSlice({
     setBaseMapsGridModeActive: (state, action) => {
       const active = !!action.payload;
       state.baseMapsGridMode.active = active;
-      state.baseMapsGridMode.layout = "GRID";
-      if (!active) {
-        state.baseMapsGridMode.anchorBaseMapId = null;
-        return;
-      }
+      if (!active) return;
       // Mutually exclusive with every other 3D tool mode.
       state.drawingMode.active = false;
       state.drawingMode.inProgressPolyline = [];
@@ -742,22 +731,6 @@ export const threedEditorSlice = createSlice({
       state.rotateAnnotationMode.referenceSet = false;
       state.rotateAnnotationMode.angleBuffer = "";
       state.clippingPlane.editing = false;
-    },
-    setBaseMapsGridAnchorId: (state, action) => {
-      state.baseMapsGridMode.anchorBaseMapId = action.payload ?? null;
-    },
-    // Click on a sheet: the others are laid around it (it does not move).
-    // Click on the current anchor again: back to the 2D grid arrangement.
-    focusBaseMapsGridSheet: (state, action) => {
-      const id = action.payload ?? null;
-      if (!id) return;
-      const grid = state.baseMapsGridMode;
-      if (grid.anchorBaseMapId === id) {
-        grid.layout = grid.layout === "AROUND" ? "GRID" : "AROUND";
-      } else {
-        grid.anchorBaseMapId = id;
-        grid.layout = "AROUND";
-      }
     },
     setMoveBaseMapModeActive: (state, action) => {
       state.moveBaseMapMode.active = !!action.payload;
@@ -1053,8 +1026,6 @@ export const {
   setExtrudeTargetAnnotationId,
   setWalkModeActive,
   setBaseMapsGridModeActive,
-  setBaseMapsGridAnchorId,
-  focusBaseMapsGridSheet,
   setMoveBaseMapModeActive,
   setMoveBaseMapCarriedId,
   setRotateBaseMapModeActive,

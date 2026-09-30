@@ -23,6 +23,8 @@ import { getSheetLocalCorners } from "../utils/computeBaseMapsGrid3dPoses";
 //   - label: base map name in the middle, shown while the image is hidden
 //   - eye: round button at the bottom-left, the image eye of the base map
 //     (same state as the layer icon of the base map chips)
+//   - nav: round button at the bottom-right, leaves the grid around this
+//     sheet (it stays where it is on screen)
 // Everything is tagged `userData.isGridPlaceholder` (ignored by the export,
 // the snap index and the clipping).
 
@@ -31,9 +33,9 @@ const LABEL_COLOR = "#424242";
 // label box, as shares of the sheet size
 const LABEL_MAX_WIDTH_RATIO = 0.7;
 const LABEL_MAX_HEIGHT_RATIO = 0.09;
-// eye button inset from the bottom-left corner, share of the smaller side
-const EYE_INSET_RATIO = 0.06;
-const EYE_CSS_SIZE = 28;
+// buttons inset from the bottom corners, share of the smaller side
+const BUTTON_INSET_RATIO = 0.06;
+const BUTTON_CSS_SIZE = 28;
 
 function createLabelSprite(text) {
   const font = `600 ${LABEL_FONT_PX}px sans-serif`;
@@ -156,19 +158,29 @@ export default function createSheetDecorations({
   // eye button
   const eye = createIconSprite({
     iconPath: imageOn ? ICON_PATHS.VISIBILITY : ICON_PATHS.VISIBILITY_OFF,
-    cssSize: EYE_CSS_SIZE,
+    cssSize: BUTTON_CSS_SIZE,
   });
-  const inset = Math.min(width, height) * EYE_INSET_RATIO;
+  const inset = Math.min(width, height) * BUTTON_INSET_RATIO;
   eye.sprite.position.set(bottomLeft.x + inset, bottomLeft.y + inset, 0);
   eye.sprite.renderOrder = 1004;
   eye.sprite.userData = { ...userData, gridEyeButton: true };
 
-  const objects = [outline, hitPlane, label.sprite, eye.sprite];
+  // navigation button
+  const nav = createIconSprite({
+    iconPath: ICON_PATHS.NEAR_ME,
+    cssSize: BUTTON_CSS_SIZE,
+  });
+  nav.sprite.position.set(topRight.x - inset, bottomLeft.y + inset, 0);
+  nav.sprite.renderOrder = 1004;
+  nav.sprite.userData = { ...userData, gridNavButton: true };
+
+  const objects = [outline, hitPlane, label.sprite, eye.sprite, nav.sprite];
 
   return {
     objects,
     hitPlane,
     eyeSprite: eye.sprite,
+    navSprite: nav.sprite,
     setHovered: (hovered) => {
       outline.material = hovered ? materials.hover : materials.idle;
     },
@@ -183,6 +195,7 @@ export default function createSheetDecorations({
       hitMaterial.dispose();
       label.dispose();
       eye.dispose();
+      nav.dispose();
     },
   };
 }
