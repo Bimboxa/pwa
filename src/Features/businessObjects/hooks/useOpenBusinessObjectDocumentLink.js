@@ -2,22 +2,19 @@ import { useDispatch } from "react-redux";
 
 import { setActiveBusinessObjectId } from "../businessObjectsSlice";
 import { setSelectedItem } from "Features/selection/selectionSlice";
-import {
-  openResourceAtPage,
-  setSelectedResourceId,
-} from "Features/resources/resourcesSlice";
-import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 import { setToaster } from "Features/layout/layoutSlice";
 
 import resolveResourceOfRelService from "Features/resources/services/resolveResourceOfRelService";
-import isWholeResourceRel from "../utils/isWholeResourceRel";
+import useOpenResourceRel from "Features/pdfEditor/hooks/useOpenResourceRel";
 
-// Opens the RESOURCES panel on the document, page and highlighted zone of a
-// db.relsBusinessObjectResource row (a whole-resource link just opens the
-// resource: no page target). The business object is selected first: the
-// viewer only shows the highlights of the selected object.
+// Opens the document of a db.relsBusinessObjectResource row: a PDF in the
+// PDF editor layer, at the page and highlighted zone of the link (page 1 for
+// a whole-resource link); any other file in the RESOURCES panel (see
+// useOpenResourceRel). The business object is selected first: the properties
+// panel and the "Lier à" target of the viewer follow it.
 export default function useOpenBusinessObjectDocumentLink() {
   const dispatch = useDispatch();
+  const openResourceRel = useOpenResourceRel();
 
   // strings
 
@@ -42,17 +39,6 @@ export default function useOpenBusinessObjectDocumentLink() {
         listingId: businessObject.listingId,
       })
     );
-    if (isWholeResourceRel(rel)) {
-      dispatch(setSelectedResourceId(resource.id));
-    } else {
-      dispatch(
-        openResourceAtPage({
-          resourceId: resource.id,
-          pageNumber: rel.pageNumber,
-          highlightId: rel.id,
-        })
-      );
-    }
-    dispatch(setSelectedMenuItemKey("RESOURCES"));
+    openResourceRel(rel, resource);
   };
 }

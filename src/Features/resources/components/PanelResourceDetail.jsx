@@ -26,6 +26,7 @@ import stringifyFileSize from "Features/files/utils/stringifyFileSize";
 import useResourceFile from "../hooks/useResourceFile";
 import useDeleteResource from "../hooks/useDeleteResource";
 import useReattachResourceFile from "../hooks/useReattachResourceFile";
+import useResourceIsDocument from "../hooks/useResourceIsDocument";
 import ViewerPdfPages from "./ViewerPdfPages";
 import ButtonLinkResourceToBusinessObject from "./ButtonLinkResourceToBusinessObject";
 import getResourceVisibility, {
@@ -33,7 +34,6 @@ import getResourceVisibility, {
 } from "../utils/getResourceVisibility";
 import useResourceVisibilityLabels from "../hooks/useResourceVisibilityLabels";
 import getResourceSecondaryLabel from "../utils/getResourceSecondaryLabel";
-import detectIsPdfDocumentService from "../services/detectIsPdfDocumentService";
 
 const DOCUMENT_TYPE_KEYS = ["DOCUMENT", "PLAN"];
 
@@ -53,6 +53,7 @@ export default function PanelResourceDetail({ resource, onBack }) {
   // data
 
   const { file, loading, fileIsMissing } = useResourceFile(resource);
+  const { isDocument, setIsDocument } = useResourceIsDocument(resource, file);
   const deleteResource = useDeleteResource();
   const reattachResourceFile = useReattachResourceFile();
   const selectedScopeId = useSelector((s) => s.scopes.selectedScopeId);
@@ -73,22 +74,10 @@ export default function PanelResourceDetail({ resource, onBack }) {
   const [menuAnchorEl, setMenuAnchorEl] = useState(null);
   const [reattaching, setReattaching] = useState(false);
   const [openDelete, setOpenDelete] = useState(false);
-  // {resourceId, isDocument}: detection result for a legacy row
-  const [detected, setDetected] = useState(null);
 
   // helpers
 
   const isPdf = resource.fileType === "PDF";
-  // PDF pages kept as base map sources are plans by construction.
-  const isBaseMapSource =
-    resource.kind === "PDF_PAGE" || resource.kind === "PDF_SOURCE";
-  const needsDetection =
-    isPdf && !isBaseMapSource && typeof resource.isDocument !== "boolean";
-  const isDocument =
-    isPdf &&
-    (typeof resource.isDocument === "boolean"
-      ? resource.isDocument
-      : detected?.resourceId === resource.id && detected.isDocument);
   const documentTypeOptions = DOCUMENT_TYPE_KEYS.map((key) => ({
     key,
     label: documentTypeLabels[key],
@@ -127,34 +116,10 @@ export default function PanelResourceDetail({ resource, onBack }) {
     };
   }, [imageUrl]);
 
-  // Rows created before the isDocument field: detect at first opening. The
-  // result is used right away; persisting is best effort (a resource can
-  // only be updated by its creator).
-  useEffect(() => {
-    if (!needsDetection || !file) return;
-    let cancelled = false;
-    (async () => {
-      const value = await detectIsPdfDocumentService({ file });
-      if (cancelled) return;
-      setDetected({ resourceId: resource.id, isDocument: value });
-      try {
-        await db.resources.update(resource.id, { isDocument: value });
-      } catch (e) {
-        console.warn("[resources] isDocument not persisted", e);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [needsDetection, file, resource.id]);
-
   // handlers
 
   async function handleDocumentTypeChange(next) {
-    const value = next === "DOCUMENT";
-    if (value === isDocument) return;
-    setDetected({ resourceId: resource.id, isDocument: value });
-    await db.resources.update(resource.id, { isDocument: value });
+    await setIsDocument(next === "DOCUMENT");
   }
 
   function handleDelete() {

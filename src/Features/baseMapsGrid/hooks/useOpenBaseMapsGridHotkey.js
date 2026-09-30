@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useSelector } from "react-redux";
 
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
+import { selectPdfEditorOpen } from "Features/pdfEditor/pdfEditorSlice";
 
 import isEditableTarget from "../utils/isEditableTarget";
 
@@ -14,12 +15,19 @@ export const BASE_MAPS_GRID_HOTKEY = "G";
 export default function useOpenBaseMapsGridHotkey({ enabled, onOpen }) {
   const effectiveKey = useSelector(selectEffectiveViewerKey);
   const enabledDrawingMode = useSelector((s) => s.mapEditor.enabledDrawingMode);
+  // The PDF editor layer covers the editor: no grid underneath it.
+  const pdfEditorOpen = useSelector(selectPdfEditorOpen);
 
   const is2dEditorDisplayed =
     effectiveKey === "MAP" || effectiveKey === "BASE_MAPS";
 
   useEffect(() => {
-    if (!enabled || !is2dEditorDisplayed || enabledDrawingMode) {
+    if (
+      !enabled ||
+      !is2dEditorDisplayed ||
+      enabledDrawingMode ||
+      pdfEditorOpen
+    ) {
       return undefined;
     }
 
@@ -33,5 +41,5 @@ export default function useOpenBaseMapsGridHotkey({ enabled, onOpen }) {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [enabled, is2dEditorDisplayed, enabledDrawingMode, onOpen]);
+  }, [enabled, is2dEditorDisplayed, enabledDrawingMode, pdfEditorOpen, onOpen]);
 }

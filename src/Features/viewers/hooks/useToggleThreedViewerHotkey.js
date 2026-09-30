@@ -4,6 +4,7 @@ import { useSelector } from "react-redux";
 import useToggleModuleEditor from "./useToggleModuleEditor";
 import useViewers from "./useViewers";
 import useTogglePovViewerMode from "Features/pov/hooks/useTogglePovViewerMode";
+import { selectPdfEditorOpen } from "Features/pdfEditor/pdfEditorSlice";
 
 const isEditableTarget = (el) => {
   if (!el) return false;
@@ -31,9 +32,12 @@ export default function useToggleThreedViewerHotkey() {
     viewers.find((v) => v.key === selectedViewerKey)?.editors?.length > 1;
   const enabledDrawingMode = useSelector((s) => s.mapEditor.enabledDrawingMode);
   const walkModeActive = useSelector((s) => s.threedEditor.walkMode.active);
+  const pdfEditorOpen = useSelector(selectPdfEditorOpen);
 
   useEffect(() => {
     if (enabledDrawingMode) return undefined;
+    // The PDF editor layer covers the editor: no toggle underneath it.
+    if (pdfEditorOpen) return undefined;
     // Walk mode owns the keyboard (arrows, Space, W to exit).
     if (walkModeActive) return undefined;
 
@@ -60,6 +64,7 @@ export default function useToggleThreedViewerHotkey() {
     return () => window.removeEventListener("keydown", handleKeyDown, true);
   }, [
     enabledDrawingMode,
+    pdfEditorOpen,
     walkModeActive,
     selectedViewerKey,
     hasEditorToggle,

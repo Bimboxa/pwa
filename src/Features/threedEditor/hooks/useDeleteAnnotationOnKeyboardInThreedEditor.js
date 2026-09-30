@@ -10,6 +10,7 @@ import { triggerSelectionBack } from "Features/selection/selectionSlice";
 import useAnnotationPermissions from "Features/mapEditor/hooks/useAnnotationPermissions";
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
+import { selectPdfEditorOpen } from "Features/pdfEditor/pdfEditorSlice";
 
 export default function useDeleteAnnotationOnKeyboardInThreedEditor({
   annotations,
@@ -25,6 +26,8 @@ export default function useDeleteAnnotationOnKeyboardInThreedEditor({
         return;
 
       const state = store.getState();
+      // The PDF editor layer covers the editor: nothing to delete under it.
+      if (selectPdfEditorOpen(state)) return;
       // Effective key, not the raw module key: the shortcut follows the
       // editor actually displayed (e.g. the Dessin module toggled to 3D).
       if (!isThreedFamilyViewerKey(selectEffectiveViewerKey(state))) return;

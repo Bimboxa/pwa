@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState, useImperativeHandle, forwardRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 
-import { useDispatch, useSelector } from 'react-redux';
+import { useDispatch, useSelector, useStore } from 'react-redux';
 import { nanoid } from '@reduxjs/toolkit';
 
 import { useInteraction } from '../context/InteractionContext';
@@ -16,6 +16,7 @@ import { setSelectedMenuItemKey } from 'Features/rightPanel/rightPanelSlice';
 import { setAnnotationToolbarPosition, setAnnotationsToolbarPosition } from 'Features/mapEditor/mapEditorSlice';
 import { setImageModeLegendSelected } from 'Features/mapEditor/mapEditorSlice';
 import { selectCaptureFramingActive } from 'Features/viewers/utils/effectiveViewerKey';
+import { selectPdfEditorOpen } from 'Features/pdfEditor/pdfEditorSlice';
 import {
   setPasteClipboard,
   clearPasteClipboard,
@@ -460,6 +461,7 @@ const InteractionLayer = forwardRef(({
 }
   , ref) => {
   const dispatch = useDispatch();
+  const store = useStore();
 
 
 
@@ -3462,6 +3464,9 @@ const InteractionLayer = forwardRef(({
   // --- A. GESTION DES CLAVIERS (Key Listeners) ---
   useEffect(() => {
     const handleKeyDown = async (e) => {
+      // The PDF editor layer covers the editor: its keys (arrows, Delete,
+      // letters...) must not act on the hidden map.
+      if (selectPdfEditorOpen(store.getState())) return;
       // Ignorer si l'utilisateur écrit dans un input texte
       if (['INPUT', 'TEXTAREA'].includes(e.target.tagName)) {
         console.log("Action: Key Pressed while typing");

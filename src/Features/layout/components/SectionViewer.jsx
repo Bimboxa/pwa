@@ -30,6 +30,7 @@ import ButtonSaveCapture from "Features/mapEditor/components/ButtonSaveCapture";
 import AssistantRelayRuntime from "Features/assistantRelay/components/AssistantRelayRuntime";
 import TopBaseMapChipsThreed from "Features/threedEditor/components/TopBaseMapChipsThreed";
 import LayerCreateBaseMap from "Features/mapEditor/components/LayerCreateBaseMap";
+import LayerPdfEditor from "Features/pdfEditor/components/LayerPdfEditor";
 import { selectBaseMapsGridMounted } from "Features/baseMapsGrid/baseMapsGridSlice";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
 import {
@@ -256,6 +257,10 @@ export default function SectionViewer() {
       {/* PLANNING module: time planning overlaying the bottom of the editors
           (the editor keeps its size; see PanelPlanningBottom) */}
       {businessObjectTypeKey === "PLANNING" && <PanelPlanningBottom />}
+
+      {/* PDF editor: layer sliding up over the displayed editor, under the
+          right tools panel (opened by the business objects' document links) */}
+      <LayerPdfEditor />
 
       {/* "Create a base map" fullscreen section: overlay of the editors area
           so it shows over the displayed editor, 2D or 3D (the 2D editors

@@ -6,6 +6,7 @@ import { setCaptureToolActive } from "Features/mapEditor/mapEditorSlice";
 import { selectSubtractPickAnnotationId } from "Features/mapEditor/utils/subtractPickMode";
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
+import { selectPdfEditorOpen } from "Features/pdfEditor/pdfEditorSlice";
 
 import useRightPanelTools from "./useRightPanelTools";
 
@@ -92,6 +93,9 @@ export default function useRightPanelToolHotkeys() {
         isThreedFamilyViewerKey(selectEffectiveViewerKey(s))
       )
         return;
+
+      // The PDF editor layer covers the editor: nothing to frame under it.
+      if (targetKey === "CAPTURE" && selectPdfEditorOpen(s)) return;
 
       const current = s.rightPanel.selectedMenuItemKey;
       if (targetKey === "CAPTURE") {

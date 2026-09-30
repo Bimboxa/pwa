@@ -23,7 +23,8 @@ selectable.
 - A highlight **always** belongs to a business object: one row = the link and
   its zone. No base map, no `db.annotations` row.
 - The business object properties panel lists its document links in a white
-  "Documents" card; a row click opens the document at the page.
+  "Documents" card; a row click opens the document at the page — in the PDF
+  editor layer (`specs/pdfEditor/pdf-editor-layer/spec.md`).
 
 ## Modèle de données (db v40)
 
@@ -63,7 +64,8 @@ detail.
 ## Viewer
 
 `ViewerPdfPages` renders `ViewerPdfDocumentPage` instead of the page image
-when `isDocument`:
+when `isDocument` (the page itself is a `PdfDocumentPageSheet`, shared with
+the PDF editor layer):
 
 - pdfjs canvas fitted to the panel width (× devicePixelRatio), vertical
   scroll; rendered offscreen then copied (no concurrent render on a canvas).
@@ -81,8 +83,12 @@ when `isDocument`:
 - Business objects tree: a hover button on the rows that have links opens
   the document at the highlighted zone (menu when several links) and selects
   the object (`useOpenBusinessObjectDocumentLink`).
-- `openResourceAtPage({resourceId, pageNumber, highlightId})` scrolls to the
-  highlight and flashes it.
+- Document links open PDFs in the **PDF editor layer** (`useOpenResourceRel`:
+  `openPdfEditor({resourceId, pageNumber, highlightId})`), which shows the
+  highlights of every object; other files open in the RESOURCES panel. The
+  panel viewer described here is still used when browsing the resources.
+- `openResourceAtPage({resourceId, pageNumber, highlightId})` (RESOURCES
+  panel) scrolls to the highlight and flashes it.
 
 ## Krto / export / cleanup
 

@@ -9,6 +9,7 @@ import getBaseMapTransform from "Features/baseMaps/js/getBaseMapTransform";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
 import { selectEffectiveViewerKey } from "Features/viewers/utils/effectiveViewerKey";
 import { isThreedFamilyViewerKey } from "Features/viewers/utils/threedViewerKeys";
+import { selectPdfEditorOpen } from "Features/pdfEditor/pdfEditorSlice";
 import { emitShoot } from "Features/threedMesh/services/shootAimStore";
 import {
   pickWorldHitAtNdc,
@@ -86,6 +87,8 @@ export default function useWalkMode() {
       if (e.repeat) return;
       if (isEditableTarget(e.target)) return;
       if (e.key.toLowerCase() !== "w") return;
+      // The PDF editor layer covers the 3D editor: no pointer lock under it.
+      if (selectPdfEditorOpen(store.getState())) return;
 
       const active = store.getState().threedEditor.walkMode.active;
       if (!active) {

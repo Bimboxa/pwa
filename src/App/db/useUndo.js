@@ -1,6 +1,8 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useSelector } from "react-redux";
 
+import { selectPdfEditorOpen } from "Features/pdfEditor/pdfEditorSlice";
+
 import { undo, redo, canUndo, canRedo } from "./undoManager";
 
 export default function useUndo() {
@@ -14,6 +16,14 @@ export default function useUndo() {
   useEffect(() => {
     enabledDrawingModeRef.current = enabledDrawingMode;
   }, [enabledDrawingMode]);
+
+  // While the PDF editor layer covers the editor, CTRL-Z would revert a
+  // write the user cannot see (document links are not undoable anyway).
+  const pdfEditorOpen = useSelector(selectPdfEditorOpen);
+  const pdfEditorOpenRef = useRef(pdfEditorOpen);
+  useEffect(() => {
+    pdfEditorOpenRef.current = pdfEditorOpen;
+  }, [pdfEditorOpen]);
 
   const handleUndo = useCallback(async () => {
     await undo();
@@ -37,6 +47,7 @@ export default function useUndo() {
       }
       // Drawing in progress → InteractionLayer handles CTRL-Z (remove last point).
       if (enabledDrawingModeRef.current) return;
+      if (pdfEditorOpenRef.current) return;
 
       const isMeta = e.metaKey || e.ctrlKey;
       if (isMeta && e.key === "z" && !e.shiftKey) {

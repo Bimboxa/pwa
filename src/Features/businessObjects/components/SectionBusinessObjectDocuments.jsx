@@ -2,11 +2,6 @@ import { useDispatch } from "react-redux";
 import { useLiveQuery } from "dexie-react-hooks";
 
 import { triggerRelsBusinessObjectResourceUpdate } from "../businessObjectsSlice";
-import {
-  openResourceAtPage,
-  setSelectedResourceId,
-} from "Features/resources/resourcesSlice";
-import { setSelectedMenuItemKey } from "Features/rightPanel/rightPanelSlice";
 import { setToaster } from "Features/layout/layoutSlice";
 
 import {
@@ -30,13 +25,16 @@ import useRelsBusinessObjectResource from "../hooks/useRelsBusinessObjectResourc
 import sortDocumentRels from "../utils/sortDocumentRels";
 import isWholeResourceRel from "../utils/isWholeResourceRel";
 import resolveResourceOfRelService from "Features/resources/services/resolveResourceOfRelService";
+import useOpenResourceRel from "Features/pdfEditor/hooks/useOpenResourceRel";
 
 // White card of the business object properties panel listing its links to
 // resources (db.relsBusinessObjectResource): highlighted zones of PDF
-// documents and whole resources. A row click opens the resource (at the
-// page, for a zone) in the RESOURCES panel.
+// documents and whole resources. A row click opens a PDF in the PDF editor
+// layer (at the page and passage, for a zone), any other file in the
+// RESOURCES panel (useOpenResourceRel).
 export default function SectionBusinessObjectDocuments({ businessObjectId }) {
   const dispatch = useDispatch();
+  const openResourceRel = useOpenResourceRel();
 
   // strings
 
@@ -68,19 +66,7 @@ export default function SectionBusinessObjectDocuments({ businessObjectId }) {
   // handlers
 
   function handleOpen(rel, resource) {
-    if (!resource) return;
-    if (isWholeResourceRel(rel)) {
-      dispatch(setSelectedResourceId(resource.id));
-    } else {
-      dispatch(
-        openResourceAtPage({
-          resourceId: resource.id,
-          pageNumber: rel.pageNumber,
-          highlightId: rel.id,
-        })
-      );
-    }
-    dispatch(setSelectedMenuItemKey("RESOURCES"));
+    openResourceRel(rel, resource);
   }
 
   async function handleUnlink(e, rel) {

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import { setTargetPdfPage } from "../resourcesSlice";
@@ -19,19 +19,12 @@ import {
 
 import BoxFlexVStretch from "Features/layout/components/BoxFlexVStretch";
 import SearchBar from "Features/search/components/SearchBar";
-import usePdfDocument from "Features/pdf/hooks/usePdfDocument";
-import usePdfThumbnails from "Features/pdf/hooks/usePdfThumbnails";
-import usePdfPageIntrinsicRotation from "Features/pdf/hooks/usePdfPageIntrinsicRotation";
-import usePdfPageImageUrl from "Features/baseMapCreator/hooks/usePdfPageImageUrl";
-import usePdfPagesText from "Features/detailFolio/hooks/usePdfPagesText";
-import searchPdfPages from "Features/detailFolio/utils/searchPdfPages";
 import ListPdfSearchResults from "Features/detailFolio/components/ListPdfSearchResults";
 
+import usePdfPagesViewerState from "../hooks/usePdfPagesViewerState";
 import ListPdfPages from "./ListPdfPages";
 import ViewerPdfDocumentPage from "./ViewerPdfDocumentPage";
 import SectionAddDetailToBaseMap from "./SectionAddDetailToBaseMap";
-
-const MIN_SEARCH_LENGTH = 2;
 
 // Page-based PDF viewer for the resource detail panel: left column of
 // selectable page thumbnails, main area previewing the selected page with a
@@ -62,69 +55,37 @@ export default function ViewerPdfPages({ resource, file, isDocument }) {
 
   // data
 
-  const { pdfDocument, error: pdfError, progress } = usePdfDocument(file);
-  const numPages = pdfDocument?.numPages ?? 0;
-
-  // state
-
-  const [pageNumber, setPageNumber] = useState(1);
-  const [rotationDelta, setRotationDelta] = useState(0);
-  const [searchText, setSearchText] = useState("");
-  const [flashHighlightId, setFlashHighlightId] = useState(null);
-
   // One-shot navigation target (e.g. "Voir le détail" on a DETAIL
-  // annotation): apply then clear, so a later click on the same page
-  // re-triggers navigation even if the viewer stayed mounted. The target
-  // rotation is absolute (folio convention) → converted to a delta.
+  // annotation), consumed then cleared — see usePdfPagesViewerState.
   const targetPdfPage = useSelector((s) => s.resources.targetPdfPage);
-  useEffect(() => {
-    if (!targetPdfPage || !pdfDocument) return;
-    const targetPageNumber = Math.max(1, targetPdfPage.pageNumber ?? 1);
-    setPageNumber(targetPageNumber);
-    setFlashHighlightId(targetPdfPage.highlightId ?? null);
-    if (typeof targetPdfPage.rotation === "number") {
-      pdfDocument
-        .getPage(targetPageNumber)
-        .then((page) => {
-          const delta = targetPdfPage.rotation - (page.rotate ?? 0);
-          setRotationDelta(((delta % 360) + 360) % 360);
-        })
-        .catch(() => {});
-    }
-    dispatch(setTargetPdfPage(null));
-  }, [targetPdfPage, pdfDocument, dispatch]);
 
-  const { thumbnails } = usePdfThumbnails(pdfDocument, pageNumber);
-  const intrinsicRotation = usePdfPageIntrinsicRotation(
-    pdfDocument,
-    pageNumber
-  );
-  const effectiveRotation =
-    intrinsicRotation == null
-      ? null
-      : (((intrinsicRotation + rotationDelta) % 360) + 360) % 360;
-  const { imageUrl } = usePdfPageImageUrl(
-    isDocument ? null : pdfDocument,
-    pageNumber,
-    effectiveRotation
-  );
-
-  // Lazy text search: pages are indexed only once a real query is typed,
-  // with a module-level cache keyed by resource (same as the folio dialog).
-  const searchEnabled = searchText.trim().length >= MIN_SEARCH_LENGTH;
   const {
-    pagesText,
-    progress: indexProgress,
+    pdfDocument,
+    pdfError,
+    progress,
+    numPages,
+    pageNumber,
+    setPageNumber,
+    rotationDelta,
+    rotate,
+    effectiveRotation,
+    thumbnails,
+    imageUrl,
+    flashHighlightId,
+    flashNonce,
+    searchText,
+    setSearchText,
+    searchEnabled,
+    results,
     isIndexing,
-  } = usePdfPagesText(pdfDocument, {
-    cacheKey: `${resource?.id}:${resource?.fileName}`,
-    enabled: searchEnabled,
+    indexProgress,
+  } = usePdfPagesViewerState({
+    resource,
+    file,
+    isDocument,
+    targetPdfPage,
+    onTargetConsumed: () => dispatch(setTargetPdfPage(null)),
   });
-
-  const results = useMemo(
-    () => searchPdfPages(pagesText, searchText),
-    [pagesText, searchText]
-  );
 
   // Keep the selected thumbnail in view.
   const leftColumnRef = useRef(null);
@@ -132,12 +93,6 @@ export default function ViewerPdfPages({ resource, file, isDocument }) {
     const el = leftColumnRef.current?.querySelector(".Mui-selected");
     el?.scrollIntoView({ block: "nearest" });
   }, [pageNumber]);
-
-  // handlers
-
-  function handleRotate(deltaDeg) {
-    setRotationDelta((r) => (((r + deltaDeg) % 360) + 360) % 360);
-  }
 
   // render - loading / error
 
@@ -263,6 +218,7 @@ export default function ViewerPdfPages({ resource, file, isDocument }) {
               rotation={effectiveRotation}
               rotationDelta={rotationDelta}
               flashHighlightId={flashHighlightId}
+              flashNonce={flashNonce}
             />
           ) : imageUrl ? (
             <img
@@ -301,12 +257,12 @@ export default function ViewerPdfPages({ resource, file, isDocument }) {
               {`${pageS} ${pageNumber} / ${numPages}`}
             </Typography>
             <Tooltip title={rotateCcwS}>
-              <IconButton size="small" onClick={() => handleRotate(-90)}>
+              <IconButton size="small" onClick={() => rotate(-90)}>
                 <RotateLeftIcon fontSize="small" />
               </IconButton>
             </Tooltip>
             <Tooltip title={rotateCwS}>
-              <IconButton size="small" onClick={() => handleRotate(90)}>
+              <IconButton size="small" onClick={() => rotate(90)}>
                 <RotateRightIcon fontSize="small" />
               </IconButton>
             </Tooltip>

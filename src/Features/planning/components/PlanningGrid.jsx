@@ -5,6 +5,7 @@ import { setSelectedSlotId } from "../planningSlice";
 import { setActiveWorkPackageId } from "Features/businessObjects/businessObjectsSlice";
 import { setSelectedItem } from "Features/selection/selectionSlice";
 import { setToaster } from "Features/layout/layoutSlice";
+import { selectPdfEditorOpen } from "Features/pdfEditor/pdfEditorSlice";
 
 import { Box, Typography } from "@mui/material";
 import { Add } from "@mui/icons-material";
@@ -74,6 +75,7 @@ export default function PlanningGrid({
   const { createResource, createSlot, updateSlot, deleteSlot } =
     usePlanningActions();
   const selectedSlotId = useSelector((s) => s.planning.selectedSlotId);
+  const pdfEditorOpen = useSelector(selectPdfEditorOpen);
   const playActive = useSelector((s) => s.planning.playActive);
   const playStep = useSelector((s) => s.planning.playStep);
   const activeWorkPackageId = useSelector(
@@ -98,7 +100,9 @@ export default function PlanningGrid({
   // editor's window-level Delete handler (which would open the
   // delete-annotation dialog) never sees the event.
   useEffect(() => {
-    if (!selectedSlotId) return;
+    // The PDF editor layer covers the planning: its Escape closes the layer,
+    // and Delete must not remove a slot hidden underneath.
+    if (!selectedSlotId || pdfEditorOpen) return;
     function onKey(e) {
       if (e.repeat) return;
       if (isEditableTarget(e.target)) return;
@@ -114,7 +118,7 @@ export default function PlanningGrid({
     }
     window.addEventListener("keydown", onKey, true);
     return () => window.removeEventListener("keydown", onKey, true);
-  }, [selectedSlotId, dispatch, deleteSlot]);
+  }, [selectedSlotId, pdfEditorOpen, dispatch, deleteSlot]);
 
   // helpers
 

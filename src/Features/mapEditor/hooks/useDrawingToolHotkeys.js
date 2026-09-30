@@ -12,6 +12,7 @@ import {
   setRectHasFirstPoint,
 } from "../mapEditorSlice";
 import { setNewAnnotation } from "Features/annotations/annotationsSlice";
+import { selectPdfEditorOpen } from "Features/pdfEditor/pdfEditorSlice";
 
 import {
   getDrawingToolsByShape,
@@ -87,6 +88,8 @@ export default function useDrawingToolHotkeys() {
       if (isEditableTarget(e.target)) return;
 
       const s = store.getState();
+      // The PDF editor layer covers the editor: keep the armed tool as is.
+      if (selectPdfEditorOpen(s)) return;
       const mode = s.mapEditor.enabledDrawingMode;
       if (!mode) return;
 
