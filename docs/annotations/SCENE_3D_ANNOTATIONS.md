@@ -47,6 +47,7 @@ annotation = {
 | What | Where | Ships in the Krto zip |
 |---|---|---|
 | Scan data (geometry chunks + textures) | `db.scene3dAssets` (v41) | never |
+| Height map (2D altimetry, `HEIGHT` row) | `db.scene3dAssets` | never |
 | Top view image | `db.files` | yes (whitelisted in `createKrtoZip`) |
 
 `db.scene3dAssets` is **local only**: every `db.export` (`createKrtoZip`,
@@ -61,6 +62,8 @@ rows of one atlas are read with a key-range query):
   (Uint16), boundsMin, boundsMax, vertexCount, triangleCount }` — one chunk of
   at most 65 535 vertices.
 - `TEXTURE`: `{ format: "BC1", width, height, mipmaps: [{ data, width, height }] }`.
+- `HEIGHT` (key `<sceneId>/h`, one per scan): `{ cols, rows, cellSize, bbox,
+  data (Uint16) }` — see "Altimetry in 2D" below.
 
 The original `.ply` / `.jpg` files are **not kept**: the import converts them.
 On a device that received the annotation through a Krto, the scan data is
@@ -183,6 +186,30 @@ or rotating the scan afterwards leaves it in place.
   (`buildDrawingVertexMarkers`).
 - Not supported: polygons (a face needs coplanar points), rectangles,
   snapping to the scan's own vertices.
+
+## Altimetry in 2D
+
+The 2D editor has an "altimetry under the cursor" mode (Réglages > Altimétrie,
+or the bottom-left button; device preference `mapEditorSettings`): a badge
+follows the pointer with the **absolute altitude** (base map `position.y` +
+height above the plan) of the hovered annotation (`getAnnotationHeightAtPoint`:
+`offsetZ` + per-vertex `offsetBottom` / `offsetTop` interpolated, ramps, walls
+show bottom + top) or of the scan under the pointer.
+
+The scan relief comes from its **height map** (`rasterizeScene3dHeightMap`):
+a top-down grid holding, per cell, the highest surface of the mesh — what the
+projection shows. Orientation = the top view (column 0 = bbox min X, row 0 =
+bbox max Y); `cellSize` = 1 cm capped so the longest side is ≤ 2048 cells (a
+50 m scan → 2.5 cm); values quantized on `[bbox.min.z, bbox.max.z]`, `0` =
+empty. It is rasterized **at import**, in the worker, chunk by chunk (the
+bbox is final after the vertex pass, `onBbox`), and stored as the `HEIGHT`
+row. `scene3dHeightMapStore` serves it (kept for the life of the page); a
+scan imported before the height maps existed is rebuilt once from its
+`GEOMETRY` rows (same worker, `buildHeightMap`) and stored. Without scan data
+on the device: `MISSING`, no relief. `usePrepareScene3dHeightMaps` warms the
+maps up when the mode is on; the per-move lookup (`getScene3dHeightAtPx`:
+px → un-rotated bbox → scan frame → cell) is O(1) and drives the badge
+imperatively (`CursorAltitudeBadge`, no React render per move).
 
 The camera range follows the scans: "Distance de vue max" (Configuration >
 Éditeur 3D, `constants/viewDistances.js`) defaults to `AUTO`, which widens the

@@ -235,6 +235,10 @@ const mapEditorInitialState = {
   // 2D editor settings (transient UI preferences).
   // Multiplier applied to the vertex handle size in NodePolylineStatic.
   vertexSizeMultiplier: 1,
+  // Altimetry under the cursor: a badge following the pointer with the
+  // altitude of the hovered annotation / SCENE_3D scan (persisted on the
+  // device, see editorSettingsLocalStorage).
+  cursorAltitudeEnabled: false,
 
   // EDIT / no-mode: preserve joint angles (rectangles stay rectangles) during
   // vertex / segment drags. Toggled by the global padlock shown with the
@@ -768,6 +772,9 @@ export const mapEditorSlice = createSlice({
     setVertexSizeMultiplier: (state, action) => {
       state.vertexSizeMultiplier = action.payload;
     },
+    setCursorAltitudeEnabled: (state, action) => {
+      state.cursorAltitudeEnabled = Boolean(action.payload);
+    },
     setAnglesLocked: (state, action) => {
       state.anglesLocked = Boolean(action.payload);
     },
@@ -1043,6 +1050,7 @@ export const {
   // ortho snap
   setOrthoSnapAngleOffset,
   setVertexSizeMultiplier,
+  setCursorAltitudeEnabled,
   setAnglesLocked,
   setShowSegmentCotes,
   setSegmentDragEnabled,

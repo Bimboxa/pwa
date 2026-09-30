@@ -12,15 +12,23 @@ export function getScene3dTextureId(sceneId, atlasIndex) {
   return `${sceneId}/t/${pad(atlasIndex, 4)}`;
 }
 
+// Height map of the scan (one row per scene, see rasterizeScene3dHeightMap).
+export function getScene3dHeightId(sceneId) {
+  return `${sceneId}/h`;
+}
+
 // [lower, upper] bounds of the geometry keys of one atlas.
 export function getScene3dGeometryIdRange(sceneId, atlasIndex) {
   const prefix = `${sceneId}/g/${pad(atlasIndex, 4)}/`;
   return [prefix, `${prefix}￿`];
 }
 
-// → {kind: "GEOMETRY" | "TEXTURE", atlasIndex} | null
+// → {kind: "GEOMETRY" | "TEXTURE", atlasIndex} | {kind: "HEIGHT",
+//   atlasIndex: null} | null
 export function parseScene3dAssetId(id) {
   const parts = String(id).split("/");
+  if (parts.length === 2 && parts[1] === "h")
+    return { kind: "HEIGHT", atlasIndex: null };
   if (parts.length < 3) return null;
   const kind =
     parts[1] === "g" ? "GEOMETRY" : parts[1] === "t" ? "TEXTURE" : null;

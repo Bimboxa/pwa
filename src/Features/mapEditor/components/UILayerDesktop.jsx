@@ -12,6 +12,7 @@ import ButtonAutoLayoutLabels from "Features/tools/components/ButtonAutoLayoutLa
 import ButtonRunningTransform from "Features/baseMapTransforms/components/ButtonRunningTransform";
 import SelectorMapEditorMode from "./SelectorMapEditorMode";
 import SelectorOrthoSnap from "./SelectorOrthoSnap";
+import ButtonToggleCursorAltitude from "./ButtonToggleCursorAltitude";
 import SelectorDrawingPanel from "./SelectorDrawingPanel";
 import DialogCalibration2D from "./DialogCalibration2D";
 import ButtonToggleThreedViewer from "Features/viewers/components/ButtonToggleThreedViewer";
@@ -98,6 +99,7 @@ export default function UILayerDesktop({ mapController, onResetCamera, viewport 
                 }}
             >
                 <SelectorOrthoSnap />
+                <ButtonToggleCursorAltitude />
                 <ButtonEditScaleVariantFirst size="small" />
             </Box>}
 

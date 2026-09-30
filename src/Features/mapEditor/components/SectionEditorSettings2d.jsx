@@ -11,6 +11,7 @@ import { triggerAnnotationsUpdate } from "Features/annotations/annotationsSlice"
 
 import purgeDeletedAnnotationsService from "Features/annotations/services/purgeDeletedAnnotationsService";
 import useMainBaseMap from "Features/mapEditor/hooks/useMainBaseMap";
+import useCursorAltitudeToggle from "Features/mapEditor/hooks/useCursorAltitudeToggle";
 
 import {
   Box,
@@ -40,6 +41,8 @@ export default function SectionEditorSettings2d() {
     (s) => s.mapEditor.clippingPlanEnabled
   );
   const clippingPlan = useSelector((s) => s.mapEditor.clippingPlan);
+  const { enabled: cursorAltitudeEnabled, setEnabled: setCursorAltitude } =
+    useCursorAltitudeToggle();
 
   // state
 
@@ -121,6 +124,33 @@ export default function SectionEditorSettings2d() {
             onChange={handleToggleClippingPlan}
           />
         </Box>
+      </Card>
+
+      <Card variant="outlined" sx={{ p: 1.5, mb: 1.5 }}>
+        <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
+          Altimétrie
+        </Typography>
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            py: 0.25,
+          }}
+        >
+          <Typography variant="body2" color="text.secondary">
+            {"Afficher l'altitude sous le curseur"}
+          </Typography>
+          <Switch
+            size="small"
+            checked={cursorAltitudeEnabled}
+            onChange={(e) => setCursorAltitude(e.target.checked)}
+          />
+        </Box>
+        <Typography variant="caption" color="text.secondary">
+          Altitude absolue (Z du fond de plan + hauteur) des annotations et du
+          relief des scans 3D survolés.
+        </Typography>
       </Card>
 
       <Card variant="outlined" sx={{ p: 1.5, mb: 1.5 }}>

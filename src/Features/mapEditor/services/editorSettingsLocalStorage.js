@@ -43,3 +43,14 @@ export function saveVertexSizeMultiplier(multiplier) {
     : DEFAULT_VERTEX_MULTIPLIER;
   writeStore(store);
 }
+
+// Altimetry under the cursor (CursorAltitudeBadge), off by default.
+export function loadCursorAltitudeEnabled() {
+  return readStore().cursorAltitudeEnabled === true;
+}
+
+export function saveCursorAltitudeEnabled(enabled) {
+  const store = readStore();
+  store.cursorAltitudeEnabled = Boolean(enabled);
+  writeStore(store);
+}
