@@ -24,6 +24,7 @@ import commitDrawnMesh3dPathService from "Features/annotationMesh3d/services/com
 import commitDrawnFaceService from "../services/commitDrawnFaceService";
 import commitDrawnPolylineService from "../services/commitDrawnPolylineService";
 import { getLastSnap } from "../services/lastSnapStore";
+import chainDrawnPath from "../utils/chainDrawnPath";
 import computeRectangleCorners from "../utils/computeRectangleCorners";
 import computeRectangleCornersOnPlane from "../utils/computeRectangleCornersOnPlane";
 import detectClosedFace from "../utils/detectClosedFace";
@@ -35,8 +36,7 @@ import { isMesh3dDraft } from "../utils/templateFaceDrawSelectors";
 // MainThreedEditor's selection click vs lasso disambiguation.
 const DRAG_THRESHOLD_PX = 4;
 
-// Two drawn points closer than this (m) are the same point — a click back on
-// the first vertex closes the contour.
+// Two drawn points closer than this (m) are the same point.
 const SAME_POINT_EPS_M = 1e-4;
 
 // Wires click + key handlers for the 3D drawing mode. A vertex is committed
@@ -58,8 +58,11 @@ const SAME_POINT_EPS_M = 1e-4;
 // does not become an annotation of its own. As soon as it cuts the face it
 // lies on — boundary to boundary, or back on its first point — that face is
 // split inside the annotation's mesh (commitDrawnMesh3dPathService); a closed
-// contour away from any face creates a flat mesh annotation. Escape cancels
-// the path instead of committing it.
+// contour away from any face creates a flat mesh annotation. Both line tools
+// work: "Polyligne clic" chains the points, "Segment (2 clics)" draws one
+// segment at a time. A segment (or a path ended with Enter) that cuts nothing
+// yet stays on screen as a trait and is chained with the next ones
+// (chainDrawnPath). Escape cancels the path instead of committing it.
 export default function useDrawingPointerHandlers() {
   const dispatch = useDispatch();
 
@@ -143,9 +146,15 @@ export default function useDrawingPointerHandlers() {
       return isMesh3dDraft(newAnnotationRef.current);
     }
 
-    // Mesh drawing commit: true when the path split a face or created a
-    // sheet (the path is consumed), false to keep drawing.
-    async function commitMeshPath(vertices, closed) {
+    // Mesh drawing commit of the drawn points, chained with the traits they
+    // connect to: true when the chain split a face or created a sheet (path
+    // and traits are consumed), false to keep drawing.
+    async function commitMeshPath(drawn) {
+      const { vertices, closed, usedTraits } = chainDrawnPath(
+        drawn,
+        trait3DSegments
+      );
+      if (vertices.length < 2) return false;
       try {
         const result = await commitDrawnMesh3dPathService({
           editor,
@@ -163,7 +172,9 @@ export default function useDrawingPointerHandlers() {
         console.log(
           `[threedDrawing] mesh path committed: ${result.kind} ${result.annotation.id}`
         );
-        finishCommit();
+        // Drops the chained traits AND the in-progress path.
+        dispatch(consumeFaceSegments(usedTraits));
+        setTimeout(() => dispatch(bumpSnapIndexEpoch()), 350);
         return true;
       } catch (err) {
         console.error("[threedDrawing] mesh path commit failed", err);
@@ -230,7 +241,7 @@ export default function useDrawingPointerHandlers() {
           ...(anchor.nodeId ? { nodeId: anchor.nodeId } : {}),
           ...(anchor.baseMapId ? { baseMapId: anchor.baseMapId } : {}),
         }));
-        const committed = await commitMeshPath(vertices, true);
+        const committed = await commitMeshPath([...vertices, vertices[0]]);
         if (!committed) {
           console.warn("[threedDrawing] rectangle split nothing: cancelled");
           dispatch(cancelInProgressPolyline());
@@ -239,26 +250,34 @@ export default function useDrawingPointerHandlers() {
       }
 
       const newVertex = toDrawingVertex(snap);
-      const first = inProgressPolyline[0];
-      const closes =
-        inProgressPolyline.length >= 3 &&
-        Math.hypot(
-          first.x - newVertex.x,
-          first.y - newVertex.y,
-          first.z - newVertex.z
-        ) < SAME_POINT_EPS_M;
-      if (closes) {
-        // Back on the first point: closed contour. A contour that commits
-        // nothing stays as drawn (Escape discards it).
-        await commitMeshPath(inProgressPolyline, true);
+      const isSame = (p, q) =>
+        Math.hypot(p.x - q.x, p.y - q.y, p.z - q.z) < SAME_POINT_EPS_M;
+      const last = inProgressPolyline[inProgressPolyline.length - 1];
+      if (last && isSame(last, newVertex)) return; // double click
+
+      if (inProgressPolyline.length === 0) {
+        dispatch(pushDrawingVertex(newVertex));
         return;
       }
-      const nextPolyline = [...inProgressPolyline, newVertex];
-      if (nextPolyline.length >= 2) {
-        const committed = await commitMeshPath(nextPolyline, false);
-        if (committed) return;
-      }
+
+      // A click back on the first point closes the contour (chainDrawnPath
+      // reads the repeated point as the closure).
+      const closes =
+        inProgressPolyline.length >= 3 &&
+        isSame(inProgressPolyline[0], newVertex);
+      const committed = await commitMeshPath([
+        ...inProgressPolyline,
+        newVertex,
+      ]);
+      if (committed) return;
+      // A closed contour that commits nothing stays as drawn (Escape
+      // discards it).
+      if (closes) return;
+
       dispatch(pushDrawingVertex(newVertex));
+      // "Segment (2 clics)": the segment ends here. It cut nothing yet — keep
+      // it as a trait, the next segments chain with it.
+      if (behavior === "SEGMENT") dispatch(flushInProgressAsTrait3D());
     }
 
     function warnIfOffMainBaseMap(created) {
@@ -511,10 +530,16 @@ export default function useDrawingPointerHandlers() {
       if (["INPUT", "TEXTAREA"].includes(e.target?.tagName)) return;
       if (isMeshDraw()) {
         if (e.key === "Enter") {
-          // Enter closes the contour (like a click back on the first point).
-          if (behavior !== "RECTANGLE" && inProgressPolyline.length >= 3) {
-            await commitMeshPath(inProgressPolyline, true);
-          }
+          if (behavior === "RECTANGLE" || inProgressPolyline.length < 2) return;
+          // Enter closes the contour (like a click back on the first point)…
+          const committed =
+            inProgressPolyline.length >= 3 &&
+            (await commitMeshPath([
+              ...inProgressPolyline,
+              inProgressPolyline[0],
+            ]));
+          // …else ends the path there: kept as traits, to be chained.
+          if (!committed) dispatch(flushInProgressAsTrait3D());
         } else if (e.key === "Escape") {
           if (inProgressPolyline.length > 0) {
             dispatch(cancelInProgressPolyline());

@@ -280,6 +280,7 @@ export default function DrawingOverlayThreed() {
         )
       : null;
     const raycaster = new Raycaster();
+    const traitPoints = trait3DSegments.flatMap((seg) => [seg.a, seg.b]);
 
     function getRectangleCorners(position) {
       if (anchorNormal) {
@@ -465,7 +466,13 @@ export default function DrawingOverlayThreed() {
         lastVertex: anchor
           ? undefined
           : inProgressPolyline[inProgressPolyline.length - 1],
-        inProgressPolyline: anchor ? [] : inProgressPolyline,
+        // Mesh drawing: the ends of the traits already drawn are snap
+        // targets too — the next segment chains with them.
+        inProgressPolyline: anchor
+          ? []
+          : isMeshDraw
+            ? [...traitPoints, ...inProgressPolyline]
+            : inProgressPolyline,
         findNearestVertex: (mNdc, cam, sz) => findNearestSnap(mNdc, cam, sz),
         findNearestEdge: (mNdc, cam, sz) =>
           findNearestEdgeSnap(getMeshAdjacency(), mNdc, cam, sz),
@@ -502,6 +509,7 @@ export default function DrawingOverlayThreed() {
     active,
     findNearestSnap,
     inProgressPolyline,
+    trait3DSegments,
     enabledDrawingMode,
     baseMaps,
     mainBaseMapId,
