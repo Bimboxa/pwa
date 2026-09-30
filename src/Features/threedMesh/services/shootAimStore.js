@@ -2,7 +2,8 @@
 // ShootLanceOverlayThreed DOM overlay (HUD + weapon image). Walk-local,
 // ephemeral state — reseeded on every walk entry, so it lives here rather
 // than in Redux (written at 10 Hz by the aim poll, single consumer):
-// - `tool`: the active walk tool (WALK_TOOLS) — O switches;
+// - `tool`: the active walk tool (WALK_TOOLS, laser meter by default) — O
+//   switches;
 // - `firingUntil` drives the weapon recoil/shake animation (far ahead while
 //   Space is held with the lance, reset on release);
 // - `jetMode` + `spreadDeg` feed the nozzle HUD readout (B / + / - tuning);
@@ -11,10 +12,12 @@
 //   (pending first point, live length from it to the crosshair, number of
 //   committed measures).
 
-export const WALK_TOOLS = ["LANCE", "MEASURE"];
+// Order of the HUD tabs; the first one is the default tool on walk entry.
+export const WALK_TOOLS = ["MEASURE", "LANCE"];
+export const DEFAULT_WALK_TOOL = WALK_TOOLS[0];
 
 const INITIAL_STATE = {
-  tool: "LANCE",
+  tool: DEFAULT_WALK_TOOL,
   firingUntil: 0,
   jetMode: null,
   spreadDeg: null,

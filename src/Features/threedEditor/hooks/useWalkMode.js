@@ -16,6 +16,7 @@ import {
   getScene3dHeightMap,
 } from "Features/scene3d/services/scene3dHeightMapStore";
 import {
+  DEFAULT_WALK_TOOL,
   emitShoot,
   resetShoot,
 } from "Features/threedMesh/services/shootAimStore";
@@ -192,9 +193,9 @@ export default function useWalkMode() {
     });
     const measure = createWalkMeasureController({ sceneManager, editor });
 
-    // Walk tool, walk-local (resets to the lance on every entry). Mirrored
-    // into the shootAimStore for the HUD / weapon image.
-    let tool = "LANCE";
+    // Walk tool, walk-local (resets to the laser meter on every entry).
+    // Mirrored into the shootAimStore for the HUD / weapon image.
+    let tool = DEFAULT_WALK_TOOL;
 
     // Seed the HUD (ShootLanceOverlayThreed) before any key press.
     resetShoot();
